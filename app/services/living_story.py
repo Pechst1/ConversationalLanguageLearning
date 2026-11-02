@@ -4721,7 +4721,7 @@ TEASER_VOICES: dict[str, dict[str, str]] = {
 DEFAULT_TEASER_VOICE = {"tu": "Au fait…", "vous": "Au fait…"}
 _TEASER_FRAMES = {
     "commitment": (
-        {"tu": "Tu n'as pas oublié ? « {text} »", "vous": "Vous n'avez pas oublié ? « {text} »"},
+        {"tu": "Tu n'as pas oublié : « {text} »", "vous": "Vous n'avez pas oublié : « {text} »"},
         {"tu": "Tu as promis, hein : « {text} »", "vous": "Vous avez promis, hein : « {text} »"},
     ),
     # #378: guillemets hold only words somebody said. A planted detail and a season
@@ -4733,6 +4733,23 @@ _TEASER_FRAMES = {
     "thread": (
         {"tu": "Il faudra qu'on en parle. {text}", "vous": "Il faudra qu'on en parle. {text}"},
         {"tu": "Demain, peut-être, on saura. {text}", "vous": "Demain, peut-être, on saura. {text}"},
+    ),
+}
+# #466: a hook ends on ONE question about the open row, so the learner carries something
+# home. A promise and a planted detail are told first and asked about after, in the same
+# variant order as the frames; a season question already is one.
+_TEASER_QUESTIONS = {
+    "commitment": (
+        {"tu": "C'est pour quand ?", "vous": "C'est pour quand ?"},
+        {"tu": "Tu t'en souviens ?", "vous": "Vous vous en souvenez ?"},
+    ),
+    "plant": (
+        {"tu": "Pourquoi, à ton avis ?", "vous": "Pourquoi, à votre avis ?"},
+        {"tu": "Qu'est-ce que ça veut dire ?", "vous": "Qu'est-ce que ça veut dire ?"},
+    ),
+    "thread": (
+        {"tu": "Qu'en penses-tu ?", "vous": "Qu'en pensez-vous ?"},
+        {"tu": "Qu'en penses-tu ?", "vous": "Qu'en pensez-vous ?"},
     ),
 }
 
@@ -4809,14 +4826,26 @@ def teaser_grounded(text: str, ref: str | None, candidates: list[dict]) -> bool:
     return len(needed & _words(text)) >= min(2, len(needed))
 
 
+def _told(text: str) -> str:
+    """``text`` as a finished sentence: a clipped detail may end on no mark at all."""
+
+    line = text.rstrip()
+    return line if line.endswith((".", "!", "?", "…", "»")) else f"{line}."
+
+
 def compose_teaser(
     candidate: dict, *, character_id: str | None, register: str, variant: int = 0
 ) -> str:
+    """The voice, the frame, the open row's own words and ONE closing question (#466)."""
+
     voice = TEASER_VOICES.get(str(character_id or ""), DEFAULT_TEASER_VOICE)
     key = "tu" if register == "tu" else "vous"
-    frames = _TEASER_FRAMES[candidate["kind"]]
-    frame = frames[int(variant) % len(frames)][key]
-    return f"{voice[key]} {frame.format(text=_clip_quote(candidate['text_fr']))}"
+    index = int(variant) % len(_TEASER_FRAMES[candidate["kind"]])
+    frame = _TEASER_FRAMES[candidate["kind"]][index][key]
+    line = f"{voice[key]} {frame.format(text=_clip_quote(candidate['text_fr']))}"
+    if line.rstrip().endswith("?"):
+        return line  # a season question is already the question
+    return f"{_told(line)} {_TEASER_QUESTIONS[candidate['kind']][index][key]}"
 
 
 def _days_between(earlier: str | None, later: str | None) -> int | None:
@@ -4886,6 +4915,9 @@ def next_teaser(
             "date": today,
             "ref": row["ref"],
             "kind": row["kind"],
+            # #466: the open row's own words, so «Tomorrow» prints the fact and no
+            # surface cuts the voice opener out of the prose to stand for it.
+            "open_fr": _clip_quote(row["text_fr"]),
         }
     return None
 

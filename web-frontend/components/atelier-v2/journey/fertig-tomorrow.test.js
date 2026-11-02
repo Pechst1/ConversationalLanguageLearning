@@ -218,3 +218,22 @@ test('with no teaser the Done screen shows no empty «Tomorrow» label', () => {
   const envelope = envelopeOf('en', recapOf({ teaser: null, next_teaser_fr: null }));
   assert.doesNotMatch(fertig(envelope), /data-tomorrow/);
 });
+
+// #466 (live walk 2 Nov): Home and Done ended on «Tomorrow · Dis, j'y repense…», the voice
+// opener of the hook, because the hint was cut from the prose. The hook now names its open
+// fact (`open_fr`) and the line prints that, never the first words of the hook.
+const WALK_HOOK =
+  "Dis, j'y repense… C'est peut-être un signe. Je repense à ce détail. Marin pose une petite bouillotte rouge près du radiateur. Pourquoi, à ton avis ?";
+const WALK_OPEN = 'Marin pose une petite bouillotte rouge près du radiateur.';
+
+test('«Tomorrow» is the open fact, not the first words of the hook (#466)', () => {
+  const recap = recapOf({
+    teaser: { text_fr: WALK_HOOK, character_id: 'marin_leveque', character_name: 'Marin', source: 'engine', open_fr: WALK_OPEN },
+    next_teaser_fr: WALK_HOOK,
+  });
+  const envelope = envelopeOf('en', recap);
+  const onHome = hintOf(homeCard(envelope));
+  assert.equal(onHome, 'Marin pose une petite bouillotte rouge près du radiateur');
+  assert.ok(!WALK_HOOK.startsWith(onHome), 'the line is not a prefix of the hook');
+  assert.ok(textOf(fertig(envelope)).includes(onHome), 'the Done screen prints the same line');
+});

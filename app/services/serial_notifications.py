@@ -437,7 +437,8 @@ def engine_teaser(db: Session, user: User) -> dict[str, str] | None:
     teaser = live.get("next_teaser")
     if isinstance(teaser, dict) and _compact(teaser.get("text_fr")):
         return {
-            "text_fr": _compact(teaser.get("text_fr"), 160),
+            # The hook ends on its question (#466): a shorter clip would cut the question off.
+            "text_fr": _compact(teaser.get("text_fr"), 260),
             "character_id": str(teaser.get("character_id") or ""),
             "character_name": str(teaser.get("character_name") or ""),
             # WP-99: the story writes ``date`` with the teaser; kept for the push.
