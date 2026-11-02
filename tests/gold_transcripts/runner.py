@@ -446,6 +446,13 @@ def parse_verdicts(surface: str, content: str) -> dict[str, tuple[str, str]]:
 # ---------------------------------------------------------------------------
 
 
+def criterion_of(surface: str, key: str) -> str:
+    """The criterion a verdict is about: a day keeps its verdicts per act
+    (``<role>.<criterion>``), every other surface by the criterion alone."""
+
+    return key.partition(".")[2] if surface == DAY_SURFACE else key
+
+
 def act_scores(verdicts: dict[str, tuple[str, str]]) -> dict[str, float | None]:
     """A day's score per act: a written act's page score over the questions asked of it
     (an unrated question earns nothing), a dropped act or a lost page 0."""
@@ -675,8 +682,9 @@ def rejudge(
     result: dict, *, judge_client: Any, judge_model: str, progress: Callable[[str], None] | None = None
 ) -> dict:
     """The same app answers scored by another judge: every judged item of ``result`` is
-    asked again, the deterministic checks and the fallbacks stay as they were. This is how
-    a judge change is calibrated before it replaces the old one."""
+    asked again, the deterministic checks (a day's for each act, a dropped one's too) and
+    the fallbacks stay as they were. This is how a judge change is calibrated before it
+    replaces the old one."""
 
     rows_out: dict[str, list[dict]] = {}
     for surface, rows in result["items"].items():
@@ -693,7 +701,7 @@ def rejudge(
                 row.update(status="not_run", reason="spending cap reached")
                 rows_out[surface].append(row)
                 continue
-            verdicts = {cid: tuple(v) for cid, v in row["verdicts"].items() if cid in checked}
+            verdicts = {key: tuple(v) for key, v in row["verdicts"].items() if criterion_of(surface, key) in checked}
             try:
                 verdicts.update(judge_item(judge_client, surface, item, row["output"], model=judge_model))
             except Exception as exc:  # noqa: BLE001 - one failed judgement must not stop the rest
@@ -714,25 +722,30 @@ def rejudge(
 
 def judge_agreement(a: dict, b: dict) -> dict[str, dict]:
     """Per surface: both scores and how often the two judges gave the same verdict on
-    the same judged criterion of the same answer (pass/fail/na)."""
+    the same judged criterion of the same answer (pass/fail/na); on a day, of the same act."""
 
     report: dict[str, dict] = {}
     for surface, rows_a in a["items"].items():
         rows_b = {row["id"]: row for row in b["items"].get(surface, [])}
+        asked = [criterion.id for criterion in judged(surface)]
         same = total = 0
         flips: list[str] = []
         for row in rows_a:
             other = rows_b.get(row["id"])
             if not other or row["status"] != "scored" or other["status"] != "scored" or row.get("failure"):
                 continue
-            for criterion in judged(surface):
-                va = (row["verdicts"].get(criterion.id) or ("na", ""))[0]
-                vb = (other["verdicts"].get(criterion.id) or ("na", ""))[0]
+            # A day's questions are asked of each act it wrote, in play order.
+            keys = asked if surface != DAY_SURFACE else list(dict.fromkeys(
+                key for key in (*row["verdicts"], *other["verdicts"]) if criterion_of(surface, key) in asked
+            ))
+            for key in keys:
+                va = (row["verdicts"].get(key) or ("na", ""))[0]
+                vb = (other["verdicts"].get(key) or ("na", ""))[0]
                 total += 1
                 if va == vb:
                     same += 1
                 else:
-                    flips.append(f"{row['id']} {criterion.id}: {va}→{vb}")
+                    flips.append(f"{row['id']} {key}: {va}→{vb}")
         report[surface] = {
             "score_a": a["surfaces"][surface]["score"], "score_b": b["surfaces"][surface]["score"],
             "agreement": round(same / total, 3) if total else None, "verdicts": total, "flips": flips,

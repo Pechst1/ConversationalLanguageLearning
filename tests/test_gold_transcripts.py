@@ -561,7 +561,10 @@ def test_a_day_is_judged_act_by_act_and_a_later_act_against_the_first(plan_then_
     assert entry["criteria"] == criteria_version([DAY_SURFACE])
 
 
-def test_a_dropped_act_scores_zero_and_the_night_writes_none_after_it(plan_then_write, monkeypatch):
+@pytest.fixture
+def le_soir_dropped(plan_then_write, monkeypatch):
+    """The act critic refuses «Le soir» on its first reading, so the night drops it."""
+
     from app.services import living_story as engine
 
     drafted = engine.draft_later_act
@@ -572,6 +575,9 @@ def test_a_dropped_act_scores_zero_and_the_night_writes_none_after_it(plan_then_
         return drafted(act_context, **kwargs)
 
     monkeypatch.setattr(engine, "draft_later_act", critic_refuses_le_soir)
+
+
+def test_a_dropped_act_scores_zero_and_the_night_writes_none_after_it(le_soir_dropped):
     client = DayWriter()
     result = R.run([DAY_SURFACE], client=client, ids=["d-b1-g4.4"])
 
@@ -587,6 +593,49 @@ def test_a_dropped_act_scores_zero_and_the_night_writes_none_after_it(plan_then_
     lines = "\n".join(R.day_lines(result["surfaces"][DAY_SURFACE]))
     assert "| Le soir | dropped 1: dropped: story_critic_refused |" in lines
     assert "| À côté | not written: the act before it was dropped" in lines
+
+
+def test_rejudging_a_day_keeps_its_dropped_act_at_zero(le_soir_dropped):
+    before = R.run([DAY_SURFACE], client=DayWriter(), ids=["d-b1-g4.4"])
+    judge = DayWriter()
+    after = R.rejudge(before, judge_client=judge, judge_model=R.PAGE_JUDGE)
+
+    [was], [row] = before["items"][DAY_SURFACE], after["items"][DAY_SURFACE]
+    assert judge.judged == [R.PAGE_JUDGE], "only «Le fil» is read again"
+    assert row["verdicts"]["soir.served"] == was["verdicts"]["soir.served"] and row["verdicts"]["fil.served"][0] == "pass"
+    # The same ratings from another reading leave the day as it was, the dropped act at 0.
+    assert row["score"] == was["score"] == pytest.approx(0.65 / 2)
+    assert after["surfaces"][DAY_SURFACE]["score"] == before["surfaces"][DAY_SURFACE]["score"]
+
+
+class LowJudge:
+    """A second story judge that rates every question 2/5."""
+
+    def __init__(self):
+        self.judged: list[str] = []
+
+    def generate_chat_completion(self, messages, **kwargs):
+        asked = messages[-1]["content"].split("Questions: ", 1)[1].split("\n", 1)[0].split(", ")
+        self.judged.append(kwargs.get("model"))
+        return _result({q: {"score": 2, "reason": "low", "line": ""} for q in asked})
+
+
+def test_two_judges_of_a_day_are_compared_act_by_act(plan_then_write):
+    before = R.run([DAY_SURFACE], client=DayWriter(), ids=["d-b1-g4.4"])
+    # «Le fil» is asked the page's questions; «À côté» and «Le soir» also «new».
+    asked = len(judged("page")) + 2 * len(judged(DAY_SURFACE))
+
+    again = R.rejudge(before, judge_client=DayWriter(), judge_model=R.PAGE_JUDGE)
+    same = R.judge_agreement(before, again)[DAY_SURFACE]
+    assert (same["verdicts"], same["agreement"], same["flips"]) == (asked, 1.0, [])
+
+    low = LowJudge()
+    report = R.judge_agreement(before, R.rejudge(before, judge_client=low, judge_model=R.PAGE_JUDGE))[DAY_SURFACE]
+    assert low.judged == [R.PAGE_JUDGE] * 3
+    # Both rate «level» 2/5 on every act; every other rating falls from 4 to 2.
+    assert report["verdicts"] == asked and report["agreement"] == round(3 / asked, 3)
+    assert report["flips"][0] == "d-b1-g4.4 fil.natural: pass→fail"
+    assert "d-b1-g4.4 soir.new: pass→fail" in report["flips"] and len(report["flips"]) == asked - 3
 
 
 def test_acts_the_run_s_cap_cannot_hold_are_not_written_and_not_scored(plan_then_write):
