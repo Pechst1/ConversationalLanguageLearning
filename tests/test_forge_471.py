@@ -39,22 +39,22 @@ def _climbed_on_an_unread_sentence() -> tuple[core.ForgeState, dict]:
     return state, first
 
 
-def test_a_read_warm_up_does_not_make_the_unread_climb_permanent() -> None:
+def test_warm_up_keeps_no_climb() -> None:
     state, first = _climbed_on_an_unread_sentence()
     # The next item is a keyed one posed below the level (a warm-up): read, right, moves nothing.
     state.record(concept_id=1, rung=int(Rung.RECOGNISE), verdict=core.Verdict(core.OUTCOME_CORRECT, checked=True))
     assert state.track(1).rung == Rung.FREE_USE
 
     # While the sentence is still unread the end sheet already shows the level without its climb.
-    _level_is(state.level_read(1), Rung.PRODUCE, "the end sheet's level while the sentence is unread")
+    _level_is(state.level_read(1), Rung.PRODUCE, "end sheet level")
 
     # Nobody ever reads the sentence: the climb goes back.
-    _level_is(state.settle(first, core.Verdict(core.OUTCOME_INCORRECT, checked=False)), Rung.PRODUCE, "settled level")
-    _level_is(state.track(1).rung, Rung.PRODUCE, "the rule's level after the sentence was never read")
+    _level_is(state.settle(first, core.Verdict(core.OUTCOME_INCORRECT, checked=False)), Rung.PRODUCE, "settled")
+    _level_is(state.track(1).rung, Rung.PRODUCE, "rule level")
     assert state.track(1).topped is False
 
 
-def test_a_read_answer_at_the_level_still_owns_it() -> None:
+def test_answer_at_level_owns_it() -> None:
     """The counterpart (the existing #281 rule): a read right answer at the new level tops the rule."""
 
     state, first = _climbed_on_an_unread_sentence()
@@ -64,7 +64,7 @@ def test_a_read_answer_at_the_level_still_owns_it() -> None:
     assert state.track(1).topped is True
 
 
-def test_unread_free_text_answer_then_warm_up_leaves_the_stored_level_unchanged(db_session: Session, monkeypatch) -> None:
+def test_stored_level_unchanged(db_session: Session, monkeypatch) -> None:
     """Through the services: the sentence is unread (the relecture fails), a keyed warm-up
     is read after it. The rule's stored level (what the next day opens on, and what the
     mastery-test offer reads) is where it was before the sentence."""
@@ -109,6 +109,6 @@ def test_unread_free_text_answer_then_warm_up_leaves_the_stored_level_unchanged(
         .filter(UserGrammarProgress.user_id == user.id, UserGrammarProgress.concept_id == concept.id)
         .one()
     )
-    _level_is(forge_state_of(session).track(concept.id).rung, Rung.PRODUCE, "the séance's level")
-    _level_is(progress.forge_rung, Rung.PRODUCE, "the stored level, which the mastery-test offer reads")
-    _level_is(failed.correction_payload["forge"]["new_rung"], Rung.PRODUCE, "the level the learner is shown")
+    _level_is(forge_state_of(session).track(concept.id).rung, Rung.PRODUCE, "seance level")
+    _level_is(progress.forge_rung, Rung.PRODUCE, "stored level")
+    _level_is(failed.correction_payload["forge"]["new_rung"], Rung.PRODUCE, "shown level")
