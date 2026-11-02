@@ -4105,6 +4105,7 @@ def memory_day(
         returns_to=draft.returns_to,
         not_names=not_names,
         is_word=story_memory.word_check(_french_words()),
+        act=int(act or 1),
     )
 
 
@@ -8850,6 +8851,22 @@ ACT_STORY_KEY = "act"
 #: besides the learner's, so «Le soir» goes on with it and no side thread has anyone to
 #: lead it. Every other shape plays every act.
 ACT_ROLES_BY_SHAPE = {"two_hander": ("soir",)}
+#: A later act's bound brief: the day's season gap, for the reveals it forbids alone
+#: (WP-155, ``_season_turn_must_not``). The act carries no season day — the first act
+#: alone settles flags, stages a gate, carries «Ton cap» and the agency — but its reply
+#: and its ending keep the day's reveals as the first act's do (``_turn_payload``).
+ACT_REVEALS_KEY = "act_reveals"
+
+
+def _act_reveals(first: ScenarioBrief) -> dict | None:
+    """``{id, position: {segment}}`` of the gap the first act (``first``, as bound) plays,
+    or ``None`` when it plays none."""
+
+    season_day = (first.story_context or {}).get("season") or {}
+    segment = (season_day.get("position") or {}).get("segment")
+    if season_day.get("kind") != "gap" or not season_day.get("id") or not segment:
+        return None
+    return {"id": str(season_day["id"]), "position": {"segment": str(segment)}}
 
 
 def _validate_act(draft: SceneDraft, context: dict) -> None:
@@ -9686,6 +9703,7 @@ def bind_act(
             "owns_episode": False,
             "chapter_id": first.story_context.get("chapter_id"),
             "published_revision": _fingerprint(thread),
+            **({ACT_REVEALS_KEY: reveals} if (reveals := _act_reveals(first)) else {}),
         },
     )
 
@@ -9769,6 +9787,12 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_re
 
         if (contract := contract_for(season_day, speaker=scenario.character_id)) is not None:
             context["season_turn"]["agency"] = agency_for_turn(contract)
+    elif isinstance(reveals := (scenario.story_context or {}).get(ACT_REVEALS_KEY), dict):
+        # Phase 2: a later act's reply and ending keep the day's reveals (the voice's
+        # «never_reveal», the lanes' spoiler guard). It settles no flag and stages no
+        # gate: the day's first act alone moves the season.
+        if must_not := _season_turn_must_not(reveals, context.get(SEASON_TODAY_KEY)):
+            context["season_turn"] = {"may_set": [], "gate": None, **must_not}
     context["agendas"] = [
         row
         for row in context.get("agendas") or []

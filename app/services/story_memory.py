@@ -353,6 +353,8 @@ class Day:
     (``id``, ``to``, ``question_fr``, ``task``, and ``present``: who was in the room)
     so each line knows what it answered and who heard it.
     ``learned`` / ``left_open`` / ``answered_open_ids`` come from the accepted ending.
+    ``act`` (Phase 2): which act of the day this is. A day of acts settles one ``Day`` per
+    act under the same ``day`` number; each act's rows keep ids of their own.
     """
 
     event_id: str
@@ -372,6 +374,15 @@ class Day:
     returns_to: str | None = None
     not_names: frozenset[str] = frozenset()
     is_word: Callable[[str], bool] | None = None
+    act: int = 1
+
+
+def _row_day(day: Day) -> str:
+    """The day part of a row's id: the day's number, and a later act's number after it
+    (``5`` for the day's first act, ``5.a2`` for its second), so two acts of one day
+    never mint the same id."""
+
+    return str(day.day) if day.act <= 1 else f"{day.day}.a{day.act}"
 
 
 def _meant(value: Any) -> str:
@@ -431,7 +442,7 @@ def after_day(memory: dict | None, day: Day) -> dict:
             continue
         first[(fold(whole), to)] = len(new_said)
         row = {
-            "id": f"said:{day.day}:{len(new_said)}",
+            "id": f"said:{_row_day(day)}:{len(new_said)}",
             "day": day.day,
             "date": day.date,
             "event_id": day.event_id,
@@ -540,7 +551,7 @@ def after_day(memory: dict | None, day: Day) -> dict:
         to = addressee(quote)
         rows.append(
             {
-                "id": f"open:{day.day}:{opened}",
+                "id": f"open:{_row_day(day)}:{opened}",
                 "by": "learner",
                 "to": to,
                 "question_fr": _cut(quote, LINE_CHARS),
@@ -558,7 +569,7 @@ def after_day(memory: dict | None, day: Day) -> dict:
         if question and fold(question) not in still_open:
             rows.append(
                 {
-                    "id": f"open:{day.day}:{opened}",
+                    "id": f"open:{_row_day(day)}:{opened}",
                     "by": day.speaker,
                     "to": "learner",
                     "question_fr": question,

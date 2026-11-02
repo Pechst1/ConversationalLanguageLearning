@@ -280,6 +280,25 @@ _ANSWERABLE_KINDS = (StepKind.RECALL, StepKind.RESPOND)
 RETRY_OF_KEY = "retry_of"
 
 
+def _ending_still_written_before_an_act(journey: DailyJourney, step: DailyJourneyStep) -> bool:
+    """Phase 2: an act's ending the story lane is still writing, with a later act after it.
+
+    The day waits for it (the app does: no «Continuer» under an ending being written).
+    Each act's ending settles against the story as it stands; a later act's lane started
+    meanwhile would build on the same revision, and whichever settled second would be
+    refused and lose its act — the first act's day and season with it. A one-act day is
+    unchanged: nothing settles after its ending."""
+
+    from app.services.story_lanes import lane_open
+
+    if StepKind(step.kind) is not StepKind.RESOLUTION or not lane_open(step):
+        return False
+    act = step_act(step)
+    return any(
+        StepKind(other.kind) is StepKind.RESOLUTION and step_act(other) > act for other in journey.steps
+    )
+
+
 def _utcnow() -> datetime:
     """Single clock seam so tests can freeze midnight and DST boundaries."""
 
@@ -1794,6 +1813,14 @@ class DailyJourneyService:
                     http_status.HTTP_409_CONFLICT,
                     JourneyErrorCode.STEP_NOT_ACTIVE,
                     "Answer this step before moving on.",
+                    current_revision=journey.revision,
+                    refresh_href=refresh_href_for(journey.id),
+                )
+            if _ending_still_written_before_an_act(journey, step):
+                raise journey_error(
+                    http_status.HTTP_409_CONFLICT,
+                    JourneyErrorCode.STEP_NOT_ACTIVE,
+                    "This ending is still being written.",
                     current_revision=journey.revision,
                     refresh_href=refresh_href_for(journey.id),
                 )

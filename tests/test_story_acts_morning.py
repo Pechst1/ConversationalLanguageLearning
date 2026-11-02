@@ -287,6 +287,23 @@ def test_a_day_of_two_acts_is_planned_published_and_played_act_by_act(
     ]
     assert len(set(pages)) == 2 and pages[0] != "La radio du soir" and pages[-1] == "La radio du soir", pages
     assert pages == sorted(pages, key=lambda title: title == "La radio du soir"), "the act is played after the first"
+    # The day's reveals are kept in every act's reply and ending, as in the first act's;
+    # only the first act moves the season (no flag to settle, no gate, no «cap», no agency).
+    endings_written = [
+        (payload["story"].get("season_turn") or {})
+        for schema, payload in acts_writer.calls
+        if schema in ("SemanticTurn", "StoryTurn")
+    ]
+    first_turn, act_turn = endings_written[0], endings_written[-1]
+    assert first_turn.get("must_not"), first_turn
+    assert {key: act_turn.get(key) for key in ("season", "gap", "must_not")} == {
+        key: first_turn.get(key) for key in ("season", "gap", "must_not")
+    }
+    assert act_turn["may_set"] == [] and act_turn["gate"] is None
+    assert not {"heading", "agency", "register"} & set(act_turn), act_turn
+    if settings.ATELIER_STORY_TURN_LANES_ENABLED:
+        reveals = [payload.get("never_reveal") for schema, payload in acts_writer.calls if schema == "VoiceReply"]
+        assert reveals[0] and reveals[-1] == reveals[0], "the act's voice keeps the day's reveals"
     steps = _steps(db_session, d.journey["id"])
     endings = [step for step in steps if StepKind(step.kind) is StepKind.RESOLUTION]
     assert all(step.private_task.get("resolution_settled") for step in endings)
@@ -384,6 +401,61 @@ def test_an_act_that_cannot_be_published_costs_the_day_its_acts_never_its_first(
 # ---------------------------------------------------------------------------
 # The story lane: each act's ending is its own
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("season_on", [True], ids=["lanes"], indirect=True)
+def test_a_later_act_waits_for_the_ending_before_it(
+    assembled_client, db_session, journey_enabled, clock, acts_writer, monkeypatch
+):
+    """Each act's ending settles against the story as it stands. Two lanes running at
+    once would build on the same revision, and the one settling second would be refused
+    and lost — the first act's day and season with it (Codex review on #495). The day
+    waits for an ending being written before the next act, as the app does."""
+
+    _acts_on(monkeypatch)
+    user, d = _intensif_learner_on_a_gap_day(assembled_client, db_session)
+    _night(db_session, user)
+    day_before = int(_live(db_session, user).get("day_index") or 0)
+    d.create()
+    acts_writer.turn = TurnScript(reply_fr="D'accord.", resolution_fr="La soirée se termine.", callback_fr="Vous avez écouté.")
+    queued: list = []
+    monkeypatch.setattr(story_lanes, "dispatcher", queued.append)
+
+    for _ in range(40):  # the first act, up to its ending
+        step = d.current()
+        if step["kind"] == "resolution":
+            break
+        if step["kind"] == "respond":
+            response = d.attempt({"mode": "text", "text": "Une chanson triste."})
+            assert response.status_code == 200, response.text
+            if response.json().get("next_turn"):
+                continue
+        elif step["kind"] == "recall":
+            assert d.attempt(d.recall_answer(step, correct=True)).status_code == 200
+        if d.journey.get("current_step_id") == step["id"]:
+            d.advance()
+    ending = d.current()
+    assert step_act(db_session.get(DailyJourneyStep, uuid.UUID(ending["id"]))) == 1
+    assert ending["prompt"]["story_pending"] is True
+    [job] = queued
+
+    refused = d.client.post(
+        f"/api/v1/daily-journeys/{d.id}/advance",
+        headers=d.headers,
+        json={"mutation_id": support.key(), "expected_revision": d.revision, "current_step_id": ending["id"]},
+    )
+    assert refused.status_code == 409 and "still being written" in refused.text, refused.text
+
+    assert story_lanes.run_story_job(job) == "done"
+    assert int(_live(db_session, user)["day_index"]) == day_before + 1, "the first act counted the day"
+    d.journey = d._absorb(d.client.get(f"/api/v1/daily-journeys/{d.id}", headers=d.headers).json())
+    d.advance()
+    monkeypatch.setattr(story_lanes, "dispatcher", lambda job: story_lanes.run_story_job(job))
+    d.play(answer="Une chanson triste.")
+
+    endings = [step for step in _steps(db_session, d.journey["id"]) if StepKind(step.kind) is StepKind.RESOLUTION]
+    assert [step.private_task["story_lane"]["status"] for step in endings] == ["done", "done"]
+    assert int(_live(db_session, user)["day_index"]) == day_before + 1, "a day of two acts is one day"
 
 
 @pytest.mark.parametrize("season_on", [True], ids=["lanes"], indirect=True)

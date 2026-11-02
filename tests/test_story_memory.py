@@ -6,6 +6,8 @@ each model is then sent, are in tests/test_story_memory_days.py.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 GUS, MARGAUX, LILA, CAMILLE = "augustin_de_roncourt", "margaux_barman", "lila_bonnet", "camille_marchand"
@@ -313,6 +315,27 @@ def test_only_someone_who_knows_a_question_can_answer_it(memory, day):
     assert memory.returnable(view, "open:9:9", [GUS]) is None
     back = memory.after_day(after, day(2, "Ah.", speaker=LILA, witnesses=[GUS], returns_to=row["id"]))
     assert back["open"][0]["status"] == "answered"
+
+
+def test_two_acts_of_one_day_keep_rows_of_their_own(memory, day):
+    """Phase 2 «Folge in Akten»: a day of acts settles one memory day per act, under one
+    day number. Each act's lines and questions keep their own ids: an answer to the
+    later act's question closes that one, and a reference finds the act it names."""
+
+    first_q, later_q = "Et le chat, il s'appelle comment ?", "Elle joue quoi, la radio ?"
+    after = memory.after_day(None, day(5, f"Oui. {first_q}", speaker=LILA, left_open=(first_q,)))
+    later = replace(day(5, f"D'accord. {later_q}", speaker=LILA, left_open=(later_q,)), event_id="journey:5:story:act2", act=2)
+    after = memory.after_day(after, later)
+
+    said = [row["id"] for row in after["said"]]
+    opened = {row["question_fr"]: row["id"] for row in after["open"]}
+    assert len(set(said)) == len(said) == 2 and len(set(opened.values())) == 2, (said, opened)
+    assert opened[first_q] == "open:5:0", "the day's first act keeps the ids every day has"
+    assert memory.row_by_id(after, said[-1])["quote"] == f"D'accord. {later_q}"
+    assert memory.open_row(memory.full_view(after), opened[later_q])["question_fr"] == later_q
+    answered = memory.after_day(after, day(6, "Merci !", speaker=LILA, answered_open_ids=(opened[later_q],)))
+    status = {row["question_fr"]: row["status"] for row in answered["open"]}
+    assert status == {first_q: "open", later_q: "answered"}
 
 
 def test_a_question_nobody_comes_back_to_lapses(memory, day):
