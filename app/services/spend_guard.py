@@ -194,14 +194,19 @@ def service_spend_today_usd(db: Session, *, now: datetime | None = None) -> floa
     return round(text + float(art or 0.0), 6)
 
 
-def service_budget_reached(db: Session, *, now: datetime | None = None) -> bool:
-    """True once the service-wide cap is met. A failed read never stops anyone."""
+def service_budget_reached(db: Session, *, now: datetime | None = None, pending_usd: float = 0.0) -> bool:
+    """True once the service-wide cap is met. A failed read never stops anyone.
+
+    ``pending_usd`` is money the caller knows is spent or about to be, which no ledger
+    shows yet: the acts and pages the night wrote ahead and nobody has billed, and the
+    act it is about to write (``story_acts.write_act``).
+    """
 
     cap = service_daily_cap_usd()
     if cap <= 0:
         return False
     try:
-        spent = service_spend_today_usd(db, now=now)
+        spent = service_spend_today_usd(db, now=now) + max(0.0, float(pending_usd or 0.0))
         from app.services import spend_ledger
 
         if spend_ledger.enabled():

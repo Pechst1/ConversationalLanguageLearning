@@ -431,9 +431,37 @@ def test_the_service_s_day_stops_the_acts(db_session, night, monkeypatch):
 
     user = _learner(db_session)
     page = _page(db_session, user)
-    monkeypatch.setattr(spend_guard, "service_budget_reached", lambda db: True)
+    monkeypatch.setattr(spend_guard, "service_budget_reached", lambda db, **kwargs: True)
 
     assert story_acts.write_act(db_session, user, prefetch_id=str(page.id), role="soir") == "skipped_budget"
+    assert night["acts"] == []
+
+
+def test_the_service_s_day_counts_what_the_night_wrote_and_nobody_billed(db_session, night, monkeypatch):
+    # Nothing is on a ledger yet: every page and act waits, unbilled, at 0.004 each
+    # (``make_brief``). Two learners' pages and «Le soir» make 0.012; one more act would
+    # take the service's day past 0.015.
+    monkeypatch.setattr(settings, "SERVICE_DAILY_SPEND_CAP_USD", 0.015)
+    user, someone = _learner(db_session), _learner(db_session)
+    page = _page(db_session, user)
+    _page(db_session, someone)
+
+    assert story_acts.write_act(db_session, user, prefetch_id=str(page.id), role="soir") == "prefetched"
+    assert story_acts.write_act(db_session, user, prefetch_id=str(page.id), role="cote") == "skipped_budget"
+    assert night["acts"] == ["soir"]
+
+
+def test_no_act_is_written_after_a_page_that_expired_and_was_written_again(db_session, night):
+    user = _learner(db_session)
+    expired = _page(db_session, user)
+    expired.occurred_at = datetime.now(UTC) - timedelta(
+        seconds=settings.ATELIER_JOURNEY_PREFETCH_TTL_SECONDS + 3600
+    )
+    db_session.commit()
+    # The same key, a new page: the act belongs to the page it was queued for.
+    assert prefetch_scene_for(db_session, user) == "prefetched"
+
+    assert story_acts.write_act(db_session, user, prefetch_id=str(expired.id), role="soir") == "skipped_stale"
     assert night["acts"] == []
 
 

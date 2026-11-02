@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import time
 import uuid
+from datetime import datetime
 from typing import Any
 
 from loguru import logger
@@ -149,21 +150,21 @@ def act_rows(db: Session, user: User, *, prefetch_id: str) -> list[PilotEvent]:
     return _live(db, mine)
 
 
-def _unbilled_usd(db: Session, user: User) -> float:
-    """What the night has written for this learner and nobody has billed yet: the live
-    pages and acts (each is billed when served or when it expires)."""
+def _unbilled_usd(db: Session, user: User | None = None, *, since: datetime | None = None) -> float:
+    """What the night has written and nobody has billed yet: the live pages and acts
+    (each is billed when served or when it expires). This learner's, or with no learner
+    every learner's; ``since`` leaves out what was written before it."""
 
     from app.services.journey_latency import PREFETCH_EVENT, _ttl_floor, _usage_cost
 
-    rows = list(
-        db.scalars(
-            select(PilotEvent).where(
-                PilotEvent.user_id == user.id,
-                PilotEvent.event_type.in_([PREFETCH_EVENT, ACT_PREFETCH_EVENT]),
-                PilotEvent.occurred_at >= _ttl_floor(),
-            )
-        ).all()
+    floor = _ttl_floor() if since is None else max(_ttl_floor(), since)
+    query = select(PilotEvent).where(
+        PilotEvent.event_type.in_([PREFETCH_EVENT, ACT_PREFETCH_EVENT]),
+        PilotEvent.occurred_at >= floor,
     )
+    if user is not None:
+        query = query.where(PilotEvent.user_id == user.id)
+    rows = list(db.scalars(query).all())
     return round(sum(_usage_cost(row.payload or {}) for row in _live(db, rows)), 6)
 
 
@@ -199,7 +200,11 @@ def write_act(db: Session, user: User, *, prefetch_id: str, role: str) -> str:
         # «Le fil» is the page itself, never an act written after it.
         return "skipped_rhythm"
     first_row = _first_act_row(db, user, prefetch_id)
-    if first_row is None or not _live_prefetch_rows(db, user, cache_key=first_row.entity_id):
+    if first_row is None or first_row.id not in {
+        row.id for row in _live_prefetch_rows(db, user, cache_key=first_row.entity_id)
+    }:
+        # This page itself must still be waiting, not just one under its key: a page
+        # written again after this one expired is another first act.
         return "skipped_stale"
     if first_row.entity_id != scene_cache_key(db, user):
         # The morning would discard the page as stale, and every act with it.
@@ -215,9 +220,12 @@ def write_act(db: Session, user: User, *, prefetch_id: str, role: str) -> str:
         # An act costs about what the page did: one that would take the week past its
         # guardrail is not written (acts doc: «Reicht das Geld nicht, schreibt er weniger»).
         return "skipped_budget"
-    from app.services.spend_guard import service_budget_reached
+    from app.services.spend_guard import day_bounds, service_budget_reached, service_daily_cap_usd
 
-    if service_budget_reached(db):
+    # The service's day, like the learner's week, counts what the night has written
+    # today and nobody has billed yet (every learner's), and this act.
+    pending = _unbilled_usd(db, since=day_bounds()[0]) + page_cost if service_daily_cap_usd() > 0 else 0.0
+    if service_budget_reached(db, pending_usd=pending):
         return "skipped_budget"
 
     try:
