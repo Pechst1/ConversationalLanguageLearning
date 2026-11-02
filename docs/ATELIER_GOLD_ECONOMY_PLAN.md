@@ -472,6 +472,41 @@ Where the build differs from the text above, and why:
     the page before the server re-grades the filed round, and a sprint rewards speed.
     Its observations still reach the rule's record.
 
+### 17.2 O-2 as built, for the owner first (implementation note, 2026-11-02)
+
+Vincent asked on 2 Nov to see l'or now, before O-0 and the two weeks of shadow have run
+their course. O-2 is therefore built behind a second switch and shown only to him:
+
+1. **`ATELIER_GOLD_UI = off | owner | all`**, default `owner`: only accounts with
+   `users.role = 'admin'` (the pilot owner) get anything from `GET /api/v1/gold` but
+   `{"visible": false}`. Nothing is shown while `ATELIER_GOLD_MODE` is `off`. A learner
+   the switch leaves out costs one GET per page load and sees no change. `all` is the
+   O-0 gate's switch.
+2. **`GET /api/v1/gold`** returns the livret, today (settled, pending, earned before the
+   plafond, the plafond state `open · half · closed`, the rhythm's mark, pleine), the week
+   (settled, journées pleines n / 5, the seven days) and today's entries.
+   **`GET /api/v1/gold/ledger?week=2026-W45`** returns one week of entries with their
+   `reason_fr` and the word or rule each paid for. Answer responses carry no `gold` list:
+   the counter reads `/gold` again shortly after each answer route the API client posts
+   (`lib/gold-events.ts`), and a new entry is the grain.
+3. **The word deck earns** (Vincent, 2 Nov: «mehr Wörter pro Tag … mehr XP»). A card of
+   the Lexique deck graded on the server from the learner's answer (`/anki/review` with
+   `answer_text`) mints `word_card` entries: `choice` pays as recognition (1), `typed`,
+   `cloze`, `audio` and `spoken` as typed recall (2). Each word pays once a day at its
+   best, shared with the journey's targets (R1); only the deck's first answer of the word
+   that day (R7); doubled after 20 h away (R4); an accent slip halves (R3); all under the
+   plafond (R8). So more words a day is more gold, up to 120. A self-rated card
+   («Umdrehen», the recognition rung) still pays nothing (law 1, §6), and the legacy
+   `/progress/review` is self-rated only.
+4. **On screen:** the counter pill on La Une, in the journey's header and in the Lexique
+   deck's header; le grain and the ×2 («Tu t'en souvenais.») with a Reduce Motion
+   fallback and a light haptic on native only; «D'où vient ton or» as a bottom sheet from
+   the pill, week by week; on «Fertig», «Or +N · Journée pleine (k / 5)» (or «N / mark
+   vers la journée pleine») and the Seal's gold rim filling toward the mark.
+5. **Deferred:** «Je conteste» (§10) needs the asynchronous re-judging and its quota;
+   the tirage's falling leaves and the counter roll on Fertig are the plain press and rim
+   for now.
+
 ## 18. Metrics for the nightly loop
 
 The north star stays the plan's: minutes of the learner's own French, words read and heard,
