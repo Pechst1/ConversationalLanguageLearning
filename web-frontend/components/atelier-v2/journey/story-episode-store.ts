@@ -5,7 +5,8 @@
  * poll died the moment the learner left the step: the drawings that arrived a
  * minute after commit were never seen again that day. The journey controller
  * (`useDailyJourney`) now drives the lookup and the poll; this module is the
- * cache both it and the steps read, keyed by journey id.
+ * cache both it and the steps read, keyed by journey id — and, on a day of
+ * acts (Phase 2), by act: one page per act (`storyEpisodeKey`).
  *
  * Deliberately tiny and transport-free: the caller passes the fetcher, so the
  * node suite can drive it without a network and without React.
@@ -21,6 +22,16 @@ export type StoryEpisodeEntry =
   | { kind: 'episode'; episode: StoryEpisode };
 
 export type StoryEpisodeFetcher = (journeyId: string) => Promise<StoryEpisode | null>;
+
+/**
+ * The cache key of a journey's act: the journey id itself for act 1 (every
+ * one-act day), `journeyId#act2` and `journeyId#act3` for the acts after it.
+ * Its fetcher reads that act's page (`getStoryEpisodeForJourney(journeyId, act)`).
+ */
+export function storyEpisodeKey(journeyId: string | null | undefined, act = 1): string | null {
+  if (!journeyId) return null;
+  return act > 1 ? `${journeyId}#act${act}` : journeyId;
+}
 
 const entries = new Map<string, StoryEpisodeEntry>();
 const inflight = new Map<string, Promise<StoryEpisodeEntry>>();

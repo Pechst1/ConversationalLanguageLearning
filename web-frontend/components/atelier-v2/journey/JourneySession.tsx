@@ -88,7 +88,8 @@ import {
   seasonPremiereOf,
   type DayPrelude,
 } from './season-return-model';
-import { useStoryEpisodeEntry } from './story-episode-store';
+import { journeyActCount } from './story-episode-model';
+import { storyEpisodeKey, useStoryEpisodeEntry } from './story-episode-store';
 import { JourneyRecap } from './JourneyRecap';
 import { SpecialKickerContext } from './special-edition';
 import { canDoCopy } from '@/lib/can-do-copy';
@@ -296,8 +297,15 @@ export function JourneySession({
 
   // Les apparitions, tied to the day: today's page's people are the ones who walk in on its
   // drills, and once the page of a new part of the season is read, that part's object is handed over.
+  // Phase 2: on a day of acts, the people of every act's page (at most three, so three reads).
+  const dayActs = journeyActCount(journey);
   const dayEpisode = useStoryEpisodeEntry(journeyId || null);
-  const dayCastKey = dayCast(journey, dayEpisode?.kind === 'episode' ? dayEpisode.episode : null).join(',');
+  const dayEpisode2 = useStoryEpisodeEntry(dayActs >= 2 ? storyEpisodeKey(journeyId, 2) : null);
+  const dayEpisode3 = useStoryEpisodeEntry(dayActs >= 3 ? storyEpisodeKey(journeyId, 3) : null);
+  const dayCastKey = dayCast(
+    journey,
+    [dayEpisode, dayEpisode2, dayEpisode3].map((entry) => (entry?.kind === 'episode' ? entry.episode : null)),
+  ).join(',');
   React.useEffect(() => {
     if (dayCastKey) emitCameo({ type: 'scene', ids: dayCastKey.split(',') });
   }, [dayCastKey]);

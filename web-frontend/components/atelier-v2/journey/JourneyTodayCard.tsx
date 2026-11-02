@@ -54,6 +54,7 @@ import { journeyChromeLanguage } from '@/lib/language-rule';
 import { resolveMediaUrl } from '@/lib/media-url';
 
 import { EpisodeVignette, vignettePlace, type VignettePlace } from './EpisodeVignette';
+import { openActLine } from './story-episode-model';
 import { journeyCopy } from './journey-copy';
 import { tomorrowChoice } from './journey-recap-model';
 import { InterludeCard, SeasonPremiereCard } from './SeasonPages';
@@ -398,7 +399,8 @@ function JourneyTodayBody({
         <Card
           copy={copy}
           eyebrow={
-            joinMeta(headlineKicker(headline), gentle, longer, scenario.location_name) ||
+            // Phase 2: «Acte 2 t'attend» when the day waits in a later act.
+            joinMeta(openActLine(phase.journey), headlineKicker(headline), gentle, longer, scenario.location_name) ||
             copy.today_eyebrow
           }
           title={cardTitle(headline, scenario.title_fr)}

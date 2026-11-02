@@ -171,6 +171,7 @@ const RESOLUTION: ResolutionStep = {
   status: 'active',
   estimated_seconds: 30,
   assistance_used: [],
+  act: 1,
   prompt: {
     chapter_recap_fr: null,
     story_pending: false,
@@ -228,6 +229,7 @@ const RULE_STEP: RuleStep = {
   status: 'active',
   estimated_seconds: 40,
   assistance_used: [],
+  act: 1,
   prompt: {
     concept_id: 21,
     review: false,
@@ -256,6 +258,7 @@ function readStepOf(prompt: Partial<ReadPrompt>): ReadStep {
     status: 'active',
     estimated_seconds: 90,
     assistance_used: [],
+    act: 1,
     prompt: {
       variant: 'relecture',
       title_fr: 'Le Mistral',

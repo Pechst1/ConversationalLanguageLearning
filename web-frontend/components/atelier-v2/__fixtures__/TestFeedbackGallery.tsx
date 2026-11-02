@@ -67,6 +67,7 @@ function recallStep(extra: Partial<RecallStep['prompt']>): RecallStep {
     status: 'active',
     estimated_seconds: 40,
     assistance_used: [],
+    act: 1,
     prompt: {
       task_type: 'word_bank',
       instruction_native: 'Build the sentence. Some chips are not needed.',
@@ -123,6 +124,7 @@ function respondStep(id: string, extra: Partial<RespondPrompt>): RespondStep {
     status: 'active',
     estimated_seconds: 120,
     assistance_used: [],
+    act: 1,
     prompt: respondPrompt(extra),
   };
 }

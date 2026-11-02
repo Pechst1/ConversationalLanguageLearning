@@ -333,6 +333,50 @@ def test_a_day_of_two_acts_is_planned_published_and_played_act_by_act(
     assert f"journey:{journey_id}:story:act2" in remembered, "the act's exchange is remembered for later acts"
 
 
+@pytest.mark.parametrize("season_on", [False], ids=["one-actor"], indirect=True)
+def test_the_app_reads_each_step_s_act_and_each_act_s_page_in_play_order(
+    assembled_client, db_session, journey_enabled, clock, acts_writer, monkeypatch
+):
+    """PR 3b: every public step says its act, and the day's pages come in play order,
+    each with its act, so the app reads each act's own page (and an older app, which
+    takes the first page, still opens the day on its first act)."""
+
+    _acts_on(monkeypatch)
+    user, d = _intensif_learner_on_a_gap_day(assembled_client, db_session)
+    _night(db_session, user)
+
+    d.create()
+
+    stored = {str(step.id): step for step in _steps(db_session, d.journey["id"])}
+    public = d.journey["steps"]
+    assert [step["act"] for step in public] == [step_act(stored[step["id"]]) for step in public], (
+        "the public act, read from the plan's order, is the stored one"
+    )
+    assert [(step["kind"], step["act"]) for step in public if step["kind"] in ("scene", "respond", "resolution")] == [
+        ("scene", 1), ("respond", 1), ("resolution", 1), ("scene", 2), ("respond", 2), ("resolution", 2),
+    ]
+    assert {step["act"] for step in public if step["kind"] not in ("scene", "respond", "resolution")} <= {1}
+    later_reply = next(step for step in public if step["kind"] == "respond" and step["act"] == 2)
+    act_brief = next(
+        step.private_task["act_brief"] for step in stored.values() if step.private_task.get("act_brief")
+    )
+    assert later_reply["prompt"]["character_id"] == act_brief["character_id"], "the act's reply is its own character's"
+
+    pages = d.client.get(
+        "/api/v1/story-engine/episodes", params={"journey_id": d.journey["id"]}, headers=d.headers
+    )
+    assert pages.status_code == 200, pages.text
+    episodes = pages.json()["episodes"]
+    assert [(page["act"], page["act_role"]) for page in episodes] == [(1, None), (2, "soir")]
+    assert episodes[1]["title_fr"] == "La radio du soir"
+    assert episodes[1]["scene_id"] == act_brief["story_context"]["scene_id"]
+    one = d.client.get(f"/api/v1/story-engine/episodes/{episodes[1]['scene_id']}", headers=d.headers)
+    assert one.status_code == 200 and one.json()["act"] == 2
+    # Every page of a one-act day, the learner's whole archive included, is act 1.
+    archive = d.client.get("/api/v1/story-engine/episodes", headers=d.headers).json()["episodes"]
+    assert {page["act"] for page in archive if page["journey_id"] != d.journey["id"]} <= {1}
+
+
 def test_a_day_without_the_switch_plays_its_page_alone_and_leaves_the_acts_to_expire(
     assembled_client, db_session, journey_enabled, clock, acts_writer, monkeypatch
 ):

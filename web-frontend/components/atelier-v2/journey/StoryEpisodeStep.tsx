@@ -36,7 +36,7 @@ import {
   writePrecedemmentDismissed,
 } from '@/components/feuilleton/archive/precedemment-model';
 import { scenePlace } from '@/lib/sound-bed';
-import { getStoryEpisodeForJourney, recordEpisodePrediction } from '@/services/daily-journey';
+import { getStoryEpisodeForJourney, recordEpisodePrediction, stepAct } from '@/services/daily-journey';
 import type { ControlLanguage, SceneStep, StoryEpisode } from '@/types/daily-journey';
 
 import type { JourneyCopy } from './journey-copy';
@@ -44,6 +44,7 @@ import type { JourneySpeaker } from './journey-faces';
 import { SceneStepView } from './JourneySteps';
 import { EpisodeRadio, StoryEpisodeReader } from './StoryEpisodeReader';
 import {
+  actTitleCard,
   authoredPageEpisode,
   listenFirstPlacement,
   readListenFirst,
@@ -51,7 +52,7 @@ import {
   type EpisodeGuessId,
   type EpisodeVerification,
 } from './story-episode-model';
-import { getStoryEpisodeEntry, loadStoryEpisode, useStoryEpisodeEntry } from './story-episode-store';
+import { getStoryEpisodeEntry, loadStoryEpisode, storyEpisodeKey, useStoryEpisodeEntry } from './story-episode-store';
 import { useEpisodeAudio } from './useEpisodeAudio';
 import { useSoundBed } from './useSoundBed';
 import { listenLabel, useStepVoice } from './useStepVoice';
@@ -85,10 +86,13 @@ export function StoryEpisodeStep({
   /** WP-145: the place the scene is set in (the journey scenario's `location_id`), for its sound bed. */
   locationId?: string | null;
 }) {
+  // Phase 2 «Folge in Akten»: on a day of acts, each act's scene is its own page.
+  const act = stepAct(step);
+  const episodeKey = storyEpisodeKey(journeyId, act);
   // Server rendering (and the node test harness) has no effects and no cache:
   // render the scene prompt straight away rather than a loading state that
   // never ends.
-  const entry = useStoryEpisodeEntry(journeyId);
+  const entry = useStoryEpisodeEntry(episodeKey);
   const lookup: Lookup =
     typeof window === 'undefined' ? { kind: 'none' } : entry ?? { kind: 'loading' };
   // WP-90/91: the face beside a caption is the play button — the scene step's
@@ -130,9 +134,17 @@ export function StoryEpisodeStep({
   // The controller normally asked already (and polls the drawings). A step
   // mounted without it — or before it asked — reads the episode once itself.
   useEffect(() => {
-    if (!journeyId || getStoryEpisodeEntry(journeyId)) return;
-    void loadStoryEpisode(journeyId, getStoryEpisodeForJourney);
-  }, [journeyId, step.id]);
+    if (!journeyId || !episodeKey || getStoryEpisodeEntry(episodeKey)) return;
+    void loadStoryEpisode(episodeKey, () => getStoryEpisodeForJourney(journeyId, act));
+  }, [journeyId, episodeKey, act, step.id]);
+  // Phase 2: before act 2 and act 3, a title card in the place «Précédemment» keeps
+  // before the first panel; the learner can stop there and come back to it.
+  const card = actTitleCard({
+    act,
+    role: lookup.kind === 'episode' ? lookup.episode.act_role ?? null : null,
+    title: lookup.kind === 'episode' ? lookup.episode.title_fr : null,
+    dismissed: previouslyRead !== false,
+  });
 
   const sceneId = lookup.kind === 'episode' ? lookup.episode.id : null;
   // WP-49: the server says whether it can honour the listening-first cycle.
@@ -190,7 +202,7 @@ export function StoryEpisodeStep({
     return <StateBlock tone="loading" title={copy.preparing_title} body={copy.preparing_body} />;
   }
 
-  if (previously || premise || reread) {
+  if (previously || premise || reread || card) {
     return (
       <>
         <ArchiveStyles />
@@ -198,6 +210,7 @@ export function StoryEpisodeStep({
           lines={previously ?? []}
           premise={premise}
           reread={reread}
+          act={card}
           language={language}
           onRead={readOn}
           journeyId={journeyId}

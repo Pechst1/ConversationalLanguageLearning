@@ -109,6 +109,10 @@ class StoryEpisodeRead(ProjectionModel):
     resolution: StoryResolutionRead | None
     grammar_focus: GrammarFocusRead | None
     page: StoryPageRead | None = None
+    #: Phase 2 «Folge in Akten»: the act this page is on its day, 1 to 3 (1 for every
+    #: page of a one-act day), and the act's role after the first («cote», «soir»).
+    act: int = 1
+    act_role: str | None = None
 
 
 class StoryEpisodePageRead(ProjectionModel):

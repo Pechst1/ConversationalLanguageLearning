@@ -184,7 +184,11 @@ export function dayMarkState(
     const endedEarly = journey.status === 'ended_early';
     // WP-109: the practice after the ending closes the day — it counts in
     // «Bouclé», so the day never reads bouclée while words are still to do.
-    const endAt = journey.steps.findIndex((step) => step.kind === 'resolution');
+    // Phase 2: after the day's last ending, on a day of acts.
+    let endAt = -1;
+    journey.steps.forEach((step, index) => {
+      if (step.kind === 'resolution') endAt = index;
+    });
     const groupAt = (step: PublicStep, index: number): DayMarkGroup =>
       endAt >= 0 && index > endAt && step.kind === 'recall' ? 'resolution' : dayMarkGroupOf(step.kind);
     for (const group of DAY_MARK_GROUPS) {

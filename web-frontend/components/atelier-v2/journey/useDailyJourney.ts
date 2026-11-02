@@ -91,11 +91,12 @@ import {
   WARM_WAIT_HINT_DELAY_MS,
   type MutationOutcome,
 } from './journey-requests';
-import { loadStoryEpisode, useStoryEpisodeEntry } from './story-episode-store';
+import { loadStoryEpisode, storyEpisodeKey, useStoryEpisodeEntry } from './story-episode-store';
 import { READ_POLL_LIMIT, READ_POLL_MS, readPollTarget } from './read-step-model';
 import {
   STORY_ART_POLL_MS,
   stepReadsStoryEpisode,
+  storyActOf,
   storyArtRendering,
 } from './story-episode-model';
 import { shouldPollStoryArtLate } from './story-art-poll';
@@ -528,18 +529,23 @@ export function useDailyJourney(
   // re-read every few seconds while a panel's drawing is still on the press —
   // for at most five minutes, and whatever step the learner has moved on to,
   // so the drawings are there when they look back.
+  //
+  // Phase 2 «Folge in Akten»: on a day of acts, the page of the act the day is
+  // on (`storyActOf`), each act's under its own key; a day of one act is act 1.
   const storyJourneyId = journey?.id ?? null;
   const storyStep = currentStepOf(journey);
+  const storyAct = storyActOf(journey);
+  const storyKey = storyEpisodeKey(storyJourneyId, storyAct);
   const storyStepKey =
     storyJourneyId && storyStep && stepReadsStoryEpisode(storyStep.kind)
       ? `${storyJourneyId}:${storyStep.id}`
       : null;
   useEffect(() => {
-    if (!storyStepKey || !storyJourneyId) return;
-    void loadStoryEpisode(storyJourneyId, getStoryEpisodeForJourney);
-  }, [storyStepKey, storyJourneyId]);
+    if (!storyStepKey || !storyJourneyId || !storyKey) return;
+    void loadStoryEpisode(storyKey, () => getStoryEpisodeForJourney(storyJourneyId, storyAct));
+  }, [storyStepKey, storyJourneyId, storyKey, storyAct]);
 
-  const storyEntry = useStoryEpisodeEntry(storyJourneyId);
+  const storyEntry = useStoryEpisodeEntry(storyKey);
   const storyEpisode = storyEntry?.kind === 'episode' ? storyEntry.episode : null;
   const artPollsRef = useRef(0);
   // Bumped after every re-read, so a read that failed (and kept the episode
@@ -549,23 +555,24 @@ export function useDailyJourney(
   useEffect(() => {
     artPollsRef.current = 0;
     artSeenRenderingRef.current = false;
-  }, [storyJourneyId]);
+  }, [storyKey]);
   useEffect(() => {
     if (storyArtRendering(storyEpisode)) artSeenRenderingRef.current = true;
     if (
       !storyJourneyId ||
+      !storyKey ||
       !shouldPollStoryArtLate(storyEpisode, artPollsRef.current, artSeenRenderingRef.current)
     ) {
       return undefined;
     }
     const timer = setTimeout(() => {
       artPollsRef.current += 1;
-      void loadStoryEpisode(storyJourneyId, getStoryEpisodeForJourney).finally(() => {
+      void loadStoryEpisode(storyKey, () => getStoryEpisodeForJourney(storyJourneyId, storyAct)).finally(() => {
         if (mountedRef.current) setArtTick((tick) => tick + 1);
       });
     }, STORY_ART_POLL_MS);
     return () => clearTimeout(timer);
-  }, [storyJourneyId, storyEpisode, artTick]);
+  }, [storyJourneyId, storyKey, storyAct, storyEpisode, artTick]);
 
   useEffect(() => {
     if (phase.kind !== 'finished') return;

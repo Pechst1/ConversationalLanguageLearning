@@ -45,10 +45,24 @@ export function speakerOf(id: string | null | undefined, name: string): JourneyS
   return { id: id || null, name: castDisplayName(id, name) || name };
 }
 
+function actOfStep(step: { act?: number | null } | null | undefined): number {
+  const act = step?.act;
+  return typeof act === 'number' && Number.isFinite(act) && act >= 1 ? Math.floor(act) : 1;
+}
+
 export function journeySpeaker(
-  journey: Pick<JourneySnapshot, 'scenario'> | null | undefined,
+  journey: (Pick<JourneySnapshot, 'scenario'> & Partial<Pick<JourneySnapshot, 'steps'>>) | null | undefined,
   step?: PublicStep | null,
 ): JourneySpeaker | null {
+  // Phase 2 «Folge in Akten»: a later act's scene and ending belong to that act's
+  // character — the one who asks its reply — not to the day's (the first act's).
+  if ((step?.kind === 'scene' || step?.kind === 'resolution') && actOfStep(step) > 1) {
+    const act = actOfStep(step);
+    const reply = (journey?.steps ?? []).find((other) => other.kind === 'respond' && actOfStep(other) === act);
+    if (reply?.kind === 'respond' && reply.prompt.character_name) {
+      return speakerOf(reply.prompt.character_id, reply.prompt.character_name);
+    }
+  }
   if (step?.kind === 'respond') {
     const letter = step.prompt.letter;
     if (letter?.correspondent_name) {

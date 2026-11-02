@@ -132,8 +132,8 @@ import { ExchangeTokens, RespondThread } from './RespondThread';
 import { drillGoalLine, recallMetLine, slipSegments, type DrillGoal } from './drill-frame';
 import { StoryEpisodeReader } from './StoryEpisodeReader';
 import { finaleOnlyEpisode, journeyStoryPage, storyFinaleStage } from './story-episode-model';
-import { getStoryEpisodeEntry, loadStoryEpisode, useStoryEpisodeEntry } from './story-episode-store';
-import { getStoryEpisodeForJourney } from '@/services/daily-journey';
+import { getStoryEpisodeEntry, loadStoryEpisode, storyEpisodeKey, useStoryEpisodeEntry } from './story-episode-store';
+import { getStoryEpisodeForJourney, stepAct } from '@/services/daily-journey';
 import { listenLabel, useStepVoice } from './useStepVoice';
 import { correctionLabelKey } from '@/lib/correction-notes';
 import {
@@ -1554,23 +1554,26 @@ export function ResolutionStepView({
   const register = registerNoteOf(step.prompt);
   const chapterRecap = chapterRecapOf(step.prompt);
   const language = useControlLanguage();
-  const entry = useStoryEpisodeEntry(journey?.id ?? null);
+  // Phase 2: on a day of acts, each ending closes its own act's page.
+  const act = stepAct(step);
+  const journeyId = journey?.id ?? null;
+  const episodeKey = storyEpisodeKey(journeyId, act);
+  const entry = useStoryEpisodeEntry(episodeKey);
   // WP-91: the ending's line is a line of this step: its clip, or the device voice.
-  const lineVoice = useStepVoice(journey?.id ?? null, step.id);
+  const lineVoice = useStepVoice(journeyId, step.id);
   const pending = resolutionAwaitsStory(step);
   // WP-110: once the ending is written the day is one page with the learner's
   // lines in it — the episode read at the scene step predates it, so it is read
   // once more (a GET; the cached panels stay on screen meanwhile).
   const reread = useRef<string | null>(null);
-  const journeyId = journey?.id ?? null;
   useEffect(() => {
-    if (pending || !journeyId || reread.current === journeyId) return;
-    const cached = getStoryEpisodeEntry(journeyId);
+    if (pending || !journeyId || !episodeKey || reread.current === episodeKey) return;
+    const cached = getStoryEpisodeEntry(episodeKey);
     if (cached?.kind === 'episode' && cached.episode.page) return;
-    reread.current = journeyId;
-    void loadStoryEpisode(journeyId, getStoryEpisodeForJourney);
-  }, [pending, journeyId]);
-  const page = journeyStoryPage(journey, entry?.kind === 'episode' ? entry.episode : null);
+    reread.current = episodeKey;
+    void loadStoryEpisode(episodeKey, () => getStoryEpisodeForJourney(journeyId, act));
+  }, [pending, journeyId, episodeKey, act]);
+  const page = journeyStoryPage(journey, entry?.kind === 'episode' ? entry.episode : null, act);
   const finale = useMemo(
     () => storyFinaleStage(step.id, step.prompt, speaker),
     [step.id, step.prompt, speaker],
