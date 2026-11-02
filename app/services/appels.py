@@ -351,11 +351,32 @@ def public_view(call: dict[str, Any] | None) -> dict[str, Any] | None:
 # ---------------------------------------------------------------------------
 
 
+def _every_act_settled(journey: DailyJourney, settled: set[str]) -> bool:
+    """The day's last word is in the memory. Phase 2 «Folge in Akten»: a day may play
+    up to three acts, and the call rings after the last one, so the caller has heard it
+    too. The first act settles the day (``journey:{id}:story``), each later act its own
+    exchange (``…:story:act{n}``) — or its ending closed without reaching the story,
+    and nothing more is coming. A day of one act asks what it always asked."""
+
+    from app.services.journey_contracts import StepKind, step_act
+    from app.services.story_lanes import lane_open
+
+    if f"journey:{journey.id}:story" not in settled:
+        return False
+    for step in journey.steps:
+        act = step_act(step)
+        if str(step.kind) != StepKind.RESOLUTION.value or act < 2:
+            continue
+        if f"journey:{journey.id}:story:act{act}" not in settled and lane_open(step):
+            return False
+    return True
+
+
 def today(db: Session, user: User, *, now: datetime | None = None) -> dict[str, Any] | None:
     """Today's call, creating it (ringing, no provider call) when one is due.
 
-    Due: the feature is on, today's journey is completed and its scene settled into
-    the memory, someone heard the learner, and no call was made today."""
+    Due: the feature is on, today's journey is completed and every act's scene settled
+    into the memory, someone heard the learner, and no call was made today."""
 
     if not calls_enabled():
         return None
@@ -373,7 +394,7 @@ def today(db: Session, user: User, *, now: datetime | None = None) -> dict[str, 
         return None
     memory = _live(thread).get(story_memory.MEMORY_KEY)
     settled = {str(item) for item in (memory or {}).get("days") or []}
-    if f"journey:{journey.id}:story" not in settled:
+    if not _every_act_settled(journey, settled):
         return None
     caller = pick_caller(memory)
     if caller is None:

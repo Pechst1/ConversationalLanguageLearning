@@ -53,6 +53,14 @@ export type ArchiveDay = {
   authored: boolean;
   /** An authored day's own page (engine days are read through `scene_id`). */
   panels: StoryPanel[] | null;
+  /**
+   * Phase 2 «Folge in Akten»: the act this planche is on its day, 1 to 3. A day of acts
+   * files one planche per act it played, in play order, each with its own page, reply
+   * and ending, under the day's date and Nº. Every day of one act is act 1.
+   */
+  act: number;
+  /** A later act's role («cote», «soir»); `null` for act 1. */
+  act_role: string | null;
 };
 
 export type ArchiveChapter = {
@@ -138,6 +146,9 @@ function normalizeDay(raw: any): ArchiveDay | null {
     character_id: textOrNull(raw?.character_id),
     authored: Boolean(raw?.authored),
     panels: normalizePanels(raw?.panels),
+    // An older server sends no act: every day it files is a day of one act.
+    act: Math.max(1, intOrNull(raw?.act) ?? 1),
+    act_role: textOrNull(raw?.act_role),
   };
 }
 
@@ -169,12 +180,17 @@ function normalizePanels(raw: unknown): StoryPanel[] | null {
   return panels.length ? panels : null;
 }
 
-/** Days print oldest first; a day without a date keeps its place after the dated ones. */
+/**
+ * Days print oldest first; a day without a date keeps its place after the dated ones.
+ * A day of acts prints its acts in play order, under its one date and Nº.
+ */
 function byDate(a: ArchiveDay, b: ArchiveDay): number {
   if (a.date && b.date && a.date !== b.date) return a.date < b.date ? -1 : 1;
   if (a.date && !b.date) return -1;
   if (!a.date && b.date) return 1;
-  return (a.edition_no ?? 0) - (b.edition_no ?? 0);
+  const edition = (a.edition_no ?? 0) - (b.edition_no ?? 0);
+  if (edition) return edition;
+  return a.journey_id === b.journey_id ? a.act - b.act : 0;
 }
 
 /**
@@ -348,12 +364,15 @@ export function digestParts(digest: unknown): { question: string; resolution: st
   return { question: match[0], resolution: match.slice(1).join(' → ') };
 }
 
-/** The in-surface route of one filed day. */
-export function archiveDayHref(day: Pick<ArchiveDay, 'date' | 'journey_id' | 'scene_id'>): string {
+/** The in-surface route of one filed day (and, on a day of acts, of one of its later acts). */
+export function archiveDayHref(
+  day: Pick<ArchiveDay, 'date' | 'journey_id' | 'scene_id'> & { act?: number | null },
+): string {
   const params = new URLSearchParams();
   if (day.date) params.set('day', day.date);
   if (day.journey_id) params.set('journey', day.journey_id);
   else if (day.scene_id) params.set('cause', day.scene_id);
+  if (day.journey_id && day.act && day.act > 1) params.set('act', String(day.act));
   return `/graphic-novel?${params.toString()}`;
 }
 
@@ -369,15 +388,17 @@ export function marginNoteHref(note: ArchiveMarginNote): string | null {
 /**
  * The filed day a route (or a margin note) names. A journey id or a scene id
  * is an identity and wins; a date alone picks that date's day (the last one,
- * when a date filed two).
+ * when a date filed two). A day of acts opens on its first act, unless the
+ * route names one of its acts (`act`).
  */
 export function findArchiveDay(
   payload: ArchivePayload | null | undefined,
-  query: { date?: string | null; journeyId?: string | null; sceneId?: string | null },
+  query: { date?: string | null; journeyId?: string | null; sceneId?: string | null; act?: number | null },
 ): ArchiveDay | null {
   const days = archiveDays(payload);
   if (query.journeyId) {
-    const hit = days.find((day) => day.journey_id === query.journeyId);
+    const acts = days.filter((day) => day.journey_id === query.journeyId);
+    const hit = (query.act ? acts.find((day) => day.act === query.act) : undefined) ?? acts[0];
     if (hit) return hit;
   }
   if (query.sceneId) {
@@ -386,7 +407,10 @@ export function findArchiveDay(
   }
   if (query.date) {
     const hits = days.filter((day) => day.date === query.date);
-    if (hits.length) return hits[hits.length - 1];
+    if (hits.length) {
+      const last = hits[hits.length - 1];
+      return (last.journey_id && hits.find((day) => day.journey_id === last.journey_id)) || last;
+    }
   }
   return null;
 }
@@ -458,6 +482,8 @@ export function archiveFromSeason(season: SeasonPayload | null | undefined): Arc
       character_id: null,
       authored: false,
       panels: null,
+      act: 1,
+      act_role: null,
     }));
   const number = intOrNull(season.season_number) ?? 1;
   const chapterIndex = intOrNull(season.chapter?.number) ?? 1;

@@ -2,8 +2,9 @@
 
 Through the real router with the fake caller (no provider is ever called):
 
-1. nothing rings until today's journey is completed and its scene settled, and only
-   someone who heard the learner calls (Romy first);
+1. nothing rings until today's journey is completed and its scene settled — on a day
+   of acts, its last act's — and only someone who heard the learner calls (Romy
+   first);
 2. picking up gives the caller's opening; each line gets an answer; the last allowed
    line ends the call;
 3. a finished call is in the story: the learner's lines in the memory (heard by the
@@ -25,7 +26,7 @@ from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.appels import get_call_provider
 from app.config import settings
-from app.db.models.daily_journey import DailyJourney
+from app.db.models.daily_journey import DailyJourney, DailyJourneyStep
 from app.db.models.pilot_event import PilotEvent
 from app.db.models.serial import SerialThread
 from app.services import appels, living_story, story_memory
@@ -115,6 +116,73 @@ def test_rings_only_after_the_settled_day_and_romy_calls(client, db_session, cal
 def test_no_call_when_the_scene_was_not_settled(client, db_session, calls_on, caller):
     headers, _, _ = _learner(client, db_session, settled=False)
     assert _today(client, headers) is None
+
+
+def _later_act_ending(db: Session, journey: DailyJourney, *, act: int, lane: str) -> DailyJourneyStep:
+    """Phase 2: the ending of a later act of the day, its story lane in ``lane``."""
+
+    step = DailyJourneyStep(
+        journey_id=journey.id,
+        ordinal=10 + act,
+        kind="resolution",
+        status="completed",
+        public_prompt={},
+        private_task={"act": act, "act_role": "soir", "story_lane": {"status": lane}},
+        assistance_used=[],
+    )
+    db.add(step)
+    db.flush()
+    db.refresh(journey)
+    return step
+
+
+def _settle_act(db: Session, user_id: uuid.UUID, journey: DailyJourney, *, act: int, heard_by: str) -> None:
+    thread = _thread(db, user_id)
+    state = dict(thread.state)
+    live = dict(state[living_story.STATE_KEY])
+    live[story_memory.MEMORY_KEY] = story_memory.after_day(
+        live.get(story_memory.MEMORY_KEY),
+        story_memory.Day(
+            event_id=f"journey:{journey.id}:story:act{act}",
+            day=4,
+            date=journey.local_date.isoformat(),
+            speaker=heard_by,
+            witnesses=(heard_by,),
+            exchanges=({"learner": "Une chanson triste.", "character": "Bon choix."},),
+            opening_fr="On écoute laquelle ?",
+            act=act,
+        ),
+    )
+    state[living_story.STATE_KEY] = live
+    thread.state = state
+    db.flush()
+
+
+def test_on_a_day_of_acts_the_call_rings_after_the_last_act(client, db_session, calls_on, caller):
+    """Phase 2 «Folge in Akten»: the call rings once the day's last act is in the
+    memory, so the caller has heard that one too — not after the first act."""
+
+    headers, user_id, journey = _learner(client, db_session)
+    _later_act_ending(db_session, journey, act=2, lane="done")
+    soir = _later_act_ending(db_session, journey, act=3, lane="running")
+    _settle_act(db_session, user_id, journey, act=2, heard_by="marin_leveque")
+    assert _today(client, headers) is None, "the last act's ending is still being written"
+
+    _settle_act(db_session, user_id, journey, act=3, heard_by="lila_bonnet")
+    call = _today(client, headers)
+    assert call["status"] == "ringing"
+    assert soir.private_task["story_lane"]["status"] == "running", "the memory says the act was heard"
+
+
+def test_an_act_whose_ending_never_reached_the_story_does_not_hold_the_call(client, db_session, calls_on, caller):
+    headers, _, journey = _learner(client, db_session)
+    ending = _later_act_ending(db_session, journey, act=2, lane="pending")
+    assert _today(client, headers) is None
+
+    # Its ending closed without being written into the story: nothing more is coming.
+    ending.private_task = {**ending.private_task, "story_lane": {"status": "failed"}}
+    db_session.flush()
+    assert _today(client, headers)["status"] == "ringing"
 
 
 def test_the_caller_is_someone_who_heard_the_learner(client, db_session, calls_on, caller):

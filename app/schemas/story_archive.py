@@ -53,6 +53,12 @@ class ArchiveDay(_Model):
     authored: bool = False
     #: An authored day's own page; ``None`` for engine days (use ``scene_id``).
     panels: list[ArchivePanel] | None = None
+    #: Phase 2 «Folge in Akten»: the act this planche is on its day, 1 to 3 — a day of
+    #: acts files one planche per act it played, in play order, each with its own page,
+    #: reply and ending. Every planche of a one-act day is act 1.
+    act: int = 1
+    #: A later act's role («cote», «soir»); ``None`` for act 1.
+    act_role: str | None = None
 
 
 class ArchiveChapter(_Model):

@@ -34,6 +34,7 @@ from sqlalchemy.orm import Session
 from app.db.models.daily_journey import DailyJourney, DailyJourneyStep
 from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
 from app.db.models.serial import SerialThread
+from app.services.journey_contracts import scene_act, step_act
 from app.services.sentence_line import drop_cut_tail
 from app.services.story_page import hook_of
 
@@ -532,11 +533,16 @@ def build_archive(db: Session, user: Any, *, season: int | None = None) -> dict[
         )
     )
     scenes = _engine_scenes(db, user.id)
-    scene_by_journey: dict[str, GraphicNovelScene] = {}
+    # Phase 2 «Folge in Akten»: a day may play up to three acts, each published as a
+    # scene of its own. The day's place in the season (its chapter) is its first act's;
+    # every act it played is a planche of its own (``_day_payloads``).
+    acts_by_journey: dict[str, dict[int, GraphicNovelScene]] = {}
     for scene in scenes:
         journey_id = _scene_journey_id(scene)
         if journey_id:
-            scene_by_journey[journey_id] = scene
+            acts_by_journey.setdefault(journey_id, {})[scene_act(scene)[0]] = scene
+    scene_by_journey = _first_acts(acts_by_journey)
+    played = _acts_played(db, user)
 
     chronicle = [row for row in live.get("chronicle") or [] if isinstance(row, dict)]
     chronicle_by_id = {str(row.get("id")): row for row in chronicle if row.get("id")}
@@ -635,12 +641,12 @@ def build_archive(db: Session, user: Any, *, season: int | None = None) -> dict[
             or any(c.finale and c.closed for c in seasons.get(number, []))
         )
 
-    # 3. The loaded season's days, read in bounded batches.
+    # 3. The loaded season's days, read in bounded batches: a planche per act played.
     loaded_chapters = seasons.get(loaded, []) if loaded is not None else []
     loaded_journeys = [j for c in loaded_chapters for j in c.journeys]
-    days = _day_payloads(db, loaded_journeys, scene_by_journey)
+    days = _day_payloads(db, loaded_journeys, acts_by_journey, played)
     for chapter in loaded_chapters:
-        chapter.days = [days[str(j.id)] for j in chapter.journeys if str(j.id) in days]
+        chapter.days = [row for j in chapter.journeys for row in days.get(str(j.id), [])]
 
     newest = next((c for c in reversed([chapters[k] for k in order])), None)
     return {
@@ -650,7 +656,8 @@ def build_archive(db: Session, user: Any, *, season: int | None = None) -> dict[
                 "title_fr": _season_title(world, number),
                 "finished": finished(number),
                 "loaded": number == loaded,
-                "day_count": sum(len(c.journeys) for c in seasons[number]),
+                # The planches filed: a day of acts files one per act it played.
+                "day_count": sum(played.get(j.id, 1) for c in seasons[number] for j in c.journeys),
                 "chapters": [
                     {
                         "index": chapter.index,
@@ -675,18 +682,104 @@ def build_archive(db: Session, user: Any, *, season: int | None = None) -> dict[
     }
 
 
+def _first_acts(acts_by_journey: dict[str, dict[int, GraphicNovelScene]]) -> dict[str, GraphicNovelScene]:
+    """Each day's own scene: its first act's — a one-act day's only one."""
+
+    return {journey_id: acts[min(acts)] for journey_id, acts in acts_by_journey.items() if acts}
+
+
+def _acts_played(db: Session, user: Any) -> dict[Any, int]:
+    """Phase 2 «Folge in Akten»: how many acts each lived day played — its first act,
+    and each later act whose scene the learner opened. An act the day planned and never
+    reached is no page of the volume.
+
+    Read from the scene steps' order and start alone, as the journey reads a step's act
+    (``DailyJourneyService._public_acts``: the number of scenes up to it), so the count
+    of a whole life loads no step's task. A day of one act is 1."""
+
+    played: dict[Any, int] = {}
+    scenes: dict[Any, int] = {}
+    for journey_id, started_at in db.execute(
+        select(DailyJourneyStep.journey_id, DailyJourneyStep.started_at)
+        .join(DailyJourney, DailyJourney.id == DailyJourneyStep.journey_id)
+        .where(
+            DailyJourney.user_id == user.id,
+            DailyJourney.status.in_(LIVED_STATUSES),
+            DailyJourneyStep.kind == "scene",
+        )
+        .order_by(DailyJourneyStep.journey_id, DailyJourneyStep.ordinal.asc())
+    ):
+        act = scenes[journey_id] = scenes.get(journey_id, 0) + 1
+        if act == 1 or started_at is not None:
+            played[journey_id] = act
+    return played
+
+
+def _later_act_row(
+    first: dict[str, Any],
+    *,
+    act: int,
+    scene: GraphicNovelScene | None,
+    kinds: dict[str, DailyJourneyStep],
+    image: str | None,
+    panel_ids: dict[int, str],
+    edition_by_scene: dict[str, int | None],
+) -> dict[str, Any]:
+    """A later act's planche: its own page, reply and ending, on its day's date and Nº."""
+
+    scene_step = kinds.get("scene")
+    brief = (scene_step.private_task or {}).get("act_brief") if scene_step is not None else None
+    brief = brief if isinstance(brief, dict) else {}
+    prompt = dict((scene_step.public_prompt or {}) if scene_step is not None else {})
+    resolution = dict((kinds.get("resolution").public_prompt or {}) if kinds.get("resolution") else {})
+    payload = scene.script_payload if scene is not None and isinstance(scene.script_payload, dict) else {}
+    notes = margin_notes_of(payload)
+    if scene is not None:
+        _attach_panel_ids(notes, panel_ids)
+    for note in notes:
+        note["cause_edition_no"] = edition_by_scene.get(str(note.get("cause_scene_id")))
+    can_do = payload.get("can_do_id")
+    stored_role = (scene_step.private_task or {}).get("act_role") if scene_step is not None else None
+    role = (scene_act(scene)[1] if scene is not None else None) or (str(stored_role) if stored_role else None)
+    return {
+        **{key: first[key] for key in ("date", "journey_id", "edition_no", "reread")},
+        "scene_id": str(scene.id) if scene is not None else None,
+        "title_fr": (scene.title if scene is not None else "") or str(brief.get("title_fr") or ""),
+        "image_url": image or prompt.get("image_url"),
+        "character_id": str(brief.get("character_id") or "") or None,
+        "learner_lines": _learner_lines(kinds.get("respond")),
+        "ending_fr": None
+        if resolution.get("story_pending")
+        else _text(resolution.get("character_line_fr"), 600) or None,
+        # The day's tomorrow-hook is its first act's (a later act never writes one).
+        "hook_fr": hook_of(payload),
+        "margin_notes": notes,
+        "can_do_id": str(can_do) if can_do else None,
+        "special": SPECIAL_EPREUVE if payload.get("special") == SPECIAL_EPREUVE else None,
+        "authored": False,
+        "panels": None,
+        "act": act,
+        "act_role": role,
+    }
+
+
 def _day_payloads(
     db: Session,
     journeys: list[DailyJourney],
-    scene_by_journey: dict[str, GraphicNovelScene],
-) -> dict[str, dict[str, Any]]:
+    acts_by_journey: dict[str, dict[int, GraphicNovelScene]],
+    played: dict[Any, int],
+) -> dict[str, list[dict[str, Any]]]:
+    """Each day's planches, in play order: the day itself (its first act), then each
+    later act it played (Phase 2), each with its own page, reply and ending."""
+
     from app.services.seals import edition_numbers
     from app.services.season.reprise import is_reprise_journey
 
     if not journeys:
         return {}
     ids = [journey.id for journey in journeys]
-    steps: dict[Any, dict[str, DailyJourneyStep]] = {}
+    scene_by_journey = _first_acts(acts_by_journey)
+    steps: dict[Any, dict[int, dict[str, DailyJourneyStep]]] = {}
     for step in db.scalars(
         select(DailyJourneyStep)
         .where(
@@ -695,9 +788,11 @@ def _day_payloads(
         )
         .order_by(DailyJourneyStep.ordinal.asc())
     ):
-        steps.setdefault(step.journey_id, {}).setdefault(step.kind, step)
+        steps.setdefault(step.journey_id, {}).setdefault(step_act(step), {}).setdefault(step.kind, step)
 
-    scene_ids = [scene_by_journey[str(i)].id for i in ids if str(i) in scene_by_journey]
+    scene_ids = [
+        scene.id for i in ids for scene in (acts_by_journey.get(str(i)) or {}).values()
+    ]
     first_art: dict[Any, str] = {}
     panel_ids: dict[Any, dict[int, str]] = {}
     if scene_ids:
@@ -715,15 +810,16 @@ def _day_payloads(
         logger.exception("story_archive: edition numbers unreadable")
         editions = {}
     edition_by_scene = {
-        str(scene_by_journey[str(j.id)].id): editions.get(j.id)
+        str(scene.id): editions.get(j.id)
         for j in journeys
-        if str(j.id) in scene_by_journey
+        for scene in (acts_by_journey.get(str(j.id)) or {}).values()
     }
 
-    out: dict[str, dict[str, Any]] = {}
+    out: dict[str, list[dict[str, Any]]] = {}
     for journey in journeys:
         scene = scene_by_journey.get(str(journey.id))
-        kinds = steps.get(journey.id, {})
+        by_act = steps.get(journey.id, {})
+        kinds = by_act.get(1, {})
         scene_prompt = dict((kinds.get("scene").public_prompt or {}) if kinds.get("scene") else {})
         resolution = dict(
             (kinds.get("resolution").public_prompt or {}) if kinds.get("resolution") else {}
@@ -746,7 +842,7 @@ def _day_payloads(
         for note in notes:
             note["cause_edition_no"] = edition_by_scene.get(str(note.get("cause_scene_id")))
         can_do = payload.get("can_do_id")
-        out[str(journey.id)] = {
+        first = {
             "date": journey.local_date.isoformat(),
             "journey_id": str(journey.id),
             "scene_id": str(scene.id) if scene is not None else None,
@@ -765,7 +861,25 @@ def _day_payloads(
             "special": SPECIAL_EPREUVE if payload.get("special") == SPECIAL_EPREUVE else None,
             "authored": scene is None,
             "panels": authored,
+            "act": 1,
+            "act_role": None,
         }
+        rows = [first]
+        acts = acts_by_journey.get(str(journey.id)) or {}
+        for act in range(2, int(played.get(journey.id, 1)) + 1):
+            act_scene = acts.get(act)
+            rows.append(
+                _later_act_row(
+                    first,
+                    act=act,
+                    scene=act_scene,
+                    kinds=by_act.get(act, {}),
+                    image=first_art.get(act_scene.id) if act_scene is not None else None,
+                    panel_ids=panel_ids.get(act_scene.id, {}) if act_scene is not None else {},
+                    edition_by_scene=edition_by_scene,
+                )
+            )
+        out[str(journey.id)] = rows
     return out
 
 

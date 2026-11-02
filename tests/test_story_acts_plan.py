@@ -225,6 +225,18 @@ def test_b1_intensif_plays_three_acts_back_to_back() -> None:
     assert all(reply.public_prompt["targets"] == [] for reply in replies[1:])
 
 
+@pytest.mark.parametrize("audio", [True, False], ids=["audio", "no-audio"])
+def test_on_a_listening_day_every_act_can_be_heard_first(audio: bool) -> None:
+    """«Écouter d'abord» is each act's own: on a listening day every act's scene opens
+    on its page's audio (PR 4), and none does where nothing can be heard."""
+
+    plan = _day("B1", 1800, acts=[_act("cote"), _act("soir")], day_shape=DayShape.LISTENING, audio_available=audio)
+    plan.validate()
+    scenes = [step for step in plan.steps if step.kind is StepKind.SCENE]
+    assert [step.act for step in scenes] == list(range(1, plan.act_count + 1)) and plan.act_count > 1
+    assert [step.public_prompt["listen_first"] for step in scenes] == [audio] * plan.act_count
+
+
 def test_on_a_day_of_acts_a_longer_rhythm_buys_an_act_not_a_fourth_exchange() -> None:
     one = _day("B1", 1800)
     three = _three_acts()

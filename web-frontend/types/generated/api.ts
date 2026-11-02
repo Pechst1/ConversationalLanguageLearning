@@ -5854,6 +5854,13 @@ export interface components {
          */
         ArchiveDay: {
             /**
+             * Act
+             * @default 1
+             */
+            act?: number;
+            /** Act Role */
+            act_role?: string | null;
+            /**
              * Authored
              * @default false
              */
