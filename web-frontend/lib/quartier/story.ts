@@ -179,6 +179,12 @@ export type HelpStep = 'hint' | 'words' | 'example';
 export interface Ask {
   /** what to do, in the learner's language */
   task: string | null;
+  /**
+   * What you answer now, in French, once a talk written today has gone on past its opening
+   * question: what the person asked last. The sheet shows it instead of the day's task, which
+   * would read as the first question asked again.
+   */
+  line?: string | null;
   /** the help this question offers, in the order it is given */
   help: HelpStep[];
 }

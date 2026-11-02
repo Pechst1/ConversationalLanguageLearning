@@ -73,6 +73,11 @@ export interface AnswerUi {
   to: string;
   /** what to do, in the learner's language */
   task: string | null;
+  /**
+   * what you answer now, in French, once a talk written today has gone on past its opening
+   * question: shown instead of the task, which would read as the first question asked again
+   */
+  line: string | null;
   /** the help the question offers, in order */
   steps: HelpStep[];
   /** the help given so far */
@@ -1078,6 +1083,7 @@ export class Stage implements Director {
         char: who.char,
         to: turn.to_name ?? who.name,
         task: ask.task,
+        line: ask.line ?? null,
         steps: ask.help,
         help: [],
         more: ask.help[0] ?? null,
