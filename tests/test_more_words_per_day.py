@@ -134,15 +134,14 @@ def test_every_room_for_new_words_reads_the_one_cap(
 
 def test_nothing_else_adds_extras_or_computes_a_cap_of_its_own() -> None:
     """Guard, by source: only ``vocabulary_pace`` reads the stored extras, and the
-    raw quota (``_quota``) is read only for the cap and the day's dose."""
+    raw quota (``_quota``) is read only inside the cap (and the unthrottled
+    number the forecast and the re-plan check read)."""
 
     allowed_quota = {
-        ("app/services/vocabulary_pace.py", "daily_quota"),
-        ("app/services/vocabulary_pace.py", "planned_new_words"),
         ("app/services/vocabulary_pace.py", "effective_new_word_cap"),
-        # The day's plan: the dose the day deck holds, never the extras.
-        ("app/services/day_words.py", "make_plan"),
-        ("app/services/day_words.py", "_dose"),
+        # The learner's own number before the throttle: the forecast's prior and
+        # the day plan's re-plan check (``day_words._dose``).
+        ("app/services/vocabulary_pace.py", "planned_new_words"),
     }
     quota_calls: set[tuple[str, str]] = set()
     extras_reads: set[tuple[str, str]] = set()
@@ -159,6 +158,34 @@ def test_nothing_else_adds_extras_or_computes_a_cap_of_its_own() -> None:
                     extras_reads.add((rel, func.name))
     assert quota_calls <= allowed_quota, f"a cap computed outside effective_new_word_cap: {quota_calls - allowed_quota}"
     assert {rel for rel, _name in extras_reads} == {"app/services/vocabulary_pace.py"}, extras_reads
+
+
+def test_the_day_plan_takes_its_quota_from_the_one_cap_without_the_extras(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#487 made ``plan["quota"]`` the day deck's one read of the intake; it is
+    filled from ``effective_new_word_cap``, its dose part: the extras stay the
+    learner's continuation, outside the day's count."""
+
+    from app.services import day_words
+
+    _headers, user = _login(client, db_session)
+    _dose_of(db_session, user, monkeypatch, 10)
+    vocabulary_pace.grant_extra_new_words(db_session, user)
+    db_session.commit()
+
+    calls: list[dict] = []
+    cap = vocabulary_pace.effective_new_word_cap
+
+    def spy(*args, **kwargs):
+        calls.append(kwargs)
+        return cap(*args, **kwargs)
+
+    monkeypatch.setattr(vocabulary_pace, "effective_new_word_cap", spy)
+    plan = day_words.make_plan(db_session, user, now=datetime.now(UTC))
+    assert plan["quota"] == 10, "today's extras joined the day's count"
+    assert any(call.get("extras") is False for call in calls), "the plan's quota did not come from the one cap"
+    assert cap(db_session, user) == 15
 
 
 def test_the_client_never_sizes_the_words_past_the_dose(

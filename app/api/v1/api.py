@@ -18,6 +18,7 @@ from app.api.v1.endpoints import (
     episode_audio,
     feedback,
     forge,
+    gold,
     grammar,
     graphic_novel,
     intake,
@@ -64,6 +65,7 @@ api_router.include_router(sessions.router, dependencies=_paid)
 api_router.include_router(sessions_ws.router)
 api_router.include_router(vocabulary.router)
 api_router.include_router(analytics.router)
+api_router.include_router(gold.router)  # O-2 l'or on screen
 api_router.include_router(achievements.router)
 # The learner's avatar: free for everyone, onboarding included (no paid guard).
 api_router.include_router(avatar.router)

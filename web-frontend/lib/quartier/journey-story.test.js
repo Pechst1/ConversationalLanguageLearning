@@ -109,7 +109,7 @@ function storyOn(j, handlers, opts = {}) {
 }
 
 /** A day the story engine wrote: a rule first, then the scene's panels, then the talk with Lila. */
-function written({ revision = 3, current = 'rule', turn = 0 } = {}) {
+function written({ revision = 3, current = 'rule', turn = 0, line = 'Alors, elle est où ?' } = {}) {
   const order = ['rule', 'scene', 'talk', 'end'];
   const at = order.indexOf(current);
   const state = (i) => (i < at ? 'completed' : i === at ? 'active' : 'pending');
@@ -139,7 +139,7 @@ function written({ revision = 3, current = 'rule', turn = 0 } = {}) {
           ],
         },
       },
-      { id: 'talk', kind: 'respond', ordinal: 2, status: state(2), prompt: { turn_index: turn, help_available: ['hint'], targets: TARGETS, choices: [], objective_native: 'Tell Lila where the key is.', character_id: 'lila_bonnet', character_name: 'Lila', character_line_fr: 'Alors, elle est où ?' } },
+      { id: 'talk', kind: 'respond', ordinal: 2, status: state(2), prompt: { turn_index: turn, help_available: ['hint'], targets: TARGETS, choices: [], objective_native: 'Tell Lila where the key is.', character_id: 'lila_bonnet', character_name: 'Lila', character_line_fr: line } },
       { id: 'end', kind: 'resolution', ordinal: 3, status: state(3), prompt: { story_pending: false } },
     ],
   };
@@ -188,6 +188,54 @@ test('a reply without its lines split out is still said, by whoever the talk is 
   const heard = await story.answer('jour.talk', 'Elle est sous le paillasson.');
   assert.deepEqual(heard.beats[0].lines.map((l) => [l.who, l.name, l.text_fr]), [['lila_bonnet', 'Lila', 'Sous le paillasson ? Et tu l’as laissée là ?']]);
   assert.equal(heard.goesOn, true);
+});
+
+test('a talk that goes on asks what the person said last, not the day’s task again', async () => {
+  // Vincent's 3D day of 2 November: three exchanges with Gus, and the sheet showed the day's task
+  // each time, so his answer looked refused until the third
+  const said = (revision, turn, text, open) => ({
+    pending: false,
+    journey: written({ revision, current: 'talk', turn, line: text }),
+    correction: null,
+    character_lines: [{ speaker_id: 'lila_bonnet', speaker_name: 'Lila', text_fr: text }],
+    next_turn: open ? { step_id: 'talk' } : null,
+    stage: null,
+  });
+  const replies = [said(5, 1, 'Sous le paillasson ? Et tu l’as laissée là ?', true), said(6, 2, 'Bon. Marin la cherche depuis hier. Tu lui dis, toi ?', true), said(7, 3, 'Merci, vraiment.', false)];
+  const { story } = storyOn(written({ revision: 4, current: 'talk' }), { attempt: async () => replies.shift() });
+  const first = await story.ask('jour.talk');
+  assert.deepEqual([first.task, first.line], ['Tell Lila where the key is.', null], 'the opening question: the day’s task');
+  await story.answer('jour.talk', 'Elle est sous le paillasson.');
+  const second = await story.ask('jour.talk');
+  assert.equal(second.line, 'Et tu l’as laissée là ?', 'what Lila asked back, which the sheet shows instead of the task');
+  await story.answer('jour.talk', 'Oui, je suis désolé.');
+  assert.equal((await story.ask('jour.talk')).line, 'Tu lui dis, toi ?');
+  const last = await story.answer('jour.talk', 'Oui, je lui dis ce soir.');
+  assert.equal(last.closing, true);
+});
+
+test('what a line asks: its last question, else the whole line', () => {
+  const { questionOf } = require('./journey-story.ts');
+  assert.equal(questionOf('Ah, tu signes ! Merci. Et ton nom, je le mets en premier ?'), 'Et ton nom, je le mets en premier ?');
+  assert.equal(questionOf('Tu viens samedi ? Il y aura du monde.'), 'Tu viens samedi ?', 'a line that asks, then goes on, still asks');
+  assert.equal(questionOf('Tu as vu M. Vasseur ce matin ?'), 'Tu as vu M. Vasseur ce matin ?', 'a title is not the end of a sentence');
+  assert.equal(questionOf('Elle a dit « pas de fête ». Tu la crois ?'), 'Tu la crois ?');
+  assert.equal(questionOf('Ça coûte 3.50 ? Vraiment ?'), 'Vraiment ?');
+  assert.equal(questionOf('Moi, je signe en premier.'), 'Moi, je signe en premier.', 'no question: the whole line');
+  assert.equal(questionOf('  Bon.\n Tu   restes ?  '), 'Tu restes ?');
+  assert.equal(questionOf(''), null);
+  assert.equal(questionOf(null), null);
+  const long = questionOf(`${'Très long. '.repeat(30)}`);
+  assert.ok(long.length <= 200 && long.endsWith('…'));
+});
+
+test('an authored page keeps each question’s own task: no line from the talk', async () => {
+  const graded = { pending: false, journey: journey({ revision: 5, current: 'talk', turn: 1 }), correction: null, character_lines: [], next_turn: { step_id: 'talk' }, stage: { turn_id: 'a.turn1', reply_id: 'a', beats: [], next_turn_id: 'a.cafe', closing: false } };
+  const { story } = storyOn(journey({ revision: 4, current: 'talk' }), { attempt: async () => graded });
+  await story.answer('a.turn1', "Je suis la famille d'Odile.");
+  const cafe = await story.ask('a.cafe');
+  assert.equal(cafe.line, null);
+  assert.equal(cafe.task, 'The cup in front of you.');
 });
 
 test('the scene picks the day up where the warm-up left it', async () => {
@@ -261,7 +309,7 @@ test('the first question acknowledges the scene, and offers help in steps', asyn
   assert.deepEqual(of('advance')[0].args.slice(0, 1), ['j1']);
   assert.equal(of('advance')[0].args[1].currentStepId, 'scene');
   assert.equal(of('advance')[0].args[1].expectedRevision, 3);
-  assert.deepEqual(ask, { task: 'Tell Gus who you are.', help: ['hint', 'words', 'example'] });
+  assert.deepEqual(ask, { task: 'Tell Gus who you are.', line: null, help: ['hint', 'words', 'example'] });
   assert.deepEqual(snapshots, [4]);
   // asked again: the scene is not acknowledged twice
   await story.ask('a.turn1');
@@ -554,7 +602,7 @@ test('the recorded day, played through: every answer and gesture as the engine t
   assert.equal(gus.beats[0].id, 'talk.augustin_de_roncourt.slip');
 
   // the first question acknowledges the scene; this talk has no words to offer, only the hint and an example
-  assert.deepEqual(await story.ask('a.turn1'), { task: 'Say who you are and why you are here.', help: ['hint', 'example'] });
+  assert.deepEqual(await story.ask('a.turn1'), { task: 'Say who you are and why you are here.', line: null, help: ['hint', 'example'] });
   const t1 = await story.answer('a.turn1', "Odile, c'est ma grand-mère.");
   assert.deepEqual([t1.turn, t1.reply, t1.next, t1.closing], ['a.turn1', 'a', 'a.cafe', false]);
   assert.equal(t1.beats[0].id, 'a.turn1.a.r1');

@@ -22,7 +22,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import date
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Any, Literal, NamedTuple
 from uuid import UUID
 
 CONTRACT_VERSION = 1
@@ -78,6 +78,8 @@ MAX_WARMUP_RECALL_STEPS = 3
 #: makes the movements longer, never more numerous — one scene, one reply, one
 #: ending on every rhythm (no rhythm plans a second episode). The reply is a
 #: conversation of at least :data:`MIN_SCENE_EXCHANGES` exchanges from Régulier up.
+#: Phase 2 «Folge in Akten» is the one exception, and only when the night wrote
+#: the acts: Soutenu may play two acts and Intensif three (``RhythmCaps.max_acts``).
 RHYTHM_BUDGETS: tuple[int, ...] = (300, 600, 1200, 1800)
 
 
@@ -123,6 +125,12 @@ class RhythmCaps:
     #: a paged day may add *beyond* ``max_recall``: listening is input, and a
     #: longer rhythm buys input, not more drills.
     max_heard: int = 0
+    #: Phase 2 «Folge in Akten»: the most acts a day may play — one on Léger and
+    #: Régulier, two on Soutenu, three on Intensif. A ceiling, like the others:
+    #: the planner keeps only the acts the night wrote and the day's seconds hold
+    #: (:data:`ACT_PRACTICE_SHARE`). Each act brings its own scene, reply and
+    #: ending, on top of ``max_steps``.
+    max_acts: int = 1
 
 
 RHYTHM_CAPS: dict[int, RhythmCaps] = {
@@ -131,9 +139,114 @@ RHYTHM_CAPS: dict[int, RhythmCaps] = {
     # WP-93: steps = recall + heard + scene, reply, ending, rule, forge and
     # the «Lecture» pages.
     600: RhythmCaps(600, 18, 12, 5, 5, 2, 10, 16, 2, 3, 4),
-    1200: RhythmCaps(1200, 32, 20, 8, 8, 4, 16, 32, 3, 4, 8, max_reads=1, max_heard=6),
-    1800: RhythmCaps(1800, 49, 28, 11, 11, 6, 24, 48, 3, 4, 12, max_reads=2, max_heard=12),
+    1200: RhythmCaps(
+        1200, 32, 20, 8, 8, 4, 16, 32, 3, 4, 8, max_reads=1, max_heard=6, max_acts=2
+    ),
+    1800: RhythmCaps(
+        1800, 49, 28, 11, 11, 6, 24, 48, 3, 4, 12, max_reads=2, max_heard=12, max_acts=3
+    ),
 }
+
+
+# --------------------------------------------------------------------------
+# Phase 2 «Folge in Akten» — a day of one to three acts
+# --------------------------------------------------------------------------
+
+#: An act is what the whole episode is today: the scene's page, the reply's
+#: conversation and the ending, played in one run with nothing between them.
+#: A day plays one to three acts back to back, the first always the season's
+#: step. A day of one act is exactly today's day, and every plan written before
+#: Phase 2 is one.
+MAX_ACTS = 3
+#: On a day of more than one act, at least this share of the budget stays for
+#: the warm-ups, the rule, the forge and practice: the acts together take at
+#: most the rest. A one-act day keeps today's rules (its story may take more of
+#: a short rhythm, as A1 does on Régulier).
+ACT_PRACTICE_SHARE = 0.2
+
+
+class ActRole(StrEnum):
+    """What an act does in its day (acts doc, «Was ein Akt ist»)."""
+
+    #: «Le fil»: the season's one step of the day. Every day, always first,
+    #: never dropped. On a one-act day it also carries the day's hook.
+    FIL = "fil"
+    #: «À côté»: a side thread somewhere else, with another lead. Intensif only;
+    #: the first act given up when the day cannot hold them all.
+    COTE = "cote"
+    #: «Le soir»: the evening — the day's question answered, tomorrow's hook.
+    #: Soutenu and Intensif.
+    SOIR = "soir"
+
+
+#: The order the roles are played in.
+ACT_ROLE_ORDER: tuple[ActRole, ...] = (ActRole.FIL, ActRole.COTE, ActRole.SOIR)
+#: The order the acts after the first are given up in when a day cannot hold
+#: them: «À côté» first, then «Le soir». «Le fil» never.
+ACT_DROP_ORDER: tuple[ActRole, ...] = (ActRole.COTE, ActRole.SOIR)
+
+
+def act_roles(count: int) -> tuple[ActRole, ...]:
+    """The roles a day of ``count`` acts plays, in order: «Le fil»; then «Le
+    fil» and «Le soir» (Soutenu); then all three (Intensif)."""
+
+    count = max(1, min(MAX_ACTS, int(count or 1)))
+    dropped = set(ACT_DROP_ORDER[: MAX_ACTS - count])
+    return tuple(role for role in ACT_ROLE_ORDER if role not in dropped)
+
+
+class ActShape(NamedTuple):
+    """A full act's page at one band: what the night asks the writer for, and
+    what the planner prices before the act is written."""
+
+    #: Panels on the page.
+    panels: int
+    #: French words the page prints, narration and spoken lines together.
+    words: int
+    #: Texts on the page (each narration block and each spoken line).
+    lines: int
+
+
+#: «Wie lang» (acts doc): a full act per band. B1 is about 250 words on eight
+#: panels — today's generated page is 171 on five. The lines follow the band's
+#: line length (``season.director.LEVEL_SHAPES``: 8 · 12 · 16 · 22 · 28 words
+#: at most, about three quarters of that on average). C2 reads as C1.
+ACT_SHAPES: dict[str, ActShape] = {
+    "A1": ActShape(panels=5, words=100, lines=17),
+    "A2": ActShape(panels=6, words=170, lines=19),
+    "B1": ActShape(panels=8, words=250, lines=21),
+    "B2": ActShape(panels=8, words=350, lines=22),
+    "C1": ActShape(panels=8, words=420, lines=20),
+}
+#: A later act is shorter: «À côté» about 15 % and «Le soir» about 30 % fewer
+#: words than a full page, with one and two panels fewer (never under four).
+ACT_ROLE_SCALE: dict[ActRole, tuple[float, int]] = {
+    ActRole.FIL: (1.0, 0),
+    ActRole.COTE: (0.85, 1),
+    ActRole.SOIR: (0.7, 2),
+}
+
+
+def act_shape(band: str | None, role: ActRole | str = ActRole.FIL) -> ActShape:
+    """The page an act of ``role`` has at ``band`` (an unknown band reads B1)."""
+
+    code = str(band or "").strip().upper()[:2]
+    code = "C1" if code == "C2" else code
+    full = ACT_SHAPES.get(code, ACT_SHAPES["B1"])
+    share, fewer = ACT_ROLE_SCALE[ActRole(str(role))]
+    return ActShape(
+        panels=max(4, full.panels - fewer) if fewer else full.panels,
+        words=round(full.words * share),
+        lines=max(1, round(full.lines * share)),
+    )
+
+
+def act_story_ceiling(budget_seconds: int | None) -> int:
+    """The most seconds a day of several acts gives its acts together: all of
+    the budget but :data:`ACT_PRACTICE_SHARE` (24 of Intensif's 30 minutes)."""
+
+    budget = int(budget_seconds or DEFAULT_BUDGET_SECONDS)
+    return budget - round(ACT_PRACTICE_SHARE * budget)
 
 #: WP-93. At least this share of a day's budget is reading or listening — the
 #: page (its panels and lines, and their audio when the deployment speaks),
@@ -237,6 +350,10 @@ class StepKind(StrEnum):
 
 #: The three desks a «bureau» step can open (``public_prompt["desk"]``).
 DESK_KINDS: tuple[str, ...] = ("relecture", "radio", "correcteur")
+
+#: Phase 2: the steps that make up an act, in the order they are played. A day
+#: of several acts plays them back to back, nothing between them.
+ACT_STEP_KINDS: tuple[StepKind, ...] = (StepKind.SCENE, StepKind.RESPOND, StepKind.RESOLUTION)
 
 #: WP-128. The optional extensions a day may carry inside its plan, by the
 #: name their separate estimate goes by (``reading`` · ``forge`` · ``desk``).
@@ -869,6 +986,19 @@ class ScenarioBrief:
 
 
 @dataclass(frozen=True, slots=True)
+class ActBrief:
+    """Phase 2: an act after the day's first — its role and its own brief.
+
+    The day's first act is the plan's ``scenario``. Each later act has its own
+    page, lead character, place, reply task and ending, written at night with
+    the rest of the day, so it carries a whole :class:`ScenarioBrief`.
+    """
+
+    role: ActRole
+    scenario: ScenarioBrief
+
+
+@dataclass(frozen=True, slots=True)
 class ContentUnavailable:
     """Deterministic, honest 'no valid content' result. Never a placeholder scene."""
 
@@ -892,6 +1022,10 @@ class PlannedStep:
     target: TargetRef | None = None
     optional: bool = False
     initial_status: StepStatus = StepStatus.PENDING
+    #: Phase 2: which act of the day a scene, reply or ending belongs to — its
+    #: place in the day, 1 to 3. Every other step, and every step of a one-act
+    #: day (every plan written before Phase 2), is act 1.
+    act: int = 1
 
 
 @dataclass(frozen=True, slots=True)
@@ -1013,6 +1147,16 @@ class PlannedJourney:
     #: surface shows its longer estimate before the learner starts. A page is
     #: never cut to fit. ``False`` for every plan written before WP-128.
     longer_day: bool = False
+    #: Phase 2 «Folge in Akten»: the acts after the first, in the order they are
+    #: played (their steps carry ``act`` 2 and 3). Empty on a one-act day, which
+    #: is every plan written before Phase 2 and every day while the acts are off.
+    acts: list[ActBrief] = field(default_factory=list)
+
+    @property
+    def act_count(self) -> int:
+        """How many acts the day plays: the first, and one per :attr:`acts`."""
+
+        return 1 + len(self.acts)
 
     def core_seconds(self) -> int:
         """WP-128: the recommended core path — the story and its practice.
@@ -1049,6 +1193,8 @@ class PlannedJourney:
         if self.practice:
             self._validate_practice()
             return
+        if self.acts or any(int(step.act or 1) != 1 for step in self.steps):
+            raise ValueError("only a practice day plays more than one act")
         rule = day_shape_rule(self.day_shape)
         shape = str(self.day_shape)
         if len(self.steps) > MAX_PLANNED_STEPS:
@@ -1130,6 +1276,61 @@ class PlannedJourney:
                 f"mandatory estimate {mandatory}s exceeds budget {self.budget_seconds}s"
             )
 
+    def _validate_acts(self, caps: RhythmCaps) -> list[int]:
+        """Phase 2 — the acts of a practice day.
+
+        Each act is a scene, its reply and its ending, in that order; the acts
+        follow one another with nothing between them, numbered 1 to N; the
+        rhythm caps N; the later acts are «À côté» and «Le soir», in that order;
+        and together the acts leave :data:`ACT_PRACTICE_SHARE` of the day for
+        practice. Returns the positions of the later acts' steps (none on a
+        one-act day, which this leaves exactly as it was).
+        """
+
+        story = [index for index, step in enumerate(self.steps) if step.kind in ACT_STEP_KINDS]
+        for index, step in enumerate(self.steps):
+            if int(step.act or 1) != 1 and index not in story:
+                raise ValueError("only a scene, a reply or an ending belongs to a later act")
+        acts = self.act_count
+        if acts == 1:
+            if any(int(self.steps[index].act or 1) != 1 for index in story):
+                raise ValueError("a later act needs its own brief")
+            return []
+        shape = str(self.day_shape)
+        if shape in (DayShape.SHORT, DayShape.REVUE):
+            raise ValueError(f"a {shape} day plays one act")
+        if acts > caps.max_acts:
+            raise ValueError(f"a day at this rhythm plays at most {caps.max_acts} act(s), not {acts}")
+        if self.longer_day:
+            raise ValueError("a longer day plays one act")
+        roles = tuple(ActRole(str(act.role)) for act in self.acts)
+        if roles != act_roles(acts)[1:]:
+            # «Le soir» answers the day's question and ends on its hook: a day of
+            # two acts plays it after the first, a day of three «À côté» before it.
+            raise ValueError(
+                f"a day of {acts} acts plays "
+                + ", ".join(f"«{role}»" for role in act_roles(acts))
+                + " in that order"
+            )
+        if [self.steps[index].kind for index in story] != list(ACT_STEP_KINDS) * acts:
+            raise ValueError(
+                f"a day of {acts} acts plays {acts} scenes, replies and endings, "
+                "each act's in that order"
+            )
+        if story != list(range(story[0], story[0] + len(story))):
+            raise ValueError("the acts follow one another with nothing between them")
+        numbers = [int(self.steps[index].act or 1) for index in story]
+        if numbers != [number for number in range(1, acts + 1) for _kind in ACT_STEP_KINDS]:
+            raise ValueError("each act's scene, reply and ending carry its number, 1 to N in order")
+        seconds = sum(self.steps[index].estimated_seconds for index in story)
+        ceiling = act_story_ceiling(self.budget_seconds)
+        if seconds > ceiling:
+            raise ValueError(
+                f"the acts take {seconds}s; at most {ceiling}s of a {self.budget_seconds}s day, "
+                "the rest is practice"
+            )
+        return story[len(ACT_STEP_KINDS):]
+
     def _validate_practice(self) -> None:
         """WP-78 — the practice day's envelope.
 
@@ -1148,6 +1349,10 @@ class PlannedJourney:
         rule = practice_day_shape_rule(self.day_shape, self.budget_seconds)
         caps = rhythm_caps(self.budget_seconds)
         shape = str(self.day_shape)
+        # Phase 2: once the acts are checked, the later acts' scenes, replies and
+        # endings are set aside, and the rest of the day is held to exactly the
+        # rules of a one-act day — the acts sit where its episode sits.
+        later = set(self._validate_acts(caps))
         kinds = [step.kind for step in self.steps]
         # WP-129 (D7): the review after the ending is read like practice; every
         # rule below is the day's introduction.
@@ -1156,9 +1361,12 @@ class PlannedJourney:
             raise ValueError("a day reviews at most one unit in its page")
         if reviews and StepKind.RESOLUTION in kinds and reviews[0] < kinds.index(StepKind.RESOLUTION):
             raise ValueError("the page's review comes after the ending")
-        kinds = [kind for index, kind in enumerate(kinds) if index not in reviews]
-        if len(self.steps) > caps.max_steps:
-            raise ValueError(f"plan has {len(self.steps)} steps, max {caps.max_steps}")
+        kinds = [
+            kind for index, kind in enumerate(kinds) if index not in reviews and index not in later
+        ]
+        planned = len(self.steps) - len(later)
+        if planned > caps.max_steps:
+            raise ValueError(f"plan has {planned} steps, max {caps.max_steps}")
         if kinds.count(StepKind.SCENE) != 1:
             raise ValueError("a plan needs exactly one scene step")
         if kinds.count(StepKind.RESPOND) != 1:
@@ -1220,10 +1428,10 @@ class PlannedJourney:
         if [step.ordinal for step in self.steps] != list(range(len(self.steps))):
             raise ValueError("step ordinals must be a stable 0..n-1 sequence")
         recalls = kinds.count(StepKind.RECALL)
-        if not rule.min_steps <= len(self.steps) <= rule.max_steps:
+        if not rule.min_steps <= planned <= rule.max_steps:
             raise ValueError(
                 f"a {shape} day holds {rule.min_steps}..{rule.max_steps} steps, "
-                f"not {len(self.steps)}"
+                f"not {planned}"
             )
         # WP-93: heard items beyond the recall ceiling are input, allowed up to
         # the rhythm's ``max_heard``; every other item counts against the ceiling.
@@ -1334,7 +1542,8 @@ class RecallEvaluation:
     #: line in the learner's language («Richtig — achte auf den Akzent: «très»»).
     #: Never a correction: nothing is filed as an erratum.
     slip_note_native: str | None = None
-    #: O-1: what that forgiven slip was — ``accent`` (l'or pays half, R3) or ``typo``.
+    #: O-1: what that forgiven slip was — ``accent`` (l'or pays half, R3), ``typo``, or
+    #: ``article`` (a noun asked without its article, given with a wrong one: #174).
     slip_kind: str | None = None
 
 

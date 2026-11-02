@@ -33,6 +33,9 @@ tricky answers, and run through the real graders):
 * **Optional articles** only when the caller says the article is not what the item
   asks for (``article_optional=True``): the bare noun, or the noun with an
   article of the right gender, counts; a wrong-gender article does not.
+  The journey's recall, which asks for the noun, credits the word anyway
+  (QA-PRACTICE, 3 Oct: «any article or none») and names the article on the hit
+  (owner call, 2 Nov: :func:`article_slip_fix`, «Right — watch the article»).
 * **Accepted alternatives** are the item's list plus the systematic ones the
   caller opts into: ``question_variants`` (est-ce que ↔ intonation ↔ simple
   inversion) and ``on_nous_variants`` («on va» ↔ «nous allons» for the verbs in
@@ -1022,28 +1025,89 @@ def noun_with_learner_article(noun: object, learner: object) -> str | None:
     «un appart → appartement» dropped the article the learner gave).
 
     ``None`` when the learner wrote no singular article, the key is not one bare noun,
-    or the core lexicon does not know its gender. A noun on «h» or «y» takes no definite
-    article here: «l'» or «le» depends on an aspirated h («le héros») or a consonant y
-    («le yaourt») this list does not know."""
+    or the core lexicon does not know its gender (a clipped word takes its full word's:
+    «appart» is «appartement»'s). A noun on «h» or «y» takes no definite article here:
+    «l'» or «le» depends on an aspirated h («le héros») or a consonant y («le yaourt»)
+    this list does not know."""
 
     key = " ".join(str(noun or "").split())
     folded_key = fold_typography(key)
     if not folded_key or " " in folded_key or _strip_article(folded_key)[0] is not None or "'" in folded_key:
         return None
-    key = key[:1].lower() + key[1:]  # a key written with a capital («Appartement») is still a noun
+    gender = _gender_of(folded_key) or _gender_of(_CLIPPED_NOUNS.get(folded_key, ""))
+    return _with_article_kind(key, learner, gender)
+
+
+#: The core lexicon's nouns that are only plural («les gens», «des vacances»), accent-
+#: folded: the article named on one is «les» or «des», never a singular one (#174,
+#: review on #485: «un vacances» was named «une vacances»).
+_PLURAL_ONLY_NOUNS = frozenset(
+    {
+        "gens", "vacances", "felicitations", "medias", "dechets", "mathematiques", "degats",
+        "archives", "pourparlers", "alentours", "moeurs", "cereales",
+    }
+)
+
+
+def _with_article_kind(noun: str, learner: object, gender: str | None, *, plural: bool = False) -> str | None:
+    """``noun`` with the kind of article (un/une or le/la/l') ``learner`` starts with,
+    in ``gender``; ``None`` when the learner gave no singular article, the gender is
+    unknown, or a definite article would hang on an «h» or a «y». A plural noun
+    (``plural``, or one only used in the plural) keeps its number: «des» or «les»."""
+
     article, rest = _strip_article(fold_typography(learner))
     if article not in {"un", "une", "le", "la", "l'"} or not rest:
         return None
-    gender = _gender_of(folded_key)
+    noun = noun[:1].lower() + noun[1:]  # a key written with a capital («Appartement») is still a noun
+    if plural or strip_accents(fold_typography(noun)) in _PLURAL_ONLY_NOUNS:
+        return f"{'des' if article in {'un', 'une'} else 'les'} {noun}"
     if gender not in {"m", "f"}:
         return None
     if article in {"un", "une"}:
-        return f"{'un' if gender == 'm' else 'une'} {key}"
-    if folded_key.startswith(("h", "y")):
+        return f"{'un' if gender == 'm' else 'une'} {noun}"
+    folded = fold_typography(noun)
+    if folded.startswith(("h", "y")):
         return None
-    if _VOWEL_START.match(folded_key):
-        return f"l'{key}"
-    return f"{'le' if gender == 'm' else 'la'} {key}"
+    if _VOWEL_START.match(folded):
+        return f"l'{noun}"
+    return f"{'le' if gender == 'm' else 'la'} {noun}"
+
+
+def article_slip_fix(key: object, learner: object) -> str | None:
+    """Owner call (2 Nov 2026, #174): a noun asked for without its article is right
+    with any article or none (QA-PRACTICE, 3 Oct), and a wrong article is named on the
+    hit, never passed in silence. This is the form named: the key's noun with the kind
+    of article the learner gave, in the key's gender («une appartement» → «un
+    appartement», «le appartement» → «l'appartement»). The key's own article decides
+    the gender, so «le poste» against «la poste» reads «la poste», whatever the other
+    word's gender is. ``None`` when the form cannot be told."""
+
+    text = " ".join(str(key or "").replace("’", "'").split())
+    match = _ARTICLE_PREFIX.match(text.lower())
+    if match is None:
+        return noun_with_learner_article(text, learner)
+    key_article, noun = match.group(1), text[match.end():].strip()
+    learner_article, rest = _strip_article(fold_typography(learner))
+    if not noun or not rest or learner_article not in {"un", "une", "le", "la", "l'"}:
+        return None
+    if (learner_article in {"le", "la", "l'"}) == (key_article in {"le", "la", "l'", "les"}):
+        # The key already says it, with the kind of article the learner chose.
+        return text[:1].lower() + text[1:]
+    folded = fold_typography(noun)
+    gender = _ARTICLES.get(key_article) or _gender_of(folded) or _gender_of(_CLIPPED_NOUNS.get(folded, ""))
+    # «les vacances» against «un vacances» is «des vacances»: the key's number stays.
+    return _with_article_kind(noun, learner, gender, plural=key_article in {"les", "des"})
+
+
+def article_slip_note(note: str | None, fixed: str, language: str | None) -> str | None:
+    """The one line naming an article slip on a hit (:func:`article_slip_fix`), in the
+    learner's language: «Right — watch the article: «un appartement».»"""
+
+    table = NOTE_COPY.get(f"{note}_ok") if note in {"gender", "elision"} else None
+    if table is None or not fixed:
+        return None
+    lang = str(language or "en")[:2].lower()
+    return (table.get(lang) or table["en"]).format(expected_word=fixed, learner_word="")
 
 
 def _is_adjective(word: str) -> bool:
@@ -1180,6 +1244,18 @@ NOTE_COPY: dict[str, dict[str, str]] = {
         "en": "The noun is right, the article's gender is not.",
         "de": "Das Nomen stimmt, das Geschlecht des Artikels nicht.",
         "fr": "Le nom est juste, le genre de l'article ne l'est pas.",
+    },
+    # Owner call (2 Nov 2026, #174): a noun asked for without its article is right with
+    # any article, and a wrong one is named on the hit (:func:`article_slip_note`).
+    "gender_ok": {
+        "en": "Right — watch the article: «{expected_word}».",
+        "de": "Richtig — achte auf den Artikel: «{expected_word}».",
+        "fr": "Juste — attention à l'article : « {expected_word} ».",
+    },
+    "elision_ok": {
+        "en": "Right — before a vowel: «{expected_word}».",
+        "de": "Richtig — vor einem Vokal: «{expected_word}».",
+        "fr": "Juste — devant une voyelle : « {expected_word} ».",
     },
 }
 

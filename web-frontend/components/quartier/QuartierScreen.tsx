@@ -926,7 +926,14 @@ function AnswerSheet({ a, copy, onSend, onHelp }: { a: AnswerUi; copy: Copy; onS
   return (
     <div className="qz-sheet" data-char={a.char} data-busy={a.busy || undefined}>
       <p className="qz-ask">{a.kind === 'choice' ? copy.choice : `${a.to} ${copy.asks}`}</p>
-      {a.task ? <p className="qz-task">{a.task}</p> : null}
+      {/* a talk that went on: what they asked last, not the day's task again */}
+      {a.line ? (
+        <p className="qz-task" lang="fr">
+          «&nbsp;{a.line}&nbsp;»
+        </p>
+      ) : a.task ? (
+        <p className="qz-task">{a.task}</p>
+      ) : null}
       {a.again ? <p className="qz-again">{copy.again}</p> : null}
       {hint?.native || hint?.text ? (
         <p className="qz-help-hint" lang={hint.text ? 'fr' : undefined}>

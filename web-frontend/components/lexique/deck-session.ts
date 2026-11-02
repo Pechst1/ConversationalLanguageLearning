@@ -119,7 +119,7 @@ export function deckFoot({ revealed, graded }: { revealed: boolean; graded: bool
 
 /**
  * The deck's order is the server's (`deck_order`, `app/services/deck_order.py`): the
- * device never re-sorts the deck by tiers of its own (owner request, 1 Nov). A card the
+ * device never re-sorts the deck by tiers of its own (owner requests, 1 and 2 Nov). A card the
  * order does not name keeps its place after it; with no order the payload's stands.
  */
 export function deckOrdered<T extends { word_id: number }>(items: T[], order?: readonly number[] | null): T[] {

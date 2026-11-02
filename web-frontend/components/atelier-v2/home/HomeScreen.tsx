@@ -27,6 +27,7 @@
 import React from 'react';
 import Link from 'next/link';
 
+import { GoldPill } from '@/components/gold/GoldPill';
 import { PlacementOfferChip } from '@/components/onboarding/PlacementOfferChip';
 import { MurChip, MurEntry } from '@/components/cast/items/MurEntry';
 
@@ -347,6 +348,8 @@ export function HomeScreen({
             <span className="av2-home__streak-n">{streak}</span>
           </Link>
         ) : null}
+        {/* O-2: l'or beside the saucers (drawn before them), only where the switch shows it. */}
+        <GoldPill />
       </header>
       <QuickSettings open={quickOpen} onClose={() => setQuickOpen(false)} />
 

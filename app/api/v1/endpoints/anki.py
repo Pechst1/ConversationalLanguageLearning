@@ -403,6 +403,10 @@ def submit_anki_review(
             if progress.scheduler == "anki"
             else earned_rating(review_format, verdict.correct if verdict is not None else None, payload.rating)
         )
+        from app.services import gold_ledger
+
+        # O-2: the word's last contact and last deck answer, before this review stamps them.
+        gold_snapshot = gold_ledger.snapshot_word_card(db, progress=progress) if verdict is not None else {}
         srs = EnhancedSRSService(db)
         srs.process_review(
             progress=progress,
@@ -413,11 +417,15 @@ def submit_anki_review(
             direction=payload.direction,
         )
         DailyWordSlateService(db).record_encounter(user=current_user, word_id=word.id, kind="retrouve")
+        gold_ledger.record_word_card(
+            db, user=current_user, word_id=word.id, review_format=review_format, verdict=verdict,
+            snapshot=gold_snapshot,
+        )
         # Owner request, 2 Nov: a new word the learner asked for past the day's
-        # dose («Noch 5 neue Wörter») earns its gold once, when answered right.
-        from app.services.gold_ledger import record_extra_word
-
-        record_extra_word(
+        # dose («Noch 5 neue Wörter») earns its gold once, when answered right,
+        # a self-rated card too (a graded one is already paid as a word card;
+        # the shared R1 keeps the word at its best of the day).
+        gold_ledger.record_extra_word(
             db,
             user=current_user,
             word_id=word.id,

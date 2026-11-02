@@ -134,6 +134,45 @@ export function sealRingPaths(count: number): string[] {
   });
 }
 
+/* ---------- O-2: the gold rim (le tirage du jour) ----------
+   A filled annular band just outside the disc, inside the first ring, that
+   gilds clockwise from twelve o'clock toward the journée-pleine mark: its
+   fraction is the day's settled gold over the mark. A faint track shows the
+   whole way round. Same unit as the rings (the disc's radius is 100). */
+const RIM_INNER = 100.5;
+const RIM_OUTER = 104.5;
+
+function fmt(n: number): string {
+  return String(Math.round(n * 1000) / 1000);
+}
+
+/** The gilded part of the rim for `fraction` (0–1) of the mark. Pure: a test reads it. */
+export function sealGoldRimPath(fraction: number): string | null {
+  const f = Math.max(0, Math.min(1, Number(fraction) || 0));
+  if (f <= 0) return null;
+  if (f >= 0.999) return annulus(RIM_INNER, RIM_OUTER);
+  const angle = 2 * Math.PI * f;
+  const large = angle > Math.PI ? 1 : 0;
+  const point = (r: number) => `${fmt(r * Math.sin(angle))},${fmt(-r * Math.cos(angle))}`;
+  return [
+    `M 0,${-RIM_OUTER}`,
+    `A ${RIM_OUTER},${RIM_OUTER} 0 ${large},1 ${point(RIM_OUTER)}`,
+    `L ${point(RIM_INNER)}`,
+    `A ${RIM_INNER},${RIM_INNER} 0 ${large},0 0,${-RIM_INNER}`,
+    'Z',
+  ].join(' ');
+}
+
+function SealGoldRim({ fraction }: { fraction: number }) {
+  const gilded = sealGoldRimPath(fraction);
+  return (
+    <svg className="av2-seal__rings av2-seal__gold" viewBox="-140 -140 280 280" aria-hidden="true" focusable="false">
+      <path className="av2-seal__gold-track" d={annulus(RIM_INNER, RIM_OUTER)} fillRule="evenodd" />
+      {gilded && <path className="av2-seal__gold-leaf" d={gilded} fillRule="evenodd" />}
+    </svg>
+  );
+}
+
 function SealRings({ count }: { count: number }) {
   const paths = sealRingPaths(count);
   if (!paths.length) return null;
@@ -167,6 +206,8 @@ export function Seal({
   ringsLabel,
   topLine = 'Atelier · le feuilleton',
   caption: captionOverride,
+  gold = null,
+  goldLabel,
 }: {
   variant?: SealVariant;
   no?: number | null;
@@ -185,11 +226,19 @@ export function Seal({
   topLine?: string;
   /** WP-94: the lower ring line in place of «Nº 47 · 22 sept.» («A1.2 · 28 sept.»). */
   caption?: string | null;
+  /** O-2: the day's settled gold over its journée-pleine mark (0–1); `null` draws no rim. */
+  gold?: number | null;
+  /** O-2: the rim's accessible words («Or +48 · Journée pleine (4 / 5)»). */
+  goldLabel?: string | null;
 }) {
   const uid = useId().replace(/:/g, '');
   const caption = captionOverride ?? sealCaption(no, date);
   const ringCount = Math.max(0, Math.min(SEAL_MAX_RINGS, Math.floor(Number(rings) || 0)));
   const baseLabel = label || ['Sceau', caption].filter(Boolean).join(' ');
+  const gilt = gold == null ? null : Math.max(0, Math.min(1, Number(gold) || 0));
+  const fullLabel = [baseLabel, ringCount && ringsLabel ? ringsLabel : null, gilt != null && goldLabel ? goldLabel : null]
+    .filter(Boolean)
+    .join(' · ');
   return (
     <div
       className="av2-seal"
@@ -198,10 +247,12 @@ export function Seal({
       data-stamp={stamp ? 'true' : undefined}
       data-variant={variant}
       data-rings={ringCount || undefined}
+      data-gold={gilt != null ? (gilt >= 1 ? 'full' : 'partial') : undefined}
       role="img"
-      aria-label={ringCount && ringsLabel ? `${baseLabel} · ${ringsLabel}` : baseLabel}
+      aria-label={fullLabel}
     >
       <div className="av2-seal__disc">
+        {gilt != null && <SealGoldRim fraction={gilt} />}
         <SealRings count={ringCount} />
         <svg className="av2-seal__words" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
           <defs>

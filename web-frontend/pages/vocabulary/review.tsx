@@ -20,6 +20,7 @@ import { handOnAfterWords } from '@/lib/day-plan';
 import { daySessionCopy } from '@/lib/day-session';
 import { extraWordsOffer } from '@/lib/more-words';
 
+import { GoldPill } from '@/components/gold/GoldPill';
 import MotsDuJour from '@/components/lexique/MotsDuJour';
 import {
   cardMode,
@@ -684,8 +685,8 @@ export default function VocabularyReviewPage() {
   }, [wordSlate]);
   const allItems = useMemo(() => {
     // The deck's order is the server's (`deck_order`, app/services/deck_order.py):
-    // today's scene words first (owner request, 1 Nov), then the words that don't
-    // stick and the story's own lines, the reviews, the day's slate words, the rest.
+    // the due reviews in the scheduler's order, then the new words, today's scene
+    // words mixed in for at most a third of them (owner request, 2 Nov).
     const ordered = deckOrdered(queueItems(context), context?.deck_order);
     if (!resumeWordId) return ordered;
     return [
@@ -1178,6 +1179,8 @@ export default function VocabularyReviewPage() {
               )}
               {countLabel && <span className="av2-progress__count">{countLabel}</span>}
             </div>
+            {/* O-2: each word typed back right is a feuille d'or (only where the switch shows it). */}
+            <GoldPill />
           </header>
 
           <div className="av2-screen__body lx-review__body">

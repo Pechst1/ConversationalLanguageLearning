@@ -82,7 +82,7 @@ def daily_quota(db: Session, user: Any, *, now: datetime | None = None) -> int:
     today, throttled, all surfaces together. The day deck and Home count this;
     the ceiling on introductions is :func:`effective_new_word_cap`."""
 
-    return _quota(user, intake_throttle_factor(db, user, now=now))
+    return effective_new_word_cap(db, user, now=now, extras=False)
 
 
 #: Owner request, 2 Nov 2026: «Noch 5 neue Wörter» — one tap adds this many new
@@ -104,7 +104,12 @@ def extra_new_words_today(db: Session, user: Any, *, now: datetime | None = None
 
 
 def effective_new_word_cap(
-    db: Session, user: Any, *, now: datetime | None = None, factor: float | None = None
+    db: Session,
+    user: Any,
+    *,
+    now: datetime | None = None,
+    factor: float | None = None,
+    extras: bool = True,
 ) -> int:
     """How many new words this learner may take in today: the one answer.
 
@@ -113,11 +118,17 @@ def effective_new_word_cap(
     drill's, the journey's — is this cap less what today already introduced.
     The extras are the learner's explicit choice, so the throttle never halves
     them. ``factor``: the throttle already read by the caller.
+
+    ``extras=False`` is the day's dose alone: the day deck's plan
+    (``day_words.make_plan`` → ``plan["quota"]``) and Home's count take it, so
+    the extras are always the learner's continuation after the day's deck,
+    never part of the day's count.
     """
 
     if factor is None:
         factor = intake_throttle_factor(db, user, now=now)
-    return _quota(user, factor) + extra_new_words_today(db, user, now=now)
+    dose = _quota(user, factor)
+    return dose + extra_new_words_today(db, user, now=now) if extras else dose
 
 
 def grant_extra_new_words(db: Session, user: Any, *, now: datetime | None = None) -> int:

@@ -21,6 +21,10 @@ import { PushOptIn } from '@/components/atelier-v2/journey/PushOptIn';
 import { tomorrowLine } from '@/components/atelier-v2/journey/season-return-model';
 import { TomorrowLine } from '@/components/atelier-v2/journey/TomorrowLine';
 import { Seal } from '@/components/ui/Seal';
+import { GoldGlyph } from '@/components/gold/GoldGlyph';
+import { GoldPill } from '@/components/gold/GoldPill';
+import { useGold } from '@/lib/gold';
+import { rimFraction, tirageLine } from '@/lib/gold-model';
 import { emitCameo } from '@/lib/cameo';
 import { castIdFor } from '@/lib/cast-faces';
 import { daySessionCopy, sessionMore, sessionNextAction } from '@/lib/day-session';
@@ -92,6 +96,9 @@ export default function FertigPage() {
   // The same line Home's finished card prints; an early stop or a recap with no teaser has none.
   const tomorrow = session?.done ? tomorrowLine(journey?.recap) : null;
   const home = () => void router.push('/atelier');
+  // O-2: le tirage du jour, where the switch shows l'or.
+  const gold = useGold();
+  const tirage = gold.visible && session?.done ? tirageLine(gold.view) : null;
 
   return (
     <>
@@ -113,9 +120,18 @@ export default function FertigPage() {
                 date={seal.date ?? ''}
                 rings={seal.rings}
                 ringsLabel={seal.ringsLabel}
+                gold={tirage ? rimFraction(gold.view) : null}
+                goldLabel={tirage}
               />
             )}
             <h1 className="av2-headline av2-headline--screen">{copy.finish_title}</h1>
+            {tirage && (
+              <div className="av2-gold-tirage" data-gold-tirage="">
+                <GoldGlyph size={16} />
+                <span>{tirage}</span>
+                <GoldPill />
+              </div>
+            )}
           </div>
           {session && (
             <ul className="av2-tally" aria-label={copy.finish_title}>
