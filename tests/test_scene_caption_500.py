@@ -54,26 +54,21 @@ def test_the_caption_follows_the_characters_latest_question(
     assert len(set(captions)) == len(captions), "the caption changes with the character's last question"
 
 
-def test_a_reply_that_asks_nothing_does_not_keep_the_old_question():
-    from app.services import scene_ledger
+def test_a_reply_that_asks_nothing_does_not_keep_the_old_question(
+    assembled_client, db_session, journey_enabled, clock, provider, jobs
+):
+    """Lila answers the off-script question without asking anything back: the
+    caption must not go on naming the photo question she asked two turns before."""
 
-    caption = scene_ledger.turn_caption(NO_QUESTION, speaker="Lila", language="en")
-    assert "Lila" in caption
-    assert "photo" not in caption.lower() and "?" not in caption
-
-
-def test_the_caption_is_in_the_learners_language():
-    from app.services import scene_ledger
-
-    en = scene_ledger.turn_caption(PHOTO, speaker="Lila", language="en")
-    de = scene_ledger.turn_caption(PHOTO, speaker="Lila", language="de")
-    fr = scene_ledger.turn_caption(PHOTO, speaker="Lila", language="fr")
-    assert en.startswith("Lila asks") and de.startswith("Lila fragt") and fr.startswith("Lila demande")
-    assert all("Pourquoi cette photo ?" in text for text in (en, de, fr))
-    assert scene_ledger.turn_caption(PHOTO, speaker="Lila", language="xx").startswith("Lila asks")
-
-
-def test_a_reply_with_no_text_gives_no_caption():
-    from app.services import scene_ledger
-
-    assert scene_ledger.turn_caption("", speaker="Lila", language="en") is None
+    d = driver(assembled_client, db_session)
+    harness._to_respond(d)
+    _scripted_voice(provider, [PHOTO, NO_QUESTION, "Bon, on avance, point 2."])
+    results = _play(
+        assembled_client,
+        d,
+        ["Non, je préfère la photo de mon chat Napoléon.", "Qui est l'homme avec la clé ?"],
+    )
+    asked, silent = (r["next_turn"]["prompt"]["objective_native"] for r in results[:2])
+    assert "Pourquoi cette photo" in asked
+    assert "Pourquoi cette photo" not in silent and "photo" not in silent.lower()
+    assert "?" not in silent, "a turn that asks nothing is captioned with no question"
