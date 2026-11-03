@@ -368,7 +368,9 @@ export function recapTeaserOf(recap: (JourneyRecap & { next_teaser_fr?: unknown 
       character_id: structured?.character_id ?? null,
       character_name: structured?.character_name ?? null,
       source: 'engine',
-      open_fr: structured?.open_fr ?? null,
+      // Only when the structured teaser named the open row: the key is absent otherwise,
+      // as on the Python side, so a consumer never reads a null where it expects no key.
+      ...(text(structured?.open_fr) ? { open_fr: text(structured?.open_fr) } : {}),
     };
   }
   return structured;
