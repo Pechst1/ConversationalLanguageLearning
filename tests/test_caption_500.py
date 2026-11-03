@@ -33,7 +33,7 @@ KEY = "Je ne connais pas cet homme. Mais pourquoi la clé ?"
 NO_QUESTION = "Je ne sais pas qui c'est. On verra plus tard."
 
 
-def test_the_caption_follows_the_characters_latest_question(
+def test_caption_follows_question(
     assembled_client, db_session, journey_enabled, clock, provider, jobs
 ):
     d = driver(assembled_client, db_session)
@@ -54,7 +54,7 @@ def test_the_caption_follows_the_characters_latest_question(
     assert len(set(captions)) == len(captions), "the caption changes with the character's last question"
 
 
-def test_a_reply_that_asks_nothing_does_not_keep_the_old_question(
+def test_caption_drops_old_question(
     assembled_client, db_session, journey_enabled, clock, provider, jobs
 ):
     """Lila answers the off-script question without asking anything back: the
