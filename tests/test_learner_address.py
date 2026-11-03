@@ -394,8 +394,9 @@ def test_the_first_letter_from_a_season_cast_member_who_says_tu_is_tu(db_session
     story_letter, authored = MissionScheduler(db_session)._first_letter(user, story=False)
     assert story_letter is None
     assert authored["character_id"] == "margaux_barman"
-    assert authored["opening_message"].startswith("Salut ! C'est Margaux")
-    assert "Tu as oublié ton écharpe" in authored["opening_message"]
+    opening = authored["opening_message"]
+    assert "Tu as oublié ton écharpe" in opening, f"Margaux says tu in the scene but her first letter reads: {opening}"
+    assert opening.startswith("Salut ! C'est Margaux")
 
 
 def test_the_courrier_register_without_a_thread_is_the_scenes(monkeypatch) -> None:
@@ -403,7 +404,8 @@ def test_the_courrier_register_without_a_thread_is_the_scenes(monkeypatch) -> No
     from app.services import story_correspondence as courrier
 
     monkeypatch.setattr(settings, "ATELIER_SEASON_SCRIPT", "s1")
-    assert courrier.learner_register(None, "margaux_barman") == "tu"
+    found = courrier.learner_register(None, "margaux_barman")
+    assert found == "tu", f"Margaux opens on tu in the season, the Courrier read {found} with no thread"
     assert courrier.learner_register(None, "augustin_de_roncourt") == "vous"
     assert courrier.learner_register(None, "landlord_marchand") == "vous"
     assert courrier.learner_register(None, None) == "vous"
