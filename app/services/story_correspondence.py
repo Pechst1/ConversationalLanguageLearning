@@ -1132,11 +1132,18 @@ def learner_register(thread: SerialThread | None, character_id: str | None) -> s
     learner accepts «On se tutoie ?»), else what the story opens that character with
     (``app.services.address.character_register``). Reading only the relationship map
     made a character the map had not recorded yet «vous» here and «tu» in the scene.
+
+    The thread can only *confirm* a register: with no thread (the first letter is made
+    when the Courrier is first opened, before any scene has started one) the cast's own
+    register for that character still answers, as the scene reads it (#506). A missing
+    thread used to short-circuit to «vous», so Margaux said «tu» in the scene and
+    «vous» in her first letter.
     """
 
-    if thread is None or not character_id:
+    if not character_id:
         return "vous"
-    return character_register(thread.state if isinstance(thread.state, dict) else None, character_id)
+    state = thread.state if thread is not None and isinstance(thread.state, dict) else None
+    return character_register(state, character_id)
 
 
 #: The register phrase the letter writer is given (``missions`` reads ``register``).

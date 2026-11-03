@@ -355,3 +355,57 @@ def test_the_app_pushes_say_tu(module: str) -> None:
         if (hits := _address_violations("fr", text))
     ]
     assert not offenders, "push copy uses the wrong register:\n" + "\n".join(offenders)
+
+
+# ---------------------------------------------------------------------------
+# #506: the first Courrier letter reads the cast's register, thread or no thread
+# ---------------------------------------------------------------------------
+
+
+def _first_letter_learner(db_session):  # noqa: ANN001
+    from uuid import uuid4
+
+    from app.db.models.user import User
+
+    user = User(
+        id=uuid4(),
+        email=f"first-letter-{uuid4().hex}@example.com",
+        hashed_password="test",
+        native_language="en",
+        target_language="fr",
+        proficiency_level="A2",
+    )
+    db_session.add(user)
+    db_session.commit()
+    return user
+
+
+def test_the_first_letter_from_a_season_cast_member_who_says_tu_is_tu(db_session, monkeypatch) -> None:
+    """Margaux says «Tu vas monter ?» in the scene; her first letter said «Vous avez oublié
+    votre écharpe». The letter is made when the Courrier is first opened, which can be
+    before the scene has started a story thread: with no thread the resolver answered
+    «vous» without asking the season."""
+
+    from app.config import settings
+    from app.services.missions import MissionScheduler
+
+    monkeypatch.setattr(settings, "ATELIER_SEASON_SCRIPT", "s1")
+    user = _first_letter_learner(db_session)
+    story_letter, authored = MissionScheduler(db_session)._first_letter(user, story=False)
+    assert story_letter is None
+    assert authored["character_id"] == "margaux_barman"
+    assert authored["opening_message"].startswith("Salut ! C'est Margaux")
+    assert "Tu as oublié ton écharpe" in authored["opening_message"]
+
+
+def test_the_courrier_register_without_a_thread_is_the_scenes(monkeypatch) -> None:
+    from app.config import settings
+    from app.services import story_correspondence as courrier
+
+    monkeypatch.setattr(settings, "ATELIER_SEASON_SCRIPT", "s1")
+    assert courrier.learner_register(None, "margaux_barman") == "tu"
+    assert courrier.learner_register(None, "augustin_de_roncourt") == "vous"
+    assert courrier.learner_register(None, "landlord_marchand") == "vous"
+    assert courrier.learner_register(None, None) == "vous"
+    monkeypatch.setattr(settings, "ATELIER_SEASON_SCRIPT", "")
+    assert courrier.learner_register(None, "margaux_barman") == "vous"

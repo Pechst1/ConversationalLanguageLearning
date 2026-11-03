@@ -6553,8 +6553,7 @@ def live_register(db: Session | None, user: Any, mission: Any) -> str | None:
         thread = courrier.active_thread(db, SimpleNamespace(id=user_id))
     except Exception:  # noqa: BLE001 - a reply never fails on a register read
         return None
-    if thread is None:
-        return None
+    # No thread yet: the cast's own register still answers (#506), as in the scene.
     return courrier.learner_register(thread, cast_id)
 
 
