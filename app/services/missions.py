@@ -4335,21 +4335,15 @@ class MissionCorrectionService:
     ) -> dict[str, Any]:
         external_id = erratum.get("external_id")
         concept_id = None
-        if correction_contract.elides_an_article(
+        # #119: «le appartement → l'appartement» and «de Odile → d'Odile» went to the
+        # letter's own rule (Un, une, des). The slip is the rule that teaches l' and d',
+        # whatever the letter practised and whatever the corrector called it. The
+        # letter's text tells an object pronoun («je le aime») from the article.
+        elision = ErrorMemoryService(self.db).elision_concept_id(
             erratum.get("learner_text"), erratum.get("corrected_target"), context=submission_text
-        ):
-            # #119: «le appartement → l'appartement» and «de Odile → d'Odile» went to the
-            # letter's own rule (Un, une, des), whose fallback took every rule id the
-            # catalogue does not hold (FR_ELISION). The slip is the rule that teaches
-            # l' and d', whatever the letter practised and whatever the corrector called it.
-            # The letter's text tells an object pronoun («je le aime») from the article.
-            concept = (
-                self.db.query(GrammarConcept)
-                .filter(GrammarConcept.external_id == correction_contract.ARTICLE_ELISION_UNIT)
-                .first()
-            )
-            if concept is not None:
-                return self._normalized(erratum, concept.id)
+        )
+        if elision is not None:
+            return self._normalized(erratum, elision)
         if external_id:
             concept = self.db.query(GrammarConcept).filter(GrammarConcept.external_id == external_id).first()
             concept_id = concept.id if concept else None
