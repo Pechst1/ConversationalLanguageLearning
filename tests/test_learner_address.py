@@ -380,7 +380,7 @@ def _first_letter_learner(db_session):  # noqa: ANN001
     return user
 
 
-def test_the_first_letter_from_a_season_cast_member_who_says_tu_is_tu(db_session, monkeypatch) -> None:
+def test_first_letter_is_tu_506(db_session, monkeypatch) -> None:
     """Margaux says «Tu vas monter ?» in the scene; her first letter said «Vous avez oublié
     votre écharpe». The letter is made when the Courrier is first opened, which can be
     before the scene has started a story thread: with no thread the resolver answered
@@ -399,7 +399,7 @@ def test_the_first_letter_from_a_season_cast_member_who_says_tu_is_tu(db_session
     assert opening.startswith("Salut ! C'est Margaux")
 
 
-def test_the_courrier_register_without_a_thread_is_the_scenes(monkeypatch) -> None:
+def test_no_thread_register_506(monkeypatch) -> None:
     from app.config import settings
     from app.services import story_correspondence as courrier
 
