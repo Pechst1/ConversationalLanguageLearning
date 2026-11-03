@@ -63,12 +63,14 @@ function scrollParent(node: HTMLElement | null): HTMLElement | null {
   return null;
 }
 
-/** How long after the verdict a change in the card's or the sheet's size is still followed. */
+/** How long after the verdict the page owns the scroll: after it the page is the learner's. */
 const SETTLE_MS = 2000;
 /** Fonts and the coach's portrait settle after the first reading (#282): look again at these moments. */
 const RECHECK_MS = [150, 600, 1200];
 /** No scroll for this long: the scroll has ended (`scrollend` is not everywhere yet). */
 const QUIET_MS = 120;
+/** What a learner does to take the scroll over (a scroll event alone cannot tell them from us). */
+const TAKEOVER_EVENTS = ['wheel', 'touchstart', 'keydown'] as const;
 
 /**
  * Scrolls the feedback's first card above its sticky sheet (`.ep-foot`) and under
@@ -76,12 +78,16 @@ const QUIET_MS = 120;
  * only; a no-op when either is missing.
  *
  * One owner (#319): the first move is smooth, every later one is instant and is
- * worked out from the live layout, so whichever runs last lands on the same
- * position. The card and the sheet are watched for `SETTLE_MS` (a late font, the
- * notes under the right sentence), the layout is looked at again at `RECHECK_MS`,
- * and the feedback says what it is doing in `data-scroll`: «settling» until nothing
- * is left to move and the scroll has been quiet, then «settled». The walk measures
- * only then. The returned function stops it all (the verdict went away).
+ * worked out from the live layout (the card, the sheet and the last repair are
+ * looked up each time, so one that mounts late counts), so whichever runs last
+ * lands on the same position. For `SETTLE_MS` after the verdict the page owns the
+ * scroll: a change in the card's or the sheet's size is followed, the layout is
+ * looked at again at `RECHECK_MS`, and the feedback says what it is doing in
+ * `data-scroll`, «settling» until nothing is left to move and the scroll has been
+ * quiet, then «settled». The walk measures only then. The window ends at `SETTLE_MS`,
+ * or at once when the learner scrolls (wheel, touch, keys): from then on nothing here
+ * moves the page, whatever the learner does with it. The returned function ends it
+ * early (the verdict went away).
  */
 export function keepCardAboveSheet(
   feedback: HTMLElement | null,
@@ -93,12 +99,19 @@ export function keepCardAboveSheet(
   const card = Array.from(feedback.children).find((el) => !el.classList.contains('ep-foot')) as HTMLElement | undefined;
   if (!sheet || !card) return nothing;
   const header = document.querySelector<HTMLElement>('.ep-top');
-  const repairs = feedback.querySelectorAll<HTMLElement>('.ep-repair, .ep-galley');
-  const anchor = clearLast && repairs.length ? repairs[repairs.length - 1] : null;
+  /** The last repair or galley, looked up live: one can mount after the verdict. */
+  const lastRepair = (): HTMLElement | null => {
+    if (!clearLast) return null;
+    const repairs = feedback.querySelectorAll<HTMLElement>('.ep-repair, .ep-galley');
+    return repairs.length ? repairs[repairs.length - 1] : null;
+  };
+  let live = true;
   /** Moves the page to the one position that satisfies both rules; true when it had to move. */
   const align = (behavior: ScrollBehavior): boolean => {
+    if (!live) return false;
     const cardBox = card.getBoundingClientRect();
     const sheetBox = sheet.getBoundingClientRect();
+    const anchor = lastRepair();
     const delta = scrollToKeepAbove({
       cardTop: cardBox.top,
       cardBottom: cardBox.bottom,
@@ -113,13 +126,25 @@ export function keepCardAboveSheet(
     return true;
   };
 
-  let live = true;
   let rechecksLeft = RECHECK_MS.length;
   const timers: number[] = [];
   let quiet: number | undefined;
+  let observer: ResizeObserver | null = null;
   const say = (state: 'settling' | 'settled') => feedback.setAttribute('data-scroll', state);
+  const onScroll = () => whenQuiet();
+  const takeOver = () => release('settled');
+  /** Ends the page's hold on the scroll for good: no timer, listener or observer is left to move it. */
+  function release(state?: 'settled') {
+    live = false;
+    observer?.disconnect();
+    timers.forEach((id) => window.clearTimeout(id));
+    window.clearTimeout(quiet);
+    window.removeEventListener('scroll', onScroll, true);
+    TAKEOVER_EVENTS.forEach((type) => window.removeEventListener(type, takeOver, true));
+    if (state) say(state);
+  }
   /** Looks again once the scroll has been quiet: moves if it must, else says it is settled. */
-  const whenQuiet = () => {
+  function whenQuiet() {
     window.clearTimeout(quiet);
     quiet = window.setTimeout(() => {
       if (!live) return;
@@ -130,9 +155,10 @@ export function keepCardAboveSheet(
         say('settled');
       }
     }, QUIET_MS);
-  };
-  const onScroll = () => whenQuiet();
+  }
+  // Our own scrolls fire scroll events too; they only restart the quiet clock.
   window.addEventListener('scroll', onScroll, { capture: true, passive: true });
+  TAKEOVER_EVENTS.forEach((type) => window.addEventListener(type, takeOver, { capture: true, passive: true }));
   RECHECK_MS.forEach((ms) => {
     timers.push(window.setTimeout(() => {
       if (!live) return;
@@ -141,23 +167,20 @@ export function keepCardAboveSheet(
       whenQuiet();
     }, ms));
   });
+  // The window ends here, whatever the scroll is doing: after this the page is the learner's.
+  timers.push(window.setTimeout(() => release('settled'), SETTLE_MS));
 
   say('settling');
   align(smooth ? 'smooth' : 'auto');
   whenQuiet();
 
-  let observer: ResizeObserver | null = null;
   if (typeof ResizeObserver !== 'undefined') {
-    const until = Date.now() + SETTLE_MS;
     const sizes = () => `${Math.round(card.getBoundingClientRect().height)}|${Math.round(sheet.getBoundingClientRect().height)}`;
     let seen = sizes();
     // A change in size is followed at once, not smoothly: the card is already on its way.
     // (A ResizeObserver also reports once when it starts; that is not a change.)
-    const watcher = new ResizeObserver(() => {
-      if (Date.now() > until) {
-        watcher.disconnect();
-        return;
-      }
+    observer = new ResizeObserver(() => {
+      if (!live) return;
       const now = sizes();
       if (now === seen) return;
       seen = now;
@@ -165,15 +188,8 @@ export function keepCardAboveSheet(
       say('settling');
       whenQuiet();
     });
-    watcher.observe(card);
-    watcher.observe(sheet);
-    observer = watcher;
+    observer.observe(card);
+    observer.observe(sheet);
   }
-  return () => {
-    live = false;
-    observer?.disconnect();
-    timers.forEach((id) => window.clearTimeout(id));
-    window.clearTimeout(quiet);
-    window.removeEventListener('scroll', onScroll, true);
-  };
+  return () => release();
 }
