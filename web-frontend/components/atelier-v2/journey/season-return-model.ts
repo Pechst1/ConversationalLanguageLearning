@@ -363,15 +363,18 @@ export function recapTeaserOf(recap: (JourneyRecap & { next_teaser_fr?: unknown 
   const structured = recap.teaser && text(recap.teaser.text_fr) ? recap.teaser : null;
   const engine = text(recap.next_teaser_fr);
   if (engine) {
-    return {
+    const teaser: Omit<RecapTeaser, 'open_fr'> & { open_fr?: string | null } = {
       text_fr: engine,
       character_id: structured?.character_id ?? null,
       character_name: structured?.character_name ?? null,
       source: 'engine',
-      // Only when the structured teaser named the open row: the key is absent otherwise,
-      // as on the Python side, so a consumer never reads a null where it expects no key.
-      ...(text(structured?.open_fr) ? { open_fr: text(structured?.open_fr) } : {}),
     };
+    // Only when the structured teaser named the open row: the key stays absent otherwise
+    // (the schema's default is null, and a recap from before #466 has none), so a consumer
+    // never reads a null where the engine said nothing.
+    const open = text(structured?.open_fr);
+    if (open) teaser.open_fr = open;
+    return teaser as RecapTeaser;
   }
   return structured;
 }
