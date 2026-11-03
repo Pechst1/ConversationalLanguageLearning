@@ -1305,9 +1305,14 @@ def test_new_grammar_concepts_complete_full_backend_exercise_cycle(db_session):
     assert correction_service.llm_service.calls == []
     assert all(attempt.correction_payload["assessment_status"] == "provisional" for attempt in open_answers)
     assert all(attempt.correction_payload["ai_review"]["status"] == "pending" for attempt in open_answers)
-    # The relecture fails: the open answers are then unchecked, never accepted.
+    # The relecture fails: an open answer the key does not list is then unchecked,
+    # never accepted. One the key accepts (#471, #401) is right by the key alone.
     open_answers = [correction_service.run_ai_review_for_attempt(attempt.id) for attempt in open_answers]
-    assert all(attempt.verdict == "needs_review" and attempt.correction_payload["assessment_status"] == "unavailable" for attempt in open_answers)
+    for attempt in open_answers:
+        if attempt.correction_payload.get("local_status") == "right":
+            assert attempt.verdict == "correct" and attempt.correction_payload["assessment_status"] == "checked"
+        else:
+            assert attempt.verdict == "needs_review" and attempt.correction_payload["assessment_status"] == "unavailable"
     assert all(attempt.correction_payload["ai_review"]["status"] == "failed" for attempt in open_answers)
     assert all(not attempt.correction_payload.get("errata") for attempt in attempts)
 
