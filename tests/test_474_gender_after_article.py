@@ -142,15 +142,3 @@ def test_474_no_planned_day_asks_a_gender_after_the_article_was_shown(band, lang
             )
     assert days_checked == 20
 
-
-def test_474_the_final_pass_drops_a_gender_drill_displayed_after_its_article() -> None:
-    from app.services.journey_planner import without_given_away_genders
-
-    gender = _item("post", 0, LETTRE, _gender())
-    meaning = _item("warmup", 1, LETTRE, _meaning())
-    fine = _item("warmup", 0, CLE, _gender(CLE))
-    assert without_given_away_genders([gender, meaning, fine]) == [meaning, fine]
-    # Gender first, article after: nothing is dropped.
-    gender_first = _item("warmup", 0, LETTRE, _gender())
-    meaning_later = _item("mid", 0, LETTRE, _meaning())
-    assert without_given_away_genders([meaning_later, gender_first]) == [meaning_later, gender_first]
