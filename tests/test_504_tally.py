@@ -52,7 +52,7 @@ def _day_with_extras(
     return headers, user, day, extra
 
 
-def test_504_the_tally_counts_the_extras_the_step_keeps_the_days_intake(
+def test_504_extras_count(
     client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     headers, user, day, extra = _day_with_extras(client, db_session, monkeypatch, "w504")
@@ -68,7 +68,7 @@ def test_504_the_tally_counts_the_extras_the_step_keeps_the_days_intake(
     )
 
 
-def test_504_unanswered_extras_are_not_counted(
+def test_504_unanswered_skip(
     client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     headers, user, day, extra = _day_with_extras(client, db_session, monkeypatch, "w504b")

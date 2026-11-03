@@ -25,7 +25,7 @@ from tests.test_wp154_drill_reload import (  # noqa: F401 - autouse + supply
 )
 
 
-def test_470_the_day_card_and_the_plan_row_price_the_same_deck(
+def test_470_same_deck(
     assembled_client: TestClient, db_session: Session, journey_enabled: None  # noqa: F811
 ) -> None:
     email = "t470-words@example.com"
