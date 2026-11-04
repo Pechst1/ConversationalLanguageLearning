@@ -48,9 +48,22 @@ def test_too_few_checks_block() -> None:
     assert any("checks reported" in b for b in loop_queue.merge_blockers(_green_pr(statusCheckRollup=[])))
 
 
-def test_story_engine_and_owner_paths_block() -> None:
-    pr = _green_pr(files=[{"path": "app/services/season/turns.py"}, {"path": ".github/workflows/ci.yml"}])
-    assert any("owner-only paths" in b for b in loop_queue.merge_blockers(pr))
+def test_infra_and_loop_rules_block() -> None:
+    for path in (".github/workflows/ci.yml", "alembic/versions/x.py", "scripts/loop/loop_queue.py",
+                 "render.yaml", "requirements.txt", ".claude/workflows/night-shift.js"):
+        pr = _green_pr(files=[{"path": "app/services/season/turns.py"}, {"path": path}])
+        assert any("owner-only paths" in b for b in loop_queue.merge_blockers(pr)), path
+
+
+def test_verified_story_engine_and_core_fixes_merge() -> None:
+    """Vincent, 4 Nov: story lane, app/core and size M merge after verify; infra still waits."""
+    pr = _green_pr(
+        labels=[{"name": "loop:merge-ready"}, {"name": "lane:story"}],
+        additions=700,
+        files=[{"path": "app/services/season/canon_guards.py"}, {"path": "app/core/forge.py"},
+               {"path": "app/services/living_story.py"}, {"path": "tests/test_canon_guards.py"}],
+    )
+    assert loop_queue.merge_blockers(pr) == []
 
 
 def test_owner_review_draft_and_foreign_branch_block() -> None:
@@ -64,7 +77,7 @@ def test_owner_review_draft_and_foreign_branch_block() -> None:
 
 
 def test_large_diff_blocks() -> None:
-    assert any("changed lines" in b for b in loop_queue.merge_blockers(_green_pr(additions=500)))
+    assert any("changed lines" in b for b in loop_queue.merge_blockers(_green_pr(additions=1300)))
 
 
 def test_rest_pr_reads_like_gh_pr_view(monkeypatch: Any) -> None:

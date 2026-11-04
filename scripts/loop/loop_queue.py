@@ -63,17 +63,15 @@ LABELS: dict[str, tuple[str, str]] = {
 STATE_LABELS = ("queue:ready", "queue:working", "queue:pr", "queue:owner")
 SEVERITY_ORDER = {"sev:blocker": 0, "sev:high": 1, "sev:medium": 2, "sev:low": 3}
 
-# A PR is listed as ready to merge only when it touches none of these. Story engine, data model,
-# deploy and the loop's own rules always wait for the owner.
+# A PR is listed as ready to merge only when it touches none of these. Vincent, 4 Nov: every
+# verified fix merges on its own, story engine and app/core included; what changes production
+# outside the app's code (migrations, data model, deploy, dependencies, CI) or the loop's own
+# rules always waits for the owner.
 MERGE_DENY_PREFIXES = (
     ".github/",
     ".claude/",
     "alembic/",
-    "app/core/",
     "app/db/",
-    "app/services/season/",
-    "app/services/living_story",
-    "app/services/journey_conversation",
     "scripts/loop/",
     "docs/ops/improvement-loop.md",
     "render.yaml",
@@ -90,7 +88,7 @@ MERGE_DENY_PREFIXES = (
 MAX_ATTEMPTS = 2
 ISSUE_REF = re.compile(r"\b(?:fix(?:es|ed)?|close[sd]?|resolve[sd]?|part of|refs?)\s+#(\d+)", re.IGNORECASE)
 REJECTED_MARK = "Night shift: attempt"
-MERGE_MAX_LINES = 400
+MERGE_MAX_LINES = 1200  # size M fixes merge too (4 Nov); larger ones wait
 MERGE_MIN_CHECKS = 5
 CHECK_OK = {"SUCCESS", "SKIPPED", "NEUTRAL"}
 NIGHT_BRANCH = "claude/night-"
