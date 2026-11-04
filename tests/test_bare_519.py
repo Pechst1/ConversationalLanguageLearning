@@ -62,9 +62,9 @@ def _every_transform(brief: dict, language: str = "en") -> list:
     return tasks
 
 
-@pytest.mark.parametrize("external_id", NUMBER_UNITS)
+@pytest.mark.parametrize("external_id", NUMBER_UNITS, ids=["a11", "a12"])
 @pytest.mark.parametrize("language", ["en", "de", "fr"])
-def test_correct_this_sentence_never_sits_over_a_bare_word(external_id: str, language: str) -> None:
+def test_no_bare_word(external_id: str, language: str) -> None:
     for task in _every_transform(_brief(external_id, language), language):
         if task.instruction_native == SENTENCE_TASK[language]:
             words = str(task.prompt_fr or "").split()
@@ -73,7 +73,7 @@ def test_correct_this_sentence_never_sits_over_a_bare_word(external_id: str, lan
             )
 
 
-def test_no_unit_in_the_catalogue_corrects_a_sentence_that_is_a_word() -> None:
+def test_catalogue() -> None:
     """The cause was shared: any unit with a one-word ✗ gets the sentence task line."""
 
     checked = 0
@@ -102,7 +102,7 @@ def test_no_unit_in_the_catalogue_corrects_a_sentence_that_is_a_word() -> None:
     assert checked > 20
 
 
-def test_the_vingt_un_item_says_what_to_write() -> None:
+def test_vingt_un() -> None:
     tasks = [task for task in _every_transform(_brief("FR2_A11_NUMBERS")) if task.prompt_fr == "vingt-un"]
     assert tasks, "the numbers unit no longer poses «vingt-un»"
     for task in tasks:
@@ -110,14 +110,14 @@ def test_the_vingt_un_item_says_what_to_write() -> None:
         assert task.solution_fr == "vingt et un"
 
 
-def test_the_task_line_for_a_number_follows_the_learner_language() -> None:
+def test_number_langs() -> None:
     (de,) = [t for t in _every_transform(_brief("FR2_A11_NUMBERS", "de"), "de") if t.prompt_fr == "vingt-un"][:1]
     (fr,) = [t for t in _every_transform(_brief("FR2_A11_NUMBERS", "fr"), "fr") if t.prompt_fr == "vingt-un"][:1]
     assert "21" in de.instruction_native and "Französisch" in de.instruction_native
     assert "21" in fr.instruction_native and "français" in fr.instruction_native
 
 
-def test_a_bare_form_that_is_not_a_number_is_a_form_not_a_sentence() -> None:
+def test_bare_form() -> None:
     brief = {
         "concept_id": 7,
         "level": "A1",
@@ -131,7 +131,7 @@ def test_a_bare_form_that_is_not_a_number_is_a_form_not_a_sentence() -> None:
     assert task.accepted_answers == ["chevaux"]
 
 
-def test_a_real_sentence_keeps_the_sentence_task() -> None:
+def test_sentence_kept() -> None:
     brief = {
         "concept_id": 7,
         "level": "A1",
