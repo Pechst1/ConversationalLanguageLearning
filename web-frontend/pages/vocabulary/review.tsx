@@ -94,6 +94,7 @@ import { FirstDayRoute } from '@/components/onboarding/FirstDayRoute';
 import { deviceStore, localDateToday, markRouteStage, onFirstDay, routeDone, type RouteStage } from '@/lib/first-steps';
 import { markWordsDoneToday } from '@/lib/continue-learning';
 import { cardContextText, cardExample, cardFaces, type MarkedExample } from '@/lib/card-example';
+import { playAskedVoice, speakAskedVoice } from '@/lib/audio-session';
 
 /* "Le Lexique" — the review session, on the Claude design system (Atelier V2).
  *
@@ -882,7 +883,7 @@ export default function VocabularyReviewPage() {
         URL.revokeObjectURL(url);
         setAudioPlaying(false);
       };
-      await player.play();
+      await playAskedVoice(player);
     } catch (error) {
       console.error(error);
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -890,8 +891,7 @@ export default function VocabularyReviewPage() {
         utterance.lang = 'fr-FR';
         utterance.onend = () => setAudioPlaying(false);
         utterance.onerror = () => setAudioPlaying(false);
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.speak(utterance);
+        speakAskedVoice(utterance);
       } else {
         setAudioPlaying(false);
         toast.error(t.audio_failed);

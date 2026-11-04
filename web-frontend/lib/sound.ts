@@ -16,6 +16,7 @@
  * Nothing here throws: a device that cannot play simply stays quiet.
  */
 
+import { setRestingSession } from '@/lib/audio-session';
 import { isNativePlatform } from '@/lib/native-platform';
 
 export type FeelSound = 'correct' | 'wrong' | 'complete';
@@ -80,15 +81,12 @@ function audioContextCtor(): AudioContextCtor | null {
 /**
  * Safari 16.4+ (and the iOS app's WKWebView) expose the Audio Session API.
  * `ambient` obeys the ringer switch and mixes with other audio instead of
- * pausing the learner's podcast for a 0.3 s chime.
+ * pausing the learner's podcast for a 0.3 s chime. It is the page's *resting*
+ * type: a voice the learner asks for holds `playback` while it sounds
+ * (`lib/audio-session.ts`), or the switch would silence «Anhören» too.
  */
 function preferAmbientSession() {
-  try {
-    const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
-    if (session && session.type !== 'ambient') session.type = 'ambient';
-  } catch {
-    /* not supported: the platform default applies */
-  }
+  setRestingSession('ambient');
 }
 
 function fetchRaw(kind: FeelSound): Promise<ArrayBuffer | null> {

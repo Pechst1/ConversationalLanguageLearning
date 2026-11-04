@@ -42,6 +42,7 @@ import {
 } from '@/lib/rule-card';
 import type { ControlLanguage } from '@/types/daily-journey';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
+import { playAskedVoice } from '@/lib/audio-session';
 
 export const RULE_CARD_SPEAKERS: Record<string, string> = {
   margaux_barman: 'Margaux',
@@ -99,7 +100,7 @@ function useSpeech(text: string) {
       const audio = new Audio(url);
       audioRef.current = audio;
       audio.onended = () => URL.revokeObjectURL(url);
-      await audio.play();
+      await playAskedVoice(audio);
     } catch {
       // Audio is a help, never a gate: a failed synthesis leaves the text.
     } finally {

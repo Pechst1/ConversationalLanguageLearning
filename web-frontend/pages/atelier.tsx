@@ -232,6 +232,7 @@ import { FirstStepSticker } from '@/components/onboarding/FirstStepSticker';
 import { castIntroOf } from '@/components/atelier-v2/journey/CastIntro';
 import { deviceStore, firstStepsCopy, localDateToday, markRouteStage, onFirstDay, routeDone, type RouteStage } from '@/lib/first-steps';
 import { continueCopy, continuePlan, moreHint, targetLines, targetView, wordsDoneToday } from '@/lib/continue-learning';
+import { playAskedVoice, speakAskedVoice } from '@/lib/audio-session';
 
 type RoundName = 'recognize' | 'transform' | 'sentence' | 'produce' | 'speak' | 'conversation';
 type RecognizeMode = 'fill' | 'word_bank' | 'classify';
@@ -4867,7 +4868,7 @@ function browserSpeak(text: string, onDone: () => void) {
   utterance.lang = 'fr-FR';
   utterance.onend = onDone;
   utterance.onerror = onDone;
-  window.speechSynthesis.speak(utterance);
+  if (!speakAskedVoice(utterance)) onDone();
 }
 
 function EpreuveModelAudio({ text }: { text: string }) {
@@ -4884,7 +4885,7 @@ function EpreuveModelAudio({ text }: { text: string }) {
       const player = new Audio(url);
       player.onended = () => { URL.revokeObjectURL(url); setPlaying(false); };
       player.onerror = () => { URL.revokeObjectURL(url); browserSpeak(value, () => setPlaying(false)); };
-      await player.play();
+      await playAskedVoice(player);
     } catch (error) {
       console.error(error);
       browserSpeak(value, () => setPlaying(false));
