@@ -219,3 +219,65 @@ def test_main_is_green_reads_the_run_for_mains_own_head(monkeypatch: Any) -> Non
     assert not green and "still queued" in why
     runs["workflow_runs"][0].update(status="completed", conclusion="success")
     assert loop_queue.main_is_green()[0]
+
+
+def _report_pr(**overrides: Any) -> dict[str, Any]:
+    pr = _green_pr(
+        labels=[],
+        headRefName="claude/live-walk-2026-11-05",
+        additions=900,
+        files=[{"path": "docs/ops/live-walks/2026-11-05.md"}, {"path": "docs/ops/live-walks/2026-11-05/a.png"},
+               {"path": "docs/ops/walks/TREND.md"}],
+    )
+    pr.update(overrides)
+    return pr
+
+
+def test_a_green_live_walk_report_may_merge_without_the_night_label() -> None:
+    assert loop_queue.blockers_for(_report_pr()) == []
+
+
+def test_a_report_that_touches_code_waits() -> None:
+    pr = _report_pr(files=[{"path": "docs/ops/live-walks/2026-11-05.md"}, {"path": "app/core/forge.py"}])
+    assert any("outside claude/live-walk-*" in b for b in loop_queue.blockers_for(pr))
+
+
+def test_a_forge_pr_stays_in_the_quartier() -> None:
+    ok = _report_pr(headRefName="claude/forge-2026-11-05-boulangerie", files=[
+        {"path": "scripts/forge/briefs/boulangerie.json"},
+        {"path": "web-frontend/lib/quartier/world/sites/boulangerie.json"}])
+    assert loop_queue.blockers_for(ok) == []
+    skill = {**ok, "files": ok["files"] + [{"path": ".claude/skills/quartier-forge/SKILL.md"}]}
+    assert any("outside claude/forge-*" in b for b in loop_queue.blockers_for(skill))
+
+
+def test_a_routine_pr_still_needs_green_checks_and_no_draft() -> None:
+    checks = _report_pr()["statusCheckRollup"]
+    checks[0] = {"__typename": "CheckRun", "name": "backend", "status": "COMPLETED", "conclusion": "FAILURE"}
+    blockers = loop_queue.blockers_for(_report_pr(isDraft=True, statusCheckRollup=checks))
+    assert "draft" in blockers and "backend: FAILURE" in blockers
+
+
+def test_any_other_branch_never_merges_through_pr() -> None:
+    assert loop_queue.blockers_for(_report_pr(headRefName="claude/project-thread-x")) == [
+        "not a night-shift, walk report or forge branch"]
+
+
+def test_pr_merges_just_that_pr_after_its_checks_finish(monkeypatch: Any) -> None:
+    merged: list[str] = []
+    rollups = iter([
+        {**_report_pr(statusCheckRollup=[{"__typename": "CheckRun", "name": "walk", "status": "IN_PROGRESS"}] * 6),
+         "number": 540, "title": "Live walk"},
+        {**_report_pr(), "number": 540, "title": "Live walk"},
+    ])
+    monkeypatch.setattr(loop_queue, "api_list", lambda path, limit=1000: pytest_fail())
+    monkeypatch.setattr(loop_queue, "pr_rollup", lambda n: next(rollups))
+    monkeypatch.setattr(loop_queue, "main_is_green", lambda: (True, "main CI ok"))
+    monkeypatch.setattr(loop_queue.time, "sleep", lambda _: None)
+    monkeypatch.setattr(loop_queue, "api", lambda method, path, body=None, accept=None: merged.append(path) or "")
+    loop_queue.merge_ready(1, merge=True, wait_minutes=30, only=540)
+    assert merged[0] == "pulls/540/merge"
+
+
+def pytest_fail() -> list[dict[str, Any]]:
+    raise AssertionError("--pr must not list every open PR")

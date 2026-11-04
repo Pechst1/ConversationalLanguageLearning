@@ -3,7 +3,9 @@
 The explore walk (`npm run explore`) plays a throwaway local stack with the fake story
 provider, so it cannot judge what learners really get from the model. The live walk plays
 the same app against the production API, with a dedicated test account, from a machine
-that can reach Render (the owner's Mac; cloud sessions cannot).
+that can reach Render. Since 4 Nov only the scheduled cloud routine runs it (03:43 Berlin,
+with `ATELIER_WALK_EMAIL` and `ATELIER_WALK_PASSWORD` in its environment); the Mac walk is off.
+The routine merges its own report PR with `loop_queue.py merge-ready --merge --pr N`.
 
 ```
  browser (375×812, Capacitor platform = ios)
