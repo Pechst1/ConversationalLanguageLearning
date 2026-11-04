@@ -52,7 +52,7 @@ def _other_register(text: str, register: str) -> list[str]:
     return [marker for marker in wrong if marker in low]
 
 
-def test_season_learner_first_letter_is_tu_506(db_session, monkeypatch) -> None:
+def test_tu_letter(db_session, monkeypatch) -> None:
     monkeypatch.setattr(settings, "ATELIER_SEASON_SCRIPT", "s1")
     letter = _margaux_letter(db_session)
     opening = letter["opening_message"]
@@ -61,7 +61,7 @@ def test_season_learner_first_letter_is_tu_506(db_session, monkeypatch) -> None:
 
 
 @pytest.mark.parametrize("season,register", [("s1", "tu"), ("", "vous")])
-def test_first_letter_card_uses_one_register_506(db_session, monkeypatch, season, register) -> None:
+def test_one_register(db_session, monkeypatch, season, register) -> None:
     """The card's title, brief and letter are one register (4 Nov: «Ton écharpe» over «Vous avez oublié»)."""
 
     monkeypatch.setattr(settings, "ATELIER_SEASON_SCRIPT", season)
@@ -72,7 +72,7 @@ def test_first_letter_card_uses_one_register_506(db_session, monkeypatch, season
     assert letter["register"].startswith(register)
 
 
-def test_no_thread_register_506(monkeypatch) -> None:
+def test_no_thread(monkeypatch) -> None:
     from app.services import story_correspondence as courrier
 
     monkeypatch.setattr(settings, "ATELIER_SEASON_SCRIPT", "s1")
@@ -96,7 +96,7 @@ def _margaux_mission(register: str = "tu"):
     )
 
 
-def test_live_register_without_thread_follows_the_season_506(monkeypatch) -> None:
+def test_live_season(monkeypatch) -> None:
     from app.services import missions
     from app.services import story_correspondence as courrier
 
@@ -107,7 +107,7 @@ def test_live_register_without_thread_follows_the_season_506(monkeypatch) -> Non
     assert found == "tu", f"the season opens Margaux on tu; a reply with no thread read {found}"
 
 
-def test_live_register_without_thread_or_season_lets_the_letter_decide_506(monkeypatch) -> None:
+def test_live_none(monkeypatch) -> None:
     """Reviewer of #516: with no season and no thread the cast knows nothing, so the answer is
     None (the letter's own «tu»), never the «vous» default that holds a «tu» reply to formal."""
 
@@ -121,7 +121,7 @@ def test_live_register_without_thread_or_season_lets_the_letter_decide_506(monke
     assert found is None, f"nothing known about Margaux: the letter decides, but live_register said {found}"
 
 
-def test_authored_titles_name_no_register_506() -> None:
+def test_titles() -> None:
     """An authored letter has a «vous» and a «tu» opening but one title: it may name neither."""
 
     from app.services.missions import FIRST_LETTERS
