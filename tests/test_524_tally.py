@@ -75,7 +75,7 @@ def _forge_items(db: Session, user: User, *, count: int, at: datetime) -> None:
     db.flush()
 
 
-def test_524_tally_counts_recall_and_forge(client: TestClient, db_session: Session) -> None:
+def test_counts_both(client: TestClient, db_session: Session) -> None:
     user = _learner(client, db_session)
     now = datetime.now(UTC).replace(hour=12, minute=0, second=0, microsecond=0)
     yesterday = now - timedelta(days=1)
