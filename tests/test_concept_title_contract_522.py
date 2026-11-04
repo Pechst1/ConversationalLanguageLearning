@@ -89,6 +89,7 @@ def _repair_payload(db_session, language: str, concept: GrammarConcept) -> tuple
 @pytest.mark.parametrize(
     ("language", "title", "prefix"),
     [("de", GERMAN, "Regel: "), ("fr", FRENCH, "Règle : ")],
+    ids=["de", "fr"],
 )
 def test_the_repair_drill_names_the_rule_in_the_chrome_language(db_session, language, title, prefix) -> None:
     concept = _concept(db_session)
