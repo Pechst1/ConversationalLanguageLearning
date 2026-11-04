@@ -124,8 +124,8 @@ The story's own places (the stairwell, the flat above the café, the notary's of
 any map: they are written from the canon and built with the pieces Le Mistral's room is built
 from (`room.ts`: the wainscot wall, the façade's lining, the globes, the tables), so a room and the
 café are the same print. Decision 4 of the Phase 1 plan sets the order: the stairwell and
-Odile's door (done), the learner's studio (done), then Maître Vasseur's office, Odile's flat,
-then Le Mistral's details. The next room is the first without a file in `world/rooms/`. A run builds one
+Odile's door (done), the learner's studio (done), Maître Vasseur's office (done), then Odile's
+flat, then Le Mistral's details. The next room is the first without a file in `world/rooms/`. A run builds one
 room instead of a street; it follows the steps above with these differences.
 
 1. **Canon.** Read the place in `docs/story/season-1/10-lieux-et-images.md` (its canonical
@@ -134,8 +134,8 @@ room instead of a street; it follows the steps above with these differences.
    Quote the canon's lines at the top of the notes; say which choices are the forge's (an hour on
    a clock, a plan, a name on a letterbox: only names the canon gives, the rest blank).
 2. **World entry.** `status: "locked"`, `kind: "season"`, `source: { kind: "season", id: "s1" }`,
-   `site: null`, `room: "<id>"`, and `in`: the place on the map it is inside (the stairwell and the
-   studio are in `quai_de_valmy`). A room is never a pin of its own and is never published (`forge.py publish`
+   `site: null`, `room: "<id>"`, and `in`: the place on the map it is inside (the stairwell, the
+   studio and the notary's office are in `quai_de_valmy` until the map has their streets). A room is never a pin of its own and is never published (`forge.py publish`
    refuses it): the story opens it.
 3. **Brief.** `scripts/forge/briefs/<id>.json` with `kind: "room"`, `in`, `canon` (`doc`,
    `place`, `scenes`), `ambiance`, `title`, `can_do`, `arrive` (the caption you arrive to, in
@@ -159,11 +159,16 @@ room instead of a street; it follows the steps above with these differences.
      with no switch (a flat, the studio) is lit from the start and stays lit.
    - `things` the kit draws (`letterboxes`, `coat`, `clock`, `calendar`, `table`, `chair`,
      `slippers`, `camera`, `cup`, `stove`, `patch`, `doorway`, `mat`, `radiator`, `bed`, `phone`
-     with its screen's lines in `text`, `keys` with the cicada, `suitcase`, `kitchenette`) with
+     with its screen's lines in `text`, `keys` with the cicada, `suitcase`, `kitchenette`,
+     `longtable`, `armchair`, `pen`, `folder` with its label in `text`, `bookcase`) with
      `zone`, `tone`, `text`, `size`. A thing with `look` (three languages) can be tapped and says
      it in a line; its `did` is what the end card remembers. `courts` are seen through a window:
      `storeys` one fewer than your floor puts their zinc at your eye, and `roofs: true` gives
-     them the mansard, dormers and chimney pots.
+     them the mansard, dormers and chimney pots. `boulevards` are a street under a window (`x0`,
+     `x1`, `z` our façade's outer line, `side`, `width`, `storeys`, `seed`, `lit`, `clear`: a
+     stretch of our kerb with no plane tree, so the windows over it see down to the pavement):
+     the quai's own stone houses across it, trees, lamps, a bench. `guard: true` on a window
+     gives a French window its iron garde-corps.
    - `marks`: where the stage stands people. The room director (`interior.ts`) reads `landing`
      (where the climb ends), `door` (where you stand before the door the story opens),
      `threshold` (where you look in from) and `inside` (what you look at); the cast's marks
