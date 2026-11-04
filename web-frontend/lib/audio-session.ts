@@ -123,6 +123,12 @@ export function speakAskedVoice(utterance: SpeechSynthesisUtterance): boolean {
     release();
     return ownError?.call(this, event);
   };
+  const ownStart = utterance.onstart;
+  let started = false;
+  utterance.onstart = function onStart(event) {
+    started = true;
+    return ownStart?.call(this, event);
+  };
   try {
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
@@ -130,8 +136,18 @@ export function speakAskedVoice(utterance: SpeechSynthesisUtterance): boolean {
     release();
     return false;
   }
+  // WebKit may drop an utterance outside a gesture without an end or an error:
+  // a voice that never started gives the session back instead of holding it.
+  setTimeout(() => {
+    if (started) return;
+    const synth = window.speechSynthesis;
+    if (!synth?.speaking && !synth?.pending) release();
+  }, SPEECH_START_GRACE_MS);
   return true;
 }
+
+/** How long a browser voice may take to start before its hold is dropped. */
+export const SPEECH_START_GRACE_MS = 2000;
 
 /** Test seam: forget every hold (the resting type, like the page's AudioContext, stays). */
 export function resetAudioSessionForTests(): void {

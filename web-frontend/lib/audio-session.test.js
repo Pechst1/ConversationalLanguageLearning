@@ -135,6 +135,28 @@ test('the browser voice, asked for, speaks at playback and rests after', () => {
   assert.equal(session.type, 'ambient');
 });
 
+test('a browser voice the platform silently drops gives the session back', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  sound.playFeelSound('correct');
+  const utterance = { text: 'Hier, il est venu.', onend: null, onerror: null };
+  assert.equal(voice.speakAskedVoice(utterance), true);
+  assert.equal(session.type, 'playback');
+  t.mock.timers.tick(voice.SPEECH_START_GRACE_MS);
+  assert.equal(session.type, 'ambient', 'a dropped utterance must not hold playback for the rest of the page');
+});
+
+test('a browser voice that started keeps the session past the grace', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  sound.playFeelSound('correct');
+  const utterance = { text: 'Hier, il est venu.', onend: null, onerror: null };
+  voice.speakAskedVoice(utterance);
+  spoken[spoken.length - 1].u.onstart({});
+  t.mock.timers.tick(voice.SPEECH_START_GRACE_MS);
+  assert.equal(session.type, 'playback');
+  spoken[spoken.length - 1].u.onend({});
+  assert.equal(session.type, 'ambient');
+});
+
 // Every button that speaks a sentence on a tap goes through the asked session:
 // La Forge's dictation and model answer, the rule card, the word review.
 const ASKED = {
