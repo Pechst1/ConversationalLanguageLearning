@@ -68,9 +68,10 @@ test('the review page files through the one path, never after awaiting the serve
   const body = page.slice(page.indexOf('const fileGrade = '), page.indexOf('const returnToAtelier'));
   assert.ok(body.indexOf('fileCard(') >= 0 && body.indexOf('fileCard(') < body.indexOf('submitAnkiReview('), 'filed before it is sent');
   const grades = page.match(/onClick=\{\(\) => [^}]*\}/g).filter((handler) => /Rating|submit|fileGrade/.test(handler));
-  assert.ok(grades.length >= 4, grades.join('\n'));
+  // Owner, 4 Nov: the pair «Encore» / «Je sais» (the swipe's two sides); 1–4 stay on the keys.
+  assert.ok(grades.length >= 2, grades.join('\n'));
   for (const handler of grades) assert.match(handler, /handleRatingClick\(/, handler);
-  assert.match(page, /gradeAction\(\{ revealed, rating, graded, typedMatches \}\)/);
+  assert.match(page, /gradeAction\(\{ revealed, rating, graded: false, typedMatches: false \}\)/);
 });
 
 test('an unturned card offers no grade, only the button that turns it', () => {
@@ -85,10 +86,10 @@ test('an unturned card offers no grade, only the button that turns it', () => {
 
 test('the review page draws grade buttons only on a turned card', () => {
   const page = fs.readFileSync(path.join(__dirname, '..', '..', 'pages', 'vocabulary', 'review.tsx'), 'utf8');
-  assert.match(page, /const foot = deckFoot\(\{ revealed, graded \}\)/);
+  assert.match(page, /const foot = deckFoot\(\{ revealed, graded: false \}\)/);
   const start = page.indexOf("{foot === 'turn' ? (");
   assert.ok(start > 0, 'the foot is chosen by deckFoot');
-  const turn = page.slice(start, page.indexOf(") : foot === 'graded-next' ? (", start));
+  const turn = page.slice(start, page.indexOf(') : (', start));
   assert.doesNotMatch(turn, /lx-rate|handleRatingClick|deck_know|deck_again|deck_hard|deck_easy|deck_good/, 'no grade on the front');
   assert.match(turn, /lx-turn/);
   assert.match(turn, /onClick=\{\(\) => setRevealed\(true\)\}/);

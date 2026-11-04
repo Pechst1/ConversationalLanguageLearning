@@ -49,6 +49,10 @@ export type LexiqueCopy = {
   deck_know: string;
   /** WP-115a: an answered card is graded by the answer; one button files it. */
   deck_graded_next: string;
+  /** Owner, 4 Nov: the turned card is swiped — right «I know it», left «Again». */
+  swipe_hint: string;
+  /** The speaker on the card: hear the French word. */
+  listen_word: string;
   /** WP-115b: the word's own line from the story, blanked. */
   ladder_scene_hint: string;
   /** WP-115b: a word that keeps failing, with a cue: {letter}, {n}. */
@@ -300,6 +304,8 @@ const EN: LexiqueCopy = {
   deck_easy: 'Easy',
   deck_know: 'I know it',
   deck_graded_next: 'Next',
+  swipe_hint: '← Again · swipe · I know it →',
+  listen_word: 'Hear the word',
   ladder_scene_hint: 'From the story — which word is missing?',
   ladder_rescue_hint: 'A stubborn word: it starts with «{letter}», {n} letters.',
   ladder_speak: 'Say it',
@@ -540,6 +546,8 @@ const DE: LexiqueCopy = {
   deck_easy: 'Leicht',
   deck_know: 'Weiß ich',
   deck_graded_next: 'Weiter',
+  swipe_hint: '← Nochmal · wischen · Weiß ich →',
+  listen_word: 'Wort anhören',
   ladder_scene_hint: 'Aus der Geschichte — welches Wort fehlt?',
   ladder_rescue_hint: 'Ein hartnäckiges Wort: Es beginnt mit «{letter}», {n} Buchstaben.',
   ladder_speak: 'Sprich es',
@@ -780,6 +788,8 @@ const FR: LexiqueCopy = {
   deck_easy: 'Facile',
   deck_know: 'Je sais',
   deck_graded_next: 'Suivant',
+  swipe_hint: '← Encore · glisse · Je sais →',
+  listen_word: 'Écouter le mot',
   ladder_scene_hint: 'Dans l’histoire — quel mot manque ?',
   ladder_rescue_hint: 'Un mot têtu : il commence par «{letter}», {n} lettres.',
   ladder_speak: 'Dis-le',
