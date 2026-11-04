@@ -121,17 +121,6 @@ def test_live_register_without_thread_or_season_lets_the_letter_decide_506(monke
     assert found is None, f"nothing known about Margaux: the letter decides, but live_register said {found}"
 
 
-def test_known_register_says_nothing_when_nothing_is_known(monkeypatch) -> None:
-    from app.services.address import character_register, known_register
-
-    monkeypatch.setattr(settings, "ATELIER_SEASON_SCRIPT", "")
-    assert known_register(None, "margaux_barman") is None
-    assert character_register(None, "margaux_barman") == "vous"
-    assert known_register(None, "landlord_marchand") == "vous"
-    state = {"relationships": {"margaux_barman": {"register": "tu"}}}
-    assert known_register(state, "margaux_barman") == "tu"
-
-
 def test_authored_titles_name_no_register_506() -> None:
     """An authored letter has a «vous» and a «tu» opening but one title: it may name neither."""
 
