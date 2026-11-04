@@ -81,3 +81,52 @@ def test_the_recap_carries_the_open_fact_and_the_whole_closing_question():
     assert shown.get("open_fr") == teaser.get("open_fr")
     assert shown["text_fr"] == teaser["text_fr"], "the recap's clip cut the closing question"
     assert shown["text_fr"].endswith("?")
+
+
+def test_the_push_fallback_keeps_the_closing_question(monkeypatch):
+    """The recap snapshot's hook is up to ENGINE_TEASER_CHARS long; the push must not clip it again.
+
+    One limit for one line: with no ``next_teaser`` in the story state the push reads the
+    snapshot's ``teaser_fr``, and a shorter clip there cut the question off («…»).
+    """
+
+    from app.services import serial_notifications
+
+    hook = (
+        "J'ai rien entendu. Mais quand même… Je repense à ce détail. "
+        "Marin pose une petite bouillotte rouge près du radiateur du studio, avec un mot plié dessous. "
+        "Pourquoi, à ton avis ?"
+    )
+    assert 160 < len(hook) <= 260
+    journey = SimpleNamespace(
+        recap_snapshot={"teaser_fr": hook},
+        scenario_snapshot={"character_id": "margaux_barman", "character_name": "Margaux"},
+        local_date=None,
+    )
+    monkeypatch.setattr(serial_notifications, "_latest_journey", lambda db, user: journey)
+    db = SimpleNamespace(scalar=lambda *_args, **_kwargs: None)  # no active thread, no next_teaser
+    pushed = serial_notifications.engine_teaser(db, SimpleNamespace(id=1))
+    assert pushed is not None
+    assert pushed["text_fr"] == hook, f"the push cut the hook: «{pushed['text_fr']}»"
+    assert pushed["text_fr"].endswith("?")
+
+
+def test_margauxs_hook_of_4_nov_is_a_sentence_with_a_question_not_her_opener():
+    """Live walk 4 Nov: Home's «Tomorrow» read «J'ai rien entendu», Margaux's voice opener."""
+
+    teaser = engine.next_teaser(
+        _live("Margaux range une lettre sans nom dans le tiroir du comptoir."),
+        {},
+        character_id="margaux_barman",
+        register="tu",
+        date="2026-11-04",
+        seed="t",
+        name="Margaux",
+    )
+    assert teaser is not None
+    text = teaser["text_fr"]
+    assert text.startswith("J'ai rien entendu."), "the opener is the voice, not the hook"
+    assert text.rstrip().endswith("?"), f"not a question: «{text}»"
+    assert len(text.split()) > 3
+    assert teaser["open_fr"] == "Margaux range une lettre sans nom dans le tiroir du comptoir."
+    assert not text.startswith(teaser["open_fr"])

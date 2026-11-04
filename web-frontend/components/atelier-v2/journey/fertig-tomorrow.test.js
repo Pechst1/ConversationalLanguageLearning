@@ -237,3 +237,19 @@ test('«Tomorrow» is the open fact, not the first words of the hook (#466)', ()
   assert.ok(!WALK_HOOK.startsWith(onHome), 'the line is not a prefix of the hook');
   assert.ok(textOf(fertig(envelope)).includes(onHome), 'the Done screen prints the same line');
 });
+
+// #466 (live walk 4 Nov): Home's «Tomorrow» read «J'ai rien entendu», Margaux's voice opener.
+test("«Tomorrow» is never a character's voice opener (#466, Margaux)", () => {
+  const hook =
+    "J'ai rien entendu. Mais quand même… Je repense à ce détail. Margaux range une lettre sans nom dans le tiroir du comptoir. Pourquoi, à ton avis ?";
+  const open = 'Margaux range une lettre sans nom dans le tiroir du comptoir.';
+  const recap = recapOf({
+    teaser: { text_fr: hook, character_id: 'margaux_barman', character_name: 'Margaux', source: 'engine', open_fr: open },
+    next_teaser_fr: hook,
+  });
+  const shown = hintOf(homeCard(envelopeOf('en', recap)));
+  assert.ok(shown.startsWith('Margaux range une lettre'), `the line is the open fact: ${shown}`);
+  assert.ok(shown.split(' ').length > 3, 'more than three words');
+  assert.ok(!/^J.ai rien entendu/.test(shown));
+  assert.ok(hook.trimEnd().endsWith('?'), 'the hook the line belongs to ends on its question');
+});
