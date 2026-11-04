@@ -545,6 +545,15 @@ export default function VocabularyReviewPage() {
   const [resumeWordId, setResumeWordId] = useState<number | null>(null);
   const [cachedContextAt, setCachedContextAt] = useState<string | null>(null);
   const visibleCacheRef = useRef(false);
+  // Deferred device writes (afterPaint) belong to the deck they were taken from: a
+  // fresh deck or a finished one bumps this, and a write from before it is dropped.
+  const cacheGenRef = useRef(0);
+  const deferCacheWrite = useCallback((task: () => void) => {
+    const gen = cacheGenRef.current;
+    afterPaint(() => {
+      if (cacheGenRef.current === gen) task();
+    });
+  }, []);
 
   // `revalidate` is the server's copy of the deck already on screen (the cached
   // one): what the learner filed meanwhile stays filed and the card stays turned.
@@ -570,6 +579,7 @@ export default function VocabularyReviewPage() {
       ]);
       setWordSlate(slate);
       setContext(next);
+      cacheGenRef.current += 1;
       writeReviewContextCache(load === 'revalidate' ? withoutFiled(next, deckRef.current.filed) : next, slate);
       visibleCacheRef.current = false;
       setCachedContextAt(null);
@@ -725,19 +735,20 @@ export default function VocabularyReviewPage() {
       // Off the input path (owner, 4 Nov: the lag after a grade). The resume word is
       // only read when the deck opens, so it no longer re-sorts the deck per card.
       const wordId = current.word_id;
-      afterPaint(() => {
+      deferCacheWrite(() => {
         window.localStorage.setItem(REVIEW_WORD_KEY, String(wordId));
         saveResumeActivity({ href: '/vocabulary/review', kind: 'review', entityId: wordId });
       });
     } else if (!loading && context) {
       // The deck is done: drop the resume card *and* the cached queue, or the
       // next visit paints the finished deck again from localStorage before the
-      // network can correct it.
+      // network can correct it. A write still pending from the last card is dropped.
+      cacheGenRef.current += 1;
       clearReviewProgress();
       setResumeWordId(null);
       setCachedContextAt(null);
     }
-  }, [context, current, loading]);
+  }, [context, current, loading, deferCacheWrite]);
   // Another card is never shown already turned, and never with the last one's sound.
   useEffect(() => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -820,7 +831,7 @@ export default function VocabularyReviewPage() {
     // A deck reopened later starts after this card, not on it.
     const snapshot = contextRef.current;
     const slate = wordSlateRef.current;
-    if (snapshot) afterPaint(() => writeReviewContextCache(withoutFiled(snapshot, filed.filed), slate));
+    if (snapshot) deferCacheWrite(() => writeReviewContextCache(withoutFiled(snapshot, filed.filed), slate));
     // A flip card is self-rated: it reports a flashcard, which earns no gold
     // (owner decision, 4 Nov — gold is for typed, spoken or selected words).
     apiService

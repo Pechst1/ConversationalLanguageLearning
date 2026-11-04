@@ -61,7 +61,10 @@ test('the review page is a flip card with no fill-in, filed by the swipe', () =>
   assert.match(page, /faces\.backTranslation/);
   // The lag: nothing slow runs on the tap that files a card.
   const body = page.slice(page.indexOf('const fileGrade = '), page.indexOf('const returnToAtelier'));
-  assert.match(body, /afterPaint\(\(\) => writeReviewContextCache/);
+  assert.match(body, /deferCacheWrite\(\(\) => writeReviewContextCache/);
+  // A deferred write never outlives its deck: a fresh or finished deck drops it.
+  assert.match(page, /if \(cacheGenRef\.current === gen\) task\(\);/);
+  assert.match(page, /cacheGenRef\.current \+= 1;\n\s+clearReviewProgress\(\);/);
   assert.doesNotMatch(body, /toast\.success/);
   // The drag never goes through React state.
   const move = page.slice(page.indexOf('const onCardPointerMove'), page.indexOf('const onCardPointerEnd'));
