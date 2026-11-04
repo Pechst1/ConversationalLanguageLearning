@@ -345,11 +345,23 @@ def _local_window(user: Any, now: datetime) -> tuple[datetime, datetime]:
 
 
 def exercises_today(db: Session, user: Any, *, now: datetime | None = None) -> int:
+    """#524: every exercise the learner answered on their local today, one count.
+
+    Two stores hold them: La Forge's items are ``AtelierAttempt`` rows, the
+    scene's recall drills are answered ``DailyJourneyStep`` rows (a drill left
+    unanswered or skipped is no exercise; a rule card or a reply turn is not a
+    drill). The tally used to read the first store alone, so a day of eight
+    recall drills and two Forge items said «2 exercises». Home and the Done
+    screen both read this number.
+    """
+
     from app.db.models.atelier import AtelierAttempt
+    from app.db.models.daily_journey import DailyJourney, DailyJourneyStep
+    from app.services.journey_contracts import StepKind, StepStatus
 
     now = now or datetime.now(UTC)
     start, end = _local_window(user, now)
-    return int(
+    forge_answers = int(
         db.execute(
             select(func.count(AtelierAttempt.id)).where(
                 AtelierAttempt.user_id == user.id,
@@ -359,6 +371,22 @@ def exercises_today(db: Session, user: Any, *, now: datetime | None = None) -> i
         ).scalar_one()
         or 0
     )
+    recall_drills = int(
+        db.execute(
+            select(func.count(DailyJourneyStep.id))
+            .join(DailyJourney, DailyJourney.id == DailyJourneyStep.journey_id)
+            .where(
+                DailyJourney.user_id == user.id,
+                DailyJourneyStep.kind == str(StepKind.RECALL),
+                DailyJourneyStep.status == str(StepStatus.COMPLETED),
+                DailyJourneyStep.evidence_ref.is_not(None),
+                DailyJourneyStep.completed_at >= start,
+                DailyJourneyStep.completed_at < end,
+            )
+        ).scalar_one()
+        or 0
+    )
+    return forge_answers + recall_drills
 
 
 def words_reviewed_today(db: Session, user: Any, *, now: datetime | None = None) -> int:
