@@ -432,10 +432,17 @@ def merge_blockers(pr: dict[str, Any]) -> list[str]:
 
 
 def wait_for_checks(number: int, minutes: int) -> dict[str, Any]:
-    """pr_rollup, polled once a minute for up to `minutes` while any of its checks still runs."""
+    """pr_rollup, polled once a minute for up to `minutes` while its checks are unfinished: not all
+    reported yet (a PR opened a moment ago has none), still running, or a pending status, or
+    GitHub has not worked out whether it merges."""
+    def unfinished(pr: dict[str, Any]) -> bool:
+        pending = ("still running", "checks reported", ": PENDING", ": EXPECTED")
+        return pr.get("mergeable") == "UNKNOWN" or any(
+            m in b for b in _check_blockers(pr) for m in pending)
+
     pr = pr_rollup(number)
     deadline = time.monotonic() + minutes * 60
-    while any("still running" in b for b in _check_blockers(pr)) and time.monotonic() < deadline:
+    while unfinished(pr) and time.monotonic() < deadline:
         time.sleep(60)
         pr = pr_rollup(number)
     return pr

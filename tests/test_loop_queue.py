@@ -281,3 +281,20 @@ def test_pr_merges_just_that_pr_after_its_checks_finish(monkeypatch: Any) -> Non
 
 def pytest_fail() -> list[dict[str, Any]]:
     raise AssertionError("--pr must not list every open PR")
+
+
+def test_pr_waits_for_checks_that_have_not_reported_yet(monkeypatch: Any) -> None:
+    """Right after a routine opens its PR GitHub may list no checks, or a pending status."""
+    merged: list[str] = []
+    pending = [{"__typename": "StatusContext", "context": "ci", "state": "PENDING"}] * 6
+    rollups = iter([
+        {**_report_pr(statusCheckRollup=[], mergeable="UNKNOWN"), "number": 541, "title": "r"},
+        {**_report_pr(statusCheckRollup=pending), "number": 541, "title": "r"},
+        {**_report_pr(), "number": 541, "title": "r"},
+    ])
+    monkeypatch.setattr(loop_queue, "pr_rollup", lambda n: next(rollups))
+    monkeypatch.setattr(loop_queue, "main_is_green", lambda: (True, "main CI ok"))
+    monkeypatch.setattr(loop_queue.time, "sleep", lambda _: None)
+    monkeypatch.setattr(loop_queue, "api", lambda method, path, body=None, accept=None: merged.append(path) or "")
+    loop_queue.merge_ready(1, merge=True, wait_minutes=30, only=541)
+    assert merged[0] == "pulls/541/merge"
