@@ -91,7 +91,7 @@ def _repair_payload(db_session, language: str, concept: GrammarConcept) -> tuple
     [("de", GERMAN, "Regel: "), ("fr", FRENCH, "Règle : ")],
     ids=["de", "fr"],
 )
-def test_the_repair_drill_names_the_rule_in_the_chrome_language(db_session, language, title, prefix) -> None:
+def test_repair_rule_in_chrome(db_session, language, title, prefix) -> None:
     concept = _concept(db_session)
     shown, task = _repair_payload(db_session, language, concept)
 
@@ -101,7 +101,7 @@ def test_the_repair_drill_names_the_rule_in_the_chrome_language(db_session, lang
     assert title in (task.rule_native or "")
 
 
-def test_a_german_repair_falls_back_to_the_french_title_never_the_english_name(db_session) -> None:
+def test_repair_falls_back_to_fr(db_session) -> None:
     concept = _concept(db_session, localized=("fr",))
     shown, _task = _repair_payload(db_session, "de", concept)
 
@@ -109,14 +109,14 @@ def test_a_german_repair_falls_back_to_the_french_title_never_the_english_name(d
     assert ENGLISH not in shown, shown
 
 
-def test_an_english_learner_still_reads_the_catalogue_name(db_session) -> None:
+def test_en_keeps_name(db_session) -> None:
     concept = _concept(db_session, localized=())
     shown, _task = _repair_payload(db_session, "en", concept)
 
     assert "Rule: " + ENGLISH in shown, shown
 
 
-def test_one_accessor_answers_for_every_surface(db_session) -> None:
+def test_accessor_contract(db_session) -> None:
     from app.services.concept_titles import concept_title
 
     concept = _concept(db_session)
@@ -133,7 +133,7 @@ def test_one_accessor_answers_for_every_surface(db_session) -> None:
     assert concept_title(bare, "de") == ENGLISH
 
 
-def test_the_other_surfaces_use_the_accessor(db_session) -> None:
+def test_surfaces_agree(db_session) -> None:
     """The rule card's title helper, the Cahier's `title_fr`, and La Forge's chip all agree."""
 
     from app.services.atelier import _concept_label, _concept_title_for
@@ -199,7 +199,7 @@ def _reads() -> dict[str, int]:
     return found
 
 
-def test_no_new_module_reads_the_catalogue_name_for_display() -> None:
+def test_no_new_name_reads() -> None:
     found = _reads()
     grew = {
         path: (count, _BASELINE.get(path, 0))
