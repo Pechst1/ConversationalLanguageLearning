@@ -34,6 +34,7 @@ from app.core.forge import ForgeState, RuleTrack, Rung, Verdict
 from app.db.models.atelier import AtelierSession
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.user import User
+from app.services.concept_titles import concept_title_fr
 
 ECLAIR_SECONDS = 60
 #: More items than anyone answers in a minute; unanswered ones are never served.
@@ -204,7 +205,7 @@ def _rule_view(db: Session, concept: GrammarConcept) -> dict[str, Any]:
     return {
         "concept_id": concept.id,
         "external_id": concept.external_id,
-        "title_fr": (fr.title if fr else None) or concept.name,
+        "title_fr": concept_title_fr(concept, fr),
         "category": concept.category,
         "subskill": concept.subskill,
         "name": concept.name,

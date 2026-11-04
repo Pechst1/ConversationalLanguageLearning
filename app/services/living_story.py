@@ -33,6 +33,7 @@ from app.db.models.user import User
 from app.services import correction_contract, scene_ledger, story_memory
 from app.services.address import address_instruction
 from app.services.answer_acceptance import correction_is_grounded, is_preference_swap
+from app.services.concept_titles import concept_title
 from app.services.journey_contracts import (
     ActBrief,
     AssistanceLevel,
@@ -7970,7 +7971,6 @@ def grammar_plan_for(
         return None
     from app.db.models.grammar import GrammarConcept, UserGrammarProgress
     from app.services.concept_life import _aware, concept_brief, introduction_for_today
-    from app.services.grammar_units import localized_titles
 
     now = _aware(now) or datetime.now(UTC)
     band = _coarse_level(level or learner_level_band(user))
@@ -8030,7 +8030,7 @@ def grammar_plan_for(
                 )
             for _progress, concept in sorted(met, key=lambda row: (str(row[1].level), row[1].difficulty_order or 0)):
                 if _coarse_level(concept.level) in at_or_below:
-                    title = localized_titles(concept).get("fr") or concept.name
+                    title = concept_title(concept, "fr")
                     if title and title not in allowed:
                         allowed.append(str(title))
             if above:
@@ -8047,7 +8047,7 @@ def grammar_plan_for(
                     .all()
                 )
                 for concept in ahead:
-                    title = localized_titles(concept).get("fr") or concept.name
+                    title = concept_title(concept, "fr")
                     if title and title not in avoid:
                         avoid.append(str(title))
     except Exception:  # pragma: no cover - defensive: a plan is not a scene

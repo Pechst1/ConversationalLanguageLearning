@@ -54,6 +54,7 @@ from app.db.models.progress import UserVocabularyProgress
 from app.db.models.session import LearningSession, SessionLearningMoment
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
+from app.services.concept_titles import concept_title
 from app.services.error_memory import ErrorMemoryService
 from app.services.glosses import word_gloss
 from app.services.grammar import (
@@ -181,6 +182,15 @@ JOURNEY_EVIDENCE: dict[EvidenceKind, Evidence] = {
     EvidenceKind.PRODUCED_INDEPENDENT: Evidence(EvidenceFormat.PRODUCE, correct=True),
     EvidenceKind.NOT_YET: Evidence(EvidenceFormat.PRODUCE, correct=False),
 }
+
+
+def _label_title(concept: GrammarConcept, language: str) -> str:
+    """A rule's title in ``language`` (#522); a title is a label, never the day."""
+
+    try:
+        return concept_title(concept, language)
+    except Exception:  # noqa: BLE001
+        return str(concept.name or "")
 
 
 def grammar_journey_evidence(
@@ -1104,15 +1114,8 @@ def _with_practice_units(
         )
     )
     from app.services.chrome_language import user_chrome_language
-    from app.services.grammar_units import localized_titles
 
     language = str(user_chrome_language(user))
-
-    def titles(concept: GrammarConcept) -> dict[str, str]:
-        try:
-            return localized_titles(concept)
-        except Exception:  # noqa: BLE001 - a title is a label, never the day
-            return {}
 
     extra: list[LearningCandidate] = []
     for progress, concept in rows:
@@ -1126,8 +1129,8 @@ def _with_practice_units(
                 target=TargetRef(
                     kind=TargetKind.GRAMMAR,
                     id=str(concept.id),
-                    label_fr=titles(concept).get("fr") or str(concept.name or ""),
-                    label_native=titles(concept).get(language) or str(concept.name or "") or None,
+                    label_fr=_label_title(concept, "fr"),
+                    label_native=_label_title(concept, language) or None,
                     concept_title=True,
                 ),
                 priority_score=0.0,
@@ -1245,21 +1248,16 @@ def _with_held_opportunities(
         return out
 
     from app.services.chrome_language import user_chrome_language
-    from app.services.grammar_units import localized_titles
 
     language = str(user_chrome_language(user))
     for kind, progress, concept in chosen.values():
-        try:
-            titles = localized_titles(concept)
-        except Exception:  # noqa: BLE001 - a title is a label, never the day
-            titles = {}
         out.append(
             LearningCandidate(
                 target=TargetRef(
                     kind=TargetKind.GRAMMAR,
                     id=str(concept.id),
-                    label_fr=titles.get("fr") or str(concept.name or ""),
-                    label_native=titles.get(language) or str(concept.name or "") or None,
+                    label_fr=_label_title(concept, "fr"),
+                    label_native=_label_title(concept, language) or None,
                     concept_title=True,
                 ),
                 priority_score=0.0,

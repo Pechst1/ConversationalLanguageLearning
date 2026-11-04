@@ -89,6 +89,14 @@ class RepairContext:
 
     sentence: str | None = None
     rule: str | None = None
+    #: The rule's title per chrome language (#522); ``rule`` is the fallback.
+    rule_titles: tuple[tuple[str, str], ...] = ()
+
+    def rule_in(self, language: object) -> str:
+        """The rule's title in ``language`` (the language the goal line around it is in)."""
+
+        wanted = str(language or "en")[:2].lower()
+        return _clean(dict(self.rule_titles).get(wanted)) or _clean(self.rule)
 
 
 def repair_context_of(metadata: dict[str, Any] | None) -> RepairContext | None:
@@ -96,5 +104,13 @@ def repair_context_of(metadata: dict[str, Any] | None) -> RepairContext | None:
 
     data = metadata or {}
     sentence = _clean(data.get("erratum_context")) or None
-    rule = _clean(data.get("erratum_rule")) or None
-    return RepairContext(sentence=sentence, rule=rule) if sentence or rule else None
+    titles = data.get("erratum_rule_titles")
+    rule_titles = tuple(
+        (str(locale), _clean(title))
+        for locale, title in (titles.items() if isinstance(titles, dict) else [])
+        if _clean(title)
+    )
+    rule = _clean(data.get("erratum_rule")) or (rule_titles[0][1] if rule_titles else None) or None
+    if not (sentence or rule):
+        return None
+    return RepairContext(sentence=sentence, rule=rule, rule_titles=rule_titles)

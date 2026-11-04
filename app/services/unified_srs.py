@@ -23,6 +23,7 @@ from app.db.models.grammar import GrammarConcept, GrammarConceptLocalization, Us
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import UserConjugationProgress, VocabularyWord
+from app.services.concept_titles import concept_title
 from app.services.conjugation import DISPLAY_TENSES, ConjugationService
 from app.services.enhanced_srs import EnhancedSRSService
 from app.services.error_memory import ErrorMemoryService
@@ -868,7 +869,7 @@ class UnifiedSRSService:
             id=f"grammar_{concept.id}",
             item_type=ItemType.GRAMMAR,
             priority_score=0,
-            display_title=concept.name,
+            display_title=concept_title(concept, "fr", localizations=concept_titles),
             display_subtitle=concept.category or "Grammar",
             level=concept.level or "—",
             due_since_days=due_since,
@@ -886,8 +887,8 @@ class UnifiedSRSService:
                 "stability": float(progress.stability or 0.0),
                 "difficulty": float(progress.difficulty or 5.0),
                 "lapses": int(progress.lapses or 0),
-                "title_fr": concept_titles.get("fr") or concept.name,
-                "title_native": concept_titles.get(native_language) or concept.name,
+                "title_fr": concept_title(concept, "fr", localizations=concept_titles),
+                "title_native": concept_title(concept, native_language, localizations=concept_titles),
                 "review_mode": "grammar",
                 "next_review": self._iso(progress.next_review),
                 "route": f"/grammar?concept={concept.id}",

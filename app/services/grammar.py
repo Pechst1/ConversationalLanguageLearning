@@ -13,6 +13,7 @@ from app.core.srs import memory
 from app.core.srs.memory import Evidence, EvidenceFormat, MemoryDecision, MemoryState
 from app.db.models.grammar import GrammarConcept, GrammarConceptLocalization, UserGrammarProgress
 from app.db.models.user import User
+from app.services.concept_titles import concept_title_fr
 from app.services.grammar_catalog import FrenchCoreGrammarCatalog, active_catalog_version
 
 # WP-L3: grammar is scheduled by the one memory model (`app.core.srs.memory`),
@@ -586,7 +587,7 @@ class GrammarService:
             result[level].append({
                 "id": concept.id,
                 "name": concept.name,
-                "title_fr": (localization.title if localization else None) or concept.name,
+                "title_fr": concept_title_fr(concept, localization),
                 "category": concept.category,
                 "category_label_fr": (localization.category_label if localization else None) or concept.category,
                 "description": concept.description,

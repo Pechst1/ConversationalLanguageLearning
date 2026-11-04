@@ -28,6 +28,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models.error import UserError
 from app.db.models.user import User
+from app.services.concept_titles import concept_title
 from app.services.error_memory import (
     ERROR_STATE_MASTERED,
     ERROR_STATE_REPAIRING,
@@ -35,6 +36,7 @@ from app.services.error_memory import (
     normalize_error_state,
     serialize_error_memory,
 )
+from app.services.grammar_units import SUPPORTED_LOCALES
 from app.services.journey_contracts import LearningCandidate, TargetKind, TargetRef
 
 #: How many errata targets the planner is ever offered. The planner keeps at
@@ -90,6 +92,10 @@ class ErrataTarget:
     #: broke. A repair prints both; without them it is a bare word.
     context_fr: str | None = None
     rule: str | None = None
+    #: The rule's title in every chrome language (#522). The planner picks the one
+    #: that matches the language of the goal line it prints beside it, so the
+    #: «Regel:» prefix and the title can never be in different languages.
+    rule_titles: dict[str, str] = field(default_factory=dict)
 
     @property
     def reason(self) -> str:
@@ -142,6 +148,7 @@ class ErrataTarget:
                 "memory_key": self.memory_key,
                 "erratum_context": self.context_fr,
                 "erratum_rule": self.rule,
+                "erratum_rule_titles": dict(self.rule_titles),
             },
         )
 
@@ -182,13 +189,20 @@ def _priority(*, state: str, occurrences: int, lapses: int, overdue_days: int, s
     )
 
 
-def _rule_title(error: UserError) -> str | None:
-    """The title of the grammar rule the slip broke, when it has one."""
+def _rule_titles(error: UserError) -> dict[str, str]:
+    """The title of the grammar rule the slip broke, per chrome language.
+
+    Through the one accessor (#522): the catalogue ``name`` is English, and a German
+    learner's repair drill used to print it.
+    """
 
     if not error.concept_id:
-        return None
+        return {}
     concept = getattr(error, "concept", None)
-    return str(getattr(concept, "name", "") or "").strip() or None
+    if concept is None:
+        return {}
+    titles = {locale: concept_title(concept, locale) for locale in SUPPORTED_LOCALES}
+    return {locale: title for locale, title in titles.items() if title}
 
 
 def build_errata_target(error: UserError, *, now: datetime | None = None) -> ErrataTarget | None:
@@ -212,6 +226,7 @@ def build_errata_target(error: UserError, *, now: datetime | None = None) -> Err
     overdue = _overdue_days(error, now)
     occurrences = int(error.occurrences or 1)
     lapses = int(error.lapses or 0)
+    rule_titles = _rule_titles(error)
     return ErrataTarget(
         error_id=str(error.id),
         memory_key=error.memory_key,
@@ -234,7 +249,8 @@ def build_errata_target(error: UserError, *, now: datetime | None = None) -> Err
         ),
         payload=payload,
         context_fr=str(metadata.get("context_fr") or "").strip() or None if isinstance(metadata, dict) else None,
-        rule=_rule_title(error),
+        rule=rule_titles.get("en") or next(iter(rule_titles.values()), None),
+        rule_titles=rule_titles,
     )
 
 

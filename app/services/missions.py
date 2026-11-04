@@ -23,9 +23,6 @@ from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.db.savepoint import best_effort
-
-# WP-64 — every write into `thread.state["living_story"]` on behalf of a letter
-# goes through this module, and nothing here reaches into that ledger directly.
 from app.services import cast_registry, correction_contract
 from app.services import story_correspondence as courrier
 from app.services.address import address_instruction
@@ -34,6 +31,10 @@ from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService
 from app.services.cast_roles import ROLES as CAST_ROLES
 from app.services.cast_roles import role_of
+
+# WP-64 — every write into `thread.state["living_story"]` on behalf of a letter
+# goes through this module, and nothing here reaches into that ledger directly.
+from app.services.concept_titles import concept_title, concept_title_fr
 from app.services.daily_words import DailyWordSlateService
 from app.services.error_memory import ErrorMemoryService, serialize_error_memory
 from app.services.forge_item_validator import cast_names, reaction_problems
@@ -1531,7 +1532,7 @@ def _concept_title(concept: GrammarConcept, asset_service: AtelierAssetService |
                 concept_id=concept.id,
                 error=str(exc),
             )
-    return concept.name
+    return concept_title(concept, "fr")
 
 
 def _source_ids(rows: list[Any]) -> list[str]:
@@ -3161,7 +3162,8 @@ class MissionGenerator:
             )
             .all()
         )
-        return {row.concept_id: row.title for row in rows if row.title}
+        by_id = {row.concept_id: row for row in rows if row.title}
+        return {concept.id: concept_title_fr(concept, by_id.get(concept.id)) for concept in concepts if concept.id in by_id}
 
     def _letter_known_words(self, user: User) -> Any:
         """What this learner can read (WP-29's known set), or None when unreadable."""

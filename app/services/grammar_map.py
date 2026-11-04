@@ -27,6 +27,7 @@ from app.core import forge as core
 from app.core.forge import Rung
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.user import User
+from app.services.concept_titles import concept_title_fr
 
 STAGE_GHOST = "ghost"
 STAGE_INTRODUCED = "introduced"
@@ -219,7 +220,7 @@ def grammar_map(db: Session, user: User, *, now: datetime | None = None) -> dict
                 {
                     "concept_id": concept.id,
                     "external_id": concept.external_id,
-                    "title_fr": (fr[concept.id].title if concept.id in fr else None) or concept.name,
+                    "title_fr": concept_title_fr(concept, fr.get(concept.id)),
                     "name": concept.name,
                     "level": concept.level,
                     "category": concept.category,

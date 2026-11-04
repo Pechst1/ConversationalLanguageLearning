@@ -32,6 +32,7 @@ from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.services.atelier_assets import AtelierAssetService
+from app.services.concept_titles import concept_title
 from app.services.daily_words import DailyWordSlateService
 from app.services.error_memory import ErrorMemoryService, serialize_error_memory
 from app.services.glosses import gloss_payload
@@ -408,7 +409,7 @@ def _concept_title(concept: GrammarConcept, asset_service: AtelierAssetService |
                 concept_id=concept.id,
                 error=str(exc),
             )
-    return concept.name
+    return concept_title(concept, "fr")
 
 
 def _ids(rows: list[Any]) -> list[str]:
