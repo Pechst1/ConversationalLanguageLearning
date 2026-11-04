@@ -28,7 +28,7 @@ from app.db.savepoint import best_effort
 # goes through this module, and nothing here reaches into that ledger directly.
 from app.services import cast_registry, correction_contract
 from app.services import story_correspondence as courrier
-from app.services.address import address_instruction
+from app.services.address import address_instruction, known_register
 from app.services.answer_acceptance import is_preference_swap
 from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService
@@ -844,7 +844,9 @@ FIRST_LETTERS: dict[str, dict[str, Any]] = {
         "level": "A1",
         "label": "Le Mistral",
         "character_id": "margaux_barman",
-        "title": "Ton écharpe au Mistral",
+        # No «ton» / «votre»: the title is shown with either opening, so it names no
+        # register (it said «Ton écharpe» over a «Vous avez oublié» letter, #506).
+        "title": "Une écharpe oubliée au Mistral",
         "contact_name": "Margaux",
         "contact_role": role_of("margaux_barman", "fr"),
         "contact_initials": "MA",
@@ -6553,9 +6555,12 @@ def live_register(db: Session | None, user: Any, mission: Any) -> str | None:
         thread = courrier.active_thread(db, SimpleNamespace(id=user_id))
     except Exception:  # noqa: BLE001 - a reply never fails on a register read
         return None
-    if thread is None:
-        return None
-    return courrier.learner_register(thread, cast_id)
+    if thread is not None:
+        return courrier.learner_register(thread, cast_id)
+    # No thread yet: the cast's own register answers when it has one (a season row, the
+    # always-«vous» landlord), as in the scene. ``known_register``, not the resolver's
+    # «vous» default: with nothing known the letter's own register decides (#506).
+    return known_register(None, cast_id)
 
 
 def _unassessed_acknowledgement(mission: Any, *, register_now: str | None = None) -> str:
