@@ -102,7 +102,8 @@ def test_524_the_tally_counts_recall_drills_and_forge_items(client: TestClient, 
     _forge_items(db_session, user, count=4, at=yesterday)
     db_session.commit()
 
-    assert daily_session.exercises_today(db_session, user, now=now) == 5
+    counted = daily_session.exercises_today(db_session, user, now=now)
+    assert counted == 5, f"{counted} exercises counted after 3 recall drills and 2 La Forge items"
 
     view = daily_session.build_session(
         db_session,
