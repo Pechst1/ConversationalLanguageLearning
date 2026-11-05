@@ -90,6 +90,7 @@ from app.services.cast_registry import display_name, people_addressed, people_na
 from app.services.cast_registry import resolve_id as _resolve_cast_id
 from app.services.cefr_progress import CEFRProgressService, live_level, with_can_do_line
 from app.services.chrome_language import user_chrome_language
+from app.services.concept_titles import concept_title_fr
 from app.services.error_memory import ErrorMemoryService
 from app.services.forge import ForgeService, is_forge_session  # WP-S3 La Forge
 from app.services.forge_item_validator import item_problems  # #267: an item agrees with its badge
@@ -204,7 +205,7 @@ def _fr_concept_title(
 ) -> str:
     """The publication title for a concept, falling back to the catalog name."""
     localization = (fr_localizations or {}).get(concept.id)
-    return str((localization.title if localization else None) or concept.name or "")
+    return concept_title_fr(concept, localization)
 
 
 def _with_fr_titles(

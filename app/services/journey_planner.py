@@ -1188,7 +1188,7 @@ def build_recall_task(
             fixed_sentence = corrected_sentence(sentence, learner, label_fr)
             if fixed_sentence:
                 sentence_answers.append(fixed_sentence)
-        rule = clean_text(repair.rule) if repair else ""
+        rule = repair.rule_in(language) if repair else ""
         if rule:
             rule_native = recall_goal("repair_rule", language, rule=rule)
             goal = f"{goal} {rule_native}"

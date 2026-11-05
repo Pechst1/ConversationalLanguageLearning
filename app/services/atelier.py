@@ -48,6 +48,7 @@ from app.services.atelier_correction_cost import (
     bound_learner_answer,
     record_correction_cost,
 )
+from app.services.concept_titles import concept_title, concept_title_fr
 from app.services.error_memory import ErrorMemoryService, serialize_error_memory
 from app.services.exercise_generation import (
     ExerciseGenerationService,
@@ -231,22 +232,15 @@ ATELIER_PACE_LOOKBACK_ATTEMPTS = 120
 
 def _concept_label(concept: Any) -> str:
     """The name a learner reads for a rule: the French title the catalogue
-    authored for it (WP-56), the English catalogue name only as a floor."""
-    if concept is None:
-        return ""
-    return str(getattr(concept, "title_fr", None) or getattr(concept, "name", None) or "").strip()
+    authored for it (WP-56). #522: through the one title accessor, so the English
+    catalogue name is never the answer when a French title exists."""
+    return concept_title(concept, "fr")
 
 
 def _concept_title_for(concept: Any, language: str | None) -> str:
     """The rule's title in the learner's own language when the catalogue has one
     (`grammar_concept_localizations`), else the French title (WP-56)."""
-    if concept is None:
-        return ""
-    wanted = normalize_language(language)
-    for row in getattr(concept, "localizations", None) or []:
-        if normalize_language(getattr(row, "locale", None)) == wanted and getattr(row, "title", None):
-            return str(row.title).strip()
-    return _concept_label(concept)
+    return concept_title(concept, language)
 
 
 class AtelierExerciseGenerationError(RuntimeError):
@@ -8633,7 +8627,7 @@ def serialize_concept(
         "level": concept.level,
         "category": concept.category,
         "subskill": concept.subskill,
-        "title_fr": (fr_localization.title if fr_localization else None) or concept.name,
+        "title_fr": concept_title_fr(concept, fr_localization),
         "category_label_fr": (fr_localization.category_label if fr_localization else None) or concept.category,
         "core_rule": concept.core_rule,
         "main_traps": _split_list(concept.main_traps),
