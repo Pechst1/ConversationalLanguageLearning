@@ -77,6 +77,19 @@
       "in": "quai_de_valmy"
     },
     {
+      "id": "odile_flat",
+      "name": { "fr": "Chez Odile", "en": "Odile's flat", "de": "Odiles Wohnung" },
+      "lat": 48.87299,
+      "lon": 2.3637,
+      "status": "locked",
+      "kind": "season",
+      "why": { "fr": "Au premier, au-dessus du Mistral : les volets ouverts sur le canal, le calendrier d'avril 2023.", "en": "On the first floor above Le Mistral: the shutters open on the canal, the calendar of April 2023.", "de": "Im ersten Stock über dem Mistral: die Fensterläden offen zum Kanal, der Kalender vom April 2023." },
+      "source": { "kind": "season", "id": "s1" },
+      "site": null,
+      "room": "odile_flat",
+      "in": "quai_de_valmy"
+    },
+    {
       "id": "mairie_10e",
       "name": { "fr": "La mairie du 10e", "en": "The town hall of the 10th", "de": "Das Rathaus des 10." },
       "lat": 48.8722,
