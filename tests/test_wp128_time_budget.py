@@ -293,9 +293,8 @@ def test_the_core_leaves_the_optional_extensions_out() -> None:
 
 
 def test_the_extensions_are_priced_on_their_own() -> None:
-    assert planner.word_drill_seconds(0) == 0
-    assert planner.word_drill_seconds(10) == 10 * planner.WORD_CARD_SECONDS
-    assert planner.word_drill_seconds(400) == planner.WORD_DRILL_MAX_CARDS * planner.WORD_CARD_SECONDS
+    # #470: the words are priced by the day deck (`daily_session.words_seconds`),
+    # asserted in tests/test_470_one_words_estimate.py; only the letter is priced here.
     letters = [planner.letter_seconds(band) for band in BANDS]
     assert letters == sorted(letters, reverse=True), letters
     assert 120 <= letters[0] <= 420 and letters[-1] >= 60

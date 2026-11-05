@@ -55,6 +55,7 @@ from app.db.models.session import LearningSession, SessionLearningMoment
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.services.concept_titles import concept_title
+from app.services.correction_contract import contraction_reason
 from app.services.error_memory import ErrorMemoryService
 from app.services.glosses import word_gloss
 from app.services.grammar import (
@@ -2527,12 +2528,19 @@ def evaluate_dictation(
     if outcome is not TaskOutcome.MET and learner and expected:
         # Built directly: `build_correction` folds accents away, and an accent
         # is exactly what the partial verdict is about.
+        language = _dictation_language(task)
+        # #501: a miss that is a contraction (à + le -> au) says so; the line alone
+        # shows what was said, never why the learner's spelling is not French.
+        reason = (
+            contraction_reason(learner, expected, language=language)
+            if outcome is TaskOutcome.NOT_YET
+            else None
+        )
         correction = Correction(
             span_fr=learner,
             corrected_fr=normalize_answer_text(expected),
-            note_native=_DICTATION_NOTE[
-                "accents" if outcome is TaskOutcome.PARTIALLY_MET else "words"
-            ][_dictation_language(task)],
+            note_native=reason
+            or _DICTATION_NOTE["accents" if outcome is TaskOutcome.PARTIALLY_MET else "words"][language],
         )
     return RecallEvaluation(
         outcome=outcome,

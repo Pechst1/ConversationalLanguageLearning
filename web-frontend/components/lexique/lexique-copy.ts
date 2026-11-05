@@ -75,6 +75,7 @@ export type LexiqueCopy = {
   bucket_linked: string;
   bucket_topic: string;
   bucket_new_deck: string;
+  bucket_scene: string;
   count_fragile_one: string;
   count_fragile_many: string;
   count_new_one: string;
@@ -210,7 +211,6 @@ export type LexiqueCopy = {
   deck_error_title: string;
   deck_unavailable: string;
   audio_failed: string;
-  due_on: string;
   rating_fallback: string;
   anchored_with: string;
   composition: string;
@@ -322,6 +322,7 @@ const EN: LexiqueCopy = {
   bucket_linked: 'Related word',
   bucket_topic: 'On topic',
   bucket_new_deck: 'Today’s new words',
+  bucket_scene: 'From today’s scene',
   count_fragile_one: '{n} fragile',
   count_fragile_many: '{n} fragile',
   count_new_one: '{n} new',
@@ -453,7 +454,6 @@ const EN: LexiqueCopy = {
   deck_error_title: 'Deck unavailable',
   deck_unavailable: 'The review is unavailable.',
   audio_failed: 'Playback failed.',
-  due_on: 'Due {date}',
   rating_fallback: 'Saved',
   anchored_with: 'From your story with {name}',
   composition: 'Including {list}.',
@@ -562,6 +562,7 @@ const DE: LexiqueCopy = {
   bucket_linked: 'Verwandtes Wort',
   bucket_topic: 'Zum Thema',
   bucket_new_deck: 'Neue Wörter von heute',
+  bucket_scene: 'Aus der Szene von heute',
   count_fragile_one: '{n} wackelig',
   count_fragile_many: '{n} wackelig',
   count_new_one: '{n} neu',
@@ -693,7 +694,6 @@ const DE: LexiqueCopy = {
   deck_error_title: 'Stapel nicht verfügbar',
   deck_unavailable: 'Die Wiederholung ist nicht verfügbar.',
   audio_failed: 'Die Wiedergabe ist fehlgeschlagen.',
-  due_on: 'Fällig am {date}',
   rating_fallback: 'Gespeichert',
   anchored_with: 'Aus deiner Geschichte mit {name}',
   composition: 'Davon {list}.',
@@ -802,6 +802,7 @@ const FR: LexiqueCopy = {
   bucket_linked: 'Mot voisin',
   bucket_topic: 'Du thème',
   bucket_new_deck: 'La pioche du jour',
+  bucket_scene: 'De la scène du jour',
   count_fragile_one: '{n} fragile',
   count_fragile_many: '{n} fragiles',
   count_new_one: '{n} nouveau',
@@ -933,7 +934,6 @@ const FR: LexiqueCopy = {
   deck_error_title: 'Paquet indisponible',
   deck_unavailable: 'La révision est indisponible.',
   audio_failed: 'La lecture audio a échoué.',
-  due_on: 'Échéance {date}',
   rating_fallback: 'Classée',
   anchored_with: 'Ancré dans ton histoire avec {name}',
   composition: 'Dont {list}.',

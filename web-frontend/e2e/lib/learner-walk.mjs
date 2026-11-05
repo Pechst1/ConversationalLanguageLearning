@@ -4,7 +4,7 @@
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { snapshot, sleep, TYPEABLE_FIELD } from './driver.mjs';
-import { missLayoutChecks } from './miss-layout.mjs';
+import { missLayoutChecks, readingIsSteady } from './miss-layout.mjs';
 import { englishWords, PENDING_VERDICT, SERVER_BANNER } from './assertions.mjs';
 
 /**
@@ -24,7 +24,7 @@ const REPLIES = ['Oui, je peux vous aider samedi.', 'Merci, à samedi !', 'Avec 
 const FREE = 'Je voudrais un café, s’il vous plaît.';
 
 /** #319: a reading is settled when it repeats SETTLE_STEADY times, SETTLE_STEP_MS apart. */
-const SETTLE_KEYS = ['cardTop', 'cardBottom', 'sheetTop', 'headerBottom'];
+const SETTLE_KEYS = ['cardTop', 'cardBottom', 'sheetTop', 'headerBottom', 'scrollY'];
 const SETTLE_STEADY = 4;
 const SETTLE_STEP_MS = 100;
 const SETTLE_MAX_MS = 6000;
@@ -42,6 +42,10 @@ function measureForgeMiss() {
     cardBottom: Math.round(c.bottom),
     sheetTop: Math.round(Math.min(foot.getBoundingClientRect().top, window.innerHeight)),
     headerBottom: Math.round(top ? Math.max(0, top.getBoundingClientRect().bottom) : 0),
+    scrollY: Math.round(window.scrollY),
+    // The page's own word that its miss scroll is done (lib/keep-above-sheet.ts); a page with
+    // no scroll owner running has nothing pending.
+    scroll: feedback.getAttribute('data-scroll') || 'settled',
     text: (card.innerText || '').trim().replace(/\s+/g, ' ').slice(0, 120),
   };
 }
@@ -244,7 +248,10 @@ export class LearnerWalk {
    *
    * #319: the page scrolls smoothly, and how long that takes depends on the distance
    * and on how busy the machine is, so a fixed wait measured a card still on its way
-   * (fr, 23 Oct). The card is measured until it has stopped moving, not after a guess.
+   * (fr, 23 Oct). The card is measured until it has stopped moving, not after a guess;
+   * and since the page looks at its layout again at 150 and 600 ms, and can pause
+   * between, a quiet window alone is not enough: the page must also say its scroll is
+   * «settled» (`data-scroll`). The walk never touches the scroll itself.
    */
   async forgeMissInView(kind) {
     const box = await this.settledBox(measureForgeMiss);
@@ -274,7 +281,7 @@ export class LearnerWalk {
     for (;;) {
       const box = await this.page.evaluate(measure).catch(() => null);
       if (!box) return null;
-      steady = last && SETTLE_KEYS.every((k) => box[k] === last[k]) ? steady + 1 : 0;
+      steady = readingIsSteady(last, box, SETTLE_KEYS) ? steady + 1 : 0;
       last = box;
       if (steady >= SETTLE_STEADY || Date.now() - t0 >= SETTLE_MAX_MS) return box;
       await sleep(SETTLE_STEP_MS);

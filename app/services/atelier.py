@@ -4822,6 +4822,32 @@ class AtelierCorrectionService:
         self.db.refresh(attempt)
         return attempt
 
+    @staticmethod
+    def _keyed_repair_source(attempt: AtelierAttempt, erratum: dict[str, Any]) -> str:
+        """The learner's own text for the item a keyed erratum belongs to."""
+
+        payload = attempt.answer_payload or {}
+        answers = payload.get("answers")
+        if isinstance(answers, dict) and erratum.get("item_id") in answers:
+            value = answers[erratum["item_id"]]
+            return _join_french_tokens(value) if isinstance(value, list) else str(value or "")
+        text = payload.get("text")
+        return text if isinstance(text, str) else ""
+
+    @staticmethod
+    def _repair_is_right(typed: str, source: str, accepted: list[str | None]) -> bool:
+        """#503: the one judge of a typed repair, for keyed and model-judged rounds.
+
+        The whole corrected line, the corrected part, or the part with some of the
+        unchanged words around it are right (``answer_acceptance.judge_repair``).
+        Accents count: they are often the fix.
+        """
+
+        from app.services.answer_acceptance import judge_repair
+
+        keys = [line for line in accepted if line and line.strip()]
+        return bool(typed) and bool(keys) and judge_repair(typed, source, keys, accents="strict", typo=False).correct
+
     def record_micro_repair(
         self,
         *,
@@ -4861,18 +4887,21 @@ class AtelierCorrectionService:
         target = targets[erratum_index]
         typed = str(text or "").strip()
         if line_repair:
+            source = self._answer_text(attempt.answer_payload or {})
             # Owner, 2026-10-19: a long line is repaired by fixing only its wrong
             # parts in place. The learner's own line with each wrong stretch
             # replaced is right too, even when the model's rewrite also tidied
-            # something it did not mark. Accents count: often they are the fix.
-            from app.services.answer_acceptance import fold_typography
-
-            accepted = [target, repair_line_from_parts(self._answer_text(attempt.answer_payload or {}), errata)]
-            is_correct = bool(typed) and any(
-                fold_typography(typed) == fold_typography(line) for line in accepted if line
-            )
+            # something it did not mark.
+            accepted = [target, repair_line_from_parts(source, errata)]
         else:
-            is_correct = bool(typed) and _normalize(typed) == _normalize(target)
+            # #503: a keyed round asks for «the corrected line» too. The line is
+            # the key's own corrected answer for the item, or the learner's line
+            # with the wrong stretch fixed; the gap alone stays right.
+            erratum = errata[erratum_index] if erratum_index < len(errata) else {}
+            source = self._keyed_repair_source(attempt, erratum)
+            key_line = (correction.get("corrected_answer") or {}).get(erratum.get("item_id")) if isinstance(correction.get("corrected_answer"), dict) else None
+            accepted = [target, key_line if isinstance(key_line, str) else None, repair_line_from_parts(source, [erratum]) if source else None]
+        is_correct = self._repair_is_right(typed, source, accepted)
         repairs = dict(correction.get("micro_repairs") or {})
         repairs[str(erratum_index)] = {
             "target": target,
@@ -5636,7 +5665,12 @@ class AtelierCorrectionService:
             "error": error,
         }
         correction.pop("evidence_hold", None)
-        if attempt.round in FREE_PRODUCTION_ROUNDS:
+        if attempt.round in FREE_PRODUCTION_ROUNDS and correction.get("local_status") == LOCAL_RIGHT:
+            # #471 / #401: an answer in the item's accept-list is right by the key
+            # alone. The model that could not read it adds only a second look, so its
+            # failure never demotes the key's verdict to «not checked».
+            correction["assessment_status"] = "checked"
+        elif attempt.round in FREE_PRODUCTION_ROUNDS:
             # The local check was a hint, not a grade: an open answer the model
             # never read is unchecked, and an unchecked answer never counts.
             correction["assessment_status"] = "unavailable"
