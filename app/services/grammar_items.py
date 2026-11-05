@@ -47,6 +47,7 @@ from app.services.journey_contracts import (
     TargetRef,
     recall_goal,
 )
+from app.services.learner_facts import numbers_of
 
 #: Stability (days) below which a due unit is posed as a pick.
 LOW_STABILITY_DAYS = 3.0
@@ -100,6 +101,20 @@ _TRANSFORM: dict[str, str] = {
     "en": "Correct this sentence.",
     "de": "Korrigiere diesen Satz.",
     "fr": "Corrige cette phrase.",
+}
+#: #519: a ✗/✓ pair from a unit's traps is not always a sentence («vingt-un» →
+#: «vingt et un»). The task line follows the shape of what is printed: only a
+#: sentence is «corrected»; a bare number says what to write; any other bare form
+#: is a form to correct.
+_TRANSFORM_FORM: dict[str, str] = {
+    "en": "Correct this form.",
+    "de": "Korrigiere diese Form.",
+    "fr": "Corrige cette forme.",
+}
+_TRANSFORM_NUMBER: dict[str, str] = {
+    "en": "Write {number} in French.",
+    "de": "Schreib {number} auf Französisch.",
+    "fr": "Écris {number} en français.",
 }
 _FIRST_WORD_HINT: dict[str, str] = {
     "en": 'It starts with "{word}".',
@@ -601,6 +616,22 @@ def build_item(
     )
 
 
+def transform_instruction(wrong: str, right: str, language: str) -> str:
+    """The task line over ``wrong``: what to do with what is printed (#519).
+
+    «Correct this sentence.» is only honest over a sentence (two words or more). A
+    bare word is either a number, which the line asks for by its digits («Write 21
+    in French.»), or a form («Correct this form.»).
+    """
+
+    if len(_words(wrong)) >= 2:
+        return _localized(_TRANSFORM, language)
+    numbers = numbers_of(right)
+    if len(numbers) == 1:
+        return _localized(_TRANSFORM_NUMBER, language).format(number=next(iter(numbers)))
+    return _localized(_TRANSFORM_FORM, language)
+
+
 def transform_item(
     brief: dict[str, Any],
     *,
@@ -621,7 +652,7 @@ def transform_item(
     meaning = sentence_meanings(brief, str(language), meanings).get(_fold(right))
     return RecallTask(
         task_type="transform",
-        instruction_native=_localized(_TRANSFORM, language),
+        instruction_native=transform_instruction(wrong, right, language),
         prompt_fr=wrong,
         options=[],
         target=target,
