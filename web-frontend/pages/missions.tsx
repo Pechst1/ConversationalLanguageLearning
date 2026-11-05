@@ -62,6 +62,7 @@ import {
   currentComposerInstruction,
   latestAssistantTurn,
   missionTurns,
+  replyPending,
 } from '@/components/courrier/mission-turns';
 import apiService, {
   IntakeArtefact,
@@ -842,6 +843,12 @@ export default function MissionsPage() {
     try {
       const result = await apiService.submitMissionTurn(mission.id, { text, mode: 'chat' });
       setMission({ ...result.mission, outcome: result.outcome || result.mission.outcome });
+      if (replyPending(result.outcome)) {
+        // #397/#333: nobody answered (the stock line is not stored as Gus's turn). The text
+        // stays in the composer: sending it again asks the correspondent again.
+        toast(t.toast_reply_pending);
+        return;
+      }
       setReply('');
       window.localStorage.removeItem(`pilot:mission-draft:${mission.id}`);
     } catch (sendError) {

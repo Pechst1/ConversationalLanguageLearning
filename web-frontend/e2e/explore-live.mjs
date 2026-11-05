@@ -17,6 +17,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startLiveProxy } from './lib/live-proxy.mjs';
+import { WALK_TIMEZONE } from './lib/walk-timezone.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const webRoot = path.resolve(here, '..');
@@ -179,7 +180,7 @@ async function main() {
   if (!argv.includes('--skip-build') || !existsSync(root)) build();
   proxy = await startLiveProxy({ port: appPort, root, upstream, log: (row) => log('proxy.jsonl', row) });
   browser = await chromium.launch(process.env.WALK_CHROMIUM ? { executablePath: process.env.WALK_CHROMIUM } : {});
-  const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, locale: 'de-DE' });
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, locale: 'de-DE', timezoneId: WALK_TIMEZONE });
   // Run the bundle as the app does: Capacitor reports a native platform, so sign-in uses
   // the token flow the phone uses (not next-auth, which needs a Next server), and every
   // plugin falls back to its web implementation (secure storage → localStorage).

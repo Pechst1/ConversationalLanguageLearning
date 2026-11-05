@@ -18,6 +18,7 @@ import { Findings } from './lib/assertions.mjs';
 import { LearnerWalk } from './lib/learner-walk.mjs';
 import { registerLearner } from './lib/session.mjs';
 import { REPO_ROOT, sleep, startStack } from './lib/stack.mjs';
+import { WALK_TIMEZONE } from './lib/walk-timezone.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -72,6 +73,7 @@ async function main() {
     isMobile: true,
     hasTouch: true,
     locale: lang === 'de' ? 'de-DE' : lang === 'fr' ? 'fr-FR' : 'en-GB',
+    timezoneId: WALK_TIMEZONE,
   });
   await context.grantPermissions(['microphone'], { origin: stack.web });
   await context.addCookies([{ name: 'next-auth.session-token', value: learner.cookie, url: stack.web }]);

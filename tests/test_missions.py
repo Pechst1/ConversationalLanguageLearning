@@ -463,7 +463,9 @@ def test_custom_mission_e2e_create_turn_complete_and_queue(client: TestClient, d
 
     assert turn.status_code == 200
     assert turn.json()["mission"]["status"] == "in_progress"
-    assert turn.json()["assistant_turn"]["role"] == "assistant"
+    # #397: with no model nobody can answer; the stock line is not stored as the character's turn.
+    assert turn.json()["assistant_turn"] == {}
+    assert turn.json()["outcome"]["reply_state"] == "pending"
     assert any(event["word_id"] == target_word.id and event["event_type"] == "produced_correct" for event in turn.json()["correction"]["vocabulary_events"])
 
     today_after_turn = client.get("/api/v1/missions/today", headers={"Authorization": f"Bearer {token}"})
@@ -532,15 +534,17 @@ def test_mission_submit_and_turns_are_persisted(client: TestClient, db_session, 
     assert "the learner" not in str(submit.json()["correction"]).lower()
     assert turn.status_code == 200
     assert turn.json()["user_turn"]["role"] == "user"
-    assert turn.json()["assistant_turn"]["role"] == "assistant"
-    assert len(turn.json()["mission"]["turns"]) == 2
+    # #397: with no model nobody can answer; the stock line is not stored as the character's turn.
+    assert turn.json()["assistant_turn"] == {}
+    assert turn.json()["outcome"]["reply_state"] == "pending"
+    assert len(turn.json()["mission"]["turns"]) == 1
     assert turn.json()["correction"]["persistence"]["saved_count"] >= 2
     assert len(turn.json()["correction"]["persistence"]["error_ids"]) >= 2
     assert turn.json()["user_turn"]["correction"]["persistence"] == turn.json()["correction"]["persistence"]
     assert duplicate_submit.status_code == 200
     assert len(duplicate_submit.json()["mission"]["attempts"]) == 1
     assert duplicate_turn.status_code == 200
-    assert len(duplicate_turn.json()["mission"]["turns"]) == 2
+    assert len(duplicate_turn.json()["mission"]["turns"]) == 1
     assert duplicate_turn.json()["correction"]["persistence"]["saved_count"] >= 2
 
 

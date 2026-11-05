@@ -5178,8 +5178,21 @@ class MissionScheduler:
             lapsed = courrier.lapse_overdue_letters(self.db, user=user)
         return lapsed
 
+    #: #397: an ad-hoc letter nobody has touched for this long stops holding back the next.
+    AD_HOC_LETTER_STALE_DAYS = 2
+
     def _open_ad_hoc_letter(self, user: User) -> RealWorldMission | None:
-        return (
+        """The ad-hoc letter that is still alive: the one reason no second letter is written.
+
+        «One letter at a time» used to mean «while any ad-hoc row is open», and only
+        chain letters ever lapse, so a thread answered once and left for days held
+        every later letter back for ever: the scene's message was never written and
+        the Courrier reopened the old replies. A letter untouched for
+        ``AD_HOC_LETTER_STALE_DAYS`` no longer counts; chain letters lapse on their
+        own deadline and keep counting until then.
+        """
+
+        rows = (
             self.db.query(RealWorldMission)
             .filter(
                 RealWorldMission.user_id == user.id,
@@ -5188,7 +5201,12 @@ class MissionScheduler:
                 RealWorldMission.serial_thread_id.is_(None),
             )
             .order_by(RealWorldMission.created_at.desc())
-            .first()
+            .all()
+        )
+        horizon = datetime.now(UTC) - timedelta(days=self.AD_HOC_LETTER_STALE_DAYS)
+        return next(
+            (row for row in rows if row.chain_id is not None or self._last_touched(row) >= horizon),
+            None,
         )
 
     async def _ensure_ad_hoc_letter(self, user: User) -> RealWorldMission | None:
@@ -6579,9 +6597,20 @@ def _unassessed_acknowledgement(mission: Any, *, register_now: str | None = None
         or opening.startswith(("Salut", "Coucou"))
         or " toi" in opening
     )
-    if tu:
-        return "Merci pour ton message, je l'ai bien lu. Je te réponds vite."
-    return "Merci pour votre message, je l'ai bien lu. Je vous réponds rapidement."
+    return STOCK_ACKNOWLEDGEMENT_TU if tu else STOCK_ACKNOWLEDGEMENT_VOUS
+
+
+#: The line nobody wrote. It is what the Courrier says when no character reply could be
+#: produced; it is not a turn of the conversation and is never stored as one (#397/#333).
+STOCK_ACKNOWLEDGEMENT_TU = "Merci pour ton message, je l'ai bien lu. Je te réponds vite."
+STOCK_ACKNOWLEDGEMENT_VOUS = "Merci pour votre message, je l'ai bien lu. Je vous réponds rapidement."
+
+
+def is_stock_reply(text: Any) -> bool:
+    """Whether ``text`` is the stock acknowledgement rather than something a character said."""
+
+    folded = " ".join(str(text or "").split())
+    return folded in {STOCK_ACKNOWLEDGEMENT_TU, STOCK_ACKNOWLEDGEMENT_VOUS}
 
 class MissionConversationService:
     """Generate mission chat responses without duplicating the old audio route."""
