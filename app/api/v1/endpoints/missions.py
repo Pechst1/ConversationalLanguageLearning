@@ -36,11 +36,12 @@ from app.services.missions import (
     MissionCorrectionService,
     MissionScheduler,
     SerialEpisodeNotReadyError,
+    learner_zone,
     serialize_mission,
+    stamp_fields,
 )
 from app.services.serial import SerialThreadService
 from app.services.transcription_cost import record_transcription_cost
-from app.utils.timestamps import utc_iso
 
 router = APIRouter(prefix="/missions", tags=["missions"])
 MAX_AUDIO_UPLOAD_BYTES = 25 * 1024 * 1024
@@ -73,7 +74,7 @@ def _attempt_read(attempt: RealWorldMissionAttempt) -> dict:
         "correction": attempt.correction_payload or {},
         "verdict": attempt.verdict,
         "score_0_4": attempt.score_0_4,
-        "created_at": utc_iso(attempt.created_at),
+        **stamp_fields(attempt.created_at, learner_zone(attempt.mission)),
     }
 
 
@@ -86,7 +87,7 @@ def _turn_read(turn: RealWorldMissionTurn) -> dict:
         "text": turn.text,
         "audio_payload": turn.audio_payload or {},
         "correction": turn.correction_payload or {},
-        "created_at": utc_iso(turn.created_at),
+        **stamp_fields(turn.created_at, learner_zone(turn.mission)),
     }
 
 
