@@ -35,31 +35,6 @@ export const FORGE_REPAIR = {
   correction: '.ep-galley .ep-linefix__new',
 };
 
-/**
- * La Forge «Trouve l'erreur» / «Ta phrase» (components/epreuve/ForgeDrills.tsx ForgeSpot):
- * the sentence's words are buttons; a tapped word opens in a field that holds it,
- * selected, and what is typed replaces it. Checked against ForgeSpot by
- * components/epreuve/forge-word-bank-walk.test.js.
- */
-export const FORGE_SPOT = {
-  word: 'button.forge-spot__word:not([disabled])',
-  edited: 'button.forge-spot__word[data-edited="true"]',
-  field: 'input.forge-spot__input',
-};
-
-/**
- * La Forge «Correct the sentence» (components/epreuve/ForgeFollowUp.tsx): after a right
- * «Needs fixing» the learner corrects the sentence, with tiles (A1) or in a field, and
- * checks it with the follow-up's own button; the verdict sheet and its «Continue» wait
- * for it. Checked against ForgeFollowUp by components/epreuve/forge-word-bank-walk.test.js.
- */
-export const FORGE_FOLLOW = {
-  open: '.ep-follow[data-outcome="open"]',
-  quote: '.ep-follow__quote',
-  field: 'textarea.ep-follow__input',
-  check: '.ep-follow__actions button.ep-bar:not([disabled])',
-};
-
 /** What :data:`SNAPSHOT_FN` reads the page with (Playwright hands a page function one argument). */
 export const SNAPSHOT_ARGS = { typeable: TYPEABLE_FIELD, wordBankTile: WORD_BANK_TILE };
 
@@ -92,8 +67,6 @@ export const SNAPSHOT_FN = ({ typeable, wordBankTile }) => {
     whoSaid: q('.av2-who-said__card').length,
     tiles: q('.av2-tiles__bank button.av2-tile, .av2-tiles__bank .av2-tile:not(.av2-tile--mould)').length,
     tappableTiles: q(wordBankTile).length,
-    // An exercise of La Forge is on screen (its drill, or «Correct the sentence» under a verdict).
-    forgeExercise: q('.ep-exercise').length > 0,
     tilesBox: q('.av2-tiles').length,
     textarea: q('textarea, input[type=text], input:not([type])').length,
     dictation: q('.av2-dictation, [data-step=dictation]').length,
