@@ -150,6 +150,27 @@ def words_seconds(new_words: int, reviews: int) -> int:
     return max(0, int(new_words)) * SECONDS_PER_NEW_WORD + max(0, int(reviews)) * SECONDS_PER_REVIEW
 
 
+def day_words_seconds(
+    db: Session, user: Any, *, session: Any = None, reviews_due: int = 0, now: datetime | None = None
+) -> int:
+    """#470: what the day's words cost, from the day deck (new and due) alone.
+
+    The one pricing of the words: the plan's word step (:func:`session_view`) and
+    the day card's «+ Wörter» extension both come from here, so Home cannot print
+    two numbers for one deck. ``session`` is the built ``DaySession`` (its word
+    step already holds the deck's counts and its state); without one the deck is
+    read the way :func:`build_session` reads it. 0 once the words are done.
+    """
+
+    if session is not None:
+        step = next((step for step in session.steps if step.kind == "words"), None)
+        if step is None or step.state == "done":
+            return 0
+        return words_seconds(step.new_left or 0, step.reviews or 0)
+    deck = _day_deck_or_none(db, user, reviews_due=reviews_due, now=now or datetime.now(UTC))
+    return words_seconds(*deck) if deck else 0
+
+
 def minutes(seconds: float) -> int:
     return max(1, math.ceil(float(seconds) / 60)) if seconds > 0 else 0
 
@@ -182,6 +203,10 @@ class SessionInputs:
     #: How many cards the day's deck was dealt with, the ones already answered
     #: included (:func:`dealt_deck`). ``None`` before any deck was dealt today.
     dealt: int | None = None
+    #: #504: the «more» cards the learner asked for after the day deck and has
+    #: answered (:func:`extras_answered`). They are no part of the day's intake
+    #: (the step's count), but they are cards answered today (the end screen's tally).
+    extras_answered: int = 0
     #: Phase 2 «Folge in Akten»: the acts today's journey opened, and the story's
     #: words it read or heard (``story_reading.day_reading``).
     acts: int = 0
@@ -218,6 +243,12 @@ def session_view(inputs: SessionInputs) -> dict[str, Any]:
     # header showed. Not every word touched today: the scene's own words and La
     # Forge's reviews are not cards of this deck.
     words_done_count = inputs.dealt if inputs.dealt else words_met
+    # #504: the tally counts every card answered today, the learner's extras too;
+    # the step above keeps the day's intake. Without a dealt deck ``words_met``
+    # already counts whatever was answered.
+    words_tally = (
+        words_done_count + max(0, inputs.extras_answered) if inputs.dealt else words_done_count
+    )
     grammar_done = inputs.forge_blocks_today > 0
     items = forge_items(inputs.forge_seconds)
     by_kind = [
@@ -275,7 +306,7 @@ def session_view(inputs: SessionInputs) -> dict[str, Any]:
         "done": all_done,
         "tally": {
             "scenes": 1 if inputs.scene_done else 0,
-            "words": words_done_count if words_done else words_met,
+            "words": words_tally if words_done else words_met,
             "exercises": max(0, inputs.exercises_today),
             "acts": max(0, inputs.acts),
             "story_words": max(0, inputs.story_words),
@@ -472,6 +503,35 @@ def dealt_deck(db: Session, user: Any, *, now: datetime | None = None) -> int | 
     return len(answered) + len(remaining) or None
 
 
+def extras_answered(db: Session, user: Any, *, now: datetime | None = None) -> int:
+    """#504: how many of today's «more» cards (``Noch 5 neue Wörter``) were answered.
+
+    :func:`dealt_deck` leaves them out on purpose: they are not the day's intake.
+    The end screen's tally counts them all the same, as cards the learner answered.
+    """
+
+    from app.services import day_words, drill_batch
+    from app.services.streak import local_today
+
+    now = now or datetime.now(UTC)
+    batch = drill_batch.load_batch(db, user, local_today(user, now))
+    if batch is None:
+        return 0
+    extras = day_words.extra_items(batch)
+    return len(drill_batch.answered_word_ids(db, user, extras)) if extras else 0
+
+
+def _extras_answered_or_zero(db: Session, user: Any, *, now: datetime) -> int:
+    if not getattr(user, "id", None):
+        return 0
+    try:
+        with db.begin_nested():
+            return extras_answered(db, user, now=now)
+    except Exception:  # noqa: BLE001 - a count that cannot be read never costs Home its day
+        logger.warning("daily_session: the answered extras could not be read", exc_info=True)
+        return 0
+
+
 def _dealt_deck_or_none(db: Session, user: Any, *, now: datetime) -> int | None:
     if not getattr(user, "id", None):
         return None
@@ -532,6 +592,7 @@ def build_session(
             words_reviewed_today=words_reviewed_today(db, user, now=now),
             deck=_day_deck_or_none(db, user, reviews_due=reviews_due, now=now),
             dealt=_dealt_deck_or_none(db, user, now=now),
+            extras_answered=_extras_answered_or_zero(db, user, now=now),
             acts=story.acts,
             story_words=story.words,
         )
@@ -609,11 +670,13 @@ __all__ = [
     "build_session",
     "day_deck",
     "dealt_deck",
+    "extras_answered",
     "review_room",
     "goal_gap",
     "goal_weeks",
     "mark_words_done",
     "pace_for_words",
+    "day_words_seconds",
     "pace_forge_seconds",
     "pace_of",
     "pace_option",

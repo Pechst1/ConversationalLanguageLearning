@@ -22,6 +22,7 @@ import type {
   AttemptResult,
   ControlLanguage,
   DayShape,
+  HelpResult,
   JourneyErrorCode,
   JourneyErrorDetail,
   JourneyRecap,
@@ -568,6 +569,26 @@ export function recallAttempt(
     default:
       return answerIsBlank(answer.text) ? null : { mode: 'text', text: answer.text };
   }
+}
+
+/**
+ * #501: once «Show the answer» has put the sentence on screen, the way on is
+ * «Continue», not typing the same sentence back into the field and pressing
+ * Check. The step still has to be answered (the server refuses to move past an
+ * unanswered drill, and it has recorded that the solution was used), so Continue
+ * posts the sentence the learner was shown. That is the attempt this returns, or
+ * `null` for another step's help, any other help, an empty reveal, or a drill
+ * that is picked rather than written.
+ */
+export function revealedAnswerAttempt(
+  prompt: RecallPrompt,
+  stepId: string,
+  help: Pick<HelpResult, 'step_id' | 'help_kind' | 'content_fr'> | null | undefined,
+): AttemptInput | null {
+  if (!help || help.help_kind !== 'solution' || help.step_id !== stepId) return null;
+  if (recallAnswerMode(prompt.task_type) !== 'text') return null;
+  const shown = help.content_fr || '';
+  return answerIsBlank(shown) ? null : { mode: 'text', text: shown };
 }
 
 /**

@@ -1226,7 +1226,7 @@ class DailyJourneyService:
             forge=forge_entry,
             # WP-128: the one estimate Home shows, and each extension's own.
             time_estimate=(
-                self._today_time_estimate(user, snapshot, available, forge_entry, due=due_words)
+                self._today_time_estimate(user, snapshot, available, forge_entry, session=session, due=due_words)
                 if enabled
                 else None
             ),
@@ -1245,13 +1245,19 @@ class DailyJourneyService:
         available: ScenarioDescriptor | None,
         forge: ForgeEntry | None,
         *,
+        session: DaySession | None = None,
         due: int | None = None,
     ) -> DayTimeEstimate | None:
         """WP-128: today's core — the plan's once planned, else the forecast the
         offer card prints — and every optional extension with its own minutes:
-        the drill's waiting cards, one letter, La Forge after the day."""
+        the day's words, one letter, La Forge after the day.
 
-        from app.services.journey_planner import letter_seconds, word_drill_seconds
+        #470: the words are the day deck's (new and due, ``daily_session``), the
+        one count the plan's word row prices too. The card used to price only
+        the cards already due («≈ 9 s» over «21 Wörter … 7 Min.»)."""
+
+        from app.services.daily_session import day_words_seconds
+        from app.services.journey_planner import letter_seconds
 
         if snapshot is not None and snapshot.time_estimate is not None:
             estimate = snapshot.time_estimate.model_dump()
@@ -1275,8 +1281,9 @@ class DailyJourneyService:
                 log=logger,
             )
         extensions = list(estimate.get("extensions") or [])
-        if word_drill_seconds(due) > 0:
-            extensions.append({"kind": "words", "seconds": word_drill_seconds(due)})
+        words_seconds = day_words_seconds(self.db, user, session=session, reviews_due=int(due or 0))
+        if words_seconds > 0:
+            extensions.append({"kind": "words", "seconds": words_seconds})
         extensions.append({"kind": "letter", "seconds": letter_seconds(band)})
         if forge is not None and not forge.folded and forge.budget_seconds:
             extensions.append({"kind": "forge", "seconds": int(forge.budget_seconds)})

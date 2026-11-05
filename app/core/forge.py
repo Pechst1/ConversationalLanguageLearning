@@ -245,6 +245,22 @@ def step_level(level: int, item_rung: int, verdict: Verdict) -> int:
     return max(level, after) if clamp_rung(item_rung) < level else after
 
 
+def owns_level(entry: dict[str, Any]) -> bool:
+    """Whether a history entry is a *read* answer that had the say over the rule's level (#471).
+
+    Being read is not enough. An item posed below the level it found (a warm-up, a
+    minimal pair, a due rule's entry item) neither lifts nor lowers it
+    (:func:`step_level`), so reading it settles nothing about an earlier answer's
+    provisional step: that step is still the unread answer's. Entries written
+    before ``level_before`` was kept read as owners, as they always did.
+    """
+
+    if not entry.get("checked"):
+        return False
+    before = entry.get("level_before")
+    return before is None or clamp_rung(entry.get("rung")) >= clamp_rung(before)
+
+
 def evidence_for(rung: int, verdict: Verdict) -> Evidence | None:
     """The WP-L3 observation one answered item is. ``None``: unchecked."""
 
@@ -479,8 +495,9 @@ class ForgeState:
         The level has one writer (:meth:`record`, :meth:`settle`); this only
         subtracts a provisional climb («uses the rule», the instant detector) whose
         relecture is still running, the way :meth:`settle` will if the model says
-        «not yet» (#370). A climb followed by a checked answer on the rule is owned
-        by that answer and stays. The end sheet reads this, so the level it shows
+        «not yet» (#370). A climb followed by a checked answer that had the say over the
+        level (:func:`owns_level`, not a warm-up posed below it, #471) is owned by
+        that answer and stays. The end sheet reads this, so the level it shows
         and the stored level the next day opens on are one number (#402).
         """
 
@@ -493,9 +510,9 @@ class ForgeState:
         )
         pending = 0
         for entry in entries:
-            if entry.get("checked"):
+            if owns_level(entry):
                 pending = 0
-            elif not entry.get("settled") and int(entry.get("rung_move") or 0) > 0:
+            elif not entry.get("settled") and not entry.get("checked") and int(entry.get("rung_move") or 0) > 0:
                 pending += int(entry.get("rung_move") or 0)
         return clamp_rung(track.rung - pending)
 
@@ -631,7 +648,7 @@ class ForgeState:
             other is not entry
             and int(other.get("concept_id", -1)) == track.concept_id
             and int(other.get("position", -1)) > position
-            and other.get("checked")
+            and owns_level(other)
             for other in self.history
         )
         if self.mode == MODE_SEANCE and later_checked:
@@ -759,6 +776,9 @@ class ForgeState:
                 # How far this answer moved the rule's level: :meth:`settle` takes
                 # a provisional move back when the real verdict disagrees.
                 "rung_move": track.rung - rung_before,
+                # The level this answer found: :func:`owns_level` tells a warm-up
+                # (posed below it) from an answer that had the say over it.
+                "level_before": rung_before,
                 **decision.ledger(),
             }
         )
