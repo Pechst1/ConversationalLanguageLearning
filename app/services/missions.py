@@ -1029,7 +1029,9 @@ MISSION_SUCCESS_OBJECTIVES: dict[str, list[str]] = {
     "food_dining": ["Say what you want to order or cook", "Handle the one constraint they raise"],
     "housing": ["Describe the broken thing clearly", "Ask for a repair time", "Confirm when you are available"],
     "neighbours": ["Acknowledge their complaint", "Say what you will change"],
-    "deliveries_admin": ["Confirm your address", "Explain what went wrong (the wrong door)", "Give the tracking number or order reference"],
+    # #114: no goal asks the learner for a number or an address they were never given; the
+    # scene's own opening asks for the street where it needs it.
+    "deliveries_admin": ["Explain what went wrong (the wrong door)", "Say what you want done with the parcel", "Say when you are at home to receive it"],
     "health": ["React to the proposed time", "Confirm a slot or propose a workable one"],
     "transport": ["Say whether you want to travel today or get a refund", "Confirm the next concrete step"],
     "social_plans": ["Say yes or no to the plan", "Confirm the time and the place"],
@@ -6656,7 +6658,10 @@ class MissionConversationService:
             "one warm, satisfying closing line that confirms the outcome and the next concrete step, and end with «Bonne journée !» or a "
             "natural sign-off — do NOT ask any further questions. If one or more goals are still open, steer toward the most important "
             "missing one with a single natural question. Never drag the scene out once everything is settled. "
-            "Never break character; never mention lessons, scores, levels, exercises, or vocabulary."
+            "Never break character; never mention lessons, scores, levels, exercises, or vocabulary. "
+            "ANSWER WHAT THEY WROTE: take up the decision, the question or the detail they gave (a pet, a key, a refusal) before "
+            "anything else. Invent no order, parcel, delivery, tracking or reference number, and never ask for their home address, "
+            "phone number or e-mail, unless this scene's own first message already did."
         )
         # #117: the reply is the character's own voice, so it keeps the letter's address
         # form and the learner's band (a deterministic check, then one rewrite, then the
@@ -6683,6 +6688,8 @@ class MissionConversationService:
                 _record_mission_llm_cost(self.db, user_id=getattr(user, "id", None), result=result, purpose="character_reply", mission_id=getattr(mission, "id", None))
                 problems = voice_problems([result.content], register=expected, level=level)
                 if not problems:
+                    problems = self._logistics_problems(result.content, mission=mission, user_text=user_text)
+                if not problems:
                     return self._keep_relatives_with_their_owner(
                         result.content,
                         mission=mission,
@@ -6704,6 +6711,37 @@ class MissionConversationService:
         except LLMProviderError as exc:
             logger.debug("Mission conversation fallback", error=str(exc))
             return self._fallback_response(mission, branch=preliminary_branch, objective_progress=latest_progress)
+
+    def _logistics_problems(self, reply: str, *, mission: RealWorldMission, user_text: str) -> list[str]:
+        """#114 (root cause #145): the reply may not bring in an order, a tracking or
+        reference number, or a request for the learner's address that the thread never
+        held. Returned as the rewrite hint, so it rides the same retry as the voice check."""
+
+        from app.services import lane_guards  # late: lane_guards imports the story engine
+
+        payload = mission.prompt_payload or {}
+        messenger = payload.get("messenger") or {}
+        authored = [
+            payload.get("conversation_opening"),
+            messenger.get("opening_message"),
+            messenger.get("brief"),
+            getattr(mission, "brief", None),
+        ]
+        turns = sorted(mission.turns or [], key=lambda item: item.turn_index)
+        grounded = [
+            *authored,
+            getattr(mission, "title", None),
+            messenger.get("twist"),
+            " ".join(str(cue) for cue in messenger.get("ambient_cues") or []),
+            json.dumps(getattr(mission, "source_snapshot", None) or {}, ensure_ascii=False),
+            user_text,
+            *[turn.text for turn in turns],
+        ]
+        found = lane_guards.invented_logistics(reply, grounded=grounded, authored=authored)
+        if found:
+            logger.info("Courrier reply invents logistics", problems=found)
+            return [lane_guards.invented_logistics_hint(found)]
+        return []
 
     def _keep_relatives_with_their_owner(
         self,
@@ -6820,6 +6858,11 @@ class MissionConversationService:
             problems = reaction_problems(reply, learner_text=user_text, grounded=(scene_context, opener, name))
             if problems:
                 logger.info("Atelier reaction held back", problems=[problem.kind for problem in problems])
+                return calm_acknowledgement()
+            from app.services import lane_guards  # late: lane_guards imports the story engine
+
+            if lane_guards.invented_logistics(reply, grounded=(scene_context, opener, user_text), authored=(opener, scene_context)):
+                logger.info("Atelier reaction held back: invented logistics")
                 return calm_acknowledgement()
             return reply
         except LLMProviderError as exc:
