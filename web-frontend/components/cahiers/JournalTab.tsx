@@ -70,12 +70,11 @@ export function cueLine(entry: JournalEntryView | null | undefined, t: JournalCo
   return [when, where || null, who ? fill(t.with, { name: who }) : null].filter(Boolean).join(' · ');
 }
 
-/** What the field says before the learner writes, in the artboard's shape
- *  («Hier, Augustin…»). Falls back to the day alone when the server sent no
- *  character: an invented name would be scene text. */
-export function entryPlaceholder(entry: JournalEntryView | null | undefined): string {
-  const who = entry?.cue?.character_name?.trim();
-  return who ? `Hier, ${who}…` : 'Hier, …';
+/** What the field says before the learner writes. It names no one and begins no
+ *  sentence: «Hier, Augustin…» was the first words of the answer, which turns
+ *  recall into copying (#539). */
+export function entryPlaceholder(): string {
+  return 'Écris ce dont tu te souviens…';
 }
 
 /** «Found n of m», in the table's three sentences. Shared by the entry's recall
@@ -364,7 +363,7 @@ export default function JournalTab() {
               {textAnswerField({
                 label: t.field_label,
                 value: draft,
-                placeholder: entryPlaceholder(entry),
+                placeholder: entryPlaceholder(),
                 rows: 6,
                 disabled: pending === 'write',
                 onChange: setDraft,

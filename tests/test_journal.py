@@ -1081,3 +1081,71 @@ def test_a_french_fact_is_still_quoted():
     recall = {"status": "scored", "matched": [], "missed": [{"kind": "outcome", "text_fr": KEPT_LINE}]}
     line = character_reaction(character_name="Camille", recall=recall)
     assert line is not None and "l'appartement va être vide" in line
+
+
+# ---------------------------------------------------------------------------
+# #539 — the check scores against what the scene established, never its filler
+# ---------------------------------------------------------------------------
+
+_EXIT_STUBS = (
+    "Margaux a dû partir avant de répondre.",
+    "Margaux a répondu, puis a dû partir.",
+)
+_TEASERS = (
+    "Deux clés, une seule porte. À suivre…",
+    "Deux clés, une seule porte. À suivre….",
+)
+
+
+@pytest.mark.parametrize("closing", _EXIT_STUBS + _TEASERS)
+def test_an_authored_closing_line_is_not_a_fact_to_score(db_session, closing):
+    """«None of what the scene kept appears (0/1). Margaux a dû partir avant de répondre.»"""
+    user = _user(db_session)
+    journey = _journey(db_session, user, local_date=TODAY - timedelta(days=1), callback=closing)
+    facts = scene_facts_for(journey, story_context={})
+    assert all(fact.kind != "outcome" for fact in facts), "the closing panel was scored as an event"
+    # A scene always has something real to be recalled against: what it set up.
+    assert [fact.kind for fact in facts] == ["setup"]
+    assert "livre" in facts[0].cues
+
+
+def test_a_learner_who_remembers_the_scene_scores_full_marks_not_zero(db_session):
+    user = _user(db_session)
+    _journey(
+        db_session,
+        user,
+        local_date=TODAY - timedelta(days=1),
+        callback="Romy a dû partir avant de répondre.",
+    )
+    entry = _write(
+        db_session,
+        user,
+        _FakeCorrector(fail=True),
+        "Hier, j’ai retrouvé quelqu’un au Mistral. Elle attendait avec un livre sous le bras.",
+    )
+    recall = entry.content_recall
+    assert recall["status"] == "scored"
+    assert recall["score"] == 1.0, recall
+    assert "dû partir" not in (entry.reaction_fr or "")
+
+
+@pytest.mark.parametrize("closing", _EXIT_STUBS + _TEASERS)
+def test_no_reaction_quotes_the_filler_or_a_to_be_continued(db_session, closing):
+    user = _user(db_session)
+    _journey(db_session, user, local_date=TODAY - timedelta(days=1), callback=closing)
+    entry = _write(db_session, user, _FakeCorrector(fail=True), "Je suis allée au café et j’ai bu un thé.")
+    line = entry.reaction_fr or ""
+    assert "suivre" not in line and "dû partir" not in line, line
+    assert ".." not in line
+
+
+def test_a_real_outcome_that_mentions_leaving_is_still_a_fact(db_session):
+    user = _user(db_session)
+    journey = _journey(
+        db_session,
+        user,
+        local_date=TODAY - timedelta(days=1),
+        callback="Romy a dû partir, mais elle a laissé la clé du premier étage.",
+    )
+    facts = scene_facts_for(journey, story_context={})
+    assert [fact.kind for fact in facts] == ["outcome"]
