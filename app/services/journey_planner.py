@@ -6374,22 +6374,10 @@ def expected_day_seconds(budget_seconds: int, recent: list[int] | None = None) -
     return min(budget, int(budget * share))
 
 
-#: WP-128. One card of the word drill: seeing it, typing or turning it, the
-#: verdict and «Weiter» (the walk's Timer: 4 s + 0.35 s a typed character +
-#: reading + 1.5 s) — about nine seconds.
-WORD_CARD_SECONDS = 9
-#: WP-128. The drill a day offers at most (``review.tsx``: 30 due cards).
-WORD_DRILL_MAX_CARDS = 30
 #: WP-128. A Courrier letter: about this many words of French to read (the
 #: letter and its answer back), and a reply of two and a half sentences.
 LETTER_READ_TOKENS = 60
 LETTER_REPLY_SENTENCES = 2.5
-
-
-def word_drill_seconds(cards: int) -> int:
-    """WP-128: the drill's own estimate for ``cards`` waiting cards (0: none)."""
-
-    return max(0, min(int(cards or 0), WORD_DRILL_MAX_CARDS)) * WORD_CARD_SECONDS
 
 
 def letter_seconds(band: str | None) -> int:
@@ -6624,7 +6612,6 @@ __all__ = [
     "PAGE_READING_FACTOR_BY_BAND",
     "READING_PRIOR_SECONDS_PER_TOKEN",
     "REPLY_WORDS_FLOOR",
-    "WORD_CARD_SECONDS",
     "compose_seconds_per_word",
     "expected_reply_words",
     "letter_seconds",
@@ -6635,7 +6622,6 @@ __all__ = [
     "authored_ending",
     "reply_input_seconds",
     "story_alone_seconds",
-    "word_drill_seconds",
     # WP-93 / WP-92
     "PAGE_READING_FACTOR",
     "SCENE_LINE_HELP_SECONDS",
