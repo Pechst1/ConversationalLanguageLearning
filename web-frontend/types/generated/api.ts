@@ -10781,7 +10781,7 @@ export interface components {
         /** MissionTurnResponse */
         MissionTurnResponse: {
             /** Assistant Turn */
-            assistant_turn: {
+            assistant_turn?: {
                 [key: string]: unknown;
             };
             correction: components["schemas"]["MissionCorrectionRead"];
