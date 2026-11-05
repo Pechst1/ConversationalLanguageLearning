@@ -75,3 +75,15 @@ test('#285 · the field the walk types into is never a read-only one', () => {
     assert.match(part, /:not\(\[disabled\]\)/);
   }
 });
+
+// #319: the walk measured during the 150 -> 600 ms pause between the page's own looks.
+test('#319 · a reading is steady only when the page says its scroll is settled', async () => {
+  const { readingIsSteady } = await import('./miss-layout.mjs');
+  const keys = ['cardTop', 'cardBottom'];
+  const still = { cardTop: 378, cardBottom: 559, scroll: 'settled' };
+  assert.equal(readingIsSteady(still, { ...still }, keys), true);
+  assert.equal(readingIsSteady(null, still, keys), false, 'nothing to compare with yet');
+  const pause = { ...still, scroll: 'settling' };
+  assert.equal(readingIsSteady(pause, { ...pause }, keys), false, 'identical readings while the page is still settling');
+  assert.equal(readingIsSteady(still, { ...still, cardTop: 370 }, keys), false, 'the card moved');
+});

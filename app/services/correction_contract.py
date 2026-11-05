@@ -2171,6 +2171,45 @@ def elides_an_article(learner_text: object, corrected_text: object, context: obj
     return False
 
 
+#: The three contractions that always merge a preposition with a definite article:
+#: «au» = à + le, «aux» = à + les, «du» = de + le. («des» is left out on purpose: it is
+#: also the indefinite plural, «des livres», where no «de + les» is meant.)
+_CONTRACTIONS: dict[str, tuple[str, str]] = {"au": ("à", "le"), "aux": ("à", "les"), "du": ("de", "le")}
+_CONTRACTION_REASON = {
+    "en": "« {right} » is {pre} + {art} joined into one word.",
+    "de": "« {right} » verschmilzt aus {pre} + {art} zu einem Wort.",
+    "fr": "« {right} » : {pre} + {art} se contracte en un seul mot.",
+}
+
+
+def _fold_accents(word: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFD", word) if not unicodedata.combining(c))
+
+
+def contraction_reason(learner_text: object, expected_text: object, *, language: str | None = None) -> str | None:
+    """#501: the one-line reason when a miss is a contraction: the learner wrote
+    «a» (or «de») where the line has «au» / «aux» / «du».
+
+    Read off the pair, in the learner's language, so a feedback line can say *why*
+    («à + le» -> «au») and not only *what* («a Mistral» -> «au Mistral»). ``None``
+    when the miss is anything else: the caller keeps its own note.
+    """
+
+    learner = [t.low for t in _tokens(_norm(learner_text))]
+    expected = [t.low for t in _tokens(_norm(expected_text))]
+    folded = [_fold_accents(word) for word in learner]
+    matcher = difflib.SequenceMatcher(a=folded, b=[_fold_accents(word) for word in expected], autojunk=False)
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag != "replace":
+            continue
+        for word in expected[j1:j2]:
+            pair = _CONTRACTIONS.get(word)
+            if pair is None or _fold_accents(pair[0]) not in folded[i1:i2]:
+                continue
+            return _pick(_CONTRACTION_REASON, language).format(right=word, pre=pair[0], art=pair[1])
+    return None
+
+
 def _an_article_before(wrong: str, tokens: list[Tok], index: int, context: object) -> bool:
     """Is ``tokens[index]`` («le» / «la») the article of the word after it?
 

@@ -130,3 +130,37 @@ export function deckOrdered<T extends { word_id: number }>(items: T[], order?: r
     .sort((a, b) => a.at - b.at)
     .map(({ item }) => item);
 }
+
+/** The chrome words a card's header can print (`LexiqueCopy` holds them all). */
+export type SlotCopy = {
+  state_due: string;
+  state_fragile: string;
+  bucket_linked: string;
+  bucket_topic: string;
+  bucket_new_deck: string;
+  bucket_scene: string;
+  word_of_day: string;
+};
+
+/** The card fields that name its slot in the day's deck. */
+export type SlotCard = { word_id: number; bucket?: string | null; scene_word?: boolean | null };
+
+/**
+ * Why the card is in today's deck, said in the card header (#505, walk 3 Nov). The
+ * server decides the slots (`app/services/deck_order.py`: a scene word, else a due or
+ * fragile review, else a new word); the header reads that slot and nothing else.
+ * It used to print the card's next due date, which a scene word gets the first time
+ * a drill shows it («Due 9 November» on a card asked today), and «Word of the day»
+ * for any card on the slate, reviews included. A slot is never a date.
+ */
+export function deckSlotLabel(copy: SlotCopy, card: SlotCard, slateIds: ReadonlySet<number>): string {
+  if (card.scene_word) return copy.bucket_scene;
+  switch (card.bucket) {
+    case 'fragile': return copy.state_fragile;
+    case 'new': return slateIds.has(card.word_id) ? copy.word_of_day : copy.bucket_new_deck;
+    case 'linked': return copy.bucket_linked;
+    case 'topic':
+    case 'topic_compatible': return copy.bucket_topic;
+    default: return copy.state_due;
+  }
+}

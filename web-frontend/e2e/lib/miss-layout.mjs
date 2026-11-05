@@ -62,3 +62,14 @@ export function missLayoutChecks(layout) {
   }
   return checks;
 }
+
+/**
+ * #319: whether `box` repeats `last` on every one of `keys` AND the page says its miss
+ * scroll is done (`data-scroll="settled"`, set by lib/keep-above-sheet.ts once nothing is
+ * left to move and the scroll has been quiet). A reading taken while the page is still
+ * «settling» never counts as steady, however many identical readings came before it: the
+ * page can pause between its own looks (150 -> 600 ms) and then move again.
+ */
+export function readingIsSteady(last, box, keys) {
+  return Boolean(last && box && box.scroll === 'settled' && last.scroll === 'settled' && keys.every((k) => box[k] === last[k]));
+}

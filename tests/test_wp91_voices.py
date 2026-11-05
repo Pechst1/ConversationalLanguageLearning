@@ -766,3 +766,46 @@ def test_the_service_hands_the_dice_the_rhythm(
     journey = db_session.get(DailyJourney, uuid.UUID(driver.id))
     assert seen and seen[-1].budget_seconds == journey.budget_seconds
     assert seen[-1].audio_available is True
+
+
+def test_a_dictation_miss_on_a_contraction_names_the_rule() -> None:
+    """#501: «Midi, a Mistral.» → «Midi, au Mistral.» said only «Listen again»."""
+
+    task = _dictation(line="Midi, au Mistral.", label="Mistral")
+    result = evaluate_dictation(
+        task=task, answer=AttemptAnswer(mode=InputMode.TEXT, text="Midi, a Mistral."),
+        assistance=AssistanceLevel.NONE,
+    )
+    assert result.outcome is TaskOutcome.NOT_YET
+    note = result.correction.note_native
+    assert "à" in note and "le" in note and "au" in note, note
+    assert "\n" not in note
+    # The same miss in the learner's other languages names the rule too.
+    for language, marker in (("de", "verschmilzt"), ("fr", "contracte")):
+        localized = planner.build_dictation_task(
+            target=TargetRef(kind=TargetKind.VOCABULARY, id="w1", label_fr="Mistral"),
+            line=planner.HeardLine("romy_tremblay", "Midi, au Mistral."), optional=True,
+            control_language=language,
+        )
+        graded = evaluate_dictation(
+            task=localized, answer=AttemptAnswer(mode=InputMode.TEXT, text="Midi, a Mistral."),
+            assistance=AssistanceLevel.NONE,
+        )
+        assert marker in graded.correction.note_native
+
+
+@pytest.mark.parametrize(
+    "line,typed,pair",
+    [
+        ("Elle parle du boulanger.", "Elle parle de boulanger.", "de + le"),
+        ("Nous allons aux Halles.", "Nous allons a Halles.", "à + les"),
+        ("Midi, au Mistral.", "Midi, à le Mistral.", "à + le"),
+    ],
+)
+def test_other_contraction_misses_name_their_pair(line, typed, pair) -> None:
+    result = evaluate_dictation(
+        task=_dictation(line=line, label="x"),
+        answer=AttemptAnswer(mode=InputMode.TEXT, text=typed), assistance=AssistanceLevel.NONE,
+    )
+    assert result.outcome is TaskOutcome.NOT_YET
+    assert pair in result.correction.note_native, result.correction.note_native
