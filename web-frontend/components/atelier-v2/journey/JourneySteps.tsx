@@ -341,7 +341,7 @@ export function HelpRow({
 
       {used.length > 0 && (
         <p className="av2-label">
-          {copy.assistance_used}:{' '}
+          {copy.assistance_used}{' '}
           {used.map((level) => copy[HELP_LABEL[level as HelpKind]] ?? level).join(', ')}
         </p>
       )}

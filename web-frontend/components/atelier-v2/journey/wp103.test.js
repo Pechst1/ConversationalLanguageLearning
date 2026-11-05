@@ -487,6 +487,12 @@ test('T6 · the corrected form is under the learner’s line, always visible; th
   assert.match(html, /aria-expanded="false"/);
 });
 
+test('#452 · French chrome: the corrected-form label carries its own space before the colon', () => {
+  const html = decode(renderToStaticMarkup(h(steps.RespondStepView, commonProps(turnTwoOfThree(), { copy: FR }))));
+  assert.ok(html.includes('Forme corrigée : '), 'a French colon has a space before it');
+  assert.ok(!html.includes('Forme corrigée:'), 'not the English colon');
+});
+
 test('T6 · with no explanation the corrected form is still printed, and nothing opens', () => {
   const html = renderToStaticMarkup(
     h(steps.RespondStepView, commonProps(turnTwoOfThree({ span_fr: 'ton place', corrected_fr: 'ta place', note_native: '' }))),
