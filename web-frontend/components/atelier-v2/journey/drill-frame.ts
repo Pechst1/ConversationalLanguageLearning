@@ -206,6 +206,29 @@ export function drillHeaderLabel(
 }
 
 /**
+ * #540 — the block a step belongs to, for the counter in the session header
+ * («Rule · Step 3 of 6»). The header used to say «Scene» for every step of the
+ * journey, so a rule card and two recall drills read as the first block of the
+ * day. The names are the ones the drill's own caption prints, from the same
+ * copy; `null` for the scene's own steps (story, reply, resolution), whose block
+ * the caller names from the day's copy (`daySessionCopy(...).scene`).
+ */
+export function stepBlockName(
+  step: PublicStep | null | undefined,
+  steps: ReadonlyArray<{ id?: unknown; kind?: unknown }> | null | undefined,
+  copy: DrillNames,
+): string | null {
+  if (!step) return null;
+  if (step.kind === 'rule') return clean(copy.drill_rule) || null;
+  if (step.kind === 'forge') return clean(copy.drill_forge) || null;
+  if (step.kind === 'recall') {
+    const warmup = isBeforeStory(steps, (step as { id?: unknown }).id) && clean(copy.drill_warmup);
+    return warmup || clean(copy.drill_recall) || null;
+  }
+  return null;
+}
+
+/**
  * The caption above a step: the drill's name on a drill, the place and the
  * day's objective on the scene and the reply, nothing on a page to read (which
  * carries its own kicker).
