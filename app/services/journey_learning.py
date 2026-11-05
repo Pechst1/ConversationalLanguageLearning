@@ -2682,7 +2682,26 @@ def validate_correction(
         return False
     # A "correction" that only re-punctuates or re-accents the learner's own
     # words is a stylistic preference, not an error worth a punishment event.
-    return fold_for_comparison(correction.span_fr) != fold_for_comparison(correction.corrected_fr)
+    if fold_for_comparison(correction.span_fr) == fold_for_comparison(correction.corrected_fr):
+        return False
+    if correction.kind != "edit" or correction.rule_written:
+        # ``pick`` and ``meaning`` quote a different sentence or the learner's
+        # language, not French made right: there is no edit to prove. An edit the
+        # app's own register rule wrote is that rule's claim, not a model's.
+        return True
+    # #174 / #93: the one check every other surface runs (story lane, audio studio,
+    # Courrier, Journal contract) before a fix is shown or filed. A right sentence
+    # re-ordered («Vous êtes … ?» -> «Êtes-vous … ?»), a form already right for its
+    # subject («je suis» -> «est») and a swapped subject are not mistakes.
+    from app.services import correction_contract
+
+    return correction_contract.verify_edit(
+        learner_text,
+        correction.span_fr,
+        correction.corrected_fr,
+        correction.note_native,
+        strict_span=False,
+    ).ok
 
 
 def correction_relevance(correction: Correction, targets: Sequence[TargetRef]) -> float:
