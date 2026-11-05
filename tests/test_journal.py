@@ -1097,7 +1097,7 @@ _TEASERS = (
 )
 
 
-@pytest.mark.parametrize("closing", _EXIT_STUBS + _TEASERS)
+@pytest.mark.parametrize("closing", _EXIT_STUBS + _TEASERS, ids=["stub", "stub_answered", "teaser", "teaser_dot"])
 def test_an_authored_closing_line_is_not_a_fact_to_score(db_session, closing):
     """«None of what the scene kept appears (0/1). Margaux a dû partir avant de répondre.»"""
     user = _user(db_session)
@@ -1129,7 +1129,7 @@ def test_a_learner_who_remembers_the_scene_scores_full_marks_not_zero(db_session
     assert "dû partir" not in (entry.reaction_fr or "")
 
 
-@pytest.mark.parametrize("closing", _EXIT_STUBS + _TEASERS)
+@pytest.mark.parametrize("closing", _EXIT_STUBS + _TEASERS, ids=["stub", "stub_answered", "teaser", "teaser_dot"])
 def test_no_reaction_quotes_the_filler_or_a_to_be_continued(db_session, closing):
     user = _user(db_session)
     _journey(db_session, user, local_date=TODAY - timedelta(days=1), callback=closing)
