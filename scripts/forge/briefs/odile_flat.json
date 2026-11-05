@@ -1,0 +1,138 @@
+{
+  "id": "odile_flat",
+  "kind": "room",
+  "round": 3,
+  "in": "quai_de_valmy",
+  "canon": {
+    "doc": "docs/story/season-1/10-lieux-et-images.md",
+    "place": "Odile's flat",
+    "scenes": ["T2 Day A · P2 to P9"]
+  },
+  "ambiance": "matin",
+  "title": { "fr": "Chez Odile", "en": "At Odile's", "de": "Bei Odile" },
+  "can_do": {
+    "fr": "Lire le calendrier, regarder les photos d'Odile, voir le canal par la fenêtre.",
+    "en": "Read the calendar, look at Odile's photos, see the canal from the window.",
+    "de": "Den Kalender lesen, Odiles Fotos ansehen, aus dem Fenster auf den Kanal schauen."
+  },
+  "arrive": {
+    "fr": "Chez Odile, au premier. Les volets sont ouverts : la lumière vient du canal.",
+    "en": "At Odile's, on the first floor. The shutters are open: the light comes off the canal.",
+    "de": "Bei Odile, im ersten Stock. Die Fensterläden sind offen: Das Licht kommt vom Kanal."
+  },
+  "start": { "pos": [-29.55, -18.3], "look": [-27.3, 5.5, -16.75] },
+  "spaces": [
+    {
+      "key": "cuisine",
+      "rect": [-31.8, -18.75, -27.26, -14.9],
+      "floor": 4.6,
+      "ceiling": 7.6,
+      "finish": "tomettes",
+      "walls": { "finish": "plaster", "tone": "cream" },
+      "open": { "s": [{ "u": [2.88, 3.74], "top": 6.7, "framed": true }] }
+    },
+    {
+      "key": "chambre",
+      "rect": [-31.8, -14.65, -27.26, -9.26],
+      "floor": 4.6,
+      "ceiling": 7.6,
+      "finish": "boards",
+      "walls": { "finish": "plaster", "tone": "dust" },
+      "open": { "n": [{ "u": [0.8, 1.66], "top": 6.7, "framed": true }] }
+    }
+  ],
+  "floors": [{ "key": "seuil", "shape": [[-31.0, -14.9], [-30.14, -14.9], [-30.14, -14.65], [-31.0, -14.65]], "y": 4.6, "finish": "boards" }],
+  "walls": [],
+  "flights": [],
+  "rails": [],
+  "doors": [
+    { "key": "porte_palier", "wall": "cuisine.n", "u": [1.8, 2.7], "height": 2.2, "hinge": "left", "swing": "in", "tone": "brown", "opens": "never" }
+  ],
+  "windows": [
+    { "key": "fenetre_cuisine", "wall": "cuisine.e", "u": [1.0, 2.25], "y": [4.68, 7.17], "shutters": "open", "guard": true, "sun": true },
+    { "key": "fenetre_chambre", "wall": "chambre.e", "u": [0.15, 1.4], "y": [4.68, 7.17], "shutters": "open", "guard": true, "sun": true },
+    { "key": "fenetre_balcon", "wall": "chambre.e", "u": [3.4, 4.65], "y": [4.68, 7.17], "shutters": "open", "balcony": 0.6, "sun": true }
+  ],
+  "lights": [],
+  "switches": [],
+  "timers": {},
+  "things": [
+    {
+      "kind": "coat",
+      "at": [-27.26, 6.35, -18.05],
+      "rot": -1.5708,
+      "tone": "coat",
+      "look": { "fr": "Le manteau vert d'Odile, à son crochet près de la porte.", "en": "Odile's green coat, on its hook by the door.", "de": "Odiles grüner Mantel am Haken neben der Tür." },
+      "did": { "fr": "Tu as regardé le manteau d'Odile.", "en": "You looked at Odile's coat.", "de": "Du hast dir Odiles Mantel angesehen." }
+    },
+    {
+      "kind": "calendar",
+      "at": [-27.26, 5.9, -16.15],
+      "rot": -1.5708,
+      "text": ["AVRIL 2023", "MAI 2023", "12/4 dentiste", "Tous les dimanches : M.", "3/5 anniversaire Marin — tarte aux pommes", "20/5 coiffeur"],
+      "look": {
+        "fr": "Le calendrier d'Odile est encore à avril 2023. «12/4 dentiste». «Tous les dimanches : M.»",
+        "en": "Odile's calendar is still on April 2023. «12/4 dentiste». «Tous les dimanches : M.»",
+        "de": "Odiles Kalender steht noch auf April 2023. «12/4 dentiste». «Tous les dimanches : M.»"
+      },
+      "did": { "fr": "Tu as lu le calendrier d'Odile.", "en": "You read Odile's calendar.", "de": "Du hast Odiles Kalender gelesen." }
+    },
+    { "kind": "clock", "at": [-27.26, 6.7, -16.15], "rot": -1.5708, "text": ["3:40"] },
+    { "kind": "stove", "at": [-28.4, 4.6, -15.21], "rot": 3.1416 },
+    {
+      "kind": "patch",
+      "at": [-28.4, 6.0, -14.9],
+      "rot": 3.1416,
+      "size": [0.9, 0.7],
+      "look": { "fr": "Au-dessus de la cuisinière, un carré de mur plus blanc que le reste.", "en": "Above the cooker, a square of wall whiter than the rest.", "de": "Über dem Herd ein Stück Wand, weißer als der Rest." },
+      "did": { "fr": "Tu as vu le carré blanc au-dessus de la cuisinière.", "en": "You saw the white square above the cooker.", "de": "Du hast das weiße Viereck über dem Herd gesehen." }
+    },
+    { "kind": "table", "at": [-29.6, 4.6, -16.6], "rot": 0, "tone": "oilcloth" },
+    { "kind": "chair", "at": [-29.6, 4.6, -17.35], "rot": 0 },
+    { "kind": "slippers", "at": [-29.6, 4.6, -17.4], "rot": 0 },
+    {
+      "kind": "camera",
+      "at": [-29.78, 5.36, -16.5],
+      "rot": 0.3,
+      "look": { "fr": "Le vieil appareil photo d'Odile, sur la table.", "en": "Odile's old instant camera, on the table.", "de": "Odiles alte Sofortbildkamera auf dem Tisch." },
+      "did": { "fr": "Tu as regardé l'appareil photo d'Odile.", "en": "You looked at Odile's camera.", "de": "Du hast dir Odiles Kamera angesehen." }
+    },
+    {
+      "kind": "cup",
+      "at": [-29.38, 5.36, -16.66],
+      "look": { "fr": "Sa tasse, avec un rond de café crème séché au fond.", "en": "Her cup, a dried ring of café crème at the bottom.", "de": "Ihre Tasse, unten ein eingetrockneter Rand Milchkaffee." },
+      "did": { "fr": "Tu as regardé la tasse d'Odile.", "en": "You looked at Odile's cup.", "de": "Du hast dir Odiles Tasse angesehen." }
+    },
+    {
+      "kind": "bed",
+      "at": [-30.77, 4.6, -11.6],
+      "rot": 1.5708,
+      "size": [1.4, 1.95],
+      "tone": "counterpane",
+      "look": { "fr": "Le lit d'Odile est fait, bien tiré.", "en": "Odile's bed is made, the cover pulled straight.", "de": "Odiles Bett ist gemacht, die Decke glatt gezogen." },
+      "did": { "fr": "Tu as regardé le lit d'Odile.", "en": "You looked at Odile's bed.", "de": "Du hast dir Odiles Bett angesehen." }
+    },
+    {
+      "kind": "polaroids",
+      "at": [-30.95, 4.6, -12.75],
+      "rot": 1.5708,
+      "size": [1.0, 0.8],
+      "look": {
+        "fr": "Des photos partout sur le plancher. Sur l'une : «Mardi. Marin pleure devant une pub. Encore.»",
+        "en": "Photos all over the floorboards. On one: «Mardi. Marin pleure devant une pub. Encore.»",
+        "de": "Fotos überall auf den Dielen. Auf einem: «Mardi. Marin pleure devant une pub. Encore.»"
+      },
+      "did": { "fr": "Tu as lu une photo d'Odile.", "en": "You read one of Odile's photos.", "de": "Du hast eins von Odiles Fotos gelesen." }
+    },
+    { "kind": "armoire", "at": [-28.6, 4.6, -14.65], "rot": 0, "size": [1.1, 2.2] }
+  ],
+  "courts": [],
+  "canals": [{ "z0": -45.0, "z1": 30.0, "storeys": 6, "seed": 23, "lit": 0 }],
+  "marks": {
+    "porte": [-29.55, 4.6, -18.3],
+    "calendrier": [-27.85, 4.6, -16.05],
+    "table": [-30.4, 4.6, -16.6],
+    "lit": [-29.6, 4.6, -12.9],
+    "balcon": [-27.75, 4.6, -10.6]
+  }
+}

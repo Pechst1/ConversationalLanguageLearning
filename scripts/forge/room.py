@@ -23,8 +23,8 @@ import math
 FLOOR_FINISHES = {"cabochons", "boards", "tomettes", "cobbles", "stone"}
 WALL_FINISHES = {"wainscot", "plaster", "stone"}
 ZONES = {"room", "sealed", "out"}
-TONES = {"ochre", "cream", "faux", "wainscot", "stone", "porch", "oxblood", "brown", "wood", "grey", "celadon", "white", "render", "coat", "oilcloth", "blanket", "navy", "walnut", "leather"}
-THINGS = {"letterboxes", "mat", "radiator", "coat", "clock", "calendar", "table", "chair", "slippers", "camera", "cup", "stove", "patch", "doorway", "bed", "phone", "keys", "suitcase", "kitchenette", "longtable", "armchair", "pen", "folder", "bookcase"}
+TONES = {"ochre", "cream", "faux", "wainscot", "stone", "porch", "oxblood", "brown", "wood", "grey", "celadon", "white", "render", "coat", "oilcloth", "blanket", "navy", "walnut", "leather", "dust", "counterpane"}
+THINGS = {"letterboxes", "mat", "radiator", "coat", "clock", "calendar", "table", "chair", "slippers", "camera", "cup", "stove", "patch", "doorway", "bed", "phone", "keys", "suitcase", "kitchenette", "longtable", "armchair", "pen", "folder", "bookcase", "polaroids", "armoire"}
 LIGHTS = {"globe", "sconce", "hublot"}
 DIRS = {"x+": (1, 0), "x-": (-1, 0), "z+": (0, 1), "z-": (0, -1)}
 
@@ -195,7 +195,10 @@ def _space_walls(sp, warnings):
             if not host:
                 warnings.append(f"{sp['key']}.{side}: the passage {s['u']} falls across an opening")
                 continue
-            holes.append({"wall": host["key"], "u0": r3(u0 - host["u_off"]), "u1": r3(u1 - host["u_off"]), "y0": r3(sp["floor"] - 0.01), "y1": r3(s["top"])})
+            hole = {"wall": host["key"], "u0": r3(u0 - host["u_off"]), "u1": r3(u1 - host["u_off"]), "y0": r3(sp["floor"] - 0.01), "y1": r3(s["top"])}
+            if s.get("framed"):
+                hole["framed"] = True
+            holes.append(hole)
     return out, holes
 
 
@@ -257,10 +260,17 @@ def draft(brief: dict, place: dict | None = None):
             out["shutters"] = wn["shutters"]
         if wn.get("guard"):
             out["guard"] = True
+        if wn.get("balcony"):
+            out["balcony"] = wn["balcony"]
+        if wn.get("sun"):
+            out["sun"] = True
         windows.append(out)
     for hl in brief.get("holes", []):
         i, u0, u1 = resolve(hl["wall"], hl["u"][0], hl["u"][1], "hole")
-        holes.append({"wall": i, "u0": r3(u0), "u1": r3(u1), "y0": hl["y"][0], "y1": hl["y"][1]})
+        hole = {"wall": i, "u0": r3(u0), "u1": r3(u1), "y0": hl["y"][0], "y1": hl["y"][1]}
+        if hl.get("framed"):
+            hole["framed"] = True
+        holes.append(hole)
     # the passages found in the spaces name their wall by key
     for h in holes:
         if isinstance(h["wall"], str):
@@ -291,6 +301,7 @@ def draft(brief: dict, place: dict | None = None):
         "things": brief.get("things", []),
         "courts": brief.get("courts", []),
         **({"boulevards": brief["boulevards"]} if brief.get("boulevards") else {}),
+        **({"canals": brief["canals"]} if brief.get("canals") else {}),
         "marks": brief.get("marks", {}),
         "provenance": {
             "canon": canon.get("doc", ""),
@@ -469,6 +480,13 @@ def check(room: dict) -> list[str]:
                 p.append(f"door {o['key']}: {o['height']} m does not fit under {w['key']}'s top")
             if kind != "door" and not (base - 0.02 <= o["y0"] < o["y1"] <= top + 0.01):
                 p.append(f"{kind} {o.get('key', '')}: y {o['y0']}..{o['y1']} outside {w['key']}")
+    for wn in room["windows"]:
+        if wn.get("shutters", "open") not in ("open", "closed"):
+            p.append(f"window {wn['key']}: its shutters are open or closed")
+        if wn.get("balcony") is not None and not 0.3 <= wn["balcony"] <= 1.2:
+            p.append(f"window {wn['key']}: a balcony {wn['balcony']} m deep")
+        if wn.get("sun") and wn.get("shutters") == "closed":
+            p.append(f"window {wn['key']}: no sun through closed shutters")
     for d in room["doors"]:
         if d.get("hinge") not in ("left", "right", "both") or d.get("swing") not in ("in", "out"):
             p.append(f"door {d['key']}: hinge left/right/both, swing in/out")
@@ -542,6 +560,13 @@ def check(room: dict) -> list[str]:
                     p.append(f"the boulevard overlaps {f['key']}")
         if not 10 <= b["width"] <= 60:
             p.append(f"a boulevard {b['width']} m wide")
+    # the canal lies east of the quai de Valmy's façade (x -27), so outside every room on it
+    for c in room.get("canals", []):
+        if not c["z0"] < c["z1"]:
+            p.append("a canal from z0 to z1")
+        for f in room["floors"]:
+            if f.get("zone", "room") == "room" and bbox(f["shape"])[2] > -27.0 + 0.01:
+                p.append(f"the canal's quai runs through {f['key']} (the façade is at x -27)")
     # the canon: a door the story opens once is the season's (Odile's «1»)
     for d in room["doors"]:
         if d.get("opens") == "once" and not d.get("numeral"):

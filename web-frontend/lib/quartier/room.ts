@@ -19,11 +19,12 @@ import { Matrix4, Vector3 } from 'three';
 
 import { KERB, WALLS, bench, building, chair, frameOf, planeTree, quayLamp } from './kit';
 import type { Build, Frame, Shop } from './kit';
-import { PATTERN, Press, nextId } from './geo';
+import { LACE, PATTERN, Press, nextId } from './geo';
 import type { Paint, PatternId } from './geo';
 import type { Words } from './memory';
-import { INKS, TONES, css, mix, rgb } from './palette';
+import { AMBIANCES, INKS, TONES, css, mix, rgb } from './palette';
 import type { AmbianceId, Hex } from './palette';
+import { PLAN } from './quai';
 import { SANS, SERIF } from './signs';
 
 type XZ = [number, number];
@@ -102,10 +103,14 @@ export interface RoomWindow {
   u1: number;
   y0: number;
   y1: number;
-  /** closed: the shutters outside, the street light through their slats in bars */
-  shutters?: 'closed';
+  /** closed: the shutters outside, the street light through their slats in bars; open: folded back against the façade */
+  shutters?: 'closed' | 'open';
   /** a French window's iron guard outside it, a metre high, where the glass comes down to the floor */
   guard?: boolean;
+  /** a narrow balcony outside it, this deep: its stone slab on two consoles, its ironwork */
+  balcony?: number;
+  /** the morning sun through it: its panes laid on the floor, the dust in the beam */
+  sun?: boolean;
 }
 
 export interface RoomLight {
@@ -162,7 +167,9 @@ export type ThingKind =
   | 'armchair'
   | 'pen'
   | 'folder'
-  | 'bookcase';
+  | 'bookcase'
+  | 'polaroids'
+  | 'armoire';
 
 export interface RoomThing {
   kind: ThingKind;
@@ -196,6 +203,21 @@ export interface RoomCourt {
   seed: number;
   /** a mansard over each side: the zinc, its dormers, the chimney stacks (seen from a top floor) */
   roofs?: boolean;
+}
+
+/**
+ * The quai de Valmy under a window on its façade, and the canal: our pavement, the road, the
+ * strip of setts with its plane trees and lamps, the quay wall down to the water, and across it
+ * the quai de Jemmapes with its houses. The quai's own plan (`quai.ts`), from z0 to z1.
+ */
+export interface RoomCanal {
+  z0: number;
+  z1: number;
+  /** the houses across the water */
+  storeys: number;
+  seed: number;
+  /** share of the far windows lit (none by day) */
+  lit?: number;
 }
 
 /**
@@ -239,7 +261,7 @@ export interface RoomSpec {
   doors: RoomDoor[];
   windows: RoomWindow[];
   /** a way through a wall with no door in it: the far face of a doorway, a passage into the next room */
-  holes?: Array<{ wall: number; u0: number; u1: number; y0: number; y1: number }>;
+  holes?: Array<{ wall: number; u0: number; u1: number; y0: number; y1: number; framed?: boolean }>;
   rails: RoomRail[];
   lights: RoomLight[];
   switches: RoomSwitch[];
@@ -248,6 +270,7 @@ export interface RoomSpec {
   things: RoomThing[];
   courts: RoomCourt[];
   boulevards?: RoomBoulevard[];
+  canals?: RoomCanal[];
   /** where the stage stands you and the cast */
   marks: Record<string, XYZ>;
   provenance: { canon: string; place: string; scenes: string[]; brief_round?: number };
@@ -387,6 +410,10 @@ export const ROOM_TONES: Record<string, Hex> = {
   walnut: mix(mix(TONES.wood, INKS.ink, 0.38), INKS.vermilion, 0.06),
   /** an office chair's leather, oxblood gone brown */
   leather: mix(mix(TONES.oxblood, INKS.ochre, 0.25), INKS.ink, 0.2),
+  /** a sealed flat's paper walls, a little dust-cobalt in them */
+  dust: mix(mix(INKS.paper, INKS.cobalt, 0.1), INKS.card, 0.25),
+  /** a made bed's counterpane, white cotton gone cream */
+  counterpane: mix(INKS.card, INKS.ochre, 0.1),
 };
 
 const toneOf = (name: string | undefined, fallback: Hex): Hex => (name && ROOM_TONES[name] !== undefined ? ROOM_TONES[name] : fallback);
@@ -669,6 +696,69 @@ function windowIn(B: Build, P: Press, f: Frame, win: RoomWindow, zone: Zone | un
     for (let k = 0; k < bars; k++) P.ball(u0 + ((u1 - u0) * (k + 0.5)) / bars, top - 0.1, out, 0.035, 0.035, 0.008, iron, 0);
     P.pop();
   }
+  if (win.shutters === 'open') {
+    // the persiennes folded back flat against the façade, a leaf each side of the opening
+    P.push(f.m);
+    const slat = zoned(TONES.shutter, 'out', { pattern: PATTERN.ribs });
+    const edge = zoned(mix(TONES.shutter, INKS.ink, 0.25), 'out');
+    const leaf = (u1 - u0) / 2;
+    for (const [a, b] of [[u0 - leaf - 0.04, u0 - 0.04], [u1 + 0.04, u1 + leaf + 0.04]]) {
+      P.box((a + b) / 2, (y0 + y1) / 2, -WALL - 0.03, b - a, y1 - y0, 0.03, slat);
+      P.box((a + b) / 2, y0 + (y1 - y0) * 0.45, -WALL - 0.05, b - a, 0.05, 0.012, edge);
+    }
+    P.pop();
+  }
+}
+
+/**
+ * A narrow balcony outside a French window (`win.balcony` deep): the stone slab at the floor's
+ * level on two consoles, and the quai's own ironwork round its three sides.
+ */
+function balconyOut(B: Build, f: Frame, win: RoomWindow, floor: number) {
+  const out = win.balcony ?? 0;
+  if (out <= 0) return;
+  const u0 = win.u0 - 0.3;
+  const u1 = win.u1 + 0.3;
+  const slab = zoned(mix(TONES.stone, INKS.paper, 0.2), 'out');
+  const con = zoned(mix(TONES.stone, INKS.ink, 0.06), 'out');
+  B.dry.push(f.m);
+  B.dry.box((u0 + u1) / 2, floor - 0.06, -WALL - out / 2, u1 - u0, 0.14, out, slab);
+  for (const cu of [u0 + 0.18, u1 - 0.18]) B.dry.box(cu, floor - 0.32, -WALL - 0.2, 0.14, 0.34, 0.4, con, { pz: false });
+  B.dry.pop();
+  const id = nextId();
+  B.lace.push(f.m);
+  const w = -WALL - out + 0.03;
+  B.lace.panel(new Vector3(u1, floor, w), new Vector3(u0, floor, w), 1.0, LACE.balcony, id);
+  B.lace.panel(new Vector3(u0 + 0.02, floor, w), new Vector3(u0 + 0.02, floor, -WALL), 1.0, LACE.balcony, id);
+  B.lace.panel(new Vector3(u1 - 0.02, floor, -WALL), new Vector3(u1 - 0.02, floor, w), 1.0, LACE.balcony, id);
+  B.lace.pop();
+}
+
+/**
+ * The sun through a window, laid on the floor: each pane's light where the ray from the sky
+ * meets the boards (the floor's own finish, lit), the bars between them in shadow.
+ */
+function sunThrough(B: Build, f: Frame, win: RoomWindow, floor: number, finish: FloorFinish, from: [number, number, number]) {
+  const d = new Vector3(-from[0], -from[1], -from[2]).normalize();
+  // the room is on +w of the wall's frame: the sun must come in through the glass, and down
+  const inward = new Vector3(0, 0, 1).transformDirection(f.m);
+  if (d.dot(inward) <= 0.05 || d.y >= -0.05) return;
+  // the floor's own boards or tiles, in the sun: their pattern goes on under the light
+  const light: Paint = { color: mix(mix(FLOORS[finish].color, INKS.sunflower, 0.35), INKS.card, 0.3), pattern: FLOORS[finish].pattern, glow: 0.45, id: nextId() };
+  const onFloor = (u: number, y: number) => {
+    const p = new Vector3(u, y, 0).applyMatrix4(f.m);
+    return p.addScaledVector(d, (p.y - floor) / -d.y).setY(floor + 0.007);
+  };
+  const { u0, u1, y0, y1 } = win;
+  const rows = Math.max(2, Math.round((y1 - y0) / 0.62));
+  const mid = (u0 + u1) / 2;
+  for (const [a, b] of [[u0 + 0.07, mid - 0.04], [mid + 0.04, u1 - 0.07]]) {
+    for (let k = 0; k < rows; k++) {
+      const ya = y0 + 0.09 + ((y1 - y0 - 0.15) * k) / rows + 0.02;
+      const yb = y0 + 0.09 + ((y1 - y0 - 0.15) * (k + 1)) / rows - 0.02;
+      B.dry.quad(onFloor(a, ya), onFloor(b, ya), onFloor(b, yb), onFloor(a, yb), light);
+    }
+  }
 }
 
 /**
@@ -945,10 +1035,14 @@ function thing(B: Build, t: RoomThing, i: number) {
     }
     case 'clock': {
       const rim = zoned(mix(INKS.card, INKS.ink, 0.12), z);
-      D.at(x, y, zz, rot, () => D.cylinder(0, 0, 0.0, 0.16, 0.16, 0.035, 16, rim, { flat: true, caps: true }));
+      // the rim lies out from the wall, the dial printed on its face
+      D.at(x, y, zz, rot, () => {
+        D.push(new Matrix4().makeRotationX(Math.PI / 2));
+        D.cylinder(0, 0, 0, 0.16, 0.16, 0.045, 16, rim, { flat: true, caps: true });
+        D.pop();
+      });
       const r0 = new Vector3(Math.sin(rot), 0, Math.cos(rot));
-      // the cylinder stands up: lay its face toward the room by printing the dial in front of it
-      card(B, key, [x + r0.x * 0.03, y, zz + r0.z * 0.03], rot, 0.28, 0.28, z, clockFaceArt(t.text?.[0] ?? '3:40'), 900);
+      card(B, key, [x + r0.x * 0.04, y, zz + r0.z * 0.04], rot, 0.28, 0.28, z, clockFaceArt(t.text?.[0] ?? '3:40'), 900);
       return;
     }
     case 'calendar': {
@@ -1265,6 +1359,63 @@ function thing(B: Build, t: RoomThing, i: number) {
       B.blocks.push(footprint(x, zz, rot, w + 0.04, dd + 0.06));
       return;
     }
+    case 'polaroids': {
+      // a shoebox pulled out from under the bed, its lid off beside it, and the instant photos
+      // spilled out of it across the boards: white frames, the picture a little dark in each
+      // (`at` the box; the photos fall in front of it, `size` the spill's width and depth)
+      const [sw, sd] = t.size ?? [1.1, 0.8];
+      const box = zoned(mix(INKS.card, INKS.ochre, 0.3), z);
+      const inner = zoned(mix(INKS.ochre, INKS.ink, 0.35), z);
+      const frame = zoned(mix(INKS.card, INKS.paper, 0.2), z);
+      const pictures = [mix(INKS.ochre, INKS.ink, 0.4), mix(INKS.green, INKS.ink, 0.45), mix(INKS.cobalt, INKS.ink, 0.45), mix(INKS.vermilion, INKS.ink, 0.5), mix(INKS.sunflower, INKS.ink, 0.45)].map((c) => zoned(c, z));
+      const R = { v: 4421 + i * 37 };
+      const rand = () => {
+        R.v = (R.v * 16807) % 2147483647;
+        return R.v / 2147483647;
+      };
+      D.at(x, y, zz, rot, () => {
+        D.box(0, 0.06, 0, 0.34, 0.12, 0.2, box, { ny: false });
+        D.box(0, 0.121, 0, 0.31, 0.003, 0.17, inner);
+        // a few still standing in the box, their tops showing
+        for (let k = 0; k < 5; k++) D.box(-0.12 + k * 0.06, 0.13, -0.01 + (rand() - 0.5) * 0.04, 0.012, 0.05, 0.1, frame);
+        // the lid, upside down on the floor beside it
+        D.push(new Matrix4().makeTranslation(-0.32, 0, 0.08).multiply(new Matrix4().makeRotationY(0.35)));
+        D.box(0, 0.02, 0, 0.35, 0.04, 0.21, box, { ny: false });
+        D.pop();
+        for (let k = 0; k < 16; k++) {
+          const px = (rand() - 0.5) * sw;
+          const pz = 0.16 + rand() * sd;
+          const a = rand() * Math.PI * 2;
+          const lift = 0.002 + k * 0.0006;
+          D.push(new Matrix4().makeTranslation(px, lift, pz).multiply(new Matrix4().makeRotationY(a)));
+          D.box(0, 0.001, 0, 0.088, 0.002, 0.107, frame, { ny: false });
+          D.box(0, 0.0025, -0.009, 0.078, 0.001, 0.078, pictures[Math.floor(rand() * pictures.length)]);
+          D.pop();
+        }
+      });
+      B.blocks.push(centred(x, zz, rot, 0.38, 0.24));
+      return;
+    }
+    case 'armoire': {
+      // a tall wardrobe against the wall: two panelled doors, a key in one, a cornice on top
+      const [w, h] = t.size ?? [1.1, 2.2];
+      const dd = 0.55;
+      const wood = zoned(toneOf(t.tone, mix(TONES.wood, INKS.ink, 0.15)), z, { wet: 0.15 });
+      const panel = zoned(mix(toneOf(t.tone, mix(TONES.wood, INKS.ink, 0.15)), INKS.ink, 0.18), z);
+      const brass = zoned(TONES.brass, z, { wet: 0.6 });
+      D.at(x, y, zz, rot, () => {
+        D.box(0, h / 2 + 0.06, dd / 2, w, h - 0.12, dd, wood);
+        D.box(0, 0.03, dd / 2 + 0.02, w + 0.04, 0.06, dd + 0.04, wood, { ny: false });
+        D.box(0, h + 0.04, dd / 2 + 0.03, w + 0.12, 0.08, dd + 0.08, wood);
+        D.box(0, h / 2 + 0.06, dd + 0.004, 0.008, h - 0.2, 0.006, panel);
+        for (const s of [-1, 1]) {
+          for (const [py, ph] of [[0.62, 0.7], [1.52, 0.85]]) D.box((s * w) / 4, py, dd + 0.006, w / 2 - 0.16, ph, 0.012, panel);
+        }
+        D.box(0.06, 1.1, dd + 0.015, 0.015, 0.05, 0.02, brass);
+      });
+      B.blocks.push(footprint(x, zz, rot, w + 0.12, dd + 0.08));
+      return;
+    }
     default:
       return;
   }
@@ -1353,8 +1504,16 @@ function clockFaceArt(hour: string) {
   };
 }
 
-/** A wall calendar: the month's name over its grid, the next month's top below (T2 reads it). */
-function calendarArt(months: string[]) {
+const MOIS = ['JANVIER', 'FÉVRIER', 'MARS', 'AVRIL', 'MAI', 'JUIN', 'JUILLET', 'AOÛT', 'SEPTEMBRE', 'OCTOBRE', 'NOVEMBRE', 'DÉCEMBRE'];
+
+/**
+ * A wall calendar: the month's name over its grid, the next month's top below (T2 reads it).
+ * After the two months, what is written on it in a hand («12/4 dentiste» on the 12th of April,
+ * «Tous les dimanches : M.» on every Sunday): then the days have their numbers too.
+ */
+function calendarArt(text: string[]) {
+  const months = text.slice(0, 2);
+  const notes = text.slice(2);
   return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
     ctx.fillStyle = css(INKS.card);
     ctx.fillRect(0, 0, w, h);
@@ -1367,26 +1526,69 @@ function calendarArt(months: string[]) {
     ctx.fillText(months[0] ?? '', w / 2, h * 0.067);
     ctx.strokeStyle = css(mix(INKS.ink, INKS.paper, 0.45));
     ctx.lineWidth = Math.max(1, w * 0.004);
+    const cw = (w * 0.88) / 7;
+    const rh = h * 0.075;
     const grid = (y0: number, rows: number) => {
       for (let r = 0; r <= rows; r++) {
         ctx.beginPath();
-        ctx.moveTo(w * 0.06, y0 + r * h * 0.075);
-        ctx.lineTo(w * 0.94, y0 + r * h * 0.075);
+        ctx.moveTo(w * 0.06, y0 + r * rh);
+        ctx.lineTo(w * 0.94, y0 + r * rh);
         ctx.stroke();
       }
       for (let c = 0; c <= 7; c++) {
         ctx.beginPath();
-        ctx.moveTo(w * 0.06 + (c * w * 0.88) / 7, y0);
-        ctx.lineTo(w * 0.06 + (c * w * 0.88) / 7, y0 + rows * h * 0.075);
+        ctx.moveTo(w * 0.06 + c * cw, y0);
+        ctx.lineTo(w * 0.06 + c * cw, y0 + rows * rh);
         ctx.stroke();
       }
     };
+    // the days of a month in its grid, Monday first, and what is written in them
+    const ink = mix(INKS.cobalt, INKS.ink, 0.35);
+    const days = (label: string, y0: number, rows: number) => {
+      const [name, year] = label.split(' ');
+      const m = MOIS.indexOf(name);
+      if (m < 0 || !notes.length) return;
+      const yr = Number(year);
+      const first = (new Date(yr, m, 1).getDay() + 6) % 7;
+      const count = new Date(yr, m + 1, 0).getDate();
+      const sundays = notes.find((n) => /^Tous les dimanches/.test(n))?.split(':')[1]?.trim();
+      for (let d = 1; d <= count; d++) {
+        const k = first + d - 1;
+        const r = Math.floor(k / 7);
+        if (r >= rows) break;
+        const cx = w * 0.06 + (k % 7) * cw;
+        const cy = y0 + r * rh;
+        ctx.textAlign = 'left';
+        ctx.fillStyle = css(mix(INKS.ink, INKS.paper, 0.3));
+        ctx.font = SANS(Math.round(rh * 0.26), 600);
+        ctx.fillText(String(d), cx + cw * 0.08, cy + rh * 0.2);
+        const own: string[] = [];
+        notes.forEach((n) => {
+          const e = /^(\d+)\/(\d+)\s+(.*)$/.exec(n);
+          if (e && Number(e[1]) === d && Number(e[2]) === m + 1) own.push(e[3]);
+        });
+        const said = own.length ? own : k % 7 === 6 && sundays ? [sundays] : [];
+        if (!said.length) continue;
+        ctx.fillStyle = css(ink);
+        ctx.textAlign = 'center';
+        said[0].split(' — ').forEach((line, j) => {
+          let sz = Math.round(rh * 0.3);
+          ctx.font = SERIF(sz, 600);
+          while (sz > 5 && ctx.measureText(line).width > cw * 0.96) ctx.font = SERIF(--sz, 600);
+          ctx.fillText(line, cx + cw / 2, cy + rh * (0.55 + j * 0.3));
+        });
+      }
+      ctx.textAlign = 'center';
+    };
     grid(h * 0.17, 5);
+    days(months[0] ?? '', h * 0.17, 5);
     if (months[1]) {
       ctx.fillStyle = css(INKS.ink);
+      ctx.textAlign = 'center';
       ctx.font = SERIF(Math.round(h * 0.06), 700);
       ctx.fillText(months[1], w / 2, h * 0.6);
       grid(h * 0.66, 4);
+      days(months[1], h * 0.66, 4);
     }
   };
 }
@@ -1530,6 +1732,102 @@ function boulevard(B: Build, b: RoomBoulevard, night: boolean) {
   }
 }
 
+/* ------------------------------------------------------------------------------------------ */
+/* the canal                                                                                  */
+/* ------------------------------------------------------------------------------------------ */
+
+/**
+ * The quai de Valmy and the canal under a window on its façade, laid from the quai's own plan:
+ * our pavement, the road and its zebra to the café's corner, the strip of setts with its plane
+ * trees (where the quai has them, and the gap by the corner), the lamps on the edge, the quay
+ * walls and their coping, the water, and across it the quai de Jemmapes and its houses.
+ */
+function canal(B: Build, c: RoomCanal, night: boolean) {
+  const P = PLAN;
+  const { z0, z1 } = c;
+  const span = (x0: number, x1: number, za = z0, zb = z1): XZ[] => [[x0, za], [x1, za], [x1, zb], [x0, zb]];
+  const walk: Paint = { color: TONES.pavement, pattern: PATTERN.grit, id: nextId() };
+  const road: Paint = { color: TONES.asphalt, pattern: PATTERN.grit, id: nextId() };
+  const setts: Paint = { color: mix(TONES.stoneGround, INKS.cobalt, 0.08), pattern: PATTERN.cobbles, id: nextId() };
+  const curb: Paint = { color: TONES.curb, id: nextId() };
+  const L = P.lancry;
+  // our side: the pavement (the rue de Lancry crosses it), the road, the strip
+  B.wet.prism(span(P.valmy.walk[0], P.valmy.walk[1], z0, Math.min(z1, L.road[0])), -0.2, KERB, walk, { sides: false });
+  if (z1 > L.road[1]) B.wet.prism(span(P.valmy.walk[0], P.valmy.walk[1], L.road[1], z1), -0.2, KERB, walk, { sides: false });
+  if (z1 > L.road[0]) B.wet.prism(span(P.valmy.walk[0] - 6, P.valmy.walk[1], Math.max(z0, L.road[0]), Math.min(z1, L.road[1])), -0.2, 0, road, { sides: false });
+  B.wet.prism(span(P.valmy.road[0], P.valmy.road[1]), -0.2, 0, road, { sides: false });
+  B.wet.prism(span(P.valmy.strip[0], P.valmy.strip[1] - 0.45), -0.2, KERB, setts, { sides: false });
+  // across the water
+  B.wet.prism(span(P.jemmapes.strip[0] + 0.45, P.jemmapes.strip[1]), -0.2, KERB, setts, { sides: false });
+  B.wet.prism(span(P.jemmapes.road[0], P.jemmapes.road[1]), -0.2, 0, road, { sides: false });
+  B.wet.prism(span(P.jemmapes.walk[0], P.jemmapes.walk[1]), -0.2, KERB, walk, { sides: false });
+  for (const x of [P.valmy.walk[1], P.valmy.strip[0], P.jemmapes.strip[1], P.jemmapes.walk[0]]) B.dry.box(x, KERB / 2, (z0 + z1) / 2, 0.16, KERB, z1 - z0, curb, { ny: false });
+  // the zebra over the quai to the café's corner
+  const zebra: Paint = { color: mix(INKS.card, INKS.ink, 0.08), id: nextId() };
+  for (let x = P.valmy.road[0] + 0.25; x < P.valmy.road[1] - 0.4; x += 1.0) B.dry.box(x + 0.25, 0.004, -10.3, 0.5, 0.008, 2.6, zebra, { ny: false });
+  // the quay walls down to the water, their coping, and the water
+  const quayWall: Paint = { color: TONES.quayWall, pattern: PATTERN.courses, id: nextId() };
+  const coping: Paint = { color: mix(TONES.quayStone, INKS.paper, 0.25), id: nextId() };
+  const tide: Paint = { color: mix(TONES.quayWall, INKS.green, 0.45), id: nextId() };
+  for (const side of [-1, 1] as const) {
+    const xEdge = side * P.canal.x1;
+    B.dry.quadXYZ(
+      side < 0
+        ? [xEdge, P.water - 0.8, z1, xEdge, P.water - 0.8, z0, xEdge, KERB, z0, xEdge, KERB, z1]
+        : [xEdge, P.water - 0.8, z0, xEdge, P.water - 0.8, z1, xEdge, KERB, z1, xEdge, KERB, z0],
+      quayWall,
+    );
+    B.dry.box(xEdge + side * 0.22, KERB + 0.06, (z0 + z1) / 2, 0.5, 0.12, z1 - z0, coping, { ny: false });
+    B.dry.box(xEdge - side * 0.006, P.water + 0.25, (z0 + z1) / 2, 0.01, 0.5, z1 - z0, tide, { ny: false, py: false });
+  }
+  B.wet.quadXYZ([P.canal.x0, P.water, z1, P.canal.x1, P.water, z1, P.canal.x1, P.water, z0, P.canal.x0, P.water, z0], { color: TONES.water, wet: 0.9, id: nextId() });
+  // the plane trees where the quai has them, the lamps on the edge, the benches facing the water
+  const R0 = B.rand;
+  for (let z = P.zMin + 4; z < P.zMax - 2; z += 8.5) {
+    if (z > z0 - 4 && z < z1 + 4) {
+      if (!(z > P.bridge.z0 - 4 && z < P.bridge.westFoot + 3) && !(z > -12.5 && z < -7)) planeTree(B, -14.3, z, KERB, R0.range(0.92, 1.12));
+      if (!(z > P.bridge.eastFoot - 3 && z < P.bridge.z1 + 4)) planeTree(B, 14.3, z + 4, KERB, R0.range(0.92, 1.12));
+    }
+  }
+  for (let z = P.zMin + 10; z < P.zMax; z += 23) {
+    if (z > z0 && z < z1) quayLamp(B, -11.2, z, KERB, night);
+    if (z + 11.5 > z0 && z + 11.5 < z1) quayLamp(B, 11.2, z + 11.5, KERB, night);
+  }
+  if (z0 < -12.4 && -12.4 < z1) quayLamp(B, -24.6, -12.4, KERB, night);
+  for (const z of [-90, -20, 10, 55]) if (z > z0 && z < z1) bench(B, 12.4, z, -Math.PI / 2, KERB);
+  // the houses across the water, a few to the length, their shops shut or open, no names on them
+  const R = { v: c.seed * 7 + 3 };
+  const rand = () => {
+    R.v = (R.v * 16807) % 2147483647;
+    return R.v / 2147483647;
+  };
+  const face = P.jemmapes.face;
+  let u = z0;
+  let n = 0;
+  while (u < z1 - 6) {
+    const w = Math.min(z1 - u, 12 + rand() * 9);
+    const bays = Math.max(3, Math.round(w / 3.1));
+    const shops: Shop[] = [];
+    for (let k = 0; k < bays; ) {
+      const roll = rand();
+      if (roll < 0.2 && k < bays - 1) {
+        shops.push({ from: k, to: k, kind: 'door', color: FRONTS[Math.floor(rand() * FRONTS.length)] });
+        k += 1;
+      } else if (roll < 0.7) {
+        const to = Math.min(bays - 1, k + (rand() < 0.5 ? 1 : 0));
+        shops.push({ from: k, to, kind: 'shop', color: FRONTS[Math.floor(rand() * FRONTS.length)], awning: rand() < 0.45 ? AWNINGS[Math.floor(rand() * AWNINGS.length)] : undefined, lit: night });
+        k = to + 1;
+      } else {
+        shops.push({ from: k, to: k, kind: 'shutter' });
+        k += 1;
+      }
+    }
+    building(B, { runs: [{ a: [face, u], b: [face, u + w], bays, shops }], depth: 14, style: rand() < 0.6 ? 'haussmann' : 'faubourg', storeys: c.storeys - (rand() < 0.35 ? 1 : 0), wall: WALLS[Math.floor(rand() * 3)], balconies: [2, 5], lit: c.lit ?? 0, seed: c.seed + n });
+    u += w;
+    n++;
+  }
+}
+
 /**
  * A mansard over a side of a courtyard, in its frame (the courtyard on +w): the gutter, the steep
  * zinc brisis with a dormer a bay, the shallow terrasson behind it, and the chimney stacks with
@@ -1623,9 +1921,18 @@ export function buildRoom(B: Build, spec: RoomSpec): RoomBuilt {
   (spec.holes ?? []).forEach((o) => {
     const h = { u0: o.u0, u1: o.u1, y0: o.y0, y1: o.y1 };
     holesOf[o.wall].push(h);
-    plainHoles.add(h);
+    if (!o.framed) plainHoles.add(h);
   });
   spec.walls.forEach((w, i) => buildWall(B.dry, w, holesOf[i], windowHoles, plainHoles));
+  // a doorway with no door in it: its jambs, and the architrave round it on this side
+  (spec.holes ?? [])
+    .filter((o) => o.framed)
+    .forEach((o) => {
+      const w = spec.walls[o.wall];
+      B.dry.push(frameOf(w.a, w.b).m);
+      architrave(B.dry, o.u0, o.u1, o.y0 + 0.01, o.y1, zoned(mix(toneOf(w.tone, ROOM_TONES.ochre), INKS.paper, 0.25), w.zone));
+      B.dry.pop();
+    });
 
   /* ---- the doors: their frames, their leaves on hinges, their mats ------------------------- */
   const doors: RoomBuilt['doors'] = [];
@@ -1676,9 +1983,13 @@ export function buildRoom(B: Build, spec: RoomSpec): RoomBuilt {
     const w = spec.walls[win.wall];
     const f = frameOf(w.a, w.b);
     windowIn(B, B.dry, f, win, w.zone);
-    if (win.shutters === 'closed') {
-      const [b0] = pair(w.base);
-      slatLight(B, f, win, b0, 4.2);
+    const [b0] = pair(w.base);
+    if (win.shutters === 'closed') slatLight(B, f, win, b0, 4.2);
+    balconyOut(B, f, win, b0);
+    if (win.sun && win.shutters !== 'closed') {
+      const p = new Vector3((win.u0 + win.u1) / 2, 0, 0.5).applyMatrix4(f.m);
+      const under = spec.floors.find((fl) => Math.abs(fl.y - b0) < 0.05 && inPoly(fl.shape, p.x, p.z));
+      sunThrough(B, f, win, b0, under?.finish ?? 'boards', AMBIANCES[spec.ambiance].sunDir);
     }
   });
 
@@ -1708,6 +2019,7 @@ export function buildRoom(B: Build, spec: RoomSpec): RoomBuilt {
   spec.things.forEach((t, i) => thing(B, t, i));
   spec.courts.forEach((c) => court(B, c));
   (spec.boulevards ?? []).forEach((b) => boulevard(B, b, spec.ambiance === 'nuit'));
+  (spec.canals ?? []).forEach((c) => canal(B, c, spec.ambiance === 'nuit'));
 
   /* ---- where it all stands --------------------------------------------------------------- */
   const ground = roomGround(spec);
