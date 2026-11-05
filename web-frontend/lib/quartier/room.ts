@@ -17,8 +17,8 @@
  */
 import { Matrix4, Vector3 } from 'three';
 
-import { chair, frameOf } from './kit';
-import type { Build, Frame } from './kit';
+import { KERB, WALLS, bench, building, chair, frameOf, planeTree, quayLamp } from './kit';
+import type { Build, Frame, Shop } from './kit';
 import { PATTERN, Press, nextId } from './geo';
 import type { Paint, PatternId } from './geo';
 import type { Words } from './memory';
@@ -104,6 +104,8 @@ export interface RoomWindow {
   y1: number;
   /** closed: the shutters outside, the street light through their slats in bars */
   shutters?: 'closed';
+  /** a French window's iron guard outside it, a metre high, where the glass comes down to the floor */
+  guard?: boolean;
 }
 
 export interface RoomLight {
@@ -155,7 +157,12 @@ export type ThingKind =
   | 'phone'
   | 'keys'
   | 'suitcase'
-  | 'kitchenette';
+  | 'kitchenette'
+  | 'longtable'
+  | 'armchair'
+  | 'pen'
+  | 'folder'
+  | 'bookcase';
 
 export interface RoomThing {
   kind: ThingKind;
@@ -191,6 +198,28 @@ export interface RoomCourt {
   roofs?: boolean;
 }
 
+/**
+ * A boulevard seen from a window over it: the pavement under our façade, the roadway, the far
+ * pavement, plane trees and lamps along both kerbs, and the stone houses across it with their
+ * shops, balconies and mansards (the quai's own `building`).
+ */
+export interface RoomBoulevard {
+  /** our façade's line: along x from x0 to x1, at z */
+  x0: number;
+  x1: number;
+  z: number;
+  /** the way the boulevard lies from our façade */
+  side: 'n' | 's';
+  /** façade to façade */
+  width: number;
+  storeys: number;
+  seed: number;
+  /** share of the far windows lit (none by day) */
+  lit?: number;
+  /** a stretch of our own kerb with no tree in it, so the windows over it see down to the street */
+  clear?: [number, number];
+}
+
 export interface RoomSpec {
   id: string;
   version: number;
@@ -218,6 +247,7 @@ export interface RoomSpec {
   timers: Record<string, number>;
   things: RoomThing[];
   courts: RoomCourt[];
+  boulevards?: RoomBoulevard[];
   /** where the stage stands you and the cast */
   marks: Record<string, XYZ>;
   provenance: { canon: string; place: string; scenes: string[]; brief_round?: number };
@@ -353,6 +383,10 @@ export const ROOM_TONES: Record<string, Hex> = {
   blanket: mix(mix(INKS.paper, INKS.ink, 0.45), INKS.cobalt, 0.12),
   /** a hard-shell suitcase, dark blue */
   navy: mix(INKS.cobalt, INKS.ink, 0.45),
+  /** a polished table, waxed walnut */
+  walnut: mix(mix(TONES.wood, INKS.ink, 0.38), INKS.vermilion, 0.06),
+  /** an office chair's leather, oxblood gone brown */
+  leather: mix(mix(TONES.oxblood, INKS.ochre, 0.25), INKS.ink, 0.2),
 };
 
 const toneOf = (name: string | undefined, fallback: Hex): Hex => (name && ROOM_TONES[name] !== undefined ? ROOM_TONES[name] : fallback);
@@ -618,6 +652,21 @@ function windowIn(B: Build, P: Press, f: Frame, win: RoomWindow, zone: Zone | un
     const gapLit: Paint = { color: mix(INKS.sunflower, INKS.card, 0.35), glow: 0.85, id: nextId() };
     P.box((u0 + u1) / 2, (y0 + y1) / 2, -WALL - 0.02, u1 - u0 + 0.04, y1 - y0, 0.03, slat, { pz: true });
     for (let y = y0 + 0.16; y < y1 - 0.08; y += 0.14) P.box((u0 + u1) / 2, y, -WALL + 0.0, u1 - u0 - 0.14, 0.012, 0.004, gapLit);
+    P.pop();
+  }
+  if (win.guard) {
+    // the garde-corps: a top rail and a bottom rail across the opening outside, square bars
+    // between them and a band of rings a hand's width under the top
+    P.push(f.m);
+    const iron = zoned(TONES.iron, 'out');
+    const out = -WALL - 0.05;
+    const top = y0 + 1.0;
+    P.box((u0 + u1) / 2, top, out, u1 - u0, 0.04, 0.04, iron);
+    P.box((u0 + u1) / 2, y0 + 0.08, out, u1 - u0, 0.03, 0.03, iron);
+    P.box((u0 + u1) / 2, top - 0.2, out, u1 - u0, 0.015, 0.015, iron);
+    const bars = Math.max(3, Math.round((u1 - u0) / 0.11));
+    for (let k = 1; k < bars; k++) P.box(u0 + ((u1 - u0) * k) / bars, (y0 + top) / 2, out, 0.014, top - y0, 0.014, iron);
+    for (let k = 0; k < bars; k++) P.ball(u0 + ((u1 - u0) * (k + 0.5)) / bars, top - 0.1, out, 0.035, 0.035, 0.008, iron, 0);
     P.pop();
   }
 }
@@ -1097,6 +1146,125 @@ function thing(B: Build, t: RoomThing, i: number) {
       B.blocks.push(footprint(x, zz, rot, w + 0.04, d + 0.04));
       return;
     }
+    case 'longtable': {
+      // a notary's table, long and waxed: the top with its sheen, the apron under it, four turned
+      // legs (`at` is its middle; `size` its length and its width)
+      const [w, d] = t.size ?? [2.2, 1.05];
+      const tone = toneOf(t.tone, ROOM_TONES.walnut);
+      const top = zoned(tone, z, { wet: 0.55 });
+      const wood = zoned(mix(tone, INKS.ink, 0.12), z, { wet: 0.25 });
+      D.at(x, y, zz, rot, () => {
+        D.box(0, 0.74, 0, w, 0.04, d, top);
+        D.box(0, 0.67, 0, w - 0.16, 0.1, d - 0.16, wood, { py: false });
+        for (const [lx, lz] of [[-w / 2 + 0.11, -d / 2 + 0.11], [w / 2 - 0.11, -d / 2 + 0.11], [-w / 2 + 0.11, d / 2 - 0.11], [w / 2 - 0.11, d / 2 - 0.11]] as Array<[number, number]>) {
+          D.lathe(lx, 0, lz, [[0.032, 0], [0.026, 0.08], [0.042, 0.16], [0.028, 0.3], [0.026, 0.56], [0.04, 0.6], [0.04, 0.62], [0, 0.62]], 8, wood);
+        }
+      });
+      B.blocks.push(centred(x, zz, rot, w + 0.08, d + 0.08));
+      return;
+    }
+    case 'armchair': {
+      // an office armchair: a wooden frame, the seat and the back in buttoned leather, open arms
+      const wood = zoned(toneOf(undefined, ROOM_TONES.walnut), z, { wet: 0.25 });
+      const hide = zoned(toneOf(t.tone, ROOM_TONES.leather), z, { wet: 0.2 });
+      const seam = zoned(mix(toneOf(t.tone, ROOM_TONES.leather), INKS.ink, 0.35), z);
+      D.at(x, y, zz, rot, () => {
+        for (const [lx, lz] of [[-0.23, -0.2], [0.23, -0.2], [-0.23, 0.2], [0.23, 0.2]] as Array<[number, number]>) D.box(lx, 0.2, lz, 0.045, 0.4, 0.045, wood, { ny: false });
+        D.box(0, 0.42, 0, 0.52, 0.06, 0.48, wood);
+        D.box(0, 0.48, 0.01, 0.48, 0.07, 0.44, hide);
+        // the back, leaning a little, with its row of buttons
+        D.push(new Matrix4().makeTranslation(0, 0.5, -0.22).multiply(new Matrix4().makeRotationX(-0.12)));
+        D.box(0, 0.27, 0, 0.5, 0.52, 0.05, wood);
+        D.box(0, 0.27, 0.035, 0.44, 0.44, 0.04, hide);
+        for (const bx of [-0.12, 0, 0.12]) D.ball(bx, 0.3, 0.057, 0.012, 0.012, 0.006, seam, 0);
+        D.pop();
+        // the arms, on their posts
+        for (const sx of [-0.27, 0.27]) {
+          D.box(sx, 0.68, -0.02, 0.05, 0.035, 0.42, wood);
+          D.box(sx, 0.56, 0.16, 0.035, 0.22, 0.035, wood, { ny: false });
+        }
+      });
+      B.blocks.push(centred(x, zz, rot, 0.6, 0.6));
+      return;
+    }
+    case 'pen': {
+      // a fountain pen lying on the table, capped: the black barrel, the cap with its gold band and
+      // clip, the end of the nib showing (a little larger than life, so a phone shows it)
+      const k = 1.3;
+      const lacquer = zoned(mix(INKS.ink, INKS.cobalt, 0.08), z, { wet: 0.8 });
+      const gold = zoned(TONES.brass, z, { wet: 0.8 });
+      D.at(x, y, zz, rot, () => {
+        D.push(new Matrix4().makeScale(k, k, k));
+        D.bar(new Vector3(-0.072, 0.006, 0), new Vector3(0.0, 0.006, 0), 0.011, lacquer);
+        D.bar(new Vector3(0.0, 0.0065, 0), new Vector3(0.064, 0.0065, 0), 0.013, lacquer);
+        D.bar(new Vector3(-0.0005, 0.0065, 0), new Vector3(0.0035, 0.0065, 0), 0.0135, gold);
+        D.bar(new Vector3(0.012, 0.0135, 0), new Vector3(0.056, 0.0135, 0), 0.003, gold);
+        D.bar(new Vector3(-0.072, 0.006, 0), new Vector3(-0.08, 0.005, 0), 0.006, gold);
+        D.pop();
+      });
+      return;
+    }
+    case 'folder': {
+      // a closed dossier, buff card with its strap, and on its cover the label: what it is about
+      const buff = zoned(mix(INKS.ochre, INKS.paper, 0.55), z);
+      const strap = zoned(mix(INKS.ink, INKS.cobalt, 0.2), z);
+      D.at(x, y, zz, rot, () => {
+        D.box(0, 0.007, 0, 0.33, 0.014, 0.245, buff, { ny: false });
+        D.box(0.1, 0.0145, 0, 0.012, 0.002, 0.25, strap);
+      });
+      const lean = 0.06;
+      const n = new Vector3(Math.sin(rot) * Math.sin(lean), Math.cos(lean), Math.cos(rot) * Math.sin(lean));
+      const side = new Vector3(Math.cos(rot), 0, -Math.sin(rot));
+      const c = new Vector3(x, y + 0.0152, zz).addScaledVector(side, -0.04);
+      B.signs.push({ key, center: c, normal: n, width: 0.19, height: 0.06, density: 1800, draw: labelArt(t.text?.[0] ?? ''), indoor: (z ?? 'room') === 'room' });
+      return;
+    }
+    case 'bookcase': {
+      // shelves from a cupboard to the cornice, against the wall: law in bound volumes, the
+      // spines in their reds, greens and blacks, no titles (`size` its width and its height)
+      const [w, h] = t.size ?? [1.8, 2.7];
+      const dd = 0.38;
+      const wood = zoned(toneOf(t.tone, ROOM_TONES.walnut), z, { wet: 0.2 });
+      const back = zoned(mix(toneOf(t.tone, ROOM_TONES.walnut), INKS.ink, 0.35), z);
+      const spines = [TONES.oxblood, mix(INKS.green, INKS.ink, 0.35), mix(INKS.cobalt, INKS.ink, 0.4), mix(INKS.ink, INKS.ochre, 0.15), mix(INKS.ochre, INKS.paper, 0.35), mix(INKS.vermilion, INKS.ink, 0.25)].map((c) => zoned(c, z));
+      const R = { v: 7919 + i * 131 };
+      const rand = () => {
+        R.v = (R.v * 16807) % 2147483647;
+        return R.v / 2147483647;
+      };
+      const base = 0.86;
+      D.at(x, y, zz, rot, () => {
+        D.box(0, h / 2, 0.01, w, h, 0.02, back);
+        for (const sx of [-w / 2 + 0.015, w / 2 - 0.015]) D.box(sx, h / 2, dd / 2, 0.03, h, dd, wood);
+        D.box(0, h + 0.04, dd / 2 + 0.02, w + 0.08, 0.08, dd + 0.04, wood);
+        // the cupboard under the shelves, its doors panelled
+        D.box(0, base / 2, dd / 2 + 0.02, w, base, dd, wood, { ny: false });
+        const doors = Math.max(2, Math.round(w / 0.6));
+        for (let k = 0; k < doors; k++) {
+          const cu = -w / 2 + ((k + 0.5) * w) / doors;
+          D.box(cu, base / 2, dd + 0.025, w / doors - 0.08, base - 0.16, 0.012, back);
+        }
+        const rows = Math.max(1, Math.floor((h - base - 0.05) / 0.37));
+        const pitch = (h - base) / rows;
+        for (let r = 0; r < rows; r++) {
+          const sy = base + r * pitch;
+          D.box(0, sy + 0.012, dd / 2, w - 0.06, 0.025, dd - 0.02, wood);
+          let u = -w / 2 + 0.04;
+          while (u < w / 2 - 0.08) {
+            const bw = 0.028 + rand() * 0.035;
+            if (rand() < 0.06) {
+              u += bw * 2;
+              continue;
+            }
+            const bh = Math.min(pitch - 0.06, 0.24 + rand() * 0.08);
+            D.box(u + bw / 2, sy + 0.025 + bh / 2, dd / 2 + 0.04, bw - 0.003, bh, 0.24, spines[Math.floor(rand() * spines.length)], { ny: false });
+            u += bw;
+          }
+        }
+      });
+      B.blocks.push(footprint(x, zz, rot, w + 0.04, dd + 0.06));
+      return;
+    }
     default:
       return;
   }
@@ -1288,6 +1456,80 @@ function court(B: Build, c: RoomCourt) {
   B.lamps.push({ pos: new Vector3((c.x0 + c.x1) / 2, 2.8, c.z0 + 0.6), color: rgb(mix(INKS.sunflower, INKS.card, 0.2)), power: 0.7, range: 5.5, glint: true });
 }
 
+/* ------------------------------------------------------------------------------------------ */
+/* a boulevard                                                                                */
+/* ------------------------------------------------------------------------------------------ */
+
+const FRONTS: Hex[] = [mix(INKS.green, INKS.ink, 0.35), mix(INKS.cobalt, INKS.ink, 0.3), mix(INKS.vermilion, INKS.ink, 0.45), mix(INKS.ink, INKS.ochre, 0.2)];
+const AWNINGS: Hex[] = [mix(INKS.vermilion, INKS.ink, 0.15), mix(INKS.green, INKS.ink, 0.2), mix(INKS.ochre, INKS.vermilion, 0.3), mix(INKS.cobalt, INKS.ink, 0.15)];
+
+/**
+ * The boulevard under a window: the pavements and the roadway between them, plane trees and lamps
+ * along both kerbs, a bench or two, and across it a row of stone houses with their shops (no names
+ * on them), balconies on the second and the fifth floors, and their zinc.
+ */
+function boulevard(B: Build, b: RoomBoulevard, night: boolean) {
+  const s = b.side === 'n' ? -1 : 1;
+  const walkW = Math.min(6, b.width * 0.22);
+  const far = b.z + s * b.width;
+  const near = b.z;
+  const span = (z0: number, z1: number): XZ[] => [[b.x0, Math.min(z0, z1)], [b.x1, Math.min(z0, z1)], [b.x1, Math.max(z0, z1)], [b.x0, Math.max(z0, z1)]];
+  const walk: Paint = { color: TONES.pavement, pattern: PATTERN.grit, id: nextId() };
+  const road: Paint = { color: TONES.asphalt, pattern: PATTERN.grit, id: nextId() };
+  const curb: Paint = { color: TONES.curb, id: nextId() };
+  B.wet.prism(span(near, near + s * walkW), -0.2, KERB, walk, { sides: false });
+  B.wet.prism(span(far, far - s * walkW), -0.2, KERB, walk, { sides: false });
+  B.wet.prism(span(near + s * walkW, far - s * walkW), -0.2, 0, road, { sides: false });
+  for (const kz of [near + s * walkW, far - s * walkW]) B.dry.box((b.x0 + b.x1) / 2, KERB / 2, kz, b.x1 - b.x0, KERB, 0.2, curb, { ny: false });
+  // the white dashes down the middle
+  const dash: Paint = { color: mix(INKS.card, INKS.paper, 0.4), id: nextId() };
+  for (let x = b.x0 + 1; x < b.x1 - 3; x += 6) B.dry.box(x + 1.5, 0.005, (near + far) / 2, 3, 0.01, 0.14, dash, { ny: false });
+  // plane trees along both kerbs, lamps between them, and a bench on the far pavement
+  const R0 = B.rand;
+  for (const ours of [true, false]) {
+    const kz = ours ? near + s * (walkW - 1.1) : far - s * (walkW - 1.1);
+    for (let x = b.x0 + 3 + (ours ? 0 : 3.5); x < b.x1 - 2; x += 8) {
+      const tx = x + R0.range(-0.4, 0.4);
+      if (ours && b.clear && tx > b.clear[0] && tx < b.clear[1]) continue;
+      planeTree(B, tx, kz, KERB, 1.15);
+    }
+    for (let x = b.x0 + 7 + (ours ? 0 : 4); x < b.x1 - 2; x += 24) quayLamp(B, x, kz, KERB, night);
+  }
+  for (let x = b.x0 + 11; x < b.x1 - 4; x += 24) bench(B, x, far - s * (walkW - 2.2), b.side === 'n' ? 0 : Math.PI, KERB);
+  // the houses across it, a few to the length, each with its own stone and shops
+  const R = { v: b.seed * 7 + 3 };
+  const rand = () => {
+    R.v = (R.v * 16807) % 2147483647;
+    return R.v / 2147483647;
+  };
+  let u = b.x0;
+  let n = 0;
+  while (u < b.x1 - 6) {
+    const w = Math.min(b.x1 - u, 12 + rand() * 7);
+    const bays = Math.max(3, Math.round(w / 3.0));
+    const shops: Shop[] = [];
+    for (let k = 0; k < bays; ) {
+      const roll = rand();
+      if (roll < 0.2 && k < bays - 1) {
+        shops.push({ from: k, to: k, kind: 'door', color: FRONTS[Math.floor(rand() * FRONTS.length)] });
+        k += 1;
+      } else if (roll < 0.75) {
+        const to = Math.min(bays - 1, k + (rand() < 0.5 ? 1 : 0));
+        shops.push({ from: k, to, kind: 'shop', color: FRONTS[Math.floor(rand() * FRONTS.length)], awning: rand() < 0.5 ? AWNINGS[Math.floor(rand() * AWNINGS.length)] : undefined, lit: night });
+        k = to + 1;
+      } else {
+        shops.push({ from: k, to: k, kind: 'shutter' });
+        k += 1;
+      }
+    }
+    const a: XZ = b.side === 'n' ? [u, far] : [u + w, far];
+    const c: XZ = b.side === 'n' ? [u + w, far] : [u, far];
+    building(B, { runs: [{ a, b: c, bays, shops }], depth: 14, style: 'haussmann', storeys: b.storeys, wall: WALLS[Math.floor(rand() * 3)], balconies: [2, 5], lit: b.lit ?? 0, seed: b.seed + n });
+    u += w;
+    n++;
+  }
+}
+
 /**
  * A mansard over a side of a courtyard, in its frame (the courtyard on +w): the gutter, the steep
  * zinc brisis with a dormer a bay, the shallow terrasson behind it, and the chimney stacks with
@@ -1465,6 +1707,7 @@ export function buildRoom(B: Build, spec: RoomSpec): RoomBuilt {
   /* ---- things, and the courtyards ------------------------------------------------------- */
   spec.things.forEach((t, i) => thing(B, t, i));
   spec.courts.forEach((c) => court(B, c));
+  (spec.boulevards ?? []).forEach((b) => boulevard(B, b, spec.ambiance === 'nuit'));
 
   /* ---- where it all stands --------------------------------------------------------------- */
   const ground = roomGround(spec);

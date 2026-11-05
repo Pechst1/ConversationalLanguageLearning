@@ -7,7 +7,7 @@ the fix.
 
 ```
  Berlin   02:17 scripted walk (CI, fake provider)
-          03:43 live walk (Mac, real model, production)  ─┐
+          03:43 live walk (cloud, real model, production) ─┐
           04:57 explore walk (cloud, fake provider)       ├─► issues + triage → queue:ready
           06:30 night shift (cloud): plan → fix ×15 in waves of 5 → verify → digest
  morning  owner merges (ready-to-merge list first) ──► CI on main ──► Render deploys
@@ -100,16 +100,19 @@ Lanes:
 
 The loop never pushes to main. By default it does not merge either: the owner merges;
 for the small code fixes, `python scripts/loop/loop_queue.py merge-ready` lists the PRs whose
-every check is green, that are under 400 lines and touch no owner-only path (story
-engine, data model, deploy, CI, the loop's own rules), and `--merge` merges exactly
+every check is green, that are under 1200 lines and touch no owner-only path (migrations,
+data model, deploy, dependencies, CI, the loop's own rules; since 4 Nov the story engine and
+`app/core` are no longer owner-only), and `--merge` merges exactly
 those with the owner's login, so CI runs on main and Render deploys. It merges nothing
 while the newest CI run on main is red.
 
 **Auto-merge (owner switch).** With `autoMerge: true` in the night shift's args, the
 digest step runs `merge-ready --merge --max 4 --wait-minutes 40` itself: only code-lane
-PRs that the verifier proved red/green and labelled, all checks green, under 400 lines,
+PRs that the verifier proved red/green and labelled, all checks green, under 1200 lines,
 outside the owner-only paths, one at a time, each only after CI passed on main's current
-head, so a red main always names one PR. Story-lane PRs always wait for the owner. The next
+head, so a red main always names one PR. Since 4 Nov (Vincent) story-lane and size M PRs
+merge the same way once verified; until the night-shift workflow opens them as ready PRs
+with the label, they still wait. The routine now runs this step in its main session. The next
 live walk re-tests each merged fix once it is deployed.
 The cloud sessions' permission check refused that step as a merge without review on 30 and
 31 Oct, so the owner allowed exactly this one command in `.claude/settings.json`
@@ -120,6 +123,15 @@ PR can widen the rule.
 **Trend.** `python scripts/loop/rubric_trend.py --write` turns every walk report's score
 table into `docs/ops/walks/TREND.md`: each rubric question, night by night, fake-provider
 and live walks apart. The explore walk regenerates it with each report.
+
+**The routines' own PRs (4 Nov).** The live walk, the explore walk and the Quartier forge
+merge their own report or forge PR with `merge-ready --merge --pr N --wait-minutes 30`. It
+waits for that PR's checks, needs all of them green and main green, and refuses a PR that
+changes anything outside its branch family's paths (`ROUTINE_BRANCHES` in `loop_queue.py`):
+`claude/live-walk-*` only `docs/ops/live-walks/` and `TREND.md`, `claude/walk-report-*` only
+`docs/ops/walks/`, `claude/forge-*` only the Quartier's data, kit and screen. The merge runs in
+the routine's main session, where the owner's permission is written in the prompt; merges from
+inside a workflow's agents were refused as "Merge Without Review" on 2, 3 and 4 Nov.
 
 **Merged is not live.** Render deploys only after main's checks pass, so the live
 walk compares `GET /health` → `release` (the deployed commit) with the merge commit
