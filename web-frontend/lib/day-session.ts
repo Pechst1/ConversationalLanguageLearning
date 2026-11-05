@@ -27,6 +27,8 @@ import type {
   PaceOption,
 } from '@/types/daily-journey';
 
+import { dayStepOf, type DayWorkKind } from './day-order';
+
 type Copy = {
   scene: string;
   papier: string;
@@ -196,6 +198,28 @@ export function daySessionCopy(language: ControlLanguage | null | undefined): Co
 }
 
 export type DaySessionCopy = Copy;
+
+/**
+ * #469: the part of the day a step of the journey player belongs to, in the programme's own
+ * words («Szene», «Grammatik», «Wörter»): the header's «Grammatik · Schritt 4 von 6» over the rule
+ * card and its drills. Taken from the step's place in the day order (`dayStepOf`), never from its
+ * kind, so a reorder of the day cannot leave a screen naming the wrong part. `undefined` for
+ * something that is not a step of the day.
+ */
+export function dayPartLabel(
+  step: Parameters<typeof dayStepOf>[0],
+  language: ControlLanguage | null | undefined,
+): string | undefined {
+  const stage = dayStepOf(step);
+  if (!stage) return undefined;
+  const copy = daySessionCopy(language);
+  const names: Record<DayWorkKind, string> = {
+    scene: copy.scene,
+    grammar: copy.grammar,
+    words: copy.tally_words,
+  };
+  return names[stage];
+}
 
 /** The step → the mark's group: the logo's four shapes are the day's four steps. */
 export const SESSION_GROUP: Record<DaySessionStepKind, DayMarkGroup> = {

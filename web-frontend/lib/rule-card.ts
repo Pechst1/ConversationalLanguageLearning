@@ -11,7 +11,7 @@
  * card has none of them and draws exactly as before.
  */
 
-import { castIdFor } from '@/lib/cast-faces';
+import { castDisplayName, castIdFor } from '@/lib/cast-faces';
 import type { ControlLanguage } from '@/types/daily-journey';
 
 export type RuleCardShape = 'square' | 'circle' | 'circles' | 'triangle' | 'none';
@@ -428,24 +428,16 @@ export type RuleSceneAnchor = {
   fr: string;
   /** The drawn cast member (`lib/cast-faces` id), or null for anyone without a face. */
   castId: string | null;
-  /** The name printed beside the face; empty when the payload named nobody. */
+  /** The name printed beside the face (the registry's); empty when nobody is named. */
   name: string;
-};
-
-const ANCHOR_NAMES: Record<string, string> = {
-  margaux_barman: 'Margaux',
-  marin_leveque: 'Marin',
-  romy_tremblay: 'Romy',
-  lila_bonnet: 'Lila',
-  augustin_de_roncourt: 'Gus',
-  landlord_marchand: 'M. Marchand',
 };
 
 /**
  * The scene anchor from a RULE step's prompt, or `null` when the prompt has
  * none (an older payload, or a scene that did not carry the form) — the card
  * is then exactly what it was. The speaker may be a cast id («margaux_barman»,
- * «margaux») or a display name; an unknown one keeps its own spelling.
+ * «margaux») or a display name; the name printed is the cast registry's, and
+ * anyone outside the cast keeps their own display name (a bare id prints none).
  */
 export function ruleSceneAnchor(
   prompt: { scene_example_fr?: string | null; scene_example_speaker?: string | null } | null | undefined,
@@ -454,10 +446,9 @@ export function ruleSceneAnchor(
   if (!plainText(fr).trim()) return null;
   const speaker = typeof prompt?.scene_example_speaker === 'string' ? prompt.scene_example_speaker.trim() : '';
   const castId = speaker ? castIdFor(speaker) : null;
-  const name = castId
-    ? ANCHOR_NAMES[castId] ?? speaker
-    : speaker
-      ? speaker.charAt(0).toUpperCase() + speaker.slice(1).replace(/_/g, ' ')
-      : '';
+  // The name is the cast registry's (`castDisplayName`, #147): this file keeps no table and no id
+  // formatting of its own (#473: «camille_marchand» printed as «Camille marchand»). Anyone outside
+  // the cast keeps the name they came with; a bare id is not a name, so the card then shows none.
+  const name = castDisplayName(speaker, null) ?? (/^[a-z0-9_]+$/.test(speaker) ? '' : speaker);
   return { fr, castId, name };
 }

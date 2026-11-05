@@ -50,7 +50,7 @@ import { useImmersiveSurface } from '@/lib/immersive-surface';
 import { journeyChromeLanguage } from '@/lib/language-rule';
 import Router from 'next/router';
 import { handOnAfterScene } from '@/lib/day-plan';
-import { daySessionCopy } from '@/lib/day-session';
+import { dayPartLabel } from '@/lib/day-session';
 import type { ConnectionView } from '@/lib/journey-recovery';
 import type { PublicStep } from '@/types/daily-journey';
 
@@ -257,7 +257,8 @@ export function JourneySession({
   const caption = journeyHeaderCaption(
     journey,
     (position, total) => stepOfLabel(chrome, position, total),
-    daySessionCopy(chromeLanguage).scene,
+    // #469: the part the step on screen belongs to in the day order, not «Szene» for all.
+    (onScreen) => dayPartLabel(onScreen, chromeLanguage),
   );
 
   /* The story-engine reader is a full-screen surface with its own exit and its
@@ -528,7 +529,7 @@ export function JourneySession({
               {/* GENTLE-ONBOARDING: the first time a kind of step appears,
                   one sticker above it says what it is. Never over the cast. */}
               {!showCastIntro && (
-                <FirstStepSticker key={step.kind} stepKey={stickerFor(step.kind)} language={chromeLanguage} />
+                <FirstStepSticker key={stickerFor(step) ?? step.kind} stepKey={stickerFor(step)} language={chromeLanguage} />
               )}
               {step.kind === 'scene' && !showCastIntro && (
                 // Story-engine panels when the engine published them for this

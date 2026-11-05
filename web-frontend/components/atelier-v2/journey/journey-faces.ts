@@ -7,34 +7,13 @@
  * harness can check it.
  */
 
-import { drawnCastIdFor } from '@/lib/cast-faces';
+import { castDisplayName } from '@/lib/cast-faces';
 import type { JourneySnapshot, PublicStep } from '@/types/daily-journey';
 
 export type JourneySpeaker = { id: string | null; name: string };
 
-/** The cast's short names, as the rule cards and La Forge say them. */
-const COACH_NAMES: Record<string, string> = {
-  margaux_barman: 'Margaux',
-  marin_leveque: 'Marin',
-  romy_tremblay: 'Romy',
-  lila_bonnet: 'Lila',
-  augustin_de_roncourt: 'Gus',
-  landlord_marchand: 'M. Marchand',
-  camille_marchand: 'Camille',
-  odile_ferrand: 'Odile',
-};
-
-/**
- * The one name the learner reads for a person of the drawn cast, or `null` for anyone outside it
- * (a clerk, a generated character). Every surface that prints a speaker's name goes through this
- * (#155, #217): the opening line, each later line of a many-voiced reply, the listen button, the
- * rule card. It mirrors the server's cast registry (`app/services/cast_registry.py`), which sends
- * the same name; this is the net for a payload that still carries the world bible's full name.
- */
-export function castDisplayName(id: string | null | undefined, name: string | null | undefined): string | null {
-  const castId = drawnCastIdFor(id, name);
-  return (castId && COACH_NAMES[castId]) || null;
-}
+/** The cast's names live in `lib/cast-faces.ts` (#147, #473); re-exported for the journey's callers. */
+export { castDisplayName };
 
 /**
  * One name per face (#155): a payload may say «Augustin « Gus » de Roncourt» while the rule card
@@ -102,7 +81,8 @@ export function drillSpeaker(
     for (const other of journey?.steps ?? []) {
       if (other.kind !== 'rule' || other.prompt.concept_id !== concept) continue;
       const id = other.prompt.rule_card?.speaker;
-      if (id && COACH_NAMES[id]) return speakerOf(id, COACH_NAMES[id]);
+      const coach = castDisplayName(id, null);
+      if (id && coach) return speakerOf(id, coach);
     }
   }
   return journeySpeaker(journey, step);

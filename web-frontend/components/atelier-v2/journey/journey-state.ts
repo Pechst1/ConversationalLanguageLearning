@@ -406,7 +406,7 @@ export function stepPositionOnScreen(journey: JourneySnapshot | null): number | 
 export function journeyHeaderCaption(
   journey: JourneySnapshot | null,
   stepOf: (position: number, total: number) => string,
-  part?: string,
+  part?: string | ((step: PublicStep | null) => string | undefined),
 ): string | undefined {
   if (!journey || journey.steps.length === 0) return undefined;
   // #143: a missed drill asked once more is not a step of its own. Counting it
@@ -423,9 +423,16 @@ export function journeyHeaderCaption(
       ? Math.min(done + 1, total)
       : Math.max(1, counted.slice(0, onScreen).filter(Boolean).length);
   const label = stepOf(position, total);
-  // The scene's steps are one part of the day: «6 of 6» alone read as the end
-  // of the day with the words and La Forge still ahead.
-  return part ? `${part} · ${label}` : label;
+  // The steps are parts of the day: «6 of 6» alone read as the end of the day with the words and
+  // La Forge still ahead. The part is the one the step on screen belongs to (#469: the rule card
+  // and its drills are the grammar, not «Szene»), so it may be given as a function of that step.
+  // Between steps (none on screen) it is the next one still to do.
+  const onScreenStep =
+    onScreen === null
+      ? journey.steps.find((step) => step.status !== 'completed' && step.status !== 'skipped') ?? null
+      : journey.steps[onScreen - 1] ?? null;
+  const named = typeof part === 'function' ? part(onScreenStep) : part;
+  return named ? `${named} · ${label}` : label;
 }
 
 /**

@@ -60,5 +60,5 @@ export { RvChooser } from './RvChooser';
 export type { RvChooserProps } from './RvChooser';
 export { revueHomeChip, revueUneState } from './revue-home';
 export type { RevueHomeChip } from './revue-home';
-export { revueCopy, fill, guestName, ROMY_CLIENT_LINES, GUEST_NAMES, REGISTER_LINES_FR } from './revue-copy';
+export { revueCopy, fill, guestName, ROMY_CLIENT_LINES, REGISTER_LINES_FR } from './revue-copy';
 export type { RevueCopy } from './revue-copy';
