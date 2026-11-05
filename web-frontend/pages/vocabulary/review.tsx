@@ -43,6 +43,7 @@ import {
   type DeckLoad,
   type DeckProgress,
   deckOrdered,
+  deckSlotLabel,
 } from '@/components/lexique/deck-session';
 import {
   fill,
@@ -408,25 +409,6 @@ function MarkedSentence({ marked }: { marked: MarkedExample }) {
   );
 }
 
-// Bucket keys are corrector internals; the card prints their name in the
-// chrome language.
-function bucketLabel(t: LexiqueCopy, bucket?: string | null) {
-  switch (bucket) {
-    case 'fragile': return t.state_fragile;
-    case 'new': return t.bucket_new_deck;
-    case 'linked': return t.bucket_linked;
-    case 'topic':
-    case 'topic_compatible': return t.bucket_topic;
-    default: return t.state_due;
-  }
-}
-
-function formatDueLabel(t: LexiqueCopy, item: VocabularyRecommendationItem) {
-  if (item.bucket === 'new') return t.bucket_new_deck;
-  const label = formatDate(t, item.due_at || item.next_review);
-  return label ? fill(t.due_on, { date: label }) : bucketLabel(t, item.bucket);
-}
-
 function ratingToneLabel(t: LexiqueCopy, rating: number) {
   const option = reviewOptions.find((item) => item.rating === rating);
   return option ? t[option.label] : t.rating_fallback;
@@ -683,6 +665,7 @@ export default function VocabularyReviewPage() {
     for (const entry of wordSlate?.words || []) map.set(entry.word_id, entry);
     return map;
   }, [wordSlate]);
+  const slateIds = useMemo(() => new Set(slateById.keys()), [slateById]);
   const allItems = useMemo(() => {
     // The deck's order is the server's (`deck_order`, app/services/deck_order.py):
     // the due reviews in the scheduler's order, then the new words, today's scene
@@ -1112,7 +1095,7 @@ export default function VocabularyReviewPage() {
   const deckLabel = String(current?.deck_name || '').split('::')[0].trim();
   const kicker = current
     ? [
-        currentSlateEntry ? t.word_of_day : formatDueLabel(t, current),
+        deckSlotLabel(t, current, slateIds),
         deckLabel,
       ].filter(Boolean).join(' · ')
     : '';

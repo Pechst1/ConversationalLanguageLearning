@@ -124,8 +124,8 @@ The story's own places (the stairwell, the flat above the café, the notary's of
 any map: they are written from the canon and built with the pieces Le Mistral's room is built
 from (`room.ts`: the wainscot wall, the façade's lining, the globes, the tables), so a room and the
 café are the same print. Decision 4 of the Phase 1 plan sets the order: the stairwell and
-Odile's door (done), the learner's studio (done), then Maître Vasseur's office, Odile's flat,
-then Le Mistral's details. The next room is the first without a file in `world/rooms/`. A run builds one
+Odile's door (done), the learner's studio (done), Maître Vasseur's office (done), Odile's
+flat (done), then Le Mistral's details. The next room is the first without a file in `world/rooms/`. A run builds one
 room instead of a street; it follows the steps above with these differences.
 
 1. **Canon.** Read the place in `docs/story/season-1/10-lieux-et-images.md` (its canonical
@@ -134,8 +134,8 @@ room instead of a street; it follows the steps above with these differences.
    Quote the canon's lines at the top of the notes; say which choices are the forge's (an hour on
    a clock, a plan, a name on a letterbox: only names the canon gives, the rest blank).
 2. **World entry.** `status: "locked"`, `kind: "season"`, `source: { kind: "season", id: "s1" }`,
-   `site: null`, `room: "<id>"`, and `in`: the place on the map it is inside (the stairwell and the
-   studio are in `quai_de_valmy`). A room is never a pin of its own and is never published (`forge.py publish`
+   `site: null`, `room: "<id>"`, and `in`: the place on the map it is inside (the stairwell, the
+   studio and the notary's office are in `quai_de_valmy` until the map has their streets). A room is never a pin of its own and is never published (`forge.py publish`
    refuses it): the story opens it.
 3. **Brief.** `scripts/forge/briefs/<id>.json` with `kind: "room"`, `in`, `canon` (`doc`,
    `place`, `scenes`), `ambiance`, `title`, `can_do`, `arrive` (the caption you arrive to, in
@@ -146,24 +146,41 @@ room instead of a street; it follows the steps above with these differences.
      `tomettes`, `cobbles`, `stone`), a `zone` (`room` is lit by its lamps; `sealed` is seen and
      not entered yet; `out` is under the sky), `walk: false` for a floor seen, not walked, and
      `walls` (`finish`, `tone`, `dado`, or null where a space opens into the next). `open` cuts a
-     side's opening (`{ "w": [{ "u": [1.5, 2.75] }] }`, u along the side from its start).
+     side's opening (`{ "w": [{ "u": [1.5, 2.75] }] }`, u along the side from its start); a
+     passage under a lintel (`"top"`) with `"framed": true` is a doorway with its jambs and
+     architrave. Two rooms side by side need a `floors` strip in the doorway (the walls between
+     them are not ground you walk).
    - `walls`: the walls no space draws (a stair cage's, a partition under a flight), each from `a`
      to `b` with the room on its right, `base` and `top` (a pair where they slope).
    - `flights` (`from`, `dir` along x or z, `width`, `y0`, `y1`, `risers`, `tread`, `rail`),
      `rails` along open edges, `ceilings`.
    - `doors` (on a wall by its key or a space's side, `<space>.<n|e|s|w>`, with `u`, `height`,
      `hinge`, `swing`, `tone`, `numeral`, `opens: "never" | "once"`, `mat`), `windows` (`u`, `y`,
-     `shutters: "closed"` for the slatted street light), `holes` (a way through with no door).
+     `shutters: "closed"` for the slatted street light, `"open"` for the persiennes folded back
+     on the façade, `sun: true` for the morning sun laid on the floor in the floor's own finish,
+     `balcony: 0.6` for a narrow balcony outside with the quai's ironwork), `holes` (a way through
+     with no door, `framed` as above).
    - `lights` (`globe`, `sconce`, `hublot`) on a `circuit`, its `switches` (push-buttons, 1.0 to
      1.7 m above the floor in front of them) and `timers` (seconds a press keeps it lit). A room
      with no switch (a flat, the studio) is lit from the start and stays lit.
    - `things` the kit draws (`letterboxes`, `coat`, `clock`, `calendar`, `table`, `chair`,
      `slippers`, `camera`, `cup`, `stove`, `patch`, `doorway`, `mat`, `radiator`, `bed`, `phone`
-     with its screen's lines in `text`, `keys` with the cicada, `suitcase`, `kitchenette`) with
+     with its screen's lines in `text`, `keys` with the cicada, `suitcase`, `kitchenette`,
+     `longtable`, `armchair`, `pen`, `folder` with its label in `text`, `bookcase`, `polaroids`
+     (the shoebox out from under the bed, the photos spilled in front of it over `size`),
+     `armoire`) with
      `zone`, `tone`, `text`, `size`. A thing with `look` (three languages) can be tapped and says
      it in a line; its `did` is what the end card remembers. `courts` are seen through a window:
      `storeys` one fewer than your floor puts their zinc at your eye, and `roofs: true` gives
-     them the mansard, dormers and chimney pots.
+     them the mansard, dormers and chimney pots. `boulevards` are a street under a window (`x0`,
+     `x1`, `z` our façade's outer line, `side`, `width`, `storeys`, `seed`, `lit`, `clear`: a
+     stretch of our kerb with no plane tree, so the windows over it see down to the pavement):
+     the quai's own stone houses across it, trees, lamps, a bench. `canals` are the quai de
+     Valmy and the canal under a window on its façade (x -27), laid from the quai's own plan
+     (`z0`, `z1`, `storeys` across the water, `seed`, `lit`): its trees where the quai has them,
+     the gap by the café's corner, the lamps, the water, the quai de Jemmapes. `guard: true` on
+     a window gives a French window its iron garde-corps. A calendar's `text` after its two
+     months is what is written on it («12/4 dentiste», «Tous les dimanches : M.»), in its days.
    - `marks`: where the stage stands people. The room director (`interior.ts`) reads `landing`
      (where the climb ends), `door` (where you stand before the door the story opens),
      `threshold` (where you look in from) and `inside` (what you look at); the cast's marks

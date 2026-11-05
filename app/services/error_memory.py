@@ -372,6 +372,13 @@ class ErrorMemoryService:
             return None
 
         concept_id = concept_id or erratum.get("concept_id")
+        if not erratum.get("item_id"):
+            # #119: a free-text correction that elides an article is the article rule's,
+            # whichever rule the entrance guessed. A keyed item (``item_id``) belongs to
+            # the unit it was drilled under.
+            concept_id = self.elision_concept_id(
+                erratum.get("learner_text"), erratum.get("corrected_target"), context=erratum.get("context_fr")
+            ) or concept_id
         task_type = str(erratum.get("task_error_type") or "grammar_target")
         display_label = str(
             erratum.get("display_label")
@@ -929,6 +936,29 @@ class ErrorMemoryService:
             )
             self.db.add(user_concept)
 
+    def elision_concept_id(
+        self, learner_text: object, corrected_text: object, context: object = None
+    ) -> int | None:
+        """#119: the rule an article elision belongs to, or ``None`` when it is not one.
+
+        «la appartement» → «l'appartement», «de Odile» → «d'Odile»: whoever wrote the
+        correction (a letter, a scene reply, the journal, a model's label), the slip is
+        «Le, la, l', les». This is the one place that decides it (``correction_contract.
+        elides_an_article`` reads the pair); every entrance asks it, because each
+        had its own guess and the family inference put «de» with «Un, une, des».
+        """
+
+        from app.services import correction_contract
+
+        if not correction_contract.elides_an_article(learner_text, corrected_text, context=context):
+            return None
+        concept = (
+            self.db.query(GrammarConcept)
+            .filter(GrammarConcept.external_id == correction_contract.ARTICLE_ELISION_UNIT)
+            .first()
+        )
+        return concept.id if concept is not None else None
+
     def infer_concept_id_for_correction(
         self, *, learner_text: str | None, corrected_text: str | None, note: str | None = None
     ) -> int | None:
@@ -941,6 +971,9 @@ class ErrorMemoryService:
         note may be in German, or say nothing about grammar at all).
         """
 
+        elision = self.elision_concept_id(learner_text, corrected_text)
+        if elision is not None:
+            return elision
         marker = str(note or "")
         before = _normalize_review_answer(learner_text).split()
         after = _normalize_review_answer(corrected_text).split()

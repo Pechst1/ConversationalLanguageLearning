@@ -805,3 +805,48 @@ test('WP-107 · expired authentication gives a sign-in action, never a transport
   assert.ok(html.includes('Se reconnecter'));
   assert.ok(!html.includes(FR.transport_error));
 });
+
+// #501 · «Show the answer» used to leave only «type the revealed sentence, then Check».
+const solutionHelp = (content) => ({
+  step_id: 'step-recall',
+  help_kind: 'solution',
+  content_fr: content,
+  content_native: null,
+  assistance_level: 'solution',
+});
+
+test('#501 · after «Show the answer» a Continue is offered in place of Check', () => {
+  for (const task_type of ['short_answer', 'dictation']) {
+    const step = recallStep({
+      task_type,
+      options: [],
+      help_available: ['solution'],
+      audio_url: task_type === 'dictation' ? 'https://example.test/line.mp3' : null,
+    });
+    const before = decode(renderToStaticMarkup(h(steps.RecallStepView, commonProps(step))));
+    assert.ok(before.includes('>Check<'), `${task_type}: Check before the answer is shown`);
+    assert.ok(!before.includes('>Continue<'), `${task_type}: no Continue before`);
+    const help = solutionHelp('Midi, au Mistral.');
+    const shown = decode(renderToStaticMarkup(h(steps.RecallStepView, commonProps(step, { help }))));
+    assert.ok(shown.includes('Midi, au Mistral.'), `${task_type}: the answer is shown`);
+    assert.ok(shown.includes('>Continue<'), `${task_type}: Continue is offered after the answer is shown`);
+    assert.ok(!shown.includes('>Check<'), `${task_type}: and the answer need not be retyped`);
+  }
+});
+
+test('#501 · Continue after the answer is shown posts the shown sentence', () => {
+  const { revealedAnswerAttempt } = require('./journey-state.ts');
+  const step = recallStep({ task_type: 'dictation', options: [], help_available: ['solution'] });
+  assert.deepEqual(revealedAnswerAttempt(step.prompt, step.id, solutionHelp('Midi, au Mistral.')), {
+    mode: 'text',
+    text: 'Midi, au Mistral.',
+  });
+  // Another step's help, a hint, or a picked format never turns into an answer.
+  assert.equal(revealedAnswerAttempt(step.prompt, step.id, { ...solutionHelp('x'), step_id: 'other' }), null);
+  assert.equal(revealedAnswerAttempt(step.prompt, step.id, { ...solutionHelp('x'), help_kind: 'hint' }), null);
+  assert.equal(revealedAnswerAttempt(step.prompt, step.id, solutionHelp('')), null);
+  assert.equal(
+    revealedAnswerAttempt(recallStep({ task_type: 'word_bank' }).prompt, step.id, solutionHelp('Une table.')),
+    null,
+  );
+});

@@ -90,6 +90,7 @@ import {
   letterOf,
   recallAttempt,
   recallIsPicked,
+  revealedAnswerAttempt,
   registerNoteOf,
   resolutionAwaitsStory,
   sceneOpensOnAudio,
@@ -485,6 +486,7 @@ export function RecallStepView({
   help,
   onHelp,
   onSubmit,
+  onContinue,
   draft,
   speaker = null,
 }: {
@@ -514,6 +516,19 @@ export function RecallStepView({
   const localHere = local && local.stepId === step.id ? local : null;
   // A pick graded on the device is committed: it is the answer being sent.
   const locked = busy || graded || feedback.kind === 'submitting' || Boolean(localHere);
+  // #501: «Show the answer» was used on this step: Continue replaces Check.
+  const revealed = revealedAnswerAttempt(step.prompt, step.id, help);
+  const [movingOn, setMovingOn] = useState(false);
+  useEffect(() => {
+    if (!movingOn) return;
+    if (graded) {
+      setMovingOn(false);
+      onContinue();
+    } else if (feedback.kind !== 'idle' && feedback.kind !== 'submitting') {
+      // Not graded (empty, transport error...): the notice and Continue stay.
+      setMovingOn(false);
+    }
+  }, [movingOn, graded, feedback.kind, onContinue]);
 
   useEffect(() => {
     // A new step is a new answer; the same step keeps what the learner picked,
@@ -779,7 +794,24 @@ export function RecallStepView({
           graded; checking again and asking for a hint are both spent. */}
       {!graded && (
         <>
-          {!isMatch && (
+          {/* #501: the answer is on screen, so the way on is «Continue». The shown
+              sentence is sent as the attempt (with the solution already logged as
+              help) and the step moves on once it is graded: no retyping. */}
+          {!isMatch && revealed && (
+            <Action
+              tone="primary"
+              disabled={locked}
+              pending={feedback.kind === 'submitting'}
+              pendingLabel={copy.sending}
+              onClick={() => {
+                setMovingOn(true);
+                onSubmit(revealed);
+              }}
+            >
+              {copy.continue}
+            </Action>
+          )}
+          {!isMatch && !revealed && (
             <Action
               tone="primary"
               disabled={locked || !ready}

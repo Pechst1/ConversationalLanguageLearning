@@ -5,7 +5,8 @@
  * unreachable until the learner scrolled on their own.
  *
  * When a miss opens, the page scrolls just far enough for the last thing it asks of the
- * learner to stand clear above the sheet.
+ * learner to stand clear above the sheet. #319: only the geometry lives here; the scroll
+ * itself has one owner, `keepCardAboveSheet` (lib/keep-above-sheet.ts).
  */
 
 /** How far to scroll down so an element ending at `anchorBottom` clears a sheet starting at
@@ -14,15 +15,4 @@ export function scrollToClearSheet(anchorBottom: number, sheetTop: number, gap =
   if (!Number.isFinite(anchorBottom) || !Number.isFinite(sheetTop)) return 0;
   const behind = anchorBottom + gap - sheetTop;
   return behind > 0 ? Math.ceil(behind) : 0;
-}
-
-/** Scroll the page so the last repair (else the last correction) inside `feedback` clears its sheet. */
-export function clearTheSheet(feedback: HTMLElement | null): void {
-  if (!feedback || typeof window === 'undefined') return;
-  const sheet = feedback.querySelector<HTMLElement>('.ep-foot');
-  const anchors = feedback.querySelectorAll<HTMLElement>('.ep-repair, .ep-galley');
-  const anchor = anchors.length ? anchors[anchors.length - 1] : null;
-  if (!sheet || !anchor) return;
-  const by = scrollToClearSheet(anchor.getBoundingClientRect().bottom, sheet.getBoundingClientRect().top);
-  if (by > 0) window.scrollBy({ top: by, behavior: 'auto' });
 }

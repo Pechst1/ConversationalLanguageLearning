@@ -1,0 +1,226 @@
+{
+  "id": "notaire",
+  "version": 1,
+  "kind": "room",
+  "in": "quai_de_valmy",
+  "ambiance": "matin",
+  "title": {
+    "fr": "Chez le notaire",
+    "en": "At the notary's",
+    "de": "Beim Notar"
+  },
+  "can_do": {
+    "fr": "Lire le dossier de la succession, regarder le stylo-plume, voir le boulevard par la fenêtre.",
+    "en": "Read the estate's file, look at the fountain pen, see the boulevard from the window.",
+    "de": "Die Akte der Erbschaft lesen, den Füller ansehen, aus dem Fenster auf den Boulevard schauen."
+  },
+  "arrive": {
+    "fr": "Chez Maître Vasseur, sur le boulevard. Il est dix heures.",
+    "en": "At Maître Vasseur's, on the boulevard. It is ten o'clock.",
+    "de": "Bei Maître Vasseur am Boulevard. Es ist zehn Uhr."
+  },
+  "start": {
+    "pos": [42.0, -115.4],
+    "look": [42.1, 8.85, -120.0]
+  },
+  "floors": [
+    {
+      "key": "bureau",
+      "shape": [
+        [40.0, -120.0],
+        [46.4, -120.0],
+        [46.4, -115.0],
+        [40.0, -115.0]
+      ],
+      "y": 7.9,
+      "finish": "boards"
+    }
+  ],
+  "flights": [],
+  "walls": [
+    {
+      "key": "bureau.n",
+      "a": [40.0, -120.0],
+      "b": [46.4, -120.0],
+      "base": 7.9,
+      "top": 11.0,
+      "finish": "wainscot",
+      "tone": "cream",
+      "dado": "white"
+    },
+    {
+      "key": "bureau.e",
+      "a": [46.4, -120.0],
+      "b": [46.4, -115.0],
+      "base": 7.9,
+      "top": 11.0,
+      "finish": "wainscot",
+      "tone": "cream",
+      "dado": "white"
+    },
+    {
+      "key": "bureau.s",
+      "a": [46.4, -115.0],
+      "b": [40.0, -115.0],
+      "base": 7.9,
+      "top": 11.0,
+      "finish": "wainscot",
+      "tone": "cream",
+      "dado": "white"
+    },
+    {
+      "key": "bureau.w",
+      "a": [40.0, -115.0],
+      "b": [40.0, -120.0],
+      "base": 7.9,
+      "top": 11.0,
+      "finish": "wainscot",
+      "tone": "cream",
+      "dado": "white"
+    }
+  ],
+  "ceilings": [
+    {
+      "shape": [
+        [40.0, -120.0],
+        [46.4, -120.0],
+        [46.4, -115.0],
+        [40.0, -115.0]
+      ],
+      "y": 11.0
+    }
+  ],
+  "doors": [
+    {
+      "key": "porte_attente",
+      "height": 2.6,
+      "hinge": "both",
+      "swing": "in",
+      "tone": "cream",
+      "opens": "never",
+      "wall": 2,
+      "u0": 3.8,
+      "u1": 5.1
+    }
+  ],
+  "windows": [
+    {
+      "key": "fenetre_ouest",
+      "wall": 0,
+      "u0": 1.2,
+      "u1": 2.4,
+      "y0": 7.95,
+      "y1": 10.55,
+      "guard": true
+    },
+    {
+      "key": "fenetre_est",
+      "wall": 0,
+      "u0": 4.0,
+      "u1": 5.2,
+      "y0": 7.95,
+      "y1": 10.55,
+      "guard": true
+    }
+  ],
+  "holes": [],
+  "rails": [],
+  "lights": [
+    {
+      "key": "lustre",
+      "kind": "globe",
+      "at": [43.2, 10.55, -117.75],
+      "power": 0.6,
+      "range": 5.0,
+      "ceiling": 11.0
+    }
+  ],
+  "switches": [],
+  "timers": {},
+  "things": [
+    {
+      "kind": "longtable",
+      "at": [43.2, 7.9, -117.75],
+      "rot": 0,
+      "size": [2.4, 1.1]
+    },
+    {
+      "kind": "armchair",
+      "at": [43.2, 7.9, -118.75],
+      "rot": 0
+    },
+    {
+      "kind": "armchair",
+      "at": [42.6, 7.9, -116.75],
+      "rot": 3.1416
+    },
+    {
+      "kind": "armchair",
+      "at": [43.8, 7.9, -116.75],
+      "rot": 3.1416
+    },
+    {
+      "kind": "armchair",
+      "at": [41.55, 7.9, -117.75],
+      "rot": 1.5708
+    },
+    {
+      "kind": "armchair",
+      "at": [44.85, 7.9, -117.75],
+      "rot": -1.5708
+    },
+    {
+      "kind": "folder",
+      "at": [42.95, 8.66, -117.55],
+      "rot": 0,
+      "text": ["Succession Ferrand"],
+      "look": { "fr": "Sur le dossier : «Succession Ferrand». Rien ne se vend avant plusieurs semaines.", "en": "On the folder: «Succession Ferrand». Nothing can be sold for several weeks.", "de": "Auf der Akte: «Succession Ferrand». Mehrere Wochen lang lässt sich nichts verkaufen." },
+      "did": { "fr": "Tu as lu le dossier de la succession Ferrand.", "en": "You read the Ferrand estate's file.", "de": "Du hast die Akte der Erbschaft Ferrand gelesen." }
+    },
+    {
+      "kind": "pen",
+      "at": [43.45, 8.66, -117.5],
+      "rot": 0.35,
+      "look": { "fr": "Un stylo-plume sur la table cirée, avec son capuchon.", "en": "A fountain pen on the polished table, its cap on.", "de": "Ein Füller auf dem polierten Tisch, mit Kappe." },
+      "did": { "fr": "Tu as regardé le stylo-plume de Maître Vasseur.", "en": "You looked at Maître Vasseur's fountain pen.", "de": "Du hast dir Maître Vasseurs Füller angesehen." }
+    },
+    {
+      "kind": "bookcase",
+      "at": [46.4, 7.9, -117.6],
+      "rot": -1.5708,
+      "size": [2.2, 2.75],
+      "look": { "fr": "Des livres de droit, du sol au plafond.", "en": "Law books, from floor to ceiling.", "de": "Juristische Bücher, vom Boden bis zur Decke." },
+      "did": { "fr": "Tu as regardé les livres de droit.", "en": "You looked at the law books.", "de": "Du hast dir die juristischen Bücher angesehen." }
+    },
+    {
+      "kind": "radiator",
+      "at": [40.02, 7.9, -117.4],
+      "rot": 1.5708,
+      "tone": "white"
+    }
+  ],
+  "courts": [],
+  "boulevards": [
+    {
+      "x0": 10.0,
+      "x1": 76.0,
+      "z": -120.25,
+      "side": "n",
+      "width": 32.0,
+      "storeys": 6,
+      "seed": 11,
+      "lit": 0,
+      "clear": [36.0, 51.0]
+    }
+  ],
+  "marks": {
+    "place": [42.6, 7.9, -116.0],
+    "fenetre": [41.8, 7.9, -119.45]
+  },
+  "provenance": {
+    "canon": "docs/story/season-1/10-lieux-et-images.md",
+    "place": "The notary's office (Maître Vasseur)",
+    "scenes": ["Entre les épisodes 3 · «Plusieurs semaines»", "Entre les épisodes 28 · «Chez le notaire»", "T6 B · R1 to R3"],
+    "brief_round": 3
+  }
+}
