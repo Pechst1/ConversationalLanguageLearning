@@ -86,6 +86,7 @@ from app.services.grammar_catalog import FrenchCoreGrammarCatalog, concept_sub_b
 from app.services.grammar_feedback import authored_repair, count_concept_hits, infer_grammar_profile
 from app.services.item_bank import (
     ITEM_BANK_VERSION,
+    TRANSFORM_TASK_KINDS,
     VARIETY_WINDOW_DAYS,
     _is_judgement,
     build_bank_set,
@@ -513,7 +514,7 @@ ATELIER_EXERCISE_RESPONSE_FORMAT: dict[str, Any] = {
                     "additionalProperties": False,
                     "properties": {
                         "id": {"type": "string"},
-                        "type": {"type": "string", "enum": ["directed_rewrite", "contrast_rewrite", "repair_rewrite"]},
+                        "type": {"type": "string", "enum": list(TRANSFORM_TASK_KINDS)},
                         "instruction": {"type": "string"},
                         "source": {"type": "string"},
                         "expected_answer": {"type": "string"},
