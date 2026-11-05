@@ -18,6 +18,7 @@ from app.services.atelier_assets import AtelierAssetService
 from app.services.error_memory import ErrorMemoryService, serialize_error_memory
 from app.services.forge_item_validator import advice, situation_problems
 from app.services.grammar_feedback import infer_grammar_profile
+from app.services.item_bank import TRANSFORM_TASK_KINDS
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.progress import ProgressService
 from app.services.unified_srs import InterleavingMode, ItemType, UnifiedSRSService
@@ -594,7 +595,7 @@ class ExerciseGenerationService:
                 "word_bank_requires_meaning_cue": True,
                 "minimum_fill_choices": 3,
                 "minimum_word_bank_distractors": 1,
-                "transform_types": ["directed_rewrite", "contrast_rewrite", "repair_rewrite"],
+                "transform_types": list(TRANSFORM_TASK_KINDS),
                 "directed_rewrite_requires_explicit_source_and_target": True,
                 "output_ladder_rounds": ["sentence", "speak", "conversation"],
                 "learner_fallback_allowed": False,
