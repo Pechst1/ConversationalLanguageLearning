@@ -66,6 +66,7 @@ import {
   EpOpt,
   EpSlug,
   EpSetLine,
+  EpTypecase,
   EpConfidence,
   EpVerdict,
   EpBar,
@@ -4558,7 +4559,7 @@ function RecognizePanel({
               ))}
             </EpSetLine>
           </EpPrompt>
-          <div className="ep-typecase" aria-label={t.typecase_label}>
+          <EpTypecase>
             {sourceTokens.map((token: string, tokenIndex: number) => {
               const used = wordBankTokenIsUsed(wordBankTokens, sourceTokens, token, tokenIndex);
               return (
@@ -4570,7 +4571,7 @@ function RecognizePanel({
                 >{token}</EpSlug>
               );
             })}
-          </div>
+          </EpTypecase>
         </>
       )}
       {mode === 'classify' && (() => {

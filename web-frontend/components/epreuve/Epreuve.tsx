@@ -365,6 +365,19 @@ export function EpSetLine({ empty, children }: { empty?: boolean; children?: Nod
     </div>
   );
 }
+/* The words left to tap: La Forge's one word bank, for the drill and for «Correct the
+   sentence» alike. It is the system's bank (`av2-tiles__bank`), the element the browser
+   walk taps a word bank by (e2e/lib/driver.mjs WORD_BANK_TILE). Each page used to draw
+   its own `ep-typecase` div, and the walk, which knew only the system's bank, stood in
+   front of a Forge «Build» line with nothing it could tap. */
+export function EpTypecase({ children }: { children?: Node }) {
+  const t = useEpCopy();
+  return (
+    <div className="av2-tiles__bank ep-typecase" aria-label={t.typecase_label}>
+      {children}
+    </div>
+  );
+}
 export function EpCase({ label, count, children }: { label: Node; count?: number | null; children?: Node }) {
   const t = useEpCopy();
   return (

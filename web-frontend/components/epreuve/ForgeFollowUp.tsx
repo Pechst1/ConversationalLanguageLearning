@@ -29,7 +29,7 @@ import {
 } from '@/lib/forge-followup';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 
-import { EpBar, EpSetLine, EpSlug, useEpCopy } from './Epreuve';
+import { EpBar, EpSetLine, EpSlug, EpTypecase, useEpCopy } from './Epreuve';
 
 /* ---------- T3 · the goal line ---------- */
 
@@ -164,7 +164,7 @@ export function ForgeFollowUp({
               </EpSlug>
             ))}
           </EpSetLine>
-          <div className="ep-typecase" aria-label={t.typecase_label}>
+          <EpTypecase>
             {options.map((token, index) => {
               const used = draft.placed.includes(index);
               return (
@@ -178,7 +178,7 @@ export function ForgeFollowUp({
                 </EpSlug>
               );
             })}
-          </div>
+          </EpTypecase>
         </>
       )}
 
