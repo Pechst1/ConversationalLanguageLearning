@@ -11,7 +11,34 @@
  */
 export const TYPEABLE_FIELD = 'textarea:not([disabled]):not([readonly]), input[type=text]:not([disabled]):not([readonly])';
 
-export const SNAPSHOT_FN = (typeable) => {
+/**
+ * The one definition of «a word a learner can tap into the line»: an idle tile of a word
+ * bank. Every bank on every surface is the system's `av2-tiles__bank` (the journey's
+ * WordTiles, La Forge's EpTypecase and EpCase), so this one selector reaches them all.
+ * The walk used to stand still on a La Forge «Build» item: its bank was a page-drawn
+ * `ep-typecase` div this selector did not match (the guard:
+ * components/epreuve/forge-word-bank-walk.test.js).
+ */
+export const WORD_BANK_TILE = '.av2-tiles__bank button.av2-tile:not([disabled])';
+
+/**
+ * La Forge «Copy the correction»: after a miss on a whole line the way on is the corrected
+ * line, retyped, then «Compare» (components/epreuve/Epreuve.tsx EpRepair); «Continue»
+ * waits for it. The correction to copy is the line printed in the card above
+ * (EpLineFix). Checked against those components by
+ * components/epreuve/forge-word-bank-walk.test.js.
+ */
+export const FORGE_REPAIR = {
+  open: '.ep-repair:not([data-status="ok"])',
+  field: 'input.ep-repair__input:not([disabled])',
+  submit: 'button.ep-repair__submit:not([disabled])',
+  correction: '.ep-galley .ep-linefix__new',
+};
+
+/** What :data:`SNAPSHOT_FN` reads the page with (Playwright hands a page function one argument). */
+export const SNAPSHOT_ARGS = { typeable: TYPEABLE_FIELD, wordBankTile: WORD_BANK_TILE };
+
+export const SNAPSHOT_FN = ({ typeable, wordBankTile }) => {
   const vis = (el) => {
     const r = el.getBoundingClientRect();
     const s = getComputedStyle(el);
@@ -39,6 +66,9 @@ export const SNAPSHOT_FN = (typeable) => {
     choices: q('.av2-choice').length,
     whoSaid: q('.av2-who-said__card').length,
     tiles: q('.av2-tiles__bank button.av2-tile, .av2-tiles__bank .av2-tile:not(.av2-tile--mould)').length,
+    tappableTiles: q(wordBankTile).length,
+    // An exercise of La Forge is on screen (its drill, or «Correct the sentence» under a verdict).
+    forgeExercise: q('.ep-exercise').length > 0,
     tilesBox: q('.av2-tiles').length,
     textarea: q('textarea, input[type=text], input:not([type])').length,
     dictation: q('.av2-dictation, [data-step=dictation]').length,
@@ -98,7 +128,7 @@ export async function snapshot(page) {
   // it away, so the note never reads as part of the question under it.
   const note = page.locator('[data-first-step] .first-sticker__ok');
   if (await note.count()) await note.first().click().catch(() => {});
-  return page.evaluate(SNAPSHOT_FN, TYPEABLE_FIELD);
+  return page.evaluate(SNAPSHOT_FN, SNAPSHOT_ARGS);
 }
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

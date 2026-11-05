@@ -3,7 +3,7 @@
 // and runs the learner-clarity assertions as it goes.
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { snapshot, sleep, TYPEABLE_FIELD } from './driver.mjs';
+import { FORGE_REPAIR, snapshot, sleep, TYPEABLE_FIELD, WORD_BANK_TILE } from './driver.mjs';
 import { missLayoutChecks, readingIsSteady } from './miss-layout.mjs';
 import { englishWords, PENDING_VERDICT, SERVER_BANNER } from './assertions.mjs';
 
@@ -288,6 +288,32 @@ export class LearnerWalk {
     }
   }
 
+  /**
+   * La Forge «Copy the correction»: a learner retypes the corrected line printed above
+   * the field and taps «Compare»; «Continue» waits for it. One open repair per call (the
+   * run loop comes back for the next). False when no repair is open.
+   */
+  async copyForgeCorrection() {
+    const page = this.page;
+    const open = page.locator(FORGE_REPAIR.open).filter({ has: page.locator(FORGE_REPAIR.field) });
+    if (!(await open.count())) return false;
+    const repair = open.first();
+    // The correction this repair copies: the last corrected line printed before it.
+    const fix = await repair.evaluate((node, selector) => {
+      const lines = [...document.querySelectorAll(selector)].filter(
+        (line) => line.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+      return (lines.at(-1)?.innerText || '').trim();
+    }, FORGE_REPAIR.correction).catch(() => '');
+    if (!fix) return false;
+    await repair.locator(FORGE_REPAIR.field).first().fill(fix, { timeout: 3000 }).catch(() => {});
+    await sleep(120);
+    const submit = repair.locator(FORGE_REPAIR.submit).first();
+    if (await submit.count()) await submit.click({ timeout: 3000 }).catch(() => {});
+    await sleep(400);
+    return true;
+  }
+
   async act(s, kind, state) {
     const page = this.page;
     if (kind === 'reader') {
@@ -296,6 +322,7 @@ export class LearnerWalk {
       if (await next.count()) { await next.click({ timeout: 3000 }).catch(() => {}); return true; }
       return false;
     }
+    if (s.epFeedback.length && (await this.copyForgeCorrection())) return true;
     if (s.graded.length || s.epFeedback.length) {
       const prim = page.locator('.av2-graded .av2-btn, .av2-btn--primary:not([disabled])').last();
       if (await prim.count()) { await prim.click({ timeout: 3000 }).catch(() => {}); return true; }
@@ -331,7 +358,7 @@ export class LearnerWalk {
       if (await check.count()) await check.click({ timeout: 3000 }).catch(() => {});
       return true;
     }
-    const bank = page.locator('.av2-tiles__bank button.av2-tile:not([disabled])');
+    const bank = page.locator(WORD_BANK_TILE);
     if (await bank.count()) {
       for (let i = 0; i < 14 && (await bank.count()); i += 1) {
         await bank.first().click({ timeout: 2000 }).catch(() => {});
@@ -467,7 +494,16 @@ export class LearnerWalk {
         break;
       }
       if (entry && !s.url.startsWith('/atelier')) break; // the loop led out of the page (e.g. to Courrier)
-      if (entry && sameFor > 40) break; // the loop ended by itself (no recap to reach)
+      if (entry && sameFor > 40) {
+        // The loop ended by itself (no recap to reach) — but not on an exercise it could
+        // not get past. A La Forge visit used to stop here silently in front of a «Build»
+        // word bank, and the next day's journey met the same item and failed there.
+        if (s.forgeExercise && !s.pending) {
+          this.findings.check('a-way-forward', false, `stuck for ${(sameFor * 0.25).toFixed(0)}s on «${s.text.slice(0, 140)}»`, this.where({ kind, entry }));
+          await this.shoot('stuck');
+        }
+        break;
+      }
       // The 30 s cap must not undercut the server wait above.
       if (sameFor > (s.pending ? 180 : 120)) {
         this.findings.check('a-way-forward', false, `no change for ${(sameFor * 0.25).toFixed(0)}s on «${s.text.slice(0, 140)}»`, this.where({ kind }));

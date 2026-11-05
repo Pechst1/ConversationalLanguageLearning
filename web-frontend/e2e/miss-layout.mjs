@@ -20,7 +20,7 @@ import { spawn } from 'node:child_process';
 import { mkdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SNAPSHOT_FN, TYPEABLE_FIELD } from './lib/driver.mjs';
+import { SNAPSHOT_ARGS, SNAPSHOT_FN } from './lib/driver.mjs';
 import { missLayoutChecks } from './lib/miss-layout.mjs';
 import { freePort, sleep, WEB_ROOT } from './lib/stack.mjs';
 
@@ -59,7 +59,7 @@ process.on('exit', stop);
 
 async function measure(page, label, { cameoComes = false } = {}) {
   await page.screenshot({ path: path.join(outDir, `miss-${label}.png`) });
-  const snap = await page.evaluate(SNAPSHOT_FN, TYPEABLE_FIELD);
+  const snap = await page.evaluate(SNAPSHOT_FN, SNAPSHOT_ARGS);
   const layout = snap.layout;
   console.log(`[${label}] layout: ${JSON.stringify(layout)}`);
   check(`${label} the miss is on screen`, layout.sheet.length === 1 && layout.exercise.length >= 1, 'no verdict sheet or prompt');
@@ -112,7 +112,7 @@ async function repairedLine(page) {
   await page.waitForSelector('.ep-repair[data-status="ok"]', { timeout: 10000 });
   await sleep(500);
   await page.screenshot({ path: path.join(outDir, 'repair-381-fixed.png') });
-  const snap = await page.evaluate(SNAPSHOT_FN, TYPEABLE_FIELD);
+  const snap = await page.evaluate(SNAPSHOT_FN, SNAPSHOT_ARGS);
   const said = snap.epFeedback.map((feedback) => feedback.text).join(' ').replace(/\s+/g, ' ');
   check('381 «Line fixed» is on screen', /Line fixed/.test(said), said.slice(0, 240));
   check('381 «Not yet» is gone once the line is fixed', !/Not yet/i.test(said), said.slice(0, 240));
