@@ -185,6 +185,8 @@ export function followUpSlips(answer: string | string[], followUp: ForgeFollowUp
   const target = followUp.correctedFr || followUp.accepted[0] || '';
   const said = Array.isArray(answer) ? answer.join(' ') : String(answer ?? '');
   if (!target || !said.trim()) return [];
+  // An accepted answer is right, whatever reading it took: nothing to mark.
+  if (followUpMatches(answer, followUp)) return [];
   const right = plainWords(target);
   let wrong = plainWords(said);
   if (wrong.length < right.length && followUp.sourceFr) {

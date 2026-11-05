@@ -152,6 +152,19 @@ test('a typed correction may be only the corrected part', () => {
   assert.equal(F.followUpOutcome(['grand', 'poster'], followUp), 'revealed', 'tiles still build the whole sentence');
 });
 
+test('an accepted short correction with unchanged context marks no slip', () => {
+  const spec = {
+    kind: 'correct_it',
+    sourceFr: 'Lila cherche un poster grand.',
+    goalNative: null,
+    correctedFr: 'Lila cherche un grand poster.',
+    options: null,
+    accepted: ['Lila cherche un grand poster.'],
+  };
+  assert.equal(F.followUpOutcome('un grand poster', spec), 'right');
+  assert.deepEqual(F.followUpSlips('un grand poster', spec), []);
+});
+
 test('#449 · followUpSlips names the word that differs, accents count', () => {
   const spec = {
     kind: 'correct_it',
