@@ -135,23 +135,19 @@ def _season_register(state: Mapping[str, Any] | None, character_id: str) -> Regi
         return None
 
 
-def character_register(state: Mapping[str, Any] | None, character_id: Any) -> Register:
-    """How ``character_id`` addresses the learner: «tu» or «vous». The one resolver.
+def known_register(state: Mapping[str, Any] | None, character_id: Any) -> Register | None:
+    """What the cast itself says about how ``character_id`` addresses the learner, or ``None``.
 
-    ``character_id`` may be any spelling the cast registry knows (a scene id, an alias, a
-    portrait directory): every lookup below goes through :func:`_same_person`.
-
-    1. the landlord and office clerks: «vous», always;
-    2. the register the relationship map records (the story writes «tu» there when the
-       learner accepts «On se tutoie ?»);
-    3. what the season the thread plays opens that character with: the cast's
-       ``address``, overridden by its ``register.<id>`` flag (the scene reads the same);
-    4. «vous».
+    ``character_register`` without its last-resort default: «tu» or «vous» only when a
+    source above it knows, so a caller whose own text can decide (a letter that carries
+    its register) does not mistake the default for knowledge (#506). ``state`` may be
+    ``None``: a first letter is made before any scene has started a thread, and the
+    season still names its cast.
     """
 
     key = str(character_id or "").strip()
     if not key:
-        return DEFAULT_CHARACTER_REGISTER
+        return None
     from app.services import cast_registry
 
     canonical = cast_registry.resolve_id(key) or key
@@ -159,11 +155,26 @@ def character_register(state: Mapping[str, Any] | None, character_id: Any) -> Re
         name in ALWAYS_VOUS or name.startswith(ALWAYS_VOUS_PREFIXES) for name in (key, canonical)
     ):
         return DEFAULT_CHARACTER_REGISTER
-    return (
-        _relationship_register(state, key)
-        or _season_register(state, key)
-        or DEFAULT_CHARACTER_REGISTER
-    )
+    return _relationship_register(state, key) or _season_register(state, key)
+
+
+def character_register(state: Mapping[str, Any] | None, character_id: Any) -> Register:
+    """How ``character_id`` addresses the learner: «tu» or «vous». The one resolver.
+
+    ``character_id`` may be any spelling the cast registry knows (a scene id, an alias, a
+    portrait directory): every lookup goes through :func:`_same_person`.
+
+    1. the landlord and office clerks: «vous», always;
+    2. the register the relationship map records (the story writes «tu» there when the
+       learner accepts «On se tutoie ?»);
+    3. what the season the thread plays opens that character with: the cast's
+       ``address``, overridden by its ``register.<id>`` flag (the scene reads the same);
+    4. «vous».
+
+    :func:`known_register` is steps 1 to 3 alone.
+    """
+
+    return known_register(state, character_id) or DEFAULT_CHARACTER_REGISTER
 
 
 __all__ = [
@@ -173,6 +184,7 @@ __all__ = [
     "Register",
     "address_instruction",
     "character_register",
+    "known_register",
     "learner_address",
     "register_of",
 ]
