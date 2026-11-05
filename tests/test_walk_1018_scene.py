@@ -246,7 +246,7 @@ def test_brief_never_a_taken_title():
     assert brief.story_context["draft"]["title_fr"] == "Une habitude au zinc, II"
 
 
-def test_a_title_is_unique_across_every_published_episode(
+def test_no_title_twice(
     assembled_client, db_session, journey_enabled, clock, provider  # noqa: F811
 ):
     """#194, structurally. «No uniqueness check against earlier episodes»: the check read
