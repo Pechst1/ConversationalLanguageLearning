@@ -6210,16 +6210,25 @@ class AtelierCorrectionService:
             # reads another language the rule's localized title stands in, and the
             # background relecture writes the full explanation a moment later.
             language = self.explanation_language
-            why = _copy("atelier.recognize.chose_requires", language, learner=learner_text, target=target)
+            # A built sentence is printed whole on the miss: the learner's line struck
+            # through and the right line under it (the Forge card's EpLineFix). Quoting
+            # both again in the why doubled a long line's height, and at 375×812 the
+            # card and «Copy the correction» no longer fitted above the verdict sheet
+            # (walk of 5 Nov). A pick's why still names the two words.
+            why = (
+                ""
+                if mode == "word_bank"
+                else _copy("atelier.recognize.chose_requires", language, learner=learner_text, target=target)
+            )
             explanation = str(item.get("explanation") or self._why_for(concept, item) or "").strip()
             outside_rule = mode == "fill" and _miss_outside_the_rule(item, learner_text, target)
             if outside_rule:
                 # #380: say what differs in the learner's text, not the rule's headline.
                 why = f"{why} {_copy('atelier.recognize.other_words', language, learner=learner_text, target=target)}"
             elif normalize_language(language) == "en" and explanation:
-                why = f"{why} {explanation}"
+                why = f"{why} {explanation}".strip()
             else:
-                why = f"{why} {_copy('atelier.recognize.rule_reference', language, title=_concept_title_for(concept, language))}"
+                why = f"{why} {_copy('atelier.recognize.rule_reference', language, title=_concept_title_for(concept, language))}".strip()
             if outside_rule:
                 repair = _copy("atelier.recognize.other_words_repair", language)
             elif normalize_language(language) == "en":

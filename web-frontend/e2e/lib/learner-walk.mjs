@@ -453,6 +453,9 @@ export class LearnerWalk {
     while (Date.now() - t0 < maxSeconds * 1000) {
       await sleep(250);
       const s = await snapshot(page);
+      // A visit that led out of its page (a finished La Forge séance opens the day's
+      // letter) is over: the screen it reached is not one of its drills to check.
+      if (entry && !s.url.startsWith('/atelier')) break;
       const kind = this.classify(s);
       const sig = `${kind}|${s.text.slice(0, 160)}|${s.graded.map((g) => g.state).join()}|${s.reader.map((r) => r.text).join()}`;
       this.trackVerdicts(s, kind);
@@ -509,7 +512,6 @@ export class LearnerWalk {
         await this.shoot('stuck');
         break;
       }
-      if (entry && !s.url.startsWith('/atelier')) break; // the loop led out of the page (e.g. to Courrier)
       if (entry && sameFor > 40) {
         // The loop ended by itself (no recap to reach) — but not on an exercise it could
         // not get past. A La Forge visit used to stop here silently in front of a «Build»

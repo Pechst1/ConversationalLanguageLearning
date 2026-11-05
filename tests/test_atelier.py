@@ -3792,3 +3792,37 @@ def test_recognize_feedback_speaks_the_learners_language_before_the_relecture(db
     classified = service._classify_erratum(None, {"id": "c", "prompt": "Une petite table"}, "À corriger", "Correct")
     assert classified["display_label"] == "Classement"
     assert "Tu as classé" in classified["why_wrong"]
+
+
+def test_built_sentence_miss_does_not_quote_both_lines_again(db_session):
+    """Walk of 5 Nov: a missed «Build» line is printed whole on the Forge card (the
+    learner's line struck through, the right line under it). The why quoted both
+    lines a second time, so a long line doubled the card's height, and at 375×812 the
+    card and «Copy the correction» no longer fitted above the verdict sheet. The why
+    of a built sentence says why; the two lines stay on the card's own fields."""
+
+    from app.db.models.grammar import GrammarConcept
+    from app.services.atelier import AtelierCorrectionService
+
+    concept = GrammarConcept(
+        external_id="FR_TEST_BUILD", name="Avoir for age", level="A1",
+        category="Verbs", subskill="avoir_age", core_rule="French gives age with avoir.",
+    )
+    learner = "Nous sommes cinquante ans."
+    target = "Nous avons cinquante ans."
+    item = {
+        "id": "build", "prompt": "We are 50 years old.", "correct_answer": target,
+        "lesson_external_id": "FR_TEST_BUILD", "explanation": "French gives age with avoir, not être.",
+    }
+    service = AtelierCorrectionService(db_session)
+    for language in ("en", "de", "fr"):
+        service.explanation_language = language
+        erratum = service._recognize_erratum(concept, "word_bank", item, learner, target)
+        why = erratum["why_wrong"]
+        assert why and learner not in why and target not in why, f"{language}: {why}"
+        assert erratum["learner_text"] == learner and erratum["corrected_target"] == target
+
+    # A pick still names the two words: the card has no line to read them from.
+    service.explanation_language = "en"
+    picked = service._recognize_erratum(concept, "fill", {**item, "choices": ["sommes", "avons"]}, "sommes", "avons")
+    assert picked["why_wrong"].startswith("You chose “sommes”; this item needs “avons”.")
