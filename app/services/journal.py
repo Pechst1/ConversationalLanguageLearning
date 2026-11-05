@@ -238,6 +238,31 @@ class SceneFact:
         return 2 if len(self.cues) > CUE_THRESHOLD_WIDTH else 1
 
 
+#: ROOT CAUSE #145/#539. ``story_outcome.callback_fr`` is the story's *hook*: the
+#: line that opens tomorrow (it is also stored as the episode's ``hook``). Most of
+#: the time it states something that happened, but two authored lines travel in the
+#: same field and say nothing about the scene: the exit stub written when the actor
+#: could not answer («Margaux a dû partir avant de répondre.», ``fallback_turn``) and
+#: a season page's closing caption («Deux clés, une seule porte. À suivre…»). Nothing
+#: marked which kind a callback was, so the Journal scored every learner 0/1 against
+#: a line nobody could remember. The check lives here, in the one place that decides
+#: what counts as a fact of the scene.
+_TO_BE_CONTINUED = re.compile(r"\bà\s+suivre\b", re.IGNORECASE)
+_EXIT_STUB = re.compile(
+    r"^(?:\S+\s+){1,5}?(?:a répondu,?\s+puis\s+)?(?:a|doit)\s+(?:dû\s+)?partir"
+    r"(?:\s+avant\s+de\s+répondre)?\s*[.…]*$",
+    re.IGNORECASE,
+)
+
+
+def is_closing_filler(text: Any) -> bool:
+    """Whether a recap line is a closing caption or an exit stub, not an event."""
+    line = " ".join(str(text or "").split())
+    if not line:
+        return False
+    return bool(_TO_BE_CONTINUED.search(line) or _EXIT_STUB.match(line))
+
+
 def scene_facts_for(
     journey: DailyJourney, *, story_context: dict[str, Any] | None = None
 ) -> list[SceneFact]:
@@ -264,7 +289,7 @@ def scene_facts_for(
 
     outcome = recap.get("story_outcome") or {}
     callback = french_only(outcome.get("callback_fr"))
-    if callback:
+    if callback and not is_closing_filler(callback):
         facts.append(
             SceneFact(
                 key="outcome",
@@ -504,7 +529,7 @@ def character_reaction(
     missed = list(recall.get("missed") or [])
 
     def short(fact: dict[str, Any]) -> str:
-        text = french_only(fact.get("text_fr")).rstrip(".")
+        text = french_only(fact.get("text_fr")).rstrip(".…")
         return text[:90]
 
     matched = [item for item in matched if short(item)]
@@ -1217,6 +1242,7 @@ __all__ = [
     "followup_prompt",
     "record_journal_cost",
     "scene_cue",
+    "is_closing_filler",
     "scene_facts_for",
     "scene_reveal",
     "score_content_recall",
