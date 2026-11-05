@@ -366,7 +366,7 @@ def test_an_unchecked_answer_never_counts(db_session, monkeypatch):
         round_name="sentence",
         mode="sentence",
         exercise_id="FR_B1_COND_001:sentence",
-        answer_payload={"text": "Si je finis tôt, je t'appellerai."},
+        answer_payload={"text": "Si je finis tôt, je viendrai te voir ce soir."},
     )
     AtelierSRSService(db_session).complete_session(session=session, user=user)
     failed = service.run_ai_review_for_attempt(attempt.id)
