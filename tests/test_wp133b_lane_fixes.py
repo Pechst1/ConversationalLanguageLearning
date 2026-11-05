@@ -198,6 +198,27 @@ def test_a_reaction_that_fails_twice_falls_back_and_the_day_finishes(
     assert d.journey["status"] == "completed"
 
 
+DINOSAUR = "Mon voisin a un dinosaure dans le jardin. Il mange la lettre !"
+
+
+def test_an_off_script_reply_that_falls_back_is_still_heard_by_the_scene(
+    assembled_client, db_session, journey_enabled, clock, provider, jobs
+):
+    """#518 (live walk 4 Nov): the refused turn answered «Attends, on m'appelle» and the dinosaur
+    was never mentioned. The authored reply picks up what the learner wrote."""
+
+    _scripted_voice(provider, iter([GELE, SOUPE_ECHO, GELE, SOUPE_ECHO]))
+    d = driver(assembled_client, db_session)
+    result = _respond(assembled_client, d, _to_respond(d), text=DINOSAUR)[2].json()
+    assert result["reply_source"] == "authored"
+    reply = result["character_reply_fr"]
+    assert reply != "Attends, on m’appelle — je reviens vers toi très vite, promis."
+    assert "un dinosaure dans le jardin" in reply.casefold(), reply
+    assert lane_guards.echo_hit(reply, DINOSAUR) is None
+    _walk_to_end(d)
+    assert d.finish("complete").status_code == 200
+
+
 def test_a_gendered_ending_falls_back_to_the_authored_one(
     assembled_client, db_session, journey_enabled, clock, provider, inline
 ):

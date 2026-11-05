@@ -10441,37 +10441,116 @@ def open_question_of(line: Any) -> str | None:
     return question[:240] if question else None
 
 
+#: #518: a reply of fewer words says nothing new, so the stock ending needs no quote.
+HEARD_MIN_WORDS = 3
+HEARD_CHARS = 80
+
+_STOCK_EXIT_FR = "Attends, on m’appelle — je reviens vers toi très vite, promis."
+_HEARD_SUMMARY_NATIVE = {
+    "en": " You wrote: « {heard} ».",
+    "de": " Du hattest geschrieben: « {heard} ».",
+    "fr": " Tu avais écrit : « {heard} ».",
+}
+#: Where a noun phrase starts: the character picks up *what* the learner mentioned.
+_PHRASE_STARTS = frozenset(
+    "un une des le la les l du de ce cette ces mon ma mes ton ta tes son sa ses notre nos votre vos leur leurs".split()
+)
+_PHRASE_ENDS = _PHRASE_STARTS | frozenset("à a au aux dans sur sous avec pour par en chez et ou mais que qui".split())
+HEARD_PHRASE_WORDS = 6
+
+
+def _sentences_of(learner_text: Any) -> list[str]:
+    """The learner's sentences, guillemets and closing marks dropped."""
+
+    out = []
+    for part in _SENTENCE_END.split(" ".join(str(learner_text or "").split())):
+        sentence = " ".join(re.sub(r"[«»]", " ", part).split()).strip().rstrip(".!?…").strip()
+        if sentence:
+            out.append(sentence)
+    return out
+
+
+def heard_sentence(learner_text: Any) -> str | None:
+    """The learner's own sentence the authored ending says back (#518), or ``None``.
+
+    The first sentence of ``learner_text`` with at least ``HEARD_MIN_WORDS`` words,
+    clipped at a word to ``HEARD_CHARS``. Every word is the learner's: nothing is
+    invented, so the closing panel and the summary can quote it."""
+
+    for sentence in _sentences_of(learner_text):
+        if len(sentence.split()) >= HEARD_MIN_WORDS:
+            return _clip_quote(sentence, HEARD_CHARS)
+    return None
+
+
+def heard_phrase(learner_text: Any) -> str | None:
+    """What the character picks up in the reply (#518): a noun phrase the learner wrote.
+
+    «Mon voisin a un dinosaure dans le jardin» gives «un dinosaure dans le jardin». It
+    starts at the first determiner after the subject and verb, stops after
+    ``HEARD_PHRASE_WORDS`` words and never ends on a function word. The reply that
+    carries it has to pass the same echo guard a model's reply does (WP-133b: a
+    character never hands the learner's sentence back), so a phrase that would be
+    one is not used and the reply stays the stock exit."""
+
+    from app.services import lane_guards
+
+    for sentence in _sentences_of(learner_text):
+        words = sentence.split()
+        if len(words) < HEARD_MIN_WORDS:
+            continue
+        for start in range(2, len(words)):
+            if _folded(words[start].split("’")[0].split("'")[0]) not in _PHRASE_STARTS:
+                continue
+            phrase = words[start : start + HEARD_PHRASE_WORDS]
+            while phrase and _folded(phrase[-1]) in _PHRASE_ENDS:
+                phrase.pop()
+            if len(phrase) < 2:
+                continue
+            text = " ".join(phrase)
+            reply = f"{text[0].upper()}{text[1:]} ? {_STOCK_EXIT_FR}"
+            if lane_guards.echo_hit(reply, str(learner_text or "")) is None:
+                return text
+            break
+    return None
+
+
 def fallback_turn(
     *, character_name: str | None, learner_text: str, language: str, reason: str, answered: bool = False
 ) -> SemanticTurn:
     """The authored ending used when the actor could not produce one (WP-58).
 
     ``answered``: the character's reply was already shown, so the ending never says
-    they left before answering."""
+    they left before answering.
+
+    #518: the ending is never a constant while the learner wrote something. Their own
+    sentence (``heard_sentence``) leads the reply, the closing panel and the summary, so
+    a refused turn still shows that the words were read."""
 
     name = (character_name or "").split(" « ")[0].split()[0] if character_name else "Quelqu’un"
+    heard = heard_sentence(learner_text)
+    lead = f"« {heard} » : " if heard else ""
+    phrase = heard_phrase(learner_text)
+    reply_fr = f"{phrase[0].upper()}{phrase[1:]} ? {_STOCK_EXIT_FR}" if phrase else _STOCK_EXIT_FR
     if answered:
         summary = _FALLBACK_SUMMARY_ANSWERED.get(language, _FALLBACK_SUMMARY_ANSWERED["en"]).format(name=name)
-        return SemanticTurn(
-            outcome="partially_met",
-            understood_intent=f"fallback:{reason}",
-            evidence_quotes=[learner_text[:300]] if learner_text.strip() else [],
-            reply_fr="Attends, on m’appelle — je reviens vers toi très vite, promis.",
-            needs_clarification=False,
-            resolution_fr=f"{name} doit partir. La conversation reprendra là où elle s’est arrêtée.",
-            summary_native=summary,
-            callback_fr=f"{name} a répondu, puis a dû partir.",
-        )
-    summary = _FALLBACK_SUMMARY.get(language, _FALLBACK_SUMMARY["en"]).format(name=name)
+        resolution = f"{lead}{name} doit partir. La conversation reprendra là où elle s’est arrêtée."
+        callback = f"{name} a répondu, puis a dû partir."
+    else:
+        summary = _FALLBACK_SUMMARY.get(language, _FALLBACK_SUMMARY["en"]).format(name=name)
+        resolution = f"{lead}{name} doit partir avant de répondre. La conversation reprendra là où elle s’est arrêtée."
+        callback = f"{name} a dû partir avant de répondre."
+    if heard:
+        summary += _HEARD_SUMMARY_NATIVE.get(language, _HEARD_SUMMARY_NATIVE["en"]).format(heard=heard)
     return SemanticTurn(
         outcome="partially_met",
         understood_intent=f"fallback:{reason}",
         evidence_quotes=[learner_text[:300]] if learner_text.strip() else [],
-        reply_fr="Attends, on m’appelle — je reviens vers toi très vite, promis.",
+        reply_fr=reply_fr,
         needs_clarification=False,
-        resolution_fr=f"{name} doit partir avant de répondre. La conversation reprendra là où elle s’est arrêtée.",
+        resolution_fr=resolution,
         summary_native=summary,
-        callback_fr=f"{name} a dû partir avant de répondre.",
+        callback_fr=callback,
     )
 
 
