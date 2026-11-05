@@ -87,7 +87,7 @@ from app.schemas.daily_journey import (
     forge_href_for,
     practice_href_for,
 )
-from app.services import gold_ledger, scene_ledger
+from app.services import cast_registry, gold_ledger, scene_ledger
 from app.services.chrome_language import user_chrome_language
 from app.services.daily_journey_adapters import (
     AdapterUnavailable,
@@ -5567,6 +5567,16 @@ class DailyJourneyService:
             prompt["choices"] = list(getattr(evaluation, "next_choices", None) or [])
             if getattr(evaluation, "next_task_native", None):
                 prompt["objective_native"] = evaluation.next_task_native
+            elif caption := scene_ledger.turn_caption(
+                evaluation.character_reply_fr,
+                speaker=cast_registry.display_name(
+                    prompt.get("character_id"), str(prompt.get("character_name") or "").split(" ")[0]
+                ),
+                language=brief.control_language,
+            ):
+                # #500: the caption under the input is written for the opening question;
+                # from the second turn on it follows what the character asks now.
+                prompt["objective_native"] = caption
             if getattr(evaluation, "next_hint_native", None) or getattr(evaluation, "next_suggested_fr", None):
                 # QA-STORY: the hint belongs to the question now asked, not the first one.
                 response_task = dict(private.get("response_task") or {})
