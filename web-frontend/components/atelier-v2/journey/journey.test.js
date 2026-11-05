@@ -2444,6 +2444,23 @@ console.log('WP-66 day shapes and recall formats: ok');
   assert.deepEqual(hanging, [], `hints that stop mid-clause or carry no clause:\n${hanging.join('\n')}`);
 }
 
+// #445 / #171 (walk of 1 Nov): «Tomorrow» is written, never cut from a learner reply, and
+// the voice opener never stands for it («Tomorrow · Au fait…»).
+{
+  const { teaserHint } = require('./season-return-model.ts');
+  const replies = [
+    'Je suis peur un peu.',
+    'Non, pas comme ca. Je vais essayer de parler samedi, avec toi.',
+  ];
+  const told = teaserHint('Règle numéro un de La Méthode : on n\'oublie rien. Tu as promis, hein ? Essayer de parler samedi avec Gus.');
+  assert.equal(told, 'Essayer de parler samedi avec Gus');
+  assert.ok(replies.every((reply) => !reply.includes(told)), told);
+  assert.doesNotMatch(told, /comme ca/);
+  assert.equal(teaserHint('Au fait… Tu as remarqué ? La vieille clé bleue du compteur.'), 'La vieille clé bleue du compteur');
+  assert.equal(teaserHint('Toi, tu me caches quelque chose… Demain, peut-être, on saura. Lila et Berlin : peut-on vouloir quelqu\'un ici ?'), 'Lila et Berlin');
+  assert.equal(teaserHint('On va cuisiner avec Lila.'), 'On va cuisiner avec Lila');
+}
+
 // Owner 2026-10-18: a card without a picture draws its place, never an empty slot.
 {
   const { EpisodeVignette, vignettePlace } = require('./EpisodeVignette.tsx');
