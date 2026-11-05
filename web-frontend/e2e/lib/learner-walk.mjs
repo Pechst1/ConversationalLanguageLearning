@@ -3,7 +3,7 @@
 // and runs the learner-clarity assertions as it goes.
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { FORGE_REPAIR, FORGE_SPOT, snapshot, sleep, TYPEABLE_FIELD, WORD_BANK_TILE } from './driver.mjs';
+import { FORGE_FOLLOW, FORGE_REPAIR, FORGE_SPOT, snapshot, sleep, TYPEABLE_FIELD, WORD_BANK_TILE } from './driver.mjs';
 import { missLayoutChecks, readingIsSteady } from './miss-layout.mjs';
 import { englishWords, PENDING_VERDICT, SERVER_BANNER } from './assertions.mjs';
 
@@ -314,6 +314,38 @@ export class LearnerWalk {
     return true;
   }
 
+  /**
+   * La Forge «Correct the sentence»: after a right «Needs fixing» the sheet and its
+   * «Continue» wait until the sentence is corrected and checked. The walk sets the tiles
+   * in the order offered (or retypes the quoted sentence) and checks; right or wrong,
+   * the step settles. False when no follow-up is open.
+   */
+  async answerForgeFollowUp() {
+    const page = this.page;
+    const follow = page.locator(FORGE_FOLLOW.open).first();
+    if (!(await follow.count())) return false;
+    const tiles = follow.locator(WORD_BANK_TILE);
+    for (let i = 0; i < 20 && (await tiles.count()); i += 1) {
+      await tiles.first().click({ timeout: 2000 }).catch(() => {});
+      await sleep(80);
+    }
+    const field = follow.locator(FORGE_FOLLOW.field);
+    if (await field.count()) {
+      // The sentence as quoted, without its screen-reader label.
+      const quoted = await follow.locator(FORGE_FOLLOW.quote).first().evaluate((node) => {
+        const copy = node.cloneNode(true);
+        copy.querySelectorAll('.av2-sr').forEach((label) => label.remove());
+        return (copy.textContent || '').trim();
+      }).catch(() => '');
+      await field.first().fill(quoted || FREE, { timeout: 3000 }).catch(() => {});
+      await sleep(120);
+    }
+    const check = follow.locator(FORGE_FOLLOW.check).first();
+    if (await check.count()) await check.click({ timeout: 3000 }).catch(() => {});
+    await sleep(300);
+    return true;
+  }
+
   async act(s, kind, state) {
     const page = this.page;
     if (kind === 'reader') {
@@ -323,6 +355,7 @@ export class LearnerWalk {
       return false;
     }
     if (s.epFeedback.length && (await this.copyForgeCorrection())) return true;
+    if (s.epFeedback.length && (await this.answerForgeFollowUp())) return true;
     if (s.graded.length || s.epFeedback.length) {
       const prim = page.locator('.av2-graded .av2-btn, .av2-btn--primary:not([disabled])').last();
       if (await prim.count()) { await prim.click({ timeout: 3000 }).catch(() => {}); return true; }
