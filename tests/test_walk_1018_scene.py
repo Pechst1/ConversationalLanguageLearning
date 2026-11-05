@@ -272,4 +272,5 @@ def test_a_title_is_unique_across_every_published_episode(
         clock.advance(days=1)
 
     assert titles[0] == first
-    assert len(titles) == len(set(titles)), f"two episodes share a title: {titles}"
+    assert titles.count(first) == 1, "a title was served again"
+    assert len(titles) == len(set(titles)), "two episodes share a title"
