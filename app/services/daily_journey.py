@@ -5578,13 +5578,12 @@ class DailyJourneyService:
                     response_task["translation_native"] = evaluation.next_translation_native
                 private["response_task"] = response_task
                 step.private_task = private
-            if history[-1].get("free"):
-                # The exchange the nudge did not use is still owed: one more token.
-                prompt["max_turns"] = int(prompt.get("max_turns") or 1) + 1
-            elif question_open and step.turn_index >= int(prompt.get("max_turns") or 1):
-                # #378: the extra exchange the open question takes is counted, so
-                # the scene never reads «4 of 3».
-                prompt["max_turns"] = step.turn_index + 1
+            # #467 (root cause #145: the scene has no state of its own, so the
+            # total was whatever the engine decided next): ``max_turns`` is fixed
+            # when the scene starts and never changes. A nudge that did not use
+            # an exchange, or the answer an open question takes (#378), is one
+            # more turn under the same total; the client shows it as the last
+            # exchange instead of promising a bigger scene than the one it began.
             # WP-89 «Le fil»: the conversation so far, so a reloaded client can
             # redraw it. Public by construction: what was said and shown.
             prompt["thread"] = _public_thread(history)

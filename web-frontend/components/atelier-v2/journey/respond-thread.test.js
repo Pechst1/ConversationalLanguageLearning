@@ -299,8 +299,13 @@ test('one token per planned exchange, filled as each passes', () => {
   assert.deepEqual(model.exchangeProgress(prompt({ turn_index: 0, max_turns: 3 }), false), { total: 3, played: 0, position: 1 });
   assert.deepEqual(model.exchangeProgress(prompt({ turn_index: 1, max_turns: 3 }), false), { total: 3, played: 1, position: 2 });
   assert.deepEqual(model.exchangeProgress(prompt({ turn_index: 2, max_turns: 3 }), true), { total: 3, played: 3, position: 3 });
-  // A «relance» past the plan grows the sequence rather than overflowing it.
-  assert.deepEqual(model.exchangeProgress(prompt({ turn_index: 3, max_turns: 3 }), false), { total: 4, played: 3, position: 4 });
+  // #467: a turn past the plan (the answer to an open question) never grows the
+  // total: it is the last exchange again, the last token still active.
+  assert.deepEqual(model.exchangeProgress(prompt({ turn_index: 3, max_turns: 3 }), false), { total: 3, played: 2, position: 3 });
+  assert.deepEqual(model.exchangeProgress(prompt({ turn_index: 4, max_turns: 3 }), true), { total: 3, played: 3, position: 3 });
+  // The total is the same in every turn's payload of one scene.
+  const totals = [0, 1, 2, 3, 4].map((turn_index) => model.exchangeProgress(prompt({ turn_index, max_turns: 3 }), false).total);
+  assert.deepEqual(totals, [3, 3, 3, 3, 3]);
 
   const two = model.exchangeProgress(prompt({ turn_index: 1, max_turns: 3 }), false);
   assert.equal(model.exchangeLabel(FR.exchange_of, two), 'Échange 2 sur 3');
