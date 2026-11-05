@@ -60,7 +60,7 @@ from app.services.vocabulary_credit import (
     VocabularyCreditService,
 )
 from app.services.word_match import target_occurs_in
-from app.utils.timestamps import utc_iso
+from app.utils.timestamps import local_clock, utc_iso
 
 MISSION_CORRECTION_PROMPT_VERSION = "mission-correction-v2"
 
@@ -7581,11 +7581,32 @@ def _mission_chrome_language(mission: RealWorldMission) -> str:
         return "fr"
 
 
+def learner_zone(mission: RealWorldMission | None) -> str | None:
+    """The IANA zone of the mission's learner, or ``None`` when the user is not at hand.
+
+    One clock for every message in the Courrier: the account's zone (the one the
+    streak day and the gold day already use), not the device's.
+    """
+    from app.services.streak import user_timezone
+
+    try:
+        user = mission.user if mission is not None else None
+    except Exception:  # a detached row: no user to ask, so the page keeps its fallback
+        return None
+    return user_timezone(user) if user is not None else None
+
+
+def stamp_fields(value: datetime | None, zone: str | None) -> dict[str, Any]:
+    """The wire form of one stored time: the UTC instant, and the learner's wall clock."""
+    return {"created_at": utc_iso(value), "local_time": local_clock(value, zone)}
+
+
 def serialize_mission(mission: RealWorldMission | None, *, include_children: bool = True) -> dict[str, Any] | None:
     if not mission:
         return None
     from app.services.recommendation_reasons import recommendation_reason
 
+    zone = learner_zone(mission)
     payload = {
         "id": str(mission.id),
         "status": mission.status,
@@ -7644,7 +7665,7 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
                 "correction": attempt.correction_payload or {},
                 "verdict": attempt.verdict,
                 "score_0_4": attempt.score_0_4,
-                "created_at": utc_iso(attempt.created_at),
+                **stamp_fields(attempt.created_at, zone),
             }
             for attempt in sorted(mission.attempts or [], key=lambda item: item.created_at)
         ]
@@ -7657,7 +7678,7 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
                 "text": turn.text,
                 "audio_payload": turn.audio_payload or {},
                 "correction": turn.correction_payload or {},
-                "created_at": utc_iso(turn.created_at),
+                **stamp_fields(turn.created_at, zone),
             }
             for turn in sorted(mission.turns or [], key=lambda item: item.turn_index)
         ]
