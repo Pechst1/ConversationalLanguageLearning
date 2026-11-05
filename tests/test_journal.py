@@ -1149,3 +1149,66 @@ def test_a_real_outcome_that_mentions_leaving_is_still_a_fact(db_session):
     )
     facts = scene_facts_for(journey, story_context={})
     assert [fact.kind for fact in facts] == ["outcome"]
+
+
+# ---------------------------------------------------------------------------
+# #444 — «Yesterday» is the scene of the previous day, not the last one offered
+# ---------------------------------------------------------------------------
+
+
+def _episode_journey(db_session, user: User, *, local_date: date, episode: str, **kwargs):
+    journey = _journey(db_session, user, local_date=local_date, **kwargs)
+    journey.serial_episode_id = episode
+    db_session.add(journey)
+    db_session.commit()
+    db_session.refresh(journey)
+    return journey
+
+
+def test_yesterday_is_previous_episode(db_session):
+    """#444: the learner plays day 1, is offered its scene, writes nothing, plays day 2.
+
+    The open offer used to be kept for ever with its cue frozen at «1 day ago», so
+    on day 3 the Journal still said «Yesterday» about day 1's scene while the
+    Feuilleton listed day 2's episode as the last one.
+    """
+    user = _user(db_session)
+    day1 = TODAY - timedelta(days=2)
+    day2 = TODAY - timedelta(days=1)
+    first = _episode_journey(db_session, user, local_date=day1, episode="ep-day-1")
+    second = _episode_journey(db_session, user, local_date=day2, episode="ep-day-2")
+
+    # Day 2: the scene of day 1 is offered, the learner leaves it unwritten.
+    offered_on_day_2 = _service(db_session).offer(user, now=NOW - timedelta(days=1))
+    assert offered_on_day_2 is not None and offered_on_day_2.journey_id == first.id
+
+    # Day 3: «Yesterday» is day 2's episode, the one the Feuilleton lists last.
+    entry = _service(db_session).offer(user, now=NOW)
+    assert entry is not None
+    assert entry.scene_date == day2
+    assert entry.journey_id == second.id
+    assert second.serial_episode_id == "ep-day-2"
+    assert entry.cue["days_ago"] == 1
+    # The stale offer is closed, not left to come back.
+    db_session.refresh(offered_on_day_2)
+    assert offered_on_day_2.status != "offered"
+
+
+def test_no_recall_items_not_offered(db_session):
+    """#444: «This scene has nothing noted to recall» — such a scene is not offered at all."""
+    user = _user(db_session)
+    empty = _episode_journey(
+        db_session, user, local_date=TODAY - timedelta(days=1), episode="ep-empty", callback=None
+    )
+    for step in empty.steps:
+        step.public_prompt = {}
+    db_session.commit()
+    assert _service(db_session).offer(user, now=NOW) is None
+
+    # An older scene that does have something to recall is still honest, as «2 days ago».
+    older = _episode_journey(
+        db_session, user, local_date=TODAY - timedelta(days=2), episode="ep-older"
+    )
+    entry = _service(db_session).offer(user, now=NOW)
+    assert entry is not None and entry.journey_id == older.id
+    assert entry.cue["days_ago"] == 2
