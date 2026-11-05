@@ -47,6 +47,19 @@ export const FORGE_SPOT = {
   field: 'input.forge-spot__input',
 };
 
+/**
+ * La Forge «Correct the sentence» (components/epreuve/ForgeFollowUp.tsx): after a right
+ * «Needs fixing» the learner corrects the sentence, with tiles (A1) or in a field, and
+ * checks it with the follow-up's own button; the verdict sheet and its «Continue» wait
+ * for it. Checked against ForgeFollowUp by components/epreuve/forge-word-bank-walk.test.js.
+ */
+export const FORGE_FOLLOW = {
+  open: '.ep-follow[data-outcome="open"]',
+  quote: '.ep-follow__quote',
+  field: 'textarea.ep-follow__input',
+  check: '.ep-follow__actions button.ep-bar:not([disabled])',
+};
+
 /** What :data:`SNAPSHOT_FN` reads the page with (Playwright hands a page function one argument). */
 export const SNAPSHOT_ARGS = { typeable: TYPEABLE_FIELD, wordBankTile: WORD_BANK_TILE };
 

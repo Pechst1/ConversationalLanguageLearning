@@ -206,3 +206,42 @@ test('the walk answers «Trouve l’erreur» by the classes ForgeSpot renders', 
     `the walk types into «${FORGE_SPOT.field}»`,
   );
 });
+
+test('the walk corrects a judged sentence by the classes ForgeFollowUp renders', async () => {
+  // After a right «Needs fixing» the sheet's «Continue» waits for «Correct the sentence»
+  // (pages/atelier.tsx `followGate`): a Forge visit that cannot check it stands still.
+  const { FORGE_FOLLOW, WORD_BANK_TILE } = await walkDriver();
+  const { ForgeFollowUp, FOLLOW_UP_EMPTY } = require('./ForgeFollowUp.tsx');
+  const spec = {
+    kind: 'correct_it',
+    sourceFr: 'Lila demande un café à son ami.',
+    goalNative: null,
+    correctedFr: 'Lila a demandé un café à son ami.',
+    accepted: ['Lila a demandé un café à son ami.'],
+  };
+  const render = (followUp, draft = FOLLOW_UP_EMPTY) =>
+    renderToStaticMarkup(h(Ep.EpShell, { language: 'de' }, h(ForgeFollowUp, { followUp, draft, onDraft: () => {} })));
+  const selector = parseTileSelector(WORD_BANK_TILE);
+  const openCls = classesOf(FORGE_FOLLOW.open)[0];
+  const isOpen = (html) => tagsWithClass(html, 'section', openCls).some((attrs) => /data-outcome="open"/.test(attrs));
+
+  // Tiles: the walk taps them in the follow-up's bank, then the follow-up's own check.
+  const tiles = render({ ...spec, options: ['Lila', 'a', 'demandé', 'un café', 'à son ami.'] }, { ...FOLLOW_UP_EMPTY, placed: [0] });
+  assert.ok(isOpen(tiles), `the open follow-up is «${FORGE_FOLLOW.open}»: ${tiles}`);
+  assert.deepEqual(tappable(tiles, selector), ['a', 'demandé', 'un café', 'à son ami.'], 'the walk taps the follow-up\'s idle tiles');
+  const [actions, bar] = classesOf(FORGE_FOLLOW.check);
+  const checks = [...tiles.matchAll(new RegExp(`<div class="[^"]*\\b${actions}\\b[^"]*">([\\s\\S]*?)</div>`, 'g'))]
+    .flatMap((m) => tagsWithClass(m[1], 'button', bar));
+  assert.equal(checks.length, 1, `the walk checks by «${FORGE_FOLLOW.check}»: ${tiles}`);
+  assert.ok(!/\sdisabled=/.test(checks[0]), 'with a tile set, the check can be tapped');
+
+  // A field: the walk retypes the quoted sentence into it.
+  const field = render({ ...spec, options: null });
+  assert.equal(tagsWithClass(field, 'textarea', classesOf(FORGE_FOLLOW.field)[0]).length, 1, `the walk types into «${FORGE_FOLLOW.field}»: ${field}`);
+  const quote = new RegExp(`<blockquote class="[^"]*\\b${classesOf(FORGE_FOLLOW.quote)[0]}\\b[^"]*"[^>]*>([\\s\\S]*?)</blockquote>`).exec(field);
+  assert.ok(quote, `the walk reads the sentence from «${FORGE_FOLLOW.quote}»`);
+  assert.equal(quote[1].replace(/<span class="av2-sr">[\s\S]*?<\/span>/, '').replace(/<[^>]+>/g, '').replace(/&#x27;/g, "'").replace(/ | /g, ' ').trim(), spec.sourceFr);
+
+  // Once checked the step is settled: nothing is left open for the walk.
+  assert.ok(!isOpen(render({ ...spec, options: null }, { ...FOLLOW_UP_EMPTY, text: 'x', outcome: 'revealed' })), 'a settled follow-up is not open');
+});
