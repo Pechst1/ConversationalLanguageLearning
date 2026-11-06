@@ -179,7 +179,7 @@ test('the rafale’s result: four marks, the fixes, the score and the time', () 
   const html = render('fr', h(Drills.ForgeRafaleResult, { rows, items: BURST, ms: 7420, copy: fc, cheer: '3 d’affilée', onNext: () => undefined, nextLabel: 'Continuer' }));
   assert.match(html, /class="ep-feedback forge-rafale-result" data-verdict="wrong"/);
   assert.equal((html.match(/data-correct="true"/g) || []).length, 3);
-  assert.match(html, /<p class="forge-rafale__fix" lang="fr">Elle est allée au marché\.<\/p>/);
+  assert.match(html, /<p class="forge-rafale__fix"><span class="forge-rafale__fix-label">[^<]+<\/span> <span lang="fr">Elle est allée au marché\.<\/span><\/p>/);
   assert.match(text(html), /3 sur 4 en 7,4 s/);
   assert.match(text(html), /en 7,4 s · 3 d’affilée/);
   assert.match(text(html), /Continuer/);
@@ -200,7 +200,7 @@ test('a missed rafale sentence is marked, says the call made and the right one, 
     { itemId: 'j-2', sentence: 'Elle a allé au marché.', answer: 'Correct', expected: 'À corriger', correct: false, correctedFr: 'Elle est allée au marché.' },
   ];
   const html = render('en', h(Drills.ForgeRafaleResult, {
-    rows, items: BURST, ms: 11000, copy: fc, rule: 'Rule: Le passé composé', onNext: () => undefined, nextLabel: 'Continue',
+    rows, items: BURST, ms: 11000, copy: fc, reasonFor: () => 'Auxiliary être for movement verbs.', onNext: () => undefined, nextLabel: 'Continue',
   }));
   const items = html.split('<li data-correct=').slice(1);
   assert.equal(items.length, 3, 'one entry per sentence');
@@ -209,11 +209,61 @@ test('a missed rafale sentence is marked, says the call made and the right one, 
   assert.match(wrongCall, /^"false"/);
   assert.match(wrongCall, /role="img" aria-label="Missed"/);
   assert.match(text(wrongCall), /You said “Needs fixing” · the right call is “Correct”/);
-  assert.match(text(wrongCall), /Nothing to fix here: this sentence already follows the rule\. Rule: Le passé composé/);
+  assert.match(text(wrongCall), /Nothing to fix here: this sentence already follows the rule\. Auxiliary être for movement verbs\./);
   assert.match(text(wrongSentence), /You said “Correct” · the right call is “Needs fixing”/);
-  assert.match(text(wrongSentence), /This sentence breaks the rule\. The right form: Rule: Le passé composé/);
-  assert.match(wrongSentence, /<p class="forge-rafale__fix" lang="fr">Elle est allée au marché\.<\/p>/);
+  assert.match(text(wrongSentence), /This sentence breaks the rule\. Auxiliary être for movement verbs\./);
+  assert.match(wrongSentence, /<p class="forge-rafale__fix"><span class="forge-rafale__fix-label">[^<]+<\/span> <span lang="fr">Elle est allée au marché\.<\/span><\/p>/);
   assert.match(text(html), /1 of 3 right/);
+});
+
+// #564 · a speed-round miss gives the corrected sentence and a reason, never the rule chip's label
+
+const ARTICLES_CARD = {
+  example: { fr: '[Le] café est prêt, [la] table est libre.' },
+  rule: {
+    en: 'le before a masculine noun, la before a feminine one, l’ before a vowel, les for more than one.',
+    de: 'le vor männlichen, la vor weiblichen Nomen, l’ vor einem Vokal, les für mehrere.',
+    fr: 'le devant un nom masculin, la devant un nom féminin, l’ devant une voyelle, les au pluriel.',
+  },
+  traps: [
+    { wrong: 'le école', right: '[l’]école', why: { de: 'Vor einem Vokal verlieren le und la ihren Vokal: l’école, l’ami.' } },
+    { wrong: 'la problème', right: '[le] problème', why: { de: 'Problème endet auf -e, ist aber männlich: Lerne jedes Nomen mit seinem Artikel.' } },
+  ],
+};
+
+test('a missed rafale sentence says «Richtig heißt es:» then the corrected sentence, and a German reason (#564)', () => {
+  const fc = forgeCopy('de');
+  const items = [{ id: 'j-1', prompt: 'Margaux cherche la stylo.', labels: ['Correct', 'À corriger'] }];
+  const rows = [
+    { itemId: 'j-1', sentence: 'Margaux cherche la stylo.', answer: 'Correct', expected: 'À corriger', correct: false, correctedFr: 'Margaux cherche le stylo.' },
+  ];
+  const html = render('de', h(Drills.ForgeRafaleResult, {
+    rows,
+    items,
+    copy: fc,
+    reasonFor: (row) => Lib.rafaleReason(ARTICLES_CARD, row, 'de'),
+    onNext: () => undefined,
+    nextLabel: 'Weiter',
+  }));
+  const miss = html.split('<li data-correct=')[1];
+  const why = text(miss.match(/<p class="forge-rafale__why">(.*?)<\/p>/)[1]);
+  const fix = text(miss.match(/<p class="forge-rafale__fix"[^>]*>(.*?)<\/p>\s*<\/div>/s)[1]);
+  assert.equal(fix, 'Richtig heißt es: Margaux cherche le stylo.', 'the label leads into the corrected sentence');
+  assert.match(why, /männlichen/, 'a German reason is printed');
+  assert.doesNotMatch(text(miss), /Die Regel ·|articles définis/, 'the rule chip’s label is not the answer');
+  assert.doesNotMatch(why, /Richtig heißt es/, 'the colon is not left hanging over the reason');
+  // The page no longer hands the recap the chip's label.
+  assert.doesNotMatch(PAGE.match(/<ForgeRafaleResult[\s\S]*?\/>/)[0], /feedbackRuleLine/);
+});
+
+test('a miss on a known trap names that slip, in the learner’s language (#564)', () => {
+  const row = { itemId: 'j-2', sentence: 'Le école est ouverte.', answer: 'Correct', expected: 'À corriger', correct: false, correctedFr: 'L’école est ouverte.' };
+  assert.match(Lib.rafaleReason(ARTICLES_CARD, row, 'de'), /^Vor einem Vokal verlieren le und la/);
+  // A trap with no text in the learner’s language falls back to the card’s rule line.
+  assert.match(Lib.rafaleReason(ARTICLES_CARD, { ...row, sentence: 'Margaux cherche la stylo.' }, 'de'), /^le vor männlichen/);
+  // A right sentence called wrong gets the rule line, never a trap.
+  assert.match(Lib.rafaleReason(ARTICLES_CARD, { ...row, expected: 'Correct' }, 'en'), /^le before a masculine noun/);
+  assert.equal(Lib.rafaleReason(null, row, 'de'), null, 'no card, no reason: nothing is made up');
 });
 
 test('guard: the rafale recap never lists a sentence without its own result', () => {
@@ -236,7 +286,7 @@ test('guard: the rafale recap never lists a sentence without its own result', ()
   });
   // The page hands the recap every row the server marked, and the rule's line.
   assert.match(PAGE, /<ForgeRafaleResult\s+rows=\{burstMarks\}/);
-  assert.match(PAGE, /rule=\{feedbackRuleLine\(activeSet, activeConcept, t\)\}/);
+  assert.match(PAGE, /reasonFor=\{\(row\) => rafaleReason\(ruleCard, row, language\)\}/);
   // A burst mark is never dropped on its way from the server.
   const marks = Lib.burstRows({ burst: rows.map((row) => ({ item_id: row.itemId, sentence: row.sentence, answer: row.answer, expected: row.expected, correct: row.correct })) });
   assert.deepEqual(marks.map((mark) => mark.correct), rows.map((row) => row.correct));
