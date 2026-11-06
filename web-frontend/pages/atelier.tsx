@@ -181,6 +181,7 @@ import {
   drillOnScreen,
   forgeCheer,
   isNamedDrill,
+  rafaleReason,
   spotAnswer,
   spotChanged,
   spotTokens,
@@ -3935,7 +3936,7 @@ function SessionView({
                       cheer={forgeCheer(currentCorrection, fc)}
                       coach={ruleCoach}
                       coachMood={coachMood(currentCorrection, { correct: burstMarks.every((row) => row.correct) })}
-                      rule={feedbackRuleLine(activeSet, activeConcept, t)}
+                      reasonFor={(row) => rafaleReason(ruleCard, row, language)}
                       onNext={feedbackNext}
                       nextLabel={feedbackNextLabel}
                     />
