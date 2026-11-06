@@ -57,7 +57,7 @@ def _t4b():
     return scenario, scenario.story_context[runtime.SEASON_CONTEXT_KEY]["turns"]
 
 
-def test_a_yes_to_gus_question_is_not_asked_again(reading):
+def test_yes_not_reasked(reading):
     scenario, turns = _t4b()
     turn = turns[0]
     scenario.character_id = turn["to"]
@@ -80,16 +80,19 @@ def test_a_yes_to_gus_question_is_not_asked_again(reading):
         "Bien sûr que je le savais.",
         "Évidemment, je sais.",
     ],
+    ids=range(6),
 )
-def test_a_polar_answer_answers_a_polar_question(text):
+def test_yes_no_answers(text):
     _, turns = _t4b()
     assert answers_question(turns[0], text), text
 
 
 @pytest.mark.parametrize(
-    "text", ["Je m'appelle Vincent.", "Bonjour !", "Il pleut beaucoup.", "Oui ? Pourquoi tu demandes ça ?", "Oui"]
+    "text",
+    ["Je m'appelle Vincent.", "Bonjour !", "Il pleut beaucoup.", "Oui ? Pourquoi tu demandes ça ?", "Oui"],
+    ids=range(5),
 )
-def test_what_does_not_answer_is_still_asked_again(reading, text):
+def test_open_cases(reading, text):
     scenario, turns = _t4b()
     turn = turns[0]
     scenario.character_id = turn["to"]
@@ -127,8 +130,8 @@ def _turn_of(tentpole, day, turn_id):
     return next(turn for turn in turns if turn["id"] == turn_id)
 
 
-@pytest.mark.parametrize(("tentpole", "day", "turn_id"), YES_NO_TURNS)
-def test_every_authored_yes_no_question_takes_a_yes_and_a_no(tentpole, day, turn_id):
+@pytest.mark.parametrize(("tentpole", "day", "turn_id"), YES_NO_TURNS, ids=range(len(YES_NO_TURNS)))
+def test_yes_no_turns(tentpole, day, turn_id):
     """The guard behind the walk: no authored page can re-ask a yes/no question that
     the learner has just answered with oui / non (the structure, not one turn)."""
 
@@ -137,8 +140,8 @@ def test_every_authored_yes_no_question_takes_a_yes_and_a_no(tentpole, day, turn
     assert answers_question(turn, "Non, pas du tout."), turn_id
 
 
-@pytest.mark.parametrize(("tentpole", "day", "turn_id"), OPEN_TURNS)
-def test_a_bare_yes_does_not_answer_a_question_that_asks_for_a_thing(tentpole, day, turn_id):
+@pytest.mark.parametrize(("tentpole", "day", "turn_id"), OPEN_TURNS, ids=range(len(OPEN_TURNS)))
+def test_open_turns(tentpole, day, turn_id):
     assert not answers_question(_turn_of(tentpole, day, turn_id), "Oui, c'est vrai."), turn_id
 
 
@@ -173,7 +176,7 @@ def _line_to_say(history, correction=None):
     return spoken_reply.repeat_line_for(step)
 
 
-def test_a_card_label_is_never_the_line_to_say_aloud(reading, monkeypatch):
+def test_label_not_said(reading, monkeypatch):
     from app.config import settings
 
     monkeypatch.setattr(settings, "ATELIER_SPOKEN_REPLY_ENABLED", True)
