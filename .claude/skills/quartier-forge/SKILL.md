@@ -125,7 +125,7 @@ any map: they are written from the canon and built with the pieces Le Mistral's 
 from (`room.ts`: the wainscot wall, the façade's lining, the globes, the tables), so a room and the
 café are the same print. Decision 4 of the Phase 1 plan sets the order: the stairwell and
 Odile's door (done), the learner's studio (done), Maître Vasseur's office (done), Odile's
-flat (done), then Le Mistral's details. The next room is the first without a file in `world/rooms/`. A run builds one
+flat (done), then Le Mistral's details (below). The next room is the first without a file in `world/rooms/`. A run builds one
 room instead of a street; it follows the steps above with these differences.
 
 1. **Canon.** Read the place in `docs/story/season-1/10-lieux-et-images.md` (its canonical
@@ -168,7 +168,8 @@ room instead of a street; it follows the steps above with these differences.
      with its screen's lines in `text`, `keys` with the cicada, `suitcase`, `kitchenette`,
      `longtable`, `armchair`, `pen`, `folder` with its label in `text`, `bookcase`, `polaroids`
      (the shoebox out from under the bed, the photos spilled in front of it over `size`),
-     `armoire`) with
+     `armoire`, `drink` with the order in `text`: a cup on its saucer by what it holds, its
+     handle on local +x) with
      `zone`, `tone`, `text`, `size`. A thing with `look` (three languages) can be tapped and says
      it in a line; its `did` is what the end card remembers. `courts` are seen through a window:
      `storeys` one fewer than your floor puts their zinc at your eye, and `roofs: true` gives
@@ -209,6 +210,31 @@ room instead of a street; it follows the steps above with these differences.
    the same checks.
 7. **PR.** Commit the brief, its notes, the room file, `rooms/index.ts`, `world.json` and any kit
    change (never `var/`), titled «Le Quartier forge: <what was built>».
+
+## Le Mistral's details
+
+When the rooms are done, the forge writes the small things the season leaves in the café, one a
+run, in the order of the plan's ladder (`docs/story/season-1/09-entre-les-episodes.md` and the
+episodes): the learner's usual cup on the zinc after «La même chose ?» (done), then the next
+line of the ladder that leaves a thing in Le Mistral (Gus's petition, the party's garlands…).
+What T1 already stages (the key, Odile's café crème) is not a detail.
+
+1. **Canon.** The line of the ladder, the scene that sets it, and the season flag it waits on
+   (`app/data/season/s1/season.json`); the values `bridges.json` gives that flag are what it
+   must build for.
+2. **Detail file.** `web-frontend/lib/quartier/world/details/<id>.json`: `kind: "detail"`, `in:
+   "quai_de_valmy"`, `title` in three languages, `moment`, `flag` (`key`, and an `example` value
+   shown when none is given), `things` (the room kit's things, in the quarter's coordinates,
+   inside Le Mistral's room: the zinc's top is at 1.26 m), `provenance` (`canon`, `scenes`). A
+   thing's `text` may say `{value}`: the flag's value is written in. Add it to
+   `world/details/index.ts`. Nothing in `world.json` changes: a detail is not a place.
+3. **Look.** The standalone page lays it on request: `?detail=<id>&value=<the flag's value>`.
+   Render each value the season offers: from where you stand at the zinc, close up, and the room;
+   then at 390×844. Does it sit on something (no saucer sunk in the zinc), read at a glance,
+   change with the value? The quarter shows no detail until the server sends the learner's own
+   (later work in the plan), so say so in the PR.
+4. **Checks.** `lib/quartier/details.test.js` holds every detail to its file, its flag, its
+   place and its room, and builds it for every value; then the run's usual checks and PR.
 
 ## Rules
 
