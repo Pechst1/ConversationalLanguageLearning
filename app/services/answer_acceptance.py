@@ -1292,6 +1292,15 @@ EQUIVALENT_WORD_SWAPS: frozenset[frozenset[str]] = frozenset(
 
 _SWAP_WORDS = re.compile(r"[\w']+")
 
+#: «ce mois» / «ce mois-ci», «cette semaine» / «cette semaine-là»: the demonstrative
+#: time phrase is right with or without the pointing particle (#538: «Ce mois, je suis
+#: très occupé» was "corrected" to «ce mois-ci», a note that taught a false rule).
+_POINTED_DEMONSTRATIVE = re.compile(r"\b(ce|cet|cette|ces)(\s+[\w']+)-(?:ci|là|la)\b", re.IGNORECASE)
+
+
+def _without_pointing_particle(text: str) -> str:
+    return _POINTED_DEMONSTRATIVE.sub(r"\1\2", text)
+
 
 def is_preference_swap(learner: object, corrected: object) -> bool:
     """A "correction" that changes nothing wrong: a yes/no question moved to another
@@ -1303,6 +1312,8 @@ def is_preference_swap(learner: object, corrected: object) -> bool:
     if not left or not right or left.casefold() == right.casefold():
         return False
     if right in question_variants(left) or left in question_variants(right):
+        return True
+    if _without_pointing_particle(left).casefold() == _without_pointing_particle(right).casefold():
         return True
     a = _SWAP_WORDS.findall(left.casefold())
     b = _SWAP_WORDS.findall(right.casefold())
