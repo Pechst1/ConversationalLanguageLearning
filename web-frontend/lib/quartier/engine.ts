@@ -61,6 +61,8 @@ import {
 } from './materials';
 import type { World } from './materials';
 import { MARKS, ROOM, SEATS, buildMistral, cafeCreme } from './mistral';
+import { buildDetail } from './details';
+import type { DetailSpec } from './details';
 import type { MistralParts } from './mistral';
 import { Nav } from './nav';
 import { STRIDE, WALK_SPEED } from './pace';
@@ -121,6 +123,8 @@ export interface QuartierOptions {
   room?: RoomSpec;
   /** the cast in the round, sculpted (`cast3d`), or on `paper` as cut-out cards */
   cast?: 'round' | 'paper';
+  /** Le Mistral's details to lay in its room (`details.ts`), each with its flag's value */
+  details?: Array<{ spec: DetailSpec; value?: string }>;
 }
 
 type Listener = (hit: Hit) => void;
@@ -338,6 +342,7 @@ export class Quartier {
       this.quai = quai;
       await step(0.3, 'Le Mistral');
       this.parts = buildMistral(B, quai.mistral);
+      (this.opts.details ?? []).forEach((d) => buildDetail(B, d.spec, d.value));
     }
     this.lamps = B.lamps;
     this.glints = B.lamps.filter((l) => l.glint);

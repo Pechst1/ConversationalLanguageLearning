@@ -41,6 +41,8 @@ import type { HelpStep, Story, StoryPage } from '@/lib/quartier/story';
 import { Visit } from '@/lib/quartier/visit';
 import { placeOf, worldState } from '@/lib/quartier/world';
 import { ROOM_FILES } from '@/lib/quartier/world/rooms';
+import { DETAIL_FILES } from '@/lib/quartier/world/details';
+import type { DetailSpec } from '@/lib/quartier/details';
 import { SITE_FILES } from '@/lib/quartier/world/sites';
 import type { SeasonItemId } from '@/lib/season-items';
 
@@ -89,6 +91,8 @@ export interface QuartierScreenProps {
   onReady?: (engine: Quartier, director: Director, memory: Memory) => void;
   /** something covers the whole quarter (the rest of the day): the frame and the sound rest */
   hidden?: boolean;
+  /** Le Mistral's details to lay in its room (`world/details`), each with its flag's value: the standalone page's `?detail=` */
+  details?: Array<{ id: string; value?: string }>;
 }
 
 const ART: ArtSource = {
@@ -211,7 +215,7 @@ function episodeOf(page: StoryPage | null) {
   return page?.number ? `Épisode ${page.number}` : 'Le Quartier';
 }
 
-export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance: firstAmbiance = 'nuit', onExit, showStats = false, startPlace, cast, onReady, hidden = false }: QuartierScreenProps) {
+export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance: firstAmbiance = 'nuit', onExit, showStats = false, startPlace, cast, onReady, hidden = false, details }: QuartierScreenProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const engine = React.useRef<Quartier | null>(null);
   const stage = React.useRef<Director | null>(null);
@@ -297,6 +301,15 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
           else inside = await roomFile();
           if (cancelled) return;
         }
+        // the details asked for, in Le Mistral (none is shown otherwise until the story reaches it)
+        const laid: Array<{ spec: DetailSpec; value?: string }> = [];
+        if (place === HOME) {
+          for (const d of details ?? []) {
+            const load = DETAIL_FILES[d.id];
+            if (load) laid.push({ spec: await load(), value: d.value });
+          }
+          if (cancelled) return;
+        }
         setSite(spec);
         setRoom(inside);
         const eq = new Quartier({
@@ -305,6 +318,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
           ambiance: spec ? spec.ambiance : inside ? inside.ambiance : ambiance,
           site: spec ?? undefined,
           room: inside ?? undefined,
+          details: laid,
           cast,
           onProgress: (share, label) => !cancelled && setLoading({ share, label }),
         });
