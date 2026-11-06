@@ -284,6 +284,13 @@ def repeat_line_for(step: DailyJourneyStep, correction: Any = None) -> str | Non
             # correction handed in is the last turn's.
             last = clash == len(turns) - 1
             return _own_sentence(said, (correction if last else None) or stored)
+    if routed is not None:
+        # #535: the page offered no sentence for this route (a clue's tap target is not
+        # one): what the learner wrote is, corrected when the correction keeps their facts.
+        turns = _learner_turns(private)
+        if turns:
+            said, stored = turns[-1]
+            return _own_sentence(said, correction or stored)
     corrected = str(getattr(correction, "corrected_fr", "") or "").strip()
     return corrected if len(corrected.split()) >= 3 else None
 

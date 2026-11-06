@@ -25,7 +25,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.services import speaker_labels, story_memory
+from app.services import scene_ledger, speaker_labels, story_memory
 from app.services.cast_registry import display_name
 
 #: A deterministic match must share this much of an example reply's content words.
@@ -169,6 +169,44 @@ def _same_stem(left: str, right: str) -> bool:
     return common >= max(4, shorter - 1)
 
 
+#: A learner reply that opens with a yes, a no or their equivalents (folded text).
+_POLAR_ANSWER = re.compile(
+    r"^(?:mais\s+)?(?:oui|ouais|non|nan|si|bien\s+sur|evidemment|absolument|certainement|exactement|"
+    r"pas\s+du\s+tout|jamais|bien\s+entendu|d'accord)\b"
+)
+#: Words that make a question ask for something, not for a yes or a no.
+_WH_WORD = re.compile(
+    r"\b(?:qui|quoi|quel(?:le)?s?|lequel|laquelle|ou|comment|combien|pourquoi|quand|qu'est[- ]ce)\b"
+)
+
+
+def poses_polar_question(text: Any) -> bool:
+    """Whether the line's last question wants a yes or a no («Tu sais ça ?»): it asks
+    for no thing (who, where, how many, why…), and it is not an «A ou B ?» choice."""
+
+    question = scene_ledger.character_question(text)
+    if not question:
+        return False
+    folded = " ".join(fold(question).split())
+    if re.search(r"\boui ou non\b", folded):
+        return True
+    folded = re.sub(r"\best[- ]ce qu(?:e|')\s*", "", folded)
+    if folded.startswith(("et ", "alors ")) and len(folded.split()) < 4:
+        return False  # «Et toi ?» asks the learner to go on, not to say yes
+    return _WH_WORD.search(folded) is None
+
+
+def is_polar_question(turn: dict[str, Any]) -> bool:
+    """Whether the turn asks a yes/no question (the last question its panel asks, or
+    its own «oui ou non» re-ask)."""
+
+    lines = [str(line.get("text_fr") or "") for line in (turn.get("panel") or {}).get("lines") or []]
+    asked = [line for line in lines if "?" in line]
+    if asked and poses_polar_question(asked[-1]):
+        return True
+    return not asked and poses_polar_question(str((turn.get("ask_again") or {}).get("text_fr") or ""))
+
+
 def answers_question(turn: dict[str, Any], learner_text: str) -> bool:
     """Whether the learner's words ANSWER what this turn asks, whichever authored reply
     (if any) they match (walk 21 Oct, #262).
@@ -182,6 +220,10 @@ def answers_question(turn: dict[str, Any], learner_text: str) -> bool:
     text = str(learner_text or "")
     if "?" in text:
         return False
+    # #556: a yes/no question is answered by «oui» / «non» / «je savais», words the
+    # question does not contain; overlap alone read «Oui, je savais» as no answer.
+    if is_polar_question(turn) and _POLAR_ANSWER.match(fold(text).strip()):
+        return True
     said = {word for word in content_words(text) if word not in _QUESTION_FILLER}
     asked: set[str] = set()
     for line in (turn.get("panel") or {}).get("lines") or []:
