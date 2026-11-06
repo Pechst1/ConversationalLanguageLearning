@@ -2034,6 +2034,33 @@ class ItemBank:
                 except (RenderError, KeyError, IndexError):
                     continue
                 sentences.append(rendered.sentence)
+            sentences.extend(self._gloss_twin_sentences(frame, bindings, slot, entry))
+        return sentences
+
+    def _gloss_twin_sentences(
+        self, frame: _Frame, bindings: dict[str, dict[str, Any]], slot: str, entry: dict[str, Any]
+    ) -> list[str]:
+        """#536: the sentence again with each other person noun the English glosses the
+        same: English «my cousin» is «mon cousin» and «ma cousine», «a friend» is «un
+        ami» and «une amie». The gloss names no gender, so the key may not either; the
+        frame redoes the agreement."""
+
+        if entry.get("kind") != "person" or "pron" in (entry.get("tags") or []) or not entry.get("en"):
+            return []
+        sentences: list[str] = []
+        for twin in self.lex.pool("noun"):
+            if (
+                twin.get("kind") != "person"
+                or twin.get("en") != entry.get("en")
+                or twin.get("fr") == entry.get("fr")
+                or twin.get("id") == entry.get("id")
+            ):
+                continue
+            try:
+                rendered = self.render(frame, {**bindings, slot: twin}, alternatives=False)
+            except (RenderError, KeyError, IndexError):
+                continue
+            sentences.append(rendered.sentence)
         return sentences
 
     def _person_variants(self, frame: _Frame, bindings: dict[str, dict[str, Any]], sentence: str) -> list[str]:
@@ -2126,7 +2153,13 @@ class ItemBank:
         scene = finish_english(self._render_text(frame.scene, bindings, english=True)) if frame.scene else ""
         accepted = [finish_sentence(tidy_french(self._render_text(alt, bindings))) for alt in frame.accepted]
         if alternatives:
-            accepted.extend(self._alternative_sentences(frame, bindings))
+            # A right answer is never one the screen shows as wrong (a ✗ sentence).
+            wrong = {normalize(sentence) for sentence in wrong_sentences}
+            accepted.extend(
+                alternative
+                for alternative in self._alternative_sentences(frame, bindings)
+                if normalize(alternative) not in wrong
+            )
         lemmas = tuple(
             str(entry.get("lemma") or entry.get("fr") or "").lower()
             for entry in bindings.values()

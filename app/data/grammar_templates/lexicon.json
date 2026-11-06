@@ -1509,6 +1509,12 @@
    "id": "carnet",
    "fr": "carnet",
    "g": "m",
+   "alt_fr": [
+    {
+     "fr": "cahier",
+     "g": "m"
+    }
+   ],
    "en": "notebook",
    "kind": "obj",
    "tags": [
@@ -2116,6 +2122,12 @@
    "id": "appareil photo",
    "fr": "appareil photo",
    "g": "m",
+   "alt_fr": [
+    {
+     "fr": "appareil",
+     "g": "m"
+    }
+   ],
    "en": "camera",
    "kind": "obj",
    "tags": [
