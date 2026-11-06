@@ -126,6 +126,8 @@ export interface AtelierConcept {
   name: string;
   /** French publication title (grammar_concept_localizations fr row). */
   title_fr?: string | null;
+  /** #561: the rule's title in the learner's chrome language (`concept_title`); what La Forge's header shows. */
+  title_native?: string | null;
   level: string;
   category?: string | null;
   subskill?: string | null;

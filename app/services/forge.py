@@ -55,6 +55,8 @@ from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.user import User
 from app.services import forge_drills as drills
 from app.services import gold_ledger
+from app.services.chrome_language import user_chrome_language
+from app.services.concept_titles import concept_title
 from app.services.forge_coaches import coach_for_concept, coach_mood, recast_scene, story_state_of
 from app.services.item_bank import MINE_INSTRUCTION_L10N
 
@@ -223,7 +225,6 @@ def _public_item(payload: dict[str, Any], user: User | None) -> dict[str, Any]:
     learner's language, ``source_fr`` on a repair, no pseudo-scene frame, and no
     ``follow_up_key`` (the classify follow-up's key stays on the server)."""
 
-    from app.services.chrome_language import user_chrome_language
     from app.services.item_bank import public_item
 
     return public_item(payload, user_chrome_language(user), getattr(user, "native_language", None))
@@ -1938,7 +1939,7 @@ class ForgeService:
                 {
                     "concept_id": concept.id,
                     "external_id": concept.external_id,
-                    "title": concept.name,
+                    "title": concept_title(concept, user_chrome_language(user)),
                     "rung": rung,
                     "rung_name": core.rung_name(rung),
                     "forged": progress.forge_rung is not None,

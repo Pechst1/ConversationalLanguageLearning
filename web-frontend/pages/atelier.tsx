@@ -3547,9 +3547,18 @@ function AtelierEditionNav({
 }
 
 function displayConceptTitle(concept: AtelierConcept) {
-  // Publication surfaces speak French first; catalog names stay the native-
-  // language fallback until every concept carries its fr localization.
-  return String(concept.title_fr || concept.atelier_blueprint?.display_title || concept.name || 'Règle du jour');
+  // #561: a rule is called what the rule card calls it, in the learner's chrome
+  // language (`title_native`, the server's concept_title). The French title is the
+  // fallback, then the catalog name.
+  return String(
+    concept.title_native || concept.title_fr || concept.atelier_blueprint?.display_title || concept.name || 'Règle du jour',
+  );
+}
+
+/** The `lang` of what `displayConceptTitle` returns: the chrome language when the title is native. */
+function conceptTitleLang(concept: AtelierConcept | null | undefined, language: string) {
+  const native = String(concept?.title_native || '').trim();
+  return native && native !== String(concept?.title_fr || '').trim() ? language : 'fr';
 }
 
 function firstDueErratum(today: AtelierToday | null, activeSession: AtelierSessionStart | null) {
@@ -3873,6 +3882,7 @@ function SessionView({
             <ForgeHead
               copy={fc}
               title={activeConceptTitle}
+              titleLang={conceptTitleLang(activeConcept, language)}
               rung={forgeRung}
               levelRule={forge.level_rule}
               eyebrow={forgeTestOut ? fc.test_out_eyebrow : null}
@@ -5161,7 +5171,15 @@ function RecapModal({
   const fc = forgeCopy(language);
   const mc = momentumCopy(language);
   // WP-S6: a forge séance's recap is each rule's progress, not a tally.
-  const forgeRows = recapRuleRows(recap, concepts, (concept) => displayConceptTitle(concept as AtelierConcept), fc, language);
+  const forgeRows = recapRuleRows(
+    recap,
+    concepts,
+    (concept) => displayConceptTitle(concept as AtelierConcept),
+    fc,
+    language,
+    new Date(),
+    (concept) => conceptTitleLang(concept as AtelierConcept, language),
+  );
   const offer = onTestOut ? testOutOffer(recap) : null;
   const offerConcept = offer ? concepts.find((concept) => Number(concept.id) === offer.conceptId) : null;
   const offerTitle = offerConcept
@@ -5213,6 +5231,7 @@ function RecapModal({
                 <ForgeTestOutOffer
                   copy={fc}
                   title={offerTitle}
+                  titleLang={offerConcept ? conceptTitleLang(offerConcept as AtelierConcept, language) : 'fr'}
                   items={offer.items}
                   pending={testOutPending}
                   onStart={() => onTestOut(offer.conceptId)}
