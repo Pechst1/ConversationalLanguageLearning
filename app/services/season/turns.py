@@ -181,19 +181,22 @@ _WH_WORD = re.compile(
 
 
 def poses_polar_question(text: Any) -> bool:
-    """Whether the line's last question wants a yes or a no («Tu sais ça ?»): it asks
-    for no thing (who, where, how many, why…), and it is not an «A ou B ?» choice."""
+    """Whether the line asks a yes/no question («Tu sais ça ?»): none of its questions
+    asks for a thing (who, where, how many, why…), it is not an «A ou B ?» choice, and
+    the last one is a real question (a name followed by «?» is a call, not a question)."""
 
-    question = scene_ledger.character_question(text)
-    if not question:
+    questions = [part for part in scene_ledger.sentences(text) if part.rstrip("»\" ").endswith("?")]
+    if not questions:
         return False
-    folded = " ".join(fold(question).split())
-    if re.search(r"\boui ou non\b", folded):
+    folded = [" ".join(fold(question).split()) for question in questions]
+    if re.search(r"\boui ou non\b", folded[-1]):
         return True
-    folded = re.sub(r"\best[- ]ce qu(?:e|')\s*", "", folded)
-    if folded.startswith(("et ", "alors ")) and len(folded.split()) < 4:
+    if any(_WH_WORD.search(question) for question in folded):
+        return False
+    last = re.sub(r"\best[- ]ce qu(?:e|')\s*", "", folded[-1])
+    if last.startswith(("et ", "alors ")) and len(last.split()) < 4:
         return False  # «Et toi ?» asks the learner to go on, not to say yes
-    return _WH_WORD.search(folded) is None
+    return len(last.split()) >= 3
 
 
 def is_polar_question(turn: dict[str, Any]) -> bool:

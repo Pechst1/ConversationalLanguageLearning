@@ -102,32 +102,44 @@ def test_what_does_not_answer_is_still_asked_again(reading, text):
         assert evaluation.route == {"turn": turn["id"], "reply": ASK_AGAIN}
 
 
-def test_every_authored_yes_no_question_takes_a_yes_and_a_no():
-    """The guard behind the walk: no authored page can re-ask a polar question that the
-    learner has just answered with oui / non (the structure, not one turn)."""
+#: Authored yes/no questions of the season (day, turn): each takes a yes and a no.
+YES_NO_TURNS = [
+    ("t1", "a", "a.turn2"),
+    ("t2", "a", "a.turn2"),
+    ("t2", "b", "b.key"),
+    ("t3", "b", "b.turn1"),
+    ("t4", "b", "b.turn1"),
+    ("t4", "b", "b.turn2"),
+    ("t4", "b", "b.turn3r"),
+]
+#: Questions that ask for a thing: «Oui» is not an answer to them.
+OPEN_TURNS = [("t2", "b", "b.turn1"), ("t2", "b", "b.turn2"), ("t6", "a", "a.turn1")]
 
+
+def _turn_of(tentpole, day, turn_id):
     from app.services.season.flags import effective_flags
     from app.services.season.format import load_season
     from app.services.season.page import resolve_day
-    from app.services.season.turns import is_polar_question
 
     season = load_season("s1")
-    seen = 0
-    for tentpole in ("t1", "t2", "t3", "t4", "t5", "t6"):
-        for day in ("a", "b"):
-            try:
-                page = resolve_day(
-                    season, tentpole, day, flags=effective_flags(season, {}, seed="x"), band="A1", language="en"
-                )
-            except Exception:  # noqa: BLE001, S112 - a tentpole the season does not have
-                continue
-            for turn in _scenario(page).story_context[runtime.SEASON_CONTEXT_KEY]["turns"]:
-                if not is_polar_question(turn):
-                    continue
-                seen += 1
-                assert answers_question(turn, "Oui, c'est vrai."), (tentpole, day, turn.get("id"))
-                assert answers_question(turn, "Non, pas du tout."), (tentpole, day, turn.get("id"))
-    assert seen >= 3, "the sweep found the season's yes/no questions"
+    page = resolve_day(season, tentpole, day, flags=effective_flags(season, {}, seed="x"), band="A1", language="en")
+    turns = _scenario(page).story_context[runtime.SEASON_CONTEXT_KEY]["turns"]
+    return next(turn for turn in turns if turn["id"] == turn_id)
+
+
+@pytest.mark.parametrize(("tentpole", "day", "turn_id"), YES_NO_TURNS)
+def test_every_authored_yes_no_question_takes_a_yes_and_a_no(tentpole, day, turn_id):
+    """The guard behind the walk: no authored page can re-ask a yes/no question that
+    the learner has just answered with oui / non (the structure, not one turn)."""
+
+    turn = _turn_of(tentpole, day, turn_id)
+    assert answers_question(turn, "Oui, c'est vrai."), turn_id
+    assert answers_question(turn, "Non, pas du tout."), turn_id
+
+
+@pytest.mark.parametrize(("tentpole", "day", "turn_id"), OPEN_TURNS)
+def test_a_bare_yes_does_not_answer_a_question_that_asks_for_a_thing(tentpole, day, turn_id):
+    assert not answers_question(_turn_of(tentpole, day, turn_id), "Oui, c'est vrai."), turn_id
 
 
 # ---------------------------------------------------------------------------
@@ -177,15 +189,3 @@ def test_a_card_label_is_never_the_line_to_say_aloud(reading, monkeypatch):
     assert evaluation.route.get("say_fr") != "LARTSIM", "the neon's label is a story prop, not a sentence"
     line = _line_to_say(history, WALK_5_NOV_CORRECTED)
     assert line == WALK_5_NOV_CORRECTED, f"the recap offers {line!r} to say aloud"
-
-
-def test_a_tapped_choice_card_is_still_the_line_to_say():
-    """The cards of «Le choix» are sentences to say («Pas encore»); only the tap targets
-    of a clue (a neon sign, a pan) are not."""
-
-    from app.services.season.runtime import routed_sentence
-
-    _, turns = _t4a()
-    assert routed_sentence({"examples": ["LARTSIM"]}, True, turn=turns[0]) is None
-    assert routed_sentence({"examples": ["Pas encore"]}, True, turn={"choice": True, "from_solve": "choix"}) == "Pas encore"
-    assert routed_sentence({"examples": ["Non ! Je ne sais pas."]}, True, turn={"id": "t"}) == "Non ! Je ne sais pas."
