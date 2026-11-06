@@ -6157,6 +6157,8 @@ export interface components {
             subskill?: string | null;
             /** Title Fr */
             title_fr?: string | null;
+            /** Title Native */
+            title_native?: string | null;
         };
         /**
          * AtelierErrataAttemptRequest

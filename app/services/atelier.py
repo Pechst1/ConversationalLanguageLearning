@@ -8620,8 +8620,15 @@ class AtelierSRSService:
 def serialize_concept(
     concept: GrammarConcept,
     fr_localization: GrammarConceptLocalization | None = None,
+    *,
+    language: str | None = None,
 ) -> dict[str, Any]:
     """Serialize a concept; `title_fr` carries the publication-language title.
+
+    `language` is the learner's chrome language (#561): the payload then also carries
+    `title_native`, `concept_title(concept, language)`, which is what La Forge's header
+    and end sheet show, so they call the rule what the rule card calls it. Without a
+    language there is no `title_native`; the page falls back to `title_fr`.
 
     Falls back to the English catalog name when no 'fr' localization row exists.
     Callers with several concepts should bulk-fetch the localizations and pass
@@ -8637,6 +8644,7 @@ def serialize_concept(
         "category": concept.category,
         "subskill": concept.subskill,
         "title_fr": concept_title_fr(concept, fr_localization),
+        "title_native": concept_title(concept, language) if language else None,
         "category_label_fr": (fr_localization.category_label if fr_localization else None) or concept.category,
         "core_rule": concept.core_rule,
         "main_traps": _split_list(concept.main_traps),
