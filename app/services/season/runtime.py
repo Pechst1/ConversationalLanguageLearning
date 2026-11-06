@@ -372,14 +372,20 @@ def turn_addressee(turn: dict[str, Any] | None, scenario) -> str:
     return str((turn or {}).get("to") or scenario.character_id)
 
 
-def routed_sentence(reply: dict[str, Any], understood: bool) -> str | None:
+def routed_sentence(reply: dict[str, Any], understood: bool, turn: dict[str, Any] | None = None) -> str | None:
     """The sentence the learner's answer amounts to, for the line they repeat aloud.
 
     The routed reply's own first example (a card's label for a «Le choix»), only
     when the page really heard that reply and it is not the clumsy-but-sincere one:
-    a fallback route says nothing the learner meant."""
+    a fallback route says nothing the learner meant.
+
+    #535: the options of a clue (``enquete``, ``dechiffrer``) are things to point at —
+    «LARTSIM» is the reversed neon sign, «la poêle» the pan — not words anyone says.
+    Only a turn that is a sentence the learner says, or a «Le choix» card, offers one."""
 
     if not understood or reply.get("clumsy"):
+        return None
+    if turn and turn.get("from_solve") and not turn.get("choice"):
         return None
     examples = [str(example).strip() for example in reply.get("examples") or [] if str(example).strip()]
     return examples[0] if examples else None
@@ -1053,7 +1059,7 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
             "reply": str(reply.get("id")),
             # What the learner meant, as a sentence they could say: the recap's
             # «une phrase à redire» is this, never the question's scripted example.
-            **({"say_fr": said} if (said := routed_sentence(reply, understood)) else {}),
+            **({"say_fr": said} if (said := routed_sentence(reply, understood, turn)) else {}),
         },
         heard=_heard(choice, reply),
         stage=stage,
