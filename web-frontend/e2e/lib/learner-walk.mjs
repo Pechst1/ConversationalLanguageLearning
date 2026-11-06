@@ -545,7 +545,16 @@ export class LearnerWalk {
         await this.shoot('stuck');
         break;
       }
-      if (entry && sameFor > 40) break; // the loop ended by itself (no recap to reach)
+      if (entry && sameFor > 40) {
+        // The loop ended by itself (no recap to reach) — but not on an exercise it could
+        // not get past. A La Forge visit used to stop here silently in front of a «Build»
+        // word bank, and the next day's journey met the same item and failed there.
+        if (s.forgeExercise && !s.pending) {
+          this.findings.check('a-way-forward', false, `stuck for ${(sameFor * 0.25).toFixed(0)}s on «${s.text.slice(0, 140)}»`, this.where({ kind, entry }));
+          await this.shoot('stuck');
+        }
+        break;
+      }
       // The 30 s cap must not undercut the server wait above.
       if (sameFor > (s.pending ? 180 : 120)) {
         this.findings.check('a-way-forward', false, `no change for ${(sameFor * 0.25).toFixed(0)}s on «${s.text.slice(0, 140)}»`, this.where({ kind }));

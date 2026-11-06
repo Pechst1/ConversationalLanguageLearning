@@ -92,6 +92,8 @@ export const SNAPSHOT_FN = ({ typeable, wordBankTile }) => {
     whoSaid: q('.av2-who-said__card').length,
     tiles: q('.av2-tiles__bank button.av2-tile, .av2-tiles__bank .av2-tile:not(.av2-tile--mould)').length,
     tappableTiles: q(wordBankTile).length,
+    // An exercise of La Forge is on screen (its drill, or «Correct the sentence» under a verdict).
+    forgeExercise: q('.ep-exercise').length > 0,
     tilesBox: q('.av2-tiles').length,
     textarea: q('textarea, input[type=text], input:not([type])').length,
     dictation: q('.av2-dictation, [data-step=dictation]').length,

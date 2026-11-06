@@ -22,6 +22,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const Module = require('node:module');
+const os = require('node:os');
 const { test } = require('node:test');
 const { pathToFileURL } = require('node:url');
 
@@ -178,6 +179,7 @@ test('the walk copies a Forge correction by the classes the repair renders', asy
 
 test('the walk answers «Trouve l’erreur» by the classes ForgeSpot renders', async () => {
   const { FORGE_SPOT } = await walkDriver();
+  assert.ok(FORGE_SPOT, 'the walk defines how it answers «Trouve l’erreur» (e2e/lib/driver.mjs FORGE_SPOT)');
   const Drills = require('./ForgeDrills.tsx');
   const { forgeCopy } = require('@/lib/forge-copy.ts');
   const copy = forgeCopy('fr');
@@ -211,6 +213,7 @@ test('the walk corrects a judged sentence by the classes ForgeFollowUp renders',
   // After a right «Needs fixing» the sheet's «Continue» waits for «Correct the sentence»
   // (pages/atelier.tsx `followGate`): a Forge visit that cannot check it stands still.
   const { FORGE_FOLLOW, WORD_BANK_TILE } = await walkDriver();
+  assert.ok(FORGE_FOLLOW, 'the walk defines how it answers «Correct the sentence» (e2e/lib/driver.mjs FORGE_FOLLOW)');
   const { ForgeFollowUp, FOLLOW_UP_EMPTY } = require('./ForgeFollowUp.tsx');
   const spec = {
     kind: 'correct_it',
@@ -244,4 +247,76 @@ test('the walk corrects a judged sentence by the classes ForgeFollowUp renders',
 
   // Once checked the step is settled: nothing is left open for the walk.
   assert.ok(!isOpen(render({ ...spec, options: null }, { ...FOLLOW_UP_EMPTY, text: 'x', outcome: 'revealed' })), 'a settled follow-up is not open');
+});
+
+test('the walk answers a La Forge judgement and a pick by the choice and the check the page renders', () => {
+  // «Ist der Satz richtig?» / «Is this sentence correct?» (pages/atelier.tsx) offers its
+  // labels as EpOpt; the walk taps `.av2-choice:not([disabled])` and then the primary check
+  // (an EpBar). Both are the components' own classes.
+  const html = renderToStaticMarkup(
+    h(Ep.EpShell, { language: 'en' },
+      h(Ep.EpOpts, null, h(Ep.EpOpt, null, 'Correct'), h(Ep.EpOpt, null, 'Needs fixing')),
+      h(Ep.EpBar, null, 'Check')),
+  );
+  assert.equal(tagsWithClass(html, 'button', 'av2-choice').filter((attrs) => !/\sdisabled=/.test(attrs)).length, 2, `the walk taps a judgement by .av2-choice: ${html}`);
+  assert.equal(tagsWithClass(html, 'button', 'av2-btn--primary').length, 1, `the walk checks by .av2-btn--primary: ${html}`);
+});
+
+// The even-day La Forge visit used to stop when the screen stood still for 10 s
+// (`if (entry && sameFor > 40) break;`) with no finding and no screenshot, whatever the
+// screen was. A Forge step the walk had no hand for stayed invisible until a later day's
+// own grammar step opened the same kind of item. These tests drive the walk's real visit
+// loop (LearnerWalk.playJourney) over a stand-in page that shows one fixed screen.
+
+/** The fields of a driver snapshot the visit loop reads; `over` is the screen under test. */
+function stillScreen(over) {
+  return {
+    url: '/atelier?mode=forge', text: 'La Forge · Build: "We are 50 years old." Tap the words', nonFrText: '',
+    buttons: [{ text: 'Check', cls: 'ep-bar', disabled: true, y: 700, h: 44 }], choices: 0, whoSaid: 0, tiles: 0, tappableTiles: 0, tilesBox: 0, textarea: 0, dictation: 0, match: 0,
+    goal: [], bodyLg: [], headline: [], stepLabel: '', dataStep: [], graded: [], connection: [], dataStates: [],
+    reader: [], thread: 0, recap: 0, castIntro: 0, homeDone: false, forgeStep: 0, pending: false, epFeedback: [],
+    frTexts: [], threadCue: '', fieldEnabled: false, layout: {}, theme: 'light', scrollW: 375, innerW: 375,
+    ...over,
+  };
+}
+
+async function visitFindings(screen) {
+  const { LearnerWalk } = await import(pathToFileURL(path.join(WEB_ROOT, 'e2e/lib/learner-walk.mjs')).href);
+  // A page that finds nothing to tap and never changes: every locator is empty.
+  const none = new Proxy(function none() {}, {
+    get: (_, key) => (key === 'count' ? async () => 0 : key === 'then' ? undefined : none),
+    apply: () => none,
+  });
+  const page = {
+    goto: async () => {},
+    locator: () => none,
+    evaluate: async () => screen,
+    emulateMedia: async () => {},
+    screenshot: async () => {},
+  };
+  const failed = [];
+  const shots = { root: os.tmpdir(), list: [] };
+  const walk = new LearnerWalk({
+    page,
+    findings: { check: (name, ok, detail, where) => ok || failed.push({ name, detail, where }) },
+    outDir: fs.mkdtempSync(path.join(os.tmpdir(), 'forge-visit-')),
+    lang: 'en', level: 'A2', stack: { web: 'http://walk.invalid' }, shots, scale: 1,
+  });
+  await walk.playJourney({ maxSeconds: 30, entry: '/atelier?mode=forge', label: 'forge-' });
+  return { failed, shots: shots.list };
+}
+
+test('a Forge visit that stops on an exercise it cannot answer fails the walk, with a screenshot', async () => {
+  const [stalled, plain, waiting] = await Promise.all([
+    visitFindings(stillScreen({ forgeExercise: true })),
+    visitFindings(stillScreen({ forgeExercise: false, text: 'La Forge · Rien à faire pour le moment' })),
+    visitFindings(stillScreen({ forgeExercise: true, pending: true })),
+  ]);
+  const ways = stalled.failed.filter((f) => f.name === 'a-way-forward');
+  assert.equal(ways.length, 1, `a stall on a La Forge exercise is a finding: ${JSON.stringify(stalled.failed)}`);
+  assert.match(ways[0].detail, /Build: "We are 50 years old\."/, 'the finding names the screen');
+  assert.ok(stalled.shots.some((shot) => shot.kind === 'stuck'), 'the stall is shot');
+  // Not every quiet end is a stall: no exercise on screen, or one the server is still working on.
+  assert.deepEqual(plain.failed, [], 'a visit that ends on a screen with no exercise is not a finding');
+  assert.deepEqual(waiting.failed, [], 'an exercise waiting on the server is not stuck');
 });
