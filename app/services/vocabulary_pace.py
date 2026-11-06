@@ -131,9 +131,57 @@ def effective_new_word_cap(
     return dose + extra_new_words_today(db, user, now=now) if extras else dose
 
 
+def extra_words_available(db: Session, user: Any, *, limit: int, now: datetime | None = None) -> int:
+    """How many new words the word drill could still deal today, up to ``limit``.
+
+    Asks the deck's own reader (``ProgressService.get_vocabulary_recommendations``)
+    with the deck's own exclusions, so the number is the pool the extra deck will
+    draw from, never a second opinion about it.
+    """
+
+    from app.services import drill_batch
+    from app.services.progress import ProgressService
+
+    if limit <= 0 or not getattr(user, "id", None):
+        return 0
+    now = now or datetime.now(UTC)
+    _room, reserved = drill_new_word_room(db, user, now=now)
+    exclude = set(reserved)
+    batch = drill_batch.load_batch(db, user, local_today(user, now))
+    if batch is not None:
+        exclude |= {int(item["word_id"]) for item in batch.items or [] if item.get("list") == "new_words"}
+    stored = getattr(user, "default_vocab_direction", None)
+    recommendations = ProgressService(db).get_vocabulary_recommendations(
+        user=user,
+        limit=limit,
+        due_limit=0,
+        fragile_limit=0,
+        new_limit=limit,
+        direction=stored if stored in {"fr_to_de", "de_to_fr"} else None,
+        now=now,
+        exclude_new_word_ids=exclude,
+    )
+    return sum(1 for item in recommendations["items"] if item.get("bucket") == "new")
+
+
+def next_extra_step(db: Session, user: Any, *, now: datetime | None = None) -> int:
+    """#563: the new words the next «Noch 5 neue Wörter» tap really brings.
+
+    :data:`EXTRA_WORDS_STEP`, less what the day's last step leaves
+    (:data:`MAX_EXTRA_NEW_WORDS`), less what the pool cannot supply. The one
+    number of the extras: the button's label, the grant (the cap, so the deck's
+    room) and the goal line's «Mit N Wörtern am Tag» all read it, so the offer
+    cannot promise five and deal one. ``0``: nothing to offer.
+    """
+
+    step = min(EXTRA_WORDS_STEP, MAX_EXTRA_NEW_WORDS - extra_new_words_today(db, user, now=now))
+    return extra_words_available(db, user, limit=step, now=now) if step > 0 else 0
+
+
 def grant_extra_new_words(db: Session, user: Any, *, now: datetime | None = None) -> int:
-    """One «Noch 5 neue Wörter» tap: today's extras grow by :data:`EXTRA_WORDS_STEP`,
-    up to :data:`MAX_EXTRA_NEW_WORDS`. Returns today's extras. Flushes, never commits.
+    """One «Noch 5 neue Wörter» tap: today's extras grow by :func:`next_extra_step`
+    (at most :data:`EXTRA_WORDS_STEP`, up to :data:`MAX_EXTRA_NEW_WORDS`, and never
+    past what the pool can deal). Returns today's extras. Flushes, never commits.
 
     The extras live on the day's batch row (one per learner and day), so they
     start from zero every day and a reload never grants twice: only this call
@@ -150,7 +198,7 @@ def grant_extra_new_words(db: Session, user: Any, *, now: datetime | None = None
     if batch is None:
         return 0
     current = max(0, int(batch.extra_new_words or 0))
-    batch.extra_new_words = min(MAX_EXTRA_NEW_WORDS, current + EXTRA_WORDS_STEP)
+    batch.extra_new_words = min(MAX_EXTRA_NEW_WORDS, current + next_extra_step(db, user, now=now))
     db.flush([batch])
     return int(batch.extra_new_words)
 
@@ -388,6 +436,7 @@ __all__ = [
     "drill_new_word_room",
     "effective_new_word_cap",
     "extra_new_words_today",
+    "extra_words_available",
     "grant_extra_new_words",
     "intake_throttle_factor",
     "introduced_today",
@@ -396,6 +445,7 @@ __all__ = [
     "journey_reservation",
     "journey_word_share",
     "new_words_left_today",
+    "next_extra_step",
     "planned_new_words",
     "review_load_estimate",
     "todays_journey",

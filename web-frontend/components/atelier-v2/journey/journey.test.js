@@ -938,7 +938,8 @@ const noSleep = () => Promise.resolve();
   );
   assert.ok(htmlHas(todayHtml, EN.start), 'one clear start action');
   assert.ok(htmlHas(todayHtml, 'Un café au Mistral'));
-  assert.ok(htmlHas(todayHtml, '4 min'), 'the estimate is the plan\'s own number');
+  // 264 s, said as the plan row says it (#470): whole minutes, rounded up.
+  assert.ok(htmlHas(todayHtml, '5 min'), 'the estimate is the plan\'s own number');
   assert.ok(!htmlHas(todayHtml, EN.legacy_resume_title));
 
   const legacyEnvelope = fixture('active_legacy').response;
