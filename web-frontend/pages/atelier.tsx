@@ -133,6 +133,7 @@ import { DaySessionNext, TempoSheet } from '@/components/atelier-v2/home/DaySess
 import {
   daySessionCopy,
   homeDayChip,
+  recapStreak,
   sessionMarkState,
   sessionMore,
   sessionNextAction,
@@ -140,7 +141,7 @@ import {
 } from '@/lib/day-session';
 import { dayIsDone, handOnAfterGrammar, ruleCheckExitFromDay, ruleCheckIsFromDay, ruleCheckPath } from '@/lib/day-plan';
 import { todayInterlude } from '@/components/atelier-v2/journey/season-return-model';
-import type { ControlLanguage, JourneySnapshot, TodayEnvelope } from '@/types/daily-journey';
+import type { ControlLanguage, DaySession, JourneySnapshot, TodayEnvelope } from '@/types/daily-journey';
 import { ExerciseShell } from '@/components/ui/ExerciseShell';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Confetti, Seal, sealForEdition, type SealVariant } from '@/components/ui/Seal';
@@ -2371,6 +2372,7 @@ export default function AtelierPage() {
             language={pageChromeLanguage}
             recommendation={legacyRecommendation}
             dayHandOn={dayHandOn ? { label: dayHandOn.label } : null}
+            daySession={journey.envelope?.session ?? null}
             testOutPending={testOutPending}
             onTestOut={(conceptId) => {
               void startTestOut(conceptId, { short: true, source: 'forge' }).then((started) => {
@@ -5136,6 +5138,7 @@ function RecapModal({
   filedEarly = false,
   recommendation,
   dayHandOn = null,
+  daySession = null,
   onRecommendedAction,
   onClose,
   language,
@@ -5143,6 +5146,8 @@ function RecapModal({
   testOutPending = false,
 }: {
   recap: Record<string, any>;
+  /** #559: the day's session, so the recap prints the streak Home prints. */
+  daySession?: DaySession | null;
   /** Round 3: the day's grammar step hands on to the next step, not a suggestion. */
   dayHandOn?: { label: string } | null;
   concepts: AtelierConcept[];
@@ -5163,6 +5168,7 @@ function RecapModal({
   // WP-S6: a forge séance's recap is each rule's progress, not a tally.
   const forgeRows = recapRuleRows(recap, concepts, (concept) => displayConceptTitle(concept as AtelierConcept), fc, language);
   const offer = onTestOut ? testOutOffer(recap) : null;
+  const shownStreak = recapStreak(recap.streak_before, recap.streak_after, daySession);
   const offerConcept = offer ? concepts.find((concept) => Number(concept.id) === offer.conceptId) : null;
   const offerTitle = offerConcept
     ? displayConceptTitle(offerConcept)
@@ -5252,7 +5258,9 @@ function RecapModal({
               />
             )}
           </div>
-          <EpStreak was={recap.streak_before || 0} now={recap.streak_after || 1} on={Math.min(5, Number(recap.streak_after || 1))} />
+          {shownStreak.now > 0 && (
+            <EpStreak was={shownStreak.was} now={shownStreak.now} on={Math.min(5, shownStreak.now)} />
+          )}
           <EpHandoff
             // recapActionLabel returns a verb phrase ("Réviser maintenant",
             // "Ouvrir la lettre"), so it IS the button.
