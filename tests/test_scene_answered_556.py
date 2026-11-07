@@ -192,3 +192,53 @@ def test_label_not_said(reading, monkeypatch):
     assert evaluation.route.get("say_fr") != "LARTSIM", "the neon's label is a story prop, not a sentence"
     line = _line_to_say(history, WALK_5_NOV_CORRECTED)
     assert line == WALK_5_NOV_CORRECTED, f"the recap offers {line!r} to say aloud"
+
+
+# ---------------------------------------------------------------------------
+# #535 review of #567: the learner-sentence fallback is for a clue's tap target only
+# ---------------------------------------------------------------------------
+
+
+def _say_aloud(monkeypatch, turns, correction=None):
+    from types import SimpleNamespace
+
+    from app.config import settings
+    from app.services import spoken_reply
+
+    monkeypatch.setattr(settings, "ATELIER_SPOKEN_REPLY_ENABLED", True)
+    rows = [dict(row) for row in turns]
+    if correction:
+        rows[-1]["correction"] = {"corrected_fr": correction}
+    return spoken_reply.repeat_line_for(SimpleNamespace(private_task={"turns": rows, "response_task": {}}))
+
+
+@pytest.mark.parametrize(
+    "learner",
+    ["Je suis peur un peu", "Qu'est-ce que tu veux dire exactement ici ?"],
+    ids=["error", "question"],
+)
+def test_fallback_says_nothing(monkeypatch, learner):
+    """A route the page did not understand offers no line to say aloud: the learner's raw
+    words (an uncorrected error, a question back to the character) are never the model."""
+
+    line = _say_aloud(monkeypatch, [{"learner": learner, "route": {"turn": "x", "reply": "fallback"}}])
+    assert line is None, f"offered {line!r} to say aloud"
+
+
+def test_tap_without_correction_says_nothing(monkeypatch):
+    """A clue's tap target with no correction on record: the uncorrected words are not offered."""
+
+    line = _say_aloud(
+        monkeypatch, [{"learner": "Je suis peur un peu", "route": {"turn": "x", "reply": "neon", "tap": True}}]
+    )
+    assert line is None, f"offered {line!r} to say aloud"
+
+
+def test_tap_route_marks_itself(reading):
+    scenario, turns = _t4a()
+    turn = turns[0]
+    scenario.character_id = turn["to"]
+    reading.choice = ReplyChoice(reply_id="neon", confidence=0.9, clear=True)
+    assert _say(scenario, WALK_5_NOV, [], 0).route.get("tap") is True
+    reading.choice = ReplyChoice(reply_id=str(turn["fallback"]), confidence=0.2, clear=False)
+    assert "tap" not in _say(scenario, "Bonjour !", [], 0).route

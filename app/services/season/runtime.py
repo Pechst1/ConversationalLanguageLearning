@@ -372,6 +372,12 @@ def turn_addressee(turn: dict[str, Any] | None, scenario) -> str:
     return str((turn or {}).get("to") or scenario.character_id)
 
 
+def is_tap_target(turn: dict[str, Any] | None) -> bool:
+    """Whether the turn is a clue: its replies are things to point at, not sentences."""
+
+    return bool(turn and turn.get("from_solve") and not turn.get("choice"))
+
+
 def routed_sentence(reply: dict[str, Any], understood: bool, turn: dict[str, Any] | None = None) -> str | None:
     """The sentence the learner's answer amounts to, for the line they repeat aloud.
 
@@ -385,7 +391,7 @@ def routed_sentence(reply: dict[str, Any], understood: bool, turn: dict[str, Any
 
     if not understood or reply.get("clumsy"):
         return None
-    if turn and turn.get("from_solve") and not turn.get("choice"):
+    if is_tap_target(turn):
         return None
     examples = [str(example).strip() for example in reply.get("examples") or [] if str(example).strip()]
     return examples[0] if examples else None
@@ -1060,6 +1066,10 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
             # What the learner meant, as a sentence they could say: the recap's
             # «une phrase à redire» is this, never the question's scripted example.
             **({"say_fr": said} if (said := routed_sentence(reply, understood, turn)) else {}),
+            # #535: this route's label was a clue's tap target, so the page has no
+            # sentence for it. Only then may the recap offer the learner's own corrected
+            # sentence; a fallback or clumsy route says nothing the learner meant.
+            **({"tap": True} if understood and not reply.get("clumsy") and is_tap_target(turn) else {}),
         },
         heard=_heard(choice, reply),
         stage=stage,
