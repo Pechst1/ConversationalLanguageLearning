@@ -14,9 +14,10 @@ from app.config import settings
 from app.db.models.error import UserError
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.user import User
+from app.services.address import address_instruction
 from app.services.atelier_assets import AtelierAssetService
 from app.services.error_memory import ErrorMemoryService, serialize_error_memory
-from app.services.forge_item_validator import advice, situation_problems
+from app.services.forge_item_validator import advice, scenario_problems
 from app.services.grammar_feedback import infer_grammar_profile
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.progress import ProgressService
@@ -567,6 +568,10 @@ class ExerciseGenerationService:
             "Every output_ladder prompt (sentence, speak, conversation) and the produce.prompt must set a concrete, real-life mini-situation the learner reacts to "
             "— a short incoming message, a question from a person, or a brief scene — that naturally forces the target grammar in the reply. "
             "Never use a generic instruction like 'write/say/answer one sentence using the target grammar'; give an actual situation with a who/what/where. "
+            # #575: the register is the one setting's, not each item's choice.
+            f"{address_instruction('fr')} This holds for every output_ladder prompt and the produce.prompt "
+            "(«Ta sœur te demande où est ta clé. Que lui dis-tu ?», never «Votre sœur vous demande … Répondez …»); "
+            "a character's own line goes inside « » and keeps that character's register. "
             "When context.target_vocabulary is provided, naturally weave those French words into prompts or examples where they fit. "
             "When context.due_errata includes task_error_type or error_pattern, aim at those sub-patterns directly. "
             "Worked examples: fill = prompt 'Je ne bois pas ____ café.' choices ['de','du'] correct_answer 'de'; "
@@ -1037,6 +1042,8 @@ def validate_atelier_generation_payload(payload: dict[str, Any]) -> list[str]:
     produce = payload.get("produce") if isinstance(payload.get("produce"), dict) else {}
     if not (_filled(produce.get("source_fragment")) and _filled(produce.get("prompt")) and produce.get("requirements")):
         errors.append("produce requires source_fragment, prompt, and requirements")
+    else:
+        errors.extend(f"produce prompt {advice(problem)}" for problem in scenario_problems(produce.get("prompt")))
     ladder = payload.get("output_ladder") if isinstance(payload.get("output_ladder"), dict) else {}
     for round_name in ("sentence", "speak", "conversation"):
         items = (ladder.get(round_name) or {}).get("items") if isinstance(ladder.get(round_name), dict) else None
@@ -1058,7 +1065,7 @@ def validate_atelier_generation_payload(payload: dict[str, Any]) -> list[str]:
             # #267: the situation must make sense, not only exist.
             errors.extend(
                 f"output_ladder.{round_name} prompt {advice(problem)}"
-                for problem in situation_problems(item.get("prompt"))
+                for problem in scenario_problems(item.get("prompt"))
             )
     return errors
 
