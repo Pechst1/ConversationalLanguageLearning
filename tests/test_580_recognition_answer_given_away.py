@@ -39,6 +39,9 @@ def _what_does_it_mean(target: TargetRef = VENDRE) -> RecallTask:
     return task
 
 
+# The final pass keeps its #474 name (it is now the general «answer already printed» pass).
+
+
 def _item(slot: str, position: int, target: TargetRef, task: RecallTask) -> planner.PracticeItem:
     return planner.PracticeItem(slot=slot, position=position, entry=_entry(target), task=task, cost=10)
 
@@ -46,7 +49,7 @@ def _item(slot: str, position: int, target: TargetRef, task: RecallTask) -> plan
 def test_580_the_final_pass_serves_only_one_of_the_two_vendre_drills() -> None:
     for first, second in ((_which_phrase, _what_does_it_mean), (_what_does_it_mean, _which_phrase)):
         items = [_item("warmup", 0, VENDRE, first()), _item("warmup", 1, VENDRE, second())]
-        served = planner.without_given_away_answers(items)
+        served = planner.without_given_away_genders(items)
         assert [item.task.task_type for item in served] == [items[0].task.task_type], (
             f"{first.__name__} then {second.__name__}: the second prints what the first answered"
         )
@@ -56,7 +59,7 @@ def test_580_an_item_in_between_does_not_hide_the_answer() -> None:
     # Day 1 of the walk: one item between the two.
     between = _item("warmup", 1, AIMER, _which_phrase(AIMER))
     items = [_item("warmup", 0, VENDRE, _what_does_it_mean()), between, _item("warmup", 2, VENDRE, _which_phrase())]
-    served = planner.without_given_away_answers(items)
+    served = planner.without_given_away_genders(items)
     assert [(item.entry.target.id, item.task.task_type) for item in served] == [
         ("vendre", "listen_tap"), ("aimer", "choice"),
     ]
@@ -75,6 +78,6 @@ def test_580_the_scene_between_two_blocks_is_the_spacing_and_other_words_are_una
     assert not planner._repeats_the_day(_what_does_it_mean(), _entry(VENDRE), before, slot="post")
     assert not planner._repeats_the_day(_what_does_it_mean(AIMER), _entry(AIMER), before, slot="warmup")
     other_word = [_item("warmup", 0, VENDRE, _which_phrase()), _item("warmup", 1, ADRESSER, _what_does_it_mean(ADRESSER))]
-    assert planner.without_given_away_answers(other_word) == other_word
+    assert planner.without_given_away_genders(other_word) == other_word
     across = [_item("warmup", 0, VENDRE, _which_phrase()), _item("post", 0, VENDRE, _what_does_it_mean())]
-    assert planner.without_given_away_answers(across) == across
+    assert planner.without_given_away_genders(across) == across

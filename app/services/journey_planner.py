@@ -4340,6 +4340,10 @@ def without_given_away_answers(items: list[PracticeItem]) -> list[PracticeItem]:
     return [item for item in items if id(item) not in dropped] if dropped else items
 
 
+#: The #474 name of the final pass, kept for its callers: it is no longer gender-only.
+without_given_away_genders = without_given_away_answers
+
+
 def _answer_given_away(task: RecallTask, items: list[PracticeItem], slot: str) -> bool:
     """#474, #580, both ways, on the display order: ``task`` asks what an item met
     before it has answered, or it prints the answer to an item already placed that
