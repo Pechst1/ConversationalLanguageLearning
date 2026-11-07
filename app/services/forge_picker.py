@@ -556,6 +556,49 @@ def weak_spot_id(
     return None
 
 
+def journey_rule_concept_id(journey: Any) -> int | None:
+    """The rule a journey's Règle step teaches (#576), or ``None``.
+
+    The journey's rule step is where the day's rule is chosen
+    (``concept_life.introduction_for_today``, from the scene's own units). A step
+    that only reviews a rule (WP-129) teaches nothing and never names the day's rule.
+    """
+
+    for step in getattr(journey, "steps", None) or []:
+        if str(getattr(step, "kind", "")) != "rule":
+            continue
+        if (getattr(step, "public_prompt", None) or {}).get("review"):
+            continue
+        raw = (getattr(step, "private_task", None) or {}).get("concept_id")
+        try:
+            return int(raw) if raw is not None else None
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def day_rule_concept_id(db: Session, user: Any, *, now: datetime) -> int | None:
+    """The rule the learner's journey for their local day teaches, or ``None``."""
+
+    from sqlalchemy import select
+
+    from app.db.models.daily_journey import DailyJourney
+    from app.services.daily_journey import local_date_for, resolve_timezone
+
+    zone = resolve_timezone(getattr(user, "timezone", None))
+    journey = (
+        db.execute(
+            select(DailyJourney).where(
+                DailyJourney.user_id == user.id,
+                DailyJourney.local_date == local_date_for(zone, now=now),
+            )
+        )
+        .scalars()
+        .first()
+    )
+    return journey_rule_concept_id(journey) if journey is not None else None
+
+
 def forge_plan(
     db: Session,
     user: Any,
@@ -581,6 +624,10 @@ def forge_plan(
     rows = _progress_rows(db, user, language)
     progress_by_id = {concept.id: progress for progress, concept in rows}
     notes: list[str] = []
+    if preferred_concept_id is None and origin in DAY_ORIGINS:
+        # #576: the day has one rule, the one its Règle step teaches. The forge
+        # opened as «Forge today's rule» works on it, not on a rule of its own.
+        preferred_concept_id = day_rule_concept_id(db, user, now=now)
 
     errata_ids, due_ids, queue_contrast = _review_queue(db, user, now=now)
     anchor_id, reason, is_new = _anchor(
@@ -743,8 +790,10 @@ __all__ = [
     "ROLE_TODAY",
     "FORGE_RESERVE_SECONDS",
     "REASON_WEAK_SPOT",
+    "day_rule_concept_id",
     "forge_anchor_brief",
     "forge_anchor_id",
+    "journey_rule_concept_id",
     "forge_budget_seconds",
     "forge_is_folded",
     "story_review_concept_id",

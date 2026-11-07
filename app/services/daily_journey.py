@@ -94,6 +94,7 @@ from app.services.daily_journey_adapters import (
     JourneyAdapters,
     preview_scenario,
 )
+from app.services.forge_picker import journey_rule_concept_id
 from app.services.journey_capabilities import build_journey_register_line
 from app.services.journey_content import learner_level_band
 from app.services.journey_contracts import (
@@ -1156,7 +1157,12 @@ class DailyJourneyService:
         if enabled and journey is None:
             available = self._available_descriptor(user)
 
-        forge_anchor = self._forge_anchor_id(user)
+        # #576: today's rule is the one the day's Règle step teaches, so the Forge
+        # entry, the plan's grammar step and the practice entry name that rule.
+        todays_rule = (
+            journey_rule_concept_id(journey) if journey is not None and journey.local_date == today else None
+        )
+        forge_anchor = self._forge_anchor_id(user, preferred=todays_rule)
         forge_entry = self._forge_entry(user, anchor=forge_anchor) if enabled else None
         if forge_entry is not None:
             forge_entry = forge_entry.model_copy(
@@ -2961,13 +2967,13 @@ class DailyJourneyService:
             anchor = self._forge_anchor_id(user)
         return practice_href_for(anchor)
 
-    def _forge_anchor_id(self, user: User) -> int | None:
+    def _forge_anchor_id(self, user: User, *, preferred: int | None = None) -> int | None:
         from app.services.forge_picker import forge_anchor_id
 
         return run_best_effort(
             self.db,
             "daily_journey: forge anchor for practice_href",
-            lambda: forge_anchor_id(self.db, user, _utcnow()),
+            lambda: forge_anchor_id(self.db, user, _utcnow(), preferred_concept_id=preferred),
             default=None,
             log=logger,
         )
