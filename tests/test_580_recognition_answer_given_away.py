@@ -60,17 +60,20 @@ def test_580_an_item_in_between_does_not_hide_the_answer() -> None:
     between = _item("warmup", 1, AIMER, _which_phrase(AIMER))
     items = [_item("warmup", 0, VENDRE, _what_does_it_mean()), between, _item("warmup", 2, VENDRE, _which_phrase())]
     served = planner.without_given_away_genders(items)
-    assert [(item.entry.target.id, item.task.task_type) for item in served] == [
-        ("vendre", "listen_tap"), ("aimer", "choice"),
-    ]
+    shown = [(item.entry.target.id, item.task.task_type) for item in served]
+    assert shown == [("vendre", "listen_tap"), ("aimer", "choice")], f"the second vendre drill is still served: {shown}"
 
 
 def test_580_placement_refuses_the_second_direction_of_a_word_in_one_block() -> None:
     placed = [_item("warmup", 0, VENDRE, _which_phrase())]
-    assert planner._repeats_the_day(_what_does_it_mean(), _entry(VENDRE), placed, slot="warmup")
+    assert planner._repeats_the_day(_what_does_it_mean(), _entry(VENDRE), placed, slot="warmup"), (
+        "«vendre · What does it mean?» is placed right after «Which French phrase means to sell?»"
+    )
     placed = [_item("post", 0, VENDRE, _what_does_it_mean())]
     # a later fill landing earlier on screen (mid, same block as post) would print it first
-    assert planner._repeats_the_day(_which_phrase(), _entry(VENDRE), placed, slot="mid")
+    assert planner._repeats_the_day(_which_phrase(), _entry(VENDRE), placed, slot="mid"), (
+        "«Which French phrase means to sell?» would be shown before the drill that answers it"
+    )
 
 
 def test_580_the_scene_between_two_blocks_is_the_spacing_and_other_words_are_unaffected() -> None:
