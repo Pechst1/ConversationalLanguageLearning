@@ -108,3 +108,19 @@ def test_review_step_no_rule(db_session, enabled) -> None:
 
     assert envelope.forge is not None
     assert envelope.forge.concept_id == adjectives.id
+
+
+def test_forge_start_follows_card(db_session, enabled) -> None:
+    """«Forge today's rule» started without a concept in the link still works the card's rule."""
+
+    from app.services import forge_picker
+
+    user, _adjectives, on_we = _day_with_rule_step(db_session)
+
+    plan = forge_picker.forge_plan(db_session, user, datetime.now(UTC), origin="journey")
+    assert plan.anchor is not None
+    assert plan.anchor.concept_id == on_we.id
+    # A Cahier practice start keeps the picker's own choice.
+    practice = forge_picker.forge_plan(db_session, user, datetime.now(UTC), origin="practice")
+    assert practice.anchor is not None
+    assert practice.anchor.concept_id != on_we.id
