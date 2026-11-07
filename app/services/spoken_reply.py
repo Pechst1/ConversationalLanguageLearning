@@ -284,6 +284,17 @@ def repeat_line_for(step: DailyJourneyStep, correction: Any = None) -> str | Non
             # correction handed in is the last turn's.
             last = clash == len(turns) - 1
             return _own_sentence(said, (correction if last else None) or stored)
+    if routed is not None and routed.get("tap"):
+        # #535: a clue's tap target is not a sentence (the neon's label, the pan). The
+        # recap offers what the learner wrote, but only as the corrected sentence they
+        # were shown, and only when it keeps their facts. Their uncorrected words are
+        # never offered as a model (#445); a route the page did not understand carries
+        # no ``tap`` and offers nothing.
+        turns = _learner_turns(private)
+        if turns:
+            said, stored = turns[-1]
+            return _corrected_sentence(said, correction or stored)
+        return None
     corrected = str(getattr(correction, "corrected_fr", "") or "").strip()
     return corrected if len(corrected.split()) >= 3 else None
 
@@ -299,6 +310,13 @@ def _learner_turns(private: dict[str, Any]) -> list[tuple[str, Any]]:
             stored = SimpleNamespace(corrected_fr=shown.get("corrected_fr")) if isinstance(shown, dict) else None
             turns.append((str(exchange["learner"]).strip(), stored))
     return turns
+
+
+def _corrected_sentence(said: str, correction: Any) -> str | None:
+    """The correction the learner was shown, when it is a sentence that keeps their facts."""
+
+    corrected = str(getattr(correction, "corrected_fr", "") or "").strip()
+    return corrected if len(corrected.split()) >= 3 and not contradicts(said, corrected) else None
 
 
 def _own_sentence(said: str, correction: Any) -> str | None:
