@@ -1081,3 +1081,134 @@ def test_a_french_fact_is_still_quoted():
     recall = {"status": "scored", "matched": [], "missed": [{"kind": "outcome", "text_fr": KEPT_LINE}]}
     line = character_reaction(character_name="Camille", recall=recall)
     assert line is not None and "l'appartement va être vide" in line
+
+
+# ---------------------------------------------------------------------------
+# #539 — the check scores against what the scene established, never its filler
+# ---------------------------------------------------------------------------
+
+_EXIT_STUBS = (
+    "Margaux a dû partir avant de répondre.",
+    "Margaux a répondu, puis a dû partir.",
+)
+_TEASERS = (
+    "Deux clés, une seule porte. À suivre…",
+    "Deux clés, une seule porte. À suivre….",
+)
+
+
+@pytest.mark.parametrize("closing", _EXIT_STUBS + _TEASERS, ids=["stub", "stub_answered", "teaser", "teaser_dot"])
+def test_an_authored_closing_line_is_not_a_fact_to_score(db_session, closing):
+    """«None of what the scene kept appears (0/1). Margaux a dû partir avant de répondre.»"""
+    user = _user(db_session)
+    journey = _journey(db_session, user, local_date=TODAY - timedelta(days=1), callback=closing)
+    facts = scene_facts_for(journey, story_context={})
+    assert all(fact.kind != "outcome" for fact in facts), "the closing panel was scored as an event"
+    # A scene always has something real to be recalled against: what it set up.
+    assert [fact.kind for fact in facts] == ["setup"]
+    assert "livre" in facts[0].cues
+
+
+def test_a_learner_who_remembers_the_scene_scores_full_marks_not_zero(db_session):
+    user = _user(db_session)
+    _journey(
+        db_session,
+        user,
+        local_date=TODAY - timedelta(days=1),
+        callback="Romy a dû partir avant de répondre.",
+    )
+    entry = _write(
+        db_session,
+        user,
+        _FakeCorrector(fail=True),
+        "Hier, j’ai retrouvé quelqu’un au Mistral. Elle attendait avec un livre sous le bras.",
+    )
+    recall = entry.content_recall
+    assert recall["status"] == "scored"
+    assert recall["score"] == 1.0, recall
+    assert "dû partir" not in (entry.reaction_fr or "")
+
+
+@pytest.mark.parametrize("closing", _EXIT_STUBS + _TEASERS, ids=["stub", "stub_answered", "teaser", "teaser_dot"])
+def test_no_reaction_quotes_the_filler_or_a_to_be_continued(db_session, closing):
+    user = _user(db_session)
+    _journey(db_session, user, local_date=TODAY - timedelta(days=1), callback=closing)
+    entry = _write(db_session, user, _FakeCorrector(fail=True), "Je suis allée au café et j’ai bu un thé.")
+    line = entry.reaction_fr or ""
+    assert "suivre" not in line and "dû partir" not in line, line
+    assert ".." not in line
+
+
+def test_a_real_outcome_that_mentions_leaving_is_still_a_fact(db_session):
+    user = _user(db_session)
+    journey = _journey(
+        db_session,
+        user,
+        local_date=TODAY - timedelta(days=1),
+        callback="Romy a dû partir, mais elle a laissé la clé du premier étage.",
+    )
+    facts = scene_facts_for(journey, story_context={})
+    assert [fact.kind for fact in facts] == ["outcome"]
+
+
+# ---------------------------------------------------------------------------
+# #444 — «Yesterday» is the scene of the previous day, not the last one offered
+# ---------------------------------------------------------------------------
+
+
+def _episode_journey(db_session, user: User, *, local_date: date, episode: str, **kwargs):
+    journey = _journey(db_session, user, local_date=local_date, **kwargs)
+    journey.serial_episode_id = episode
+    db_session.add(journey)
+    db_session.commit()
+    db_session.refresh(journey)
+    return journey
+
+
+def test_yesterday_is_previous_episode(db_session):
+    """#444: the learner plays day 1, is offered its scene, writes nothing, plays day 2.
+
+    The open offer used to be kept for ever with its cue frozen at «1 day ago», so
+    on day 3 the Journal still said «Yesterday» about day 1's scene while the
+    Feuilleton listed day 2's episode as the last one.
+    """
+    user = _user(db_session)
+    day1 = TODAY - timedelta(days=2)
+    day2 = TODAY - timedelta(days=1)
+    first = _episode_journey(db_session, user, local_date=day1, episode="ep-day-1")
+    second = _episode_journey(db_session, user, local_date=day2, episode="ep-day-2")
+
+    # Day 2: the scene of day 1 is offered, the learner leaves it unwritten.
+    offered_on_day_2 = _service(db_session).offer(user, now=NOW - timedelta(days=1))
+    assert offered_on_day_2 is not None and offered_on_day_2.journey_id == first.id
+
+    # Day 3: «Yesterday» is day 2's episode, the one the Feuilleton lists last.
+    entry = _service(db_session).offer(user, now=NOW)
+    assert entry is not None
+    assert entry.scene_date == day2
+    assert entry.journey_id == second.id
+    assert second.serial_episode_id == "ep-day-2"
+    assert entry.cue["days_ago"] == 1
+    # The stale offer is closed, not left to come back.
+    db_session.refresh(offered_on_day_2)
+    assert offered_on_day_2.status != "offered"
+
+
+def test_no_recall_items_not_offered(db_session):
+    """#444: «This scene has nothing noted to recall» — such a scene is not offered at all."""
+    user = _user(db_session)
+    empty = _episode_journey(
+        db_session, user, local_date=TODAY - timedelta(days=1), episode="ep-empty", callback=None
+    )
+    for step in empty.steps:
+        step.public_prompt = {}
+    db_session.commit()
+    assert _service(db_session).offer(user, now=NOW) is None
+
+    # An older scene that does have something to recall is still honest, as «2 days ago».
+    older = _episode_journey(
+        db_session, user, local_date=TODAY - timedelta(days=2), episode="ep-older"
+    )
+    entry = _service(db_session).offer(user, now=NOW)
+    assert entry is not None and entry.journey_id == older.id
+    assert entry.cue["days_ago"] == 2

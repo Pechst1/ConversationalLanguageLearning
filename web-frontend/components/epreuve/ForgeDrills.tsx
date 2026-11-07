@@ -18,6 +18,7 @@ import React from 'react';
 
 import { CheckIcon, RepairIcon, useControlLanguage } from '@/components/atelier-v2/ui';
 import { EpBar, EpFoot, EpIco, EpOpt, EpOpts, EpPrompt, EpVerdict } from '@/components/epreuve/Epreuve';
+import { playAskedVoice, speakAskedVoice } from '@/lib/audio-session';
 import { judgementLabel } from '@/lib/classification-copy';
 import { fillForge, spotHint, type ForgeCopy } from '@/lib/forge-copy';
 import {
@@ -121,14 +122,12 @@ type Synthesize = (text: string) => Promise<ArrayBuffer>;
 
 function browserVoice(text: string, slow: boolean, done: () => void): boolean {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return false;
-  window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'fr-FR';
   utterance.rate = slow ? 0.7 : 1;
   utterance.onend = done;
   utterance.onerror = done;
-  window.speechSynthesis.speak(utterance);
-  return true;
+  return speakAskedVoice(utterance);
 }
 
 /**
@@ -169,7 +168,8 @@ function useFrenchVoice(text: string, synthesize?: Synthesize) {
       player.playbackRate = slow ? 0.75 : 1;
       player.onended = done;
       audio.current = player;
-      player.play().catch(read);
+      // Asked for with a tap: it plays through the ringer switch (lib/audio-session.ts).
+      playAskedVoice(player).catch(read);
     };
     audio.current?.pause();
     setPlaying(true);

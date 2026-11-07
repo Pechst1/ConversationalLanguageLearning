@@ -48,6 +48,7 @@ test('a real example is quoted as it is', () => {
 test('the review page builds its card lines from these, with no headword-gloss fallback', () => {
   const page = fs.readFileSync(path.join(__dirname, '..', 'pages', 'vocabulary', 'review.tsx'), 'utf8');
   assert.match(page, /cardExample\(/);
-  assert.match(page, /cardContextText\(/);
+  // Owner, 4 Nov: every card is a flip card; the back quotes the example (cardFaces).
+  assert.match(page, /cardFaces\(/);
   assert.doesNotMatch(page, /`\$\{french\} - \$\{meaning\}`/);
 });

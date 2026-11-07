@@ -37,6 +37,19 @@ test('the Courrier slip uses it', () => {
   const fs = require('node:fs');
   const path = require('node:path');
   const page = fs.readFileSync(path.join(__dirname, '..', 'pages', 'missions.tsx'), 'utf8');
-  assert.match(page, /clockTime\(turn\?\.created_at/);
+  assert.match(page, /messageClock\(turn\)/);
   assert.doesNotMatch(page, /date\.getHours\(\)/);
+});
+
+test('the learner\'s zone from the server wins over the device zone (#397)', () => {
+  // The device is in Berlin here (TZ above); a device in UTC would have read «02 h 58».
+  const { messageClock } = require('./clock-time.ts');
+  const turn = { created_at: '2026-11-05T02:58:00+00:00', local_time: '03 h 58' };
+  assert.equal(messageClock(turn), '03 h 58');
+  // A device in another zone than the account must not change what is printed.
+  assert.equal(messageClock({ created_at: '2026-11-05T02:58:00+00:00', local_time: '21 h 58' }), '21 h 58');
+  // No served clock (an older payload): the device clock, as before.
+  assert.equal(messageClock({ created_at: '2026-11-05T02:58:00+00:00' }), '03 h 58');
+  assert.equal(messageClock({ created_at: '2026-11-05T02:58:00+00:00', local_time: 'garbage' }), '03 h 58');
+  assert.equal(messageClock(null), undefined);
 });

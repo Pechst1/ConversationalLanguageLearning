@@ -69,6 +69,7 @@ from app.services.forge_grading import (
     notes_native,
     production_local_check,
     refine_production_correction,
+    slip_note,
     token_diff,
 )
 from app.services.forge_grading import (
@@ -87,6 +88,7 @@ from app.services.grammar_catalog import FrenchCoreGrammarCatalog, concept_sub_b
 from app.services.grammar_feedback import authored_repair, count_concept_hits, infer_grammar_profile
 from app.services.item_bank import (
     ITEM_BANK_VERSION,
+    TRANSFORM_TASK_KINDS,
     VARIETY_WINDOW_DAYS,
     _is_judgement,
     build_bank_set,
@@ -507,7 +509,7 @@ ATELIER_EXERCISE_RESPONSE_FORMAT: dict[str, Any] = {
                     "additionalProperties": False,
                     "properties": {
                         "id": {"type": "string"},
-                        "type": {"type": "string", "enum": ["directed_rewrite", "contrast_rewrite", "repair_rewrite"]},
+                        "type": {"type": "string", "enum": list(TRANSFORM_TASK_KINDS)},
                         "instruction": {"type": "string"},
                         "source": {"type": "string"},
                         "expected_answer": {"type": "string"},
@@ -6204,6 +6206,13 @@ class AtelierCorrectionService:
             )
         if mode == "classify" and _is_judgement(item):
             return self._judgement_erratum(concept, item, learner_text, target)
+        slip = slip_note(token_diff(learner_text, target), self.explanation_language) if mode != "classify" else None
+        if slip:
+            # #449: the slip's own category explains the miss, not the day's rule card.
+            return self._recognize_erratum_payload(
+                concept, item, label=self._label_for(concept, item), learner_text=learner_text, target=target,
+                why=slip[0], repair=slip[1], task_type=self._task_type_for(concept, item),
+            )
         if concept and item.get("lesson_external_id") == concept.external_id:
             # WP-56: the immediate line is in the learner's language. The item's
             # authored explanation is English catalogue prose; for a learner who
@@ -6826,7 +6835,12 @@ class AtelierCorrectionService:
             erratum = self._erratum(concept, item, learner, target, severity=3, recurring=True)
             ops = mark_given(token_diff(learner, target), source)
             what = describe_diff(ops, self.explanation_language)
-            if what:
+            slip = slip_note(ops, self.explanation_language)
+            if slip:
+                # #449: the slip's own category explains it; the rule card does not.
+                erratum["why_wrong"], erratum["repair_hint"] = slip
+                erratum["diff"] = ops
+            elif what:
                 # Name the exact difference first (the ending, the missing word),
                 # then the rule that explains it.
                 erratum["why_wrong"] = f"{what} {erratum.get('why_wrong') or ''}".strip()

@@ -28,6 +28,7 @@ import { writeContactSheet } from './lib/contact-sheet.mjs';
 import { LearnerWalk } from './lib/learner-walk.mjs';
 import { registerLearner } from './lib/session.mjs';
 import { sleep, startStack } from './lib/stack.mjs';
+import { WALK_TIMEZONE } from './lib/walk-timezone.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -68,6 +69,7 @@ async function makeLearner({ native, level, dayCount, tag }) {
     isMobile: true,
     hasTouch: true,
     locale: native === 'fr' ? 'fr-FR' : native === 'de' ? 'de-DE' : 'en-GB',
+    timezoneId: WALK_TIMEZONE,
   });
   await context.addCookies([{ name: 'next-auth.session-token', value: learner.cookie, url: stack.web }]);
   // WP-116: WALK_ART_SET=drawn walks the drawn cast (the device switch, as Settings sets it).

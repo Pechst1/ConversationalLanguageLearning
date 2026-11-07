@@ -100,6 +100,7 @@ export type EpreuveCopy = {
   reading: string;
   follow_title: string;
   follow_wrong_label: string;
+  follow_differs: string;
   follow_placeholder: string;
   follow_skip: string;
   corrected_sentence: string;
@@ -283,7 +284,8 @@ const FR: EpreuveCopy = {
   from_scene: 'Dans la scène',
   reading: 'Je relis…',
   follow_title: 'Corrige la phrase',
-  follow_wrong_label: 'La phrase à corriger',
+  follow_wrong_label: 'La phrase à corriger :',
+  follow_differs: 'Ce qui change :',
   follow_placeholder: 'Écris la phrase corrigée…',
   follow_skip: 'Passer',
   corrected_sentence: 'La bonne phrase',
@@ -458,7 +460,8 @@ const EN: EpreuveCopy = {
   from_scene: 'From the scene',
   reading: 'Let me read it again…',
   follow_title: 'Correct the sentence',
-  follow_wrong_label: 'The sentence to correct',
+  follow_wrong_label: 'The sentence to correct:',
+  follow_differs: 'What changes:',
   follow_placeholder: 'Write the corrected sentence…',
   follow_skip: 'Skip',
   corrected_sentence: 'The right sentence',
@@ -633,7 +636,8 @@ const DE: EpreuveCopy = {
   from_scene: 'Aus der Szene',
   reading: 'Ich lese es noch einmal …',
   follow_title: 'Korrigiere den Satz',
-  follow_wrong_label: 'Der Satz zum Korrigieren',
+  follow_wrong_label: 'Der Satz zum Korrigieren:',
+  follow_differs: 'Was sich ändert:',
   follow_placeholder: 'Schreib den korrigierten Satz …',
   follow_skip: 'Überspringen',
   corrected_sentence: 'Der richtige Satz',

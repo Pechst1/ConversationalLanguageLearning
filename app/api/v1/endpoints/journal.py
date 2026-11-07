@@ -14,6 +14,7 @@ error rather than a review comment.
 from __future__ import annotations
 
 import uuid
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -113,7 +114,7 @@ class JournalEnvelope(BaseModel):
     """One shape for every journal route."""
 
     version: str = JOURNAL_VERSION
-    #: 'none' | 'offered' | 'written' | 'unavailable' | 'skipped'
+    #: 'none' | 'offered' | 'written' | 'unavailable' | 'skipped'. An 'expired' offer is never sent: it is replaced or absent.
     status: str
     entry: JournalEntryView | None = None
     followup: JournalFollowupView | None = None
@@ -138,7 +139,20 @@ ENTRY_PROMPT_FR = (
 )
 
 
-def _entry_view(entry: JournalEntry) -> JournalEntryView:
+def _cue_view(entry: JournalEntry, today: date) -> JournalCueView:
+    """The stored cue, with «how long ago» counted from today.
+
+    ``days_ago`` is relative to the day it is read, so it is never read back from
+    the row: a value stored at offer time said «Yesterday» for as long as the
+    entry stayed open (#444).
+    """
+    cue = dict(entry.cue or {})
+    if entry.scene_date is not None:
+        cue["days_ago"] = (today - entry.scene_date).days
+    return JournalCueView(**cue)
+
+
+def _entry_view(entry: JournalEntry, today: date) -> JournalEntryView:
     written = bool(entry.entry_text)
     return JournalEntryView(
         id=str(entry.id),
@@ -146,7 +160,7 @@ def _entry_view(entry: JournalEntry) -> JournalEntryView:
         scene_date=entry.scene_date.isoformat(),
         offered_on=entry.offered_on.isoformat(),
         followup_due_on=entry.followup_due_on.isoformat(),
-        cue=JournalCueView(**dict(entry.cue or {})),
+        cue=_cue_view(entry, today),
         prompt_fr=ENTRY_PROMPT_FR,
         entry_text=entry.entry_text,
         # Everything below exists only once the learner has written. Guarding on
@@ -198,7 +212,7 @@ def _envelope(
     followup = answered_followup or service.followup_due(user)
     return JournalEnvelope(
         status=str(entry.status) if entry is not None else "none",
-        entry=_entry_view(entry) if entry is not None else None,
+        entry=_entry_view(entry, service.today_for(user)) if entry is not None else None,
         followup=_followup_view(followup) if followup is not None else None,
     )
 
@@ -248,7 +262,8 @@ def list_entries(
         .limit(max(1, min(int(limit), 100)))
         .all()
     )
-    return [_entry_view(row) for row in rows]
+    today = JournalService(db).today_for(current_user)
+    return [_entry_view(row, today) for row in rows]
 
 
 @router.post("/{entry_id}/write", response_model=JournalEnvelope)

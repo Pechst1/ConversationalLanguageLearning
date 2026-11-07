@@ -151,3 +151,36 @@ test('a typed correction may be only the corrected part', () => {
   }
   assert.equal(F.followUpOutcome(['grand', 'poster'], followUp), 'revealed', 'tiles still build the whole sentence');
 });
+
+test('an accepted short correction with unchanged context marks no slip', () => {
+  const spec = {
+    kind: 'correct_it',
+    sourceFr: 'Lila cherche un poster grand.',
+    goalNative: null,
+    correctedFr: 'Lila cherche un grand poster.',
+    options: null,
+    accepted: ['Lila cherche un grand poster.'],
+  };
+  assert.equal(F.followUpOutcome('un grand poster', spec), 'right');
+  assert.deepEqual(F.followUpSlips('un grand poster', spec), []);
+});
+
+test('#449 · followUpSlips names the word that differs, accents count', () => {
+  const spec = {
+    kind: 'correct_it',
+    sourceFr: 'Il me en a parlé.',
+    goalNative: null,
+    correctedFr: "Il m'en a parlé.",
+    options: null,
+    accepted: ["Il m'en a parlé."],
+  };
+  assert.deepEqual(F.followUpSlips("il m'en a parle", spec), [{ learner: 'parle', target: 'parlé' }]);
+  // Only the corrected part, as the field also accepts: «m'en» alone is right.
+  assert.deepEqual(F.followUpSlips("m'en", spec), []);
+  assert.deepEqual(F.followUpSlips("Il m'en a parlé", spec), [], 'a right try marks nothing');
+  assert.deepEqual(F.followUpSlips('', spec), [], 'no try, nothing to compare');
+  // Tiles: the words in the order they were placed.
+  assert.deepEqual(F.followUpSlips(['Il', 'me', 'en', 'a', 'parlé'], spec), [
+    { learner: 'me en', target: "m'en" },
+  ]);
+});
