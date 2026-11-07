@@ -86,7 +86,7 @@ def _day_with_rule_step(db, *, review: bool = False):
     return user, adjectives, on_we
 
 
-def test_forge_and_plan_follow_the_card(db_session, enabled) -> None:
+def test_card_rule_is_forge_rule(db_session, enabled) -> None:
     user, _adjectives, on_we = _day_with_rule_step(db_session)
 
     envelope = DailyJourneyService(db_session, adapters=None).get_today(user, timezone_hint="UTC")
@@ -99,7 +99,7 @@ def test_forge_and_plan_follow_the_card(db_session, enabled) -> None:
     assert _concept_of(envelope.practice_href) == str(on_we.id)
 
 
-def test_a_review_step_picks_no_rule(db_session, enabled) -> None:
+def test_review_step_no_rule(db_session, enabled) -> None:
     """A rule step that only reviews (WP-129) introduces nothing: the picker still decides."""
 
     user, adjectives, _on_we = _day_with_rule_step(db_session, review=True)
