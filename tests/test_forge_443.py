@@ -62,6 +62,53 @@ def test_entry_names_planned_rule(db_session: Session, v2, enabled) -> None:
     assert f"concept={days_rule.id}" in today.practice_href
 
 
+def test_entry_keeps_the_rule_card_over_a_due_erratum(db_session: Session, v2, enabled) -> None:
+    """Walks 6 and 7 Nov: day 2's rule card taught one rule, a slip from day 1 was due on
+    another, and «Forge today's rule» opened on the slip's rule. The séance seated from the
+    entry's href must start on the rule card's rule."""
+
+    from datetime import UTC, datetime, timedelta
+
+    from app.db.models.error import UserError
+    from app.services import forge_picker
+
+    user = make_user(db_session, f"forge-443-{uuid.uuid4().hex[:8]}@example.com")
+    service = DailyJourneyService(db_session, build_default_adapters())
+    created, code = service.create_journey(user, create_request())
+    assert code == 201
+    upcoming = AtelierScheduler(db_session).next_new_concepts(user, limit=4, language="fr")
+    assert len(upcoming) >= 2
+    card_rule, slipped_rule = upcoming[1], upcoming[0]
+    db_session.add(
+        UserError(
+            user_id=user.id,
+            concept_id=slipped_rule.id,
+            error_category="grammar",
+            error_pattern="article",
+            original_text="la appartement",
+            correction="l'appartement",
+            next_review_date=datetime.now(UTC) - timedelta(hours=1),
+            occurrences=2,
+        )
+    )
+    row = db_session.get(DailyJourney, uuid.UUID(created.id))
+    row.plan_selection = {
+        **dict(row.plan_selection or {}),
+        "introduction": {"concept_id": card_rule.id, "title_native": card_rule.name},
+    }
+    flag_modified(row, "plan_selection")
+    db_session.commit()
+
+    today = service.get_today(user)
+    assert today.forge is not None and today.forge.concept_id == card_rule.id
+    # What the page does with the href: ask for a day-step séance on that concept.
+    plan = forge_picker.forge_plan(
+        db_session, user, preferred_concept_id=today.forge.concept_id, origin="after_day"
+    )
+    assert plan.units[0].concept_id == card_rule.id
+    assert plan.units[0].role == "today"
+
+
 def test_withdrawn_top_out_reopens() -> None:
     state = ForgeState.seance([ForgeUnit(7, "today", rung=int(core.TOP_RUNG))], length=17, review_share=0.25)
     slot = state.next_slot()
