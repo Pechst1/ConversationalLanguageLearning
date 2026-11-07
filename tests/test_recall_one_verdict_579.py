@@ -62,7 +62,7 @@ def _evaluate(db_session, user, text: str):
     )
 
 
-@pytest.mark.parametrize("text", ["une letre", "une lettre", "la letre", "lettre"])
+@pytest.mark.parametrize("text", ["une letre", "une lettre", "la letre", "lettre"], ids=lambda t: t.replace(" ", "_"))
 def test_the_article_optional_noun_with_or_without_a_typo_is_met(db_session, text):
     assert _evaluate(db_session, _user(db_session), text).outcome is TaskOutcome.MET
 
@@ -84,6 +84,7 @@ def test_a_typo_next_to_a_kept_article_is_named_and_never_fixes_the_article(db_s
         "une letre", "la letre", "lettre", "letre", "le lettre", "une lettre", "un lettre", "l'lettre",
         "une lètre", "la lettré", "la lettres", "une maison", "une lettr", "les lettres", "la leetre",
     ],
+    ids=lambda t: t.replace(" ", "_").replace("'", "_").encode("ascii", "replace").decode().replace("?", "e"),
 )
 def test_a_not_yet_never_carries_a_right_note(db_session, text):
     evaluation = _evaluate(db_session, _user(db_session), text)
