@@ -507,9 +507,9 @@
       "prerequisites": "FR2_A11_UN_UNE",
       "contrast_partners": "",
       "detector": "regex:(?<!\\bje )(?<!\\btu )(?<!\\bil )(?<!\\bon )(?<!\\bne )(?<!\\belle )(?<!\\bnous )(?<!\\bvous )(?<!\\bils )(?<!\\belles )\\b(?:mon|ma|mes|ton|ta|tes|son|sa|ses|notre|nos|votre|vos|leurs?)\\s+[a-zàâçéèêëîïôûùüÿœæ]{2,}",
-      "rule_short_en": "Mon, ma, mes follow the thing owned, not the owner: sa mère is his or her mother. Before a vowel, ma, ta, sa become mon, ton, son: mon amie.",
-      "rule_short_de": "Mon, ma, mes richten sich nach dem Besitz, nicht nach dem Besitzer: sa mère = seine/ihre Mutter. Vor einem Vokal werden ma, ta, sa zu mon, ton, son: mon amie.",
-      "rule_short_fr": "Mon, ma, mes s'accordent avec la chose possédée, pas avec le possesseur : sa mère. Devant une voyelle, ma, ta, sa deviennent mon, ton, son : mon amie.",
+      "rule_short_en": "Mon, ma, mes follow the thing owned, not the owner. Before a vowel: mon amie, not ma amie.",
+      "rule_short_de": "Mon, ma, mes richten sich nach dem Besitz, nicht nach dem Besitzer. Vor einem Vokal: mon amie, nicht ma amie.",
+      "rule_short_fr": "Mon, ma, mes s'accordent avec la chose possédée, pas avec le possesseur. Devant une voyelle : mon amie.",
       "review_status": "reviewed"
     },
     {
