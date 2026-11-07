@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
 import { oncePerLoad } from '@/lib/once-per-load';
 import { correctRunFrom, seanceAssessment, secondCheckChange } from '@/lib/seance-feedback';
+import { withinWordRange } from '@/lib/word-range';
 import { forgeCorrectionNotes } from '@/lib/correction-notes';
 import { classifyRepair } from '@/lib/forge-followup';
 import { classificationCopy, classificationGoal, isJudgementLabels, judgementLabel, judgementQuestion } from '@/lib/classification-copy';
@@ -549,7 +550,12 @@ function drillAnswerIsReady(
     return answerValueHasContent(currentAnswers[item.id]);
   }
   if (round === 'sentence' || round === 'speak' || round === 'conversation') {
-    return answerValueHasContent(currentAnswers.text);
+    if (!answerValueHasContent(currentAnswers.text)) return false;
+    // #574: a typed line is not above the word ceiling its item states (the
+    // server refuses the same lines); a spoken transcript's length is the recogniser's.
+    if (round === 'speak') return true;
+    const item = payload.output_ladder?.[round]?.items?.[0] || {};
+    return withinWordRange(String(currentAnswers.text || ''), item.max_words);
   }
   return false;
 }

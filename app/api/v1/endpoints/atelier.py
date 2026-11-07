@@ -64,6 +64,7 @@ from app.services.atelier import (
     ATELIER_ITEMS_PER_RECOGNIZE_MODE,
     ATELIER_TRANSFORM_ITEMS,
     FORGE_VERDICT_EVENT,
+    AnswerLengthError,
     AtelierCorrectionService,
     AtelierExerciseGenerationError,
     AtelierExerciseQualityService,
@@ -1642,17 +1643,21 @@ def submit_attempt(
         answer_payload["confidence"] = payload.confidence
     correction_service = AtelierCorrectionService(db)
     first_submission = existing is None
-    attempt = correction_service.submit_attempt(
-        session=session,
-        user=current_user,
-        concept=concept,
-        round_name=payload.round,
-        mode=payload.mode,
-        exercise_id=payload.exercise_id,
-        answer_payload=answer_payload,
-        prompt_payload_override=prompt_payload_override,
-        retest_of=retest_source.id if retest_source else None,
-    )
+    try:
+        attempt = correction_service.submit_attempt(
+            session=session,
+            user=current_user,
+            concept=concept,
+            round_name=payload.round,
+            mode=payload.mode,
+            exercise_id=payload.exercise_id,
+            answer_payload=answer_payload,
+            prompt_payload_override=prompt_payload_override,
+            retest_of=retest_source.id if retest_source else None,
+        )
+    except AnswerLengthError as exc:
+        # #574: the item states a word range; a line outside it is not an answer to it.
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     # WP-S1: the conversation rung's in-character reply follows the relecture
     # (AtelierCorrectionService._attach_world_reply), never this request.
     # WP-S3 La Forge: the staircase replaces the adaptive lock in a forge séance.
