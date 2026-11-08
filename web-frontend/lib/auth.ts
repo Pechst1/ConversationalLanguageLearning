@@ -51,10 +51,31 @@ type RefreshOutcome =
  */
 const refreshesInFlight = new Map<string, Promise<RefreshOutcome>>();
 
+/**
+ * How long a session read waits for the backend's refresh (#386).
+ *
+ * `/api/auth/session` answers every page load. A backend that accepts the
+ * connection and then stalls (a busy worker, a cold start) must not hold that
+ * read open: the learner's Home waits on it and stays on «Loading». After the
+ * deadline the refresh counts as unreachable and the session is kept.
+ */
+const REFRESH_TIMEOUT_MS = 10_000;
+
+/** The refresh answer is only a new session if it carries an access token. */
+function isTokenResponse(value: unknown): value is TokenResponse {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as TokenResponse).access_token === 'string' &&
+    (value as TokenResponse).access_token.length > 0
+  );
+}
+
 async function requestRefresh(refreshToken: string): Promise<RefreshOutcome> {
-  let response: Response;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
   try {
-    response = await fetch(`${apiBaseUrl()}/api/v1/auth/refresh`, {
+    const response = await fetch(`${apiBaseUrl()}/api/v1/auth/refresh`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -62,18 +83,23 @@ async function requestRefresh(refreshToken: string): Promise<RefreshOutcome> {
       body: JSON.stringify({
         refresh_token: refreshToken,
       }),
+      signal: controller.signal,
     });
+    // Only the server refusing the token ends the session; a 5xx or a proxy
+    // hiccup is not a verdict on it.
+    if (response.status === 401 || response.status === 403) return { status: 'rejected' };
+    if (!response.ok) return { status: 'unreachable' };
+    // The deadline covers reading the body too.
+    const data: unknown = await response.json();
+    // A 200 that is not a token pair (`null`, `{}`) is a failed refresh, not a
+    // result: reading it as one threw inside the jwt callback, and NextAuth
+    // answers a throwing callback with a 500.
+    return isTokenResponse(data) ? { status: 'refreshed', data } : { status: 'unreachable' };
   } catch {
+    // Offline, unset API host, garbled body, deadline: nothing was decided.
     return { status: 'unreachable' };
-  }
-  // Only the server refusing the token ends the session; a 5xx or a proxy
-  // hiccup is not a verdict on it.
-  if (response.status === 401 || response.status === 403) return { status: 'rejected' };
-  if (!response.ok) return { status: 'unreachable' };
-  try {
-    return { status: 'refreshed', data: await response.json() as TokenResponse };
-  } catch {
-    return { status: 'unreachable' };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -184,7 +210,14 @@ export const authOptions: NextAuthOptions = {
         return token;
       }
 
-      return refreshAccessToken(token);
+      try {
+        return await refreshAccessToken(token);
+      } catch (error) {
+        // The session read is the page's first call: whatever goes wrong while
+        // renewing, the learner keeps the session they have (#386).
+        console.error('Session refresh failed:', error);
+        return { ...token, error: undefined };
+      }
     },
     async session({ session, token }) {
       if (token) {

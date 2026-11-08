@@ -58,3 +58,8 @@ export function currentComposerInstruction(
     placeholder: t.composer_placeholder_reply,
   };
 }
+
+/** The server stored the learner's reply but no correspondent answered it (#397/#333). */
+export function replyPending(outcome: Record<string, any> | null | undefined): boolean {
+  return outcome?.reply_state === 'pending';
+}

@@ -2562,7 +2562,28 @@ _GOALS: dict[str, dict[str, str]] = {
         "de": "Ist der Satz richtig?",
         "fr": "Cette phrase est-elle correcte ?",
     },
+    # #542: a correct sentence to turn into another one. Never an «error» goal:
+    # its source holds no mistake. The item's own instruction says into what.
+    "rewrite": {
+        "en": "Rewrite the sentence.",
+        "de": "Schreib den Satz um.",
+        "fr": "Récris la phrase.",
+    },
 }
+
+#: #542: the task a transform item declares (``type``) → its goal. The goal is a
+#: function of this table, never of the item's shape (a ``source`` and an
+#: ``expected_answer`` are there on a repair and on a rewrite alike). Only
+#: ``repair`` may say «error»: it is the only kind whose source contains one. The
+#: model schema's enum (``atelier.ATELIER_EXERCISE_RESPONSE_FORMAT``) and the
+#: generator contract are built from the keys, so a new kind cannot be added
+#: without choosing its goal.
+TASK_GOAL_KINDS: dict[str, str] = {
+    "directed_rewrite": "rewrite",
+    "contrast_rewrite": "rewrite",
+    "repair_rewrite": "repair",
+}
+TRANSFORM_TASK_KINDS: tuple[str, ...] = tuple(TASK_GOAL_KINDS)
 
 
 #: FORGE-DE: the German goals when the item has a German meaning (``BankItem.de``):
@@ -2658,13 +2679,19 @@ def _goal_kind(item: dict[str, Any]) -> str | None:
         # «Ta phrase» carries its own goal in every language; it is not a
         # bank repair whose goal is rebuilt from a meaning.
         return "mine"
+    declared = TASK_GOAL_KINDS.get(str(item.get("type") or ""))
+    if declared:
+        # #542: the task the item declares, before anything its shape suggests.
+        return declared
     if _is_judgement(item):
         return "judge"
     if item.get("classify_kind") == "minimal_pair":
         return "pick"
     if "answer_tokens" in item:
         return "build"
-    if "source" in item and "expected_answer" in item:
+    if "expected_answer" in item and (item.get("wrong_span") or item.get("source_fr")):
+        # #542: a repair is a sentence that *carries* its mistake (the bank's
+        # repair item marks it); a bare source and answer prove nothing.
         return "repair"
     if "choices" in item or "blank" in item:
         return "fill"
@@ -2719,11 +2746,13 @@ def with_goal(item: dict[str, Any], language: Any = None, native: Any = None) ->
             out["label_l10n"] = table
     if l10n:
         out["goal_native"] = l10n.get(code) or l10n.get("en") or out.get("goal_native")
+    elif kind == "rewrite":
+        out["goal_native"] = goal_l10n("rewrite")[code]
     elif not out.get("goal_native"):
         meaning = str(out.get("meaning_cue") or out.get("meaning") or "").strip()
         if meaning and kind in {"build", "repair", "fill"}:
             out["goal_native"] = goal_l10n(kind, meaning).get(code) or goal_l10n(kind, meaning)["en"]
-    if out.get("source") and not out.get("source_fr") and ("expected_answer" in out):
+    if out.get("source") and not out.get("source_fr") and ("expected_answer" in out) and kind != "rewrite":
         out["source_fr"] = out["source"]
     key = out.get("instruction_key")
     if isinstance(key, str) and key in INSTRUCTIONS_L10N:

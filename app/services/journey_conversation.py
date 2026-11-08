@@ -2777,6 +2777,7 @@ def register_corrections(
             reason_native=counterpart.reason_native,
             language=language,
         ),
+        rule_written=True,
     )
     return assessment, [candidate] if candidate.is_valid_for(text) else []
 

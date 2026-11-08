@@ -33,6 +33,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { registerLearner } from './lib/session.mjs';
 import { sleep, startStack } from './lib/stack.mjs';
+import { WALK_TIMEZONE } from './lib/walk-timezone.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -94,6 +95,7 @@ async function newLearner({ native = 'de', level = 'A1.1', fresh = false } = {})
     isMobile: true,
     hasTouch: true,
     locale: native === 'fr' ? 'fr-FR' : native === 'de' ? 'de-DE' : 'en-GB',
+    timezoneId: WALK_TIMEZONE,
   });
   let learner = null;
   if (!fresh) {

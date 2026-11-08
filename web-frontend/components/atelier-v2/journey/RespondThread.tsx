@@ -112,7 +112,7 @@ function LearnerLine({
               aria-controls={noteId}
               onClick={() => onToggle(bubble.key)}
             >
-              <span className="av2-sr">{copy.thread_fix_sr}: </span>
+              <span className="av2-sr">{copy.thread_fix_sr} </span>
               <span aria-hidden="true">→ </span>
               <span className="av2-thread__fixed" lang="fr">
                 {fix.fixed}
@@ -121,7 +121,7 @@ function LearnerLine({
             </button>
           ) : (
             <p className="av2-thread__fixline">
-              <span className="av2-sr">{copy.thread_fix_sr}: </span>
+              <span className="av2-sr">{copy.thread_fix_sr} </span>
               <span aria-hidden="true">→ </span>
               <span className="av2-thread__fixed" lang="fr">
                 {fix.fixed}
@@ -196,7 +196,7 @@ export function RespondThread({
         if (bubble.kind === 'learner') {
           return (
             <li key={bubble.key} className="av2-thread__line" data-speaker="learner">
-              <span className="av2-sr">{copy.thread_you}: </span>
+              <span className="av2-sr">{copy.thread_you} </span>
               <LearnerLine
                 bubble={bubble}
                 copy={copy}

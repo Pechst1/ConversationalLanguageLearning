@@ -8,7 +8,7 @@ import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { useChromeLanguage } from '@/lib/learner-language';
 import { pickByLanguage } from '@/lib/language-rule';
 import { castIdFor } from '@/lib/cast-faces';
-import { clockTime } from '@/lib/clock-time';
+import { messageClock } from '@/lib/clock-time';
 import { castDisplayName } from '@/components/atelier-v2/journey/journey-faces';
 import type { ControlLanguage } from '@/types/daily-journey';
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
@@ -62,6 +62,7 @@ import {
   currentComposerInstruction,
   latestAssistantTurn,
   missionTurns,
+  replyPending,
 } from '@/components/courrier/mission-turns';
 import apiService, {
   IntakeArtefact,
@@ -369,9 +370,9 @@ function correctedReply(correction: Record<string, any> | undefined, learnerText
 
 // Slip time rule ("08 h 12"), printed only when the turn carries a timestamp —
 // never invented (honest-data contract).
-// The server stamps UTC; the slip shows the device's clock (#316).
+// The server stamps UTC and prints the learner's own clock beside it (#316, #397).
 function slipTime(turn: Record<string, any> | null): string | undefined {
-  return clockTime(turn?.created_at || turn?.timestamp || null);
+  return messageClock(turn);
 }
 
 // «12 septembre» / «12 September» / «12. September», in the chrome locale.
@@ -842,6 +843,12 @@ export default function MissionsPage() {
     try {
       const result = await apiService.submitMissionTurn(mission.id, { text, mode: 'chat' });
       setMission({ ...result.mission, outcome: result.outcome || result.mission.outcome });
+      if (replyPending(result.outcome)) {
+        // #397/#333: nobody answered (the stock line is not stored as Gus's turn). The text
+        // stays in the composer: sending it again asks the correspondent again.
+        toast(t.toast_reply_pending);
+        return;
+      }
       setReply('');
       window.localStorage.removeItem(`pilot:mission-draft:${mission.id}`);
     } catch (sendError) {

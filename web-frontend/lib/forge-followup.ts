@@ -159,6 +159,55 @@ export function followUpMatches(answer: string | string[], followUp: ForgeFollow
   );
 }
 
+/** One word that differs: what the learner wrote and what the line needs. */
+export type FollowUpSlip = { learner: string; target: string };
+
+/** A word as the learner sees it: the punctuation around it is not part of the word. */
+function plainWords(value: string): string[] {
+  return value
+    .normalize('NFC')
+    .replace(/[‘’ʼ`]/g, "'")
+    .replace(/'\s+/g, "'")
+    .replace(/[“”«»„"]/g, ' ')
+    .split(/\s+/)
+    .map((word) => word.replace(/^[.!?…;:,]+|[.!?…;:,]+$/g, ''))
+    .filter(Boolean);
+}
+
+/**
+ * #449 · a missed correction marks the word that differs, as «Trouve l'erreur» does:
+ * «il m'en a parle» for «Il m'en a parlé.» gives `[{ learner: 'parle', target: 'parlé' }]`.
+ * Case, quotes and the final stop do not count, accents do. A short answer (only the
+ * corrected part, :func:`repairReadings`) is first put back in its place in the source.
+ * Empty when the answer is right, or when there is nothing to compare.
+ */
+export function followUpSlips(answer: string | string[], followUp: ForgeFollowUp): FollowUpSlip[] {
+  const target = followUp.correctedFr || followUp.accepted[0] || '';
+  const said = Array.isArray(answer) ? answer.join(' ') : String(answer ?? '');
+  if (!target || !said.trim()) return [];
+  // An accepted answer is right, whatever reading it took: nothing to mark.
+  if (followUpMatches(answer, followUp)) return [];
+  const right = plainWords(target);
+  let wrong = plainWords(said);
+  if (wrong.length < right.length && followUp.sourceFr) {
+    const [whole] = repairReadings(said, followUp.sourceFr, target);
+    if (whole) wrong = plainWords(whole);
+  }
+  const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+  const limit = Math.min(wrong.length, right.length);
+  let head = 0;
+  while (head < limit && same(wrong[head], right[head])) head += 1;
+  let tail = 0;
+  while (tail < limit - head && same(wrong[wrong.length - 1 - tail], right[right.length - 1 - tail])) tail += 1;
+  const wrongMid = wrong.slice(head, wrong.length - tail);
+  const rightMid = right.slice(head, right.length - tail);
+  if (!wrongMid.length && !rightMid.length) return [];
+  if (wrongMid.length === rightMid.length) {
+    return wrongMid.map((learner, index) => ({ learner, target: rightMid[index] }));
+  }
+  return [{ learner: wrongMid.join(' '), target: rightMid.join(' ') }];
+}
+
 export type FollowUpOutcome = 'right' | 'revealed';
 
 /**

@@ -133,3 +133,62 @@ def test_a_turn_is_stamped_when_it_is_written(db_session):
         stamps.append(turn.created_at)
 
     assert stamps[0] < stamps[1] < stamps[2], stamps
+
+
+# ---------------------------------------------------------------------------
+# #397 (fifth sighting): the clock on a message is the learner's account zone,
+# decided once on the server, not whatever zone the device happens to be in.
+# ---------------------------------------------------------------------------
+
+
+def _berlin_user():
+    from app.db.models.user import User
+
+    return User(
+        id=uuid4(),
+        email=f"berlin-{uuid4().hex}@example.com",
+        hashed_password="test",
+        native_language="en",
+        target_language="fr",
+        proficiency_level="A1",
+        timezone="Europe/Berlin",
+    )
+
+
+def _threaded_mission(user, at: datetime) -> RealWorldMission:
+    mission = _mission()
+    mission.user = user
+    mission.user_id = user.id
+    turn = _turn(1, "assistant", at)
+    attempt = RealWorldMissionAttempt(id=uuid4(), mode="writing", verdict="ok")
+    attempt.created_at = at
+    mission.turns = [turn]
+    mission.attempts = [attempt]
+    return mission
+
+
+def test_a_message_carries_the_time_in_the_learners_zone():
+    """Done when (#397): a message created at 2026-11-05T02:58:00Z, learner zone
+    Europe/Berlin, reads «03 h 58» — whatever zone the browser runs in."""
+    mission = _threaded_mission(_berlin_user(), datetime(2026, 11, 5, 2, 58, 0, tzinfo=UTC))
+
+    payload = serialize_mission(mission)
+
+    assert payload["turns"][0].get("local_time") == "03 h 58", payload["turns"][0]
+    assert payload["attempts"][0].get("local_time") == "03 h 58", payload["attempts"][0]
+    assert payload["turns"][0]["created_at"] == "2026-11-05T02:58:00+00:00"
+
+
+def test_the_learners_zone_follows_summer_time():
+    mission = _threaded_mission(_berlin_user(), datetime(2026, 10, 24, 2, 6, 0))  # naive = UTC, CEST
+
+    assert serialize_mission(mission)["turns"][0].get("local_time") == "04 h 06"
+
+
+def test_the_endpoint_rows_carry_the_same_clock():
+    from app.api.v1.endpoints.missions import _attempt_read, _turn_read
+
+    mission = _threaded_mission(_berlin_user(), datetime(2026, 11, 5, 2, 58, 0, tzinfo=UTC))
+
+    assert _turn_read(mission.turns[0]).get("local_time") == "03 h 58"
+    assert _attempt_read(mission.attempts[0]).get("local_time") == "03 h 58"

@@ -294,3 +294,10 @@ def test_the_foot_caption_is_not_a_control(tab: str, french: str):
     assert '<p className="jn-foot__note">{t.foot_note}</p>' in tab
     assert "{t.foot_note}</Action>" not in tab
     assert "foot_note: 'Relire la scène après l’envoi'" in french
+
+
+def test_the_placeholder_is_not_the_first_words_of_the_answer(tab: str):
+    """#539: «Hier, Margaux…» is a head start that turns recall into copying."""
+    fn = tab.split("export function entryPlaceholder")[1].split("\n}\n")[0]
+    assert "Hier" not in fn, "the field starts the learner's sentence for them"
+    assert "character_name" not in fn, "the placeholder names the character"
