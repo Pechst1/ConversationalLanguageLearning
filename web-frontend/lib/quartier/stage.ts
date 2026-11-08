@@ -2347,15 +2347,19 @@ export class Stage implements Director {
 
   /** A beat of a day without blocking: its lines, each said by whoever says it; a silence held. */
   private async plainBeat(gen: number, b: StoryPanel) {
-    // someone the moment is with who is not where you are (a guest in the street; anyone, out on the quai) comes over
-    const near = (k: string) => k !== 'toi' && k !== 'caption' && Boolean(this.fig(k)) && (this.setting === 'quai' || k in GUESTS);
-    const who = b.lines.map((l) => l.who).find(near) ?? (b.in_frame ?? []).find(near);
-    if (who) await this.comeOver(gen, who);
+    // someone the moment is with who is not where you are (a guest in the street; anyone, out on the quai) comes over:
+    // who is in the frame of a silent moment before it, and each speaker before their own line
+    const away = (k: string) => k !== 'toi' && k !== 'caption' && Boolean(this.fig(k)) && (this.setting === 'quai' || k in GUESTS);
+    if (!b.lines.length) {
+      const who = (b.in_frame ?? []).find(away);
+      if (who) await this.comeOver(gen, who);
+    }
     if (b.silence && !b.lines.length) {
       await this.silent(gen, 1.8);
       return;
     }
-    await this.lines(gen, b, (line) => {
+    await this.lines(gen, b, async (line) => {
+      if (away(line.who)) await this.comeOver(gen, line.who);
       if (line.direction?.startsWith('triumphant') || line.direction === 'delighted' || line.mood === 'happy') this.fig(line.who)?.hop();
     });
   }
