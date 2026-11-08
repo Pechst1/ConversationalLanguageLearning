@@ -178,35 +178,86 @@ _ELISIONS: dict[str, str] = {
 }
 
 
-def slip_category(ops: list[dict[str, str]]) -> dict[str, str] | None:
+#: The articles a gender or number slip is named on: gender, number and kind of each.
+#: «l'» and the plurals have no gender of their own, so they only take part in number slips.
+_ARTICLE_FORMS: dict[str, tuple[str | None, str, str]] = {
+    "le": ("m", "s", "definite"), "la": ("f", "s", "definite"), "l'": (None, "s", "definite"),
+    "les": (None, "p", "definite"),
+    "un": ("m", "s", "indefinite"), "une": ("f", "s", "indefinite"), "des": (None, "p", "indefinite"),
+}
+
+
+def _article_slip(learner: str, target: str, target_line: Any) -> dict[str, str] | None:
+    """#596: one article swapped for another of its kind (le/la, un/une: gender;
+    le/les, un/des: number), with the key's noun, so the note can name it.
+
+    The key's own article decides the gender: «Marin cherche le clé.» against «… la clé.»
+    is «clé» being feminine. ``None`` when the key has no noun after the article.
+    """
+
+    wrong, right = _ARTICLE_FORMS.get(learner), _ARTICLE_FORMS.get(target)
+    if wrong is None or right is None or wrong[2] != right[2]:
+        return None
+    words = tokens(target_line)
+    noun = next(
+        (following for word, following in zip(words, words[1:], strict=False) if strip_accents(word) == target),
+        "",
+    )
+    if not noun:
+        return None
+    if wrong[1] != right[1]:
+        category, trait = "article_number", right[1]
+    elif wrong[0] and right[0] and wrong[0] != right[0]:
+        category, trait = "article_gender", right[0]
+    else:
+        return None
+    phrase = f"{target}{noun}" if target.endswith("'") else f"{target} {noun}"
+    return {"category": category, "learner": learner, "target": target, "noun": noun, "phrase": phrase, "trait": trait}
+
+
+def slip_category(ops: list[dict[str, str]], target_line: Any = None) -> dict[str, str] | None:
     """The one slip a diff makes, by category, or ``None`` when it is not one we name.
 
     #449 (and #146): La Forge explained a miss with the day's rule card, so «lui» for
     «le» was answered with the order of two pronouns. What the learner got wrong
     decides the note; the rule card is only the fallback for a miss with no category.
     Only a lone difference is named: with two, nothing says which one was meant.
+    ``target_line`` is the key's whole line: an article slip names the noun after it (#596).
     """
 
     slips = [op for op in ops if op.get("kind") != "accent"]
-    if len(slips) != 1 or slips[0].get("kind") != "word" or slips[0].get("given"):
+    if len(slips) != 1 or slips[0].get("given") or slips[0].get("kind") not in {"word", "ending"}:
         return None
     learner = strip_accents(slips[0].get("learner") or "")
     target = strip_accents(slips[0].get("target") or "")
+    if slips[0].get("kind") == "ending":
+        # «le» / «les», «un» / «une» share a stem, so the diff calls them an ending;
+        # only an article swap is named from it (#596).
+        return _article_slip(learner, target, target_line) if target_line is not None else None
     if learner in _COI_PRONOUNS and target in _COD_PRONOUNS:
         return {"category": "cod_for_coi", "learner": learner, "target": target}
     if learner in _COD_PRONOUNS and target in _COI_PRONOUNS:
         return {"category": "coi_for_cod", "learner": learner, "target": target}
     if target.endswith("'") and _ELISIONS.get(learner) == target:
         return {"category": "elision", "learner": learner, "target": target}
+    if target_line is not None:
+        return _article_slip(learner, target, target_line)
     return None
 
 
-def slip_note(ops: list[dict[str, str]], language: Any) -> tuple[str, str] | None:
+def slip_note(ops: list[dict[str, str]], language: Any, target_line: Any = None) -> tuple[str, str] | None:
     """``(why, repair)`` for the slip's category, in the learner's language."""
 
-    slip = slip_category(ops)
+    slip = slip_category(ops, target_line)
     if slip is None:
         return None
+    if slip["category"] in {"article_gender", "article_number"}:
+        trait = {"m": "masculine", "f": "feminine", "s": "singular", "p": "plural"}[slip["trait"]]
+        fields = {key: slip[key] for key in ("learner", "target", "noun", "phrase")}
+        return (
+            _copy(f"forge.slip.{slip['category']}.{trait}", language, **fields),
+            _copy(f"forge.slip.{slip['category']}.repair", language, **fields),
+        )
     fields = {"learner": slip["learner"], "target": slip["target"]}
     if slip["category"] == "elision":
         return (

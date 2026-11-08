@@ -132,6 +132,32 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Du hast „{learner}“ gewählt; hier ist „{target}“ nötig.",
         "fr": "Tu as choisi « {learner} » ; il faut « {target} » ici.",
     },
+    # #596: a gap the learner typed is «written», not «chosen» (nothing was offered to choose from).
+    "atelier.recognize.chose_requires.typed": {
+        "en": "You wrote “{learner}”; this item needs “{target}”.",
+        "de": "Du hast „{learner}“ geschrieben; hier ist „{target}“ nötig.",
+        "fr": "Tu as écrit « {learner} » ; il faut « {target} » ici.",
+    },
+    "atelier.recognize.blank_needs.typed": {
+        "en": "You wrote “{learner}”, but this blank needs “{target}”.",
+        "de": "Du hast „{learner}“ geschrieben, aber in diese Lücke gehört „{target}“.",
+        "fr": "Tu as écrit « {learner} », mais ce blanc demande « {target} ».",
+    },
+    "atelier.si.fill_imperative_generic.typed": {
+        "en": "You wrote `{learner}`, but the result clause is a command, so it needs the imperative `prends`.",
+        "de": "Du hast `{learner}` geschrieben, aber der Folgesatz ist eine Aufforderung und braucht den Imperativ `prends`.",
+        "fr": "Tu as écrit `{learner}`, mais la principale est un ordre : il faut l’impératif `prends`.",
+    },
+    "atelier.tense.fill_needs_imparfait.typed": {
+        "en": "You wrote `{learner}`, but this verb describes the ongoing background of the sentence, so it needs imparfait: `{target}`.",
+        "de": "Du hast `{learner}` geschrieben, aber dieses Verb beschreibt den laufenden Hintergrund des Satzes und braucht das Imparfait: `{target}`.",
+        "fr": "Tu as écrit `{learner}`, mais ce verbe décrit l’arrière-plan en cours : il demande l’imparfait `{target}`.",
+    },
+    "atelier.tense.fill_needs_passe_compose.typed": {
+        "en": "You wrote `{learner}`, but this verb is the bounded completed event, so it needs passé composé: `{target}`.",
+        "de": "Du hast `{learner}` geschrieben, aber dieses Verb ist das abgeschlossene, begrenzte Ereignis und braucht das Passé composé: `{target}`.",
+        "fr": "Tu as écrit `{learner}`, mais ce verbe est l’événement borné et achevé : il demande le passé composé `{target}`.",
+    },
     "atelier.recognize.blank_needs": {
         "en": "You chose “{learner}”, but this blank needs “{target}”.",
         "de": "Du hast „{learner}“ gewählt, aber in diese Lücke gehört „{target}“.",
@@ -607,6 +633,38 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "en": "Join «{target}» to the next word, with the apostrophe and no space.",
         "de": "Schreib «{target}» mit Apostroph und ohne Leerzeichen an das nächste Wort.",
         "fr": "Colle « {target} » au mot suivant, avec l’apostrophe et sans espace.",
+    },
+    # #596: a miss whose only difference is the article names the noun's gender or
+    # number (the key's own article tells it), never the day's rule card.
+    "forge.slip.article_gender.feminine": {
+        "en": "«{noun}» is feminine: «{phrase}», not «{learner} {noun}».",
+        "de": "«{noun}» ist weiblich: «{phrase}», nicht «{learner} {noun}».",
+        "fr": "« {noun} » est féminin : « {phrase} », pas « {learner} {noun} ».",
+    },
+    "forge.slip.article_gender.masculine": {
+        "en": "«{noun}» is masculine: «{phrase}», not «{learner} {noun}».",
+        "de": "«{noun}» ist männlich: «{phrase}», nicht «{learner} {noun}».",
+        "fr": "« {noun} » est masculin : « {phrase} », pas « {learner} {noun} ».",
+    },
+    "forge.slip.article_gender.repair": {
+        "en": "Learn the noun with its article: «{phrase}».",
+        "de": "Lern das Nomen mit seinem Artikel: «{phrase}».",
+        "fr": "Apprends le nom avec son article : « {phrase} ».",
+    },
+    "forge.slip.article_number.plural": {
+        "en": "Here it is plural, so the article is plural too: «{phrase}», not «{learner} {noun}».",
+        "de": "Hier steht der Plural, also auch der Artikel im Plural: «{phrase}», nicht «{learner} {noun}».",
+        "fr": "Ici c’est le pluriel, donc l’article aussi : « {phrase} », pas « {learner} {noun} ».",
+    },
+    "forge.slip.article_number.singular": {
+        "en": "Here it is singular (one only), so the article is singular too: «{phrase}», not «{learner} {noun}».",
+        "de": "Hier steht der Singular (nur einer), also auch der Artikel im Singular: «{phrase}», nicht «{learner} {noun}».",
+        "fr": "Ici c’est le singulier (un seul), donc l’article aussi : « {phrase} », pas « {learner} {noun} ».",
+    },
+    "forge.slip.article_number.repair": {
+        "en": "One thing: le / la / un / une. Several: les / des.",
+        "de": "Eins: le / la / un / une. Mehrere: les / des.",
+        "fr": "Un seul : le / la / un / une. Plusieurs : les / des.",
     },
     "forge.diff.missing": {
         "en": "«{target}» is missing.",
