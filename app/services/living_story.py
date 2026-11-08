@@ -10059,6 +10059,11 @@ def _validate_turn(turn: SemanticTurn, payload: dict, *, lexical=None, reply_che
                 "return it."
             ),
         )
+    if reply_checks:
+        # #591: the single-call path keeps the character's position as the lanes do.
+        from app.services import lane_guards
+
+        lane_guards.check_keeps_position(turn.reply_fr, payload)
     suggestion = str((payload.get("scene") or {}).get("suggested_response_fr") or "")
     if len(suggestion.split()) >= 3 and _folded(suggestion) in _folded(turn.reply_fr):
         # WP-14F L-3: the reply recited the private suggested answer, handing over the

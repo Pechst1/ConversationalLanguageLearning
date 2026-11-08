@@ -33,6 +33,7 @@ import re
 import unicodedata
 
 from app.services import living_story as engine
+from app.services import scene_ledger
 
 # ---------------------------------------------------------------------------
 # Finding 3 — agreement with a gender the learner never gave
@@ -229,6 +230,55 @@ def check_echo(reply: str, learner_text: str, *, character_name: str | None = No
             "sentence, never ask their question back, never speak their line."
         ),
     )
+
+
+# ---------------------------------------------------------------------------
+# #591 (root cause #145) — the character keeps the position the scene gave them
+# ---------------------------------------------------------------------------
+
+
+def scene_ledger_of(payload: dict) -> dict:
+    """The scene's ledger as of the turn being answered, rebuilt from its own lines
+    (the same function ``living_story._turn_payload`` uses)."""
+
+    scene = payload.get("scene") or {}
+    return scene_ledger.build(
+        opening_line_fr=scene.get("opening_line_fr"),
+        history=payload.get("history") or [],
+        learner_text=payload.get("learner_text"),
+    )
+
+
+def check_keeps_position(reply: str, payload: dict, *, answers_learner: bool = True) -> None:
+    """A character who proposed something and asked «d'accord ?» keeps that position
+    when the learner says no: the reply does not join the refusal («Je ne suis pas
+    d'accord non plus» to «Non, je ne suis pas d'accord», live walk 8 Nov), and, when
+    the learner asked a question in the same turn, it is answered or declined, not
+    only handed back as a question («Mais pourquoi cette question ?»)."""
+
+    ledger = scene_ledger_of(payload)
+    if stand := scene_ledger.position_flip(reply, ledger):
+        raise engine.StoryUnavailable(
+            "reply_contradicts_position",
+            hint=(
+                f"You proposed «{stand['text_fr']}» and asked the learner to agree; they said no. "
+                "Saying «non plus», «ni moi» or «moi aussi, je ne suis pas d'accord» makes you refuse "
+                "your own proposal. Keep your position (hold to it, say why, or give way in so many "
+                "words) and answer what they asked."
+            ),
+        )
+    asked = ledger.get("learner_asked")
+    if answers_learner and asked and all(
+        part.rstrip("»\" ").endswith("?") for part in scene_ledger.sentences(reply)
+    ):
+        raise engine.StoryUnavailable(
+            "reply_skips_learner_question",
+            hint=(
+                f"The learner asked «{asked}» and the reply is only a question back. Answer it first, "
+                "plainly and in character (a fact, yes or no, or that you will not say and why), then "
+                "ask something if the scene needs it."
+            ),
+        )
 
 
 # ---------------------------------------------------------------------------
