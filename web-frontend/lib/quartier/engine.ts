@@ -701,6 +701,8 @@ export class Quartier {
     // a forged place's hall is lit by the day, like the street
     if (this.site) return false;
     if (this.room) return this.room.inside(p.x, p.z);
+    // up on the building's roof (`perch`), over the café but not in it
+    if (p.y > ROOM.ceiling + 1) return false;
     return p.x > ROOM.x0 && p.x < ROOM.x1 && p.z > ROOM.z0 && p.z < ROOM.z1 && p.x + p.z < -36.3;
   }
 
