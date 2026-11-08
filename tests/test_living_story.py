@@ -102,7 +102,11 @@ def _shaped(context, n):
 
     chapter = context.get("chapter") or {}
     shape = str((context.get("chapter_shape") or {}).get("shape") or chapter.get("shape") or "")
-    location = LOCATIONS[n % len(LOCATIONS)]
+    # ... and sets the page at a place it was offered (a season's generated page is
+    # offered only the places Le Quartier has built: ``on_built_stage``).
+    offered = {str(place.get("id")) for place in (context.get("world") or {}).get("locations") or []}
+    places = [place for place in LOCATIONS if place in offered] or LOCATIONS
+    location = places[n % len(places)]
     if shape == "bottle" and chapter.get("location_id"):
         location = str(chapter["location_id"])
     speaker = "romy_tremblay"

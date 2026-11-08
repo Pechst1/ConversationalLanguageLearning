@@ -262,6 +262,11 @@ def test_a_forge_pr_stays_in_the_quartier() -> None:
     assert loop_queue.blockers_for(ok) == []
     skill = {**ok, "files": ok["files"] + [{"path": ".claude/skills/quartier-forge/SKILL.md"}]}
     assert any("outside claude/forge-*" in b for b in loop_queue.blockers_for(skill))
+    # a room it builds is a place the night may write at: the server's copy of the register
+    stages = {**ok, "files": ok["files"] + [{"path": "app/data/season/s1/stages.json"}]}
+    assert loop_queue.blockers_for(stages) == []
+    season = {**ok, "files": ok["files"] + [{"path": "app/data/season/s1/t3.json"}]}
+    assert any("outside claude/forge-*" in b for b in loop_queue.blockers_for(season))
 
 
 def test_a_routine_pr_still_needs_green_checks_and_no_draft() -> None:

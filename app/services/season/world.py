@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import copy
 import json
+from collections.abc import Iterable
 from functools import lru_cache
 from typing import Any
 
@@ -51,6 +52,49 @@ SEASON_ONE_LOCATIONS: dict[str, dict[str, Any]] = {
 
 def season_location_ids(season_id: str = "s1") -> set[str]:
     return set(SEASON_ONE_LOCATIONS) if season_id == "s1" else set()
+
+
+# ---------------------------------------------------------------------------
+# Where the 3D world can play a page (the forge's register)
+# ---------------------------------------------------------------------------
+
+
+#: Written by ``scripts/forge/forge.py stages`` into each season's folder.
+STAGES_FILE = "stages.json"
+
+
+@lru_cache(maxsize=4)
+def built_stages(season_id: str = "s1") -> dict[str, str]:
+    """Each place of the season Le Quartier has built, to the built place a page set
+    there plays in. The forge writes ``stages.json`` from the 3D world's register
+    (``scripts/forge/forge.py stages``); a season without one has no 3D world to keep
+    in step with, and every place stays open."""
+
+    try:
+        data = json.loads((SEASON_ROOT / season_id / STAGES_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    stages = data.get("stages") if isinstance(data, dict) else None
+    if not isinstance(stages, dict):
+        return {}
+    return {str(key): str(value) for key, value in stages.items() if key and value}
+
+
+def playable_locations(
+    locations: list[dict[str, Any]], season_id: str, *, keep: Iterable[str | None] = ()
+) -> list[dict[str, Any]]:
+    """The places a generated page of ``season_id`` may be set in: the ones the 3D
+    world has built, and ``keep`` (a room the open chapter may not leave). A page set
+    anywhere else would play in the Feuilleton only, and the quarter would stand still
+    on the quai while the story moves on. Fewer than two left (a register not written
+    yet, a world bible that names other places) leaves the list as it was."""
+
+    built = set(built_stages(season_id))
+    if not built:
+        return list(locations)
+    wanted = built | {str(item) for item in keep if item}
+    kept = [place for place in locations if str(place.get("id") or "") in wanted]
+    return kept if len(kept) >= 2 else list(locations)
 
 
 def plate_for(location_id: str | None) -> str | None:

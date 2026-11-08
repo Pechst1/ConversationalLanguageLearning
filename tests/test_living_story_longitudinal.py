@@ -273,7 +273,11 @@ class ScriptedProvider:
         shape = str(
             (context.get("chapter_shape") or {}).get("shape") or chapter.get("shape") or ""
         )
-        location = self.scene.location_id or LOCATIONS[n % len(LOCATIONS)]
+        # ... and sets the page at a place it was offered (a season's generated page is
+        # offered only the places Le Quartier has built: ``on_built_stage``).
+        offered = {str(place.get("id")) for place in (context.get("world") or {}).get("locations") or []}
+        places = [place for place in LOCATIONS if place in offered] or LOCATIONS
+        location = self.scene.location_id or places[n % len(places)]
         if shape == "bottle" and keeps_chapter and chapter.get("location_id"):
             location = str(chapter["location_id"])
         must_change = (context.get("variety") or {}).get("must_change") or {}
