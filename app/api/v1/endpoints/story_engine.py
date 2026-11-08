@@ -4,6 +4,7 @@ All story/learning mutations go through the existing daily-journey state machine
 Reading does not complete an episode. No private rubric or future ending is exposed.
 """
 
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -289,3 +290,69 @@ def season_frontier(
     if season not in available_seasons():
         raise HTTPException(404, "Season not found")
     return frontier_of(db, season)
+
+
+class WorldOrderRead(BaseModel):
+    kind: str
+    name_fr: str
+    location_id: str | None = None
+    look: str = ""
+    #: How often the lives left it, and in how many lives.
+    times: int
+    lives: int
+
+
+class WorldOrdersRead(BaseModel):
+    season: str
+    orders: list[WorldOrderRead]
+
+
+@router.get("/world-orders", response_model=WorldOrdersRead)
+def world_orders(
+    db: Session = Depends(get_db),
+    season: str = Query(default="s1", pattern=r"^[a-z0-9_]{1,24}$"),
+):
+    """What the season's recent lives have left in Le Quartier (a thing at a place, a
+    place the story named): the nightly forge builds from it. Public like the frontier,
+    cached, fiction only (``app/services/season/frontier.py``)."""
+
+    from app.services.season.format import available_seasons
+    from app.services.season.frontier import world_orders as orders_of
+
+    if season not in available_seasons():
+        raise HTTPException(404, "Season not found")
+    return orders_of(db, season)
+
+
+class WorldMarkRead(BaseModel):
+    id: str | None = None
+    kind: str
+    name_fr: str
+    location_id: str | None = None
+    look: str = ""
+    times: int = 1
+    day: int | None = None
+
+
+class WorldStateRead(BaseModel):
+    season: str | None = None
+    #: The season flags this learner's story has set (``user.usual_order``…).
+    flags: dict[str, Any]
+    #: What their story has left in Le Quartier, newest last.
+    marks: list[WorldMarkRead]
+
+
+@router.get("/world-state", response_model=WorldStateRead)
+def world_state(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """The learner's own world for Le Quartier to lay: what their story set and left."""
+
+    from app.services.living_story import STATE_KEY
+    from app.services.season.frontier import world_state as state_of
+
+    thread = db.scalar(
+        select(SerialThread)
+        .where(SerialThread.user_id == user.id, SerialThread.status == "active")
+        .order_by(SerialThread.created_at.desc())
+    )
+    live = ((thread.state or {}).get(STATE_KEY) or {}) if thread else {}
+    return state_of(live)
