@@ -115,13 +115,15 @@ export interface StoryPage {
   title_fr: string;
   story_date_fr?: string | null;
   location_id?: string | null;
+  /** the place's name as the server gives it (a day the engine wrote), for a place the quarter does not know */
+  location_name?: string | null;
   /** what the learner practises today, in their language */
   can_do_native?: string | null;
   movements: StoryMovement[];
   storylets: Storylet[];
 }
 
-/** The days the director has blocking for: T1 day a, and day b (the café, then the stairwell). Any other page plays its lines at Le Mistral. */
+/** The days the director has blocking for: T1 day a, and day b (the café, then the stairwell). Any other page plays its lines at Le Mistral, or out on the quai when the season sets them outdoors (`settingOf`). */
 export const STAGED_DAYS = ['t1.a', 't1.b'];
 
 /** Where a page's panel plays in a room of the season rather than the café: the stairwell and Odile's door (T1 R1–R4). */
@@ -129,6 +131,61 @@ export const ROOM_OF: Record<string, string> = {
   stairwell: 'escalier_mistral',
   odile_flat: 'escalier_mistral',
 };
+
+/**
+ * Where a page without blocking plays a moment in the quarter: at Le Mistral's zinc, or out on the
+ * quai by the canal. The season's outdoor places (the roof over the canal, the quai, the market,
+ * the station…) play outside; the café, and the rooms the quarter cannot yet play a talk in, at
+ * the zinc. Either way, a place other than the café is named on a card when the scene moves there.
+ */
+export type Setting = 'zinc' | 'quai';
+
+const OUTDOORS = new Set(['toit', 'quai_de_valmy', 'rue_de_lancry', 'marche_canal', 'buttes_chaumont', 'brocante', 'gare_de_lest', 'metro_platform']);
+
+/** Le Mistral itself: no card names it. */
+const AT_MISTRAL = new Set(['le_mistral', 'mistral_back_room']);
+
+export function settingOf(location: string | null | undefined): Setting {
+  return location && OUTDOORS.has(location) ? 'quai' : 'zinc';
+}
+
+/** The season's places by name (`app/services/season/world.py`), for the card that says where a scene has moved. */
+export const PLACE_NAMES: Record<string, { fr: string; en: string; de: string }> = {
+  quai_de_valmy: { fr: 'Le quai de Valmy', en: 'The quai de Valmy', de: 'Der Quai de Valmy' },
+  stairwell: { fr: 'L’escalier', en: 'The stairwell', de: 'Das Treppenhaus' },
+  odile_flat: { fr: 'L’appartement d’Odile', en: 'Odile’s flat', de: 'Odiles Wohnung' },
+  user_apartment: { fr: 'Ton studio', en: 'Your studio', de: 'Dein Studio' },
+  marin_lila_flat: { fr: 'L’appartement de Marin et Lila', en: 'Marin and Lila’s flat', de: 'Die Wohnung von Marin und Lila' },
+  ngo_office: { fr: 'Le bureau de l’ONG de Marin', en: 'Marin’s NGO office', de: 'Das Büro von Marins NGO' },
+  mairie: { fr: 'La mairie du 10e', en: 'The town hall of the 10th', de: 'Das Rathaus des 10. Bezirks' },
+  marchand_office: { fr: 'La gérance Marchand', en: 'The Marchand property office', de: 'Die Hausverwaltung Marchand' },
+  notaire: { fr: 'Chez Maître Vasseur', en: 'At Maître Vasseur’s', de: 'Bei Maître Vasseur' },
+  gare_de_lest: { fr: 'La gare de l’Est', en: 'The Gare de l’Est', de: 'Der Gare de l’Est' },
+  rue_de_lancry: { fr: 'La rue de Lancry', en: 'The rue de Lancry', de: 'Die Rue de Lancry' },
+  gus_loft: { fr: 'Le « château » de Gus', en: 'Gus’s «château»', de: 'Gus’ «Schloss»' },
+  boulangerie: { fr: 'La boulangerie de Mme Diallo', en: 'Mme Diallo’s bakery', de: 'Die Bäckerei von Mme Diallo' },
+  ecole: { fr: 'La classe de Lila', en: 'Lila’s classroom', de: 'Lilas Klassenzimmer' },
+  toit: { fr: 'Le toit de l’immeuble', en: 'The roof of the building', de: 'Das Dach des Hauses' },
+  newsroom: { fr: 'La rédaction de Romy', en: 'Romy’s newsroom', de: 'Romys Redaktion' },
+  marche_canal: { fr: 'Le marché du canal', en: 'The canal market', de: 'Der Markt am Kanal' },
+  buttes_chaumont: { fr: 'Le parc des Buttes-Chaumont', en: 'The Buttes-Chaumont park', de: 'Der Park Buttes-Chaumont' },
+  metro_platform: { fr: 'Le quai du métro', en: 'The metro platform', de: 'Der Bahnsteig der Metro' },
+  brocante: { fr: 'La brocante', en: 'The flea market', de: 'Der Flohmarkt' },
+};
+
+/** The card's words for a place other than Le Mistral; null for the café (or no place at all). */
+export function placeCard(location: string | null | undefined, fallback?: string | null): { fr: string; en: string; de: string } | null {
+  if (!location || AT_MISTRAL.has(location)) return null;
+  const known = PLACE_NAMES[location];
+  if (known) return known;
+  const name = fallback?.trim();
+  return name ? { fr: name, en: name, de: name } : null;
+}
+
+/** Where a movement says it happens, if it says. */
+export function locationOf(m: StoryMovement): string | null {
+  return (m.kind === 'panel' ? m.location_id : m.panel.location_id) ?? null;
+}
 
 /** The room a movement plays in, if it is one (a hook plays where the room's scene ends). */
 export function roomOf(m: StoryMovement): string | null {

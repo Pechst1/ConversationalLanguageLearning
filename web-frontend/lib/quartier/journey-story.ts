@@ -258,6 +258,7 @@ export function pageOfScene(journey: JourneySnapshot, scene: SceneStep): StoryPa
     title_fr: str(scenario.title_fr) ?? '',
     story_date_fr: null,
     location_id: str(scenario.location_id),
+    location_name: str(scenario.location_name),
     can_do_native: str(scenario.objective_native) ?? str(p.objective_native),
     movements,
     storylets: [],

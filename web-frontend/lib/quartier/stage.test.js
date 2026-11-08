@@ -12,7 +12,7 @@ const { test } = require('node:test');
 const WEB_ROOT = path.resolve(__dirname, '..', '..');
 require(path.join(WEB_ROOT, 'node_modules/sucrase/register/ts'));
 
-const { STAGED, SILENT_BEATS } = require('./stage.ts');
+const { GUESTS, OUTSIDE, STAGED, SILENT_BEATS, personOf } = require('./stage.ts');
 const { T1A_COPY: T1A } = require('./story.ts');
 
 test('the copy of the day in the frontend is the season file, word for word', () => {
@@ -74,6 +74,10 @@ test('every walk the scene asks for has a way through the streets', () => {
     ['the booth corner to beside you', MARKS.boothCorner, MARKS.zincBeside],
     ['the booth’s end to beside you', MARKS.boothLeft, MARKS.zincBeside],
     ['Camille’s table to beside you', new Vector3(-33.95, 0, -11.0), MARKS.zincBeside],
+    // a guest (M. Marchand, Romy, Odile) comes in from the street to the zinc
+    ['the street to beside you', MARKS.doorOut, MARKS.zincBeside],
+    // out on the quai: whoever the moment is with walks the last steps to beside you
+    ...OUTSIDE.beside.map((spot, i) => [`a few steps off to beside you on the quai (${i})`, spot.clone().add(OUTSIDE.approach), spot]),
   ];
   for (const [label, a, b] of ways) {
     const start = nav.nearest(a.x, a.z, 3);
@@ -107,5 +111,51 @@ test('day b: the director has blocking for every movement, in order, and the sta
       if (!beat.silence || (beat.lines ?? []).length) continue;
       assert.ok(Object.values(SILENT_BEATS).some((re) => re.test(beat.id)), `${beat.id} is silent and nothing acts it`);
     }
+  }
+});
+
+test('a day without blocking plays where the season sets it: outdoors on the quai, else at the zinc, and a card names the place', () => {
+  const { PLACE_NAMES, placeCard, settingOf } = require('./story.ts');
+  assert.equal(settingOf('toit'), 'quai');
+  assert.equal(settingOf('marche_canal'), 'quai');
+  assert.equal(settingOf('le_mistral'), 'zinc');
+  assert.equal(settingOf(null), 'zinc');
+  assert.equal(placeCard('le_mistral'), null);
+  assert.equal(placeCard('mistral_back_room'), null);
+  assert.equal(placeCard('toit').fr, 'Le toit de l’immeuble');
+  assert.equal(placeCard('toit').de, 'Das Dach des Hauses');
+  assert.equal(placeCard('somewhere_new', 'La péniche').fr, 'La péniche');
+  assert.equal(placeCard('somewhere_new'), null);
+  // every place of the season has its name for the card
+  const world = fs.readFileSync(path.join(WEB_ROOT, '..', 'app/services/season/world.py'), 'utf8');
+  const ids = Array.from(world.matchAll(/^    "([a-z_]+)": \{"name_fr": "([^"]+)"/gm));
+  assert.ok(ids.length > 15);
+  for (const [, id, name] of ids) {
+    if (id === 'le_mistral' || id === 'mistral_back_room') continue;
+    assert.ok(PLACE_NAMES[id], `${id} has no name for the card`);
+    assert.equal(PLACE_NAMES[id].fr.replace(/’/g, "'"), name, `${id}: the card's name is not the season's`);
+  }
+});
+
+test('the bridges’ people who are not regulars come on as guests with a body (M. Marchand on the roof)', () => {
+  const bridges = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, '..', 'app/data/season/s1/bridges.json'), 'utf8'));
+  const people = new Set();
+  const walk = (x) => {
+    if (Array.isArray(x)) return x.forEach(walk);
+    if (!x || typeof x !== 'object') return;
+    if (typeof x.who === 'string') people.add(x.who);
+    if (x.kind === 'turn' && typeof x.to === 'string') people.add(x.to);
+    for (const k of x.in_frame ?? []) people.add(k);
+    Object.values(x).forEach(walk);
+  };
+  walk(bridges.bridges);
+  assert.ok(people.has('landlord_marchand'));
+  // everyone in the round (cast3d/people) is a regular or a guest, and has their name on the cards;
+  // a passer-by without a body (the clerk) keeps the name the page gives
+  const bodies = ['margaux_barman', 'augustin_de_roncourt', 'lila_bonnet', 'marin_leveque', 'romy_tremblay', 'landlord_marchand', 'camille_marchand', 'odile_ferrand'];
+  const regulars = ['margaux_barman', 'augustin_de_roncourt', 'lila_bonnet', 'marin_leveque', 'camille_marchand'];
+  for (const who of bodies) {
+    assert.ok(personOf(who), `${who} has no name on the cards`);
+    assert.ok(regulars.includes(who) || GUESTS[who] > 1.4, `${who} has a body and never comes on`);
   }
 });
