@@ -37,8 +37,9 @@ import { CHAIR, MARKS } from './mistral';
 import { AMBIANCES } from './palette';
 import { STRIDE } from './pace';
 import { PLAN } from './quai';
-import { OfflineStory, STAGED_DAYS, hookOf, nextTurn, roomOf, storyletOf } from './story';
-import type { Answered, Ask, Help, HelpStep, Heard, Mend, Story, StoryHook, StoryLine, StoryPanel, StoryPerson, StoryTurn } from './story';
+import { OfflineStory, STAGED_DAYS, hookOf, locationOf, nextTurn, placeCard, roomOf, settingOf, storyletOf } from './story';
+import type { Setting } from './story';
+import type { Answered, Ask, Help, HelpStep, Heard, Mend, Story, StoryHook, StoryLine, StoryMovement, StoryPanel, StoryPerson, StoryTurn } from './story';
 
 /** The day's id in the quarter's memory (`t1a`, `t1b`; `jour2026-10-30` for a day the engine wrote). */
 export function dayOf(page: { key: string }) {
@@ -196,7 +197,33 @@ const PEOPLE: Record<string, { char: CharKey; name: string }> = {
   lila_bonnet: { char: 'lila', name: 'Lila' },
   margaux_barman: { char: 'margaux', name: 'Margaux' },
   camille_marchand: { char: 'camille', name: 'Camille' },
+  landlord_marchand: { char: 'passant', name: 'M. Marchand' },
+  romy_tremblay: { char: 'passant', name: 'Romy' },
+  odile_ferrand: { char: 'passant', name: 'Odile' },
   toi: { char: 'toi', name: 'Toi' },
+};
+
+/**
+ * The season's people who are not among the café's regulars but have a body in the round
+ * (`cast3d/people`): on a day without blocking that has them speak, they come in from the street.
+ */
+export const GUESTS: Record<string, number> = {
+  landlord_marchand: 1.66,
+  romy_tremblay: 1.7,
+  odile_ferrand: 1.6,
+};
+
+/**
+ * Out on the quai, by the canal (a day's moment the season sets outdoors: the roof over the canal,
+ * the market, the station): where you stand, where you look, and the two places beside you.
+ */
+export const OUTSIDE = {
+  you: new Vector3(-12.6, 0, -9.4),
+  look: new Vector3(2, 2.4, -40),
+  /** clear of the plane trees (x -14.3, every 8.5 m) and the lamps on the canal's edge */
+  beside: [new Vector3(-11.6, 0, -11.6), new Vector3(-13.3, 0, -12.0)],
+  /** where someone is stood before they walk the last steps to you: a little way up the quai */
+  approach: new Vector3(1.0, 0, -3.0),
 };
 
 /** Who someone is on the screen: their accent and the name the cards print. */
@@ -1324,7 +1351,32 @@ export class Stage implements Director {
    * evening. Camille is there only when the page has her say something.
    */
   private resetInside() {
-    this.q.place(MARKS.atZinc, MARKS.boothMiddle.clone().setY(1.5));
+    const page = this.story.page;
+    this.where = null;
+    this.carded = null;
+    const first = page.movements.map(locationOf).find(Boolean) ?? page.location_id ?? null;
+    this.stand(settingOf(first));
+    this.camilleNamed = true;
+  }
+
+  /** Where the day's scene is now: the café's zinc, or out on the quai. */
+  private setting: Setting = 'zinc';
+  /** the place the page last said it is in (`location_id`), and the last one a card named */
+  private where: string | null = null;
+  private carded: string | null = null;
+  /** out on the quai: who has come to stand with you, first come first, and at which place beside you */
+  private company: Array<{ key: string; spot: number }> = [];
+
+  /**
+   * Set the scene at the zinc or out on the quai: you, the regulars where they spend the evening
+   * (Camille only when the page has her say something), the guests out of sight until they come.
+   */
+  private stand(setting: Setting) {
+    this.setting = setting;
+    this.beside = null;
+    this.company = [];
+    if (setting === 'quai') this.q.place(OUTSIDE.you, OUTSIDE.look);
+    else this.q.place(MARKS.atZinc, MARKS.boothMiddle.clone().setY(1.5));
     const speaks = new Set(
       this.story.page.movements.flatMap((m) => (m.kind === 'panel' ? m.lines : m.panel.lines).map((l) => l.who).concat(m.kind === 'turn' ? [m.to] : [])),
     );
@@ -1334,11 +1386,57 @@ export class Stage implements Director {
       f.place(at);
       f.visible = k !== 'camille_marchand' || speaks.has(k);
     }
-    this.camilleNamed = true;
+    for (const k of Object.keys(GUESTS)) {
+      const f = this.fig(k);
+      if (!f) continue;
+      f.place(MARKS.doorOut);
+      f.visible = false;
+    }
+  }
+
+  /** The season's people the page has speak who are not in the troupe yet: stood in the street, out of sight. */
+  private async castGuests() {
+    const page = this.story.page;
+    const needed = new Set<string>();
+    for (const m of page.movements) {
+      const panel = m.kind === 'panel' ? m : m.panel;
+      for (const l of panel.lines) needed.add(l.who);
+      for (const k of panel.in_frame ?? []) needed.add(k);
+      if (m.kind === 'turn') needed.add(m.to);
+    }
+    for (const key of Array.from(needed)) {
+      const height = GUESTS[key];
+      if (!height || this.fig(key)) continue;
+      try {
+        const f = await this.q.troupe.add({ key, height }, MARKS.doorOut);
+        if (f) f.visible = false;
+      } catch {
+        // no body and no drawing: the cards still say who speaks
+      }
+    }
+  }
+
+  /**
+   * Before a moment of a day without blocking: if the page says it happens somewhere else, the
+   * scene goes there (the zinc, or out on the quai) and a card names the place.
+   */
+  private async moveTo(gen: number, m: StoryMovement) {
+    const page = this.story.page;
+    const at = locationOf(m) ?? (this.where === null ? page.location_id ?? null : null);
+    if (!at || at === this.where) return;
+    this.where = at;
+    const setting = settingOf(at);
+    if (setting !== this.setting) this.stand(setting);
+    const card = placeCard(at, at === page.location_id ? page.location_name : null);
+    if (!card || this.carded === at) return;
+    this.carded = at;
+    this.set({ caption: { text: card.fr, native: card[this.native] }, speech: null });
+    await this.waitTap(gen);
   }
 
   /** Whoever a question is put to comes to the zinc beside you; whoever stood there goes back to their place. */
   private async comeOver(gen: number, key: string) {
+    if (this.setting === 'quai') return this.joinYou(gen, key);
     if (this.beside === key) return;
     const f = this.fig(key);
     if (!f) return;
@@ -1355,6 +1453,48 @@ export class Stage implements Director {
     f.seat = 0;
     const follow = this.q.onTick(() => this.look(f.face(), 2.0));
     await this.walkFig(gen, key, MARKS.zincBeside, 1.0).finally(follow);
+  }
+
+  /**
+   * Out on the quai: someone comes to stand with you, at one of the two places beside you. They
+   * are stood a few steps off and walk the rest (from the café's booth it would be half a minute's
+   * walk); a third sends the first one back where they came from.
+   */
+  private async joinYou(gen: number, key: string) {
+    if (key === 'toi') return;
+    const f = this.fig(key);
+    if (!f) return;
+    if (this.company.some((c) => c.key === key)) {
+      this.look(f.face(), 2.0);
+      return;
+    }
+    if (this.company.length >= OUTSIDE.beside.length) {
+      const gone = this.company.shift()!;
+      const g = this.fig(gone.key);
+      const home = EVENING.find(([k]) => k === gone.key)?.[1];
+      if (g) {
+        if (home) g.place(home);
+        else g.visible = false;
+      }
+    }
+    const taken = new Set(this.company.map((c) => c.spot));
+    const free = OUTSIDE.beside.findIndex((_, i) => !taken.has(i));
+    const spotIndex = free >= 0 ? free : 0;
+    const spot = OUTSIDE.beside[spotIndex];
+    this.company.push({ key, spot: spotIndex });
+    this.beside = key;
+    f.seat = 0;
+    f.place(this.ground(spot.clone().add(OUTSIDE.approach)));
+    f.visible = true;
+    const follow = this.q.onTick(() => this.look(f.face(), 2.0));
+    await this.walkFig(gen, key, this.ground(spot.clone()), 1.0).finally(follow);
+  }
+
+  /** A point on the quai, at the height of the ground there. */
+  private ground(at: Vector3) {
+    const y = this.q.nav.heightAt(at.x, at.z);
+    if (Number.isFinite(y)) at.y = y;
+    return at;
   }
 
   /** Where the notary's envelope lies on the zinc, once it is out. */
@@ -1417,6 +1557,7 @@ export class Stage implements Director {
     this.clearWaits();
     // day b plays Camille in the round, at the zinc
     if (this.day === 't1b') await this.inFull('camille_marchand', 1.72);
+    if (!this.blocked) await this.castGuests();
     if (gen !== this.gen) return;
     this.reset();
     this.memory.beginDay(this.day);
@@ -1442,6 +1583,7 @@ export class Stage implements Director {
           await this.toRoom(gen, room, m.id);
           return;
         }
+        if (!this.blocked) await this.moveTo(gen, m);
         if (m.kind === 'turn') {
           // a question the engine does not ask today (its `only_after` did not hold) is not asked here either
           if (m.id === this.asking) await this.turn(gen, m);
@@ -2205,6 +2347,10 @@ export class Stage implements Director {
 
   /** A beat of a day without blocking: its lines, each said by whoever says it; a silence held. */
   private async plainBeat(gen: number, b: StoryPanel) {
+    // someone the moment is with who is not where you are (a guest in the street; anyone, out on the quai) comes over
+    const near = (k: string) => k !== 'toi' && k !== 'caption' && Boolean(this.fig(k)) && (this.setting === 'quai' || k in GUESTS);
+    const who = b.lines.map((l) => l.who).find(near) ?? (b.in_frame ?? []).find(near);
+    if (who) await this.comeOver(gen, who);
     if (b.silence && !b.lines.length) {
       await this.silent(gen, 1.8);
       return;
