@@ -107,7 +107,7 @@ def _after_gus_turn(offline_text: str = "Je viens pour vendre. L'appartement est
     return brief, history
 
 
-def test_tu_to_margaux_gets_no_register_correction(db_session, offline) -> None:
+def test_tu(db_session, offline) -> None:
     brief, history = _after_gus_turn()
     _assessment, candidates = register_corrections(
         user=_user(db_session),
@@ -120,7 +120,7 @@ def test_tu_to_margaux_gets_no_register_correction(db_session, offline) -> None:
     assert shown == [], f"Margaux says tu to the learner; a tu reply was corrected: {shown}"
 
 
-def test_the_expected_register_is_the_addressees_not_the_scenes(db_session, offline) -> None:
+def test_who(db_session, offline) -> None:
     brief, history = _after_gus_turn()
     found = expected_counterpart_register(
         scenario=brief, task=brief.response_task, history=history, native_language="de"
@@ -128,7 +128,7 @@ def test_the_expected_register_is_the_addressees_not_the_scenes(db_session, offl
     assert (found.expected, found.counterpart) == ("tu", "Margaux")
 
 
-def test_tu_to_gus_is_still_corrected_and_names_him(db_session, offline) -> None:
+def test_gus(db_session, offline) -> None:
     page = _page()
     scenario = _scenario(page)
     brief = _brief(scenario.story_context, opening="Alors ? Vous êtes qui, exactement ?")
@@ -166,7 +166,7 @@ def _authored_turns():
 
 
 @pytest.mark.parametrize(("page", "turn"), list(_authored_turns()))
-def test_every_authored_turn_is_checked_against_its_addressee(page, turn, monkeypatch) -> None:
+def test_turn(page, turn, monkeypatch) -> None:
     """The expected register of each S1 turn is the register of the person it is ``to``."""
 
     from app.config import settings
@@ -198,7 +198,7 @@ def test_every_authored_turn_is_checked_against_its_addressee(page, turn, monkey
     assert address.known_register(None, turn["to"]) == wanted
 
 
-def test_the_header_names_the_person_the_next_question_is_for(offline) -> None:
+def test_head(offline) -> None:
     """Gus asked exchange 1; the question put next is Margaux's, and so is the header."""
 
     scenario = _scenario(_page())
