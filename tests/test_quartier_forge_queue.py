@@ -201,7 +201,7 @@ def test_the_forge_reads_what_the_stories_left_and_builds_the_next_thing(tmp_pat
     forge.cmd_orders_queue(SimpleNamespace(frontier=source))
     out = capsys.readouterr().out
     assert "next detail: «la pétition de Gus» in quai_de_valmy (mark: le_mistral)" in out
-    assert "next place: «la librairie de la rue Bichat», named by 2 lives" in out
+    assert "next place: «la librairie de la rue Bichat» (id librairie_rue_bichat), named by 2 lives" in out
 
     # a detail written for the mark: the order is built, and the next thing comes up
     details = tmp_path / "details"
@@ -221,3 +221,59 @@ def test_an_unreadable_server_leaves_the_forge_without_orders(monkeypatch, capsy
     monkeypatch.setattr(forge, "API", "http://127.0.0.1:9")
     assert forge.story_orders() == []
     assert "orders are unreadable" in capsys.readouterr().err
+
+
+def test_a_place_of_the_season_the_stories_named_is_built_first(tmp_path):
+    """«Erst erwähnen, dann betreten»: a page names the mairie, the forge builds it next, and
+    pages go there once it is."""
+    forge = _forge()
+    source = _orders(tmp_path, {"kind": "place", "name_fr": "La mairie du 10e", "location_id": None, "look": "", "times": 1, "lives": 3})
+    asked = forge.asked_places(forge.orders_queue(forge.story_orders(source)))
+    assert asked == {"mairie": 3}
+    todo = [r for r in forge.season_queue("g3", asked=asked) if r["status"] in ("new", "locked")]
+    assert todo[0]["location"] == "mairie" and todo[0]["asked"] == 3
+    # without the stories' word, the roof the learner reaches first comes first
+    assert [r for r in forge.season_queue("g3") if r["status"] in ("new", "locked")][0]["location"] != "mairie"
+
+
+def test_a_place_the_stories_named_and_the_forge_built_reaches_the_server(tmp_path, monkeypatch):
+    forge = _forge()
+    assert forge.place_id_for("la librairie de la rue Bichat") == "librairie_rue_bichat"
+    assert forge.place_id_for("Chez Mme Hébert") == "mme_hebert"
+    places = json.loads(Path(forge.WORLD).read_text(encoding="utf-8"))["places"]
+    shop = {
+        "id": "librairie_rue_bichat",
+        "name": {"fr": "La librairie de la rue Bichat", "en": "The bookshop on rue Bichat", "de": "Die Buchhandlung in der Rue Bichat"},
+        "lat": 48.8716, "lon": 2.3644, "status": "locked", "kind": "story", "in": "quai_de_valmy",
+        "why": {"fr": "Les histoires l'ont nommée.", "en": "The stories named it.", "de": "Die Geschichten haben sie genannt."},
+        "room": "librairie_rue_bichat", "stages": ["librairie_rue_bichat"],
+        "story": {"description": "A narrow bookshop with a green front and a cat in the window.", "named_by": 2},
+    }
+    data = forge.stages_file([*places, shop])
+    assert data["stages"]["librairie_rue_bichat"] == "librairie_rue_bichat"
+    assert data["places"] == {
+        "librairie_rue_bichat": {
+            "name_fr": "La librairie de la rue Bichat",
+            "name": "The bookshop on rue Bichat",
+            "type": "story",
+            "description": "A narrow bookshop with a green front and a cat in the window.",
+        }
+    }
+    # not built yet: neither a stage nor a place the night may go to
+    unbuilt = {**shop, "room": None}
+    assert "places" not in forge.stages_file([*places, unbuilt])
+    # the forge's check knows it as a place a page may be set in
+    monkeypatch.setattr(forge, "world", lambda: {"places": [*places, shop]})
+    assert forge.register_problems(shop) == []
+
+    # the server reads the same file as the forge writes it
+    from app.services.season import world as season_world
+
+    (tmp_path / "s1").mkdir()
+    (tmp_path / "s1" / "stages.json").write_text(json.dumps(data), encoding="utf-8")
+    monkeypatch.setattr(season_world, "SEASON_ROOT", tmp_path)
+    season_world.story_places.cache_clear()
+    try:
+        assert season_world.story_places("s1")["librairie_rue_bichat"]["name_fr"] == "La librairie de la rue Bichat"
+    finally:
+        season_world.story_places.cache_clear()

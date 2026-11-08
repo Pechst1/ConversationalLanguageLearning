@@ -285,13 +285,21 @@ def stage_of(location: str, places: list[dict] | None = None) -> dict | None:
     return next((p for p in built if p.get("kind") != "home"), built[0] if built else None)
 
 
+def story_places(places: list[dict] | None = None) -> dict[str, dict]:
+    """The places the learners' stories named that the world has an entry for (``kind: story``):
+    «Erst erwähnen, dann betreten», a page names a place, the forge builds it, then pages go there.
+    Each one stages its own id."""
+    places = world()["places"] if places is None else places
+    return {p["id"]: p for p in places if p.get("kind") == "story"}
+
+
 def built_stages(places: list[dict] | None = None) -> dict[str, str]:
-    """Each place of the season the world has built, to the built place a page set there plays in.
-    The server reads it (``app/data/season/s1/stages.json``): the night writes a page only where
-    the world can play it."""
+    """Each place of the season the world has built (the bible's, and the ones the stories named),
+    to the built place a page set there plays in. The server reads it
+    (``app/data/season/s1/stages.json``): the night writes a page only where the world can play it."""
     places = world()["places"] if places is None else places
     out = {}
-    for loc in season_locations():
+    for loc in [*season_locations(), *[pid for pid in story_places(places) if pid not in season_locations()]]:
         stage = stage_of(loc, places)
         if stage:
             out[loc] = stage["id"]
@@ -299,13 +307,29 @@ def built_stages(places: list[dict] | None = None) -> dict[str, str]:
 
 
 def stages_file(places: list[dict] | None = None) -> dict:
-    return {
+    places = world()["places"] if places is None else places
+    stages = built_stages(places)
+    data = {
         "_about": "Written by scripts/forge/forge.py from web-frontend/lib/quartier/world/world.json "
         "(python scripts/forge/forge.py stages): each place of the season the 3D world has built, "
         "to the built place a page set there plays in. The night writer sets a generated page only "
-        "at these places (app/services/season/world.py).",
-        "stages": built_stages(places),
+        "at these places (app/services/season/world.py). «places»: the ones the learners' stories "
+        "named that the forge built, for the writer to know them by.",
+        "stages": stages,
     }
+    named = {
+        pid: {
+            "name_fr": p["name"]["fr"],
+            "name": p["name"].get("en") or p["name"]["fr"],
+            "type": "story",
+            "description": (p.get("story") or {}).get("description") or p.get("why", {}).get("en") or p["name"]["fr"],
+        }
+        for pid, p in story_places(places).items()
+        if pid in stages
+    }
+    if named:
+        data["places"] = named
+    return data
 
 
 def write_stages(places: list[dict] | None = None) -> bool:
@@ -340,13 +364,16 @@ def waits_for_kit(location: str) -> bool:
         return f.read().lstrip().lower().startswith("waits for a kit")
 
 
-def season_queue(frontier: str | list[str] | None = None, season_id: str = "s1") -> list[dict]:
+def season_queue(frontier: str | list[str] | None = None, season_id: str = "s1", asked: dict[str, int] | None = None) -> list[dict]:
     """Every place the season's pages are set in, with what the world has for it, the next one
     the story reaches first. ``frontier`` is the segment a learner is on (``g3``), or the
     segments several are on (``forge.py queue --season --from api`` reads them from the
     server): a place comes sooner the fewer days of the season lie between a learner and the
     first page of theirs set there; places only needed behind every learner follow, for the
-    learners still to come."""
+    learners still to come. ``asked``: the places of the season the learners' pages named
+    (``queue --orders``), with how many lives named them. «Erst erwähnen, dann betreten»: a page
+    goes there only once it is built, so a place the story asked for comes first."""
+    asked = asked or {}
     needs = season_needs(season_id)
     segments = season_segments(season_id)
     segs = [s["id"] for s in segments]
@@ -383,8 +410,22 @@ def season_queue(frontier: str | list[str] | None = None, season_id: str = "s1")
         row["need"] = need
         row["ahead"] = row["next"] is not None
         row.setdefault("soon", None)
+        row["asked"] = int(asked.get(row["location"]) or 0)
         out.append(row)
-    out.sort(key=lambda r: (0, r["soon"], needs.index(r["need"])) if r["ahead"] else (1, r["need"]["at"], needs.index(r["need"])))
+    out.sort(
+        key=lambda r: (0 if r["asked"] else 1, -r["asked"])
+        + ((0, r["soon"], needs.index(r["need"])) if r["ahead"] else (1, r["need"]["at"], needs.index(r["need"])))
+    )
+    return out
+
+
+def asked_places(rows: list[dict]) -> dict[str, int]:
+    """The places of the season the stories named (``orders_queue`` rows of status ``season``),
+    with how many lives named them."""
+    out: dict[str, int] = {}
+    for r in rows:
+        if r["kind"] == "place" and r["status"] == "season" and r.get("location_id"):
+            out[r["location_id"]] = out.get(r["location_id"], 0) + int(r.get("lives") or 0)
     return out
 
 
@@ -427,6 +468,21 @@ def live_frontier(season_id: str = "s1") -> list[str]:
 def fold(text) -> str:
     """A name as an order is matched: case and spacing aside."""
     return " ".join(str(text or "").casefold().split())
+
+
+#: Words a place's id leaves out of its French name.
+_ID_SKIP = {"le", "la", "les", "l", "de", "des", "du", "d", "un", "une", "au", "aux", "chez", "et"}
+
+
+def place_id_for(name_fr: str) -> str:
+    """An id for a place the stories named: its French name in plain letters, articles left out
+    («la librairie de la rue Bichat» → ``librairie_rue_bichat``)."""
+    import re
+    import unicodedata
+
+    plain = unicodedata.normalize("NFKD", fold(name_fr)).encode("ascii", "ignore").decode()
+    words = [w for w in re.findall(r"[a-z0-9]+", plain) if w not in _ID_SKIP]
+    return "_".join(words)[:40].strip("_") or "lieu"
 
 
 def detail_specs() -> list[dict]:
@@ -478,12 +534,14 @@ def orders_queue(orders: list[dict], places: list[dict] | None = None) -> list[d
                 status = "new" if row["stage"] else "waits"
         else:
             loc = loc or season_names.get(fold(o["name_fr"]))
+            row["location_id"] = loc
             if (loc and loc in stages) or fold(o["name_fr"]) in built_names:
                 status = "built"
             elif loc and loc in names:
                 status = "season"
             else:
                 status = "new"
+                row["id"] = place_id_for(o["name_fr"])
         rows.append({**row, "status": status})
     rank = {"new": 0, "waits": 1, "season": 2, "built": 3}
     rows.sort(key=lambda r: (rank[r["status"]], -int(r.get("lives") or 0), -int(r.get("times") or 0), fold(r["name_fr"])))
@@ -501,33 +559,41 @@ def cmd_orders_queue(args) -> None:
     place = next((r for r in rows if r["kind"] == "place" and r["status"] == "new"), None)
     print(f"next detail: «{thing['name_fr']}» in {thing['stage']} (mark: {thing['location_id']})" if thing else "next detail: none; every thing the stories left where the world is built is laid")
     if place:
-        print(f"next place: «{place['name_fr']}», named by {int(place.get('lives') or 0)} lives")
+        print(f"next place: «{place['name_fr']}» (id {place['id']}), named by {int(place.get('lives') or 0)} lives")
 
 
 def register_problems(place: dict) -> list[str]:
     """A room of the season is the stage of the season's places it says (``stages``): without
     one, no page ever plays there."""
-    known = season_locations()
+    known = {**season_locations(), **dict.fromkeys(story_places(), "")}
     stages = place.get("stages") or []
     problems = [] if stages else [f"{place['id']}: world.json gives it no «stages» (the season places a page set there plays in)"]
     for loc in stages + (place.get("sees") or []):
         if loc not in known:
-            problems.append(f"{place['id']}: «{loc}» is not a place of the season (app/services/season/world.py)")
+            problems.append(f"{place['id']}: «{loc}» is not a place of the season (app/services/season/world.py) nor one the stories named (kind story)")
     return problems
 
 
 def cmd_season_queue(args) -> None:
     frontier = args.frontier
+    asked: dict[str, int] = {}
     if frontier == "api":
         frontier = live_frontier()
         print(f"learners on: {', '.join(frontier) if frontier else 'none'}")
+        asked = asked_places(orders_queue(story_orders()))
+        if asked:
+            print(f"named by the stories: {', '.join(f'{loc} ({n} lives)' for loc, n in asked.items())}")
     elif frontier:
         frontier = [f.strip() for f in frontier.split(",") if f.strip()]
-    rows = season_queue(frontier)
+    rows = season_queue(frontier, asked=asked)
     unknown = sorted({r["location"] for r in rows} - set(season_locations()))
     for r in rows:
         where = r["stage"] or (f"{r['entry']} (no room or site yet)" if r["entry"] else "not in world.json")
         side = "" if r["ahead"] else "  (behind the frontier)"
+        if r["ahead"] and r["soon"] is not None:
+            side += f"  (in {r['soon']} days)"
+        if r["asked"]:
+            side += f"  (named by {r['asked']} lives)"
         print(f"{r['status']:7} {r['location']:18} {r['need']['page']:10} {where}{side}")
     todo = [r for r in rows if r["status"] in ("new", "locked")]
     if unknown:

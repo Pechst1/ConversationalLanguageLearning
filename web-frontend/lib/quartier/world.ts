@@ -23,8 +23,12 @@ export interface WorldPlace {
   lat: number;
   lon: number;
   status: WorldStatus;
-  /** home: the hand-drawn quarter; season: a place of the story; news: a Papier asked for it */
-  kind: 'home' | 'season' | 'news';
+  /**
+   * home: the hand-drawn quarter; season: a place of the season's bible; story: a place the
+   * learners' own pages named, built by the forge (a page names it first, then goes there);
+   * news: a Papier asked for it
+   */
+  kind: 'home' | 'season' | 'story' | 'news';
   /** one line on what is there, or why it is in the world */
   why: Words;
   source?: { kind: 'season' | 'papier'; id: string; title_fr?: string };

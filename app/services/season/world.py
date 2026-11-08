@@ -51,7 +51,11 @@ SEASON_ONE_LOCATIONS: dict[str, dict[str, Any]] = {
 
 
 def season_location_ids(season_id: str = "s1") -> set[str]:
-    return set(SEASON_ONE_LOCATIONS) if season_id == "s1" else set()
+    """The places a page of the season may name: the bible's, and the places its learners'
+    stories named that the forge has built since (``story_places``)."""
+
+    authored = set(SEASON_ONE_LOCATIONS) if season_id == "s1" else set()
+    return authored | set(story_places(season_id))
 
 
 # ---------------------------------------------------------------------------
@@ -80,6 +84,40 @@ def built_stages(season_id: str = "s1") -> dict[str, str]:
     return {str(key): str(value) for key, value in stages.items() if key and value}
 
 
+#: The plate a place the stories named opens on in the Feuilleton until its own is drawn.
+STORY_PLACE_PLATE = "assets/serial/locations/marche_canal.webp"
+
+
+@lru_cache(maxsize=4)
+def story_places(season_id: str = "s1") -> dict[str, dict[str, Any]]:
+    """The places the season's learners' stories named and the forge has built since
+    («Erst erwähnen, dann betreten»): a page mentioned «la librairie de la rue Bichat», the
+    forge built it over a night, and from then on the night may set pages there. The forge
+    writes them into ``stages.json`` (``places``) with their French name and what they look
+    like; each one is also in ``stages``, where it plays."""
+
+    try:
+        data = json.loads((SEASON_ROOT / season_id / STAGES_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    places = data.get("places") if isinstance(data, dict) else None
+    stages = data.get("stages") if isinstance(data, dict) else None
+    if not isinstance(places, dict) or not isinstance(stages, dict):
+        return {}
+    out: dict[str, dict[str, Any]] = {}
+    for place_id, row in places.items():
+        if not isinstance(row, dict) or not row.get("name_fr") or place_id not in stages:
+            continue
+        out[str(place_id)] = {
+            "id": str(place_id),
+            "name": str(row.get("name") or row["name_fr"]),
+            "name_fr": str(row["name_fr"]),
+            "type": str(row.get("type") or "story"),
+            "description": str(row.get("description") or row["name_fr"]),
+        }
+    return out
+
+
 def playable_locations(
     locations: list[dict[str, Any]], season_id: str, *, keep: Iterable[str | None] = ()
 ) -> list[dict[str, Any]]:
@@ -99,11 +137,13 @@ def playable_locations(
 
 def plate_for(location_id: str | None) -> str | None:
     row = SEASON_ONE_LOCATIONS.get(str(location_id or ""))
-    return f"/{row['plate']}" if row else None
+    if row:
+        return f"/{row['plate']}"
+    return f"/{STORY_PLACE_PLATE}" if str(location_id or "") in story_places("s1") else None
 
 
 def location_name_fr(location_id: str | None) -> str:
-    row = SEASON_ONE_LOCATIONS.get(str(location_id or ""))
+    row = SEASON_ONE_LOCATIONS.get(str(location_id or "")) or story_places("s1").get(str(location_id or ""))
     return str(row["name_fr"]) if row else str(location_id or "")
 
 

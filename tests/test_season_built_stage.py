@@ -14,6 +14,7 @@ on the quai. Now:
 
 from __future__ import annotations
 
+import json
 import uuid
 from types import SimpleNamespace
 
@@ -136,3 +137,66 @@ def test_a_place_the_forge_builds_leaves_the_season_lexicon_current(tmp_path, mo
     (tmp_path / "s1" / "stages.json").write_text('{"stages": {"toit": "toit"}}\n', encoding="utf-8")
     monkeypatch.setattr(season_format, "SEASON_ROOT", tmp_path)
     assert season_lexicon.source_digest("s1") == before
+
+
+# ---------------------------------------------------------------------------
+# «Erst erwähnen, dann betreten» (Vincent, 8 Nov)
+# ---------------------------------------------------------------------------
+
+
+def _register(tmp_path, monkeypatch, **data):
+    import shutil
+
+    shutil.copytree(season_world.SEASON_ROOT / "s1", tmp_path / "s1")
+    (tmp_path / "s1" / "stages.json").write_text(json.dumps(data), encoding="utf-8")
+    monkeypatch.setattr(season_world, "SEASON_ROOT", tmp_path)
+    season_world.built_stages.cache_clear()
+    season_world.story_places.cache_clear()
+
+
+def test_a_place_not_built_is_one_a_page_may_name_never_one_it_is_set_in():
+    context = _context()
+    on_built_stage(context)
+    built = set(built_stages("s1"))
+    elsewhere = {place["id"] for place in context["world"]["elsewhere"]}
+    # the mairie, the roof, the gérance: named, not entered
+    assert {"mairie", "toit", "marchand_office"} <= elsewhere
+    assert not elsewhere & built
+    assert all(place["name_fr"] for place in context["world"]["elsewhere"])
+
+
+def test_a_place_the_stories_named_and_the_forge_built_is_one_the_night_may_go_to(tmp_path, monkeypatch):
+    from app.services import story_split
+
+    librairie = {"name_fr": "La librairie de la rue Bichat", "description": "A narrow bookshop with a green front."}
+    _register(
+        tmp_path,
+        monkeypatch,
+        stages={"le_mistral": "quai_de_valmy", "stairwell": "escalier_mistral", "librairie_bichat": "librairie_bichat"},
+        places={"librairie_bichat": librairie, "not_built": {"name_fr": "Nulle part"}},
+    )
+    try:
+        assert set(season_world.story_places("s1")) == {"librairie_bichat"}, "a place is a story place once it is built"
+        assert "librairie_bichat" in season_world.season_location_ids("s1")
+        assert season_world.location_name_fr("librairie_bichat") == "La librairie de la rue Bichat"
+        assert season_world.plate_for("librairie_bichat")
+
+        context = _context()
+        on_built_stage(context)
+        offered = {place["id"]: place for place in context["world"]["locations"]}
+        assert set(offered) == {"le_mistral", "stairwell", "librairie_bichat"}
+        assert offered["librairie_bichat"]["name_fr"] == "La librairie de la rue Bichat"
+        assert "librairie_bichat" in context["variety"]["all_locations"]
+        # the planner reads both: where today may be set, and what it may only name
+        payload = story_split.planner_payload({**context, "level": "A2", "control_language": "en"} | _planner_bits(), [])
+        assert {place["id"] for place in payload["places"]} == set(offered)
+        assert "mairie" in {place["id"] for place in payload["elsewhere"]}
+    finally:
+        season_world.built_stages.cache_clear()
+        season_world.story_places.cache_clear()
+
+
+def _planner_bits() -> dict:
+    return {
+        "season_script": {"brief": {"today": {}, "page_rules": {"voices": {"speakers": ["lila_bonnet"]}, "chapter": {"open_new": False}}}},
+    }

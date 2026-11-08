@@ -66,7 +66,10 @@ itself); `check` and `tests/test_quartier_forge_queue.py` refuse a stale copy.
    are on (`GET /api/v1/story-engine/season-frontier`; its first line says so): the place the
    nearest learner reaches first is listed first, then what lies behind them all. Should the
    server be unreadable, it says so and starts at the season's beginning; `--from g3` (or
-   `g3,t1`) names the segments by hand. Its last line names the next place to build. Build that one (a room of the season, below, or a street
+   `g3,t1`) names the segments by hand. `--from api` also reads what the learners' pages named
+   (step 0b): a place of the season a page named comes first, «named by N lives». A page goes
+   only where the world is built, and names the rest first («Erst erwähnen, dann betreten»,
+   Vincent, 8 Nov): so the place the story asked for is the one to build. Its last line names the next place to build. Build that one (a room of the season, below, or a street
    from the map data for a place outdoors) before anything the news asks for. A place no kit can
    build yet (a station platform, a park): write `scripts/forge/briefs/<location>.md` starting
    «Waits for a kit:» and one line on why and what kit it needs (the queue then shows it as
@@ -82,7 +85,9 @@ itself); `check` and `tests/test_quartier_forge_queue.py` refuse a stale copy.
    `season` when it is one of the season's (step 0 builds it in its time), `built` when the
    world has it, `new` when the world has never heard of it. A detail is small: besides the
    run's place, lay the `next detail:` it names (one a run), before the ladder's. A `new` place
-   (`next place:`) is not built yet: list it in the PR, with how many lives named it.
+   (`next place:`, with the id to give it) is the run's place instead of step 0's when no
+   learner reaches step 0's within seven days (`in N days` on its line) or when two lives or
+   more named it: see **A place the stories named** below. Otherwise list it in the PR.
 1. **Pick a news place** (only when step 0 has nothing to build). `$PY scripts/forge/forge.py news` refreshes the map's news layer
    (`world/news.json`, held to the articles by `news.test.js`); commit it with the run.
    `$PY scripts/forge/forge.py queue` lists the places Papier articles name with an exact
@@ -260,6 +265,27 @@ room instead of a street; it follows the steps above with these differences.
    `stages` given in `world.json`). Commit the brief, its notes, the room file, `rooms/index.ts`,
    `world.json`, `app/data/season/s1/stages.json` and any kit change (never `var/`), titled
    «Le Quartier forge: <what was built>».
+
+## A place the stories named
+
+A shop, a café, a flat, an office a learner's page named that the bible does not have
+(«la librairie de la rue Bichat»): the stories asked for it, so the quarter grows it. Once it is
+built, the night may set pages there, in every life of the season (`stages.json` carries it as
+one of `places`; `app/services/season/world.py: story_places`).
+
+1. **What it is.** Read its order: the name, the `look` of each life that named it, how many
+   lives. It is a place of this quarter, in the canon's tone (`docs/story/season-1/10-lieux-et-images.md`):
+   ordinary, lived in, never a brand or a real business. An indoor place is a room, written like a
+   room of the season; a street or a square that exists in Paris is a site, surveyed like any
+   street.
+2. **World entry.** `id` as `queue --orders` gives it, `kind: "story"`, `status: "locked"`, `name`
+   in three languages, `in` (the place it is reached from, usually `quai_de_valmy`), `why` («Les
+   histoires l'ont nommée.»), `stages: [<its own id>]`, and `story`: `description` (one English
+   sentence the night writer reads: what the place is and what is in it) and `named_by` (lives).
+3. **Build it** as a room (**Rooms of the season**, steps 3 to 6, with the order's looks as its
+   canon) or a site (the run's steps 2 to 9), then `$PY scripts/forge/forge.py stages`: the place
+   is in `stages` and in `places`. `queue --orders` lists its order as `built`.
+4. **PR** as usual, titled «Le Quartier forge: <name> (named by the stories)».
 
 ## Details: what the story leaves
 
