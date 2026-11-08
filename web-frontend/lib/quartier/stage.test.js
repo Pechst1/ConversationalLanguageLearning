@@ -118,12 +118,43 @@ test('day b: the director has blocking for every movement, in order, and the sta
   }
 });
 
-test('a day without blocking plays where the season sets it: outdoors on the quai, else at the zinc, and a card names the place', () => {
-  const { PLACE_NAMES, placeCard, settingOf } = require('./story.ts');
-  assert.equal(settingOf('toit'), 'quai');
-  assert.equal(settingOf('marche_canal'), 'quai');
-  assert.equal(settingOf('le_mistral'), 'zinc');
-  assert.equal(settingOf(null), 'zinc');
+test('a day without blocking plays in the places the world has built for it, and a card names the place', () => {
+  const { PLACE_NAMES, placeCard, placesOf, unbuiltOf } = require('./story.ts');
+  const page = (movements, location_id = null) => ({ key: 'x.y', location_id, movements });
+  const at = (id, location_id) => ({ kind: 'panel', id, location_id, lines: [] });
+  // the café and the quai are the hand-drawn quarter; a room of the season is the room the forge built
+  assert.deepEqual(placesOf(page([at('p1', 'le_mistral'), at('p2', 'quai_de_valmy'), at('p3', 'stairwell'), at('p4', 'odile_flat'), at('p5', 'le_mistral')])), [
+    'quai_de_valmy',
+    'quai_de_valmy',
+    'escalier_mistral',
+    'odile_flat',
+    'quai_de_valmy',
+  ]);
+  // a movement that names no place plays where the page is; the first, where the page says it is set; a page that names none, at the café
+  assert.deepEqual(placesOf(page([at('p1', null), at('p2', null)], 'user_apartment')), ['user_apartment', 'user_apartment']);
+  assert.deepEqual(placesOf(page([at('p1', null), { kind: 'hook', id: 'h', panel: at('h.p', null) }])), ['quai_de_valmy', 'quai_de_valmy']);
+  assert.equal(unbuiltOf(page([at('p1', null)])), null);
+  // somewhere nothing is built for yet: no place plays it, and the page says where
+  assert.deepEqual(placesOf(page([at('p1', 'toit'), at('p2', null), at('p3', 'le_mistral')])), [null, null, 'quai_de_valmy']);
+  assert.equal(unbuiltOf(page([at('p1', 'le_mistral'), at('p2', 'mistral_back_room')])), 'mistral_back_room');
+  assert.equal(unbuiltOf(page([at('p1', null)], 'toit')), 'toit');
+  assert.equal(unbuiltOf(page([at('p1', 'somewhere_new')])), 'somewhere_new');
+  // the season's own pages: T2 climbs the stairwell into Odile's flat; the roof (g3) waits for the forge
+  // (the season file's own movements: a solve the server poses as a question has no place of its own)
+  const staged = (movements) => movements.filter((m) => m.kind === 'panel' || m.panel);
+  const season = (file, day) => {
+    const d = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, '..', 'app/data/season/s1', file), 'utf8')).days.find((x) => x.day === day);
+    return { ...d, movements: staged(d.movements) };
+  };
+  const t2a = season('t2.json', 'a');
+  assert.equal(unbuiltOf(t2a), null);
+  assert.deepEqual(Array.from(new Set(placesOf(t2a))), ['escalier_mistral', 'odile_flat']);
+  const t2b = season('t2.json', 'b');
+  assert.equal(unbuiltOf(t2b), null);
+  assert.deepEqual(Array.from(new Set(placesOf(t2b))), ['odile_flat', 'escalier_mistral', 'quai_de_valmy']);
+  const g3 = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, '..', 'app/data/season/s1/bridges.json'), 'utf8')).bridges.find((b) => b.gap === 'g3');
+  assert.equal(unbuiltOf({ location_id: g3.location_id, movements: staged(g3.moments.flatMap((m) => m.movements)) }), 'toit');
+  // the card
   assert.equal(placeCard('le_mistral'), null);
   assert.equal(placeCard('mistral_back_room'), null);
   assert.equal(placeCard('toit').fr, 'Le toit de l’immeuble');
@@ -139,6 +170,34 @@ test('a day without blocking plays where the season sets it: outdoors on the qua
     assert.ok(PLACE_NAMES[id], `${id} has no name for the card`);
     assert.equal(PLACE_NAMES[id].fr.replace(/’/g, "'"), name, `${id}: the card's name is not the season's`);
   }
+});
+
+test('in a room the forge built, the moment’s people stand in front of you on your floor, apart', () => {
+  const { Vector3 } = require('three');
+  const { groundIn, HEIGHTS, GUESTS } = require('./stage.ts');
+  const { buildRoom } = require('./room.ts');
+  const { CardPress, LacePress, Press, seeded } = require('./geo.ts');
+  const { Nav } = require('./nav.ts');
+  for (const id of ['escalier_mistral', 'odile_flat', 'user_apartment', 'notaire']) {
+    const spec = JSON.parse(fs.readFileSync(path.join(__dirname, 'world', 'rooms', `${id}.json`), 'utf8'));
+    const B = { dry: new Press(), fine: new Press(), wet: new Press(), lace: new LacePress(), glass: new Press(), cards: new CardPress(), signs: [], lamps: [], walk: [], blocks: [], rand: seeded(7) };
+    const room = buildRoom(B, spec);
+    const nav = new Nav(B.walk, B.blocks, room.bounds);
+    const g = groundIn(room.start, nav);
+    assert.ok(g.beside.length >= 2, `${id}: room for ${g.beside.length} beside you`);
+    assert.equal(g.approach, null, `${id}: nobody walks in from the street`);
+    const ahead = new Vector3(room.start.look.x - g.you.x, 0, room.start.look.z - g.you.z).normalize();
+    g.beside.forEach((b, i) => {
+      assert.ok(nav.standable(b.x, b.z), `${id}: place ${i} is not on the floor`);
+      assert.ok(Math.abs(b.y - g.you.y) < 0.5, `${id}: place ${i} is on another floor`);
+      const d = Math.hypot(b.x - g.you.x, b.z - g.you.z);
+      assert.ok(d > 0.8 && d < 2.6, `${id}: place ${i} is ${d.toFixed(2)} m away`);
+      assert.ok((b.x - g.you.x) * ahead.x + (b.z - g.you.z) * ahead.z > 0, `${id}: place ${i} is behind you`);
+      for (const c of g.beside.slice(i + 1)) assert.ok(Math.hypot(b.x - c.x, b.z - c.z) >= 0.7, `${id}: two places on top of each other`);
+    });
+  }
+  // everyone with a body can be stood up in a room, where the troupe starts empty
+  for (const k of ['augustin_de_roncourt', 'marin_leveque', 'lila_bonnet', 'margaux_barman', 'camille_marchand', ...Object.keys(GUESTS)]) assert.ok(HEIGHTS[k] > 1.4, `${k} has no height`);
 });
 
 test('the bridges’ people who are not regulars come on as guests with a body (M. Marchand on the roof)', () => {

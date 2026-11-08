@@ -16,7 +16,7 @@
 import { LEAVE, NAMES, PEOPLE as TALKERS, TEXT_SUITCASE, chipsFor, fold, helloOf, registerOf, respond } from './agency';
 import type { CastId, Value, Words } from './memory';
 import scene from './scenes/t1-a.json';
-import { playsIn, stageOf } from './world';
+import { HOME_PLACE, playsIn, stageOf } from './world';
 
 /* ------------------------------------------------------------------------------------------ */
 /* the page, as the server resolves it for one learner (`steps[kind=scene].prompt.stage`)     */
@@ -124,25 +124,16 @@ export interface StoryPage {
   storylets: Storylet[];
 }
 
-/** The days the director has blocking for: T1 day a, and day b (the café, then the stairwell). Any other page plays its lines at Le Mistral, or out on the quai when the season sets them outdoors (`settingOf`). */
-export const STAGED_DAYS = ['t1.a', 't1.b'];
-
 /**
- * Where a page without blocking plays a moment in the quarter: at Le Mistral's zinc, or out on the
- * quai by the canal. The season's outdoor places (the roof over the canal, the quai, the market,
- * the station…) play outside; the café, and the rooms the quarter cannot yet play a talk in, at
- * the zinc. Either way, a place other than the café is named on a card when the scene moves there.
+ * The days the director has blocking for: T1 day a, and day b (the café, then the stairwell). Any
+ * other page plays its lines in the places the world has built for them (`placesOf`), each moment
+ * where its location is staged; a page that goes somewhere nothing is built for yet is the
+ * Feuilleton's to tell (`unbuiltOf`).
  */
-export type Setting = 'zinc' | 'quai';
-
-const OUTDOORS = new Set(['toit', 'quai_de_valmy', 'rue_de_lancry', 'marche_canal', 'buttes_chaumont', 'brocante', 'gare_de_lest', 'metro_platform']);
+export const STAGED_DAYS = ['t1.a', 't1.b'];
 
 /** Le Mistral itself: no card names it. */
 const AT_MISTRAL = new Set(['le_mistral', 'mistral_back_room']);
-
-export function settingOf(location: string | null | undefined): Setting {
-  return location && OUTDOORS.has(location) ? 'quai' : 'zinc';
-}
 
 /** The season's places by name (`app/services/season/world.py`), for the card that says where a scene has moved. */
 export const PLACE_NAMES: Record<string, { fr: string; en: string; de: string }> = {
@@ -193,6 +184,33 @@ export function roomOf(m: StoryMovement): string | null {
 /** Whether a movement plays on in the room `room` once the page is there: its own place, or one seen from it. */
 export function inRoom(m: StoryMovement, room: string): boolean {
   return playsIn(locationOf(m), room);
+}
+
+/**
+ * Where each movement of a page plays in the built world: the place its location is the stage of
+ * (`stageOf`), else where the page already is. The first movement that names no place is where the
+ * page says it is set; a page that names none at all plays in the hand-drawn quarter. Null where
+ * the location has nothing built for it yet.
+ */
+export function placesOf(page: StoryPage): Array<string | null> {
+  let here: string | null | undefined;
+  return page.movements.map((m, i) => {
+    const at = locationOf(m) ?? (i === 0 ? page.location_id ?? null : null);
+    if (at) here = stageOf(at)?.id ?? null;
+    else if (here === undefined) here = HOME_PLACE;
+    return here;
+  });
+}
+
+/** The first place a page goes to that the world has not built yet (the quarter cannot play it), or null. */
+export function unbuiltOf(page: StoryPage): string | null {
+  const places = placesOf(page);
+  let at: string | null = null;
+  for (let i = 0; i < page.movements.length; i++) {
+    at = locationOf(page.movements[i]) ?? (i === 0 ? page.location_id ?? null : at);
+    if (places[i] === null) return at;
+  }
+  return null;
 }
 
 /** The questions of a page, in order. */
