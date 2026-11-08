@@ -54,7 +54,7 @@ def _text(erratum: dict) -> str:
     ],
     ids=["cle-de", "cle-en", "cle-fr", "tel-de", "tel-en", "lits-de", "lits-en"],
 )
-def test_a_lone_article_miss_names_the_nouns_gender_or_number(
+def test_names_noun(
     learner: str, target: str, language: str, marker: str
 ) -> None:
     erratum = _miss(learner, target, language)
@@ -67,7 +67,7 @@ def test_a_lone_article_miss_names_the_nouns_gender_or_number(
 
 
 @pytest.mark.parametrize("language", ["de", "en"])
-def test_a_miss_that_is_not_an_article_slip_keeps_the_rule_card(language: str) -> None:
+def test_other_miss_keeps_card(language: str) -> None:
     erratum = _miss("Marin cherche une clé.", "Marin cherche la clé.", language)
     assert "weiblich" not in _text(erratum) and "feminine" not in _text(erratum)
 
@@ -83,13 +83,13 @@ def test_a_miss_that_is_not_an_article_slip_keeps_the_rule_card(language: str) -
     ],
     ids=["une", "un", "des", "le", "la"],
 )
-def test_gender_and_number_are_told_apart_for_each_kind_of_article(learner: str, target: str, marker: str) -> None:
+def test_kind(learner: str, target: str, marker: str) -> None:
     text = _text(_miss(learner, target, "en"))
     assert marker in text, text
     assert CARD_EXAMPLE not in text, text
 
 
-def test_a_definite_for_an_indefinite_article_is_not_called_a_gender_slip() -> None:
+def test_def_vs_indef() -> None:
     text = _text(_miss("Un clé", "La clé", "en"))
     assert "feminine" not in text and "plural" not in text, text
 
@@ -100,7 +100,7 @@ def test_a_definite_for_an_indefinite_article_is_not_called_a_gender_slip() -> N
     ids=["de", "en", "fr"],
 )
 @pytest.mark.parametrize("lesson", [True, False])
-def test_a_typed_gap_never_reads_chosen(language: str, forbidden: str, lesson: bool) -> None:
+def test_typed_gap(language: str, forbidden: str, lesson: bool) -> None:
     service = AtelierCorrectionService(None)
     service.explanation_language = language
     item = {"id": "g1", "prompt": "Ich habe ____ Hunger.", "correct_answer": "some"}
@@ -112,6 +112,6 @@ def test_a_typed_gap_never_reads_chosen(language: str, forbidden: str, lesson: b
     assert "somes" in erratum["why_wrong"], erratum["why_wrong"]
 
 
-def test_a_picked_option_still_reads_chosen() -> None:
+def test_pick_chosen() -> None:
     erratum = _miss("une", "la", "de", choices=["la", "une", "les"])
     assert "gewählt" in erratum["why_wrong"], erratum["why_wrong"]
