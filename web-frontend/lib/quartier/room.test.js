@@ -187,3 +187,26 @@ test('what you can tap says what it is in three languages, and you can walk up t
     });
   });
 });
+
+test('every room is the stage of a place of the season, so a page set there finds it (world.json «stages»)', () => {
+  const { stageOf } = require('./world.ts');
+  const { roomOf } = require('./story.ts');
+  const season = fs.readFileSync(path.join(WEB_ROOT, '..', 'app/services/season/world.py'), 'utf8');
+  const known = new Set(Array.from(season.matchAll(/^    "([a-z_]+)": \{"name_fr"/gm), (m) => m[1]));
+  assert.ok(known.size > 15);
+  for (const file of files) {
+    const id = file.replace(/\.json$/, '');
+    const entry = WORLD.places.find((p) => p.room === id);
+    assert.ok(entry, `${id} has no world entry`);
+    assert.ok((entry.stages ?? []).length, `${id}: world.json gives it no «stages», so no page ever plays there`);
+    for (const loc of [...entry.stages, ...(entry.sees ?? [])]) assert.ok(known.has(loc), `${id}: «${loc}» is not a place of the season`);
+    for (const loc of entry.stages) {
+      assert.equal(stageOf(loc)?.room, id, `${loc} does not play in ${id}`);
+      assert.equal(roomOf({ kind: 'panel', id: 'x', lines: [], location_id: loc }), id);
+    }
+  }
+  // the café and the quai are the hand-drawn quarter; a place nothing is built for has no stage yet
+  assert.equal(stageOf('le_mistral')?.id, 'quai_de_valmy');
+  assert.equal(stageOf('le_mistral')?.room ?? null, null);
+  assert.equal(stageOf('toit'), null);
+});

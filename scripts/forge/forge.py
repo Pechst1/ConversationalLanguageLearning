@@ -5,6 +5,7 @@ Run from the repository root, in a venv with ``scripts/forge/requirements.txt``:
 
     python scripts/forge/forge.py news                  # the map's news layer: every place the Papier names
     python scripts/forge/forge.py queue                 # places the Papier names that are not built yet
+    python scripts/forge/forge.py queue --season --from g3  # places the season's pages are set in, the next ones first
     python scripts/forge/forge.py survey marche_aligre  # open map data around it -> var/forge/<id>/survey.json
     python scripts/forge/forge.py draft marche_aligre   # survey + brief -> lib/quartier/world/sites/<id>.json
     python scripts/forge/forge.py check marche_aligre   # the site's invariants (also in site.test.js)
@@ -47,6 +48,8 @@ ROOMS = os.path.join(WEB, "lib", "quartier", "world", "rooms")
 BRIEFS = os.path.join(HERE, "briefs")
 CACHE = os.path.join(ROOT, "var", "forge")
 PAPIER = os.path.join(ROOT, "app", "services", "revue")
+SEASONS = os.path.join(ROOT, "app", "data", "season")
+SEASON_WORLD = os.path.join(ROOT, "app", "services", "season", "world.py")
 
 # Paris inside the périphérique, give or take: what the world map can show
 PARIS_BOX = (2.224, 48.815, 2.47, 48.902)
@@ -186,7 +189,160 @@ def cmd_news(_args) -> None:
     print(f"wrote {os.path.relpath(NEWS, ROOT)}: {len(places)} places the Papier names in Paris")
 
 
-def cmd_queue(_args) -> None:
+# ---------------------------------------------------------------------------------------------
+# the season's places: what the story reaches next, and whether the world has built it
+# ---------------------------------------------------------------------------------------------
+
+
+def season_locations() -> dict[str, str]:
+    """The places a season-1 page may be set in (``SEASON_ONE_LOCATIONS`` in
+    ``app/services/season/world.py``), id to French name. Read from the source, not imported, so
+    the forge's venv needs none of the app's packages."""
+    import ast
+
+    tree = ast.parse(open(SEASON_WORLD, encoding="utf-8").read())
+    for node in tree.body:
+        target = node.target if isinstance(node, ast.AnnAssign) else (node.targets[0] if isinstance(node, ast.Assign) else None)
+        if isinstance(target, ast.Name) and target.id == "SEASON_ONE_LOCATIONS" and isinstance(node.value, ast.Dict):
+            out = {}
+            for k, v in zip(node.value.keys, node.value.values, strict=True):
+                name = ""
+                if isinstance(v, ast.Dict):
+                    for kk, vv in zip(v.keys, v.values, strict=True):
+                        if isinstance(kk, ast.Constant) and kk.value == "name_fr" and isinstance(vv, ast.Constant):
+                            name = vv.value
+                out[k.value] = name
+            return out
+    raise SystemExit(f"no SEASON_ONE_LOCATIONS in {os.path.relpath(SEASON_WORLD, ROOT)}")
+
+
+def _locations_in(node, out: list[str]) -> None:
+    """Every ``location_id`` of a page, in the order the page reaches it."""
+    if isinstance(node, dict):
+        for k, v in node.items():
+            if k == "location_id" and isinstance(v, str) and v:
+                if v not in out:
+                    out.append(v)
+            else:
+                _locations_in(v, out)
+    elif isinstance(node, list):
+        for v in node:
+            _locations_in(v, out)
+
+
+def season_needs(season_id: str = "s1") -> list[dict]:
+    """Where the season's own pages are set, in the season's order: each tentpole's days
+    (``t1.json``…) and each gap's bridge page (``bridges.json``), one row per place a page reaches,
+    with the segment, its position in the season and the page."""
+    root = os.path.join(SEASONS, season_id)
+    segments = load_json(os.path.join(root, "season.json"))["segments"]
+    bridges = load_json(os.path.join(root, "bridges.json"))["bridges"]
+    rows = []
+    for i, seg in enumerate(segments):
+        pages = []
+        if seg["kind"] == "tentpole":
+            path = os.path.join(root, f"{seg['id']}.json")
+            if os.path.exists(path):
+                pages = [(f"{seg['id']}.{d.get('day')}", d) for d in load_json(path).get("days", [])]
+        else:
+            pages = [(f"{seg['id']}.bridge", b) for b in bridges if b.get("gap") == seg["id"]]
+        for key, page in pages:
+            locs: list[str] = []
+            _locations_in(page, locs)
+            rows.extend({"segment": seg["id"], "at": i, "page": key, "location": loc} for loc in locs)
+    return rows
+
+
+def is_built(place: dict) -> bool:
+    """The hand-drawn quarter, or a place the forge has written a room or a site for."""
+    return place.get("kind") == "home" or bool(place.get("room")) or bool(place.get("site"))
+
+
+def stage_of(location: str, places: list[dict] | None = None) -> dict | None:
+    """The built place a season location plays in (the register: ``stages`` in world.json), a room
+    or site for exactly that place before the quarter it is inside; None while nothing stages it."""
+    places = world()["places"] if places is None else places
+    built = [p for p in places if is_built(p) and location in (p.get("stages") or [])]
+    return next((p for p in built if p.get("kind") != "home"), built[0] if built else None)
+
+
+def waits_for_kit(location: str) -> bool:
+    """A place the forge looked at and no kit can build yet: its notes start «Waits for a kit:»."""
+    path = os.path.join(BRIEFS, f"{location}.md")
+    if not os.path.exists(path):
+        return False
+    with open(path, encoding="utf-8") as f:
+        return f.read().lstrip().lower().startswith("waits for a kit")
+
+
+def season_queue(frontier: str | None = None, season_id: str = "s1") -> list[dict]:
+    """Every place the season's pages are set in, with what the world has for it, the next one
+    the story reaches first. ``frontier`` is the segment a learner is on (``g3``): a place needed
+    there or after comes first, in the order the season reaches it; places only needed behind the
+    frontier follow, for the learners still before it."""
+    needs = season_needs(season_id)
+    segs = [s["id"] for s in load_json(os.path.join(SEASONS, season_id, "season.json"))["segments"]]
+    if frontier is not None and frontier not in segs:
+        raise SystemExit(f"{frontier} is not a segment of {season_id}: {', '.join(segs)}")
+    start = segs.index(frontier) if frontier else 0
+    places = world()["places"]
+    names = season_locations()
+    by_loc: dict[str, dict] = {}
+    for n in needs:
+        row = by_loc.get(n["location"])
+        ahead = n["at"] >= start
+        if row is None:
+            row = by_loc[n["location"]] = {"location": n["location"], "name_fr": names.get(n["location"], ""), "first": n, "next": None}
+        if ahead and row["next"] is None:
+            row["next"] = n
+    out = []
+    for row in by_loc.values():
+        stage = stage_of(row["location"], places)
+        entry = next((p for p in places if row["location"] in (p.get("stages") or [])), None)
+        row["stage"] = stage["id"] if stage else None
+        row["status"] = "built" if stage else ("no kit" if waits_for_kit(row["location"]) else ("locked" if entry else "new"))
+        row["entry"] = entry["id"] if entry else None
+        need = row["next"] or row["first"]
+        row["need"] = need
+        row["ahead"] = row["next"] is not None
+        out.append(row)
+    out.sort(key=lambda r: (0 if r["ahead"] else 1, r["need"]["at"], needs.index(r["need"])))
+    return out
+
+
+def register_problems(place: dict) -> list[str]:
+    """A room of the season is the stage of the season's places it says (``stages``): without
+    one, no page ever plays there."""
+    known = season_locations()
+    stages = place.get("stages") or []
+    problems = [] if stages else [f"{place['id']}: world.json gives it no «stages» (the season places a page set there plays in)"]
+    for loc in stages + (place.get("sees") or []):
+        if loc not in known:
+            problems.append(f"{place['id']}: «{loc}» is not a place of the season (app/services/season/world.py)")
+    return problems
+
+
+def cmd_season_queue(args) -> None:
+    rows = season_queue(args.frontier)
+    unknown = sorted({r["location"] for r in rows} - set(season_locations()))
+    for r in rows:
+        where = r["stage"] or (f"{r['entry']} (no room or site yet)" if r["entry"] else "not in world.json")
+        side = "" if r["ahead"] else "  (behind the frontier)"
+        print(f"{r['status']:7} {r['location']:18} {r['need']['page']:10} {where}{side}")
+    todo = [r for r in rows if r["status"] in ("new", "locked")]
+    if unknown:
+        print(f"! not places of the season (app/services/season/world.py): {', '.join(unknown)}")
+    if todo:
+        r = todo[0]
+        print(f"next: {r['location']} ({r['name_fr']}), first needed at {r['need']['page']}")
+    else:
+        print("next: none; every place the season's pages are set in is built")
+
+
+def cmd_queue(args) -> None:
+    if getattr(args, "season", False):
+        cmd_season_queue(args)
+        return
     have = {p["id"]: p for p in world()["places"]}
     rows = []
     for p in papier_places():
@@ -293,6 +449,7 @@ def cmd_check(args) -> None:
         import room
 
         problems = room.check(load_json(os.path.join(ROOMS, f"{args.id}.json")))
+        problems += register_problems(place_of(args.id))
     else:
         import draft
 
@@ -433,7 +590,9 @@ def cmd_plan(args) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("queue")
+    q = sub.add_parser("queue")
+    q.add_argument("--season", action="store_true", help="the season's places instead of the Papier's")
+    q.add_argument("--from", dest="frontier", default=None, help="the segment a learner is on (g3): what comes after it first")
     sub.add_parser("news")
     s = sub.add_parser("survey")
     s.add_argument("id")

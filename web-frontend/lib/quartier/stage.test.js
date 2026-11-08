@@ -97,12 +97,16 @@ test('day b: the director has blocking for every movement, in order, and the sta
   const ids = day.movements.map((m) => m.id);
   for (const id of ids) assert.ok(STAGED.includes(id), `${id} has no blocking`);
   assert.deepEqual(ids, STAGED.filter((id) => ids.includes(id)));
-  const { STAGED_DAYS, ROOM_OF, roomOf } = require('./story.ts');
+  const { STAGED_DAYS, inRoom, roomOf } = require('./story.ts');
   assert.ok(STAGED_DAYS.includes('t1.b'));
-  // R1 to R4 play in the stairwell the forge built; the café's panels stay in the café
-  const inRoom = day.movements.filter((m) => m.kind === 'panel' && roomOf(m)).map((m) => m.id);
-  assert.deepEqual(inRoom, ['b.r1', 'b.r2', 'b.r3', 'b.r4']);
-  const room = JSON.parse(fs.readFileSync(path.join(__dirname, 'world', 'rooms', `${ROOM_OF.stairwell}.json`), 'utf8'));
+  // the café hands the page over at R1, to the stairwell the forge built; the café's panels stay in the café
+  const first = day.movements.find((m) => m.kind === 'panel' && roomOf(m));
+  assert.equal(first.id, 'b.r1');
+  assert.equal(roomOf(first), 'escalier_mistral');
+  // R1 to R4 play on there: R2 is Odile's kitchen, seen through her open door from the landing
+  const played = day.movements.filter((m) => m.kind === 'panel' && inRoom(m, 'escalier_mistral')).map((m) => m.id);
+  assert.deepEqual(played, ['b.r1', 'b.r2', 'b.r3', 'b.r4']);
+  const room = JSON.parse(fs.readFileSync(path.join(__dirname, 'world', 'rooms', `${roomOf(first)}.json`), 'utf8'));
   for (const mark of ['streetDoor', 'lilaStep', 'landing', 'door', 'threshold', 'inside']) assert.ok(room.marks[mark], `the stairwell has no «${mark}» mark`);
   // every silent beat of a reply is acted
   for (const turn of day.movements.filter((m) => m.kind === 'turn' || m.kind === 'solve')) {
