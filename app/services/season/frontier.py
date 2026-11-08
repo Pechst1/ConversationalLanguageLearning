@@ -127,8 +127,9 @@ def _personal(text: str, names: set[str]) -> bool:
 
 def world_orders(db: Session, season_id: str, *, now: datetime | None = None) -> dict[str, Any]:
     """What the season's recent lives have left in Le Quartier (``living_story.WorldMark``),
-    merged across lives, most asked for first: the forge builds from it, a little every
-    night. Fiction only: a mark that names its learner is left out."""
+    merged across lives, what learners named in their own words first (``said``), then most
+    asked for: the forge builds from it, a little every night. Fiction only: a mark that
+    names its learner is left out."""
 
     hit = _orders_cache.get(season_id)
     if now is None and hit and time.monotonic() - hit[0] < CACHE_SECONDS:
@@ -147,12 +148,14 @@ def world_orders(db: Session, season_id: str, *, now: datetime | None = None) ->
             key = (mark["kind"], name.casefold(), mark.get("location_id"))
             row = merged.setdefault(
                 key,
-                {"kind": mark["kind"], "name_fr": name, "location_id": mark.get("location_id"), "look": look, "times": 0, "lives": 0},
+                {"kind": mark["kind"], "name_fr": name, "location_id": mark.get("location_id"), "look": look, "times": 0, "lives": 0, "said": 0},
             )
             row["times"] += max(1, int(mark.get("times") or 1))
             row["lives"] += 1
+            # the lives whose learner named it in their own words: the forge builds those first
+            row["said"] += 1 if int(mark.get("said") or 0) > 0 else 0
             row["look"] = row["look"] or look
-    orders = sorted(merged.values(), key=lambda row: (-row["lives"], -row["times"], row["name_fr"]))[:MAX_ORDERS]
+    orders = sorted(merged.values(), key=lambda row: (-row["said"], -row["lives"], -row["times"], row["name_fr"]))[:MAX_ORDERS]
     result = {"season": season_id, "orders": orders}
     if now is None:
         _orders_cache[season_id] = (time.monotonic(), result)
@@ -167,7 +170,7 @@ def world_state(live: dict) -> dict[str, Any]:
 
     season_state = live.get(SEASON_KEY) if isinstance(live.get(SEASON_KEY), dict) else None
     marks = [
-        {key: mark.get(key) for key in ("id", "kind", "name_fr", "location_id", "look", "times", "day")}
+        {**{key: mark.get(key) for key in ("id", "kind", "name_fr", "location_id", "look", "times", "day")}, "said": int(mark.get("said") or 0)}
         for mark in live.get("world_marks") or []
         if isinstance(mark, dict)
     ]

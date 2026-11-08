@@ -655,6 +655,9 @@ class SemanticTurn(StrictModel):
     learned: story_memory.LearnedFacts = Field(default_factory=list)
     left_open: story_memory.LeftOpen = Field(default_factory=list)
     answered_open_ids: story_memory.AnsweredIds = Field(default_factory=list)
+    # «Die Geschichte bestellt, die Schmiede baut»: the places and things the learner
+    # named in their own words; the forge builds them first (``learner_marks``).
+    named: story_memory.Named = Field(default_factory=list)
 
 
 class Review(StrictModel):
@@ -1129,6 +1132,7 @@ answered); open lists questions still waiting for an answer. Bring one back in y
 words when it matters («Tu m'as dit que…»); never invent one. """ + story_memory.NAME_NOTE + """
 summary_native still speaks to the learner as you, never by their name. On the reply that
 ends the scene: """ + story_memory.ENDING_REPORT + """
+""" + story_memory.NAMED_REPORT + """
 Match the character's register to the scene: answer tu with tu, vous with vous. When
 story.tutoiement is present, this scene's character has just asked «On se tutoie ?»: if
 the learner accepts, reply_fr already says tu; if they decline or hesitate, keep vous,
@@ -3312,6 +3316,51 @@ def _known_locations(thread, live: dict) -> set[str]:
     return known | season_location_ids(season_id_for(live) or "")
 
 
+def _known_place_names(thread, live: dict) -> dict[str, str]:
+    """The places a mark may stand in (``_known_locations``), each with its French name."""
+
+    from app.services.season.world import location_name_fr
+
+    bible = {
+        str(place["id"]): str(place.get("name_fr") or place.get("name") or "")
+        for place in _locations((thread.world_bible if thread else None) or {})
+        if place.get("id")
+    }
+    return {loc: bible.get(loc) or location_name_fr(loc) for loc in _known_locations(thread, live)}
+
+
+#: Words of a place's name that do not tell one place from another.
+_PLACE_NAME_SKIP = frozenset({"le", "la", "les", "l", "de", "des", "du", "d", "un", "une", "au", "aux", "chez", "et", "à", "a"})
+
+
+def _place_words(name: str) -> set[str]:
+    return {word for word in story_memory.fold(name).split() if word not in _PLACE_NAME_SKIP}
+
+
+def learner_marks(named, *, location_id: str | None, places: dict[str, str]) -> list[WorldMark]:
+    """What the learner named in their own words (``SemanticTurn.named``) as marks for Le
+    Quartier. A thing stands where the scene is set. A place is the world's place whose
+    name holds every word of it («la boulangerie» is «la boulangerie de Mme Diallo») when
+    exactly one does, a place the world has no id for when none does; the scene's own
+    place is no order."""
+
+    marks: list[WorldMark] = []
+    for item in list(named or [])[: story_memory.MAX_NAMED]:
+        name = " ".join(str(getattr(item, "name_fr", "") or "").split())[:80]
+        if not name:
+            continue
+        if getattr(item, "kind", "") == "thing":
+            if location_id:
+                marks.append(WorldMark(kind="thing", name_fr=name, location_id=location_id))
+            continue
+        words = _place_words(name)
+        hits = [pid for pid, place in places.items() if words and words <= _place_words(place)]
+        if location_id and location_id in hits:
+            continue
+        marks.append(WorldMark(kind="place", name_fr=name, location_id=hits[0] if len(hits) == 1 else None))
+    return marks
+
+
 def world_marks_after_scene(
     marks: list[dict] | None,
     *,
@@ -3321,16 +3370,20 @@ def world_marks_after_scene(
     day: int,
     scene_id: str | None = None,
     date: str | None = None,
+    named: list[WorldMark] | tuple[WorldMark, ...] = (),
 ) -> list[dict]:
     """The marks this life has left in Le Quartier after one settled page, newest last.
 
     A thing needs a place of the world to stand in (one the world does not know is
     dropped); a place the world has no id for keeps ``location_id`` None. The same mark
     left again moves to the end and counts once more, so the forge sees what the story
-    keeps coming back to."""
+    keeps coming back to. ``named``: the marks the learner named in their own words
+    (``learner_marks``); each counts in ``said``, and the forge builds those first."""
 
     rows = [dict(row) for row in marks or []]
-    for mark in draft.leaves[:WORLD_MARKS_PER_PAGE]:
+    pairs = [(mark, False) for mark in draft.leaves[:WORLD_MARKS_PER_PAGE]]
+    pairs += [(mark, True) for mark in list(named)[: story_memory.MAX_NAMED]]
+    for mark, said in pairs:
         where = mark.location_id if mark.location_id in known_locations else None
         if mark.kind == "thing" and where is None:
             continue
@@ -3346,7 +3399,13 @@ def world_marks_after_scene(
         )
         if same is not None:
             rows.remove(same)
-            same.update(times=int(same.get("times") or 1) + 1, day=int(day), date=date, look=mark.look or same.get("look") or "")
+            same.update(
+                times=int(same.get("times") or 1) + 1,
+                said=int(same.get("said") or 0) + int(said),
+                day=int(day),
+                date=date,
+                look=mark.look or same.get("look") or "",
+            )
             rows.append(same)
             continue
         rows.append(
@@ -3357,6 +3416,7 @@ def world_marks_after_scene(
                 "location_id": where,
                 "look": mark.look,
                 "times": 1,
+                "said": int(said),
                 "day": int(day),
                 "first_day": int(day),
                 "event_id": event_id,
@@ -10337,6 +10397,7 @@ def _validate_turn(turn: SemanticTurn, payload: dict, *, lexical=None, reply_che
         for fact in story_memory.grounded_facts(turn.learned, texts)
     ]
     turn.left_open = [line for line in turn.left_open if story_memory.verbatim(line, texts)]
+    turn.named = story_memory.grounded_named(turn.named, texts)
     open_ids = story_memory.open_ids(story.get(story_memory.MEMORY_KEY))
     turn.answered_open_ids = [ref for ref in turn.answered_open_ids if ref in open_ids]
     if turn.needs_clarification and (
@@ -10896,13 +10957,15 @@ def settle_resolution(
         chapter_index=chapters_opened(live),
         **stamp,
     )
-    if draft.leaves:
+    named = learner_marks(turn.named, location_id=draft.location_id, places=_known_place_names(thread, live)) if turn.named else []
+    if draft.leaves or named:
         live["world_marks"] = world_marks_after_scene(
             live.get("world_marks") or [],
             draft=draft,
             known_locations=_known_locations(thread, live),
             event_id=event_id,
             day=day,
+            named=named,
             **stamp,
         )
     world_cast = [
@@ -11264,7 +11327,8 @@ def _settle_later_act(
         memory_day(journey, brief, draft, turn, event_id=event_id, day=day, witnesses=witnesses, world=world, act=act),
     )
     # what this act leaves in Le Quartier is the learner's as much as the first act's
-    if draft.leaves:
+    named = learner_marks(turn.named, location_id=draft.location_id, places=_known_place_names(thread, live)) if turn.named else []
+    if draft.leaves or named:
         live["world_marks"] = world_marks_after_scene(
             live.get("world_marks") or [],
             draft=draft,
@@ -11273,6 +11337,7 @@ def _settle_later_act(
             day=day,
             scene_id=str(scene.id),
             date=_journey_date(journey),
+            named=named,
         )
     state[STATE_KEY] = live
     state["story_so_far"] = [*state.get("story_so_far", []), event["summary_fr"]][-40:]
