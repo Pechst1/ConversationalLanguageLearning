@@ -169,7 +169,8 @@ export type ThingKind =
   | 'folder'
   | 'bookcase'
   | 'polaroids'
-  | 'armoire';
+  | 'armoire'
+  | 'drink';
 
 export interface RoomThing {
   kind: ThingKind;
@@ -948,6 +949,20 @@ function card(B: Build, key: string, at: XYZ, rot: number, w: number, h: number,
   B.signs.push({ key, center: new Vector3(at[0], at[1], at[2]).addScaledVector(n, 0.012), normal: n, width: w, height: h, density, draw, indoor: (zone ?? 'room') === 'room' });
 }
 
+/** Lay one thing into the build (a room's, or a detail's in Le Mistral: `details.ts`). */
+export function buildThing(B: Build, t: RoomThing, i: number) {
+  thing(B, t, i);
+}
+
+/** What a cup holds, by the order in `text` («un café crème», «un noisette», «un thé», «un chocolat chaud»). */
+function drinkOf(order: string) {
+  const o = order.toLowerCase();
+  if (/chocolat/.test(o)) return { cup: 'large' as const, top: mix(mix(INKS.ochre, INKS.ink, 0.62), INKS.vermilion, 0.08), tag: false };
+  if (/th[ée]|infusion|tisane/.test(o)) return { cup: 'tea' as const, top: mix(mix(INKS.ochre, INKS.vermilion, 0.4), INKS.ink, 0.42), tag: true };
+  if (/noisette|express|espresso|^(un )?(petit )?café( serré)?$/.test(o.trim())) return { cup: 'small' as const, top: /noisette/.test(o) ? mix(mix(INKS.ochre, INKS.ink, 0.45), INKS.card, 0.2) : mix(INKS.ochre, INKS.ink, 0.6), tag: false };
+  return { cup: 'wide' as const, top: mix(mix(INKS.ochre, INKS.ink, 0.3), INKS.card, 0.42), tag: false };
+}
+
 function thing(B: Build, t: RoomThing, i: number) {
   const D = B.dry;
   const z = t.zone;
@@ -1394,6 +1409,38 @@ function thing(B: Build, t: RoomThing, i: number) {
         }
       });
       B.blocks.push(centred(x, zz, rot, 0.38, 0.24));
+      return;
+    }
+    case 'drink': {
+      // the learner's usual on its saucer, a spoon beside the cup and a wrapped sugar: the cup by
+      // what it holds (a wide café crème, a small noisette, tea with its tag over the rim, a big
+      // chocolat), its handle to your right (`text` the order, `rot` the side it is served to)
+      const d = drinkOf(t.text?.[0] ?? '');
+      const porcelain = zoned(INKS.card, z, { wet: 0.6 });
+      const top = zoned(d.top, z, { wet: 0.4 });
+      const steel = zoned(mix(INKS.paper, INKS.ink, 0.3), z, { wet: 0.8 });
+      const paper = zoned(mix(INKS.card, INKS.vermilion, 0.12), z);
+      const [r, h] = d.cup === 'small' ? [0.032, 0.05] : d.cup === 'large' ? [0.055, 0.08] : d.cup === 'tea' ? [0.045, 0.06] : [0.049, 0.068];
+      const sr = d.cup === 'small' ? 0.06 : 0.08;
+      D.at(x, y, zz, rot, () => {
+        D.lathe(0, 0, 0, [[sr - 0.005, 0], [sr, 0.008], [sr * 0.8, 0.011], [0, 0.012]], 16, porcelain);
+        D.lathe(0, 0.012, 0, [[r * 0.55, 0], [r * 0.82, 0.012], [r * 0.96, h * 0.72], [r, h], [r * 0.9, h], [r * 0.8, h * 0.35], [0, h * 0.3]], 16, porcelain);
+        D.lathe(0, 0.012 + h - 0.009, 0, [[r * 0.89, 0], [0, 0.001]], 16, top);
+        // the handle, on the right as it is served
+        const hx = r + 0.002;
+        D.sweep(new Vector3(hx, 0.012 + h * 0.8, 0), new Vector3(hx + 0.022, 0.012 + h * 0.6, 0), [[-0.005, -0.005], [0.005, -0.005], [0.005, 0.005], [-0.005, 0.005]], porcelain, { closed: true });
+        D.sweep(new Vector3(hx + 0.022, 0.012 + h * 0.6, 0), new Vector3(hx, 0.012 + h * 0.3, 0), [[-0.005, -0.005], [0.005, -0.005], [0.005, 0.005], [-0.005, 0.005]], porcelain, { closed: true });
+        // the spoon on the saucer, in front of the cup, and the sugar in its paper
+        D.box(0.005, 0.014, sr - 0.022, 0.07, 0.003, 0.008, steel);
+        D.ball(-0.036, 0.015, sr - 0.022, 0.012, 0.003, 0.009, steel, 0);
+        D.box(-sr - 0.03, 0.006, 0.01, 0.028, 0.012, 0.02, paper, { ny: false });
+        if (d.tag) {
+          // the tea bag's string over the rim, its paper tag hanging on the outside
+          D.bar(new Vector3(-r * 0.5, 0.012 + h - 0.004, 0), new Vector3(-r - 0.002, 0.012 + h + 0.004, 0), 0.0012, paper);
+          D.bar(new Vector3(-r - 0.002, 0.012 + h + 0.004, 0), new Vector3(-r - 0.004, 0.012 + h * 0.55, 0), 0.0012, paper);
+          D.box(-r - 0.006, 0.012 + h * 0.45, 0, 0.004, 0.026, 0.02, paper);
+        }
+      });
       return;
     }
     case 'armoire': {
