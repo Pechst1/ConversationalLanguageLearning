@@ -13,6 +13,7 @@ ids, never a learner, a count or a date of theirs.
 from __future__ import annotations
 
 import logging
+import re
 import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -96,22 +97,32 @@ def _season_lives(db: Session, season_id: str, moment: datetime):
             yield live, user
 
 
+#: Words a name may hold that every mark holds too (an address «le.chat@…» names no mark).
+_NOT_A_NAME = frozenset(
+    "le la les l de des du d un une et en au aux a à the of and van von der den da di del dos das mme mr mrs ms dr".split()
+)
+
+
+def _words(text: str) -> set[str]:
+    return set(re.findall(r"\w+", text.casefold()))
+
+
 def _learner_names(live: dict, user: User) -> set[str]:
     """The words that name this learner: their account's name and address, and the
-    name they gave the cast in the story."""
+    name they gave the cast in the story. A short name (Li, Bo) is one of them: a mark is
+    matched word by word, so it never names a learner inside another word."""
 
     from app.services import story_memory
 
     told = story_memory.name_in(story_memory.full_view(live.get(story_memory.MEMORY_KEY))) or ""
-    words = [*str(getattr(user, "full_name", "") or "").split(), str(getattr(user, "email", "") or "").split("@")[0], *told.split()]
-    return {word.casefold() for word in words if len(word) >= 3}
+    text = " ".join([str(getattr(user, "full_name", "") or ""), str(getattr(user, "email", "") or "").split("@")[0], told])
+    return {word for word in _words(text) if len(word) >= 2 and word not in _NOT_A_NAME}
 
 
 def _personal(text: str, names: set[str]) -> bool:
     """Whether a mark names its learner: never published."""
 
-    folded = text.casefold()
-    return any(name in folded for name in names)
+    return bool(names & _words(text))
 
 
 def world_orders(db: Session, season_id: str, *, now: datetime | None = None) -> dict[str, Any]:

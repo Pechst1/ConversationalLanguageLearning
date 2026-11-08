@@ -20,6 +20,7 @@ from app.services import story_split
 from app.services.season import frontier
 from tests import test_journey_end_to_end as support
 from tests.test_season_one import _play, _thread, season_on  # noqa: F401 - fixture
+from tests.test_story_acts_morning import acts_writer  # noqa: F401 - fixture
 from tests.test_story_split import _context as _split_context
 from tests.test_story_split import _plan, split_on  # noqa: F401 - fixture
 
@@ -235,6 +236,14 @@ def test_the_forge_reads_what_most_lives_left_first_and_never_a_learner_s_name(d
     life([{**PETITION, "times": 2}, BAKERY])
     life([PETITION])
     life([{"kind": "thing", "name_fr": "la lettre de Vincent", "location_id": "le_mistral", "look": ""}, "garbage"], full_name="Vincent Pechstein")
+    # a short name is theirs too, matched word by word (never «li» inside «librairie»)
+    life(
+        [
+            {"kind": "thing", "name_fr": "la lettre de Li", "location_id": "le_mistral", "look": ""},
+            {"kind": "place", "name_fr": "la librairie du coin", "location_id": None, "look": ""},
+        ],
+        full_name="Li Wen",
+    )
     # the name they gave the cast is theirs too
     life(
         [{"kind": "place", "name_fr": "l'atelier de Théo", "location_id": None, "look": ""}],
@@ -245,6 +254,7 @@ def test_the_forge_reads_what_most_lives_left_first_and_never_a_learner_s_name(d
     assert [(order["name_fr"], order["lives"], order["times"]) for order in orders] == [
         ("la pétition de Gus", 2, 3),
         ("la boulangerie de Mme Diallo", 1, 1),
+        ("la librairie du coin", 1, 1),
     ]
 
 
@@ -277,3 +287,29 @@ def test_a_page_planned_ahead_of_time_carries_its_marks_to_the_day(assembled_cli
 def test_a_life_with_nothing_left_gives_an_empty_quarter(value):
     state = frontier.world_state(value or {})
     assert state["marks"] == [] and state["flags"] == {}
+
+
+@pytest.mark.parametrize("season_on", [False], ids=["one-actor"], indirect=True)
+def test_a_later_act_s_marks_are_kept_like_the_first_act_s(
+    assembled_client, db_session, journey_enabled, clock, acts_writer, monkeypatch  # noqa: F811
+):
+    """«Le soir» is a page of the day like the first: what it leaves stays too."""
+
+    from tests import test_story_acts_day as acts_day
+
+    provider = acts_writer
+    original = provider._plan
+
+    def leaving(source):
+        plan = original(source)
+        if source.get("act"):
+            plan["leaves"] = [{"kind": "thing", "name_fr": "la vieille radio", "location_id": plan["location_id"], "look": "An old radio on the zinc."}]
+        return plan
+
+    provider._plan = leaving
+    user, d = acts_day._two_act_day(assembled_client, db_session, acts_writer, monkeypatch)
+    d.play(answer=acts_day.ANSWER)
+    assert d.finish("complete").status_code == 200
+    live = (_thread(db_session, user.id).state or {})[engine.STATE_KEY]
+    [mark] = [mark for mark in live.get("world_marks") or [] if mark["name_fr"] == "la vieille radio"]
+    assert mark["event_id"].endswith(":story:act2") and mark["scene_id"]

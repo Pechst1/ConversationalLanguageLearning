@@ -11246,6 +11246,17 @@ def _settle_later_act(
         live.get(story_memory.MEMORY_KEY),
         memory_day(journey, brief, draft, turn, event_id=event_id, day=day, witnesses=witnesses, world=world, act=act),
     )
+    # what this act leaves in Le Quartier is the learner's as much as the first act's
+    if draft.leaves:
+        live["world_marks"] = world_marks_after_scene(
+            live.get("world_marks") or [],
+            draft=draft,
+            known_locations=_known_locations(thread, live),
+            event_id=event_id,
+            day=day,
+            scene_id=str(scene.id),
+            date=_journey_date(journey),
+        )
     state[STATE_KEY] = live
     state["story_so_far"] = [*state.get("story_so_far", []), event["summary_fr"]][-40:]
     from app.services.serial import SerialThreadService
