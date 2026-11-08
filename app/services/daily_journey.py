@@ -89,6 +89,7 @@ from app.schemas.daily_journey import (
 )
 from app.services import gold_ledger, scene_ledger
 from app.services.chrome_language import user_chrome_language
+from app.services.closing_filler import scene_fact
 from app.services.daily_journey_adapters import (
     AdapterUnavailable,
     JourneyAdapters,
@@ -6394,7 +6395,13 @@ class DailyJourneyService:
                 and private.get("story_outcome")
                 and step_act(step) == 1
             ):
-                story_outcome = StoryOutcome.model_validate(private["story_outcome"])
+                # #597: the hook may be a closing caption; the recap presents it as
+                # what happened, so only a real event leaves here.
+                outcome_record = dict(private["story_outcome"])
+                outcome_record["callback_fr"] = (
+                    scene_fact(outcome_record.get("callback_fr")) or None
+                )
+                story_outcome = StoryOutcome.model_validate(outcome_record)
 
         # WP-09 owns the CONTRACTS §8 rubric. WP-02 asks it what this journey
         # proved and reports that verbatim; it has no rubric of its own, so the
