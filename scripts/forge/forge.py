@@ -234,20 +234,33 @@ def _locations_in(node, out: list[str]) -> None:
             _locations_in(v, out)
 
 
+def season_segments(season_id: str = "s1") -> list[dict]:
+    """The season's segments in play order: ``season.json``'s, then its epilogue's (``e1``…,
+    played after the last tentpole; the server counts them as the season's too)."""
+    root = os.path.join(SEASONS, season_id)
+    segments = list(load_json(os.path.join(root, "season.json"))["segments"])
+    epilogue = os.path.join(root, "epilogue.json")
+    if os.path.exists(epilogue):
+        segments += load_json(epilogue).get("segments") or []
+    return segments
+
+
 def season_needs(season_id: str = "s1") -> list[dict]:
     """Where the season's own pages are set, in the season's order: each tentpole's days
-    (``t1.json``…) and each gap's bridge page (``bridges.json``), one row per place a page reaches,
-    with the segment, its position in the season and the page."""
+    (``t1.json``…), each gap's bridge page (``bridges.json``) and the epilogue's pages, one row per
+    place a page reaches, with the segment, its position in the season and the page."""
     root = os.path.join(SEASONS, season_id)
-    segments = load_json(os.path.join(root, "season.json"))["segments"]
+    segments = season_segments(season_id)
     bridges = load_json(os.path.join(root, "bridges.json"))["bridges"]
+    epilogue = os.path.join(root, "epilogue.json")
+    after = {p["id"]: p for p in load_json(epilogue).get("pages") or []} if os.path.exists(epilogue) else {}
     rows = []
     for i, seg in enumerate(segments):
         pages = []
         if seg["kind"] == "tentpole":
             path = os.path.join(root, f"{seg['id']}.json")
-            if os.path.exists(path):
-                pages = [(f"{seg['id']}.{d.get('day')}", d) for d in load_json(path).get("days", [])]
+            days = load_json(path).get("days", []) if os.path.exists(path) else (after.get(seg["id"]) or {}).get("days", [])
+            pages = [(f"{seg['id']}.{d.get('day')}", d) for d in days]
         else:
             pages = [(f"{seg['id']}.bridge", b) for b in bridges if b.get("gap") == seg["id"]]
         for key, page in pages:
@@ -333,7 +346,7 @@ def season_queue(frontier: str | list[str] | None = None, season_id: str = "s1")
     first page of theirs set there; places only needed behind every learner follow, for the
     learners still to come."""
     needs = season_needs(season_id)
-    segments = load_json(os.path.join(SEASONS, season_id, "season.json"))["segments"]
+    segments = season_segments(season_id)
     segs = [s["id"] for s in segments]
     fronts = [frontier] if isinstance(frontier, str) else list(frontier or [])
     for f in fronts:

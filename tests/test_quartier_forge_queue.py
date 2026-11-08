@@ -140,3 +140,15 @@ def test_an_unreadable_server_leaves_the_queue_at_the_seasons_start(monkeypatch,
     monkeypatch.setattr(forge, "API", "http://127.0.0.1:9")
     assert forge.live_frontier() == []
     assert "unreadable" in capsys.readouterr().err
+
+
+def test_a_learner_on_the_epilogue_is_a_learner_of_the_season():
+    """The server counts the epilogue's segments (``e1``…) as the season's; so does the forge,
+    with the places its pages are set in."""
+    forge = _forge()
+    assert [s["id"] for s in forge.season_segments()][-3:] == ["e1", "e2", "e3"]
+    assert any(n["segment"] == "e1" and n["location"] == "gus_loft" for n in forge.season_needs())
+    rows = [r for r in forge.season_queue(["t2", "e1"]) if r["status"] != "built"]
+    # Gus's «château» is that learner's next page; the mairie is a week ahead of the one on T2
+    assert rows[0]["location"] == "gus_loft"
+    assert next(r for r in rows if r["location"] == "mairie")["ahead"]
