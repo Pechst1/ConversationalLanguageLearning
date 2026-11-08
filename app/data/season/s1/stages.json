@@ -1,5 +1,5 @@
 {
-  "_about": "Written by scripts/forge/forge.py from web-frontend/lib/quartier/world/world.json (python scripts/forge/forge.py stages): each place of the season the 3D world has built, to the built place a page set there plays in. The night writer sets a generated page only at these places (app/services/season/world.py).",
+  "_about": "Written by scripts/forge/forge.py from web-frontend/lib/quartier/world/world.json (python scripts/forge/forge.py stages): each place of the season the 3D world has built, to the built place a page set there plays in. The night writer sets a generated page only at these places (app/services/season/world.py). «places»: the ones the learners' stories named that the forge built, for the writer to know them by.",
   "stages": {
     "le_mistral": "quai_de_valmy",
     "quai_de_valmy": "quai_de_valmy",

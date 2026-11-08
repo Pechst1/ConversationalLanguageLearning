@@ -848,9 +848,11 @@ leaves in Le Quartier, the 3D quarter the learner walks, so the world grows with
 at most two marks, usually one or none, and only what the page itself shows or names. A
 thing that stays somewhere after today (kind thing: «la pétition de Gus», taped to the
 window, location_id le_mistral), or a place the page names that the story has not been to
-yet (kind place: «la boulangerie de Mme Diallo», location_id its id in world.locations, or
-null when the world has none). name_fr is what it is called, look one English sentence on
-what it looks like and where exactly. secrets gives each cast
+yet (kind place: «la boulangerie de Mme Diallo», location_id its id in world.locations or
+world.elsewhere, or null when the world has none). name_fr is what it is called, look one
+English sentence on what it looks like and where exactly. world.elsewhere, when present,
+lists places of the quarter not built yet: a page may name one, and someone may be on
+their way there, but location_id is always one of world.locations. secrets gives each cast
 member's secret as state: hidden, hinted or revealed, plus secrets.next — the one
 character whose secret this life may bring out next. Set secret_shift to hinted when
 this scene lets a secret show at the edges, to revealed when it genuinely comes out,
@@ -8895,19 +8897,34 @@ def on_built_stage(context: dict, *, keep: list[str | None] | tuple = ()) -> Non
     writes at the places the forge has built (``season/world.py: built_stages``) and
     at ``keep``; the forge builds the season's next place from its own pages. The
     authored days (tentpoles, bridges) keep every place: they are served as written.
+
+    «Erst erwähnen, dann betreten» (Vincent, 8 Nov): a place the world has not built is
+    one a page may name, never one it is set in. The places left out go to the writer as
+    ``world.elsewhere``: a page may mention one (a ``leaves`` mark of kind place), the
+    forge builds it over a night, and from then on pages may go there. A place a learner's
+    story named that the forge has built since (``season/world.py: story_places``) joins
+    the places a page may be set in, in every life of the season.
     """
 
-    from app.services.season.world import playable_locations
+    from app.services.season.world import playable_locations, story_places
 
     season_today = context.get(SEASON_TODAY_KEY)
     world = context.get("world")
     if season_today is None or not isinstance(world, dict):
         return
     places = list(world.get("locations") or [])
+    known = {str(place.get("id") or "") for place in places}
+    places += [dict(place) for place_id, place in story_places(season_today.season.id).items() if place_id not in known]
     playable = playable_locations(places, season_today.season.id, keep=keep)
-    if len(playable) == len(places):
+    if len(playable) == len(world.get("locations") or []) and len(places) == len(playable):
         return
+    on = {str(place.get("id") or "") for place in playable}
     world["locations"] = playable
+    world["elsewhere"] = [
+        {"id": place.get("id"), "name_fr": place.get("name_fr") or place.get("name")}
+        for place in places
+        if str(place.get("id") or "") not in on
+    ]
     context["variety"] = _variety(
         list(context.get("recent_situations") or []), list(world.get("cast") or []), playable
     )

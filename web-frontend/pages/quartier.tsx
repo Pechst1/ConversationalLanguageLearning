@@ -29,6 +29,7 @@ import { JourneyStory, stagedPageOf, todayOf } from '@/lib/quartier/journey-stor
 import type { Today } from '@/lib/quartier/journey-story';
 import type { Level, Native } from '@/lib/quartier/stage';
 import { placeCard } from '@/lib/quartier/story';
+import { apiService } from '@/services/api';
 import { remainingSteps } from '@/services/daily-journey';
 import type { JourneySnapshot } from '@/types/daily-journey';
 
@@ -255,6 +256,18 @@ export default function QuartierPage() {
     else void router.push('/');
   }, [router]);
   const feuilleton = React.useCallback(() => void router.push(JOURNEY_RESUME_HREF), [router]);
+  // what the learner's story set and left in the quarter: their details in Le Mistral. The quai is
+  // built while the session is still being read, so the call waits for it (and the quai, a few
+  // seconds at most, for the call)
+  const [session] = React.useState(() => {
+    let known: (signedIn: boolean) => void = () => undefined;
+    const signed = new Promise<boolean>((resolve) => (known = resolve));
+    return { signed, known };
+  });
+  React.useEffect(() => {
+    if (status !== 'loading') session.known(status === 'authenticated');
+  }, [status, session]);
+  const learnerWorld = React.useCallback(async () => ((await session.signed) ? apiService.getLearnerWorld() : null), [session]);
 
   // today's story, once its page is known: one per journey. Its scene plays here while the day
   // stands before it, and the people talk through it whatever the day's state
@@ -322,7 +335,7 @@ export default function QuartierPage() {
       <Head>
         <title>Le Quartier</title>
       </Head>
-      <QuartierScreen day={day} native={who.native} level={who.level} onExit={leave} hidden={practice} />
+      <QuartierScreen day={day} native={who.native} level={who.level} onExit={leave} hidden={practice} world={learnerWorld} />
       {practice && journey ? (
         <div style={{ position: 'fixed', inset: 0, zIndex: 40, overflowY: 'auto', WebkitOverflowScrolling: 'touch', background: '#f4efe4' }}>
           <JourneySession
