@@ -446,7 +446,14 @@ class FakeStoryProvider:
         chapter = context.get("chapter") or {}
         keeps = bool(chapter) and not (chapter.get("resolved") or chapter.get("exhausted"))
         character = SEASON_CAST[n % len(SEASON_CAST)]
-        location = SEASON_PLACES[n % len(SEASON_PLACES)]
+        # A compliant director sets the page at a place it was offered: a season's
+        # generated page is offered only the places Le Quartier has built
+        # (``on_built_stage``). From 8 Nov the fake still dealt the bakery, Marin and
+        # Lila's flat or the NGO office, the engine refused those drafts as places not
+        # in the world, and «Walk · season × 10 days» failed on every push to main.
+        offered = {str(place.get("id")) for place in (context.get("world") or {}).get("locations") or []}
+        places = [place for place in SEASON_PLACES if place in offered] or list(SEASON_PLACES)
+        location = places[n % len(places)]
         shape = str((context.get("chapter_shape") or {}).get("shape") or chapter.get("shape") or "")
         if shape == "bottle" and keeps and chapter.get("location_id"):
             location = str(chapter["location_id"])

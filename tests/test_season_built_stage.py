@@ -15,12 +15,16 @@ on the quai. Now:
 from __future__ import annotations
 
 import json
+import sys
 import uuid
+from pathlib import Path
 from types import SimpleNamespace
 
 from app.services.living_story import SEASON_TODAY_KEY, _variety, on_built_stage
 from app.services.season import world as season_world
 from app.services.season.world import built_stages, playable_locations, season_world_bible
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 
 def _places(*ids: str) -> list[dict]:
@@ -200,3 +204,18 @@ def _planner_bits() -> dict:
     return {
         "season_script": {"brief": {"today": {}, "page_rules": {"voices": {"speakers": ["lila_bonnet"]}, "chapter": {"open_new": False}}}},
     }
+
+
+def test_the_walk_s_fake_director_sets_a_season_page_where_it_was_offered():
+    """The browser walks' fake (scripts/dev_story_engine_server.py) is a compliant
+    director: since the night offers only the built places, a page it set at the bakery
+    or the NGO office was refused as a place not in the world, and «Walk · season × 10
+    days» failed on every push to main from #614 on."""
+
+    import dev_story_engine_server as dev
+
+    context = _context()
+    on_built_stage(context)
+    offered = {place["id"] for place in context["world"]["locations"]}
+    context["season_script"] = {"brief": {}}
+    assert {dev.FakeStoryProvider._season_draft(context, n)["location_id"] for n in range(14)} <= offered
