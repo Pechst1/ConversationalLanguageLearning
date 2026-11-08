@@ -39,7 +39,12 @@ from app.db.models.vocabulary import VocabularyWord
 from app.db.session import SessionLocal
 from app.services import order_rules
 from app.services.address import address_instruction
-from app.services.answer_acceptance import accent_policy, is_preference_swap, widened_answers
+from app.services.answer_acceptance import (
+    accent_policy,
+    feedback_note,
+    is_preference_swap,
+    widened_answers,
+)
 from app.services.atelier_assets import AtelierAssetService
 
 # WP-16 additive: the correction call's request bound and its cost row.
@@ -5460,6 +5465,8 @@ class AtelierCorrectionService:
                 )
             if local.get("local_status") == LOCAL_RIGHT:
                 final["style_notes_native"] = notes_native(final.get("errata"))
+                checked = local.get("local_check") if isinstance(local.get("local_check"), dict) else {}
+                accent = checked.get("accent") if isinstance(checked.get("accent"), dict) else None
                 final.update(
                     {
                         "verdict": local.get("verdict") or "correct",
@@ -5467,10 +5474,15 @@ class AtelierCorrectionService:
                         "errata": [],
                         "missing_targets": [],
                         "lexical_gaps": [],
-                        "corrected_answer": learner_text or local.get("corrected_answer") or "",
+                        "corrected_answer": (accent or {}).get("expected") or learner_text or local.get("corrected_answer") or "",
                         "notes_native": [],
                     }
                 )
+                if accent:
+                    # #562: right up to an accent (the instant check's reading): the line
+                    # keeps its accent and the accent stays named once the model has read it.
+                    final["feedback_notes_native"] = [accent["note"]] if accent.get("note") else []
+                    final["accent_notes"] = local.get("accent_notes") or final.get("accent_notes") or []
         else:
             # The key's verdict, score and target stand.
             final = dict(local)
@@ -5747,7 +5759,12 @@ class AtelierCorrectionService:
                 if local_concept is None and session is not None:
                     local_concept = next(iter(self._session_concepts(session)), None)
                 local_check = production_local_check(
-                    local_concept, text, model_answer, _accepted_answers(prompt_payload)
+                    local_concept,
+                    text,
+                    model_answer,
+                    _accepted_answers(prompt_payload),
+                    accents=_free_answer_accents(local_concept, prompt_payload),
+                    language=self.explanation_language,
                 )
             is_test_out = local_check is not None and session is not None and session.status == "test_out"
             acceptable = (
@@ -5784,6 +5801,15 @@ class AtelierCorrectionService:
                 correction["local_status"] = local_check["local_status"]
                 if local_check["local_status"] == LOCAL_RIGHT:
                     correction.update({"verdict": "correct", "score_0_4": 4.0, "errata": [], "missing_targets": []})
+                    accent = local_check.get("accent")
+                    if isinstance(accent, dict):
+                        # #562: right up to an accent: the line is printed with it and
+                        # the accent is named, as on the gaps and in the relecture.
+                        correction["corrected_answer"] = accent["expected"]
+                        correction["feedback_notes_native"] = [accent["note"]] if accent.get("note") else []
+                        correction["accent_notes"] = [
+                            {"item_id": "", "learner_text": text, "corrected_target": accent["expected"]}
+                        ]
                 # With no model to read it, the key's «Right» is the whole check.
                 correction["assessment_status"] = (
                     "provisional"
@@ -5805,7 +5831,9 @@ class AtelierCorrectionService:
         if round_name in FREE_PRODUCTION_ROUNDS and not correction.get("local_status") and local_check_status(correction):
             correction["local_status"] = local_check_status(correction)
         # WP-103: one note per issue, deduplicated — never three copies of one rule.
-        correction["notes_native"] = notes_native(correction.get("errata"))
+        correction["notes_native"] = notes_native(
+            correction.get("errata"), extra=correction.get("feedback_notes_native") or ()
+        )
         return correction
 
     def _with_judgement_errata(
@@ -6079,6 +6107,7 @@ class AtelierCorrectionService:
         errata: list[dict[str, Any]] = []
         corrected: dict[str, Any] = {}
         accent_notes: list[dict[str, Any]] = []
+        accent_texts: list[str] = []
         correct_count = 0
         for item in items:
             item_id = item["id"]
@@ -6099,6 +6128,11 @@ class AtelierCorrectionService:
                     corrected[item_id] = verdict.expected
                 if verdict.accent_slip:
                     accent_notes.append({"item_id": item_id, "learner_text": learner_text, "corrected_target": verdict.expected or target})
+                    # #562: right up to an accent, and the accent is named — the
+                    # one note the keyed rungs and the relecture give.
+                    accent_note = feedback_note(verdict, self.explanation_language)
+                    if accent_note and accent_note not in accent_texts:
+                        accent_texts.append(accent_note)
                 continue
             if mode == "word_bank" and _reorders_what_the_rule_orders(concept, learner_text, str(target or "")):
                 # #271: the right words, in an order the unit's own rule fixes (the
@@ -6123,7 +6157,7 @@ class AtelierCorrectionService:
             "concept_hits": [serialize_concept_hit(concept, correct_count, len(items))] if concept else [],
             "missing_targets": [],
             "errata": errata,
-            **({"accent_notes": accent_notes} if accent_notes else {}),
+            **({"accent_notes": accent_notes, "feedback_notes_native": accent_texts} if accent_notes else {}),
             "correction_debug": _correction_debug(model=None, fallback_used=True),
         }
 

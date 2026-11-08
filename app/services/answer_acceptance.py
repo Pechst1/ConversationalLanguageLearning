@@ -824,10 +824,14 @@ def _er_singular(lemma: str) -> str | None:
             candidates.append(stem[:at] + "è" + stem[at + 1 :] + "e")
     if stem[-1:] in {"l", "t"}:
         candidates.append(stem + stem[-1] + "e")
+    if stem.endswith("y"):
+        candidates.append(stem[:-1] + "ie")  # envoyer → envoie, nettoyer → nettoie
     for candidate in candidates:
         if _lemma_of(candidate) == lemma:
             return candidate
-    if lemma in (_core_lexicon().get("lemmas") or {}) and not re.search(r"[eé][^aeiouyéèêë]+$", stem):
+    if lemma in (_core_lexicon().get("lemmas") or {}) and not stem.endswith("y") and not re.search(
+        r"[eé][^aeiouyéèêë]+$", stem
+    ):
         return stem + "e"  # «laisser» → «laisse»: no stem change is possible
     return None
 
@@ -921,6 +925,32 @@ def on_nous_variants(sentence: str) -> list[str]:
                 else:
                     new[reflexive] = "se"
         out.append(" ".join(word for word in new if word))
+    out.extend(_et_moi_variants(words))
+    return list(dict.fromkeys(out))
+
+
+def _et_moi_variants(words: list[str]) -> list[str]:
+    """#592: «Romy et moi, on envoie» ↔ «Romy et moi, nous envoyons» ↔ «Romy et moi
+    envoyons»: a subject «X et moi» is «we», with or without the pronoun that takes it
+    up again. The verb is read through :func:`on_nous_variants` on its own, so a verb
+    it cannot conjugate with certainty gives no variant here either."""
+
+    out: list[str] = []
+    for index in range(1, len(words)):
+        if words[index].rstrip(",") != "moi" or words[index - 1] != "et":
+            continue
+        head, tail = words[: index], words[index + 1 :]
+        rest = tail[1:] if tail and tail[0] in {"on", "nous"} else tail
+        if not rest:
+            continue
+        for plural in on_nous_variants(" ".join(["on", *rest])):  # «on envoie» → «nous envoyons»
+            if plural.startswith("nous "):
+                verb = plural.split(" ", 1)[1]
+                out.append(" ".join([*head, "moi,", "nous", verb]))
+                out.append(" ".join([*head, "moi", verb]))
+        for singular in on_nous_variants(" ".join(["nous", *rest])):  # «nous envoyons» → «on envoie»
+            if singular.startswith("on "):
+                out.append(" ".join([*head, "moi,", singular]))
     return out
 
 
@@ -1186,9 +1216,11 @@ def widened_answers(accepted: Iterable[object], *, english: object = None) -> li
 
     base = [str(item) for item in accepted if item and str(item).strip()]
     out: list[str] = list(base)
-    we = isinstance(english, str) and re.search(r"\bwe\b", english, re.IGNORECASE) and not re.search(
-        r"\b(?:our|ours|us)\b", english, re.IGNORECASE
-    )
+    # «we» is also «Romy and I» (#592): the prompt need not say «with on» for the
+    # «nous» sentence to be as right as the key's «on» one.
+    we = isinstance(english, str) and (
+        re.search(r"\bwe\b", english, re.IGNORECASE) or re.search(r"\band I\b", english)
+    ) and not re.search(r"\b(?:our|ours|us)\b", english, re.IGNORECASE)
     for sentence in base:
         people = [sentence, *(on_nous_variants(sentence) if we else [])]
         for variant in people:

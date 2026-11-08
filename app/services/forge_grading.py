@@ -367,12 +367,24 @@ def free_use_acceptable(concept: Any, text: str, accepted: Any = None) -> dict[s
 
 
 def production_local_check(
-    concept: Any, text: str, model_answer: Any = None, accepted: Any = None
+    concept: Any,
+    text: str,
+    model_answer: Any = None,
+    accepted: Any = None,
+    *,
+    accents: str = "lenient",
+    language: Any = "en",
 ) -> dict[str, Any]:
     """The instant verdict for free production: the rule's detector, closeness to a
     model answer, and — WP-103 T9 — ``local_status``: ``right`` only when the answer
     is an accepted answer (:func:`matches_accepted`), otherwise ``checking`` until
-    the model's verdict lands. A detector hit is a hint, never a «Right»."""
+    the model's verdict lands. A detector hit is a hint, never a «Right».
+
+    #562: an accepted answer up to its accents is read by the one accent judge the
+    gaps and the relecture use (:func:`accent_reading`, the item's ``accents``
+    policy): a spelling accent is ``right`` with the accent named in ``accent``
+    (``expected`` line, ``note``); a grammar accent stays ``checking`` — the
+    relecture refuses and names it."""
 
     check = detector_check(concept, text)
     result: dict[str, Any] = {"detector": check["status"], "span": check["span"], "source": check["source"]}
@@ -380,6 +392,22 @@ def production_local_check(
         result["model_similarity"] = similarity(text, model_answer)
     keys = [*(accepted or []), *([model_answer] if model_answer else [])]
     result["local_status"] = LOCAL_RIGHT if matches_accepted(text, keys) else LOCAL_CHECKING
+    if result["local_status"] == LOCAL_CHECKING:
+        reading = accent_reading(text, keys, accents=accents)
+        if reading is not None and reading.correct:
+            from app.services.answer_acceptance import feedback_note
+
+            result["local_status"] = LOCAL_RIGHT
+            note = feedback_note(reading, _language(language)) or ""
+            word = str(reading.expected_word or "")
+            # The judge compares case-folded; the note names the word as the key spells
+            # it («Israël», not «israël»).
+            written = next(
+                (w for key in keys for w in re.findall(r"[\w'-]+", key) if word and w.casefold() == word), ""
+            )
+            if written and word in note:
+                note = note.replace(f"«{word}»", f"«{written}»")
+            result["accent"] = {"expected": str(reading.expected or ""), "note": note}
     return result
 
 
