@@ -236,6 +236,20 @@ def test_a_place_of_the_season_the_stories_named_is_built_first(tmp_path):
     assert [r for r in forge.season_queue("g3") if r["status"] in ("new", "locked")][0]["location"] != "mairie"
 
 
+def test_a_place_of_the_season_no_authored_page_is_set_in_is_built_once_named(tmp_path):
+    """The bakery is a place of the season no authored page goes to: once a story names it, the
+    season queue has it, first, so the night can set a page there after the forge built it."""
+    forge = _forge()
+    assert "boulangerie" not in {n["location"] for n in forge.season_needs()}
+    assert "boulangerie" not in {r["location"] for r in forge.season_queue("g3")}
+    source = _orders(tmp_path, {"kind": "place", "name_fr": "la boulangerie de Mme Diallo", "location_id": None, "look": "", "times": 2, "lives": 2})
+    asked = forge.asked_places(forge.orders_queue(forge.story_orders(source)))
+    assert asked == {"boulangerie": 2}
+    todo = [r for r in forge.season_queue("g3", asked=asked) if r["status"] in ("new", "locked")]
+    assert todo[0]["location"] == "boulangerie" and todo[0]["asked"] == 2 and todo[0]["named_only"]
+    assert todo[0]["need"]["page"] == "named"
+
+
 def test_a_place_the_stories_named_and_the_forge_built_reaches_the_server(tmp_path, monkeypatch):
     forge = _forge()
     assert forge.place_id_for("la librairie de la rue Bichat") == "librairie_rue_bichat"

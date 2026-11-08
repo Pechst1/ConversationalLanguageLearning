@@ -372,7 +372,8 @@ def season_queue(frontier: str | list[str] | None = None, season_id: str = "s1",
     first page of theirs set there; places only needed behind every learner follow, for the
     learners still to come. ``asked``: the places of the season the learners' pages named
     (``queue --orders``), with how many lives named them. «Erst erwähnen, dann betreten»: a page
-    goes there only once it is built, so a place the story asked for comes first."""
+    goes there only once it is built, so a place the story asked for comes first, also one no
+    authored page is set in (``named_only``: the bakery, the school)."""
     asked = asked or {}
     needs = season_needs(season_id)
     segments = season_segments(season_id)
@@ -399,6 +400,12 @@ def season_queue(frontier: str | list[str] | None = None, season_id: str = "s1",
         days = soon(n)
         if days is not None and (row["next"] is None or days < row["soon"]):
             row["next"], row["soon"] = n, days
+    for loc in asked:
+        # a place of the season no authored page is set in (the bakery, the school): the stories
+        # named it, so the night may set a page there as soon as the forge has built it
+        if loc in names and loc not in by_loc:
+            named = {"segment": None, "at": None, "page": "named", "location": loc}
+            by_loc[loc] = {"location": loc, "name_fr": names[loc], "first": named, "next": named, "soon": 0, "named_only": True}
     out = []
     for row in by_loc.values():
         stage = stage_of(row["location"], places)
@@ -410,11 +417,16 @@ def season_queue(frontier: str | list[str] | None = None, season_id: str = "s1",
         row["need"] = need
         row["ahead"] = row["next"] is not None
         row.setdefault("soon", None)
+        row.setdefault("named_only", False)
         row["asked"] = int(asked.get(row["location"]) or 0)
         out.append(row)
+
+    def order(n: dict) -> int:
+        return needs.index(n) if n in needs else len(needs)
+
     out.sort(
         key=lambda r: (0 if r["asked"] else 1, -r["asked"])
-        + ((0, r["soon"], needs.index(r["need"])) if r["ahead"] else (1, r["need"]["at"], needs.index(r["need"])))
+        + ((0, r["soon"], order(r["need"])) if r["ahead"] else (1, r["need"]["at"], order(r["need"])))
     )
     return out
 
@@ -590,7 +602,7 @@ def cmd_season_queue(args) -> None:
     for r in rows:
         where = r["stage"] or (f"{r['entry']} (no room or site yet)" if r["entry"] else "not in world.json")
         side = "" if r["ahead"] else "  (behind the frontier)"
-        if r["ahead"] and r["soon"] is not None:
+        if r["ahead"] and r["soon"] is not None and not r["named_only"]:
             side += f"  (in {r['soon']} days)"
         if r["asked"]:
             side += f"  (named by {r['asked']} lives)"
@@ -600,7 +612,10 @@ def cmd_season_queue(args) -> None:
         print(f"! not places of the season (app/services/season/world.py): {', '.join(unknown)}")
     if todo:
         r = todo[0]
-        print(f"next: {r['location']} ({r['name_fr']}), first needed at {r['need']['page']}")
+        if r["named_only"]:
+            print(f"next: {r['location']} ({r['name_fr']}), named by {r['asked']} lives; no page of the season is set there yet")
+        else:
+            print(f"next: {r['location']} ({r['name_fr']}), first needed at {r['need']['page']}")
     else:
         print("next: none; every place the season's pages are set in is built")
 
