@@ -50,14 +50,23 @@ and the season queue below counts a place as built when a room, a site or the ha
 stages it. A world entry without `stages` is a place no page ever reaches: `check` refuses a
 room without one, and two built places never stage the same id.
 
+The server keeps a copy of the register, `app/data/season/s1/stages.json` (its image has no
+`web-frontend`): the night writes a generated page only at a place the world has built, so a new
+place the forge builds is a place the story can go the night its PR is merged. After any change
+to `world.json`'s `stages` or to what is built (a `room` or `site` set), run
+`$PY scripts/forge/forge.py stages` and commit the file with the run (`publish` writes it
+itself); `check` and `tests/test_quartier_forge_queue.py` refuse a stale copy.
+
 ## The run
 
-0. **What the story needs.** `$PY scripts/forge/forge.py queue --season --from <segment>` reads
+0. **What the story needs.** `$PY scripts/forge/forge.py queue --season --from api` reads
    the season's own pages in order (each tentpole's days, each gap's bridge page) and lists every
    place they are set in, with what the world has for it: `built`, `locked` (a world entry,
-   nothing built) or `new`. `--from` is the segment the learner is on (`g3`): what comes there
-   or after is listed first, in the order the season reaches it, then what lies behind. Its last
-   line names the next place to build. Build that one (a room of the season, below, or a street
+   nothing built) or `new`. `--from api` asks the server which segments the season's learners
+   are on (`GET /api/v1/story-engine/season-frontier`; its first line says so): the place the
+   nearest learner reaches first is listed first, then what lies behind them all. Should the
+   server be unreadable, it says so and starts at the season's beginning; `--from g3` (or
+   `g3,t1`) names the segments by hand. Its last line names the next place to build. Build that one (a room of the season, below, or a street
    from the map data for a place outdoors) before anything the news asks for. A place no kit can
    build yet (a station platform, a park): write `scripts/forge/briefs/<location>.md` starting
    «Waits for a kit:» and one line on why and what kit it needs (the queue then shows it as
@@ -236,8 +245,10 @@ room instead of a street; it follows the steps above with these differences.
    back to find it shut, leave. In a lit room: tap each thing with a `look`, read its line, leave,
    and read the end card. `lib/quartier/room.test.js` builds every room file and holds it to
    the same checks.
-7. **PR.** Commit the brief, its notes, the room file, `rooms/index.ts`, `world.json` and any kit
-   change (never `var/`), titled «Le Quartier forge: <what was built>».
+7. **PR.** Run `$PY scripts/forge/forge.py stages` once the room is built (`room` set and
+   `stages` given in `world.json`). Commit the brief, its notes, the room file, `rooms/index.ts`,
+   `world.json`, `app/data/season/s1/stages.json` and any kit change (never `var/`), titled
+   «Le Quartier forge: <what was built>».
 
 ## Le Mistral's details
 

@@ -8771,6 +8771,33 @@ def _add_director_context(db: Session, user: User, context: dict, *, now: dateti
         context[EPREUVE_KEY] = epreuve
 
 
+def on_built_stage(context: dict, *, keep: list[str | None] | tuple = ()) -> None:
+    """A season's generated page is set where Le Quartier can play it.
+
+    The 3D world hands each page to the room or street that stages its place, and a
+    place it has not built yet plays in the Feuilleton only: the quarter stood still
+    on the quai while the night wrote pages at the gérance and the mairie. The night
+    writes at the places the forge has built (``season/world.py: built_stages``) and
+    at ``keep``; the forge builds the season's next place from its own pages. The
+    authored days (tentpoles, bridges) keep every place: they are served as written.
+    """
+
+    from app.services.season.world import playable_locations
+
+    season_today = context.get(SEASON_TODAY_KEY)
+    world = context.get("world")
+    if season_today is None or not isinstance(world, dict):
+        return
+    places = list(world.get("locations") or [])
+    playable = playable_locations(places, season_today.season.id, keep=keep)
+    if len(playable) == len(places):
+        return
+    world["locations"] = playable
+    context["variety"] = _variety(
+        list(context.get("recent_situations") or []), list(world.get("cast") or []), playable
+    )
+
+
 def generate_scene(
     db: Session, *, user: User, input_mode: InputMode, now: datetime | None = None
 ):
@@ -8798,6 +8825,15 @@ def generate_scene(
             authored = season_end_brief(season_today, context)
             if authored is not None:
                 return authored
+        chapter = context.get("chapter") or {}
+        on_built_stage(
+            context,
+            # A bottle chapter may not leave its room (``bottle_left_the_room``).
+            keep=[chapter.get("location_id")]
+            if str(chapter.get("shape") or "") == "bottle"
+            and not (chapter.get("resolved") or chapter.get("exhausted"))
+            else [],
+        )
         _add_director_context(db, user, context, now=now)
         reviews: list[dict] = []
         from app.services import story_split
@@ -8958,6 +8994,11 @@ def generate_act(
         season_today = context.get(SEASON_TODAY_KEY)
         if season_today is None or season_today.pos.is_tentpole or season_today.pos.finished:
             return ContentUnavailable(reason="act_not_on_a_gap_day")
+        # The act may come back to its first act's room (a bottle's ``act.room``).
+        on_built_stage(
+            context,
+            keep=[draft.get("location_id"), (context.get("chapter") or {}).get("location_id")],
+        )
         _add_director_context(db, user, context, now=now)
         if not story_split.applies(context):
             return ContentUnavailable(reason="act_not_on_a_planned_day")

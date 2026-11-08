@@ -109,3 +109,34 @@ def test_a_place_no_kit_can_build_yet_waits_and_the_queue_names_the_next(tmp_pat
     assert next(r for r in rows if r["location"] == "toit")["status"] == "no kit"
     todo = [r for r in rows if r["status"] in ("new", "locked")]
     assert todo[0]["location"] == "mistral_back_room"
+
+
+def test_the_server_has_the_worlds_register_as_the_forge_writes_it():
+    """``app/data/season/s1/stages.json`` is the forge's register as the server reads it (the
+    Docker image has no web-frontend). After any change to world.json: ``forge.py stages``."""
+    forge = _forge()
+    written = json.loads(Path(forge.STAGES).read_text(encoding="utf-8"))
+    assert written == forge.stages_file(), "run `python scripts/forge/forge.py stages`"
+    assert forge.stages_problems() == []
+    from app.services.season.world import built_stages
+
+    assert built_stages("s1") == forge.built_stages()
+
+
+def test_the_queue_builds_first_what_the_nearest_learner_reaches_first():
+    forge = _forge()
+    # one learner on gap 3, one still on T1: the roof is days away for the first, the mairie
+    # two weeks away for the second
+    both = [r for r in forge.season_queue(["t1", "g3"]) if r["status"] != "built"]
+    assert both[0]["location"] == "toit"
+    # the mairie is ahead of the learner on T1, so it is not left behind
+    assert next(r for r in both if r["location"] == "mairie")["ahead"]
+    # a single segment orders the queue as before
+    assert [r["location"] for r in forge.season_queue(["g3"])] == [r["location"] for r in forge.season_queue("g3")]
+
+
+def test_an_unreadable_server_leaves_the_queue_at_the_seasons_start(monkeypatch, capsys):
+    forge = _forge()
+    monkeypatch.setattr(forge, "API", "http://127.0.0.1:9")
+    assert forge.live_frontier() == []
+    assert "unreadable" in capsys.readouterr().err

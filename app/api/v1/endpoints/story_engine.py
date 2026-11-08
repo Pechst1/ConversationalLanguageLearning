@@ -264,3 +264,28 @@ def archive(
     from app.services.story_archive import build_archive
 
     return build_archive(db, user, season=season)
+
+
+class SeasonFrontierRead(BaseModel):
+    season: str
+    #: The segments recently active learners are on, in the season's order.
+    segments: list[str]
+    #: The earliest of them; None when nobody is on the season.
+    frontier: str | None = None
+
+
+@router.get("/season-frontier", response_model=SeasonFrontierRead)
+def season_frontier(
+    db: Session = Depends(get_db),
+    season: str = Query(default="s1", pattern=r"^[a-z0-9_]{1,24}$"),
+):
+    """The segments of ``season`` recently active learners are on: the nightly forge
+    builds the place their pages reach soonest first. Public, cached, and segment ids
+    only (``app/services/season/frontier.py``)."""
+
+    from app.services.season.format import available_seasons
+    from app.services.season.frontier import season_frontier as frontier_of
+
+    if season not in available_seasons():
+        raise HTTPException(404, "Season not found")
+    return frontier_of(db, season)

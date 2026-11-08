@@ -4829,6 +4829,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/story-engine/season-frontier": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Season Frontier
+         * @description The segments of ``season`` recently active learners are on: the nightly forge
+         *     builds the place their pages reach soonest first. Public, cached, and segment ids
+         *     only (``app/services/season/frontier.py``).
+         */
+        get: operations["season_frontier_api_v1_story_engine_season_frontier_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/": {
         parameters: {
             query?: never;
@@ -13903,6 +13925,15 @@ export interface components {
             next_scene_id: string;
             /** Transition Narration */
             transition_narration?: string | null;
+        };
+        /** SeasonFrontierRead */
+        SeasonFrontierRead: {
+            /** Frontier */
+            frontier?: string | null;
+            /** Season */
+            season: string;
+            /** Segments */
+            segments: string[];
         };
         /**
          * SeasonPart
@@ -24466,6 +24497,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StoryPositionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    season_frontier_api_v1_story_engine_season_frontier_get: {
+        parameters: {
+            query?: {
+                season?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeasonFrontierRead"];
                 };
             };
             /** @description Validation Error */

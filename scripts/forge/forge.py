@@ -6,10 +6,12 @@ Run from the repository root, in a venv with ``scripts/forge/requirements.txt``:
     python scripts/forge/forge.py news                  # the map's news layer: every place the Papier names
     python scripts/forge/forge.py queue                 # places the Papier names that are not built yet
     python scripts/forge/forge.py queue --season --from g3  # places the season's pages are set in, the next ones first
+    python scripts/forge/forge.py queue --season --from api # the same, from the segments the season's learners are on
     python scripts/forge/forge.py survey marche_aligre  # open map data around it -> var/forge/<id>/survey.json
     python scripts/forge/forge.py draft marche_aligre   # survey + brief -> lib/quartier/world/sites/<id>.json
     python scripts/forge/forge.py check marche_aligre   # the site's invariants (also in site.test.js)
     python scripts/forge/forge.py publish marche_aligre # open it on the map (world.json, sites/index.ts)
+    python scripts/forge/forge.py stages                # the server's copy of the register (app/data/season/s1/stages.json)
 
 A room of the season (``"kind": "room"`` in its brief: the stairwell, a flat) is written from the
 canon, not surveyed: ``draft`` lays the brief out as ``lib/quartier/world/rooms/<id>.json``
@@ -50,6 +52,7 @@ CACHE = os.path.join(ROOT, "var", "forge")
 PAPIER = os.path.join(ROOT, "app", "services", "revue")
 SEASONS = os.path.join(ROOT, "app", "data", "season")
 SEASON_WORLD = os.path.join(ROOT, "app", "services", "season", "world.py")
+STAGES = os.path.join(SEASONS, "s1", "stages.json")
 
 # Paris inside the périphérique, give or take: what the world map can show
 PARIS_BOX = (2.224, 48.815, 2.47, 48.902)
@@ -100,6 +103,7 @@ def tidy(data, indent: int = 0) -> str:
 def save_world(data: dict) -> None:
     with open(WORLD, "w", encoding="utf-8") as f:
         f.write(tidy(data) + "\n")
+    write_stages(data["places"])
 
 
 def world() -> dict:
@@ -266,6 +270,52 @@ def stage_of(location: str, places: list[dict] | None = None) -> dict | None:
     return next((p for p in built if p.get("kind") != "home"), built[0] if built else None)
 
 
+def built_stages(places: list[dict] | None = None) -> dict[str, str]:
+    """Each place of the season the world has built, to the built place a page set there plays in.
+    The server reads it (``app/data/season/s1/stages.json``): the night writes a page only where
+    the world can play it."""
+    places = world()["places"] if places is None else places
+    out = {}
+    for loc in season_locations():
+        stage = stage_of(loc, places)
+        if stage:
+            out[loc] = stage["id"]
+    return out
+
+
+def stages_file(places: list[dict] | None = None) -> dict:
+    return {
+        "_about": "Written by scripts/forge/forge.py from web-frontend/lib/quartier/world/world.json "
+        "(python scripts/forge/forge.py stages): each place of the season the 3D world has built, "
+        "to the built place a page set there plays in. The night writer sets a generated page only "
+        "at these places (app/services/season/world.py).",
+        "stages": built_stages(places),
+    }
+
+
+def write_stages(places: list[dict] | None = None) -> bool:
+    """Write ``stages.json`` from the world; True when it changed."""
+    data = stages_file(places)
+    if os.path.exists(STAGES) and load_json(STAGES) == data:
+        return False
+    save_json(STAGES, data)
+    return True
+
+
+def stages_problems() -> list[str]:
+    if not os.path.exists(STAGES) or load_json(STAGES) != stages_file():
+        return [f"{os.path.relpath(STAGES, ROOT)} is not the world's register: run `forge.py stages`"]
+    return []
+
+
+def cmd_stages(_args) -> None:
+    changed = write_stages()
+    built = load_json(STAGES)["stages"]
+    print(f"{'wrote' if changed else 'unchanged'} {os.path.relpath(STAGES, ROOT)}: {len(built)} places of the season built")
+    for loc, place in built.items():
+        print(f"  {loc:18} {place}")
+
+
 def waits_for_kit(location: str) -> bool:
     """A place the forge looked at and no kit can build yet: its notes start «Waits for a kit:»."""
     path = os.path.join(BRIEFS, f"{location}.md")
@@ -275,26 +325,38 @@ def waits_for_kit(location: str) -> bool:
         return f.read().lstrip().lower().startswith("waits for a kit")
 
 
-def season_queue(frontier: str | None = None, season_id: str = "s1") -> list[dict]:
+def season_queue(frontier: str | list[str] | None = None, season_id: str = "s1") -> list[dict]:
     """Every place the season's pages are set in, with what the world has for it, the next one
-    the story reaches first. ``frontier`` is the segment a learner is on (``g3``): a place needed
-    there or after comes first, in the order the season reaches it; places only needed behind the
-    frontier follow, for the learners still before it."""
+    the story reaches first. ``frontier`` is the segment a learner is on (``g3``), or the
+    segments several are on (``forge.py queue --season --from api`` reads them from the
+    server): a place comes sooner the fewer days of the season lie between a learner and the
+    first page of theirs set there; places only needed behind every learner follow, for the
+    learners still to come."""
     needs = season_needs(season_id)
-    segs = [s["id"] for s in load_json(os.path.join(SEASONS, season_id, "season.json"))["segments"]]
-    if frontier is not None and frontier not in segs:
-        raise SystemExit(f"{frontier} is not a segment of {season_id}: {', '.join(segs)}")
-    start = segs.index(frontier) if frontier else 0
+    segments = load_json(os.path.join(SEASONS, season_id, "season.json"))["segments"]
+    segs = [s["id"] for s in segments]
+    fronts = [frontier] if isinstance(frontier, str) else list(frontier or [])
+    for f in fronts:
+        if f not in segs:
+            raise SystemExit(f"{f} is not a segment of {season_id}: {', '.join(segs)}")
+    starts = sorted({segs.index(f) for f in fronts}) or [0]
+    first_day = [sum(int(s.get("days") or 1) for s in segments[:i]) for i in range(len(segments))]
+
+    def soon(n: dict) -> int | None:
+        """Days from the nearest learner before this page to it, None when every learner is past it."""
+        ahead = [first_day[n["at"]] - first_day[s] for s in starts if n["at"] >= s]
+        return min(ahead) if ahead else None
+
     places = world()["places"]
     names = season_locations()
     by_loc: dict[str, dict] = {}
     for n in needs:
         row = by_loc.get(n["location"])
-        ahead = n["at"] >= start
         if row is None:
             row = by_loc[n["location"]] = {"location": n["location"], "name_fr": names.get(n["location"], ""), "first": n, "next": None}
-        if ahead and row["next"] is None:
-            row["next"] = n
+        days = soon(n)
+        if days is not None and (row["next"] is None or days < row["soon"]):
+            row["next"], row["soon"] = n, days
     out = []
     for row in by_loc.values():
         stage = stage_of(row["location"], places)
@@ -305,9 +367,36 @@ def season_queue(frontier: str | None = None, season_id: str = "s1") -> list[dic
         need = row["next"] or row["first"]
         row["need"] = need
         row["ahead"] = row["next"] is not None
+        row.setdefault("soon", None)
         out.append(row)
-    out.sort(key=lambda r: (0 if r["ahead"] else 1, r["need"]["at"], needs.index(r["need"])))
+    out.sort(key=lambda r: (0, r["soon"], needs.index(r["need"])) if r["ahead"] else (1, r["need"]["at"], needs.index(r["need"])))
     return out
+
+
+#: Where the nightly forge reads the segments the season's learners are on (``--from api``).
+API = os.environ.get("FORGE_API", "https://atelier-api-3njh.onrender.com")
+
+
+def live_frontier(season_id: str = "s1") -> list[str]:
+    """The segments the season's recently active learners are on, from the server
+    (``GET /api/v1/story-engine/season-frontier``). Empty when it cannot be read: the queue
+    then starts at the season's beginning, and says so."""
+    import ssl
+    import urllib.request
+
+    cafile = os.environ.get("REQUESTS_CA_BUNDLE") or os.environ.get("SSL_CERT_FILE")
+    context = ssl.create_default_context(cafile=cafile) if cafile else ssl.create_default_context()
+    url = f"{API}/api/v1/story-engine/season-frontier?season={season_id}"
+    if not url.startswith(("https://", "http://")):
+        raise SystemExit(f"FORGE_API must be an http(s) address, not {API!r}")
+    try:
+        # a server asleep on its free plan takes up to a minute to wake
+        with urllib.request.urlopen(url, timeout=90, context=context) as r:  # noqa: S310 - http(s) only, checked above
+            data = json.load(r)
+    except Exception as exc:  # noqa: BLE001 - the queue still runs from the season's start
+        print(f"! the learners' segments are unreadable ({exc}): the queue starts at the season's beginning", file=sys.stderr)
+        return []
+    return [str(s) for s in data.get("segments") or [] if s]
 
 
 def register_problems(place: dict) -> list[str]:
@@ -323,7 +412,13 @@ def register_problems(place: dict) -> list[str]:
 
 
 def cmd_season_queue(args) -> None:
-    rows = season_queue(args.frontier)
+    frontier = args.frontier
+    if frontier == "api":
+        frontier = live_frontier()
+        print(f"learners on: {', '.join(frontier) if frontier else 'none'}")
+    elif frontier:
+        frontier = [f.strip() for f in frontier.split(",") if f.strip()]
+    rows = season_queue(frontier)
     unknown = sorted({r["location"] for r in rows} - set(season_locations()))
     for r in rows:
         where = r["stage"] or (f"{r['entry']} (no room or site yet)" if r["entry"] else "not in world.json")
@@ -450,6 +545,7 @@ def cmd_check(args) -> None:
 
         problems = room.check(load_json(os.path.join(ROOMS, f"{args.id}.json")))
         problems += register_problems(place_of(args.id))
+        problems += stages_problems()
     else:
         import draft
 
@@ -592,7 +688,7 @@ def main() -> None:
     sub = ap.add_subparsers(dest="cmd", required=True)
     q = sub.add_parser("queue")
     q.add_argument("--season", action="store_true", help="the season's places instead of the Papier's")
-    q.add_argument("--from", dest="frontier", default=None, help="the segment a learner is on (g3): what comes after it first")
+    q.add_argument("--from", dest="frontier", default=None, help="the segment a learner is on (g3), several (g3,t1), or api: the segments the server says the season's learners are on")
     sub.add_parser("news")
     s = sub.add_parser("survey")
     s.add_argument("id")
@@ -600,12 +696,13 @@ def main() -> None:
     for name in ("draft", "check", "publish", "plan"):
         sub.add_parser(name).add_argument("id")
     sub.add_parser("index")
+    sub.add_parser("stages")
     args = ap.parse_args()
     sys.path.insert(0, HERE)
     if args.cmd == "index":
         write_index()
         return
-    {"queue": cmd_queue, "news": cmd_news, "survey": cmd_survey, "draft": cmd_draft, "check": cmd_check, "publish": cmd_publish, "plan": cmd_plan}[args.cmd](args)
+    {"queue": cmd_queue, "news": cmd_news, "survey": cmd_survey, "draft": cmd_draft, "check": cmd_check, "publish": cmd_publish, "plan": cmd_plan, "stages": cmd_stages}[args.cmd](args)
 
 
 if __name__ == "__main__":
