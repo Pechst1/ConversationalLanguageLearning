@@ -16780,6 +16780,11 @@ export interface components {
             /** Name Fr */
             name_fr: string;
             /**
+             * Said
+             * @default 0
+             */
+            said?: number;
+            /**
              * Times
              * @default 1
              */
@@ -16800,6 +16805,11 @@ export interface components {
             look?: string;
             /** Name Fr */
             name_fr: string;
+            /**
+             * Said
+             * @default 0
+             */
+            said?: number;
             /** Times */
             times: number;
         };

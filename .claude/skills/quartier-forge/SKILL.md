@@ -78,16 +78,18 @@ itself); `check` and `tests/test_quartier_forge_queue.py` refuse a stale copy.
 0b. **What the stories left.** The learners' own pages grow the quarter too: each page says
    what it leaves there (a thing at a place, a place it names), and
    `$PY scripts/forge/forge.py queue --orders` reads what the season's recent lives left
-   (`GET /api/v1/story-engine/world-orders`, merged, most asked for first; `--from <file>`
-   reads a saved copy). Each line is a thing or a place with its status: a thing is `new`
+   (`GET /api/v1/story-engine/world-orders`, merged; what a learner named in their own words
+   comes first, `said by N` on its line, then the most asked for; `--from <file>` reads a saved
+   copy). A learner's own words are the strongest order there is (Vincent, 8 Nov): they asked
+   for that place or thing themselves. Each line is a thing or a place with its status: a thing is `new`
    where its place is built (a detail of that place, below), `waits` while its place is not
    (the season queue builds the place first), `built` once a detail waits on it; a place is
    `season` when it is one of the season's (step 0 builds it in its time), `built` when the
    world has it, `new` when the world has never heard of it. A detail is small: besides the
    run's place, lay the `next detail:` it names (one a run), before the ladder's. A `new` place
    (`next place:`, with the id to give it) is the run's place instead of step 0's when no
-   learner reaches step 0's within seven days (`in N days` on its line) or when two lives or
-   more named it: see **A place the stories named** below. Otherwise list it in the PR.
+   learner reaches step 0's within seven days (`in N days` on its line), when two lives or
+   more named it, or when a learner named it in their own words (`said by`): see **A place the stories named** below. Otherwise list it in the PR.
 1. **Pick a news place** (only when step 0 has nothing to build). `$PY scripts/forge/forge.py news` refreshes the map's news layer
    (`world/news.json`, held to the articles by `news.test.js`); commit it with the run.
    `$PY scripts/forge/forge.py queue` lists the places Papier articles name with an exact

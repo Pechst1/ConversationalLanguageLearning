@@ -433,11 +433,12 @@ def season_queue(frontier: str | list[str] | None = None, season_id: str = "s1",
 
 def asked_places(rows: list[dict]) -> dict[str, int]:
     """The places of the season the stories named (``orders_queue`` rows of status ``season``),
-    with how many lives named them."""
+    with how many lives named them; a learner's own words count twice (``said``)."""
     out: dict[str, int] = {}
     for r in rows:
         if r["kind"] == "place" and r["status"] == "season" and r.get("location_id"):
-            out[r["location_id"]] = out.get(r["location_id"], 0) + int(r.get("lives") or 0)
+            # a life whose learner named it in their own words counts twice
+            out[r["location_id"]] = out.get(r["location_id"], 0) + int(r.get("lives") or 0) + int(r.get("said") or 0)
     return out
 
 
@@ -528,7 +529,8 @@ def orders_queue(orders: list[dict], places: list[dict] | None = None) -> list[d
     is not (the season queue builds the place first). A place the story named is ``built``
     when the world has it, ``season`` when it is a place of the season not built yet (the
     season queue has it), ``new`` when the world has never heard of it. Among the same status,
-    what more lives left comes first."""
+    what a learner named in their own words comes first (``said``: in how many lives), then
+    what more lives left."""
     places = places if places is not None else world()["places"]
     stages = built_stages(places)
     laid = {(fold(d["mark"].get("name_fr")), d["mark"].get("location_id")) for d in detail_specs() if isinstance(d.get("mark"), dict)}
@@ -556,7 +558,9 @@ def orders_queue(orders: list[dict], places: list[dict] | None = None) -> list[d
                 row["id"] = place_id_for(o["name_fr"])
         rows.append({**row, "status": status})
     rank = {"new": 0, "waits": 1, "season": 2, "built": 3}
-    rows.sort(key=lambda r: (rank[r["status"]], -int(r.get("lives") or 0), -int(r.get("times") or 0), fold(r["name_fr"])))
+    rows.sort(
+        key=lambda r: (rank[r["status"]], -int(r.get("said") or 0), -int(r.get("lives") or 0), -int(r.get("times") or 0), fold(r["name_fr"]))
+    )
     return rows
 
 
@@ -566,12 +570,14 @@ def cmd_orders_queue(args) -> None:
         where = r["location_id"] or "-"
         if r["stage"]:
             where += f" -> {r['stage']}"
-        print(f"{r['status']:6} {r['kind']:5} {int(r.get('lives') or 0)} lives, {int(r.get('times') or 0)}x  «{r['name_fr']}» at {where}  {r.get('look') or ''}".rstrip())
+        said = f", said by {int(r.get('said') or 0)}" if r.get("said") else ""
+        print(f"{r['status']:6} {r['kind']:5} {int(r.get('lives') or 0)} lives{said}, {int(r.get('times') or 0)}x  «{r['name_fr']}» at {where}  {r.get('look') or ''}".rstrip())
     thing = next((r for r in rows if r["kind"] == "thing" and r["status"] == "new"), None)
     place = next((r for r in rows if r["kind"] == "place" and r["status"] == "new"), None)
     print(f"next detail: «{thing['name_fr']}» in {thing['stage']} (mark: {thing['location_id']})" if thing else "next detail: none; every thing the stories left where the world is built is laid")
     if place:
-        print(f"next place: «{place['name_fr']}» (id {place['id']}), named by {int(place.get('lives') or 0)} lives")
+        said = f", by {int(place.get('said') or 0)} learners in their own words" if place.get("said") else ""
+        print(f"next place: «{place['name_fr']}» (id {place['id']}), named by {int(place.get('lives') or 0)} lives{said}")
 
 
 def register_problems(place: dict) -> list[str]:

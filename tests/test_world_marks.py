@@ -208,8 +208,8 @@ def test_a_season_page_s_marks_are_kept_and_given_to_the_quarter_and_the_forge(
     orders = assembled_client.get("/api/v1/story-engine/world-orders").json()
     assert orders["season"] == "s1"
     petition = next(order for order in orders["orders"] if order["name_fr"] == "la pétition de Gus")
-    assert petition == {**PETITION, "times": 1, "lives": 1}
-    assert all(set(order) == {"kind", "name_fr", "location_id", "look", "times", "lives"} for order in orders["orders"])
+    assert petition == {**PETITION, "times": 1, "lives": 1, "said": 0}
+    assert all(set(order) == {"kind", "name_fr", "location_id", "look", "times", "lives", "said"} for order in orders["orders"])
     assert assembled_client.get("/api/v1/story-engine/world-orders?season=s9").status_code == 404
     assert assembled_client.get("/api/v1/story-engine/world-orders?season=../x").status_code == 422
 

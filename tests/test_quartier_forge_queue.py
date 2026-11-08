@@ -291,3 +291,22 @@ def test_a_place_the_stories_named_and_the_forge_built_reaches_the_server(tmp_pa
         assert season_world.story_places("s1")["librairie_rue_bichat"]["name_fr"] == "La librairie de la rue Bichat"
     finally:
         season_world.story_places.cache_clear()
+
+
+def test_what_a_learner_named_in_their_own_words_is_built_first(tmp_path, capsys):
+    """«Deine eigenen Worte bestellen beim Bau»: a thing a learner named themselves goes
+    before one more pages left, and a place they named counts twice in the season queue."""
+    forge = _forge()
+    flowers = {"kind": "thing", "name_fr": "des fleurs", "location_id": "le_mistral", "look": "", "times": 1, "lives": 1, "said": 1}
+    rows = forge.orders_queue(forge.story_orders(_orders(tmp_path, PETITION, flowers)))
+    things = [r["name_fr"] for r in rows if r["kind"] == "thing" and r["status"] == "new"]
+    assert things[:2] == ["des fleurs", "la pétition de Gus"]
+    bakery = {"kind": "place", "name_fr": "la boulangerie de Mme Diallo", "location_id": None, "look": "", "times": 1, "lives": 1, "said": 1}
+    assert forge.asked_places(forge.orders_queue(forge.story_orders(_orders(tmp_path, bakery)))) == {"boulangerie": 2}
+
+    class Args:
+        frontier = _orders(tmp_path, PETITION, flowers)
+
+    forge.cmd_orders_queue(Args)
+    out = capsys.readouterr().out
+    assert "1 lives, said by 1" in out and "next detail: «des fleurs»" in out

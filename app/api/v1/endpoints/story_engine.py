@@ -300,6 +300,8 @@ class WorldOrderRead(BaseModel):
     #: How often the lives left it, and in how many lives.
     times: int
     lives: int
+    #: In how many of those lives the learner named it in their own words: built first.
+    said: int = 0
 
 
 class WorldOrdersRead(BaseModel):
@@ -331,6 +333,8 @@ class WorldMarkRead(BaseModel):
     location_id: str | None = None
     look: str = ""
     times: int = 1
+    #: How often the learner named it in their own words.
+    said: int = 0
     day: int | None = None
 
 
