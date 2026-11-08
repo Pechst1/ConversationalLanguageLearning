@@ -120,6 +120,22 @@ def test_entry_names_the_rule_of_a_review_only_card(db_session: Session, v2, ena
     assert f"concept={card_rule.id}" in today.forge.href
     assert f"concept={card_rule.id}" in today.practice_href
 
+    # The folded forge step was planned with the picker's rule: its link follows the card.
+    folded = DailyJourneyStep(
+        journey_id=row.id,
+        ordinal=len(row.steps) + 1,
+        kind="forge",
+        status="pending",
+        estimated_seconds=300,
+        public_prompt={"concept_id": slip_rule.id, "budget_seconds": 300},
+    )
+    db_session.add(folded)
+    db_session.commit()
+    db_session.refresh(row)
+    view = service._forge_prompt_view(row, folded)
+    assert view["concept_id"] == card_rule.id
+    assert f"concept={card_rule.id}" in view["href"]
+
 
 def test_withdrawn_top_out_reopens() -> None:
     state = ForgeState.seance([ForgeUnit(7, "today", rung=int(core.TOP_RUNG))], length=17, review_share=0.25)

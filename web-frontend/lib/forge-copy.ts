@@ -64,6 +64,10 @@ export type ForgeCopy = {
   listen_slow: string;
   spot_edit_label: string;
   spot_undo: string;
+  /** Read between the struck old word and its replacement (#573). */
+  spot_replaced_by: string;
+  /** Read after an old word the learner deleted (#573). */
+  spot_removed: string;
   rafale_score: string;
   rafale_perfect: string;
   rafale_time: string;
@@ -129,6 +133,8 @@ const EN: ForgeCopy = {
   listen_slow: 'Slower',
   spot_edit_label: 'Fix “{word}”',
   spot_undo: 'Undo',
+  spot_replaced_by: 'replaced by',
+  spot_removed: 'removed',
   rafale_score: '{correct} of {total} right',
   rafale_perfect: 'Four out of four!',
   rafale_time: 'in {s} s',
@@ -204,6 +210,8 @@ const DE: ForgeCopy = {
   listen_slow: 'Langsamer',
   spot_edit_label: '„{word}“ korrigieren',
   spot_undo: 'Zurück',
+  spot_replaced_by: 'ersetzt durch',
+  spot_removed: 'entfernt',
   rafale_score: '{correct} von {total} richtig',
   rafale_perfect: 'Vier von vier!',
   rafale_time: 'in {s} s',
@@ -279,6 +287,8 @@ const FR: ForgeCopy = {
   listen_slow: 'Plus lent',
   spot_edit_label: 'Corriger « {word} »',
   spot_undo: 'Annuler',
+  spot_replaced_by: 'remplacé par',
+  spot_removed: 'supprimé',
   rafale_score: '{correct} sur {total}',
   rafale_perfect: 'Quatre sur quatre !',
   rafale_time: 'en {s} s',
