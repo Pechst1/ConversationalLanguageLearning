@@ -6005,8 +6005,9 @@ def season_registers(context: dict) -> dict[str, str]:
     season = getattr(today, "season", None)
     if season is None:
         return {}
-    flags = getattr(today, "flags", None) or {}
-    return {member.id: str(flags.get(f"register.{member.id}") or member.address) for member in season.cast}
+    from app.services.address import season_registers as cast_registers
+
+    return dict(cast_registers(season, getattr(today, "flags", None) or {}))
 
 
 #: How many retired chapter questions ``brief.page_rules`` repeats.

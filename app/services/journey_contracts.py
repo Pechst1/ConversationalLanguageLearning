@@ -1629,6 +1629,9 @@ class ResponseEvaluation:
     #: WP-113: what the learner is asked to do next, in their language, when the
     #: next question is a posed solve (it replaces the day's objective line).
     next_task_native: str | None = None
+    #: #594: who the next question is put to, a cast id, when it is not the person the
+    #: scene opened with (Gus asks, then Margaux). The exchange header names this person.
+    next_addressee: str | None = None
     #: QA-STORY 2026-10-03: which authored route this exchange took on a season page,
     #: ``{turn, reply}`` (``reply`` is ``__ask_again__`` when the scene asked again).
     #: Kept with the exchange so a replay never re-reads it differently.

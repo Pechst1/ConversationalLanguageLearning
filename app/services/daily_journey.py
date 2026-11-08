@@ -671,6 +671,19 @@ def _public_acts(ordered: list[DailyJourneyStep]) -> dict[Any, int]:
     return acts
 
 
+def addressee_fields(person: str) -> dict[str, Any]:
+    """``character_id`` / ``character_name`` of a respond prompt for the person the next
+    question is put to (#594), named as the cast registry names them; nothing for anyone
+    outside the cast."""
+
+    from app.services import cast_registry
+
+    name = cast_registry.display_name(person)
+    if not name:
+        return {}
+    return {"character_id": cast_registry.resolve_id(person) or person, "character_name": name}
+
+
 def _public_prompt_view(step: DailyJourneyStep) -> dict[str, Any]:
     """The stored public prompt, plus what the client must know about this
     deployment before it offers a mode (WP-49). Read at projection time, never
@@ -5589,6 +5602,10 @@ class DailyJourneyService:
             prompt["choices"] = list(getattr(evaluation, "next_choices", None) or [])
             if getattr(evaluation, "next_task_native", None):
                 prompt["objective_native"] = evaluation.next_task_native
+            if getattr(evaluation, "next_addressee", None):
+                # #594: the header names the person the question is put to, not the scene's
+                # first speaker.
+                prompt.update(addressee_fields(evaluation.next_addressee))
             if getattr(evaluation, "next_hint_native", None) or getattr(evaluation, "next_suggested_fr", None):
                 # QA-STORY: the hint belongs to the question now asked, not the first one.
                 response_task = dict(private.get("response_task") or {})
