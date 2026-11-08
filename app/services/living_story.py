@@ -231,6 +231,10 @@ COMMITMENT_LAPSE_DAYS = 10
 # the director, which is what turns a decorative detail into a payoff.
 PLANT_OVERDUE_CHAPTERS = 2
 PLANT_LEDGER_LIMIT = 20
+#: «Die Geschichte bestellt, die Schmiede baut»: what one page may leave in Le
+#: Quartier, and how many marks a life keeps (newest last) for the forge to read.
+WORLD_MARKS_PER_PAGE = 2
+WORLD_MARK_LEDGER_LIMIT = 40
 PLANT_PROMPT_LIMIT = 3
 # How much of the ledger a scene's claimed callback must actually overlap before the
 # engine believes the past it refers to happened (`fabricated_callback`).
@@ -433,6 +437,37 @@ class LexiconEntry(BaseModel):
     band_fit: float | None = None
 
 
+class WorldMark(StrictModel):
+    """What a page leaves in Le Quartier, the 3D quarter the learner walks: a thing that
+    stays somewhere after today (Gus's petition taped to Le Mistral's window), or a
+    place the page names that the world has not built (Mme Diallo's bakery). The forge
+    reads the marks the lives have left and builds them, a little every night."""
+
+    kind: Literal["thing", "place"]
+    name_fr: str = Field(min_length=1, max_length=80)
+    #: Where it is: a place of the world, or None for a place the world has no id for.
+    location_id: str | None = Field(default=None, max_length=80)
+    #: One English sentence for the forge: what it looks like, where exactly.
+    look: str = Field(default="", max_length=200)
+
+
+def lenient_marks(value: Any) -> list[WorldMark]:
+    """A page's marks as far as they hold: a malformed one is dropped, never the page."""
+
+    marks: list[WorldMark] = []
+    for item in value if isinstance(value, list) else []:
+        if isinstance(item, WorldMark):
+            marks.append(item)
+        else:
+            try:
+                marks.append(WorldMark.model_validate(item))
+            except (ValidationError, ValueError, TypeError):
+                continue
+        if len(marks) >= WORLD_MARKS_PER_PAGE:
+            break
+    return marks
+
+
 class SceneDraft(StrictModel):
     title_fr: str = Field(min_length=1, max_length=100)
     premise_fr: str = Field(min_length=1, max_length=600)
@@ -466,6 +501,9 @@ class SceneDraft(StrictModel):
     # scene pays. Unpaid plants come back to the director (`plants_due`).
     plant_fr: str = Field(default="", max_length=200)
     pays_plant_id: str | None = Field(default=None, max_length=160)
+    # «Die Geschichte bestellt»: at most two marks this page leaves in Le Quartier
+    # (``WorldMark``). A malformed mark is dropped, never the page.
+    leaves: list[WorldMark] = Field(default_factory=list)
     # Story engine Phase 3. `returns_to` is the open question (`memory.open[].id`) this
     # page answers or comes back to; `carries_over` keeps today's own question open on
     # purpose when the learner's reply does not settle it (the ending may then leave it
@@ -507,6 +545,11 @@ class SceneDraft(StrictModel):
     @classmethod
     def _can_do(cls, value: Any) -> str | None:
         return _lenient_text(value, 80)
+
+    @field_validator("leaves", mode="before")
+    @classmethod
+    def _leaves(cls, value: Any) -> list[WorldMark]:
+        return lenient_marks(value)
 
     @field_validator("returns_to", mode="before")
     @classmethod
@@ -800,7 +843,14 @@ string rather than a memory that did not happen. plants_due lists concrete detai
 earlier scene planted and nobody has paid off yet — paying one is the most satisfying
 move available to you; set pays_plant_id to its id. You may plant one new concrete
 detail with plant_fr (an object, a name, a half-finished sentence) that a later scene
-can pay; leave it empty when nothing natural presents itself. secrets gives each cast
+can pay; leave it empty when nothing natural presents itself. leaves is what this page
+leaves in Le Quartier, the 3D quarter the learner walks, so the world grows with the story:
+at most two marks, usually one or none, and only what the page itself shows or names. A
+thing that stays somewhere after today (kind thing: «la pétition de Gus», taped to the
+window, location_id le_mistral), or a place the page names that the story has not been to
+yet (kind place: «la boulangerie de Mme Diallo», location_id its id in world.locations, or
+null when the world has none). name_fr is what it is called, look one English sentence on
+what it looks like and where exactly. secrets gives each cast
 member's secret as state: hidden, hinted or revealed, plus secrets.next — the one
 character whose secret this life may bring out next. Set secret_shift to hinted when
 this scene lets a secret show at the edges, to revealed when it genuinely comes out,
@@ -3248,6 +3298,71 @@ def callback_candidate(live: dict, *, seed: str, beat: str = "setup") -> dict | 
         return None
     digest = hashlib.sha256(f"{seed}:callback:{chapters_opened(live)}".encode()).hexdigest()
     return pool[int(digest, 16) % len(pool)]
+
+
+def _known_locations(thread, live: dict) -> set[str]:
+    """The places a mark may stand in: the thread's world, and its season's places."""
+
+    from app.services.season.runtime import season_id_for
+    from app.services.season.world import season_location_ids
+
+    known = {str(place.get("id")) for place in _locations((thread.world_bible if thread else None) or {}) if place.get("id")}
+    return known | season_location_ids(season_id_for(live) or "")
+
+
+def world_marks_after_scene(
+    marks: list[dict] | None,
+    *,
+    draft: SceneDraft,
+    known_locations: set[str],
+    event_id: str,
+    day: int,
+    scene_id: str | None = None,
+    date: str | None = None,
+) -> list[dict]:
+    """The marks this life has left in Le Quartier after one settled page, newest last.
+
+    A thing needs a place of the world to stand in (one the world does not know is
+    dropped); a place the world has no id for keeps ``location_id`` None. The same mark
+    left again moves to the end and counts once more, so the forge sees what the story
+    keeps coming back to."""
+
+    rows = [dict(row) for row in marks or []]
+    for mark in draft.leaves[:WORLD_MARKS_PER_PAGE]:
+        where = mark.location_id if mark.location_id in known_locations else None
+        if mark.kind == "thing" and where is None:
+            continue
+        key = (mark.kind, " ".join(mark.name_fr.casefold().split()), where)
+        same = next(
+            (
+                row
+                for row in rows
+                if (row.get("kind"), " ".join(str(row.get("name_fr") or "").casefold().split()), row.get("location_id"))
+                == key
+            ),
+            None,
+        )
+        if same is not None:
+            rows.remove(same)
+            same.update(times=int(same.get("times") or 1) + 1, day=int(day), date=date, look=mark.look or same.get("look") or "")
+            rows.append(same)
+            continue
+        rows.append(
+            {
+                "id": f"{event_id}:mark:{len(rows)}",
+                "kind": mark.kind,
+                "name_fr": mark.name_fr,
+                "location_id": where,
+                "look": mark.look,
+                "times": 1,
+                "day": int(day),
+                "first_day": int(day),
+                "event_id": event_id,
+                "scene_id": scene_id,
+                "date": date,
+            }
+        )
+    return rows[-WORLD_MARK_LEDGER_LIMIT:]
 
 
 def plants_after_scene(
@@ -10764,6 +10879,15 @@ def settle_resolution(
         chapter_index=chapters_opened(live),
         **stamp,
     )
+    if draft.leaves:
+        live["world_marks"] = world_marks_after_scene(
+            live.get("world_marks") or [],
+            draft=draft,
+            known_locations=_known_locations(thread, live),
+            event_id=event_id,
+            day=day,
+            **stamp,
+        )
     world_cast = [
         str(member.get("id"))
         for member in (thread.world_bible or {}).get("cast") or []
@@ -11122,6 +11246,17 @@ def _settle_later_act(
         live.get(story_memory.MEMORY_KEY),
         memory_day(journey, brief, draft, turn, event_id=event_id, day=day, witnesses=witnesses, world=world, act=act),
     )
+    # what this act leaves in Le Quartier is the learner's as much as the first act's
+    if draft.leaves:
+        live["world_marks"] = world_marks_after_scene(
+            live.get("world_marks") or [],
+            draft=draft,
+            known_locations=_known_locations(thread, live),
+            event_id=event_id,
+            day=day,
+            scene_id=str(scene.id),
+            date=_journey_date(journey),
+        )
     state[STATE_KEY] = live
     state["story_so_far"] = [*state.get("story_so_far", []), event["summary_fr"]][-40:]
     from app.services.serial import SerialThreadService
