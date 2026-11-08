@@ -121,3 +121,18 @@ def test_the_forge_reads_the_segments_the_learners_are_on(client, db_session, mo
 
     assert client.get("/api/v1/story-engine/season-frontier?season=s9").status_code == 404
     assert client.get("/api/v1/story-engine/season-frontier?season=../x").status_code == 422
+
+
+def test_a_place_the_forge_builds_leaves_the_season_lexicon_current(tmp_path, monkeypatch):
+    """The register changes with every build; the lexicon's source digest reads the files
+    that hold words only, so a forge PR never makes ``lexicon.json`` stale."""
+    import shutil
+
+    from app.services import season_lexicon
+    from app.services.season import format as season_format
+
+    before = season_lexicon.source_digest("s1")
+    shutil.copytree(season_format.SEASON_ROOT / "s1", tmp_path / "s1")
+    (tmp_path / "s1" / "stages.json").write_text('{"stages": {"toit": "toit"}}\n', encoding="utf-8")
+    monkeypatch.setattr(season_format, "SEASON_ROOT", tmp_path)
+    assert season_lexicon.source_digest("s1") == before

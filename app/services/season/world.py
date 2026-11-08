@@ -59,6 +59,10 @@ def season_location_ids(season_id: str = "s1") -> set[str]:
 # ---------------------------------------------------------------------------
 
 
+#: Written by ``scripts/forge/forge.py stages`` into each season's folder.
+STAGES_FILE = "stages.json"
+
+
 @lru_cache(maxsize=4)
 def built_stages(season_id: str = "s1") -> dict[str, str]:
     """Each place of the season Le Quartier has built, to the built place a page set
@@ -67,7 +71,7 @@ def built_stages(season_id: str = "s1") -> dict[str, str]:
     in step with, and every place stays open."""
 
     try:
-        data = json.loads((SEASON_ROOT / season_id / "stages.json").read_text(encoding="utf-8"))
+        data = json.loads((SEASON_ROOT / season_id / STAGES_FILE).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
     stages = data.get("stages") if isinstance(data, dict) else None
