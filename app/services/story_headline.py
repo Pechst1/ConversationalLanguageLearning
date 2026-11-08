@@ -53,17 +53,21 @@ def _scene_cast(db: Session, journey: Any) -> tuple[str | None, list[str], bool,
     from sqlalchemy import select
 
     from app.db.models.graphic_novel import GraphicNovelScene
+    from app.services.journey_contracts import first_act_scene
     from app.services.living_story import ENGINE_VERSION_PREFIX
 
-    scene = db.scalars(
+    scenes = db.scalars(
         select(GraphicNovelScene)
         .where(
             GraphicNovelScene.user_id == journey.user_id,
             GraphicNovelScene.prompt_version.like(f"{ENGINE_VERSION_PREFIX}%"),
             GraphicNovelScene.source_snapshot["journey_id"].as_string() == str(journey.id),
         )
-        .order_by(GraphicNovelScene.created_at.desc())
-    ).first()
+        .order_by(GraphicNovelScene.created_at.asc())
+    ).all()
+    # #577: the episode is the day's first act, as the Feuilleton files it. The newest
+    # scene of a several-act day is its last act, which gave Home another title.
+    scene = first_act_scene(scenes)
     if scene is None:
         return None, [], False, None
     panels = sorted(scene.panels, key=lambda p: p.panel_index)
@@ -73,7 +77,7 @@ def _scene_cast(db: Session, journey: Any) -> tuple[str | None, list[str], bool,
         for line in (panel.overlay_payload or {}).get("dialogue") or []
     ]
     image = next((panel.image_url for panel in panels if panel.image_url), None)
-    return scene.title or None, _ordered(speakers), scene.status in ("completed", "abandoned"), image
+    return scene.title or None, _ordered(speakers), all(page.status in ("completed", "abandoned") for page in scenes), image
 
 
 def _tentpole(live: dict, user: Any) -> tuple[str | None, list[str], str | None, str | None]:

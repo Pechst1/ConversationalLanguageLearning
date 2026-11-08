@@ -19,6 +19,7 @@ implementing packages own that:
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date
 from enum import StrEnum
@@ -222,6 +223,26 @@ def scene_act(scene: Any) -> tuple[int, str | None]:
         number = 1
     role = act.get("role")
     return number, str(role) if role else None
+
+
+def first_act_scene(scenes: Iterable[Any]) -> Any | None:
+    """The page that names a day: its first act (#577, a child of root cause #143).
+
+    A day of several acts publishes one scene per act, all under the same journey. The
+    episode's title, its cast and its picture are the first act's, whichever surface
+    asks (Home's headline, the Feuilleton's volume): none of them may pick «the newest
+    scene of the journey», which on such a day is the last act's page. Ties (a page
+    without a stamp is act 1) go to the page written first."""
+
+    pages = list(scenes)
+    if not pages:
+        return None
+
+    def order(scene: Any) -> tuple[int, bool, Any]:
+        written = getattr(scene, "created_at", None)
+        return scene_act(scene)[0], written is None, written
+
+    return min(pages, key=order)
 
 
 class ActShape(NamedTuple):

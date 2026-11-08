@@ -34,7 +34,7 @@ from sqlalchemy.orm import Session
 from app.db.models.daily_journey import DailyJourney, DailyJourneyStep
 from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
 from app.db.models.serial import SerialThread
-from app.services.journey_contracts import scene_act, step_act
+from app.services.journey_contracts import first_act_scene, scene_act, step_act
 from app.services.sentence_line import drop_cut_tail
 from app.services.story_page import hook_of
 
@@ -685,7 +685,7 @@ def build_archive(db: Session, user: Any, *, season: int | None = None) -> dict[
 def _first_acts(acts_by_journey: dict[str, dict[int, GraphicNovelScene]]) -> dict[str, GraphicNovelScene]:
     """Each day's own scene: its first act's — a one-act day's only one."""
 
-    return {journey_id: acts[min(acts)] for journey_id, acts in acts_by_journey.items() if acts}
+    return {journey_id: first_act_scene(acts.values()) for journey_id, acts in acts_by_journey.items() if acts}
 
 
 def _acts_played(db: Session, user: Any) -> dict[Any, int]:
