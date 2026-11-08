@@ -16,6 +16,7 @@
 import { LEAVE, NAMES, PEOPLE as TALKERS, TEXT_SUITCASE, chipsFor, fold, helloOf, registerOf, respond } from './agency';
 import type { CastId, Value, Words } from './memory';
 import scene from './scenes/t1-a.json';
+import { playsIn, stageOf } from './world';
 
 /* ------------------------------------------------------------------------------------------ */
 /* the page, as the server resolves it for one learner (`steps[kind=scene].prompt.stage`)     */
@@ -126,12 +127,6 @@ export interface StoryPage {
 /** The days the director has blocking for: T1 day a, and day b (the café, then the stairwell). Any other page plays its lines at Le Mistral, or out on the quai when the season sets them outdoors (`settingOf`). */
 export const STAGED_DAYS = ['t1.a', 't1.b'];
 
-/** Where a page's panel plays in a room of the season rather than the café: the stairwell and Odile's door (T1 R1–R4). */
-export const ROOM_OF: Record<string, string> = {
-  stairwell: 'escalier_mistral',
-  odile_flat: 'escalier_mistral',
-};
-
 /**
  * Where a page without blocking plays a moment in the quarter: at Le Mistral's zinc, or out on the
  * quai by the canal. The season's outdoor places (the roof over the canal, the quai, the market,
@@ -187,10 +182,17 @@ export function locationOf(m: StoryMovement): string | null {
   return (m.kind === 'panel' ? m.location_id : m.panel.location_id) ?? null;
 }
 
-/** The room a movement plays in, if it is one (a hook plays where the room's scene ends). */
+/**
+ * The room of the season a movement's place is built as, if the forge has built one (the world's
+ * register, `stages` in `world/world.json`); a hook plays where the room's scene ends.
+ */
 export function roomOf(m: StoryMovement): string | null {
-  const at = m.kind === 'panel' ? m.location_id : m.panel.location_id;
-  return (at && ROOM_OF[at]) ?? null;
+  return stageOf(locationOf(m))?.room ?? null;
+}
+
+/** Whether a movement plays on in the room `room` once the page is there: its own place, or one seen from it. */
+export function inRoom(m: StoryMovement, room: string): boolean {
+  return playsIn(locationOf(m), room);
 }
 
 /** The questions of a page, in order. */

@@ -36,6 +36,15 @@ export interface WorldPlace {
   in?: string;
   /** how you get there from the quai */
   ride?: Words;
+  /**
+   * The season's places (`app/services/season/world.py`) this place is the stage for: a page set
+   * at one of them plays here. The one register between the story's places and the built world:
+   * the forge writes it with the room or site it builds, and its queue reads it to know what the
+   * season still lacks.
+   */
+  stages?: string[];
+  /** places seen from here without going in (Odile's kitchen through the stairwell's open door) */
+  sees?: string[];
 }
 
 export interface World {
@@ -90,6 +99,28 @@ export function mapPlaces(world: World = WORLD, papier: NewsPlace[] = NEWS): Wor
 
 export function placeOf(id: string, world: World = WORLD): WorldPlace | null {
   return world.places.find((p) => p.id === id) ?? null;
+}
+
+/** Built: the hand-drawn quarter, or a place the forge has written a room or a site for. */
+export function isBuilt(p: WorldPlace): boolean {
+  return p.kind === 'home' || Boolean(p.room) || Boolean(p.site);
+}
+
+/**
+ * The built place a season location plays in, or null while nothing stages it yet. A room or a
+ * site the forge wrote for exactly that location comes before the quarter it is inside.
+ */
+export function stageOf(location: string | null | undefined, world: World = WORLD): WorldPlace | null {
+  if (!location) return null;
+  const built = world.places.filter((p) => isBuilt(p) && (p.stages ?? []).includes(location));
+  return built.find((p) => p.kind !== 'home') ?? built[0] ?? null;
+}
+
+/** Whether a page's moment at `location` plays in the room `room`: one it is the stage for, or one seen from it. */
+export function playsIn(location: string | null | undefined, room: string, world: World = WORLD): boolean {
+  if (!location) return false;
+  const p = world.places.find((q) => q.room === room);
+  return Boolean(p && ((p.stages ?? []).includes(location) || (p.sees ?? []).includes(location)));
 }
 
 /** The world as storylet state: `world.marche_aligre` is `en_chantier`, then `open`. */
