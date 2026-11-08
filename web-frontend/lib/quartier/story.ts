@@ -134,18 +134,19 @@ export const ROOM_OF: Record<string, string> = {
 
 /**
  * Where a page without blocking plays a moment in the quarter: at Le Mistral's zinc, or out on the
- * quai by the canal. The season's outdoor places (the roof over the canal, the quai, the market,
- * the station…) play outside; the café, and the rooms the quarter cannot yet play a talk in, at
+ * quai by the canal, or up on the roof of Le Mistral's building. The roof plays on the roof; the
+ * season's other outdoor places (the quai, the market, the station…) play outside; the café, and the rooms the quarter cannot yet play a talk in, at
  * the zinc. Either way, a place other than the café is named on a card when the scene moves there.
  */
-export type Setting = 'zinc' | 'quai';
+export type Setting = 'zinc' | 'quai' | 'toit';
 
-const OUTDOORS = new Set(['toit', 'quai_de_valmy', 'rue_de_lancry', 'marche_canal', 'buttes_chaumont', 'brocante', 'gare_de_lest', 'metro_platform']);
+const OUTDOORS = new Set(['quai_de_valmy', 'rue_de_lancry', 'marche_canal', 'buttes_chaumont', 'brocante', 'gare_de_lest', 'metro_platform']);
 
 /** Le Mistral itself: no card names it. */
 const AT_MISTRAL = new Set(['le_mistral', 'mistral_back_room']);
 
 export function settingOf(location: string | null | undefined): Setting {
+  if (location === 'toit') return 'toit';
   return location && OUTDOORS.has(location) ? 'quai' : 'zinc';
 }
 

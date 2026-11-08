@@ -713,8 +713,24 @@ export class Quartier {
   /* ---------------------------------------------------------------------------------------- */
 
   /** Stand somewhere, looking at something. */
+  /**
+   * Stand you on a height the streets do not reach (the roof over Le Mistral): your feet stay at
+   * `y`, and you do not walk, until `perch(null)` puts you back on the quarter's ground.
+   */
+  perch(y: number | null) {
+    this.perched = y;
+    if (y !== null) this.stop();
+  }
+
+  private perched: number | null = null;
+
+  /** The flat zinc top of Le Mistral's building, where its mansard ends (null off the quai). */
+  get roofTop(): number | null {
+    return this.quai ? this.quai.mistral.ridge + 0.12 : null;
+  }
+
   place(at: Vector3, look?: Vector3) {
-    this.feet.set(at.x, this.nav.heightAt(at.x, at.z), at.z);
+    this.feet.set(at.x, this.perched ?? this.nav.heightAt(at.x, at.z), at.z);
     this.eyeY = this.feet.y + this.eyeHeight;
     if (look) {
       const d = look.clone().sub(new Vector3(at.x, this.eyeY, at.z));
@@ -1042,12 +1058,16 @@ export class Quartier {
         }
       }
     }
+    if (this.perched !== null) {
+      mx = 0;
+      mz = 0;
+    }
     if (mx || mz) {
       const [nx, nz] = this.route.length ? [this.feet.x + mx, this.feet.z + mz] : this.nav.slide(this.feet.x, this.feet.z, mx, mz);
       this.feet.x = nx;
       this.feet.z = nz;
     }
-    const ground = this.nav.heightAt(this.feet.x, this.feet.z);
+    const ground = this.perched ?? this.nav.heightAt(this.feet.x, this.feet.z);
     this.feet.y = ground;
     this.eyeY += (ground + this.eyeHeight - this.eyeY) * Math.min(1, dt * 9 || 1);
     // the director's look, unless your thumb is looking

@@ -226,6 +226,19 @@ export const OUTSIDE = {
   approach: new Vector3(1.0, 0, -3.0),
 };
 
+/**
+ * Up on the flat zinc top of Le Mistral's building (T3's roof, «Sur le toit»): you near its edge
+ * over the quai, looking out over the canal and its footbridge; the two places beside you, a little
+ * ahead; and the way someone comes, from the skylight behind the chimney stacks. Heights are the
+ * roof's own (`Quartier.roofTop`); the streets' paths do not reach up here.
+ */
+export const ROOF = {
+  you: new Vector3(-30.6, 0, -12.2),
+  look: new Vector3(8, -9, -30),
+  beside: [new Vector3(-29.5, 0, -13.6), new Vector3(-29.6, 0, -10.7)],
+  approach: new Vector3(-3.2, 0, 0.4),
+};
+
 /** Who someone is on the screen: their accent and the name the cards print. */
 export function personOf(key: string): { char: CharKey; name: string } | null {
   return PEOPLE[key] ?? null;
@@ -647,6 +660,8 @@ export class Stage implements Director {
     this.q.lens(60);
     this.q.showWay(null);
     this.q.openDoor(false);
+    // a scene that ended up on the roof: you come back down, to the zinc
+    if (this.setting === 'toit') this.stand('zinc');
     // back from somewhere else on the map, you may walk the quai without playing the day
     if (this.memory.places().quai_de_valmy !== 'visited') this.remember({ kind: 'place', id: 'quai_de_valmy', status: 'visited' });
     this.show({ ...BLANK, phase: 'roam', progress: 1 });
@@ -1297,6 +1312,7 @@ export class Stage implements Director {
     q.openDoor(false);
     q.setNeon(1);
     q.showWay(null);
+    q.perch(null);
     q.place(PLAN.start.pos, PLAN.start.look);
     const t = q.troupe;
     const stand = (key: string, at: Vector3, expression = 'neutre') => {
@@ -1375,7 +1391,10 @@ export class Stage implements Director {
     this.setting = setting;
     this.beside = null;
     this.company = [];
-    if (setting === 'quai') this.q.place(OUTSIDE.you, OUTSIDE.look);
+    const roof = setting === 'toit' ? this.q.roofTop : null;
+    this.q.perch(roof);
+    if (roof !== null) this.q.place(ROOF.you, ROOF.look.clone().setY(roof + ROOF.look.y));
+    else if (setting === 'quai') this.q.place(OUTSIDE.you, OUTSIDE.look);
     else this.q.place(MARKS.atZinc, MARKS.boothMiddle.clone().setY(1.5));
     const speaks = new Set(
       this.story.page.movements.flatMap((m) => (m.kind === 'panel' ? m.lines : m.panel.lines).map((l) => l.who).concat(m.kind === 'turn' ? [m.to] : [])),
@@ -1436,7 +1455,7 @@ export class Stage implements Director {
 
   /** Whoever a question is put to comes to the zinc beside you; whoever stood there goes back to their place. */
   private async comeOver(gen: number, key: string) {
-    if (this.setting === 'quai') return this.joinYou(gen, key);
+    if (this.setting !== 'zinc') return this.joinYou(gen, key);
     if (this.beside === key) return;
     const f = this.fig(key);
     if (!f) return;
@@ -1456,7 +1475,7 @@ export class Stage implements Director {
   }
 
   /**
-   * Out on the quai: someone comes to stand with you, at one of the two places beside you. They
+   * Out on the quai, or up on the roof: someone comes to stand with you, at one of the two places beside you. They
    * are stood a few steps off and walk the rest (from the café's booth it would be half a minute's
    * walk); a third sends the first one back where they came from.
    */
@@ -1468,7 +1487,9 @@ export class Stage implements Director {
       this.look(f.face(), 2.0);
       return;
     }
-    if (this.company.length >= OUTSIDE.beside.length) {
+    const roof = this.setting === 'toit' ? this.q.roofTop : null;
+    const marks = roof !== null ? ROOF : OUTSIDE;
+    if (this.company.length >= marks.beside.length) {
       const gone = this.company.shift()!;
       const g = this.fig(gone.key);
       const home = EVENING.find(([k]) => k === gone.key)?.[1];
@@ -1478,16 +1499,36 @@ export class Stage implements Director {
       }
     }
     const taken = new Set(this.company.map((c) => c.spot));
-    const free = OUTSIDE.beside.findIndex((_, i) => !taken.has(i));
+    const free = marks.beside.findIndex((_, i) => !taken.has(i));
     const spotIndex = free >= 0 ? free : 0;
-    const spot = OUTSIDE.beside[spotIndex];
+    // on the roof, the roof's height; on the quai, the ground's
+    const at = (v: Vector3) => (roof !== null ? v.setY(roof) : this.ground(v));
+    const spot = at(marks.beside[spotIndex].clone());
+    const from = at(marks.beside[spotIndex].clone().add(marks.approach));
     this.company.push({ key, spot: spotIndex });
     this.beside = key;
     f.seat = 0;
-    f.place(this.ground(spot.clone().add(OUTSIDE.approach)));
+    f.place(from);
     f.visible = true;
     const follow = this.q.onTick(() => this.look(f.face(), 2.0));
-    await this.walkFig(gen, key, this.ground(spot.clone()), 1.0).finally(follow);
+    try {
+      if (roof === null) await this.walkFig(gen, key, spot, 1.0);
+      else {
+        // no street reaches the roof: a straight line across the zinc
+        f.walk([from, spot], 1.0);
+        await new Promise<void>((resolve) => {
+          const stop = this.q.onTick(() => {
+            if (!f.walking || gen !== this.gen) {
+              stop();
+              resolve();
+            }
+          });
+        });
+        this.alive(gen);
+      }
+    } finally {
+      follow();
+    }
   }
 
   /** A point on the quai, at the height of the ground there. */
@@ -2349,7 +2390,7 @@ export class Stage implements Director {
   private async plainBeat(gen: number, b: StoryPanel) {
     // someone the moment is with who is not where you are (a guest in the street; anyone, out on the quai) comes over:
     // who is in the frame of a silent moment before it, and each speaker before their own line
-    const away = (k: string) => k !== 'toi' && k !== 'caption' && Boolean(this.fig(k)) && (this.setting === 'quai' || k in GUESTS);
+    const away = (k: string) => k !== 'toi' && k !== 'caption' && Boolean(this.fig(k)) && (this.setting !== 'zinc' || k in GUESTS);
     if (!b.lines.length) {
       const who = (b.in_frame ?? []).find(away);
       if (who) await this.comeOver(gen, who);

@@ -12,7 +12,7 @@ const { test } = require('node:test');
 const WEB_ROOT = path.resolve(__dirname, '..', '..');
 require(path.join(WEB_ROOT, 'node_modules/sucrase/register/ts'));
 
-const { GUESTS, OUTSIDE, STAGED, SILENT_BEATS, personOf } = require('./stage.ts');
+const { GUESTS, OUTSIDE, ROOF, STAGED, SILENT_BEATS, personOf } = require('./stage.ts');
 const { T1A_COPY: T1A } = require('./story.ts');
 
 test('the copy of the day in the frontend is the season file, word for word', () => {
@@ -116,7 +116,7 @@ test('day b: the director has blocking for every movement, in order, and the sta
 
 test('a day without blocking plays where the season sets it: outdoors on the quai, else at the zinc, and a card names the place', () => {
   const { PLACE_NAMES, placeCard, settingOf } = require('./story.ts');
-  assert.equal(settingOf('toit'), 'quai');
+  assert.equal(settingOf('toit'), 'toit');
   assert.equal(settingOf('marche_canal'), 'quai');
   assert.equal(settingOf('le_mistral'), 'zinc');
   assert.equal(settingOf(null), 'zinc');
@@ -158,4 +158,18 @@ test('the bridges’ people who are not regulars come on as guests with a body (
     assert.ok(personOf(who), `${who} has no name on the cards`);
     assert.ok(regulars.includes(who) || GUESTS[who] > 1.4, `${who} has a body and never comes on`);
   }
+});
+
+test('the roof scene stands everyone on the flat zinc top of Le Mistral’s building, not on its slopes', () => {
+  // the footprint (quai.ts) runs x -53 to -27, z -28.5 to -6; the mansard slopes 1.7 m in from the
+  // two street sides (x -27, z -6), so the flat top ends at x -28.7 and z -7.7
+  const flat = (v) => v.x >= -53 && v.x <= -28.7 - 0.3 && v.z >= -28.5 && v.z <= -7.7 - 0.3;
+  assert.ok(flat(ROOF.you), 'you');
+  for (const spot of ROOF.beside) {
+    assert.ok(flat(spot), `beside ${spot.x},${spot.z}`);
+    assert.ok(flat(spot.clone().add(ROOF.approach)), `the way to ${spot.x},${spot.z}`);
+    assert.ok(Math.hypot(spot.x - ROOF.you.x, spot.z - ROOF.you.z) > 0.9, 'not on top of you');
+  }
+  // looking out over the quai and the canal (east, x > -27)
+  assert.ok(ROOF.look.x > -10);
 });
