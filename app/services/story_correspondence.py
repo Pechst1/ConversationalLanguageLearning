@@ -442,8 +442,13 @@ def outcome_from_objectives(
     objectives: Sequence[dict[str, Any]] | None,
     progress_by_id: dict[str, dict[str, Any]] | None,
     had_submission: bool = True,
+    reply_pending: bool = False,
 ) -> str:
     """``kept`` | ``partial`` | ``missed`` from the per-objective flags.
+
+    ``reply_pending`` (#590): the learner's last message was never answered, so the
+    exchange did not happen to its end. Like an ungraded letter (WP-74) it moves the
+    relationship neither way: never ``kept``, never ``missed``.
 
     The old success test read keywords out of ``branch_state`` ("does the message
     contain a question mark?"). The corrector already returns, per objective,
@@ -455,6 +460,8 @@ def outcome_from_objectives(
     progress_by_id = progress_by_id or {}
     if not had_submission:
         return "missed"
+    if reply_pending:
+        return "partial"
     # WP-125A (owner decision 6): a suggested word is never part of the
     # communicative verdict. Using it does not lift a letter, leaving it out does
     # not lower one — so two otherwise equal letters get the same word here.

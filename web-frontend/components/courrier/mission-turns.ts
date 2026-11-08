@@ -63,3 +63,8 @@ export function currentComposerInstruction(
 export function replyPending(outcome: Record<string, any> | null | undefined): boolean {
   return outcome?.reply_state === 'pending';
 }
+
+/** The server marks the learner's latest unanswered message on the thread itself (#590). */
+export function turnReplyPending(turn: Record<string, any> | null | undefined): boolean {
+  return turn?.role === 'user' && turn?.reply_state === 'pending';
+}

@@ -1590,6 +1590,8 @@ export interface MissionMeasured {
   phrases_saved: number;
   replies: number;
   words_written: number;
+  /** #590: the learner's last message was never answered. */
+  reply_pending?: boolean;
 }
 
 export interface RealWorldMission {
@@ -2941,6 +2943,11 @@ class ApiService {
 
   async retryMissionTurnCorrection(missionId: string, turnId: string) {
     return this.atelierPost<MissionTurnCorrectionResult>(`/missions/${missionId}/turns/${turnId}/correction`);
+  }
+
+  // #590: ask the correspondent again for the learner's latest unanswered message.
+  async retryMissionTurnReply(missionId: string, turnId: string) {
+    return this.atelierPost<MissionTurnResult>(`/missions/${missionId}/turns/${turnId}/reply`);
   }
 
   async completeMission(missionId: string) {

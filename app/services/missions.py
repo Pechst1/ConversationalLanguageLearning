@@ -4899,6 +4899,7 @@ class MissionDebriefService:
         turns: list[RealWorldMissionTurn],
         errata_count: int,
         srs_result: dict[str, Any],
+        reply_pending: bool = False,
     ) -> dict[str, Any]:
         # An objective met in turn 1 stays met: reading only the LAST correction
         # scored a whole conversation on its closing "Oui." and reported 0%
@@ -4938,6 +4939,7 @@ class MissionDebriefService:
             objectives=objectives,
             progress_by_id=progress_by_id,
             had_submission=bool(attempts or turns),
+            reply_pending=reply_pending,
         )
         measured = {
             "objectives_met": met_required,
@@ -4959,6 +4961,11 @@ class MissionDebriefService:
         if unassessed:
             label = "Pas encore corrigée : le correcteur n’était pas disponible."
         measured["assessed"] = not unassessed
+        if reply_pending:
+            # #590: the correspondent never answered the learner's last message. Nothing
+            # was settled or missed; the letter says so rather than printing a verdict.
+            label = "Pas de réponse : ton dernier message est resté sans réponse."
+            measured["reply_pending"] = True
         return {
             "debrief_version": "mission-debrief-v2",
             "outcome": courrier_outcome,
@@ -6381,12 +6388,14 @@ class MissionScheduler:
             attempts=attempts,
             turns=turns,
         )
+        reply_pending = unanswered_user_turn(mission.turns) is not None
         debrief = MissionDebriefService().build(
             mission=mission,
             attempts=attempts,
             turns=turns,
             errata_count=errata_count,
             srs_result=srs_result,
+            reply_pending=reply_pending,
         )
         outcome: dict[str, Any] | None = None
         if getattr(mission, "serial_thread_id", None):
@@ -6408,9 +6417,10 @@ class MissionScheduler:
             # Letters written before WP-64 shipped, and serial acts, get their
             # identity here rather than staying outside every future thread.
             mission.correspondent_id = courrier.correspondent_of(mission).get("id") or None
+        # #590: a token is the reward for a letter that was answered.
         minted_collectibles = (
             AtelierRewardService(self.db).mint_logo_token_for_mission(mission)
-            if not getattr(mission, "serial_thread_id", None)
+            if not getattr(mission, "serial_thread_id", None) and not reply_pending
             else []
         )
         mission.recap_payload = {
@@ -6430,7 +6440,12 @@ class MissionScheduler:
             # reader; `courrier_outcome` above is the per-letter verdict WP-65 reads.
             mission.recap_payload["outcome"] = outcome
         story_event = self._write_letter_into_story(
-            user=user, mission=mission, outcome=courrier_outcome, attempts=attempts, turns=turns
+            user=user,
+            mission=mission,
+            outcome=courrier_outcome,
+            attempts=attempts,
+            turns=turns,
+            reply_pending=reply_pending,
         )
         if story_event:
             mission.recap_payload["story_event"] = {
@@ -6479,6 +6494,7 @@ class MissionScheduler:
         outcome: str,
         attempts: list[RealWorldMissionAttempt],
         turns: list[RealWorldMissionTurn],
+        reply_pending: bool = False,
     ) -> dict[str, Any] | None:
         """WP-64 — the Courrier's half of the coupling that never existed.
 
@@ -6503,7 +6519,8 @@ class MissionScheduler:
                     *[str((attempt.answer_payload or {}).get("text") or "") for attempt in attempts],
                     *[turn.text or "" for turn in turns],
                 ]
-                if text
+                # #590: what nobody answered is not a promise the story keeps.
+                if text and not reply_pending
             )
             event = courrier.record_letter(
                 self.db,
@@ -6615,6 +6632,22 @@ def is_stock_reply(text: Any) -> bool:
 
     folded = " ".join(str(text or "").split())
     return folded in {STOCK_ACKNOWLEDGEMENT_TU, STOCK_ACKNOWLEDGEMENT_VOUS}
+
+
+def unanswered_user_turn(turns: Any) -> Any:
+    """The learner's latest message when nobody answered it, else ``None`` (#590 / #145).
+
+    A reply nobody wrote is not stored (#397), so «answered» was a fact the thread only
+    implied: the turn counter has a learner turn with no correspondent turn after it. This
+    is the one place that reads it, so the page's retry line, the finish guard and the
+    debrief cannot disagree. Only the latest learner message counts: a later answer
+    replies to the whole exchange, an earlier gap the learner chose to write past.
+    """
+
+    ordered = sorted(turns or [], key=lambda turn: int(getattr(turn, "turn_index", 0) or 0))
+    if ordered and getattr(ordered[-1], "role", None) == "user":
+        return ordered[-1]
+    return None
 
 class MissionConversationService:
     """Generate mission chat responses without duplicating the old audio route."""
@@ -6981,6 +7014,7 @@ class MissionConversationService:
             objectives=mission.objectives or [],
             progress_by_id={str(item.get("id")): item for item in progress if item.get("id")},
             had_submission=bool(attempts or turns),
+            reply_pending=unanswered_user_turn(turns) is not None,
         )
         success = outcome == "kept"
         score = self._latest_score(attempts=attempts, turns=turns)
@@ -7703,6 +7737,7 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
             }
             for attempt in sorted(mission.attempts or [], key=lambda item: item.created_at)
         ]
+        unanswered = unanswered_user_turn(mission.turns)
         payload["turns"] = [
             {
                 "id": str(turn.id),
@@ -7712,6 +7747,8 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
                 "text": turn.text,
                 "audio_payload": turn.audio_payload or {},
                 "correction": turn.correction_payload or {},
+                # #590: the learner's message nobody answered says so on the thread itself.
+                **({"reply_state": "pending"} if turn is unanswered else {}),
                 **stamp_fields(turn.created_at, zone),
             }
             for turn in sorted(mission.turns or [], key=lambda item: item.turn_index)

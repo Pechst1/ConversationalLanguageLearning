@@ -40,6 +40,7 @@ from app.services.missions import (
     learner_zone,
     serialize_mission,
     stamp_fields,
+    unanswered_user_turn,
 )
 from app.services.serial import SerialThreadService
 from app.services.transcription_cost import record_transcription_cost
@@ -507,6 +508,63 @@ def submit_mission_turn(
         assistant_turn=_turn_read(assistant_turn) if assistant_turn else {},
         correction=correction,
         errata=persisted,
+        mission=serialize_mission(mission) or {},
+        outcome=outcome,
+    )
+
+
+@router.post("/{mission_id}/turns/{turn_id}/reply", response_model=MissionTurnResponse)
+def retry_mission_turn_reply(
+    mission_id: UUID,
+    turn_id: UUID,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_atelier_user)],
+) -> MissionTurnResponse:
+    """#590: ask the correspondent again for a message nobody answered.
+
+    The learner's text is already stored and corrected; only the reply is asked for. Only
+    the thread's latest message can be asked again (a later one answers the whole exchange);
+    when it is already answered the answer is handed back, and a second failure leaves the
+    message ``pending`` for the next try.
+    """
+    mission = _mission_or_404(db, mission_id, current_user)
+    _ensure_open(mission)
+    user_turn = (
+        db.query(RealWorldMissionTurn)
+        .filter(
+            RealWorldMissionTurn.id == turn_id,
+            RealWorldMissionTurn.mission_id == mission.id,
+            RealWorldMissionTurn.user_id == current_user.id,
+            RealWorldMissionTurn.role == "user",
+        )
+        .first()
+    )
+    if not user_turn:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reply not found")
+    latest = unanswered_user_turn(mission.turns)
+    assistant_turn = (
+        db.query(RealWorldMissionTurn)
+        .filter(
+            RealWorldMissionTurn.mission_id == mission.id,
+            RealWorldMissionTurn.turn_index == user_turn.turn_index + 1,
+            RealWorldMissionTurn.role == "assistant",
+        )
+        .first()
+    )
+    if assistant_turn is None:
+        if latest is None or latest.id != user_turn.id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="Only the latest message can be asked again"
+            )
+        assistant_turn = _character_reply_turn(
+            db, user=current_user, mission=mission, user_turn=user_turn, user_text=user_turn.text
+        )
+    outcome = _turn_outcome(db, mission=mission, user_text=user_turn.text, assistant_turn=assistant_turn)
+    return MissionTurnResponse(
+        user_turn=_turn_read(user_turn),
+        assistant_turn=_turn_read(assistant_turn) if assistant_turn else {},
+        correction=user_turn.correction_payload or {},
+        errata=[],
         mission=serialize_mission(mission) or {},
         outcome=outcome,
     )

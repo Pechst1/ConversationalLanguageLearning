@@ -517,8 +517,10 @@ def test_custom_mission_e2e_create_turn_complete_and_queue(client: TestClient, d
     assert recap["vocabulary_credit"]["produced_correct"] >= 1
     # WP-74: missions no longer invent catalogue rows from the learner's text.
     assert recap["saved_to_srs"]["saved_count"] == 0
-    assert recap["minted_collectibles"][0]["kind"] == "logo_token"
-    assert recap["minted_collectibles"][0]["source_kind"] == "mission"
+    # #590: the one turn above was never answered, so the letter is finished without a token
+    # (the answered case is held in tests/test_courrier_unanswered.py).
+    assert recap["measured"]["reply_pending"] is True
+    assert recap["minted_collectibles"] == []
 
 
 def test_mission_submit_and_turns_are_persisted(client: TestClient, db_session, monkeypatch):
