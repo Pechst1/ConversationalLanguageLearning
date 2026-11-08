@@ -52,6 +52,8 @@ import { AnkiReviewResponse, ReviewResponse } from '@/types/reviews';
 export type EpisodeAudioClipRef = components['schemas']['EpisodeAudioClipRead'];
 
 export type EpisodeAudioManifest = components['schemas']['EpisodeAudioManifestRead'];
+/** The learner's own Le Quartier: the season flags their story set and what it left (`GET /story-engine/world-state`). */
+export type LearnerWorld = components['schemas']['WorldStateRead'];
 
 export interface EpisodePredictionRecord {
   guess: string;
@@ -3245,6 +3247,11 @@ class ApiService {
 
   async getStoryEpisodes(before?: string): Promise<StoryEpisodePage> {
     return this.get<StoryEpisodePage>(`/story-engine/episodes${before ? `?before=${encodeURIComponent(before)}` : ''}`, this.journeyConfig());
+  }
+
+  /** What the learner's story set and left in Le Quartier, for the quarter to lay. */
+  async getLearnerWorld(): Promise<LearnerWorld> {
+    return this.get<LearnerWorld>('/story-engine/world-state', this.journeyConfig());
   }
 
   async getStoryEpisode(sceneId: string): Promise<StoryEpisode> {

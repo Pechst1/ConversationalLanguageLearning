@@ -123,7 +123,7 @@ export interface QuartierOptions {
   room?: RoomSpec;
   /** the cast in the round, sculpted (`cast3d`), or on `paper` as cut-out cards */
   cast?: 'round' | 'paper';
-  /** Le Mistral's details to lay in its room (`details.ts`), each with its flag's value */
+  /** the details to lay in this place (`details.ts`), each with its flag's value */
   details?: Array<{ spec: DetailSpec; value?: string }>;
 }
 
@@ -342,8 +342,9 @@ export class Quartier {
       this.quai = quai;
       await step(0.3, 'Le Mistral');
       this.parts = buildMistral(B, quai.mistral);
-      (this.opts.details ?? []).forEach((d) => buildDetail(B, d.spec, d.value));
     }
+    // the details the story left here, in this place's own coordinates
+    (this.opts.details ?? []).forEach((d) => buildDetail(B, d.spec, d.value));
     this.lamps = B.lamps;
     this.glints = B.lamps.filter((l) => l.glint);
     await step(0.42, 'Les lampes');

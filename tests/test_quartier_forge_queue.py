@@ -13,6 +13,7 @@ import importlib.util
 import json
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[1]
 FORGE_DIR = ROOT / "scripts" / "forge"
@@ -152,3 +153,71 @@ def test_a_learner_on_the_epilogue_is_a_learner_of_the_season():
     # Gus's «château» is that learner's next page; the mairie is a week ahead of the one on T2
     assert rows[0]["location"] == "gus_loft"
     assert next(r for r in rows if r["location"] == "mairie")["ahead"]
+
+
+# ---------------------------------------------------------------------------------------------
+# «Die Geschichte bestellt, die Schmiede baut»: the story's orders
+# ---------------------------------------------------------------------------------------------
+
+
+def _orders(tmp_path, *orders) -> str:
+    path = tmp_path / "world-orders.json"
+    path.write_text(json.dumps({"season": "s1", "orders": list(orders)}), encoding="utf-8")
+    return str(path)
+
+
+PETITION = {"kind": "thing", "name_fr": "la pétition de Gus", "location_id": "le_mistral", "look": "Taped inside the window.", "times": 3, "lives": 2}
+
+
+def test_the_forge_reads_what_the_stories_left_and_builds_the_next_thing(tmp_path, monkeypatch, capsys):
+    forge = _forge()
+    source = _orders(
+        tmp_path,
+        {"kind": "thing", "name_fr": "une échelle", "location_id": "toit", "look": "", "times": 4, "lives": 3},
+        {"kind": "thing", "name_fr": "un carnet", "location_id": "le_mistral", "look": "", "times": 1, "lives": 1},
+        PETITION,
+        {"kind": "place", "name_fr": "la librairie de la rue Bichat", "location_id": None, "look": "", "times": 2, "lives": 2},
+        {"kind": "place", "name_fr": "la boulangerie de Mme Diallo", "location_id": None, "look": "", "times": 2, "lives": 2},
+        {"kind": "place", "name_fr": "la mairie", "location_id": "mairie", "look": "", "times": 1, "lives": 1},
+        {"kind": "place", "name_fr": "Le Mistral", "location_id": None, "look": "", "times": 9, "lives": 4},
+        {"kind": "person", "name_fr": "Gus"},
+        "garbage",
+    )
+    rows = forge.orders_queue(forge.story_orders(source))
+    status = {r["name_fr"]: r["status"] for r in rows}
+    # a thing where the world is built is a detail of that place, the most asked for first
+    things = [r for r in rows if r["kind"] == "thing"]
+    assert [r["name_fr"] for r in things[:2]] == ["la pétition de Gus", "un carnet"]
+    assert things[0]["stage"] == "quai_de_valmy"
+    # a thing on the roof waits for the roof; a place the story named is new to the world
+    assert status["une échelle"] == "waits"
+    assert status["la librairie de la rue Bichat"] == "new"
+    # a place of the season the season queue builds (by its id, or by its name), and one the world has
+    assert status["la mairie"] == "season"
+    assert status["la boulangerie de Mme Diallo"] == "season"
+    assert status["Le Mistral"] == "built"
+    assert "Gus" not in status
+
+    forge.cmd_orders_queue(SimpleNamespace(frontier=source))
+    out = capsys.readouterr().out
+    assert "next detail: «la pétition de Gus» in quai_de_valmy (mark: le_mistral)" in out
+    assert "next place: «la librairie de la rue Bichat», named by 2 lives" in out
+
+    # a detail written for the mark: the order is built, and the next thing comes up
+    details = tmp_path / "details"
+    details.mkdir()
+    (details / "petition_gus.json").write_text(
+        json.dumps({"id": "petition_gus", "kind": "detail", "in": "quai_de_valmy", "mark": {"name_fr": "La pétition de Gus", "location_id": "le_mistral"}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(forge, "DETAILS", str(details))
+    rows = forge.orders_queue(forge.story_orders(source))
+    assert next(r for r in rows if r["name_fr"] == "la pétition de Gus")["status"] == "built"
+    assert next(r for r in rows if r["kind"] == "thing")["name_fr"] == "un carnet"
+
+
+def test_an_unreadable_server_leaves_the_forge_without_orders(monkeypatch, capsys):
+    forge = _forge()
+    monkeypatch.setattr(forge, "API", "http://127.0.0.1:9")
+    assert forge.story_orders() == []
+    assert "orders are unreadable" in capsys.readouterr().err

@@ -7,6 +7,7 @@ Run from the repository root, in a venv with ``scripts/forge/requirements.txt``:
     python scripts/forge/forge.py queue                 # places the Papier names that are not built yet
     python scripts/forge/forge.py queue --season --from g3  # places the season's pages are set in, the next ones first
     python scripts/forge/forge.py queue --season --from api # the same, from the segments the season's learners are on
+    python scripts/forge/forge.py queue --orders          # what the learners' stories left in the quarter, not built yet
     python scripts/forge/forge.py survey marche_aligre  # open map data around it -> var/forge/<id>/survey.json
     python scripts/forge/forge.py draft marche_aligre   # survey + brief -> lib/quartier/world/sites/<id>.json
     python scripts/forge/forge.py check marche_aligre   # the site's invariants (also in site.test.js)
@@ -47,6 +48,7 @@ WORLD = os.path.join(WEB, "lib", "quartier", "world", "world.json")
 NEWS = os.path.join(WEB, "lib", "quartier", "world", "news.json")
 SITES = os.path.join(WEB, "lib", "quartier", "world", "sites")
 ROOMS = os.path.join(WEB, "lib", "quartier", "world", "rooms")
+DETAILS = os.path.join(WEB, "lib", "quartier", "world", "details")
 BRIEFS = os.path.join(HERE, "briefs")
 CACHE = os.path.join(ROOT, "var", "forge")
 PAPIER = os.path.join(ROOT, "app", "services", "revue")
@@ -390,26 +392,116 @@ def season_queue(frontier: str | list[str] | None = None, season_id: str = "s1")
 API = os.environ.get("FORGE_API", "https://atelier-api-3njh.onrender.com")
 
 
-def live_frontier(season_id: str = "s1") -> list[str]:
-    """The segments the season's recently active learners are on, from the server
-    (``GET /api/v1/story-engine/season-frontier``). Empty when it cannot be read: the queue
-    then starts at the season's beginning, and says so."""
+def api_json(path: str):
+    """GET one of the server's public routes for the forge (``FORGE_API``), as JSON."""
     import ssl
     import urllib.request
 
     cafile = os.environ.get("REQUESTS_CA_BUNDLE") or os.environ.get("SSL_CERT_FILE")
     context = ssl.create_default_context(cafile=cafile) if cafile else ssl.create_default_context()
-    url = f"{API}/api/v1/story-engine/season-frontier?season={season_id}"
+    url = f"{API}{path}"
     if not url.startswith(("https://", "http://")):
         raise SystemExit(f"FORGE_API must be an http(s) address, not {API!r}")
+    # a server asleep on its free plan takes up to a minute to wake
+    with urllib.request.urlopen(url, timeout=90, context=context) as r:  # noqa: S310 - http(s) only, checked above
+        return json.load(r)
+
+
+def live_frontier(season_id: str = "s1") -> list[str]:
+    """The segments the season's recently active learners are on, from the server
+    (``GET /api/v1/story-engine/season-frontier``). Empty when it cannot be read: the queue
+    then starts at the season's beginning, and says so."""
     try:
-        # a server asleep on its free plan takes up to a minute to wake
-        with urllib.request.urlopen(url, timeout=90, context=context) as r:  # noqa: S310 - http(s) only, checked above
-            data = json.load(r)
+        data = api_json(f"/api/v1/story-engine/season-frontier?season={season_id}")
     except Exception as exc:  # noqa: BLE001 - the queue still runs from the season's start
         print(f"! the learners' segments are unreadable ({exc}): the queue starts at the season's beginning", file=sys.stderr)
         return []
     return [str(s) for s in data.get("segments") or [] if s]
+
+
+# ---------------------------------------------------------------------------------------------
+# the story's orders: what the learners' pages left in the quarter
+# ---------------------------------------------------------------------------------------------
+
+
+def fold(text) -> str:
+    """A name as an order is matched: case and spacing aside."""
+    return " ".join(str(text or "").casefold().split())
+
+
+def detail_specs() -> list[dict]:
+    return [load_json(f) for f in sorted(glob.glob(os.path.join(DETAILS, "*.json")))]
+
+
+def story_orders(source: str | None = None, season_id: str = "s1") -> list[dict]:
+    """What the season's recent lives left in Le Quartier, most asked for first: the server's
+    ``GET /api/v1/story-engine/world-orders`` (``source`` None or ``api``), or a saved copy of it
+    (a path). Empty when it cannot be read, and says so."""
+    if source in (None, "", "api"):
+        try:
+            data = api_json(f"/api/v1/story-engine/world-orders?season={season_id}")
+        except Exception as exc:  # noqa: BLE001 - the forge goes on with the season's own queue
+            print(f"! the story's orders are unreadable ({exc})", file=sys.stderr)
+            return []
+    else:
+        data = load_json(source)
+    return [
+        o
+        for o in (data or {}).get("orders") or []
+        if isinstance(o, dict) and o.get("kind") in ("thing", "place") and str(o.get("name_fr") or "").strip()
+    ]
+
+
+def orders_queue(orders: list[dict], places: list[dict] | None = None) -> list[dict]:
+    """The story's orders against what the world has, the next one to build first.
+
+    A thing (``kind: thing``) is a detail of the built place its page was set in: ``built`` when
+    a detail file waits on that mark, ``new`` when its place is built, ``waits`` when the place
+    is not (the season queue builds the place first). A place the story named is ``built``
+    when the world has it, ``season`` when it is a place of the season not built yet (the
+    season queue has it), ``new`` when the world has never heard of it. Among the same status,
+    what more lives left comes first."""
+    places = places if places is not None else world()["places"]
+    stages = built_stages(places)
+    laid = {(fold(d["mark"].get("name_fr")), d["mark"].get("location_id")) for d in detail_specs() if isinstance(d.get("mark"), dict)}
+    names = season_locations()
+    built_names = {fold((p.get("name") or {}).get("fr")) for p in places if is_built(p)} | {fold(names.get(loc)) for loc in stages}
+    season_names = {fold(name): loc for loc, name in names.items()}
+    rows = []
+    for o in orders:
+        loc = o.get("location_id") or None
+        row = {**o, "location_id": loc, "stage": stages.get(loc) if loc else None}
+        if o["kind"] == "thing":
+            if (fold(o["name_fr"]), loc) in laid:
+                status = "built"
+            else:
+                status = "new" if row["stage"] else "waits"
+        else:
+            loc = loc or season_names.get(fold(o["name_fr"]))
+            if (loc and loc in stages) or fold(o["name_fr"]) in built_names:
+                status = "built"
+            elif loc and loc in names:
+                status = "season"
+            else:
+                status = "new"
+        rows.append({**row, "status": status})
+    rank = {"new": 0, "waits": 1, "season": 2, "built": 3}
+    rows.sort(key=lambda r: (rank[r["status"]], -int(r.get("lives") or 0), -int(r.get("times") or 0), fold(r["name_fr"])))
+    return rows
+
+
+def cmd_orders_queue(args) -> None:
+    rows = orders_queue(story_orders(args.frontier))
+    for r in rows:
+        where = r["location_id"] or "-"
+        if r["stage"]:
+            where += f" -> {r['stage']}"
+        print(f"{r['status']:6} {r['kind']:5} {int(r.get('lives') or 0)} lives, {int(r.get('times') or 0)}x  «{r['name_fr']}» at {where}  {r.get('look') or ''}".rstrip())
+    thing = next((r for r in rows if r["kind"] == "thing" and r["status"] == "new"), None)
+    place = next((r for r in rows if r["kind"] == "place" and r["status"] == "new"), None)
+    print(f"next detail: «{thing['name_fr']}» in {thing['stage']} (mark: {thing['location_id']})" if thing else "next detail: none; every thing the stories left where the world is built is laid")
+    if place:
+        print(f"next place: «{place['name_fr']}», named by {int(place.get('lives') or 0)} lives")
 
 
 def register_problems(place: dict) -> list[str]:
@@ -448,6 +540,9 @@ def cmd_season_queue(args) -> None:
 
 
 def cmd_queue(args) -> None:
+    if getattr(args, "orders", False):
+        cmd_orders_queue(args)
+        return
     if getattr(args, "season", False):
         cmd_season_queue(args)
         return
@@ -701,7 +796,8 @@ def main() -> None:
     sub = ap.add_subparsers(dest="cmd", required=True)
     q = sub.add_parser("queue")
     q.add_argument("--season", action="store_true", help="the season's places instead of the Papier's")
-    q.add_argument("--from", dest="frontier", default=None, help="the segment a learner is on (g3), several (g3,t1), or api: the segments the server says the season's learners are on")
+    q.add_argument("--orders", action="store_true", help="what the learners' stories left in the quarter (the server's world-orders) instead")
+    q.add_argument("--from", dest="frontier", default=None, help="the segment a learner is on (g3), several (g3,t1), or api: the segments the server says the season's learners are on; with --orders: api (the default) or a saved world-orders file")
     sub.add_parser("news")
     s = sub.add_parser("survey")
     s.add_argument("id")

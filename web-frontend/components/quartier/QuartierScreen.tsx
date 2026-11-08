@@ -44,7 +44,8 @@ import { Visit } from '@/lib/quartier/visit';
 import { placeOf, worldState } from '@/lib/quartier/world';
 import { ROOM_FILES } from '@/lib/quartier/world/rooms';
 import { DETAIL_FILES } from '@/lib/quartier/world/details';
-import type { DetailSpec } from '@/lib/quartier/details';
+import { setBy } from '@/lib/quartier/details';
+import type { DetailSpec, LearnerWorld } from '@/lib/quartier/details';
 import { SITE_FILES } from '@/lib/quartier/world/sites';
 import type { SeasonItemId } from '@/lib/season-items';
 
@@ -93,8 +94,14 @@ export interface QuartierScreenProps {
   onReady?: (engine: Quartier, director: Director, memory: Memory) => void;
   /** something covers the whole quarter (the rest of the day): the frame and the sound rest */
   hidden?: boolean;
-  /** Le Mistral's details to lay in its room (`world/details`), each with its flag's value: the standalone page's `?detail=` */
+  /** details to lay where they stand (`world/details`), each with its flag's value: the standalone page's `?detail=` */
   details?: Array<{ id: string; value?: string }>;
+  /**
+   * The learner's own quarter (`GET /story-engine/world-state`): read each time a place is built,
+   * and every detail there whose season flag their story set, or whose mark it left, is laid (the
+   * usual cup on the zinc once Margaux knows their order). Null or a failure lays none.
+   */
+  world?: () => Promise<LearnerWorld | null>;
 }
 
 const ART: ArtSource = {
@@ -104,6 +111,9 @@ const ART: ArtSource = {
 
 /** Away this long, and the title card says what happened while you were gone. */
 const AWAY_MS = 10 * 60 * 1000;
+
+/** How long the quai waits for the learner's own quarter before it is built without it. */
+const WORLD_WAIT_MS = 4000;
 
 /** The hand-drawn quarter: the quai de Valmy and Le Mistral. */
 const HOME = 'quai_de_valmy';
@@ -217,7 +227,7 @@ function episodeOf(page: StoryPage | null) {
   return page?.number ? `Épisode ${page.number}` : 'Le Quartier';
 }
 
-export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance: firstAmbiance = 'nuit', onExit, showStats = false, startPlace, cast, onReady, hidden = false, details }: QuartierScreenProps) {
+export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance: firstAmbiance = 'nuit', onExit, showStats = false, startPlace, cast, onReady, hidden = false, details, world }: QuartierScreenProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const engine = React.useRef<Quartier | null>(null);
   const stage = React.useRef<Director | null>(null);
@@ -303,15 +313,22 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
           else inside = await roomFile();
           if (cancelled) return;
         }
-        // the details asked for, in Le Mistral (none is shown otherwise until the story reaches it)
+        // the details that stand here: the ones asked for (the standalone page's), and the ones the
+        // learner's own story set or left (none is shown otherwise until the story reaches it). A
+        // slow answer never holds the place: after a few seconds it is built without them
         const laid: Array<{ spec: DetailSpec; value?: string }> = [];
-        if (place === HOME) {
-          for (const d of details ?? []) {
-            const load = DETAIL_FILES[d.id];
-            if (load) laid.push({ spec: await load(), value: d.value });
-          }
-          if (cancelled) return;
+        for (const d of details ?? []) {
+          const load = DETAIL_FILES[d.id];
+          const one = load ? await load() : null;
+          if (one && one.in === place) laid.push({ spec: one, value: d.value });
         }
+        const told = world ? await Promise.race([world().catch(() => null), new Promise<null>((done) => window.setTimeout(() => done(null), WORLD_WAIT_MS))]) : null;
+        if (told && (Object.keys(told.flags ?? {}).length || (told.marks ?? []).length)) {
+          const asked = new Set(laid.map((d) => d.spec.id));
+          const specs = await Promise.all(Object.entries(DETAIL_FILES).filter(([id]) => !asked.has(id)).map(([, load]) => load()));
+          laid.push(...setBy(specs.filter((one) => one.in === place), told));
+        }
+        if (cancelled) return;
         setSite(spec);
         setRoom(inside);
         const eq = new Quartier({
