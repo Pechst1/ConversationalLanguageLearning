@@ -3787,8 +3787,11 @@ def test_recognize_feedback_speaks_the_learners_language_before_the_relecture(db
     assert "French nouns carry gender" in erratum["why_wrong"]
 
     service.explanation_language = "fr"
-    blank = service._fill_erratum(None, {"id": "b", "prompt": "___"}, "petit", "petite")
+    blank = service._fill_erratum(None, {"id": "b", "prompt": "___", "choices": ["petite", "petit"]}, "petit", "petite")
     assert blank["why_wrong"] == "Tu as choisi « petit », mais ce blanc demande « petite »."
+    # #596: a gap with nothing to pick from is written, not chosen
+    typed = service._fill_erratum(None, {"id": "b", "prompt": "___"}, "petit", "petite")
+    assert typed["why_wrong"] == "Tu as écrit « petit », mais ce blanc demande « petite »."
     classified = service._classify_erratum(None, {"id": "c", "prompt": "Une petite table"}, "À corriger", "Correct")
     assert classified["display_label"] == "Classement"
     assert "Tu as classé" in classified["why_wrong"]
