@@ -55,6 +55,9 @@ export interface World {
 
 export const WORLD = registry as unknown as World;
 
+/** The hand-drawn quarter: the quai de Valmy and Le Mistral, where the season starts. */
+export const HOME_PLACE = 'quai_de_valmy';
+
 /** A place the Papier names with an exact position in Paris (`world/news.json`, written by `forge.py news`). */
 export interface NewsPlace {
   id: string;
@@ -99,6 +102,12 @@ export function mapPlaces(world: World = WORLD, papier: NewsPlace[] = NEWS): Wor
 
 export function placeOf(id: string, world: World = WORLD): WorldPlace | null {
   return world.places.find((p) => p.id === id) ?? null;
+}
+
+/** The place a room of the season (`world/rooms`) or a forged site (`world/sites`) is built for. */
+export function placeBuiltAs(built: { room?: string; site?: string }, world: World = WORLD): string | null {
+  const p = world.places.find((q) => (built.room && q.room === built.room) || (built.site && q.site === built.site));
+  return p?.id ?? built.room ?? built.site ?? null;
 }
 
 /** Built: the hand-drawn quarter, or a place the forge has written a room or a site for. */

@@ -28,6 +28,7 @@ import { LEARNER_LANGUAGE_STORAGE_KEY, readLearnerLevel } from '@/lib/learner-la
 import { JourneyStory, stagedPageOf, todayOf } from '@/lib/quartier/journey-story';
 import type { Today } from '@/lib/quartier/journey-story';
 import type { Level, Native } from '@/lib/quartier/stage';
+import { placeCard } from '@/lib/quartier/story';
 import { remainingSteps } from '@/services/daily-journey';
 import type { JourneySnapshot } from '@/types/daily-journey';
 
@@ -71,6 +72,7 @@ function phoneNative(): Native {
 
 const COPY = {
   en: {
+    lang: 'en' as Native,
     signIn: 'Sign in to play today’s episode here.',
     loadFailed: 'Today’s episode could not be loaded.',
     disabled: 'The daily episode is not open on your account yet. The quarter is yours to walk.',
@@ -82,11 +84,14 @@ const COPY = {
       midway: 'You are in the middle of today’s conversation. Finish it in the Feuilleton.',
       unavailable: 'Today’s episode is not ready yet. The Feuilleton can try again.',
     },
+    elsewhere: (name: string | null) =>
+      `Today’s scene goes somewhere the quarter has not built yet${name ? `: ${name}` : ''}. Until it is built, the Feuilleton tells the scene.`,
     next: (n: number) => (n === 1 ? 'The scene is played. One step of the day is left.' : `The scene is played. ${n} steps of the day are left.`),
     finish: 'The scene is played. The day only needs finishing.',
     done: 'Today’s episode is done.',
   },
   de: {
+    lang: 'de' as Native,
     signIn: 'Melde dich an, um die heutige Folge hier zu spielen.',
     loadFailed: 'Die heutige Folge konnte nicht geladen werden.',
     disabled: 'Die tägliche Folge ist für dein Konto noch nicht offen. Das Viertel gehört dir.',
@@ -98,6 +103,8 @@ const COPY = {
       midway: 'Du bist mitten im heutigen Gespräch. Führ es im Feuilleton zu Ende.',
       unavailable: 'Die heutige Folge ist noch nicht fertig. Das Feuilleton kann es noch einmal versuchen.',
     },
+    elsewhere: (name: string | null) =>
+      `Die heutige Szene führt an einen Ort, den das Viertel noch nicht gebaut hat${name ? `: ${name}` : ''}. Bis er gebaut ist, erzählt das Feuilleton die Szene.`,
     next: (n: number) => (n === 1 ? 'Die Szene ist gespielt. Ein Schritt des Tages bleibt.' : `Die Szene ist gespielt. ${n} Schritte des Tages bleiben.`),
     finish: 'Die Szene ist gespielt. Der Tag muss nur noch abgeschlossen werden.',
     done: 'Die heutige Folge ist zu Ende.',
@@ -208,6 +215,15 @@ function noteOf(
     case 'before':
       return { kicker: today.page.number ? `Épisode ${today.page.number}` : undefined, title: today.page.title_fr || 'Avant la scène', text: copy.before, action: { label: 'Commencer', run: warmUp } };
     case 'handoff':
+      if (today.why === 'elsewhere') {
+        const name = placeCard(today.place, today.page.location_name)?.[copy.lang] ?? null;
+        return {
+          kicker: today.page.number ? `Épisode ${today.page.number}` : undefined,
+          title: today.page.title_fr || 'Le Feuilleton',
+          text: copy.elsewhere(name),
+          action: { label: 'Ouvrir le Feuilleton', run: feuilleton },
+        };
+      }
       return { title: 'Le Feuilleton', text: copy.handoff[today.why], action: { label: 'Ouvrir le Feuilleton', run: feuilleton } };
     case 'practice':
       return { title: 'La suite de ta journée', body: after };

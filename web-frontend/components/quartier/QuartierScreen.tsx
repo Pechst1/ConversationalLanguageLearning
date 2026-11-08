@@ -10,8 +10,10 @@
  * episode's `Stage`, and «Rentrer au quai» brings you home with what you did there remembered. A
  * room of the season the forge wrote (`world/rooms`, the stairwell) is played by an `Interior`; a
  * room is inside another place and has no pin of its own, so only `startPlace` reaches it, or the
- * day's page when it goes on there (T1 day b climbs the stairwell after closing): the café's
- * director hands the story over, the room is built, and its director plays the page on.
+ * day's page when it goes on there: the director hands the story over where it stands (the
+ * movement, the replies so far), the place is built, and a director there plays the page on. T1
+ * day b climbs the stairwell after closing (its `Interior`); any other page plays on in the room
+ * with its people there (a `Stage`), and back at the café when it comes back there.
  * In the app the episode is today's (`day`): the page hands over the journey's story, or a card in
  * its stead, and the end card's lower half (the engine's recap, «Demain»). Without one (the
  * standalone page) the quarter plays its own copy of T1 day a.
@@ -35,8 +37,8 @@ import type { AmbianceId } from '@/lib/quartier/palette';
 import type { RoomSpec } from '@/lib/quartier/room';
 import type { SiteSpec } from '@/lib/quartier/site';
 import { Stage } from '@/lib/quartier/stage';
-import type { AnswerUi, Cue, Director, Level, Native, PhoneUi, SpeechUi, StageUi, TalkUi } from '@/lib/quartier/stage';
-import { pageOfCopy } from '@/lib/quartier/story';
+import type { AnswerUi, Cue, Director, Handover, Level, Native, PhoneUi, SpeechUi, StageUi, TalkUi } from '@/lib/quartier/stage';
+import { STAGED_DAYS, pageOfCopy } from '@/lib/quartier/story';
 import type { HelpStep, Story, StoryPage } from '@/lib/quartier/story';
 import { Visit } from '@/lib/quartier/visit';
 import { placeOf, worldState } from '@/lib/quartier/world';
@@ -240,10 +242,10 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
   // the ride you took, on the loading card; back on the quai from somewhere else
   const [ride, setRide] = React.useState<Words | null>(null);
   const [back, setBack] = React.useState(false);
-  // the day's story, carried into a room where its page goes on (and the room plays the episode)
-  const carried = React.useRef<Story | null>(null);
+  // the day's page, carried to the place where it goes on (and that place plays the episode on)
+  const carried = React.useRef<Handover | null>(null);
   const [scene, setScene] = React.useState(false);
-  const goTo = React.useRef<(id: string, story?: Story) => void>(() => undefined);
+  const goTo = React.useRef<(id: string, carry?: Handover) => void>(() => undefined);
   const copy = COPY[native];
   const here = placeOf(place);
   // the episode: today's in the app, the quarter's own copy on the standalone page
@@ -330,15 +332,22 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
         await eq.load();
         if (cancelled) return;
         const opts = { level, native, onCue: (c: Cue) => sn.cue(c), onSay: (fr: string, heat: number) => sn.announce(fr, heat), memory };
-        // a place where the news happens plays the event; a street, its people and their trade; a
-        // room of the season, what the canon gives it
-        const director: Director = spec
-          ? spec.venue
-            ? new Course(eq, opts)
-            : new Visit(eq, opts)
-          : inside
-            ? new Interior(eq, { ...opts, scene: carried.current ?? undefined })
-            : new Stage(eq, undefined, { ...opts, onRoom: ({ room: to, story }) => goTo.current(to, story) });
+        const carry = carried.current;
+        // T1 day b's stairwell is blocked by hand; any other page goes on with the stage director
+        const blocked = Boolean(carry && STAGED_DAYS.includes(carry.story.page.key));
+        const onPlace = (to: Handover) => goTo.current(to.place, to);
+        // the day's page, carried here, plays on; else a place where the news happens plays the
+        // event; a street, its people and their trade; a room of the season, what the canon gives it
+        const director: Director =
+          carry && !blocked
+            ? new Stage(eq, carry.story, { ...opts, resume: carry, onPlace })
+            : spec
+              ? spec.venue
+                ? new Course(eq, opts)
+                : new Visit(eq, opts)
+              : inside
+                ? new Interior(eq, { ...opts, scene: carry?.story })
+                : new Stage(eq, undefined, { ...opts, onPlace });
         st = director;
         stage.current = director;
         unsubscribe = director.subscribe(setUi);
@@ -361,8 +370,8 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
         eq.start();
         setLoading(null);
         onReady?.(eq, director, memory);
-        // the day's page goes on in here: no title card, the scene picks up where the café left it
-        if (inside && carried.current) {
+        // the day's page goes on in here: no title card, the scene picks up where the last place left it
+        if (carry) {
           startSound();
           director.begin();
         }
@@ -435,12 +444,12 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
 
   /**
    * Ride somewhere on the map: the quarter is taken down and the place built in its stead. With
-   * `story`, the day's page goes on there (the café hands the stairwell its scene).
+   * `carry`, the day's page goes on there where it stands (the café hands the stairwell its scene).
    */
-  const travel = (id: string, story?: Story) => {
+  const travel = (id: string, carry?: Handover) => {
     if (id === place) return;
-    carried.current = story ?? null;
-    setScene(Boolean(story));
+    carried.current = carry ?? null;
+    setScene(Boolean(carry));
     const to = placeOf(id);
     setPanel(null);
     setUi(null);
@@ -448,8 +457,8 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
     setStats(null);
     setSite(null);
     setRoom(null);
-    setRide(id === HOME ? null : to?.ride ?? null);
-    setBack(id === HOME);
+    setRide(id === HOME || carry ? null : to?.ride ?? null);
+    setBack(id === HOME && !carry);
     setLoading({ share: 0, label: 'Les encres' });
     setPlace(id);
   };
@@ -490,6 +499,8 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
   const replayable = st instanceof Stage ? st.replayable : !scene;
   // the episode's end card: on the quai, or in the room where the day's page ended
   const episode = !forged || scene;
+  // the day's page ended away from the quai: the end card takes you home
+  const endedAway = scene && place !== HOME;
 
   return (
     <div className={`qz${ui?.silent ? ' qz-letterbox' : ''}`} data-phase={phase} data-beat={ui?.beat ?? undefined} data-place={place}>
@@ -507,7 +518,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
                 <IconDoor />
                 {forged && !scene ? copy.home : copy.leaveScene}
               </button>
-            ) : forged ? (
+            ) : forged && !scene ? (
               <div className="qz-title">
                 <em>{name}</em>
               </div>
@@ -692,7 +703,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
         </div>
       ) : null}
 
-      {ready && phase === 'title' && !forged && back && !day?.note ? (
+      {ready && phase === 'title' && !forged && !scene && back && !day?.note ? (
         <div className="qz-cover qz-cover--night">
           <div className="qz-card">
             <p className="qz-kicker">{name}</p>
@@ -716,7 +727,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
       ) : null}
 
       {/* where the day stands, back from a ride too: a talk left midway is the Feuilleton's, not played again */}
-      {ready && phase === 'title' && !forged && day?.note ? (
+      {ready && phase === 'title' && !forged && !scene && day?.note ? (
         <div className="qz-cover qz-cover--night">
           <div className="qz-card">
             <p className="qz-kicker">{day.note.kicker ?? copy.yourDay}</p>
@@ -740,7 +751,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
         </div>
       ) : null}
 
-      {ready && phase === 'title' && !forged && !back && !day?.note ? (
+      {ready && phase === 'title' && !forged && !scene && !back && !day?.note ? (
         <div className="qz-cover qz-cover--night">
           <div className="qz-card">
             <p className="qz-kicker">{page ? episodeOf(page) : copy.yourDay}</p>
@@ -801,14 +812,14 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
             {ui?.recap?.did.length ? <Recap title={copy.tonight} lines={ui.recap.did} translate={translate} /> : null}
             {day?.end ?? (ui?.recap?.tomorrow.length ? <Recap title={copy.tomorrow} lines={ui.recap.tomorrow} translate={translate} /> : null)}
             {day?.end ? null : (
-              <button type="button" className="qz-primary" onClick={() => (scene ? travel(HOME) : st?.roam())}>
-                {scene ? copy.goHome : copy.roam}
+              <button type="button" className="qz-primary" onClick={() => (endedAway ? travel(HOME) : st?.roam())}>
+                {endedAway ? copy.goHome : copy.roam}
               </button>
             )}
             <div className="qz-card-row">
               {day?.end ? (
-                <button type="button" className="qz-quiet" onClick={() => (scene ? travel(HOME) : st?.roam())}>
-                  {scene ? copy.goHome : copy.roam}
+                <button type="button" className="qz-quiet" onClick={() => (endedAway ? travel(HOME) : st?.roam())}>
+                  {endedAway ? copy.goHome : copy.roam}
                 </button>
               ) : null}
               <button type="button" className="qz-quiet" onClick={() => setPanel('carnet')}>

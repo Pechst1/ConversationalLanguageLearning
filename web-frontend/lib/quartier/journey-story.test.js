@@ -291,6 +291,15 @@ test('what /quartier does with each state of the day', () => {
   assert.equal(kind(journey({ current: 'end' })), 'practice');
   assert.equal(kind(journey({ current: 'words' })), 'practice');
   assert.equal(kind(journey({ current: null })), 'practice', 'every step done, the day not yet finished');
+  // a scene that goes where the world has built nothing yet (the roof) is the Feuilleton's to tell, not played in a place it is not
+  const roof = { ...STAGE, key: 'g3.toit', location_id: 'toit', movements: STAGE.movements.map((m) => (m.id === 'a.p1' ? { ...m, location_id: 'toit' } : m)) };
+  assert.equal(kind(journey({ stage: roof })), 'handoff:elsewhere');
+  assert.equal(todayOf(journey({ stage: roof })).place, 'toit');
+  assert.equal(kind(journey({ stage: roof, current: 'talk' })), 'handoff:elsewhere', 'nothing answered yet');
+  assert.equal(kind(journey({ stage: roof, current: 'talk', turn: 2 })), 'handoff:midway');
+  assert.equal(kind(journey({ stage: roof, current: 'words' })), 'practice', 'the scene told, the rest of the day is the same');
+  // the café and the quai are built: a day set there plays here
+  assert.equal(kind(journey({ stage: { ...STAGE, key: 't1.c' } })), 'play');
 });
 
 test('a day the quarter stages keeps its page wherever it stands: its people talk through the engine all day', () => {
