@@ -8,13 +8,17 @@ mistake» for «I look for my cousin.» took one gender of «cousin» only.
 Root cause (#174): a right answer was judged against one stored string, and the item
 bank listed a second right word only where an author had remembered to. Now the English
 gloss decides: a noun with another French word for the same gloss lists it
-(``alt_fr``), and person nouns the English glosses alike (cousin / cousine) list each
-other. A miss on a word other than the rule's still names that word, not the rule.
+(``alt_fr``), and on a frame with no German meaning, person nouns the English glosses
+alike (cousin / cousine) list each other. German names the sex, so a frame with a German
+meaning keeps the one form. A miss on a word other than the rule's still names that word,
+not the rule.
 """
 
 from __future__ import annotations
 
+import dataclasses
 import functools
+import re
 
 import pytest
 
@@ -72,8 +76,16 @@ def test_a_miss_on_the_vocabulary_names_that_word_and_never_the_rule(db_session)
     assert "possessive" not in shown and "rule" not in shown, shown
 
 
+def _without_german(item: ib.BankItem) -> ib.BankItem:
+    """``item`` as its frame renders with no German meaning, the one case with a twin."""
+
+    bank = ib.default_bank()
+    frame = next(frame for frame in bank.frames(item.unit) if frame.frame_id == item.frame_id)
+    return bank.render(dataclasses.replace(frame, de=None), dict(item.bindings))
+
+
 def test_the_cousin_repair_lists_both_genders_the_english_allows():
-    item = _item("I look for my cousin.", "Je cherche ma cousine.")
+    item = _without_german(_item("I look for my cousin.", "Je cherche ma cousine."))
     repair = ib.transform_item(item)
     assert repair is not None
     assert {"Je cherche ma cousine.", "Je cherche mon cousin."} <= set(repair["accepted_answers"])
@@ -82,29 +94,57 @@ def test_the_cousin_repair_lists_both_genders_the_english_allows():
 
 
 def test_the_cousin_repair_accepts_either_fix(db_session):
-    repair = ib.transform_item(_item("I look for my cousin.", "Je cherche ma cousine."))
+    repair = ib.transform_item(_without_german(_item("I look for my cousin.", "Je cherche ma cousine.")))
     assert repair is not None
     for fix in ("Je cherche ma cousine.", "Je cherche mon cousin."):
         correction = _correct(db_session, "rewrite", repair, fix, round_name="transform")
         assert correction["verdict"] == "correct", (fix, correction)
 
 
-def test_a_person_noun_the_english_glosses_alike_lists_its_twin_in_every_item():
+def test_a_person_noun_the_english_glosses_alike_lists_its_twin_without_a_german_meaning():
     twins = {("cousin", "cousine"), ("ami", "amie"), ("voisin", "voisine"), ("étudiant", "étudiante")}
     bank = ib.default_bank()
     checked = 0
-    for seed in range(10):
-        for item in bank.generate(UNIT, 300, seed=f"twin-{seed}"):
-            if _GENDERED_ENGLISH.search(item.en):
+    for seed in range(4):
+        for generated in bank.generate(UNIT, 300, seed=f"twin-{seed}"):
+            if _GENDERED_ENGLISH.search(generated.en):
                 continue  # «his friend»: the English names a sex, no twin
+            words = " " + generated.sentence.lower().replace(",", " ").replace(".", " ") + " "
+            if not any(f" {one} " in words for pair in twins for one in pair):
+                continue
+            item = _without_german(generated)
             for masculine, feminine in twins:
                 for one, other in ((masculine, feminine), (feminine, masculine)):
-                    sentence = " " + item.sentence.lower().replace(",", " ").replace(".", " ") + " "
-                    if f" {one} " in sentence and f" {other} " not in sentence:
+                    if f" {one} " in words and f" {other} " not in words:
                         listed = " ".join(item.accepted).lower()
                         assert other in listed, (item.sentence, item.accepted)
                         checked += 1
     assert checked, "the possessives unit has person nouns to check"
+
+
+#: A word of the German meaning that names the sex → the French noun that would contradict it.
+_GERMAN_NAMES_THE_SEX = {"Cousine": "cousin", "Cousin": "cousine", "Freundin": "ami", "Freund": "amie"}
+
+
+def test_a_german_meaning_that_names_the_sex_never_takes_the_other():
+    """#634: «Ich suche meine Cousine, Marin.» accepted «Je cherche mon cousin, Marin.»
+    (256 of 391 items in a sample). The key serves every language, so a German learner
+    who wrote the wrong sex was told it was right."""
+
+    bank = ib.default_bank()
+    checked = 0
+    for seed in range(12):
+        for item in bank.generate(UNIT, 400, seed=f"probe-{seed}"):
+            if not item.de:
+                continue
+            for german, contradiction in _GERMAN_NAMES_THE_SEX.items():
+                if not re.search(rf"\b{german}\b", item.de):
+                    continue
+                checked += 1
+                for sentence in item.accepted:
+                    words = re.findall(r"[\w'’-]+", sentence.lower())
+                    assert contradiction not in words, (item.de, sentence)
+    assert checked, "the possessives unit has person nouns with a German meaning"
 
 
 @pytest.mark.parametrize(

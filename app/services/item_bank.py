@@ -2086,13 +2086,20 @@ class ItemBank:
         """#536: the sentence again with each other person noun the English glosses the
         same: English «my cousin» is «mon cousin» and «ma cousine», «a friend» is «un
         ami» and «une amie». The gloss names no gender, so the key may not either; the
-        frame redoes the agreement."""
+        frame redoes the agreement.
+
+        Only for a frame with no German meaning. German names the sex where English does
+        not («meine Cousine»), and one key serves every language, so a twin here would
+        mark «mon cousin» right for a German learner. An English learner on such a frame
+        keeps the one stored form until the key can follow the learner's language."""
 
         if entry.get("kind") != "person" or "pron" in (entry.get("tags") or []) or not entry.get("en"):
             return []
         if _GENDERED_ENGLISH.search(self._render_text(frame.en, bindings, english=True)):
             # «invite her», «I help him»: the English names the person's sex, so the key
             # may not take the other one (the twin is built from the noun alone).
+            return []
+        if self.render_german(frame, bindings) is not None:
             return []
         sentences: list[str] = []
         for twin in self.lex.pool("noun"):
