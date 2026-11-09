@@ -16,7 +16,7 @@
  *   * **Two verdicts, never merged.** The French and what was remembered are
  *     two separate blocks with two separate sentences. Correct French about the
  *     wrong evening must not read as a pass.
- *   * **An ungraded entry says so.** `assessment_status === 'unavailable'` gets
+ *   * **An ungraded entry says so.** A check that did not run (`journalCheckState`) gets
  *     a French sentence and keeps the learner's own paragraph on screen. It is
  *     never dressed as a verdict, and it never turns into a red mark.
  *
