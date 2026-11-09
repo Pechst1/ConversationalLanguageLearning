@@ -105,7 +105,9 @@ def test_primary_notebook_nav_uses_smart_entrypoint() -> None:
     shell = read_web("lib/product-shell.ts")
     # WP-109: the desktop masthead lists the same four places as the phone tabs.
     assert "PHONE_PRODUCT_TABS.map" in masthead
-    assert "label: 'Cahier',\n    href: '/notebook'," in shell
+    # S4 stage 1: the tab's name and route are the register's (lib/places.ts).
+    assert "tabFor('notebook', 'book')" in shell
+    assert "route: '/notebook',\n    name: same('Cahier'),\n    kind: 'tab'," in read_web("lib/places.ts")
     assert "<PhoneProductNav active={mobileSection} />" in masthead
     assert "PHONE_PRODUCT_TABS.map" in phone_nav
     assert "href={item.href}" in phone_nav

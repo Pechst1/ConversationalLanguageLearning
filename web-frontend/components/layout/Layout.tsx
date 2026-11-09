@@ -21,7 +21,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAppSession } from '@/lib/app-auth';
 import { isNativePlatform } from '@/lib/native-platform';
-import { resolveProductSection, routeUsesOwnProductShell } from '@/lib/product-shell';
+import { isSettingsRoute, resolveProductSection, routeUsesOwnProductShell } from '@/lib/product-shell';
 import { installViewportMetrics } from '@/lib/viewport-metrics';
 import FeedbackWidget from '@/components/feedback/FeedbackWidget';
 
@@ -154,6 +154,6 @@ function getMastheadSection(pathname: string) {
   if (pathname === '/missions') return 'missions';
   if (pathname === '/graphic-novel') return 'feuilleton';
   // The Dossier and the rehearsal are opened from Réglages: no tab is lit for them.
-  if (pathname === '/settings' || pathname === '/dossier' || pathname === '/repetition') return 'settings';
+  if (isSettingsRoute(pathname)) return 'settings';
   return undefined;
 }

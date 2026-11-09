@@ -45,7 +45,10 @@ def test_public_onboarding_moves_from_minimal_account_creation_to_daily_atelier(
     assert "href={signInHref}" in forgot
     assert "hasSessionRefreshError(sessionData)" in app_auth
     assert "const effectiveStatus: AppAuthStatus = refreshFailed ? 'unauthenticated' : nextSession.status" in app_auth
-    assert "'/auth/forgot-password'" in route_gate
+    # S4 stage 1: who may open a route signed out is the register's `access`.
+    places = read(WEB / "lib" / "places.ts")
+    assert "const PUBLIC_PATHNAMES = new Set(publicRoutes());" in route_gate
+    assert "route: '/auth/forgot-password',\n    name: { en: 'Forgot password'" in places
     assert "sanitizeAuthCallbackUrl(router.asPath)" in route_gate
     assert "NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000'" not in next_config
     assert "NEXTAUTH_URL=http://localhost:3001 npm run dev -- -p 3001" in frontend_readme
@@ -76,25 +79,26 @@ def test_public_onboarding_moves_from_minimal_account_creation_to_daily_atelier(
 
 def test_phone_shell_keeps_the_primary_product_modes_simple_and_reachable() -> None:
     shell = read(WEB / "lib" / "product-shell.ts")
+    # S4 stage 1: the tabs and their lit routes come from the register of places.
+    places = read(WEB / "lib" / "places.ts")
     flags = read(WEB / "launch-flags.json")
     masthead = read(WEB / "components" / "layout" / "EditorialMasthead.tsx")
     phone_nav = read(WEB / "components" / "layout" / "PhoneProductNav.tsx")
     notebook = read(WEB / "pages" / "notebook.tsx")
 
     for tab in [
-        "id: 'atelier'",
-        "id: 'notebook'",
+        "tabFor('atelier', 'mark')",
+        "tabFor('notebook', 'book')",
     ]:
         assert tab in shell
 
-    assert "href: '/atelier'" in shell
-    assert "href: '/notebook'" in shell
-    assert "'/missions'" in shell
-    assert "'/graphic-novel'" in shell
-    assert "'/vocabulary/review'" in shell
+    for route in ("'/atelier'", "'/notebook'", "'/missions'", "'/graphic-novel'", "'/vocabulary/review'"):
+        assert f"route: {route}," in places
     assert '"storyFeatureVisible": true' in flags  # owner 2026-10-12: every feature on
     assert "const STORY_ROUTES" in shell
-    assert "...(STORY_FEATURE_VISIBLE ? STORY_ROUTES : [])" in shell
+    # Places a build does not contain (the Bibliothèque while its flag is off) light no tab.
+    assert "placesInBuild().filter((place) => place.section === section)" in shell
+    assert "place.gate.flag === 'storyFeatureVisible' ? STORY_FEATURE_VISIBLE" in places
     assert "STORY_FEATURE_VISIBLE && STORY_ROUTES.includes(pathname)" in shell
 
     assert "<PhoneProductNav active={mobileSection} />" in masthead

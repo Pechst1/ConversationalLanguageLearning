@@ -1,4 +1,5 @@
 import { STORY_FEATURE_VISIBLE } from './launch-flags';
+import { PLACES, placesInBuild } from './places';
 import { resolveSettingsLanguage, settingsCopy } from './settings-copy';
 
 export type ProductSection = 'atelier' | 'missions' | 'feuilleton' | 'notebook';
@@ -11,104 +12,46 @@ export type ProductTab = {
   activeRoutes: string[];
 };
 
-// WP-20 deleted the `/stories` and `/story/[id]` readers; the Bibliothèque is
-// the whole of the reading flow now, and it is still parked behind the flag.
-const STORY_ROUTES: string[] = [
-  '/bibliotheque',
-  '/bibliotheque/[storyId]',
-  '/bibliotheque/[storyId]/chapter/[chapterId]',
-];
+// S4 stage 1: which routes light a tab, which draw their own shell and which
+// belong to Réglages all come from the register of places (lib/places.ts).
+// Places a build does not contain (the Bibliothèque while its flag is off,
+// the dev galleries in production) are left out, as they always were.
+const STORY_ROUTES: string[] = PLACES
+  .filter((place) => place.gate.kind === 'launch_flag' && place.gate.flag === 'storyFeatureVisible')
+  .map((place) => place.route);
+
+function sectionRoutes(section: ProductSection): string[] {
+  return placesInBuild().filter((place) => place.section === section).map((place) => place.route);
+}
+
+function tabFor(section: ProductSection, icon: ProductTab['icon']): ProductTab {
+  const tab = PLACES.find((place) => place.kind === 'tab' && place.section === section);
+  if (!tab) throw new Error(`lib/places.ts has no tab for ${section}`);
+  // The four tab names are French in every language (WP-109).
+  return { id: section, label: tab.name.fr, href: tab.route, icon, activeRoutes: sectionRoutes(section) };
+}
 
 // WP-109 (F-3): «La Une · Feuilleton · Courrier · Cahier» — the story is the second tab,
-// right beside the front page that headlines it.
+// right beside the front page that headlines it. WP-83: one name per place.
 export const PHONE_PRODUCT_TABS: ProductTab[] = [
-  {
-    id: 'atelier',
-    // WP-109 «Une seule maison» (owner decision F-3): the day's front page.
-    label: 'La Une',
-    href: '/atelier',
-    icon: 'mark',
-    activeRoutes: [
-      '/atelier',
-      '/audio-session',
-      ...(STORY_FEATURE_VISIBLE ? STORY_ROUTES : []),
-      '/vocabulary/review',
-    ],
-  },
-  {
-    id: 'feuilleton',
-    label: 'Feuilleton',
-    href: '/graphic-novel',
-    icon: 'feuilleton',
-    activeRoutes: [
-      '/graphic-novel',
-      '/serial',
-      '/serial/cast',
-      '/serial/episode',
-      '/serial/episode/[index]',
-    ],
-  },
-  {
-    id: 'missions',
-    // WP-83: one name per place — the tab is the Courrier, as every screen calls it.
-    label: 'Courrier',
-    href: '/missions',
-    icon: 'mission',
-    activeRoutes: [
-      '/missions',
-    ],
-  },
-  {
-    id: 'notebook',
-    label: 'Cahier',
-    href: '/notebook',
-    icon: 'book',
-    activeRoutes: [
-      '/notebook',
-      '/grammar',
-      '/vocabulary',
-      '/vocabulary/conjugation',
-      '/eclair',
-    ],
-  },
+  tabFor('atelier', 'mark'),
+  tabFor('feuilleton', 'feuilleton'),
+  tabFor('missions', 'mission'),
+  tabFor('notebook', 'book'),
 ];
 
-const OWN_SHELL_ROUTES = new Set([
-  '/atelier',
-  '/revue',
-  '/carte',
-  '/correcteur',
-  '/radio',
-  // Les appels: the call screen draws itself (face, clock, hang-up).
-  '/appel',
-  '/missions',
-  '/graphic-novel',
-  '/serial',
-  '/serial/cast',
-  '/serial/episode',
-  '/serial/episode/[index]',
-  '/grammar',
-  '/notebook',
-  '/vocabulary',
-  '/vocabulary/review',
-  '/vocabulary/conjugation',
-  '/audio-session',
-  // WP-S7: Éclair draws its own top bar (close, clock, score).
-  '/eclair',
-  // Round 3: «Fertig für heute» is the day's last screen, like the recap it follows.
-  '/fertig',
-  // Ton personnage: the editor fills the screen, its own close button and «C’est moi !».
-  '/personnage',
-  // Le Quartier: the 3D street fills the screen and draws its own bar (quit, sound, language).
-  '/quartier',
-  // WP-72: the legal pages draw their own bar (back + language) and are read
-  // signed out, so no masthead.
-  '/privacy',
-  '/terms',
-  ...(STORY_FEATURE_VISIBLE ? STORY_ROUTES : []),
+const OWN_SHELL_ROUTES = new Set(placesInBuild().filter((place) => place.ownShell).map((place) => place.route));
+
+// The pages opened from Réglages (the Dossier, the rehearsal) belong to it.
+const SETTINGS_ROUTES = new Set([
+  '/settings',
+  ...PLACES.filter((place) => place.parent === '/settings' && place.kind === 'child').map((place) => place.route),
 ]);
 
-const SETTINGS_ROUTES = new Set(['/settings', '/dossier', '/repetition']);
+/** Réglages and the pages opened from it: no tab is lit for them. */
+export function isSettingsRoute(pathname: string) {
+  return SETTINGS_ROUTES.has(pathname);
+}
 
 export function routeUsesOwnProductShell(pathname: string) {
   return OWN_SHELL_ROUTES.has(pathname);

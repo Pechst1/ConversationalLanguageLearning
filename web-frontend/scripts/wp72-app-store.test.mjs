@@ -127,10 +127,14 @@ test('one name: Capacitor config and web manifest', () => {
 });
 
 test('legal pages are public, in the app, and in sync with the API text', () => {
+  // S4 stage 1: RouteAuthGate's public list is the register's (lib/places.ts).
   const gate = read('components', 'auth', 'RouteAuthGate.tsx');
-  const publicBlock = gate.slice(gate.indexOf('PUBLIC_PATHNAMES'), gate.indexOf('GUEST_ONLY_PATHNAMES'));
-  assert.ok(publicBlock.includes("'/privacy'"));
-  assert.ok(publicBlock.includes("'/terms'"));
+  assert.ok(gate.includes('new Set(publicRoutes())'));
+  const places = read('lib', 'places.ts');
+  for (const route of ['/privacy', '/terms']) {
+    const row = places.slice(places.indexOf(`route: '${route}',`));
+    assert.match(row.slice(0, row.indexOf('entries:')), /access: 'public',/, route);
+  }
   assert.ok(existsSync(path.join(webRoot, 'pages', 'privacy.tsx')));
   assert.ok(existsSync(path.join(webRoot, 'pages', 'terms.tsx')));
   assert.equal(
@@ -202,7 +206,10 @@ test('native export: dev/QA pages and the flag-off Bibliothèque are pruned, not
   const root = mkdtempSync(path.join(os.tmpdir(), 'wp72-export-'));
   fakeExport(root);
   const prefixes = excludedRoutePrefixes({ storyFeatureVisible: false });
-  assert.deepEqual(prefixes, ['/mobile-visual-qa', '/atelier-v2-gallery', '/dev', '/bibliotheque']);
+  // S4 stage 1 added the three gallery pages the register of places found missing.
+  assert.deepEqual(prefixes, [
+    '/mobile-visual-qa', '/atelier-v2-gallery', '/dev', '/cameo-gallery', '/personnage-gallery', '/troupe-vivante', '/bibliotheque',
+  ]);
   const removed = pruneNativeExport(root, prefixes);
   assert.equal(removed.length, 10, removed.join('\n'));
   assert.deepEqual(findExcludedPaths(root, prefixes), []);
@@ -227,7 +234,7 @@ test('native export: dev/QA pages and the flag-off Bibliothèque are pruned, not
 });
 
 test('the real launch flags exclude every WP-72 route', () => {
-  for (const route of ['/mobile-visual-qa', '/atelier-v2-gallery', '/dev/styleguide']) {
+  for (const route of ['/mobile-visual-qa', '/atelier-v2-gallery', '/dev/styleguide', '/cameo-gallery', '/personnage-gallery', '/troupe-vivante']) {
     assert.ok(isExcludedRoute(route), route);
   }
   const flags = JSON.parse(read('launch-flags.json'));
