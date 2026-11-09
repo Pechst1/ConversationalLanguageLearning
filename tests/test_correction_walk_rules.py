@@ -106,3 +106,17 @@ def test_a_missing_accent_comes_back_when_the_word_can_only_be_one_word(text, sp
 )
 def test_a_word_that_can_be_two_words_gets_no_accent(text, bare):
     assert bare not in [edit.span for edit in cc.deterministic_edits(text)]
+
+
+@pytest.mark.parametrize(
+    ("text", "span", "replacement"),
+    [
+        pytest.param("je ne était", "ne était", "n'était", id="walk-25-oct"),
+        pytest.param("Je ne ai", "ne ai", "n'ai", id="ne-ai"),
+        pytest.param("Il ne a rien.", "ne a", "n'a", id="with-a-partner"),
+        pytest.param("Ce ne est pas", "ne est", "n'est", id="ce"),
+    ],
+)
+def test_ne_elides_in_front_of_a_vowel_and_no_word_is_added(text, span, replacement):
+    _finds(text, span, replacement, "FR_ELISION")
+    assert "pas" not in replacement

@@ -1218,6 +1218,12 @@ _ELIDE_ONLY_BEFORE: dict[str, frozenset[str]] = {
 _NEGATION_PARTNERS = frozenset(
     {"pas", "plus", "jamais", "rien", "personne", "guère", "point", "que", "qu", "aucun", "aucune", "ni", "nulle"}
 )
+#: Forms of être and avoir, and the pronouns: after a subject and «ne» these can only elide.
+_ALWAYS_ELIDE_NE = frozenset(
+    {"ai", "as", "a", "avons", "avez", "ont", "avais", "avait", "avions", "aviez", "avaient", "es", "est", "êtes", "étais",
+     "était", "étions", "étiez", "étaient", "y", "en"}
+)
+_SUBJECTS_BEFORE_NE = frozenset({"je", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles", "ce", "ça", "cela", "qui"})
 #: «d'abord», «d'accord», «d'ici», «d'où», «d'autres», «d'un»: the function words «de»
 #: elides in front of; any other word after «de» must be a noun, adjective or verb.
 _DE_FUNCTION_WORDS = frozenset(
@@ -1263,6 +1269,12 @@ def _elision(source: str, tokens: list[Tok], i: int) -> tuple[int, str] | None:
             rest = tokens[i + 2 :]
             ok = any(
                 t.low in _NEGATION_PARTNERS and _same_clause(source, nxt, t) for t in rest[:6]
+            ) or (
+                # «je ne était», «Je ne ai»: a subject in front closes it, the «pas» may be missing
+                word in _ALWAYS_ELIDE_NE
+                and i > 0
+                and _same_clause(source, tokens[i - 1], tok)
+                and tokens[i - 1].low in _SUBJECTS_BEFORE_NE
             )
     elif word in {"un", "une"} and i > 0 and _could_be_verb(tokens[i - 1].low) and not _is_noun(tokens[i - 1].low):
         # «je voudrais de un café» is «un café», «je parle de un ami» is «d'un ami»:
