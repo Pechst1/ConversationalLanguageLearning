@@ -340,6 +340,80 @@ AnsweredIds = Annotated[list[str], BeforeValidator(lambda value: lenient_lines(v
 
 
 # ---------------------------------------------------------------------------
+# What the learner brings into Le Quartier
+# ---------------------------------------------------------------------------
+
+#: What one ending may report the learner named.
+MAX_NAMED = 2
+NAME_FR_CHARS = 60
+
+
+class LearnerNamed(BaseModel):
+    """A place or a thing the learner brought into the story in their own words («on
+    pourrait aller à la boulangerie», «j'ai apporté des fleurs»): the forge builds what
+    the learner names first (``living_story.learner_marks``)."""
+
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
+
+    kind: str = Field(pattern=r"^(place|thing)$")
+    name_fr: str = Field(min_length=1, max_length=NAME_FR_CHARS)
+    quote: str = Field(min_length=1, max_length=QUOTE_CHARS)
+
+    @field_validator("kind", mode="before")
+    @classmethod
+    def _kind(cls, value: Any) -> str:
+        return str(value or "").strip().casefold()
+
+    @field_validator("name_fr", mode="before")
+    @classmethod
+    def _name(cls, value: Any) -> str:
+        return _cut(value, NAME_FR_CHARS)
+
+    @field_validator("quote", mode="before")
+    @classmethod
+    def _quote(cls, value: Any) -> str:
+        return _cut(value, QUOTE_CHARS)
+
+
+def lenient_named(value: Any, limit: int = MAX_NAMED) -> list[LearnerNamed]:
+    """A model's ``named`` list with every malformed row dropped: never the reason a
+    turn is refused."""
+
+    named: list[LearnerNamed] = []
+    for item in value if isinstance(value, list) else []:
+        if isinstance(item, LearnerNamed):
+            named.append(item)
+            continue
+        if not isinstance(item, dict):
+            continue
+        try:
+            named.append(LearnerNamed.model_validate(item))
+        except ValidationError:
+            continue
+    return named[:limit]
+
+
+def grounded_named(named: Iterable[LearnerNamed | dict], texts: list[str]) -> list[LearnerNamed]:
+    """What the learner named, kept only where the quote is verbatim in their own words."""
+
+    return [item for item in lenient_named(list(named)) if verbatim(item.quote, texts)]
+
+
+#: What the ending reports for Le Quartier: the one-call actor (``ACTOR``) and the story
+#: lane (``STORY``) read the same paragraph.
+NAMED_REPORT = """named lists what the learner themselves brought into the quarter in their
+own words in this exchange, at most two: a place they named, asked about or want to go to
+that the scene is not set in (kind place: «la boulangerie», «un petit marché»), or a thing
+they brought, left or want here (kind thing: «des fleurs pour Odile»). Each is {kind,
+name_fr, quote}: name_fr a short French name the story could show (an article and a noun,
+a few words), never their real address, workplace or anyone of their own life; quote
+copied verbatim from the learner's words. What only a character said is not named. Empty
+when nothing applies."""
+
+Named = Annotated[list[LearnerNamed], BeforeValidator(lenient_named)]
+
+
+# ---------------------------------------------------------------------------
 # Writing one day
 # ---------------------------------------------------------------------------
 

@@ -31,7 +31,7 @@ import { STRIDE } from './pace';
 import type { RoomBuilt } from './room';
 import { BLANK, dayOf, personOf } from './stage';
 import type { Cue, Din, Director, Level, Native, SpeechUi, StageUi, Street } from './stage';
-import { hookOf, roomOf } from './story';
+import { hookOf, inRoom } from './story';
 import type { Story, StoryLine, StoryPanel } from './story';
 
 const w = (fr: string, en: string, de: string): Words => ({ fr, en, de });
@@ -114,7 +114,7 @@ export class Interior implements Director {
     if (this.scene) {
       const page = this.scene.page;
       day = dayOf(page);
-      this.panels = page.movements.filter((m): m is StoryPanel => m.kind === 'panel' && roomOf(m) === this.room.spec.id);
+      this.panels = page.movements.filter((m): m is StoryPanel => m.kind === 'panel' && inRoom(m, this.room.spec.id));
       this.hook = hookOf(page)?.panel ?? null;
     }
     this.day = day;

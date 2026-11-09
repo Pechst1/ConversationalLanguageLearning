@@ -19,13 +19,15 @@ Two derivations let it happen:
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.core import forge as core
 from app.core.forge import ForgeState, ForgeUnit, Verdict
-from app.db.models.daily_journey import DailyJourney
+from app.db.models.daily_journey import DailyJourney, DailyJourneyStep
+from app.db.models.error import UserError
 from app.services.atelier import AtelierScheduler
 from app.services.daily_journey import DailyJourneyService
 from app.services.daily_journey_adapters import build_default_adapters
@@ -60,6 +62,123 @@ def test_entry_names_planned_rule(db_session: Session, v2, enabled) -> None:
     assert today.forge.concept_id == days_rule.id, "the forge entry names the day's rule, not another"
     assert f"concept={days_rule.id}" in today.forge.href
     assert f"concept={days_rule.id}" in today.practice_href
+
+
+def test_entry_names_the_rule_of_a_review_only_card(db_session: Session, v2, enabled) -> None:
+    """8 Nov walk: day 2's rule card was a known rule (``review``: it introduces nothing,
+    so ``plan_selection`` has no introduction) and a day-1 slip on another rule was
+    due. The Forge entry fell back to the picker, which puts the erratum first: the
+    slip rule took «Regel des Tages» and the card's own rule came back as a review.
+    The entry names the rule the card shows, introduced or reviewed."""
+
+    user = make_user(db_session, f"forge-443-{uuid.uuid4().hex[:8]}@example.com")
+    service = DailyJourneyService(db_session, build_default_adapters())
+    created, code = service.create_journey(user, create_request())
+    assert code == 201
+
+    upcoming = AtelierScheduler(db_session).next_new_concepts(user, limit=4, language="fr")
+    assert len(upcoming) >= 2
+    slip_rule, card_rule = upcoming[0], upcoming[1]
+    db_session.add(
+        UserError(
+            user_id=user.id,
+            concept_id=slip_rule.id,
+            error_category="grammar",
+            error_pattern="article",
+            original_text="la appartement",
+            correction="l'appartement",
+            next_review_date=datetime.now(UTC) - timedelta(hours=1),
+            occurrences=1,
+        )
+    )
+    row = db_session.get(DailyJourney, uuid.UUID(created.id))
+    selection = dict(row.plan_selection or {})
+    selection["introduction"] = None  # a review-only card introduces nothing
+    row.plan_selection = selection
+    flag_modified(row, "plan_selection")
+    db_session.add(
+        DailyJourneyStep(
+            journey_id=row.id,
+            ordinal=len(row.steps),
+            kind="rule",
+            status="pending",
+            estimated_seconds=40,
+            public_prompt={
+                "concept_id": card_rule.id,
+                "title_native": card_rule.name,
+                "review": True,
+                "rule_card": {"example": {"fr": "Je suis [content]."}, "rule": {"en": "A known rule."}},
+            },
+            private_task={"review_concept_id": card_rule.id},
+        )
+    )
+    db_session.commit()
+
+    today = service.get_today(user)
+    assert today.forge is not None
+    assert today.forge.concept_id == card_rule.id, "the day's Forge works on the rule the card shows, not on a slip rule"
+    assert f"concept={card_rule.id}" in today.forge.href
+    assert f"concept={card_rule.id}" in today.practice_href
+
+    # The folded forge step was planned with the picker's rule: its link follows the card.
+    folded = DailyJourneyStep(
+        journey_id=row.id,
+        ordinal=len(row.steps) + 1,
+        kind="forge",
+        status="pending",
+        estimated_seconds=300,
+        public_prompt={"concept_id": slip_rule.id, "budget_seconds": 300},
+    )
+    db_session.add(folded)
+    db_session.commit()
+    db_session.refresh(row)
+    view = service._forge_prompt_view(row, folded)
+    assert view["concept_id"] == card_rule.id
+    assert f"concept={card_rule.id}" in view["href"]
+
+
+def test_entry_keeps_the_rule_card_over_a_due_erratum(db_session: Session, v2, enabled) -> None:
+    """Walks 6 and 7 Nov: day 2's rule card taught one rule, a slip from day 1 was due on
+    another, and «Forge today's rule» opened on the slip's rule. The séance seated from the
+    entry's href must start on the rule card's rule."""
+
+    from app.services import forge_picker
+
+    user = make_user(db_session, f"forge-443-{uuid.uuid4().hex[:8]}@example.com")
+    service = DailyJourneyService(db_session, build_default_adapters())
+    created, code = service.create_journey(user, create_request())
+    assert code == 201
+    upcoming = AtelierScheduler(db_session).next_new_concepts(user, limit=4, language="fr")
+    assert len(upcoming) >= 2
+    card_rule, slipped_rule = upcoming[1], upcoming[0]
+    db_session.add(
+        UserError(
+            user_id=user.id,
+            concept_id=slipped_rule.id,
+            error_category="grammar",
+            error_pattern="article",
+            original_text="la appartement",
+            correction="l'appartement",
+            next_review_date=datetime.now(UTC) - timedelta(hours=1),
+            occurrences=2,
+        )
+    )
+    row = db_session.get(DailyJourney, uuid.UUID(created.id))
+    row.plan_selection = {
+        **dict(row.plan_selection or {}),
+        "introduction": {"concept_id": card_rule.id, "title_native": card_rule.name},
+    }
+    flag_modified(row, "plan_selection")
+    db_session.commit()
+
+    today = service.get_today(user)
+    assert today.forge is not None and today.forge.concept_id == card_rule.id
+    # What the page does with the href: ask for a day-step séance on that concept.
+    plan = forge_picker.forge_plan(
+        db_session, user, preferred_concept_id=today.forge.concept_id, origin="after_day"
+    )
+    assert plan.units[0].concept_id == card_rule.id
+    assert plan.units[0].role == "today"
 
 
 def test_withdrawn_top_out_reopens() -> None:

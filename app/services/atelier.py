@@ -37,7 +37,7 @@ from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.db.session import SessionLocal
-from app.services import order_rules
+from app.services import fallback_pools, order_rules
 from app.services.address import address_instruction
 from app.services.answer_acceptance import (
     accent_policy,
@@ -74,13 +74,14 @@ from app.services.forge_grading import (
     notes_native,
     production_local_check,
     refine_production_correction,
+    sentence_differences,
     slip_note,
     token_diff,
 )
 from app.services.forge_grading import (
     TO_CORRECT_LABEL as JUDGEMENT_TO_CORRECT,
 )
-from app.services.forge_item_validator import advice, situation_problems
+from app.services.forge_item_validator import advice, scenario_problems
 from app.services.glosses import (
     DEFAULT_GLOSS_LANGUAGE,
     EXPLANATION_LANGUAGE_NAMES,
@@ -92,11 +93,13 @@ from app.services.grammar import GrammarService
 from app.services.grammar_catalog import FrenchCoreGrammarCatalog, concept_sub_band
 from app.services.grammar_feedback import authored_repair, count_concept_hits, infer_grammar_profile
 from app.services.item_bank import (
+    BLANK_RE,
     ITEM_BANK_VERSION,
     TRANSFORM_TASK_KINDS,
     VARIETY_WINDOW_DAYS,
     _is_judgement,
     build_bank_set,
+    fill_blank,
     judgement_item,
     label_table,
     units_for_external_id,
@@ -108,7 +111,7 @@ from app.services.llm_service import LLMProviderError, LLMService
 from app.services.progress import ProgressService
 from app.services.rule_cards import rule_card_for
 from app.services.seance_curriculum import lesson_for, lesson_panel
-from app.services.streak import read_streak, record_practice_day
+from app.services.streak import StreakState, read_streak, record_practice_day
 from app.services.vocabulary_credit import VocabularyCreditService
 
 ATELIER_GENERATOR_VERSION = "atelier-v11"
@@ -1033,7 +1036,8 @@ def _join_french_tokens(tokens: list[Any]) -> str:
 
 def _tokenize_french_sentence(sentence: str) -> list[str]:
     sentence = re.sub(r"[‘’‚‛′`´ʹʻʼ]", "'", sentence)
-    tokens = re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ]+(?:['-][A-Za-zÀ-ÖØ-öø-ÿ]+)*|[.,!?;:]", sentence)
+    # Œ/œ are letters: «sœur» is one token, not «s» + «ur».
+    tokens = re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿŒœ]+(?:['-][A-Za-zÀ-ÖØ-öø-ÿŒœ]+)*|[.,!?;:]", sentence)
     return [token for token in tokens if token.strip()]
 
 
@@ -3147,7 +3151,7 @@ class AtelierExerciseGenerator:
         elif _is_vague_output_prompt(produce.get("prompt")):
             errors.append("produce prompt must set a concrete situation")
         else:
-            errors.extend(f"produce prompt {advice(problem)}" for problem in situation_problems(produce.get("prompt")))
+            errors.extend(f"produce prompt {advice(problem)}" for problem in scenario_problems(produce.get("prompt")))
         ladder = payload.get("output_ladder") or {}
         for key in ("sentence", "speak", "conversation"):
             items = (ladder.get(key) or {}).get("items") or []
@@ -3171,7 +3175,7 @@ class AtelierExerciseGenerator:
                 # ROOT CAUSE #146: the guard knew the shape of a situation, never its sense.
                 errors.extend(
                     f"output_ladder.{key} item {item_id(item)} prompt {advice(problem)}"
-                    for problem in situation_problems(item.get("prompt"))
+                    for problem in scenario_problems(item.get("prompt"))
                 )
         return errors
 
@@ -3899,7 +3903,7 @@ class AtelierExerciseGenerator:
         for index, sentence in enumerate(sentences[:3], start=1):
             answer_tokens = _tokenize_french_sentence(sentence)
             item_id = f"{prefix}-fallback-bank-{index}"
-            distractors = self._word_bank_distractors(concept, answer_tokens)
+            distractors = self._word_bank_distractors(concept, answer_tokens, sentence=sentence)
             tokens = _stable_scramble([*answer_tokens, *distractors], item_id)
             items.append(
                 {
@@ -3913,19 +3917,24 @@ class AtelierExerciseGenerator:
             )
         return items
 
-    def _word_bank_distractors(self, concept: GrammarConcept, answer_tokens: list[Any]) -> list[str]:
+    def _word_bank_distractors(
+        self,
+        concept: GrammarConcept,
+        answer_tokens: list[Any],
+        *,
+        sentence: str | None = None,
+    ) -> list[str]:
+        """The wrong tiles for a bank: real French words that break the concept's rule.
+
+        #448 / #146: they were ``token + "s"`` and a fixed «autrement» («prêters»,
+        «peuxs»). They now come from the concept (:mod:`app.services.fallback_pools`):
+        the forms its own ✗ sentences use, a rule-bound variant of the answer's own verb,
+        the family's closed pool, and only then a neutral real word. Every one is a word
+        of the concept's sentences or of the lexicon."""
+
         profile = infer_grammar_profile(concept)
-        normalized_answer = {_normalize(token) for token in answer_tokens if _normalize(token)}
-        distractors: list[str] = []
-
-        def add(token: str) -> None:
-            normalized = _normalize(token)
-            if not normalized or normalized in normalized_answer:
-                return
-            if normalized in {_normalize(existing) for existing in distractors}:
-                return
-            distractors.append(token)
-
+        text = sentence if sentence is not None else _join_french_tokens(answer_tokens)
+        extra: list[str] = []
         if profile.key == "si_present_result_form":
             try:
                 comma_index = [str(token) for token in answer_tokens].index(",")
@@ -3933,41 +3942,35 @@ class AtelierExerciseGenerator:
             except ValueError:
                 result_tokens = answer_tokens
             for token in result_tokens:
-                for distractor in self._si_verb_distractors(str(token)):
-                    add(distractor)
-                    if distractors:
-                        return distractors[:2]
-            add("conditionnel")
+                extra.extend(self._si_verb_distractors(str(token)))
         elif profile.key == "article_after_negation":
+            normalized_answer = {_normalize(token) for token in answer_tokens}
             if "de" in normalized_answer:
-                add("du")
+                extra.append("du")
             if any(token.startswith("d'") for token in normalized_answer):
-                add("une")
-            add("des")
+                extra.append("une")
+            extra.append("des")
         elif profile.key == "tense_aspect":
             for token in answer_tokens:
                 normalized = _normalize(token)
                 if normalized.endswith("ais"):
-                    add(normalized[:-3] + "erai")
+                    extra.append(normalized[:-3] + "erai")
                     break
                 if normalized.endswith("ait"):
-                    add(normalized[:-3] + "era")
+                    extra.append(normalized[:-3] + "era")
                     break
-            add("soudain")
-        else:
-            for token in answer_tokens:
-                normalized = _normalize(token)
-                if len(normalized) >= 5:
-                    add(f"{token}s")
-                    break
-            add("autrement")
-        return distractors[:2] or ["autrement"]
+        material = fallback_pools.material_words([text, *fallback_pools.concept_sentences(concept)])
+        return fallback_pools.pick_distractors(
+            fallback_pools.distractor_candidates(concept, text, "", family=profile.key, extra=extra),
+            answer_words=[str(token) for token in answer_tokens],
+            material=material,
+            seed=text,
+        )
 
     @staticmethod
     def _generic_word_bank_distractors(answer_tokens: list[Any]) -> list[str]:
         answer_norms = {_normalize(token) for token in answer_tokens if _normalize(token)}
-        pool = ["soudain", "déjà", "souvent", "hier", "demain", "toujours", "vraiment", "autrement"]
-        return [word for word in pool if _normalize(word) not in answer_norms]
+        return [word for word in fallback_pools.NEUTRAL_POOL if _normalize(word) not in answer_norms]
 
     def _fill_choice_distractors(self, concept: GrammarConcept | None, answer: str, choices: list[str]) -> list[str]:
         present = {_normalize(choice) for choice in choices}
@@ -3983,7 +3986,7 @@ class AtelierExerciseGenerator:
         if concept is not None:
             for candidate in self._word_bank_distractors(concept, [answer]):
                 consider(candidate)
-        for candidate in ["de", "du", "des", "le", "la", "ne", "pas", "soudain", "autrement"]:
+        for candidate in ["de", "du", "des", "le", "la", "ne", "pas", "soudain", "déjà"]:
             consider(candidate)
         return out
 
@@ -4035,48 +4038,64 @@ class AtelierExerciseGenerator:
         return []
 
     def _fallback_fill_items(self, concept: GrammarConcept, *, prefix: str) -> list[dict[str, Any]]:
+        """Three fill items whose blank is a word the concept's rule decides.
+
+        #448 / #146: the blank was the first word of four letters or more and the wrong
+        options were ``answer + "s"`` and «autrement». A row now needs the concept's own
+        detector to cover the blank (a hand-written row of a family is dropped for a
+        unit it does not practise), and a derived row blanks a word inside the detector's
+        span of one of the concept's own sentences, with real wrong options that break
+        the rule (:mod:`app.services.fallback_pools`)."""
+
         profile = infer_grammar_profile(concept)
+        authored: list[dict[str, Any]] = []
         if profile.key == "article_after_negation":
-            return [
-                {"id": f"{prefix}-fallback-fill-1", "prompt": "Je ne bois pas ____ café.", "choices": ["de", "du", "un"], "correct_answer": "de"},
-                {"id": f"{prefix}-fallback-fill-2", "prompt": "Elle n'a pas ____ idée.", "choices": ["d'", "une", "de la"], "correct_answer": "d'"},
-                {"id": f"{prefix}-fallback-fill-3", "prompt": "Nous n'avons pas ____ dossier.", "choices": ["de", "du", "le"], "correct_answer": "de"},
+            authored = [
+                {"prompt": "Je ne bois pas ____ café.", "choices": ["de", "du", "un"], "correct_answer": "de"},
+                {"prompt": "Elle n'a pas ____ idée.", "choices": ["d'", "une", "de la"], "correct_answer": "d'"},
+                {"prompt": "Nous n'avons pas ____ dossier.", "choices": ["de", "du", "le"], "correct_answer": "de"},
             ]
-        if profile.key == "tense_aspect":
-            return [
-                {"id": f"{prefix}-fallback-fill-1", "prompt": "Je ____ quand elle est arrivée.", "choices": ["marchais", "ai marché", "marcherai"], "correct_answer": "marchais"},
-                {"id": f"{prefix}-fallback-fill-2", "prompt": "Soudain, il ____ la porte.", "choices": ["ouvrait", "a ouvert", "ouvrira"], "correct_answer": "a ouvert"},
-                {"id": f"{prefix}-fallback-fill-3", "prompt": "Tous les dimanches, nous ____ au marché.", "choices": ["allions", "sommes allés", "irons"], "correct_answer": "allions"},
+        elif profile.key == "tense_aspect":
+            authored = [
+                {"prompt": "Je ____ quand elle est arrivée.", "choices": ["marchais", "ai marché", "marcherai"], "correct_answer": "marchais"},
+                {"prompt": "Soudain, il ____ la porte.", "choices": ["ouvrait", "a ouvert", "ouvrira"], "correct_answer": "a ouvert"},
+                {"prompt": "Tous les dimanches, nous ____ au marché.", "choices": ["allions", "sommes allés", "irons"], "correct_answer": "allions"},
             ]
-        if profile.key == "si_present_result_form":
-            return [
-                {"id": f"{prefix}-fallback-fill-1", "prompt": "Si je finis tôt, je t'_____.", "choices": ["appellerai", "appelle", "appellerais"], "correct_answer": "appellerai"},
-                {"id": f"{prefix}-fallback-fill-2", "prompt": "S'il pleut demain, ____ ton manteau.", "choices": ["prends", "prendras", "prenais"], "correct_answer": "prends"},
-                {"id": f"{prefix}-fallback-fill-3", "prompt": "Si nous partons maintenant, nous ____ tôt.", "choices": ["arriverons", "arrivons", "arriverions"], "correct_answer": "arriverons"},
+        elif profile.key == "si_present_result_form":
+            authored = [
+                {"prompt": "Si je finis tôt, je t'_____.", "choices": ["appellerai", "appelle", "appellerais"], "correct_answer": "appellerai"},
+                {"prompt": "S'il pleut demain, ____ ton manteau.", "choices": ["prends", "prendras", "prenais"], "correct_answer": "prends"},
+                {"prompt": "Si nous partons maintenant, nous ____ tôt.", "choices": ["arriverons", "arrivons", "arriverions"], "correct_answer": "arriverons"},
             ]
+        material = fallback_pools.material_words(fallback_pools.concept_sentences(concept))
+        # A family's hand-written row serves a unit only if that unit's detector covers its
+        # blank, and every option is a real word.
+        rows: list[dict[str, Any]] = [
+            dict(row)
+            for row in authored
+            if fallback_pools.row_serves(concept, row["prompt"], row["correct_answer"], row["choices"], material)
+        ]
+        prompts = {row["prompt"] for row in rows}
+        for sentence in [*self._fallback_sentences(concept), *fallback_pools.concept_sentences(concept, wrong=False)]:
+            if len(rows) >= 3:
+                break
+            built = fallback_pools.fill_from_sentence(
+                concept,
+                sentence,
+                family=profile.key,
+                material=material,
+                seed=f"{prefix}-{len(rows)}",
+            )
+            if built is None or built["prompt"] in prompts:
+                continue
+            prompts.add(built["prompt"])
+            rows.append(
+                {"prompt": built["prompt"], "choices": [built["answer"], *built["distractors"]], "correct_answer": built["answer"]}
+            )
         items: list[dict[str, Any]] = []
-        sentences = self._fallback_sentences(concept)
-        for index, sentence in enumerate(sentences[:3], start=1):
-            tokens = _tokenize_french_sentence(sentence)
-            answer = next(
-                (
-                    token
-                    for token in tokens
-                    if re.fullmatch(r"[A-Za-zÀ-ÖØ-öø-ÿ]+(?:['’][A-Za-zÀ-ÖØ-öø-ÿ]+)?", token)
-                    and len(_normalize(token)) >= 4
-                ),
-                tokens[0] if tokens else profile.label,
-            )
-            prompt = re.sub(re.escape(answer), "____", sentence, count=1)
-            distractor = f"{answer}s" if not str(answer).endswith("s") else str(answer).rstrip("s")
-            items.append(
-                {
-                    "id": f"{prefix}-fallback-fill-{index}",
-                    "prompt": prompt,
-                    "choices": [str(answer), distractor, "autrement"],
-                    "correct_answer": str(answer),
-                }
-            )
+        for index, row in enumerate(rows[:3], start=1):
+            item_id = f"{prefix}-fallback-fill-{index}"
+            items.append({"id": item_id, **{**row, "choices": _stable_scramble(row["choices"], item_id)}})
         return items
 
     def _fallback_classify_items(self, concept: GrammarConcept, *, prefix: str) -> list[dict[str, Any]]:
@@ -4166,6 +4185,8 @@ class AtelierExerciseGenerator:
         *,
         prefix: str,
     ) -> list[dict[str, Any]]:
+        from app.services.grammar_units import contrast_pairs
+
         profile = infer_grammar_profile(concept)
         # WP-67: the instruction is no longer an English literal. Each pair
         # carries the `learner_copy` key that wrote it; the stored payload keeps
@@ -4245,6 +4266,27 @@ class AtelierExerciseGenerator:
             ],
         )
 
+        # #447 / #146: those rows are filed by the concept's FAMILY, so every unit of the
+        # «preposition» family served «Il habite à cette rue» and every «pronoun_choice»
+        # unit single-pronoun swaps. A row now serves a concept only when the concept's own
+        # detector recognises its form in the row's answer; the rest of the three come
+        # from the unit's own ✗ → ✓ pairs, which are about this unit by construction.
+        detected = fallback_pools.has_detector(concept)
+        served = [row for row in transform_pairs if not detected or fallback_pools.rule_hit(concept, row[3])]
+        taken = {row[2] for row in served}
+        pair_rows = [
+            ("repair_rewrite", "atelier.transform.repair_pair", pair["wrong"], pair["right"])
+            for pair in contrast_pairs(concept)
+            if pair["wrong"] not in taken
+            # The detector of a register unit («ne» dropped) recognises the ✗ side: the pair
+            # is about the unit when either side shows its form.
+            and (not detected or fallback_pools.rule_hit(concept, pair["right"]) or fallback_pools.rule_hit(concept, pair["wrong"]))
+        ]
+        rows = [*served, *pair_rows][:ATELIER_TRANSFORM_ITEMS]
+        if 0 < len(rows) < ATELIER_TRANSFORM_ITEMS:
+            # The validator takes one item or three. A unit with only one or two rows that
+            # practise it serves one, not the same correction twice (#87).
+            rows = rows[:1]
         return [
             {
                 "id": f"{prefix}-fallback-transform-{index}",
@@ -4254,7 +4296,7 @@ class AtelierExerciseGenerator:
                 "source": source,
                 "expected_answer": expected_answer,
             }
-            for index, (kind, instruction_key, source, expected_answer) in enumerate(transform_pairs, start=1)
+            for index, (kind, instruction_key, source, expected_answer) in enumerate(rows, start=1)
         ]
 
     def _fallback_output_item(
@@ -4688,6 +4730,39 @@ class AtelierExerciseQualityService:
 ATELIER_LLM_ANSWER_MAX_CHARS = ANSWER_MAX_CHARS
 
 
+class AnswerLengthError(ValueError):
+    """A typed line outside the word range its item stated (#574)."""
+
+
+#: Typed rungs whose item states a word range; a spoken transcript's length is the recogniser's.
+_RANGED_ROUNDS = frozenset({"sentence", "conversation"})
+
+
+def check_answer_length(round_name: str, prompt_payload: dict[str, Any], answer_payload: dict[str, Any]) -> None:
+    """Refuse a typed line above its item's word ceiling.
+
+    The screen printed «17 / 7–16 words» beside a line that was taken all the
+    same: the range was a label, not a rule. The server states it, so the app and
+    any other client agree on what an answer to this item is.
+    """
+
+    text = answer_payload.get("text")
+    items = prompt_payload.get("items") if isinstance(prompt_payload, dict) else None
+    if round_name not in _RANGED_ROUNDS or not isinstance(text, str) or not text.strip():
+        return
+    if not isinstance(items, list) or len(items) != 1 or not isinstance(items[0], dict):
+        return
+    try:
+        high = int(items[0].get("max_words") or 0)
+    except (TypeError, ValueError):
+        return
+    words = len(text.split())
+    # The ceiling is the rule. The floor stays a hint («2 more words»): items carry a
+    # generic default one (5 or 6 words), and a short line that is right is still right.
+    if high and words > high:
+        raise AnswerLengthError(f"This item takes at most {high} words; the answer has {words} words.")
+
+
 class AtelierCorrectionService:
     """Exercise-aware checking and structured correction payloads."""
 
@@ -4740,6 +4815,8 @@ class AtelierCorrectionService:
             session=session,
             item_ids=_burst_ids(answer_payload) if _is_burst(exercise_id) else None,
         )
+        if not retest_of:
+            check_answer_length(round_name, prompt_payload, answer_payload)
         target_vocabulary = session_vocabulary_context(session)
         if target_vocabulary:
             prompt_payload = inject_vocabulary_context(prompt_payload, target_vocabulary)
@@ -4897,9 +4974,12 @@ class AtelierCorrectionService:
             source = self._answer_text(attempt.answer_payload or {})
             # Owner, 2026-10-19: a long line is repaired by fixing only its wrong
             # parts in place. The learner's own line with each wrong stretch
-            # replaced is right too, even when the model's rewrite also tidied
-            # something it did not mark.
-            accepted = [target, repair_line_from_parts(source, errata)]
+            # replaced is right too, but only when it IS the corrected sentence
+            # (#574): a stored correction that left a difference out of its list
+            # (the model's rewrite also changed «agreable» to «agréable») must not
+            # read «Line fixed» with that difference still in the line.
+            in_place = repair_line_from_parts(source, errata)
+            accepted = [target, in_place if in_place and not sentence_differences(in_place, target) else None]
         else:
             # #503: a keyed round asks for «the corrected line» too. The line is
             # the key's own corrected answer for the item, or the learner's line
@@ -8173,9 +8253,9 @@ class AtelierCorrectionService:
         # FORGE-DE: a bank item quotes the rule of its own unit — a concept that
         # maps to several units (être, -er verbs, modals…) would otherwise show
         # every unit's rule, or another unit's («-er» on «veux»).
-        from app.services.item_bank import item_unit_rule
+        from app.services.item_bank import item_miss_reason
 
-        own = item_unit_rule(item, self.explanation_language) if item else None
+        own = item_miss_reason(item, self.explanation_language) if item else None
         if own:
             return own
         if self.explanation_language == "fr":
@@ -8353,8 +8433,8 @@ class AtelierSRSService:
             elif attempt.mode == "fill":
                 blank = str(item.get("prompt") or "")
                 answer = (learner if right and learner else "") or str(item.get("correct_answer") or "")
-                if "___" in blank and answer:
-                    key = re.sub(r"\s*\([^)]*\)\s*$", "", blank.replace("___", answer, 1))
+                if BLANK_RE.search(blank) and answer:
+                    key = re.sub(r"\s*\([^)]*\)\s*$", "", fill_blank(blank, answer))
             elif attempt.mode == "word_bank":
                 key = (learner if right and len(learner.split()) >= 2 else "") or str(item.get("correct_answer") or "")
             elif item.get("classify_kind") == "minimal_pair":
@@ -8548,14 +8628,17 @@ class AtelierSRSService:
                 }
             )
 
-        previous_streak = getattr(user, "grammar_streak_days", 0) or 0
-        self._update_streak(user)
+        # #559: the recap prints the streak every other screen prints, read through
+        # the one rule (`read_streak`), never the stored column: after a missed day
+        # that column still holds the broken chain («12 → 1»).
+        previous_streak = read_streak(user).days
+        streak_now = self._update_streak(user)
         recap = {
             "concepts_repaired": len([row for row in progress_rows if row["score"] >= 5]),
             "errata_logged": errata_count,
             "strengthened": len(progress_rows),
             "streak_before": previous_streak,
-            "streak_after": getattr(user, "grammar_streak_days", 0) or 0,
+            "streak_after": streak_now.days,
             "concepts": progress_rows,
             # Distinct drills, not attempt rows: the recap prints this as
             # "lignes réglées", and a learner who used "Réessayer" three times on
@@ -8659,17 +8742,24 @@ class AtelierSRSService:
         self.db.commit()
         return recap
 
-    def _update_streak(self, user: User) -> None:
+    def _update_streak(self, user: User) -> StreakState:
         # WP-80: the one streak rule (local day, «jour de relâche»), shared
         # with the daily journey.
-        record_practice_day(self.db, user)
+        return record_practice_day(self.db, user)
 
 
 def serialize_concept(
     concept: GrammarConcept,
     fr_localization: GrammarConceptLocalization | None = None,
+    *,
+    language: str | None = None,
 ) -> dict[str, Any]:
     """Serialize a concept; `title_fr` carries the publication-language title.
+
+    `language` is the learner's chrome language (#561): the payload then also carries
+    `title_native`, `concept_title(concept, language)`, which is what La Forge's header
+    and end sheet show, so they call the rule what the rule card calls it. Without a
+    language there is no `title_native`; the page falls back to `title_fr`.
 
     Falls back to the English catalog name when no 'fr' localization row exists.
     Callers with several concepts should bulk-fetch the localizations and pass
@@ -8685,6 +8775,7 @@ def serialize_concept(
         "category": concept.category,
         "subskill": concept.subskill,
         "title_fr": concept_title_fr(concept, fr_localization),
+        "title_native": concept_title(concept, language) if language else None,
         "category_label_fr": (fr_localization.category_label if fr_localization else None) or concept.category,
         "core_rule": concept.core_rule,
         "main_traps": _split_list(concept.main_traps),

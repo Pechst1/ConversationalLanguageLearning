@@ -31,7 +31,7 @@ from functools import lru_cache
 from typing import Any
 
 from app.config import settings
-from app.services import story_memory
+from app.services import address, story_memory
 from app.services.cast_registry import display_names
 from app.services.season.clock import SEASON_KEY, Position, played_log, record_played
 from app.services.season.director import (
@@ -543,6 +543,9 @@ def tentpole_brief(
         "tail": page_tail(page),
         "panel_images": panel_images(page, scene_panels),
         "seed": today.seed,
+        # #594: how each person of the cast speaks to the learner on this day. The check on a
+        # reply reads the turn's addressee here, never the scene's first speaker.
+        "registers": address.season_registers(today.season, today.flags),
         # T-1: the grammar units this page uses — the Règle step reviews one of
         # them instead of introducing a unit the authored page never says.
         "units": list(tentpole_annotation(today.season.id, today.pos.key).get("units") or []),
@@ -847,36 +850,14 @@ def _asked_from(turns: list[dict[str, Any]], index: int, taken: dict[str, str]) 
     return index
 
 
-def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int, assistance, history=None):
-    """The learner's reply, routed; the bible's reaction; the day's close when due."""
+def _replay(
+    db, user, turns: list[dict[str, Any]], scene_id: str, history: list | None
+) -> tuple[list[tuple[str, dict[str, Any]]], set[str]]:
+    """Replay the conversation so far to know which turn is owed: the route each
+    exchange took is kept with it (QA-STORY); older exchanges are re-read by the
+    matcher (no model, so ``db`` and ``user`` may be ``None``). Returns the routed
+    replies and the turns already asked again."""
 
-    from app.services import living_story as engine
-    from app.services.journey_contracts import (
-        ResponseEvaluation,
-        StoryOutcomeProposal,
-        TaskOutcome,
-    )
-
-    season_ctx = scenario.story_context.get(SEASON_CONTEXT_KEY) or {}
-    turns: list[dict[str, Any]] = list(season_ctx.get("turns") or [])
-    scene_id = str(scenario.story_context.get("scene_id") or "")
-    # WP-124a: a reprise re-reads a page on a day the model already failed — its
-    # replies are routed by the matcher alone, under the reprise's own cache key.
-    reprise = season_ctx.get("reprise") if isinstance(season_ctx.get("reprise"), dict) else None
-    if reprise is not None:
-        scene_id = scene_id or f"reprise:{reprise.get('token') or ''}"
-    use_model = reprise is None
-    if answer.is_blank or not turns:
-        return ResponseEvaluation(
-            outcome=TaskOutcome.UNSCORED,
-            assistance=assistance,
-            observations=[],
-            turn_consumed=False,
-            pending=True,
-            failure_reason="empty_answer" if answer.is_blank else "season_turn_missing",
-        )
-    # Replay the conversation so far to know which turn this is: the route each
-    # exchange took is kept with it (QA-STORY); older exchanges are re-read.
     routed: list[tuple[str, dict[str, Any]]] = []
     asked: set[str] = set()
     for exchange in history or []:
@@ -900,6 +881,96 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
             continue
         choice = card_choice(turns[index], learner) or classify(db, user, scene_id=scene_id, turn=turns[index], text=learner, use_model=False)
         routed.append((learner, reply_by_id(turns[index], choice.reply_id)))
+    return routed, asked
+
+
+def _scene_id(scenario) -> str:
+    """The reply router's cache key for this scene (a reprise has no scene of its own)."""
+
+    season_ctx = scenario.story_context.get(SEASON_CONTEXT_KEY) or {}
+    scene_id = str(scenario.story_context.get("scene_id") or "")
+    reprise = season_ctx.get("reprise") if isinstance(season_ctx.get("reprise"), dict) else None
+    if reprise is not None:
+        scene_id = scene_id or f"reprise:{reprise.get('token') or ''}"
+    return scene_id
+
+
+def current_turn(scenario, history: list | None) -> dict[str, Any] | None:
+    """The authored turn the learner is answering now, or ``None`` off an authored page."""
+
+    season_ctx = (getattr(scenario, "story_context", None) or {}).get(SEASON_CONTEXT_KEY) or {}
+    turns: list[dict[str, Any]] = list(season_ctx.get("turns") or [])
+    if not turns:
+        return None
+    routed, _asked = _replay(None, None, turns, _scene_id(scenario), history)
+    index, _answered = _walk(turns, routed)
+    return turns[min(index, len(turns) - 1)]
+
+
+@dataclass(frozen=True, slots=True)
+class Addressee:
+    """Who the turn now owed is for: id, the name the learner reads, how they speak to the learner."""
+
+    id: str
+    name: str
+    register: str
+
+
+def addressee_of(scenario, history: list | None) -> Addressee | None:
+    """The person the learner is answering on this turn (#594), from the cast.
+
+    A tentpole page has several addressees (Gus asks, then Margaux), and how each of them
+    speaks to the learner is the *person's* (``address.known_register``), never the scene's:
+    the scene's character is only whoever spoke first. ``None`` when the turn names nobody the
+    cast knows (the learner, a narrator), so the caller keeps the scene's own reading.
+    """
+
+    from app.services.cast_registry import display_name
+
+    turn = current_turn(scenario, history)
+    person = str((turn or {}).get("to") or "").strip()
+    if not person:
+        return None
+    season_ctx = scenario.story_context.get(SEASON_CONTEXT_KEY) or {}
+    try:
+        season = load_season(str(season_ctx.get("id") or "s1"))
+    except Exception:  # noqa: BLE001 - a missing season file never costs the turn
+        return None
+    # The registers the day was planned with; a day planned before they were kept reads the
+    # season's own (the cast's ``address``).
+    registers = season_ctx.get("registers") or address.season_registers(season, effective_flags(season, None))
+    register = address.known_register(None, person, registers=registers)
+    name = display_name(person) or display_names(season.cast).get(person) or ""
+    return Addressee(id=person, name=name, register=register) if register and name else None
+
+
+def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int, assistance, history=None):
+    """The learner's reply, routed; the bible's reaction; the day's close when due."""
+
+    from app.services import living_story as engine
+    from app.services.journey_contracts import (
+        ResponseEvaluation,
+        StoryOutcomeProposal,
+        TaskOutcome,
+    )
+
+    season_ctx = scenario.story_context.get(SEASON_CONTEXT_KEY) or {}
+    turns: list[dict[str, Any]] = list(season_ctx.get("turns") or [])
+    scene_id = _scene_id(scenario)
+    # WP-124a: a reprise re-reads a page on a day the model already failed — its
+    # replies are routed by the matcher alone, under the reprise's own cache key.
+    reprise = season_ctx.get("reprise") if isinstance(season_ctx.get("reprise"), dict) else None
+    use_model = reprise is None
+    if answer.is_blank or not turns:
+        return ResponseEvaluation(
+            outcome=TaskOutcome.UNSCORED,
+            assistance=assistance,
+            observations=[],
+            turn_consumed=False,
+            pending=True,
+            failure_reason="empty_answer" if answer.is_blank else "season_turn_missing",
+        )
+    routed, asked = _replay(db, user, turns, scene_id, history)
     index, answered = _walk(turns, routed)
     index = min(index, len(turns) - 1)
     turn = turns[index]
@@ -1041,6 +1112,7 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         reply_lines=spoken_lines_out,
         next_choices=next_choices,
         next_task_native=next_task or None,
+        next_addressee=turn_addressee(upcoming_turn, scenario) if upcoming_turn else None,
         next_hint_native=hint_for(upcoming_turn, (season_ctx.get("page") or {}).get("language")) if upcoming_turn else None,
         next_suggested_fr=turn_example(upcoming_turn) if upcoming_turn else None,
         next_translation_native=" ".join(
@@ -1601,9 +1673,9 @@ def _settle_recovered_tentpole(
 def _apply_registers(season: Season, state: dict, relationships: dict[str, Any]) -> None:
     """``register.<cast id>`` flags (Gus's vous until T3) onto the relationship map."""
 
-    flags = effective_flags(season, state)
+    registers = address.season_registers(season, effective_flags(season, state))
     for member in season.cast:
-        value = flags.get(f"register.{member.id}") or member.address
+        value = registers[member.id]
         entry = dict(relationships.get(member.id) or {})
         if entry.get("register") != value:
             entry["register"] = value

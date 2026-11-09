@@ -410,6 +410,31 @@ def test_custom_mission_builds_personal_thread(client: TestClient, db_session, m
     assert any(item["id"] == "custom_real_life_outcome" for item in mission["objectives"])
 
 
+def test_a_custom_mission_keeps_the_register_the_learner_asked_for(db_session):
+    """The domain a custom letter is drawn from has a register of its own («tu / friendly
+    neighbour»); the branch check reads ``target_register`` before the realism rules, so a
+    polite letter to the landlord was told to «reformuler plus poliment» whenever the draw
+    landed on a «tu» domain (a red CI run, 8 Nov)."""
+
+    generator = missions_module.MissionGenerator(db_session)
+    for drawn in ("tu / friendly neighbour", "tu / warm informal", "vous / polite formal", None):
+        _, _, messenger, _ = generator._customize_mission(
+            mission_type="message",
+            title="t",
+            brief="b",
+            messenger={"target_register": drawn} if drawn else {},
+            custom_context={
+                "scenario": "I need to text my landlord because the heating stopped.",
+                "relationship": "landlord",
+                "register": "polite formal",
+                "desired_outcome": "The landlord confirms a repair appointment this week.",
+            },
+            concepts=[],
+        )
+        assert messenger["target_register"] == "polite formal"
+        assert missions_module.register_kind(messenger["target_register"]) == "formal"
+
+
 def test_custom_mission_e2e_create_turn_complete_and_queue(client: TestClient, db_session, monkeypatch):
     monkeypatch.setattr(NewsService, "fetch_france_context", _fake_france_context)
     token = _token(client)

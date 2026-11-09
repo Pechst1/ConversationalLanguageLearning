@@ -344,6 +344,33 @@ export function homeDayChip(
   return { streak, dayDone };
 }
 
+/**
+ * #559: the streak a séance's recap prints is the streak Home prints. The server
+ * counts today as soon as a séance is finished (`streak_after` includes it), and
+ * Home holds that day back until the day is done (:func:`homeDayChip`), so the
+ * recap went through the same function: «25 → 26» on the end sheet next to a
+ * «25» chip was two numbers for one fact. `was` is where the chain stood this
+ * morning; `now` is Home's number at this moment, so the arrow shows only when
+ * the day itself has moved the chain.
+ */
+export function recapStreak(
+  before: unknown,
+  after: unknown,
+  session: DaySession | null | undefined,
+): { was: number; now: number } {
+  const count = (value: unknown) => {
+    const n = Number(value);
+    return Number.isFinite(n) && n > 0 ? Math.round(n) : 0;
+  };
+  const was = count(before);
+  const stored = count(after);
+  // The séance is finished, so the server has counted today: Home's own rule decides what shows.
+  const now = homeDayChip(stored, true, session).streak;
+  // A séance that moved the stored count: the chain stood at `was` this morning.
+  // One that did not (today was already counted): there is no arrow to draw.
+  return { was: stored > was ? Math.min(was, now) : now, now };
+}
+
 /** The mark's four shapes fill in with the day's four steps. */
 export function sessionMarkState(session: DaySession, language: ControlLanguage): DayMarkState {
   const groups = {} as Record<DayMarkGroup, DayMarkGroupState>;

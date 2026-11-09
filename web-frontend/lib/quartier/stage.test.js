@@ -12,7 +12,7 @@ const { test } = require('node:test');
 const WEB_ROOT = path.resolve(__dirname, '..', '..');
 require(path.join(WEB_ROOT, 'node_modules/sucrase/register/ts'));
 
-const { STAGED, SILENT_BEATS } = require('./stage.ts');
+const { GUESTS, OUTSIDE, STAGED, SILENT_BEATS, personOf } = require('./stage.ts');
 const { T1A_COPY: T1A } = require('./story.ts');
 
 test('the copy of the day in the frontend is the season file, word for word', () => {
@@ -74,6 +74,10 @@ test('every walk the scene asks for has a way through the streets', () => {
     ['the booth corner to beside you', MARKS.boothCorner, MARKS.zincBeside],
     ['the booth’s end to beside you', MARKS.boothLeft, MARKS.zincBeside],
     ['Camille’s table to beside you', new Vector3(-33.95, 0, -11.0), MARKS.zincBeside],
+    // a guest (M. Marchand, Romy, Odile) comes in from the street to the zinc
+    ['the street to beside you', MARKS.doorOut, MARKS.zincBeside],
+    // out on the quai: whoever the moment is with walks the last steps to beside you
+    ...OUTSIDE.beside.map((spot, i) => [`a few steps off to beside you on the quai (${i})`, spot.clone().add(OUTSIDE.approach), spot]),
   ];
   for (const [label, a, b] of ways) {
     const start = nav.nearest(a.x, a.z, 3);
@@ -93,12 +97,16 @@ test('day b: the director has blocking for every movement, in order, and the sta
   const ids = day.movements.map((m) => m.id);
   for (const id of ids) assert.ok(STAGED.includes(id), `${id} has no blocking`);
   assert.deepEqual(ids, STAGED.filter((id) => ids.includes(id)));
-  const { STAGED_DAYS, ROOM_OF, roomOf } = require('./story.ts');
+  const { STAGED_DAYS, inRoom, roomOf } = require('./story.ts');
   assert.ok(STAGED_DAYS.includes('t1.b'));
-  // R1 to R4 play in the stairwell the forge built; the café's panels stay in the café
-  const inRoom = day.movements.filter((m) => m.kind === 'panel' && roomOf(m)).map((m) => m.id);
-  assert.deepEqual(inRoom, ['b.r1', 'b.r2', 'b.r3', 'b.r4']);
-  const room = JSON.parse(fs.readFileSync(path.join(__dirname, 'world', 'rooms', `${ROOM_OF.stairwell}.json`), 'utf8'));
+  // the café hands the page over at R1, to the stairwell the forge built; the café's panels stay in the café
+  const first = day.movements.find((m) => m.kind === 'panel' && roomOf(m));
+  assert.equal(first.id, 'b.r1');
+  assert.equal(roomOf(first), 'escalier_mistral');
+  // R1 to R4 play on there: R2 is Odile's kitchen, seen through her open door from the landing
+  const played = day.movements.filter((m) => m.kind === 'panel' && inRoom(m, 'escalier_mistral')).map((m) => m.id);
+  assert.deepEqual(played, ['b.r1', 'b.r2', 'b.r3', 'b.r4']);
+  const room = JSON.parse(fs.readFileSync(path.join(__dirname, 'world', 'rooms', `${roomOf(first)}.json`), 'utf8'));
   for (const mark of ['streetDoor', 'lilaStep', 'landing', 'door', 'threshold', 'inside']) assert.ok(room.marks[mark], `the stairwell has no «${mark}» mark`);
   // every silent beat of a reply is acted
   for (const turn of day.movements.filter((m) => m.kind === 'turn' || m.kind === 'solve')) {
@@ -107,5 +115,112 @@ test('day b: the director has blocking for every movement, in order, and the sta
       if (!beat.silence || (beat.lines ?? []).length) continue;
       assert.ok(Object.values(SILENT_BEATS).some((re) => re.test(beat.id)), `${beat.id} is silent and nothing acts it`);
     }
+  }
+});
+
+test('a day without blocking plays in the places the world has built for it, and a card names the place', () => {
+  const { PLACE_NAMES, placeCard, placesOf, unbuiltOf } = require('./story.ts');
+  const page = (movements, location_id = null) => ({ key: 'x.y', location_id, movements });
+  const at = (id, location_id) => ({ kind: 'panel', id, location_id, lines: [] });
+  // the café and the quai are the hand-drawn quarter; a room of the season is the room the forge built
+  assert.deepEqual(placesOf(page([at('p1', 'le_mistral'), at('p2', 'quai_de_valmy'), at('p3', 'stairwell'), at('p4', 'odile_flat'), at('p5', 'le_mistral')])), [
+    'quai_de_valmy',
+    'quai_de_valmy',
+    'escalier_mistral',
+    'odile_flat',
+    'quai_de_valmy',
+  ]);
+  // a movement that names no place plays where the page is; the first, where the page says it is set; a page that names none, at the café
+  assert.deepEqual(placesOf(page([at('p1', null), at('p2', null)], 'user_apartment')), ['user_apartment', 'user_apartment']);
+  assert.deepEqual(placesOf(page([at('p1', null), { kind: 'hook', id: 'h', panel: at('h.p', null) }])), ['quai_de_valmy', 'quai_de_valmy']);
+  assert.equal(unbuiltOf(page([at('p1', null)])), null);
+  // somewhere nothing is built for yet: no place plays it, and the page says where
+  assert.deepEqual(placesOf(page([at('p1', 'mistral_back_room'), at('p2', null), at('p3', 'le_mistral')])), [null, null, 'quai_de_valmy']);
+  assert.equal(unbuiltOf(page([at('p1', 'le_mistral'), at('p2', 'mistral_back_room')])), 'mistral_back_room');
+  assert.equal(unbuiltOf(page([at('p1', null)], 'marin_lila_flat')), 'marin_lila_flat');
+  assert.equal(unbuiltOf(page([at('p1', 'somewhere_new')])), 'somewhere_new');
+  // the season's own pages: T2 climbs the stairwell into Odile's flat; the roof (g3) plays on the roof the forge built
+  // (the season file's own movements: a solve the server poses as a question has no place of its own)
+  const staged = (movements) => movements.filter((m) => m.kind === 'panel' || m.panel);
+  const season = (file, day) => {
+    const d = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, '..', 'app/data/season/s1', file), 'utf8')).days.find((x) => x.day === day);
+    return { ...d, movements: staged(d.movements) };
+  };
+  const t2a = season('t2.json', 'a');
+  assert.equal(unbuiltOf(t2a), null);
+  assert.deepEqual(Array.from(new Set(placesOf(t2a))), ['escalier_mistral', 'odile_flat']);
+  const t2b = season('t2.json', 'b');
+  assert.equal(unbuiltOf(t2b), null);
+  assert.deepEqual(Array.from(new Set(placesOf(t2b))), ['odile_flat', 'escalier_mistral', 'quai_de_valmy']);
+  const g3 = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, '..', 'app/data/season/s1/bridges.json'), 'utf8')).bridges.find((b) => b.gap === 'g3');
+  const g3page = { location_id: g3.location_id, movements: staged(g3.moments.flatMap((m) => m.movements)) };
+  assert.equal(unbuiltOf(g3page), null);
+  assert.ok(placesOf(g3page).includes('toit_mistral'), 'the pages of the roof play on the roof');
+  // the card
+  assert.equal(placeCard('le_mistral'), null);
+  assert.equal(placeCard('mistral_back_room'), null);
+  assert.equal(placeCard('toit').fr, 'Le toit de l’immeuble');
+  assert.equal(placeCard('toit').de, 'Das Dach des Hauses');
+  assert.equal(placeCard('somewhere_new', 'La péniche').fr, 'La péniche');
+  assert.equal(placeCard('somewhere_new'), null);
+  // every place of the season has its name for the card
+  const world = fs.readFileSync(path.join(WEB_ROOT, '..', 'app/services/season/world.py'), 'utf8');
+  const ids = Array.from(world.matchAll(/^    "([a-z_]+)": \{"name_fr": "([^"]+)"/gm));
+  assert.ok(ids.length > 15);
+  for (const [, id, name] of ids) {
+    if (id === 'le_mistral' || id === 'mistral_back_room') continue;
+    assert.ok(PLACE_NAMES[id], `${id} has no name for the card`);
+    assert.equal(PLACE_NAMES[id].fr.replace(/’/g, "'"), name, `${id}: the card's name is not the season's`);
+  }
+});
+
+test('in a room the forge built, the moment’s people stand in front of you on your floor, apart', () => {
+  const { Vector3 } = require('three');
+  const { groundIn, HEIGHTS, GUESTS } = require('./stage.ts');
+  const { buildRoom } = require('./room.ts');
+  const { CardPress, LacePress, Press, seeded } = require('./geo.ts');
+  const { Nav } = require('./nav.ts');
+  for (const id of ['escalier_mistral', 'odile_flat', 'user_apartment', 'notaire']) {
+    const spec = JSON.parse(fs.readFileSync(path.join(__dirname, 'world', 'rooms', `${id}.json`), 'utf8'));
+    const B = { dry: new Press(), fine: new Press(), wet: new Press(), lace: new LacePress(), glass: new Press(), cards: new CardPress(), signs: [], lamps: [], walk: [], blocks: [], rand: seeded(7) };
+    const room = buildRoom(B, spec);
+    const nav = new Nav(B.walk, B.blocks, room.bounds);
+    const g = groundIn(room.start, nav);
+    assert.ok(g.beside.length >= 2, `${id}: room for ${g.beside.length} beside you`);
+    assert.equal(g.approach, null, `${id}: nobody walks in from the street`);
+    const ahead = new Vector3(room.start.look.x - g.you.x, 0, room.start.look.z - g.you.z).normalize();
+    g.beside.forEach((b, i) => {
+      assert.ok(nav.standable(b.x, b.z), `${id}: place ${i} is not on the floor`);
+      assert.ok(Math.abs(b.y - g.you.y) < 0.5, `${id}: place ${i} is on another floor`);
+      const d = Math.hypot(b.x - g.you.x, b.z - g.you.z);
+      assert.ok(d > 0.8 && d < 2.6, `${id}: place ${i} is ${d.toFixed(2)} m away`);
+      assert.ok((b.x - g.you.x) * ahead.x + (b.z - g.you.z) * ahead.z > 0, `${id}: place ${i} is behind you`);
+      for (const c of g.beside.slice(i + 1)) assert.ok(Math.hypot(b.x - c.x, b.z - c.z) >= 0.7, `${id}: two places on top of each other`);
+    });
+  }
+  // everyone with a body can be stood up in a room, where the troupe starts empty
+  for (const k of ['augustin_de_roncourt', 'marin_leveque', 'lila_bonnet', 'margaux_barman', 'camille_marchand', ...Object.keys(GUESTS)]) assert.ok(HEIGHTS[k] > 1.4, `${k} has no height`);
+});
+
+test('the bridges’ people who are not regulars come on as guests with a body (M. Marchand on the roof)', () => {
+  const bridges = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, '..', 'app/data/season/s1/bridges.json'), 'utf8'));
+  const people = new Set();
+  const walk = (x) => {
+    if (Array.isArray(x)) return x.forEach(walk);
+    if (!x || typeof x !== 'object') return;
+    if (typeof x.who === 'string') people.add(x.who);
+    if (x.kind === 'turn' && typeof x.to === 'string') people.add(x.to);
+    for (const k of x.in_frame ?? []) people.add(k);
+    Object.values(x).forEach(walk);
+  };
+  walk(bridges.bridges);
+  assert.ok(people.has('landlord_marchand'));
+  // everyone in the round (cast3d/people) is a regular or a guest, and has their name on the cards;
+  // a passer-by without a body (the clerk) keeps the name the page gives
+  const bodies = ['margaux_barman', 'augustin_de_roncourt', 'lila_bonnet', 'marin_leveque', 'romy_tremblay', 'landlord_marchand', 'camille_marchand', 'odile_ferrand'];
+  const regulars = ['margaux_barman', 'augustin_de_roncourt', 'lila_bonnet', 'marin_leveque', 'camille_marchand'];
+  for (const who of bodies) {
+    assert.ok(personOf(who), `${who} has no name on the cards`);
+    assert.ok(regulars.includes(who) || GUESTS[who] > 1.4, `${who} has a body and never comes on`);
   }
 });

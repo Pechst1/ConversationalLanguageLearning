@@ -61,6 +61,8 @@ import {
 } from './materials';
 import type { World } from './materials';
 import { MARKS, ROOM, SEATS, buildMistral, cafeCreme } from './mistral';
+import { buildDetail } from './details';
+import type { DetailSpec } from './details';
 import type { MistralParts } from './mistral';
 import { Nav } from './nav';
 import { STRIDE, WALK_SPEED } from './pace';
@@ -121,6 +123,8 @@ export interface QuartierOptions {
   room?: RoomSpec;
   /** the cast in the round, sculpted (`cast3d`), or on `paper` as cut-out cards */
   cast?: 'round' | 'paper';
+  /** the details to lay in this place (`details.ts`), each with its flag's value */
+  details?: Array<{ spec: DetailSpec; value?: string }>;
 }
 
 type Listener = (hit: Hit) => void;
@@ -330,7 +334,15 @@ export class Quartier {
       const hall = this.site.landmarks.find((l) => l.room)?.room;
       this.rainRoom.set(hall ? hall[0] : 0, hall ? hall[1] : 0, hall ? hall[2] : -1, hall ? hall[3] : -1);
     } else if (room) {
+      // a room on the roof stands in the quarter as it is: the quai, the canal, the houses round it
+      // (only the room's own ground is walked, round the chimneys of the building it stands on)
+      const quarter = room.quarter ? buildQuai(B) : null;
+      if (quarter) {
+        B.walk.length = 0;
+        B.blocks.length = 0;
+      }
       this.room = buildRoom(B, room);
+      (quarter?.mistral.stacks ?? []).forEach((s) => B.blocks.push(s));
       const [x0, z0, x1, z1] = this.room.dry;
       this.rainRoom.set(x0, z0, x1, z1);
     } else {
@@ -339,12 +351,17 @@ export class Quartier {
       await step(0.3, 'Le Mistral');
       this.parts = buildMistral(B, quai.mistral);
     }
+    // the details the story left here, in this place's own coordinates
+    (this.opts.details ?? []).forEach((d) => buildDetail(B, d.spec, d.value));
     this.lamps = B.lamps;
     this.glints = B.lamps.filter((l) => l.glint);
     await step(0.42, 'Les lampes');
     if (this.site) {
       const r = this.site.spec.radius.build + 10;
       this.lightMap = bakeLightMap(B.lamps, { x0: -r, z0: -r, x1: r, z1: r }, 2.2, this.site.under);
+    } else if (this.room?.spec.quarter) {
+      // the quai's lamps light the quai under the roof
+      this.lightMap = bakeLightMap(B.lamps, { x0: -185, z0: -250, x1: 95, z1: 250 }, 2.2, () => false);
     } else if (this.room) {
       // a room is small: a finer map, so a hall's lamp lays a pool of its own
       this.lightMap = bakeLightMap(B.lamps, this.room.bounds, 4, this.room.inside);

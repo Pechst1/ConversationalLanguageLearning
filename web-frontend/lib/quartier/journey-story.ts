@@ -19,7 +19,7 @@ import dailyJourneyService, { journeyErrorCode, mutationId } from '@/services/da
 import type { AttemptResult, HelpKind, JourneySnapshot, RespondStep, SceneStep, StoryletChoiceResult } from '@/types/daily-journey';
 
 import type { Value } from './memory';
-import { STAGED_DAYS, nextTurn } from './story';
+import { STAGED_DAYS, nextTurn, unbuiltOf } from './story';
 import type {
   Answered,
   Ask,
@@ -258,6 +258,7 @@ export function pageOfScene(journey: JourneySnapshot, scene: SceneStep): StoryPa
     title_fr: str(scenario.title_fr) ?? '',
     story_date_fr: null,
     location_id: str(scenario.location_id),
+    location_name: str(scenario.location_name),
     can_do_native: str(scenario.objective_native) ?? str(p.objective_native),
     movements,
     storylets: [],
@@ -301,7 +302,9 @@ export type Today =
   /** the day is over: its recap */
   | { kind: 'done' }
   /** the Feuilleton reads it: a day without a scene, or one left mid-question */
-  | { kind: 'handoff'; why: 'day' | 'midway' | 'unavailable' };
+  | { kind: 'handoff'; why: 'day' | 'midway' | 'unavailable' }
+  /** the scene goes somewhere the world has not built yet (`place`, a season location): the Feuilleton tells it until the forge has */
+  | { kind: 'handoff'; why: 'elsewhere'; place: string; page: StoryPage };
 
 export function todayOf(journey: JourneySnapshot | null): Today {
   if (!journey) return { kind: 'start' };
@@ -313,13 +316,16 @@ export function todayOf(journey: JourneySnapshot | null): Today {
   if (!page || !scene) return { kind: 'handoff', why: 'day' };
   const step = currentStepOf(journey);
   if (!step) return { kind: 'practice', page };
+  // a scene set where nothing is built yet is not played here in a place it is not: the whole day is the Feuilleton's
+  const away = blockedPage(page) ? null : unbuiltOf(page);
+  const elsewhere: Today | null = away ? { kind: 'handoff', why: 'elsewhere', place: away, page } : null;
   // steps before the scene are the Feuilleton's, in its order, played over the quarter
-  if (step.ordinal < scene.ordinal) return { kind: 'before', page };
-  if (step.kind === 'scene') return { kind: 'play', page };
+  if (step.ordinal < scene.ordinal) return elsewhere ?? { kind: 'before', page };
+  if (step.kind === 'scene') return elsewhere ?? { kind: 'play', page };
   const talk = talkOf(journey);
   if (talk && step.id === talk.id && step.status !== 'completed') {
     // a question already answered here was left behind: where the talk stands is the Feuilleton's
-    return talk.prompt.turn_index === 0 ? { kind: 'play', page } : { kind: 'handoff', why: 'midway' };
+    return talk.prompt.turn_index === 0 ? (elsewhere ?? { kind: 'play', page }) : { kind: 'handoff', why: 'midway' };
   }
   return { kind: 'practice', page };
 }

@@ -696,16 +696,19 @@ export default function VocabularyReviewPage() {
   const addExtraWords = useCallback(async () => {
     setAddingWords(true);
     try {
+      // The deck deals the step the button promised; the answer's `step`
+      // is the next tap's (0 once the pool is empty).
+      const promised = newWordsPace?.step || 0;
       const body = await apiService.addExtraNewWords();
       setNewWordsPace(body);
-      await loadQueue(body.step);
+      await loadQueue(promised || body.step);
     } catch (error) {
       console.error(error);
       toast.error(t.deck_unavailable);
     } finally {
       setAddingWords(false);
     }
-  }, [loadQueue, t]);
+  }, [loadQueue, newWordsPace, t]);
 
   const moreWords = useMemo(() => {
     const left = Number(context?.new_words_left_today || 0);
