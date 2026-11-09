@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -1244,3 +1244,117 @@ def scene_findings(reply: str, payload: dict | None) -> list[SceneFinding]:
             )
         )
     return findings
+
+
+# ---------------------------------------------------------------------------
+# #114 — a reply that invents an order, a number or a request for personal data
+# ---------------------------------------------------------------------------
+#
+# Root cause (#145, the thread has no ledger of what is established): the Courrier
+# actor is told to «add one concrete in-world detail» and is handed the goals of a
+# *domain* («Give the tracking number or order reference»), so when the learner's
+# off-script answer gives it nothing to build on it reaches for the delivery template
+# the goals describe. Nothing compared the reply with the thread afterwards.
+# Live walks 13 Oct («le numéro de suivi de la commande, c'est le 123456789. Tu pourrais
+# me confirmer ton adresse ?») and 24 Oct («le numéro de suivi ou la référence de votre
+# commande», «mon adresse exacte»).
+#
+# The rule is about grounding, not vocabulary: a reference number, an order number or a
+# request for the learner's address, phone or e-mail is allowed only when the thread
+# already holds it (the scene text, an earlier line, the learner's own words), or, for a
+# request, when the authored opening already makes the same request. «Voici votre
+# commande» in a café, or «Quelle rue exactement ?» after an authored «Quelle est votre
+# rue ?», stay as written.
+
+_FOLD_PUNCT = re.compile(r"[^\w\s?°]")
+
+
+def _plain_fold(text: object) -> str:
+    """Casefolded, accent-free, punctuation to spaces (apostrophes included); the
+    question mark and «n°» are kept for the checks that read them."""
+
+    raw = unicodedata.normalize("NFKD", str(text or "").casefold())
+    raw = "".join(ch for ch in raw if not unicodedata.combining(ch)).replace("n°", " numero ")
+    return " ".join(_FOLD_PUNCT.sub(" ", raw).replace("°", " ").split())
+
+
+_REFERENCE_KIND = (
+    r"suivi|tracking|commande|colis|paquet|dossier|livraison|reservation|client|facture|"
+    r"reference|expedition|envoi"
+)
+_REFERENCE_NUMBER = re.compile(
+    rf"\b(?:numero|code|reference)\s+(?:de\s+|du\s+|d\s+)?(?:votre\s+|ton\s+|ta\s+|la\s+|le\s+|l\s+)?"
+    rf"(?P<kind>{_REFERENCE_KIND})\b|\b(?P<tracking>tracking)\b"
+)
+_LONG_NUMBER = re.compile(r"(?<![\d.,:])\d{6,}(?![\d.,:])|\b(?:\d{2}\s){4}\d{2}\b")
+
+_PERSONAL_REQUEST = re.compile(
+    r"\b(?:votre|ton|ta|tes|vos)\s+(?:(?P<email>adresse\s+(?:e\s*mail|mail|electronique)|e\s*mail|courriel)|"
+    r"(?P<address>adresse(?:\s+(?:exacte|postale|complete))?)|"
+    r"(?P<phone>numero\s+de\s+(?:telephone|portable|mobile)|telephone|portable)|"
+    r"(?P<identity>date\s+de\s+naissance|iban|carte\s+(?:bancaire|d\s+identite)|passeport|nom\s+de\s+famille))\b"
+    r"|(?P<where>\bou\s+(?:habitez|habites)\b|\bquelle\s+est\s+(?:votre|ta)\s+rue\b|\bdans\s+quelle\s+rue\b)"
+)
+#: A sentence only *asks* for it when it asks (a question mark or a request verb);
+#: «Nous avons votre adresse.» states, and is not a request.
+_ASKS = re.compile(
+    r"\?|\b(?:confirm\w*|donn\w*|envoy\w*|precis\w*|indiqu\w*|communiqu\w*|pouv\w*|peux|"
+    r"dites|dis|merci de|veuillez|il me faut|j ai besoin|besoin de)\b"
+)
+
+
+def _folded_sentences(text: object) -> list[str]:
+    return [part for part in (_plain_fold(p) for p in re.split(r"(?<=[.!?…])\s+|\n+", str(text or ""))) if part]
+
+
+def personal_requests(text: object) -> set[str]:
+    """The kinds of personal data (address, email, phone, identity) ``text`` asks for."""
+
+    kinds: set[str] = set()
+    for sentence in _folded_sentences(text):
+        if not _ASKS.search(sentence):
+            continue
+        for match in _PERSONAL_REQUEST.finditer(sentence):
+            kind = next((name for name, value in match.groupdict().items() if value), "address")
+            kinds.add("address" if kind == "where" else kind)
+    return kinds
+
+
+def invented_logistics(reply: object, *, grounded: Iterable[object], authored: Iterable[object] = ()) -> list[str]:
+    """What ``reply`` invents: an order / tracking / reference number the thread never
+    held, a long digit string the thread never held, or a request for the learner's
+    personal data the authored opening did not make. Empty when the reply is clean.
+
+    ``grounded`` is every text the thread already holds (scene, authored opening,
+    earlier lines, the learner's own words); ``authored`` is only what the scene's
+    author wrote, which alone may license a request."""
+
+    problems: list[str] = []
+    said = _plain_fold(reply).replace("?", " ")
+    held = " ".join(_plain_fold(text) for text in grounded)
+    for match in _REFERENCE_NUMBER.finditer(said):
+        phrase = match.group(0)
+        kind = match.group("kind") or match.group("tracking")
+        if phrase in held or re.search(rf"\b(?:numero|code|reference)\s+(?:de\s+|du\s+|d\s+)?(?:\w+\s+)?{kind}\b", held):
+            continue
+        problems.append(f"a {kind} number the scene never mentioned")
+    for match in _LONG_NUMBER.finditer(said):
+        digits = match.group(0)
+        if digits not in held:
+            problems.append(f"the number {digits}, which nobody gave")
+    asked = personal_requests(reply)
+    if asked:
+        allowed: set[str] = set()
+        for text in authored:
+            allowed |= personal_requests(text)
+        problems.extend(f"a request for the learner's {kind}" for kind in sorted(asked - allowed))
+    return problems
+
+
+def invented_logistics_hint(problems: list[str]) -> str:
+    return (
+        "Your reply brings in " + "; ".join(problems[:2]) + ". Nothing in the scene or in what the other "
+        "person wrote mentions an order, a parcel, a tracking or reference number or a home address, "
+        "so invent none and ask for none. Answer what they just wrote (take up one thing they said, "
+        "such as their decision or the animal they named), then ask one question about it."
+    )
