@@ -603,8 +603,12 @@ def tentpole_brief(
     )
 
 
-def season_teaser(story_context: dict[str, Any], *, date: str | None) -> dict[str, Any] | None:
-    """Tomorrow's line on a tentpole day: the page's own «À suivre…», unvoiced."""
+def season_teaser(
+    story_context: dict[str, Any], *, date: str | None, question: str | None = None
+) -> dict[str, Any] | None:
+    """Tomorrow's line on a tentpole day: the page's own «À suivre…», unvoiced. ``question``
+    is what the closer left open, already checked: «Tomorrow» prints it (#466). Without
+    one, a model down or a card tapped, the page's own line stands."""
 
     season_ctx = story_context.get(SEASON_CONTEXT_KEY) or {}
     if season_ctx.get("kind") != "tentpole":
@@ -618,6 +622,7 @@ def season_teaser(story_context: dict[str, Any], *, date: str | None) -> dict[st
         "date": date,
         "ref": f"season:{(season_ctx.get('position') or {}).get('key')}",
         "kind": "season",
+        **({"open_fr": question} if question else {}),
     }
 
 
@@ -1083,10 +1088,11 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
     beats += list(turn.get("after") or []) if (not reply.get("repeat_once") or again) else []
     if listen:
         beats.append({**ack_panel(_named_turn(scenario, turn), listen), "id": f"{turn.get('id')}.listen"})
+    closed_reading = None
     if closing:
         # The conversation ends from what was said, then the rest of the day is said here;
         # the ending is the «À suivre…» caption alone.
-        beats, _written = _closed(
+        beats, closed_reading = _closed(
             db, user, scenario, turn=turn, ledger=ledger, history=history, beats=beats, band=band,
             learner_text=answer.text, turn_index=turn_index, use_model=use_model and carded is None,
         )
@@ -1128,7 +1134,7 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
     proposal = None
     if closing:
         proposal = _closing_proposal(
-            engine, db, user, scenario, turns=turns, routed=routed, final_choice=choice
+            engine, db, user, scenario, turns=turns, routed=routed, final_choice=choice, reading=closed_reading
         )
         proposal = StoryOutcomeProposal(
             outcome_key="resolved",
@@ -1277,7 +1283,8 @@ def _listening_answer(
         confidence=float(held.get("confidence") or 0.0),
     )
     proposal = _closing_proposal(
-        engine, db, user, scenario, turns=turns, routed=routed, final_choice=final_choice, also_said=[answer.text]
+        engine, db, user, scenario, turns=turns, routed=routed, final_choice=final_choice, also_said=[answer.text],
+        reading=reading,
     )
     addressee = str(scenario.character_id)
     heard: dict[str, Any] = {}
@@ -1454,7 +1461,8 @@ def _ask_again_evaluation(
 
 
 def _closing_proposal(
-    engine, db, user, scenario, *, turns, routed, final_choice: ReplyChoice, also_said: list[str] | None = None
+    engine, db, user, scenario, *, turns, routed, final_choice: ReplyChoice, also_said: list[str] | None = None,
+    reading: Any = None,
 ) -> dict[str, Any]:
     season_ctx = scenario.story_context.get(SEASON_CONTEXT_KEY) or {}
     ending = season_ctx.get("ending") or {}
@@ -1502,6 +1510,7 @@ def _closing_proposal(
         "feeling_shift": "steady",
         "development_index": 0,
         "season_turns": routing,
+        **({"tomorrow_question_fr": question} if (question := getattr(reading, "tomorrow_question_fr", "")) else {}),
         "usage": [],
         "revision": engine.story_revision(db, user),
     }

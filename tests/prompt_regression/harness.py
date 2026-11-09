@@ -44,7 +44,7 @@ CONTEXTS = ROOT / "contexts"
 SNAPSHOTS = ROOT / "snapshots"
 UPDATE_ENV = "PROMPT_SNAPSHOT_UPDATE"
 #: The order calls are rendered in (the reply lanes run in parallel threads).
-SCHEMA_ORDER = ("PagePlan", "PageText", "PageAids", "TutorVerdict", "VoiceReply", "ReplyChoice", "SceneClosing")
+SCHEMA_ORDER = ("PagePlan", "PageText", "PageAids", "TutorVerdict", "VoiceReply", "StoryTurn", "TurnReview", "ReplyChoice", "SceneClosing")
 #: Settings that change what a story call sends, pinned so a developer's ``.env``, CI
 #: and the CLI render the same bytes. ``None`` routes keep each call's own effort.
 PINNED_SETTINGS = {
@@ -289,6 +289,8 @@ def run_case(case: Case) -> Result:
             observed, served = _run_turn(case)
         elif case.lane == "authored":
             observed, served = _run_authored(case)
+        elif case.lane == "story":
+            observed, served = _run_story(case)
         else:
             raise ValueError(f"{case.id}: unknown lane {case.lane!r}")
     observed["missing_answers"] = list(replayer.missing)
@@ -424,6 +426,33 @@ def _run_turn(case: Case) -> tuple[dict, Any]:
     return observed, result
 
 
+def _run_story(case: Case) -> tuple[dict, Any]:
+    """The story lane (the scene's ending and tomorrow's question) after a reply the
+    learner has already seen: ``input`` holds the turn's payload and the two released
+    verdicts. What ``settle_resolution`` will then do with the question is read here too."""
+
+    from app.services import story_lanes as lanes
+    from app.services import story_teaser
+
+    payload = _with_ledger(json.loads(json.dumps(case.input["payload"])))
+    tutor = lanes.TutorVerdict(**case.input["tutor"])
+    voice = lanes.VoiceReply(**case.input["voice"])
+    result = lanes.run_story_lane(payload, tutor, voice, deadline=time.monotonic() + 600)
+    if result.turn is None:
+        return {"failure": result.reason, "story_hint": result.hint}, None
+    turn = result.turn
+    known = " ".join([json.dumps(payload, ensure_ascii=False), turn.reply_fr, turn.resolution_fr])
+    question = turn.tomorrow_question_fr
+    return {
+        "failure": None,
+        "resolution_fr": turn.resolution_fr,
+        "summary_native": turn.summary_native,
+        "tomorrow_question_fr": question,
+        "tomorrow_problem": story_teaser.question_problem(question, known=known, ledger=payload.get("ledger")),
+        "still_open": [row["text_fr"] for row in payload["ledger"]["still_open"]],
+    }, result
+
+
 def _run_authored(case: Case) -> tuple[dict, Any]:
     """The reader of an authored day (``season.runtime.classify``) on a real page of the
     season: ``input`` names the page and the turn, and gives what the learner wrote."""
@@ -477,12 +506,13 @@ def _run_closing(case: Case, page: dict, turn: dict, history: list, text: str, l
     from types import SimpleNamespace
 
     from app.services.season import closing, runtime
+    from app.services.season.page import hook_caption
 
     problems: list[str] = []
     scenario = SimpleNamespace(
         title_fr=page["title_fr"],
         character_id=turn.get("to"),
-        story_context={runtime.SEASON_CONTEXT_KEY: {"id": "s1", "page": page, "tail": runtime.page_tail(page)}},
+        story_context={runtime.SEASON_CONTEXT_KEY: {"id": "s1", "page": page, "ending": hook_caption(page), "tail": runtime.page_tail(page)}},
     )
     beats = list(next(row for row in turn["replies"] if row["id"] == case.input["reply"]).get("beats") or [])
     panels, reading = closing.written_close(
@@ -505,6 +535,7 @@ def _run_closing(case: Case, page: dict, turn: dict, history: list, text: str, l
         "lines": said,
         "dropped": problems,
         "learner_intent": reading.learner_intent if reading else None,
+        "tomorrow_question_fr": reading.tomorrow_question_fr if reading else None,
     }, reading
 
 

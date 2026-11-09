@@ -363,12 +363,16 @@ export function recapTeaserOf(recap: (JourneyRecap & { next_teaser_fr?: unknown 
   const structured = recap.teaser && text(recap.teaser.text_fr) ? recap.teaser : null;
   const engine = text(recap.next_teaser_fr);
   if (engine) {
-    return {
+    const teaser: RecapTeaser = {
       text_fr: engine,
       character_id: structured?.character_id ?? null,
       character_name: structured?.character_name ?? null,
       source: 'engine',
-    };
+    } as RecapTeaser;
+    // Only when the engine named what stays open: a recap from before #466 has no such key.
+    const open = text(structured?.open_fr);
+    if (open) teaser.open_fr = open;
+    return teaser;
   }
   return structured;
 }
@@ -384,8 +388,18 @@ export type TomorrowLine = { teaser: RecapTeaser; hint: string };
 export function tomorrowLine(recap: (JourneyRecap & { next_teaser_fr?: unknown }) | null | undefined): TomorrowLine | null {
   if (!recap || recap.completion_kind === 'early') return null;
   const teaser = recapTeaserOf(recap);
-  const hint = teaser ? teaserHint(teaser.text_fr) : null;
+  // #466: what the hook leaves open, whole, is the line. Cutting the hook is for a line that
+  // names nothing (a page's own caption, a learner's pick): the first words of a hook are a
+  // voice opener («Au fait…» was Tomorrow for a week of walks).
+  const hint = teaser ? text(teaser.open_fr) || closingQuestion(teaser.text_fr) || teaserHint(teaser.text_fr) : null;
   return teaser && hint ? { teaser, hint } : null;
+}
+
+/** The question a stored hook ends on, whole, if it says something by itself. */
+function closingQuestion(line: unknown): string | null {
+  const bare = text(line).replace(/\s+/g, ' ').replace(/\s*À suivre\s*(?:…|\.\.\.)?\s*$/i, '').trim();
+  const last = bare.match(/[^.!?…]+\s*\?$/)?.[0]?.trim() ?? '';
+  return last.length < bare.length && hintWords(last).length > 3 ? last : null;
 }
 
 /** Words in a hint: anything with a letter or a digit. */

@@ -963,6 +963,9 @@ class RecapTeaser(JourneyModel):
     """
 
     text_fr: str
+    #: What the hook leaves open, as a whole sentence (#466): what «Tomorrow» prints, so
+    #: no surface cuts the character's voice out of ``text_fr`` to stand for it.
+    open_fr: str | None = None
     character_id: str | None = None
     character_name: str | None = None
     source: Literal["engine", "resolution", "authored"]
@@ -1308,6 +1311,8 @@ class EpisodeHeadline(JourneyModel):
     title_fr: str | None = None
     #: Yesterday's «À suivre…».
     teaser_fr: str | None = None
+    #: What it left open, as a whole sentence (#466): the line Home prints.
+    teaser_open_fr: str | None = None
     season_title_fr: str | None = None
     #: The episode's picture: the scene's first panel, else its opening place.
     image_url: str | None = None

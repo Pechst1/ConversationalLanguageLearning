@@ -191,9 +191,11 @@ def episode_headline(db: Session, user: Any, journey: Any = None, *, local_date:
 
         teaser = live.get(engine.TEASER_KEY) or {}
         teaser_fr = str(teaser.get("text_fr") or "").strip() or None
+        # #466: what stays open, whole, for the line Home prints.
+        teaser_open_fr = str(teaser.get("open_fr") or "").strip() or None
         written = str(teaser.get("date") or "")
         if teaser_fr and local_date is not None and written == str(local_date):
-            teaser_fr = None  # written by today's ending: it speaks of tomorrow
+            teaser_fr = teaser_open_fr = None  # written by today's ending: it speaks of tomorrow
         if not cast and teaser_fr and teaser.get("character_id"):
             cast = _ordered([str(teaser["character_id"])])
         if not (title or teaser_fr or thread is not None or season_title):
@@ -208,6 +210,7 @@ def episode_headline(db: Session, user: Any, journey: Any = None, *, local_date:
             "reread": reread,
             "title_fr": title,
             "teaser_fr": teaser_fr,
+            **({"teaser_open_fr": teaser_open_fr} if teaser_open_fr else {}),
             "season_title_fr": season_title,
             # The episode's picture for Home's card: the scene's first panel, else
             # the tentpole's opening place.

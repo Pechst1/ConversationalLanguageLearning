@@ -660,6 +660,9 @@ class SemanticTurn(StrictModel):
     learned: story_memory.LearnedFacts = Field(default_factory=list)
     left_open: story_memory.LeftOpen = Field(default_factory=list)
     answered_open_ids: story_memory.AnsweredIds = Field(default_factory=list)
+    # #466: what the reader carries into tomorrow, as the writer put it. Checked at the
+    # settle (``_tomorrow_question``), where anything wrong with it is simply not used.
+    tomorrow_question_fr: str = Field(default="", max_length=200)
     # «Die Geschichte bestellt, die Schmiede baut»: the places and things the learner
     # named in their own words; the forge builds them first (``learner_marks``).
     named: story_memory.Named = Field(default_factory=list)
@@ -4171,6 +4174,55 @@ def _learner_lines(journey: Any, *, act: int | None = None) -> list[str]:
     return lines
 
 
+def _clean_learner_lines(journey: Any, *, act: int | None = None) -> list[str]:
+    """The replies in today's scene that needed no correction: the only ones a hook may
+    quote. A reply the margin corrected comes back told, never as raw text (#445)."""
+
+    lines: list[str] = []
+    for step in getattr(journey, "steps", None) or []:
+        if str(getattr(step, "kind", "")) != "respond" or (act is not None and step_act(step) != act):
+            continue
+        for turn in (getattr(step, "private_task", None) or {}).get("turns") or []:
+            if isinstance(turn, dict) and str(turn.get("learner") or "").strip() and not turn.get("correction"):
+                lines.append(str(turn["learner"]))
+    return lines
+
+
+def _stored_ledger(journey: Any, *, act: int | None = None) -> dict[str, Any] | None:
+    """The scene's record as the last exchange stored it (#145)."""
+
+    ledger = None
+    for step in getattr(journey, "steps", None) or []:
+        if str(getattr(step, "kind", "")) == "respond" and (act is None or step_act(step) == act):
+            ledger = (getattr(step, "private_task", None) or {}).get("ledger") or ledger
+    return ledger if isinstance(ledger, dict) else None
+
+
+def _tomorrow_question(db: Session, user: User, turn: Any, brief: Any, said: list[str], ledger: dict | None) -> str | None:
+    """The question a writer left for tomorrow, if it holds against what the scene holds
+    (``story_teaser.question_problem``). A drop is counted and costs nothing else."""
+
+    question = " ".join(str(getattr(turn, "tomorrow_question_fr", "") or "").split())
+    if not question:
+        return None
+    from app.services.season.closing import cast_names
+    from app.services.story_lanes import GUARD_FIRED_EVENT
+    from app.services.story_teaser import question_problem
+
+    known = " ".join([str(brief.story_context), *said, turn.reply_fr, turn.resolution_fr, *cast_names()])
+    problem = question_problem(question, known=known, ledger=ledger)
+    if problem is None:
+        return question
+    from app.services.pilot_events import PilotEventService
+
+    PilotEventService(db).record(
+        GUARD_FIRED_EVENT, user_id=user.id, entity_type="living_story",
+        payload={"code": problem, "outcome": "dropped", "lane": "tomorrow", "version": VERSION},
+        cost_usd=0.0,
+    )
+    return None
+
+
 def _page_thread(journey: Any, brief: Any, *, act: int | None = None) -> dict[str, Any] | None:
     """WP-110: a generated day's conversation, for the finished page — who turned to
     the learner, what they asked, and each reply with the answer it got; with ``act``,
@@ -4905,6 +4957,7 @@ from app.services.story_teaser import (  # noqa: E402,F401  the names this modul
     _words,
     compose_teaser,
     next_teaser,
+    question_left_open,
     teaser_candidates,
     teaser_grounded,
     teasers_after,
@@ -10971,8 +11024,13 @@ def settle_resolution(
     from app.services.season.runtime import season_teaser
     from app.services.story_page import HOOK_PAYLOAD_KEY
 
+    # #466: what the reader carries into tomorrow: the writer's question, else the
+    # scene's own open question, else an open row of the story.
+    said = _learner_lines(journey, act=act)
+    ledger = _stored_ledger(journey, act=act)
+    question = _tomorrow_question(db, user, turn, brief, said, ledger)
     # WP-111: a tentpole day's tomorrow is the page's own «À suivre…».
-    teaser = season_teaser(brief.story_context, date=_journey_date(journey)) or next_teaser(
+    teaser = season_teaser(brief.story_context, date=_journey_date(journey), question=question) or next_teaser(
         live,
         world_after,
         character_id=brief.character_id,
@@ -10980,6 +11038,9 @@ def settle_resolution(
         date=_journey_date(journey),
         seed=str(thread.id),
         name=_cast_names(world_after).get(brief.character_id),
+        said=said,
+        clean=_clean_learner_lines(journey, act=act),
+        question=question or question_left_open(ledger),
     )
     if teaser:
         live[TEASER_KEY] = teaser

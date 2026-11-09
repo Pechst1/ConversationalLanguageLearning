@@ -370,6 +370,7 @@ class FakeStoryProvider:
                     "resolved_commitment_ids": [],
                     "chapter_resolved": False,
                     "development_index": 0,
+                    "tomorrow_question_fr": "Et demain, qu'est-ce qu'on fait au Mistral ?",
                     **_reported(str(source.get("learner_text") or "")),
                 }
             elif schema == "TurnReview":
@@ -407,6 +408,8 @@ class FakeStoryProvider:
                     "lines": [{"who": room[0]["id"], "text_fr": _close_for(said)}] if room else [],
                     "learner_intent": _intent_of(source),
                     "learned": _reported(said)["learned"],
+                    # #466: what stays open, for «Tomorrow». Held to the scene like any written one.
+                    "tomorrow_question_fr": "Et demain, qu'est-ce qu'on fait au Mistral ?",
                 }
             elif schema == "CoulissesDraft":
                 # WP-93 «Coulisses»: the same evening, from another cast member's eyes.

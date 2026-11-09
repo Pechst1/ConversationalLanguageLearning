@@ -334,6 +334,20 @@ def build(
     }
 
 
+_NUMBER = re.compile(r"\d")
+#: A capitalised word after the start of a sentence: a name, in French.
+_MID_NAME = re.compile(r"(?<=[\w,;:…'’] )([A-ZÀ-Ý][\w'’-]+)")
+
+
+def brings_in_new(text: str, known: str) -> bool:
+    """Whether a line holds a number or a name that nothing in the scene holds."""
+
+    folded = _folded(known)
+    if _NUMBER.search(text) and not all(digit in known for digit in re.findall(r"\d+", text)):
+        return True
+    return any(_folded(name) not in folded for name in _MID_NAME.findall(text))
+
+
 def keeps_open_for(reply_fr: Any, *, turn_index: int, max_turns: int) -> bool:
     """#378: the character's reply asks the learner something, and the scene may
     still take the answer (at most :data:`SCENE_QUESTION_GRACE` exchanges past the

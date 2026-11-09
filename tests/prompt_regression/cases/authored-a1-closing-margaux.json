@@ -29,7 +29,8 @@
       }
      ],
      "learner_intent": "yes",
-     "learned": []
+     "learned": [],
+     "tomorrow_question_fr": "Pourquoi Lila tourne-t-elle son téléphone ?"
     }
    }
   ]
@@ -40,6 +41,7 @@
    "Pourquoi… Parce qu'Odile me l'a demandé. Voilà."
   ],
   "dropped": [],
-  "learner_intent": "yes"
+  "learner_intent": "yes",
+  "tomorrow_question_fr": "Pourquoi Lila tourne-t-elle son téléphone ?"
  }
 }

@@ -8273,6 +8273,8 @@ export interface components {
             season_title_fr: string | null;
             /** Teaser Fr */
             teaser_fr: string | null;
+            /** Teaser Open Fr */
+            teaser_open_fr: string | null;
             /** Title Fr */
             title_fr: string | null;
         };
@@ -11816,6 +11818,8 @@ export interface components {
             character_id: string | null;
             /** Character Name */
             character_name: string | null;
+            /** Open Fr */
+            open_fr: string | null;
             /**
              * Source
              * @enum {string}
