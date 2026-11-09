@@ -930,32 +930,53 @@ def reconcile_with_sentence(refined: dict[str, Any], learner_text: Any, language
         wrong, fix = _trim_shared_marks(wrong, fix)
         if not wrong.strip() or not fix.strip() or wrong.strip() == fix.strip():
             continue
-        language_key = _language(language)
-        ops = token_diff(wrong, fix)
-        accent_only = bool(ops) and all(op["kind"] == "accent" for op in ops)
-        note = describe_diff(ops, language_key)
-        if accent_only:
-            note = _copy("forge.diff.accent", language_key, target=fix)
-        derived.append(
-            {
-                "item_id": "",
-                "display_label": _ACCENT_LABEL[language_key] if accent_only else _copy("forge.diff.label", language_key),
-                "learner_text": wrong,
-                "corrected_target": fix,
-                "why_wrong": note,
-                "repair_hint": "",
-                "severity": 1,
-                "recurring": False,
-                "task_error_type": "orthography" if accent_only else "grammar",
-                "derived_from_sentence": True,
-            }
-        )
+        derived.append(_derived_gap(wrong, fix, _language(language)))
     if not derived:
         return refined
     merged = [*errata, *derived]
     if repair_parts(line, merged) is None:
-        return refined
+        # A difference the line cannot hold as a gap: in «Elle a achete livre.» the word
+        # beside the missing «un» is itself a listed fix. The model's own gaps may still
+        # fit, and filling them gives a line record_micro_repair refuses, so the learner
+        # could never finish. The line is retyped whole instead. The retype comes first
+        # because a line repair has one target, index 0, and no other correction may ask
+        # for a retype of its own.
+        whole = _derived_gap(line, corrected.strip(), _language(language))
+        kept = [item for item in errata if not _asks_for_a_retype(item.get("corrected_target"))]
+        return {**refined, "errata": [whole, *kept]}
     return {**refined, "errata": merged}
+
+
+def _derived_gap(wrong: str, fix: str, language_key: str) -> dict[str, Any]:
+    """A correction read off the two sentences, for a difference the model did not list."""
+
+    ops = token_diff(wrong, fix)
+    accent_only = bool(ops) and all(op["kind"] == "accent" for op in ops)
+    note = describe_diff(ops, language_key)
+    if accent_only:
+        note = _copy("forge.diff.accent", language_key, target=fix)
+    return {
+        "item_id": "",
+        "display_label": _ACCENT_LABEL[language_key] if accent_only else _copy("forge.diff.label", language_key),
+        "learner_text": wrong,
+        "corrected_target": fix,
+        "why_wrong": note,
+        "repair_hint": "",
+        "severity": 1,
+        "recurring": False,
+        "task_error_type": "orthography" if accent_only else "grammar",
+        "derived_from_sentence": True,
+    }
+
+
+def _asks_for_a_retype(target: Any) -> bool:
+    """Whether the screen gives this correction a retype field of its own.
+
+    Mirrors ``isRepairableLine`` in ``web-frontend/lib/repair-parts.ts``."""
+
+    trimmed = str(target or "").strip()
+    words = len(trimmed.split())
+    return words >= 3 or (words >= 2 and trimmed[-1:] in {".", "!", "?", "…"})
 
 
 def refine_production_correction(

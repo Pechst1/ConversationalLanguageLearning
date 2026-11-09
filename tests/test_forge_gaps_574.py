@@ -88,7 +88,7 @@ def test_a_line_that_differs_only_in_case_and_the_full_stop_gets_no_gap() -> Non
     assert [item["learner_text"] for item in refined["errata"]] == ["tres"], "the model's own list is left as it was"
 
 
-def _attempt(db_session, errata: list[dict]):
+def _attempt(db_session, errata: list[dict], *, learner: str = LEARNER, corrected: str = CORRECTED):
     from app.db.models.atelier import AtelierAttempt, AtelierSession
     from tests.test_atelier import _user
 
@@ -98,9 +98,9 @@ def _attempt(db_session, errata: list[dict]):
     db_session.flush()
     attempt = AtelierAttempt(
         atelier_session_id=session.id, user_id=user.id, round="sentence", mode="sentence", exercise_id="s:1",
-        prompt_payload={}, answer_payload={"text": LEARNER}, verdict="partial", score_0_4=2.0,
+        prompt_payload={}, answer_payload={"text": learner}, verdict="partial", score_0_4=2.0,
         correction_payload={
-            "verdict": "partial", "assessment_status": "checked", "errata": errata, "corrected_answer": CORRECTED,
+            "verdict": "partial", "assessment_status": "checked", "errata": errata, "corrected_answer": corrected,
         },
     )
     db_session.add(attempt)
@@ -120,6 +120,53 @@ def test_a_repaired_line_that_still_has_a_known_error_is_not_fixed(db_session) -
     assert result.correction_payload["micro_repairs"]["0"]["status"] == "no", "«agreable» is still in the line"
     fixed = service.record_micro_repair(attempt=attempt, text=CORRECTED, erratum_index=0)
     assert fixed.correction_payload["micro_repairs"]["0"]["status"] == "ok"
+
+
+@pytest.mark.parametrize(
+    ("line", "filled"),
+    [
+        ("Elle a achete livre.", "Elle a acheté livre."),  # a word missing beside a listed fix
+        ("Elle a achete le un livre.", "Elle a acheté le un livre."),  # a word too many beside it
+    ],
+)
+def test_a_difference_beside_a_listed_fix_sends_the_line_back_whole(db_session, line: str, filled: str) -> None:
+    """#634: «Elle a achete livre.» kept the one gap «achete → acheté». Filling it gave a
+    line the check refuses, because «un» is still missing, so the learner could never
+    finish. The line is retyped whole instead, and that retype is what finishes it."""
+    from app.services.atelier import AtelierCorrectionService, repair_parts
+    from app.services.forge_grading import refine_production_correction
+
+    corrected = "Elle a acheté un livre."
+    refined = refine_production_correction(
+        _model_result([_erratum("achete", "acheté")], corrected), learner_text=line, accepted=[], language="en"
+    )
+    errata = refined["errata"]
+    assert repair_parts(line, errata) is None, "no gap may be offered: filling them cannot give the sentence"
+    assert (errata[0]["learner_text"], errata[0]["corrected_target"]) == (line, corrected)
+    assert [item["learner_text"] for item in errata[1:]] == ["achete"], "the model's note on the accent stays"
+
+    attempt = _attempt(db_session, errata, learner=line, corrected=corrected)
+    service = AtelierCorrectionService(db_session)
+    refused = service.record_micro_repair(attempt=attempt, text=filled, erratum_index=0)
+    assert refused.correction_payload["micro_repairs"]["0"]["status"] == "no"
+    fixed = service.record_micro_repair(attempt=attempt, text=corrected, erratum_index=0)
+    assert fixed.correction_payload["micro_repairs"]["0"]["status"] == "ok"
+
+
+def test_a_line_sent_back_whole_keeps_no_other_retype() -> None:
+    """A line repair has one target, index 0, so a second multi-word correction would get a
+    retype field the server refuses."""
+    from app.services.forge_grading import refine_production_correction
+
+    line = "Elle a achete livre et une grand chat."
+    refined = refine_production_correction(
+        _model_result(
+            [_erratum("achete", "acheté"), _erratum("une grand chat", "un grand chat")],
+            "Elle a acheté un livre et un grand chat.",
+        ),
+        learner_text=line, accepted=[], language="en",
+    )
+    assert [item["learner_text"] for item in refined["errata"]] == [line, "achete"]
 
 
 def test_the_item_word_range_is_enforced(db_session) -> None:
