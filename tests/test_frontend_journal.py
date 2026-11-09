@@ -194,7 +194,8 @@ def test_the_learner_facing_copy_is_french(tab: str, french: str):
 def test_an_ungraded_entry_says_so_and_is_never_a_verdict(tab: str, french: str):
     assert "state === 'not_checked'" in tab
     assert "return t.correction_unavailable;" in tab
-    assert "La correction n’a pas pu être faite. Ton texte est gardé tel quel." in french
+    # Its words are the one sentence every surface says for this state.
+    assert "correction_unavailable: CHECK_COPY.fr.not_checked" in french
     # The ungraded branch renders a Notice a walk can name, not the correction block.
     unavailable = tab.split("journalCheckState(entry) === 'not_checked' ? (")[1]
     branch = unavailable.split(") : (")[0].strip().removeprefix("<>").strip()
