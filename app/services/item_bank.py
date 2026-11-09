@@ -1521,6 +1521,37 @@ _FILTER_ALIASES = {"def": "def_", "en": "en_"}
 #: person itself.
 _UNDERSPECIFIED_SUBJECTS = frozenset({"I", "we", "you", "they"})
 #: A «we» gloss that also names «our» / «us»: only «nous … notre» is that sentence.
+# #536: an English gloss that names a person's sex («invite her», «his friend»).
+_GENDERED_ENGLISH = re.compile(r"\b(?:he|him|his|himself|she|her|hers|herself)\b", re.IGNORECASE)
+_MASCULINE_DETERMINERS = frozenset({"le", "un", "ce", "cet", "du", "au", "mon", "ton", "son"})
+_FEMININE_DETERMINERS = frozenset({"la", "une", "cette", "ma", "ta", "sa"})
+_EUPHONIC_POSSESSIVES = frozenset({"mon", "ton", "son"})
+
+
+def _agrees_with_noun(sentence: str, noun: dict[str, Any]) -> bool:
+    """Whether the determiner before ``noun`` in ``sentence`` has the noun's gender.
+
+    One word may sit between them (an adjective); «mon / ton / son» stand before a
+    feminine noun only when it starts with a vowel and nothing sits between them."""
+
+    gender = noun.get("g")
+    forms = {str(noun[key]).lower() for key in ("fr", "pl") if isinstance(noun.get(key), str)}
+    words = re.findall(r"[\w'’-]+", sentence.lower().replace("’", "'"))
+    for index, word in enumerate(words):
+        if word not in forms:
+            continue
+        for gap, before in enumerate(reversed(words[max(0, index - 2): index])):
+            if before in _MASCULINE_DETERMINERS and gender == "f":
+                if before in _EUPHONIC_POSSESSIVES and gap == 0 and re.match(r"[aeiouyhâêéèîôû]", word):
+                    break
+                return False
+            if before in _FEMININE_DETERMINERS and gender == "m":
+                return False
+            if before in _MASCULINE_DETERMINERS | _FEMININE_DETERMINERS:
+                break
+    return True
+
+
 _OUR_US = re.compile(r"\b(?:our|ours|ourselves|us)\b", re.IGNORECASE)
 
 #: What else in a frame's own text would name the same person as a subject slot
@@ -2034,6 +2065,41 @@ class ItemBank:
                 except (RenderError, KeyError, IndexError):
                     continue
                 sentences.append(rendered.sentence)
+            sentences.extend(self._gloss_twin_sentences(frame, bindings, slot, entry))
+        return sentences
+
+    def _gloss_twin_sentences(
+        self, frame: _Frame, bindings: dict[str, dict[str, Any]], slot: str, entry: dict[str, Any]
+    ) -> list[str]:
+        """#536: the sentence again with each other person noun the English glosses the
+        same: English «my cousin» is «mon cousin» and «ma cousine», «a friend» is «un
+        ami» and «une amie». The gloss names no gender, so the key may not either; the
+        frame redoes the agreement."""
+
+        if entry.get("kind") != "person" or "pron" in (entry.get("tags") or []) or not entry.get("en"):
+            return []
+        if _GENDERED_ENGLISH.search(self._render_text(frame.en, bindings, english=True)):
+            # «invite her», «I help him»: the English names the person's sex, so the key
+            # may not take the other one (the twin is built from the noun alone).
+            return []
+        sentences: list[str] = []
+        for twin in self.lex.pool("noun"):
+            if (
+                twin.get("kind") != "person"
+                or twin.get("en") != entry.get("en")
+                or twin.get("fr") == entry.get("fr")
+                or twin.get("id") == entry.get("id")
+            ):
+                continue
+            try:
+                rendered = self.render(frame, {**bindings, slot: twin}, alternatives=False)
+            except (RenderError, KeyError, IndexError):
+                continue
+            if not _agrees_with_noun(rendered.sentence, twin):
+                # The frame redid the noun but not a word it hard-codes beside it
+                # («mon vieille amie»): that is a wrong sentence, never a right one.
+                continue
+            sentences.append(rendered.sentence)
         return sentences
 
     def _person_variants(self, frame: _Frame, bindings: dict[str, dict[str, Any]], sentence: str) -> list[str]:
@@ -2126,7 +2192,13 @@ class ItemBank:
         scene = finish_english(self._render_text(frame.scene, bindings, english=True)) if frame.scene else ""
         accepted = [finish_sentence(tidy_french(self._render_text(alt, bindings))) for alt in frame.accepted]
         if alternatives:
-            accepted.extend(self._alternative_sentences(frame, bindings))
+            # A right answer is never one the screen shows as wrong (a ✗ sentence).
+            wrong = {normalize(sentence) for sentence in wrong_sentences}
+            accepted.extend(
+                alternative
+                for alternative in self._alternative_sentences(frame, bindings)
+                if normalize(alternative) not in wrong
+            )
         lemmas = tuple(
             str(entry.get("lemma") or entry.get("fr") or "").lower()
             for entry in bindings.values()
