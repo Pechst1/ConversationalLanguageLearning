@@ -7,6 +7,8 @@ what the same rule must leave alone. No model call is made anywhere in this file
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from app.services import correction_contract as cc
@@ -202,6 +204,27 @@ def test_the_adjective_stays_when_the_noun_does_not_say_feminine(text):
 
 def test_grand_mere_without_its_hyphen_gets_the_hyphen_and_no_feminine():
     assert _pairs("Ma grand mère est là.") == [("grand mère", "grand-mère")]
+
+
+@pytest.mark.parametrize(
+    ("text", "fixed"),
+    [
+        pytest.param("Camille a une clé et je vais a Paris.", "Camille a une clé et je vais à Paris.", id="a-right-a-earlier"),
+        pytest.param("La table est là et je vois le maison.", "La table est là et je vois la maison.", id="a-right-la-after"),
+        pytest.param("La fille mange. Je vois le maison et la voiture.", "La fille mange. Je vois la maison et la voiture.", id="the-same-word-on-both-sides"),
+        pytest.param("Je vois le chat et le maison.", "Je vois le chat et la maison.", id="a-right-le-earlier"),
+        pytest.param("C est bon et c est bien.", "C'est bon et c'est bien.", id="both-wrong"),
+        pytest.param("Lila a un chat. Je vais a Paris et je vais a Lyon.", "Lila a un chat. Je vais à Paris et je vais à Lyon.", id="two-after-a-right-one"),
+    ],
+)
+def test_a_rule_fix_found_by_its_words_lands_on_the_word_it_means(text, fixed):
+    checked = cc.verify_correction(text, None, cc.deterministic_errata(text))
+    assert checked.corrected == fixed
+    assert [row["reason"] for row in checked.refused] == []
+    for edit in cc.deterministic_edits(text):
+        assert re.search(rf"(?<!\w){re.escape(edit.span)}(?!\w)", text, re.IGNORECASE).start() == edit.start
+        assert text[edit.start : edit.end] == edit.span
+    assert cc.repair_text(text) == fixed
 
 
 def test_the_sentence_the_failed_check_tests_lean_on_is_still_unseen_by_the_rules():

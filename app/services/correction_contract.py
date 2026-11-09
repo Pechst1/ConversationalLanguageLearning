@@ -2128,7 +2128,40 @@ def deterministic_edits(
             continue
         settled.append(final)
     settled.sort(key=lambda e: e.start)
-    return settled
+    return _found_by_their_words(source, settled)
+
+
+def _found_by_their_words(source: str, edits: list[Edit]) -> list[Edit]:
+    """Each edit with a neighbouring word when its words are also somewhere earlier in the line.
+
+    An erratum keeps no offsets and a span is found by its words, so «a» -> «à» in «Camille a une
+    clé et je vais a Paris» lands on the first «a», which is right. The word in front is taken
+    when it is free, else the word after it. An edit no free word can tell apart is dropped: a
+    fix that lands on a right word is worse than none."""
+
+    words = _line_words(source)
+    named: list[Edit] = []
+    for index, edit in enumerate(edits):
+        floor = named[-1].end if named else 0
+        ceiling = edits[index + 1].start if index + 1 < len(edits) else len(source)
+        start, end = edit.start, edit.end
+        while (first := span_pattern(source[start:end]).search(source)) is not None and first.start() != start:
+            before = [word for word in words if floor <= word[0] and word[1] <= start]
+            following = [word for word in words if end <= word[0] and word[1] <= ceiling]
+            if before:
+                start = before[-1][0]
+            elif following:
+                end = following[0][1]
+            else:
+                start = -1
+                break
+        if start < 0:
+            continue
+        if (start, end) != (edit.start, edit.end):
+            right = source[start : edit.start] + edit.replacement + source[edit.end : end]
+            edit = replace(edit, span=source[start:end], replacement=right, start=start, end=end)
+        named.append(edit)
+    return named
 
 
 def _settle(source: str, edit: Edit, cast: Mapping[str, str], depth: int = 0) -> Edit | None:
