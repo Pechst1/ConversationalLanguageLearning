@@ -88,9 +88,8 @@ test('the Journal says who read it, whatever the old payload field claims', () =
   assert.equal(correctionLine(read_, t), t.correction_clean);
   assert.equal(canRetryCorrection(rulesOnly), true);
   assert.equal(canRetryCorrection(read_), false);
-  // An older server: a deterministic pass is not a model's check.
-  assert.equal(journalCheckState({ correction: { assessment_status: 'checked', checker: 'deterministic', errata: [] } }), 'not_checked');
-  assert.equal(journalCheckState({ correction: { assessment_status: 'checked', errata: [] } }), 'settled');
+  // The old payload field says nothing on its own any more.
+  assert.equal(journalCheckState({ correction: { assessment_status: 'checked', errata: [] } }), 'not_checked');
 });
 
 test('a letter closed on an unread message prints no verdict, goals or mood', () => {

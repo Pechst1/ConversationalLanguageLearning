@@ -31,6 +31,7 @@ from app.db.models.mission import RealWorldMission
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
+from app.services import verdicts
 from app.services.atelier_assets import AtelierAssetService
 from app.services.concept_titles import concept_title
 from app.services.daily_words import DailyWordSlateService
@@ -6209,6 +6210,13 @@ class GraphicNovelCorrectionService:
         self.db.commit()
         self.db.refresh(attempt)
         self.db.refresh(scene)
+        answer_text = str((answer_payload or {}).get("answer") or (answer_payload or {}).get("text") or "")
+        verdicts.note_failure(
+            self.db,
+            surface="feuilleton",
+            verdict=verdicts.from_feuilleton(correction, verdict=attempt.verdict, text=answer_text),
+            user_id=user.id,
+        )
 
         persisted: list[dict[str, Any]] = []
         memory = ErrorMemoryService(self.db)
@@ -6696,99 +6704,7 @@ class GraphicNovelCorrectionService:
         llm_result = self._llm_short_sentence(task=task, text=text)
         if llm_result:
             return finish(llm_result)
-        normalized = _normalize_text(text)
-        if _task_requires_si_frame(task):
-            has_si = bool(re.search(r"\bsi\b|s'il|s elle|s il", normalized))
-            has_result = any(token in normalized for token in ("rai", "ras", "ra", "rons", "rez", "ront", "prends", "mange", "viens"))
-            if has_si and has_result:
-                return finish({
-                    "verdict": "accepted",
-                    "score_0_4": 3,
-                    "corrected_answer": text,
-                    "why": "You used a si-clause and gave the condition a future or imperative consequence.",
-                    "repair": "",
-                    "errata": [],
-                })
-            erratum = {
-                "display_label": "Si frame in context",
-                "learner_text": text,
-                "corrected_target": "Si je pars maintenant, j'arriverai à l'heure.",
-                "why_wrong": "Your sentence does not clearly use the si + present frame that this task asks for.",
-                "repair_hint": "Start with si plus a present-tense condition, then add what will happen or what someone should do.",
-                "severity": 2,
-                "recurring": True,
-                "task_error_type": "si_clause_frame",
-                "concept_id": task.get("concept_id"),
-                "external_id": "",
-            }
-            return finish({
-                "verdict": "partial",
-                "score_0_4": 2,
-                "corrected_answer": erratum["corrected_target"],
-                "why": erratum["why_wrong"],
-                "repair": erratum["repair_hint"],
-                "errata": [erratum],
-            })
-        words = re.findall(r"[a-zàâçéèêëîïôûùüÿñæœ'-]+", normalized, flags=re.IGNORECASE)
-        french_markers = {
-            "je",
-            "tu",
-            "il",
-            "elle",
-            "nous",
-            "vous",
-            "ils",
-            "elles",
-            "le",
-            "la",
-            "les",
-            "un",
-            "une",
-            "des",
-            "du",
-            "de",
-            "que",
-            "qui",
-            "dans",
-            "avec",
-            "pour",
-            "mais",
-            "puis",
-            "est",
-            "sont",
-            "a",
-            "ont",
-        }
-        if len(words) >= 4 and any(word in french_markers for word in words):
-            return finish({
-                "verdict": "accepted",
-                "score_0_4": 3,
-                "corrected_answer": text,
-                "why": f"You wrote a usable French continuation and touched the requested area: {feature}.",
-                "repair": "",
-                "errata": [],
-            })
-        corrected = str(task.get("expected_answer") or task.get("example_answer") or "Le dossier continue, mais la scène reste lisible.").strip()
-        erratum = {
-            "display_label": "Short sentence in context",
-            "learner_text": text,
-            "corrected_target": corrected,
-            "why_wrong": f"Your answer is not yet a clear French sentence for the requested beat: {feature}.",
-            "repair_hint": "Write a complete French sentence that continues the scene before worrying about style.",
-            "severity": 2,
-            "recurring": False,
-            "task_error_type": "short_sentence_context",
-            "concept_id": task.get("concept_id"),
-            "external_id": "",
-        }
-        return finish({
-            "verdict": "partial",
-            "score_0_4": 2,
-            "corrected_answer": erratum["corrected_target"],
-            "why": erratum["why_wrong"],
-            "repair": erratum["repair_hint"],
-            "errata": [erratum],
-        })
+        return finish(self._short_sentence_not_read(task=task, text=text))
 
     def _vocabulary_task_item(self, task: dict[str, Any]) -> dict[str, Any] | None:
         if not task.get("vocabulary_task") and not task.get("target_word_id"):
@@ -6879,7 +6795,35 @@ class GraphicNovelCorrectionService:
             )
         return {**result, "vocabulary_events": events}
 
+    def _short_sentence_not_read(self, *, task: dict[str, Any], text: str) -> dict[str, Any]:
+        """#333: no model read this sentence, and the rules can add fixes but never a verdict.
+
+        This used to accept any four words with a «le» in them at a score of 3 («You wrote a
+        usable French continuation»), and that score reached the level average.
+        """
+
+        from app.services import correction_contract
+
+        errata = [
+            {**item, "concept_id": item.get("concept_id") or task.get("concept_id")}
+            for item in correction_contract.deterministic_errata(text)
+        ]
+        checked = correction_contract.verify_correction(text, None, errata)
+        return {
+            "verdict": "unassessed",
+            "score_0_4": 0,
+            "corrected_answer": checked.corrected,
+            "why": "",
+            "repair": "",
+            "errata": checked.errata,
+            "correction_debug": {
+                "fallback_used": True,
+                "failure": getattr(self, "_short_sentence_failure", None) or "no_model",
+            },
+        }
+
     def _llm_short_sentence(self, *, task: dict[str, Any], text: str) -> dict[str, Any] | None:
+        self._short_sentence_failure = "no_model"
         if not self.llm or not hasattr(self.llm, "generate_error_detection"):
             return None
         response_format = {
@@ -6958,30 +6902,35 @@ class GraphicNovelCorrectionService:
                 }
                 for item in parsed.get("errata") or []
             ]
-            return _held_to_sentence(parsed, text)
+            held = _held_to_sentence(parsed, text)
+            held["correction_debug"] = {"fallback_used": False, "model": result.model}
+            return held
         except (LLMProviderError, AttributeError, json.JSONDecodeError, ValueError) as exc:
             logger.debug("Graphic novel correction fallback", error=str(exc))
+            self._short_sentence_failure = f"{type(exc).__name__}: {exc}"
             return None
 
 def _held_to_sentence(parsed: dict[str, Any], text: str) -> dict[str, Any]:
     """The model's short-sentence correction through the one checker every correction
-    passes (#250): each erratum is verified against the learner's sentence and its
-    note held to its fix, and the model-free pass adds what the model missed. A
-    correction built on an erratum that was rejected is rebuilt from what is left;
-    when nothing is left, the sentence stands as written."""
+    passes (#250, #133): each erratum is verified against the learner's sentence and its
+    note held to its fix, the model-free pass adds what the model missed, and the corrected
+    line is built from what is left. When nothing is left, the sentence stands as written."""
 
     from app.services import correction_contract
 
     proposed = [item for item in parsed.get("errata") or [] if isinstance(item, dict)]
-    kept = correction_contract.merge_deterministic_errata(text, proposed)
+    merged = correction_contract.merge_deterministic_errata(text, proposed)
+    checked = correction_contract.verify_correction(
+        text, None if parsed.get("verdict") == "accepted" else parsed.get("corrected_answer"), merged
+    )
     concept_id = next((item.get("concept_id") for item in proposed), None)
-    kept = [{**item, "concept_id": item.get("concept_id") or concept_id} for item in kept]
+    kept = [{**item, "concept_id": item.get("concept_id") or concept_id} for item in checked.errata]
+    out = {**parsed, "errata": kept, "corrected_answer": checked.corrected}
     unchanged = [
         (item.get("learner_text"), item.get("corrected_target")) for item in kept
     ] == [(item.get("learner_text"), item.get("corrected_target")) for item in proposed]
     if unchanged:
-        return {**parsed, "errata": kept}
-    out = {**parsed, "errata": kept}
+        return out
     if not kept:
         out.update(
             verdict="accepted",
@@ -6991,27 +6940,10 @@ def _held_to_sentence(parsed: dict[str, Any], text: str) -> dict[str, Any]:
             repair="",
         )
         return out
-    # The model's verified fixes at the place they were verified (the first time the
-    # span stands in the learner's sentence), then the model-free pass on the result,
-    # which finds its own slips at their own positions («Je suis… Elle suis»).
-    corrected, taken = text, []
-    for item in kept:
-        if item.get("source") == "deterministic":
-            continue
-        span, fix = str(item.get("learner_text") or ""), str(item.get("corrected_target") or "")
-        at = text.find(span) if span and fix else -1
-        if at < 0 or any(at < end and start < at + len(span) for start, end in taken):
-            continue
-        taken.append((at, at + len(span)))
-    for start, end in sorted(taken, reverse=True):
-        fix = next(str(i.get("corrected_target")) for i in kept if i.get("learner_text") == text[start:end])
-        corrected = corrected[:start] + fix + corrected[end:]
-    corrected = correction_contract.repair_text(corrected)
     first = kept[0]
     out.update(
         verdict="partial",
         score_0_4=min(float(parsed.get("score_0_4") or 2), 3.0),
-        corrected_answer=corrected,
         why=str(first.get("why_wrong") or ""),
         repair=str(first.get("repair_hint") or ""),
     )
@@ -7092,6 +7024,12 @@ def _public_generation_metadata(panel: GraphicNovelPanel) -> dict[str, Any]:
     return public
 
 
+def _attempt_check(attempt: GraphicNovelAttempt) -> dict[str, Any]:
+    answer = attempt.answer_payload or {}
+    text = str(answer.get("answer") or answer.get("text") or "")
+    return verdicts.from_feuilleton(attempt.correction_payload, verdict=attempt.verdict, text=text).to_dict()
+
+
 def serialize_attempt(attempt: GraphicNovelAttempt) -> dict[str, Any]:
     return {
         "id": str(attempt.id),
@@ -7100,7 +7038,8 @@ def serialize_attempt(attempt: GraphicNovelAttempt) -> dict[str, Any]:
         "task_id": attempt.task_id,
         "task_type": attempt.task_type,
         "answer_payload": attempt.answer_payload or {},
-        "correction": attempt.correction_payload or {},
+        # #333: the reader's one screen state rides on the correction it shows.
+        "correction": {**(attempt.correction_payload or {}), "check": _attempt_check(attempt)},
         "verdict": attempt.verdict,
         "score_0_4": attempt.score_0_4,
         "created_at": attempt.created_at.isoformat() if attempt.created_at else None,

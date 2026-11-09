@@ -224,15 +224,101 @@ def from_courrier(correction: dict[str, Any] | None, *, text: str = "") -> Verdi
     )
 
 
-def from_feuilleton(correction: dict[str, Any] | None, *, verdict: str | None = None) -> Verdict:
-    """A stored Feuilleton answer, for what may count. A branch is a choice nobody can fail to read."""
+def from_feuilleton(correction: dict[str, Any] | None, *, verdict: str | None = None, text: str = "") -> Verdict:
+    """A stored Feuilleton answer. A branch is a choice nobody can fail to read."""
 
     payload = correction if isinstance(correction, dict) else {}
     debug = payload.get("correction_debug") if isinstance(payload.get("correction_debug"), dict) else {}
     word = str(verdict or payload.get("verdict") or "")
     if debug.get("fallback_used") or word in {"", "needs_review", "unassessed"}:
-        return make_verdict(outcome=Outcome.NOT_CHECKED, checked_by=CheckedBy.NONE, call=Call.NOT_CALLED)
-    return make_verdict(outcome=_WORDS.get(word, Outcome.RIGHT), checked_by=CheckedBy.KEY, call=Call.NOT_CALLED)
+        reason = debug.get("failure")
+        call = {"empty": Call.EMPTY, "no_model": Call.NOT_CALLED, None: Call.NOT_CALLED}.get(reason, Call.FAILED)
+        return make_verdict(
+            outcome=Outcome.NOT_CHECKED,
+            checked_by=CheckedBy.NONE,
+            call=call,
+            failure=failure_class(reason) if reason else None,
+            text=text,
+            proposed=_errata_as_proposed(payload.get("errata") or [], by="rules"),
+        )
+    by_model = bool(debug.get("model"))
+    return make_verdict(
+        outcome=_WORDS.get(word, Outcome.RIGHT),
+        checked_by=CheckedBy.MODEL if by_model else CheckedBy.KEY,
+        call=Call.OK if by_model else Call.NOT_CALLED,
+        text=text,
+        proposed=_errata_as_proposed(payload.get("errata") or [], by="model" if by_model else "key"),
+    )
+
+
+def from_voice(*, text: str, errors: Iterable[dict[str, Any]], read: bool, failure: str | None = None) -> Verdict:
+    """A spoken turn. ``read``: a model looked at it. No errors means something only then."""
+
+    found = list(errors)
+    proposed = [
+        {
+            "span": error.get("span"),
+            "replacement": error.get("correction"),
+            "note": error.get("message") or "",
+            "by": "model" if read else "rules",
+        }
+        for error in found
+    ]
+    if read:
+        return make_verdict(
+            outcome=Outcome.NOT_YET if found else Outcome.RIGHT,
+            checked_by=CheckedBy.MODEL,
+            call=Call.OK,
+            text=text,
+            proposed=proposed,
+        )
+    return make_verdict(
+        outcome=Outcome.NOT_CHECKED,
+        checked_by=CheckedBy.NONE,
+        call=Call.FAILED if failure else Call.NOT_CALLED,
+        failure=failure_class(failure) if failure else Failure.NO_MODEL,
+        text=text,
+        proposed=proposed,
+    )
+
+
+def from_rehearsal(debrief: dict[str, Any] | None) -> Verdict:
+    """The line a learner wrote after the real event. Nothing moves on it, but it can be read or not."""
+
+    payload = debrief if isinstance(debrief, dict) else {}
+    text = str(payload.get("free_line") or "")
+    if not payload.get("correction_available"):
+        failure = failure_class(payload.get("correction_failure"))
+        return make_verdict(
+            outcome=Outcome.NOT_CHECKED,
+            checked_by=CheckedBy.NONE,
+            call=Call.NOT_CALLED if failure is Failure.NO_MODEL else Call.FAILED,
+            failure=failure,
+            retryable=failure is not Failure.NO_MODEL,
+        )
+    fixes = _errata_as_proposed(payload.get("fixes") or [], by="model")
+    return make_verdict(
+        outcome=Outcome.RIGHT if payload.get("already_correct") and not fixes else Outcome.NOT_YET,
+        checked_by=CheckedBy.MODEL,
+        call=Call.OK,
+        text=text,
+        proposed=fixes,
+    )
+
+
+def from_placement(grading: dict[str, Any] | None, *, failure: str | None = None) -> Verdict:
+    """A placement answer. No grading is no measurement, and it holds the ladder (``next_band``)."""
+
+    if not grading:
+        return make_verdict(
+            outcome=Outcome.NOT_CHECKED,
+            checked_by=CheckedBy.NONE,
+            call=Call.FAILED,
+            failure=failure_class(failure),
+        )
+    score = float(grading.get("score_0_4") or 0)
+    outcome = Outcome.RIGHT if score >= 3 else Outcome.PARTLY if score >= 2 else Outcome.NOT_YET
+    return make_verdict(outcome=outcome, checked_by=CheckedBy.MODEL, call=Call.OK)
 
 
 def from_journal(correction: dict[str, Any] | None, *, text: str = "") -> Verdict:
@@ -292,7 +378,10 @@ __all__ = [
     "from_feuilleton",
     "from_forge",
     "from_journal",
+    "from_placement",
     "from_recall",
+    "from_rehearsal",
     "from_scene",
+    "from_voice",
     "note_failure",
 ]

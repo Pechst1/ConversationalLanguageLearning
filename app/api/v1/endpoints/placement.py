@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_db
 from app.db.models.placement import PlacementSession
 from app.db.models.user import User
+from app.services import verdicts
 from app.services.cefr_progress import CEFRProgressService
 from app.services.journey_contracts import normalize_control_language
 from app.services.placement import (
@@ -62,6 +63,8 @@ class PlacementEnvelope(BaseModel):
     confidence: float = 0.0
     #: The prior the CEFR service would use right now, or ``None``.
     prior: dict | None = None
+    #: The one verdict shape (#333) for the answer just given. The ladder holds on an unread one.
+    check: dict | None = None
 
 
 class RespondRequest(BaseModel):
@@ -111,6 +114,7 @@ def _envelope(
         level=session.estimate_level,
         confidence=float(session.confidence or 0.0),
         prior=latest_placement_prior(db, user),
+        check=verdicts.from_placement(session.turns[-1].get("grading")).to_dict() if session.turns else None,
     )
 
 

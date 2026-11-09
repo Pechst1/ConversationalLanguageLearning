@@ -45,7 +45,7 @@ class StubErrorDetector:
         pass
 
     def analyze(self, *args, **kwargs):  # type: ignore[no-untyped-def]
-        return SimpleNamespace(errors=[])
+        return SimpleNamespace(errors=[], metadata={"llm_read": True})
 
 
 def _user(db_session, email: str) -> User:  # type: ignore[no-untyped-def]
@@ -184,6 +184,7 @@ def test_audio_errors_keep_full_xp_and_mint_courage_then_recovery(
 
         def analyze(self, *args, **kwargs):  # type: ignore[no-untyped-def]
             return SimpleNamespace(
+                metadata={"llm_read": True},
                 errors=[
                     DetectedError(
                         code="verb_conjugation",

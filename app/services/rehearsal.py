@@ -73,6 +73,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db.models.rehearsal import REHEARSAL_OUTCOMES, Rehearsal
 from app.db.models.user import User
+from app.services import correction_contract, verdicts
 from app.services.journey_content import BAND_LIMITS, learner_level_band
 from app.services.journey_contracts import (
     AssistanceLevel,
@@ -842,6 +843,17 @@ def rehearsal_result(rehearsal: Rehearsal) -> RehearsalResult:
     )
 
 
+def _debrief_view(debrief: dict[str, Any] | None) -> dict[str, Any] | None:
+    """The stored debrief as the page reads it: a written line says who read it (#333)."""
+
+    view = dict(debrief or {})
+    if not view:
+        return None
+    if view.get("free_line"):
+        view["check"] = verdicts.from_rehearsal(view).to_dict()
+    return view
+
+
 def debrief_available(rehearsal: Rehearsal, *, today: date) -> bool:
     """Whether "Comment ça s'est passé ?" may be asked yet.
 
@@ -933,7 +945,7 @@ def public_view(rehearsal: Rehearsal, *, today: date | None = None) -> dict[str,
         if finished
         else None,
         "event_date": rehearsal.event_date.isoformat() if rehearsal.event_date else None,
-        "debrief": dict(rehearsal.debrief or {}) or None,
+        "debrief": _debrief_view(rehearsal.debrief),
         "outcome": rehearsal.outcome,
         "debrief_available": debrief_available(
             rehearsal, today=today or datetime.now(UTC).date()
@@ -1335,11 +1347,20 @@ class RehearsalService:
             "corrected_fr": (correction or {}).get("corrected_fr"),
             "note_fr": (correction or {}).get("note_fr"),
             "already_correct": (correction or {}).get("already_correct"),
+            "fixes": (correction or {}).get("fixes") or [],
+            "correction_failure": self._free_line_failure if line and correction is None else None,
             # An uncorrected line is said to be uncorrected. The learner is
             # never shown their own sentence back as if it had been checked.
             "correction_available": correction is not None,
             "recorded_at": moment.isoformat(),
         }
+        if line:
+            verdicts.note_failure(
+                self.db,
+                surface="rehearsal",
+                verdict=verdicts.from_rehearsal(rehearsal.debrief),
+                user_id=user.id,
+            )
         rehearsal.outcome = outcome
         rehearsal.status = "debriefed"
         rehearsal.debriefed_at = moment
@@ -1394,8 +1415,10 @@ class RehearsalService:
         means "correct".
         """
 
+        self._free_line_failure = None
         llm = self._get_llm_service()
         if llm is None:
+            self._free_line_failure = "no_model"
             return None
         payload = {
             "learner_line": line,
@@ -1415,6 +1438,7 @@ class RehearsalService:
             )
         except (LLMProviderError, ValueError, TypeError) as exc:
             logger.warning("Rehearsal debrief correction failed: {}", exc)
+            self._free_line_failure = verdicts.failure_class(f"{type(exc).__name__}: {exc}").value
             return None
         _record_cost(
             self.db,
@@ -1424,6 +1448,7 @@ class RehearsalService:
             payload={"words": _words(line)},
             result=result,
         )
+        self._free_line_failure = "invalid_output"
         try:
             parsed = json.loads(result.content)
         except (json.JSONDecodeError, TypeError):
@@ -1436,10 +1461,15 @@ class RehearsalService:
         note = _clean_line(parsed.get("note_fr"), 200)
         if mentions_fiction(corrected, note) is not None:
             return None
+        self._free_line_failure = None
+        # #133: the line shown holds the learner's words with the fixes that hold up, and a
+        # note about a change that didn't is dropped with it.
+        checked = correction_contract.verify_correction(line, corrected, [])
         return {
-            "corrected_fr": corrected,
-            "note_fr": note,
+            "corrected_fr": checked.corrected,
+            "note_fr": note if checked.corrected != line or not checked.refused else "",
             "already_correct": bool(parsed.get("already_correct")),
+            "fixes": checked.errata,
         }
 
 

@@ -91,7 +91,7 @@ test('the journal helpers speak the table they are given, French by default', ()
   const entry = {
     cue: { character_name: 'Augustin', location_name: 'Le Mistral', days_ago: 1 },
     content_recall: { status: 'scored', matched: [1], facts_total: 3 },
-    correction: { assessment_status: 'checked', errata: [{}, {}] },
+    correction: { assessment_status: 'checked', errata: [{}, {}], check: { outcome: 'not_yet', call: 'ok' } },
   };
   assert.equal(cueLine(entry), 'Hier · Le Mistral · avec Augustin');
   assert.equal(cueLine(entry, cahierCopy('en').journal), 'Yesterday · Le Mistral · with Augustin');

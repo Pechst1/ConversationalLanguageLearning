@@ -454,6 +454,7 @@ export interface RehearsalView {
     already_correct?: boolean | null;
     /** False means the line was NOT checked — never that it was correct. */
     correction_available: boolean;
+    check?: CheckLike | null;
     recorded_at: string;
   } | null;
   outcome?: string | null;
@@ -3140,6 +3141,7 @@ class ApiService {
   }): Promise<{
     ai_response: string;
     ai_audio_text: string;
+    check?: CheckLike | null;
     detected_errors: Array<{
       original: string;
       correction: string;

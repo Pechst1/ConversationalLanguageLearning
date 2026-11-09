@@ -127,13 +127,9 @@ export function FollowupResult({ followup, t = FRENCH_JOURNAL }: { followup: Jou
   );
 }
 
-/** The entry's one screen state. An older server sends no `check`: nothing proves a model read it. */
+/** The entry's one screen state. With no `check`, nothing proves a model read it. */
 export function journalCheckState(entry: JournalEntryView | null | undefined): CheckState {
-  const correction = entry?.correction;
-  if (!correction) return 'not_checked';
-  if (correction.check) return checkState(correction.check);
-  if (correction.assessment_status === 'checked' && correction.checker !== 'deterministic') return 'settled';
-  return correction.errata?.length ? 'basic' : 'not_checked';
+  return entry?.correction?.check ? checkState(entry.correction.check) : 'not_checked';
 }
 
 /** The verdict line for the writing itself, in the chrome language. */

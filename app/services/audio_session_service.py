@@ -22,6 +22,7 @@ from app.db.models.serial import SerialThread
 from app.db.models.session import ConversationMessage, LearningSession
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
+from app.services import verdicts
 from app.services.answer_acceptance import correction_is_grounded, is_preference_swap
 from app.services.atelier_rewards import AtelierRewardService
 from app.services.chrome_language import user_chrome_language
@@ -705,9 +706,20 @@ Maximum 2 phrases."""
         )
         self.db.commit()
 
+        # #333: an empty list means something only when a model looked. A turn nobody read is
+        # no recovery and earns no token.
+        metadata = error_result.metadata or {}
+        check = verdicts.from_voice(
+            text=user_text,
+            errors=detected_errors,
+            read=bool(metadata.get("llm_read")),
+            failure=metadata.get("llm_failure"),
+        )
+        verdicts.note_failure(self.db, surface="voice", verdict=check, user_id=user.id)
+
         minted_collectibles: list[dict[str, Any]] = []
-        recovery = had_previous_error and not detected_errors
-        if detected_errors or recovery:
+        recovery = had_previous_error and not detected_errors and check.counts
+        if check.counts and (detected_errors or recovery):
             minted_collectibles = AtelierRewardService(self.db).mint_conversation_effort_token(
                 user_id=user.id,
                 source_kind="audio_turn",
@@ -721,6 +733,7 @@ Maximum 2 phrases."""
         return {
             "ai_response": ai_response,
             "detected_errors": detected_errors,
+            "check": check.to_dict(),
             "xp_awarded": xp_awarded,
             "vocabulary_credit": vocabulary_credit,
             "minted_collectibles": minted_collectibles,
