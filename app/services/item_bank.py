@@ -240,6 +240,18 @@ def contains_phrase(haystack: str, needle: str) -> bool:
     return re.search(rf"(?:^|[\s']){re.escape(pin)}(?:$|[\s'])", hay) is not None
 
 
+#: A fill item's blank: two or more underscores, however a set wrote it («___», «____»,
+#: «t'_____»). #448 / #146: three places each hard-coded one length, so the end sheet
+#: replaced «___» in a «____» line and printed «Tu peux_ me le prêter demain ?».
+BLANK_RE = re.compile(r"_{2,}")
+
+
+def fill_blank(prompt: Any, answer: Any, *, count: int = 1) -> str:
+    """``prompt`` with its blank filled by ``answer``, whatever length the blank is."""
+
+    return BLANK_RE.sub(lambda _match: str(answer), str(prompt or ""), count=count)
+
+
 # --------------------------------------------------------------------------- #
 # Morphology
 # --------------------------------------------------------------------------- #
@@ -2866,7 +2878,7 @@ def with_goal(item: dict[str, Any], language: Any = None, native: Any = None) ->
         # The bank's meaning cues and stored sets' cues are English; FORGE-DE:
         # a German meaning, when the item carries one, takes their place.
         context = out.get("context_l10n") if isinstance(out.get("context_l10n"), dict) else None
-        if kind in {"build", "repair", "fill", "pick"}:
+        if kind in {"build", "repair", "fill", "pick", "rewrite"}:
             out["goal_native"] = goal_l10n(kind, None, native_meaning or None, context).get(code)
         if "answer_tokens" in out:
             out["meaning_cue"] = native_meaning or None
@@ -3207,7 +3219,7 @@ def target_answers(item: BankItem) -> list[str]:
 
 def fill_item(item: BankItem, *, lesson_external_id: str | None = None) -> dict[str, Any] | None:
     prompt = f"{item.prefix}___{item.suffix}".strip()
-    if contains_phrase(prompt.replace("___", " "), item.target):
+    if contains_phrase(fill_blank(prompt, " ", count=0), item.target):
         return None
     if item.gloss:
         prompt = f"{prompt} ({item.en})"
@@ -3606,7 +3618,7 @@ def spoils(rung: str, payload_item: dict[str, Any]) -> bool:
     """Does the item's prompt show its own answer? (the no-spoil rule)."""
 
     if rung == "fill":
-        return contains_phrase(str(payload_item["prompt"]).replace("___", " "), payload_item["correct_answer"])
+        return contains_phrase(fill_blank(payload_item["prompt"], " ", count=0), payload_item["correct_answer"])
     if rung in {"classify", "pair"}:
         return contains_phrase(str(payload_item["prompt"]), payload_item["correct_label"]) and rung == "pair"
     if rung == "word_bank":

@@ -1144,6 +1144,13 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Korrigiere das Verb: es richtet sich nach dem Subjekt 'elle' im Singular.",
         "fr": "Corrige le verbe : il s’accorde avec le sujet singulier « elle ».",
     },
+    # #447 / #146: a unit's own ✗ sentence, repaired. The instruction names no form, so it
+    # fits whichever rule the unit teaches and never gives the answer away.
+    "atelier.transform.repair_pair": {
+        "en": "Repair the sentence: it breaks today's rule.",
+        "de": "Korrigiere den Satz: Er verstößt gegen die Regel von heute.",
+        "fr": "Corrige la phrase : elle ne respecte pas la règle du jour.",
+    },
     # -- app/services/item_bank.py: WP-S2 La Forge item-bank instructions -----
     "forge.word_bank": {
         "en": "Build it. One word is extra.",
