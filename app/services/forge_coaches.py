@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable, Iterator
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -183,6 +184,62 @@ def recast_scene(item: dict[str, Any], coach_payload: dict[str, Any] | None) -> 
     return out
 
 
+def _strings(value: Any) -> Iterator[str]:
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for inner in value.values():
+            yield from _strings(inner)
+    elif isinstance(value, list | tuple):
+        for inner in value:
+            yield from _strings(inner)
+
+
+def names_unmet(item: Any, state: dict[str, Any] | None) -> list[str]:
+    """Who an item's text names that this learner has not met (#147, 8 Nov: «Romy and I send
+    a letter» on day 1, under a coach who had been replaced). The whole item, as served: its
+    prompt in every language, its options, its answers, its scene."""
+
+    if state is None:
+        return []
+    from app.services.cast_registry import unmet_named
+
+    return unmet_named(state, *_strings(item))
+
+
+def only_met(detector: Callable[[str], bool] | None, state: dict[str, Any] | None) -> Callable[[str], bool] | None:
+    """A bank detector that also passes over a sentence naming someone unmet."""
+
+    if state is None:
+        return detector
+
+    def keeps(sentence: str) -> bool:
+        return (detector is None or detector(sentence)) and not names_unmet(sentence, state)
+
+    return keeps
+
+
+def card_for_learner(
+    card: dict[str, Any] | None, *, external_id: str | None, state: dict[str, Any] | None
+) -> dict[str, Any] | None:
+    """A rule card as this learner reads it: the face and name on it are someone they have met.
+
+    Same gate as the coach (:func:`coach_for_concept`): the stand-in, when their register can
+    say the card's example; otherwise the card keeps its rule and example and names nobody.
+    """
+
+    if not isinstance(card, dict) or state is None or not card.get("speaker"):
+        return card
+    from app.services.cast_registry import has_met
+
+    if has_met(state, card["speaker"]):
+        return card
+    stand_in = coach_for_concept(external_id, state=state)
+    example = (card.get("example") or {}).get("fr") if isinstance(card.get("example"), dict) else ""
+    fits = stand_in is not None and not register_problems(str(example or ""), stand_in.get("register"))
+    return {**card, "speaker": stand_in["id"] if fits else None}
+
+
 def story_state_of(db: Any, user: Any) -> dict[str, Any] | None:
     """The learner's story thread state when it says who they have met, else ``None``
     (the coaches then stay as the file has them: no story to read, nothing to filter)."""
@@ -301,6 +358,7 @@ def mini_scene(item: Any, coach_payload: dict[str, Any] | None) -> dict[str, Any
 __all__ = [
     "MOODS",
     "STAND_INS",
+    "card_for_learner",
     "cast_ids",
     "coach",
     "coach_for_concept",
@@ -308,6 +366,8 @@ __all__ = [
     "coach_mood",
     "family_for_unit",
     "mini_scene",
+    "names_unmet",
+    "only_met",
     "recast_scene",
     "story_state_of",
 ]

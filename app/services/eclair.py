@@ -239,15 +239,18 @@ def _items_for_rule(
     db: Session, *, user: User, concept: GrammarConcept, count: int, blocked: set[str], seed: str
 ) -> list[dict[str, Any]]:
     from app.services import item_bank
+    from app.services.forge_coaches import only_met, story_state_of
 
     out: list[dict[str, Any]] = []
     bank = item_bank.default_bank()
+    state = story_state_of(db, user)
     for unit in _bank_units(concept):
         stream = bank.sample(
             unit,
             random.Random(f"{seed}:{unit}"),  # noqa: S311 - reproducible variety, not security
             exclude=blocked,
-            detector=item_bank.unit_detector(unit),
+            # #147: a sentence names only people this learner has met.
+            detector=only_met(item_bank.unit_detector(unit), state),
         )
         for tries, candidate in enumerate(stream):
             if tries >= _MAX_CANDIDATES or len(out) >= count:

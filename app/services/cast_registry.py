@@ -53,6 +53,7 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import lru_cache
@@ -96,6 +97,8 @@ _SPOKEN_NAMES: dict[str, str] = {
 }
 #: The spelling an English cue uses where it is not the label («…, Mr Marchand.»).
 _ENGLISH_NAMES: dict[str, str] = {"landlord_marchand": "Mr Marchand"}
+#: Words of a name that do not say who it is.
+_TITLE_WORDS = frozenset({"de", "du", "mme", "madame", "monsieur", "maitre", "mr"})
 #: When the story first puts each person on a page: ``(tentpole, day letter)``.
 #: The guard test re-derives it from ``t*.json`` and fails if this drifts.
 _FIRST_APPEARANCE: dict[str, tuple[int, str]] = {
@@ -371,14 +374,16 @@ def season_reach(state: Mapping[str, Any] | None) -> tuple[int, str] | None:
 
     Read from the season's played log (``living_story.season_script.played``): a
     tentpole day is ``(n, "a")`` / ``(n, "b")``; a gap day after tentpole *n* is
-    ``(n, "z")`` (everyone that tentpole put on a page is met). ``None`` when the
-    thread plays no season yet.
+    ``(n, "z")`` (everyone that tentpole put on a page is met). ``(1, "a")`` when the
+    season has begun and no day has settled; ``None`` when the thread plays no season.
     """
 
     live = (state or {}).get("living_story") if isinstance(state, Mapping) else None
     script = live.get("season_script") if isinstance(live, Mapping) else None
     played = script.get("played") if isinstance(script, Mapping) else None
-    best: tuple[int, str] | None = None
+    # A life that has begun the season and settled no day yet stands on its first page: La
+    # Forge on day 1 must not name someone that page does not (8 Nov: Romy on day 1).
+    best: tuple[int, str] | None = (1, "a") if isinstance(script, Mapping) and script.get("id") else None
     for row in played if isinstance(played, list) else []:
         if not isinstance(row, Mapping):
             continue
@@ -581,6 +586,32 @@ def vocative_names() -> list[str]:
     return names
 
 
+def name_tokens() -> dict[str, list[str]]:
+    """``{registry id: the lowercase, unaccented words that mean this person}``, for a client
+    that has to recognise a person in whatever a payload calls them.
+
+    A word two people share belongs to whoever the aliases give it to: «marchand» is M.
+    Marchand, so «Camille Marchand» is known by «camille» and never borrows his face. A title
+    or a particle («de», «Mme», «Maître») names nobody.
+    """
+
+    def folded(text: str) -> list[str]:
+        plain = unicodedata.normalize("NFD", text)
+        plain = "".join(char for char in plain if not unicodedata.combining(char))
+        return [word for word in re.findall(r"[a-z0-9]+", plain.lower()) if word not in _TITLE_WORDS and len(word) > 1]
+
+    words: dict[str, set[str]] = {}
+    for row in _registry().values():
+        words[row.id] = {word for spelling in (row.name, *_spellings(row)) for word in folded(spelling)}
+    for alias, cid in _ALIASES.items():
+        words[cid].add(alias)
+    claimed = dict(_ALIASES)
+    return {
+        cid: sorted(word for word in row if claimed.get(word, cid) == cid)
+        for cid, row in sorted(words.items())
+    }
+
+
 #: Names a line may call a person by, longest first: «Monsieur Marchand» before «Marchand».
 def _name_patterns() -> list[tuple[re.Pattern[str], str]]:
     rows: list[tuple[str, str]] = []
@@ -612,6 +643,16 @@ def people_named(text: Any) -> list[str]:
         if cid not in out:
             out.append(cid)
     return out
+
+
+def unmet_named(state: Mapping[str, Any] | None, *texts: Any) -> list[str]:
+    """Who these texts name that this learner has not met. ``[]`` when nothing can tell
+    (:func:`met_ids`): an older story has no canon of who comes when."""
+
+    known = met_ids(state)
+    if known is None:
+        return []
+    return [cid for cid in people_named(" ".join(str(text) for text in texts if text)) if cid not in known]
 
 
 def people_addressed(text: Any) -> list[str]:

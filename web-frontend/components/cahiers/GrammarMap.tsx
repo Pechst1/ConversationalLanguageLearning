@@ -17,7 +17,8 @@ import useSWR from 'swr';
 import toast from 'react-hot-toast';
 
 import { Action, CastPortrait, Surface } from '@/components/atelier-v2/ui';
-import { RuleCard, RULE_CARD_SPEAKERS } from '@/components/atelier-v2/rule/RuleCard';
+import { RuleCard } from '@/components/atelier-v2/rule/RuleCard';
+import { castDisplayName } from '@/lib/cast-faces';
 import { forgeCopy } from '@/lib/forge-copy';
 import type { RuleShape } from '@/lib/forge-progress';
 import {
@@ -80,7 +81,7 @@ function stageLine(copy: MomentumCopy, rule: GrammarMapRule): string {
 function coachOf(rule: GrammarMapRule): { id: string; name: string | null } | null {
   if (rule.coach?.id) return { id: rule.coach.id, name: rule.coach.name ?? null };
   const speaker = rule.rule_card?.speaker ? String(rule.rule_card.speaker) : '';
-  return speaker ? { id: speaker, name: RULE_CARD_SPEAKERS[speaker] ?? null } : null;
+  return speaker ? { id: speaker, name: castDisplayName(speaker, null) } : null;
 }
 
 function MapRuleSheet({

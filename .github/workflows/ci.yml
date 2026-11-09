@@ -53,6 +53,9 @@ jobs:
       - name: Reject stale generated types
         run: npm run types:check
         working-directory: web-frontend
+      - name: Reject a stale generated cast
+        run: npm run cast:check
+        working-directory: web-frontend
 
   backend:
     # The suite outgrew one 2-core runner (cancelled at 30 minutes, 80 % done):

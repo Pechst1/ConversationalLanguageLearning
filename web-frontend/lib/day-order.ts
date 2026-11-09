@@ -29,3 +29,37 @@ export const ROUTE_STAGE_OF: Readonly<Record<DayWorkKind, RouteStage>> = {
   grammar: 'forge',
   words: 'words',
 };
+
+/**
+ * Which step of the day a step of the journey player belongs to (#469).
+ *
+ * The player deals its own kinds (`rule`, `recall`, `respond` …); the day is
+ * `WORK_STEPS`. A screen that names itself, the first-time sticker and the
+ * header's part, takes the name from the day step the player's step belongs to,
+ * never from its kind: a `recall` is «the words» only when its target is a word.
+ * A drill on a rule (its target is grammar) is the rule in use, and the rule
+ * card itself is grammar. Before this, `recall` said «Die Wörter» on the first
+ * grammar drill and the header said «Szene» over the rule card, because both
+ * were written for the day as it was before #463 reordered it.
+ *
+ * `null` for something that is not a step of the player.
+ */
+export function dayStepOf(step: { kind?: unknown; prompt?: unknown } | null | undefined): DayWorkKind | null {
+  switch (step?.kind) {
+    case 'scene':
+    case 'respond':
+    case 'resolution':
+    case 'read':
+    case 'desk':
+      return 'scene';
+    case 'rule':
+    case 'forge':
+      return 'grammar';
+    case 'recall':
+      return (step.prompt as { target?: { kind?: unknown } | null } | null | undefined)?.target?.kind === 'grammar'
+        ? 'grammar'
+        : 'words';
+    default:
+      return null;
+  }
+}

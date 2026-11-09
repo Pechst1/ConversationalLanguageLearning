@@ -282,10 +282,8 @@ def test_217_pushes_and_the_client_use_the_registry_names():
 
     for cast_id, name in sn.CHARACTER_NAMES.items():
         assert name == reg.display_name(cast_id), (cast_id, name)
-    source = (Path(__file__).resolve().parents[1] / "web-frontend/components/atelier-v2/journey/journey-faces.ts").read_text(
-        encoding="utf-8"
-    )
-    block = source.split("const COACH_NAMES", 1)[1].split("};", 1)[0]
+    source = (Path(__file__).resolve().parents[1] / "web-frontend/lib/generated/cast.ts").read_text(encoding="utf-8")
+    block = source.split("export const CAST_NAMES", 1)[1].split("};", 1)[0]
     client = dict(re.findall(r"(\w+): '([^']+)'", block))
     assert client
     for cast_id, name in client.items():

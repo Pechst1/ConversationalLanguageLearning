@@ -53,7 +53,7 @@ test('panels are ordered by index and every stage comes from a server panel', ()
   assert.deepEqual(stages.map((s) => s.panelId), ['p1', 'p2']);
   assert.equal(stages[0].kind, 'panel');
   assert.equal(stages[0].lines.length, 1, 'an empty line is not a line');
-  assert.equal(stages[0].lines[0].who, 'Monsieur Marchand');
+  assert.equal(stages[0].lines[0].who, 'M. Marchand');
   assert.equal(stages[0].lines[0].character, 'marchand');
   assert.equal(stages[1].caption, 'Le lendemain, au marché.');
   assert.equal(stages[1].character, 'romy');
@@ -143,7 +143,7 @@ test('a null, blank or absent character_name falls back to the existing table', 
     ],
   };
   const [stage] = model.buildStoryStages(mixed);
-  assert.deepEqual(stage.lines.map((line) => line.who), ['Monsieur Marchand', 'Romy', 'Gus']);
+  assert.deepEqual(stage.lines.map((line) => line.who), ['M. Marchand', 'Romy', 'Gus']);
   assert.equal(model.storyCharacterName('gus', null), 'Gus');
   assert.equal(model.storyCharacterName('gus', undefined), 'Gus');
   // A name with no id at all is still a name.

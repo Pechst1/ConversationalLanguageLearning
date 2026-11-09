@@ -1326,8 +1326,10 @@ def _with_grammar_briefs(
         return candidates
     from app.services.chrome_language import user_chrome_language
     from app.services.concept_life import concept_brief
+    from app.services.forge_coaches import card_for_learner, story_state_of
 
     language = user_chrome_language(user)
+    state = story_state_of(db, user)
     out: list[LearningCandidate] = []
     for candidate in candidates:
         if candidate.target.kind is not TargetKind.GRAMMAR:
@@ -1355,7 +1357,12 @@ def _with_grammar_briefs(
         brief = _with_held_opportunity_brief(
             brief, (candidate.metadata or {}).get("held_opportunity")
         )
-        brief = _with_coach_scene(brief, language=str(language), level=level)
+        brief = _with_coach_scene(brief, language=str(language), level=level, state=state)
+        # #147: a drill's face follows the card's speaker: someone this learner has met.
+        brief = {
+            **brief,
+            "rule_card": card_for_learner(brief.get("rule_card"), external_id=brief.get("external_id"), state=state),
+        }
         if concept is not None:
             # WP-129: the catalogue's partner units, for the B1+ contrast items.
             from app.services.grammar_catalog import concept_syllabus
@@ -4111,7 +4118,12 @@ _PLAIN_REUSE_CHROMES = frozenset({"en", "de"})
 
 
 def coach_scene_review_task(
-    brief: dict[str, Any], *, language: str, day_key: str, level: str | None = None
+    brief: dict[str, Any],
+    *,
+    language: str,
+    day_key: str,
+    level: str | None = None,
+    state: dict[str, Any] | None = None,
 ) -> RecallTask | None:
     """A strong unit's Rappel: the rule's coach says a line, the learner replies.
 
@@ -4131,6 +4143,9 @@ def coach_scene_review_task(
     WP-130 B: with the learner's ``level``, a scene whose answer holds a word
     more than one band above it is passed over (the scene now carries the
     free-use opportunity whenever the reply cannot: it is posed far more often).
+
+    #147: with the learner's thread ``state``, the coach is someone they have met and no
+    sentence names anyone they have not (8 Nov, a drill on day 1: «Romy and I send a letter»).
     """
 
     from app.services import forge_coaches, grammar_items, item_bank
@@ -4139,13 +4154,16 @@ def coach_scene_review_task(
     if not external_id or brief.get("concept_id") is None:
         return None
     units = item_bank.units_for_external_id(external_id)
-    coach = forge_coaches.coach_for_concept(external_id)
+    coach = forge_coaches.coach_for_concept(external_id, state=state)
     if not units or not coach:
         return None
     unit = units[0]
     candidates = item_bank.default_bank().generate(
         # A scene needs an item that carries its own question (#176): look further.
-        unit, 24, seed=f"rappel-scene|{external_id}|{day_key}", detector=item_bank.unit_detector(unit)
+        unit,
+        24,
+        seed=f"rappel-scene|{external_id}|{day_key}",
+        detector=forge_coaches.only_met(item_bank.unit_detector(unit), state),
     )
     def fits_level(texts: list[str]) -> bool:
         if not level:
@@ -4273,7 +4291,7 @@ def spaced_item_pending(db: Session, *, user: User, brief: dict[str, Any]) -> di
 
 
 def _with_coach_scene(
-    brief: dict[str, Any], *, language: str, level: str | None = None
+    brief: dict[str, Any], *, language: str, level: str | None = None, state: dict[str, Any] | None = None
 ) -> dict[str, Any]:
     """WP-94: a strong unit's brief carries its coach mini-scene for the planner.
 
@@ -4287,7 +4305,7 @@ def _with_coach_scene(
         return brief
     try:
         task = coach_scene_review_task(
-            brief, language=language, day_key=datetime.now(UTC).date().isoformat(), level=level
+            brief, language=language, day_key=datetime.now(UTC).date().isoformat(), level=level, state=state
         )
     except Exception:  # pragma: no cover - a Rappel item is never worth the day
         logger.exception("journey_coach_scene_unavailable")

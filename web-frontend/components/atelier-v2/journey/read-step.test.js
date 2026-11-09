@@ -252,8 +252,9 @@ test('the anchor reads the prompt defensively: speaker id or name, or nothing', 
   assert.deepEqual(ruleSceneAnchor({ scene_example_fr: 'Je suis là.', scene_example_speaker: 'le_facteur' }), {
     fr: 'Je suis là.',
     castId: null,
-    name: 'Le facteur',
-  });
+    name: '',
+  }, 'a bare id is not a name: the card then shows none');
+  assert.equal(ruleSceneAnchor({ scene_example_fr: 'Je suis là.', scene_example_speaker: 'Le facteur' }).name, 'Le facteur');
 });
 
 test('the scene line is the first anchor, with its speaker’s face; the generic example follows', () => {
@@ -274,4 +275,87 @@ test('without a scene line the card is exactly what it was', () => {
   const html = renderRule(ruleStep({ scene_example_fr: null, scene_example_speaker: null }));
   assert.doesNotMatch(html, /data-anchor|in today’s scene/);
   assert.match(html, /<h2 class="av2-headline rc-example" lang="fr"><span class="rc-mark">Je suis<\/span> Margaux.<\/h2>/);
+});
+
+// --- 5. #473: the rule card's speaker is the cast registry's, and a line prints once ----
+
+test('#473 the rule card names every cast member as the registry does («Camille», not «Camille marchand»)', () => {
+  const { castDisplayName } = require('./journey-faces.ts');
+  const world = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, '..', 'app/data/season/s1/world.json'), 'utf8'));
+  const ids = [...world.cast.map((person) => person.id), 'odile_ferrand'];
+  assert.ok(ids.includes('camille_marchand'), 'Camille is in the cast');
+  for (const id of ids) {
+    const expected = castDisplayName(id, null);
+    assert.ok(expected, `${id} has a registry name`);
+    const anchor = ruleSceneAnchor({ scene_example_fr: 'Je suis là.', scene_example_speaker: id });
+    assert.equal(anchor.name, expected, `${id}: the card says «${anchor.name}», the registry «${expected}»`);
+  }
+});
+
+test('#473 the rule card keeps no id → name formatting or name table of its own', () => {
+  const source = fs.readFileSync(path.join(WEB_ROOT, 'lib/rule-card.ts'), 'utf8');
+  assert.doesNotMatch(source, /replace\(\/_\/g, ' '\)/, 'no formatting of a raw id');
+  assert.doesNotMatch(source, /ANCHOR_NAMES/, 'no second name table');
+  const card = fs.readFileSync(path.join(WEB_ROOT, 'components/atelier-v2/rule/RuleCard.tsx'), 'utf8');
+  assert.doesNotMatch(card, /margaux_barman:\s*'Margaux'/, 'RuleCard reads the registry, not its own table');
+});
+
+test('#147 one name table: the cast’s short names are written once, in the generated module', () => {
+  // The full guard is scripts/one-cast-table.test.mjs; this one stays beside the rule card.
+  const offenders = [];
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (/\.(ts|tsx)$/.test(entry.name) && !/\.d\.ts$/.test(entry.name)) {
+        const rel = path.relative(WEB_ROOT, full);
+        if (rel === path.join('lib', 'generated', 'cast.ts')) continue;
+        if (/augustin_de_roncourt['"]?:\s*['"]Gus['"]/.test(fs.readFileSync(full, 'utf8'))) offenders.push(rel);
+      }
+    }
+  };
+  for (const dir of ['lib', 'components', 'pages', 'hooks', 'services', 'contexts']) {
+    const full = path.join(WEB_ROOT, dir);
+    if (fs.existsSync(full)) walk(full);
+  }
+  assert.deepEqual(offenders, [], 'read the name with castDisplayName (lib/cast-faces.ts)');
+});
+
+test('#473 a merged review card keeps a way to hear the line when its speaker has no speaking face', () => {
+  const { RuleCard } = require('../rule/RuleCard.tsx');
+  const line = 'C’est plus simple pour nous tous.';
+  const voice = { supported: true, speak: () => {}, stop: () => {}, speakingKey: null };
+  const card = (speaker) => ({ ...CARD, speaker, example: { fr: line } });
+  const render = (speaker, sceneVoice) =>
+    renderToStaticMarkup(
+      h(RuleCard, {
+        card: card(speaker),
+        language: 'en',
+        review: true,
+        sceneAnchor: ruleSceneAnchor({ scene_example_fr: line, scene_example_speaker: speaker }),
+        sceneVoice,
+      }),
+    );
+  // Camille is drawn but not painted: no SpeakingPortrait, so the button is the only control.
+  assert.match(render('camille_marchand', voice), /class="rc-listen"/, 'Camille with a voice');
+  assert.match(render('camille_marchand', null), /class="rc-listen"/, 'Camille without a voice');
+  // A painted speaker with a voice speaks through the face; no second control.
+  assert.doesNotMatch(render('margaux_barman', voice), /class="rc-listen"/, 'Margaux with a voice');
+  assert.match(render('margaux_barman', null), /class="rc-listen"/, 'Margaux without a voice');
+});
+
+test('#473 a review card whose example is the page’s own line prints that line once', () => {
+  const line = 'C’est plus simple pour [nous] tous.';
+  const review = ruleStep({
+    scene_example_fr: line,
+    scene_example_speaker: 'camille_marchand',
+    review: true,
+    rule_card: { ...CARD, speaker: 'camille_marchand', example: { fr: line }, from_scene: true },
+  });
+  const html = renderRule(review);
+  const plain = html.replace(/<[^>]+>/g, '');
+  const times = plain.split('C’est plus simple pour nous tous.').length - 1;
+  assert.equal(times, 1, `the line is printed ${times} times`);
+  assert.match(html, /class="rc-scene__who">Camille</, 'the speaker is named once, by the registry');
 });

@@ -57,7 +57,14 @@ from app.services import forge_drills as drills
 from app.services import gold_ledger
 from app.services.chrome_language import user_chrome_language
 from app.services.concept_titles import concept_title
-from app.services.forge_coaches import coach_for_concept, coach_mood, recast_scene, story_state_of
+from app.services.forge_coaches import (
+    coach_for_concept,
+    coach_mood,
+    names_unmet,
+    only_met,
+    recast_scene,
+    story_state_of,
+)
 from app.services.item_bank import MINE_INSTRUCTION_L10N
 
 FORGE_KEY = "forge"
@@ -283,6 +290,8 @@ class PayloadItemProvider:
 
     def __init__(self, payloads: dict[int, dict[str, Any]]) -> None:
         self.payloads = payloads
+        #: (concept id, item) -> may this learner be posed it? #147: BankItemProvider's gate.
+        self.keep: Callable[[int, dict[str, Any]], bool] | None = None
 
     @classmethod
     def for_session(cls, db: Session, *, user: User, session: AtelierSession) -> PayloadItemProvider:
@@ -324,6 +333,8 @@ class PayloadItemProvider:
                 item_id = str(item.get("id") or f"{round_name}-{index}")
                 fingerprint = fingerprint_for(concept_id, round_name, mode, item_id)
                 if fingerprint in exclude or not check(drill, item):
+                    continue
+                if self.keep is not None and not self.keep(int(concept_id), item):
                     continue
                 yield ForgeItem(
                     concept_id=int(concept_id),
@@ -506,7 +517,10 @@ class BankItemProvider:
         self.sets = sets
         self.concepts = concepts
         self.payloads = PayloadItemProvider({cid: dict(item.payload or {}) for cid, item in sets.items()})
+        self.payloads.keep = self._fits_story
         self._story: frozenset[str] | None = None
+        self._story_state: dict[str, Any] | None = None
+        self._story_state_read = False
         self._mine: dict[int, list[dict[str, Any]]] = {}
 
     @property
@@ -518,6 +532,29 @@ class BankItemProvider:
 
             self._story = story_focus(self.db, self.user)
         return self._story
+
+    @property
+    def story_state(self) -> dict[str, Any] | None:
+        """#147: the thread state that says who this learner has met (read once)."""
+
+        if not self._story_state_read:
+            self._story_state = story_state_of(self.db, self.user)
+            self._story_state_read = True
+        return self._story_state
+
+    def _fits_story(self, concept_id: int, item: dict[str, Any]) -> bool:
+        """#147: nothing posed names someone this learner has not met.
+
+        Read as the item will be served: a shared scene is said by this learner's coach
+        first, so a scene the coach takes over is not refused for its old speaker.
+        """
+
+        state = self.story_state
+        if state is None:
+            return True
+        concept = self.concepts.get(int(concept_id))
+        coach = coach_for_concept(concept.external_id, state=state) if concept is not None else None
+        return not names_unmet(recast_scene(item, coach), state)
 
     @classmethod
     def for_session(cls, db: Session, *, user: User, session: AtelierSession) -> BankItemProvider:
@@ -845,7 +882,7 @@ class BankItemProvider:
                 unit,
                 random.Random(f"{seed}:{unit}"),  # noqa: S311 - reproducible variety, not security
                 exclude=blocked,
-                detector=item_bank.unit_detector(unit),
+                detector=only_met(item_bank.unit_detector(unit), self.story_state),
                 story=self.story,
             )
             for tries, candidate in enumerate(stream):
@@ -862,6 +899,8 @@ class BankItemProvider:
                     drill=drill,
                 )
                 if built is None or (drill is not None and not check(drill, built)):
+                    continue
+                if not self._fits_story(concept_id, built):
                     continue
                 blocked = blocked | {candidate.fingerprint}
                 made.append((built, candidate))

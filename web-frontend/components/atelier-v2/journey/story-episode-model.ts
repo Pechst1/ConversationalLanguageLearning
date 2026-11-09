@@ -27,7 +27,7 @@ import {
   type ReaderResolutionStage,
   type ReaderStage,
 } from '@/components/feuilleton/reader/panel-model';
-import { castIdFor, expressionForMood, isColdBeat, stageMoodFor, type StageMood } from '@/lib/cast-faces';
+import { castDisplayName, castIdFor, expressionForMood, isColdBeat, stageMoodFor, type StageMood } from '@/lib/cast-faces';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 
 /**
@@ -59,26 +59,16 @@ type StoryPanelSource = StoryPanel & {
   overlay_payload?: { alt_native?: string | null } | null;
 };
 
-const CHARACTER_NAMES: Record<string, string> = {
-  romy: 'Romy',
-  marin: 'Marin',
-  lila: 'Lila',
-  gus: 'Gus',
-  margaux: 'Margaux',
-  marchand: 'Monsieur Marchand',
-  toi: 'Toi',
-  learner: 'Toi',
-  you: 'Toi',
-};
+/** The learner's own lines. */
+const LEARNER_IDS = new Set(['toi', 'learner', 'you']);
 
 /**
  * The name to print above a line.
  *
  * The server's own `character_name` wins whenever it sent one: it comes from
  * the thread's world bible and is the only source that knows a generated cast.
- * Only when the field is absent or null does the local table stand in, and an
- * id it does not know keeps its own spelling — which is how a generated id such
- * as `marin_leveque` used to reach the reader as "Marin_leveque".
+ * Only when the field is absent or null does the cast registry stand in (#147),
+ * and an id it does not know keeps its own spelling.
  */
 export function storyCharacterName(
   characterId: string | null | undefined,
@@ -89,8 +79,8 @@ export function storyCharacterName(
   const id = String(characterId || '').trim();
   if (!id) return '';
   const key = id.toLowerCase();
-  if (CHARACTER_NAMES[key]) return CHARACTER_NAMES[key];
-  return id.charAt(0).toUpperCase() + id.slice(1);
+  if (LEARNER_IDS.has(key)) return 'Toi';
+  return castDisplayName(key, null) ?? id.charAt(0).toUpperCase() + id.slice(1);
 }
 
 /**
