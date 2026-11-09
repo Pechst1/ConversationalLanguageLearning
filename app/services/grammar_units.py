@@ -16,7 +16,7 @@ Sources, in order of preference:
   the contrast pair.
 * **Detectors** — v2 units carry one (``regex:`` or ``llm:``). A v1 concept
   borrows the regex detectors of the v2 units that replace it
-  (``templates/french_core_grammar_v1_to_v2.tsv``). ``llm:`` detectors are not
+  (``app/data/grammar_catalog/french_core_grammar_v1_to_v2.tsv``). ``llm:`` detectors are not
   run: such a unit's reply evidence comes from corrections only.
 * **Contrast pairs** — the authored card's pair, then every ``✗ … → ✓ …`` trap
   of the unit (a v1 concept reads its v2 replacements' traps).

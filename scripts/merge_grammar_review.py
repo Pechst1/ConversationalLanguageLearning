@@ -1,7 +1,7 @@
 """Merge the reviewed grammar shards into the fr-core-v2 catalogue (content program 2026-10-03).
 
 Reads ``app/data/grammar_review/units_<BAND>.json`` (one reviewed row per unit, every
-TSV column) and rewrites ``templates/french_core_grammar_v2.tsv``:
+TSV column) and rewrites ``app/data/grammar_catalog/french_core_grammar_v2.tsv``:
 
 * an existing id is replaced by its reviewed row;
 * a new id is appended;
@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-TSV = ROOT / "templates" / "french_core_grammar_v2.tsv"
+TSV = ROOT / "app" / "data" / "grammar_catalog" / "french_core_grammar_v2.tsv"
 SHARDS = ROOT / "app" / "data" / "grammar_review"
 CAN_DOS = ROOT / "app" / "data" / "syllabus" / "fr_core_can_dos_v2.json"
 CAN_DOS_C1 = ROOT / "app" / "data" / "syllabus" / "can_dos_C1.json"

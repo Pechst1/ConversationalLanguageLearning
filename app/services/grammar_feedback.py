@@ -15,7 +15,7 @@ from app.services.seance_curriculum import lesson_for
 #: The reviewed v2 units (A1-C1): their rule, pattern and slips are authored text.
 #: ``seance_curriculum`` reads the v1 core catalogue only, so before #239 a v2 unit
 #: had no profile of its own and was given a keyword-matched stand-in.
-_V2_CATALOGUE = Path(__file__).resolve().parents[2] / "templates" / "french_core_grammar_v2.tsv"
+_V2_CATALOGUE = Path(__file__).resolve().parents[2] / "app" / "data" / "grammar_catalog" / "french_core_grammar_v2.tsv"
 
 _STOPWORDS = {
     "about",

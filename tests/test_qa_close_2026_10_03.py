@@ -356,7 +356,7 @@ def test_the_frontend_sends_the_text_not_a_verdict():
 
 def test_every_b1_unit_carries_three_explicit_trap_pairs():
     pair = re.compile(r"^✗ .+ → ✓ .+$")
-    with (ROOT / "templates/french_core_grammar_v2.tsv").open(encoding="utf-8") as handle:
+    with (ROOT / "app/data/grammar_catalog/french_core_grammar_v2.tsv").open(encoding="utf-8") as handle:
         b1 = [row for row in csv.DictReader(handle, delimiter="\t") if row["cefr_level"] == "B1"]
     assert len(b1) >= 40
     for row in b1:
