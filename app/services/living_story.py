@@ -30,7 +30,7 @@ from app.db.models.daily_journey import DailyJourney
 from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
-from app.services import correction_contract, scene_ledger, story_memory
+from app.services import correction_contract, scene_ledger, scene_unity, story_memory
 from app.services.address import address_instruction
 from app.services.answer_acceptance import correction_is_grounded, is_preference_swap
 from app.services.concept_titles import concept_title
@@ -394,6 +394,21 @@ class Panel(StrictModel):
     # WP-90. One plain sentence in the learner's language saying what the picture shows,
     # for a screen reader. Lenient like `text_native`.
     alt_native: str | None = Field(default=None, max_length=PANEL_ALT_CHARS)
+    # #621: where this panel happens (empty: the scene's place) and whether it opens a
+    # deliberate jump in time, which its caption says. The page's own state, compared by
+    # ``scene_unity``; a scratch value here is no claim, never a lost page.
+    location_id: str | None = Field(default=None, max_length=scene_unity.PLACE_CHARS)
+    time_jump: bool = False
+
+    @field_validator("location_id", mode="before")
+    @classmethod
+    def _place(cls, value: Any) -> str | None:
+        return scene_unity.lenient_place(value)
+
+    @field_validator("time_jump", mode="before")
+    @classmethod
+    def _jump(cls, value: Any) -> bool:
+        return scene_unity.lenient_jump(value)
 
     @field_validator("dialogue", mode="before")
     @classmethod
@@ -524,6 +539,9 @@ class SceneDraft(StrictModel):
     season_thread: str | None = Field(default=None, max_length=80)
     thread_shift: Literal["developing", "closed"] | None = None
     escalates_ref: str | None = Field(default=None, max_length=160)
+    # #621: who is in this scene, the lead included (on a planned page, the plan's cast).
+    # Empty is no claim. Compared with the panels' speakers by ``scene_unity``.
+    scene_cast: list[str] = Field(default_factory=list)
     panels: list[Panel] = Field(min_length=2, max_length=6)
     opening_line_fr: str = Field(min_length=1, max_length=320)
     suggested_response_fr: str = Field(min_length=1, max_length=400)
@@ -540,6 +558,11 @@ class SceneDraft(StrictModel):
     # and the kind one if not yet («on se revoit la semaine prochaine»). Lenient.
     epreuve_pass_line_fr: str | None = Field(default=None, max_length=EPREUVE_LINE_CHARS)
     epreuve_fail_line_fr: str | None = Field(default=None, max_length=EPREUVE_LINE_CHARS)
+
+    @field_validator("scene_cast", mode="before")
+    @classmethod
+    def _scene_cast(cls, value: Any) -> list[str]:
+        return scene_unity.lenient_cast(value)
 
     @field_validator("can_do_id", mode="before")
     @classmethod
@@ -766,6 +789,12 @@ shows a gesture or a place. EXCEPTION: when chapter.shape is
 two_hander, NO other cast member has a dialogue line — the addressed character alone
 speaks, and the page gets its movement from gesture, place and narration instead.
 Change the camera from panel to panel.
+A page is one scene: every panel happens at location_id, in one stretch of time, each one
+following from the one before. Set each panel's location_id to it (its doorway and its
+pavement are still that place). scene_cast lists who is there, character_id first, and only
+they speak: nobody comes in for one line. When the story truly needs it, one panel may
+jump, later or back (a flashback): it sets time_jump to true and its caption says when.
+The last panel is the moment the objective is about, and the «À suivre…» is never a panel.
 Create a communicative need absent from recent premises; reusing a skill is fine.
 Panels end at a real opportunity to respond. Never show the suggested learner answer
 in a panel. The private suggestion must actually satisfy the objective. Do not
@@ -7761,10 +7790,13 @@ def _check_reading_aids(draft: SceneDraft, context: dict) -> None:
     moment = _season_required_moment(draft, context)
     # Story plan, Phase 1 «Maßstab»: lines a reader hears as a machine ride it too.
     prose = prose_gap(draft, context)
-    if not untranslated and not undescribed and not grammar and not special and not moment and not prose:
+    # #621: a page whose own state says it left its scene (``scene_unity``) rides it too.
+    # Not an épreuve, where everyone comes (``epreuve_gap``).
+    unity = scene_unity.gap(draft) if not context.get(EPREUVE_KEY) else None
+    if not untranslated and not undescribed and not grammar and not special and not moment and not prose and not unity:
         return
     if not untranslated and not undescribed:
-        hint = " ".join(filter(None, [moment, grammar, special, prose]))
+        hint = " ".join(filter(None, [moment, grammar, special, prose, unity]))
         reason = (
             "season_required_moment"
             if moment
@@ -7773,6 +7805,8 @@ def _check_reading_aids(draft: SceneDraft, context: dict) -> None:
             else "epreuve_incomplete"
             if special
             else "machine_prose"
+            if prose
+            else "panels_leave_the_scene"
         )
         raise SoftRejection(reason, hint=hint, proposal=draft)
     wanted = []
@@ -7784,6 +7818,8 @@ def _check_reading_aids(draft: SceneDraft, context: dict) -> None:
         wanted.append(grammar.rstrip("."))
     if prose:
         wanted.append(prose.rstrip("."))
+    if unity:
+        wanted.append(unity.rstrip("."))
     if untranslated:
         wanted.append(
             f"{len(untranslated)} of {len(lines)} dialogue lines have no text_native — give "
