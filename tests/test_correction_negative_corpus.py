@@ -142,6 +142,8 @@ APOSTROPHE = [
     "Lundi a l'air calme.",
     "Lila a une clé et Marin a un chat.",
     "Le chat a l'air content.",
+    "Augustin de… Créteil… a l'honneur de signer !",
+    "Le maire... a l'hôtel de ville pour lui.",
     # no French word glued together: a name, or a word of another language
     "Le mot anglais « nest » veut dire nid.",
     "En allemand, Nest veut dire nid.",

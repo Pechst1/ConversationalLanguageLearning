@@ -102,8 +102,9 @@ def test_a_listed_rewrite_of_the_question_is_refused_too():
         None,
         [{"learner_text": "Qu est-ce que c est,", "corrected_target": "C'est", "why_wrong": "Plus naturel."}],
     )
-    assert checked.errata == []
-    assert "Qu est-ce que" in checked.corrected
+    assert [row["corrected_target"] for row in checked.refused] == ["C'est"]
+    assert all(item["corrected_target"] != "C'est" for item in checked.errata)
+    assert "Qu'est-ce que c'est" in checked.corrected
 
 
 @pytest.mark.parametrize(
