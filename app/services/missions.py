@@ -31,6 +31,7 @@ from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService
 from app.services.cast_roles import ROLES as CAST_ROLES
 from app.services.cast_roles import role_of
+from app.services.chrome_language import user_mother_tongue
 
 # WP-64 — every write into `thread.state["living_story"]` on behalf of a letter
 # goes through this module, and nothing here reaches into that ledger directly.
@@ -1500,7 +1501,7 @@ def _objective_language_gap(data: dict[str, Any], user: User) -> str | None:
     """WP-68 §8: a generated letter's objective must exist in the learner's
     own language (en/de); the French one alone is not enough up to A2."""
 
-    language = str(getattr(user, "native_language", None) or "en").strip().lower()[:2]
+    language = user_mother_tongue(user)
     if language not in {"en", "de"}:
         return None
     value = data.get(f"success_signal_{language}")
@@ -2264,7 +2265,7 @@ class MissionGenerator:
             translations = item.get("translations") if isinstance(item.get("translations"), dict) else {}
             translation = (
                 _compact_text(item.get("translation"), max_length=90)
-                or _compact_text(gloss_from_map(translations, user.native_language), max_length=90)
+                or _compact_text(gloss_from_map(translations, user_mother_tongue(user)), max_length=90)
             )
             selected.append(
                 {
@@ -2294,7 +2295,7 @@ class MissionGenerator:
                     {
                         "word_id": word.id,
                         "word": word.word,
-                        **gloss_payload(word, user.native_language),
+                        **gloss_payload(word, user_mother_tongue(user)),
                         "bucket": "preferred",
                         "scheduler": "explicit",
                         "priority_score": 1.0,
@@ -2327,7 +2328,7 @@ class MissionGenerator:
                         {
                             "word_id": word.id,
                             "word": word.word,
-                            **gloss_payload(word, user.native_language),
+                            **gloss_payload(word, user_mother_tongue(user)),
                             "bucket": "mot_du_jour",
                             "scheduler": "slate",
                             "priority_score": 0.9,
@@ -2368,7 +2369,7 @@ class MissionGenerator:
                     {
                         "word_id": word.id,
                         "word": word.word,
-                        **gloss_payload(word, user.native_language),
+                        **gloss_payload(word, user_mother_tongue(user)),
                         "bucket": "topic",
                         "scheduler": "explicit",
                         "priority_score": 0.5,
@@ -3640,7 +3641,7 @@ class MissionCorrectionService:
     ) -> dict[str, Any]:
         # The authored fallback prose is an *explanation*, so it follows the
         # learner's native language; the Courrier's fiction around it stays French.
-        language = getattr(user, "native_language", None)
+        language = user_mother_tongue(user)
         deterministic_errata, deterministic_answer = self._deterministic_errata(text, language=language)
         if near_realtime:
             correction = self._fallback_correction(
@@ -4048,7 +4049,7 @@ class MissionCorrectionService:
         # contract as the Atelier corrector — French stays French, the prose that
         # explains the mistake follows the learner's own language.
         gloss_language = EXPLANATION_LANGUAGE_NAMES.get(
-            normalize_language(getattr(user, "native_language", None)),
+            user_mother_tongue(user),
             EXPLANATION_LANGUAGE_NAMES[DEFAULT_GLOSS_LANGUAGE],
         )
         payload = {
@@ -4083,7 +4084,7 @@ class MissionCorrectionService:
             f"LANGUAGE RULE, applies to every field: write why_wrong, repair_hint and display_label in {gloss_language}, "
             f"and ONLY in {gloss_language}. Keep learner_text, corrected_target and corrected_answer in French — never "
             f"translate the French itself. If you are about to write why_wrong in French, write it in {gloss_language} instead. "
-            f"{address_instruction(normalize_language(getattr(user, 'native_language', None)))}"
+            f"{address_instruction(user_mother_tongue(user))}"
         ).strip()
         try:
             result = self.llm.generate_error_detection(
@@ -4610,7 +4611,7 @@ class MissionCorrectionService:
     def _mission_native_language(self, mission: RealWorldMission) -> str:
         """The language this mission's learner reads glosses in."""
         user = self.db.get(User, mission.user_id) if mission.user_id else None
-        return normalize_language(getattr(user, "native_language", None))
+        return user_mother_tongue(user)
 
     def _mission_vocabulary_items(self, mission: RealWorldMission) -> list[dict[str, Any]]:
         payload_items = [
@@ -4798,7 +4799,7 @@ class MissionSRSService:
         """
 
         now = datetime.now(UTC)
-        native = getattr(user, "native_language", None)
+        native = user_mother_tongue(user)
         saved: list[dict[str, Any]] = []
         for phrase in self._phrase_bank(mission)[:5]:
             normalized = _normalize_phrase(phrase["phrase"])

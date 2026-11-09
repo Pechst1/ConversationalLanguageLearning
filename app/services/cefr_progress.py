@@ -35,6 +35,7 @@ from app.db.models.graphic_novel import GraphicNovelAttempt
 from app.db.models.mission import RealWorldMissionAttempt
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
+from app.services.chrome_language import user_mother_tongue
 from app.services.journey_rhythm import rhythm_of
 
 logger = logging.getLogger(__name__)
@@ -734,7 +735,7 @@ def with_can_do_line(db: Session, user: User, payload: dict[str, Any]) -> dict[s
     band = str(payload.get("estimate") or getattr(user, "cefr_estimate", None) or "A1.1")
     try:
         line = next_can_do_summary(
-            db, user.id, band=band, native_language=getattr(user, "native_language", None)
+            db, user.id, band=band, native_language=user_mother_tongue(user)
         )
     except Exception:  # pragma: no cover - a level line must never 500 an endpoint
         logger.exception("cefr_progress: can-do line could not be computed")

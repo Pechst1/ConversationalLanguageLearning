@@ -78,6 +78,7 @@ from typing import Any, Literal
 from sqlalchemy.orm import Session
 
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
+from app.services.chrome_language import user_mother_tongue
 
 ForgeRole = Literal["today", "due", "contrast"]
 ROLE_TODAY: ForgeRole = "today"
@@ -712,7 +713,7 @@ def forge_anchor_brief(
     concept = db.get(GrammarConcept, concept_id) if concept_id is not None else None
     if concept is None:
         return None
-    language = normalize_control_language(getattr(user, "native_language", None))
+    language = normalize_control_language(user_mother_tongue(user))
     from app.services.concept_titles import concept_title
 
     try:

@@ -27,6 +27,7 @@ import re
 from functools import lru_cache
 from typing import Any
 
+from app.services.chrome_language import mother_tongue
 from app.services.grammar_catalog import (
     FRENCH_CORE_CATALOG_V2_VERSION,
     catalog_rows,
@@ -210,7 +211,7 @@ def trap_why(external_id: str | None, wrong: str, right: str, language: str | No
     reason = trap_reason(external_id, wrong, right)
     if not reason:
         return None
-    code = str(language or "en").strip().lower()[:2]
+    code = mother_tongue(language)
     return str(reason.get(code) or reason.get("en") or "").strip() or None
 
 

@@ -27,6 +27,7 @@ from app.core.security import (
 )
 from app.db.models.user import RefreshToken, User
 from app.schemas import Token, UserCreate
+from app.services.chrome_language import mother_tongue, user_mother_tongue
 from app.services.daily_session import DEFAULT_PACE, PACES
 
 logger = logging.getLogger(__name__)
@@ -109,7 +110,7 @@ class PasswordResetRequestResult:
 
 def _default_vocab_direction_for(native_language: str | None) -> str:
     """Gloss direction must follow the learner's own language, not the German import default."""
-    code = (native_language or "").strip().lower()[:2]
+    code = mother_tongue(native_language)
     return f"fr_to_{code}" if code in {"de", "en"} else "fr_to_en"
 
 
@@ -363,7 +364,7 @@ class AuthService:
     def password_reset_email(user: User, *, code: str, reset_url: str | None) -> EmailMessage:
         """The reset email, in the learner's own language, code first."""
 
-        language = (user.native_language or "en").strip().lower()[:2]
+        language = user_mother_tongue(user)
         ttl = PASSWORD_RESET_CODE_TTL_MINUTES
         link_ttl = settings.PASSWORD_RESET_TOKEN_TTL_MINUTES
         if language == "de":

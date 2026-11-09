@@ -24,7 +24,7 @@ import { useAppSession } from '@/lib/app-auth';
 import { JOURNEY_RESUME_HREF } from '@/lib/journey-resume';
 import { QUARTIER_VISIBLE } from '@/lib/launch-flags';
 import { levelBand } from '@/lib/language-rule';
-import { LEARNER_LANGUAGE_STORAGE_KEY, readLearnerLevel } from '@/lib/learner-language';
+import { quartierNative, readLearnerLanguage, readLearnerLevel, useLearnerLanguage } from '@/lib/learner-language';
 import { JourneyStory, stagedPageOf, todayOf } from '@/lib/quartier/journey-story';
 import type { Today } from '@/lib/quartier/journey-story';
 import type { Level, Native } from '@/lib/quartier/stage';
@@ -50,25 +50,14 @@ export async function getStaticProps() {
   return { props: {} };
 }
 
-/** The learner's language and level as the last profile load cached them; no language: the phone's. */
-function learner(): { native?: Native; level: Level } {
-  if (typeof window === 'undefined') return { level: 'a2' };
-  let language: string | null = null;
-  try {
-    language = window.localStorage.getItem(LEARNER_LANGUAGE_STORAGE_KEY);
-  } catch {
-    // storage refused: the phone's language decides
-  }
+/** The learner's language and level as the last profile load cached them (S3: never the phone's). */
+function learner(): { native: Native; level: Level } {
+  if (typeof window === 'undefined') return { native: 'en', level: 'a2' };
   const band = levelBand(readLearnerLevel());
   return {
-    native: language === 'de' || language === 'en' ? language : undefined,
+    native: quartierNative(readLearnerLanguage()),
     level: band === 'A1' || band === 'A2' || band === null ? 'a2' : 'b1',
   };
-}
-
-function phoneNative(): Native {
-  if (typeof navigator === 'undefined') return 'en';
-  return /^de\b/i.test(navigator.language || '') ? 'de' : 'en';
 }
 
 const COPY = {
@@ -238,7 +227,9 @@ function noteOf(
 export default function QuartierPage() {
   const router = useRouter();
   const [who] = React.useState(learner);
-  const copy = COPY[who.native ?? phoneNative()];
+  // The profile (one coalesced GET, cached for the next visit) settles the page's own words.
+  const profileLanguage = useLearnerLanguage();
+  const copy = COPY[profileLanguage === 'en' ? who.native : quartierNative(profileLanguage)];
   const { status } = useAppSession();
   const signedIn = status === 'authenticated';
   const controller = useDailyJourney({ enabled: signedIn, preferredInputMode: readAnswerMode('voice') });

@@ -88,7 +88,7 @@ from app.schemas.daily_journey import (
     practice_href_for,
 )
 from app.services import gold_ledger, scene_ledger
-from app.services.chrome_language import user_chrome_language
+from app.services.chrome_language import user_chrome_language, user_mother_tongue
 from app.services.closing_filler import scene_fact
 from app.services.daily_journey_adapters import (
     AdapterUnavailable,
@@ -2821,7 +2821,7 @@ class DailyJourneyService:
             return {
                 "special": script["special"],
                 "epreuve": epreuve_snapshot_view(
-                    script["epreuve"], getattr(user, "native_language", None)
+                    script["epreuve"], user_mother_tongue(user)
                 ),
             }
 
@@ -4082,7 +4082,7 @@ class DailyJourneyService:
             close_acts(self.db, user, acts, played=list(getattr(plan, "acts", None) or []))
         self._persist_plan(
             fresh, result, plan, input_mode, because=because, fallback=fallback,
-            native_language=getattr(user, "native_language", None),
+            native_language=user_mother_tongue(user),
         )
         # WP-93: the «Lecture» remembers what it offers; «coulisses» is asked
         # for now that today's scene is bound (the story lane writes it).
@@ -5924,7 +5924,7 @@ class DailyJourneyService:
                 # nothing else, so a word the letter hoped for and the reply
                 # never used stays unmet.
                 produced_target_ids=_produced_target_ids(evaluation),
-                language=getattr(user, "native_language", None),
+                language=user_mother_tongue(user),
             )
         except Exception:
             logger.exception("daily_journey: the answered Courrier letter could not be filed")

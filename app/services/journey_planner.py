@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 from app.services import grammar_items, pragmatics
 from app.services.cast_registry import display_name
 from app.services.cast_voices import NARRATOR_ID, line_audio_url, voice_for_character
+from app.services.chrome_language import localized, mother_tongue
 from app.services.journey_content import (
     SPOILER_SIMILARITY,
     line_spoils_reply,
@@ -415,7 +416,7 @@ _WORD_COUNT: dict[str, tuple[str, str]] = {
 def word_count_phrase(count: int, control_language: Any) -> str:
     """«1 Wort» / «3 Wörter», «1 word» / «3 words», «1 mot» / «3 mots»."""
 
-    one, many = _WORD_COUNT.get(str(control_language or "en")[:2], _WORD_COUNT["en"])
+    one, many = _WORD_COUNT.get(mother_tongue(control_language), _WORD_COUNT["en"])
     return (one if int(count) == 1 else many).format(count=int(count))
 
 # -- WP-66: the three Séance formats, posed in the journey -------------------
@@ -502,8 +503,8 @@ _GENDER_ARTICLES: dict[str, str] = {
 }
 
 
-def _localized(table: dict[str, str], control_language: ControlLanguage) -> str:
-    return table.get(str(control_language), table["en"])
+# S3: one ``{en, de, fr}`` picker for the whole server (chrome_language.localized).
+_localized = localized
 
 
 # --------------------------------------------------------------------------

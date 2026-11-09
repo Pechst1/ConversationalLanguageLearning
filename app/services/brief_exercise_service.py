@@ -22,6 +22,7 @@ from app.core.prompts.brief_exercise_prompts import (
 from app.db.models.error import UserError
 from app.db.models.grammar import GrammarConcept
 from app.db.models.user import User
+from app.services.chrome_language import user_mother_tongue
 from app.services.error_memory import ErrorMemoryService
 from app.services.exercise_generation import (
     ExerciseGenerationService,
@@ -106,7 +107,7 @@ class BriefExerciseService:
         if not user_id:
             return None
         user = self.db.get(User, user_id)
-        return getattr(user, "native_language", None) if user else None
+        return user_mother_tongue(user) if user else None
 
     def _build_grammar_override(
         self,
@@ -310,7 +311,7 @@ class BriefExerciseService:
         user = self.db.get(User, user_id)
         if not user:
             return
-        language = getattr(user, "native_language", None)
+        language = user_mother_tongue(user)
 
         # Default if still empty
         if not subcategory:

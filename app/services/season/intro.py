@@ -16,6 +16,7 @@ from typing import Any
 
 from app.services.cast_registry import display_name
 from app.services.cast_roles import role_line
+from app.services.chrome_language import localized
 from app.services.season.format import SEASON_ROOT
 
 
@@ -28,10 +29,8 @@ def _intro(season_id: str) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
-def _localized(value: Any, language: str) -> str:
-    if isinstance(value, dict):
-        return str(value.get(language) or value.get("en") or "")
-    return str(value or "")
+# S3: one ``{en, de, fr}`` picker for the whole server (chrome_language.localized).
+_localized = localized
 
 
 def season_day(story_context: dict[str, Any] | None) -> int:

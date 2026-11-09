@@ -66,6 +66,7 @@ from app.services import (
 )
 from app.services import living_story as engine
 from app.services.answer_acceptance import correction_is_grounded, is_preference_swap
+from app.services.chrome_language import user_mother_tongue
 from app.services.journey_contracts import (
     AssistanceLevel,
     AttemptAnswer,
@@ -1697,7 +1698,7 @@ def settle_with_fallback(db: Session, *, user, journey, brief, resolution, reaso
     if not lane_open(resolution):
         return None
     lane = lane_of(resolution)
-    language = normalize_control_language(getattr(user, "native_language", None))
+    language = normalize_control_language(user_mother_tongue(user))
     turn = fallback_story(lane, character_name=brief.character_name, language=language, reason=reason)
     PilotEventService(db).record(
         "journey_story_turn_fallback",

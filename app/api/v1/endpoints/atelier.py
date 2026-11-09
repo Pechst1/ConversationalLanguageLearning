@@ -90,7 +90,7 @@ from app.services.book_library import BookLibraryService
 from app.services.cast_registry import display_name, people_addressed, people_named
 from app.services.cast_registry import resolve_id as _resolve_cast_id
 from app.services.cefr_progress import CEFRProgressService, live_level, with_can_do_line
-from app.services.chrome_language import user_chrome_language
+from app.services.chrome_language import user_chrome_language, user_mother_tongue
 from app.services.concept_titles import concept_title, concept_title_fr
 from app.services.error_memory import ErrorMemoryService
 from app.services.forge import ForgeService, is_forge_session  # WP-S3 La Forge
@@ -1241,7 +1241,7 @@ def _session_response(
         # WP-103: every item's goal in the learner's language, no retired frame, no
         # server-only key (the classify follow-up's).
         payload = public_payload(
-            payload, user_chrome_language(user), getattr(user, "native_language", None)
+            payload, user_chrome_language(user), user_mother_tongue(user)
         )
         if user_chrome_language(user) == "fr":
             from app.services.grammar_units import french_rule
@@ -1951,7 +1951,7 @@ def _learner_help_language(user: User) -> tuple[str, str]:
 
     from app.services.glosses import EXPLANATION_LANGUAGE_NAMES
 
-    language = normalize_language(getattr(user, "native_language", None))
+    language = user_mother_tongue(user)
     if language == "fr" or language not in EXPLANATION_LANGUAGE_NAMES:
         language = "en"
     return language, EXPLANATION_LANGUAGE_NAMES[language]

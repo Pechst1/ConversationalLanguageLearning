@@ -33,11 +33,12 @@ from app.schemas.vocabulary import (
     VocabularyListResponse,
     VocabularyWordRead,
 )
+from app.services.chrome_language import user_mother_tongue
 from app.services.conjugation import ConjugationService
 from app.services.core_lexicon import CORE_DECK
 from app.services.daily_session import DAY_DECK_LIMIT, DAY_DECK_NEW_WORDS
 from app.services.daily_words import DailyWordSlateService
-from app.services.glosses import gloss_payload, normalize_language
+from app.services.glosses import gloss_payload
 from app.services.progress import ProgressService
 from app.services.vocabulary import VocabularyNotFoundError, VocabularyService
 from app.services.vocabulary_coverage import VocabularyCoverageService
@@ -226,7 +227,7 @@ def optional_viewer(
 
 
 def _viewer_language(viewer: User | None) -> str:
-    return normalize_language(getattr(viewer, "native_language", None))
+    return user_mother_tongue(viewer)
 
 
 def _word_payload(word: Any, viewer_language: str) -> dict[str, Any]:
@@ -1358,7 +1359,7 @@ def keep_vocabulary_word(
         # the French chrome line and the learner's own-language line.
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=keep_refusal(exc.reason, getattr(current_user, "native_language", None)),
+            detail=keep_refusal(exc.reason, user_mother_tongue(current_user)),
         ) from exc
     db.commit()
     return kept.as_public()

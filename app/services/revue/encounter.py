@@ -120,6 +120,7 @@ from app.schemas.revue import (
     RvWordEvidence,
 )
 from app.schemas.revue_vignette import VignetteView
+from app.services.chrome_language import user_mother_tongue
 from app.services.revue import grading, knowledge, policy, voice
 from app.services.revue.checks import (
     RELATIVE_DATE_PHRASES,
@@ -2309,7 +2310,7 @@ class RevueEncounter:
         elif plan.stage.plate_url is None:
             # Phase 1: known plates only — the place's nearest season plate stands in (§8.1).
             plan.stage.plate_url = site.plate_url
-        gloss_language = normalize_control_language(getattr(user, "native_language", None))
+        gloss_language = normalize_control_language(user_mother_tongue(user))
         plan.vocabulary = self._vocabulary(dossier, plan.support.vocab_target, gloss_language, must=must)
         return plan.validate_against(dossier)
 

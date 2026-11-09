@@ -54,6 +54,7 @@ from app.db.models.daily_journey import DailyJourney
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.services.cast_roles import role_line
+from app.services.chrome_language import localized, user_mother_tongue
 from app.services.closing_filler import scene_fact
 from app.services.journey_contracts import (
     DEFAULT_BUDGET_SECONDS,
@@ -421,18 +422,8 @@ def render_authored_text(
     return re.sub(r"\s{2,}", " ", rendered).strip()
 
 
-def _localized(value: Any, control_language: ControlLanguage) -> str:
-    """Resolve a ``{en, de, fr}`` block, always falling back to English."""
-
-    if isinstance(value, str):
-        return value
-    if not isinstance(value, dict):
-        return ""
-    for candidate in (control_language, "en"):
-        text = value.get(candidate)
-        if isinstance(text, str) and text.strip():
-            return text
-    return ""
+# S3: one ``{en, de, fr}`` picker for the whole server (chrome_language.localized).
+_localized = localized
 
 
 # --------------------------------------------------------------------------
@@ -1701,7 +1692,7 @@ def resolve_level_fit(*, user: User, brief: ScenarioBrief) -> LevelFit:
     """
 
     band = learner_level_band(user)
-    control_language = normalize_control_language(user.native_language)
+    control_language = normalize_control_language(user_mother_tongue(user))
     if band == brief.level_band:
         return LevelFit(learner_band=band, content_band=brief.level_band, is_exact=True)
     note = None

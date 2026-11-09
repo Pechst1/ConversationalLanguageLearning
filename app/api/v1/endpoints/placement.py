@@ -20,6 +20,7 @@ from app.api.deps import get_current_user, get_db
 from app.db.models.placement import PlacementSession
 from app.db.models.user import User
 from app.services.cefr_progress import CEFRProgressService
+from app.services.chrome_language import user_mother_tongue
 from app.services.journey_contracts import normalize_control_language
 from app.services.placement import (
     MAX_TURNS,
@@ -192,7 +193,7 @@ def respond(
         session,
         answer=payload.answer,
         turn_index=payload.turn_index,
-        language=normalize_control_language(getattr(current_user, "native_language", None)),
+        language=normalize_control_language(user_mother_tongue(current_user)),
     )
     if session.status != "in_progress":
         # The estimate is the CEFR service's prior from here on; recompute so

@@ -48,6 +48,7 @@ from app.services.atelier_correction_cost import (
     bound_learner_answer,
     record_correction_cost,
 )
+from app.services.chrome_language import mother_tongue, user_mother_tongue
 from app.services.concept_titles import concept_title, concept_title_fr
 from app.services.error_memory import ErrorMemoryService, serialize_error_memory
 from app.services.exercise_generation import (
@@ -1364,7 +1365,7 @@ def _starter_vocabulary_items(db: Session, *, user: User, limit: int) -> list[di
     # ships with. Prefer the learner's own pair, but never let that preference
     # leave them with no words: a gloss in another language (labelled as such by
     # `gloss_payload`) beats an empty slate.
-    learner_direction = f"{target_language}_to_{normalize_language(user.native_language)}"
+    learner_direction = f"{target_language}_to_{user_mother_tongue(user)}"
     base_query = unscoped_query.filter(
         (VocabularyWord.direction == learner_direction) | (VocabularyWord.direction.is_(None))
     )
@@ -1405,7 +1406,7 @@ def _starter_vocabulary_items(db: Session, *, user: User, limit: int) -> list[di
         {
             "word_id": word.id,
             "word": word.word,
-            **gloss_payload(word, user.native_language),
+            **gloss_payload(word, user_mother_tongue(user)),
             "bucket": "starter",
             "scheduler": "curated_starter",
             "priority_score": 0.8,
@@ -1426,7 +1427,7 @@ def select_atelier_vocabulary(
     selected: list[dict[str, Any]] = []
     seen_word_ids: set[int] = set()
     seen_surfaces: set[str] = set()
-    native_language = normalize_language(user.native_language)
+    native_language = user_mother_tongue(user)
 
     def add_item(item: dict[str, Any]) -> None:
         if len(selected) >= limit:
@@ -1477,7 +1478,7 @@ def select_atelier_vocabulary(
                 {
                     "word_id": word.id,
                     "word": word.word,
-                    **gloss_payload(word, user.native_language),
+                    **gloss_payload(word, user_mother_tongue(user)),
                     "bucket": "preferred",
                     "scheduler": "explicit",
                     "priority_score": 1.0,
@@ -4794,7 +4795,7 @@ class AtelierCorrectionService:
     ) -> AtelierAttempt:
         from app.services.chrome_language import user_chrome_language
         self.explanation_language = user_chrome_language(user)
-        self._learner_native = getattr(user, "native_language", None)
+        self._learner_native = user_mother_tongue(user)
         # WP-103 T8: an A1 learner corrects a sorted sentence with tiles.
         self._learner_band = str(getattr(user, "cefr_estimate", "") or "A1").strip().upper()[:2]
         # WP-16 additive: per-attempt state for the answer bound and the cost row.
@@ -5375,7 +5376,7 @@ class AtelierCorrectionService:
 
         from app.services.chrome_language import user_chrome_language
         self.explanation_language = user_chrome_language(user)
-        self._learner_native = getattr(user, "native_language", None)
+        self._learner_native = user_mother_tongue(user)
         started = time.perf_counter()
         try:
             ai_correction = self.correct(
@@ -7456,7 +7457,7 @@ class AtelierCorrectionService:
         read, and ``own_sentence``: the content is the learner's to choose.
         """
 
-        language = str(self.explanation_language or "en").strip().lower()[:2]
+        language = mother_tongue(self.explanation_language)
         if language == "en" or item.get("type") not in {"short_sentence", "spoken_response", "conversation_turn"}:
             return item
         meanings = [

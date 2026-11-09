@@ -25,6 +25,7 @@ from difflib import SequenceMatcher
 from functools import lru_cache
 from typing import Any
 
+from app.services.chrome_language import fold_language, mother_tongue
 from app.services.journey_contracts import normalize_answer_text
 from app.services.learner_copy import learner_text as _copy
 
@@ -692,9 +693,8 @@ _ORDER_NOTES: dict[str, dict[str, str]] = {
 }
 
 
-def _language(value: Any) -> str:
-    language = str(value or "en").strip().lower()[:2]
-    return language if language in {"en", "de", "fr"} else "en"
+# S3: the one fold onto en / de / fr (chrome_language.fold_language).
+_language = fold_language
 
 
 def reordering_correction(
@@ -826,7 +826,7 @@ def held_to_sentence(
         if verified is None:
             dropped.append(erratum)
             continue
-        shown.append(correction_contract.reconcile_notes(verified, language=str(language or "en")[:2]))
+        shown.append(correction_contract.reconcile_notes(verified, language=mother_tongue(language)))
     return shown, dropped
 
 

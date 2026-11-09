@@ -25,6 +25,16 @@ from enum import StrEnum
 from typing import Any, Literal, NamedTuple
 from uuid import UUID
 
+# S3: the control language and its folding live in ``chrome_language``; these
+# names stay importable from here for the modules (and open branches) that use them.
+from app.services.chrome_language import (  # noqa: F401
+    FALLBACK_CONTROL_LANGUAGE,
+    SUPPORTED_CONTROL_LANGUAGES,
+    ControlLanguage,
+    mother_tongue,
+)
+from app.services.chrome_language import fold_language as normalize_control_language  # noqa: F401
+
 CONTRACT_VERSION = 1
 #: WP-66. The *plan* contract, versioned separately from the wire contract.
 #: Version 2 adds :class:`DayShape` and the three Séance recall formats. Both
@@ -313,20 +323,6 @@ def rhythm_caps(budget_seconds: int | None) -> RhythmCaps:
 #: ``plan_selection["first_day"]["kind"]``. Additive: no wire shape changes
 #: except the optional ``JourneySnapshot.cast_intro`` it feeds.
 FIRST_DAY_KIND = "first_day"
-
-ControlLanguage = Literal["en", "de", "fr"]
-SUPPORTED_CONTROL_LANGUAGES: tuple[ControlLanguage, ...] = ("en", "de", "fr")
-FALLBACK_CONTROL_LANGUAGE: ControlLanguage = "en"
-
-
-def normalize_control_language(value: str | None) -> ControlLanguage:
-    """Map a learner's stored native language onto a supported control language."""
-
-    candidate = (value or "").strip().lower().replace("_", "-").split("-")[0]
-    if candidate in SUPPORTED_CONTROL_LANGUAGES:
-        return candidate  # type: ignore[return-value]
-    return FALLBACK_CONTROL_LANGUAGE
-
 
 class JourneyStatus(StrEnum):
     PREPARING = "preparing"
@@ -924,7 +920,7 @@ def recall_goal(kind: str, language: Any, **fields: Any) -> str:
     """One goal line (WP-103 T3) in the learner's chrome language."""
 
     table = RECALL_GOALS[kind]
-    template = table.get(str(language or "en")[:2]) or table["en"]
+    template = table.get(mother_tongue(language)) or table["en"]
     return template.format(**{key: str(value or "").strip() for key, value in fields.items()})
 
 
