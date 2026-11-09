@@ -99,11 +99,21 @@ def test_off_a_season_a_page_that_mixes_both_still_leaves_the_reply_free():
     assert _reason(lanes.validate_voice, _voice(GUS_SLIP), payload) is None
 
 
-def test_a_page_that_addresses_the_learner_clearly_keeps_its_own_register():
-    payload = _gus_payload({"register": "vous"})
-    payload["scene"]["panels"] = [{"narration_fr": "", "dialogue": [{"character_id": GUS, "text_fr": "Tu prends quoi ?"}]}]
-    payload["scene"]["opening_line_fr"] = "Tu restes ?"
-    assert lanes.voice_payload(payload)["register"] == "tu"
+def test_a_page_that_addresses_the_learner_clearly_decides_only_off_a_season():
+    """#147: on a season day the person's register decides, whatever a line on the page says.
+    A generated page may still have Gus say «tu» too early (`_check_season_register` lets
+    that through), and his reply then stays on «vous» rather than following the slip."""
+
+    def clear(season_turn: dict | None) -> dict:
+        payload = _gus_payload(season_turn)
+        payload["scene"]["panels"] = [
+            {"narration_fr": "", "dialogue": [{"character_id": GUS, "text_fr": "Tu prends quoi ?"}]}
+        ]
+        payload["scene"]["opening_line_fr"] = "Tu restes ?"
+        return payload
+
+    assert lanes.voice_payload(clear({"register": "vous"}))["register"] == "vous"
+    assert lanes.voice_payload(clear(None))["register"] == "tu"
 
 
 def test_the_season_narrator_says_tu_beside_a_stranger_who_says_vous():
