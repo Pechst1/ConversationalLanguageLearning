@@ -44,7 +44,7 @@ CONTEXTS = ROOT / "contexts"
 SNAPSHOTS = ROOT / "snapshots"
 UPDATE_ENV = "PROMPT_SNAPSHOT_UPDATE"
 #: The order calls are rendered in (the reply lanes run in parallel threads).
-SCHEMA_ORDER = ("PagePlan", "PageText", "PageAids", "TutorVerdict", "VoiceReply", "ReplyChoice")
+SCHEMA_ORDER = ("PagePlan", "PageText", "PageAids", "TutorVerdict", "VoiceReply", "ReplyChoice", "SceneClosing")
 #: Settings that change what a story call sends, pinned so a developer's ``.env``, CI
 #: and the CLI render the same bytes. ``None`` routes keep each call's own effort.
 PINNED_SETTINGS = {
@@ -452,6 +452,8 @@ def _run_authored(case: Case) -> tuple[dict, Any]:
     ledger = scene_ledger.build(
         opening_line_fr=spec.get("opening_line_fr") or runtime._opening_of([turn]), history=history, learner_text=text
     )
+    if spec.get("closes"):
+        return _run_closing(case, page, turn, history, text, ledger)
     runtime._ROUTE_CACHE.clear()
     choice = runtime.classify(
         None, None, scene_id=case.id, turn=turn, text=text, history=history, band=page.get("band"), ledger=ledger
@@ -467,6 +469,43 @@ def _run_authored(case: Case) -> tuple[dict, Any]:
         "ack_played": played,
         "answered": answers_question(turn, text, intent=choice.learner_intent),
     }, choice
+
+
+def _run_closing(case: Case, page: dict, turn: dict, history: list, text: str, ledger: dict) -> tuple[dict, Any]:
+    """The conversation's last words on an authored day (``season.closing``)."""
+
+    from types import SimpleNamespace
+
+    from app.services.season import closing, runtime
+
+    problems: list[str] = []
+    scenario = SimpleNamespace(
+        title_fr=page["title_fr"],
+        character_id=turn.get("to"),
+        story_context={runtime.SEASON_CONTEXT_KEY: {"id": "s1", "page": page, "tail": runtime.page_tail(page)}},
+    )
+    beats = list(next(row for row in turn["replies"] if row["id"] == case.input["reply"]).get("beats") or [])
+    panels, reading = closing.written_close(
+        None,
+        None,
+        scenario=scenario,
+        turn=turn,
+        ledger=ledger,
+        history=history,
+        beats=beats,
+        tail=closing.with_cuts("s1", page, runtime.page_tail(page)),
+        band=page.get("band"),
+        learner_text=text,
+        on_problem=problems.append,
+        on_usage=lambda usage: None,
+    )
+    said = [line["text_fr"] for panel in panels for line in panel["lines"]]
+    return {
+        "failure": None,
+        "lines": said,
+        "dropped": problems,
+        "learner_intent": reading.learner_intent if reading else None,
+    }, reading
 
 
 # ---------------------------------------------------------------------------

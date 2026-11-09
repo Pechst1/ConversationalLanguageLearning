@@ -63,6 +63,9 @@ class ReplyChoice(BaseModel):
     #: #145: the reader's own reading of the turn; it outranks the ledger's first reading
     #: and stays with the exchange, so the next turn reads it too.
     learner_intent: Literal["yes", "no", "question", "other"] | None = None
+    #: On a page that asks only once: the question the addressee asks next, about what the
+    #: learner wrote (owner decision of 9 Nov 2026). ``None``: the page closes on this reply.
+    listen_fr: str | None = Field(default=None, max_length=240)
 
 
 CLASSIFIER = """You read ONE learner reply in a French graphic-novel serial and say which
@@ -112,6 +115,11 @@ it was received: a refused proposal stays scene.speaker's own, and ack_fr never 
 in their place («moi non plus»). established lists what the learner has said about their
 life, in their words (quote): it stays as they said it. Never quote at the learner words
 that are not in learner_text or history[].learner, and never answer in their place.
+scene.one_exchange, when true, means the page asks the learner only this once. listen_fr is
+then the one question scene.speaker asks next, after the chosen reaction: about something
+the learner wrote, one they can answer from their own life or opinion, at scene.band, in
+scene.address. It tells nothing about what happens next and brings in no new fact. null when
+scene.one_exchange is absent, or when nothing the learner wrote gives a question to ask.
 """ + story_memory.NAME_NOTE + """
 learned lists what the reply establishes about the learner (their name, where they come
 from, their job, why they are here, their family), each {key, fact_fr, quote, value}: key
@@ -393,6 +401,7 @@ def classifier_payload(
     band: str | None = None,
     known: dict[str, Any] | None = None,
     ledger: dict[str, Any] | None = None,
+    one_exchange: bool = False,
 ) -> dict:
     question = [line.get("text_fr") for line in (turn.get("panel") or {}).get("lines") or [] if line.get("text_fr")]
     addressee = str(turn.get("to") or "")
@@ -405,6 +414,7 @@ def classifier_payload(
             "question_fr": question,
             "listens_for": turn.get("listens_for"),
             "gate": turn.get("gate"),
+            **({"one_exchange": True} if one_exchange else {}),
         },
         "replies": [
             {
@@ -580,6 +590,10 @@ def reaction_text(panels: list[dict[str, Any]], *, addressee: str, labelled: boo
     return "\n".join(parts)
 
 
+#: The thread's speaker for a line nobody says (:func:`reaction_lines`).
+CAPTION_SPEAKER = "caption"
+
+
 def reaction_lines(panels: list[dict[str, Any]], *, addressee: str, names: dict[str, str] | None = None) -> list[dict[str, Any]]:
     """The reaction as spoken lines, each with who says it — so the conversation draws
     every speaker with their own face instead of one bubble naming the others."""
@@ -588,6 +602,12 @@ def reaction_lines(panels: list[dict[str, Any]], *, addressee: str, names: dict[
     for panel in panels:
         for line in panel.get("lines") or []:
             text = str(line.get("text_fr") or "").strip()
+            if text and line.get("cut"):
+                # #558: the page moves on, or shows a message: said in the thread as a
+                # caption, never under a face. ``season.closing`` marks them.
+                said = f"SMS : {text}" if line.get("kind") == "sms" else text
+                lines.append({"speaker_id": CAPTION_SPEAKER, "speaker_name": "", "text_fr": said})
+                continue
             if not text or line.get("kind") not in ("speech", "all"):
                 continue
             who = str(line.get("who") or addressee)

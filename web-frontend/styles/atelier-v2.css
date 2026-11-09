@@ -3415,6 +3415,13 @@
   min-width: 0;
 }
 .av2 .av2-thread__line { min-width: 0; }
+/* The page moves on (#558): a new time or place, a message. Nobody says it. */
+.av2 .av2-thread__cut {
+  color: var(--av2-muted);
+  font-family: var(--av2-serif);
+  font-style: italic;
+  text-align: center;
+}
 /* In a conversation the latest line is still the one headline, a size down so
    the column reads as talk rather than as a title card. */
 .av2 .av2-step--thread .av2-speech__bubble:not([data-long]) > .av2-headline {

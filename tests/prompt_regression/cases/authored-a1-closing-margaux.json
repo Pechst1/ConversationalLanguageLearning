@@ -1,0 +1,45 @@
+{
+ "id": "authored-a1-closing-margaux",
+ "lane": "authored",
+ "level": "A1",
+ "source": "The walk of 6 Nov 2026 (#558): the learner's last reply to Margaux is exact. The walk's close was the authored tail with nothing before it; the closer's answer is written for the case, to pin what the prompt receives and that a line taking up «pourquoi» is played.",
+ "input": {
+  "tentpole": "t4",
+  "day": "b",
+  "turn": "b.turn2",
+  "reply": "a_little",
+  "closes": true,
+  "history": [
+   {
+    "learner": "Oui, je savais.",
+    "character": "D'accord. D'accord. Je te crois."
+   }
+  ],
+  "opening_line_fr": "Tu mets les photos au mur. Tu sais ça ?",
+  "learner_text": "Oui, un peu. Tu as menti pendant trois ans a ma grand-mere. Mais je veux comprendre pourquoi tu as fait ca."
+ },
+ "answers": {
+  "SceneClosing": [
+   {
+    "content": {
+     "lines": [
+      {
+       "who": "margaux_barman",
+       "text_fr": "Pourquoi… Parce qu'Odile me l'a demandé. Voilà."
+      }
+     ],
+     "learner_intent": "yes",
+     "learned": []
+    }
+   }
+  ]
+ },
+ "expect": {
+  "failure": null,
+  "lines": [
+   "Pourquoi… Parce qu'Odile me l'a demandé. Voilà."
+  ],
+  "dropped": [],
+  "learner_intent": "yes"
+ }
+}

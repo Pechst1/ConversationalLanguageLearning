@@ -1,10 +1,10 @@
 # prompt snapshot · authored-a1-lila-feu-en-haut · lane authored · level A1
-# key: sha256:a205d7bfd21ec41feab585e2125939bd27a3669de052adb01055cd9d78cb4f35
+# key: sha256:354b9181d65f36e2089cd1c7b29749b41f00b3279ff72375eaf38350f76441f8
 # accept a change: PROMPT_SNAPSHOT_UPDATE=1 python -m pytest tests/test_prompt_regression.py (or scripts/prompt_regression.py --update)
 
-======== call 1 · ReplyChoice #1 · 5e63deed724536e7 ========
+======== call 1 · ReplyChoice #1 · 58ec843928352dee ========
 params: {"disable_retries": true, "max_provider_attempts": 1, "max_tokens": 1200, "prompt_cache_key": "atelier-ReplyChoice", "reasoning_effort": "minimal", "response_format": {"type": "json_object"}, "temperature": 0.2}
-output_schema: ReplyChoice sha256:36ad73a2d9f9f7b6
+output_schema: ReplyChoice sha256:efb8d6749d52c5e6
 -------- system --------
 You read ONE learner reply in a French graphic-novel serial and say which
 of the scene's authored replies it expresses. Return only the JSON schema.
@@ -53,6 +53,11 @@ it was received: a refused proposal stays scene.speaker's own, and ack_fr never 
 in their place («moi non plus»). established lists what the learner has said about their
 life, in their words (quote): it stays as they said it. Never quote at the learner words
 that are not in learner_text or history[].learner, and never answer in their place.
+scene.one_exchange, when true, means the page asks the learner only this once. listen_fr is
+then the one question scene.speaker asks next, after the chosen reaction: about something
+the learner wrote, one they can answer from their own life or opinion, at scene.band, in
+scene.address. It tells nothing about what happens next and brings in no new fact. null when
+scene.one_exchange is absent, or when nothing the learner wrote gives a question to ask.
 Their name says nothing about their gender: how the learner is gendered, in any language, follows their address alone.
 learned lists what the reply establishes about the learner (their name, where they come
 from, their job, why they are here, their family), each {key, fact_fr, quote, value}: key

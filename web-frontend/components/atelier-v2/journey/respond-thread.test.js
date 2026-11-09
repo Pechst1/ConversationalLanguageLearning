@@ -692,3 +692,28 @@ test('#217 every cast member keeps one name, also in a payload with the world bi
   assert.equal(castDisplayName(null, 'Augustin « Gus » de Roncourt'), 'Gus');
   assert.equal(castDisplayName(null, 'Mme Lefèvre'), null, 'someone outside the cast keeps their own name');
 });
+
+test('a caption between voices is drawn as a caption, not under a face (#558)', () => {
+  const local = model.recordExchange(model.EMPTY_THREAD, {
+    turn: 0,
+    prompt_fr: OPENING,
+    learner_fr: 'Oui, un peu.',
+    character_fr: 'Je comprends.\nQuarante-deux euros.',
+    correction: null,
+    character_lines: [
+      { speaker_id: 'margaux_barman', speaker_name: 'Margaux', text_fr: 'Je comprends.' },
+      { speaker_id: 'caption', speaker_name: '', text_fr: 'Plus tard. Les chaises sont sur les tables.' },
+      { speaker_id: 'augustin_de_roncourt', speaker_name: 'Gus', text_fr: 'Quarante-deux euros.' },
+    ],
+  });
+  const bubbles = model.threadBubbles({ prompt: prompt({ turn_index: 1, character_line_fr: '' }), local });
+  const caption = bubbles.find((bubble) => bubble.kind === 'caption');
+  assert.equal(caption.text, 'Plus tard. Les chaises sont sur les tables.');
+  assert.equal(
+    bubbles.filter((bubble) => bubble.kind === 'character' && bubble.text.startsWith('Plus tard')).length,
+    0,
+  );
+  const voices = bubbles.filter((bubble) => bubble.kind === 'character');
+  assert.equal(voices[voices.length - 1].latest, true, 'the last voice stays the headline');
+  assert.equal(caption.latest, undefined);
+});

@@ -2598,17 +2598,26 @@ def respond_seconds(
             floor = REPLY_WORDS_FLOOR[_band_key(band) or "B1"]
             costs = []
             for index in range(turns):
+                closes = index == turns - 1
                 if index >= len(authored):
-                    # A reply asked again (``repeat_once``): one more exchange.
-                    costs.append(default_turn)
+                    # One more exchange on the page's last question: a reply asked
+                    # again (``repeat_once``), or a page that asks only once and
+                    # listens to one more (#378, ``season.runtime.asks_only_once``).
+                    # The conversation closes here, so the page's answer and tail
+                    # are read here.
+                    closing = AuthoredExchange(*authored[-1]).closing if closes and authored else 0
+                    costs.append(default_turn + closing * prose)
                     continue
                 # A bare ``(kind, words)`` (pre-tentpole callers) reads the old
                 # twelve-word answer.
                 turn = AuthoredExchange(*authored[index])
-                read = turn.closing if index == turns - 1 else turn.going_on
-                said = read * prose + (
-                    0 if index == turns - 1 else turn.task_words * NATIVE_SECONDS_PER_TOKEN
-                )
+                if closes:
+                    read = turn.closing
+                else:
+                    # When one more exchange follows the page's last question, the
+                    # page's answer waits for it: it is read once, on the close.
+                    read = 0 if index == len(authored) - 1 else turn.going_on
+                said = read * prose + (0 if closes else turn.task_words * NATIVE_SECONDS_PER_TOKEN)
                 if turn.kind == "card":
                     costs.append(card(turn.words) + said)
                 else:

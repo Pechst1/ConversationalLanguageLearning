@@ -276,6 +276,19 @@ def _ack_for(said: str, intent: str) -> str:
     }.get(intent, f"{word} ? Ah bon.")
 
 
+def _word_of(said: str) -> str:
+    words = [word for word in re.findall(r"[^\W\d_]{5,}", said) if word.lower() not in {"parce", "pourquoi"}]
+    return (words[-1] if words else "Bon").capitalize()
+
+
+def _listen_for(said: str) -> str:
+    return f"{_word_of(said)} : pourquoi ?"
+
+
+def _close_for(said: str) -> str:
+    return f"{_word_of(said)}. On en reste là pour ce soir."
+
+
 def _reply(*, intent: str, keep: bool, name: str | None, exchange: int = 0) -> str:
     """The fake character's answer, one per reading of the learner's turn; a character
     who was told the learner's name uses it."""
@@ -383,6 +396,17 @@ class FakeStoryProvider:
                     "learned": _reported(said)["learned"],
                     "learner_intent": _intent_of(source),
                     "ack_fr": _ack_for(said, _intent_of(source)),
+                    # On a page that asks once, the scene asks one more from what was written.
+                    "listen_fr": _listen_for(said) if (source.get("scene") or {}).get("one_exchange") else None,
+                }
+            elif schema == "SceneClosing":
+                # #558: the conversation's last words, by the first person in the room.
+                said = str(source.get("learner_text") or "")
+                room = source.get("in_the_room") or []
+                value = {
+                    "lines": [{"who": room[0]["id"], "text_fr": _close_for(said)}] if room else [],
+                    "learner_intent": _intent_of(source),
+                    "learned": _reported(said)["learned"],
                 }
             elif schema == "CoulissesDraft":
                 # WP-93 «Coulisses»: the same evening, from another cast member's eyes.

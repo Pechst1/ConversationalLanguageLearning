@@ -249,7 +249,15 @@ export type LearnerBubble = {
   pending: boolean;
 };
 
-export type ThreadBubble = CharacterBubble | LearnerBubble;
+/** The page moves on (#558): a new time or place, a message. Nobody says it. */
+export type CaptionBubble = {
+  kind: 'caption';
+  key: string;
+  turn: number;
+  text: string;
+};
+
+export type ThreadBubble = CharacterBubble | LearnerBubble | CaptionBubble;
 
 /** The exchange on the wire or just answered, before it is kept. */
 export type InFlightExchange = {
@@ -371,6 +379,10 @@ export function threadBubbles(input: {
     if (drawsEachVoice(slot.lines, prompt.character_id)) {
       // A many-voiced reply: every speaker is their own bubble, with their face.
       slot.lines.forEach((spoken, index) => {
+        if (spoken.speaker_id === 'caption') {
+          bubbles.push({ kind: 'caption', key: `c${turn}r${index}`, turn, text: spoken.text_fr });
+          return;
+        }
         bubbles.push({
           kind: 'character',
           key: `c${turn}r${index}`,
