@@ -214,7 +214,7 @@ def test_the_learners_question_reaches_the_voice_first(
     _play(assembled_client, d, ["Je viens samedi. Vous avez un chat ?"])
     voice = [data for schema, data in provider.calls if schema == "VoiceReply"]
     assert voice[-1]["turn_plan"]["learner_asked"] == "Vous avez un chat ?"
-    assert voice[-1]["ledger"]["learner_asked"] == "Vous avez un chat ?"
+    assert voice[-1]["ledger"]["last_turn"]["asks"] == "Vous avez un chat ?"
     assert "turn_plan.learner_asked" in engine_voice_prompt()
 
 
