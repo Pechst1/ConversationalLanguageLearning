@@ -6674,6 +6674,10 @@ export interface components {
             ai_audio_text: string;
             /** Ai Response */
             ai_response: string;
+            /** Check */
+            check?: {
+                [key: string]: unknown;
+            } | null;
             /** Detected Errors */
             detected_errors?: {
                 [key: string]: unknown;
@@ -11250,6 +11254,10 @@ export interface components {
          * @description One shape for every placement route.
          */
         PlacementEnvelope: {
+            /** Check */
+            check?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Confidence
              * @default 0
