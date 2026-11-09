@@ -148,10 +148,10 @@ export function forgeLabel(language: unknown): string {
   return 'Forge today’s rule';
 }
 
-/** «Forge · 5 min» — the entry's length, in minutes, never under one. */
+/** «Forge · 5 min» — the entry's length, in minutes, never under one; rounded up like the plan row's (#470). */
 export function forgeMinutes(budgetSeconds: unknown): number {
   const seconds = Number(budgetSeconds);
-  return Number.isFinite(seconds) && seconds > 0 ? Math.max(1, Math.round(seconds / 60)) : 5;
+  return Number.isFinite(seconds) && seconds > 0 ? Math.max(1, Math.ceil(seconds / 60)) : 5;
 }
 
 /** `/atelier?mode=forge[&concept=<id>]` — La Forge's one entry (the server's spelling). */
