@@ -2441,18 +2441,21 @@ class AuthoredExchange(NamedTuple):
     task_words: int = 0
 
 
+#: ``season.turns.REPLY_KINDS``, repeated here: the planner imports nothing from the
+#: season runtime (``test_the_planner_imports_no_ladder_and_no_scheduler``).
+_REPLY_KINDS: tuple[str, ...] = ("speech", "all", "sms")
+
+
 def _spoken_words(panels: Any) -> int:
     """Words of the spoken lines of ``panels`` — what ``season.turns.reaction_lines``
     shows in the conversation (captions and silent panels stay on the page)."""
-
-    from app.services.season.turns import REPLY_KINDS
 
     total = 0
     for panel in panels if isinstance(panels, list) else []:
         if not isinstance(panel, dict):
             continue
         for line in panel.get("lines") or []:
-            if isinstance(line, dict) and line.get("kind") in REPLY_KINDS:
+            if isinstance(line, dict) and line.get("kind") in _REPLY_KINDS:
                 total += _tokens(str(line.get("text_fr") or ""))
     return total
 

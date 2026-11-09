@@ -434,3 +434,10 @@ def test_after_the_finale_no_decided_thread_is_archived_open(monkeypatch, ending
     keys = [row["key"] for row in engine.season_threads(world)]
     assert set(keys) <= set(archived)
     assert [key for key in keys if archived[key] == "open"] == []
+
+
+def test_the_planner_counts_the_same_reply_kinds_as_the_conversation():
+    from app.services import journey_planner
+    from app.services.season.turns import REPLY_KINDS
+
+    assert journey_planner._REPLY_KINDS == REPLY_KINDS
