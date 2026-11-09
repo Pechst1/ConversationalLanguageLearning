@@ -627,6 +627,22 @@ def _scenario_view(snapshot: Any) -> Any:
     return {**snapshot, "location_name": french}
 
 
+def previous_outcome_of(private: dict[str, Any], history: list[Any]) -> str | None:
+    """O-1: how the exchange before this one went, since a repair follows a miss.
+
+    ``None`` when nothing judged it. A reply no model read (``stock_exit``, #518; a failed
+    check, ``check_failure``, #333) stores an outcome all the same and the scene goes on, so
+    the next reply is not the repair of a miss nobody saw.
+    """
+
+    if not history:
+        return None
+    last = history[-1]
+    if isinstance(last, dict) and (last.get("stock_exit") or last.get("check_failure")):
+        return None
+    return (private.get("result") or {}).get("outcome")
+
+
 def _public_thread(turns: list[Any]) -> list[dict[str, Any]]:
     """WP-89: the respond step's exchanges as the public ``ThreadExchange`` shape.
 
@@ -5542,8 +5558,7 @@ class DailyJourneyService:
         brief = self._pinned_brief(journey, act=act)
         assistance = self._step_assistance(step)
         history = list(private.get("turns", []))
-        # O-1: the outcome of the exchange before this one (a repair follows a miss).
-        previous_outcome = (private.get("result") or {}).get("outcome") if history else None
+        previous_outcome = previous_outcome_of(private, history)
         # WP-89: a turn that cost no exchange (the opening greeting nudge) does
         # not move the conversation's own clock either.
         free_turns = sum(1 for turn in history if isinstance(turn, dict) and turn.get("free"))

@@ -17,10 +17,11 @@ import pytest
 from sqlalchemy import select
 
 from app.db.models.daily_journey import DailyJourneyStep
-from app.services import lane_guards, scene_exit, scene_ledger
+from app.services import gold_ledger, lane_guards, scene_exit, scene_ledger
 from app.services import living_story as engine
 from app.services import story_lanes as lanes
 from app.services.closing_filler import what_happened
+from app.services.daily_journey import previous_outcome_of
 from app.services.journal import scene_facts_for
 from app.services.season.prose_detector import reply_hits
 from tests import test_wp87_lanes as wp87
@@ -191,6 +192,36 @@ def test_a_failed_reply_keeps_the_scene_open_and_the_next_reply_is_written_again
     turns = _respond_step(db_session, d).private_task["turns"]
     assert turns[0]["stock_exit"] is True and "stock_exit" not in turns[1]
     assert turns[0]["learner"] == WALK, "their words are kept"
+
+
+def test_a_reply_after_a_failed_one_is_no_repair_of_it(
+    assembled_client, db_session, journey_enabled, clock, provider, inline, monkeypatch
+):
+    """Read from the code by the Judgement truth session, 9 Nov. The exit stores an outcome
+    nobody judged, and a scene used to end on it. Now that it stays open, the next reply read
+    that outcome as a miss and could be paid as its repair."""
+
+    pay = []
+    monkeypatch.setattr(gold_ledger, "record_journey_reply", lambda *_args, **kwargs: pay.append(kwargs))
+    d = driver(assembled_client, db_session)
+    step = _to_respond(d)
+
+    assert _respond(assembled_client, d, step, text=ANSWER)[2].status_code == 200
+    provider.fail = {"VoiceReply"}
+    assert _respond(assembled_client, d, step, text=WALK)[2].json()["next_turn"] is not None
+    provider.fail = set()
+    assert _respond(assembled_client, d, step, text=ANSWER)[2].status_code == 200
+
+    assert [call["previous_outcome"] is None for call in pay] == [True, False, True]
+    assert _respond_step(db_session, d).private_task["turns"][1]["stock_exit"] is True
+
+
+@pytest.mark.parametrize("mark", [{"stock_exit": True}, {"check_failure": "TimeoutError: read timed out"}])
+def test_an_exchange_nobody_judged_has_no_previous_outcome(mark):
+    private = {"result": {"outcome": "partially_met"}}
+    assert previous_outcome_of(private, [{"learner": "Bonjour."}]) == "partially_met"
+    assert previous_outcome_of(private, [{"learner": "Bonjour."}, {"learner": "Oui.", **mark}]) is None
+    assert previous_outcome_of(private, []) is None
 
 
 def test_a_failed_last_reply_closes_on_the_characters_own_words_and_files_no_event(
