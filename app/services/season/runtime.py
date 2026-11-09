@@ -174,11 +174,15 @@ def today_for(live: dict | None, *, user: Any, seed: str, now: Any = None) -> To
     state.setdefault("id", season_id)
     local = learner_date(user, now)
     pos = position_for(season, state, today=local)
+    flags = effective_flags(season, state, seed=seed)
+    if pos.is_tentpole and pos.segment is not None:
+        # #147: what the tentpole's pages are written with holds from its first page.
+        flags = {**flags, **(getattr(pos.segment, "opens_with", None) or {})}
     return Today(
         season=season,
         pos=pos,
         state=state,
-        flags=effective_flags(season, state, seed=seed),
+        flags=flags,
         seed=seed,
         band=learner_level_band(user),
         # The one-language rule: the page's own words (the task, the hint) are in the
@@ -1423,6 +1427,9 @@ def _settle_tentpole(season: Season, state: dict, season_ctx: dict, details: dic
             state = apply_sets(season, state, solve.get("sets_on_fail"), source=f"{solve.get('id')}/default")
     position = season_ctx.get("position") or {}
     tentpole = season.tentpoles.get(str(position.get("segment")))
+    if tentpole is not None and tentpole.opens_with:
+        # The days until Day B read it too: Gus does not go back to «vous» in between.
+        state = apply_sets(season, state, tentpole.opens_with, source=f"{tentpole.id}/opens_with")
     if tentpole is not None and int(position.get("day_in_segment") or 0) == 2:
         state = apply_sets(season, state, tentpole.state_out, source=f"{tentpole.id}/state_out")
     return state

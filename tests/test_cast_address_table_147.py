@@ -10,11 +10,13 @@ disagreement fails, and so does the end of a known one, so the list cannot rot.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
 from app.services import address, cast_registry
+from app.services.season import runtime
 from app.services.season.bridges import bridge_page, load_bridges
 from app.services.season.flags import effective_flags
 from app.services.season.format import load_season
@@ -25,14 +27,9 @@ from app.services.season.turns import turn_address
 BANDS = ("A1", "A2", "B1", "B2", "C1")
 GUS = "augustin_de_roncourt"
 
-#: REAL, reported on the PR, not fixed here: T3 A's page has Gus on «tu» from its first panel
-#: («Tu marches derrière moi.», «promets-moi une chose : tu ne vends pas à Solvel.»), and
-#: season.json says the flag is set at «T3 A», but ``register.augustin_de_roncourt`` only flips
-#: in T3's ``state_out``, which ``_settle_tentpole`` applies at the end of T3 **B**. So on both
-#: days of T3 the person is «vous» and the page is «tu». The move belongs at T3 A's opening.
-KNOWN_DISAGREEMENTS: dict[tuple[str, str, str], tuple[str, str]] = {
-    ("t3", "a", "a.turn1"): ("tu", "vous"),
-}
+#: Empty, and a new disagreement fails. T3 A was the one row: its page has Gus on «tu» from the
+#: first panel, and the flag moved only after T3 B. ``opens_with`` moves it on the first page.
+KNOWN_DISAGREEMENTS: dict[tuple[str, str, str], tuple[str, str]] = {}
 
 
 def _flags_for(when: dict[str, Any] | None) -> dict[str, Any]:
@@ -64,7 +61,8 @@ def _authored_turns():
     carried = dict(effective_flags(season, None))
     for tentpole in season.tentpoles.values():
         for day in tentpole.days:
-            flags = {**carried, **_flags_for(day.when)}
+            # ``today_for``: what the tentpole is written with holds from its first page.
+            flags = {**carried, **tentpole.opens_with, **_flags_for(day.when)}
             registers = address.season_registers(season, flags)
             for band in BANDS:
                 for turn in projected_turns(_day_page(season, tentpole, day, flags, band)):
@@ -131,3 +129,50 @@ def test_t4_b_says_tu_to_gus_on_the_page_and_in_the_registry():
     for _where, turn, registers in rows:
         assert turn_address(turn) in (None, "tu")
         assert cast_registry.address_now(GUS, None, registers=registers) == "tu"
+
+
+def _t3_position(season, day_in_segment: int):
+    """A learner on a day of T3: only what ``today_for`` and the settle read."""
+
+    tentpole = season.tentpoles["t3"]
+    return SimpleNamespace(is_tentpole=True, segment=tentpole, day_in_segment=day_in_segment)
+
+
+@pytest.mark.parametrize("day_in_segment", [1, 2])
+def test_on_t3_gus_is_tu_from_the_first_page(monkeypatch, day_in_segment):
+    """Since #604 a learner answering «Tu marches derrière moi» in «tu» was told to use «vous»."""
+
+    season = load_season("s1")
+    monkeypatch.setattr(runtime, "position_for", lambda *_args, **_kwargs: _t3_position(season, day_in_segment))
+    monkeypatch.setattr("app.services.living_story.learner_level_band", lambda _user: "A1")
+    monkeypatch.setattr("app.services.chrome_language.user_chrome_language", lambda _user: "de")
+    monkeypatch.setattr(runtime, "learner_date", lambda *_args, **_kwargs: None)
+    today = runtime.today_for({runtime.SEASON_KEY: {"id": "s1"}}, user=None, seed="x")
+    assert today is not None
+    assert address.season_registers(season, today.flags)[GUS] == "tu"
+
+
+def test_the_days_between_t3_a_and_t3_b_keep_him_on_tu():
+    """T3 A's settle moves the flag, so the generated days after it do not go back to «vous»."""
+
+    season = load_season("s1")
+    state = runtime._settle_tentpole(
+        season,
+        {"id": "s1"},
+        {"page": {}, "turns": [], "position": {"segment": "t3", "day_in_segment": 1}},
+        {"season_turns": []},
+        event_id="e",
+        day=1,
+        seed="x",
+    )
+    flags = effective_flags(season, state)
+    assert address.season_registers(season, flags)[GUS] == "tu"
+    # What T3 B alone establishes is still not set.
+    assert flags.get("mistral.wall_agreed") in (None, False)
+
+
+def test_a_tentpole_cannot_open_with_what_it_closes_against():
+    season = load_season("s1")
+    for tentpole in season.tentpoles.values():
+        for key, value in tentpole.opens_with.items():
+            assert tentpole.state_out.get(key, value) == value, (tentpole.id, key)
