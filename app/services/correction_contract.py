@@ -98,6 +98,48 @@ def _same_clause(text: str, left: Tok, right: Tok) -> bool:
     return not _CLAUSE_BREAK.search(text[left.end : right.start])
 
 
+def _starts_sentence(text: str, tok: Tok) -> bool:
+    """Whether ``tok`` is the first word of the text, of a line or of a sentence."""
+    before = text[: tok.start].rstrip("  «»\"“”„‘'(")
+    return not before or before[-1] in ".!?…:;\n"
+
+
+_QUOTE = re.compile(r"«[^»]*»|“[^”]*”|„[^“”]*[“”]|\"[^\"]*\"|‘[^’]*’|(?<!\w)'[^']*'(?!\w)")
+#: A quote this short cites a word or two. A longer one is someone's speech, and is corrected.
+_CITATION_WORDS = 6
+
+
+def _cited_stretches(text: str) -> list[tuple[int, int]]:
+    """The stretches of ``text`` where a learner cites words instead of using them: «On ne dit
+    pas « ce est »», «le mot "hotel"». A line that is all one quote is the line itself."""
+    stretches = []
+    for match in _QUOTE.finditer(text):
+        if len(_WORD.findall(match.group())) > _CITATION_WORDS or match.group() == text.strip():
+            continue
+        stretches.append(match.span())
+    return stretches
+
+
+#: Words no French sentence holds, and the phrases that say the next word isn't French.
+_OTHER_LANGUAGE_WORDS = frozenset(
+    {"the", "and", "is", "this", "that", "with", "you", "your", "my", "like", "ich", "ist", "das", "und", "nicht", "ein",
+     "eine", "mit", "auf", "deutsch", "englisch", "english", "german", "heißt"}
+)
+_OTHER_LANGUAGE_PHRASES = frozenset({("en", "anglais"), ("en", "allemand"), ("mot", "anglais"), ("mot", "allemand")})
+
+
+def _in_another_language(text: str, tokens: list[Tok], index: int) -> bool:
+    """Whether the sentence around ``tokens[index]`` is not French, or says its word isn't."""
+    start = index
+    while start > 0 and _same_sentence(text, tokens[start - 1], tokens[start]):
+        start -= 1
+    end = index
+    while end + 1 < len(tokens) and _same_sentence(text, tokens[end], tokens[end + 1]):
+        end += 1
+    words = [tok.low for tok in tokens[start : end + 1]]
+    return bool(_OTHER_LANGUAGE_WORDS & set(words)) or bool(_OTHER_LANGUAGE_PHRASES & set(zip(words, words[1:], strict=False)))
+
+
 # ---------------------------------------------------------------------------
 # Persons
 # ---------------------------------------------------------------------------
@@ -1741,9 +1783,12 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
 
     tokens = _tokens(source)
     found: list[Edit] = []
+    cited = _cited_stretches(source)
 
     def add(edit: Edit | None) -> None:
         if edit is None:
+            return
+        if any(edit.start < end and start < edit.end for start, end in cited):
             return
         if any(edit.start < other.end and other.start < edit.end for other in found):
             return
@@ -1954,13 +1999,20 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
         # réunit»), not «ça» typed without its cedilla.
         written = source[tok.start:tok.end]
         acronym = written.isupper() and len(written) > 1 and not source.isupper()
-        if tok.low in _ACCENTS and not acronym:
+        # «le Grand Hotel», «son ami Andre»: a capital inside a sentence is a name. «En anglais,
+        # hotel s'écrit sans accent», «Das Hotel ist schön»: this word isn't French.
+        not_french = (tok.low in _ACCENTS or tok.low in _MISSPELLINGS) and (
+            (written[:1].isupper() and not source.isupper() and not _starts_sentence(source, tok))
+            or _in_another_language(source, tokens, i)
+        )
+        if tok.low in _ACCENTS and not acronym and not not_french:
             right = _ACCENTS[tok.low]
             add(_edit("FR_ACCENT", source, tok.start, tok.end, _case(source[tok.start:tok.end], right), right=right))
             continue
         if (
             tok.low in _MISSPELLINGS
             and not acronym
+            and not not_french
             and not glued_before
             and _lemma(tok.low) is None
             and _forms().get(tok.low) is None
