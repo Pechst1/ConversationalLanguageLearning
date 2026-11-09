@@ -257,11 +257,14 @@ def source_digest(season_id: str) -> str:
     """sha256[:12] of the season files the derivation reads (bible, levels)."""
 
     from app.services.season.format import SEASON_ROOT
+    from app.services.season.world import STAGES_FILE
 
     folder = SEASON_ROOT / season_id
     digest = hashlib.sha256()
     for path in sorted(folder.glob("*.json")):
-        if path.name == LEXICON_FILE:
+        # Neither file holds a word: the lexicon itself, and the forge's register of the
+        # places Le Quartier has built (it changes with every place the forge builds).
+        if path.name in (LEXICON_FILE, STAGES_FILE):
             continue
         digest.update(path.name.encode())
         digest.update(path.read_bytes())

@@ -1,0 +1,16 @@
+{
+  "id": "tasse_habituelle",
+  "version": 1,
+  "kind": "detail",
+  "in": "quai_de_valmy",
+  "title": { "fr": "Ta tasse habituelle", "en": "Your usual cup", "de": "Deine übliche Tasse" },
+  "moment": "g1.5 «La même chose ?»: Margaux knows your order, and Gus calls you «un habitué»",
+  "flag": { "key": "user.usual_order", "example": "un café crème" },
+  "things": [
+    { "kind": "drink", "at": [-35.05, 1.262, -12.95], "rot": 1.5708, "text": ["{value}"] }
+  ],
+  "provenance": {
+    "canon": "docs/story/season-1/09-entre-les-episodes.md",
+    "scenes": ["Gap 1 · 3 «La même chose ?»", "T5 A · Day A P4 · Lila behind the zinc, your usual exactly right (05-berlin.md)"]
+  }
+}

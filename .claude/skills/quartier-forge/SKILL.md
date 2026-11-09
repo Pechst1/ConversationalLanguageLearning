@@ -1,14 +1,16 @@
 ---
 name: quartier-forge
-description: Build the next corner of Paris for Le Quartier, from open map data or, for a room of the season, from the canon. Pick a place the Papier names, survey it, draft the site (a street with its trade, or a venue where the news happens), or write the next room the story reaches; render and critique it (three rounds at most), publish a street on the map (a room stays locked) and open a PR. Never merges. Use for the nightly "Quartier forge" scheduled task, or when asked to "forge <place>", "build <place> in the Quartier", "build the next room" or "grow the world".
+description: Build the next corner of Paris for Le Quartier, from open map data or, for a room of the season, from the canon. Take the next place the season's story is set in (forge.py queue --season) and the next thing the learners' stories left in the quarter (forge.py queue --orders), or, when the story has nothing waiting, a place the Papier names; survey it, draft the site (a street with its trade, or a venue where the news happens), or write the room from the canon; render and critique it (three rounds at most), publish a street on the map (a room stays locked) and open a PR. Never merges. Use for the nightly "Quartier forge" scheduled task, or when asked to "forge <place>", "build <place> in the Quartier", "build the next room" or "grow the world".
 ---
 
 # Quartier forge
 
 Le Quartier's Paris is not built all at once. The quai de Valmy and Le Mistral are drawn by
-hand; every other place is forged when the news or the story names it. A place the news names
-is on the map the moment its article is (`forge.py news` writes the news layer, pinned under
-scaffolding); the forge then builds it. One run builds one place:
+hand; every other place is forged when the story or the news names it. The story comes first:
+the forge builds the next place the season's pages are set in, just ahead of the learner, so that
+a day set there plays there. A place the news names is on the map the moment its article is
+(`forge.py news` writes the news layer, pinned under scaffolding); the forge builds it when the
+season has nothing waiting. One run builds one place:
 
 ```
 queue → world entry → brief → survey → draft → check → plan → render → look → notes
@@ -36,9 +38,59 @@ The survey reads Overture's public bucket (`overturemaps-us-west-2.s3.us-west-2.
 The renders need `web-frontend/node_modules` and a Chromium (`/opt/pw-browsers/chromium` in
 the cloud; never run `playwright install`).
 
+## The register: which built place plays which place of the story
+
+The story names its places by the season's ids (`SEASON_ONE_LOCATIONS` in
+`app/services/season/world.py`: `stairwell`, `toit`, `marchand_office`…); a page's panels carry
+them as `location_id`. The world's places say which of them they are the stage for, in
+`world.json`: `stages` (a page set there plays here) and `sees` (seen from here without going
+in: Odile's kitchen through the stairwell's open door). It is the only link between the two:
+the 3D hands a page over to the room that `stages` its place (`stageOf` in `lib/quartier/world.ts`),
+and the season queue below counts a place as built when a room, a site or the hand-drawn quarter
+stages it. A world entry without `stages` is a place no page ever reaches: `check` refuses a
+room without one, and two built places never stage the same id.
+
+The server keeps a copy of the register, `app/data/season/s1/stages.json` (its image has no
+`web-frontend`): the night writes a generated page only at a place the world has built, so a new
+place the forge builds is a place the story can go the night its PR is merged. After any change
+to `world.json`'s `stages` or to what is built (a `room` or `site` set), run
+`$PY scripts/forge/forge.py stages` and commit the file with the run (`publish` writes it
+itself); `check` and `tests/test_quartier_forge_queue.py` refuse a stale copy.
+
 ## The run
 
-1. **Pick.** `$PY scripts/forge/forge.py news` refreshes the map's news layer
+0. **What the story needs.** `$PY scripts/forge/forge.py queue --season --from api` reads
+   the season's own pages in order (each tentpole's days, each gap's bridge page) and lists every
+   place they are set in, with what the world has for it: `built`, `locked` (a world entry,
+   nothing built) or `new`. `--from api` asks the server which segments the season's learners
+   are on (`GET /api/v1/story-engine/season-frontier`; its first line says so): the place the
+   nearest learner reaches first is listed first, then what lies behind them all. Should the
+   server be unreadable, it says so and starts at the season's beginning; `--from g3` (or
+   `g3,t1`) names the segments by hand. `--from api` also reads what the learners' pages named
+   (step 0b): a place of the season a page named comes first, «named by N lives». A page goes
+   only where the world is built, and names the rest first («Erst erwähnen, dann betreten»,
+   Vincent, 8 Nov): so the place the story asked for is the one to build. Its last line names the next place to build. Build that one (a room of the season, below, or a street
+   from the map data for a place outdoors) before anything the news asks for. A place no kit can
+   build yet (a station platform, a park): write `scripts/forge/briefs/<location>.md` starting
+   «Waits for a kit:» and one line on why and what kit it needs (the queue then shows it as
+   `no kit` and names the next), commit it with the run, and take the next. When the line says `next: none`, go on with
+   the details (below), then the news.
+0b. **What the stories left.** The learners' own pages grow the quarter too: each page says
+   what it leaves there (a thing at a place, a place it names), and
+   `$PY scripts/forge/forge.py queue --orders` reads what the season's recent lives left
+   (`GET /api/v1/story-engine/world-orders`, merged; what a learner named in their own words
+   comes first, `said by N` on its line, then the most asked for; `--from <file>` reads a saved
+   copy). A learner's own words are the strongest order there is (Vincent, 8 Nov): they asked
+   for that place or thing themselves. Each line is a thing or a place with its status: a thing is `new`
+   where its place is built (a detail of that place, below), `waits` while its place is not
+   (the season queue builds the place first), `built` once a detail waits on it; a place is
+   `season` when it is one of the season's (step 0 builds it in its time), `built` when the
+   world has it, `new` when the world has never heard of it. A detail is small: besides the
+   run's place, lay the `next detail:` it names (one a run), before the ladder's. A `new` place
+   (`next place:`, with the id to give it) is the run's place instead of step 0's when no
+   learner reaches step 0's within seven days (`in N days` on its line), when two lives or
+   more named it, or when a learner named it in their own words (`said by`): see **A place the stories named** below. Otherwise list it in the PR.
+1. **Pick a news place** (only when step 0 has nothing to build). `$PY scripts/forge/forge.py news` refreshes the map's news layer
    (`world/news.json`, held to the articles by `news.test.js`); commit it with the run.
    `$PY scripts/forge/forge.py queue` lists the places Papier articles name with an exact
    position in Paris: `en_chantier` first, then `new`. Take the first one you can build. Put
@@ -123,9 +175,10 @@ the cloud; never run `playwright install`).
 The story's own places (the stairwell, the flat above the café, the notary's office) are not on
 any map: they are written from the canon and built with the pieces Le Mistral's room is built
 from (`room.ts`: the wainscot wall, the façade's lining, the globes, the tables), so a room and the
-café are the same print. Decision 4 of the Phase 1 plan sets the order: the stairwell and
-Odile's door (done), the learner's studio (done), Maître Vasseur's office (done), Odile's
-flat (done), then Le Mistral's details. The next room is the first without a file in `world/rooms/`. A run builds one
+café are the same print. The story sets the order (step 0): the next room is the next place
+`queue --season` lists that is not built. Built so far: the stairwell and Odile's door, the
+learner's studio, Maître Vasseur's office and Odile's flat. A room under the sky (the roof of Le
+Mistral's building in gap 3) is a room too: its spaces are `zone: "out"`. A run builds one
 room instead of a street; it follows the steps above with these differences.
 
 1. **Canon.** Read the place in `docs/story/season-1/10-lieux-et-images.md` (its canonical
@@ -133,7 +186,9 @@ room instead of a street; it follows the steps above with these differences.
    (`docs/story/season-1/` scene files). Build the state of the first scene that plays there.
    Quote the canon's lines at the top of the notes; say which choices are the forge's (an hour on
    a clock, a plan, a name on a letterbox: only names the canon gives, the rest blank).
-2. **World entry.** `status: "locked"`, `kind: "season"`, `source: { kind: "season", id: "s1" }`,
+2. **World entry.** `status: "locked"`, `kind: "season"`, `stages`: the season's ids it is the
+   stage for (`["toit"]`; the id the queue named), `sees` if a page looks into another place from
+   it, `source: { kind: "season", id: "s1" }`,
    `site: null`, `room: "<id>"`, and `in`: the place on the map it is inside (the stairwell, the
    studio and the notary's office are in `quai_de_valmy` until the map has their streets). A room is never a pin of its own and is never published (`forge.py publish`
    refuses it): the story opens it.
@@ -168,7 +223,8 @@ room instead of a street; it follows the steps above with these differences.
      with its screen's lines in `text`, `keys` with the cicada, `suitcase`, `kitchenette`,
      `longtable`, `armchair`, `pen`, `folder` with its label in `text`, `bookcase`, `polaroids`
      (the shoebox out from under the bed, the photos spilled in front of it over `size`),
-     `armoire`) with
+     `armoire`, `drink` with the order in `text`: a cup on its saucer by what it holds, its
+     handle on local +x) with
      `zone`, `tone`, `text`, `size`. A thing with `look` (three languages) can be tapped and says
      it in a line; its `did` is what the end card remembers. `courts` are seen through a window:
      `storeys` one fewer than your floor puts their zinc at your eye, and `roofs: true` gives
@@ -207,8 +263,71 @@ room instead of a street; it follows the steps above with these differences.
    back to find it shut, leave. In a lit room: tap each thing with a `look`, read its line, leave,
    and read the end card. `lib/quartier/room.test.js` builds every room file and holds it to
    the same checks.
-7. **PR.** Commit the brief, its notes, the room file, `rooms/index.ts`, `world.json` and any kit
-   change (never `var/`), titled «Le Quartier forge: <what was built>».
+7. **PR.** Run `$PY scripts/forge/forge.py stages` once the room is built (`room` set and
+   `stages` given in `world.json`). Commit the brief, its notes, the room file, `rooms/index.ts`,
+   `world.json`, `app/data/season/s1/stages.json` and any kit change (never `var/`), titled
+   «Le Quartier forge: <what was built>».
+
+## A place the stories named
+
+A shop, a café, a flat, an office a learner's page named that the bible does not have
+(«la librairie de la rue Bichat»): the stories asked for it, so the quarter grows it. Once it is
+built, the night may set pages there, in every life of the season (`stages.json` carries it as
+one of `places`; `app/services/season/world.py: story_places`).
+
+1. **What it is.** Read its order: the name, the `look` of each life that named it, how many
+   lives. It is a place of this quarter, in the canon's tone (`docs/story/season-1/10-lieux-et-images.md`):
+   ordinary, lived in, never a brand or a real business. An indoor place is a room, written like a
+   room of the season; a street or a square that exists in Paris is a site, surveyed like any
+   street.
+2. **World entry.** `id` as `queue --orders` gives it, `kind: "story"`, `status: "locked"`, `name`
+   in three languages, `in` (the place it is reached from, usually `quai_de_valmy`), `why` («Les
+   histoires l'ont nommée.»), `stages: [<its own id>]`, and `story`: `description` (one English
+   sentence the night writer reads: what the place is and what is in it) and `named_by` (lives).
+3. **Build it** as a room (**Rooms of the season**, steps 3 to 6, with the order's looks as its
+   canon) or a site (the run's steps 2 to 9), then `$PY scripts/forge/forge.py stages`: the place
+   is in `stages` and in `places`. `queue --orders` lists its order as `built`.
+4. **PR** as usual, titled «Le Quartier forge: <name> (named by the stories)».
+
+## Details: what the story leaves
+
+A detail is a small thing in a built place that appears once the learner's story put it there.
+One a run, in this order:
+
+- **What the stories left** (step 0b): the `next detail:` of `queue --orders`, a thing the
+  learners' own pages left at a built place (Gus's petition on Le Mistral's window). It waits on
+  that mark: a learner sees it once a page of theirs left it.
+- **The plan's ladder** (`docs/story/season-1/09-entre-les-episodes.md` and the episodes): the
+  learner's usual cup on the zinc after «La même chose ?» (done), then the next line of the
+  ladder that leaves a thing in Le Mistral (the party's garlands…). It waits on the season flag
+  the moment sets. What T1 already stages (the key, Odile's café crème) is not a detail.
+
+1. **Canon.** For a story order: the order's line (its name, its place, its `look`, how many
+   lives left it) and the canon of the place it stands in (`docs/story/season-1/10-lieux-et-images.md`);
+   it must be something the canon allows there (no brand, no real person, nothing a «Never»
+   forbids). For the ladder: the line, the scene that sets it, and the season flag it waits on
+   (`app/data/season/s1/season.json`); the values `bridges.json` gives that flag are what it
+   must build for.
+2. **Detail file.** `web-frontend/lib/quartier/world/details/<id>.json`: `kind: "detail"`, `in`
+   (the built place it stands in: the order's stage from `queue --orders`, `quai_de_valmy` for
+   Le Mistral's room, or a room of `world/rooms`), `title` in three languages, `moment`, then
+   either `mark` (a story order: `name_fr` and `location_id` exactly as the order gives them)
+   or `flag` (the ladder: `key`, and an `example` value shown when none is given); `things` (the
+   room kit's things, in that place's coordinates: inside Le Mistral's room the zinc's top is
+   at 1.26 m; inside a room, within its walls), `provenance` (`canon`, `scenes`: for an order,
+   the order's line). A thing's `text` may say `{value}` when it waits on a flag: the flag's
+   value is written in. Add it to `world/details/index.ts`. Nothing in `world.json` changes: a
+   detail is not a place.
+3. **Look.** The standalone page lays it on request where it stands: `?detail=<id>` (and
+   `&place=<in>` for a room; `&value=<the flag's value>` for the ladder). Render it (for a flag,
+   each value the season offers): from where you stand, close up, and the room; then at
+   390×844. Does it sit on something (no saucer sunk in the zinc), read at a glance, change
+   with the value? In the quarter a learner sees it once their own story set the flag or left
+   the mark (the server's `/story-engine/world-state`; `setBy` in `details.ts`).
+4. **Checks.** `lib/quartier/details.test.js` holds every detail to its file, its flag or its
+   mark (the mark's place must play in `in`, per `stages.json`), its place and its room, and
+   builds it for every value; `$PY scripts/forge/forge.py queue --orders` then lists the order
+   as `built`. Then the run's usual checks and PR.
 
 ## Rules
 

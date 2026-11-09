@@ -2784,6 +2784,10 @@ class MissionGenerator:
                 "Name the practical constraint before asking for help.",
                 grammar_hint,
             ],
+            # The register the learner asked for, not the drawn domain's: the branch check
+            # reads ``target_register`` first, and a «tu / friendly neighbour» left over from
+            # the domain told a polite letter to the landlord to «reformuler plus poliment».
+            "target_register": register,
         }
         custom_title = f"Real Mission: {self._thread_topic(scenario)}"
         custom_brief = (
