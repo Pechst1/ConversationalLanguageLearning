@@ -135,7 +135,7 @@ test('each word of the sentence is a tap; the gesture is said until it is made',
   assert.doesNotMatch(html, /forge-spot__undo/);
 
   const fixed = render('fr', h(Drills.ForgeSpot, { sentence: 'Elle n’a pas une idée.', edits: { 3: 'd’' }, onEdits: () => undefined, copy: fc }));
-  assert.match(fixed, /data-edited="true"><s class="forge-spot__was">une<\/s><span class="forge-spot__now">d’<\/span><\/button>/);
+  assert.match(fixed, /data-edited="true"><del class="forge-spot__was">une<\/del><span class="av2-sr"> remplacé par <\/span><ins class="forge-spot__now">d’<\/ins><\/button>/);
   assert.match(fixed, /class="forge-spot__undo">Annuler<\/button>/);
   assert.doesNotMatch(fixed, /forge-spot__hint/);
 

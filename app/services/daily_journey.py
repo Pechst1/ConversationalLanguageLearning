@@ -216,23 +216,37 @@ def _planned_introduction(plan: Any) -> dict[str, Any] | None:
     return None
 
 
-def _planned_rule_id(journey: Any, today: date) -> int | None:
-    """#443: the grammar unit today's journey was planned to introduce, or None.
+def _positive_id(value: Any) -> int | None:
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return None
+    return number if number > 0 else None
 
-    The plan is the one place that decides the day's rule (``_planned_introduction``
-    stores it); the forge entry Home links to reads it from there instead of asking
-    the forge picker again, which knows nothing of the scene's own rule.
+
+def _planned_rule_id(journey: Any, today: date) -> int | None:
+    """#443: the rule today's rule card shows, whether it introduces or reviews it, or None.
+
+    The plan is the one place that decides the day's rule. A day that introduces
+    a rule stores it (``_planned_introduction``); a day whose card only reviews a
+    known rule (WP-129) introduces nothing, so the card's own step is the reader.
+    The forge entry Home links to reads it from here instead of asking the forge
+    picker, which knows nothing of the scene's rule and would put a due erratum's
+    rule in the «today's rule» slot.
     """
 
     if journey is None or getattr(journey, "local_date", None) != today:
         return None
     selection = getattr(journey, "plan_selection", None)
     planned = selection.get("introduction") if isinstance(selection, dict) else None
-    try:
-        concept_id = int(planned.get("concept_id")) if isinstance(planned, dict) else 0
-    except (TypeError, ValueError):
-        return None
-    return concept_id if concept_id > 0 else None
+    if isinstance(planned, dict) and (concept_id := _positive_id(planned.get("concept_id"))):
+        return concept_id
+    for step in getattr(journey, "steps", None) or []:
+        if str(getattr(step, "kind", "")) == str(StepKind.RULE):
+            prompt = getattr(step, "public_prompt", None) or {}
+            if concept_id := _positive_id(prompt.get("concept_id")):
+                return concept_id
+    return None
 
 
 def _forge_block_completed(db: Session, user_id: Any, step_id: Any) -> bool:
@@ -1920,6 +1934,11 @@ class DailyJourneyService:
         prompt = dict(step.public_prompt or {})
         budget = int(prompt.get("budget_seconds") or step.estimated_seconds or 0)
         prompt["budget_seconds"] = budget
+        # #443: planned before the card was known, the step's own rule can be the
+        # picker's; the link names the rule the day's card shows.
+        card_rule = _planned_rule_id(journey, journey.local_date)
+        if card_rule is not None:
+            prompt["concept_id"] = card_rule
         prompt["href"] = forge_href_for(
             prompt.get("concept_id"), budget_seconds=budget, step_id=step.id
         )
