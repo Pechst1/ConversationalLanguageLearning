@@ -12,6 +12,7 @@ import re
 import pytest
 
 from app.services import correction_contract as cc
+from tests.test_correction_corpus import rule_card_mistakes
 
 
 def _pairs(text: str) -> list[tuple[str, str]]:
@@ -225,6 +226,40 @@ def test_a_rule_fix_found_by_its_words_lands_on_the_word_it_means(text, fixed):
         assert re.search(rf"(?<!\w){re.escape(edit.span)}(?!\w)", text, re.IGNORECASE).start() == edit.start
         assert text[edit.start : edit.end] == edit.span
     assert cc.repair_text(text) == fixed
+
+
+def test_with_no_model_the_listed_fixes_make_the_line_the_rules_repair():
+    for wrong, _right in rule_card_mistakes():
+        checked = cc.verify_correction(wrong, None, cc.deterministic_errata(wrong))
+        assert checked.corrected == cc.repair_text(wrong), wrong
+        assert checked.refused == [], wrong
+
+
+@pytest.mark.parametrize(
+    ("text", "real"),
+    [
+        pytest.param(
+            "Odile est parti parce que la restaurant était très difficile",
+            {("parti", "partie"), ("la", "le")},
+            id="20-oct-odile",
+        ),
+        pytest.param("Mais est-ce que le gâteau est pour le chat ?", set(), id="20-oct-est-ce-que"),
+        pytest.param("Mais est-ce que le gâteau est", set(), id="20-oct-est-ce-que-as-the-issue-quotes-it"),
+        pytest.param("Je vais sonné la cloche et je vend le gâteau.", {("sonné", "sonner"), ("vend", "vends")}, id="20-oct-sonne"),
+        pytest.param("Je vais sonné chez Camille demain.", {("sonné", "sonner")}, id="gold-k17"),
+        pytest.param("Je vend la bouillotte d'Odile.", {("vend", "vends")}, id="gold-k18"),
+    ],
+)
+def test_the_three_sentences_of_20_oct_get_the_real_errors_and_no_tu_es_card(text, real):
+    edits = cc.deterministic_edits(text)
+    assert real <= set(_pairs(text))
+    for edit in edits:
+        assert edit.span in text
+        assert edit.replacement.casefold() != "es"
+        assert "« tu »" not in edit.note_for("en")
+        assert " es " not in f" {edit.replacement} "
+    if not real:
+        assert edits == []
 
 
 def test_the_sentence_the_failed_check_tests_lean_on_is_still_unseen_by_the_rules():

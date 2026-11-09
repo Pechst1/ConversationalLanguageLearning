@@ -24,8 +24,9 @@ This module now has **one checker for every edit**, whoever wrote it:
   prove wrong. :func:`edit_is_grounded` is its boolean view.
 * :func:`deterministic_edits` — the model-free pass: person of être/avoir/aller,
   auxiliaries and agreement, elision, contraction, determiner gender and
-  number, accents and spelling, negation order, «de» after modals, «à», age with
-  avoir, stressed pronouns. Every rule stands on closed evidence (a fixed trigger
+  number, accents, apostrophes and spelling, negation order, «de» after modals, «à»,
+  age with avoir, stressed pronouns, the feminine of a closed list of adjectives
+  («une bon offre»). Every rule stands on closed evidence (a fixed trigger
   list, the core lexicon) and is silent when it cannot tell: «je voudrais de un
   café» could be «un café» or «d'un café», so it says nothing. Every edit is
   settled before it is returned, and its span is a substring of the input.

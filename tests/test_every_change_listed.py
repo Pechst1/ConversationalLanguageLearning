@@ -74,6 +74,17 @@ def test_the_learners_question_stays_and_each_change_in_the_line_is_listed():
     assert [row["reason"] for row in checked.refused] == ["the_question"]
 
 
+def test_with_no_model_at_all_the_rules_make_the_line_and_list_each_change():
+    checked = cc.verify_correction(LETTER, None, cc.deterministic_errata(LETTER))
+
+    assert "Qu'est-ce que c'est, jeudi à dix-huit heures ?" in checked.corrected
+    assert "Camille a une clé aussi, c'est bizarre." in checked.corrected
+    assert "l'appartement" in checked.corrected
+    assert checked.corrected == _with_each_fix_made(LETTER, checked.errata)
+    assert checked.refused == []
+    assert all(item["why_wrong"] for item in checked.errata)
+
+
 def test_a_listed_fix_goes_on_the_word_the_model_meant():
     line = "Camille a une clé, jeudi a dix-huit heures."
     listed = [{"learner_text": "a", "corrected_target": "à", "why_wrong": "«à» takes an accent.", "task_error_type": "grammar"}]
