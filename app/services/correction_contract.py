@@ -688,7 +688,7 @@ _ACCENTS = {
     "apres": "après", "deja": "déjà", "tres": "très", "ecole": "école", "cafe": "café", "ete": "été",
     "etre": "être", "francais": "français", "meme": "même", "pere": "père", "mere": "mère",
     "frere": "frère", "voila": "voilà", "ca": "ça", "etait": "était", "hopital": "hôpital",
-    "theatre": "théâtre", "gateau": "gâteau",
+    "theatre": "théâtre", "gateau": "gâteau", "plait": "plaît", "etes": "êtes", "cheminee": "cheminée",
     "etudiant": "étudiant", "etudiante": "étudiante", "arrivee": "arrivée", "journee": "journée",
     "soiree": "soirée", "idee": "idée", "annee": "année", "equipe": "équipe", "eglise": "église",
 }
@@ -1369,6 +1369,79 @@ _HYPHENATED = {
 
 
 # ---------------------------------------------------------------------------
+# The missing accent: the one lexicon word this spelling can be (#250)
+# ---------------------------------------------------------------------------
+
+#: Common words only: the rarer a word, the likelier the learner meant another.
+_ACCENT_FOLD_RANK = 3000
+_ACCENT_FOLD_POS = frozenset({"noun", "adjective", "adverb", "function", "number"})
+#: The lexicon doesn't hold them, but these are French as written, or read as another word: «il
+#: boite», «une aine», «un foret», «un desert» typed for «un dessert», «metre» for «mettre», «pate»
+#: for «pâté», «dela» for «de la». «the» and «these» are English first.
+_BARE_READS_OTHERWISE = frozenset(
+    {"the", "these", "aine", "boite", "foret", "media", "mures", "sures", "desert", "metre", "pate", "dela", "pecheur"}
+)
+#: A word ending in «é» that no verb form («il enerve», «ça m'enerve») can be typed for. Words in
+#: «-té» with no such verb in the lexicon qualify by their ending.
+_ACUTE_ENDING_WORDS = frozenset(
+    {"clé", "bébé", "canapé", "télé", "comité", "degré", "congé", "malgré", "moitié", "pitié", "amitié", "supermarché",
+     "député"}
+)
+_ACUTE_ENDING_LENGTH = 5
+
+
+@lru_cache(maxsize=1)
+def _accent_folds() -> Mapping[str, str]:  # pragma: no cover - thin cache
+    """Unaccented spelling -> the one lexicon word it can be. The spelling itself is no lexicon
+    word and no verb form, and only one lexicon word folds to it. Conjugations stay out: «fuites»
+    is a noun the lexicon doesn't hold, and folds to the verb form «fuîtes»."""
+
+    lemmas, forms = _lexicon().lemmas, _forms()
+    surfaces = set(lemmas) | set(forms)
+    by_fold: dict[str, set[str]] = {}
+    for surface in surfaces:
+        by_fold.setdefault(_strip_marks(surface), set()).add(surface)
+    verbs = {_strip_marks(word) for word, entry in lemmas.items() if entry.get("pos") == "verb"}
+
+    def rank_and_pos(word: str) -> tuple[int, str] | None:
+        entry = lemmas.get(word) or lemmas.get(forms.get(word) or "")
+        if not entry or not isinstance(entry.get("rank"), int):
+            return None
+        return entry["rank"], str(entry.get("pos"))
+
+    folds: dict[str, str] = {}
+    for bare, found in by_fold.items():
+        if bare in surfaces or len(found) != 1 or bare in _BARE_READS_OTHERWISE or len(bare) < 3:
+            continue
+        form = next(iter(found))
+        known = rank_and_pos(form)
+        if known is None or known[0] > _ACCENT_FOLD_RANK or known[1] not in _ACCENT_FOLD_POS:
+            continue
+        if _could_be_verb(bare):
+            continue
+        # «ecoute» is «écoute» or «écouté», «complete» «complète» or «complété»: the verb says both
+        if bare.endswith("e") and bare[:-1] + "er" in verbs:
+            continue
+        if form.endswith("é") and form not in _ACUTE_ENDING_WORDS and not (form.endswith("té") and len(form) > _ACUTE_ENDING_LENGTH):
+            continue
+        folds[bare] = form
+    return folds
+
+
+def _accent_fold(word: str) -> str | None:
+    """The accented word ``word`` must be, its plural too («cles» -> «clés»), or ``None``."""
+
+    folds = _accent_folds()
+    if word in folds:
+        return folds[word]
+    if word.endswith("s") and word not in _lexicon().lemmas and word not in _forms():
+        singular = folds.get(word[:-1])
+        if singular is not None and _pos(singular) in {"noun", "adjective"} and _plural(singular) == singular + "s":
+            return singular + "s"
+    return None
+
+
+# ---------------------------------------------------------------------------
 # The dropped apostrophe: a closed list on both sides (#133, #250, the review of #310)
 # ---------------------------------------------------------------------------
 
@@ -1459,7 +1532,7 @@ def _letter_names_itself(source: str, tokens: list[Tok], index: int) -> bool:
 
 def _spelled(word: str) -> str:
     """``word`` as the accent and spelling tables write it: «hotel» -> «hôtel»."""
-    return _ACCENTS.get(word) or _MISSPELLINGS.get(word) or word
+    return _ACCENTS.get(word) or _MISSPELLINGS.get(word) or _accent_fold(word) or word
 
 
 def _subject_fits(subject: str | None, verb: str) -> bool:
@@ -2247,6 +2320,19 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
         ):
             right = _case(written, _HYPHENATED[(tok.low, nxt.low)])
             add(_edit("FR_SPELLING", source, tok.start, nxt.end, right, right=right))
+            continue
+        # «cle» -> «clé», «decembre» -> «décembre»: the one word this spelling can be
+        fold = _accent_fold(tok.low)
+        if (
+            fold is not None
+            and not acronym
+            and not (written[:1].isupper() and not source.isupper() and not _starts_sentence(source, tok))
+            and not (written[:1].isupper() and nxt is not None and source[nxt.start : nxt.start + 1].isupper())
+            and not (glued_before and (prev is None or prev.low not in _ELIDED_BEFORE_A_WORD))
+            and not (nxt is not None and source[tok.end : nxt.start] in {"'", "’"})
+            and not _in_another_language(source, tokens, i)
+        ):
+            add(_edit("FR_ACCENT", source, tok.start, tok.end, _case(written, fold), right=fold))
             continue
 
     _phrase_edits(source, tokens, add)
