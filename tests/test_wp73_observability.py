@@ -211,6 +211,18 @@ def test_anonymous_crash_report_is_accepted_without_auth(client: TestClient, db_
     assert event.payload["request_id"] == "wp73-crash-0001"
 
 
+def test_crash_report_keeps_the_event_id_the_error_screen_shows(client: TestClient, db_session, memory_limiter) -> None:
+    """S4 stage 2: the boundary prints an id; the report carries the same one."""
+    from app.db.models.pilot_event import PilotEvent
+
+    url = "/api/v1/analytics/client-error/anonymous"
+    response = client.post(url, json={"message": "Render crash", "route": "/atelier", "event_id": "3f9a0c1b2d4e"})
+    assert response.status_code == 204
+    events = db_session.query(PilotEvent).filter(PilotEvent.event_type == "client_crash").all()
+    assert any((event.payload or {}).get("event_id") == "3f9a0c1b2d4e" for event in events)
+    assert client.post(url, json={"message": "x", "event_id": "<script>"}).status_code == 422
+
+
 def test_anonymous_crash_report_refuses_unknown_fields_and_sources(client: TestClient, memory_limiter) -> None:
     url = "/api/v1/analytics/client-error/anonymous"
     assert client.post(url, json={"message": "x", "email": "a@b.c"}).status_code == 422

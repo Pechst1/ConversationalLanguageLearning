@@ -32,8 +32,9 @@ export type PlaceLanguage = 'en' | 'de' | 'fr';
  * - `dev`: a gallery or QA sheet; never in a release build.
  * - `alias`: a page that renders nothing of its own and forwards to `forwardsTo`;
  *   only old links reach it, so it needs no entry point of its own.
+ * - `error`: the 404 and 500 pages (S4 stage 2); Next opens them itself.
  */
-export type PlaceKind = 'tab' | 'child' | 'step' | 'account' | 'legal' | 'dev' | 'alias';
+export type PlaceKind = 'tab' | 'child' | 'step' | 'account' | 'legal' | 'dev' | 'alias' | 'error';
 
 export type PlaceSection = 'atelier' | 'missions' | 'feuilleton' | 'notebook';
 
@@ -64,7 +65,7 @@ export type PlaceAccess = 'public' | 'guest_only' | 'signed_in';
  */
 export type PlaceEntry =
   | { file: string; needle?: string }
-  | { via: 'tab_bar' | 'start_url' | 'auth_gate' | 'app_store_listing' };
+  | { via: 'tab_bar' | 'start_url' | 'auth_gate' | 'app_store_listing' | 'framework' };
 
 export type Place = {
   /** The Next.js pathname, exactly as `router.pathname` prints it. */
@@ -506,6 +507,26 @@ export const PLACES: Place[] = [
     access: 'public',
     gate: ALWAYS,
     entries: [{ via: 'app_store_listing' }, file('web-frontend/pages/settings.tsx', "legalHref('terms'"), file('web-frontend/components/legal/LegalPage.tsx', 'legalHref(other')],
+  },
+
+  // ── Errors (S4 stage 2): readable signed out, drawn without the masthead ──
+  {
+    route: '/404',
+    name: { en: 'Nothing here', de: 'Hier ist nichts', fr: 'Rien ici' },
+    kind: 'error',
+    ownShell: true,
+    access: 'public',
+    gate: ALWAYS,
+    entries: [{ via: 'framework' }],
+  },
+  {
+    route: '/500',
+    name: { en: 'Unavailable', de: 'Nicht verfügbar', fr: 'Indisponible' },
+    kind: 'error',
+    ownShell: true,
+    access: 'public',
+    gate: ALWAYS,
+    entries: [{ via: 'framework' }],
   },
 
   // ── Development only (pruned from the native export) ───────────────────────

@@ -32,6 +32,8 @@ const OTHER_FILES = [
   'lib/onboarding-taste.ts',
   'lib/onboarding-signup.ts',
   'lib/atelier-errors.ts',
+  'lib/app-errors.ts',
+  'pages/pilot-ops.tsx',
   'lib/day-session.ts',
   'lib/session-recovery.ts',
   'lib/kept-words.ts',
