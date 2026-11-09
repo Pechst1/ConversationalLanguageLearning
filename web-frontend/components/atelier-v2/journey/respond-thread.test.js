@@ -197,6 +197,36 @@ test('turn 1 of 3 from the local copy: opening, the learner, the reply said once
   assert.deepEqual(kinds(follow).slice(-2), ['c:Très bien. Au comptoir ou en terrasse ?', 'c:Tu prends du sucre ?']);
 });
 
+test('an opening line stays with whoever said it when the next exchange has another speaker', () => {
+  // Walk of 9 Nov, T1 A: Gus asks «Alors ? C'est qui, vous ?», Margaux asks the next question,
+  // and Gus's line moved under her face, because a line had only the step's character to go by.
+  const gus = { id: 'augustin_de_roncourt', name: 'Gus' };
+  const local = model.recordExchange(model.EMPTY_THREAD, {
+    turn: 0,
+    prompt_fr: 'Alors ? C’est qui, vous ?',
+    prompt_speaker: gus,
+    learner_fr: 'Je suis de Berlin.',
+    character_fr: 'Ah.',
+    correction: null,
+  });
+  assert.deepEqual(model.parseLocalThread(model.serializeLocalThread(local)).exchanges[0].prompt_speaker, gus);
+  const margaux = prompt({ turn_index: 1, character_id: 'margaux_barman', character_name: 'Margaux', character_line_fr: 'Tu vas monter ?' });
+  const bubbles = model.threadBubbles({ prompt: margaux, local });
+  assert.deepEqual(bubbles[0].speaker, gus);
+  assert.equal(bubbles[0].text, 'Alors ? C’est qui, vous ?');
+  const current = bubbles[bubbles.length - 1];
+  assert.equal(current.text, 'Tu vas monter ?');
+  assert.equal(current.speaker, undefined, 'the current line belongs to the step’s character');
+});
+
+test('a stored thread from before this field still reads', () => {
+  const local = model.recordExchange(model.EMPTY_THREAD, {
+    turn: 0, prompt_fr: 'Bonjour.', learner_fr: 'Salut.', character_fr: 'Ah.', correction: null,
+  });
+  const [first] = model.threadBubbles({ prompt: prompt({ turn_index: 1 }), local });
+  assert.equal(first.speaker, undefined);
+});
+
 test('the server thread wins the words; the local copy still supplies the opening', () => {
   const local = model.recordExchange(model.EMPTY_THREAD, {
     turn: 0,

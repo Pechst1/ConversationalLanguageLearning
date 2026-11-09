@@ -69,12 +69,24 @@ export function drawsEachVoice(
 // ---------------------------------------------------------------------------
 
 /** One exchange as the client keeps it: which turn, and the line it answered. */
+export type PromptSpeaker = { id: string | null; name: string };
+
+function promptSpeakerOf(value: unknown): PromptSpeaker | null {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Record<string, unknown>;
+  const name = line(raw.name);
+  return name ? { id: typeof raw.id === 'string' ? raw.id : null, name } : null;
+}
+
 export type LocalExchange = Omit<ThreadExchange, 'character_lines'> & {
   /** Every speaker of a many-voiced reply (optional: older servers send none). */
   character_lines?: SpokenLine[];
   turn: number;
   /** The character's line this answer replied to, when the client saw it. */
   prompt_fr: string | null;
+  /** Who said that line. A scene changes speaker between exchanges, and the step's character
+   * is whoever asks now: Gus's opening under Margaux's face once she takes over (walk, 9 Nov). */
+  prompt_speaker?: PromptSpeaker | null;
 };
 
 export type LocalThread = { exchanges: LocalExchange[] };
@@ -128,9 +140,11 @@ function exchangeOf(value: unknown): LocalExchange | null {
   const learner = line(raw.learner_fr);
   if (!learner) return null;
   const lines = spokenLines(raw.character_lines);
+  const promptSpeaker = promptSpeakerOf(raw.prompt_speaker);
   return {
     turn,
     prompt_fr: line(raw.prompt_fr) || null,
+    ...(promptSpeaker ? { prompt_speaker: promptSpeaker } : {}),
     learner_fr: learner,
     character_fr: line(raw.character_fr),
     correction: correctionOf(raw.correction),
@@ -189,12 +203,17 @@ export function recordExchange(thread: LocalThread, exchange: LocalExchange): Lo
   ) {
     return thread;
   }
-  const merged = { ...clean, prompt_fr: clean.prompt_fr ?? current?.prompt_fr ?? null };
+  const speaker = clean.prompt_speaker ?? current?.prompt_speaker ?? null;
+  const merged = {
+    ...clean,
+    prompt_fr: clean.prompt_fr ?? current?.prompt_fr ?? null,
+    ...(speaker ? { prompt_speaker: speaker } : {}),
+  };
   return { exchanges: sorted([...thread.exchanges.filter((item) => item.turn !== clean.turn), merged]) };
 }
 
 /** What the learner sent, captured at the tap (the snapshot moves on after). */
-export type SentTurn = { turn: number; text: string; prompt_fr: string | null };
+export type SentTurn = { turn: number; text: string; prompt_fr: string | null; prompt_speaker?: PromptSpeaker | null };
 
 /**
  * The exchange a scored result settles, ready to keep. `null` when there is
@@ -215,6 +234,7 @@ export function exchangeFromResult(input: {
   return exchangeOf({
     turn,
     prompt_fr: sent?.prompt_fr ?? null,
+    prompt_speaker: sent?.prompt_speaker ?? null,
     learner_fr: sent?.text ?? input.fallbackText ?? '',
     character_fr: result.character_reply_fr ?? '',
     correction: result.correction ?? null,
@@ -263,6 +283,7 @@ export type ThreadBubble = CharacterBubble | LearnerBubble | CaptionBubble;
 export type InFlightExchange = {
   turn: number;
   prompt_fr: string | null;
+  prompt_speaker?: PromptSpeaker | null;
   learner_fr: string;
   character_fr: string | null;
   correction: JourneyCorrection | null;
@@ -283,6 +304,7 @@ export function sameLine(a: string | null | undefined, b: string | null | undefi
 
 type Slot = {
   prompt_fr: string | null;
+  prompt_speaker?: PromptSpeaker | null;
   learner_fr: string;
   character_fr: string;
   correction: JourneyCorrection | null;
@@ -322,6 +344,7 @@ export function threadBubbles(input: {
     if (!held) {
       slots.set(exchange.turn, {
         prompt_fr: exchange.prompt_fr,
+        prompt_speaker: exchange.prompt_speaker ?? null,
         learner_fr: exchange.learner_fr,
         character_fr: exchange.character_fr,
         correction: exchange.correction,
@@ -330,6 +353,7 @@ export function threadBubbles(input: {
       });
     } else if (!held.prompt_fr && exchange.prompt_fr) {
       held.prompt_fr = exchange.prompt_fr;
+      held.prompt_speaker = exchange.prompt_speaker ?? null;
     }
   });
 
@@ -341,6 +365,7 @@ export function threadBubbles(input: {
       const reply = words(flight.character_fr);
       slots.set(flight.turn, {
         prompt_fr: flight.prompt_fr,
+        prompt_speaker: flight.prompt_speaker ?? null,
         learner_fr: flightLearner,
         character_fr: reply,
         correction: correctionOf(flight.correction),
@@ -349,24 +374,33 @@ export function threadBubbles(input: {
       });
     } else if (!held.prompt_fr && flight.prompt_fr) {
       held.prompt_fr = flight.prompt_fr;
+      held.prompt_speaker = flight.prompt_speaker ?? null;
     }
   }
 
   const bubbles: ThreadBubble[] = [];
   let lastCharacter: string | null = null;
-  const say = (text: string | null | undefined, turn: number, reply: boolean) => {
+  const say = (text: string | null | undefined, turn: number, reply: boolean, speaker?: PromptSpeaker | null) => {
     const clean = words(text);
     if (!clean) return;
     // A reply that IS the next line is said once.
     if (lastCharacter !== null && sameLine(lastCharacter, clean)) return;
-    bubbles.push({ kind: 'character', key: `c${turn}${reply ? 'r' : 'o'}`, turn, text: clean, reply, latest: false });
+    bubbles.push({
+      kind: 'character',
+      key: `c${turn}${reply ? 'r' : 'o'}`,
+      turn,
+      text: clean,
+      reply,
+      latest: false,
+      ...(speaker ? { speaker } : {}),
+    });
     lastCharacter = clean;
   };
 
   const turns = Array.from(slots.keys()).sort((a, b) => a - b);
   turns.forEach((turn) => {
     const slot = slots.get(turn) as Slot;
-    say(slot.prompt_fr ?? (turn === prompt.turn_index ? prompt.character_line_fr : null), turn, false);
+    say(slot.prompt_fr ?? (turn === prompt.turn_index ? prompt.character_line_fr : null), turn, false, slot.prompt_speaker);
     bubbles.push({
       kind: 'learner',
       key: `l${turn}`,

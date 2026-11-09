@@ -573,3 +573,13 @@ test('#403: day 2 of a chapter names day 2 in the reader head, and the chapter a
   assert.equal(model.chapterLabelUnder('Le mauvais accueil', 'Le mauvais accueil'), null);
   assert.equal(model.chapterLabelUnder('Le mauvais accueil', 'La lettre'), 'Chapitre · Le mauvais accueil');
 });
+
+test('a last line whose «translation» is the line itself is printed once', () => {
+  // Walk of 9 Nov, a B1 learner, whose chrome is French past A2.
+  const line = 'Deux clés, une seule porte. À suivre…';
+  const same = model.storyFinaleStage('r1', { character_line_fr: line, summary_native: line, narrated: true }, null);
+  assert.equal(same.finale.line.fr, line);
+  assert.equal(same.finale.summary, '');
+  const other = model.storyFinaleStage('r1', { character_line_fr: line, summary_native: 'Two keys, one door.', narrated: true }, null);
+  assert.equal(other.finale.summary, 'Two keys, one door.');
+});
