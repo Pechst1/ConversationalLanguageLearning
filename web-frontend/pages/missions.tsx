@@ -886,12 +886,8 @@ export default function MissionsPage() {
     try {
       const result = await apiService.retryMissionTurnReply(mission.id, turnId);
       setMission({ ...result.mission, outcome: result.outcome || result.mission.outcome });
-      if (replyPending(result.outcome)) {
-        toast(t.toast_reply_retry_failed);
-      } else {
-        setReply('');
-        window.localStorage.removeItem(`pilot:mission-draft:${mission.id}`);
-      }
+      // The retry answers the stored message, so whatever the composer holds is a new draft.
+      if (replyPending(result.outcome)) toast(t.toast_reply_retry_failed);
     } catch (retryError) {
       console.error(retryError);
       toast.error(t.toast_reply_retry_failed);

@@ -72,6 +72,14 @@ test('the page prints the pending line under the turn and offers to ask again', 
   assert.match(page, /apiService\.retryMissionTurnReply\(mission\.id, turnId\)/);
 });
 
+test('asking again keeps the unsent draft in the composer', () => {
+  const page = read('pages', 'missions.tsx');
+  const retry = page.slice(page.indexOf('const retryReply'), page.indexOf('const finishMission'));
+  assert.ok(retry.includes('retryMissionTurnReply'), 'retry handler not found');
+  assert.doesNotMatch(retry, /setReply\(/);
+  assert.doesNotMatch(retry, /pilot:mission-draft/);
+});
+
 test('a letter finished on an unanswered message prints no verdict, goals or mood', () => {
   const { crOutcomeLabel, crOutcomeSentence } = require('./Correspondance.tsx');
   const { crSealNumbers } = require('./Courrier.tsx');
