@@ -159,6 +159,20 @@ def test_a_letter_nobody_read_counts_for_nothing(client, db_session, monkeypatch
     ).first(), "the failure left no line for the next walk to read"
 
 
+def test_a_stored_letter_is_read_from_its_row_as_well_as_its_payload():
+    """A row whose verdict is on the column and not in the payload was still read. Only a row
+    that says nobody read it counts for nothing, whatever its column says."""
+
+    graded = {"score_0_4": 4, "objective_progress": []}
+    assert verdicts.from_courrier(graded, verdict="accepted").counts is True
+    assert verdicts.from_courrier(graded, verdict="needs_revision").counts is True
+    assert verdicts.from_courrier(graded, verdict="unassessed").counts is False
+    assert verdicts.from_courrier(graded).counts is False
+
+    failed = {**graded, "correction_debug": {"fallback_used": True, "failure": "timeout"}}
+    assert verdicts.from_courrier(failed, verdict="accepted").counts is False
+
+
 def test_a_letter_the_model_read_still_pays(client, db_session, monkeypatch, tokens):
     headers, mission_id = _begin(client, monkeypatch)
     up = _Client(content=_a_grade(UNSEEN_BY_RULES))

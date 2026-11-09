@@ -523,8 +523,8 @@ def test_measurement_overtakes_the_placement_once_the_attempts_exist(db_session)
                 user_id=user.id,
                 mode="chat",
                 answer_payload={"text": "Bon."},
-                correction_payload={},
-                verdict="passed",
+                correction_payload={"verdict": "needs_revision"},
+                verdict="needs_revision",
                 score_0_4=1.0,
             )
         )
