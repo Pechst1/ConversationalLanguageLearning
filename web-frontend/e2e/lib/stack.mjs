@@ -135,7 +135,8 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
     const apiLog = log('api');
     // WP-120 phase D: `revue` starts the same API with La Revue on (e2e/lib/carte_server.py).
     // «Au comptoir» (`comptoir`, implies `revue`): the same server with its switch on.
-    const server = revue || comptoir ? 'web-frontend/e2e/lib/carte_server.py' : 'scripts/dev_walk_server.py';
+    // WALK_API_SERVER: a walk with its own API (scripts/season_end_walk_server.py, the paid season-end read).
+    const server = process.env.WALK_API_SERVER || (revue || comptoir ? 'web-frontend/e2e/lib/carte_server.py' : 'scripts/dev_walk_server.py');
     const api = spawn(python(), [server, '--port', String(apiPort)], {
       cwd: REPO_ROOT,
       env: {
