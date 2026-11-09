@@ -5815,6 +5815,8 @@ export interface components {
         };
         /** AnonymousClientErrorRequest */
         AnonymousClientErrorRequest: {
+            /** Event Id */
+            event_id?: string | null;
             /** Message */
             message: string;
             /** Release */
@@ -7549,6 +7551,8 @@ export interface components {
         };
         /** ClientErrorRequest */
         ClientErrorRequest: {
+            /** Event Id */
+            event_id?: string | null;
             /** Message */
             message: string;
             /** Route */
