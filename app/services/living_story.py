@@ -13,6 +13,7 @@ import json
 import logging
 import re
 import time
+from collections.abc import Iterable
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import replace
@@ -5004,6 +5005,28 @@ def _days_between(earlier: str | None, later: str | None) -> int | None:
     return (_date.fromisoformat(b) - _date.fromisoformat(a)).days
 
 
+_TEASER_QUOTE = re.compile(r"«\s*([^«»]+?)\s*»")
+
+
+def teaser_quotes_only_said(text: str, said: Iterable[str]) -> bool:
+    """#620: True when every quotation in a finished hook is a line of ``said``.
+
+    Guillemets hold only words the learner wrote in the scene being closed (``said``:
+    its replies). The check runs on the composed line, whatever frame or row wrote it,
+    so no hook can put a stale or restated sentence in the learner's mouth (live walks
+    30 Oct, 1 Nov and 9 Nov all read «Tu as promis : « … »» over words nobody said).
+    A quote the hook clipped with «…» is still the learner's. With ``said=()`` (no
+    reply to quote from) a hook quotes nothing.
+    """
+
+    lines = [_folded(str(line)) for line in said or [] if str(line or "").strip()]
+    for span in _TEASER_QUOTE.findall(str(text or "")):
+        quote = _folded(span)
+        if quote and not any(quote in line for line in lines):
+            return False
+    return True
+
+
 def next_teaser(
     live: dict,
     world: dict,
@@ -5013,6 +5036,7 @@ def next_teaser(
     date: str | None,
     seed: str,
     name: str | None = None,
+    said: Iterable[str] = (),
 ) -> dict | None:
     """One forward line per resolution, or None — never an invented plot.
 
@@ -5056,6 +5080,9 @@ def next_teaser(
             variant=_die(seed, "teaser-frame", today),
         )
         if text in used_texts or not teaser_grounded(text, row["ref"], candidates):
+            continue
+        # #620: a promise from an earlier day is not this scene's to quote.
+        if not teaser_quotes_only_said(text, said):
             continue
         return {
             "text_fr": text,
@@ -10292,6 +10319,11 @@ def _validate_turn(turn: SemanticTurn, payload: dict, *, lexical=None, reply_che
                 "return it."
             ),
         )
+    if reply_checks:
+        # #591: the single-call path keeps the character's position as the lanes do.
+        from app.services import lane_guards
+
+        lane_guards.check_keeps_position(turn.reply_fr, payload)
     suggestion = str((payload.get("scene") or {}).get("suggested_response_fr") or "")
     if len(suggestion.split()) >= 3 and _folded(suggestion) in _folded(turn.reply_fr):
         # WP-14F L-3: the reply recited the private suggested answer, handing over the
@@ -11106,6 +11138,7 @@ def settle_resolution(
         date=_journey_date(journey),
         seed=str(thread.id),
         name=_cast_names(world_after).get(brief.character_id),
+        said=_learner_lines(journey, act=act),
     )
     if teaser:
         live[TEASER_KEY] = teaser

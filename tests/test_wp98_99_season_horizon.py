@@ -363,8 +363,10 @@ def test_a_teaser_names_a_real_open_row_and_is_not_repeated_within_fourteen_days
     start = date(2026, 10, 1)
     for offset in range(40):
         today = (start + timedelta(days=offset)).isoformat()
+        # #620: a promise is quoted only on the scene where the learner said it.
         teaser = engine.next_teaser(
-            live, world, character_id="marin_leveque", register="tu", date=today, seed="t"
+            live, world, character_id="marin_leveque", register="tu", date=today, seed="t",
+            said=["J'apporte du pain dimanche chez Marin."],
         )
         if teaser is None:
             continue

@@ -254,7 +254,9 @@ turn_plan.learner_asked, when not null, is a question the learner just asked you
 it first, plainly and in character (yes, no, a fact from the scene, or that you do not
 know), before anything else; never skip it, never answer it with a question of your own.
 ledger lists what this scene has asked so far (asked[].by, text_fr, answered_at): never
-ask again a question whose answered_at is set.
+ask again a question whose answered_at is set. ledger.stands lists what you proposed and
+how the learner answered it (learner_stance): when they refused, the proposal is still
+yours: hold to it, explain it or give way in so many words, never «moi non plus» about it.
 When turn_plan.keep_talking is false this reply may be the scene's last line: answer and
 react, and close on a statement; do not ask a new question.
 feeling_shift is warmer or colder when this exchange really moved you, steady otherwise.
@@ -651,6 +653,9 @@ def validate_voice(voice: VoiceReply, payload: dict, *, lexical=None) -> None:
     lane_guards.check_echo(
         voice.reply_fr, payload["learner_text"], character_name=_character_name(payload)
     )
+    # #591 (root cause #145): the scene's ledger knows what the character proposed and
+    # that the learner refused it; the reply does not join the refusal or skip the question.
+    lane_guards.check_keeps_position(voice.reply_fr, payload)
     level = str(story.get("level") or "")
     address = (story.get("learner") or {}).get("address")
     own = _learner_own_forms(payload)
@@ -1105,6 +1110,8 @@ def validate_story(turn: engine.SemanticTurn, payload: dict) -> None:
     lane_guards.check_invented_choice(french, payload)
     # WP-155 §3: a generated day's ending keeps the reveals of the tentpoles ahead.
     lane_guards.check_season_spoiler(written, payload)
+    # #591: the closing line keeps the character's position too.
+    lane_guards.check_keeps_position(turn.resolution_fr, payload, answers_learner=False)
     # The ending goes in the character's bubble and the summary under it tells the story.
     lane_guards.check_ending_voice(turn.resolution_fr, turn.summary_native, _character_name(payload))
     # #378: the scene's last line is printed under the character's name with no reply

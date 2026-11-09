@@ -2898,3 +2898,46 @@ def test_the_seasons_authored_french_task_lines_say_tu():
     in_vous = {slot: row["fr"] for slot, row in tasks.items() if engine._TASK_VOUS.search(row.get("fr") or "")}
     assert not in_vous
     assert not [row["fr"] for row in tasks.values() if engine.tutoie_task(row["fr"]) != row["fr"]]
+
+
+def test_the_closing_hook_and_tomorrow_quote_only_what_the_learner_wrote_in_the_scene(
+    assembled_client, db_session, journey_enabled, clock, provider, monkeypatch
+):
+    """#620: live walk 9 Nov. An open promise from an earlier day («Je pense que je vais
+    vendre la bouillotte…») came back as «Tu as promis, hein : « … »» on the closing
+    panel, Done and Home, though the learner's replies never mentioned selling."""
+
+    stale = "Je pense que je vais vendre la bouillotte de Odile, mais non, je ne vends pas le café."
+    # The model's own reading of this scene adds no promise: only the old one is open.
+    provider.transform = lambda schema, out: (
+        {**out, "commitments": []} if schema == "SemanticTurn" else out
+    )
+    # The old promise is the only open row the hook may use, so the walk's pick is certain.
+    original = engine.teaser_candidates
+    monkeypatch.setattr(
+        engine,
+        "teaser_candidates",
+        lambda live, world: [row for row in original(live, world) if row["kind"] == "commitment"],
+    )
+    d = driver(assembled_client, db_session)
+    d.create()
+    thread = db_session.get(SerialThread, UUID(d.journey["scenario"]["serial_thread_id"]))
+    state = deepcopy(thread.state or {})
+    live = state.setdefault("living_story", {})
+    live["commitments"] = [
+        {
+            "id": "old:commitment:0",
+            "status": "open",
+            "witnesses": ["lila_bonnet"],
+            "text_fr": "Vendre la bouillotte d'Odile.",
+            "source_quote": stale,
+        }
+    ]
+    thread.state = state
+    db_session.commit()
+    d.play(answer="Oui Napoleon aime le poisson. Bon, je lis la lettre avec toi.")
+    d.finish("complete")
+    db_session.refresh(thread)
+    teaser = thread.state["living_story"].get("next_teaser") or {}
+    assert "bouillotte" not in json.dumps(teaser, ensure_ascii=False), teaser
+    assert "bouillotte" not in json.dumps(d.journey.get("recap") or {}, ensure_ascii=False)
