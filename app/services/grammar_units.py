@@ -119,10 +119,10 @@ def detector_spans(patterns: list[str] | None, text: str | None) -> list[tuple[i
     return merged
 
 
-def contrast_pairs(concept: Any) -> list[dict[str, str]]:
+def contrast_pairs(concept: Any) -> list[dict[str, Any]]:
     """Every ✗/✓ pair known for the unit, the authored card's first, plain text."""
 
-    pairs: list[dict[str, str]] = []
+    pairs: list[dict[str, Any]] = []
     seen: set[tuple[str, str]] = set()
 
     def add(wrong: str, right: str) -> None:
@@ -152,7 +152,66 @@ def contrast_pairs(concept: Any) -> list[dict[str, str]]:
             match = _TRAP_PAIR.match(trap)
             if match:
                 add(match.group("wrong"), match.group("right"))
+    external_id = getattr(concept, "external_id", None)
+    for pair in pairs:
+        reason = trap_reason(external_id, pair["wrong"], pair["right"])
+        if reason:
+            pair["why"] = reason
     return pairs
+
+
+def _fold_words(text: str) -> list[str]:
+    return [word.strip(".,;:!?«»\"").casefold() for word in plain(text).split() if word.strip(".,;:!?«»\"")]
+
+
+def _word_swap(wrong: str, right: str) -> tuple[str, str] | None:
+    """The one word a ✗/✓ pair changes («ma amie» → «mon amie»: ma → mon), else ``None``."""
+
+    before, after = _fold_words(wrong), _fold_words(right)
+    if len(before) != len(after):
+        return None
+    diffs = [(w, r) for w, r in zip(before, after, strict=True) if w != r]
+    return diffs[0] if len(diffs) == 1 else None
+
+
+def trap_reason(external_id: str | None, wrong: str, right: str) -> dict[str, str] | None:
+    """ROOT CAUSE #537: the reason the unit's own rule card gives for this slip.
+
+    A unit has one ``rule_short``, and every miss on every trap of the unit was explained
+    with it, so «ma amie → mon amie» was told «follow the thing owned, not the owner».
+    The card's ``traps[].why`` is the reason for one slip, authored per language. The pair
+    matches its trap exactly, or by the one word it swaps (so «ma affiche → mon affiche»,
+    a Forge sentence the card never printed, is explained as «ma amie → mon amie» is).
+    """
+
+    card = rule_card_for(external_id) or {}
+    traps = [
+        trap
+        for trap in card.get("traps") or []
+        if isinstance(trap, dict) and isinstance(trap.get("why"), dict) and trap.get("wrong") and trap.get("right")
+    ]
+    if not traps or not wrong or not right:
+        return None
+    exact = (_fold_words(wrong), _fold_words(right))
+    for trap in traps:
+        if (_fold_words(str(trap["wrong"])), _fold_words(str(trap["right"]))) == exact:
+            return dict(trap["why"])
+    swap = _word_swap(wrong, right)
+    if swap is not None:
+        for trap in traps:
+            if _word_swap(str(trap["wrong"]), str(trap["right"])) == swap:
+                return dict(trap["why"])
+    return None
+
+
+def trap_why(external_id: str | None, wrong: str, right: str, language: str | None) -> str | None:
+    """:func:`trap_reason` in ``language`` (English when the card has no such line)."""
+
+    reason = trap_reason(external_id, wrong, right)
+    if not reason:
+        return None
+    code = str(language or "en").strip().lower()[:2]
+    return str(reason.get(code) or reason.get("en") or "").strip() or None
 
 
 def _xray(concept: Any) -> tuple[str, list[str]]:
@@ -213,7 +272,7 @@ def localized_titles(concept: Any, localizations: dict[str, str] | None = None) 
     return titles
 
 
-def built_rule_card(concept: Any, *, pairs: list[dict[str, str]] | None = None) -> dict[str, Any] | None:
+def built_rule_card(concept: Any, *, pairs: list[dict[str, Any]] | None = None) -> dict[str, Any] | None:
     """A WP-L10 card payload from the catalogue fields, for a unit with no authored card."""
 
     sentence, tokens = _xray(concept)
@@ -379,6 +438,8 @@ __all__ = [
     "plain",
     "regex_patterns",
     "rule_card",
+    "trap_reason",
+    "trap_why",
     "unit_brief",
     "unit_detectors",
 ]

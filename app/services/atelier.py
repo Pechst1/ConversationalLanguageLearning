@@ -75,7 +75,7 @@ from app.services.forge_grading import (
 from app.services.forge_grading import (
     TO_CORRECT_LABEL as JUDGEMENT_TO_CORRECT,
 )
-from app.services.forge_item_validator import advice, situation_problems
+from app.services.forge_item_validator import advice, scenario_problems
 from app.services.glosses import (
     DEFAULT_GLOSS_LANGUAGE,
     EXPLANATION_LANGUAGE_NAMES,
@@ -3142,7 +3142,7 @@ class AtelierExerciseGenerator:
         elif _is_vague_output_prompt(produce.get("prompt")):
             errors.append("produce prompt must set a concrete situation")
         else:
-            errors.extend(f"produce prompt {advice(problem)}" for problem in situation_problems(produce.get("prompt")))
+            errors.extend(f"produce prompt {advice(problem)}" for problem in scenario_problems(produce.get("prompt")))
         ladder = payload.get("output_ladder") or {}
         for key in ("sentence", "speak", "conversation"):
             items = (ladder.get(key) or {}).get("items") or []
@@ -3166,7 +3166,7 @@ class AtelierExerciseGenerator:
                 # ROOT CAUSE #146: the guard knew the shape of a situation, never its sense.
                 errors.extend(
                     f"output_ladder.{key} item {item_id(item)} prompt {advice(problem)}"
-                    for problem in situation_problems(item.get("prompt"))
+                    for problem in scenario_problems(item.get("prompt"))
                 )
         return errors
 
@@ -8139,9 +8139,9 @@ class AtelierCorrectionService:
         # FORGE-DE: a bank item quotes the rule of its own unit — a concept that
         # maps to several units (être, -er verbs, modals…) would otherwise show
         # every unit's rule, or another unit's («-er» on «veux»).
-        from app.services.item_bank import item_unit_rule
+        from app.services.item_bank import item_miss_reason
 
-        own = item_unit_rule(item, self.explanation_language) if item else None
+        own = item_miss_reason(item, self.explanation_language) if item else None
         if own:
             return own
         if self.explanation_language == "fr":

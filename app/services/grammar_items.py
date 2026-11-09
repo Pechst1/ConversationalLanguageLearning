@@ -484,6 +484,16 @@ def recognise_item(
     )
 
 
+def pair_why(pair: dict[str, Any], language: Any) -> str | None:
+    """#537: the reason this ✗/✓ pair's trap has on the unit's rule card, in ``language``."""
+
+    why = pair.get("why")
+    if not isinstance(why, dict):
+        return None
+    code = str(language or "en").strip().lower()[:2]
+    return str(why.get(code) or why.get("en") or "").strip() or None
+
+
 def choose_item(
     brief: dict[str, Any],
     *,
@@ -516,6 +526,7 @@ def choose_item(
         translation_native=None,
         solution_fr=right,
         estimated_seconds=0,
+        why_native=pair_why(pair, language),
     )
 
 

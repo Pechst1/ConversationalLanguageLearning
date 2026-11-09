@@ -2355,6 +2355,24 @@ def item_unit_rule(item: dict[str, Any] | None, language: Any = "en") -> str | N
     return str(rule).strip() if rule else None
 
 
+def item_miss_reason(item: dict[str, Any] | None, language: Any = "en") -> str | None:
+    """#537: why a missed bank item was wrong: the reason of its own trap, else its unit's rule.
+
+    A repair item carries the ✗ sentence it shows (``source``) and the ✓ one (``expected_answer``);
+    when the unit's rule card has a trap for that slip («ma → mon» before a vowel), its reason
+    explains the slip. The unit's one-line rule is shared by all of the unit's traps and can
+    point the other way («follow the thing owned, not the owner» under «ma affiche»).
+    """
+
+    unit = item_unit(item)
+    if not unit or not isinstance(item, dict):
+        return None
+    from app.services.grammar_units import trap_why
+
+    own = trap_why(unit, str(item.get("source") or ""), str(item.get("expected_answer") or ""), str(language))
+    return own or item_unit_rule(item, language)
+
+
 def unit_band(unit: str) -> str:
     return str(unit_row(unit).get("level") or "A1")
 

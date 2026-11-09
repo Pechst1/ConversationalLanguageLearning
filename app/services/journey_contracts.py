@@ -834,6 +834,10 @@ class RecallTask:
     #: language («Rule: Le verbe être au présent.»). Shown with the answer, so a
     #: repair never ends on a bare «Correct».
     rule_native: str | None = None
+    #: #537: on a grammar ``choice`` between a ✓ form and its ✗ form, why the ✗ one is
+    #: wrong, in the learner's language: the reason of *this* trap (the vowel, the
+    #: noun's gender), not the unit's one-line rule. A miss is explained with it first.
+    why_native: str | None = None
     #: #155: who says the line of today's scene this item is cut from (a cast id),
     #: so the face that asks the item and smiles at a right answer is that person
     #: and not the day's character. ``None`` when the item is not cut from a
