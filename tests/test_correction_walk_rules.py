@@ -120,3 +120,28 @@ def test_a_word_that_can_be_two_words_gets_no_accent(text, bare):
 def test_ne_elides_in_front_of_a_vowel_and_no_word_is_added(text, span, replacement):
     _finds(text, span, replacement, "FR_ELISION")
     assert "pas" not in replacement
+
+
+@pytest.mark.parametrize(
+    ("text", "span", "replacement"),
+    [
+        pytest.param("Je pas ai beaucoup bagages", "Je pas ai", "Je n'ai pas", id="walk-25-oct"),
+        pytest.param(
+            "Je pas ai beaucoup bagages aujourd'hui, mais je viens chez toi samedi soir.",
+            "Je pas ai",
+            "Je n'ai pas",
+            id="333-letter",
+        ),
+        pytest.param("Il pas est là.", "Il pas est", "Il n'est pas", id="vowel"),
+        pytest.param("Je pas vais à Lyon.", "Je pas vais", "Je ne vais pas", id="consonant"),
+        pytest.param("Elle pas porte de manteau.", "Elle pas porte", "Elle ne porte pas", id="a-verb-that-is-also-a-noun"),
+    ],
+)
+def test_a_negation_in_front_of_the_verb_goes_around_it(text, span, replacement):
+    _finds(text, span, replacement, "FR_NEGATION_ORDER")
+
+
+def test_the_sentence_the_failed_check_tests_lean_on_is_still_unseen_by_the_rules():
+    from tests.test_failed_check_counts_for_nothing import UNSEEN_BY_RULES
+
+    assert cc.deterministic_edits(UNSEEN_BY_RULES) == []

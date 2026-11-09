@@ -1787,6 +1787,26 @@ def _phrase_edits(source: str, tokens: list[Tok], add) -> None:
             add(_edit("FR_NEGATION_ORDER", source, tok.start, after.end, right, word=nxt.low, right=right))
             continue
 
+        # «Je pas ai beaucoup bagages» -> «Je n'ai pas beaucoup bagages»: a subject pronoun, then
+        # «pas», then a finite verb. «nous» and «vous» may be objects unless they open the clause.
+        if (
+            tok.low in _SUBJECT_PRONOUN_WORDS - {"j"}
+            and nxt is not None
+            and after is not None
+            and nxt.low == "pas"
+            and _space(source, tok, nxt)
+            and _space(source, nxt, after)
+            and (_finite_verb(after.low) or _verb_after_subject(after.low))
+            and not source[after.start : after.end][:1].isupper()
+            and not (prev is not None and _same_clause(source, prev, tok) and prev.low in _PREPOSITIONS)
+            and not (tok.low in {"nous", "vous"} and prev is not None and _same_clause(source, prev, tok))
+        ):
+            verb = source[after.start : after.end]
+            ne = f"n{_apostrophe(source)}{verb}" if _vowel_sound(after.low) else f"ne {verb}"
+            right = f"{written} {ne} {source[nxt.start : nxt.end]}"
+            add(_edit("FR_NEGATION_ORDER", source, tok.start, after.end, right, word="pas", right=right))
+            continue
+
         # «je n'ai vu pas le film» -> «je n'ai pas vu le film» («personne» does go after
         # the participle: «je n'ai vu personne»)
         if (
