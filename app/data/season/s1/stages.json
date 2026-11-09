@@ -1,5 +1,5 @@
 {
-  "_about": "Written by scripts/forge/forge.py from web-frontend/lib/quartier/world/world.json (python scripts/forge/forge.py stages): each place of the season the 3D world has built, to the built place a page set there plays in. The night writer sets a generated page only at these places (app/services/season/world.py). «places»: the ones the learners' stories named that the forge built, for the writer to know them by.",
+  "_about": "Written by scripts/forge/forge.py from web-frontend/lib/quartier/world/world.json (python scripts/forge/forge.py stages): each place of the season the 3D world has built, to the built place a page set there plays in. The night writer sets a generated page only at these places (app/services/season/world.py). «places»: the ones the learners' stories named that the forge built, for the writer to know them by. «to_be_built»: the places the season names that the world has not built yet; a page may promise one, never be set there.",
   "stages": {
     "le_mistral": "quai_de_valmy",
     "quai_de_valmy": "quai_de_valmy",
@@ -8,5 +8,22 @@
     "user_apartment": "user_apartment",
     "notaire": "notaire",
     "toit": "toit_mistral"
+  },
+  "to_be_built": {
+    "mistral_back_room": "L'arrière-salle du Mistral",
+    "marin_lila_flat": "L'appartement de Marin et Lila",
+    "ngo_office": "Le bureau de l'ONG de Marin",
+    "mairie": "La mairie du 10e",
+    "marchand_office": "La gérance Marchand",
+    "gare_de_lest": "La gare de l'Est",
+    "rue_de_lancry": "La rue de Lancry",
+    "gus_loft": "Le « château » de Gus",
+    "boulangerie": "La boulangerie de Mme Diallo",
+    "ecole": "La classe de Lila",
+    "newsroom": "La rédaction de Romy",
+    "marche_canal": "Le marché du canal",
+    "buttes_chaumont": "Le parc des Buttes-Chaumont",
+    "metro_platform": "Le quai du métro",
+    "brocante": "La brocante"
   }
 }

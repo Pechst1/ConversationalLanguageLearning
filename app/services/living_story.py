@@ -1465,6 +1465,21 @@ class ParsedOutputError(StoryUnavailable):
         self.details = details or {}
 
 
+#: S5: OpenAI refuses ``response_format=json_object`` (400) unless the messages say
+#: «json». Every structured call goes through :func:`_json_call`, so the call itself
+#: guarantees the word; a prompt that already says it is sent unchanged.
+JSON_REMINDER = "Answer with one JSON object."
+
+
+def json_system(system: str) -> str:
+    """``system`` as a ``json_object`` call may send it: it says «JSON»."""
+
+    text = str(system or "")
+    if re.search("json", text, re.IGNORECASE):
+        return text
+    return f"{text.rstrip()}\n\n{JSON_REMINDER}" if text.strip() else JSON_REMINDER
+
+
 def _json_call(
     system: str,
     payload: dict,
@@ -1492,7 +1507,7 @@ def _json_call(
         started = time.monotonic()
         result = _client().generate_chat_completion(
             [{"role": "user", "content": _cache_friendly_content(payload, schema)}],
-            system_prompt=system,
+            system_prompt=json_system(system),
             temperature=0.55 if schema is SceneDraft or schema.__name__ in _SPLIT_PAGE_SCHEMAS else 0.2,
             # A 4-6 panel page (2026-09-25) is ~2× the old 2-3 panel draft.
             max_tokens=max_tokens
@@ -4430,28 +4445,46 @@ def season_threads(world: dict) -> list[dict]:
     season = _int_or(world.get("season_number"), 1)
     english = [str(text) for text in situation.get("open_threads") or []]
     french = [str(text) for text in situation.get("open_threads_fr") or []]
+    decided = list(situation.get("open_threads_decided_by") or [])
     return [
         {
             "key": f"s{season}:{index}",
             "text": text,
             "text_fr": french[index] if index < len(french) else "",
             "state": THREAD_STATES[0],
+            # S5: the flags whose value answers this question (``open_threads_decided_by``,
+            # aligned with ``open_threads``); a scripted finale sets them, not a scene.
+            "decided_by": [str(flag) for flag in decided[index] or []]
+            if index < len(decided) and isinstance(decided[index], list)
+            else [],
         }
         for index, text in enumerate(english)
     ]
+
+
+def thread_decided(row: dict, flags: dict) -> bool:
+    """A season thread whose deciding flag holds a value: the ending has answered it."""
+
+    return any(flags.get(flag) not in (None, "", False) for flag in row.get("decided_by") or [])
 
 
 def threads_projection(world: dict, live: dict) -> list[dict]:
     """The authored threads with the state this life has actually put them in."""
 
     stored = live.get("threads") or {}
+    # S5: a question the finale decided is closed, whatever the scenes recorded — an
+    # authored finale closes no generated chapter, so ``close_open_threads`` never ran
+    # for it and the reprise asked the café question again (walk #649).
+    flags = live.get("world_flags") or {}
     rows = []
     for row in season_threads(world):
         entry = stored.get(row["key"]) or {}
         state = str(entry.get("state") or THREAD_STATES[0])
+        if thread_decided(row, flags):
+            state = THREAD_STATES[-1]
         rows.append(
             {
-                **row,
+                **{key: value for key, value in row.items() if key != "decided_by"},
                 "state": state if state in THREAD_STATES else THREAD_STATES[0],
                 "day": entry.get("day"),
             }
@@ -4710,7 +4743,26 @@ def interlude_beat(seed: str, index: int, world: dict | None = None) -> dict:
     """One authored between-seasons beat, dealt per learner from the deck."""
 
     deck = interlude_beats(world)
-    beat = deck[_die(seed, "interlude", int(index)) % len(deck)]
+    return _interlude_row(deck[_die(seed, "interlude", int(index)) % len(deck)])
+
+
+def interlude_beat_for(live: dict, seed: str, world: dict | None = None) -> dict:
+    """The beat the director writes today: the open interlude chapter's own, as
+    ``bind_journey`` stored it when the chapter opened (``interlude_beat_id``), else the
+    one the next chapter will be dealt. Dealing from ``chapters_total`` while a chapter
+    is open read the count AFTER that chapter had counted itself, so its second day got
+    another beat (S5, walk #649: the third sock)."""
+
+    chapter = live.get("chapter") or {}
+    beat_id = chapter.get("interlude_beat_id")
+    if beat_id and chapter.get("interlude") and not chapter_closing(chapter):
+        own = next((beat for beat in interlude_beats(world) if beat.get("id") == beat_id), None)
+        if own is not None:
+            return _interlude_row(own)
+    return interlude_beat(seed, chapters_total(live), world)
+
+
+def _interlude_row(beat: dict) -> dict:
     return {
         "id": beat.get("id"),
         "summary": beat.get("summary"),
@@ -5426,7 +5478,7 @@ def story_context(db: Session, user: User, *, now: datetime | None = None) -> di
             if phase == "finale"
             else None,
             "interlude": {
-                **interlude_beat(seed, chapters_total(live), world),
+                **interlude_beat_for(live, seed, world),
                 # WP-98: a named interlude says when the story resumes.
                 **{
                     key: (live.get("interlude") or {}).get(key)
@@ -6709,13 +6761,52 @@ def _vous_verb(text: str) -> str | None:
     return None
 
 
+#: A clause start for an imperative, with its negation («N'oubliez», «Ne dites»).
+_CLAUSE_START = re.compile(
+    r"(?:^|[,:;.!?]\s*(?:(?:et|puis|ou|mais)\s+)?|\b(?:et|puis|ou)\s+)(?:n['’]|ne\s+)?([A-Za-zÀ-ÿ]+)",
+    re.IGNORECASE,
+)
+#: The learner said tu: a tu pronoun or possessive.
+_TASK_TU = re.compile(r"\b(?:tu|te|toi|ton|ta|tes)\b|\bt['’]", re.IGNORECASE)
+_TU_FORMS = frozenset(_TU_IMPERATIVES.values())
+
+
+def _is_vous_form(word: str) -> bool:
+    lower = word.casefold()
+    return lower in _VOUS_VERBS or (lower.endswith("ez") and lower not in _NOT_VOUS_EZ)
+
+
+def _is_tu_imperative(word: str) -> bool:
+    lower = word.casefold()
+    return lower in _TU_FORMS or (lower.endswith("e") and len(lower) > 3 and _is_er_verb(lower + "r"))
+
+
+def task_says_vous(text: str) -> str | None:
+    """The word with which a French task line says vous TO THE LEARNER, or ``None``.
+
+    Decided by who is addressed, not by the word (S5, walk #649): a task that speaks
+    to the learner in tu («Propose à Gus…», «si tu préfères…») and says «vous»,
+    «votre» or «vos» means the learner and the other person together — «entre vous»,
+    «votre souvenir», «ce que vous feriez» — and passes. A vous imperative («Dites»,
+    «N'oubliez») always addresses the learner, and a line with no tu at all that says
+    vous is the formal singular. A quoted phrase is the scene's own line («Vous
+    pouvez… ?» to a vous character), never the app speaking."""
+
+    unquoted = _QUOTED.sub(" ", text or "")
+    starts = [match.group(1) for match in _CLAUSE_START.finditer(unquoted)]
+    imperative = next((word for word in starts if _is_vous_form(word)), None)
+    if imperative:
+        return imperative
+    says_tu = bool(_TASK_TU.search(unquoted)) or any(_is_tu_imperative(word) for word in starts)
+    if says_tu:
+        return None
+    found = _TASK_VOUS.search(unquoted)
+    return found.group(0) if found else _vous_verb(unquoted)
+
+
 def _check_task_tutoiement(draft: SceneDraft) -> None:
     for field, text in (("objective_native", draft.objective_native), ("hint_native", draft.hint_native)):
-        # A quoted French phrase is the scene's own line («Vous pouvez… ?» to a vous
-        # character), not the app speaking to the learner.
-        unquoted = _QUOTED.sub(" ", text or "")
-        found = _TASK_VOUS.search(unquoted)
-        said = found.group(0) if found else _vous_verb(unquoted)
+        said = task_says_vous(text)
         if said:
             raise StoryUnavailable(
                 "task_says_vous",

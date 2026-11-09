@@ -2445,12 +2445,14 @@ def _spoken_words(panels: Any) -> int:
     """Words of the spoken lines of ``panels`` — what ``season.turns.reaction_lines``
     shows in the conversation (captions and silent panels stay on the page)."""
 
+    from app.services.season.turns import REPLY_KINDS
+
     total = 0
     for panel in panels if isinstance(panels, list) else []:
         if not isinstance(panel, dict):
             continue
         for line in panel.get("lines") or []:
-            if isinstance(line, dict) and line.get("kind") in ("speech", "all"):
+            if isinstance(line, dict) and line.get("kind") in REPLY_KINDS:
                 total += _tokens(str(line.get("text_fr") or ""))
     return total
 
