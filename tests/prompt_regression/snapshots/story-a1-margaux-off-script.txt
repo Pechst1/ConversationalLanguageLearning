@@ -1,8 +1,8 @@
 # prompt snapshot · story-a1-margaux-off-script · lane story · level A1
-# key: sha256:1e867a43b9282db8021499701806c35b7efdb7fb11601eb642a9cf7f78186273
+# key: sha256:65c057e931758ccf3ea13e883c50a9171305a0cd9ba75a28a2b57229f8d40403
 # accept a change: PROMPT_SNAPSHOT_UPDATE=1 python -m pytest tests/test_prompt_regression.py (or scripts/prompt_regression.py --update)
 
-======== call 1 · StoryTurn #1 · f2cdf6fadb2fef71 ========
+======== call 1 · StoryTurn #1 · 65d02492d5f9c5ee ========
 params: {"disable_retries": true, "max_provider_attempts": 1, "max_tokens": 1600, "prompt_cache_key": "atelier-StoryTurn", "reasoning_effort": "low", "response_format": {"type": "json_object"}, "temperature": 0.2}
 output_schema: StoryTurn sha256:f060bf4d380f13ad
 -------- system --------
@@ -83,7 +83,9 @@ no, a question, or something else); stands lists what was put to the learner and
 received; established lists what the learner's own words settled, each with its quote;
 still_open lists what nobody has answered or settled. The ending and the summary build on
 it: a no stays a no, a fact in established is the learner's, and a name or fact that is in
-neither the record, the panels nor released.reply_fr is not this scene's.
+neither the record, the panels nor released.reply_fr is not this scene's. A name stays with
+the thing it was given to: never move a name the learner or a character gave onto another
+thing.
 tomorrow_question_fr is the one question the reader carries into tomorrow: about something
 still_open holds or the ending leaves open, in your own words and any angle you like. One
 sentence of at most nine words at the learner's level, ending in «?», with no quotation

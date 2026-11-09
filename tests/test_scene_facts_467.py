@@ -110,3 +110,131 @@ def test_a_question_the_learner_has_not_answered_may_be_asked_again():
 # 2. The total is fixed when the scene starts (backend and client tests:
 #    tests/test_story_exchanges.py, tests/test_wp89_le_fil.py, respond-thread.test.js)
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# 3. An ending never gives a name to a thing nobody named
+# ---------------------------------------------------------------------------
+
+SUMMARY_BAD = "Napoléon donne son nom au canapé du menu."
+HISTORY = [
+    (REPLY_1, MARIN_1),
+    (REPLY_2, "Oui, bien sûr. Napoléon, c'est un beau nom pour le menu !"),
+    (REPLY_3, MARIN_3),
+]
+REPLY_4 = "Non, on reste ici! Je fais des pâtes pour nous deux. Tu aimes les pâtes?"
+
+
+def _claim(payload: dict, *texts: str):
+    return lane_guards.unsupported_naming(list(texts), payload)
+
+
+def test_the_summary_does_not_give_the_cats_name_to_the_sofa():
+    """The walk's summary. The learner named the menu («il s'appelle Les Mots sur les cartes»)
+    and a cat; the sofa was never named."""
+
+    payload = _payload(REPLY_4, HISTORY)
+    assert _claim(payload, SUMMARY_BAD) == ("Napoléon", "canapé")
+    assert _claim(payload, "Napoléon donne son nom au canapé. Marin rit.") == ("Napoléon", "canapé")
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        # What the learner meant: the cat is Napoléon, and the menu takes the name.
+        "Le chat de ta grand-mère s'appelle Napoléon, et le menu prend son nom.",
+        "Tu proposes d'appeler le menu Napoléon.",
+        "Napoléon donne son nom au menu.",
+        "Le menu s'appelle Les Mots sur les cartes.",
+        "Marin et toi mangez des pâtes avec Napoléon dans le canapé.",
+        # No claim at all.
+        "Marin rit. Les pâtes sont prêtes.",
+        "Marin s'appelle Marin.",
+    ],
+)
+def test_what_was_named_in_the_scene_may_be_said_again(line):
+    assert _claim(_payload(REPLY_4, HISTORY), line) is None
+
+
+def test_a_name_from_an_earlier_day_is_the_scenes_too():
+    payload = _payload(REPLY_4, HISTORY)
+    payload["story"]["memory"] = {"settled": ["Le vélo de Marin s'appelle Tornade."]}
+    assert _claim(payload, "Le vélo s'appelle Tornade.") is None
+    assert _claim(payload, "Le vélo s'appelle Rafale.") is None, "the bicycle has a naming word on record"
+    assert _claim(payload, "Le fauteuil s'appelle Tornade.") == ("Tornade", "fauteuil")
+
+
+@pytest.mark.parametrize(
+    ("text", "claim"),
+    [
+        ("Napoléon donne son nom au canapé.", ("Napoléon", "canapé")),
+        ("Le canapé s'appelle Napoléon.", ("Napoléon", "canapé")),
+        ("Le canapé est baptisé Napoléon.", ("Napoléon", "canapé")),
+        ("On va appeler le canapé Napoléon.", ("Napoléon", "canapé")),
+        ("Le nom du canapé est Napoléon.", ("Napoléon", "canapé")),
+    ],
+)
+def test_naming_claims_are_read_in_every_form(text, claim):
+    assert lane_guards.naming_claims(text) == [claim]
+
+
+def _story_answers(monkeypatch, *answers):
+    """The story lane's answers, in order; the last one repeats. An exception is raised."""
+
+    seen: list[dict] = []
+
+    def call(_system, data, _schema, _collect, **_kwargs):
+        seen.append(data)
+        answer = answers[min(len(seen), len(answers)) - 1]
+        if isinstance(answer, Exception):
+            raise answer
+        return lanes.StoryTurn(resolution_fr="Les pâtes sont prêtes.", summary_native=answer), None
+
+    monkeypatch.setattr(engine, "_json_call", call)
+    monkeypatch.setattr(engine, "CRITIC_ENABLED", False)
+    return seen
+
+
+def _run_lane(payload):
+    tutor = lanes.TutorVerdict(outcome="met", evidence_quotes=["Je fais des pâtes pour nous deux."])
+    return lanes.run_story_lane(payload, tutor, _voice("Super, à table."))
+
+
+def test_a_moved_name_is_asked_for_once_more_with_the_reason(monkeypatch):
+    seen = _story_answers(monkeypatch, SUMMARY_BAD, "Napoléon donne son nom au menu.")
+    result = _run_lane(_payload(REPLY_4, HISTORY))
+    assert result.turn.summary_native == "Napoléon donne son nom au menu."
+    assert any("canapé" in hint for hint in seen[1]["previous_rejections"])
+    assert result.firings == [{"code": "moved_name", "outcome": "corrected"}]
+
+
+def test_a_moved_name_never_costs_the_written_ending(monkeypatch):
+    """Rule 2 of the package: a check reads a sentence with a regex, so it can be wrong. What
+    the writer wrote is served after one retry, and the firing is counted."""
+
+    seen = _story_answers(monkeypatch, SUMMARY_BAD)
+    result = _run_lane(_payload(REPLY_4, HISTORY))
+    assert len(seen) == 2, "one retry, no more"
+    assert result.turn.summary_native == SUMMARY_BAD
+    assert result.firings == [{"code": "moved_name", "outcome": "served_anyway"}]
+
+
+def test_a_retry_that_fails_outright_serves_the_first_ending(monkeypatch):
+    _story_answers(monkeypatch, SUMMARY_BAD, engine.StoryUnavailable("story_generation_unavailable"))
+    result = _run_lane(_payload(REPLY_4, HISTORY))
+    assert result.turn.summary_native == SUMMARY_BAD, "not the authored ending"
+    assert result.firings == [{"code": "moved_name", "outcome": "served_first"}]
+
+
+def test_an_ending_with_no_claim_costs_no_retry(monkeypatch):
+    seen = _story_answers(monkeypatch, "Marin et toi mangez des pâtes.")
+    result = _run_lane(_payload(REPLY_4, HISTORY))
+    assert len(seen) == 1 and not result.firings
+
+
+def test_a_native_language_summary_is_not_read_for_french_claims(monkeypatch):
+    """The prompt carries the rule; the check reads the French the scene holds."""
+
+    seen = _story_answers(monkeypatch, SUMMARY_BAD)
+    result = _run_lane(_payload(REPLY_4, HISTORY, control_language="en"))
+    assert len(seen) == 1 and result.turn.summary_native == SUMMARY_BAD

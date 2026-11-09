@@ -672,11 +672,12 @@ def test_semantic_critic_can_reject_a_false_interpretation_with_real_quotes(
         },
     )
     # WP-58: the critic's rejection stands — the disputed reply is never shown — and
-    # the learner still gets a settled, honest ending instead of a failed send.
+    # the learner still gets a settled, honest reply instead of a failed send. #518: it reacts
+    # to their «non», where it used to say «on m'appelle».
     assert response.json()["pending"] is False
     assert response.json()["reply_source"] == "authored"
     assert response.json()["task_outcome"] == "partially_met"
-    assert "appelle" in response.json()["character_reply_fr"]
+    assert "non" in response.json()["character_reply_fr"].casefold() or "Pas ça" in response.json()["character_reply_fr"]
     thread = db_session.scalar(select(SerialThread).where(SerialThread.user_id == d.user_id))
     events = thread.state["living_story"].get("events", [])
     assert len(events) == 1 and events[0]["outcome"] == "partially_met"

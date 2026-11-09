@@ -5594,6 +5594,9 @@ class DailyJourneyService:
                     public_correction.model_dump(mode="json") if public_correction else None
                 ),
                 "free": bool(evaluation.needs_repair and not evaluation.turn_consumed),
+                # #518: no model wrote this reply, so it is not something the scene said
+                # (``scene_ledger.on_screen``). Marked here, never recognised by its words.
+                **({"stock_exit": True} if getattr(evaluation, "stock_exit", False) else {}),
                 # Every speaker of a many-voiced reply, so each gets their bubble.
                 **({"lines": list(evaluation.reply_lines)} if evaluation.reply_lines else {}),
                 # QA-STORY: the season route this exchange took (replayed, never re-read).

@@ -29,7 +29,9 @@ _EXIT_STUB = re.compile(
 )
 
 
-#: The character's half of the stock exit, as stored on the days it played.
+#: The character's half of the stock exit, as stored on the days it played. Nothing writes
+#: it or ``_EXIT_STUB`` any more (#518): both stay for the rows that hold them, and a new
+#: authored ending is marked on the turn (``authored_ending``), not recognised by its words.
 _EXIT_REPLY = re.compile(r"\bon m['’]appelle\b", re.IGNORECASE)
 
 
@@ -62,4 +64,17 @@ def scene_fact(*candidates: Any, fallback: Any = "") -> str:
     return " ".join(str(fallback or "").split())
 
 
-__all__ = ["is_closing_filler", "is_stock_exit_reply", "scene_fact"]
+def what_happened(turn: Any, fallback: Any = "") -> str:
+    """What this turn adds to the story's record: its fact, else ``fallback``.
+
+    #518: an authored ending is what the character says to close, in the first person
+    («Ce que tu m'as dit, je le garde.»), when no model wrote what happened. It is printed
+    in their bubble and never filed as an event.
+    """
+
+    if getattr(turn, "authored_ending", False):
+        return " ".join(str(fallback or "").split())
+    return scene_fact(turn.callback_fr, turn.resolution_fr, fallback=fallback)
+
+
+__all__ = ["is_closing_filler", "is_stock_exit_reply", "scene_fact", "what_happened"]

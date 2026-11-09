@@ -31,7 +31,9 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
+from typing import Any
 
 from app.services import living_story as engine
 from app.services import scene_ledger, story_memory
@@ -525,6 +527,98 @@ _GRADER_SUMMARY = re.compile(
     r"\b(?:demand\w*|pos\w*\s+(?:la|de)\s+question|ask\w*|gefragt|erfragt)",
     re.IGNORECASE,
 )
+
+
+# #467: «Napoléon donne son nom au canapé du menu». The cat was Napoléon, the menu was to take
+# the name, and nobody named the sofa. Compared against what the scene holds, so it needs
+# no judgement of meaning: a sentence of the thread either puts the two together or does not.
+#: Words that open a capitalised title («Les Mots sur les cartes»), never a name.
+_TITLE_OPENERS = frozenset({"les", "le", "la", "un", "une", "des", "du", "mon", "ton", "son"})
+_ARTICLE = r"(?i:(?:le|la|les|un|une|ce|cette|mon|ton|son|sa)\s+|l['’]\s*)"
+_THING = r"([a-zà-öø-ÿ]{3,})"
+_NAME = r"([A-ZÀ-ÖØ-Þ][\w'’-]+)"
+_NAMING_FORMS = (
+    # (pattern, (name group, thing group)): «Napoléon donne son nom au canapé»
+    (re.compile(rf"\b{_NAME}\s+donne\s+(?:son|le|ce)\s+nom\s+(?:à\s+{_ARTICLE}|au\s+|aux\s+){_THING}"), (1, 2)),
+    # «Le canapé s'appelle Napoléon», «est nommé / baptisé Napoléon»
+    (
+        re.compile(rf"\b{_ARTICLE}{_THING}\s+(?:s['’]appelle|est\s+(?:appelée?|nommée?|baptisée?))\s+{_NAME}"),
+        (2, 1),
+    ),
+    # «appeler le canapé Napoléon»
+    (re.compile(rf"\bappel(?:er|ez|ons|ent|le|les)\s+{_ARTICLE}{_THING}\s+{_NAME}"), (2, 1)),
+    # «Le nom du canapé est Napoléon»
+    (re.compile(rf"\bnom\s+(?:du|des|de\s+la|de\s+l['’])\s*{_THING}\s+est\s+{_NAME}"), (2, 1)),
+)
+_NAMING_CUES = ("appel", "nomm", "baptis")
+
+
+def naming_claims(text: str) -> list[tuple[str, str]]:
+    """Each «thing named name» the text states, as ``(name, thing)`` in text order. A person
+    called by their own name («Marin s'appelle Marin») has no article-led thing and is no
+    claim."""
+
+    found: list[tuple[int, str, str]] = []
+    for pattern, (name_group, thing_group) in _NAMING_FORMS:
+        for match in pattern.finditer(text or ""):
+            name, thing = match.group(name_group), match.group(thing_group)
+            if name.casefold() not in _TITLE_OPENERS:
+                found.append((match.start(), name, thing))
+    claims: list[tuple[str, str]] = []
+    for _, name, thing in sorted(found):
+        if (name, thing) not in claims:
+            claims.append((name, thing))
+    return claims
+
+
+def _strings(value: Any) -> Iterator[str]:
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, Mapping):
+        for item in value.values():
+            yield from _strings(item)
+    elif isinstance(value, list | tuple):
+        for item in value:
+            yield from _strings(item)
+
+
+def _scene_holds_name(thing: str, name: str, payload: dict) -> bool:
+    """True when one sentence of what the scene holds (its page, its thread, its record, the
+    story so far) puts ``thing`` with a naming word or with ``name``."""
+
+    prefix = _bare(thing.casefold())[:5]
+    key = _name_key(name)
+    sources = (payload.get("scene"), payload.get("learner_text"), payload.get("history"),
+               payload.get("ledger"), payload.get("story"))
+    for text in _strings(sources):
+        for sentence in _SENTENCE_SPLIT.split(text):
+            tokens = [_bare(token) for token in _tokens(sentence)]
+            if not any(token.startswith(prefix) for token in tokens):
+                continue
+            if key in {_name_key(token) for token in tokens}:
+                return True
+            if any(token in ("nom", "noms") or token.startswith(_NAMING_CUES) for token in tokens):
+                return True
+    return False
+
+
+def unsupported_naming(ending_texts: list[str], payload: dict) -> tuple[str, str] | None:
+    """The first ``(name, thing)`` an ending states that nothing in the scene put together."""
+
+    for text in ending_texts:
+        for name, thing in naming_claims(text):
+            if not _scene_holds_name(thing, name, payload):
+                return name, thing
+    return None
+
+
+def naming_hint(claim: tuple[str, str]) -> str:
+    name, thing = claim
+    return (
+        f"The ending gives the name «{name}» to «{thing}», but nobody in this scene named "
+        f"«{thing}»: a name stays with what it was given to. Say it as the learner and the "
+        "characters said it, or leave the name out."
+    )
 
 
 def ending_voice_issue(resolution_fr: str, summary_native: str, character_name: str | None) -> str | None:

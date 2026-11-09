@@ -22,6 +22,7 @@ from typing import Any, Literal
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic.json_schema import SkipJsonSchema
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -30,10 +31,10 @@ from app.db.models.daily_journey import DailyJourney
 from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
-from app.services import correction_contract, scene_ledger, story_memory
+from app.services import cast_registry, correction_contract, scene_exit, scene_ledger, story_memory
 from app.services.address import address_instruction
 from app.services.answer_acceptance import correction_is_grounded, is_preference_swap
-from app.services.closing_filler import scene_fact
+from app.services.closing_filler import what_happened
 from app.services.concept_titles import concept_title
 from app.services.journey_contracts import (
     ActBrief,
@@ -663,6 +664,10 @@ class SemanticTurn(StrictModel):
     # #466: what the reader carries into tomorrow, as the writer put it. Checked at the
     # settle (``_tomorrow_question``), where anything wrong with it is simply not used.
     tomorrow_question_fr: str = Field(default="", max_length=200)
+    # #518: this ending was written by ``scene_exit``, not by a model: the character's own
+    # closing words, which no reader may take for what happened (``what_happened``).
+    # Out of every dump, so no model is shown it; the writers pass it to the settle by hand.
+    authored_ending: SkipJsonSchema[bool] = Field(default=False, exclude=True)
     # «Die Geschichte bestellt, die Schmiede baut»: the places and things the learner
     # named in their own words; the forge builds them first (``learner_marks``).
     named: story_memory.Named = Field(default_factory=list)
@@ -2966,7 +2971,7 @@ def chapter_digest(
         "title_fr": _one_line(chapter.get("title_fr"), 80),
         # #268: cut on a sentence, never on a character («… Alors,… →»).
         "question": question_line(chapter.get("dramatic_question"), DIGEST_PART_CHARS),
-        "resolved_fr": whole_sentences(scene_fact(turn.callback_fr, turn.resolution_fr), DIGEST_PART_CHARS),
+        "resolved_fr": whole_sentences(what_happened(turn), DIGEST_PART_CHARS),
         "development": _one_line(chapter.get("last_development") or "", 100),
         "characters": characters,
         "location_id": draft.location_id,
@@ -3182,7 +3187,7 @@ def consequences_after_turn(
     if abs(after) >= MOOD_BREAK_THRESHOLD and abs(after) > abs(before):
         add(
             "mood_break",
-            scene_fact(turn.callback_fr, turn.resolution_fr),
+            what_happened(turn),
             weight=3 if after < 0 else 2,
             source=quote,
         )
@@ -10558,7 +10563,10 @@ def evaluate_turn(
                 pending=True,
                 failure_reason=str(exc),
             )
-        return _fallback_evaluation(db, user=user, scenario=scenario, answer=answer, assistance=assistance, reason=str(exc))
+        return _fallback_evaluation(
+            db, user=user, scenario=scenario, answer=answer, assistance=assistance, reason=str(exc),
+            task=task, turn_index=turn_index,
+        )
 
 
 # Reasons that describe the learner or the stored state rather than the model's work:
@@ -10574,20 +10582,13 @@ NO_FALLBACK_REASONS = frozenset(
     }
 )
 
+#: #518: what the learner reads under the authored ending. It says no one left: a reply was
+#: shown either way, and the conversation was not cut off (R2-5: the old wording said
+#: «left before answering» under the very line that answered).
 _FALLBACK_SUMMARY = {
-    "en": "{name} was called away before answering; your words are noted and the scene picks this up next time.",
-    "de": "{name} wurde weggerufen, bevor eine Antwort kam; deine Worte sind notiert, die Szene nimmt das nächstes Mal wieder auf.",
-    "fr": "{name} a été appelé ailleurs avant de répondre ; tes mots sont notés et la scène reprendra là.",
-}
-
-
-#: Agency pilot run 2 (R2-5): the reply lane had answered («Ah, Paul — merci.») when the
-#: story lane fell back, and the stored summary said the character left *before*
-#: answering, quoting the very line that was answered.
-_FALLBACK_SUMMARY_ANSWERED = {
-    "en": "{name} answered you, then had to go; the rest of the scene stays open and picks up next time.",
-    "de": "{name} hat dir geantwortet und musste dann weg; der Rest der Szene bleibt offen und geht nächstes Mal weiter.",
-    "fr": "{name} a répondu, puis a dû partir ; la suite reste ouverte et la scène reprendra là.",
+    "en": "{name} heard what you said. The rest stays open.",
+    "de": "{name} hat gehört, was du gesagt hast. Der Rest bleibt offen.",
+    "fr": "{name} a écouté ce que tu as dit. La suite reste ouverte.",
 }
 
 
@@ -10603,56 +10604,59 @@ def open_question_of(line: Any) -> str | None:
 
 
 def fallback_turn(
-    *, character_name: str | None, learner_text: str, language: str, reason: str, answered: bool = False
+    *,
+    character_name: str | None,
+    learner_text: str,
+    language: str,
+    reason: str,
+    character_id: str | None = None,
+    register: str | None = None,
+    clean: bool = False,
 ) -> SemanticTurn:
-    """The authored ending used when the actor could not produce one (WP-58).
+    """The authored turn used when the actor could not produce one (WP-58, #518).
 
-    ``answered``: the character's reply was already shown, so the ending never says
-    they left before answering."""
+    ``register``: how this person addresses the learner. ``clean``: the reply was read and
+    needed no correction, so the ending may quote it."""
 
-    name = (character_name or "").split(" « ")[0].split()[0] if character_name else "Quelqu’un"
-    if answered:
-        summary = _FALLBACK_SUMMARY_ANSWERED.get(language, _FALLBACK_SUMMARY_ANSWERED["en"]).format(name=name)
-        return SemanticTurn(
-            outcome="partially_met",
-            understood_intent=f"fallback:{reason}",
-            evidence_quotes=[learner_text[:300]] if learner_text.strip() else [],
-            reply_fr="Attends, on m’appelle — je reviens vers toi très vite, promis.",
-            needs_clarification=False,
-            resolution_fr=f"{name} doit partir. La conversation reprendra là où elle s’est arrêtée.",
-            summary_native=summary,
-            callback_fr=f"{name} a répondu, puis a dû partir.",
-        )
-    summary = _FALLBACK_SUMMARY.get(language, _FALLBACK_SUMMARY["en"]).format(name=name)
+    first = (character_name or "").split(" « ")[0].split()[0] if character_name else "Quelqu’un"
+    name = cast_registry.display_name(character_id, first)
     return SemanticTurn(
         outcome="partially_met",
         understood_intent=f"fallback:{reason}",
         evidence_quotes=[learner_text[:300]] if learner_text.strip() else [],
-        reply_fr="Attends, on m’appelle — je reviens vers toi très vite, promis.",
+        reply_fr=scene_exit.reaction(character_id=character_id, learner_text=learner_text, register=register),
         needs_clarification=False,
-        resolution_fr=f"{name} doit partir avant de répondre. La conversation reprendra là où elle s’est arrêtée.",
-        summary_native=summary,
-        callback_fr=f"{name} a dû partir avant de répondre.",
+        resolution_fr=scene_exit.ending(learner_text=learner_text, register=register, clean=clean),
+        summary_native=_FALLBACK_SUMMARY.get(language, _FALLBACK_SUMMARY["en"]).format(name=name),
+        authored_ending=True,
     )
 
 
-def _fallback_evaluation(db, *, user, scenario, answer, assistance, reason: str):
-    """An honest authored ending when the actor could not produce one (WP-58).
+def _fallback_evaluation(db, *, user, scenario, answer, assistance, reason: str, task=None, turn_index: int = 0):
+    """An honest authored reply when the actor could not produce one (WP-58, #518).
 
     The owner's failed sends on 2026-09-19 were guard rejections of the model's turn,
     twice in a row, at the learner's expense: the sentence they wrote vanished into a
-    red error. This keeps the day alive instead: the character is called away, the
-    learner's words are kept verbatim as evidence, nothing is graded as met, no
-    commitment is invented, and the reply is labelled authored — never shown as the
-    character's live answer.
+    red error. This keeps the day alive instead: the character reacts to the kind of thing
+    the learner said, the learner's words are kept verbatim as evidence, nothing is graded
+    as met, no commitment is invented, and the reply is labelled authored — never shown as
+    the character's live answer.
+
+    The scene goes on while it has exchanges left, so one failed call costs the learner one
+    plain line and not the rest of the conversation. The proposal is there either way: if
+    the scene ends here, it ends on the authored closing line.
     """
+
+    from app.services.story_lanes import exit_register
 
     context = story_context(db, user)
     turn = fallback_turn(
         character_name=scenario.character_name,
+        character_id=scenario.character_id,
         learner_text=answer.text,
         language=normalize_control_language(context.get("control_language")),
         reason=reason,
+        register=exit_register(db, user, scenario),
     )
     logger.warning("living_story: authored fallback turn after %s", reason)
     from app.services.pilot_events import PilotEventService
@@ -10666,10 +10670,11 @@ def _fallback_evaluation(db, *, user, scenario, answer, assistance, reason: str)
     )
     proposal = StoryOutcomeProposal(
         outcome_key="open",
-        callback_fr=turn.callback_fr,
+        callback_fr=None,
         character_id=scenario.character_id,
         details={
             **turn.model_dump(mode="json"),
+            "authored_ending": True,
             "usage": [],
             "revision": context["revision"],
         },
@@ -10681,7 +10686,8 @@ def _fallback_evaluation(db, *, user, scenario, answer, assistance, reason: str)
         character_reply_fr=turn.reply_fr,
         correction=None,
         consequence=proposal,
-        needs_repair=False,
+        needs_repair=task is not None and keeps_talking(task, turn_index),
+        stock_exit=True,
         failure_reason="reply_source:authored",
     )
 
@@ -10769,7 +10775,7 @@ def settle_resolution(
         "id": event_id,
         "scene_id": str(scene.id),
         "witnesses": witnesses,
-        "summary_fr": scene_fact(turn.callback_fr, turn.resolution_fr, fallback=brief.title_fr),
+        "summary_fr": what_happened(turn, fallback=brief.title_fr),
         "source_quotes": turn.evidence_quotes,
         "outcome": turn.outcome,
         "at": datetime.now(UTC).isoformat(),
@@ -11198,7 +11204,7 @@ def _settle_later_act(
         "id": event_id,
         "scene_id": str(scene.id),
         "witnesses": witnesses,
-        "summary_fr": scene_fact(turn.callback_fr, turn.resolution_fr, fallback=brief.title_fr),
+        "summary_fr": what_happened(turn, fallback=brief.title_fr),
         "source_quotes": turn.evidence_quotes,
         "outcome": turn.outcome,
         "at": datetime.now(UTC).isoformat(),

@@ -65,6 +65,7 @@ from app.services import (
     story_memory,
 )
 from app.services import living_story as engine
+from app.services.address import DEFAULT_CHARACTER_REGISTER, known_register
 from app.services.answer_acceptance import correction_is_grounded, is_preference_swap
 from app.services.journey_contracts import (
     AssistanceLevel,
@@ -83,6 +84,7 @@ from app.services.journey_contracts import (
 )
 from app.services.met_gate import DOWNGRADED, met_gate
 from app.services.season import agency
+from app.services.season.runtime import SEASON_CONTEXT_KEY
 from app.services.word_match import target_occurs_in
 
 logger = logging.getLogger(__name__)
@@ -361,7 +363,9 @@ no, a question, or something else); stands lists what was put to the learner and
 received; established lists what the learner's own words settled, each with its quote;
 still_open lists what nobody has answered or settled. The ending and the summary build on
 it: a no stays a no, a fact in established is the learner's, and a name or fact that is in
-neither the record, the panels nor released.reply_fr is not this scene's.
+neither the record, the panels nor released.reply_fr is not this scene's. A name stays with
+the thing it was given to: never move a name the learner or a character gave onto another
+thing.
 tomorrow_question_fr is the one question the reader carries into tomorrow: about something
 still_open holds or the ending leaves open, in your own words and any angle you like. One
 sentence of at most nine words at the learner's level, ending in «?», with no quotation
@@ -1086,6 +1090,8 @@ class StoryLaneResult:
     #: corrected (``{issues, from, to, withdrawn_target_ids}``); ``None`` when it stood.
     correction: dict | None = None
     tutor: TutorVerdict | None = None
+    #: #145: what the soft check found on the way, for the pilot ledger (no text).
+    firings: list[dict] = field(default_factory=list)
 
 
 def issue_code(issue: str) -> str:
@@ -1135,6 +1141,15 @@ def grading_correction(
     }
 
 
+def _ending_french(turn: engine.SemanticTurn, payload: dict) -> list[str]:
+    """What the ending says in French: a summary too, on a French-chrome day."""
+
+    french = [turn.resolution_fr, turn.callback_fr]
+    if normalize_control_language((payload.get("story") or {}).get("control_language")) == "fr":
+        french.append(turn.summary_native)
+    return french
+
+
 def validate_story(turn: engine.SemanticTurn, payload: dict) -> None:
     """The legacy turn guards on the merged turn, and an ending is always owed: the
     story lane only runs on the turn that closes the scene."""
@@ -1154,10 +1169,7 @@ def validate_story(turn: engine.SemanticTurn, payload: dict) -> None:
     # then today's authored ending is served (``settle_with_fallback``).
     lane_guards.check_agreement([turn.resolution_fr, turn.summary_native], address, own=own)
     # WP-155 §2: the ending credits the learner only with what they said or accepted.
-    french = [turn.resolution_fr, turn.callback_fr]
-    if normalize_control_language(story.get("control_language")) == "fr":
-        french.append(turn.summary_native)
-    lane_guards.check_invented_choice(french, payload)
+    lane_guards.check_invented_choice(_ending_french(turn, payload), payload)
     # WP-155 §3: a generated day's ending keeps the reveals of the tentpoles ahead.
     lane_guards.check_season_spoiler(written, payload)
     # #466: tomorrow's question never costs the ending. What the ending's text would be
@@ -1204,6 +1216,24 @@ def run_story_lane(
     reason = "story_generation_unavailable"
     critic = engine.CRITIC_ENABLED and "SemanticTurn" in engine.CRITIC_STAGES
     attempts = settings.ATELIER_STORY_MAX_ATTEMPTS + (1 if engine.BONUS_ATTEMPT_ENABLED else 0)
+    # #467: an ending that passed everything else but moves a name is asked for once more,
+    # and then served: a regex over a sentence never costs the learner the written ending.
+    moved_name: engine.SemanticTurn | None = None
+
+    def accept(turn: engine.SemanticTurn) -> bool:
+        nonlocal feedback, moved_name, reason
+        claim = lane_guards.unsupported_naming(_ending_french(turn, payload), payload)
+        if claim is not None and moved_name is None:
+            moved_name, reason = turn, "moved_name"
+            feedback = list(dict.fromkeys([*feedback, lane_guards.naming_hint(claim)]))
+            return False
+        if moved_name is not None:
+            result.firings.append(
+                {"code": "moved_name", "outcome": "corrected" if claim is None else "served_anyway"}
+            )
+        result.turn = turn
+        return True
+
     for attempt in range(attempts):
         if attempt >= settings.ATELIER_STORY_MAX_ATTEMPTS and (
             deadline - time.monotonic() < engine.REQUEST_TIMEOUT_SECONDS
@@ -1221,8 +1251,9 @@ def run_story_lane(
             turn = merged_turn(tutor, voice, story)
             validate_story(turn, payload)
             if not critic:
-                result.turn = turn
-                break
+                if accept(turn):
+                    break
+                continue
             review, _ = engine._json_call(
                 STORY_CRITIC,
                 {"source": payload, "released": released, "proposal": turn.model_dump(mode="json")},
@@ -1252,20 +1283,25 @@ def run_story_lane(
                     }
                     feedback = list(dict.fromkeys([*feedback, _corrected_hint(result.correction)]))
                     reason = "released_grade_corrected"
+                    moved_name = None  # written for the grade that was just withdrawn
                     continue
             if ending:
                 feedback = list(dict.fromkeys([*feedback, *ending]))
                 reason = issue_code(ending[0])
                 continue
             if review.accepted:
-                result.turn = turn
-                break
+                if accept(turn):
+                    break
+                continue
             issues = review.issues or ["semantic_review_rejected"]
             feedback = list(dict.fromkeys([*feedback, *issues]))
             reason = issues[0]
         except engine.StoryUnavailable as exc:
             reason = str(exc)
             feedback = list(dict.fromkeys([*feedback, exc.feedback]))
+    if result.turn is None and moved_name is not None:
+        result.turn = moved_name
+        result.firings.append({"code": "moved_name", "outcome": "served_first"})
     if result.turn is None:
         result.reason = reason
         result.hint = " | ".join(feedback)[:1200] or None
@@ -1575,7 +1611,8 @@ def evaluate_turn_lanes(
                 failure_reason=str(exc),
             )
         return engine._fallback_evaluation(
-            db, user=user, scenario=scenario, answer=answer, assistance=assistance, reason=str(exc)
+            db, user=user, scenario=scenario, answer=answer, assistance=assistance, reason=str(exc),
+            task=task, turn_index=turn_index,
         )
 
 
@@ -1706,28 +1743,49 @@ def _lanes_of(lane: dict) -> tuple[TutorVerdict, VoiceReply]:
     return TutorVerdict.model_validate(lane["tutor"]), VoiceReply.model_validate(lane["voice"])
 
 
-def fallback_story(lane: dict, *, character_name: str | None, language: str, reason: str) -> engine.SemanticTurn:
-    """The authored ending (WP-58) around what the learner already saw: their reply and
+def exit_register(db: Session, user, scenario) -> str:
+    """How this person addresses the learner, for the words no model wrote (#518): as the
+    cast says, else as the page has them speak, else the formal default."""
+
+    story = getattr(scenario, "story_context", None) or {}
+    thread = engine._active_thread(db, user)
+    known = known_register(
+        dict(thread.state or {}) if thread else None,
+        scenario.character_id,
+        registers=(story.get(SEASON_CONTEXT_KEY) or {}).get("registers"),
+    )
+    return known or _scene_register(story.get("draft") or {}) or DEFAULT_CHARACTER_REGISTER
+
+
+def fallback_story(
+    lane: dict,
+    *,
+    character_name: str | None,
+    language: str,
+    reason: str,
+    character_id: str | None = None,
+    register: str | None = None,
+) -> engine.SemanticTurn:
+    """The authored ending (WP-58, #518) around what the learner already saw: their reply and
     grade stand; no commitment, closure or secret is invented."""
 
     tutor, voice = _lanes_of(lane)
     authored = engine.fallback_turn(
         character_name=character_name,
+        character_id=character_id,
         learner_text=str(lane.get("learner_text") or ""),
         language=language,
         reason=reason,
-        # R2-5: the reply the learner read stands; the ending does not deny it.
-        answered=bool((voice.reply_fr or "").strip()),
+        register=register,
+        # The tutor read this reply: it may be quoted only if nothing in it was corrected.
+        clean=not (tutor.correction_span_fr or tutor.correction_fr),
     )
-    return merged_turn(
+    merged = merged_turn(
         tutor,
         voice,
-        StoryTurn(
-            resolution_fr=authored.resolution_fr,
-            summary_native=authored.summary_native,
-            callback_fr=authored.callback_fr,
-        ),
+        StoryTurn(resolution_fr=authored.resolution_fr, summary_native=authored.summary_native),
     )
+    return merged.model_copy(update={"authored_ending": True})
 
 
 def _apply(db: Session, *, user, journey, brief, resolution, turn, usage, revision, lane_status,
@@ -1740,7 +1798,7 @@ def _apply(db: Session, *, user, journey, brief, resolution, turn, usage, revisi
         callback_fr=turn.callback_fr or None,
         character_id=brief.character_id,
         details={**turn.model_dump(mode="json"), "usage": usage, "revision": revision,
-                 "cost_stage": "story",
+                 "cost_stage": "story", "authored_ending": turn.authored_ending,
                  # N1: the acts stored at release reach the season's settle, whichever
                  # ending (written or authored) the lane ends on.
                  **{key: private_lane[key] for key in agency.DETAIL_KEYS if key in private_lane}},
@@ -1783,7 +1841,14 @@ def settle_with_fallback(db: Session, *, user, journey, brief, resolution, reaso
         return None
     lane = lane_of(resolution)
     language = normalize_control_language(getattr(user, "native_language", None))
-    turn = fallback_story(lane, character_name=brief.character_name, language=language, reason=reason)
+    turn = fallback_story(
+        lane,
+        character_name=brief.character_name,
+        character_id=brief.character_id,
+        language=language,
+        reason=reason,
+        register=exit_register(db, user, brief),
+    )
     PilotEventService(db).record(
         "journey_story_turn_fallback",
         user_id=user.id,
@@ -1995,6 +2060,9 @@ def _finish_job(db: Session, job: StoryJob, result: StoryLaneResult, payload: di
             logger.warning("story_lanes: reply_refused_after_release: %s", issue)
             events.record("reply_refused_after_release", user_id=user.id, entity_type="living_story",
                           entity_id=str(journey.id), payload={"issue": issue[:300]}, cost_usd=0.0)
+        for firing in result.firings:
+            events.record(GUARD_FIRED_EVENT, user_id=user.id, entity_type="living_story",
+                          payload={**firing, "stage": "story", "version": engine.VERSION}, cost_usd=0.0)
         brief, _task, respond = _journey_parts(db, journey, act=step_act(resolution))
         if result.correction is not None and result.tutor is not None:
             _correct_learning_record(db, user=user, journey=journey, resolution=resolution,
