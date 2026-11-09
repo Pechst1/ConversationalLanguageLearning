@@ -3415,7 +3415,7 @@
   min-width: 0;
 }
 .av2 .av2-thread__line { min-width: 0; }
-/* The page moves on (#558): a new time or place, a message. Nobody says it. */
+/* The page moves on: a new time or place, a message. Nobody says it. */
 .av2 .av2-thread__cut {
   color: var(--av2-muted);
   font-family: var(--av2-serif);
