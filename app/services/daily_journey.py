@@ -5685,6 +5685,14 @@ class DailyJourneyService:
         if step.status == str(StepStatus.COMPLETED) and act == 1:
             self._finish_answered_letter(user, journey, step, evaluation)
 
+        scene_check = verdicts.from_scene(
+            outcome=evaluation.outcome,
+            correction=evaluation.correction,
+            text=answer.text or "",
+            failure_reason=evaluation.failure_reason,
+            check_failure=evaluation.check_failure,
+        )
+        verdicts.note_failure(self.db, surface="scene", verdict=scene_check, user_id=user.id)
         return AttemptResult(
             evidence_ref=applied.evidence_ref,
             task_outcome=evaluation.outcome,
@@ -5695,15 +5703,7 @@ class DailyJourneyService:
             reply_source=self._reply_source(evaluation),
             next_turn=next_turn,
             pending=False,
-            check=VerdictView.of(
-                verdicts.from_scene(
-                    outcome=evaluation.outcome,
-                    correction=evaluation.correction,
-                    text=answer.text or "",
-                    failure_reason=evaluation.failure_reason,
-                    check_failure=evaluation.check_failure,
-                )
-            ),
+            check=VerdictView.of(scene_check),
             repeat_line_fr=(
                 repeat_line_for(step, public_correction)
                 if step.status == str(StepStatus.COMPLETED)
@@ -5943,6 +5943,7 @@ class DailyJourneyService:
                 # never used stays unmet.
                 produced_target_ids=_produced_target_ids(evaluation),
                 language=getattr(user, "native_language", None),
+                check_failure=getattr(evaluation, "check_failure", None),
             )
         except Exception:
             logger.exception("daily_journey: the answered Courrier letter could not be filed")

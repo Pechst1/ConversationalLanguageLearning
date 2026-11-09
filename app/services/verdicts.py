@@ -9,6 +9,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
+from loguru import logger
+
 from app.core.verdict import Call, CheckedBy, Failure, Outcome, Verdict, make_verdict
 from app.services.journey_contracts import Correction, TaskOutcome
 
@@ -154,6 +156,14 @@ def from_forge(correction: dict[str, Any] | None, *, text: str = "", verdict: st
     review = payload.get("ai_review") if isinstance(payload.get("ai_review"), dict) else {}
     errata = payload.get("errata") or []
     by_key = payload.get("local_status") == "right"
+    # A row from before ``assessment_status``: the same reading as seanceAssessment's.
+    if (
+        not status
+        and debug.get("fallback_used")
+        and isinstance(payload.get("corrected_answer"), str)
+        and payload.get("graded_by") != "local_test_out"
+    ):
+        return make_verdict(outcome=Outcome.NOT_CHECKED, checked_by=CheckedBy.NONE, call=Call.NOT_CALLED)
     if status == "provisional" and not by_key:
         return make_verdict(outcome=Outcome.NOT_CHECKED, checked_by=CheckedBy.NONE, call=Call.PENDING)
     if status == "unavailable" or word == "needs_review":
@@ -183,6 +193,13 @@ def from_courrier(correction: dict[str, Any] | None, *, text: str = "") -> Verdi
     """A Courrier message, from its stored correction payload."""
 
     payload = correction if isinstance(correction, dict) else {}
+    if "journey_outcome" in payload:
+        # A letter answered in the day's journey: the scene's reading crossed, not a corrector's.
+        try:
+            read = TaskOutcome(str(payload["journey_outcome"]))
+        except ValueError:
+            read = TaskOutcome.UNSCORED
+        return from_scene(outcome=read, text=text, check_failure=payload.get("journey_check_failure"))
     debug = payload.get("correction_debug") if isinstance(payload.get("correction_debug"), dict) else {}
     errata = payload.get("errata") or []
     if not debug.get("fallback_used") and payload.get("verdict") in {"accepted", "partial", "needs_revision"}:
@@ -193,15 +210,28 @@ def from_courrier(correction: dict[str, Any] | None, *, text: str = "") -> Verdi
             text=text,
             proposed=_errata_as_proposed(errata, by="model"),
         )
+    reason = debug.get("failure")
+    call = {"empty": Call.EMPTY, "no_model": Call.NOT_CALLED}.get(str(reason), Call.FAILED)
     return make_verdict(
         outcome=Outcome.NOT_CHECKED,
         checked_by=CheckedBy.NONE,
-        call=Call.FAILED,
-        failure=failure_class(debug.get("failure")),
-        retryable=True,
+        call=call,
+        failure=failure_class(reason),
+        retryable=call is not Call.NOT_CALLED,
         text=text,
         proposed=_errata_as_proposed(errata, by="rules"),
     )
+
+
+def from_feuilleton(correction: dict[str, Any] | None, *, verdict: str | None = None) -> Verdict:
+    """A stored Feuilleton answer, for what may count. A branch is a choice nobody can fail to read."""
+
+    payload = correction if isinstance(correction, dict) else {}
+    debug = payload.get("correction_debug") if isinstance(payload.get("correction_debug"), dict) else {}
+    word = str(verdict or payload.get("verdict") or "")
+    if debug.get("fallback_used") or word in {"", "needs_review", "unassessed"}:
+        return make_verdict(outcome=Outcome.NOT_CHECKED, checked_by=CheckedBy.NONE, call=Call.NOT_CALLED)
+    return make_verdict(outcome=_WORDS.get(word, Outcome.RIGHT), checked_by=CheckedBy.KEY, call=Call.NOT_CALLED)
 
 
 def from_journal(correction: dict[str, Any] | None, *, text: str = "") -> Verdict:
@@ -237,4 +267,31 @@ def from_journal(correction: dict[str, Any] | None, *, text: str = "") -> Verdic
     )
 
 
-__all__ = ["failure_class", "from_courrier", "from_forge", "from_journal", "from_recall", "from_scene"]
+def note_failure(db: Any, *, surface: str, verdict: Verdict, user_id: Any = None) -> None:
+    """Log a check that did not run, so the next walk can name it. Never raises."""
+
+    if verdict.counts or verdict.call not in {Call.FAILED, Call.EMPTY}:
+        return
+    failure = verdict.failure.value if verdict.failure else None
+    logger.warning("verdict_check_failed surface={} failure={}", surface, failure)
+    try:
+        from app.services.pilot_events import PilotEventService
+
+        with db.begin_nested():
+            PilotEventService(db).record(
+                "verdict_check_failed", user_id=user_id, payload={"surface": surface, "failure": failure}
+            )
+    except Exception as exc:  # noqa: BLE001 - a log line is never worth the learner's answer
+        logger.warning("verdict_check_failed event not stored: {}", exc)
+
+
+__all__ = [
+    "failure_class",
+    "from_courrier",
+    "from_feuilleton",
+    "from_forge",
+    "from_journal",
+    "from_recall",
+    "from_scene",
+    "note_failure",
+]

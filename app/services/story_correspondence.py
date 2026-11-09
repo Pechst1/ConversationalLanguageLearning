@@ -1622,6 +1622,7 @@ def answer_letter_from_journey(
     outcome: str,
     produced_target_ids: Sequence[str] = (),
     language: Any = None,
+    check_failure: str | None = None,
 ) -> RealWorldMission | None:
     """Finish, once, the letter the learner just answered in their journey.
 
@@ -1635,6 +1636,9 @@ def answer_letter_from_journey(
     Idempotent twice over: the attempt is written only when this mission has no
     journey attempt yet, and `complete()` returns the mission untouched once it
     is completed. Returns ``None`` when there is no such letter to finish.
+
+    ``check_failure`` says nobody read the reply (#333): the letter still closes, and
+    nothing on it reads as a verdict.
     """
 
     from app.db.models.mission import RealWorldMissionAttempt
@@ -1655,10 +1659,15 @@ def answer_letter_from_journey(
         text = " ".join(str(learner_text or "").split())
         progress = objective_progress_from_journey(
             objectives=mission.objectives,
-            outcome=outcome,
-            produced_target_ids=produced_target_ids,
+            outcome="unscored" if check_failure else outcome,
+            produced_target_ids=() if check_failure else produced_target_ids,
             language=language,
         )
+        if check_failure:
+            verdict, score = "unassessed", 0.0
+        else:
+            verdict = "accepted" if str(outcome) == "met" else "needs_revision"
+            score = 4.0 if str(outcome) == "met" else (2.0 if str(outcome) == "partially_met" else 1.0)
         db.add(
             RealWorldMissionAttempt(
                 mission_id=mission.id,
@@ -1672,9 +1681,10 @@ def answer_letter_from_journey(
                     "objective_progress": progress,
                     "errata": [],
                     "journey_outcome": str(outcome),
+                    **({"journey_check_failure": check_failure} if check_failure else {}),
                 },
-                verdict="accepted" if str(outcome) == "met" else "needs_revision",
-                score_0_4=4.0 if str(outcome) == "met" else (2.0 if str(outcome) == "partially_met" else 1.0),
+                verdict=verdict,
+                score_0_4=score,
             )
         )
         db.flush()

@@ -81,8 +81,17 @@ def _attempt_read(attempt: RealWorldMissionAttempt) -> dict:
     }
 
 
-def _check(correction: dict | None, text: str | None) -> VerdictView:
-    return VerdictView.of(verdicts.from_courrier(correction, text=text or ""))
+def _erratum_key(item: dict) -> tuple[str, str]:
+    return (str(item.get("learner_text") or "").casefold(), str(item.get("corrected_target") or "").casefold())
+
+
+def _check(correction: dict | None, text: str | None, *, db: Session | None = None, user: User | None = None) -> VerdictView:
+    """The message's check. With ``db``, this is the first read, so a failure is logged once."""
+
+    verdict = verdicts.from_courrier(correction, text=text or "")
+    if db is not None:
+        verdicts.note_failure(db, surface="courrier", verdict=verdict, user_id=getattr(user, "id", None))
+    return VerdictView.of(verdict)
 
 
 def _turn_read(turn: RealWorldMissionTurn) -> dict:
@@ -378,7 +387,7 @@ def submit_mission(
         correction=correction,
         errata=persisted,
         mission=serialize_mission(mission) or {},
-        check=_check(correction, request.text),
+        check=_check(correction, request.text, db=db, user=current_user),
     )
 
 
@@ -531,7 +540,7 @@ def submit_mission_turn(
         errata=persisted,
         mission=serialize_mission(mission) or {},
         outcome=outcome,
-        check=_check(correction, user_turn.text),
+        check=_check(correction, user_turn.text, db=db, user=current_user),
     )
 
 
@@ -626,23 +635,24 @@ def retry_mission_turn_correction(
             near_realtime=False,
         )
         if correction.get("verdict") != "unassessed":
-            # The words this reply used were credited the first time; only the
-            # language errata are new.
+            # The first pass already credited this reply's words and filed its rule
+            # fixes (#333). Only what the model adds is new: one mistake is counted once.
+            filed = {_erratum_key(item) for item in previous.get("errata") or [] if isinstance(item, dict)}
             persisted = correction_service.persist_errata(
                 user=current_user,
                 mission=mission,
-                correction=correction,
+                correction={
+                    **correction,
+                    "errata": [item for item in correction.get("errata") or [] if _erratum_key(item) not in filed],
+                },
                 mode=user_turn.mode,
                 source_id=str(user_turn.id),
                 include_vocabulary=False,
             )
-            credited = [
-                record
-                for record in (previous.get("persistence") or {}).get("records") or []
-                if isinstance(record, dict)
-                and (record.get("linked_word_id") or str(record.get("error_category") or "") == "vocabulary")
+            already = [
+                record for record in (previous.get("persistence") or {}).get("records") or [] if isinstance(record, dict)
             ]
-            user_turn.correction_payload = _correction_with_persistence(correction, [*persisted, *credited])
+            user_turn.correction_payload = _correction_with_persistence(correction, [*persisted, *already])
             db.add(user_turn)
             db.commit()
             db.refresh(user_turn)
@@ -652,7 +662,7 @@ def retry_mission_turn_correction(
         correction=user_turn.correction_payload or {},
         errata=persisted,
         mission=serialize_mission(mission) or {},
-        check=_check(user_turn.correction_payload, user_turn.text),
+        check=_check(user_turn.correction_payload, user_turn.text, db=db, user=current_user),
     )
 
 

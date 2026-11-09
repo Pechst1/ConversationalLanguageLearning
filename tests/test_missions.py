@@ -803,7 +803,9 @@ def test_mission_near_realtime_correction_uses_local_rules_without_llm(db_sessio
         near_realtime=True,
     )
 
-    assert correction["verdict"] == "needs_revision"
+    # #333 / D4: rules add fixes, never a verdict or a score.
+    assert correction["verdict"] == "unassessed"
+    assert not correction["score_0_4"]
     assert correction["corrected_answer"] == "Vous avez un problème?"
     assert correction["correction_debug"]["prompt_version"] == "mission-correction-fast-v1"
     assert correction["correction_debug"]["near_realtime"] is True
@@ -1701,7 +1703,8 @@ def test_a_courrier_reply_with_the_corrector_down_still_gets_the_real_correction
     assert ("sonné", "sonner") in pairs
     assert ("vend", "vends") in pairs
     assert all(item["learner_text"] in text for item in correction["errata"])
-    assert correction["verdict"] != "unassessed"
+    # #333 / D4: the fixes are real and listed; nobody graded the reply.
+    assert correction["verdict"] == "unassessed"
     assert correction["corrected_answer"] != text
 
 

@@ -1318,13 +1318,32 @@ def _scene_of(db: Session, scenario: ScenarioBrief):
 # ---------------------------------------------------------------------------
 
 
+@dataclass(frozen=True, slots=True)
+class MarginFailure:
+    """The tutor did not read this reply (#333). Falsy, so it reads as «no correction»."""
+
+    reason: str
+
+    def __bool__(self) -> bool:
+        return False
+
+
+def split_margin(result: Correction | MarginFailure | None) -> tuple[Correction | None, str | None]:
+    """What :func:`margin_correction` returned, as the correction and why there is none."""
+
+    if isinstance(result, MarginFailure):
+        return None, result.reason
+    return result, None
+
+
 def margin_correction(
     db: Session, *, user, scenario: ScenarioBrief, task: ResponseTask, answer: AttemptAnswer,
     turn_index: int, history=None,
-) -> Correction | None:
+) -> Correction | MarginFailure | None:
     """The tutor lane alone, for an authored season page (owner test 2026-09-30:
     «Odile est mon grand-mere» passed uncorrected). The page answers the learner; the
-    tutor only corrects the form, in the margin. Any failure is no correction."""
+    tutor only corrects the form, in the margin. A failure is no correction, and says so:
+    a tutor that found nothing and one that never answered are different results."""
 
     try:
         payload = engine._turn_payload(db, user, scenario, task, answer, history, turn_index)
@@ -1340,7 +1359,7 @@ def margin_correction(
                   payload={"turn_index": turn_index, "season": True})
     except Exception as exc:  # noqa: BLE001 - a correction is never worth the turn
         logger.info("story_lanes: no margin correction on the season page (%s)", exc)
-        return None
+        return MarginFailure(f"{type(exc).__name__}: {exc}")
     if verdict.correction_span_fr and verdict.correction_fr and verdict.correction_note_native:
         candidate = Correction(
             span_fr=verdict.correction_span_fr,

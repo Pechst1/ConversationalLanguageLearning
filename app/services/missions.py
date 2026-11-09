@@ -23,7 +23,7 @@ from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.db.savepoint import best_effort
-from app.services import cast_registry, correction_contract
+from app.services import cast_registry, correction_contract, verdicts
 from app.services import story_correspondence as courrier
 from app.services.address import address_instruction, known_register
 from app.services.answer_acceptance import is_preference_swap
@@ -3650,6 +3650,7 @@ class MissionCorrectionService:
         # learner's native language; the Courrier's fiction around it stays French.
         language = getattr(user, "native_language", None)
         deterministic_errata, deterministic_answer = self._deterministic_errata(text, language=language)
+        self._correction_failure = "no_model" if near_realtime else None
         if near_realtime:
             correction = self._fallback_correction(
                 mission=mission,
@@ -3684,6 +3685,8 @@ class MissionCorrectionService:
             "prompt_version": correction.get("_prompt_version") or MISSION_CORRECTION_PROMPT_VERSION,
             "fallback_used": correction.get("_fallback_used", False),
             "model": correction.get("_model"),
+            # #333: why no model verdict exists. The screen and the failure log read it.
+            "failure": getattr(self, "_correction_failure", None) if correction.get("_fallback_used") else None,
             "deterministic_rule_count": len(deterministic_errata),
             "near_realtime": near_realtime,
         }
@@ -4050,7 +4053,9 @@ class MissionCorrectionService:
         return persisted
 
     def _llm_correction(self, *, user: User, mission: RealWorldMission, text: str, mode: str) -> dict[str, Any] | None:
+        self._correction_failure = None
         if not self.llm:
+            self._correction_failure = "no_model"
             return None
         # An explanation the learner cannot read teaches nothing: follow the same
         # contract as the Atelier corrector — French stays French, the prose that
@@ -4111,12 +4116,18 @@ class MissionCorrectionService:
                 purpose="correction",
                 mission_id=getattr(mission, "id", None),
             )
+            if not str(result.content or "").strip():
+                self._correction_failure = "empty"
+                return None
             parsed = json.loads(result.content)
+            if not parsed.get("verdict"):
+                raise ValueError("invalid output: the corrector returned no verdict")
             parsed["_model"] = result.model
             parsed["_fallback_used"] = False
             return parsed
         except MODEL_CALL_FAILED as exc:
             logger.debug("Mission correction LLM fallback", error=str(exc))
+            self._correction_failure = f"{type(exc).__name__}: {exc}"
             return None
 
     def _fallback_correction(
@@ -4180,15 +4191,11 @@ class MissionCorrectionService:
                     "external_id": "MISSION_TASK",
                 }
             )
-        # WP-74 — the grader was unavailable (or never asked, on the fast path):
-        # a non-empty answer is ``unassessed``, never ``accepted``. Only the
-        # deterministic rules below are real evidence, and they can only lower it.
+        # WP-74 / #333 — the grader was unavailable (or never asked, on the fast path):
+        # a non-empty answer is ``unassessed``, whatever the rules found. Their fixes are
+        # real and stay listed, but rules add fixes, never a verdict or a score.
         score = None if stripped else 1
         verdict = "unassessed" if stripped else "needs_revision"
-        if deterministic_errata:
-            max_severity = max(int(item.get("severity") or 1) for item in deterministic_errata)
-            verdict = "needs_revision" if max_severity >= 2 else "partial"
-            score = 2 if max_severity >= 2 else 3
         return {
             "verdict": verdict,
             "score_0_4": score,
@@ -4319,6 +4326,8 @@ class MissionCorrectionService:
                 existing_keys.add(key)
         merged["errata"] = existing
         merged["corrected_answer"] = corrected_answer or merged.get("corrected_answer") or ""
+        if merged.get("verdict") == "unassessed":
+            return merged  # #333: rules add fixes, never a score
         max_severity = max(int(item.get("severity") or 1) for item in deterministic_errata)
         if max_severity >= 2 and merged.get("verdict") == "accepted":
             merged["verdict"] = "needs_revision"
@@ -4908,6 +4917,7 @@ class MissionDebriefService:
         errata_count: int,
         srs_result: dict[str, Any],
         reply_pending: bool = False,
+        unchecked: bool = False,
     ) -> dict[str, Any]:
         # An objective met in turn 1 stays met: reading only the LAST correction
         # scored a whole conversation on its closing "Oui." and reported 0%
@@ -4947,7 +4957,7 @@ class MissionDebriefService:
             objectives=objectives,
             progress_by_id=progress_by_id,
             had_submission=bool(attempts or turns),
-            reply_pending=reply_pending,
+            reply_pending=reply_pending or unchecked,
         )
         measured = {
             "objectives_met": met_required,
@@ -4974,6 +4984,10 @@ class MissionDebriefService:
             # was settled or missed; the letter says so rather than printing a verdict.
             label = "Pas de réponse : un de tes messages est resté sans réponse."
             measured["reply_pending"] = True
+        elif unchecked:
+            # #333: nobody read one of the learner's messages, so nothing here is a verdict.
+            label = "Pas vérifiée : un de tes messages n'a pas pu être relu."
+            measured["unchecked"] = True
         return {
             "debrief_version": "mission-debrief-v2",
             "outcome": courrier_outcome,
@@ -6397,6 +6411,7 @@ class MissionScheduler:
             turns=turns,
         )
         reply_pending = bool(unanswered_user_turns(mission.turns))
+        unchecked = bool(unchecked_messages(attempts, mission.turns))
         debrief = MissionDebriefService().build(
             mission=mission,
             attempts=attempts,
@@ -6404,6 +6419,7 @@ class MissionScheduler:
             errata_count=errata_count,
             srs_result=srs_result,
             reply_pending=reply_pending,
+            unchecked=unchecked,
         )
         outcome: dict[str, Any] | None = None
         if getattr(mission, "serial_thread_id", None):
@@ -6425,10 +6441,10 @@ class MissionScheduler:
             # Letters written before WP-64 shipped, and serial acts, get their
             # identity here rather than staying outside every future thread.
             mission.correspondent_id = courrier.correspondent_of(mission).get("id") or None
-        # #590: a token is the reward for a letter that was answered.
+        # #590 / #333: a token is the reward for a letter that was answered and read.
         minted_collectibles = (
             AtelierRewardService(self.db).mint_logo_token_for_mission(mission)
-            if not getattr(mission, "serial_thread_id", None) and not reply_pending
+            if not getattr(mission, "serial_thread_id", None) and not reply_pending and not unchecked
             else []
         )
         mission.recap_payload = {
@@ -6453,7 +6469,7 @@ class MissionScheduler:
             outcome=courrier_outcome,
             attempts=attempts,
             turns=turns,
-            reply_pending=reply_pending,
+            reply_pending=reply_pending or unchecked,
         )
         if story_event:
             mission.recap_payload["story_event"] = {
@@ -6488,7 +6504,8 @@ class MissionScheduler:
         # O-1: l'or in shadow — the letter's first written attempt (best effort).
         from app.services import gold_ledger
 
-        gold_ledger.record_letter(self.db, user=user, mission=mission, attempts=attempts)
+        if not unchecked:
+            gold_ledger.record_letter(self.db, user=user, mission=mission, attempts=attempts)
         self.db.add(mission)
         self.db.commit()
         self.db.refresh(mission)
@@ -6640,6 +6657,24 @@ def is_stock_reply(text: Any) -> bool:
 
     folded = " ".join(str(text or "").split())
     return folded in {STOCK_ACKNOWLEDGEMENT_TU, STOCK_ACKNOWLEDGEMENT_VOUS}
+
+
+def unchecked_messages(attempts: Any, turns: Any) -> list[Any]:
+    """Every message of this letter a failed check left unread (#333).
+
+    Read once here, like :func:`unanswered_user_turns`: the verdict, the mood, the token
+    and l'or all read this list, so they cannot disagree. One unread message is enough:
+    a letter is judged as a whole, so a part nobody read can't be called kept. A row with
+    no correction stored was never sent for one, and it is not a failed check.
+    """
+
+    rows = [*(attempts or []), *[turn for turn in turns or [] if getattr(turn, "role", None) == "user"]]
+    return [
+        row
+        for row in rows
+        if getattr(row, "correction_payload", None)
+        and not verdicts.from_courrier(row.correction_payload).counts
+    ]
 
 
 def unanswered_user_turns(turns: Any) -> list[Any]:
@@ -7040,7 +7075,7 @@ class MissionConversationService:
             objectives=mission.objectives or [],
             progress_by_id={str(item.get("id")): item for item in progress if item.get("id")},
             had_submission=bool(attempts or turns),
-            reply_pending=bool(unanswered_user_turns(turns)),
+            reply_pending=bool(unanswered_user_turns(turns)) or bool(unchecked_messages(attempts, turns)),
         )
         success = outcome == "kept"
         score = self._latest_score(attempts=attempts, turns=turns)

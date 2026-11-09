@@ -37,7 +37,7 @@ from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.db.session import SessionLocal
-from app.services import fallback_pools, order_rules
+from app.services import fallback_pools, order_rules, verdicts
 from app.services.address import address_instruction
 from app.services.answer_acceptance import accent_policy, is_preference_swap, widened_answers
 from app.services.atelier_assets import AtelierAssetService
@@ -5761,6 +5761,7 @@ class AtelierCorrectionService:
             attempt.verdict = "needs_review"
             attempt.score_0_4 = 0.0
         correction["second_check"] = {"status": "failed", "verdict_changed": False, "llm_ms": llm_ms}
+        verdicts.note_failure(self.db, surface="forge", verdict=verdicts.from_forge(correction), user_id=attempt.user_id)
         if llm_ms is not None:
             correction["latency"] = {**dict(correction.get("latency") or {}), "async_llm_ms": llm_ms}
         attempt.correction_payload = correction

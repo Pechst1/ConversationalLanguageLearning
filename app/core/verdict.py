@@ -186,8 +186,8 @@ def make_verdict(
         outcome=outcome,
         checked_by=checked_by,
         call=call,
-        failure=failure if call in {Call.FAILED, Call.EMPTY} else None,
-        retryable=retryable and call in {Call.FAILED, Call.EMPTY},
+        failure=None if settled else failure,
+        retryable=retryable and not settled and call in {Call.FAILED, Call.EMPTY},
         edits=edits,
         corrected=apply_edits(text, edits) if edits else None,
     )
