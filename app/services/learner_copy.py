@@ -622,7 +622,7 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "forge.diff.accent": {
         "en": "Mind the accent: «{target}».",
         "de": "Achte auf den Akzent: «{target}».",
-        "fr": "Attention à l’accent : «{target}».",
+        "fr": "Attention à l’accent : « {target} ».",
     },
     "forge.diff.label": {
         "en": "Correction",
