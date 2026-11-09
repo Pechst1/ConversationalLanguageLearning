@@ -112,6 +112,7 @@ def test_the_cap_is_the_learners_number_plus_todays_extras(
     client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _headers, user = _login(client, db_session)
+    _supply(db_session, 60, "wmorecap")  # a grant is what the pool can deal
     _dose_of(db_session, user, monkeypatch, 20)
     assert vocabulary_pace.effective_new_word_cap(db_session, user) == 20
 
@@ -181,6 +182,7 @@ def test_the_day_plan_takes_its_quota_from_the_one_cap_without_the_extras(
     from app.services import day_words
 
     _headers, user = _login(client, db_session)
+    _supply(db_session, 10, "wmoreplan")
     _dose_of(db_session, user, monkeypatch, 10)
     vocabulary_pace.grant_extra_new_words(db_session, user)
     db_session.commit()
@@ -281,6 +283,7 @@ def test_the_last_step_of_the_day_is_refused(
     client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     headers, user = _login(client, db_session)
+    _supply(db_session, 60, "wmorelast")
     _dose_of(db_session, user, monkeypatch, 10)
     for _ in range(vocabulary_pace.MAX_EXTRA_NEW_WORDS // vocabulary_pace.EXTRA_WORDS_STEP):
         assert client.post("/api/v1/vocabulary/new-words/more", headers=headers).status_code == 200
@@ -379,6 +382,7 @@ def test_the_new_words_endpoint_says_what_the_next_step_brings(
     client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     headers, user = _login(client, db_session)
+    _supply(db_session, 10, "wmorepace")
     _dose_of(db_session, user, monkeypatch, 20)
     user.cefr_target_level = "A2.2"
     user.cefr_estimate = "A1.1"
@@ -405,6 +409,7 @@ def test_the_now_argument_is_honoured_for_a_new_day(
     """Extras are today's: tomorrow starts at the learner's own number again."""
 
     _headers, user = _login(client, db_session)
+    _supply(db_session, 10, "wmoreday")
     _dose_of(db_session, user, monkeypatch, 20)
     vocabulary_pace.grant_extra_new_words(db_session, user)
     db_session.commit()

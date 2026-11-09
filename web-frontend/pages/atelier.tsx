@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
 import { oncePerLoad } from '@/lib/once-per-load';
 import { correctRunFrom, seanceAssessment, secondCheckChange } from '@/lib/seance-feedback';
+import { withinWordRange } from '@/lib/word-range';
 import { forgeCorrectionNotes } from '@/lib/correction-notes';
 import { classifyRepair } from '@/lib/forge-followup';
 import { classificationCopy, classificationGoal, isJudgementLabels, judgementLabel, judgementQuestion } from '@/lib/classification-copy';
@@ -133,6 +134,7 @@ import { DaySessionNext, TempoSheet } from '@/components/atelier-v2/home/DaySess
 import {
   daySessionCopy,
   homeDayChip,
+  recapStreak,
   sessionMarkState,
   sessionMore,
   sessionNextAction,
@@ -140,7 +142,7 @@ import {
 } from '@/lib/day-session';
 import { dayIsDone, handOnAfterGrammar, ruleCheckExitFromDay, ruleCheckIsFromDay, ruleCheckPath } from '@/lib/day-plan';
 import { todayInterlude } from '@/components/atelier-v2/journey/season-return-model';
-import type { ControlLanguage, JourneySnapshot, TodayEnvelope } from '@/types/daily-journey';
+import type { ControlLanguage, DaySession, JourneySnapshot, TodayEnvelope } from '@/types/daily-journey';
 import { ExerciseShell } from '@/components/ui/ExerciseShell';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Confetti, Seal, sealForEdition, type SealVariant } from '@/components/ui/Seal';
@@ -181,6 +183,7 @@ import {
   drillOnScreen,
   forgeCheer,
   isNamedDrill,
+  rafaleReason,
   spotAnswer,
   spotChanged,
   spotTokens,
@@ -550,7 +553,12 @@ function drillAnswerIsReady(
     return answerValueHasContent(currentAnswers[item.id]);
   }
   if (round === 'sentence' || round === 'speak' || round === 'conversation') {
-    return answerValueHasContent(currentAnswers.text);
+    if (!answerValueHasContent(currentAnswers.text)) return false;
+    // #574: a typed line is not above the word ceiling its item states (the
+    // server refuses the same lines); a spoken transcript's length is the recogniser's.
+    if (round === 'speak') return true;
+    const item = payload.output_ladder?.[round]?.items?.[0] || {};
+    return withinWordRange(String(currentAnswers.text || ''), item.max_words);
   }
   return false;
 }
@@ -2372,6 +2380,7 @@ export default function AtelierPage() {
             language={pageChromeLanguage}
             recommendation={legacyRecommendation}
             dayHandOn={dayHandOn ? { label: dayHandOn.label } : null}
+            daySession={journey.envelope?.session ?? null}
             testOutPending={testOutPending}
             onTestOut={(conceptId) => {
               void startTestOut(conceptId, { short: true, source: 'forge' }).then((started) => {
@@ -3548,9 +3557,18 @@ function AtelierEditionNav({
 }
 
 function displayConceptTitle(concept: AtelierConcept) {
-  // Publication surfaces speak French first; catalog names stay the native-
-  // language fallback until every concept carries its fr localization.
-  return String(concept.title_fr || concept.atelier_blueprint?.display_title || concept.name || 'Règle du jour');
+  // #561: a rule is called what the rule card calls it, in the learner's chrome
+  // language (`title_native`, the server's concept_title). The French title is the
+  // fallback, then the catalog name.
+  return String(
+    concept.title_native || concept.title_fr || concept.atelier_blueprint?.display_title || concept.name || 'Règle du jour',
+  );
+}
+
+/** The `lang` of what `displayConceptTitle` returns: the chrome language when the title is native. */
+function conceptTitleLang(concept: AtelierConcept | null | undefined, language: string) {
+  const native = String(concept?.title_native || '').trim();
+  return native && native !== String(concept?.title_fr || '').trim() ? language : 'fr';
 }
 
 function firstDueErratum(today: AtelierToday | null, activeSession: AtelierSessionStart | null) {
@@ -3874,6 +3892,7 @@ function SessionView({
             <ForgeHead
               copy={fc}
               title={activeConceptTitle}
+              titleLang={conceptTitleLang(activeConcept, language)}
               rung={forgeRung}
               levelRule={forge.level_rule}
               eyebrow={forgeTestOut ? fc.test_out_eyebrow : null}
@@ -3936,7 +3955,7 @@ function SessionView({
                       cheer={forgeCheer(currentCorrection, fc)}
                       coach={ruleCoach}
                       coachMood={coachMood(currentCorrection, { correct: burstMarks.every((row) => row.correct) })}
-                      rule={feedbackRuleLine(activeSet, activeConcept, t)}
+                      reasonFor={(row) => rafaleReason(ruleCard, row, language)}
                       onNext={feedbackNext}
                       nextLabel={feedbackNextLabel}
                     />
@@ -5137,6 +5156,7 @@ function RecapModal({
   filedEarly = false,
   recommendation,
   dayHandOn = null,
+  daySession = null,
   onRecommendedAction,
   onClose,
   language,
@@ -5144,6 +5164,8 @@ function RecapModal({
   testOutPending = false,
 }: {
   recap: Record<string, any>;
+  /** #559: the day's session, so the recap prints the streak Home prints. */
+  daySession?: DaySession | null;
   /** Round 3: the day's grammar step hands on to the next step, not a suggestion. */
   dayHandOn?: { label: string } | null;
   concepts: AtelierConcept[];
@@ -5162,8 +5184,17 @@ function RecapModal({
   const fc = forgeCopy(language);
   const mc = momentumCopy(language);
   // WP-S6: a forge séance's recap is each rule's progress, not a tally.
-  const forgeRows = recapRuleRows(recap, concepts, (concept) => displayConceptTitle(concept as AtelierConcept), fc, language);
+  const forgeRows = recapRuleRows(
+    recap,
+    concepts,
+    (concept) => displayConceptTitle(concept as AtelierConcept),
+    fc,
+    language,
+    new Date(),
+    (concept) => conceptTitleLang(concept as AtelierConcept, language),
+  );
   const offer = onTestOut ? testOutOffer(recap) : null;
+  const shownStreak = recapStreak(recap.streak_before, recap.streak_after, daySession);
   const offerConcept = offer ? concepts.find((concept) => Number(concept.id) === offer.conceptId) : null;
   const offerTitle = offerConcept
     ? displayConceptTitle(offerConcept)
@@ -5214,6 +5245,7 @@ function RecapModal({
                 <ForgeTestOutOffer
                   copy={fc}
                   title={offerTitle}
+                  titleLang={offerConcept ? conceptTitleLang(offerConcept as AtelierConcept, language) : 'fr'}
                   items={offer.items}
                   pending={testOutPending}
                   onStart={() => onTestOut(offer.conceptId)}
@@ -5253,7 +5285,9 @@ function RecapModal({
               />
             )}
           </div>
-          <EpStreak was={recap.streak_before || 0} now={recap.streak_after || 1} on={Math.min(5, Number(recap.streak_after || 1))} />
+          {shownStreak.now > 0 && (
+            <EpStreak was={shownStreak.was} now={shownStreak.now} on={Math.min(5, shownStreak.now)} />
+          )}
           <EpHandoff
             // recapActionLabel returns a verb phrase ("Réviser maintenant",
             // "Ouvrir la lettre"), so it IS the button.

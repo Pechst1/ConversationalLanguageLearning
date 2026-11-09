@@ -33,7 +33,7 @@ type XYZ = [number, number, number];
 /** The room itself, what is seen but not entered yet, and what is outside. */
 export type Zone = 'room' | 'sealed' | 'out';
 
-export type FloorFinish = 'cabochons' | 'boards' | 'tomettes' | 'cobbles' | 'stone';
+export type FloorFinish = 'cabochons' | 'boards' | 'tomettes' | 'cobbles' | 'stone' | 'zinc';
 export type WallFinish = 'wainscot' | 'plaster' | 'stone';
 
 export interface RoomFloor {
@@ -170,7 +170,10 @@ export type ThingKind =
   | 'bookcase'
   | 'polaroids'
   | 'armoire'
-  | 'drink';
+  | 'drink'
+  | 'skylight'
+  | 'chimney'
+  | 'edge';
 
 export interface RoomThing {
   kind: ThingKind;
@@ -272,6 +275,11 @@ export interface RoomSpec {
   courts: RoomCourt[];
   boulevards?: RoomBoulevard[];
   canals?: RoomCanal[];
+  /**
+   * The room stands in the quarter's own build (the quai, the canal, Le Mistral's building and its
+   * neighbours): a room on Le Mistral's roof sees the quai as it is, from above.
+   */
+  quarter?: boolean;
   /** where the stage stands you and the cast */
   marks: Record<string, XYZ>;
   provenance: { canon: string; place: string; scenes: string[]; brief_round?: number };
@@ -436,6 +444,8 @@ const FLOORS: Record<FloorFinish, { color: Hex; pattern: PatternId }> = {
   tomettes: { color: mix(mix(INKS.vermilion, INKS.ochre, 0.5), INKS.paper, 0.3), pattern: PATTERN.tiles },
   cobbles: { color: mix(TONES.stoneGround, INKS.cobalt, 0.08), pattern: PATTERN.cobbles },
   stone: { color: TONES.stone, pattern: PATTERN.flags },
+  /** a roof's zinc, its standing seams */
+  zinc: { color: mix(TONES.zinc, INKS.ink, 0.12), pattern: PATTERN.seams },
 };
 
 const pair = (v: number | [number, number]): [number, number] => (typeof v === 'number' ? [v, v] : v);
@@ -1443,6 +1453,75 @@ function thing(B: Build, t: RoomThing, i: number) {
       });
       return;
     }
+    case 'skylight': {
+      // a tabatière in the zinc over the stairs: its curb, the glazed lid propped open and laid
+      // back, the top of the iron ladder coming up through it, and the stairwell's light below
+      const [w, l] = t.size ?? [0.7, 0.9];
+      const curb = zoned(mix(TONES.zinc, INKS.ink, 0.25), z);
+      const frame = zoned(mix(TONES.zincDark, INKS.ink, 0.2), z, { wet: 0.5 });
+      const pane = zoned(TONES.pane, z, { wet: 0.8 });
+      const iron = zoned(TONES.iron, z);
+      const below: Paint = { color: mix(INKS.sunflower, INKS.card, 0.35), glow: 0.85, id: nextId() };
+      const ch = 0.14;
+      const lean = 1.3; // the lid's angle from the zinc, laid back past upright
+      D.at(x, y, zz, rot, () => {
+        // the curb round the opening; the zinc runs under it, so the opening is the stairwell's
+        // light coming up, a hand's breadth down inside the curb
+        D.box(0, ch / 2, -l / 2 - 0.03, w + 0.12, ch, 0.06, curb);
+        D.box(0, ch / 2, l / 2 + 0.03, w + 0.12, ch, 0.06, curb);
+        D.box(-w / 2 - 0.03, ch / 2, 0, 0.06, ch, l, curb);
+        D.box(w / 2 + 0.03, ch / 2, 0, 0.06, ch, l, curb);
+        D.quadXYZ([-w / 2, 0.03, -l / 2, w / 2, 0.03, -l / 2, w / 2, 0.03, l / 2, -w / 2, 0.03, l / 2], below);
+        // the lid on its hinge at the back, glass in an iron frame, and the stay that holds it
+        const hy = ch;
+        const hz = -l / 2 - 0.03;
+        const fy = hy + Math.sin(lean) * l;
+        const fz = hz + Math.cos(lean) * l;
+        const corners = [new Vector3(-w / 2 - 0.04, hy, hz), new Vector3(w / 2 + 0.04, hy, hz), new Vector3(w / 2 + 0.04, fy, fz), new Vector3(-w / 2 - 0.04, fy, fz)];
+        const flat = (ps: Vector3[]) => ps.flatMap((p) => [p.x, p.y, p.z]);
+        D.quadXYZ(flat(corners), pane);
+        D.quadXYZ(flat([corners[1], corners[0], corners[3], corners[2]]), pane);
+        for (let k = 0; k < 4; k++) D.bar(corners[k], corners[(k + 1) % 4], 0.035, frame);
+        D.bar(new Vector3(0, hy, hz), new Vector3(0, fy, fz), 0.02, frame);
+        D.bar(new Vector3(w / 2 + 0.06, ch, l / 4), new Vector3(w / 2 + 0.06, (hy + fy) / 2, (hz + fz) / 2), 0.012, iron);
+        // the ladder's stiles and its top rungs, up out of the opening
+        for (const s of [-1, 1]) D.bar(new Vector3(s * 0.2, 0.03, l / 2 - 0.14), new Vector3(s * 0.2, 0.6, l / 2 - 0.2), 0.03, iron);
+        for (const ry of [0.22, 0.5]) D.bar(new Vector3(-0.2, ry, l / 2 - 0.14 - ry * 0.1), new Vector3(0.2, ry, l / 2 - 0.14 - ry * 0.1), 0.02, iron);
+      });
+      B.blocks.push(centred(x, zz, rot, w + 0.24, l + 0.5));
+      return;
+    }
+    case 'chimney': {
+      // a stack of rendered brick on the zinc, its coping, a row of clay pots (as the quai's own)
+      const [long, h] = t.size ?? [1.8, 1.5];
+      const deep = 0.75;
+      const stack = zoned(TONES.chimney, z);
+      const cap = zoned(mix(TONES.chimney, INKS.paper, 0.3), z);
+      const flash = zoned(mix(TONES.zinc, INKS.ink, 0.2), z);
+      const pot = zoned(TONES.pot, z);
+      D.at(x, y, zz, rot, () => {
+        D.box(0, h / 2 - 0.05, 0, long, h + 0.1, deep, stack, { ny: false });
+        D.box(0, h + 0.06, 0, long + 0.1, 0.12, deep + 0.1, cap);
+        // the zinc flashing where it meets the roof
+        D.box(0, 0.04, 0, long + 0.08, 0.08, deep + 0.08, flash, { ny: false });
+        const pots = Math.max(2, Math.round(long / 0.38));
+        for (let p = 0; p < pots; p++) {
+          const px = -long / 2 + 0.22 + (p * (long - 0.44)) / Math.max(1, pots - 1);
+          D.cylinder(px, h + 0.12, 0, 0.11, 0.085, 0.4 + 0.18 * ((p * 7) % 3) * 0.5, 6, pot, { flat: true });
+        }
+      });
+      B.blocks.push(centred(x, zz, rot, long + 0.2, deep + 0.2));
+      return;
+    }
+    case 'edge': {
+      // where the flat of the roof ends and the mansard falls away: the zinc's rolled edge
+      const [len] = t.size ?? [3, 0];
+      const roll = zoned(mix(TONES.zinc, INKS.paper, 0.15), z, { wet: 0.5 });
+      D.at(x, y, zz, rot, () => {
+        D.bar(new Vector3(-len / 2, 0.03, 0), new Vector3(len / 2, 0.03, 0), 0.06, roll);
+      });
+      return;
+    }
     case 'armoire': {
       // a tall wardrobe against the wall: two panelled doors, a key in one, a cornice on top
       const [w, h] = t.size ?? [1.1, 2.2];
@@ -1929,6 +2008,12 @@ function inPoly(shape: XZ[], x: number, z: number) {
 }
 
 /** The room's own floors and flights, the ground its lamps light. */
+/** A floor you walk: the room's, or one under the sky (a roof); never a room seen and not entered. */
+function walked(f: RoomFloor) {
+  return (f.zone ?? 'room') !== 'sealed' && f.walk !== false;
+}
+
+/** The sheltered ground: what counts as indoors (the camera's reach, the lamps' pools); a roof is not. */
 export function roomGround(spec: RoomSpec): XZ[][] {
   return spec.floors
     .filter((f) => (f.zone ?? 'room') === 'room')
@@ -1945,7 +2030,7 @@ export function buildRoom(B: Build, spec: RoomSpec): RoomBuilt {
     // a landing over the stairwell shows the thickness of its floor
     const thick = fl.y > 1 ? 0.32 : 0.2;
     B.dry.prism(fl.shape, fl.y - thick, fl.y, paint, { sides: fl.y > 1, bottom: fl.y > 1 });
-    if ((fl.zone ?? 'room') === 'room' && fl.walk !== false) B.walk.push({ shape: fl.shape, y: fl.y });
+    if (walked(fl)) B.walk.push({ shape: fl.shape, y: fl.y });
   });
   spec.ceilings.forEach((c) => {
     B.dry.prism(c.shape, c.y, c.y + 0.05, zoned(mix(ROOM_TONES.cream, INKS.paper, 0.4), c.zone), { top: false, sides: false, bottom: true });
@@ -2105,7 +2190,8 @@ export function buildRoom(B: Build, spec: RoomSpec): RoomBuilt {
     switches: spec.switches.map((s) => ({ key: s.key, circuit: s.circuit, at: new Vector3(s.at[0], s.at[1], s.at[2]), facing: new Vector3(s.facing[0], 0, s.facing[1]).normalize() })),
     inside,
     bounds,
-    dry: [Math.min(...sx) - 0.4, Math.min(...sz) - 0.4, Math.max(...sx) + 0.4, Math.max(...sz) + 0.4],
+    // a room under the sky has nowhere dry
+    dry: shelter.length ? [Math.min(...sx) - 0.4, Math.min(...sz) - 0.4, Math.max(...sx) + 0.4, Math.max(...sz) + 0.4] : [0, 0, -1, -1],
   };
 }
 

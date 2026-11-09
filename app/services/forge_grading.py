@@ -830,6 +830,155 @@ def held_to_sentence(
     return shown, dropped
 
 
+_WORD_SPAN = re.compile(r"\S+")
+_EDGE_MARKS = "«»\"“”,.;:!?…"
+
+
+def _word_spans(text: str) -> list[tuple[int, int, str]]:
+    """``(start, end, key)`` per word: the key folds case, typography and edge marks."""
+
+    spans: list[tuple[int, int, str]] = []
+    for match in _WORD_SPAN.finditer(text):
+        key = unicodedata.normalize("NFC", normalize_answer_text(match.group())).casefold().strip(_EDGE_MARKS)
+        if key:
+            spans.append((match.start(), match.end(), key))
+    return spans
+
+
+def sentence_differences(line: Any, sentence: Any) -> list[tuple[str, int, int, int, int]]:
+    """The word-level differences between two lines (case, spacing and edge marks aside)."""
+
+    left, right = _word_spans(str(line or "")), _word_spans(str(sentence or ""))
+    matcher = SequenceMatcher(a=[word[2] for word in left], b=[word[2] for word in right], autojunk=False)
+    return [op for op in matcher.get_opcodes() if op[0] != "equal"]
+
+
+def _trim_shared_marks(wrong: str, fix: str) -> tuple[str, str]:
+    """Drop the final mark both sides end with: «agreable,» → «agréable,» is «agreable» → «agréable»."""
+
+    while len(wrong) > 1 and len(fix) > 1 and wrong[-1] == fix[-1] and wrong[-1] in _EDGE_MARKS:
+        wrong, fix = wrong[:-1], fix[:-1]
+    return wrong, fix
+
+
+def reconcile_with_sentence(refined: dict[str, Any], learner_text: Any, language: Any = "en") -> dict[str, Any]:
+    """The corrections cover every difference the shown correct sentence has (#574).
+
+    A model returns the right sentence and a list of corrections as two separate
+    pieces of text, and nothing held them to each other: «agreable» was changed to
+    «agréable» in the sentence but was in no correction, so no gap asked for it
+    and the line counted as fixed with the error still in it. Every word where the
+    learner's line, after the listed corrections, still differs from the sentence
+    becomes a correction of its own; fixing every gap gives the sentence.
+
+    Case, spacing and the final mark are typography (:func:`fold_typography`), not
+    differences. If a gap cannot be placed in the line the corrections stay as the
+    model gave them and the line is retyped whole.
+    """
+
+    from app.services.atelier import repair_line_from_parts, repair_parts
+
+    if str(refined.get("verdict") or "") in {"correct", "accepted"}:
+        return refined
+    corrected = refined.get("corrected_answer")
+    line = str(learner_text or "").strip()
+    if not isinstance(corrected, str) or not corrected.strip() or not line:
+        return refined
+    errata = [item for item in refined.get("errata") or [] if isinstance(item, dict)]
+    asks = [
+        item for item in errata
+        if item.get("task_error_type") != "task_compliance"
+        and str(item.get("learner_text") or "").strip() != str(item.get("corrected_target") or "").strip()
+    ]
+    base = repair_line_from_parts(line, errata) if asks else line
+    if base is None:
+        return refined  # a correction the line cannot hold: it is retyped whole
+    left, right = _word_spans(base), _word_spans(corrected)
+    if not left or not right:
+        return refined
+    derived: list[dict[str, Any]] = []
+    matcher = SequenceMatcher(a=[word[2] for word in left], b=[word[2] for word in right], autojunk=False)
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == "equal":
+            continue
+        want = corrected[right[j1][0]: right[j2 - 1][1]] if j2 > j1 else ""
+        if tag == "replace":
+            wrong, fix = base[left[i1][0]: left[i2 - 1][1]], want
+        elif tag == "delete":
+            # Words too many: the gap is the word next to them, without them.
+            if i1 > 0:
+                anchor = base[left[i1 - 1][0]: left[i1 - 1][1]]
+                wrong, fix = base[left[i1 - 1][0]: left[i2 - 1][1]], anchor
+            elif i2 < len(left):
+                anchor = base[left[i2][0]: left[i2][1]]
+                wrong, fix = base[left[i1][0]: left[i2][1]], anchor
+            else:
+                return refined
+        else:
+            # Words missing: the gap is the word next to them plus what is missing.
+            if i1 > 0:
+                anchor = base[left[i1 - 1][0]: left[i1 - 1][1]]
+                core = anchor.rstrip(_EDGE_MARKS)
+                marks = anchor[len(core):]
+                fix = f"{core} {want}"
+                if marks and not fix.endswith(marks):
+                    fix += marks
+            else:
+                anchor = base[left[0][0]: left[0][1]]
+                fix = f"{want} {anchor}"
+            wrong = anchor
+        wrong, fix = _trim_shared_marks(wrong, fix)
+        if not wrong.strip() or not fix.strip() or wrong.strip() == fix.strip():
+            continue
+        derived.append(_derived_gap(wrong, fix, _language(language)))
+    if not derived:
+        return refined
+    merged = [*errata, *derived]
+    if repair_parts(line, merged) is None:
+        # A difference the line cannot hold as a gap: in «Elle a achete livre.» the word
+        # beside the missing «un» is itself a listed fix. The model's own gaps may still
+        # fit, and filling them gives a line record_micro_repair refuses, so the learner
+        # could never finish. The line is retyped whole instead. The retype comes first
+        # because a line repair has one target, index 0, and no other correction may ask
+        # for a retype of its own.
+        whole = _derived_gap(line, corrected.strip(), _language(language))
+        kept = [item for item in errata if not _asks_for_a_retype(item.get("corrected_target"))]
+        return {**refined, "errata": [whole, *kept]}
+    return {**refined, "errata": merged}
+
+
+def _derived_gap(wrong: str, fix: str, language_key: str) -> dict[str, Any]:
+    """A correction read off the two sentences, for a difference the model did not list."""
+
+    ops = token_diff(wrong, fix)
+    accent_only = bool(ops) and all(op["kind"] == "accent" for op in ops)
+    note = describe_diff(ops, language_key)
+    if accent_only:
+        note = _copy("forge.diff.accent", language_key, target=fix)
+    return {
+        "item_id": "",
+        "display_label": _ACCENT_LABEL[language_key] if accent_only else _copy("forge.diff.label", language_key),
+        "learner_text": wrong,
+        "corrected_target": fix,
+        "why_wrong": note,
+        "repair_hint": "",
+        "severity": 1,
+        "recurring": False,
+        "task_error_type": "orthography" if accent_only else "grammar",
+        "derived_from_sentence": True,
+    }
+
+
+def _asks_for_a_retype(target: Any) -> bool:
+    """Whether the screen gives this correction a retype field of its own.
+
+    Mirrors ``isRepairableLine`` in ``web-frontend/lib/repair-parts.ts``."""
+
+    trimmed = str(target or "").strip()
+    words = len(trimmed.split())
+    return words >= 3 or (words >= 2 and trimmed[-1:] in {".", "!", "?", "…"})
+
+
 def refine_production_correction(
     correction: dict[str, Any],
     *,
@@ -889,6 +1038,10 @@ def refine_production_correction(
     elif dropped and not refined.get("errata") and not refined.get("lexical_gaps"):
         # Nothing was left but the false «English» note: the answer stands as written.
         refined["corrected_answer"] = str(learner_text or refined.get("corrected_answer") or "")
+    if reordered is None and not matches_accepted(learner_text, accepted):
+        # #574: the gaps, the right sentence and the list say the same thing. (An
+        # answer the key accepts has nothing to fix: the model's rewrite is style.)
+        refined = reconcile_with_sentence(refined, learner_text, language)
     refined["notes_native"] = notes_native(refined.get("errata"))
     return refined
 
@@ -968,6 +1121,8 @@ def classify_follow_up(
 
 __all__ = [
     "TO_CORRECT_LABEL",
+    "reconcile_with_sentence",
+    "sentence_differences",
     "classify_follow_up",
     "FREE_PRODUCTION_ROUNDS",
     "FRENCH_LOANWORDS",
