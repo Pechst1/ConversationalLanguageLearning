@@ -69,7 +69,10 @@ def test_vocabulary_review_keeps_anki_flow_and_exposes_history() -> None:
     assert "flip_front: 'Touche pour retourner'" in copy
     assert "flip_back: 'Sens · touche pour revenir'" in copy
     assert "setRevealed((value) => !value)" in source
-    assert "reviewOptions.map" in source
+    # Owner, 4 Nov: a turned card is swiped (right «Je sais», left «Encore»); the
+    # whole four-grade scale stays on the keys 1–4.
+    assert "swipeVerdict(" in source
+    assert "const rating = ['1', '2', '3', '4'].indexOf(event.key);" in source
 
 
 def test_vocabulary_review_example_and_audio_guards_are_unicode_safe() -> None:
@@ -80,9 +83,9 @@ def test_vocabulary_review_example_and_audio_guards_are_unicode_safe() -> None:
 
     assert "const LETTER = 'A-Za-z0-9À-ÖØ-öø-ÿŒœ'" in example
     assert "new RegExp(`(^|[^${LETTER}])" in example
-    assert "recordingWordIdRef" in source
-    assert "activeWordIdRef.current !== wordId" in source
-    assert "cancelActiveRecording()" in source
+    # Owner, 4 Nov: no typed or spoken answer on the card; a new card still
+    # silences the last one's sound.
+    assert "getUserMedia" not in source
     assert "speechSynthesis.cancel()" in source
 
 
@@ -132,7 +135,7 @@ def test_vocabulary_review_keeps_header_and_rating_controls_compact() -> None:
     # Owner, 1 Nov («Weiß ich» left the card on screen): a grade is never held while a
     # review is in flight; the card is filed at once and the server only settles it.
     assert "disabled={reviewing" not in source
-    assert "gradeAction({ revealed, rating, graded, typedMatches })" in source
+    assert "gradeAction({ revealed, rating, graded: false, typedMatches: false })" in source
     assert "t.reveal_before" in source
     assert "reveal_before: 'Révéler la réponse avant de noter'" in read_page(LEXIQUE_COPY)
     assert ">Deck</Link>" not in source
@@ -142,24 +145,12 @@ def test_vocabulary_review_uses_local_visual_cues_before_generated_images() -> N
     source = read_page(VOCABULARY_REVIEW_PAGE)
     cues = read_page(VISUAL_CUES_LIB)
 
-    assert "function wordVisualCue" in source
-    # Icon sets are gone: the cue carries one of the four Bauhaus shapes.
-    assert "lucide-react" not in source
+    # Owner, 4 Nov («overcrowded»): the review card no longer carries the scene chip;
+    # the cue table stays for the surfaces that print it.
+    assert "function wordVisualCue" not in source
+    assert "review-visual-cue" not in source
     assert "shape: VisualCueShape" in cues
     assert "'abaisser'" in cues
-    assert "review-visual-cue" in source
-    # WP-21: the badge was English ("WORD / MEMORY CUE", "TIME / when"), then
-    # French-only, which left a beginner reading French on the one card that
-    # teaches French. The scene name explains the word, so it follows the
-    # learner's language through `lib/visual-cues.ts`. WP-82: it and the
-    # chrome around it (the aria prefix) follow the one chrome language — the
-    # learner's up to A2, French from B1 — so the card never mixes two. The
-    # caption still does not echo `part_of_speech` — that column is heuristic
-    # import data and printed "exemplaire" (a noun) as a verb.
-    assert "aria-label={fill(t.cue_aria, { label: visualCue.label })}" in source
-    assert "cue_aria: 'Indice visuel : {label}'" in read_page(LEXIQUE_COPY)
-    assert "visualCueFor(signal, hasSignal, language)" in source
-    assert "wordVisualCue(current, language)" in source
     assert "const language = useChromeLanguage();" in source
     assert "fr: { label: 'Temps', caption: 'quand' }" in cues
     assert "en: { label: 'Time', caption: 'when' }" in cues
@@ -179,10 +170,10 @@ def test_vocabulary_review_mic_failures_follow_the_learner_language() -> None:
     source = read_page(VOCABULARY_REVIEW_PAGE)
     copy = read_page(ATELIER_COPY_LIB)
 
-    assert "const chrome = atelierChrome(language);" in source
+    # Owner, 4 Nov: the review card has no microphone any more; the copy table keeps
+    # one entry per shipped language for the surfaces that still record.
+    assert "chrome.mic_unavailable" not in source
     for key in ("mic_unavailable", "mic_open_failed", "transcription_failed", "transcription_empty"):
-        assert f"chrome.{key}" in source, key
-        # One entry per shipped language, plus the union member.
         assert copy.count(f"{key}:") == 3, key
     assert "La transcription a échoué." not in source
     assert "Le micro n’a pas pu être ouvert.'" not in source

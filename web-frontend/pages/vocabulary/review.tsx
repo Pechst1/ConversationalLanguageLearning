@@ -13,9 +13,7 @@ import {
   cardTexts,
   shownFrench,
 } from '@/lib/card-word';
-import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { useChromeLanguage } from '@/lib/learner-language';
-import { visualCueFor, type VisualCue } from '@/lib/visual-cues';
 import { handOnAfterWords } from '@/lib/day-plan';
 import { daySessionCopy } from '@/lib/day-session';
 import { extraWordsOffer } from '@/lib/more-words';
@@ -24,12 +22,16 @@ import { GoldPill } from '@/components/gold/GoldPill';
 import MotsDuJour from '@/components/lexique/MotsDuJour';
 import {
   cardMode,
-  gradedFormat,
-  ladderCue,
   deckProgress,
-  lineMeaning,
-  matchesLineForm,
+  type CardMode,
 } from '@/components/lexique/recall-ladder';
+import {
+  SWIPE_RATING,
+  dragStarts,
+  swipeProgress,
+  swipeVerdict,
+  type SwipeSide,
+} from '@/components/lexique/swipe';
 import {
   EMPTY_PROGRESS,
   fileCard,
@@ -38,7 +40,6 @@ import {
   progressAfterLoad,
   remainingCards,
   reviewNotSaved,
-  settleVerdict,
   withoutFiled,
   type DeckLoad,
   type DeckProgress,
@@ -50,7 +51,6 @@ import {
   formatDate,
   formatNumber,
   lexiqueCopy,
-  nextReviewText,
   partOfSpeechLabel,
   plural,
   useLexCopy,
@@ -59,19 +59,17 @@ import {
 import { WordBiographySheet } from '@/components/mobile';
 import {
   Action,
+  ArrowLeftIcon,
+  ArrowRightIcon,
   AtelierV2Root,
-  Chip,
   CrossIcon,
   IconAction,
-  MicIcon,
   Notice,
   Portrait,
   ShapeToken,
   StateBlock,
-  StopIcon,
   Surface,
 } from '@/components/atelier-v2/ui';
-import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
 import apiService, {
   DailyWordSlate,
   NewWordsPace,
@@ -79,7 +77,6 @@ import apiService, {
   VocabularyDueContext,
   VocabularyRecommendationItem,
 } from '@/services/api';
-import { AnkiReviewResponse, ReviewResponse } from '@/types/reviews';
 import {
   REVIEW_WORD_KEY,
   clearReviewProgress,
@@ -94,27 +91,26 @@ import { FirstStepSticker } from '@/components/onboarding/FirstStepSticker';
 import { FirstDayRoute } from '@/components/onboarding/FirstDayRoute';
 import { deviceStore, localDateToday, markRouteStage, onFirstDay, routeDone, type RouteStage } from '@/lib/first-steps';
 import { markWordsDoneToday } from '@/lib/continue-learning';
-import { cardContextText, cardExample, cardFaces, type MarkedExample } from '@/lib/card-example';
+import { cardExample, cardFaces, type MarkedExample } from '@/lib/card-example';
+import { playAskedVoice, speakAskedVoice } from '@/lib/audio-session';
 
 /* "Le Lexique" — the review session, on the Claude design system (Atelier V2).
  *
- * This is the design's LEXIQUE artboard, the one immersive screen of the
- * vocabulary: a round close control, one segment per card in the deck (yellow
- * = filed, ink = current, line = still to come), the "2/4" count; the
- * "Mot du jour · <deck>" label; one tap-to-flip card filling the screen (card
- * face on the front, yellow on the back, the 8px press), the word as the one
- * Garamond-italic headline, a hint line printed only from real data, the
- * example sentence on the back; and the footer's 3D-press pair — "● Encore"
- * on the card face with the red dot, "■ Je sais" on ink with the yellow
- * square. Tabs and masthead are hidden, as the design hides them.
+ * The design's LEXIQUE artboard, the one immersive screen of the vocabulary: a
+ * round close control, one segment per card in the deck (yellow = filed, ink =
+ * current, line = still to come), the "2/4" count; one card filling the screen
+ * (card face on the front, yellow on the back, the 8px press), the word as the
+ * one Garamond-italic headline. Tabs and masthead are hidden, as the design
+ * hides them.
  *
- * Kept from the working deck, because the artboard is a static picture of one
- * recognition card: the four FSRS grades (Encore 0 · Dur 1 · Bien 2 · Facile 3)
- * — the pair carries 0 and 2, the two remaining grades sit under it as quiet
- * actions so the scale and the 1–4 keys are unchanged; the production, audio
- * and line (scene, rescue) modes with their field and microphone; the episodic anchor
- * byline; the visual cue chip; the word biography; the offline cache note; the
- * end-of-deck continuation. */
+ * Owner, 4 Nov («less taps, maybe by swiping; leave out the fill-in exercise per
+ * card; show the example sentence and its translation on the other side; sleek
+ * and seamless»): every card is a flip card. Tap turns it; a turned card is
+ * swiped right for «Je sais» (grade 2) or left for «Encore» (grade 0), or rated
+ * with the pair under it, or with ← →. The front holds the word alone; the back
+ * holds the answer, the example with the word marked, and its translation. The
+ * keys 1–4 still reach the whole four-grade FSRS scale. A flip card reports a
+ * self-rated flashcard, which earns no gold. */
 
 // The four grade labels carry the whole scale, in the chrome language
 // (components/lexique/lexique-copy.ts); the FSRS internals are never printed.
@@ -273,11 +269,6 @@ function isEncore(): boolean {
   return new URLSearchParams(window.location.search).get('encore') === '1';
 }
 
-function reviewMessage(t: LexiqueCopy, response: ReviewResponse | AnkiReviewResponse) {
-  const next = 'due_at' in response ? response.due_at || response.next_review : response.next_review;
-  return nextReviewText(t, next);
-}
-
 function queueItems(context: VocabularyDueContext | null) {
   if (!context) return [];
   const seen = new Set<number>();
@@ -304,16 +295,6 @@ function queueExampleTranslation(item: VocabularyRecommendationItem) {
   return item.example_translation?.trim() || '';
 }
 
-// Any `xx_to_yy` pair prints as the two codes with a typographic arrow. Cards
-// captured from the journal (missions, feuilleton, atelier) carry no direction
-// at all: they used to print "Registre", a word naming nothing the learner can
-// see. They now print no chip.
-function queueDirection(item: VocabularyRecommendationItem) {
-  const [from, to] = String(item.direction || '').split('_to_');
-  if (!from || !to) return '';
-  return `${from.toUpperCase()} → ${to.toUpperCase()}`;
-}
-
 /* The design's hint line reads "verbe · 1er groupe · rang 2 140". Each part
  * is printed only when the payload actually carries it. The part-of-speech
  * column comes from a heuristic import and holds English keys (and sometimes
@@ -333,69 +314,26 @@ function cardHint(t: LexiqueCopy, item: VocabularyRecommendationItem) {
     .join(' · ');
 }
 
-// Articles a learner may or may not type in front of a noun: the card asks for
-// the word, not for the determiner, so "radiateur" grades the same as
-// "le radiateur".
-const LEADING_ARTICLE = /^(?:l|le|la|les|un|une|des|du|de la|de l|d|au|aux|a l)\s+/;
-
-function normalizeAnswer(value: string) {
-  return value
-    // Ligatures fold first: NFD leaves œ and æ intact and the character class
-    // below then eats them, so "cœur" and "coeur" used to compare unequal.
-    .toLowerCase()
-    .replace(/œ/g, 'oe')
-    .replace(/æ/g, 'ae')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    // Every apostrophe variant (straight, curly, the ‘ iOS inserts) collapses
-    // to a space here, so "l’ami" and "l'ami" fold to the same string.
-    .replace(/[^A-Za-z0-9À-ÿ]+/g, ' ')
-    .trim()
-    .replace(LEADING_ARTICLE, '')
-    .trim();
+// Off the input path: work that need not run before the next card is painted.
+function afterPaint(task: () => void) {
+  if (typeof window === 'undefined') return;
+  const idle = (window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
+  if (typeof idle === 'function') idle(task, { timeout: 400 });
+  else window.setTimeout(task, 0);
 }
 
-function foldedSignal(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/œ/g, 'oe')
-    .replace(/æ/g, 'ae')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
+function prefersReducedMotion() {
+  return typeof window !== 'undefined' && Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
 }
 
-// Signals are matched on whole tokens. Substring matching used to fire the
-// "verb" rule on the tag `verbs` and on the word `adverbe`, which is how
-// "exemplaire" — a noun the Anki import had tagged as a verb — ended up
-// captioned as an action.
-function hasSignal(signal: string, words: string[]) {
-  const tokens = new Set(signal.split(/[^a-z0-9]+/).filter(Boolean));
-  return words.some((word) => tokens.has(word));
-}
-
-// The badge is a memory hook, not a dictionary entry: it names a scene the
-// word belongs to. It used to read "WORD / MEMORY CUE" in English and was then
-// rewritten in French — which still left the one card whose job is teaching
-// French vocabulary carrying two French words a beginner cannot read. The scene
-// name explains the word, so it follows the learner's language now; the table of
-// cues, their shapes and their matching signals lives in `lib/visual-cues.ts`
-// (WP-21). It is drawn with one of the design's four shapes rather than a
-// pictogram set, and the caption still does not echo `part_of_speech`: the hint
-// line prints that column, whitelisted, in its own slot.
-function wordVisualCue(item: VocabularyRecommendationItem, language: string): VisualCue {
-  const signal = foldedSignal([
-    bareFrench(item),
-    askedSide(item),
-    cardMeaning(item),
-    answerSide(item),
-    ...(item.topic_tags || []),
-  ].filter(Boolean).join(' '));
-
-  return visualCueFor(signal, hasSignal, language);
-}
-
-function sceneOrRescueCue(item: VocabularyRecommendationItem | null) {
-  return ladderCue(item as never);
+// The card's speaker (no icon of the set draws one): a cone and one wave, in the ink.
+function SpeakerIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor" />
+      <path d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 /* The example with the card's word marked (lib/card-example.ts cuts it). */
@@ -562,10 +500,7 @@ export default function VocabularyReviewPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [returning, setReturning] = useState(false);
   const [revealed, setRevealed] = useState(false);
-  const [typedAnswer, setTypedAnswer] = useState('');
   const [audioPlaying, setAudioPlaying] = useState(false);
-  const [recording, setRecording] = useState(false);
-  const [transcribing, setTranscribing] = useState(false);
   // Le Lexique has no journey envelope, so the learner's language and level
   // come from the profile rather than a `control_language` field. WP-82: the
   // deck's chrome — buttons, states, the failure toasts, the visual cue's
@@ -573,7 +508,6 @@ export default function VocabularyReviewPage() {
   // words and their examples stay French.
   const language = useChromeLanguage();
   const t = lexiqueCopy(language);
-  const chrome = atelierChrome(language);
   // What this sitting has filed. WP-115b «successive relearning»: a card answered
   // wrong comes back at the end of the session, until it is right once.
   const [deck, setDeck] = useState<DeckProgress>(EMPTY_PROGRESS);
@@ -585,8 +519,6 @@ export default function VocabularyReviewPage() {
   contextRef.current = context;
   const wordSlateRef = useRef(wordSlate);
   wordSlateRef.current = wordSlate;
-  // WP-115b: the answer came from the microphone (a spoken production).
-  const [spokenAnswer, setSpokenAnswer] = useState(false);
   const [lastRating, setLastRating] = useState<number | null>(null);
   const [lastReviewedItem, setLastReviewedItem] = useState<VocabularyRecommendationItem | null>(null);
   const [biographyOpen, setBiographyOpen] = useState(false);
@@ -596,11 +528,15 @@ export default function VocabularyReviewPage() {
   const [resumeWordId, setResumeWordId] = useState<number | null>(null);
   const [cachedContextAt, setCachedContextAt] = useState<string | null>(null);
   const visibleCacheRef = useRef(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recordingStreamRef = useRef<MediaStream | null>(null);
-  const recordingWordIdRef = useRef<number | null>(null);
-  const activeWordIdRef = useRef<number | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+  // Deferred device writes (afterPaint) belong to the deck they were taken from: a
+  // fresh deck or a finished one bumps this, and a write from before it is dropped.
+  const cacheGenRef = useRef(0);
+  const deferCacheWrite = useCallback((task: () => void) => {
+    const gen = cacheGenRef.current;
+    afterPaint(() => {
+      if (cacheGenRef.current === gen) task();
+    });
+  }, []);
 
   // `revalidate` is the server's copy of the deck already on screen (the cached
   // one): what the learner filed meanwhile stays filed and the card stays turned.
@@ -626,6 +562,7 @@ export default function VocabularyReviewPage() {
       ]);
       setWordSlate(slate);
       setContext(next);
+      cacheGenRef.current += 1;
       writeReviewContextCache(load === 'revalidate' ? withoutFiled(next, deckRef.current.filed) : next, slate);
       visibleCacheRef.current = false;
       setCachedContextAt(null);
@@ -634,7 +571,6 @@ export default function VocabularyReviewPage() {
         setLastRating(null);
         setLastReviewedItem(null);
         setRevealed(false);
-        setTypedAnswer('');
       }
     } catch (error) {
       console.error(error);
@@ -760,16 +696,19 @@ export default function VocabularyReviewPage() {
   const addExtraWords = useCallback(async () => {
     setAddingWords(true);
     try {
+      // The deck deals the step the button promised; the answer's `step`
+      // is the next tap's (0 once the pool is empty).
+      const promised = newWordsPace?.step || 0;
       const body = await apiService.addExtraNewWords();
       setNewWordsPace(body);
-      await loadQueue(body.step);
+      await loadQueue(promised || body.step);
     } catch (error) {
       console.error(error);
       toast.error(t.deck_unavailable);
     } finally {
       setAddingWords(false);
     }
-  }, [loadQueue, t]);
+  }, [loadQueue, newWordsPace, t]);
 
   const moreWords = useMemo(() => {
     const left = Number(context?.new_words_left_today || 0);
@@ -780,55 +719,35 @@ export default function VocabularyReviewPage() {
 
   useEffect(() => {
     if (current) {
-      window.localStorage.setItem(REVIEW_WORD_KEY, String(current.word_id));
-      setResumeWordId(current.word_id);
-      saveResumeActivity({ href: '/vocabulary/review', kind: 'review', entityId: current.word_id });
+      // Off the input path (owner, 4 Nov: the lag after a grade). The resume word is
+      // only read when the deck opens, so it no longer re-sorts the deck per card.
+      const wordId = current.word_id;
+      deferCacheWrite(() => {
+        window.localStorage.setItem(REVIEW_WORD_KEY, String(wordId));
+        saveResumeActivity({ href: '/vocabulary/review', kind: 'review', entityId: wordId });
+      });
     } else if (!loading && context) {
       // The deck is done: drop the resume card *and* the cached queue, or the
       // next visit paints the finished deck again from localStorage before the
-      // network can correct it.
+      // network can correct it. A write still pending from the last card is dropped.
+      cacheGenRef.current += 1;
       clearReviewProgress();
       setResumeWordId(null);
       setCachedContextAt(null);
     }
-  }, [context, current, loading]);
-
-  const stopRecordingTracks = useCallback(() => {
-    recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
-    recordingStreamRef.current = null;
-  }, []);
-
-  const cancelActiveRecording = useCallback(() => {
-    recordingWordIdRef.current = null;
-    const recorder = mediaRecorderRef.current;
-    if (recorder && recorder.state !== 'inactive') {
-      recorder.stop();
-    }
-    mediaRecorderRef.current = null;
-    stopRecordingTracks();
-    setRecording(false);
-  }, [stopRecordingTracks]);
-
+  }, [context, current, loading, deferCacheWrite]);
+  // Another card is never shown already turned, and never with the last one's sound.
   useEffect(() => {
-    activeWordIdRef.current = current?.word_id || null;
-    cancelActiveRecording();
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
-    // Another card is never shown already turned: the fresh deck can put a
-    // different card first while the cached one was turned.
     setRevealed(false);
     setBiographyOpen(false);
     setBiography(null);
     setBiographyError(null);
     setBiographyLoading(false);
-    setTypedAnswer('');
     setAudioPlaying(false);
-    setRecording(false);
-    setTranscribing(false);
-  }, [current?.word_id, cancelActiveRecording]);
-
-  useEffect(() => () => cancelActiveRecording(), [cancelActiveRecording]);
+  }, [current?.word_id]);
 
   const openBiography = async () => {
     if (!current) return;
@@ -865,7 +784,7 @@ export default function VocabularyReviewPage() {
         URL.revokeObjectURL(url);
         setAudioPlaying(false);
       };
-      await player.play();
+      await playAskedVoice(player);
     } catch (error) {
       console.error(error);
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -873,8 +792,7 @@ export default function VocabularyReviewPage() {
         utterance.lang = 'fr-FR';
         utterance.onend = () => setAudioPlaying(false);
         utterance.onerror = () => setAudioPlaying(false);
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.speak(utterance);
+        speakAskedVoice(utterance);
       } else {
         setAudioPlaying(false);
         toast.error(t.audio_failed);
@@ -882,110 +800,30 @@ export default function VocabularyReviewPage() {
     }
   };
 
-  const transcribeReviewAudio = async (blob: Blob, wordId: number) => {
-    if (activeWordIdRef.current !== wordId) return;
-    setTranscribing(true);
-    try {
-      const transcript = await apiService.transcribeAudio(blob);
-      if (activeWordIdRef.current !== wordId) {
-        return;
-      }
-      if (transcript.trim()) {
-        setTypedAnswer(transcript.trim());
-        setSpokenAnswer(Boolean(transcript.trim()));
-      } else {
-        toast(chrome.transcription_empty);
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error(chrome.transcription_failed);
-    } finally {
-      if (activeWordIdRef.current === wordId) {
-        setTranscribing(false);
-      }
-    }
-  };
-
-  const startRecording = async (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    if (!current || recording || transcribing) return;
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
-      toast.error(chrome.mic_unavailable);
-      return;
-    }
-    try {
-      const wordId = current.word_id;
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      if (activeWordIdRef.current !== wordId) {
-        stream.getTracks().forEach((track) => track.stop());
-        return;
-      }
-      const recorder = createAudioMediaRecorder(stream);
-      mediaRecorderRef.current = recorder;
-      recordingStreamRef.current = stream;
-      recordingWordIdRef.current = wordId;
-      chunksRef.current = [];
-      recorder.ondataavailable = (recorderEvent) => {
-        if (recorderEvent.data.size > 0) {
-          chunksRef.current.push(recorderEvent.data);
-        }
-      };
-      recorder.onstop = () => {
-        const stoppedWordId = recordingWordIdRef.current;
-        recordingWordIdRef.current = null;
-        const audioBlob = recordedAudioBlob(chunksRef.current, recorder);
-        stopRecordingTracks();
-        setRecording(false);
-        if (stoppedWordId === wordId && activeWordIdRef.current === wordId) {
-          void transcribeReviewAudio(audioBlob, wordId);
-        }
-      };
-      recorder.start();
-      setRecording(true);
-    } catch (error) {
-      console.error(error);
-      toast.error(chrome.mic_open_failed);
-    }
-  };
-
-  const stopRecording = (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    const recorder = mediaRecorderRef.current;
-    if (!recorder || !recording || recorder.state === 'inactive') return;
-    recorder.stop();
-  };
-
   // Owner, 1 Nov («Weiß ich» left the card on screen): the card is filed the moment it
-  // is graded, before the server answers; the answer only settles «ask again».
-  const fileGrade = (rating: number, provisionalWrong: boolean) => {
+  // is graded, before the server answers. Owner, 4 Nov («it lags a bit after deciding»):
+  // nothing else runs on that tap — the device cache is written once the next card is
+  // painted, and a filed card no longer pops a toast of its own.
+  const fileGrade = (rating: number, wrong: boolean) => {
     if (!current) return;
     const item = current;
-    const answered = graded
-      ? { format: gradedFormat(mode, spokenAnswer), answer_text: typedAnswer }
-      : { format: 'flashcard' as const };
-    const filed = fileCard(deckRef.current, item.word_id, provisionalWrong);
+    const filed = fileCard(deckRef.current, item.word_id, wrong);
     deckRef.current = filed;
-    setDeck((prev) => fileCard(prev, item.word_id, provisionalWrong));
-    // A deck reopened later starts after this card, not on it.
-    if (contextRef.current) {
-      writeReviewContextCache(withoutFiled(contextRef.current, filed.filed), wordSlateRef.current);
-    }
-    setSpokenAnswer(false);
+    setDeck((prev) => fileCard(prev, item.word_id, wrong));
     setLastRating(rating);
     setLastReviewedItem(item);
     setContext((prev) => optimisticallyDecrementSummary(prev, item));
     setRevealed(false);
-    setTypedAnswer('');
-    // WP-115a: a card the learner answered is graded by the answer (the server earns
-    // the grade); a card only turned over stays a self-rated flashcard.
+    // A deck reopened later starts after this card, not on it.
+    const snapshot = contextRef.current;
+    const slate = wordSlateRef.current;
+    if (snapshot) deferCacheWrite(() => writeReviewContextCache(withoutFiled(snapshot, filed.filed), slate));
+    // A flip card is self-rated: it reports a flashcard, which earns no gold
+    // (owner decision, 4 Nov — gold is for typed, spoken or selected words).
     apiService
-      .submitAnkiReview({ word_id: item.word_id, rating, ...answered })
+      .submitAnkiReview({ word_id: item.word_id, rating, format: 'flashcard' as const })
       .then((response) => {
-        toast.success(reviewMessage(t, response));
         if (response.note_native) toast(response.note_native);
-        // WP-115b: wrong → again at the end of the session; right → it leaves the loop.
-        const wrong = graded && typeof response.correct === 'boolean' ? !response.correct : provisionalWrong;
-        setDeck((prev) => settleVerdict(prev, item.word_id, wrong));
         emitCameo({ type: 'answer', correct: !wrong });
       })
       .catch((error) => {
@@ -1000,37 +838,136 @@ export default function VocabularyReviewPage() {
     await router.push('/atelier');
   };
 
-  // Every grade goes through here (the pair, Dur and Facile, the graded card's one
-  // «Weiter», the keys 1-4): an unturned card is turned first; a turned card is filed.
-  const handleRatingClick = (rating: number) => {
-    if (!current) return;
-    const action = gradeAction({ revealed, rating, graded, typedMatches });
-    if (action.kind === 'reveal') setRevealed(true);
-    else fileGrade(action.rating, action.wrong);
+  /* The swipe (owner, 4 Nov). The drag moves the card through its style, never through
+     React state, so a finger's every move costs no render. A filed card leaves as a copy
+     of itself flying off to its side while the next card is already in place under it. */
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{ id: number; x: number; y: number; t: number; dx: number; vx: number; dragging: boolean } | null>(null);
+  const suppressClickRef = useRef(false);
+
+  const setDragVisual = (dx: number) => {
+    const card = cardRef.current;
+    if (!card) return;
+    card.style.transform = dx ? `translateX(${dx}px) rotate(${(dx / 22).toFixed(2)}deg)` : '';
+    if (dx) card.style.setProperty('--lx-swipe', swipeProgress(dx, card.offsetWidth).toFixed(3));
+    else card.style.removeProperty('--lx-swipe');
   };
 
-  // The deck was tap-only: nothing revealed a card or filed it from a
-  // keyboard. Space/Enter turns the card, 1-4 file it once turned — the same
-  // order as the four grades, so the hand learns one scale.
+  const flyAway = (side: SwipeSide) => {
+    const card = cardRef.current;
+    const stage = stageRef.current;
+    if (!card || !stage) return;
+    const from = card.style.transform || 'none';
+    setDragVisual(0);
+    if (prefersReducedMotion() || typeof card.animate !== 'function') return;
+    const ghost = card.cloneNode(true) as HTMLDivElement;
+    for (const name of ['role', 'tabindex', 'aria-pressed', 'aria-label']) ghost.removeAttribute(name);
+    ghost.setAttribute('aria-hidden', 'true');
+    ghost.setAttribute('inert', '');
+    ghost.setAttribute('data-ghost', side);
+    ghost.removeAttribute('data-dragging');
+    Object.assign(ghost.style, {
+      position: 'absolute',
+      top: `${card.offsetTop}px`,
+      left: `${card.offsetLeft}px`,
+      width: `${card.offsetWidth}px`,
+      height: `${card.offsetHeight}px`,
+      margin: '0',
+      pointerEvents: 'none',
+      zIndex: '3',
+    });
+    ghost.style.setProperty('--lx-swipe', side === 'know' ? '1' : '-1');
+    stage.appendChild(ghost);
+    const dir = side === 'know' ? 1 : -1;
+    const flight = ghost.animate(
+      [
+        { transform: from, opacity: 1 },
+        { transform: `translateX(${dir * 120}%) rotate(${dir * 18}deg)`, opacity: 0 },
+      ],
+      { duration: 280, easing: 'cubic-bezier(0.3, 0.5, 0.4, 1)', fill: 'forwards' },
+    );
+    const remove = () => ghost.remove();
+    flight.onfinish = remove;
+    flight.oncancel = remove;
+  };
+
+  // Every grade goes through here (the swipe, the two buttons, the keys ← → and 1–4):
+  // an unturned card is turned first; a turned card flies off and is filed.
+  const handleRatingClick = (rating: number) => {
+    if (!current) return;
+    const action = gradeAction({ revealed, rating, graded: false, typedMatches: false });
+    if (action.kind === 'reveal') {
+      setRevealed(true);
+      return;
+    }
+    flyAway(action.wrong ? 'again' : 'know');
+    fileGrade(action.rating, action.wrong);
+  };
+
+  const onCardPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    suppressClickRef.current = false;
+    if (!revealed || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    if ((event.target as HTMLElement | null)?.closest('button, a')) return;
+    dragRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY, t: event.timeStamp, dx: 0, vx: 0, dragging: false };
+  };
+
+  const onCardPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.id !== event.pointerId) return;
+    const dx = event.clientX - drag.x;
+    const dy = event.clientY - drag.y;
+    if (!drag.dragging) {
+      const start = dragStarts(dx, dy);
+      if (start === 'scroll') dragRef.current = null;
+      if (start !== 'drag') return;
+      drag.dragging = true;
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      event.currentTarget.setAttribute('data-dragging', '');
+    }
+    const elapsed = Math.max(1, event.timeStamp - drag.t);
+    drag.vx = (dx - drag.dx) / elapsed;
+    drag.dx = dx;
+    drag.t = event.timeStamp;
+    setDragVisual(dx);
+  };
+
+  const onCardPointerEnd = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.id !== event.pointerId) return;
+    dragRef.current = null;
+    if (!drag.dragging) return;
+    event.currentTarget.removeAttribute('data-dragging');
+    // The release of a drag is not a tap: it never turns the card back.
+    suppressClickRef.current = true;
+    // A finger that stopped before letting go is no flick, however fast it came.
+    const velocity = event.timeStamp - drag.t > 80 ? 0 : drag.vx;
+    const side = event.type === 'pointercancel'
+      ? null
+      : swipeVerdict({ dx: drag.dx, velocity, width: event.currentTarget.offsetWidth });
+    if (side) handleRatingClick(SWIPE_RATING[side]);
+    else setDragVisual(0);
+  };
+
+  // Space/Enter turns the card; ← and → file «Encore» and «Je sais» once it is
+  // turned; 1–4 still reach the four grades of the scale.
   useEffect(() => {
     if (!current) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       const target = event.target as HTMLElement | null;
-      const typing = Boolean(target?.closest('input, textarea, [contenteditable="true"]'));
-      if (typing) {
-        // Enter in the answer field turns the card; it never files it blind.
-        if (event.key === 'Enter' && !revealed) {
-          event.preventDefault();
-          setRevealed(true);
-        }
-        return;
-      }
+      if (target?.closest('input, textarea, [contenteditable="true"]')) return;
       if (event.key === ' ' || event.key === 'Enter') {
         // Buttons handle their own Space/Enter; the shortcut is for the page.
         if (target?.closest('button, a, [role="dialog"]')) return;
         event.preventDefault();
         setRevealed((value) => !value);
+        return;
+      }
+      if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+        if (target?.closest('[role="dialog"]')) return;
+        event.preventDefault();
+        handleRatingClick(SWIPE_RATING[event.key === 'ArrowRight' ? 'know' : 'again']);
         return;
       }
       const rating = ['1', '2', '3', '4'].indexOf(event.key);
@@ -1043,55 +980,27 @@ export default function VocabularyReviewPage() {
     return () => window.removeEventListener('keydown', onKeyDown);
   });
 
-  const mode = cardMode(current);
-  // The card's two sides (a noun with its article) and what a typed answer is graded
-  // against — owner decision 2026-10-08: a line card is answered with the form in the line.
-  const { prompt, answer, expected } = cardTexts({
-    item: current,
-    mode,
-    cue: sceneOrRescueCue(current),
-    listenPrompt: t.listen_prompt,
-  });
+  // Owner, 4 Nov: no fill-in on the card any more. Every rung of the ladder is a flip
+  // card: the French asked (recognition, audio) or its meaning asked (production and
+  // the line rungs), the other side on the back with the example and its translation.
+  const ladderMode = cardMode(current);
+  const mode: CardMode = ladderMode === 'recognition' || ladderMode === 'audio' ? 'recognition' : 'production';
+  const { prompt, answer } = cardTexts({ item: current, mode, cue: null, listenPrompt: t.listen_prompt });
   const french = current ? bareFrench(current) : '';
   const meaning = current ? cardMeaning(current) : '';
+  const promptIsFrench = current ? mode === 'recognition' && !asksFromLearnerSide(current) : false;
   // A card with no example sentence quotes nothing, never «lampe - lamp» (walk finding 398).
   const example = current ? cardExample({ french, meaning, example: queueExample(current) }) : '';
   const exampleTranslation = current ? queueExampleTranslation(current) : '';
-  const visualCue = current ? wordVisualCue(current, language) : null;
-  // Owner decision 2026-11-01: the example travels with the card — on the front of a
-  // recognition card (word marked), on the back of every card with its translation.
-  const faces = cardFaces({
-    mode,
-    french,
-    meaning,
-    example,
-    exampleTranslation,
-    promptIsFrench: current ? !asksFromLearnerSide(current) : false,
-  });
-  const contextText = cardContextText({ mode, meaning, example });
-  const typedMatches =
-    mode === 'scene' || mode === 'rescue'
-      ? matchesLineForm(normalizeAnswer(typedAnswer), normalizeAnswer(expected))
-      : normalizeAnswer(typedAnswer) === normalizeAnswer(expected);
-  const graded = mode !== 'recognition' && typedAnswer.trim().length > 0;
-  const foot = deckFoot({ revealed, graded });
+  // The front holds the word alone; the example and its translation are on the back.
+  const faces = cardFaces({ mode, french, meaning, example, exampleTranslation, promptIsFrench });
+  const foot = deckFoot({ revealed, graded: false });
   const hint = current ? cardHint(t, current) : '';
-  // WP-115b: the ladder's own cue on the scene and rescue rungs.
-  const ladderCue = sceneOrRescueCue(current);
-  // A blanked line also says what the word means (owner decision 2026-11-01).
-  const lineCue = lineMeaning(mode, ladderCue, meaning);
-  const ladderHint =
-    mode === 'scene'
-      ? t.ladder_scene_hint
-      : mode === 'rescue' && ladderCue?.first_letter
-        ? fill(t.ladder_rescue_hint, { letter: ladderCue.first_letter, n: ladderCue.length ?? '' })
-        : '';
-  const direction = current ? queueDirection(current) : '';
 
   // "Mot du jour · French 5000": the tag half is the deck the card came from,
   // printed only when the payload names one.
   // An Anki path («Französisch 5000::1. FR → DE») is a filing system, not a
-  // name: only its first segment is printed, and the direction is the badge's.
+  // name: only its first segment is printed.
   const deckLabel = String(current?.deck_name || '').split('::')[0].trim();
   const kicker = current
     ? [
@@ -1114,6 +1023,17 @@ export default function VocabularyReviewPage() {
     : completed
       ? plural(t, 'filed', completed)
       : t.nothing_due;
+
+  const listenButton = (
+    <IconAction
+      className="lx-card__icon"
+      label={t.listen_word}
+      pending={audioPlaying}
+      onClick={(event) => void playAudioPrompt(event)}
+    >
+      <SpeakerIcon />
+    </IconAction>
+  );
 
   return (
     <>
@@ -1239,194 +1159,113 @@ export default function VocabularyReviewPage() {
               <>
                 {/* GENTLE-ONBOARDING: the first deck says what the Lexique is. */}
                 <FirstStepSticker stepKey="words" language={language} />
-                <div className="lx-review__kicker">
-                  <p className="av2-label">{kicker}</p>
-                  {direction && <span className="av2-label lx-review__direction">{direction}</span>}
-                </div>
-                {/* Text diet: the card is the task. The deck's make-up and why
-                    this word was picked are not printed above it any more. */}
+                {kicker && <p className="av2-label lx-review__kicker">{kicker}</p>}
 
-                {/* The tap-to-flip card. It holds a field and two audio
-                    controls in the production/audio modes, so it is a region
-                    with its own flip control rather than one big button;
-                    Space/Enter on the page and a tap anywhere on the card
-                    still turn it. */}
-                <div
-                  className="lx-card"
-                  data-face={revealed ? 'back' : 'front'}
-                  data-mode={mode}
-                  role="button"
-                  tabIndex={0}
-                  aria-pressed={revealed}
-                  aria-label={revealed ? t.flip_back : t.flip_front}
-                  onClick={() => setRevealed((value) => !value)}
-                  onKeyDown={(event) => {
-                    if (event.target !== event.currentTarget) return;
-                    if (event.key === ' ' || event.key === 'Enter') {
-                      event.preventDefault();
+                {/* The card. Tap (or Space/Enter) turns it; a turned card is swiped:
+                    right «Je sais», left «Encore». The deck shows behind it while
+                    more cards are left. */}
+                <div className="lx-stage" ref={stageRef} data-more={sessionRemaining > 1 ? 'true' : 'false'}>
+                  <div
+                    key={current.word_id}
+                    ref={cardRef}
+                    className="lx-card"
+                    data-face={revealed ? 'back' : 'front'}
+                    data-mode={mode}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={revealed}
+                    aria-label={revealed ? t.flip_back : t.flip_front}
+                    onClick={() => {
+                      if (suppressClickRef.current) {
+                        suppressClickRef.current = false;
+                        return;
+                      }
                       setRevealed((value) => !value);
-                    }
-                  }}
-                >
-                  <div className="lx-card__top">
-                    <span>{revealed ? t.flip_back : t.flip_front}</span>
-                    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-                      <path d="M7 0L14 14H0Z" fill="currentColor" />
-                    </svg>
-                  </div>
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.target !== event.currentTarget) return;
+                      if (event.key === ' ' || event.key === 'Enter') {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setRevealed((value) => !value);
+                      }
+                    }}
+                    onPointerDown={onCardPointerDown}
+                    onPointerMove={onCardPointerMove}
+                    onPointerUp={onCardPointerEnd}
+                    onPointerCancel={onCardPointerEnd}
+                  >
+                    {revealed && (
+                      <>
+                        <span className="lx-stamp lx-stamp--again" aria-hidden="true">{t.deck_again}</span>
+                        <span className="lx-stamp lx-stamp--know" aria-hidden="true">{t.deck_know}</span>
+                      </>
+                    )}
 
-                  {!revealed ? (
-                    <div className="lx-card__middle">
-                      <div className="lx-card__marks">
-                        <ReviewPortrait item={current} />
-                        {visualCue && mode !== 'audio' && (
-                          <Chip
-                            className="review-visual-cue lx-cue"
-                            icon={<ShapeToken kind={visualCue.shape} size="sm" />}
-                            aria-label={fill(t.cue_aria, { label: visualCue.label })}
-                          >
-                            {visualCue.label} · {visualCue.caption}
-                          </Chip>
-                        )}
-                      </div>
-                      {mode === 'audio' ? (
-                        <>
-                          <p className="av2-headline lx-card__word lx-card__word--sans">{prompt}</p>
-                          <div className="lx-card__audio" onClick={(event) => event.stopPropagation()}>
-                            <Action
-                              tone="secondary"
-                              inline
-                              pending={audioPlaying}
-                              pendingLabel={t.playing}
-                              onClick={playAudioPrompt}
-                              icon={<ShapeToken kind="story" size="sm" />}
-                            >
-                              {t.listen}
-                            </Action>
-                            <IconAction
-                              label={transcribing ? chrome.transcribing : recording ? chrome.record_stop : chrome.record_start}
-                              tone={recording ? 'recording' : 'action'}
-                              pressable
-                              pending={transcribing}
-                              onClick={recording ? stopRecording : startRecording}
-                            >
-                              {recording ? <StopIcon size={18} /> : <MicIcon size={18} />}
-                            </IconAction>
-                          </div>
-                          <p className="lx-card__hint">{t.listen_hint}</p>
-                        </>
-                      ) : (
-                        <>
-                          {/* the one Garamond-italic headline on this screen */}
-                          <p
-                            className={`av2-headline lx-card__word review-prompt-term${mode === 'scene' || mode === 'rescue' ? ' lx-card__word--line' : ''}`}
-                            lang={mode === 'scene' || mode === 'rescue' ? 'fr' : undefined}
-                          >
-                            {prompt}
-                          </p>
-                          {lineCue && <p className="lx-card__hint lx-card__meaning">{lineCue}</p>}
-                          {ladderHint ? (
-                            <p className="lx-card__hint" data-ladder={mode}>{ladderHint}</p>
-                          ) : (
-                            hint && <p className="lx-card__hint">{hint}</p>
-                          )}
-                          {faces.frontExample && (
-                            <p className="av2-fr lx-card__example lx-card__example--front" lang="fr">
-                              « <MarkedSentence marked={faces.frontExample} /> »
-                            </p>
-                          )}
-                          {faces.frontTranslation && (
-                            <p className="lx-card__example lx-card__example-tr lx-card__example--front">
-                              {faces.frontTranslation}
-                            </p>
-                          )}
-                          {mode !== 'recognition' && (
-                            /* WP-115b: say it — a spoken answer is graded like a typed one. */
-                            <div className="lx-card__audio" onClick={(event) => event.stopPropagation()}>
-                              <IconAction
-                                label={transcribing ? chrome.transcribing : recording ? chrome.record_stop : t.ladder_speak}
-                                tone={recording ? 'recording' : 'action'}
-                                pressable
-                                pending={transcribing}
-                                onClick={recording ? stopRecording : startRecording}
-                              >
-                                {recording ? <StopIcon size={18} /> : <MicIcon size={18} />}
-                              </IconAction>
-                            </div>
-                          )}
-                        </>
-                      )}
-                      {mode !== 'recognition' && (
-                        <input
-                          className="av2-field__control lx-input lx-card__input"
-                          lang="fr"
-                          value={typedAnswer}
-                          onChange={(event) => {
-                            setTypedAnswer(event.target.value);
-                            setSpokenAnswer(false);
-                          }}
-                          onClick={(event) => event.stopPropagation()}
-                          placeholder={mode === 'audio' ? t.input_placeholder_audio : t.input_placeholder}
-                          aria-label={t.input_aria}
-                          autoComplete="off"
-                          autoCapitalize="off"
-                        />
-                      )}
-                    </div>
-                  ) : (
-                    <div className="lx-card__middle review-answer-container">
-                      <div className="lx-card__marks">
-                        <IconAction
-                          className="lx-card__history"
-                          label={fill(t.open_story, { word: (current ? shownFrench(current) : french) || prompt })}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            void openBiography();
-                          }}
+                    {!revealed ? (
+                      <div className="lx-card__middle">
+                        <div className="lx-card__top">
+                          {promptIsFrench && listenButton}
+                        </div>
+                        {/* the one Garamond-italic headline on this screen */}
+                        <p
+                          className="av2-headline lx-card__word review-prompt-term"
+                          lang={promptIsFrench ? 'fr' : undefined}
                         >
-                          <ShapeToken kind="story" size="sm" title={t.story_title} />
-                        </IconAction>
-                      </div>
-                      <p className="av2-headline lx-card__word review-answer-word">{answer || meaning || shownFrench(current)}</p>
-                      {mode !== 'recognition' && typedAnswer && (
-                        <p className="lx-card__hint lx-card__verdict" data-match={typedMatches ? 'true' : 'false'}>
-                          <ShapeToken kind={typedMatches ? 'done' : 'action'} size="sm" />
-                          {typedMatches ? t.verdict_exact : fill(t.verdict_yours, { answer: typedAnswer })}
+                          {prompt}
                         </p>
-                      )}
-                      {mode !== 'recognition' && meaning && meaning !== answer && (
-                        <p className="lx-card__hint">{meaning}</p>
-                      )}
-                      {hint && mode === 'recognition' && <p className="lx-card__hint">{hint}</p>}
-                    </div>
-                  )}
+                        {hint && <p className="lx-card__hint">{hint}</p>}
+                      </div>
+                    ) : (
+                      <div className="lx-card__middle review-answer-container">
+                        <div className="lx-card__top">
+                          <ReviewPortrait item={current} />
+                          <span className="lx-card__tools">
+                            {listenButton}
+                            <IconAction
+                              className="lx-card__icon lx-card__history"
+                              label={fill(t.open_story, { word: shownFrench(current) || prompt })}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void openBiography();
+                              }}
+                            >
+                              <ShapeToken kind="story" size="sm" title={t.story_title} />
+                            </IconAction>
+                          </span>
+                        </div>
+                        <p className="lx-card__asked" lang={promptIsFrench ? 'fr' : undefined}>{prompt}</p>
+                        <p
+                          className="av2-headline lx-card__word review-answer-word"
+                          lang={promptIsFrench ? undefined : 'fr'}
+                        >
+                          {answer || meaning || shownFrench(current)}
+                        </p>
+                      </div>
+                    )}
 
-                  <div className="lx-card__bottom">
-                    {revealed && faces.backExample && (
-                      <p className="av2-fr lx-card__example">
-                        « <MarkedSentence marked={faces.backExample} /> »
-                        {faces.backTranslation && (
-                          <span className="lx-card__example-tr">{faces.backTranslation}</span>
-                        )}
-                      </p>
-                    )}
-                    {revealed && contextText && contextText !== example && !faces.backExample && (
-                      <p className="av2-fr lx-card__example review-context-anchor">« {contextText} »</p>
-                    )}
-                    {revealed && currentSlateEntry?.anchor && (
-                      <p className="av2-fr lx-card__example lx-card__anchor">{currentSlateEntry.anchor}</p>
-                    )}
+                    <div className="lx-card__bottom">
+                      {revealed && faces.backExample && (
+                        <div className="lx-card__example-block">
+                          <p className="av2-fr lx-card__example" lang="fr">
+                            <MarkedSentence marked={faces.backExample} />
+                          </p>
+                          {faces.backTranslation && (
+                            <p className="lx-card__example-tr">{faces.backTranslation}</p>
+                          )}
+                        </div>
+                      )}
+                      {revealed && !faces.backExample && currentSlateEntry?.anchor && (
+                        <p className="av2-fr lx-card__example lx-card__anchor review-context-anchor">{currentSlateEntry.anchor}</p>
+                      )}
+                      <p className="lx-card__cta" aria-hidden="true">{revealed ? t.swipe_hint : t.flip_front}</p>
+                    </div>
                   </div>
                 </div>
 
-                {/* The footer's 3D-press pair, exactly as the artboard draws
-                    it: "● Encore" on the card face, "■ Je sais" on ink. Encore
-                    files grade 0 and Je sais grade 2 (Bien); Dur (1) and
-                    Facile (3) stay reachable underneath as quiet actions, so
-                    the four-grade FSRS scale is unchanged. */}
+                {/* The foot: one button turns the card (owner, 1 Nov: an unturned card
+                    offers no grade); a turned card has the pair the swipe stands for. */}
                 {foot === 'turn' ? (
-                  /* Owner, 1 Nov: an unturned card offers no grade (a «Weiß ich» that
-                     only turned the card left it on screen); its one button turns it. */
                   <div className="lx-review__foot" data-foot="turn">
                     <button
                       type="button"
@@ -1437,59 +1276,31 @@ export default function VocabularyReviewPage() {
                       {t.reveal_first}
                     </button>
                   </div>
-                ) : foot === 'graded-next' ? (
-                  /* WP-115a: the answer graded itself — one button files it. */
-                  <div className="lx-review__foot" role="group" aria-label={t.ratings_group} data-foot="graded-next">
-                    <button
-                      type="button"
-                      className="av2-btn av2-btn--primary lx-rate"
-                      data-graded={typedMatches ? 'correct' : 'wrong'}
-                      onClick={() => handleRatingClick(typedMatches ? 2 : 0)}
-                    >
-                      {t.deck_graded_next}
-                    </button>
-                  </div>
                 ) : (
-                <div className="lx-review__foot" role="group" aria-label={t.ratings_group} data-foot="grades">
-                  <div className="lx-review__pair">
-                    <button
-                      type="button"
-                      className="av2-btn lx-rate"
-                      onClick={() => handleRatingClick(0)}
-                      title={fill(t.rate_as, { label: t.deck_again })}
-                      aria-label={fill(t.rate_as, { label: t.deck_again })}
-                    >
-                      <span className="av2-shape av2-shape--dot lx-rate__dot" aria-hidden="true" />
-                      {t.deck_again}
-                    </button>
-                    <button
-                      type="button"
-                      className="av2-btn av2-btn--done lx-rate"
-                      onClick={() => handleRatingClick(2)}
-                      title={fill(t.rate_as, { label: t.deck_good })}
-                      aria-label={fill(t.rate_as, { label: t.deck_good })}
-                    >
-                      <ShapeToken kind="reward" size="sm" />
-                      {t.deck_know}
-                    </button>
+                  <div className="lx-review__foot" role="group" aria-label={t.ratings_group} data-foot="grades">
+                    <div className="lx-review__pair">
+                      <button
+                        type="button"
+                        className="av2-btn lx-rate lx-rate--again"
+                        onClick={() => handleRatingClick(0)}
+                        title={fill(t.rate_as, { label: t.deck_again })}
+                        aria-label={fill(t.rate_as, { label: t.deck_again })}
+                      >
+                        <ArrowLeftIcon size={18} />
+                        {t.deck_again}
+                      </button>
+                      <button
+                        type="button"
+                        className="av2-btn av2-btn--done lx-rate lx-rate--know"
+                        onClick={() => handleRatingClick(2)}
+                        title={fill(t.rate_as, { label: t.deck_good })}
+                        aria-label={fill(t.rate_as, { label: t.deck_good })}
+                      >
+                        {t.deck_know}
+                        <ArrowRightIcon size={18} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="lx-review__grades">
-                    {reviewOptions.map((option) => (
-                      option.rating === 1 || option.rating === 3 ? (
-                        <Action
-                          key={option.rating}
-                          tone="quiet"
-                          inline
-                          onClick={() => handleRatingClick(option.rating)}
-                          title={fill(t.rate_as, { label: t[option.label] })}
-                          aria-label={fill(t.rate_as, { label: t[option.label] })}
-                        >
-                          {t[option.label]}
-                        </Action>
-                      ) : null
-                    ))}
-                  </div>
-                </div>
                 )}
               </>
             )}
@@ -1514,39 +1325,61 @@ export default function VocabularyReviewPage() {
           display: block;
           min-height: 100vh;
           min-height: 100dvh;
+          width: 100%;
           max-width: 720px;
           margin: 0 auto;
           padding: 0;
         }
-        .av2 .lx-review__screen { min-height: 100vh; min-height: 100dvh; }
+        .av2 .lx-review__screen { width: 100%; min-height: 100vh; min-height: 100dvh; }
         .av2 .lx-review__head { padding-top: calc(12px + env(safe-area-inset-top, 0px)); }
-        .av2 .lx-review__body { flex: 1 1 auto; gap: 12px; padding-bottom: calc(14px + var(--av2-safe-bottom)); }
+        .av2 .lx-review__body { flex: 1 1 auto; gap: 14px; padding-bottom: calc(14px + var(--av2-safe-bottom)); }
         /* Design: filed = yellow (reward), current = ink, pending = line. */
+        .av2 .lx-dot { transition: background 0.15s; }
         .av2 .lx-dot[data-state='done'] { background: var(--av2-yellow); }
         .av2 .lx-dot[data-state='current'] { background: var(--av2-ink); }
         .av2 .lx-dot[data-state='pending'] { background: var(--av2-line); }
         .av2 .lx-rule__fill { background: var(--av2-yellow); }
-        .av2 .lx-review__kicker { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
-        .av2 .lx-review__kicker > p { min-width: 0; overflow-wrap: anywhere; }
-        .av2 .lx-review__direction { flex: none; font-weight: 600; }
-        .av2 .lx-review__composition, .av2 .lx-review__why { margin-top: -4px; }
-        .av2 .lx-review__why { font-family: var(--av2-serif); font-style: italic; }
+        .av2 .lx-review__kicker { margin: 0; min-width: 0; overflow-wrap: anywhere; opacity: 0.8; }
+
+        /* The stage holds the card, the deck's next card peeking under it, and
+           the copy of a filed card on its way out. */
+        .av2 .lx-stage {
+          position: relative;
+          display: flex;
+          flex: 1 1 auto;
+          flex-direction: column;
+          min-width: 0;
+          padding-bottom: 6px;
+        }
+        .av2 .lx-stage[data-more='true']::before {
+          content: '';
+          position: absolute;
+          left: 14px;
+          right: 14px;
+          top: 14px;
+          bottom: -4px;
+          border-radius: var(--av2-r-vocab);
+          background: var(--av2-card);
+          box-shadow: 0 var(--av2-press) 0 var(--av2-line-2);
+          opacity: 0.7;
+        }
 
         /* The card: radius 28, padding 26/24, the 8px press. Front on the card
-           face, back on yellow, 0.25s colour swap. */
+           face, back on yellow — swapped at once, the turn is the motion. */
         .av2 .lx-card {
           --lx-card-face: var(--av2-card);
           --lx-card-fg: var(--av2-ink);
           --lx-card-shadow: var(--av2-line-2);
           position: relative;
+          z-index: 1;
           display: flex;
           flex: 1 1 auto;
           flex-direction: column;
           justify-content: space-between;
-          gap: 16px;
+          gap: 18px;
           min-height: 22rem;
           min-width: 0;
-          padding: 26px 24px;
+          padding: 22px 24px 18px;
           border: 0;
           border-radius: var(--av2-r-vocab);
           background: var(--lx-card-face);
@@ -1556,120 +1389,146 @@ export default function VocabularyReviewPage() {
           cursor: pointer;
           user-select: none;
           -webkit-user-select: none;
-          transition: background 0.25s, color 0.25s, transform var(--av2-press-dur), box-shadow var(--av2-press-dur);
-        }
-        .av2 .lx-card:active {
-          transform: translateY(4px);
-          box-shadow: 0 4px 0 var(--lx-card-shadow);
+          -webkit-tap-highlight-color: transparent;
+          touch-action: pan-y;
+          will-change: transform;
+          transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+          animation: lx-rise 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
         .av2 .lx-card[data-face='back'] {
           --lx-card-face: var(--av2-yellow);
           --lx-card-fg: var(--av2-on-yellow);
           --lx-card-shadow: var(--av2-yellow-deep);
+          cursor: grab;
+          animation: lx-turn 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
+        .av2 .lx-card[data-dragging] { transition: none; cursor: grabbing; }
+        .av2 .lx-card:focus-visible { outline: 3px solid var(--av2-focus); outline-offset: 3px; }
+        @keyframes lx-rise {
+          from { transform: translateY(12px) scale(0.96); opacity: 0.5; }
+          to { transform: none; opacity: 1; }
+        }
+        @keyframes lx-turn {
+          from { transform: perspective(1200px) rotateY(-85deg); }
+          to { transform: perspective(1200px) rotateY(0deg); }
+        }
+
+        /* The stamps a drag fades in: «Encore» to the left, «Je sais» to the right. */
+        .av2 .lx-stamp {
+          position: absolute;
+          top: 20px;
+          z-index: 2;
+          padding: 4px 12px;
+          border: 3px solid currentColor;
+          border-radius: var(--av2-r-button);
+          background: var(--av2-card);
+          font-size: var(--av2-t-body-lg);
+          font-weight: 800;
+          pointer-events: none;
+          opacity: 0;
+        }
+        .av2 .lx-stamp--know {
+          left: 20px;
+          color: var(--av2-green-deep);
+          transform: rotate(-10deg);
+          opacity: clamp(0, var(--lx-swipe, 0), 1);
+        }
+        .av2 .lx-stamp--again {
+          right: 20px;
+          color: var(--av2-red-deep);
+          transform: rotate(10deg);
+          opacity: clamp(0, calc(var(--lx-swipe, 0) * -1), 1);
+        }
+
         .av2 .lx-card__top {
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 10px;
-          font-size: var(--av2-t-label);
-          font-weight: 700;
-          opacity: 0.85;
+          min-height: 40px;
         }
-        .av2 .lx-card__middle { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-        .av2 .lx-card__marks { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 0; }
-        .av2 .lx-card__marks:empty { display: none; }
-        /* WP-115b: a whole line from the story reads as a line, not a headword. */
-        .av2 .lx-card__word.lx-card__word--line {
-          font-size: 1.75rem;
-          line-height: 1.2;
-        }
+        .av2 .lx-card__top > :only-child:not(.lx-cast) { margin-left: auto; }
+        .av2 .lx-card__tools { display: flex; gap: 6px; margin-left: auto; }
+        .av2 .lx-card__icon { background: var(--av2-paper); color: var(--av2-ink); }
+        /* The word sits in the middle of the card, the tools above it, the
+           example and the hint line below. */
+        .av2 .lx-card__middle { display: flex; flex: 1 1 auto; flex-direction: column; gap: 10px; min-width: 0; }
+        .av2 .lx-card__middle > .lx-card__top + * { margin-top: auto; }
+        .av2 .lx-card__middle > :last-child { margin-bottom: auto; }
         .av2 .lx-card__word {
+          margin: 0;
           font-size: 2.875rem; /* design 46px */
-          line-height: 1;
+          line-height: 1.05;
           color: inherit;
           /* A long French word breaks inside the card instead of pushing the
              320px screen sideways. */
           overflow-wrap: anywhere;
           hyphens: auto;
         }
-        .av2 .lx-card__word--sans {
-          font-family: var(--av2-sans);
-          font-style: normal;
-          font-weight: 700;
-          font-size: var(--av2-t-title);
-          line-height: 1.15;
+        .av2 .lx-card__asked {
+          margin: 0 0 -4px;
+          font-size: var(--av2-t-body);
+          line-height: 1.35;
+          opacity: 0.75;
+          overflow-wrap: anywhere;
         }
         .av2 .lx-card__hint {
-          display: flex;
-          align-items: center;
-          gap: 6px;
           margin: 0;
           font-size: var(--av2-t-body);
           line-height: 1.4;
-          opacity: 0.9;
+          opacity: 0.7;
           overflow-wrap: anywhere;
         }
-        .av2 .lx-card__verdict { font-weight: 700; }
-        .av2 .lx-card__bottom { min-width: 0; }
-        .av2 .lx-card__bottom:empty { display: none; }
+        .av2 .lx-card__bottom { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+        .av2 .lx-card__example-block {
+          padding-top: 14px;
+          border-top: 2px solid currentColor;
+          border-top-color: color-mix(in srgb, currentColor 18%, transparent);
+        }
         .av2 .lx-card__example {
           margin: 0;
           font-size: var(--av2-t-action); /* design 17px */
-          line-height: 1.35;
-          opacity: 0.9;
+          line-height: 1.4;
           color: inherit;
           text-wrap: pretty;
           overflow-wrap: anywhere;
         }
-        .av2 .lx-card__example + .lx-card__example { margin-top: 8px; }
-        .av2 .lx-card__example--front { margin-top: 4px; }
         .av2 .lx-card__mark {
           background: none;
           color: inherit;
           font-weight: 700;
           text-decoration: underline;
+          text-decoration-thickness: 2px;
           text-underline-offset: 3px;
         }
         .av2 .lx-card__example-tr {
-          display: block;
-          margin-top: 4px;
+          margin: 6px 0 0;
           font-family: var(--av2-sans);
           font-style: normal;
-          font-size: var(--av2-t-label);
-          line-height: 1.35;
+          font-size: var(--av2-t-body);
+          line-height: 1.4;
+          opacity: 0.75;
+          overflow-wrap: anywhere;
         }
-        .av2 .lx-card__audio { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-        /* The cast chip and the cue chip sit on the card face, so they take the
-           paper ground instead of the card's own colour. */
-        .av2 .lx-cast { gap: 6px; }
+        .av2 .lx-card__cta {
+          margin: 0;
+          text-align: center;
+          font-size: var(--av2-t-label);
+          font-weight: 600;
+          opacity: 0.55;
+        }
+        .av2 .lx-cast { gap: 6px; min-width: 0; }
         .av2 .lx-cast .av2-label { color: inherit; opacity: 0.85; }
         .av2 .lx-cast__portrait--drawn { display: inline-block; overflow: hidden; background: var(--av2-card); }
         .av2 .lx-cast__portrait { width: 22px; height: 22px; border-radius: var(--av2-r-pill); object-fit: cover; object-position: top center; background: var(--av2-line); }
-        .av2 .lx-cue { background: var(--av2-paper); color: var(--av2-ink); }
-        .av2 .lx-card__history { background: var(--av2-paper); }
-        /* globals.css puts an !important 1px ruled border on every input; the
-           design's field is a paper well with a 2px focus edge. */
-        .av2 .lx-input {
-          border: 2px solid transparent !important;
-          border-radius: var(--av2-r-card) !important;
-          box-shadow: none !important;
-          background-color: var(--av2-paper);
-          color: var(--av2-ink);
-          min-height: max(var(--av2-tap), 3rem);
-          cursor: text;
-        }
-        .av2 .lx-input:focus { border-color: var(--av2-blue) !important; box-shadow: none !important; outline: 0; }
-        .av2 .lx-card__input { max-width: 26rem; }
 
-        /* The footer pair: two 56px presses, 10px apart, then the two
-           remaining grades as quiet actions. */
-        .av2 .lx-review__foot { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+        /* The foot: one 56px press to turn the card, then the pair the swipe
+           stands for, at the same height so nothing jumps. */
+        .av2 .lx-review__foot { display: flex; flex-direction: column; min-width: 0; }
         .av2 .lx-review__pair { display: flex; gap: 10px; min-width: 0; }
-        .av2 .lx-rate { flex: 1 1 0; width: auto; font-size: var(--av2-t-body-lg); }
+        .av2 .lx-rate { flex: 1 1 0; width: auto; gap: 8px; font-size: var(--av2-t-body-lg); }
+        .av2 .lx-rate--again { color: var(--av2-red-deep); }
         .av2 .lx-turn { width: 100%; font-size: var(--av2-t-body-lg); }
-        .av2 .lx-rate__dot { background: var(--av2-red); width: 12px; height: 12px; }
-        .av2 .lx-review__grades { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; min-width: 0; }
 
         /* The empty deck. */
         .av2 .lx-done { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 22px 20px; overflow-wrap: anywhere; }
@@ -1677,9 +1536,11 @@ export default function VocabularyReviewPage() {
         .av2 .lx-done__quiet { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 
         @media (max-width: 360px) {
-          .av2 .lx-card { padding: 20px 18px; min-height: 18rem; }
+          .av2 .lx-card { padding: 18px 18px 16px; min-height: 18rem; }
           .av2 .lx-card__word { font-size: var(--av2-t-screen); }
-          .av2 .lx-review__pair { flex-direction: column; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .av2 .lx-card, .av2 .lx-card[data-face='back'] { animation: none; transition: none; }
         }
       `}</style>
     </>

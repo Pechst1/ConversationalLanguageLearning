@@ -79,6 +79,18 @@ const WALK_ERRATA = [
 ];
 const { gapTyped, isRepairableLine, repairState } = require('./repair-parts.ts');
 
+test('#634: a correction naming the whole line sends it back to be retyped, and that retype alone finishes it', () => {
+  const line = 'Elle a achete livre.';
+  const errata = [
+    { learner_text: line, corrected_target: 'Elle a acheté un livre.', task_error_type: 'grammar' },
+    { learner_text: 'achete', corrected_target: 'acheté', task_error_type: 'grammar_target' },
+  ];
+  assert.equal(repairParts(line, errata), null);
+  const state = (repairs) => repairState({ issues: errata, repairs, inPlace: false, isLabelCompare: false, needsNewAnswer: false });
+  assert.deepEqual(state({}), { complete: false, mended: false });
+  assert.deepEqual(state({ 0: { status: 'ok' } }), { complete: true, mended: true });
+});
+
 test('#381 · a gap typed with the words the line already has around it holds the fix', () => {
   const parts = repairParts(WALK_LINE, WALK_ERRATA);
   assert.deepEqual(parts, [

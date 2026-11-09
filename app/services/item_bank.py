@@ -240,6 +240,18 @@ def contains_phrase(haystack: str, needle: str) -> bool:
     return re.search(rf"(?:^|[\s']){re.escape(pin)}(?:$|[\s'])", hay) is not None
 
 
+#: A fill item's blank: two or more underscores, however a set wrote it («___», «____»,
+#: «t'_____»). #448 / #146: three places each hard-coded one length, so the end sheet
+#: replaced «___» in a «____» line and printed «Tu peux_ me le prêter demain ?».
+BLANK_RE = re.compile(r"_{2,}")
+
+
+def fill_blank(prompt: Any, answer: Any, *, count: int = 1) -> str:
+    """``prompt`` with its blank filled by ``answer``, whatever length the blank is."""
+
+    return BLANK_RE.sub(lambda _match: str(answer), str(prompt or ""), count=count)
+
+
 # --------------------------------------------------------------------------- #
 # Morphology
 # --------------------------------------------------------------------------- #
@@ -1521,6 +1533,37 @@ _FILTER_ALIASES = {"def": "def_", "en": "en_"}
 #: person itself.
 _UNDERSPECIFIED_SUBJECTS = frozenset({"I", "we", "you", "they"})
 #: A «we» gloss that also names «our» / «us»: only «nous … notre» is that sentence.
+# #536: an English gloss that names a person's sex («invite her», «his friend»).
+_GENDERED_ENGLISH = re.compile(r"\b(?:he|him|his|himself|she|her|hers|herself)\b", re.IGNORECASE)
+_MASCULINE_DETERMINERS = frozenset({"le", "un", "ce", "cet", "du", "au", "mon", "ton", "son"})
+_FEMININE_DETERMINERS = frozenset({"la", "une", "cette", "ma", "ta", "sa"})
+_EUPHONIC_POSSESSIVES = frozenset({"mon", "ton", "son"})
+
+
+def _agrees_with_noun(sentence: str, noun: dict[str, Any]) -> bool:
+    """Whether the determiner before ``noun`` in ``sentence`` has the noun's gender.
+
+    One word may sit between them (an adjective); «mon / ton / son» stand before a
+    feminine noun only when it starts with a vowel and nothing sits between them."""
+
+    gender = noun.get("g")
+    forms = {str(noun[key]).lower() for key in ("fr", "pl") if isinstance(noun.get(key), str)}
+    words = re.findall(r"[\w'’-]+", sentence.lower().replace("’", "'"))
+    for index, word in enumerate(words):
+        if word not in forms:
+            continue
+        for gap, before in enumerate(reversed(words[max(0, index - 2): index])):
+            if before in _MASCULINE_DETERMINERS and gender == "f":
+                if before in _EUPHONIC_POSSESSIVES and gap == 0 and re.match(r"[aeiouyhâêéèîôû]", word):
+                    break
+                return False
+            if before in _FEMININE_DETERMINERS and gender == "m":
+                return False
+            if before in _MASCULINE_DETERMINERS | _FEMININE_DETERMINERS:
+                break
+    return True
+
+
 _OUR_US = re.compile(r"\b(?:our|ours|ourselves|us)\b", re.IGNORECASE)
 
 #: What else in a frame's own text would name the same person as a subject slot
@@ -2034,6 +2077,48 @@ class ItemBank:
                 except (RenderError, KeyError, IndexError):
                     continue
                 sentences.append(rendered.sentence)
+            sentences.extend(self._gloss_twin_sentences(frame, bindings, slot, entry))
+        return sentences
+
+    def _gloss_twin_sentences(
+        self, frame: _Frame, bindings: dict[str, dict[str, Any]], slot: str, entry: dict[str, Any]
+    ) -> list[str]:
+        """#536: the sentence again with each other person noun the English glosses the
+        same: English «my cousin» is «mon cousin» and «ma cousine», «a friend» is «un
+        ami» and «une amie». The gloss names no gender, so the key may not either; the
+        frame redoes the agreement.
+
+        Only for a frame with no German meaning. German names the sex where English does
+        not («meine Cousine»), and one key serves every language, so a twin here would
+        mark «mon cousin» right for a German learner. An English learner on such a frame
+        keeps the one stored form until the key can follow the learner's language."""
+
+        if entry.get("kind") != "person" or "pron" in (entry.get("tags") or []) or not entry.get("en"):
+            return []
+        if _GENDERED_ENGLISH.search(self._render_text(frame.en, bindings, english=True)):
+            # «invite her», «I help him»: the English names the person's sex, so the key
+            # may not take the other one (the twin is built from the noun alone).
+            return []
+        if self.render_german(frame, bindings) is not None:
+            return []
+        sentences: list[str] = []
+        for twin in self.lex.pool("noun"):
+            if (
+                twin.get("kind") != "person"
+                or twin.get("en") != entry.get("en")
+                or twin.get("fr") == entry.get("fr")
+                or twin.get("id") == entry.get("id")
+            ):
+                continue
+            try:
+                rendered = self.render(frame, {**bindings, slot: twin}, alternatives=False)
+            except (RenderError, KeyError, IndexError):
+                continue
+            if not _agrees_with_noun(rendered.sentence, twin):
+                # The frame redid the noun but not a word it hard-codes beside it
+                # («mon vieille amie»): that is a wrong sentence, never a right one.
+                continue
+            sentences.append(rendered.sentence)
         return sentences
 
     def _person_variants(self, frame: _Frame, bindings: dict[str, dict[str, Any]], sentence: str) -> list[str]:
@@ -2126,7 +2211,13 @@ class ItemBank:
         scene = finish_english(self._render_text(frame.scene, bindings, english=True)) if frame.scene else ""
         accepted = [finish_sentence(tidy_french(self._render_text(alt, bindings))) for alt in frame.accepted]
         if alternatives:
-            accepted.extend(self._alternative_sentences(frame, bindings))
+            # A right answer is never one the screen shows as wrong (a ✗ sentence).
+            wrong = {normalize(sentence) for sentence in wrong_sentences}
+            accepted.extend(
+                alternative
+                for alternative in self._alternative_sentences(frame, bindings)
+                if normalize(alternative) not in wrong
+            )
         lemmas = tuple(
             str(entry.get("lemma") or entry.get("fr") or "").lower()
             for entry in bindings.values()
@@ -2355,6 +2446,24 @@ def item_unit_rule(item: dict[str, Any] | None, language: Any = "en") -> str | N
     return str(rule).strip() if rule else None
 
 
+def item_miss_reason(item: dict[str, Any] | None, language: Any = "en") -> str | None:
+    """#537: why a missed bank item was wrong: the reason of its own trap, else its unit's rule.
+
+    A repair item carries the ✗ sentence it shows (``source``) and the ✓ one (``expected_answer``);
+    when the unit's rule card has a trap for that slip («ma → mon» before a vowel), its reason
+    explains the slip. The unit's one-line rule is shared by all of the unit's traps and can
+    point the other way («follow the thing owned, not the owner» under «ma affiche»).
+    """
+
+    unit = item_unit(item)
+    if not unit or not isinstance(item, dict):
+        return None
+    from app.services.grammar_units import trap_why
+
+    own = trap_why(unit, str(item.get("source") or ""), str(item.get("expected_answer") or ""), str(language))
+    return own or item_unit_rule(item, language)
+
+
 def unit_band(unit: str) -> str:
     return str(unit_row(unit).get("level") or "A1")
 
@@ -2562,7 +2671,28 @@ _GOALS: dict[str, dict[str, str]] = {
         "de": "Ist der Satz richtig?",
         "fr": "Cette phrase est-elle correcte ?",
     },
+    # #542: a correct sentence to turn into another one. Never an «error» goal:
+    # its source holds no mistake. The item's own instruction says into what.
+    "rewrite": {
+        "en": "Rewrite the sentence.",
+        "de": "Schreib den Satz um.",
+        "fr": "Récris la phrase.",
+    },
 }
+
+#: #542: the task a transform item declares (``type``) → its goal. The goal is a
+#: function of this table, never of the item's shape (a ``source`` and an
+#: ``expected_answer`` are there on a repair and on a rewrite alike). Only
+#: ``repair`` may say «error»: it is the only kind whose source contains one. The
+#: model schema's enum (``atelier.ATELIER_EXERCISE_RESPONSE_FORMAT``) and the
+#: generator contract are built from the keys, so a new kind cannot be added
+#: without choosing its goal.
+TASK_GOAL_KINDS: dict[str, str] = {
+    "directed_rewrite": "rewrite",
+    "contrast_rewrite": "rewrite",
+    "repair_rewrite": "repair",
+}
+TRANSFORM_TASK_KINDS: tuple[str, ...] = tuple(TASK_GOAL_KINDS)
 
 
 #: FORGE-DE: the German goals when the item has a German meaning (``BankItem.de``):
@@ -2658,13 +2788,19 @@ def _goal_kind(item: dict[str, Any]) -> str | None:
         # «Ta phrase» carries its own goal in every language; it is not a
         # bank repair whose goal is rebuilt from a meaning.
         return "mine"
+    declared = TASK_GOAL_KINDS.get(str(item.get("type") or ""))
+    if declared:
+        # #542: the task the item declares, before anything its shape suggests.
+        return declared
     if _is_judgement(item):
         return "judge"
     if item.get("classify_kind") == "minimal_pair":
         return "pick"
     if "answer_tokens" in item:
         return "build"
-    if "source" in item and "expected_answer" in item:
+    if "expected_answer" in item and (item.get("wrong_span") or item.get("source_fr")):
+        # #542: a repair is a sentence that *carries* its mistake (the bank's
+        # repair item marks it); a bare source and answer prove nothing.
         return "repair"
     if "choices" in item or "blank" in item:
         return "fill"
@@ -2719,11 +2855,13 @@ def with_goal(item: dict[str, Any], language: Any = None, native: Any = None) ->
             out["label_l10n"] = table
     if l10n:
         out["goal_native"] = l10n.get(code) or l10n.get("en") or out.get("goal_native")
+    elif kind == "rewrite":
+        out["goal_native"] = goal_l10n("rewrite")[code]
     elif not out.get("goal_native"):
         meaning = str(out.get("meaning_cue") or out.get("meaning") or "").strip()
         if meaning and kind in {"build", "repair", "fill"}:
             out["goal_native"] = goal_l10n(kind, meaning).get(code) or goal_l10n(kind, meaning)["en"]
-    if out.get("source") and not out.get("source_fr") and ("expected_answer" in out):
+    if out.get("source") and not out.get("source_fr") and ("expected_answer" in out) and kind != "rewrite":
         out["source_fr"] = out["source"]
     key = out.get("instruction_key")
     if isinstance(key, str) and key in INSTRUCTIONS_L10N:
@@ -2747,7 +2885,7 @@ def with_goal(item: dict[str, Any], language: Any = None, native: Any = None) ->
         # The bank's meaning cues and stored sets' cues are English; FORGE-DE:
         # a German meaning, when the item carries one, takes their place.
         context = out.get("context_l10n") if isinstance(out.get("context_l10n"), dict) else None
-        if kind in {"build", "repair", "fill", "pick"}:
+        if kind in {"build", "repair", "fill", "pick", "rewrite"}:
             out["goal_native"] = goal_l10n(kind, None, native_meaning or None, context).get(code)
         if "answer_tokens" in out:
             out["meaning_cue"] = native_meaning or None
@@ -3088,7 +3226,7 @@ def target_answers(item: BankItem) -> list[str]:
 
 def fill_item(item: BankItem, *, lesson_external_id: str | None = None) -> dict[str, Any] | None:
     prompt = f"{item.prefix}___{item.suffix}".strip()
-    if contains_phrase(prompt.replace("___", " "), item.target):
+    if contains_phrase(fill_blank(prompt, " ", count=0), item.target):
         return None
     if item.gloss:
         prompt = f"{prompt} ({item.en})"
@@ -3487,7 +3625,7 @@ def spoils(rung: str, payload_item: dict[str, Any]) -> bool:
     """Does the item's prompt show its own answer? (the no-spoil rule)."""
 
     if rung == "fill":
-        return contains_phrase(str(payload_item["prompt"]).replace("___", " "), payload_item["correct_answer"])
+        return contains_phrase(fill_blank(payload_item["prompt"], " ", count=0), payload_item["correct_answer"])
     if rung in {"classify", "pair"}:
         return contains_phrase(str(payload_item["prompt"]), payload_item["correct_label"]) and rung == "pair"
     if rung == "word_bank":

@@ -143,7 +143,8 @@ class MissionAttemptResponse(BaseModel):
 
 class MissionTurnResponse(BaseModel):
     user_turn: dict[str, Any]
-    assistant_turn: dict[str, Any]
+    #: ``{}`` when the correspondent has not answered (``outcome.reply_state == "pending"``).
+    assistant_turn: dict[str, Any] = Field(default_factory=dict)
     correction: MissionCorrectionRead
     errata: list[LinkedVocabularyErratumRead] = Field(default_factory=list)
     mission: MissionRead

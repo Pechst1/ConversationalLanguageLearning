@@ -497,7 +497,11 @@ class SeasonProvider(ScriptedProvider):
         chapter = context.get("chapter") or {}
         keeps = bool(chapter) and not (chapter.get("resolved") or chapter.get("exhausted"))
         speaker = SEASON_SPEAKERS[n % len(SEASON_SPEAKERS)]
-        location = SEASON_LOCATIONS[n % len(SEASON_LOCATIONS)]
+        # A compliant director sets the page at a place it was offered: where Le
+        # Quartier can play it (``on_built_stage``).
+        offered = {str(place.get("id")) for place in (context.get("world") or {}).get("locations") or []}
+        places = [place for place in SEASON_LOCATIONS if place in offered] or SEASON_LOCATIONS
+        location = places[n % len(places)]
         shape = str((context.get("chapter_shape") or {}).get("shape") or chapter.get("shape") or "")
         if shape == "bottle" and keeps and chapter.get("location_id"):
             location = str(chapter["location_id"])

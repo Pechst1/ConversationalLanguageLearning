@@ -54,6 +54,7 @@ from app.db.models.daily_journey import DailyJourney
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.services.cast_roles import role_line
+from app.services.closing_filler import scene_fact
 from app.services.journey_contracts import (
     DEFAULT_BUDGET_SECONDS,
     FALLBACK_CONTROL_LANGUAGE,
@@ -1056,7 +1057,8 @@ def learner_prior_consequence(
         record = _story_outcome_record(journey)
         if not record:
             continue
-        callback = " ".join(str(record.get("callback_fr") or "").split())
+        # #597: a closing caption («À suivre…») is not an event to bring up.
+        callback = scene_fact(record.get("callback_fr"))
         outcome_key = str(record.get("outcome_key") or "")
         scenario_key = str((journey.scenario_snapshot or {}).get("scenario_key") or "")
         continuity = _CONTINUITY.get(scenario_key)

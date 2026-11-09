@@ -36,11 +36,13 @@ from app.services.missions import (
     MissionCorrectionService,
     MissionScheduler,
     SerialEpisodeNotReadyError,
+    is_stock_reply,
+    learner_zone,
     serialize_mission,
+    stamp_fields,
 )
 from app.services.serial import SerialThreadService
 from app.services.transcription_cost import record_transcription_cost
-from app.utils.timestamps import utc_iso
 
 router = APIRouter(prefix="/missions", tags=["missions"])
 MAX_AUDIO_UPLOAD_BYTES = 25 * 1024 * 1024
@@ -73,7 +75,7 @@ def _attempt_read(attempt: RealWorldMissionAttempt) -> dict:
         "correction": attempt.correction_payload or {},
         "verdict": attempt.verdict,
         "score_0_4": attempt.score_0_4,
-        "created_at": utc_iso(attempt.created_at),
+        **stamp_fields(attempt.created_at, learner_zone(attempt.mission)),
     }
 
 
@@ -86,7 +88,7 @@ def _turn_read(turn: RealWorldMissionTurn) -> dict:
         "text": turn.text,
         "audio_payload": turn.audio_payload or {},
         "correction": turn.correction_payload or {},
-        "created_at": utc_iso(turn.created_at),
+        **stamp_fields(turn.created_at, learner_zone(turn.mission)),
     }
 
 
@@ -372,6 +374,62 @@ def submit_mission(
     )
 
 
+def _character_reply_turn(
+    db: Session,
+    *,
+    user: User,
+    mission: RealWorldMission,
+    user_turn: RealWorldMissionTurn,
+    user_text: str,
+) -> RealWorldMissionTurn | None:
+    """Ask the correspondent for a reply and store it; ``None`` when nobody answered (#397/#333).
+
+    The stock acknowledgement is what the Courrier says when no character reply could be
+    produced. It is not Gus's turn: stored, it made the thread read as answered, and the
+    letter closed on a reply nobody gave. Nothing is stored; the same text sent again asks again.
+    """
+
+    conversation_service = MissionConversationService(db)
+    assistant_text = conversation_service.respond(user=user, mission=mission, user_text=user_text)
+    if is_stock_reply(assistant_text):
+        return None
+    assistant_turn = RealWorldMissionTurn(
+        mission_id=mission.id,
+        user_id=user.id,
+        turn_index=user_turn.turn_index + 1,
+        role="assistant",
+        mode="chat",
+        text=assistant_text,
+        audio_payload={
+            "branch": conversation_service.branch_state(
+                mission=mission,
+                user_text=user_text,
+                assistant_text=assistant_text,
+            )
+        },
+        correction_payload={},
+    )
+    db.add(assistant_turn)
+    db.commit()
+    db.refresh(assistant_turn)
+    db.refresh(mission)
+    return assistant_turn
+
+
+def _turn_outcome(
+    db: Session,
+    *,
+    mission: RealWorldMission,
+    user_text: str,
+    assistant_turn: RealWorldMissionTurn | None,
+) -> dict[str, Any]:
+    if assistant_turn is None:
+        return {"reply_text": "", "branch": {}, "reply_state": "pending"}
+    return MissionConversationService(db).turn_outcome(
+        mission=mission, user_text=user_text, assistant_text=assistant_turn.text
+    )
+
+
 @router.post("/{mission_id}/turns", response_model=MissionTurnResponse)
 def submit_mission_turn(
     mission_id: UUID,
@@ -387,40 +445,13 @@ def submit_mission_turn(
     if duplicate:
         user_turn, assistant_turn = duplicate
         if not assistant_turn:
-            conversation_service = MissionConversationService(db)
-            assistant_text = conversation_service.respond(
-                user=current_user,
-                mission=mission,
-                user_text=request.text,
+            assistant_turn = _character_reply_turn(
+                db, user=current_user, mission=mission, user_turn=user_turn, user_text=request.text
             )
-            assistant_turn = RealWorldMissionTurn(
-                mission_id=mission.id,
-                user_id=current_user.id,
-                turn_index=user_turn.turn_index + 1,
-                role="assistant",
-                mode="chat",
-                text=assistant_text,
-                audio_payload={
-                    "branch": conversation_service.branch_state(
-                        mission=mission,
-                        user_text=request.text,
-                        assistant_text=assistant_text,
-                    )
-                },
-                correction_payload={},
-            )
-            db.add(assistant_turn)
-            db.commit()
-            db.refresh(assistant_turn)
-            db.refresh(mission)
-        outcome = MissionConversationService(db).turn_outcome(
-            mission=mission,
-            user_text=user_turn.text,
-            assistant_text=assistant_turn.text,
-        )
+        outcome = _turn_outcome(db, mission=mission, user_text=user_turn.text, assistant_turn=assistant_turn)
         return MissionTurnResponse(
             user_turn=_turn_read(user_turn),
-            assistant_turn=_turn_read(assistant_turn),
+            assistant_turn=_turn_read(assistant_turn) if assistant_turn else {},
             correction=user_turn.correction_payload or {},
             errata=[],
             mission=serialize_mission(mission) or {},
@@ -467,40 +498,13 @@ def submit_mission_turn(
     db.add(user_turn)
     db.commit()
     db.refresh(user_turn)
-    conversation_service = MissionConversationService(db)
-    assistant_text = conversation_service.respond(
-        user=current_user,
-        mission=mission,
-        user_text=request.text,
+    assistant_turn = _character_reply_turn(
+        db, user=current_user, mission=mission, user_turn=user_turn, user_text=request.text
     )
-    assistant_turn = RealWorldMissionTurn(
-        mission_id=mission.id,
-        user_id=current_user.id,
-        turn_index=first_index + 1,
-        role="assistant",
-        mode="chat",
-        text=assistant_text,
-        audio_payload={
-            "branch": conversation_service.branch_state(
-                mission=mission,
-                user_text=request.text,
-                assistant_text=assistant_text,
-            )
-        },
-        correction_payload={},
-    )
-    db.add(assistant_turn)
-    db.commit()
-    db.refresh(assistant_turn)
-    db.refresh(mission)
-    outcome = conversation_service.turn_outcome(
-        mission=mission,
-        user_text=request.text,
-        assistant_text=assistant_text,
-    )
+    outcome = _turn_outcome(db, mission=mission, user_text=request.text, assistant_turn=assistant_turn)
     return MissionTurnResponse(
         user_turn=_turn_read(user_turn),
-        assistant_turn=_turn_read(assistant_turn),
+        assistant_turn=_turn_read(assistant_turn) if assistant_turn else {},
         correction=correction,
         errata=persisted,
         mission=serialize_mission(mission) or {},

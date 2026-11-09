@@ -50,7 +50,15 @@ from app.db.base import Base
 #:                   is kept; no verdict is invented.
 #: ``skipped``     — the learner declined this entry. Terminal, and it is why the
 #:                   same scene is never offered twice.
-JOURNAL_STATUSES: tuple[str, ...] = ("offered", "written", "unavailable", "skipped")
+#: ``expired``     — offered, never written, and the story moved on: a newer scene
+#:                   (or the end of the recall window) replaced it. Terminal.
+JOURNAL_STATUSES: tuple[str, ...] = (
+    "offered",
+    "written",
+    "unavailable",
+    "skipped",
+    "expired",
+)
 
 #: The +7-day follow-up's answer, as the digest reads it.
 #: ``used_again_later`` — the learner still recalled a stored scene fact a week on.

@@ -159,7 +159,7 @@ _NAME_READ = re.compile(r"""\bconcept\.name\b|getattr\(\s*concept\s*,\s*["']name
 #: author's own tooling, the catalogue importer) are listed here too, until they are
 #: moved behind a clearly named non-display accessor (stage 2 of #522).
 _BASELINE: dict[str, int] = {
-    "app/api/v1/endpoints/atelier.py": 3,
+    "app/api/v1/endpoints/atelier.py": 2,
     "app/api/v1/endpoints/grammar.py": 7,
     "app/api/v1/endpoints/session_utils.py": 1,
     "app/core/conversation/generator.py": 1,
@@ -169,8 +169,6 @@ _BASELINE: dict[str, int] = {
     "app/services/brief_exercise_service.py": 2,
     "app/services/eclair.py": 1,
     "app/services/exercise_generation.py": 4,
-    "app/services/forge.py": 1,
-    "app/services/forge_picker.py": 1,
     "app/services/grammar.py": 3,
     "app/services/grammar_catalog.py": 2,
     "app/services/grammar_feedback.py": 4,
@@ -179,7 +177,6 @@ _BASELINE: dict[str, int] = {
     "app/services/journey_learning.py": 1,
     "app/services/level_plan.py": 1,
     "app/services/missions.py": 2,
-    "app/services/seance_curriculum.py": 1,
     "app/services/session_moment_planner.py": 9,
     "app/services/session_service.py": 2,
     "app/services/unified_srs.py": 1,
@@ -211,3 +208,13 @@ def test_no_new_name_reads() -> None:
         "title on a learner's screen comes from app.services.concept_titles.concept_title"
         f"(concept, language): {grew}"
     )
+
+
+def test_baseline_is_tight() -> None:
+    """A read that moved behind `concept_title` comes off the baseline, so it cannot creep back."""
+
+    found = _reads()
+    stale = {
+        path: (found.get(path, 0), allowed) for path, allowed in _BASELINE.items() if found.get(path, 0) < allowed
+    }
+    assert not stale, f"Lower these baseline counts (found, allowed): {stale}"

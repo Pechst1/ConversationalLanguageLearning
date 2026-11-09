@@ -120,6 +120,7 @@ const FR = {
   mic_recording: 'Enregistrement · {timer}',
   // toasts
   toast_send_failed: 'Le message n’est pas parti.',
+  toast_reply_pending: 'Ton message est parti, mais personne n’a encore répondu. Renvoie-le pour relancer.',
   toast_act_done: 'Acte bouclé',
   toast_courrier_done: 'Courrier bouclé',
   toast_finish_failed: 'Ce courrier n’a pas pu être terminé.',
@@ -339,6 +340,7 @@ const EN: CourrierCopy = {
   mic_stop: 'Stop recording',
   mic_recording: 'Recording · {timer}',
   toast_send_failed: 'Your message was not sent.',
+  toast_reply_pending: 'Your message went out, but nobody has answered yet. Send it again to ask again.',
   toast_act_done: 'Act complete',
   toast_courrier_done: 'Letter answered',
   toast_finish_failed: 'This letter could not be finished.',
@@ -550,6 +552,7 @@ const DE: CourrierCopy = {
   mic_stop: 'Aufnahme beenden',
   mic_recording: 'Aufnahme · {timer}',
   toast_send_failed: 'Deine Nachricht wurde nicht gesendet.',
+  toast_reply_pending: 'Deine Nachricht ist raus, aber noch hat niemand geantwortet. Schick sie noch einmal, um nachzufragen.',
   toast_act_done: 'Akt abgeschlossen',
   toast_courrier_done: 'Brief beantwortet',
   toast_finish_failed: 'Dieser Brief ließ sich nicht beenden.',

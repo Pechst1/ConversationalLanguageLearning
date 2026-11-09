@@ -16,6 +16,7 @@
 import { LEAVE, NAMES, PEOPLE as TALKERS, TEXT_SUITCASE, chipsFor, fold, helloOf, registerOf, respond } from './agency';
 import type { CastId, Value, Words } from './memory';
 import scene from './scenes/t1-a.json';
+import { HOME_PLACE, playsIn, stageOf } from './world';
 
 /* ------------------------------------------------------------------------------------------ */
 /* the page, as the server resolves it for one learner (`steps[kind=scene].prompt.stage`)     */
@@ -115,25 +116,101 @@ export interface StoryPage {
   title_fr: string;
   story_date_fr?: string | null;
   location_id?: string | null;
+  /** the place's name as the server gives it (a day the engine wrote), for a place the quarter does not know */
+  location_name?: string | null;
   /** what the learner practises today, in their language */
   can_do_native?: string | null;
   movements: StoryMovement[];
   storylets: Storylet[];
 }
 
-/** The days the director has blocking for: T1 day a, and day b (the café, then the stairwell). Any other page plays its lines at Le Mistral. */
+/**
+ * The days the director has blocking for: T1 day a, and day b (the café, then the stairwell). Any
+ * other page plays its lines in the places the world has built for them (`placesOf`), each moment
+ * where its location is staged; a page that goes somewhere nothing is built for yet is the
+ * Feuilleton's to tell (`unbuiltOf`).
+ */
 export const STAGED_DAYS = ['t1.a', 't1.b'];
 
-/** Where a page's panel plays in a room of the season rather than the café: the stairwell and Odile's door (T1 R1–R4). */
-export const ROOM_OF: Record<string, string> = {
-  stairwell: 'escalier_mistral',
-  odile_flat: 'escalier_mistral',
+/** Le Mistral itself: no card names it. */
+const AT_MISTRAL = new Set(['le_mistral', 'mistral_back_room']);
+
+/** The season's places by name (`app/services/season/world.py`), for the card that says where a scene has moved. */
+export const PLACE_NAMES: Record<string, { fr: string; en: string; de: string }> = {
+  quai_de_valmy: { fr: 'Le quai de Valmy', en: 'The quai de Valmy', de: 'Der Quai de Valmy' },
+  stairwell: { fr: 'L’escalier', en: 'The stairwell', de: 'Das Treppenhaus' },
+  odile_flat: { fr: 'L’appartement d’Odile', en: 'Odile’s flat', de: 'Odiles Wohnung' },
+  user_apartment: { fr: 'Ton studio', en: 'Your studio', de: 'Dein Studio' },
+  marin_lila_flat: { fr: 'L’appartement de Marin et Lila', en: 'Marin and Lila’s flat', de: 'Die Wohnung von Marin und Lila' },
+  ngo_office: { fr: 'Le bureau de l’ONG de Marin', en: 'Marin’s NGO office', de: 'Das Büro von Marins NGO' },
+  mairie: { fr: 'La mairie du 10e', en: 'The town hall of the 10th', de: 'Das Rathaus des 10. Bezirks' },
+  marchand_office: { fr: 'La gérance Marchand', en: 'The Marchand property office', de: 'Die Hausverwaltung Marchand' },
+  notaire: { fr: 'Chez Maître Vasseur', en: 'At Maître Vasseur’s', de: 'Bei Maître Vasseur' },
+  gare_de_lest: { fr: 'La gare de l’Est', en: 'The Gare de l’Est', de: 'Der Gare de l’Est' },
+  rue_de_lancry: { fr: 'La rue de Lancry', en: 'The rue de Lancry', de: 'Die Rue de Lancry' },
+  gus_loft: { fr: 'Le « château » de Gus', en: 'Gus’s «château»', de: 'Gus’ «Schloss»' },
+  boulangerie: { fr: 'La boulangerie de Mme Diallo', en: 'Mme Diallo’s bakery', de: 'Die Bäckerei von Mme Diallo' },
+  ecole: { fr: 'La classe de Lila', en: 'Lila’s classroom', de: 'Lilas Klassenzimmer' },
+  toit: { fr: 'Le toit de l’immeuble', en: 'The roof of the building', de: 'Das Dach des Hauses' },
+  newsroom: { fr: 'La rédaction de Romy', en: 'Romy’s newsroom', de: 'Romys Redaktion' },
+  marche_canal: { fr: 'Le marché du canal', en: 'The canal market', de: 'Der Markt am Kanal' },
+  buttes_chaumont: { fr: 'Le parc des Buttes-Chaumont', en: 'The Buttes-Chaumont park', de: 'Der Park Buttes-Chaumont' },
+  metro_platform: { fr: 'Le quai du métro', en: 'The metro platform', de: 'Der Bahnsteig der Metro' },
+  brocante: { fr: 'La brocante', en: 'The flea market', de: 'Der Flohmarkt' },
 };
 
-/** The room a movement plays in, if it is one (a hook plays where the room's scene ends). */
+/** The card's words for a place other than Le Mistral; null for the café (or no place at all). */
+export function placeCard(location: string | null | undefined, fallback?: string | null): { fr: string; en: string; de: string } | null {
+  if (!location || AT_MISTRAL.has(location)) return null;
+  const known = PLACE_NAMES[location];
+  if (known) return known;
+  const name = fallback?.trim();
+  return name ? { fr: name, en: name, de: name } : null;
+}
+
+/** Where a movement says it happens, if it says. */
+export function locationOf(m: StoryMovement): string | null {
+  return (m.kind === 'panel' ? m.location_id : m.panel.location_id) ?? null;
+}
+
+/**
+ * The room of the season a movement's place is built as, if the forge has built one (the world's
+ * register, `stages` in `world/world.json`); a hook plays where the room's scene ends.
+ */
 export function roomOf(m: StoryMovement): string | null {
-  const at = m.kind === 'panel' ? m.location_id : m.panel.location_id;
-  return (at && ROOM_OF[at]) ?? null;
+  return stageOf(locationOf(m))?.room ?? null;
+}
+
+/** Whether a movement plays on in the room `room` once the page is there: its own place, or one seen from it. */
+export function inRoom(m: StoryMovement, room: string): boolean {
+  return playsIn(locationOf(m), room);
+}
+
+/**
+ * Where each movement of a page plays in the built world: the place its location is the stage of
+ * (`stageOf`), else where the page already is. The first movement that names no place is where the
+ * page says it is set; a page that names none at all plays in the hand-drawn quarter. Null where
+ * the location has nothing built for it yet.
+ */
+export function placesOf(page: StoryPage): Array<string | null> {
+  let here: string | null | undefined;
+  return page.movements.map((m, i) => {
+    const at = locationOf(m) ?? (i === 0 ? page.location_id ?? null : null);
+    if (at) here = stageOf(at)?.id ?? null;
+    else if (here === undefined) here = HOME_PLACE;
+    return here;
+  });
+}
+
+/** The first place a page goes to that the world has not built yet (the quarter cannot play it), or null. */
+export function unbuiltOf(page: StoryPage): string | null {
+  const places = placesOf(page);
+  let at: string | null = null;
+  for (let i = 0; i < page.movements.length; i++) {
+    at = locationOf(page.movements[i]) ?? (i === 0 ? page.location_id ?? null : at);
+    if (places[i] === null) return at;
+  }
+  return null;
 }
 
 /** The questions of a page, in order. */

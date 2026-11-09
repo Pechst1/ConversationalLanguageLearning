@@ -834,6 +834,10 @@ class RecallTask:
     #: language («Rule: Le verbe être au présent.»). Shown with the answer, so a
     #: repair never ends on a bare «Correct».
     rule_native: str | None = None
+    #: #537: on a grammar ``choice`` between a ✓ form and its ✗ form, why the ✗ one is
+    #: wrong, in the learner's language: the reason of *this* trap (the vowel, the
+    #: noun's gender), not the unit's one-line rule. A miss is explained with it first.
+    why_native: str | None = None
     #: #155: who says the line of today's scene this item is cut from (a cast id),
     #: so the face that asks the item and smiles at a right answer is that person
     #: and not the day's character. ``None`` when the item is not cut from a
@@ -1546,6 +1550,11 @@ class Correction:
     #: item's gap filled with it), so the saved error can be drilled later as that
     #: sentence with the slip marked, not as a bare word. ``None`` when unknown.
     context_fr: str | None = None
+    #: #174: the app's own register rule wrote this edit («Tu as» -> «Vous avez» at
+    #: a counter that stays on «vous»), not a model. Its claim is about the scene, not
+    #: about the learner's grammar, so the checks that prove a model's fix against
+    #: the learner's sentence (subject kept, cited form present) do not apply to it.
+    rule_written: bool = False
 
     def is_valid_for(self, learner_text: str) -> bool:
         """Reject no-op corrections and spans the learner never wrote."""
@@ -1624,6 +1633,9 @@ class ResponseEvaluation:
     #: WP-113: what the learner is asked to do next, in their language, when the
     #: next question is a posed solve (it replaces the day's objective line).
     next_task_native: str | None = None
+    #: #594: who the next question is put to, a cast id, when it is not the person the
+    #: scene opened with (Gus asks, then Margaux). The exchange header names this person.
+    next_addressee: str | None = None
     #: QA-STORY 2026-10-03: which authored route this exchange took on a season page,
     #: ``{turn, reply}`` (``reply`` is ``__ask_again__`` when the scene asked again).
     #: Kept with the exchange so a replay never re-reads it differently.

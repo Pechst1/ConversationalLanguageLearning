@@ -400,13 +400,33 @@ def _latest_journey(db: Session, user: User) -> DailyJourney | None:
     )
 
 
+def _has_met(db: Session, user: User, character_id: Any) -> bool:
+    """Has this learner met this person yet? (#147: the cast registry decides.)
+
+    ``True`` when the thread plays no season, because an older story has no canon of who
+    comes when, and for no id at all (nothing to check).
+    """
+
+    if not str(character_id or "").strip():
+        return True
+    thread = _active_thread(db, user)
+    state = getattr(thread, "state", None) if thread else None
+    return cast_registry.has_met(state if isinstance(state, dict) else None, str(character_id))
+
+
 def _speaker(db: Session, user: User) -> tuple[str, str]:
-    """(character id, display name) of the learner's latest scene, else Marin."""
+    """(character id, display name) of the learner's latest scene, else Marin.
+
+    A scene whose speaker the learner has not met by the season's reach (#147) does not
+    lend the push their face: Marin, who opens the story, speaks instead.
+    """
 
     journey = _latest_journey(db, user)
     scenario = dict(getattr(journey, "scenario_snapshot", None) or {}) if journey else {}
     raw_id = str(scenario.get("character_id") or "").strip()
     name = str(scenario.get("character_name") or "").strip()
+    if raw_id and not _has_met(db, user, raw_id):
+        raw_id = name = ""
     key = portrait_character(raw_id)
     if raw_id and name:
         # #147: the registry's name («Gus»), whatever the scene's snapshot spelled.
@@ -536,6 +556,10 @@ def daily_journey_morning_push(
     group = band_group(user)
     resumable = _journey_today(db, user, today, ("preparing", "active", "paused"))
     teaser = None if resumable is not None else engine_teaser(db, user)
+    if teaser is not None and not _has_met(db, user, teaser["character_id"]):
+        # #147: a line from someone the learner has not met is not a dépêche, it is a
+        # stranger on the lock screen (Romy on day 1, #124, #155).
+        teaser = None
     if teaser is not None and _teaser_key(teaser["text_fr"]) in recent_push_lines(db, user, today=today):
         # WP-99: the story has not written a new line since the last push that
         # used this one; saying it again is not a dépêche, it is a nag.

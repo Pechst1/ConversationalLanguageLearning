@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import logging
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import Any, Literal
 
@@ -88,7 +88,11 @@ DAY_DECK_LIMIT = 100
 DAY_DECK_NEW_WORDS = 50
 
 WORDS_HREF = "/vocabulary/review?day=1"
-MORE_WORDS_HREF = f"/vocabulary/review?more={MORE_WORDS}"
+
+
+def more_words_href(n: int) -> str:
+    return f"/vocabulary/review?more={max(0, int(n))}"
+
 FINISH_HREF = "/fertig"
 #: The plan_selection key that records the word step as done today.
 SESSION_KEY = "session"
@@ -211,6 +215,9 @@ class SessionInputs:
     #: words it read or heard (``story_reading.day_reading``).
     acts: int = 0
     story_words: int = 0
+    #: #563: the «Noch N neue Wörter» after the day, N = what the next tap really
+    #: brings (:func:`vocabulary_pace.next_extra_step`), not the step's name.
+    more_words: int = MORE_WORDS
 
 
 def review_room(new_words: int, *, reviews_left: int | None = None, deck_limit: int = DAY_DECK_LIMIT) -> int:
@@ -311,9 +318,9 @@ def session_view(inputs: SessionInputs) -> dict[str, Any]:
             "acts": max(0, inputs.acts),
             "story_words": max(0, inputs.story_words),
         },
-        "more_words": MORE_WORDS,
-        "more_minutes": minutes(words_seconds(MORE_WORDS, 0)),
-        "more_href": MORE_WORDS_HREF,
+        "more_words": max(0, inputs.more_words),
+        "more_minutes": minutes(words_seconds(inputs.more_words, 0)),
+        "more_href": more_words_href(inputs.more_words),
     }
 
 
@@ -604,27 +611,46 @@ def build_session(
     # word step, the deck and the Done screen all count that plan.
     ensure_plan(db, user, now=now)
     story = safe_day_reading(journey)
-    return session_view(
-        SessionInputs(
-            pace=pace_of(user),
-            scene_done=scene_done,
-            scene_seconds=int(scene_seconds or DEFAULT_SCENE_SECONDS),
-            quota=daily_quota(db, user, now=now),
-            introduced=len(introduced_today(db, user, now=now)),
-            reviews_due=reviews_due,
-            words_marked_done=words_marked_done(journey),
-            forge_seconds=forge_budget_seconds(user),
-            forge_blocks_today=forge_blocks_today,
-            forge_href=forge_href,
-            exercises_today=exercises_today(db, user, now=now),
-            words_reviewed_today=words_reviewed_today(db, user, now=now),
-            deck=_day_deck_or_none(db, user, reviews_due=reviews_due, now=now),
-            dealt=_dealt_deck_or_none(db, user, now=now),
-            extras_answered=_extras_answered_or_zero(db, user, now=now),
-            acts=story.acts,
-            story_words=story.words,
-        )
+    inputs = SessionInputs(
+        pace=pace_of(user),
+        scene_done=scene_done,
+        scene_seconds=int(scene_seconds or DEFAULT_SCENE_SECONDS),
+        quota=daily_quota(db, user, now=now),
+        introduced=len(introduced_today(db, user, now=now)),
+        reviews_due=reviews_due,
+        words_marked_done=words_marked_done(journey),
+        forge_seconds=forge_budget_seconds(user),
+        forge_blocks_today=forge_blocks_today,
+        forge_href=forge_href,
+        exercises_today=exercises_today(db, user, now=now),
+        words_reviewed_today=words_reviewed_today(db, user, now=now),
+        deck=_day_deck_or_none(db, user, reviews_due=reviews_due, now=now),
+        dealt=_dealt_deck_or_none(db, user, now=now),
+        extras_answered=_extras_answered_or_zero(db, user, now=now),
+        acts=story.acts,
+        story_words=story.words,
     )
+    view = session_view(inputs)
+    if view["done"]:
+        # #563: the offer after the day is the pool's: the label, the link and the
+        # grant all say what the next tap brings (read only once the day is done).
+        step = _extra_step_or_none(db, user, now=now)
+        if step is not None:
+            view = session_view(replace(inputs, more_words=step))
+    return view
+
+
+def _extra_step_or_none(db: Session, user: Any, *, now: datetime) -> int | None:
+    from app.services.vocabulary_pace import next_extra_step
+
+    if not getattr(user, "id", None):
+        return None
+    try:
+        with db.begin_nested():
+            return next_extra_step(db, user, now=now)
+    except Exception:  # noqa: BLE001 - a count that cannot be read never costs Home its day
+        logger.warning("daily_session: the extra words could not be counted", exc_info=True)
+        return None
 
 
 def goal_gap(db: Session, user: Any, *, now: datetime | None = None) -> tuple[str, int, int]:

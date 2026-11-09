@@ -344,7 +344,9 @@ def test_the_conjugation_is_graded_on_the_server(client, db_session):
 
 def test_the_frontend_sends_the_text_not_a_verdict():
     review = (ROOT / "web-frontend/pages/vocabulary/review.tsx").read_text(encoding="utf-8")
-    assert "correct: typedMatches" not in review and "answer_text: typedAnswer" in review
+    # Owner, 4 Nov: the word review is a flip card with no typed answer; it never
+    # sends a verdict of its own, only a self-rated flashcard.
+    assert "correct: typedMatches" not in review and "format: 'flashcard'" in review
     conjugation = (ROOT / "web-frontend/pages/vocabulary/conjugation.tsx").read_text(encoding="utf-8")
     assert "answer_text: typed" in conjugation
 

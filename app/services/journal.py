@@ -57,6 +57,7 @@ from app.db.models.vocabulary import VocabularyWord
 from app.services import correction_contract
 from app.services.atelier import AtelierCorrectionService
 from app.services.atelier_correction_cost import bound_learner_answer
+from app.services.closing_filler import is_closing_filler, scene_fact
 from app.services.daily_journey import local_date_for
 from app.services.error_memory import ErrorMemoryService
 from app.services.glosses import normalize_language
@@ -238,6 +239,10 @@ class SceneFact:
         return 2 if len(self.cues) > CUE_THRESHOLD_WIDTH else 1
 
 
+# ROOT CAUSE #145/#539/#597: what counts as a closing caption or an exit stub (and not
+# an event of the scene) is decided once, in ``closing_filler``; the Journal reads it.
+
+
 def scene_facts_for(
     journey: DailyJourney, *, story_context: dict[str, Any] | None = None
 ) -> list[SceneFact]:
@@ -264,7 +269,7 @@ def scene_facts_for(
 
     outcome = recap.get("story_outcome") or {}
     callback = french_only(outcome.get("callback_fr"))
-    if callback:
+    if callback and not is_closing_filler(callback):
         facts.append(
             SceneFact(
                 key="outcome",
@@ -349,7 +354,7 @@ def scene_reveal(journey: DailyJourney) -> dict[str, Any]:
         "title_fr": french_only(scenario.get("title_fr")) or None,
         "setup_fr": setup_fr or None,
         "character_line_fr": character_line_fr or None,
-        "callback_fr": french_only((recap.get("story_outcome") or {}).get("callback_fr")) or None,
+        "callback_fr": french_only(scene_fact((recap.get("story_outcome") or {}).get("callback_fr"))) or None,
     }
 
 
@@ -504,7 +509,7 @@ def character_reaction(
     missed = list(recall.get("missed") or [])
 
     def short(fact: dict[str, Any]) -> str:
-        text = french_only(fact.get("text_fr")).rstrip(".")
+        text = french_only(fact.get("text_fr")).rstrip(".…")
         return text[:90]
 
     matched = [item for item in matched if short(item)]
@@ -673,6 +678,52 @@ class JournalService:
             .first()
         )
 
+    def _story_context(self, user: User) -> dict[str, Any]:
+        from app.services.living_story import story_context
+
+        try:
+            return story_context(self.db, user)
+        except Exception:  # pragma: no cover - the story is optional context
+            logger.warning("Journal could not read story context; facts fall back")
+            return {}
+
+    def newest_unasked_scene(
+        self, user: User, *, today: date
+    ) -> tuple[DailyJourney, list[SceneFact]] | None:
+        """The newest finished scene with no entry yet *and* something to recall.
+
+        The one place that decides which scene the Journal asks about. It reads
+        the journey log, the same rows the Feuilleton lists episodes from, and
+        nothing the Journal stored earlier. A scene that established nothing a
+        recap could remember (no outcome, no commitment, no setup) is passed
+        over: asking about it can only produce «nothing noted to recall» (#444).
+        """
+        context: dict[str, Any] | None = None
+        for journey in self.recallable_journeys(user, today=today):
+            if self.entry_for_journey(user, journey.id) is not None:
+                continue
+            if context is None:
+                context = self._story_context(user)
+            facts = scene_facts_for(journey, story_context=context)
+            if facts:
+                return journey, facts
+        return None
+
+    def _open_entry_is_current(
+        self, entry: JournalEntry, *, newest: DailyJourney | None, today: date
+    ) -> bool:
+        """Whether an offered-but-unwritten entry still asks about «yesterday».
+
+        An offer is a cache of "the newest scene", so it is only as good as that
+        scene is still the newest: a newer finished scene, a scene that has left
+        the recall window, or a scene with nothing to recall all retire it.
+        """
+        if not entry.scene_facts:
+            return False
+        if entry.scene_date < today - timedelta(days=RECALL_WINDOW_DAYS):
+            return False
+        return newest is None or newest.local_date <= entry.scene_date
+
     def offer(self, user: User, *, now: datetime | None = None) -> JournalEntry | None:
         """The entry to write today, creating it on first ask. Idempotent.
 
@@ -680,25 +731,27 @@ class JournalService:
         every candidate already has an entry. Nothing is invented to fill the
         tab — an empty journal is a true statement about a learner's week.
         """
+        today = self.today_for(user, now=now)
+        newest = self.newest_unasked_scene(user, today=today)
         existing = self.open_entry(user)
         if existing is not None:
-            return existing
-        today = self.today_for(user, now=now)
-        for journey in self.recallable_journeys(user, today=today):
-            if self.entry_for_journey(user, journey.id) is not None:
-                continue
-            return self._create(user, journey, today=today)
-        return None
+            if self._open_entry_is_current(
+                existing, newest=newest[0] if newest else None, today=today
+            ):
+                return existing
+            # Left unwritten while the story moved on: closed, never carried to
+            # a later day under a cue that still says «Yesterday» (#444).
+            existing.status = "expired"
+            self.db.add(existing)
+            self.db.commit()
+        if newest is None:
+            return None
+        journey, facts = newest
+        return self._create(user, journey, facts, today=today)
 
-    def _create(self, user: User, journey: DailyJourney, *, today: date) -> JournalEntry:
-        from app.services.living_story import story_context
-
-        try:
-            context = story_context(self.db, user)
-        except Exception:  # pragma: no cover - the story is optional context
-            logger.warning("Journal could not read story context; facts fall back")
-            context = {}
-        facts = scene_facts_for(journey, story_context=context)
+    def _create(
+        self, user: User, journey: DailyJourney, facts: list[SceneFact], *, today: date
+    ) -> JournalEntry:
         scene_day = journey.local_date
         entry = JournalEntry(
             user_id=user.id,
@@ -1217,6 +1270,7 @@ __all__ = [
     "followup_prompt",
     "record_journal_cost",
     "scene_cue",
+    "is_closing_filler",
     "scene_facts_for",
     "scene_reveal",
     "score_content_recall",

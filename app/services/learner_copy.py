@@ -568,28 +568,66 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "forge.diff.ending": {
         "en": "The ending is off: you wrote «{learner}», the form here is «{target}».",
         "de": "Die Endung stimmt nicht: Du hast «{learner}» geschrieben, hier steht «{target}».",
-        "fr": "La terminaison ne va pas : tu as écrit «{learner}», la forme attendue est «{target}».",
+        "fr": "La terminaison ne va pas : tu as écrit « {learner} », la forme attendue est « {target} ».",
     },
     "forge.diff.word": {
         "en": "You wrote «{learner}»; here it is «{target}».",
         "de": "Du hast «{learner}» geschrieben; hier steht «{target}».",
-        "fr": "Tu as écrit «{learner}» ; ici, c’est «{target}».",
+        "fr": "Tu as écrit « {learner} » ; ici, c’est « {target} ».",
     },
     # #300: a word the line showed and the learner left as it was is not one they wrote.
     "forge.diff.left": {
         "en": "«{learner}» was left as shown, but it is wrong: here it is «{target}».",
         "de": "«{learner}» blieb stehen, ist aber falsch: Hier steht «{target}».",
-        "fr": "«{learner}» est resté tel quel, mais c’est faux : ici, c’est «{target}».",
+        "fr": "« {learner} » est resté tel quel, mais c’est faux : ici, c’est « {target} ».",
+    },
+    # #449: the slip decides the note, the rule card is only the fallback. Each row
+    # names what the learner did and what the line needs; none quotes a rule card.
+    "forge.slip.cod_for_coi.why": {
+        "en": "«{learner}» stands for a complement introduced by «à» (an indirect object). Here the verb takes a direct object, with no «à»: «{target}».",
+        "de": "«{learner}» ersetzt eine Ergänzung mit «à» (indirektes Objekt). Hier hat das Verb ein direktes Objekt, ohne «à»: «{target}».",
+        "fr": "« {learner} » remplace un complément introduit par « à » (COI). Ici le verbe se construit sans « à » : c’est un COD, donc « {target} ».",
+    },
+    "forge.slip.coi_for_cod.why": {
+        "en": "«{learner}» stands for a direct object (no «à»). Here the verb takes «à» before the person, an indirect object: «{target}».",
+        "de": "«{learner}» ersetzt ein direktes Objekt (ohne «à»). Hier steht «à» vor der Person, also ein indirektes Objekt: «{target}».",
+        "fr": "« {learner} » remplace un COD (pas de « à »). Ici le verbe se construit avec « à » devant la personne : c’est un COI, donc « {target} ».",
+    },
+    "forge.slip.object_pronoun.repair": {
+        "en": "No «à» before the noun: le/la/les (direct object). With «à»: lui/leur (indirect object).",
+        "de": "Kein «à» vor dem Nomen: le/la/les (direktes Objekt). Mit «à»: lui/leur (indirektes Objekt).",
+        "fr": "Pas de « à » devant le nom : le/la/les (COD). Avec « à » : lui/leur (COI).",
+    },
+    "forge.slip.elision.why": {
+        "en": "Before a vowel or a silent h, «{learner}» drops its vowel and takes an apostrophe: «{target}». That is the spelling, not another verb.",
+        "de": "Vor einem Vokal oder stummen h verliert «{learner}» den Vokal und bekommt einen Apostroph: «{target}». Das ist die Schreibweise, nicht ein anderes Verb.",
+        "fr": "Devant une voyelle ou un h muet, « {learner} » perd sa voyelle et prend une apostrophe : « {target} ». C’est l’élision, pas un autre verbe.",
+    },
+    "forge.slip.elision.repair": {
+        "en": "Join «{target}» to the next word, with the apostrophe and no space.",
+        "de": "Schreib «{target}» mit Apostroph und ohne Leerzeichen an das nächste Wort.",
+        "fr": "Colle « {target} » au mot suivant, avec l’apostrophe et sans espace.",
     },
     "forge.diff.missing": {
         "en": "«{target}» is missing.",
         "de": "«{target}» fehlt.",
-        "fr": "Il manque «{target}».",
+        "fr": "Il manque « {target} ».",
     },
     "forge.diff.extra": {
         "en": "«{learner}» does not belong in this line.",
         "de": "«{learner}» gehört nicht in diesen Satz.",
-        "fr": "«{learner}» n’a pas sa place dans cette ligne.",
+        "fr": "« {learner} » n’a pas sa place dans cette ligne.",
+    },
+    # #574: a difference the right sentence has and the model's list left out.
+    "forge.diff.accent": {
+        "en": "Mind the accent: «{target}».",
+        "de": "Achte auf den Akzent: «{target}».",
+        "fr": "Attention à l’accent : « {target} ».",
+    },
+    "forge.diff.label": {
+        "en": "Correction",
+        "de": "Korrektur",
+        "fr": "Correction",
     },
     "forge.diff.order": {
         "en": "The words are right, but not in this order.",
@@ -1105,6 +1143,13 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "en": "Repair the verb: it must agree with the singular subject 'elle'.",
         "de": "Korrigiere das Verb: es richtet sich nach dem Subjekt 'elle' im Singular.",
         "fr": "Corrige le verbe : il s’accorde avec le sujet singulier « elle ».",
+    },
+    # #447 / #146: a unit's own ✗ sentence, repaired. The instruction names no form, so it
+    # fits whichever rule the unit teaches and never gives the answer away.
+    "atelier.transform.repair_pair": {
+        "en": "Repair the sentence: it breaks today's rule.",
+        "de": "Korrigiere den Satz: Er verstößt gegen die Regel von heute.",
+        "fr": "Corrige la phrase : elle ne respecte pas la règle du jour.",
     },
     # -- app/services/item_bank.py: WP-S2 La Forge item-bank instructions -----
     "forge.word_bank": {

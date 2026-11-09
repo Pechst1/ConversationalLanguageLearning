@@ -74,7 +74,7 @@ import { DeskStepView } from './DeskStep';
 import { drillSpeaker, journeySpeaker } from './journey-faces';
 import { useJourneyFeel } from './useJourneyFeel';
 import { continuesConversation } from './respond-thread';
-import { stepHeaderLine } from './drill-frame';
+import { stepBlockName, stepHeaderLine } from './drill-frame';
 import { CastIntro, castIntroOf, castIntroSeen, rememberCastIntroSeen, storyPremiseOf } from './CastIntro';
 import { firstSceneStepId } from './practice-formats';
 import { PushOptIn } from './PushOptIn';
@@ -257,7 +257,9 @@ export function JourneySession({
   const caption = journeyHeaderCaption(
     journey,
     (position, total) => stepOfLabel(chrome, position, total),
-    daySessionCopy(chromeLanguage).scene,
+    // #540: the block the step belongs to, named as the drill's own caption names
+    // it. A rule card or a recall drill is not «Scene».
+    stepBlockName(step, journey?.steps, copy) ?? daySessionCopy(chromeLanguage).scene,
   );
 
   /* The story-engine reader is a full-screen surface with its own exit and its

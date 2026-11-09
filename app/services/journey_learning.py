@@ -2317,7 +2317,11 @@ def evaluate_recall(
             from app.services.chrome_language import user_chrome_language
 
             pick = pick_miss_note(task, str(user_chrome_language(user)))
-            if task.task_type in {"choice", "who_said"} and task.hint_native and task.target.kind == TargetKind.GRAMMAR:
+            if task.task_type == "choice" and task.why_native:
+                # #537: the reason of the trap the learner fell into («mon amie»: the
+                # vowel), not the unit's one-line rule that the other traps share.
+                pick = task.why_native
+            elif task.task_type in {"choice", "who_said"} and task.hint_native and task.target.kind == TargetKind.GRAMMAR:
                 # #86: a unit's one-line rule is the reason a grammar choice was
                 # wrong. «The right answer is X» only stands in when there is none.
                 # A vocabulary choice's hint is the first-letter clue, not a reason:
@@ -2694,7 +2698,26 @@ def validate_correction(
         return False
     # A "correction" that only re-punctuates or re-accents the learner's own
     # words is a stylistic preference, not an error worth a punishment event.
-    return fold_for_comparison(correction.span_fr) != fold_for_comparison(correction.corrected_fr)
+    if fold_for_comparison(correction.span_fr) == fold_for_comparison(correction.corrected_fr):
+        return False
+    if correction.kind != "edit" or correction.rule_written:
+        # ``pick`` and ``meaning`` quote a different sentence or the learner's
+        # language, not French made right: there is no edit to prove. An edit the
+        # app's own register rule wrote is that rule's claim, not a model's.
+        return True
+    # #174 / #93: the one check every other surface runs (story lane, audio studio,
+    # Courrier, Journal contract) before a fix is shown or filed. A right sentence
+    # re-ordered («Vous êtes … ?» -> «Êtes-vous … ?»), a form already right for its
+    # subject («je suis» -> «est») and a swapped subject are not mistakes.
+    from app.services import correction_contract
+
+    return correction_contract.verify_edit(
+        learner_text,
+        correction.span_fr,
+        correction.corrected_fr,
+        correction.note_native,
+        strict_span=False,
+    ).ok
 
 
 def correction_relevance(correction: Correction, targets: Sequence[TargetRef]) -> float:

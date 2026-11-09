@@ -274,3 +274,53 @@ test('#213 a copied correction after a miss is acknowledged, never a second verd
   assert.match(html, /comes back later/);
   assert.doesNotMatch(html, /Right\./);
 });
+
+// ---------------------------------------------------------------------------
+// #449 · a missed correction marks the word that differs
+// #452 · French chrome keeps the French space in labels and quotes
+// ---------------------------------------------------------------------------
+
+const JUDGEMENT = {
+  id: 'c9',
+  prompt: 'Il me en a parlé.',
+  labels: ['Correct', 'À corriger'],
+  correct_label: 'À corriger',
+  classify_kind: 'judgement',
+};
+const MISSED = classifyRepair(JUDGEMENT, {
+  corrected_fr: "Il m'en a parlé.",
+  follow_up: { kind: 'correct_it', source_fr: 'Il me en a parlé.', goal_native: 'Corrige la phrase.' },
+}).followUp;
+
+test('#449 · «il m\'en a parle» for «Il m\'en a parlé.» marks parle → parlé', () => {
+  const html = followUp('fr', MISSED, draft({ text: "il m'en a parle", outcome: 'revealed' }));
+  assert.match(html, /<mark class="ep-follow__slip-from">parle<\/mark> → <strong class="ep-follow__slip-to">parlé<\/strong>/);
+  assert.match(html, /Il m.en a parlé\./, 'and the right sentence is still shown');
+});
+
+test('#449 · nothing is marked after a skip, or when the try was right', () => {
+  const skipped = followUp('fr', MISSED, draft({ outcome: 'revealed', skipped: true }));
+  assert.ok(!skipped.includes('ep-follow__slip'), 'a skip has no try to mark');
+  const right = followUp('fr', MISSED, draft({ text: "Il m'en a parlé.", outcome: 'right' }));
+  assert.ok(!right.includes('ep-follow__slip'), 'a right try has no slip');
+});
+
+test('#452 · the follow-up labels carry their punctuation in the copy, per language', () => {
+  assert.equal(epreuveCopy('fr').follow_wrong_label, 'La phrase à corriger :');
+  assert.equal(epreuveCopy('en').follow_wrong_label, 'The sentence to correct:');
+  const html = followUp('fr', MISSED, draft());
+  assert.ok(html.includes('La phrase à corriger : '), 'the French space is there');
+  assert.ok(!html.includes('corriger: '), 'no bare colon after a French label');
+});
+
+test('#452 · guard: no French copy string has a bare colon or a guillemet without its space', () => {
+  const { journeyCopy } = require('@/components/atelier-v2/journey/journey-copy.ts');
+  const tables = { epreuve: epreuveCopy('fr'), journey: journeyCopy('fr') };
+  const bare = /«[^\s ]|[^\s ]»|[^\s  :]:(?:\s|$)/;
+  for (const [name, table] of Object.entries(tables)) {
+    for (const [key, value] of Object.entries(table)) {
+      if (typeof value !== 'string') continue;
+      assert.ok(!bare.test(value), `${name}.${key}: «${value}»`);
+    }
+  }
+});

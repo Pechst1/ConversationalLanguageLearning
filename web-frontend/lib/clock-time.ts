@@ -33,3 +33,20 @@ export function clockTime(raw: unknown): string | undefined {
   return `${pad(date.getHours())} h ${pad(date.getMinutes())}`;
 }
 
+
+const SERVER_CLOCK = /^\d{2} h \d{2}$/;
+
+/**
+ * The clock a message is read on. The server prints it in the learner's account
+ * zone (`local_time`, «03 h 58»), the same zone as the streak day, so the page
+ * does not guess it from the device (a browser in UTC read «02 h 58» at 03:58 in
+ * Berlin, #397). Only a payload without it (an older cache) falls back to the
+ * device clock.
+ */
+export function messageClock(
+  turn: { local_time?: unknown; created_at?: unknown; timestamp?: unknown } | null | undefined,
+): string | undefined {
+  const served = typeof turn?.local_time === 'string' ? turn.local_time.trim() : '';
+  if (SERVER_CLOCK.test(served)) return served;
+  return clockTime(turn?.created_at || turn?.timestamp || null);
+}

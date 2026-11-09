@@ -272,8 +272,9 @@ services:
       - key: ATELIER_GOLD_MODE
         value: shadow
       # Package O-2: l'or on screen. off | owner (admin accounts only) | all.
+      # Owner 2026-11-08: on for every pilot learner.
       - key: ATELIER_GOLD_UI
-        value: owner
+        value: all
       # --- Owner 2026-10-12: every product feature on (end) --------------
       # Durable image storage (any S3-compatible bucket; docs/ops/image-storage.md
       # sets up Cloudflare R2). Entered here on the API only: the worker inherits it.
@@ -525,8 +526,9 @@ services:
       - key: ATELIER_GOLD_MODE
         value: shadow
       # Package O-2: l'or on screen. off | owner (admin accounts only) | all.
+      # Owner 2026-11-08: on for every pilot learner.
       - key: ATELIER_GOLD_UI
-        value: owner
+        value: all
       # --- Owner 2026-10-12: every product feature on (end) --------------
       # Durable image storage: inherited from the API's dashboard values.
       - key: GRAPHIC_NOVEL_IMAGE_STORAGE
