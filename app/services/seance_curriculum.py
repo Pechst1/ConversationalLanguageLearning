@@ -11,6 +11,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from app.services.concept_titles import concept_title
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -56,7 +58,8 @@ def lesson_panel(concept: Any) -> dict[str, Any] | None:
     if not lesson:
         return None
     return {
-        'title': concept.name,
+        # #522: the one title accessor; the exercise payload localizes it again on the way out.
+        'title': concept_title(concept, 'fr'),
         'rule': lesson['core_rule'],
         'when': lesson['when_to_use'],
         'pattern': lesson['pattern'],

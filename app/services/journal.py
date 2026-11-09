@@ -57,6 +57,7 @@ from app.db.models.vocabulary import VocabularyWord
 from app.services import correction_contract
 from app.services.atelier import AtelierCorrectionService
 from app.services.atelier_correction_cost import bound_learner_answer
+from app.services.closing_filler import is_closing_filler, scene_fact
 from app.services.daily_journey import local_date_for
 from app.services.error_memory import ErrorMemoryService
 from app.services.glosses import normalize_language
@@ -238,29 +239,8 @@ class SceneFact:
         return 2 if len(self.cues) > CUE_THRESHOLD_WIDTH else 1
 
 
-#: ROOT CAUSE #145/#539. ``story_outcome.callback_fr`` is the story's *hook*: the
-#: line that opens tomorrow (it is also stored as the episode's ``hook``). Most of
-#: the time it states something that happened, but two authored lines travel in the
-#: same field and say nothing about the scene: the exit stub written when the actor
-#: could not answer («Margaux a dû partir avant de répondre.», ``fallback_turn``) and
-#: a season page's closing caption («Deux clés, une seule porte. À suivre…»). Nothing
-#: marked which kind a callback was, so the Journal scored every learner 0/1 against
-#: a line nobody could remember. The check lives here, in the one place that decides
-#: what counts as a fact of the scene.
-_TO_BE_CONTINUED = re.compile(r"\bà\s+suivre\b", re.IGNORECASE)
-_EXIT_STUB = re.compile(
-    r"^(?:\S+\s+){1,5}?(?:a répondu,?\s+puis\s+)?(?:a|doit)\s+(?:dû\s+)?partir"
-    r"(?:\s+avant\s+de\s+répondre)?\s*[.…]*$",
-    re.IGNORECASE,
-)
-
-
-def is_closing_filler(text: Any) -> bool:
-    """Whether a recap line is a closing caption or an exit stub, not an event."""
-    line = " ".join(str(text or "").split())
-    if not line:
-        return False
-    return bool(_TO_BE_CONTINUED.search(line) or _EXIT_STUB.match(line))
+# ROOT CAUSE #145/#539/#597: what counts as a closing caption or an exit stub (and not
+# an event of the scene) is decided once, in ``closing_filler``; the Journal reads it.
 
 
 def scene_facts_for(
@@ -374,7 +354,7 @@ def scene_reveal(journey: DailyJourney) -> dict[str, Any]:
         "title_fr": french_only(scenario.get("title_fr")) or None,
         "setup_fr": setup_fr or None,
         "character_line_fr": character_line_fr or None,
-        "callback_fr": french_only((recap.get("story_outcome") or {}).get("callback_fr")) or None,
+        "callback_fr": french_only(scene_fact((recap.get("story_outcome") or {}).get("callback_fr"))) or None,
     }
 
 

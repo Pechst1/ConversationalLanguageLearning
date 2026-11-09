@@ -297,6 +297,24 @@ export function formatDuration(
   return `${minutes} min`;
 }
 
+/**
+ * #470: a *planned* duration, said the way the plan says it: whole minutes,
+ * rounded up, at least one — the server's `daily_session.minutes()`. Home's
+ * card and the plan row under it price the same seconds, so they round the same
+ * way; `formatDuration` (rounds to nearest, seconds under 90) is for what was
+ * *measured*. `null` in, `null` out.
+ */
+export function formatPlannedDuration(
+  seconds: number | null | undefined,
+  language: ControlLanguage = 'en',
+): string | null {
+  if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds <= 0) {
+    return null;
+  }
+  const minutes = Math.max(1, Math.ceil(seconds / 60));
+  return language === 'de' ? `${minutes} Min.` : `${minutes} min`;
+}
+
 // ---------------------------------------------------------------------------
 // Verdicts
 // ---------------------------------------------------------------------------

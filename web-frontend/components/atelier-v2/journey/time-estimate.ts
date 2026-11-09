@@ -13,7 +13,7 @@
  */
 
 import type { ControlLanguage, TodayEnvelope } from '@/types/daily-journey';
-import { formatDuration } from './journey-state';
+import { formatPlannedDuration } from './journey-state';
 
 export type DayTimeEstimate = NonNullable<TodayEnvelope['time_estimate']>;
 export type TimeExtensionKind = DayTimeEstimate['extensions'][number]['kind'];
@@ -64,7 +64,7 @@ export function coreEstimateLabel(
   language: ControlLanguage,
 ): string | null {
   const seconds = estimate ? estimate.core_seconds : fallbackSeconds;
-  const minutes = formatDuration(seconds, language);
+  const minutes = formatPlannedDuration(seconds, language);
   if (!minutes) return null;
   if (estimate?.longer_day) return fill(copyFor(language).longer_day, { minutes });
   return minutes;
@@ -87,7 +87,7 @@ export function extensionLabel(
   kind: TimeExtensionKind,
   language: ControlLanguage,
 ): string | null {
-  const minutes = formatDuration(extensionSeconds(estimate, kind), language);
+  const minutes = formatPlannedDuration(extensionSeconds(estimate, kind), language);
   if (!minutes) return null;
   const copy = copyFor(language);
   return fill(copy.extension, { kind: copy.kinds[kind], minutes });
@@ -99,7 +99,7 @@ export function extensionMinutes(
   kind: TimeExtensionKind,
   language: ControlLanguage,
 ): string | null {
-  const minutes = formatDuration(extensionSeconds(estimate, kind), language);
+  const minutes = formatPlannedDuration(extensionSeconds(estimate, kind), language);
   return minutes ? `≈ ${minutes}` : null;
 }
 
@@ -109,7 +109,7 @@ export function measuredBesidePlanned(
   plannedSeconds: number | null | undefined,
   language: ControlLanguage,
 ): string {
-  const planned = formatDuration(plannedSeconds, language);
+  const planned = formatPlannedDuration(plannedSeconds, language);
   if (!planned || planned === measured) return measured;
   return `${measured} · ${fill(copyFor(language).planned, { minutes: planned })}`;
 }

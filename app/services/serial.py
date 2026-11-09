@@ -24,6 +24,7 @@ from app.services.address import character_register
 from app.services.atelier_rewards import AtelierRewardService
 from app.services.cast_registry import card_line
 from app.services.chrome_language import user_chrome_language
+from app.services.closing_filler import scene_fact
 from app.services.graphic_novel import (
     GraphicNovelGenerationError,
     GraphicNovelScheduler,
@@ -1738,6 +1739,9 @@ class SerialThreadService:
             if callback_override is not None
             else self._harvest_callback(mission=mission)
         )
+        # #597: the relationship's shared callbacks are what a character may quote
+        # later; a season page's «À suivre…» is nobody's memory.
+        callback = scene_fact(callback)
         if callback:
             callbacks = [str(item) for item in entry.get("callbacks") or [] if str(item or "").strip()]
             if callback not in callbacks:

@@ -27,7 +27,8 @@ from app.core import forge as core
 from app.core.forge import Rung
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.user import User
-from app.services.concept_titles import concept_title_fr
+from app.services.chrome_language import user_chrome_language
+from app.services.concept_titles import concept_title, concept_title_fr, localizations_by_concept_id
 
 STAGE_GHOST = "ghost"
 STAGE_INTRODUCED = "introduced"
@@ -205,6 +206,10 @@ def grammar_map(db: Session, user: User, *, now: datetime | None = None) -> dict
         for row in db.query(UserGrammarProgress).filter(UserGrammarProgress.user_id == user.id).all()
     }
     fr = fr_localizations_by_concept_id(db, [concept.id for concept in concepts])
+    # #561: each row also names the rule in the learner's chrome language, so the Cahier
+    # and the rule card call it the same thing; `title_fr` stays for the French line.
+    chrome = user_chrome_language(user)
+    authored = localizations_by_concept_id(db, [concept.id for concept in concepts])
     counts = dict.fromkeys(MAP_STAGES, 0)
     titles = unit_titles()
     bands: list[dict[str, Any]] = []
@@ -221,6 +226,7 @@ def grammar_map(db: Session, user: User, *, now: datetime | None = None) -> dict
                     "concept_id": concept.id,
                     "external_id": concept.external_id,
                     "title_fr": concept_title_fr(concept, fr.get(concept.id)),
+                    "title_native": concept_title(concept, chrome, localizations=authored.get(concept.id, {})),
                     "name": concept.name,
                     "level": concept.level,
                     "category": concept.category,

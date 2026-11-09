@@ -15,6 +15,8 @@ class AtelierConceptRead(BaseModel):
     category: str | None = None
     subskill: str | None = None
     title_fr: str | None = None
+    # #561: the rule's title in the learner's chrome language (`concept_title`).
+    title_native: str | None = None
     category_label_fr: str | None = None
     core_rule: str | None = None
     main_traps: list[str] = Field(default_factory=list)
