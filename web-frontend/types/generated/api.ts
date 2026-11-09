@@ -9829,7 +9829,7 @@ export interface components {
              * @default edit
              * @enum {string}
              */
-            kind?: "edit" | "pick" | "meaning";
+            kind?: "edit" | "pick" | "meaning" | "example";
             /** Note Native */
             note_native: string;
             /** Notes Native */

@@ -78,13 +78,15 @@ export function correctionNotes(
 /**
  * The label over a journey correction, by how its two texts relate: an `edit`
  * is «one thing to fix», a `pick` (#240) names the sentence that carries the
- * rule, a `meaning` (#167) names the French word whose meaning was missed.
+ * rule, a `meaning` (#167) names the French word whose meaning was missed, an
+ * `example` (#624) offers a model sentence for a free sentence that missed the rule.
  */
 export function correctionLabelKey(
   kind: unknown,
-): 'correction' | 'correction_pick' | 'correction_meaning' {
+): 'correction' | 'correction_pick' | 'correction_meaning' | 'correction_example' {
   if (kind === 'pick') return 'correction_pick';
   if (kind === 'meaning') return 'correction_meaning';
+  if (kind === 'example') return 'correction_example';
   return 'correction';
 }
 

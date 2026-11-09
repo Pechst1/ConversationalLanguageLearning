@@ -83,6 +83,8 @@ export type JourneyCopyKey =
   | 'pick_not_it'
   // #167: a missed meaning names the French word.
   | 'correction_meaning'
+  // #624: a missed free sentence is shown a model, not «your sentence → this».
+  | 'correction_example'
   | 'reply_authored_note'
   | 'progress_label'
   | 'time_left'
@@ -323,6 +325,7 @@ const EN: CopyTable = {
   correction_pick: 'This sentence uses the rule',
   pick_not_it: 'Not this one:',
   correction_meaning: 'The word',
+  correction_example: 'An example that uses the rule',
   reply_authored_note: 'Written reply from the script',
   progress_label: 'Progress in today’s scene',
   time_left: 'left',
@@ -532,6 +535,7 @@ const DE: CopyTable = {
   correction_pick: 'In diesem Satz steckt die Regel',
   pick_not_it: 'Nicht dieser:',
   correction_meaning: 'Das Wort',
+  correction_example: 'Ein Beispiel mit der Regel',
   reply_authored_note: 'Vorgeschriebene Antwort aus dem Skript',
   progress_label: 'Fortschritt in der heutigen Szene',
   time_left: 'übrig',
@@ -741,6 +745,7 @@ const FR: CopyTable = {
   correction_pick: 'La règle est dans cette phrase',
   pick_not_it: 'Pas celle-ci :',
   correction_meaning: 'Le mot',
+  correction_example: 'Par exemple, avec la règle',
   reply_authored_note: 'Réponse écrite, tirée du scénario',
   progress_label: 'Progression dans la scène du jour',
   time_left: 'restant',
