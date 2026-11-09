@@ -40,7 +40,7 @@ from app.services.missions import (
     learner_zone,
     serialize_mission,
     stamp_fields,
-    unanswered_user_turn,
+    unanswered_user_turns,
 )
 from app.services.serial import SerialThreadService
 from app.services.transcription_cost import record_transcription_cost
@@ -388,12 +388,25 @@ def _character_reply_turn(
     The stock acknowledgement is what the Courrier says when no character reply could be
     produced. It is not Gus's turn: stored, it made the thread read as answered, and the
     letter closed on a reply nobody gave. Nothing is stored; the same text sent again asks again.
+
+    A reply to a message the learner wrote past (#590) lands directly after that message:
+    the turns behind it move down one place, so the thread still reads in the order spoken.
     """
 
     conversation_service = MissionConversationService(db)
-    assistant_text = conversation_service.respond(user=user, mission=mission, user_text=user_text)
+    later = [turn for turn in mission.turns if turn.turn_index > user_turn.turn_index]
+    assistant_text = conversation_service.respond(
+        user=user,
+        mission=mission,
+        user_text=user_text,
+        **({"through_turn_index": user_turn.turn_index} if later else {}),
+    )
     if is_stock_reply(assistant_text):
         return None
+    for turn in sorted(later, key=lambda item: item.turn_index, reverse=True):
+        turn.turn_index += 1
+        db.add(turn)
+        db.flush()
     assistant_turn = RealWorldMissionTurn(
         mission_id=mission.id,
         user_id=user.id,
@@ -522,10 +535,10 @@ def retry_mission_turn_reply(
 ) -> MissionTurnResponse:
     """#590: ask the correspondent again for a message nobody answered.
 
-    The learner's text is already stored and corrected; only the reply is asked for. Only
-    the thread's latest message can be asked again (a later one answers the whole exchange);
-    when it is already answered the answer is handed back, and a second failure leaves the
-    message ``pending`` for the next try.
+    The learner's text is already stored and corrected; only the reply is asked for. Any
+    message nobody answered can be asked again, not only the latest: a learner who wrote on
+    because the reply failed still has that gap to close. When it is already answered the
+    answer is handed back, and a second failure leaves the message ``pending`` for the next try.
     """
     mission = _mission_or_404(db, mission_id, current_user)
     _ensure_open(mission)
@@ -541,7 +554,6 @@ def retry_mission_turn_reply(
     )
     if not user_turn:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reply not found")
-    latest = unanswered_user_turn(mission.turns)
     assistant_turn = (
         db.query(RealWorldMissionTurn)
         .filter(
@@ -552,10 +564,6 @@ def retry_mission_turn_reply(
         .first()
     )
     if assistant_turn is None:
-        if latest is None or latest.id != user_turn.id:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail="Only the latest message can be asked again"
-            )
         assistant_turn = _character_reply_turn(
             db, user=current_user, mission=mission, user_turn=user_turn, user_text=user_turn.text
         )

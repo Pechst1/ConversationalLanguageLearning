@@ -148,3 +148,74 @@ def test_an_answered_letter_is_still_kept(client, monkeypatch):
 
     assert recap["outcome"] == "kept"
     assert not recap["measured"].get("reply_pending")
+
+
+# -- a gap in the middle (the review of the first attempt at #590) -------------------------
+#
+# The reply provider fails on the SECOND message only; the learner writes on and the third is
+# answered. The letter must still say message 2 went unanswered, and must not close kept.
+
+
+def _fail_on_second(client, monkeypatch):
+    headers, mission_id = _setup(client, monkeypatch)
+    _provider_answers(monkeypatch, [CAMILLE, _stock(), "Très bien."])
+    sent = [_send(client, headers, mission_id, text) for text in MESSAGES]
+    return headers, mission_id, sent
+
+
+def test_a_gap_before_an_answered_message_stays_visible_on_the_thread(client, monkeypatch):
+    headers, mission_id, sent = _fail_on_second(client, monkeypatch)
+
+    states = [turn.get("reply_state") for turn in _user_turns(sent[-1]["mission"])]
+    assert states == [None, "pending", None], f"message 2 lost its «not answered» line: {states}"
+    reloaded = client.get(f"/api/v1/missions/{mission_id}", headers=headers).json()
+    reloaded = reloaded.get("mission", reloaded)
+    assert [turn.get("reply_state") for turn in _user_turns(reloaded)] == [None, "pending", None]
+
+
+def test_a_letter_with_a_gap_in_the_middle_is_not_kept_and_mints_no_token(client, db_session, monkeypatch):
+    headers, mission_id, _sent = _fail_on_second(client, monkeypatch)
+
+    recap = client.post(f"/api/v1/missions/{mission_id}/complete", headers=headers).json()["recap"]
+
+    assert recap["outcome"] != "kept", "«Promise kept» with message 2 unanswered"
+    assert recap["courrier_outcome"] != "kept"
+    assert recap["measured"]["reply_pending"] is True
+    assert recap["minted_collectibles"] == []
+
+
+def test_the_message_written_past_can_be_asked_again_and_the_letter_is_then_kept(client, db_session, monkeypatch):
+    headers, mission_id, sent = _fail_on_second(client, monkeypatch)
+    second_id = _user_turns(sent[-1]["mission"])[1]["id"]
+    monkeypatch.setattr(MissionConversationService, "respond", lambda self, **_kw: "Pas de souci, on regarde ça ensemble.")
+
+    retried = client.post(f"/api/v1/missions/{mission_id}/turns/{second_id}/reply", headers=headers)
+
+    assert retried.status_code == 200, retried.text
+    body = retried.json()
+    assert body["assistant_turn"]["text"] == "Pas de souci, on regarde ça ensemble."
+    assert "reply_state" not in body["outcome"]
+    # The answer sits directly after the message it answers, and nothing is pending any more.
+    roles = [(turn["role"], turn["turn_index"]) for turn in body["mission"]["turns"]]
+    assert [role for role, _ in roles] == ["user", "assistant", "user", "assistant", "user", "assistant"], roles
+    assert [index for _, index in roles] == sorted(index for _, index in roles)
+    assert all(turn.get("reply_state") != "pending" for turn in body["mission"]["turns"])
+
+    recap = client.post(f"/api/v1/missions/{mission_id}/complete", headers=headers).json()["recap"]
+    assert recap["outcome"] == "kept"
+    assert not recap["measured"].get("reply_pending")
+
+
+def test_asking_again_for_an_earlier_message_answers_it_from_the_thread_as_it_stood(client, monkeypatch):
+    headers, mission_id, sent = _fail_on_second(client, monkeypatch)
+    second_id = _user_turns(sent[-1]["mission"])[1]["id"]
+    seen: list[int | None] = []
+
+    def respond(self, **kwargs):
+        seen.append(kwargs.get("through_turn_index"))
+        return "Réponse."
+
+    monkeypatch.setattr(MissionConversationService, "respond", respond)
+    client.post(f"/api/v1/missions/{mission_id}/turns/{second_id}/reply", headers=headers)
+
+    assert seen == [3], "the retry for message 2 must not read what the learner wrote after it"
