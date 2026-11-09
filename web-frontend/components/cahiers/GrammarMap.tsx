@@ -33,6 +33,7 @@ import {
   mapRuleShape,
   mapStageOf,
   MAP_STAGES,
+  ruleTitle,
   type GrammarMapPayload,
   type GrammarMapRule,
   type MapFill,
@@ -104,6 +105,7 @@ function MapRuleSheet({
   // or the speaker of a rule whose card cannot be shown.
   const coach = rule.coach?.id || !card ? coachOf(rule) : null;
   const headingId = `gm-sheet-${rule.concept_id}`;
+  const title = ruleTitle(rule, language);
 
   const testOut = async () => {
     if (pending) return;
@@ -123,7 +125,7 @@ function MapRuleSheet({
       <div className="gm-sheet__head">
         <MapShape shape={shape} fill={mapFill(stage)} size={32} />
         <div className="gm-sheet__text">
-          <p className="gm-sheet__title" id={headingId} lang="fr">{rule.title_fr}</p>
+          <p className="gm-sheet__title" id={headingId} lang={title.lang}>{title.text}</p>
           <p className="gm-sheet__stage">{stageLine(copy, rule)}</p>
         </div>
         <button type="button" className="gm-sheet__close" onClick={onClose} aria-label={copy.map_close}>×</button>
@@ -194,7 +196,7 @@ export function GrammarMapView({
                     data-stage={stage}
                     data-due={rule.due && stage !== 'ghost' ? 'true' : undefined}
                     aria-pressed={on}
-                    aria-label={fillMomentum(copy.map_rule_aria, { title: rule.title_fr, stage: stageLine(copy, rule) })}
+                    aria-label={fillMomentum(copy.map_rule_aria, { title: ruleTitle(rule, language).text, stage: stageLine(copy, rule) })}
                     onClick={() => onSelect(on ? null : rule.concept_id)}
                   >
                     <MapShape shape={mapRuleShape(rule)} fill={mapFill(stage)} />

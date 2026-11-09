@@ -25,6 +25,8 @@ export type GrammarMapRule = {
   concept_id: number;
   external_id?: string | null;
   title_fr: string;
+  /** #561: the rule's title in the learner's chrome language (`concept_title`). */
+  title_native?: string | null;
   name?: string | null;
   level?: string | null;
   category?: string | null;
@@ -38,6 +40,20 @@ export type GrammarMapRule = {
   rule_card?: RuleCardData | null;
   coach?: { id: string; name?: string | null } | null;
 };
+
+/**
+ * What the Cahier calls a rule: the title in the learner's chrome language, the same
+ * one the rule card shows (#561); the French title only when the server sent none.
+ * `lang` is the language the text is in, for the element's `lang` attribute.
+ */
+export function ruleTitle(
+  rule: { title_fr: string; title_native?: string | null },
+  language: string,
+): { text: string; lang: string } {
+  const native = String(rule.title_native || '').trim();
+  if (!native) return { text: rule.title_fr, lang: 'fr' };
+  return { text: native, lang: native === rule.title_fr ? 'fr' : language };
+}
 
 export type GrammarMapBand = { band: string; rules: GrammarMapRule[] };
 
