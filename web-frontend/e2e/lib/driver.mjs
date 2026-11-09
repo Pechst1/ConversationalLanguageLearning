@@ -77,6 +77,8 @@ export const SNAPSHOT_FN = ({ typeable, wordBankTile }) => {
     stepLabel: (q('.av2-label')[0] || {}).innerText || '',
     dataStep: q('[data-step]').map((n) => n.getAttribute('data-step')),
     graded: q('.av2-graded').map((n) => ({ state: n.getAttribute('data-state'), text: n.innerText.trim() })),
+    // #333: every line that says nobody read an answer carries its state.
+    dataCheck: q('[data-check]').map((n) => n.getAttribute('data-check')),
     connection: q('.journey-connection').map((n) => n.getAttribute('data-state')),
     dataStates: q('[data-state]').map((n) => n.getAttribute('data-state')),
     reader: q('.fr-next').map((n) => {

@@ -15188,6 +15188,11 @@ export interface components {
             correction: components["schemas"]["JourneyCorrection"] | null;
             /** Learner Fr */
             learner_fr: string;
+            /**
+             * Unchecked
+             * @default false
+             */
+            unchecked: boolean;
         };
         /**
          * ThreadLine

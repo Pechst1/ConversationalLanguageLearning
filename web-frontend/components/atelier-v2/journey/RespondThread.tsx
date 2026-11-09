@@ -102,6 +102,9 @@ function LearnerLine({
           bubble.text
         )}
       </p>
+      {bubble.unchecked && (
+        <p className="av2-thread__check" role="status" data-check="not_checked">{copy.check_not_checked}</p>
+      )}
       {fix && (
         <div className="av2-thread__fix" data-open={open ? 'true' : undefined}>
           {explained ? (

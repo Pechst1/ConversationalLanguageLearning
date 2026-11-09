@@ -1,3 +1,4 @@
+import type { CheckLike } from '@/lib/verdict';
 import type { components } from '@/types/generated/api';
 import { noteGoldRequest } from '@/lib/gold-events';
 import { rememberCastVariants } from '@/lib/cast-variants';
@@ -317,6 +318,8 @@ export interface JournalCorrection {
    *  (#250): it marks real mistakes but cannot say a text is right, so a clean result says it was
    *  a basic check only (never «nothing found»), and `retryable` says whether the model could be asked again. */
   checker?: string | null;
+  /** #333: who read it, in the one verdict shape. */
+  check?: CheckLike | null;
   retryable?: boolean;
   explanation_language?: string | null;
   /** The one correction shown up front, chosen by the journey's own policy. */
@@ -1243,6 +1246,8 @@ export interface AtelierForgeView {
     rung: number;
     rung_name: string;
     served: number;
+    /** #333: the level to show, without the steps still waiting on a reading. */
+    shown_rung?: number | null;
     topped: boolean;
     /** WP-S5: the rule's coach. */
     coach?: ForgeCoach | null;
@@ -1594,6 +1599,8 @@ export interface MissionMeasured {
   words_written: number;
   /** #590: the learner's last message was never answered. */
   reply_pending?: boolean;
+  /** #333: a message of this letter was never read. */
+  unchecked?: boolean;
 }
 
 export interface RealWorldMission {

@@ -18,6 +18,7 @@ import type { ControlLanguage } from '@/types/daily-journey';
 
 import { useControlLanguage } from '@/components/atelier-v2/ui/AtelierV2Root';
 import { normalizeControlLanguage } from '@/lib/atelier-v2-copy';
+import { CHECK_COPY } from '@/lib/verdict';
 
 const FR = {
   lang: 'fr',
@@ -81,7 +82,8 @@ const FR = {
   memo_from: 'De la part de',
   memo_channel: 'Canal',
   memo_answered: 'Répondu',
-  unassessed: 'Pas encore corrigé.',
+  unassessed: CHECK_COPY.fr.not_checked,
+  check_basic: CHECK_COPY.fr.basic,
   recheck: 'Relancer la correction',
   rechecking: 'Nouvelle tentative…',
   toast_recheck_failed: 'Pas encore de correction complète. Réessaie plus tard.',
@@ -169,6 +171,9 @@ const FR = {
   outcome_unanswered: 'Sans réponse',
   sentence_unanswered_named: '{name} n’a pas répondu à un de tes messages ; rien n’est compté.',
   sentence_unanswered: 'Un de tes messages est resté sans réponse ; rien n’est compté.',
+  outcome_unchecked: 'Pas vérifiée',
+  sentence_unchecked_named: '{name} n’a pas pu lire un de tes messages ; rien n’est compté.',
+  sentence_unchecked: 'Un de tes messages n’a pas pu être relu ; rien n’est compté.',
   // the correspondence
   chain_label: '{ord} lettre sur {total}',
   chain_from: '{chain}, de {name}',
@@ -311,7 +316,8 @@ const EN: CourrierCopy = {
   memo_from: 'From',
   memo_channel: 'Channel',
   memo_answered: 'Answered',
-  unassessed: 'Not checked yet.',
+  unassessed: CHECK_COPY.en.not_checked,
+  check_basic: CHECK_COPY.en.basic,
   recheck: 'Check again',
   rechecking: 'Trying again…',
   toast_recheck_failed: 'No full check yet. Try again later.',
@@ -393,6 +399,9 @@ const EN: CourrierCopy = {
   outcome_unanswered: 'No answer',
   sentence_unanswered_named: '{name} did not answer one of your messages; nothing is counted.',
   sentence_unanswered: 'One of your messages was not answered; nothing is counted.',
+  outcome_unchecked: 'Not checked',
+  sentence_unchecked_named: '{name} could not read one of your messages; nothing is counted.',
+  sentence_unchecked: 'One of your messages could not be read; nothing is counted.',
   chain_label: 'Letter {n} of {total}',
   chain_from: '{chain}, from {name}',
   expiry_today: 'Reply today if you can.',
@@ -530,7 +539,8 @@ const DE: CourrierCopy = {
   memo_from: 'Von',
   memo_channel: 'Kanal',
   memo_answered: 'Beantwortet',
-  unassessed: 'Noch nicht geprüft.',
+  unassessed: CHECK_COPY.de.not_checked,
+  check_basic: CHECK_COPY.de.basic,
   recheck: 'Erneut prüfen',
   rechecking: 'Neuer Versuch…',
   toast_recheck_failed: 'Noch keine vollständige Prüfung. Versuch es später noch einmal.',
@@ -612,6 +622,9 @@ const DE: CourrierCopy = {
   outcome_unanswered: 'Ohne Antwort',
   sentence_unanswered_named: '{name} hat auf eine deiner Nachrichten nicht geantwortet; nichts wird gezählt.',
   sentence_unanswered: 'Auf eine deiner Nachrichten kam keine Antwort; nichts wird gezählt.',
+  outcome_unchecked: 'Nicht geprüft',
+  sentence_unchecked_named: '{name} konnte eine deiner Nachrichten nicht lesen; nichts wird gezählt.',
+  sentence_unchecked: 'Eine deiner Nachrichten konnte nicht gelesen werden; nichts wird gezählt.',
   chain_label: 'Brief {n} von {total}',
   chain_from: '{chain}, von {name}',
   expiry_today: 'Antworte heute, wenn du kannst.',

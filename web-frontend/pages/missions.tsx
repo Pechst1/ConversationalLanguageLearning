@@ -6,6 +6,7 @@ import { useRouter } from 'next/router';
 
 import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { useChromeLanguage } from '@/lib/learner-language';
+import { checkState, isUnread } from '@/lib/verdict';
 import { pickByLanguage } from '@/lib/language-rule';
 import { castIdFor } from '@/lib/cast-faces';
 import { messageClock } from '@/lib/clock-time';
@@ -1004,16 +1005,16 @@ export default function MissionsPage() {
   // letter with no outcome keeps its success line, which is the letter's
   // French. No credit rows, no debrief rows, no objectives, no last message.
   // #590: a letter finished on a message nobody answered carries no verdict, mood or token.
-  const letterUnanswered = Boolean(measured?.reply_pending);
-  const outcomeSentence = crOutcomeSentence(letterOutcome, correspondent?.name, chromeLang, { unanswered: letterUnanswered });
-  const sealVerdict = crOutcomeLabel(letterOutcome, chromeLang, { unanswered: letterUnanswered }) || (isSerialAct ? t.seal_act_done : t.seal_resolved);
+  const letterHeld = { unanswered: Boolean(measured?.reply_pending), unchecked: Boolean(measured?.unchecked) };
+  const outcomeSentence = crOutcomeSentence(letterOutcome, correspondent?.name, chromeLang, letterHeld);
+  const sealVerdict = crOutcomeLabel(letterOutcome, chromeLang, letterHeld) || (isSerialAct ? t.seal_act_done : t.seal_resolved);
   const sealNumbers = crSealNumbers(measured, { turns: recapTurns, errata: recapErrata, saved: recapSaved }, chromeLang);
   // The correspondent's face on the seal, in the mood the letter left
   // (`recap.correspondent_mood_value_after`, or the legacy French line).
   const moodRecap = (mission?.recap || {}) as Record<string, any>;
   const moodKey = crMoodKey(crMoodValue(moodRecap.correspondent_mood_value_after, moodRecap.correspondent_mood_after));
   const moodName = String(correspondent?.name || '').trim();
-  const sealMood = moodKey && moodName && !letterUnanswered
+  const sealMood = moodKey && moodName && !letterHeld.unanswered && !letterHeld.unchecked
     ? {
         name: moodName,
         characterId: castIdFor(mission?.prompt_payload?.serial_character_id, correspondent?.id, moodName),
@@ -1217,14 +1218,15 @@ export default function MissionsPage() {
                       >
                         {turn.text}
                       </CrSlip>
-                      {/* WP-74 / #250 / #251: no grader ran and the shared model-free pass found
-                          nothing. Not a pass and not a dead end: «Not checked yet» (never «No
-                          corrections found», which says the reply is clean), and the corrector
-                          can be asked again while the thread is open. */}
-                      {isUser && correction?.verdict === 'unassessed' && lines.length === 0 && !correctedAnswer && (
+                      {/* #333: nobody read this message. The line says so, whatever the rules
+                          found (their fixes stay listed below), and it can be asked again while
+                          the thread is open. Never «No corrections found». */}
+                      {isUser && isUnread(checkState(turn.check)) && (
                         <>
-                          <p className="cr-unassessed" role="status">{t.unassessed}</p>
-                          {!completed && turn.id && (
+                          <p className="cr-unassessed" role="status" data-check={checkState(turn.check)}>
+                            {checkState(turn.check) === 'basic' ? t.check_basic : t.unassessed}
+                          </p>
+                          {!completed && turn.id && turn.check?.retryable && (
                             <button
                               type="button"
                               className="cr-trad-btn"

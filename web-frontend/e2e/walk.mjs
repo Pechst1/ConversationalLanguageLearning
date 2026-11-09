@@ -365,6 +365,11 @@ try {
   exitCode = 1;
 } finally {
   if (browser) await browser.close().catch(() => {});
+  // #333: a walk with the provider forced down that never read «not checked» proves nothing.
+  if (process.env.WALK_PROVIDER_DOWN) {
+    const named = findings.results.filter((r) => r.id === 'unread-answer-shows-no-verdict').length;
+    findings.check('provider-down-reads-not-checked', named > 0, 'the provider was down and no screen said a check did not run', {});
+  }
   const seconds = Math.round((Date.now() - t00) / 1000);
   const meta = `${new Date().toISOString()} · ${langs.join('/')} × ${days} days + B1 × ${b1Days} + season × ${seasonDays} · fake provider · ${seconds}s`;
   writeContactSheet({ outDir, shots: shots.list, findings, meta });

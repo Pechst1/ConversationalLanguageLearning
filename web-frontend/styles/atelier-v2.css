@@ -3450,6 +3450,7 @@
   color: var(--av2-ink);
 }
 .av2 .av2-thread__mine[data-pending] { color: var(--av2-ink-2); }
+.av2 .av2-thread__check { margin: 4px 0 0 auto; max-width: 80%; text-align: right; font-size: var(--av2-t-meta); color: var(--av2-muted); }
 
 /* WP-103 T6. The slip in the learner's line is only marked (a red dotted
    underline, nothing to tap); under the line the corrected form is always

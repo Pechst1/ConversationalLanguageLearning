@@ -261,6 +261,12 @@ class FakeStoryProvider:
     def generate_chat_completion(self, messages, **kwargs):  # noqa: D401 - provider shape
         data = json.loads(messages[0]["content"])
         schema = data["output_schema"]["title"]
+        # #333: the walk with its provider down. The day's content still comes; nothing
+        # can read what the learner writes, the way a real outage looks.
+        if os.environ.get("WALK_PROVIDER_DOWN") and schema in {"TutorVerdict", "VoiceReply", "StoryTurn"}:
+            from app.services.llm_service import LLMProviderError
+
+            raise LLMProviderError("walk: provider forced down")
         source = data["data"]
         with self._lock:
             self.calls += 1

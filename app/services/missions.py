@@ -6659,6 +6659,23 @@ def is_stock_reply(text: Any) -> bool:
     return folded in {STOCK_ACKNOWLEDGEMENT_TU, STOCK_ACKNOWLEDGEMENT_VOUS}
 
 
+def is_echo_reply(reply: Any, message: Any) -> bool:
+    """Whether a reply only says the learner's own message back to them (#333)."""
+
+    def folded(text: Any) -> str:
+        return " ".join(str(text or "").split()).casefold().strip(" .,;:!?…«»\"'’")
+
+    return bool(folded(reply)) and folded(reply) == folded(message)
+
+
+def _stored_check(correction: Any, text: Any) -> dict[str, Any]:
+    """The ``check`` field of a stored message. A row never sent for correction has none."""
+
+    if not correction:
+        return {}
+    return {"check": verdicts.from_courrier(correction, text=str(text or "")).to_dict()}
+
+
 def unchecked_messages(attempts: Any, turns: Any) -> list[Any]:
     """Every message of this letter a failed check left unread (#333).
 
@@ -7794,6 +7811,7 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
                 "correction": attempt.correction_payload or {},
                 "verdict": attempt.verdict,
                 "score_0_4": attempt.score_0_4,
+                **_stored_check(attempt.correction_payload, (attempt.answer_payload or {}).get("text")),
                 **stamp_fields(attempt.created_at, zone),
             }
             for attempt in sorted(mission.attempts or [], key=lambda item: item.created_at)
@@ -7808,6 +7826,7 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
                 "text": turn.text,
                 "audio_payload": turn.audio_payload or {},
                 "correction": turn.correction_payload or {},
+                **(_stored_check(turn.correction_payload, turn.text) if turn.role == "user" else {}),
                 # #590: every learner message nobody answered says so on the thread itself.
                 **({"reply_state": "pending"} if id(turn) in unanswered_ids else {}),
                 **stamp_fields(turn.created_at, zone),
@@ -7830,5 +7849,6 @@ __all__ = [
     "SerialEpisodeNotReadyError",
     "artefact_mission_payload",
     "create_artefact_mission",
+    "is_echo_reply",
     "serialize_mission",
 ]

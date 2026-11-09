@@ -30,6 +30,7 @@
  * own paragraph are content and stay French.
  */
 import React, { useCallback, useEffect, useState } from 'react';
+import { checkState, isUnread, type CheckState } from '@/lib/verdict';
 
 import {
   Action,
@@ -126,16 +127,22 @@ export function FollowupResult({ followup, t = FRENCH_JOURNAL }: { followup: Jou
   );
 }
 
+/** The entry's one screen state. An older server sends no `check`: nothing proves a model read it. */
+export function journalCheckState(entry: JournalEntryView | null | undefined): CheckState {
+  const correction = entry?.correction;
+  if (!correction) return 'not_checked';
+  if (correction.check) return checkState(correction.check);
+  if (correction.assessment_status === 'checked' && correction.checker !== 'deterministic') return 'settled';
+  return correction.errata?.length ? 'basic' : 'not_checked';
+}
+
 /** The verdict line for the writing itself, in the chrome language. */
 export function correctionLine(entry: JournalEntryView | null | undefined, t: JournalCopy = FRENCH_JOURNAL): string {
   const correction = entry?.correction;
-  if (!correction || correction.assessment_status !== 'checked') {
-    return t.correction_unavailable;
-  }
-  if (!correction.errata?.length) {
-    // The model-free pass cannot certify a text as right, so it never says «nothing to correct».
-    return correction.checker === 'deterministic' ? t.correction_clean_basic : t.correction_clean;
-  }
+  const state = journalCheckState(entry);
+  if (!correction || state === 'not_checked') return t.correction_unavailable;
+  if (state === 'basic') return t.correction_basic;
+  if (!correction.errata?.length) return t.correction_clean;
   if (correction.errata.length === 1) return t.correction_one;
   return fill(t.correction_many, { n: correction.errata.length });
 }
@@ -146,7 +153,7 @@ export function correctionFailureReason(
   t: JournalCopy = FRENCH_JOURNAL,
 ): string | null {
   const correction = entry?.correction;
-  if (!correction || correction.assessment_status === 'checked') return null;
+  if (!correction || journalCheckState(entry) === 'settled') return null;
   if (correction.failure_reason === 'timeout') return t.correction_why_timeout;
   if (correction.failure_reason === 'no_check_target') return t.correction_why_no_check_target;
   return t.correction_why_model_error;
@@ -158,7 +165,7 @@ export function canRetryCorrection(entry: JournalEntryView | null | undefined): 
   return Boolean(
     correction
       && (correction.retryable === true
-        || (correction.assessment_status !== 'checked' && correction.failure_reason !== 'no_check_target')),
+        || (journalCheckState(entry) !== 'settled' && correction.failure_reason !== 'no_check_target')),
   );
 }
 
@@ -431,11 +438,13 @@ export default function JournalTab() {
 
           <Surface as="section" tone="paper" shape="card" className="jn-card">
             <p className="av2-label">{t.french_label}</p>
-            {entry.correction?.assessment_status === 'unavailable' ? (
+            {journalCheckState(entry) === 'not_checked' ? (
               <>
-                <Notice tone="quiet" live="status">
-                  {correctionLine(entry, t)} {correctionFailureReason(entry, t)}
-                </Notice>
+                <div data-check="not_checked">
+                  <Notice tone="quiet" live="status">
+                    {correctionLine(entry, t)} {correctionFailureReason(entry, t)}
+                  </Notice>
+                </div>
                 {canRetryCorrection(entry) && (
                   <Action
                     tone="secondary"
@@ -449,7 +458,9 @@ export default function JournalTab() {
               </>
             ) : (
               <>
-                <p className="jn-verdict">{correctionLine(entry, t)}</p>
+                <p className="jn-verdict" data-check={isUnread(journalCheckState(entry)) ? journalCheckState(entry) : undefined}>
+                  {correctionLine(entry, t)}
+                </p>
                 {entry.correction?.foreground && (
                   <Correction
                     label={entry.correction.foreground.label}
@@ -486,7 +497,7 @@ export default function JournalTab() {
                     )}
                   </>
                 )}
-                {entry.correction?.checker === 'deterministic' && canRetryCorrection(entry) && (
+                {journalCheckState(entry) === 'basic' && canRetryCorrection(entry) && (
                   <Action
                     tone="quiet"
                     pending={pending === 'retry'}

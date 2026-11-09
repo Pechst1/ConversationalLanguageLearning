@@ -104,9 +104,10 @@ test('«unchecked» never reads «No corrections found», in any chrome language
 test('the Journal\'s model-free check does not say nothing was found either', () => {
   const { cahierCopy } = require('../cahiers/cahier-copy.ts');
   for (const language of ['en', 'fr', 'de']) {
-    const line = cahierCopy(language).journal.correction_clean_basic;
-    assert.ok(line && line.length > 0, language);
-    assert.doesNotMatch(line, CLAIMS_NOTHING_FOUND, `${language}: «${line}»`);
+    for (const line of [cahierCopy(language).journal.correction_basic, cahierCopy(language).journal.correction_unavailable]) {
+      assert.ok(line && line.length > 0, language);
+      assert.doesNotMatch(line, CLAIMS_NOTHING_FOUND, `${language}: «${line}»`);
+    }
   }
 });
 

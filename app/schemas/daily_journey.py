@@ -601,6 +601,8 @@ class ThreadExchange(JourneyModel):
     learner_fr: str
     character_fr: str
     correction: JourneyCorrection | None = None
+    #: #333: nobody read this reply, so it counted for nothing.
+    unchecked: bool = False
     #: The reply as its speakers' lines, when several people answer (an authored
     #: season page); empty for a one-voiced reply.
     character_lines: list[ThreadLine] = Field(default_factory=list)

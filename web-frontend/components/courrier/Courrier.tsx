@@ -501,6 +501,7 @@ export type CrSealMeasured = {
   assessed?: boolean;
   /** #590: the last message was never answered. */
   reply_pending?: boolean;
+  unchecked?: boolean;
 };
 
 /** The seal's numbers, three at most, in the chrome language (French by default). */
@@ -515,7 +516,7 @@ export function crSealNumbers(
     const total = Number(measured.objectives_total || 0);
     // WP-74: no grader ran — «0/2» would be a verdict nobody gave. #590: nor does a letter
     // whose last message nobody answered count goals.
-    if (total > 0 && measured.assessed !== false && !measured.reply_pending) {
+    if (total > 0 && measured.assessed !== false && !measured.reply_pending && !measured.unchecked) {
       rows.push({ value: `${Number(measured.objectives_met || 0)}/${total}`, label: t.num_objectives });
     }
     const repairs = Number(measured.repairs || 0);

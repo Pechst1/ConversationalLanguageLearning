@@ -393,7 +393,7 @@ def thread_history(
                     _compact(recap.get("courrier_summary_fr") or summarise_letter(row), limit=180),
                     language,
                 ),
-                "outcome": str(recap.get("courrier_outcome") or ("ignored" if row.status == "lapsed" else "")) or None,
+                "outcome": _shown_outcome(recap, row),
                 "stakes_level": int(getattr(row, "stakes_level", None) or 1),
                 "chain_index": getattr(row, "chain_index", None),
                 "at": row.completed_at.isoformat() if row.completed_at else (row.created_at.isoformat() if row.created_at else None),
@@ -1520,6 +1520,15 @@ def install_letter_provider() -> None:
     from app.services.journey_day_shapes import set_letter_provider
 
     set_letter_provider(journey_letter_provider)
+
+
+def _shown_outcome(recap: dict[str, Any], row: RealWorldMission) -> str | None:
+    """A past letter's word. One nobody answered or read has none (#590, #333)."""
+
+    measured = recap.get("measured") if isinstance(recap.get("measured"), dict) else {}
+    if measured.get("reply_pending") or measured.get("unchecked"):
+        return None
+    return str(recap.get("courrier_outcome") or ("ignored" if row.status == "lapsed" else "")) or None
 
 
 def objective_progress_from_journey(

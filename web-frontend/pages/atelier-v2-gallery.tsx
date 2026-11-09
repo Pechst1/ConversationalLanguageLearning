@@ -175,6 +175,7 @@ const FIL_TURN_ONE = filStep('gallery-fil-1', {
       character_fr: 'Un café, très bien. Au comptoir ou en terrasse ?',
       correction: null,
       character_lines: [],
+      unchecked: false,
     },
   ],
 });
@@ -188,6 +189,7 @@ const FIL_MARKED = filStep('gallery-fil-2', {
       character_fr: 'Noir, très bien. Au comptoir ou en terrasse ?',
       correction: FIL_SLIP,
       character_lines: [],
+      unchecked: false,
     },
   ],
 });
@@ -201,8 +203,9 @@ const FIL_CLOSING = filStep('gallery-fil-3', {
       character_fr: 'Un café, très bien. Au comptoir ou en terrasse ?',
       correction: null,
       character_lines: [],
+      unchecked: false,
     },
-    { learner_fr: 'Au comptoir, merci.', character_fr: 'Et avec ça ?', correction: null, character_lines: [] },
+    { learner_fr: 'Au comptoir, merci.', character_fr: 'Et avec ça ?', correction: null, character_lines: [], unchecked: false },
   ],
 });
 
@@ -466,7 +469,7 @@ export default function AtelierV2Gallery() {
             <div className="av2-graded" data-state="wrong">
               <FeedbackBand tone="wrong" title={copy.wrong} />
             </div>
-            <FeedbackBand tone="neutral" title={copy.still_grading} />
+            <FeedbackBand tone="neutral" title={copy.check_not_checked} />
           </Section>
 
           <Section title="La planche — the story reader (WP-90)">

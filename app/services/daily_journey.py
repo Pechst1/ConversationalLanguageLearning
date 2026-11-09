@@ -665,6 +665,7 @@ def _public_thread(turns: list[Any]) -> list[dict[str, Any]]:
                 "learner_fr": learner,
                 "character_fr": str(turn.get("character") or ""),
                 "correction": correction,
+                **({"unchecked": True} if turn.get("check_failure") else {}),
                 **({"character_lines": lines} if lines else {}),
             }
         )
@@ -5596,6 +5597,8 @@ class DailyJourneyService:
                     public_correction.model_dump(mode="json") if public_correction else None
                 ),
                 "free": bool(evaluation.needs_repair and not evaluation.turn_consumed),
+                # #333: nobody read this reply; the thread says so after a reload too.
+                **({"check_failure": evaluation.check_failure} if evaluation.check_failure else {}),
                 # Every speaker of a many-voiced reply, so each gets their bubble.
                 **({"lines": list(evaluation.reply_lines)} if evaluation.reply_lines else {}),
                 # QA-STORY: the season route this exchange took (replayed, never re-read).

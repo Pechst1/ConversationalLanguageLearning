@@ -38,6 +38,7 @@ from app.services.missions import (
     MissionCorrectionService,
     MissionScheduler,
     SerialEpisodeNotReadyError,
+    is_echo_reply,
     is_stock_reply,
     learner_zone,
     serialize_mission,
@@ -417,7 +418,7 @@ def _character_reply_turn(
         user_text=user_text,
         **({"through_turn_index": user_turn.turn_index} if later else {}),
     )
-    if is_stock_reply(assistant_text):
+    if is_stock_reply(assistant_text) or is_echo_reply(assistant_text, user_text):
         return None
     for turn in sorted(later, key=lambda item: item.turn_index, reverse=True):
         turn.turn_index += 1

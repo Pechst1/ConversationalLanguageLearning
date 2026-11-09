@@ -14,6 +14,8 @@
 
 import type { ControlLanguage } from '@/types/daily-journey';
 
+import { CHECK_COPY } from '@/lib/verdict';
+
 export type JourneyCopyKey =
   | 'today_eyebrow'
   | 'start'
@@ -59,7 +61,7 @@ export type JourneyCopyKey =
   | 'voice_offline'
   | 'voice_empty'
   | 'empty_answer'
-  | 'still_grading'
+  | 'check_not_checked'
   | 'try_grading_again'
   | 'retrying'
   | 'reconciled'
@@ -303,7 +305,7 @@ const EN: CopyTable = {
   voice_offline: 'Without a connection there is no transcription. Answer in writing, or try again later.',
   voice_empty: 'Nothing was recorded. Your turn is still open.',
   empty_answer: 'Write something first.',
-  still_grading: 'Still being checked. Nothing was scored yet.',
+  check_not_checked: CHECK_COPY.en.not_checked,
   try_grading_again: 'Check again',
   retrying: 'Still working — retrying the same request.',
   reconciled: 'This scene moved on. It has been refreshed for you.',
@@ -512,7 +514,7 @@ const DE: CopyTable = {
   voice_offline: 'Ohne Verbindung gibt es keine Transkription. Antworte schriftlich oder versuche es später.',
   voice_empty: 'Es wurde nichts aufgenommen. Du bist weiterhin dran.',
   empty_answer: 'Schreibe zuerst etwas.',
-  still_grading: 'Wird noch geprüft. Es wurde noch nichts bewertet.',
+  check_not_checked: CHECK_COPY.de.not_checked,
   try_grading_again: 'Erneut prüfen',
   retrying: 'Läuft noch — dieselbe Anfrage wird wiederholt.',
   reconciled: 'Diese Szene hat sich geändert. Sie wurde für dich aktualisiert.',
@@ -721,7 +723,7 @@ const FR: CopyTable = {
   voice_offline: 'Sans connexion, pas de transcription. Réponds par écrit, ou réessaie plus tard.',
   voice_empty: 'Rien n’a été enregistré. C’est toujours ton tour.',
   empty_answer: 'Écris d’abord quelque chose.',
-  still_grading: 'Toujours en cours de vérification. Rien n’a encore été évalué.',
+  check_not_checked: CHECK_COPY.fr.not_checked,
   try_grading_again: 'Vérifier à nouveau',
   retrying: 'Toujours en cours — la même requête est relancée.',
   reconciled: 'Cette scène a changé. Elle a été actualisée pour toi.',

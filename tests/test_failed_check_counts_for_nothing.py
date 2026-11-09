@@ -235,6 +235,39 @@ def test_one_unread_message_holds_the_letter_back_even_when_others_were_read(cli
     assert tokens == []
 
 
+def test_the_thread_carries_each_messages_check(client, db_session, monkeypatch):
+    """The screen reads the state from the thread, so it stands after a reload."""
+
+    headers, mission_id = _begin(client, monkeypatch)
+    monkeypatch.setattr(MissionConversationService, "respond", lambda self, **_k: "Ah bon ? Raconte-moi.")
+    monkeypatch.setattr(missions_module, "_safe_llm", lambda: _Client(error=TimeoutError("read timed out")))
+    client.post(f"/api/v1/missions/{mission_id}/turns", json={"text": SEEN_BY_RULES, "mode": "chat"}, headers=headers)
+
+    mission = client.get(f"/api/v1/missions/{mission_id}", headers=headers).json()["mission"]
+    mine, theirs = [turn for turn in mission["turns"] if turn["role"] == "user"], [
+        turn for turn in mission["turns"] if turn["role"] == "assistant"
+    ]
+    assert (mine[0]["check"]["outcome"], mine[0]["check"]["checked_by"]) == ("not_checked", "rules")
+    assert mine[0]["check"]["failure"] == "timeout" and mine[0]["check"]["retryable"] is True
+    assert all("check" not in turn for turn in theirs), "a reply from the correspondent is not judged"
+
+
+def test_a_reply_that_only_says_the_message_back_is_no_reply(client, db_session, monkeypatch):
+    """D6: judging whether a reply ignores the message needs a model; an echo needs none."""
+
+    headers, mission_id = _begin(client, monkeypatch)
+    monkeypatch.setattr(missions_module, "_safe_llm", lambda: _Client(content=_a_grade(UNSEEN_BY_RULES)))
+    monkeypatch.setattr(MissionConversationService, "respond", lambda self, **_k: f"  {UNSEEN_BY_RULES.upper()} ")
+
+    body = client.post(f"/api/v1/missions/{mission_id}/turns", json={"text": UNSEEN_BY_RULES, "mode": "chat"}, headers=headers).json()
+
+    assert body["assistant_turn"] == {}
+    assert body["outcome"]["reply_state"] == "pending"
+    assert missions_module.is_echo_reply("Je viens !", "je viens") is True
+    assert missions_module.is_echo_reply("Ah, tu viens ?", "Je viens.") is False
+    assert missions_module.is_echo_reply("", "") is False
+
+
 def test_an_old_row_that_stored_a_rule_partial_pays_nothing(db_session):
     """Letters written before this: the word says «partial», the debug says nobody read it."""
 
@@ -326,6 +359,22 @@ def test_a_forge_answer_nobody_read_counts_for_nothing(db_session, monkeypatch, 
     assert db_session.scalars(
         select(PilotEvent).where(PilotEvent.event_type == "verdict_check_failed", PilotEvent.user_id == user.id)
     ).first()
+
+
+def test_no_raised_level_is_shown_until_the_answer_is_settled(db_session, monkeypatch):
+    """WP-S1: the provisional step still picks the next item. The learner doesn't see it."""
+
+    from app.core.forge import Rung
+
+    _user, _session, forge, service, attempt, view = _free_text_answer(db_session, monkeypatch)
+    rule = view["rules"][0]
+    assert rule["rung"] == int(Rung.FREE_USE), "the next item is chosen from the step"
+    assert rule["shown_rung"] == int(Rung.PRODUCE), "the level printed is the one before it"
+
+    service.run_ai_review_for_attempt(attempt.id)
+
+    settled = forge.view(user=_user, session=_session)["rules"][0]
+    assert settled["rung"] == settled["shown_rung"] == int(Rung.PRODUCE)
 
 
 # --- Le Journal ------------------------------------------------------------------------------
