@@ -104,7 +104,7 @@ from app.services.llm_service import LLMProviderError, LLMService
 from app.services.progress import ProgressService
 from app.services.rule_cards import rule_card_for
 from app.services.seance_curriculum import lesson_for, lesson_panel
-from app.services.streak import read_streak, record_practice_day
+from app.services.streak import StreakState, read_streak, record_practice_day
 from app.services.vocabulary_credit import VocabularyCreditService
 
 ATELIER_GENERATOR_VERSION = "atelier-v11"
@@ -8553,14 +8553,17 @@ class AtelierSRSService:
                 }
             )
 
-        previous_streak = getattr(user, "grammar_streak_days", 0) or 0
-        self._update_streak(user)
+        # #559: the recap prints the streak every other screen prints, read through
+        # the one rule (`read_streak`), never the stored column: after a missed day
+        # that column still holds the broken chain («12 → 1»).
+        previous_streak = read_streak(user).days
+        streak_now = self._update_streak(user)
         recap = {
             "concepts_repaired": len([row for row in progress_rows if row["score"] >= 5]),
             "errata_logged": errata_count,
             "strengthened": len(progress_rows),
             "streak_before": previous_streak,
-            "streak_after": getattr(user, "grammar_streak_days", 0) or 0,
+            "streak_after": streak_now.days,
             "concepts": progress_rows,
             # Distinct drills, not attempt rows: the recap prints this as
             # "lignes réglées", and a learner who used "Réessayer" three times on
@@ -8664,10 +8667,10 @@ class AtelierSRSService:
         self.db.commit()
         return recap
 
-    def _update_streak(self, user: User) -> None:
+    def _update_streak(self, user: User) -> StreakState:
         # WP-80: the one streak rule (local day, «jour de relâche»), shared
         # with the daily journey.
-        record_practice_day(self.db, user)
+        return record_practice_day(self.db, user)
 
 
 def serialize_concept(
