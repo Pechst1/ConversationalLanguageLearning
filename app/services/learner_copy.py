@@ -618,6 +618,17 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "«{learner}» gehört nicht in diesen Satz.",
         "fr": "« {learner} » n’a pas sa place dans cette ligne.",
     },
+    # #574: a difference the right sentence has and the model's list left out.
+    "forge.diff.accent": {
+        "en": "Mind the accent: «{target}».",
+        "de": "Achte auf den Akzent: «{target}».",
+        "fr": "Attention à l’accent : «{target}».",
+    },
+    "forge.diff.label": {
+        "en": "Correction",
+        "de": "Korrektur",
+        "fr": "Correction",
+    },
     "forge.diff.order": {
         "en": "The words are right, but not in this order.",
         "de": "Die Wörter stimmen, aber nicht in dieser Reihenfolge.",

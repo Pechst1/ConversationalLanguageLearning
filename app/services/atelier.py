@@ -69,6 +69,7 @@ from app.services.forge_grading import (
     notes_native,
     production_local_check,
     refine_production_correction,
+    sentence_differences,
     slip_note,
     token_diff,
 )
@@ -4683,6 +4684,39 @@ class AtelierExerciseQualityService:
 ATELIER_LLM_ANSWER_MAX_CHARS = ANSWER_MAX_CHARS
 
 
+class AnswerLengthError(ValueError):
+    """A typed line outside the word range its item stated (#574)."""
+
+
+#: Typed rungs whose item states a word range; a spoken transcript's length is the recogniser's.
+_RANGED_ROUNDS = frozenset({"sentence", "conversation"})
+
+
+def check_answer_length(round_name: str, prompt_payload: dict[str, Any], answer_payload: dict[str, Any]) -> None:
+    """Refuse a typed line above its item's word ceiling.
+
+    The screen printed «17 / 7–16 words» beside a line that was taken all the
+    same: the range was a label, not a rule. The server states it, so the app and
+    any other client agree on what an answer to this item is.
+    """
+
+    text = answer_payload.get("text")
+    items = prompt_payload.get("items") if isinstance(prompt_payload, dict) else None
+    if round_name not in _RANGED_ROUNDS or not isinstance(text, str) or not text.strip():
+        return
+    if not isinstance(items, list) or len(items) != 1 or not isinstance(items[0], dict):
+        return
+    try:
+        high = int(items[0].get("max_words") or 0)
+    except (TypeError, ValueError):
+        return
+    words = len(text.split())
+    # The ceiling is the rule. The floor stays a hint («2 more words»): items carry a
+    # generic default one (5 or 6 words), and a short line that is right is still right.
+    if high and words > high:
+        raise AnswerLengthError(f"This item takes at most {high} words; the answer has {words} words.")
+
+
 class AtelierCorrectionService:
     """Exercise-aware checking and structured correction payloads."""
 
@@ -4735,6 +4769,8 @@ class AtelierCorrectionService:
             session=session,
             item_ids=_burst_ids(answer_payload) if _is_burst(exercise_id) else None,
         )
+        if not retest_of:
+            check_answer_length(round_name, prompt_payload, answer_payload)
         target_vocabulary = session_vocabulary_context(session)
         if target_vocabulary:
             prompt_payload = inject_vocabulary_context(prompt_payload, target_vocabulary)
@@ -4892,9 +4928,12 @@ class AtelierCorrectionService:
             source = self._answer_text(attempt.answer_payload or {})
             # Owner, 2026-10-19: a long line is repaired by fixing only its wrong
             # parts in place. The learner's own line with each wrong stretch
-            # replaced is right too, even when the model's rewrite also tidied
-            # something it did not mark.
-            accepted = [target, repair_line_from_parts(source, errata)]
+            # replaced is right too, but only when it IS the corrected sentence
+            # (#574): a stored correction that left a difference out of its list
+            # (the model's rewrite also changed «agreable» to «agréable») must not
+            # read «Line fixed» with that difference still in the line.
+            in_place = repair_line_from_parts(source, errata)
+            accepted = [target, in_place if in_place and not sentence_differences(in_place, target) else None]
         else:
             # #503: a keyed round asks for «the corrected line» too. The line is
             # the key's own corrected answer for the item, or the learner's line
