@@ -192,17 +192,20 @@ def test_the_learner_facing_copy_is_french(tab: str, french: str):
 
 
 def test_an_ungraded_entry_says_so_and_is_never_a_verdict(tab: str, french: str):
-    assert "assessment_status !== 'checked'" in tab
+    assert "state === 'not_checked'" in tab
     assert "return t.correction_unavailable;" in tab
     assert "La correction n’a pas pu être faite. Ton texte est gardé tel quel." in french
-    # The ungraded branch renders a Notice, not the correction block.
-    unavailable = tab.split("entry.correction?.assessment_status === 'unavailable' ? (")[1]
-    assert unavailable.split(") : (")[0].strip().removeprefix("<>").strip().startswith("<Notice")
+    # The ungraded branch renders a Notice a walk can name, not the correction block.
+    unavailable = tab.split("journalCheckState(entry) === 'not_checked' ? (")[1]
+    branch = unavailable.split(") : (")[0].strip().removeprefix("<>").strip()
+    assert branch.startswith('<div data-check="not_checked">')
+    assert "<Notice" in branch
+    assert "jn-verdict" not in branch
 
 
 def test_a_failed_correction_shows_its_reason_and_a_retry_control(tab: str, french: str):
     """Done-when of #170: correction call failing -> retry control present."""
-    unavailable = tab.split("entry.correction?.assessment_status === 'unavailable' ? (")[1]
+    unavailable = tab.split("journalCheckState(entry) === 'not_checked' ? (")[1]
     branch = unavailable.split(") : (")[0]
     assert "correctionFailureReason(entry, t)" in branch
     assert "canRetryCorrection(entry)" in branch
