@@ -21,11 +21,7 @@ REPO = Path(__file__).resolve().parents[1]
 #: The registry's own files.
 THE_REGISTRY = {"app/services/cast_registry.py", "app/services/cast_aliases.py"}
 #: file -> who takes it off the list.
-ALLOWED: dict[str, str] = {
-    # ``_serial_character_name``'s fallback. missions.py belongs to story truth PR 7 (Courrier),
-    # which reads ``cast_registry.person``.
-    "app/services/missions.py": "story truth PR 7",
-}
+ALLOWED: dict[str, str] = {}
 
 
 def _people_by_word() -> dict[str, str]:

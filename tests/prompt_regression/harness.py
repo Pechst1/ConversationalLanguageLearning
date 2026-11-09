@@ -44,7 +44,7 @@ CONTEXTS = ROOT / "contexts"
 SNAPSHOTS = ROOT / "snapshots"
 UPDATE_ENV = "PROMPT_SNAPSHOT_UPDATE"
 #: The order calls are rendered in (the reply lanes run in parallel threads).
-SCHEMA_ORDER = ("PagePlan", "PageText", "PageAids", "TutorVerdict", "VoiceReply", "StoryTurn", "TurnReview", "ReplyChoice", "SceneClosing")
+SCHEMA_ORDER = ("PagePlan", "PageText", "PageAids", "TutorVerdict", "VoiceReply", "StoryTurn", "TurnReview", "ReplyChoice", "SceneClosing", "CourrierReply")
 #: Settings that change what a story call sends, pinned so a developer's ``.env``, CI
 #: and the CLI render the same bytes. ``None`` routes keep each call's own effort.
 PINNED_SETTINGS = {
@@ -53,6 +53,7 @@ PINNED_SETTINGS = {
     "STORY_LIVE_MODEL": None,
     "STORY_CRITIC_MODEL": None,
     "ATELIER_STORY_MAX_ATTEMPTS": 2,
+    "OPENAI_MISSION_FAST_MODEL": "pinned-courrier-model",
 }
 #: Call parameters left out of the snapshot: the request timeout is the time left.
 VOLATILE_PARAMS = frozenset({"request_timeout"})
@@ -291,6 +292,8 @@ def run_case(case: Case) -> Result:
             observed, served = _run_authored(case)
         elif case.lane == "story":
             observed, served = _run_story(case)
+        elif case.lane == "courrier":
+            observed, served = _run_courrier(case, replayer)
         else:
             raise ValueError(f"{case.id}: unknown lane {case.lane!r}")
     observed["missing_answers"] = list(replayer.missing)
@@ -451,6 +454,65 @@ def _run_story(case: Case) -> tuple[dict, Any]:
         "tomorrow_problem": story_teaser.question_problem(question, known=known, ledger=payload.get("ledger")),
         "still_open": [row["text_fr"] for row in payload["ledger"]["still_open"]],
     }, result
+
+
+class _CourrierAnswers:
+    """The Courrier's reply writer sends plain messages and gets plain text back, so it
+    has no ``output_schema`` for the replayer to name the call by."""
+
+    SCHEMA = "CourrierReply"
+
+    def __init__(self, replayer: Replayer):
+        self.replayer = replayer
+
+    def generate_chat_completion(self, messages, *, system_prompt=None, **kwargs):
+        from app.services.llm_service import LLMProviderError
+
+        replayer = self.replayer
+        params = {key: value for key, value in sorted(kwargs.items()) if key not in VOLATILE_PARAMS}
+        data = [
+            {**message, "content": json.loads(message["content"].removeprefix("Scene context: "))}
+            if message["content"].startswith("Scene context: ")
+            else message
+            for message in messages
+        ]
+        user = json.dumps({"output_schema": None, "data": data}, ensure_ascii=False)
+        attempt = 1 + sum(1 for call in replayer.calls if call.schema == self.SCHEMA)
+        replayer.calls.append(Call(self.SCHEMA, attempt, system_prompt or "", user, params))
+        recorded = replayer.answers.get(self.SCHEMA) or []
+        if attempt > len(recorded):
+            replayer.missing.append(f"{self.SCHEMA} #{attempt}")
+            raise LLMProviderError(f"no recorded answer for {self.SCHEMA} #{attempt}")
+        return SimpleNamespace(content=recorded[attempt - 1]["content"], model="replay", provider="replay", total_tokens=0, cost=0.0)
+
+
+def _run_courrier(case: Case, replayer: Replayer) -> tuple[dict, Any]:
+    """A reply on a thread: ``input`` holds the letter and the turns before the reply."""
+
+    from app.services import missions
+
+    letter = case.input["letter"]
+    turns = [
+        SimpleNamespace(role=row["role"], text=row["text"], turn_index=index, correction_payload=None)
+        for index, row in enumerate(case.input.get("turns") or [], start=1)
+    ]
+    mission = SimpleNamespace(
+        id=None,
+        title=letter["title"],
+        brief=letter["brief"],
+        prompt_payload={"messenger": letter["messenger"], "conversation_opening": letter["messenger"]["opening_message"]},
+        source_snapshot={},
+        turns=turns,
+        attempts=[],
+        stakes_level=1,
+        mission_type="message",
+    )
+    service = missions.MissionConversationService(db=None, llm_service=_CourrierAnswers(replayer))
+    with _patched(missions, "_record_mission_llm_cost", lambda *a, **k: None), _patched(
+        missions, "_learner_level_code", lambda db, user: case.level
+    ):
+        reply = service.respond(user=SimpleNamespace(id=None), mission=mission, user_text=case.input["learner_text"])
+    return {"reply": reply}, reply
 
 
 def _run_authored(case: Case) -> tuple[dict, Any]:

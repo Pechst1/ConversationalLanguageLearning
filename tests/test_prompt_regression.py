@@ -52,7 +52,7 @@ def test_replay(case_id):
 def test_the_golden_set_covers_both_lanes_and_a_clean_day_per_band():
     clean = {(case.lane, case.level) for case in CASES if "clean" in case.id}
     assert {("page", "A1"), ("page", "A2"), ("page", "B1")} <= clean
-    assert {case.lane for case in CASES} == {"page", "turn", "authored", "story"}
+    assert {case.lane for case in CASES} == {"page", "turn", "authored", "story", "courrier"}
     snapshots = {path.stem for path in harness.SNAPSHOTS.glob("*.txt")}
     assert snapshots == {case.id for case in CASES}, (
         "every case has a snapshot, and no snapshot is orphaned"

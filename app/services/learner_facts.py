@@ -270,6 +270,30 @@ def latest_clash(turns: list[Any], line: Any) -> int | None:
     return clash
 
 
+def chips_for_thread(chips: list[str], learner_turns: list[Any]) -> list[str]:
+    """#557: the suggested replies that still fit what the learner has said.
+
+    Live walk 6 Nov: after «Non, je ne peux pas venir à ta fête» the chips were still the
+    letter's opening set, «Oui, je viens à ta fête !» among them. A chip goes when it says
+    the opposite of where the learner stands now, or when everything in it has been said.
+    A question says neither. Nothing left means no chips, never a wrong one.
+    """
+
+    if not learner_turns:
+        return list(chips)
+    decided: dict[str, bool] = {}
+    for turn in learner_turns:
+        decided.update(stance_of(turn))
+    said = [content_of(turn) for turn in learner_turns]
+    kept = []
+    for chip in chips:
+        words = content_of(chip)
+        if _goes_against(decided, stance_of(chip)) or (words and any(words <= turn for turn in said)):
+            continue
+        kept.append(chip)
+    return kept
+
+
 def _lexicon_verb(key: str, lexicon: Any) -> bool:
     def verb(lemma: str | None) -> bool:
         return bool(lemma) and (lexicon.lemmas.get(lemma) or {}).get("pos") == "verb"

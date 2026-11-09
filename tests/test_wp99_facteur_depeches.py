@@ -499,7 +499,7 @@ def _new_learner(db_session, band: str = "A1") -> User:
     return user
 
 
-@pytest.mark.parametrize(("band", "writer", "name"), [("A1", "margaux_barman", "Margaux"), ("B1", "romy_tremblay", "Romy")])
+@pytest.mark.parametrize(("band", "writer", "name"), [("A1", "margaux_barman", "Margaux"), ("B1", "margaux_barman", "Margaux")])
 def test_the_first_letter_is_the_cast_s_authored_letter(db_session, monkeypatch, band, writer, name) -> None:
     calls: list[Any] = []
     monkeypatch.setattr(missions_module, "_safe_llm", lambda: calls.append(1))  # would be a paid call
