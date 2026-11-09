@@ -28,6 +28,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from app.services.cast_registry import vocative_names
 from app.services.forge_item_validator import register_problems
 
 COACHES_PATH = Path(__file__).resolve().parents[1] / "data" / "forge_coaches.json"
@@ -213,7 +214,7 @@ def coach_mood(*, correct: bool | None, checked: bool, held: bool = False) -> st
 # The free-use rung: a two-line scene
 # --------------------------------------------------------------------------- #
 
-_NAMES = r"(?:Margaux|Marin|Romy|Lila|Gus|Monsieur Marchand|Mr Marchand|M\. Marchand)"
+_NAMES = "(?:" + "|".join(re.escape(name) for name in vocative_names()) + ")"
 _VOCATIVE = re.compile(rf",\s*{_NAMES}\s*(?=[.?!])")
 
 

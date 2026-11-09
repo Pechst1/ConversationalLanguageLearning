@@ -104,6 +104,14 @@ def _relationship_register(state: Mapping[str, Any] | None, character_id: str) -
     return None
 
 
+def relationship_register(state: Mapping[str, Any] | None, character_id: Any) -> Register | None:
+    """What the relationship map alone records. Off a season this is the person's register
+    (an accepted «On se tutoie ?» is kept there); a season's value never comes from here."""
+
+    key = str(character_id or "").strip()
+    return _relationship_register(state, key) if key else None
+
+
 def _season_register(state: Mapping[str, Any] | None, character_id: str) -> Register | None:
     """What the season's cast opens with: ``address``, overridden by ``register.<id>`` flags."""
 
@@ -225,5 +233,6 @@ __all__ = [
     "known_register",
     "learner_address",
     "register_of",
+    "relationship_register",
     "season_registers",
 ]

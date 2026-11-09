@@ -473,8 +473,11 @@ class Tentpole(_Model):
     flags_read: list[str] = Field(default_factory=list)
     days: list[Day] = Field(min_length=2)
     shared: dict[str, list[Movement]] = Field(default_factory=dict)
-    #: Fixed facts this tentpole establishes for everybody.
+    #: Fixed facts this tentpole establishes for everybody, once its Day B is played.
     state_out: dict[str, Any] = Field(default_factory=dict)
+    #: What already holds on its first page, where the page is written with it (#147: Gus
+    #: says «tu» from T3 A's first panel, while ``state_out`` would move him after T3 B).
+    opens_with: dict[str, Any] = Field(default_factory=dict)
     #: What the next gap must know (the "For gap N" notes).
     for_next_gap: list[str] = Field(default_factory=list)
     #: WP-155: what this tentpole reveals (T5: Berlin). Every generated day before it
@@ -765,6 +768,11 @@ def _check_tentpole(season: Season, tentpole: Tentpole, *, locations: set[str] |
     bad = set(tentpole.state_out) - known_flags
     if bad:
         problems.append(f"{tentpole.id}: state_out sets unknown {sorted(bad)}")
+    bad = set(tentpole.opens_with) - known_flags
+    if bad:
+        problems.append(f"{tentpole.id}: opens_with sets unknown {sorted(bad)}")
+    if any(key in tentpole.state_out and tentpole.state_out[key] != value for key, value in tentpole.opens_with.items()):
+        problems.append(f"{tentpole.id}: opens_with and state_out disagree")
     return problems
 
 

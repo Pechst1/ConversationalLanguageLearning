@@ -1,0 +1,76 @@
+{
+ "_doc": "#147: what each person of the cast is to the learner and to each other, read by cast_registry (member.relation_to_learner, member.relations, person().relation). Facts only from docs/story/season-1/00-season-bible.md and world.json, cited per row. `kind` is what a surface tests (is this a friend? is this family?); the labels are what a surface may print, per interface language. `known_from` is the (tentpole, day) of the page that first tells the learner, so a Courrier does not spoil a tie the story has not shown. A person outside this file is outside the cast: a one-letter extra has no relation and no row here.",
+ "kinds": {
+  "family": "the learner's own family",
+  "friend": "a friend, or becoming one: may be called so",
+  "regular": "a regular at Le Mistral who has not earned the word friend",
+  "host": "keeps the place the learner comes to",
+  "other_side": "on the other side of the sale: never a friend in season 1",
+  "neighbour": "someone from the quartier",
+  "professional": "someone doing their job for the learner"
+ },
+ "to_learner": {
+  "odile_ferrand": {
+   "kind": "family",
+   "source": "bible §2, 2026: «Odile dies and leaves the flat to her grandchild, the learner.»",
+   "fr": "ta grand-mère", "en": "your grandmother", "de": "deine Großmutter"
+  },
+  "camille_marchand": {
+   "kind": "other_side",
+   "source": "bible §3: «An obstacle with an interesting face»; §4: «Handles the sale for their grandfather», «In season 1, Camille stays on vous.»",
+   "fr": "de l'autre côté de la vente", "en": "on the other side of the sale", "de": "auf der anderen Seite des Verkaufs"
+  },
+  "landlord_marchand": {
+   "kind": "other_side",
+   "source": "bible §4: «The opponent who becomes the other side (T6)»; §3: «La succession Ferrand», a delay on a file",
+   "fr": "de l'autre côté de la vente", "en": "on the other side of the sale", "de": "auf der anderen Seite des Verkaufs"
+  },
+  "bastien_roux": {
+   "kind": "other_side",
+   "source": "bible §4: «Solvel's acquisitions man»; world.json: «Pressure with a smile.»",
+   "fr": "de l'autre côté de la vente", "en": "on the other side of the sale", "de": "auf der anderen Seite des Verkaufs"
+  },
+  "lila_bonnet": {
+   "kind": "friend",
+   "source": "bible §4: «She becomes your accomplice upstairs.»",
+   "fr": "ta complice", "en": "your accomplice", "de": "deine Komplizin"
+  },
+  "marin_leveque": {
+   "kind": "friend",
+   "source": "bible §4: «Brings soup when you're ill»; cast_roles: «ton premier ami à Paris»",
+   "fr": "ton ami", "en": "your friend", "de": "dein Freund"
+  },
+  "romy_tremblay": {
+   "kind": "friend",
+   "source": "bible §4: «your friend (S-2; the romance is set aside)»; §3: «A source, then a friend. She hates that order.»",
+   "fr": "ton amie", "en": "your friend", "de": "deine Freundin"
+  },
+  "augustin_de_roncourt": {
+   "kind": "regular",
+   "source": "bible §3: «Solvel's spy, then his project»; world.json: «Charmed, suspicious, then loyal in his fashion.»",
+   "fr": "un habitué du Mistral", "en": "a regular at Le Mistral", "de": "ein Stammgast im Mistral"
+  },
+  "margaux_barman": {
+   "kind": "host",
+   "source": "bible §4: «Owner-bartender of Le Mistral since 2001»; §3: «Odile's eyes. She is afraid of what you'll find.»",
+   "fr": "la patronne du Mistral", "en": "the owner of Le Mistral", "de": "die Wirtin des Mistral"
+  },
+  "mme_diallo": {
+   "kind": "neighbour",
+   "source": "bible §4: «the baker»; world.json: «Knows the learner's face from gap 1.»",
+   "fr": "la boulangère du coin", "en": "the baker on the corner", "de": "die Bäckerin an der Ecke"
+  },
+  "maitre_vasseur": {
+   "kind": "professional",
+   "source": "world.json: «the notary handling Odile's succession»",
+   "fr": "la notaire de la succession", "en": "the notary for the estate", "de": "die Notarin für das Erbe"
+  }
+ },
+ "between": [
+  {
+   "person": "camille_marchand", "kind": "grandchild_of", "other": "landlord_marchand", "inverse": "grandparent_of",
+   "known_from": [1, "b"],
+   "source": "bible §4: «Marchand's grandchild»; t1.json b.p1: «Mon grand-père a tout l'immeuble, sauf le premier étage.»"
+  }
+ ]
+}

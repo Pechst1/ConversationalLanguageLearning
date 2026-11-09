@@ -9979,7 +9979,13 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_re
         # «never_reveal», the lanes' spoiler guard). It settles no flag and stages no
         # gate: the day's first act alone moves the season.
         if must_not := _season_turn_must_not(reveals, context.get(SEASON_TODAY_KEY)):
-            context["season_turn"] = {"may_set": [], "gate": None, **must_not}
+            context["season_turn"] = {
+                "may_set": [],
+                "gate": None,
+                **must_not,
+                # #147: a later act's speaker addresses the learner as that person does.
+                **({"register": register} if (register := season_registers(context).get(str(scenario.character_id))) else {}),
+            }
     context["agendas"] = [
         row
         for row in context.get("agendas") or []
@@ -10059,7 +10065,23 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_re
             "learner_asked": ledger["learner_asked"],
         },
         "ledger": ledger,
+        # #147: on an authored page, who this turn is for (the tutor's register reads it).
+        **({"addressee": addressee} if (addressee := _authored_addressee(scenario, history)) else {}),
     }
+
+
+def _authored_addressee(scenario, history) -> dict | None:
+    """Who the learner is answering on an authored page, and how that person speaks to them
+    on this page: the turn's own lines where they say, else the cast (#594, #147). ``None``
+    off an authored page. The scene's ``character_id`` is only whoever spoke first."""
+
+    from app.services.season import runtime as season_runtime
+
+    addressee = season_runtime.addressee_of(scenario, history)
+    if addressee is None:
+        return None
+    said = season_runtime.turn_address(season_runtime.current_turn(scenario, history) or {})
+    return {"id": addressee.id, "register": said or addressee.register}
 
 
 def _spoken(exchange: Any) -> Any:
