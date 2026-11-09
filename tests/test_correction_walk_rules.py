@@ -141,6 +141,30 @@ def test_a_negation_in_front_of_the_verb_goes_around_it(text, span, replacement)
     _finds(text, span, replacement, "FR_NEGATION_ORDER")
 
 
+@pytest.mark.parametrize(
+    ("text", "span", "replacement"),
+    [
+        pytest.param("Qu est-ce que c est, jeudi a dix-huit heures ?", "a dix-huit", "à dix-huit", id="133-walk"),
+        pytest.param("Jeudi a dix-huit heures.", "a dix-huit", "à dix-huit", id="310-review-words"),
+        pytest.param("Rendez-vous a 18 heures.", "a 18", "à 18", id="310-review-digits"),
+        pytest.param("Je viens demain a 8h.", "a 8h", "à 8h", id="digits-glued-to-h"),
+        pytest.param("On se voit samedi a 10h30 chez Gus.", "a 10h30", "à 10h30", id="minutes"),
+        pytest.param("Lundi matin a 9 h, je pars.", "a 9", "à 9", id="digits-then-h"),
+        pytest.param("Camille a une clé, jeudi a dix-huit heures.", "a dix-huit", "à dix-huit", id="a-right-a-earlier"),
+        pytest.param("Il vient ce soir a huit heures avec Lila.", "a huit", "à huit", id="more-after-the-hour"),
+        pytest.param("Aujourd'hui a dix-huit heures, je pars.", "a dix-huit", "à dix-huit", id="aujourdhui"),
+    ],
+)
+def test_a_before_a_clock_time_after_a_day_is_a_preposition(text, span, replacement):
+    _finds(text, span, replacement, "FR_A_GRAVE")
+
+
+def test_the_clock_fix_lands_on_the_a_it_means():
+    line = "Camille a une clé, jeudi a dix-huit heures."
+    checked = cc.verify_correction(line, None, cc.deterministic_errata(line))
+    assert checked.corrected == "Camille a une clé, jeudi à dix-huit heures."
+
+
 def test_the_sentence_the_failed_check_tests_lean_on_is_still_unseen_by_the_rules():
     from tests.test_failed_check_counts_for_nothing import UNSEEN_BY_RULES
 

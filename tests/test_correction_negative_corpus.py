@@ -273,6 +273,12 @@ A_BEFORE_THE_CLOCK = [
     "L'après-midi a trois heures de soleil.",
     "Le rendez-vous a 3 heures de retard.",
     "Le rendez-vous de jeudi a 2 h de retard.",
+    "Le lundi a vingt-quatre heures, comme les autres jours.",
+    "Chaque lundi a dix heures.",
+    "Mon lundi a dix heures.",
+    "L'examen de lundi a trois heures pour finir.",
+    "Le vol de demain a deux heures.",
+    "Le train du soir a trois heures.",
 ]
 
 ADJECTIVE_AGREEMENT = [

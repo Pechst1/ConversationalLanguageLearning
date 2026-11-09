@@ -1724,6 +1724,59 @@ def _space(source: str, left: Tok, right: Tok) -> bool:
     return source[left.end : right.start] in {" ", " "}
 
 
+#: A day or a time of day: what «à dix-huit heures» can follow where «a» is no verb.
+_BEFORE_THE_CLOCK = frozenset(
+    {"lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche", "demain", "hier", "hui", "matin", "soir",
+     "après-midi"}
+)
+#: What may follow the hour. Not «de»: «jeudi a dix-huit heures de cours» has them, and not an
+#: adjective: «lundi a trois heures libres». The review of #310 found both shapes.
+_AFTER_THE_CLOCK = frozenset(
+    {"du", "et", "ou", "mais", "à", "au", "aux", "chez", "dans", "avec", "pour", "sur", "en", "pile", "précises", "trente",
+     "quinze", "moins", "je", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles", "ce", "si", "car", "donc", "alors",
+     "parce", "quand", "comme"}
+)
+#: «Le lundi a vingt-quatre heures, comme les autres jours.», «L'examen de lundi a trois heures
+#: pour finir.»: after one of these the day is, or belongs to, the subject of the verb. «ce» stays
+#: out: «ce soir a huit heures» is always the time.
+_A_DAY_THAT_CAN_HAVE_HOURS = frozenset(
+    {"le", "un", "chaque", "tout", "mon", "ton", "son", "notre", "votre", "leur", "de", "du"}
+)
+_CLOCK_IN_DIGITS = re.compile(r"\s+\d{1,2}(?:\s*h(?:\d{2})?(?!\w)|\s+heures?(?!\w))")
+_DIGITS_OF_THE_HOUR = re.compile(r"\s+\d{1,2}(?:h\d{0,2})?")
+
+
+def _clock_after_a(source: str, tokens: list[Tok], index: int) -> int | None:
+    """Where the words to fix end when the «a» at ``index`` is «à» in front of a clock time, else
+    ``None``. A span is found by its words, so it runs on to the number: the line may hold a right
+    «a» earlier. Closed on both sides: a day or time word in front, the hour and its end after."""
+
+    tok = tokens[index]
+    if tok.low != "a" or source[tok.start : tok.end] != "a" or index == 0:
+        return None
+    prev = tokens[index - 1]
+    digits = _CLOCK_IN_DIGITS.match(source, tok.end)
+    # «Rendez-vous a 18 heures.»: after this word only a time in digits is sure
+    if not _space(source, prev, tok) or not (prev.low in _BEFORE_THE_CLOCK or (digits and prev.low == "rendez-vous")):
+        return None
+    if index > 1 and tokens[index - 2].low in _A_DAY_THAT_CAN_HAVE_HOURS and prev.low != "rendez-vous":
+        return None
+    following = tokens[index + 1 :]
+    if digits:
+        hour_end = digits.end()
+        fix_end = _DIGITS_OF_THE_HOUR.match(source, tok.end).end()  # type: ignore[union-attr]
+    else:
+        if len(following) < 2 or not _space(source, tok, following[0]) or not _space(source, following[0], following[1]):
+            return None
+        if not _is_number_word(following[0].low) or following[1].low not in {"heures", "h"}:
+            return None
+        hour_end, fix_end = following[1].end, following[0].end
+    after = next((other for other in following if other.start >= hour_end), None)
+    if after is not None and not _CLAUSE_BREAK.search(source[hour_end : after.start]) and after.low not in _AFTER_THE_CLOCK:
+        return None
+    return fix_end
+
+
 def _phrase_edits(source: str, tokens: list[Tok], add) -> None:
     """Rules over a few words at once: a negation around the verb, «de» after a modal,
     a doubled negation, «de» after a negated avoir, the locutions that need «de»,
@@ -1910,6 +1963,13 @@ def _phrase_edits(source: str, tokens: list[Tok], add) -> None:
             and not any(t.low in _RELATIVES and _same_sentence(source, t, tok) for t in tokens[max(0, i - 8) : i - 2])
         ):
             add(_edit("FR_A_GRAVE", source, tok.start, tok.end, "à", right="à"))
+            continue
+
+        # «jeudi a dix-huit heures» -> «jeudi à dix-huit heures»
+        clock_end = _clock_after_a(source, tokens, i)
+        if clock_end is not None:
+            right = "à" + source[tok.end : clock_end]
+            add(_edit("FR_A_GRAVE", source, tok.start, clock_end, right, right=right))
             continue
 
         # «je suis vingt ans» -> «j'ai vingt ans»

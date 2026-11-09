@@ -290,7 +290,7 @@ def test_journal_builds_the_line_from_its_fixes(db_session):
 
     assert "C'est jeudi" not in shaped["corrected_answer"]
     assert "jeudi à dix-huit heures ?" in shaped["corrected_answer"]
-    assert ("jeudi a", "jeudi à") in {(item["span_fr"], item["corrected_fr"]) for item in shaped["errata"]}
+    assert ("a dix-huit", "à dix-huit") in {(item["span_fr"], item["corrected_fr"]) for item in shaped["errata"]}
 
 
 def test_the_scenes_one_chip_is_no_rewrite():
