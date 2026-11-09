@@ -846,6 +846,22 @@ def _item_keys(item: dict[str, Any], target: Any, *, mode: str | None = None) ->
     return keys
 
 
+def _typed_gap(mode: str, item: dict[str, Any]) -> bool:
+    """#596: a gap with nothing offered to pick from: the learner wrote the word.
+
+    «You chose «somes»» is wrong for it. One place decides, so each miss line asks
+    :func:`_pick_or_write` instead of assuming a pick.
+    """
+
+    return mode == "fill" and not (item.get("choices") or item.get("options"))
+
+
+def _pick_or_write(key: str, language: Any, typed: bool, **fields: Any) -> str:
+    """The miss line ``key``, in its «wrote» form (``key.typed``) when the learner typed it."""
+
+    return _copy(f"{key}.typed" if typed else key, language, **fields)
+
+
 def _miss_outside_the_rule(item: dict[str, Any], learner: str, target: str) -> bool:
     """#380: a typed miss that changes a word every choice of the item shares.
 
@@ -6206,7 +6222,7 @@ class AtelierCorrectionService:
             )
         if mode == "classify" and _is_judgement(item):
             return self._judgement_erratum(concept, item, learner_text, target)
-        slip = slip_note(token_diff(learner_text, target), self.explanation_language) if mode != "classify" else None
+        slip = slip_note(token_diff(learner_text, target, positions=True), self.explanation_language, target) if mode != "classify" else None
         if slip:
             # #449: the slip's own category explains the miss, not the day's rule card.
             return self._recognize_erratum_payload(
@@ -6227,7 +6243,10 @@ class AtelierCorrectionService:
             why = (
                 ""
                 if mode == "word_bank"
-                else _copy("atelier.recognize.chose_requires", language, learner=learner_text, target=target)
+                else _pick_or_write(
+                    "atelier.recognize.chose_requires", language, _typed_gap(mode, item),
+                    learner=learner_text, target=target,
+                )
             )
             explanation = str(item.get("explanation") or self._why_for(concept, item) or "").strip()
             outside_rule = mode == "fill" and _miss_outside_the_rule(item, learner_text, target)
@@ -6277,7 +6296,10 @@ class AtelierCorrectionService:
         learner_norm = _normalize(learner_text)
         target_norm = _normalize(target)
         label = self._label_for(concept, item)
-        why = _copy("atelier.recognize.blank_needs", self.explanation_language, learner=learner_text, target=target)
+        typed = _typed_gap("fill", item)
+        why = _pick_or_write(
+            "atelier.recognize.blank_needs", self.explanation_language, typed, learner=learner_text, target=target
+        )
         repair = item.get("repair_hint") or self._repair_for(concept)
         profile_key = infer_grammar_profile(concept).key if concept else ""
 
@@ -6299,7 +6321,7 @@ class AtelierCorrectionService:
                 if learner_norm == "prendras":
                     why = _copy("atelier.si.fill_imperative_expected", language)
                 else:
-                    why = _copy("atelier.si.fill_imperative_generic", language, learner=learner_text)
+                    why = _pick_or_write("atelier.si.fill_imperative_generic", language, typed, learner=learner_text)
                 repair = _copy("atelier.si.repair_imperative_result", language)
             elif target_norm == "irons":
                 if learner_norm == "allons":
@@ -6319,9 +6341,13 @@ class AtelierCorrectionService:
         elif profile_key == "tense_aspect":
             label = _copy("atelier.tense.label_background_vs_event", language)
             if target_norm in {"pleuvait", "visitions", "sonnait"}:
-                why = _copy("atelier.tense.fill_needs_imparfait", language, learner=learner_text, target=target)
+                why = _pick_or_write(
+                    "atelier.tense.fill_needs_imparfait", language, typed, learner=learner_text, target=target
+                )
             else:
-                why = _copy("atelier.tense.fill_needs_passe_compose", language, learner=learner_text, target=target)
+                why = _pick_or_write(
+                    "atelier.tense.fill_needs_passe_compose", language, typed, learner=learner_text, target=target
+                )
             repair = _copy("atelier.tense.repair_ask_ongoing", language)
 
         return self._recognize_erratum_payload(
@@ -6378,10 +6404,15 @@ class AtelierCorrectionService:
                 ),
                 "remember": False,
             }
+        why = _copy("atelier.judgement.should_be", language, sentence=sentence, corrected=corrected)
+        slip = slip_note(token_diff(sentence, corrected, positions=True), language, corrected)
+        if slip:
+            # #596: «Il me en a parlé.» sorted «Correct» is the elision, not the order of two
+            # pronouns the day's rule card shows. The slip names itself, as a typed miss does.
+            why, repair = f"{why} {slip[0]}", slip[1]
         return self._recognize_erratum_payload(
             concept, item, label=label, learner_text=sentence, target=corrected,
-            why=_copy("atelier.judgement.should_be", language, sentence=sentence, corrected=corrected),
-            repair=repair, task_type=self._task_type_for(concept, item),
+            why=why, repair=repair, task_type=self._task_type_for(concept, item),
         )
 
     def _classify_erratum(
@@ -6833,9 +6864,9 @@ class AtelierCorrectionService:
             # A wrong part («verts») is filed as the sentence it stands for.
             learner = verdict.read_as or learner
             erratum = self._erratum(concept, item, learner, target, severity=3, recurring=True)
-            ops = mark_given(token_diff(learner, target), source)
+            ops = mark_given(token_diff(learner, target, positions=True), source)
             what = describe_diff(ops, self.explanation_language)
-            slip = slip_note(ops, self.explanation_language)
+            slip = slip_note(ops, self.explanation_language, target)
             if slip:
                 # #449: the slip's own category explains it; the rule card does not.
                 erratum["why_wrong"], erratum["repair_hint"] = slip

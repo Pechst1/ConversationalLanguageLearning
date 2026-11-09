@@ -90,12 +90,21 @@ def _ending(learner: str, target: str) -> tuple[str, str] | None:
     return None
 
 
-def token_diff(learner: Any, target: Any) -> list[dict[str, str]]:
+def token_diff(learner: Any, target: Any, *, positions: bool = False) -> list[dict[str, str]]:
     """What separates the learner's line from the key, one operation per difference.
 
     Kinds: ``ending`` (same stem), ``accent``, ``word`` (a different word),
     ``missing``, ``extra`` and ``order`` (same words, other order — reported alone).
+    ``positions=True`` adds ``at``, the index of the op's word among the key's words
+    (``-1`` for an ``extra`` word, which has none), so a note can name the word
+    NEXT to the slip and not the first one that looks like it (#596).
     """
+
+    ops = _diff_ops(learner, target)
+    return ops if positions else [{k: v for k, v in op.items() if k != "at"} for op in ops]
+
+
+def _diff_ops(learner: Any, target: Any) -> list[dict[str, str]]:
 
     left, right = tokens(learner), tokens(target)
     if left == right:
@@ -110,21 +119,24 @@ def token_diff(learner: Any, target: Any) -> list[dict[str, str]]:
         if tag == "equal":
             for offset in range(i2 - i1):
                 if left[i1 + offset] != right[j1 + offset]:
-                    ops.append({"kind": "accent", "learner": left[i1 + offset], "target": right[j1 + offset]})
+                    ops.append({"kind": "accent", "learner": left[i1 + offset], "target": right[j1 + offset], "at": str(j1 + offset)})
             continue
         if tag == "delete":
-            ops.extend({"kind": "extra", "learner": token, "target": ""} for token in left[i1:i2])
+            ops.extend({"kind": "extra", "learner": token, "target": "", "at": "-1"} for token in left[i1:i2])
             continue
         if tag == "insert":
-            ops.extend({"kind": "missing", "learner": "", "target": token} for token in right[j1:j2])
+            ops.extend({"kind": "missing", "learner": "", "target": token, "at": str(j1 + k)} for k, token in enumerate(right[j1:j2]))
             continue
         # replace: pair the words up in order; any surplus is missing / extra.
         pairs = list(zip(left[i1:i2], right[j1:j2], strict=False))
-        for learner_word, target_word in pairs:
+        for k, (learner_word, target_word) in enumerate(pairs):
             kind = "ending" if _ending(learner_word, target_word) else "word"
-            ops.append({"kind": kind, "learner": learner_word, "target": target_word})
-        ops.extend({"kind": "extra", "learner": token, "target": ""} for token in left[i1 + len(pairs):i2])
-        ops.extend({"kind": "missing", "learner": "", "target": token} for token in right[j1 + len(pairs):j2])
+            ops.append({"kind": kind, "learner": learner_word, "target": target_word, "at": str(j1 + k)})
+        ops.extend({"kind": "extra", "learner": token, "target": "", "at": "-1"} for token in left[i1 + len(pairs):i2])
+        ops.extend(
+            {"kind": "missing", "learner": "", "target": token, "at": str(j1 + len(pairs) + k)}
+            for k, token in enumerate(right[j1 + len(pairs):j2])
+        )
     return ops
 
 
@@ -178,35 +190,139 @@ _ELISIONS: dict[str, str] = {
 }
 
 
-def slip_category(ops: list[dict[str, str]]) -> dict[str, str] | None:
+#: The articles a gender or number slip is named on: gender, number and kind of each.
+#: «l'» and the plurals have no gender of their own, so they only take part in number slips.
+_ARTICLE_FORMS: dict[str, tuple[str | None, str, str]] = {
+    "le": ("m", "s", "definite"), "la": ("f", "s", "definite"), "l'": (None, "s", "definite"),
+    "les": (None, "p", "definite"),
+    "un": ("m", "s", "indefinite"), "une": ("f", "s", "indefinite"), "des": (None, "p", "indefinite"),
+}
+
+
+#: Words that stand between an article and its noun without being the noun: the
+#: adjectives that come BEFORE the noun and the adverbs that qualify them. «la petite clé»
+#: names «clé», never «petite» (#596, review of the first attempt).
+_BEFORE_THE_NOUN = frozenset(
+    {
+        "petit", "petite", "petits", "petites", "grand", "grande", "grands", "grandes",
+        "gros", "grosse", "grosses", "beau", "bel", "belle", "beaux", "belles",
+        "joli", "jolie", "jolis", "jolies", "bon", "bonne", "bons", "bonnes",
+        "mauvais", "mauvaise", "mauvaises", "vieux", "vieil", "vieille", "vieilles",
+        "nouveau", "nouvel", "nouvelle", "nouveaux", "nouvelles", "jeune", "jeunes",
+        "long", "longue", "longs", "longues", "haut", "haute", "hauts", "hautes",
+        "premier", "première", "premiers", "premières", "dernier", "dernière", "derniers", "dernières",
+        "autre", "autres", "même", "mêmes", "cher", "chère", "chers", "chères",
+        "seul", "seule", "seuls", "seules", "pauvre", "pauvres", "propre", "propres",
+        "très", "trop", "si", "bien", "plus", "moins", "vraiment", "assez", "tout", "tous", "toute", "toutes",
+        "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix",
+    }
+)
+
+
+_BEFORE_THE_NOUN_FOLDED = frozenset(strip_accents(word) for word in _BEFORE_THE_NOUN)
+
+
+def _noun_after(words: list[str], at: int) -> str:
+    """The noun that follows the article at ``words[at]``, or ``""`` when none is safe to name."""
+
+    for word in words[at + 1 :]:
+        if strip_accents(word) in _BEFORE_THE_NOUN_FOLDED:
+            continue
+        return word if word[0].isalpha() else ""
+    return ""
+
+
+#: A «le / la / les / l'» right after one of these is an object pronoun («Je la vois»),
+#: not an article: the word after it is a verb, and no noun is named there.
+_BEFORE_A_PRONOUN = frozenset(
+    {
+        "je", "j'", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles", "ne", "n'",
+        "me", "m'", "te", "t'", "se", "s'", "lui", "leur", "y", "en", "ce", "c'", "qui", "que", "qu'",
+    }
+)
+
+
+def _article_slip(op: dict[str, str], target_line: Any) -> dict[str, str] | None:
+    """#596: one article swapped for another of its kind (le/la, un/une: gender;
+    le/les, un/des: number), with the noun after THIS article in the key, so the
+    note can name it.
+
+    The key's own article decides the gender: «Marin cherche le clé.» against «… la clé.»
+    is «clé» being feminine. The noun is read at the slip's own position in the key
+    (``op["at"]``): a key that repeats the article («le chat et le chien») must not name
+    the first one's noun. ``None`` when that position holds no safe noun.
+    """
+
+    learner = strip_accents(op.get("learner") or "")
+    target = strip_accents(op.get("target") or "")
+    wrong, right = _ARTICLE_FORMS.get(learner), _ARTICLE_FORMS.get(target)
+    if wrong is None or right is None or wrong[2] != right[2]:
+        return None
+    words = tokens(target_line)
+    try:
+        at = int(op.get("at", "-1"))
+    except ValueError:
+        return None
+    if not 0 <= at < len(words) or strip_accents(words[at]) != target:
+        return None
+    if at and strip_accents(words[at - 1]) in _BEFORE_A_PRONOUN:
+        return None
+    noun = _noun_after(words, at)
+    if not noun:
+        return None
+    if wrong[1] != right[1]:
+        category, trait = "article_number", right[1]
+    elif wrong[0] and right[0] and wrong[0] != right[0]:
+        category, trait = "article_gender", right[0]
+    else:
+        return None
+    phrase = f"{target}{noun}" if target.endswith("'") else f"{target} {noun}"
+    return {"category": category, "learner": learner, "target": target, "noun": noun, "phrase": phrase, "trait": trait}
+
+
+def slip_category(ops: list[dict[str, str]], target_line: Any = None) -> dict[str, str] | None:
     """The one slip a diff makes, by category, or ``None`` when it is not one we name.
 
     #449 (and #146): La Forge explained a miss with the day's rule card, so «lui» for
     «le» was answered with the order of two pronouns. What the learner got wrong
     decides the note; the rule card is only the fallback for a miss with no category.
     Only a lone difference is named: with two, nothing says which one was meant.
+    ``target_line`` is the key's whole line: an article slip names the noun after it (#596).
     """
 
     slips = [op for op in ops if op.get("kind") != "accent"]
-    if len(slips) != 1 or slips[0].get("kind") != "word" or slips[0].get("given"):
+    if len(slips) != 1 or slips[0].get("given") or slips[0].get("kind") not in {"word", "ending"}:
         return None
     learner = strip_accents(slips[0].get("learner") or "")
     target = strip_accents(slips[0].get("target") or "")
+    if slips[0].get("kind") == "ending":
+        # «le» / «les», «un» / «une» share a stem, so the diff calls them an ending;
+        # only an article swap is named from it (#596).
+        return _article_slip(slips[0], target_line) if target_line is not None else None
     if learner in _COI_PRONOUNS and target in _COD_PRONOUNS:
         return {"category": "cod_for_coi", "learner": learner, "target": target}
     if learner in _COD_PRONOUNS and target in _COI_PRONOUNS:
         return {"category": "coi_for_cod", "learner": learner, "target": target}
     if target.endswith("'") and _ELISIONS.get(learner) == target:
         return {"category": "elision", "learner": learner, "target": target}
+    if target_line is not None:
+        return _article_slip(slips[0], target_line)
     return None
 
 
-def slip_note(ops: list[dict[str, str]], language: Any) -> tuple[str, str] | None:
+def slip_note(ops: list[dict[str, str]], language: Any, target_line: Any = None) -> tuple[str, str] | None:
     """``(why, repair)`` for the slip's category, in the learner's language."""
 
-    slip = slip_category(ops)
+    slip = slip_category(ops, target_line)
     if slip is None:
         return None
+    if slip["category"] in {"article_gender", "article_number"}:
+        trait = {"m": "masculine", "f": "feminine", "s": "singular", "p": "plural"}[slip["trait"]]
+        fields = {key: slip[key] for key in ("learner", "target", "noun", "phrase")}
+        return (
+            _copy(f"forge.slip.{slip['category']}.{trait}", language, **fields),
+            _copy(f"forge.slip.{slip['category']}.repair", language, **fields),
+        )
     fields = {"learner": slip["learner"], "target": slip["target"]}
     if slip["category"] == "elision":
         return (
