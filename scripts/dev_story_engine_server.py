@@ -267,7 +267,12 @@ def _ack_for(said: str, intent: str) -> str:
     """The fake reader's first line back on an authored day: it takes up a word of what the
     learner wrote, neither «tu» nor «vous», so any addressee can say it."""
 
-    words = [word for word in re.findall(r"[^\W\d_]{5,}", said) if word.lower() not in {"parce", "pourquoi"}]
+    # A hyphenated word is one word: «grand-mère» is not taken up as «Grand» (walk of 9 Nov).
+    words = [
+        word
+        for word in re.findall(r"[^\W\d_]+(?:-[^\W\d_]+)*", said)
+        if len(word) >= 5 and word.lower() not in {"parce", "pourquoi"}
+    ]
     word = (words[-1] if words else said.strip(" .?!") or "Bon").capitalize()
     return {
         "no": f"Non, alors. {word} : c'est noté.",
@@ -277,7 +282,12 @@ def _ack_for(said: str, intent: str) -> str:
 
 
 def _word_of(said: str) -> str:
-    words = [word for word in re.findall(r"[^\W\d_]{5,}", said) if word.lower() not in {"parce", "pourquoi"}]
+    # A hyphenated word is one word: «grand-mère» is not taken up as «Grand» (walk of 9 Nov).
+    words = [
+        word
+        for word in re.findall(r"[^\W\d_]+(?:-[^\W\d_]+)*", said)
+        if len(word) >= 5 and word.lower() not in {"parce", "pourquoi"}
+    ]
     return (words[-1] if words else "Bon").capitalize()
 
 

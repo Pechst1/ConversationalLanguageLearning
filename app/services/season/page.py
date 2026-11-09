@@ -86,6 +86,7 @@ def _line(line: Line, ctx: _Ctx) -> dict[str, Any] | None:
         "mood": line.mood,
         "direction": line.direction or None,
         **(said or {}),
+        **({"cut": True} if line.in_thread else {}),
     }
 
 
