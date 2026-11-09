@@ -189,8 +189,8 @@ def from_forge(correction: dict[str, Any] | None, *, text: str = "", verdict: st
     )
 
 
-def from_courrier(correction: dict[str, Any] | None, *, text: str = "") -> Verdict:
-    """A Courrier message, from its stored correction payload."""
+def from_courrier(correction: dict[str, Any] | None, *, verdict: str | None = None, text: str = "") -> Verdict:
+    """A Courrier message, from its stored correction payload and, on an attempt, the row's verdict."""
 
     payload = correction if isinstance(correction, dict) else {}
     if "journey_outcome" in payload:
@@ -202,9 +202,10 @@ def from_courrier(correction: dict[str, Any] | None, *, text: str = "") -> Verdi
         return from_scene(outcome=read, text=text, check_failure=payload.get("journey_check_failure"))
     debug = payload.get("correction_debug") if isinstance(payload.get("correction_debug"), dict) else {}
     errata = payload.get("errata") or []
-    if not debug.get("fallback_used") and payload.get("verdict") in {"accepted", "partial", "needs_revision"}:
+    word = str(payload.get("verdict") or verdict or "")
+    if not debug.get("fallback_used") and word in {"accepted", "partial", "needs_revision"}:
         return make_verdict(
-            outcome=_WORDS[str(payload["verdict"])],
+            outcome=_WORDS[word],
             checked_by=CheckedBy.MODEL,
             call=Call.OK,
             text=text,
