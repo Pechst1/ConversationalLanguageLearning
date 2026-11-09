@@ -1,0 +1,240 @@
+"""Each surface's stored result, read as the one verdict shape (:mod:`app.core.verdict`).
+
+These adapters read the fields surfaces already store, so rows written before the shape
+existed read the same as new ones. They only read: what a failed check is allowed to do
+to a level or to gold is decided elsewhere.
+"""
+from __future__ import annotations
+
+from collections.abc import Iterable
+from typing import Any
+
+from app.core.verdict import Call, CheckedBy, Failure, Outcome, Verdict, make_verdict
+from app.services.journey_contracts import Correction, TaskOutcome
+
+_TASK_OUTCOMES = {
+    TaskOutcome.MET: Outcome.RIGHT,
+    TaskOutcome.PARTIALLY_MET: Outcome.PARTLY,
+    TaskOutcome.NOT_YET: Outcome.NOT_YET,
+    TaskOutcome.UNSCORED: Outcome.NOT_CHECKED,
+}
+
+#: What the grading surfaces store as a verdict word (La Forge, Le Courrier, the Journal).
+_WORDS = {
+    "correct": Outcome.RIGHT,
+    "accepted": Outcome.RIGHT,
+    "partial": Outcome.PARTLY,
+    "wrong": Outcome.NOT_YET,
+    "incorrect": Outcome.NOT_YET,
+    "needs_revision": Outcome.NOT_YET,
+}
+
+
+def failure_class(reason: Any) -> Failure:
+    """A stored failure reason or exception text, as one failure class."""
+
+    text = str(reason or "").lower()
+    if "no_check_target" in text:
+        return Failure.NO_CHECK_TARGET
+    if "no_model" in text or "not configured" in text:
+        return Failure.NO_MODEL
+    if "timeout" in text or "timed out" in text:
+        return Failure.TIMEOUT
+    if any(word in text for word in ("json", "invalid", "schema", "validation", "empty")):
+        return Failure.INVALID_OUTPUT
+    return Failure.PROVIDER_ERROR
+
+
+def _errata_as_proposed(errata: Iterable[Any], *, by: str) -> list[dict[str, Any]]:
+    """Stored corrections as proposed edits: an erratum's fields, or the Journal's card fields."""
+
+    rows: list[dict[str, Any]] = []
+    seen: set[tuple[Any, Any]] = set()
+    for item in errata or []:
+        if not isinstance(item, dict):
+            continue
+        span = item.get("learner_text") or item.get("span_fr")
+        replacement = item.get("corrected_target") or item.get("corrected_fr")
+        if (span, replacement) in seen:
+            continue
+        seen.add((span, replacement))
+        rows.append(
+            {
+                "span": span,
+                "replacement": replacement,
+                "note": item.get("why_wrong") or item.get("note_native") or "",
+                "by": by,
+                "rule_id": item.get("rule_id") or None,
+            }
+        )
+    return rows
+
+
+def _correction_as_proposed(correction: Correction | None, *, by: str) -> list[dict[str, Any]]:
+    """An «A → B» correction. A pick, a meaning or a model example changes no text of the learner's."""
+
+    if correction is None or str(getattr(correction, "kind", "edit") or "edit") != "edit":
+        return []
+    return [
+        {
+            "span": correction.span_fr,
+            "replacement": correction.corrected_fr,
+            "note": correction.note_native or "",
+            "by": by,
+        }
+    ]
+
+
+def from_recall(
+    *,
+    outcome: TaskOutcome,
+    correction: Correction | None = None,
+    text: str = "",
+    pending: bool = False,
+) -> Verdict:
+    """A drill: the key decides. Only a grade error leaves it unchecked."""
+
+    if pending or outcome is TaskOutcome.UNSCORED:
+        return make_verdict(
+            outcome=Outcome.NOT_CHECKED,
+            checked_by=CheckedBy.NONE,
+            call=Call.FAILED,
+            failure=Failure.PROVIDER_ERROR,
+            retryable=True,
+        )
+    return make_verdict(
+        outcome=_TASK_OUTCOMES[outcome],
+        checked_by=CheckedBy.KEY,
+        call=Call.NOT_CALLED,
+        text=text,
+        proposed=_correction_as_proposed(correction, by="key"),
+    )
+
+
+def from_scene(
+    *,
+    outcome: TaskOutcome,
+    correction: Correction | None = None,
+    text: str = "",
+    failure_reason: str | None = None,
+    check_failure: str | None = None,
+) -> Verdict:
+    """A scene reply. ``check_failure`` is the model that did not read it (WP-58's ending).
+
+    A scripted scene is graded by its own authored signals, like a key, even when a model
+    wrote the reply line; only the free story's model turn is the model's verdict.
+    """
+
+    if check_failure or outcome is TaskOutcome.UNSCORED:
+        return make_verdict(
+            outcome=Outcome.NOT_CHECKED,
+            checked_by=CheckedBy.NONE,
+            call=Call.FAILED,
+            failure=failure_class(check_failure),
+            text=text,
+            proposed=_correction_as_proposed(correction, by="rules"),
+        )
+    by_model = failure_reason == "reply_source:model"
+    return make_verdict(
+        outcome=_TASK_OUTCOMES[outcome],
+        checked_by=CheckedBy.MODEL if by_model else CheckedBy.KEY,
+        call=Call.OK if by_model else Call.NOT_CALLED,
+        text=text,
+        proposed=_correction_as_proposed(correction, by="model" if by_model else "key"),
+    )
+
+
+def from_forge(correction: dict[str, Any] | None, *, text: str = "", verdict: str | None = None) -> Verdict:
+    """A La Forge answer, from its stored correction payload."""
+
+    payload = correction if isinstance(correction, dict) else {}
+    word = str(verdict or payload.get("verdict") or "")
+    status = payload.get("assessment_status")
+    debug = payload.get("correction_debug") if isinstance(payload.get("correction_debug"), dict) else {}
+    review = payload.get("ai_review") if isinstance(payload.get("ai_review"), dict) else {}
+    errata = payload.get("errata") or []
+    by_key = payload.get("local_status") == "right"
+    if status == "provisional" and not by_key:
+        return make_verdict(outcome=Outcome.NOT_CHECKED, checked_by=CheckedBy.NONE, call=Call.PENDING)
+    if status == "unavailable" or word == "needs_review":
+        failed = review.get("status") == "failed"
+        return make_verdict(
+            outcome=Outcome.NOT_CHECKED,
+            checked_by=CheckedBy.NONE,
+            call=Call.FAILED if failed else Call.NOT_CALLED,
+            failure=failure_class(review.get("error")) if failed else None,
+            retryable=failed,
+            text=text,
+            proposed=_errata_as_proposed(errata, by="rules"),
+        )
+    if by_key:
+        return make_verdict(outcome=Outcome.RIGHT, checked_by=CheckedBy.KEY, call=Call.NOT_CALLED)
+    by_model = bool(debug.get("model")) and not debug.get("fallback_used")
+    return make_verdict(
+        outcome=_WORDS.get(word, Outcome.NOT_CHECKED),
+        checked_by=CheckedBy.MODEL if by_model else CheckedBy.KEY,
+        call=Call.OK if by_model else Call.NOT_CALLED,
+        text=text,
+        proposed=_errata_as_proposed(errata, by="model" if by_model else "key"),
+    )
+
+
+def from_courrier(correction: dict[str, Any] | None, *, text: str = "") -> Verdict:
+    """A Courrier message, from its stored correction payload."""
+
+    payload = correction if isinstance(correction, dict) else {}
+    debug = payload.get("correction_debug") if isinstance(payload.get("correction_debug"), dict) else {}
+    errata = payload.get("errata") or []
+    if not debug.get("fallback_used") and payload.get("verdict") in {"accepted", "partial", "needs_revision"}:
+        return make_verdict(
+            outcome=_WORDS[str(payload["verdict"])],
+            checked_by=CheckedBy.MODEL,
+            call=Call.OK,
+            text=text,
+            proposed=_errata_as_proposed(errata, by="model"),
+        )
+    return make_verdict(
+        outcome=Outcome.NOT_CHECKED,
+        checked_by=CheckedBy.NONE,
+        call=Call.FAILED,
+        failure=failure_class(debug.get("failure")),
+        retryable=True,
+        text=text,
+        proposed=_errata_as_proposed(errata, by="rules"),
+    )
+
+
+def from_journal(correction: dict[str, Any] | None, *, text: str = "") -> Verdict:
+    """A Journal entry, from its stored correction payload.
+
+    ``checker`` says who looked (#250). A row from before it was stored is the model's
+    when its status says checked.
+    """
+
+    payload = correction if isinstance(correction, dict) else {}
+    # The card's one foreground correction is kept apart from the rest (WP-30).
+    errata = [*([payload["foreground"]] if payload.get("foreground") else []), *(payload.get("errata") or [])]
+    checker = payload.get("checker")
+    by_model = checker == "model" or (checker is None and payload.get("assessment_status") == "checked")
+    if by_model:
+        word = payload.get("verdict")
+        outcome = _WORDS.get(str(word)) if word else (Outcome.NOT_YET if errata else Outcome.RIGHT)
+        return make_verdict(
+            outcome=outcome or Outcome.NOT_CHECKED,
+            checked_by=CheckedBy.MODEL,
+            call=Call.OK,
+            text=text,
+            proposed=_errata_as_proposed(errata, by="model"),
+        )
+    return make_verdict(
+        outcome=Outcome.NOT_CHECKED,
+        checked_by=CheckedBy.NONE,
+        call=Call.FAILED,
+        failure=failure_class(payload.get("failure_reason")),
+        retryable=bool(payload.get("retryable")),
+        text=text,
+        proposed=_errata_as_proposed(errata, by="rules"),
+    )
+
+
+__all__ = ["failure_class", "from_courrier", "from_forge", "from_journal", "from_recall", "from_scene"]

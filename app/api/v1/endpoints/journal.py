@@ -23,6 +23,8 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_db
 from app.db.models.journal import JournalEntry
 from app.db.models.user import User
+from app.schemas.verdict import VerdictView
+from app.services import verdicts
 from app.services.journal import (
     ENTRY_MAX_CHARS,
     FOLLOWUP_MAX_CHARS,
@@ -76,6 +78,8 @@ class JournalCorrectionView(BaseModel):
     explanation_language: str | None = None
     foreground: dict | None = None
     errata: list[dict] = Field(default_factory=list)
+    #: The one verdict shape (#333): who checked this and whether it counts.
+    check: VerdictView | None = None
 
 
 class JournalEntryView(BaseModel):
@@ -167,11 +171,14 @@ def _entry_view(entry: JournalEntry, today: date) -> JournalEntryView:
         # the stored text rather than on the status keeps a failed correction
         # from hiding the learner's own paragraph back from them.
         correction=(
-            JournalCorrectionView(**{
-                key: value
-                for key, value in dict(entry.correction or {}).items()
-                if key in JournalCorrectionView.model_fields
-            })
+            JournalCorrectionView(
+                **{
+                    key: value
+                    for key, value in dict(entry.correction or {}).items()
+                    if key in JournalCorrectionView.model_fields and key != "check"
+                },
+                check=VerdictView.of(verdicts.from_journal(entry.correction, text=entry.entry_text or "")),
+            )
             if written
             else None
         ),

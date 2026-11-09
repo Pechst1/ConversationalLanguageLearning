@@ -28,7 +28,9 @@ from app.schemas.missions import (
     MissionTurnRequest,
     MissionTurnResponse,
 )
+from app.schemas.verdict import VerdictView
 from app.services import story_correspondence as courrier
+from app.services import verdicts
 from app.services.cefr_progress import CEFRProgressService
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.missions import (
@@ -77,6 +79,10 @@ def _attempt_read(attempt: RealWorldMissionAttempt) -> dict:
         "score_0_4": attempt.score_0_4,
         **stamp_fields(attempt.created_at, learner_zone(attempt.mission)),
     }
+
+
+def _check(correction: dict | None, text: str | None) -> VerdictView:
+    return VerdictView.of(verdicts.from_courrier(correction, text=text or ""))
 
 
 def _turn_read(turn: RealWorldMissionTurn) -> dict:
@@ -330,6 +336,7 @@ def submit_mission(
             correction=duplicate.correction_payload or {},
             errata=[],
             mission=serialize_mission(mission) or {},
+            check=_check(duplicate.correction_payload, request.text),
         )
 
     correction_service = MissionCorrectionService(db)
@@ -371,6 +378,7 @@ def submit_mission(
         correction=correction,
         errata=persisted,
         mission=serialize_mission(mission) or {},
+        check=_check(correction, request.text),
     )
 
 
@@ -456,6 +464,7 @@ def submit_mission_turn(
             errata=[],
             mission=serialize_mission(mission) or {},
             outcome=outcome,
+            check=_check(user_turn.correction_payload, user_turn.text),
         )
 
     correction_service = MissionCorrectionService(db)
@@ -509,6 +518,7 @@ def submit_mission_turn(
         errata=persisted,
         mission=serialize_mission(mission) or {},
         outcome=outcome,
+        check=_check(correction, user_turn.text),
     )
 
 
@@ -577,6 +587,7 @@ def retry_mission_turn_correction(
         correction=user_turn.correction_payload or {},
         errata=persisted,
         mission=serialize_mission(mission) or {},
+        check=_check(user_turn.correction_payload, user_turn.text),
     )
 
 

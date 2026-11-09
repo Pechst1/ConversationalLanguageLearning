@@ -1612,6 +1612,10 @@ class ResponseEvaluation:
     turn_consumed: bool = True
     pending: bool = False
     failure_reason: str | None = None
+    #: #333: why the model that should have read this reply did not. ``failure_reason``
+    #: says where the reply line came from, and an authored line alone does not mean a
+    #: failure: the scripted scenes are graded by their own signals.
+    check_failure: str | None = None
     #: WP-36 §8.4 telemetry: what the self-repair policy decided about this turn
     #: (``recurrence``, ``repair_succeeded``, ``repair_failed``,
     #: ``repair_not_attempted``, ``already_prompted``, ``last_turn``,

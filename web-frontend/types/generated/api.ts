@@ -6107,6 +6107,7 @@ export interface components {
              * Format: uuid
              */
             attempt_id: string;
+            check?: components["schemas"]["VerdictView"] | null;
             /** Correction */
             correction: {
                 [key: string]: unknown;
@@ -6536,6 +6537,7 @@ export interface components {
             character_lines: components["schemas"]["ThreadLine"][];
             /** Character Reply Fr */
             character_reply_fr: string | null;
+            check: components["schemas"]["VerdictView"] | null;
             /**
              * Contract Version
              * @default 1
@@ -9593,6 +9595,7 @@ export interface components {
              * @default false
              */
             assessment_truncated?: boolean;
+            check?: components["schemas"]["VerdictView"] | null;
             /** Checker */
             checker?: string | null;
             /**
@@ -10643,6 +10646,7 @@ export interface components {
             attempt: {
                 [key: string]: unknown;
             };
+            check?: components["schemas"]["VerdictView"] | null;
             correction: components["schemas"]["MissionCorrectionRead"];
             /** Errata */
             errata?: components["schemas"]["LinkedVocabularyErratumRead"][];
@@ -10818,6 +10822,7 @@ export interface components {
         };
         /** MissionTurnCorrectionResponse */
         MissionTurnCorrectionResponse: {
+            check?: components["schemas"]["VerdictView"] | null;
             correction: components["schemas"]["MissionCorrectionRead"];
             /** Errata */
             errata?: components["schemas"]["LinkedVocabularyErratumRead"][];
@@ -10850,6 +10855,7 @@ export interface components {
             assistant_turn?: {
                 [key: string]: unknown;
             };
+            check?: components["schemas"]["VerdictView"] | null;
             correction: components["schemas"]["MissionCorrectionRead"];
             /** Errata */
             errata?: components["schemas"]["LinkedVocabularyErratumRead"][];
@@ -16043,6 +16049,61 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** VerdictEditView */
+        VerdictEditView: {
+            /**
+             * By
+             * @default model
+             * @enum {string}
+             */
+            by?: "key" | "model" | "rules";
+            /** End */
+            end: number;
+            /**
+             * Note
+             * @default
+             */
+            note?: string;
+            /** Replacement */
+            replacement: string;
+            /** Rule Id */
+            rule_id?: string | null;
+            /** Span */
+            span: string;
+            /** Start */
+            start: number;
+        };
+        /** VerdictView */
+        VerdictView: {
+            /**
+             * Call
+             * @enum {string}
+             */
+            call: "ok" | "empty" | "failed" | "pending" | "not_called";
+            /**
+             * Checked By
+             * @enum {string}
+             */
+            checked_by: "key" | "model" | "rules" | "none";
+            /** Corrected */
+            corrected?: string | null;
+            /** Counts */
+            counts: boolean;
+            /** Edits */
+            edits?: components["schemas"]["VerdictEditView"][];
+            /** Failure */
+            failure?: ("timeout" | "provider_error" | "invalid_output" | "no_model" | "no_check_target") | null;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "right" | "partly" | "not_yet" | "not_checked";
+            /**
+             * Retryable
+             * @default false
+             */
+            retryable?: boolean;
         };
         /** VignettesResponse */
         VignettesResponse: {

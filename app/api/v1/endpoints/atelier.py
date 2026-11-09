@@ -58,6 +58,8 @@ from app.schemas.atelier import (
     AtelierWorkshopComposeRequest,
     AtelierWorkshopComposeResponse,
 )
+from app.schemas.verdict import VerdictView
+from app.services import verdicts
 from app.services.address import character_register
 from app.services.atelier import (
     ATELIER_GENERATOR_VERSION,
@@ -632,6 +634,11 @@ def _attempt_response(
         ai_review=ai_review if isinstance(ai_review, dict) else {},
         minted_collectibles=minted_collectibles or [],
         forge=forge or {},
+        check=VerdictView.of(
+            verdicts.from_forge(
+                correction, text=str((attempt.answer_payload or {}).get("text") or ""), verdict=attempt.verdict
+            )
+        ),
     )
 
 

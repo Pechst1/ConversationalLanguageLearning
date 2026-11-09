@@ -87,7 +87,8 @@ from app.schemas.daily_journey import (
     forge_href_for,
     practice_href_for,
 )
-from app.services import gold_ledger, scene_ledger
+from app.schemas.verdict import VerdictView
+from app.services import gold_ledger, scene_ledger, verdicts
 from app.services.chrome_language import user_chrome_language
 from app.services.closing_filler import scene_fact
 from app.services.daily_journey_adapters import (
@@ -5476,6 +5477,13 @@ class DailyJourneyService:
             character_reply_fr=None,
             next_turn=None,
             pending=False,
+            check=VerdictView.of(
+                verdicts.from_recall(
+                    outcome=evaluation.outcome,
+                    correction=evaluation.correction,
+                    text=recall_learner_text(task, answer) or "",
+                )
+            ),
             slip_note_native=getattr(evaluation, "slip_note_native", None),
             journey=self.snapshot(journey),
         )
@@ -5687,6 +5695,15 @@ class DailyJourneyService:
             reply_source=self._reply_source(evaluation),
             next_turn=next_turn,
             pending=False,
+            check=VerdictView.of(
+                verdicts.from_scene(
+                    outcome=evaluation.outcome,
+                    correction=evaluation.correction,
+                    text=answer.text or "",
+                    failure_reason=evaluation.failure_reason,
+                    check_failure=evaluation.check_failure,
+                )
+            ),
             repeat_line_fr=(
                 repeat_line_for(step, public_correction)
                 if step.status == str(StepStatus.COMPLETED)
@@ -5824,6 +5841,7 @@ class DailyJourneyService:
             character_reply_fr=None,
             next_turn=None,
             pending=True,
+            check=VerdictView.of(verdicts.from_recall(outcome=TaskOutcome.UNSCORED, pending=True)),
             journey=self.snapshot(journey),
         )
 

@@ -557,7 +557,9 @@ def test_mission_submit_and_turns_are_persisted(client: TestClient, db_session, 
     # WP-74: no grader in tests -> a non-empty answer is "unassessed", never "accepted".
     assert submit.json()["correction"]["verdict"] in {"unassessed", "partial", "needs_revision"}
     assert "the learner" not in str(submit.json()["correction"]).lower()
+    assert (submit.json()["check"]["outcome"], submit.json()["check"]["counts"]) == ("not_checked", False)
     assert turn.status_code == 200
+    assert (turn.json()["check"]["outcome"], turn.json()["check"]["counts"]) == ("not_checked", False)
     assert turn.json()["user_turn"]["role"] == "user"
     # #397: with no model nobody can answer; the stock line is not stored as the character's turn.
     assert turn.json()["assistant_turn"] == {}

@@ -251,6 +251,9 @@ def test_the_scene_text_is_not_in_the_response_until_the_learner_has_written(
     assert after.status_code == 200
     assert SETUP_FR in after.text
     assert CHARACTER_LINE_FR in after.text
+    check = after.json()["entry"]["correction"]["check"]
+    assert (check["outcome"], check["checked_by"], check["counts"]) == ("partly", "model", True)
+    assert [(edit["span"], edit["replacement"]) for edit in check["edits"]] == [("la livre", "le livre")]
 
 
 def test_the_prompt_model_has_no_field_that_could_hold_scene_text(journal_client):
