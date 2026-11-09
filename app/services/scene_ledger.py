@@ -1,4 +1,4 @@
-"""The scene ledger (#145, #378): what was asked in a scene, and what was answered.
+"""The scene ledger (#145, #378): what was said in a scene, and where that leaves it.
 
 The live walk of 30 Oct 2026 had one reply. Lila answered it with a question
 («Et ce restaurant te fait peur ?»), and the scene closed under it: the question
@@ -16,13 +16,29 @@ learners often drop the mark.
 * The scene stays open while the character's last reply still asks the learner
   something (:func:`keeps_open_for`), up to ``SCENE_QUESTION_GRACE`` exchanges
   past the planned ones.
+
+#145 asks for more than questions: the walks show characters answering for the
+learner, joining a refusal of their own proposal and quoting words nobody wrote.
+So the ledger also keeps what each turn did (``turns``, ``last_turn``), what a
+character put to the learner for agreement and how it was received (``stands``),
+what the learner established in their own words (``established``), what the scene
+leaves open (``still_open``) and who may speak (``in_the_room``).
+
+Reading a learner's turn is deliberately modest. :func:`read_turn` looks at how
+the turn opens and says ``other`` whenever it is unsure, so that nothing here can
+misjudge a sentence it does not understand; when a model has read the turn, its
+reading (``heard["intent"]``) wins. The ledger states what is known. It refuses
+nothing: the writers read it, and the few checks that compare a line against it
+live with the lanes.
 """
 
 from __future__ import annotations
 
 import re
+import unicodedata
 from typing import Any
 
+from app.services import story_memory
 from app.services.journey_contracts import SCENE_QUESTION_GRACE
 
 #: A sentence ends at «.», «!», «?» or «…», never before a closing guillemet.
@@ -33,7 +49,54 @@ _INTERROGATIVE = re.compile(
     r"qui\s|quoi|quel(?:le)?s?\s|qu['’]est[- ]ce|que\s+(?:fais|fait|veux|veut|dis|dit|penses|pense))",
     re.IGNORECASE,
 )
+#: «Pourquoi pas ?» opens like a question and says yes.
+_SOFT_YES_QUESTION = re.compile(r"^pourquoi\s+pas\b", re.IGNORECASE)
 QUESTION_CHARS = 240
+
+#: What a learner's turn did. ``question`` is a turn that asks without saying yes or
+#: no; a «non» that also asks stays ``no`` and carries the question in ``asks``.
+INTENTS = ("yes", "no", "question", "other")
+
+#: Words a learner says before getting to the point (folded: no accents, no apostrophes).
+_OPENERS = re.compile(
+    r"^(?:(?:euh+|heu+|hum+|hmm+|ah|oh|eh|ben|bah|bon|alors|eh bien|bonjour|salut|coucou|"
+    r"merci|desole|desolee|pardon|mais|ecoute|ecoutez)\s+)+"
+)
+#: A refusal, by how the turn opens. «Moi non plus» and «non seulement» refuse nothing.
+_READS_NO = re.compile(
+    r"^(?:non\b(?!\s+(?:plus|seulement)\b)|nan\b|nope\b|nein\b|no\b|jamais\b|"
+    r"pas\s+(?:du\s+tout|question|vraiment|maintenant|d\s?accord|possible)\b|surtout\s+pas\b|"
+    r"(?:absolument|certainement|evidemment)\s+pas\b|bien\s+sur\s+que\s+non\b|"
+    r"hors\s+de\s+question\b|sans\s+facon\b|"
+    r"je\s+(?:ne\s+)?(?:suis\s+pas\s+d\s?accord|peux\s+pas|veux\s+pas|pense\s+pas|crois\s+pas)\b|"
+    r"je\s+(?:ne\s+)?prefere\s+(?:ne\s+)?pas\b|je\s+refuse\b|"
+    r"je\s+(?:pense|crois|dirais)\s+que\s+non\b)"
+)
+#: An acceptance, by how the turn opens. «Oui et non» says neither.
+_READS_YES = re.compile(
+    r"^(?:oui\b(?!\s+et\s+non\b)|ouais\b|ouaip\b|ja\b|yes\b|ok\b|okay\b|d\s?accord\b|"
+    r"bien\s+sur\b|bien\s+entendu\b|evidemment\b|absolument\b|exactement\b|certainement\b|"
+    r"tout\s+a\s+fait\b|volontiers\b|avec\s+plaisir\b|pourquoi\s+pas\b|"
+    r"je\s+suis\s+d\s?accord\b|je\s+(?:pense|crois|dirais)\s+que\s+oui\b)"
+)
+#: «Si» says yes only on its own: «Si, je veux», not «Si tu veux».
+_READS_SI = re.compile(r"^\W*(?:mais\s+)?si\s*(?:[,.!…]|$)", re.IGNORECASE)
+#: A question that asks the learner to agree («Vous êtes d'accord, non ?», «ça vous
+#: va ?»): what stands before it is the character's proposal. A tag on a fact («Il fait
+#: beau, n'est-ce pas ?») proposes nothing.
+_AGREEMENT_ASK = re.compile(
+    r"d['’ ]?accord|[cç]a\s+(?:te|vous)\s+va|[cç]a\s+marche|on\s+fait\s+comme\s+[cç]a",
+    re.IGNORECASE,
+)
+_STANCE = {"no": "refused", "yes": "agreed"}
+
+
+def _folded(text: Any) -> str:
+    """No accents, no case, no punctuation: «Non… je ne suis pas daccord» reads the same
+    however a phone or a beginner typed it."""
+
+    bare = unicodedata.normalize("NFKD", str(text or "")).encode("ascii", "ignore").decode()
+    return " ".join(re.sub(r"[^\w\s]", " ", bare.casefold()).split())
 
 
 def sentences(text: Any) -> list[str]:
@@ -54,9 +117,81 @@ def learner_question(text: Any) -> str | None:
 
     for part in sentences(text):
         bare = part.strip("«»\"' ")
+        if _SOFT_YES_QUESTION.match(bare):
+            continue
         if bare.endswith("?") or _INTERROGATIVE.match(bare):
             return part[:QUESTION_CHARS]
     return None
+
+
+def _yes_or_no(text: Any) -> str | None:
+    """``yes`` or ``no`` when the turn opens with one, else ``None``."""
+
+    folded = _OPENERS.sub("", _folded(text))
+    if _READS_NO.match(folded):
+        return "no"
+    if _READS_YES.match(folded) or _READS_SI.match(str(text or "")):
+        return "yes"
+    return None
+
+
+def read_turn(text: Any, *, heard: Any = None) -> dict[str, Any]:
+    """What a learner's turn did: ``{"intent", "asks", "read_by"}``.
+
+    A model's reading of the turn (``heard["intent"]``, kept with the exchange) wins;
+    otherwise the words are read by how they open, and anything unclear is ``other``.
+    ``asks`` is the learner's question, whatever else the turn did."""
+
+    asks = learner_question(text)
+    reading = heard.get("intent") if isinstance(heard, dict) else None
+    if reading in INTENTS:
+        return {"intent": reading, "asks": asks, "read_by": "voice"}
+    intent = _yes_or_no(text) or ("question" if asks else "other")
+    return {"intent": intent, "asks": asks, "read_by": "words"}
+
+
+def character_proposal(text: Any) -> str | None:
+    """What a character's line puts to the learner for agreement, or ``None``: the
+    sentences before a question that asks «d'accord ?», or that question itself when
+    it carries the proposal («On partage la pizza, d'accord ?»)."""
+
+    parts = sentences(text)
+    for index in range(len(parts) - 1, -1, -1):
+        if parts[index].rstrip("»\" ").endswith("?") and _AGREEMENT_ASK.search(parts[index]):
+            return (" ".join(parts[:index]).strip() or parts[index])[:QUESTION_CHARS]
+    return None
+
+
+def room_of(scene: Any) -> list[str]:
+    """Who may speak in a scene: its character and everyone its page gives a line,
+    each once, in order of appearance."""
+
+    if not isinstance(scene, dict):
+        return []
+    people = [scene.get("character_id")]
+    for panel in scene.get("panels") or []:
+        for line in (panel.get("dialogue") or []) if isinstance(panel, dict) else []:
+            if isinstance(line, dict):
+                people.append(line.get("character_id"))
+    return list(dict.fromkeys(str(person) for person in people if person))
+
+
+def _established(exchanges: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """What the learner established in their own words. A fact stays only with a quote
+    copied from the reply it came from; a later fact on the same key replaces it."""
+
+    facts: dict[str, dict[str, Any]] = {}
+    for index, row in enumerate(exchanges):
+        heard = row.get("heard") if isinstance(row.get("heard"), dict) else {}
+        for fact in story_memory.grounded_facts(heard.get("learned") or [], [row.get("learner") or ""]):
+            facts[fact.key] = {
+                "key": fact.key,
+                "fact_fr": fact.fact_fr,
+                "quote": fact.quote,
+                "at": index,
+                **({"value": fact.value} if fact.value else {}),
+            }
+    return list(facts.values())
 
 
 def build(
@@ -64,37 +199,67 @@ def build(
     opening_line_fr: Any,
     history: list[Any] | None,
     learner_text: Any = None,
+    in_the_room: list[Any] | None = None,
 ) -> dict[str, Any]:
     """The ledger of a scene so far.
 
-    ``history`` is the stored exchanges (``{"learner", "character"}``) and
-    ``learner_text`` the turn being answered now, if any. Returns
-    ``{"exchanges", "asked", "open_for_learner", "learner_asked"}``:
+    ``history`` is the stored exchanges (``{"learner", "character", "heard"?}``),
+    ``learner_text`` the turn being answered now, if any, and ``in_the_room`` who may
+    speak (:func:`room_of`). Returns:
 
+    * ``exchanges``: how many exchanges are stored;
     * ``asked``: every question, in order: ``{"by", "text_fr", "at", "answered_at"}``
       where ``at`` is the exchange it was asked in (the opening line is 0) and
       ``answered_at`` the exchange whose turn answered it, or ``None``;
     * ``open_for_learner``: the character's question still waiting for the learner;
-    * ``learner_asked``: the learner's question the character has not answered yet.
+    * ``learner_asked``: the learner's question the character has not answered yet;
+    * ``turns``: each learner turn read (:func:`read_turn`), with ``at`` and ``refuses``,
+      the proposal or question a «no» turned down;
+    * ``last_turn``: the latest of ``turns``, or ``None`` before the learner has spoken;
+    * ``stands``: what a character put to the learner for agreement: ``{"by", "text_fr",
+      "at", "stance"}``, where ``at`` is the turn that answers it and ``stance`` is
+      ``refused``, ``agreed`` or ``None`` while unanswered or unclear;
+    * ``established``: what the learner established (:func:`_established`);
+    * ``still_open``: every question nobody has answered, and every refused proposal;
+    * ``in_the_room``: who may speak; empty when the caller does not know.
     """
 
     exchanges = [row for row in history or [] if isinstance(row, dict)]
     asked: list[dict[str, Any]] = []
+    stands: list[dict[str, Any]] = []
+    read: list[dict[str, Any]] = []
     pending_character: dict[str, Any] | None = None
     pending_learner: dict[str, Any] | None = None
+    pending_stand: dict[str, Any] | None = None
 
     def ask(by: str, text: str, at: int) -> dict[str, Any]:
         row = {"by": by, "text_fr": text, "at": at, "answered_at": None}
         asked.append(row)
         return row
 
+    def propose(text: str, at: int) -> dict[str, Any]:
+        row = {"by": "character", "text_fr": text, "at": at, "stance": None}
+        stands.append(row)
+        return row
+
     if question := character_question(opening_line_fr):
         pending_character = ask("character", question, 0)
-    turns = [(str(row.get("learner") or ""), str(row.get("character") or "")) for row in exchanges]
+    if proposal := character_proposal(opening_line_fr):
+        pending_stand = propose(proposal, 0)
+    turns = [(str(row.get("learner") or ""), str(row.get("character") or ""), row.get("heard")) for row in exchanges]
     if str(learner_text or "").strip():
-        turns.append((str(learner_text), ""))
-    for index, (learner, character) in enumerate(turns):
+        turns.append((str(learner_text), "", None))
+    for index, (learner, character, heard) in enumerate(turns):
         if learner.strip():
+            reading = read_turn(learner, heard=heard)
+            refuses = None
+            if reading["intent"] == "no":
+                on_the_table = pending_stand or pending_character
+                refuses = on_the_table["text_fr"] if on_the_table else None
+            read.append({"at": index, **reading, "refuses": refuses})
+            if pending_stand is not None:
+                pending_stand["stance"] = _STANCE.get(reading["intent"])
+                pending_stand = None
             if pending_character is not None:
                 pending_character["answered_at"] = index
                 pending_character = None
@@ -106,11 +271,24 @@ def build(
                 pending_learner = None
             if question := character_question(character):
                 pending_character = ask("character", question, index + 1)
+            if proposal := character_proposal(character):
+                pending_stand = propose(proposal, index + 1)
     return {
         "exchanges": len(exchanges),
         "asked": asked,
         "open_for_learner": pending_character["text_fr"] if pending_character else None,
         "learner_asked": pending_learner["text_fr"] if pending_learner else None,
+        "turns": read,
+        "last_turn": read[-1] if read else None,
+        "stands": stands,
+        "established": _established(exchanges),
+        "still_open": [
+            *({"by": row["by"], "text_fr": row["text_fr"], "at": row["at"], "kind": "question"}
+              for row in asked if row["answered_at"] is None),
+            *({"by": row["by"], "text_fr": row["text_fr"], "at": row["at"], "kind": "refused_proposal"}
+              for row in stands if row["stance"] == "refused"),
+        ],
+        "in_the_room": [str(person) for person in in_the_room or [] if person],
     }
 
 

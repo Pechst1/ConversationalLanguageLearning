@@ -5563,7 +5563,11 @@ class DailyJourneyService:
         )
         private["turns"] = history
         # #145 / #378: what the scene asked and what was answered, kept with its turns.
-        private["ledger"] = scene_ledger.build(opening_line_fr=task.opening_line_fr, history=history)
+        private["ledger"] = scene_ledger.build(
+            opening_line_fr=task.opening_line_fr,
+            history=history,
+            in_the_room=scene_ledger.room_of((brief.story_context or {}).get("draft")),
+        )
         # Persisted before the ending is settled: WP-06 renders the resolution
         # from the learner's own turns, and the decisive one is this turn.
         step.private_task = private

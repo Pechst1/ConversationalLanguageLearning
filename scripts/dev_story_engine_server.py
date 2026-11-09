@@ -126,13 +126,12 @@ def _suggested(context: dict, answer: str) -> str:
     return answer
 
 
-#: How the fake actor and voice read a refusal.
-REFUSAL_MARKERS = ("non", "ne peux pas", "pas possible", "désolé")
-
-
 def _refuses(text: object) -> bool:
-    lowered = str(text or "").lower()
-    return any(marker in lowered for marker in REFUSAL_MARKERS)
+    """How the fake reads a refusal: the scene ledger's own reading of a turn (#145)."""
+
+    from app.services import scene_ledger
+
+    return scene_ledger.read_turn(text)["intent"] == "no"
 
 
 def _name_in(memory: object, speaker: str | None = None) -> str | None:
@@ -237,16 +236,39 @@ def _reported(text: str) -> dict:
 _NEXT_QUESTIONS = ("Et après, on fait quoi ?", "Et à quelle heure, alors ?", "Et qui d'autre vient ?")
 
 
-def _reply(*, refused: bool, keep: bool, name: str | None, exchange: int = 0) -> str:
-    """The fake character's answer; a character who was told the learner's name uses it."""
+#: How the fake voice takes each reading of the learner's turn (#145): the opening of its
+#: reply, and how it closes when the scene ends on this exchange.
+_TAKES = {
+    "no": ("Dommage", "une autre fois alors."),
+    "yes": ("Merci", "on fait ça ensemble."),
+    "question": ("Bonne question", "je te réponds samedi."),
+    "other": ("Ah bon", "on en reparle."),
+}
+_MEANT = {
+    "no": "The learner declines.",
+    "yes": "The learner offers help.",
+    "question": "The learner asks something.",
+    "other": "The learner says something else.",
+}
 
-    question = _NEXT_QUESTIONS[exchange % len(_NEXT_QUESTIONS)]
-    if refused:
-        if keep:
-            return f"Dommage, {name}. {question}" if name else f"Dommage. {question}"
-        return f"Dommage, {name}. Une autre fois alors." if name else "Dommage, une autre fois alors."
-    thanks = f"Merci, {name} !" if name else "Merci !"
-    return f"{thanks} {question}" if keep else f"{thanks} On fait ça ensemble."
+
+def _intent_of(source: dict) -> str:
+    """The learner's turn as the fake voice reads it: the ledger's reading when the
+    payload carries one, the words otherwise."""
+
+    from app.services import scene_ledger
+
+    last = ((source.get("ledger") or {}).get("last_turn") or {}) if isinstance(source.get("ledger"), dict) else {}
+    return str(last.get("intent") or scene_ledger.read_turn(source.get("learner_text"))["intent"])
+
+
+def _reply(*, intent: str, keep: bool, name: str | None, exchange: int = 0) -> str:
+    """The fake character's answer, one per reading of the learner's turn; a character
+    who was told the learner's name uses it."""
+
+    opener, close = _TAKES.get(intent, _TAKES["other"])
+    called = f"{opener}, {name}" if name else opener
+    return f"{called}. {_NEXT_QUESTIONS[exchange % len(_NEXT_QUESTIONS)]}" if keep else f"{called}, {close}"
 
 
 class FakeStoryProvider:
@@ -299,14 +321,14 @@ class FakeStoryProvider:
                 text = str(source.get("learner_text") or "")
                 value = {"outcome": "met", "evidence_quotes": [text] if text.strip() else [], "demonstrated_target_ids": []}
             elif schema == "VoiceReply":
-                refused = _refuses(source.get("learner_text"))
+                intent = _intent_of(source)
                 keep = bool((source.get("turn_plan") or {}).get("keep_talking"))
                 value = {
                     "reply_fr": _reply(
-                        refused=refused, keep=keep, name=_name_in(source.get("memory")),
+                        intent=intent, keep=keep, name=_name_in(source.get("memory")),
                         exchange=len(source.get("history") or []),
                     ),
-                    "understood_intent": "The learner declines." if refused else "The learner offers help.",
+                    "understood_intent": _MEANT.get(intent, _MEANT["other"]),
                     "needs_clarification": False,
                     "feeling_shift": "steady",
                 }
@@ -547,7 +569,9 @@ class FakeStoryProvider:
             "outcome": "met",
             "understood_intent": "The learner declines." if refused else "The learner offers help.",
             "evidence_quotes": [text],
-            "reply_fr": _reply(refused=refused, keep=False, name=_name_in((payload.get("story") or {}).get("memory"))),
+            "reply_fr": _reply(
+                intent="no" if refused else "yes", keep=False, name=_name_in((payload.get("story") or {}).get("memory"))
+            ),
             "needs_clarification": False,
             "resolution_fr": "Vous refusez poliment." if refused else "Vous promettez de venir aider.",
             "summary_native": "You declined." if refused else "You offered to help.",

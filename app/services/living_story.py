@@ -10094,7 +10094,10 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_re
     turns_left = max(0, task.max_turns - turn_index)
     # #145 / #378: what this scene has asked and answered so far, rebuilt from its lines.
     ledger = scene_ledger.build(
-        opening_line_fr=task.opening_line_fr, history=history, learner_text=answer.text
+        opening_line_fr=task.opening_line_fr,
+        history=history,
+        learner_text=answer.text,
+        in_the_room=scene_ledger.room_of(scenario.story_context.get("draft")),
     )
     return {
         # Filtered even though `story_context` builds no lexicon: the actor's ignorance
