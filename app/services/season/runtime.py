@@ -1150,8 +1150,10 @@ ASK_AGAIN = "__ask_again__"
 
 
 def _cast_names(scenario) -> set[str]:
+    from app.services.cast_registry import name_words
+
     season_ctx = scenario.story_context.get(SEASON_CONTEXT_KEY) or {}
-    names: set[str] = {"Odile", "Margaux", "Lila", "Marin", "Gus", "Augustin", "Romy", "Camille", "Marchand"}
+    names: set[str] = name_words()
     try:
         season = load_season(str(season_ctx.get("id") or "s1"))
         for member in season.cast:
