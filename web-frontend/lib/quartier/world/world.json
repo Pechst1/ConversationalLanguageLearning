@@ -96,6 +96,20 @@
       "in": "quai_de_valmy"
     },
     {
+      "id": "toit_mistral",
+      "name": { "fr": "Le toit", "en": "The roof", "de": "Das Dach" },
+      "lat": 48.87296,
+      "lon": 2.36368,
+      "status": "locked",
+      "kind": "season",
+      "stages": ["toit"],
+      "why": { "fr": "Par la lucarne du cinquième : le zinc, les cheminées, et le canal en bas.", "en": "Through the fifth-floor skylight: the zinc, the chimneys, and the canal below.", "de": "Durch die Dachluke im fünften Stock: das Zink, die Schornsteine und unten der Kanal." },
+      "source": { "kind": "season", "id": "s1" },
+      "site": null,
+      "room": "toit_mistral",
+      "in": "quai_de_valmy"
+    },
+    {
       "id": "mairie_10e",
       "name": { "fr": "La mairie du 10e", "en": "The town hall of the 10th", "de": "Das Rathaus des 10." },
       "lat": 48.8722,

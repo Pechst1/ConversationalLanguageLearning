@@ -20,11 +20,11 @@ from __future__ import annotations
 import html
 import math
 
-FLOOR_FINISHES = {"cabochons", "boards", "tomettes", "cobbles", "stone"}
+FLOOR_FINISHES = {"cabochons", "boards", "tomettes", "cobbles", "stone", "zinc"}
 WALL_FINISHES = {"wainscot", "plaster", "stone"}
 ZONES = {"room", "sealed", "out"}
 TONES = {"ochre", "cream", "faux", "wainscot", "stone", "porch", "oxblood", "brown", "wood", "grey", "celadon", "white", "render", "coat", "oilcloth", "blanket", "navy", "walnut", "leather", "dust", "counterpane"}
-THINGS = {"letterboxes", "mat", "radiator", "coat", "clock", "calendar", "table", "chair", "slippers", "camera", "cup", "stove", "patch", "doorway", "bed", "phone", "keys", "suitcase", "kitchenette", "longtable", "armchair", "pen", "folder", "bookcase", "polaroids", "armoire", "drink"}
+THINGS = {"letterboxes", "mat", "radiator", "coat", "clock", "calendar", "table", "chair", "slippers", "camera", "cup", "stove", "patch", "doorway", "bed", "phone", "keys", "suitcase", "kitchenette", "longtable", "armchair", "pen", "folder", "bookcase", "polaroids", "armoire", "drink", "skylight", "chimney", "edge"}
 LIGHTS = {"globe", "sconce", "hublot"}
 DIRS = {"x+": (1, 0), "x-": (-1, 0), "z+": (0, 1), "z-": (0, -1)}
 
@@ -117,10 +117,11 @@ def ramp_y(ramp, x, z):
 
 
 def walks(room):
-    """The ground you walk, in the order the game lays it: the floors, then the flights over them."""
+    """The ground you walk, in the order the game lays it: the floors (the room's, or a roof under
+    the sky; never a room seen and not entered), then the flights over them."""
     out = []
     for fl in room["floors"]:
-        if fl.get("zone", "room") == "room" and fl.get("walk", True):
+        if fl.get("zone", "room") != "sealed" and fl.get("walk", True):
             out.append({"key": fl["key"], "shape": fl["shape"], "y": lambda x, z, y=fl["y"]: y})
     for f in room["flights"]:
         p = flight_plan(f)
@@ -302,6 +303,7 @@ def draft(brief: dict, place: dict | None = None):
         "courts": brief.get("courts", []),
         **({"boulevards": brief["boulevards"]} if brief.get("boulevards") else {}),
         **({"canals": brief["canals"]} if brief.get("canals") else {}),
+        **({"quarter": True} if brief.get("quarter") else {}),
         "marks": brief.get("marks", {}),
         "provenance": {
             "canon": canon.get("doc", ""),
