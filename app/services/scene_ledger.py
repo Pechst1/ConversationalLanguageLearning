@@ -302,6 +302,44 @@ def keeps_open_for(reply_fr: Any, *, turn_index: int, max_turns: int) -> bool:
     return int(turn_index) + 1 < int(max_turns or 1) + SCENE_QUESTION_GRACE
 
 
+#: The caption under the input, in the learner's language: what the character asks now.
+_CAPTION_ASKS = {
+    "en": "{name} asks: «{question}»",
+    "de": "{name} fragt: «{question}»",
+    "fr": "{name} demande : «{question}»",
+}
+#: …and when her latest turn asks nothing: the opening task no longer fits, so say
+#: only what is true (the scene goes on) rather than keep a stale task.
+_CAPTION_GOES_ON = {
+    "en": "Keep the conversation going with {name}.",
+    "de": "Führe das Gespräch mit {name} weiter.",
+    "fr": "Continue la conversation avec {name}.",
+}
+
+
+def turn_caption(reply_fr: Any, *, speaker: Any, language: Any = None) -> str | None:
+    """#500: the caption under the scene's input for the turn the character just spoke.
+
+    The prompt's ``objective_native`` is written once, for the *opening* question,
+    and a later turn carried it over unchanged: Lila had moved on to the next
+    question and the caption still named the first. A caption is a property of
+    the turn, so it is derived from the character's latest reply every time: the
+    question she asks now (quoted, so nothing is translated or invented), or a
+    neutral line when she asks nothing. ``None`` for a reply with no text: the
+    caller keeps whatever it had.
+    """
+
+    if not str(reply_fr or "").strip():
+        return None
+    name = str(speaker or "").strip() or "…"
+    code = str(language or "").strip().lower()
+    code = code if code in _CAPTION_ASKS else "en"
+    question = character_question(reply_fr)
+    if question is None:
+        return _CAPTION_GOES_ON[code].format(name=name)
+    return _CAPTION_ASKS[code].format(name=name, question=question)
+
+
 def without_trailing_question(text: Any) -> str:
     """An ending that closes: the scene's last line drops a question at its end
     when something before it still stands («D'accord. Tu viens demain ?» →

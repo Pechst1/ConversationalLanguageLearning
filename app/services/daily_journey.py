@@ -87,7 +87,7 @@ from app.schemas.daily_journey import (
     forge_href_for,
     practice_href_for,
 )
-from app.services import gold_ledger, scene_ledger
+from app.services import cast_registry, gold_ledger, scene_ledger
 from app.services.chrome_language import user_chrome_language
 from app.services.daily_journey_adapters import (
     AdapterUnavailable,
@@ -669,6 +669,12 @@ def _public_acts(ordered: list[DailyJourneyStep]) -> dict[Any, int]:
             scenes += 1
         acts[step.id] = max(scenes, 1) if kind in ACT_STEP_KINDS else 1
     return acts
+
+
+#: The aids written for a scene's opening line (#145): stale once the character moves on.
+_OPENING_LINE_AIDS = frozenset(
+    {str(HelpKind.HINT), str(HelpKind.TRANSLATION), str(HelpKind.SUGGESTED_RESPONSE)}
+)
 
 
 def _public_prompt_view(step: DailyJourneyStep) -> dict[str, Any]:
@@ -5593,6 +5599,16 @@ class DailyJourneyService:
             prompt["choices"] = list(getattr(evaluation, "next_choices", None) or [])
             if getattr(evaluation, "next_task_native", None):
                 prompt["objective_native"] = evaluation.next_task_native
+            elif caption := scene_ledger.turn_caption(
+                evaluation.character_reply_fr,
+                speaker=cast_registry.display_name(
+                    prompt.get("character_id"), str(prompt.get("character_name") or "").split(" ")[0]
+                ),
+                language=brief.control_language,
+            ):
+                # #500: the caption under the input is written for the opening question;
+                # from the second turn on it follows what the character asks now.
+                prompt["objective_native"] = caption
             if getattr(evaluation, "next_hint_native", None) or getattr(evaluation, "next_suggested_fr", None):
                 # QA-STORY: the hint belongs to the question now asked, not the first one.
                 response_task = dict(private.get("response_task") or {})
@@ -5604,13 +5620,20 @@ class DailyJourneyService:
                     response_task["translation_native"] = evaluation.next_translation_native
                 private["response_task"] = response_task
                 step.private_task = private
-            if history[-1].get("free"):
-                # The exchange the nudge did not use is still owed: one more token.
-                prompt["max_turns"] = int(prompt.get("max_turns") or 1) + 1
-            elif question_open and step.turn_index >= int(prompt.get("max_turns") or 1):
-                # #378: the extra exchange the open question takes is counted, so
-                # the scene never reads «4 of 3».
-                prompt["max_turns"] = step.turn_index + 1
+            elif not history[-1].get("free"):
+                # #145: the hint, the translation and the example were written for the
+                # opening line. The character has moved on, so they no longer help:
+                # they are not offered rather than offered wrong. A nudge used no
+                # exchange and the question is unchanged, so its aids stay.
+                prompt["help_available"] = [
+                    kind for kind in prompt.get("help_available") or [] if kind not in _OPENING_LINE_AIDS
+                ]
+            # #467 (root cause #145: the scene has no state of its own, so the
+            # total was whatever the engine decided next): ``max_turns`` is fixed
+            # when the scene starts and never changes. A nudge that did not use
+            # an exchange, or the answer an open question takes (#378), is one
+            # more turn under the same total; the client shows it as the last
+            # exchange instead of promising a bigger scene than the one it began.
             # WP-89 «Le fil»: the conversation so far, so a reloaded client can
             # redraw it. Public by construction: what was said and shown.
             prompt["thread"] = _public_thread(history)

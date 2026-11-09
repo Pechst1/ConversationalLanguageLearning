@@ -297,11 +297,29 @@ def _run_page(case: Case) -> tuple[dict, Any]:
     return observed, draft
 
 
+def _with_ledger(payload: dict) -> dict:
+    """The ledger ``_turn_payload`` puts on a turn, rebuilt from the case's own lines, so a
+    snapshot shows what production sends and a recorded case cannot go stale against it."""
+
+    from app.services import scene_ledger
+
+    scene = payload.get("scene") or {}
+    payload["ledger"] = scene_ledger.build(
+        opening_line_fr=scene.get("opening_line_fr"),
+        history=payload.get("history") or [],
+        learner_text=payload.get("learner_text"),
+        in_the_room=scene_ledger.room_of(scene),
+    )
+    plan = payload.setdefault("turn_plan", {})
+    plan["learner_asked"] = payload["ledger"]["learner_asked"]
+    return payload
+
+
 def _run_turn(case: Case) -> tuple[dict, Any]:
     from app.services import living_story as engine
     from app.services import story_lanes as lanes
 
-    payload = json.loads(json.dumps(case.input["payload"]))
+    payload = _with_ledger(json.loads(json.dumps(case.input["payload"])))
     observed: dict[str, Any] = {"tutor_refusals": [], "voice_refusals": [], "failure": None}
 
     def spy(name: str, real):

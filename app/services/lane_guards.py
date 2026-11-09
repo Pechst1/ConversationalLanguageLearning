@@ -31,8 +31,10 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from dataclasses import dataclass
 
 from app.services import living_story as engine
+from app.services import scene_ledger, story_memory
 
 # ---------------------------------------------------------------------------
 # Finding 3 — agreement with a gender the learner never gave
@@ -882,3 +884,261 @@ def echoed_thread(reply: str, earlier: list[str]) -> list[str]:
     if any(len(sentence.split()) >= 5 for sentence in repeated) or len(repeated) >= 2:
         return repeated
     return []
+
+
+# ---------------------------------------------------------------------------
+# #145 — the reply, compared with what the scene's ledger knows
+# ---------------------------------------------------------------------------
+#
+# State goes in before the reply: the voice lane is told the ledger and writes freely.
+# These few checks then compare the finished reply with that record. Each is a
+# ``SoftRejection`` raised from ``living_story.reply_soft_check``: one retry with the
+# reason, then the reply is served, so none can cost the learner a turn.
+#
+# They exist in this narrow form because two earlier guards (#600, #631) judged meaning
+# with clause patterns and refused natural French in every scene. ``tests/
+# test_scene_reply_145.py`` runs every sentence those reviews listed against all of them.
+#
+# Live walk 2 Nov 2026: Marin asked «Tu veux garder ce nom ?», the learner answered
+# «Non, je veux pas ce nom…», and Marin said «Oui, bien sûr. Tu me le fais garder ?»: his
+# own question again, from the line the learner had just answered.
+
+#: Verbs that carry no topic of their own: «Tu me le fais garder ?» asks about «garder»,
+#: not about «faire». Compared folded.
+_LIGHT_VERBS = frozenset(
+    """fais fait faites faire veux veut voulez vouloir peux peut pouvez pouvoir vais vont
+    allez aller dis dit dites dire sais sait savez savoir as avez avoir etes serait""".split()
+)
+
+
+def _topic_stems(text: str) -> set[str]:
+    """What a question is about: its content words (light verbs aside) by their first
+    four letters, so «garder» meets «gardes» and «gardez»."""
+
+    return {
+        token[:4]
+        for token in _content(_tokens(text))
+        if len(token) >= 3 and token not in _LIGHT_VERBS
+    }
+
+
+def reasked_question(reply: str, ledger: dict | None) -> str | None:
+    """The earlier question of the character that ``reply`` asks again, or None.
+
+    A question of the reply is a re-ask when everything it is about is in a question the
+    learner has already answered (``ledger["asked"]``: by the character, ``answered_at``
+    set). A new question on the same verb about something else («Tu veux garder le chat ?»
+    after «Tu veux garder ce nom ?») is not: it adds a topic. Returns the earlier question.
+    """
+
+    answered = [
+        row
+        for row in (ledger or {}).get("asked") or []
+        if isinstance(row, dict) and row.get("by") == "character" and row.get("answered_at") is not None
+    ]
+    if not answered:
+        return None
+    for sentence in _SENTENCE.findall(reply or ""):
+        if not sentence.strip().endswith("?"):
+            continue
+        asked = _topic_stems(sentence)
+        if not asked:
+            continue
+        for row in answered:
+            if asked <= _topic_stems(str(row.get("text_fr") or "")):
+                return str(row.get("text_fr") or "")
+    return None
+
+
+def without_reasked_question(reply: str, ledger: dict | None) -> str:
+    """``reply`` without its re-asked question, when something else in it stands; the
+    reply itself when it is only that question."""
+
+    parts = [part.strip() for part in _SENTENCE.findall(reply or "") if part.strip()]
+    kept = [part for part in parts if not (part.endswith("?") and reasked_question(part, ledger))]
+    return " ".join(kept) if kept else reply
+
+
+#: A reply that OPENS by joining the refusal of the speaker's own proposal: «Je ne suis
+#: pas d'accord non plus.», «Moi non plus.», «Ni moi.» (folded text). A sentence carried by
+#: someone else («Mon frère non plus ne cédera pas», «Ni moi ni mon frère ne céderons») or a
+#: «moi aussi» about something else («Moi aussi, je n'aime pas les dettes») keeps her position.
+_JOINS_REFUSAL = re.compile(
+    r"^(?:(?:ah|oh|eh|ben|bah|bon|alors|mais)\s+)*(?:"
+    r"(?:moi\s+)?non\s+plus\b|pas\s+moi\s+non\s+plus\b|ni\s+moi\b(?!\s+ni\b)|"
+    r"moi\s+aussi\s+je\s+(?:ne\s+)?suis\s+pas\s+d\s?accord\b|"
+    r"je\s+(?:ne\s+)?suis\s+pas\s+d\s?accord\s+non\s+plus\b|"
+    r"(?:nous\s+sommes|on\s+est)\s+d\s?accord\b)"
+)
+
+
+def joined_refusal(reply: str, ledger: dict | None) -> dict | None:
+    """#591: the proposal this reply gives up by joining the learner's refusal of it, or
+    None. Only the stand refused by the turn being answered; giving way in so many words
+    («Vous avez raison, il peut attendre.») is the character's right and is not matched."""
+
+    ledger = ledger or {}
+    current = int(ledger.get("exchanges") or 0)
+    for stand in ledger.get("stands") or []:
+        if stand.get("stance") == "refused" and stand.get("at") == current:
+            if _JOINS_REFUSAL.match(scene_ledger._folded(reply)):
+                return stand
+    return None
+
+
+#: A sentence that does nothing but ask: it opens on a question word («Mais pourquoi cette
+#: question ?», «Pourquoi ?») or hands the question over («Et toi ?»).
+_ONLY_ASKS = re.compile(
+    r"^(?:(?:mais|et|alors|ah|oh|bon|ben|hein)[\s,]+)*"
+    r"(?:pourquoi|comment|combien|quand|où|qui|quoi|que\b|qu['’]|quel(?:le)?s?\b|lequel|laquelle|est[- ]ce|"
+    r"(?:et\s+)?(?:toi|vous)\s*\?)",
+    re.IGNORECASE,
+)
+
+
+def question_handed_back(reply: str, ledger: dict | None) -> str | None:
+    """The learner's question when the reply is nothing but questions of its own, or None.
+
+    It reads what a sentence opens with, not how it ends. «Moi, je suis de Lyon, et vous ?»
+    and «Parce qu'il m'a élevée, vous comprenez ?» end on a question and answer first."""
+
+    asked = (ledger or {}).get("learner_asked")
+    parts = scene_ledger.sentences(reply)
+    if not asked or not parts:
+        return None
+    if all(part.rstrip("»\" ").endswith("?") and _ONLY_ASKS.match(part.strip("«»\"' ")) for part in parts):
+        return str(asked)
+    return None
+
+
+#: Words put to the learner as theirs: «Tu as dit : « … »», «Vous avez promis « … »».
+_QUOTED_AT_LEARNER = re.compile(
+    r"(?:tu\s+(?:as\s+)?(?:dit|dis|promis|écrit|écris)|vous\s+(?:avez\s+)?(?:dit|dites|promis|écrit|écrivez)|"
+    r"comme\s+(?:tu\s+dis|vous\s+dites))[^.!?…«»\"]{0,24}[«\"]\s*([^»\"]+?)\s*[»\"]",
+    re.IGNORECASE,
+)
+
+
+def learner_lines(payload: dict | None) -> list[str]:
+    """Everything the learner has written in this scene, the turn being answered included."""
+
+    payload = payload or {}
+    lines = [str(row.get("learner") or "") for row in payload.get("history") or [] if isinstance(row, dict)]
+    return [line for line in [*lines, str(payload.get("learner_text") or "")] if line.strip()]
+
+
+def unsaid_quote(reply: str, said: list[str]) -> re.Match[str] | None:
+    """#378, #620: where the reply quotes as the learner's words they never wrote."""
+
+    for match in _QUOTED_AT_LEARNER.finditer(reply or ""):
+        if not story_memory.verbatim(match.group(1), said):
+            return match
+    return None
+
+
+def _without_quote(reply: str, match: re.Match[str]) -> str:
+    """``reply`` without the sentence that carries this quotation, when something else
+    in it stands. The quotation may hold full stops of its own, so the cut runs from the
+    start of its sentence to the closing mark."""
+
+    head = reply[: match.start()]
+    ends = [found.end() for found in re.finditer(r"[.!?…]\s+", head)]
+    start = ends[-1] if ends else 0
+    kept = f"{reply[:start]}{reply[match.end():].lstrip(' .!…')}".strip()
+    return kept or reply
+
+
+#: A character answering their own question in the learner's place: «Tu viens ? Oui, tu
+#: viens.» «Mon grand-père ? Oui, c'est lui.» is a character talking, and is not matched.
+_ANSWERS_FOR_LEARNER = re.compile(
+    r"\b(?:tu|vous)\b[^.!?…]*\?\s+((?:oui|non)\s*[,.!…]?\s+(?:tu|vous)\b[^.!?…]*[.!…]?)", re.IGNORECASE
+)
+#: A statement that the learner agreed. «Tu es d'accord avec Gus» is about someone else.
+_CLAIMS_AGREEMENT = re.compile(
+    r"^(?:(?:donc|alors|bon|bien|ah|parfait)\s+)*(?:tu\s+es|vous\s+etes)\s+d\s?accord\b(?!\s+avec)|"
+    r"^(?:(?:donc|alors|bon|bien|ah|parfait)\s+)*(?:tu\s+acceptes|vous\s+acceptez|tu\s+as\s+dit\s+oui|vous\s+avez\s+dit\s+oui)\b"
+)
+
+
+def answers_for_learner(reply: str, ledger: dict | None) -> str | None:
+    """#108, #145: the part of the reply that answers in the learner's place, or None: a
+    question answered in the same breath, or a statement that a learner who just said no
+    has agreed."""
+
+    if match := _ANSWERS_FOR_LEARNER.search(reply or ""):
+        return match.group(1)
+    last = (ledger or {}).get("last_turn") or {}
+    if last.get("intent") == "no":
+        for part in scene_ledger.sentences(reply):
+            if not part.rstrip("»\" ").endswith("?") and _CLAIMS_AGREEMENT.match(scene_ledger._folded(part)):
+                return part
+    return None
+
+
+@dataclass(frozen=True, slots=True)
+class SceneFinding:
+    """One thing the reply says against the scene's record: the code the pilot ledger
+    counts, the reason the retry is told, and the reply to serve if it comes back."""
+
+    code: str
+    hint: str
+    served: str
+
+
+def scene_findings(reply: str, payload: dict | None) -> list[SceneFinding]:
+    """What the finished reply says against the ledger, for ``reply_soft_check``."""
+
+    payload = payload or {}
+    ledger = payload.get("ledger")
+    if not isinstance(ledger, dict):
+        return []
+    findings: list[SceneFinding] = []
+    if reasked := reasked_question(reply, ledger):
+        reply_without = without_reasked_question(reply, ledger)
+        findings.append(
+            SceneFinding(
+                "reply_reasks_answered_question",
+                f"The reply asks again a question the learner has already answered («{reasked[:120]}»). "
+                "Take their answer as it is and move on to what follows from it.",
+                reply_without,
+            )
+        )
+        reply = reply_without
+    if stand := joined_refusal(reply, ledger):
+        findings.append(
+            SceneFinding(
+                "reply_contradicts_position",
+                f"You proposed «{str(stand.get('text_fr'))[:160]}» and the learner refused it. Joining them "
+                "(«non plus», «ni moi») makes you refuse your own proposal. Hold to it, say why, or give "
+                "way in so many words.",
+                reply,
+            )
+        )
+    if asked := question_handed_back(reply, ledger):
+        findings.append(
+            SceneFinding(
+                "reply_skips_learner_question",
+                f"The learner asked «{asked[:160]}» and the reply only asks back. Answer first, in "
+                "character (a fact, yes or no, or that you will not say and why).",
+                reply,
+            )
+        )
+    if quote := unsaid_quote(reply, learner_lines(payload)):
+        findings.append(
+            SceneFinding(
+                "reply_quotes_unsaid",
+                f"The reply quotes the learner as saying «{quote.group(1)[:120]}», and they never wrote that. "
+                "Quote only their own words, or say it without quoting them.",
+                _without_quote(reply, quote),
+            )
+        )
+    if answered := answers_for_learner(reply, ledger):
+        findings.append(
+            SceneFinding(
+                "reply_answers_for_learner",
+                "The reply answers in the learner's place. Their answer is theirs: react to what they "
+                "wrote, and leave the next word to them.",
+                reply.replace(answered, "").strip() if len(answered) < len(reply) else reply,
+            )
+        )
+    return findings

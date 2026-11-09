@@ -416,15 +416,17 @@ export type ExchangeProgress = {
 };
 
 /**
- * `closed` is true once the closing turn is answered. A server that plays more
- * turns than it planned (a «relance») grows the sequence rather than overflowing it.
+ * `closed` is true once the closing turn is answered. The total is the one the
+ * scene started with and never grows (#467: «Exchange 3 of 3», then «4 of 4»
+ * promised a longer scene than the learner began). A turn the server plays past
+ * the plan (the answer to an open question, a nudge that used no exchange) is
+ * shown as the last exchange again: the last token stays the active one.
  */
 export function exchangeProgress(prompt: RespondPrompt, closed: boolean): ExchangeProgress {
   const index = Math.max(0, Math.floor(Number(prompt.turn_index) || 0));
-  const planned = Math.max(1, Math.floor(Number(prompt.max_turns) || 1));
-  const total = Math.max(planned, index + 1);
-  const played = Math.min(total, index + (closed ? 1 : 0));
-  const position = Math.min(total, closed ? played : played + 1);
+  const total = Math.max(1, Math.floor(Number(prompt.max_turns) || 1));
+  const played = closed ? Math.min(total, index + 1) : Math.min(index, total - 1);
+  const position = closed ? played : played + 1;
   return { total, played, position };
 }
 

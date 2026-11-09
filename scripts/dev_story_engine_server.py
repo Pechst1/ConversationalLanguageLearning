@@ -329,6 +329,8 @@ class FakeStoryProvider:
                         exchange=len(source.get("history") or []),
                     ),
                     "understood_intent": _MEANT.get(intent, _MEANT["other"]),
+                    "learner_intent": intent,
+                    "learned": _reported(str(source.get("learner_text") or ""))["learned"],
                     "needs_clarification": False,
                     "feeling_shift": "steady",
                 }

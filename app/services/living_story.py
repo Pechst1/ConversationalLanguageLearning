@@ -326,9 +326,13 @@ class SoftRejection(StoryUnavailable):
     translation is never the reason a learner loses a day.
     """
 
-    def __init__(self, reason: str, *, hint: str | None = None, proposal: Any = None) -> None:
+    def __init__(
+        self, reason: str, *, hint: str | None = None, proposal: Any = None, codes: tuple[str, ...] = ()
+    ) -> None:
         super().__init__(reason, hint=hint)
         self.proposal = proposal
+        #: Every finding behind this rejection, for the pilot ledger; ``reason`` is the first.
+        self.codes = tuple(codes) or (reason,)
 
 
 class StrictModel(BaseModel):
@@ -1097,8 +1101,15 @@ callback_fr is a concise fact, not a copy of dialogue. No predetermined outcome 
 When this reply ends the scene it asks nothing new: reply_fr and resolution_fr close on a
 statement, never on a question the learner can no longer answer.
 turn_plan.learner_asked, when not null, is a question the learner just asked: reply_fr
-answers it first, plainly and in character, before anything else. ledger lists what this
-scene has asked so far: never ask again a question whose answered_at is set.
+answers it first, plainly and in character, before anything else. ledger is this scene's
+record so far, and the reply follows from it. asked[] lists every question: never ask again
+a question whose answered_at is set. last_turn is a first reading of how learner_text opens:
+a no changes what happens next, a question gets its answer, words off the subject get a
+reaction to those words. stands lists what you put to the learner for agreement and how it
+was received: a refused proposal is still yours; hold to it, say why, or give way in so many
+words, and never refuse it yourself («moi non plus»). established lists what the learner has
+said about their life, in their words; a name stays with what it was given to. Never quote at
+the learner words that are not in learner_text or history[].learner, and never answer in their place.
 Commitments require exact learner source_quote; only resolve known commitment IDs when
 the exchange actually resolves them. chapter_resolved only if the chapter's question
 has genuinely reached closure, and never before scene.beat is turn or resolution: a
@@ -6048,22 +6059,32 @@ def trim_reply(reply: str | None, level: Any) -> str:
     return " ".join(words[:cap]).rstrip(" ,;:") + "…"
 
 
-def reply_soft_check(model: Any, level: Any, lexical: Any = None, learner_text: str | None = None) -> None:
+def reply_soft_check(
+    model: Any,
+    level: Any,
+    lexical: Any = None,
+    learner_text: str | None = None,
+    payload: dict | None = None,
+) -> None:
     """The reply checks that never cost a turn (WP-103 T5), run last.
 
     Length: above the band's line → :class:`SoftRejection` carrying the reply trimmed
     at a sentence boundary. Words (WP-89's budget, ``lexical(reply) -> hint | None``):
     too many words this learner has not met → a :class:`SoftRejection` carrying the
-    reply as it is. Either way the retry is told why, and the attempt after it — or,
-    if it fails, this one — is served as the rejection carried it.
+    reply as it is. #145: ``payload`` carries the scene's ledger, and what the reply says
+    against it is refused the same way (``lane_guards.scene_findings``). Either way the
+    retry is told why, and the attempt after it — or, if it fails, this one — is served
+    as the rejection carried it.
     """
 
     reply = str(getattr(model, "reply_fr", "") or "")
     hints: list[str] = []
+    codes: list[str] = []
     issue = reply_length_issue(reply, level)
     trimmed = trim_reply(reply, level) if issue else reply
     if issue:
         hints.append(issue)
+        codes.append("reply_above_level")
     lexical_hint = None
     if lexical is not None:
         try:
@@ -6073,23 +6094,26 @@ def reply_soft_check(model: Any, level: Any, lexical: Any = None, learner_text: 
             lexical_hint = None
     if lexical_hint:
         hints.append(str(lexical_hint))
-    ignored = None
-    if learner_text and not getattr(model, "needs_clarification", False):
-        # #254 (root cause #145): a reasoned learner turn is picked up — a reply that
-        # takes up none of its words is asked again once, then served as it is.
+        codes.append("reply_off_lexicon")
+    if not getattr(model, "needs_clarification", False):
         from app.services import lane_guards
 
-        ignored = lane_guards.ignored_reply_hint(reply, learner_text)
-        if ignored:
-            hints.append(ignored)
+        if learner_text:
+            # #254 (root cause #145): a reasoned learner turn is picked up — a reply that
+            # takes up none of its words is asked again once, then served as it is.
+            if ignored := lane_guards.ignored_reply_hint(reply, learner_text):
+                hints.append(ignored)
+                codes.append("reply_ignores_learner")
+        for finding in lane_guards.scene_findings(trimmed, payload):
+            hints.append(finding.hint)
+            codes.append(finding.code)
+            trimmed = finding.served
     if not hints:
         return
     served = model.model_copy(update={"reply_fr": trimmed}) if trimmed != reply else model
-    raise SoftRejection(
-        "reply_above_level" if issue else ("reply_off_lexicon" if lexical_hint else "reply_ignores_learner"),
-        hint=" ".join(hints),
-        proposal=served,
-    )
+    raise SoftRejection(codes[0], hint=" ".join(hints), proposal=served, codes=tuple(codes))
+
+
 # A graphic-novel page of 4-6 panels (2026-09-25); the prompt asks for ~10 % less.
 _SCENE_WORD_LIMITS = {"A1": 180, "A2": 260, "B1": 330, "B2": 385, "C1": 440}
 MIN_SCENE_PANELS = 4
@@ -10428,7 +10452,7 @@ def _validate_turn(turn: SemanticTurn, payload: dict, *, lexical=None, reply_che
     if reply_checks:
         # WP-103 T5: last, on a turn every hard guard has accepted — length and words
         # are refused once with the reason, then the trimmed reply is served.
-        reply_soft_check(turn, story.get("level"), lexical, payload["learner_text"])
+        reply_soft_check(turn, story.get("level"), lexical, payload["learner_text"], payload=payload)
 
 
 def _transfer_target_ids(task: Any) -> set[int]:
