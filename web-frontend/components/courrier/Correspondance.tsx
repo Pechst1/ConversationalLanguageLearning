@@ -131,6 +131,8 @@ export type CrMeasured = {
   words_written?: number;
   /** WP-74 — false when no grader assessed the letter. */
   assessed?: boolean;
+  /** #590 — the learner's last message was never answered. */
+  reply_pending?: boolean;
 };
 
 /* ---------- the word for an outcome ----------
@@ -147,7 +149,13 @@ const OUTCOME_MARK: Record<string, { key: keyof CourrierCopy; mark: 'done' | 'ac
   ignored: { key: 'outcome_ignored', mark: 'story' },
 };
 
-export function crOutcomeLabel(outcome?: CrLetterOutcome | null, language: unknown = 'fr'): string | null {
+export function crOutcomeLabel(
+  outcome?: CrLetterOutcome | null,
+  language: unknown = 'fr',
+  options: { unanswered?: boolean } = {},
+): string | null {
+  // #590: a letter finished on a message nobody answered has no verdict to print.
+  if (options.unanswered) return courrierCopy(language).outcome_unanswered;
   const entry = OUTCOME_MARK[String(outcome || '')];
   return entry ? courrierCopy(language)[entry.key] : null;
 }
@@ -161,9 +169,11 @@ export function crOutcomeSentence(
   outcome: CrLetterOutcome | null | undefined,
   name?: string | null,
   language: unknown = 'fr',
+  options: { unanswered?: boolean } = {},
 ): string | null {
   const t = courrierCopy(language);
   const who = String(name || '').trim();
+  if (options.unanswered) return who ? crFill(t.sentence_unanswered_named, { name: who }) : t.sentence_unanswered;
   switch (String(outcome || '')) {
     case 'kept':
       return who ? crFill(t.sentence_kept_named, { name: who }) : t.sentence_kept;

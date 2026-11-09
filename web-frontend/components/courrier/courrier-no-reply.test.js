@@ -54,6 +54,50 @@ test('the pending line exists in every chrome language and is not the stock repl
   }
 });
 
+// #590 — the thread itself says which learner message nobody answered, the reply can be
+// asked for again from there, and a letter finished on it prints no verdict.
+
+test('the thread marks the learner turn nobody answered', () => {
+  const { turnReplyPending } = require('./mission-turns.ts');
+  assert.equal(turnReplyPending({ role: 'user', reply_state: 'pending' }), true);
+  assert.equal(turnReplyPending({ role: 'user' }), false);
+  assert.equal(turnReplyPending({ role: 'assistant', reply_state: 'pending' }), false);
+  assert.equal(turnReplyPending(undefined), false);
+});
+
+test('the page prints the pending line under the turn and offers to ask again', () => {
+  const page = read('pages', 'missions.tsx');
+  assert.match(page, /turnReplyPending\(turn\) &&/);
+  assert.match(page, /t\.reply_pending_line/);
+  assert.match(page, /apiService\.retryMissionTurnReply\(mission\.id, turnId\)/);
+});
+
+test('asking again keeps the unsent draft in the composer', () => {
+  const page = read('pages', 'missions.tsx');
+  const retry = page.slice(page.indexOf('const retryReply'), page.indexOf('const finishMission'));
+  assert.ok(retry.includes('retryMissionTurnReply'), 'retry handler not found');
+  assert.doesNotMatch(retry, /setReply\(/);
+  assert.doesNotMatch(retry, /pilot:mission-draft/);
+});
+
+test('a letter finished on an unanswered message prints no verdict, goals or mood', () => {
+  const { crOutcomeLabel, crOutcomeSentence } = require('./Correspondance.tsx');
+  const { crSealNumbers } = require('./Courrier.tsx');
+  const { courrierCopy } = require('./courrier-copy.ts');
+  for (const lang of ['fr', 'en', 'de']) {
+    const copy = courrierCopy(lang);
+    assert.equal(crOutcomeLabel('kept', lang, { unanswered: true }), copy.outcome_unanswered);
+    assert.notEqual(crOutcomeLabel('kept', lang, { unanswered: true }), copy.outcome_kept);
+    assert.match(crOutcomeSentence('kept', 'Camille', lang, { unanswered: true }), /Camille/);
+    for (const key of ['reply_pending_line', 'reply_retry', 'reply_retrying', 'toast_reply_retry_failed']) {
+      assert.ok(copy[key] && copy[key].length > 5, `${lang}: ${key} missing`);
+    }
+  }
+  const rows = crSealNumbers({ objectives_met: 1, objectives_total: 1, words_written: 12, reply_pending: true });
+  assert.ok(!rows.some((row) => row.value === '1/1'), 'goals 1/1 printed for an unanswered letter');
+  assert.ok(crSealNumbers({ objectives_met: 1, objectives_total: 1 }).some((row) => row.value === '1/1'));
+});
+
 test('every walk driver sets a time zone on its browser context', () => {
   for (const file of ['walk.mjs', 'explore.mjs', 'appels-walk.mjs', 'explore-live.mjs']) {
     const source = read('e2e', file);

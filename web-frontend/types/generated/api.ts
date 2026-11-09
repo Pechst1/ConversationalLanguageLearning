@@ -2626,6 +2626,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/missions/{mission_id}/turns/{turn_id}/reply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry Mission Turn Reply
+         * @description #590: ask the correspondent again for a message nobody answered.
+         *
+         *     The learner's text is already stored and corrected; only the reply is asked for. Any
+         *     message nobody answered can be asked again, not only the latest: a learner who wrote on
+         *     because the reply failed still has that gap to close. When it is already answered the
+         *     answer is handed back, and a second failure leaves the message ``pending`` for the next try.
+         */
+        post: operations["retry_mission_turn_reply_api_v1_missions__mission_id__turns__turn_id__reply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/missions/audio/transcribe": {
         parameters: {
             query?: never;
@@ -21061,6 +21086,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MissionTurnCorrectionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_mission_turn_reply_api_v1_missions__mission_id__turns__turn_id__reply_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mission_id: string;
+                turn_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MissionTurnResponse"];
                 };
             };
             /** @description Validation Error */

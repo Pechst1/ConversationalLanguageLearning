@@ -63,6 +63,7 @@ import {
   latestAssistantTurn,
   missionTurns,
   replyPending,
+  turnReplyPending,
 } from '@/components/courrier/mission-turns';
 import apiService, {
   IntakeArtefact,
@@ -603,6 +604,7 @@ export default function MissionsPage() {
   const creatingRef = useRef(false);
   const [submitting, setSubmitting] = useState(false);
   const [rechecking, setRechecking] = useState<string | null>(null);
+  const [retryingReply, setRetryingReply] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState<LoadErrorKind | null>(null);
   const [reply, setReply] = useState('');
@@ -876,6 +878,24 @@ export default function MissionsPage() {
     }
   };
 
+  // #590: the correspondent did not answer this message. Ask again from the stored text;
+  // the thread keeps saying so until a reply exists.
+  const retryReply = async (turnId: string) => {
+    if (!mission || retryingReply || completed) return;
+    setRetryingReply(turnId);
+    try {
+      const result = await apiService.retryMissionTurnReply(mission.id, turnId);
+      setMission({ ...result.mission, outcome: result.outcome || result.mission.outcome });
+      // The retry answers the stored message, so whatever the composer holds is a new draft.
+      if (replyPending(result.outcome)) toast(t.toast_reply_retry_failed);
+    } catch (retryError) {
+      console.error(retryError);
+      toast.error(t.toast_reply_retry_failed);
+    } finally {
+      setRetryingReply(null);
+    }
+  };
+
   const finishMission = async () => {
     if (!mission || completing || completed || !interactionReady) return;
     setCompleting(true);
@@ -983,15 +1003,17 @@ export default function MissionsPage() {
   // at most three counted numbers. The outcome's own sentence is chrome; a
   // letter with no outcome keeps its success line, which is the letter's
   // French. No credit rows, no debrief rows, no objectives, no last message.
-  const outcomeSentence = crOutcomeSentence(letterOutcome, correspondent?.name, chromeLang);
-  const sealVerdict = crOutcomeLabel(letterOutcome, chromeLang) || (isSerialAct ? t.seal_act_done : t.seal_resolved);
+  // #590: a letter finished on a message nobody answered carries no verdict, mood or token.
+  const letterUnanswered = Boolean(measured?.reply_pending);
+  const outcomeSentence = crOutcomeSentence(letterOutcome, correspondent?.name, chromeLang, { unanswered: letterUnanswered });
+  const sealVerdict = crOutcomeLabel(letterOutcome, chromeLang, { unanswered: letterUnanswered }) || (isSerialAct ? t.seal_act_done : t.seal_resolved);
   const sealNumbers = crSealNumbers(measured, { turns: recapTurns, errata: recapErrata, saved: recapSaved }, chromeLang);
   // The correspondent's face on the seal, in the mood the letter left
   // (`recap.correspondent_mood_value_after`, or the legacy French line).
   const moodRecap = (mission?.recap || {}) as Record<string, any>;
   const moodKey = crMoodKey(crMoodValue(moodRecap.correspondent_mood_value_after, moodRecap.correspondent_mood_after));
   const moodName = String(correspondent?.name || '').trim();
-  const sealMood = moodKey && moodName
+  const sealMood = moodKey && moodName && !letterUnanswered
     ? {
         name: moodName,
         characterId: castIdFor(mission?.prompt_payload?.serial_character_id, correspondent?.id, moodName),
@@ -1210,6 +1232,25 @@ export default function MissionsPage() {
                               onClick={() => { void recheckReply(String(turn.id)); }}
                             >
                               {rechecking === turn.id ? t.rechecking : t.recheck}
+                            </button>
+                          )}
+                        </>
+                      )}
+                      {/* #590: nobody answered this message. The thread says so until a reply
+                          exists, and the reply can be asked for again from here. */}
+                      {turnReplyPending(turn) && (
+                        <>
+                          <p className="cr-unassessed cr-unanswered" role="status">
+                            {crFill(t.reply_pending_line, { name: messenger.contact_name })}
+                          </p>
+                          {!completed && turn.id && (
+                            <button
+                              type="button"
+                              className="cr-trad-btn"
+                              disabled={retryingReply !== null || submitting}
+                              onClick={() => { void retryReply(String(turn.id)); }}
+                            >
+                              {retryingReply === turn.id ? t.reply_retrying : t.reply_retry}
                             </button>
                           )}
                         </>
