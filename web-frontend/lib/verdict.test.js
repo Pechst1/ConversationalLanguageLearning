@@ -19,7 +19,7 @@ Module._resolveFilename = function resolve(request, ...rest) {
   return originalResolve.call(this, request, ...rest);
 };
 
-const { CHECK_COPY, checkState, isUnread } = require('./verdict.ts');
+const { CHECK_COPY, checkState, isUnread, fixRows } = require('./verdict.ts');
 const read = (...parts) => fs.readFileSync(path.join(WEB_ROOT, ...parts), 'utf8');
 
 const NOT_CHECKED = { outcome: 'not_checked', call: 'failed', edits: [] };
@@ -107,3 +107,31 @@ test('a letter closed on an unread message prints no verdict, goals or mood', ()
   assert.ok(!rows.some((row) => row.value === '1/1'), 'goals 1/1 printed for a letter nobody read');
   assert.match(read('pages', 'missions.tsx'), /!letterHeld\.unanswered && !letterHeld\.unchecked/);
 });
+
+test('#133 · two or more mechanical fixes share one line, where the first of them stood', () => {
+  const rows = fixRows([
+    { wrong: 'c est', fixed: "c'est", why: 'a' },
+    { wrong: 'je vend', fixed: 'je vends', why: 'b' },
+    { wrong: 'Qu est-ce', fixed: "Qu'est-ce", why: 'c' },
+    { wrong: 'a', fixed: 'à', why: 'd' },
+    { wrong: 'aujourdhui', fixed: "aujourd'hui", why: 'e' },
+  ]);
+  assert.deepEqual(rows, [
+    { kind: 'apostrophes', fixes: ["c'est", "Qu'est-ce", "aujourd'hui"] },
+    { kind: 'one', fixed: 'je vends', why: 'b' },
+    { kind: 'one', fixed: 'à', why: 'd' },
+  ]);
+});
+
+test('#133 · one mechanical fix keeps its own reason, and a real fix never joins a group', () => {
+  assert.deepEqual(fixRows([{ wrong: 'tres', fixed: 'très', why: 'accent' }]), [
+    { kind: 'one', fixed: 'très', why: 'accent' },
+  ]);
+  const rows = fixRows([
+    { wrong: 'la restaurant', fixed: 'le restaurant', why: 'x' },
+    { wrong: 'une bon', fixed: 'un bon', why: 'y' },
+  ]);
+  assert.equal(rows.length, 2);
+  assert.ok(rows.every((row) => row.kind === 'one'));
+});
+

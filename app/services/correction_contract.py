@@ -51,12 +51,14 @@ from dataclasses import dataclass, replace
 from functools import lru_cache
 from typing import Any
 
+from app.core.verdict import span_pattern
 from app.services.answer_acceptance import (
     correction_is_grounded,
     is_real_correction,
     known_slip,
     person_swaps_hold,
 )
+from app.services.journey_contracts import normalize_answer_text
 
 # ---------------------------------------------------------------------------
 # Tokens
@@ -2336,7 +2338,9 @@ def first_valid_edit(
     """The single correction a scene turn can show: the model's when it passes
     :func:`verify_edit` (as settled there), else the most serious model-free edit
     (grammar before spelling, then reading order), else nothing."""
-    if span and replacement:
+    if span and replacement and changes_what_was_said(
+        span, replacement, listed=True, question=in_a_question(text, span)
+    ) is None:
         verdict = verify_edit(text, span, replacement, note, people=people)
         if verdict.ok and verdict.replacement:
             shown = _requote(str(note), str(replacement), verdict.replacement) if note else None
@@ -2351,10 +2355,436 @@ def first_valid_edit(
     return None, None, None
 
 
+# ---------------------------------------------------------------------------
+# One corrected line (#133, #250)
+# ---------------------------------------------------------------------------
+
+#: Words a correction may add, drop or swap without changing what the learner said.
+_GRAMMAR_WORDS = frozenset(
+    """
+    le la les l un une des du de d au aux ce cet cette ces c mon ton son ma ta sa mes tes ses notre votre nos vos
+    leur leurs a dans en sur sous avec sans pour par chez vers entre contre avant apres pendant depuis et ou mais
+    donc car parce puisque comme quand lorsque ni que qu si oui non je j tu il elle on nous vous ils elles me m te t
+    se s lui y eux moi toi soi ne n pas plus jamais rien qui dont ca cela ceci tout toute tous toutes quel quelle
+    quels quelles est-ce
+    """.split()
+)
+_AUXILIARY_LEMMAS = frozenset({"être", "avoir", "aller"})
+#: What a question asks, accents folded so «ou» -> «où» is no change. «Est-ce que» on its own
+#: only marks it as a question; «qu'est-ce que» asks «what».
+_ASKING_WORDS = {
+    "quoi": "quoi", "ou": "ou", "quand": "quand", "comment": "comment", "pourquoi": "pourquoi", "combien": "combien",
+    "quel": "quel", "quelle": "quel", "quels": "quel", "quelles": "quel", "lequel": "lequel", "laquelle": "lequel",
+    "lesquels": "lequel", "lesquelles": "lequel",
+}
+#: Notes about the task or the words asked for. They change nothing in the learner's line.
+_NOT_ABOUT_THE_LINE = frozenset({"task_compliance", "length_compliance", "lexical_gap"})
+_LOCAL_REORDER_WORDS = 4
+_MOVED_WORD_GAP = 2
+_SAME_WORD_SPELLING = 0.7
+_SAME_STEM_SPELLING = 0.6
+_EDGE_MARKS = "«»\"“”,.;:!?…"
+_ANY_WORD = re.compile(r"\S+")
+
+
+def is_about_the_line(erratum: Mapping[str, Any]) -> bool:
+    """Whether this erratum proposes a change to what the learner wrote."""
+
+    kind = str(erratum.get("task_error_type") or "")
+    return kind not in _NOT_ABOUT_THE_LINE and not kind.startswith("vocabulary")
+
+
+def _lemmas(word: str) -> set[str]:
+    found = {_verb_lemma(word), _noun_lemma(word), _forms().get(word), word if _lemma(word) else None}
+    return {lemma for lemma in found if lemma}
+
+
+def _is_grammar_word(word: str) -> bool:
+    return _strip_marks(word) in _GRAMMAR_WORDS or _verb_lemma(word) in _AUXILIARY_LEMMAS
+
+
+def _same_word(left: str, right: str) -> bool:
+    """Two forms of one word, or one word and its misspelling."""
+
+    a, b = _strip_marks(left), _strip_marks(right)
+    if a == b or _lemmas(left) & _lemmas(right):
+        return True
+    close = difflib.SequenceMatcher(None, a, b).ratio()
+    if a[:3] == b[:3] and close >= _SAME_STEM_SPELLING:
+        return True  # one grows out of the other: «content», «contente», «lentement», «jouais»
+    # Two real words that look alike are two words: «maison», «raison».
+    return not (_lemmas(left) and _lemmas(right)) and close >= _SAME_WORD_SPELLING
+
+
+def _what_it_asks(words: list[str]) -> list[str]:
+    """The asking words, folded to one per family, in sorted order."""
+
+    folded = [_strip_marks(word) for word in words]
+    asks = [_ASKING_WORDS[word] for word in folded if word in _ASKING_WORDS]
+    asks += ["qu'est-ce"] * sum(1 for one, two in zip(folded, folded[1:], strict=False) if (one, two) == ("qu", "est-ce"))
+    return sorted(asks)
+
+
+def in_a_question(line: object, span: object) -> bool:
+    """Whether ``span`` sits in a sentence of ``line`` that ends with a question mark."""
+
+    source, where = _norm(line), _locate(_norm(line), _norm(span))
+    if where is None:
+        return "?" in _norm(span)
+    end = re.compile(r"[.!?…]+").search(source, where[1] - 1 if source[where[1] - 1 : where[1]] in ".!?…" else where[1])
+    return bool(end and "?" in end.group())
+
+
+def changes_what_was_said(
+    span: object, replacement: object, *, listed: bool = False, question: bool | None = None
+) -> str | None:
+    """Why this change is a rewrite and not a correction, or ``None`` when it is a correction.
+
+    ``the_question``: in a question, it changes what is being asked. ``words``: it brings in
+    or takes out words of meaning. ``order``: it moves the sentence around. A word the
+    learner wrote that isn't French may become the French word. ``listed`` is a change the
+    corrector names and explains, which may also change one word («librairie» ->
+    «bibliothèque») or swap one question word for another. A difference nobody listed may
+    not. ``question`` says whether the span is in a question; by default, if it holds a «?».
+    """
+
+    old_text, new_text = _norm(span).casefold(), _norm(replacement).casefold()
+    old, new = _WORD.findall(old_text), _WORD.findall(new_text)
+    if old_text.count("?") != new_text.count("?"):
+        return "the_question"
+    asked, asks = _what_it_asks(old), _what_it_asks(new)
+    if (question or (question is None and "?" in old_text) or "qu'est-ce" in asked) and asked != asks:
+        if not (listed and len(asked) == len(asks)):
+            return "the_question"
+
+    def without(words: list[str], others: list[str]) -> list[str]:
+        spare = [_strip_marks(word) for word in others]
+        left: list[str] = []
+        for word in words:
+            if _strip_marks(word) in spare:
+                spare.remove(_strip_marks(word))
+            else:
+                left.append(word)
+        return left
+
+    added = without(new, old)
+    gone = [word for word in without(old, new) if not _is_grammar_word(word)]
+    came = [word for word in added if not _is_grammar_word(word)]
+    for word in list(gone):
+        partner = next((other for other in came if _same_word(word, other)), None)
+        if partner is not None:
+            gone.remove(word)
+            came.remove(partner)
+    for word in list(gone):
+        if added and not _lemmas(word):
+            gone.remove(word)
+            if came:
+                came.pop(0)
+    # A word said twice may lose its repeat.
+    gone = [word for word in gone if _strip_marks(word) not in {_strip_marks(other) for other in new}]
+    if gone or came:
+        return None if listed and len(gone) <= 1 and len(came) <= 1 else "words"
+    meaning = [[_strip_marks(word) for word in words if not _is_grammar_word(word)] for words in (old, new)]
+    if meaning[0] != meaning[1] and sorted(meaning[0]) == sorted(meaning[1]) and len(old) > _LOCAL_REORDER_WORDS:
+        return "order"
+    return None
+
+
+@dataclass(frozen=True, slots=True)
+class SentenceGap:
+    """One word-level difference between a line and a sentence: ``wrong`` at ``start`` becomes ``fix``."""
+
+    start: int
+    wrong: str
+    fix: str
+
+    @property
+    def end(self) -> int:
+        return self.start + len(self.wrong)
+
+
+def _line_words(text: str) -> list[tuple[int, int, str]]:
+    """``(start, end, key)`` per word: the key folds case, typography and edge marks."""
+
+    words: list[tuple[int, int, str]] = []
+    for match in _ANY_WORD.finditer(text):
+        key = unicodedata.normalize("NFC", normalize_answer_text(match.group())).casefold().strip(_EDGE_MARKS)
+        if key:
+            words.append((match.start(), match.end(), key))
+    return words
+
+
+def line_differences(line: object, sentence: object) -> list[tuple[str, int, int, int, int]]:
+    """The word-level differences between two lines (case, spacing and edge marks aside)."""
+
+    left, right = _line_words(str(line or "")), _line_words(str(sentence or ""))
+    matcher = difflib.SequenceMatcher(a=[word[2] for word in left], b=[word[2] for word in right], autojunk=False)
+    return [op for op in matcher.get_opcodes() if op[0] != "equal"]
+
+
+def _trim_shared_marks(wrong: str, fix: str) -> tuple[str, str]:
+    """Drop the final mark both sides end with: «agreable,» -> «agréable,» is «agreable» -> «agréable»."""
+
+    while len(wrong) > 1 and len(fix) > 1 and wrong[-1] == fix[-1] and wrong[-1] in _EDGE_MARKS:
+        wrong, fix = wrong[:-1], fix[:-1]
+    return wrong, fix
+
+
+def sentence_gaps(line: str, sentence: str, *, fixed: Iterable[tuple[int, int]] = ()) -> list[SentenceGap] | None:
+    """What it takes to turn ``line`` into ``sentence``, one gap per difference, or ``None``
+    when a difference has no word in the line to stand next to. ``fixed`` holds stretches of
+    the line that are already a correction, so a missing word isn't attached to one of them."""
+
+    left, right = _line_words(line), _line_words(sentence)
+    if not left or not right:
+        return []
+    fixed = list(fixed)
+
+    def is_fixed(word: tuple[int, int, str]) -> bool:
+        return any(word[0] < end and start < word[1] for start, end in fixed)
+
+    def words_of(ids: range, side: list[tuple[int, int, str]]) -> set[str]:
+        return {side[index][2] for index in ids}
+
+    # A word moved shows as two differences, dropped here and added there. It is one change.
+    differences: list[tuple[str, int, int, int, int]] = []
+    for op in line_differences(line, sentence):
+        if differences:
+            _tag, i1, i2, j1, j2 = differences[-1]
+            moved = (words_of(range(i1, i2), left) & words_of(range(op[3], op[4]), right)) | (
+                words_of(range(op[1], op[2]), left) & words_of(range(j1, j2), right)
+            )
+            if op[1] - i2 <= _MOVED_WORD_GAP and moved:
+                differences[-1] = ("replace", i1, op[2], j1, op[4])
+                continue
+        differences.append(op)
+
+    gaps: list[SentenceGap] = []
+    for tag, i1, i2, j1, j2 in differences:
+        want = sentence[right[j1][0] : right[j2 - 1][1]] if j2 > j1 else ""
+        if tag == "replace":
+            start, wrong, fix = left[i1][0], line[left[i1][0] : left[i2 - 1][1]], want
+        elif tag == "delete":
+            # Words too many: the gap is the word next to them, without them.
+            if i1 > 0:
+                start, fix = left[i1 - 1][0], line[left[i1 - 1][0] : left[i1 - 1][1]]
+                wrong = line[start : left[i2 - 1][1]]
+            elif i2 < len(left):
+                start, fix = left[i1][0], line[left[i2][0] : left[i2][1]]
+                wrong = line[start : left[i2][1]]
+            else:
+                return None
+        elif i1 > 0 and (i1 == len(left) or not is_fixed(left[i1 - 1])):
+            # Words missing: the gap is the word next to them plus what is missing.
+            start, anchor = left[i1 - 1][0], line[left[i1 - 1][0] : left[i1 - 1][1]]
+            core = anchor.rstrip(_EDGE_MARKS)
+            marks = anchor[len(core) :]
+            fix, wrong = f"{core} {want}", anchor
+            if marks and not fix.endswith(marks):
+                fix += marks
+        else:
+            start, wrong = left[i1][0], line[left[i1][0] : left[i1][1]]
+            fix = f"{want} {wrong}"
+        wrong, fix = _trim_shared_marks(wrong, fix)
+        if wrong.strip() and fix.strip() and wrong.strip() != fix.strip():
+            gaps.append(_only_there(line, left, SentenceGap(start, wrong, fix)))
+    return gaps
+
+
+def _only_there(line: str, words: list[tuple[int, int, str]], gap: SentenceGap) -> SentenceGap:
+    """The gap, with the word before it (or after it) when its words are also somewhere earlier
+    in the line. A span is found by its words, so «a» -> «à» in «Camille a une clé, jeudi a dix
+    heures» would land on the first «a», which is right."""
+
+    while True:
+        first = next(span_pattern(gap.wrong).finditer(line), None)
+        if first is None or first.start() == gap.start:
+            return gap
+        before = [word for word in words if word[1] <= gap.start]
+        if not before:
+            return gap
+        start = before[-1][0]
+        between = line[start : gap.start]
+        gap = SentenceGap(start, between + gap.wrong, between + gap.fix)
+
+
+def _place_fix(line: str, span: str, fix: str, taken: list[tuple[int, int, str]], sentence: object) -> tuple[int, int] | None:
+    """Where a listed fix goes: the free place its words are in, and when there are several, the
+    one that brings the line closest to the model's sentence."""
+
+    spots = [
+        match.span()
+        for match in span_pattern(span).finditer(line)
+        if all(match.end() <= start or match.start() >= end for start, end, _fix in taken)
+    ]
+    if not spots:
+        where = _locate(line, span)
+        return where if where and all(where[1] <= start or where[0] >= end for start, end, _fix in taken) else None
+    if len(spots) == 1 or not isinstance(sentence, str) or not sentence.strip():
+        return spots[0]
+    target = [word[2] for word in _line_words(sentence)]
+
+    def closeness(spot: tuple[int, int]) -> float:
+        made = line[: spot[0]] + fix + line[spot[1] :]
+        return difflib.SequenceMatcher(None, [word[2] for word in _line_words(made)], target, autojunk=False).ratio()
+
+    return max(spots, key=closeness)
+
+
+def _refused_change(line: str, gap: SentenceGap) -> dict[str, Any] | None:
+    """Why a change only the model's sentence holds may not be made, or ``None``."""
+
+    reason = changes_what_was_said(gap.wrong, gap.fix, question=in_a_question(line, gap.wrong))
+    if reason is None and not verify_edit(line, gap.wrong, gap.fix).ok:
+        reason = "not_verified"
+    return {"learner_text": gap.wrong, "corrected_target": gap.fix, "reason": reason} if reason else None
+
+
+def held_gaps(line: str, sentence: object) -> tuple[list[SentenceGap], list[dict[str, Any]]] | None:
+    """``(allowed, refused)``: the differences of the model's sentence, each through the one
+    check. ``None`` when a difference has no word in the line to stand next to."""
+
+    gaps = sentence_gaps(line, str(sentence or ""))
+    if gaps is None:
+        return None
+    allowed, refused = [], []
+    for gap in gaps:
+        why = _refused_change(line, gap)
+        if why:
+            refused.append(why)
+        else:
+            allowed.append(gap)
+    return allowed, refused
+
+
+def apply_gaps(line: str, gaps: Iterable[SentenceGap]) -> str:
+    """``line`` with ``gaps`` made, and nothing else changed."""
+
+    out = line
+    for gap in sorted(gaps, key=lambda item: item.start, reverse=True):
+        out = out[: gap.start] + gap.fix + out[gap.end :]
+    return out
+
+
+@dataclass(frozen=True, slots=True)
+class CheckedCorrection:
+    """A correction a screen may print: ``corrected`` is the line with the listed fixes in it."""
+
+    corrected: str
+    errata: list[dict[str, Any]]
+    refused: list[dict[str, Any]]
+
+
+def verify_correction(
+    text: object,
+    sentence: object,
+    errata: Iterable[Mapping[str, Any]],
+    *,
+    language: str | None = None,
+    people: Mapping[str, str] | None = None,
+) -> CheckedCorrection:
+    """The learner's line with every verified fix in it, and every change in it listed (#133).
+
+    A model returns a sentence and a list as two pieces of text, and the sentence was printed
+    as it came: «Qu est-ce que c est, jeudi a dix-huit heures ?» came back as «C'est jeudi à
+    dix-huit heures ?», a different question, with two listed fixes. Now the line is built
+    from the learner's own words. Each listed fix passes :func:`verify_erratum` and
+    :func:`changes_what_was_said`; each difference only the model's sentence holds becomes a
+    fix of its own if it passes both, and is dropped if it doesn't. ``sentence`` may be
+    ``None``: the listed fixes are then all there is.
+    """
+
+    line = "" if text is None else str(text)
+    kept: list[dict[str, Any]] = []
+    refused: list[dict[str, Any]] = []
+    fixes: list[tuple[int, int, str]] = []
+    for raw in errata:
+        item = dict(raw)
+        if not is_about_the_line(item):
+            kept.append(item)
+            continue
+        verified = verify_erratum(line, item, strict_span=False)
+        reason = "not_verified" if verified is None else changes_what_was_said(
+            verified.get("learner_text"),
+            verified.get("corrected_target"),
+            listed=True,
+            question=in_a_question(line, verified.get("learner_text")),
+        )
+        if reason or verified is None:
+            refused.append(
+                {"learner_text": item.get("learner_text"), "corrected_target": item.get("corrected_target"), "reason": reason}
+            )
+            continue
+        span, fix = str(verified.get("learner_text") or ""), str(verified.get("corrected_target") or "")
+        where = _place_fix(line, span, fix, fixes, sentence)
+        if where:
+            fixes.append((where[0], where[1], fix))
+            placed = _only_there(line, _line_words(line), SentenceGap(where[0], line[where[0] : where[1]], fix))
+            verified = {**verified, "learner_text": placed.wrong, "corrected_target": placed.fix}
+        kept.append(verified)
+    base = line
+    fixed: list[tuple[int, int]] = []
+    shift = 0
+    for start, end, fix in sorted(fixes):
+        base = base[: start + shift] + fix + base[end + shift :]
+        fixed.append((start + shift, start + shift + len(fix)))
+        shift += len(fix) - (end - start)
+
+    def derive(source: str, target: str, *, by_rules: bool) -> str:
+        nonlocal fixed
+        out, shift_ = source, 0
+        placed: list[SentenceGap] = []
+        for gap in sentence_gaps(source, target, fixed=fixed) or []:
+            # A listed fix stands: a sentence that disagrees with it doesn't undo it.
+            if not by_rules and any(gap.start < end and start < gap.end for start, end in fixed):
+                refused.append({"learner_text": gap.wrong, "corrected_target": gap.fix, "reason": "overlaps_a_fix"})
+                continue
+            why = None if by_rules else _refused_change(source, gap)
+            if why:
+                refused.append(why)
+                continue
+            placed.append(gap)
+            note = note_from_form(gap.wrong, gap.fix, language=language)
+            kept.append(
+                {
+                    "display_label": "",
+                    "learner_text": gap.wrong,
+                    "corrected_target": gap.fix,
+                    "why_wrong": note,
+                    "repair_hint": "",
+                    "severity": 1,
+                    "recurring": False,
+                    "task_error_type": "grammar",
+                    "derived_from_sentence": True,
+                }
+            )
+        for gap in sorted(placed, key=lambda item: item.start):
+            out = out[: gap.start + shift_] + gap.fix + out[gap.end + shift_ :]
+            shift_ += len(gap.fix) - len(gap.wrong)
+        return out
+
+    built = derive(base, str(sentence), by_rules=False) if isinstance(sentence, str) and sentence.strip() else base
+    # The rules read the line once more: a fix can open another («à le» after a fixed word).
+    settled = repair_text(built, people=people)
+    if settled != built:
+        built = derive(built, settled, by_rules=True)
+    return CheckedCorrection(corrected=built, errata=kept, refused=refused)
+
+
 __all__ = [
+    "CheckedCorrection",
     "Edit",
+    "SentenceGap",
     "Verdict",
     "apply_edits",
+    "apply_gaps",
+    "changes_what_was_said",
+    "held_gaps",
+    "in_a_question",
+    "is_about_the_line",
+    "line_differences",
+    "sentence_gaps",
+    "verify_correction",
     "changes_subject",
     "deterministic_edits",
     "deterministic_errata",

@@ -6,7 +6,7 @@ import { useRouter } from 'next/router';
 
 import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { useChromeLanguage } from '@/lib/learner-language';
-import { checkState, isUnread } from '@/lib/verdict';
+import { checkState, isUnread, type CheckLike, type FixLine } from '@/lib/verdict';
 import { pickByLanguage } from '@/lib/language-rule';
 import { castIdFor } from '@/lib/cast-faces';
 import { messageClock } from '@/lib/clock-time';
@@ -337,16 +337,16 @@ function submitLabel(format: MissionFormat, t: CourrierCopy) {
 
 // Real grammar fixes only, mirroring the quiet-repair rules: drop task-compliance
 // notes and vocabulary nudges; keep corrections that carry a fix or a reason.
-function repairLines(correction: Record<string, any> | undefined): { fixed?: string; why?: string }[] {
+function repairLines(correction: Record<string, any> | undefined): FixLine[] {
   if (!correction) return [];
   const errata = (Array.isArray(correction.errata) ? correction.errata : []).filter((item: any) => {
     const kind = String(item?.task_error_type || '');
     if (kind === 'task_compliance' || kind.startsWith('vocabulary')) return false;
     return Boolean(item?.corrected_target || item?.why_wrong);
   });
-  // The corrector returns at most three real mistakes; show all of them, so the
-  // "N réparations enregistrées" line below the card can never outrun the card.
-  return errata.slice(0, 3).map((item: any) => ({
+  // #133: every fix the corrected line holds. The card groups them and opens with three.
+  return errata.map((item: any) => ({
+    wrong: item.learner_text ? String(item.learner_text) : undefined,
     fixed: item.corrected_target ? String(item.corrected_target) : undefined,
     why: item.why_wrong ? String(item.why_wrong) : undefined,
   }));
@@ -363,8 +363,10 @@ function correctionPersistence(correction: Record<string, any> | undefined) {
   return records.filter((row: any) => !row?.linked_word_id && String(row?.error_category || '') !== 'vocabulary').length;
 }
 
-function correctedReply(correction: Record<string, any> | undefined, learnerText: unknown) {
-  const corrected = String(correction?.corrected_answer || '').trim();
+// #133: the check's line is built from the listed fixes. An older stored answer holds the
+// model's own sentence, which is why this doesn't read `corrected_answer` when a check exists.
+function correctedReply(correction: Record<string, any> | undefined, check: CheckLike | null | undefined, learnerText: unknown) {
+  const corrected = String((check ? check.corrected : correction?.corrected_answer) || '').trim();
   const original = String(learnerText || '').trim();
   if (!corrected || corrected.localeCompare(original, undefined, { sensitivity: 'accent' }) === 0) return '';
   return corrected;
@@ -1205,7 +1207,7 @@ export default function MissionsPage() {
                   const isUser = turn.role === 'user';
                   const correction = isUser ? (turn as Record<string, any>).correction : undefined;
                   const lines = repairLines(correction);
-                  const correctedAnswer = correctedReply(correction, turn.text);
+                  const correctedAnswer = correctedReply(correction, turn.check, turn.text);
                   const savedCount = correctionPersistence(correction);
                   return (
                     <React.Fragment key={turn.id || `${turn.turn_index}-${turn.role}`}>
@@ -1262,6 +1264,7 @@ export default function MissionsPage() {
                           correctedAnswer={correctedAnswer}
                           lines={lines}
                           savedCount={savedCount}
+                          unread={isUnread(checkState(turn.check))}
                         />
                       )}
                     </React.Fragment>

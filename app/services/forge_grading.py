@@ -823,42 +823,24 @@ def held_to_sentence(
             shown.append(erratum)
             continue
         verified = correction_contract.verify_erratum(text, erratum, strict_span=False)
-        if verified is None:
+        if verified is None or correction_contract.changes_what_was_said(
+            verified.get("learner_text"),
+            verified.get("corrected_target"),
+            listed=True,
+            question=correction_contract.in_a_question(text, verified.get("learner_text")),
+        ):
             dropped.append(erratum)
             continue
         shown.append(correction_contract.reconcile_notes(verified, language=str(language or "en")[:2]))
     return shown, dropped
 
 
-_WORD_SPAN = re.compile(r"\S+")
-_EDGE_MARKS = "«»\"“”,.;:!?…"
-
-
-def _word_spans(text: str) -> list[tuple[int, int, str]]:
-    """``(start, end, key)`` per word: the key folds case, typography and edge marks."""
-
-    spans: list[tuple[int, int, str]] = []
-    for match in _WORD_SPAN.finditer(text):
-        key = unicodedata.normalize("NFC", normalize_answer_text(match.group())).casefold().strip(_EDGE_MARKS)
-        if key:
-            spans.append((match.start(), match.end(), key))
-    return spans
-
-
 def sentence_differences(line: Any, sentence: Any) -> list[tuple[str, int, int, int, int]]:
     """The word-level differences between two lines (case, spacing and edge marks aside)."""
 
-    left, right = _word_spans(str(line or "")), _word_spans(str(sentence or ""))
-    matcher = SequenceMatcher(a=[word[2] for word in left], b=[word[2] for word in right], autojunk=False)
-    return [op for op in matcher.get_opcodes() if op[0] != "equal"]
+    from app.services import correction_contract
 
-
-def _trim_shared_marks(wrong: str, fix: str) -> tuple[str, str]:
-    """Drop the final mark both sides end with: «agreable,» → «agréable,» is «agreable» → «agréable»."""
-
-    while len(wrong) > 1 and len(fix) > 1 and wrong[-1] == fix[-1] and wrong[-1] in _EDGE_MARKS:
-        wrong, fix = wrong[:-1], fix[:-1]
-    return wrong, fix
+    return correction_contract.line_differences(line, sentence)
 
 
 def reconcile_with_sentence(refined: dict[str, Any], learner_text: Any, language: Any = "en") -> dict[str, Any]:
@@ -876,6 +858,7 @@ def reconcile_with_sentence(refined: dict[str, Any], learner_text: Any, language
     model gave them and the line is retyped whole.
     """
 
+    from app.services import correction_contract
     from app.services.atelier import repair_line_from_parts, repair_parts
 
     if str(refined.get("verdict") or "") in {"correct", "accepted"}:
@@ -891,46 +874,21 @@ def reconcile_with_sentence(refined: dict[str, Any], learner_text: Any, language
         and str(item.get("learner_text") or "").strip() != str(item.get("corrected_target") or "").strip()
     ]
     base = repair_line_from_parts(line, errata) if asks else line
+    # #133: a difference only the model's sentence holds is a fix if it passes the one check,
+    # and otherwise it is dropped, from the list and from the line the learner retypes.
+    held = correction_contract.held_gaps(line if base is None else base, corrected)
+    if held is None:
+        return refined
+    allowed, refused = held
+    if refused:
+        refined = {
+            **refined,
+            "corrected_answer": correction_contract.apply_gaps(line if base is None else base, allowed),
+            "dropped_errata": [*refined.get("dropped_errata", []), *refused],
+        }
     if base is None:
         return refined  # a correction the line cannot hold: it is retyped whole
-    left, right = _word_spans(base), _word_spans(corrected)
-    if not left or not right:
-        return refined
-    derived: list[dict[str, Any]] = []
-    matcher = SequenceMatcher(a=[word[2] for word in left], b=[word[2] for word in right], autojunk=False)
-    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-        if tag == "equal":
-            continue
-        want = corrected[right[j1][0]: right[j2 - 1][1]] if j2 > j1 else ""
-        if tag == "replace":
-            wrong, fix = base[left[i1][0]: left[i2 - 1][1]], want
-        elif tag == "delete":
-            # Words too many: the gap is the word next to them, without them.
-            if i1 > 0:
-                anchor = base[left[i1 - 1][0]: left[i1 - 1][1]]
-                wrong, fix = base[left[i1 - 1][0]: left[i2 - 1][1]], anchor
-            elif i2 < len(left):
-                anchor = base[left[i2][0]: left[i2][1]]
-                wrong, fix = base[left[i1][0]: left[i2][1]], anchor
-            else:
-                return refined
-        else:
-            # Words missing: the gap is the word next to them plus what is missing.
-            if i1 > 0:
-                anchor = base[left[i1 - 1][0]: left[i1 - 1][1]]
-                core = anchor.rstrip(_EDGE_MARKS)
-                marks = anchor[len(core):]
-                fix = f"{core} {want}"
-                if marks and not fix.endswith(marks):
-                    fix += marks
-            else:
-                anchor = base[left[0][0]: left[0][1]]
-                fix = f"{want} {anchor}"
-            wrong = anchor
-        wrong, fix = _trim_shared_marks(wrong, fix)
-        if not wrong.strip() or not fix.strip() or wrong.strip() == fix.strip():
-            continue
-        derived.append(_derived_gap(wrong, fix, _language(language)))
+    derived = [_derived_gap(gap.wrong, gap.fix, _language(language)) for gap in allowed]
     if not derived:
         return refined
     merged = [*errata, *derived]
@@ -941,7 +899,8 @@ def reconcile_with_sentence(refined: dict[str, Any], learner_text: Any, language
         # could never finish. The line is retyped whole instead. The retype comes first
         # because a line repair has one target, index 0, and no other correction may ask
         # for a retype of its own.
-        whole = _derived_gap(line, corrected.strip(), _language(language))
+        target = str(refined.get("corrected_answer") or "").strip()
+        whole = _derived_gap(line, target, _language(language))
         kept = [item for item in errata if not _asks_for_a_retype(item.get("corrected_target"))]
         return {**refined, "errata": [whole, *kept]}
     return {**refined, "errata": merged}

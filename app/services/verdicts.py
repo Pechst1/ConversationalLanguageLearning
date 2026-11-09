@@ -12,6 +12,7 @@ from typing import Any
 from loguru import logger
 
 from app.core.verdict import Call, CheckedBy, Failure, Outcome, Verdict, make_verdict
+from app.services.correction_contract import is_about_the_line
 from app.services.journey_contracts import Correction, TaskOutcome
 
 _TASK_OUTCOMES = {
@@ -53,7 +54,7 @@ def _errata_as_proposed(errata: Iterable[Any], *, by: str) -> list[dict[str, Any
     rows: list[dict[str, Any]] = []
     seen: set[tuple[Any, Any]] = set()
     for item in errata or []:
-        if not isinstance(item, dict):
+        if not isinstance(item, dict) or not is_about_the_line(item):
             continue
         span = item.get("learner_text") or item.get("span_fr")
         replacement = item.get("corrected_target") or item.get("corrected_fr")

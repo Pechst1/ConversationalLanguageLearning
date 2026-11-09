@@ -1075,9 +1075,13 @@ class JournalService:
             errata = correction_contract.merge_deterministic_errata(
                 text, errata, language=normalize_language(user.native_language)
             )
+        # #133: the line is built from the fixes, so it holds nothing the card doesn't list.
+        checked = correction_contract.verify_correction(
+            text, correction.get("corrected_answer"), errata, language=normalize_language(user.native_language)
+        )
         keep = [
             item
-            for item in errata
+            for item in checked.errata
             if str(item.get("task_error_type") or "")
             not in {"task_compliance", "length_compliance"}
         ]
@@ -1122,8 +1126,7 @@ class JournalService:
             "assessment_truncated": bool(truncated or correction.get("assessment_truncated")),
             "verdict": correction.get("verdict"),
             "score_0_4": correction.get("score_0_4"),
-            # #318: the corrected text goes through the same rules as the learner's
-            "corrected_answer": correction_contract.repair_text(correction.get("corrected_answer") or ""),
+            "corrected_answer": checked.corrected,
             "explanation_language": correction.get("explanation_language"),
             "model": (correction.get("correction_debug") or {}).get("model"),
             "foreground": foreground_view,

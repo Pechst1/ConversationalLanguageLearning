@@ -110,7 +110,7 @@ class Verdict:
         }
 
 
-def _span_pattern(span: str) -> re.Pattern[str]:
+def span_pattern(span: str) -> re.Pattern[str]:
     """The span as whole words, whichever apostrophe it was quoted with."""
 
     body = "".join("['’]" if char in "'’" else re.escape(char) for char in span)
@@ -132,7 +132,7 @@ def locate_edits(text: str, proposed: Iterable[dict[str, Any]]) -> tuple[Edit, .
         replacement = str(row.get("replacement") or "")
         if not span.strip() or span.strip() == replacement.strip():
             continue
-        for match in _span_pattern(span).finditer(text):
+        for match in span_pattern(span).finditer(text):
             start, end = match.span()
             if all(end <= left or start >= right for left, right in taken):
                 taken.append((start, end))
@@ -203,4 +203,5 @@ __all__ = [
     "apply_edits",
     "locate_edits",
     "make_verdict",
+    "span_pattern",
 ]

@@ -1702,7 +1702,6 @@ _META_FEEDBACK_MARKERS: tuple[str, ...] = (
 # "[votre adresse]", "{name}", "XXX" — scaffolding a provider slipped into a
 # "polished" answer. Printing it as the learner's corrected reply is worse than
 # printing nothing.
-_PLACEHOLDER_PATTERN = re.compile(r"[\[\{][^\]\}]{1,60}[\]\}]|\bx{3,}\b", re.IGNORECASE)
 
 
 def _repair_tokens(value: Any) -> list[str]:
@@ -3693,11 +3692,18 @@ class MissionCorrectionService:
         correction = self._apply_vocabulary_feedback(
             mission=mission, text=text, correction=correction, language=language
         )
-        # #318: the sentence the learner copies goes through the same rules as their
-        # own: a model rewrite never prints «le appartement».
-        correction["corrected_answer"] = correction_contract.repair_text(
-            self._complete_corrected_answer(text=text, correction=correction)
+        # #133: the sentence the learner copies is their own, with every listed fix in it.
+        # A model sentence is read for fixes it did not list, and never printed as it came.
+        checked = correction_contract.verify_correction(
+            text,
+            None if correction.get("verdict") == "accepted" else correction.get("corrected_answer"),
+            correction.get("errata") or [],
+            language=copy_language(language),
         )
+        correction["errata"] = checked.errata
+        correction["corrected_answer"] = checked.corrected
+        if checked.refused:
+            correction["dropped_errata"] = checked.refused
         # Design contract, principle 4: a card headed "Correction" has to be backed
         # by a repair. When every erratum failed the gates, the provider's polished
         # rewrite is a style preference — hand back the learner's own sentence so
@@ -3969,39 +3975,6 @@ class MissionCorrectionService:
         if not self._fragment_is_contiguous(narrowed_learner, submission_text):
             return None
         return {**erratum, "learner_text": narrowed_learner, "corrected_target": narrowed_corrected}
-
-    @staticmethod
-    def _complete_corrected_answer(*, text: str, correction: dict[str, Any]) -> str:
-        """Keep the polished answer complete — but still the learner's own message.
-
-        A provider may return an excerpt (too short, repaired below) or, for a
-        one-word reply, invent a whole new message with template placeholders.
-        Both are refused: what prints under "Correction" has to be a cleaned-up
-        version of what the learner actually sent.
-        """
-        submitted = text.strip()
-        candidate = str(correction.get("corrected_answer") or "").strip()
-        learner_words = re.findall(r"\S+", submitted)
-        candidate_words = re.findall(r"\S+", candidate)
-        minimum_words = max(3, round(len(learner_words) * 0.65))
-        maximum_words = max(minimum_words + 6, round(len(learner_words) * 1.8) + 6)
-        if candidate and _PLACEHOLDER_PATTERN.search(candidate):
-            candidate = ""
-            candidate_words = []
-        if candidate and (not learner_words or minimum_words <= len(candidate_words) <= maximum_words):
-            return candidate
-
-        repaired = submitted
-        for erratum in correction.get("errata") or []:
-            task_type = str(erratum.get("task_error_type") or "")
-            if task_type == "task_compliance" or task_type.startswith("vocabulary"):
-                continue
-            wrong = str(erratum.get("learner_text") or "").strip()
-            fixed = str(erratum.get("corrected_target") or "").strip()
-            if not wrong or not fixed or wrong.casefold() == fixed.casefold():
-                continue
-            repaired = re.sub(re.escape(wrong), lambda _match, value=fixed: value, repaired, count=1, flags=re.IGNORECASE)
-        return repaired or candidate
 
     def persist_errata(
         self,
@@ -4325,7 +4298,7 @@ class MissionCorrectionService:
                 existing.append(item)
                 existing_keys.add(key)
         merged["errata"] = existing
-        merged["corrected_answer"] = corrected_answer or merged.get("corrected_answer") or ""
+        merged["corrected_answer"] = merged.get("corrected_answer") or corrected_answer or ""
         if merged.get("verdict") == "unassessed":
             return merged  # #333: rules add fixes, never a score
         max_severity = max(int(item.get("severity") or 1) for item in deterministic_errata)

@@ -29,6 +29,9 @@ Module._resolveFilename = function resolve(request, ...rest) {
   return originalResolve.call(this, request, ...rest);
 };
 
+const React = require('react');
+const { renderToStaticMarkup } = require('react-dom/server');
+const Cr = require('./Courrier.tsx');
 const { courrierCopy } = require('./courrier-copy.ts');
 const Waiting = require('./courrier-waiting.tsx');
 
@@ -158,4 +161,22 @@ test('the composer answers the highest turn index even when an earlier reply car
   assert.equal(copy.label, t.composer_label_reply, 'the stale «understood» reply closed the thread');
   assert.notEqual(copy.instruction, t.composer_instruction_last);
   assert.match(copy.instruction, /Le marché ouvre à quelle heure/);
+});
+
+test('#133 · the card opens with three rows and says how many more it holds', () => {
+  const lines = ['un', 'deux', 'trois', 'quatre', 'cinq'].map((fixed) => ({ wrong: 'xxx', fixed, why: `why ${fixed}` }));
+  const html = renderToStaticMarkup(React.createElement(Cr.CrRepair, { lines }));
+  assert.ok(html.includes('trois'));
+  assert.ok(!html.includes('quatre'), 'the rest stay behind the button');
+  assert.ok(html.includes('2 '), 'the button says how many');
+  assert.ok(html.includes('5'), 'the head counts every fix, not the rows shown');
+});
+
+test('#333 · a card under a message nobody read praises nothing', () => {
+  const lines = [{ wrong: 'tres', fixed: 'très', why: 'accent' }];
+  const read = renderToStaticMarkup(React.createElement(Cr.CrRepair, { lines }));
+  const unread = renderToStaticMarkup(React.createElement(Cr.CrRepair, { lines, unread: true }));
+  assert.ok(read.includes('cr-feedback'));
+  assert.ok(!unread.includes('cr-feedback'));
+  assert.ok(unread.includes('très'));
 });
