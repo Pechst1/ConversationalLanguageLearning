@@ -89,6 +89,7 @@ from app.schemas.daily_journey import (
 )
 from app.services import gold_ledger, scene_ledger
 from app.services.chrome_language import user_chrome_language
+from app.services.closing_filler import scene_fact
 from app.services.daily_journey_adapters import (
     AdapterUnavailable,
     JourneyAdapters,
@@ -216,23 +217,37 @@ def _planned_introduction(plan: Any) -> dict[str, Any] | None:
     return None
 
 
-def _planned_rule_id(journey: Any, today: date) -> int | None:
-    """#443: the grammar unit today's journey was planned to introduce, or None.
+def _positive_id(value: Any) -> int | None:
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return None
+    return number if number > 0 else None
 
-    The plan is the one place that decides the day's rule (``_planned_introduction``
-    stores it); the forge entry Home links to reads it from there instead of asking
-    the forge picker again, which knows nothing of the scene's own rule.
+
+def _planned_rule_id(journey: Any, today: date) -> int | None:
+    """#443: the rule today's rule card shows, whether it introduces or reviews it, or None.
+
+    The plan is the one place that decides the day's rule. A day that introduces
+    a rule stores it (``_planned_introduction``); a day whose card only reviews a
+    known rule (WP-129) introduces nothing, so the card's own step is the reader.
+    The forge entry Home links to reads it from here instead of asking the forge
+    picker, which knows nothing of the scene's rule and would put a due erratum's
+    rule in the «today's rule» slot.
     """
 
     if journey is None or getattr(journey, "local_date", None) != today:
         return None
     selection = getattr(journey, "plan_selection", None)
     planned = selection.get("introduction") if isinstance(selection, dict) else None
-    try:
-        concept_id = int(planned.get("concept_id")) if isinstance(planned, dict) else 0
-    except (TypeError, ValueError):
-        return None
-    return concept_id if concept_id > 0 else None
+    if isinstance(planned, dict) and (concept_id := _positive_id(planned.get("concept_id"))):
+        return concept_id
+    for step in getattr(journey, "steps", None) or []:
+        if str(getattr(step, "kind", "")) == str(StepKind.RULE):
+            prompt = getattr(step, "public_prompt", None) or {}
+            if concept_id := _positive_id(prompt.get("concept_id")):
+                return concept_id
+    return None
 
 
 def _forge_block_completed(db: Session, user_id: Any, step_id: Any) -> bool:
@@ -466,6 +481,7 @@ def _recall_task_to_json(task: RecallTask) -> dict[str, Any]:
         **({"options_kind": task.options_kind} if task.options_kind != "variants" else {}),
         **({"slip_fr": task.slip_fr} if task.slip_fr else {}),
         **({"rule_native": task.rule_native} if task.rule_native else {}),
+        **({"why_native": task.why_native} if task.why_native else {}),
         # #155: only when set, so every other stored task reads as before.
         **({"speaker_id": task.speaker_id} if task.speaker_id else {}),
     }
@@ -492,6 +508,7 @@ def _recall_task_from_json(payload: dict[str, Any]) -> RecallTask:
         options_kind="sentences" if payload.get("options_kind") == "sentences" else "variants",
         slip_fr=payload.get("slip_fr") or None,
         rule_native=payload.get("rule_native") or None,
+        why_native=payload.get("why_native") or None,
         speaker_id=payload.get("speaker_id") or None,
     )
 
@@ -669,6 +686,19 @@ def _public_acts(ordered: list[DailyJourneyStep]) -> dict[Any, int]:
             scenes += 1
         acts[step.id] = max(scenes, 1) if kind in ACT_STEP_KINDS else 1
     return acts
+
+
+def addressee_fields(person: str) -> dict[str, Any]:
+    """``character_id`` / ``character_name`` of a respond prompt for the person the next
+    question is put to (#594), named as the cast registry names them; nothing for anyone
+    outside the cast."""
+
+    from app.services import cast_registry
+
+    name = cast_registry.display_name(person)
+    if not name:
+        return {}
+    return {"character_id": cast_registry.resolve_id(person) or person, "character_name": name}
 
 
 def _public_prompt_view(step: DailyJourneyStep) -> dict[str, Any]:
@@ -1920,6 +1950,11 @@ class DailyJourneyService:
         prompt = dict(step.public_prompt or {})
         budget = int(prompt.get("budget_seconds") or step.estimated_seconds or 0)
         prompt["budget_seconds"] = budget
+        # #443: planned before the card was known, the step's own rule can be the
+        # picker's; the link names the rule the day's card shows.
+        card_rule = _planned_rule_id(journey, journey.local_date)
+        if card_rule is not None:
+            prompt["concept_id"] = card_rule
         prompt["href"] = forge_href_for(
             prompt.get("concept_id"), budget_seconds=budget, step_id=step.id
         )
@@ -5593,6 +5628,10 @@ class DailyJourneyService:
             prompt["choices"] = list(getattr(evaluation, "next_choices", None) or [])
             if getattr(evaluation, "next_task_native", None):
                 prompt["objective_native"] = evaluation.next_task_native
+            if getattr(evaluation, "next_addressee", None):
+                # #594: the header names the person the question is put to, not the scene's
+                # first speaker.
+                prompt.update(addressee_fields(evaluation.next_addressee))
             if getattr(evaluation, "next_hint_native", None) or getattr(evaluation, "next_suggested_fr", None):
                 # QA-STORY: the hint belongs to the question now asked, not the first one.
                 response_task = dict(private.get("response_task") or {})
@@ -6398,7 +6437,13 @@ class DailyJourneyService:
                 and private.get("story_outcome")
                 and step_act(step) == 1
             ):
-                story_outcome = StoryOutcome.model_validate(private["story_outcome"])
+                # #597: the hook may be a closing caption; the recap presents it as
+                # what happened, so only a real event leaves here.
+                outcome_record = dict(private["story_outcome"])
+                outcome_record["callback_fr"] = (
+                    scene_fact(outcome_record.get("callback_fr")) or None
+                )
+                story_outcome = StoryOutcome.model_validate(outcome_record)
 
         # WP-09 owns the CONTRACTS §8 rubric. WP-02 asks it what this journey
         # proved and reports that verbatim; it has no rubric of its own, so the

@@ -100,6 +100,32 @@ def register_problems(prompt: object, register: object) -> list[Problem]:
     return [Problem("register", f"badge {badge}, text {found}: {french_of(prompt)}")]
 
 
+#: A character's own line: «…», "…", “…”. It keeps the character's register.
+_QUOTED = re.compile(r"«[^»]*»|\"[^\"]*\"|“[^”]*”")
+
+
+def address_problems(prompt: object, address: object = None) -> list[Problem]:
+    """ROOT CAUSE #575: the app's own words to the learner use the one setting's register.
+
+    The situation of a Forge item is written by a model, and the item before it may have
+    said «tu» while this one says «Votre sœur vous demande … Répondez …». The setting is
+    :data:`app.services.address.LEARNER_ADDRESS` («tu» in French): whatever is not inside
+    a character's own «…» line must not address the learner in the other register.
+    """
+
+    if address is None:
+        from app.services.address import learner_address
+
+        address = learner_address("fr")
+    setting = str(address or "").strip().lower()
+    unquoted = _QUOTED.sub(" ", french_of(prompt))
+    other = {"tu": _VOUS, "vous": _TU}.get(setting)
+    if other is None or not other.search(unquoted):
+        return []
+    said = "vous" if setting == "tu" else "tu"
+    return [Problem("address", f"setting {setting}, text says {said}: {unquoted.strip()}")]
+
+
 # --------------------------------------------------------------------------- #
 # Roles: who asks whom
 # --------------------------------------------------------------------------- #
@@ -185,6 +211,7 @@ _ADVICE = {
     "role_label": "has an English role label speaking inside the scene",
     "doubled_ask": "gives the ask twice",
     "register": "addresses the learner in another register than the speaker's badge",
+    "address": "says vous to the learner, but the app says tu (only a character's own line, inside « », may say vous)",
 }
 
 
@@ -198,6 +225,16 @@ def situation_problems(prompt: object) -> list[Problem]:
     """Everything a situation prompt can get wrong on its own (no badge needed)."""
 
     return [*role_problems(prompt), *price_basis_problems(prompt), *label_problems(prompt)]
+
+
+def scenario_problems(prompt: object) -> list[Problem]:
+    """What a *model-written* scenario can get wrong: its situation, and how it addresses the learner.
+
+    The generated sets are checked with this, never with the badge: the cast puts its badge
+    on a prompt later (:func:`item_problems`), and a character who says «vous» does it in « ».
+    """
+
+    return [*situation_problems(prompt), *address_problems(prompt)]
 
 
 def item_problems(prompt: object, *, register: object = None) -> list[Problem]:
@@ -285,6 +322,7 @@ def reaction_problems(
 
 __all__ = [
     "Problem",
+    "address_problems",
     "advice",
     "cast_names",
     "french_of",
@@ -295,5 +333,6 @@ __all__ = [
     "reaction_problems",
     "register_problems",
     "role_problems",
+    "scenario_problems",
     "situation_problems",
 ]

@@ -33,6 +33,7 @@ from app.db.models.user import User
 from app.services import correction_contract, scene_ledger, story_memory
 from app.services.address import address_instruction
 from app.services.answer_acceptance import correction_is_grounded, is_preference_swap
+from app.services.closing_filler import scene_fact
 from app.services.concept_titles import concept_title
 from app.services.journey_contracts import (
     ActBrief,
@@ -2951,7 +2952,7 @@ def chapter_digest(
         "title_fr": _one_line(chapter.get("title_fr"), 80),
         # #268: cut on a sentence, never on a character («… Alors,… →»).
         "question": question_line(chapter.get("dramatic_question"), DIGEST_PART_CHARS),
-        "resolved_fr": whole_sentences(turn.callback_fr or turn.resolution_fr, DIGEST_PART_CHARS),
+        "resolved_fr": whole_sentences(scene_fact(turn.callback_fr, turn.resolution_fr), DIGEST_PART_CHARS),
         "development": _one_line(chapter.get("last_development") or "", 100),
         "characters": characters,
         "location_id": draft.location_id,
@@ -3167,7 +3168,7 @@ def consequences_after_turn(
     if abs(after) >= MOOD_BREAK_THRESHOLD and abs(after) > abs(before):
         add(
             "mood_break",
-            turn.callback_fr or turn.resolution_fr,
+            scene_fact(turn.callback_fr, turn.resolution_fr),
             weight=3 if after < 0 else 2,
             source=quote,
         )
@@ -6182,8 +6183,9 @@ def season_registers(context: dict) -> dict[str, str]:
     season = getattr(today, "season", None)
     if season is None:
         return {}
-    flags = getattr(today, "flags", None) or {}
-    return {member.id: str(flags.get(f"register.{member.id}") or member.address) for member in season.cast}
+    from app.services.address import season_registers as cast_registers
+
+    return dict(cast_registers(season, getattr(today, "flags", None) or {}))
 
 
 #: How many retired chapter questions ``brief.page_rules`` repeats.
@@ -10845,7 +10847,7 @@ def settle_resolution(
         "id": event_id,
         "scene_id": str(scene.id),
         "witnesses": witnesses,
-        "summary_fr": turn.callback_fr or turn.resolution_fr,
+        "summary_fr": scene_fact(turn.callback_fr, turn.resolution_fr, fallback=brief.title_fr),
         "source_quotes": turn.evidence_quotes,
         "outcome": turn.outcome,
         "at": datetime.now(UTC).isoformat(),
@@ -11266,7 +11268,7 @@ def _settle_later_act(
         "id": event_id,
         "scene_id": str(scene.id),
         "witnesses": witnesses,
-        "summary_fr": turn.callback_fr or turn.resolution_fr,
+        "summary_fr": scene_fact(turn.callback_fr, turn.resolution_fr, fallback=brief.title_fr),
         "source_quotes": turn.evidence_quotes,
         "outcome": turn.outcome,
         "at": datetime.now(UTC).isoformat(),
