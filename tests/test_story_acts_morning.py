@@ -300,7 +300,8 @@ def test_a_day_of_two_acts_is_planned_published_and_played_act_by_act(
         key: first_turn.get(key) for key in ("season", "gap", "must_not")
     }
     assert act_turn["may_set"] == [] and act_turn["gate"] is None
-    assert not {"heading", "agency", "register"} & set(act_turn), act_turn
+    # How the act's speaker addresses the learner is not a move of the season (#147): it stays.
+    assert not {"heading", "agency"} & set(act_turn), act_turn
     if settings.ATELIER_STORY_TURN_LANES_ENABLED:
         reveals = [payload.get("never_reveal") for schema, payload in acts_writer.calls if schema == "VoiceReply"]
         assert reveals[0] and reveals[-1] == reveals[0], "the act's voice keeps the day's reveals"

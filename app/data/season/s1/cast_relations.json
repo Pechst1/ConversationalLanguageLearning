@@ -63,7 +63,7 @@
   "maitre_vasseur": {
    "kind": "professional",
    "source": "world.json: «the notary handling Odile's succession»",
-   "fr": "la notaire de la succession", "en": "the notary for the estate", "de": "die Notarin für das Erbe"
+   "fr": "notaire de la succession", "en": "the notary for the estate", "de": "das Notariat für das Erbe"
   }
  },
  "between": [
