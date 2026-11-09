@@ -208,5 +208,38 @@ test('every room is the stage of a place of the season, so a page set there find
   // the café and the quai are the hand-drawn quarter; a place nothing is built for has no stage yet
   assert.equal(stageOf('le_mistral')?.id, 'quai_de_valmy');
   assert.equal(stageOf('le_mistral')?.room ?? null, null);
-  assert.equal(stageOf('toit'), null);
+  assert.equal(stageOf('mistral_back_room'), null);
+});
+
+test("a room in the quarter (the roof) lies on Le Mistral's roof, and you walk round its chimneys", () => {
+  const roofs = rooms.filter(({ room }) => room.quarter);
+  if (!roofs.length) return;
+  const { buildQuai } = require('./quai.ts');
+  const B = { dry: new Press(), fine: new Press(), wet: new Press(), lace: new LacePress(), glass: new Press(), cards: new CardPress(), signs: [], lamps: [], walk: [], blocks: [], rand: seeded(1102) };
+  const { mistral } = buildQuai(B);
+  const inside = (shape, x, z) => {
+    let c = false;
+    for (let i = 0, j = shape.length - 1; i < shape.length; j = i++) {
+      const [ax, az] = shape[j];
+      const [bx, bz] = shape[i];
+      if (az > z !== bz > z && x < ((bx - ax) * (z - az)) / (bz - az) + ax) c = !c;
+    }
+    return c;
+  };
+  assert.ok(mistral.stacks.length >= 2, "Le Mistral's building has its chimney stacks");
+  roofs.forEach(({ file, room }) => {
+    room.floors.forEach((f) => {
+      // the flat of the roof is the top of the mansard (its terrasson), inside the building's walls
+      assert.ok(Math.abs(f.y - (mistral.ridge + 0.12)) < 0.05, `${file}: ${f.key} at ${f.y} m, the roof's flat is at ${(mistral.ridge + 0.12).toFixed(2)}`);
+      f.shape.forEach(([x, z]) => assert.ok(inside(mistral.footprint, x - Math.sign(x + 40) * 0.01, z - Math.sign(z + 17) * 0.01), `${file}: ${f.key} reaches (${x}, ${z}), off the building`));
+    });
+    // the start, the marks and the things you tap stand clear of the building's own chimneys
+    const { built: r } = built.get(file);
+    const clear = (x, z, what) => mistral.stacks.forEach((s) => assert.ok(!inside(s, x, z), `${file}: ${what} stands in a chimney`));
+    clear(r.start.pos.x, r.start.pos.z, 'the start');
+    // a roof is out of doors: the camera sees as far as the night, the lamps glint
+    assert.equal(r.inside(r.start.pos.x, r.start.pos.z), false, `${file}: the roof counts as indoors`);
+    Object.entries(r.marks).forEach(([k, m]) => clear(m.x, m.z, `the mark ${k}`));
+    room.things.forEach((t) => clear(t.at[0], t.at[2], `the ${t.kind}`));
+  });
 });
