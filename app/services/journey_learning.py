@@ -2377,8 +2377,9 @@ def evaluate_recall(
                 if note == task.hint_native:
                     # «It is 1 word long» under the two words shown would contradict them.
                     note = None
-        if whole_line and note == task.hint_native:
-            # «It is 1 word long» under a whole line shown would contradict it.
+        if whole_line and note == task.hint_native and repaired_sentence_of(task):
+            # «It is 1 word long» under a whole line shown would contradict it. A rewrite's
+            # hint is about the sentence and stays: it is the miss's why.
             note = None
         if task.rule_native:
             # #278: a missed repair ends on the rule it was about, whatever else it says.

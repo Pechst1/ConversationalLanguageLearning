@@ -925,11 +925,11 @@ def on_nous_variants(sentence: str) -> list[str]:
                 else:
                     new[reflexive] = "se"
         out.append(" ".join(word for word in new if word))
-    out.extend(_et_moi_variants(words))
+    out.extend(_et_moi_variants(words, comma=bool(re.search(r"\bmoi\s*,", sentence))))
     return list(dict.fromkeys(out))
 
 
-def _et_moi_variants(words: list[str]) -> list[str]:
+def _et_moi_variants(words: list[str], *, comma: bool) -> list[str]:
     """#592: «Romy et moi, on envoie» ↔ «Romy et moi, nous envoyons» ↔ «Romy et moi
     envoyons»: a subject «X et moi» is «we», with or without the pronoun that takes it
     up again. The verb is read through :func:`on_nous_variants` on its own, so a verb
@@ -940,6 +940,13 @@ def _et_moi_variants(words: list[str]) -> list[str]:
         if words[index].rstrip(",") != "moi" or words[index - 1] != "et":
             continue
         head, tail = words[: index], words[index + 1 :]
+        if tail and tail[0] == "nous" and not comma:
+            # «Romy et moi nous levons»: with no comma this «nous» is the verb's reflexive,
+            # not the pronoun taking the subject up: «Romy et moi, on se lève».
+            for singular in on_nous_variants(" ".join(["nous", *tail])):
+                if singular.startswith("on "):
+                    out.append(" ".join([*head, "moi,", singular]))
+            continue
         rest = tail[1:] if tail and tail[0] in {"on", "nous"} else tail
         if not rest:
             continue

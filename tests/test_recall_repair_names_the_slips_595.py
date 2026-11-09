@@ -120,3 +120,32 @@ def test_wrong_word_corrected_on_whole_line(db_session, keys):
     correction = _grade(db_session, "Nous êtes à l'hôtel avec Lila.", keys).correction
     assert correction is not None
     assert correction.corrected_fr == "Nous sommes à l'hôtel avec Lila."
+
+
+def test_a_missed_rewrite_keeps_its_hint_as_the_why(db_session: Session) -> None:
+    """#606 walk: only a part-keyed repair drops «It is 1 word long». A rewrite's hint
+    is about the sentence, and without it the miss has no why (tests/walk_checks.py)."""
+
+    hint = "Schreib den Satz mit «elle»."
+    task = RecallTask(
+        task_type="transform",
+        instruction_native="Schreib den Satz um.",
+        prompt_fr="Il a chaud.",
+        options=[],
+        target=TargetRef(kind=TargetKind.ERROR, id="err-rewrite", label_fr="elle"),
+        optional=False,
+        accepted_answers=["Elle a chaud."],
+        hint_native=hint,
+        solution_fr="Elle a chaud.",
+        source_fr="Il a chaud.",
+    )
+    result = evaluate_recall(
+        db_session,
+        user=_user(db_session),
+        task=task,
+        answer=AttemptAnswer(mode=InputMode.TEXT, text="Il ont chaud."),
+        assistance=AssistanceLevel.NONE,
+    )
+    assert result.outcome is not TaskOutcome.MET
+    assert result.correction is not None
+    assert hint in (result.correction.note_native or "")

@@ -164,3 +164,20 @@ def test_on_drill_key_has_a_line_without_on():
     for seed in ("a", "b"):
         for item in default_bank().generate("FR2_A11_ON_NOUS", 40, seed=seed):
             assert any(not re.search(r"\bon\b", key.lower()) for key in item.accepted), (item.en, item.accepted)
+
+
+@pytest.mark.parametrize(
+    "sentence, right, wrong",
+    [
+        ("Romy et moi nous levons tôt.", "romy et moi, on se lève tôt", "romy et moi, on lève tôt"),
+        ("Romy et moi, nous nous levons tôt.", "romy et moi, on se lève tôt", "romy et moi, on lève tôt"),
+        ("Romy et moi, nous envoyons une lettre.", "romy et moi, on envoie une lettre", "romy et moi, on s'envoie une lettre"),
+    ],
+)
+def test_x_et_moi_keeps_the_reflexive_and_only_the_reflexive(sentence, right, wrong):
+    """#606 review: with no comma the «nous» after «moi» is the verb's reflexive, so its
+    «on» form keeps «se»; with a comma it takes the subject up and adds no «se»."""
+
+    variants = on_nous_variants(sentence)
+    assert right in variants
+    assert wrong not in variants
