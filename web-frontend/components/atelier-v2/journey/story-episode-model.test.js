@@ -101,9 +101,8 @@ test('labels come from the engine, with plain fallbacks', () => {
 
 // --- `character_name` (additive, 2026-09-06) --------------------------------
 
-test('the server’s character_name is what the reader prints', () => {
-  // A generated id the local table cannot know. Before the field existed this
-  // reached the reader as "Marin_leveque".
+test('the reader prints the cast’s name for the cast, the server’s for anyone else', () => {
+  // Before the field existed a generated id reached the reader as "Unknown_47".
   const generated = {
     ...episode,
     panels: [
@@ -118,12 +117,17 @@ test('the server’s character_name is what the reader prints', () => {
     ],
   };
   const [stage] = model.buildStoryStages(generated);
-  assert.equal(stage.lines[0].who, 'Marin Lévêque');
+  assert.equal(stage.lines[0].who, 'Marin');
   assert.equal(stage.lines[1].who, 'La voisine');
   // The canonical id still drives the visual accent, so a display name never
   // silently re-colours a known character.
   assert.equal(stage.lines[0].character, 'marin');
-  assert.equal(model.storyCharacterName('marin_leveque', 'Marin Lévêque'), 'Marin Lévêque');
+  assert.equal(model.storyCharacterName('marin_leveque', 'Marin Lévêque'), 'Marin');
+  // Walk of 9 Nov, day 1: the panel said this while the reply thread said «Gus».
+  assert.equal(model.storyCharacterName('augustin_de_roncourt', 'Augustin « Gus » de Roncourt'), 'Gus');
+  assert.equal(model.storyCharacterName('lila_bonnet', 'Lila Bonnet'), 'Lila');
+  assert.equal(model.storyCharacterName('unknown_47', 'La voisine'), 'La voisine');
+  assert.equal(model.storyCharacterName('unknown_47', null), 'Unknown_47');
 });
 
 test('a null, blank or absent character_name falls back to the existing table', () => {
@@ -147,7 +151,9 @@ test('a null, blank or absent character_name falls back to the existing table', 
   assert.equal(model.storyCharacterName('gus', null), 'Gus');
   assert.equal(model.storyCharacterName('gus', undefined), 'Gus');
   // A name with no id at all is still a name.
-  assert.equal(model.storyCharacterName('', 'Lila Bernard'), 'Lila Bernard');
+  assert.equal(model.storyCharacterName('', 'La voisine'), 'La voisine');
+  // One that reads as a cast member prints as them, and gets their face already.
+  assert.equal(model.storyCharacterName('', 'Lila Bernard'), 'Lila');
 });
 
 // ---------------------------------------------------------------------------

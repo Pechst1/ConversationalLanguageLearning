@@ -65,22 +65,21 @@ const LEARNER_IDS = new Set(['toi', 'learner', 'you']);
 /**
  * The name to print above a line.
  *
- * The server's own `character_name` wins whenever it sent one: it comes from
- * the thread's world bible and is the only source that knows a generated cast.
- * Only when the field is absent or null does the cast registry stand in (#147),
- * and an id it does not know keeps its own spelling.
+ * The cast registry answers for anyone in it (#147): a page carries the world bible's full
+ * name, and the walk of 9 Nov printed «Augustin « Gus » de Roncourt» above a panel while the
+ * reply thread said «Gus». Anyone it does not know keeps what the server sent, since that is
+ * the only source that knows a generated cast, and an id alone keeps its own spelling.
  */
 export function storyCharacterName(
   characterId: string | null | undefined,
   characterName?: string | null,
 ): string {
   const given = String(characterName ?? '').trim();
-  if (given) return given;
   const id = String(characterId || '').trim();
-  if (!id) return '';
+  if (!given && !id) return '';
   const key = id.toLowerCase();
-  if (LEARNER_IDS.has(key)) return 'Toi';
-  return castDisplayName(key, null) ?? id.charAt(0).toUpperCase() + id.slice(1);
+  if (!given && LEARNER_IDS.has(key)) return 'Toi';
+  return castDisplayName(key, given || null) ?? (given || id.charAt(0).toUpperCase() + id.slice(1));
 }
 
 /**

@@ -15,7 +15,7 @@
 
 import React, { useEffect, useState } from 'react';
 
-import { faceSrcFor } from '@/lib/cast-faces';
+import { castDisplayName, faceSrcFor } from '@/lib/cast-faces';
 import { useArtSet } from '@/lib/art-set';
 import { CastFace, drawnFaceId } from '@/components/cast/CastFace';
 import { resolveMediaUrl } from '@/lib/media-url';
@@ -321,7 +321,7 @@ export function Byline({
     <span className="av2-byline">
       <Portrait name={name} characterId={characterId} mood={mood} size="sm" />
       <span className="av2-label">
-        {name}
+        {castDisplayName(characterId, name) ?? name}
         {meta ? <> · {meta}</> : null}
       </span>
     </span>

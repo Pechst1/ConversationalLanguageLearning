@@ -534,3 +534,14 @@ test('InterludeCard alone never presses and names the places in French', () => {
   assert.ok(html.includes('Le Courrier'));
   assert.ok(!html.includes('La Forge'), 'no Forge row without a Forge block');
 });
+
+test('a teaser and the return page print the cast’s name, and anyone else’s as sent', () => {
+  const teaser = (character_id, character_name) => ({ text_fr: 'À demain.', character_id, character_name, source: 'engine' });
+  const gus = model.recapTeaserOf({ teaser: teaser('augustin_de_roncourt', 'Augustin « Gus » de Roncourt') });
+  assert.equal(gus.character_name, 'Gus');
+  assert.equal(model.recapTeaserOf({ teaser: teaser('augustin_de_roncourt', 'Augustin « Gus » de Roncourt'), next_teaser_fr: 'Demain.' }).character_name, 'Gus');
+  assert.equal(model.recapTeaserOf({ teaser: teaser('unknown_47', 'La voisine') }).character_name, 'La voisine');
+  assert.equal(model.recapTeaserOf({ teaser: teaser(null, null) }).character_name, null);
+  const absence = { days: 4, greeting_fr: 'Te revoilà.', character_id: 'lila_bonnet', character_name: 'Lila Bonnet', entre_temps: [], lapsed_letters: [] };
+  assert.equal(model.absenceOf({ absence }).characterName, 'Lila');
+});

@@ -359,3 +359,13 @@ test('#473 a review card whose example is the page’s own line prints that line
   assert.equal(times, 1, `the line is printed ${times} times`);
   assert.match(html, /class="rc-scene__who">Camille</, 'the speaker is named once, by the registry');
 });
+
+test('a read step names a cast member as the cast does', () => {
+  assert.deepEqual(
+    readModel.readStepSpeaker({ character_id: 'augustin_de_roncourt', character_name: 'Augustin « Gus » de Roncourt' }),
+    { id: 'augustin_de_roncourt', name: 'Gus' },
+  );
+  assert.deepEqual(readModel.readStepSpeaker({ character_id: 'augustin_de_roncourt' }), { id: 'augustin_de_roncourt', name: 'Gus' });
+  assert.deepEqual(readModel.readStepSpeaker({ character_id: 'unknown_47', character_name: 'La voisine' }), { id: 'unknown_47', name: 'La voisine' });
+  assert.deepEqual(readModel.readStepSpeaker({ character_id: 'unknown_47' }), { id: 'unknown_47', name: 'Unknown' });
+});
