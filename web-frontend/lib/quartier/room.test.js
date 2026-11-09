@@ -237,6 +237,8 @@ test("a room in the quarter (the roof) lies on Le Mistral's roof, and you walk r
     const { built: r } = built.get(file);
     const clear = (x, z, what) => mistral.stacks.forEach((s) => assert.ok(!inside(s, x, z), `${file}: ${what} stands in a chimney`));
     clear(r.start.pos.x, r.start.pos.z, 'the start');
+    // a roof is out of doors: the camera sees as far as the night, the lamps glint
+    assert.equal(r.inside(r.start.pos.x, r.start.pos.z), false, `${file}: the roof counts as indoors`);
     Object.entries(r.marks).forEach(([k, m]) => clear(m.x, m.z, `the mark ${k}`));
     room.things.forEach((t) => clear(t.at[0], t.at[2], `the ${t.kind}`));
   });

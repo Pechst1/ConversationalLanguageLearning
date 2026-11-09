@@ -2013,9 +2013,10 @@ function walked(f: RoomFloor) {
   return (f.zone ?? 'room') !== 'sealed' && f.walk !== false;
 }
 
+/** The sheltered ground: what counts as indoors (the camera's reach, the lamps' pools); a roof is not. */
 export function roomGround(spec: RoomSpec): XZ[][] {
   return spec.floors
-    .filter((f) => walked(f))
+    .filter((f) => (f.zone ?? 'room') === 'room')
     .map((f) => f.shape)
     .concat(spec.flights.map((F) => flightPlan(F).shape));
 }
