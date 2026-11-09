@@ -77,7 +77,7 @@ def _scene_header_title(assembled_client, d, act: int = 1) -> str:
 
 
 @pytest.mark.parametrize("season_on", [False], ids=["one-actor"], indirect=True)
-def test_home_scene_header_and_feuilleton_title_a_day_from_its_first_act(
+def test_ep_title_one_record(
     assembled_client, db_session, journey_enabled, clock, acts_writer, monkeypatch
 ):
     user, d, journey, first_page, _act_page = _planned_day(assembled_client, db_session, monkeypatch, acts_writer)
@@ -94,7 +94,7 @@ def test_home_scene_header_and_feuilleton_title_a_day_from_its_first_act(
 
 
 @pytest.mark.parametrize("season_on", [False], ids=["one-actor"], indirect=True)
-def test_home_titles_a_planned_day_from_the_journey_not_the_season_plan(
+def test_ep_title_stored(
     assembled_client, db_session, journey_enabled, clock, acts_writer, monkeypatch
 ):
     """A day whose page is not in the engine's scenes (an authored stand-in) still has
@@ -123,7 +123,7 @@ def test_home_titles_a_planned_day_from_the_journey_not_the_season_plan(
 
 
 @pytest.mark.parametrize("season_on", [False], ids=["one-actor"], indirect=True)
-def test_home_headlines_the_day_until_its_last_act_is_over(
+def test_ep_open_act(
     assembled_client, db_session, journey_enabled, clock, acts_writer, monkeypatch
 ):
     """The headline is over (None: the finished card speaks) when every act's page is
