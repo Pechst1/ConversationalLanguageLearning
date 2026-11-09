@@ -40,7 +40,6 @@ from app.services.missions import (
     learner_zone,
     serialize_mission,
     stamp_fields,
-    unanswered_user_turns,
 )
 from app.services.serial import SerialThreadService
 from app.services.transcription_cost import record_transcription_cost
