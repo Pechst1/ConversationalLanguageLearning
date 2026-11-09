@@ -142,8 +142,8 @@ def shared_env_keys() -> None:
 
     from dotenv import dotenv_values
 
-    common = subprocess.run(
-        ["git", "-C", str(REPO), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+    common = subprocess.run(  # noqa: S603 - fixed git argv, no shell
+        ["git", "-C", str(REPO), "rev-parse", "--path-format=absolute", "--git-common-dir"],  # noqa: S607 - git from PATH (dev script)
         capture_output=True, text=True, check=True,
     ).stdout.strip()
     values = dotenv_values(Path(common).parent / ".env")
@@ -637,12 +637,14 @@ def add_walk_routes(app) -> None:
                 return {"installed": False, "reason": "no unserved reprise", "premiere": premiere}
             world = dict(thread.world_bible or {})
             number = int(premiere["number"])
-            for attempt in range(1, int(values.get("tries") or 4) + 1):
+            tries = int(values.get("tries") or 4)
+            attempts = 0
+            written = None
+            while attempts < tries and not written:
+                attempts += 1
                 written = season_writer.draft_next_season(live=story, world=world, next_season=number)
-                if written:
-                    break
-            else:
-                return {"installed": False, "attempts": attempt}
+            if not written:
+                return {"installed": False, "attempts": attempts}
             following = SerialThreadService(db).merge_season_world_bible(world, written, next_season=number)
             thread.world_bible = following
             story["season_premiere"] = {
@@ -653,7 +655,7 @@ def add_walk_routes(app) -> None:
             }
             thread.state = {**state, engine.STATE_KEY: story}
             db.commit()
-            return {"installed": True, "attempts": attempt, "premiere": story["season_premiere"]}
+            return {"installed": True, "attempts": attempts, "premiere": story["season_premiere"]}
 
     @app.get("/__walk/live", include_in_schema=False)
     def live(email: str):
@@ -731,7 +733,7 @@ def main() -> None:
         os.environ["ATELIER_STORY_ENGINE_ENABLED"] = "true"
         os.environ.update(OVERRIDES)
     os.environ.setdefault("ATELIER_DAILY_JOURNEY_COHORT", "*")
-    subprocess.run(
+    subprocess.run(  # noqa: S603 - our own script, fixed argv, no shell
         [sys.executable, "scripts/import_french_core_grammar.py", "--backfill-blueprints"],
         cwd=REPO, env=os.environ, stdout=subprocess.DEVNULL, check=False,
     )
