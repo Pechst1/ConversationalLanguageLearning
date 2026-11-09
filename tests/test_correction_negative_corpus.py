@@ -312,6 +312,16 @@ ADJECTIVE_AGREEMENT = [
     "Ça sent bon la pizza.",
     "Ma petite amie est là.",
     "Sa grande sœur arrive.",
+    "J'en veux une bon marché.",
+    "Ma grand tante est là.",
+    "Il prend la grand route.",
+    "Elle habite la grand rue.",
+    "On est sur la grand place.",
+    "La Grand Place est belle.",
+    "Une Bon Offre est un titre.",
+    "La petit Marie.",
+    "Il a une petit chose.",
+    "Une grand personne.",
 ]
 
 CORPUS = {

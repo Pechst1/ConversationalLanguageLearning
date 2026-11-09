@@ -811,6 +811,14 @@ _RULE_TEXT: dict[str, dict[str, dict[str, str]]] = {
             "fr": "Avec être, le participe s’accorde avec le sujet : « {right} ».",
         },
     },
+    "FR_ADJ_AGREE": {
+        "label": {"en": "Agreement", "de": "Angleichung", "fr": "Accord"},
+        "note": {
+            "en": "« {noun} » is feminine, so the adjective is too: « {right} », not « {wrong} ».",
+            "de": "« {noun} » ist feminin, also auch das Adjektiv: « {right} », nicht « {wrong} ».",
+            "fr": "« {noun} » est féminin, l’adjectif aussi : « {right} » et non « {wrong} ».",
+        },
+    },
     "FR_ALLER_INF": {
         "label": {"en": "Verb form", "de": "Verbform", "fr": "Forme du verbe"},
         "note": {
@@ -1017,6 +1025,7 @@ def _edit(rule_id: str, text: str, start: int, end: int, replacement: str, **fie
         "FR_CET": "gender_agreement",
         "FR_MON_VOWEL": "gender_agreement",
         "FR_PARTICIPLE_AGREE": "gender_agreement",
+        "FR_ADJ_AGREE": "gender_agreement",
         "FR_PLURAL_NOUN": "number_agreement",
         "FR_PLURAL_FORM": "number_agreement",
         "FR_A_GRAVE": "orthography",
@@ -1777,6 +1786,19 @@ def _clock_after_a(source: str, tokens: list[Tok], index: int) -> int | None:
     return fix_end
 
 
+#: The adjectives that go in front of a noun, masculine form -> feminine. Closed on purpose: these
+#: forms are never a noun or a verb in the lexicon, so a feminine article in front of one is an
+#: article and the mistake can only be the adjective.
+_FEMININE_OF_ADJECTIVE = {
+    "bon": "bonne", "petit": "petite", "grand": "grande", "beau": "belle", "nouveau": "nouvelle", "vieux": "vieille",
+    "gros": "grosse", "long": "longue", "mauvais": "mauvaise", "joli": "jolie", "premier": "première",
+    "dernier": "dernière",
+}  # fmt: skip
+_FEMININE_ARTICLES = frozenset({"une", "la", "cette", "ma", "ta", "sa"})
+#: «ma grand mère» is «grand-mère» without its hyphen, and no «grande mère» is meant.
+_AFTER_THE_OLD_GRAND = frozenset({"mère", "mere", "tante", "messe", "rue", "route", "place", "peine", "chose", "voile"})
+
+
 def _phrase_edits(source: str, tokens: list[Tok], add) -> None:
     """Rules over a few words at once: a negation around the verb, «de» after a modal,
     a doubled negation, «de» after a negated avoir, the locutions that need «de»,
@@ -1963,6 +1985,25 @@ def _phrase_edits(source: str, tokens: list[Tok], add) -> None:
             and not any(t.low in _RELATIVES and _same_sentence(source, t, tok) for t in tokens[max(0, i - 8) : i - 2])
         ):
             add(_edit("FR_A_GRAVE", source, tok.start, tok.end, "à", right="à"))
+            continue
+
+        # «une bon offre» -> «une bonne offre». Silent when the noun's gender isn't known, or a
+        # masculine noun says the article is the mistake («une bon gâteau»).
+        if (
+            tok.low in _FEMININE_ARTICLES
+            and nxt is not None
+            and after is not None
+            and source[nxt.start : nxt.end] in _FEMININE_OF_ADJECTIVE
+            and _space(source, tok, nxt)
+            and _space(source, nxt, after)
+            and source[after.start : after.end] == after.low
+            and after.low not in _TWO_GENDER_NOUNS
+            and _noun_gender(after.low) == "f"
+            and not (nxt.low == "grand" and after.low in _AFTER_THE_OLD_GRAND)
+        ):
+            right = f"{written} {_FEMININE_OF_ADJECTIVE[nxt.low]}"
+            add(_edit("FR_ADJ_AGREE", source, tok.start, nxt.end, right, noun=after.low,
+                      right=f"{_FEMININE_OF_ADJECTIVE[nxt.low]} {after.low}", wrong=f"{nxt.low} {after.low}"))
             continue
 
         # «jeudi a dix-huit heures» -> «jeudi à dix-huit heures»

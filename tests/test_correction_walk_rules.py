@@ -165,6 +165,45 @@ def test_the_clock_fix_lands_on_the_a_it_means():
     assert checked.corrected == "Camille a une clé, jeudi à dix-huit heures."
 
 
+@pytest.mark.parametrize(
+    ("text", "span", "replacement"),
+    [
+        pytest.param(
+            "Non, Gus, je ne promets pas. Je pense que Solvel est une bon offre pour la maison.",
+            "une bon",
+            "une bonne",
+            id="250-walk",
+        ),
+        pytest.param("Solvel fait une bon offre.", "une bon", "une bonne", id="gold-k11"),
+        pytest.param("Une bon idée.", "Une bon", "Une bonne", id="capital-article"),
+        pytest.param("Ma petit sœur arrive.", "Ma petit", "Ma petite", id="possessive"),
+        pytest.param("Cette long histoire.", "Cette long", "Cette longue", id="cette"),
+        pytest.param("La dernier fois.", "La dernier", "La dernière", id="dernier"),
+        pytest.param("la vieux maison", "la vieux", "la vieille", id="vieux"),
+        pytest.param("une beau fille", "une beau", "une belle", id="beau"),
+        pytest.param("Sa grand chambre.", "Sa grand", "Sa grande", id="grand-not-a-compound"),
+    ],
+)
+def test_a_feminine_noun_takes_the_feminine_adjective(text, span, replacement):
+    _finds(text, span, replacement, "FR_ADJ_AGREE")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        pytest.param("Une bon gâteau.", id="the-article-is-the-mistake"),
+        pytest.param("Une bon zzyzx.", id="a-noun-nobody-knows"),
+        pytest.param("Une petit enfant.", id="a-noun-of-either-gender"),
+    ],
+)
+def test_the_adjective_stays_when_the_noun_does_not_say_feminine(text):
+    assert "FR_ADJ_AGREE" not in [edit.rule_id for edit in cc.deterministic_edits(text)]
+
+
+def test_grand_mere_without_its_hyphen_gets_the_hyphen_and_no_feminine():
+    assert _pairs("Ma grand mère est là.") == [("grand mère", "grand-mère")]
+
+
 def test_the_sentence_the_failed_check_tests_lean_on_is_still_unseen_by_the_rules():
     from tests.test_failed_check_counts_for_nothing import UNSEEN_BY_RULES
 
