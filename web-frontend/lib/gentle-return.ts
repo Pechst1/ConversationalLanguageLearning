@@ -35,5 +35,5 @@ export function gentleReturnLabel({
   if (dayShape && dayShape !== 'short') return null;
   const label = GENTLE_RETURN[language] ?? GENTLE_RETURN.en;
   if (!estimatedSeconds || estimatedSeconds <= 0) return label;
-  return `${label} · ${Math.max(1, Math.round(estimatedSeconds / 60))} min`;
+  return `${label} · ${Math.max(1, Math.ceil(estimatedSeconds / 60))} min`;
 }

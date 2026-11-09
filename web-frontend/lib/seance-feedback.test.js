@@ -61,3 +61,28 @@ assert.equal(seanceAssessment({ verdict: 'incorrect', assessment_status: 'checke
   assert.equal(seanceAssessment(testOut), 'correct');
   assert.equal(seanceAssessment({ ...testOut, verdict: 'incorrect' }), 'needs_work');
 }
+
+// #471 (6 Nov walk): the server's assessment_status is the one source of truth.
+// A key-accepted answer is stored «checked» with correction_debug.fallback_used
+// (the rule-based key, no model); the client must not re-derive «unchecked»
+// from that debug field. Payload of attempt 7c9c5dcf, as the API sent it.
+{
+  const { runOutcome, correctRunFrom } = require('./seance-feedback.ts');
+  const keyAccepted = {
+    assessment_status: 'checked', verdict: 'correct', local_status: 'right', errata: [],
+    ai_review: { status: 'not_applicable' },
+    correction_debug: { fallback_used: true },
+    corrected_answer: 'je suis jeune, Lila',
+  };
+  assert.equal(seanceAssessment(keyAccepted), 'correct');
+  assert.equal(runOutcome(keyAccepted), 'extends');
+  assert.equal(correctRunFrom([keyAccepted, keyAccepted]), 2);
+  // A checked wrong key answer is wrong, not unchecked.
+  assert.equal(seanceAssessment({ ...keyAccepted, verdict: 'incorrect', errata: [{ task_error_type: 'agreement' }] }), 'needs_work');
+  // An answer the server stored «unavailable» still reads as unchecked and moves nothing.
+  const unavailable = { ...keyAccepted, assessment_status: 'unavailable', verdict: 'needs_review', corrected_answer: '' };
+  assert.equal(seanceAssessment(unavailable), 'unavailable');
+  assert.equal(runOutcome(unavailable), 'skips');
+  assert.equal(seanceAssessment({ ...unavailable, corrected_answer: 'x' }), 'unavailable');
+  console.log('Séance server-status authority checks passed');
+}

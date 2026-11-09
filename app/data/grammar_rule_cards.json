@@ -185,8 +185,8 @@
     }
    },
    "rule": {
-    "en": "'My' matches the thing you own, not you: mon, ma, mes.",
-    "de": "„Mein“ richtet sich nach der Sache, nicht nach dir: mon, ma, mes."
+    "en": "'My' matches the thing you own, not you: mon, ma, mes. Before a vowel: mon amie.",
+    "de": "„Mein“ richtet sich nach der Sache, nicht nach dir: mon, ma, mes. Vor einem Vokal: mon amie."
    },
    "pattern": {
     "kind": "rows",

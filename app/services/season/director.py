@@ -34,6 +34,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.services import address
 from app.services.season.clock import Position
 from app.services.season.flags import holds
 from app.services.season.format import DayBeat, Forbidden, Gap, Season
@@ -683,7 +684,7 @@ def gap_brief(
         "writing_rules": list(season.writing_rules),
         # Today's register, not the season's opening one: Gus's «vous» becomes «tu»
         # at T3 (``register.<id>``), as the register guards read it (LOSS-RATE 2026-10-06).
-        "registers": {member.id: str(flags.get(f"register.{member.id}") or member.address) for member in season.cast},
+        "registers": address.season_registers(season, flags),
         "flags": {
             key: value
             for key, value in flags.items()

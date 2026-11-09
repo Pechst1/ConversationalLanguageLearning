@@ -161,6 +161,23 @@ test('#396 · the day chip counts today only once the day is done, not at the fi
   assert.deepEqual(ds.homeDayChip(19, false, undefined), { streak: 19, dayDone: false });
 });
 
+test('#559 · the recap prints the streak Home prints, and the arrow only when the day moved it', () => {
+  // Live 6 Nov: end sheet «26», Home chip «25». The server counted today at the séance's end.
+  const words = session(['done', 'done', 'next', 'todo']);
+  assert.deepEqual(ds.recapStreak(25, 26, words), { was: 25, now: 25 });
+  assert.equal(ds.recapStreak(25, 26, words).now, ds.homeDayChip(26, true, words).streak);
+  // The day is done: today is in the count, and the chain moved 25 -> 26.
+  const done = session(['done', 'done', 'done', 'done']);
+  assert.deepEqual(ds.recapStreak(25, 26, done), { was: 25, now: 26 });
+  // Today was already counted before this séance (a second one): no arrow either way.
+  assert.deepEqual(ds.recapStreak(26, 26, done), { was: 26, now: 26 });
+  assert.deepEqual(ds.recapStreak(26, 26, words), { was: 25, now: 25 });
+  // No journey today: the server's number stands.
+  assert.deepEqual(ds.recapStreak(25, 26, null), { was: 25, now: 26 });
+  // Nothing readable is zero, never NaN.
+  assert.deepEqual(ds.recapStreak(undefined, undefined, null), { was: 0, now: 0 });
+});
+
 test('Phase 2 · Fertig says «2 Akte» on a day of acts, and the scene on a day of one', () => {
   assert.deepEqual(ds.tallyStory({ scenes: 1, words: 20, exercises: 12, acts: 2, story_words: 640 }, 'de'), { n: 2, label: 'Akte' });
   assert.deepEqual(ds.tallyStory({ scenes: 1, words: 20, exercises: 12, acts: 3, story_words: 1030 }, 'fr'), { n: 3, label: 'Actes' });

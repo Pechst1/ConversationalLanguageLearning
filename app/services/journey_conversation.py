@@ -2699,6 +2699,17 @@ def expected_counterpart_register(
     is ``None`` and the dimension reports "non évalué" rather than guessing.
     """
 
+    if _is_season_day(scenario):
+        # #594: an authored page has several addressees (Gus asks, then Margaux), and how
+        # each speaks to the learner is the person's, read from the cast. The scene's
+        # character is only whoever spoke first.
+        from app.services.season import runtime as season_runtime
+
+        addressee = season_runtime.addressee_of(scenario, history)
+        if addressee is not None:
+            return _CounterpartRegister(
+                expected=addressee.register, counterpart=addressee.name, reason_native=""
+            )
     declared = pragmatics.declared_counterpart_register(
         str(scenario.scenario_key), content_version=scenario.content_version
     )

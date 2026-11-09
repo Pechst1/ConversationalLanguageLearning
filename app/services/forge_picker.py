@@ -713,13 +713,15 @@ def forge_anchor_brief(
     if concept is None:
         return None
     language = normalize_control_language(getattr(user, "native_language", None))
+    from app.services.concept_titles import concept_title
+
     try:
         brief = concept_brief(db, concept, control_language=language)
     except Exception:  # pragma: no cover - a brief is a nicety; the id is what matters
         brief = {}
     return {
         "concept_id": concept.id,
-        "title_native": str(brief.get("title_native") or concept.name or ""),
+        "title_native": str(brief.get("title_native") or concept_title(concept, language) or ""),
         "title_fr": str(brief.get("title_fr") or ""),
     }
 

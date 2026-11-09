@@ -618,6 +618,17 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "«{learner}» gehört nicht in diesen Satz.",
         "fr": "« {learner} » n’a pas sa place dans cette ligne.",
     },
+    # #574: a difference the right sentence has and the model's list left out.
+    "forge.diff.accent": {
+        "en": "Mind the accent: «{target}».",
+        "de": "Achte auf den Akzent: «{target}».",
+        "fr": "Attention à l’accent : « {target} ».",
+    },
+    "forge.diff.label": {
+        "en": "Correction",
+        "de": "Korrektur",
+        "fr": "Correction",
+    },
     "forge.diff.order": {
         "en": "The words are right, but not in this order.",
         "de": "Die Wörter stimmen, aber nicht in dieser Reihenfolge.",
@@ -1132,6 +1143,13 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "en": "Repair the verb: it must agree with the singular subject 'elle'.",
         "de": "Korrigiere das Verb: es richtet sich nach dem Subjekt 'elle' im Singular.",
         "fr": "Corrige le verbe : il s’accorde avec le sujet singulier « elle ».",
+    },
+    # #447 / #146: a unit's own ✗ sentence, repaired. The instruction names no form, so it
+    # fits whichever rule the unit teaches and never gives the answer away.
+    "atelier.transform.repair_pair": {
+        "en": "Repair the sentence: it breaks today's rule.",
+        "de": "Korrigiere den Satz: Er verstößt gegen die Regel von heute.",
+        "fr": "Corrige la phrase : elle ne respecte pas la règle du jour.",
     },
     # -- app/services/item_bank.py: WP-S2 La Forge item-bank instructions -----
     "forge.word_bank": {

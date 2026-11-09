@@ -42,6 +42,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
+from app.services import address
 from app.services.cast_registry import display_names
 from app.services.season.clock import SEASON_KEY, played_log
 from app.services.season.page import choice_cards, project, resolve_day
@@ -409,6 +410,7 @@ def reprise_brief(db, user, *, input_mode: Any = None, now: Any = None, reason: 
         "tail": page_tail(page),
         "panel_images": panel_images(page, scene_panels),
         "seed": str(user.id),
+        "registers": address.season_registers(season, flags),
         "units": list(tentpole_annotation(season.id, pos.key).get("units") or []),
     }
     brief = ScenarioBrief(
