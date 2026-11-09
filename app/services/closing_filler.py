@@ -29,6 +29,15 @@ _EXIT_STUB = re.compile(
 )
 
 
+#: The character's half of the stock exit, as stored on the days it played.
+_EXIT_REPLY = re.compile(r"\bon m['’]appelle\b", re.IGNORECASE)
+
+
+def is_stock_exit_reply(text: Any) -> bool:
+    """Whether a stored reply is the stock «Attends, on m'appelle», not something the scene said."""
+    return bool(_EXIT_REPLY.search(str(text or "")))
+
+
 def is_closing_filler(text: Any) -> bool:
     """Whether a recap line is a closing caption or an exit stub, not an event."""
     line = " ".join(str(text or "").split())
@@ -53,4 +62,4 @@ def scene_fact(*candidates: Any, fallback: Any = "") -> str:
     return " ".join(str(fallback or "").split())
 
 
-__all__ = ["is_closing_filler", "scene_fact"]
+__all__ = ["is_closing_filler", "is_stock_exit_reply", "scene_fact"]

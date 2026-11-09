@@ -234,6 +234,32 @@ def _established(exchanges: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return list(facts.values())
 
 
+def on_screen(step: Any) -> dict[str, list[dict[str, Any]]]:
+    """What a scene's step showed the learner, and only that: each exchange's words and the
+    facts the record holds from them. A step's private record also holds the rubric and the
+    accepted answers. A journal that scored against those would be grading the learner's
+    memory of a hidden document, so a reader outside the writers comes through here."""
+
+    private = getattr(step, "private_task", None)
+    private = private if isinstance(private, dict) else {}
+    turns: list[dict[str, Any]] = []
+    for row in private.get("turns") or []:
+        if not isinstance(row, dict):
+            continue
+        correction = row.get("correction") if isinstance(row.get("correction"), dict) else {}
+        turns.append(
+            {
+                "learner": str(row.get("learner") or ""),
+                "character": str(row.get("character") or ""),
+                "corrected_fr": str(correction.get("corrected_fr") or ""),
+                "stock_exit": bool(row.get("stock_exit")),
+            }
+        )
+    ledger = private.get("ledger") if isinstance(private.get("ledger"), dict) else {}
+    established = [fact for fact in ledger.get("established") or [] if isinstance(fact, dict)]
+    return {"turns": turns, "established": established}
+
+
 def build(
     *,
     opening_line_fr: Any,

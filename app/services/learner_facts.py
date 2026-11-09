@@ -8,12 +8,17 @@ décembre, parce que je reste pour la fête.» to say aloud as theirs.
 Pure, no model call. :func:`contradicts` is deliberately narrow: it only speaks when
 the learner stated a kind of fact (a number, a month, a reason) and the line states
 that kind differently. A reply with no such facts vetoes nothing.
+
+#556 added what they refused (:func:`stance_of`): on the 9 Nov walk the line was «Oui, on
+partage.» after «Non, je ne partage pas la pizza». A reading here decides only which
+line a card offers, so a wrong one costs a line, never a turn: it may be simple.
 """
 
 from __future__ import annotations
 
 import re
 import unicodedata
+from functools import lru_cache
 from typing import Any
 
 _UNITS = {
@@ -102,6 +107,114 @@ def reason_of(text: Any) -> frozenset[str]:
     return frozenset(word[:5] for word in words if len(word) >= 4 and word not in _LIGHT)
 
 
+#: A negation's second word. «ne» is often dropped in speech and by learners, so these
+#: mark it; the three that also mean something else count only with «ne».
+_ALWAYS_NEGATES = frozenset({"pas", "jamais"})
+_NEGATES_WITH_NE = frozenset({"plus", "rien", "personne"})
+#: «je ne veux pas partager» refuses the sharing, not the wanting.
+_CARRIERS = frozenset(
+    "veux veut voulons voulez veulent peux peut pouvons pouvez peuvent dois doit devons devez doivent "
+    "vais vas va allons allez vont faut vouloir pouvoir devoir aller falloir".split()
+)
+#: Words of politeness and assent: a reply of nothing else is about nothing.
+_SAYS_NOTHING = frozenset("accord merci bonjour bonsoir salut pardon desole vraiment voila ouais".split())
+#: «je n'ai pas partagé»: the verb is the word after the negation.
+_AUXILIARIES = frozenset("ai as a avons avez ont suis es est sommes etes sont".split())
+_OBJECTS = frozenset("le la les y en me te se lui leur nous vous".split())
+_INFINITIVE = re.compile(r"(?:er|ir|re|oir)$")
+_VERB_ENDING = re.compile(r"(?:ent|ons|ez|er|ir|re|ais|ait|ai|es|e|s|t|é|i|u)$")
+_CLAUSE = re.compile(r"[,;:]|\bmais\b")
+_SENTENCE = re.compile(r"[^.!?…]+[.!?…]*")
+
+
+@lru_cache(maxsize=1)
+def _irregular_forms() -> dict[str, str]:
+    """The lexicon's irregular forms, folded as this module folds: «lis» is «lire»."""
+
+    from app.services.lexical_coverage import load_lexicon
+
+    return {fold(form): fold(lemma) for form, lemma in load_lexicon().forms.items()}
+
+
+def _lemma(word: str) -> str:
+    return _irregular_forms().get(word, word)
+
+
+def _stem(word: str) -> str:
+    """«partage» and «partager», «vends» and «vendre», «lis» and «lire» are one word here."""
+
+    lemma = _lemma(word)
+    base = _VERB_ENDING.sub("", lemma)
+    return (base if len(base) >= 3 else lemma)[:5]
+
+
+def _carries_meaning(word: str) -> bool:
+    lemma = _lemma(word)
+    if len(word) < 4 and lemma == word:
+        return False
+    return not any(
+        form in _LIGHT or form in _CARRIERS or form in _SAYS_NOTHING for form in (word, lemma)
+    ) and (word not in _ALWAYS_NEGATES and word not in _NEGATES_WITH_NE)
+
+
+def _clause_words(clause: str) -> list[str]:
+    words: list[str] = []
+    for piece in re.findall(r"[a-z']+", clause):
+        head, _, tail = piece.rpartition("'")
+        if head == "n":
+            words.append("ne")
+        if tail:
+            words.append(tail)
+    return words
+
+
+def _negated_in(words: list[str]) -> set[str]:
+    negated: set[str] = set()
+    has_ne = "ne" in words
+    for index, word in enumerate(words):
+        if word not in _ALWAYS_NEGATES and not (has_ne and word in _NEGATES_WITH_NE):
+            continue
+        head = words[index - 1] if index else ""
+        after = next((other for other in words[index + 1 :] if other not in _OBJECTS), "")
+        if head in _AUXILIARIES or _INFINITIVE.search(after):
+            negated.add(after)
+        if head not in _CARRIERS and head not in _AUXILIARIES:
+            negated.add(head)
+    return negated
+
+
+def stance_of(text: Any) -> dict[str, bool]:
+    """What a text says yes or no to: ``{stem: affirmed}``. A question says neither, and a
+    word both negated and affirmed in one reply is left out: nothing can be read from it."""
+
+    stance: dict[str, bool] = {}
+    torn: set[str] = set()
+    for sentence in _SENTENCE.findall(fold(text)):
+        if sentence.rstrip().endswith("?"):
+            continue
+        for clause in _CLAUSE.split(sentence):
+            words = _clause_words(clause)
+            negated = _negated_in(words)
+            for word in words:
+                if not _carries_meaning(word):
+                    continue
+                stem, affirmed = _stem(word), word not in negated
+                if stance.get(stem, affirmed) is not affirmed:
+                    torn.add(stem)
+                stance[stem] = affirmed
+    return {stem: affirmed for stem, affirmed in stance.items() if stem not in torn}
+
+
+def content_of(text: Any) -> frozenset[str]:
+    """The words that say what a text is about, as stems, questions included."""
+
+    return frozenset(_stem(word) for word in _clause_words(fold(text)) if _carries_meaning(word))
+
+
+def _goes_against(said: dict[str, bool], line: dict[str, bool]) -> bool:
+    return any(stem in line and line[stem] is not affirmed for stem, affirmed in said.items())
+
+
 KINDS = ("numbers", "months", "reason")
 
 
@@ -122,6 +235,8 @@ def clashes(learner_text: Any, line: Any) -> frozenset[str]:
         # A reason is the same reason when it is about one of the same things.
         if (kind == "reason" and not (value & other)) or (kind != "reason" and value != other):
             kinds.add(kind)
+    if _goes_against(stance_of(learner_text), stance_of(line)):
+        kinds.add("stance")
     return frozenset(kinds)
 
 
@@ -137,11 +252,93 @@ def latest_clash(turns: list[Any], line: Any) -> int | None:
     """The index of the latest turn whose fact ``line`` contradicts, or ``None``.
 
     Per kind of fact, only the latest turn that states it counts: a learner who
-    changed «le 2 décembre» to «finalement le 19» has the 19th as their date."""
+    changed «le 2 décembre» to «finalement le 19» has the 19th as their date. A stance
+    is per word: «Non, je ne partage pas» stands until they say they share."""
 
     clash = None
     for kind in KINDS:
         latest = next((index for index in reversed(range(len(turns))) if kind in facts_of(turns[index])), None)
         if latest is not None and kind in clashes(turns[latest], line):
             clash = latest if clash is None else max(clash, latest)
+    decided: dict[str, tuple[int, bool]] = {}
+    for index, turn in enumerate(turns):
+        decided.update({stem: (index, affirmed) for stem, affirmed in stance_of(turn).items()})
+    offered = stance_of(line)
+    for stem, (index, affirmed) in decided.items():
+        if stem in offered and offered[stem] is not affirmed:
+            clash = index if clash is None else max(clash, index)
     return clash
+
+
+def _lexicon_verb(key: str, lexicon: Any) -> bool:
+    def verb(lemma: str | None) -> bool:
+        return bool(lemma) and (lexicon.lemmas.get(lemma) or {}).get("pos") == "verb"
+
+    # The lexicon's form table holds the irregular verbs: «aime» and «parlé» are read here.
+    regular = re.sub(r"(?:es|ent|é|ée|és|ées)$", "", key)
+    return verb(lexicon.forms.get(key)) or verb(key) or verb(f"{key}r") or verb(f"{regular}er")
+
+
+_SUBJECTS = frozenset("je tu il elle on nous vous ils elles".split())
+
+
+def has_verb(text: Any) -> bool:
+    """Does the text hold a verb? Read from the lexicon, or from a subject with a word after it."""
+
+    from app.services.lexical_coverage import load_lexicon, tokenize
+
+    lexicon = load_lexicon()
+    keys = [token.key for token in tokenize(str(text or ""))]
+    return any(
+        _lexicon_verb(key, lexicon) or (key in _SUBJECTS and index + 1 < len(keys)) for index, key in enumerate(keys)
+    )
+
+
+def reads_as_sentence(text: Any) -> bool:
+    """At least three words and a verb: not a prop («LARTSIM»), not a fragment («fatigué»)."""
+
+    return len(str(text or "").split()) >= 3 and has_verb(text)
+
+
+_ELIDED = ("qu", "l", "d", "j", "n", "m", "t", "s", "c")
+_FOLD_ACCENTS = str.maketrans("", "", "\u0300\u0301\u0302\u0303\u0308\u0327")
+
+
+def _bare(word: str) -> str:
+    return unicodedata.normalize("NFD", word).translate(_FOLD_ACCENTS)
+
+
+@lru_cache(maxsize=1)
+def _accented_words() -> frozenset[str]:
+    """Every lexicon word that carries an accent, without it: «verite», «grand-mere»."""
+
+    from app.services.lexical_coverage import load_lexicon
+
+    lexicon = load_lexicon()
+    words = set(lexicon.lemmas) | set(lexicon.forms)
+    return frozenset(_bare(word) for word in words if _bare(word) != word)
+
+
+def looks_misspelled(text: Any) -> bool:
+    """A word the lexicon knows, written without its accent or its apostrophe (8 Nov:
+    «grand-mere», «lappartement»). Rare words and names are not touched: a word is held
+    against the text only when the lexicon can name the word it should have been. This
+    sees spelling only: «il ne sais pas» reads fine, the margin's correction catches it."""
+
+    from app.services.lexical_coverage import load_lexicon, tokenize
+
+    lexicon = load_lexicon()
+
+    def known(word: str) -> bool:
+        # «arrive» is the verb, not «arrivé» without its accent.
+        return word in lexicon.lemmas or word in lexicon.forms or _lexicon_verb(word, lexicon)
+
+    for token in tokenize(str(text or "")):
+        key = token.key
+        if known(key) or key in lexicon.elisions or any(char.isdigit() for char in key):
+            continue
+        if key in _accented_words():
+            return True
+        if any(key.startswith(lead) and known(key[len(lead) :]) for lead in _ELIDED):
+            return True
+    return False
