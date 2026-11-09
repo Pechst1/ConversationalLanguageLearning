@@ -156,6 +156,18 @@ def test_a_yes_leaves_nothing_refused():
     assert ledger["still_open"] == []
 
 
+def test_a_turn_that_only_asks_leaves_the_characters_question_open():
+    """#518: «Margaux, ça va ?» does not answer «Tu as vu la lettre ?»."""
+
+    said = "Margaux, ça va ? Tu es triste parce que la fête est annulé ?"
+    ledger = scene_ledger.build(opening_line_fr="Tu as vu la lettre ?", history=[], learner_text=said)
+    assert ledger["open_for_learner"] == "Tu as vu la lettre ?"
+    assert ledger["asked"][0]["answered_at"] is None
+    assert ledger["learner_asked"] == "Margaux, ça va ?"
+    refused = scene_ledger.build(opening_line_fr="Tu as vu la lettre ?", history=[], learner_text="Non. Pourquoi ?")
+    assert refused["asked"][0]["answered_at"] == 0, "a no that also asks has answered"
+
+
 def test_a_tag_on_a_fact_is_not_a_proposal():
     assert scene_ledger.character_proposal("Il fait beau, n'est-ce pas ?") is None
     assert scene_ledger.character_proposal("On partage la pizza, d'accord ?") == "On partage la pizza, d'accord ?"

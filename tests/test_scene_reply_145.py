@@ -89,6 +89,11 @@ PRAISED_REPLIES = [
     ("Mon grand-père ? Oui, c'est lui.", CAMILLE),
     # A quotation of what the learner really wrote.
     ("Tu as dit « je ne suis pas daccord », et pourtant tu restes.", CAMILLE),
+    # A learner who only asked has not answered: the character replies, then asks again.
+    (
+        "Ça va. Et toi, tu as vu la lettre ?",
+        _payload("Tu as vu la lettre ?", "Margaux, ça va ? Tu es triste parce que la fête est annulé ?"),
+    ),
     # A question after a yes; nothing was refused.
     ("Tu es d'accord, alors. Tu signes ?", _payload(CAMILLE_OPENING, "Oui, d'accord.")),
     # Agreeing with someone else is not agreeing with the proposal.

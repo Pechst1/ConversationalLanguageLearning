@@ -1,0 +1,132 @@
+{
+ "id": "turn-b1-camille-off-script",
+ "lane": "turn",
+ "level": "B1",
+ "source": "Camille's scene at B1, for the #145 done-when. No walk text exists at this level; the lines are written to be a B1 learner's.",
+ "input": {
+  "payload": {
+   "story": {
+    "control_language": "en",
+    "level": "B1",
+    "level_register": "the cast's own register",
+    "learner": {
+     "address": "neutral",
+     "grammatical_gender_note": "Do not gender the learner: no gendered adjective, participle or endearment about them, no gendered pronoun for them, and never an inclusive-dot form such as trempé·e. Use natural neutral phrasing in EVERY field, including the chapter title and question, narration, dialogue and suggested response. For example: 'Tu as pris la pluie', 'Tu veux entrer ?', 'Ça te plaît', 'Tu peux venir ?'. Do not solve gender agreement by joining masculine and feminine endings.",
+     "register_note": "Address the learner as «vous» in every sentence that is not a character's own line."
+    },
+    "world": {
+     "cast": [
+      {
+       "id": "camille",
+       "name": "Camille",
+       "role": "Heir to the family flat, in a dispute over the family debts.",
+       "personality": "Proud, quick, protective of her grandfather.",
+       "wants": "Her grandfather paid before anyone else.",
+       "speech_pattern": "Short sentences, a challenge at the end.",
+       "contradiction": "Wants peace and keeps picking fights.",
+       "secret": "She signed a paper she did not read.",
+       "flaw": "Cannot say sorry.",
+       "dynamic_with_user": "Wary ally.",
+       "register_with_user": "vous",
+       "gender": "f"
+      }
+     ]
+    },
+    "story_so_far": [],
+    "commitments": [],
+    "moods": {
+     "camille": {}
+    },
+    "relationships": {
+     "camille": {
+      "register": "vous",
+      "closeness": 1
+     }
+    },
+    "secrets": {
+     "camille": "hidden"
+    }
+   },
+   "scene": {
+    "character_id": "camille",
+    "title_fr": "La dette",
+    "premise_fr": "Camille et vous êtes chez Maître Vasseur. Les papiers de la famille sont sur la table.",
+    "location_id": "vasseur_office",
+    "objective_native": "Say whether you agree that the flat pays Grandfather first.",
+    "objective_semantics": "Camille asks if the learner agrees the flat pays her grandfather first. Met when the learner agrees or refuses.",
+    "opening_line_fr": "L'appartement paie d'abord mon grand-père. Vous êtes d'accord, non ?",
+    "suggested_response_fr": "Oui, il passe d'abord.",
+    "panels": []
+   },
+   "rubric": "Grade only what the task asks; any honest answer counts.",
+   "history": [],
+   "learner_text": "Excusez-moi, mais je pense surtout au chat de ma grand-mère, il ne mange plus depuis qu'elle est partie.",
+   "turns_left": 1,
+   "targets": [],
+   "assistance": "none",
+   "turn_plan": {
+    "closing_turn": false,
+    "clarify_form_fr": null,
+    "noticed_word": null,
+    "keep_talking": true
+   }
+  }
+ },
+ "answers": {
+  "TutorVerdict": [
+   {
+    "origin": "live 2026-11-09 gpt-6-luna",
+    "prompt_digest": "sha256:8e6f1b667dbd84a0e442b9cd6618c8fb7612dce5f57981e52cc789957fb5a94e",
+    "content": {
+     "outcome": "not_yet",
+     "evidence_quotes": [],
+     "correction_span_fr": null,
+     "correction_fr": null,
+     "correction_note_native": null,
+     "demonstrated_target_ids": []
+    }
+   }
+  ],
+  "VoiceReply": [
+   {
+    "origin": "live 2026-11-09 gpt-6-luna",
+    "prompt_digest": "sha256:6a8bb6378da57fe9fe81099db5d37dcf632a7f1675bbdc23419230b47c181da6",
+    "content": {
+     "reply_fr": "Le chat de votre grand-mère ne mange plus ? C’est inquiétant… Mais pour mon grand-père, vous êtes d’accord ou non ?",
+     "understood_intent": "L’apprenant s’inquiète pour le chat de sa grand-mère, qui ne mange plus depuis son départ.",
+     "needs_clarification": false,
+     "feeling_shift": "steady",
+     "acts": [
+      {
+       "action": "reports",
+       "subject": "le chat de la grand-mère",
+       "conditions": [
+        "ne mange plus depuis son départ"
+       ],
+       "evidence_quotes": [
+        "il ne mange plus depuis qu'elle est partie"
+       ],
+       "clarity": "clear"
+      }
+     ],
+     "learner_intent": "other",
+     "learned": [
+      {
+       "key": "grandmother_cat",
+       "fact_fr": "Le chat de sa grand-mère ne mange plus depuis son départ.",
+       "quote": "il ne mange plus depuis qu'elle est partie",
+       "value": null
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "expect": {
+  "failure": null,
+  "tutor_refusals": [],
+  "voice_refusals": [],
+  "outcome": "not_yet",
+  "reply_fr": "Le chat de votre grand-mère ne mange plus ? C’est inquiétant… Mais pour mon grand-père, vous êtes d’accord ou non ?"
+ }
+}

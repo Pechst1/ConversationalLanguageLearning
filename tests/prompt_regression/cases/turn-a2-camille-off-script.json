@@ -1,108 +1,122 @@
 {
-  "id": "turn-a2-camille-off-script",
-  "lane": "turn",
-  "level": "A2",
-  "source": "#145 done-when, off-script form of #591: same scene, and the learner answers with the dinosaur of the 4 Nov walk (#518). The reply reacts to those words and her proposal stands.",
-  "input": {
-    "payload": {
-      "story": {
-        "control_language": "en",
-        "level": "A2",
-        "level_register": "no coarse or vulgar vocabulary",
-        "learner": {
-          "address": "neutral",
-          "grammatical_gender_note": "Do not gender the learner: no gendered adjective, participle or endearment about them, no gendered pronoun for them, and never an inclusive-dot form such as trempé·e. Use natural neutral phrasing in EVERY field, including the chapter title and question, narration, dialogue and suggested response. For example: 'Tu as pris la pluie', 'Tu veux entrer ?', 'Ça te plaît', 'Tu peux venir ?'. Do not solve gender agreement by joining masculine and feminine endings.",
-          "register_note": "Address the learner as «vous» in every sentence that is not a character's own line."
-        },
-        "world": {
-          "cast": [
-            {
-              "id": "camille",
-              "name": "Camille",
-              "role": "Heir to the family flat, in a dispute over the family debts.",
-              "personality": "Proud, quick, protective of her grandfather.",
-              "wants": "Her grandfather paid before anyone else.",
-              "speech_pattern": "Short sentences, a challenge at the end.",
-              "contradiction": "Wants peace and keeps picking fights.",
-              "secret": "She signed a paper she did not read.",
-              "flaw": "Cannot say sorry.",
-              "dynamic_with_user": "Wary ally.",
-              "register_with_user": "vous",
-              "gender": "f"
-            }
-          ]
-        },
-        "story_so_far": [],
-        "commitments": [],
-        "moods": {
-          "camille": {}
-        },
-        "relationships": {
-          "camille": {
-            "register": "vous",
-            "closeness": 1
-          }
-        },
-        "secrets": {
-          "camille": "hidden"
-        }
-      },
-      "scene": {
-        "character_id": "camille",
-        "title_fr": "La dette",
-        "premise_fr": "Camille et vous êtes chez Maître Vasseur. Les papiers de la famille sont sur la table.",
-        "location_id": "vasseur_office",
-        "objective_native": "Say whether you agree that the flat pays Grandfather first.",
-        "objective_semantics": "Camille asks if the learner agrees the flat pays her grandfather first. Met when the learner agrees or refuses.",
-        "opening_line_fr": "L'appartement paie d'abord mon grand-père. Vous êtes d'accord, non ?",
-        "suggested_response_fr": "Oui, il passe d'abord.",
-        "panels": []
-      },
-      "rubric": "Grade only what the task asks; any honest answer counts.",
-      "history": [],
-      "learner_text": "Mon voisin a un dinosaure dans le jardin. Il mange la lettre !",
-      "turns_left": 1,
-      "targets": [],
-      "assistance": "none",
-      "turn_plan": {
-        "closing_turn": false,
-        "clarify_form_fr": null,
-        "noticed_word": null,
-        "keep_talking": true
+ "id": "turn-a2-camille-off-script",
+ "lane": "turn",
+ "level": "A2",
+ "source": "Same scene as #591, for the #145 done-when: the real model's next line after a «non», an off-script reply and a question. The dinosaur is the walk's of 4 Nov 2026 (#518).",
+ "input": {
+  "payload": {
+   "story": {
+    "control_language": "en",
+    "level": "A2",
+    "level_register": "no coarse or vulgar vocabulary",
+    "learner": {
+     "address": "neutral",
+     "grammatical_gender_note": "Do not gender the learner: no gendered adjective, participle or endearment about them, no gendered pronoun for them, and never an inclusive-dot form such as trempé·e. Use natural neutral phrasing in EVERY field, including the chapter title and question, narration, dialogue and suggested response. For example: 'Tu as pris la pluie', 'Tu veux entrer ?', 'Ça te plaît', 'Tu peux venir ?'. Do not solve gender agreement by joining masculine and feminine endings.",
+     "register_note": "Address the learner as «vous» in every sentence that is not a character's own line."
+    },
+    "world": {
+     "cast": [
+      {
+       "id": "camille",
+       "name": "Camille",
+       "role": "Heir to the family flat, in a dispute over the family debts.",
+       "personality": "Proud, quick, protective of her grandfather.",
+       "wants": "Her grandfather paid before anyone else.",
+       "speech_pattern": "Short sentences, a challenge at the end.",
+       "contradiction": "Wants peace and keeps picking fights.",
+       "secret": "She signed a paper she did not read.",
+       "flaw": "Cannot say sorry.",
+       "dynamic_with_user": "Wary ally.",
+       "register_with_user": "vous",
+       "gender": "f"
       }
+     ]
+    },
+    "story_so_far": [],
+    "commitments": [],
+    "moods": {
+     "camille": {}
+    },
+    "relationships": {
+     "camille": {
+      "register": "vous",
+      "closeness": 1
+     }
+    },
+    "secrets": {
+     "camille": "hidden"
     }
-  },
-  "answers": {
-    "TutorVerdict": [
-      {
-        "origin": "hand-written from the walk",
-        "prompt_digest": "sha256:ba80b02dc6b5991e32efd2136242b79f003d892aa9d377e8e59b5c2e86070a37",
-        "content": {
-          "outcome": "met",
-          "evidence_quotes": [
-            "Mon voisin a un dinosaure dans le jardin. Il mange la lettre !"
-          ],
-          "demonstrated_target_ids": []
-        }
-      }
-    ],
-    "VoiceReply": [
-      {
-        "origin": "hand-written, to be replaced by the capped recording",
-        "prompt_digest": "sha256:c017e1fb3e913943b16b8cf554d68c7195a2049af6aa6fd493ce19c88ebad28a",
-        "content": {
-          "reply_fr": "Un dinosaure ? Sérieusement ? Mon grand-père passe d'abord, dinosaure ou pas.",
-          "understood_intent": "L'apprenant parle d'un dinosaure.",
-          "needs_clarification": false
-        }
-      }
-    ]
-  },
-  "expect": {
-    "failure": null,
-    "tutor_refusals": [],
-    "voice_refusals": [],
-    "outcome": "met",
-    "reply_fr": "Un dinosaure ? Sérieusement ? Mon grand-père passe d'abord, dinosaure ou pas."
+   },
+   "scene": {
+    "character_id": "camille",
+    "title_fr": "La dette",
+    "premise_fr": "Camille et vous êtes chez Maître Vasseur. Les papiers de la famille sont sur la table.",
+    "location_id": "vasseur_office",
+    "objective_native": "Say whether you agree that the flat pays Grandfather first.",
+    "objective_semantics": "Camille asks if the learner agrees the flat pays her grandfather first. Met when the learner agrees or refuses.",
+    "opening_line_fr": "L'appartement paie d'abord mon grand-père. Vous êtes d'accord, non ?",
+    "suggested_response_fr": "Oui, il passe d'abord.",
+    "panels": []
+   },
+   "rubric": "Grade only what the task asks; any honest answer counts.",
+   "history": [],
+   "learner_text": "Mon voisin a un dinosaure dans le jardin. Il mange la lettre !",
+   "turns_left": 1,
+   "targets": [],
+   "assistance": "none",
+   "turn_plan": {
+    "closing_turn": false,
+    "clarify_form_fr": null,
+    "noticed_word": null,
+    "keep_talking": true
+   }
   }
+ },
+ "answers": {
+  "TutorVerdict": [
+   {
+    "origin": "live 2026-11-09 gpt-6-luna",
+    "prompt_digest": "sha256:698dd87c1be5f7bf58d946dd3582c1f6d9411105a1544b696af86aa04e404acc",
+    "content": {
+     "outcome": "not_yet",
+     "evidence_quotes": [
+      "Mon voisin a un dinosaure dans le jardin. Il mange la lettre !"
+     ],
+     "correction_span_fr": null,
+     "correction_fr": null,
+     "correction_note_native": null,
+     "demonstrated_target_ids": []
+    }
+   }
+  ],
+  "VoiceReply": [
+   {
+    "origin": "live 2026-11-09 gpt-6-luna",
+    "prompt_digest": "sha256:3064660dde34227f19e1cba0276c1d08eebd95ac9a7aa9bcd5c4f75e8acad88b",
+    "content": {
+     "reply_fr": "Un dinosaure ? Voilà une façon étrange de régler une dette… Mais ma question reste : vous êtes d’accord ?",
+     "understood_intent": "L'apprenant raconte que son voisin a un dinosaure qui mange la lettre.",
+     "needs_clarification": false,
+     "feeling_shift": "steady",
+     "acts": [],
+     "learner_intent": "other",
+     "learned": [
+      {
+       "key": "voisin_dinosaure",
+       "fact_fr": "Le voisin a un dinosaure dans le jardin.",
+       "quote": "Mon voisin a un dinosaure dans le jardin.",
+       "value": "dinosaure"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "expect": {
+  "failure": null,
+  "tutor_refusals": [],
+  "voice_refusals": [],
+  "outcome": "not_yet",
+  "reply_fr": "Un dinosaure ? Voilà une façon étrange de régler une dette… Mais ma question reste : vous êtes d’accord ?"
+ }
 }

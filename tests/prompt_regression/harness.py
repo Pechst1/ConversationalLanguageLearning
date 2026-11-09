@@ -171,6 +171,70 @@ class Replayer:
         )
 
 
+class Recorder:
+    """Stands in for ``LLMService`` on ``--live``: each call goes to the real client, its
+    answer is kept for replay, and a running total stops the run at the cap.
+
+    The call is recorded without ``model`` (the harness pins the route to the provider's
+    default, so a replay builds the same digest); ``model`` only selects what answers it.
+    """
+
+    def __init__(self, client: Any, *, model: str | None, cap_usd: float, spent: float = 0.0, stamp: str = "live"):
+        self.client = client
+        self.model = model
+        self.cap_usd = cap_usd
+        self.spent = spent
+        self.stamp = stamp
+        self.calls: list[Call] = []
+        self.answers: dict[str, list[dict]] = {}
+        self._lock = threading.Lock()
+
+    def generate_chat_completion(self, messages, *, system_prompt=None, **kwargs):
+        from app.services import living_story as engine
+
+        with self._lock:
+            if self.spent >= self.cap_usd:
+                raise engine.StoryUnavailable("prompt_regression_cap_reached")
+        user = messages[-1]["content"]
+        schema = json.loads(user)["output_schema"].get("title", "?")
+        params = {key: value for key, value in sorted(kwargs.items()) if key not in VOLATILE_PARAMS}
+        result = self.client.generate_chat_completion(
+            messages, system_prompt=system_prompt, **kwargs, **({"model": self.model} if self.model else {})
+        )
+        with self._lock:
+            self.spent += float(result.cost or 0.0)
+            attempt = 1 + sum(1 for call in self.calls if call.schema == schema)
+            call = Call(schema, attempt, system_prompt or "", user, params)
+            self.calls.append(call)
+            try:
+                content: Any = json.loads(result.content)
+            except (TypeError, ValueError):
+                content = result.content
+            self.answers.setdefault(schema, []).append(
+                {"origin": f"{self.stamp} {result.model}", "prompt_digest": call.digest, "content": content}
+            )
+        return result
+
+
+def record_case(case: Case, recorder: Recorder) -> dict:
+    """Run a turn case against the real model and keep its answers; returns what the
+    pipeline made of them. Nothing is written when the run failed or hit the cap, so a
+    half-recorded case can never replay as if it were whole."""
+
+    from app.services import living_story as engine
+
+    if case.lane != "turn":
+        raise ValueError(f"{case.id}: --live records turn cases only")
+    recorder.calls, recorder.answers = [], {}
+    with pinned_settings(), _patched(engine, "_client", lambda: recorder):
+        observed, _ = _run_turn(case)
+    if observed.get("failure"):
+        return observed
+    case.raw["answers"] = recorder.answers
+    case.path.write_text(json.dumps(case.raw, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    return observed
+
+
 @contextmanager
 def _patched(target: Any, name: str, value: Any):
     old = getattr(target, name)

@@ -10,7 +10,8 @@ call, nothing invented: a question is a sentence that ends in «?», or a
 learner sentence that opens like one («pourquoi tu…», «est-ce que…»), since
 learners often drop the mark.
 
-* A character's question is answered by the learner's next turn.
+* A character's question is answered by the learner's next turn, unless that
+  turn only asks a question of its own.
 * A learner's question is answered by the character's next reply. The voice
   lane is told the open one (``turn_plan.learner_asked``) and answers it first.
 * The scene stays open while the character's last reply still asks the learner
@@ -260,7 +261,9 @@ def build(
             if pending_stand is not None:
                 pending_stand["stance"] = _STANCE.get(reading["intent"])
                 pending_stand = None
-            if pending_character is not None:
+            # A turn that only asks has not answered: the character replies, and may come
+            # back to what they asked (Margaux: «Ça va. Et la lettre, tu l'as vue ?»).
+            if pending_character is not None and reading["intent"] != "question":
                 pending_character["answered_at"] = index
                 pending_character = None
             if question := learner_question(learner):
