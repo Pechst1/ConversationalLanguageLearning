@@ -2839,7 +2839,8 @@ def with_goal(item: dict[str, Any], language: Any = None, native: Any = None) ->
     code = mother_tongue(language)
     if code not in {"en", "de", "fr"}:
         code = "en"
-    own = mother_tongue(native)
+    # No native language given: no meaning cue (the French-only goal), not English.
+    own = mother_tongue(native) if str(native or "").strip() else ""
     _with_fallback_task(out, code)
     kind = _goal_kind(out)
     l10n = out.get("goal_l10n") if isinstance(out.get("goal_l10n"), dict) else None
