@@ -38,7 +38,7 @@ API_KEY_ENVS = ("OPENAI_API_KEY", "ANTHROPIC_API_KEY")
 
 
 def _live(cases: list[harness.Case], *, named: bool, max_usd: float | None, model: str | None) -> int:
-    """Record what the real model answers to the named turn cases, up to the cap.
+    """Record what the real model answers to the named turn and authored cases, up to the cap.
 
     Owner decision ED-3 caps a run at US$1. Only the cases you name are recorded: a golden
     case built from a real failure keeps its answers, or it stops being that failure.
@@ -60,8 +60,8 @@ def _live(cases: list[harness.Case], *, named: bool, max_usd: float | None, mode
     if not named:
         print("--live records only the cases you name: --case <id> (repeatable).")
         return 2
-    if any(case.lane != "turn" for case in cases):
-        print("--live records turn cases only.")
+    if any(case.lane not in ("turn", "authored") for case in cases):
+        print("--live records turn and authored cases only.")
         return 2
 
     from app.services.llm_service import LLMService

@@ -31,7 +31,7 @@ from functools import lru_cache
 from typing import Any
 
 from app.config import settings
-from app.services import address, story_memory
+from app.services import address, scene_ledger, story_memory
 from app.services.cast_registry import display_names
 from app.services.season.clock import SEASON_KEY, Position, played_log, record_played
 from app.services.season.director import (
@@ -372,14 +372,23 @@ def turn_addressee(turn: dict[str, Any] | None, scenario) -> str:
     return str((turn or {}).get("to") or scenario.character_id)
 
 
-def routed_sentence(reply: dict[str, Any], understood: bool) -> str | None:
+def is_tap_target(turn: dict[str, Any] | None) -> bool:
+    """Whether the turn is a clue: its replies are things to point at, not sentences."""
+
+    return bool(turn and turn.get("from_solve") and not turn.get("choice"))
+
+
+def routed_sentence(reply: dict[str, Any], understood: bool, turn: dict[str, Any] | None = None) -> str | None:
     """The sentence the learner's answer amounts to, for the line they repeat aloud.
 
     The routed reply's own first example (a card's label for a «Le choix»), only
     when the page really heard that reply and it is not the clumsy-but-sincere one:
-    a fallback route says nothing the learner meant."""
+    a fallback route says nothing the learner meant.
 
-    if not understood or reply.get("clumsy"):
+    #535: the options of a clue (``enquete``, ``dechiffrer``) are things to point at:
+    «LARTSIM» is the reversed neon sign, not words anyone says."""
+
+    if not understood or reply.get("clumsy") or is_tap_target(turn):
         return None
     examples = [str(example).strip() for example in reply.get("examples") or [] if str(example).strip()]
     return examples[0] if examples else None
@@ -751,6 +760,7 @@ def classify(
     use_model: bool = True,
     band: str | None = None,
     known: dict[str, Any] | None = None,
+    ledger: dict[str, Any] | None = None,
 ) -> ReplyChoice:
     """Which of the turn's replies the learner expressed (model, else matcher), and
     the addressee's first line back to what the learner actually wrote (model only).
@@ -770,7 +780,7 @@ def classify(
         try:
             parsed, _ = engine._json_call(
                 CLASSIFIER,
-                classifier_payload(turn, text, history, band=band, known=known),
+                classifier_payload(turn, text, history, band=band, known=known, ledger=ledger),
                 ReplyChoice,
                 usage.append,
                 deadline=time.monotonic() + 20,
@@ -988,14 +998,24 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         ((scenario.story_context or {}).get("source") or {}).get(story_memory.MEMORY_KEY),
         str(turn.get("to") or scenario.character_id),
     )
+    # #145: what the scene has said so far, this turn included. The reader is told it, and
+    # it decides below whether the turn's question has been answered.
+    ledger = scene_ledger.build(
+        opening_line_fr=getattr(task, "opening_line_fr", None) or _opening_of(turns),
+        history=history,
+        learner_text=answer.text,
+        in_the_room=scene_ledger.room_of((scenario.story_context or {}).get("draft")),
+    )
     choice = carded or classify(
         db, user, scene_id=scene_id, turn=turn, text=answer.text, history=history, use_model=use_model, band=band,
-        known=known,
+        known=known, ledger=ledger,
     )
     # STORY-LISTENS 2026-10-12: the addressee first answers what the learner actually
     # wrote (a name, a question, a joke), then the authored reaction plays. Only a
     # model reading carries one; a card tap or the matcher plays the page as written.
-    ack = None if carded is not None else clean_ack(choice.ack_fr, learner_text=answer.text, address=turn_address(turn))
+    ack = None if carded is not None else _checked_ack(
+        db, user, choice.ack_fr, turn=turn, answer=answer, history=history, ledger=ledger, turn_index=turn_index
+    )
     if (
         carded is None
         and not choice.clear
@@ -1010,7 +1030,7 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         # that takes up the question's own subject («Je garde la cuisine», «Je reste
         # trois jours») was an answer: the scene hears it (the fallback route plays, the
         # ack answers the content) and moves on, never re-asking it.
-        and not answers_question(turn, answer.text)
+        and not answers_question(turn, answer.text, intent=choice.learner_intent)
     ):
         # QA-STORY: the reply said none of what the turn is about (a name alone, a
         # greeting, another subject). The addressee asks once for the missing part;
@@ -1125,7 +1145,11 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
             "reply": str(reply.get("id")),
             # What the learner meant, as a sentence they could say: the recap's
             # «une phrase à redire» is this, never the question's scripted example.
-            **({"say_fr": said} if (said := routed_sentence(reply, understood)) else {}),
+            **({"say_fr": said} if (said := routed_sentence(reply, understood, turn)) else {}),
+            # #535: this route's label was a clue's tap target, so the page has no sentence
+            # for it. Only then may the recap offer the learner's own corrected sentence; a
+            # fallback or clumsy route says nothing the learner meant.
+            **({"tap": True} if understood and not reply.get("clumsy") and is_tap_target(turn) else {}),
         },
         heard=_heard(choice, reply),
         stage=stage,
@@ -1142,7 +1166,50 @@ def _heard(choice: ReplyChoice | None, reply: dict[str, Any] | None) -> dict[str
         heard["meant"] = str(reply["means"])
     if choice is not None and choice.learned:
         heard["learned"] = [fact.model_dump() for fact in choice.learned]
+    if choice is not None and choice.learner_intent:
+        heard["intent"] = choice.learner_intent
     return heard or None
+
+
+def _opening_of(turns: list[dict[str, Any]]) -> str:
+    """The first question's words, for a task that carries no opening line."""
+
+    panel = (turns[0].get("panel") if turns else None) or {}
+    return " ".join(str(line.get("text_fr") or "") for line in panel.get("lines") or []).strip()
+
+
+def _checked_ack(db, user, ack, *, turn, answer, history, ledger, turn_index) -> str | None:
+    """The reader's first line back, when it is safe to play and holds to the scene's record.
+
+    A line that does not is dropped and the authored reaction plays alone: the page always
+    has its own words, so nothing is retried and no learner waits. Every drop is counted
+    (code and outcome, no text), so a check that fires too often shows in production."""
+
+    from app.services import lane_guards
+
+    line = clean_ack(ack, learner_text=answer.text, address=turn_address(turn))
+    if line is None:
+        return None
+    findings = lane_guards.scene_findings(line, {"ledger": ledger, "learner_text": answer.text, "history": history})
+    if findings:
+        _count_dropped_line(db, user, [finding.code for finding in findings], turn_index)
+        return None
+    return line
+
+
+def _count_dropped_line(db, user, codes: list[str], turn_index: int) -> None:
+    from app.services.pilot_events import PilotEventService
+    from app.services.story_lanes import GUARD_FIRED_EVENT
+
+    if db is None or user is None:
+        return
+    events = PilotEventService(db)
+    for code in codes:
+        events.record(
+            GUARD_FIRED_EVENT, user_id=user.id, entity_type="living_story",
+            payload={"code": code, "outcome": "dropped", "turn_index": turn_index, "lane": "authored"},
+            cost_usd=0.0,
+        )
 
 
 #: The route an «ask again» exchange records: no reply of the turn was expressed.

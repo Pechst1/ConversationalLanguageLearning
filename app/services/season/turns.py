@@ -25,7 +25,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.services import speaker_labels, story_memory
+from app.services import scene_ledger, speaker_labels, story_memory
 from app.services.cast_registry import display_name
 
 #: A deterministic match must share this much of an example reply's content words.
@@ -60,6 +60,9 @@ class ReplyChoice(BaseModel):
     #: where they come from, why they are here), each with their own words — kept in
     #: the day's memory (``story_memory``) when the words support it.
     learned: story_memory.LearnedFacts = Field(default_factory=list)
+    #: #145: the reader's own reading of the turn; it outranks the ledger's first reading
+    #: and stays with the exchange, so the next turn reads it too.
+    learner_intent: Literal["yes", "no", "question", "other"] | None = None
 
 
 CLASSIFIER = """You read ONE learner reply in a French graphic-novel serial and say which
@@ -96,6 +99,19 @@ what is on the table), or says plainly that this comes later. null when the auth
 learner said.
 known, when present, is what scene.speaker already knows of the learner from earlier
 days (their name, what is settled): ack_fr may use it, and never asks it again.
+ledger, when present, is this scene's record so far, and your reading follows from it.
+asked[] lists every question (by, text_fr, answered_at): ack_fr never asks again a question
+whose answered_at is set. last_turn is a first reading of how learner_text opens (intent,
+asks, refuses); you read all of it, and learner_intent is your own reading: yes, no,
+question (it asks without saying yes or no) or other. A yes or a no to a question that asks
+for one is an answer, so clear is true even when no authored reply fits it; choose the
+fallback and let ack_fr take up what they said. A no changes what happens next; a question
+gets its answer; words off the subject get a reaction to those words. How scene.speaker
+takes it is theirs. stands lists what a character put to the learner for agreement and how
+it was received: a refused proposal stays scene.speaker's own, and ack_fr never refuses it
+in their place («moi non plus»). established lists what the learner has said about their
+life, in their words (quote): it stays as they said it. Never quote at the learner words
+that are not in learner_text or history[].learner, and never answer in their place.
 """ + story_memory.NAME_NOTE + """
 learned lists what the reply establishes about the learner (their name, where they come
 from, their job, why they are here, their family), each {key, fact_fr, quote, value}: key
@@ -169,7 +185,16 @@ def _same_stem(left: str, right: str) -> bool:
     return common >= max(4, shorter - 1)
 
 
-def answers_question(turn: dict[str, Any], learner_text: str) -> bool:
+def asks_yes_or_no(turn: dict[str, Any]) -> bool:
+    """Whether a yes or a no answers this turn: the last question its panel asks, or its
+    own «oui ou non» re-ask when the panel asks nothing."""
+
+    lines = [str(line.get("text_fr") or "") for line in (turn.get("panel") or {}).get("lines") or []]
+    asked = [line for line in lines if "?" in line]
+    return scene_ledger.asks_yes_or_no(asked[-1] if asked else (turn.get("ask_again") or {}).get("text_fr"))
+
+
+def answers_question(turn: dict[str, Any], learner_text: str, *, intent: str | None = None) -> bool:
     """Whether the learner's words ANSWER what this turn asks, whichever authored reply
     (if any) they match (walk 21 Oct, #262).
 
@@ -177,9 +202,16 @@ def answers_question(turn: dict[str, Any], learner_text: str) -> bool:
     answer»: «Je reste trois jours» answers «Tu restes combien de temps ?» though no
     authored reply is a duration. A reply answers when it is a statement (not a question
     back) that takes up the question's own subject, its verb or noun in any ending. A
-    name alone, a greeting or another subject does not."""
+    name alone, a greeting or another subject does not.
+
+    #556: a question that asks for a yes or a no is answered by one, whose words are not
+    the question's («Oui, je savais» to «Tu sais ça ?»). ``intent`` is the reader's reading
+    of the turn, when there is one; otherwise the words are read by how they open."""
 
     text = str(learner_text or "")
+    said_it = intent if intent is not None else scene_ledger.read_turn(text)["intent"]
+    if said_it in ("yes", "no") and asks_yes_or_no(turn):
+        return True
     if "?" in text:
         return False
     said = {word for word in content_words(text) if word not in _QUESTION_FILLER}
@@ -360,6 +392,7 @@ def classifier_payload(
     *,
     band: str | None = None,
     known: dict[str, Any] | None = None,
+    ledger: dict[str, Any] | None = None,
 ) -> dict:
     question = [line.get("text_fr") for line in (turn.get("panel") or {}).get("lines") or [] if line.get("text_fr")]
     addressee = str(turn.get("to") or "")
@@ -385,6 +418,7 @@ def classifier_payload(
         "fallback": turn.get("fallback"),
         # Story engine Phase 3: what the speaker knows of the learner from earlier days.
         **({"known": known} if known else {}),
+        **({"ledger": scene_ledger.for_writer(ledger)} if ledger else {}),
         "history": [
             {key: value for key, value in row.items() if key != "heard"} if isinstance(row, dict) else row
             for row in list(history or [])[-4:]

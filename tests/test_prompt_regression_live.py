@@ -104,4 +104,4 @@ def test_live_never_records_over_a_page_case(monkeypatch, capsys):
     monkeypatch.setenv("OPENAI_API_KEY", "not-a-real-key")
     page = next(case for case in harness.load_cases() if case.lane == "page")
     assert script._live([page], named=True, max_usd=0.5, model=None) == 2
-    assert "turn cases only" in capsys.readouterr().out
+    assert "authored cases only" in capsys.readouterr().out

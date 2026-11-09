@@ -82,6 +82,15 @@ _READS_YES = re.compile(
 )
 #: «Si» says yes only on its own: «Si, je veux», not «Si tu veux».
 _READS_SI = re.compile(r"^\W*(?:mais\s+)?si\s*(?:[,.!…]|$)", re.IGNORECASE)
+#: The word thrown back as a question («Oui ?», «Non ?», «Ah bon ?»): no answer yet.
+_ASKED_BACK = re.compile(r"^\W*(?:ah\s+)?(?:oui|non|ouais|si|bon)\s*\?", re.IGNORECASE)
+#: Words that make a question ask for something, not for a yes or a no (folded text).
+_ASKS_FOR_A_THING = re.compile(
+    r"\b(?:qui|quoi|quel|quelle|quels|quelles|lequel|laquelle|ou|comment|combien|pourquoi|quand)\b"
+    r"|\bqu\s?est\s+ce\b"
+)
+#: A question that goes on with the learner («Et toi ?», «Alors ?»): it wants more than a yes.
+_ASKS_TO_GO_ON = re.compile(r"^(?:et|alors|donc)\b")
 #: A question that asks the learner to agree («Vous êtes d'accord, non ?», «ça vous
 #: va ?»): what stands before it is the character's proposal. A tag on a fact («Il fait
 #: beau, n'est-ce pas ?») proposes nothing.
@@ -126,14 +135,44 @@ def learner_question(text: Any) -> str | None:
 
 
 def _yes_or_no(text: Any) -> str | None:
-    """``yes`` or ``no`` when the turn opens with one, else ``None``."""
+    """``yes`` or ``no`` when the turn opens with one, else ``None``. «Oui ?» opens with
+    a question, not an answer."""
 
+    if _ASKED_BACK.match(str(text or "")):
+        return None
     folded = _OPENERS.sub("", _folded(text))
     if _READS_NO.match(folded):
         return "no"
     if _READS_YES.match(folded) or _READS_SI.match(str(text or "")):
         return "yes"
     return None
+
+
+def asks_yes_or_no(text: Any) -> bool:
+    """Whether a line's question is answered by a yes or a no («Tu sais ça ?», «C'est
+    vrai ?»): no question of the line asks for a thing, and the last one is no «A ou
+    B ?» choice, nor a bare name called out («Odile ?»)."""
+
+    questions = [part for part in sentences(text) if part.rstrip("»\" ").endswith("?")]
+    if not questions:
+        return False
+    folded = [_folded(question) for question in questions]
+    if " oui ou non" in f" {folded[-1]}":
+        return True
+    if any(_ASKS_FOR_A_THING.search(question) for question in folded):
+        return False
+    last = re.sub(r"\best\s+ce\s+qu(?:e)?\s+", "", folded[-1])
+    if " ou " in f" {last} " or _ASKS_TO_GO_ON.match(last):
+        return False
+    return len(last.split()) >= 2
+
+
+def for_writer(ledger: Any) -> dict[str, Any]:
+    """The part of a scene's record the reply prompts explain; the rest is for the
+    surfaces that close the scene."""
+
+    ledger = ledger if isinstance(ledger, dict) else {}
+    return {key: ledger.get(key) for key in ("exchanges", "asked", "last_turn", "stands", "established")}
 
 
 def read_turn(text: Any, *, heard: Any = None) -> dict[str, Any]:

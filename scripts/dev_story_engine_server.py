@@ -27,6 +27,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import threading
 from pathlib import Path
@@ -262,6 +263,19 @@ def _intent_of(source: dict) -> str:
     return str(last.get("intent") or scene_ledger.read_turn(source.get("learner_text"))["intent"])
 
 
+def _ack_for(said: str, intent: str) -> str:
+    """The fake reader's first line back on an authored day: it takes up a word of what the
+    learner wrote, neither «tu» nor «vous», so any addressee can say it."""
+
+    words = [word for word in re.findall(r"[^\W\d_]{5,}", said) if word.lower() not in {"parce", "pourquoi"}]
+    word = (words[-1] if words else said.strip(" .?!") or "Bon").capitalize()
+    return {
+        "no": f"Non, alors. {word} : c'est noté.",
+        "yes": f"Oui. {word}, bien.",
+        "question": f"{word} ? Bonne question.",
+    }.get(intent, f"{word} ? Ah bon.")
+
+
 def _reply(*, intent: str, keep: bool, name: str | None, exchange: int = 0) -> str:
     """The fake character's answer, one per reading of the learner's turn; a character
     who was told the learner's name uses it."""
@@ -359,13 +373,16 @@ class FakeStoryProvider:
                 from app.services.season.turns import match_reply
 
                 turn = {"replies": source.get("replies") or [], "fallback": source.get("fallback")}
-                reply_id, _ = match_reply(turn, str(source.get("learner_text") or ""))
+                said = str(source.get("learner_text") or "")
+                reply_id, _ = match_reply(turn, said)
                 value = {
                     "reply_id": reply_id,
                     "expresses": "none",
                     "value": None,
                     "confidence": 0.6,
-                    "learned": _reported(str(source.get("learner_text") or ""))["learned"],
+                    "learned": _reported(said)["learned"],
+                    "learner_intent": _intent_of(source),
+                    "ack_fr": _ack_for(said, _intent_of(source)),
                 }
             elif schema == "CoulissesDraft":
                 # WP-93 «Coulisses»: the same evening, from another cast member's eyes.

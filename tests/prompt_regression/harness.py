@@ -44,7 +44,7 @@ CONTEXTS = ROOT / "contexts"
 SNAPSHOTS = ROOT / "snapshots"
 UPDATE_ENV = "PROMPT_SNAPSHOT_UPDATE"
 #: The order calls are rendered in (the reply lanes run in parallel threads).
-SCHEMA_ORDER = ("PagePlan", "PageText", "PageAids", "TutorVerdict", "VoiceReply")
+SCHEMA_ORDER = ("PagePlan", "PageText", "PageAids", "TutorVerdict", "VoiceReply", "ReplyChoice")
 #: Settings that change what a story call sends, pinned so a developer's ``.env``, CI
 #: and the CLI render the same bytes. ``None`` routes keep each call's own effort.
 PINNED_SETTINGS = {
@@ -223,11 +223,12 @@ def record_case(case: Case, recorder: Recorder) -> dict:
 
     from app.services import living_story as engine
 
-    if case.lane != "turn":
-        raise ValueError(f"{case.id}: --live records turn cases only")
+    if case.lane not in ("turn", "authored"):
+        raise ValueError(f"{case.id}: --live records turn and authored cases only")
     recorder.calls, recorder.answers = [], {}
+    run = _run_turn if case.lane == "turn" else _run_authored
     with pinned_settings(), _patched(engine, "_client", lambda: recorder):
-        observed, _ = _run_turn(case)
+        observed, _ = run(case)
     if observed.get("failure"):
         return observed
     case.raw["answers"] = recorder.answers
@@ -286,6 +287,8 @@ def run_case(case: Case) -> Result:
             observed, served = _run_page(case)
         elif case.lane == "turn":
             observed, served = _run_turn(case)
+        elif case.lane == "authored":
+            observed, served = _run_authored(case)
         else:
             raise ValueError(f"{case.id}: unknown lane {case.lane!r}")
     observed["missing_answers"] = list(replayer.missing)
@@ -419,6 +422,51 @@ def _run_turn(case: Case) -> tuple[dict, Any]:
         }
     )
     return observed, result
+
+
+def _run_authored(case: Case) -> tuple[dict, Any]:
+    """The reader of an authored day (``season.runtime.classify``) on a real page of the
+    season: ``input`` names the page and the turn, and gives what the learner wrote."""
+
+    from types import SimpleNamespace
+
+    from app.services import scene_ledger
+    from app.services.season import runtime
+    from app.services.season.flags import effective_flags
+    from app.services.season.format import load_season
+    from app.services.season.page import resolve_day
+    from app.services.season.turns import answers_question
+
+    spec = case.input
+    season = load_season(spec.get("season", "s1"))
+    page = resolve_day(
+        season,
+        spec["tentpole"],
+        spec["day"],
+        flags=effective_flags(season, {}, seed="prompt-regression"),
+        band=spec.get("band", case.level),
+        language=spec.get("language", "en"),
+    )
+    turn = next(row for row in runtime.projected_turns(page) if row.get("id") == spec["turn"])
+    history, text = list(spec.get("history") or []), spec["learner_text"]
+    ledger = scene_ledger.build(
+        opening_line_fr=spec.get("opening_line_fr") or runtime._opening_of([turn]), history=history, learner_text=text
+    )
+    runtime._ROUTE_CACHE.clear()
+    choice = runtime.classify(
+        None, None, scene_id=case.id, turn=turn, text=text, history=history, band=page.get("band"), ledger=ledger
+    )
+    played = runtime._checked_ack(
+        None, None, choice.ack_fr, turn=turn, answer=SimpleNamespace(text=text), history=history, ledger=ledger, turn_index=len(history)
+    )
+    return {
+        "failure": None,
+        "reply_id": choice.reply_id,
+        "clear": choice.clear,
+        "learner_intent": choice.learner_intent,
+        "ack_played": played,
+        "answered": answers_question(turn, text, intent=choice.learner_intent),
+    }, choice
 
 
 # ---------------------------------------------------------------------------

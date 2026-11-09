@@ -501,16 +501,9 @@ def voice_payload(payload: dict) -> dict:
         **({"agency": turn_agency} if (turn_agency := _season_agency(payload)) else {}),
         # «Ton cap»: where the learner stands on going home or staying.
         **({"heading": heading} if (heading := _season_heading(payload)) else {}),
-        **({"ledger": _voice_ledger(ledger)} if (ledger := payload.get("ledger")) else {}),
+        **({"ledger": scene_ledger.for_writer(ledger)} if (ledger := payload.get("ledger")) else {}),
         **_turn_tail(payload),
     }
-
-
-def _voice_ledger(ledger: dict) -> dict:
-    """The part of the scene's record the voice prompt explains; the rest is for the
-    surfaces that close the scene."""
-
-    return {key: ledger.get(key) for key in ("exchanges", "asked", "last_turn", "stands", "established")}
 
 
 def _season_must_not(payload: dict) -> list[dict]:

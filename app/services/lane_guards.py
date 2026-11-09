@@ -942,12 +942,20 @@ def reasked_question(reply: str, ledger: dict | None) -> str | None:
         if not sentence.strip().endswith("?"):
             continue
         asked = _topic_stems(sentence)
-        if not asked:
-            continue
         for row in answered:
-            if asked <= _topic_stems(str(row.get("text_fr") or "")):
-                return str(row.get("text_fr") or "")
+            earlier = str(row.get("text_fr") or "")
+            # A question of light verbs alone («Tu sais ça ?») has no topic to compare: only
+            # its own words, with or without «oui ou non», ask it again.
+            if asked <= _topic_stems(earlier) if asked else _same_question(sentence, earlier):
+                return earlier
     return None
+
+
+def _same_question(left: str, right: str) -> bool:
+    """Whether two questions are the same words, «oui ou non» aside."""
+
+    words = [{token for token in _tokens(text) if token not in {"oui", "ou", "non"}} for text in (left, right)]
+    return bool(words[0]) and words[0] == words[1]
 
 
 def without_reasked_question(reply: str, ledger: dict | None) -> str:
