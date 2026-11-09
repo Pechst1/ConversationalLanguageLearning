@@ -6663,7 +6663,7 @@ def unchecked_messages(attempts: Any, turns: Any) -> list[Any]:
         row
         for row in rows
         if getattr(row, "correction_payload", None)
-        and not verdicts.from_courrier(row.correction_payload).counts
+        and not verdicts.from_courrier(row.correction_payload, verdict=getattr(row, "verdict", None)).counts
     ]
 
 

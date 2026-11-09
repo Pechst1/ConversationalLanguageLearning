@@ -379,7 +379,7 @@ class CEFRProgressService:
         scores: list[float] = []
         for model, read in (
             (AtelierAttempt, lambda row: verdicts.from_forge(row.correction_payload, verdict=row.verdict)),
-            (RealWorldMissionAttempt, lambda row: verdicts.from_courrier(row.correction_payload)),
+            (RealWorldMissionAttempt, lambda row: verdicts.from_courrier(row.correction_payload, verdict=row.verdict)),
             (GraphicNovelAttempt, lambda row: verdicts.from_feuilleton(row.correction_payload, verdict=row.verdict)),
         ):
             rows = (
