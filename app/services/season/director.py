@@ -562,10 +562,10 @@ def heading_for(season: Season, flags: dict[str, Any]) -> dict[str, str] | None:
     return {"value": value, "means": str(lines[value])}
 
 
-def _page_contract(beat: DayBeat | None, band: str | None) -> dict[str, Any] | None:
+def _page_contract(gap: Gap, beat: DayBeat | None, band: str | None, state: dict | None) -> dict[str, Any] | None:
     from app.services.season import day_contract
 
-    return day_contract.for_page(beat, band=band) if beat is not None else None
+    return day_contract.for_page(beat, band=band, gap=gap, state=state) if beat is not None else None
 
 
 def gap_brief(
@@ -675,7 +675,7 @@ def gap_brief(
             # «Ton cap»: where the learner stands on going home or staying.
             **({"heading": heading} if (heading := heading_for(season, flags)) else {}),
             # Red-thread design: today's contract, for the page's writer (flag off: absent).
-            **({"contract": page_plan} if (page_plan := _page_contract(beat, band)) else {}),
+            **({"contract": page_plan} if (page_plan := _page_contract(gap, beat, band, state)) else {}),
             # WP-113: yesterday's complication, still in the way today.
             "open_obstacle": obstacle,
             # N1 pilot: what the learner agreed, and a callback to it when one is due;

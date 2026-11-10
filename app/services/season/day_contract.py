@@ -388,7 +388,27 @@ Today is planned as a contract. Where it speaks, it decides.
   it has already happened, nothing makes it depend on a yes, and nobody puts it off to
   another day. change.after is contract.must_hold.
 - replies follow contract.routes, in that order.
-- hook is contract.hook_fr, as written."""
+- hook is contract.hook_fr, as written.
+- contract.brings_back, when present, is what the learner left on an earlier day, in
+  their own words. Today someone says it or shows it, once: one beat carries its slot
+  exactly as written (for example {g3.canape_name}). The app puts the learner's words
+  there. Never describe, translate or guess what the words are."""
+
+#: Added to the page writer's prompt (``story_split.AUTHOR``) on a contract day only.
+AUTHOR_NOTE = """
+
+TODAY'S CONTRACT (contract)
+- contract.must_hold becomes true at the end of today whatever the learner answers, and
+  the app writes that ending itself from the learner's reply. So, against the rule above,
+  plan.change.after does NOT happen on the page: the page stops just before it, the lead
+  is about to do it and turns to the learner. No line or caption says it has already
+  happened, makes it depend on a yes, or puts it off to another day.
+- hook_fr is contract.hook_fr, word for word.
+- contract.brings_back, when present: each slot (for example {g3.canape_name}) stands for
+  the learner's own words from an earlier day. Write the slot exactly as given, braces
+  included, once, inside a line of dialogue or a caption, where a name or a quotation
+  would go: «Sur le menu : « {g3.canape_name} ».» The app puts the words there. Never
+  write words of your own in its place."""
 
 #: Added to the one-call director's prompt on a contract day only.
 DIRECTOR_NOTE = """
@@ -401,16 +421,41 @@ app closes the day itself from the learner's reply: the page stops just before i
 character is about to do it and turns to the learner), no panel says it has already
 happened, nothing makes it depend on a yes, nobody puts it off to another day.
 season_checklist.change_after is contract.must_hold and season_checklist.hook_fr is
-contract.hook_fr, as written."""
+contract.hook_fr, as written. contract.brings_back, when present: each slot (for example
+{g3.canape_name}) stands for the learner's own words from an earlier day; write the slot
+exactly as given, braces included, once, inside a line of dialogue or a caption, where a
+name or a quotation would go. The app puts the words there: never write your own."""
 
 
-def for_page(beat: DayBeat, *, band: str | None) -> dict[str, Any] | None:
-    """``brief.today.contract``: what the page's writer reads on a contract day."""
+def due_marks(gap: Gap, beat: DayBeat, state: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """The learner's marks that come back on this planned day, from the ledger:
+    ``[{id, slot, what, text}]``. A mark the ledger does not hold is not due."""
+
+    key = f"{gap.id}.{beat.day}"
+    held = ((state or {}).get(LEDGER_KEY) or {}).get("marks") or {}
+    due = []
+    for earlier in gap.days:
+        mark = earlier.contract.mark if earlier.contract else None
+        row = held.get(mark.id) if mark else None
+        if mark is None or key not in mark.comes_back or not isinstance(row, dict) or not row.get("text"):
+            continue
+        due.append({"id": mark.id, "slot": "{" + mark.id + "}", "what": mark.what, "text": str(row["text"])})
+    return due
+
+
+def for_page(
+    beat: DayBeat, *, band: str | None, gap: Gap | None = None, state: dict[str, Any] | None = None
+) -> dict[str, Any] | None:
+    """``brief.today.contract``: what the page's writer reads on a contract day. The
+    writer reads a returning mark as a slot, never as the learner's words: the page is
+    the same whoever reads it, and the app fills the slot (``fill_slots``)."""
 
     contract = beat.contract
     if not enabled() or contract is None:
         return None
+    back = [{"slot": row["slot"], "what": row["what"]} for row in due_marks(gap, beat, state)] if gap else []
     return {
+        **({"brings_back": back} if back else {}),
         **({"lead": contract.lead} if contract.lead else {}),
         "places": [place for place in (contract.place, contract.place_alt) if place],
         "ask": _level_ask(contract.turns[0].ask, band),
@@ -445,3 +490,45 @@ def follows(plan: dict[str, Any] | None, *, lead_id: Any, location_id: Any) -> b
     if not plan:
         return False
     return str(lead_id or "") == str(plan.get("lead") or "") and str(location_id or "") in (plan.get("places") or [])
+
+
+def _walk_text(node: Any, change) -> None:
+    """Every string a model carries, in place: its own fields, its lists, its models."""
+
+    from pydantic import BaseModel
+
+    if isinstance(node, BaseModel):
+        for name in type(node).model_fields:
+            value = getattr(node, name, None)
+            if isinstance(value, str):
+                changed = change(value)
+                if changed != value:
+                    setattr(node, name, changed)
+            else:
+                _walk_text(value, change)
+    elif isinstance(node, list):
+        for index, value in enumerate(node):
+            if isinstance(value, str):
+                node[index] = change(value)
+            else:
+                _walk_text(value, change)
+
+
+def fill_slots(draft: Any, marks: list[dict[str, Any]]) -> list[str]:
+    """Put the learner's own words where a page carries their slot, in place. Returns
+    the slots the page does not carry at all (the writer dropped them): the caller asks
+    once more, then serves the page without."""
+
+    if not marks:
+        return []
+    found: set[str] = set()
+
+    def change(text: str) -> str:
+        for mark in marks:
+            if mark["slot"] in text:
+                found.add(mark["slot"])
+                text = text.replace(mark["slot"], mark["text"])
+        return text
+
+    _walk_text(draft, change)
+    return [mark["slot"] for mark in marks if mark["slot"] not in found]

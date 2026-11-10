@@ -7215,6 +7215,36 @@ def _check_season_gap(draft: SceneDraft, context: dict, learner_text: list[str])
         raise StoryUnavailable("season_spoiler", hint=forbidden_hint(season, gap_id, hits))
 
 
+#: Where a draft's missing mark slots wait for the soft check (``_contract_page_issue``).
+_MISSING_SLOTS_KEY = "_contract_missing_slots"
+
+
+def _fill_contract_slots(draft: SceneDraft, context: dict) -> None:
+    from app.services import story_split
+    from app.services.season import day_contract
+
+    context.pop(_MISSING_SLOTS_KEY, None)
+    contract = story_split._day_contract(context)
+    if not contract or not contract.get("brings_back"):
+        return
+    today = context.get(SEASON_TODAY_KEY)
+    if today is None:
+        return
+    try:
+        found = day_contract.beat_for(
+            today.season, today.pos.segment.id if today.pos.segment else None,
+            (((context.get("season_script") or {}).get("brief") or {}).get("today", {}).get("required_premise") or {}).get("id"),
+        )
+        if found is None:
+            return
+        missing = day_contract.fill_slots(draft, day_contract.due_marks(found[0], found[1], today.state))
+    except Exception:  # noqa: BLE001 - a mark never costs the page
+        logger.exception("living_story: the learner's marks could not be put on the page")
+        return
+    if missing:
+        context[_MISSING_SLOTS_KEY] = missing
+
+
 def _follows_contract(draft: SceneDraft, context: dict) -> bool:
     from app.services import story_split
     from app.services.season import day_contract
@@ -7235,13 +7265,21 @@ def _contract_page_issue(draft: SceneDraft, context: dict) -> str | None:
     if not contract:
         return None
     world = context.get("world") or {}
-    return day_contract.page_issue(
+    issue = day_contract.page_issue(
         contract,
         lead_id=draft.character_id,
         location_id=draft.location_id,
         speakers={str(member.get("id")) for member in world.get("cast") or [] if isinstance(member, dict)},
         places={str(place.get("id")) for place in world.get("locations") or [] if isinstance(place, dict)},
     )
+    missing = context.get(_MISSING_SLOTS_KEY) or []
+    back = (
+        f"Today brings back the learner's own words (brief.today.contract.brings_back): write {', '.join(missing)} "
+        "exactly as given, braces included, once, inside a line or a caption."
+        if missing
+        else None
+    )
+    return " ".join(filter(None, [issue, back])) or None
 
 
 def _season_required_moment(draft: SceneDraft, context: dict) -> str | None:
@@ -7338,6 +7376,9 @@ def _settle_speaker_labels(draft: SceneDraft, context: dict) -> None:
 
 
 def _validate_scene(draft: SceneDraft, context: dict):
+    # Red-thread design: the learner's own words go where the page carries their slot,
+    # before any guard reads the page.
+    _fill_contract_slots(draft, context)
     cast = {c["id"] for c in context["world"]["cast"]}
     locations = {loc["id"] for loc in context["world"]["locations"]}
     if draft.character_id not in cast or draft.location_id not in locations:

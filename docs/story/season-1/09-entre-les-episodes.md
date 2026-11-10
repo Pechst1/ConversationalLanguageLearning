@@ -58,6 +58,8 @@ The page before the ending is **written to the contract** too. The brief carries
 - The page stops just before the day's facts become true. The ending makes them true, so no page has to, and none may say they already happened or put them off.
 - The critic reads the day's change as certain (`learner_turn.guaranteed`) and refuses a page only when it contradicts that change.
 
+The learner's mark **comes back** on the planned day its `comes_back` names (the canapé's name on g3.7, the card on g3.6). The brief gives the writer only a slot (`today.contract.brings_back`: `{g3.canape_name}` and the mark's `what`), never the learner's words. The writer puts the slot once in a line; the code fills it with what the ledger holds (the learner's words, or the authored default) before any guard reads the page, so every guard reads the page the learner will read. A page that dropped the slot gets one retry with the hint and is then served. A slot aimed at a tentpole (`T4`) is not wired: authored episodes change only with the owner's word.
+
 Still to come: an authored page per beat for the night every attempt fails (today that night still falls to a re-read), and the re-ask (`ask_again_fr`).
 
 Open for the owner: the French of the hooks, the closing lines and the `after_fr` lines, the second places, and gap 4's destination (none yet, so nothing hints at T5).

@@ -697,6 +697,13 @@ def author_payload(context: dict, plan: PagePlan, rejections: list[str]) -> dict
         "concept": _concept(context),
         "story_words": context.get(engine.STORY_WORDS_KEY) or None,
         "special": _special(context),
+        # Red-thread design: what the app's ending makes true, the hook as authored and
+        # the learner's marks that come back today (as slots).
+        **(
+            {"contract": {key: contract[key] for key in ("must_hold", "hook_fr", "brings_back") if key in contract}}
+            if (contract := _day_contract(context))
+            else {}
+        ),
         # Phase 2: a later act knows the page the learner read first today, as printed —
         # never the planner's notes about it.
         **({"act": _author_act(act)} if (act := context.get(ACT_KEY)) else {}),
@@ -887,6 +894,8 @@ def author_system(context: dict) -> str:
     brief = (context.get("season_script") or {}).get("brief") or {}
     panels = str((brief.get("level") or {}).get("panels") or "4 to 6")
     system = AUTHOR.format(band=band, panels=panels, level_card=LEVEL_CARDS.get(band, LEVEL_CARDS["A2"]))
+    if _day_contract(context):
+        return system + day_contract.AUTHOR_NOTE
     return system + ACT_AUTHOR if context.get(ACT_KEY) else system
 
 

@@ -569,6 +569,9 @@ class Mark(_Model):
 
     id: str = Field(pattern=r"^g[1-9]\.[a-z0-9_]+$")
     kind: Literal["name", "choice", "words"]
+    #: What it is, for the writer of the day it comes back on («the name the learner
+    #: gave one of Marin's canapés»).
+    what: str = ""
     max_words: int = Field(default=4, ge=1, le=12)
     #: What stands in when the learner gave nothing usable. ``{name}`` is their first name.
     default_fr: str = Field(min_length=1)
@@ -1001,6 +1004,8 @@ def _check_day_contracts(season: Season, gap: Gap, *, locations: set[str] | None
                     problems.append(f"{where}: mark {mark.id!r} comes back at {target!r}, which is not later")
             if not mark.comes_back:
                 problems.append(f"{where}: mark {mark.id!r} comes back nowhere")
+            if not mark.what.strip():
+                problems.append(f"{where}: mark {mark.id!r} does not say what it is")
         allowed = {mark.id} if mark else set()
         for field in LEVEL_FIELDS:
             loose = set(_SLOT.findall(getattr(contract.after_fr, field, None) or "")) - allowed

@@ -568,3 +568,104 @@ def test_the_critic_reads_as_before_with_the_flag_off():
 
     turn = director.critic_payload(_brief_for(5), {"season_checklist": {"change_after": "x"}})["learner_turn"]
     assert "guaranteed" not in turn and turn["planned_change"] == "x"
+
+
+# --- slice 6a: the learner's words come back ----------------------------------------
+
+
+def _ledger_with_the_boat() -> dict:
+    _season, gap, beat = _beat("g3", "les_canapes")
+    choice = _choose("les_canapes", route="named", mark="Le petit bateau", lines=["Le petit bateau"])
+    return day_contract.record({"id": "s1"}, gap, beat, choice, after_fr="x", event_id="e1", day_index=26, date="2026-11-10")
+
+
+def test_a_mark_is_due_on_the_day_its_contract_names_and_only_once_it_is_held(contract_on):
+    state = _ledger_with_the_boat()
+    _season, gap, eve = _beat("g3", "tout_va_bien")
+    assert day_contract.due_marks(gap, eve, state) == [
+        {
+            "id": "g3.canape_name",
+            "slot": "{g3.canape_name}",
+            "what": "the name one of Marin's canapés got on the day the menu was made",
+            "text": "Le petit bateau",
+        }
+    ]
+    # The writer reads the slot, never the learner's words: the page is the same for everyone.
+    page = day_contract.for_page(eve, band="A1", gap=gap, state=state)
+    assert page["brings_back"] == [{"slot": "{g3.canape_name}", "what": "the name one of Marin's canapés got on the day the menu was made"}]
+    assert "Le petit bateau" not in json.dumps(page)
+    # The wall day brings the card back, but this learner's card day was never recorded.
+    _season, gap, wall = _beat("g3", "au_milieu_du_mur")
+    assert day_contract.due_marks(gap, wall, state) == []
+    assert "brings_back" not in day_contract.for_page(wall, band="A1", gap=gap, state=state)
+    assert day_contract.due_marks(gap, eve, None) == []
+
+
+def test_the_learners_words_fill_the_slot_wherever_the_page_carries_it():
+    from pydantic import BaseModel
+
+    class Line(BaseModel):
+        text_fr: str
+        text_native: str | None = None
+
+    class Panel(BaseModel):
+        narration_fr: str = ""
+        dialogue: list[Line] = []
+
+    class Page(BaseModel):
+        title_fr: str
+        panels: list[Panel]
+
+    marks = [{"id": "g3.canape_name", "slot": "{g3.canape_name}", "what": "", "text": "Le petit bateau"}]
+    page = Page(
+        title_fr="La veille",
+        panels=[
+            Panel(narration_fr="Sur le menu : « {g3.canape_name} »."),
+            Panel(dialogue=[Line(text_fr="« {g3.canape_name} », c'est toi ?", text_native="„{g3.canape_name}“, bist du das?")]),
+        ],
+    )
+    assert day_contract.fill_slots(page, marks) == []
+    assert page.panels[0].narration_fr == "Sur le menu : « Le petit bateau »."
+    assert page.panels[1].dialogue[0].text_native == "„Le petit bateau“, bist du das?"
+    # A page that dropped the slot says so: the writer is asked once more.
+    assert day_contract.fill_slots(Page(title_fr="La veille", panels=[Panel()]), marks) == ["{g3.canape_name}"]
+    assert day_contract.fill_slots(page, []) == []
+
+
+@pytest.mark.parametrize("season_on", [True], ids=["lanes"], indirect=True)
+def test_the_name_the_learner_gave_is_on_the_page_two_days_later(
+    assembled_client, db_session, journey_enabled, clock, season_on, contract_on, monkeypatch  # noqa: F811
+):
+    provider = season_on
+    _reads(provider, monkeypatch, route="named", mark="Le petit bateau")
+    read = provider.generate_chat_completion
+    asked: list[list] = []
+
+    def writes_the_slot(messages, **kwargs):
+        # The fake writer does what the contract asks: it writes the slot it was given.
+        response = read(messages, **kwargs)
+        data = json.loads(messages[0]["content"])
+        if data["output_schema"]["title"] != "SceneDraft":
+            return response
+        today = ((data["data"].get("season_script") or {}).get("brief") or {}).get("today") or {}
+        back = (today.get("contract") or {}).get("brings_back") or []
+        asked.append(back)
+        if not back:
+            return response
+        value = json.loads(response.content)
+        value["panels"][0]["narration_fr"] = f"Sur le menu : « {back[0]['slot']} »."
+        return SimpleNamespace(**{**vars(response), "content": json.dumps(value, ensure_ascii=False)})
+
+    monkeypatch.setattr(provider, "generate_chat_completion", writes_the_slot)
+    d, user, _journey = _canape_day(assembled_client, db_session, clock, provider, "Le petit bateau.")
+    _play(d, provider, clock, "Celle-là.")  # the wall
+    eve = _play(d, provider, clock, "Ça va, Margaux ?")  # the eve of the party
+
+    scene = _latest_scene(db_session, user.id)
+    assert (scene.script_payload or {}).get("season", {}).get("key") == "g3.7"
+    assert asked[-1] and asked[-1][0]["slot"] == "{g3.canape_name}"
+    # The page as the reader gets it.
+    episodes = assembled_client.get(f"/api/v1/story-engine/episodes?journey_id={eve['id']}", headers=d.headers).json()
+    printed = json.dumps(episodes, ensure_ascii=False)
+    assert "Sur le menu : « Le petit bateau »." in printed
+    assert "{g3.canape_name}" not in printed
