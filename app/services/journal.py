@@ -1077,7 +1077,7 @@ class JournalService:
             )
         # #133: the line is built from the fixes, so it holds nothing the card doesn't list.
         checked = correction_contract.verify_correction(
-            text, correction.get("corrected_answer"), errata, language=normalize_language(user.native_language)
+            text, correction.get("corrected_answer"), errata, language=user_mother_tongue(user)
         )
         keep = [
             item

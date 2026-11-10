@@ -88,7 +88,8 @@ def test_feuilleton_keeps_the_learners_line_when_the_model_rewrites_it():
     )
 
     assert "C'est jeudi" not in held["corrected_answer"]
-    assert "Qu est-ce que" in held["corrected_answer"]
+    # The learner's line stays; the rule pass may still restore its apostrophes.
+    assert held["corrected_answer"].replace("'", " ").startswith("Qu est-ce que c est")
 
 
 def test_a_model_read_feuilleton_answer_counts_and_says_so():
@@ -169,7 +170,8 @@ def test_a_debrief_line_keeps_the_learners_words(monkeypatch):
     correction = service._correct_free_line(user, rehearsal, "Qu est-ce que c est, jeudi a dix-huit heures ?")
 
     assert "C'est jeudi" not in correction["corrected_fr"]
-    assert "Qu est-ce que" in correction["corrected_fr"]
+    # The learner's line stays; the rule pass may still restore its apostrophes.
+    assert correction["corrected_fr"].replace("'", " ").startswith("Qu est-ce que c est")
 
 
 def test_a_debrief_with_no_fix_left_drops_the_note_about_the_change(monkeypatch):
