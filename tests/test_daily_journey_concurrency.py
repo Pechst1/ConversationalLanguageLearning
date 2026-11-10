@@ -24,13 +24,13 @@ from app.api.v1.endpoints.daily_journey import get_journey_adapters
 from app.config import settings
 from app.db.base import Base
 from app.db.models.atelier import AtelierSession
-from app.db.models.mail_delivery import MailDelivery
 from app.db.models.daily_journey import (
     DailyJourney,
     DailyJourneyMutation,
     DailyJourneyStep,
 )
 from app.db.models.error import UserError
+from app.db.models.mail_delivery import MailDelivery
 from app.db.models.mission import RealWorldMission
 from app.db.models.serial import SerialThread
 from app.db.models.session import LearningSession
