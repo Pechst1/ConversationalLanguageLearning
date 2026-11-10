@@ -385,6 +385,26 @@ CONTINUATION_RULES: tuple[str, ...] = (
 )
 
 
+def continuation_rules(season_id: str) -> list[str]:
+    """:data:`CONTINUATION_RULES`, and the places the season names that the quarter has
+    not built: a page set there is refused (``world.playable_locations``), so the
+    continuation is told before it writes one (S5, walk #649: the closing hook promised
+    the rue de Lancry and every draft that went there was thrown away)."""
+
+    from app.services.season.world import unbuilt_places
+
+    rules = list(CONTINUATION_RULES)
+    unbuilt = unbuilt_places(season_id)
+    if unbuilt:
+        names = ", ".join(f"{name} ({place})" for place, name in sorted(unbuilt.items()))
+        rules.append(
+            "Not built yet, so never a page's location: " + names + ". "
+            "Characters may talk about these places, look towards them or plan to go; "
+            "the scene itself stays in a built place."
+        )
+    return rules
+
+
 # ---------------------------------------------------------------------------
 # Who the ending removed (WP-133b, finding 1)
 # ---------------------------------------------------------------------------
@@ -559,7 +579,7 @@ def carried(season: Season, state: dict | None, flags: dict[str, Any], *, band: 
         "facts": facts,
         "open_question": OPEN_QUESTION,
         "last_page": caption,
-        "rules": list(CONTINUATION_RULES),
+        "rules": continuation_rules(season.id),
         "closed_locations": ["le_mistral"] if ending == "laisser_partir" else [],
         # WP-133b: who the ending removed (never on the page; the draft guard
         # refuses it), and how each cast member speaks to the learner now.
