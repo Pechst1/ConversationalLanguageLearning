@@ -44,6 +44,8 @@ export const HOME_HREF = '/atelier';
 type Text = { title: string; body: string };
 type Table = Record<AppErrorKind, Text> & {
   budget: Text;
+  /** Package V: «Check again» pressed as often as a day allows (`recheck_limit_reached`). */
+  recheck: Text;
   crashed: Text;
   actions: Record<AppErrorAction, string>;
   reference: string;
@@ -59,6 +61,7 @@ const EN: Table = {
   session_expired: { title: 'Signed out', body: 'Your session has ended. Sign in again to carry on.' },
   unknown: { title: 'Something went wrong', body: 'That did not work. Try again.' },
   budget: { title: 'That’s all for today', body: 'See you tomorrow!' },
+  recheck: { title: 'No more checks today', body: 'Your text is kept. Ask for a check again tomorrow.' },
   crashed: { title: 'This page stopped', body: 'Something broke while it was drawn. Go back to La Une and open it again.' },
   actions: { retry: 'Try again', home: 'Back to La Une', sign_in: 'Sign in again' },
   reference: 'Reference',
@@ -74,6 +77,7 @@ const DE: Table = {
   session_expired: { title: 'Abgemeldet', body: 'Deine Sitzung ist abgelaufen. Melde dich erneut an, um weiterzumachen.' },
   unknown: { title: 'Etwas ist schiefgelaufen', body: 'Das hat nicht geklappt. Versuch es erneut.' },
   budget: { title: 'Das war’s für heute', body: 'Bis morgen!' },
+  recheck: { title: 'Heute keine Prüfung mehr', body: 'Dein Text bleibt gespeichert. Lass ihn morgen noch einmal prüfen.' },
   crashed: { title: 'Diese Seite ist stehen geblieben', body: 'Beim Aufbau ist etwas kaputtgegangen. Geh zurück zu La Une und öffne sie noch einmal.' },
   actions: { retry: 'Erneut versuchen', home: 'Zurück zu La Une', sign_in: 'Erneut anmelden' },
   reference: 'Referenz',
@@ -89,6 +93,7 @@ const FR: Table = {
   session_expired: { title: 'Session terminée', body: 'Ta session a pris fin. Reconnecte-toi pour continuer.' },
   unknown: { title: 'Un problème est survenu', body: 'Ça n’a pas marché. Réessaie.' },
   budget: { title: 'C’est tout pour aujourd’hui', body: 'À demain !' },
+  recheck: { title: 'Plus de vérification aujourd’hui', body: 'Ton texte est gardé. Redemande une vérification demain.' },
   crashed: { title: 'Cette page s’est arrêtée', body: 'Quelque chose a cassé pendant l’affichage. Reviens à La Une et rouvre-la.' },
   actions: { retry: 'Réessayer', home: 'Retour à La Une', sign_in: 'Se reconnecter' },
   reference: 'Référence',
@@ -171,13 +176,28 @@ export function errorToState(error: unknown, language: unknown): AppErrorState {
   const kind = errorKind(error);
   const copy = appErrorCopy(language);
   let text: Text = copy[kind];
+  let action = ACTION_FOR[kind];
   if (kind === 'rate_limited') {
-    text = detailCode(error) === 'daily_budget_reached'
-      ? copy.budget
-      : { ...text, body: text.body.replace('{seconds}', String(retryAfterSeconds(error))) };
+    const code = detailCode(error);
+    if (code === 'daily_budget_reached') {
+      text = copy.budget;
+    } else if (code === RECHECK_LIMIT_CODE) {
+      // Trying again today cannot work: the way forward is the day's page.
+      text = copy.recheck;
+      action = 'home';
+    } else {
+      text = { ...text, body: text.body.replace('{seconds}', String(retryAfterSeconds(error))) };
+    }
   }
-  const action = ACTION_FOR[kind];
   return { kind, title: text.title, body: text.body, action: { kind: action, label: copy.actions[action] } };
+}
+
+/** Package V: the server's code when a learner pressed «Check again» as often as a day allows. */
+export const RECHECK_LIMIT_CODE = 'recheck_limit_reached';
+
+/** True when `error` is the daily «Check again» limit (a 429 with `recheck_limit_reached`). */
+export function isRecheckLimit(error: unknown): boolean {
+  return errorKind(error) === 'rate_limited' && detailCode(error) === RECHECK_LIMIT_CODE;
 }
 
 /** One line for a toast: the title, then the sentence. */

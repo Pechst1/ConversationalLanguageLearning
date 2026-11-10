@@ -6,6 +6,7 @@ import { useRouter } from 'next/router';
 
 import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { useChromeLanguage } from '@/lib/learner-language';
+import { errorToastText, errorToState, isRecheckLimit } from '@/lib/app-errors';
 import { checkState, isUnread, type CheckLike, type FixLine } from '@/lib/verdict';
 import { pickByLanguage } from '@/lib/language-rule';
 import { castIdFor } from '@/lib/cast-faces';
@@ -875,7 +876,9 @@ export default function MissionsPage() {
       if (result.correction?.verdict === 'unassessed') toast(t.toast_recheck_failed);
     } catch (recheckError) {
       console.error(recheckError);
-      toast.error(t.toast_recheck_failed);
+      // Package V: past the day's «Check again» limit the learner is told so, in the chrome language.
+      if (isRecheckLimit(recheckError)) toast(errorToastText(errorToState(recheckError, chromeLang)), { id: 'recheck_limit_reached' });
+      else toast.error(t.toast_recheck_failed);
     } finally {
       setRechecking(null);
     }

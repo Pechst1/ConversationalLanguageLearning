@@ -2442,7 +2442,8 @@ export interface paths {
          * @description Run the French check again on a paragraph whose check failed.
          *
          *     No body: the stored text is what gets checked. A no-op on any entry whose
-         *     check already succeeded, so a double tap buys one call.
+         *     check already succeeded, so a double tap buys one call. Limited per learner and
+         *     day (``VERDICT_RECHECK_DAILY_LIMIT``, package V).
          */
         post: operations["retry_correction_api_v1_journal__entry_id__retry_post"];
         delete?: never;

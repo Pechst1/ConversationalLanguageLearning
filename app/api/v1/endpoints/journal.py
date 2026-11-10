@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
+from app.core.rate_limit import enforce_recheck_limit
 from app.db.models.journal import JournalEntry
 from app.db.models.user import User
 from app.schemas.verdict import VerdictView
@@ -304,8 +305,10 @@ def retry_correction(
     """Run the French check again on a paragraph whose check failed.
 
     No body: the stored text is what gets checked. A no-op on any entry whose
-    check already succeeded, so a double tap buys one call.
+    check already succeeded, so a double tap buys one call. Limited per learner and
+    day (``VERDICT_RECHECK_DAILY_LIMIT``, package V).
     """
+    enforce_recheck_limit(current_user)
     entry = _load(db, current_user, entry_id)
     entry = JournalService(db).retry_correction(current_user, entry)
     return _envelope(db, current_user, entry)

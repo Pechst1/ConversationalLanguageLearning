@@ -14,6 +14,7 @@ from app.api.deps import get_db
 from app.api.v1.endpoints.atelier import get_atelier_user
 from app.config import settings
 from app.core.offload import off_event_loop
+from app.core.rate_limit import enforce_recheck_limit
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
 from app.db.models.serial import SerialThread
 from app.db.models.user import User
@@ -610,6 +611,7 @@ def retry_mission_turn_correction(
     pass found nothing. Anything else is handed back as it stands. When the model fails
     a second time, the reply keeps its first correction.
     """
+    enforce_recheck_limit(current_user)
     mission = _mission_or_404(db, mission_id, current_user)
     _ensure_open(mission)
     user_turn = (

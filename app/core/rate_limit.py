@@ -45,6 +45,9 @@ from app.api.deps import get_db
 from app.config import settings
 
 RATE_LIMITED_CODE = "rate_limited"
+#: Package V: the learner pressed «Check again» as often as a day allows.
+RECHECK_LIMIT_CODE = "recheck_limit_reached"
+DAY_SECONDS = 86_400
 
 
 def _setting(name: str, default: Any) -> Any:
@@ -228,13 +231,13 @@ def too_many_requests(code: str, message: str, retry_after_seconds: int) -> HTTP
     )
 
 
-def enforce(key: str, *, limit: int, window_seconds: int, message: str) -> None:
+def enforce(key: str, *, limit: int, window_seconds: int, message: str, code: str = RATE_LIMITED_CODE) -> None:
     if limit <= 0:
         return
     decision = limiter.hit(key, limit=int(limit), window_seconds=max(1, int(window_seconds)))
     if not decision.allowed:
         logger.warning("Rate limit hit: {} ({} > {})", key.split(":", 1)[0], decision.count, limit)
-        raise too_many_requests(RATE_LIMITED_CODE, message, decision.retry_after_seconds)
+        raise too_many_requests(code, message, decision.retry_after_seconds)
 
 
 # ---------------------------------------------------------------------------
@@ -319,6 +322,9 @@ PAID_ROUTES: frozenset[tuple[str, str]] = frozenset(
         ("POST", "/missions/"),
         ("POST", "/missions/{mission_id}/submit"),
         ("POST", "/missions/{mission_id}/turns"),
+        # «Check again» and «Ask again» call the model too (package V)
+        ("POST", "/missions/{mission_id}/turns/{turn_id}/correction"),
+        ("POST", "/missions/{mission_id}/turns/{turn_id}/reply"),
         ("POST", "/graphic-novel/scenes"),
         ("POST", "/graphic-novel/scenes/"),
         ("POST", "/graphic-novel/scenes/{scene_id}/attempts"),
@@ -330,6 +336,7 @@ PAID_ROUTES: frozenset[tuple[str, str]] = frozenset(
         ("POST", "/intake/photo"),
         ("POST", "/journal/{entry_id}/write"),
         ("POST", "/journal/{entry_id}/followup"),
+        ("POST", "/journal/{entry_id}/retry"),
         ("POST", "/rehearsals"),
         ("POST", "/rehearsals/{rehearsal_id}/prepare"),
         ("POST", "/rehearsals/{rehearsal_id}/turns"),
@@ -359,6 +366,26 @@ OPEN_DAY_ROUTES: frozenset[tuple[str, str]] = frozenset(
         ("GET", "/daily-journeys/line-audio/{clip_id}"),
     }
 )
+
+
+def enforce_recheck_limit(user: Any) -> None:
+    """Package V: «Check again» (a Courrier reply, a Journal paragraph) per learner and day.
+
+    One counter for both surfaces, in fixed UTC-day windows, so ``Retry-After`` is the time to
+    the next UTC midnight. Not exempt for the test client: it is a product limit the learner
+    is told about, not abuse protection. ``RATE_LIMIT_ENABLED=false`` or a limit of 0 lifts it.
+    """
+
+    user_id = getattr(user, "id", None)
+    if user_id is None or not bool(_setting("RATE_LIMIT_ENABLED", True)):
+        return
+    enforce(
+        f"recheck:{user_id}",
+        limit=int(_setting("VERDICT_RECHECK_DAILY_LIMIT", 10)),
+        window_seconds=DAY_SECONDS,
+        message="You have asked for a check again as often as a day allows. Your text is kept.",
+        code=RECHECK_LIMIT_CODE,
+    )
 
 
 def is_paid_route(request: Request) -> bool:
@@ -429,11 +456,13 @@ __all__ = [
     "OPEN_DAY_ROUTES",
     "PAID_ROUTES",
     "RATE_LIMITED_CODE",
+    "RECHECK_LIMIT_CODE",
     "MemoryRateLimitBackend",
     "RateLimiter",
     "RedisRateLimitBackend",
     "auth_rate_limit",
     "client_ip",
+    "enforce_recheck_limit",
     "is_open_day_route",
     "is_paid_route",
     "limiter",

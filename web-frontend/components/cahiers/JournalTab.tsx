@@ -30,6 +30,8 @@
  * own paragraph are content and stay French.
  */
 import React, { useCallback, useEffect, useState } from 'react';
+import { useControlLanguage } from '@/components/atelier-v2/ui/AtelierV2Root';
+import { errorToastText, errorToState, isRecheckLimit } from '@/lib/app-errors';
 import { checkState, isUnread, type CheckState } from '@/lib/verdict';
 
 import {
@@ -174,6 +176,7 @@ export function wordCount(text: string): number {
 export default function JournalTab() {
   const copy = useCahierCopy();
   const t = copy.journal;
+  const language = useControlLanguage();
   const [state, setState] = useState<JournalEnvelope | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -234,12 +237,13 @@ export default function JournalTab() {
     setError(null);
     try {
       setState(await api.retryJournalCorrection(entry.id));
-    } catch {
-      setError(t.busy_failed);
+    } catch (retryError) {
+      // Package V: past the day's «Check again» limit the learner is told so, not «busy».
+      setError(isRecheckLimit(retryError) ? errorToastText(errorToState(retryError, language)) : t.busy_failed);
     } finally {
       setPending(null);
     }
-  }, [entry, t]);
+  }, [entry, language, t]);
 
   const skip = useCallback(async () => {
     if (!entry) return;
