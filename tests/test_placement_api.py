@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.main import create_app
 from app.services import placement as placement_module
+from app.services.llm_service import LLMProviderError
 
 TEST_PASSWORD = "securepass123"
 
@@ -158,6 +159,33 @@ def test_the_level_reaches_the_cefr_payload_as_a_placement(placement_client, fak
     assert cefr["estimate_source"] == "placement"
     assert cefr["placement"]["level"] == envelope["level"]
     assert cefr["estimate"] == envelope["level"]
+
+
+def test_each_answer_says_who_read_it(placement_client, fake_grader, monkeypatch):
+    headers = login(placement_client, _email())
+    started = placement_client.post("/api/v1/placement/start", headers=headers).json()
+    assert started["check"] is None
+    session_id = started["session_id"]
+
+    read = placement_client.post(
+        f"/api/v1/placement/{session_id}/respond",
+        headers=headers,
+        json={"answer": "Je voudrais un café, s’il vous plaît.", "turn_index": 0},
+    ).json()
+    assert read["check"]["outcome"] == "right"
+    assert read["check"]["counts"] is True
+
+    def grader_down(*_a, **_k):
+        raise LLMProviderError("read timed out")
+
+    monkeypatch.setattr(fake_grader, "generate_error_detection", grader_down)
+    unread = placement_client.post(
+        f"/api/v1/placement/{session_id}/respond",
+        headers=headers,
+        json={"answer": "Je voudrais un café.", "turn_index": 1},
+    ).json()
+    assert unread["check"]["outcome"] == "not_checked"
+    assert unread["check"]["counts"] is False
 
 
 def test_a_replayed_response_neither_re_grades_nor_re_bills(placement_client, fake_grader):

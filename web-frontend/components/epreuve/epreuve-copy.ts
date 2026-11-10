@@ -15,6 +15,7 @@
 import type { ControlLanguage } from '@/types/daily-journey';
 
 import { normalizeControlLanguage } from '@/lib/atelier-v2-copy';
+import { CHECK_COPY } from '@/lib/verdict';
 
 export type EpreuveCopy = {
   // screen
@@ -94,6 +95,7 @@ export type EpreuveCopy = {
   task: string;
   task_default_why: string;
   unscored: string;
+  check_basic: string;
   skip_unscored: string;
   // WP-103: the goal's scene label, «Je relis…», and the follow-up after «À corriger»
   from_scene: string;
@@ -279,7 +281,8 @@ const FR: EpreuveCopy = {
   corrections_n: '{n} corrections',
   task: 'La consigne',
   task_default_why: 'La réponse ne suit pas encore la consigne. Relis-la et réessaie.',
-  unscored: 'Réponse enregistrée, pas encore vérifiée.',
+  unscored: CHECK_COPY.fr.not_checked,
+  check_basic: CHECK_COPY.fr.basic,
   skip_unscored: 'Passer sans évaluation',
   from_scene: 'Dans la scène',
   reading: 'Je relis…',
@@ -455,7 +458,8 @@ const EN: EpreuveCopy = {
   corrections_n: '{n} corrections',
   task: 'The task',
   task_default_why: 'The answer does not follow the task yet. Read it again and retry.',
-  unscored: 'Answer saved, not checked yet.',
+  unscored: CHECK_COPY.en.not_checked,
+  check_basic: CHECK_COPY.en.basic,
   skip_unscored: 'Skip without a check',
   from_scene: 'From the scene',
   reading: 'Let me read it again…',
@@ -631,7 +635,8 @@ const DE: EpreuveCopy = {
   corrections_n: '{n} Korrekturen',
   task: 'Die Aufgabe',
   task_default_why: 'Die Antwort erfüllt die Aufgabe noch nicht. Lies sie noch einmal und versuch es erneut.',
-  unscored: 'Antwort gespeichert, noch nicht geprüft.',
+  unscored: CHECK_COPY.de.not_checked,
+  check_basic: CHECK_COPY.de.basic,
   skip_unscored: 'Ohne Prüfung weiter',
   from_scene: 'Aus der Szene',
   reading: 'Ich lese es noch einmal …',

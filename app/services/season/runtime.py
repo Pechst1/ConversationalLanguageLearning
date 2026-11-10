@@ -1095,10 +1095,12 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
     understood = choice.confidence >= MATCH_THRESHOLD
     # The page answers what the learner meant; the form is corrected in the margin
     # (never punished in the plot — the bible's rule).
-    from app.services.story_lanes import margin_correction
+    from app.services.story_lanes import margin_correction, split_margin
 
-    correction = margin_correction(
-        db, user=user, scenario=scenario, task=task, answer=answer, turn_index=turn_index, history=history
+    correction, margin_failure = split_margin(
+        margin_correction(
+            db, user=user, scenario=scenario, task=task, answer=answer, turn_index=turn_index, history=history
+        )
     )
     return ResponseEvaluation(
         outcome=TaskOutcome.MET if understood else TaskOutcome.PARTIALLY_MET,
@@ -1109,6 +1111,7 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         consequence=proposal,
         needs_repair=not closing,
         failure_reason="reply_source:authored_season",
+        check_failure=margin_failure,
         reply_lines=spoken_lines_out,
         next_choices=next_choices,
         next_task_native=next_task or None,
@@ -1190,7 +1193,7 @@ def _ask_again_evaluation(
         learner_name,
         reaction_lines,
     )
-    from app.services.story_lanes import margin_correction
+    from app.services.story_lanes import margin_correction, split_margin
 
     turn = _named_turn(scenario, turn)
     if french_please:
@@ -1211,8 +1214,10 @@ def _ask_again_evaluation(
             panel = {**panel, "lines": [*ack_panel(turn, ack)["lines"], *panel["lines"]]}
     addressee = turn_addressee(turn, scenario)
     beats = [panel] if panel else []
-    correction = margin_correction(
-        db, user=user, scenario=scenario, task=task, answer=answer, turn_index=turn_index, history=history
+    correction, margin_failure = split_margin(
+        margin_correction(
+            db, user=user, scenario=scenario, task=task, answer=answer, turn_index=turn_index, history=history
+        )
     )
     return ResponseEvaluation(
         outcome=TaskOutcome.PARTIALLY_MET,
@@ -1224,6 +1229,7 @@ def _ask_again_evaluation(
         # Free: the question is still owed, so the exchange it took is given back.
         turn_consumed=False,
         failure_reason="reply_source:authored_season",
+        check_failure=margin_failure,
         reply_lines=reaction_lines(beats, addressee=addressee),
         # A «choix» asked again keeps its cards.
         next_choices=choice_cards(turn) if turn.get("choice") else [],

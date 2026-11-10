@@ -119,6 +119,10 @@ class ErrorDetector:
                 llm_errors, summary, review_vocabulary, provider_meta = llm_result
                 errors.extend(llm_errors)
                 metadata.update(provider_meta)
+                metadata["llm_read"] = True
+            else:
+                # #333: the rules ran and the model did not, so an empty list proves nothing.
+                metadata["llm_failure"] = getattr(self, "_llm_failure", None) or "invalid_output"
         return ErrorDetectionResult(errors=errors, summary=summary, review_vocabulary=review_vocabulary, metadata=metadata)
 
     def _localized(self, errors: list[DetectedError]) -> list[DetectedError]:
@@ -190,6 +194,7 @@ class ErrorDetector:
                 )
         except Exception as exc:  # pragma: no cover - defensive logging path
             logger.warning("LLM analysis failed", error=str(exc))
+            self._llm_failure = f"{type(exc).__name__}: {exc}"
             return None
 
         parsed = self._parse_llm_response(result)

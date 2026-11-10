@@ -1,3 +1,4 @@
+import type { CheckLike } from '@/lib/verdict';
 import type { components } from '@/types/generated/api';
 import { noteGoldRequest } from '@/lib/gold-events';
 import { rememberCastVariants } from '@/lib/cast-variants';
@@ -320,6 +321,8 @@ export interface JournalCorrection {
    *  (#250): it marks real mistakes but cannot say a text is right, so a clean result says it was
    *  a basic check only (never «nothing found»), and `retryable` says whether the model could be asked again. */
   checker?: string | null;
+  /** #333: who read it, in the one verdict shape. */
+  check?: CheckLike | null;
   retryable?: boolean;
   explanation_language?: string | null;
   /** The one correction shown up front, chosen by the journey's own policy. */
@@ -454,6 +457,7 @@ export interface RehearsalView {
     already_correct?: boolean | null;
     /** False means the line was NOT checked — never that it was correct. */
     correction_available: boolean;
+    check?: CheckLike | null;
     recorded_at: string;
   } | null;
   outcome?: string | null;
@@ -1246,6 +1250,8 @@ export interface AtelierForgeView {
     rung: number;
     rung_name: string;
     served: number;
+    /** #333: the level to show, without the steps still waiting on a reading. */
+    shown_rung?: number | null;
     topped: boolean;
     /** WP-S5: the rule's coach. */
     coach?: ForgeCoach | null;
@@ -1595,6 +1601,10 @@ export interface MissionMeasured {
   phrases_saved: number;
   replies: number;
   words_written: number;
+  /** #590: the learner's last message was never answered. */
+  reply_pending?: boolean;
+  /** #333: a message of this letter was never read. */
+  unchecked?: boolean;
 }
 
 export interface RealWorldMission {
@@ -2915,6 +2925,11 @@ class ApiService {
     return this.atelierPost<MissionTurnCorrectionResult>(`/missions/${missionId}/turns/${turnId}/correction`);
   }
 
+  // #590: ask the correspondent again for the learner's latest unanswered message.
+  async retryMissionTurnReply(missionId: string, turnId: string) {
+    return this.atelierPost<MissionTurnResult>(`/missions/${missionId}/turns/${turnId}/reply`);
+  }
+
   async completeMission(missionId: string) {
     const response = await this.atelierPost<MissionCompleteResult>(`/missions/${missionId}/complete`);
     return response;
@@ -3096,6 +3111,7 @@ class ApiService {
   }): Promise<{
     ai_response: string;
     ai_audio_text: string;
+    check?: CheckLike | null;
     detected_errors: Array<{
       original: string;
       correction: string;

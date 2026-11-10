@@ -13,6 +13,7 @@
  */
 
 import { normalizeControlLanguage } from '@/lib/atelier-v2-copy';
+import { CHECK_COPY } from '@/lib/verdict';
 import type { ControlLanguage } from '@/types/daily-journey';
 
 export type RehearsalCopy = {
@@ -166,7 +167,7 @@ const FR: RehearsalCopy = {
   debriefed_eyebrow: 'Répétition · bilan enregistré',
   done_title: 'Tu l’as fait',
   noted_title: 'C’est noté',
-  uncorrected: 'Cette phrase n’a pas pu être corrigée. Elle n’est pas jugée correcte pour autant.',
+  uncorrected: CHECK_COPY.fr.not_checked,
   load_failed: 'La page n’a pas pu être ouverte. Réessaie dans un instant.',
   generic_failure: 'Cette action n’a pas abouti. Réessaie dans un instant.',
 };
@@ -244,7 +245,7 @@ const EN: RehearsalCopy = {
   debriefed_eyebrow: 'Répétition · debrief saved',
   done_title: 'You did it',
   noted_title: 'Noted',
-  uncorrected: 'This sentence couldn’t be corrected. That doesn’t mean it counts as correct.',
+  uncorrected: CHECK_COPY.en.not_checked,
   load_failed: 'The page could not be opened. Please try again in a moment.',
   generic_failure: 'That didn’t work. Please try again in a moment.',
 };
@@ -322,7 +323,7 @@ const DE: RehearsalCopy = {
   debriefed_eyebrow: 'Répétition · Rückblick gespeichert',
   done_title: 'Du hast es geschafft',
   noted_title: 'Notiert',
-  uncorrected: 'Dieser Satz konnte nicht korrigiert werden. Das heißt nicht, dass er als richtig gilt.',
+  uncorrected: CHECK_COPY.de.not_checked,
   load_failed: 'Die Seite konnte nicht geöffnet werden. Bitte versuch es gleich noch einmal.',
   generic_failure: 'Das hat nicht geklappt. Bitte versuch es gleich noch einmal.',
 };

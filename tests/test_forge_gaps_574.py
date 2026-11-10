@@ -61,8 +61,8 @@ def test_the_gaps_follow_the_corrected_sentence_whatever_the_model_listed() -> N
 
     # N differences, N = 1 .. 3: the model lists none of them, only the sentence.
     for learner, corrected, gaps in (
-        ("Elle est partie hier.", "Elle est partie hier soir.", 1),
-        ("Je mange une pomme rouge.", "Je mange une pomme verte.", 1),
+        ("Elle est parti hier.", "Elle est partie hier.", 1),
+        ("Je mange un pomme rouge.", "Je mange une pomme rouge.", 1),
         ("Il a deux chats noir et un chien.", "Il a deux chats noirs et un chiens.", 2),
         ("tu es fatigue ce matin", "Tu es fatigué ce matin.", 1),
     ):

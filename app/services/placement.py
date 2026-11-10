@@ -44,6 +44,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db.models.placement import PlacementSession
 from app.db.models.user import User
+from app.services import verdicts
 from app.services.atelier_correction_cost import bound_learner_answer
 from app.services.cefr_progress import CEFR_LEVELS, declared_level_floor, level_index
 from app.services.journey_contracts import normalize_control_language
@@ -1146,6 +1147,12 @@ class PlacementService:
             )
         except (LLMProviderError, ValueError, TypeError) as exc:
             logger.warning("Placement grading call failed: {}", exc)
+            verdicts.note_failure(
+                self.db,
+                surface="placement",
+                verdict=verdicts.from_placement(None, failure=f"{type(exc).__name__}: {exc}"),
+                user_id=session.user_id,
+            )
             return None
         record_placement_cost(
             self.db,
@@ -1161,6 +1168,12 @@ class PlacementService:
             )
         except (json.JSONDecodeError, ValueError, TypeError) as exc:
             logger.warning("Placement grading was unusable: {}", exc)
+            verdicts.note_failure(
+                self.db,
+                surface="placement",
+                verdict=verdicts.from_placement(None, failure=f"invalid_output: {exc}"),
+                user_id=session.user_id,
+            )
             return None
 
 

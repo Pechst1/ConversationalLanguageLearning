@@ -882,6 +882,49 @@ def test_a_season_page_corrects_the_form_in_the_margin(assembled_client, db_sess
     assert len(speakers) >= 2, f"each speaker has their own line: {body.get('character_lines')}"
 
 
+def test_a_season_page_whose_tutor_failed_keeps_the_page_and_counts_for_nothing(
+    assembled_client, db_session, journey_enabled, clock, season_on, monkeypatch
+):
+    """#333: the page still answers. A tutor that never answered is not a tutor that found nothing."""
+
+    from app.config import settings
+    from app.db.models.gold import GoldLedgerEntry
+
+    monkeypatch.setattr(settings, "ATELIER_GOLD_MODE", "shadow")
+    provider = season_on
+    original = provider.generate_chat_completion
+
+    def tutor_down(messages, **kwargs):
+        if json.loads(messages[0]["content"])["output_schema"]["title"] == "TutorVerdict":
+            raise TimeoutError("read timed out")
+        return original(messages, **kwargs)
+
+    provider.generate_chat_completion = tutor_down
+    provider.routes = {"Odile est mon grand-mere": "a"}
+    d = support.Driver(assembled_client, support.register(assembled_client, f"s1m-{uuid.uuid4()}@example.com", cefr="A2.1"), db=db_session)
+    d.create()
+    step = None
+    for _ in range(40):
+        step = d.current()
+        if step is None or step["kind"] == "respond":
+            break
+        if step["kind"] == "recall":
+            d.attempt(d.recall_answer(step, correct=True))
+            if d.journey.get("current_step_id") == step["id"]:
+                d.advance()
+        else:
+            d.advance()
+    assert step and step["kind"] == "respond"
+
+    body = d.attempt({"mode": "text", "text": "Odile est mon grand-mere"}).json()
+
+    assert body.get("character_lines"), "the page still answers what the learner meant"
+    assert (body["check"]["outcome"], body["check"]["counts"]) == ("not_checked", False)
+    assert body["check"]["call"] == "failed" and body["check"]["failure"]
+    db_session.flush()
+    assert not db_session.query(GoldLedgerEntry).filter(GoldLedgerEntry.source_kind == "journey_reply").all()
+
+
 def _user_id_of(db, journey: dict):
     from app.db.models.daily_journey import DailyJourney
 

@@ -87,7 +87,8 @@ from app.schemas.daily_journey import (
     forge_href_for,
     practice_href_for,
 )
-from app.services import gold_ledger, scene_ledger
+from app.schemas.verdict import VerdictView
+from app.services import gold_ledger, scene_ledger, verdicts
 from app.services.chrome_language import user_chrome_language, user_mother_tongue
 from app.services.closing_filler import scene_fact
 from app.services.daily_journey_adapters import (
@@ -673,6 +674,7 @@ def _public_thread(turns: list[Any]) -> list[dict[str, Any]]:
                 "learner_fr": learner,
                 "character_fr": str(turn.get("character") or ""),
                 "correction": correction,
+                **({"unchecked": True} if turn.get("check_failure") else {}),
                 **({"character_lines": lines} if lines else {}),
             }
         )
@@ -5488,6 +5490,13 @@ class DailyJourneyService:
             character_reply_fr=None,
             next_turn=None,
             pending=False,
+            check=VerdictView.of(
+                verdicts.from_recall(
+                    outcome=evaluation.outcome,
+                    correction=evaluation.correction,
+                    text=recall_learner_text(task, answer) or "",
+                )
+            ),
             slip_note_native=getattr(evaluation, "slip_note_native", None),
             journey=self.snapshot(journey),
         )
@@ -5600,6 +5609,8 @@ class DailyJourneyService:
                     public_correction.model_dump(mode="json") if public_correction else None
                 ),
                 "free": bool(evaluation.needs_repair and not evaluation.turn_consumed),
+                # #333: nobody read this reply; the thread says so after a reload too.
+                **({"check_failure": evaluation.check_failure} if evaluation.check_failure else {}),
                 # Every speaker of a many-voiced reply, so each gets their bubble.
                 **({"lines": list(evaluation.reply_lines)} if evaluation.reply_lines else {}),
                 # QA-STORY: the season route this exchange took (replayed, never re-read).
@@ -5689,6 +5700,14 @@ class DailyJourneyService:
         if step.status == str(StepStatus.COMPLETED) and act == 1:
             self._finish_answered_letter(user, journey, step, evaluation)
 
+        scene_check = verdicts.from_scene(
+            outcome=evaluation.outcome,
+            correction=evaluation.correction,
+            text=answer.text or "",
+            failure_reason=evaluation.failure_reason,
+            check_failure=evaluation.check_failure,
+        )
+        verdicts.note_failure(self.db, surface="scene", verdict=scene_check, user_id=user.id)
         return AttemptResult(
             evidence_ref=applied.evidence_ref,
             task_outcome=evaluation.outcome,
@@ -5699,6 +5718,7 @@ class DailyJourneyService:
             reply_source=self._reply_source(evaluation),
             next_turn=next_turn,
             pending=False,
+            check=VerdictView.of(scene_check),
             repeat_line_fr=(
                 repeat_line_for(step, public_correction)
                 if step.status == str(StepStatus.COMPLETED)
@@ -5836,6 +5856,7 @@ class DailyJourneyService:
             character_reply_fr=None,
             next_turn=None,
             pending=True,
+            check=VerdictView.of(verdicts.from_recall(outcome=TaskOutcome.UNSCORED, pending=True)),
             journey=self.snapshot(journey),
         )
 
@@ -5937,6 +5958,7 @@ class DailyJourneyService:
                 # never used stays unmet.
                 produced_target_ids=_produced_target_ids(evaluation),
                 language=user_mother_tongue(user),
+                check_failure=getattr(evaluation, "check_failure", None),
             )
         except Exception:
             logger.exception("daily_journey: the answered Courrier letter could not be filed")

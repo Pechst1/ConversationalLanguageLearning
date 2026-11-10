@@ -610,7 +610,7 @@ export function EpRelecture({ status = 'pending', children, onRetry, retrying }:
     return (
       <div className="ep-relecture" data-status="failed">
         <Notice tone="alert" live="alert" shape="action">
-          <p>{t.relecture_failed}</p>
+          <p>{children ?? t.relecture_failed}</p>
           {onRetry && (
             <button type="button" className="av2-btn av2-btn--secondary av2-btn--inline ep-relecture__again" onClick={onRetry} disabled={retrying} aria-busy={retrying || undefined}>
               {retrying ? t.relaunching : t.relaunch}

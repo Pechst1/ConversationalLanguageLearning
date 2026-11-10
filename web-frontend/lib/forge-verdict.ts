@@ -96,23 +96,29 @@ export function settleShownCorrection(
 export type RepairStep = 'none' | 'open' | 'right' | 'revealed';
 
 /**
- * The one verdict of an item that has a repair step (#213).
+ * The one verdict of an item that has a repair step (#213, #553).
  *
- * Live walk 2026-10-18: «Needs fixing» was the right call, the repair was built
- * wrong, and the card said «Not quite. The right sentence: …» above «Well
- * done!». The footer's verdict was built from the item's judgement alone and the
- * card's from the repair. Feedback is built from the part the learner got wrong,
- * so there is one verdict and it follows the last step that was taken:
- *
- *   * a wrong judgement is wrong, whatever the repair does;
- *   * a right judgement waits while the repair is open (`open`: no verdict yet,
- *     so nothing is shown that could be reversed), then takes the repair's result
- *     (`right`, or `revealed`: the right sentence was shown instead).
+ * The item was judged, and the judgement is what counts: the server's
+ * `record_micro_repair` leaves the verdict alone. So there is one verdict and it is the
+ * judgement's. A wrong judgement is wrong whatever the repair does; a right one waits
+ * while the repair is open (nothing is shown that could be reversed), then stays right,
+ * even when the correction was missed or skipped. The repair has its own line, with the
+ * right sentence and no verdict word.
  */
 export function itemVerdict({ judgedRight, repair }: { judgedRight: boolean; repair: RepairStep }): 'right' | 'wrong' | 'open' {
   if (!judgedRight) return 'wrong';
-  if (repair === 'none' || repair === 'right') return 'right';
-  return repair === 'open' ? 'open' : 'wrong';
+  return repair === 'open' ? 'open' : 'right';
+}
+
+/**
+ * The level to print under an answer (#333). While nobody has read a free line, its
+ * provisional step only picks the next item: the learner sees the level from before it.
+ */
+export function answeredLevel(correction: Record<string, any> | null | undefined): number | null {
+  const forge = correction?.forge;
+  if (!forge) return null;
+  const level = productionPhase(correction) === 'checking' ? forge.level_before ?? forge.new_rung : forge.new_rung;
+  return level ?? null;
 }
 
 /** Whether the answer shown now is a verdict (`right`, `settled`) or a wait. */

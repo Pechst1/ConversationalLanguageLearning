@@ -269,6 +269,8 @@ def test_create_read_help_attempt_advance_pause_resume_finish(
     assert attempt_body["assistance_level"] == help_kind
     assert attempt_body["pending"] is False
     assert attempt_body["evidence_ref"].startswith("stub:")
+    check = attempt_body["check"]
+    assert (check["outcome"], check["checked_by"], check["counts"]) == ("right", "key", True)
     assert_no_private_material(attempt_body)
     state = attempt_body["journey"]
     assert step_of(state, "recall")["status"] == "completed"
@@ -304,6 +306,8 @@ def test_create_read_help_attempt_advance_pause_resume_finish(
     spoken_body = spoken.json()
     assert spoken_body["task_outcome"] == "met"
     assert spoken_body["assistance_level"] == "none"
+    assert spoken_body["check"]["outcome"] == "right"
+    assert spoken_body["check"]["counts"] is True
     assert spoken_body["next_turn"] is None
     # Provenance travels with the reply: never an authored line dressed up as live.
     assert spoken_body["reply_source"] in {"authored", "model", "none"}

@@ -791,7 +791,7 @@ def test_a_provider_that_does_not_answer_keeps_the_writing_and_invents_nothing(d
     entry = _write(db_session, user, corrector, "J’ai rapporté le livre à Romy mardi.")
 
     assert entry.status == "written"
-    assert entry.assessment_status == "checked"
+    assert entry.assessment_status == "unavailable", "#333: rules ran after a failed call; no check did"
     assert entry.correction["checker"] == "deterministic"
     assert entry.correction["failure_reason"] == "model_error"
     assert entry.correction["retryable"] is True
@@ -811,7 +811,7 @@ def test_a_scene_with_no_concept_to_check_against_still_runs_the_model_free_pass
     _journey(db_session, user, local_date=TODAY - timedelta(days=1), concept=None)
     corrector = _FakeCorrector({"verdict": "accepted", "score_0_4": 4, "errata": []})
     entry = _write(db_session, user, corrector, "J’ai rapporté le livre à Romy.")
-    assert entry.assessment_status == "checked"
+    assert entry.assessment_status == "unavailable", "#333: no model read this row"
     assert entry.correction["checker"] == "deterministic"
     assert entry.correction["retryable"] is False
     assert corrector.calls == 0
@@ -924,7 +924,7 @@ def test_the_20_oct_entry_gets_its_two_mistakes_marked_with_no_model_and_no_gram
     assert spans.get("a rentré") == "est rentrée"
     assert spans.get("mange") == "a mangé"
     assert all(span in _OCT_20 for span in spans)
-    assert entry.assessment_status == "checked"
+    assert entry.assessment_status == "unavailable", "#333: the rules' fixes stand; no model read this row"
     assert entry.correction["checker"] == "deterministic"
     assert corrector.calls == 0
     # the real errors reach the learner's error memory like any other journal erratum

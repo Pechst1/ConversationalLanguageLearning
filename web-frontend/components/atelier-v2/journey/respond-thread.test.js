@@ -687,3 +687,27 @@ test('#217 every cast member keeps one name, also in a payload with the world bi
   assert.equal(castDisplayName(null, 'Augustin « Gus » de Roncourt'), 'Gus');
   assert.equal(castDisplayName(null, 'Mme Lefèvre'), null, 'someone outside the cast keeps their own name');
 });
+
+test('#333 · a reply nobody read keeps saying so on its bubble, after a reload too', () => {
+  const stored = model.threadBubbles({
+    prompt: prompt({
+      turn_index: 1,
+      thread: [{ learner_fr: 'Je pas ai bagages.', character_fr: 'On m’appelle.', correction: null, unchecked: true }],
+    }),
+  });
+  assert.equal(stored.find((bubble) => bubble.kind === 'learner').unchecked, true);
+
+  const read = model.threadBubbles({
+    prompt: prompt({ turn_index: 1, thread: [{ learner_fr: 'Bonjour.', character_fr: 'Bonjour !', correction: null }] }),
+  });
+  assert.equal(read.find((bubble) => bubble.kind === 'learner').unchecked, false);
+
+  const answered = model.liveExchange
+    ? model.liveExchange({
+      result: { task_outcome: 'partially_met', character_reply_fr: 'On m’appelle.', check: { outcome: 'not_checked', call: 'failed', edits: [] } },
+      prompt: prompt(),
+      sent: { turn: 0, text: 'Je pas ai bagages.', prompt_fr: null },
+    })
+    : null;
+  if (answered) assert.equal(answered.unchecked, true);
+});

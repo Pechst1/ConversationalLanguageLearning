@@ -23,7 +23,7 @@ from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.db.savepoint import best_effort
-from app.services import cast_registry, correction_contract
+from app.services import cast_registry, correction_contract, verdicts
 from app.services import story_correspondence as courrier
 from app.services.address import address_instruction, known_register
 from app.services.answer_acceptance import is_preference_swap
@@ -1434,6 +1434,14 @@ def _record_mission_llm_cost(
         logger.warning("Mission cost row could not be written", purpose=purpose)
 
 
+#: What «the model call did not give an answer» means for every Courrier call (#333). Each call
+#: site used to list its own exceptions, so a timeout that did not arrive as an
+#: ``LLMProviderError`` took the learner's turn down at one site and was a quiet fallback at the
+#: next. A call that raised any of these is a failed call: the caller says so, it never
+#: reads it as an empty result.
+MODEL_CALL_FAILED = (LLMProviderError, TimeoutError, OSError, ValueError, TypeError, KeyError, AttributeError)
+
+
 def _safe_llm() -> LLMService | None:
     if not settings.ATELIER_LLM_ENABLED:
         return None
@@ -1695,7 +1703,6 @@ _META_FEEDBACK_MARKERS: tuple[str, ...] = (
 # "[votre adresse]", "{name}", "XXX" — scaffolding a provider slipped into a
 # "polished" answer. Printing it as the learner's corrected reply is worse than
 # printing nothing.
-_PLACEHOLDER_PATTERN = re.compile(r"[\[\{][^\]\}]{1,60}[\]\}]|\bx{3,}\b", re.IGNORECASE)
 
 
 def _repair_tokens(value: Any) -> list[str]:
@@ -3315,7 +3322,7 @@ class MissionGenerator:
                 )
                 _record_mission_llm_cost(self.db, user_id=getattr(user, "id", None), result=result, purpose="scenario")
                 candidate = json.loads(result.content)
-            except (LLMProviderError, json.JSONDecodeError, ValueError, TypeError, KeyError) as exc:
+            except MODEL_CALL_FAILED as exc:
                 logger.info("Mission scenario generation unavailable", error=str(exc))
                 return None
             if not isinstance(candidate, dict) or not candidate.get("opening_message"):
@@ -3643,6 +3650,7 @@ class MissionCorrectionService:
         # learner's native language; the Courrier's fiction around it stays French.
         language = user_mother_tongue(user)
         deterministic_errata, deterministic_answer = self._deterministic_errata(text, language=language)
+        self._correction_failure = "no_model" if near_realtime else None
         if near_realtime:
             correction = self._fallback_correction(
                 mission=mission,
@@ -3677,17 +3685,26 @@ class MissionCorrectionService:
             "prompt_version": correction.get("_prompt_version") or MISSION_CORRECTION_PROMPT_VERSION,
             "fallback_used": correction.get("_fallback_used", False),
             "model": correction.get("_model"),
+            # #333: why no model verdict exists. The screen and the failure log read it.
+            "failure": getattr(self, "_correction_failure", None) if correction.get("_fallback_used") else None,
             "deterministic_rule_count": len(deterministic_errata),
             "near_realtime": near_realtime,
         }
         correction = self._apply_vocabulary_feedback(
             mission=mission, text=text, correction=correction, language=language
         )
-        # #318: the sentence the learner copies goes through the same rules as their
-        # own: a model rewrite never prints «le appartement».
-        correction["corrected_answer"] = correction_contract.repair_text(
-            self._complete_corrected_answer(text=text, correction=correction)
+        # #133: the sentence the learner copies is their own, with every listed fix in it.
+        # A model sentence is read for fixes it did not list, and never printed as it came.
+        checked = correction_contract.verify_correction(
+            text,
+            None if correction.get("verdict") == "accepted" else correction.get("corrected_answer"),
+            correction.get("errata") or [],
+            language=copy_language(language),
         )
+        correction["errata"] = checked.errata
+        correction["corrected_answer"] = checked.corrected
+        if checked.refused:
+            correction["dropped_errata"] = checked.refused
         # Design contract, principle 4: a card headed "Correction" has to be backed
         # by a repair. When every erratum failed the gates, the provider's polished
         # rewrite is a style preference — hand back the learner's own sentence so
@@ -3960,39 +3977,6 @@ class MissionCorrectionService:
             return None
         return {**erratum, "learner_text": narrowed_learner, "corrected_target": narrowed_corrected}
 
-    @staticmethod
-    def _complete_corrected_answer(*, text: str, correction: dict[str, Any]) -> str:
-        """Keep the polished answer complete — but still the learner's own message.
-
-        A provider may return an excerpt (too short, repaired below) or, for a
-        one-word reply, invent a whole new message with template placeholders.
-        Both are refused: what prints under "Correction" has to be a cleaned-up
-        version of what the learner actually sent.
-        """
-        submitted = text.strip()
-        candidate = str(correction.get("corrected_answer") or "").strip()
-        learner_words = re.findall(r"\S+", submitted)
-        candidate_words = re.findall(r"\S+", candidate)
-        minimum_words = max(3, round(len(learner_words) * 0.65))
-        maximum_words = max(minimum_words + 6, round(len(learner_words) * 1.8) + 6)
-        if candidate and _PLACEHOLDER_PATTERN.search(candidate):
-            candidate = ""
-            candidate_words = []
-        if candidate and (not learner_words or minimum_words <= len(candidate_words) <= maximum_words):
-            return candidate
-
-        repaired = submitted
-        for erratum in correction.get("errata") or []:
-            task_type = str(erratum.get("task_error_type") or "")
-            if task_type == "task_compliance" or task_type.startswith("vocabulary"):
-                continue
-            wrong = str(erratum.get("learner_text") or "").strip()
-            fixed = str(erratum.get("corrected_target") or "").strip()
-            if not wrong or not fixed or wrong.casefold() == fixed.casefold():
-                continue
-            repaired = re.sub(re.escape(wrong), lambda _match, value=fixed: value, repaired, count=1, flags=re.IGNORECASE)
-        return repaired or candidate
-
     def persist_errata(
         self,
         *,
@@ -4043,7 +4027,9 @@ class MissionCorrectionService:
         return persisted
 
     def _llm_correction(self, *, user: User, mission: RealWorldMission, text: str, mode: str) -> dict[str, Any] | None:
+        self._correction_failure = None
         if not self.llm:
+            self._correction_failure = "no_model"
             return None
         # An explanation the learner cannot read teaches nothing: follow the same
         # contract as the Atelier corrector — French stays French, the prose that
@@ -4104,12 +4090,18 @@ class MissionCorrectionService:
                 purpose="correction",
                 mission_id=getattr(mission, "id", None),
             )
+            if not str(result.content or "").strip():
+                self._correction_failure = "empty"
+                return None
             parsed = json.loads(result.content)
+            if not parsed.get("verdict"):
+                raise ValueError("invalid output: the corrector returned no verdict")
             parsed["_model"] = result.model
             parsed["_fallback_used"] = False
             return parsed
-        except (LLMProviderError, json.JSONDecodeError, ValueError) as exc:
+        except MODEL_CALL_FAILED as exc:
             logger.debug("Mission correction LLM fallback", error=str(exc))
+            self._correction_failure = f"{type(exc).__name__}: {exc}"
             return None
 
     def _fallback_correction(
@@ -4173,15 +4165,11 @@ class MissionCorrectionService:
                     "external_id": "MISSION_TASK",
                 }
             )
-        # WP-74 — the grader was unavailable (or never asked, on the fast path):
-        # a non-empty answer is ``unassessed``, never ``accepted``. Only the
-        # deterministic rules below are real evidence, and they can only lower it.
+        # WP-74 / #333 — the grader was unavailable (or never asked, on the fast path):
+        # a non-empty answer is ``unassessed``, whatever the rules found. Their fixes are
+        # real and stay listed, but rules add fixes, never a verdict or a score.
         score = None if stripped else 1
         verdict = "unassessed" if stripped else "needs_revision"
-        if deterministic_errata:
-            max_severity = max(int(item.get("severity") or 1) for item in deterministic_errata)
-            verdict = "needs_revision" if max_severity >= 2 else "partial"
-            score = 2 if max_severity >= 2 else 3
         return {
             "verdict": verdict,
             "score_0_4": score,
@@ -4311,7 +4299,9 @@ class MissionCorrectionService:
                 existing.append(item)
                 existing_keys.add(key)
         merged["errata"] = existing
-        merged["corrected_answer"] = corrected_answer or merged.get("corrected_answer") or ""
+        merged["corrected_answer"] = merged.get("corrected_answer") or corrected_answer or ""
+        if merged.get("verdict") == "unassessed":
+            return merged  # #333: rules add fixes, never a score
         max_severity = max(int(item.get("severity") or 1) for item in deterministic_errata)
         if max_severity >= 2 and merged.get("verdict") == "accepted":
             merged["verdict"] = "needs_revision"
@@ -4900,6 +4890,8 @@ class MissionDebriefService:
         turns: list[RealWorldMissionTurn],
         errata_count: int,
         srs_result: dict[str, Any],
+        reply_pending: bool = False,
+        unchecked: bool = False,
     ) -> dict[str, Any]:
         # An objective met in turn 1 stays met: reading only the LAST correction
         # scored a whole conversation on its closing "Oui." and reported 0%
@@ -4939,6 +4931,7 @@ class MissionDebriefService:
             objectives=objectives,
             progress_by_id=progress_by_id,
             had_submission=bool(attempts or turns),
+            reply_pending=reply_pending or unchecked,
         )
         measured = {
             "objectives_met": met_required,
@@ -4960,6 +4953,15 @@ class MissionDebriefService:
         if unassessed:
             label = "Pas encore corrigée : le correcteur n’était pas disponible."
         measured["assessed"] = not unassessed
+        if reply_pending:
+            # #590: the correspondent never answered one of the learner's messages. Nothing
+            # was settled or missed; the letter says so rather than printing a verdict.
+            label = "Pas de réponse : un de tes messages est resté sans réponse."
+            measured["reply_pending"] = True
+        elif unchecked:
+            # #333: nobody read one of the learner's messages, so nothing here is a verdict.
+            label = "Pas vérifiée : un de tes messages n'a pas pu être relu."
+            measured["unchecked"] = True
         return {
             "debrief_version": "mission-debrief-v2",
             "outcome": courrier_outcome,
@@ -6382,12 +6384,16 @@ class MissionScheduler:
             attempts=attempts,
             turns=turns,
         )
+        reply_pending = bool(unanswered_user_turns(mission.turns))
+        unchecked = bool(unchecked_messages(attempts, mission.turns))
         debrief = MissionDebriefService().build(
             mission=mission,
             attempts=attempts,
             turns=turns,
             errata_count=errata_count,
             srs_result=srs_result,
+            reply_pending=reply_pending,
+            unchecked=unchecked,
         )
         outcome: dict[str, Any] | None = None
         if getattr(mission, "serial_thread_id", None):
@@ -6409,9 +6415,10 @@ class MissionScheduler:
             # Letters written before WP-64 shipped, and serial acts, get their
             # identity here rather than staying outside every future thread.
             mission.correspondent_id = courrier.correspondent_of(mission).get("id") or None
+        # #590 / #333: a token is the reward for a letter that was answered and read.
         minted_collectibles = (
             AtelierRewardService(self.db).mint_logo_token_for_mission(mission)
-            if not getattr(mission, "serial_thread_id", None)
+            if not getattr(mission, "serial_thread_id", None) and not reply_pending and not unchecked
             else []
         )
         mission.recap_payload = {
@@ -6431,7 +6438,12 @@ class MissionScheduler:
             # reader; `courrier_outcome` above is the per-letter verdict WP-65 reads.
             mission.recap_payload["outcome"] = outcome
         story_event = self._write_letter_into_story(
-            user=user, mission=mission, outcome=courrier_outcome, attempts=attempts, turns=turns
+            user=user,
+            mission=mission,
+            outcome=courrier_outcome,
+            attempts=attempts,
+            turns=turns,
+            reply_pending=reply_pending or unchecked,
         )
         if story_event:
             mission.recap_payload["story_event"] = {
@@ -6466,7 +6478,8 @@ class MissionScheduler:
         # O-1: l'or in shadow — the letter's first written attempt (best effort).
         from app.services import gold_ledger
 
-        gold_ledger.record_letter(self.db, user=user, mission=mission, attempts=attempts)
+        if not unchecked:
+            gold_ledger.record_letter(self.db, user=user, mission=mission, attempts=attempts)
         self.db.add(mission)
         self.db.commit()
         self.db.refresh(mission)
@@ -6480,6 +6493,7 @@ class MissionScheduler:
         outcome: str,
         attempts: list[RealWorldMissionAttempt],
         turns: list[RealWorldMissionTurn],
+        reply_pending: bool = False,
     ) -> dict[str, Any] | None:
         """WP-64 — the Courrier's half of the coupling that never existed.
 
@@ -6504,7 +6518,8 @@ class MissionScheduler:
                     *[str((attempt.answer_payload or {}).get("text") or "") for attempt in attempts],
                     *[turn.text or "" for turn in turns],
                 ]
-                if text
+                # #590: what nobody answered is not a promise the story keeps.
+                if text and not reply_pending
             )
             event = courrier.record_letter(
                 self.db,
@@ -6617,6 +6632,62 @@ def is_stock_reply(text: Any) -> bool:
     folded = " ".join(str(text or "").split())
     return folded in {STOCK_ACKNOWLEDGEMENT_TU, STOCK_ACKNOWLEDGEMENT_VOUS}
 
+
+def is_echo_reply(reply: Any, message: Any) -> bool:
+    """Whether a reply only says the learner's own message back to them (#333)."""
+
+    def folded(text: Any) -> str:
+        return " ".join(str(text or "").split()).casefold().strip(" .,;:!?…«»\"'’")
+
+    return bool(folded(reply)) and folded(reply) == folded(message)
+
+
+def _stored_check(correction: Any, text: Any) -> dict[str, Any]:
+    """The ``check`` field of a stored message. A row never sent for correction has none."""
+
+    if not correction:
+        return {}
+    return {"check": verdicts.from_courrier(correction, text=str(text or "")).to_dict()}
+
+
+def unchecked_messages(attempts: Any, turns: Any) -> list[Any]:
+    """Every message of this letter a failed check left unread (#333).
+
+    Read once here, like :func:`unanswered_user_turns`: the verdict, the mood, the token
+    and l'or all read this list, so they cannot disagree. One unread message is enough:
+    a letter is judged as a whole, so a part nobody read can't be called kept. A row with
+    no correction stored was never sent for one, and it is not a failed check.
+    """
+
+    rows = [*(attempts or []), *[turn for turn in turns or [] if getattr(turn, "role", None) == "user"]]
+    return [
+        row
+        for row in rows
+        if getattr(row, "correction_payload", None)
+        and not verdicts.from_courrier(row.correction_payload, verdict=getattr(row, "verdict", None)).counts
+    ]
+
+
+def unanswered_user_turns(turns: Any) -> list[Any]:
+    """Every learner message nobody answered, in thread order (#590 / #145).
+
+    A reply nobody wrote is not stored (#397), so «answered» was a fact the thread only
+    implied. It is read here, once, for each learner turn: a learner turn is answered when
+    the turn that follows it is the correspondent's. The page's retry line, the retry
+    endpoint, the finish guard, the token and the story writeback all read this list, so
+    they cannot disagree. A gap in the middle counts as much as one at the end: the
+    learner who wrote again because the reply failed did not choose to write past it.
+    """
+
+    ordered = sorted(turns or [], key=lambda turn: int(getattr(turn, "turn_index", 0) or 0))
+    return [
+        turn
+        for position, turn in enumerate(ordered)
+        if getattr(turn, "role", None) == "user"
+        and (position + 1 >= len(ordered) or getattr(ordered[position + 1], "role", None) != "assistant")
+    ]
+
+
 class MissionConversationService:
     """Generate mission chat responses without duplicating the old audio route."""
 
@@ -6624,7 +6695,19 @@ class MissionConversationService:
         self.db = db
         self.llm = llm_service or _safe_llm()
 
-    def respond(self, *, user: User, mission: RealWorldMission, user_text: str) -> str:
+    def respond(
+        self,
+        *,
+        user: User,
+        mission: RealWorldMission,
+        user_text: str,
+        through_turn_index: int | None = None,
+    ) -> str:
+        """The correspondent's reply to ``user_text``.
+
+        ``through_turn_index`` (#590): asking again for an earlier message answers it from
+        the thread as it stood then, not from what the learner wrote after it.
+        """
         latest_progress = self._latest_objective_progress(mission)
         preliminary_branch = self.branch_state(mission=mission, user_text=user_text, assistant_text="")
         if not self.llm:
@@ -6665,6 +6748,7 @@ class MissionConversationService:
         history = [
             {"role": turn.role if turn.role in {"user", "assistant"} else "assistant", "content": turn.text}
             for turn in sorted(mission.turns or [], key=lambda item: item.turn_index)
+            if through_turn_index is None or turn.turn_index <= through_turn_index
         ][-10:]
         messages = [
             {"role": "user", "content": f"Scene context: {context}"},
@@ -6735,7 +6819,7 @@ class MissionConversationService:
                 logger.info("Courrier reply rejected", attempt=attempt + 1, problems=problems)
                 hint = " Rewrite your reply fixing exactly this: " + " ".join(problems)
             return _unassessed_acknowledgement(mission, register_now=register_now)
-        except LLMProviderError as exc:
+        except MODEL_CALL_FAILED as exc:
             logger.debug("Mission conversation fallback", error=str(exc))
             return self._fallback_response(mission, branch=preliminary_branch, objective_progress=latest_progress)
 
@@ -6777,7 +6861,7 @@ class MissionConversationService:
                     purpose="character_reply", mission_id=getattr(mission, "id", None),
                 )
                 reply = retry.content
-            except LLMProviderError:
+            except MODEL_CALL_FAILED:
                 logger.debug("Mission relative-owner retry failed")
         return lane_guards.settle_kin_owner(
             reply,
@@ -6982,6 +7066,7 @@ class MissionConversationService:
             objectives=mission.objectives or [],
             progress_by_id={str(item.get("id")): item for item in progress if item.get("id")},
             had_submission=bool(attempts or turns),
+            reply_pending=bool(unanswered_user_turns(turns)) or bool(unchecked_messages(attempts, turns)),
         )
         success = outcome == "kept"
         score = self._latest_score(attempts=attempts, turns=turns)
@@ -7050,7 +7135,7 @@ class MissionConversationService:
                         "next_beat_kind": "feuilleton",
                         "teaser": str(parsed.get("teaser") or ""),
                     }
-            except (LLMProviderError, json.JSONDecodeError, ValueError, AttributeError) as exc:
+            except MODEL_CALL_FAILED as exc:
                 logger.debug("Mission hook fallback", error=str(exc))
         updates = state_delta.get("set") if isinstance(state_delta, dict) else {}
         if isinstance(updates, dict) and updates.get("heating_fixed") in {True, "pending_tomorrow"}:
@@ -7700,10 +7785,12 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
                 "correction": attempt.correction_payload or {},
                 "verdict": attempt.verdict,
                 "score_0_4": attempt.score_0_4,
+                **_stored_check(attempt.correction_payload, (attempt.answer_payload or {}).get("text")),
                 **stamp_fields(attempt.created_at, zone),
             }
             for attempt in sorted(mission.attempts or [], key=lambda item: item.created_at)
         ]
+        unanswered_ids = {id(turn) for turn in unanswered_user_turns(mission.turns)}
         payload["turns"] = [
             {
                 "id": str(turn.id),
@@ -7713,6 +7800,9 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
                 "text": turn.text,
                 "audio_payload": turn.audio_payload or {},
                 "correction": turn.correction_payload or {},
+                **(_stored_check(turn.correction_payload, turn.text) if turn.role == "user" else {}),
+                # #590: every learner message nobody answered says so on the thread itself.
+                **({"reply_state": "pending"} if id(turn) in unanswered_ids else {}),
                 **stamp_fields(turn.created_at, zone),
             }
             for turn in sorted(mission.turns or [], key=lambda item: item.turn_index)
@@ -7733,5 +7823,6 @@ __all__ = [
     "SerialEpisodeNotReadyError",
     "artefact_mission_payload",
     "create_artefact_mission",
+    "is_echo_reply",
     "serialize_mission",
 ]

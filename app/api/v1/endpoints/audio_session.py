@@ -61,6 +61,8 @@ class AudioSessionMessageResponse(BaseModel):
     should_show_text: bool = False  # True if errors detected
     vocabulary_credit: dict[str, Any] = Field(default_factory=dict)
     minted_collectibles: list[dict[str, Any]] = Field(default_factory=list)
+    #: The one verdict shape (#333): who read this turn, if anyone.
+    check: dict[str, Any] | None = None
 
 
 class AudioSessionEndRequest(BaseModel):
@@ -184,6 +186,7 @@ async def respond_to_audio(
             should_show_text=should_show,
             vocabulary_credit=result.get("vocabulary_credit", {}),
             minted_collectibles=result.get("minted_collectibles", []),
+            check=result.get("check"),
         )
     except AudioSessionNotFoundError as exc:
         raise HTTPException(

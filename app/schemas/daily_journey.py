@@ -18,6 +18,7 @@ from urllib.parse import quote
 from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
 
 from app.schemas.revue_relecture import RelectureOffer
+from app.schemas.verdict import VerdictView
 from app.services.journey_contracts import (
     AssistanceLevel,
     CapabilityKey,
@@ -600,6 +601,8 @@ class ThreadExchange(JourneyModel):
     learner_fr: str
     character_fr: str
     correction: JourneyCorrection | None = None
+    #: #333: nobody read this reply, so it counted for nothing.
+    unchecked: bool = False
     #: The reply as its speakers' lines, when several people answer (an authored
     #: season page); empty for a one-voiced reply.
     character_lines: list[ThreadLine] = Field(default_factory=list)
@@ -1501,6 +1504,8 @@ class AttemptResult(JourneyModel):
     next_turn: NextTurn | None = None
     #: ``True`` means grading is retryable; the outcome is then ``unscored``.
     pending: bool = False
+    #: The one verdict shape (#333): who checked this and whether it counts.
+    check: VerdictView | None = None
     #: QA-CLOSE: a forgiven slip on a hit, named in one line in the learner's
     #: language («Richtig — kleiner Tippfehler: «appartement»»). Never a correction.
     slip_note_native: str | None = None

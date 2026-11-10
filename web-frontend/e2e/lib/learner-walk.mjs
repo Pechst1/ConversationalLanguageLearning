@@ -456,6 +456,16 @@ export class LearnerWalk {
         kinds.push(kind);
         this.pageChecks(s, kind);
         await this.stepPass(s, kind, state);
+        // #333: a screen that says nobody read the answer prints no verdict beside it.
+        if (s.dataCheck.length) {
+          const judged = [...s.graded.map((g) => g.state), ...s.epFeedback.map((f) => f.verdict)]
+            .filter((state) => state && state !== 'unscored');
+          this.findings.check('unread-answer-shows-no-verdict', judged.length === 0, `«${s.dataCheck[0]}» beside a verdict: ${judged.join(', ')}`, this.where({ kind }));
+        }
+        // With the provider forced down, a reply the scene took as read is the bug itself.
+        if (process.env.WALK_PROVIDER_DOWN && s.graded.some((g) => g.state === 'story')) {
+          this.findings.check('provider-down-reads-not-checked', false, 'a reply nobody could read was shown as read', this.where({ kind }));
+        }
         const verdict = s.graded[0]?.state || s.epFeedback[0]?.verdict;
         if (verdict) {
           this.findings.check('one-verdict-on-screen', s.graded.length + s.epFeedback.length === 1, `${s.graded.length + s.epFeedback.length} verdicts at once`, this.where({ kind }));

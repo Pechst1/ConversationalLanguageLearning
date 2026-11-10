@@ -2688,6 +2688,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/missions/{mission_id}/turns/{turn_id}/reply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry Mission Turn Reply
+         * @description #590: ask the correspondent again for a message nobody answered.
+         *
+         *     The learner's text is already stored and corrected; only the reply is asked for. Any
+         *     message nobody answered can be asked again, not only the latest: a learner who wrote on
+         *     because the reply failed still has that gap to close. When it is already answered the
+         *     answer is handed back, and a second failure leaves the message ``pending`` for the next try.
+         */
+        post: operations["retry_mission_turn_reply_api_v1_missions__mission_id__turns__turn_id__reply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/missions/audio/transcribe": {
         parameters: {
             query?: never;
@@ -6175,6 +6200,7 @@ export interface components {
              * Format: uuid
              */
             attempt_id: string;
+            check?: components["schemas"]["VerdictView"] | null;
             /** Correction */
             correction: {
                 [key: string]: unknown;
@@ -6604,6 +6630,7 @@ export interface components {
             character_lines: components["schemas"]["ThreadLine"][];
             /** Character Reply Fr */
             character_reply_fr: string | null;
+            check: components["schemas"]["VerdictView"] | null;
             /**
              * Contract Version
              * @default 1
@@ -6715,6 +6742,10 @@ export interface components {
             ai_audio_text: string;
             /** Ai Response */
             ai_response: string;
+            /** Check */
+            check?: {
+                [key: string]: unknown;
+            } | null;
             /** Detected Errors */
             detected_errors?: {
                 [key: string]: unknown;
@@ -9693,6 +9724,7 @@ export interface components {
              * @default false
              */
             assessment_truncated?: boolean;
+            check?: components["schemas"]["VerdictView"] | null;
             /** Checker */
             checker?: string | null;
             /**
@@ -10743,6 +10775,7 @@ export interface components {
             attempt: {
                 [key: string]: unknown;
             };
+            check?: components["schemas"]["VerdictView"] | null;
             correction: components["schemas"]["MissionCorrectionRead"];
             /** Errata */
             errata?: components["schemas"]["LinkedVocabularyErratumRead"][];
@@ -10918,6 +10951,7 @@ export interface components {
         };
         /** MissionTurnCorrectionResponse */
         MissionTurnCorrectionResponse: {
+            check?: components["schemas"]["VerdictView"] | null;
             correction: components["schemas"]["MissionCorrectionRead"];
             /** Errata */
             errata?: components["schemas"]["LinkedVocabularyErratumRead"][];
@@ -10950,6 +10984,7 @@ export interface components {
             assistant_turn?: {
                 [key: string]: unknown;
             };
+            check?: components["schemas"]["VerdictView"] | null;
             correction: components["schemas"]["MissionCorrectionRead"];
             /** Errata */
             errata?: components["schemas"]["LinkedVocabularyErratumRead"][];
@@ -11319,6 +11354,10 @@ export interface components {
          * @description One shape for every placement route.
          */
         PlacementEnvelope: {
+            /** Check */
+            check?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Confidence
              * @default 0
@@ -15257,6 +15296,11 @@ export interface components {
             correction: components["schemas"]["JourneyCorrection"] | null;
             /** Learner Fr */
             learner_fr: string;
+            /**
+             * Unchecked
+             * @default false
+             */
+            unchecked: boolean;
         };
         /**
          * ThreadLine
@@ -16147,6 +16191,61 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** VerdictEditView */
+        VerdictEditView: {
+            /**
+             * By
+             * @default model
+             * @enum {string}
+             */
+            by?: "key" | "model" | "rules";
+            /** End */
+            end: number;
+            /**
+             * Note
+             * @default
+             */
+            note?: string;
+            /** Replacement */
+            replacement: string;
+            /** Rule Id */
+            rule_id?: string | null;
+            /** Span */
+            span: string;
+            /** Start */
+            start: number;
+        };
+        /** VerdictView */
+        VerdictView: {
+            /**
+             * Call
+             * @enum {string}
+             */
+            call: "ok" | "empty" | "failed" | "pending" | "not_called";
+            /**
+             * Checked By
+             * @enum {string}
+             */
+            checked_by: "key" | "model" | "rules" | "none";
+            /** Corrected */
+            corrected?: string | null;
+            /** Counts */
+            counts: boolean;
+            /** Edits */
+            edits?: components["schemas"]["VerdictEditView"][];
+            /** Failure */
+            failure?: ("timeout" | "provider_error" | "invalid_output" | "no_model" | "no_check_target") | null;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "right" | "partly" | "not_yet" | "not_checked";
+            /**
+             * Retryable
+             * @default false
+             */
+            retryable?: boolean;
         };
         /** VignettesResponse */
         VignettesResponse: {
@@ -21193,6 +21292,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MissionTurnCorrectionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_mission_turn_reply_api_v1_missions__mission_id__turns__turn_id__reply_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mission_id: string;
+                turn_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MissionTurnResponse"];
                 };
             };
             /** @description Validation Error */
