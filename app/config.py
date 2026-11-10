@@ -677,6 +677,15 @@ class Settings(BaseSettings):
             "the days left. Off: generated days end as before."
         ),
     )
+    STORY_CONTRACT_STAND_IN: bool = Field(
+        False,
+        description=(
+            "Red-thread design, slice 4b (needs STORY_DAY_CONTRACT): a contract day whose "
+            "page no writer delivered is served as the day's own stand-in page, written in "
+            "gaps.json (contract.stand_in), without a model, and lands on its contract. "
+            "Off: such a day re-reads the last page, as before."
+        ),
+    )
     STORY_SHARED_PAGES: bool = Field(
         False,
         description=(

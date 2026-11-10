@@ -9212,6 +9212,7 @@ def generate_scene(
     """Write today's scene. ``now`` is the moment of the day the scene is for (the
     prefetch passes the day it prepares); the grammar plan is chosen for that day."""
 
+    context: dict | None = None
     try:
         context = story_context(db, user, now=now)
         season_today = context.get(SEASON_TODAY_KEY)
@@ -9287,7 +9288,75 @@ def generate_scene(
             pool=({"page": str(kept_page.id) if kept_page is not None else None, "served": False} if pool is not None else None),
         )
     except StoryUnavailable as exc:
-        return ContentUnavailable(reason=str(exc)[:100])
+        # Red-thread design, slice 4b: a planned day nobody could write is still today's
+        # day of the story, on its own short page as written in the season.
+        stand_in = _contract_stand_in(db, user, context, exc) if context is not None else None
+        return stand_in if stand_in is not None else ContentUnavailable(reason=str(exc)[:100])
+
+
+def _contract_stand_in(db: Session, user: User, context: dict, failure: StoryUnavailable):
+    """The brief of a contract day's stand-in page (``day_contract.stand_in_draft``),
+    every guard run on it in this life, or ``None``: the day is then lost as before
+    (a re-read). Never ahead of time: the night's failure leaves the morning its try."""
+
+    from app.services import story_split
+    from app.services.pilot_events import PilotEventService
+    from app.services.season import day_contract
+
+    try:
+        today = context.get(SEASON_TODAY_KEY)
+        if _AHEAD_OF_TIME.get() or not day_contract.stand_in_enabled() or today is None:
+            return None
+        if story_split._day_contract(context) is None or not today.pos.is_gap:
+            return None
+        script_today = ((context.get("season_script") or {}).get("brief") or {}).get("today") or {}
+        found = day_contract.beat_for(
+            today.season, today.pos.segment.id, (script_today.get("required_premise") or {}).get("id")
+        )
+        world = context.get("world") or {}
+        written = found and day_contract.stand_in_draft(
+            today.season,
+            found[0],
+            found[1],
+            band=today.band,
+            language=today.language,
+            places={str(place.get("id")) for place in world.get("locations") or []},
+            speakers={str(member.get("id")) for member in world.get("cast") or []},
+            chapter=context.get("chapter"),
+        )
+        if not written:
+            return None
+        draft = SceneDraft.model_validate(written)
+        try:
+            _validate_scene(draft, context)
+        except SoftRejection as exc:
+            draft = exc.proposal if exc.proposal is not None else draft
+        brief = _scene_brief(draft, context, usage=[])
+        brief.story_context["stand_in"] = {"reason": str(failure)[:100]}
+    except StoryUnavailable as exc:
+        logger.error("living_story: the day's stand-in page was refused (%s); the day is lost as before", exc)
+        return None
+    except Exception:  # noqa: BLE001 - the stand-in never costs more than the day already lost
+        logger.exception("living_story: the day's stand-in page could not be served")
+        return None
+    try:
+        PilotEventService(db).record(
+            "journey_story_stand_in",
+            user_id=user.id,
+            entity_type="season_script",
+            payload={
+                "version": VERSION,
+                "day": f"{today.pos.segment.id}.{found[1].day}",
+                "premise": found[1].premise,
+                "band": today.band,
+                "language": today.language,
+                "reason": str(failure)[:100],
+            },
+            cost_usd=0.0,
+        )
+    except Exception:  # noqa: BLE001 - a metric never costs the day
+        logger.exception("living_story: the stand-in could not be recorded")
+    return brief
 
 
 def _scene_brief(draft: SceneDraft, context: dict, *, usage: list[dict], pool: dict | None = None):

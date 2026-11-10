@@ -618,6 +618,30 @@ class ContractHook(_Model):
     must_name: list[str] = Field(default_factory=list)
 
 
+class StandInPanel(_Model):
+    """One panel of a stand-in page: a caption, or one line the day's lead says."""
+
+    text: Wording
+    says: bool = False
+
+
+class StandIn(_Model):
+    """The page of a planned day as written here: four to six short panels that set
+    the scene, the lead's question, the task and a reply to lean on. Served, without a
+    model, on the day every attempt to write the page failed
+    (``STORY_CONTRACT_STAND_IN``), so the day is still today's day of the story and
+    lands on its contract."""
+
+    panels: list[StandInPanel] = Field(min_length=4, max_length=6)
+    #: What the lead says to the learner (the page's opening line).
+    asks: Wording
+    #: The task line per written level, in German and French; the English one is the
+    #: turn's own ``ask``.
+    task: dict[str, dict[str, str]] = Field(min_length=1)
+    #: A reply the learner may lean on, per written level.
+    reply_fr: dict[str, str] = Field(min_length=1)
+
+
 class DayContract(_Model):
     """A planned day as a contract (red-thread design, 2026-11-10): what becomes true
     whatever the learner says, what their words add, where the page is set and the one
@@ -637,6 +661,8 @@ class DayContract(_Model):
     after_fr: Wording
     #: The closing turn has one job: the learner's mark, or the plain turn.
     closing_job: Literal["mark", "turn"] = "turn"
+    #: The page as written here, for the day no writer delivers one.
+    stand_in: StandIn | None = None
 
     @model_validator(mode="after")
     def _holds_together(self) -> DayContract:
@@ -1035,6 +1061,48 @@ def _check_day_contracts(season: Season, gap: Gap, *, locations: set[str] | None
                 # The bubble has no reply box after it: it never ends on a question.
                 if line.rstrip().endswith("?"):
                     problems.append(f"{where}: route {route.id!r} {field} ends on a question")
+        problems.extend(_check_stand_in(season, gap, contract, where))
+    return problems
+
+
+def _check_stand_in(season: Season, gap: Gap, contract: DayContract, where: str) -> list[str]:
+    """A stand-in page: somebody asks, every reader has their language, no slot is
+    left open and no line makes a reveal the gap forbids."""
+
+    page = contract.stand_in
+    if page is None:
+        return []
+    problems: list[str] = []
+    if contract.lead is None:
+        problems.append(f"{where}: a stand-in page needs a lead to ask the learner")
+    french: list[str] = []
+    for label, wording in [*((f"panel {i + 1}", row.text) for i, row in enumerate(page.panels)), ("asks", page.asks)]:
+        french.extend(text for field in LEVEL_FIELDS if (text := getattr(wording, field, None)))
+        for language in ("en", "de"):
+            if not wording.native.get(language):
+                problems.append(f"{where}: stand-in {label} has no {language} translation")
+            if wording.a1 and not _same(wording.a1, wording.a2) and not wording.native_a1.get(language):
+                problems.append(f"{where}: stand-in {label} a1 has no {language} translation")
+    for label, rows in (("task", page.task), ("reply_fr", page.reply_fr)):
+        if set(rows) - set(LEVEL_FIELDS):
+            problems.append(f"{where}: stand-in {label} names a level nobody reads")
+    if "a1" not in page.task or any(not row.get(language) for row in page.task.values() for language in ("de", "fr")):
+        problems.append(f"{where}: stand-in task needs 'a1', and German and French at every level")
+    if "a2" not in page.reply_fr:
+        problems.append(f"{where}: stand-in reply_fr needs 'a2'")
+    french.extend(page.reply_fr.values())
+    everything = [
+        *french,
+        *(text for wording in [*(row.text for row in page.panels), page.asks] for texts in (wording.native, wording.native_a1) for text in texts.values()),
+        *(text for row in page.task.values() for text in row.values()),
+    ]
+    if any(_SLOT.search(text) for text in everything):
+        problems.append(f"{where}: a stand-in page carries no slot")
+    from app.services.season.director import _must_not, pattern_hits
+
+    # Every row, whatever the life has learned: the page is the same for everybody.
+    for row_id, matched in pattern_hits(_must_not(gap, season, {}), french):
+        problems.append(f"{where}: stand-in says {matched!r}, which {row_id!r} forbids")
     return problems
 
 

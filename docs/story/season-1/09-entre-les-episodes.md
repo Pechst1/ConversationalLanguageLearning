@@ -62,6 +62,18 @@ The learner's mark **comes back** on the planned day its `comes_back` names (the
 
 A chapter opened in a gap whose days carry contracts is a **standard** chapter: the contract says who leads and where, so the hands that say otherwise (one room, two voices, a letter) are not dealt there.
 
+### The stand-in page (`STORY_CONTRACT_STAND_IN`, needs `STORY_DAY_CONTRACT`)
+
+A planned day whose page no writer delivered used to re-read the last page, and the story stood still for a day. With the flag on, such a day is served on its own short page, written here in `gaps.json` under `contract.stand_in`: four to six panels (a caption each, or one line of the day's lead), the lead's question, the task per level in German and French (English reads the turn's own `ask`), and a reply to lean on.
+
+- **No model writes it**, and it is built only in the request a learner waits on: a failure at night leaves the morning its own try.
+- **Every guard reads it in the learner's life**, exactly as it reads a written page. A page a guard refuses for them, a lead who may not speak today, or a place the quarter has not built (and no `place_alt`) keeps the re-read.
+- **It is a normal contract day**: it stages the planned premise, ends on the contract's routes, hook and `after_fr`, and the season moves on.
+- Eleven of the thirteen planned days of gaps 3 and 4 have one. `le_billet_encore` (nobody leads) and `l_abattant` (Margaux is silent) do not.
+- The format check (`_check_stand_in`) refuses a page without a lead, without English and German for every line, with an open slot, or with a line one of the gap's `must_not` rows forbids. Each served stand-in writes the pilot event `journey_story_stand_in`.
+
+The French and German of the stand-ins are a first draft, to be read by the owner before the flag goes on.
+
 ### Shared pages (`STORY_SHARED_PAGES`, needs `STORY_DAY_CONTRACT`)
 
 Owner decision of 10 November: the page is shared, the learning material stays in the training. With the flag on, a contract day's page is no longer written once per learner (`app/services/season/page_pool.py`):
