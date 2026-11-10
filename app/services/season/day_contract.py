@@ -33,6 +33,13 @@ def enabled() -> bool:
     return bool(getattr(settings, "STORY_DAY_CONTRACT", False))
 
 
+def plans_gap(season: Season, gap_id: str | None) -> bool:
+    """Whether the days of ``gap_id`` are planned by contracts (and the flag is on)."""
+
+    gap = season.gaps.get(str(gap_id or "")) if enabled() else None
+    return gap is not None and any(beat.contract for beat in gap.days)
+
+
 def beat_for(season: Season, gap_id: str | None, premise: str | None) -> tuple[Gap, DayBeat] | None:
     """The planned day of ``gap_id`` that stages ``premise``, when it has a contract."""
 

@@ -62,6 +62,7 @@ from app.db.models.session import (
 )
 from app.db.models.spend_reservation import SpendReservation
 from app.db.models.story import Chapter, Scene, Story, StoryProgress
+from app.db.models.story_pool import StoryPoolPage
 from app.db.models.streak_day import StreakDay
 from app.db.models.user import RefreshToken, User
 from app.db.models.vocabulary import (
@@ -82,6 +83,7 @@ __all__ = [
     "PasswordResetDelivery",
     "User",
     "StreakDay",
+    "StoryPoolPage",
     "RefreshToken",
     "VocabularyWord",
     "VocabularyDrillBatch",

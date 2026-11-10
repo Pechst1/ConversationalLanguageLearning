@@ -60,6 +60,19 @@ The page before the ending is **written to the contract** too. The brief carries
 
 The learner's mark **comes back** on the planned day its `comes_back` names (the canapé's name on g3.7, the card on g3.6). The brief gives the writer only a slot (`today.contract.brings_back`: `{g3.canape_name}` and the mark's `what`), never the learner's words. The writer puts the slot once in a line; the code fills it with what the ledger holds (the learner's words, or the authored default) before any guard reads the page, so every guard reads the page the learner will read. A page that dropped the slot gets one retry with the hint and is then served. A slot aimed at a tentpole (`T4`) is not wired: authored episodes change only with the owner's word.
 
+A chapter opened in a gap whose days carry contracts is a **standard** chapter: the contract says who leads and where, so the hands that say otherwise (one room, two voices, a letter) are not dealt there.
+
+### Shared pages (`STORY_SHARED_PAGES`, needs `STORY_DAY_CONTRACT`)
+
+Owner decision of 10 November: the page is shared, the learning material stays in the training. With the flag on, a contract day's page is no longer written once per learner (`app/services/season/page_pool.py`):
+
+1. **Written without the life.** The writer gets the day, the cast, the places, the registers, the flags and the contract. It does not get the learner's earlier pages, memory, callbacks, commitments, grammar plan or review words, nor the dice a life rolls for itself (the complication card, whose secret is next, the arcs).
+2. **Kept.** A page the guards and the critic accepted is stored in `story_pool_pages` as written: the learner's marks still as slots, and nothing it claims about one life. A page served over the critic's refusal is never kept.
+3. **Served.** The next learner whose day gives the writer exactly the same input (same day, level, language, registers, flags, open chapter, days left) reads that page with no model call. Their own words fill its slots, and **every guard runs on the page in their own life** before it is served. A page a guard refuses for them is not served to them: theirs is written, and kept beside it (three per day and input at most).
+4. **Retired.** `scripts/story_pool.py list | show <id> | retire <id> --reason …` lets the owner read the pool and take a page out of it for everyone who has not read it yet.
+
+What still makes two learners' days different, and so their pages: the level, the language, a flag the day reads (Camille, as chosen in T1), the registers, the weekday the gap started on (days left), and a chapter opened by a page that was not shared. A day after an absence, an épreuve and a later act are always written for their learner. Each lookup writes a `journey_story_pool` pilot event (served or not, and why not), so the share of days served from the pool can be read once the flag is on.
+
 Still to come: an authored page per beat for the night every attempt fails (today that night still falls to a re-read), and the re-ask (`ask_again_fr`).
 
 Open for the owner: the French of the hooks, the closing lines and the `after_fr` lines, the second places, and gap 4's destination (none yet, so nothing hints at T5).

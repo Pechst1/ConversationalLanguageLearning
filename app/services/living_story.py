@@ -7,6 +7,7 @@ There is deliberately no canned dialogue or authored-scene fallback here.
 
 from __future__ import annotations
 
+import copy
 import functools
 import hashlib
 import json
@@ -5457,6 +5458,15 @@ def story_context(db: Session, user: User, *, now: datetime | None = None) -> di
         if phase == "interlude"
         else planned_shape(live, seed=seed)
     )
+    contract_hand = False
+    if phase not in ("finale", "interlude") and season_today is not None and season_today.pos.segment is not None:
+        from app.services.season import day_contract
+
+        # Red-thread design: in a gap whose days carry contracts the contract says who
+        # leads and where. A hand that says otherwise (one room, two voices, a letter)
+        # is not dealt there: a chapter opened in such a gap is a standard one.
+        if day_contract.plans_gap(season_today.season, season_today.pos.segment.id):
+            shape, contract_hand = DEFAULT_SHAPE, True
     if chapter and not (chapter.get("resolved") or chapter.get("exhausted")):
         # The open chapter keeps its hand. A closed one does not: the next scene opens
         # a new chapter, and ``bind_journey`` stores it with ``planned_shape`` — the
@@ -5538,6 +5548,8 @@ def story_context(db: Session, user: User, *, now: datetime | None = None) -> di
             "note": shape_note(shape, chapter),
             # The seam WP-64/65 read: a letter chapter says which beat is the letter.
             "letter_beat": LETTER_BEAT if shape == "letter" else None,
+            # ``bind_journey`` stores a chapter opened today with this hand.
+            **({"dealt_by": "contract"} if contract_hand else {}),
         },
         "season": {
             "number": _int_or(world.get("season_number"), 1),
@@ -7217,6 +7229,9 @@ def _check_season_gap(draft: SceneDraft, context: dict, learner_text: list[str])
 
 #: Where a draft's missing mark slots wait for the soft check (``_contract_page_issue``).
 _MISSING_SLOTS_KEY = "_contract_missing_slots"
+#: Slice 5 (``season.page_pool``): while a shared page is being written, each draft
+#: as the writer wrote it (``id(draft)`` → its dump), taken before its slots are filled.
+_POOL_RAW_KEY = "_pool_raw_drafts"
 
 
 def _fill_contract_slots(draft: SceneDraft, context: dict) -> None:
@@ -7237,6 +7252,9 @@ def _fill_contract_slots(draft: SceneDraft, context: dict) -> None:
         )
         if found is None:
             return
+        if isinstance(context.get(_POOL_RAW_KEY), dict):
+            # Slice 5: the pool keeps the page as written, the slots unfilled.
+            context[_POOL_RAW_KEY][id(draft)] = draft.model_dump(mode="json")
         missing = day_contract.fill_slots(draft, day_contract.due_marks(found[0], found[1], today.state))
     except Exception:  # noqa: BLE001 - a mark never costs the page
         logger.exception("living_story: the learner's marks could not be put on the page")
@@ -9228,12 +9246,22 @@ def generate_scene(
         reviews: list[dict] = []
         from app.services import story_split
 
+        # Red-thread design, slice 5: a contract day's page may be one many learners
+        # read. One already kept for this day is served once every guard has passed it
+        # in this life; otherwise the page is written without the life and kept.
+        pool = _pool_day(context)
+        if pool is not None:
+            kept = _from_pool(db, user, context, pool[0])
+            if kept is not None:
+                return _scene_brief(kept[0], context, usage=[], pool={"page": str(kept[1].id), "served": True})
+            context[_POOL_RAW_KEY] = {}
+        writer = pool[1] if pool is not None else context
         split = story_split.applies(context)
         try:
             draft, usage = _approved(
                 # Red-thread design: a contract day's director reads the contract's rules.
                 DIRECTOR + story_split.day_contract.DIRECTOR_NOTE if story_split._day_contract(context) else DIRECTOR,
-                _prompt_payload(context),
+                _prompt_payload(writer),
                 SceneDraft,
                 # The validator closes over the *unfiltered* context: it needs the lexicon,
                 # and the coverage it writes back must not leak into the retry's prompt.
@@ -9242,29 +9270,138 @@ def generate_scene(
                 user=user,
                 candidates=1 if split else dual_draft_candidates(context),
                 choose=lambda p: _scene_score(p, context),
-                story_review=_season_story_review(context, reviews),
+                # A shared page is read by the critic as it was written: without the life.
+                story_review=_season_story_review(writer, reviews),
                 digest=lambda p: scene_digest(p, context),
-                draw=story_split.draw(context) if split else None,
+                draw=story_split.draw(writer) if split else None,
             )
         finally:
             # A lost day's readings are the metric too.
             _record_story_reviews(db, user, context, reviews)
-        settle_can_do(draft, context)
-        complete_epreuve(draft, context)
-        season_day = _season_gap_day(context, draft)
-        # Measured on the accepted draft: a scene that did not weave the form is served
-        # all the same, flagged ``woven: false`` for the metrics.
-        try:
-            context[GRAMMAR_OUTCOME_KEY] = grammar_outcome(draft, context.get(GRAMMAR_PLAN_KEY))
-            context[WORDS_OUTCOME_KEY] = word_outcome(draft, context)
-        except Exception:  # pragma: no cover - a measurement never costs the scene
-            logger.exception("living_story: grammar/word outcome unavailable")
-        brief = _brief(draft, context, usage=usage)
-        if season_day:
-            brief.story_context["season"] = season_day
-        return brief
+            raw_drafts = context.pop(_POOL_RAW_KEY, None)
+        kept_page = _to_pool(db, context, pool[0], draft, raw_drafts, usage, reviews) if pool is not None else None
+        return _scene_brief(
+            draft,
+            context,
+            usage=usage,
+            pool=({"page": str(kept_page.id) if kept_page is not None else None, "served": False} if pool is not None else None),
+        )
     except StoryUnavailable as exc:
         return ContentUnavailable(reason=str(exc)[:100])
+
+
+def _scene_brief(draft: SceneDraft, context: dict, *, usage: list[dict], pool: dict | None = None):
+    """The accepted page of the day's first act as its brief (written now, or kept in
+    the pool and served)."""
+
+    settle_can_do(draft, context)
+    complete_epreuve(draft, context)
+    season_day = _season_gap_day(context, draft)
+    # Measured on the accepted draft: a scene that did not weave the form is served
+    # all the same, flagged ``woven: false`` for the metrics.
+    try:
+        context[GRAMMAR_OUTCOME_KEY] = grammar_outcome(draft, context.get(GRAMMAR_PLAN_KEY))
+        context[WORDS_OUTCOME_KEY] = word_outcome(draft, context)
+    except Exception:  # pragma: no cover - a measurement never costs the scene
+        logger.exception("living_story: grammar/word outcome unavailable")
+    brief = _brief(draft, context, usage=usage)
+    if season_day:
+        brief.story_context["season"] = season_day
+    if pool is not None:
+        brief.story_context["pool"] = pool
+    return brief
+
+
+def _pool_day(context: dict):
+    """``(key, the context a shared page is written from)`` on a day whose page may be
+    shared (``season.page_pool``), else ``None``. Never raises: a day that cannot be
+    shared is written for its learner."""
+
+    from app.services.season import page_pool
+
+    try:
+        if not page_pool.applies(context):
+            return None
+        page_pool.depersonalise(context)
+        shared = page_pool.shareable(context)
+        key = page_pool.key_for(context, shared)
+        return (key, shared) if key is not None else None
+    except Exception:  # noqa: BLE001 - the pool never costs a learner their day
+        logger.exception("living_story: the day could not be shared; its page is written for the learner")
+        return None
+
+
+def _from_pool(db: Session, user: User, context: dict, key):
+    """``(draft, row)`` of the first page kept for this day that every guard passes in
+    this life, the learner's own words in its slots; ``None`` when there is none."""
+
+    from app.services.pilot_events import PilotEventService
+    from app.services.season import page_pool
+
+    found = None
+    refused: list[str] = []
+    for row in page_pool.candidates(db, key):
+        try:
+            draft = SceneDraft.model_validate(copy.deepcopy(row.draft))
+            try:
+                _validate_scene(draft, context)
+            except SoftRejection as exc:
+                # What a writer is asked once more for and then served with (reading
+                # aids, a dropped slot): this page was served so the day it was written.
+                draft = exc.proposal if exc.proposal is not None else draft
+        except StoryUnavailable as exc:
+            refused.append(str(exc)[:80])
+            continue
+        except Exception:  # noqa: BLE001 - a kept page never costs a learner their day
+            logger.exception("living_story: a kept page could not be read")
+            refused.append("unreadable")
+            continue
+        found = (draft, row)
+        page_pool.served(db, row)
+        break
+    try:
+        PilotEventService(db).record(
+            "journey_story_pool",
+            user_id=user.id,
+            entity_type="season_script",
+            payload={
+                "version": VERSION,
+                "day": key.day_key,
+                "band": key.band,
+                "language": key.language,
+                "served": found is not None,
+                "page": str(found[1].id) if found else None,
+                "refused": refused,
+            },
+            cost_usd=0.0,
+        )
+    except Exception:  # pragma: no cover - a metric never costs the page
+        logger.exception("living_story: pool metric unavailable")
+    return found
+
+
+def _to_pool(db: Session, context: dict, key, draft: SceneDraft, raw_drafts, usage: list[dict], reviews: list[dict]):
+    """Keep the accepted page for the learners who share its day. Only a page the
+    critic accepted (never one served over a refusal), and as the writer wrote it:
+    when the day brings a mark back, the copy taken before its slots were filled."""
+
+    from app.services import story_split
+    from app.services.season import page_pool
+
+    try:
+        if reviews and not reviews[-1].get("accepted", True):
+            return None
+        if (story_split._day_contract(context) or {}).get("brings_back"):
+            raw = (raw_drafts or {}).get(id(draft))
+            if raw is None:
+                return None
+        else:
+            raw = draft.model_dump(mode="json")
+        cost = sum(float(entry.get("cost_usd") or 0.0) for entry in usage)
+        return page_pool.store(db, key, raw, engine_version=VERSION, cost_usd=cost)
+    except Exception:  # noqa: BLE001 - the pool never costs a learner their day
+        logger.exception("living_story: the page could not be kept for other learners")
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -9448,6 +9585,12 @@ def _season_gap_day(context: dict, draft: SceneDraft) -> dict | None:
         "required_premise": required,
         "gate": gate if staged else today.get("gate"),
         "may_set": list(today.get("may_set") or []),
+        # Red-thread design: the hand a chapter opened today is stored with.
+        **(
+            {"chapter_shape": str(context["chapter_shape"].get("shape") or DEFAULT_SHAPE)}
+            if (context.get("chapter_shape") or {}).get("dealt_by") == "contract"
+            else {}
+        ),
         # «Ton cap»: where the learner stood when the page was written, for the
         # exchange's reply and ending (``story.season_turn.heading``).
         **({"heading": today["heading"]} if isinstance(today.get("heading"), dict) else {}),
@@ -9780,6 +9923,9 @@ def bind_journey(
         # is a quiet standard chapter.
         phase = season_phase(live)
         shape = planned_shape(live, seed=str(thread.id))
+        # Red-thread design: a chapter opened in a contract gap keeps the hand its page
+        # was written for (``story_context``).
+        shape = str((brief.story_context.get("season") or {}).get("chapter_shape") or shape)
         extra: dict = {}
         if phase == "finale":
             shape, extra = "ensemble", {"finale": True, "side_story": False}
