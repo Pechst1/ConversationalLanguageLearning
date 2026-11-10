@@ -34,7 +34,7 @@ from app.db.models.user import User
 from app.services import correction_contract, scene_ledger, story_memory
 from app.services.address import address_instruction
 from app.services.answer_acceptance import correction_is_grounded, is_preference_swap
-from app.services.chrome_language import user_mother_tongue
+from app.services.chrome_language import user_chrome_language, user_mother_tongue
 from app.services.closing_filler import scene_fact
 from app.services.concept_titles import concept_title
 from app.services.journey_contracts import (
@@ -5259,7 +5259,8 @@ def _land_contract(
         ending = day_contract.ending(
             beat, choice,
             band=learner_level_band(user),
-            language=normalize_control_language(getattr(user, "native_language", None)),
+            # The season page's own words follow the one-language rule (French from B1).
+            language=user_chrome_language(user),
             character_id=details.get("character_id"),
         )
     except Exception:  # noqa: BLE001 - the plan never costs the learner their ending
