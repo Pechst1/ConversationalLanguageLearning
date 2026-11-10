@@ -24,8 +24,9 @@ This module now has **one checker for every edit**, whoever wrote it:
   prove wrong. :func:`edit_is_grounded` is its boolean view.
 * :func:`deterministic_edits` — the model-free pass: person of être/avoir/aller,
   auxiliaries and agreement, elision, contraction, determiner gender and
-  number, accents and spelling, negation order, «de» after modals, «à», age with
-  avoir, stressed pronouns. Every rule stands on closed evidence (a fixed trigger
+  number, accents, apostrophes and spelling, negation order, «de» after modals, «à»,
+  age with avoir, stressed pronouns, the feminine of a closed list of adjectives
+  («une bon offre»). Every rule stands on closed evidence (a fixed trigger
   list, the core lexicon) and is silent when it cannot tell: «je voudrais de un
   café» could be «un café» or «d'un café», so it says nothing. Every edit is
   settled before it is returned, and its span is a substring of the input.
@@ -97,6 +98,48 @@ def _same_sentence(text: str, left: Tok, right: Tok) -> bool:
 
 def _same_clause(text: str, left: Tok, right: Tok) -> bool:
     return not _CLAUSE_BREAK.search(text[left.end : right.start])
+
+
+def _starts_sentence(text: str, tok: Tok) -> bool:
+    """Whether ``tok`` is the first word of the text, of a line or of a sentence."""
+    before = text[: tok.start].rstrip("  «»\"“”„‘'(")
+    return not before or before[-1] in ".!?…:;\n"
+
+
+_QUOTE = re.compile(r"«[^»]*»|“[^”]*”|„[^“”]*[“”]|\"[^\"]*\"|‘[^’]*’|(?<!\w)'[^']*'(?!\w)")
+#: A quote this short cites a word or two. A longer one is someone's speech, and is corrected.
+_CITATION_WORDS = 6
+
+
+def _cited_stretches(text: str) -> list[tuple[int, int]]:
+    """The stretches of ``text`` where a learner cites words instead of using them: «On ne dit
+    pas « ce est »», «le mot "hotel"». A line that is all one quote is the line itself."""
+    stretches = []
+    for match in _QUOTE.finditer(text):
+        if len(_WORD.findall(match.group())) > _CITATION_WORDS or match.group() == text.strip():
+            continue
+        stretches.append(match.span())
+    return stretches
+
+
+#: Words no French sentence holds, and the phrases that say the next word isn't French.
+_OTHER_LANGUAGE_WORDS = frozenset(
+    {"the", "and", "is", "this", "that", "with", "you", "your", "my", "like", "ich", "ist", "das", "und", "nicht", "ein",
+     "eine", "mit", "auf", "deutsch", "englisch", "english", "german", "heißt"}
+)
+_OTHER_LANGUAGE_PHRASES = frozenset({("en", "anglais"), ("en", "allemand"), ("mot", "anglais"), ("mot", "allemand")})
+
+
+def _in_another_language(text: str, tokens: list[Tok], index: int) -> bool:
+    """Whether the sentence around ``tokens[index]`` is not French, or says its word isn't."""
+    start = index
+    while start > 0 and _same_sentence(text, tokens[start - 1], tokens[start]):
+        start -= 1
+    end = index
+    while end + 1 < len(tokens) and _same_sentence(text, tokens[end], tokens[end + 1]):
+        end += 1
+    words = [tok.low for tok in tokens[start : end + 1]]
+    return bool(_OTHER_LANGUAGE_WORDS & set(words)) or bool(_OTHER_LANGUAGE_PHRASES & set(zip(words, words[1:], strict=False)))
 
 
 # ---------------------------------------------------------------------------
@@ -647,7 +690,7 @@ _ACCENTS = {
     "apres": "après", "deja": "déjà", "tres": "très", "ecole": "école", "cafe": "café", "ete": "été",
     "etre": "être", "francais": "français", "meme": "même", "pere": "père", "mere": "mère",
     "frere": "frère", "voila": "voilà", "ca": "ça", "etait": "était", "hopital": "hôpital",
-    "theatre": "théâtre", "gateau": "gâteau",
+    "theatre": "théâtre", "gateau": "gâteau", "plait": "plaît", "etes": "êtes", "cheminee": "cheminée",
     "etudiant": "étudiant", "etudiante": "étudiante", "arrivee": "arrivée", "journee": "journée",
     "soiree": "soirée", "idee": "idée", "annee": "année", "equipe": "équipe", "eglise": "église",
 }
@@ -770,6 +813,14 @@ _RULE_TEXT: dict[str, dict[str, dict[str, str]]] = {
             "fr": "Avec être, le participe s’accorde avec le sujet : « {right} ».",
         },
     },
+    "FR_ADJ_AGREE": {
+        "label": {"en": "Agreement", "de": "Angleichung", "fr": "Accord"},
+        "note": {
+            "en": "« {noun} » is feminine, so the adjective is too: « {right} », not « {wrong} ».",
+            "de": "« {noun} » ist feminin, also auch das Adjektiv: « {right} », nicht « {wrong} ».",
+            "fr": "« {noun} » est féminin, l’adjectif aussi : « {right} » et non « {wrong} ».",
+        },
+    },
     "FR_ALLER_INF": {
         "label": {"en": "Verb form", "de": "Verbform", "fr": "Forme du verbe"},
         "note": {
@@ -792,6 +843,14 @@ _RULE_TEXT: dict[str, dict[str, dict[str, str]]] = {
             "en": "« {noun} » is {gender_en}: « {right} », not « {wrong} ».",
             "de": "« {noun} » ist {gender_de}: « {right} », nicht « {wrong} ».",
             "fr": "« {noun} » est {gender_fr} : « {right} » et non « {wrong} ».",
+        },
+    },
+    "FR_APOSTROPHE": {
+        "label": {"en": "Spelling", "de": "Schreibweise", "fr": "Orthographe"},
+        "note": {
+            "en": "An apostrophe is missing: « {right} ».",
+            "de": "Es fehlt ein Apostroph: « {right} ».",
+            "fr": "Il manque une apostrophe : « {right} ».",
         },
     },
     "FR_ACCENT": {
@@ -960,6 +1019,7 @@ def _edit(rule_id: str, text: str, start: int, end: int, replacement: str, **fie
         note[lang] = template.format(**{**base, **extra})
     task_type = {
         "FR_ACCENT": "orthography",
+        "FR_APOSTROPHE": "orthography",
         "FR_ELISION": "orthography",
         "FR_SPELLING": "orthography",
         "FR_CONTRACTION": "articles",
@@ -967,6 +1027,7 @@ def _edit(rule_id: str, text: str, start: int, end: int, replacement: str, **fie
         "FR_CET": "gender_agreement",
         "FR_MON_VOWEL": "gender_agreement",
         "FR_PARTICIPLE_AGREE": "gender_agreement",
+        "FR_ADJ_AGREE": "gender_agreement",
         "FR_PLURAL_NOUN": "number_agreement",
         "FR_PLURAL_FORM": "number_agreement",
         "FR_A_GRAVE": "orthography",
@@ -987,7 +1048,7 @@ def _edit(rule_id: str, text: str, start: int, end: int, replacement: str, **fie
         start=start,
         end=end,
         task_error_type=task_type,
-        severity=1 if rule_id in {"FR_ACCENT", "FR_SPELLING", "FR_A_GRAVE"} else 2,
+        severity=1 if rule_id in {"FR_ACCENT", "FR_APOSTROPHE", "FR_SPELLING", "FR_A_GRAVE"} else 2,
     )
 
 
@@ -1168,6 +1229,12 @@ _ELIDE_ONLY_BEFORE: dict[str, frozenset[str]] = {
 _NEGATION_PARTNERS = frozenset(
     {"pas", "plus", "jamais", "rien", "personne", "guère", "point", "que", "qu", "aucun", "aucune", "ni", "nulle"}
 )
+#: Forms of être and avoir, and the pronouns: after a subject and «ne» these can only elide.
+_ALWAYS_ELIDE_NE = frozenset(
+    {"ai", "as", "a", "avons", "avez", "ont", "avais", "avait", "avions", "aviez", "avaient", "es", "est", "êtes", "étais",
+     "était", "étions", "étiez", "étaient", "y", "en"}
+)
+_SUBJECTS_BEFORE_NE = frozenset({"je", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles", "ce", "ça", "cela", "qui"})
 #: «d'abord», «d'accord», «d'ici», «d'où», «d'autres», «d'un»: the function words «de»
 #: elides in front of; any other word after «de» must be a noun, adjective or verb.
 _DE_FUNCTION_WORDS = frozenset(
@@ -1213,6 +1280,12 @@ def _elision(source: str, tokens: list[Tok], i: int) -> tuple[int, str] | None:
             rest = tokens[i + 2 :]
             ok = any(
                 t.low in _NEGATION_PARTNERS and _same_clause(source, nxt, t) for t in rest[:6]
+            ) or (
+                # «je ne était», «Je ne ai»: a subject in front closes it, the «pas» may be missing
+                word in _ALWAYS_ELIDE_NE
+                and i > 0
+                and _same_clause(source, tokens[i - 1], tok)
+                and tokens[i - 1].low in _SUBJECTS_BEFORE_NE
             )
     elif word in {"un", "une"} and i > 0 and _could_be_verb(tokens[i - 1].low) and not _is_noun(tokens[i - 1].low):
         # «je voudrais de un café» is «un café», «je parle de un ami» is «d'un ami»:
@@ -1297,7 +1370,17 @@ _MISSPELLINGS = {
     "lecon": "leçon", "recu": "reçu", "decu": "déçu", "noel": "Noël", "reve": "rêve", "pret": "prêt",
     "prete": "prête", "general": "général", "generalement": "généralement", "etranger": "étranger",
     "etrangere": "étrangère", "evidemment": "évidemment",
+    # the apostrophe dropped and the words run together (#250, #333: «cest», «jai», «dabord»)
+    "cest": "c’est", "cetait": "c’était", "jai": "j’ai", "jaime": "j’aime", "daccord": "d’accord",
+    "dabord": "d’abord", "quil": "qu’il", "quils": "qu’ils", "quelquun": "quelqu’un", "jusqua": "jusqu’à",
+    "nest": "n’est", "nai": "n’ai", "sil": "s’il",
 }
+#: The elided words a misspelled word may lean on: «l'hotel», «d'etage».
+_ELIDED_BEFORE_A_WORD = frozenset({"l", "d", "j", "n", "s", "t", "m", "c", "qu"})
+#: Glued only with a negation after it: «nest» is also a word of English and of German.
+_GLUED_NEGATIONS = frozenset({"nest", "nai"})
+#: «sil te plaît», «sil y a». Anything else after «sil» may be a name.
+_AFTER_GLUED_SIL = frozenset({"te", "vous", "y", "ne", "est", "a", "fait"})
 #: Spelled like a participle after avoir: «j'ai reve» is «rêvé», not «rêve».
 _PARTICIPLE_LOOKALIKES = frozenset({"reve", "prete", "telephone"})
 #: «grand mère» -> «grand-mère»: the hyphen of the family words.
@@ -1306,6 +1389,259 @@ _HYPHENATED = {
     ("grand", "pere"): "grand-père", ("grands", "parents"): "grands-parents",
     ("grand", "parents"): "grands-parents",
 }
+
+
+# ---------------------------------------------------------------------------
+# The missing accent: the one lexicon word this spelling can be (#250)
+# ---------------------------------------------------------------------------
+
+#: Common words only: the rarer a word, the likelier the learner meant another.
+_ACCENT_FOLD_RANK = 3000
+_ACCENT_FOLD_POS = frozenset({"noun", "adjective", "adverb", "function", "number"})
+#: The lexicon doesn't hold them, but these are French as written, or read as another word: «il
+#: boite», «une aine», «un foret», «un desert» typed for «un dessert», «metre» for «mettre», «pate»
+#: for «pâté», «dela» for «de la». «the» and «these» are English first.
+_BARE_READS_OTHERWISE = frozenset(
+    {"the", "these", "aine", "boite", "foret", "media", "mures", "sures", "desert", "metre", "pate", "dela", "pecheur"}
+)
+#: A word ending in «é» that no verb form («il enerve», «ça m'enerve») can be typed for. Words in
+#: «-té» with no such verb in the lexicon qualify by their ending.
+_ACUTE_ENDING_WORDS = frozenset(
+    {"clé", "bébé", "canapé", "télé", "comité", "degré", "congé", "malgré", "moitié", "pitié", "amitié", "supermarché",
+     "député"}
+)
+_ACUTE_ENDING_LENGTH = 5
+
+
+@lru_cache(maxsize=1)
+def _accent_folds() -> Mapping[str, str]:  # pragma: no cover - thin cache
+    """Unaccented spelling -> the one lexicon word it can be. The spelling itself is no lexicon
+    word and no verb form, and only one lexicon word folds to it. Conjugations stay out: «fuites»
+    is a noun the lexicon doesn't hold, and folds to the verb form «fuîtes»."""
+
+    lemmas, forms = _lexicon().lemmas, _forms()
+    surfaces = set(lemmas) | set(forms)
+    by_fold: dict[str, set[str]] = {}
+    for surface in surfaces:
+        by_fold.setdefault(_strip_marks(surface), set()).add(surface)
+    verbs = {_strip_marks(word) for word, entry in lemmas.items() if entry.get("pos") == "verb"}
+
+    def rank_and_pos(word: str) -> tuple[int, str] | None:
+        entry = lemmas.get(word) or lemmas.get(forms.get(word) or "")
+        if not entry or not isinstance(entry.get("rank"), int):
+            return None
+        return entry["rank"], str(entry.get("pos"))
+
+    folds: dict[str, str] = {}
+    for bare, found in by_fold.items():
+        if bare in surfaces or len(found) != 1 or bare in _BARE_READS_OTHERWISE or len(bare) < 3:
+            continue
+        form = next(iter(found))
+        known = rank_and_pos(form)
+        if known is None or known[0] > _ACCENT_FOLD_RANK or known[1] not in _ACCENT_FOLD_POS:
+            continue
+        if _could_be_verb(bare):
+            continue
+        # «ecoute» is «écoute» or «écouté», «complete» «complète» or «complété»: the verb says both
+        if bare.endswith("e") and bare[:-1] + "er" in verbs:
+            continue
+        if form.endswith("é") and form not in _ACUTE_ENDING_WORDS and not (form.endswith("té") and len(form) > _ACUTE_ENDING_LENGTH):
+            continue
+        folds[bare] = form
+    return folds
+
+
+def _accent_fold(word: str) -> str | None:
+    """The accented word ``word`` must be, its plural too («cles» -> «clés»), or ``None``."""
+
+    folds = _accent_folds()
+    if word in folds:
+        return folds[word]
+    if word.endswith("s") and word not in _lexicon().lemmas and word not in _forms():
+        singular = folds.get(word[:-1])
+        if singular is not None and _pos(singular) in {"noun", "adjective"} and _plural(singular) == singular + "s":
+            return singular + "s"
+    return None
+
+
+# ---------------------------------------------------------------------------
+# The dropped apostrophe: a closed list on both sides (#133, #250, the review of #310)
+# ---------------------------------------------------------------------------
+
+#: Pieces that are no word on their own, and the words they join.
+_ELIDED_PIECES: dict[str, frozenset[str]] = {
+    "qu": frozenset({"est-ce", "il", "ils", "elle", "elles", "on", "un", "une"}),
+    "aujourd": frozenset({"hui"}),
+    "quelqu": frozenset({"un", "une"}),
+    "jusqu": frozenset({"à", "au", "aux", "ici", "où"}),
+    "lorsqu": frozenset({"il", "ils", "elle", "elles", "on"}),
+    "puisqu": frozenset({"il", "ils", "elle", "elles", "on"}),
+}
+#: The words each lone letter elides in front of. Never «et», «à», «ou» (the review of #310).
+_ELIDED_LETTERS: dict[str, frozenset[str]] = {
+    "c": frozenset({"est", "était", "etait", "étaient"}),
+    "j": frozenset({"ai", "avais", "aurai", "aurais", "aime", "aimais", "adore", "arrive", "appelle", "étais", "habite",
+                    "habitais", "espère", "irai", "irais", "y", "en", "écris", "écoute", "entends", "attends", "oublie", "ouvre"}),
+    "s": frozenset({"il", "ils", "est", "était", "appelle", "appellent", "en", "y"}),
+    "n": frozenset({"est", "es", "êtes", "ai", "as", "a", "avons", "avez", "ont", "y", "en", "était", "étais", "avait", "avais",
+                    "aime", "aimes"}),
+    "m": frozenset({"appelle", "appelles", "appelait", "appelais", "a", "as", "avez", "ont", "avait", "en", "y", "aime", "aimes",
+                    "écoute", "attend", "attends"}),
+    "t": frozenset({"ai", "a", "ont", "avait", "avais", "aime", "aimes", "appelle", "appelles", "écoute", "attend", "attends",
+                    "en", "y"}),
+    "l": frozenset({"ai", "as", "a", "avons", "avez", "ont", "avais", "avait", "aime", "aimes", "aiment", "appelle", "attends",
+                    "attend", "écoute"}),
+    "d": frozenset({"accord", "abord", "ailleurs", "habitude", "ici"}),
+}
+#: Who may stand in front of a clitic letter: only a subject makes «n est», «l a» French
+#: («si n est pair» is about a number).
+_PRONOUN_PERSONS = {**_SUBJECT_PRONOUNS, "nous": "1pl", "vous": "2pl", "ce": "3sg", "ça": "3sg", "cela": "3sg", "qui": "3sg"}
+#: What may stand in front of «c est»: the start of a clause or one of these.
+_BEFORE_C_EST = frozenset(
+    {"que", "qu", "et", "mais", "ou", "car", "donc", "alors", "oui", "non", "parce", "puisque", "comme", "quand", "puis",
+     "lorsque", "aussi", "bon", "ah", "oh", "eh", "bonjour", "salut", "merci", "voilà", "pense", "crois", "trouve", "sais",
+     "dit"}
+)
+#: What may stand in front of «l» and a noun, besides the start of a clause or a verb.
+_BEFORE_L_NOUN = frozenset(
+    {"à", "a", "de", "dans", "sur", "sous", "pour", "avec", "par", "vers", "devant", "derrière", "sans", "après", "avant",
+     "chez", "et", "ou", "mais", "que", "tout", "toute", "voici", "voilà", "est"}
+)
+#: A letter after these names itself: «la ligne C», «le plan B», «la vitamine D».
+_NAMES_A_LETTER = frozenset(
+    {"ligne", "plan", "vitamine", "bus", "quai", "bâtiment", "batiment", "lettre", "groupe", "option", "catégorie",
+     "categorie", "point", "étage", "etage", "porte", "salle", "voie", "hall", "zone", "terminal", "tome", "annexe", "partie",
+     "chapitre", "modèle", "modele", "type", "classe", "rang", "niveau", "section", "sortie", "entrée", "entree", "escalier",
+     "métro", "metro", "tram", "tramway", "rer", "série", "serie", "variante", "réponse", "reponse", "case", "colonne",
+     "taille", "note", "version", "équipe", "equipe", "jour"}
+)
+_NUMBER_NAMES = frozenset({"deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix", "double", "plusieurs", "quelques"})
+_NOT_A_NAMED_LETTER = frozenset({"a", "à", "y"})
+
+
+def _apostrophe(source: str) -> str:
+    return "’" if "’" in source else "'"
+
+
+def _letter_names_itself(source: str, tokens: list[Tok], index: int) -> bool:
+    """Whether the lone letter at ``index`` is a letter or a unit, not an elided word: «le c
+    est muet», «la ligne C», «200 m», «J U L I E», «A est ici. C est là-bas.»."""
+
+    tok = tokens[index]
+    written = source[tok.start : tok.end]
+    if written.isupper() and not _starts_sentence(source, tok):
+        return True
+    if source[: tok.start].rstrip()[-1:].isdigit():
+        return True
+    if written.isupper() and any(
+        other is not tok
+        and len(other.low) == 1
+        and source[other.start : other.end].isupper()
+        and source[other.end : other.end + 1] not in {"'", "’"}
+        for other in tokens
+    ):
+        return True
+    if index == 0 or not _same_clause(source, tokens[index - 1], tok):
+        return False
+    prev = tokens[index - 1].low
+    return (
+        (prev in _DETERMINERS and prev != "ce")  # «ce n est pas» is the subject «ce»
+        or prev in _NAMES_A_LETTER
+        or prev in _NUMBER_NAMES
+        or prev == "des"
+        or (len(prev) == 1 and prev not in _NOT_A_NAMED_LETTER)
+    )
+
+
+def _spelled(word: str) -> str:
+    """``word`` as the accent and spelling tables write it: «hotel» -> «hôtel»."""
+    return _ACCENTS.get(word) or _MISSPELLINGS.get(word) or _accent_fold(word) or word
+
+
+def _subject_fits(subject: str | None, verb: str) -> bool:
+    """A subject in front of a clitic letter, and no être/avoir/aller form wrong for it."""
+    person = _PRONOUN_PERSONS.get(subject or "")
+    if person is None:
+        return False
+    persons = _FORM_PERSONS.get(verb)
+    return persons is None or subject in {"qui"} or person in persons
+
+
+def _dropped_apostrophe(source: str, tokens: list[Tok], index: int) -> tuple[int, int, str] | None:
+    """``(start, end, replacement)`` when a space stands where an apostrophe belongs, else
+    ``None``. Closed on both sides: the piece, the word after it and what stands in front."""
+
+    tok = tokens[index]
+    nxt = tokens[index + 1] if index + 1 < len(tokens) else None
+    if nxt is None or not _space(source, tok, nxt):
+        return None
+    if index > 0 and source[tokens[index - 1].end : tok.start] in {"'", "’", "-"}:
+        return None  # part of a longer word
+    mark = _apostrophe(source)
+    written, word, word_written = source[tok.start : tok.end], nxt.low, source[nxt.start : nxt.end]
+    prev = tokens[index - 1] if index > 0 else None
+    opens_clause = prev is None or not _same_clause(source, prev, tok)
+    prev_low = None if opens_clause or prev is None else prev.low
+
+    # «a l hotel» -> «à l'hôtel»: with nothing at all in front, this «a» has no subject to be a
+    # verb of. After a stop it may have one: «Augustin de… Créteil… a l'honneur de signer».
+    if tok.low == "a" and written == "a" and index == 0 and word == "l" and len(tokens) > 2:
+        noun = tokens[index + 2]
+        gap = source[nxt.end : noun.start]
+        spelled = _spelled(noun.low)
+        if gap in {" ", "'", "’"} and _vowel_sound(spelled) and _reads_as_noun(spelled):
+            return tok.start, noun.end, f"à l{mark}{source[noun.start : noun.end]}"
+        return None
+
+    pieces = _ELIDED_PIECES.get(tok.low)
+    if pieces is not None:
+        if word in pieces:
+            return tok.start, nxt.end, f"{written}{mark}{word_written}"
+        # «Qu est ce que» -> «Qu'est-ce que»
+        after = tokens[index + 2] if index + 2 < len(tokens) else None
+        if tok.low == "qu" and word == "est" and after is not None and after.low == "ce" and _space(source, nxt, after):
+            return tok.start, after.end, f"{written}{mark}{word_written}-{source[after.start : after.end]}"
+        return None
+
+    allowed = _ELIDED_LETTERS.get(tok.low)
+    if allowed is None or _letter_names_itself(source, tokens, index):
+        return None
+    if tok.low == "d" and word_written[:1].isupper() and _lemma(word) is None and word[:1] in _VOWEL_LETTERS:
+        # «la clé d Odile»: a noun in front of it, a name after it, a small «d»
+        if written != "d" or prev_low is None or not _is_noun(_spelled(prev_low)):
+            return None
+    elif word not in allowed:
+        # «l hotel», «l immeuble»: a noun that takes elision, after a word that can stand before one
+        spelled = _spelled(word)
+        if tok.low != "l" or not (_vowel_sound(spelled) and _reads_as_noun(spelled)):
+            return None
+        if not (prev_low is None or prev_low in _BEFORE_L_NOUN or _could_be_verb(prev_low)):
+            return None
+    elif tok.low == "c" and not (opens_clause or prev_low in _BEFORE_C_EST):
+        return None
+    elif tok.low == "s" and word not in {"il", "ils"} and not _subject_fits(_clitic_subject(tokens, index), word):
+        if prev_low != "comment":
+            return None
+    elif tok.low in {"n", "m", "t", "l"} and not _subject_fits(_clitic_subject(tokens, index), word):
+        # «Lila n est pas là»: a name in front holds too, with its negation after the verb
+        if not (
+            tok.low == "n"
+            and prev is not None
+            and not opens_clause
+            and source[prev.start : prev.end][:1].isupper()
+            and _lemma(prev.low) is None
+            and any(t.low in _NEGATION_PARTNERS and _same_clause(source, nxt, t) for t in tokens[index + 2 : index + 6])
+        ):
+            return None
+    return tok.start, nxt.end, f"{written}{mark}{word_written}"
+
+
+def _clitic_subject(tokens: list[Tok], index: int) -> str | None:
+    """The word in front of the clitic letter at ``index``, past a «ne»: «il ne m a pas»."""
+    at = index - 1
+    if at >= 0 and tokens[at].low in {"ne", "n"}:
+        at -= 1
+    return tokens[at].low if at >= 0 else None
 
 
 # ---------------------------------------------------------------------------
@@ -1399,6 +1735,72 @@ def _space(source: str, left: Tok, right: Tok) -> bool:
     return source[left.end : right.start] in {" ", " "}
 
 
+#: A day or a time of day: what «à dix-huit heures» can follow where «a» is no verb.
+_BEFORE_THE_CLOCK = frozenset(
+    {"lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche", "demain", "hier", "hui", "matin", "soir",
+     "après-midi"}
+)
+#: What may follow the hour. Not «de»: «jeudi a dix-huit heures de cours» has them, and not an
+#: adjective: «lundi a trois heures libres». The review of #310 found both shapes.
+_AFTER_THE_CLOCK = frozenset(
+    {"du", "et", "ou", "mais", "à", "au", "aux", "chez", "dans", "avec", "pour", "sur", "en", "pile", "précises", "trente",
+     "quinze", "moins", "je", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles", "ce", "si", "car", "donc", "alors",
+     "parce", "quand", "comme"}
+)
+#: «Le lundi a vingt-quatre heures, comme les autres jours.», «L'examen de lundi a trois heures
+#: pour finir.»: after one of these the day is, or belongs to, the subject of the verb. «ce» stays
+#: out: «ce soir a huit heures» is always the time.
+_A_DAY_THAT_CAN_HAVE_HOURS = frozenset(
+    {"le", "un", "chaque", "tout", "mon", "ton", "son", "notre", "votre", "leur", "de", "du"}
+)
+_CLOCK_IN_DIGITS = re.compile(r"\s+\d{1,2}(?:\s*h(?:\d{2})?(?!\w)|\s+heures?(?!\w))")
+_DIGITS_OF_THE_HOUR = re.compile(r"\s+\d{1,2}(?:h\d{0,2})?")
+
+
+def _clock_after_a(source: str, tokens: list[Tok], index: int) -> int | None:
+    """Where the words to fix end when the «a» at ``index`` is «à» in front of a clock time, else
+    ``None``. A span is found by its words, so it runs on to the number: the line may hold a right
+    «a» earlier. Closed on both sides: a day or time word in front, the hour and its end after."""
+
+    tok = tokens[index]
+    if tok.low != "a" or source[tok.start : tok.end] != "a" or index == 0:
+        return None
+    prev = tokens[index - 1]
+    digits = _CLOCK_IN_DIGITS.match(source, tok.end)
+    # «Rendez-vous a 18 heures.»: after this word only a time in digits is sure
+    if not _space(source, prev, tok) or not (prev.low in _BEFORE_THE_CLOCK or (digits and prev.low == "rendez-vous")):
+        return None
+    if index > 1 and tokens[index - 2].low in _A_DAY_THAT_CAN_HAVE_HOURS and prev.low != "rendez-vous":
+        return None
+    following = tokens[index + 1 :]
+    if digits:
+        hour_end = digits.end()
+        fix_end = _DIGITS_OF_THE_HOUR.match(source, tok.end).end()  # type: ignore[union-attr]
+    else:
+        if len(following) < 2 or not _space(source, tok, following[0]) or not _space(source, following[0], following[1]):
+            return None
+        if not _is_number_word(following[0].low) or following[1].low not in {"heures", "h"}:
+            return None
+        hour_end, fix_end = following[1].end, following[0].end
+    after = next((other for other in following if other.start >= hour_end), None)
+    if after is not None and not _CLAUSE_BREAK.search(source[hour_end : after.start]) and after.low not in _AFTER_THE_CLOCK:
+        return None
+    return fix_end
+
+
+#: The adjectives that go in front of a noun, masculine form -> feminine. Closed on purpose: these
+#: forms are never a noun or a verb in the lexicon, so a feminine article in front of one is an
+#: article and the mistake can only be the adjective.
+_FEMININE_OF_ADJECTIVE = {
+    "bon": "bonne", "petit": "petite", "grand": "grande", "beau": "belle", "nouveau": "nouvelle", "vieux": "vieille",
+    "gros": "grosse", "long": "longue", "mauvais": "mauvaise", "joli": "jolie", "premier": "première",
+    "dernier": "dernière",
+}  # fmt: skip
+_FEMININE_ARTICLES = frozenset({"une", "la", "cette", "ma", "ta", "sa"})
+#: «ma grand mère» is «grand-mère» without its hyphen, and no «grande mère» is meant.
+_AFTER_THE_OLD_GRAND = frozenset({"mère", "mere", "tante", "messe", "rue", "route", "place", "peine", "chose", "voile"})
+
+
 def _phrase_edits(source: str, tokens: list[Tok], add) -> None:
     """Rules over a few words at once: a negation around the verb, «de» after a modal,
     a doubled negation, «de» after a negated avoir, the locutions that need «de»,
@@ -1460,6 +1862,26 @@ def _phrase_edits(source: str, tokens: list[Tok], add) -> None:
         ):
             right = f"{written} {source[after.start:after.end]} {source[nxt.start:nxt.end]}"
             add(_edit("FR_NEGATION_ORDER", source, tok.start, after.end, right, word=nxt.low, right=right))
+            continue
+
+        # «Je pas ai beaucoup bagages» -> «Je n'ai pas beaucoup bagages»: a subject pronoun, then
+        # «pas», then a finite verb. «nous» and «vous» may be objects unless they open the clause.
+        if (
+            tok.low in _SUBJECT_PRONOUN_WORDS - {"j"}
+            and nxt is not None
+            and after is not None
+            and nxt.low == "pas"
+            and _space(source, tok, nxt)
+            and _space(source, nxt, after)
+            and (_finite_verb(after.low) or _verb_after_subject(after.low))
+            and not source[after.start : after.end][:1].isupper()
+            and not (prev is not None and _same_clause(source, prev, tok) and prev.low in _PREPOSITIONS)
+            and not (tok.low in {"nous", "vous"} and prev is not None and _same_clause(source, prev, tok))
+        ):
+            verb = source[after.start : after.end]
+            ne = f"n{_apostrophe(source)}{verb}" if _vowel_sound(after.low) else f"ne {verb}"
+            right = f"{written} {ne} {source[nxt.start : nxt.end]}"
+            add(_edit("FR_NEGATION_ORDER", source, tok.start, after.end, right, word="pas", right=right))
             continue
 
         # «je n'ai vu pas le film» -> «je n'ai pas vu le film» («personne» does go after
@@ -1565,6 +1987,32 @@ def _phrase_edits(source: str, tokens: list[Tok], add) -> None:
             and not any(t.low in _RELATIVES and _same_sentence(source, t, tok) for t in tokens[max(0, i - 8) : i - 2])
         ):
             add(_edit("FR_A_GRAVE", source, tok.start, tok.end, "à", right="à"))
+            continue
+
+        # «une bon offre» -> «une bonne offre». Silent when the noun's gender isn't known, or a
+        # masculine noun says the article is the mistake («une bon gâteau»).
+        if (
+            tok.low in _FEMININE_ARTICLES
+            and nxt is not None
+            and after is not None
+            and source[nxt.start : nxt.end] in _FEMININE_OF_ADJECTIVE
+            and _space(source, tok, nxt)
+            and _space(source, nxt, after)
+            and source[after.start : after.end] == after.low
+            and after.low not in _TWO_GENDER_NOUNS
+            and _noun_gender(after.low) == "f"
+            and not (nxt.low == "grand" and after.low in _AFTER_THE_OLD_GRAND)
+        ):
+            right = f"{written} {_FEMININE_OF_ADJECTIVE[nxt.low]}"
+            add(_edit("FR_ADJ_AGREE", source, tok.start, nxt.end, right, noun=after.low,
+                      right=f"{_FEMININE_OF_ADJECTIVE[nxt.low]} {after.low}", wrong=f"{nxt.low} {after.low}"))
+            continue
+
+        # «jeudi a dix-huit heures» -> «jeudi à dix-huit heures»
+        clock_end = _clock_after_a(source, tokens, i)
+        if clock_end is not None:
+            right = "à" + source[tok.end : clock_end]
+            add(_edit("FR_A_GRAVE", source, tok.start, clock_end, right, right=right))
             continue
 
         # «je suis vingt ans» -> «j'ai vingt ans»
@@ -1682,7 +2130,40 @@ def deterministic_edits(
             continue
         settled.append(final)
     settled.sort(key=lambda e: e.start)
-    return settled
+    return _found_by_their_words(source, settled)
+
+
+def _found_by_their_words(source: str, edits: list[Edit]) -> list[Edit]:
+    """Each edit with a neighbouring word when its words are also somewhere earlier in the line.
+
+    An erratum keeps no offsets and a span is found by its words, so «a» -> «à» in «Camille a une
+    clé et je vais a Paris» lands on the first «a», which is right. The word in front is taken
+    when it is free, else the word after it. An edit no free word can tell apart is dropped: a
+    fix that lands on a right word is worse than none."""
+
+    words = _line_words(source)
+    named: list[Edit] = []
+    for index, edit in enumerate(edits):
+        floor = named[-1].end if named else 0
+        ceiling = edits[index + 1].start if index + 1 < len(edits) else len(source)
+        start, end = edit.start, edit.end
+        while (first := span_pattern(source[start:end]).search(source)) is not None and first.start() != start:
+            before = [word for word in words if floor <= word[0] and word[1] <= start]
+            following = [word for word in words if end <= word[0] and word[1] <= ceiling]
+            if before:
+                start = before[-1][0]
+            elif following:
+                end = following[0][1]
+            else:
+                start = -1
+                break
+        if start < 0:
+            continue
+        if (start, end) != (edit.start, edit.end):
+            right = source[start : edit.start] + edit.replacement + source[edit.end : end]
+            edit = replace(edit, span=source[start:end], replacement=right, start=start, end=end)
+        named.append(edit)
+    return named
 
 
 def _settle(source: str, edit: Edit, cast: Mapping[str, str], depth: int = 0) -> Edit | None:
@@ -1742,9 +2223,12 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
 
     tokens = _tokens(source)
     found: list[Edit] = []
+    cited = _cited_stretches(source)
 
     def add(edit: Edit | None) -> None:
         if edit is None:
+            return
+        if any(edit.start < end and start < edit.end for start, end in cited):
             return
         if any(edit.start < other.end and other.start < edit.end for other in found):
             return
@@ -1755,6 +2239,13 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
         prev = tokens[i - 1] if i > 0 else None
         joined_next = nxt is not None and _joined(source, tok, nxt)
         joined_prev = prev is not None and _joined(source, prev, tok)
+
+        # --- the dropped apostrophe: «c est», «Qu est-ce», «s il te plaît», «d Odile» ---
+        dropped = _dropped_apostrophe(source, tokens, i)
+        if dropped is not None:
+            start, end, glued = dropped
+            add(_edit("FR_APOSTROPHE", source, start, end, glued, right=glued))
+            continue
 
         # --- person of être / avoir / aller after a plain subject pronoun -------------
         if tok.low in _FORM_PERSONS and prev is not None and joined_prev:
@@ -1955,18 +2446,32 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
         # réunit»), not «ça» typed without its cedilla.
         written = source[tok.start:tok.end]
         acronym = written.isupper() and len(written) > 1 and not source.isupper()
-        if tok.low in _ACCENTS and not acronym:
+        # «le Grand Hotel», «son ami Andre»: a capital inside a sentence is a name. «En anglais,
+        # hotel s'écrit sans accent», «Das Hotel ist schön»: this word isn't French.
+        not_french = (tok.low in _ACCENTS or tok.low in _MISSPELLINGS) and (
+            (written[:1].isupper() and not source.isupper() and not _starts_sentence(source, tok))
+            or _in_another_language(source, tokens, i)
+        )
+        if tok.low in _ACCENTS and not acronym and not not_french:
             right = _ACCENTS[tok.low]
             add(_edit("FR_ACCENT", source, tok.start, tok.end, _case(source[tok.start:tok.end], right), right=right))
             continue
         if (
             tok.low in _MISSPELLINGS
             and not acronym
-            and not glued_before
+            and not not_french
+            and (not glued_before or (prev is not None and prev.low in _ELIDED_BEFORE_A_WORD))
             and _lemma(tok.low) is None
             and _forms().get(tok.low) is None
             and not (nxt is not None and source[tok.end : nxt.start] in {"'", "’", "-"})
             and not (tok.low in _PARTICIPLE_LOOKALIKES and prev is not None and prev.low in _AVOIR_FORMS)
+            # «Jai Paul»: a capital, then a capital, is somebody's name
+            and not (written[:1].isupper() and nxt is not None and source[nxt.start : nxt.start + 1].isupper())
+            and not (
+                tok.low in _GLUED_NEGATIONS
+                and not any(t.low in _NEGATION_PARTNERS and _same_clause(source, tok, t) for t in tokens[i + 1 : i + 6])
+            )
+            and not (tok.low == "sil" and (written != "sil" or nxt is None or nxt.low not in _AFTER_GLUED_SIL))
         ):
             right = _MISSPELLINGS[tok.low]
             if right[:1].islower():
@@ -1983,6 +2488,19 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
         ):
             right = _case(written, _HYPHENATED[(tok.low, nxt.low)])
             add(_edit("FR_SPELLING", source, tok.start, nxt.end, right, right=right))
+            continue
+        # «cle» -> «clé», «decembre» -> «décembre»: the one word this spelling can be
+        fold = _accent_fold(tok.low)
+        if (
+            fold is not None
+            and not acronym
+            and not (written[:1].isupper() and not source.isupper() and not _starts_sentence(source, tok))
+            and not (written[:1].isupper() and nxt is not None and source[nxt.start : nxt.start + 1].isupper())
+            and not (glued_before and (prev is None or prev.low not in _ELIDED_BEFORE_A_WORD))
+            and not (nxt is not None and source[tok.end : nxt.start] in {"'", "’"})
+            and not _in_another_language(source, tokens, i)
+        ):
+            add(_edit("FR_ACCENT", source, tok.start, tok.end, _case(written, fold), right=fold))
             continue
 
     _phrase_edits(source, tokens, add)

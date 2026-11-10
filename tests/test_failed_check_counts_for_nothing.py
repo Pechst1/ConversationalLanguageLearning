@@ -42,9 +42,9 @@ from tests.test_journal_api import (  # noqa: F401
 )
 from tests.test_model_failure_is_not_a_result_333 import _letter
 
-#: Exact walk text from #333 and #250. The first has real mistakes no rule sees, so the old
-#: «No corrections found» read as a clean verdict; the second has one a rule does see.
-UNSEEN_BY_RULES = "Je pas ai beaucoup bagages aujourd'hui, mais je viens chez toi samedi soir."
+#: Walk text from #193 and #250. The first has a real mistake no rule sees («le voyage été long»),
+#: so the old «No corrections found» read as a clean verdict; the second has one a rule does see.
+UNSEEN_BY_RULES = "Je suis très fatigué, le voyage été long, mais je viens chez toi samedi soir."
 SEEN_BY_RULES = "Je suis tres content de venir chez toi samedi soir avec mon ami Marin."
 
 
