@@ -195,18 +195,25 @@ def test_fallback_keeps_the_friend_on_tu(db_session, text) -> None:
     assert _tu(reply), reply
 
 
-def test_cast_letters_still_follow_the_cast() -> None:
-    """The cast's register still binds the cast's own letters (#147): only a name match is dropped."""
+def test_cast_letters_still_follow_the_cast(monkeypatch) -> None:
+    """The cast's register still binds the cast's own letters (#147); a first-name match does not."""
 
+    from app.services import missions
     from app.services import story_correspondence as courrier
 
-    gus = SimpleNamespace(correspondent_id=None, prompt_payload={"serial_character_id": "augustin_de_roncourt", "messenger": {"contact_name": "Gus"}})
-    margaux_first = SimpleNamespace(correspondent_id="margaux_barman", prompt_payload={"messenger": {"contact_name": "Margaux"}})
-    story_born = SimpleNamespace(correspondent_id="gus", prompt_payload={"correspondence": {"origin": "story_born"}, "messenger": {"contact_name": "Gus"}})
-    friend = SimpleNamespace(correspondent_id="camille", prompt_payload={"correspondence": {"origin": "chain"}, "messenger": {"contact_name": "Camille"}})
-    shop = SimpleNamespace(correspondent_id="boutique_anais", prompt_payload={"messenger": {"contact_name": "Boutique Anaïs"}})
-    assert courrier.cast_author_id(gus) == "augustin_de_roncourt"
-    assert courrier.cast_author_id(margaux_first) == "margaux_barman"
-    assert courrier.cast_author_id(story_born) == "augustin_de_roncourt"
-    assert courrier.cast_author_id(friend) is None
-    assert courrier.cast_author_id(shop) is None
+    monkeypatch.setattr(courrier, "active_thread", lambda db, user: None)
+
+    def letter(correspondent_id, **payload):
+        return SimpleNamespace(user_id=uuid4(), correspondent_id=correspondent_id, prompt_payload=payload)
+
+    def register(mission):
+        return missions.live_register(object(), None, mission)
+
+    # The season opens Margaux on «tu»; each way the cast's own letter records her finds it.
+    assert register(letter(None, serial_character_id="margaux_barman", messenger={"contact_name": "Margaux"})) == "tu"
+    assert register(letter("margaux_barman", messenger={"contact_name": "Margaux"})) == "tu"
+    assert register(letter("margaux", correspondence={"origin": "story_born"}, messenger={"contact_name": "Margaux"})) == "tu"
+    # «Camille, ton amie» from the letter writer is not Camille Marchand («vous» in the season).
+    friend = letter("camille", correspondence={"origin": "chain"}, messenger={"contact_name": "Camille", "target_register": "tu"})
+    assert register(friend) is None, "a friend named Camille was given the cast's Camille Marchand's register"
+    assert register(letter("boutique_anais", messenger={"contact_name": "Boutique Anaïs"})) is None
