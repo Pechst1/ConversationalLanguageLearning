@@ -4828,8 +4828,21 @@ def roll_over_season(
             ],
         ][-20:]
         live["archived_season"] = season
+    from app.services import season_rollover
+
     interlude = dict(live.get("interlude") or {})
-    if interlude.get("returns_on") and today_iso < str(interlude["returns_on"]):
+    rollover = dict(live.get(season_rollover.STATE_KEY) or {})
+    # S5: a season the writer job stored for THIS rollover begins as soon as it is
+    # asked for, before the promised date. The writer itself never runs here: this
+    # function is called while the learner's rows are locked.
+    ready = (
+        rollover.get("season_file")
+        if rollover.get("state") == season_rollover.WRITTEN
+        and int(rollover.get("season") or 0) == season + 1
+        and not rollover.get("installed_on")
+        else None
+    )
+    if not ready and interlude.get("returns_on") and today_iso < str(interlude["returns_on"]):
         live["season_stage"] = "interlude"
         return False
     service = SerialThreadService(db)
@@ -4842,13 +4855,9 @@ def roll_over_season(
         else service._load_next_season_world_bible(current_world=world, next_season=season + 1)
     )
     source = "authored"
-    if not following and settings.ATELIER_SEASON_WRITER_ENABLED:
-        written = season_writer.draft_next_season(
-            live=live, world=world, next_season=season + 1, db=db, user=user
-        )
-        if written:
-            following = service.merge_season_world_bible(world, written, next_season=season + 1)
-            source = "written"
+    if not following and ready:
+        following = service.merge_season_world_bible(world, ready, next_season=season + 1)
+        source = "written"
     if not following and interlude.get("returns_on"):
         # The promised day has come and nothing was written: the story resumes anyway,
         # from what this life left open.
@@ -4860,6 +4869,16 @@ def roll_over_season(
     if not following:
         live["season_stage"] = "interlude"
         live["interlude"] = season_writer.named_interlude(today_iso)
+        # The writer job (when enabled) writes the next season after this request;
+        # the promised date starts the season whether or not it succeeds.
+        season_rollover.store(
+            live,
+            season_rollover.PENDING if settings.ATELIER_SEASON_WRITER_ENABLED else season_rollover.INTERLUDE,
+            season=season + 1,
+            since=live["interlude"]["since"],
+            returns_on=live["interlude"]["returns_on"],
+            reason_fr=live["interlude"]["reason_fr"],
+        )
         logger.info(
             "living_story: season %s ended; interlude until %s",
             season,
@@ -4906,6 +4925,13 @@ def roll_over_season(
         "pending": True,
         "day": int(day),
     }
+    season_rollover.store(
+        live,
+        season_rollover.REPRISE if source == "reprise" else season_rollover.WRITTEN,
+        season=season + 1,
+        source=source,
+        installed_on=today_iso,
+    )
     logger.info("living_story: season %s (%s) begins on day %s", season + 1, source, day)
     return True
 

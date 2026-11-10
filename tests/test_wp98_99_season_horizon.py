@@ -324,7 +324,16 @@ def test_the_writer_drafts_season_four_from_this_life_or_names_the_interlude(
     thread = SimpleNamespace(id="thread-w", world_bible=_world_for(3))
     live = _material_live(3)
 
-    rolled = engine.roll_over_season(None, thread, live, day=300, today="2027-01-10")
+    # S5: the season ends with no model call; the writer runs after the request
+    # (the writer job), and what it wrote is installed from the stored state.
+    assert engine.roll_over_season(None, thread, live, day=300, today="2027-01-10") is False
+    assert fake.calls == [], "the rollover never calls the writer"
+    assert live["rollover"]["state"] == "pending"
+    drafted = season_writer.draft_next_season(live=live, world=thread.world_bible, next_season=4)
+    assert (drafted is not None) is written
+    if drafted is not None:
+        live["rollover"] = {**live["rollover"], "state": "written", "season_file": drafted}
+    rolled = engine.roll_over_season(None, thread, live, day=301, today="2027-01-11")
     assert rolled is written
     if written:
         assert fake.calls == ["SeasonDraft", "SeasonReview"], "one director call, one critic call"
