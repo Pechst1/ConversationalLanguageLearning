@@ -129,8 +129,8 @@ def _season(monkeypatch):
     monkeypatch.setattr(missions, "_record_mission_llm_cost", lambda *a, **k: None)
 
 
-@pytest.mark.parametrize("season", [True, False], ids=["season-s1", "no-season"])
-def test_plain_non_answered_in_character(db_session, season) -> None:
+@pytest.mark.parametrize("season", [True, False], ids=["s1", "none"])
+def test_non_in_tu(db_session, season) -> None:
     """Done-when (a): the recorded refusal is never shown; the reply says tu and answers «pourquoi»."""
 
     from app.services.missions import MissionConversationService
@@ -150,7 +150,7 @@ def test_plain_non_answered_in_character(db_session, season) -> None:
     assert "vous / registre poli" not in context, "the actor was told to say vous to a friend"
 
 
-def test_address_and_tracking_reply_not_shown(db_session) -> None:
+def test_no_address(db_session) -> None:
     """Done-when (b): the 10 Nov «pourriez-vous me rappeler votre adresse … 12345» never reaches the learner."""
 
     from app.services.missions import MissionConversationService
@@ -164,7 +164,7 @@ def test_address_and_tracking_reply_not_shown(db_session) -> None:
     assert not _vous(reply), reply
 
 
-def test_plain_non_is_not_a_tone_mismatch(db_session) -> None:
+def test_not_rude(db_session) -> None:
     from app.services.missions import MissionConversationService
 
     user = _learner_with_thread(db_session, season=True)
@@ -178,9 +178,9 @@ def test_plain_non_is_not_a_tone_mismatch(db_session) -> None:
 @pytest.mark.parametrize(
     "text",
     [LEARNER_NON, LEARNER_SORRY, "Bonjour Camille, pourriez-vous me dire pourquoi vous partagez la commande ?"],
-    ids=["non", "sorry", "learner-slips-into-vous"],
+    ids=["non", "sorry", "vous"],
 )
-def test_fallback_keeps_the_friend_on_tu(db_session, text) -> None:
+def test_fallback_tu(db_session, text) -> None:
     """With the model down, the fallback line still speaks to a friend in tu, never the refusal."""
 
     from app.services.missions import MissionConversationService
@@ -195,7 +195,7 @@ def test_fallback_keeps_the_friend_on_tu(db_session, text) -> None:
     assert _tu(reply), reply
 
 
-def test_cast_letters_still_follow_the_cast(monkeypatch) -> None:
+def test_cast_only(monkeypatch) -> None:
     """The cast's register still binds the cast's own letters (#147); a first-name match does not."""
 
     from app.services import missions
