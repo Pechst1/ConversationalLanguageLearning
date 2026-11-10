@@ -72,6 +72,7 @@ def tokens(monkeypatch):
 def _as_main_read_them(monkeypatch) -> None:
     """Main's four reads: every stored row counts, no stored message holds a letter back."""
 
+    monkeypatch.setattr(settings, "VERDICT_LEDGER_ENABLED", False)  # main had no ledger (package V stage 2)
     counted = SimpleNamespace(counts=True)
     monkeypatch.setattr(
         cefr_module,

@@ -35,7 +35,7 @@ from app.db.models.graphic_novel import GraphicNovelAttempt
 from app.db.models.mission import RealWorldMissionAttempt
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
-from app.services import verdict_cutover, verdicts
+from app.services import verdict_ledger, verdicts
 from app.services.chrome_language import user_mother_tongue
 from app.services.journey_rhythm import rhythm_of
 
@@ -378,20 +378,33 @@ class CEFRProgressService:
         the learner: it may neither raise the average that gates a level nor drag it down."""
 
         scores: list[float] = []
-        # Package V: a row stored before the cut-over keeps what it counted for, so the
-        # deploy moves no level (VERDICT_LEGACY_ROWS=as_counted).
-        legacy = verdict_cutover.cutover(self.db)
-        for model, read in (
-            (AtelierAttempt, lambda row: verdicts.from_forge(row.correction_payload, verdict=row.verdict)),
-            (RealWorldMissionAttempt, lambda row: verdicts.from_courrier(row.correction_payload, verdict=row.verdict)),
-            (GraphicNovelAttempt, lambda row: verdicts.from_feuilleton(row.correction_payload, verdict=row.verdict)),
+        # Package V: a row stored before the verdict stack keeps what it counted for
+        # (stage 1); a row with a ledger record counts as its record says (stage 2), so
+        # neither a deploy nor a judge change moves a level.
+        for model, subject_type, read in (
+            (AtelierAttempt, "forge_attempt", lambda row: verdicts.from_forge(row.correction_payload, verdict=row.verdict)),
+            (
+                RealWorldMissionAttempt,
+                "courrier_attempt",
+                lambda row: verdicts.from_courrier(row.correction_payload, verdict=row.verdict),
+            ),
+            (
+                GraphicNovelAttempt,
+                "feuilleton_attempt",
+                lambda row: verdicts.from_feuilleton(row.correction_payload, verdict=row.verdict),
+            ),
         ):
             rows = (
-                self.db.query(model.score_0_4, model.correction_payload, model.verdict, model.created_at)
+                self.db.query(model.id, model.score_0_4, model.correction_payload, model.verdict, model.created_at)
                 .filter(model.user_id == user.id, model.created_at >= start)
                 .all()
             )
-            scores.extend(float(row.score_0_4 or 0.0) for row in rows if legacy.keeps(row) or read(row).counts)
+            ledger = verdict_ledger.counting(self.db, rows, subject_type=subject_type)
+            scores.extend(
+                float(row.score_0_4 or 0.0)
+                for row in rows
+                if ledger.counts(row, subject_type=subject_type, read=read)
+            )
         return scores
 
     def _active_days(self, *, user: User, start: datetime) -> list[str]:

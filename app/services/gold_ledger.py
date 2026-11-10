@@ -39,7 +39,7 @@ from app.config import settings
 from app.core import gold as core
 from app.db.models.gold import GoldBalance, GoldLedgerEntry
 from app.db.savepoint import best_effort, run_best_effort
-from app.services import verdict_cutover, verdicts
+from app.services import verdict_ledger, verdicts
 
 _log = logging.getLogger(__name__)
 
@@ -56,6 +56,8 @@ SOURCE_JOURNEY_TARGET = "journey_target"
 SOURCE_JOURNEY_REPLY = "journey_reply"
 SOURCE_FORGE_ITEM = "forge_item"
 SOURCE_LETTER = "letter"
+#: Package V: gold a verdict record pays when it settles (verdict_ledger.supersede).
+SOURCE_VERDICT = "verdict"
 SOURCE_MILESTONE = "milestone"
 SOURCE_WORD_CARD = "word_card"
 
@@ -1274,6 +1276,46 @@ def record_rule_held(db: Session, *, user: Any, now: datetime | None = None) -> 
 # ---------------------------------------------------------------------------
 
 
+def pay_verdict(
+    db: Session,
+    *,
+    user: Any,
+    source_key: str,
+    category: core.Category = core.Category.FREE,
+    outcome: str = core.OUTCOME_MET,
+    evidence: dict[str, Any] | None = None,
+    now: datetime | None = None,
+) -> GoldLedgerEntry | None:
+    """Package V: the gold a verdict record is due, minted once under ``source_key``.
+
+    The ledger names the key (one per chain of records and payment), so a record that is
+    superseded and settled again finds its entry and mints nothing. ``None`` when the
+    ledger is off, the table says nothing, or the key was already paid.
+    """
+
+    if not ledger_on():
+        return None
+    now = _now(now)
+    day = _open_day(db, user, when=now, now=now)
+    return _mint_and_write(
+        db,
+        user_id=user.id,
+        day=day,
+        observation=core.GoldObservation(category=category, outcome=outcome, assistance="none"),
+        source_kind=SOURCE_VERDICT,
+        source_key=source_key,
+        target=None,
+        evidence={"category": str(category), "outcome": outcome, **(evidence or {})},
+        now=now,
+    )
+
+
+def void_verdict_payment(db: Session, *, entry: GoldLedgerEntry, reason: str, now: datetime | None = None) -> None:
+    """Package V: a superseding record that no longer counts takes its chain's gold back."""
+
+    _void(db, entry, reason=reason, now=_now(now))
+
+
 def record_letter(db: Session, *, user: Any, mission: Any, attempts: Sequence[Any], now: datetime | None = None) -> None:
     """A completed Courrier letter, judged on its first written attempt (R7). Never raises.
 
@@ -1305,10 +1347,10 @@ def record_letter(db: Session, *, user: Any, mission: Any, attempts: Sequence[An
         if outcome is None:
             return  # needs_revision, unassessed (R6), needs_review
         stored = getattr(first, "correction_payload", None)
-        if (
-            stored
-            and not verdict_cutover.keeps_what_it_counted(db, first)  # package V: paid as main did
-            and not verdicts.from_courrier(stored, verdict=verdict).counts
+        # Package V: a letter stored before the stack is paid as main paid it (stage 1); one
+        # with a ledger record is paid as its record says (stage 2).
+        if stored and not verdict_ledger.counting(db, [first]).counts(
+            first, read=lambda _row: verdicts.from_courrier(stored, verdict=verdict)
         ):
             return  # R6 / #333: a stored «partial» that only the rules ever looked at
         day = _open_day(db, user, when=now, now=now)

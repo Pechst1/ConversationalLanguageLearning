@@ -1,19 +1,24 @@
-"""Each surface's stored result, read as the one verdict shape (:mod:`app.core.verdict`).
+"""Each surface's stored result, read as evidence for the one judge (:mod:`app.services.judge`).
 
-These adapters read the fields surfaces already store, so rows written before the shape
-existed read the same as new ones. They only read: what a failed check is allowed to do
-to a level or to gold is decided elsewhere.
+``read_<surface>`` reads the fields a surface stores (or has just produced) and returns a
+:class:`Read`: the evidence and the learner's text. It decides nothing. ``from_<surface>``
+hands that reading to :func:`app.services.judge.judge`, the only place a verdict is built.
+Rows written before the shape existed read the same as new ones.
+
+After the ledger cut-over (package V stage 2) a level, l'or or a token reads the stored
+verdict record (:mod:`app.services.verdict_ledger`), not these readers.
 """
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, NamedTuple
 
 from loguru import logger
 
-from app.core.verdict import Call, CheckedBy, Failure, Outcome, Verdict, make_verdict
+from app.core.verdict import Call, CheckedBy, Failure, Outcome, Verdict
 from app.services.correction_contract import is_about_the_line
 from app.services.journey_contracts import Correction, TaskOutcome
+from app.services.judge import Reading, Task, judge
 
 _TASK_OUTCOMES = {
     TaskOutcome.MET: Outcome.RIGHT,
@@ -31,6 +36,33 @@ _WORDS = {
     "incorrect": Outcome.NOT_YET,
     "needs_revision": Outcome.NOT_YET,
 }
+
+
+class Read(NamedTuple):
+    """What one stored row says: the evidence, and the learner's text it is about."""
+
+    reading: Reading
+    text: str
+
+
+def _read(
+    *,
+    outcome: Outcome,
+    checked_by: CheckedBy,
+    call: Call,
+    text: str = "",
+    proposed: Iterable[dict[str, Any]] = (),
+    failure: Failure | None = None,
+    retryable: bool = False,
+) -> Read:
+    reading = Reading(
+        outcome=outcome, by=checked_by, call=call, failure=failure, retryable=retryable, proposed=tuple(proposed)
+    )
+    return Read(reading, text or "")
+
+
+def _judged(surface: str, read: Read) -> Verdict:
+    return judge(Task(surface), read.text, reading=read.reading)
 
 
 def failure_class(reason: Any) -> Failure:
@@ -88,24 +120,24 @@ def _correction_as_proposed(correction: Correction | None, *, by: str) -> list[d
     ]
 
 
-def from_recall(
+def read_recall(
     *,
     outcome: TaskOutcome,
     correction: Correction | None = None,
     text: str = "",
     pending: bool = False,
-) -> Verdict:
+) -> Read:
     """A drill: the key decides. Only a grade error leaves it unchecked."""
 
     if pending or outcome is TaskOutcome.UNSCORED:
-        return make_verdict(
+        return _read(
             outcome=Outcome.NOT_CHECKED,
             checked_by=CheckedBy.NONE,
             call=Call.FAILED,
             failure=Failure.PROVIDER_ERROR,
             retryable=True,
         )
-    return make_verdict(
+    return _read(
         outcome=_TASK_OUTCOMES[outcome],
         checked_by=CheckedBy.KEY,
         call=Call.NOT_CALLED,
@@ -114,14 +146,14 @@ def from_recall(
     )
 
 
-def from_scene(
+def read_scene(
     *,
     outcome: TaskOutcome,
     correction: Correction | None = None,
     text: str = "",
     failure_reason: str | None = None,
     check_failure: str | None = None,
-) -> Verdict:
+) -> Read:
     """A scene reply. ``check_failure`` is the model that did not read it (WP-58's ending).
 
     A scripted scene is graded by its own authored signals, like a key, even when a model
@@ -129,7 +161,7 @@ def from_scene(
     """
 
     if check_failure or outcome is TaskOutcome.UNSCORED:
-        return make_verdict(
+        return _read(
             outcome=Outcome.NOT_CHECKED,
             checked_by=CheckedBy.NONE,
             call=Call.FAILED,
@@ -138,7 +170,7 @@ def from_scene(
             proposed=_correction_as_proposed(correction, by="rules"),
         )
     by_model = failure_reason == "reply_source:model"
-    return make_verdict(
+    return _read(
         outcome=_TASK_OUTCOMES[outcome],
         checked_by=CheckedBy.MODEL if by_model else CheckedBy.KEY,
         call=Call.OK if by_model else Call.NOT_CALLED,
@@ -147,7 +179,7 @@ def from_scene(
     )
 
 
-def from_forge(correction: dict[str, Any] | None, *, text: str = "", verdict: str | None = None) -> Verdict:
+def read_forge(correction: dict[str, Any] | None, *, text: str = "", verdict: str | None = None) -> Read:
     """A La Forge answer, from its stored correction payload."""
 
     payload = correction if isinstance(correction, dict) else {}
@@ -164,12 +196,12 @@ def from_forge(correction: dict[str, Any] | None, *, text: str = "", verdict: st
         and isinstance(payload.get("corrected_answer"), str)
         and payload.get("graded_by") != "local_test_out"
     ):
-        return make_verdict(outcome=Outcome.NOT_CHECKED, checked_by=CheckedBy.NONE, call=Call.NOT_CALLED)
+        return _read(outcome=Outcome.NOT_CHECKED, checked_by=CheckedBy.NONE, call=Call.NOT_CALLED)
     if status == "provisional" and not by_key:
-        return make_verdict(outcome=Outcome.NOT_CHECKED, checked_by=CheckedBy.NONE, call=Call.PENDING)
+        return _read(outcome=Outcome.NOT_CHECKED, checked_by=CheckedBy.NONE, call=Call.PENDING)
     if status == "unavailable" or word == "needs_review":
         failed = review.get("status") == "failed"
-        return make_verdict(
+        return _read(
             outcome=Outcome.NOT_CHECKED,
             checked_by=CheckedBy.NONE,
             call=Call.FAILED if failed else Call.NOT_CALLED,
@@ -179,9 +211,9 @@ def from_forge(correction: dict[str, Any] | None, *, text: str = "", verdict: st
             proposed=_errata_as_proposed(errata, by="rules"),
         )
     if by_key:
-        return make_verdict(outcome=Outcome.RIGHT, checked_by=CheckedBy.KEY, call=Call.NOT_CALLED)
+        return _read(outcome=Outcome.RIGHT, checked_by=CheckedBy.KEY, call=Call.NOT_CALLED)
     by_model = bool(debug.get("model")) and not debug.get("fallback_used")
-    return make_verdict(
+    return _read(
         outcome=_WORDS.get(word, Outcome.NOT_CHECKED),
         checked_by=CheckedBy.MODEL if by_model else CheckedBy.KEY,
         call=Call.OK if by_model else Call.NOT_CALLED,
@@ -190,7 +222,7 @@ def from_forge(correction: dict[str, Any] | None, *, text: str = "", verdict: st
     )
 
 
-def from_courrier(correction: dict[str, Any] | None, *, verdict: str | None = None, text: str = "") -> Verdict:
+def read_courrier(correction: dict[str, Any] | None, *, verdict: str | None = None, text: str = "") -> Read:
     """A Courrier message, from its stored correction payload and, on an attempt, the row's verdict."""
 
     payload = correction if isinstance(correction, dict) else {}
@@ -200,12 +232,12 @@ def from_courrier(correction: dict[str, Any] | None, *, verdict: str | None = No
             read = TaskOutcome(str(payload["journey_outcome"]))
         except ValueError:
             read = TaskOutcome.UNSCORED
-        return from_scene(outcome=read, text=text, check_failure=payload.get("journey_check_failure"))
+        return read_scene(outcome=read, text=text, check_failure=payload.get("journey_check_failure"))
     debug = payload.get("correction_debug") if isinstance(payload.get("correction_debug"), dict) else {}
     errata = payload.get("errata") or []
     word = str(payload.get("verdict") or verdict or "")
     if not debug.get("fallback_used") and word in {"accepted", "partial", "needs_revision"}:
-        return make_verdict(
+        return _read(
             outcome=_WORDS[word],
             checked_by=CheckedBy.MODEL,
             call=Call.OK,
@@ -214,7 +246,7 @@ def from_courrier(correction: dict[str, Any] | None, *, verdict: str | None = No
         )
     reason = debug.get("failure")
     call = {"empty": Call.EMPTY, "no_model": Call.NOT_CALLED}.get(str(reason), Call.FAILED)
-    return make_verdict(
+    return _read(
         outcome=Outcome.NOT_CHECKED,
         checked_by=CheckedBy.NONE,
         call=call,
@@ -225,7 +257,7 @@ def from_courrier(correction: dict[str, Any] | None, *, verdict: str | None = No
     )
 
 
-def from_feuilleton(correction: dict[str, Any] | None, *, verdict: str | None = None, text: str = "") -> Verdict:
+def read_feuilleton(correction: dict[str, Any] | None, *, verdict: str | None = None, text: str = "") -> Read:
     """A stored Feuilleton answer. A branch is a choice nobody can fail to read."""
 
     payload = correction if isinstance(correction, dict) else {}
@@ -234,7 +266,7 @@ def from_feuilleton(correction: dict[str, Any] | None, *, verdict: str | None = 
     if debug.get("fallback_used") or word in {"", "needs_review", "unassessed"}:
         reason = debug.get("failure")
         call = {"empty": Call.EMPTY, "no_model": Call.NOT_CALLED, None: Call.NOT_CALLED}.get(reason, Call.FAILED)
-        return make_verdict(
+        return _read(
             outcome=Outcome.NOT_CHECKED,
             checked_by=CheckedBy.NONE,
             call=call,
@@ -243,7 +275,7 @@ def from_feuilleton(correction: dict[str, Any] | None, *, verdict: str | None = 
             proposed=_errata_as_proposed(payload.get("errata") or [], by="rules"),
         )
     by_model = bool(debug.get("model"))
-    return make_verdict(
+    return _read(
         outcome=_WORDS.get(word, Outcome.RIGHT),
         checked_by=CheckedBy.MODEL if by_model else CheckedBy.KEY,
         call=Call.OK if by_model else Call.NOT_CALLED,
@@ -252,7 +284,7 @@ def from_feuilleton(correction: dict[str, Any] | None, *, verdict: str | None = 
     )
 
 
-def from_voice(*, text: str, errors: Iterable[dict[str, Any]], read: bool, failure: str | None = None) -> Verdict:
+def read_voice(*, text: str, errors: Iterable[dict[str, Any]], read: bool, failure: str | None = None) -> Read:
     """A spoken turn. ``read``: a model looked at it. No errors means something only then."""
 
     found = list(errors)
@@ -266,14 +298,14 @@ def from_voice(*, text: str, errors: Iterable[dict[str, Any]], read: bool, failu
         for error in found
     ]
     if read:
-        return make_verdict(
+        return _read(
             outcome=Outcome.NOT_YET if found else Outcome.RIGHT,
             checked_by=CheckedBy.MODEL,
             call=Call.OK,
             text=text,
             proposed=proposed,
         )
-    return make_verdict(
+    return _read(
         outcome=Outcome.NOT_CHECKED,
         checked_by=CheckedBy.NONE,
         call=Call.FAILED if failure else Call.NOT_CALLED,
@@ -283,14 +315,14 @@ def from_voice(*, text: str, errors: Iterable[dict[str, Any]], read: bool, failu
     )
 
 
-def from_rehearsal(debrief: dict[str, Any] | None) -> Verdict:
+def read_rehearsal(debrief: dict[str, Any] | None) -> Read:
     """The line a learner wrote after the real event. Nothing moves on it, but it can be read or not."""
 
     payload = debrief if isinstance(debrief, dict) else {}
     text = str(payload.get("free_line") or "")
     if not payload.get("correction_available"):
         failure = failure_class(payload.get("correction_failure"))
-        return make_verdict(
+        return _read(
             outcome=Outcome.NOT_CHECKED,
             checked_by=CheckedBy.NONE,
             call=Call.NOT_CALLED if failure is Failure.NO_MODEL else Call.FAILED,
@@ -298,7 +330,7 @@ def from_rehearsal(debrief: dict[str, Any] | None) -> Verdict:
             retryable=failure is not Failure.NO_MODEL,
         )
     fixes = _errata_as_proposed(payload.get("fixes") or [], by="model")
-    return make_verdict(
+    return _read(
         outcome=Outcome.RIGHT if payload.get("already_correct") and not fixes else Outcome.NOT_YET,
         checked_by=CheckedBy.MODEL,
         call=Call.OK,
@@ -307,11 +339,11 @@ def from_rehearsal(debrief: dict[str, Any] | None) -> Verdict:
     )
 
 
-def from_placement(grading: dict[str, Any] | None, *, failure: str | None = None) -> Verdict:
+def read_placement(grading: dict[str, Any] | None, *, failure: str | None = None) -> Read:
     """A placement answer. No grading is no measurement, and it holds the ladder (``next_band``)."""
 
     if not grading:
-        return make_verdict(
+        return _read(
             outcome=Outcome.NOT_CHECKED,
             checked_by=CheckedBy.NONE,
             call=Call.FAILED,
@@ -319,10 +351,10 @@ def from_placement(grading: dict[str, Any] | None, *, failure: str | None = None
         )
     score = float(grading.get("score_0_4") or 0)
     outcome = Outcome.RIGHT if score >= 3 else Outcome.PARTLY if score >= 2 else Outcome.NOT_YET
-    return make_verdict(outcome=outcome, checked_by=CheckedBy.MODEL, call=Call.OK)
+    return _read(outcome=outcome, checked_by=CheckedBy.MODEL, call=Call.OK)
 
 
-def from_journal(correction: dict[str, Any] | None, *, text: str = "") -> Verdict:
+def read_journal(correction: dict[str, Any] | None, *, text: str = "") -> Read:
     """A Journal entry, from its stored correction payload.
 
     ``checker`` says who looked (#250). A row from before it was stored is the model's
@@ -337,14 +369,14 @@ def from_journal(correction: dict[str, Any] | None, *, text: str = "") -> Verdic
     if by_model:
         word = payload.get("verdict")
         outcome = _WORDS.get(str(word)) if word else (Outcome.NOT_YET if errata else Outcome.RIGHT)
-        return make_verdict(
+        return _read(
             outcome=outcome or Outcome.NOT_CHECKED,
             checked_by=CheckedBy.MODEL,
             call=Call.OK,
             text=text,
             proposed=_errata_as_proposed(errata, by="model"),
         )
-    return make_verdict(
+    return _read(
         outcome=Outcome.NOT_CHECKED,
         checked_by=CheckedBy.NONE,
         call=Call.FAILED,
@@ -353,6 +385,80 @@ def from_journal(correction: dict[str, Any] | None, *, text: str = "") -> Verdic
         text=text,
         proposed=_errata_as_proposed(errata, by="rules"),
     )
+
+
+# ---------------------------------------------------------------------------
+# The verdict of each surface: its reading, judged (package V stage 2). The readers above
+# only read; :func:`app.services.judge.judge` builds every verdict.
+# ---------------------------------------------------------------------------
+
+
+def from_recall(
+    *, outcome: TaskOutcome, correction: Correction | None = None, text: str = "", pending: bool = False
+) -> Verdict:
+    """A drill: the key decides. Only a grade error leaves it unchecked."""
+
+    return _judged("recall", read_recall(outcome=outcome, correction=correction, text=text, pending=pending))
+
+
+def from_scene(
+    *,
+    outcome: TaskOutcome,
+    correction: Correction | None = None,
+    text: str = "",
+    failure_reason: str | None = None,
+    check_failure: str | None = None,
+) -> Verdict:
+    """A scene reply (see :func:`read_scene`)."""
+
+    return _judged(
+        "scene",
+        read_scene(
+            outcome=outcome, correction=correction, text=text, failure_reason=failure_reason, check_failure=check_failure
+        ),
+    )
+
+
+def from_forge(correction: dict[str, Any] | None, *, text: str = "", verdict: str | None = None) -> Verdict:
+    """A La Forge answer, from its stored correction payload."""
+
+    return _judged("forge", read_forge(correction, text=text, verdict=verdict))
+
+
+def from_courrier(correction: dict[str, Any] | None, *, verdict: str | None = None, text: str = "") -> Verdict:
+    """A Courrier message, from its stored correction payload and, on an attempt, the row's verdict."""
+
+    return _judged("courrier", read_courrier(correction, verdict=verdict, text=text))
+
+
+def from_feuilleton(correction: dict[str, Any] | None, *, verdict: str | None = None, text: str = "") -> Verdict:
+    """A stored Feuilleton answer."""
+
+    return _judged("feuilleton", read_feuilleton(correction, verdict=verdict, text=text))
+
+
+def from_voice(*, text: str, errors: Iterable[dict[str, Any]], read: bool, failure: str | None = None) -> Verdict:
+    """A spoken turn."""
+
+    return _judged("voice", read_voice(text=text, errors=errors, read=read, failure=failure))
+
+
+def from_rehearsal(debrief: dict[str, Any] | None) -> Verdict:
+    """The line a learner wrote after the real event."""
+
+    return _judged("rehearsal", read_rehearsal(debrief))
+
+
+def from_placement(grading: dict[str, Any] | None, *, failure: str | None = None) -> Verdict:
+    """A placement answer."""
+
+    return _judged("placement", read_placement(grading, failure=failure))
+
+
+def from_journal(correction: dict[str, Any] | None, *, text: str = "") -> Verdict:
+    """A Journal entry, from its stored correction payload."""
+
+    return _judged("journal", read_journal(correction, text=text))
 
 
 def note_failure(db: Any, *, surface: str, verdict: Verdict, user_id: Any = None) -> None:
@@ -374,6 +480,7 @@ def note_failure(db: Any, *, surface: str, verdict: Verdict, user_id: Any = None
 
 
 __all__ = [
+    "Read",
     "failure_class",
     "from_courrier",
     "from_feuilleton",
@@ -385,4 +492,13 @@ __all__ = [
     "from_scene",
     "from_voice",
     "note_failure",
+    "read_courrier",
+    "read_feuilleton",
+    "read_forge",
+    "read_journal",
+    "read_placement",
+    "read_recall",
+    "read_rehearsal",
+    "read_scene",
+    "read_voice",
 ]
