@@ -18,7 +18,7 @@ from app.services.grammar_catalog import detector_matches, parse_detector
 from app.services.rule_cards import rule_card_for
 
 ROOT = Path(__file__).resolve().parents[1]
-TSV = ROOT / "templates" / "french_core_grammar_v2.tsv"
+TSV = ROOT / "app" / "data" / "grammar_catalog" / "french_core_grammar_v2.tsv"
 SUB_BANDS = ("A1.1", "A1.2", "A2.1", "A2.2", "B1.1", "B1.2", "B2.1", "B2.2", "C1.1", "C1.2")
 
 

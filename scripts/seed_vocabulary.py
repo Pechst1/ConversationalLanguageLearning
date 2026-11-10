@@ -162,7 +162,7 @@ def generate_sample_csv(output_path: Path | None = None) -> Path:
         ["50","mois","noun","masculine","month","Calendar month","Ce mois-ci","This month","time"],
     ]
 
-    output_path = output_path or Path("vocabulary_fr_sample.csv")
+    output_path = output_path or Path("app/data/vocabulary_fr_sample.csv")
 
     with open(output_path, "w", encoding="utf-8", newline="") as file:
         writer = csv.writer(file)

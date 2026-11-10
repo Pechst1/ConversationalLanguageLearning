@@ -731,7 +731,7 @@ def _unit_titles() -> dict[str, int]:
 
     import csv
 
-    path = ROOT / "templates/french_core_grammar_v2.tsv"
+    path = ROOT / "app/data/grammar_catalog/french_core_grammar_v2.tsv"
     titles: dict[str, int] = {}
     if not path.exists():
         return titles

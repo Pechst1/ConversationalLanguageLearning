@@ -1,0 +1,561 @@
+# Backend: setup and operations
+
+This is the backend guide that used to be the repository README. It covers the FastAPI
+service, PostgreSQL, Redis and Celery, Docker, migrations, seeding and the browser walk.
+
+Some sections describe the older XP, NPC and achievement API. That code is still in `app/`,
+but it is not what a learner sees today. For the product, start at the
+[README](../../README.md).
+
+## Getting Started
+
+### Prerequisites
+
+- Python 3.11
+- PostgreSQL 15+
+- Redis 7+
+- (Optional) Docker and Docker Compose for containerized setup
+- spaCy French model (`fr_core_news_sm`) installed locally
+
+`spaCy` in this stack is not currently compatible with Python 3.14. Use Python 3.11 for local setup.
+
+### Installation
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -e '.[dev]'
+cp .env.example .env
+```
+
+Update `.env` with your secrets and infrastructure endpoints.
+
+#### LLM Configuration
+
+Set the provider credentials and preferred models to unlock the conversational features. The
+service supports automatic fallback between OpenAI and Anthropic compatible APIs.
+
+```
+OPENAI_API_KEY="sk-..."
+ANTHROPIC_API_KEY="anthropic-..."  # optional fallback
+PRIMARY_LLM_PROVIDER=openai
+SECONDARY_LLM_PROVIDER=anthropic
+OPENAI_MODEL=gpt-4o-mini
+ANTHROPIC_MODEL=claude-3-5-sonnet
+```
+
+You can also override the API base URLs for self-hosted compatible gateways by setting
+`OPENAI_API_BASE` or `ANTHROPIC_API_BASE`. Timeout and retry behaviour is controlled via
+`LLM_REQUEST_TIMEOUT_SECONDS` and `LLM_MAX_RETRIES`.
+
+Leave `OPENAI_API_BASE` and `ANTHROPIC_API_BASE` unset unless you actually need custom endpoints.
+
+#### Language Processing
+
+The error detection pipeline relies on spaCy for part-of-speech tagging. Install the
+French model (configurable via `FRENCH_NLP_MODEL`) after setting up the virtual
+environment:
+
+```bash
+python -m spacy download fr_core_news_sm
+```
+
+### Full Stack Quickstart (Docker)
+
+To boot the entire platform locally — API, PostgreSQL, Redis, Celery worker & beat,
+and the Flower monitoring dashboard — follow the sequence below from a clean clone.
+
+```bash
+# 1. Clone & enter the repository
+git clone https://github.com/pechst1/ConversationalLanguageLearning.git
+cd ConversationalLanguageLearning
+
+# 2. Provision a virtual environment for local tooling (optional but recommended)
+python3.11 -m venv .venv
+source .venv/bin/activate
+
+# 3. Install development dependencies (needed for Alembic, linting, etc.)
+pip install -e '.[dev]'
+
+# 4. Prepare environment variables
+cp .env.example .env
+# Edit .env and supply database passwords, JWT secrets, and LLM credentials
+
+# 5. Download the required spaCy language model once
+python -m spacy download fr_core_news_sm
+
+# 6. Build & launch the complete stack with hot reload
+docker compose -f docker/docker-compose.dev.yml up --build
+```
+
+Once all services are healthy you can access:
+
+- API: http://localhost:8000/api/v1
+- Interactive API docs (served by FastAPI): http://localhost:8000/api/v1/docs
+- Flower dashboard (Celery monitoring): http://localhost:5555
+- PostgreSQL: localhost:5432 (`postgres` / `postgres` by default)
+- Redis: localhost:6379
+
+Shut everything down with `Ctrl+C` or `docker compose -f docker/docker-compose.dev.yml down`.
+
+> **PostgreSQL persistence reminder**
+>
+> The development Compose file mounts a named volume called `pg_data` to `/var/lib/postgresql/data`. Keep this volume between container restarts or swap it with an equivalent managed PostgreSQL instance so that learner accounts and Anki cards persist. Removing or recreating the volume resets the database and permanently deletes all users, sessions, and card progress.
+
+#### Verify migrations & data after restarts
+
+If you restart the stack or rebuild containers, run the following checks to confirm the schema and data survived:
+
+1. **Re-run Alembic migrations** – this is idempotent and ensures the schema is current.
+
+   ```bash
+   docker compose -f docker/docker-compose.dev.yml exec api alembic upgrade head
+   ```
+
+2. **Inspect the `users` table** – confirm rows are still present after a restart. You can adjust the query for other tables such as `anki_cards`.
+
+   ```bash
+   docker compose -f docker/docker-compose.dev.yml exec db \
+     psql -U postgres -d language_learning \
+     -c "SELECT id, email, created_at FROM users ORDER BY created_at DESC LIMIT 5;"
+   ```
+
+3. **Spot-check counts** – a quick way to verify retention without dumping full rows.
+
+   ```bash
+   docker compose -f docker/docker-compose.dev.yml exec db \
+     psql -U postgres -d language_learning \
+     -c "SELECT COUNT(*) AS total_users FROM users;"
+   ```
+
+If any of these commands return empty results unexpectedly, ensure the `pg_data` volume still exists (`docker volume ls | grep pg_data`) or connect the API to a managed PostgreSQL database with persistent storage.
+
+#### Smoke test the conversational flow
+
+With the stack running you can exercise a full learner journey via `curl`. The
+examples below assume you have [`jq`](https://stedolan.github.io/jq/) installed
+to capture values from JSON responses.
+
+```bash
+# Register a learner profile (only required once)
+curl -X POST http://localhost:8000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+        "email": "learner@example.com",
+        "password": "ChangeMe123!",
+        "full_name": "Demo Learner"
+      }'
+
+# Authenticate and store the issued JWT access token
+ACCESS_TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+        "email": "learner@example.com",
+        "password": "ChangeMe123!"
+      }' | jq -r '.access_token')
+
+# Start a new guided session and capture the session identifier
+SESSION_ID=$(curl -s -X POST http://localhost:8000/api/v1/sessions \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+        "planned_duration_minutes": 15,
+        "topic": "Ordering food",
+        "conversation_style": "tutor",
+        "difficulty_preference": "beginner",
+        "generate_greeting": true
+      }' | jq -r '.session.id')
+
+# Send a learner utterance to receive corrective feedback and XP
+curl -X POST http://localhost:8000/api/v1/sessions/${SESSION_ID}/messages \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+        "content": "Bonjour, je voudrais une baguette s'il vous plaît",
+        "suggested_word_ids": []
+      }' | jq '.assistant_turn.message.content, .error_feedback.summary'
+
+# Inspect the running transcript
+curl -X GET http://localhost:8000/api/v1/sessions/${SESSION_ID}/messages \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" | jq '.items[] | {sender, content}'
+```
+
+The assistant response includes vocabulary targets, awarded experience, and any
+detected errors that can guide the learner's next turn. Continue sending
+messages or close the session with:
+
+```bash
+curl -X PATCH http://localhost:8000/api/v1/sessions/${SESSION_ID} \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "completed"}'
+```
+
+### Running with Docker
+
+Container orchestration is provided via Compose files in the `docker/` directory.
+
+**Local development with hot reload**
+
+```bash
+cp .env.example .env
+docker compose -f docker/docker-compose.dev.yml up --build
+```
+
+The API is exposed at http://localhost:8000 and automatically reloads when you edit
+source files. PostgreSQL and Redis data are stored in local Docker volumes. The
+containers run Alembic migrations on startup; if you interrupt the first boot or see
+database errors you can manually ensure the schema is up to date with:
+
+```bash
+docker compose -f docker/docker-compose.dev.yml run --rm api alembic upgrade head
+```
+
+**Staging environment preview**
+
+```bash
+cp .env.example .env.staging  # populate with staging secrets
+docker compose -f docker/docker-compose.staging.yml up --detach
+```
+
+The staging compose file assumes you have already published a container image to the
+GitHub Container Registry (`ghcr.io/pechst1/conversational-language-learning:latest`).
+
+> **iPhone daily testing / pilot:** the end-to-end path (hosting options incl.
+> the `render.yaml` blueprint, native install, TestFlight) is in
+> `docs/iphone-daily-testing-runbook.md`.
+
+**Production deployment blueprint**
+
+```bash
+cp .env.prod.example .env.prod  # populate every placeholder with production secrets
+export APP_IMAGE=ghcr.io/pechst1/conversational-language-learning:sha-<tested-40-character-commit>
+bash scripts/production_compose.sh pull
+bash scripts/production_compose.sh up -d
+```
+
+The production stack runs one API instance plus the Celery worker and persistent
+PostgreSQL/Redis volumes. Scale the API only after adding a reverse proxy or load
+balancer; the provided Compose file intentionally publishes a single port binding.
+
+### Database Migrations
+
+The project uses Alembic for migrations.
+
+```bash
+alembic upgrade head
+```
+
+To verify downgrade safety when targeting PostgreSQL run:
+
+```bash
+alembic downgrade base
+alembic upgrade head
+```
+
+To create a new migration after modifying models:
+
+```bash
+alembic revision --autogenerate -m "description"
+```
+
+### Vocabulary Seed Script
+
+Generate a sample CSV and seed the vocabulary table:
+
+```bash
+python scripts/seed_vocabulary.py --generate-sample
+python scripts/seed_vocabulary.py --csv app/data/vocabulary_fr_sample.csv
+```
+
+### Anki CSV Import
+
+To use your Anki cards as the main vocabulary source and preserve scheduling:
+
+```bash
+# Import a local Anki CSV for a specific user (by email)
+python scripts/import_anki_csv.py \
+  --user-email learner@example.com \
+  --csv Anki_cards___2025-11-01T13-09-36.csv \
+  --preserve-scheduling true
+
+# Or select the user by UUID and override deck name
+python scripts/import_anki_csv.py \
+  --user-id 00000000-0000-0000-0000-000000000000 \
+  --csv /absolute/path/to/export.csv \
+  --deck-name "Französisch 5000"
+```
+
+Notes:
+
+- The importer recognizes typical Anki columns like `question`, `answer`, `c_Deck`, `c_Due`, `c_LatestReview`,
+  `c_Interval_in_Days`, `c_Ease`, `c_Reviews`, `c_Lapses`, and automatically pairs FR↔DE cards.
+- Scheduling data (`due`/`interval`/`ease`/`reps`/`lapses`) is preserved when `--preserve-scheduling true` (default).
+- After importing, the Progress page (web) pulls `/progress/anki` and `/progress/anki/summary` and the session
+  suggestions use due cards from `/progress/queue`.
+
+### Progress & Review API
+
+The SRS module powers the learner progress endpoints exposed under `/api/v1/progress`:
+
+- `GET /api/v1/progress/queue` – retrieve due and new vocabulary items for the learner's next session.
+- `POST /api/v1/progress/review` – submit a rating (0-3) after reviewing a word to receive the next scheduled review time.
+- `GET /api/v1/progress/{word_id}` – inspect the stored stability, difficulty, and repetition counters for a specific word.
+
+### Real-time Session Stream
+
+Interactive tutoring sessions exchange turn results over a WebSocket channel at
+`/api/v1/sessions/{session_id}/ws`. Authenticate by providing the learner's access token
+either as a `token` query parameter or via an `Authorization: Bearer <token>` header.
+
+Upon connection the server emits a `session_ready` envelope containing the latest session
+summary and currently connected user IDs. Clients can then send the following payloads:
+
+```json
+// Submit a learner turn and optional suggested vocabulary IDs
+{ "type": "user_message", "content": "J'adore les baguettes!", "suggested_words": [123, 456] }
+
+// Broadcast typing indicators to other participants
+{ "type": "typing", "is_typing": true }
+
+// Keep the connection alive and receive a server timestamp
+{ "type": "heartbeat" }
+```
+
+Every accepted learner message results in a `turn_result` response that mirrors the REST
+`POST /sessions/{id}/messages` payload (session overview, assistant reply, XP awarded, and
+word-level feedback). Heartbeats return the server time and typing indicators are
+rebroadcast to all active connections for that session.
+
+### Load Testing
+
+Scenario scripts live in `tests/load/locustfile.py` and exercise the most common learner
+flows (registration, session creation, conversational turns, and analytics reads).
+
+```bash
+locust -f tests/load/locustfile.py --host http://localhost:8000
+```
+
+Scale the number of simulated users to confirm the platform sustains 100 concurrent
+learners with sub-500 ms p95 latency, as outlined in the roadmap.
+
+
+
+## Browser walk (E-3)
+
+A scripted 7-day walk in a real browser, so nobody has to click through the app to see what
+a learner sees. From `web-frontend/`:
+
+```bash
+npm install && npx playwright install chromium   # once
+npm run walk                                     # ~6 minutes; screenshots in e2e/out/<timestamp>/
+```
+
+It starts its **own** throwaway Postgres database (`atelier_walk_<timestamp>`, migrated with
+`alembic upgrade head`, dropped at the end), the API on `scripts/dev_walk_server.py` (the fake
+story provider, no paid call) and a Next dev server with its own build directory, all on free
+ports. It never uses 3000/8000/8010/8011 or your databases. Learners are registered through
+the API and signed in with a minted NextAuth cookie; no password is typed.
+
+- **Days 2..7** run in minutes because the API has a test-only clock:
+  `POST /api/v1/dev/test-clock {"offset_days": n}` (`app/core/test_clock.py`). It exists only
+  with `ATELIER_TEST_CLOCK_ENABLED=true` and the app refuses to start with it when
+  `APP_ENV=production`.
+- **What is played:** day 1 to day 7 for an English, a German and a French learner side by
+  side, a B1 learner for three days, and a season learner (English, A2) for ten days: the reader,
+  the conversation, drills, the rule, La Forge, the recap, Home, Courrier and Feuilleton.
+  Dictation appears only when line audio is on (it is off here).
+- **Season 1 (WP-111):** the walk server starts every new learner on season 1 «La clé d'Odile»
+  (`ATELIER_SEASON_SCRIPT=s1`): days 1–2 are tentpole 1, days 3–7 gap 1 (generated by the fake
+  director inside the gap's rules), days 8–9 tentpole 2 (a weekend flex may move it by a day).
+  The `season-tentpole-on-its-day` check asserts each tentpole page appears once, on its day, as
+  the bible wrote it. `WALK_SEASON=` (empty) walks the generated serial instead;
+  `--season-days 0` skips the season learner.
+- **Output:** `d<day>-<n>-<screen>-light.png` / `-dark.png` at 375x812 per learner, `index.html`
+  (a contact sheet with the failed assertions on top) and `report.json`.
+- **Assertions** ask, per screen: does the learner know what to do, whether they were right, and
+  how to go on? (a goal line on every drill; no «not reached the server» banner while typing; Next
+  never moves in the reader; one verdict per question and never reversed, including after
+  «Je relis…»; no English on French B1+ screens; a way forward on every screen; no horizontal
+  scroll; no uncaught error or 5xx). A failed assertion exits 1: it is a finding, not a flake.
+- **Options:** `--langs en,de,fr`, `--days 7`, `--b1-days 3`, `--season-days 10`, `--out DIR`,
+  `--keep` (leave the servers up). `WALK_SCALE=2` for retina screenshots. `--live` is not supported.
+- **CI:** `.github/workflows/walk.yml` runs it on pull requests and nightly and uploads the output
+  folder as an artifact (nightly: kept 7 days).
+
+## Background Tasks & Scheduled Jobs
+
+The application uses Celery with Redis for background task processing and scheduled jobs.
+
+### Running Celery Workers
+
+**Development:**
+```bash
+# Start worker (required for Serial/Feuilleton pre-generation and image rendering)
+./start-celery.sh
+
+# Or start worker directly
+celery -A app.celery_app worker --loglevel=info
+
+# Start beat scheduler
+celery -A app.celery_app beat --loglevel=info
+
+# Start Flower monitoring UI
+celery -A app.celery_app flower --port=5555
+```
+
+Serial Feuilleton generation queues its next beat through Celery. If a worker is
+stopped while a scene is rendering, `/serial/today` marks scenes left in
+`generating` for more than about 15 minutes as `generation_failed` and moves the
+episode back to a retryable `delayed` state.
+
+Access Flower dashboard at http://localhost:5555
+
+**Development without a worker (`CELERY_TASK_ALWAYS_EAGER`):** the `.claude/launch.json`
+backend configs set `CELERY_TASK_ALWAYS_EAGER=true`, so tasks run inline and never queue
+into a Redis nobody drains (a stale queue once held ~1,500 jobs, and a worker started on
+it would have made paid calls). In this mode the next-day warm-up is skipped and panel art
+is drawn in the API process. Never start a worker against a queue you have not inspected
+(`redis-cli -n 1 llen celery`). The test suite pins an in-memory broker
+(`tests/conftest.py`) and a guard test fails if a task is ever sent to a real one.
+
+Panel art never hangs: when a drawing is queued the API checks `/health/worker`'s
+heartbeat and, with no live worker, draws in-process; a panel still `rendering` after
+3 minutes is served as its plate (`image_status: failed`, reason `timeout`) the next
+time the episode is read.
+
+**Production:**
+```bash
+bash scripts/production_compose.sh up -d worker  # APP_IMAGE must be set to the tested image
+```
+
+The production `worker` embeds Celery beat with `-B`; do not start a second
+beat scheduler unless you first remove `-B` from that service.
+
+### Scheduled Tasks
+
+| Task | Schedule | Description |
+|------|----------|-------------|
+| `generate_daily_snapshots` | Daily at 2 AM UTC | Generate analytics snapshots for all active users |
+| `cleanup_old_snapshots` | Weekly (Sunday 3 AM) | Remove snapshots older than 365 days |
+| `send_streak_reminders` | Daily at 6 PM UTC | Send reminders to users with active streaks |
+
+### Manual Task Execution
+
+```bash
+# Generate snapshots for all users
+python scripts/trigger_analytics.py --date 2024-01-15
+
+# Generate snapshot for specific user
+python scripts/trigger_analytics.py --user-id <uuid>
+
+# Queue task asynchronously
+python scripts/trigger_analytics.py --async
+```
+
+## Achievement System
+
+The platform includes a gamification layer that rewards learners for consistent practice and milestone achievements.
+
+### Achievement Categories
+
+- **Session**: Completing learning sessions
+- **Streak**: Maintaining daily practice streaks (3, 7, 30 days)
+- **Vocabulary**: Mastering vocabulary words (50, 200, 500 words)
+- **XP**: Earning experience points (500, 2000, 5000 XP)
+- **Accuracy**: High-accuracy performance (95%+ accuracy over 100 sessions)
+
+### Seeding Achievements
+
+```bash
+python scripts/seed_achievements.py
+```
+
+### Achievement Endpoints
+
+- `GET /api/v1/achievements` – List all available achievements
+- `GET /api/v1/achievements/my` – Get current user's achievement progress
+- `POST /api/v1/achievements/check` – Manually trigger achievement check
+
+### Automatic Achievement Checking
+
+Achievements are automatically checked and unlocked when:
+
+- A learning session is completed
+- The periodic Celery task runs (optional)
+
+### Manual Achievement Check
+
+```bash
+# Trigger achievement check for specific user
+python scripts/trigger_achievements.py --user-id <uuid>
+
+# Queue task asynchronously
+python scripts/trigger_achievements.py --user-id <uuid> --async
+```
+
+
+
+### Analytics & Cached Lookups
+
+Learner dashboards are powered by the analytics endpoints exposed at `/api/v1/analytics`:
+
+- `GET /analytics/summary` – headline XP, streak, mastery, and review workload metrics.
+- `GET /analytics/statistics` – rolling time series for XP, accuracy, minutes practiced, and reviews.
+- `GET /analytics/streak` – current/longest streak values plus a calendar heatmap window.
+- `GET /analytics/vocabulary` – vocabulary mastery counts grouped by FSRS state.
+- `GET /analytics/errors` – the most frequent learner mistakes captured during sessions.
+
+These responses are cached for 15 minutes in Redis to minimise query load. Additional
+caches back the vocabulary listing/detail endpoints (1 hour TTL), user profile reads
+(5 minute TTL), and the due-review counters (60 second TTL). Cache invalidation is
+triggered automatically whenever sessions complete, reviews are logged, or profiles are
+updated to ensure dashboards stay fresh.
+
+## Project Structure
+
+```
+app/
+  api/                # API routers (FastAPI)
+  core/               # Core domain logic (SRS, conversation engine, etc.)
+  db/                 # Database models, sessions, and migrations
+  schemas/            # Pydantic models
+  services/           # Business services
+  tasks/              # Celery tasks
+  utils/              # Utility helpers
+scripts/              # CLI utilities (e.g., seeders)
+alembic/              # Migration environment and versions
+```
+
+## Continuous Integration
+
+Every push and pull request triggers the GitHub Actions workflow defined in
+`.github/workflows/ci.yml`. The pipeline performs the following checks:
+
+1. Installs dependencies (including spaCy) and runs Ruff linting.
+2. Executes the pytest suite with coverage reporting.
+3. Applies Alembic migrations against a PostgreSQL 15 service, downgrades back to base,
+   and reapplies the head migration to guarantee reversibility.
+4. Builds the production Docker image to catch packaging regressions.
+
+CI logs are attached to pull requests so reviewers can confirm build health before
+merging.
+
+## Deployment Runbook
+
+1. Let CI validate the commit; image publication runs only after every check, including the browser walk, passes.
+2. Select its published full `sha-<commit>` image reference and update the staging Compose file if the tag changes.
+3. Deploy to staging via `docker compose -f docker/docker-compose.staging.yml up -d` and run smoke tests (basic API calls plus a sample conversational session).
+4. Set `APP_IMAGE` to that tested image, then run `bash scripts/production_compose.sh pull` and `bash scripts/production_compose.sh up -d`.
+5. Monitor Redis/DB metrics and review the analytics endpoints for anomalies after rollout.
+
+See [production hardening](../production-hardening.md) for password-recovery email retries,
+the backup restore contract, rollback commands, and required hosting settings.
+
+## Next Steps
+
+- Implement the achievement service and learner badge endpoints.
+- Integrate Prometheus exporters and Grafana dashboards for long-term observability.
+- Build push-notification delivery (FCM/APNs) for streak reminders and session nudges.
+
+Refer to the [project wiki](https://github.com/Pechst1/ConversationalLanguageLearning/wiki) for the comprehensive roadmap.

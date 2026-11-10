@@ -45,7 +45,7 @@ MIN_ITEMS = 200
 
 
 def _a1_a2_units() -> list[str]:
-    with (ROOT / "templates" / "french_core_grammar_v2.tsv").open(encoding="utf-8") as handle:
+    with (ROOT / "app" / "data" / "grammar_catalog" / "french_core_grammar_v2.tsv").open(encoding="utf-8") as handle:
         return [row["external_id"] for row in csv.DictReader(handle, delimiter="\t") if row["cefr_level"] in {"A1", "A2"}]
 
 
@@ -62,7 +62,7 @@ def test_every_a1_a2_unit_has_templates() -> None:
 
 
 def test_every_v1_a1_a2_concept_is_served_through_the_mapping() -> None:
-    with (ROOT / "templates" / "french_core_grammar_v1.tsv").open(encoding="utf-8") as handle:
+    with (ROOT / "app" / "data" / "grammar_catalog" / "french_core_grammar_v1.tsv").open(encoding="utf-8") as handle:
         v1 = [row["external_id"] for row in csv.DictReader(handle, delimiter="\t") if row["cefr_level"] in {"A1", "A2"}]
     mapping = load_v1_to_v2_mapping()
     unserved = [external_id for external_id in v1 if not ib.units_for_external_id(external_id)]

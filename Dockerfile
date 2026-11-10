@@ -19,8 +19,6 @@ COPY app /app/app
 COPY alembic /app/alembic
 COPY alembic.ini /app/
 COPY scripts /app/scripts
-COPY templates /app/templates
-COPY vocabulary_fr_sample.csv /app/vocabulary_fr_sample.csv
 COPY docs/serial-episode-tentpole-*.md docs/serial-season-finale.md /app/docs/
 # WP-88: panel art draws every face from these approved references; without
 # them app.services.panel_art keeps art off rather than draw strangers.

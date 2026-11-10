@@ -26,7 +26,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _v2_units() -> dict[str, dict[str, str]]:
-    with (ROOT / "templates/french_core_grammar_v2.tsv").open(encoding="utf-8") as handle:
+    with (ROOT / "app/data/grammar_catalog/french_core_grammar_v2.tsv").open(encoding="utf-8") as handle:
         return {row["external_id"]: row for row in csv.DictReader(handle, delimiter="\t")}
 
 

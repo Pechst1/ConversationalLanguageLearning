@@ -33,7 +33,7 @@ REQUIREMENT = {"concept_id": 1, "external_id": "X", "label": "X", "target_count"
 
 
 def _units(level: set[str], version: str = "v2") -> list[str]:
-    with (ROOT / "templates" / f"french_core_grammar_{version}.tsv").open(encoding="utf-8") as handle:
+    with (ROOT / "app" / "data" / "grammar_catalog" / f"french_core_grammar_{version}.tsv").open(encoding="utf-8") as handle:
         return [row["external_id"] for row in csv.DictReader(handle, delimiter="\t") if row["cefr_level"] in level]
 
 

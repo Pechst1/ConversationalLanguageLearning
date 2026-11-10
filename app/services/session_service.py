@@ -273,7 +273,7 @@ class SessionService:
         existing_ids = {
             row[0] for row in self.db.query(VocabularyWord.id).all()
         }
-        sample_path = Path(__file__).resolve().parents[2] / "vocabulary_fr_sample.csv"
+        sample_path = Path(__file__).resolve().parents[1] / "data" / "vocabulary_fr_sample.csv"
         if not sample_path.exists():
             logger.warning("Vocabulary sample file missing", path=str(sample_path))
             return

@@ -1075,11 +1075,11 @@ class Settings(BaseSettings):
         description=(
             "WP-L2: which curated French grammar catalogue is seeded and served. "
             "'v2' (default since the 2026-10-03 content program, D3) = "
-            "templates/french_core_grammar_v2.tsv (fr-core-v2: 206 reviewed units "
+            "app/data/grammar_catalog/french_core_grammar_v2.tsv (fr-core-v2: 206 reviewed units "
             "A1.1–C1.2 with sub-bands, prerequisites, localized rules and authored "
             "rule cards); switching seeds v2, archives v1 and copies each learner's "
             "v1 progress onto the v2 unit that replaces it. 'v1' = "
-            "templates/french_core_grammar_v1.tsv (54 coarse concepts, the old product)."
+            "app/data/grammar_catalog/french_core_grammar_v1.tsv (54 coarse concepts, the old product)."
         ),
     )
 

@@ -26,7 +26,7 @@ SAMPLE_PER_UNIT = 40
 
 
 def _a1_a2_units() -> list[str]:
-    with (ROOT / "templates" / "french_core_grammar_v2.tsv").open(encoding="utf-8") as handle:
+    with (ROOT / "app" / "data" / "grammar_catalog" / "french_core_grammar_v2.tsv").open(encoding="utf-8") as handle:
         return [row["external_id"] for row in csv.DictReader(handle, delimiter="\t") if row["cefr_level"] in {"A1", "A2"}]
 
 

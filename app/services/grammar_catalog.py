@@ -2,9 +2,9 @@
 
 Two curated catalogues exist (WP-L2):
 
-* ``french_core_grammar_v1`` — ``templates/french_core_grammar_v1.tsv``, 54 coarse concepts.
+* ``french_core_grammar_v1`` — ``app/data/grammar_catalog/french_core_grammar_v1.tsv``, 54 coarse concepts.
   The live product; the default.
-* ``fr-core-v2`` — ``templates/french_core_grammar_v2.tsv``, about 150 teachable units A1–B2,
+* ``fr-core-v2`` — ``app/data/grammar_catalog/french_core_grammar_v2.tsv``, about 150 teachable units A1–B2,
   each tagged to a sub-band (A1.1 … C1.2) with prerequisites, contrast partners, a detector spec
   and a one-sentence rule in en / de / fr.
 
@@ -39,7 +39,7 @@ from app.db.models.grammar import (
 FRENCH_CORE_CATALOG_VERSION = "french_core_grammar_v1"
 FRENCH_CORE_CATALOG_V2_VERSION = "fr-core-v2"
 
-#: catalog_version label -> TSV file under templates/
+#: catalog_version label -> TSV file under app/data/grammar_catalog/
 CATALOG_FILES: dict[str, str] = {
     FRENCH_CORE_CATALOG_VERSION: "french_core_grammar_v1.tsv",
     FRENCH_CORE_CATALOG_V2_VERSION: "french_core_grammar_v2.tsv",
@@ -194,7 +194,7 @@ def active_catalog_version() -> str:
 
 
 def catalog_path(version: str) -> Path:
-    return _repo_root() / "templates" / CATALOG_FILES[version]
+    return _repo_root() / "app" / "data" / "grammar_catalog" / CATALOG_FILES[version]
 
 
 @lru_cache(maxsize=4)
@@ -221,7 +221,7 @@ def catalog_rows(version: str | None = None) -> list[dict[str, Any]]:
 def load_v1_to_v2_mapping() -> dict[str, list[str]]:
     """Every v1 external_id -> the v2 units that replace it; the first one inherits progress."""
 
-    path = _repo_root() / "templates" / V1_TO_V2_MAPPING_FILE
+    path = _repo_root() / "app" / "data" / "grammar_catalog" / V1_TO_V2_MAPPING_FILE
     if not path.exists():
         return {}
     with path.open(newline="", encoding="utf-8") as handle:
@@ -440,7 +440,7 @@ class FrenchCoreGrammarCatalog:
         The rule (WP-L2):
 
         * every v1 concept maps to one or more v2 units
-          (``templates/french_core_grammar_v1_to_v2.tsv``); the **first** listed unit is the
+          (``app/data/grammar_catalog/french_core_grammar_v1_to_v2.tsv``); the **first** listed unit is the
           foundation child and inherits the learner's v1 progress row (score, reps, state,
           last/next review, notes) — the other children start fresh, because the learner was
           never taught them one by one;

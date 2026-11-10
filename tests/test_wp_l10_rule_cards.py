@@ -14,7 +14,7 @@ MARK = re.compile(r"\[[^\]]+\]")
 
 
 def _catalogue_ids(levels: set[str]) -> set[str]:
-    with (ROOT / "templates" / "french_core_grammar_v1.tsv").open(encoding="utf-8") as handle:
+    with (ROOT / "app" / "data" / "grammar_catalog" / "french_core_grammar_v1.tsv").open(encoding="utf-8") as handle:
         return {row["external_id"] for row in csv.DictReader(handle, delimiter="\t") if row["cefr_level"] in levels}
 
 

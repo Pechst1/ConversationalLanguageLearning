@@ -3,7 +3,7 @@
 On a tentpole day the authored page is served as written, so the day must not
 introduce a grammar unit the page never uses (content audit 2026-10-03, §4).
 Instead the Règle step reviews a unit the page *does* use. This script runs every
-reviewed detector of ``templates/french_core_grammar_v2.tsv`` over each tentpole
+reviewed detector of ``app/data/grammar_catalog/french_core_grammar_v2.tsv`` over each tentpole
 day's French (the bible's A2 text, every variant and branch) and writes
 ``app/data/season/<id>/units.json``:
 
@@ -31,7 +31,7 @@ from app.services.grammar_catalog import detector_matches, parse_detector  # noq
 from app.services.season.levels import iter_says  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
-CATALOGUE = ROOT / "templates" / "french_core_grammar_v2.tsv"
+CATALOGUE = ROOT / "app" / "data" / "grammar_catalog" / "french_core_grammar_v2.tsv"
 CAN_DOS = ROOT / "app" / "data" / "syllabus" / "fr_core_can_dos_v2.json"
 
 #: The authored can-do of each tentpole day («can_do» in t*.json), matched by hand
