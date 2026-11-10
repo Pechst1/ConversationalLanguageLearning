@@ -36,7 +36,9 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db.models.daily_journey import DailyJourney, DailyJourneyStep
 from app.db.models.pilot_event import PilotEvent
+from app.services.correction_contract import has_verb, repair_text, word_count
 from app.services.learner_facts import contradicts, latest_clash
+from app.services.sentence_line import cut_sentences
 from app.services.transcription_cost import (
     TRANSCRIPTION_EVENT_TYPE,
     estimate_audio_seconds,
@@ -257,13 +259,24 @@ def repeat_line_for(step: DailyJourneyStep, correction: Any = None) -> str | Non
     task = private.get("response_task") if isinstance(private.get("response_task"), dict) else {}
     routed = _last_route(private)
     if routed is not None:
-        # An authored page routes the learner's answer. What they meant is the
-        # route's own sentence; the question's scripted example is one of the
-        # *other* answers as often as not («Donner une clé à Lila» after «Pas
-        # encore»), so a routed turn never falls back to it.
+        # An authored page routes the learner's answer. The question's scripted
+        # example is one of the *other* answers as often as not («Donner une clé à
+        # Lila» after «Pas encore»), so a routed turn never falls back to it. A
+        # tapped card is the learner's own words. A free reply is said in the
+        # learner's words, corrected (#558): the route's example is a sentence they
+        # did not write («Non, reste avec moi.»), and at A1 it may be a fragment
+        # («Un peu. Tu dois dire.»); it stands in only when the learner's reply holds
+        # no whole sentence and it is one.
         line = str(routed.get("say_fr") or "").strip()
-        if line:
+        if line and routed.get("card"):
             return line
+        turns = _learner_turns(private)
+        own = _whole_own_sentence(*turns[-1], correction) if turns else None
+        if own:
+            return own
+        if line and all(is_whole_sentence(part) for part in cut_sentences(line)):
+            return line
+        return None
     else:
         line = str(task.get("suggested_response_fr") or "").strip()
         # #379: that example was written before the learner spoke. It is offered
@@ -285,7 +298,40 @@ def repeat_line_for(step: DailyJourneyStep, correction: Any = None) -> str | Non
             last = clash == len(turns) - 1
             return _own_sentence(said, (correction if last else None) or stored)
     corrected = str(getattr(correction, "corrected_fr", "") or "").strip()
-    return corrected if len(corrected.split()) >= 3 else None
+    return corrected if is_whole_sentence(corrected) else None
+
+
+def is_whole_sentence(text: object) -> bool:
+    """A line the learner can repeat as a sentence: three words at least, and a verb
+    (#558: «Un peu.» is a fragment, «Tu as menti pendant trois ans à ma grand-mère.»
+    is a sentence)."""
+
+    return word_count(text) >= 3 and has_verb(text)
+
+
+def _whole_own_sentence(said: str, stored: Any, correction: Any = None) -> str | None:
+    """The first whole sentence of the learner's reply, made right (#558).
+
+    The correction they were shown is applied where its span sits in their words
+    (a margin correction is often the span alone, «à ma grand-mère»), then every
+    model-free correction (``repair_text``): a margin that flagged one slip of three
+    left the other two in the line to repeat («a ma grand-mere», «ca»)."""
+
+    shown = correction or stored
+    span = str(getattr(shown, "span_fr", "") or "").strip()
+    fixed = str(getattr(shown, "corrected_fr", "") or "").strip()
+    text = said
+    if span and fixed and span in said:
+        # The rest of the sentence is the learner's own: their facts are kept.
+        text = said.replace(span, fixed, 1)
+    elif fixed and is_whole_sentence(fixed) and not contradicts(said, fixed):
+        text = fixed
+    text = repair_text(text)
+    for part in cut_sentences(text):
+        part = part.strip()
+        if is_whole_sentence(part):
+            return part[:1].upper() + part[1:]
+    return None
 
 
 def _learner_turns(private: dict[str, Any]) -> list[tuple[str, Any]]:
@@ -296,7 +342,11 @@ def _learner_turns(private: dict[str, Any]) -> list[tuple[str, Any]]:
     for exchange in private.get("turns") or []:
         if isinstance(exchange, dict) and not exchange.get("free") and str(exchange.get("learner") or "").strip():
             shown = exchange.get("correction")
-            stored = SimpleNamespace(corrected_fr=shown.get("corrected_fr")) if isinstance(shown, dict) else None
+            stored = (
+                SimpleNamespace(span_fr=shown.get("span_fr"), corrected_fr=shown.get("corrected_fr"))
+                if isinstance(shown, dict)
+                else None
+            )
             turns.append((str(exchange["learner"]).strip(), stored))
     return turns
 
@@ -320,6 +370,7 @@ __all__ = [
     "StoryUpload",
     "authorize_story_upload",
     "fake_transcriber_active",
+    "is_whole_sentence",
     "offered_on",
     "repeat_line_for",
     "spoken_reply_enabled",

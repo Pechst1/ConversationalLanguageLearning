@@ -647,6 +647,8 @@ _ACCENTS = {
     "theatre": "théâtre", "gateau": "gâteau",
     "etudiant": "étudiant", "etudiante": "étudiante", "arrivee": "arrivée", "journee": "journée",
     "soiree": "soirée", "idee": "idée", "annee": "année", "equipe": "équipe", "eglise": "église",
+    # #558: the family words keep their hyphen and lose only the accent («a ma grand-mere»).
+    "grand-mere": "grand-mère", "grand-pere": "grand-père",
 }
 #: Night-shift review of #259: a noun that is right with either gender, so its
 #: determiner is never «corrected». Homographs whose meaning sets the gender («le
@@ -1386,6 +1388,21 @@ def _verb_after_subject(word: str) -> bool:
         and not word.endswith(("é", "ée", "és", "ées"))
         and _verb_lemma(word) is not None
     )
+
+
+def has_verb(text: object) -> bool:
+    """Whether ``text`` holds a word that is, or could be, a verb form: «Tu dois dire.»,
+    «Reste à la table.» do; «Un peu.», «Oui, ce soir.», «Merci beaucoup.» do not (#558:
+    the line a learner repeats aloud is a sentence, never a fragment)."""
+    return any(
+        tok.low in _FORM_LEMMA or tok.low in _AUXILIARY_FORMS or _could_be_verb(tok.low)
+        for tok in _tokens(_norm(text))
+    )
+
+
+def word_count(text: object) -> int:
+    """The words of ``text``, punctuation and elided apostrophes aside."""
+    return len(_tokens(_norm(text)))
 
 
 def _is_number_word(word: str) -> bool:
@@ -2361,6 +2378,7 @@ __all__ = [
     "edit_is_grounded",
     "first_valid_edit",
     "grounded_errata",
+    "has_verb",
     "known_people",
     "merge_deterministic_errata",
     "repair_text",
@@ -2371,4 +2389,5 @@ __all__ = [
     "to_erratum",
     "verify_edit",
     "verify_erratum",
+    "word_count",
 ]

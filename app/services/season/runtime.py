@@ -307,6 +307,22 @@ def page_tail(page: dict[str, Any]) -> list[dict[str, Any]]:
     return tail
 
 
+def closing_tail(season_ctx: dict[str, Any], turns: list[dict[str, Any]], next_index: int) -> list[dict[str, Any]]:
+    """The beats said after the exchange a conversation closes on: the page's tail,
+    only when that exchange was the page's last question (#558).
+
+    The tail is what the page says after its *last* turn: the epilogue of that
+    answer, with its own cast («Later. Gus counts the cagnotte, Marin sweeps»). A
+    reply the day's rhythm closes earlier never reached the questions in between,
+    so their lead-ins and the epilogue that follows them are not said: after
+    Margaux's answer, Marin and Lila spoke in a room they were not in, about a
+    choice nobody had made. The scene then closes on the exchange's own reaction."""
+
+    if next_index < len(turns):
+        return []
+    return list(season_ctx.get("tail") or [])
+
+
 def _lexicon(page: dict[str, Any], language: str, draft_text: str) -> list[dict[str, Any]]:
     """The words the scene needs (``11-pedagogie.md``), for the day's word drills —
     below B1 only: they are A1–A2 words, glossed in the learner's own language."""
@@ -1043,7 +1059,7 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
     if closing:
         # Until WP-110 draws the page, the rest of the day is said here; the
         # ending is the «À suivre…» caption alone.
-        beats += list(season_ctx.get("tail") or [])
+        beats += closing_tail(season_ctx, turns, next_index)
     from app.services.season.stage import attempt_stage
 
     stage = attempt_stage(
@@ -1126,6 +1142,9 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
             # What the learner meant, as a sentence they could say: the recap's
             # «une phrase à redire» is this, never the question's scripted example.
             **({"say_fr": said} if (said := routed_sentence(reply, understood)) else {}),
+            # #558: a tapped card is the learner's own words; a free reply is said in
+            # theirs, corrected (``spoken_reply.repeat_line_for``).
+            **({"card": True} if carded is not None else {}),
         },
         heard=_heard(choice, reply),
         stage=stage,
