@@ -380,8 +380,9 @@ the API and signed in with a minted NextAuth cookie; no password is typed.
   scroll; no uncaught error or 5xx). A failed assertion exits 1: it is a finding, not a flake.
 - **Options:** `--langs en,de,fr`, `--days 7`, `--b1-days 3`, `--season-days 10`, `--out DIR`,
   `--keep` (leave the servers up). `WALK_SCALE=2` for retina screenshots. `--live` is not supported.
-- **CI:** `.github/workflows/walk.yml` runs it on pull requests and nightly and uploads the output
-  folder as an artifact (nightly: kept 7 days).
+- **CI:** `.github/workflows/walk.yml` runs it and uploads the output folder as an artifact
+  (nightly: kept 7 days). Pull requests play one shard (en + B1, 3 days); main and the nightly
+  run play all four (en + B1, de, fr, season) for every day.
 
 ## Background Tasks & Scheduled Jobs
 
