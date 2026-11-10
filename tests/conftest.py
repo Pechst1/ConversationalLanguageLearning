@@ -470,6 +470,62 @@ def pinned_clock() -> Generator[datetime, None, None]:
         test_clock.uninstall()
 
 
+#: The wall-clock moments the midnight regression runs at (``learner_clock``): a
+#: plain noon, 23:30 UTC (00:30 or 01:30 in Berlin: the UTC date is a day behind the
+#: learner's) and five minutes past the learner's own midnight, whatever the season.
+LEARNER_CLOCK_MOMENTS = ("noon-utc", "2330-utc", "berlin-0005")
+
+
+def _next_moment(real: datetime, label: str) -> datetime:
+    from zoneinfo import ZoneInfo
+
+    if label == "berlin-0005":
+        zone = ZoneInfo("Europe/Berlin")
+        local = real.astimezone(zone)
+        target = datetime.combine(local.date(), datetime.min.time(), tzinfo=zone) + timedelta(minutes=5)
+        while target.astimezone(UTC) < real:
+            target = datetime.combine(target.date() + timedelta(days=1), datetime.min.time(), tzinfo=zone) + timedelta(
+                minutes=5
+            )
+        return target.astimezone(UTC)
+    hour, minute = {"noon-utc": (12, 0), "2330-utc": (23, 30)}[label]
+    target = real.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    return target if target >= real else target + timedelta(days=1)
+
+
+@pytest.fixture(params=LEARNER_CLOCK_MOMENTS)
+def learner_clock(request: pytest.FixtureRequest) -> Generator[datetime, None, None]:
+    """Every app clock at one of :data:`LEARNER_CLOCK_MOMENTS`, restored after.
+
+    The 9 Nov CI jobs (PRs #656–#658) failed only between 23:00 and 24:00 UTC, the
+    hour when Berlin's date is a day ahead of UTC's. A test that takes this fixture
+    runs at each moment and must compute its own «now» from the moment it yields.
+    Like ``pinned_clock``: forward only, and request it *after* ``client``. Every
+    ``app.*`` module is imported first, so a lazy import inside a test reads the
+    same clock as the rest of the app.
+    """
+
+    import contextlib
+    import importlib
+    import pkgutil
+
+    import app as app_package
+    from app.core import test_clock
+
+    for info in pkgutil.walk_packages(app_package.__path__, "app."):
+        if info.name.startswith(("app.services", "app.core", "app.api")):
+            with contextlib.suppress(Exception):  # an optional module stays unpatched
+                importlib.import_module(info.name)
+    real = datetime.now(UTC)
+    target = _next_moment(real, request.param)
+    test_clock.install()
+    test_clock.set_offset(target - real)
+    try:
+        yield target
+    finally:
+        test_clock.uninstall()
+
+
 @pytest.fixture()
 def local_demo_auth(monkeypatch: pytest.MonkeyPatch) -> None:
     """Enable the unauthenticated local-demo user for one test.

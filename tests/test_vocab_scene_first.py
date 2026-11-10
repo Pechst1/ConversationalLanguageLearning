@@ -109,8 +109,8 @@ def _word(db: Session, text: str, *, gender: str | None = None) -> VocabularyWor
     return word
 
 
-def _due(db: Session, user: User, word: VocabularyWord) -> None:
-    now = datetime.now(UTC)
+def _due(db: Session, user: User, word: VocabularyWord, *, now: datetime | None = None) -> None:
+    now = now or datetime.now(UTC)
     db.add(
         UserVocabularyProgress(
             user_id=user.id,
@@ -145,18 +145,21 @@ def _login(client: TestClient, db: Session) -> tuple[dict, User]:
     return {"Authorization": f"Bearer {token}"}, user
 
 
-def _todays_scene(db: Session, user: User, *, reserved: list[int], status: str = "completed") -> DailyJourney:
+def _todays_scene(
+    db: Session, user: User, *, reserved: list[int], status: str = "completed", now: datetime | None = None
+) -> DailyJourney:
     """Today's journey, over: two reserved words, a lexicon and translated lines."""
 
+    now = now or datetime.now(UTC)
     journey = DailyJourney(
         id=uuid.uuid4(),
         user_id=user.id,
-        local_date=local_today(user),
+        local_date=local_today(user, now),
         timezone="Europe/Paris",
         status=status,
         budget_seconds=600,
         plan_selection={vocabulary_pace.JOURNEY_NEW_WORDS_KEY: list(reserved)},
-        created_at=datetime.now(UTC),
+        created_at=now,
     )
     db.add(journey)
     db.flush()
@@ -263,15 +266,19 @@ def test_due_reviews_come_first_and_scene_words_take_at_most_a_third_of_the_new_
     assert again["deck_order"] == order
 
 
-def _met_today(db: Session, user: User, word: VocabularyWord) -> None:
-    """The scene introduced ``word`` today (its progress row is today's)."""
+def _met_today(db: Session, user: User, word: VocabularyWord, *, now: datetime | None = None) -> None:
+    """The scene introduced ``word`` today (its progress row is today's).
 
-    now = datetime.now(UTC)
+    Twenty minutes ago, but never before the learner's midnight: at 00:05 in Berlin
+    twenty minutes ago is yesterday, and the word was not met today (9 Nov CI)."""
+
+    now = now or datetime.now(UTC)
+    start, _end = vocabulary_pace._local_window(user, now)
     db.add(
         UserVocabularyProgress(
             user_id=user.id, word_id=word.id, reps=1, state="learning", scheduler="fsrs", stability=0.5,
             due_at=now + timedelta(hours=6), next_review_date=now + timedelta(hours=6),
-            created_at=now - timedelta(minutes=20),
+            created_at=max(now - timedelta(minutes=20), start),
         )
     )
     db.flush()
@@ -279,7 +286,7 @@ def _met_today(db: Session, user: User, word: VocabularyWord) -> None:
 
 @pytest.mark.parametrize("scene_status", ["completed", "active"])
 def test_the_scene_share_never_takes_the_day_past_its_intake(
-    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch, scene_status: str
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch, scene_status: str, learner_clock: datetime
 ) -> None:
     """Codex on PR #487: quota 9, six words the scene introduced (``completed``) or has
     still to introduce (``active``). Leaving five of them out of the deck frees no
@@ -296,13 +303,14 @@ def test_the_scene_share_never_takes_the_day_past_its_intake(
     user.new_words_per_day = 9
     db_session.flush()
     reviews = [_word(db_session, f"scnirev{index}{uuid.uuid4().hex[:4]}") for index in range(2)]
+    now = learner_clock
     for word in reviews:
-        _due(db_session, user, word)
+        _due(db_session, user, word, now=now)
     scene_words = [_word(db_session, f"scnin{index}{uuid.uuid4().hex[:4]}") for index in range(6)]
     if scene_status == "completed":
         for word in scene_words:
-            _met_today(db_session, user, word)
-    _todays_scene(db_session, user, reserved=[word.id for word in scene_words], status=scene_status)
+            _met_today(db_session, user, word, now=now)
+    _todays_scene(db_session, user, reserved=[word.id for word in scene_words], status=scene_status, now=now)
     for index in range(12):
         _word(db_session, f"scninew{index:02d}{uuid.uuid4().hex[:4]}")
     db_session.commit()
