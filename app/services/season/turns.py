@@ -525,6 +525,20 @@ def _short(name: str | None, who: str) -> str:
     return tokens[0]
 
 
+#: The line kinds a reply is made of: speech, the group at once, and a text message.
+#: An «sms» in a turn's reply is the person the learner is texting (S5, walk #649: the
+#: season's biggest choice, Lila's SMS, was answered with «…» when only speech counted).
+REPLY_KINDS: tuple[str, ...] = ("speech", "all", "sms")
+
+
+def _speaker(line: dict[str, Any], addressee: str) -> str:
+    """Who says a reply line: its ``who``, and the addressee for a text message."""
+
+    if line.get("kind") == "sms":
+        return addressee
+    return str(line.get("who") or addressee)
+
+
 def reaction_text(panels: list[dict[str, Any]], *, addressee: str, labelled: bool = True) -> str:
     """The reaction as one reply: the addressee's lines as they are, anyone else's
     lines with their name («Margaux : Elle prenait ça.»). Captions and silent panels
@@ -539,9 +553,9 @@ def reaction_text(panels: list[dict[str, Any]], *, addressee: str, labelled: boo
     for panel in panels:
         for line in panel.get("lines") or []:
             text = str(line.get("text_fr") or "").strip()
-            if not text or line.get("kind") not in ("speech", "all"):
+            if not text or line.get("kind") not in REPLY_KINDS:
                 continue
-            who = str(line.get("who") or "")
+            who = _speaker(line, addressee) if line.get("kind") == "sms" else str(line.get("who") or "")
             parts.append(text if who == addressee or not labelled else f"{_short(line.get('name'), who)} : {text}")
     return "\n".join(parts)
 
@@ -554,9 +568,9 @@ def reaction_lines(panels: list[dict[str, Any]], *, addressee: str, names: dict[
     for panel in panels:
         for line in panel.get("lines") or []:
             text = str(line.get("text_fr") or "").strip()
-            if not text or line.get("kind") not in ("speech", "all"):
+            if not text or line.get("kind") not in REPLY_KINDS:
                 continue
-            who = str(line.get("who") or addressee)
+            who = _speaker(line, addressee)
             lines.append(
                 {
                     "speaker_id": who,
@@ -575,8 +589,8 @@ def reaction_native(panels: list[dict[str, Any]], *, addressee: str) -> str | No
     for panel in panels:
         for line in panel.get("lines") or []:
             text = str(line.get("text_native") or "").strip()
-            if not text or line.get("kind") not in ("speech", "all"):
+            if not text or line.get("kind") not in REPLY_KINDS:
                 continue
-            who = str(line.get("who") or "")
+            who = _speaker(line, addressee) if line.get("kind") == "sms" else str(line.get("who") or "")
             parts.append(text if who == addressee else f"{_short(line.get('name'), who)}: {text}")
     return "\n".join(parts) or None
