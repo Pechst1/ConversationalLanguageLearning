@@ -451,3 +451,28 @@ def test_472_season_one_day_two_quotes_a_line_of_the_scene_for_lettre() -> None:
     assert line != "La lettre"
     assert any(line in text or text in line for text in spoken), line
     assert "lettre" in line
+
+
+def test_598_the_lettre_card_example_reads_vor_dem_8_januar() -> None:
+    """Walk 8 Nov: «Avant le 8 janvier.» was shown as «Bis vor dem 8. Januar.» on the
+    «la lettre» card. The German under the French line must be German."""
+
+    from datetime import date
+
+    from app.services.season import runtime
+    from app.services.season.clock import Position
+    from app.services.season.format import load_season
+    from app.services.season.page import resolve_day
+
+    season = load_season("s1")
+    page = resolve_day(season, "t1", "b", flags={}, band="A1.1", language="de")
+    index, segment = next((i, seg) for i, seg in enumerate(season.segments) if seg.id == "t1")
+    today = SimpleNamespace(
+        language="de", season=season, pos=Position(season.id, segment, index, 2, 59),
+        local_date=date(2026, 11, 2), band="A1.1", flags={}, state={},
+    )
+    draft = runtime.authored_draft(today, page, page.get("turns") or [])
+    words = {1: SimpleNamespace(word="la lettre")}
+    line = scene_lines(draft=draft, journey_id="j", words=words, progress={}, candidates={1})[1]
+    assert line["sentence_fr"] == "Leur prix est dans votre lettre. Avant le 8 janvier."
+    assert line["translation"] == "Ihr Preis steht in Ihrem Brief. Vor dem 8. Januar."
