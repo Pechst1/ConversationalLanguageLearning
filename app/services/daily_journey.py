@@ -37,7 +37,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import HTTPException
 from fastapi import status as http_status
-from sqlalchemy import or_, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
@@ -332,6 +332,11 @@ def _ending_still_written_before_an_act(journey: DailyJourney, step: DailyJourne
     return any(
         StepKind(other.kind) is StepKind.RESOLUTION and step_act(other) > act for other in journey.steps
     )
+
+
+#: How long a day left open past its own date must sit untouched before the
+#: next read closes it (see ``DailyJourneyService._close_overnight``).
+OVERNIGHT_QUIET = timedelta(hours=3)
 
 
 def _utcnow() -> datetime:
@@ -1188,6 +1193,9 @@ class DailyJourneyService:
         if journey is not None and self._heal_interrupted(journey):
             # WP-69: a dead `preparing` journey no longer occupies the day.
             journey = self._occupying_journey(user)
+        if journey is not None and self._close_overnight(user, journey):
+            # Yesterday's untouched day no longer holds back today's episode.
+            journey = self._occupying_journey(user)
         if journey is None:
             fallback_tz = resolve_timezone(timezone_hint)
             today = local_date_for(fallback_tz)
@@ -1484,6 +1492,64 @@ class DailyJourneyService:
 
         heal_stale_lane(self.db, user, journey)
         return self.snapshot(journey)
+
+    def _last_touched(self, journey: DailyJourney) -> datetime | None:
+        """The latest moment the learner moved this journey."""
+
+        moments = [_as_aware(journey.started_at), _as_aware(journey.generation_claimed_at)]
+        for step in journey.steps:
+            moments += [_as_aware(step.started_at), _as_aware(step.completed_at)]
+        receipt = self.db.execute(
+            select(func.max(DailyJourneyMutation.completed_at)).where(
+                DailyJourneyMutation.journey_id == journey.id
+            )
+        ).scalar()
+        moments.append(_as_aware(receipt))
+        known = [moment for moment in moments if moment is not None]
+        return max(known) if known else None
+
+    def _close_overnight(self, user: User, journey: DailyJourney) -> bool:
+        """A day left open overnight ends on its own, as «Hier aufhören» would.
+
+        Owner decision (10 Nov): an unfinished day must not hold back the next
+        episode. Once the journey's own local day is over and nobody has touched
+        it for ``OVERNIGHT_QUIET``, the next read ends it early, so today's day
+        is offered. A scene played across midnight is left alone. The streak is
+        not moved: it belongs to the day it was earned on, not to this morning.
+        Returns whether this call closed it.
+        """
+
+        if JourneyStatus(journey.status) not in (JourneyStatus.ACTIVE, JourneyStatus.PAUSED):
+            return False
+        now = _utcnow()
+        if journey.local_date >= local_date_for(journey.timezone, now=now):
+            return False
+        touched = self._last_touched(journey)
+        if touched is not None and now - touched < OVERNIGHT_QUIET:
+            return False
+        try:
+            self._end_day(
+                user,
+                journey,
+                "early",
+                expected_revision=journey.revision,
+                record_streak=False,
+            )
+            self.db.commit()
+        except HTTPException:
+            # Another request moved the journey first; whatever it did stands.
+            self.db.rollback()
+            return False
+        except AdapterUnavailable:
+            self.db.rollback()
+            return False
+        self._emit(
+            JourneyEventName.ENDED_EARLY,
+            user,
+            journey,
+            {"finish_kind": "early", "closed_by": "overnight"},
+        )
+        return True
 
     def _heal_interrupted(self, journey: DailyJourney) -> bool:
         """WP-69 (L6): a `preparing` journey whose claim is dead becomes retryable.
@@ -2465,44 +2531,8 @@ class DailyJourneyService:
                         current_revision=journey.revision,
                         refresh_href=refresh_href_for(journey.id),
                     )
-            # A journey that ends without a derived consequence must not leave
-            # the planner's optimistic ending on screen.
-            self._settle_resolution_if_unsettled(user, journey)
-            recap = self._build_recap(user, journey, payload.finish_kind)
-            self._claim_revision(journey, payload.expected_revision)
-            # WP-137 C-2: a day stopped before a single step was done is not a
-            # practised day. Counted, it made a learner who opened day 1 for ten
-            # seconds «returning» three days later, still on N° 1.
-            practised = payload.finish_kind == "complete" or any(
-                StepStatus(step.status) is StepStatus.COMPLETED for step in journey.steps
-            )
-            for step in journey.steps:
-                if StepStatus(step.status) not in (
-                    StepStatus.COMPLETED,
-                    StepStatus.SKIPPED,
-                ):
-                    step.status = str(StepStatus.SKIPPED)
-            journey.status = str(
-                JourneyStatus.COMPLETED
-                if payload.finish_kind == "complete"
-                else JourneyStatus.ENDED_EARLY
-            )
-            journey.completed_at = _utcnow()
-            journey.current_step_id = None
-            journey.recap_snapshot = recap.model_dump(mode="json")
-            # WP-16 / decision D-0: the journey IS the daily Séance, so it is
-            # what moves the practice streak. The helper is the same rule the
-            # legacy loop applies and is a no-op once the day is marked, so a
-            # learner who finishes the journey and then drills in
-            # «Plus de pratique» gets one increment, not two.
-            if practised:
-                record_daily_practice_streak(
-                    self.db, user, on_date=local_date_for(journey.timezone)
-                )
-            self._close_learning_session(journey, payload.finish_kind)
-            # O-1: the journée parfaite and every milestone reached (shadow, best effort).
-            gold_ledger.record_journey_finish(
-                self.db, user=user, journey=journey, complete=payload.finish_kind == "complete", now=_utcnow()
+            self._end_day(
+                user, journey, payload.finish_kind, expected_revision=payload.expected_revision
             )
             self.db.flush()
         except HTTPException as exc:
@@ -2527,6 +2557,62 @@ class DailyJourneyService:
         if payload.finish_kind == "complete":
             self._warm_next_day(user, journey)
         return snapshot
+
+    def _end_day(
+        self,
+        user: User,
+        journey: DailyJourney,
+        finish_kind: str,
+        *,
+        expected_revision: int,
+        record_streak: bool = True,
+    ) -> None:
+        """Close an active or paused day: its recap, its steps, its ledger.
+
+        Shared by the learner's own finish and the overnight close. Flushes; the
+        caller commits.
+        """
+
+        # A journey that ends without a derived consequence must not leave
+        # the planner's optimistic ending on screen.
+        self._settle_resolution_if_unsettled(user, journey)
+        recap = self._build_recap(user, journey, finish_kind)
+        self._claim_revision(journey, expected_revision)
+        # WP-137 C-2: a day stopped before a single step was done is not a
+        # practised day. Counted, it made a learner who opened day 1 for ten
+        # seconds «returning» three days later, still on N° 1.
+        practised = finish_kind == "complete" or any(
+            StepStatus(step.status) is StepStatus.COMPLETED for step in journey.steps
+        )
+        for step in journey.steps:
+            if StepStatus(step.status) not in (
+                StepStatus.COMPLETED,
+                StepStatus.SKIPPED,
+            ):
+                step.status = str(StepStatus.SKIPPED)
+        journey.status = str(
+            JourneyStatus.COMPLETED
+            if finish_kind == "complete"
+            else JourneyStatus.ENDED_EARLY
+        )
+        journey.completed_at = _utcnow()
+        journey.current_step_id = None
+        journey.recap_snapshot = recap.model_dump(mode="json")
+        # WP-16 / decision D-0: the journey IS the daily Séance, so it is
+        # what moves the practice streak. The helper is the same rule the
+        # legacy loop applies and is a no-op once the day is marked, so a
+        # learner who finishes the journey and then drills in
+        # «Plus de pratique» gets one increment, not two.
+        if practised and record_streak:
+            record_daily_practice_streak(
+                self.db, user, on_date=local_date_for(journey.timezone)
+            )
+        self._close_learning_session(journey, finish_kind)
+        # O-1: the journée parfaite and every milestone reached (shadow, best effort).
+        gold_ledger.record_journey_finish(
+            self.db, user=user, journey=journey, complete=finish_kind == "complete", now=_utcnow()
+        )
+        self.db.flush()
 
     def pick_tomorrow(
         self, user: User, journey_id: uuid.UUID, payload: JourneyTomorrowRequest
@@ -3492,6 +3578,8 @@ class DailyJourneyService:
         self, user: User, payload: JourneyCreateRequest, timezone_name: str
     ) -> tuple[DailyJourney, int]:
         occupying = self._occupying_journey(user)
+        if occupying is not None and self._close_overnight(user, occupying):
+            occupying = self._occupying_journey(user)
         if occupying is not None:
             if JourneyStatus(occupying.status) is JourneyStatus.PREPARING:
                 if self._claim_is_live(occupying):

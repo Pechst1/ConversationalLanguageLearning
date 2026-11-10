@@ -175,14 +175,15 @@ def test_yesterdays_active_journey_resumes_before_today_is_created(
     user = make_user(db_session, "state-midnight@example.com")
     service = DailyJourneyService(db_session, build_adapters())
 
-    yesterday = datetime(2026, 9, 4, 18, 0, tzinfo=UTC)
+    # 23:30 in Paris: the learner starts late.
+    yesterday = datetime(2026, 9, 4, 21, 30, tzinfo=UTC)
     freeze(monkeypatch, yesterday)
     first, code = service.create_journey(user, create_request())
     assert code == 201
     assert first.local_date.isoformat() == "2026-09-04"
 
-    # Midnight passes. Nothing is silently reset.
-    freeze(monkeypatch, yesterday + timedelta(days=1))
+    # Midnight passes mid-scene. Nothing is silently reset.
+    freeze(monkeypatch, yesterday + timedelta(hours=1))
     envelope = service.get_today(user)
     assert envelope.local_date.isoformat() == "2026-09-05"
     assert envelope.journey is not None
@@ -194,6 +195,54 @@ def test_yesterdays_active_journey_resumes_before_today_is_created(
     assert code == 200
     assert second.id == first.id
     assert [step.id for step in second.steps] == [step.id for step in first.steps]
+
+
+def test_yesterdays_untouched_day_closes_overnight_and_today_is_offered(
+    db_session: Session, enabled: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Owner decision (10 Nov): an unfinished day does not block the next episode."""
+
+    user = make_user(db_session, "state-overnight@example.com")
+    service = DailyJourneyService(db_session, build_adapters())
+
+    freeze(monkeypatch, datetime(2026, 9, 4, 18, 0, tzinfo=UTC))
+    first, code = service.create_journey(user, create_request())
+    assert code == 201
+    streak_before = user.grammar_streak_days
+
+    freeze(monkeypatch, datetime(2026, 9, 5, 6, 0, tzinfo=UTC))
+    envelope = service.get_today(user)
+    assert envelope.local_date.isoformat() == "2026-09-05"
+    assert envelope.journey is None or envelope.journey.id != first.id
+
+    closed = db_session.get(DailyJourney, uuid.UUID(first.id))
+    db_session.refresh(closed)
+    assert closed.status == "ended_early"
+    assert closed.recap_snapshot is not None
+    # The streak is not credited to the morning the day was closed on.
+    db_session.refresh(user)
+    assert user.grammar_streak_days == streak_before
+
+    second, code = service.create_journey(user, create_request())
+    assert code == 201
+    assert second.id != first.id
+    assert second.local_date.isoformat() == "2026-09-05"
+
+
+def test_a_day_touched_recently_is_not_closed_overnight(
+    db_session: Session, enabled: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = make_user(db_session, "state-overnight-recent@example.com")
+    service = DailyJourneyService(db_session, build_adapters())
+
+    # 23:00 Paris, then 01:00 Paris: two hours of quiet, under the window.
+    freeze(monkeypatch, datetime(2026, 9, 4, 21, 0, tzinfo=UTC))
+    first, _ = service.create_journey(user, create_request())
+    freeze(monkeypatch, datetime(2026, 9, 4, 23, 0, tzinfo=UTC))
+    envelope = service.get_today(user)
+    assert envelope.journey is not None
+    assert envelope.journey.id == first.id
+    assert envelope.journey.status == "active"
 
 
 def test_todays_journey_is_created_once_yesterdays_is_finished(
