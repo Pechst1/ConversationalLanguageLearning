@@ -24,6 +24,7 @@ from app.api.v1.endpoints.daily_journey import get_journey_adapters
 from app.config import settings
 from app.db.base import Base
 from app.db.models.atelier import AtelierSession
+from app.db.models.mail_delivery import MailDelivery
 from app.db.models.daily_journey import (
     DailyJourney,
     DailyJourneyMutation,
@@ -84,6 +85,8 @@ def harness(tmp_path, monkeypatch: pytest.MonkeyPatch) -> Generator[Harness, Non
         SerialThread.__table__,
         UserError.__table__,
         RealWorldMission.__table__,
+        # S4 stage 3: sign-up queues the verification mail.
+        MailDelivery.__table__,
     ]
     Base.metadata.create_all(bind=engine, tables=tables)
     session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
