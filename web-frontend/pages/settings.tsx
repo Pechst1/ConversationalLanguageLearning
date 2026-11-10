@@ -1216,6 +1216,23 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                             </Row>
                         </div>
 
+                        {/* S4 stage 4 — «Aide»: a short FAQ, the same feedback
+                            sheet and the contact address (pages/help.tsx). */}
+                        <div className="st-card">
+                            <Row
+                                label={copy.row_help}
+                                hint={copy.row_help_hint}
+                            >
+                                <button
+                                    type="button"
+                                    className="av2-btn av2-btn--quiet av2-btn--inline"
+                                    onClick={() => { void router.push('/help'); }}
+                                >
+                                    {copy.action_help}
+                                </button>
+                            </Row>
+                        </div>
+
                         {/* WP-43 — the feedback panel's phone entry. The floating
                             launcher is hidden on phone widths (it floated over
                             the reading column); this row opens the same panel. */}

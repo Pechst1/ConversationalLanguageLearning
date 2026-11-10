@@ -8563,6 +8563,11 @@ export interface components {
             viewport?: {
                 [key: string]: unknown;
             };
+            /**
+             * Wants Reply
+             * @default false
+             */
+            wants_reply?: boolean;
         };
         /**
          * FeedbackReportRead
@@ -8604,6 +8609,11 @@ export interface components {
             viewport: {
                 [key: string]: unknown;
             };
+            /**
+             * Wants Reply
+             * @default false
+             */
+            wants_reply?: boolean;
         };
         /** FollowupRequest */
         FollowupRequest: {

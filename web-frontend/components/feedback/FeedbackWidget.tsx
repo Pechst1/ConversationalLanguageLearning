@@ -37,6 +37,7 @@ export default function FeedbackWidget() {
   const [open, setOpen] = useState(false);
   const [category, setCategory] = useState<FeedbackCategory | null>(null);
   const [message, setMessage] = useState('');
+  const [wantsReply, setWantsReply] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const immersive = useImmersiveSurface();
   const copy = feedbackCopy(useChromeLanguage());
@@ -137,6 +138,7 @@ export default function FeedbackWidget() {
       await apiService.submitFeedbackReport({
         category,
         message: message.trim() || undefined,
+        wants_reply: wantsReply,
         route: router.pathname || router.asPath || '/',
         url: typeof window === 'undefined' ? router.asPath : window.location.href,
         screen,
@@ -153,6 +155,7 @@ export default function FeedbackWidget() {
       toast.success(copy.sent);
       setCategory(null);
       setMessage('');
+      setWantsReply(false);
       setOpen(false);
     } catch (error) {
       console.error(error);
@@ -202,6 +205,17 @@ export default function FeedbackWidget() {
             placeholder: copy.note_placeholder,
             onChange: (next) => setMessage(next.slice(0, 1000)),
           })}
+
+          <div className="fb-reply">
+            <Chip
+              tone={wantsReply ? 'story' : 'plain'}
+              aria-pressed={wantsReply}
+              onClick={() => setWantsReply((current) => !current)}
+            >
+              {copy.reply}
+            </Chip>
+            {wantsReply && <span className="fb-reply__hint">{copy.reply_hint}</span>}
+          </div>
 
           <div className="fb-panel__foot">
             <span className="av2-label">{screen}</span>
@@ -281,6 +295,16 @@ export default function FeedbackWidget() {
           display: flex;
           flex-wrap: wrap;
           gap: 6px;
+        }
+        .av2 .fb-reply {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 8px;
+        }
+        .av2 .fb-reply__hint {
+          color: var(--av2-muted);
+          font-size: var(--av2-t-meta);
         }
         .av2 .fb-panel__foot {
           display: flex;
