@@ -5,7 +5,8 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { FORGE_REPAIR, snapshot, sleep, TYPEABLE_FIELD, WORD_BANK_TILE } from './driver.mjs';
 import { missLayoutChecks, readingIsSteady } from './miss-layout.mjs';
-import { englishWords, PENDING_VERDICT, SERVER_BANNER } from './assertions.mjs';
+import { reversed, trackVerdicts } from './verdict-timeline.mjs';
+import { englishWords, SERVER_BANNER } from './assertions.mjs';
 
 /**
  * A word a character says, in either reader: the list's caption cards, or the
@@ -19,7 +20,6 @@ const CHARACTER_WORDS = [
   '.vp-sheet__row:not([data-you]):not([data-kind="caption"]):not([data-shown="false"]) button[data-word]',
 ].join(', ');
 
-const STEP_RE = /(Step \d+ of \d+|Schritt \d+ von \d+|Étape \d+ sur \d+)/;
 const REPLIES = ['Oui, je peux vous aider samedi.', 'Merci, à samedi !', 'Avec plaisir, à bientôt.', 'D’accord, je viens.'];
 const FREE = 'Je voudrais un café, s’il vous plaît.';
 
@@ -161,23 +161,12 @@ export class LearnerWalk {
   trackVerdicts(s, kind) {
     // One verdict per question: a conversation is one question for its whole length;
     // any other item is identified by the text it showed before it was answered.
-    const hasVerdict = s.graded.length + s.epFeedback.length > 0;
-    if (!hasVerdict) this.questionSig = s.text.slice(0, 140);
-    const step = (s.text.match(STEP_RE) || ['none'])[0];
-    if (step !== 'none' && this.stepCaptions[this.stepCaptions.length - 1] !== step) this.stepCaptions.push(step);
-    const key = kind === 'thread' ? `thread ${step}` : `${step} ${this.questionSig || ''}`;
-    const t = this.timelines.get(`${this.day}:${key}`) || { states: [], pending: false };
-    for (const g of s.graded) if (t.states[t.states.length - 1] !== g.state) t.states.push(g.state);
-    for (const f of s.epFeedback) if (t.states[t.states.length - 1] !== f.verdict) t.states.push(f.verdict);
-    if (PENDING_VERDICT.test(s.text)) t.pending = true;
-    this.timelines.set(`${this.day}:${key}`, t);
-    return t;
+    return trackVerdicts(this, s, kind);
   }
 
   finishTimelines() {
     for (const [k, t] of this.timelines) {
-      const distinct = t.states.filter((x) => x && x !== 'unscored');
-      const flips = distinct.some((x, i) => i > 0 && x !== distinct[i - 1]);
+      const { flips, distinct } = reversed(t);
       this.findings.check('one-verdict-never-reversed', !flips, `verdict changed on ${k}: ${distinct.join(' → ')}`, this.where());
     }
     this.timelines.clear();
