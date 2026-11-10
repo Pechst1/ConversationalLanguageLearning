@@ -120,6 +120,7 @@ from app.db.models.story_pool import StoryPoolPage
 from app.db.models.streak_day import StreakDay
 from app.db.models.verdict_cutover import VerdictCutover
 from app.db.models.verdict_record import VerdictRecord
+from app.db.models.verdict_settlement import VerdictSettlement
 from app.db.models.vocabulary import UserDailyWordSlate, VocabularyDrillBatch
 from app.main import create_app
 from app.utils.cache import cache_backend
@@ -243,6 +244,7 @@ def db_engine():
             SpendReservation.__table__,
             VerdictCutover.__table__,
             VerdictRecord.__table__,
+            VerdictSettlement.__table__,
             PlacementSession.__table__,
             Rehearsal.__table__,
             VocabularyWord.__table__,
@@ -321,6 +323,7 @@ def db_engine():
                 Rehearsal.__table__,
                 SpendReservation.__table__,
                 VerdictRecord.__table__,
+                VerdictSettlement.__table__,
                 VerdictCutover.__table__,
                 PilotEvent.__table__,
                 UserErrorConcept.__table__,

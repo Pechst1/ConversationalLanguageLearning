@@ -18,14 +18,14 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, object_session
 
 from app.api.deps import get_current_user, get_db
 from app.core.rate_limit import enforce_recheck_limit
 from app.db.models.journal import JournalEntry
 from app.db.models.user import User
 from app.schemas.verdict import VerdictView
-from app.services import verdicts
+from app.services import verdict_settle, verdicts
 from app.services.journal import (
     ENTRY_MAX_CHARS,
     FOLLOWUP_MAX_CHARS,
@@ -178,7 +178,10 @@ def _entry_view(entry: JournalEntry, today: date) -> JournalEntryView:
                     for key, value in dict(entry.correction or {}).items()
                     if key in JournalCorrectionView.model_fields and key != "check"
                 },
-                check=VerdictView.of(verdicts.from_journal(entry.correction, text=entry.entry_text or "")),
+                check=VerdictView.of(
+                    verdicts.from_journal(entry.correction, text=entry.entry_text or ""),
+                    checked_since=verdict_settle.checked_since(object_session(entry), "journal_entry", entry.id),
+                ),
             )
             if written
             else None
@@ -310,7 +313,9 @@ def retry_correction(
     """
     enforce_recheck_limit(current_user)
     entry = _load(db, current_user, entry_id)
-    entry = JournalService(db).retry_correction(current_user, entry)
+    # Package V stage 3: the settlement job, inline and on the learner's own limit.
+    verdict_settle.ask(db, user=current_user, row=entry, subject_type="journal_entry")
+    db.refresh(entry)
     return _envelope(db, current_user, entry)
 
 

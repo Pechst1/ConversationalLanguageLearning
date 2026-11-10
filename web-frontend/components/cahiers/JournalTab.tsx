@@ -32,7 +32,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useControlLanguage } from '@/components/atelier-v2/ui/AtelierV2Root';
 import { errorToastText, errorToState, isRecheckLimit } from '@/lib/app-errors';
-import { checkState, isUnread, type CheckState } from '@/lib/verdict';
+import { checkState, checkedSince, isUnread, type CheckState } from '@/lib/verdict';
 
 import {
   Action,
@@ -461,6 +461,11 @@ export default function JournalTab() {
                 <p className="jn-verdict" data-check={isUnread(journalCheckState(entry)) ? journalCheckState(entry) : undefined}>
                   {correctionLine(entry, t)}
                 </p>
+                {checkedSince(entry.correction?.check) && (
+                  <p className="jn-verdict" role="status" data-check="checked_since">
+                    {t.correction_checked_since}
+                  </p>
+                )}
                 {entry.correction?.foreground && (
                   <Correction
                     label={entry.correction.foreground.label}

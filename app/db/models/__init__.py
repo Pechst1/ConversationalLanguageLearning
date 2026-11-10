@@ -68,6 +68,7 @@ from app.db.models.streak_day import StreakDay
 from app.db.models.user import RefreshToken, User
 from app.db.models.verdict_cutover import VerdictCutover
 from app.db.models.verdict_record import VerdictRecord
+from app.db.models.verdict_settlement import VerdictSettlement
 from app.db.models.vocabulary import (
     UserConjugationProgress,
     VerbConjugation,
@@ -125,6 +126,7 @@ __all__ = [
     "SpendReservation",
     "VerdictCutover",
     "VerdictRecord",
+    "VerdictSettlement",
     "GraphicNovelAttempt",
     "GraphicNovelPanel",
     "GraphicNovelScene",

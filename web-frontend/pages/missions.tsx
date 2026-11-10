@@ -7,7 +7,7 @@ import { useRouter } from 'next/router';
 import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { useChromeLanguage } from '@/lib/learner-language';
 import { errorToastText, errorToState, isRecheckLimit } from '@/lib/app-errors';
-import { checkState, isUnread, type CheckLike, type FixLine } from '@/lib/verdict';
+import { checkState, checkedSince, isUnread, type CheckLike, type FixLine } from '@/lib/verdict';
 import { pickByLanguage } from '@/lib/language-rule';
 import { castIdFor } from '@/lib/cast-faces';
 import { messageClock } from '@/lib/clock-time';
@@ -1242,6 +1242,12 @@ export default function MissionsPage() {
                             </button>
                           )}
                         </>
+                      )}
+                      {/* Package V stage 3: saved unread, read since (by the job or «Ask again»). */}
+                      {isUser && checkedSince(turn.check) && (
+                        <p className="cr-unassessed" role="status" data-check="checked_since">
+                          {t.checked_since}
+                        </p>
                       )}
                       {/* #590: nobody answered this message. The thread says so until a reply
                           exists, and the reply can be asked for again from here. */}

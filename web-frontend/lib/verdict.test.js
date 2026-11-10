@@ -19,7 +19,7 @@ Module._resolveFilename = function resolve(request, ...rest) {
   return originalResolve.call(this, request, ...rest);
 };
 
-const { CHECK_COPY, checkState, isUnread, fixRows } = require('./verdict.ts');
+const { CHECK_COPY, checkState, checkedSince, isUnread, fixRows } = require('./verdict.ts');
 const read = (...parts) => fs.readFileSync(path.join(WEB_ROOT, ...parts), 'utf8');
 
 const NOT_CHECKED = { outcome: 'not_checked', call: 'failed', edits: [] };
@@ -134,3 +134,27 @@ test('#133 · one mechanical fix keeps its own reason, and a real fix never join
   assert.ok(rows.every((row) => row.kind === 'one'));
 });
 
+
+test('package V stage 3: an answer read since says so once, in every chrome language', () => {
+  const settled = { outcome: 'partly', call: 'ok', edits: [], checked_since: '2026-11-11T08:00:00Z' };
+  assert.equal(checkedSince(settled), true);
+  assert.equal(checkedSince({ ...settled, checked_since: null }), false, 'read the first time: nothing to say');
+  assert.equal(checkedSince({ ...NOT_CHECKED, checked_since: '2026-11-11T08:00:00Z' }), false);
+  assert.equal(checkedSince(undefined), false);
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(CHECK_COPY).map(([lang, copy]) => [lang, copy.checked_since])),
+    {
+      en: 'Checked since. It counts now.',
+      de: 'Inzwischen geprüft. Sie zählt jetzt.',
+      fr: 'Vérifiée depuis. Elle compte maintenant.',
+    },
+  );
+  for (const [file, key] of [
+    [['pages', 'missions.tsx'], 't.checked_since'],
+    [['components', 'cahiers', 'JournalTab.tsx'], 't.correction_checked_since'],
+  ]) {
+    const source = read(...file);
+    assert.match(source, /data-check="checked_since"/, file.join('/'));
+    assert.ok(source.includes(key), `${file.join('/')} says ${key}`);
+  }
+});

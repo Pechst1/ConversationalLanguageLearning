@@ -34,7 +34,7 @@ from typing import Any
 from loguru import logger
 from sqlalchemy import inspect, select
 from sqlalchemy.orm import Session
-from sqlalchemy.orm.attributes import get_history
+from sqlalchemy.orm.attributes import flag_modified, get_history
 
 from app.config import settings
 from app.core.verdict import Verdict
@@ -47,7 +47,9 @@ __all__ = [
     "Counting",
     "counting",
     "live_record",
+    "pay",
     "record_flush",
+    "recording",
     "supersede",
 ]
 
@@ -280,6 +282,59 @@ def supersede(
     return record
 
 
+def recording(session: Session) -> bool:
+    """Whether this session's database keeps the ledger."""
+
+    return _enabled(session)
+
+
+def pay(
+    session: Session,
+    record: VerdictRecord,
+    payer: Callable[[str], Any],
+    *,
+    key: str | None = None,
+) -> Any:
+    """Package V stage 3: mint the gold a live, counting ``record`` is due, once per chain.
+
+    ``key`` names the entry (the surface's own key, e.g. ``gold:letter:{mission}``); by
+    default the chain's ``gold:verdict:{root}:{generation}``. A chain whose entry stands
+    pays nothing again. The record notes the key, so a later record that stops counting
+    voids it (:func:`_settle_gold`).
+    """
+
+    from app.db.models.gold import GoldLedgerEntry
+
+    if not record.counts:
+        return None
+    paid = dict(record.paid or {})
+    root = paid.get("root") or str(record.id)
+    generation = int(paid.get("generation") or 0)
+    for candidate in {paid.get("gold_key"), key} - {None}:
+        entry = session.scalars(
+            select(GoldLedgerEntry).where(
+                GoldLedgerEntry.user_id == record.user_id, GoldLedgerEntry.source_key == candidate
+            )
+        ).first()
+        if entry is not None and entry.state != "void":
+            if paid.get("gold_key") != candidate:
+                record.paid = {**paid, "root": root, "generation": generation, "gold_key": candidate}
+                flag_modified(record, "paid")
+            return None
+    key = key or f"gold:verdict:{root}:{generation}"
+    minted = payer(key)
+    record.paid = {
+        **paid,
+        "root": root,
+        "generation": generation,
+        "gold_key": key,
+        "gold": int(paid.get("gold") or 0) + int(getattr(minted, "amount", 0) or 0),
+    }
+    flag_modified(record, "paid")
+    session.add(record)
+    return minted
+
+
 def _changed(obj: Any, fields: Iterable[str]) -> bool:
     return any(get_history(obj, name).has_changes() for name in fields)
 
@@ -304,7 +359,7 @@ def record_flush(session: Session) -> int:
             continue
         if getattr(obj, "id", None) is None:
             obj.id = uuid.uuid4()
-        if supersede(
+        record = supersede(
             session,
             user_id=getattr(obj, "user_id", None),
             surface=subject.surface,
@@ -312,8 +367,12 @@ def record_flush(session: Session) -> int:
             subject_id=obj.id,
             answer=read.text,
             reading=read.reading,
-        ):
+        )
+        if record is not None:
             written += 1
+            from app.services import verdict_settle  # stage 3: an unread answer is checked later
+
+            verdict_settle.note_unread(session, record)
     return written
 
 
