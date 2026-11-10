@@ -677,6 +677,25 @@ class Settings(BaseSettings):
             "the days left. Off: generated days end as before."
         ),
     )
+    STORY_CONTRACT_STAND_IN: bool = Field(
+        False,
+        description=(
+            "Red-thread design, slice 4b (needs STORY_DAY_CONTRACT): a contract day whose "
+            "page no writer delivered is served as the day's own stand-in page, written in "
+            "gaps.json (contract.stand_in), without a model, and lands on its contract. "
+            "Off: such a day re-reads the last page, as before."
+        ),
+    )
+    STORY_CONTRACT_REASK: bool = Field(
+        False,
+        description=(
+            "Red-thread design (needs STORY_DAY_CONTRACT): on a contract day, a reply that "
+            "does not answer the day's question is met once with the same question in the "
+            "simpler French the contract wrote (turns[].ask_again_fr), not with a new one. "
+            "Never over a question the learner asked, never twice. Off: the reply lane's own "
+            "reply stands."
+        ),
+    )
     STORY_SHARED_PAGES: bool = Field(
         False,
         description=(

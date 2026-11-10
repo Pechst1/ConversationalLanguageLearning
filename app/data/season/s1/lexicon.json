@@ -1,7 +1,7 @@
 {
  "version": 1,
  "season_id": "s1",
- "source": "033fb9c1e8bd",
+ "source": "1d73554b52ab",
  "note": "Derived by scripts/build_season_lexicon.py from the tentpoles and level files; never edited by hand.",
  "days": {
   "e1.a@garder": {

@@ -33,6 +33,22 @@ def enabled() -> bool:
     return bool(getattr(settings, "STORY_DAY_CONTRACT", False))
 
 
+def stand_in_enabled() -> bool:
+    """Whether a contract day no writer delivered is served as its stand-in page."""
+
+    return enabled() and bool(getattr(settings, "STORY_CONTRACT_STAND_IN", False))
+
+
+#: Where ``for_turn`` carries the simpler question (never sent to the reply lane).
+ASK_AGAIN_KEY = "ask_again_fr"
+
+
+def reask_enabled() -> bool:
+    """Whether a reply that misses the day's question is asked once more, simpler."""
+
+    return enabled() and bool(getattr(settings, "STORY_CONTRACT_REASK", False))
+
+
 def plans_gap(season: Season, gap_id: str | None) -> bool:
     """Whether the days of ``gap_id`` are planned by contracts (and the flag is on)."""
 
@@ -191,6 +207,8 @@ def for_turn(season: Season, season_ctx: dict[str, Any], *, band: str | None) ->
             "routes": [{"id": route.id, "when": route.when} for route in contract.routes],
             "default_route": next(route.id for route in contract.routes if route.default),
         }
+        if reask_enabled() and contract.turns[0].ask_again_fr:
+            out[ASK_AGAIN_KEY] = contract.turns[0].ask_again_fr
         mark_turn = next((turn for turn in contract.turns if turn.mark), None)
         if mark_turn is not None:
             out["mark"] = {
@@ -202,6 +220,28 @@ def for_turn(season: Season, season_ctx: dict[str, Any], *, band: str | None) ->
     except Exception:  # noqa: BLE001 - the plan never costs the learner their reply
         logger.exception("day_contract: no contract for the turn; the lanes run as before")
         return None
+
+
+def reask(
+    plan: dict[str, Any] | None,
+    *,
+    outcome: str,
+    turns_left: int,
+    learner_asked: Any,
+    history: list[Any] | None,
+) -> str | None:
+    """The day's question once more, in the simpler French the contract wrote for it
+    (``turns[].ask_again_fr``), or None. Only after a reply that did not answer it
+    (``not_yet``), while the conversation goes on, never over a question the learner
+    asked (that one is answered first) and never twice in a scene."""
+
+    again = str((plan or {}).get(ASK_AGAIN_KEY) or "").strip()
+    if not again or outcome != "not_yet" or turns_left <= 0 or learner_asked:
+        return None
+    said = [str(row.get("character") or "") for row in history or [] if isinstance(row, dict)]
+    if any(_folded(again) in _folded(line) for line in said):
+        return None
+    return again
 
 
 _QUOTES = "«»\"“”„‟'’‘ \t\n"
@@ -539,3 +579,93 @@ def fill_slots(draft: Any, marks: list[dict[str, Any]]) -> list[str]:
 
     _walk_text(draft, change)
     return [mark["slot"] for mark in marks if mark["slot"] not in found]
+
+
+def stand_in_draft(
+    season: Season,
+    gap: Gap,
+    beat: DayBeat,
+    *,
+    band: str | None,
+    language: str | None,
+    places: set[str],
+    speakers: set[str],
+    chapter: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """The planned day's stand-in page as a scene draft (``living_story.SceneDraft``),
+    at the reader's level and in their language; None when the day has none, or when
+    its lead may not speak today or the page cannot be set at a place offered today.
+    No model: the page is the one written in ``gaps.json`` (``contract.stand_in``)."""
+
+    contract = beat.contract
+    page = contract.stand_in if contract else None
+    place = next((row for row in (contract.place, contract.place_alt) if row in places), None) if contract else None
+    if page is None or contract.lead not in speakers or place is None:
+        return None
+    # The page says where it is: at the day's second place it reads its own panels
+    # for that place, or it is not served there at all.
+    written = page.panels if place == contract.place else page.alt_panels
+    if not written:
+        return None
+    lang = str(language or "en")
+
+    def read(wording) -> tuple[str, str]:
+        text, field = wording.served(str(band or "A1"))
+        return text, (text if lang == "fr" else wording.native_at(field, lang) or wording.native_at(field, "en") or text)
+
+    def at_level(rows: dict[str, Any]) -> Any:
+        return next((rows[field] for field in written_levels(band) if rows.get(field)), None) or rows.get("a1") or rows["a2"]
+
+    panels = [(row, *read(row.text)) for row in written]
+    captions = [(text, native) for row, text, native in panels if not row.says]
+    asks, asks_native = read(page.asks)
+    ask_en = _level_ask(contract.turns[0].ask, band)
+    task = ask_en if lang not in ("de", "fr") else at_level(page.task)[lang]
+    reply = at_level(page.reply_fr)
+    premise = next((row for row in gap.premises if row.id == beat.premise), None)
+    title = (premise.title_fr if premise else "") or beat.premise
+    keeps = bool(chapter) and not (chapter.get("resolved") or chapter.get("exhausted"))
+    lean = {"de": "Zum Beispiel:", "fr": "Par exemple :"}.get(lang, "For example:")
+    return {
+        "title_fr": title[:100],
+        "premise_fr": " ".join(text for text, _native in captions[:2])[:600],
+        "setup_native": " ".join(native for _text, native in captions[:2])[:600],
+        "objective_native": task[:320],
+        "objective_semantics": f"{ask_en} Any sincere reply on that counts.",
+        "character_id": contract.lead,
+        "location_id": place,
+        "causal_reason": f"Season {season.id}, {gap.id}.{beat.day}: the planned day «{beat.premise}», as written (stand-in page).",
+        "source_event_ids": [],
+        "novelty_key": f"{season.id}:{gap.id}:{beat.premise}:stand-in",
+        "chapter": {key: chapter[key] for key in ("title_fr", "dramatic_question", "possible_developments")}
+        if keeps
+        else {
+            "title_fr": title[:100],
+            "dramatic_question": page.asks.a2[:300],
+            "possible_developments": [route.when for route in contract.routes][:5],
+        },
+        "panels": [
+            {
+                "narration_fr": "" if row.says else text,
+                "dialogue": [{"character_id": contract.lead, "text_fr": text, "text_native": native}] if row.says else [],
+                "visual_direction": row.text.native.get("en") or text,
+                "alt_native": native,
+            }
+            for row, text, native in panels
+        ],
+        "opening_line_fr": asks,
+        "suggested_response_fr": reply,
+        "hint_native": f"{lean} «{reply}»",
+        "translation_native": asks_native,
+        "capability_key": None,
+        "season_checklist": {
+            "premise_id": beat.premise,
+            "threads": [],
+            "change_before": beat.before,
+            "change_after": beat.after,
+            "turn_want": ask_en,
+            "small_moment_id": None,
+            "hook_fr": contract.hook.fr.text(str(band or "A2")),
+            "forbidden_respected": True,
+        },
+    }

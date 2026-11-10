@@ -1428,6 +1428,18 @@ def evaluate_turn_lanes(
             book_lane(db, user, scene=scene, lane=lane, usage=lanes.usage[lane],
                       seconds=lanes.seconds.get(lane), payload={"turn_index": turn_index})
         tutor, voice = lanes.tutor, lanes.voice
+        # Red-thread design: a reply that missed the day's question hears it once more,
+        # in the simpler French the contract wrote, before the day moves anywhere else.
+        again = day_contract.reask(
+            _season_contract(payload),
+            outcome=tutor.outcome,
+            turns_left=int(payload.get("turns_left") or 0),
+            learner_asked=(payload.get("turn_plan") or {}).get("learner_asked"),
+            history=payload.get("history"),
+        )
+        if again:
+            voice.reply_fr = again
+            voice.needs_clarification = True
         if lanes.gated:
             from app.services.pilot_events import PilotEventService
 
