@@ -41,6 +41,9 @@ def pg_recovery(monkeypatch):
         with sessions() as db:
             service = AuthService(db)
             user = service.register_user(UserCreate(email=f"race-{uuid4()}@example.com", password="before-reset-password"))
+            # S4 stage 3: a reset by mail needs a verified address.
+            user.is_verified = True
+            db.commit()
             issued = service.request_password_reset(user.email)
             user_id, email = user.id, user.email
         yield sessions, user_id, email, issued

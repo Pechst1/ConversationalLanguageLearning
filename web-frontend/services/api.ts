@@ -2339,7 +2339,18 @@ class ApiService {
   }
 
   async changeEmail(data: { current_password: string; new_email: string }) {
-    return this.patch('/users/me/email', data);
+    return this.patch('/users/me/email', data, { suppressGlobalError: true } as SilentRequestConfig);
+  }
+
+  /** S4 stage 3: spend the emailed code (verifies the address, or completes a change). */
+  async verifyEmail(code: string) {
+    return this.post<{ email: string; is_verified: boolean; pending_email?: string | null }>(
+      '/auth/verify-email', { code }, { suppressGlobalError: true } as SilentRequestConfig,
+    );
+  }
+
+  async resendEmailVerification() {
+    return this.post<{ sent: boolean }>('/auth/verify-email/resend', {}, { suppressGlobalError: true } as SilentRequestConfig);
   }
 
   async exportUserData() {

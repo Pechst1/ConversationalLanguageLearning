@@ -27,7 +27,12 @@ from app.config import settings
 from app.core.security import get_password_hash, verify_password
 from app.db.models.user import RefreshToken, User
 from app.services import auth as auth_service
+from app.services import mail_outbox
 from app.services.auth import AuthService
+
+# S4 stage 3: a reset by mail needs a verified address; these accounts have one.
+pytestmark = pytest.mark.usefixtures("verified_signups")
+
 
 ROOT = Path(__file__).resolve().parents[1]
 PASSWORD = "supersecure"
@@ -277,8 +282,9 @@ def test_legacy_duplicates_by_case_do_not_500(
     monkeypatch.setattr(settings, "PASSWORD_RESET_RETURN_TOKEN_IN_RESPONSE", True)
     db_session.add_all(
         [
-            User(email="Twin@Example.com", hashed_password=get_password_hash("first-password")),
-            User(email="twin@example.com", hashed_password=get_password_hash("second-password")),
+            # Accounts from before S4 stage 3 were marked verified by its migration.
+            User(email="Twin@Example.com", hashed_password=get_password_hash("first-password"), is_verified=True),
+            User(email="twin@example.com", hashed_password=get_password_hash("second-password"), is_verified=True),
         ]
     )
     db_session.commit()
@@ -484,7 +490,8 @@ def test_the_email_carries_the_code_and_a_link_only_when_public(
     client: TestClient, monkeypatch, base_url: str, expects_link: bool
 ) -> None:
     _FakeSMTP.sent = []
-    monkeypatch.setattr(auth_service.smtplib, "SMTP", _FakeSMTP)
+    # S4 stage 3: the one SMTP call lives in the mail outbox.
+    monkeypatch.setattr(mail_outbox.smtplib, "SMTP", _FakeSMTP)
     monkeypatch.setattr(settings, "SMTP_HOST", "smtp.example.test")
     monkeypatch.setattr(settings, "SMTP_FROM_EMAIL", "atelier@example.test")
     monkeypatch.setattr(settings, "PASSWORD_RESET_BASE_URL", base_url)

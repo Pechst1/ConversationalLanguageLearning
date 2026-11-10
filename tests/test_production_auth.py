@@ -14,6 +14,9 @@ from app.schemas.user import UserCreate
 from app.services.auth import AuthService, InvalidPasswordResetTokenError
 from app.services.password_reset_delivery import deliver_reset_email
 
+# S4 stage 3: a reset by mail needs a verified address; these accounts have one.
+pytestmark = pytest.mark.usefixtures("verified_signups")
+
 
 @pytest.fixture()
 def recovery(db_session, monkeypatch):

@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
@@ -383,6 +384,7 @@ def test_export_endpoint_includes_learner_records(client: TestClient) -> None:
 # -- 6. email change ------------------------------------------------------------------
 
 
+@pytest.mark.usefixtures("verified_signups")  # S4 stage 3: a change needs a verified address
 def test_email_change_duplicate_check_ignores_case(client: TestClient, db_session) -> None:
     _user(db_session, email="Taken.WP74@Example.com")
     client.post(

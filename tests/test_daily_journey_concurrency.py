@@ -30,6 +30,7 @@ from app.db.models.daily_journey import (
     DailyJourneyStep,
 )
 from app.db.models.error import UserError
+from app.db.models.mail_delivery import MailDelivery
 from app.db.models.mission import RealWorldMission
 from app.db.models.serial import SerialThread
 from app.db.models.session import LearningSession
@@ -84,6 +85,8 @@ def harness(tmp_path, monkeypatch: pytest.MonkeyPatch) -> Generator[Harness, Non
         SerialThread.__table__,
         UserError.__table__,
         RealWorldMission.__table__,
+        # S4 stage 3: sign-up queues the verification mail.
+        MailDelivery.__table__,
     ]
     Base.metadata.create_all(bind=engine, tables=tables)
     session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
