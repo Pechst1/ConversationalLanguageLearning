@@ -113,6 +113,8 @@ export const SNAPSHOT_FN = ({ typeable, wordBankTile }) => {
         // #381: each repair on screen («ok» once accepted) and the «Not yet» bands under them.
         repairs: q('.ep-repair').map((n) => n.getAttribute('data-status') || 'open'),
         failBands: q('.ep-feedback .ep-verdict[data-tone="wrong"]').length,
+        // #665: whether the page's miss scroll was done when this was read (lib/keep-above-sheet.ts).
+        scroll: (q('.ep-feedback[data-verdict="wrong"]')[0] || { getAttribute: () => null }).getAttribute('data-scroll'),
       };
     })(),
     theme: document.documentElement.getAttribute('data-theme'),
