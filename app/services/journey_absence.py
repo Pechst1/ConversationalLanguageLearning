@@ -235,10 +235,7 @@ def absence_view(
     }
 
 
-def season_premiere_view(db: Session, journey: DailyJourney | None) -> dict[str, Any] | None:
-    """``{number, title_fr, logline_fr}`` when today's scene opens a season."""
-
-    premiere = _scene_payload(db, journey).get("season_premiere")
+def _premiere_row(premiere: Any) -> dict[str, Any] | None:
     if not isinstance(premiere, dict):
         return None
     try:
@@ -251,10 +248,43 @@ def season_premiere_view(db: Session, journey: DailyJourney | None) -> dict[str,
     return {"number": number, "title_fr": title, "logline_fr": _text(premiere.get("logline_fr")) or None}
 
 
-def interlude_view(db: Session, user_id: Any) -> dict[str, Any] | None:
-    """``{returns_on, reason_fr}`` while the story is between seasons, else ``None``."""
+def season_premiere_view(
+    db: Session, journey: DailyJourney | None, *, user_id: Any = None
+) -> dict[str, Any] | None:
+    """``{number, title_fr, logline_fr}`` when today's scene opens a season, or (S5)
+    while the stored rollover says a season began and its first scene is still owed —
+    Home shows the new season from the morning it begins, not from its first page."""
 
-    interlude = _live_state(db, user_id).get("interlude")
+    row = _premiere_row(_scene_payload(db, journey).get("season_premiere"))
+    if row is not None or user_id is None:
+        return row
+    from app.services.season_rollover import state_of
+
+    live = _live_state(db, user_id)
+    rollover = state_of(live)
+    premiere = live.get("season_premiere")
+    if not rollover.get("installed_on") or not isinstance(premiere, dict) or not premiere.get("pending"):
+        return None
+    return _premiere_row(premiere)
+
+
+def interlude_view(db: Session, user_id: Any) -> dict[str, Any] | None:
+    """``{returns_on, reason_fr}`` while the story is between seasons, else ``None``.
+
+    S5: read from the stored rollover state — an open rollover is an interlude with
+    its promised date; a season that began is none, whatever else the life holds."""
+
+    from app.services.season_rollover import is_open, state_of
+
+    live = _live_state(db, user_id)
+    rollover = state_of(live)
+    if rollover:
+        if not is_open(rollover):
+            return None
+        interlude = rollover
+    else:
+        # A life closed before the rollover state existed.
+        interlude = live.get("interlude")
     if not isinstance(interlude, dict):
         return None
     returns_on = _date_of(interlude.get("returns_on"))
@@ -286,7 +316,8 @@ def story_frame_fields(
             default=None,
         ),
         "season_premiere": run_best_effort(
-            db, "journey_absence: season premiere", lambda: season_premiere_view(db, journey), default=None
+            db, "journey_absence: season premiere", lambda: season_premiere_view(db, journey, user_id=user_id),
+            default=None,
         ),
         "interlude": run_best_effort(
             db, "journey_absence: interlude", lambda: interlude_view(db, user_id), default=None

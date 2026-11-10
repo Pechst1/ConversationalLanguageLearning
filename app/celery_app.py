@@ -36,6 +36,7 @@ celery_app = Celery(
         "app.tasks.password_reset_delivery",
         "app.tasks.revue",
         "app.tasks.gold",
+        "app.tasks.season_rollover",
     ],
 )
 
@@ -129,6 +130,12 @@ celery_app.conf.beat_schedule = {
     "gold-nightly-report": {
         "task": "app.tasks.gold.nightly_report",
         "schedule": crontab(hour=5, minute=20),
+    },
+    # S5: the season rollover moves by the date, never by a request. Every 15
+    # minutes because the promised day begins at each learner's own midnight.
+    "advance-due-season-rollovers": {
+        "task": "app.tasks.season_rollover.advance_due_rollovers",
+        "schedule": crontab(minute="*/15"),
     },
     # WP-73: liveness — a fresh Redis heartbeat proves beat, broker and a worker.
     "worker-heartbeat": {
