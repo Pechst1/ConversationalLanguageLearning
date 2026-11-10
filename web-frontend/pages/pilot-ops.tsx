@@ -5,6 +5,7 @@ import React from 'react';
 import { AlertTriangle, ArrowLeft, CircleDollarSign, ShieldCheck } from 'lucide-react';
 
 import { AtelierV2Root, StateBlock } from '@/components/atelier-v2/ui';
+import { CohortSection, type PilotCohorts } from '@/components/pilot/CohortSection';
 import { ForgeMetricsSection } from '@/components/pilot/ForgeMetricsSection';
 import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { useChromeLanguage } from '@/lib/learner-language';
@@ -148,6 +149,8 @@ function PilotOperationsReport() {
   const [error, setError] = React.useState('');
   const [forge, setForge] = React.useState<PilotForge | null>(null);
   const [forgeError, setForgeError] = React.useState('');
+  const [cohorts, setCohorts] = React.useState<PilotCohorts | null>(null);
+  const [cohortsError, setCohortsError] = React.useState('');
 
   React.useEffect(() => {
     let alive = true;
@@ -177,6 +180,14 @@ function PilotOperationsReport() {
       })
       .catch(() => {
         if (alive) setForgeError('The forge metrics could not be loaded.');
+      });
+    // S6: who came back, per sign-up week. Its own report, like the forge.
+    apiService.get<PilotCohorts>('/analytics/pilot-cohorts')
+      .then((result) => {
+        if (alive) setCohorts(result ?? null);
+      })
+      .catch(() => {
+        if (alive) setCohortsError('The return numbers could not be loaded.');
       });
     return () => { alive = false; };
   }, []);
@@ -267,6 +278,7 @@ function PilotOperationsReport() {
               </section>
 
               <JourneySection ledger={journey} loadError={journeyError} />
+              <CohortSection report={cohorts} loadError={cohortsError} />
               <ForgeMetricsSection report={forge} loadError={forgeError} />
             </>
           )}

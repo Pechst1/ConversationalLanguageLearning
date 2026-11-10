@@ -82,6 +82,7 @@ A walk plays real days in a browser and screenshots every screen.
 - Images: [docs/ops/image-storage.md](docs/ops/image-storage.md)
 - The nightly improvement loop: [docs/ops/improvement-loop.md](docs/ops/improvement-loop.md)
 - iOS release: [docs/testflight-production-flip-checklist.md](docs/testflight-production-flip-checklist.md)
+- Where the iOS release stands: [docs/ops/release-status.md](docs/ops/release-status.md)
 
 ## The repository root
 

@@ -160,6 +160,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/analytics/pilot-cohorts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Pilot Cohorts
+         * @description S6: return on day 1, 3, 7 and 14 per sign-up week, from the ledger.
+         */
+        get: operations["read_pilot_cohorts_api_v1_analytics_pilot_cohorts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/analytics/pilot-daily": {
         parameters: {
             query?: never;
@@ -17136,6 +17156,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorSummary"];
+                };
+            };
+        };
+    };
+    read_pilot_cohorts_api_v1_analytics_pilot_cohorts_get: {
+        parameters: {
+            query?: {
+                include_synthetic?: boolean;
+                weeks?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
