@@ -346,6 +346,7 @@ def answer_matches(
     *,
     accents: str = "lenient",
     within_reply: bool = False,
+    article_optional: bool = False,
 ) -> bool:
     """Is this a reasonable rendering of one of the accepted answers?
 
@@ -354,6 +355,11 @@ def answer_matches(
     grammar (a/à, ou/où, a final «-é»), one typo is forgiven unless it makes
     another form («parle/parles», «du/de» never pass). A word or short phrase
     also counts when the answer holds it as a run of words.
+
+    #579: ``article_optional`` is part of the question, so a caller that also
+    reads the verdict's note must pass the same options to both; two calls with
+    different options decided one answer twice («une letre» a miss with a
+    «Right — small typo» note).
     """
 
     from app.services.answer_acceptance import judge
@@ -366,7 +372,7 @@ def answer_matches(
         target = fold_for_comparison(candidate)
         if not target:
             continue
-        if judge(answer, [candidate], accents=accents).correct:
+        if judge(answer, [candidate], accents=accents, article_optional=article_optional).correct:
             return True
         target_tokens = target.split()
         # A recall answer may frame the key in a few words; a free reply
@@ -376,7 +382,8 @@ def answer_matches(
             CONTAINED_ANSWER_PADDING, len(target_tokens)
         )
         if short_enough and _contains_run(answer_tokens, target_tokens):
-            if judge(" ".join(_original_run(answer, len(target_tokens), target_tokens)), [candidate], accents=accents).correct:
+            run = " ".join(_original_run(answer, len(target_tokens), target_tokens))
+            if judge(run, [candidate], accents=accents, article_optional=article_optional).correct:
                 return True
     return False
 
@@ -2246,7 +2253,12 @@ def evaluate_recall(
         learner_text = recall_learner_text(task, answer) if submitted else answer.text
         opportunity = "tiles"
     else:
-        is_correct = answer_matches(answer.text, _accepted_answers(task), accents=accents)
+        # #579: the verdict and the note come from one contract with one set of
+        # options; `typed_verdict` below uses the same `article_optional`.
+        recall_article_optional = article_optional(task.target)
+        is_correct = answer_matches(
+            answer.text, _accepted_answers(task), accents=accents, article_optional=recall_article_optional
+        )
         learner_text = answer.text
         opportunity = "open_production"
         from app.services.answer_acceptance import judge, judge_repair
@@ -2260,13 +2272,13 @@ def evaluate_recall(
                 answer.text,
                 repair_source,
                 _accepted_answers(task),
-                article_optional=article_optional(task.target),
+                article_optional=recall_article_optional,
                 accents=accents,
             )
             is_correct = is_correct or typed_verdict.correct
         else:
             typed_verdict = judge(
-                answer.text, _accepted_answers(task), article_optional=article_optional(task.target), accents=accents
+                answer.text, _accepted_answers(task), article_optional=recall_article_optional, accents=accents
             )
 
     observation = classify_observation(
