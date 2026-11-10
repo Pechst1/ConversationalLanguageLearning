@@ -6560,12 +6560,10 @@ def live_register(db: Session | None, user: Any, mission: Any) -> str | None:
     A letter stores the register it was written in. A thread that reopens days later
     (31 Oct: a letter from before T3) kept Gus on «vous» while the scenes had moved to
     «tu». ``None`` for a contact outside the cast (a clerk, a shop): its letter decides.
+    A contact who only shares a cast member's first name is outside the cast (#661).
     """
 
-    correspondent = courrier.correspondent_of(mission)
-    raw = str(correspondent.get("id") or "")
-    name = str(correspondent.get("name") or "")
-    cast_id = cast_registry.resolve_id(raw) or (cast_registry.people_named(name) or [None])[0]
+    cast_id = courrier.cast_author_id(mission)
     user_id = getattr(user, "id", None) or getattr(mission, "user_id", None)
     if not cast_id or db is None or user_id is None:
         return None
@@ -6615,6 +6613,41 @@ def is_stock_reply(text: Any) -> bool:
 
     folded = " ".join(str(text or "").split())
     return folded in {STOCK_ACKNOWLEDGEMENT_TU, STOCK_ACKNOWLEDGEMENT_VOUS}
+
+#: What the correspondent says when no model answered, in each register (#661). The «vous»
+#: lines are the ones the Courrier always had; a friend on «tu» gets the same lines in «tu».
+FALLBACK_LINES_VOUS = {
+    "tone_mismatch": "On ne se connaît pas encore. Reformulez plus poliment, s'il vous plaît, et je pourrai vous aider.",
+    "settled": "C'est clair, merci. Je m'en occupe et je vous confirme la suite dès que possible.",
+    "missing": "Je comprends l'idée, mais il me manque encore ceci : {label}. Ajoutez ce point et je pourrai avancer.",
+    "needs_detail": (
+        "Je peux vous aider, mais il me manque un détail concret. "
+        "Quel est le problème exact et que souhaitez-vous que je fasse ?"
+    ),
+    "which_solution": "D'accord, je note la contrainte. Quelle solution préférez-vous maintenant ?",
+}
+FALLBACK_LINES_TU = {
+    # A friend who hears «vous» asks why; she does not refuse to help.
+    "tone_mismatch": "Pourquoi tu me vouvoies ? On se tutoie, toi et moi. Dis-moi ce que tu en penses.",
+    "settled": "C'est clair, merci. Je m'en occupe et je te dis la suite très vite.",
+    "missing": "Je comprends l'idée, mais il me manque encore ceci : {label}. Ajoute ce point et je pourrai avancer.",
+    "needs_detail": (
+        "Je veux bien t'aider, mais il me manque un détail concret. "
+        "Quel est le problème exact, et qu'est-ce que tu veux que je fasse ?"
+    ),
+    "which_solution": "D'accord, je note la contrainte. Quelle solution tu préfères maintenant ?",
+}
+
+
+def _reply_register(db: Session | None, mission: Any) -> str | None:
+    """«tu» or «vous»: the cast's register today for a cast letter, else the letter's own."""
+
+    payload = getattr(mission, "prompt_payload", None) or {}
+    messenger = payload.get("messenger") or {}
+    return live_register(db, None, mission) or register_word(
+        messenger.get("target_register") or messenger.get("register") or payload.get("target_register")
+    )
+
 
 class MissionConversationService:
     """Generate mission chat responses without duplicating the old audio route."""
@@ -6871,15 +6904,20 @@ class MissionConversationService:
         user_turns = [turn for turn in (mission.turns or []) if turn.role == "user"]
         branch_state = (branch or {}).get("state")
         all_met = bool(objective_progress) and all(bool(item.get("met")) for item in objective_progress)
+        # #661: the fallback lines were all written in «vous», so a friend who writes «tu»
+        # answered a plain «non» with «Reformulez plus poliment, s'il vous plaît». They are
+        # said in the register the reply itself is held to.
+        register = _reply_register(getattr(self, "db", None), mission)
+        line = FALLBACK_LINES_TU if register == "tu" else FALLBACK_LINES_VOUS
         # EXPERIENCE-REVIEW 2026-10-04: an objective nobody assessed (no corrector
         # answered) is not missing. The fallback told a flawless C1 letter «il me
         # manque encore ceci : Écrire un message qu'on pourrait vraiment envoyer».
         assessed = [item for item in objective_progress or [] if item.get("assessed", True)]
         if user_turns and objective_progress and not assessed and branch_state not in {"tone_mismatch"}:
-            return _unassessed_acknowledgement(mission)
+            return _unassessed_acknowledgement(mission, register_now=register)
         if user_turns:
             if branch_state == "tone_mismatch":
-                return "On ne se connaît pas encore. Reformulez plus poliment, s'il vous plaît, et je pourrai vous aider."
+                return line["tone_mismatch"]
             # The correspondent asks for what the letter is *about*; a word or a rule
             # to place («Placer « évidemment »») is the Courrier's note, not a reply.
             asked = [
@@ -6887,19 +6925,17 @@ class MissionConversationService:
                 if not str(item.get("id") or "").startswith(("vocabulary_", "concept_"))
             ]
             if objective_progress and not asked:
-                return _unassessed_acknowledgement(mission) if not all_met else (
-                    "C'est clair, merci. Je m'en occupe et je vous confirme la suite dès que possible."
-                )
+                return _unassessed_acknowledgement(mission, register_now=register) if not all_met else line["settled"]
             if asked and not all(bool(item.get("met")) for item in asked):
                 missing = next((item for item in asked if not item.get("met")), {})
                 label = _compact_text(missing.get("label"), max_length=120) or "un détail important"
-                return f"Je comprends l'idée, mais il me manque encore ceci : {label}. Ajoutez ce point et je pourrai avancer."
+                return line["missing"].format(label=label)
             if branch_state in {"needs_detail", "missing_next_step"}:
-                return "Je peux vous aider, mais il me manque un détail concret. Quel est le problème exact et que souhaitez-vous que je fasse ?"
+                return line["needs_detail"]
             if all_met or (asked and all(bool(item.get("met")) for item in asked)) or branch_state == "understood":
                 if "heating" in f"{mission.title} {mission.brief} {(mission.prompt_payload or {}).get('messenger', {})}".lower():
                     return "Bien reçu. J'envoie quelqu'un demain matin entre 8 h et 10 h. Bonne installation."
-                return "C'est clair, merci. Je m'en occupe et je vous confirme la suite dès que possible."
+                return line["settled"]
             if mission.mission_type == "travel_work":
                 return "Très bien. Pour vous aider, j'ai besoin d'un détail: à quelle heure devez-vous repartir ?"
             if mission.mission_type == "news_summary":
@@ -6907,7 +6943,7 @@ class MissionConversationService:
             if mission.mission_type == "explain_plan":
                 return "Je comprends. Quelle partie de ton plan pourrait changer si la situation devient plus compliquée ?"
             if mission.mission_type == "conversation":
-                return "D'accord, je note la contrainte. Quelle solution préférez-vous maintenant ?"
+                return line["which_solution"]
             return "D'accord. Ajoute un détail pratique, puis dis-moi ce que tu veux demander à l'autre personne."
         opening = (mission.prompt_payload or {}).get("conversation_opening")
         if opening:

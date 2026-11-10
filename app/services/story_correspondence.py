@@ -248,6 +248,39 @@ def correspondent_of(mission: RealWorldMission | None) -> dict[str, Any]:
     }
 
 
+#: The letters the cast writes: born of a scene (WP-64) or the cast's own first letter (WP-99).
+CAST_LETTER_ORIGINS = frozenset({"story_born", "cast"})
+
+
+def cast_author_id(mission: RealWorldMission | Any | None) -> str | None:
+    """The cast member who wrote this letter, from the letter's own record, else ``None``.
+
+    ROOT CAUSE #661 (child of #147): a letter is the cast's when it says so by id — the
+    episode's ``serial_character_id``, a story-born or authored cast letter, or a
+    correspondent id that *is* a cast id. A contact the letter writer named («Camille, ton
+    amie», a chain the scenario bank opened) only shares a first name with the cast:
+    reading her as Camille Marchand gave a friend who writes «tu» the season's «vous»,
+    and her replies refused a plain «non» as impolite. Her letter's own register decides.
+    """
+
+    if mission is None:
+        return None
+    prompt = getattr(mission, "prompt_payload", None) or {}
+    story_id = str(prompt.get("serial_character_id") or "").strip()
+    if story_id:
+        messenger = prompt.get("messenger") if isinstance(prompt.get("messenger"), dict) else {}
+        name = str(messenger.get("contact_name") or "")
+        return cast_registry.resolve_id(story_id) or (cast_registry.people_named(name) or [None])[0]
+    correspondence = prompt.get("correspondence") if isinstance(prompt.get("correspondence"), dict) else {}
+    raw = str(getattr(mission, "correspondent_id", None) or correspondence.get("correspondent_id") or "").strip()
+    canonical = cast_registry.resolve_id(raw) if raw else None
+    if not canonical:
+        return None
+    if raw == canonical or correspondence.get("origin") in CAST_LETTER_ORIGINS:
+        return canonical
+    return None
+
+
 def moods_of(thread: SerialThread | None) -> dict[str, Any]:
     if thread is None:
         return {}
@@ -1676,6 +1709,8 @@ def answer_letter_from_journey(
 
 
 __all__ = [
+    "CAST_LETTER_ORIGINS",
+    "cast_author_id",
     "CHAIN_LENGTHS",
     "CHAIN_OPEN_PROBABILITY",
     "CORRESPONDENCE_KEY",
