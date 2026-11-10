@@ -554,6 +554,107 @@ class Required(_Model):
     by_day: int = Field(ge=1)
 
 
+class Lands(_Model):
+    """One fact a planned day makes true whatever the learner answers (the floor)."""
+
+    #: ``g3.menu``: the gap's id, a dot, a short name. Unique in the season.
+    id: str = Field(pattern=r"^g[1-9]\.[a-z0-9_]+$")
+    text: str = Field(min_length=1)
+    #: French words every landing shows when this fact becomes true («menu»).
+    show: list[str] = Field(default_factory=list)
+
+
+class Mark(_Model):
+    """What the learner's own words add to a day, kept word for word."""
+
+    id: str = Field(pattern=r"^g[1-9]\.[a-z0-9_]+$")
+    kind: Literal["name", "choice", "words"]
+    max_words: int = Field(default=4, ge=1, le=12)
+    #: What stands in when the learner gave nothing usable. ``{name}`` is their first name.
+    default_fr: str = Field(min_length=1)
+    #: Where it is shown again: a later day of this gap (``g3.7``) or a later tentpole (``t4``).
+    comes_back: list[str] = Field(default_factory=list)
+
+
+class ContractTurn(_Model):
+    """One ask of the learner. ``ask`` is the task line's intent per written level, in
+    English, one ask each: the level guard that refuses a chained task line
+    (``objective_too_complex``) is run over these when the season is tested."""
+
+    id: str = Field(pattern=r"^[a-z0-9_]+$")
+    ask: dict[str, str] = Field(min_length=1)
+    #: The same question in simpler French, put once more after an off-topic reply.
+    ask_again_fr: str = ""
+    mark: Mark | None = None
+
+
+class Route(_Model):
+    """One way a planned day can land. Every route makes every ``lands`` fact true."""
+
+    id: str = Field(pattern=r"^[a-z0-9_]+$")
+    when: str = Field(min_length=1)
+    #: The route taken on a question, a refusal, silence, or a reply nobody planned for.
+    default: bool = False
+
+
+class ContractHook(_Model):
+    """The «À suivre…» of a planned day: who says it, the beat it leads into, the line."""
+
+    speaker: str = Field(min_length=1)
+    #: The premise of the next planned day, or the tentpole that follows the gap.
+    about: str = Field(min_length=1)
+    fr: Wording
+    #: Words a rephrased hook must still contain (a first filter, never the whole check).
+    must_name: list[str] = Field(default_factory=list)
+
+
+class DayContract(_Model):
+    """A planned day as a contract (red-thread design, 2026-11-10): what becomes true
+    whatever the learner says, what their words add, where the page is set and the one
+    thing owed tomorrow. Data only until ``STORY_DAY_CONTRACT`` reads it."""
+
+    place: str = Field(min_length=1)
+    #: A canon-safe second place for the day its own is not built yet.
+    place_alt: str | None = None
+    lands: list[Lands] = Field(min_length=1)
+    turns: list[ContractTurn] = Field(min_length=1, max_length=2)
+    routes: list[Route] = Field(min_length=2, max_length=4)
+    hook: ContractHook
+    #: «What changed», one line, for tomorrow's «Précédemment» and today's Done screen.
+    #: ``{g3.canape_name}`` is the day's mark.
+    after_fr: Wording
+    #: The closing turn has one job: the learner's mark, or the plain turn.
+    closing_job: Literal["mark", "turn"] = "turn"
+
+    @model_validator(mode="after")
+    def _holds_together(self) -> DayContract:
+        if sum(1 for route in self.routes if route.default) != 1:
+            raise ValueError("a day contract has exactly one default route")
+        for label, ids in (("route", [r.id for r in self.routes]), ("turn", [t.id for t in self.turns])):
+            if len(set(ids)) != len(ids):
+                raise ValueError(f"a day contract repeats a {label} id")
+        marks = [turn.mark for turn in self.turns if turn.mark]
+        if len(marks) > 1:
+            raise ValueError("a day contract carries at most one mark")
+        if (self.closing_job == "mark") != bool(marks and self.turns[-1].mark):
+            raise ValueError("closing_job is 'mark' exactly when the last turn carries the mark")
+        return self
+
+    @property
+    def mark(self) -> Mark | None:
+        return next((turn.mark for turn in self.turns if turn.mark), None)
+
+
+class Destination(_Model):
+    """Where a gap is going: the tentpole it leads to, in the words the learner reads."""
+
+    tentpole: str = Field(pattern=r"^t[1-9]$")
+    title_fr: str = Field(min_length=1)
+    #: The day it happens, as the pages say it («samedi»).
+    when_fr: str = Field(min_length=1)
+    stake_fr: Wording | None = None
+
+
 class DayBeat(_Model):
     """One generated day of a gap, planned: the premise it stages and the change it
     makes (story plan, 2026-10-15). The director still writes the page; it no longer
@@ -576,6 +677,8 @@ class DayBeat(_Model):
     #: The premises this beat stands on (the box is open before Gus's Polaroid is
     #: given): it is offered for tomorrow only once they are staged.
     needs: list[str] = Field(default_factory=list)
+    #: The day as a contract; a beat without one is planned in prose only.
+    contract: DayContract | None = None
 
 
 class Gap(_Model):
@@ -597,6 +700,8 @@ class Gap(_Model):
     #: The day plan: one beat per generated day. A gap without one leaves the day's
     #: premise to the director (``required`` still holds either way).
     days: list[DayBeat] = Field(default_factory=list)
+    #: Where the gap is going, for the strip above its pages.
+    destination: Destination | None = None
 
 
 class CastMember(_Model):
@@ -826,6 +931,71 @@ def _check_day_plan(season: Season, gap: Gap, premise_ids: set[str]) -> list[str
     return problems
 
 
+_SLOT = re.compile(r"\{([^{}]+)\}")
+
+
+def _check_day_contracts(season: Season, gap: Gap, *, locations: set[str] | None) -> list[str]:
+    """A gap's day contracts: places the season has, hooks that lead into the next day,
+    marks that come back later and nowhere else, facts named once."""
+
+    problems: list[str] = []
+    order = [segment.id for segment in season.segments]
+    after = order[order.index(gap.id) + 1 :] if gap.id in order else []
+    following = after[0] if after else None
+    by_day: dict[int, set[str]] = {}
+    for beat in gap.days:
+        by_day.setdefault(beat.day, set()).add(beat.premise)
+    last = max(by_day, default=0)
+    if gap.destination and gap.destination.tentpole != following:
+        problems.append(f"{gap.id}: destination {gap.destination.tentpole!r} is not the tentpole that follows")
+    speakers = season.speaker_ids()
+    seen: set[str] = set()
+    for beat in gap.days:
+        contract = beat.contract
+        if contract is None:
+            continue
+        where = f"{gap.id}.{beat.day} {beat.premise!r}"
+        for place in (contract.place, contract.place_alt):
+            if place and locations is not None and place not in locations:
+                problems.append(f"{where}: place {place!r} is not a place of the season")
+        if contract.place_alt == contract.place:
+            problems.append(f"{where}: place_alt repeats place")
+        for row in [*contract.lands, *([contract.mark] if contract.mark else [])]:
+            if not row.id.startswith(f"{gap.id}."):
+                problems.append(f"{where}: {row.id!r} does not carry the gap's id")
+            if row.id in seen:
+                problems.append(f"{where}: {row.id!r} is named twice in the gap")
+            seen.add(row.id)
+        for turn in contract.turns:
+            unknown = set(turn.ask) - set(LEVEL_FIELDS)
+            if unknown or "a1" not in turn.ask:
+                problems.append(f"{where}: turn {turn.id!r} asks need 'a1' and only written levels")
+        if contract.hook.speaker not in speakers:
+            problems.append(f"{where}: hook speaker {contract.hook.speaker!r} is not in the cast")
+        leads = by_day.get(beat.day + 1) or ({following} if beat.day >= last and following else set())
+        if contract.hook.about not in leads:
+            problems.append(f"{where}: the hook is about {contract.hook.about!r}, not what comes next {sorted(leads)}")
+        for field in LEVEL_FIELDS:
+            line = getattr(contract.hook.fr, field, None)
+            missing = [word for word in contract.hook.must_name if line and word.casefold() not in line.casefold()]
+            if missing:
+                problems.append(f"{where}: hook {field} does not name {missing}")
+        mark = contract.mark
+        if mark:
+            for target in mark.comes_back:
+                later_day = re.fullmatch(rf"{gap.id}\.(\d+)", target)
+                if not ((later_day and beat.day < int(later_day.group(1)) <= last) or target in after):
+                    problems.append(f"{where}: mark {mark.id!r} comes back at {target!r}, which is not later")
+            if not mark.comes_back:
+                problems.append(f"{where}: mark {mark.id!r} comes back nowhere")
+        allowed = {mark.id} if mark else set()
+        for field in LEVEL_FIELDS:
+            loose = set(_SLOT.findall(getattr(contract.after_fr, field, None) or "")) - allowed
+            if loose:
+                problems.append(f"{where}: after_fr {field} has slots {sorted(loose)} the day does not fill")
+    return problems
+
+
 def validate_season(season: Season, *, locations: set[str] | None = None) -> list[str]:
     """Every cross-reference a season file makes, checked. Empty means it holds."""
 
@@ -851,6 +1021,7 @@ def validate_season(season: Season, *, locations: set[str] | None = None) -> lis
             if need.premise not in premise_ids:
                 problems.append(f"{gap.id}: required premise {need.premise!r} is not a premise")
         problems.extend(_check_day_plan(season, gap, premise_ids))
+        problems.extend(_check_day_contracts(season, gap, locations=locations))
         for premise in gap.premises:
             unknown = cond_flags(premise.when) - known_flags
             if unknown:

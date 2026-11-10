@@ -27,6 +27,22 @@ Every generated day must end with **something different from how it began**, and
 - **A dramatic investigation that learns nothing.** A mystery beat that ends where it began is refused.
 - **A day that advances a thread the tentpole owns.** See each gap's «must not» list.
 
+## The day contract (gaps 3 and 4, 2026-11-10, waiting for the owner's review)
+
+A planned day can carry a **contract** next to its «before → after» (`days[].contract` in `gaps.json`; design in `docs/story/red-thread-design-2026-11-10.md`). It splits the day's `after` into what the plan owns and what the learner owns:
+
+| Field | What it says |
+|---|---|
+| `place`, `place_alt` | Where the page is set, and a canon-safe second place while the first is not built. |
+| `lands` | The floor: what becomes true today whatever the learner answers. |
+| `turns` | At most two asks, one ask per level (`a1`, `b1`), with the simpler re-ask for an off-topic reply. The level guard is run over every ask in `tests/test_day_contract.py`. |
+| `mark` | What the learner's own words add (a name, a line on a card), its authored default, and the later day or tentpole where it comes back. |
+| `routes` | The ways the day can land. Exactly one is the default, taken on a question, a refusal or silence; it still makes every `lands` fact true. |
+| `hook` | The «À suivre…»: who says it, the next planned day it leads into, the line, and the words a rephrased line must keep. |
+| `after_fr` | «What changed», one line, for the next day's «Précédemment». |
+
+Each gap can also name its `destination` (gap 3: «Les 25 ans du Mistral», samedi). The contracts are data only until `STORY_DAY_CONTRACT` reads them. Open for the owner: the French of the hooks and `after_fr` lines, the second places, and gap 4's destination (none yet, so nothing hints at T5).
+
 ## The shape of a generated day
 
 - **Length.** One page of **4–6 panels**, **2–3 exchanges**, and at most one mechanic (Enquête, Convaincre, Choix, Déchiffrer).

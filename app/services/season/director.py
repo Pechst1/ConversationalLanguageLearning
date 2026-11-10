@@ -639,7 +639,7 @@ def gap_brief(
             # The day plan's change for today: the page starts from ``before``, the
             # learner's exchange ends at ``after``.
             "beat": {
-                **beat.model_dump(exclude={"day", "premise", "pick_fr", "needs"}),
+                **beat.model_dump(exclude={"day", "premise", "pick_fr", "needs", "contract"}),
                 # «Demain» paid check: the «À suivre…» leads into what the plan stages
                 # next, which a pick or a beat left behind may have changed.
                 "hook": leading_hook(gap, beat, done | dropped, flags, day=day, length=pos.segment.days),
