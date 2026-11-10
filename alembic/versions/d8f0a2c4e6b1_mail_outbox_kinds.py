@@ -10,14 +10,14 @@
   accounts start unverified and get a code at sign-up.
 
 Revision ID: d8f0a2c4e6b1
-Revises: c5e7a9b1d3f6
+Revises: d6f8a0b2c4e7
 """
 import sqlalchemy as sa
 
 from alembic import op
 
 revision = "d8f0a2c4e6b1"
-down_revision = "c5e7a9b1d3f6"
+down_revision = "d6f8a0b2c4e7"
 branch_labels = None
 depends_on = None
 
