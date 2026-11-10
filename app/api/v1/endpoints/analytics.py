@@ -25,6 +25,7 @@ from app.schemas import (
 )
 from app.schemas.analytics import ErrorSummary
 from app.services.analytics import AnalyticsService
+from app.services.cohorts import build_cohorts
 from app.services.pilot_events import PilotEventService
 from app.services.serial_costs import SerialGenerationCostService
 
@@ -225,6 +226,19 @@ def record_anonymous_client_error(
         error_message=payload.message[:200],
     )
 # --- WP-73 pre-sign-in crash intake (end) ----------------------------------
+
+
+@router.get("/pilot-cohorts")
+def read_pilot_cohorts(
+    *,
+    weeks: int = Query(default=8, ge=1, le=52),
+    include_synthetic: bool = Query(default=False),
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> dict:
+    """S6: return on day 1, 3, 7 and 14 per sign-up week, from the ledger."""
+    _require_admin(current_user)
+    return build_cohorts(db, weeks=weeks, include_synthetic=include_synthetic)
 
 
 @router.get("/pilot-daily")
