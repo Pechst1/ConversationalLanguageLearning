@@ -34,9 +34,16 @@ def advance_all(db, *, today=None) -> dict[str, int]:
     counts: dict[str, int] = {}
     for thread_id in season_rollover.open_rollovers(db):
         try:
-            outcome = season_rollover.advance(db, thread_id, today=today(thread_id))
+            day = today(thread_id)
+            outcome = season_rollover.advance(db, thread_id, today=day)
             if outcome in ("dispatch", "retry"):
-                season_writer_job.dispatcher(str(thread_id), final=outcome == "retry")
+                try:
+                    season_writer_job.dispatcher(str(thread_id), final=outcome == "retry")
+                except Exception as exc:  # the broker refused it: nothing is writing
+                    logger.warning("season_rollover: thread {} writer not queued: {}", thread_id, exc)
+                    outcome = season_rollover.dispatch_failed(
+                        db, thread_id, today=day, final=outcome == "retry", error=f"{type(exc).__name__}: {exc}"
+                    )
         except Exception:  # pragma: no cover - one life never stops the sweep
             logger.exception("season_rollover: thread {} could not advance", thread_id)
             db.rollback()

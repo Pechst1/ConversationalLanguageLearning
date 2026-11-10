@@ -131,6 +131,40 @@ def _writer_step(row: dict, *, due: bool, today_iso: str) -> str | None:
     return None
 
 
+def dispatch_failed(db: Session, thread_id: UUID, *, today: date, final: bool, error: str) -> str:
+    """The writer job could not be queued (the broker refused it). Nothing is
+    writing, so the state says ``interlude``, never a ``pending`` no worker holds.
+    The promised date still fires its retry; if that one cannot be queued either,
+    the life moves on that date (the written season, or the reprise)."""
+
+    from app.db.models.serial import SerialThread
+    from app.services import living_story as engine
+
+    db.rollback()
+    thread = db.scalars(
+        select(SerialThread).where(SerialThread.id == thread_id).with_for_update()
+        .execution_options(populate_existing=True)
+    ).first()
+    live = dict(((thread.state or {}).get(engine.STATE_KEY) or {}) if thread is not None else {})
+    row = state_of(live)
+    if thread is None or not is_open(row):
+        db.rollback()
+        return "idle"
+    if row.get("state") == PENDING:
+        store(
+            live, INTERLUDE,
+            **{key: value for key, value in row.items() if key not in ("state", "dispatch_error")},
+            dispatch_error=str(error)[:200],
+        )
+        state = dict(thread.state or {})
+        state[engine.STATE_KEY] = live
+        thread.state = state
+        flag_modified(thread, "state")
+    db.commit()
+    logger.warning("season_rollover: thread %s writer not queued (%s)", thread_id, error)
+    return advance(db, thread_id, today=today) if final else INTERLUDE
+
+
 def advance(db: Session, thread_id: UUID, *, today: date) -> str:
     """One life's rollover, moved by the date. Short, locked, and model-free.
 
@@ -204,6 +238,7 @@ __all__ = [
     "STATE_KEY",
     "WRITTEN",
     "advance",
+    "dispatch_failed",
     "is_open",
     "open_rollovers",
     "state_of",
