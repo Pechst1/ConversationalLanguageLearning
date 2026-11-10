@@ -1922,16 +1922,41 @@ def repair_source_of(task: RecallTask) -> str | None:
 
     A step planned before WP-103 carries it only as ``prompt_fr``."""
 
-    if task.task_type != "transform":
+    if task.task_type == "transform":
+        source = str(task.source_fr or task.prompt_fr or "").strip()
+        return source or None
+    if repaired_sentence_of(task):
+        # #595: «write it right» over the sentence a slip sat in is a repair too.
+        return str(task.source_fr or "").strip() or None
+    return None
+
+
+def repaired_sentence_of(task: RecallTask) -> str | None:
+    """The whole sentence a part-only repair stands for, or ``None``.
+
+    A recall repair of the learner's own slip keys the corrected word («sommes») and,
+    when the sentence was known, the corrected sentence. The part must never be the
+    only key (#595): the learner who writes the whole line is judged against the
+    whole line, so the sentence is derived from what the item knows, the printed
+    source, the slip marked in it and the fix."""
+
+    if task.task_type != "short_answer" or not (task.slip_fr and task.source_fr and task.solution_fr):
         return None
-    source = str(task.source_fr or task.prompt_fr or "").strip()
-    return source or None
+    from app.services.repair_context import corrected_sentence
+
+    whole = corrected_sentence(task.source_fr, task.slip_fr, task.solution_fr)
+    if not whole or fold_for_comparison(whole) == fold_for_comparison(task.source_fr):
+        return None
+    return whole
 
 
 def _accepted_answers(task: RecallTask) -> list[str]:
     accepted = [text for text in task.accepted_answers if text]
     if task.solution_fr:
         accepted.append(task.solution_fr)
+    whole = repaired_sentence_of(task)
+    if whole and whole not in accepted:
+        accepted.append(whole)
     if not accepted and task.prompt_fr:
         accepted.append(task.prompt_fr)
     if task.task_type == "short_answer" and not task.prompt_fr and article_optional(task.target):
@@ -2255,10 +2280,13 @@ def evaluate_recall(
             # Owner request 2026-10-17: «Corrige cette phrase» is answered with the
             # corrected part alone («vertes» for «des chaises vert») or the whole
             # sentence; the part is read in place and judged by the same contract.
+            # #595: a part-and-sentence key is judged by its sentence alone: the part
+            # («sommes») is read in place in it, and a whole line never meets the part.
+            whole_key = repaired_sentence_of(task)
             typed_verdict = judge_repair(
                 answer.text,
                 repair_source,
-                _accepted_answers(task),
+                [whole_key] if whole_key else _accepted_answers(task),
                 article_optional=article_optional(task.target),
                 accents=accents,
             )
@@ -2327,7 +2355,17 @@ def evaluate_recall(
         # A part answered wrong is corrected as a part («verts → vertes»); the
         # saved error keeps the whole sentence, so it can be drilled later.
         part_answer = typed is not None and bool(typed.read_as and typed.expected_part)
-        shown = typed.expected_part if part_answer else expected
+        whole_line = (
+            not part_answer
+            and typed is not None
+            and bool(typed.expected)
+            and repair_source_of(task) is not None
+            and len(normalize_answer_text(answer.text).split()) > 1
+        )
+        # #595: a whole line typed over a repair is corrected against the whole line
+        # the verdict compared it with, never against the stored part («sommes»),
+        # which the learner may have got right.
+        shown = typed.expected_part if part_answer else (typed.expected if whole_line else expected)
         if not part_answer and task.task_type == "short_answer" and expected:
             # #174 (walk 31 Oct): a bare noun's fix keeps the article the learner gave,
             # in the noun's gender («une maison → un appartement», not «→ appartement»).
@@ -2339,13 +2377,28 @@ def evaluate_recall(
                 if note == task.hint_native:
                     # «It is 1 word long» under the two words shown would contradict them.
                     note = None
+        if whole_line and note == task.hint_native and repaired_sentence_of(task):
+            # «It is 1 word long» under a whole line shown would contradict it. A rewrite's
+            # hint is about the sentence and stays: it is the miss's why.
+            note = None
         if task.rule_native:
             # #278: a missed repair ends on the rule it was about, whatever else it says.
             note = f"{note} {task.rule_native}".strip() if note else task.rule_native
         correction = build_correction(learner_text=learner_text, corrected_fr=shown, note_native=note)
-        if correction is None and typed is not None and typed.note == "accent" and learner_text and shown:
+        if (
+            correction is None
+            and typed is not None
+            and not typed.correct
+            and learner_text
+            and shown
+            and normalize_answer_text(learner_text) != normalize_answer_text(shown)
+        ):
             # EXERCISE-QA: refused for an accent that is grammar («Il à mangé»):
             # the folds see no difference, the learner must still see the answer.
+            # #595: the same when the only differences are accents and an elision
+            # («a l hotel» for «à l’hôtel»): a miss always names what differs.
+            if typed.note != "accent" and (not note or note == task.hint_native):
+                note = _differences_note(learner_text, shown) or note
             candidate = Correction(
                 span_fr=normalize_answer_text(learner_text),
                 corrected_fr=normalize_answer_text(shown),
@@ -2559,6 +2612,22 @@ def evaluate_dictation(
 # --------------------------------------------------------------------------
 # 4. Correction policy
 # --------------------------------------------------------------------------
+
+def _differences_note(learner_text: str | None, corrected_fr: str | None) -> str | None:
+    """«a l hotel» → «à l’hôtel»: the words of the learner's line that differ from the
+    corrected one, each stretch with its fix (#595). ``None`` when nothing differs."""
+
+    import difflib
+
+    said = normalize_answer_text(learner_text).split()
+    right = normalize_answer_text(corrected_fr).split()
+    parts = [
+        f"«{' '.join(said[a1:a2])}» → «{' '.join(right[b1:b2])}»"
+        for tag, a1, a2, b1, b2 in difflib.SequenceMatcher(None, said, right, autojunk=False).get_opcodes()
+        if tag == "replace"
+    ]
+    return " · ".join(parts) or None
+
 
 def build_correction(
     *, learner_text: str | None, corrected_fr: str | None, note_native: str | None

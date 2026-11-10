@@ -89,3 +89,95 @@ def test_a_noun_swap_never_changes_another_word_or_sense():
     assert noun_variants("Marin a un tableau très ancien.") == []
     assert not judge("Je portable à ma mère.", ["Je téléphone à ma mère."], typo=False).correct
     assert not judge("Je mange un miroir.", ["Je mange une glace."], typo=False).correct
+
+
+# ---------------------------------------------------------------------------
+# #592: «X et moi» is «we» too (live walk 8 Nov 2026, the «On = we» drill)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        "Romy et moi envoyons une lettre.",
+        "Romy et moi, nous envoyons une lettre.",
+        "Romy et moi, on envoie une lettre.",
+    ],
+    ids=["no_pronoun", "nous", "on"],
+)
+def test_on_drill_takes_nous_for_x_and_i(answer):
+    # The prompt says «Romy and I send a letter.», never «with on»; the key is the
+    # rule's «on» form. Every right way to say «we» counts.
+    payload = _payload("Say it in French: “Romy and I send a letter.”", "Romy et moi, on envoie une lettre.")
+    accepted = _accepted_answers(payload)
+    assert production_local_check(None, answer, "Romy et moi, on envoie une lettre.", accepted)["local_status"] == LOCAL_RIGHT, accepted
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        "Romy et moi envoie une lettre.",  # the «on» verb form with a plural subject
+        "Romy et moi, on envoyons une lettre.",
+        "Romy envoyons une lettre.",  # «et moi» dropped: not «we»
+    ],
+    ids=["on_verb_form", "on_plural", "no_et_moi"],
+)
+def test_nous_for_x_and_i_stays_exact(answer):
+    payload = _payload("Say it in French: “Romy and I send a letter.”", "Romy et moi, on envoie une lettre.")
+    accepted = _accepted_answers(payload)
+    assert production_local_check(None, answer, "Romy et moi, on envoie une lettre.", accepted)["local_status"] != LOCAL_RIGHT
+
+
+def test_other_we_follows_x_et_moi():
+    from_on = on_nous_variants("Romy et moi, on envoie une lettre.")
+    assert "romy et moi, nous envoyons une lettre" in from_on
+    assert "romy et moi envoyons une lettre" in from_on
+    assert "romy et moi, on envoie une lettre" in on_nous_variants("Romy et moi envoyons une lettre.")
+    assert "romy et moi, on envoie une lettre" in on_nous_variants("Romy et moi, nous envoyons une lettre.")
+    assert on_nous_variants("Il parle à Romy et moi.") == [], "an object «moi» is not the subject"
+
+
+def test_no_on_drill_rejects_nous():
+    # A table over the rule's drills: whatever the bank generates, the «nous» way of
+    # the same sentence is accepted wherever the English says «we» or «X and I».
+    from app.services.item_bank import default_bank
+
+    bank = default_bank()
+    checked = 0
+    for seed in ("a", "b", "c"):
+        for item in bank.generate("FR2_A11_ON_NOUS", 40, seed=seed):
+            accepted = widened_answers(item.accepted, english=item.en)
+            for key in item.accepted:
+                for variant in on_nous_variants(key):
+                    checked += 1
+                    assert judge(variant, accepted).correct, (item.en, key, variant)
+    assert checked > 20
+
+
+def test_on_drill_key_has_a_line_without_on():
+    # The bank conjugates the verb, so its key holds the «nous» way as well as the
+    # rule's «on» one (#592): a frame that writes «et moi» or «Nous,» itself says so.
+    import re
+
+    from app.services.item_bank import default_bank
+
+    for seed in ("a", "b"):
+        for item in default_bank().generate("FR2_A11_ON_NOUS", 40, seed=seed):
+            assert any(not re.search(r"\bon\b", key.lower()) for key in item.accepted), (item.en, item.accepted)
+
+
+@pytest.mark.parametrize(
+    "sentence, right, wrong",
+    [
+        ("Romy et moi nous levons tôt.", "romy et moi, on se lève tôt", "romy et moi, on lève tôt"),
+        ("Romy et moi, nous nous levons tôt.", "romy et moi, on se lève tôt", "romy et moi, on lève tôt"),
+        ("Romy et moi, nous envoyons une lettre.", "romy et moi, on envoie une lettre", "romy et moi, on s'envoie une lettre"),
+    ],
+)
+def test_x_et_moi_keeps_the_reflexive_and_only_the_reflexive(sentence, right, wrong):
+    """#606 review: with no comma the «nous» after «moi» is the verb's reflexive, so its
+    «on» form keeps «se»; with a comma it takes the subject up and adds no «se»."""
+
+    variants = on_nous_variants(sentence)
+    assert right in variants
+    assert wrong not in variants

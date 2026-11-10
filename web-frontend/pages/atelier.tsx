@@ -4325,6 +4325,7 @@ export function ExerciseFeedbackMoment({
       <div className="ep-feedback" data-verdict={verdict === 'wrong' ? 'wrong' : 'correct'} ref={feedbackRef}>
         {/* Text diet: a picked answer is already marked right on its card. */}
         {!picked && <EpCorrect said={display(feedback.target || feedback.learner || t.line_set)} struck />}
+        {feedback.accented && feedback.why && <p className="av2-body" data-accent-note role="note">{feedback.why}</p>}
         {relecture}
         {followUpBlock}
         {/* The design's mint footer: badge + Garamond verdict, then the primary. */}
@@ -4535,7 +4536,7 @@ function RecognizePanel({
           {/* WP-103 T3: every drill says what it asks for. */}
           <ForgeGoalLine goal={itemGoal(item, '')} />
           <EpPrompt>
-            <EpreuveBlankPrompt prompt={String(item.prompt || '')} answer={answers[item.id]} />
+            <EpreuveBlankPrompt prompt={String(item.prompt || '')} answer={feedback?.accented && feedback.target ? feedback.target : answers[item.id]} />
           </EpPrompt>
           {drill === 'typed' ? (
             <ForgeTypedField
@@ -4756,11 +4757,15 @@ function itemFeedback(item: any, learner: any, correction: Record<string, any> |
     assessment === 'needs_work' && correction.errata?.some((error: AtelierErratum) => error.item_id && error.item_id !== item.id) && typeof corrected === 'object' && !!targetText &&
     normalizeClient(learnerText).replace(/['’]\s+/g, "'") === normalizeClient(targetText).replace(/['’]\s+/g, "'")
   ));
+  // #562: a right answer that lacked an accent is named, once, where the miss would be.
+  const accented = correct && Array.isArray(correction.accent_notes)
+    && correction.accent_notes.some((note: any) => String(note?.item_id || '') === String(item.id || ''));
   return {
     correct,
+    accented,
     learner: learnerText,
     target: targetText,
-    why: printableWhy(matchingErrata[0]?.why_wrong) || undefined,
+    why: printableWhy(matchingErrata[0]?.why_wrong) || (accented ? forgeCorrectionNotes(correction).join(' ') : '') || undefined,
     repair: matchingErrata[0]?.repair_hint ?? undefined,
     issues: matchingErrata,
     unscored: assessment === 'pending' || assessment === 'unavailable',
@@ -4769,6 +4774,8 @@ function itemFeedback(item: any, learner: any, correction: Record<string, any> |
 
 type InlineFeedbackModel = {
   correct: boolean;
+  /** #562: right up to an accent; `why` names it and `target` is the line with its accent. */
+  accented?: boolean;
   unscored?: boolean;
   learner?: string;
   target?: string;
@@ -4820,6 +4827,7 @@ function feedbackFromFreeformCorrection(correction: Record<string, any> | null, 
   }
   return {
     correct,
+    accented: correct && Array.isArray(correction.accent_notes) && correction.accent_notes.length > 0,
     unscored: assessment === 'unavailable' || assessment === 'pending',
     learner,
     target: shownTarget,

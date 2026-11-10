@@ -275,9 +275,13 @@ def test_reordering_still_names_a_real_reorder():
 def _relecture(service, typed: str, accepted: list[str], *, accents: str = "lenient", ai_verdict: str = "partial") -> dict:
     """A free answer the local check could not call right, then the model's reading."""
 
-    local_check = grading.production_local_check(None, typed, accepted=accepted)
-    assert local_check["local_status"] == grading.LOCAL_CHECKING, typed
+    # #562: a spelling accent the item does not test is «right» on the spot (the one
+    # accent judge); the relecture then reads the same line and agrees. Where the
+    # item tests the accent, or it is grammar, the local check is still «checking».
+    local_check = grading.production_local_check(None, typed, accepted=accepted, accents=accents)
     local = {"verdict": "partial", "score_0_4": 2.0, "local_status": local_check["local_status"], "errata": []}
+    if local_check["local_status"] == grading.LOCAL_RIGHT:
+        local.update({"verdict": "correct", "score_0_4": 4.0, "local_check": local_check})
     ai = {
         "verdict": ai_verdict,
         "score_0_4": 4.0 if ai_verdict == "correct" else 3.0,
@@ -370,20 +374,21 @@ def test_the_relecture_reads_a_free_answer_with_the_items_accent_policy(db_sessi
     ]}
     service = AtelierCorrectionService(db_session, llm_service=_FakeLLMService(model))
 
-    def landed(text: str) -> dict:
+    def landed(text: str, local: str) -> dict:
         attempt = service.submit_attempt(
             session=session, user=user, concept=concept, round_name="sentence", mode="sentence",
             exercise_id="FR_B1_COND_001:sentence", answer_payload={"text": text},
         )
-        assert attempt.correction_payload["local_status"] == grading.LOCAL_CHECKING
+        assert attempt.correction_payload["local_status"] == local
         return service.run_ai_review_for_attempt(attempt.id).correction_payload
 
-    right = landed("Si je finis tot, je t'appellerai.")
+    # #562: a spelling accent is right on the spot, named; the relecture keeps it.
+    right = landed("Si je finis tot, je t'appellerai.", grading.LOCAL_RIGHT)
     assert right["verdict"] == "correct" and right["errata"] == [], right
     assert right["notes_native"] == ["Right — watch the accent: «tôt»."]
 
     monkeypatch.setattr(answer_acceptance, "ACCENT_STRICT_UNITS", frozenset({concept.external_id}))
-    refused = landed("Si je finis tot, je t'appellerai.")
+    refused = landed("Si je finis tot, je t'appellerai.", grading.LOCAL_CHECKING)
     assert refused["verdict"] == "partial", refused
     assert [(e["learner_text"], e["corrected_target"], e["task_error_type"]) for e in refused["errata"]] == [
         ("tot", "tôt", "orthography")
