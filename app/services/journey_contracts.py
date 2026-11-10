@@ -1541,7 +1541,11 @@ class Correction:
     #: ``meaning`` (#167): a wrong meaning tapped for a French word; ``corrected_fr``
     #: is the word and the note says what it means. ``span_fr`` is the tapped
     #: meaning, in the learner's language: never shown as French made right.
-    kind: Literal["edit", "pick", "meaning"] = "edit"
+    #: ``example`` (#624): a free sentence has no single right answer, so
+    #: ``corrected_fr`` is a model sentence that uses the rule, not the learner's
+    #: sentence made right. It is shown on its own, labelled as an example (no
+    #: strike-through, no arrow) and never filed as an error to repair.
+    kind: Literal["edit", "pick", "meaning", "example"] = "edit"
     #: #278: the sentence the wrong span sat in (the learner's own answer, or the
     #: item's gap filled with it), so the saved error can be drilled later as that
     #: sentence with the slip marked, not as a bare word. ``None`` when unknown.

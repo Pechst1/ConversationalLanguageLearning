@@ -2355,7 +2355,13 @@ def evaluate_recall(
         if task.rule_native:
             # #278: a missed repair ends on the rule it was about, whatever else it says.
             note = f"{note} {task.rule_native}".strip() if note else task.rule_native
-        correction = build_correction(learner_text=learner_text, corrected_fr=shown, note_native=note)
+        # #624: a free sentence has no right answer to be corrected into: the model
+        # sentence is only ever shown as an example (below), never as an edit.
+        correction = (
+            None
+            if _is_free_sentence(task)
+            else build_correction(learner_text=learner_text, corrected_fr=shown, note_native=note)
+        )
         if correction is None and typed is not None and typed.note == "accent" and learner_text and shown:
             # EXERCISE-QA: refused for an accent that is grammar («Il à mangé»):
             # the folds see no difference, the learner must still see the answer.
@@ -2377,10 +2383,13 @@ def evaluate_recall(
         if correction is None and _is_free_sentence(task) and learner_text and expected:
             # WP-129: a free sentence that did not use the unit is not a slip in
             # one span: the learner sees a model sentence that does, whole.
+            # #624: not «your sentence → this»: another sentence that uses the rule,
+            # labelled so on the screen and never filed as an error to repair.
             candidate = Correction(
                 span_fr=normalize_answer_text(learner_text),
                 corrected_fr=normalize_answer_text(expected),
                 note_native=note or "",
+                kind="example",
             )
             correction = candidate if candidate.is_valid_for(normalize_answer_text(learner_text)) else None
     if correction is not None and correction.saved_span_fr is None:
@@ -3665,6 +3674,10 @@ def apply_learning_evidence(
     # not yet retrieved, not French to repair: it came back two days later as
     # «Schreib richtig, was du gesagt hast: euh je ne sais pas». A miss of a practice
     # item opens a repair only when it was an attempt at the answer.
+    if correction is not None and correction.kind == "example":
+        # #624: a model sentence is not the learner's French made right: drilled later
+        # it would ask them to rewrite their sentence into another one.
+        rebuilt = True
     if correction is not None and learner_text and not rebuilt and any(
         getattr(observation, "task_format", None) not in (None, "reply")
         for observation in evaluation.observations

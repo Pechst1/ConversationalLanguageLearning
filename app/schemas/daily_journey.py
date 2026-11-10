@@ -571,7 +571,9 @@ class JourneyCorrection(JourneyModel):
     #: #167: ``meaning`` is a wrong meaning tapped for a French word: ``corrected_fr``
     #: is the word, the note says what it means, and the tapped meaning (``span_fr``,
     #: not French) is never drawn as a correction of it.
-    kind: Literal["edit", "pick", "meaning"] = "edit"
+    #: #624: ``example`` is a model sentence shown after a free sentence missed the
+    #: rule. It is not the learner's sentence made right: the screen draws no arrow.
+    kind: Literal["edit", "pick", "meaning", "example"] = "edit"
 
     @model_validator(mode="after")
     def _one_note_per_issue(self) -> JourneyCorrection:
