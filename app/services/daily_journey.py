@@ -659,12 +659,24 @@ def _public_thread(turns: list[Any]) -> list[dict[str, Any]]:
             for row in turn.get("lines") or []
             if isinstance(row, dict) and str(row.get("text_fr") or "").strip()
         ]
+        asked = turn.get("asked")
+        prompt_line = (
+            {
+                "speaker_id": asked.get("speaker_id"),
+                "speaker_name": asked.get("speaker_name"),
+                "text_fr": str(asked.get("text_fr") or ""),
+            }
+            if isinstance(asked, dict) and str(asked.get("text_fr") or "").strip()
+            else None
+        )
         thread.append(
             {
                 "learner_fr": learner,
                 "character_fr": str(turn.get("character") or ""),
                 "correction": correction,
                 **({"character_lines": lines} if lines else {}),
+                # #664: the line this exchange answered, said by whoever said it.
+                **({"prompt_line": prompt_line} if prompt_line else {}),
             }
         )
     return thread
@@ -699,6 +711,28 @@ def addressee_fields(person: str) -> dict[str, Any]:
     if not name:
         return {}
     return {"character_id": cast_registry.resolve_id(person) or person, "character_name": name}
+
+
+def asked_line(prompt: Any) -> dict[str, Any] | None:
+    """#664: the line a respond turn puts to the learner, with the person who says it.
+
+    Read from the prompt while that line is the open one: then, and only then, the
+    prompt's ``character_id`` is its speaker (the question and the header are the same
+    person's). Once the turn is answered the prompt moves on to the next addressee
+    (#594), so the exchange keeps this instead. Named as the cast registry names them;
+    anyone outside the cast keeps the prompt's name."""
+
+    prompt = prompt if isinstance(prompt, dict) else {}
+    text = str(prompt.get("character_line_fr") or "").strip()
+    if not text:
+        return None
+    person = str(prompt.get("character_id") or "").strip()
+    named = addressee_fields(person) if person else {}
+    return {
+        "speaker_id": named.get("character_id") or person or None,
+        "speaker_name": named.get("character_name") or prompt.get("character_name") or None,
+        "text_fr": text,
+    }
 
 
 def _public_prompt_view(step: DailyJourneyStep) -> dict[str, Any]:
@@ -5578,8 +5612,11 @@ class DailyJourneyService:
             now=_utcnow(),
         )
         public_correction = self._public_correction(evaluation.correction, answer.text)
+        asked = asked_line(step.public_prompt)
         history.append(
             {
+                # #664: the line this turn answered, kept with its own speaker.
+                **({"asked": asked} if asked else {}),
                 "learner": answer.text,
                 "character": evaluation.character_reply_fr or "",
                 # WP-89: kept with the turn so the thread can be redrawn —

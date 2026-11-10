@@ -175,6 +175,7 @@ const FIL_TURN_ONE = filStep('gallery-fil-1', {
       character_fr: 'Un café, très bien. Au comptoir ou en terrasse ?',
       correction: null,
       character_lines: [],
+      prompt_line: null,
     },
   ],
 });
@@ -188,6 +189,7 @@ const FIL_MARKED = filStep('gallery-fil-2', {
       character_fr: 'Noir, très bien. Au comptoir ou en terrasse ?',
       correction: FIL_SLIP,
       character_lines: [],
+      prompt_line: null,
     },
   ],
 });
@@ -201,8 +203,9 @@ const FIL_CLOSING = filStep('gallery-fil-3', {
       character_fr: 'Un café, très bien. Au comptoir ou en terrasse ?',
       correction: null,
       character_lines: [],
+      prompt_line: null,
     },
-    { learner_fr: 'Au comptoir, merci.', character_fr: 'Et avec ça ?', correction: null, character_lines: [] },
+    { learner_fr: 'Au comptoir, merci.', character_fr: 'Et avec ça ?', correction: null, character_lines: [], prompt_line: null },
   ],
 });
 

@@ -603,6 +603,10 @@ class ThreadExchange(JourneyModel):
     #: The reply as its speakers' lines, when several people answer (an authored
     #: season page); empty for a one-voiced reply.
     character_lines: list[ThreadLine] = Field(default_factory=list)
+    #: #664: the line this exchange answered, with the speaker who said it. The
+    #: prompt's ``character_id`` names whoever the open question is put to and moves
+    #: on with it (#594); a past line never reads it. ``None`` on an older exchange.
+    prompt_line: ThreadLine | None = None
 
 
 class RespondChoice(JourneyModel):

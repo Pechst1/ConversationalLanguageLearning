@@ -144,6 +144,7 @@ import {
   drawsEachVoice,
   exchangeFromResult,
   exchangeProgress,
+  openLineSpeaker,
   parseLocalThread,
   recordExchange,
   serializeLocalThread,
@@ -1033,6 +1034,7 @@ export function RespondStepView({
       turn: step.prompt.turn_index,
       text,
       prompt_fr: step.prompt.character_line_fr || null,
+      prompt_speaker: openLineSpeaker(step.prompt),
     };
     setOpenNote(null);
     // WP-158: a spoken story reply goes through exactly this call, as `voice`.
@@ -1092,6 +1094,7 @@ export function RespondStepView({
             sent?.turn ??
             (typeof nextIndex === 'number' ? Math.max(0, nextIndex - 1) : step.prompt.turn_index),
           prompt_fr: sent?.prompt_fr ?? null,
+          prompt_speaker: sent?.prompt_speaker ?? null,
           learner_fr: sent?.text ?? text,
           character_fr: reply,
           // WP-103 T6: every turn's corrected form is printed under its line,
@@ -1132,6 +1135,7 @@ export function RespondStepView({
       turn: step.prompt.turn_index,
       text: card.label_fr,
       prompt_fr: step.prompt.character_line_fr || null,
+      prompt_speaker: openLineSpeaker(step.prompt),
     };
     setOpenNote(null);
     onSubmit({ mode: 'text', text: card.label_fr });
