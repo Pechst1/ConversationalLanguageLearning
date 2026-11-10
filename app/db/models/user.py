@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Index, Integer, String, Time
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
+from sqlalchemy.sql import false, func
 from sqlalchemy.types import JSON
 
 from app.db.base import Base
@@ -117,6 +117,9 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)
     role = Column(String(20), default="user", nullable=False)
+    #: S6: a walk or test account, not a learner. Left out of the cohort view
+    #: (app.services.cohorts) by default. Which accounts carry it is the owner's call.
+    is_synthetic = Column(Boolean, default=False, server_default=false(), nullable=False)
 
     # Account security
     auth_version = Column(Integer, default=0, nullable=False)
