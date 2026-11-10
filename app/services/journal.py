@@ -28,8 +28,10 @@ Five properties, each with a test:
   "unavailable"``. The learner's text is kept, no erratum is invented, no
   vocabulary is credited, and the screen says so in French.
 * **The story is read, never written.** Scene facts come from the journey's own
-  public snapshot fields and from :func:`app.services.living_story.story_context`,
-  which is a pure read. Nothing here touches serial state, ``private_task``, or
+  public snapshot fields, the thread of exchanges the learner saw, and from
+  :func:`app.services.living_story.story_context`,
+  which is a pure read. Nothing here touches serial state, the evaluator side of
+  ``private_task`` (its rubric and accepted answers), or
   the living-story thread.
 
 Spacing follows the same evidence: +1 day for the entry, +7 days for a one-line
@@ -239,19 +241,89 @@ class SceneFact:
         return 2 if len(self.cues) > CUE_THRESHOLD_WIDTH else 1
 
 
-# ROOT CAUSE #145/#539/#597: what counts as a closing caption or an exit stub (and not
-# an event of the scene) is decided once, in ``closing_filler``; the Journal reads it.
+# ROOT CAUSE #145/#539/#597/#622: a «fact the scene kept» used to be whatever text sat
+# near the scene: the hook (``story_outcome.callback_fr``), else the opening panel's
+# stage line. Lines that were not events were struck off one kind at a time
+# (``closing_filler``: the «À suivre…» caption, the exit stub) and every other kind
+# went through: a generated hook that restates background («L'appartement est un
+# souvenir de ta grand-mère»), another act's hook, the stage line «Il pleut. Tu as une
+# valise…» (#622). The rule is now positive: a fact is what was *said* in the scene.
+# The decisive exchange (the learner's last line and the answer to it) is one; the
+# hook is one only when the scene's own lines would recall it; narration never is.
+
+
+def scene_exchanges(journey: DailyJourney) -> list[dict[str, Any]]:
+    """The exchanges of the scene the cue names: its first act's respond steps.
+
+    Read through the journey's public projection (``step_thread``): the lines the
+    learner and the characters said on screen, oldest first. A day of two acts has
+    a second scene with its own people; it is not the one recalled.
+    """
+    from app.services.daily_journey import step_thread
+
+    exchanges: list[dict[str, Any]] = []
+    scenes = 0
+    for step in sorted(journey.steps or [], key=lambda item: item.ordinal):
+        kind = StepKind(step.kind)
+        if kind is StepKind.SCENE:
+            scenes += 1
+            if scenes > 1:
+                break
+        elif kind is StepKind.RESPOND:
+            exchanges.extend(step_thread(step))
+    return exchanges
+
+
+def _answer(exchange: dict[str, Any]) -> tuple[str, str]:
+    """Who answered the learner, and their first line that says something (not
+    «…», not a caption or an exit stub)."""
+    rows = list(exchange.get("character_lines") or []) or [
+        {"speaker_name": "", "text_fr": line}
+        for line in str(exchange.get("character_fr") or "").splitlines()
+    ]
+    for row in rows:
+        line = french_only(" ".join(str(row.get("text_fr") or "").split()))
+        if any(char.isalpha() for char in line) and not is_closing_filler(line):
+            return str(row.get("speaker_name") or "").strip(), line
+    return "", ""
+
+
+def _exchange_fact(exchange: dict[str, Any], *, given: set[str]) -> SceneFact | None:
+    """«Garde-la pour moi. — Margaux : Derrière la caisse.»"""
+    learner = french_only(" ".join(str(exchange.get("learner_fr") or "").split()))
+    speaker, reply = _answer(exchange)
+    answered = f"{speaker} : {reply}" if speaker and reply else reply
+    text = " — ".join(part for part in (learner, answered) if part)
+    cues = tuple(content_cues(text, given=given))
+    if not cues:
+        return None
+    return SceneFact(key="exchange", kind="exchange", text_fr=text, cues=cues)
+
+
+def _said_in_scene(line: str, *, exchanges: list[dict[str, Any]], opening: str) -> bool:
+    """Whether the scene's own lines would recall ``line``, by the Journal's own rule
+    (:func:`score_content_recall`): the hook is a fact only if the scene said it."""
+    said = [opening]
+    for row in exchanges:
+        said += [str(row.get("learner_fr") or ""), str(row.get("character_fr") or "")]
+        said += [str(item.get("speaker_name") or "") for item in row.get("character_lines") or []]
+    probe = {"key": "hook", "kind": "outcome", "text_fr": line, "cues": content_cues(line)}
+    return bool(score_content_recall(" ".join(said), [probe])["matched"])
 
 
 def scene_facts_for(
     journey: DailyJourney, *, story_context: dict[str, Any] | None = None
 ) -> list[SceneFact]:
-    """What this scene established, from public read paths only.
+    """What this scene established, from what was said in it.
 
-    Three sources, in the order they matter to a recap: the commitments the
-    story remembers from this episode, how the evening actually ended, and the
-    scene's own objective. ``private_task`` is never read — the rubric and the
-    accepted answers are evaluator material and a journal that scored against
+    In the order they matter to a recap: how the evening ended, as the story's hook
+    states it when the scene's own lines say the same, else the decisive exchange
+    (the learner's last line and the answer to it); then the commitments the story
+    remembers from this episode. Never the opening panel's narration (a stage line
+    is what the picture showed before anything happened) and never a hook the scene
+    did not say (a teaser, an exit stub, a background line, another act's hook).
+    ``private_task`` is never read beyond the thread the learner saw: the rubric and
+    the accepted answers are evaluator material, and a journal that scored against
     them would be grading the learner's memory of a hidden document.
     """
     scenario = dict(journey.scenario_snapshot or {})
@@ -264,12 +336,22 @@ def scene_facts_for(
             )
         )
     )
+    exchanges = scene_exchanges(journey)
+    opening = next(
+        (
+            french_only((step.public_prompt or {}).get("character_line_fr"))
+            for step in sorted(journey.steps or [], key=lambda item: item.ordinal)
+            if StepKind(step.kind) is StepKind.SCENE
+        ),
+        "",
+    )
 
     facts: list[SceneFact] = []
 
     outcome = recap.get("story_outcome") or {}
-    callback = french_only(outcome.get("callback_fr"))
-    if callback and not is_closing_filler(callback):
+    # The hook with its caption or exit stub struck off, then kept only if said here.
+    callback = french_only(scene_fact(outcome.get("callback_fr")))
+    if callback and _said_in_scene(callback, exchanges=exchanges, opening=opening):
         facts.append(
             SceneFact(
                 key="outcome",
@@ -278,6 +360,8 @@ def scene_facts_for(
                 cues=tuple(content_cues(callback, given=given)),
             )
         )
+    elif exchanges and (decisive := _exchange_fact(exchanges[-1], given=given)):
+        facts.append(decisive)
 
     episode_id = str(journey.serial_episode_id or "") or None
     for raw in (story_context or {}).get("commitments") or []:
@@ -303,20 +387,8 @@ def scene_facts_for(
             )
         )
 
-    if not facts:
-        # Last resort so a scene always has something to be recalled against: the
-        # situation the scene set up, in French. Not ``objective_native``: that is
-        # an instruction in the learner's language, not something that happened,
-        # and never *in addition* to real story facts (it is a paraphrase of them).
-        premise = ""
-        for step in sorted(journey.steps or [], key=lambda item: item.ordinal):
-            if StepKind(step.kind) is StepKind.SCENE:
-                premise = french_only((step.public_prompt or {}).get("setup_fr"))
-                break
-        cues = tuple(content_cues(premise, given=given))
-        if cues:
-            facts.append(SceneFact(key="setup", kind="setup", text_fr=premise, cues=cues))
-
+    # No last resort: a scene where nothing was said and no hook was said is passed
+    # over (#444), never asked about against its stage line (#622).
     return facts
 
 
@@ -695,7 +767,7 @@ class JournalService:
         The one place that decides which scene the Journal asks about. It reads
         the journey log, the same rows the Feuilleton lists episodes from, and
         nothing the Journal stored earlier. A scene that established nothing a
-        recap could remember (no outcome, no commitment, no setup) is passed
+        recap could remember (no exchange, no hook it said, no commitment) is passed
         over: asking about it can only produce «nothing noted to recall» (#444).
         """
         context: dict[str, Any] | None = None

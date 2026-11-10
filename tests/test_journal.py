@@ -164,6 +164,14 @@ def _concept(db_session) -> GrammarConcept:
     return concept
 
 
+#: The scene's closing exchange, as ``private_task["turns"]`` stores it.
+ROMY_EXCHANGE = {
+    "learner": "Oui, je rapporte le livre mardi.",
+    "character": "Mardi, alors. Merci !",
+    "lines": [{"speaker_id": "romy", "speaker_name": "Romy", "text_fr": "Mardi, alors. Merci !"}],
+}
+
+
 def _journey(
     db_session,
     user: User,
@@ -172,6 +180,7 @@ def _journey(
     callback: str | None = "Vous avez promis de rapporter le livre mardi.",
     concept: GrammarConcept | None = None,
     status: str = "completed",
+    exchanges: tuple[dict, ...] = (ROMY_EXCHANGE,),
 ) -> DailyJourney:
     journey = DailyJourney(
         user_id=user.id,
@@ -220,7 +229,8 @@ def _journey(
             target_kind="grammar" if concept else None,
             target_id=str(concept.id) if concept else None,
             public_prompt={},
-            private_task={},
+            # What was said in the scene (#622): the learner's line and Romy's answer.
+            private_task={"turns": [dict(turn) for turn in exchanges]},
         )
     )
     db_session.commit()
@@ -378,7 +388,7 @@ def test_a_commitment_from_another_episode_is_not_this_scenes_fact(db_session):
             ]
         },
     )
-    assert [fact.key for fact in facts] == ["commitment:c1"]
+    assert [fact.key for fact in facts if fact.kind == "commitment"] == ["commitment:c1"]
 
 
 # ---------------------------------------------------------------------------
@@ -931,6 +941,13 @@ def test_the_20_oct_entry_gets_its_two_mistakes_marked_with_no_model_and_no_gram
     assert len(entry.errata_ids) == 2
 
 
+MARIN_EXCHANGE = {
+    "learner": "C’est quoi, ce sac chaud ?",
+    "character": "Une bouillotte. Pour Lila.",
+    "lines": [{"speaker_id": "marin", "speaker_name": "Marin", "text_fr": "Une bouillotte. Pour Lila."}],
+}
+
+
 def test_the_journal_memory_check_counts_the_kept_word_not_the_whole_kept_sentence(db_session):
     """«None of what the scene kept appears (0/1)» although «bouillotte» was written."""
     user = _user(db_session)
@@ -939,6 +956,7 @@ def test_the_journal_memory_check_counts_the_kept_word_not_the_whole_kept_senten
         user,
         local_date=TODAY - timedelta(days=1),
         callback="Marin se souvient que le sac chaud s’appelle une bouillotte.",
+        exchanges=(MARIN_EXCHANGE,),
     )
     # The scene's character is Marin: his name is on the prompt, so it is not evidence.
     journey.scenario_snapshot = {**journey.scenario_snapshot, "character_name": "Marin"}
@@ -958,6 +976,7 @@ def test_a_common_word_alone_still_does_not_prove_a_memory(db_session):
         user,
         local_date=TODAY - timedelta(days=1),
         callback="Marin se souvient que le sac chaud s’appelle une bouillotte.",
+        exchanges=(MARIN_EXCHANGE,),
     )
     journey.scenario_snapshot = {**journey.scenario_snapshot, "character_name": "Marin"}
     db_session.commit()
@@ -1104,8 +1123,9 @@ def test_an_authored_closing_line_is_not_a_fact_to_score(db_session, closing):
     journey = _journey(db_session, user, local_date=TODAY - timedelta(days=1), callback=closing)
     facts = scene_facts_for(journey, story_context={})
     assert all(fact.kind != "outcome" for fact in facts), "the closing panel was scored as an event"
-    # A scene always has something real to be recalled against: what it set up.
-    assert [fact.kind for fact in facts] == ["setup"]
+    # A scene always has something real to be recalled against: what was said in it
+    # (#622: never its stage line).
+    assert [fact.kind for fact in facts] == ["exchange"]
     assert "livre" in facts[0].cues
 
 
@@ -1121,7 +1141,7 @@ def test_a_learner_who_remembers_the_scene_scores_full_marks_not_zero(db_session
         db_session,
         user,
         _FakeCorrector(fail=True),
-        "Hier, j’ai retrouvé quelqu’un au Mistral. Elle attendait avec un livre sous le bras.",
+        "Hier, j’ai retrouvé quelqu’un au Mistral. Je rapporte son livre mardi.",
     )
     recall = entry.content_recall
     assert recall["status"] == "scored"
@@ -1146,9 +1166,69 @@ def test_a_real_outcome_that_mentions_leaving_is_still_a_fact(db_session):
         user,
         local_date=TODAY - timedelta(days=1),
         callback="Romy a dû partir, mais elle a laissé la clé du premier étage.",
+        exchanges=(
+            {
+                "learner": "Tu pars déjà ?",
+                "character": "Oui. Voilà la clé du premier étage.",
+                "lines": [{"speaker_name": "Romy", "text_fr": "Oui. Voilà la clé du premier étage."}],
+            },
+        ),
     )
     facts = scene_facts_for(journey, story_context={})
     assert [fact.kind for fact in facts] == ["outcome"]
+
+
+# ---------------------------------------------------------------------------
+# #622 — the retell target is an event of that scene, never a filler or a stage line
+# ---------------------------------------------------------------------------
+
+_HOOKS_NOT_SAID = (
+    # live 9 Nov: a background line the hook restated, also printed in another scene
+    "L'appartement est un souvenir de ta grand-mère.",
+    # live 10 Nov: the hook of a different scene (that day's Gus scene)
+    "Napoléon aime le poisson, et tu veux entendre la vérité avant de lire la lettre.",
+)
+
+
+@pytest.mark.parametrize("hook", _HOOKS_NOT_SAID, ids=["background", "other_scene"])
+def test_hook_not_said(db_session, hook):
+    user = _user(db_session)
+    journey = _journey(db_session, user, local_date=TODAY - timedelta(days=1), callback=hook)
+    kept = [fact.text_fr for fact in scene_facts_for(journey, story_context={})]
+    assert hook not in kept, f"the retell target is a hook nobody said in this scene: {kept}"
+    assert not any("Romy vous attend" in line for line in kept), f"the target is the stage line: {kept}"
+    # What the scene kept is what was said in it: the learner's last line and Romy's answer.
+    assert kept == ["Oui, je rapporte le livre mardi. — Romy : Mardi, alors. Merci !"]
+
+
+def test_second_act_not_recalled(db_session):
+    """The cue names the first act's scene; a later act's people are another scene."""
+    user = _user(db_session)
+    journey = _journey(db_session, user, local_date=TODAY - timedelta(days=1), callback=None)
+    db_session.add(
+        DailyJourneyStep(
+            journey_id=journey.id,
+            ordinal=2,
+            kind="scene",
+            status="completed",
+            public_prompt={"setup_fr": "Plus tard, Lila revient avec une pizza.", "character_line_fr": "Pizza ?"},
+            private_task={},
+        )
+    )
+    db_session.add(
+        DailyJourneyStep(
+            journey_id=journey.id,
+            ordinal=3,
+            kind="respond",
+            status="completed",
+            public_prompt={},
+            private_task={"turns": [{"learner": "Oui, une pizza !", "character": "Elle est froide."}]},
+        )
+    )
+    db_session.commit()
+    db_session.refresh(journey)
+    kept = [fact.text_fr for fact in scene_facts_for(journey, story_context={})]
+    assert kept == ["Oui, je rapporte le livre mardi. — Romy : Mardi, alors. Merci !"], kept
 
 
 # ---------------------------------------------------------------------------
@@ -1198,7 +1278,12 @@ def test_no_recall_items_not_offered(db_session):
     """#444: «This scene has nothing noted to recall» — such a scene is not offered at all."""
     user = _user(db_session)
     empty = _episode_journey(
-        db_session, user, local_date=TODAY - timedelta(days=1), episode="ep-empty", callback=None
+        db_session,
+        user,
+        local_date=TODAY - timedelta(days=1),
+        episode="ep-empty",
+        callback=None,
+        exchanges=(),
     )
     for step in empty.steps:
         step.public_prompt = {}
