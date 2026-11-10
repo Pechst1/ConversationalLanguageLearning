@@ -116,7 +116,7 @@ def _circumflex_variant(left: str, right: str) -> bool:
 def _grave_variant(left: str, right: str) -> bool:
     if len(left) != len(right):
         return False
-    differing = [i for i, (a, b) in enumerate(zip(left, right)) if a != b]
+    differing = [i for i, (a, b) in enumerate(zip(left, right, strict=True)) if a != b]
     if not differing:
         return False
     for i in differing:
@@ -190,7 +190,7 @@ def is_variant_edit(span: object, replacement: object) -> bool:
     if len(words_left) != len(words_right):
         return False
     changed = False
-    for a, b in zip(words_left, words_right):
+    for a, b in zip(words_left, words_right, strict=True):
         if a == b:
             continue
         core_a, core_b = a.strip(".,;:!?«»\"()"), b.strip(".,;:!?«»\"()")

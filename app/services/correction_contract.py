@@ -60,8 +60,8 @@ from app.services.answer_acceptance import (
     person_swaps_hold,
 )
 from app.services.chrome_language import mother_tongue
-from app.services.spelling_variants import is_variant_edit
 from app.services.journey_contracts import normalize_answer_text
+from app.services.spelling_variants import is_variant_edit
 
 # ---------------------------------------------------------------------------
 # Tokens

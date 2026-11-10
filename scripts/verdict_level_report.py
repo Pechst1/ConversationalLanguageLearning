@@ -43,7 +43,11 @@ from sqlalchemy.orm import Session  # noqa: E402
 from app.db.models.atelier import AtelierAttempt  # noqa: E402
 from app.db.models.gold import GoldLedgerEntry  # noqa: E402
 from app.db.models.graphic_novel import GraphicNovelAttempt  # noqa: E402
-from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn  # noqa: E402
+from app.db.models.mission import (  # noqa: E402
+    RealWorldMission,
+    RealWorldMissionAttempt,
+    RealWorldMissionTurn,
+)
 from app.db.models.user import User  # noqa: E402
 from app.services import verdicts  # noqa: E402
 from app.services.missions import unanswered_user_turns, unchecked_messages  # noqa: E402

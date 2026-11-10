@@ -116,9 +116,9 @@ from app.db.models.session import (
     WordInteraction,
 )
 from app.db.models.spend_reservation import SpendReservation
-from app.db.models.verdict_cutover import VerdictCutover
 from app.db.models.story_pool import StoryPoolPage
 from app.db.models.streak_day import StreakDay
+from app.db.models.verdict_cutover import VerdictCutover
 from app.db.models.vocabulary import UserDailyWordSlate, VocabularyDrillBatch
 from app.main import create_app
 from app.utils.cache import cache_backend

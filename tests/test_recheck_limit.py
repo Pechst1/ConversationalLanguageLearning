@@ -21,14 +21,15 @@ from app.core.rate_limit import (
     MemoryRateLimitBackend,
     limiter,
 )
-from tests.test_journal_api import (  # noqa: F401 - fixtures used by name
-    _email,
-    _seed_scene,
-    fake_checker,
-    journal_client,
-    journal_table,
-    login,
-)
+from tests import test_journal_api as _journal
+
+# The journal API's fixtures, by name (assigned, not imported, so a test's parameter reads as one).
+fake_checker = _journal.fake_checker
+journal_client = _journal.journal_client
+journal_table = _journal.journal_table
+login = _journal.login
+_email = _journal._email
+_seed_scene = _journal._seed_scene
 
 
 @pytest.fixture(autouse=True)
