@@ -177,8 +177,9 @@ any map: they are written from the canon and built with the pieces Le Mistral's 
 from (`room.ts`: the wainscot wall, the façade's lining, the globes, the tables), so a room and the
 café are the same print. The story sets the order (step 0): the next room is the next place
 `queue --season` lists that is not built. Built so far: the stairwell and Odile's door, the
-learner's studio, Maître Vasseur's office, Odile's flat and the roof over Le Mistral
-(`toit_mistral`, gap 3). A room under the sky is a room too: its floors are `zone: "out"` and
+learner's studio, Maître Vasseur's office, Odile's flat, the roof over Le Mistral
+(`toit_mistral`, gap 3) and Le Mistral's back room (`arriere_salle`, T5 B: through the café's
+back door, at -37.6 x, -18.1 z in the café's own plan). A room under the sky is a room too: its floors are `zone: "out"` and
 you walk them (only a `sealed` floor, or one with `walk: false`, is not walked), and nothing on
 it is dry. A room on a roof of the quai says `quarter: true`: the engine builds the quai round it
 as it is (the canal, the footbridge, the barge, the houses and their lit windows) and walks only
@@ -234,7 +235,12 @@ the steps above with these differences.
      handle on local +x; on a roof, `skylight` (a tabatière: its curb, the glazed lid laid back,
      the ladder's top and the stairwell's light, `size` [across, along]), `chimney` (a stack
      with its pots, `size` [long, high]) and `edge` (the zinc's rolled edge where the mansard
-     falls away, `size` [length, 0]: tap it for what you see below)) with
+     falls away, `size` [length, 0]: tap it for what you see below); in a back room, `easel` (a
+     painter's easel with its canvas under a white sheet, `size` the canvas), `crates` (wooden
+     crates stacked against a wall, `size` [across, high]), `board` (the electrical board on the
+     wall, its breakers behind a smoked window, the meter and the trunking up to the ceiling) and
+     `plan` (a plan drawn by hand and pinned up: `text` its title, the back room's square, then
+     the labels of the room)) with
      `zone`, `tone`, `text`, `size`. A thing with `look` (three languages) can be tapped and says
      it in a line; its `did` is what the end card remembers. `courts` are seen through a window:
      `storeys` one fewer than your floor puts their zinc at your eye, and `roofs: true` gives

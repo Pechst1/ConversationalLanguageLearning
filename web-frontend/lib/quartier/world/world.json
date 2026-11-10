@@ -110,6 +110,20 @@
       "in": "quai_de_valmy"
     },
     {
+      "id": "arriere_salle",
+      "name": { "fr": "L'arrière-salle du Mistral", "en": "Le Mistral's back room", "de": "Das Hinterzimmer des Mistral" },
+      "lat": 48.87293,
+      "lon": 2.36360,
+      "status": "locked",
+      "kind": "season",
+      "stages": ["mistral_back_room"],
+      "why": { "fr": "Refaite après l'incendie : le plâtre neuf, le tableau électrique, un chevalet sous un drap.", "en": "Rebuilt after the fire: the new plaster, the electrical board, an easel under a sheet.", "de": "Nach dem Brand neu gemacht: der neue Putz, der Stromkasten, eine Staffelei unter einem Tuch." },
+      "source": { "kind": "season", "id": "s1" },
+      "site": null,
+      "room": "arriere_salle",
+      "in": "quai_de_valmy"
+    },
+    {
       "id": "mairie_10e",
       "name": { "fr": "La mairie du 10e", "en": "The town hall of the 10th", "de": "Das Rathaus des 10." },
       "lat": 48.8722,
