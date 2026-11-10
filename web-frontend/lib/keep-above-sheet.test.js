@@ -48,16 +48,21 @@ test('the scroll runs again when the repair under a verdict settles', () => {
 // grows afterwards (a late font, the notes under the right sentence) stayed where it
 // was, under the sticky sheet. The card is kept above the sheet while it settles.
 function fakePage({ cardTop = 375, cardHeight = 235, sheetTop = 550, headerBottom = 70, repairTop = null, repairHeight = 120, repairMounted = true } = {}) {
-  const page = { scrollY: 0, cardHeight, observers: [], sheetTop, headerBottom, repairHeight, repairMounted, attributes: {}, listeners: [], scrolls: [], timers: [], now: 0, nextTimer: 1 };
+  const page = { scrollY: 0, cardHeight, push: 0, observers: [], sheetTop, headerBottom, repairHeight, repairMounted, attributes: {}, listeners: [], scrolls: [], timers: [], now: 0, nextTimer: 1 };
   const rect = (top, height) => ({ top, bottom: top + height, height });
-  const sheet = { classList: { contains: (name) => name === 'ep-foot' }, getBoundingClientRect: () => rect(sheetTop, 140) };
+  // The sticky sheet: a sheet that grows (a line more under the verdict) starts higher up.
+  const sheet = { classList: { contains: (name) => name === 'ep-foot' }, getBoundingClientRect: () => rect(page.sheetTop, 812 - page.sheetTop) };
   const card = { classList: { contains: () => false }, getBoundingClientRect: () => rect(cardTop - page.scrollY, page.cardHeight) };
   const header = { getBoundingClientRect: () => rect(0, headerBottom) };
   // The last repair sits under the card; it moves with the page, and with the card's growth.
-  const repair = { classList: { contains: () => false }, getBoundingClientRect: () => rect(repairTop - page.scrollY + (page.cardHeight - cardHeight), page.repairHeight) };
+  // `push`: something mounted between the card and the repair (a note, a second card)
+  // moves the repair down without the card or the sheet changing size.
+  const repair = { classList: { contains: () => false }, getBoundingClientRect: () => rect(repairTop - page.scrollY + (page.cardHeight - cardHeight) + page.push, page.repairHeight) };
   page.feedback = {
     parentElement: null,
     children: [card, sheet],
+    // The whole feedback: it grows with anything inside it.
+    getBoundingClientRect: () => rect(cardTop - page.scrollY, page.cardHeight + page.push + (repairTop == null || !page.repairMounted ? 0 : page.repairHeight + 14) + 812 - page.sheetTop),
     querySelector: (selector) => (selector === '.ep-foot' ? sheet : null),
     querySelectorAll: () => (repairTop == null || !page.repairMounted ? [] : [repair]),
     setAttribute: (name, value) => { page.attributes[name] = value; },
@@ -77,8 +82,8 @@ function fakePage({ cardTop = 375, cardHeight = 235, sheetTop = 550, headerBotto
     querySelector: (selector) => (selector === '.ep-top' ? header : selector === '.ep-foot' ? sheet : null),
   };
   global.ResizeObserver = class {
-    constructor(callback) { this.callback = callback; page.observers.push(this); }
-    observe() {}
+    constructor(callback) { this.callback = callback; this.watched = []; page.observers.push(this); }
+    observe(el) { this.watched.push(el); }
     disconnect() { this.callback = null; }
   };
   page.cardBox = () => card.getBoundingClientRect();
@@ -97,7 +102,10 @@ function fakePage({ cardTop = 375, cardHeight = 235, sheetTop = 550, headerBotto
   // Dispatches an event to what the page registered on `window` (scroll, wheel, ...).
   page.fire = (type) => page.listeners.filter(([t]) => t === type).forEach(([, fn]) => fn());
   page.learnerScrolls = (by) => { page.scrollY += by; page.fire('scroll'); };
-  page.resize = () => page.observers.forEach((o) => o.callback && o.callback([]));
+  // A size change reaches only the observers that watch the element that changed (all of them without one).
+  page.resize = (el) => page.observers.forEach((o) => o.callback && (!el || o.watched.includes(el)) && o.callback([]));
+  page.sheet = sheet;
+  page.repair = repair;
   return page;
 }
 
@@ -238,4 +246,46 @@ test('#319 · only one module scrolls the page for a miss', () => {
   assert.doesNotMatch(page, /clearTheSheet|\bscrollBy\(/, 'the page does not scroll on its own for a miss');
   assert.match(keep, /scrollBy\(/);
   assert.equal((page.match(/keepCardAboveSheet\(/g) || []).length, 1, 'one call site for the miss scroll');
+});
+
+// #665 (Browser walk 29, season-en A2.1 day 8): «Compare» ended 2 px under the verdict
+// sheet. The page followed only the card's and the sheet's sizes; whatever moved the last
+// repair down between its looks (a note mounting under the card, the repair itself growing
+// a line) was seen only at the next timer, and the walk read the screen in between.
+test('#665 · a repair pushed down after the first scroll is followed at once, not at the next timer', () => {
+  const { keepCardAboveSheet } = require('./keep-above-sheet.ts');
+  withFakePage({ cardTop: 300, cardHeight: 181, sheetTop: 551, headerBottom: 66, repairTop: 495, repairHeight: 120 }, (page) => {
+    keepCardAboveSheet(page.feedback, { smooth: false });
+    page.advance(700); // past the looks at 150 and 600 ms
+    assert.ok(page.repairBox().bottom <= 551 - 12, `the first scroll clears «Compare»: ends ${page.repairBox().bottom}`);
+    page.push = 40; // a note mounts between the card and the repair: the card and the sheet keep their size
+    page.resize(page.feedback);
+    const repair = page.repairBox();
+    assert.ok(repair.bottom <= page.sheetTop - 12, `«Compare» runs under the sheet until the next timer: the repair ends ${repair.bottom}, sheet from ${page.sheetTop}`);
+    assert.ok(page.cardBox().top >= 66 + 12, 'and the card is not taken up under the header');
+  });
+});
+
+test('#665 · a repair that grows a line after the first scroll still ends above the sheet', () => {
+  const { keepCardAboveSheet } = require('./keep-above-sheet.ts');
+  withFakePage({ cardTop: 300, cardHeight: 181, sheetTop: 551, headerBottom: 66, repairTop: 495, repairHeight: 120 }, (page) => {
+    keepCardAboveSheet(page.feedback, { smooth: false });
+    page.advance(700);
+    page.repairHeight = 148; // «Compare» wraps under a longer field
+    page.resize(page.repair);
+    assert.ok(page.repairBox().bottom <= page.sheetTop - 12, `the grown repair ends ${page.repairBox().bottom}, sheet from ${page.sheetTop}`);
+  });
+});
+
+test('#665 · a verdict sheet that grows after the first measure keeps «Compare» above it', () => {
+  const { keepCardAboveSheet } = require('./keep-above-sheet.ts');
+  withFakePage({ cardTop: 300, cardHeight: 181, sheetTop: 565, headerBottom: 66, repairTop: 495, repairHeight: 120 }, (page) => {
+    keepCardAboveSheet(page.feedback, { smooth: false });
+    page.advance(700);
+    page.sheetTop = 551; // the sheet settles a line taller (the coach's portrait, a wrapped rule)
+    page.resize(page.sheet);
+    page.advance(3000);
+    assert.equal(page.attributes['data-scroll'], 'settled');
+    assert.ok(page.repairBox().bottom <= 551 - 12, `«Compare» is measured against the settled sheet: the repair ends ${page.repairBox().bottom}`);
+  });
 });

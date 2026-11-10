@@ -13,6 +13,12 @@
  * with `clearTheSheet` (another timer, another target, instant against smooth), and
  * the final position depended on which of them ran last. Now one function works out
  * one delta that satisfies both rules, and re-applies it until the layout is still.
+ *
+ * #665 — «until the layout is still» means all of it. The owner used to follow only the
+ * card's and the sheet's sizes; a note mounting between the card and the last repair, or
+ * the repair growing a line, moved «Compare» under the sheet and nothing looked again
+ * before the next timer. It now follows the size of everything it places: the whole
+ * feedback, the card, the sheet and the last repair.
  */
 
 import { scrollToClearSheet } from './sheet-clearance';
@@ -78,10 +84,10 @@ const TAKEOVER_EVENTS = ['wheel', 'touchstart', 'keydown'] as const;
  * only; a no-op when either is missing.
  *
  * One owner (#319): the first move is smooth, every later one is instant and is
- * worked out from the live layout (the card, the sheet and the last repair are
- * looked up each time, so one that mounts late counts), so whichever runs last
- * lands on the same position. For `SETTLE_MS` after the verdict the page owns the
- * scroll: a change in the card's or the sheet's size is followed, the layout is
+ * worked out from the live layout (the last repair is looked up each time, so one
+ * that mounts late counts), so whichever runs last lands on the same position. For
+ * `SETTLE_MS` after the verdict the page owns the scroll: a change in the size of the
+ * feedback, the card, the sheet or the last repair is followed at once (#665), the layout is
  * looked at again at `RECHECK_MS`, and the feedback says what it is doing in
  * `data-scroll`, «settling» until nothing is left to move and the scroll has been
  * quiet, then «settled». The walk measures only then. The window ends at `SETTLE_MS`,
@@ -175,12 +181,23 @@ export function keepCardAboveSheet(
   whenQuiet();
 
   if (typeof ResizeObserver !== 'undefined') {
-    const sizes = () => `${Math.round(card.getBoundingClientRect().height)}|${Math.round(sheet.getBoundingClientRect().height)}`;
+    // #665: every box whose size can move what is placed: the card, the sheet, the last
+    // repair («Compare» is in it) and the whole feedback, which grows with anything that
+    // mounts between them. A repair that mounts late is watched from its first look.
+    const height = (el: HTMLElement | null) => (el ? Math.round(el.getBoundingClientRect().height) : -1);
+    const sizes = () => [feedback, card, sheet, lastRepair()].map(height).join('|');
     let seen = sizes();
+    const watched = new Set<HTMLElement>();
+    const watch = (el: HTMLElement | null) => {
+      if (!el || watched.has(el) || !observer) return;
+      watched.add(el);
+      observer.observe(el);
+    };
     // A change in size is followed at once, not smoothly: the card is already on its way.
     // (A ResizeObserver also reports once when it starts; that is not a change.)
     observer = new ResizeObserver(() => {
       if (!live) return;
+      watch(lastRepair());
       const now = sizes();
       if (now === seen) return;
       seen = now;
@@ -188,8 +205,7 @@ export function keepCardAboveSheet(
       say('settling');
       whenQuiet();
     });
-    observer.observe(card);
-    observer.observe(sheet);
+    [feedback, card, sheet, lastRepair()].forEach(watch);
   }
   return () => release();
 }

@@ -474,6 +474,9 @@ export class LearnerWalk {
             // holds the words the instruction names. A cameo and the scroll to the repair arrive
             // a moment after the verdict, so the screen is read once more.
             await sleep(700);
+            // #665: and, like the card (#319), only once the page says its miss scroll is done:
+            // a reading taken while it is still «settling» judged «Compare» on its way.
+            if (s.epFeedback.length) await this.settledBox(measureForgeMiss);
             const settled = await snapshot(page);
             for (const check of missLayoutChecks(settled.layout)) {
               this.findings.check(check.name, check.ok, check.detail, this.where({ kind }));

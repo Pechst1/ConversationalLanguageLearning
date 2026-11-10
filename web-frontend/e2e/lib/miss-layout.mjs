@@ -39,7 +39,7 @@ export function missLayoutChecks(layout) {
     checks.push({
       name: 'miss-action-above-the-sheet',
       ok: behind.length === 0,
-      detail: `«Compare» ${JSON.stringify(behind[0])} is behind or below the verdict sheet that starts at ${sheet.top} (screen ${layout.height})`,
+      detail: `«Compare» ${JSON.stringify(behind[0])} is behind or below the verdict sheet that starts at ${sheet.top} (screen ${layout.height}${layout.scroll ? `, page scroll ${layout.scroll}` : ''})`,
     });
   }
   const named = namedWrongWords((layout.hints || []).join(' '));
