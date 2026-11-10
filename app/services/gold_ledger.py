@@ -39,7 +39,7 @@ from app.config import settings
 from app.core import gold as core
 from app.db.models.gold import GoldBalance, GoldLedgerEntry
 from app.db.savepoint import best_effort, run_best_effort
-from app.services import verdicts
+from app.services import verdict_cutover, verdicts
 
 _log = logging.getLogger(__name__)
 
@@ -1305,7 +1305,11 @@ def record_letter(db: Session, *, user: Any, mission: Any, attempts: Sequence[An
         if outcome is None:
             return  # needs_revision, unassessed (R6), needs_review
         stored = getattr(first, "correction_payload", None)
-        if stored and not verdicts.from_courrier(stored, verdict=verdict).counts:
+        if (
+            stored
+            and not verdict_cutover.keeps_what_it_counted(db, first)  # package V: paid as main did
+            and not verdicts.from_courrier(stored, verdict=verdict).counts
+        ):
             return  # R6 / #333: a stored «partial» that only the rules ever looked at
         day = _open_day(db, user, when=now, now=now)
         _mint_and_write(

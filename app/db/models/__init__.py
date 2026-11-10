@@ -62,6 +62,7 @@ from app.db.models.session import (
     WordInteraction,
 )
 from app.db.models.spend_reservation import SpendReservation
+from app.db.models.verdict_cutover import VerdictCutover
 from app.db.models.story import Chapter, Scene, Story, StoryProgress
 from app.db.models.story_pool import StoryPoolPage
 from app.db.models.streak_day import StreakDay
@@ -121,6 +122,7 @@ __all__ = [
     "SerialEpisode",
     "SerialThread",
     "SpendReservation",
+    "VerdictCutover",
     "GraphicNovelAttempt",
     "GraphicNovelPanel",
     "GraphicNovelScene",

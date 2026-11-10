@@ -23,7 +23,7 @@ from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.db.savepoint import best_effort
-from app.services import cast_registry, correction_contract, verdicts
+from app.services import cast_registry, correction_contract, verdict_cutover, verdicts
 from app.services import story_correspondence as courrier
 from app.services.address import address_instruction, known_register
 from app.services.answer_acceptance import is_preference_swap
@@ -6384,8 +6384,9 @@ class MissionScheduler:
             attempts=attempts,
             turns=turns,
         )
-        reply_pending = bool(unanswered_user_turns(mission.turns))
-        unchecked = bool(unchecked_messages(attempts, mission.turns))
+        legacy = verdict_cutover.cutover(self.db)  # package V: old rows keep what they counted for
+        reply_pending = bool(unanswered_user_turns(mission.turns, cut=legacy))
+        unchecked = bool(unchecked_messages(attempts, mission.turns, cut=legacy))
         debrief = MissionDebriefService().build(
             mission=mission,
             attempts=attempts,
@@ -6650,13 +6651,17 @@ def _stored_check(correction: Any, text: Any) -> dict[str, Any]:
     return {"check": verdicts.from_courrier(correction, text=str(text or "")).to_dict()}
 
 
-def unchecked_messages(attempts: Any, turns: Any) -> list[Any]:
+def unchecked_messages(attempts: Any, turns: Any, *, cut: verdict_cutover.Cutover | None = None) -> list[Any]:
     """Every message of this letter a failed check left unread (#333).
 
     Read once here, like :func:`unanswered_user_turns`: the verdict, the mood, the token
     and l'or all read this list, so they cannot disagree. One unread message is enough:
     a letter is judged as a whole, so a part nobody read can't be called kept. A row with
     no correction stored was never sent for one, and it is not a failed check.
+
+    ``cut`` (package V): a row stored before the cut-over keeps what it counted for, so it
+    is never «unchecked» here; the token and l'or of a letter begun before the deploy are
+    paid as main's code paid them.
     """
 
     rows = [*(attempts or []), *[turn for turn in turns or [] if getattr(turn, "role", None) == "user"]]
@@ -6664,11 +6669,12 @@ def unchecked_messages(attempts: Any, turns: Any) -> list[Any]:
         row
         for row in rows
         if getattr(row, "correction_payload", None)
+        and not (cut is not None and cut.keeps(row))
         and not verdicts.from_courrier(row.correction_payload, verdict=getattr(row, "verdict", None)).counts
     ]
 
 
-def unanswered_user_turns(turns: Any) -> list[Any]:
+def unanswered_user_turns(turns: Any, *, cut: verdict_cutover.Cutover | None = None) -> list[Any]:
     """Every learner message nobody answered, in thread order (#590 / #145).
 
     A reply nobody wrote is not stored (#397), so «answered» was a fact the thread only
@@ -6677,6 +6683,9 @@ def unanswered_user_turns(turns: Any) -> list[Any]:
     endpoint, the finish guard, the token and the story writeback all read this list, so
     they cannot disagree. A gap in the middle counts as much as one at the end: the
     learner who wrote again because the reply failed did not choose to write past it.
+
+    ``cut`` (package V): where it is given (the token and l'or), a turn stored before the
+    cut-over is not counted as unanswered; main paid a letter whatever its gaps.
     """
 
     ordered = sorted(turns or [], key=lambda turn: int(getattr(turn, "turn_index", 0) or 0))
@@ -6685,6 +6694,7 @@ def unanswered_user_turns(turns: Any) -> list[Any]:
         for position, turn in enumerate(ordered)
         if getattr(turn, "role", None) == "user"
         and (position + 1 >= len(ordered) or getattr(ordered[position + 1], "role", None) != "assistant")
+        and not (cut is not None and cut.keeps(turn))
     ]
 
 
@@ -7062,11 +7072,13 @@ class MissionConversationService:
         if not thread:
             return {}
         progress = self._latest_objective_progress(mission)
+        legacy = verdict_cutover.cutover(self.db)
         outcome = courrier.outcome_from_objectives(
             objectives=mission.objectives or [],
             progress_by_id={str(item.get("id")): item for item in progress if item.get("id")},
             had_submission=bool(attempts or turns),
-            reply_pending=bool(unanswered_user_turns(turns)) or bool(unchecked_messages(attempts, turns)),
+            reply_pending=bool(unanswered_user_turns(turns, cut=legacy))
+            or bool(unchecked_messages(attempts, turns, cut=legacy)),
         )
         success = outcome == "kept"
         score = self._latest_score(attempts=attempts, turns=turns)
