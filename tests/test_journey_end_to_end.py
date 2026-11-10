@@ -1571,7 +1571,9 @@ def test_an_unknown_timezone_falls_back_instead_of_failing(
             params={"timezone": candidate},
         )
         assert response.status_code == 200, candidate
-        assert response.json()["timezone"] == "UTC", candidate
+        # Never echoed, never raised: the learner's stored zone (Europe/Paris by
+        # default), not UTC, whose date is a day behind Berlin's from 23:00 UTC (#680).
+        assert response.json()["timezone"] == "Europe/Paris", candidate
 
 
 def test_a_broken_content_module_fails_honestly_rather_than_faking_a_day(

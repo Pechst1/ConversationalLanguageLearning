@@ -275,26 +275,36 @@ def test_the_owner_sees_the_livret_the_day_and_where_it_came_from(client: TestCl
     assert ledger["days"][0]["settled"] == 4
 
 
-def test_a_full_day_reaches_its_mark(client: TestClient, db_session):
+def _earlier_today(user, now: datetime, ago: timedelta) -> datetime:
+    """``ago`` before ``now``, but never before the learner's midnight: a card written
+    an hour before 00:30 in Berlin is yesterday's, and the day under test is today."""
+
+    from app.services.vocabulary_pace import _local_window
+
+    start, _end = _local_window(user, now)
+    return max(now - ago, start)
+
+
+def test_a_full_day_reaches_its_mark(client: TestClient, db_session, learner_clock):
     _headers, user = _login(client, db_session)
     _owner(db_session, user)
     user.daily_goal_minutes = 10
     db_session.commit()
-    now = datetime.now(UTC).replace(microsecond=0)
+    now = learner_clock
     view = build_gold_view(db_session, user=user, now=now)
     mark = view["today"]["mark"]
-    _write_cards(db_session, user, mark // 4 + 1, now=now - timedelta(minutes=30))
+    _write_cards(db_session, user, mark // 4 + 1, now=_earlier_today(user, now, timedelta(minutes=30)))
     view = build_gold_view(db_session, user=user, now=now)
     assert view["today"]["pleine"] is True
     assert view["week"]["journees_pleines"] == 1
     assert view["entries"][0]["created_at"] >= view["entries"][-1]["created_at"], "newest first"
 
 
-def test_past_ninety_the_day_says_the_plafond_pays_half(client: TestClient, db_session):
+def test_past_ninety_the_day_says_the_plafond_pays_half(client: TestClient, db_session, learner_clock):
     _headers, user = _login(client, db_session)
     _owner(db_session, user)
-    now = datetime.now(UTC).replace(microsecond=0)
-    _write_cards(db_session, user, 25, now=now - timedelta(hours=1))
+    now = learner_clock + timedelta(minutes=1)  # the 25 cards are 25 seconds apart
+    _write_cards(db_session, user, 25, now=_earlier_today(user, learner_clock, timedelta(hours=1)))
     today = build_gold_view(db_session, user=user, now=now)["today"]
     assert (today["earned_before_plafond"], today["settled"], today["plafond"]) == (100, 95, "half")
 
