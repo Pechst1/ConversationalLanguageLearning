@@ -22,6 +22,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const Module = require('node:module');
+const os = require('node:os');
 const { test } = require('node:test');
 const { pathToFileURL } = require('node:url');
 
@@ -47,6 +48,16 @@ const h = React.createElement;
 /** The walk's own selectors, read from the walk (an ES module). */
 async function walkDriver() {
   return import(pathToFileURL(path.join(WEB_ROOT, 'e2e/lib/driver.mjs')).href);
+}
+/**
+ * What the walk knows about La Forge (lib/forge-walk.mjs): its selectors and the decision
+ * whether a visit that stopped changing has ended or stalled. A module of its own, outside
+ * e2e/, so that these tests (and scripts/loop/red_green.py) can run and prove it.
+ */
+async function forgeWalk() {
+  const file = path.join(WEB_ROOT, 'lib/forge-walk.mjs');
+  assert.ok(fs.existsSync(file), 'the walk\'s La Forge selectors and stall decision are a unit-tested module: lib/forge-walk.mjs');
+  return import(pathToFileURL(file).href);
 }
 async function walkTileSelector() {
   return (await walkDriver()).WORD_BANK_TILE;
@@ -138,7 +149,7 @@ test('no Forge page draws a word bank of its own', () => {
 });
 
 test('the walk copies a Forge correction by the classes the repair renders', async () => {
-  const { FORGE_REPAIR } = await walkDriver();
+  const { FORGE_REPAIR } = await forgeWalk();
   const fix = 'Tu as peur ce soir, Marin ?';
   const html = renderToStaticMarkup(
     h(
@@ -174,4 +185,167 @@ test('the walk copies a Forge correction by the classes the repair renders', asy
   const lineMatch = new RegExp(`<p class="[^"]*\\b${line}\\b[^"]*"[^>]*>([^<]*)</p>`).exec(html);
   assert.ok(galleyAt >= 0 && lineMatch && lineMatch.index > galleyAt, `the correction («${FORGE_REPAIR.correction}») is printed in its card: ${html}`);
   assert.equal(lineMatch[1].replace(/&#x27;/g, "'"), fix, 'the line the walk copies is the correction');
+});
+
+test('the walk answers «Trouve l’erreur» by the classes ForgeSpot renders', async () => {
+  const { FORGE_SPOT } = await forgeWalk();
+  assert.ok(FORGE_SPOT, 'the walk defines how it answers «Trouve l’erreur» (lib/forge-walk.mjs FORGE_SPOT)');
+  const Drills = require('./ForgeDrills.tsx');
+  const { forgeCopy } = require('@/lib/forge-copy.ts');
+  const copy = forgeCopy('fr');
+  const render = (edits) =>
+    renderToStaticMarkup(
+      h(Ep.EpShell, { language: 'fr' }, h(Drills.ForgeSpot, { sentence: 'Elle n’a pas une idée.', edits, onEdits: () => undefined, copy })),
+    );
+
+  const wordTag = /^(\w+)\./.exec(FORGE_SPOT.word)[1];
+  const [wordCls] = classesOf(FORGE_SPOT.word);
+  const fresh = tagsWithClass(render({}), wordTag, wordCls);
+  assert.ok(fresh.length >= 4, `the walk taps a word by «${FORGE_SPOT.word}»`);
+  assert.ok(fresh.every((attrs) => !/\sdisabled=/.test(attrs)), 'the words of an open item can be tapped');
+
+  const edited = tagsWithClass(render({ 3: 'd’' }), wordTag, classesOf(FORGE_SPOT.edited)[0]).filter((attrs) =>
+    /data-edited="true"/.test(attrs),
+  );
+  assert.equal(edited.length, 1, `the walk reads a word it already changed by «${FORGE_SPOT.edited}»`);
+
+  // The field opens only while a word is edited (component state); its markup is ForgeSpot's own.
+  const fieldTag = /^(\w+)\./.exec(FORGE_SPOT.field)[1];
+  const source = fs.readFileSync(path.join(__dirname, 'ForgeDrills.tsx'), 'utf8');
+  assert.match(
+    source,
+    new RegExp(`<${fieldTag}\\s+className="${classesOf(FORGE_SPOT.field)[0]}"`),
+    `the walk types into «${FORGE_SPOT.field}»`,
+  );
+});
+
+test('the walk corrects a judged sentence by the classes ForgeFollowUp renders', async () => {
+  // After a right «Needs fixing» the sheet's «Continue» waits for «Correct the sentence»
+  // (pages/atelier.tsx `followGate`): a Forge visit that cannot check it stands still.
+  const { WORD_BANK_TILE } = await walkDriver();
+  const { FORGE_FOLLOW } = await forgeWalk();
+  assert.ok(FORGE_FOLLOW, 'the walk defines how it answers «Correct the sentence» (lib/forge-walk.mjs FORGE_FOLLOW)');
+  const { ForgeFollowUp, FOLLOW_UP_EMPTY } = require('./ForgeFollowUp.tsx');
+  const spec = {
+    kind: 'correct_it',
+    sourceFr: 'Lila demande un café à son ami.',
+    goalNative: null,
+    correctedFr: 'Lila a demandé un café à son ami.',
+    accepted: ['Lila a demandé un café à son ami.'],
+  };
+  const render = (followUp, draft = FOLLOW_UP_EMPTY) =>
+    renderToStaticMarkup(h(Ep.EpShell, { language: 'de' }, h(ForgeFollowUp, { followUp, draft, onDraft: () => {} })));
+  const selector = parseTileSelector(WORD_BANK_TILE);
+  const openCls = classesOf(FORGE_FOLLOW.open)[0];
+  const isOpen = (html) => tagsWithClass(html, 'section', openCls).some((attrs) => /data-outcome="open"/.test(attrs));
+
+  // Tiles: the walk taps them in the follow-up's bank, then the follow-up's own check.
+  const tiles = render({ ...spec, options: ['Lila', 'a', 'demandé', 'un café', 'à son ami.'] }, { ...FOLLOW_UP_EMPTY, placed: [0] });
+  assert.ok(isOpen(tiles), `the open follow-up is «${FORGE_FOLLOW.open}»: ${tiles}`);
+  assert.deepEqual(tappable(tiles, selector), ['a', 'demandé', 'un café', 'à son ami.'], 'the walk taps the follow-up\'s idle tiles');
+  const [actions, bar] = classesOf(FORGE_FOLLOW.check);
+  const checks = [...tiles.matchAll(new RegExp(`<div class="[^"]*\\b${actions}\\b[^"]*">([\\s\\S]*?)</div>`, 'g'))]
+    .flatMap((m) => tagsWithClass(m[1], 'button', bar));
+  assert.equal(checks.length, 1, `the walk checks by «${FORGE_FOLLOW.check}»: ${tiles}`);
+  assert.ok(!/\sdisabled=/.test(checks[0]), 'with a tile set, the check can be tapped');
+
+  // A field: the walk retypes the quoted sentence into it.
+  const field = render({ ...spec, options: null });
+  assert.equal(tagsWithClass(field, 'textarea', classesOf(FORGE_FOLLOW.field)[0]).length, 1, `the walk types into «${FORGE_FOLLOW.field}»: ${field}`);
+  const quote = new RegExp(`<blockquote class="[^"]*\\b${classesOf(FORGE_FOLLOW.quote)[0]}\\b[^"]*"[^>]*>([\\s\\S]*?)</blockquote>`).exec(field);
+  assert.ok(quote, `the walk reads the sentence from «${FORGE_FOLLOW.quote}»`);
+  assert.equal(quote[1].replace(/<span class="av2-sr">[\s\S]*?<\/span>/, '').replace(/<[^>]+>/g, '').replace(/&#x27;/g, "'").replace(/ | /g, ' ').trim(), spec.sourceFr);
+
+  // Once checked the step is settled: nothing is left open for the walk.
+  assert.ok(!isOpen(render({ ...spec, options: null }, { ...FOLLOW_UP_EMPTY, text: 'x', outcome: 'revealed' })), 'a settled follow-up is not open');
+});
+
+test('the walk answers a La Forge judgement and a pick by the choice and the check the page renders', () => {
+  // «Ist der Satz richtig?» / «Is this sentence correct?» (pages/atelier.tsx) offers its
+  // labels as EpOpt; the walk taps `.av2-choice:not([disabled])` and then the primary check
+  // (an EpBar). Both are the components' own classes.
+  const html = renderToStaticMarkup(
+    h(Ep.EpShell, { language: 'en' },
+      h(Ep.EpOpts, null, h(Ep.EpOpt, null, 'Correct'), h(Ep.EpOpt, null, 'Needs fixing')),
+      h(Ep.EpBar, null, 'Check')),
+  );
+  assert.equal(tagsWithClass(html, 'button', 'av2-choice').filter((attrs) => !/\sdisabled=/.test(attrs)).length, 2, `the walk taps a judgement by .av2-choice: ${html}`);
+  assert.equal(tagsWithClass(html, 'button', 'av2-btn--primary').length, 1, `the walk checks by .av2-btn--primary: ${html}`);
+});
+
+// The even-day La Forge visit used to stop when the screen stood still for 10 s
+// (`if (entry && sameFor > 40) break;`) with no finding and no screenshot, whatever the
+// screen was. A Forge step the walk had no hand for stayed invisible until a later day's
+// own grammar step opened the same kind of item. These tests drive the walk's real visit
+// loop (LearnerWalk.playJourney) over a stand-in page that shows one fixed screen.
+
+/** The fields of a driver snapshot the visit loop reads; `over` is the screen under test. */
+function stillScreen(over) {
+  return {
+    url: '/atelier?mode=forge', text: 'La Forge · Build: "We are 50 years old." Tap the words', nonFrText: '',
+    buttons: [{ text: 'Check', cls: 'ep-bar', disabled: true, y: 700, h: 44 }], choices: 0, whoSaid: 0, tiles: 0, tappableTiles: 0, tilesBox: 0, textarea: 0, dictation: 0, match: 0,
+    goal: [], bodyLg: [], headline: [], stepLabel: '', dataStep: [], graded: [], connection: [], dataStates: [],
+    reader: [], thread: 0, recap: 0, castIntro: 0, homeDone: false, forgeStep: 0, pending: false, epFeedback: [],
+    frTexts: [], threadCue: '', fieldEnabled: false, layout: {}, theme: 'light', scrollW: 375, innerW: 375,
+    ...over,
+  };
+}
+
+async function visitFindings(screen) {
+  const { LearnerWalk } = await import(pathToFileURL(path.join(WEB_ROOT, 'e2e/lib/learner-walk.mjs')).href);
+  // A page that finds nothing to tap and never changes: every locator is empty.
+  const none = new Proxy(function none() {}, {
+    get: (_, key) => (key === 'count' ? async () => 0 : key === 'then' ? undefined : none),
+    apply: () => none,
+  });
+  const page = {
+    goto: async () => {},
+    locator: () => none,
+    evaluate: async () => screen,
+    emulateMedia: async () => {},
+    screenshot: async () => {},
+  };
+  const failed = [];
+  const shots = { root: os.tmpdir(), list: [] };
+  const walk = new LearnerWalk({
+    page,
+    findings: { check: (name, ok, detail, where) => ok || failed.push({ name, detail, where }) },
+    outDir: fs.mkdtempSync(path.join(os.tmpdir(), 'forge-visit-')),
+    lang: 'en', level: 'A2', stack: { web: 'http://walk.invalid' }, shots, scale: 1,
+  });
+  await walk.playJourney({ maxSeconds: 30, entry: '/atelier?mode=forge', label: 'forge-' });
+  return { failed, shots: shots.list };
+}
+
+test('the stall decision of a Forge visit: stuck on an exercise is a stall, any other quiet end is not', async () => {
+  const { forgeVisitEnd, FORGE_VISIT_QUIET } = await forgeWalk();
+  const exercise = { forgeExercise: true, pending: false, text: 'La Forge · Build: "We are 50 years old." Tap the words' };
+  // Still within the quiet period: the visit goes on, whatever is on screen.
+  assert.equal(forgeVisitEnd(exercise, FORGE_VISIT_QUIET), null);
+  assert.equal(forgeVisitEnd(exercise, 3), null);
+  // Quiet for 10 s on an exercise nobody answered: a stall that names the screen.
+  const stalled = forgeVisitEnd(exercise, FORGE_VISIT_QUIET + 1);
+  assert.equal(stalled.stalled, true, 'an exercise the walk could not get past is a stall');
+  assert.match(stalled.detail, /Build: "We are 50 years old\."/);
+  assert.match(stalled.detail, /10s/);
+  // The séance simply has nothing left: an end, not a stall.
+  const empty = forgeVisitEnd({ forgeExercise: false, pending: false, text: 'La Forge · Rien à faire pour le moment' }, 41);
+  assert.deepEqual(empty && empty.stalled, false);
+  // An exercise the server is still working on is waiting, not stuck.
+  assert.equal(forgeVisitEnd({ ...exercise, pending: true }, 41).stalled, false);
+});
+
+test('a Forge visit that stops on an exercise it cannot answer fails the walk, with a screenshot', async () => {
+  const [stalled, plain, waiting] = await Promise.all([
+    visitFindings(stillScreen({ forgeExercise: true })),
+    visitFindings(stillScreen({ forgeExercise: false, text: 'La Forge · Rien à faire pour le moment' })),
+    visitFindings(stillScreen({ forgeExercise: true, pending: true })),
+  ]);
+  const ways = stalled.failed.filter((f) => f.name === 'a-way-forward');
+  assert.equal(ways.length, 1, `a stall on a La Forge exercise is a finding: ${JSON.stringify(stalled.failed)}`);
+  assert.match(ways[0].detail, /Build: "We are 50 years old\."/, 'the finding names the screen');
+  assert.ok(stalled.shots.some((shot) => shot.kind === 'stuck'), 'the stall is shot');
+  // Not every quiet end is a stall: no exercise on screen, or one the server is still working on.
+  assert.deepEqual(plain.failed, [], 'a visit that ends on a screen with no exercise is not a finding');
+  assert.deepEqual(waiting.failed, [], 'an exercise waiting on the server is not stuck');
 });

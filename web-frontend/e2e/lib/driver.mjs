@@ -21,19 +21,9 @@ export const TYPEABLE_FIELD = 'textarea:not([disabled]):not([readonly]), input[t
  */
 export const WORD_BANK_TILE = '.av2-tiles__bank button.av2-tile:not([disabled])';
 
-/**
- * La Forge «Copy the correction»: after a miss on a whole line the way on is the corrected
- * line, retyped, then «Compare» (components/epreuve/Epreuve.tsx EpRepair); «Continue»
- * waits for it. The correction to copy is the line printed in the card above
- * (EpLineFix). Checked against those components by
- * components/epreuve/forge-word-bank-walk.test.js.
- */
-export const FORGE_REPAIR = {
-  open: '.ep-repair:not([data-status="ok"])',
-  field: 'input.ep-repair__input:not([disabled])',
-  submit: 'button.ep-repair__submit:not([disabled])',
-  correction: '.ep-galley .ep-linefix__new',
-};
+// The selectors with which the walk answers La Forge steps live in lib/forge-walk.mjs
+// (unit-tested against the components); re-exported here for the walk.
+export { FORGE_FOLLOW, FORGE_REPAIR, FORGE_SPOT } from '../../lib/forge-walk.mjs';
 
 /** What :data:`SNAPSHOT_FN` reads the page with (Playwright hands a page function one argument). */
 export const SNAPSHOT_ARGS = { typeable: TYPEABLE_FIELD, wordBankTile: WORD_BANK_TILE };
@@ -67,6 +57,8 @@ export const SNAPSHOT_FN = ({ typeable, wordBankTile }) => {
     whoSaid: q('.av2-who-said__card').length,
     tiles: q('.av2-tiles__bank button.av2-tile, .av2-tiles__bank .av2-tile:not(.av2-tile--mould)').length,
     tappableTiles: q(wordBankTile).length,
+    // An exercise of La Forge is on screen (its drill, or «Correct the sentence» under a verdict).
+    forgeExercise: q('.ep-exercise').length > 0,
     tilesBox: q('.av2-tiles').length,
     textarea: q('textarea, input[type=text], input:not([type])').length,
     dictation: q('.av2-dictation, [data-step=dictation]').length,
