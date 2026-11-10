@@ -5090,6 +5090,107 @@ def _contract_hook(story_context: dict, *, user: Any, date: str | None) -> dict 
     return day_contract.hook_teaser(season, season_ctx, band=learner_level_band(user), date=date)
 
 
+def _contract_previously(live: dict, lines: list[str]) -> list[str]:
+    """«Précédemment» the day after a contract day ends on what that day changed."""
+
+    from app.services.season import day_contract
+
+    return day_contract.previously(live, lines, limit=PREVIOUSLY_LINES)
+
+
+def _contract_day(story_context: dict | None):
+    """``(season, gap, beat)`` of the contract the served page staged, or None (a day
+    without one, a reprise, the flag off)."""
+
+    from app.services.season import day_contract
+    from app.services.season.format import load_season
+    from app.services.season.runtime import SEASON_CONTEXT_KEY
+
+    if not day_contract.enabled():
+        return None
+    season_ctx = (story_context or {}).get(SEASON_CONTEXT_KEY) or {}
+    season_id = (season_ctx.get("position") or {}).get("season_id")
+    if not season_id:
+        return None
+    try:
+        season = load_season(str(season_id))
+        found = day_contract.staged_beat(season, season_ctx)
+    except Exception:  # noqa: BLE001 - a broken season file never costs the day
+        logger.exception("living_story: no day contract for this page")
+        return None
+    return (season, *found) if found else None
+
+
+_CONTRACT_SCHEMAS: dict[type, type] = {}
+
+
+def _contract_turn_schema(base: type[BaseModel]) -> type[BaseModel]:
+    """``base`` with the two readings a contract day asks of the model (the route the
+    learner's words took, their own words for the day's mark). Under the same name: the
+    stage a call is booked and routed by is the schema's. The plain schema, and so the
+    prompt of every day without a contract, is untouched."""
+
+    cached = _CONTRACT_SCHEMAS.get(base)
+    if cached is None:
+        from pydantic import create_model
+
+        cached = _CONTRACT_SCHEMAS[base] = create_model(
+            base.__name__,
+            __base__=base,
+            contract_route=(str | None, Field(default=None, max_length=40)),
+            contract_mark_fr=(str | None, Field(default=None, max_length=120)),
+        )
+    return cached
+
+
+def _turn_has_contract(payload: dict) -> bool:
+    return bool(((payload.get("story") or {}).get("season_turn") or {}).get("contract"))
+
+
+def _land_contract(
+    story_context: dict, turn: SemanticTurn, *, details: dict, user: Any, live: dict, lines: list[str]
+) -> dict | None:
+    """Red-thread design, slice 3: on a contract day the ending is the plan's.
+
+    ``turn``'s ending (the bubble, the summary, the fact kept) is replaced by the
+    contract's ending for the route the learner's words took, with their own words in
+    the day's mark when they gave some. A fallback ending, a critic-refused one and a
+    model's «je ne choisis pas encore» all land the same floor. Returns what the
+    ledger records, or None off a contract day (``turn`` is then untouched)."""
+
+    found = _contract_day(story_context)
+    if found is None:
+        return None
+    from app.services.season import day_contract
+
+    season, gap, beat = found
+    try:
+        name = story_memory.name_in(story_memory.full_view(live.get(story_memory.MEMORY_KEY)))
+    except Exception:  # noqa: BLE001 - a name nobody can read is a name nobody knows
+        name = None
+    try:
+        choice = day_contract.choose(
+            season, gap, beat,
+            route=details.get(day_contract.ROUTE_KEY),
+            mark=details.get(day_contract.MARK_KEY),
+            learner_lines=lines,
+            name=name,
+        )
+        ending = day_contract.ending(
+            beat, choice,
+            band=learner_level_band(user),
+            language=normalize_control_language(getattr(user, "native_language", None)),
+            character_id=details.get("character_id"),
+        )
+    except Exception:  # noqa: BLE001 - the plan never costs the learner their ending
+        logger.exception("living_story: the day contract could not close the day; the turn's own ending stands")
+        return None
+    turn.resolution_fr = ending["resolution_fr"]
+    turn.summary_native = ending["summary_native"]
+    turn.callback_fr = ending["fact_fr"]
+    return {"gap": gap, "beat": beat, "choice": choice, "ending": ending}
+
+
 def teasers_after(live: dict, teaser: dict | None) -> list[dict]:
     rows = [row for row in live.get(TEASERS_KEY) or [] if isinstance(row, dict)]
     if teaser:
@@ -9740,10 +9841,13 @@ def bind_journey(
     scene.script_payload = {
         **scene.script_payload,
         "chapter": chapter_payload(chapter, live, season=season_number),
-        "previously_fr": previously_lines(
+        "previously_fr": _contract_previously(
             ledgers_before,
-            chapter_id=str(chapter.get("id")) if continues_chapter else None,
-            callback_ref=draft.callback_ref if draft.callback_fr else None,
+            previously_lines(
+                ledgers_before,
+                chapter_id=str(chapter.get("id")) if continues_chapter else None,
+                callback_ref=draft.callback_ref if draft.callback_fr else None,
+            ),
         ),
         "margin_notes": margin_notes_for(draft, ledgers_before, world=world_now),
     }
@@ -10068,6 +10172,13 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_re
 
         if (contract := contract_for(season_day, speaker=scenario.character_id)) is not None:
             context["season_turn"]["agency"] = agency_for_turn(contract)
+        # Red-thread design: the day's contract, for the reply (what must hold) and the
+        # ending lane (which route the learner's words took). Flag off: nothing is added.
+        if (planned := _contract_day(scenario.story_context)) is not None:
+            from app.services.season import day_contract
+
+            if (day_plan := day_contract.for_turn(planned[0], season_day, band=learner_level_band(user))) is not None:
+                context["season_turn"]["contract"] = day_plan
     elif isinstance(reveals := (scenario.story_context or {}).get(ACT_REVEALS_KEY), dict):
         # Phase 2: a later act's reply and ending keep the day's reveals (the voice's
         # «never_reveal», the lanes' spoiler guard). It settles no flag and stages no
@@ -10564,10 +10675,13 @@ def evaluate_turn(
         )
         payload["assistance"] = str(assistance)
         lexical = reply_lexical_checker(db, user, payload)
+        planned = _turn_has_contract(payload)
+        if planned:
+            from app.services.season import day_contract
         turn, usage = _approved(
-            ACTOR,
+            ACTOR + day_contract.voice_note() + day_contract.ending_note() if planned else ACTOR,
             payload,
-            SemanticTurn,
+            _contract_turn_schema(SemanticTurn) if planned else SemanticTurn,
             lambda t: _validate_turn(t, payload, lexical=lexical),
             db=db,
             user=user,
@@ -10851,6 +10965,12 @@ def settle_resolution(
     # in canonical episode/scene records as a second barrier across other surfaces.
     if (scene.recap_payload or {}).get("source_key") == event_id:
         return
+    # Red-thread design, slice 3: a contract day ends on its own «after».
+    landed = _land_contract(
+        brief.story_context, turn,
+        details={**(proposal.details or {}), "character_id": brief.character_id},
+        user=user, live=live, lines=_learner_lines(journey, act=act),
+    )
     witnesses = sorted(
         {
             brief.character_id,
@@ -10874,9 +10994,10 @@ def settle_resolution(
         "chapter_id": (live.get("chapter") or {}).get("id"),
         "date": _journey_date(journey),
     }
-    if turn.outcome != "met":
+    if turn.outcome != "met" and landed is None:
         # R2-3: a scene left open keeps the question it asked, so a letter about it
-        # asks that question again instead of a generic «tu en penses quoi ?».
+        # asks that question again instead of a generic «tu en penses quoi ?». (A
+        # contract day closed its question, whatever the reply.)
         question = open_question_of(brief.story_context["draft"].get("opening_line_fr"))
         if question:
             event["open_question_fr"] = question
@@ -11071,6 +11192,15 @@ def settle_resolution(
         day_index=day,
         relationships=relationships,
     )
+    if landed is not None:
+        from app.services.season import day_contract
+        from app.services.season.clock import SEASON_KEY as SEASON_STATE_KEY
+
+        live[SEASON_STATE_KEY] = day_contract.record(
+            dict(live.get(SEASON_STATE_KEY) or {}), landed["gap"], landed["beat"], landed["choice"],
+            after_fr=landed["ending"]["fact_fr"], event_id=event_id, day_index=day,
+            date=_journey_date(journey),
+        )
     # Le Quartier phase 1: what the learner's gestures set (walking out, Margaux's
     # text) joins the season with the day, so the next day reads it in either renderer.
     from app.services.season.gestures import fold_into_season
@@ -11229,6 +11359,9 @@ def settle_resolution(
         # An authored season page ends on its «À suivre…» caption: narration, said
         # by nobody — never under the addressed character's face.
         **({"narrated": True} if (brief.story_context.get("season") or {}).get("kind") == "tentpole" else {}),
+        # A contract day whose page turned to someone else than its lead closes on
+        # «what changed», as a caption.
+        **({"narrated": True} if landed is not None and landed["ending"]["narrated"] else {}),
     }
     private.update(
         resolution_settled=True,
@@ -11238,6 +11371,12 @@ def settle_resolution(
             "outcome_key": proposal.outcome_key,
             "callback_fr": turn.callback_fr or None,
         },
+        # Red-thread design: the route the day landed on and the learner's mark.
+        **(
+            {"day_contract": {"day": f"{landed['gap'].id}.{landed['beat'].day}", **landed["choice"]}}
+            if landed is not None
+            else {}
+        ),
     )
     resolution.private_task = private
     db.flush()

@@ -39,9 +39,20 @@ A planned day can carry a **contract** next to its «before → after» (`days[]
 | `mark` | What the learner's own words add (a name, a line on a card), its authored default, and the later day or tentpole where it comes back. |
 | `routes` | The ways the day can land. Exactly one is the default, taken on a question, a refusal or silence; it still makes every `lands` fact true. |
 | `hook` | The «À suivre…»: who says it, the next planned day it leads into, the line, and the words a rephrased line must keep. |
-| `after_fr` | «What changed», one line, for the next day's «Précédemment». |
+| `after_fr` | «What changed», one line, with its English and German (`native`, `native_a1`): the day's summary, and the last line of the next day's «Précédemment». |
+| `lead`, `routes[].line` | Who the learner talks to, and that character's last spoken line on each route. A route without a line, or a page that turned to someone else, closes on `after_fr` as a caption. |
+| `routes[].needs_mark` | A route taken only with the learner's own mark («named»). Without one the day lands on the route that needs none. |
 
-Each gap can also name its `destination` (gap 3: «Les 25 ans du Mistral», samedi). The contracts are data only until `STORY_DAY_CONTRACT` reads them. Open for the owner: the French of the hooks and `after_fr` lines, the second places, and gap 4's destination (none yet, so nothing hints at T5).
+Each gap can also name its `destination` (gap 3: «Les 25 ans du Mistral», samedi).
+
+With `STORY_DAY_CONTRACT` on, a contract day **ends on its contract** (`app/services/season/day_contract.py`):
+
+1. The model only reads the learner: which route their words took (`contract_route`) and their own words for the mark (`contract_mark_fr`).
+2. The code decides. An unknown route is the default one. A mark is kept only when it is a verbatim span of what the learner wrote today, short enough, not a question, and free of the gap's «must not» patterns. Otherwise the authored default stands («le canapé de Vincent»).
+3. The ending is the contract's: the lead's line for that route in the bubble, `after_fr` as the summary and as the fact the story keeps. A model's own ending, a critic-refused one and the authored fallback all land the same floor.
+4. The season keeps a ledger (`season_script.contract_ledger`): the facts that became true and by which route, the learner's mark as written, and each day's «what changed».
+
+Open for the owner: the French of the hooks, the closing lines and the `after_fr` lines, the second places, and gap 4's destination (none yet, so nothing hints at T5).
 
 ## The shape of a generated day
 

@@ -595,6 +595,13 @@ class Route(_Model):
     when: str = Field(min_length=1)
     #: The route taken on a question, a refusal, silence, or a reply nobody planned for.
     default: bool = False
+    #: The lead's last spoken line on this route (their bubble closes the day). The
+    #: day's mark is its ``{g3.canape_name}`` slot. None: the day closes on ``after_fr``,
+    #: narrated (a route where nobody speaks, or a day whose lead is not in the cast).
+    line: Wording | None = None
+    #: Taken only with the learner's own mark («named»): without one, the day lands on
+    #: the route that needs none.
+    needs_mark: bool = False
 
 
 class ContractHook(_Model):
@@ -616,6 +623,8 @@ class DayContract(_Model):
     place: str = Field(min_length=1)
     #: A canon-safe second place for the day its own is not built yet.
     place_alt: str | None = None
+    #: Who the learner talks to, and whose bubble closes the day (``routes[].line``).
+    lead: str | None = None
     lands: list[Lands] = Field(min_length=1)
     turns: list[ContractTurn] = Field(min_length=1, max_length=2)
     routes: list[Route] = Field(min_length=2, max_length=4)
@@ -636,6 +645,10 @@ class DayContract(_Model):
         marks = [turn.mark for turn in self.turns if turn.mark]
         if len(marks) > 1:
             raise ValueError("a day contract carries at most one mark")
+        if not marks and any(route.needs_mark for route in self.routes):
+            raise ValueError("a route needs a mark and the day carries none")
+        if any(route.needs_mark and route.default for route in self.routes):
+            raise ValueError("the default route never needs the learner's mark")
         if (self.closing_job == "mark") != bool(marks and self.turns[-1].mark):
             raise ValueError("closing_job is 'mark' exactly when the last turn carries the mark")
         return self
@@ -993,6 +1006,30 @@ def _check_day_contracts(season: Season, gap: Gap, *, locations: set[str] | None
             loose = set(_SLOT.findall(getattr(contract.after_fr, field, None) or "")) - allowed
             if loose:
                 problems.append(f"{where}: after_fr {field} has slots {sorted(loose)} the day does not fill")
+        # The ending the learner reads in their own language: «what changed», translated.
+        for language in ("en", "de"):
+            if not contract.after_fr.native.get(language):
+                problems.append(f"{where}: after_fr has no {language} translation")
+            if contract.after_fr.a1 and not contract.after_fr.native_a1.get(language):
+                problems.append(f"{where}: after_fr a1 has no {language} translation")
+        for texts in (contract.after_fr.native, contract.after_fr.native_a1):
+            for language, text in texts.items():
+                if set(_SLOT.findall(text)) - allowed:
+                    problems.append(f"{where}: after_fr {language} has slots the day does not fill")
+        if contract.lead is not None and contract.lead not in {member.id for member in season.cast}:
+            problems.append(f"{where}: lead {contract.lead!r} is not in the cast")
+        for route in contract.routes:
+            if route.line is None:
+                continue
+            if contract.lead is None:
+                problems.append(f"{where}: route {route.id!r} has a line and the day has no lead")
+            for field in LEVEL_FIELDS:
+                line = getattr(route.line, field, None) or ""
+                if set(_SLOT.findall(line)) - allowed:
+                    problems.append(f"{where}: route {route.id!r} {field} has slots the day does not fill")
+                # The bubble has no reply box after it: it never ends on a question.
+                if line.rstrip().endswith("?"):
+                    problems.append(f"{where}: route {route.id!r} {field} ends on a question")
     return problems
 
 
