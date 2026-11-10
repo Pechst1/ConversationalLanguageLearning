@@ -57,6 +57,7 @@ from app.services.answer_acceptance import (
     known_slip,
     person_swaps_hold,
 )
+from app.services.chrome_language import mother_tongue
 
 # ---------------------------------------------------------------------------
 # Tokens
@@ -586,7 +587,7 @@ class Edit:
 
 
 def _pick(table: Mapping[str, str], language: str | None) -> str:
-    key = str(language or "en")[:2].lower()
+    key = mother_tongue(language)
     return table.get(key) or table.get("en") or next(iter(table.values()), "")
 
 

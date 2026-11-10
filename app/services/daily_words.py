@@ -26,6 +26,7 @@ from app.db.models.graphic_novel import GraphicNovelScene
 from app.db.models.mission import RealWorldMission
 from app.db.models.user import User
 from app.db.models.vocabulary import UserDailyWordSlate
+from app.services.chrome_language import user_mother_tongue
 from app.services.glosses import gloss_from_map
 from app.services.progress import ProgressService
 
@@ -292,7 +293,7 @@ class DailyWordSlateService:
             "word": item.get("word") or "",
             # Upstream payloads already resolve `translation` for this learner;
             # the raw map is only a fallback, and it must not default to German.
-            "translation": item.get("translation") or gloss_from_map(translations, user.native_language),
+            "translation": item.get("translation") or gloss_from_map(translations, user_mother_tongue(user)),
             "bucket": item.get("bucket") or "due",
             "example_sentence": item.get("example_sentence") or None,
             "example_translation": item.get("example_translation") or None,

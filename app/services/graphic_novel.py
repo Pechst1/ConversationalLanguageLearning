@@ -32,6 +32,7 @@ from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.services.atelier_assets import AtelierAssetService
+from app.services.chrome_language import user_mother_tongue, user_mother_tongue_raw
 from app.services.concept_titles import concept_title
 from app.services.daily_words import DailyWordSlateService
 from app.services.error_memory import ErrorMemoryService, serialize_error_memory
@@ -1393,9 +1394,9 @@ class GraphicNovelScheduler:
         selected: list[dict[str, Any]] = []
         seen_word_ids: set[int] = set()
 
-        native_language = (user.native_language or "").strip().lower()
+        native_language = user_mother_tongue(user) if user_mother_tongue_raw(user) else ""
         translation_order = [
-            native_language[:2] if native_language else "",
+            native_language,
             "de",
             "en",
             "fr",
@@ -1451,7 +1452,7 @@ class GraphicNovelScheduler:
                     {
                         "word_id": word.id,
                         "word": word.word,
-                        **gloss_payload(word, user.native_language),
+                        **gloss_payload(word, user_mother_tongue(user)),
                         "bucket": "target",
                         "scheduler": preferred_vocabulary_source,
                         "priority_score": 1.0,
@@ -1472,7 +1473,7 @@ class GraphicNovelScheduler:
                     {
                         "word_id": word.id,
                         "word": word.word,
-                        **gloss_payload(word, user.native_language),
+                        **gloss_payload(word, user_mother_tongue(user)),
                         "bucket": "erratum",
                         "scheduler": "linked_errata",
                         "priority_score": 1.0,
@@ -1500,7 +1501,7 @@ class GraphicNovelScheduler:
                     {
                         "word_id": word.id,
                         "word": word.word,
-                        **gloss_payload(word, user.native_language),
+                        **gloss_payload(word, user_mother_tongue(user)),
                         "bucket": "mot_du_jour",
                         "scheduler": "slate",
                         "priority_score": 0.9,
@@ -4544,7 +4545,7 @@ class GraphicNovelStoryGenerator:
             "comedy_reference_pack": self._comedy_reference_pack(),
             "learner": {
                 "target_language": user.target_language,
-                "native_language": user.native_language,
+                "native_language": user_mother_tongue_raw(user),
                 "level": self._learner_level(user),
                 "interests": user.interests,
             },
@@ -4636,7 +4637,7 @@ class GraphicNovelStoryGenerator:
             "humor_style": humor_style,
             "learner": {
                 "target_language": user.target_language,
-                "native_language": user.native_language,
+                "native_language": user_mother_tongue_raw(user),
                 "level": self._learner_level(user),
             },
             "source_snapshot": self._source_prompt(source_snapshot),

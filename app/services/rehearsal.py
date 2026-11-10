@@ -73,6 +73,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db.models.rehearsal import REHEARSAL_OUTCOMES, Rehearsal
 from app.db.models.user import User
+from app.services.chrome_language import user_mother_tongue
 from app.services.journey_content import BAND_LIMITS, learner_level_band
 from app.services.journey_contracts import (
     AssistanceLevel,
@@ -1023,7 +1024,7 @@ class RehearsalService:
             brief={
                 "declaration": text,
                 "register": "vous",
-                "native_language": normalize_control_language(user.native_language),
+                "native_language": normalize_control_language(user_mother_tongue(user)),
                 "structured_by": "pending",
             },
             scene={},
@@ -1057,7 +1058,7 @@ class RehearsalService:
             "declaration": rehearsal.declaration,
             "today": today.isoformat(),
             "learner_level_band": level_band,
-            "learner_native_language": normalize_control_language(user.native_language),
+            "learner_native_language": normalize_control_language(user_mother_tongue(user)),
         }
         last_reason = "generation_failed"
         for attempt in range(1, MAX_PREPARE_ATTEMPTS + 1):
@@ -1098,7 +1099,7 @@ class RehearsalService:
                 parsed.get("brief"),
                 declaration=rehearsal.declaration,
                 today=today,
-                native_language=user.native_language,
+                native_language=user_mother_tongue(user),
             )
             if not brief_is_usable(brief):
                 last_reason = "brief_unusable"

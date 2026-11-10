@@ -47,6 +47,7 @@ import { DETAIL_FILES } from '@/lib/quartier/world/details';
 import { setBy } from '@/lib/quartier/details';
 import type { DetailSpec, LearnerWorld } from '@/lib/quartier/details';
 import { SITE_FILES } from '@/lib/quartier/world/sites';
+import { quartierNative, readLearnerLanguage } from '@/lib/learner-language';
 import type { SeasonItemId } from '@/lib/season-items';
 
 import { Carnet } from './Carnet';
@@ -117,11 +118,6 @@ const WORLD_WAIT_MS = 4000;
 
 /** The hand-drawn quarter: the quai de Valmy and Le Mistral. */
 const HOME = 'quai_de_valmy';
-
-function phoneNative(): Native {
-  if (typeof navigator === 'undefined') return 'en';
-  return /^de\b/i.test(navigator.language || '') ? 'de' : 'en';
-}
 
 const COPY = {
   en: {
@@ -232,7 +228,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
   const engine = React.useRef<Quartier | null>(null);
   const stage = React.useRef<Director | null>(null);
   const sound = React.useRef<Sound | null>(null);
-  const [native] = React.useState<Native>(() => nativeProp ?? phoneNative());
+  const [native] = React.useState<Native>(() => nativeProp ?? quartierNative(readLearnerLanguage()));
   const [memory] = React.useState(() => new Memory());
   const [loading, setLoading] = React.useState<{ share: number; label: string } | null>({ share: 0, label: 'Les encres' });
   const [failed, setFailed] = React.useState<string | null>(null);

@@ -46,6 +46,7 @@ from app.db.models.progress import UserVocabularyProgress
 from app.db.models.session import LearningSession, WordInteraction
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
+from app.services.chrome_language import user_mother_tongue
 from app.services.glosses import gloss_map, normalize_language, resolve_gloss
 
 KEPT_INTERACTION_TYPE = "kept_from_story"
@@ -225,7 +226,7 @@ def keep_word(
         # The example *is* the point: a kept word comes back in its sentence.
         raise KeepRefused("no_sentence")
     language = (getattr(user, "target_language", None) or "fr").strip() or "fr"
-    native = normalize_language(getattr(user, "native_language", None))
+    native = user_mother_tongue(user)
     # WP-138: the same row the word-help sheet looked up (``/vocabulary/lookup``),
     # so the meaning the learner read is the meaning that is kept.
     word = catalogue_row_for(db, term=term, language=language, native=native)
@@ -658,7 +659,7 @@ def record_scene_lexicon(
 
     now = now or datetime.now(UTC)
     language = (getattr(user, "target_language", None) or "fr").strip() or "fr"
-    native = normalize_language(getattr(user, "native_language", None))
+    native = user_mother_tongue(user)
     words: list[SceneWord] = []
     session: LearningSession | None = None
     for entry in entries:
@@ -877,7 +878,7 @@ def keep_revue_word(
     if not term or not session_id:
         return None
     language = (getattr(user, "target_language", None) or "fr").strip() or "fr"
-    native = normalize_language(getattr(user, "native_language", None))
+    native = user_mother_tongue(user)
     word = _revue_catalogue_row(db, language=language, term=term)
     if word is None:
         if not gloss:

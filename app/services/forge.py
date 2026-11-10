@@ -55,7 +55,7 @@ from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.user import User
 from app.services import forge_drills as drills
 from app.services import gold_ledger
-from app.services.chrome_language import user_chrome_language
+from app.services.chrome_language import user_chrome_language, user_mother_tongue
 from app.services.concept_titles import concept_title
 from app.services.forge_coaches import coach_for_concept, coach_mood, recast_scene, story_state_of
 from app.services.item_bank import MINE_INSTRUCTION_L10N
@@ -227,7 +227,7 @@ def _public_item(payload: dict[str, Any], user: User | None) -> dict[str, Any]:
 
     from app.services.item_bank import public_item
 
-    return public_item(payload, user_chrome_language(user), getattr(user, "native_language", None))
+    return public_item(payload, user_chrome_language(user), user_mother_tongue(user))
 
 
 #: A quoted meaning: an opening quote, then words (``Complete: "…"``, „…“, « … »).

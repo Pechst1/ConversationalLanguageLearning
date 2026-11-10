@@ -39,7 +39,7 @@ from typing import (  # noqa: UP035 - grammar_items imports nothing else (test_g
     Callable,
 )
 
-from app.services.chrome_language import french_chrome
+from app.services.chrome_language import french_chrome, localized, mother_tongue
 from app.services.journey_contracts import (
     ControlLanguage,
     RecallTask,
@@ -277,8 +277,8 @@ def mentions_rule(brief: dict[str, Any], text: str | None) -> bool:
     return bool(brief.get("noun_phrase")) and bool(_NOUN_PHRASE.search(fold_apostrophes(text)))
 
 
-def _localized(table: dict[str, str], language: str) -> str:
-    return table.get(language) or table["en"]
+# S3: one ``{en, de, fr}`` picker for the whole server (chrome_language.localized).
+_localized = localized
 
 
 def _digest(*parts: Any) -> str:
@@ -490,7 +490,7 @@ def pair_why(pair: dict[str, Any], language: Any) -> str | None:
     why = pair.get("why")
     if not isinstance(why, dict):
         return None
-    code = str(language or "en").strip().lower()[:2]
+    code = mother_tongue(language)
     return str(why.get(code) or why.get("en") or "").strip() or None
 
 

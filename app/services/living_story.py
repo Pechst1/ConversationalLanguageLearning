@@ -34,6 +34,7 @@ from app.db.models.user import User
 from app.services import correction_contract, scene_ledger, story_memory
 from app.services.address import address_instruction
 from app.services.answer_acceptance import correction_is_grounded, is_preference_swap
+from app.services.chrome_language import user_mother_tongue
 from app.services.closing_filler import scene_fact
 from app.services.concept_titles import concept_title
 from app.services.journey_contracts import (
@@ -5518,7 +5519,7 @@ def story_context(db: Session, user: User, *, now: datetime | None = None) -> di
         # words in the learner's language up to A2, French from B1 — like its tentpoles.
         "control_language": season_today.language
         if season_today is not None
-        else normalize_control_language(user.native_language),
+        else normalize_control_language(user_mother_tongue(user)),
         "learner": learner_address(user),
         "level": level,
         "level_register": (
@@ -8147,7 +8148,7 @@ def _brief(draft: SceneDraft, context: dict, *, usage: list[dict]) -> ScenarioBr
 
 def describe_next(db: Session, *, user: User, input_mode: InputMode) -> ScenarioBrief:
     """Localized application invitation, not a generated/claimed scene."""
-    language = normalize_control_language(user.native_language)
+    language = normalize_control_language(user_mother_tongue(user))
     objective = {
         "en": "Continue your story in French.",
         "de": "Setze deine Geschichte auf Französisch fort.",

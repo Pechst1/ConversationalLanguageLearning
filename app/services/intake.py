@@ -76,7 +76,7 @@ from app.db.models.pilot_event import PilotEvent
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
-from app.services.chrome_language import chrome_language, pick
+from app.services.chrome_language import chrome_language, pick, user_mother_tongue
 from app.services.glosses import normalize_language, resolve_gloss
 from app.services.journey_content import learner_level_band
 from app.services.llm_service import LLMProviderError, LLMService
@@ -538,7 +538,7 @@ def resolve_glosses(
     from, so a model fallback is labelled rather than passed off as the app's.
     """
 
-    native = normalize_language(getattr(user, "native_language", None))
+    native = user_mother_tongue(user)
     language = (getattr(user, "target_language", None) or "fr").strip() or "fr"
     resolved: list[dict[str, Any]] = []
     for item in words:
@@ -856,14 +856,14 @@ class IntakeService:
             raise IntakeRefused(blocked)
 
         band = learner_level_band(user)
-        native = normalize_language(getattr(user, "native_language", None))
+        native = user_mother_tongue(user)
         reading, failure = self._read(
             user=user,
             band=band,
             native=native,
             document=document,
             image=image,
-            chrome=chrome_language(getattr(user, "native_language", None), band),
+            chrome=chrome_language(user_mother_tongue(user), band),
         )
 
         artefact = LearnerArtefact(
@@ -1024,7 +1024,7 @@ class IntakeService:
 
         now = datetime.now(UTC)
         language = (getattr(user, "target_language", None) or "fr").strip() or "fr"
-        native = normalize_language(getattr(user, "native_language", None))
+        native = user_mother_tongue(user)
         queued: list[int] = []
         for item in glossed:
             surface = str(item.get("word") or "").strip()

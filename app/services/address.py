@@ -28,6 +28,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, Literal
 
+from app.services.chrome_language import mother_tongue
+
 Register = Literal["tu", "vous"]
 
 #: The one setting: the form the *app* uses to address a learner, per interface
@@ -49,7 +51,7 @@ _ADDRESS_FORMS: Mapping[str, Mapping[str, str]] = {
 def learner_address(language: str | None) -> str | None:
     """«tu» for French, «du» for German, ``None`` where the language has no choice."""
 
-    return LEARNER_ADDRESS.get(str(language or "").strip().lower()[:2])
+    return LEARNER_ADDRESS.get(mother_tongue(language))
 
 
 def address_instruction(language: str | None) -> str:
@@ -60,7 +62,7 @@ def address_instruction(language: str | None) -> str:
     (:func:`character_register`).
     """
 
-    form = _ADDRESS_FORMS.get(str(language or "").strip().lower()[:2])
+    form = _ADDRESS_FORMS.get(mother_tongue(language))
     if form is None:
         return ""
     return (

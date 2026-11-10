@@ -75,7 +75,7 @@ from app.db.models.error import UserError
 from app.db.models.serial import SerialThread
 from app.db.models.user import User
 from app.services import correction_contract, pragmatics
-from app.services.chrome_language import user_chrome_language
+from app.services.chrome_language import user_chrome_language, user_mother_tongue
 from app.services.error_memory import ErrorMemoryService
 from app.services.journey_content import render_authored_text
 from app.services.journey_contracts import (
@@ -3376,7 +3376,7 @@ def counterpart_register_for(
         scenario=scenario,
         task=task,
         history=history,
-        native_language=getattr(user, "native_language", None),
+        native_language=user_mother_tongue(user),
     )
     return str(counterpart.expected or _scene_register(scenario) or "vous")
 

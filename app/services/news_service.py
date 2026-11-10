@@ -12,6 +12,7 @@ from loguru import logger
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import settings
+from app.services.chrome_language import mother_tongue
 from app.services.revue.policy import SENSITIVE_TERMS
 from app.utils.cache import build_cache_key, cache_backend
 
@@ -457,7 +458,7 @@ class NewsService:
     def _normalize_language(self, language: str | None) -> str:
         if not language:
             return "fr"
-        base = language.lower().split("-")[0].strip()
+        base = mother_tongue(language)
         if base in self.LANGUAGE_CONFIG:
             return base
         return "fr"

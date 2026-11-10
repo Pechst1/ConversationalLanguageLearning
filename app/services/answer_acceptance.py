@@ -53,6 +53,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
 
+from app.services.chrome_language import mother_tongue
+
 AccentPolicy = Literal["lenient", "strict"]
 
 # ---------------------------------------------------------------------------
@@ -1106,7 +1108,7 @@ def article_slip_note(note: str | None, fixed: str, language: str | None) -> str
     table = NOTE_COPY.get(f"{note}_ok") if note in {"gender", "elision"} else None
     if table is None or not fixed:
         return None
-    lang = str(language or "en")[:2].lower()
+    lang = mother_tongue(language)
     return (table.get(lang) or table["en"]).format(expected_word=fixed, learner_word="")
 
 
@@ -1273,7 +1275,7 @@ def feedback_note(verdict: Verdict, language: str | None) -> str | None:
     table = NOTE_COPY.get(key)
     if table is None:
         return None
-    lang = str(language or "en")[:2].lower()
+    lang = mother_tongue(language)
     template = table.get(lang) or table["en"]
     return template.format(
         expected_word=verdict.expected_word or verdict.expected or "",
@@ -1719,7 +1721,7 @@ def known_slip(learner_text: object, language: str | None = "en") -> tuple[str, 
         fix = f"j'ai {word}"
         if span[:1].isupper():
             fix = fix[:1].upper() + fix[1:]
-        table = _SLIP_NOTE.get(str(language or "en")[:2].lower()) or _SLIP_NOTE["en"]
+        table = _SLIP_NOTE.get(mother_tongue(language)) or _SLIP_NOTE["en"]
         return span, fix, table.format(word=word)
     return None
 

@@ -52,6 +52,7 @@ from pathlib import Path
 from typing import Any
 
 from app.services import item_semantics as semantics
+from app.services.chrome_language import mother_tongue
 from app.services.item_bank_de import GermanFilters, RenderError, g_person, german_violations
 from app.services.item_bank_de import merge_overlay as merge_german
 
@@ -2440,7 +2441,7 @@ def item_unit_rule(item: dict[str, Any] | None, language: Any = "en") -> str | N
     unit = item_unit(item)
     if not unit:
         return None
-    code = str(language or "en").strip().lower()[:2]
+    code = mother_tongue(language)
     rules = (unit_row(unit).get("syllabus") or {}).get("rule_short") or {}
     rule = rules.get(code) if isinstance(rules, dict) else None
     return str(rule).strip() if rule else None
@@ -2835,10 +2836,11 @@ def with_goal(item: dict[str, Any], language: Any = None, native: Any = None) ->
     if not isinstance(item, dict):
         return item
     out = dict(item)
-    code = str(language or "en").strip().lower()[:2]
+    code = mother_tongue(language)
     if code not in {"en", "de", "fr"}:
         code = "en"
-    own = str(native or "").strip().lower()[:2]
+    # No native language given: no meaning cue (the French-only goal), not English.
+    own = mother_tongue(native) if str(native or "").strip() else ""
     _with_fallback_task(out, code)
     kind = _goal_kind(out)
     l10n = out.get("goal_l10n") if isinstance(out.get("goal_l10n"), dict) else None
@@ -3051,7 +3053,7 @@ def _served_paragraph_task(node: dict[str, Any], language: Any) -> dict[str, Any
     item's (#196): read in the learner's language when it is a fallback task, with no
     English column left for a German or French learner."""
 
-    code = str(language or "en").strip().lower()[:2]
+    code = mother_tongue(language)
     if code not in {"en", "de", "fr"}:
         code = "en"
     out = dict(node)

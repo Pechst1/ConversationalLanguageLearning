@@ -58,6 +58,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.vocabulary import VocabularyWord
+from app.services.chrome_language import user_mother_tongue
 from app.services.core_lexicon import CORE_DECK, ensure_core_lexicon
 from app.services.lexical_coverage import load_lexicon
 
@@ -105,7 +106,7 @@ SUB_BANDS = ("A1.1", "A1.2", "A2.1", "A2.2", "B1.1", "B1.2", "B2.1", "B2.2", "C1
 
 
 def _language(user: Any) -> str:
-    native = str(getattr(user, "native_language", "") or "").lower()[:2]
+    native = user_mother_tongue(user)
     return native if native in {"en", "de"} else "en"
 
 

@@ -24,7 +24,7 @@ from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.services.answer_acceptance import correction_is_grounded, is_preference_swap
 from app.services.atelier_rewards import AtelierRewardService
-from app.services.chrome_language import user_chrome_language
+from app.services.chrome_language import user_chrome_language, user_mother_tongue
 from app.services.daily_words import DailyWordSlateService
 from app.services.error_memory import ErrorMemoryService
 from app.services.llm_service import LLMService
@@ -567,7 +567,7 @@ Maximum 2 phrases."""
             ai_response = REPLY_FALLBACK
 
         # Run error detection on user_text
-        error_detector = ErrorDetector(llm_service=self.llm, explanation_language=getattr(user, "native_language", None))
+        error_detector = ErrorDetector(llm_service=self.llm, explanation_language=user_mother_tongue(user))
         error_result = error_detector.analyze(
             user_text,
             learner_level=user.proficiency_level or "A1",

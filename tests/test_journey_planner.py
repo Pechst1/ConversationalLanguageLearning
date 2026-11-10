@@ -834,6 +834,8 @@ def test_the_planner_imports_no_ladder_and_no_scheduler() -> None:
         "typing",
         "app.services.journey_content",
         "app.services.journey_contracts",
+        # S3: the one language resolver — pure string functions, no I/O.
+        "app.services.chrome_language",
         # WP-24: types only. `journey_errata` reaches the ORM, so the planner
         # may name it in an annotation and must not import it at runtime — the
         # next assertion is what actually holds that line.

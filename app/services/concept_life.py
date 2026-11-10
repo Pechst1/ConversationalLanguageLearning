@@ -34,6 +34,7 @@ from sqlalchemy.orm import Session
 
 from app.core.srs.memory import Evidence, EvidenceFormat, grade_evidence
 from app.db.models.grammar import GrammarConcept, GrammarConceptLocalization, UserGrammarProgress
+from app.services.chrome_language import mother_tongue
 
 #: §2.2 — new grammar units a week, per rhythm.
 #: 2026-10-03 (owner: «substantially faster than Duolingo»): doubled. The
@@ -268,7 +269,7 @@ def unit_stage_counts(db: Session, user_id: UUID, unit_ids: Any) -> dict[str, in
 def stage_label(stage: str, language: str | None = "en", *, count: int = 1) -> str | None:
     """The learner's word for a stage, or ``None`` for a unit not met yet."""
 
-    table = STAGE_LABELS.get(str(language or "en")[:2].lower(), STAGE_LABELS["en"])
+    table = STAGE_LABELS.get(mother_tongue(language), STAGE_LABELS["en"])
     pair = table.get(stage)
     if pair is None:
         return None

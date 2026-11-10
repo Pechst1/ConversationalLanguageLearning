@@ -57,10 +57,10 @@ from app.db.models.vocabulary import VocabularyWord
 from app.services import correction_contract
 from app.services.atelier import AtelierCorrectionService
 from app.services.atelier_correction_cost import bound_learner_answer
+from app.services.chrome_language import user_mother_tongue
 from app.services.closing_filler import is_closing_filler, scene_fact
 from app.services.daily_journey import local_date_for
 from app.services.error_memory import ErrorMemoryService
-from app.services.glosses import normalize_language
 from app.services.journey_contracts import Correction, JourneyStatus, StepKind
 from app.services.journey_learning import (
     build_correction,
@@ -901,7 +901,7 @@ class JournalService:
         self, user: User, text: str, *, truncated: bool, reason: str
     ) -> dict[str, Any]:
         """The correction when no model verdict exists: the shared model-free pass."""
-        language = normalize_language(user.native_language)
+        language = user_mother_tongue(user)
         edits = correction_contract.deterministic_edits(text)
         shaped = self._shape_correction(
             user,
@@ -1019,7 +1019,7 @@ class JournalService:
             entry_id=entry.id,
             llm_service=self._llm_service,
         )
-        corrector.explanation_language = normalize_language(user.native_language)
+        corrector.explanation_language = user_mother_tongue(user)
         corrector._answer_truncated = bool(truncated)
         prompt_payload = {
             "round": "produce",
@@ -1069,7 +1069,7 @@ class JournalService:
             # #250: the model's edits must be about this text, and the model-free pass
             # adds the mistakes it did not list.
             errata = correction_contract.merge_deterministic_errata(
-                text, errata, language=normalize_language(user.native_language)
+                text, errata, language=user_mother_tongue(user)
             )
         keep = [
             item

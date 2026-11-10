@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.vocabulary import VocabularyWord
+from app.services.chrome_language import user_mother_tongue
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ def story_due_words(
 ) -> list[dict[str, Any]]:
     """The learner's hardest due words: ``[{word_id, lemma, gloss_native, sentence_fr}]``."""
 
-    from app.services.glosses import normalize_language, resolve_gloss
+    from app.services.glosses import resolve_gloss
 
     now = now or datetime.now(UTC)
     due = or_(
@@ -88,7 +89,7 @@ def story_due_words(
     from app.config import settings
 
     pilot = bool(getattr(settings, "VOCAB_STORY_PILOT_ENABLED", False))
-    native = normalize_language(getattr(user, "native_language", None))
+    native = user_mother_tongue(user)
     words: list[dict[str, Any]] = []
     for progress, word in rows:
         if pilot and pilot_arm(user.id, word.id) != "story":
@@ -137,7 +138,7 @@ def letter_due_words(db: Session, *, user: Any, now: datetime | None = None, lim
     with a meaning in the learner's language (the letter shows the meaning, never the
     French: using the word means recalling it)."""
 
-    from app.services.glosses import normalize_language, resolve_gloss
+    from app.services.glosses import resolve_gloss
 
     now = now or datetime.now(UTC)
     chosen = [row["word_id"] for row in story_due_words(db, user=user, now=now, limit=limit)]
@@ -159,7 +160,7 @@ def letter_due_words(db: Session, *, user: Any, now: datetime | None = None, lim
         .order_by(UserVocabularyProgress.due_at.asc().nullslast(), VocabularyWord.id.asc())
         .limit(limit * 4)
     ).all()
-    native = normalize_language(getattr(user, "native_language", None))
+    native = user_mother_tongue(user)
     for _progress, word in rows:
         if len(chosen) >= limit:
             break

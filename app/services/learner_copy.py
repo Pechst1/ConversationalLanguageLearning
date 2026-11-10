@@ -31,7 +31,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.services.glosses import DEFAULT_GLOSS_LANGUAGE, normalize_language
+from app.services.chrome_language import fold_language
+from app.services.glosses import DEFAULT_GLOSS_LANGUAGE
 
 #: The languages the copy table is complete in. Anything else falls back to `en`.
 SUPPORTED_COPY_LANGUAGES: tuple[str, ...] = ("en", "de", "fr")
@@ -1430,10 +1431,9 @@ def word_count(count: int, native_language: str | None) -> str:
     return (one if singular else many).format(count=int(count))
 
 
-def copy_language(native_language: Any) -> str:
-    """The copy column to read for a learner, with `en` as the safe default."""
-    code = normalize_language(native_language)
-    return code if code in SUPPORTED_COPY_LANGUAGES else DEFAULT_GLOSS_LANGUAGE
+#: The copy column to read for a learner, with `en` as the safe default (S3: the
+#: one fold, owned by ``chrome_language``).
+copy_language = fold_language
 
 
 def learner_text(key: str, native_language: Any = None, **fields: Any) -> str:

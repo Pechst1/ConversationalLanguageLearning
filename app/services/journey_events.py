@@ -46,6 +46,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from sqlalchemy.orm import Session
 
 from app.db.models.pilot_event import PilotEvent
+from app.services.chrome_language import user_mother_tongue
 from app.services.journey_contracts import (
     CAPABILITY_RUBRIC_VERSION,
     AssistanceLevel,
@@ -1373,7 +1374,7 @@ def _capability_rollup(db: Session, learner_ids: set[str]) -> dict[str, Any]:
             continue
         measured += 1
         view = build_capability_summary(
-            db, user=user, control_language=getattr(user, "native_language", None) or "en"
+            db, user=user, control_language=user_mother_tongue(user)
         )
         for summary in view.capabilities:
             state = str(summary.state)

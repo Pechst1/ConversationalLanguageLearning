@@ -54,6 +54,7 @@ from app.db.models.progress import UserVocabularyProgress
 from app.db.models.session import LearningSession, SessionLearningMoment
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
+from app.services.chrome_language import user_mother_tongue
 from app.services.concept_titles import concept_title
 from app.services.correction_contract import contraction_reason
 from app.services.error_memory import ErrorMemoryService
@@ -843,7 +844,7 @@ def select_learning_candidates(
             db, user=user, selected=selected, now=now, budget_seconds=budget_seconds
         )
     selected = _one_target_per_word(selected)
-    if scenario.control_language == "fr" and user.native_language != "fr":
+    if scenario.control_language == "fr" and user_mother_tongue(user) != "fr":
         # The catalogue's stored translation is English/German. French tasks
         # use the scene's sentence instead of posing that foreign gloss.
         selected = [replace(candidate, target=replace(candidate.target, label_native=None))
@@ -1520,7 +1521,7 @@ def _fragile_words(
     for word, _progress in rows:
         if str(word.id) in exclude:
             continue
-        gloss = word_gloss(word, user.native_language)
+        gloss = word_gloss(word, user_mother_tongue(user))
         target = TargetRef(
             kind=TargetKind.VOCABULARY,
             id=str(word.id),
@@ -1580,7 +1581,7 @@ def _partner_words(db: Session, *, user: User, exclude: set[str]) -> list[Learni
     for word in rows:
         if str(word.id) in exclude:
             continue
-        gloss = word_gloss(word, user.native_language)
+        gloss = word_gloss(word, user_mother_tongue(user))
         if not gloss:
             continue
         partners.append(
@@ -1664,7 +1665,7 @@ def _kept_extra_candidates(
             kind=TargetKind.VOCABULARY,
             id=str(word_id),
             label_fr=str(word.word),
-            label_native=word_gloss(word, user.native_language) or row.gloss or None,
+            label_native=word_gloss(word, user_mother_tongue(user)) or row.gloss or None,
         )
         extras.append(
             LearningCandidate(
@@ -1758,7 +1759,7 @@ def _new_vocabulary_anchor(
             kind=TargetKind.VOCABULARY,
             id=str(word.id),
             label_fr=word.word,
-            label_native=word_gloss(word, user.native_language) or None,
+            label_native=word_gloss(word, user_mother_tongue(user)) or None,
         )
         return LearningCandidate(
             target=target,
