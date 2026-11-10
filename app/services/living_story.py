@@ -4901,9 +4901,14 @@ TEASER_VOICES: dict[str, dict[str, str]] = {
 }
 DEFAULT_TEASER_VOICE = {"tu": "Au fait…", "vous": "Au fait…"}
 _TEASER_FRAMES = {
+    # #445: a promise is told from the ledger's «what the learner will do» («Essayer de
+    # parler samedi avec Gus.»), never quoted from the learner's reply: the reply is
+    # raw (the scene corrected «ca» a minute earlier) and may answer a question rather
+    # than promise. The words that name the promise stand alone as the last sentence,
+    # which is what Home's «La suite demain» shows.
     "commitment": (
-        {"tu": "Tu n'as pas oublié ? « {text} »", "vous": "Vous n'avez pas oublié ? « {text} »"},
-        {"tu": "Tu as promis, hein : « {text} »", "vous": "Vous avez promis, hein : « {text} »"},
+        {"tu": "Tu n'as pas oublié ? {text}", "vous": "Vous n'avez pas oublié ? {text}"},
+        {"tu": "Tu as promis, hein ? {text}", "vous": "Vous avez promis, hein ? {text}"},
     ),
     # #378: guillemets hold only words somebody said. A planted detail and a season
     # question are the story's, not a line of dialogue: they are told, not quoted.
@@ -4950,19 +4955,63 @@ def _clip_quote(text: Any, limit: int = TEASER_QUOTE_CHARS) -> str:
     return line[:limit].rsplit(" ", 1)[0].rstrip(",;:") + "…"
 
 
+_INFINITIVE = re.compile(r"^[a-zàâäçéèêëîïôöûùüÿœ]{2,}(?:er|ir|re|oir)$")
+#: Words that end like an infinitive but open a noun phrase, or put a person in the line.
+_NOT_AN_INFINITIVE = {"notre", "votre", "autre", "autres", "chaque", "quelque", "premier", "dernier", "hier", "cher"}
+_PERSON = re.compile(r"\b(?:je|j|tu|vous|nous|moi|toi|me|m|te|t|mon|ma|mes|ton|ta|tes|notre|votre)\b", re.IGNORECASE)
+_NUMBER_WORDS = {
+    "un", "une", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix", "onze", "douze",
+    "treize", "quatorze", "quinze", "seize", "vingt", "trente", "quarante", "cinquante", "soixante", "cent", "mille",
+}
+
+
+def _told_promise(text_fr: Any, source_quote: Any) -> str | None:
+    """#445: a promise as the hook tells it, or ``None`` when it cannot be told safely.
+
+    The ledger row's ``text_fr`` is the model's «what the learner will do» («Apporter du
+    pain dimanche.»). It is told in the character's mouth («Tu as promis, hein ? Apporter
+    du pain dimanche.»), so it must be a bare infinitive phrase that names nobody
+    («moi», «je», a reflexive), must share a word with what the learner wrote (it is
+    theirs, not an invention), and may carry no number the learner never wrote («quatorze
+    heures» when they said «deux heures»: #378). Anything else is not written."""
+
+    line = " ".join(str(text_fr or "").split()).strip(" .!?…»«\"")
+    quote = str(source_quote or "").strip()
+    if not line or not quote:
+        return None
+    first = line.split(" ", 1)[0].casefold()
+    if not _INFINITIVE.match(first) or first in _NOT_AN_INFINITIVE:
+        return None
+    if _PERSON.search(line.replace("'", " ").replace("’", " ")):
+        return None
+    said = _words(quote)
+    if not (_words(line) & said):
+        return None
+    said_tokens = set(re.findall(r"\w+", quote.casefold()))
+    for token in re.findall(r"\w+", line.casefold()):
+        if (token.isdigit() or token in _NUMBER_WORDS) and token not in said_tokens:
+            return None
+    return f"{line[:1].upper()}{line[1:]}."
+
+
 def teaser_candidates(live: dict, world: dict) -> list[dict]:
     """The open rows a teaser may name: promises, unpaid plants, open season questions."""
 
     rows: list[dict] = []
     for row in live.get("commitments") or []:
-        # #378: a promise is quoted in the learner's own words (``source_quote``), never
-        # in the model's restatement of it: the walk of 30 Oct read «Tu n'as pas oublié ?
-        # « Je serai chez moi après quatorze heures. »», a sentence nobody said. A row
-        # with no words of the learner's is not quoted at all.
-        quote = str(row.get("source_quote") or "").strip() if isinstance(row, dict) else ""
-        if isinstance(row, dict) and row.get("status") == "open" and row.get("id") and quote:
+        # #378 / #445: a promise is told from the ledger's restatement and only when it
+        # is tied to words the learner wrote; those words are never copied into the hook
+        # (see ``_told_promise``). The walk of 30 Oct read «« Je serai chez moi après
+        # quatorze heures. »», a sentence nobody said; the walk of 1 Nov read the learner's
+        # answer «Non, pas comme ca» (typo included) as the promise.
+        told = (
+            _told_promise(row.get("text_fr"), row.get("source_quote"))
+            if isinstance(row, dict) and row.get("status") == "open" and row.get("id")
+            else None
+        )
+        if told:
             rows.append({
-                "ref": str(row["id"]), "kind": "commitment", "text_fr": quote,
+                "ref": str(row["id"]), "kind": "commitment", "text_fr": told,
                 "characters": [str(who) for who in row.get("witnesses") or []],
             })
     for row in live.get("planted") or []:
