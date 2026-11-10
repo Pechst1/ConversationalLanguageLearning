@@ -21,7 +21,15 @@ const webRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 export const NATIVE_BUILD_MANIFEST = 'native-build.json';
 
 /** Always excluded from the native export. */
-export const DEV_ONLY_ROUTE_PREFIXES = ['/mobile-visual-qa', '/atelier-v2-gallery', '/dev'];
+export const DEV_ONLY_ROUTE_PREFIXES = [
+  '/mobile-visual-qa',
+  '/atelier-v2-gallery',
+  '/dev',
+  // S4 stage 1: the three gallery pages the register found outside this list.
+  '/cameo-gallery',
+  '/personnage-gallery',
+  '/troupe-vivante',
+];
 /** Parked behind `launch-flags.json#storyFeatureVisible`; excluded while it is off. */
 export const FLAGGED_ROUTE_PREFIXES = ['/bibliotheque'];
 
