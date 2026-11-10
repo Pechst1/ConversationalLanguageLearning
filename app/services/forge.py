@@ -1554,7 +1554,7 @@ class ForgeService:
                     **slot.to_dict(),
                     **item.to_dict(),
                     "position": slot.position,
-                    "length": state.length,
+                    "length": state.shown_length,
                     "role": slot.role,
                     "reprise": slot.reprise,
                     # The item itself: a bank top-up is not in the exercise
@@ -1575,11 +1575,13 @@ class ForgeService:
                 self.db.add(session)
                 self.db.commit()
                 return dict(pending)
-            # Nothing left for this rule: it retires from the séance.
+            # Nothing left for this rule: it retires from the séance, and is dry:
+            # it does not come back to fill the minimum either (#443).
             track = state.track(slot.concept_id)
             if track is None:  # pragma: no cover - slots come from tracks
                 break
             track.topped = True
+            track.dry = True
         state.finished = True
         state.pending = None
         _store_state(session, state)
@@ -1595,10 +1597,14 @@ class ForgeService:
             return {}
         upcoming = self.next_item(user=user, session=session)
         state = forge_state_of(session) or state
+        if upcoming is not None:
+            # #443: one length on every screen, re-read as the séance runs (a rule
+            # topped out since this item was stored shortens it).
+            upcoming = {**upcoming, "length": state.shown_length}
         combo, best_combo = core.combo_runs(state.history)
         return {
             "mode": state.mode,
-            "length": state.length,
+            "length": state.shown_length,
             "answered": state.position,
             "counted": state.counted_items,
             "finished": state.finished,
