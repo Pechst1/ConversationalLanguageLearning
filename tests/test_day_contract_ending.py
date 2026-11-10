@@ -383,6 +383,10 @@ def test_the_canape_day_lands_its_menu_whatever_the_model_wrote(
     scene = _latest_scene(db_session, user.id)
     assert (scene.script_payload or {}).get("season", {}).get("key") == "g3.5"
     assert seen and seen[-1]["contract"]["default_route"] == "elsewhere"
+    # The page's writer read the contract too: who asks, where, the one ask.
+    written_from = provider.director_contexts()[-1]["season_script"]["brief"]["today"]
+    assert written_from["contract"]["lead"] == "marin_leveque"
+    assert written_from["contract"]["ask"] == "Tell Marin which canapé stays."
     assert "contract_route" in seen[-1]["schema"]["properties"]
     prompt = _resolution(journey)["prompt"]
     # The fake model's own ending («La journée se termine.») is not what the day ends on.
@@ -428,6 +432,7 @@ def test_with_the_flag_off_the_day_ends_as_the_model_wrote_it(
     _d, user, journey = _canape_day(assembled_client, db_session, clock, provider, "Le petit bateau.")
 
     assert seen and all(row["contract"] is None for row in seen)
+    assert "contract" not in provider.director_contexts()[-1]["season_script"]["brief"]["today"]
     assert all("contract_route" not in row["schema"]["properties"] for row in seen)
     assert _resolution(journey)["prompt"]["character_line_fr"] == "La journée se termine."
     assert day_contract.LEDGER_KEY not in _season_state(db_session, user.id)
@@ -460,3 +465,106 @@ def test_an_ending_the_guards_refuse_still_lands_on_the_learners_route(
     assert "doit partir" not in prompt["character_line_fr"]
     ledger = _season_state(db_session, user.id)[day_contract.LEDGER_KEY]
     assert ledger["facts"][0]["route"] == "named" and ledger["marks"]["g3.canape_name"]["kept"] is True
+
+
+# --- slice 4: the page is written to the contract ----------------------------------
+
+
+def _brief_for(premise_day: int, *, band: str = "A1") -> dict:
+    from app.services.season import director
+    from app.services.season.flags import effective_flags
+
+    season = load_season("s1")
+    index = [segment.id for segment in season.segments].index("g3")
+    played = [
+        {"segment": segment.id, "day_in_segment": day, "event_id": f"{segment.id}.{day}"}
+        for segment in season.segments[:index]
+        for day in range(1, segment.days + 1)
+    ]
+    played += [{"segment": "g3", "day_in_segment": day, "event_id": f"g3.{day}"} for day in range(1, premise_day)]
+    staged = [{"gap": "g3", "premise": beat.premise} for beat in season.gaps["g3"].days if beat.day < premise_day]
+    state = {"id": "s1", "played": played, "premises": staged}
+    from datetime import date, timedelta
+
+    pos = season_clock.position(season, state, today=date(2026, 11, 27) + timedelta(days=premise_day))
+    assert pos.key == f"g3.{premise_day}"
+    return director.gap_brief(season, pos, flags=effective_flags(season, state, seed="x"), state=state, seed="x", band=band)
+
+
+def test_the_brief_carries_no_contract_with_the_flag_off():
+    assert "contract" not in _brief_for(5)["today"]
+
+
+def test_the_writer_reads_who_asks_where_and_the_one_ask(contract_on):
+    today = _brief_for(5)["today"]
+    assert today["required_premise"]["id"] == "les_canapes"
+    assert today["contract"] == {
+        "lead": "marin_leveque",
+        "places": ["marin_lila_flat", "le_mistral"],
+        "ask": "Tell Marin which canapé stays.",
+        "must_hold": ["The party has a menu of three canapés."],
+        "routes": [
+            "The learner picks one and names it.",
+            "The learner picks one and gives no name.",
+            "Anything else: a question, a refusal, silence. Marin chooses alone and takes the name from something the learner said.",
+        ],
+        "hook_fr": "Demain, j'ai besoin de toi. Il manque la photo du milieu.",
+    }
+    assert _brief_for(5, band="B1")["today"]["contract"]["ask"] == "Tell Marin kindly which canapé to keep and why."
+
+
+def test_a_page_led_or_set_elsewhere_gets_a_hint_and_an_unbuilt_place_its_second(contract_on):
+    plan = _brief_for(5)["today"]["contract"]
+    speakers = {"marin_leveque", "lila_bonnet"}
+    issue = day_contract.page_issue
+    built = {"marin_lila_flat", "le_mistral", "user_apartment"}
+    assert issue(plan, lead_id="marin_leveque", location_id="marin_lila_flat", speakers=speakers, places=built) is None
+    assert "marin_leveque asks the learner" in issue(
+        plan, lead_id="lila_bonnet", location_id="marin_lila_flat", speakers=speakers, places=built
+    )
+    assert "'marin_lila_flat'" in issue(plan, lead_id="marin_leveque", location_id="le_mistral", speakers=speakers, places=built)
+    # «Erst erwähnen, dann betreten»: the flat is not built yet, the page is set at the Mistral.
+    unbuilt = {"le_mistral", "user_apartment"}
+    assert issue(plan, lead_id="marin_leveque", location_id="le_mistral", speakers=speakers, places=unbuilt) is None
+    assert "'le_mistral'" in issue(plan, lead_id="marin_leveque", location_id="user_apartment", speakers=speakers, places=unbuilt)
+    # Neither place is built, or the lead may not speak today: the writer chooses.
+    assert issue(plan, lead_id="lila_bonnet", location_id="user_apartment", speakers={"lila_bonnet"}, places={"user_apartment"}) is None
+    assert issue(None, lead_id="x", location_id="y", speakers=speakers, places=built) is None
+
+
+def test_the_planner_and_the_director_are_told_only_on_a_contract_day(contract_on):
+    from app.services import story_split
+
+    on = {"season_script": {"brief": {"today": _brief_for(5)["today"]}}}
+    off = {"season_script": {"brief": {"today": {"beat": {}}}}}
+    assert story_split.planner_system(on) == story_split.PLANNER + day_contract.PLANNER_NOTE
+    assert story_split.planner_system(off) == story_split.PLANNER
+    # A later act of the day is its own scene: no contract.
+    assert story_split._day_contract({**on, story_split.ACT_KEY: {"role": "soir"}}) is None
+    assert "stops just before it" in day_contract.PLANNER_NOTE and "stops just before it" in day_contract.DIRECTOR_NOTE
+
+
+def test_the_variety_rule_yields_to_the_contract(contract_on):
+    plan = _brief_for(5)["today"]["contract"]
+    assert day_contract.follows(plan, lead_id="marin_leveque", location_id="le_mistral") is True
+    assert day_contract.follows(plan, lead_id="lila_bonnet", location_id="le_mistral") is False
+    assert day_contract.follows(None, lead_id="marin_leveque", location_id="le_mistral") is False
+
+
+def test_the_critic_reads_the_change_as_certain_on_a_contract_day(contract_on):
+    from app.services.season import director
+
+    brief = _brief_for(5)
+    draft = {"objective_native": "Sag Marin, welches Canapé bleibt.", "character_id": "marin_leveque", "season_checklist": {}}
+    turn = director.critic_payload(brief, draft)["learner_turn"]
+    assert turn["guaranteed"] is True and turn["planned_change"] == "The party has a menu of three canapés."
+    # A later act of the day is its own scene: nothing is guaranteed there.
+    assert "guaranteed" not in director.critic_payload(brief, draft, act={"role": "soir"})["learner_turn"]
+    assert "contradicts planned_change" in director.STORY_CRITIC_CONTRACT
+
+
+def test_the_critic_reads_as_before_with_the_flag_off():
+    from app.services.season import director
+
+    turn = director.critic_payload(_brief_for(5), {"season_checklist": {"change_after": "x"}})["learner_turn"]
+    assert "guaranteed" not in turn and turn["planned_change"] == "x"

@@ -52,6 +52,14 @@ With `STORY_DAY_CONTRACT` on, a contract day **ends on its contract** (`app/serv
 3. The ending is the contract's: the lead's line for that route in the bubble, `after_fr` as the summary and as the fact the story keeps. A model's own ending, a critic-refused one and the authored fallback all land the same floor.
 4. The season keeps a ledger (`season_script.contract_ledger`): the facts that became true and by which route, the learner's mark as written, and each day's «what changed».
 
+The page before the ending is **written to the contract** too. The brief carries `today.contract` (who asks, the place and its second place, the one ask at the learner's level, what must hold, the routes, the hook), and the planner, the one-call director and the story critic each get a short note on a contract day only:
+
+- The lead and the place are the contract's. A plan that casts someone else or goes elsewhere is refused before any French is written; a one-call page gets one retry with the hint and is then served. A place the quarter has not built yet is never forced: the second place is used, or the writer chooses.
+- The page stops just before the day's facts become true. The ending makes them true, so no page has to, and none may say they already happened or put them off.
+- The critic reads the day's change as certain (`learner_turn.guaranteed`) and refuses a page only when it contradicts that change.
+
+Still to come: an authored page per beat for the night every attempt fails (today that night still falls to a re-read), and the re-ask (`ask_again_fr`).
+
 Open for the owner: the French of the hooks, the closing lines and the `after_fr` lines, the second places, and gap 4's destination (none yet, so nothing hints at T5).
 
 ## The shape of a generated day

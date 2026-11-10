@@ -360,3 +360,88 @@ def previously(live: dict[str, Any], lines: list[str], *, limit: int = 3) -> lis
     except Exception:  # noqa: BLE001 - the box never costs the page
         logger.exception("day_contract: «Précédemment» keeps its own lines")
         return lines
+
+
+# ---------------------------------------------------------------------------
+# Slice 4: the page is written to the contract
+# ---------------------------------------------------------------------------
+#
+# The ending is the contract's (slice 3); the page before it was still planned from the
+# day's prose. On 3 of the owner's last 4 days the plan's own turn was refused at A1 as
+# a chained task, and the page asked something else. The writer now reads who asks,
+# where, the one ask at the learner's level, and that the page stops just before the
+# day's facts become true: the ending makes them true.
+
+#: Added to the planner's prompt (``story_split.PLANNER``) on a contract day only.
+PLANNER_NOTE = """
+
+TODAY'S CONTRACT (brief.today.contract)
+Today is planned as a contract. Where it speaks, it decides.
+- lead_id is contract.lead, when it is set.
+- location_id is the first id of contract.places that is in places. When none of them is
+  there, choose a place as usual.
+- question and task are contract.ask: that ONE ask, in control_language, with nothing
+  added (no second ask, no «and say why» the contract did not write).
+- contract.must_hold becomes true at the end of today whatever the learner answers. The
+  app closes the day itself, from the learner's reply: the page never has to. So the page
+  stops just before it: the lead is about to do it and turns to the learner. No beat says
+  it has already happened, nothing makes it depend on a yes, and nobody puts it off to
+  another day. change.after is contract.must_hold.
+- replies follow contract.routes, in that order.
+- hook is contract.hook_fr, as written."""
+
+#: Added to the one-call director's prompt on a contract day only.
+DIRECTOR_NOTE = """
+season_script.brief.today.contract, when set, is today's plan as a contract; where it
+speaks, it decides. character_id is contract.lead when it is set. location_id is the first
+id of contract.places that the world has; when it has none of them, choose as usual.
+objective_native and objective_semantics are contract.ask: that ONE ask, nothing added.
+contract.must_hold becomes true at the end of today whatever the learner answers, and the
+app closes the day itself from the learner's reply: the page stops just before it (the
+character is about to do it and turns to the learner), no panel says it has already
+happened, nothing makes it depend on a yes, nobody puts it off to another day.
+season_checklist.change_after is contract.must_hold and season_checklist.hook_fr is
+contract.hook_fr, as written."""
+
+
+def for_page(beat: DayBeat, *, band: str | None) -> dict[str, Any] | None:
+    """``brief.today.contract``: what the page's writer reads on a contract day."""
+
+    contract = beat.contract
+    if not enabled() or contract is None:
+        return None
+    return {
+        **({"lead": contract.lead} if contract.lead else {}),
+        "places": [place for place in (contract.place, contract.place_alt) if place],
+        "ask": _level_ask(contract.turns[0].ask, band),
+        "must_hold": [fact.text for fact in contract.lands],
+        "routes": [route.when for route in contract.routes],
+        "hook_fr": contract.hook.fr.text(str(band or "A2")),
+    }
+
+
+def page_issue(
+    plan: dict[str, Any] | None, *, lead_id: Any, location_id: Any, speakers: set[str], places: set[str]
+) -> str | None:
+    """Why a planned or written page does not follow today's contract, as a hint for
+    the next attempt; None when it does (or when the world cannot follow it: a lead who
+    may not speak today, a place not built yet)."""
+
+    if not plan:
+        return None
+    lead = plan.get("lead")
+    if lead and lead in speakers and str(lead_id or "") != lead:
+        return f"Today's contract (brief.today.contract.lead): {lead} asks the learner, not {lead_id}."
+    place = next((row for row in plan.get("places") or [] if row in places), None)
+    if place and str(location_id or "") != place:
+        return f"Today's contract (brief.today.contract.places): the page is set at {place!r}, not {location_id!r}."
+    return None
+
+
+def follows(plan: dict[str, Any] | None, *, lead_id: Any, location_id: Any) -> bool:
+    """Whether a lead and a place are the contract's own: the day's variety rule («the
+    same person at the same place carried the last days») then yields to the plan."""
+
+    if not plan:
+        return False
+    return str(lead_id or "") == str(plan.get("lead") or "") and str(location_id or "") in (plan.get("places") or [])

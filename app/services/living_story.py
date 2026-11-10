@@ -7215,6 +7215,35 @@ def _check_season_gap(draft: SceneDraft, context: dict, learner_text: list[str])
         raise StoryUnavailable("season_spoiler", hint=forbidden_hint(season, gap_id, hits))
 
 
+def _follows_contract(draft: SceneDraft, context: dict) -> bool:
+    from app.services import story_split
+    from app.services.season import day_contract
+
+    return day_contract.follows(
+        story_split._day_contract(context), lead_id=draft.character_id, location_id=draft.location_id
+    )
+
+
+def _contract_page_issue(draft: SceneDraft, context: dict) -> str | None:
+    """Red-thread design, slice 4: the hint when a contract day's page is not led by its
+    lead or set at its place. None off a contract day."""
+
+    from app.services import story_split
+    from app.services.season import day_contract
+
+    contract = story_split._day_contract(context)
+    if not contract:
+        return None
+    world = context.get("world") or {}
+    return day_contract.page_issue(
+        contract,
+        lead_id=draft.character_id,
+        location_id=draft.location_id,
+        speakers={str(member.get("id")) for member in world.get("cast") or [] if isinstance(member, dict)},
+        places={str(place.get("id")) for place in world.get("locations") or [] if isinstance(place, dict)},
+    )
+
+
 def _season_required_moment(draft: SceneDraft, context: dict) -> str | None:
     """WP-111: the hint when today's scheduled moment (the dinner, the roof, the
     argument) was not staged. Soft: one retry, then the day is served and the moment
@@ -7655,6 +7684,8 @@ def _validate_scene(draft: SceneDraft, context: dict):
         must_change
         and draft.character_id == must_change.get("character_id")
         and draft.location_id == must_change.get("location_id")
+        # Red-thread design: a contract day is led and set where its contract says.
+        and not _follows_contract(draft, context)
     ):
         raise StoryUnavailable(
             "setting_not_rotated",
@@ -7881,8 +7912,10 @@ def _check_reading_aids(draft: SceneDraft, context: dict) -> None:
     # WP-94: the special edition's cast and host lines ride the same one retry, and the
     # accepted draft is completed (``complete_epreuve``) — an épreuve never loses a day.
     special = epreuve_gap(draft, context)
-    # WP-111: a season's scheduled moment rides it too.
-    moment = _season_required_moment(draft, context)
+    # WP-111: a season's scheduled moment rides it too; and, on a contract day, a page
+    # led by someone else or set somewhere else than its contract says (one retry, then
+    # the page is served: the ending is the contract's either way).
+    moment = " ".join(filter(None, [_season_required_moment(draft, context), _contract_page_issue(draft, context)])) or None
     # Story plan, Phase 1 «Maßstab»: lines a reader hears as a machine ride it too.
     prose = prose_gap(draft, context)
     if not untranslated and not undescribed and not grammar and not special and not moment and not prose:
@@ -9157,7 +9190,8 @@ def generate_scene(
         split = story_split.applies(context)
         try:
             draft, usage = _approved(
-                DIRECTOR,
+                # Red-thread design: a contract day's director reads the contract's rules.
+                DIRECTOR + story_split.day_contract.DIRECTOR_NOTE if story_split._day_contract(context) else DIRECTOR,
                 _prompt_payload(context),
                 SceneDraft,
                 # The validator closes over the *unfiltered* context: it needs the lexicon,
@@ -9400,11 +9434,12 @@ def _season_story_review(context: dict, reviews: list[dict]):
     from app.services.season.canon_guards import CORRECTNESS, STORYTELLING, review_class
     from app.services.season.director import (
         STORY_CRITIC,
+        STORY_CRITIC_CONTRACT,
         StoryReview,
         critic_payload,
         review_verdict,
     )
-    from app.services.story_split import ACT_KEY
+    from app.services.story_split import ACT_KEY, _day_contract
 
     # Phase 2: a later act of the day is read as one (``critic_payload``'s ``act``), must
     # also move on, and is never served refused — a weak act is dropped (acts doc, risks).
@@ -9413,7 +9448,8 @@ def _season_story_review(context: dict, reviews: list[dict]):
     def review(proposal, *, deadline, record, final: bool = False):
         try:
             verdict, _ = _json_call(
-                STORY_CRITIC,
+                # Red-thread design: on a contract day the exchange's change is certain.
+                STORY_CRITIC + STORY_CRITIC_CONTRACT if _day_contract(context) else STORY_CRITIC,
                 critic_payload(
                     brief,
                     proposal.model_dump(mode="json"),
