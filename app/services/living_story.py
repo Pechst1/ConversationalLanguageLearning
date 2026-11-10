@@ -5394,6 +5394,29 @@ def _callback_grounded(text: str, ref: str | None, ledger: list[tuple[str, str]]
 
 
 SEASON_TODAY_KEY = "_season"
+#: #194: every headline this life's published scenes wear, read from the scene records
+#: themselves. The validator's handle only: never prompted, never stored.
+TAKEN_TITLES_KEY = "_taken_titles"
+
+
+def _published_scene_titles(db: Session, user: User) -> list[str]:
+    """The titles of the scenes this learner was shown (the Feuilleton's episodes).
+
+    ROOT CAUSE #194: «no two episodes share a title» was checked against the director's
+    rolling memory (``recent_situations``, 14 scenes, sized for the prompt) and not
+    against the record the learner reads, so the 15th episode back could be wrapped again
+    and a title the authored season used was invisible to the check."""
+
+    return [
+        str(title)
+        for title in db.scalars(
+            select(GraphicNovelScene.title).where(
+                GraphicNovelScene.user_id == user.id,
+                GraphicNovelScene.prompt_version.like(f"{ENGINE_VERSION_PREFIX}%"),
+            )
+        )
+        if title
+    ]
 
 
 def story_context(db: Session, user: User, *, now: datetime | None = None) -> dict:
@@ -5513,6 +5536,7 @@ def story_context(db: Session, user: User, *, now: datetime | None = None) -> di
         # WP-111: the season, where this life stands in it, and on a generated day
         # the gap's brief. ``_season`` is the runtime's own handle, never prompted.
         **({"season_script": season_block, SEASON_TODAY_KEY: season_today} if season_block else {}),
+        TAKEN_TITLES_KEY: _published_scene_titles(db, user),
         "thread_id": str(thread.id) if thread else None,
         "revision": _fingerprint(thread),
         # WP-111: a life on a season follows the one-language rule — the page's own
@@ -5642,7 +5666,15 @@ def _prompt_payload(context: dict) -> dict:
         key: value
         for key, value in context.items()
         if key
-        not in (LEXICON_KEY, COVERAGE_KEY, GRAMMAR_OUTCOME_KEY, WORDS_OUTCOME_KEY, SEASON_TODAY_KEY, MOTS_KEY)
+        not in (
+            LEXICON_KEY,
+            COVERAGE_KEY,
+            GRAMMAR_OUTCOME_KEY,
+            WORDS_OUTCOME_KEY,
+            SEASON_TODAY_KEY,
+            MOTS_KEY,
+            TAKEN_TITLES_KEY,
+        )
     }
     # WP-92: the director reads the plan, never the detectors' regular expressions.
     if payload.get(GRAMMAR_PLAN_KEY):
@@ -5663,8 +5695,12 @@ def _storable_context(context: dict) -> dict:
     placement / declared) and how much of it was the learner's own FSRS evidence.
     """
 
-    if SEASON_TODAY_KEY in context or MOTS_KEY in context:
-        context = {key: value for key, value in context.items() if key not in (SEASON_TODAY_KEY, MOTS_KEY)}
+    if SEASON_TODAY_KEY in context or MOTS_KEY in context or TAKEN_TITLES_KEY in context:
+        context = {
+            key: value
+            for key, value in context.items()
+            if key not in (SEASON_TODAY_KEY, MOTS_KEY, TAKEN_TITLES_KEY)
+        }
     if GRAMMAR_PLAN_KEY in context:
         # WP-92: provenance only — which units were planned — never the plan itself.
         context = {**context, GRAMMAR_PLAN_KEY: grammar_plan_provenance(context[GRAMMAR_PLAN_KEY])}
@@ -7012,13 +7048,15 @@ _ROMAN_SUFFIX = re.compile(r"\s*[,·-]\s*(?:II|III|IV|V|VI|VII|VIII|IX|X)\s*$")
 
 
 def _taken_scene_titles(context: dict) -> set[str]:
-    """The headlines the earlier scenes of this life wear (folded), from ``recent_situations``."""
+    """The headlines the earlier scenes of this life wear (folded): every published scene
+    (``TAKEN_TITLES_KEY``) and the director's recent situations, which a scene in flight
+    may have added before its record exists."""
 
-    return {
-        folded
-        for item in context.get("recent_situations") or []
-        if (folded := _folded(str(item.get("title_fr") or "")))
-    }
+    titles = [
+        *(context.get(TAKEN_TITLES_KEY) or []),
+        *(str(item.get("title_fr") or "") for item in context.get("recent_situations") or []),
+    ]
+    return {folded for title in titles if (folded := _folded(str(title)))}
 
 
 def unique_scene_title(title: str, taken: set[str]) -> str:
