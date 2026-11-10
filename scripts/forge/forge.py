@@ -314,8 +314,10 @@ def stages_file(places: list[dict] | None = None) -> dict:
         "(python scripts/forge/forge.py stages): each place of the season the 3D world has built, "
         "to the built place a page set there plays in. The night writer sets a generated page only "
         "at these places (app/services/season/world.py). «places»: the ones the learners' stories "
-        "named that the forge built, for the writer to know them by.",
+        "named that the forge built, for the writer to know them by. «to_be_built»: the places "
+        "the season names that the world has not built yet; a page may promise one, never be set there.",
         "stages": stages,
+        "to_be_built": {loc: name for loc, name in season_locations().items() if loc not in stages},
     }
     named = {
         pid: {

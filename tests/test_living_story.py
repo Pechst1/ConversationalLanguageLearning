@@ -2874,7 +2874,9 @@ def _fr_draft(**fields):
 
 def test_a_french_task_line_still_in_vous_is_refused_with_the_reason():
     with pytest.raises(engine.StoryUnavailable, match="task_says_vous") as refused:
-        engine._check_task_tutoiement(_fr_draft(objective_native="Dis à Romy votre nom."))
+        # S5: decided by who is addressed — no tu anywhere, so «votre» is the formal
+        # singular. («Dis à Romy votre nom.» now reads as a plural: the task says tu.)
+        engine._check_task_tutoiement(_fr_draft(objective_native="Votre nom, pour Romy."))
     assert "always says tu" in refused.value.feedback
     # A quoted line is the scene speaking to a vous character, not the app to the learner.
     engine._check_task_tutoiement(

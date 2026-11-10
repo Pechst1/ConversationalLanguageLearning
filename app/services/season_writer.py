@@ -186,7 +186,7 @@ class SeasonReview(_Strict):
     issues: list[str] = Field(default_factory=list)
 
 
-SEASON_WRITER = """You are Atelier's season director. A learner has lived a whole season (or
+SEASON_WRITER = f"""You are Atelier's season director. A learner has lived a whole season (or
 several) of a French-learning serial set in Paris. Write the NEXT season's spine — not scenes.
 
 Build it ONLY from `material`: rows of this learner's own life (unpaid plants, branches
@@ -195,7 +195,9 @@ season established). Every arc and every open thread names the row it grows from
 `grounded_in` (its exact `id`). Invent no backstory that contradicts `cast`; add no new
 character; use only cast ids (and "user" for the learner) in `characters`.
 
-3–5 arcs, each 3 stages (spark → pressure → tentpole; the last one is the payoff), each
+3–5 arcs, each 3 stages (spark → pressure → tentpole; the last one is the payoff). An
+arc `id` is lowercase snake_case and matches `{_SLUG.pattern}` (letters a–z, digits
+and underscores only, no hyphen, no space). Each
 stage a one-sentence summary in English and `sets` flags named `<character>.<fact>`.
 3–5 open threads: the English line the director reads and the short French line the learner
 reads (A2 French, one sentence). `title_fr` and `logline_fr` are short, warm, A2 French.
@@ -204,11 +206,28 @@ Tone: warm, wry, one real feeling per arc. Return JSON matching the schema."""
 SEASON_CRITIC = """Independently check a proposed next season against the learner material it
 claims to grow from. Reject (accepted=false) when an arc or thread is not really about the
 material row it names, when it contradicts the cast, when the French is above A2 or
-unnatural, or when it merely repeats the previous season. List concrete issues."""
+unnatural, or when it merely repeats the previous season. List concrete issues.
+Return JSON: {"accepted": true|false, "issues": ["..."]}."""
 
 
 class SeasonRejected(ValueError):
     pass
+
+
+def slug_id(value: str) -> str:
+    """An identifier as :data:`_SLUG` reads it: «Rue-De-Lancry» → ``rue_de_lancry``.
+
+    The model writes ids in prose habits (a hyphen, a capital, a space); the shape is
+    bookkeeping, never a reason to throw a season away (walk #649: ``unlabeled-key``)."""
+
+    return re.sub(r"[^a-z0-9_]+", "_", str(value or "").strip().lower()).strip("_")
+
+
+def normalised_draft(draft: SeasonDraft) -> SeasonDraft:
+    """The draft with every arc id in :data:`_SLUG` form, before it is validated."""
+
+    arcs = [arc.model_copy(update={"id": slug_id(arc.id)}) for arc in draft.arcs]
+    return draft.model_copy(update={"arcs": arcs})
 
 
 def validate_season(draft: SeasonDraft, *, material: list[dict], cast_ids: list[str]) -> None:
@@ -308,6 +327,7 @@ def draft_next_season(
             SEASON_WRITER, payload, SeasonDraft, usage.append, deadline=deadline,
             max_tokens=6000, reasoning_effort="medium", window=60,
         )
+        draft = normalised_draft(draft)
         validate_season(draft, material=material, cast_ids=_cast_ids(world))
         review, _ = engine._json_call(
             SEASON_CRITIC, {"source": payload, "proposal": draft.model_dump(mode="json")},
