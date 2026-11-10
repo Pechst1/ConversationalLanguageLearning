@@ -37,7 +37,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import HTTPException
 from fastapi import status as http_status
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
@@ -1499,12 +1499,15 @@ class DailyJourneyService:
         moments = [_as_aware(journey.started_at), _as_aware(journey.generation_claimed_at)]
         for step in journey.steps:
             moments += [_as_aware(step.started_at), _as_aware(step.completed_at)]
-        receipt = self.db.execute(
-            select(func.max(DailyJourneyMutation.completed_at)).where(
-                DailyJourneyMutation.journey_id == journey.id
-            )
-        ).scalar()
-        moments.append(_as_aware(receipt))
+        # A receipt still processing has no ``completed_at`` yet; its start counts.
+        processing = DailyJourneyMutation.status == "processing"
+        receipts = self.db.execute(
+            select(
+                func.max(DailyJourneyMutation.completed_at),
+                func.max(case((processing, DailyJourneyMutation.created_at))),
+            ).where(DailyJourneyMutation.journey_id == journey.id)
+        ).one()
+        moments += [_as_aware(moment) for moment in receipts]
         known = [moment for moment in moments if moment is not None]
         return max(known) if known else None
 

@@ -245,6 +245,36 @@ def test_a_day_touched_recently_is_not_closed_overnight(
     assert envelope.journey.status == "active"
 
 
+def test_a_mutation_still_in_flight_keeps_the_day_open(
+    db_session: Session, enabled: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.db.models.daily_journey import DailyJourneyMutation
+
+    user = make_user(db_session, "state-overnight-inflight@example.com")
+    service = DailyJourneyService(db_session, build_adapters())
+
+    freeze(monkeypatch, datetime(2026, 9, 4, 18, 0, tzinfo=UTC))
+    first, _ = service.create_journey(user, create_request())
+    # A learner's answer was reserved a minute ago and is still being processed.
+    db_session.add(
+        DailyJourneyMutation(
+            mutation_id=uuid.uuid4().hex,
+            journey_id=uuid.UUID(first.id),
+            user_id=user.id,
+            scope="attempt",
+            request_digest="0" * 64,
+            status="processing",
+            created_at=datetime(2026, 9, 5, 5, 59, tzinfo=UTC),
+        )
+    )
+    db_session.commit()
+
+    freeze(monkeypatch, datetime(2026, 9, 5, 6, 0, tzinfo=UTC))
+    envelope = service.get_today(user)
+    assert envelope.journey is not None
+    assert envelope.journey.id == first.id
+
+
 def test_todays_journey_is_created_once_yesterdays_is_finished(
     db_session: Session, enabled: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
