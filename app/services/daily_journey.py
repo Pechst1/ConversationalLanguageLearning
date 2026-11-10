@@ -362,6 +362,15 @@ def resolve_timezone(value: str | None, fallback: str = "UTC") -> str:
     return fallback
 
 
+def learner_timezone(user: Any, hint: str | None = None) -> str:
+    """The zone «today» is read in: the client's when it sends a valid one, else the
+    learner's stored zone (``streak.user_timezone``), never UTC by default."""
+
+    from app.services.streak import user_timezone
+
+    return resolve_timezone(hint, fallback=user_timezone(user))
+
+
 def _streak_snapshot_fields(db: Session, journey: DailyJourney) -> dict[str, Any]:
     """WP-80: ``streak`` and ``missed_days`` for a snapshot; never costs the day."""
 
@@ -1188,12 +1197,15 @@ class DailyJourneyService:
         if journey is not None and self._heal_interrupted(journey):
             # WP-69: a dead `preparing` journey no longer occupies the day.
             journey = self._occupying_journey(user)
+        # «Today» is the learner's local day: a read without a zone (the Feuilleton's
+        # card) took the UTC date, and from 00:00 to 01:00 in Berlin it found
+        # yesterday's finished journey and showed no episode (#656–#658, 9 Nov).
+        learner_tz = learner_timezone(user, timezone_hint)
         if journey is None:
-            fallback_tz = resolve_timezone(timezone_hint)
-            today = local_date_for(fallback_tz)
+            today = local_date_for(learner_tz)
             journey = self._journey_for_date(user, today)
 
-        timezone_name = journey.timezone if journey else resolve_timezone(timezone_hint)
+        timezone_name = journey.timezone if journey else learner_tz
         today = local_date_for(timezone_name)
         # WP-80: the client's zone is the learner's zone (it moves the streak
         # day and the push schedule), and the streak is settled on this read.

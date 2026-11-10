@@ -567,6 +567,16 @@ def format_register_line(report: dict, user_id: str | None = None) -> str:
     )
 
 
+def format_cohort_lines(weeks: int = 8) -> list[str]:
+    """S6: the return table, cohort rows only (the digest is posted in public)."""
+
+    from app.services.cohorts import build_cohorts, cohort_table_lines
+
+    with SessionLocal() as db:
+        report = build_cohorts(db, weeks=weeks)
+    return ["", f"Return by sign-up week (S6, learner-local days, last {weeks} weeks):", *cohort_table_lines(report)]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--day", type=date.fromisoformat, default=date.today() - timedelta(days=1))
@@ -589,7 +599,17 @@ def main() -> None:
         action="store_true",
         help="Print only the daily-journey section (WP-11 release metrics).",
     )
+    parser.add_argument(
+        "--cohorts-only",
+        action="store_true",
+        help="Print only the S6 return table (day 1, 3, 7, 14 per sign-up week).",
+    )
+    parser.add_argument("--cohort-weeks", type=int, default=8)
     args = parser.parse_args()
+
+    if args.cohorts_only:
+        print("\n".join(format_cohort_lines(args.cohort_weeks)))
+        return
 
     # WP-26 §3: latency is a release metric, so it can be read on its own and
     # can fail a build.
@@ -662,6 +682,9 @@ def main() -> None:
     # WP-33: read off the rollup above — no extra query, and it cannot disagree
     # with the capability line the journey section prints.
     print(format_register_line(report, args.user_id))
+    # S6: who came back, per sign-up week. All learners, so not under --user-id.
+    if not args.user_id:
+        print("\n".join(format_cohort_lines(args.cohort_weeks)))
 
 
 if __name__ == "__main__":
