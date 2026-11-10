@@ -33,6 +33,7 @@ import {
   mapRuleShape,
   mapStageOf,
   MAP_STAGES,
+  eclairPairLabel,
   ruleTitle,
   type GrammarMapPayload,
   type GrammarMapRule,
@@ -238,8 +239,8 @@ export function GrammarMapView({
             {pairs.slice(0, 3).map((pair) => (
               <li key={pair.pair}>
                 <Link className="gm-eclair__pair" href={eclairHref(pair.pair)}>
-                  <span className="gm-eclair__names" lang="fr">
-                    {fillMomentum(copy.eclair_pair_label, { a: pair.rules[0]?.title_fr || '', b: pair.rules[1]?.title_fr || '' })}
+                  <span className="gm-eclair__names" lang={eclairPairLabel(pair.rules, copy.eclair_pair_label, language).lang}>
+                    {eclairPairLabel(pair.rules, copy.eclair_pair_label, language).text}
                   </span>
                   <span className="gm-eclair__best">
                     {pair.plays > 0 ? fillMomentum(copy.eclair_best, { n: pair.best }) : copy.eclair_best_none}

@@ -29,6 +29,7 @@ from app.db.models.user import User
 from app.schemas import TokenPayload
 from app.services.achievement_service import AchievementService
 from app.services.atelier_assets import AtelierAssetService
+from app.services.chrome_language import user_chrome_language
 from app.services.concept_life import (
     STAGE_HELD,
     STAGE_NEW,
@@ -37,6 +38,7 @@ from app.services.concept_life import (
     stage_counts,
     stage_label,
 )
+from app.services.concept_titles import concept_title, localizations_by_concept_id
 from app.services.error_memory import serialize_error_memory
 from app.services.grammar import GrammarService, personal_note
 from app.services.grammar_catalog import (
@@ -136,6 +138,10 @@ class GrammarNotebookItemRead(BaseModel):
     # French publication titles — the Cahier index speaks French regardless of
     # the learner's instructional locale.
     title_fr: str | None = None
+    # #561: the rule's name in the learner's chrome language, ``concept_title(concept,
+    # chrome)``: the title the rule card, La Forge and the map show. The Cahier's list
+    # and rule page put it first; ``title_fr`` stays for the French line.
+    title_native: str | None = None
     category_label_fr: str | None = None
     level: str
     category: str | None
@@ -415,6 +421,7 @@ def _notebook_item_payload(
     *,
     locale: str = "en",
     level_band: str | None = None,
+    title_native: str | None = None,
 ) -> dict[str, Any]:
     mastery, state, state_label, next_review = _progress_state(progress)
     stage = progress_stage(progress)
@@ -429,6 +436,7 @@ def _notebook_item_payload(
         "localized_category": localization.category_label if localization else None,
         "localized_subskill": localization.subskill_label if localization else None,
         "title_fr": fr_localization.title if fr_localization else None,
+        "title_native": title_native,
         "category_label_fr": fr_localization.category_label if fr_localization else None,
         "level": concept.level,
         "category": concept.category,
@@ -550,6 +558,7 @@ def _notebook_detail_payload(
         fr_localization,
         locale=locale,
         level_band=unit_bands(db).get(concept.id),
+        title_native=concept_title(concept, user_chrome_language(user)),
     )
     return GrammarNotebookDetailRead(
         **item,
@@ -655,6 +664,8 @@ def get_grammar_notebook(
 
     asset_service = AtelierAssetService(db)
     bands = unit_bands(db)
+    chrome = user_chrome_language(current_user)
+    authored = localizations_by_concept_id(db, concept_ids)
     rows: list[GrammarNotebookItemRead] = []
     for concept in concepts:
         blueprint = asset_service.approved_blueprint_payload(concept)
@@ -672,6 +683,7 @@ def get_grammar_notebook(
                     fr_by_concept.get(concept.id),
                     locale=locale,
                     level_band=bands.get(concept.id),
+                    title_native=concept_title(concept, chrome, localizations=authored.get(concept.id, {})),
                 )
             )
         )

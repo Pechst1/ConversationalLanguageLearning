@@ -30,6 +30,7 @@ import {
 } from '@/lib/eclair';
 import { feel } from '@/lib/feel';
 import { useChromeLanguage } from '@/lib/learner-language';
+import { eclairPairLabel } from '@/lib/grammar-map';
 import { fillMomentum, momentumCopy } from '@/lib/momentum-copy';
 import api from '@/services/api';
 
@@ -121,9 +122,8 @@ export default function EclairPage() {
   };
 
   const score = eclairScore(answers);
-  const names = round?.rules?.length
-    ? fillMomentum(copy.eclair_pair_label, { a: round.rules[0]?.title_fr || '', b: round.rules[1]?.title_fr || '' })
-    : null;
+  // #561: each rule by the title the rule card shows, in the learner's chrome language.
+  const names = round?.rules?.length ? eclairPairLabel(round.rules, copy.eclair_pair_label, language) : null;
 
   return (
     <>
@@ -149,7 +149,7 @@ export default function EclairPage() {
         {(phase === 'ready' || phase === 'starting' || phase === 'failed') && (
           <section className="ecl-body">
             <h1 className="av2-headline av2-headline--screen">{copy.eclair_name}</h1>
-            {names && <p className="ecl-pair" lang="fr">{names}</p>}
+            {names && <p className="ecl-pair" lang={names.lang}>{names.text}</p>}
             <p className="ecl-hint">{copy.eclair_hint}</p>
             {phase === 'failed' && (
               <Notice tone="alert" live="alert" shape="action">
@@ -192,7 +192,7 @@ export default function EclairPage() {
             <h1 className="av2-headline av2-headline--screen">
               {fillMomentum(copy.eclair_done_title, { n: result?.score ?? score })}
             </h1>
-            {names && <p className="ecl-pair" lang="fr">{names}</p>}
+            {names && <p className="ecl-pair" lang={names.lang}>{names.text}</p>}
             {result ? (
               <p className="ecl-hint">
                 {fillMomentum(copy.eclair_done_sub, { answered: result.answered, best: result.best })}

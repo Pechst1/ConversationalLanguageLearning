@@ -238,8 +238,11 @@ export function ConceptRow({
   bars,
   ariaLabel,
   onSelect,
+  titleLang,
 }: {
   title: string;
+  /** The language the title is in (#561: a rule's title follows the chrome language). */
+  titleLang?: string;
   meta: string;
   glyph: string;
   tone: ConceptTone;
@@ -251,7 +254,7 @@ export function ConceptRow({
     <button type="button" className="nb-row" data-tone={tone} aria-label={ariaLabel} onClick={onSelect}>
       <span className="nb-row__glyph" aria-hidden="true">{glyph}</span>
       <span className="nb-row__main">
-        <span className="nb-row__title">{title}</span>
+        <span className="nb-row__title" lang={titleLang}>{title}</span>
         <span className="nb-row__meta">{meta}</span>
       </span>
       <span className="nb-row__bars" aria-hidden="true">

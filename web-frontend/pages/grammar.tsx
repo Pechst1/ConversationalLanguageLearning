@@ -37,6 +37,7 @@ import GrammarMap from '@/components/cahiers/GrammarMap';
 import { RuleCard } from '@/components/atelier-v2/rule/RuleCard';
 import { XraySentence } from '@/components/atelier-v2/rule/XraySentence';
 import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
+import { ruleTitle } from '@/lib/grammar-map';
 import { useChromeLanguage } from '@/lib/learner-language';
 import { cardExamples, plainText, usableCard, usableXray } from '@/lib/rule-card';
 import api, { AtelierErratum, GrammarNotebookDetail, GrammarNotebookItem } from '@/services/api';
@@ -346,7 +347,9 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
             const state = grammarState(concept.state, concept.mastery || 0);
             const stage = stageOf(concept);
             const tone = conceptTone(state, stage, due);
-            const title = concept.title_fr || concept.display_title || concept.name;
+            // #561: the rule card's title, in the learner's chrome language.
+            const name = ruleTitle(concept, language);
+            const title = name.text;
             const cat = concept.category_label_fr || concept.localized_category || formatCategory(concept.category);
             // The status word is chrome: the learner's language, never the server's French.
             // WP-130 A: the stage the level counts, the score only as practice.
@@ -362,6 +365,7 @@ export function GrammarNotebookSurface({ embedded = false }: GrammarNotebookSurf
               <div key={concept.id} role="listitem">
                 <ConceptRow
                   title={title}
+                  titleLang={name.lang}
                   meta={meta}
                   glyph={conceptGlyph(title, tone)}
                   tone={tone}
@@ -526,6 +530,8 @@ function GrammarFiche({
 }) {
   const blueprint = concept.atelier_blueprint || {};
   const pedagogy = (blueprint.pedagogy || {}) as Record<string, any>;
+  // #561: the page is headed by the rule card's title, in the learner's chrome language.
+  const heading = ruleTitle(concept, language);
   // F-1: the authored card is the unit's explanation. When there is one it
   // replaces the catalogue's English rule, motif and traps (the card has its
   // own, reviewed, in the learner's language); the anchors stay, minus the
@@ -583,8 +589,8 @@ function GrammarFiche({
             <Chip icon={<ShapeToken kind="action" size="sm" />}>{t.grammar.chip_due}</Chip>
           )}
         </div>
-        <h2 className="av2-headline av2-headline--title" lang="fr">
-          {concept.title_fr || concept.display_title || concept.name}
+        <h2 className="av2-headline av2-headline--title" lang={heading.lang}>
+          {heading.text}
         </h2>
         <div className="nb-fiche__status">
           <ProgressRule value={mastery} max={10} label={t.grammar.mastery} caption={`${mastery} / 10`} />
