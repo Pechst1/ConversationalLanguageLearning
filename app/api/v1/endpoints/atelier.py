@@ -64,6 +64,7 @@ from app.services.atelier import (
     ATELIER_ITEMS_PER_RECOGNIZE_MODE,
     ATELIER_TRANSFORM_ITEMS,
     FORGE_VERDICT_EVENT,
+    AnswerLengthError,
     AtelierCorrectionService,
     AtelierExerciseGenerationError,
     AtelierExerciseQualityService,
@@ -90,7 +91,7 @@ from app.services.cast_registry import display_name, people_addressed, people_na
 from app.services.cast_registry import resolve_id as _resolve_cast_id
 from app.services.cefr_progress import CEFRProgressService, live_level, with_can_do_line
 from app.services.chrome_language import user_chrome_language
-from app.services.concept_titles import concept_title_fr
+from app.services.concept_titles import concept_title, concept_title_fr
 from app.services.error_memory import ErrorMemoryService
 from app.services.forge import ForgeService, is_forge_session  # WP-S3 La Forge
 from app.services.forge_item_validator import item_problems  # #267: an item agrees with its badge
@@ -576,10 +577,12 @@ def _concept_read(
     due_errata_by_concept: dict[int, list[dict[str, Any]]] | None = None,
     asset_service: AtelierAssetService | None = None,
     fr_localizations: dict[int, GrammarConceptLocalization] | None = None,
+    language: str | None = None,
 ) -> AtelierConceptRead:
     data = serialize_concept(
         selection.concept,
         fr_localization=(fr_localizations or {}).get(selection.concept.id),
+        language=language,
     )
     data["role"] = selection.role
     data["mastery"] = selection.progress.score if selection.progress else 0
@@ -717,7 +720,7 @@ def _maybe_apply_adaptive_lock(
     lock.update(
         {
             "concept_id": concept.id,
-            "title": concept.name,
+            "title": concept_title(concept, "fr"),
             # What this moment just retired (what the learner is told), versus the
             # concept's running total across both rungs (session accounting).
             "retired_now": retired_now,
@@ -1260,7 +1263,8 @@ def _session_response(
         session_id=session.id,
         status=session.status,
         concepts=[
-            _concept_read(selection, due_by_concept, asset_service, fr_localizations) for selection in selections
+            _concept_read(selection, due_by_concept, asset_service, fr_localizations, user_chrome_language(user))
+            for selection in selections
         ],
         quote=session.quote_payload or scheduler.quote_for_today(),
         exercise_sets=exercise_sets,
@@ -1338,7 +1342,8 @@ async def get_today(
     fr_localizations = fr_localizations_by_concept_id(db, (selection.concept.id for selection in selections))
     return AtelierTodayResponse(
         concepts=[
-            _concept_read(selection, due_by_concept, asset_service, fr_localizations) for selection in selections
+            _concept_read(selection, due_by_concept, asset_service, fr_localizations, user_chrome_language(current_user))
+            for selection in selections
         ],
         quote=scheduler.quote_for_today(),
         summary=summary,
@@ -1642,17 +1647,21 @@ def submit_attempt(
         answer_payload["confidence"] = payload.confidence
     correction_service = AtelierCorrectionService(db)
     first_submission = existing is None
-    attempt = correction_service.submit_attempt(
-        session=session,
-        user=current_user,
-        concept=concept,
-        round_name=payload.round,
-        mode=payload.mode,
-        exercise_id=payload.exercise_id,
-        answer_payload=answer_payload,
-        prompt_payload_override=prompt_payload_override,
-        retest_of=retest_source.id if retest_source else None,
-    )
+    try:
+        attempt = correction_service.submit_attempt(
+            session=session,
+            user=current_user,
+            concept=concept,
+            round_name=payload.round,
+            mode=payload.mode,
+            exercise_id=payload.exercise_id,
+            answer_payload=answer_payload,
+            prompt_payload_override=prompt_payload_override,
+            retest_of=retest_source.id if retest_source else None,
+        )
+    except AnswerLengthError as exc:
+        # #574: the item states a word range; a line outside it is not an answer to it.
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     # WP-S1: the conversation rung's in-character reply follows the relecture
     # (AtelierCorrectionService._attach_world_reply), never this request.
     # WP-S3 La Forge: the staircase replaces the adaptive lock in a forge séance.

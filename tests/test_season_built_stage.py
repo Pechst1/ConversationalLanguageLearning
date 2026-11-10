@@ -33,10 +33,11 @@ def _places(*ids: str) -> list[dict]:
 
 def test_the_server_reads_the_places_the_forge_built():
     stages = built_stages("s1")
-    # the café and its quai, the stairwell, Odile's flat, the studio, the notary's
+    # the café and its quai, the stairwell, Odile's flat, the studio, the notary's, the roof
     assert stages["stairwell"] == "escalier_mistral"
     assert stages["le_mistral"] == "quai_de_valmy"
-    assert "toit" not in stages and "marchand_office" not in stages
+    assert stages["toit"] == "toit_mistral"
+    assert "mistral_back_room" not in stages and "marchand_office" not in stages
     # every one of them is a place of the season the director reads
     ids = {place["id"] for place in season_world_bible("s1")["setting"]["recurring_locations"]}
     assert set(stages) <= ids
@@ -163,8 +164,8 @@ def test_a_place_not_built_is_one_a_page_may_name_never_one_it_is_set_in():
     on_built_stage(context)
     built = set(built_stages("s1"))
     elsewhere = {place["id"] for place in context["world"]["elsewhere"]}
-    # the mairie, the roof, the gérance: named, not entered
-    assert {"mairie", "toit", "marchand_office"} <= elsewhere
+    # the mairie, the back room, the gérance: named, not entered
+    assert {"mairie", "mistral_back_room", "marchand_office"} <= elsewhere
     assert not elsewhere & built
     assert all(place["name_fr"] for place in context["world"]["elsewhere"])
 

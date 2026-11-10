@@ -1962,9 +1962,9 @@
         }
       },
       "rule": {
-        "en": "'My', 'your', 'his/her' match the thing you own, not the owner: mon, ma, mes.",
-        "de": "„Mein“, „dein“, „sein/ihr“ richten sich nach der Sache, nicht nach dem Besitzer: mon, ma, mes.",
-        "fr": "Mon, ma, mes s'accordent avec la chose possédée, pas avec le propriétaire."
+        "en": "'My', 'your', 'his/her' match the thing owned, not the owner: mon, ma, mes. Before a vowel: mon amie.",
+        "de": "„Mein“, „dein“, „sein/ihr“ richten sich nach der Sache, nicht nach dem Besitzer: mon, ma, mes. Vor einem Vokal: mon amie.",
+        "fr": "Mon, ma, mes s'accordent avec la chose possédée, pas avec le propriétaire. Devant une voyelle : mon amie."
       },
       "pattern": {
         "kind": "rows",

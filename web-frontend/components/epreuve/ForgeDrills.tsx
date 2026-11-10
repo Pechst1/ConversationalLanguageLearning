@@ -310,8 +310,11 @@ export function ForgeSpot({
               >
                 {has(index) ? (
                   <>
-                    <s className="forge-spot__was">{token.word}</s>
-                    {edits[index] && <span className="forge-spot__now">{edits[index]}</span>}
+                    {/* #573: struck through for the eye, and said in words for the text
+                        layer, so a screen reader never hears "estsont". */}
+                    <del className="forge-spot__was">{token.word}</del>
+                    <span className="av2-sr"> {edits[index] ? copy.spot_replaced_by : copy.spot_removed} </span>
+                    {edits[index] && <ins className="forge-spot__now">{edits[index]}</ins>}
                   </>
                 ) : token.word}
               </button>
@@ -422,7 +425,7 @@ export function ForgeRafaleResult({
   cheer,
   coach,
   coachMood,
-  rule,
+  reasonFor,
   onNext,
   nextLabel,
 }: {
@@ -433,8 +436,8 @@ export function ForgeRafaleResult({
   cheer?: string | null;
   coach?: Coach | null;
   coachMood?: PortraitMood;
-  /** The rule's one line («Règle : …»), said under every miss. */
-  rule?: string | null;
+  /** Why this sentence was missed, in the learner's language (the rule card's own words); never the rule chip's label (#564). */
+  reasonFor?: (row: BurstRow) => string | null;
   onNext: () => void;
   nextLabel: string;
 }) {
@@ -469,10 +472,15 @@ export function ForgeRafaleResult({
                 )}
                 {!row.correct && (
                   <p className="forge-rafale__why">
-                    {[isRightCall(row.expected) ? copy.rafale_why_right : copy.rafale_why_wrong, rule || null].filter(Boolean).join(' ')}
+                    {[isRightCall(row.expected) ? copy.rafale_why_right : copy.rafale_why_wrong, reasonFor?.(row) || null].filter(Boolean).join(' ')}
                   </p>
                 )}
-                {row.correctedFr && <p className="forge-rafale__fix" lang="fr">{row.correctedFr}</p>}
+                {row.correctedFr && (
+                  <p className="forge-rafale__fix">
+                    <span className="forge-rafale__fix-label">{copy.rafale_right_form}</span>{' '}
+                    <span lang="fr">{row.correctedFr}</span>
+                  </p>
+                )}
               </div>
             </li>
           );
@@ -592,7 +600,7 @@ export function ForgeDrillStyles() {
 .av2 .forge-spot__word:disabled { cursor: default; text-decoration: none; }
 .av2 .forge-spot__word[data-edited='true'] { background: var(--av2-card); text-decoration: none; }
 .av2 .forge-spot__was { margin-right: 6px; color: var(--av2-muted); text-decoration-color: var(--av2-red); text-decoration-thickness: 2px; }
-.av2 .forge-spot__now { color: var(--av2-blue); }
+.av2 .forge-spot__now { color: var(--av2-blue); text-decoration: none; }
 .av2 .forge-spot__punct { color: var(--av2-ink); }
 .av2 .forge-spot__input {
   max-width: 100%;
@@ -648,6 +656,7 @@ export function ForgeDrillStyles() {
 .av2 .forge-rafale__rows li[data-correct='false'] { background: var(--av2-tint-wrong); }
 .av2 .forge-rafale__why { margin: 0; font-size: var(--av2-t-body); font-weight: 600; color: var(--av2-ink-2); overflow-wrap: anywhere; }
 .av2 .forge-rafale__was { margin: 0; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+.av2 .forge-rafale__fix-label { color: var(--av2-ink-2); }
 .av2 .forge-rafale__fix { margin: 0; font-size: var(--av2-t-body); font-weight: 600; color: var(--av2-green); overflow-wrap: anywhere; }
     `}</style>
   );

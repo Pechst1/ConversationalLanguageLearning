@@ -177,9 +177,16 @@ any map: they are written from the canon and built with the pieces Le Mistral's 
 from (`room.ts`: the wainscot wall, the façade's lining, the globes, the tables), so a room and the
 café are the same print. The story sets the order (step 0): the next room is the next place
 `queue --season` lists that is not built. Built so far: the stairwell and Odile's door, the
-learner's studio, Maître Vasseur's office and Odile's flat. A room under the sky (the roof of Le
-Mistral's building in gap 3) is a room too: its spaces are `zone: "out"`. A run builds one
-room instead of a street; it follows the steps above with these differences.
+learner's studio, Maître Vasseur's office, Odile's flat and the roof over Le Mistral
+(`toit_mistral`, gap 3). A room under the sky is a room too: its floors are `zone: "out"` and
+you walk them (only a `sealed` floor, or one with `walk: false`, is not walked), and nothing on
+it is dry. A room on a roof of the quai says `quarter: true`: the engine builds the quai round it
+as it is (the canal, the footbridge, the barge, the houses and their lit windows) and walks only
+the room's own ground, round the chimney stacks the quai's building already has
+(`BuildingInfo.stacks`). Le Mistral's roof is the flat top of its mansard (the terrasson, at
+23.49 m, inside the building's walls; the mansard falls away at the street sides, so you see the
+canal from its edge, not from the middle). A run builds one room instead of a street; it follows
+the steps above with these differences.
 
 1. **Canon.** Read the place in `docs/story/season-1/10-lieux-et-images.md` (its canonical
    descriptor, its states across the season, its «Never») and the scenes that happen there
@@ -198,7 +205,7 @@ room instead of a street; it follows the steps above with these differences.
    quarter's coordinates (x east, z south, metres; the stairwell stands where the quai's façade
    has its street door):
    - `spaces`: rectangles with a `floor` height, a `ceiling`, a `finish` (`cabochons`, `boards`,
-     `tomettes`, `cobbles`, `stone`), a `zone` (`room` is lit by its lamps; `sealed` is seen and
+     `tomettes`, `cobbles`, `stone`, `zinc`), a `zone` (`room` is lit by its lamps; `sealed` is seen and
      not entered yet; `out` is under the sky), `walk: false` for a floor seen, not walked, and
      `walls` (`finish`, `tone`, `dado`, or null where a space opens into the next). `open` cuts a
      side's opening (`{ "w": [{ "u": [1.5, 2.75] }] }`, u along the side from its start); a
@@ -224,7 +231,10 @@ room instead of a street; it follows the steps above with these differences.
      `longtable`, `armchair`, `pen`, `folder` with its label in `text`, `bookcase`, `polaroids`
      (the shoebox out from under the bed, the photos spilled in front of it over `size`),
      `armoire`, `drink` with the order in `text`: a cup on its saucer by what it holds, its
-     handle on local +x) with
+     handle on local +x; on a roof, `skylight` (a tabatière: its curb, the glazed lid laid back,
+     the ladder's top and the stairwell's light, `size` [across, along]), `chimney` (a stack
+     with its pots, `size` [long, high]) and `edge` (the zinc's rolled edge where the mansard
+     falls away, `size` [length, 0]: tap it for what you see below)) with
      `zone`, `tone`, `text`, `size`. A thing with `look` (three languages) can be tapped and says
      it in a line; its `did` is what the end card remembers. `courts` are seen through a window:
      `storeys` one fewer than your floor puts their zinc at your eye, and `roofs: true` gives

@@ -60,6 +60,7 @@ from typing import Any
 
 from pydantic import Field
 
+from app.services import address
 from app.services.season.clock import SEASON_KEY, Position, played_log, position
 from app.services.season.flags import PAINTING_BY_ENDING, effective_flags
 from app.services.season.format import (
@@ -563,9 +564,7 @@ def carried(season: Season, state: dict | None, flags: dict[str, Any], *, band: 
         # WP-133b: who the ending removed (never on the page; the draft guard
         # refuses it), and how each cast member speaks to the learner now.
         "departed": departed_cast(season, state, flags),
-        "registers": {
-            member.id: str(flags.get(f"register.{member.id}") or member.address) for member in season.cast
-        },
+        "registers": address.season_registers(season, flags),
     }
 
 

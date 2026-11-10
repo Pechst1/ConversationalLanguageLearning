@@ -135,11 +135,11 @@ test('a day without blocking plays in the places the world has built for it, and
   assert.deepEqual(placesOf(page([at('p1', null), { kind: 'hook', id: 'h', panel: at('h.p', null) }])), ['quai_de_valmy', 'quai_de_valmy']);
   assert.equal(unbuiltOf(page([at('p1', null)])), null);
   // somewhere nothing is built for yet: no place plays it, and the page says where
-  assert.deepEqual(placesOf(page([at('p1', 'toit'), at('p2', null), at('p3', 'le_mistral')])), [null, null, 'quai_de_valmy']);
+  assert.deepEqual(placesOf(page([at('p1', 'mistral_back_room'), at('p2', null), at('p3', 'le_mistral')])), [null, null, 'quai_de_valmy']);
   assert.equal(unbuiltOf(page([at('p1', 'le_mistral'), at('p2', 'mistral_back_room')])), 'mistral_back_room');
-  assert.equal(unbuiltOf(page([at('p1', null)], 'toit')), 'toit');
+  assert.equal(unbuiltOf(page([at('p1', null)], 'marin_lila_flat')), 'marin_lila_flat');
   assert.equal(unbuiltOf(page([at('p1', 'somewhere_new')])), 'somewhere_new');
-  // the season's own pages: T2 climbs the stairwell into Odile's flat; the roof (g3) waits for the forge
+  // the season's own pages: T2 climbs the stairwell into Odile's flat; the roof (g3) plays on the roof the forge built
   // (the season file's own movements: a solve the server poses as a question has no place of its own)
   const staged = (movements) => movements.filter((m) => m.kind === 'panel' || m.panel);
   const season = (file, day) => {
@@ -153,7 +153,9 @@ test('a day without blocking plays in the places the world has built for it, and
   assert.equal(unbuiltOf(t2b), null);
   assert.deepEqual(Array.from(new Set(placesOf(t2b))), ['odile_flat', 'escalier_mistral', 'quai_de_valmy']);
   const g3 = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, '..', 'app/data/season/s1/bridges.json'), 'utf8')).bridges.find((b) => b.gap === 'g3');
-  assert.equal(unbuiltOf({ location_id: g3.location_id, movements: staged(g3.moments.flatMap((m) => m.movements)) }), 'toit');
+  const g3page = { location_id: g3.location_id, movements: staged(g3.moments.flatMap((m) => m.movements)) };
+  assert.equal(unbuiltOf(g3page), null);
+  assert.ok(placesOf(g3page).includes('toit_mistral'), 'the pages of the roof play on the roof');
   // the card
   assert.equal(placeCard('le_mistral'), null);
   assert.equal(placeCard('mistral_back_room'), null);

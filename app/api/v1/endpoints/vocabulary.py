@@ -932,13 +932,9 @@ def add_extra_new_words(
     now has room for. Refused past the day's last step."""
 
     from app.services.goal_estimate import new_words_pace
-    from app.services.vocabulary_pace import (
-        EXTRA_WORDS_STEP,
-        MAX_EXTRA_NEW_WORDS,
-        extra_new_words_today,
-    )
+    from app.services.vocabulary_pace import next_extra_step
 
-    if extra_new_words_today(db, current_user) + EXTRA_WORDS_STEP > MAX_EXTRA_NEW_WORDS:
+    if next_extra_step(db, current_user) <= 0:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No more extra words today")
     grant_extra_new_words(db, current_user)
     db.commit()

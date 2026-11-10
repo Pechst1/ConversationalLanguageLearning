@@ -162,6 +162,8 @@ export type RecapRuleIn = {
 export type RecapRuleRow = {
   conceptId: number;
   title: string;
+  /** The language `title` is in (the chrome language; French when only the French title exists). */
+  titleLang: string;
   rung: number;
   level: string;
   change: string;
@@ -210,6 +212,7 @@ export function recapRuleRows(
   copy: ForgeCopy,
   language: string,
   now: Date = new Date(),
+  titleLangOf: (concept: TitledConcept) => string = () => 'fr',
 ): RecapRuleRow[] {
   const rules = Array.isArray(recap?.forge?.rules) ? recap!.forge!.rules! : [];
   return rules
@@ -220,6 +223,7 @@ export function recapRuleRows(
       return {
         conceptId: Number(rule.concept_id),
         title: concept ? titleOf(concept) : '',
+        titleLang: concept ? titleLangOf(concept) : 'fr',
         rung: clampRung(rule.rung),
         level: levelText(copy, rule.rung),
         change: change.text,
