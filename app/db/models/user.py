@@ -124,6 +124,8 @@ class User(Base):
     password_reset_token_hash = Column(String(255))
     password_reset_requested_at = Column(DateTime(timezone=True))
     email_updated_at = Column(DateTime(timezone=True))
+    # S4 stage 3: an email change waits here until the code sent to the new
+    # address is typed; `email` changes only then.
     pending_email = Column(String(255))
     pending_email_token_hash = Column(String(255))
     pending_email_requested_at = Column(DateTime(timezone=True))
@@ -132,6 +134,11 @@ class User(Base):
     # 15 minutes, and cleared after five wrong guesses or one right one.
     password_reset_code_hash = Column(String(128))
     password_reset_code_attempts = Column(Integer, default=0)
+    # S4 stage 3: the six-digit code that verifies an address (the account's
+    # own after sign-up, or `pending_email` during a change). Keyed digest only.
+    email_verification_code_hash = Column(String(128))
+    email_verification_sent_at = Column(DateTime(timezone=True))
+    email_verification_attempts = Column(Integer, default=0)
 
     # Relationships
     grammar_progress = relationship("UserGrammarProgress", back_populates="user", lazy="dynamic")

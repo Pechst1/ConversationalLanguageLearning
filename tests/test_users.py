@@ -1,6 +1,7 @@
 """Tests for user profile endpoints."""
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
@@ -242,17 +243,36 @@ def test_failed_password_change_keeps_refresh_token_valid(client: TestClient) ->
     assert refresh_response.status_code == 200
 
 
-def test_email_change_updates_login_and_invalidates_old_token(client: TestClient) -> None:
+def _confirm_email_change(client: TestClient, monkeypatch, token: str, new_email: str) -> None:
+    """S4 stage 3: request the change, then type the code sent to the new address."""
+    import re
+
+    from app.services import mail_outbox
+
+    sent: list[tuple[str, str]] = []
+    monkeypatch.setattr(mail_outbox, "send_message", lambda message, *, kind: sent.append((message["To"], message.get_content())) or True)
+    headers = {"Authorization": f"Bearer {token}"}
+    requested = client.patch(
+        "/api/v1/users/me/email",
+        json={"current_password": "verysecure", "new_email": new_email},
+        headers=headers,
+    )
+    assert requested.status_code == 200
+    assert requested.json()["pending_email"] == new_email
+    # Until the code is typed, the old address still signs in and the token still works.
+    assert client.get("/api/v1/users/me", headers=headers).status_code == 200
+    code = re.search(r"\b(\d{6})\b", next(body for to, body in sent if to == new_email)).group(1)
+    confirmed = client.post("/api/v1/auth/verify-email", json={"code": code}, headers=headers)
+    assert confirmed.status_code == 200
+    assert confirmed.json()["email"] == new_email
+
+
+@pytest.mark.usefixtures("verified_signups")
+def test_email_change_updates_login_and_invalidates_old_token(client: TestClient, monkeypatch) -> None:
     token = register_and_login(client, "old-email@example.com", "verysecure")
 
-    response = client.patch(
-        "/api/v1/users/me/email",
-        json={"current_password": "verysecure", "new_email": "new-email@example.com"},
-        headers={"Authorization": f"Bearer {token}"},
-    )
+    _confirm_email_change(client, monkeypatch, token, "new-email@example.com")
 
-    assert response.status_code == 200
-    assert response.json()["email"] == "new-email@example.com"
     old_token_response = client.get("/api/v1/users/me", headers={"Authorization": f"Bearer {token}"})
     assert old_token_response.status_code == 401
     login_response = client.post(
@@ -262,19 +282,15 @@ def test_email_change_updates_login_and_invalidates_old_token(client: TestClient
     assert login_response.status_code == 200
 
 
+@pytest.mark.usefixtures("verified_signups")
 def test_email_change_revokes_existing_refresh_token(client: TestClient, monkeypatch) -> None:
     from app.config import settings
 
     monkeypatch.setattr(settings, "AUTO_CREATE_USERS_ON_LOGIN", False)
     tokens = register_and_login_pair(client, "email-refresh-old@example.com", "verysecure")
 
-    response = client.patch(
-        "/api/v1/users/me/email",
-        json={"current_password": "verysecure", "new_email": "email-refresh-new@example.com"},
-        headers={"Authorization": f"Bearer {tokens['access_token']}"},
-    )
+    _confirm_email_change(client, monkeypatch, tokens["access_token"], "email-refresh-new@example.com")
 
-    assert response.status_code == 200
     refresh_response = client.post(
         "/api/v1/auth/refresh",
         json={"refresh_token": tokens["refresh_token"]},

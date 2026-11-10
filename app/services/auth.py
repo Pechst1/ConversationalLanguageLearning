@@ -4,7 +4,6 @@ from __future__ import annotations
 import hmac
 import logging
 import secrets
-import smtplib
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -27,7 +26,7 @@ from app.core.security import (
 )
 from app.db.models.user import RefreshToken, User
 from app.schemas import Token, UserCreate
-from app.services.chrome_language import mother_tongue, user_mother_tongue
+from app.services.chrome_language import mother_tongue
 from app.services.daily_session import DEFAULT_PACE, PACES
 
 logger = logging.getLogger(__name__)
@@ -81,6 +80,21 @@ PASSWORD_RESET_CODE_MAX_ATTEMPTS = 5
 # A fresh code is not issued more often than this, so "request, guess five
 # times, request again" cannot walk the million codes at request speed.
 PASSWORD_RESET_CODE_COOLDOWN_SECONDS = 60
+
+# S4 stage 3: the code that verifies an address (after sign-up, or the new
+# address of a change). Longer-lived than a reset code: a new learner may open
+# the mail the next evening. Five wrong guesses spend it.
+EMAIL_VERIFICATION_CODE_TTL_HOURS = 48
+EMAIL_VERIFICATION_MAX_ATTEMPTS = 5
+EMAIL_VERIFICATION_RESEND_SECONDS = 60
+
+
+class InvalidVerificationCodeError(ValueError):
+    """Raised when an email verification code is wrong, spent or expired."""
+
+
+class EmailUnverifiedError(PermissionError):
+    """Raised when an action needs a verified address and the account has none."""
 
 _LOCAL_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1", ""}  # noqa: S104 - host names, not a bind
 
@@ -234,6 +248,18 @@ class AuthService:
         user = candidates[0]
 
         now = datetime.now(UTC)
+        if not user.is_verified:
+            # S4 stage 3: a reset by mail needs a verified address. An unverified
+            # account gets its verification code again instead (within the same
+            # cooldown), so a learner who never confirmed is not stranded. The
+            # answer is the same either way: it never says which accounts exist.
+            delivery = self.send_email_verification(user, now=now, respect_cooldown=True, purpose="reset")
+            self.db.commit()
+            if delivery is not None:
+                from app.services.mail_outbox import deliver_mail
+
+                deliver_mail(self.db, delivery.id)
+            return PasswordResetRequestResult()
         last_requested = _as_utc(user.password_reset_requested_at)
         if (
             last_requested
@@ -282,6 +308,12 @@ class AuthService:
         code = (code or "").strip()
         for user in self.users_with_email(email, active_only=True, for_update=True):
             now = datetime.now(UTC)
+            if not user.is_verified and self._spend_verification_code(user, code, now):
+                # S4 stage 3: an unverified account was mailed a verification code
+                # instead of a reset code. Typed here, it proves the inbox: the
+                # address is verified and the new password is set in one step.
+                user.is_verified = True
+                return self._complete_password_reset(user, new_password)
             if not user.password_reset_code_hash:
                 continue
             requested_at = _as_utc(user.password_reset_requested_at)
@@ -362,74 +394,143 @@ class AuthService:
 
     @staticmethod
     def password_reset_email(user: User, *, code: str, reset_url: str | None) -> EmailMessage:
-        """The reset email, in the learner's own language, code first."""
+        """The reset email, in the learner's own language, code first (template: app/mail)."""
+        from app.services.mail_outbox import build_message
 
-        language = user_mother_tongue(user)
-        ttl = PASSWORD_RESET_CODE_TTL_MINUTES
-        link_ttl = settings.PASSWORD_RESET_TOKEN_TTL_MINUTES
-        if language == "de":
-            subject = f"{code} – dein Code für L’Atelier"
-            lines = [
-                "Dein Code zum Zurücksetzen des Passworts:",
-                "",
-                f"    {code}",
-                "",
-                f"Gib ihn in der App ein. Er gilt {ttl} Minuten und nur einmal.",
-            ]
-            link_lines = ["", f"Oder öffne diesen Link ({link_ttl} Minuten gültig):", reset_url or ""]
-            footer = "Du hast das nicht angefordert? Dann ignoriere diese E-Mail."
-        elif language == "fr":
-            subject = f"{code} – votre code L’Atelier"
-            lines = [
-                "Votre code pour choisir un nouveau mot de passe :",
-                "",
-                f"    {code}",
-                "",
-                f"Saisissez-le dans l’application. Valable {ttl} minutes, une seule fois.",
-            ]
-            link_lines = ["", f"Ou ouvrez ce lien (valable {link_ttl} minutes) :", reset_url or ""]
-            footer = "Vous n’avez rien demandé ? Ignorez simplement ce message."
-        else:
-            subject = f"{code} – your L’Atelier code"
-            lines = [
-                "Your code to reset your password:",
-                "",
-                f"    {code}",
-                "",
-                f"Enter it in the app. It works once, for {ttl} minutes.",
-            ]
-            link_lines = ["", f"Or open this link (valid for {link_ttl} minutes):", reset_url or ""]
-            footer = "Didn't ask for this? You can ignore this email."
-
-        body = [*lines, *(link_lines if reset_url else []), "", footer]
-        message = EmailMessage()
-        message["Subject"] = subject
-        message["From"] = settings.SMTP_FROM_EMAIL or ""
-        message["To"] = user.email
-        message.set_content("\n".join(body))
-        return message
+        return build_message("password_reset", user, user.email, {"code": code, "reset_url": reset_url})
 
     def _deliver_password_reset(self, user: User, *, code: str, reset_url: str | None) -> bool:
         """Send a reset email when SMTP is configured; otherwise log a safe hint."""
+        from app.services.mail_outbox import send_message
 
         if not settings.SMTP_HOST or not settings.SMTP_FROM_EMAIL:
-            logger.info("Password reset requested for %s, but SMTP is not configured.", user.email)
+            logger.info("Password reset requested for user %s, but SMTP is not configured.", user.id)
             return False
+        return send_message(self.password_reset_email(user, code=code, reset_url=reset_url), kind="password_reset")
 
-        message = self.password_reset_email(user, code=code, reset_url=reset_url)
+    # ── S4 stage 3: a verified address ─────────────────────────────────────
 
-        try:
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as smtp:
-                if settings.SMTP_USE_TLS:
-                    smtp.starttls()
-                if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
-                    smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
-                smtp.send_message(message)
-        except Exception as exc:  # pragma: no cover - network/email provider failure
-            # SMTP exceptions and trace locals can contain the message/code.
-            logger.error("Password reset email delivery failed for user %s (%s)", user.id, type(exc).__name__)
+    def send_email_verification(
+        self, user: User, *, now: datetime | None = None, respect_cooldown: bool = False, purpose: str | None = None,
+    ):
+        """Mint a verification code for the address waiting to be verified and stage its mail.
+
+        The address is ``pending_email`` during a change, else the account's own.
+        Returns the staged delivery (the caller commits and delivers), or ``None``
+        when nothing needs verifying or a code went out seconds ago.
+        """
+        from app.services.mail_outbox import enqueue_mail
+
+        now = now or datetime.now(UTC)
+        changing = bool(user.pending_email)
+        if not changing and user.is_verified:
+            return None
+        last = _as_utc(user.email_verification_sent_at)
+        if respect_cooldown and last and now - last < timedelta(seconds=EMAIL_VERIFICATION_RESEND_SECONDS):
+            return None
+        code = f"{secrets.randbelow(1_000_000):06d}"
+        user.email_verification_code_hash = self.hash_reset_code(user, code)
+        user.email_verification_sent_at = now
+        user.email_verification_attempts = 0
+        self.db.add(user)
+        return enqueue_mail(
+            self.db, user, kind="verify_email",
+            payload={"code": code, "purpose": "change" if changing else (purpose or "signup")},
+            token_hash=user.email_verification_code_hash,
+            recipient=user.pending_email if changing else user.email,
+            now=now, expires_at=now + timedelta(hours=EMAIL_VERIFICATION_CODE_TTL_HOURS),
+        )
+
+    def verify_email_code(self, user: User, code: str) -> User:
+        """Spend a verification code: verify the address, or complete a pending change."""
+        from app.mail import mask_email
+        from app.services.mail_outbox import deliver_mail, enqueue_mail
+
+        now = datetime.now(UTC)
+        sent_at = _as_utc(user.email_verification_sent_at)
+        attempts = int(user.email_verification_attempts or 0)
+        if (
+            not user.email_verification_code_hash
+            or not sent_at
+            or now > sent_at + timedelta(hours=EMAIL_VERIFICATION_CODE_TTL_HOURS)
+            or attempts >= EMAIL_VERIFICATION_MAX_ATTEMPTS
+        ):
+            raise InvalidVerificationCodeError("This code is no longer valid. Ask for a new one.")
+        if not hmac.compare_digest(user.email_verification_code_hash, self.hash_reset_code(user, code)):
+            user.email_verification_attempts = attempts + 1
+            if user.email_verification_attempts >= EMAIL_VERIFICATION_MAX_ATTEMPTS:
+                user.email_verification_code_hash = None
+            self.db.add(user)
+            self.db.commit()
+            raise InvalidVerificationCodeError("Wrong code.")
+
+        delivery = None
+        if user.pending_email:
+            new_email = normalize_email(user.pending_email)
+            if any(other.id != user.id for other in self.users_with_email(new_email)):
+                user.pending_email = None
+                user.email_verification_code_hash = None
+                self.db.add(user)
+                self.db.commit()
+                raise EmailAlreadyExistsError("A user with this email already exists.")
+            old_email = user.email
+            user.email = new_email
+            user.email_updated_at = now
+            user.pending_email = None
+            user.auth_version = int(user.auth_version or 0) + 1
+            self.revoke_all_refresh_tokens(user, commit=False)
+            delivery = enqueue_mail(
+                self.db, user, kind="email_changed", payload={"new_email": mask_email(new_email)},
+                token_hash=sha256(f"{user.id}:{now.isoformat()}".encode()).hexdigest(),
+                recipient=old_email, now=now, expires_at=now + timedelta(days=1),
+            )
+        user.is_verified = True
+        user.email_verification_code_hash = None
+        user.email_verification_attempts = 0
+        self.db.add(user)
+        self.db.commit()
+        if delivery is not None:
+            deliver_mail(self.db, delivery.id)
+        self.db.refresh(user)
+        return user
+
+    def _spend_verification_code(self, user: User, code: str, now: datetime) -> bool:
+        """True (and the code spent) when ``code`` is the account's live verification code."""
+        sent_at = _as_utc(user.email_verification_sent_at)
+        attempts = int(user.email_verification_attempts or 0)
+        if (
+            user.pending_email
+            or not user.email_verification_code_hash
+            or not sent_at
+            or now > sent_at + timedelta(hours=EMAIL_VERIFICATION_CODE_TTL_HOURS)
+            or attempts >= EMAIL_VERIFICATION_MAX_ATTEMPTS
+        ):
             return False
+        if not hmac.compare_digest(user.email_verification_code_hash, self.hash_reset_code(user, code)):
+            user.email_verification_attempts = attempts + 1
+            self.db.add(user)
+            return False
+        user.email_verification_code_hash = None
+        user.email_verification_attempts = 0
         return True
+
+    def request_email_change(self, user: User, new_email: str) -> User:
+        """Hold the new address until the code sent there is typed (verified accounts only)."""
+        from app.services.mail_outbox import deliver_mail
+
+        if not user.is_verified:
+            raise EmailUnverifiedError("Confirm your current address first.")
+        new_email = normalize_email(new_email)
+        if any(other.id != user.id for other in self.users_with_email(new_email)):
+            raise EmailAlreadyExistsError("A user with this email already exists.")
+        user.pending_email = new_email
+        user.pending_email_requested_at = datetime.now(UTC)
+        delivery = self.send_email_verification(user)
+        self.db.commit()
+        if delivery is not None:
+            deliver_mail(self.db, delivery.id)
+        self.db.refresh(user)
+        return user
 
     @staticmethod
     def hash_token(token: str) -> str:

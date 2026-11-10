@@ -1272,6 +1272,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/verify-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify Email
+         * @description Spend the emailed code: the address is verified, or a pending change takes effect.
+         *
+         *     A completed change ends every session (the address is the sign-in name).
+         */
+        post: operations["verify_email_api_v1_auth_verify_email_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/verify-email/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resend Verification Email
+         * @description Send a fresh code to the address waiting to be verified (once a minute at most).
+         */
+        post: operations["resend_verification_email_api_v1_auth_verify_email_resend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/avatar": {
         parameters: {
             query?: never;
@@ -4976,7 +5018,11 @@ export interface paths {
         head?: never;
         /**
          * Change Current User Email
-         * @description Change the current user's email after password confirmation.
+         * @description Ask to change the sign-in address (S4 stage 3).
+         *
+         *     Needs the password and a verified current address. The new address is held
+         *     in ``pending_email`` and gets a code; ``email`` changes only when that code
+         *     is typed (``POST /auth/verify-email``), and the old address is then told.
          */
         patch: operations["change_current_user_email_api_v1_users_me_email_patch"];
         trace?: never;
@@ -8205,6 +8251,11 @@ export interface components {
             concept_id?: number | null;
             /** Pair */
             pair?: string | null;
+        };
+        /** EmailVerificationCode */
+        EmailVerificationCode: {
+            /** Code */
+            code: string;
         };
         /**
          * EntreTempsItem
@@ -15714,6 +15765,8 @@ export interface components {
              * @default true
              */
             notifications_enabled?: boolean;
+            /** Pending Email */
+            pending_email?: string | null;
             /**
              * Practice Reminders
              * @default true
@@ -15872,6 +15925,8 @@ export interface components {
             new_words_per_day: number;
             /** Notifications Enabled */
             notifications_enabled: boolean;
+            /** Pending Email */
+            pending_email?: string | null;
             /** Practice Reminders */
             practice_reminders: boolean;
             /** Preferred Session Time */
@@ -18793,6 +18848,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_email_api_v1_auth_verify_email_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailVerificationCode"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resend_verification_email_api_v1_auth_verify_email_resend_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: boolean;
+                    };
                 };
             };
         };

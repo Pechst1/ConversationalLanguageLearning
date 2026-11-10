@@ -559,3 +559,25 @@ def french_vocabulary(db_session):
     finally:
         db_session.query(VocabularyWord).delete()
         db_session.commit()
+
+
+@pytest.fixture()
+def verified_signups(monkeypatch):
+    """S4 stage 3: accounts created in this test start with a verified address.
+
+    A reset by mail needs a verified address now. Tests about the reset itself
+    (codes, links, cooldowns, delivery) start from an account that has one, as
+    every account that existed before the stage-3 migration does.
+    """
+    from app.services.auth import AuthService
+
+    original = AuthService.register_user
+
+    def register_verified(self, payload):
+        user = original(self, payload)
+        user.is_verified = True
+        self.db.add(user)
+        self.db.commit()
+        return user
+
+    monkeypatch.setattr(AuthService, "register_user", register_verified)

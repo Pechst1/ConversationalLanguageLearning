@@ -24,6 +24,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { Capacitor } from '@capacitor/core';
 import toast from 'react-hot-toast';
+import { AddressVerification } from '@/components/settings/AddressVerification';
 import {
     Action,
     AtelierV2Root,
@@ -456,6 +457,9 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
     const [emailForm, setEmailForm] = useState({ currentPassword: '', newEmail: '' });
     const [isAdmin, setIsAdmin] = useState(false);
+    // S4 stage 3: whether the sign-in address is confirmed, and a change waiting for its code.
+    const [emailVerified, setEmailVerified] = useState(true);
+    const [pendingEmail, setPendingEmail] = useState<string | null>(null);
     // Round 3: the three paces, what each holds and costs, and when it reaches
     // the goal, from `GET /daily-journeys/session/pace`. Absent, the cards
     // print their names only.
@@ -558,6 +562,8 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
             try {
                 const user: any = await api.getSettings();
                 setIsAdmin(user.role === 'admin');
+                setEmailVerified(user.is_verified !== false);
+                setPendingEmail(user.pending_email || null);
                 setEpisodeAudioEnabled(Boolean(user.episode_audio_enabled));
                 // From here the screen knows whose language it is in.
                 setNativeLanguageKnown(true);
@@ -773,19 +779,32 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
         }
         setIsSaving(true);
         try {
+            // S4 stage 3: the change waits for the code sent to the new address.
             const updated: any = await api.changeEmail({
                 current_password: emailForm.currentPassword,
                 new_email: emailForm.newEmail,
             });
-            setSettings((prev) => ({ ...prev, email: updated.email || emailForm.newEmail }));
+            setPendingEmail(updated.pending_email || emailForm.newEmail);
             setEmailForm({ currentPassword: '', newEmail: '' });
-            toast.success(copy.email_changed);
-            await appSignOut({ callbackUrl: '/auth/signin' });
-        } catch (error) {
+            toast.success(copy.email_pending);
+        } catch (error: any) {
             console.error('Failed to change email:', error);
-            toast.error(copy.email_failed);
+            toast.error(error?.response?.data?.detail?.code === 'email_unverified' ? copy.email_needs_verified : copy.email_failed);
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleAddressVerified = async ({ email, changed }: { email: string; changed: boolean }) => {
+        setEmailVerified(true);
+        setPendingEmail(null);
+        setSettings((prev) => ({ ...prev, email: email || prev.email }));
+        if (changed) {
+            // The address is the sign-in name: a confirmed change ends every session.
+            toast.success(copy.email_changed);
+            await appSignOut({ callbackUrl: '/auth/signin' });
+        } else {
+            toast.success(copy.verify_done);
         }
     };
 
@@ -1016,6 +1035,16 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                         </div>
 
                         <div className="st-card">
+                            {(!emailVerified || pendingEmail) && (
+                                <Row label={copy.row_verify} stacked>
+                                    <AddressVerification
+                                        copy={copy}
+                                        email={settings.email}
+                                        pendingEmail={pendingEmail}
+                                        onVerified={handleAddressVerified}
+                                    />
+                                </Row>
+                            )}
                             <Row label={copy.row_change_email} hint={copy.row_change_email_hint} stacked>
                                 <div className="st-form">
                                     <Field label={copy.field_new_email}>

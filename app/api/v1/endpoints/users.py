@@ -18,7 +18,7 @@ from app.schemas import (
     UserSettingsUpdate,
     UserUpdate,
 )
-from app.services.auth import AuthService, normalize_email
+from app.services.auth import AuthService, EmailAlreadyExistsError, EmailUnverifiedError
 from app.services.gdpr_export import export_learner_records
 from app.services.users import UserNotFoundError, UserService
 from app.utils.cache import build_cache_key, cache_backend
@@ -119,28 +119,26 @@ def change_current_user_email(
     current_user: User = Depends(deps.get_current_user),
     db: Session = Depends(deps.get_db),
 ) -> UserRead:
-    """Change the current user's email after password confirmation."""
+    """Ask to change the sign-in address (S4 stage 3).
+
+    Needs the password and a verified current address. The new address is held
+    in ``pending_email`` and gets a code; ``email`` changes only when that code
+    is typed (``POST /auth/verify-email``), and the old address is then told.
+    """
 
     if not verify_password(payload.current_password, current_user.hashed_password):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect.")
-    # WP-71/74: one normal form, and a duplicate is a duplicate whatever its case.
-    new_email = normalize_email(str(payload.new_email))
-    existing = next(
-        (user for user in AuthService(db).users_with_email(new_email) if user.id != current_user.id),
-        None,
-    )
-    if existing:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A user with this email already exists.")
-    current_user.email = new_email
-    current_user.email_updated_at = datetime.now(UTC)
-    current_user.is_verified = False
-    current_user.auth_version = int(current_user.auth_version or 0) + 1
-    db.add(current_user)
-    db.commit()
-    db.refresh(current_user)
-    AuthService(db).revoke_all_refresh_tokens(current_user)
-    _invalidate_user_cache(current_user.id)
-    return UserRead.model_validate(current_user).model_dump(mode="json")
+    try:
+        user = AuthService(db).request_email_change(current_user, str(payload.new_email))
+    except EmailUnverifiedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "email_unverified", "message": str(exc)},
+        ) from exc
+    except EmailAlreadyExistsError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A user with this email already exists.") from exc
+    _invalidate_user_cache(user.id)
+    return UserRead.model_validate(user).model_dump(mode="json")
 
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
