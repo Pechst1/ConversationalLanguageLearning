@@ -22,7 +22,7 @@ read this state (``journey_absence``); no screen infers it.
 from __future__ import annotations
 
 import logging
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -98,12 +98,81 @@ def _between_days(db: Session, user_id: Any, today: date) -> bool:
     )
 
 
+#: A retry the promised date fired that has not reported within this long is
+#: presumed dead: the reprise begins anyway, the date is kept.
+RETRY_GRACE = timedelta(hours=2)
+
+
+def _writer_step(row: dict, *, due: bool, today_iso: str) -> str | None:
+    """What the writer job needs from this sweep, if anything (``row`` is updated in
+    place): ``dispatch`` the first run, ``retry`` on the promised date while the
+    budget lasts, ``writing`` while that retry runs. ``None``: nothing to do for it."""
+
+    from app.config import settings
+    from app.services.season_writer_job import budget_left
+
+    if not settings.ATELIER_SEASON_WRITER_ENABLED or row.get("state") not in (PENDING, INTERLUDE):
+        return None
+    now = datetime.now(UTC)
+    if not due:
+        if row.get("state") == PENDING and not row.get("dispatched_at"):
+            row["dispatched_at"] = now.isoformat(timespec="seconds")
+            return "dispatch"
+        return None
+    if row.get("retried_on") != today_iso:
+        if not budget_left(row):
+            return None
+        row.update(state=PENDING, retried_on=today_iso, retried_at=now.isoformat(timespec="seconds"))
+        return "retry"
+    if row.get("state") == PENDING:
+        started = datetime.fromisoformat(str(row.get("retried_at") or now.isoformat()))
+        if now - started < RETRY_GRACE:
+            return "writing"
+    return None
+
+
+def dispatch_failed(db: Session, thread_id: UUID, *, today: date, final: bool, error: str) -> str:
+    """The writer job could not be queued (the broker refused it). Nothing is
+    writing, so the state says ``interlude``, never a ``pending`` no worker holds.
+    The promised date still fires its retry; if that one cannot be queued either,
+    the life moves on that date (the written season, or the reprise)."""
+
+    from app.db.models.serial import SerialThread
+    from app.services import living_story as engine
+
+    db.rollback()
+    thread = db.scalars(
+        select(SerialThread).where(SerialThread.id == thread_id).with_for_update()
+        .execution_options(populate_existing=True)
+    ).first()
+    live = dict(((thread.state or {}).get(engine.STATE_KEY) or {}) if thread is not None else {})
+    row = state_of(live)
+    if thread is None or not is_open(row):
+        db.rollback()
+        return "idle"
+    if row.get("state") == PENDING:
+        store(
+            live, INTERLUDE,
+            **{key: value for key, value in row.items() if key not in ("state", "dispatch_error")},
+            dispatch_error=str(error)[:200],
+        )
+        state = dict(thread.state or {})
+        state[engine.STATE_KEY] = live
+        thread.state = state
+        flag_modified(thread, "state")
+    db.commit()
+    logger.warning("season_rollover: thread %s writer not queued (%s)", thread_id, error)
+    return advance(db, thread_id, today=today) if final else INTERLUDE
+
+
 def advance(db: Session, thread_id: UUID, *, today: date) -> str:
     """One life's rollover, moved by the date. Short, locked, and model-free.
 
     Returns ``idle`` (nothing open), ``waiting`` (before the date, nothing ready),
-    ``busy`` (a written season is ready but a day is open), or the state the
-    next season began in (``written`` / ``reprise``). Commits what it changed."""
+    ``busy`` (a written season is ready but a day is open), ``dispatch`` / ``retry``
+    (the writer job is to be queued: its first run, or the promised date's retry),
+    ``writing`` (that retry is running), or the state the next season began in
+    (``written`` / ``reprise``). Commits what it changed."""
 
     from app.db.models.serial import SerialThread
     from app.services import living_story as engine
@@ -124,6 +193,17 @@ def advance(db: Session, thread_id: UUID, *, today: date) -> str:
     today_iso = today.isoformat()
     ready = row.get("state") == WRITTEN and bool(row.get("season_file"))
     due = bool(row.get("returns_on")) and today_iso >= str(row["returns_on"])
+    writing = _writer_step(row, due=due, today_iso=today_iso)
+    if writing is not None:
+        if writing in ("dispatch", "retry"):
+            live[STATE_KEY] = row
+            state[engine.STATE_KEY] = live
+            thread.state = state
+            flag_modified(thread, "state")
+            db.commit()
+        else:
+            db.rollback()
+        return writing
     if not ready and not due:
         db.rollback()
         return "waiting"
@@ -158,6 +238,7 @@ __all__ = [
     "STATE_KEY",
     "WRITTEN",
     "advance",
+    "dispatch_failed",
     "is_open",
     "open_rollovers",
     "state_of",

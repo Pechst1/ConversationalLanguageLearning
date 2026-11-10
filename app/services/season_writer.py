@@ -25,6 +25,7 @@ from __future__ import annotations
 import logging
 import re
 import time
+from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Any
 
@@ -293,22 +294,35 @@ def season_file_from_draft(draft: SeasonDraft, *, number: int, source: str) -> d
     }
 
 
-def draft_next_season(
-    *, live: dict, world: dict, next_season: int, db=None, user=None
-) -> dict | None:
-    """One director-class call and one critic call; ``None`` on any failure.
+@dataclass
+class WriterAttempt:
+    """One director call and (when the draft holds) one critic call.
 
-    Never raises: a season that could not be written is a named interlude, not a lost
-    day. Uses the story engine's own provider seam, so the tests' fake provider (and the
-    spend records) apply unchanged.
-    """
+    ``reason`` is ``accepted`` or why the draft was refused: ``too_little_material``,
+    ``rejected:<structural reason>``, ``critic:<first issue>``, ``unavailable:<why>``
+    or ``error:<type>``."""
+
+    season_file: dict | None
+    reason: str
+    usage: list[dict] = field(default_factory=list)
+
+    @property
+    def cost_usd(self) -> float:
+        return round(sum(float(row.get("cost_usd") or 0) for row in self.usage), 6)
+
+
+def write_attempt(*, live: dict, world: dict, next_season: int) -> WriterAttempt:
+    """One attempt at season ``next_season``. Never raises; never touches the database.
+
+    Called by the writer job (``season_writer_job``) with no transaction open, never
+    from a request (S5)."""
 
     from app.services import living_story as engine
 
     material = season_material(live, world)
     if len(material) < 3:
         logger.info("season_writer: too little material for season %s (%s rows)", next_season, len(material))
-        return None
+        return WriterAttempt(None, "too_little_material")
     cast = [
         {key: member.get(key) for key in ("id", "name", "role", "wants", "gender")}
         for member in world.get("cast") or []
@@ -334,25 +348,41 @@ def draft_next_season(
             SeasonReview, usage.append, deadline=deadline,
         )
         if not review.accepted:
+            issue = " ".join(str((review.issues or ["refused"])[0]).split())[:160]
             logger.info("season_writer: critic refused season %s: %s", next_season, review.issues[:3])
-            return None
-        return season_file_from_draft(draft, number=int(next_season), source="written")
-    except (engine.StoryUnavailable, SeasonRejected) as exc:
+            return WriterAttempt(None, f"critic:{issue}", usage)
+        return WriterAttempt(season_file_from_draft(draft, number=int(next_season), source="written"), "accepted", usage)
+    except SeasonRejected as exc:
         logger.info("season_writer: season %s not written (%s)", next_season, exc)
-        return None
-    except Exception:  # pragma: no cover - a writer never costs the learner a day
+        return WriterAttempt(None, f"rejected:{exc}", usage)
+    except engine.StoryUnavailable as exc:
+        logger.info("season_writer: season %s not written (%s)", next_season, exc)
+        return WriterAttempt(None, f"unavailable:{exc}", usage)
+    except Exception as exc:  # pragma: no cover - a writer never costs the learner a day
         logger.exception("season_writer: season %s failed", next_season)
-        return None
-    finally:
-        if usage and db is not None and user is not None:
-            try:
-                engine._record_cost(
-                    db, user, "story_season_writer_cost", usage,
-                    entity_type="living_story_season",
-                    payload={"season": int(next_season)},
-                )
-            except Exception:  # pragma: no cover - bookkeeping never blocks the story
-                logger.exception("season_writer: cost row not written")
+        return WriterAttempt(None, f"error:{type(exc).__name__}", usage)
+
+
+def draft_next_season(
+    *, live: dict, world: dict, next_season: int, db=None, user=None
+) -> dict | None:
+    """One attempt (:func:`write_attempt`); the season file, or ``None``. Records the
+    spend when given a session and a learner. For scripts and tests; the product
+    writes through the job."""
+
+    from app.services import living_story as engine
+
+    attempt = write_attempt(live=live, world=world, next_season=next_season)
+    if attempt.usage and db is not None and user is not None:
+        try:
+            engine._record_cost(
+                db, user, "story_season_writer_cost", attempt.usage,
+                entity_type="living_story_season",
+                payload={"season": int(next_season), "reason": attempt.reason},
+            )
+        except Exception:  # pragma: no cover - bookkeeping never blocks the story
+            logger.exception("season_writer: cost row not written")
+    return attempt.season_file
 
 
 # --- the reprise season (no model) -------------------------------------------
