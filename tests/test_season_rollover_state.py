@@ -134,7 +134,10 @@ def _stored_thread(db, user, live: dict) -> SerialThread:
     return thread
 
 
-def test_the_promised_date_starts_the_next_season_whether_or_not_a_chapter_closes(db_session, writer_on):
+def test_the_promised_date_starts_the_next_season_whether_or_not_a_chapter_closes(db_session, writer_on, monkeypatch):
+    # The writer's budget is spent: the date goes straight to the next season (the
+    # retry the date fires while budget remains is tests/test_season_writer_job.py).
+    monkeypatch.setattr(settings, "ATELIER_SEASON_WRITER_MAX_ATTEMPTS", 0, raising=False)
     from app.services import season_rollover
     from tests.test_living_story_address import make_user
 
@@ -147,7 +150,10 @@ def test_the_promised_date_starts_the_next_season_whether_or_not_a_chapter_close
     thread = _stored_thread(db_session, user, live)
     returns_on = date.fromisoformat(live["rollover"]["returns_on"])
 
-    assert season_rollover.advance(db_session, thread.id, today=returns_on - timedelta(days=1)) == "waiting"
+    # Before the date the season does not begin (stage 3 queues its writer here).
+    assert season_rollover.advance(db_session, thread.id, today=returns_on - timedelta(days=1)) in (
+        "waiting", "dispatch",
+    )
     db_session.expire_all()
     assert db_session.get(SerialThread, thread.id).state[engine.STATE_KEY]["rollover"]["state"] == "pending"
 
@@ -184,7 +190,10 @@ def test_the_sweep_runs_on_the_beat():
     assert "app.tasks.season_rollover.advance_due_rollovers" in tasks
 
 
-def test_home_reads_the_interlude_and_the_premiere_from_the_stored_state(db_session, writer_on):
+def test_home_reads_the_interlude_and_the_premiere_from_the_stored_state(db_session, writer_on, monkeypatch):
+    # The writer's budget is spent: the date goes straight to the next season (the
+    # retry the date fires while budget remains is tests/test_season_writer_job.py).
+    monkeypatch.setattr(settings, "ATELIER_SEASON_WRITER_MAX_ATTEMPTS", 0, raising=False)
     from app.services import journey_absence, season_rollover
     from tests.test_living_story_address import make_user
 

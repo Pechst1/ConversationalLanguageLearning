@@ -37,6 +37,7 @@ celery_app = Celery(
         "app.tasks.revue",
         "app.tasks.gold",
         "app.tasks.season_rollover",
+        "app.tasks.season_writer",
     ],
 )
 

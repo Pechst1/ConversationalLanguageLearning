@@ -714,6 +714,22 @@ class Settings(BaseSettings):
             "interlude with a return date, then a reprise season built without a model."
         ),
     )
+    ATELIER_SEASON_WRITER_MAX_ATTEMPTS: int = Field(
+        4,
+        ge=0,
+        description=(
+            "S5: the season writer job's attempts for one rollover (draft + critic each), "
+            "across the interlude and the retry on its promised date. Spent: the reprise."
+        ),
+    )
+    ATELIER_SEASON_WRITER_MAX_USD: float = Field(
+        0.05,
+        ge=0,
+        description=(
+            "S5: the season writer job's spend for one rollover, in US$. Once reached no "
+            "further attempt starts; the promised date brings the reprise."
+        ),
+    )
     ATELIER_SEASON_SCRIPT: str = Field(
         "",
         description=(

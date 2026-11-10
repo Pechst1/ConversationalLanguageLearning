@@ -23,13 +23,20 @@ def _learner_today(db, thread_id):
     return local_date_for(resolve_timezone(getattr(user, "timezone", None)))
 
 
-def advance_all(db) -> dict[str, int]:
-    """Advance every open rollover once. Returns a count per outcome."""
+def advance_all(db, *, today=None) -> dict[str, int]:
+    """Advance every open rollover once, and queue the writer job where the sweep
+    says so. ``today(thread_id)`` is the learner's own date (tests pass a clock).
+    Returns a count per outcome."""
 
+    from app.services import season_writer_job
+
+    today = today or (lambda thread_id: _learner_today(db, thread_id))
     counts: dict[str, int] = {}
     for thread_id in season_rollover.open_rollovers(db):
         try:
-            outcome = season_rollover.advance(db, thread_id, today=_learner_today(db, thread_id))
+            outcome = season_rollover.advance(db, thread_id, today=today(thread_id))
+            if outcome in ("dispatch", "retry"):
+                season_writer_job.dispatcher(str(thread_id), final=outcome == "retry")
         except Exception:  # pragma: no cover - one life never stops the sweep
             logger.exception("season_rollover: thread {} could not advance", thread_id)
             db.rollback()
