@@ -9009,6 +9009,8 @@ export interface components {
             subskill: string | null;
             /** Title Fr */
             title_fr?: string | null;
+            /** Title Native */
+            title_native?: string | null;
             /** Xray */
             xray?: {
                 [key: string]: unknown;
@@ -9092,6 +9094,8 @@ export interface components {
             subskill: string | null;
             /** Title Fr */
             title_fr?: string | null;
+            /** Title Native */
+            title_native?: string | null;
         };
         /**
          * GrammarNotebookNotesRequest

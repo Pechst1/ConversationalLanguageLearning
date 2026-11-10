@@ -34,7 +34,8 @@ from app.core.forge import ForgeState, RuleTrack, Rung, Verdict
 from app.db.models.atelier import AtelierSession
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.user import User
-from app.services.concept_titles import concept_title_fr
+from app.services.chrome_language import user_chrome_language
+from app.services.concept_titles import concept_title, concept_title_fr
 
 ECLAIR_SECONDS = 60
 #: More items than anyone answers in a minute; unanswered ones are never served.
@@ -169,6 +170,7 @@ def eclair_pairs(db: Session, user: User) -> list[dict[str, Any]]:
             by_ref[concept.external_id] = concept
     introduced = [by_ref[cid] for cid in introduced_ids if cid in by_ref]
     scores = best_scores(db, user)
+    chrome = user_chrome_language(user)
     seen: set[str] = set()
     pairs: list[dict[str, Any]] = []
     for concept in sorted(introduced, key=lambda item: (item.difficulty_order or 0, item.id)):
@@ -190,7 +192,7 @@ def eclair_pairs(db: Session, user: User) -> list[dict[str, Any]]:
                 {
                     "pair": key,
                     "concept_ids": [low.id, high.id],
-                    "rules": [_rule_view(db, low), _rule_view(db, high)],
+                    "rules": [_rule_view(db, low, chrome), _rule_view(db, high, chrome)],
                     "best": int(score.get("best", 0)),
                     "plays": int(score.get("plays", 0)),
                 }
@@ -198,7 +200,9 @@ def eclair_pairs(db: Session, user: User) -> list[dict[str, Any]]:
     return pairs
 
 
-def _rule_view(db: Session, concept: GrammarConcept) -> dict[str, Any]:
+def _rule_view(db: Session, concept: GrammarConcept, language: str) -> dict[str, Any]:
+    """A pair's rule: its French title, and (#561) its title in the learner's chrome language."""
+
     from app.services.atelier import fr_localizations_by_concept_id
 
     fr = fr_localizations_by_concept_id(db, [concept.id]).get(concept.id)
@@ -206,6 +210,7 @@ def _rule_view(db: Session, concept: GrammarConcept) -> dict[str, Any]:
         "concept_id": concept.id,
         "external_id": concept.external_id,
         "title_fr": concept_title_fr(concept, fr),
+        "title_native": concept_title(concept, language),
         "category": concept.category,
         "subskill": concept.subskill,
         "name": concept.name,

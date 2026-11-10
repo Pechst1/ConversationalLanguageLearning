@@ -1336,6 +1336,8 @@ export interface GrammarNotebookItem {
   localized_title?: string | null;
   localized_category?: string | null;
   title_fr?: string | null;
+  /** #561: the rule's title in the learner's chrome language (`concept_title`), what the rule card shows. */
+  title_native?: string | null;
   category_label_fr?: string | null;
   localized_subskill?: string | null;
   level: string;

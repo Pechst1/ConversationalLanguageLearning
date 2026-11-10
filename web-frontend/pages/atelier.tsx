@@ -195,7 +195,7 @@ import { assembleRepair, isRepairableLine, repairParts, repairState } from '@/li
 import { forgeSeatIsSamePlace, isForgeOutputRound, scopeOutputItem, seatForgeItem } from '@/lib/forge-items';
 import { comboEnabled, comboFeel, comboStep } from '@/lib/forge-combo';
 import { bestComboLine, fillMomentum, momentumCopy } from '@/lib/momentum-copy';
-import { eclairHref } from '@/lib/grammar-map';
+import { eclairHref, eclairPairLabel } from '@/lib/grammar-map';
 import { playComboTone } from '@/lib/sound';
 import { atelierErrorText, type AtelierErrorNotice } from '@/lib/atelier-errors';
 import { epreuveCopy, fill, wordRangeText, type EpreuveCopy } from '@/components/epreuve/epreuve-copy';
@@ -5256,11 +5256,8 @@ function RecapModal({
               {recap.forge?.eclair?.pair && (
                 <Link className="av2-btn av2-btn--secondary av2-btn--inline forge-recap__eclair" href={eclairHref(String(recap.forge.eclair.pair))}>
                   <span>{mc.eclair_action}</span>
-                  <span className="forge-recap__eclair-pair" lang="fr">
-                    {fillMomentum(mc.eclair_pair_label, {
-                      a: String(recap.forge.eclair.rules?.[0]?.title_fr || ''),
-                      b: String(recap.forge.eclair.rules?.[1]?.title_fr || ''),
-                    })}
+                  <span className="forge-recap__eclair-pair" lang={eclairPairLabel(recap.forge.eclair.rules, mc.eclair_pair_label, language).lang}>
+                    {eclairPairLabel(recap.forge.eclair.rules, mc.eclair_pair_label, language).text}
                   </span>
                 </Link>
               )}
