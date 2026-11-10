@@ -190,6 +190,11 @@
       "Lila et Berlin : peut-on vouloir quelqu'un ici, et vouloir son départ pour elle ?",
       "L'avenir du Mistral : le garder, le changer, ou le laisser partir ?"
     ],
+    "open_threads_decided_by": [
+      ["s1.ending"],
+      ["lila.in_berlin"],
+      ["s1.ending"]
+    ],
     "first_episode_seed": "Night rain on the quai de Valmy. You walk into Le Mistral with a suitcase, the notary's envelope and a key on your grandmother's key ring, and the café decides you are the person coming to sell the first floor."
   },
   "character_agendas": {},
