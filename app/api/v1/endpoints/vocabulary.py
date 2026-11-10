@@ -814,13 +814,12 @@ def _drill_deck(
         if new_room is not None:
             # The room counts only the words already met; the batch's new cards
             # still unanswered take their share of it too, or a reload of the
-            # continuation dealt past the day's cap.
-            waiting = sum(
-                1
-                for item in drill_batch.remaining_items(db, user, list(batch.items or []), reserved_new=reserved_new)
-                if item.get("list") == "new_words"
-            )
-            new_limit = max(0, min(new_limit, new_room - waiting))
+            # continuation dealt past the day's cap. #563: the same room the
+            # «Noch N neue Wörter» offer counts with (vocabulary_pace.next_extra_step).
+            from app.services.vocabulary_pace import more_deck_room
+
+            room = more_deck_room(db, user, room=new_room, batch=batch, reserved=reserved_new)
+            new_limit = min(new_limit, room)
             context_kwargs = {**context_kwargs, "new_limit": new_limit}
     payload = service.get_vocabulary_due_context(**{**context_kwargs, "exclude_new_word_ids": exclude, "now": now})
     served_new = len(payload.get("new_words") or [])

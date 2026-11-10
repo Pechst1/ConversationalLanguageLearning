@@ -85,3 +85,74 @@ def test_a_full_pool_still_offers_the_whole_step(
     assert (offer["step"], offer["can_add_more"], offer["more"]["words"]) == (5, True, 8)
     assert client.post("/api/v1/vocabulary/new-words/more", headers=headers).json()["extra_today"] == 5
     assert len(_ids(_deck(client, headers, MORE))) == 5
+
+
+# ---------------------------------------------------------------------------
+# Re-test 10 Nov: the count is the dealer's room, not only the pool
+# ---------------------------------------------------------------------------
+
+
+def test_day1_more(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Walk 10 Nov (``a1-de-fresh``, day 1): after the 20 words of the day deck,
+    «Noch 5 neue Wörter» opened a deck of 0/1 and the sheet then said «Mit 30
+    Wörtern am Tag». The journey is not planned on day 1, so the drill's room
+    still kept its share free (four words on Régulier) although the day deck had
+    already dealt that share: the pool said five, the dealer's room one."""
+
+    from tests.test_more_words_per_day import DAY, _deck_ids
+
+    headers, user = _login(client, db_session, minutes=10)  # Régulier: the journey's share is 4
+    _supply(db_session, 40, "w563c")
+    user.new_words_per_day = 20
+    db_session.commit()
+    monkeypatch.setattr(vocabulary_pace, "intake_throttle_factor", lambda *_a, **_k: 1.0)
+
+    day = _deck_ids(_deck(client, headers, DAY))
+    assert len(day) == 20
+    _answer(client, headers, day)
+
+    offer = _pace(client, headers)
+    assert offer["can_add_more"] is True
+    # The day deck dealt the journey's share (no journey planned yet): nothing
+    # holds those four slots back any more, so the step is the whole five.
+    assert offer["step"] == 5, f"the next tap brings {offer['step']} words, not the five the pool holds"
+    granted = client.post("/api/v1/vocabulary/new-words/more", headers=headers)
+    assert granted.status_code == 200, granted.text
+    extra = _ids(_deck(client, headers, {**MORE, "new_limit": offer["step"]}))
+    assert len(extra) == offer["step"], f"the button promised {offer['step']} new words, the deck dealt {len(extra)}"
+    assert granted.json()["extra_today"] == len(extra), "the grant raised the cap past what the deck dealt"
+    assert offer["more"]["words"] == 20 + len(extra), "the goal line credits words the deck never dealt"
+
+    _answer(client, headers, extra)
+    after = _pace(client, headers)
+    assert after["more"]["words"] == 20 + len(extra) + after["step"]
+    assert _ids(_deck(client, headers, {**MORE, "new_limit": 5})) == [], "nothing granted, nothing dealt"
+    if after["can_add_more"]:
+        assert client.post("/api/v1/vocabulary/new-words/more", headers=headers).status_code == 200
+        assert len(_ids(_deck(client, headers, {**MORE, "new_limit": after["step"]}))) == after["step"]
+
+
+def test_no_room(
+    client: TestClient, db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The learner met eight words today, then lowered their number to three
+    (Tempo sheet). One more step would raise the cap to eight: no more than the
+    eight already met, so the extra deck deals nothing. The pool is full; the
+    button must not be offered, and a tap is refused."""
+
+    headers, user = _login(client, db_session)
+    _supply(db_session, 40, "w563d")
+    _dose_of(db_session, user, monkeypatch, 10)
+    first = _ids(_deck(client, headers, SESSION))
+    assert len(first) == 8
+    _answer(client, headers, first)
+    user.new_words_per_day = 3
+    db_session.commit()
+
+    offer = _pace(client, headers)
+    granted = client.post("/api/v1/vocabulary/new-words/more", headers=headers)
+    dealt = _ids(_deck(client, headers, {**MORE, "new_limit": 5})) if granted.status_code == 200 else []
+    assert offer["step"] == len(dealt), f"the button promised {offer['step']} new words, the deck dealt {len(dealt)}"
+    assert offer["can_add_more"] is False and granted.status_code == 409
