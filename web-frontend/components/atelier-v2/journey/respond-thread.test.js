@@ -687,3 +687,92 @@ test('#217 every cast member keeps one name, also in a payload with the world bi
   assert.equal(castDisplayName(null, 'Augustin « Gus » de Roncourt'), 'Gus');
   assert.equal(castDisplayName(null, 'Mme Lefèvre'), null, 'someone outside the cast keeps their own name');
 });
+
+// ===========================================================================
+// #664 — every line keeps its own speaker; only the header follows the addressee
+// ===========================================================================
+
+const GUS_ASKS = 'Alors ? C’est qui, vous ? Et pourquoi ici ?';
+const LENA = 'je suis Lena. je suis ici pour la appartement de ma grand mere';
+const DAY1_REPLY = [
+  { speaker_id: 'augustin_de_roncourt', speaker_name: 'Gus', text_fr: 'Alors, c’est vous.' },
+  { speaker_id: 'augustin_de_roncourt', speaker_name: 'Gus', text_fr: 'Vous voyez ? Moi, je sais !' },
+  { speaker_id: 'margaux_barman', speaker_name: 'Margaux', text_fr: 'Tu vas monter ?' },
+];
+const DAY1_JOINED = DAY1_REPLY.map((line) => line.text_fr).join('\n');
+
+/** Exchange 2 of day 1: the question is Margaux's, so the prompt (and the header) names her. */
+function day1Exchange2(thread) {
+  return step({
+    turn_index: 1,
+    max_turns: 4,
+    character_id: 'margaux_barman',
+    character_name: 'Margaux',
+    character_line_fr: DAY1_JOINED,
+    ...(thread ? { thread } : {}),
+  });
+}
+
+/** The `<li>` of the thread that says `text`. */
+function lineOf(html, text) {
+  const items = html.split('<li ').filter((item) => item.includes(text));
+  assert.equal(items.length, 1, `one line says «${text}»`);
+  return items[0];
+}
+
+test('#664 the opening question stays Gus’s when the next question is Margaux’s (server thread)', () => {
+  const s = day1Exchange2([
+    {
+      learner_fr: LENA,
+      character_fr: DAY1_JOINED,
+      correction: null,
+      character_lines: DAY1_REPLY,
+      prompt_line: { speaker_id: 'augustin_de_roncourt', speaker_name: 'Gus', text_fr: GUS_ASKS },
+    },
+  ]);
+  const opening = model.threadBubbles({ prompt: s.prompt }).find((b) => b.kind === 'character' && b.text === GUS_ASKS);
+  assert.ok(opening, 'the server thread carries the line the learner answered');
+  assert.equal(opening.speaker && opening.speaker.id, 'augustin_de_roncourt', 'said by Gus, not by the prompt’s Margaux');
+  const html = renderRespond(s, EN);
+  const li = lineOf(html, 'Et pourquoi ici');
+  assert.ok(li.includes('<span class="av2-sr">Gus: </span>'), 'Gus’s question is labelled Gus');
+  assert.ok(!li.includes('Margaux'), 'and nowhere drawn as Margaux’s');
+  assert.ok(html.includes('<span class="av2-sr">Margaux: </span>'), 'the latest line is still Margaux’s');
+});
+
+test('#664 the opening question stays Gus’s in the local copy kept at the tap', () => {
+  const gus = { id: 'augustin_de_roncourt', name: 'Gus' };
+  // What the client kept when Lena answered: Gus's line, said by Gus.
+  const kept = model.exchangeFromResult({
+    result: result({
+      character_reply_fr: DAY1_JOINED,
+      character_lines: DAY1_REPLY,
+      next_turn: { step_id: 's', prompt: day1Exchange2().prompt },
+    }),
+    prompt: day1Exchange2().prompt,
+    sent: { turn: 0, text: LENA, prompt_fr: GUS_ASKS, prompt_speaker: gus },
+  });
+  const local = model.parseLocalThread(model.serializeLocalThread(model.recordExchange(model.EMPTY_THREAD, kept)));
+  const s = day1Exchange2();
+  const bubbles = model.threadBubbles({ prompt: s.prompt, local });
+  const opening = bubbles.find((b) => b.kind === 'character' && b.text === GUS_ASKS);
+  assert.ok(opening, 'the local copy supplies the opening');
+  assert.deepEqual(opening.speaker, gus, 'the opening keeps the speaker it was asked by, not the prompt’s Margaux');
+  // Drawn: Gus's face and name on his question, while the header names Margaux.
+  const html = renderToStaticMarkup(
+    h(require('./RespondThread.tsx').RespondThread, {
+      bubbles,
+      speaker: { id: 'margaux_barman', name: 'Margaux' },
+      mood: 'neutral',
+      copy: EN,
+      typingKey: null,
+      typedText: '',
+      waiting: false,
+      openNote: null,
+      onToggleNote() {},
+    }),
+  );
+  const li = lineOf(html, 'Et pourquoi ici');
+  assert.ok(li.includes('<span class="av2-sr">Gus: </span>'), `Gus’s question is labelled Gus: ${li}`);
+  assert.ok(!li.includes('Margaux'), 'and nowhere drawn as Margaux’s');
+});

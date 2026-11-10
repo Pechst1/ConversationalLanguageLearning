@@ -15257,6 +15257,7 @@ export interface components {
             correction: components["schemas"]["JourneyCorrection"] | null;
             /** Learner Fr */
             learner_fr: string;
+            prompt_line: components["schemas"]["ThreadLine"] | null;
         };
         /**
          * ThreadLine
