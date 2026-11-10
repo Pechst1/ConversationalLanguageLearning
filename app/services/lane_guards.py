@@ -882,3 +882,195 @@ def echoed_thread(reply: str, earlier: list[str]) -> list[str]:
     if any(len(sentence.split()) >= 5 for sentence in repeated) or len(repeated) >= 2:
         return repeated
     return []
+
+
+# ---------------------------------------------------------------------------
+# #538 / #557 — what the thread has already settled
+# ---------------------------------------------------------------------------
+#
+# Root cause (#145): a Courrier thread kept no state of what was asked and what was
+# answered. The reply writer was handed the turns but not the letter that asked, and
+# the suggested replies were fixed when the letter was made. These two guards give the
+# thread a state that is *read from its own text*, so nothing has to be stored twice:
+#
+# * ``open_choice`` / ``ignored_choice_hint``: the last «A ou B ?» a character asked,
+#   and whether the answer took up the side the learner chose;
+# * ``suggestions_for_thread``: the chips that still fit what the learner has said.
+
+#: Modal and auxiliary forms: they carry the person and the tense, not what is meant.
+_MODALS = frozenset(
+    "peux peut peuvent pouvez pouvons veux veut veulent voulez voulons dois doit doivent devez "
+    "devons vais vont allons allez serai sera seras suis sommes sont etes avez avons ont ai".split()
+)
+#: Irregular verbs whose forms share no five-letter stem: «viens» and «venir» are one
+#: word to a learner and to the thread.
+_VERB_FORMS: dict[str, frozenset[str]] = {
+    "venir": frozenset("viens vient viennent venons venez venir venu venue".split()),
+    "faire": frozenset("fais fait font faisons faites faire".split()),
+    "prendre": frozenset("prends prend prennent prenons prenez prendre pris".split()),
+    "partir": frozenset("pars part partent partons partez partir parti".split()),
+    "voir": frozenset("vois voit voient voyons voyez voir vu".split()),
+    "savoir": frozenset("sais sait savent savons savez savoir su".split()),
+    "dire": frozenset("dis dit disent disons dites dire".split()),
+    "mettre": frozenset("mets met mettent mettons mettez mettre mis".split()),
+}
+_FORM_TO_VERB = {form: verb for verb, forms in _VERB_FORMS.items() for form in forms}
+_CLAUSE_SPLIT = re.compile(r"[,;:]")
+_NEGATED_WITH_NE = frozenset({"plus", "rien", "personne"})
+
+
+def _lemma(token: str) -> str:
+    bare = _bare(token)
+    return _FORM_TO_VERB.get(bare) or bare[:_STEM]
+
+
+def _lemmas(tokens: list[str]) -> set[str]:
+    return {
+        _lemma(token)
+        for token in _content(tokens)
+        if len(token) >= 4 and _bare(token) not in _MODALS and _bare(token) not in _FILLER
+    }
+
+
+def _is_negated(tokens: list[str]) -> bool:
+    """«je ne peux pas venir», «pas la poste», «je n'ai jamais»: said with an explicit no.
+    A bare «non» does not count: «Non, je viens à la boutique» asserts the boutique."""
+
+    bag = set(tokens)
+    return bool(bag & {"pas", "jamais"}) or (bool(bag & {"ne", "n"}) and bool(bag & _NEGATED_WITH_NE))
+
+
+def _asserted_clauses(text: str) -> list[tuple[bool, set[str]]]:
+    """``(negated, lemmas)`` of every clause of ``text`` that asserts something: a
+    question asserts nothing, a clause with no content word has nothing to compare."""
+
+    found: list[tuple[bool, set[str]]] = []
+    for sentence in _SENTENCE.findall(str(text or "")):
+        if sentence.rstrip().endswith("?"):
+            continue
+        for part in _CLAUSE_SPLIT.split(sentence):
+            tokens = _tokens(part)
+            lemmas = _lemmas(tokens)
+            if lemmas:
+                found.append((_is_negated(tokens), lemmas))
+    return found
+
+
+def suggestions_for_thread(suggestions: list[str], *, learner_texts: list[str]) -> list[str]:
+    """#557: the suggested replies that still fit what the learner has said.
+
+    Live walk 6 Nov: after «Non, je ne peux pas venir à ta fête» the chips were still the
+    letter's opening set, «Oui, je viens à ta fête !» among them. A chip is dropped when
+
+    * it asserts the opposite of something the learner asserted (same content word, one
+      clause negated, the other not), or
+    * every content word of it is already in one of the learner's own lines.
+
+    A question is never the opposite of anything, and a chip with no content word
+    («Oui !») is kept. When nothing fits any more the list is empty: the page then shows
+    no chips rather than a wrong one."""
+
+    said = [(_asserted_clauses(text), _lemmas(_tokens(text))) for text in learner_texts if str(text or "").strip()]
+    if not said:
+        return list(suggestions)
+    kept: list[str] = []
+    for chip in suggestions:
+        chip_clauses = _asserted_clauses(chip)
+        chip_lemmas = _lemmas(_tokens(chip))
+        if any(
+            chip_negated != said_negated and chip_words & said_words
+            for chip_negated, chip_words in chip_clauses
+            for clauses, _all in said
+            for said_negated, said_words in clauses
+        ):
+            continue
+        if chip_lemmas and any(chip_lemmas <= lemmas for _clauses, lemmas in said):
+            continue
+        kept.append(chip)
+    return kept
+
+
+_ASKED_ONE_OF_TWO = re.compile(r"[^.!?…]*\bou\b[^.!?…]*\?")
+
+
+def open_choice(speaker_text: str) -> tuple[str, str, str] | None:
+    """``(question, left, right)`` for the last «A ou B ?» in ``speaker_text``, else None.
+
+    ``left`` and ``right`` are the two sides' key words as written (the last content word
+    before «ou», the first after): «Tu préfères la poste ou la boutique ?» is
+    ``(…, "poste", "boutique")``. Only a question with a single «ou» counts: «du thé ou
+    du café, avec du lait ou du sucre ?» asks two things and names none to hold to."""
+
+    found = [m.group(0).strip() for m in _ASKED_ONE_OF_TWO.finditer(str(speaker_text or ""))]
+    if not found:
+        return None
+    question = found[-1]
+    sides = re.split(r"\bou\b", question, flags=re.IGNORECASE)
+    if len(sides) != 2:
+        return None
+    left = [t for t in _content(_tokens(sides[0])) if len(t) >= 4]
+    right = [t for t in _content(_tokens(sides[1])) if len(t) >= 4]
+    if not left or not right or _lemma(left[-1]) == _lemma(right[0]):
+        return None
+    return question, left[-1], right[0]
+
+
+def chosen_side(choice: tuple[str, str, str], learner_text: str) -> tuple[str, set[str]] | None:
+    """``(word, take-up stems)`` of the side of ``choice`` the learner picked, else None.
+
+    A side is picked when a clause that is not negated and not a question names it and
+    the other side is not named the same way: «Non, pas la poste. Je viens à la
+    boutique à midi» picks the boutique. The stems are the content words of that clause
+    (boutique, midi, assiette…): what a reply that took the choice up could repeat."""
+
+    _question, left, right = choice
+    picked: dict[str, set[str]] = {}
+    for sentence in _SENTENCE.findall(str(learner_text or "")):
+        if sentence.rstrip().endswith("?"):
+            continue
+        for part in _CLAUSE_SPLIT.split(sentence):
+            tokens = _tokens(part)
+            if _is_negated(tokens):
+                continue
+            lemmas = {_lemma(token) for token in tokens}
+            for side in (left, right):
+                if _lemma(side) in lemmas:
+                    picked.setdefault(side, set()).update(_lemmas(tokens))
+    if len(picked) != 1:
+        return None
+    side, stems = next(iter(picked.items()))
+    return side, stems | {_lemma(side)}
+
+
+def ignored_choice_hint(reply: str, *, letter_text: str, learner_text: str) -> str | None:
+    """A hint when ``reply`` ignores the side of an «A ou B ?» the learner chose, else None.
+
+    Live walk 5 Nov (#538): «Tu préfères la poste ou la boutique ?» / «Non, pas la poste.
+    Je viens à la boutique à midi» was answered «Pourrais-tu me dire quel est le problème
+    avec ta commande ? Est-ce que tu souhaites un échange ou un remboursement ?». The
+    answer takes up the choice when it shares a content word with the clause that made it
+    (boutique, midi…) and does not ask the same «A ou B ?» again. A letter without such a
+    question, or a turn that picks neither side, has nothing to hold the reply to."""
+
+    choice = open_choice(letter_text)
+    if choice is None or not str(reply or "").strip():
+        return None
+    picked = chosen_side(choice, learner_text)
+    if picked is None:
+        return None
+    word, stems = picked
+    question, left, right = choice
+    reply_lemmas = _lemmas(_tokens(reply))
+    asks_again = any(
+        _lemma(left) in _lemmas(_tokens(sentence)) and _lemma(right) in _lemmas(_tokens(sentence))
+        for sentence in _SENTENCE.findall(reply)
+        if sentence.rstrip().endswith("?")
+    )
+    if reply_lemmas & stems and not asks_again:
+        return None
+    given = ", ".join(sorted(t for t in _content(_tokens(learner_text)) if _lemma(t) in stems)[:4])
+    return (
+        f"The other person already chose «{word}» when asked «{question}». Take that choice up "
+        f"in one short line (for instance: {given}) and move on: never ask which one they "
+        "prefer again, and never ask about a problem, an exchange or a refund the letter did not raise."
+    )

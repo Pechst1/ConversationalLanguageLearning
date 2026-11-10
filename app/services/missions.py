@@ -52,6 +52,7 @@ from app.services.learner_copy import copy_language, learner_text
 from app.services.letter_voice import band_style_line, register_word, voice_problems
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.news_service import NewsService
+from app.services.pragmatics import address_markers
 from app.services.progress import ProgressService
 from app.services.serial_arc_planner import cefr_generation_profile
 from app.services.vocabulary_coverage import VocabularyCoverageService, normalize_category
@@ -151,6 +152,29 @@ class NoCredibleLetter(Exception):
         self.chain_id = chain_id
 
 
+def letter_printed_lines(item: dict[str, Any]) -> list[str]:
+    """Every line a letter prints in a character's voice or around it: the setting line,
+    the opening, the P.S. and each authored follow-up's opening."""
+
+    lines = [item.get("scene_anchor"), item.get("opening_message"), item.get("twist")]
+    lines.extend(entry["opening_message"] for entry in follow_ups_of(item))
+    return [str(line) for line in lines if line]
+
+
+def letter_register_mixed(item: dict[str, Any]) -> bool:
+    """#520: whether the lines of one letter address the learner in both «tu» and «vous».
+
+    The generated letter was held to one register (#117); the authored table was not, and
+    six of its letters said «avez-vous» in the opening and «à ta taille» in the P.S.
+    Each line is read alone, so one line that mixes counts too."""
+
+    seen_tu = seen_vous = False
+    for line in letter_printed_lines(item):
+        tu, vous = address_markers(line)
+        seen_tu, seen_vous = seen_tu or tu, seen_vous or vous
+    return seen_tu and seen_vous
+
+
 def canned_letter_problem(
     item: dict[str, Any],
     rotation: dict[str, Any],
@@ -165,6 +189,10 @@ def canned_letter_problem(
     """
 
     domain = str(item.get("domain") or "")
+    if letter_register_mixed(item):
+        # #520: a letter that says «vous» in its opening and «ta taille» in its P.S. is
+        # not printed, whoever wrote it.
+        return "mixed_register"
     if not letter_reaches(item.get("level"), rotation.get("band"), open_ended=bool(item.get("open_ended"))):
         return "below_band"
     if letter_band_index(item.get("level")) > letter_band_index(rotation.get("band")) + LETTER_STRETCH:
@@ -303,7 +331,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "channel_label": "SMS",
         "tone": "polite_firm",
         "register": "vous / polite formal",
-        "scene_anchor": "Chez toi, avec un manteau",
+        "scene_anchor": "À la maison, avec un manteau",
         "opening_message": "Bonjour, j'ai lu votre message. Le radiateur ne marche plus du tout ?",
         "brief": "Le radiateur ne marche plus. Dis le problème et demande un jour pour réparer.",
         "success_signal": "The landlord understands the issue and proposes a concrete time.",
@@ -359,11 +387,11 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "channel_label": "Messagerie du service client",
         "tone": "calm_specific",
         "register": "polite neutral",
-        "scene_anchor": "Sur ton téléphone, une photo : ce n'est pas ta porte",
+        "scene_anchor": "Sur le téléphone, une photo : ce n'est pas la bonne porte",
         "opening_message": "Bonjour, votre paquet est arrivé, mais pas chez vous. Quelle est votre rue ?",
         "brief": "Le colis n'est pas chez toi. Explique et demande une solution.",
         "success_signal": "Support has the right address and a clear next step.",
-        "twist": "Sur la photo, la porte est bleue. Ta porte est verte.",
+        "twist": "Sur la photo, la porte est bleue. Celle de l'immeuble est verte.",
         "ambient_cues": ["une photo du colis", "la mauvaise porte", "un numéro de commande"],
         "quick_replies": ["Bonjour, j'habite rue...", "La photo, ce n'est pas ma porte...", "Vous pouvez envoyer le paquet..."],
         # WP-125B proposal: letter 2 names the earlier exchange, without guessing its content.
@@ -393,7 +421,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "opening_message": "Bonjour, votre rendez-vous de jeudi n'est pas possible. Vendredi matin, c'est bien pour vous ?",
         "brief": "Le dentiste change ton rendez-vous. Dis oui ou propose une autre heure.",
         "success_signal": "The reception desk can book the right slot without calling again.",
-        "twist": "Vendredi matin, tu as cours.",
+        "twist": "Vendredi matin, vous avez cours.",
         "ambient_cues": ["un message court", "ta semaine", "on dit « vous »"],
         "quick_replies": ["Bonjour, merci pour votre message...", "Vendredi matin...", "Est-ce possible plutôt..."],
     },
@@ -484,7 +512,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "channel_label": "Messagerie du service",
         "tone": "polite_firm",
         "register": "polite formal",
-        "scene_anchor": "Chez toi, internet sur le téléphone",
+        "scene_anchor": "À la maison, internet sur le téléphone",
         "opening_message": "Bonjour, internet ne marche pas dans votre rue. Depuis quand vous n'avez plus internet ?",
         "brief": "Tu n'as pas internet depuis trois jours. Écris un message poli et clair.",
         "success_signal": "Support logs the duration and gives a repair or compensation step.",
@@ -512,11 +540,11 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "channel_label": "Court e-mail",
         "tone": "polite_clear",
         "register": "polite formal",
-        "scene_anchor": "À ton bureau, avec le paquet à renvoyer",
+        "scene_anchor": "Au bureau, avec le paquet à renvoyer",
         "opening_message": "Bonjour, quelle taille avez-vous et quelle taille voulez-vous ?",
         "brief": "Ce n'est pas la bonne taille. Demande un échange.",
         "success_signal": "The shop can send the correct size or confirm the return.",
-        "twist": "Il reste un seul article à ta taille, jusqu'à ce soir.",
+        "twist": "Il reste un seul article à votre taille, jusqu'à ce soir.",
         "ambient_cues": ["le numéro de commande", "le paquet à renvoyer", "une seule taille"],
         "quick_replies": ["Bonjour, j'ai la taille...", "Je voudrais la taille...", "Est-ce que vous pouvez..."],
         # WP-125B proposal: letter 2 names the earlier exchange, without guessing its content.
@@ -674,7 +702,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "channel_label": "Messagerie de location",
         "tone": "polite_firm",
         "register": "vous / polite neutral",
-        "scene_anchor": "Un message de ton hôte, un soir de semaine",
+        "scene_anchor": "Un message de l'hôte, un soir de semaine",
         "opening_message": (
             "Bonjour, j'espère que le studio vous convient, malgré ce radiateur capricieux. Votre "
             "réservation se termine samedi. J'ai une demande pour la semaine suivante, mais si vous "
@@ -887,7 +915,7 @@ FIRST_LETTERS: dict[str, dict[str, Any]] = {
         "channel_label": "Court e-mail",
         "tone": "light_warm",
         "register": "vous / warm but polite",
-        "scene_anchor": "Un e-mail de Romy, après ta soirée au Mistral",
+        "scene_anchor": "Un e-mail de Romy, après une soirée au Mistral",
         "opening_message": (
             "Bonjour ! C'est Romy, on s'est vus au Mistral. J'écris un article sur les gens qui "
             "arrivent à Paris. Vous voulez bien répondre à trois questions : d'où venez-vous, "
@@ -2886,7 +2914,7 @@ class MissionGenerator:
                 messenger.get("twist")
                 if generated
                 and not voice_problems(
-                    [messenger.get("opening_message"), messenger.get("twist")],
+                    [messenger.get("scene_anchor"), messenger.get("opening_message"), messenger.get("twist")],
                     register=writer_register,
                     level=None,
                 )
@@ -3329,7 +3357,7 @@ class MissionGenerator:
             # and stay inside the learner's band; the lexical check above sees neither.
             problems.extend(
                 voice_problems(
-                    [candidate.get("opening_message"), candidate.get("twist")],
+                    [candidate.get("scene_anchor"), candidate.get("opening_message"), candidate.get("twist")],
                     register=register_word((story_context or {}).get("register")),
                     level=str(cefr)[:2],
                 )
@@ -6617,6 +6645,17 @@ def is_stock_reply(text: Any) -> bool:
     folded = " ".join(str(text or "").split())
     return folded in {STOCK_ACKNOWLEDGEMENT_TU, STOCK_ACKNOWLEDGEMENT_VOUS}
 
+def thread_opening(mission: Any) -> str:
+    """The letter that opens a Courrier thread: what the correspondent wrote first.
+
+    A letter is kept in the payload, not as a turn (only a ``conversation`` mission stores
+    its opening as turn 1), so everything that reads "the thread so far" starts here."""
+
+    payload = getattr(mission, "prompt_payload", None) or {}
+    messenger = payload.get("messenger") or {}
+    return str(messenger.get("opening_message") or payload.get("conversation_opening") or "").strip()
+
+
 class MissionConversationService:
     """Generate mission chat responses without duplicating the old audio route."""
 
@@ -6666,6 +6705,12 @@ class MissionConversationService:
             {"role": turn.role if turn.role in {"user", "assistant"} else "assistant", "content": turn.text}
             for turn in sorted(mission.turns or [], key=lambda item: item.turn_index)
         ][-10:]
+        # #538 (root cause #145): the letter is the first line of the thread. A letter is
+        # not stored as a turn, so the actor used to answer a reply to a question it had
+        # never been shown («Tu préfères la poste ou la boutique ?»).
+        letter = thread_opening(mission)
+        if letter and not any(item["role"] == "assistant" and item["content"] == letter for item in history):
+            history = [{"role": "assistant", "content": letter}, *history]
         messages = [
             {"role": "user", "content": f"Scene context: {context}"},
             *history,
@@ -6690,6 +6735,9 @@ class MissionConversationService:
             "one warm, satisfying closing line that confirms the outcome and the next concrete step, and end with «Bonne journée !» or a "
             "natural sign-off — do NOT ask any further questions. If one or more goals are still open, steer toward the most important "
             "missing one with a single natural question. Never drag the scene out once everything is settled. "
+            "THE THREAD IS YOUR MEMORY: the conversation starts with your own letter. If the other person has answered a question "
+            "you asked (a choice, a day, a yes or no), take that answer up before anything else and never ask it again; never "
+            "raise a problem, an exchange or a refund that nobody mentioned. "
             "Never break character; never mention lessons, scores, levels, exercises, or vocabulary."
         )
         # #117: the reply is the character's own voice, so it keeps the letter's address
@@ -6716,6 +6764,10 @@ class MissionConversationService:
                 )
                 _record_mission_llm_cost(self.db, user_id=getattr(user, "id", None), result=result, purpose="character_reply", mission_id=getattr(mission, "id", None))
                 problems = voice_problems([result.content], register=expected, level=level)
+                # #538: an answer the learner already gave to the letter's «A ou B ?».
+                settled = self._ignored_choice(result.content, mission=mission, user_text=user_text)
+                if settled:
+                    problems = [*problems, settled]
                 if not problems:
                     return self._keep_relatives_with_their_owner(
                         result.content,
@@ -6738,6 +6790,18 @@ class MissionConversationService:
         except LLMProviderError as exc:
             logger.debug("Mission conversation fallback", error=str(exc))
             return self._fallback_response(mission, branch=preliminary_branch, objective_progress=latest_progress)
+
+    @staticmethod
+    def _ignored_choice(reply: str, *, mission: RealWorldMission, user_text: str) -> str | None:
+        """#538: why ``reply`` does not follow the choice the learner just made, or None."""
+
+        from app.services import lane_guards  # late: lane_guards imports the story engine
+
+        turns = sorted(mission.turns or [], key=lambda item: item.turn_index)
+        asked = next((t.text for t in reversed(turns) if t.role != "user" and t.text), None)
+        return lane_guards.ignored_choice_hint(
+            reply, letter_text=str(asked or thread_opening(mission) or ""), learner_text=user_text
+        )
 
     def _keep_relatives_with_their_owner(
         self,
@@ -7717,7 +7781,27 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
             }
             for turn in sorted(mission.turns or [], key=lambda item: item.turn_index)
         ]
+        payload["prompt_payload"] = _prompt_payload_for_thread(mission, payload["prompt_payload"])
     return payload
+
+
+def _prompt_payload_for_thread(mission: RealWorldMission, prompt_payload: dict[str, Any]) -> dict[str, Any]:
+    """#557 (root cause #145): the suggested replies follow the thread, not the letter's opening.
+
+    The chips are written with the letter, before the learner has said anything. Once
+    they have, a chip that asserts the opposite of what they said («Oui, je viens à ta
+    fête !» after «Non, je ne peux pas venir») or repeats it is not offered. The stored
+    letter is untouched: the filter runs on every read, so a new turn is a new set."""
+
+    messenger = prompt_payload.get("messenger")
+    chips = messenger.get("quick_replies") if isinstance(messenger, dict) else None
+    learner = [str(t.text) for t in mission.turns or [] if t.role == "user" and t.text]
+    if not chips or not learner:
+        return prompt_payload
+    from app.services import lane_guards  # late: lane_guards imports the story engine
+
+    fitting = lane_guards.suggestions_for_thread([str(c) for c in chips], learner_texts=learner)
+    return {**prompt_payload, "messenger": {**messenger, "quick_replies": fitting}}
 
 
 __all__ = [
