@@ -67,6 +67,7 @@ from app.db.models.story_pool import StoryPoolPage
 from app.db.models.streak_day import StreakDay
 from app.db.models.user import RefreshToken, User
 from app.db.models.verdict_cutover import VerdictCutover
+from app.db.models.verdict_record import VerdictRecord
 from app.db.models.vocabulary import (
     UserConjugationProgress,
     VerbConjugation,
@@ -123,6 +124,7 @@ __all__ = [
     "SerialThread",
     "SpendReservation",
     "VerdictCutover",
+    "VerdictRecord",
     "GraphicNovelAttempt",
     "GraphicNovelPanel",
     "GraphicNovelScene",
@@ -156,3 +158,6 @@ __all__ = [
     "DailyJourneyStep",
     "DailyJourneyMutation",
 ]
+
+# Package V stage 2: the verdict ledger is written on every flush.
+from app.db import verdict_listener as _verdict_listener  # noqa: E402,F401

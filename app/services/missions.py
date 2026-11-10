@@ -23,7 +23,13 @@ from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.db.savepoint import best_effort
-from app.services import cast_registry, correction_contract, verdict_cutover, verdicts
+from app.services import (
+    cast_registry,
+    correction_contract,
+    verdict_cutover,
+    verdict_ledger,
+    verdicts,
+)
 from app.services import story_correspondence as courrier
 from app.services.address import address_instruction, known_register
 from app.services.answer_acceptance import is_preference_swap
@@ -6384,7 +6390,8 @@ class MissionScheduler:
             attempts=attempts,
             turns=turns,
         )
-        legacy = verdict_cutover.cutover(self.db)  # package V: old rows keep what they counted for
+        # Package V: old rows keep what they counted for; newer ones count by their ledger record.
+        legacy = verdict_ledger.counting(self.db, [*attempts, *(mission.turns or [])])
         reply_pending = bool(unanswered_user_turns(mission.turns, cut=legacy))
         unchecked = bool(unchecked_messages(attempts, mission.turns, cut=legacy))
         debrief = MissionDebriefService().build(
@@ -6651,7 +6658,9 @@ def _stored_check(correction: Any, text: Any) -> dict[str, Any]:
     return {"check": verdicts.from_courrier(correction, text=str(text or "")).to_dict()}
 
 
-def unchecked_messages(attempts: Any, turns: Any, *, cut: verdict_cutover.Cutover | None = None) -> list[Any]:
+def unchecked_messages(
+    attempts: Any, turns: Any, *, cut: verdict_cutover.Cutover | verdict_ledger.Counting | None = None
+) -> list[Any]:
     """Every message of this letter a failed check left unread (#333).
 
     Read once here, like :func:`unanswered_user_turns`: the verdict, the mood, the token
@@ -6665,16 +6674,24 @@ def unchecked_messages(attempts: Any, turns: Any, *, cut: verdict_cutover.Cutove
     """
 
     rows = [*(attempts or []), *[turn for turn in turns or [] if getattr(turn, "role", None) == "user"]]
+    def read(row: Any) -> Any:
+        return verdicts.from_courrier(row.correction_payload, verdict=getattr(row, "verdict", None))
+
+    if isinstance(cut, verdict_ledger.Counting):
+        # Package V stage 2: a message with a ledger record is read from its record.
+        return [row for row in rows if getattr(row, "correction_payload", None) and not cut.counts(row, read=read)]
     return [
         row
         for row in rows
         if getattr(row, "correction_payload", None)
         and not (cut is not None and cut.keeps(row))
-        and not verdicts.from_courrier(row.correction_payload, verdict=getattr(row, "verdict", None)).counts
+        and not read(row).counts
     ]
 
 
-def unanswered_user_turns(turns: Any, *, cut: verdict_cutover.Cutover | None = None) -> list[Any]:
+def unanswered_user_turns(
+    turns: Any, *, cut: verdict_cutover.Cutover | verdict_ledger.Counting | None = None
+) -> list[Any]:
     """Every learner message nobody answered, in thread order (#590 / #145).
 
     A reply nobody wrote is not stored (#397), so «answered» was a fact the thread only
@@ -7072,7 +7089,7 @@ class MissionConversationService:
         if not thread:
             return {}
         progress = self._latest_objective_progress(mission)
-        legacy = verdict_cutover.cutover(self.db)
+        legacy = verdict_ledger.counting(self.db, [*(attempts or []), *(turns or [])])
         outcome = courrier.outcome_from_objectives(
             objectives=mission.objectives or [],
             progress_by_id={str(item.get("id")): item for item in progress if item.get("id")},

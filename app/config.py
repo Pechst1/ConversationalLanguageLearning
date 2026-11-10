@@ -120,6 +120,13 @@ class Settings(BaseSettings):
             "paragraph) per UTC day. 0 switches the limit off."
         ),
     )
+    VERDICT_LEDGER_ENABLED: bool = Field(
+        True,
+        description=(
+            "Package V stage 2: append a verdict_records row whenever a stored answer is written or "
+            "re-checked. Off, nothing is recorded and rows count by re-reading, as in stage 1."
+        ),
+    )
     VERDICT_LEGACY_ROWS: str = Field(
         "as_counted",
         description=(
