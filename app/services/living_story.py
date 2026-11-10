@@ -5069,6 +5069,27 @@ def next_teaser(
     return None
 
 
+def _contract_hook(story_context: dict, *, user: Any, date: str | None) -> dict | None:
+    """Red-thread design: on a planned day with a contract, tomorrow's line is the
+    plan's hook (``STORY_DAY_CONTRACT``), never a loose end drawn at random."""
+
+    from app.services.season import day_contract
+    from app.services.season.format import load_season
+    from app.services.season.runtime import SEASON_CONTEXT_KEY
+
+    if not day_contract.enabled():
+        return None
+    season_ctx = (story_context or {}).get(SEASON_CONTEXT_KEY) or {}
+    season_id = (season_ctx.get("position") or {}).get("season_id")
+    if not season_id:
+        return None
+    try:
+        season = load_season(str(season_id))
+    except Exception:  # noqa: BLE001 - a broken season file never costs the ending
+        return None
+    return day_contract.hook_teaser(season, season_ctx, band=learner_level_band(user), date=date)
+
+
 def teasers_after(live: dict, teaser: dict | None) -> list[dict]:
     rows = [row for row in live.get(TEASERS_KEY) or [] if isinstance(row, dict)]
     if teaser:
@@ -11100,7 +11121,10 @@ def settle_resolution(
     from app.services.story_page import HOOK_PAYLOAD_KEY
 
     # WP-111: a tentpole day's tomorrow is the page's own «À suivre…».
-    teaser = season_teaser(brief.story_context, date=_journey_date(journey)) or next_teaser(
+    teaser = (
+        season_teaser(brief.story_context, date=_journey_date(journey))
+        or _contract_hook(brief.story_context, user=user, date=_journey_date(journey))
+    ) or next_teaser(
         live,
         world_after,
         character_id=brief.character_id,
