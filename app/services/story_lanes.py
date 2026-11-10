@@ -82,7 +82,7 @@ from app.services.journey_contracts import (
     step_act,
 )
 from app.services.met_gate import DOWNGRADED, met_gate
-from app.services.season import agency
+from app.services.season import agency, day_contract
 from app.services.word_match import target_occurs_in
 
 logger = logging.getLogger(__name__)
@@ -481,6 +481,13 @@ def voice_payload(payload: dict) -> dict:
         **({"agency": turn_agency} if (turn_agency := _season_agency(payload)) else {}),
         # «Ton cap»: where the learner stands on going home or staying.
         **({"heading": heading} if (heading := _season_heading(payload)) else {}),
+        # Red-thread design: what becomes true today whatever the reply, and the mark
+        # the day wants from the learner; the routes are the ending lane's.
+        **(
+            {"contract": {key: plan[key] for key in ("must_hold", "mark") if key in plan}}
+            if (plan := _season_contract(payload))
+            else {}
+        ),
         **({"ledger": ledger} if (ledger := payload.get("ledger")) else {}),
         **_turn_tail(payload),
     }
@@ -497,6 +504,13 @@ def _season_agency(payload: dict) -> dict | None:
 def _season_heading(payload: dict) -> dict | None:
     heading = ((payload.get("story") or {}).get("season_turn") or {}).get("heading")
     return heading if isinstance(heading, dict) else None
+
+
+def _season_contract(payload: dict) -> dict | None:
+    """Red-thread design: today's day contract, when the page staged one."""
+
+    contract = ((payload.get("story") or {}).get("season_turn") or {}).get("contract")
+    return contract if isinstance(contract, dict) else None
 
 
 def story_payload(payload: dict, released: dict) -> dict:
@@ -978,7 +992,10 @@ def run_reply_lanes(payload: dict, *, deadline: float | None = None, lexical=Non
             window=LANE_REQUEST_TIMEOUT_SECONDS,
         ),
         "voice": lambda: _run_lane(
-            VOICE + (agency.VOICE_ADDENDUM if _season_agency(payload) else ""), voice_payload(payload), VoiceReply,
+            VOICE
+            + (agency.VOICE_ADDENDUM if _season_agency(payload) else "")
+            + (day_contract.voice_note("contract") if _season_contract(payload) else ""),
+            voice_payload(payload), VoiceReply,
             lambda v: validate_voice(v, payload, lexical=lexical), deadline=deadline,
             collected=usage["voice"],
             max_tokens=VOICE_OUTPUT_TOKENS + LANE_REASONING_HEADROOM,
@@ -1031,6 +1048,10 @@ class StoryLaneResult:
     #: corrected (``{issues, from, to, withdrawn_target_ids}``); ``None`` when it stood.
     correction: dict | None = None
     tutor: TutorVerdict | None = None
+    #: Red-thread design: on a contract day, how the lane read the learner (the route
+    #: their words took, their own words for the mark). Kept from the last answer that
+    #: parsed, so an ending the guards refused still lands on the learner's route.
+    contract: dict | None = None
 
 
 def issue_code(issue: str) -> str:
@@ -1140,6 +1161,9 @@ def run_story_lane(
     feedback: list[str] = []
     reason = "story_generation_unavailable"
     critic = engine.CRITIC_ENABLED and "SemanticTurn" in engine.CRITIC_STAGES
+    planned = _season_contract(payload) is not None
+    system = STORY + day_contract.ending_note() if planned else STORY
+    schema = engine._contract_turn_schema(StoryTurn) if planned else StoryTurn
     attempts = settings.ATELIER_STORY_MAX_ATTEMPTS + (1 if engine.BONUS_ATTEMPT_ENABLED else 0)
     for attempt in range(attempts):
         if attempt >= settings.ATELIER_STORY_MAX_ATTEMPTS and (
@@ -1148,13 +1172,18 @@ def run_story_lane(
             break
         try:
             story, _ = engine._json_call(
-                STORY,
+                system,
                 {**story_payload(payload, released), "previous_rejections": feedback},
-                StoryTurn,
+                schema,
                 result.usage.append,
                 deadline=deadline,
                 max_tokens=STORY_MAX_TOKENS,
             )
+            if planned:
+                result.contract = {
+                    day_contract.ROUTE_KEY: getattr(story, day_contract.ROUTE_KEY, None),
+                    day_contract.MARK_KEY: getattr(story, day_contract.MARK_KEY, None),
+                }
             turn = merged_turn(tutor, voice, story)
             validate_story(turn, payload)
             if not critic:
@@ -1646,7 +1675,7 @@ def fallback_story(lane: dict, *, character_name: str | None, language: str, rea
 
 
 def _apply(db: Session, *, user, journey, brief, resolution, turn, usage, revision, lane_status,
-           reason: str | None = None, hint: str | None = None) -> None:
+           reason: str | None = None, hint: str | None = None, contract: dict | None = None) -> None:
     """Write one ending through the production writer, then mark the lane."""
 
     private_lane = lane_of(resolution)
@@ -1658,7 +1687,9 @@ def _apply(db: Session, *, user, journey, brief, resolution, turn, usage, revisi
                  "cost_stage": "story",
                  # N1: the acts stored at release reach the season's settle, whichever
                  # ending (written or authored) the lane ends on.
-                 **{key: private_lane[key] for key in agency.DETAIL_KEYS if key in private_lane}},
+                 **{key: private_lane[key] for key in agency.DETAIL_KEYS if key in private_lane},
+                 # Red-thread design: how the lane read the learner on a contract day.
+                 **(contract or {})},
     )
     try:
         engine.settle_resolution(
@@ -1685,7 +1716,8 @@ def _apply(db: Session, *, user, journey, brief, resolution, turn, usage, revisi
 
 
 def settle_with_fallback(db: Session, *, user, journey, brief, resolution, reason: str,
-                         usage: list[dict] | None = None, hint: str | None = None) -> engine.SemanticTurn | None:
+                         usage: list[dict] | None = None, hint: str | None = None,
+                         contract: dict | None = None) -> engine.SemanticTurn | None:
     """Today's authored ending for an open lane. Free: never a model call. Returns the turn
     it settled, or ``None`` when the lane was no longer open."""
 
@@ -1708,7 +1740,7 @@ def settle_with_fallback(db: Session, *, user, journey, brief, resolution, reaso
     )
     _apply(db, user=user, journey=journey, brief=brief, resolution=resolution, turn=turn,
            usage=list(usage or []), revision=engine.story_revision(db, user),
-           lane_status="fallback", reason=reason, hint=hint)
+           lane_status="fallback", reason=reason, hint=hint, contract=contract)
     db.flush()
     return turn
 
@@ -1919,13 +1951,13 @@ def _finish_job(db: Session, job: StoryJob, result: StoryLaneResult, payload: di
         if result.turn is not None and payload is not None:
             _apply(db, user=user, journey=journey, brief=brief, resolution=resolution,
                    turn=result.turn, usage=usage, revision=payload["story"]["revision"],
-                   lane_status="done")
+                   lane_status="done", contract=result.contract)
             status, settled = lane_of(resolution).get("status", "done"), result.turn
         else:
             settled = settle_with_fallback(db, user=user, journey=journey, brief=brief,
                                            resolution=resolution,
                                            reason=result.reason or "story_lane_failed", usage=usage,
-                                           hint=result.hint)
+                                           hint=result.hint, contract=result.contract)
             status = "fallback"
         events.record("journey_story_lane_settled", user_id=user.id, entity_type="living_story",
                       entity_id=str(journey.id),
@@ -1942,6 +1974,7 @@ def _finish_job(db: Session, job: StoryJob, result: StoryLaneResult, payload: di
         db.rollback()
         if retry:
             return _finish_job(db, job, StoryLaneResult(turn=None, usage=result.usage,
-                                                        reason="story_lane_settle_error"),
+                                                        reason="story_lane_settle_error",
+                                                        contract=result.contract),
                                None, retry=False)
         return "error"

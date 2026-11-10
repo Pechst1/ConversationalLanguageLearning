@@ -668,6 +668,25 @@ class Settings(BaseSettings):
             "writes everything. Live pages keep the one call either way."
         ),
     )
+    STORY_DAY_CONTRACT: bool = Field(
+        False,
+        description=(
+            "Red-thread design (2026-11-10): a season's planned day that carries a "
+            "contract (gaps.json, days[].contract) ends on the plan's own hook instead of "
+            "a line drawn from old loose ends, and Home shows where the gap is going and "
+            "the days left. Off: generated days end as before."
+        ),
+    )
+    STORY_SHARED_PAGES: bool = Field(
+        False,
+        description=(
+            "Red-thread design, slice 5 (needs STORY_DAY_CONTRACT): a contract day's page "
+            "is written without the learner's own past, grammar plan and review words, "
+            "kept in a pool (story_pool_pages) and served to every learner whose day gives "
+            "the writer the same input; their own words fill its slots and every guard "
+            "runs on what they read. Off: every learner's page is written for them."
+        ),
+    )
     ATELIER_SEASON_WRITER_ENABLED: bool = Field(
         False,
         description=(

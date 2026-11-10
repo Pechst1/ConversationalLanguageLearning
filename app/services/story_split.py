@@ -31,6 +31,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.config import settings
 from app.services import story_memory
+from app.services.season import day_contract
 
 # ---------------------------------------------------------------------------
 # What each call returns
@@ -595,13 +596,23 @@ def _concept(context: dict) -> Any:
     return engine.grammar_plan_prompt(plan) if plan else None
 
 
+def _day_contract(context: dict) -> dict | None:
+    """``brief.today.contract`` on a day's first act (a later act is its own scene)."""
+
+    if context.get(ACT_KEY):
+        return None
+    today = ((context.get("season_script") or {}).get("brief") or {}).get("today") or {}
+    return today.get("contract") if isinstance(today.get("contract"), dict) else None
+
+
 def planner_system(context: dict) -> str:
     """The planner's prompt: :data:`PLANNER`, and on a later act its act rules."""
 
     act = context.get(ACT_KEY) or {}
     role = str(act.get("role") or "")
     if role not in ACT_ROLE_RULES:
-        return PLANNER
+        # Red-thread design: a contract day's planner reads the contract's rules too.
+        return PLANNER + day_contract.PLANNER_NOTE if _day_contract(context) else PLANNER
     return PLANNER + ACT_PLANNER + ACT_ROLE_RULES[role] + ACT_SHAPE_RULES.get(str(act.get("shape") or ""), "")
 
 
@@ -626,7 +637,14 @@ def planner_payload(context: dict, rejections: list[str]) -> dict:
         # Story engine Phase 3: what the learner said, what is settled, what is open.
         **({"memory": memory} if (memory := context.get("memory")) else {}),
         "recent_days": _recent_days(context),
-        "avoid": variety.get("must_change") or None,
+        # A contract day is led and set where its contract says: nothing to avoid there.
+        "avoid": None
+        if day_contract.follows(
+            _day_contract(context),
+            lead_id=(variety.get("must_change") or {}).get("character_id"),
+            location_id=(variety.get("must_change") or {}).get("location_id"),
+        )
+        else variety.get("must_change") or None,
         "concept": _concept(context),
         "story_words": context.get(engine.STORY_WORDS_KEY) or None,
         "learner_agency_rules": agency or None,
@@ -679,6 +697,13 @@ def author_payload(context: dict, plan: PagePlan, rejections: list[str]) -> dict
         "concept": _concept(context),
         "story_words": context.get(engine.STORY_WORDS_KEY) or None,
         "special": _special(context),
+        # Red-thread design: what the app's ending makes true, the hook as authored and
+        # the learner's marks that come back today (as slots).
+        **(
+            {"contract": {key: contract[key] for key in ("must_hold", "hook_fr", "brings_back") if key in contract}}
+            if (contract := _day_contract(context))
+            else {}
+        ),
         # Phase 2: a later act knows the page the learner read first today, as printed —
         # never the planner's notes about it.
         **({"act": _author_act(act)} if (act := context.get(ACT_KEY)) else {}),
@@ -720,6 +745,12 @@ def plan_issue(plan: PagePlan, context: dict) -> str | None:
     if required and plan.premise_id != required:
         title = (today.get("required_premise") or {}).get("title_fr")
         return f"Today IS «{title}» (brief.today.required_premise): plan that day, premise_id {required!r}."
+    # Red-thread design: a contract day is led and set where its contract says.
+    contract = _day_contract(context)
+    if issue := day_contract.page_issue(
+        contract, lead_id=plan.lead_id, location_id=plan.location_id, speakers=speakers, places=places
+    ):
+        return issue
     # Measured run 2026-10-16: two plans for a two-hander put a second person on the
     # page, and the page guard refused both (two_hander_crowded).
     others = sorted(set(plan.cast) - {plan.lead_id})
@@ -732,7 +763,12 @@ def plan_issue(plan: PagePlan, context: dict) -> str | None:
     if words > TASK_WORDS:
         return f"The task has {words} words; say who asks what in at most {TASK_WORDS}."
     avoid = (context.get("variety") or {}).get("must_change") or {}
-    if avoid and plan.lead_id == avoid.get("character_id") and plan.location_id == avoid.get("location_id"):
+    if (
+        avoid
+        and plan.lead_id == avoid.get("character_id")
+        and plan.location_id == avoid.get("location_id")
+        and not day_contract.follows(contract, lead_id=plan.lead_id, location_id=plan.location_id)
+    ):
         return (
             f"{plan.lead_id} at {plan.location_id} carried the last days: change the lead or the place."
         )
@@ -858,6 +894,8 @@ def author_system(context: dict) -> str:
     brief = (context.get("season_script") or {}).get("brief") or {}
     panels = str((brief.get("level") or {}).get("panels") or "4 to 6")
     system = AUTHOR.format(band=band, panels=panels, level_card=LEVEL_CARDS.get(band, LEVEL_CARDS["A2"]))
+    if _day_contract(context):
+        return system + day_contract.AUTHOR_NOTE
     return system + ACT_AUTHOR if context.get(ACT_KEY) else system
 
 
