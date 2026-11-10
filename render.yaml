@@ -138,6 +138,19 @@ services:
         sync: false
       - key: STORY_PLAN_THEN_WRITE
         value: "true"
+      # Red-thread design (owner, 10 November 2026): the planned days of gaps 3 and
+      # 4 run on their contracts; their pages are shared between learners; a reply
+      # that misses the day's question hears it once more, simpler; and a day no
+      # writer delivered is served on its own stand-in page. The API and the
+      # worker carry the same four values.
+      - key: STORY_DAY_CONTRACT
+        value: "true"
+      - key: STORY_SHARED_PAGES
+        value: "true"
+      - key: STORY_CONTRACT_REASK
+        value: "true"
+      - key: STORY_CONTRACT_STAND_IN
+        value: "true"
       - key: STORY_WRITER_MODEL
         value: claude-opus-5-5
       - key: STORY_WRITER_REASONING_EFFORT
@@ -395,6 +408,19 @@ services:
           name: atelier-api
           envVarKey: ANTHROPIC_API_KEY
       - key: STORY_PLAN_THEN_WRITE
+        value: "true"
+      # Red-thread design (owner, 10 November 2026): the planned days of gaps 3 and
+      # 4 run on their contracts; their pages are shared between learners; a reply
+      # that misses the day's question hears it once more, simpler; and a day no
+      # writer delivered is served on its own stand-in page. The API and the
+      # worker carry the same four values.
+      - key: STORY_DAY_CONTRACT
+        value: "true"
+      - key: STORY_SHARED_PAGES
+        value: "true"
+      - key: STORY_CONTRACT_REASK
+        value: "true"
+      - key: STORY_CONTRACT_STAND_IN
         value: "true"
       - key: STORY_WRITER_MODEL
         value: claude-opus-5-5

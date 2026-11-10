@@ -173,7 +173,11 @@ export type ThingKind =
   | 'drink'
   | 'skylight'
   | 'chimney'
-  | 'edge';
+  | 'edge'
+  | 'easel'
+  | 'crates'
+  | 'board'
+  | 'plan';
 
 export interface RoomThing {
   kind: ThingKind;
@@ -1522,6 +1526,129 @@ function thing(B: Build, t: RoomThing, i: number) {
       });
       return;
     }
+    case 'easel': {
+      // a painter's easel, its canvas under a white sheet: the sheet thrown over the top and
+      // falling in folds to the ledge and below it, the easel's mast up out of it (`size` the
+      // canvas's width and height)
+      const [cw, ch] = t.size ?? [1.0, 0.8];
+      const wood = zoned(mix(TONES.wood, INKS.ochre, 0.25), z);
+      const sheet = zoned(mix(INKS.card, INKS.paper, 0.25), z);
+      const shade = zoned(mix(mix(INKS.card, INKS.paper, 0.25), INKS.cobalt, 0.07), z);
+      const fold = zoned(mix(mix(INKS.card, INKS.paper, 0.25), INKS.cobalt, 0.035), z);
+      const ledge = 0.72;
+      const top = ledge + 0.04 + ch;
+      D.at(x, y, zz, rot, () => {
+        // the back leg, standing out behind
+        D.bar(new Vector3(0, 0, -0.62), new Vector3(0, top - 0.1, -0.06), 0.022, wood);
+        // the easel leans back a little: front legs, mast, ledge, the canvas and its sheet
+        D.push(new Matrix4().makeTranslation(0, 0, 0.1).multiply(new Matrix4().makeRotationX(-0.1)));
+        for (const s of [-1, 1]) D.bar(new Vector3(s * 0.34, 0, 0), new Vector3(s * 0.07, top + 0.32, 0), 0.024, wood);
+        D.box(0, top + 0.14, -0.015, 0.045, 0.5, 0.03, wood);
+        D.box(0, ledge, 0.05, cw + 0.14, 0.035, 0.1, wood);
+        D.box(0, ledge + 0.04 + ch / 2, 0.035, cw, ch, 0.025, shade);
+        // the sheet over the top and down the front in folds, a little wider at its hem
+        D.box(0, top + 0.012, 0.035, cw + 0.08, 0.025, 0.1, sheet);
+        const folds = 9;
+        const hem = 0.28;
+        for (let k = 0; k < folds; k++) {
+          const u0 = -0.5 + k / folds;
+          const u1 = -0.5 + (k + 1) / folds;
+          const out = k % 2 ? 0.1 : 0.075;
+          const back = k % 2 ? 0.06 : 0.08;
+          const xa = u0 * (cw + 0.08);
+          const xb = u1 * (cw + 0.08);
+          const ya = hem + (k * 37) % 5 * 0.025;
+          const flare = 1.12;
+          D.quadXYZ([xa * flare, ya, out + 0.04, xb * flare, ya, out + 0.04, xb, top + 0.02, back, xa, top + 0.02, back], k % 2 ? sheet : fold);
+        }
+        // and down the back, plain
+        D.quadXYZ([(cw + 0.12) / 2, hem + 0.1, -0.03, -(cw + 0.12) / 2, hem + 0.1, -0.03, -(cw + 0.08) / 2, top + 0.02, 0.0, (cw + 0.08) / 2, top + 0.02, 0.0], shade);
+        // its edges, falling at the sides
+        for (const s of [-1, 1]) D.quadXYZ([s * (cw + 0.12) / 2 * 1.08, hem + 0.06, 0.12, s * (cw + 0.12) / 2, hem + 0.1, -0.03, s * (cw + 0.08) / 2, top + 0.02, 0.0, s * (cw + 0.08) / 2, top + 0.02, 0.1], sheet);
+        D.pop();
+      });
+      B.blocks.push(centred(x, zz - 0.12 * Math.cos(rot), rot, cw + 0.45, 0.9));
+      return;
+    }
+    case 'crates': {
+      // wooden crates stacked against the wall, the bottles' necks showing in the top row
+      // (`size` crates across and crates high)
+      const [cols, rows] = t.size ?? [3, 3];
+      const cw = 0.46;
+      const chh = 0.3;
+      const cd = 0.34;
+      const tones = [mix(TONES.wood, INKS.paper, 0.2), mix(TONES.wood, INKS.ochre, 0.3), mix(TONES.wood, INKS.ink, 0.12)];
+      const slat = zoned(mix(TONES.wood, INKS.ink, 0.45), z);
+      const glass = zoned(mix(INKS.green, INKS.ink, 0.35), z, { wet: 0.5 });
+      const R = { v: 977 + i * 53 };
+      const rand = () => {
+        R.v = (R.v * 16807) % 2147483647;
+        return R.v / 2147483647;
+      };
+      D.at(x, y, zz, rot, () => {
+        for (let c = 0; c < cols; c++) {
+          const h = Math.max(1, rows - (c === cols - 1 ? 1 : 0));
+          for (let r = 0; r < h; r++) {
+            const wood = zoned(tones[Math.floor(rand() * tones.length)], z);
+            const cx = (c - (cols - 1) / 2) * (cw + 0.02) + (rand() - 0.5) * 0.04;
+            const cz = cd / 2 + (rand() - 0.5) * 0.04;
+            const cy = r * chh;
+            D.box(cx, cy + chh / 2, cz, cw, chh, cd, wood, { ny: r === 0 ? false : true });
+            // the gap between the slats, and the hand-hole in the front board
+            D.box(cx, cy + chh * 0.55, cz + cd / 2 + 0.002, cw - 0.04, 0.012, 0.004, slat);
+            D.box(cx, cy + chh * 0.78, cz + cd / 2 + 0.002, 0.12, 0.035, 0.004, slat);
+            if (r === h - 1) {
+              for (let b = 0; b < 6; b++) D.cylinder(cx - 0.15 + (b % 3) * 0.15, cy + chh, cz - 0.08 + Math.floor(b / 3) * 0.16, 0.014, 0.014, 0.07, 6, glass, { flat: true });
+            }
+          }
+        }
+      });
+      B.blocks.push(footprint(x, zz, rot, cols * (cw + 0.02) + 0.06, cd + 0.06));
+      return;
+    }
+    case 'board': {
+      // the electrical board on the wall: a pale metal cabinet with a smoked window over the rows
+      // of breakers, the meter beside it, the cables' trunking up to the ceiling (`size` the
+      // cabinet's width and height; the trunking runs up `text`-less to the given height)
+      const [w, h] = t.size ?? [0.6, 0.9];
+      const metal = zoned(mix(INKS.card, INKS.paper, 0.35), z, { wet: 0.2 });
+      const smoke = zoned(mix(INKS.ink, INKS.cobalt, 0.2), z, { wet: 0.7 });
+      const breaker = zoned(mix(INKS.card, INKS.ink, 0.12), z);
+      const lever = zoned(INKS.ink, z);
+      const meter = zoned(mix(INKS.card, INKS.green, 0.22), z);
+      const trunk = zoned(INKS.card, z);
+      D.at(x, y, zz, rot, () => {
+        D.box(0, 0, 0.06, w, h, 0.12, metal);
+        // the window in the door, and the breakers behind it in three rows
+        D.box(0, 0.04, 0.121, w - 0.12, h * 0.62, 0.004, smoke);
+        for (let r = 0; r < 3; r++) {
+          const ry = 0.04 + h * 0.2 - r * h * 0.2;
+          for (let k = 0; k < 8; k++) {
+            const bx = -(w - 0.16) / 2 + 0.02 + k * ((w - 0.2) / 7);
+            D.box(bx, ry, 0.124, 0.03, 0.07, 0.006, breaker);
+            D.box(bx, ry + 0.012, 0.128, 0.012, 0.02, 0.006, lever);
+          }
+        }
+        D.box(w / 2 - 0.06, -h / 2 + 0.07, 0.124, 0.03, 0.05, 0.01, lever);
+        // the meter, to the side
+        D.box(w / 2 + 0.16, h / 2 - 0.16, 0.05, 0.18, 0.26, 0.1, meter);
+        D.box(w / 2 + 0.16, h / 2 - 0.12, 0.101, 0.1, 0.04, 0.003, smoke);
+        // the trunking, up out of the top to the ceiling
+        D.box(0, h / 2 + 0.6, 0.04, 0.12, 1.2, 0.06, trunk);
+      });
+      return;
+    }
+    case 'plan': {
+      // a plan drawn by hand, pinned to the wall: the café's room and its back room, what each is
+      // for, in felt-tip capitals (`text`: its title, the back room's square, then the room's)
+      const [w, h] = t.size ?? [0.5, 0.36];
+      card(B, key, [x, y, zz], rot, w, h, z, planArt(t.text ?? []), 1400);
+      const pin = zoned(INKS.vermilion, z);
+      D.at(x, y, zz, rot, () => {
+        for (const [px, py] of [[-1, 1], [1, 1], [-1, -1], [1, -1]] as Array<[number, number]>) D.ball((px * (w - 0.04)) / 2, (py * (h - 0.04)) / 2, 0.02, 0.009, 0.009, 0.009, pin, 0);
+      });
+      return;
+    }
     case 'armoire': {
       // a tall wardrobe against the wall: two panelled doors, a key in one, a cornice on top
       const [w, h] = t.size ?? [1.1, 2.2];
@@ -1579,6 +1706,69 @@ function phoneArt(lines: string[]) {
         ctx.font = SANS(s, i === 0 ? 700 : 500);
       }
       ctx.fillText(text, w / 2, h * (0.36 + i * 0.13));
+    });
+  };
+}
+
+/**
+ * Marin's plan, drawn by hand: the café's room with its long tables and the booth at the back,
+ * and the back room's square with what it will be. `text`: the title, the back room's label
+ * (written over two lines inside its square), then the labels of the room.
+ */
+function planArt(text: string[]) {
+  const [title = '', back = '', ...room] = text;
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(INKS.card, INKS.paper, 0.15));
+    ctx.fillRect(0, 0, w, h);
+    const pencil = css(mix(INKS.ink, INKS.paper, 0.4));
+    const felt = css(mix(INKS.cobalt, INKS.ink, 0.25));
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = felt;
+    let s = Math.round(h * 0.085);
+    ctx.font = SANS(s, 700);
+    while (s > 6 && ctx.measureText(title).width > w * 0.9) ctx.font = SANS(--s, 700);
+    ctx.fillText(title, w / 2, h * 0.09);
+    // the café's room, the back room beside it
+    const y0 = h * 0.2;
+    const y1 = h * 0.92;
+    const xa = w * 0.05;
+    const xb = w * 0.6;
+    const xc = w * 0.95;
+    ctx.strokeStyle = pencil;
+    ctx.lineWidth = Math.max(2, w * 0.006);
+    ctx.strokeRect(xa, y0, xb - xa, y1 - y0);
+    ctx.strokeStyle = felt;
+    ctx.lineWidth = Math.max(2, w * 0.008);
+    ctx.strokeRect(xb, y0, xc - xb, (y1 - y0) * 0.66);
+    // the door between them
+    ctx.fillStyle = css(mix(INKS.card, INKS.paper, 0.15));
+    ctx.fillRect(xb - 2, y0 + (y1 - y0) * 0.08, 5, (y1 - y0) * 0.1);
+    // the zinc along the back, the long tables, the booth
+    ctx.strokeStyle = pencil;
+    ctx.lineWidth = Math.max(1.5, w * 0.004);
+    ctx.strokeRect(xb - w * 0.07, y0 + (y1 - y0) * 0.25, w * 0.035, (y1 - y0) * 0.55);
+    for (const ty of [0.5, 0.72]) ctx.strokeRect(xa + w * 0.05, y0 + (y1 - y0) * ty, w * 0.36, (y1 - y0) * 0.08);
+    ctx.strokeRect(xa + w * 0.02, y0 + (y1 - y0) * 0.06, w * 0.2, (y1 - y0) * 0.1);
+    // the labels
+    ctx.fillStyle = felt;
+    const label = (t: string, cx: number, cy: number, max: number, size: number) => {
+      let k = Math.round(size);
+      ctx.font = SANS(k, 700);
+      while (k > 5 && ctx.measureText(t).width > max) ctx.font = SANS(--k, 700);
+      ctx.fillText(t, cx, cy);
+    };
+    const words = back.split(' ');
+    const cut = Math.max(1, Math.ceil(words.length / 3));
+    const lines = words.length > 2 ? [words.slice(0, cut).join(' '), words.slice(cut).join(' ')] : [back];
+    const bcx = (xb + xc) / 2;
+    const bcy = y0 + (y1 - y0) * 0.33;
+    lines.forEach((t, k) => label(t, bcx, bcy + (k - (lines.length - 1) / 2) * h * 0.1, (xc - xb) * 0.86, h * 0.085));
+    // in the room: by the long tables, by the booth, by the zinc (fractions of the room's plan)
+    const spots: Array<[number, number, number]> = [[0.42, 0.42, 0.6], [0.22, 0.24, 0.36], [0.8, 0.88, 0.25]];
+    room.forEach((t, k) => {
+      const [px, py, max] = spots[k] ?? [0.42, 0.3, 0.6];
+      label(t, xa + (xb - xa) * px, y0 + (y1 - y0) * py, (xb - xa) * max, h * 0.055);
     });
   };
 }

@@ -116,6 +116,8 @@ _CARRIERS = {
     ("app/services/living_story.py", "callback_override=turn.callback_fr,"),
     # the hook is a teaser by design
     ("app/services/living_story.py", 'episode.hook = {"text": turn.callback_fr, "source_event_id": event_id}'),
+    # a contract day writes the fact it kept: the plan's own «what changed», never a hook
+    ("app/services/living_story.py", 'turn.callback_fr = ending["fact_fr"]'),
     # the private record; presented through daily_journey's scene_fact
     ("app/services/living_story.py", '"callback_fr": turn.callback_fr or None,'),
     # the scene draft's own callback (a past fact the scene stages), not the outcome's

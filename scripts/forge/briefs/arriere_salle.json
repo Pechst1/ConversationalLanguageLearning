@@ -1,0 +1,284 @@
+{
+  "id": "arriere_salle",
+  "kind": "room",
+  "round": 3,
+  "in": "quai_de_valmy",
+  "canon": {
+    "doc": "docs/story/season-1/10-lieux-et-images.md",
+    "place": "Le Mistral · The back room",
+    "scenes": [
+      "T5 A · P7b",
+      "T5 B · P8 and P9 «Le portrait»"
+    ]
+  },
+  "ambiance": "nuit",
+  "title": {
+    "fr": "L'arrière-salle",
+    "en": "The back room",
+    "de": "Das Hinterzimmer"
+  },
+  "can_do": {
+    "fr": "Regarder le chevalet sous son drap, lire le plan de Marin, voir le tableau électrique et le plâtre neuf.",
+    "en": "Look at the easel under its sheet, read Marin's plan, see the electrical board and the new plaster.",
+    "de": "Die Staffelei unter ihrem Tuch ansehen, Marins Plan lesen, den Stromkasten und den neuen Putz sehen."
+  },
+  "arrive": {
+    "fr": "L'arrière-salle du Mistral, après la fermeture. Un chevalet, sous un drap.",
+    "en": "Le Mistral's back room, after closing. An easel, under a sheet.",
+    "de": "Das Hinterzimmer des Mistral, nach Feierabend. Eine Staffelei, unter einem Tuch."
+  },
+  "start": {
+    "pos": [
+      -38.2,
+      -17.7
+    ],
+    "look": [
+      -41.6,
+      1.2,
+      -15.9
+    ]
+  },
+  "spaces": [
+    {
+      "key": "salle",
+      "rect": [
+        -43.6,
+        -18.75,
+        -37.6,
+        -13.0
+      ],
+      "floor": 0.16,
+      "ceiling": 4.25,
+      "finish": "stone",
+      "walls": {
+        "finish": "plaster",
+        "tone": "cream"
+      }
+    }
+  ],
+  "walls": [],
+  "flights": [],
+  "rails": [],
+  "doors": [
+    {
+      "key": "porte_cafe",
+      "wall": "salle.e",
+      "u": [
+        0.2,
+        1.1
+      ],
+      "height": 2.2,
+      "hinge": "left",
+      "swing": "in",
+      "tone": "porch",
+      "opens": "never"
+    }
+  ],
+  "windows": [],
+  "lights": [
+    {
+      "key": "globe",
+      "kind": "globe",
+      "at": [
+        -40.6,
+        3.1,
+        -15.9
+      ],
+      "power": 0.75,
+      "range": 6.5,
+      "ceiling": 4.25
+    }
+  ],
+  "switches": [],
+  "timers": {},
+  "things": [
+    {
+      "kind": "easel",
+      "at": [
+        -41.7,
+        0.16,
+        -15.9
+      ],
+      "rot": 1.75,
+      "size": [
+        1.1,
+        0.85
+      ],
+      "look": {
+        "fr": "Un chevalet, sous un drap blanc. On ne voit pas la toile.",
+        "en": "An easel, under a white sheet. You can't see the canvas.",
+        "de": "Eine Staffelei unter einem weißen Tuch. Die Leinwand sieht man nicht."
+      },
+      "did": {
+        "fr": "Tu as regardé le chevalet sous son drap.",
+        "en": "You looked at the easel under its sheet.",
+        "de": "Du hast dir die Staffelei unter ihrem Tuch angesehen."
+      }
+    },
+    {
+      "kind": "plan",
+      "at": [
+        -37.6,
+        1.6,
+        -16.9
+      ],
+      "rot": -1.5708,
+      "size": [
+        0.5,
+        0.36
+      ],
+      "text": [
+        "LE MISTRAL À NOUS",
+        "ATELIER DE LILA",
+        "CANTINE LE MIDI",
+        "BANQUETTE",
+        "ZINC"
+      ],
+      "look": {
+        "fr": "Le plan de Marin, punaisé près de la porte. Ici, un carré : «ATELIER DE LILA».",
+        "en": "Marin's plan, pinned by the door. Here, a square: «ATELIER DE LILA».",
+        "de": "Marins Plan, neben der Tür angepinnt. Hier ein Quadrat: «ATELIER DE LILA»."
+      },
+      "did": {
+        "fr": "Tu as lu le plan de Marin.",
+        "en": "You read Marin's plan.",
+        "de": "Du hast Marins Plan gelesen."
+      }
+    },
+    {
+      "kind": "board",
+      "at": [
+        -40.2,
+        1.75,
+        -18.75
+      ],
+      "rot": 0,
+      "size": [
+        0.6,
+        0.9
+      ],
+      "look": {
+        "fr": "Le tableau électrique du café. Il est neuf, comme le plâtre.",
+        "en": "The café's electrical board. It is new, like the plaster.",
+        "de": "Der Stromkasten des Cafés. Er ist neu, wie der Putz."
+      },
+      "did": {
+        "fr": "Tu as regardé le tableau électrique.",
+        "en": "You looked at the electrical board.",
+        "de": "Du hast dir den Stromkasten angesehen."
+      }
+    },
+    {
+      "kind": "patch",
+      "at": [
+        -41.3,
+        2.25,
+        -18.75
+      ],
+      "rot": 0,
+      "size": [
+        4.6,
+        3.7
+      ],
+      "look": {
+        "fr": "Le plâtre est neuf ici, d'un blanc un peu différent.",
+        "en": "The plaster is new here, a slightly different white.",
+        "de": "Der Putz ist hier neu, ein etwas anderes Weiß."
+      },
+      "did": {
+        "fr": "Tu as vu le plâtre neuf.",
+        "en": "You saw the new plaster.",
+        "de": "Du hast den neuen Putz gesehen."
+      }
+    },
+    {
+      "kind": "patch",
+      "at": [
+        -43.6,
+        2.25,
+        -16.6
+      ],
+      "rot": 1.5708,
+      "size": [
+        4.3,
+        3.7
+      ]
+    },
+    {
+      "kind": "crates",
+      "at": [
+        -42.4,
+        0.16,
+        -18.75
+      ],
+      "rot": 0,
+      "size": [
+        3,
+        3
+      ]
+    },
+    {
+      "kind": "crates",
+      "at": [
+        -43.6,
+        0.16,
+        -13.9
+      ],
+      "rot": 1.5708,
+      "size": [
+        2,
+        2
+      ]
+    },
+    {
+      "kind": "crates",
+      "at": [
+        -40.3,
+        0.16,
+        -13.0
+      ],
+      "rot": 3.1416,
+      "size": [
+        4,
+        2
+      ]
+    },
+    {
+      "kind": "chair",
+      "at": [
+        -40.9,
+        0.16,
+        -15.0
+      ],
+      "rot": -2.3
+    }
+  ],
+  "courts": [],
+  "marks": {
+    "porte": [
+      -38.1,
+      0.16,
+      -18.1
+    ],
+    "lila": [
+      -41.2,
+      0.16,
+      -16.7
+    ],
+    "tableau": [
+      -40.2,
+      0.16,
+      -17.9
+    ],
+    "toi": [
+      -39.7,
+      0.16,
+      -16.2
+    ],
+    "plan": [
+      -38.3,
+      0.16,
+      -16.9
+    ]
+  }
+}

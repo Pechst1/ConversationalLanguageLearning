@@ -1297,6 +1297,19 @@ class HeadlineCastMember(JourneyModel):
     name: str
 
 
+class HeadlineArc(JourneyModel):
+    """Red-thread design: where the gap is going and how far it is."""
+
+    #: The gap's own title («Avant la fête»).
+    gap_title_fr: str
+    #: What it leads to, in the learner's words («Les 25 ans du Mistral»).
+    title_fr: str
+    #: The day it happens, as the pages say it («samedi»).
+    when_fr: str
+    #: Days until then (1 = tomorrow).
+    days_left: int
+
+
 class EpisodeHeadline(JourneyModel):
     """WP-109: today's episode as Home and the Feuilleton headline it."""
 
@@ -1309,6 +1322,9 @@ class EpisodeHeadline(JourneyModel):
     #: Yesterday's «À suivre…».
     teaser_fr: str | None = None
     season_title_fr: str | None = None
+    #: ``STORY_DAY_CONTRACT``: the gap's destination and the days left to it; ``None``
+    #: on a tentpole day, in a gap without one, and with the flag off.
+    arc: HeadlineArc | None = None
     #: The episode's picture: the scene's first panel, else its opening place.
     image_url: str | None = None
     cast: list[HeadlineCastMember] = Field(default_factory=list)

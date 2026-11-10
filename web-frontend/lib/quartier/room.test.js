@@ -208,7 +208,30 @@ test('every room is the stage of a place of the season, so a page set there find
   // the café and the quai are the hand-drawn quarter; a place nothing is built for has no stage yet
   assert.equal(stageOf('le_mistral')?.id, 'quai_de_valmy');
   assert.equal(stageOf('le_mistral')?.room ?? null, null);
-  assert.equal(stageOf('mistral_back_room'), null);
+  assert.equal(stageOf('mistral_back_room')?.room, 'arriere_salle');
+  assert.equal(stageOf('marin_lila_flat'), null);
+});
+
+test('the back room (T5 B): the easel under its sheet, the board, the new plaster, and Marin’s plan by the door', () => {
+  const file = 'arriere_salle.json';
+  const back = rooms.find((r) => r.file === file);
+  assert.ok(back, 'the back room is built');
+  const { room } = back;
+  const kinds = room.things.map((t) => t.kind);
+  for (const k of ['easel', 'board', 'patch', 'crates', 'plan']) assert.ok(kinds.includes(k), `the back room has no ${k}`);
+  // the plan's square says what P9 reads on it, and it hangs by the door the café is through
+  const plan = room.things.find((t) => t.kind === 'plan');
+  assert.ok(plan.text.includes('ATELIER DE LILA'));
+  const door = room.doors[0];
+  const wall = room.walls[door.wall];
+  assert.ok(Math.abs(plan.at[0] - wall.a[0]) < 0.05, 'the plan is on the wall of the door');
+  // the door into the café is where the café's own back door is (mistral.ts: x -37.6, z -18.1)
+  const len = Math.hypot(wall.b[0] - wall.a[0], wall.b[1] - wall.a[1]);
+  const mid = wall.a[1] + ((wall.b[1] - wall.a[1]) * (door.u0 + door.u1)) / 2 / len;
+  assert.ok(Math.abs(wall.a[0] - -37.6) < 0.01 && Math.abs(mid - -18.1) < 0.05);
+  // you arrive in it, indoors, the café's door behind you
+  const { built: r } = built.get(file);
+  assert.equal(r.inside(r.start.pos.x, r.start.pos.z), true);
 });
 
 test("a room in the quarter (the roof) lies on Le Mistral's roof, and you walk round its chimneys", () => {

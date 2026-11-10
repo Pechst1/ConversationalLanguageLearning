@@ -334,7 +334,7 @@ function JourneyTodayBody({
           // WP-98: a quiet authored interlude scene says it is one.
           eyebrow={
             joinMeta(
-              headlineKicker(headline),
+              headlineKicker(headline, controlLanguage),
               interlude ? seasonReturnCopy(controlLanguage).interlude_kicker : gentle,
               scenario.location_name,
             ) || copy.today_eyebrow
@@ -400,7 +400,7 @@ function JourneyTodayBody({
           copy={copy}
           eyebrow={
             // Phase 2: «Acte 2 t'attend» when the day waits in a later act.
-            joinMeta(openActLine(phase.journey), headlineKicker(headline), gentle, longer, scenario.location_name) ||
+            joinMeta(openActLine(phase.journey), headlineKicker(headline, controlLanguage), gentle, longer, scenario.location_name) ||
             copy.today_eyebrow
           }
           title={cardTitle(headline, scenario.title_fr)}

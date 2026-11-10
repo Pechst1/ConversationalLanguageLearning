@@ -8254,6 +8254,7 @@ export interface components {
          * @description WP-109: today's episode as Home and the Feuilleton headline it.
          */
         EpisodeHeadline: {
+            arc: components["schemas"]["HeadlineArc"] | null;
             /** Cast */
             cast: components["schemas"]["HeadlineCastMember"][];
             /** Cast Variants */
@@ -9420,6 +9421,20 @@ export interface components {
             recommendation?: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * HeadlineArc
+         * @description Red-thread design: where the gap is going and how far it is.
+         */
+        HeadlineArc: {
+            /** Days Left */
+            days_left: number;
+            /** Gap Title Fr */
+            gap_title_fr: string;
+            /** Title Fr */
+            title_fr: string;
+            /** When Fr */
+            when_fr: string;
         };
         /** HeadlineCastMember */
         HeadlineCastMember: {

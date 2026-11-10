@@ -39,6 +39,11 @@ SEASON = "s1"
 # ---------------------------------------------------------------------------
 
 
+#: Per scanned module, the names its ``from X import name`` statements bring in
+#: (anywhere in the file: the story engine imports prompts inside functions).
+_IMPORTED: dict[str, dict[str, str]] = {}
+
+
 def _json_call_sites() -> list[tuple[str, int, ast.expr]]:
     """Every ``_json_call(...)`` in ``app/``: (module, line, the system prompt argument)."""
 
@@ -46,6 +51,12 @@ def _json_call_sites() -> list[tuple[str, int, ast.expr]]:
     for path in sorted((ROOT / "app").rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         module = ".".join(path.relative_to(ROOT).with_suffix("").parts)
+        _IMPORTED[module] = {
+            alias.asname or alias.name: node.module
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom) and node.module and node.level == 0
+            for alias in node.names
+        }
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call) or not node.args:
                 continue
@@ -56,6 +67,31 @@ def _json_call_sites() -> list[tuple[str, int, ast.expr]]:
     return sites
 
 
+def _named_prompts(module, node: ast.expr) -> list[str] | None:
+    """Every prompt a call argument can be, read from module-level strings: a name, a
+    concatenation of them, each branch of a conditional. ``None`` when it cannot be read."""
+
+    if isinstance(node, ast.Name):
+        value = getattr(module, node.id, None)
+        source = _IMPORTED.get(module.__name__, {}).get(node.id)
+        if not isinstance(value, str) and source:
+            value = getattr(importlib.import_module(source), node.id, None)
+        return [value] if isinstance(value, str) else None
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return [node.value]
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        left, right = _named_prompts(module, node.left), _named_prompts(module, node.right)
+        if left is None or right is None:
+            return None
+        return [a + b for a in left for b in right]
+    if isinstance(node, ast.IfExp):
+        body, orelse = _named_prompts(module, node.body), _named_prompts(module, node.orelse)
+        if body is None or orelse is None:
+            return None
+        return [*body, *orelse]
+    return None
+
+
 def test_every_named_prompt_sent_as_a_json_object_says_json():
     """OpenAI answers 400 to ``response_format=json_object`` unless the messages say
     «json»: the season critic was refused on every review (walk #649, finding 1)."""
@@ -64,14 +100,13 @@ def test_every_named_prompt_sent_as_a_json_object_says_json():
     assert len(sites) >= 10, "the scan must find the story engine's callers"
     checked, missing = 0, []
     for module, line, arg in sites:
-        if not isinstance(arg, ast.Name):
-            continue  # built per call: covered by the call itself (next test)
-        value = getattr(importlib.import_module(module), arg.id, None)
-        if not isinstance(value, str):
-            continue  # a local variable: covered by the call itself
-        checked += 1
-        if not re.search("json", value, re.IGNORECASE):
-            missing.append(f"{module}:{line} {arg.id}")
+        prompts = _named_prompts(importlib.import_module(module), arg)
+        if prompts is None:
+            continue  # built per call or a local variable: covered by the call itself
+        for prompt in prompts:
+            checked += 1
+            if not re.search("json", prompt, re.IGNORECASE):
+                missing.append(f"{module}:{line} {ast.unparse(arg)}")
     assert checked >= 8
     assert missing == []
 
