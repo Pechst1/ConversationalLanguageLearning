@@ -167,14 +167,15 @@ The diagnosis found about nine partial records and no place that says what this 
   - a **mark**: `{id, said, kept, day, comes_back, returned_on}`. `said` is the learner's exact words. `kept` is the corrected form the evaluator already produces, and it is what a menu card prints.
 - **Every lane that writes story text reads the same view**: the planner, the author, the live model, the contract check, the teaser, the Home card and, as they are touched, the Courrier and the Journal. Lanes move over one at a time; none is rewritten for this mandate.
 - **Validation** is the contract check of section 3.6: it receives "true so far" and refuses a page that contradicts it (the ticket date of g3.1 is the model case).
-- **Storage** is the JSON state the other records already live in. No table, no migration, no backfill: for a learner in the middle of a gap, the days already played are read as landed on their default route.
+- **Storage** is the JSON state the other records already live in. No table, no migration, no backfill.
+- **Days played before the contract are unknown, not landed.** The diagnosis shows why: the canapé day is in the books as done and its last line says there is no menu. So for a learner in the middle of a gap, an earlier day's facts enter the read model as `source: unverified`. A page may not build on an unverified fact silently. Either the page makes it true in plain sight (Thursday's first panel: Marin pins up the menu he wrote overnight), or the day does not rely on it. The contract check treats "relies on an unverified fact without showing it" as a failure, and a fact shown this way is entered as verified from then on. The first contract day of each learner is therefore also the day the books are put right.
 
 This is deliberately the narrow end of issue #145: enough state to make a day a transaction, and a single door through which later work can pass.
 
 ### 3.3 Where the hook comes from
 
 - On a planned day the hook **is** the contract's hook. It is the last panel of every landing, spoken by its `speaker` in the scene, and the same sentence is the «À suivre…» line on the Done screen, the line on the Home card and the text of the evening push.
-- The author may rephrase the line in the speaker's voice. It must still contain the `must_name` words; otherwise the authored line is used as written.
+- The author may rephrase the line in the speaker's voice. Two checks hold it to the promise. The `must_name` words are a cheap first filter in code. The words alone prove nothing (a line can say «photo» and «milieu» and owe the learner nothing), so the contract check of section 3.6 also reads the hook for its meaning: does it say who needs what from the learner tomorrow, and is that tomorrow's beat. If either check fails, the authored line is used as written. There is no repair round for a hook; the authored line is always good enough.
 - If the learner picks tomorrow with «Demain», the hook is the picked beat's own invitation, which exists today («On va …»).
 - The day before a tentpole keeps `season_teaser()`.
 - `next_teaser()` is not called on a season's planned days. Loose ends are not teasers; they are debts (section 3.5).
@@ -208,7 +209,7 @@ Why this is honest: the rule «an honest ending, not invented success» is kept.
 At night, in this order:
 
 1. **Deterministic gate.** All existing guards, unchanged. Then the contract lint, pure code: the place is the contract's `place` or `place_alt`; the task line is the contract's ask for this level; every landing contains its `show` words and its mark slot; the last panel is the hook and names its `must_name` words; the destination's `when_fr` appears on the page; no new plant without a due date.
-2. **Contract check.** One small model call with the contract, "true so far", the page and its landings. It answers item by item: is each `lands` fact true at the end of each route; does anything contradict what is already true; is the due payoff shown. Each failure names the panel. About $0.02.
+2. **Contract check.** One small model call with the contract, "true so far", the page and its landings. It answers item by item: is each `lands` fact true at the end of each route; does anything contradict what is already true; does the page lean on an unverified fact without showing it (section 3.2); is the due payoff shown; does the hook, if rephrased, still make the contract's promise for tomorrow (section 3.3). Each failure names the panel. About $0.02.
 3. **Targeted repair.** The author receives the page, the failing items and the panel numbers, and rewrites only those panels. At most two repairs. About $0.09 each, against $0.27 for a redraw today. Guards and the critic no longer share one budget.
 4. **Fallback.** If the page still fails: the authored short page for this beat (the C tier), four panels at A1 French, readable at every level, with its own landings. It is served and counted. A refused draft is never served on a contract day; `journey_story_critic_override` stops firing there.
 5. **The critic becomes a reader, not a gate.** It still reads the page for craft (do people talk like people) and its notes go into the repair when there is one. Taste does not block a page; the plan does.
@@ -386,6 +387,6 @@ Against the mandate's suggested order (a to f): the hook and the week's line mov
 | The small model picks the wrong landing | Every landing lands the floor. A wrong pick costs nuance, never the beat. Golden transcripts cover both replies. |
 | The ledger grows into #145 | Two records and one read model. Anything more is a separate decision. |
 | Authoring load on the owner | I draft everything from the existing plan; review is line by line, two gaps at a time. |
-| A learner is mid-gap when the flag flips | Contract days start with the next day; earlier days are read as landed by default; nothing is rewritten. |
+| A learner is mid-gap when the flag flips | Contract days start with the next day. Earlier days are unverified, never assumed landed: a page shows such a fact before it builds on it (section 3.2). Nothing already served is rewritten. |
 | The contract check lets a bad page through | It is the second line after deterministic checks; `refused_served` and `landed` are tracked nightly and the binge reader looks at the whole week. |
 | Cost estimates are wrong | They are built from measured call prices and confirmed by the replay before slice 3. |
