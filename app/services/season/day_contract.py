@@ -39,6 +39,16 @@ def stand_in_enabled() -> bool:
     return enabled() and bool(getattr(settings, "STORY_CONTRACT_STAND_IN", False))
 
 
+#: Where ``for_turn`` carries the simpler question (never sent to the reply lane).
+ASK_AGAIN_KEY = "ask_again_fr"
+
+
+def reask_enabled() -> bool:
+    """Whether a reply that misses the day's question is asked once more, simpler."""
+
+    return enabled() and bool(getattr(settings, "STORY_CONTRACT_REASK", False))
+
+
 def plans_gap(season: Season, gap_id: str | None) -> bool:
     """Whether the days of ``gap_id`` are planned by contracts (and the flag is on)."""
 
@@ -197,6 +207,8 @@ def for_turn(season: Season, season_ctx: dict[str, Any], *, band: str | None) ->
             "routes": [{"id": route.id, "when": route.when} for route in contract.routes],
             "default_route": next(route.id for route in contract.routes if route.default),
         }
+        if reask_enabled() and contract.turns[0].ask_again_fr:
+            out[ASK_AGAIN_KEY] = contract.turns[0].ask_again_fr
         mark_turn = next((turn for turn in contract.turns if turn.mark), None)
         if mark_turn is not None:
             out["mark"] = {
@@ -208,6 +220,28 @@ def for_turn(season: Season, season_ctx: dict[str, Any], *, band: str | None) ->
     except Exception:  # noqa: BLE001 - the plan never costs the learner their reply
         logger.exception("day_contract: no contract for the turn; the lanes run as before")
         return None
+
+
+def reask(
+    plan: dict[str, Any] | None,
+    *,
+    outcome: str,
+    turns_left: int,
+    learner_asked: Any,
+    history: list[Any] | None,
+) -> str | None:
+    """The day's question once more, in the simpler French the contract wrote for it
+    (``turns[].ask_again_fr``), or None. Only after a reply that did not answer it
+    (``not_yet``), while the conversation goes on, never over a question the learner
+    asked (that one is answered first) and never twice in a scene."""
+
+    again = str((plan or {}).get(ASK_AGAIN_KEY) or "").strip()
+    if not again or outcome != "not_yet" or turns_left <= 0 or learner_asked:
+        return None
+    said = [str(row.get("character") or "") for row in history or [] if isinstance(row, dict)]
+    if any(_folded(again) in _folded(line) for line in said):
+        return None
+    return again
 
 
 _QUOTES = "«»\"“”„‟'’‘ \t\n"
@@ -560,13 +594,18 @@ def stand_in_draft(
 ) -> dict[str, Any] | None:
     """The planned day's stand-in page as a scene draft (``living_story.SceneDraft``),
     at the reader's level and in their language; None when the day has none, or when
-    its lead may not speak today or none of its places is one the page may be set at.
+    its lead may not speak today or the page cannot be set at a place offered today.
     No model: the page is the one written in ``gaps.json`` (``contract.stand_in``)."""
 
     contract = beat.contract
     page = contract.stand_in if contract else None
     place = next((row for row in (contract.place, contract.place_alt) if row in places), None) if contract else None
     if page is None or contract.lead not in speakers or place is None:
+        return None
+    # The page says where it is: at the day's second place it reads its own panels
+    # for that place, or it is not served there at all.
+    written = page.panels if place == contract.place else page.alt_panels
+    if not written:
         return None
     lang = str(language or "en")
 
@@ -577,7 +616,7 @@ def stand_in_draft(
     def at_level(rows: dict[str, Any]) -> Any:
         return next((rows[field] for field in written_levels(band) if rows.get(field)), None) or rows.get("a1") or rows["a2"]
 
-    panels = [(row, *read(row.text)) for row in page.panels]
+    panels = [(row, *read(row.text)) for row in written]
     captions = [(text, native) for row, text, native in panels if not row.says]
     asks, asks_native = read(page.asks)
     ask_en = _level_ask(contract.turns[0].ask, band)

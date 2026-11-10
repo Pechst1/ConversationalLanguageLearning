@@ -168,6 +168,18 @@ def test_a_stand_in_needs_its_lead_and_one_of_its_places():
     # The place the quarter has not built yet: the day's second place.
     moved = day_contract.stand_in_draft(season, gap, beat, places={contract.place_alt}, speakers={contract.lead}, **common)
     assert moved["location_id"] == contract.place_alt
+    # The page says where it is: at the second place it reads its own panels for it.
+    assert moved["panels"][0]["narration_fr"] == contract.stand_in.alt_panels[0].text.a1 != contract.stand_in.panels[0].text.a1
+    assert "Chez Marin" not in str(moved["panels"]) + moved["premise_fr"] + moved["setup_native"]
+    # A page that cannot move (the roof) is not served at the day's second place.
+    roof_gap, roof = day_contract.beat_for(season, "g3", "sur_le_toit")
+    assert roof.contract.stand_in.alt_panels is None
+    assert (
+        day_contract.stand_in_draft(
+            season, roof_gap, roof, places={roof.contract.place_alt}, speakers={roof.contract.lead}, **common
+        )
+        is None
+    )
     # An open chapter is kept, never replaced.
     chapter = {"title_fr": "La fête", "dramatic_question": "La fête aura-t-elle lieu ?", "possible_developments": ["Oui.", "Non."]}
     kept = day_contract.stand_in_draft(
@@ -220,7 +232,10 @@ def test_the_day_nobody_could_write_is_still_todays_day_of_the_story(
     episodes = assembled_client.get(f"/api/v1/story-engine/episodes?journey_id={journey['id']}", headers=d.headers)
     printed = json.dumps(episodes.json(), ensure_ascii=False)
     assert page.asks.a1 in printed
-    for row in page.panels:
+    # Marin's flat is not built in the test quarter: the day is set at Le Mistral, and
+    # the page says so.
+    assert "Chez Marin" not in printed
+    for row in page.alt_panels:
         assert (row.text.a1 or row.text.a2) in printed
     # The day lands on its contract: the season has moved to the next planned day.
     assert journey["status"] in ("completed", "complete")

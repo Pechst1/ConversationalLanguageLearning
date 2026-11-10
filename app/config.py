@@ -686,6 +686,16 @@ class Settings(BaseSettings):
             "Off: such a day re-reads the last page, as before."
         ),
     )
+    STORY_CONTRACT_REASK: bool = Field(
+        False,
+        description=(
+            "Red-thread design (needs STORY_DAY_CONTRACT): on a contract day, a reply that "
+            "does not answer the day's question is met once with the same question in the "
+            "simpler French the contract wrote (turns[].ask_again_fr), not with a new one. "
+            "Never over a question the learner asked, never twice. Off: the reply lane's own "
+            "reply stands."
+        ),
+    )
     STORY_SHARED_PAGES: bool = Field(
         False,
         description=(

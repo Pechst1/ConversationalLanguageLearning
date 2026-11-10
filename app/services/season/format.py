@@ -633,6 +633,10 @@ class StandIn(_Model):
     lands on its contract."""
 
     panels: list[StandInPanel] = Field(min_length=4, max_length=6)
+    #: The panels on the day the page is set at the contract's ``place_alt`` (the first
+    #: place is not built yet). None: the page cannot move, and such a day has no
+    #: stand-in.
+    alt_panels: list[StandInPanel] | None = Field(default=None, min_length=4, max_length=6)
     #: What the lead says to the learner (the page's opening line).
     asks: Wording
     #: The task line per written level, in German and French; the English one is the
@@ -1076,7 +1080,14 @@ def _check_stand_in(season: Season, gap: Gap, contract: DayContract, where: str)
     if contract.lead is None:
         problems.append(f"{where}: a stand-in page needs a lead to ask the learner")
     french: list[str] = []
-    for label, wording in [*((f"panel {i + 1}", row.text) for i, row in enumerate(page.panels)), ("asks", page.asks)]:
+    if page.alt_panels and not contract.place_alt:
+        problems.append(f"{where}: stand-in alt_panels without a place_alt")
+    lines = [
+        *((f"panel {i + 1}", row.text) for i, row in enumerate(page.panels)),
+        *((f"alt panel {i + 1}", row.text) for i, row in enumerate(page.alt_panels or [])),
+        ("asks", page.asks),
+    ]
+    for label, wording in lines:
         french.extend(text for field in LEVEL_FIELDS if (text := getattr(wording, field, None)))
         for language in ("en", "de"):
             if not wording.native.get(language):
@@ -1093,7 +1104,7 @@ def _check_stand_in(season: Season, gap: Gap, contract: DayContract, where: str)
     french.extend(page.reply_fr.values())
     everything = [
         *french,
-        *(text for wording in [*(row.text for row in page.panels), page.asks] for texts in (wording.native, wording.native_a1) for text in texts.values()),
+        *(text for _label, wording in lines for texts in (wording.native, wording.native_a1) for text in texts.values()),
         *(text for row in page.task.values() for text in row.values()),
     ]
     if any(_SLOT.search(text) for text in everything):
