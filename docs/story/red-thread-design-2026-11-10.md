@@ -56,6 +56,20 @@ Each planned day gets a small typed contract in the season data (floor, mark, ho
 - **Cost per day.** About $0.31 for a clean night, about $0.42 with one repair, about $0.53 in the worst case (estimates from the measured call prices; the replay confirms them). Live turns unchanged.
 - **Risk.** Medium. The main one is scope: the ledger must stay small (section 3.2). The second is the small model picking the wrong landing, which is why one landing is always the safe default and lands the beat anyway.
 
+### Option B2 · the same contract, pages shared between learners (added after the owner's cost question)
+
+Option B at about $0.31 to $0.42 per learner and night is cheaper than today and still does not scale: a learner who plays daily would cost roughly $10 to $13 a month in writing alone. The driver is not the contract. It is that every night the strong model writes a private page for every learner.
+
+The contract is what makes that avoidable. It fixes what becomes true on a day, and everything personal already travels through slots (the learner's words, name and choices) or through the live reaction. So a page and its landings can be written **once per day, level and story variant**, checked by the same gate, stored, and served to every learner who reaches that day in that state.
+
+- **What a variant is.** The combination of the flags a day actually reads. Most days read none or one; the canapé day reads one (`s1.marchand_invited`), and that is a single optional panel, so it can be a slot instead of a variant.
+- **When pages are written.** Lazily, the first time a learner needs a combination that does not exist yet, at night. After that the page is reused. The pool is finite and fills up.
+- **Cost.** Per page as in B (about $0.31 to $0.42, once). For this season roughly 45 days at three levels and about two variants, so in the order of 270 pages and about $100 in total, however many learners there are. Per learner and day only the live turns remain: under one cent. These are estimates until the replay.
+- **What the learner still gets.** The floor, the hook, the countdown, their own words on the page and coming back, and a character who reacts live to what they wrote.
+- **What is given up.** A page can no longer pick up something the learner said freely three days ago unless a slot was planned for it. Callbacks become planned marks instead of surprises. A fully personal night page can remain as a later, paid extra on the same contract.
+- **How it differs from C.** The pages are still written by the model within the contract and checked by the gate; nobody has to author and review 135 pages by hand. Vincent can review any page in the pool, and a bad one is replaced once for everyone.
+- **Risk.** A weak shared page is seen by many learners, so the gate and the golden transcripts matter more, and the pool needs a way to retire a page. Every slice of section 5 applies unchanged; the pool is one more slice after the gate.
+
 ### Option C · «La saison écrite»: all 45 days authored, the model only reacts
 
 Treat the gap days like tentpoles. Draft every generated day once, per level, with the strong model in one batch, review them by hand, and ship them as data with slots for the learner's name, words and choices. At run time nothing is written; the live model only reacts inside the page.
@@ -82,6 +96,8 @@ Treat the gap days like tentpoles. Draft every generated day once, per level, wi
 | Size | about 4 PRs | about 8 slices | data, plus a simpler runtime |
 
 ### Recommendation
+
+**Update after the owner's cost question: B in its shared form (B2).** The mechanism is the same; pages are written per day, level and variant instead of per learner, so the cost no longer grows with the number of learners. The paragraph below still describes the order of work.
 
 **B, started with A's cheapest win, and with C as its safety net.** The first slice of B that changes behaviour is the deterministic one (hook, countdown, «Précédemment» from the contract), which is Option A's best part and is visible the next morning. B's fallback tier is a small piece of C: one short authored page per beat, used only when the night fails, so the promise "a day is always served" finally means "that day", not "some page".
 
