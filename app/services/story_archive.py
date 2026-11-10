@@ -34,7 +34,13 @@ from sqlalchemy.orm import Session
 from app.db.models.daily_journey import DailyJourney, DailyJourneyStep
 from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
 from app.db.models.serial import SerialThread
-from app.services.journey_contracts import scene_act, step_act
+from app.services.journey_contracts import (
+    episode_title,
+    first_act_scene,
+    pages_by_act,
+    scene_act,
+    step_act,
+)
 from app.services.sentence_line import drop_cut_tail
 from app.services.story_page import hook_of
 
@@ -536,11 +542,14 @@ def build_archive(db: Session, user: Any, *, season: int | None = None) -> dict[
     # Phase 2 «Folge in Akten»: a day may play up to three acts, each published as a
     # scene of its own. The day's place in the season (its chapter) is its first act's;
     # every act it played is a planche of its own (``_day_payloads``).
-    acts_by_journey: dict[str, dict[int, GraphicNovelScene]] = {}
+    pages_of: dict[str, list[GraphicNovelScene]] = {}
     for scene in scenes:
         journey_id = _scene_journey_id(scene)
         if journey_id:
-            acts_by_journey.setdefault(journey_id, {})[scene_act(scene)[0]] = scene
+            pages_of.setdefault(journey_id, []).append(scene)
+    acts_by_journey: dict[str, dict[int, GraphicNovelScene]] = {
+        journey_id: pages_by_act(pages) for journey_id, pages in pages_of.items()
+    }
     scene_by_journey = _first_acts(acts_by_journey)
     played = _acts_played(db, user)
 
@@ -685,7 +694,7 @@ def build_archive(db: Session, user: Any, *, season: int | None = None) -> dict[
 def _first_acts(acts_by_journey: dict[str, dict[int, GraphicNovelScene]]) -> dict[str, GraphicNovelScene]:
     """Each day's own scene: its first act's — a one-act day's only one."""
 
-    return {journey_id: acts[min(acts)] for journey_id, acts in acts_by_journey.items() if acts}
+    return {journey_id: first_act_scene(acts.values()) for journey_id, acts in acts_by_journey.items() if acts}
 
 
 def _acts_played(db: Session, user: Any) -> dict[Any, int]:
@@ -846,7 +855,7 @@ def _day_payloads(
             "date": journey.local_date.isoformat(),
             "journey_id": str(journey.id),
             "scene_id": str(scene.id) if scene is not None else None,
-            "title_fr": (scene.title if scene is not None else "") or str(snapshot.get("title_fr") or ""),
+            "title_fr": episode_title(scene, snapshot),
             "edition_no": editions.get(journey.id),
             "reread": is_reprise_journey(journey),
             "image_url": image,

@@ -19,8 +19,9 @@ implementing packages own that:
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import UTC, date, datetime
 from enum import StrEnum
 from typing import Any, Literal, NamedTuple
 from uuid import UUID
@@ -232,6 +233,51 @@ def scene_act(scene: Any) -> tuple[int, str | None]:
         number = 1
     role = act.get("role")
     return number, str(role) if role else None
+
+
+def pages_by_act(scenes: Iterable[Any]) -> dict[int, Any]:
+    """A day's published pages, one per act. Two pages of one act (a page written
+    again) keep the newest, the one the reader plays (``GET /story-engine/episodes``
+    lists newest first within an act), so every surface names the same page."""
+
+    out: dict[int, Any] = {}
+    stamp = datetime.min.replace(tzinfo=UTC)
+
+    def written(scene: Any) -> datetime:
+        value = getattr(scene, "created_at", None)
+        if not isinstance(value, datetime):
+            return stamp
+        return value if value.tzinfo else value.replace(tzinfo=UTC)
+
+    for scene in sorted(scenes, key=written):
+        out[scene_act(scene)[0]] = scene
+    return out
+
+
+def first_act_scene(scenes: Iterable[Any]) -> Any | None:
+    """The page that names a day: its first act's (#577, a child of root cause #143).
+
+    A day of several acts publishes one scene per act, all under the same journey. The
+    episode's title, its cast and its picture are the first act's, whichever surface
+    asks (Home's headline, the Feuilleton's volume): none of them may pick «the newest
+    scene of the journey», which on such a day is the last act's page."""
+
+    acts = pages_by_act(scenes)
+    return acts[min(acts)] if acts else None
+
+
+def episode_title(first_scene: Any | None, snapshot: Any = None) -> str:
+    """The one title of a day's episode (#577): its first-act page's title; before
+    that page exists, or for a day played from an authored page, the title the journey
+    stored when it was planned (``scenario_snapshot``). Home's headline, the scene
+    header's journey and the Feuilleton's entry all read the title through this, so
+    they cannot name one episode three ways."""
+
+    title = str(getattr(first_scene, "title", "") or "").strip()
+    if title:
+        return title
+    stored = snapshot.get("title_fr") if isinstance(snapshot, dict) else None
+    return str(stored or "").strip()
 
 
 class ActShape(NamedTuple):
