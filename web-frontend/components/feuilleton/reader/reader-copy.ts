@@ -12,6 +12,7 @@
  * is what the reader printed before it had one.
  */
 
+import { CHECK_COPY } from '../../../lib/verdict';
 import type { ControlLanguage } from '@/types/daily-journey';
 
 export type ReaderCopy = {
@@ -60,6 +61,8 @@ export type ReaderCopy = {
   verdict_branch: string;
   verdict_ok: string;
   verdict_retry: string;
+  check_not_checked: string;
+  check_basic: string;
   options_label: string;
   answer_label: string;
   answer_placeholder: string;
@@ -152,6 +155,8 @@ const FR: ChromeCopy = {
   verdict_branch: 'Choix pris en compte',
   verdict_ok: 'Acceptée',
   verdict_retry: 'Reprise classée',
+  check_not_checked: CHECK_COPY.fr.not_checked,
+  check_basic: CHECK_COPY.fr.basic,
   options_label: 'Répliques possibles',
   answer_label: 'Ta réponse',
   answer_placeholder: 'Écris une phrase courte.',
@@ -222,6 +227,8 @@ const EN: ChromeCopy = {
   verdict_branch: 'Choice noted',
   verdict_ok: 'Accepted',
   verdict_retry: 'Saved for another try',
+  check_not_checked: CHECK_COPY.en.not_checked,
+  check_basic: CHECK_COPY.en.basic,
   options_label: 'Possible replies',
   answer_label: 'Your answer',
   answer_placeholder: 'Write a short sentence.',
@@ -292,6 +299,8 @@ const DE: ChromeCopy = {
   verdict_branch: 'Wahl übernommen',
   verdict_ok: 'Angenommen',
   verdict_retry: 'Für später vorgemerkt',
+  check_not_checked: CHECK_COPY.de.not_checked,
+  check_basic: CHECK_COPY.de.basic,
   options_label: 'Mögliche Antworten',
   answer_label: 'Deine Antwort',
   answer_placeholder: 'Schreib einen kurzen Satz.',

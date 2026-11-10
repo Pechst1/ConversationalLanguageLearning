@@ -39,6 +39,7 @@ from app.config import settings
 from app.core import gold as core
 from app.db.models.gold import GoldBalance, GoldLedgerEntry
 from app.db.savepoint import best_effort, run_best_effort
+from app.services import verdict_cutover, verdicts
 
 _log = logging.getLogger(__name__)
 
@@ -670,6 +671,8 @@ def _record_journey_reply(
     outcome = _outcome_of(evaluation.outcome)
     if outcome not in core.PAYING_OUTCOMES or getattr(evaluation, "pending", False):
         return
+    if getattr(evaluation, "check_failure", None):
+        return  # R6 / #333: the authored ending keeps the day going; nobody read the reply
     if getattr(evaluation, "needs_repair", False) and not getattr(evaluation, "turn_consumed", True):
         # A turn that cost no exchange (the greeting nudge) pays nothing either.
         return
@@ -1301,6 +1304,13 @@ def record_letter(db: Session, *, user: Any, mission: Any, attempts: Sequence[An
         outcome = {"accepted": core.OUTCOME_MET, "partial": core.OUTCOME_PARTIAL}.get(verdict)
         if outcome is None:
             return  # needs_revision, unassessed (R6), needs_review
+        stored = getattr(first, "correction_payload", None)
+        if (
+            stored
+            and not verdict_cutover.keeps_what_it_counted(db, first)  # package V: paid as main did
+            and not verdicts.from_courrier(stored, verdict=verdict).counts
+        ):
+            return  # R6 / #333: a stored «partial» that only the rules ever looked at
         day = _open_day(db, user, when=now, now=now)
         _mint_and_write(
             db,

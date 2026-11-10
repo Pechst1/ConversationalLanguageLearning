@@ -66,6 +66,7 @@ from app.db.models.story import Chapter, Scene, Story, StoryProgress
 from app.db.models.story_pool import StoryPoolPage
 from app.db.models.streak_day import StreakDay
 from app.db.models.user import RefreshToken, User
+from app.db.models.verdict_cutover import VerdictCutover
 from app.db.models.vocabulary import (
     UserConjugationProgress,
     VerbConjugation,
@@ -121,6 +122,7 @@ __all__ = [
     "SerialEpisode",
     "SerialThread",
     "SpendReservation",
+    "VerdictCutover",
     "GraphicNovelAttempt",
     "GraphicNovelPanel",
     "GraphicNovelScene",

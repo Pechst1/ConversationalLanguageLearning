@@ -211,6 +211,7 @@ def test_the_whole_flow_from_declaration_to_debrief(rehearsal_client, fake_provi
     # The corrector was not reachable in this run, and the payload says so
     # rather than passing the line off as correct.
     assert done["rehearsal"]["debrief"]["correction_available"] is False
+    assert done["rehearsal"]["debrief"]["check"]["outcome"] == "not_checked"
 
 
 def test_asking_for_the_phrases_returns_them_and_records_the_help(

@@ -664,7 +664,8 @@ def test_the_free_line_is_corrected(db_session):
     db_session.commit()
 
     assert llm.correction_calls == 1
-    assert rehearsal.debrief["corrected_fr"] == "J’ai appelé et il vient jeudi."
+    # Built from the learner's line: the fix is made, and their own apostrophe stays.
+    assert rehearsal.debrief["corrected_fr"] == "J'ai appelé et il vient jeudi."
     assert rehearsal.debrief["correction_available"] is True
 
 

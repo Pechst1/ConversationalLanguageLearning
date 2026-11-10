@@ -12,7 +12,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 require('../node_modules/sucrase/register/ts');
-const { errorKind, errorToState, errorToastText, appErrorCopy, newErrorEventId } = require('./app-errors.ts');
+const { errorKind, errorToState, errorToastText, appErrorCopy, newErrorEventId, isRecheckLimit } = require('./app-errors.ts');
 
 const WEB = path.join(__dirname, '..');
 const read = (relative) => fs.readFileSync(path.join(WEB, relative), 'utf8');
@@ -58,6 +58,24 @@ test('a 429 says how long to wait, or that the day is spent, with tu and du', ()
     const copy = JSON.stringify(appErrorCopy(language));
     assert.doesNotMatch(copy, /\b(vous|votre|vos|réessayez|Sie|Ihr|Ihre)\b/, language);
   }
+});
+
+test('the daily «Check again» limit is said in en, de and fr, and leads home', () => {
+  const limited = axiosError(429, { headers: { 'retry-after': '3600' }, data: { detail: { code: 'recheck_limit_reached' } } });
+  assert.equal(isRecheckLimit(limited), true);
+  assert.equal(isRecheckLimit(axiosError(429, { data: { detail: { code: 'rate_limited' } } })), false);
+  assert.equal(isRecheckLimit(axiosError(500)), false);
+  const seen = new Set();
+  for (const language of ['en', 'de', 'fr']) {
+    const state = errorToState(limited, language);
+    assert.equal(state.kind, 'rate_limited');
+    assert.equal(state.action.kind, 'home');
+    assert.equal(state.title, appErrorCopy(language).recheck.title);
+    assert.doesNotMatch(state.body, /\{seconds\}|3600/);
+    seen.add(state.title);
+  }
+  assert.equal(seen.size, 3, 'three languages, three titles');
+  assert.equal(errorToState(limited, 'fr').title, 'Plus de vérification aujourd’hui');
 });
 
 test('a toast is the title, then the sentence', () => {

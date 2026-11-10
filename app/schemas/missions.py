@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.verdict import VerdictView
+
 
 class VocabularyCreditSummary(BaseModel):
     model_config = ConfigDict(extra="allow")
@@ -139,6 +141,8 @@ class MissionAttemptResponse(BaseModel):
     correction: MissionCorrectionRead
     errata: list[LinkedVocabularyErratumRead] = Field(default_factory=list)
     mission: MissionRead
+    #: The one verdict shape (#333): who checked this and whether it counts.
+    check: VerdictView | None = None
 
 
 class MissionTurnResponse(BaseModel):
@@ -149,6 +153,8 @@ class MissionTurnResponse(BaseModel):
     errata: list[LinkedVocabularyErratumRead] = Field(default_factory=list)
     mission: MissionRead
     outcome: dict[str, Any] = Field(default_factory=dict)
+    #: The one verdict shape (#333): who checked this and whether it counts.
+    check: VerdictView | None = None
 
 
 class MissionTurnCorrectionResponse(BaseModel):
@@ -156,6 +162,8 @@ class MissionTurnCorrectionResponse(BaseModel):
     correction: MissionCorrectionRead
     errata: list[LinkedVocabularyErratumRead] = Field(default_factory=list)
     mission: MissionRead
+    #: The one verdict shape (#333): who checked this and whether it counts.
+    check: VerdictView | None = None
 
 
 class MissionCompleteResponse(BaseModel):

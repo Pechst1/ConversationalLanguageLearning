@@ -94,7 +94,7 @@ def test_the_turn_files_and_shows_only_the_grounded_repair(db_session, monkeypat
             pass
 
         def analyze(self, *args, **kwargs):  # type: ignore[no-untyped-def]
-            return SimpleNamespace(errors=list(errors))
+            return SimpleNamespace(errors=list(errors), metadata={"llm_read": True})
 
     filed: list[str] = []
 

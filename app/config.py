@@ -112,6 +112,22 @@ class Settings(BaseSettings):
         description="How long an open provider circuit refuses calls before letting one through.",
     )
     RATE_LIMIT_ENABLED: bool = Field(True, description="Master switch for the WP-70 rate limits.")
+    VERDICT_RECHECK_DAILY_LIMIT: int = Field(
+        10,
+        ge=0,
+        description=(
+            "Package V: how many times a learner may press «Check again» (Courrier reply, Journal "
+            "paragraph) per UTC day. 0 switches the limit off."
+        ),
+    )
+    VERDICT_LEGACY_ROWS: str = Field(
+        "as_counted",
+        description=(
+            "Package V cut-over: rows stored before the verdict stack keep what they counted for "
+            "(as_counted). The other value, rejudge, reads them through the verdict adapters; "
+            "scripts/verdict_level_report.py prints what that would change, per learner."
+        ),
+    )
     RATE_LIMIT_AUTH_MAX_REQUESTS: int = Field(
         10, ge=0, description="Per-IP requests to one auth door (login/register/reset) per window. 0 = off."
     )

@@ -1617,6 +1617,7 @@ class ForgeService:
                     "concept_id": track.concept_id,
                     "role": track.role,
                     "rung": track.rung,
+                    "shown_rung": state.level_read(track.concept_id),
                     "rung_name": core.rung_name(track.rung),
                     "served": track.served,
                     "topped": track.topped,

@@ -54,7 +54,7 @@ from app.db.models.journal import JournalEntry
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
-from app.services import correction_contract
+from app.services import correction_contract, verdicts
 from app.services.atelier import AtelierCorrectionService
 from app.services.atelier_correction_cost import bound_learner_answer
 from app.services.chrome_language import user_mother_tongue
@@ -881,7 +881,8 @@ class JournalService:
             correction = self._deterministic_correction(
                 user, written, truncated=truncated, reason=reason
             )
-        entry.assessment_status = "checked"
+        # #333: the row says who read it. Rules that ran after a failed call are not a check.
+        entry.assessment_status = "checked" if by_model else "unavailable"
         entry.status = "written"
         entry.errata_ids = self._record_errata(user, entry, correction)
         if by_model:
@@ -896,6 +897,9 @@ class JournalService:
             **correction,
             "paid_calls": previous_calls + int(getattr(corrector, "paid_calls", 0)),
         }
+        verdicts.note_failure(
+            self.db, surface="journal", verdict=verdicts.from_journal(entry.correction, text=written), user_id=user.id
+        )
 
     def _deterministic_correction(
         self, user: User, text: str, *, truncated: bool, reason: str
@@ -1071,9 +1075,13 @@ class JournalService:
             errata = correction_contract.merge_deterministic_errata(
                 text, errata, language=user_mother_tongue(user)
             )
+        # #133: the line is built from the fixes, so it holds nothing the card doesn't list.
+        checked = correction_contract.verify_correction(
+            text, correction.get("corrected_answer"), errata, language=user_mother_tongue(user)
+        )
         keep = [
             item
-            for item in errata
+            for item in checked.errata
             if str(item.get("task_error_type") or "")
             not in {"task_compliance", "length_compliance"}
         ]
@@ -1118,8 +1126,7 @@ class JournalService:
             "assessment_truncated": bool(truncated or correction.get("assessment_truncated")),
             "verdict": correction.get("verdict"),
             "score_0_4": correction.get("score_0_4"),
-            # #318: the corrected text goes through the same rules as the learner's
-            "corrected_answer": correction_contract.repair_text(correction.get("corrected_answer") or ""),
+            "corrected_answer": checked.corrected,
             "explanation_language": correction.get("explanation_language"),
             "model": (correction.get("correction_debug") or {}).get("model"),
             "foreground": foreground_view,

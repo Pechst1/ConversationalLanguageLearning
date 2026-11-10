@@ -23,6 +23,7 @@
 
 import { useControlLanguage } from '@/components/atelier-v2/ui';
 import { normalizeControlLanguage } from '@/lib/atelier-v2-copy';
+import { CHECK_COPY } from '@/lib/verdict';
 import type { ControlLanguage } from '@/types/daily-journey';
 
 const FR = {
@@ -182,14 +183,14 @@ const FR = {
     recall_all: 'Tu as retrouvé tout ce que la scène avait retenu ({found}/{total}).',
     recall_none: 'Rien de ce que la scène avait retenu n’apparaît (0/{total}).',
     recall_some: 'Tu as retrouvé {found} élément(s) sur {total}.',
-    correction_unavailable: 'La correction n’a pas pu être faite. Ton texte est gardé tel quel.',
+    correction_unavailable: CHECK_COPY.fr.not_checked as string,
+    correction_basic: CHECK_COPY.fr.basic as string,
     correction_why_timeout: 'Le vérificateur a mis trop de temps à répondre.',
     correction_why_model_error: 'Le vérificateur a renvoyé une réponse inutilisable.',
     correction_why_no_check_target: 'Cette scène n’a pas de point de grammaire à vérifier.',
     retry_correction: 'Relancer la correction',
     retrying: 'Nouvelle tentative…',
     correction_clean: 'Rien à corriger dans ce texte.',
-    correction_clean_basic: 'Vérification de base seulement : rien repéré, mais elle ne peut pas dire que le texte est juste.',
     correction_one: 'Une chose à revoir.',
     correction_many: '{n} choses à revoir.',
     send_failed: 'L’entrée n’a pas pu être envoyée. Réessaie.',
@@ -446,14 +447,14 @@ const EN: CahierCopy = {
     recall_all: 'You recalled everything the scene kept ({found}/{total}).',
     recall_none: 'None of what the scene kept appears (0/{total}).',
     recall_some: 'You recalled {found} of {total} details.',
-    correction_unavailable: 'The correction could not be made. Your text is kept as it is.',
+    correction_unavailable: CHECK_COPY.en.not_checked,
+    correction_basic: CHECK_COPY.en.basic,
     correction_why_timeout: 'The checker took too long to answer.',
     correction_why_model_error: 'The checker sent back an answer that could not be used.',
     correction_why_no_check_target: 'This scene has no grammar point to check against.',
     retry_correction: 'Check again',
     retrying: 'Trying again…',
     correction_clean: 'Nothing to correct in this text.',
-    correction_clean_basic: 'Basic check only: it spotted nothing, but it cannot say the text is right.',
     correction_one: 'One thing to review.',
     correction_many: '{n} things to review.',
     send_failed: 'The entry could not be sent. Try again.',
@@ -707,14 +708,14 @@ const DE: CahierCopy = {
     recall_all: 'Du hast alles wiedergefunden, was die Szene festhielt ({found}/{total}).',
     recall_none: 'Nichts von dem, was die Szene festhielt, taucht auf (0/{total}).',
     recall_some: 'Du hast {found} von {total} Details wiedergefunden.',
-    correction_unavailable: 'Die Korrektur war nicht möglich. Dein Text bleibt, wie er ist.',
+    correction_unavailable: CHECK_COPY.de.not_checked,
+    correction_basic: CHECK_COPY.de.basic,
     correction_why_timeout: 'Die Prüfung hat zu lange gebraucht.',
     correction_why_model_error: 'Die Prüfung hat eine unbrauchbare Antwort geliefert.',
     correction_why_no_check_target: 'Zu dieser Szene gibt es keinen Grammatikpunkt zum Prüfen.',
     retry_correction: 'Erneut prüfen',
     retrying: 'Neuer Versuch…',
     correction_clean: 'Nichts zu korrigieren in diesem Text.',
-    correction_clean_basic: 'Nur eine Grundprüfung: nichts aufgefallen, aber sie kann nicht sagen, dass der Text stimmt.',
     correction_one: 'Eine Sache zum Wiederholen.',
     correction_many: '{n} Dinge zum Wiederholen.',
     send_failed: 'Der Eintrag konnte nicht gesendet werden. Bitte erneut versuchen.',

@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useRef, useState } from 'react';
 import { Eye, EyeOff, HelpCircle, Volume2, VolumeX } from 'lucide-react';
+import { checkState, isUnread } from '@/lib/verdict';
 
 import {
   Action,
@@ -67,6 +68,8 @@ type StudioState = {
   producedWords: number;
   dueWordsReused: string[];
   errors: Correction[];
+  /** #333: a turn no model read, so «no mistakes» isn't a thing this call can say. */
+  unreadTurn: boolean;
   longestAnswerWords: number;
   longestAnswer: string;
   tomorrowFocus: string;
@@ -85,6 +88,7 @@ const INITIAL_STATE: StudioState = {
   producedWords: 0,
   dueWordsReused: [],
   errors: [],
+  unreadTurn: false,
   longestAnswerWords: 0,
   longestAnswer: '',
   tomorrowFocus: '',
@@ -249,6 +253,7 @@ export default function AudioSessionPage() {
         setState((current) => ({
           ...current,
           errors: [...current.errors, ...(response.detected_errors || [])],
+          unreadTurn: current.unreadTurn || isUnread(checkState(response.check)),
         }));
         return;
       }
@@ -267,6 +272,7 @@ export default function AudioSessionPage() {
           ...(response.vocabulary_credit?.words || []),
         ])),
         errors: [...current.errors, ...(response.detected_errors || [])],
+        unreadTurn: current.unreadTurn || isUnread(checkState(response.check)),
         showText: current.showText || Boolean(response.should_show_text),
         status: 'speaking',
       }));
@@ -571,7 +577,9 @@ export default function AudioSessionPage() {
                     {plural(state.dueWordsReused.length, t.reused_one, t.reused_many)}
                     {state.errors.length > 0
                       ? ` · ${fillStudio(t.with_errors, { n: state.errors.length })}.`
-                      : ` · ${t.no_errors}.`}
+                      : state.unreadTurn
+                        ? <span data-check="not_checked"> · {t.check_not_checked}</span>
+                        : ` · ${t.no_errors}.`}
                   </>
                 )}
               </p>

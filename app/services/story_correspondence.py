@@ -393,7 +393,7 @@ def thread_history(
                     _compact(recap.get("courrier_summary_fr") or summarise_letter(row), limit=180),
                     language,
                 ),
-                "outcome": str(recap.get("courrier_outcome") or ("ignored" if row.status == "lapsed" else "")) or None,
+                "outcome": _shown_outcome(recap, row),
                 "stakes_level": int(getattr(row, "stakes_level", None) or 1),
                 "chain_index": getattr(row, "chain_index", None),
                 "at": row.completed_at.isoformat() if row.completed_at else (row.created_at.isoformat() if row.created_at else None),
@@ -442,8 +442,13 @@ def outcome_from_objectives(
     objectives: Sequence[dict[str, Any]] | None,
     progress_by_id: dict[str, dict[str, Any]] | None,
     had_submission: bool = True,
+    reply_pending: bool = False,
 ) -> str:
     """``kept`` | ``partial`` | ``missed`` from the per-objective flags.
+
+    ``reply_pending`` (#590): the learner's last message was never answered, so the
+    exchange did not happen to its end. Like an ungraded letter (WP-74) it moves the
+    relationship neither way: never ``kept``, never ``missed``.
 
     The old success test read keywords out of ``branch_state`` ("does the message
     contain a question mark?"). The corrector already returns, per objective,
@@ -455,6 +460,8 @@ def outcome_from_objectives(
     progress_by_id = progress_by_id or {}
     if not had_submission:
         return "missed"
+    if reply_pending:
+        return "partial"
     # WP-125A (owner decision 6): a suggested word is never part of the
     # communicative verdict. Using it does not lift a letter, leaving it out does
     # not lower one — so two otherwise equal letters get the same word here.
@@ -1515,6 +1522,15 @@ def install_letter_provider() -> None:
     set_letter_provider(journey_letter_provider)
 
 
+def _shown_outcome(recap: dict[str, Any], row: RealWorldMission) -> str | None:
+    """A past letter's word. One nobody answered or read has none (#590, #333)."""
+
+    measured = recap.get("measured") if isinstance(recap.get("measured"), dict) else {}
+    if measured.get("reply_pending") or measured.get("unchecked"):
+        return None
+    return str(recap.get("courrier_outcome") or ("ignored" if row.status == "lapsed" else "")) or None
+
+
 def objective_progress_from_journey(
     *,
     objectives: Sequence[dict[str, Any]] | None,
@@ -1615,6 +1631,7 @@ def answer_letter_from_journey(
     outcome: str,
     produced_target_ids: Sequence[str] = (),
     language: Any = None,
+    check_failure: str | None = None,
 ) -> RealWorldMission | None:
     """Finish, once, the letter the learner just answered in their journey.
 
@@ -1628,6 +1645,9 @@ def answer_letter_from_journey(
     Idempotent twice over: the attempt is written only when this mission has no
     journey attempt yet, and `complete()` returns the mission untouched once it
     is completed. Returns ``None`` when there is no such letter to finish.
+
+    ``check_failure`` says nobody read the reply (#333): the letter still closes, and
+    nothing on it reads as a verdict.
     """
 
     from app.db.models.mission import RealWorldMissionAttempt
@@ -1648,10 +1668,15 @@ def answer_letter_from_journey(
         text = " ".join(str(learner_text or "").split())
         progress = objective_progress_from_journey(
             objectives=mission.objectives,
-            outcome=outcome,
-            produced_target_ids=produced_target_ids,
+            outcome="unscored" if check_failure else outcome,
+            produced_target_ids=() if check_failure else produced_target_ids,
             language=language,
         )
+        if check_failure:
+            verdict, score = "unassessed", 0.0
+        else:
+            verdict = "accepted" if str(outcome) == "met" else "needs_revision"
+            score = 4.0 if str(outcome) == "met" else (2.0 if str(outcome) == "partially_met" else 1.0)
         db.add(
             RealWorldMissionAttempt(
                 mission_id=mission.id,
@@ -1665,9 +1690,10 @@ def answer_letter_from_journey(
                     "objective_progress": progress,
                     "errata": [],
                     "journey_outcome": str(outcome),
+                    **({"journey_check_failure": check_failure} if check_failure else {}),
                 },
-                verdict="accepted" if str(outcome) == "met" else "needs_revision",
-                score_0_4=4.0 if str(outcome) == "met" else (2.0 if str(outcome) == "partially_met" else 1.0),
+                verdict=verdict,
+                score_0_4=score,
             )
         )
         db.flush()

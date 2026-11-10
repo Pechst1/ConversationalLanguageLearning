@@ -13,7 +13,8 @@ import { withinWordRange } from '@/lib/word-range';
 import { forgeCorrectionNotes } from '@/lib/correction-notes';
 import { classifyRepair } from '@/lib/forge-followup';
 import { classificationCopy, classificationGoal, isJudgementLabels, judgementLabel, judgementQuestion } from '@/lib/classification-copy';
-import { itemVerdict, productionPhase, reviewIsPending, settleShownCorrection, type RepairStep } from '@/lib/forge-verdict';
+import { answeredLevel, itemVerdict, productionPhase, reviewIsPending, settleShownCorrection, type RepairStep } from '@/lib/forge-verdict';
+import { checkState } from '@/lib/verdict';
 import { keepCardAboveSheet } from '@/lib/keep-above-sheet';
 import { drillGoalLine } from '@/components/atelier-v2/journey/drill-frame';
 import {
@@ -701,6 +702,9 @@ function correctionWithAiReview(result: AtelierAttemptResult | AtelierAttemptRea
   // WP-103 T9: the server's local verdict rides on the result; it belongs to the correction.
   const localStatus = (result as Record<string, any>).local_status;
   if (localStatus && !correction.local_status) correction.local_status = localStatus;
+  // #333: who read it, in the one shape. It too belongs to the correction on screen.
+  const check = (result as Record<string, any>).check;
+  if (check) correction.check = check;
   return correction;
 }
 
@@ -3808,8 +3812,8 @@ function SessionView({
   // The level is the rule's own (#402, `headerLevel`), not the rung the item on
   // screen is posed at; once answered, the level the answer left.
   const forgeRung = headerLevel({
-    answeredRung: currentSubmitted ? currentCorrection?.forge?.new_rung : null,
-    ruleRung: forgeRule?.rung,
+    answeredRung: currentSubmitted ? answeredLevel(currentCorrection) : null,
+    ruleRung: forgeRule?.shown_rung ?? forgeRule?.rung,
     itemRung: forgeNext?.rung,
     testOut: forgeTestOut,
   });
@@ -4250,10 +4254,19 @@ export function ExerciseFeedbackMoment({
   }
   const mood = coachMood(correction, { correct: feedback.correct });
   if (feedback.unscored) {
+    // #333: the rules' real fixes stay listed; nothing here is a verdict.
+    const unreadFixes: Array<{ span: string; replacement: string; start: number }> = correction?.check?.edits || [];
+    const unreadState = checkState(correction?.check) === 'basic' ? 'basic' : 'not_checked';
     return (
-      <div className="ep-feedback" data-verdict="unscored" role="status">
-        <p className="av2-body">{t.unscored}</p>
-        <EpRelecture status="failed" onRetry={onRetryAiReview} retrying={aiReviewSubmitting} />
+      <div className="ep-feedback" data-verdict="unscored" data-check={unreadState} role="status">
+        <EpRelecture status="failed" onRetry={onRetryAiReview} retrying={aiReviewSubmitting}>
+          {unreadState === 'basic' ? t.check_basic : t.unscored}
+        </EpRelecture>
+        {unreadFixes.map((edit) => (
+          <p className="av2-fr" lang="fr" key={`${edit.start}-${edit.span}`}>
+            <s>{edit.span}</s> → <strong>{edit.replacement}</strong>
+          </p>
+        ))}
         <EpFoot tone="neutral">
           <EpBar tone="ghost" onClick={onNext}>{t.skip_unscored}</EpBar>
         </EpFoot>
@@ -4316,9 +4329,8 @@ export function ExerciseFeedbackMoment({
     : <ForgeCorrectedLine fr={repairOf.correctedFr} />;
 
   if (feedback.correct) {
-    // #213: one verdict per card. A right judgement takes the result of the
-    // repair step: «Well done!» only once the sentence was corrected, «Not yet»
-    // when the right sentence had to be shown, and nothing while it is open.
+    // #213 / #553: one verdict per card. A right judgement stays right; nothing is
+    // shown while the repair is open, and the repair has its own line.
     const repairStep: RepairStep = repairOf.followUp ? (followDraft.outcome ?? 'open') : 'none';
     const verdict = itemVerdict({ judgedRight: feedback.correct, repair: repairStep });
     return (

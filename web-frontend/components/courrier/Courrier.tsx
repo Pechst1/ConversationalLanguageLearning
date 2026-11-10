@@ -15,6 +15,7 @@
    `.av2 .cr-…` so they outrank the legacy element resets. */
 
 import React, { useRef, useState } from 'react';
+import { FIX_ROWS_SHOWN, fixRows, type FixLine } from '@/lib/verdict';
 import Link from 'next/link';
 
 import {
@@ -260,30 +261,55 @@ export function CrRepair({
   correctedAnswer,
   lines,
   savedCount = 0,
+  unread = false,
 }: {
   correctedAnswer?: string;
-  lines: { fixed?: string; why?: string }[];
+  lines: FixLine[];
   savedCount?: number;
+  /** #333: nobody read this message, so the card praises nothing. The fixes are the rules'. */
+  unread?: boolean;
 }) {
   const t = useCrCopy();
+  const [open, setOpen] = useState(false);
   if (!correctedAnswer && !lines.length) return null;
   const count = Math.max(lines.length, correctedAnswer ? 1 : 0);
+  const rows = fixRows(lines);
+  const shown = open ? rows : rows.slice(0, FIX_ROWS_SHOWN);
+  const hidden = rows.length - shown.length;
   return (
     <aside className="cr-repair" aria-label={t.repair_aria}>
-      <p className="cr-feedback">
-        <span className="cr-feedback-dot" aria-hidden="true" />
-        {count === 1 ? t.repair_one : crFill(t.repair_many, { n: count })}
-      </p>
+      {!unread && (
+        <p className="cr-feedback">
+          <span className="cr-feedback-dot" aria-hidden="true" />
+          {count === 1 ? t.repair_one : crFill(t.repair_many, { n: count })}
+        </p>
+      )}
       <div className="cr-repair-card">
         {correctedAnswer && (
           <p className="cr-repair-answer" lang="fr">{correctedAnswer}</p>
         )}
-        {lines.map((line, index) => (
+        {shown.map((row, index) => (
           <React.Fragment key={index}>
-            {line.fixed && <p className="cr-repair-fix" lang="fr">{line.fixed}</p>}
-            {line.why && <p className="cr-repair-why">{line.why}</p>}
+            {row.kind === 'one' ? (
+              <>
+                {row.fixed && <p className="cr-repair-fix" lang="fr">{row.fixed}</p>}
+                {row.why && <p className="cr-repair-why">{row.why}</p>}
+              </>
+            ) : (
+              <>
+                <p className="cr-repair-fix" lang="fr">{row.fixes.join(' · ')}</p>
+                <p className="cr-repair-why">
+                  {crFill(row.kind === 'apostrophes' ? t.fixes_apostrophes : t.fixes_accents, { n: row.fixes.length })}
+                </p>
+              </>
+            )}
           </React.Fragment>
         ))}
+        {hidden > 0 && (
+          <button type="button" className="cr-trad-btn" onClick={() => setOpen(true)}>
+            {crFill(t.fixes_more, { n: hidden })}
+          </button>
+        )}
         {savedCount > 0 && (
           <p className="cr-repair-saved">
             <ShapeToken kind="done" size="sm" />
@@ -499,6 +525,9 @@ export type CrSealMeasured = {
   phrases_saved?: number;
   words_written?: number;
   assessed?: boolean;
+  /** #590: the last message was never answered. */
+  reply_pending?: boolean;
+  unchecked?: boolean;
 };
 
 /** The seal's numbers, three at most, in the chrome language (French by default). */
@@ -511,8 +540,9 @@ export function crSealNumbers(
   const rows: CrSealNumber[] = [];
   if (measured) {
     const total = Number(measured.objectives_total || 0);
-    // WP-74: no grader ran — «0/2» would be a verdict nobody gave.
-    if (total > 0 && measured.assessed !== false) {
+    // WP-74: no grader ran — «0/2» would be a verdict nobody gave. #590: nor does a letter
+    // whose last message nobody answered count goals.
+    if (total > 0 && measured.assessed !== false && !measured.reply_pending && !measured.unchecked) {
       rows.push({ value: `${Number(measured.objectives_met || 0)}/${total}`, label: t.num_objectives });
     }
     const repairs = Number(measured.repairs || 0);

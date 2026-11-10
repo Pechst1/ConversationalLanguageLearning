@@ -6,6 +6,8 @@ import { useRouter } from 'next/router';
 
 import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { useChromeLanguage } from '@/lib/learner-language';
+import { errorToastText, errorToState, isRecheckLimit } from '@/lib/app-errors';
+import { checkState, isUnread, type CheckLike, type FixLine } from '@/lib/verdict';
 import { pickByLanguage } from '@/lib/language-rule';
 import { castIdFor } from '@/lib/cast-faces';
 import { messageClock } from '@/lib/clock-time';
@@ -63,6 +65,7 @@ import {
   latestAssistantTurn,
   missionTurns,
   replyPending,
+  turnReplyPending,
 } from '@/components/courrier/mission-turns';
 import apiService, {
   IntakeArtefact,
@@ -335,16 +338,16 @@ function submitLabel(format: MissionFormat, t: CourrierCopy) {
 
 // Real grammar fixes only, mirroring the quiet-repair rules: drop task-compliance
 // notes and vocabulary nudges; keep corrections that carry a fix or a reason.
-function repairLines(correction: Record<string, any> | undefined): { fixed?: string; why?: string }[] {
+function repairLines(correction: Record<string, any> | undefined): FixLine[] {
   if (!correction) return [];
   const errata = (Array.isArray(correction.errata) ? correction.errata : []).filter((item: any) => {
     const kind = String(item?.task_error_type || '');
     if (kind === 'task_compliance' || kind.startsWith('vocabulary')) return false;
     return Boolean(item?.corrected_target || item?.why_wrong);
   });
-  // The corrector returns at most three real mistakes; show all of them, so the
-  // "N réparations enregistrées" line below the card can never outrun the card.
-  return errata.slice(0, 3).map((item: any) => ({
+  // #133: every fix the corrected line holds. The card groups them and opens with three.
+  return errata.map((item: any) => ({
+    wrong: item.learner_text ? String(item.learner_text) : undefined,
     fixed: item.corrected_target ? String(item.corrected_target) : undefined,
     why: item.why_wrong ? String(item.why_wrong) : undefined,
   }));
@@ -361,8 +364,10 @@ function correctionPersistence(correction: Record<string, any> | undefined) {
   return records.filter((row: any) => !row?.linked_word_id && String(row?.error_category || '') !== 'vocabulary').length;
 }
 
-function correctedReply(correction: Record<string, any> | undefined, learnerText: unknown) {
-  const corrected = String(correction?.corrected_answer || '').trim();
+// #133: the check's line is built from the listed fixes. An older stored answer holds the
+// model's own sentence, which is why this doesn't read `corrected_answer` when a check exists.
+function correctedReply(correction: Record<string, any> | undefined, check: CheckLike | null | undefined, learnerText: unknown) {
+  const corrected = String((check ? check.corrected : correction?.corrected_answer) || '').trim();
   const original = String(learnerText || '').trim();
   if (!corrected || corrected.localeCompare(original, undefined, { sensitivity: 'accent' }) === 0) return '';
   return corrected;
@@ -603,6 +608,7 @@ export default function MissionsPage() {
   const creatingRef = useRef(false);
   const [submitting, setSubmitting] = useState(false);
   const [rechecking, setRechecking] = useState<string | null>(null);
+  const [retryingReply, setRetryingReply] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState<LoadErrorKind | null>(null);
   const [reply, setReply] = useState('');
@@ -870,9 +876,29 @@ export default function MissionsPage() {
       if (result.correction?.verdict === 'unassessed') toast(t.toast_recheck_failed);
     } catch (recheckError) {
       console.error(recheckError);
-      toast.error(t.toast_recheck_failed);
+      // Package V: past the day's «Check again» limit the learner is told so, in the chrome language.
+      if (isRecheckLimit(recheckError)) toast(errorToastText(errorToState(recheckError, chromeLang)), { id: 'recheck_limit_reached' });
+      else toast.error(t.toast_recheck_failed);
     } finally {
       setRechecking(null);
+    }
+  };
+
+  // #590: the correspondent did not answer this message. Ask again from the stored text;
+  // the thread keeps saying so until a reply exists.
+  const retryReply = async (turnId: string) => {
+    if (!mission || retryingReply || completed) return;
+    setRetryingReply(turnId);
+    try {
+      const result = await apiService.retryMissionTurnReply(mission.id, turnId);
+      setMission({ ...result.mission, outcome: result.outcome || result.mission.outcome });
+      // The retry answers the stored message, so whatever the composer holds is a new draft.
+      if (replyPending(result.outcome)) toast(t.toast_reply_retry_failed);
+    } catch (retryError) {
+      console.error(retryError);
+      toast.error(t.toast_reply_retry_failed);
+    } finally {
+      setRetryingReply(null);
     }
   };
 
@@ -983,15 +1009,17 @@ export default function MissionsPage() {
   // at most three counted numbers. The outcome's own sentence is chrome; a
   // letter with no outcome keeps its success line, which is the letter's
   // French. No credit rows, no debrief rows, no objectives, no last message.
-  const outcomeSentence = crOutcomeSentence(letterOutcome, correspondent?.name, chromeLang);
-  const sealVerdict = crOutcomeLabel(letterOutcome, chromeLang) || (isSerialAct ? t.seal_act_done : t.seal_resolved);
+  // #590: a letter finished on a message nobody answered carries no verdict, mood or token.
+  const letterHeld = { unanswered: Boolean(measured?.reply_pending), unchecked: Boolean(measured?.unchecked) };
+  const outcomeSentence = crOutcomeSentence(letterOutcome, correspondent?.name, chromeLang, letterHeld);
+  const sealVerdict = crOutcomeLabel(letterOutcome, chromeLang, letterHeld) || (isSerialAct ? t.seal_act_done : t.seal_resolved);
   const sealNumbers = crSealNumbers(measured, { turns: recapTurns, errata: recapErrata, saved: recapSaved }, chromeLang);
   // The correspondent's face on the seal, in the mood the letter left
   // (`recap.correspondent_mood_value_after`, or the legacy French line).
   const moodRecap = (mission?.recap || {}) as Record<string, any>;
   const moodKey = crMoodKey(crMoodValue(moodRecap.correspondent_mood_value_after, moodRecap.correspondent_mood_after));
   const moodName = String(correspondent?.name || '').trim();
-  const sealMood = moodKey && moodName
+  const sealMood = moodKey && moodName && !letterHeld.unanswered && !letterHeld.unchecked
     ? {
         name: moodName,
         characterId: castIdFor(mission?.prompt_payload?.serial_character_id, correspondent?.id, moodName),
@@ -1182,7 +1210,7 @@ export default function MissionsPage() {
                   const isUser = turn.role === 'user';
                   const correction = isUser ? (turn as Record<string, any>).correction : undefined;
                   const lines = repairLines(correction);
-                  const correctedAnswer = correctedReply(correction, turn.text);
+                  const correctedAnswer = correctedReply(correction, turn.check, turn.text);
                   const savedCount = correctionPersistence(correction);
                   return (
                     <React.Fragment key={turn.id || `${turn.turn_index}-${turn.role}`}>
@@ -1195,14 +1223,15 @@ export default function MissionsPage() {
                       >
                         {turn.text}
                       </CrSlip>
-                      {/* WP-74 / #250 / #251: no grader ran and the shared model-free pass found
-                          nothing. Not a pass and not a dead end: «Not checked yet» (never «No
-                          corrections found», which says the reply is clean), and the corrector
-                          can be asked again while the thread is open. */}
-                      {isUser && correction?.verdict === 'unassessed' && lines.length === 0 && !correctedAnswer && (
+                      {/* #333: nobody read this message. The line says so, whatever the rules
+                          found (their fixes stay listed below), and it can be asked again while
+                          the thread is open. Never «No corrections found». */}
+                      {isUser && isUnread(checkState(turn.check)) && (
                         <>
-                          <p className="cr-unassessed" role="status">{t.unassessed}</p>
-                          {!completed && turn.id && (
+                          <p className="cr-unassessed" role="status" data-check={checkState(turn.check)}>
+                            {checkState(turn.check) === 'basic' ? t.check_basic : t.unassessed}
+                          </p>
+                          {!completed && turn.id && turn.check?.retryable && (
                             <button
                               type="button"
                               className="cr-trad-btn"
@@ -1214,11 +1243,31 @@ export default function MissionsPage() {
                           )}
                         </>
                       )}
+                      {/* #590: nobody answered this message. The thread says so until a reply
+                          exists, and the reply can be asked for again from here. */}
+                      {turnReplyPending(turn) && (
+                        <>
+                          <p className="cr-unassessed cr-unanswered" role="status">
+                            {crFill(t.reply_pending_line, { name: messenger.contact_name })}
+                          </p>
+                          {!completed && turn.id && (
+                            <button
+                              type="button"
+                              className="cr-trad-btn"
+                              disabled={retryingReply !== null || submitting}
+                              onClick={() => { void retryReply(String(turn.id)); }}
+                            >
+                              {retryingReply === turn.id ? t.reply_retrying : t.reply_retry}
+                            </button>
+                          )}
+                        </>
+                      )}
                       {isUser && (lines.length > 0 || correctedAnswer) && (
                         <CrRepair
                           correctedAnswer={correctedAnswer}
                           lines={lines}
                           savedCount={savedCount}
+                          unread={isUnread(checkState(turn.check))}
                         />
                       )}
                     </React.Fragment>

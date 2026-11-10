@@ -279,6 +279,37 @@ def test_one_cost_row_per_lane(assembled_client, db_session, journey_enabled, cl
     assert all(row.cost_usd > 0 for row in rows)
 
 
+@pytest.mark.parametrize("lane", ["TutorVerdict", "VoiceReply"])
+def test_a_reply_no_lane_read_keeps_its_ending_and_counts_for_nothing(
+    assembled_client, db_session, journey_enabled, clock, provider, inline, monkeypatch, lane
+):
+    """#333 / D5: the authored ending keeps the day going. It is not a grade and it pays nothing."""
+
+    from app.db.models.gold import GoldLedgerEntry
+
+    monkeypatch.setattr(settings, "ATELIER_GOLD_MODE", "shadow")
+    d = driver(assembled_client, db_session)
+    step = _to_respond(d)
+    provider.fail = {lane}
+    db_session.query(GoldLedgerEntry).filter(GoldLedgerEntry.user_id == d.user_id).delete()
+    db_session.flush()
+
+    result = _respond(assembled_client, d, step)[2].json()
+
+    assert result["reply_source"] == "authored"
+    assert result["character_reply_fr"], "the day keeps going on the authored ending"
+    check = result["check"]
+    assert (check["outcome"], check["counts"]) == ("not_checked", False)
+    assert check["call"] == "failed" and check["failure"]
+    db_session.flush()
+    assert not db_session.scalars(
+        select(GoldLedgerEntry).where(GoldLedgerEntry.user_id == d.user_id, GoldLedgerEntry.source_kind == "journey_reply")
+    ).all()
+    assert db_session.scalars(
+        select(PilotEvent).where(PilotEvent.event_type == "verdict_check_failed", PilotEvent.user_id == d.user_id)
+    ).first()
+
+
 def test_a_failed_story_lane_gets_the_authored_ending_around_the_shown_reply(
     assembled_client, db_session, journey_enabled, clock, provider, inline
 ):

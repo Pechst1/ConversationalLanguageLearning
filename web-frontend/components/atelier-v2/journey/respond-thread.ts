@@ -39,6 +39,7 @@ function spokenLines(value: unknown): SpokenLine[] {
 }
 
 import { correctionNotes, dedupeNotes } from '@/lib/correction-notes';
+import { checkState, isUnread } from '@/lib/verdict';
 
 import type { JourneyFeedback } from './journey-state';
 import { speakerOf } from './journey-faces';
@@ -69,7 +70,8 @@ export function drawsEachVoice(
 // ---------------------------------------------------------------------------
 
 /** One exchange as the client keeps it: which turn, and the line it answered. */
-export type LocalExchange = Omit<ThreadExchange, 'character_lines'> & {
+export type LocalExchange = Omit<ThreadExchange, 'character_lines' | 'unchecked'> & {
+  unchecked?: boolean;
   /** Every speaker of a many-voiced reply (optional: older servers send none). */
   character_lines?: SpokenLine[];
   turn: number;
@@ -134,6 +136,7 @@ function exchangeOf(value: unknown): LocalExchange | null {
     learner_fr: learner,
     character_fr: line(raw.character_fr),
     correction: correctionOf(raw.correction),
+    ...(raw.unchecked === true ? { unchecked: true } : {}),
     ...(lines.length ? { character_lines: lines } : {}),
   };
 }
@@ -185,7 +188,8 @@ export function recordExchange(thread: LocalThread, exchange: LocalExchange): Lo
     current.learner_fr === clean.learner_fr &&
     current.character_fr === clean.character_fr &&
     current.prompt_fr === (clean.prompt_fr ?? current.prompt_fr) &&
-    JSON.stringify(current.correction) === JSON.stringify(clean.correction)
+    JSON.stringify(current.correction) === JSON.stringify(clean.correction) &&
+    Boolean(current.unchecked) === Boolean(clean.unchecked)
   ) {
     return thread;
   }
@@ -218,6 +222,8 @@ export function exchangeFromResult(input: {
     learner_fr: sent?.text ?? input.fallbackText ?? '',
     character_fr: result.character_reply_fr ?? '',
     correction: result.correction ?? null,
+    // #333: nobody read this reply; its bubble says so.
+    unchecked: isUnread(checkState(result.check)),
     character_lines: result.character_lines ?? [],
   });
 }
@@ -245,6 +251,8 @@ export type LearnerBubble = {
   turn: number;
   text: string;
   correction: JourneyCorrection | null;
+  /** #333: nobody read this reply, so it counted for nothing. */
+  unchecked: boolean;
   /** Sent, and the reply is not back yet. */
   pending: boolean;
 };
@@ -278,6 +286,7 @@ type Slot = {
   learner_fr: string;
   character_fr: string;
   correction: JourneyCorrection | null;
+  unchecked: boolean;
   pending: boolean;
   lines: SpokenLine[];
 };
@@ -304,6 +313,7 @@ export function threadBubbles(input: {
       learner_fr: learner,
       character_fr: words(exchange.character_fr),
       correction: correctionOf(exchange.correction),
+      unchecked: exchange.unchecked === true,
       pending: false,
       lines: spokenLines((exchange as { character_lines?: unknown }).character_lines),
     });
@@ -317,6 +327,7 @@ export function threadBubbles(input: {
         learner_fr: exchange.learner_fr,
         character_fr: exchange.character_fr,
         correction: exchange.correction,
+        unchecked: exchange.unchecked === true,
         pending: false,
         lines: spokenLines((exchange as { character_lines?: unknown }).character_lines),
       });
@@ -336,6 +347,7 @@ export function threadBubbles(input: {
         learner_fr: flightLearner,
         character_fr: reply,
         correction: correctionOf(flight.correction),
+        unchecked: false,
         pending: !reply,
         lines: spokenLines(flight.character_lines),
       });
@@ -365,6 +377,7 @@ export function threadBubbles(input: {
       turn,
       text: slot.learner_fr,
       correction: slot.correction,
+      unchecked: slot.unchecked,
       pending: slot.pending,
     });
     lastCharacter = null;

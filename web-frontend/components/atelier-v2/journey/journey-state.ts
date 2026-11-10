@@ -374,13 +374,13 @@ export function feedbackFromAttempt(result: AttemptResult): JourneyFeedback {
   if (result.pending || result.task_outcome === 'unscored') {
     return {
       kind: 'unscored',
-      message: 'still_grading',
+      message: 'check_not_checked',
       result,
     };
   }
   const verdict = attemptVerdict(result.task_outcome, result.assistance_level);
   if (verdict === 'unscored') {
-    return { kind: 'unscored', message: 'still_grading', result };
+    return { kind: 'unscored', message: 'check_not_checked', result };
   }
   return { kind: 'graded', verdict, result, replySource: replySourceOf(result) };
 }

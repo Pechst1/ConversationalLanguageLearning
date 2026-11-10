@@ -26,6 +26,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { replyTaskLine } from './reply-task';
 import { reconnectWebSession, sessionExpiredCopy } from '@/lib/session-recovery';
+import { checkState, isUnread } from '@/lib/verdict';
 
 import {
   Action,
@@ -1759,9 +1760,9 @@ export function JourneyFeedbackView({
 
     case 'unscored':
       return (
-        <div data-state="unscored">
+        <div data-state="unscored" data-check="not_checked">
           <Notice shape="story">
-            <p>{copy.still_grading}</p>
+            <p>{copy.check_not_checked}</p>
             <Action tone="secondary" inline onClick={onRetry}>
               {copy.try_grading_again}
             </Action>
@@ -1805,11 +1806,21 @@ export function JourneyFeedbackView({
       // the verdict — «Written reply from the script» told the learner nothing
       // they could act on. The payload still carries `reply_source`.
       const { result, verdict } = feedback;
-      if (!showsVerdict(stepKind)) {
+      // #333: the authored line stays so the day goes on. Where the chip sits, the state
+      // line says nobody read this reply. It reads as no verdict, whatever the step.
+      const unread = isUnread(checkState(result.check));
+      if (!showsVerdict(stepKind) || unread) {
         // QA-STORY: a story reply is never «Richtig»: the scene answered it. What is
         // left is the margin correction (if any) and the way on.
         return (
-          <div className="av2-graded" data-state="story" ref={gradedRef} tabIndex={-1}>
+          <div
+            className="av2-graded"
+            data-state={unread ? 'unscored' : 'story'}
+            data-check={unread ? checkState(result.check) : undefined}
+            ref={gradedRef}
+            tabIndex={-1}
+          >
+            {unread && <Notice tone="quiet"><p>{copy.check_not_checked}</p></Notice>}
             {result.correction && (
               <Correction
                 label={copy[correctionLabelKey(result.correction.kind)]}

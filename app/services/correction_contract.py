@@ -24,8 +24,9 @@ This module now has **one checker for every edit**, whoever wrote it:
   prove wrong. :func:`edit_is_grounded` is its boolean view.
 * :func:`deterministic_edits` — the model-free pass: person of être/avoir/aller,
   auxiliaries and agreement, elision, contraction, determiner gender and
-  number, accents and spelling, negation order, «de» after modals, «à», age with
-  avoir, stressed pronouns. Every rule stands on closed evidence (a fixed trigger
+  number, accents, apostrophes and spelling, negation order, «de» after modals, «à»,
+  age with avoir, stressed pronouns, the feminine of a closed list of adjectives
+  («une bon offre»). Every rule stands on closed evidence (a fixed trigger
   list, the core lexicon) and is silent when it cannot tell: «je voudrais de un
   café» could be «un café» or «d'un café», so it says nothing. Every edit is
   settled before it is returned, and its span is a substring of the input.
@@ -51,6 +52,7 @@ from dataclasses import dataclass, replace
 from functools import lru_cache
 from typing import Any
 
+from app.core.verdict import span_pattern
 from app.services.answer_acceptance import (
     correction_is_grounded,
     is_real_correction,
@@ -58,6 +60,8 @@ from app.services.answer_acceptance import (
     person_swaps_hold,
 )
 from app.services.chrome_language import mother_tongue
+from app.services.journey_contracts import normalize_answer_text
+from app.services.spelling_variants import is_variant_edit
 
 # ---------------------------------------------------------------------------
 # Tokens
@@ -95,6 +99,48 @@ def _same_sentence(text: str, left: Tok, right: Tok) -> bool:
 
 def _same_clause(text: str, left: Tok, right: Tok) -> bool:
     return not _CLAUSE_BREAK.search(text[left.end : right.start])
+
+
+def _starts_sentence(text: str, tok: Tok) -> bool:
+    """Whether ``tok`` is the first word of the text, of a line or of a sentence."""
+    before = text[: tok.start].rstrip("  «»\"“”„‘'(")
+    return not before or before[-1] in ".!?…:;\n"
+
+
+_QUOTE = re.compile(r"«[^»]*»|“[^”]*”|„[^“”]*[“”]|\"[^\"]*\"|‘[^’]*’|(?<!\w)'[^']*'(?!\w)")
+#: A quote this short cites a word or two. A longer one is someone's speech, and is corrected.
+_CITATION_WORDS = 6
+
+
+def _cited_stretches(text: str) -> list[tuple[int, int]]:
+    """The stretches of ``text`` where a learner cites words instead of using them: «On ne dit
+    pas « ce est »», «le mot "hotel"». A line that is all one quote is the line itself."""
+    stretches = []
+    for match in _QUOTE.finditer(text):
+        if len(_WORD.findall(match.group())) > _CITATION_WORDS or match.group() == text.strip():
+            continue
+        stretches.append(match.span())
+    return stretches
+
+
+#: Words no French sentence holds, and the phrases that say the next word isn't French.
+_OTHER_LANGUAGE_WORDS = frozenset(
+    {"the", "and", "is", "this", "that", "with", "you", "your", "my", "like", "ich", "ist", "das", "und", "nicht", "ein",
+     "eine", "mit", "auf", "deutsch", "englisch", "english", "german", "heißt"}
+)
+_OTHER_LANGUAGE_PHRASES = frozenset({("en", "anglais"), ("en", "allemand"), ("mot", "anglais"), ("mot", "allemand")})
+
+
+def _in_another_language(text: str, tokens: list[Tok], index: int) -> bool:
+    """Whether the sentence around ``tokens[index]`` is not French, or says its word isn't."""
+    start = index
+    while start > 0 and _same_sentence(text, tokens[start - 1], tokens[start]):
+        start -= 1
+    end = index
+    while end + 1 < len(tokens) and _same_sentence(text, tokens[end], tokens[end + 1]):
+        end += 1
+    words = [tok.low for tok in tokens[start : end + 1]]
+    return bool(_OTHER_LANGUAGE_WORDS & set(words)) or bool(_OTHER_LANGUAGE_PHRASES & set(zip(words, words[1:], strict=False)))
 
 
 # ---------------------------------------------------------------------------
@@ -286,6 +332,8 @@ def verify_edit(
        «l'appartement», and a fix that does not settle is dropped.
     """
 
+    if is_variant_edit(span, replacement):
+        return Verdict(False, reason="valid_variant")
     if not _grounded(text, span, replacement, note, strict_span=strict_span):
         return Verdict(False, reason="not_grounded")
     if changes_subject(span, replacement):
@@ -296,6 +344,8 @@ def verify_edit(
     if settled is None:
         return Verdict(False, reason="does_not_settle")
     shown_span, shown = settled
+    if is_variant_edit(shown_span, shown):
+        return Verdict(False, reason="valid_variant")
     return Verdict(True, replacement=shown, span=shown_span)
 
 
@@ -645,7 +695,7 @@ _ACCENTS = {
     "apres": "après", "deja": "déjà", "tres": "très", "ecole": "école", "cafe": "café", "ete": "été",
     "etre": "être", "francais": "français", "meme": "même", "pere": "père", "mere": "mère",
     "frere": "frère", "voila": "voilà", "ca": "ça", "etait": "était", "hopital": "hôpital",
-    "theatre": "théâtre", "gateau": "gâteau",
+    "theatre": "théâtre", "gateau": "gâteau", "plait": "plaît", "etes": "êtes", "cheminee": "cheminée",
     "etudiant": "étudiant", "etudiante": "étudiante", "arrivee": "arrivée", "journee": "journée",
     "soiree": "soirée", "idee": "idée", "annee": "année", "equipe": "équipe", "eglise": "église",
 }
@@ -768,6 +818,14 @@ _RULE_TEXT: dict[str, dict[str, dict[str, str]]] = {
             "fr": "Avec être, le participe s’accorde avec le sujet : « {right} ».",
         },
     },
+    "FR_ADJ_AGREE": {
+        "label": {"en": "Agreement", "de": "Angleichung", "fr": "Accord"},
+        "note": {
+            "en": "« {noun} » is feminine, so the adjective is too: « {right} », not « {wrong} ».",
+            "de": "« {noun} » ist feminin, also auch das Adjektiv: « {right} », nicht « {wrong} ».",
+            "fr": "« {noun} » est féminin, l’adjectif aussi : « {right} » et non « {wrong} ».",
+        },
+    },
     "FR_ALLER_INF": {
         "label": {"en": "Verb form", "de": "Verbform", "fr": "Forme du verbe"},
         "note": {
@@ -790,6 +848,14 @@ _RULE_TEXT: dict[str, dict[str, dict[str, str]]] = {
             "en": "« {noun} » is {gender_en}: « {right} », not « {wrong} ».",
             "de": "« {noun} » ist {gender_de}: « {right} », nicht « {wrong} ».",
             "fr": "« {noun} » est {gender_fr} : « {right} » et non « {wrong} ».",
+        },
+    },
+    "FR_APOSTROPHE": {
+        "label": {"en": "Spelling", "de": "Schreibweise", "fr": "Orthographe"},
+        "note": {
+            "en": "An apostrophe is missing: « {right} ».",
+            "de": "Es fehlt ein Apostroph: « {right} ».",
+            "fr": "Il manque une apostrophe : « {right} ».",
         },
     },
     "FR_ACCENT": {
@@ -958,6 +1024,7 @@ def _edit(rule_id: str, text: str, start: int, end: int, replacement: str, **fie
         note[lang] = template.format(**{**base, **extra})
     task_type = {
         "FR_ACCENT": "orthography",
+        "FR_APOSTROPHE": "orthography",
         "FR_ELISION": "orthography",
         "FR_SPELLING": "orthography",
         "FR_CONTRACTION": "articles",
@@ -965,6 +1032,7 @@ def _edit(rule_id: str, text: str, start: int, end: int, replacement: str, **fie
         "FR_CET": "gender_agreement",
         "FR_MON_VOWEL": "gender_agreement",
         "FR_PARTICIPLE_AGREE": "gender_agreement",
+        "FR_ADJ_AGREE": "gender_agreement",
         "FR_PLURAL_NOUN": "number_agreement",
         "FR_PLURAL_FORM": "number_agreement",
         "FR_A_GRAVE": "orthography",
@@ -985,7 +1053,7 @@ def _edit(rule_id: str, text: str, start: int, end: int, replacement: str, **fie
         start=start,
         end=end,
         task_error_type=task_type,
-        severity=1 if rule_id in {"FR_ACCENT", "FR_SPELLING", "FR_A_GRAVE"} else 2,
+        severity=1 if rule_id in {"FR_ACCENT", "FR_APOSTROPHE", "FR_SPELLING", "FR_A_GRAVE"} else 2,
     )
 
 
@@ -1166,6 +1234,12 @@ _ELIDE_ONLY_BEFORE: dict[str, frozenset[str]] = {
 _NEGATION_PARTNERS = frozenset(
     {"pas", "plus", "jamais", "rien", "personne", "guère", "point", "que", "qu", "aucun", "aucune", "ni", "nulle"}
 )
+#: Forms of être and avoir, and the pronouns: after a subject and «ne» these can only elide.
+_ALWAYS_ELIDE_NE = frozenset(
+    {"ai", "as", "a", "avons", "avez", "ont", "avais", "avait", "avions", "aviez", "avaient", "es", "est", "êtes", "étais",
+     "était", "étions", "étiez", "étaient", "y", "en"}
+)
+_SUBJECTS_BEFORE_NE = frozenset({"je", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles", "ce", "ça", "cela", "qui"})
 #: «d'abord», «d'accord», «d'ici», «d'où», «d'autres», «d'un»: the function words «de»
 #: elides in front of; any other word after «de» must be a noun, adjective or verb.
 _DE_FUNCTION_WORDS = frozenset(
@@ -1211,6 +1285,12 @@ def _elision(source: str, tokens: list[Tok], i: int) -> tuple[int, str] | None:
             rest = tokens[i + 2 :]
             ok = any(
                 t.low in _NEGATION_PARTNERS and _same_clause(source, nxt, t) for t in rest[:6]
+            ) or (
+                # «je ne était», «Je ne ai»: a subject in front closes it, the «pas» may be missing
+                word in _ALWAYS_ELIDE_NE
+                and i > 0
+                and _same_clause(source, tokens[i - 1], tok)
+                and tokens[i - 1].low in _SUBJECTS_BEFORE_NE
             )
     elif word in {"un", "une"} and i > 0 and _could_be_verb(tokens[i - 1].low) and not _is_noun(tokens[i - 1].low):
         # «je voudrais de un café» is «un café», «je parle de un ami» is «d'un ami»:
@@ -1295,7 +1375,17 @@ _MISSPELLINGS = {
     "lecon": "leçon", "recu": "reçu", "decu": "déçu", "noel": "Noël", "reve": "rêve", "pret": "prêt",
     "prete": "prête", "general": "général", "generalement": "généralement", "etranger": "étranger",
     "etrangere": "étrangère", "evidemment": "évidemment",
+    # the apostrophe dropped and the words run together (#250, #333: «cest», «jai», «dabord»)
+    "cest": "c’est", "cetait": "c’était", "jai": "j’ai", "jaime": "j’aime", "daccord": "d’accord",
+    "dabord": "d’abord", "quil": "qu’il", "quils": "qu’ils", "quelquun": "quelqu’un", "jusqua": "jusqu’à",
+    "nest": "n’est", "nai": "n’ai", "sil": "s’il",
 }
+#: The elided words a misspelled word may lean on: «l'hotel», «d'etage».
+_ELIDED_BEFORE_A_WORD = frozenset({"l", "d", "j", "n", "s", "t", "m", "c", "qu"})
+#: Glued only with a negation after it: «nest» is also a word of English and of German.
+_GLUED_NEGATIONS = frozenset({"nest", "nai"})
+#: «sil te plaît», «sil y a». Anything else after «sil» may be a name.
+_AFTER_GLUED_SIL = frozenset({"te", "vous", "y", "ne", "est", "a", "fait"})
 #: Spelled like a participle after avoir: «j'ai reve» is «rêvé», not «rêve».
 _PARTICIPLE_LOOKALIKES = frozenset({"reve", "prete", "telephone"})
 #: «grand mère» -> «grand-mère»: the hyphen of the family words.
@@ -1304,6 +1394,259 @@ _HYPHENATED = {
     ("grand", "pere"): "grand-père", ("grands", "parents"): "grands-parents",
     ("grand", "parents"): "grands-parents",
 }
+
+
+# ---------------------------------------------------------------------------
+# The missing accent: the one lexicon word this spelling can be (#250)
+# ---------------------------------------------------------------------------
+
+#: Common words only: the rarer a word, the likelier the learner meant another.
+_ACCENT_FOLD_RANK = 3000
+_ACCENT_FOLD_POS = frozenset({"noun", "adjective", "adverb", "function", "number"})
+#: The lexicon doesn't hold them, but these are French as written, or read as another word: «il
+#: boite», «une aine», «un foret», «un desert» typed for «un dessert», «metre» for «mettre», «pate»
+#: for «pâté», «dela» for «de la». «the» and «these» are English first.
+_BARE_READS_OTHERWISE = frozenset(
+    {"the", "these", "aine", "boite", "foret", "media", "mures", "sures", "desert", "metre", "pate", "dela", "pecheur"}
+)
+#: A word ending in «é» that no verb form («il enerve», «ça m'enerve») can be typed for. Words in
+#: «-té» with no such verb in the lexicon qualify by their ending.
+_ACUTE_ENDING_WORDS = frozenset(
+    {"clé", "bébé", "canapé", "télé", "comité", "degré", "congé", "malgré", "moitié", "pitié", "amitié", "supermarché",
+     "député"}
+)
+_ACUTE_ENDING_LENGTH = 5
+
+
+@lru_cache(maxsize=1)
+def _accent_folds() -> Mapping[str, str]:  # pragma: no cover - thin cache
+    """Unaccented spelling -> the one lexicon word it can be. The spelling itself is no lexicon
+    word and no verb form, and only one lexicon word folds to it. Conjugations stay out: «fuites»
+    is a noun the lexicon doesn't hold, and folds to the verb form «fuîtes»."""
+
+    lemmas, forms = _lexicon().lemmas, _forms()
+    surfaces = set(lemmas) | set(forms)
+    by_fold: dict[str, set[str]] = {}
+    for surface in surfaces:
+        by_fold.setdefault(_strip_marks(surface), set()).add(surface)
+    verbs = {_strip_marks(word) for word, entry in lemmas.items() if entry.get("pos") == "verb"}
+
+    def rank_and_pos(word: str) -> tuple[int, str] | None:
+        entry = lemmas.get(word) or lemmas.get(forms.get(word) or "")
+        if not entry or not isinstance(entry.get("rank"), int):
+            return None
+        return entry["rank"], str(entry.get("pos"))
+
+    folds: dict[str, str] = {}
+    for bare, found in by_fold.items():
+        if bare in surfaces or len(found) != 1 or bare in _BARE_READS_OTHERWISE or len(bare) < 3:
+            continue
+        form = next(iter(found))
+        known = rank_and_pos(form)
+        if known is None or known[0] > _ACCENT_FOLD_RANK or known[1] not in _ACCENT_FOLD_POS:
+            continue
+        if _could_be_verb(bare):
+            continue
+        # «ecoute» is «écoute» or «écouté», «complete» «complète» or «complété»: the verb says both
+        if bare.endswith("e") and bare[:-1] + "er" in verbs:
+            continue
+        if form.endswith("é") and form not in _ACUTE_ENDING_WORDS and not (form.endswith("té") and len(form) > _ACUTE_ENDING_LENGTH):
+            continue
+        folds[bare] = form
+    return folds
+
+
+def _accent_fold(word: str) -> str | None:
+    """The accented word ``word`` must be, its plural too («cles» -> «clés»), or ``None``."""
+
+    folds = _accent_folds()
+    if word in folds:
+        return folds[word]
+    if word.endswith("s") and word not in _lexicon().lemmas and word not in _forms():
+        singular = folds.get(word[:-1])
+        if singular is not None and _pos(singular) in {"noun", "adjective"} and _plural(singular) == singular + "s":
+            return singular + "s"
+    return None
+
+
+# ---------------------------------------------------------------------------
+# The dropped apostrophe: a closed list on both sides (#133, #250, the review of #310)
+# ---------------------------------------------------------------------------
+
+#: Pieces that are no word on their own, and the words they join.
+_ELIDED_PIECES: dict[str, frozenset[str]] = {
+    "qu": frozenset({"est-ce", "il", "ils", "elle", "elles", "on", "un", "une"}),
+    "aujourd": frozenset({"hui"}),
+    "quelqu": frozenset({"un", "une"}),
+    "jusqu": frozenset({"à", "au", "aux", "ici", "où"}),
+    "lorsqu": frozenset({"il", "ils", "elle", "elles", "on"}),
+    "puisqu": frozenset({"il", "ils", "elle", "elles", "on"}),
+}
+#: The words each lone letter elides in front of. Never «et», «à», «ou» (the review of #310).
+_ELIDED_LETTERS: dict[str, frozenset[str]] = {
+    "c": frozenset({"est", "était", "etait", "étaient"}),
+    "j": frozenset({"ai", "avais", "aurai", "aurais", "aime", "aimais", "adore", "arrive", "appelle", "étais", "habite",
+                    "habitais", "espère", "irai", "irais", "y", "en", "écris", "écoute", "entends", "attends", "oublie", "ouvre"}),
+    "s": frozenset({"il", "ils", "est", "était", "appelle", "appellent", "en", "y"}),
+    "n": frozenset({"est", "es", "êtes", "ai", "as", "a", "avons", "avez", "ont", "y", "en", "était", "étais", "avait", "avais",
+                    "aime", "aimes"}),
+    "m": frozenset({"appelle", "appelles", "appelait", "appelais", "a", "as", "avez", "ont", "avait", "en", "y", "aime", "aimes",
+                    "écoute", "attend", "attends"}),
+    "t": frozenset({"ai", "a", "ont", "avait", "avais", "aime", "aimes", "appelle", "appelles", "écoute", "attend", "attends",
+                    "en", "y"}),
+    "l": frozenset({"ai", "as", "a", "avons", "avez", "ont", "avais", "avait", "aime", "aimes", "aiment", "appelle", "attends",
+                    "attend", "écoute"}),
+    "d": frozenset({"accord", "abord", "ailleurs", "habitude", "ici"}),
+}
+#: Who may stand in front of a clitic letter: only a subject makes «n est», «l a» French
+#: («si n est pair» is about a number).
+_PRONOUN_PERSONS = {**_SUBJECT_PRONOUNS, "nous": "1pl", "vous": "2pl", "ce": "3sg", "ça": "3sg", "cela": "3sg", "qui": "3sg"}
+#: What may stand in front of «c est»: the start of a clause or one of these.
+_BEFORE_C_EST = frozenset(
+    {"que", "qu", "et", "mais", "ou", "car", "donc", "alors", "oui", "non", "parce", "puisque", "comme", "quand", "puis",
+     "lorsque", "aussi", "bon", "ah", "oh", "eh", "bonjour", "salut", "merci", "voilà", "pense", "crois", "trouve", "sais",
+     "dit"}
+)
+#: What may stand in front of «l» and a noun, besides the start of a clause or a verb.
+_BEFORE_L_NOUN = frozenset(
+    {"à", "a", "de", "dans", "sur", "sous", "pour", "avec", "par", "vers", "devant", "derrière", "sans", "après", "avant",
+     "chez", "et", "ou", "mais", "que", "tout", "toute", "voici", "voilà", "est"}
+)
+#: A letter after these names itself: «la ligne C», «le plan B», «la vitamine D».
+_NAMES_A_LETTER = frozenset(
+    {"ligne", "plan", "vitamine", "bus", "quai", "bâtiment", "batiment", "lettre", "groupe", "option", "catégorie",
+     "categorie", "point", "étage", "etage", "porte", "salle", "voie", "hall", "zone", "terminal", "tome", "annexe", "partie",
+     "chapitre", "modèle", "modele", "type", "classe", "rang", "niveau", "section", "sortie", "entrée", "entree", "escalier",
+     "métro", "metro", "tram", "tramway", "rer", "série", "serie", "variante", "réponse", "reponse", "case", "colonne",
+     "taille", "note", "version", "équipe", "equipe", "jour"}
+)
+_NUMBER_NAMES = frozenset({"deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix", "double", "plusieurs", "quelques"})
+_NOT_A_NAMED_LETTER = frozenset({"a", "à", "y"})
+
+
+def _apostrophe(source: str) -> str:
+    return "’" if "’" in source else "'"
+
+
+def _letter_names_itself(source: str, tokens: list[Tok], index: int) -> bool:
+    """Whether the lone letter at ``index`` is a letter or a unit, not an elided word: «le c
+    est muet», «la ligne C», «200 m», «J U L I E», «A est ici. C est là-bas.»."""
+
+    tok = tokens[index]
+    written = source[tok.start : tok.end]
+    if written.isupper() and not _starts_sentence(source, tok):
+        return True
+    if source[: tok.start].rstrip()[-1:].isdigit():
+        return True
+    if written.isupper() and any(
+        other is not tok
+        and len(other.low) == 1
+        and source[other.start : other.end].isupper()
+        and source[other.end : other.end + 1] not in {"'", "’"}
+        for other in tokens
+    ):
+        return True
+    if index == 0 or not _same_clause(source, tokens[index - 1], tok):
+        return False
+    prev = tokens[index - 1].low
+    return (
+        (prev in _DETERMINERS and prev != "ce")  # «ce n est pas» is the subject «ce»
+        or prev in _NAMES_A_LETTER
+        or prev in _NUMBER_NAMES
+        or prev == "des"
+        or (len(prev) == 1 and prev not in _NOT_A_NAMED_LETTER)
+    )
+
+
+def _spelled(word: str) -> str:
+    """``word`` as the accent and spelling tables write it: «hotel» -> «hôtel»."""
+    return _ACCENTS.get(word) or _MISSPELLINGS.get(word) or _accent_fold(word) or word
+
+
+def _subject_fits(subject: str | None, verb: str) -> bool:
+    """A subject in front of a clitic letter, and no être/avoir/aller form wrong for it."""
+    person = _PRONOUN_PERSONS.get(subject or "")
+    if person is None:
+        return False
+    persons = _FORM_PERSONS.get(verb)
+    return persons is None or subject in {"qui"} or person in persons
+
+
+def _dropped_apostrophe(source: str, tokens: list[Tok], index: int) -> tuple[int, int, str] | None:
+    """``(start, end, replacement)`` when a space stands where an apostrophe belongs, else
+    ``None``. Closed on both sides: the piece, the word after it and what stands in front."""
+
+    tok = tokens[index]
+    nxt = tokens[index + 1] if index + 1 < len(tokens) else None
+    if nxt is None or not _space(source, tok, nxt):
+        return None
+    if index > 0 and source[tokens[index - 1].end : tok.start] in {"'", "’", "-"}:
+        return None  # part of a longer word
+    mark = _apostrophe(source)
+    written, word, word_written = source[tok.start : tok.end], nxt.low, source[nxt.start : nxt.end]
+    prev = tokens[index - 1] if index > 0 else None
+    opens_clause = prev is None or not _same_clause(source, prev, tok)
+    prev_low = None if opens_clause or prev is None else prev.low
+
+    # «a l hotel» -> «à l'hôtel»: with nothing at all in front, this «a» has no subject to be a
+    # verb of. After a stop it may have one: «Augustin de… Créteil… a l'honneur de signer».
+    if tok.low == "a" and written == "a" and index == 0 and word == "l" and len(tokens) > 2:
+        noun = tokens[index + 2]
+        gap = source[nxt.end : noun.start]
+        spelled = _spelled(noun.low)
+        if gap in {" ", "'", "’"} and _vowel_sound(spelled) and _reads_as_noun(spelled):
+            return tok.start, noun.end, f"à l{mark}{source[noun.start : noun.end]}"
+        return None
+
+    pieces = _ELIDED_PIECES.get(tok.low)
+    if pieces is not None:
+        if word in pieces:
+            return tok.start, nxt.end, f"{written}{mark}{word_written}"
+        # «Qu est ce que» -> «Qu'est-ce que»
+        after = tokens[index + 2] if index + 2 < len(tokens) else None
+        if tok.low == "qu" and word == "est" and after is not None and after.low == "ce" and _space(source, nxt, after):
+            return tok.start, after.end, f"{written}{mark}{word_written}-{source[after.start : after.end]}"
+        return None
+
+    allowed = _ELIDED_LETTERS.get(tok.low)
+    if allowed is None or _letter_names_itself(source, tokens, index):
+        return None
+    if tok.low == "d" and word_written[:1].isupper() and _lemma(word) is None and word[:1] in _VOWEL_LETTERS:
+        # «la clé d Odile»: a noun in front of it, a name after it, a small «d»
+        if written != "d" or prev_low is None or not _is_noun(_spelled(prev_low)):
+            return None
+    elif word not in allowed:
+        # «l hotel», «l immeuble»: a noun that takes elision, after a word that can stand before one
+        spelled = _spelled(word)
+        if tok.low != "l" or not (_vowel_sound(spelled) and _reads_as_noun(spelled)):
+            return None
+        if not (prev_low is None or prev_low in _BEFORE_L_NOUN or _could_be_verb(prev_low)):
+            return None
+    elif tok.low == "c" and not (opens_clause or prev_low in _BEFORE_C_EST):
+        return None
+    elif tok.low == "s" and word not in {"il", "ils"} and not _subject_fits(_clitic_subject(tokens, index), word):
+        if prev_low != "comment":
+            return None
+    elif tok.low in {"n", "m", "t", "l"} and not _subject_fits(_clitic_subject(tokens, index), word):
+        # «Lila n est pas là»: a name in front holds too, with its negation after the verb
+        if not (
+            tok.low == "n"
+            and prev is not None
+            and not opens_clause
+            and source[prev.start : prev.end][:1].isupper()
+            and _lemma(prev.low) is None
+            and any(t.low in _NEGATION_PARTNERS and _same_clause(source, nxt, t) for t in tokens[index + 2 : index + 6])
+        ):
+            return None
+    return tok.start, nxt.end, f"{written}{mark}{word_written}"
+
+
+def _clitic_subject(tokens: list[Tok], index: int) -> str | None:
+    """The word in front of the clitic letter at ``index``, past a «ne»: «il ne m a pas»."""
+    at = index - 1
+    if at >= 0 and tokens[at].low in {"ne", "n"}:
+        at -= 1
+    return tokens[at].low if at >= 0 else None
 
 
 # ---------------------------------------------------------------------------
@@ -1397,6 +1740,72 @@ def _space(source: str, left: Tok, right: Tok) -> bool:
     return source[left.end : right.start] in {" ", " "}
 
 
+#: A day or a time of day: what «à dix-huit heures» can follow where «a» is no verb.
+_BEFORE_THE_CLOCK = frozenset(
+    {"lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche", "demain", "hier", "hui", "matin", "soir",
+     "après-midi"}
+)
+#: What may follow the hour. Not «de»: «jeudi a dix-huit heures de cours» has them, and not an
+#: adjective: «lundi a trois heures libres». The review of #310 found both shapes.
+_AFTER_THE_CLOCK = frozenset(
+    {"du", "et", "ou", "mais", "à", "au", "aux", "chez", "dans", "avec", "pour", "sur", "en", "pile", "précises", "trente",
+     "quinze", "moins", "je", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles", "ce", "si", "car", "donc", "alors",
+     "parce", "quand", "comme"}
+)
+#: «Le lundi a vingt-quatre heures, comme les autres jours.», «L'examen de lundi a trois heures
+#: pour finir.»: after one of these the day is, or belongs to, the subject of the verb. «ce» stays
+#: out: «ce soir a huit heures» is always the time.
+_A_DAY_THAT_CAN_HAVE_HOURS = frozenset(
+    {"le", "un", "chaque", "tout", "mon", "ton", "son", "notre", "votre", "leur", "de", "du"}
+)
+_CLOCK_IN_DIGITS = re.compile(r"\s+\d{1,2}(?:\s*h(?:\d{2})?(?!\w)|\s+heures?(?!\w))")
+_DIGITS_OF_THE_HOUR = re.compile(r"\s+\d{1,2}(?:h\d{0,2})?")
+
+
+def _clock_after_a(source: str, tokens: list[Tok], index: int) -> int | None:
+    """Where the words to fix end when the «a» at ``index`` is «à» in front of a clock time, else
+    ``None``. A span is found by its words, so it runs on to the number: the line may hold a right
+    «a» earlier. Closed on both sides: a day or time word in front, the hour and its end after."""
+
+    tok = tokens[index]
+    if tok.low != "a" or source[tok.start : tok.end] != "a" or index == 0:
+        return None
+    prev = tokens[index - 1]
+    digits = _CLOCK_IN_DIGITS.match(source, tok.end)
+    # «Rendez-vous a 18 heures.»: after this word only a time in digits is sure
+    if not _space(source, prev, tok) or not (prev.low in _BEFORE_THE_CLOCK or (digits and prev.low == "rendez-vous")):
+        return None
+    if index > 1 and tokens[index - 2].low in _A_DAY_THAT_CAN_HAVE_HOURS and prev.low != "rendez-vous":
+        return None
+    following = tokens[index + 1 :]
+    if digits:
+        hour_end = digits.end()
+        fix_end = _DIGITS_OF_THE_HOUR.match(source, tok.end).end()  # type: ignore[union-attr]
+    else:
+        if len(following) < 2 or not _space(source, tok, following[0]) or not _space(source, following[0], following[1]):
+            return None
+        if not _is_number_word(following[0].low) or following[1].low not in {"heures", "h"}:
+            return None
+        hour_end, fix_end = following[1].end, following[0].end
+    after = next((other for other in following if other.start >= hour_end), None)
+    if after is not None and not _CLAUSE_BREAK.search(source[hour_end : after.start]) and after.low not in _AFTER_THE_CLOCK:
+        return None
+    return fix_end
+
+
+#: The adjectives that go in front of a noun, masculine form -> feminine. Closed on purpose: these
+#: forms are never a noun or a verb in the lexicon, so a feminine article in front of one is an
+#: article and the mistake can only be the adjective.
+_FEMININE_OF_ADJECTIVE = {
+    "bon": "bonne", "petit": "petite", "grand": "grande", "beau": "belle", "nouveau": "nouvelle", "vieux": "vieille",
+    "gros": "grosse", "long": "longue", "mauvais": "mauvaise", "joli": "jolie", "premier": "première",
+    "dernier": "dernière",
+}  # fmt: skip
+_FEMININE_ARTICLES = frozenset({"une", "la", "cette", "ma", "ta", "sa"})
+#: «ma grand mère» is «grand-mère» without its hyphen, and no «grande mère» is meant.
+_AFTER_THE_OLD_GRAND = frozenset({"mère", "mere", "tante", "messe", "rue", "route", "place", "peine", "chose", "voile"})
+
+
 def _phrase_edits(source: str, tokens: list[Tok], add) -> None:
     """Rules over a few words at once: a negation around the verb, «de» after a modal,
     a doubled negation, «de» after a negated avoir, the locutions that need «de»,
@@ -1458,6 +1867,26 @@ def _phrase_edits(source: str, tokens: list[Tok], add) -> None:
         ):
             right = f"{written} {source[after.start:after.end]} {source[nxt.start:nxt.end]}"
             add(_edit("FR_NEGATION_ORDER", source, tok.start, after.end, right, word=nxt.low, right=right))
+            continue
+
+        # «Je pas ai beaucoup bagages» -> «Je n'ai pas beaucoup bagages»: a subject pronoun, then
+        # «pas», then a finite verb. «nous» and «vous» may be objects unless they open the clause.
+        if (
+            tok.low in _SUBJECT_PRONOUN_WORDS - {"j"}
+            and nxt is not None
+            and after is not None
+            and nxt.low == "pas"
+            and _space(source, tok, nxt)
+            and _space(source, nxt, after)
+            and (_finite_verb(after.low) or _verb_after_subject(after.low))
+            and not source[after.start : after.end][:1].isupper()
+            and not (prev is not None and _same_clause(source, prev, tok) and prev.low in _PREPOSITIONS)
+            and not (tok.low in {"nous", "vous"} and prev is not None and _same_clause(source, prev, tok))
+        ):
+            verb = source[after.start : after.end]
+            ne = f"n{_apostrophe(source)}{verb}" if _vowel_sound(after.low) else f"ne {verb}"
+            right = f"{written} {ne} {source[nxt.start : nxt.end]}"
+            add(_edit("FR_NEGATION_ORDER", source, tok.start, after.end, right, word="pas", right=right))
             continue
 
         # «je n'ai vu pas le film» -> «je n'ai pas vu le film» («personne» does go after
@@ -1563,6 +1992,32 @@ def _phrase_edits(source: str, tokens: list[Tok], add) -> None:
             and not any(t.low in _RELATIVES and _same_sentence(source, t, tok) for t in tokens[max(0, i - 8) : i - 2])
         ):
             add(_edit("FR_A_GRAVE", source, tok.start, tok.end, "à", right="à"))
+            continue
+
+        # «une bon offre» -> «une bonne offre». Silent when the noun's gender isn't known, or a
+        # masculine noun says the article is the mistake («une bon gâteau»).
+        if (
+            tok.low in _FEMININE_ARTICLES
+            and nxt is not None
+            and after is not None
+            and source[nxt.start : nxt.end] in _FEMININE_OF_ADJECTIVE
+            and _space(source, tok, nxt)
+            and _space(source, nxt, after)
+            and source[after.start : after.end] == after.low
+            and after.low not in _TWO_GENDER_NOUNS
+            and _noun_gender(after.low) == "f"
+            and not (nxt.low == "grand" and after.low in _AFTER_THE_OLD_GRAND)
+        ):
+            right = f"{written} {_FEMININE_OF_ADJECTIVE[nxt.low]}"
+            add(_edit("FR_ADJ_AGREE", source, tok.start, nxt.end, right, noun=after.low,
+                      right=f"{_FEMININE_OF_ADJECTIVE[nxt.low]} {after.low}", wrong=f"{nxt.low} {after.low}"))
+            continue
+
+        # «jeudi a dix-huit heures» -> «jeudi à dix-huit heures»
+        clock_end = _clock_after_a(source, tokens, i)
+        if clock_end is not None:
+            right = "à" + source[tok.end : clock_end]
+            add(_edit("FR_A_GRAVE", source, tok.start, clock_end, right, right=right))
             continue
 
         # «je suis vingt ans» -> «j'ai vingt ans»
@@ -1674,13 +2129,46 @@ def deterministic_edits(
     settled: list[Edit] = []
     for edit in _raw_edits(source, cast):
         final = _settle(source, edit, cast)
-        if final is None:
-            continue
+        if final is None or is_variant_edit(final.span, final.replacement):
+            continue  # package V: a fix between two accepted spellings corrects nothing
         if any(final.start < other.end and other.start < final.end for other in settled):
             continue
         settled.append(final)
     settled.sort(key=lambda e: e.start)
-    return settled
+    return _found_by_their_words(source, settled)
+
+
+def _found_by_their_words(source: str, edits: list[Edit]) -> list[Edit]:
+    """Each edit with a neighbouring word when its words are also somewhere earlier in the line.
+
+    An erratum keeps no offsets and a span is found by its words, so «a» -> «à» in «Camille a une
+    clé et je vais a Paris» lands on the first «a», which is right. The word in front is taken
+    when it is free, else the word after it. An edit no free word can tell apart is dropped: a
+    fix that lands on a right word is worse than none."""
+
+    words = _line_words(source)
+    named: list[Edit] = []
+    for index, edit in enumerate(edits):
+        floor = named[-1].end if named else 0
+        ceiling = edits[index + 1].start if index + 1 < len(edits) else len(source)
+        start, end = edit.start, edit.end
+        while (first := span_pattern(source[start:end]).search(source)) is not None and first.start() != start:
+            before = [word for word in words if floor <= word[0] and word[1] <= start]
+            following = [word for word in words if end <= word[0] and word[1] <= ceiling]
+            if before:
+                start = before[-1][0]
+            elif following:
+                end = following[0][1]
+            else:
+                start = -1
+                break
+        if start < 0:
+            continue
+        if (start, end) != (edit.start, edit.end):
+            right = source[start : edit.start] + edit.replacement + source[edit.end : end]
+            edit = replace(edit, span=source[start:end], replacement=right, start=start, end=end)
+        named.append(edit)
+    return named
 
 
 def _settle(source: str, edit: Edit, cast: Mapping[str, str], depth: int = 0) -> Edit | None:
@@ -1740,9 +2228,12 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
 
     tokens = _tokens(source)
     found: list[Edit] = []
+    cited = _cited_stretches(source)
 
     def add(edit: Edit | None) -> None:
         if edit is None:
+            return
+        if any(edit.start < end and start < edit.end for start, end in cited):
             return
         if any(edit.start < other.end and other.start < edit.end for other in found):
             return
@@ -1753,6 +2244,13 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
         prev = tokens[i - 1] if i > 0 else None
         joined_next = nxt is not None and _joined(source, tok, nxt)
         joined_prev = prev is not None and _joined(source, prev, tok)
+
+        # --- the dropped apostrophe: «c est», «Qu est-ce», «s il te plaît», «d Odile» ---
+        dropped = _dropped_apostrophe(source, tokens, i)
+        if dropped is not None:
+            start, end, glued = dropped
+            add(_edit("FR_APOSTROPHE", source, start, end, glued, right=glued))
+            continue
 
         # --- person of être / avoir / aller after a plain subject pronoun -------------
         if tok.low in _FORM_PERSONS and prev is not None and joined_prev:
@@ -1953,18 +2451,32 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
         # réunit»), not «ça» typed without its cedilla.
         written = source[tok.start:tok.end]
         acronym = written.isupper() and len(written) > 1 and not source.isupper()
-        if tok.low in _ACCENTS and not acronym:
+        # «le Grand Hotel», «son ami Andre»: a capital inside a sentence is a name. «En anglais,
+        # hotel s'écrit sans accent», «Das Hotel ist schön»: this word isn't French.
+        not_french = (tok.low in _ACCENTS or tok.low in _MISSPELLINGS) and (
+            (written[:1].isupper() and not source.isupper() and not _starts_sentence(source, tok))
+            or _in_another_language(source, tokens, i)
+        )
+        if tok.low in _ACCENTS and not acronym and not not_french:
             right = _ACCENTS[tok.low]
             add(_edit("FR_ACCENT", source, tok.start, tok.end, _case(source[tok.start:tok.end], right), right=right))
             continue
         if (
             tok.low in _MISSPELLINGS
             and not acronym
-            and not glued_before
+            and not not_french
+            and (not glued_before or (prev is not None and prev.low in _ELIDED_BEFORE_A_WORD))
             and _lemma(tok.low) is None
             and _forms().get(tok.low) is None
             and not (nxt is not None and source[tok.end : nxt.start] in {"'", "’", "-"})
             and not (tok.low in _PARTICIPLE_LOOKALIKES and prev is not None and prev.low in _AVOIR_FORMS)
+            # «Jai Paul»: a capital, then a capital, is somebody's name
+            and not (written[:1].isupper() and nxt is not None and source[nxt.start : nxt.start + 1].isupper())
+            and not (
+                tok.low in _GLUED_NEGATIONS
+                and not any(t.low in _NEGATION_PARTNERS and _same_clause(source, tok, t) for t in tokens[i + 1 : i + 6])
+            )
+            and not (tok.low == "sil" and (written != "sil" or nxt is None or nxt.low not in _AFTER_GLUED_SIL))
         ):
             right = _MISSPELLINGS[tok.low]
             if right[:1].islower():
@@ -1981,6 +2493,19 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
         ):
             right = _case(written, _HYPHENATED[(tok.low, nxt.low)])
             add(_edit("FR_SPELLING", source, tok.start, nxt.end, right, right=right))
+            continue
+        # «cle» -> «clé», «decembre» -> «décembre»: the one word this spelling can be
+        fold = _accent_fold(tok.low)
+        if (
+            fold is not None
+            and not acronym
+            and not (written[:1].isupper() and not source.isupper() and not _starts_sentence(source, tok))
+            and not (written[:1].isupper() and nxt is not None and source[nxt.start : nxt.start + 1].isupper())
+            and not (glued_before and (prev is None or prev.low not in _ELIDED_BEFORE_A_WORD))
+            and not (nxt is not None and source[tok.end : nxt.start] in {"'", "’"})
+            and not _in_another_language(source, tokens, i)
+        ):
+            add(_edit("FR_ACCENT", source, tok.start, tok.end, _case(written, fold), right=fold))
             continue
 
     _phrase_edits(source, tokens, add)
@@ -2337,7 +2862,9 @@ def first_valid_edit(
     """The single correction a scene turn can show: the model's when it passes
     :func:`verify_edit` (as settled there), else the most serious model-free edit
     (grammar before spelling, then reading order), else nothing."""
-    if span and replacement:
+    if span and replacement and changes_what_was_said(
+        span, replacement, listed=True, question=in_a_question(text, span)
+    ) is None:
         verdict = verify_edit(text, span, replacement, note, people=people)
         if verdict.ok and verdict.replacement:
             shown = _requote(str(note), str(replacement), verdict.replacement) if note else None
@@ -2352,10 +2879,439 @@ def first_valid_edit(
     return None, None, None
 
 
+# ---------------------------------------------------------------------------
+# One corrected line (#133, #250)
+# ---------------------------------------------------------------------------
+
+#: Words a correction may add, drop or swap without changing what the learner said.
+_GRAMMAR_WORDS = frozenset(
+    """
+    le la les l un une des du de d au aux ce cet cette ces c mon ton son ma ta sa mes tes ses notre votre nos vos
+    leur leurs a dans en sur sous avec sans pour par chez vers entre contre avant apres pendant depuis et ou mais
+    donc car parce puisque comme quand lorsque ni que qu si oui non je j tu il elle on nous vous ils elles me m te t
+    se s lui y eux moi toi soi ne n pas plus jamais rien qui dont ca cela ceci tout toute tous toutes quel quelle
+    quels quelles est-ce
+    """.split()
+)
+_AUXILIARY_LEMMAS = frozenset({"être", "avoir", "aller"})
+#: What a question asks, accents folded so «ou» -> «où» is no change. «Est-ce que» on its own
+#: only marks it as a question; «qu'est-ce que» asks «what».
+_ASKING_WORDS = {
+    "quoi": "quoi", "ou": "ou", "quand": "quand", "comment": "comment", "pourquoi": "pourquoi", "combien": "combien",
+    "quel": "quel", "quelle": "quel", "quels": "quel", "quelles": "quel", "lequel": "lequel", "laquelle": "lequel",
+    "lesquels": "lequel", "lesquelles": "lequel",
+}
+#: Notes about the task or the words asked for. They change nothing in the learner's line.
+_NOT_ABOUT_THE_LINE = frozenset({"task_compliance", "length_compliance", "lexical_gap"})
+_LOCAL_REORDER_WORDS = 4
+_MOVED_WORD_GAP = 2
+_SAME_WORD_SPELLING = 0.7
+_SAME_STEM_SPELLING = 0.6
+_EDGE_MARKS = "«»\"“”,.;:!?…"
+_ANY_WORD = re.compile(r"\S+")
+
+
+def is_about_the_line(erratum: Mapping[str, Any]) -> bool:
+    """Whether this erratum proposes a change to what the learner wrote."""
+
+    kind = str(erratum.get("task_error_type") or "")
+    return kind not in _NOT_ABOUT_THE_LINE and not kind.startswith("vocabulary")
+
+
+def _lemmas(word: str) -> set[str]:
+    found = {_verb_lemma(word), _noun_lemma(word), _forms().get(word), word if _lemma(word) else None}
+    return {lemma for lemma in found if lemma}
+
+
+def _is_grammar_word(word: str) -> bool:
+    return _strip_marks(word) in _GRAMMAR_WORDS or _verb_lemma(word) in _AUXILIARY_LEMMAS
+
+
+def _same_word(left: str, right: str) -> bool:
+    """Two forms of one word, or one word and its misspelling."""
+
+    a, b = _strip_marks(left), _strip_marks(right)
+    if a == b or _lemmas(left) & _lemmas(right):
+        return True
+    close = difflib.SequenceMatcher(None, a, b).ratio()
+    if a[:3] == b[:3] and close >= _SAME_STEM_SPELLING:
+        return True  # one grows out of the other: «content», «contente», «lentement», «jouais»
+    # Two real words that look alike are two words: «maison», «raison».
+    return not (_lemmas(left) and _lemmas(right)) and close >= _SAME_WORD_SPELLING
+
+
+def _what_it_asks(words: list[str]) -> list[str]:
+    """The asking words, folded to one per family, in sorted order."""
+
+    folded = [_strip_marks(word) for word in words]
+    asks = [_ASKING_WORDS[word] for word in folded if word in _ASKING_WORDS]
+    asks += ["qu'est-ce"] * sum(1 for one, two in zip(folded, folded[1:], strict=False) if (one, two) == ("qu", "est-ce"))
+    return sorted(asks)
+
+
+def in_a_question(line: object, span: object) -> bool:
+    """Whether ``span`` sits in a sentence of ``line`` that ends with a question mark."""
+
+    source, where = _norm(line), _locate(_norm(line), _norm(span))
+    if where is None:
+        return "?" in _norm(span)
+    end = re.compile(r"[.!?…]+").search(source, where[1] - 1 if source[where[1] - 1 : where[1]] in ".!?…" else where[1])
+    return bool(end and "?" in end.group())
+
+
+def changes_what_was_said(
+    span: object, replacement: object, *, listed: bool = False, question: bool | None = None
+) -> str | None:
+    """Why this change is a rewrite and not a correction, or ``None`` when it is a correction.
+
+    ``the_question``: in a question, it changes what is being asked. ``words``: it brings in
+    or takes out words of meaning. ``order``: it moves the sentence around. A word the
+    learner wrote that isn't French may become the French word. ``listed`` is a change the
+    corrector names and explains, which may also change one word («librairie» ->
+    «bibliothèque») or swap one question word for another. A difference nobody listed may
+    not. ``question`` says whether the span is in a question; by default, if it holds a «?».
+    """
+
+    old_text, new_text = _norm(span).casefold(), _norm(replacement).casefold()
+    old, new = _WORD.findall(old_text), _WORD.findall(new_text)
+    if old_text.count("?") != new_text.count("?"):
+        return "the_question"
+    asked, asks = _what_it_asks(old), _what_it_asks(new)
+    if (question or (question is None and "?" in old_text) or "qu'est-ce" in asked) and asked != asks:
+        if not (listed and len(asked) == len(asks)):
+            return "the_question"
+
+    def without(words: list[str], others: list[str]) -> list[str]:
+        spare = [_strip_marks(word) for word in others]
+        left: list[str] = []
+        for word in words:
+            if _strip_marks(word) in spare:
+                spare.remove(_strip_marks(word))
+            else:
+                left.append(word)
+        return left
+
+    added = without(new, old)
+    gone = [word for word in without(old, new) if not _is_grammar_word(word)]
+    came = [word for word in added if not _is_grammar_word(word)]
+    for word in list(gone):
+        partner = next((other for other in came if _same_word(word, other)), None)
+        if partner is not None:
+            gone.remove(word)
+            came.remove(partner)
+    for word in list(gone):
+        if added and not _lemmas(word):
+            gone.remove(word)
+            if came:
+                came.pop(0)
+    # A word said twice may lose its repeat.
+    gone = [word for word in gone if _strip_marks(word) not in {_strip_marks(other) for other in new}]
+    if gone or came:
+        return None if listed and len(gone) <= 1 and len(came) <= 1 else "words"
+    meaning = [[_strip_marks(word) for word in words if not _is_grammar_word(word)] for words in (old, new)]
+    if meaning[0] != meaning[1] and sorted(meaning[0]) == sorted(meaning[1]) and len(old) > _LOCAL_REORDER_WORDS:
+        return "order"
+    return None
+
+
+@dataclass(frozen=True, slots=True)
+class SentenceGap:
+    """One word-level difference between a line and a sentence: ``wrong`` at ``start`` becomes ``fix``."""
+
+    start: int
+    wrong: str
+    fix: str
+
+    @property
+    def end(self) -> int:
+        return self.start + len(self.wrong)
+
+
+def _line_words(text: str) -> list[tuple[int, int, str]]:
+    """``(start, end, key)`` per word: the key folds case, typography and edge marks."""
+
+    words: list[tuple[int, int, str]] = []
+    for match in _ANY_WORD.finditer(text):
+        key = unicodedata.normalize("NFC", normalize_answer_text(match.group())).casefold().strip(_EDGE_MARKS)
+        if key:
+            words.append((match.start(), match.end(), key))
+    return words
+
+
+def line_differences(line: object, sentence: object) -> list[tuple[str, int, int, int, int]]:
+    """The word-level differences between two lines (case, spacing and edge marks aside)."""
+
+    left, right = _line_words(str(line or "")), _line_words(str(sentence or ""))
+    matcher = difflib.SequenceMatcher(a=[word[2] for word in left], b=[word[2] for word in right], autojunk=False)
+    return [op for op in matcher.get_opcodes() if op[0] != "equal"]
+
+
+def _trim_shared_marks(wrong: str, fix: str) -> tuple[str, str]:
+    """Drop the final mark both sides end with: «agreable,» -> «agréable,» is «agreable» -> «agréable»."""
+
+    while len(wrong) > 1 and len(fix) > 1 and wrong[-1] == fix[-1] and wrong[-1] in _EDGE_MARKS:
+        wrong, fix = wrong[:-1], fix[:-1]
+    return wrong, fix
+
+
+def sentence_gaps(line: str, sentence: str, *, fixed: Iterable[tuple[int, int]] = ()) -> list[SentenceGap] | None:
+    """What it takes to turn ``line`` into ``sentence``, one gap per difference, or ``None``
+    when a difference has no word in the line to stand next to. ``fixed`` holds stretches of
+    the line that are already a correction, so a missing word isn't attached to one of them."""
+
+    left, right = _line_words(line), _line_words(sentence)
+    if not left or not right:
+        return []
+    fixed = list(fixed)
+
+    def is_fixed(word: tuple[int, int, str]) -> bool:
+        return any(word[0] < end and start < word[1] for start, end in fixed)
+
+    def words_of(ids: range, side: list[tuple[int, int, str]]) -> set[str]:
+        return {side[index][2] for index in ids}
+
+    # A word moved shows as two differences, dropped here and added there. It is one change.
+    differences: list[tuple[str, int, int, int, int]] = []
+    for op in line_differences(line, sentence):
+        if differences:
+            _tag, i1, i2, j1, j2 = differences[-1]
+            moved = (words_of(range(i1, i2), left) & words_of(range(op[3], op[4]), right)) | (
+                words_of(range(op[1], op[2]), left) & words_of(range(j1, j2), right)
+            )
+            if op[1] - i2 <= _MOVED_WORD_GAP and moved:
+                differences[-1] = ("replace", i1, op[2], j1, op[4])
+                continue
+        differences.append(op)
+
+    gaps: list[SentenceGap] = []
+    for tag, i1, i2, j1, j2 in differences:
+        want = sentence[right[j1][0] : right[j2 - 1][1]] if j2 > j1 else ""
+        if tag == "replace":
+            start, wrong, fix = left[i1][0], line[left[i1][0] : left[i2 - 1][1]], want
+        elif tag == "delete":
+            # Words too many: the gap is the word next to them, without them.
+            if i1 > 0:
+                start, fix = left[i1 - 1][0], line[left[i1 - 1][0] : left[i1 - 1][1]]
+                wrong = line[start : left[i2 - 1][1]]
+            elif i2 < len(left):
+                start, fix = left[i1][0], line[left[i2][0] : left[i2][1]]
+                wrong = line[start : left[i2][1]]
+            else:
+                return None
+        elif i1 > 0 and (i1 == len(left) or not is_fixed(left[i1 - 1])):
+            # Words missing: the gap is the word next to them plus what is missing.
+            start, anchor = left[i1 - 1][0], line[left[i1 - 1][0] : left[i1 - 1][1]]
+            core = anchor.rstrip(_EDGE_MARKS)
+            marks = anchor[len(core) :]
+            fix, wrong = f"{core} {want}", anchor
+            if marks and not fix.endswith(marks):
+                fix += marks
+        else:
+            start, wrong = left[i1][0], line[left[i1][0] : left[i1][1]]
+            fix = f"{want} {wrong}"
+        wrong, fix = _trim_shared_marks(wrong, fix)
+        if wrong.strip() and fix.strip() and wrong.strip() != fix.strip():
+            gaps.append(_only_there(line, left, SentenceGap(start, wrong, fix)))
+    return gaps
+
+
+def _only_there(line: str, words: list[tuple[int, int, str]], gap: SentenceGap) -> SentenceGap:
+    """The gap, with the word before it (or after it) when its words are also somewhere earlier
+    in the line. A span is found by its words, so «a» -> «à» in «Camille a une clé, jeudi a dix
+    heures» would land on the first «a», which is right."""
+
+    while True:
+        first = next(span_pattern(gap.wrong).finditer(line), None)
+        if first is None or first.start() == gap.start:
+            return gap
+        before = [word for word in words if word[1] <= gap.start]
+        if not before:
+            return gap
+        start = before[-1][0]
+        between = line[start : gap.start]
+        gap = SentenceGap(start, between + gap.wrong, between + gap.fix)
+
+
+def _place_fix(line: str, span: str, fix: str, taken: list[tuple[int, int, str]], sentence: object) -> tuple[int, int] | None:
+    """Where a listed fix goes: the free place its words are in, and when there are several, the
+    one that brings the line closest to the model's sentence."""
+
+    spots = [
+        match.span()
+        for match in span_pattern(span).finditer(line)
+        if all(match.end() <= start or match.start() >= end for start, end, _fix in taken)
+    ]
+    if not spots:
+        where = _locate(line, span)
+        return where if where and all(where[1] <= start or where[0] >= end for start, end, _fix in taken) else None
+    if len(spots) == 1 or not isinstance(sentence, str) or not sentence.strip():
+        return spots[0]
+    target = [word[2] for word in _line_words(sentence)]
+
+    def closeness(spot: tuple[int, int]) -> float:
+        made = line[: spot[0]] + fix + line[spot[1] :]
+        return difflib.SequenceMatcher(None, [word[2] for word in _line_words(made)], target, autojunk=False).ratio()
+
+    return max(spots, key=closeness)
+
+
+def _refused_change(line: str, gap: SentenceGap) -> dict[str, Any] | None:
+    """Why a change only the model's sentence holds may not be made, or ``None``."""
+
+    reason = changes_what_was_said(gap.wrong, gap.fix, question=in_a_question(line, gap.wrong))
+    if reason is None and not verify_edit(line, gap.wrong, gap.fix).ok:
+        reason = "not_verified"
+    return {"learner_text": gap.wrong, "corrected_target": gap.fix, "reason": reason} if reason else None
+
+
+def held_gaps(line: str, sentence: object) -> tuple[list[SentenceGap], list[dict[str, Any]]] | None:
+    """``(allowed, refused)``: the differences of the model's sentence, each through the one
+    check. ``None`` when a difference has no word in the line to stand next to."""
+
+    gaps = sentence_gaps(line, str(sentence or ""))
+    if gaps is None:
+        return None
+    allowed, refused = [], []
+    for gap in gaps:
+        why = _refused_change(line, gap)
+        if why:
+            refused.append(why)
+        else:
+            allowed.append(gap)
+    return allowed, refused
+
+
+def apply_gaps(line: str, gaps: Iterable[SentenceGap]) -> str:
+    """``line`` with ``gaps`` made, and nothing else changed."""
+
+    out = line
+    for gap in sorted(gaps, key=lambda item: item.start, reverse=True):
+        out = out[: gap.start] + gap.fix + out[gap.end :]
+    return out
+
+
+@dataclass(frozen=True, slots=True)
+class CheckedCorrection:
+    """A correction a screen may print: ``corrected`` is the line with the listed fixes in it."""
+
+    corrected: str
+    errata: list[dict[str, Any]]
+    refused: list[dict[str, Any]]
+
+
+def verify_correction(
+    text: object,
+    sentence: object,
+    errata: Iterable[Mapping[str, Any]],
+    *,
+    language: str | None = None,
+    people: Mapping[str, str] | None = None,
+) -> CheckedCorrection:
+    """The learner's line with every verified fix in it, and every change in it listed (#133).
+
+    A model returns a sentence and a list as two pieces of text, and the sentence was printed
+    as it came: «Qu est-ce que c est, jeudi a dix-huit heures ?» came back as «C'est jeudi à
+    dix-huit heures ?», a different question, with two listed fixes. Now the line is built
+    from the learner's own words. Each listed fix passes :func:`verify_erratum` and
+    :func:`changes_what_was_said`; each difference only the model's sentence holds becomes a
+    fix of its own if it passes both, and is dropped if it doesn't. ``sentence`` may be
+    ``None``: the listed fixes are then all there is.
+    """
+
+    line = "" if text is None else str(text)
+    kept: list[dict[str, Any]] = []
+    refused: list[dict[str, Any]] = []
+    fixes: list[tuple[int, int, str]] = []
+    for raw in errata:
+        item = dict(raw)
+        if not is_about_the_line(item):
+            kept.append(item)
+            continue
+        verified = verify_erratum(line, item, strict_span=False)
+        reason = "not_verified" if verified is None else changes_what_was_said(
+            verified.get("learner_text"),
+            verified.get("corrected_target"),
+            listed=True,
+            question=in_a_question(line, verified.get("learner_text")),
+        )
+        if reason or verified is None:
+            refused.append(
+                {"learner_text": item.get("learner_text"), "corrected_target": item.get("corrected_target"), "reason": reason}
+            )
+            continue
+        span, fix = str(verified.get("learner_text") or ""), str(verified.get("corrected_target") or "")
+        where = _place_fix(line, span, fix, fixes, sentence)
+        if where:
+            fixes.append((where[0], where[1], fix))
+            placed = _only_there(line, _line_words(line), SentenceGap(where[0], line[where[0] : where[1]], fix))
+            verified = {**verified, "learner_text": placed.wrong, "corrected_target": placed.fix}
+        kept.append(verified)
+    base = line
+    fixed: list[tuple[int, int]] = []
+    shift = 0
+    for start, end, fix in sorted(fixes):
+        base = base[: start + shift] + fix + base[end + shift :]
+        fixed.append((start + shift, start + shift + len(fix)))
+        shift += len(fix) - (end - start)
+
+    def derive(source: str, target: str, *, by_rules: bool) -> str:
+        nonlocal fixed
+        out, shift_ = source, 0
+        placed: list[SentenceGap] = []
+        for gap in sentence_gaps(source, target, fixed=fixed) or []:
+            # A listed fix stands: a sentence that disagrees with it doesn't undo it.
+            if not by_rules and any(gap.start < end and start < gap.end for start, end in fixed):
+                refused.append({"learner_text": gap.wrong, "corrected_target": gap.fix, "reason": "overlaps_a_fix"})
+                continue
+            if is_variant_edit(gap.wrong, gap.fix):
+                refused.append({"learner_text": gap.wrong, "corrected_target": gap.fix, "reason": "valid_variant"})
+                continue
+            why = None if by_rules else _refused_change(source, gap)
+            if why:
+                refused.append(why)
+                continue
+            placed.append(gap)
+            note = note_from_form(gap.wrong, gap.fix, language=language)
+            kept.append(
+                {
+                    "display_label": "",
+                    "learner_text": gap.wrong,
+                    "corrected_target": gap.fix,
+                    "why_wrong": note,
+                    "repair_hint": "",
+                    "severity": 1,
+                    "recurring": False,
+                    "task_error_type": "grammar",
+                    "derived_from_sentence": True,
+                }
+            )
+        for gap in sorted(placed, key=lambda item: item.start):
+            out = out[: gap.start + shift_] + gap.fix + out[gap.end + shift_ :]
+            shift_ += len(gap.fix) - len(gap.wrong)
+        return out
+
+    built = derive(base, str(sentence), by_rules=False) if isinstance(sentence, str) and sentence.strip() else base
+    # The rules read the line once more: a fix can open another («à le» after a fixed word).
+    settled = repair_text(built, people=people)
+    if settled != built:
+        built = derive(built, settled, by_rules=True)
+    return CheckedCorrection(corrected=built, errata=kept, refused=refused)
+
+
 __all__ = [
+    "CheckedCorrection",
     "Edit",
+    "SentenceGap",
     "Verdict",
     "apply_edits",
+    "apply_gaps",
+    "changes_what_was_said",
+    "held_gaps",
+    "in_a_question",
+    "is_about_the_line",
+    "line_differences",
+    "sentence_gaps",
+    "verify_correction",
     "changes_subject",
     "deterministic_edits",
     "deterministic_errata",

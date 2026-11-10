@@ -11304,6 +11304,7 @@ def _fallback_evaluation(db, *, user, scenario, answer, assistance, reason: str)
         consequence=proposal,
         needs_repair=False,
         failure_reason="reply_source:authored",
+        check_failure=str(reason or "model_error"),
     )
 
 
