@@ -79,7 +79,6 @@ def test_the_name_after_a_dropped_apostrophe_needs_a_noun_in_front():
     [
         pytest.param("Gus, est-ce que tu sais ou est la cle d Odile ?", "cle", "clé", id="250-cle"),
         pytest.param("Mon chat dort sur la cheminee.", "cheminee", "cheminée", id="250-cheminee"),
-        pytest.param("Vient parler avec lui samedi, s il te plait.", "plait", "plaît", id="333-plait"),
         pytest.param("Je veux retourner le deux decembre, parce que je suis fatigue de Berlin.", "decembre", "décembre", id="gold-decembre"),
         pytest.param("Tu as menti pendant trois ans a ma grand-mere", "grand-mere", "grand-mère", id="250-grand-mere"),
         pytest.param("Pourquoi le appartement paie grand-pere dabord ?", "grand-pere", "grand-père", id="250-grand-pere"),
@@ -105,6 +104,8 @@ def test_a_missing_accent_comes_back_when_the_word_can_only_be_one_word(text, sp
         pytest.param("Elle fait une pate.", "pate", id="pâte-or-pâté"),
         pytest.param("Je suis fatigue de Berlin.", "fatigue", id="fatigue-is-a-word"),
         pytest.param("Tu sais ou est la gare ?", "ou", id="ou-is-a-word"),
+        # Package V: «plait» is the 1990 spelling, as right as «plaît» (#333 restored the hat).
+        pytest.param("Vient parler avec lui samedi, s il te plait.", "plait", id="plait-is-the-1990-spelling"),
     ],
 )
 def test_a_word_that_can_be_two_words_gets_no_accent(text, bare):

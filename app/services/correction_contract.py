@@ -60,6 +60,7 @@ from app.services.answer_acceptance import (
     person_swaps_hold,
 )
 from app.services.chrome_language import mother_tongue
+from app.services.spelling_variants import is_variant_edit
 from app.services.journey_contracts import normalize_answer_text
 
 # ---------------------------------------------------------------------------
@@ -331,6 +332,8 @@ def verify_edit(
        «l'appartement», and a fix that does not settle is dropped.
     """
 
+    if is_variant_edit(span, replacement):
+        return Verdict(False, reason="valid_variant")
     if not _grounded(text, span, replacement, note, strict_span=strict_span):
         return Verdict(False, reason="not_grounded")
     if changes_subject(span, replacement):
@@ -341,6 +344,8 @@ def verify_edit(
     if settled is None:
         return Verdict(False, reason="does_not_settle")
     shown_span, shown = settled
+    if is_variant_edit(shown_span, shown):
+        return Verdict(False, reason="valid_variant")
     return Verdict(True, replacement=shown, span=shown_span)
 
 
@@ -2124,8 +2129,8 @@ def deterministic_edits(
     settled: list[Edit] = []
     for edit in _raw_edits(source, cast):
         final = _settle(source, edit, cast)
-        if final is None:
-            continue
+        if final is None or is_variant_edit(final.span, final.replacement):
+            continue  # package V: a fix between two accepted spellings corrects nothing
         if any(final.start < other.end and other.start < final.end for other in settled):
             continue
         settled.append(final)
@@ -3257,6 +3262,9 @@ def verify_correction(
             # A listed fix stands: a sentence that disagrees with it doesn't undo it.
             if not by_rules and any(gap.start < end and start < gap.end for start, end in fixed):
                 refused.append({"learner_text": gap.wrong, "corrected_target": gap.fix, "reason": "overlaps_a_fix"})
+                continue
+            if is_variant_edit(gap.wrong, gap.fix):
+                refused.append({"learner_text": gap.wrong, "corrected_target": gap.fix, "reason": "valid_variant"})
                 continue
             why = None if by_rules else _refused_change(source, gap)
             if why:
