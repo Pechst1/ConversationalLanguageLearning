@@ -1983,6 +1983,8 @@ export interface FeedbackReportPayload {
   viewport?: Record<string, any>;
   user_agent?: string;
   context_payload?: Record<string, any>;
+  /** S4 stage 4: stored only; nothing sends the reply yet. */
+  wants_reply?: boolean;
 }
 
 export interface FeedbackReport {

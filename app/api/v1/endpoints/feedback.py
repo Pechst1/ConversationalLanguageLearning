@@ -41,6 +41,7 @@ def create_feedback_report(
         viewport=payload.viewport,
         user_agent=payload.user_agent,
         context_payload=payload.context_payload,
+        wants_reply=payload.wants_reply,
     )
     db.add(report)
     db.commit()

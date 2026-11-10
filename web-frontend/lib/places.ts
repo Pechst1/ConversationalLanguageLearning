@@ -163,6 +163,15 @@ export const PLACES: Place[] = [
     entries: [file('web-frontend/pages/settings.tsx'), file('web-frontend/lib/can-dos.ts'), file('app/tasks/notifications.py')],
   },
   {
+    route: '/help',
+    name: { en: 'Help', de: 'Hilfe', fr: 'Aide' },
+    kind: 'child',
+    parent: '/settings',
+    access: 'signed_in',
+    gate: ALWAYS,
+    entries: [file('web-frontend/pages/settings.tsx', "router.push('/help')")],
+  },
+  {
     route: '/pilot-ops',
     name: { en: 'Pilot operations', de: 'Pilotbetrieb', fr: 'Pilotage' },
     kind: 'account',

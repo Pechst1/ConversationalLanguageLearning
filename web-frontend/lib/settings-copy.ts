@@ -107,6 +107,9 @@ export type SettingsCopyKey =
   | 'row_rehearsal_hint'
   | 'row_dossier'
   | 'row_dossier_hint'
+  | 'row_help'
+  | 'row_help_hint'
+  | 'action_help'
   | 'row_feedback'
   | 'row_feedback_hint'
   | 'action_feedback'
@@ -345,6 +348,9 @@ const EN: SettingsCopy = {
   row_rehearsal_hint: 'Rehearse a real errand once.',
   row_dossier: 'Your dossier',
   row_dossier_hint: 'What we know, and why.',
+  row_help: 'Help',
+  row_help_hint: 'Questions, a problem, the contact address.',
+  action_help: 'Open help',
   row_feedback: 'Report a problem',
   row_feedback_hint: 'Tell us about this screen.',
   action_feedback: 'Write',
@@ -580,6 +586,9 @@ const DE: SettingsCopy = {
   row_rehearsal_hint: 'Einen echten Termin einmal proben.',
   row_dossier: 'Dein Dossier',
   row_dossier_hint: 'Was wir wissen, und warum.',
+  row_help: 'Hilfe',
+  row_help_hint: 'Fragen, ein Problem, die Kontaktadresse.',
+  action_help: 'Hilfe öffnen',
   row_feedback: 'Ein Problem melden',
   row_feedback_hint: 'Sag uns deine Meinung.',
   action_feedback: 'Schreiben',
@@ -819,6 +828,9 @@ const FR: SettingsCopy = {
   row_rehearsal_hint: 'Répéter une vraie démarche.',
   row_dossier: 'Ton dossier',
   row_dossier_hint: 'Ce que nous savons, et pourquoi.',
+  row_help: 'Aide',
+  row_help_hint: 'Des questions, un problème, l’adresse de contact.',
+  action_help: 'Ouvrir l’aide',
   row_feedback: 'Signaler un problème',
   row_feedback_hint: 'Dis-nous ce que tu penses.',
   action_feedback: 'Écrire',
