@@ -36,6 +36,8 @@ class ClientErrorRequest(BaseModel):
     stack: str | None = Field(default=None, max_length=12000)
     route: str | None = Field(default=None, max_length=500)
     source: str = Field(default="web", max_length=40)
+    # S4 stage 2: the id the error screen shows, so a learner's «Référence» finds this report.
+    event_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{6,32}$")
 
 
 def _require_admin(user: User) -> None:
@@ -162,6 +164,7 @@ class AnonymousClientErrorRequest(BaseModel):
     route: str | None = Field(default=None, max_length=200)
     source: str = Field(default="web", max_length=20)
     release: str | None = Field(default=None, max_length=80)
+    event_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{6,32}$")
 
     @field_validator("source")
     @classmethod
