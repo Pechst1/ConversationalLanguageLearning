@@ -37,6 +37,7 @@ import { listenLabel } from '@/components/atelier-v2/journey/useStepVoice';
 import { pickByLanguage } from '@/lib/language-rule';
 
 import { courrierCopy, crFill, crPlural, useCrCopy } from './courrier-copy';
+import { turnReplyAskedAgain } from './mission-turns';
 
 export { useCrCopy } from './courrier-copy';
 
@@ -318,6 +319,61 @@ export function CrRepair({
         )}
       </div>
     </aside>
+  );
+}
+
+/* ---------- a learner message nobody answered (#590 / #693) ----------
+   The thread says so under the message and offers to ask again. While the ask
+   runs the press is busy: spinner, words, really disabled. Once an ask came
+   back empty (the server counts each one on the turn, or the call itself
+   failed) the line says that it ran, when, and what the learner can do, so a
+   failed retry never leaves the thread reading as it did before the press. */
+export function CrReplyPending({
+  name,
+  turn,
+  retrying = false,
+  failed = false,
+  disabled = false,
+  onRetry,
+}: {
+  name: string;
+  turn: Record<string, any>;
+  /** The ask for this message is in flight. */
+  retrying?: boolean;
+  /** The last ask for this message did not reach the server (no count on the turn). */
+  failed?: boolean;
+  /** Another call holds the thread (a send, another ask). */
+  disabled?: boolean;
+  /** Omitted when the letter is finished: the line stays, the press goes. */
+  onRetry?: () => void;
+}) {
+  const t = useCrCopy();
+  const time = String(turn?.reply_asked_local_time || '').trim();
+  const askedAgain = !retrying && (failed || turnReplyAskedAgain(turn));
+  const line = askedAgain
+    ? time && turnReplyAskedAgain(turn)
+      ? crFill(t.reply_retry_failed_line, { name, time })
+      : crFill(t.reply_retry_failed_line_untimed, { name })
+    : crFill(t.reply_pending_line, { name });
+  return (
+    <>
+      <p className={'cr-unassessed cr-unanswered' + (askedAgain ? ' cr-unanswered--failed' : '')} role="status">
+        {line}
+      </p>
+      {onRetry && (
+        <Action
+          tone="quiet"
+          inline
+          className="cr-reply-retry"
+          disabled={disabled}
+          pending={retrying}
+          pendingLabel={t.reply_retrying}
+          onClick={onRetry}
+        >
+          {t.reply_retry}
+        </Action>
+      )}
+    </>
   );
 }
 
@@ -1391,6 +1447,8 @@ export function CourrierStyles() {
       .av2 .cr-turn-time { font-size: var(--av2-t-meta); color: var(--av2-muted); font-variant-numeric: tabular-nums; padding: 0 6px; }
       .av2 .cr-unassessed { margin: 4px 0 0 auto; max-width: 80%; text-align: right; font-size: var(--av2-t-meta); color: var(--av2-muted); }
       .av2 .cr-unassessed + .cr-trad-btn { margin: -6px 0 0 auto; }
+      .av2 .cr-unanswered--failed { color: var(--av2-ink-2); }
+      .av2 .cr-unassessed + .cr-reply-retry { margin: 0 0 0 auto; }
       .av2 .cr-typing {
         display: inline-flex; align-items: center; gap: 8px;
         font-size: var(--av2-t-meta); font-weight: 600; color: var(--av2-blue);

@@ -6715,6 +6715,52 @@ def unanswered_user_turns(
     ]
 
 
+#: #693: kept on a learner turn's ``audio_payload`` (the turn's own metadata): how often its
+#: reply was asked for and came back empty, and when last.
+REPLY_ASKS_KEY = "reply_asks"
+
+
+def note_unanswered_ask(turn: Any) -> int:
+    """#693: one more ask for this learner turn's reply came back empty; how many so far.
+
+    «Ask again» that failed used to leave nothing behind: the thread read exactly as before
+    the press, so the learner could not tell a retry that ran and failed from one that never
+    ran. Each empty ask is now a fact of the turn, read back by ``unanswered_fields``.
+    """
+
+    payload = dict(turn.audio_payload or {})
+    asks = payload.get(REPLY_ASKS_KEY)
+    count = int((asks if isinstance(asks, dict) else {}).get("count") or 0) + 1
+    payload[REPLY_ASKS_KEY] = {"count": count, "last_at": utc_iso(datetime.now(UTC))}
+    turn.audio_payload = payload
+    return count
+
+
+def unanswered_fields(turn: Any, zone: str | None) -> dict[str, Any]:
+    """What the thread says under a learner message nobody answered (#590 / #693).
+
+    That it is pending, how many times its reply was asked for (``1``: only when it was
+    sent; ``2`` and more: «Ask again» ran and came back empty) and when it was last asked,
+    on the wire and on the learner's clock. A turn stored before #693 counts as asked once,
+    when it was written.
+    """
+
+    asks = (turn.audio_payload or {}).get(REPLY_ASKS_KEY) if isinstance(turn.audio_payload, dict) else None
+    asks = asks if isinstance(asks, dict) else {}
+    last: datetime | None = None
+    try:
+        last = datetime.fromisoformat(str(asks["last_at"])) if asks.get("last_at") else None
+    except ValueError:
+        last = None
+    last = last or getattr(turn, "created_at", None)
+    return {
+        "reply_state": "pending",
+        "reply_attempts": max(1, int(asks.get("count") or 0)),
+        "reply_asked_at": utc_iso(last),
+        "reply_asked_local_time": local_clock(last, zone),
+    }
+
+
 class MissionConversationService:
     """Generate mission chat responses without duplicating the old audio route."""
 
@@ -7830,8 +7876,9 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
                 "audio_payload": turn.audio_payload or {},
                 "correction": turn.correction_payload or {},
                 **(_stored_check(turn.correction_payload, turn.text) if turn.role == "user" else {}),
-                # #590: every learner message nobody answered says so on the thread itself.
-                **({"reply_state": "pending"} if id(turn) in unanswered_ids else {}),
+                # #590: every learner message nobody answered says so on the thread itself;
+                # #693: with how often its reply was asked for, so a failed retry shows.
+                **(unanswered_fields(turn, zone) if id(turn) in unanswered_ids else {}),
                 **stamp_fields(turn.created_at, zone),
             }
             for turn in sorted(mission.turns or [], key=lambda item: item.turn_index)

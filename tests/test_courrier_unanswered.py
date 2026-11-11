@@ -219,3 +219,37 @@ def test_asking_again_for_an_earlier_message_answers_it_from_the_thread_as_it_st
     client.post(f"/api/v1/missions/{mission_id}/turns/{second_id}/reply", headers=headers)
 
     assert seen == [3], "the retry for message 2 must not read what the learner wrote after it"
+
+
+# #693 — live walk 11 Nov: Lila never answered, «Ask again» was pressed, and the thread read
+# exactly as before: the learner could not tell whether the retry had run, failed or was still
+# going. A failed ask is now a fact of the learner's turn (how many times the correspondent was
+# asked, and when last), so the thread itself says a retry ran and failed, also after a reload.
+
+
+def test_a_reply_asked_again_that_fails_again_says_so_on_the_thread(client, monkeypatch):
+    headers, mission_id = _setup(client, monkeypatch)
+    _provider_answers(monkeypatch, [_stock(), _stock(), "Merci, à demain !"])
+    sent = _send(client, headers, mission_id, MESSAGES[0])
+    turn_id = _user_turns(sent["mission"])[-1]["id"]
+    assert _user_turns(sent["mission"])[-1].get("reply_attempts") == 1, "the first failed ask left no trace"
+
+    retried = client.post(f"/api/v1/missions/{mission_id}/turns/{turn_id}/reply", headers=headers)
+
+    assert retried.status_code == 200, retried.text
+    body = retried.json()
+    assert body["outcome"]["reply_state"] == "pending"
+    assert body["outcome"].get("reply_attempts") == 2, "«Ask again» ran and failed, but the answer reads as before it"
+    asked = _user_turns(body["mission"])[-1]
+    assert asked["reply_state"] == "pending"
+    assert asked.get("reply_attempts") == 2, "the thread does not say the retry ran and failed"
+    assert asked.get("reply_asked_at"), "the thread does not say when the correspondent was last asked"
+    reloaded = client.get(f"/api/v1/missions/{mission_id}", headers=headers).json()
+    reloaded = reloaded.get("mission", reloaded)
+    assert _user_turns(reloaded)[-1].get("reply_attempts") == 2, "a reload forgets the failed retry"
+
+    answered = client.post(f"/api/v1/missions/{mission_id}/turns/{turn_id}/reply", headers=headers).json()
+
+    assert answered["assistant_turn"]["text"] == "Merci, à demain !"
+    assert "reply_state" not in answered["outcome"]
+    assert "reply_attempts" not in _user_turns(answered["mission"])[-1], "an answered message still reads as failed"
