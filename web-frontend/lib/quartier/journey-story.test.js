@@ -291,10 +291,10 @@ test('what /quartier does with each state of the day', () => {
   assert.equal(kind(journey({ current: 'end' })), 'practice');
   assert.equal(kind(journey({ current: 'words' })), 'practice');
   assert.equal(kind(journey({ current: null })), 'practice', 'every step done, the day not yet finished');
-  // a scene that goes where the world has built nothing yet (Marin and Lila's flat) is the Feuilleton's to tell, not played in a place it is not
-  const back = { ...STAGE, key: 't5.b', location_id: 'marin_lila_flat', movements: STAGE.movements.map((m) => (m.id === 'a.p1' ? { ...m, location_id: 'marin_lila_flat' } : m)) };
+  // a scene that goes where the world has built nothing yet (the gérance Marchand) is the Feuilleton's to tell, not played in a place it is not
+  const back = { ...STAGE, key: 't6.a', location_id: 'marchand_office', movements: STAGE.movements.map((m) => (m.id === 'a.p1' ? { ...m, location_id: 'marchand_office' } : m)) };
   assert.equal(kind(journey({ stage: back })), 'handoff:elsewhere');
-  assert.equal(todayOf(journey({ stage: back })).place, 'marin_lila_flat');
+  assert.equal(todayOf(journey({ stage: back })).place, 'marchand_office');
   assert.equal(kind(journey({ stage: back, current: 'talk' })), 'handoff:elsewhere', 'nothing answered yet');
   assert.equal(kind(journey({ stage: back, current: 'talk', turn: 2 })), 'handoff:midway');
   assert.equal(kind(journey({ stage: back, current: 'words' })), 'practice', 'the scene told, the rest of the day is the same');

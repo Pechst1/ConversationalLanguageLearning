@@ -7,11 +7,11 @@
     "stairwell": "escalier_mistral",
     "odile_flat": "odile_flat",
     "user_apartment": "user_apartment",
+    "marin_lila_flat": "chez_marin_lila",
     "notaire": "notaire",
     "toit": "toit_mistral"
   },
   "to_be_built": {
-    "marin_lila_flat": "L'appartement de Marin et Lila",
     "ngo_office": "Le bureau de l'ONG de Marin",
     "mairie": "La mairie du 10e",
     "marchand_office": "La gérance Marchand",

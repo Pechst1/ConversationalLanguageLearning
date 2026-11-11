@@ -1,0 +1,413 @@
+{
+  "id": "chez_marin_lila",
+  "kind": "room",
+  "round": 3,
+  "in": "quai_de_valmy",
+  "canon": {
+    "doc": "docs/story/season-1/10-lieux-et-images.md",
+    "place": "Marin and Lila's flat",
+    "scenes": [
+      "T5 · «Tu le découvres», B without the key: P2 to P9"
+    ]
+  },
+  "ambiance": "nuit",
+  "title": {
+    "fr": "Chez Marin et Lila",
+    "en": "At Marin and Lila's",
+    "de": "Bei Marin und Lila"
+  },
+  "can_do": {
+    "fr": "Lire la caisse dans l'entrée, lire la carte sur le frigo, voir la toile emballée.",
+    "en": "Read the crate in the hallway, read the card on the fridge, see the wrapped canvas.",
+    "de": "Die Kiste im Flur lesen, die Karte am Kühlschrank lesen, die verpackte Leinwand sehen."
+  },
+  "arrive": {
+    "fr": "Chez Marin et Lila, au troisième. Marin est dans le Finistère. Dans l'entrée, une caisse.",
+    "en": "At Marin and Lila's, on the third floor. Marin is in Finistère. In the hallway, a crate.",
+    "de": "Bei Marin und Lila, im dritten Stock. Marin ist im Finistère. Im Flur steht eine Kiste."
+  },
+  "start": {
+    "pos": [
+      -34.45,
+      10.5
+    ],
+    "look": [
+      -33.75,
+      11.799999999999999,
+      9.4
+    ]
+  },
+  "spaces": [
+    {
+      "key": "entree",
+      "rect": [
+        -35.0,
+        9.2,
+        -32.45,
+        11.4
+      ],
+      "floor": 11.2,
+      "ceiling": 14.0,
+      "finish": "boards",
+      "walls": {
+        "finish": "plaster",
+        "tone": "white"
+      },
+      "open": {
+        "e": [
+          {
+            "u": [
+              0.7,
+              1.6
+            ],
+            "top": 13.3,
+            "framed": true
+          }
+        ]
+      }
+    },
+    {
+      "key": "sejour",
+      "rect": [
+        -32.2,
+        8.0,
+        -27.26,
+        12.6
+      ],
+      "floor": 11.2,
+      "ceiling": 14.0,
+      "finish": "boards",
+      "walls": {
+        "finish": "plaster",
+        "tone": "cream"
+      },
+      "open": {
+        "w": [
+          {
+            "u": [
+              1.8,
+              2.7
+            ],
+            "top": 13.3,
+            "framed": true
+          }
+        ]
+      }
+    }
+  ],
+  "floors": [
+    {
+      "key": "seuil",
+      "shape": [
+        [
+          -32.45,
+          9.9
+        ],
+        [
+          -32.2,
+          9.9
+        ],
+        [
+          -32.2,
+          10.8
+        ],
+        [
+          -32.45,
+          10.8
+        ]
+      ],
+      "y": 11.2,
+      "finish": "boards"
+    }
+  ],
+  "walls": [],
+  "flights": [],
+  "rails": [],
+  "doors": [
+    {
+      "key": "porte_palier",
+      "wall": "entree.w",
+      "u": [
+        0.45,
+        1.35
+      ],
+      "height": 2.2,
+      "hinge": "left",
+      "swing": "in",
+      "tone": "brown",
+      "opens": "never",
+      "mat": true
+    }
+  ],
+  "windows": [
+    {
+      "key": "fenetre_1",
+      "wall": "sejour.e",
+      "u": [
+        0.7,
+        1.8
+      ],
+      "y": [
+        11.28,
+        13.57
+      ],
+      "shutters": "open",
+      "guard": true
+    },
+    {
+      "key": "fenetre_2",
+      "wall": "sejour.e",
+      "u": [
+        2.8,
+        3.9
+      ],
+      "y": [
+        11.28,
+        13.57
+      ],
+      "shutters": "open",
+      "guard": true
+    }
+  ],
+  "lights": [
+    {
+      "key": "globe_sejour",
+      "kind": "globe",
+      "at": [
+        -29.7,
+        13.7,
+        10.3
+      ],
+      "power": 0.8,
+      "range": 6.0,
+      "ceiling": 14.0
+    },
+    {
+      "key": "globe_entree",
+      "kind": "globe",
+      "at": [
+        -33.7,
+        13.7,
+        10.3
+      ],
+      "power": 0.6,
+      "range": 3.6,
+      "ceiling": 14.0
+    }
+  ],
+  "switches": [],
+  "timers": {},
+  "things": [
+    {
+      "kind": "crate",
+      "at": [
+        -33.75,
+        11.2,
+        9.2
+      ],
+      "rot": 0,
+      "size": [
+        1.3,
+        1.05
+      ],
+      "text": [
+        "FRAGILE",
+        "BERLIN",
+        "KÜNSTLERHAUS AM KANAL"
+      ],
+      "look": {
+        "fr": "Une caisse en bois, debout dans l'entrée. Au pochoir : FRAGILE · BERLIN · KÜNSTLERHAUS AM KANAL.",
+        "en": "A wooden crate, standing in the hallway. Stencilled: FRAGILE · BERLIN · KÜNSTLERHAUS AM KANAL.",
+        "de": "Eine Holzkiste, aufrecht im Flur. Mit Schablone: FRAGILE · BERLIN · KÜNSTLERHAUS AM KANAL."
+      },
+      "did": {
+        "fr": "Tu as lu la caisse : BERLIN.",
+        "en": "You read the crate: BERLIN.",
+        "de": "Du hast die Kiste gelesen: BERLIN."
+      }
+    },
+    {
+      "kind": "kitchenette",
+      "at": [
+        -31.2,
+        11.2,
+        8.0
+      ],
+      "rot": 0,
+      "size": [
+        1.5
+      ]
+    },
+    {
+      "kind": "fridge",
+      "at": [
+        -29.95,
+        11.2,
+        8.0
+      ],
+      "rot": 0,
+      "size": [
+        0.6,
+        1.72
+      ],
+      "text": [
+        "LE MISTRAL À NOUS",
+        "À toi —",
+        "Viens voir la toile. Demain, je la mets dans la caisse.",
+        "Pardon pour l'autre soir. «Encore un secret», j'ai dit. Moi aussi, j'ai un secret.",
+        "Je pars le 8 janvier, à Berlin. Je veux te le dire avant tout le monde, et je"
+      ],
+      "look": {
+        "fr": "Sous la sardine, une carte de Lila : «À toi —». La dernière phrase n'est pas finie. À côté, ton dessin du dîner.",
+        "en": "Under the sardine, a card from Lila: «À toi —». The last sentence isn't finished. Beside it, your drawing from the dinner.",
+        "de": "Unter der Sardine eine Karte von Lila: «À toi —». Der letzte Satz ist nicht zu Ende. Daneben deine Zeichnung vom Abendessen."
+      },
+      "did": {
+        "fr": "Tu as lu la carte de Lila.",
+        "en": "You read Lila's card.",
+        "de": "Du hast Lilas Karte gelesen."
+      }
+    },
+    {
+      "kind": "table",
+      "at": [
+        -30.0,
+        11.2,
+        10.4
+      ],
+      "rot": 0
+    },
+    {
+      "kind": "chair",
+      "at": [
+        -30.0,
+        11.2,
+        9.75
+      ],
+      "rot": 0
+    },
+    {
+      "kind": "chair",
+      "at": [
+        -30.0,
+        11.2,
+        11.05
+      ],
+      "rot": 3.1416
+    },
+    {
+      "kind": "easel",
+      "at": [
+        -28.05,
+        11.2,
+        10.6
+      ],
+      "rot": -1.5708,
+      "size": [
+        0,
+        0
+      ],
+      "look": {
+        "fr": "Le chevalet de Lila. Vide.",
+        "en": "Lila's easel. Empty.",
+        "de": "Lilas Staffelei. Leer."
+      },
+      "did": {
+        "fr": "Tu as vu le chevalet vide.",
+        "en": "You saw the empty easel.",
+        "de": "Du hast die leere Staffelei gesehen."
+      }
+    },
+    {
+      "kind": "canvas",
+      "at": [
+        -30.2,
+        11.2,
+        12.6
+      ],
+      "rot": 3.1416,
+      "size": [
+        1.1,
+        0.85
+      ],
+      "look": {
+        "fr": "Une toile, face au mur, à moitié dans du papier bulle.",
+        "en": "A canvas, face to the wall, half in bubble wrap.",
+        "de": "Eine Leinwand, mit dem Bild zur Wand, halb in Luftpolsterfolie."
+      },
+      "did": {
+        "fr": "Tu as vu la toile emballée.",
+        "en": "You saw the wrapped canvas.",
+        "de": "Du hast die verpackte Leinwand gesehen."
+      }
+    },
+    {
+      "kind": "clock",
+      "at": [
+        -32.2,
+        13.0,
+        11.8
+      ],
+      "rot": 1.5708,
+      "text": [
+        "1:40"
+      ]
+    },
+    {
+      "kind": "armchair",
+      "at": [
+        -31.75,
+        11.2,
+        11.95
+      ],
+      "rot": 1.5708,
+      "tone": "celadon"
+    },
+    {
+      "kind": "coat",
+      "at": [
+        -33.4,
+        12.95,
+        11.4
+      ],
+      "rot": 3.1416
+    }
+  ],
+  "courts": [],
+  "canals": [
+    {
+      "z0": -45.0,
+      "z1": 30.0,
+      "storeys": 6,
+      "seed": 31,
+      "lit": 0.35
+    }
+  ],
+  "marks": {
+    "porte": [
+      -34.45,
+      11.2,
+      10.5
+    ],
+    "caisse": [
+      -33.75,
+      11.2,
+      10.15
+    ],
+    "frigo": [
+      -29.95,
+      11.2,
+      9.2
+    ],
+    "toile": [
+      -30.2,
+      11.2,
+      11.7
+    ],
+    "fenetre": [
+      -27.9,
+      11.2,
+      9.25
+    ]
+  }
+}
