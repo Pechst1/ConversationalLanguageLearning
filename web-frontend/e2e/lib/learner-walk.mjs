@@ -3,7 +3,7 @@
 // and runs the learner-clarity assertions as it goes.
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { FORGE_REPAIR, snapshot, sleep, TYPEABLE_FIELD, WORD_BANK_TILE } from './driver.mjs';
+import { FORGE_REPAIR, FORGE_SPOT, snapshot, sleep, TYPEABLE_FIELD, WORD_BANK_TILE } from './driver.mjs';
 import { missLayoutChecks, readingIsSteady } from './miss-layout.mjs';
 import { reversed, trackKey, trackVerdicts } from './verdict-timeline.mjs';
 import { englishWords, SERVER_BANNER } from './assertions.mjs';
@@ -382,6 +382,24 @@ export class LearnerWalk {
       const n = await faces.count();
       await faces.nth((this.day + state.itemIndex) % n).click({ timeout: 3000 }).catch(() => {});
       state.itemIndex += 1;
+      await sleep(150);
+      const check = page.locator('.av2-btn--primary:not([disabled])').first();
+      if (await check.count()) await check.click({ timeout: 3000 }).catch(() => {});
+      return true;
+    }
+    // La Forge «Trouve l'erreur»: tap a word, type its replacement, Check. Main's 7-day
+    // walk stood 10 s on «Trouve l'erreur» at 11/12 of B1 day 3's grammar step
+    // (run 42995373157): the walk had no hand for it.
+    const spotWords = page.locator(FORGE_SPOT.word);
+    if ((await spotWords.count()) && !(await page.locator(FORGE_SPOT.edited).count())) {
+      const n = await spotWords.count();
+      const word = spotWords.nth((this.day + state.itemIndex) % n);
+      state.itemIndex += 1;
+      const was = ((await word.innerText().catch(() => '')) || '').trim().toLowerCase();
+      await word.click({ timeout: 3000 }).catch(() => {});
+      const field = page.locator(FORGE_SPOT.field).first();
+      await field.fill(was === 'le' ? 'la' : 'le', { timeout: 3000 }).catch(() => {});
+      await field.press('Enter').catch(() => {});
       await sleep(150);
       const check = page.locator('.av2-btn--primary:not([disabled])').first();
       if (await check.count()) await check.click({ timeout: 3000 }).catch(() => {});
