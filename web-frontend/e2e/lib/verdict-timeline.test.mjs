@@ -48,3 +48,23 @@ test('an upheld appeal may turn a verdict once, to right; nothing else may', () 
   assert.equal(reversed({ states: ['wrong', 'correct'], appeal: 'refused' }).flips, true);
   assert.equal(reversed({ states: ['wrong', 'correct', 'wrong'], appeal: 'upheld' }).flips, true);
 });
+
+test('a missed item asked again is not the item answered before it (journey steps, no counter)', () => {
+  // Main's fr walk, 11 Nov 2026 (run 43027305551, A1 day 1, d1-23 … d1-25): «Laquelle est
+  // juste ?» right at «Étape 6 sur 6», then «Encore une fois» under the same caption, met
+  // while the old sheet was still leaving, then missed.
+  const RAPPEL = 'Étape 6 sur 6 Rappel · Étape 6 sur 6 Rappel · Je suis, tu es : les pronoms et être Laquelle est juste ? Ils sont à Lyon. Ils est à Lyon. Vérifier Indice';
+  const ENCORE = 'Étape 6 sur 6 Rappel · Étape 6 sur 6 Encore une fois · Je suis, tu es : les pronoms et être Dans quelle phrase trouvez-vous la règle du jour ?';
+  const at = (stepId, text, states = []) => ({ ...frame(text, states), stepId });
+  const timelines = play([
+    at('s6', RAPPEL),
+    at('s6', `${RAPPEL} Correct`, ['correct']),
+    at('s7', `${ENCORE} Correct`, ['correct']), // the right answer's sheet still leaving
+    at('s7', `${ENCORE} Pas encore`, ['wrong']),
+  ]);
+  assert.ok(timelines.every((t) => !t.flips), JSON.stringify(timelines));
+  assert.deepEqual(timelines.map((t) => t.distinct), [['correct'], ['wrong']]);
+  // The same step changing its verdict is still a reversal.
+  const [same] = play([at('s6', RAPPEL), at('s6', `${RAPPEL} Correct`, ['correct']), at('s6', `${RAPPEL} Pas encore`, ['wrong'])]);
+  assert.equal(same.flips, true);
+});

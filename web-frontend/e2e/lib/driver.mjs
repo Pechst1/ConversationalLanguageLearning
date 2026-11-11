@@ -123,6 +123,8 @@ export const SNAPSHOT_FN = ({ typeable, wordBankTile }) => {
     bodyLg: q('.av2-body--lg').map((n) => n.innerText.trim()),
     headline: q('.av2-headline').map((n) => n.innerText.trim()),
     stepLabel: (q('.av2-label')[0] || {}).innerText || '',
+    // The journey step on screen (JourneySession's header), for the verdict timeline.
+    stepId: (document.querySelector('[data-step-id]') || { getAttribute: () => null }).getAttribute('data-step-id'),
     dataStep: q('[data-step]').map((n) => n.getAttribute('data-step')),
     graded: q('.av2-graded').map((n) => ({ state: n.getAttribute('data-state'), text: n.innerText.trim() })),
     // #333: every line that says nobody read an answer carries its state.
