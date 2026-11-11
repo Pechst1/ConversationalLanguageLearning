@@ -27,6 +27,7 @@ import { Findings } from './lib/assertions.mjs';
 import { dayPlanVerdict } from './lib/day-plan.mjs';
 import { writeContactSheet } from './lib/contact-sheet.mjs';
 import { LearnerWalk } from './lib/learner-walk.mjs';
+import { daysSeen, SEASON_PAGES } from './lib/season-pages.mjs';
 import { registerLearner } from './lib/session.mjs';
 import { sleep, startStack } from './lib/stack.mjs';
 import { WALK_TIMEZONE } from './lib/walk-timezone.mjs';
@@ -281,25 +282,15 @@ async function readPage(l, day) {
   }
 }
 
-// WP-111: the tentpoles of season 1 the season learner must meet, each once, as the
-// bible wrote them (A2 lines). The weekend flex may move T2 by a day, never more.
-const SEASON_PAGES = [
-  { key: 't1.a', line: 'Tu as une valise, une lettre et une clé.', days: [1] },
-  { key: 't1.b', line: 'Mon grand-père a tout l\'immeuble', days: [2] },
-  { key: 't2.a', line: 'Tu devais partir aujourd\'hui. Tu es encore là.', days: [7, 8, 9] },
-  { key: 't2.b', line: 'Architecte d\'intérieur.', days: [8, 9, 10] },
-];
-
 function seasonChecks(l) {
   // A shorter walk (pull requests play 3 days) asks only for the pages it reached.
+  // #717: a page counts in the wording of any level (lib/season-pages.mjs).
   for (const page of SEASON_PAGES.filter((row) => Math.max(...row.days) <= l.dayCount)) {
-    // French print sets the apostrophe as ’ (lib/french-typography); the bible writes '.
-    const fold = (text) => text.replace(/[’ʼ]/g, "'");
-    const where = (l.pages || []).filter((row) => fold(row.text).includes(fold(page.line))).map((row) => row.day);
+    const where = daysSeen(page, l.pages);
     findings.check(
       'season-tentpole-on-its-day',
-      where.length >= 1 && where.every((day) => page.days.includes(day)) && new Set(where).size === 1,
-      `${page.key}: «${page.line}» seen on day(s) ${where.join(', ') || 'none'} (expected one of ${page.days.join(', ')})`,
+      where.length >= 1 && where.every((day) => page.days.includes(day)) && where.length === 1,
+      `${page.key}: «${page.line}» (or its wording at another level) seen on day(s) ${where.join(', ') || 'none'} (expected one of ${page.days.join(', ')})`,
       l.walk.where({ kind: 'reader' }),
     );
   }

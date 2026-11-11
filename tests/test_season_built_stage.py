@@ -223,3 +223,22 @@ def test_the_walk_s_fake_director_sets_a_season_page_where_it_was_offered():
     offered = {place["id"] for place in context["world"]["locations"]}
     context["season_script"] = {"brief": {}}
     assert {dev.FakeStoryProvider._season_draft(context, n)["location_id"] for n in range(14)} <= offered
+
+
+def test_the_walk_s_fake_director_never_repeats_one_of_the_last_five_situations():
+    """#717: the fake set a season page from a counter shared by the whole walk. On the
+    11 Nov season walk all three attempts of day 7 landed on situations of the last five
+    pages, the engine refused each one as ``repeated_situation``, and the day was lost
+    (it re-read T1 Day B). A compliant director picks a situation not recently played."""
+
+    import dev_story_engine_server as dev
+
+    for n in range(14):
+        recent = [
+            {"premise_fr": dev.SEASON_PREMISES[(n + k) % len(dev.SEASON_PREMISES)], "objective_native": dev.PREMISES[(n + k) % len(dev.PREMISES)][1]}
+            for k in range(5)
+        ]
+        context = {"season_script": {"brief": {}}, "recent_situations": recent}
+        draft = dev.FakeStoryProvider._season_draft(context, n)
+        assert draft["premise_fr"] not in {row["premise_fr"] for row in recent}, n
+        assert draft["objective_native"] not in {row["objective_native"] for row in recent}, n

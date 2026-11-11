@@ -36,12 +36,6 @@ export const KNOWN_FAILURES = [
     when: (detail, where) => where.drill === 'match' && /^appeal unread:/.test(detail),
   },
   {
-    id: 'season-tentpole-on-its-day',
-    issue: 717,
-    why: "season 1's second tentpole (t2.a, t2.b) does not land on days 7-10 with production's flags and full days",
-    when: (detail) => /^t2\.[ab]: /.test(detail),
-  },
-  {
     id: 'drill-reload-keeps-the-batch',
     issue: 718,
     why: "after the day's words step, a drill reload refills the answered slots",
