@@ -33,3 +33,19 @@ test('#717: only the second tentpole is known; the first still fails the walk', 
   assert.equal(knownFailure(id, '«Architecte»', {}), null);
   assert.equal(knownFailure(id, 't1.b: «Mon grand-père» seen on day(s) 3 (expected one of 2)', {}), null);
 });
+
+test('#718: a reload that serves the batch plus refills is known; one that drops or reorders is not', () => {
+  const id = 'drill-reload-keeps-the-batch';
+  const d = (served) => `answered 1, 2; expected {"fragile_words":[5,6],"new_words":[9]}, the reload served ${JSON.stringify(served)}`;
+  assert.equal(knownFailure(id, d({ fragile_words: [5, 6, 7], new_words: [9, 10] }), {})?.issue, 718);
+  assert.equal(knownFailure(id, d({ fragile_words: [6, 5], new_words: [9] }), {}), null);
+  assert.equal(knownFailure(id, d({ fragile_words: [5], new_words: [9] }), {}), null);
+  assert.equal(knownFailure(id, d({ fragile_words: [5, 6], new_words: [9] }), {}), null);
+});
+
+test('#196: an English sentence quoted by a French drill is known; English chrome is not', () => {
+  const id = 'no-english-on-french-b1';
+  assert.equal(knownFailure(id, 'English chrome on a French screen: at, the, you — «ègleComplète la phrase : « Last night, when Margaux arrived at the flea market, you had already closed Le Mistral. »Vérifier»', {})?.issue, 196);
+  assert.equal(knownFailure(id, 'English chrome on a French screen: to, the, answer — «Tap to turnShow the answer»', {}), null);
+  assert.equal(knownFailure(id, 'English chrome: — «Complète la phrase : « Hier, Margaux est arrivée au marché. »»', {}), null);
+});
