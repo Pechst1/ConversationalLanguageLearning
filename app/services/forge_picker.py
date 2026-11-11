@@ -12,8 +12,9 @@ journey and the séance can never disagree about what today is:
 
   1. the rule the learner explicitly asked for (``preferred_concept_id``: the
      Cahier fiche, a practice link) — always seated, always first;
-  2. the rule introduced today (``introduced_at`` today, WP-L4's Règle read or
-     its first evidence), not yet held;
+  2. the rule introduced today (``introduced_at`` today), not yet held, that
+     the learner was taught (its Règle read, or La Forge worked it: #698, a
+     scene slip this morning stamps ``introduced_at`` too and is not a lesson);
   3. a rule a due erratum points at (repair first: the learner's own
      mistake is the most urgent thing to forge);
   4. today's new rule from the rhythm quota (:func:`concept_life.introduction_due`
@@ -79,6 +80,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.services.chrome_language import user_mother_tongue
+from app.services.concept_life import rule_was_taught
 
 ForgeRole = Literal["today", "due", "contrast"]
 ROLE_TODAY: ForgeRole = "today"
@@ -264,25 +266,6 @@ def _introduced(progress: UserGrammarProgress) -> bool:
     return progress.introduced_at is not None or int(progress.reps or 0) > 0
 
 
-def rule_was_taught(progress: UserGrammarProgress | None) -> bool:
-    """Did the learner go through this rule's own teaching? (#169)
-
-    Taught means La Forge has worked it (``forge_rung`` is set the first time
-    the forge writes evidence for it), its épreuve was passed, or it is held.
-    ``introduced_at`` alone is not enough: the first evidence on *any* surface
-    stamps it, so a scene that showed «un, une, des», a recall card or an
-    erratum (even a false correction, #318) "introduces" a rule nobody taught.
-    """
-
-    if progress is None:
-        return False
-    return (
-        progress.forge_rung is not None
-        or progress.tested_out_at is not None
-        or progress.held_at is not None
-    )
-
-
 def _scheduled_due(progress: UserGrammarProgress, *, now: datetime) -> bool:
     """Its schedule says it is due now (or it was due this morning and the
     Rappel reviewed it today: the forge still climbs it, WP-S8)."""
@@ -341,15 +324,18 @@ def _anchor(
             return concept.id, REASON_PREFERRED, progress is None or not _introduced(progress)
 
     today = now.date()
+    stamped_today = [
+        (stamp, concept.id)
+        for progress, concept in rows
+        if (stamp := _aware(progress.introduced_at)) is not None
+        and stamp.date() == today
+        and stamp <= now
+        and progress.held_at is None
+    ]
+    # #698: «introduced» is the card, not the first evidence on any surface.
+    taught = concept_life.taught_concept_ids(db, user.id) if stamped_today else set()
     introduced_today = sorted(
-        (
-            (stamp, concept.id)
-            for progress, concept in rows
-            if (stamp := _aware(progress.introduced_at)) is not None
-            and stamp.date() == today
-            and stamp <= now
-            and progress.held_at is None
-        ),
+        ((stamp, concept_id) for stamp, concept_id in stamped_today if concept_id in taught),
         reverse=True,
     )
     if introduced_today and not _second_new_rule_due(db, user, now=now):

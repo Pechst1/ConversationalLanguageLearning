@@ -4959,7 +4959,12 @@ class DailyJourneyService:
         """WP-129 (D7): briefs of the units today's tentpole page uses that the
         learner was introduced to before today — the page's own order, a unit
         not yet held first. ``None`` when there are none (nothing is reviewed:
-        a new unit is never shown as review). A failure costs the review only."""
+        a new unit is never shown as review). A failure costs the review only.
+
+        #698: «introduced» here is *taught* (a rule card read, or La Forge worked
+        it: :func:`concept_life.taught_concept_ids`), never the first evidence on
+        any surface. A scene that corrected «de Odile» stamps the articles as
+        introduced; they are not «a rule you know» for that."""
 
         if not story_units or not settings.ATELIER_JOURNEY_PRACTICE_DAY_ENABLED:
             return None
@@ -4967,7 +4972,7 @@ class DailyJourneyService:
         def briefs() -> list[dict[str, Any]] | None:
             from app.db.models.grammar import GrammarConcept, UserGrammarProgress
             from app.services.chrome_language import user_chrome_language
-            from app.services.concept_life import concept_brief
+            from app.services.concept_life import concept_brief, taught_concept_ids
 
             today = _utcnow()
             rows = (
@@ -4982,6 +4987,8 @@ class DailyJourneyService:
                 )
                 .all()
             )
+            taught = taught_concept_ids(self.db, user.id, before=today) if rows else set()
+            rows = [row for row in rows if row[1].id in taught]
             order = {unit: index for index, unit in enumerate(story_units)}
             rows.sort(key=lambda row: (row[0].held_at is not None, order.get(row[1].external_id, 10**6)))
             language = str(user_chrome_language(user))

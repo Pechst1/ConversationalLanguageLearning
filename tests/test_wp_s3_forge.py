@@ -518,6 +518,11 @@ def test_default_composer_seats_the_journeys_rule_of_the_day_and_its_contrast_pa
                             introduced_at=now - timedelta(days=20), next_review=now + timedelta(days=5)),
     ])
     db_session.commit()
+    # The journey introduced it: its Règle was read (#698: a stamp alone is any evidence).
+    from tests.test_taught_rule_698 import read_rule_card
+
+    read_rule_card(db_session, user, today.id, at=now)
+    db_session.commit()
 
     # The default composer is WP-S4's one picker: today's rule is the one the
     # journey introduced, its met contrast partner comes along, and a rule
