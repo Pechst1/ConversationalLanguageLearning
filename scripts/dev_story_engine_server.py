@@ -589,6 +589,8 @@ class FakeStoryProvider:
             "objective_semantics": semantics,
             "character_id": character,
             "location_id": location,
+            # #621: the state ``scene_unity`` compares: one person, one place.
+            "scene_cast": [character],
             "causal_reason": "Suite de la saison, dans les règles de l'entre-deux.",
             "source_event_ids": [e["id"] for e in (context.get("events") or [])[-1:]],
             "novelty_key": f"season-{novelty}-{n}",
@@ -600,10 +602,10 @@ class FakeStoryProvider:
                 "possible_developments": ["Quelque chose change.", "Rien ne bouge encore."],
             },
             "panels": [
-                {"narration_fr": SEASON_PREMISES[(n + 1) % len(SEASON_PREMISES)], "dialogue": [], "visual_direction": "Wide shot: two friends at work in the place.", "alt_native": "Two friends at work."},
-                {"narration_fr": "", "dialogue": [{"character_id": character, "text_fr": "Tu as une minute ?"}], "visual_direction": "Medium shot, the character turns to Toi.", "alt_native": "A friend turns to you."},
-                {"narration_fr": "Un silence.", "dialogue": [], "visual_direction": "Close-up of a glass on the zinc.", "alt_native": "A glass on the counter."},
-                {"narration_fr": "", "dialogue": [{"character_id": character, "text_fr": "Alors, on fait quoi ?"}], "visual_direction": "Close-up, waiting.", "alt_native": "A friend, waiting."},
+                {"location_id": location, "narration_fr": SEASON_PREMISES[(n + 1) % len(SEASON_PREMISES)], "dialogue": [], "visual_direction": "Wide shot: two friends at work in the place.", "alt_native": "Two friends at work."},
+                {"location_id": location, "narration_fr": "", "dialogue": [{"character_id": character, "text_fr": "Tu as une minute ?"}], "visual_direction": "Medium shot, the character turns to Toi.", "alt_native": "A friend turns to you."},
+                {"location_id": location, "narration_fr": "Un silence.", "dialogue": [], "visual_direction": "Close-up of a glass on the zinc.", "alt_native": "A glass on the counter."},
+                {"location_id": location, "narration_fr": "", "dialogue": [{"character_id": character, "text_fr": "Alors, on fait quoi ?"}], "visual_direction": "Close-up, waiting.", "alt_native": "A friend, waiting."},
             ],
             "opening_line_fr": "Tu m'aides ?",
             "suggested_response_fr": _suggested(context, "Oui, je peux t'aider samedi."),
