@@ -12,7 +12,7 @@ from uuid import UUID
 
 from loguru import logger
 from sqlalchemy import and_, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, object_session
 
 from app.config import settings
 from app.db.models.atelier import AtelierSession
@@ -6650,12 +6650,134 @@ def is_echo_reply(reply: Any, message: Any) -> bool:
     return bool(folded(reply)) and folded(reply) == folded(message)
 
 
-def _stored_check(correction: Any, text: Any) -> dict[str, Any]:
-    """The ``check`` field of a stored message. A row never sent for correction has none."""
+def _stored_check(correction: Any, text: Any, *, row: Any = None, subject_type: str | None = None) -> dict[str, Any]:
+    """The ``check`` field of a stored message. A row never sent for correction has none.
+
+    With ``row`` (package V stage 3), the check says when it was checked since it was saved
+    unread (``checked_since``).
+    """
 
     if not correction:
         return {}
-    return {"check": verdicts.from_courrier(correction, text=str(text or "")).to_dict()}
+    check = verdicts.from_courrier(correction, text=str(text or "")).to_dict()
+    if row is not None and subject_type:
+        from app.services import verdict_settle
+
+        since = verdict_settle.checked_since(object_session(row), subject_type, row.id)
+        check["checked_since"] = since.isoformat() if since else None
+    return {"check": check}
+
+
+def erratum_key(item: dict) -> tuple[str, str]:
+    return (str(item.get("learner_text") or "").casefold(), str(item.get("corrected_target") or "").casefold())
+
+
+def correction_with_persistence(correction: dict, persisted: list[dict]) -> dict:
+    """``correction`` with the errata rows it filed (``persistence``), as every message stores it."""
+
+    saved = [item for item in persisted if item.get("id")]
+    # `saved_count` also counts the vocabulary credit rows, which the repair card
+    # never shows — printing it as "N réparations enregistrées" claimed repairs
+    # that were not on screen. `repair_count` is the honest one for that line.
+    repairs = [
+        item
+        for item in saved
+        if not item.get("linked_word_id") and str(item.get("error_category") or "") != "vocabulary"
+    ]
+    return {
+        **correction,
+        "persistence": {
+            "saved_count": len(saved),
+            "repair_count": len(repairs),
+            "error_ids": [str(item["id"]) for item in saved],
+            "records": saved,
+        },
+    }
+
+
+def recheck_message(db: Session, *, user: User, row: Any) -> list[dict]:
+    """#251 / package V stage 3: ask the corrector again for a message it could not read.
+
+    ``row`` is a learner's Courrier attempt or turn. Only an ``unassessed`` message is asked
+    again (the model failed and the model-free pass found nothing); anything else is left as
+    it stands. When the model fails again, the message keeps its first correction. The first
+    pass already credited the words and filed the rule fixes (#333): only what the model adds
+    is filed now, so one mistake is counted once. Returns the errata filed now. Commits.
+    """
+
+    previous = dict(row.correction_payload or {})
+    if previous.get("verdict") != "unassessed":
+        return []
+    mission = row.mission
+    is_turn = isinstance(row, RealWorldMissionTurn)
+    text = row.text if is_turn else str((row.answer_payload or {}).get("text") or "")
+    service = MissionCorrectionService(db)
+    correction = service.correct_submission(user=user, mission=mission, text=text or "", mode=row.mode, near_realtime=False)
+    if correction.get("verdict") == "unassessed":
+        return []
+    filed = {erratum_key(item) for item in previous.get("errata") or [] if isinstance(item, dict)}
+    persisted = service.persist_errata(
+        user=user,
+        mission=mission,
+        correction={**correction, "errata": [item for item in correction.get("errata") or [] if erratum_key(item) not in filed]},
+        mode=row.mode,
+        source_id=str(row.id),
+        include_vocabulary=False,
+    )
+    already = [record for record in (previous.get("persistence") or {}).get("records") or [] if isinstance(record, dict)]
+    row.correction_payload = correction_with_persistence(correction, [*persisted, *already])
+    if not is_turn:
+        row.verdict = correction.get("verdict", "needs_revision")
+        row.score_0_4 = float(correction.get("score_0_4") or 0)
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return persisted
+
+
+#: The debrief's line once a letter nobody could read has been read since.
+CHECKED_SINCE_LABEL = "Vérifiée depuis : tes messages ont été relus."
+
+
+def settle_finished_letter(db: Session, *, user: User, mission: Any, now: datetime | None = None) -> bool:
+    """Package V stage 3: a finished letter whose last unread message was read since pays now.
+
+    At «Terminer», a letter with a message nobody could read paid no gold and no token
+    (#333). When the settlement job (or «Ask again») reads that message later, the letter is
+    paid what it was due, once: the gold through the first attempt's ledger record
+    (:func:`gold_ledger.record_letter`), the token by its own key. The debrief says it was
+    checked since. Returns whether it paid. Does not commit.
+    """
+
+    if mission is None or getattr(mission, "status", None) != "completed" or getattr(mission, "serial_thread_id", None):
+        return False
+    recap = dict(mission.recap_payload or {})
+    measured = dict(recap.get("measured") or {})
+    if recap.get("checked_since") or not measured.get("unchecked"):
+        return False  # paid at «Terminer», or already settled
+    attempts = sorted(mission.attempts or [], key=lambda item: item.created_at)
+    counting = verdict_ledger.counting(db, [*attempts, *(mission.turns or [])])
+    if unanswered_user_turns(mission.turns, cut=counting) or unchecked_messages(attempts, mission.turns, cut=counting):
+        return False
+    from app.services import gold_ledger
+
+    when = now or datetime.now(UTC)
+    gold_ledger.record_letter(db, user=user, mission=mission, attempts=attempts, now=when)
+    minted = AtelierRewardService(db).mint_logo_token_for_mission(mission)
+    measured["unchecked"] = False
+    measured["checked_since"] = when.isoformat()
+    branch = dict(recap.get("branch_outcome") or {})
+    if branch:
+        branch["label"] = CHECKED_SINCE_LABEL
+        recap["branch_outcome"] = branch
+    mission.recap_payload = {
+        **recap,
+        "measured": measured,
+        "minted_collectibles": [*(recap.get("minted_collectibles") or []), *minted],
+        "checked_since": when.isoformat(),
+    }
+    db.add(mission)
+    return True
 
 
 def unchecked_messages(
@@ -7814,7 +7936,12 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
                 "correction": attempt.correction_payload or {},
                 "verdict": attempt.verdict,
                 "score_0_4": attempt.score_0_4,
-                **_stored_check(attempt.correction_payload, (attempt.answer_payload or {}).get("text")),
+                **_stored_check(
+                    attempt.correction_payload,
+                    (attempt.answer_payload or {}).get("text"),
+                    row=attempt,
+                    subject_type="courrier_attempt",
+                ),
                 **stamp_fields(attempt.created_at, zone),
             }
             for attempt in sorted(mission.attempts or [], key=lambda item: item.created_at)
@@ -7829,7 +7956,11 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
                 "text": turn.text,
                 "audio_payload": turn.audio_payload or {},
                 "correction": turn.correction_payload or {},
-                **(_stored_check(turn.correction_payload, turn.text) if turn.role == "user" else {}),
+                **(
+                    _stored_check(turn.correction_payload, turn.text, row=turn, subject_type="courrier_turn")
+                    if turn.role == "user"
+                    else {}
+                ),
                 # #590: every learner message nobody answered says so on the thread itself.
                 **({"reply_state": "pending"} if id(turn) in unanswered_ids else {}),
                 **stamp_fields(turn.created_at, zone),

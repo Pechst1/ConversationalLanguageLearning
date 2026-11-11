@@ -31,7 +31,7 @@ from app.schemas.missions import (
 )
 from app.schemas.verdict import VerdictView
 from app.services import story_correspondence as courrier
-from app.services import verdicts
+from app.services import verdict_settle, verdicts
 from app.services.cefr_progress import CEFRProgressService
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.missions import (
@@ -39,6 +39,7 @@ from app.services.missions import (
     MissionCorrectionService,
     MissionScheduler,
     SerialEpisodeNotReadyError,
+    correction_with_persistence,
     is_echo_reply,
     is_stock_reply,
     learner_zone,
@@ -83,17 +84,26 @@ def _attempt_read(attempt: RealWorldMissionAttempt) -> dict:
     }
 
 
-def _erratum_key(item: dict) -> tuple[str, str]:
-    return (str(item.get("learner_text") or "").casefold(), str(item.get("corrected_target") or "").casefold())
+def _check(
+    correction: dict | None,
+    text: str | None,
+    *,
+    db: Session | None = None,
+    user: User | None = None,
+    subject: tuple[str, Any] | None = None,
+    session: Session | None = None,
+) -> VerdictView:
+    """The message's check. With ``db``, this is the first read, so a failure is logged once.
 
-
-def _check(correction: dict | None, text: str | None, *, db: Session | None = None, user: User | None = None) -> VerdictView:
-    """The message's check. With ``db``, this is the first read, so a failure is logged once."""
+    ``subject`` (package V stage 3): the stored row, so the check says when it was checked
+    since it was saved unread.
+    """
 
     verdict = verdicts.from_courrier(correction, text=text or "")
     if db is not None:
         verdicts.note_failure(db, surface="courrier", verdict=verdict, user_id=getattr(user, "id", None))
-    return VerdictView.of(verdict)
+    since = verdict_settle.checked_since(db or session, *subject) if subject else None
+    return VerdictView.of(verdict, checked_since=since)
 
 
 def _turn_read(turn: RealWorldMissionTurn) -> dict:
@@ -109,28 +119,7 @@ def _turn_read(turn: RealWorldMissionTurn) -> dict:
     }
 
 
-def _correction_with_persistence(
-    correction: dict,
-    persisted: list[dict],
-) -> dict:
-    saved = [item for item in persisted if item.get("id")]
-    # `saved_count` also counts the vocabulary credit rows, which the repair card
-    # never shows — printing it as "N réparations enregistrées" claimed repairs
-    # that were not on screen. `repair_count` is the honest one for that line.
-    repairs = [
-        item
-        for item in saved
-        if not item.get("linked_word_id") and str(item.get("error_category") or "") != "vocabulary"
-    ]
-    return {
-        **correction,
-        "persistence": {
-            "saved_count": len(saved),
-            "repair_count": len(repairs),
-            "error_ids": [str(item["id"]) for item in saved],
-            "records": saved,
-        },
-    }
+_correction_with_persistence = correction_with_persistence
 
 
 def _next_turn_index(db: Session, mission: RealWorldMission) -> int:
@@ -626,46 +615,23 @@ def retry_mission_turn_correction(
     )
     if not user_turn:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reply not found")
-    previous = dict(user_turn.correction_payload or {})
-    persisted: list[dict] = []
-    if previous.get("verdict") == "unassessed":
-        correction_service = MissionCorrectionService(db)
-        correction = correction_service.correct_submission(
-            user=current_user,
-            mission=mission,
-            text=user_turn.text,
-            mode=user_turn.mode,
-            near_realtime=False,
-        )
-        if correction.get("verdict") != "unassessed":
-            # The first pass already credited this reply's words and filed its rule
-            # fixes (#333). Only what the model adds is new: one mistake is counted once.
-            filed = {_erratum_key(item) for item in previous.get("errata") or [] if isinstance(item, dict)}
-            persisted = correction_service.persist_errata(
-                user=current_user,
-                mission=mission,
-                correction={
-                    **correction,
-                    "errata": [item for item in correction.get("errata") or [] if _erratum_key(item) not in filed],
-                },
-                mode=user_turn.mode,
-                source_id=str(user_turn.id),
-                include_vocabulary=False,
-            )
-            already = [
-                record for record in (previous.get("persistence") or {}).get("records") or [] if isinstance(record, dict)
-            ]
-            user_turn.correction_payload = _correction_with_persistence(correction, [*persisted, *already])
-            db.add(user_turn)
-            db.commit()
-            db.refresh(user_turn)
-            db.refresh(mission)
+    # Package V stage 3: the same job the background sweep runs, inline and on the
+    # learner's own limit; a reply that already counts is handed back as it stands.
+    persisted = verdict_settle.ask(db, user=current_user, row=user_turn, subject_type="courrier_turn")
+    db.refresh(user_turn)
+    db.refresh(mission)
     return MissionTurnCorrectionResponse(
         user_turn=_turn_read(user_turn),
         correction=user_turn.correction_payload or {},
         errata=persisted,
         mission=serialize_mission(mission) or {},
-        check=_check(user_turn.correction_payload, user_turn.text, db=db, user=current_user),
+        check=_check(
+            user_turn.correction_payload,
+            user_turn.text,
+            db=db,
+            user=current_user,
+            subject=("courrier_turn", user_turn.id),
+        ),
     )
 
 

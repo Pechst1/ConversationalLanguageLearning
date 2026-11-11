@@ -19,6 +19,8 @@ export type CheckLike = {
   retryable?: boolean | null;
   edits?: CheckEdit[] | null;
   corrected?: string | null;
+  /** Package V stage 3: when an answer saved unread was checked since (the job or «Ask again»). */
+  checked_since?: string | null;
 };
 
 export type CheckState =
@@ -43,19 +45,27 @@ export function isUnread(state: CheckState): state is 'not_checked' | 'basic' {
   return state === 'not_checked' || state === 'basic';
 }
 
-/** The words of the two unread states. Each surface's copy table points here. */
+/** Whether this answer was saved unread and has been checked since: the screen says so once. */
+export function checkedSince(check: CheckLike | null | undefined): boolean {
+  return Boolean(check?.checked_since) && checkState(check) === 'settled';
+}
+
+/** The words of the two unread states, and of one read since. Each surface's copy table points here. */
 export const CHECK_COPY = {
   en: {
     not_checked: "Answer saved, not checked yet. It doesn't count yet.",
     basic: 'Basic check only. The full check did not run.',
+    checked_since: 'Checked since. It counts now.',
   },
   de: {
     not_checked: 'Antwort gespeichert, noch nicht geprüft. Sie zählt noch nicht.',
     basic: 'Nur Grundprüfung. Die volle Prüfung lief nicht.',
+    checked_since: 'Inzwischen geprüft. Sie zählt jetzt.',
   },
   fr: {
     not_checked: 'Réponse enregistrée, pas encore vérifiée. Elle ne compte pas encore.',
     basic: 'Vérification de base seulement. La vérification complète n’a pas eu lieu.',
+    checked_since: 'Vérifiée depuis. Elle compte maintenant.',
   },
 } as const;
 
