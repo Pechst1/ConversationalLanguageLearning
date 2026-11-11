@@ -718,6 +718,19 @@ class Settings(BaseSettings):
             "writes everything. Live pages keep the one call either way."
         ),
     )
+    STORY_SCENE_RECORD: bool = Field(
+        False,
+        description=(
+            "Story truth (#145, #147): a scene keeps a record of what each learner turn did "
+            "(answered, said no, asked, went off the subject), the reply lanes are written "
+            "from it, and a reply that asks an answered question again or quotes words the "
+            "learner never wrote is vetoed: re-rolled once, then the authored line. The "
+            "day's question is asked again only by the day contract (STORY_CONTRACT_REASK), "
+            "which reads «answered» from this record. Also: one cast (address and relations "
+            "live on the person), one scene per page, tomorrow's open question. Off: main's "
+            "behaviour before the stack."
+        ),
+    )
     STORY_DAY_CONTRACT: bool = Field(
         False,
         description=(

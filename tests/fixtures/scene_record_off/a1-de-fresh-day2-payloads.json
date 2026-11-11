@@ -1,0 +1,1927 @@
+{
+ "budget_seconds": 600,
+ "cefr": "A1.1",
+ "control_language": null,
+ "day": 2,
+ "day_shape": "standard",
+ "estimated_active_seconds": 542,
+ "events": [
+  {
+   "estimated_seconds": 95,
+   "page": [
+    {
+     "alt_native": null,
+     "dialogue": [
+      {
+       "character_id": "margaux_barman",
+       "character_name": "Margaux",
+       "text_fr": "Un chocolat ?",
+       "text_native": "Einen Kakao?"
+      },
+      {
+       "character_id": "camille_marchand",
+       "character_name": "Camille Marchand",
+       "text_fr": "Vous vous souvenez ?",
+       "text_native": "Sie erinnern sich?"
+      },
+      {
+       "character_id": "margaux_barman",
+       "character_name": "Margaux",
+       "text_fr": "Le mercredi. À neuf ans.",
+       "text_native": "Mittwochs. Mit neun."
+      }
+     ],
+     "narration_fr": ""
+    },
+    {
+     "alt_native": null,
+     "dialogue": [
+      {
+       "character_id": "camille_marchand",
+       "character_name": "Camille Marchand",
+       "text_fr": "Mon grand-père a tout, sauf votre appartement. Solvel veut tout.",
+       "text_native": "Meinem Großvater gehört alles außer Ihrer Wohnung. Solvel will alles."
+      }
+     ],
+     "narration_fr": ""
+    },
+    {
+     "alt_native": null,
+     "dialogue": [
+      {
+       "character_id": "camille_marchand",
+       "character_name": "Camille Marchand",
+       "text_fr": "Leur prix est dans votre lettre. Avant le 8 janvier.",
+       "text_native": "Ihr Preis steht in Ihrem Brief. Bis vor dem 8. Januar."
+      }
+     ],
+     "narration_fr": ""
+    },
+    {
+     "alt_native": null,
+     "dialogue": [
+      {
+       "character_id": "camille_marchand",
+       "character_name": "Camille Marchand",
+       "text_fr": "Vous vendez, non ? C'est plus simple pour nous tous.",
+       "text_native": "Sie verkaufen doch, oder? Das ist einfacher für uns alle."
+      }
+     ],
+     "narration_fr": ""
+    }
+   ],
+   "step": {
+    "id": "<id>",
+    "kind": "scene",
+    "prompt": {
+     "audio_available": false,
+     "character_line_audio_url": null,
+     "character_line_fr": "Vous vendez, non ? C'est plus simple pour nous tous.",
+     "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+     "listen_first": false,
+     "margin_notes": [],
+     "objective_native": "Sag Camille, ob du verkaufst und ob es wirklich für alle einfacher ist.",
+     "panels": null,
+     "premise_native": "Deine Großmutter hat dir hinterlassen, was über dem Mistral liegt, und das Feuer darunter. Behältst du es, teilst du es, oder lässt du es gehen?",
+     "previously_fr": [
+      "Le mauvais accueil"
+     ],
+     "reread_native": null,
+     "season_part": {
+      "day_in_segment": 2,
+      "kind": "tentpole",
+      "season_id": "s1",
+      "segment": "t1"
+     },
+     "setup_fr": "La lettre",
+     "setup_native": "Sagen, was du vorhast und wie sicher du bist; entscheiden, wem du vertraust.",
+     "stage": {
+      "band": "A1",
+      "can_do_native": "Sagen, was du vorhast und wie sicher du bist; entscheiden, wem du vertraust.",
+      "day": "b",
+      "key": "t1.b",
+      "language": "de",
+      "location_id": "le_mistral",
+      "movements": [
+       {
+        "diegetic": [],
+        "flashback": false,
+        "id": "b.p1",
+        "in_frame": [
+         "camille_marchand",
+         "margaux_barman"
+        ],
+        "kind": "panel",
+        "lines": [
+         {
+          "direction": null,
+          "kind": "speech",
+          "mood": "neutral",
+          "name": "Margaux",
+          "text_fr": "Un chocolat ?",
+          "text_native": "Einen Kakao?",
+          "who": "margaux_barman"
+         },
+         {
+          "direction": null,
+          "kind": "speech",
+          "mood": "moved",
+          "name": "Camille",
+          "text_fr": "Vous vous souvenez ?",
+          "text_native": "Sie erinnern sich?",
+          "who": "camille_marchand"
+         },
+         {
+          "direction": null,
+          "kind": "speech",
+          "mood": "neutral",
+          "name": "Margaux",
+          "text_fr": "Le mercredi. À neuf ans.",
+          "text_native": "Mittwochs. Mit neun.",
+          "who": "margaux_barman"
+         }
+        ],
+        "location_id": "le_mistral",
+        "silence": false,
+        "visual": "Camille at the zinc, helmet under one arm, dripping. Margaux hands over a towel without a word, then a hot chocolate nobody ordered."
+       },
+       {
+        "diegetic": [],
+        "flashback": false,
+        "id": "b.p2",
+        "in_frame": [
+         "camille_marchand",
+         "toi",
+         "augustin_de_roncourt",
+         "marin_leveque",
+         "lila_bonnet"
+        ],
+        "kind": "panel",
+        "lines": [
+         {
+          "direction": null,
+          "kind": "speech",
+          "mood": "neutral",
+          "name": "Camille",
+          "text_fr": "Mon grand-père a tout, sauf votre appartement. Solvel veut tout.",
+          "text_native": "Meinem Großvater gehört alles außer Ihrer Wohnung. Solvel will alles.",
+          "who": "camille_marchand"
+         }
+        ],
+        "location_id": "le_mistral",
+        "silence": false,
+        "visual": "Camille and Toi face to face at the zinc. Behind Toi, the group listens without shame: Gus holds a menu up as a screen, upside down; Marin forgets his soup; Lila openly turns her chair round."
+       },
+       {
+        "diegetic": [
+         "Solvel Immobilier — Bastien Roux"
+        ],
+        "flashback": false,
+        "id": "b.p3",
+        "in_frame": [
+         "camille_marchand",
+         "toi"
+        ],
+        "kind": "panel",
+        "lines": [
+         {
+          "direction": null,
+          "kind": "speech",
+          "mood": "neutral",
+          "name": "Camille",
+          "text_fr": "Leur prix est dans votre lettre. Avant le 8 janvier.",
+          "text_native": "Ihr Preis steht in Ihrem Brief. Bis vor dem 8. Januar.",
+          "who": "camille_marchand"
+         }
+        ],
+        "location_id": "le_mistral",
+        "silence": false,
+        "visual": "Camille slides a business card across the zinc (Solvel Immobilier, Bastien Roux) and taps Toi's envelope."
+       },
+       {
+        "choice": false,
+        "id": "b.turn1",
+        "kind": "turn",
+        "only_after": null,
+        "panel": {
+         "diegetic": [],
+         "flashback": false,
+         "id": "b.p4",
+         "in_frame": [
+          "camille_marchand",
+          "toi"
+         ],
+         "kind": "panel",
+         "lines": [
+          {
+           "direction": null,
+           "kind": "speech",
+           "mood": "neutral",
+           "name": "Camille",
+           "text_fr": "Vous vendez, non ? C'est plus simple pour nous tous.",
+           "text_native": "Sie verkaufen doch, oder? Das ist einfacher für uns alle.",
+           "who": "camille_marchand"
+          }
+         ],
+         "location_id": "le_mistral",
+         "silence": false,
+         "visual": "Camille, direct and not unkind, waiting. Toi's balloon."
+        },
+        "task_native": "Sag Camille, ob du verkaufst und ob es wirklich für alle einfacher ist.",
+        "to": "camille_marchand",
+        "to_name": "Camille"
+       },
+       {
+        "diegetic": [],
+        "flashback": false,
+        "id": "b.p5",
+        "in_frame": [
+         "augustin_de_roncourt",
+         "marin_leveque",
+         "lila_bonnet",
+         "margaux_barman"
+        ],
+        "kind": "panel",
+        "lines": [],
+        "location_id": "le_mistral",
+        "silence": true,
+        "visual": "The door closes behind Camille. The group turns, as one, toward Toi and the envelope."
+       },
+       {
+        "diegetic": [],
+        "flashback": false,
+        "id": "b.p6",
+        "in_frame": [
+         "lila_bonnet",
+         "margaux_barman",
+         "augustin_de_roncourt",
+         "marin_leveque"
+        ],
+        "kind": "panel",
+        "lines": [
+         {
+          "direction": null,
+          "kind": "speech",
+          "mood": "neutral",
+          "name": "Lila",
+          "text_fr": "Bon. On peut voir la lettre ?",
+          "text_native": "Also. Dürfen wir den Brief sehen?",
+          "who": "lila_bonnet"
+         }
+        ],
+        "location_id": "le_mistral",
+        "silence": false,
+        "visual": "Lila has pulled her chair up to the zinc. Four hands are more or less open: Margaux's flat on the zinc, Lila's outstretched, Gus's elegantly offered, Marin's hovering and embarrassed."
+       },
+       {
+        "choice": true,
+        "id": "b.letter",
+        "kind": "turn",
+        "only_after": null,
+        "panel": {
+         "diegetic": [],
+         "flashback": false,
+         "id": "b.letter.prompt",
+         "in_frame": [
+          "lila_bonnet"
+         ],
+         "kind": "panel",
+         "lines": [
+          {
+           "direction": null,
+           "kind": "speech",
+           "mood": "neutral",
+           "name": "Lila",
+           "text_fr": "À qui tu montres la lettre ?",
+           "text_native": "Wem zeigst du den Brief?",
+           "who": "lila_bonnet"
+          }
+         ],
+         "location_id": "le_mistral",
+         "silence": false,
+         "visual": null
+        },
+        "task_native": "Wähle, wer den Brief vom Notar liest.",
+        "to": "lila_bonnet",
+        "to_name": "Lila"
+       },
+       {
+        "diegetic": [
+         "1"
+        ],
+        "flashback": false,
+        "id": "b.r1",
+        "in_frame": [
+         "toi",
+         "lila_bonnet"
+        ],
+        "kind": "panel",
+        "lines": [],
+        "location_id": "stairwell",
+        "silence": true,
+        "visual": "After closing. The stairwell of the building next to the café door: one flight up, and the timed light ticks. Toi stands in front of a door with a brass «1». Behind Toi, on the lower steps, Lila has followed without asking."
+       },
+       {
+        "diegetic": [],
+        "flashback": false,
+        "id": "b.r2",
+        "in_frame": [
+         "toi"
+        ],
+        "kind": "panel",
+        "lines": [],
+        "location_id": "odile_flat",
+        "silence": true,
+        "visual": "The key turns and the door opens onto darkness. Street light falls through the shutters: a coat still on its hook, a stopped kitchen clock, a wall calendar. Everything waits. We see only the room and Toi's hand on the frame."
+       },
+       {
+        "diegetic": [],
+        "flashback": false,
+        "id": "b.r3",
+        "in_frame": [
+         "toi",
+         "lila_bonnet"
+        ],
+        "kind": "panel",
+        "lines": [],
+        "location_id": "stairwell",
+        "silence": true,
+        "visual": "Same framing, the door closing again. Toi has not gone in. Lila sits on the step with her chin on her knees."
+       },
+       {
+        "diegetic": [],
+        "flashback": false,
+        "id": "b.r4",
+        "in_frame": [
+         "lila_bonnet",
+         "toi"
+        ],
+        "kind": "panel",
+        "lines": [
+         {
+          "direction": null,
+          "kind": "speech",
+          "mood": "neutral",
+          "name": "Lila",
+          "text_fr": "Tu n'entres pas ? Je comprends.",
+          "text_native": "Du gehst nicht rein? Ich verstehe.",
+          "who": "lila_bonnet"
+         },
+         {
+          "direction": null,
+          "kind": "speech",
+          "mood": "moved",
+          "name": "Lila",
+          "text_fr": "Mercredi, je n'ai pas classe. Je viens avec toi.",
+          "text_native": "Mittwoch habe ich keinen Unterricht. Ich komme mit dir.",
+          "who": "lila_bonnet"
+         }
+        ],
+        "location_id": "stairwell",
+        "silence": false,
+        "visual": "The stairwell, the timed light. Lila on the step, looking up at Toi."
+       },
+       {
+        "id": "b.suivre",
+        "kind": "hook",
+        "panel": {
+         "diegetic": [
+          "Retour : mercredi 18 novembre"
+         ],
+         "flashback": false,
+         "id": "b.last",
+         "in_frame": [
+          "toi"
+         ],
+         "kind": "panel",
+         "lines": [
+          {
+           "direction": null,
+           "kind": "caption",
+           "mood": "neutral",
+           "name": null,
+           "text_fr": "Ton billet de retour est pour mercredi. Lila est libre mercredi. À suivre…",
+           "text_native": "Dein Rückflug ist am Mittwoch. Lila hat am Mittwoch frei. Fortsetzung folgt…",
+           "who": "caption"
+          }
+         ],
+         "location_id": "user_apartment",
+         "silence": false,
+         "visual": "Toi's rented studio. The radiator is cold, and Toi sits on the bed in the coat. On the phone screen: «Retour : mercredi 18 novembre». The key ring lies next to the phone, the cicada face up."
+        },
+        "role": "a_suivre"
+       }
+      ],
+      "number": 1,
+      "season_id": "s1",
+      "segment": "t1",
+      "story_date_fr": "jeudi 12 novembre",
+      "storylets": [],
+      "title_fr": "La lettre"
+     }
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "text",
+     "text": "Plus simple pour qui ?"
+    },
+    "intent": "average"
+   },
+   "estimated_seconds": 219,
+   "result": {
+    "character_lines": [
+     {
+      "speaker_id": "camille_marchand",
+      "speaker_name": "Camille",
+      "text_fr": "Pour mon grand-père. Il a soixante-quatorze ans. Et quatre étages."
+     },
+     {
+      "speaker_id": "camille_marchand",
+      "speaker_name": "Camille",
+      "text_fr": "Jeudi prochain, dix-huit heures. Je viens voir l'appartement."
+     },
+     {
+      "speaker_id": "lila_bonnet",
+      "speaker_name": "Lila",
+      "text_fr": "Bon. On peut voir la lettre ?"
+     }
+    ],
+    "character_reply_fr": "Pour mon grand-père. Il a soixante-quatorze ans. Et quatre étages.\nJeudi prochain, dix-huit heures. Je viens voir l'appartement.\nBon. On peut voir la lettre ?",
+    "correction": null,
+    "next_turn": {
+     "character_id": "lila_bonnet",
+     "character_line_audio_url": null,
+     "character_line_fr": "Pour mon grand-père. Il a soixante-quatorze ans. Et quatre étages.\nJeudi prochain, dix-huit heures. Je viens voir l'appartement.\nBon. On peut voir la lettre ?",
+     "character_name": "Lila",
+     "choices": [
+      {
+       "id": "margaux",
+       "label_fr": "Margaux",
+       "label_native": null
+      },
+      {
+       "id": "lila",
+       "label_fr": "Lila",
+       "label_native": null
+      },
+      {
+       "id": "gus",
+       "label_fr": "Gus",
+       "label_native": null
+      },
+      {
+       "id": "marin",
+       "label_fr": "Marin",
+       "label_native": null
+      },
+      {
+       "id": "nobody",
+       "label_fr": "Personne",
+       "label_native": "Niemand"
+      }
+     ],
+     "help_available": [
+      "hint",
+      "translation",
+      "suggested_response"
+     ],
+     "input_modes": [
+      "text"
+     ],
+     "letter": null,
+     "max_turns": 2,
+     "objective_native": "Wähle, wer den Brief vom Notar liest.",
+     "repair_allowed": false,
+     "spoken_reply": false,
+     "targets": [
+      {
+       "concept_title": false,
+       "id": "662",
+       "kind": "vocabulary",
+       "label_fr": "la lettre",
+       "label_native": "Brief"
+      }
+     ],
+     "thread": [
+      {
+       "character_fr": "Pour mon grand-père. Il a soixante-quatorze ans. Et quatre étages.\nJeudi prochain, dix-huit heures. Je viens voir l'appartement.\nBon. On peut voir la lettre ?",
+       "character_lines": [
+        {
+         "speaker_id": "camille_marchand",
+         "speaker_name": "Camille",
+         "text_fr": "Pour mon grand-père. Il a soixante-quatorze ans. Et quatre étages."
+        },
+        {
+         "speaker_id": "camille_marchand",
+         "speaker_name": "Camille",
+         "text_fr": "Jeudi prochain, dix-huit heures. Je viens voir l'appartement."
+        },
+        {
+         "speaker_id": "lila_bonnet",
+         "speaker_name": "Lila",
+         "text_fr": "Bon. On peut voir la lettre ?"
+        }
+       ],
+       "correction": null,
+       "learner_fr": "Plus simple pour qui ?",
+       "unchecked": false
+      }
+     ],
+     "turn_index": 1
+    },
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "character_id": "lila_bonnet",
+      "character_line_audio_url": null,
+      "character_line_fr": "Pour mon grand-père. Il a soixante-quatorze ans. Et quatre étages.\nJeudi prochain, dix-huit heures. Je viens voir l'appartement.\nBon. On peut voir la lettre ?",
+      "character_name": "Lila",
+      "choices": [
+       {
+        "id": "margaux",
+        "label_fr": "Margaux",
+        "label_native": null
+       },
+       {
+        "id": "lila",
+        "label_fr": "Lila",
+        "label_native": null
+       },
+       {
+        "id": "gus",
+        "label_fr": "Gus",
+        "label_native": null
+       },
+       {
+        "id": "marin",
+        "label_fr": "Marin",
+        "label_native": null
+       },
+       {
+        "id": "nobody",
+        "label_fr": "Personne",
+        "label_native": "Niemand"
+       }
+      ],
+      "help_available": [
+       "hint",
+       "translation",
+       "suggested_response"
+      ],
+      "input_modes": [
+       "text"
+      ],
+      "letter": null,
+      "max_turns": 2,
+      "objective_native": "Wähle, wer den Brief vom Notar liest.",
+      "repair_allowed": false,
+      "spoken_reply": false,
+      "targets": [
+       {
+        "concept_title": false,
+        "id": "662",
+        "kind": "vocabulary",
+        "label_fr": "la lettre",
+        "label_native": "Brief"
+       }
+      ],
+      "thread": [
+       {
+        "character_fr": "Pour mon grand-père. Il a soixante-quatorze ans. Et quatre étages.\nJeudi prochain, dix-huit heures. Je viens voir l'appartement.\nBon. On peut voir la lettre ?",
+        "character_lines": [
+         {
+          "speaker_id": "camille_marchand",
+          "speaker_name": "Camille",
+          "text_fr": "Pour mon grand-père. Il a soixante-quatorze ans. Et quatre étages."
+         },
+         {
+          "speaker_id": "camille_marchand",
+          "speaker_name": "Camille",
+          "text_fr": "Jeudi prochain, dix-huit heures. Je viens voir l'appartement."
+         },
+         {
+          "speaker_id": "lila_bonnet",
+          "speaker_name": "Lila",
+          "text_fr": "Bon. On peut voir la lettre ?"
+         }
+        ],
+        "correction": null,
+        "learner_fr": "Plus simple pour qui ?",
+        "unchecked": false
+       }
+      ],
+      "turn_index": 1
+     },
+     "status": "active"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "respond",
+    "prompt": {
+     "character_id": "camille_marchand",
+     "character_line_audio_url": null,
+     "character_line_fr": "Vous vendez, non ? C'est plus simple pour nous tous.",
+     "character_name": "Camille",
+     "choices": [],
+     "help_available": [
+      "hint",
+      "translation",
+      "suggested_response"
+     ],
+     "input_modes": [
+      "text"
+     ],
+     "letter": null,
+     "max_turns": 2,
+     "objective_native": "Sag Camille, ob du verkaufst und ob es wirklich für alle einfacher ist.",
+     "repair_allowed": true,
+     "spoken_reply": false,
+     "targets": [
+      {
+       "concept_title": false,
+       "id": "662",
+       "kind": "vocabulary",
+       "label_fr": "la lettre",
+       "label_native": "Brief"
+      }
+     ],
+     "thread": [],
+     "turn_index": 0
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "text",
+     "text": "Marin"
+    },
+    "intent": "average"
+   },
+   "estimated_seconds": 219,
+   "result": {
+    "character_lines": [
+     {
+      "speaker_id": "marin_leveque",
+      "speaker_name": "Marin",
+      "text_fr": "C'est un signe. Un mauvais."
+     },
+     {
+      "speaker_id": "marin_leveque",
+      "speaker_name": "Marin",
+      "text_fr": "Ma grand-mère dit : beaucoup d'argent, beaucoup de problèmes."
+     },
+     {
+      "speaker_id": "lila_bonnet",
+      "speaker_name": "Lila",
+      "text_fr": "Tu n'entres pas ? Je comprends."
+     },
+     {
+      "speaker_id": "lila_bonnet",
+      "speaker_name": "Lila",
+      "text_fr": "Mercredi, je n'ai pas classe. Je viens avec toi."
+     }
+    ],
+    "character_reply_fr": "C'est un signe. Un mauvais.\nMa grand-mère dit : beaucoup d'argent, beaucoup de problèmes.\nTu n'entres pas ? Je comprends.\nMercredi, je n'ai pas classe. Je viens avec toi.",
+    "correction": null,
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "character_id": "lila_bonnet",
+      "character_line_audio_url": null,
+      "character_line_fr": "Pour mon grand-père. Il a soixante-quatorze ans. Et quatre étages.\nJeudi prochain, dix-huit heures. Je viens voir l'appartement.\nBon. On peut voir la lettre ?",
+      "character_name": "Lila",
+      "choices": [
+       {
+        "id": "margaux",
+        "label_fr": "Margaux",
+        "label_native": null
+       },
+       {
+        "id": "lila",
+        "label_fr": "Lila",
+        "label_native": null
+       },
+       {
+        "id": "gus",
+        "label_fr": "Gus",
+        "label_native": null
+       },
+       {
+        "id": "marin",
+        "label_fr": "Marin",
+        "label_native": null
+       },
+       {
+        "id": "nobody",
+        "label_fr": "Personne",
+        "label_native": "Niemand"
+       }
+      ],
+      "help_available": [
+       "hint",
+       "translation",
+       "suggested_response"
+      ],
+      "input_modes": [
+       "text"
+      ],
+      "letter": null,
+      "max_turns": 2,
+      "objective_native": "Wähle, wer den Brief vom Notar liest.",
+      "repair_allowed": false,
+      "spoken_reply": false,
+      "targets": [
+       {
+        "concept_title": false,
+        "id": "662",
+        "kind": "vocabulary",
+        "label_fr": "la lettre",
+        "label_native": "Brief"
+       }
+      ],
+      "thread": [
+       {
+        "character_fr": "Pour mon grand-père. Il a soixante-quatorze ans. Et quatre étages.\nJeudi prochain, dix-huit heures. Je viens voir l'appartement.\nBon. On peut voir la lettre ?",
+        "character_lines": [
+         {
+          "speaker_id": "camille_marchand",
+          "speaker_name": "Camille",
+          "text_fr": "Pour mon grand-père. Il a soixante-quatorze ans. Et quatre étages."
+         },
+         {
+          "speaker_id": "camille_marchand",
+          "speaker_name": "Camille",
+          "text_fr": "Jeudi prochain, dix-huit heures. Je viens voir l'appartement."
+         },
+         {
+          "speaker_id": "lila_bonnet",
+          "speaker_name": "Lila",
+          "text_fr": "Bon. On peut voir la lettre ?"
+         }
+        ],
+        "correction": null,
+        "learner_fr": "Plus simple pour qui ?",
+        "unchecked": false
+       }
+      ],
+      "turn_index": 1
+     },
+     "status": "completed"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "respond",
+    "prompt": {
+     "character_id": "lila_bonnet",
+     "character_line_audio_url": null,
+     "character_line_fr": "Pour mon grand-père. Il a soixante-quatorze ans. Et quatre étages.\nJeudi prochain, dix-huit heures. Je viens voir l'appartement.\nBon. On peut voir la lettre ?",
+     "character_name": "Lila",
+     "choices": [
+      {
+       "id": "margaux",
+       "label_fr": "Margaux",
+       "label_native": null
+      },
+      {
+       "id": "lila",
+       "label_fr": "Lila",
+       "label_native": null
+      },
+      {
+       "id": "gus",
+       "label_fr": "Gus",
+       "label_native": null
+      },
+      {
+       "id": "marin",
+       "label_fr": "Marin",
+       "label_native": null
+      },
+      {
+       "id": "nobody",
+       "label_fr": "Personne",
+       "label_native": "Niemand"
+      }
+     ],
+     "help_available": [
+      "hint",
+      "translation",
+      "suggested_response"
+     ],
+     "input_modes": [
+      "text"
+     ],
+     "letter": null,
+     "max_turns": 2,
+     "objective_native": "Wähle, wer den Brief vom Notar liest.",
+     "repair_allowed": false,
+     "spoken_reply": false,
+     "targets": [
+      {
+       "concept_title": false,
+       "id": "662",
+       "kind": "vocabulary",
+       "label_fr": "la lettre",
+       "label_native": "Brief"
+      }
+     ],
+     "thread": [
+      {
+       "character_fr": "Pour mon grand-père. Il a soixante-quatorze ans. Et quatre étages.\nJeudi prochain, dix-huit heures. Je viens voir l'appartement.\nBon. On peut voir la lettre ?",
+       "character_lines": [
+        {
+         "speaker_id": "camille_marchand",
+         "speaker_name": "Camille",
+         "text_fr": "Pour mon grand-père. Il a soixante-quatorze ans. Et quatre étages."
+        },
+        {
+         "speaker_id": "camille_marchand",
+         "speaker_name": "Camille",
+         "text_fr": "Jeudi prochain, dix-huit heures. Je viens voir l'appartement."
+        },
+        {
+         "speaker_id": "lila_bonnet",
+         "speaker_name": "Lila",
+         "text_fr": "Bon. On peut voir la lettre ?"
+        }
+       ],
+       "correction": null,
+       "learner_fr": "Plus simple pour qui ?",
+       "unchecked": false
+      }
+     ],
+     "turn_index": 1
+    }
+   }
+  },
+  {
+   "estimated_seconds": 35,
+   "step": {
+    "id": "<id>",
+    "kind": "resolution",
+    "prompt": {
+     "chapter_recap_fr": null,
+     "character_line_fr": "Ton billet de retour est pour mercredi. Lila est libre mercredi. À suivre…",
+     "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+     "narrated": true,
+     "outcome_key": "resolved",
+     "register_note_fr": null,
+     "register_reason_native": null,
+     "story_pending": false,
+     "summary_native": "Dein Rückflug ist am Mittwoch. Lila hat am Mittwoch frei. Fortsetzung folgt…"
+    }
+   }
+  },
+  {
+   "estimated_seconds": 50,
+   "step": {
+    "id": "<id>",
+    "kind": "rule",
+    "prompt": {
+     "concept_id": 1,
+     "review": true,
+     "rule_card": {
+      "contrast": {
+       "right": "Ils [sont] à Lyon.",
+       "wrong": "Ils est à Lyon."
+      },
+      "contrast_with": [
+       {
+        "id": "FR2_A11_AVOIR",
+        "note": {
+         "de": "Alter, Hunger und Kälte gehen mit avoir: j'ai vingt ans, nicht je suis vingt ans.",
+         "en": "Age, hunger and cold take avoir: j'ai vingt ans, not je suis vingt ans.",
+         "fr": "L'âge, la faim, le froid se disent avec avoir : j'ai vingt ans."
+        },
+        "title": {
+         "de": "Avoir: ich habe, ich bin 20, ich habe Hunger",
+         "en": "Avoir: I have, I'm 20, I'm hungry",
+         "fr": "Avoir : j'ai, j'ai 20 ans, j'ai faim"
+        }
+       },
+       {
+        "id": "FR2_A12_CEST_IL_EST",
+        "note": {
+         "de": "C'est oder il est? C'est vor un/une oder einem Namen, il est vor einem Adjektiv oder Beruf.",
+         "en": "C'est or il est? C'est before un/une or a name, il est before an adjective or a job.",
+         "fr": "C'est ou il est ? C'est devant un/une ou un prénom, il est devant un adjectif ou un métier."
+        },
+        "title": {
+         "de": "C'est oder il/elle est",
+         "en": "C'est vs il/elle est",
+         "fr": "C'est ou il/elle est"
+        }
+       }
+      ],
+      "example": {
+       "fr": "[C'est] plus simple pour nous tous."
+      },
+      "examples": [
+       {
+        "fr": "Nous [sommes] à Lyon pour le week-end.",
+        "tr": {
+         "de": "Wir sind übers Wochenende in Lyon.",
+         "en": "We're in Lyon for the weekend."
+        }
+       },
+       {
+        "fr": "Tu [es] fatigué ? — Non, ça va !",
+        "tr": {
+         "de": "Bist du müde? — Nein, alles gut!",
+         "en": "Are you tired? — No, I'm fine!"
+        }
+       },
+       {
+        "fr": "Ils [sont] très gentils, tes parents.",
+        "tr": {
+         "de": "Deine Eltern sind sehr nett.",
+         "en": "Your parents are very kind."
+        }
+       }
+      ],
+      "from_scene": true,
+      "how": {
+       "de": "1. Wähle das Subjekt: je, tu, il/elle/on, nous, vous, ils/elles.\n2. Nimm die passende Form von être: suis, es, est, sommes, êtes, sont.\n3. Ergänze wer, wo oder wie: je suis Paul, nous sommes à Lyon, il est grand.",
+       "en": "1. Choose the subject: je, tu, il/elle/on, nous, vous, ils/elles.\n2. Take its form of être: suis, es, est, sommes, êtes, sont.\n3. Add who, where or what: je suis Paul, nous sommes à Lyon, il est grand.",
+       "fr": "1. Choisissez le sujet : je, tu, il/elle/on, nous, vous, ils/elles.\n2. Prenez la forme d'être : suis, es, est, sommes, êtes, sont.\n3. Ajoutez qui, où ou comment : je suis Paul, nous sommes à Lyon, il est grand."
+      },
+      "more": {
+       "de": "Vous ist für mehrere Personen und zugleich die höfliche Anrede für eine Person, die man nicht gut kennt: Nachbarn, Verkäufer, Kellner. Tu ist für Freunde, Familie und Kinder. On (wir, man) hat die il-Form: on est en retard. Eine gemischte Gruppe ist ils.",
+       "en": "Vous is for several people, and also the polite way to speak to one person you don't know well: a neighbour, a shop assistant, a waiter. Tu is for friends, family and children. On (we, people) takes the il form: on est en retard. A group of men and women is ils.",
+       "fr": "Vous, c'est pour plusieurs personnes, et aussi pour parler poliment à une seule personne : un voisin, une vendeuse, un serveur. Tu, c'est pour les amis, la famille, les enfants. On prend la forme de il : on est en retard. Un groupe d'hommes et de femmes, c'est ils."
+      },
+      "pattern": {
+       "kind": "table",
+       "note": {
+        "de": "Graue Buchstaben sind stumm: tu es und il est klingen gleich /ɛ/.",
+        "en": "Grey letters are silent: tu es and il est sound the same /ɛ/.",
+        "fr": "Les lettres grises ne se prononcent pas : tu es et il est se disent pareil /ɛ/."
+       },
+       "rows": [
+        {
+         "fr": "sui{s}",
+         "p": "je"
+        },
+        {
+         "fr": "e{s}",
+         "p": "tu"
+        },
+        {
+         "fr": "e{st}",
+         "p": "il, elle, on"
+        },
+        {
+         "fr": "somm{es}",
+         "p": "nous"
+        },
+        {
+         "fr": "êt{es}",
+         "p": "vous"
+        },
+        {
+         "fr": "son{t}",
+         "p": "ils, elles"
+        }
+       ],
+       "verb": "être"
+      },
+      "rule": {
+       "de": "Être (sein) ändert sich mit jeder Person: je suis, tu es, il est, nous sommes, vous êtes, ils sont.",
+       "en": "Être (to be) changes with each person: je suis, tu es, il est, nous sommes, vous êtes, ils sont.",
+       "fr": "Être change avec chaque personne : je suis, tu es, il est, nous sommes, vous êtes, ils sont."
+      },
+      "speaker": "camille_marchand",
+      "traps": [
+       {
+        "right": "Je [suis] français.",
+        "why": {
+         "de": "Jede Person hat ihre eigene Form; zu je gehört immer suis.",
+         "en": "Each person has its own form; je always takes suis.",
+         "fr": "Chaque personne a sa forme : avec je, c'est toujours suis."
+        },
+        "wrong": "Je es français."
+       },
+       {
+        "right": "[Vous êtes] Madame Martin ?",
+        "why": {
+         "de": "Wen man mit Madame oder Monsieur anspricht, siezt man: vous.",
+         "en": "If you call someone Madame or Monsieur, use vous.",
+         "fr": "Quand on dit Madame ou Monsieur, on dit vous."
+        },
+        "wrong": "Tu es Madame Martin ?"
+       },
+       {
+        "right": "Paul et Julie, [ils sont] là.",
+        "why": {
+         "de": "Eine Gruppe mit mindestens einem Mann ist ils.",
+         "en": "A group with at least one man is ils.",
+         "fr": "Un groupe avec au moins un homme, c'est ils."
+        },
+        "wrong": "Paul et Julie, elles sont là."
+       }
+      ]
+     },
+     "scene_example_fr": "[C'est] plus simple pour nous tous.",
+     "scene_example_speaker": "camille_marchand",
+     "title_fr": "Je suis, tu es : les pronoms et être",
+     "title_native": "Ich bin, du bist: Subjektpronomen und être"
+    }
+   }
+  },
+  {
+   "estimated_seconds": 49,
+   "step": {
+    "id": "<id>",
+    "kind": "rule",
+    "prompt": {
+     "concept_id": 2,
+     "review": false,
+     "rule_card": {
+      "contrast": {
+       "right": "J'[ai] vingt ans.",
+       "wrong": "Je suis vingt ans."
+      },
+      "contrast_with": [
+       {
+        "id": "FR2_A11_ETRE",
+        "note": {
+         "de": "Être heißt „sein“; Alter, Hunger und Kälte aber gehen mit avoir.",
+         "en": "Être is 'to be'; but age, hunger and cold take avoir.",
+         "fr": "Être, c'est « être » ; mais l'âge, la faim et le froid prennent avoir."
+        },
+        "title": {
+         "de": "Ich bin, du bist: Subjektpronomen und être",
+         "en": "I am, you are: subject pronouns and être",
+         "fr": "Je suis, tu es : les pronoms et être"
+        }
+       },
+       {
+        "id": "FR2_A12_PC_CHUNKS",
+        "note": {
+         "de": "Mit avoir bildet man auch die Vergangenheit: j'ai mangé, j'ai fait.",
+         "en": "Avoir also builds the past: j'ai mangé, j'ai fait.",
+         "fr": "Avoir sert aussi à former le passé : j'ai mangé, j'ai fait."
+        },
+        "title": {
+         "de": "Erste Vergangenheit: j'ai mangé, j'ai fait, j'ai pris",
+         "en": "First past: j'ai mangé, j'ai fait, j'ai pris",
+         "fr": "Premier passé : j'ai mangé, j'ai fait, j'ai pris"
+        }
+       }
+      ],
+      "example": {
+       "fr": "J'[ai] vingt-cinq ans et j'[ai] faim !",
+       "tr": {
+        "de": "Ich bin fünfundzwanzig und habe Hunger!",
+        "en": "I'm twenty-five and I'm hungry!"
+       }
+      },
+      "examples": [
+       {
+        "fr": "Tu [as] soif ? Il y a de l'eau.",
+        "tr": {
+         "de": "Hast du Durst? Es gibt Wasser.",
+         "en": "Are you thirsty? There's water."
+        }
+       },
+       {
+        "fr": "Nous [avons] deux enfants.",
+        "tr": {
+         "de": "Wir haben zwei Kinder.",
+         "en": "We have two children."
+        }
+       },
+       {
+        "fr": "Elle [a] froid, elle prend un pull.",
+        "tr": {
+         "de": "Ihr ist kalt, sie nimmt einen Pullover.",
+         "en": "She's cold, so she takes a jumper."
+        }
+       }
+      ],
+      "how": {
+       "de": "1. Subjekt + Form von avoir: j'ai, tu as, il a, nous avons, vous avez, ils ont.\n2. Vor ai wird je zu j'.\n3. Ergänze ein Nomen (un vélo), ein Alter (vingt ans) oder einen Zustand (faim, froid).",
+       "en": "1. Subject + the form of avoir: j'ai, tu as, il a, nous avons, vous avez, ils ont.\n2. Je becomes j' before ai.\n3. Add a noun (un vélo), an age (vingt ans) or a state (faim, froid).",
+       "fr": "1. Sujet + forme d'avoir : j'ai, tu as, il a, nous avons, vous avez, ils ont.\n2. Devant ai, je devient j'.\n3. Ajoutez un nom (un vélo), un âge (vingt ans) ou un état (faim, froid)."
+      },
+      "more": {
+       "de": "Wo man auf Deutsch „ich bin“ oder „mir ist“ sagt, heißt es auf Französisch „ich habe“: j'ai faim (Hunger), j'ai soif (Durst), j'ai chaud (mir ist heiß), j'ai froid (mir ist kalt), j'ai peur (Angst). Beim Alter braucht man immer ans: j'ai trente ans.",
+       "en": "Where English says 'I am' for these states, French says 'I have': j'ai faim (I'm hungry), j'ai soif (thirsty), j'ai chaud (hot), j'ai froid (cold), j'ai peur (afraid). Age always needs ans: j'ai trente ans.",
+       "fr": "Pour ces états, le français dit « avoir » : j'ai faim, j'ai soif, j'ai chaud, j'ai froid, j'ai peur. Pour l'âge, on ajoute toujours ans : j'ai trente ans."
+      },
+      "pattern": {
+       "kind": "table",
+       "note": {
+        "de": "Ils ont spricht man mit stimmhaftem s /ilzɔ̃/; ils sont (sie sind) mit scharfem s /ilsɔ̃/.",
+        "en": "Ils ont is said with a z sound /ilzɔ̃/; ils sont (they are) with an s /ilsɔ̃/.",
+        "fr": "Ils ont se dit avec un son z /ilzɔ̃/ ; ils sont avec un son s /ilsɔ̃/."
+       },
+       "rows": [
+        {
+         "fr": "ai",
+         "p": "j'"
+        },
+        {
+         "fr": "a{s}",
+         "p": "tu"
+        },
+        {
+         "fr": "a",
+         "p": "il, elle, on"
+        },
+        {
+         "fr": "avon{s}",
+         "p": "nous"
+        },
+        {
+         "fr": "ave{z}",
+         "p": "vous"
+        },
+        {
+         "fr": "on{t}",
+         "p": "ils, elles"
+        }
+       ],
+       "verb": "avoir"
+      },
+      "rule": {
+       "de": "Avoir heißt „haben“ und steht auch für Alter, Hunger, Durst, Hitze und Kälte.",
+       "en": "Avoir means 'to have', and French also uses it for age, hunger, thirst, heat and cold.",
+       "fr": "Avoir, c'est posséder ; on l'utilise aussi pour l'âge, la faim, la soif, le chaud et le froid."
+      },
+      "speaker": "romy_tremblay",
+      "traps": [
+       {
+        "right": "J'[ai] froid.",
+        "why": {
+         "de": "„Mir ist kalt“ heißt j'ai froid; je suis froid hieße „ich bin ein kühler Mensch“.",
+         "en": "'I'm cold' is j'ai froid; je suis froid would describe your character.",
+         "fr": "On dit j'ai froid ; je suis froid parle du caractère."
+        },
+        "wrong": "Je suis froid."
+       },
+       {
+        "right": "J'[ai] un frère.",
+        "why": {
+         "de": "Vor einem Vokal wird je immer zu j'.",
+         "en": "Je always shortens to j' before a vowel.",
+         "fr": "Devant une voyelle, je devient j'."
+        },
+        "wrong": "Je ai un frère."
+       },
+       {
+        "right": "Ils [ont] deux enfants.",
+        "why": {
+         "de": "Ils sont = sie sind; ils ont = sie haben. Achte auf das stimmhafte s.",
+         "en": "Ils sont = they are; ils ont = they have. Listen for the z sound.",
+         "fr": "Ils sont, c'est être ; ils ont, c'est avoir : écoutez le son z."
+        },
+        "wrong": "Ils sont deux enfants."
+       }
+      ]
+     },
+     "scene_example_fr": null,
+     "scene_example_speaker": null,
+     "title_fr": "Avoir : j'ai, j'ai 20 ans, j'ai faim",
+     "title_native": "Avoir: ich habe, ich bin 20, ich habe Hunger"
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "choice",
+     "option_id": "opt_4be21fe3"
+    },
+    "intent": "wrong"
+   },
+   "estimated_seconds": 23,
+   "key": {
+    "accepted_answers": [
+     "J'ai vingt ans et j'ai soif."
+    ],
+    "solution_fr": "J'ai vingt ans et j'ai soif.",
+    "target": {
+     "concept_title": true,
+     "id": "2",
+     "kind": "grammar",
+     "label_fr": "Avoir : j'ai, j'ai 20 ans, j'ai faim",
+     "label_native": "Avoir: ich habe, ich bin 20, ich habe Hunger"
+    },
+    "task_type": "choice"
+   },
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": null,
+    "correction": {
+     "corrected_fr": "J'ai vingt ans et j'ai soif.",
+     "kind": "pick",
+     "note_native": "Avoir heißt haben; auch für Alter, Hunger, Durst und Kälte: j'ai 20 ans, j'ai froid.",
+     "notes_native": [
+      "Avoir heißt haben; auch für Alter, Hunger, Durst und Kälte: j'ai 20 ans, j'ai froid."
+     ],
+     "span_fr": "Un chocolat ?"
+    },
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "answer_key": {
+       "digests": [
+        "<id><id>"
+       ],
+       "salt": "<id>",
+       "version": 1
+      },
+      "goal_native": null,
+      "help_available": [
+       "hint",
+       "solution"
+      ],
+      "instruction_native": "In welchem Satz steckt die Regel von heute?",
+      "optional": false,
+      "options": [
+       {
+        "id": "opt_4be21fe3",
+        "text_fr": "Un chocolat ?"
+       },
+       {
+        "id": "opt_80880410",
+        "text_fr": "J'ai vingt ans et j'ai soif."
+       },
+       {
+        "id": "opt_23dfb26a",
+        "text_fr": "Vous vous souvenez ?"
+       }
+      ],
+      "prompt_fr": null,
+      "source_fr": null,
+      "target": {
+       "concept_title": true,
+       "id": "2",
+       "kind": "grammar",
+       "label_fr": "",
+       "label_native": "Avoir: ich habe, ich bin 20, ich habe Hunger"
+      },
+      "task_type": "choice"
+     },
+     "status": "completed"
+    },
+    "task_outcome": "not_yet"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "recall",
+    "prompt": {
+     "answer_key": {
+      "digests": [
+       "<id><id>"
+      ],
+      "salt": "<id>",
+      "version": 1
+     },
+     "goal_native": null,
+     "help_available": [
+      "hint",
+      "solution"
+     ],
+     "instruction_native": "In welchem Satz steckt die Regel von heute?",
+     "optional": false,
+     "options": [
+      {
+       "id": "opt_4be21fe3",
+       "text_fr": "Un chocolat ?"
+      },
+      {
+       "id": "opt_80880410",
+       "text_fr": "J'ai vingt ans et j'ai soif."
+      },
+      {
+       "id": "opt_23dfb26a",
+       "text_fr": "Vous vous souvenez ?"
+      }
+     ],
+     "prompt_fr": null,
+     "source_fr": null,
+     "target": {
+      "concept_title": true,
+      "id": "2",
+      "kind": "grammar",
+      "label_fr": "",
+      "label_native": "Avoir: ich habe, ich bin 20, ich habe Hunger"
+     },
+     "task_type": "choice"
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "choice",
+     "option_id": "opt_cb51e0de"
+    },
+    "intent": "right"
+   },
+   "estimated_seconds": 14,
+   "key": {
+    "accepted_answers": [
+     "J'ai vingt ans."
+    ],
+    "solution_fr": "J'ai vingt ans.",
+    "target": {
+     "concept_title": true,
+     "id": "2",
+     "kind": "grammar",
+     "label_fr": "Avoir : j'ai, j'ai 20 ans, j'ai faim",
+     "label_native": "Avoir: ich habe, ich bin 20, ich habe Hunger"
+    },
+    "task_type": "choice"
+   },
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": null,
+    "correction": null,
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "answer_key": {
+       "digests": [
+        "<id><id>"
+       ],
+       "salt": "<id>",
+       "version": 1
+      },
+      "goal_native": null,
+      "help_available": [
+       "hint",
+       "solution"
+      ],
+      "instruction_native": "Was ist richtig?",
+      "optional": false,
+      "options": [
+       {
+        "id": "opt_05ebccc9",
+        "text_fr": "Je suis vingt ans."
+       },
+       {
+        "id": "opt_cb51e0de",
+        "text_fr": "J'ai vingt ans."
+       }
+      ],
+      "prompt_fr": null,
+      "source_fr": null,
+      "target": {
+       "concept_title": true,
+       "id": "2",
+       "kind": "grammar",
+       "label_fr": "",
+       "label_native": "Avoir: ich habe, ich bin 20, ich habe Hunger"
+      },
+      "task_type": "choice"
+     },
+     "status": "completed"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "recall",
+    "prompt": {
+     "answer_key": {
+      "digests": [
+       "<id><id>"
+      ],
+      "salt": "<id>",
+      "version": 1
+     },
+     "goal_native": null,
+     "help_available": [
+      "hint",
+      "solution"
+     ],
+     "instruction_native": "Was ist richtig?",
+     "optional": false,
+     "options": [
+      {
+       "id": "opt_05ebccc9",
+       "text_fr": "Je suis vingt ans."
+      },
+      {
+       "id": "opt_cb51e0de",
+       "text_fr": "J'ai vingt ans."
+      }
+     ],
+     "prompt_fr": null,
+     "source_fr": null,
+     "target": {
+      "concept_title": true,
+      "id": "2",
+      "kind": "grammar",
+      "label_fr": "",
+      "label_native": "Avoir: ich habe, ich bin 20, ich habe Hunger"
+     },
+     "task_type": "choice"
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "tiles",
+     "tile_ids": [
+      "tile_2b1be441",
+      "tile_d281a525",
+      "tile_c3224749",
+      "tile_b70c9a29",
+      "tile_c6f168a1",
+      "tile_7eb32196"
+     ]
+    },
+    "intent": "right"
+   },
+   "estimated_seconds": 22,
+   "key": {
+    "accepted_answers": [
+     "J'ai vingt-cinq ans et j'ai faim !"
+    ],
+    "solution_fr": "J'ai vingt-cinq ans et j'ai faim !",
+    "target": {
+     "concept_title": true,
+     "id": "2",
+     "kind": "grammar",
+     "label_fr": "Avoir : j'ai, j'ai 20 ans, j'ai faim",
+     "label_native": "Avoir: ich habe, ich bin 20, ich habe Hunger"
+    },
+    "task_type": "tiles"
+   },
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": null,
+    "correction": null,
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "answer_key": {
+       "digests": [
+        "<id><id>"
+       ],
+       "salt": "<id>",
+       "version": 1
+      },
+      "goal_native": "Bau den Satz: „Ich bin fünfundzwanzig und habe Hunger!“",
+      "help_available": [
+       "hint",
+       "solution"
+      ],
+      "instruction_native": "Ordne die Wörter.",
+      "optional": false,
+      "options": [
+       {
+        "id": "tile_c6f168a1",
+        "text_fr": "j'ai"
+       },
+       {
+        "id": "tile_b70c9a29",
+        "text_fr": "et"
+       },
+       {
+        "id": "tile_d281a525",
+        "text_fr": "vingt-cinq"
+       },
+       {
+        "id": "tile_c3224749",
+        "text_fr": "ans"
+       },
+       {
+        "id": "tile_2b1be441",
+        "text_fr": "J'ai"
+       },
+       {
+        "id": "tile_7eb32196",
+        "text_fr": "faim !"
+       }
+      ],
+      "prompt_fr": null,
+      "source_fr": null,
+      "target": {
+       "concept_title": true,
+       "id": "2",
+       "kind": "grammar",
+       "label_fr": "",
+       "label_native": "Avoir: ich habe, ich bin 20, ich habe Hunger"
+      },
+      "task_type": "tiles"
+     },
+     "status": "completed"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "recall",
+    "prompt": {
+     "answer_key": {
+      "digests": [
+       "<id><id>"
+      ],
+      "salt": "<id>",
+      "version": 1
+     },
+     "goal_native": "Bau den Satz: „Ich bin fünfundzwanzig und habe Hunger!“",
+     "help_available": [
+      "hint",
+      "solution"
+     ],
+     "instruction_native": "Ordne die Wörter.",
+     "optional": false,
+     "options": [
+      {
+       "id": "tile_c6f168a1",
+       "text_fr": "j'ai"
+      },
+      {
+       "id": "tile_b70c9a29",
+       "text_fr": "et"
+      },
+      {
+       "id": "tile_d281a525",
+       "text_fr": "vingt-cinq"
+      },
+      {
+       "id": "tile_c3224749",
+       "text_fr": "ans"
+      },
+      {
+       "id": "tile_2b1be441",
+       "text_fr": "J'ai"
+      },
+      {
+       "id": "tile_7eb32196",
+       "text_fr": "faim !"
+      }
+     ],
+     "prompt_fr": null,
+     "source_fr": null,
+     "target": {
+      "concept_title": true,
+      "id": "2",
+      "kind": "grammar",
+      "label_fr": "",
+      "label_native": "Avoir: ich habe, ich bin 20, ich habe Hunger"
+     },
+     "task_type": "tiles"
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "text",
+     "text": "J’ai froid."
+    },
+    "intent": "right-with-slip"
+   },
+   "estimated_seconds": 22,
+   "key": {
+    "accepted_answers": [
+     "J'ai froid."
+    ],
+    "solution_fr": "J'ai froid.",
+    "target": {
+     "concept_title": true,
+     "id": "2",
+     "kind": "grammar",
+     "label_fr": "Avoir : j'ai, j'ai 20 ans, j'ai faim",
+     "label_native": "Avoir: ich habe, ich bin 20, ich habe Hunger"
+    },
+    "task_type": "transform"
+   },
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": null,
+    "correction": null,
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "answer_key": null,
+      "goal_native": "Ein Teil verstößt gegen die Regel von heute.",
+      "help_available": [
+       "hint",
+       "solution"
+      ],
+      "instruction_native": "Korrigiere diesen Satz.",
+      "optional": false,
+      "options": [],
+      "prompt_fr": "Je suis froid.",
+      "source_fr": "Je suis froid.",
+      "target": {
+       "concept_title": true,
+       "id": "2",
+       "kind": "grammar",
+       "label_fr": "",
+       "label_native": "Avoir: ich habe, ich bin 20, ich habe Hunger"
+      },
+      "task_type": "transform"
+     },
+     "status": "completed"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "recall",
+    "prompt": {
+     "answer_key": null,
+     "goal_native": "Ein Teil verstößt gegen die Regel von heute.",
+     "help_available": [
+      "hint",
+      "solution"
+     ],
+     "instruction_native": "Korrigiere diesen Satz.",
+     "optional": false,
+     "options": [],
+     "prompt_fr": "Je suis froid.",
+     "source_fr": "Je suis froid.",
+     "target": {
+      "concept_title": true,
+      "id": "2",
+      "kind": "grammar",
+      "label_fr": "",
+      "label_native": "Avoir: ich habe, ich bin 20, ich habe Hunger"
+     },
+     "task_type": "transform"
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "text",
+     "text": "La lettre"
+    },
+    "intent": "right-with-slip"
+   },
+   "estimated_seconds": 13,
+   "key": {
+    "accepted_answers": [
+     "la lettre"
+    ],
+    "solution_fr": "la lettre",
+    "target": {
+     "id": "662",
+     "kind": "vocabulary",
+     "label_fr": "la lettre",
+     "label_native": "Brief"
+    },
+    "task_type": "short_answer"
+   },
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": null,
+    "correction": null,
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "answer_key": null,
+      "goal_native": null,
+      "help_available": [
+       "hint",
+       "solution"
+      ],
+      "instruction_native": "Wie sagt man „Brief“ auf Französisch?",
+      "optional": true,
+      "options": [],
+      "prompt_fr": null,
+      "source_fr": null,
+      "target": {
+       "concept_title": false,
+       "id": "662",
+       "kind": "vocabulary",
+       "label_fr": "",
+       "label_native": "Brief"
+      },
+      "task_type": "short_answer"
+     },
+     "status": "completed"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "recall",
+    "prompt": {
+     "answer_key": null,
+     "goal_native": null,
+     "help_available": [
+      "hint",
+      "solution"
+     ],
+     "instruction_native": "Wie sagt man „Brief“ auf Französisch?",
+     "optional": true,
+     "options": [],
+     "prompt_fr": null,
+     "source_fr": null,
+     "target": {
+      "concept_title": false,
+      "id": "662",
+      "kind": "vocabulary",
+      "label_fr": "",
+      "label_native": "Brief"
+     },
+     "task_type": "short_answer"
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "choice",
+     "option_id": "opt_80880410"
+    },
+    "intent": "right"
+   },
+   "estimated_seconds": 23,
+   "key": {
+    "accepted_answers": [
+     "J'ai vingt ans et j'ai soif."
+    ],
+    "solution_fr": "J'ai vingt ans et j'ai soif.",
+    "target": {
+     "concept_title": true,
+     "id": "2",
+     "kind": "grammar",
+     "label_fr": "Avoir : j'ai, j'ai 20 ans, j'ai faim",
+     "label_native": "Avoir: ich habe, ich bin 20, ich habe Hunger"
+    },
+    "task_type": "choice"
+   },
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": null,
+    "correction": null,
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "answer_key": {
+       "digests": [
+        "<id><id>"
+       ],
+       "salt": "<id>",
+       "version": 1
+      },
+      "goal_native": null,
+      "help_available": [
+       "hint",
+       "solution"
+      ],
+      "instruction_native": "In welchem Satz steckt die Regel von heute?",
+      "optional": false,
+      "options": [
+       {
+        "id": "opt_4be21fe3",
+        "text_fr": "Un chocolat ?"
+       },
+       {
+        "id": "opt_80880410",
+        "text_fr": "J'ai vingt ans et j'ai soif."
+       },
+       {
+        "id": "opt_23dfb26a",
+        "text_fr": "Vous vous souvenez ?"
+       }
+      ],
+      "prompt_fr": null,
+      "retry": true,
+      "source_fr": null,
+      "target": {
+       "concept_title": true,
+       "id": "2",
+       "kind": "grammar",
+       "label_fr": "",
+       "label_native": "Avoir: ich habe, ich bin 20, ich habe Hunger"
+      },
+      "task_type": "choice"
+     },
+     "status": "completed"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "recall",
+    "prompt": {
+     "answer_key": {
+      "digests": [
+       "<id><id>"
+      ],
+      "salt": "<id>",
+      "version": 1
+     },
+     "goal_native": null,
+     "help_available": [
+      "hint",
+      "solution"
+     ],
+     "instruction_native": "In welchem Satz steckt die Regel von heute?",
+     "optional": false,
+     "options": [
+      {
+       "id": "opt_4be21fe3",
+       "text_fr": "Un chocolat ?"
+      },
+      {
+       "id": "opt_80880410",
+       "text_fr": "J'ai vingt ans et j'ai soif."
+      },
+      {
+       "id": "opt_23dfb26a",
+       "text_fr": "Vous vous souvenez ?"
+      }
+     ],
+     "prompt_fr": null,
+     "retry": true,
+     "source_fr": null,
+     "target": {
+      "concept_title": true,
+      "id": "2",
+      "kind": "grammar",
+      "label_fr": "",
+      "label_native": "Avoir: ich habe, ich bin 20, ich habe Hunger"
+     },
+     "task_type": "choice"
+    }
+   }
+  }
+ ],
+ "finish_status": 200,
+ "journey_id": "<id>",
+ "learner_level": "A1",
+ "native": "de",
+ "persona": "a1-de-fresh",
+ "private_leaks": [],
+ "quality": "average",
+ "resolution": {
+  "chapter_recap_fr": null,
+  "character_line_fr": "Ton billet de retour est pour mercredi. Lila est libre mercredi. À suivre…",
+  "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+  "narrated": true,
+  "outcome_key": "resolved",
+  "register_note_fr": null,
+  "register_reason_native": null,
+  "story_pending": false,
+  "summary_native": "Dein Rückflug ist am Mittwoch. Lila hat am Mittwoch frei. Fortsetzung folgt…"
+ },
+ "scenario": {
+  "character_name": "Camille Marchand",
+  "level_band": "A1",
+  "scenario_key": "story_<id>",
+  "title_fr": "La lettre"
+ },
+ "status": "active"
+}

@@ -24,30 +24,53 @@ voice, first day), and every surface reads it **by id**:
   voice persona alike;
 * the pronoun the story uses for a person (:func:`pronoun_for`) comes from the same
   row, and for the one person whose gender the learner picks (Camille) from that
-  life's own choice — every story prompt reads it here (#147, Phase 3).
+  life's own choice — every story prompt reads it here (#147, Phase 3);
+* ``address`` is how the person opens with the learner (the season's cast row), and
+  ``relation_to_learner`` / ``relations`` what they are to the learner and to each
+  other (``cast_relations.json``, from the season bible);
+* :func:`person` is the one read of all of it for a surface: name, role, relation, the
+  address **now** and whether this learner has met them.
+
+The address rule, as the code already behaves (#594, #147)
+----------------------------------------------------------
+During a scripted season **the season decides** the register: ``living_story`` never
+asks «On se tutoie ?» while a season runs, and ``season.runtime._apply_registers`` writes
+the season's value back onto the relationship map at every settle. Once no season runs,
+**the relationship decides**: that is where an accepted «On se tutoie ?» is kept.
+:func:`address_now` wraps ``address.known_register`` and reads no register of its own.
+
+Someone outside this registry is not a person of the cast: :func:`person` answers
+``None``. A letter from outside the cast (a shop, a clerk) is a one-letter extra, with
+the one tu/vous stored on the letter, no face and no claim to know the learner.
 
 ``tests/test_cast_registry_147.py`` is the guard: every id the authored season,
 the cast intro and the teasers name must be here, speakers need a face, the
 first day must match the authored season, and the intro may not name someone
-before their day.
+before their day. ``tests/test_one_cast_table_147.py`` forbids a literal table of the
+cast's names anywhere else.
 """
 from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from app.services import address
 from app.services.cast_aliases import ALIASES
 from app.services.cast_roles import role_of
 from app.services.cast_voices import CAST_VOICES
 
 _REPO = Path(__file__).resolve().parents[2]
+SEASON_PATH = _REPO / "app" / "data" / "season" / "s1" / "season.json"
 WORLD_PATH = _REPO / "app" / "data" / "season" / "s1" / "world.json"
 CARDS_PATH = _REPO / "app" / "data" / "season" / "s1" / "cast_cards.json"
+RELATIONS_PATH = _REPO / "app" / "data" / "season" / "s1" / "cast_relations.json"
+COACHES_PATH = _REPO / "app" / "data" / "forge_coaches.json"
 DRAWN_FACES_DIR = _REPO / "web-frontend" / "public" / "assets" / "serial" / "drawn"
 
 #: What the learner reads for each person.
@@ -72,6 +95,10 @@ _SPOKEN_NAMES: dict[str, str] = {
     "mme_diallo": "Madame Diallo",
     "bastien_roux": "Bastien",
 }
+#: The spelling an English cue uses where it is not the label («…, Mr Marchand.»).
+_ENGLISH_NAMES: dict[str, str] = {"landlord_marchand": "Mr Marchand"}
+#: Words of a name that do not say who it is.
+_TITLE_WORDS = frozenset({"de", "du", "mme", "madame", "monsieur", "maitre", "mr"})
 #: When the story first puts each person on a page: ``(tentpole, day letter)``.
 #: The guard test re-derives it from ``t*.json`` and fails if this drifts.
 _FIRST_APPEARANCE: dict[str, tuple[int, str]] = {
@@ -99,6 +126,33 @@ EXTRAS: frozenset[str] = frozenset({"clerk", "clerk_2", "child", "builder", "dea
 
 
 @dataclass(frozen=True)
+class LearnerRelation:
+    """What a person is to the learner: ``kind`` to test, ``labels`` to print, per language."""
+
+    kind: str  # one of cast_relations.json ``kinds``: "family", "friend", "other_side"…
+    labels: Mapping[str, str]
+
+    def label(self, language: str | None = "fr") -> str:
+        code = str(language or "fr").strip().lower().replace("_", "-").split("-")[0]
+        return str(self.labels.get(code) or self.labels.get("en") or "")
+
+    @property
+    def is_friend(self) -> bool:
+        """May a surface call this person the learner's friend? Camille: no, ever, in season 1."""
+
+        return self.kind == "friend"
+
+
+@dataclass(frozen=True)
+class Relation:
+    """One person's tie to another person of the cast, and the page that first shows it."""
+
+    kind: str  # "grandchild_of", "grandparent_of"…
+    other: str  # registry id
+    known_from: tuple[int, str]  # (tentpole, day letter)
+
+
+@dataclass(frozen=True)
 class CastMember:
     id: str
     name: str  # the world bible's full name
@@ -108,6 +162,11 @@ class CastMember:
     voice: str | None
     face: str | None  # drawn portrait directory name; None when no art exists yet
     first_day: tuple[int, str]  # (tentpole number, day letter)
+    # How the person opens with the learner (the season's cast row), before any flag moves
+    # it. What they say today is :func:`address_now`, never this.
+    address: str | None = None
+    relation_to_learner: LearnerRelation | None = None
+    relations: tuple[Relation, ...] = ()
 
     @property
     def pronoun_fr(self) -> str:
@@ -120,11 +179,43 @@ def _face_for(cast_id: str) -> str | None:
     return cast_id if (DRAWN_FACES_DIR / cast_id / "portrait-neutre.png").is_file() else None
 
 
+def _opening_addresses() -> dict[str, str]:
+    """``cast[].address`` of the season file, by registry id (the file says «odile»)."""
+
+    season = json.loads(SEASON_PATH.read_text(encoding="utf-8"))
+    return {
+        _ALIASES.get(str(row["id"]), str(row["id"])): str(row["address"])
+        for row in season.get("cast", [])
+        if row.get("id") and row.get("address")
+    }
+
+
+def _relations_data() -> tuple[dict[str, LearnerRelation], dict[str, tuple[Relation, ...]]]:
+    data = json.loads(RELATIONS_PATH.read_text(encoding="utf-8"))
+    to_learner = {
+        str(cast_id): LearnerRelation(
+            kind=str(row["kind"]),
+            labels={code: str(row[code]) for code in ("fr", "en", "de") if row.get(code)},
+        )
+        for cast_id, row in (data.get("to_learner") or {}).items()
+    }
+    between: dict[str, list[Relation]] = {}
+    for row in data.get("between") or []:
+        tentpole, day = row["known_from"]
+        known_from = (int(tentpole), str(day))
+        person, other = str(row["person"]), str(row["other"])
+        between.setdefault(person, []).append(Relation(str(row["kind"]), other, known_from))
+        between.setdefault(other, []).append(Relation(str(row["inverse"]), person, known_from))
+    return to_learner, {cast_id: tuple(rows) for cast_id, rows in between.items()}
+
+
 @lru_cache(maxsize=1)
 def _registry() -> dict[str, CastMember]:
     world = json.loads(WORLD_PATH.read_text(encoding="utf-8"))
     rows = {str(row["id"]): row for row in world.get("cast", []) if row.get("id")}
     rows.setdefault("odile_ferrand", {"id": "odile_ferrand", "gender": "f", "name": "Odile Ferrand"})
+    addresses = _opening_addresses()
+    to_learner, between = _relations_data()
     members: dict[str, CastMember] = {}
     for cast_id, row in rows.items():
         gender = str(row.get("gender") or "x")
@@ -139,6 +230,9 @@ def _registry() -> dict[str, CastMember]:
             voice=CAST_VOICES.get(cast_id),
             face=_face_for(cast_id),
             first_day=_FIRST_APPEARANCE.get(cast_id, (1, "a")),
+            address=addresses.get(cast_id),
+            relation_to_learner=to_learner.get(cast_id),
+            relations=between.get(cast_id, ()),
         )
     return members
 
@@ -280,14 +374,16 @@ def season_reach(state: Mapping[str, Any] | None) -> tuple[int, str] | None:
 
     Read from the season's played log (``living_story.season_script.played``): a
     tentpole day is ``(n, "a")`` / ``(n, "b")``; a gap day after tentpole *n* is
-    ``(n, "z")`` (everyone that tentpole put on a page is met). ``None`` when the
-    thread plays no season yet.
+    ``(n, "z")`` (everyone that tentpole put on a page is met). ``(1, "a")`` when the
+    season has begun and no day has settled; ``None`` when the thread plays no season.
     """
 
     live = (state or {}).get("living_story") if isinstance(state, Mapping) else None
     script = live.get("season_script") if isinstance(live, Mapping) else None
     played = script.get("played") if isinstance(script, Mapping) else None
-    best: tuple[int, str] | None = None
+    # A life that has begun the season and settled no day yet stands on its first page: La
+    # Forge on day 1 must not name someone that page does not (8 Nov: Romy on day 1).
+    best: tuple[int, str] | None = (1, "a") if isinstance(script, Mapping) and script.get("id") else None
     for row in played if isinstance(played, list) else []:
         if not isinstance(row, Mapping):
             continue
@@ -348,18 +444,179 @@ def has_met(state: Mapping[str, Any] | None, character_id: str | None) -> bool:
     return bool(raw) and (resolve_id(raw) or raw) in known
 
 
+# --------------------------------------------------------------------------- #
+# The one read of a person (#147)
+# --------------------------------------------------------------------------- #
+
+
+def address_now(
+    character_id: Any,
+    state: Mapping[str, Any] | None = None,
+    *,
+    registers: Mapping[str, Any] | None = None,
+) -> address.Register | None:
+    """How this person addresses the learner now, or ``None`` when nothing says.
+
+    ``address.known_register`` and nothing else (the module docstring has the rule):
+    the relationship map where the story has one, the day's own snapshot ``registers``
+    (``address.season_registers``), then the season the thread plays. ``None`` is not
+    «vous»: a caller whose own text can decide (a letter that keeps one stored tu/vous)
+    must not mistake a default for knowledge (#506).
+    """
+
+    return address.known_register(state, character_id, registers=registers)
+
+
+@dataclass(frozen=True)
+class Person:
+    """A person of the cast as this learner stands with them today."""
+
+    id: str
+    name: str  # what the learner reads
+    role: str  # "" when nobody has written one
+    relation: LearnerRelation | None
+    address_now: address.Register | None
+    met: bool
+
+
+def person(
+    character_id: Any,
+    state: Mapping[str, Any] | None = None,
+    *,
+    registers: Mapping[str, Any] | None = None,
+    language: str = "fr",
+) -> Person | None:
+    """The one read of a person: name, role, relation, address now, met.
+
+    ``None`` for anyone the registry does not hold: a one-letter extra or a clerk is not
+    a person of the cast, so no surface may give them a relation or a claim to know the
+    learner. ``state`` may be ``None`` (a first letter before any scene): ``met`` is then
+    :func:`has_met`'s «nothing can tell»; ask :func:`introduced_by` for a day instead.
+    """
+
+    found = member(character_id)
+    if found is None:
+        return None
+    return Person(
+        id=found.id,
+        name=found.short_name,
+        role=role(found.id, language),
+        relation=found.relation_to_learner,
+        address_now=address_now(found.id, state, registers=registers),
+        met=has_met(state, found.id),
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Names: every spelling of a person, for a surface that reads text
+# --------------------------------------------------------------------------- #
+
+
+def _spellings(row: CastMember) -> set[str]:
+    """What a line may call this person: their label, what they call themselves, their
+    nickname and their first name."""
+
+    spellings = {row.short_name, row.spoken_name}
+    nickname = re.search(r"«\s*([^»]+?)\s*»", row.name)
+    if nickname:
+        spellings.add(nickname.group(1))
+    first = re.sub(r"«[^»]*»", " ", row.name).split()
+    if first and len(first[0]) >= 3 and first[0][:1].isupper() and first[0] not in {"Mme", "Maître"}:
+        spellings.add(first[0])
+    return {spelling for spelling in spellings if spelling}
+
+
+def name_words() -> set[str]:
+    """Every capitalised word a line may use to call someone of the cast: what must never
+    be taken for the learner's own name («Je suis Lila»)."""
+
+    return {
+        word
+        for row in _registry().values()
+        for spelling in _spellings(row)
+        for word in spelling.split()
+        if word[:1].isupper()
+    }
+
+
+@lru_cache(maxsize=1)
+def _bank_ids() -> dict[str, str]:
+    """``{registry id: the id La Forge's item bank knows them by}``, from the coaches file."""
+
+    data = json.loads(COACHES_PATH.read_text(encoding="utf-8"))
+    return {str(cid): str(row["lexicon"]) for cid, row in (data.get("cast") or {}).items() if row.get("lexicon")}
+
+
+def bank_ids() -> dict[str, str]:
+    """The item bank's people: ``{registry id: lexicon id}`` («marin_leveque» → «marin»)."""
+
+    return dict(_bank_ids())
+
+
+def bank_tokens() -> dict[str, str]:
+    """``{lowercase word in a sentence: lexicon id}`` for the bank's people, nicknames and
+    first names included («augustin» → «gus», «marchand» → «marchand»)."""
+
+    tokens: dict[str, str] = {}
+    for cid, lexicon in _bank_ids().items():
+        row = _registry()[cid]
+        words = {word.casefold() for spelling in (row.name, *_spellings(row)) for word in re.findall(r"\w+", spelling)}
+        tokens[lexicon] = lexicon
+        tokens.update((alias, lexicon) for alias, target in _ALIASES.items() if target == cid and alias in words)
+    return tokens
+
+
+def bank_first_names() -> list[str]:
+    """The labels of the bank's people who go by one word («Marin», «Gus», not «M. Marchand»)."""
+
+    labels = (_registry()[cid].short_name for cid in _bank_ids())
+    return [label for label in labels if " " not in label]
+
+
+def vocative_names() -> list[str]:
+    """How a sentence of the bank calls its people to their face, in French and in an
+    English cue: «…, Gus.», «…, Monsieur Marchand.», «…, Mr Marchand.»."""
+
+    names: list[str] = []
+    for cid in _bank_ids():
+        row = _registry()[cid]
+        for name in (row.short_name, row.spoken_name, _ENGLISH_NAMES.get(cid)):
+            if name and name not in names:
+                names.append(name)
+    return names
+
+
+def name_tokens() -> dict[str, list[str]]:
+    """``{registry id: the lowercase, unaccented words that mean this person}``, for a client
+    that has to recognise a person in whatever a payload calls them.
+
+    A word two people share belongs to whoever the aliases give it to: «marchand» is M.
+    Marchand, so «Camille Marchand» is known by «camille» and never borrows his face. A title
+    or a particle («de», «Mme», «Maître») names nobody.
+    """
+
+    def folded(text: str) -> list[str]:
+        plain = unicodedata.normalize("NFD", text)
+        plain = "".join(char for char in plain if not unicodedata.combining(char))
+        return [word for word in re.findall(r"[a-z0-9]+", plain.lower()) if word not in _TITLE_WORDS and len(word) > 1]
+
+    words: dict[str, set[str]] = {}
+    for row in _registry().values():
+        words[row.id] = {word for spelling in (row.name, *_spellings(row)) for word in folded(spelling)}
+    for alias, cid in _ALIASES.items():
+        words[cid].add(alias)
+    claimed = dict(_ALIASES)
+    return {
+        cid: sorted(word for word in row if claimed.get(word, cid) == cid)
+        for cid, row in sorted(words.items())
+    }
+
+
 #: Names a line may call a person by, longest first: «Monsieur Marchand» before «Marchand».
 def _name_patterns() -> list[tuple[re.Pattern[str], str]]:
     rows: list[tuple[str, str]] = []
     for row in _registry().values():
-        spellings = {row.short_name, row.spoken_name}
-        nickname = re.search(r"«\s*([^»]+?)\s*»", row.name)
-        if nickname:
-            spellings.add(nickname.group(1))
-        first = re.sub(r"«[^»]*»", " ", row.name).split()
-        if first and len(first[0]) >= 3 and first[0][:1].isupper() and first[0] not in {"Mme", "Maître"}:
-            spellings.add(first[0])
-        rows.extend((spelling, row.id) for spelling in spellings if spelling)
+        rows.extend((spelling, row.id) for spelling in _spellings(row))
     rows.sort(key=lambda pair: -len(pair[0]))
     return [(re.compile(rf"(?<![\w-]){re.escape(name)}(?![\w-])"), cid) for name, cid in rows]
 
@@ -386,6 +643,16 @@ def people_named(text: Any) -> list[str]:
         if cid not in out:
             out.append(cid)
     return out
+
+
+def unmet_named(state: Mapping[str, Any] | None, *texts: Any) -> list[str]:
+    """Who these texts name that this learner has not met. ``[]`` when nothing can tell
+    (:func:`met_ids`): an older story has no canon of who comes when."""
+
+    known = met_ids(state)
+    if known is None:
+        return []
+    return [cid for cid in people_named(" ".join(str(text) for text in texts if text)) if cid not in known]
 
 
 def people_addressed(text: Any) -> list[str]:

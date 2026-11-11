@@ -31,8 +31,12 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from collections.abc import Iterable, Iterator, Mapping
+from dataclasses import dataclass
+from typing import Any
 
 from app.services import living_story as engine
+from app.services import scene_ledger, story_memory
 
 # ---------------------------------------------------------------------------
 # Finding 3 — agreement with a gender the learner never gave
@@ -525,6 +529,98 @@ _GRADER_SUMMARY = re.compile(
 )
 
 
+# #467: «Napoléon donne son nom au canapé du menu». The cat was Napoléon, the menu was to take
+# the name, and nobody named the sofa. Compared against what the scene holds, so it needs
+# no judgement of meaning: a sentence of the thread either puts the two together or does not.
+#: Words that open a capitalised title («Les Mots sur les cartes»), never a name.
+_TITLE_OPENERS = frozenset({"les", "le", "la", "un", "une", "des", "du", "mon", "ton", "son"})
+_ARTICLE = r"(?i:(?:le|la|les|un|une|ce|cette|mon|ton|son|sa)\s+|l['’]\s*)"
+_THING = r"([a-zà-öø-ÿ]{3,})"
+_NAME = r"([A-ZÀ-ÖØ-Þ][\w'’-]+)"
+_NAMING_FORMS = (
+    # (pattern, (name group, thing group)): «Napoléon donne son nom au canapé»
+    (re.compile(rf"\b{_NAME}\s+donne\s+(?:son|le|ce)\s+nom\s+(?:à\s+{_ARTICLE}|au\s+|aux\s+){_THING}"), (1, 2)),
+    # «Le canapé s'appelle Napoléon», «est nommé / baptisé Napoléon»
+    (
+        re.compile(rf"\b{_ARTICLE}{_THING}\s+(?:s['’]appelle|est\s+(?:appelée?|nommée?|baptisée?))\s+{_NAME}"),
+        (2, 1),
+    ),
+    # «appeler le canapé Napoléon»
+    (re.compile(rf"\bappel(?:er|ez|ons|ent|le|les)\s+{_ARTICLE}{_THING}\s+{_NAME}"), (2, 1)),
+    # «Le nom du canapé est Napoléon»
+    (re.compile(rf"\bnom\s+(?:du|des|de\s+la|de\s+l['’])\s*{_THING}\s+est\s+{_NAME}"), (2, 1)),
+)
+_NAMING_CUES = ("appel", "nomm", "baptis")
+
+
+def naming_claims(text: str) -> list[tuple[str, str]]:
+    """Each «thing named name» the text states, as ``(name, thing)`` in text order. A person
+    called by their own name («Marin s'appelle Marin») has no article-led thing and is no
+    claim."""
+
+    found: list[tuple[int, str, str]] = []
+    for pattern, (name_group, thing_group) in _NAMING_FORMS:
+        for match in pattern.finditer(text or ""):
+            name, thing = match.group(name_group), match.group(thing_group)
+            if name.casefold() not in _TITLE_OPENERS:
+                found.append((match.start(), name, thing))
+    claims: list[tuple[str, str]] = []
+    for _, name, thing in sorted(found):
+        if (name, thing) not in claims:
+            claims.append((name, thing))
+    return claims
+
+
+def _strings(value: Any) -> Iterator[str]:
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, Mapping):
+        for item in value.values():
+            yield from _strings(item)
+    elif isinstance(value, list | tuple):
+        for item in value:
+            yield from _strings(item)
+
+
+def _scene_holds_name(thing: str, name: str, payload: dict) -> bool:
+    """True when one sentence of what the scene holds (its page, its thread, its record, the
+    story so far) puts ``thing`` with a naming word or with ``name``."""
+
+    prefix = _bare(thing.casefold())[:5]
+    key = _name_key(name)
+    sources = (payload.get("scene"), payload.get("learner_text"), payload.get("history"),
+               payload.get("ledger"), payload.get("story"))
+    for text in _strings(sources):
+        for sentence in _SENTENCE_SPLIT.split(text):
+            tokens = [_bare(token) for token in _tokens(sentence)]
+            if not any(token.startswith(prefix) for token in tokens):
+                continue
+            if key in {_name_key(token) for token in tokens}:
+                return True
+            if any(token in ("nom", "noms") or token.startswith(_NAMING_CUES) for token in tokens):
+                return True
+    return False
+
+
+def unsupported_naming(ending_texts: list[str], payload: dict) -> tuple[str, str] | None:
+    """The first ``(name, thing)`` an ending states that nothing in the scene put together."""
+
+    for text in ending_texts:
+        for name, thing in naming_claims(text):
+            if not _scene_holds_name(thing, name, payload):
+                return name, thing
+    return None
+
+
+def naming_hint(claim: tuple[str, str]) -> str:
+    name, thing = claim
+    return (
+        f"The ending gives the name «{name}» to «{thing}», but nobody in this scene named "
+        f"«{thing}»: a name stays with what it was given to. Say it as the learner and the "
+        "characters said it, or leave the name out."
+    )
+
+
 def ending_voice_issue(resolution_fr: str, summary_native: str, character_name: str | None) -> str | None:
     """Why the ending cannot go in the character's bubble, or ``None``."""
 
@@ -882,3 +978,367 @@ def echoed_thread(reply: str, earlier: list[str]) -> list[str]:
     if any(len(sentence.split()) >= 5 for sentence in repeated) or len(repeated) >= 2:
         return repeated
     return []
+
+
+# ---------------------------------------------------------------------------
+# #145 — the reply, compared with what the scene's ledger knows
+# ---------------------------------------------------------------------------
+#
+# State goes in before the reply: the voice lane is told the ledger and writes freely.
+# These few checks then compare the finished reply with that record. Each is a
+# ``SoftRejection`` raised from ``living_story.reply_soft_check``: one retry with the
+# reason, then the reply is served, so none can cost the learner a turn.
+#
+# They exist in this narrow form because two earlier guards (#600, #631) judged meaning
+# with clause patterns and refused natural French in every scene. ``tests/
+# test_scene_reply_145.py`` runs every sentence those reviews listed against all of them.
+#
+# Live walk 2 Nov 2026: Marin asked «Tu veux garder ce nom ?», the learner answered
+# «Non, je veux pas ce nom…», and Marin said «Oui, bien sûr. Tu me le fais garder ?»: his
+# own question again, from the line the learner had just answered.
+
+#: Verbs that carry no topic of their own: «Tu me le fais garder ?» asks about «garder»,
+#: not about «faire». Compared folded.
+_LIGHT_VERBS = frozenset(
+    """fais fait faites faire veux veut voulez vouloir peux peut pouvez pouvoir vais vont
+    allez aller dis dit dites dire sais sait savez savoir as avez avoir etes serait""".split()
+)
+
+
+def _topic_stems(text: str) -> set[str]:
+    """What a question is about: its content words (light verbs aside) by their first
+    four letters, so «garder» meets «gardes» and «gardez»."""
+
+    return {
+        token[:4]
+        for token in _content(_tokens(text))
+        if len(token) >= 3 and token not in _LIGHT_VERBS
+    }
+
+
+def reasked_question(reply: str, ledger: dict | None) -> str | None:
+    """The earlier question of the character that ``reply`` asks again, or None.
+
+    A question of the reply is a re-ask when everything it is about is in a question the
+    learner has already answered (``ledger["asked"]``: by the character, ``answered_at``
+    set). A new question on the same verb about something else («Tu veux garder le chat ?»
+    after «Tu veux garder ce nom ?») is not: it adds a topic. Returns the earlier question.
+    """
+
+    answered = [
+        row
+        for row in (ledger or {}).get("asked") or []
+        if isinstance(row, dict) and row.get("by") == "character" and row.get("answered_at") is not None
+    ]
+    if not answered:
+        return None
+    for sentence in _SENTENCE.findall(reply or ""):
+        if not sentence.strip().endswith("?"):
+            continue
+        asked = _topic_stems(sentence)
+        for row in answered:
+            earlier = str(row.get("text_fr") or "")
+            # A question of light verbs alone («Tu sais ça ?») has no topic to compare: only
+            # its own words, with or without «oui ou non», ask it again.
+            if asked <= _topic_stems(earlier) if asked else _same_question(sentence, earlier):
+                return earlier
+    return None
+
+
+def _same_question(left: str, right: str) -> bool:
+    """Whether two questions are the same words, «oui ou non» aside."""
+
+    words = [{token for token in _tokens(text) if token not in {"oui", "ou", "non"}} for text in (left, right)]
+    return bool(words[0]) and words[0] == words[1]
+
+
+#: A reply that OPENS by joining the refusal of the speaker's own proposal: «Je ne suis
+#: pas d'accord non plus.», «Moi non plus.», «Ni moi.» (folded text). A sentence carried by
+#: someone else («Mon frère non plus ne cédera pas», «Ni moi ni mon frère ne céderons») or a
+#: «moi aussi» about something else («Moi aussi, je n'aime pas les dettes») keeps her position.
+_JOINS_REFUSAL = re.compile(
+    r"^(?:(?:ah|oh|eh|ben|bah|bon|alors|mais)\s+)*(?:"
+    r"(?:moi\s+)?non\s+plus\b|pas\s+moi\s+non\s+plus\b|ni\s+moi\b(?!\s+ni\b)|"
+    r"moi\s+aussi\s+je\s+(?:ne\s+)?suis\s+pas\s+d\s?accord\b|"
+    r"je\s+(?:ne\s+)?suis\s+pas\s+d\s?accord\s+non\s+plus\b|"
+    r"(?:nous\s+sommes|on\s+est)\s+d\s?accord\b)"
+)
+
+
+def joined_refusal(reply: str, ledger: dict | None) -> dict | None:
+    """#591: the proposal this reply gives up by joining the learner's refusal of it, or
+    None. Only the stand refused by the turn being answered; giving way in so many words
+    («Vous avez raison, il peut attendre.») is the character's right and is not matched."""
+
+    ledger = ledger or {}
+    current = int(ledger.get("exchanges") or 0)
+    for stand in ledger.get("stands") or []:
+        if stand.get("stance") == "refused" and stand.get("at") == current:
+            if _JOINS_REFUSAL.match(scene_ledger._folded(reply)):
+                return stand
+    return None
+
+
+#: A sentence that does nothing but ask: it opens on a question word («Mais pourquoi cette
+#: question ?», «Pourquoi ?») or hands the question over («Et toi ?»).
+_ONLY_ASKS = re.compile(
+    r"^(?:(?:mais|et|alors|ah|oh|bon|ben|hein)[\s,]+)*"
+    r"(?:pourquoi|comment|combien|quand|où|qui|quoi|que\b|qu['’]|quel(?:le)?s?\b|lequel|laquelle|est[- ]ce|"
+    r"(?:et\s+)?(?:toi|vous)\s*\?)",
+    re.IGNORECASE,
+)
+
+
+def question_handed_back(reply: str, ledger: dict | None) -> str | None:
+    """The learner's question when the reply is nothing but questions of its own, or None.
+
+    It reads what a sentence opens with, not how it ends. «Moi, je suis de Lyon, et vous ?»
+    and «Parce qu'il m'a élevée, vous comprenez ?» end on a question and answer first."""
+
+    asked = (ledger or {}).get("learner_asked")
+    parts = scene_ledger.sentences(reply)
+    if not asked or not parts:
+        return None
+    if all(part.rstrip("»\" ").endswith("?") and _ONLY_ASKS.match(part.strip("«»\"' ")) for part in parts):
+        return str(asked)
+    return None
+
+
+#: Words put to the learner as theirs: «Tu as dit : « … »», «Vous avez promis « … »».
+_QUOTED_AT_LEARNER = re.compile(
+    r"(?:tu\s+(?:as\s+)?(?:dit|dis|promis|écrit|écris)|vous\s+(?:avez\s+)?(?:dit|dites|promis|écrit|écrivez)|"
+    r"comme\s+(?:tu\s+dis|vous\s+dites))[^.!?…«»\"]{0,24}[«\"]\s*([^»\"]+?)\s*[»\"]",
+    re.IGNORECASE,
+)
+
+
+def learner_lines(payload: dict | None) -> list[str]:
+    """Everything the learner has written in this scene, the turn being answered included."""
+
+    payload = payload or {}
+    lines = [str(row.get("learner") or "") for row in payload.get("history") or [] if isinstance(row, dict)]
+    return [line for line in [*lines, str(payload.get("learner_text") or "")] if line.strip()]
+
+
+def unsaid_quote(reply: str, said: list[str]) -> re.Match[str] | None:
+    """#378, #620: where the reply quotes as the learner's words they never wrote."""
+
+    for match in _QUOTED_AT_LEARNER.finditer(reply or ""):
+        if not story_memory.verbatim(match.group(1), said):
+            return match
+    return None
+
+
+#: A character answering their own question in the learner's place: «Tu viens ? Oui, tu
+#: viens.» «Mon grand-père ? Oui, c'est lui.» is a character talking, and is not matched.
+_ANSWERS_FOR_LEARNER = re.compile(
+    r"\b(?:tu|vous)\b[^.!?…]*\?\s+((?:oui|non)\s*[,.!…]?\s+(?:tu|vous)\b[^.!?…]*[.!…]?)", re.IGNORECASE
+)
+#: A statement that the learner agreed. «Tu es d'accord avec Gus» is about someone else.
+_CLAIMS_AGREEMENT = re.compile(
+    r"^(?:(?:donc|alors|bon|bien|ah|parfait)\s+)*(?:tu\s+es|vous\s+etes)\s+d\s?accord\b(?!\s+avec)|"
+    r"^(?:(?:donc|alors|bon|bien|ah|parfait)\s+)*(?:tu\s+acceptes|vous\s+acceptez|tu\s+as\s+dit\s+oui|vous\s+avez\s+dit\s+oui)\b"
+)
+
+
+def answers_for_learner(reply: str, ledger: dict | None) -> str | None:
+    """#108, #145: the part of the reply that answers in the learner's place, or None: a
+    question answered in the same breath, or a statement that a learner who just said no
+    has agreed."""
+
+    if match := _ANSWERS_FOR_LEARNER.search(reply or ""):
+        return match.group(1)
+    last = (ledger or {}).get("last_turn") or {}
+    if last.get("intent") == "no":
+        for part in scene_ledger.sentences(reply):
+            if not part.rstrip("»\" ").endswith("?") and _CLAIMS_AGREEMENT.match(scene_ledger._folded(part)):
+                return part
+    return None
+
+
+@dataclass(frozen=True, slots=True)
+class SceneFinding:
+    """One thing the reply says against the scene's record: the code the pilot ledger
+    counts and the reason the re-roll is told. A finding is a veto: the reply is never
+    served with the offending part cut out (``story_lanes._run_lane``)."""
+
+    code: str
+    hint: str
+
+
+#: The codes :func:`scene_findings` reports: each one vetoes the reply.
+SCENE_FINDING_CODES = frozenset(
+    {
+        "reply_reasks_answered_question",
+        "reply_contradicts_position",
+        "reply_skips_learner_question",
+        "reply_quotes_unsaid",
+        "reply_answers_for_learner",
+    }
+)
+
+
+def scene_findings(reply: str, payload: dict | None) -> list[SceneFinding]:
+    """What the finished reply says against the ledger, for ``reply_soft_check``."""
+
+    payload = payload or {}
+    ledger = payload.get("ledger")
+    if not isinstance(ledger, dict):
+        return []
+    findings: list[SceneFinding] = []
+    if reasked := reasked_question(reply, ledger):
+        findings.append(
+            SceneFinding(
+                "reply_reasks_answered_question",
+                f"The reply asks again a question the learner has already answered («{reasked[:120]}»). "
+                "Take their answer as it is and move on to what follows from it.",
+            )
+        )
+    if stand := joined_refusal(reply, ledger):
+        findings.append(
+            SceneFinding(
+                "reply_contradicts_position",
+                f"You proposed «{str(stand.get('text_fr'))[:160]}» and the learner refused it. Joining them "
+                "(«non plus», «ni moi») makes you refuse your own proposal. Hold to it, say why, or give "
+                "way in so many words.",
+            )
+        )
+    if asked := question_handed_back(reply, ledger):
+        findings.append(
+            SceneFinding(
+                "reply_skips_learner_question",
+                f"The learner asked «{asked[:160]}» and the reply only asks back. Answer first, in "
+                "character (a fact, yes or no, or that you will not say and why).",
+            )
+        )
+    if quote := unsaid_quote(reply, learner_lines(payload)):
+        findings.append(
+            SceneFinding(
+                "reply_quotes_unsaid",
+                f"The reply quotes the learner as saying «{quote.group(1)[:120]}», and they never wrote that. "
+                "Quote only their own words, or say it without quoting them.",
+            )
+        )
+    if answers_for_learner(reply, ledger):
+        findings.append(
+            SceneFinding(
+                "reply_answers_for_learner",
+                "The reply answers in the learner's place. Their answer is theirs: react to what they "
+                "wrote, and leave the next word to them.",
+            )
+        )
+    return findings
+
+
+# ---------------------------------------------------------------------------
+# #114 — a reply that invents an order, a number or a request for personal data
+# ---------------------------------------------------------------------------
+#
+# Root cause (#145, the thread has no ledger of what is established): the Courrier
+# actor is told to «add one concrete in-world detail» and is handed the goals of a
+# *domain* («Give the tracking number or order reference»), so when the learner's
+# off-script answer gives it nothing to build on it reaches for the delivery template
+# the goals describe. Nothing compared the reply with the thread afterwards.
+# Live walks 13 Oct («le numéro de suivi de la commande, c'est le 123456789. Tu pourrais
+# me confirmer ton adresse ?») and 24 Oct («le numéro de suivi ou la référence de votre
+# commande», «mon adresse exacte»).
+#
+# The rule is about grounding, not vocabulary: a reference number, an order number or a
+# request for the learner's address, phone or e-mail is allowed only when the thread
+# already holds it (the scene text, an earlier line, the learner's own words), or, for a
+# request, when the authored opening already makes the same request. «Voici votre
+# commande» in a café, or «Quelle rue exactement ?» after an authored «Quelle est votre
+# rue ?», stay as written.
+
+_FOLD_PUNCT = re.compile(r"[^\w\s?°]")
+
+
+def _plain_fold(text: object) -> str:
+    """Casefolded, accent-free, punctuation to spaces (apostrophes included); the
+    question mark and «n°» are kept for the checks that read them."""
+
+    raw = unicodedata.normalize("NFKD", str(text or "").casefold())
+    raw = "".join(ch for ch in raw if not unicodedata.combining(ch)).replace("n°", " numero ")
+    return " ".join(_FOLD_PUNCT.sub(" ", raw).replace("°", " ").split())
+
+
+_REFERENCE_KIND = (
+    r"suivi|tracking|commande|colis|paquet|dossier|livraison|reservation|client|facture|"
+    r"reference|expedition|envoi"
+)
+_REFERENCE_NUMBER = re.compile(
+    rf"\b(?:numero|code|reference)\s+(?:de\s+|du\s+|d\s+)?(?:votre\s+|ton\s+|ta\s+|la\s+|le\s+|l\s+)?"
+    rf"(?P<kind>{_REFERENCE_KIND})\b|\b(?P<tracking>tracking)\b"
+)
+_LONG_NUMBER = re.compile(r"(?<![\d.,:])\d{6,}(?![\d.,:])|\b(?:\d{2}\s){4}\d{2}\b")
+
+_PERSONAL_REQUEST = re.compile(
+    r"\b(?:votre|ton|ta|tes|vos)\s+(?:(?P<email>adresse\s+(?:e\s*mail|mail|electronique)|e\s*mail|courriel)|"
+    r"(?P<address>adresse(?:\s+(?:exacte|postale|complete))?)|"
+    r"(?P<phone>numero\s+de\s+(?:telephone|portable|mobile)|telephone|portable)|"
+    r"(?P<identity>date\s+de\s+naissance|iban|carte\s+(?:bancaire|d\s+identite)|passeport|nom\s+de\s+famille))\b"
+    r"|(?P<where>\bou\s+(?:habitez|habites)\b|\bquelle\s+est\s+(?:votre|ta)\s+rue\b|\bdans\s+quelle\s+rue\b)"
+)
+#: A sentence only *asks* for it when it asks (a question mark or a request verb);
+#: «Nous avons votre adresse.» states, and is not a request.
+_ASKS = re.compile(
+    r"\?|\b(?:confirm\w*|donn\w*|envoy\w*|precis\w*|indiqu\w*|communiqu\w*|pouv\w*|peux|"
+    r"dites|dis|merci de|veuillez|il me faut|j ai besoin|besoin de)\b"
+)
+
+
+def _folded_sentences(text: object) -> list[str]:
+    return [part for part in (_plain_fold(p) for p in re.split(r"(?<=[.!?…])\s+|\n+", str(text or ""))) if part]
+
+
+def personal_requests(text: object) -> set[str]:
+    """The kinds of personal data (address, email, phone, identity) ``text`` asks for."""
+
+    kinds: set[str] = set()
+    for sentence in _folded_sentences(text):
+        if not _ASKS.search(sentence):
+            continue
+        for match in _PERSONAL_REQUEST.finditer(sentence):
+            kind = next((name for name, value in match.groupdict().items() if value), "address")
+            kinds.add("address" if kind == "where" else kind)
+    return kinds
+
+
+def invented_logistics(reply: object, *, grounded: Iterable[object], authored: Iterable[object] = ()) -> list[str]:
+    """What ``reply`` invents: an order / tracking / reference number the thread never
+    held, a long digit string the thread never held, or a request for the learner's
+    personal data the authored opening did not make. Empty when the reply is clean.
+
+    ``grounded`` is every text the thread already holds (scene, authored opening,
+    earlier lines, the learner's own words); ``authored`` is only what the scene's
+    author wrote, which alone may license a request."""
+
+    problems: list[str] = []
+    said = _plain_fold(reply).replace("?", " ")
+    held = " ".join(_plain_fold(text) for text in grounded)
+    for match in _REFERENCE_NUMBER.finditer(said):
+        phrase = match.group(0)
+        kind = match.group("kind") or match.group("tracking")
+        if phrase in held or re.search(rf"\b(?:numero|code|reference)\s+(?:de\s+|du\s+|d\s+)?(?:\w+\s+)?{kind}\b", held):
+            continue
+        problems.append(f"a {kind} number the scene never mentioned")
+    for match in _LONG_NUMBER.finditer(said):
+        digits = match.group(0)
+        if digits not in held:
+            problems.append(f"the number {digits}, which nobody gave")
+    asked = personal_requests(reply)
+    if asked:
+        allowed: set[str] = set()
+        for text in authored:
+            allowed |= personal_requests(text)
+        problems.extend(f"a request for the learner's {kind}" for kind in sorted(asked - allowed))
+    return problems
+
+
+def invented_logistics_hint(problems: list[str]) -> str:
+    return (
+        "Your reply brings in " + "; ".join(problems[:2]) + ". Nothing in the scene or in what the other "
+        "person wrote mentions an order, a parcel, a tracking or reference number or a home address, "
+        "so invent none and ask for none. Answer what they just wrote (take up one thing they said, "
+        "such as their decision or the animal they named), then ask one question about it."
+    )

@@ -1,0 +1,2517 @@
+{
+ "budget_seconds": 600,
+ "cefr": "B1.1",
+ "control_language": null,
+ "day": 1,
+ "day_shape": "standard",
+ "estimated_active_seconds": 466,
+ "events": [
+  {
+   "estimated_seconds": 109,
+   "page": [
+    {
+     "alt_native": null,
+     "dialogue": [],
+     "narration_fr": "Paris, un 11 novembre sous la pluie. Une valise, une lettre du notaire, et une clé qui n'est pas encore à toi."
+    },
+    {
+     "alt_native": null,
+     "dialogue": [
+      {
+       "character_id": "augustin_de_roncourt",
+       "character_name": "Augustin « Gus » de Roncourt",
+       "text_fr": "…Et là, le duc se tourne vers moi : \"Augustin, vous êtes bien trop élégant pour ce siècle.\"",
+       "text_native": null
+      },
+      {
+       "character_id": "marin_leveque",
+       "character_name": "Marin Lévêque",
+       "text_fr": "Il a dit ça ?",
+       "text_native": null
+      },
+      {
+       "character_id": "lila_bonnet",
+       "character_name": "Lila Bonnet",
+       "text_fr": "Non.",
+       "text_native": null
+      }
+     ],
+     "narration_fr": ""
+    },
+    {
+     "alt_native": null,
+     "dialogue": [],
+     "narration_fr": ""
+    },
+    {
+     "alt_native": null,
+     "dialogue": [
+      {
+       "character_id": "augustin_de_roncourt",
+       "character_name": "Augustin « Gus » de Roncourt",
+       "text_fr": "Ah ! La personne de chez Marchand, je présume ? On vous attendait… avec impatience, évidemment.",
+       "text_native": null
+      },
+      {
+       "character_id": "marin_leveque",
+       "character_name": "Marin Lévêque",
+       "text_fr": "C'est qui ?",
+       "text_native": null
+      },
+      {
+       "character_id": "lila_bonnet",
+       "character_name": "Lila Bonnet",
+       "text_fr": "La personne qui vend.",
+       "text_native": null
+      }
+     ],
+     "narration_fr": ""
+    },
+    {
+     "alt_native": null,
+     "dialogue": [
+      {
+       "character_id": "marin_leveque",
+       "character_name": "Marin Lévêque",
+       "text_fr": "Asseyez-vous.",
+       "text_native": null
+      },
+      {
+       "character_id": "marin_leveque",
+       "character_name": "Marin Lévêque",
+       "text_fr": "…Vous allez vraiment vendre l'appartement d'Odile ? À ces gens-là ?",
+       "text_native": null
+      },
+      {
+       "character_id": "lila_bonnet",
+       "character_name": "Lila Bonnet",
+       "text_fr": "Regarde ses chaussures. Personne chez Solvel ne porte ça.",
+       "text_native": null
+      }
+     ],
+     "narration_fr": ""
+    },
+    {
+     "alt_native": null,
+     "dialogue": [
+      {
+       "character_id": "augustin_de_roncourt",
+       "character_name": "Augustin « Gus » de Roncourt",
+       "text_fr": "Alors, dites-moi. Qui êtes-vous, exactement ?",
+       "text_native": null
+      }
+     ],
+     "narration_fr": ""
+    }
+   ],
+   "step": {
+    "id": "<id>",
+    "kind": "scene",
+    "prompt": {
+     "audio_available": false,
+     "character_line_audio_url": null,
+     "character_line_fr": "Alors, dites-moi. Qui êtes-vous, exactement ?",
+     "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+     "listen_first": false,
+     "margin_notes": [],
+     "objective_native": "Dis qui tu es et pourquoi tu es là.",
+     "panels": null,
+     "premise_native": null,
+     "previously_fr": [],
+     "reread_native": null,
+     "season_part": {
+      "day_in_segment": 1,
+      "kind": "tentpole",
+      "season_id": "s1",
+      "segment": "t1"
+     },
+     "setup_fr": "Paris, un 11 novembre sous la pluie. Une valise, une lettre du notaire, et une clé qui n'est pas encore à toi.",
+     "setup_native": "Paris, un 11 novembre sous la pluie. Une valise, une lettre du notaire, et une clé qui n'est pas encore à toi.",
+     "stage": {
+      "band": "B1",
+      "can_do_native": "Dire qui on est et pourquoi on est venu ; corriger un malentendu.",
+      "day": "a",
+      "key": "t1.a",
+      "language": "fr",
+      "location_id": "le_mistral",
+      "movements": [
+       {
+        "diegetic": [
+         "MISTRAL"
+        ],
+        "flashback": false,
+        "id": "a.p1",
+        "in_frame": [
+         "toi",
+         "augustin_de_roncourt",
+         "marin_leveque",
+         "lila_bonnet"
+        ],
+        "kind": "panel",
+        "lines": [
+         {
+          "direction": null,
+          "kind": "caption",
+          "mood": "neutral",
+          "name": null,
+          "text_fr": "Paris, un 11 novembre sous la pluie. Une valise, une lettre du notaire, et une clé qui n'est pas encore à toi.",
+          "text_native": null,
+          "who": "caption"
+         }
+        ],
+        "location_id": "quai_de_valmy",
+        "silence": false,
+        "visual": "Night rain on the quai de Valmy. The red neon MISTRAL on the corner. Toi from behind, with a suitcase and an envelope held under the coat against the rain. Through the café's window, Gus stands on the booth's bench mid-anecdote, and Marin and Lila look up at him. Far background, rue de Lancry: a third-floor window, an old man at an easel, tiny, never lit brighter than the street."
+       },
+       {
+        "diegetic": [],
+        "flashback": false,
+        "id": "a.p2",
+        "in_frame": [
+         "augustin_de_roncourt",
+         "marin_leveque",
+         "lila_bonnet"
+        ],
+        "kind": "panel",
+        "lines": [
+         {
+          "direction": null,
+          "kind": "speech",
+          "mood": "happy",
+          "name": "Gus",
+          "text_fr": "…Et là, le duc se tourne vers moi : \"Augustin, vous êtes bien trop élégant pour ce siècle.\"",
+          "text_native": null,
+          "who": "augustin_de_roncourt"
+         },
+         {
+          "direction": null,
+          "kind": "speech",
+          "mood": "neutral",
+          "name": "Marin",
+          "text_fr": "Il a dit ça ?",
+          "text_native": null,
+          "who": "marin_leveque"
+         },
+         {
+          "direction": null,
+          "kind": "speech",
+          "mood": "cold",
+          "name": "Lila",
+          "text_fr": "Non.",
+          "text_native": null,
+          "who": "lila_bonnet"
+         }
+        ],
+        "location_id": "le_mistral",
+        "silence": false,
+        "visual": "Inside Le Mistral. The door's bell. Heads turn. Gus is still standing on the bench, one hand raised, and freezes mid-story. Marin holds a spoon of soup halfway to his mouth. Lila, chin on her fist, is already interested."
+       },
+       {
+        "diegetic": [],
+        "flashback": false,
+        "id": "a.p3",
+        "in_frame": [
+         "margaux_barman"
+        ],
+        "kind": "panel",
+        "lines": [],
+        "location_id": "le_mistral",
+        "silence": true,
+        "visual": "The zinc, close. Toi's hand sets down the envelope, and on top of it the key ring: an old key and a small enamel cicada, green and gold. Margaux's hand, drying a glass, stops. We see only her hand and the cicada."
+       },
+       {
+        "diegetic": [],
+        "flashback": false,
+        "id": "a.p4",
+        "in_frame": [
+         "augustin_de_roncourt",
+         "marin_leveque",
+         "lila_bonnet"
+        ],
+        "kind": "panel",
+        "lines": [
+         {
+          "direction": null,
+          "kind": "speech",
+          "mood": "cold",
+          "name": "Gus",
+          "text_fr": "Ah ! La personne de chez Marchand, je présume ? On vous attendait… avec impatience, évidemment.",
+          "text_native": null,
+          "who": "augustin_de_roncourt"
+         },
+         {
+          "direction": "to Lila, a whisper",
+          "kind": "speech",
+          "mood": "neutral",
+          "name": "Marin",
+          "text_fr": "C'est qui ?",
+          "text_native": null,
+          "who": "marin_leveque"
+         },
+         {
+          "direction": null,
+          "kind": "speech",
+          "mood": "cold",
+          "name": "Lila",
+          "text_fr": "La personne qui vend.",
+          "text_native": null,
+          "who": "lila_bonnet"
+         }
+        ],
+        "location_id": "le_mistral",
+        "silence": false,
+        "visual": "Gus steps down from the bench and crosses the room with a bow that is too deep. The group watches behind him."
+       },
+       {
+        "diegetic": [],
+        "flashback": false,
+        "id": "a.p5",
+        "in_frame": [
+         "marin_leveque",
+         "lila_bonnet",
+         "toi"
+        ],
+        "kind": "panel",
+        "lines": [
+         {
+          "direction": null,
+          "kind": "speech",
+          "mood": "neutral",
+          "name": "Marin",
+          "text_fr": "Asseyez-vous.",
+          "text_native": null,
+          "who": "marin_leveque"
+         },
+         {
+          "direction": null,
+          "kind": "speech",
+          "mood": "moved",
+          "name": "Marin",
+          "text_fr": "…Vous allez vraiment vendre l'appartement d'Odile ? À ces gens-là ?",
+          "text_native": null,
+          "who": "marin_leveque"
+         },
+         {
+          "direction": null,
+          "kind": "speech",
+          "mood": "neutral",
+          "name": "Lila",
+          "text_fr": "Regarde ses chaussures. Personne chez Solvel ne porte ça.",
+          "text_native": null,
+          "who": "lila_bonnet"
+         }
+        ],
+        "location_id": "le_mistral",
+        "silence": false,
+        "visual": "Marin stands and politely pulls out a chair for Toi, then cannot help himself. Behind him, Lila looks down at Toi's feet."
+       },
+       {
+        "choice": false,
+        "id": "a.turn1",
+        "kind": "turn",
+        "only_after": null,
+        "panel": {
+         "diegetic": [],
+         "flashback": false,
+         "id": "a.p6",
+         "in_frame": [
+          "augustin_de_roncourt",
+          "toi"
+         ],
+         "kind": "panel",
+         "lines": [
+          {
+           "direction": null,
+           "kind": "speech",
+           "mood": "cold",
+           "name": "Gus",
+           "text_fr": "Alors, dites-moi. Qui êtes-vous, exactement ?",
+           "text_native": null,
+           "who": "augustin_de_roncourt"
+          }
+         ],
+         "location_id": "le_mistral",
+         "silence": false,
+         "visual": "Gus leans on the zinc beside Toi in his three-piece suit, all charm and no warmth. Toi's balloon, empty, is drawn from behind Toi's shoulder."
+        },
+        "task_native": "Dis qui tu es et pourquoi tu es là.",
+        "to": "augustin_de_roncourt",
+        "to_name": "Gus"
+       },
+       {
+        "choice": true,
+        "id": "a.cafe",
+        "kind": "turn",
+        "only_after": {
+         "a.turn1": [
+          "a",
+          "c"
+         ]
+        },
+        "panel": {
+         "diegetic": [],
+         "flashback": false,
+         "id": "a.cafe.prompt",
+         "in_frame": [
+          "margaux_barman"
+         ],
+         "kind": "panel",
+         "lines": [
+          {
+           "direction": null,
+           "kind": "speech",
+           "mood": "neutral",
+           "name": "Margaux",
+           "text_fr": "Le café crème est pour toi. Tu le prends ?",
+           "text_native": null,
+           "who": "margaux_barman"
+          }
+         ],
+         "location_id": "le_mistral",
+         "silence": false,
+         "visual": "The café crème steams on the zinc in front of Toi. Margaux waits, a cloth over her shoulder. From the booth, Marin watches the cup as if it might say something."
+        },
+        "task_native": "Prends le café crème que Margaux t'a servi, ou dis non.",
+        "to": "margaux_barman",
+        "to_name": "Margaux"
+       },
+       {
+        "choice": false,
+        "id": "a.turn2",
+        "kind": "turn",
+        "only_after": null,
+        "panel": {
+         "diegetic": [],
+         "flashback": false,
+         "id": "a.p7",
+         "in_frame": [
+          "margaux_barman",
+          "marin_leveque",
+          "lila_bonnet",
+          "augustin_de_roncourt"
+         ],
+         "kind": "panel",
+         "lines": [
+          {
+           "direction": null,
+           "kind": "speech",
+           "mood": "neutral",
+           "name": "Margaux",
+           "text_fr": "Elle ne prêtait jamais cette clé. À personne.",
+           "text_native": null,
+           "who": "margaux_barman"
+          },
+          {
+           "direction": null,
+           "kind": "speech",
+           "mood": "neutral",
+           "name": "Margaux",
+           "text_fr": "Tu vas monter ?",
+           "text_native": null,
+           "who": "margaux_barman"
+          }
+         ],
+         "location_id": "le_mistral",
+         "silence": false,
+         "visual": "Margaux picks up the key ring and turns the cicada in her fingers. Marin and Lila lean in from the booth. Gus pretends not to."
+        },
+        "task_native": "Dis à Margaux si tu montes à l'appartement ce soir, et ce que tu veux faire.",
+        "to": "margaux_barman",
+        "to_name": "Margaux"
+       },
+       {
+        "choice": true,
+        "id": "a.key",
+        "kind": "turn",
+        "only_after": null,
+        "panel": {
+         "diegetic": [],
+         "flashback": false,
+         "id": "a.key.prompt",
+         "in_frame": [
+          "margaux_barman"
+         ],
+         "kind": "panel",
+         "lines": [
+          {
+           "direction": null,
+           "kind": "speech",
+           "mood": "neutral",
+           "name": "Margaux",
+           "text_fr": "La clé : tu la prends, ou tu la laisses ici ?",
+           "text_native": null,
+           "who": "margaux_barman"
+          }
+         ],
+         "location_id": "le_mistral",
+         "silence": false,
+         "visual": "The key ring lies on the zinc between Toi and Margaux, the cicada up under the neon. Margaux's hand rests beside it, not on it."
+        },
+        "task_native": "Prends la clé, ou laisse-la à Margaux pour la nuit.",
+        "to": "margaux_barman",
+        "to_name": "Margaux"
+       },
+       {
+        "id": "a.hook",
+        "kind": "hook",
+        "panel": {
+         "diegetic": [],
+         "flashback": false,
+         "id": "a.p8",
+         "in_frame": [
+          "camille_marchand",
+          "augustin_de_roncourt",
+          "lila_bonnet"
+         ],
+         "kind": "panel",
+         "lines": [
+          {
+           "direction": null,
+           "kind": "speech",
+           "mood": "neutral",
+           "name": "Camille",
+           "text_fr": "Bonsoir. Camille Marchand. Je viens pour le premier étage. J'ai la clé.",
+           "text_native": null,
+           "who": "camille_marchand"
+          },
+          {
+           "direction": "already bowing again, to Camille",
+           "kind": "speech",
+           "mood": "neutral",
+           "name": "Gus",
+           "text_fr": "Ah ! Voici donc—",
+           "text_native": null,
+           "who": "augustin_de_roncourt"
+          },
+          {
+           "direction": null,
+           "kind": "speech",
+           "mood": "neutral",
+           "name": "Lila",
+           "text_fr": "Gus. Assieds-toi.",
+           "text_native": null,
+           "who": "lila_bonnet"
+          },
+          {
+           "direction": null,
+           "kind": "caption",
+           "mood": "neutral",
+           "name": null,
+           "text_fr": "Deux clés, une seule porte. À suivre…",
+           "text_native": null,
+           "who": "caption"
+          }
+         ],
+         "location_id": "le_mistral",
+         "silence": false,
+         "visual": "The bell again. In the doorway stands a figure in a rain-soaked bike helmet, holding up a key: Camille, seen from the side, not yet in close-up. On the zinc in the foreground lies Toi's key with its cicada. Two keys in one frame. Gus looks from one to the other."
+        },
+        "role": "midpoint"
+       }
+      ],
+      "number": 1,
+      "season_id": "s1",
+      "segment": "t1",
+      "story_date_fr": "mercredi 11 novembre",
+      "storylets": [
+       {
+        "after_seconds": null,
+        "chips": [],
+        "cue": "walk_out",
+        "id": "walk_out",
+        "lines": [
+         {
+          "direction": null,
+          "during": null,
+          "from_fr": null,
+          "id": "walk_out.asked",
+          "kind": "speech",
+          "mood": "neutral",
+          "name": "Margaux",
+          "role": "asked",
+          "text_fr": "Tu pars déjà ?",
+          "text_native": null,
+          "who": "margaux_barman"
+         },
+         {
+          "direction": null,
+          "during": "a.p2",
+          "from_fr": null,
+          "id": "walk_out.back.gus",
+          "kind": "speech",
+          "mood": "happy",
+          "name": "Gus",
+          "role": "back",
+          "text_fr": "Bon. Où en étais-je ? Ah oui. Le duc.",
+          "text_native": null,
+          "who": "augustin_de_roncourt"
+         },
+         {
+          "direction": null,
+          "during": null,
+          "from_fr": null,
+          "id": "walk_out.back",
+          "kind": "speech",
+          "mood": "neutral",
+          "name": "Margaux",
+          "role": "back",
+          "text_fr": "Te revoilà.",
+          "text_native": null,
+          "who": "margaux_barman"
+         }
+        ],
+        "people": [],
+        "who": "margaux_barman"
+       },
+       {
+        "after_seconds": 40,
+        "chips": [
+         "J'arrive.",
+         "Merci. J'arrive.",
+         "Demain."
+        ],
+        "cue": "away",
+        "id": "margaux_text",
+        "lines": [
+         {
+          "direction": null,
+          "during": null,
+          "from_fr": "Numéro inconnu",
+          "id": "margaux_text.text",
+          "kind": "sms",
+          "mood": "neutral",
+          "name": null,
+          "role": "text",
+          "text_fr": "C'est Margaux. Ta valise est toujours là.",
+          "text_native": null,
+          "who": "sms"
+         },
+         {
+          "direction": null,
+          "during": null,
+          "from_fr": "Margaux",
+          "id": "margaux_text.answer",
+          "kind": "sms",
+          "mood": "neutral",
+          "name": null,
+          "role": "answer",
+          "text_fr": "Bon.",
+          "text_native": null,
+          "who": "sms"
+         }
+        ],
+        "people": [],
+        "who": "margaux_barman"
+       },
+       {
+        "after_seconds": null,
+        "chips": [],
+        "cue": "talk",
+        "id": "talk",
+        "lines": [],
+        "people": [
+         {
+          "bye": null,
+          "hello": {
+           "direction": null,
+           "kind": "speech",
+           "mood": "neutral",
+           "name": "Margaux",
+           "text_fr": "Oui ?",
+           "text_native": null,
+           "who": "margaux_barman"
+          },
+          "name": "Margaux",
+          "register": "tu",
+          "who": "margaux_barman"
+         },
+         {
+          "bye": null,
+          "hello": {
+           "direction": null,
+           "kind": "speech",
+           "mood": "neutral",
+           "name": "Gus",
+           "text_fr": "Je vous écoute.",
+           "text_native": null,
+           "who": "augustin_de_roncourt"
+          },
+          "name": "Gus",
+          "register": "vous",
+          "who": "augustin_de_roncourt"
+         },
+         {
+          "bye": null,
+          "hello": {
+           "direction": null,
+           "kind": "speech",
+           "mood": "neutral",
+           "name": "Marin",
+           "text_fr": "Ça va ?",
+           "text_native": null,
+           "who": "marin_leveque"
+          },
+          "name": "Marin",
+          "register": "tu",
+          "who": "marin_leveque"
+         },
+         {
+          "bye": {
+           "direction": null,
+           "kind": "speech",
+           "mood": "neutral",
+           "name": "Lila",
+           "text_fr": "Allez, file.",
+           "text_native": null,
+           "who": "lila_bonnet"
+          },
+          "hello": {
+           "direction": null,
+           "kind": "speech",
+           "mood": "neutral",
+           "name": "Lila",
+           "text_fr": "Bon, on fait quoi ?",
+           "text_native": null,
+           "who": "lila_bonnet"
+          },
+          "name": "Lila",
+          "register": "tu",
+          "who": "lila_bonnet"
+         },
+         {
+          "bye": null,
+          "hello": {
+           "direction": null,
+           "kind": "speech",
+           "mood": "neutral",
+           "name": "Camille",
+           "text_fr": "Bonsoir.",
+           "text_native": null,
+           "who": "camille_marchand"
+          },
+          "name": "Camille",
+          "register": "vous",
+          "who": "camille_marchand"
+         }
+        ],
+        "who": null
+       }
+      ],
+      "title_fr": "Le mauvais accueil"
+     }
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "text",
+     "text": "Je viens pour vendre. l’appartement est à moi, maintenant."
+    },
+    "intent": "average"
+   },
+   "estimated_seconds": 205,
+   "result": {
+    "character_lines": [
+     {
+      "speaker_id": "lila_bonnet",
+      "speaker_name": "Lila",
+      "text_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !"
+     },
+     {
+      "speaker_id": "margaux_barman",
+      "speaker_name": "Margaux",
+      "text_fr": "C'est ce qu'elle prenait."
+     }
+    ],
+    "character_reply_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !\nC'est ce qu'elle prenait.",
+    "correction": null,
+    "next_turn": {
+     "character_id": "margaux_barman",
+     "character_line_audio_url": null,
+     "character_line_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !\nC'est ce qu'elle prenait.",
+     "character_name": "Margaux",
+     "choices": [
+      {
+       "id": "drink",
+       "label_fr": "Merci.",
+       "label_native": null
+      },
+      {
+       "id": "declined",
+       "label_fr": "Non merci.",
+       "label_native": null
+      },
+      {
+       "id": "refused",
+       "label_fr": "Je n'ai rien commandé.",
+       "label_native": null
+      }
+     ],
+     "help_available": [
+      "hint",
+      "translation",
+      "suggested_response"
+     ],
+     "input_modes": [
+      "text"
+     ],
+     "letter": null,
+     "max_turns": 4,
+     "objective_native": "Prends le café crème que Margaux t'a servi, ou dis non.",
+     "repair_allowed": false,
+     "spoken_reply": false,
+     "targets": [
+      {
+       "concept_title": false,
+       "id": "1064",
+       "kind": "vocabulary",
+       "label_fr": "exactement",
+       "label_native": null
+      }
+     ],
+     "thread": [
+      {
+       "character_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !\nC'est ce qu'elle prenait.",
+       "character_lines": [
+        {
+         "speaker_id": "lila_bonnet",
+         "speaker_name": "Lila",
+         "text_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !"
+        },
+        {
+         "speaker_id": "margaux_barman",
+         "speaker_name": "Margaux",
+         "text_fr": "C'est ce qu'elle prenait."
+        }
+       ],
+       "correction": null,
+       "learner_fr": "Je viens pour vendre. l'appartement est à moi, maintenant.",
+       "unchecked": false
+      }
+     ],
+     "turn_index": 1
+    },
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "character_id": "margaux_barman",
+      "character_line_audio_url": null,
+      "character_line_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !\nC'est ce qu'elle prenait.",
+      "character_name": "Margaux",
+      "choices": [
+       {
+        "id": "drink",
+        "label_fr": "Merci.",
+        "label_native": null
+       },
+       {
+        "id": "declined",
+        "label_fr": "Non merci.",
+        "label_native": null
+       },
+       {
+        "id": "refused",
+        "label_fr": "Je n'ai rien commandé.",
+        "label_native": null
+       }
+      ],
+      "help_available": [
+       "hint",
+       "translation",
+       "suggested_response"
+      ],
+      "input_modes": [
+       "text"
+      ],
+      "letter": null,
+      "max_turns": 4,
+      "objective_native": "Prends le café crème que Margaux t'a servi, ou dis non.",
+      "repair_allowed": false,
+      "spoken_reply": false,
+      "targets": [
+       {
+        "concept_title": false,
+        "id": "1064",
+        "kind": "vocabulary",
+        "label_fr": "exactement",
+        "label_native": null
+       }
+      ],
+      "thread": [
+       {
+        "character_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !\nC'est ce qu'elle prenait.",
+        "character_lines": [
+         {
+          "speaker_id": "lila_bonnet",
+          "speaker_name": "Lila",
+          "text_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !"
+         },
+         {
+          "speaker_id": "margaux_barman",
+          "speaker_name": "Margaux",
+          "text_fr": "C'est ce qu'elle prenait."
+         }
+        ],
+        "correction": null,
+        "learner_fr": "Je viens pour vendre. l'appartement est à moi, maintenant.",
+        "unchecked": false
+       }
+      ],
+      "turn_index": 1
+     },
+     "status": "active"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "respond",
+    "prompt": {
+     "character_id": "augustin_de_roncourt",
+     "character_line_audio_url": null,
+     "character_line_fr": "Alors, dites-moi. Qui êtes-vous, exactement ?",
+     "character_name": "Gus",
+     "choices": [],
+     "help_available": [
+      "hint",
+      "translation",
+      "suggested_response"
+     ],
+     "input_modes": [
+      "text"
+     ],
+     "letter": null,
+     "max_turns": 4,
+     "objective_native": "Dis qui tu es et pourquoi tu es là.",
+     "repair_allowed": true,
+     "spoken_reply": false,
+     "targets": [
+      {
+       "concept_title": false,
+       "id": "1064",
+       "kind": "vocabulary",
+       "label_fr": "exactement",
+       "label_native": null
+      }
+     ],
+     "thread": [],
+     "turn_index": 0
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "text",
+     "text": "Je n’ai rien commande."
+    },
+    "intent": "average"
+   },
+   "estimated_seconds": 205,
+   "result": {
+    "character_lines": [
+     {
+      "speaker_id": "margaux_barman",
+      "speaker_name": "Margaux",
+      "text_fr": "Bois."
+     },
+     {
+      "speaker_id": "marin_leveque",
+      "speaker_name": "Marin",
+      "text_fr": "C'est un signe, ça."
+     },
+     {
+      "speaker_id": "margaux_barman",
+      "speaker_name": "Margaux",
+      "text_fr": "Elle ne prêtait jamais cette clé. À personne."
+     },
+     {
+      "speaker_id": "margaux_barman",
+      "speaker_name": "Margaux",
+      "text_fr": "Tu vas monter ?"
+     }
+    ],
+    "character_reply_fr": "Bois.\nC'est un signe, ça.\nElle ne prêtait jamais cette clé. À personne.\nTu vas monter ?",
+    "correction": null,
+    "next_turn": {
+     "character_id": "margaux_barman",
+     "character_line_audio_url": null,
+     "character_line_fr": "Bois.\nC'est un signe, ça.\nElle ne prêtait jamais cette clé. À personne.\nTu vas monter ?",
+     "character_name": "Margaux",
+     "choices": [],
+     "help_available": [
+      "hint",
+      "translation",
+      "suggested_response"
+     ],
+     "input_modes": [
+      "text"
+     ],
+     "letter": null,
+     "max_turns": 4,
+     "objective_native": "Dis à Margaux si tu montes à l'appartement ce soir, et ce que tu veux faire.",
+     "repair_allowed": false,
+     "spoken_reply": false,
+     "targets": [
+      {
+       "concept_title": false,
+       "id": "1064",
+       "kind": "vocabulary",
+       "label_fr": "exactement",
+       "label_native": null
+      }
+     ],
+     "thread": [
+      {
+       "character_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !\nC'est ce qu'elle prenait.",
+       "character_lines": [
+        {
+         "speaker_id": "lila_bonnet",
+         "speaker_name": "Lila",
+         "text_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !"
+        },
+        {
+         "speaker_id": "margaux_barman",
+         "speaker_name": "Margaux",
+         "text_fr": "C'est ce qu'elle prenait."
+        }
+       ],
+       "correction": null,
+       "learner_fr": "Je viens pour vendre. l'appartement est à moi, maintenant.",
+       "unchecked": false
+      },
+      {
+       "character_fr": "Bois.\nC'est un signe, ça.\nElle ne prêtait jamais cette clé. À personne.\nTu vas monter ?",
+       "character_lines": [
+        {
+         "speaker_id": "margaux_barman",
+         "speaker_name": "Margaux",
+         "text_fr": "Bois."
+        },
+        {
+         "speaker_id": "marin_leveque",
+         "speaker_name": "Marin",
+         "text_fr": "C'est un signe, ça."
+        },
+        {
+         "speaker_id": "margaux_barman",
+         "speaker_name": "Margaux",
+         "text_fr": "Elle ne prêtait jamais cette clé. À personne."
+        },
+        {
+         "speaker_id": "margaux_barman",
+         "speaker_name": "Margaux",
+         "text_fr": "Tu vas monter ?"
+        }
+       ],
+       "correction": null,
+       "learner_fr": "Je n'ai rien commande.",
+       "unchecked": false
+      }
+     ],
+     "turn_index": 2
+    },
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "character_id": "margaux_barman",
+      "character_line_audio_url": null,
+      "character_line_fr": "Bois.\nC'est un signe, ça.\nElle ne prêtait jamais cette clé. À personne.\nTu vas monter ?",
+      "character_name": "Margaux",
+      "choices": [],
+      "help_available": [
+       "hint",
+       "translation",
+       "suggested_response"
+      ],
+      "input_modes": [
+       "text"
+      ],
+      "letter": null,
+      "max_turns": 4,
+      "objective_native": "Dis à Margaux si tu montes à l'appartement ce soir, et ce que tu veux faire.",
+      "repair_allowed": false,
+      "spoken_reply": false,
+      "targets": [
+       {
+        "concept_title": false,
+        "id": "1064",
+        "kind": "vocabulary",
+        "label_fr": "exactement",
+        "label_native": null
+       }
+      ],
+      "thread": [
+       {
+        "character_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !\nC'est ce qu'elle prenait.",
+        "character_lines": [
+         {
+          "speaker_id": "lila_bonnet",
+          "speaker_name": "Lila",
+          "text_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !"
+         },
+         {
+          "speaker_id": "margaux_barman",
+          "speaker_name": "Margaux",
+          "text_fr": "C'est ce qu'elle prenait."
+         }
+        ],
+        "correction": null,
+        "learner_fr": "Je viens pour vendre. l'appartement est à moi, maintenant.",
+        "unchecked": false
+       },
+       {
+        "character_fr": "Bois.\nC'est un signe, ça.\nElle ne prêtait jamais cette clé. À personne.\nTu vas monter ?",
+        "character_lines": [
+         {
+          "speaker_id": "margaux_barman",
+          "speaker_name": "Margaux",
+          "text_fr": "Bois."
+         },
+         {
+          "speaker_id": "marin_leveque",
+          "speaker_name": "Marin",
+          "text_fr": "C'est un signe, ça."
+         },
+         {
+          "speaker_id": "margaux_barman",
+          "speaker_name": "Margaux",
+          "text_fr": "Elle ne prêtait jamais cette clé. À personne."
+         },
+         {
+          "speaker_id": "margaux_barman",
+          "speaker_name": "Margaux",
+          "text_fr": "Tu vas monter ?"
+         }
+        ],
+        "correction": null,
+        "learner_fr": "Je n'ai rien commande.",
+        "unchecked": false
+       }
+      ],
+      "turn_index": 2
+     },
+     "status": "active"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "respond",
+    "prompt": {
+     "character_id": "margaux_barman",
+     "character_line_audio_url": null,
+     "character_line_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !\nC'est ce qu'elle prenait.",
+     "character_name": "Margaux",
+     "choices": [
+      {
+       "id": "drink",
+       "label_fr": "Merci.",
+       "label_native": null
+      },
+      {
+       "id": "declined",
+       "label_fr": "Non merci.",
+       "label_native": null
+      },
+      {
+       "id": "refused",
+       "label_fr": "Je n'ai rien commandé.",
+       "label_native": null
+      }
+     ],
+     "help_available": [
+      "hint",
+      "translation",
+      "suggested_response"
+     ],
+     "input_modes": [
+      "text"
+     ],
+     "letter": null,
+     "max_turns": 4,
+     "objective_native": "Prends le café crème que Margaux t'a servi, ou dis non.",
+     "repair_allowed": false,
+     "spoken_reply": false,
+     "targets": [
+      {
+       "concept_title": false,
+       "id": "1064",
+       "kind": "vocabulary",
+       "label_fr": "exactement",
+       "label_native": null
+      }
+     ],
+     "thread": [
+      {
+       "character_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !\nC'est ce qu'elle prenait.",
+       "character_lines": [
+        {
+         "speaker_id": "lila_bonnet",
+         "speaker_name": "Lila",
+         "text_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !"
+        },
+        {
+         "speaker_id": "margaux_barman",
+         "speaker_name": "Margaux",
+         "text_fr": "C'est ce qu'elle prenait."
+        }
+       ],
+       "correction": null,
+       "learner_fr": "Je viens pour vendre. l'appartement est à moi, maintenant.",
+       "unchecked": false
+      }
+     ],
+     "turn_index": 1
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "text",
+     "text": "Monter… demain ? j’ai peur un peu."
+    },
+    "intent": "average"
+   },
+   "estimated_seconds": 205,
+   "result": {
+    "character_lines": [
+     {
+      "speaker_id": "margaux_barman",
+      "speaker_name": "Margaux",
+      "text_fr": "C'est bien. Attends un peu."
+     }
+    ],
+    "character_reply_fr": "C'est bien. Attends un peu.",
+    "correction": null,
+    "next_turn": {
+     "character_id": "margaux_barman",
+     "character_line_audio_url": null,
+     "character_line_fr": "C'est bien. Attends un peu.",
+     "character_name": "Margaux",
+     "choices": [
+      {
+       "id": "take",
+       "label_fr": "Je la prends.",
+       "label_native": null
+      },
+      {
+       "id": "leave",
+       "label_fr": "Garde-la pour moi.",
+       "label_native": null
+      }
+     ],
+     "help_available": [
+      "hint",
+      "translation",
+      "suggested_response"
+     ],
+     "input_modes": [
+      "text"
+     ],
+     "letter": null,
+     "max_turns": 4,
+     "objective_native": "Prends la clé, ou laisse-la à Margaux pour la nuit.",
+     "repair_allowed": false,
+     "spoken_reply": false,
+     "targets": [
+      {
+       "concept_title": false,
+       "id": "1064",
+       "kind": "vocabulary",
+       "label_fr": "exactement",
+       "label_native": null
+      }
+     ],
+     "thread": [
+      {
+       "character_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !\nC'est ce qu'elle prenait.",
+       "character_lines": [
+        {
+         "speaker_id": "lila_bonnet",
+         "speaker_name": "Lila",
+         "text_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !"
+        },
+        {
+         "speaker_id": "margaux_barman",
+         "speaker_name": "Margaux",
+         "text_fr": "C'est ce qu'elle prenait."
+        }
+       ],
+       "correction": null,
+       "learner_fr": "Je viens pour vendre. l'appartement est à moi, maintenant.",
+       "unchecked": false
+      },
+      {
+       "character_fr": "Bois.\nC'est un signe, ça.\nElle ne prêtait jamais cette clé. À personne.\nTu vas monter ?",
+       "character_lines": [
+        {
+         "speaker_id": "margaux_barman",
+         "speaker_name": "Margaux",
+         "text_fr": "Bois."
+        },
+        {
+         "speaker_id": "marin_leveque",
+         "speaker_name": "Marin",
+         "text_fr": "C'est un signe, ça."
+        },
+        {
+         "speaker_id": "margaux_barman",
+         "speaker_name": "Margaux",
+         "text_fr": "Elle ne prêtait jamais cette clé. À personne."
+        },
+        {
+         "speaker_id": "margaux_barman",
+         "speaker_name": "Margaux",
+         "text_fr": "Tu vas monter ?"
+        }
+       ],
+       "correction": null,
+       "learner_fr": "Je n'ai rien commande.",
+       "unchecked": false
+      },
+      {
+       "character_fr": "C'est bien. Attends un peu.",
+       "character_lines": [
+        {
+         "speaker_id": "margaux_barman",
+         "speaker_name": "Margaux",
+         "text_fr": "C'est bien. Attends un peu."
+        }
+       ],
+       "correction": null,
+       "learner_fr": "Monter… demain ? j'ai peur un peu.",
+       "unchecked": false
+      }
+     ],
+     "turn_index": 3
+    },
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "character_id": "margaux_barman",
+      "character_line_audio_url": null,
+      "character_line_fr": "C'est bien. Attends un peu.",
+      "character_name": "Margaux",
+      "choices": [
+       {
+        "id": "take",
+        "label_fr": "Je la prends.",
+        "label_native": null
+       },
+       {
+        "id": "leave",
+        "label_fr": "Garde-la pour moi.",
+        "label_native": null
+       }
+      ],
+      "help_available": [
+       "hint",
+       "translation",
+       "suggested_response"
+      ],
+      "input_modes": [
+       "text"
+      ],
+      "letter": null,
+      "max_turns": 4,
+      "objective_native": "Prends la clé, ou laisse-la à Margaux pour la nuit.",
+      "repair_allowed": false,
+      "spoken_reply": false,
+      "targets": [
+       {
+        "concept_title": false,
+        "id": "1064",
+        "kind": "vocabulary",
+        "label_fr": "exactement",
+        "label_native": null
+       }
+      ],
+      "thread": [
+       {
+        "character_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !\nC'est ce qu'elle prenait.",
+        "character_lines": [
+         {
+          "speaker_id": "lila_bonnet",
+          "speaker_name": "Lila",
+          "text_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !"
+         },
+         {
+          "speaker_id": "margaux_barman",
+          "speaker_name": "Margaux",
+          "text_fr": "C'est ce qu'elle prenait."
+         }
+        ],
+        "correction": null,
+        "learner_fr": "Je viens pour vendre. l'appartement est à moi, maintenant.",
+        "unchecked": false
+       },
+       {
+        "character_fr": "Bois.\nC'est un signe, ça.\nElle ne prêtait jamais cette clé. À personne.\nTu vas monter ?",
+        "character_lines": [
+         {
+          "speaker_id": "margaux_barman",
+          "speaker_name": "Margaux",
+          "text_fr": "Bois."
+         },
+         {
+          "speaker_id": "marin_leveque",
+          "speaker_name": "Marin",
+          "text_fr": "C'est un signe, ça."
+         },
+         {
+          "speaker_id": "margaux_barman",
+          "speaker_name": "Margaux",
+          "text_fr": "Elle ne prêtait jamais cette clé. À personne."
+         },
+         {
+          "speaker_id": "margaux_barman",
+          "speaker_name": "Margaux",
+          "text_fr": "Tu vas monter ?"
+         }
+        ],
+        "correction": null,
+        "learner_fr": "Je n'ai rien commande.",
+        "unchecked": false
+       },
+       {
+        "character_fr": "C'est bien. Attends un peu.",
+        "character_lines": [
+         {
+          "speaker_id": "margaux_barman",
+          "speaker_name": "Margaux",
+          "text_fr": "C'est bien. Attends un peu."
+         }
+        ],
+        "correction": null,
+        "learner_fr": "Monter… demain ? j'ai peur un peu.",
+        "unchecked": false
+       }
+      ],
+      "turn_index": 3
+     },
+     "status": "active"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "respond",
+    "prompt": {
+     "character_id": "margaux_barman",
+     "character_line_audio_url": null,
+     "character_line_fr": "Bois.\nC'est un signe, ça.\nElle ne prêtait jamais cette clé. À personne.\nTu vas monter ?",
+     "character_name": "Margaux",
+     "choices": [],
+     "help_available": [
+      "hint",
+      "translation",
+      "suggested_response"
+     ],
+     "input_modes": [
+      "text"
+     ],
+     "letter": null,
+     "max_turns": 4,
+     "objective_native": "Dis à Margaux si tu montes à l'appartement ce soir, et ce que tu veux faire.",
+     "repair_allowed": false,
+     "spoken_reply": false,
+     "targets": [
+      {
+       "concept_title": false,
+       "id": "1064",
+       "kind": "vocabulary",
+       "label_fr": "exactement",
+       "label_native": null
+      }
+     ],
+     "thread": [
+      {
+       "character_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !\nC'est ce qu'elle prenait.",
+       "character_lines": [
+        {
+         "speaker_id": "lila_bonnet",
+         "speaker_name": "Lila",
+         "text_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !"
+        },
+        {
+         "speaker_id": "margaux_barman",
+         "speaker_name": "Margaux",
+         "text_fr": "C'est ce qu'elle prenait."
+        }
+       ],
+       "correction": null,
+       "learner_fr": "Je viens pour vendre. l'appartement est à moi, maintenant.",
+       "unchecked": false
+      },
+      {
+       "character_fr": "Bois.\nC'est un signe, ça.\nElle ne prêtait jamais cette clé. À personne.\nTu vas monter ?",
+       "character_lines": [
+        {
+         "speaker_id": "margaux_barman",
+         "speaker_name": "Margaux",
+         "text_fr": "Bois."
+        },
+        {
+         "speaker_id": "marin_leveque",
+         "speaker_name": "Marin",
+         "text_fr": "C'est un signe, ça."
+        },
+        {
+         "speaker_id": "margaux_barman",
+         "speaker_name": "Margaux",
+         "text_fr": "Elle ne prêtait jamais cette clé. À personne."
+        },
+        {
+         "speaker_id": "margaux_barman",
+         "speaker_name": "Margaux",
+         "text_fr": "Tu vas monter ?"
+        }
+       ],
+       "correction": null,
+       "learner_fr": "Je n'ai rien commande.",
+       "unchecked": false
+      }
+     ],
+     "turn_index": 2
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "text",
+     "text": "Je la prends."
+    },
+    "intent": "average"
+   },
+   "estimated_seconds": 205,
+   "result": {
+    "character_lines": [
+     {
+      "speaker_id": "camille_marchand",
+      "speaker_name": "Camille",
+      "text_fr": "Bonsoir. Camille Marchand. Je viens pour le premier étage. J'ai la clé."
+     },
+     {
+      "speaker_id": "augustin_de_roncourt",
+      "speaker_name": "Gus",
+      "text_fr": "Ah ! Voici donc—"
+     },
+     {
+      "speaker_id": "lila_bonnet",
+      "speaker_name": "Lila",
+      "text_fr": "Gus. Assieds-toi."
+     }
+    ],
+    "character_reply_fr": "Bonsoir. Camille Marchand. Je viens pour le premier étage. J'ai la clé.\nAh ! Voici donc—\nGus. Assieds-toi.",
+    "correction": null,
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "character_id": "margaux_barman",
+      "character_line_audio_url": null,
+      "character_line_fr": "C'est bien. Attends un peu.",
+      "character_name": "Margaux",
+      "choices": [
+       {
+        "id": "take",
+        "label_fr": "Je la prends.",
+        "label_native": null
+       },
+       {
+        "id": "leave",
+        "label_fr": "Garde-la pour moi.",
+        "label_native": null
+       }
+      ],
+      "help_available": [
+       "hint",
+       "translation",
+       "suggested_response"
+      ],
+      "input_modes": [
+       "text"
+      ],
+      "letter": null,
+      "max_turns": 4,
+      "objective_native": "Prends la clé, ou laisse-la à Margaux pour la nuit.",
+      "repair_allowed": false,
+      "spoken_reply": false,
+      "targets": [
+       {
+        "concept_title": false,
+        "id": "1064",
+        "kind": "vocabulary",
+        "label_fr": "exactement",
+        "label_native": null
+       }
+      ],
+      "thread": [
+       {
+        "character_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !\nC'est ce qu'elle prenait.",
+        "character_lines": [
+         {
+          "speaker_id": "lila_bonnet",
+          "speaker_name": "Lila",
+          "text_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !"
+         },
+         {
+          "speaker_id": "margaux_barman",
+          "speaker_name": "Margaux",
+          "text_fr": "C'est ce qu'elle prenait."
+         }
+        ],
+        "correction": null,
+        "learner_fr": "Je viens pour vendre. l'appartement est à moi, maintenant.",
+        "unchecked": false
+       },
+       {
+        "character_fr": "Bois.\nC'est un signe, ça.\nElle ne prêtait jamais cette clé. À personne.\nTu vas monter ?",
+        "character_lines": [
+         {
+          "speaker_id": "margaux_barman",
+          "speaker_name": "Margaux",
+          "text_fr": "Bois."
+         },
+         {
+          "speaker_id": "marin_leveque",
+          "speaker_name": "Marin",
+          "text_fr": "C'est un signe, ça."
+         },
+         {
+          "speaker_id": "margaux_barman",
+          "speaker_name": "Margaux",
+          "text_fr": "Elle ne prêtait jamais cette clé. À personne."
+         },
+         {
+          "speaker_id": "margaux_barman",
+          "speaker_name": "Margaux",
+          "text_fr": "Tu vas monter ?"
+         }
+        ],
+        "correction": null,
+        "learner_fr": "Je n'ai rien commande.",
+        "unchecked": false
+       },
+       {
+        "character_fr": "C'est bien. Attends un peu.",
+        "character_lines": [
+         {
+          "speaker_id": "margaux_barman",
+          "speaker_name": "Margaux",
+          "text_fr": "C'est bien. Attends un peu."
+         }
+        ],
+        "correction": null,
+        "learner_fr": "Monter… demain ? j'ai peur un peu.",
+        "unchecked": false
+       }
+      ],
+      "turn_index": 3
+     },
+     "status": "completed"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "respond",
+    "prompt": {
+     "character_id": "margaux_barman",
+     "character_line_audio_url": null,
+     "character_line_fr": "C'est bien. Attends un peu.",
+     "character_name": "Margaux",
+     "choices": [
+      {
+       "id": "take",
+       "label_fr": "Je la prends.",
+       "label_native": null
+      },
+      {
+       "id": "leave",
+       "label_fr": "Garde-la pour moi.",
+       "label_native": null
+      }
+     ],
+     "help_available": [
+      "hint",
+      "translation",
+      "suggested_response"
+     ],
+     "input_modes": [
+      "text"
+     ],
+     "letter": null,
+     "max_turns": 4,
+     "objective_native": "Prends la clé, ou laisse-la à Margaux pour la nuit.",
+     "repair_allowed": false,
+     "spoken_reply": false,
+     "targets": [
+      {
+       "concept_title": false,
+       "id": "1064",
+       "kind": "vocabulary",
+       "label_fr": "exactement",
+       "label_native": null
+      }
+     ],
+     "thread": [
+      {
+       "character_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !\nC'est ce qu'elle prenait.",
+       "character_lines": [
+        {
+         "speaker_id": "lila_bonnet",
+         "speaker_name": "Lila",
+         "text_fr": "Sa petite… son petit… Enfin, bref ! C'est la famille d'Odile, bande d'idiots !"
+        },
+        {
+         "speaker_id": "margaux_barman",
+         "speaker_name": "Margaux",
+         "text_fr": "C'est ce qu'elle prenait."
+        }
+       ],
+       "correction": null,
+       "learner_fr": "Je viens pour vendre. l'appartement est à moi, maintenant.",
+       "unchecked": false
+      },
+      {
+       "character_fr": "Bois.\nC'est un signe, ça.\nElle ne prêtait jamais cette clé. À personne.\nTu vas monter ?",
+       "character_lines": [
+        {
+         "speaker_id": "margaux_barman",
+         "speaker_name": "Margaux",
+         "text_fr": "Bois."
+        },
+        {
+         "speaker_id": "marin_leveque",
+         "speaker_name": "Marin",
+         "text_fr": "C'est un signe, ça."
+        },
+        {
+         "speaker_id": "margaux_barman",
+         "speaker_name": "Margaux",
+         "text_fr": "Elle ne prêtait jamais cette clé. À personne."
+        },
+        {
+         "speaker_id": "margaux_barman",
+         "speaker_name": "Margaux",
+         "text_fr": "Tu vas monter ?"
+        }
+       ],
+       "correction": null,
+       "learner_fr": "Je n'ai rien commande.",
+       "unchecked": false
+      },
+      {
+       "character_fr": "C'est bien. Attends un peu.",
+       "character_lines": [
+        {
+         "speaker_id": "margaux_barman",
+         "speaker_name": "Margaux",
+         "text_fr": "C'est bien. Attends un peu."
+        }
+       ],
+       "correction": null,
+       "learner_fr": "Monter… demain ? j'ai peur un peu.",
+       "unchecked": false
+      }
+     ],
+     "turn_index": 3
+    }
+   }
+  },
+  {
+   "estimated_seconds": 18,
+   "step": {
+    "id": "<id>",
+    "kind": "resolution",
+    "prompt": {
+     "chapter_recap_fr": null,
+     "character_line_fr": "Deux clés, une seule porte. À suivre…",
+     "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+     "narrated": true,
+     "outcome_key": "resolved",
+     "register_note_fr": null,
+     "register_reason_native": null,
+     "story_pending": false,
+     "summary_native": "Deux clés, une seule porte. À suivre…"
+    }
+   }
+  },
+  {
+   "estimated_seconds": 46,
+   "step": {
+    "id": "<id>",
+    "kind": "rule",
+    "prompt": {
+     "concept_id": 82,
+     "review": false,
+     "rule_card": {
+      "contrast": {
+       "right": "Je [le lui] donne.",
+       "wrong": "Je lui le donne."
+      },
+      "contrast_with": [
+       {
+        "id": "FR2_A22_IMPERATIVE_PRONOUNS",
+        "note": {
+         "de": "Im bejahten Imperativ stehen die Pronomen nach dem Verb: donne-le-moi.",
+         "en": "In an affirmative command the pronouns follow the verb: donne-le-moi.",
+         "fr": "À l'impératif affirmatif, les pronoms suivent le verbe : donne-le-moi."
+        },
+        "title": {
+         "de": "Imperativ mit Pronomen: prends-le, ne le prends pas",
+         "en": "Imperative with pronouns: prends-le, ne le prends pas",
+         "fr": "L'impératif avec pronoms : prends-le, ne le prends pas"
+        }
+       },
+       {
+        "id": "FR2_B21_DOUBLE_PRONOUNS_COMPOUND",
+        "note": {
+         "de": "In zusammengesetzten Zeiten steht das Paar vor dem Hilfsverb, und das Participe kann sich angleichen.",
+         "en": "In compound tenses the pair goes before the auxiliary, and the participle may agree.",
+         "fr": "Aux temps composés, la paire se place devant l'auxiliaire, et le participe peut s'accorder."
+        },
+        "title": {
+         "de": "Doppelpronomen im Passé composé und Imperativ",
+         "en": "Double pronouns in the passé composé and imperative",
+         "fr": "Les doubles pronoms au passé composé et à l'impératif"
+        }
+       }
+      ],
+      "example": {
+       "fr": "Ton livre ? Je [te le] rends demain, et je [lui en] parle.",
+       "tr": {
+        "de": "Dein Buch? Ich gebe es dir morgen zurück und erzähle ihm davon.",
+        "en": "Your book? I'll give it back to you tomorrow, and I'll tell him about it."
+       }
+      },
+      "examples": [
+       {
+        "fr": "Tu peux [me le] prêter demain ?",
+        "tr": {
+         "de": "Kannst du es mir morgen leihen?",
+         "en": "Can you lend it to me tomorrow?"
+        }
+       },
+       {
+        "fr": "Le dossier ? Je [le lui] envoie ce soir.",
+        "tr": {
+         "de": "Die Akte? Ich schicke sie ihr heute Abend.",
+         "en": "The file? I'm sending it to her tonight."
+        }
+       },
+       {
+        "fr": "Il [nous l]'a dit hier.",
+        "tr": {
+         "de": "Er hat es uns gestern gesagt.",
+         "en": "He told us yesterday."
+        }
+       }
+      ],
+      "how": {
+       "de": "1. Ersetze jedes Objekt: le livre → le, à Paul → lui, du café → en.\n2. Ordne sie: me/te/nous/vous · le/la/les · lui/leur · y · en.\n3. Setz die Gruppe vor das konjugierte Verb oder vor den Infinitiv: tu peux me le prêter ?",
+       "en": "1. Replace each object: le livre → le, à Paul → lui, du café → en.\n2. Line them up: me/te/nous/vous · le/la/les · lui/leur · y · en.\n3. Put the group before the conjugated verb, or before the infinitive: tu peux me le prêter ?",
+       "fr": "1. Remplacez chaque complément : le livre → le, à Paul → lui, du café → en.\n2. Rangez-les : me/te/nous/vous · le/la/les · lui/leur · y · en.\n3. Placez le groupe devant le verbe conjugué ou devant l'infinitif : tu peux me le prêter ?"
+      },
+      "more": {
+       "de": "Eine einfache Kontrolle: le/la/les stehen in der Mitte. Me, te, nous, vous kommen davor, lui und leur danach, en immer ganz am Ende. Lui/leur stehen nie zusammen mit me/te/nous/vous.",
+       "en": "A handy check: le/la/les sit in the middle. Me, te, nous, vous come before them; lui and leur come after them; en is always last. Lui/leur never combine with me/te/nous/vous. In speech, le lui and la lui are often run together, but in writing both pronouns stay.",
+       "fr": "Repère simple : le/la/les sont au milieu. Me, te, nous, vous viennent avant ; lui et leur après ; en toujours en dernier. Lui/leur ne se combinent jamais avec me/te/nous/vous."
+      },
+      "pattern": {
+       "kind": "rows",
+       "rows": [
+        {
+         "fr": "Tu [me le] prêtes ?",
+         "label": "me · le",
+         "shape": "none"
+        },
+        {
+         "fr": "Je [le lui] envoie ce soir.",
+         "label": "le · lui",
+         "shape": "none"
+        },
+        {
+         "fr": "Je [lui en] ai parlé.",
+         "label": "lui · en",
+         "shape": "none"
+        },
+        {
+         "fr": "Il [y en] a encore.",
+         "label": "y · en",
+         "shape": "none"
+        }
+       ]
+      },
+      "rule": {
+       "de": "Zwei Pronomen vor dem Verb haben eine feste Reihenfolge: me/te/nous/vous, dann le/la/les, dann lui/leur, dann y, dann en.",
+       "en": "Two pronouns before the verb follow a fixed order: me/te/nous/vous, then le/la/les, then lui/leur, then y, then en.",
+       "fr": "Deux pronoms devant le verbe suivent un ordre fixe : me/te/nous/vous, puis le/la/les, puis lui/leur, puis y, puis en."
+      },
+      "speaker": "lila_bonnet",
+      "traps": [
+       {
+        "right": "Il [m'en] a parlé.",
+        "why": {
+         "de": "Me wird vor en zu m', und en steht immer am Ende.",
+         "en": "Me elides before en, and en always comes last.",
+         "fr": "Me s'élide devant en, et en vient toujours en dernier."
+        },
+        "wrong": "Il me en a parlé."
+       },
+       {
+        "right": "Je [les leur] donne.",
+        "why": {
+         "de": "Les steht vor leur: das direkte Objekt sitzt in der Mitte.",
+         "en": "Les comes before leur: the direct object sits in the middle slot.",
+         "fr": "Les se place avant leur : le COD occupe la case du milieu."
+        },
+        "wrong": "Je leur les donne."
+       }
+      ]
+     },
+     "scene_example_fr": null,
+     "scene_example_speaker": null,
+     "title_fr": "Deux pronoms ensemble : je le lui donne",
+     "title_native": "Deux pronoms ensemble : je le lui donne"
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "choice",
+     "option_id": "opt_92416b17"
+    },
+    "intent": "wrong"
+   },
+   "estimated_seconds": 14,
+   "key": {
+    "accepted_answers": [
+     "Je le lui donne."
+    ],
+    "solution_fr": "Je le lui donne.",
+    "target": {
+     "concept_title": true,
+     "id": "82",
+     "kind": "grammar",
+     "label_fr": "Deux pronoms ensemble : je le lui donne",
+     "label_native": "Deux pronoms ensemble : je le lui donne"
+    },
+    "task_type": "choice"
+   },
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": null,
+    "correction": {
+     "corrected_fr": "Je le lui donne.",
+     "kind": "edit",
+     "note_native": "Ordre : me/te/se/nous/vous, puis le/la/les, puis lui/leur, puis y, puis en : je le lui donne.",
+     "notes_native": [
+      "Ordre : me/te/se/nous/vous, puis le/la/les, puis lui/leur, puis y, puis en : je le lui donne."
+     ],
+     "span_fr": "Je lui le donne."
+    },
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "answer_key": {
+       "digests": [
+        "<id><id>"
+       ],
+       "salt": "<id>",
+       "version": 1
+      },
+      "goal_native": null,
+      "help_available": [
+       "hint",
+       "solution"
+      ],
+      "instruction_native": "Quelle phrase suit la règle du jour ?",
+      "optional": false,
+      "options": [
+       {
+        "id": "opt_a10afd54",
+        "text_fr": "Je le lui donne."
+       },
+       {
+        "id": "opt_92416b17",
+        "text_fr": "Je lui le donne."
+       }
+      ],
+      "prompt_fr": null,
+      "source_fr": null,
+      "target": {
+       "concept_title": true,
+       "id": "82",
+       "kind": "grammar",
+       "label_fr": "",
+       "label_native": "Deux pronoms ensemble : je le lui donne"
+      },
+      "task_type": "choice"
+     },
+     "status": "completed"
+    },
+    "task_outcome": "not_yet"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "recall",
+    "prompt": {
+     "answer_key": {
+      "digests": [
+       "<id><id>"
+      ],
+      "salt": "<id>",
+      "version": 1
+     },
+     "goal_native": null,
+     "help_available": [
+      "hint",
+      "solution"
+     ],
+     "instruction_native": "Quelle phrase suit la règle du jour ?",
+     "optional": false,
+     "options": [
+      {
+       "id": "opt_a10afd54",
+       "text_fr": "Je le lui donne."
+      },
+      {
+       "id": "opt_92416b17",
+       "text_fr": "Je lui le donne."
+      }
+     ],
+     "prompt_fr": null,
+     "source_fr": null,
+     "target": {
+      "concept_title": true,
+      "id": "82",
+      "kind": "grammar",
+      "label_fr": "",
+      "label_native": "Deux pronoms ensemble : je le lui donne"
+     },
+     "task_type": "choice"
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "text",
+     "text": "Il m’en a parlé."
+    },
+    "intent": "right-with-slip"
+   },
+   "estimated_seconds": 20,
+   "key": {
+    "accepted_answers": [
+     "Il m'en a parlé."
+    ],
+    "solution_fr": "Il m'en a parlé.",
+    "target": {
+     "concept_title": true,
+     "id": "82",
+     "kind": "grammar",
+     "label_fr": "Deux pronoms ensemble : je le lui donne",
+     "label_native": "Deux pronoms ensemble : je le lui donne"
+    },
+    "task_type": "transform"
+   },
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": null,
+    "correction": null,
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "answer_key": null,
+      "goal_native": "Une partie enfreint la règle du jour.",
+      "help_available": [
+       "hint",
+       "solution"
+      ],
+      "instruction_native": "Corrige cette phrase.",
+      "optional": false,
+      "options": [],
+      "prompt_fr": "Il me en a parlé.",
+      "source_fr": "Il me en a parlé.",
+      "target": {
+       "concept_title": true,
+       "id": "82",
+       "kind": "grammar",
+       "label_fr": "",
+       "label_native": "Deux pronoms ensemble : je le lui donne"
+      },
+      "task_type": "transform"
+     },
+     "status": "completed"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "recall",
+    "prompt": {
+     "answer_key": null,
+     "goal_native": "Une partie enfreint la règle du jour.",
+     "help_available": [
+      "hint",
+      "solution"
+     ],
+     "instruction_native": "Corrige cette phrase.",
+     "optional": false,
+     "options": [],
+     "prompt_fr": "Il me en a parlé.",
+     "source_fr": "Il me en a parlé.",
+     "target": {
+      "concept_title": true,
+      "id": "82",
+      "kind": "grammar",
+      "label_fr": "",
+      "label_native": "Deux pronoms ensemble : je le lui donne"
+     },
+     "task_type": "transform"
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "text",
+     "text": "Je les leur donne."
+    },
+    "intent": "right-with-slip"
+   },
+   "estimated_seconds": 19,
+   "key": {
+    "accepted_answers": [
+     "Je les leur donne."
+    ],
+    "solution_fr": "Je les leur donne.",
+    "target": {
+     "concept_title": true,
+     "id": "82",
+     "kind": "grammar",
+     "label_fr": "Deux pronoms ensemble : je le lui donne",
+     "label_native": "Deux pronoms ensemble : je le lui donne"
+    },
+    "task_type": "transform"
+   },
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": null,
+    "correction": null,
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "answer_key": null,
+      "goal_native": "Une partie enfreint la règle du jour.",
+      "help_available": [
+       "hint",
+       "solution"
+      ],
+      "instruction_native": "Corrige cette phrase.",
+      "optional": false,
+      "options": [],
+      "prompt_fr": "Je leur les donne.",
+      "source_fr": "Je leur les donne.",
+      "target": {
+       "concept_title": true,
+       "id": "82",
+       "kind": "grammar",
+       "label_fr": "",
+       "label_native": "Deux pronoms ensemble : je le lui donne"
+      },
+      "task_type": "transform"
+     },
+     "status": "completed"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "recall",
+    "prompt": {
+     "answer_key": null,
+     "goal_native": "Une partie enfreint la règle du jour.",
+     "help_available": [
+      "hint",
+      "solution"
+     ],
+     "instruction_native": "Corrige cette phrase.",
+     "optional": false,
+     "options": [],
+     "prompt_fr": "Je leur les donne.",
+     "source_fr": "Je leur les donne.",
+     "target": {
+      "concept_title": true,
+      "id": "82",
+      "kind": "grammar",
+      "label_fr": "",
+      "label_native": "Deux pronoms ensemble : je le lui donne"
+     },
+     "task_type": "transform"
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "text",
+     "text": "Exactement"
+    },
+    "intent": "right-with-slip"
+   },
+   "estimated_seconds": 17,
+   "key": {
+    "accepted_answers": [
+     "exactement"
+    ],
+    "solution_fr": "exactement",
+    "target": {
+     "id": "1064",
+     "kind": "vocabulary",
+     "label_fr": "exactement",
+     "label_native": null
+    },
+    "task_type": "short_answer"
+   },
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": null,
+    "correction": null,
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "answer_key": null,
+      "goal_native": "Écris le mot manquant.",
+      "help_available": [
+       "solution"
+      ],
+      "instruction_native": "Complète la phrase de la scène.",
+      "optional": true,
+      "options": [],
+      "prompt_fr": "Qui êtes-vous, … ?",
+      "source_fr": "Qui êtes-vous, … ?",
+      "speaker": {
+       "id": "augustin_de_roncourt",
+       "name": "Gus"
+      },
+      "target": {
+       "concept_title": false,
+       "id": "1064",
+       "kind": "vocabulary",
+       "label_fr": "",
+       "label_native": null
+      },
+      "task_type": "short_answer"
+     },
+     "status": "completed"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "recall",
+    "prompt": {
+     "answer_key": null,
+     "goal_native": "Écris le mot manquant.",
+     "help_available": [
+      "solution"
+     ],
+     "instruction_native": "Complète la phrase de la scène.",
+     "optional": true,
+     "options": [],
+     "prompt_fr": "Qui êtes-vous, … ?",
+     "source_fr": "Qui êtes-vous, … ?",
+     "speaker": {
+      "id": "augustin_de_roncourt",
+      "name": "Gus"
+     },
+     "target": {
+      "concept_title": false,
+      "id": "1064",
+      "kind": "vocabulary",
+      "label_fr": "",
+      "label_native": null
+     },
+     "task_type": "short_answer"
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "text",
+     "text": "Vendre"
+    },
+    "intent": "right-with-slip"
+   },
+   "estimated_seconds": 18,
+   "key": {
+    "accepted_answers": [
+     "vendre"
+    ],
+    "solution_fr": "vendre",
+    "target": {
+     "id": "1070",
+     "kind": "vocabulary",
+     "label_fr": "vendre",
+     "label_native": null
+    },
+    "task_type": "short_answer"
+   },
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": null,
+    "correction": null,
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "answer_key": null,
+      "goal_native": "Écris le mot manquant.",
+      "help_available": [
+       "solution"
+      ],
+      "instruction_native": "Complète la phrase de la scène.",
+      "optional": true,
+      "options": [],
+      "prompt_fr": "…Vous allez vraiment … l'appartement d'Odile ?",
+      "source_fr": "…Vous allez vraiment … l'appartement d'Odile ?",
+      "speaker": {
+       "id": "marin_leveque",
+       "name": "Marin"
+      },
+      "target": {
+       "concept_title": false,
+       "id": "1070",
+       "kind": "vocabulary",
+       "label_fr": "",
+       "label_native": null
+      },
+      "task_type": "short_answer"
+     },
+     "status": "completed"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "recall",
+    "prompt": {
+     "answer_key": null,
+     "goal_native": "Écris le mot manquant.",
+     "help_available": [
+      "solution"
+     ],
+     "instruction_native": "Complète la phrase de la scène.",
+     "optional": true,
+     "options": [],
+     "prompt_fr": "…Vous allez vraiment … l'appartement d'Odile ?",
+     "source_fr": "…Vous allez vraiment … l'appartement d'Odile ?",
+     "speaker": {
+      "id": "marin_leveque",
+      "name": "Marin"
+     },
+     "target": {
+      "concept_title": false,
+      "id": "1070",
+      "kind": "vocabulary",
+      "label_fr": "",
+      "label_native": null
+     },
+     "task_type": "short_answer"
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "choice",
+     "option_id": "opt_a10afd54"
+    },
+    "intent": "right"
+   },
+   "estimated_seconds": 14,
+   "key": {
+    "accepted_answers": [
+     "Je le lui donne."
+    ],
+    "solution_fr": "Je le lui donne.",
+    "target": {
+     "concept_title": true,
+     "id": "82",
+     "kind": "grammar",
+     "label_fr": "Deux pronoms ensemble : je le lui donne",
+     "label_native": "Deux pronoms ensemble : je le lui donne"
+    },
+    "task_type": "choice"
+   },
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": null,
+    "correction": null,
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "answer_key": {
+       "digests": [
+        "<id><id>"
+       ],
+       "salt": "<id>",
+       "version": 1
+      },
+      "goal_native": null,
+      "help_available": [
+       "hint",
+       "solution"
+      ],
+      "instruction_native": "Quelle phrase suit la règle du jour ?",
+      "optional": false,
+      "options": [
+       {
+        "id": "opt_a10afd54",
+        "text_fr": "Je le lui donne."
+       },
+       {
+        "id": "opt_92416b17",
+        "text_fr": "Je lui le donne."
+       }
+      ],
+      "prompt_fr": null,
+      "retry": true,
+      "source_fr": null,
+      "target": {
+       "concept_title": true,
+       "id": "82",
+       "kind": "grammar",
+       "label_fr": "",
+       "label_native": "Deux pronoms ensemble : je le lui donne"
+      },
+      "task_type": "choice"
+     },
+     "status": "completed"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "recall",
+    "prompt": {
+     "answer_key": {
+      "digests": [
+       "<id><id>"
+      ],
+      "salt": "<id>",
+      "version": 1
+     },
+     "goal_native": null,
+     "help_available": [
+      "hint",
+      "solution"
+     ],
+     "instruction_native": "Quelle phrase suit la règle du jour ?",
+     "optional": false,
+     "options": [
+      {
+       "id": "opt_a10afd54",
+       "text_fr": "Je le lui donne."
+      },
+      {
+       "id": "opt_92416b17",
+       "text_fr": "Je lui le donne."
+      }
+     ],
+     "prompt_fr": null,
+     "retry": true,
+     "source_fr": null,
+     "target": {
+      "concept_title": true,
+      "id": "82",
+      "kind": "grammar",
+      "label_fr": "",
+      "label_native": "Deux pronoms ensemble : je le lui donne"
+     },
+     "task_type": "choice"
+    }
+   }
+  }
+ ],
+ "finish_status": 200,
+ "journey_id": "<id>",
+ "learner_level": "B1",
+ "native": "en",
+ "persona": "b1-en",
+ "private_leaks": [],
+ "quality": "average",
+ "resolution": {
+  "chapter_recap_fr": null,
+  "character_line_fr": "Deux clés, une seule porte. À suivre…",
+  "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+  "narrated": true,
+  "outcome_key": "resolved",
+  "register_note_fr": null,
+  "register_reason_native": null,
+  "story_pending": false,
+  "summary_native": "Deux clés, une seule porte. À suivre…"
+ },
+ "scenario": {
+  "character_name": "Augustin « Gus » de Roncourt",
+  "level_band": "B1",
+  "scenario_key": "story_<id>",
+  "title_fr": "Le mauvais accueil"
+ },
+ "status": "active"
+}

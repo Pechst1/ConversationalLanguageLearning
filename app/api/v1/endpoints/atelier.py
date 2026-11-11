@@ -96,6 +96,7 @@ from app.services.chrome_language import user_chrome_language, user_mother_tongu
 from app.services.concept_titles import concept_title, concept_title_fr
 from app.services.error_memory import ErrorMemoryService
 from app.services.forge import ForgeService, is_forge_session  # WP-S3 La Forge
+from app.services.forge_coaches import story_state_of
 from app.services.forge_item_validator import item_problems  # #267: an item agrees with its badge
 from app.services.forge_metrics import record_forge_abandoned, sweep_stale_forge_seances  # WP-S8
 from app.services.forge_picker import forge_plan  # WP-S4 one picker
@@ -580,11 +581,13 @@ def _concept_read(
     asset_service: AtelierAssetService | None = None,
     fr_localizations: dict[int, GrammarConceptLocalization] | None = None,
     language: str | None = None,
+    state: dict[str, Any] | None = None,
 ) -> AtelierConceptRead:
     data = serialize_concept(
         selection.concept,
         fr_localization=(fr_localizations or {}).get(selection.concept.id),
         language=language,
+        state=state,
     )
     data["role"] = selection.role
     data["mastery"] = selection.progress.score if selection.progress else 0
@@ -1269,11 +1272,14 @@ def _session_response(
             }
         )
     attempts = _session_attempts(db, session)
+    story_state = story_state_of(db, user)
     return AtelierSessionStartResponse(
         session_id=session.id,
         status=session.status,
         concepts=[
-            _concept_read(selection, due_by_concept, asset_service, fr_localizations, user_chrome_language(user))
+            _concept_read(
+                selection, due_by_concept, asset_service, fr_localizations, user_chrome_language(user), story_state
+            )
             for selection in selections
         ],
         quote=session.quote_payload or scheduler.quote_for_today(),
@@ -1350,9 +1356,17 @@ async def get_today(
     # level as it stands now, so Home's goal line and Fortschritt agree.
     cefr = with_can_do_line(db, current_user, live_level(db, current_user))
     fr_localizations = fr_localizations_by_concept_id(db, (selection.concept.id for selection in selections))
+    story_state = story_state_of(db, current_user)
     return AtelierTodayResponse(
         concepts=[
-            _concept_read(selection, due_by_concept, asset_service, fr_localizations, user_chrome_language(current_user))
+            _concept_read(
+                selection,
+                due_by_concept,
+                asset_service,
+                fr_localizations,
+                user_chrome_language(current_user),
+                story_state,
+            )
             for selection in selections
         ],
         quote=scheduler.quote_for_today(),

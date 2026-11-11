@@ -127,6 +127,10 @@ test('speaker identity resolves to a world-bible accent key', () => {
   assert.equal(shortSpeakerName('M. Marchand'), 'M. Marchand');
   assert.equal(shortSpeakerName('Monsieur Marchand'), 'M. Marchand');
   assert.equal(shortSpeakerName('Augustin « Gus » de Roncourt'), 'Gus');
+  // #147: a title is not a name, and the minor cast is the registry's too.
+  assert.equal(shortSpeakerName('Mme Diallo'), 'Mme Diallo');
+  assert.equal(shortSpeakerName('Maître Vasseur'), 'Maître Vasseur');
+  assert.equal(shortSpeakerName('Jeanne Dupont'), 'Jeanne', 'someone outside the cast keeps a first name');
   const lines = panelLines(SCENE.panels[0]);
   assert.equal(lines.length, 1);
   assert.equal(lines[0].character, 'romy');

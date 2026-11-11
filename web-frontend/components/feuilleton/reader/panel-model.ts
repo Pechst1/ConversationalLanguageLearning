@@ -8,7 +8,7 @@
  */
 
 // Relative, not `@/`: the reader's node tests load this model without the alias.
-import { castIdFor, type StageMood } from '../../../lib/cast-faces';
+import { castDisplayName, castIdFor, type StageMood } from '../../../lib/cast-faces';
 import type { PortraitMood } from '../../../lib/onboarding-portraits';
 import { isPlanningNote } from './planning-note';
 
@@ -206,22 +206,7 @@ export function shortSpeakerName(value: unknown): string {
   const cleaned = raw.replace(/\s+/g, ' ');
   // Whole words, first names first: «Camille Marchand» is Camille, never the
   // landlord whose surname she shares (QA-STORY 2026-10-03).
-  const known: Array<[string, string]> = [
-    ['camille', 'Camille'], ['odile', 'Odile'],
-    ['romane', 'Romy'], ['romy', 'Romy'], ['marin', 'Marin'], ['lila', 'Lila'],
-    ['augustin', 'Gus'], ['gus', 'Gus'], ['margaux', 'Margaux'], ['marchand', 'M. Marchand'],
-  ];
-  const words = new Set(
-    cleaned
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .split(/[^a-z0-9]+/)
-      .filter(Boolean),
-  );
-  const match = known.find(([needle]) => words.has(needle));
-  if (match) return match[1];
-  return cleaned.split(' ')[0];
+  return castDisplayName(null, cleaned) ?? cleaned.split(' ')[0];
 }
 
 export function normalizeReaderText(value: unknown): string {

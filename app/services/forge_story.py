@@ -18,8 +18,12 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-#: World-bible character ids → item-bank cast ids.
-CHARACTERS = {
+from app.services.cast_registry import bank_ids
+
+#: World-bible character ids → item-bank cast ids, from the cast registry (#147).
+CHARACTERS = bank_ids()
+#: ``STORY_SCENE_RECORD`` off: main's table (the registry adds Marchand's bank).
+_MAIN_CHARACTERS = {
     "marin_leveque": "marin",
     "lila_bonnet": "lila",
     "augustin_de_roncourt": "gus",
@@ -49,8 +53,11 @@ def focus_from_chronicle(chronicle: list[dict[str, Any]] | None) -> frozenset[st
     rows = [row for row in (chronicle or []) if isinstance(row, dict)]
     for row in rows[-RECENT_ROWS:]:
         for character in row.get("characters") or []:
-            if str(character) in CHARACTERS:
-                focus.add(CHARACTERS[str(character)])
+            from app.services import scene_record
+
+            table = CHARACTERS if scene_record.enabled() else _MAIN_CHARACTERS
+            if str(character) in table:
+                focus.add(table[str(character)])
         location = LOCATIONS.get(str(row.get("location_id") or ""))
         if location:
             focus.add(location)

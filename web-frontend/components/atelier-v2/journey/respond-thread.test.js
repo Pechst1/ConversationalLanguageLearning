@@ -197,6 +197,36 @@ test('turn 1 of 3 from the local copy: opening, the learner, the reply said once
   assert.deepEqual(kinds(follow).slice(-2), ['c:Très bien. Au comptoir ou en terrasse ?', 'c:Tu prends du sucre ?']);
 });
 
+test('an opening line stays with whoever said it when the next exchange has another speaker', () => {
+  // Walk of 9 Nov, T1 A: Gus asks «Alors ? C'est qui, vous ?», Margaux asks the next question,
+  // and Gus's line moved under her face, because a line had only the step's character to go by.
+  const gus = { id: 'augustin_de_roncourt', name: 'Gus' };
+  const local = model.recordExchange(model.EMPTY_THREAD, {
+    turn: 0,
+    prompt_fr: 'Alors ? C’est qui, vous ?',
+    prompt_speaker: gus,
+    learner_fr: 'Je suis de Berlin.',
+    character_fr: 'Ah.',
+    correction: null,
+  });
+  assert.deepEqual(model.parseLocalThread(model.serializeLocalThread(local)).exchanges[0].prompt_speaker, gus);
+  const margaux = prompt({ turn_index: 1, character_id: 'margaux_barman', character_name: 'Margaux', character_line_fr: 'Tu vas monter ?' });
+  const bubbles = model.threadBubbles({ prompt: margaux, local });
+  assert.deepEqual(bubbles[0].speaker, gus);
+  assert.equal(bubbles[0].text, 'Alors ? C’est qui, vous ?');
+  const current = bubbles[bubbles.length - 1];
+  assert.equal(current.text, 'Tu vas monter ?');
+  assert.equal(current.speaker, undefined, 'the current line belongs to the step’s character');
+});
+
+test('a stored thread from before this field still reads', () => {
+  const local = model.recordExchange(model.EMPTY_THREAD, {
+    turn: 0, prompt_fr: 'Bonjour.', learner_fr: 'Salut.', character_fr: 'Ah.', correction: null,
+  });
+  const [first] = model.threadBubbles({ prompt: prompt({ turn_index: 1 }), local });
+  assert.equal(first.speaker, undefined);
+});
+
 test('the server thread wins the words; the local copy still supplies the opening', () => {
   const local = model.recordExchange(model.EMPTY_THREAD, {
     turn: 0,
@@ -299,8 +329,13 @@ test('one token per planned exchange, filled as each passes', () => {
   assert.deepEqual(model.exchangeProgress(prompt({ turn_index: 0, max_turns: 3 }), false), { total: 3, played: 0, position: 1 });
   assert.deepEqual(model.exchangeProgress(prompt({ turn_index: 1, max_turns: 3 }), false), { total: 3, played: 1, position: 2 });
   assert.deepEqual(model.exchangeProgress(prompt({ turn_index: 2, max_turns: 3 }), true), { total: 3, played: 3, position: 3 });
-  // A «relance» past the plan grows the sequence rather than overflowing it.
-  assert.deepEqual(model.exchangeProgress(prompt({ turn_index: 3, max_turns: 3 }), false), { total: 4, played: 3, position: 4 });
+  // #467: a turn past the plan (the answer to an open question) never grows the
+  // total: it is the last exchange again, the last token still active.
+  assert.deepEqual(model.exchangeProgress(prompt({ turn_index: 3, max_turns: 3 }), false), { total: 3, played: 2, position: 3 });
+  assert.deepEqual(model.exchangeProgress(prompt({ turn_index: 4, max_turns: 3 }), true), { total: 3, played: 3, position: 3 });
+  // The total is the same in every turn's payload of one scene.
+  const totals = [0, 1, 2, 3, 4].map((turn_index) => model.exchangeProgress(prompt({ turn_index, max_turns: 3 }), false).total);
+  assert.deepEqual(totals, [3, 3, 3, 3, 3]);
 
   const two = model.exchangeProgress(prompt({ turn_index: 1, max_turns: 3 }), false);
   assert.equal(model.exchangeLabel(FR.exchange_of, two), 'Échange 2 sur 3');
@@ -710,4 +745,29 @@ test('#333 · a reply nobody read keeps saying so on its bubble, after a reload 
     })
     : null;
   if (answered) assert.equal(answered.unchecked, true);
+});
+
+test('a caption between voices is drawn as a caption, not under a face (#558)', () => {
+  const local = model.recordExchange(model.EMPTY_THREAD, {
+    turn: 0,
+    prompt_fr: OPENING,
+    learner_fr: 'Oui, un peu.',
+    character_fr: 'Je comprends.\nQuarante-deux euros.',
+    correction: null,
+    character_lines: [
+      { speaker_id: 'margaux_barman', speaker_name: 'Margaux', text_fr: 'Je comprends.' },
+      { speaker_id: 'caption', speaker_name: '', text_fr: 'Plus tard. Les chaises sont sur les tables.' },
+      { speaker_id: 'augustin_de_roncourt', speaker_name: 'Gus', text_fr: 'Quarante-deux euros.' },
+    ],
+  });
+  const bubbles = model.threadBubbles({ prompt: prompt({ turn_index: 1, character_line_fr: '' }), local });
+  const caption = bubbles.find((bubble) => bubble.kind === 'caption');
+  assert.equal(caption.text, 'Plus tard. Les chaises sont sur les tables.');
+  assert.equal(
+    bubbles.filter((bubble) => bubble.kind === 'character' && bubble.text.startsWith('Plus tard')).length,
+    0,
+  );
+  const voices = bubbles.filter((bubble) => bubble.kind === 'character');
+  assert.equal(voices[voices.length - 1].latest, true, 'the last voice stays the headline');
+  assert.equal(caption.latest, undefined);
 });

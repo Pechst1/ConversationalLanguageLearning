@@ -458,11 +458,11 @@ def test_the_opening_greeting_nudge_costs_no_exchange(db_session, monkeypatch):
     nudged = attempt("Un café, s'il vous plaît.")
     assert nudged.character_reply_fr == GREETING_NUDGE
     assert nudged.next_turn is not None
-    assert nudged.next_turn.prompt.max_turns == planned + 1, "the owed exchange is one more token"
+    assert nudged.next_turn.prompt.max_turns == planned, "#467: the total is fixed when the scene starts"
 
     ordered = attempt("Bonjour ! Un café, s'il vous plaît.")
     assert ordered.next_turn is not None, "the order is the normal exchange, not the repair"
-    assert ordered.next_turn.prompt.max_turns == planned + 1
+    assert ordered.next_turn.prompt.max_turns == planned
     assert [t.learner_fr for t in ordered.next_turn.prompt.thread] == [
         "Un café, s'il vous plaît.",
         "Bonjour ! Un café, s'il vous plaît.",

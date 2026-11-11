@@ -8,6 +8,7 @@
  * Sentence case, no exclamation marks, no personality: Romy has the voice.
  */
 
+import { castDisplayName } from '@/lib/cast-faces';
 import type { RvLanguage, RvMakeKind, RvTopic } from '@/lib/revue-types';
 
 export type RevueCopy = {
@@ -777,18 +778,10 @@ export const ROMY_CLIENT_LINES = {
   resume: 'Te revoilà. On reprend où on en était.',
 } as const;
 
-/** The guests' names (WIRE §6.2 `cast_id`), the same in every language. An unknown id keeps its first part. */
-export const GUEST_NAMES: Record<string, string> = {
-  margaux_barman: 'Margaux',
-  lila_bonnet: 'Lila',
-  camille_marchand: 'Camille',
-  landlord_marchand: 'M. Marchand',
-  marin_leveque: 'Marin',
-  augustin_de_roncourt: 'Gus',
-};
-
+/** The guests' names (WIRE §6.2 `cast_id`), the same in every language: the cast registry's (#147). An unknown id keeps its first part. */
 export function guestName(castId: string): string {
-  if (GUEST_NAMES[castId]) return GUEST_NAMES[castId];
+  const known = castDisplayName(castId, null);
+  if (known) return known;
   const first = castId.split('_')[0] || castId;
   return first.charAt(0).toUpperCase() + first.slice(1);
 }

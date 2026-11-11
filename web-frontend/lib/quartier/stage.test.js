@@ -12,7 +12,7 @@ const { test } = require('node:test');
 const WEB_ROOT = path.resolve(__dirname, '..', '..');
 require(path.join(WEB_ROOT, 'node_modules/sucrase/register/ts'));
 
-const { GUESTS, OUTSIDE, STAGED, SILENT_BEATS, personOf } = require('./stage.ts');
+const { GUESTS, OUTSIDE, STAGED, SILENT_BEATS, personOf, withoutCaptions } = require('./stage.ts');
 const { T1A_COPY: T1A } = require('./story.ts');
 
 test('the copy of the day in the frontend is the season file, word for word', () => {
@@ -43,6 +43,14 @@ test('every silent beat of a reply is acted out', () => {
       assert.ok(acted, `${beat.id} is silent and nothing acts it`);
     }
   }
+});
+
+test('the slide of the cup is acted, so its caption is left to the reply thread', () => {
+  const caption = { who: 'caption', kind: 'caption', text_fr: "Margaux pousse la tasse jusqu'au tabouret d'Odile." };
+  const said = { who: 'margaux_barman', kind: 'speech', text_fr: 'Bien.' };
+  const beat = { kind: 'panel', id: 'a.cafe.declined.r1', silence: true, lines: [caption, said] };
+  assert.deepEqual(withoutCaptions(beat).lines, [said]);
+  assert.deepEqual(beat.lines, [caption, said]);
 });
 
 test('the café crème and the key are acted from the reply the engine read', () => {

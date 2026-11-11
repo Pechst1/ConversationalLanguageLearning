@@ -31,7 +31,7 @@ from functools import lru_cache
 from typing import Any
 
 from app.config import settings
-from app.services import address, story_memory
+from app.services import address, scene_ledger, scene_record, story_memory
 from app.services.cast_registry import display_names
 from app.services.season.clock import SEASON_KEY, Position, played_log, record_played
 from app.services.season.director import (
@@ -68,12 +68,12 @@ from app.services.season.page import (
     turns_of,
 )
 from app.services.season.turns import (
-    CLASSIFIER,
     MATCH_THRESHOLD,
     ReplyChoice,
     ack_panel,
     answers_question,
     classifier_payload,
+    classifier_prompt,
     clean_ack,
     gate_signal,
     generic_ask_again_panel,
@@ -174,11 +174,15 @@ def today_for(live: dict | None, *, user: Any, seed: str, now: Any = None) -> To
     state.setdefault("id", season_id)
     local = learner_date(user, now)
     pos = position_for(season, state, today=local)
+    flags = effective_flags(season, state, seed=seed)
+    if scene_record.enabled() and pos.is_tentpole and pos.segment is not None:
+        # #147: what the tentpole's pages are written with holds from its first page.
+        flags = {**flags, **(getattr(pos.segment, "opens_with", None) or {})}
     return Today(
         season=season,
         pos=pos,
         state=state,
-        flags=effective_flags(season, state, seed=seed),
+        flags=flags,
         seed=seed,
         band=learner_level_band(user),
         # The one-language rule: the page's own words (the task, the hint) are in the
@@ -372,14 +376,23 @@ def turn_addressee(turn: dict[str, Any] | None, scenario) -> str:
     return str((turn or {}).get("to") or scenario.character_id)
 
 
-def routed_sentence(reply: dict[str, Any], understood: bool) -> str | None:
+def is_tap_target(turn: dict[str, Any] | None) -> bool:
+    """Whether the turn is a clue: its replies are things to point at, not sentences."""
+
+    return bool(turn and turn.get("from_solve") and not turn.get("choice"))
+
+
+def routed_sentence(reply: dict[str, Any], understood: bool, turn: dict[str, Any] | None = None) -> str | None:
     """The sentence the learner's answer amounts to, for the line they repeat aloud.
 
     The routed reply's own first example (a card's label for a «Le choix»), only
     when the page really heard that reply and it is not the clumsy-but-sincere one:
-    a fallback route says nothing the learner meant."""
+    a fallback route says nothing the learner meant.
 
-    if not understood or reply.get("clumsy"):
+    #535: the options of a clue (``enquete``, ``dechiffrer``) are things to point at:
+    «LARTSIM» is the reversed neon sign, not words anyone says."""
+
+    if not understood or reply.get("clumsy") or (scene_record.enabled() and is_tap_target(turn)):
         return None
     examples = [str(example).strip() for example in reply.get("examples") or [] if str(example).strip()]
     return examples[0] if examples else None
@@ -484,6 +497,15 @@ def panel_images(page: dict[str, Any], scene_panels: list[dict[str, Any]]) -> li
     return images
 
 
+def asks_only_once(turns: list[dict[str, Any]]) -> bool:
+    """Whether the page has one exchange: its scene then asks one more, written from what
+    the learner said, before it closes (owner decision of 9 Nov 2026)."""
+
+    return scene_record.enabled() and len(turns) == 1 and exchanges_for(turns[0]) == 1 and not any(
+        reply.get("repeat_once") for reply in turns[0].get("replies") or []
+    )
+
+
 def routes_the_story(turn: dict[str, Any]) -> bool:
     """Does what the learner answers here change the story? A «Le choix» or a
     «Convaincre», Lila's gate, a reply that sets (or conditionally sets) a flag,
@@ -570,7 +592,7 @@ def tentpole_brief(
         brief.response_task,
         min_turns=sum(exchanges_for(turn) for turn in turns[: last_posed + 1]),
         opening_choices=choice_cards(turns[0]) if turns else [],
-        max_turns=max(1, exchanges + (1 if repeats else 0)),
+        max_turns=max(1, exchanges + (1 if repeats else 0)) + (1 if asks_only_once(turns) else 0),
         allowed_outcomes=["resolved", "open"],
         estimated_seconds=60 * max(1, len(turns)),
     )
@@ -585,8 +607,12 @@ def tentpole_brief(
     )
 
 
-def season_teaser(story_context: dict[str, Any], *, date: str | None) -> dict[str, Any] | None:
-    """Tomorrow's line on a tentpole day: the page's own «À suivre…», unvoiced."""
+def season_teaser(
+    story_context: dict[str, Any], *, date: str | None, question: str | None = None
+) -> dict[str, Any] | None:
+    """Tomorrow's line on a tentpole day: the page's own «À suivre…», unvoiced. ``question``
+    is what the closer left open, already checked: «Tomorrow» prints it (#466). Without
+    one, a model down or a card tapped, the page's own line stands."""
 
     season_ctx = story_context.get(SEASON_CONTEXT_KEY) or {}
     if season_ctx.get("kind") != "tentpole":
@@ -600,6 +626,7 @@ def season_teaser(story_context: dict[str, Any], *, date: str | None) -> dict[st
         "date": date,
         "ref": f"season:{(season_ctx.get('position') or {}).get('key')}",
         "kind": "season",
+        **({"open_fr": question} if question else {}),
     }
 
 
@@ -751,6 +778,8 @@ def classify(
     use_model: bool = True,
     band: str | None = None,
     known: dict[str, Any] | None = None,
+    ledger: dict[str, Any] | None = None,
+    one_exchange: bool = False,
 ) -> ReplyChoice:
     """Which of the turn's replies the learner expressed (model, else matcher), and
     the addressee's first line back to what the learner actually wrote (model only).
@@ -769,8 +798,8 @@ def classify(
         usage: list[dict] = []
         try:
             parsed, _ = engine._json_call(
-                CLASSIFIER,
-                classifier_payload(turn, text, history, band=band, known=known),
+                classifier_prompt(),
+                classifier_payload(turn, text, history, band=band, known=known, ledger=ledger, one_exchange=one_exchange),
                 ReplyChoice,
                 usage.append,
                 deadline=time.monotonic() + 20,
@@ -972,6 +1001,14 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         )
     routed, asked = _replay(db, user, turns, scene_id, history)
     index, answered = _walk(turns, routed)
+    if scene_record.enabled() and (first := _listening_route(history, index, turns)) is not None:
+        # The page's one question has its answer, and the scene asked one of its own: this
+        # reply answers that, and closes the day.
+        return _listening_answer(
+            db, user=user, scenario=scenario, task=task, answer=answer, turn_index=turn_index,
+            assistance=assistance, history=history, turns=turns, routed=routed, first=first,
+            use_model=use_model,
+        )
     index = min(index, len(turns) - 1)
     turn = turns[index]
     carded = card_choice(turn, answer.text)
@@ -988,14 +1025,27 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         ((scenario.story_context or {}).get("source") or {}).get(story_memory.MEMORY_KEY),
         str(turn.get("to") or scenario.character_id),
     )
+    # #145: what the scene has said so far, this turn included. The reader is told it, and
+    # it decides below whether the turn's question has been answered.
+    ledger = _ledger_now(scenario, task, turns, history, answer.text) if scene_record.enabled() else None
+    planned = int(getattr(task, "max_turns", 0) or len(turns))
+    # A day planned with the extra exchange asks it; one already under way keeps its count.
+    may_listen = not routed and asks_only_once(turns) and planned > 1
     choice = carded or classify(
         db, user, scene_id=scene_id, turn=turn, text=answer.text, history=history, use_model=use_model, band=band,
-        known=known,
+        known=known, ledger=ledger, one_exchange=may_listen,
     )
     # STORY-LISTENS 2026-10-12: the addressee first answers what the learner actually
     # wrote (a name, a question, a joke), then the authored reaction plays. Only a
     # model reading carries one; a card tap or the matcher plays the page as written.
-    ack = None if carded is not None else clean_ack(choice.ack_fr, learner_text=answer.text, address=turn_address(turn))
+    if carded is not None:
+        ack = None
+    elif scene_record.enabled():
+        ack = _checked_ack(
+            db, user, choice.ack_fr, turn=turn, answer=answer, history=history, ledger=ledger, turn_index=turn_index
+        )
+    else:
+        ack = clean_ack(choice.ack_fr, learner_text=answer.text, address=turn_address(turn))
     if (
         carded is None
         and not choice.clear
@@ -1010,7 +1060,7 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         # that takes up the question's own subject («Je garde la cuisine», «Je reste
         # trois jours») was an answer: the scene hears it (the fallback route plays, the
         # ack answers the content) and moves on, never re-asking it.
-        and not answers_question(turn, answer.text)
+        and not answers_question(turn, answer.text, intent=choice.learner_intent if scene_record.enabled() else None)
     ):
         # QA-STORY: the reply said none of what the turn is about (a name alone, a
         # greeting, another subject). The addressee asks once for the missing part;
@@ -1035,22 +1085,37 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
     # The day's rhythm may plan fewer exchanges than the page has turns: the
     # conversation then closes on this one, and the turns it did not reach keep
     # only what they set whatever is said (``_settle_tentpole``).
-    planned = int(getattr(task, "max_turns", 0) or len(turns))
     closing = next_index >= len(turns) or int(turn_index) + 1 >= planned
+    listen = (
+        _checked_listen(db, user, choice.listen_fr, turn=turn, answer=answer, history=history, ledger=ledger, turn_index=turn_index)
+        if carded is None and closing and may_listen
+        else None
+    )
+    closing = closing and listen is None
     if ack:
         beats = [ack_panel(_named_turn(scenario, turn), ack), *beats]
     beats += list(turn.get("after") or []) if (not reply.get("repeat_once") or again) else []
-    if closing:
+    if listen:
+        beats.append({**ack_panel(_named_turn(scenario, turn), listen), "id": f"{turn.get('id')}.listen"})
+    closed_reading = None
+    if closing and not scene_record.enabled():
         # Until WP-110 draws the page, the rest of the day is said here; the
         # ending is the «À suivre…» caption alone.
         beats += list(season_ctx.get("tail") or [])
+    elif closing:
+        # The conversation ends from what was said, then the rest of the day is said here;
+        # the ending is the «À suivre…» caption alone.
+        beats, closed_reading = _closed(
+            db, user, scenario, turn=turn, ledger=ledger, history=history, beats=beats, band=band,
+            learner_text=answer.text, turn_index=turn_index, use_model=use_model and carded is None,
+        )
     from app.services.season.stage import attempt_stage
 
     stage = attempt_stage(
         str(turn.get("id")),
         str(reply.get("id")),
         beats,
-        next_turn_id=None if closing else str((turns[next_index] if next_index != index else turn).get("id")),
+        next_turn_id=None if closing else str((turns[next_index] if next_index < len(turns) and next_index != index else turn).get("id")),
         closing=closing,
     )
     from app.services.season.turns import reaction_lines
@@ -1060,7 +1125,7 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
     # text was printed under the addressee's face (Camille speaking for Lila).
     reply_fr = reaction_text(beats, addressee=addressee, labelled=False)
     spoken_lines_out = reaction_lines(beats, addressee=addressee)
-    if not closing:
+    if not closing and not listen:
         upcoming = turns[next_index] if next_index != index else turn
         # A question passed over (``only_after``) still has the panels that led to it.
         lead = (
@@ -1082,7 +1147,7 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
     proposal = None
     if closing:
         proposal = _closing_proposal(
-            engine, db, user, scenario, turns=turns, routed=routed, final_choice=choice
+            engine, db, user, scenario, turns=turns, routed=routed, final_choice=choice, reading=closed_reading
         )
         proposal = StoryOutcomeProposal(
             outcome_key="resolved",
@@ -1128,7 +1193,22 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
             "reply": str(reply.get("id")),
             # What the learner meant, as a sentence they could say: the recap's
             # «une phrase à redire» is this, never the question's scripted example.
-            **({"say_fr": said} if (said := routed_sentence(reply, understood)) else {}),
+            **({"say_fr": said} if (said := routed_sentence(reply, understood, turn)) else {}),
+            # #535: this route's label was a clue's tap target, so the page has no sentence
+            # for it. Only then may the recap offer the learner's own corrected sentence; a
+            # fallback or clumsy route says nothing the learner meant.
+            **(
+                {"tap": True}
+                if scene_record.enabled() and understood and not reply.get("clumsy") and is_tap_target(turn)
+                else {}
+            ),
+            # The scene asked one of its own: how the page's question was answered waits
+            # with the exchange until the day closes on the next reply.
+            **(
+                {"listens": {"expresses": choice.expresses, "value": choice.value, "confidence": choice.confidence}}
+                if listen
+                else {}
+            ),
         },
         heard=_heard(choice, reply),
         stage=stage,
@@ -1145,7 +1225,169 @@ def _heard(choice: ReplyChoice | None, reply: dict[str, Any] | None) -> dict[str
         heard["meant"] = str(reply["means"])
     if choice is not None and choice.learned:
         heard["learned"] = [fact.model_dump() for fact in choice.learned]
+    if choice is not None and choice.learner_intent and scene_record.enabled():
+        heard["intent"] = choice.learner_intent
     return heard or None
+
+
+#: The route of the reply to the scene's own question (:func:`asks_only_once`).
+HEARD = "__heard__"
+
+
+def _ledger_now(scenario, task, turns: list[dict[str, Any]], history: list | None, learner_text: str) -> dict[str, Any]:
+    return scene_ledger.build(
+        opening_line_fr=getattr(task, "opening_line_fr", None) or _opening_of(turns),
+        history=history,
+        learner_text=learner_text,
+        in_the_room=scene_ledger.room_of((scenario.story_context or {}).get("draft")),
+    )
+
+
+def _listening_route(history: list | None, index: int, turns: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """The route of the exchange whose reply now answers the scene's own question, if one
+    is owed: the page's questions are all answered and the last real answer asked it."""
+
+    if index < len(turns):
+        return None
+    for exchange in reversed(history or []):
+        if not isinstance(exchange, dict) or exchange.get("free"):
+            continue
+        route = exchange.get("route")
+        return route if isinstance(route, dict) and isinstance(route.get("listens"), dict) else None
+    return None
+
+
+def _closed(
+    db, user, scenario, *, turn, ledger, history, beats, band, learner_text, turn_index, use_model: bool
+):
+    """``beats`` with the conversation's last words and the page's tail after them, and what
+    the closer made of the reply. The tail always plays, its jumps said as jumps."""
+
+    from app.services.season.closing import with_cuts, written_close
+
+    season_ctx = scenario.story_context.get(SEASON_CONTEXT_KEY) or {}
+    tail = with_cuts(str(season_ctx.get("id") or "s1"), season_ctx.get("page") or {}, list(season_ctx.get("tail") or []))
+    written, reading = written_close(
+        db, user, scenario=scenario, turn=turn, ledger=ledger, history=history, beats=beats, tail=tail, band=band,
+        learner_text=learner_text, use_model=use_model,
+        on_problem=lambda code: _count_dropped_line(db, user, [code], turn_index),
+        on_usage=lambda usage: _record_classifier_cost(db, user, usage) if db is not None and user is not None else None,
+    )
+    return [*beats, *written, *tail], reading
+
+
+def _listening_answer(
+    db, *, user, scenario, task, answer, turn_index, assistance, history, turns, routed, first, use_model
+):
+    """The learner answers the scene's own question: nothing is routed, the day closes."""
+
+    from app.services import living_story as engine
+    from app.services.journey_contracts import ResponseEvaluation, StoryOutcomeProposal, TaskOutcome
+    from app.services.season.stage import attempt_stage
+    from app.services.season.turns import reaction_lines
+    from app.services.story_lanes import margin_correction
+
+    season_ctx = scenario.story_context.get(SEASON_CONTEXT_KEY) or {}
+    turn = turns[-1]
+    held = first.get("listens") or {}
+    ledger = _ledger_now(scenario, task, turns, history, answer.text)
+    beats, reading = _closed(
+        db, user, scenario, turn=turn, ledger=ledger, history=history, beats=[],
+        band=str((season_ctx.get("page") or {}).get("band") or "") or None,
+        learner_text=answer.text, turn_index=turn_index, use_model=use_model,
+    )
+    final_choice = ReplyChoice(
+        reply_id=str(first.get("reply")),
+        expresses=held.get("expresses") or "none",
+        value=held.get("value"),
+        confidence=float(held.get("confidence") or 0.0),
+    )
+    proposal = _closing_proposal(
+        engine, db, user, scenario, turns=turns, routed=routed, final_choice=final_choice, also_said=[answer.text],
+        reading=reading,
+    )
+    addressee = str(scenario.character_id)
+    heard: dict[str, Any] = {}
+    if reading is not None and reading.learned:
+        heard["learned"] = [fact.model_dump() for fact in reading.learned]
+    if reading is not None and reading.learner_intent:
+        heard["intent"] = reading.learner_intent
+    return ResponseEvaluation(
+        outcome=TaskOutcome.MET if final_choice.confidence >= MATCH_THRESHOLD else TaskOutcome.PARTIALLY_MET,
+        assistance=assistance,
+        observations=[],
+        character_reply_fr=reaction_text(beats, addressee=addressee, labelled=False) or "…",
+        correction=margin_correction(
+            db, user=user, scenario=scenario, task=task, answer=answer, turn_index=turn_index, history=history
+        ),
+        consequence=StoryOutcomeProposal(
+            outcome_key="resolved",
+            callback_fr=proposal["callback_fr"],
+            character_id=scenario.character_id,
+            details=proposal,
+        ),
+        needs_repair=False,
+        failure_reason="reply_source:authored_season",
+        reply_lines=reaction_lines(beats, addressee=addressee),
+        next_choices=[],
+        # The line to say aloud still follows the page's question.
+        route={
+            "turn": str(turn.get("id")),
+            "reply": HEARD,
+            **{key: first[key] for key in ("say_fr", "tap") if key in first},
+        },
+        heard=heard or None,
+        stage=attempt_stage(str(turn.get("id")), None, beats, next_turn_id=None, closing=True),
+    )
+
+
+def _opening_of(turns: list[dict[str, Any]]) -> str:
+    """The first question's words, for a task that carries no opening line."""
+
+    panel = (turns[0].get("panel") if turns else None) or {}
+    return " ".join(str(line.get("text_fr") or "") for line in panel.get("lines") or []).strip()
+
+
+def _checked_ack(db, user, ack, *, turn, answer, history, ledger, turn_index) -> str | None:
+    """The reader's first line back, when it is safe to play and holds to the scene's record.
+
+    A line that does not is dropped and the authored reaction plays alone: the page always
+    has its own words, so nothing is retried and no learner waits. Every drop is counted
+    (code and outcome, no text), so a check that fires too often shows in production."""
+
+    from app.services import lane_guards
+
+    line = clean_ack(ack, learner_text=answer.text, address=turn_address(turn))
+    if line is None:
+        return None
+    findings = lane_guards.scene_findings(line, {"ledger": ledger, "learner_text": answer.text, "history": history})
+    if findings:
+        _count_dropped_line(db, user, [finding.code for finding in findings], turn_index)
+        return None
+    return line
+
+
+def _checked_listen(db, user, line, *, turn, answer, history, ledger, turn_index) -> str | None:
+    """The scene's own next question, when it is a question and holds to the record. A line
+    that does not is dropped, and the page closes on this reply as it always has."""
+
+    checked = _checked_ack(db, user, line, turn=turn, answer=answer, history=history, ledger=ledger, turn_index=turn_index)
+    return checked if checked and checked.rstrip().endswith("?") else None
+
+
+def _count_dropped_line(db, user, codes: list[str], turn_index: int) -> None:
+    from app.services.pilot_events import PilotEventService
+    from app.services.story_lanes import GUARD_FIRED_EVENT
+
+    if db is None or user is None:
+        return
+    events = PilotEventService(db)
+    for code in codes:
+        events.record(
+            GUARD_FIRED_EVENT, user_id=user.id, entity_type="living_story",
+            payload={"code": code, "outcome": "dropped", "turn_index": turn_index, "lane": "authored"},
+            cost_usd=0.0,
+        )
 
 
 #: The route an «ask again» exchange records: no reply of the turn was expressed.
@@ -1153,8 +1395,14 @@ ASK_AGAIN = "__ask_again__"
 
 
 def _cast_names(scenario) -> set[str]:
+    from app.services.cast_registry import name_words
+
     season_ctx = scenario.story_context.get(SEASON_CONTEXT_KEY) or {}
-    names: set[str] = {"Odile", "Margaux", "Lila", "Marin", "Gus", "Augustin", "Romy", "Camille", "Marchand"}
+    names: set[str] = (
+        name_words()
+        if scene_record.enabled()
+        else {"Odile", "Margaux", "Lila", "Marin", "Gus", "Augustin", "Romy", "Camille", "Marchand"}
+    )
     try:
         season = load_season(str(season_ctx.get("id") or "s1"))
         for member in season.cast:
@@ -1241,7 +1489,10 @@ def _ask_again_evaluation(
     )
 
 
-def _closing_proposal(engine, db, user, scenario, *, turns, routed, final_choice: ReplyChoice) -> dict[str, Any]:
+def _closing_proposal(
+    engine, db, user, scenario, *, turns, routed, final_choice: ReplyChoice, also_said: list[str] | None = None,
+    reading: Any = None,
+) -> dict[str, Any]:
     season_ctx = scenario.story_context.get(SEASON_CONTEXT_KEY) or {}
     ending = season_ctx.get("ending") or {}
     routing = []
@@ -1275,7 +1526,7 @@ def _closing_proposal(engine, db, user, scenario, *, turns, routed, final_choice
         "understood_intent": f"season:{season_ctx.get('position', {}).get('key')}:" + ",".join(
             f"{row['turn_id']}={row['reply_id']}" for row in routing
         ),
-        "evidence_quotes": [text[:300] for text, _ in routed][-6:],
+        "evidence_quotes": [*[text[:300] for text, _ in routed], *[text[:300] for text in also_said or []]][-6:],
         "reply_fr": (last_reply or "…")[:450],
         "needs_clarification": False,
         "resolution_fr": resolution_fr[:450],
@@ -1288,6 +1539,7 @@ def _closing_proposal(engine, db, user, scenario, *, turns, routed, final_choice
         "feeling_shift": "steady",
         "development_index": 0,
         "season_turns": routing,
+        **({"tomorrow_question_fr": question} if (question := getattr(reading, "tomorrow_question_fr", "")) else {}),
         "usage": [],
         "revision": engine.story_revision(db, user),
     }
@@ -1427,6 +1679,9 @@ def _settle_tentpole(season: Season, state: dict, season_ctx: dict, details: dic
             state = apply_sets(season, state, solve.get("sets_on_fail"), source=f"{solve.get('id')}/default")
     position = season_ctx.get("position") or {}
     tentpole = season.tentpoles.get(str(position.get("segment")))
+    if scene_record.enabled() and tentpole is not None and tentpole.opens_with:
+        # The days until Day B read it too: Gus does not go back to «vous» in between.
+        state = apply_sets(season, state, tentpole.opens_with, source=f"{tentpole.id}/opens_with")
     if tentpole is not None and int(position.get("day_in_segment") or 0) == 2:
         state = apply_sets(season, state, tentpole.state_out, source=f"{tentpole.id}/state_out")
     return state

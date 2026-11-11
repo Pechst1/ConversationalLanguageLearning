@@ -493,6 +493,8 @@ CRITIC_REVIEW_EVENT = "journey_story_critic_review"
 MET_GATED_EVENT = "reply_met_gated"
 GRADING_CORRECTED_EVENT = "reply_grading_corrected"
 AFTER_RELEASE_EVENT = "reply_refused_after_release"
+#: #145: a soft check found something in a reply (``story_lanes.GUARD_FIRED_EVENT``).
+GUARD_FIRED_EVENT = "reply_guard_fired"
 
 
 def format_story_correctness_line(db, day: date, user_id: str | None = None) -> str:
@@ -510,7 +512,7 @@ def format_story_correctness_line(db, day: date, user_id: str | None = None) -> 
     normalized_user_id = UUID(str(user_id)) if user_id else None
     wanted = (
         CRITIC_OVERRIDE_EVENT, CRITIC_REVIEW_EVENT, MET_GATED_EVENT,
-        GRADING_CORRECTED_EVENT, AFTER_RELEASE_EVENT,
+        GRADING_CORRECTED_EVENT, AFTER_RELEASE_EVENT, GUARD_FIRED_EVENT,
     )
     rows = db.query(PilotEvent.event_type, PilotEvent.payload).filter(
         PilotEvent.event_type.in_(wanted),
@@ -540,7 +542,8 @@ def format_story_correctness_line(db, day: date, user_id: str | None = None) -> 
         f"{refused_correctness} correctness refusal(s), never served · "
         f"{counts[MET_GATED_EVENT]} «met» lowered by the met-gate before release · "
         f"{counts[GRADING_CORRECTED_EVENT]} after-release grading correction(s) of "
-        f"{counts[AFTER_RELEASE_EVENT]} after-release issue(s)"
+        f"{counts[AFTER_RELEASE_EVENT]} after-release issue(s) · "
+        f"{counts[GUARD_FIRED_EVENT]} soft reply finding(s)"
     )
 
 
