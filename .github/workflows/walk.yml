@@ -171,10 +171,6 @@ jobs:
 
       - name: Upload screenshots and contact sheet
         if: always()
-        # The walk's verdict is the step above. Main's run 43089749223 played the season
-        # with 0 failures and went red because GitHub's artifact service returned HTML
-        # five times: an upload outage is not a walk failure.
-        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: walk-${{ github.event_name == 'schedule' && 'nightly' || github.event_name == 'workflow_run' && 'main' || 'pr' }}-${{ github.run_number }}-${{ matrix.key }}

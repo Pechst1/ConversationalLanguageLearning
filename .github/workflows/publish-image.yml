@@ -2,11 +2,19 @@ name: Publish container image
 
 # Builds the backend image the deploy compose files pull
 # (ghcr.io/pechst1/conversational-language-learning:sha-<full-commit>).
-# Called only after every CI job passes, for the same commit as the CI run.
+# Called only after every check of a commit passes: from CI for a tag, and from
+# walk-main.yml for a commit on main once its CI run and its walks have passed.
 # Uses the built-in GITHUB_TOKEN, so no extra secrets are required.
 
 on:
   workflow_call:
+    inputs:
+      ref:
+        # walk-main.yml: the main commit whose CI run and walks passed (the run itself
+        # is on main's tip, which may have moved on). Empty: the caller's own commit.
+        description: Commit to build and tag
+        type: string
+        default: ''
 
 jobs:
   publish:
@@ -16,6 +24,8 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -31,7 +41,7 @@ jobs:
           images: ghcr.io/pechst1/conversational-language-learning
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
-            type=sha,format=long,prefix=sha-
+            type=raw,value=sha-${{ inputs.ref || github.sha }}
             type=ref,event=tag
 
       - name: Set up Buildx

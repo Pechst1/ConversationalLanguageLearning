@@ -13,9 +13,9 @@ test('on a push to main CI skips the walk, so the deploy waits only for the fast
   const ci = workflow('ci.yml');
   const job = ci.slice(ci.indexOf('  browser-walk:'), ci.indexOf('  publish:'));
   assert.match(job, /if: github\.event_name != 'push' \|\| github\.ref != 'refs\/heads\/main'/);
-  // The image is still published on main: a skipped need is not a failed one.
+  // CI publishes only a tag's image; main's is published after its walks (below).
   const publish = ci.slice(ci.indexOf('  publish:'), ci.indexOf('  generated-types:'));
-  assert.match(publish, /!failure\(\) && !cancelled\(\)/);
+  assert.match(publish, /startsWith\(github\.ref, 'refs\/tags\/'\)/);
 });
 
 test('the walks still run on main, after CI, on the commit CI checked', () => {
@@ -24,6 +24,7 @@ test('the walks still run on main, after CI, on the commit CI checked', () => {
   assert.match(yml, /uses: \.\/\.github\/workflows\/walk\.yml/);
   assert.match(yml, /ref: \$\{\{ github\.event\.workflow_run\.head_sha \}\}/);
   assert.match(yml, /issues: write/);
+  assert.match(yml, /needs\.walk\.result == 'success'\s+permissions:\s+contents: read\s+packages: write\s+uses: \.\/\.github\/workflows\/publish-image\.yml/);
   assert.match(yml, /walk-main-issue\.mjs/);
   // The artifacts the report job reads are the ones walk.yml uploads on this event.
   assert.match(workflow('walk.yml'), /github\.event_name == 'workflow_run' && 'main'/);

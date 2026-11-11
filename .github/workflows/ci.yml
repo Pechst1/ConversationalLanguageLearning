@@ -33,8 +33,9 @@ jobs:
   publish:
     name: Publish verified image
     needs: [generated-types, backend, learner-walk, postgres, frontend, docker, browser-walk]
-    # The walk is skipped on main (above): a skipped need is not a failed one.
-    if: github.event_name == 'push' && !failure() && !cancelled()
+    # A tag's image, after every check of its run, the walks included. A commit on main
+    # is published by walk-main.yml once its walks have passed too: here they are skipped.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: read
       packages: write
