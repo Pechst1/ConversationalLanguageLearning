@@ -35,6 +35,18 @@ export const FORGE_REPAIR = {
   correction: '.ep-galley .ep-linefix__new',
 };
 
+/**
+ * La Forge «Trouve l'erreur» / «Ta phrase» (components/epreuve/ForgeDrills.tsx ForgeSpot):
+ * the sentence's words are buttons; a tapped word opens in a field that holds it, and
+ * what is typed replaces it. Checked against the component by
+ * components/epreuve/forge-word-bank-walk.test.js.
+ */
+export const FORGE_SPOT = {
+  word: 'button.forge-spot__word:not([disabled])',
+  edited: 'button.forge-spot__word[data-edited="true"]',
+  field: 'input.forge-spot__input',
+};
+
 /** What :data:`SNAPSHOT_FN` reads the page with (Playwright hands a page function one argument). */
 export const SNAPSHOT_ARGS = { typeable: TYPEABLE_FIELD, wordBankTile: WORD_BANK_TILE };
 

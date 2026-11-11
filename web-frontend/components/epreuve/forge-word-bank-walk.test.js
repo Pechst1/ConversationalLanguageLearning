@@ -175,3 +175,37 @@ test('the walk copies a Forge correction by the classes the repair renders', asy
   assert.ok(galleyAt >= 0 && lineMatch && lineMatch.index > galleyAt, `the correction («${FORGE_REPAIR.correction}») is printed in its card: ${html}`);
   assert.equal(lineMatch[1].replace(/&#x27;/g, "'"), fix, 'the line the walk copies is the correction');
 });
+
+test('the walk answers «Trouve l’erreur» by the classes ForgeSpot renders', async () => {
+  // Main's 7-day walk stood 10 s on La Forge's «Trouve l'erreur» (B1 day 3, 11/12) and
+  // never reached the recap: the walk had no hand for ForgeSpot.
+  const { FORGE_SPOT } = await walkDriver();
+  assert.ok(FORGE_SPOT, 'the walk defines how it answers «Trouve l’erreur» (e2e/lib/driver.mjs FORGE_SPOT)');
+  const Drills = require('./ForgeDrills.tsx');
+  const { forgeCopy } = require('@/lib/forge-copy.ts');
+  const copy = forgeCopy('fr');
+  const render = (edits) =>
+    renderToStaticMarkup(
+      h(Ep.EpShell, { language: 'fr' }, h(Drills.ForgeSpot, { sentence: 'Il est parti sans disant au revoir.', edits, onEdits: () => undefined, copy })),
+    );
+
+  const wordTag = /^(\w+)\./.exec(FORGE_SPOT.word)[1];
+  const [wordCls] = classesOf(FORGE_SPOT.word);
+  const fresh = tagsWithClass(render({}), wordTag, wordCls);
+  assert.ok(fresh.length >= 6, `the walk taps a word by «${FORGE_SPOT.word}»`);
+  assert.ok(fresh.every((attrs) => !/\sdisabled=/.test(attrs)), 'the words of an open item can be tapped');
+
+  const edited = tagsWithClass(render({ 4: 'dire' }), wordTag, classesOf(FORGE_SPOT.edited)[0]).filter((attrs) =>
+    /data-edited="true"/.test(attrs),
+  );
+  assert.equal(edited.length, 1, `the walk reads a word it already changed by «${FORGE_SPOT.edited}»`);
+
+  // The field opens only while a word is edited (component state); its markup is ForgeSpot's own.
+  const fieldTag = /^(\w+)\./.exec(FORGE_SPOT.field)[1];
+  const source = fs.readFileSync(path.join(__dirname, 'ForgeDrills.tsx'), 'utf8');
+  assert.match(
+    source,
+    new RegExp(`<${fieldTag}\\s+className="${classesOf(FORGE_SPOT.field)[0]}"`),
+    `the walk types into «${FORGE_SPOT.field}»`,
+  );
+});
