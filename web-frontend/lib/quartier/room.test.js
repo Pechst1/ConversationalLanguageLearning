@@ -209,7 +209,31 @@ test('every room is the stage of a place of the season, so a page set there find
   assert.equal(stageOf('le_mistral')?.id, 'quai_de_valmy');
   assert.equal(stageOf('le_mistral')?.room ?? null, null);
   assert.equal(stageOf('mistral_back_room')?.room, 'arriere_salle');
-  assert.equal(stageOf('marin_lila_flat'), null);
+  assert.equal(stageOf('marin_lila_flat')?.room, 'chez_marin_lila');
+  assert.equal(stageOf('marchand_office'), null);
+});
+
+test('Marin and Lila’s flat (T5, B without the key): the crate in the hallway, the card under the sardine, the canvas half wrapped', () => {
+  const file = 'chez_marin_lila.json';
+  const flat = rooms.find((r) => r.file === file);
+  assert.ok(flat, 'the flat is built');
+  const { room } = flat;
+  const of = (kind) => room.things.find((t) => t.kind === kind);
+  for (const k of ['crate', 'fridge', 'easel', 'canvas', 'kitchenette']) assert.ok(of(k), `the flat has no ${k}`);
+  // the stencil P3 reads, and the card P4 reads: to Toi, its last line not finished
+  assert.deepEqual(of('crate').text, ['FRAGILE', 'BERLIN', 'KÜNSTLERHAUS AM KANAL']);
+  const [label, ...card] = of('fridge').text;
+  assert.equal(label, 'LE MISTRAL À NOUS');
+  assert.equal(card[0], 'À toi —');
+  assert.match(card[card.length - 1], /Berlin.* et je$/);
+  // the easel stands empty: its canvas is the one leaning on the wall, face to it
+  assert.deepEqual(of('easel').size, [0, 0]);
+  // on the third floor, its windows on the canal; you arrive in the hallway, by the crate
+  assert.ok(room.things.every((t) => t.at[1] >= 11.2 - 0.001));
+  assert.ok(room.canals?.length && room.windows.length >= 2);
+  const { built: r } = built.get(file);
+  assert.equal(r.inside(r.start.pos.x, r.start.pos.z), true);
+  assert.ok(Math.hypot(r.start.pos.x - of('crate').at[0], r.start.pos.z - of('crate').at[2]) < 1.6, 'the crate is the first thing you see');
 });
 
 test('the back room (T5 B): the easel under its sheet, the board, the new plaster, and Marin’s plan by the door', () => {

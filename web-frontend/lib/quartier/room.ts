@@ -177,7 +177,10 @@ export type ThingKind =
   | 'easel'
   | 'crates'
   | 'board'
-  | 'plan';
+  | 'plan'
+  | 'fridge'
+  | 'crate'
+  | 'canvas';
 
 export interface RoomThing {
   kind: ThingKind;
@@ -1532,6 +1535,25 @@ function thing(B: Build, t: RoomThing, i: number) {
       // canvas's width and height)
       const [cw, ch] = t.size ?? [1.0, 0.8];
       const wood = zoned(mix(TONES.wood, INKS.ochre, 0.25), z);
+      if (cw <= 0) {
+        // `size` [0, 0]: the easel with nothing on it, its canvas packed (paint on the ledge)
+        const daub = [INKS.ochre, INKS.cobalt, INKS.vermilion].map((c) => zoned(c, z));
+        const ledgeY = 0.72;
+        const topY = 1.62;
+        D.at(x, y, zz, rot, () => {
+          D.bar(new Vector3(0, 0, -0.62), new Vector3(0, topY - 0.1, -0.06), 0.022, wood);
+          D.push(new Matrix4().makeTranslation(0, 0, 0.1).multiply(new Matrix4().makeRotationX(-0.1)));
+          for (const s of [-1, 1]) D.bar(new Vector3(s * 0.34, 0, 0), new Vector3(s * 0.07, topY + 0.32, 0), 0.024, wood);
+          D.box(0, topY + 0.14, -0.015, 0.045, 0.5, 0.03, wood);
+          D.box(0, ledgeY, 0.05, 0.9, 0.035, 0.1, wood);
+          // the clamp at the top, wound down to nothing, and the paint dried on the ledge
+          D.box(0, topY - 0.05, 0.03, 0.16, 0.05, 0.06, wood);
+          daub.forEach((m, k) => D.box(-0.3 + k * 0.22, ledgeY + 0.02, 0.07, 0.06 + k * 0.02, 0.006, 0.05, m));
+          D.pop();
+        });
+        B.blocks.push(centred(x, zz - 0.12 * Math.cos(rot), rot, 0.85, 0.9));
+        return;
+      }
       const sheet = zoned(mix(INKS.card, INKS.paper, 0.25), z);
       const shade = zoned(mix(mix(INKS.card, INKS.paper, 0.25), INKS.cobalt, 0.07), z);
       const fold = zoned(mix(mix(INKS.card, INKS.paper, 0.25), INKS.cobalt, 0.035), z);
@@ -1647,6 +1669,104 @@ function thing(B: Build, t: RoomThing, i: number) {
       D.at(x, y, zz, rot, () => {
         for (const [px, py] of [[-1, 1], [1, 1], [-1, -1], [1, -1]] as Array<[number, number]>) D.ball((px * (w - 0.04)) / 2, (py * (h - 0.04)) / 2, 0.02, 0.009, 0.009, 0.009, pin, 0);
       });
+      return;
+    }
+    case 'fridge': {
+      // a tall fridge against the wall, its white gone to cream, the freezer's drawer below and
+      // the handle up its side. On its door, under magnets: a folder (`text[0]` its label, '' for
+      // none), a card in a quick hand held by a sardine (the rest of `text`, a line a paragraph)
+      // and a felt-tip drawing (`size` its width and height)
+      const [w, h] = t.size ?? [0.6, 1.72];
+      const d = 0.62;
+      const body = zoned(mix(mix(INKS.paper, INKS.card, 0.15), INKS.cobalt, 0.05), z, { wet: 0.35 });
+      const seam = zoned(mix(INKS.card, INKS.ink, 0.35), z);
+      const grip = zoned(mix(INKS.paper, INKS.ink, 0.3), z, { wet: 0.6 });
+      const split = h * 0.34;
+      D.at(x, y, zz, rot, () => {
+        D.box(0, h / 2, d / 2, w, h, d, body, { ny: false });
+        D.box(0, split, d + 0.002, w - 0.01, 0.012, 0.004, seam);
+        D.box(0, h - 0.01, d / 2, w + 0.004, 0.02, d - 0.04, seam);
+        D.box(w / 2 - 0.05, split + 0.42, d + 0.022, 0.024, 0.36, 0.03, grip);
+        D.box(0, split - 0.08, d + 0.02, w * 0.5, 0.024, 0.03, grip);
+      });
+      const c = Math.cos(rot);
+      const s = Math.sin(rot);
+      const on = (lx: number, ly: number, lz = d): XYZ => [x + lx * c + lz * s, y + ly, zz - lx * s + lz * c];
+      const [label = '', ...note] = t.text ?? [];
+      if (label) {
+        card(B, `${key}:folder`, on(-0.1, split + 0.86), rot, 0.24, 0.32, z, folderFaceArt(label), 1600);
+        D.ball(...on(-0.1, split + 1.0, d + 0.02), 0.016, 0.016, 0.01, zoned(INKS.vermilion, z), 0);
+      }
+      if (note.length) {
+        // the card, and its sardine on top: a little blue fish with its tail
+        card(B, `${key}:card`, on(0.12, split + 0.55, d + 0.004), rot, 0.17, 0.12, z, noteArt(note), 2600);
+        const fish = zoned(mix(INKS.cobalt, INKS.paper, 0.35), z, { wet: 0.5 });
+        D.at(...on(0.12, split + 0.6, d + 0.02), rot, () => {
+          D.box(0, 0, 0, 0.07, 0.02, 0.012, fish);
+          D.box(0.045, 0, 0, 0.014, 0.03, 0.01, fish);
+        });
+      }
+      card(B, `${key}:drawing`, on(-0.08, split + 0.32, d + 0.006), rot, 0.21, 0.15, z, drawingArt(), 1600);
+      D.ball(...on(-0.08, split + 0.39, d + 0.02), 0.014, 0.014, 0.01, zoned(INKS.ochre, z), 0);
+      B.blocks.push(footprint(x, zz, rot, w + 0.04, d + 0.06));
+      return;
+    }
+    case 'crate': {
+      // a painting's shipping crate standing on its edge against the wall: plywood framed in
+      // battens, screwed shut on three sides, its stencil on the face (`text`: the lines, the
+      // first in red), `size` its width and height
+      const [w, h] = t.size ?? [1.3, 1.05];
+      const d = 0.3;
+      const ply = zoned(mix(TONES.wood, INKS.paper, 0.35), z);
+      const batten = zoned(mix(TONES.wood, INKS.ochre, 0.2), z);
+      const screw = zoned(mix(INKS.paper, INKS.ink, 0.35), z, { wet: 0.6 });
+      D.at(x, y, zz, rot, () => {
+        D.box(0, h / 2 + 0.03, d / 2, w, h, d, ply, { ny: false });
+        // the battens round the face, a little proud of it
+        D.box(0, h + 0.005, d + 0.012, w, 0.07, 0.024, batten);
+        D.box(0, 0.065, d + 0.012, w, 0.07, 0.024, batten);
+        for (const sx of [-1, 1]) D.box(sx * (w / 2 - 0.035), h / 2 + 0.03, d + 0.012, 0.07, h - 0.07, 0.024, batten);
+        // two skids under it, so it stands off the floor
+        for (const sx of [-1, 1]) D.box(sx * (w / 2 - 0.15), 0.015, d / 2, 0.08, 0.03, d + 0.04, batten);
+        for (const [sx, sy] of [[-1, 1], [1, 1], [-1, -1], [1, -1], [0, 1], [0, -1]] as Array<[number, number]>) {
+          D.box(sx * (w / 2 - 0.035), h / 2 + 0.03 + sy * (h / 2 - 0.035), d + 0.026, 0.012, 0.012, 0.004, screw);
+        }
+      });
+      const c = Math.cos(rot);
+      const s = Math.sin(rot);
+      card(B, key, [x + (d + 0.003) * s, y + h / 2 + 0.03, zz + (d + 0.003) * c], rot, w - 0.2, h - 0.2, z, stencilArt(t.text ?? []), 900);
+      B.blocks.push(footprint(x, zz, rot, w + 0.04, d + 0.06));
+      return;
+    }
+    case 'canvas': {
+      // a canvas leaning on the wall with its face to it: the stretcher's back, the linen
+      // nailed round it, and bubble wrap taped over its lower half (`size` its width and height)
+      const [w, h] = t.size ?? [1.1, 0.85];
+      const linen = zoned(mix(INKS.card, INKS.ochre, 0.18), z);
+      const wood = zoned(mix(TONES.wood, INKS.paper, 0.25), z);
+      const wrap = zoned(mix(mix(INKS.paper, INKS.card, 0.3), INKS.cobalt, 0.06), z, { wet: 0.9 });
+      const bubble = zoned(mix(mix(INKS.paper, INKS.card, 0.2), INKS.cobalt, 0.04), z, { wet: 1 });
+      const tape = zoned(mix(INKS.ochre, INKS.paper, 0.45), z, { wet: 0.4 });
+      const tilt = 0.24 / h;
+      D.at(x, y, zz, rot, () => {
+        D.push(new Matrix4().makeTranslation(0, 0, 0.26).multiply(new Matrix4().makeRotationX(-tilt)));
+        D.box(0, h / 2, 0.004, w, h, 0.008, linen);
+        // the stretcher bars, and the brace across the middle
+        D.box(0, 0.025, 0.03, w, 0.05, 0.045, wood);
+        D.box(0, h - 0.025, 0.03, w, 0.05, 0.045, wood);
+        for (const sx of [-1, 1]) D.box(sx * (w / 2 - 0.025), h / 2, 0.03, 0.05, h - 0.1, 0.045, wood);
+        D.box(0, h / 2, 0.025, 0.04, h - 0.1, 0.035, wood);
+        D.pop();
+        // the bubble wrap round its lower half, a fat sheet taped across it, its loose end hanging
+        const wh = h * 0.52;
+        D.box(0, wh / 2, 0.225, w + 0.06, wh, 0.21, wrap);
+        D.box(0, wh - 0.07, 0.358, w + 0.07, 0.045, 0.006, tape);
+        D.quadXYZ([w / 2 + 0.03, 0.02, 0.33, w / 2 + 0.2, 0.0, 0.42, w / 2 + 0.16, wh, 0.38, w / 2 + 0.03, wh, 0.33], bubble);
+      });
+      card(B, `${key}:wrap`, [x + 0.331 * Math.sin(rot), y + (h * 0.52) / 2, zz + 0.331 * Math.cos(rot)], rot, w + 0.06, h * 0.52, z, bubbleArt(), 700);
+      // and the roll of tape, left on the floor beside it
+      D.at(x, y, zz, rot, () => D.cylinder(w / 2 + 0.32, 0.0, 0.32, 0.06, 0.06, 0.05, 12, tape, { flat: true, caps: true }));
+      B.blocks.push(footprint(x, zz, rot, w + 0.4, 0.5));
       return;
     }
     case 'armoire': {
@@ -1770,6 +1890,158 @@ function planArt(text: string[]) {
       const [px, py, max] = spots[k] ?? [0.42, 0.3, 0.6];
       label(t, xa + (xb - xa) * px, y0 + (y1 - y0) * py, (xb - xa) * max, h * 0.055);
     });
+  };
+}
+
+/** A folder's cover on a fridge door: buff card, its strap, and a white label in felt-tip capitals. */
+function folderFaceArt(label: string) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(INKS.ochre, INKS.paper, 0.55));
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = css(mix(INKS.ink, INKS.cobalt, 0.2));
+    ctx.fillRect(w * 0.8, 0, w * 0.035, h);
+    ctx.fillStyle = css(INKS.paper);
+    ctx.fillRect(w * 0.1, h * 0.14, w * 0.62, h * 0.3);
+    ctx.fillStyle = css(mix(INKS.cobalt, INKS.ink, 0.25));
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const words = label.split(' ');
+    const lines = words.length > 2 ? [words.slice(0, 2).join(' '), words.slice(2).join(' ')] : [label];
+    let s = Math.round(h * 0.09);
+    ctx.font = SANS(s, 700);
+    while (s > 6 && Math.max(...lines.map((l) => ctx.measureText(l).width)) > w * 0.56) ctx.font = SANS(--s, 700);
+    lines.forEach((l, k) => ctx.fillText(l, w * 0.41, h * (0.29 + (k - (lines.length - 1) / 2) * 0.11)));
+  };
+}
+
+/**
+ * A card written in a quick hand, a line a paragraph, wrapped to the card; the last paragraph
+ * stops where it stops (an unfinished line is written as it is, with no full stop).
+ */
+function noteArt(paragraphs: string[]) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(INKS.card, INKS.paper, 0.6));
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = css(mix(INKS.cobalt, INKS.ink, 0.35));
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    const pad = w * 0.07;
+    const wrap = (size: number) => {
+      ctx.font = SERIF(size, 500);
+      const rows: string[] = [];
+      for (const p of paragraphs) {
+        let row = '';
+        for (const word of p.split(' ')) {
+          const next = row ? `${row} ${word}` : word;
+          if (row && ctx.measureText(next).width > w - 2 * pad) {
+            rows.push(row);
+            row = word;
+          } else row = next;
+        }
+        rows.push(row);
+      }
+      return rows;
+    };
+    let size = Math.round(h * 0.1);
+    let rows = wrap(size);
+    while (size > 6 && rows.length * size * 1.22 > h - 2 * pad) rows = wrap(--size);
+    rows.forEach((r, k) => ctx.fillText(r, pad, pad + size + k * size * 1.22));
+  };
+}
+
+/**
+ * A drawing in felt-tip from a dinner that went wrong: a pan with its omelette, the smoke going
+ * up in three curls, and the smoke alarm in the corner shouting. No one in it.
+ */
+function drawingArt() {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(INKS.paper);
+    ctx.fillRect(0, 0, w, h);
+    const ink = css(mix(INKS.ink, INKS.cobalt, 0.2));
+    ctx.lineCap = 'round';
+    ctx.lineWidth = Math.max(2, w * 0.012);
+    // the pan, its handle out to the left, the omelette in it
+    ctx.strokeStyle = ink;
+    ctx.beginPath();
+    ctx.ellipse(w * 0.46, h * 0.74, w * 0.2, h * 0.09, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(w * 0.27, h * 0.76);
+    ctx.lineTo(w * 0.06, h * 0.86);
+    ctx.stroke();
+    ctx.fillStyle = css(mix(INKS.ochre, INKS.paper, 0.15));
+    ctx.beginPath();
+    ctx.ellipse(w * 0.47, h * 0.73, w * 0.13, h * 0.05, 0.1, 0, Math.PI * 2);
+    ctx.fill();
+    // the smoke, three curls
+    ctx.strokeStyle = css(mix(INKS.ink, INKS.paper, 0.45));
+    for (const k of [0, 1, 2]) {
+      const sx = w * (0.38 + k * 0.08);
+      ctx.beginPath();
+      ctx.moveTo(sx, h * 0.62);
+      ctx.bezierCurveTo(sx - w * 0.05, h * 0.5, sx + w * 0.05, h * 0.4, sx - w * 0.02, h * 0.26);
+      ctx.stroke();
+    }
+    // the alarm on the ceiling, top right, and its shout
+    ctx.strokeStyle = ink;
+    ctx.beginPath();
+    ctx.ellipse(w * 0.82, h * 0.14, w * 0.07, h * 0.05, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = css(INKS.vermilion);
+    for (const k of [0, 1, 2]) {
+      ctx.beginPath();
+      ctx.moveTo(w * (0.74 - k * 0.02), h * (0.24 + k * 0.05));
+      ctx.lineTo(w * (0.68 - k * 0.04), h * (0.3 + k * 0.07));
+      ctx.stroke();
+    }
+    ctx.fillStyle = css(INKS.vermilion);
+    ctx.font = SANS(Math.round(h * 0.12), 800);
+    ctx.textAlign = 'center';
+    ctx.fillText('BIIIP', w * 0.8, h * 0.42);
+  };
+}
+
+/** Bubble wrap seen close: rows of soft bubbles, each with its catch of light, no outline. */
+function bubbleArt() {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(mix(INKS.paper, INKS.card, 0.3), INKS.cobalt, 0.06));
+    ctx.fillRect(0, 0, w, h);
+    const r = Math.max(3, h * 0.035);
+    const step = r * 2.6;
+    for (let row = 0, y = r * 1.4; y < h; row++, y += step * 0.87) {
+      for (let x = (row % 2 ? step / 2 : 0) + r * 1.2; x < w; x += step) {
+        ctx.fillStyle = css(mix(mix(INKS.paper, INKS.card, 0.15), INKS.cobalt, 0.1));
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = css(INKS.paper);
+        ctx.beginPath();
+        ctx.arc(x - r * 0.35, y - r * 0.35, r * 0.3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  };
+}
+
+/** A crate's stencil: the first line in red, the rest in black, sprayed through a stencil. */
+function stencilArt(lines: string[]) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.clearRect(0, 0, w, h);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const sizes = [0.14, 0.22, 0.09];
+    const ys = [0.22, 0.5, 0.76];
+    lines.forEach((t, k) => {
+      ctx.fillStyle = css(k === 0 ? mix(INKS.vermilion, INKS.ink, 0.15) : mix(INKS.ink, INKS.paper, 0.08));
+      let s = Math.round(h * (sizes[k] ?? 0.09));
+      ctx.font = SANS(s, 800);
+      while (s > 6 && ctx.measureText(t).width > w * 0.92) ctx.font = SANS(--s, 800);
+      ctx.fillText(t, w / 2, h * (ys[k] ?? 0.76 + (k - 2) * 0.12));
+    });
+    // the stencil's bridges: thin gaps across the letters
+    ctx.globalCompositeOperation = 'destination-out';
+    for (let k = 0; k < 40; k++) ctx.fillRect((k / 40) * w + w * 0.008, 0, Math.max(1, w * 0.002), h);
+    ctx.globalCompositeOperation = 'source-over';
   };
 }
 

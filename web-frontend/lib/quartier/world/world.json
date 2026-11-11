@@ -124,6 +124,20 @@
       "in": "quai_de_valmy"
     },
     {
+      "id": "chez_marin_lila",
+      "name": { "fr": "Chez Marin et Lila", "en": "Marin and Lila's flat", "de": "Bei Marin und Lila" },
+      "lat": 48.87255,
+      "lon": 2.36400,
+      "status": "locked",
+      "kind": "season",
+      "stages": ["marin_lila_flat"],
+      "why": { "fr": "Au troisième, sur le quai : le frigo et sa sardine, le chevalet de Lila.", "en": "On the third floor, on the quai: the fridge and its sardine, Lila's easel.", "de": "Im dritten Stock am Quai: der Kühlschrank mit seiner Sardine, Lilas Staffelei." },
+      "source": { "kind": "season", "id": "s1" },
+      "site": null,
+      "room": "chez_marin_lila",
+      "in": "quai_de_valmy"
+    },
+    {
       "id": "mairie_10e",
       "name": { "fr": "La mairie du 10e", "en": "The town hall of the 10th", "de": "Das Rathaus des 10." },
       "lat": 48.8722,

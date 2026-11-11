@@ -135,9 +135,9 @@ test('a day without blocking plays in the places the world has built for it, and
   assert.deepEqual(placesOf(page([at('p1', null), { kind: 'hook', id: 'h', panel: at('h.p', null) }])), ['quai_de_valmy', 'quai_de_valmy']);
   assert.equal(unbuiltOf(page([at('p1', null)])), null);
   // somewhere nothing is built for yet: no place plays it, and the page says where
-  assert.deepEqual(placesOf(page([at('p1', 'marin_lila_flat'), at('p2', null), at('p3', 'le_mistral')])), [null, null, 'quai_de_valmy']);
-  assert.equal(unbuiltOf(page([at('p1', 'le_mistral'), at('p2', 'marin_lila_flat')])), 'marin_lila_flat');
-  assert.equal(unbuiltOf(page([at('p1', null)], 'marchand_office')), 'marchand_office');
+  assert.deepEqual(placesOf(page([at('p1', 'marchand_office'), at('p2', null), at('p3', 'le_mistral')])), [null, null, 'quai_de_valmy']);
+  assert.equal(unbuiltOf(page([at('p1', 'le_mistral'), at('p2', 'marchand_office')])), 'marchand_office');
+  assert.equal(unbuiltOf(page([at('p1', null)], 'gus_loft')), 'gus_loft');
   assert.equal(unbuiltOf(page([at('p1', 'somewhere_new')])), 'somewhere_new');
   // the season's own pages: T2 climbs the stairwell into Odile's flat; the roof (g3) plays on the roof the forge built
   // (the season file's own movements: a solve the server poses as a question has no place of its own)
@@ -156,9 +156,10 @@ test('a day without blocking plays in the places the world has built for it, and
   const g3page = { location_id: g3.location_id, movements: staged(g3.moments.flatMap((m) => m.movements)) };
   assert.equal(unbuiltOf(g3page), null);
   assert.ok(placesOf(g3page).includes('toit_mistral'), 'the pages of the roof play on the roof');
-  // T5 B: the portrait is shown in the back room the forge built (its R2 still goes to Marin and Lila's flat)
+  // T5 B: the portrait is shown in the back room the forge built, and its R2 goes up to Marin and Lila's flat
   const t5b = season('t5.json', 'b');
   assert.ok(placesOf(t5b).includes('arriere_salle'), 'the portrait plays in the back room');
+  assert.ok(placesOf(t5b).includes('chez_marin_lila'), 'the door Marin opens is his flat’s');
   // the card
   assert.equal(placeCard('le_mistral'), null);
   assert.equal(placeCard('mistral_back_room'), null);

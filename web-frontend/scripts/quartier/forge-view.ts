@@ -65,6 +65,8 @@ const STEP: Record<RoomSpec['flights'][number]['dir'], [number, number]> = { 'x+
 
 /** From `p` along `dir`, up to `max` metres, as far as the floor carries you (no wall, no drop). */
 function stepBack(p: Vector3, dir: Vector3, max: number) {
+  // a deep thing (a fridge, an armoire) stands over its own front: start where its block ends
+  for (let k = 0; k < 10 && !q.nav.walkable(p.x, p.z); k++) p = new Vector3(p.x + dir.x * 0.1, p.y, p.z + dir.z * 0.1);
   let at = new Vector3(p.x, 0, p.z);
   let y = q.nav.heightAt(p.x, p.z);
   for (let d = 0.1; d <= max + 1e-6; d += 0.1) {
