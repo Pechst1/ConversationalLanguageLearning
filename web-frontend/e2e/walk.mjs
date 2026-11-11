@@ -24,6 +24,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Findings } from './lib/assertions.mjs';
+import { dayPlanVerdict } from './lib/day-plan.mjs';
 import { writeContactSheet } from './lib/contact-sheet.mjs';
 import { LearnerWalk } from './lib/learner-walk.mjs';
 import { registerLearner } from './lib/session.mjs';
@@ -98,14 +99,18 @@ async function playDay(l, day) {
 async function playDayInner(l, day) {
   const { walk, label } = l;
   const d0 = Date.now();
-  walk.day = day;
-  walk.seq = 0;
+  walk.beginDay(day);
   console.log(`[walk] ${label} day ${day}`);
   // WP-109: on day 2 the day is entered from the Feuilleton's «today» card.
   if (day === 2) await walk.enterFromFeuilleton();
-  const kinds = await walk.playJourney();
+  // The whole day: scene, grammar, words, then /fertig (12 minutes is the cap, not the pace).
+  const kinds = await walk.playJourney({ toTheEnd: true, maxSeconds: 720 });
   kinds.forEach((k) => l.covered.add(k));
   findings.check('day-reaches-the-recap', kinds.includes('recap') || kinds.includes('home-done'), `day ${day} never reached the recap; kinds: ${kinds.join(' > ')}`, walk.where());
+  // The day is played to its end: every step its plan listed, then /fertig or the last recap.
+  const verdict = dayPlanVerdict({ plan: walk.planAtStart, last: walk.lastSession, played: walk.played, dayEnd: walk.dayEnd });
+  findings.check('day-plays-its-plan', verdict.ok, `day ${day}: ${verdict.detail}`, walk.where());
+  console.log(`[walk] ${label} day ${day}: ${verdict.ok ? 'played its plan' : verdict.detail}`);
   await walk.visit('/atelier', 'home-after');
   if (day >= 2 && day % 2 === 0) await walk.playJourney({ entry: '/atelier?mode=forge', maxSeconds: 60, label: 'forge-' });
   l.pages = l.pages || [];

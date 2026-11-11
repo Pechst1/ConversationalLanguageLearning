@@ -138,8 +138,10 @@ export const SNAPSHOT_FN = ({ typeable, wordBankTile }) => {
     thread: q('.av2-step--thread').length,
     recap: document.querySelectorAll('.journey-recap, .av2-reward').length,
     castIntro: q('.cast-intro__member').length,
-    // Home once the day is done («Done for today» / «Fini pour aujourd'hui» / «Für heute»).
-    homeDone: /^\/(atelier|fertig)/.test(location.pathname) && /Done for today|Fini pour aujourd|Journée bouclée|Für heute (fertig|geschafft|erledigt)/i.test((document.querySelector('main') || document.body).innerText || ''),
+    // Home once the day is done («Done for today» / «Fini pour aujourd'hui» / «Für heute»),
+    // and /fertig in every language (its title is «Fertig für heute» even while a step is
+    // left: the walk's `nextStep` reads `data-fertig` to tell the day's end from a stop).
+    homeDone: location.pathname.startsWith('/fertig') || (/^\/atelier/.test(location.pathname) && /Done for today|Fini pour aujourd|Journée bouclée|Fertig für heute|Für heute (fertig|geschafft|erledigt)/i.test((document.querySelector('main') || document.body).innerText || '')),
     forgeStep: q('[data-step=forge]').length,
     // A request the screen says is in flight (Action's `pending`: disabled,
     // aria-busy, «La scène se prépare…»): waiting, not stuck.

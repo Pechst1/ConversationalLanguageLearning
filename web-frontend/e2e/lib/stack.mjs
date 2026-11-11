@@ -3,7 +3,7 @@
 // owner's ports (3000, 8000, 8010, 8011) or databases: ports are picked free, the
 // database name is atelier_walk_<timestamp>, and everything is torn down at the end.
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, createWriteStream, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, createWriteStream, readFileSync, rmSync } from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -91,6 +91,43 @@ export const WARM_ROUTES = [
   '/walk-warm-not-found',
 ];
 
+/**
+ * Production's story flags, read from `render.yaml`: every `STORY_*` key with its value.
+ * The walk server runs with them, so CI plays the story as production serves it (the scene
+ * record, the day contract and its re-ask, the stand-in page, the shared pages). Both
+ * services carry the same values; a manifest where they differ is refused, since the walk
+ * could match only one of them. `stack.test.mjs` fails when a key is not passed on.
+ */
+export function productionStoryFlags(text = readFileSync(path.join(REPO_ROOT, 'render.yaml'), 'utf8')) {
+  const flags = {};
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i += 1) {
+    const key = lines[i].match(/^\s*-\s*key:\s*(STORY_[A-Z0-9_]+)\s*$/);
+    if (!key) continue;
+    const value = (lines[i + 1] || '').match(/^\s*value:\s*(?:"([^"]*)"|'([^']*)'|(\S+))\s*$/);
+    if (!value) throw new Error(`render.yaml: ${key[1]} has no literal value on the next line`);
+    const v = value[1] ?? value[2] ?? value[3];
+    if (key[1] in flags && flags[key[1]] !== v) {
+      throw new Error(`render.yaml: ${key[1]} is «${flags[key[1]]}» on one service and «${v}» on another`);
+    }
+    flags[key[1]] = v;
+  }
+  return flags;
+}
+
+/** The walk API's environment: the caller's, the throwaway database, then production's story flags. */
+export function walkApiEnv({ dbUrl, tokenMinutes = 1, comptoir = false, web, base = process.env, storyFlags = productionStoryFlags() }) {
+  return {
+    ...base,
+    DATABASE_URL: dbUrl,
+    ACCESS_TOKEN_EXPIRE_MINUTES: String(tokenMinutes),
+    ...(comptoir ? { REVUE_COMPTOIR_ENABLED: 'true' } : {}),
+    BACKEND_CORS_ORIGINS: JSON.stringify([web, web.replace('localhost', '127.0.0.1')]),
+    // Last: a shell that set one of these differently does not walk another story.
+    ...storyFlags,
+  };
+}
+
 export async function startStack({ logDir, secret, live = false, tokenMinutes = 1, revue = false, comptoir = false }) {
   if (live) throw new Error('--live is not wired up in this harness: it would make paid model calls.');
   mkdirSync(logDir, { recursive: true });
@@ -152,13 +189,7 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
     const server = revue || comptoir ? 'web-frontend/e2e/lib/carte_server.py' : 'scripts/dev_walk_server.py';
     const api = spawn(python(), [server, '--port', String(apiPort)], {
       cwd: REPO_ROOT,
-      env: {
-        ...process.env,
-        DATABASE_URL: dbUrl,
-        ACCESS_TOKEN_EXPIRE_MINUTES: String(tokenMinutes),
-        ...(comptoir ? { REVUE_COMPTOIR_ENABLED: 'true' } : {}),
-        BACKEND_CORS_ORIGINS: JSON.stringify([web, `http://127.0.0.1:${webPort}`]),
-      },
+      env: walkApiEnv({ dbUrl, tokenMinutes, comptoir, web }),
       detached: true,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
