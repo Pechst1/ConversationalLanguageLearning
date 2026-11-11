@@ -77,6 +77,20 @@ async function waitFor(url, { timeoutMs = 120000, ok = (r) => r.status < 500 } =
   throw new Error(`timed out waiting for ${url}: ${last}`);
 }
 
+/** The pages the walk opens (its web.log's «Compiling …» lines), compiled before it plays. */
+export const WARM_ROUTES = [
+  '/atelier',
+  '/missions',
+  '/graphic-novel',
+  '/vocabulary',
+  '/vocabulary/review',
+  '/fertig',
+  '/settings',
+  '/audio-session',
+  '/auth/signin',
+  '/walk-warm-not-found',
+];
+
 export async function startStack({ logDir, secret, live = false, tokenMinutes = 1, revue = false, comptoir = false }) {
   if (live) throw new Error('--live is not wired up in this harness: it would make paid model calls.');
   mkdirSync(logDir, { recursive: true });
@@ -173,6 +187,14 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
     next.stderr.pipe(webLog);
     children.push(next);
     await waitFor(`${web}/api/auth/csrf`, { timeoutMs: 120000, ok: (r) => r.ok });
+    // The dev server compiles a page the first time it is asked for, and a request in
+    // flight while it writes its manifests can fail: main's 7-day walk (run 43027305551,
+    // A1 day 2) got a 500 on GET /api/auth/session («SyntaxError: Unexpected end of JSON
+    // input») while /vocabulary/review compiled for the first time. Every page the walk
+    // opens is compiled here, before any learner plays, so no walk request meets a compile.
+    for (const route of WARM_ROUTES) {
+      await fetch(`${web}${route}`, { redirect: 'manual', signal: AbortSignal.timeout(120000) }).catch(() => {});
+    }
 
     stack.web = web;
     stack.api = `http://127.0.0.1:${apiPort}/api/v1`;

@@ -19,16 +19,30 @@ export function itemCounter(text) {
 }
 
 /**
- * Track the verdict states of the screen `s` on `walk` (its `questionSig`, `questionCounter`,
+ * What names the item on screen apart from its text: the journey step's id
+ * (`data-step-id`, JourneySession's header) and the drill set's «12/13» counter. Main's fr
+ * walk of 11 Nov 2026 (A1 day 1, run 43027305551): a «Rappel» answered right at «Étape 6
+ * sur 6», then a missed item asked again («Encore une fois»), the same step caption and no
+ * counter; the walk met the new item while the old sheet was leaving and filed its «Not
+ * yet» under the old one. The step id changes with the item.
+ */
+export function itemMark(s) {
+  const counter = itemCounter(s.text);
+  const parts = [s.stepId, counter].filter(Boolean);
+  return parts.length ? parts.join(' ') : null;
+}
+
+/**
+ * Track the verdict states of the screen `s` on `walk` (its `questionSig`, `questionCounter` (the item's mark),
  * `stepCaptions`, `timelines` and `day`). Returns the item's timeline.
  */
 export function trackVerdicts(walk, s, kind) {
   const hasVerdict = s.graded.length + s.epFeedback.length > 0;
-  const counter = itemCounter(s.text);
-  const leaving = hasVerdict && counter && walk.questionCounter && counter !== walk.questionCounter;
+  const mark = itemMark(s);
+  const leaving = hasVerdict && mark && walk.questionCounter && mark !== walk.questionCounter;
   if (!hasVerdict || leaving) {
     walk.questionSig = s.text.slice(0, 140);
-    walk.questionCounter = counter;
+    walk.questionCounter = mark;
   }
   const step = (s.text.match(STEP_RE) || ['none'])[0];
   if (step !== 'none' && walk.stepCaptions[walk.stepCaptions.length - 1] !== step) walk.stepCaptions.push(step);

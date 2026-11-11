@@ -442,7 +442,9 @@ export function JourneySession({
             /* One separator between two real parts. The story engine ships an
                empty `location_name`, which used to render a dangling "·"
                (WP-20 D-7). */
-            <p className="av2-label" data-header={headerLine ? 'step' : undefined}>
+            /* data-step-id: which step of the journey this is, so the browser walk files a
+               verdict under its own item (e2e/lib/verdict-timeline.mjs). */
+            <p className="av2-label" data-header={headerLine ? 'step' : undefined} data-step-id={step?.id || undefined}>
               {specialKicker && (
                 <>
                   <span className="av2-special__kicker" lang="fr" data-special-kicker="">
