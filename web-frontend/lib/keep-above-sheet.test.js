@@ -289,3 +289,28 @@ test('#665 · a verdict sheet that grows after the first measure keeps «Compare
     assert.ok(page.repairBox().bottom <= 551 - 12, `«Compare» is measured against the settled sheet: the repair ends ${page.repairBox().bottom}`);
   });
 });
+
+// Run 43073091897 (fr day 3): the rafale's result lists four sentences, right ones too, and
+// nothing scrolled it; a miss in the fourth row would sit under «Continuer». Its card is the
+// first missed row, handed over by the result itself.
+test('the rafale · the card handed over (the first missed row) is the one kept above the sheet', () => {
+  const { keepCardAboveSheet } = require('./keep-above-sheet.ts');
+  withFakePage({ cardTop: 193, cardHeight: 433, sheetTop: 607, headerBottom: 66 }, (page) => {
+    // The fourth row, a miss, runs from 540 to 640: under the sheet.
+    const row = { getBoundingClientRect: () => ({ top: 540 - page.scrollY, bottom: 640 - page.scrollY, height: 100 }) };
+    keepCardAboveSheet(page.feedback, { smooth: false, clearLast: false, card: row });
+    const box = row.getBoundingClientRect();
+    assert.ok(box.bottom <= page.sheetTop - 12, `the missed row still runs under the sheet: ${box.top}-${box.bottom}, sheet from ${page.sheetTop}`);
+    assert.ok(box.top >= page.headerBottom + 12, 'and it is not scrolled up under the header');
+  });
+});
+
+test('the rafale · its result hands its first missed row to the one scroll owner', () => {
+  const fs = require('node:fs');
+  const drills = fs.readFileSync(path.join(__dirname, '..', 'components/epreuve/ForgeDrills.tsx'), 'utf8');
+  const result = drills.slice(drills.indexOf('export function ForgeRafaleResult'));
+  assert.match(result, /querySelector<HTMLElement>\('\.forge-rafale__rows > li\[data-correct="false"\]'\)/);
+  assert.match(result, /keepCardAboveSheet\(box, \{ card, clearLast: false \}\)/);
+  assert.match(result, /<div ref=\{feedbackRef\} className="ep-feedback forge-rafale-result"/);
+  assert.doesNotMatch(result, /\bscrollBy\(|scrollIntoView\(/, 'no second scroll of its own');
+});

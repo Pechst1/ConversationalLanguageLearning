@@ -97,12 +97,21 @@ const TAKEOVER_EVENTS = ['wheel', 'touchstart', 'keydown'] as const;
  */
 export function keepCardAboveSheet(
   feedback: HTMLElement | null,
-  { smooth = true, clearLast = true }: { smooth?: boolean; clearLast?: boolean } = {},
+  {
+    smooth = true,
+    clearLast = true,
+    card: chosen = null,
+  }: {
+    smooth?: boolean;
+    clearLast?: boolean;
+    /** The card to keep above the sheet, when it is not the feedback's first child (the rafale's first missed row). */
+    card?: HTMLElement | null;
+  } = {},
 ): () => void {
   const nothing = () => {};
   if (!feedback || typeof window === 'undefined') return nothing;
   const sheet = feedback.querySelector<HTMLElement>('.ep-foot') ?? document.querySelector<HTMLElement>('.ep-foot');
-  const card = Array.from(feedback.children).find((el) => !el.classList.contains('ep-foot')) as HTMLElement | undefined;
+  const card = chosen ?? (Array.from(feedback.children).find((el) => !el.classList.contains('ep-foot')) as HTMLElement | undefined);
   if (!sheet || !card) return nothing;
   const header = document.querySelector<HTMLElement>('.ep-top');
   /** The last repair or galley, looked up live: one can mount after the verdict. */

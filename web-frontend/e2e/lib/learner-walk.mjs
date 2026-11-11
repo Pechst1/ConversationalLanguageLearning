@@ -30,11 +30,19 @@ const SETTLE_STEADY = 4;
 const SETTLE_STEP_MS = 100;
 const SETTLE_MAX_MS = 6000;
 
-/** Where the correction card is, in viewport pixels (runs in the page). null: no wrong verdict on screen. */
-function measureForgeMiss() {
+/**
+ * Where the correction card is, in viewport pixels (runs in the page). null: no wrong verdict on screen.
+ * The rafale's result lists all four sentences, right ones too; its correction card is the first
+ * missed row, the one its page keeps above the sheet (run 43073091897, fr day 3: the whole list
+ * was measured, and a right fourth row under the sheet read as a hidden correction).
+ */
+export function measureForgeMiss() {
   const feedback = document.querySelector('.ep-feedback[data-verdict="wrong"]');
   const foot = feedback && (feedback.querySelector('.ep-foot') || document.querySelector('.ep-foot'));
-  const card = feedback && [...feedback.children].find((el) => !el.classList.contains('ep-foot'));
+  const card = feedback && (
+    feedback.querySelector('.forge-rafale__rows > li[data-correct="false"]')
+    || [...feedback.children].find((el) => !el.classList.contains('ep-foot'))
+  );
   if (!foot || !card) return null;
   const top = document.querySelector('.ep-top');
   const c = card.getBoundingClientRect();
