@@ -27,10 +27,12 @@ Five properties, each with a test:
   against, or a provider that does not answer ⇒ ``assessment_status =
   "unavailable"``. The learner's text is kept, no erratum is invented, no
   vocabulary is credited, and the screen says so in French.
-* **The story is read, never written.** Scene facts come from the journey's own
-  public snapshot fields and from :func:`app.services.living_story.story_context`,
-  which is a pure read. Nothing here touches serial state, ``private_task``, or
-  the living-story thread.
+* **The story is read, never written.** Scene facts come from what was said in
+  the scene (the exchanges the learner saw, through the journey's public
+  projection, and the ending line) and from
+  :func:`app.services.living_story.story_context`, which is a pure read. Nothing
+  here touches serial state, the evaluator side of ``private_task`` (its rubric
+  and accepted answers), or the living-story thread.
 
 Spacing follows the same evidence: +1 day for the entry, +7 days for a one-line
 follow-up whose answer is the ``used_again_later`` signal — the only number that
@@ -239,23 +241,103 @@ class SceneFact:
         return 2 if len(self.cues) > CUE_THRESHOLD_WIDTH else 1
 
 
-# ROOT CAUSE #145/#539/#597: what counts as a closing caption or an exit stub (and not
-# an event of the scene) is decided once, in ``closing_filler``; the Journal reads it.
+# ROOT CAUSE #145/#539/#597/#622: a «fact the scene kept» used to be the text that sat
+# next to the scene, not the text said in it: the story's hook
+# (``story_outcome.callback_fr``), else the opening panel's stage line. The hook is a
+# memory fragment written for the serial ledger and for tomorrow: it may restate a
+# fact out of the learner's past (WP-62 long memory, «L'appartement est un souvenir
+# de ta grand-mère»), carry another scene's hook, or be a closing caption; the stage
+# line is what the picture showed before anything happened. Lines that were not events
+# were struck off one kind at a time (``closing_filler``: the «À suivre…» caption, the
+# exit stub), and every other kind went through. The rule is now positive: a fact is
+# what was *said* in the scene (its closing exchange and its ending line) or what the
+# story recorded this episode promised; the hook and the narration are never read.
+
+
+def _first_act(journey: DailyJourney) -> list[Any]:
+    """The steps of the scene the cue names: the day's first act, in order.
+
+    A day of two acts has a second scene with its own people; the recap's story
+    outcome is the first act's, and so is the scene the Journal asks about.
+    """
+    from app.services.journey_contracts import step_act
+
+    ordered = sorted(journey.steps or [], key=lambda item: item.ordinal)
+    return [step for step in ordered if step_act(step) == 1]
+
+
+def _said(text: Any) -> str:
+    """One line as said, or ``""`` when it says nothing: blank, «…», not French, or
+    a closing caption / exit stub (:func:`app.services.closing_filler.scene_fact`)."""
+    line = french_only(scene_fact(text))
+    return line if any(char.isalpha() for char in line) else ""
+
+
+def _answer(exchange: dict[str, Any]) -> tuple[str, str]:
+    """Who answered the learner, and their first line that says something."""
+    rows = list(exchange.get("character_lines") or []) or [
+        {"speaker_name": "", "text_fr": line}
+        for line in str(exchange.get("character_fr") or "").splitlines()
+    ]
+    for row in rows:
+        line = _said(row.get("text_fr"))
+        if line:
+            return str(row.get("speaker_name") or "").strip(), line
+    return "", ""
+
+
+def scene_ending_fact(journey: DailyJourney, *, given: set[str]) -> SceneFact | None:
+    """How the scene ended, in the words said in it.
+
+    The learner's last line and the answer to it («Garde-la pour moi. — Margaux :
+    Derrière la caisse.»), then the resolution's spoken line when it says something
+    else. Read through the journey's public projection
+    (:func:`app.services.daily_journey.step_thread`), the lines the learner saw on
+    screen; never the rubric or the accepted answers.
+    """
+    from app.services.daily_journey import step_thread
+
+    steps = _first_act(journey)
+    exchanges = [
+        exchange
+        for step in steps
+        if StepKind(step.kind) is StepKind.RESPOND
+        for exchange in step_thread(step)
+    ]
+    parts: list[str] = []
+    reply = ""
+    if exchanges:
+        last = exchanges[-1]
+        speaker, reply = _answer(last)
+        parts.append(_said(last.get("learner_fr")))
+        parts.append(f"{speaker} : {reply}" if speaker and reply else reply)
+    for step in steps:
+        if StepKind(step.kind) is StepKind.RESOLUTION:
+            ending = _said((step.public_prompt or {}).get("character_line_fr"))
+            if ending and fold_for_comparison(ending) != fold_for_comparison(reply):
+                parts.append(ending)
+    text = " — ".join(part for part in parts if part)
+    cues = tuple(content_cues(text, given=given))
+    if not cues:
+        return None
+    return SceneFact(key="ending", kind="ending", text_fr=text, cues=cues)
 
 
 def scene_facts_for(
     journey: DailyJourney, *, story_context: dict[str, Any] | None = None
 ) -> list[SceneFact]:
-    """What this scene established, from public read paths only.
+    """What this scene established, from what was said in it.
 
-    Three sources, in the order they matter to a recap: the commitments the
-    story remembers from this episode, how the evening actually ended, and the
-    scene's own objective. ``private_task`` is never read — the rubric and the
-    accepted answers are evaluator material and a journal that scored against
-    them would be grading the learner's memory of a hidden document.
+    In the order they matter to a recap: how the scene ended
+    (:func:`scene_ending_fact`), then the commitments the story remembers from
+    this episode. Never the story's hook (a memory fragment for tomorrow, which may
+    be a line out of the learner's past or another scene's) and never the opening
+    panel's narration (#622). ``private_task`` is never read beyond the exchanges
+    the learner saw: the rubric and the accepted answers are evaluator material,
+    and a journal that scored against them would be grading the learner's memory
+    of a hidden document.
     """
     scenario = dict(journey.scenario_snapshot or {})
-    recap = dict(journey.recap_snapshot or {})
     given = set(
         content_cues(
             " ".join(
@@ -267,17 +349,9 @@ def scene_facts_for(
 
     facts: list[SceneFact] = []
 
-    outcome = recap.get("story_outcome") or {}
-    callback = french_only(outcome.get("callback_fr"))
-    if callback and not is_closing_filler(callback):
-        facts.append(
-            SceneFact(
-                key="outcome",
-                kind="outcome",
-                text_fr=callback,
-                cues=tuple(content_cues(callback, given=given)),
-            )
-        )
+    ending = scene_ending_fact(journey, given=given)
+    if ending is not None:
+        facts.append(ending)
 
     episode_id = str(journey.serial_episode_id or "") or None
     for raw in (story_context or {}).get("commitments") or []:
@@ -303,20 +377,8 @@ def scene_facts_for(
             )
         )
 
-    if not facts:
-        # Last resort so a scene always has something to be recalled against: the
-        # situation the scene set up, in French. Not ``objective_native``: that is
-        # an instruction in the learner's language, not something that happened,
-        # and never *in addition* to real story facts (it is a paraphrase of them).
-        premise = ""
-        for step in sorted(journey.steps or [], key=lambda item: item.ordinal):
-            if StepKind(step.kind) is StepKind.SCENE:
-                premise = french_only((step.public_prompt or {}).get("setup_fr"))
-                break
-        cues = tuple(content_cues(premise, given=given))
-        if cues:
-            facts.append(SceneFact(key="setup", kind="setup", text_fr=premise, cues=cues))
-
+    # No last resort: a scene where nothing was said is passed over (#444), never
+    # asked about against its stage line (#622).
     return facts
 
 
@@ -338,9 +400,14 @@ def scene_cue(journey: DailyJourney, *, today: date) -> dict[str, Any]:
 
 
 def scene_reveal(journey: DailyJourney) -> dict[str, Any]:
-    """The scene as it was, shown only after the learner has written."""
+    """The scene as it was, shown only after the learner has written.
+
+    Its last line (``callback_fr``, the key the client reads) is how the scene
+    ended in the words said in it, the same line the recall was scored against;
+    never the story's hook, which may be a line of another scene (#622).
+    """
     scenario = dict(journey.scenario_snapshot or {})
-    recap = dict(journey.recap_snapshot or {})
+    ending = scene_ending_fact(journey, given=set())
     setup_fr = ""
     character_line_fr = ""
     for step in sorted(journey.steps or [], key=lambda item: item.ordinal):
@@ -354,7 +421,7 @@ def scene_reveal(journey: DailyJourney) -> dict[str, Any]:
         "title_fr": french_only(scenario.get("title_fr")) or None,
         "setup_fr": setup_fr or None,
         "character_line_fr": character_line_fr or None,
-        "callback_fr": french_only(scene_fact((recap.get("story_outcome") or {}).get("callback_fr"))) or None,
+        "callback_fr": ending.text_fr if ending is not None else None,
     }
 
 
@@ -695,7 +762,7 @@ class JournalService:
         The one place that decides which scene the Journal asks about. It reads
         the journey log, the same rows the Feuilleton lists episodes from, and
         nothing the Journal stored earlier. A scene that established nothing a
-        recap could remember (no outcome, no commitment, no setup) is passed
+        recap could remember (nothing said in it, no commitment) is passed
         over: asking about it can only produce «nothing noted to recall» (#444).
         """
         context: dict[str, Any] | None = None
