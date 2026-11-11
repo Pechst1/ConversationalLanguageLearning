@@ -57,12 +57,23 @@ def _parse(value: Any) -> datetime | None:
         return None
 
 
-def load_batch(db: Session, user: User, day: date) -> VocabularyDrillBatch | None:
-    """The learner's own batch for ``day`` — never another learner's."""
+def load_batch(db: Session, user: User, day: date, *, lock: bool = False) -> VocabularyDrillBatch | None:
+    """The learner's own batch for ``day`` — never another learner's.
 
-    return db.scalar(
-        select(VocabularyDrillBatch).where(VocabularyDrillBatch.user_id == user.id, VocabularyDrillBatch.day == day)
+    ``lock``: the drill's deck read holds the row until it commits, so two reads at
+    once (two tabs, a retry, the dev server's double effect) serve one deal. Without
+    it, once the day's deck was answered, both dealt an extra batch and both merged
+    it into the row: a reload then served the two deals together (browser walk,
+    11 Nov 2026, B1 day 3: 10 cards dealt, 13 on reload). A row-level lock on
+    Postgres; SQLite ignores it.
+    """
+
+    stmt = select(VocabularyDrillBatch).where(
+        VocabularyDrillBatch.user_id == user.id, VocabularyDrillBatch.day == day
     )
+    if lock:
+        stmt = stmt.with_for_update().execution_options(populate_existing=True)
+    return db.scalar(stmt)
 
 
 def items_from_payload(payload: dict[str, Any], at: datetime) -> list[dict[str, Any]]:
