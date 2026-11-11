@@ -3,7 +3,7 @@
 // and runs the learner-clarity assertions as it goes.
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { FORGE_REPAIR, FORGE_SPOT, LEXIQUE_DECK, snapshot, sleep, TYPEABLE_FIELD, WORD_BANK_TILE } from './driver.mjs';
+import { FORGE_FOLLOW, FORGE_REPAIR, FORGE_SHEET, FORGE_SPOT, LEXIQUE_DECK, snapshot, sleep, TYPEABLE_FIELD, WORD_BANK_TILE } from './driver.mjs';
 import { missLayoutChecks, readingIsSteady } from './miss-layout.mjs';
 import { reversed, trackKey, trackVerdicts } from './verdict-timeline.mjs';
 import { englishWords, SERVER_BANNER } from './assertions.mjs';
@@ -339,6 +339,57 @@ export class LearnerWalk {
     return true;
   }
 
+  /**
+   * La Forge «Correct the sentence»: after a right «Needs fixing» the sheet and its
+   * «Continue» wait until the sentence is corrected and checked. The walk sets the tiles
+   * in the order offered (or retypes the quoted sentence) and checks; right or wrong,
+   * the step settles. False when no follow-up is open.
+   */
+  async answerForgeFollowUp() {
+    const page = this.page;
+    const follow = page.locator(FORGE_FOLLOW.open).first();
+    if (!(await follow.count())) return false;
+    const tiles = follow.locator(WORD_BANK_TILE);
+    for (let i = 0; i < 20 && (await tiles.count()); i += 1) {
+      await tiles.first().click({ timeout: 2000 }).catch(() => {});
+      await sleep(80);
+    }
+    const field = follow.locator(FORGE_FOLLOW.field);
+    if (await field.count()) {
+      // The sentence as quoted, without its screen-reader label.
+      const quoted = await follow.locator(FORGE_FOLLOW.quote).first().evaluate((node) => {
+        const copy = node.cloneNode(true);
+        copy.querySelectorAll('.av2-sr').forEach((label) => label.remove());
+        return (copy.textContent || '').trim();
+      }).catch(() => '');
+      await field.first().fill(quoted || FREE, { timeout: 3000 }).catch(() => {});
+      await sleep(120);
+    }
+    const check = follow.locator(FORGE_FOLLOW.check).first();
+    if (await check.count()) await check.click({ timeout: 3000 }).catch(() => {});
+    await sleep(300);
+    return true;
+  }
+
+  /**
+   * La Forge's verdict sheet with no «Continue»: an unchecked answer goes on with «Skip
+   * without a check»; a line the walk cannot rewrite («Try the line again» only) is
+   * skipped. False when the sheet has its «Continue».
+   */
+  async leaveForgeSheet() {
+    const page = this.page;
+    const unscored = page.locator(FORGE_SHEET.unscored).first();
+    if (await unscored.count()) {
+      await unscored.click({ timeout: 3000 }).catch(() => {});
+      return true;
+    }
+    if (await page.locator(FORGE_SHEET.primary).count()) return false;
+    const skip = page.locator(FORGE_SHEET.links).filter({ hasText: FORGE_SHEET.skip }).first();
+    if (!(await skip.count())) return false;
+    await skip.click({ timeout: 3000 }).catch(() => {});
+    return true;
+  }
+
   async act(s, kind, state) {
     const page = this.page;
     if (kind === 'reader') {
@@ -363,6 +414,8 @@ export class LearnerWalk {
       return true;
     }
     if (s.epFeedback.length && (await this.copyForgeCorrection())) return true;
+    if (s.epFeedback.length && (await this.answerForgeFollowUp())) return true;
+    if (s.epFeedback.length && (await this.leaveForgeSheet())) return true;
     if (s.graded.length && (await this.appealOnce(s))) return true;
     if (s.graded.length || s.epFeedback.length) {
       const prim = page.locator('.av2-graded .av2-btn, .av2-btn--primary:not([disabled])').last();
@@ -561,6 +614,20 @@ export class LearnerWalk {
           if (this.classify(after) !== kind) continue;
         }
       } else sameFor += 1;
+      // WALK_PLAY_ON=1 (opt-in, never in CI): a recap that still offers the day's next
+      // step («Next: grammar», «Suite : grammaire», «Weiter: Grammatik») is tapped
+      // through, so the walk plays La Forge and the words every day. CI reaches them only
+      // when the scene's save is slow (main's runs 42995373157 and 43000929857); this
+      // finds what stalls there before a main run does.
+      if (kind === 'recap' && process.env.WALK_PLAY_ON && (state.playedOn || 0) < 3) {
+        const on = page.locator('button, a').filter({ hasText: /^\s*(Suite\s?:|Weiter:|Next:)/ }).first();
+        if (await on.count()) {
+          state.playedOn = (state.playedOn || 0) + 1;
+          await on.click({ timeout: 3000 }).catch(() => {});
+          await sleep(500);
+          continue;
+        }
+      }
       if (kind === 'recap' || kind === 'home-done') break;
       const acted = await this.act(s, kind, state);
       // 10 s without change is stuck — unless the screen honestly says it is

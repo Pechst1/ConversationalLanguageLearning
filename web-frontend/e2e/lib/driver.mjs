@@ -48,6 +48,31 @@ export const FORGE_SPOT = {
 };
 
 /**
+ * La Forge «Correct the sentence» (components/epreuve/ForgeFollowUp.tsx): after a right
+ * «Needs fixing» the learner corrects the sentence, with tiles or in a field, and checks
+ * it with the follow-up's own button; the verdict sheet's «Continue» waits for it.
+ */
+export const FORGE_FOLLOW = {
+  open: '.ep-follow[data-outcome="open"]',
+  quote: '.ep-follow__quote',
+  field: 'textarea.ep-follow__input',
+  check: '.ep-follow__actions button.ep-bar:not([disabled])',
+};
+
+/**
+ * La Forge's verdict sheet (pages/atelier.tsx) when it has no «Continue»: an answer
+ * saved but not checked («Skip without a check», `data-verdict="unscored"`), or a line
+ * to rewrite that the walk cannot fix («Skip this exercise», under «Try the line
+ * again»). The skip labels are epreuve-copy.ts's `skip`, in the three languages.
+ */
+export const FORGE_SHEET = {
+  unscored: '.ep-feedback[data-verdict="unscored"] button.ep-bar:not([disabled])',
+  primary: '.ep-feedback button.ep-bar.av2-btn--primary:not([disabled])',
+  links: '.ep-feedback .ep-fb-links button',
+  skip: /^\s*(Skip this exercise|Passer cet exercice|Übung überspringen)\s*$/,
+};
+
+/**
  * Le Lexique's review deck (pages/vocabulary/review.tsx), where the day's words step
  * lands: a card is turned («Show the answer», `.lx-turn`), then filed with «Again» or
  * «I know it». Checked against the page by e2e/lib/lexique-deck-walk.test.mjs.
@@ -112,7 +137,7 @@ export const SNAPSHOT_FN = ({ typeable, wordBankTile }) => {
     recap: document.querySelectorAll('.journey-recap, .av2-reward').length,
     castIntro: q('.cast-intro__member').length,
     // Home once the day is done («Done for today» / «Fini pour aujourd'hui» / «Für heute»).
-    homeDone: location.pathname.startsWith('/atelier') && /Done for today|Fini pour aujourd|Journée bouclée|Für heute (fertig|geschafft|erledigt)/i.test((document.querySelector('main') || document.body).innerText || ''),
+    homeDone: /^\/(atelier|fertig)/.test(location.pathname) && /Done for today|Fini pour aujourd|Journée bouclée|Für heute (fertig|geschafft|erledigt)/i.test((document.querySelector('main') || document.body).innerText || ''),
     forgeStep: q('[data-step=forge]').length,
     // A request the screen says is in flight (Action's `pending`: disabled,
     // aria-busy, «La scène se prépare…»): waiting, not stuck.
