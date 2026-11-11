@@ -2194,9 +2194,54 @@ def _settle(source: str, edit: Edit, cast: Mapping[str, str], depth: int = 0) ->
     span = source[low:end]
     if _norm(span) == _norm(replacement):
         return None
-    note = {lang: _requote(text, edit.replacement, replacement) for lang, text in edit.note.items()}
+    # #662: the note is held to the form the fix now prints. A quote of the old fix becomes
+    # the stretch the rules made of it, and a rule that changed a word the note never named
+    # («des» -> «de» before the plural «serviettes») adds its own reason.
+    outside = [e for e in inner if e.start < region_start or e.end > region_end]
+    note = {}
+    for lang, text in edit.note.items():
+        held = _requote_in_place(text, context, inner, region_start, region_end)
+        if held is None:
+            held = _requote(text, edit.replacement, replacement)
+        extra = [_pick(e.note, lang) for e in outside if e.note]
+        note[lang] = " ".join([held, *[item for item in extra if item and item not in held]]).strip()
     composed = replace(edit, span=span, replacement=replacement, start=low, end=end, note=note)
     return _settle(source, composed, cast, depth + 1)
+
+
+def _requote_in_place(note: str, context: str, inner: list[Edit], region_start: int, region_end: int) -> str | None:
+    """``note`` with each quote of the fix rewritten to what ``inner`` made of it, or ``None``
+    when it quotes nothing of the fix. A quote is found where it stands in ``context``, so
+    «« des serviettes »» becomes «« de serviettes »», never «« des de serviettes »»."""
+
+    def shift(before: int) -> int:
+        return sum(len(e.replacement) - (e.end - e.start) for e in inner if e.end <= before)
+
+    def moved(at: int, *, closing: bool) -> int:
+        # An edge inside an edit takes the whole edit: a quote is never cut through a word.
+        for e in inner:
+            if e.start < at < e.end or (not closing and e.start == at < e.end):
+                return e.start + shift(e.start) + (len(e.replacement) if closing else 0)
+        return at + shift(at)
+
+    fixed = apply_edits(context, inner)
+    changed = False
+
+    def swap(match: re.Match[str]) -> str:
+        nonlocal changed
+        fragment = next(g for g in match.groups() if g)
+        for found in re.finditer(rf"(?<!\w){re.escape(fragment)}(?!\w)", context):
+            start, end = found.span()
+            if start < region_end and region_start < end:
+                now = fixed[moved(start, closing=False) : moved(end, closing=True)]
+                if now and now != fragment:
+                    changed = True
+                    return match.group(0).replace(fragment, now, 1)
+                return match.group(0)
+        return match.group(0)
+
+    out = _QUOTED.sub(swap, note)
+    return out if changed else None
 
 
 _OPEN_QUOTES = "«“\"‘'"
@@ -3263,6 +3308,12 @@ def verify_correction(
             if not by_rules and any(gap.start < end and start < gap.end for start, end in fixed):
                 refused.append({"learner_text": gap.wrong, "corrected_target": gap.fix, "reason": "overlaps_a_fix"})
                 continue
+            # #662: a listed fix and its note are the model's account of those words. A change
+            # only its sentence makes right next to them («de» listed, «serviette» ->
+            # «serviettes» unlisted, under «singular nouns take no plural -s») contradicts it.
+            if not by_rules and any(_next_to(source, gap.start, gap.end, start, end) for start, end in fixed):
+                refused.append({"learner_text": gap.wrong, "corrected_target": gap.fix, "reason": "next_to_a_fix"})
+                continue
             if is_variant_edit(gap.wrong, gap.fix):
                 refused.append({"learner_text": gap.wrong, "corrected_target": gap.fix, "reason": "valid_variant"})
                 continue
@@ -3295,7 +3346,72 @@ def verify_correction(
     settled = repair_text(built, people=people)
     if settled != built:
         built = derive(built, settled, by_rules=True)
+    kept = _held_to_the_line(line, built, kept, refused, language=language)
     return CheckedCorrection(corrected=built, errata=kept, refused=refused)
+
+
+def _next_to(text: str, start: int, end: int, other_start: int, other_end: int) -> bool:
+    """Whether two stretches of ``text`` touch, or only a space or an apostrophe stands between them."""
+
+    if start < other_end and other_start < end:
+        return True
+    between = text[end:other_start] if end <= other_start else text[other_end:start]
+    return re.fullmatch(r"[\s'’]*", between) is not None
+
+
+def _holds(text: str, fragment: str) -> bool:
+    """Whether ``fragment`` stands in ``text`` as whole words (case and apostrophes aside)."""
+
+    wanted = " ".join(_norm(fragment).casefold().split())
+    return bool(wanted) and re.search(
+        rf"(?<!\w){re.escape(wanted)}(?!\w)", " ".join(_norm(text).casefold().split())
+    ) is not None
+
+
+def _quotes_another_form(note: str, line: str, corrected: str, span: str, fix: str) -> bool:
+    """Whether ``note`` quotes a form of the fix («pas de serviette») that neither the learner's
+    line nor the corrected line holds. A quote that shares no word with the fix (a gloss, an
+    example) and a single quoted letter (an accent, :func:`note_matches_form`) are not read."""
+
+    words = set(re.findall(r"\w+", _norm(f"{span} {fix}").casefold()))
+    for fragment in _quoted_fragments(_norm(note)):
+        if len(fragment.strip()) <= 1 or not set(re.findall(r"\w+", fragment.casefold())) & words:
+            continue
+        if not (_holds(line, fragment) or _holds(corrected, fragment)):
+            return True
+    return False
+
+
+def _held_to_the_line(
+    line: str,
+    corrected: str,
+    errata: list[dict[str, Any]],
+    refused: list[dict[str, Any]],
+    *,
+    language: str | None,
+) -> list[dict[str, Any]]:
+    """The card's errata, each held to the line it prints (#662).
+
+    A fix the corrected line does not hold is not listed: the card would name a form it does
+    not print. A note quoting a form of its fix that neither line holds is written again from
+    the pair, so the note and the line name the same form."""
+
+    out: list[dict[str, Any]] = []
+    for item in errata:
+        if not is_about_the_line(item):
+            out.append(item)
+            continue
+        span, fix = str(item.get("learner_text") or ""), str(item.get("corrected_target") or "")
+        if fix.strip() and not _holds(corrected, fix):
+            refused.append({"learner_text": span, "corrected_target": fix, "reason": "not_in_line"})
+            continue
+        held = dict(item)
+        for key in ("why_wrong", "repair_hint"):
+            note = str(held.get(key) or "")
+            if note and fix.strip() and _quotes_another_form(note, line, corrected, span, fix):
+                held[key] = note_from_form(span, fix, language=language)
+        out.append(held)
+    return out
 
 
 __all__ = [
