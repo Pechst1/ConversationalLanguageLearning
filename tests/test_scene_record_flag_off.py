@@ -127,6 +127,14 @@ def test_flag_off_days_match_main(
         monkeypatch.setattr(settings, flag, value)
     # The season seeds its choices (Camille's gender, a chapter's shape) with the learner's
     # and the thread's ids. Fixed bytes behind ``uuid4`` make the two runs choose alike.
+    # A lazy import or cache that draws random bytes the first time it is used would shift
+    # those bytes depending on which tests ran earlier in the process (CI deals files to
+    # workers), so the same days are played once first by a throwaway learner: after that
+    # everything on this path is warm, cold or not before.
+    warm, _ = walk.register(assembled_client, persona)
+    for day in DAYS:
+        walk.play_day(assembled_client, db_session, warm, persona=persona, quality="average", day=day, provider=production_day)
+        clock.advance(days=1)
     rng = random.Random(f"scene-record-off|{persona.key}")
     monkeypatch.setattr(os, "urandom", lambda size: bytes(rng.getrandbits(8) for _ in range(size)))
     recorder = Recorder(production_day, monkeypatch)

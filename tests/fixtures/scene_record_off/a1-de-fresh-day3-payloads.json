@@ -4,7 +4,7 @@
  "control_language": null,
  "day": 3,
  "day_shape": "standard",
- "estimated_active_seconds": 1056,
+ "estimated_active_seconds": 1045,
  "events": [
   {
    "estimated_seconds": 84,
@@ -114,7 +114,7 @@
        "en": "Il y a means 'there is' and 'there are'; it never changes.",
        "fr": "Il y a présente ce qui existe ; la forme ne change jamais."
       },
-      "speaker": "lila_bonnet",
+      "speaker": "romy_tremblay",
       "traps": [
        {
         "right": "[Il y a] deux cafés.",
@@ -137,7 +137,7 @@
       ]
      },
      "scene_example_fr": "Dans la rue, [il y a] une boulangerie et deux cafés.",
-     "scene_example_speaker": "lila_bonnet",
+     "scene_example_speaker": "romy_tremblay",
      "title_fr": "Il y a : ce qui existe ici",
      "title_native": "Il y a: es gibt"
     }
@@ -151,7 +151,7 @@
     },
     "intent": "right"
    },
-   "estimated_seconds": 33,
+   "estimated_seconds": 29,
    "key": {
     "accepted_answers": [
      "Dans la rue, il y a une boulangerie et deux cafés."
@@ -197,12 +197,12 @@
         "text_fr": "Dans la rue, il y a une boulangerie et deux cafés."
        },
        {
-        "id": "opt_77253956",
-        "text_fr": "Le four du café est en panne le jour du marché."
-       },
-       {
         "id": "opt_d3729bef",
         "text_fr": "Tu en penses quoi ?"
+       },
+       {
+        "id": "opt_d83c7e56",
+        "text_fr": "Tu as une minute ?"
        }
       ],
       "prompt_fr": null,
@@ -245,12 +245,12 @@
        "text_fr": "Dans la rue, il y a une boulangerie et deux cafés."
       },
       {
-       "id": "opt_77253956",
-       "text_fr": "Le four du café est en panne le jour du marché."
-      },
-      {
        "id": "opt_d3729bef",
        "text_fr": "Tu en penses quoi ?"
+      },
+      {
+       "id": "opt_d83c7e56",
+       "text_fr": "Tu as une minute ?"
       }
      ],
      "prompt_fr": null,
@@ -382,7 +382,7 @@
    }
   },
   {
-   "estimated_seconds": 93,
+   "estimated_seconds": 86,
    "page": [
     {
      "alt_native": "The canal in the rain.",
@@ -393,8 +393,8 @@
      "alt_native": "Two friends at the zinc.",
      "dialogue": [
       {
-       "character_id": "lila_bonnet",
-       "character_name": "Lila Bonnet",
+       "character_id": "romy_tremblay",
+       "character_name": "Romy Tremblay",
        "text_fr": "Tu as une minute ?",
        "text_native": "Got a minute?"
       }
@@ -405,8 +405,8 @@
      "alt_native": "A glass.",
      "dialogue": [
       {
-       "character_id": "lila_bonnet",
-       "character_name": "Lila Bonnet",
+       "character_id": "romy_tremblay",
+       "character_name": "Romy Tremblay",
        "text_fr": "Dans la rue, il y a une boulangerie et deux cafés.",
        "text_native": null
       }
@@ -417,8 +417,8 @@
      "alt_native": "The friend turns to you.",
      "dialogue": [
       {
-       "character_id": "lila_bonnet",
-       "character_name": "Lila Bonnet",
+       "character_id": "romy_tremblay",
+       "character_name": "Romy Tremblay",
        "text_fr": "Alors, on fait quoi ?",
        "text_native": "So, what do we do?"
       }
@@ -433,10 +433,10 @@
      "audio_available": false,
      "character_line_audio_url": null,
      "character_line_fr": "Tu en penses quoi ?",
-     "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+     "image_url": "/assets/serial/locations/user_apartment.webp",
      "listen_first": false,
      "margin_notes": [],
-     "objective_native": "Propose another time for the market morning.",
+     "objective_native": "Say whether you come on Friday.",
      "panels": null,
      "premise_native": "Deine Großmutter hat dir hinterlassen, was über dem Mistral liegt, und das Feuer darunter. Behältst du es, teilst du es, oder lässt du es gehen?",
      "previously_fr": [
@@ -449,7 +449,7 @@
       "season_id": "s1",
       "segment": "g1"
      },
-     "setup_fr": "Le four du café est en panne le jour du marché.",
+     "setup_fr": "Une affiche annonce une soirée jeux vendredi.",
      "setup_native": "A day between two tentpoles.",
      "stage": null
     }
@@ -469,10 +469,10 @@
     "character_reply_fr": "D'accord.",
     "correction": null,
     "next_turn": {
-     "character_id": "lila_bonnet",
+     "character_id": "romy_tremblay",
      "character_line_audio_url": null,
      "character_line_fr": "D'accord.",
-     "character_name": "Lila",
+     "character_name": "Romy",
      "choices": [],
      "help_available": [
       "hint",
@@ -484,7 +484,7 @@
      ],
      "letter": null,
      "max_turns": 3,
-     "objective_native": "Propose another time for the market morning.",
+     "objective_native": "Say whether you come on Friday.",
      "repair_allowed": false,
      "spoken_reply": false,
      "targets": [
@@ -497,10 +497,10 @@
       },
       {
        "concept_title": false,
-       "id": "167",
+       "id": "275",
        "kind": "vocabulary",
-       "label_fr": "jour",
-       "label_native": "der Tag"
+       "label_fr": "vendredi",
+       "label_native": "der Freitag"
       }
      ],
      "thread": [
@@ -520,10 +520,10 @@
     "step_after": {
      "feedback": null,
      "prompt": {
-      "character_id": "lila_bonnet",
+      "character_id": "romy_tremblay",
       "character_line_audio_url": null,
       "character_line_fr": "D'accord.",
-      "character_name": "Lila",
+      "character_name": "Romy",
       "choices": [],
       "help_available": [
        "hint",
@@ -535,7 +535,7 @@
       ],
       "letter": null,
       "max_turns": 3,
-      "objective_native": "Propose another time for the market morning.",
+      "objective_native": "Say whether you come on Friday.",
       "repair_allowed": false,
       "spoken_reply": false,
       "targets": [
@@ -548,10 +548,10 @@
        },
        {
         "concept_title": false,
-        "id": "167",
+        "id": "275",
         "kind": "vocabulary",
-        "label_fr": "jour",
-        "label_native": "der Tag"
+        "label_fr": "vendredi",
+        "label_native": "der Freitag"
        }
       ],
       "thread": [
@@ -574,10 +574,10 @@
     "id": "<id>",
     "kind": "respond",
     "prompt": {
-     "character_id": "lila_bonnet",
+     "character_id": "romy_tremblay",
      "character_line_audio_url": null,
      "character_line_fr": "Tu en penses quoi ?",
-     "character_name": "Lila",
+     "character_name": "Romy",
      "choices": [],
      "help_available": [
       "hint",
@@ -589,7 +589,7 @@
      ],
      "letter": null,
      "max_turns": 3,
-     "objective_native": "Propose another time for the market morning.",
+     "objective_native": "Say whether you come on Friday.",
      "repair_allowed": true,
      "spoken_reply": false,
      "targets": [
@@ -602,10 +602,10 @@
       },
       {
        "concept_title": false,
-       "id": "167",
+       "id": "275",
        "kind": "vocabulary",
-       "label_fr": "jour",
-       "label_native": "der Tag"
+       "label_fr": "vendredi",
+       "label_native": "der Freitag"
       }
      ],
      "thread": [],
@@ -627,10 +627,10 @@
     "character_reply_fr": "D'accord.",
     "correction": null,
     "next_turn": {
-     "character_id": "lila_bonnet",
+     "character_id": "romy_tremblay",
      "character_line_audio_url": null,
      "character_line_fr": "D'accord.",
-     "character_name": "Lila",
+     "character_name": "Romy",
      "choices": [],
      "help_available": [
       "hint",
@@ -642,7 +642,7 @@
      ],
      "letter": null,
      "max_turns": 3,
-     "objective_native": "Propose another time for the market morning.",
+     "objective_native": "Say whether you come on Friday.",
      "repair_allowed": false,
      "spoken_reply": false,
      "targets": [
@@ -655,10 +655,10 @@
       },
       {
        "concept_title": false,
-       "id": "167",
+       "id": "275",
        "kind": "vocabulary",
-       "label_fr": "jour",
-       "label_native": "der Tag"
+       "label_fr": "vendredi",
+       "label_native": "der Freitag"
       }
      ],
      "thread": [
@@ -685,10 +685,10 @@
     "step_after": {
      "feedback": null,
      "prompt": {
-      "character_id": "lila_bonnet",
+      "character_id": "romy_tremblay",
       "character_line_audio_url": null,
       "character_line_fr": "D'accord.",
-      "character_name": "Lila",
+      "character_name": "Romy",
       "choices": [],
       "help_available": [
        "hint",
@@ -700,7 +700,7 @@
       ],
       "letter": null,
       "max_turns": 3,
-      "objective_native": "Propose another time for the market morning.",
+      "objective_native": "Say whether you come on Friday.",
       "repair_allowed": false,
       "spoken_reply": false,
       "targets": [
@@ -713,10 +713,10 @@
        },
        {
         "concept_title": false,
-        "id": "167",
+        "id": "275",
         "kind": "vocabulary",
-        "label_fr": "jour",
-        "label_native": "der Tag"
+        "label_fr": "vendredi",
+        "label_native": "der Freitag"
        }
       ],
       "thread": [
@@ -746,10 +746,10 @@
     "id": "<id>",
     "kind": "respond",
     "prompt": {
-     "character_id": "lila_bonnet",
+     "character_id": "romy_tremblay",
      "character_line_audio_url": null,
      "character_line_fr": "D'accord.",
-     "character_name": "Lila",
+     "character_name": "Romy",
      "choices": [],
      "help_available": [
       "hint",
@@ -761,7 +761,7 @@
      ],
      "letter": null,
      "max_turns": 3,
-     "objective_native": "Propose another time for the market morning.",
+     "objective_native": "Say whether you come on Friday.",
      "repair_allowed": false,
      "spoken_reply": false,
      "targets": [
@@ -774,10 +774,10 @@
       },
       {
        "concept_title": false,
-       "id": "167",
+       "id": "275",
        "kind": "vocabulary",
-       "label_fr": "jour",
-       "label_native": "der Tag"
+       "label_fr": "vendredi",
+       "label_native": "der Freitag"
       }
      ],
      "thread": [
@@ -821,10 +821,10 @@
     "step_after": {
      "feedback": null,
      "prompt": {
-      "character_id": "lila_bonnet",
+      "character_id": "romy_tremblay",
       "character_line_audio_url": null,
       "character_line_fr": "D'accord.",
-      "character_name": "Lila",
+      "character_name": "Romy",
       "choices": [],
       "help_available": [
        "hint",
@@ -836,7 +836,7 @@
       ],
       "letter": null,
       "max_turns": 3,
-      "objective_native": "Propose another time for the market morning.",
+      "objective_native": "Say whether you come on Friday.",
       "repair_allowed": false,
       "spoken_reply": false,
       "targets": [
@@ -849,10 +849,10 @@
        },
        {
         "concept_title": false,
-        "id": "167",
+        "id": "275",
         "kind": "vocabulary",
-        "label_fr": "jour",
-        "label_native": "der Tag"
+        "label_fr": "vendredi",
+        "label_native": "der Freitag"
        }
       ],
       "thread": [
@@ -882,10 +882,10 @@
     "id": "<id>",
     "kind": "respond",
     "prompt": {
-     "character_id": "lila_bonnet",
+     "character_id": "romy_tremblay",
      "character_line_audio_url": null,
      "character_line_fr": "D'accord.",
-     "character_name": "Lila",
+     "character_name": "Romy",
      "choices": [],
      "help_available": [
       "hint",
@@ -897,7 +897,7 @@
      ],
      "letter": null,
      "max_turns": 3,
-     "objective_native": "Propose another time for the market morning.",
+     "objective_native": "Say whether you come on Friday.",
      "repair_allowed": false,
      "spoken_reply": false,
      "targets": [
@@ -910,10 +910,10 @@
       },
       {
        "concept_title": false,
-       "id": "167",
+       "id": "275",
        "kind": "vocabulary",
-       "label_fr": "jour",
-       "label_native": "der Tag"
+       "label_fr": "vendredi",
+       "label_native": "der Freitag"
       }
      ],
      "thread": [
@@ -944,7 +944,7 @@
     "prompt": {
      "chapter_recap_fr": null,
      "character_line_fr": "La journée se termine.",
-     "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+     "image_url": "/assets/serial/locations/user_apartment.webp",
      "narrated": false,
      "outcome_key": "resolved",
      "register_note_fr": null,
@@ -965,7 +965,7 @@
  "resolution": {
   "chapter_recap_fr": null,
   "character_line_fr": "La journée se termine.",
-  "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+  "image_url": "/assets/serial/locations/user_apartment.webp",
   "narrated": false,
   "outcome_key": "resolved",
   "register_note_fr": null,
@@ -974,10 +974,10 @@
   "summary_native": "The day ends."
  },
  "scenario": {
-  "character_name": "Lila Bonnet",
+  "character_name": "Romy Tremblay",
   "level_band": "A1",
   "scenario_key": "story_<id>",
-  "title_fr": "Plusieurs semaines (1)"
+  "title_fr": "Plusieurs semaines (4)"
  },
  "status": "active"
 }

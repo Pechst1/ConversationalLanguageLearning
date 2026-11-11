@@ -180,9 +180,9 @@
     "escalated_problems": [],
     "events": [
      {
-      "at": "2026-03-10T09:00:00+00:00",
+      "at": "2026-03-13T09:00:00+00:00",
       "chapter_id": "<id>",
-      "date": "2026-03-10",
+      "date": "2026-03-13",
       "id": "journey:<id>:story",
       "outcome": "met",
       "scene_id": "<id>",
@@ -200,9 +200,9 @@
       ]
      },
      {
-      "at": "2026-03-11T09:00:00+00:00",
+      "at": "2026-03-14T09:00:00+00:00",
       "chapter_id": "<id>",
-      "date": "2026-03-11",
+      "date": "2026-03-14",
       "id": "journey:<id>:story",
       "outcome": "met",
       "scene_id": "<id>",
@@ -2004,11 +2004,11 @@
      "title_fr": "La première semaine"
     },
     "learner_turn": {
-     "answers": "margaux_barman",
+     "answers": "lila_bonnet",
      "character_asks_fr": "Tu en penses quoi ?",
      "page_ends_on_learner_turn": true,
      "planned_change": "après",
-     "task": "Offer your help for the exhibition.",
+     "task": "Propose another time for the market morning.",
      "turn_want": "say it"
     },
     "memory": {
@@ -2113,9 +2113,9 @@
      "title_fr": "Là-haut"
     },
     "proposal": {
-     "character_id": "margaux_barman",
-     "location_id": "le_mistral",
-     "objective_native": "Offer your help for the exhibition.",
+     "character_id": "lila_bonnet",
+     "location_id": "quai_de_valmy",
+     "objective_native": "Propose another time for the market morning.",
      "opening_line_fr": "Tu en penses quoi ?",
      "panels": [
       {
@@ -2128,7 +2128,7 @@
        "alt_native": "Two friends at the zinc.",
        "dialogue": [
         {
-         "character_id": "margaux_barman",
+         "character_id": "lila_bonnet",
          "mood": "neutral",
          "text_fr": "Tu as une minute ?",
          "text_native": null
@@ -2141,7 +2141,7 @@
        "alt_native": "A glass.",
        "dialogue": [
         {
-         "character_id": "margaux_barman",
+         "character_id": "lila_bonnet",
          "mood": "neutral",
          "text_fr": "Quand Léa est arrivée, ses amis étaient déjà partis.",
          "text_native": null
@@ -2154,7 +2154,7 @@
        "alt_native": "The friend turns to you.",
        "dialogue": [
         {
-         "character_id": "margaux_barman",
+         "character_id": "lila_bonnet",
          "mood": "neutral",
          "text_fr": "Alors, on fait quoi ?",
          "text_native": null
@@ -2164,7 +2164,7 @@
        "visual_direction": "The friend turns to Toi."
       }
      ],
-     "premise_fr": "Romy cherche une idée pour une exposition dans le quartier.",
+     "premise_fr": "Le four du café est en panne le jour du marché.",
      "season_checklist": {
       "change_after": "après",
       "change_before": "avant",
@@ -2179,7 +2179,7 @@
       ],
       "turn_want": "say it"
      },
-     "title_fr": "Plusieurs semaines (0)"
+     "title_fr": "Plusieurs semaines (1)"
     },
     "recent_days": [
      {
@@ -2358,15 +2358,15 @@
       "label_native": "Le plus-que-parfait : le passé du passé"
      },
      {
-      "id": "1411",
+      "id": "901",
       "kind": "vocabulary",
-      "label_fr": "exposition",
+      "label_fr": "panne",
       "label_native": null
      }
     ],
     "task": {
      "character_line_fr": "Tu en penses quoi ?",
-     "objective_native": "Offer your help for the exhibition.",
+     "objective_native": "Propose another time for the market morning.",
      "objective_semantics": "Any sincere answer.",
      "register": "tu",
      "rubric": "Any sincere answer."
@@ -2460,20 +2460,20 @@
   "content": {
    "data": {
     "character": {
-     "contradiction": "Protects everyone and lets nobody protect her.",
-     "dynamic_with_user": "Sees Odile in the learner. Afraid of what they will find.",
-     "flaw": "One sentence too few, always.",
+     "contradiction": "Thinks the group uses loyalty to keep each other from moving on — and is the one most held here.",
+     "dynamic_with_user": "The accomplice. On the romance path, restraint first; on the friendship path, the pact. Affection shows in gestures (she remembers the usual order, saves the chair), never as a score. Her path moves only on what the learner expresses at the gates.",
+     "flaw": "Keeps her own secret while resenting everyone else's.",
      "gender": "f",
-     "id": "margaux_barman",
-     "name": "Margaux",
-     "personality": "Uses the fewest words in the cast. When she says two sentences in a row, something is wrong. Dries a glass that is already dry. «J'ai rien entendu» after hearing everything. Bans people from her zinc («Pas sur mon zinc.»). Pours a café crème nobody ordered for Odile's stool.",
+     "id": "lila_bonnet",
+     "name": "Lila Bonnet",
+     "personality": "Quick, amused, the one who looks at the evidence. Grades everyone's life decisions like homework («Sept sur vingt. Peut mieux faire.»). Marseille exclamations when caught off guard («Oh, fan de chichourle !»).",
      "pronoun_fr": "elle",
-     "register_with_user": "tu, at once — as she did with Odile",
-     "role": "Owner-bartender of Le Mistral since 2001, in her late fifties. The oracle.",
-     "role_fr": "patronne du Mistral",
-     "secret": "The night of the fire (14 March 2023) and her promise to Odile — revealed in T4 only. On generated days before T4: silences and deflections (looking at the ceiling, reacting too fast to smoke), never the cause.",
-     "speech_pattern": "«Ça finira bien, ou ça finira. Bois.»",
-     "wants": "To keep her promise to Odile, and the café, and never to ask anyone for help."
+     "register_with_user": "tu, from the first night; she mocks the learner's vous («Tu me vouvoies ? Je le dis à ma classe.»)",
+     "role": "Teaches a CE1 class (Wednesdays off) and paints. Marin's flatmate and oldest friend — they were together two months in 2016 and still laugh about it; they are NOT a couple. From Marseille. Becomes the learner's accomplice upstairs.",
+     "role_fr": "institutrice et peintre",
+     "secret": "The 2026 Berlin offer, due 15 December (revealed in T5 — before that, only hints: a phone turned face down, an email closed too quickly, an envelope with a German stamp).",
+     "speech_pattern": "«Tu vas pas me faire croire que c'est un hasard.» «Je déteste avoir raison la nuit.» Says «la lumière est fausse» about the painting above the zinc.",
+     "wants": "Berlin: a one-year residency at the Künstlerhaus am Kanal. She turned one down in 2021."
     },
     "heading": {
      "means": "The learner has not decided whether to stay. Nobody decides for them or pushes them either way; the day may let them see something of what each way would cost.",
@@ -2570,7 +2570,7 @@
     "open_commitments": [],
     "previous_rejections": [],
     "recent_events": [
-     "La lettre"
+     "Le mauvais accueil"
     ],
     "register": "tu",
     "relationship": {
@@ -2578,7 +2578,7 @@
      "register": "tu"
     },
     "scene": {
-     "location_id": "le_mistral",
+     "location_id": "quai_de_valmy",
      "objective_semantics": "Any sincere answer.",
      "opening_line_fr": "Tu en penses quoi ?",
      "panels": [
@@ -2592,7 +2592,7 @@
        "alt_native": "Two friends at the zinc.",
        "dialogue": [
         {
-         "character_id": "margaux_barman",
+         "character_id": "lila_bonnet",
          "mood": "neutral",
          "text_fr": "Tu as une minute ?",
          "text_native": null
@@ -2605,7 +2605,7 @@
        "alt_native": "A glass.",
        "dialogue": [
         {
-         "character_id": "margaux_barman",
+         "character_id": "lila_bonnet",
          "mood": "neutral",
          "text_fr": "Quand Léa est arrivée, ses amis étaient déjà partis.",
          "text_native": null
@@ -2618,7 +2618,7 @@
        "alt_native": "The friend turns to you.",
        "dialogue": [
         {
-         "character_id": "margaux_barman",
+         "character_id": "lila_bonnet",
          "mood": "neutral",
          "text_fr": "Alors, on fait quoi ?",
          "text_native": null
@@ -2628,8 +2628,8 @@
        "visual_direction": "The friend turns to Toi."
       }
      ],
-     "premise_fr": "Romy cherche une idée pour une exposition dans le quartier.",
-     "title_fr": "Plusieurs semaines (0)"
+     "premise_fr": "Le four du café est en panne le jour du marché.",
+     "title_fr": "Plusieurs semaines (1)"
     },
     "secret": "hidden",
     "turn_plan": {
@@ -2640,15 +2640,15 @@
      "noticed_word": null
     },
     "who_is_who": {
-     "history_character_is": "what you, Margaux, already said",
-     "learner_task": "Offer your help for the exhibition.",
+     "history_character_is": "what you, Lila Bonnet, already said",
+     "learner_task": "Propose another time for the market morning.",
      "learner_text_and_history_learner_are": "the learner's words, never yours",
      "scene_facts": [
-      "Romy cherche une idée pour une exposition dans le quartier.",
+      "Le four du café est en panne le jour du marché.",
       "avant → après"
      ],
      "the_learner_is": "the visitor you are talking to (the second person of the scene)",
-     "you_are": "Margaux"
+     "you_are": "Lila Bonnet"
     }
    },
    "output_schema": {
@@ -2776,15 +2776,15 @@
       "label_native": "Le plus-que-parfait : le passé du passé"
      },
      {
-      "id": "1411",
+      "id": "901",
       "kind": "vocabulary",
-      "label_fr": "exposition",
+      "label_fr": "panne",
       "label_native": null
      }
     ],
     "task": {
      "character_line_fr": "Tu en penses quoi ?",
-     "objective_native": "Offer your help for the exhibition.",
+     "objective_native": "Propose another time for the market morning.",
      "objective_semantics": "Any sincere answer.",
      "register": "tu",
      "rubric": "Any sincere answer."
@@ -2878,20 +2878,20 @@
   "content": {
    "data": {
     "character": {
-     "contradiction": "Protects everyone and lets nobody protect her.",
-     "dynamic_with_user": "Sees Odile in the learner. Afraid of what they will find.",
-     "flaw": "One sentence too few, always.",
+     "contradiction": "Thinks the group uses loyalty to keep each other from moving on — and is the one most held here.",
+     "dynamic_with_user": "The accomplice. On the romance path, restraint first; on the friendship path, the pact. Affection shows in gestures (she remembers the usual order, saves the chair), never as a score. Her path moves only on what the learner expresses at the gates.",
+     "flaw": "Keeps her own secret while resenting everyone else's.",
      "gender": "f",
-     "id": "margaux_barman",
-     "name": "Margaux",
-     "personality": "Uses the fewest words in the cast. When she says two sentences in a row, something is wrong. Dries a glass that is already dry. «J'ai rien entendu» after hearing everything. Bans people from her zinc («Pas sur mon zinc.»). Pours a café crème nobody ordered for Odile's stool.",
+     "id": "lila_bonnet",
+     "name": "Lila Bonnet",
+     "personality": "Quick, amused, the one who looks at the evidence. Grades everyone's life decisions like homework («Sept sur vingt. Peut mieux faire.»). Marseille exclamations when caught off guard («Oh, fan de chichourle !»).",
      "pronoun_fr": "elle",
-     "register_with_user": "tu, at once — as she did with Odile",
-     "role": "Owner-bartender of Le Mistral since 2001, in her late fifties. The oracle.",
-     "role_fr": "patronne du Mistral",
-     "secret": "The night of the fire (14 March 2023) and her promise to Odile — revealed in T4 only. On generated days before T4: silences and deflections (looking at the ceiling, reacting too fast to smoke), never the cause.",
-     "speech_pattern": "«Ça finira bien, ou ça finira. Bois.»",
-     "wants": "To keep her promise to Odile, and the café, and never to ask anyone for help."
+     "register_with_user": "tu, from the first night; she mocks the learner's vous («Tu me vouvoies ? Je le dis à ma classe.»)",
+     "role": "Teaches a CE1 class (Wednesdays off) and paints. Marin's flatmate and oldest friend — they were together two months in 2016 and still laugh about it; they are NOT a couple. From Marseille. Becomes the learner's accomplice upstairs.",
+     "role_fr": "institutrice et peintre",
+     "secret": "The 2026 Berlin offer, due 15 December (revealed in T5 — before that, only hints: a phone turned face down, an email closed too quickly, an envelope with a German stamp).",
+     "speech_pattern": "«Tu vas pas me faire croire que c'est un hasard.» «Je déteste avoir raison la nuit.» Says «la lumière est fausse» about the painting above the zinc.",
+     "wants": "Berlin: a one-year residency at the Künstlerhaus am Kanal. She turned one down in 2021."
     },
     "heading": {
      "means": "The learner has not decided whether to stay. Nobody decides for them or pushes them either way; the day may let them see something of what each way would cost.",
@@ -3001,7 +3001,7 @@
     "open_commitments": [],
     "previous_rejections": [],
     "recent_events": [
-     "La lettre"
+     "Le mauvais accueil"
     ],
     "register": "tu",
     "relationship": {
@@ -3009,7 +3009,7 @@
      "register": "tu"
     },
     "scene": {
-     "location_id": "le_mistral",
+     "location_id": "quai_de_valmy",
      "objective_semantics": "Any sincere answer.",
      "opening_line_fr": "Tu en penses quoi ?",
      "panels": [
@@ -3023,7 +3023,7 @@
        "alt_native": "Two friends at the zinc.",
        "dialogue": [
         {
-         "character_id": "margaux_barman",
+         "character_id": "lila_bonnet",
          "mood": "neutral",
          "text_fr": "Tu as une minute ?",
          "text_native": null
@@ -3036,7 +3036,7 @@
        "alt_native": "A glass.",
        "dialogue": [
         {
-         "character_id": "margaux_barman",
+         "character_id": "lila_bonnet",
          "mood": "neutral",
          "text_fr": "Quand Léa est arrivée, ses amis étaient déjà partis.",
          "text_native": null
@@ -3049,7 +3049,7 @@
        "alt_native": "The friend turns to you.",
        "dialogue": [
         {
-         "character_id": "margaux_barman",
+         "character_id": "lila_bonnet",
          "mood": "neutral",
          "text_fr": "Alors, on fait quoi ?",
          "text_native": null
@@ -3059,8 +3059,8 @@
        "visual_direction": "The friend turns to Toi."
       }
      ],
-     "premise_fr": "Romy cherche une idée pour une exposition dans le quartier.",
-     "title_fr": "Plusieurs semaines (0)"
+     "premise_fr": "Le four du café est en panne le jour du marché.",
+     "title_fr": "Plusieurs semaines (1)"
     },
     "secret": "hidden",
     "turn_plan": {
@@ -3071,15 +3071,15 @@
      "noticed_word": null
     },
     "who_is_who": {
-     "history_character_is": "what you, Margaux, already said",
-     "learner_task": "Offer your help for the exhibition.",
+     "history_character_is": "what you, Lila Bonnet, already said",
+     "learner_task": "Propose another time for the market morning.",
      "learner_text_and_history_learner_are": "the learner's words, never yours",
      "scene_facts": [
-      "Romy cherche une idée pour une exposition dans le quartier.",
+      "Le four du café est en panne le jour du marché.",
       "avant → après"
      ],
      "the_learner_is": "the visitor you are talking to (the second person of the scene)",
-     "you_are": "Margaux"
+     "you_are": "Lila Bonnet"
     }
    },
    "output_schema": {
@@ -3213,15 +3213,15 @@
       "label_native": "Le plus-que-parfait : le passé du passé"
      },
      {
-      "id": "1411",
+      "id": "901",
       "kind": "vocabulary",
-      "label_fr": "exposition",
+      "label_fr": "panne",
       "label_native": null
      }
     ],
     "task": {
      "character_line_fr": "Tu en penses quoi ?",
-     "objective_native": "Offer your help for the exhibition.",
+     "objective_native": "Propose another time for the market morning.",
      "objective_semantics": "Any sincere answer.",
      "register": "tu",
      "rubric": "Any sincere answer."
@@ -3315,20 +3315,20 @@
   "content": {
    "data": {
     "character": {
-     "contradiction": "Protects everyone and lets nobody protect her.",
-     "dynamic_with_user": "Sees Odile in the learner. Afraid of what they will find.",
-     "flaw": "One sentence too few, always.",
+     "contradiction": "Thinks the group uses loyalty to keep each other from moving on — and is the one most held here.",
+     "dynamic_with_user": "The accomplice. On the romance path, restraint first; on the friendship path, the pact. Affection shows in gestures (she remembers the usual order, saves the chair), never as a score. Her path moves only on what the learner expresses at the gates.",
+     "flaw": "Keeps her own secret while resenting everyone else's.",
      "gender": "f",
-     "id": "margaux_barman",
-     "name": "Margaux",
-     "personality": "Uses the fewest words in the cast. When she says two sentences in a row, something is wrong. Dries a glass that is already dry. «J'ai rien entendu» after hearing everything. Bans people from her zinc («Pas sur mon zinc.»). Pours a café crème nobody ordered for Odile's stool.",
+     "id": "lila_bonnet",
+     "name": "Lila Bonnet",
+     "personality": "Quick, amused, the one who looks at the evidence. Grades everyone's life decisions like homework («Sept sur vingt. Peut mieux faire.»). Marseille exclamations when caught off guard («Oh, fan de chichourle !»).",
      "pronoun_fr": "elle",
-     "register_with_user": "tu, at once — as she did with Odile",
-     "role": "Owner-bartender of Le Mistral since 2001, in her late fifties. The oracle.",
-     "role_fr": "patronne du Mistral",
-     "secret": "The night of the fire (14 March 2023) and her promise to Odile — revealed in T4 only. On generated days before T4: silences and deflections (looking at the ceiling, reacting too fast to smoke), never the cause.",
-     "speech_pattern": "«Ça finira bien, ou ça finira. Bois.»",
-     "wants": "To keep her promise to Odile, and the café, and never to ask anyone for help."
+     "register_with_user": "tu, from the first night; she mocks the learner's vous («Tu me vouvoies ? Je le dis à ma classe.»)",
+     "role": "Teaches a CE1 class (Wednesdays off) and paints. Marin's flatmate and oldest friend — they were together two months in 2016 and still laugh about it; they are NOT a couple. From Marseille. Becomes the learner's accomplice upstairs.",
+     "role_fr": "institutrice et peintre",
+     "secret": "The 2026 Berlin offer, due 15 December (revealed in T5 — before that, only hints: a phone turned face down, an email closed too quickly, an envelope with a German stamp).",
+     "speech_pattern": "«Tu vas pas me faire croire que c'est un hasard.» «Je déteste avoir raison la nuit.» Says «la lumière est fausse» about the painting above the zinc.",
+     "wants": "Berlin: a one-year residency at the Künstlerhaus am Kanal. She turned one down in 2021."
     },
     "heading": {
      "means": "The learner has not decided whether to stay. Nobody decides for them or pushes them either way; the day may let them see something of what each way would cost.",
@@ -3444,7 +3444,7 @@
     "open_commitments": [],
     "previous_rejections": [],
     "recent_events": [
-     "La lettre"
+     "Le mauvais accueil"
     ],
     "register": "tu",
     "relationship": {
@@ -3452,7 +3452,7 @@
      "register": "tu"
     },
     "scene": {
-     "location_id": "le_mistral",
+     "location_id": "quai_de_valmy",
      "objective_semantics": "Any sincere answer.",
      "opening_line_fr": "Tu en penses quoi ?",
      "panels": [
@@ -3466,7 +3466,7 @@
        "alt_native": "Two friends at the zinc.",
        "dialogue": [
         {
-         "character_id": "margaux_barman",
+         "character_id": "lila_bonnet",
          "mood": "neutral",
          "text_fr": "Tu as une minute ?",
          "text_native": null
@@ -3479,7 +3479,7 @@
        "alt_native": "A glass.",
        "dialogue": [
         {
-         "character_id": "margaux_barman",
+         "character_id": "lila_bonnet",
          "mood": "neutral",
          "text_fr": "Quand Léa est arrivée, ses amis étaient déjà partis.",
          "text_native": null
@@ -3492,7 +3492,7 @@
        "alt_native": "The friend turns to you.",
        "dialogue": [
         {
-         "character_id": "margaux_barman",
+         "character_id": "lila_bonnet",
          "mood": "neutral",
          "text_fr": "Alors, on fait quoi ?",
          "text_native": null
@@ -3502,8 +3502,8 @@
        "visual_direction": "The friend turns to Toi."
       }
      ],
-     "premise_fr": "Romy cherche une idée pour une exposition dans le quartier.",
-     "title_fr": "Plusieurs semaines (0)"
+     "premise_fr": "Le four du café est en panne le jour du marché.",
+     "title_fr": "Plusieurs semaines (1)"
     },
     "secret": "hidden",
     "turn_plan": {
@@ -3514,15 +3514,15 @@
      "noticed_word": null
     },
     "who_is_who": {
-     "history_character_is": "what you, Margaux, already said",
-     "learner_task": "Offer your help for the exhibition.",
+     "history_character_is": "what you, Lila Bonnet, already said",
+     "learner_task": "Propose another time for the market morning.",
      "learner_text_and_history_learner_are": "the learner's words, never yours",
      "scene_facts": [
-      "Romy cherche une idée pour une exposition dans le quartier.",
+      "Le four du café est en panne le jour du marché.",
       "avant → après"
      ],
      "the_learner_is": "the visitor you are talking to (the second person of the scene)",
-     "you_are": "Margaux"
+     "you_are": "Lila Bonnet"
     }
    },
    "output_schema": {
@@ -3693,23 +3693,23 @@
      "carries_over": false,
      "causal_reason": "Follows the gap's thread.",
      "chapter": {
-      "dramatic_question": "Comment organiser cette exposition ?",
+      "dramatic_question": "Qui gardera le chat pendant le week-end ?",
       "possible_developments": [
        "Quelque chose change.",
        "Rien ne bouge encore."
       ],
-      "title_fr": "Entre-deux 0"
+      "title_fr": "Entre-deux 1"
      },
-     "character_id": "margaux_barman",
+     "character_id": "lila_bonnet",
      "epreuve_fail_line_fr": null,
      "epreuve_pass_line_fr": null,
      "escalates_ref": null,
      "hint_native": "Say what you think.",
      "leaves": [],
      "lexicon": [],
-     "location_id": "le_mistral",
-     "novelty_key": "season-0",
-     "objective_native": "Offer your help for the exhibition.",
+     "location_id": "quai_de_valmy",
+     "novelty_key": "season-1",
+     "objective_native": "Propose another time for the market morning.",
      "objective_semantics": "Any sincere answer.",
      "opening_line_fr": "Tu en penses quoi ?",
      "panels": [
@@ -3723,7 +3723,7 @@
        "alt_native": "Two friends at the zinc.",
        "dialogue": [
         {
-         "character_id": "margaux_barman",
+         "character_id": "lila_bonnet",
          "mood": "neutral",
          "text_fr": "Tu as une minute ?",
          "text_native": null
@@ -3736,7 +3736,7 @@
        "alt_native": "A glass.",
        "dialogue": [
         {
-         "character_id": "margaux_barman",
+         "character_id": "lila_bonnet",
          "mood": "neutral",
          "text_fr": "Quand Léa est arrivée, ses amis étaient déjà partis.",
          "text_native": null
@@ -3749,7 +3749,7 @@
        "alt_native": "The friend turns to you.",
        "dialogue": [
         {
-         "character_id": "margaux_barman",
+         "character_id": "lila_bonnet",
          "mood": "neutral",
          "text_fr": "Alors, on fait quoi ?",
          "text_native": null
@@ -3761,7 +3761,7 @@
      ],
      "pays_plant_id": null,
      "plant_fr": "",
-     "premise_fr": "Romy cherche une idée pour une exposition dans le quartier.",
+     "premise_fr": "Le four du café est en panne le jour du marché.",
      "problem_key": "",
      "returns_to": null,
      "season_checklist": {
@@ -3784,7 +3784,7 @@
      "source_event_ids": [],
      "suggested_response_fr": "Je reste encore un peu, parce que le quartier commence à me plaire, mais je ne promets rien pour l'hiver.",
      "thread_shift": null,
-     "title_fr": "Plusieurs semaines (0)",
+     "title_fr": "Plusieurs semaines (1)",
      "translation_native": "What do you think?"
     },
     "story": {
@@ -3792,7 +3792,7 @@
      "carries_over": false,
      "chapter": {
       "already_asked": [
-       "Offer your help for the exhibition."
+       "Propose another time for the market morning."
       ],
       "arc_id": null,
       "beats": [],
@@ -3802,12 +3802,12 @@
        "turn",
        "resolution"
       ],
-      "character_id": "margaux_barman",
-      "dramatic_question": "Comment organiser cette exposition ?",
+      "character_id": "lila_bonnet",
+      "dramatic_question": "Qui gardera le chat pendant le week-end ?",
       "exhausted": false,
       "id": "<id>",
       "index_in_season": 2,
-      "location_id": "le_mistral",
+      "location_id": "quai_de_valmy",
       "problem_key": "",
       "required_beat": "setup",
       "resolved": false,
@@ -3816,7 +3816,7 @@
       "shape": "letter",
       "shape_note": "A letter chapter: the turn beat is a letter arriving, and the learner answers it in writing.",
       "side_story": true,
-      "title_fr": "Entre-deux 0"
+      "title_fr": "Entre-deux 1"
      },
      "commitments": [],
      "consequences": [],
@@ -3824,20 +3824,23 @@
      "day_index": 2,
      "events": [
       {
-       "at": "2026-03-11T09:00:00+00:00",
+       "at": "2026-03-13T09:00:00+00:00",
        "chapter_id": "<id>",
-       "date": "2026-03-11",
+       "date": "2026-03-13",
        "id": "journey:<id>:story",
        "outcome": "met",
        "scene_id": "<id>",
        "source_quotes": [
-        "Plus simple pour vous, ou pour moi ?",
-        "Marin"
+        "Je viens pour vendre. l'appartement est à moi, maintenant.",
+        "Je n'ai rien commande.",
+        "Monter… demain ? j'ai peur un peu.",
+        "Je la prends."
        ],
-       "summary_fr": "La lettre",
+       "summary_fr": "Le mauvais accueil",
        "witnesses": [
-        "camille_marchand",
-        "margaux_barman"
+        "augustin_de_roncourt",
+        "lila_bonnet",
+        "marin_leveque"
        ]
       }
      ],
@@ -3903,11 +3906,11 @@
       ]
      },
      "moods": {
-      "margaux_barman": {}
+      "lila_bonnet": {}
      },
      "recent_situations": [],
      "relationships": {
-      "margaux_barman": {
+      "lila_bonnet": {
        "closeness": 0,
        "register": "tu"
       }
@@ -3978,10 +3981,10 @@
       "season": "s1"
      },
      "secrets": {
-      "margaux_barman": "hidden"
+      "lila_bonnet": "hidden"
      },
      "story_so_far": [
-      "La lettre"
+      "Le mauvais accueil"
      ],
      "thread_id": "<id>",
      "variety": {
@@ -4023,11 +4026,11 @@
        "toit"
       ],
       "must_change": null,
-      "previous_lead": "margaux_barman",
+      "previous_lead": "lila_bonnet",
       "recent_acts": [
        "other",
        "other",
-       "other"
+       "scheduling"
       ],
       "recent_pairs": [
        {
@@ -4039,14 +4042,14 @@
         "location_id": "le_mistral"
        },
        {
-        "character_id": "margaux_barman",
-        "location_id": "le_mistral"
+        "character_id": "lila_bonnet",
+        "location_id": "quai_de_valmy"
        }
       ],
       "rule": "Prefer an unused character or location; the whole cast has a life.",
       "unused_characters": [
-       "lila_bonnet",
        "marin_leveque",
+       "margaux_barman",
        "romy_tremblay",
        "landlord_marchand",
        "mme_diallo",
@@ -4066,7 +4069,6 @@
        "odile_flat",
        "stairwell",
        "mistral_back_room",
-       "quai_de_valmy",
        "marchand_office",
        "mairie",
        "notaire",
@@ -4079,7 +4081,7 @@
       "used_objectives": [
        "Dis qui tu es et pourquoi tu es là.",
        "Dis à Camille si tu vas vendre, et si c'est vraiment plus simple pour tout le monde.",
-       "Offer your help for the exhibition."
+       "Propose another time for the market morning."
       ],
       "used_problems": []
      },
@@ -4087,11 +4089,20 @@
       "arcs": [],
       "cast": [
        {
+        "contradiction": "Thinks the group uses loyalty to keep each other from moving on — and is the one most held here.",
+        "dynamic_with_user": "The accomplice. On the romance path, restraint first; on the friendship path, the pact. Affection shows in gestures (she remembers the usual order, saves the chair), never as a score. Her path moves only on what the learner expresses at the gates.",
+        "flaw": "Keeps her own secret while resenting everyone else's.",
+        "gender": "f",
         "id": "lila_bonnet",
         "name": "Lila Bonnet",
+        "personality": "Quick, amused, the one who looks at the evidence. Grades everyone's life decisions like homework («Sept sur vingt. Peut mieux faire.»). Marseille exclamations when caught off guard («Oh, fan de chichourle !»).",
         "pronoun_fr": "elle",
+        "register_with_user": "tu, from the first night; she mocks the learner's vous («Tu me vouvoies ? Je le dis à ma classe.»)",
         "role": "Teaches a CE1 class (Wednesdays off) and paints. Marin's flatmate and oldest friend — they were together two months in 2016 and still laugh about it; they are NOT a couple. From Marseille. Becomes the learner's accomplice upstairs.",
-        "role_fr": "institutrice et peintre"
+        "role_fr": "institutrice et peintre",
+        "secret": "The 2026 Berlin offer, due 15 December (revealed in T5 — before that, only hints: a phone turned face down, an email closed too quickly, an envelope with a German stamp).",
+        "speech_pattern": "«Tu vas pas me faire croire que c'est un hasard.» «Je déteste avoir raison la nuit.» Says «la lumière est fausse» about the painting above the zinc.",
+        "wants": "Berlin: a one-year residency at the Künstlerhaus am Kanal. She turned one down in 2021."
        },
        {
         "id": "marin_leveque",
@@ -4108,20 +4119,11 @@
         "role_fr": "habitué du Mistral"
        },
        {
-        "contradiction": "Protects everyone and lets nobody protect her.",
-        "dynamic_with_user": "Sees Odile in the learner. Afraid of what they will find.",
-        "flaw": "One sentence too few, always.",
-        "gender": "f",
         "id": "margaux_barman",
         "name": "Margaux",
-        "personality": "Uses the fewest words in the cast. When she says two sentences in a row, something is wrong. Dries a glass that is already dry. «J'ai rien entendu» after hearing everything. Bans people from her zinc («Pas sur mon zinc.»). Pours a café crème nobody ordered for Odile's stool.",
         "pronoun_fr": "elle",
-        "register_with_user": "tu, at once — as she did with Odile",
         "role": "Owner-bartender of Le Mistral since 2001, in her late fifties. The oracle.",
-        "role_fr": "patronne du Mistral",
-        "secret": "The night of the fire (14 March 2023) and her promise to Odile — revealed in T4 only. On generated days before T4: silences and deflections (looking at the ceiling, reacting too fast to smoke), never the cause.",
-        "speech_pattern": "«Ça finira bien, ou ça finira. Bois.»",
-        "wants": "To keep her promise to Odile, and the café, and never to ask anyone for help."
+        "role_fr": "patronne du Mistral"
        },
        {
         "id": "romy_tremblay",
@@ -4361,9 +4363,9 @@
       "label_native": "Le plus-que-parfait : le passé du passé"
      },
      {
-      "id": "1411",
+      "id": "901",
       "kind": "vocabulary",
-      "label_fr": "exposition",
+      "label_fr": "panne",
       "label_native": null
      }
     ],
@@ -4722,23 +4724,23 @@
       "carries_over": false,
       "causal_reason": "Follows the gap's thread.",
       "chapter": {
-       "dramatic_question": "Comment organiser cette exposition ?",
+       "dramatic_question": "Qui gardera le chat pendant le week-end ?",
        "possible_developments": [
         "Quelque chose change.",
         "Rien ne bouge encore."
        ],
-       "title_fr": "Entre-deux 0"
+       "title_fr": "Entre-deux 1"
       },
-      "character_id": "margaux_barman",
+      "character_id": "lila_bonnet",
       "epreuve_fail_line_fr": null,
       "epreuve_pass_line_fr": null,
       "escalates_ref": null,
       "hint_native": "Say what you think.",
       "leaves": [],
       "lexicon": [],
-      "location_id": "le_mistral",
-      "novelty_key": "season-0",
-      "objective_native": "Offer your help for the exhibition.",
+      "location_id": "quai_de_valmy",
+      "novelty_key": "season-1",
+      "objective_native": "Propose another time for the market morning.",
       "objective_semantics": "Any sincere answer.",
       "opening_line_fr": "Tu en penses quoi ?",
       "panels": [
@@ -4752,7 +4754,7 @@
         "alt_native": "Two friends at the zinc.",
         "dialogue": [
          {
-          "character_id": "margaux_barman",
+          "character_id": "lila_bonnet",
           "mood": "neutral",
           "text_fr": "Tu as une minute ?",
           "text_native": null
@@ -4765,7 +4767,7 @@
         "alt_native": "A glass.",
         "dialogue": [
          {
-          "character_id": "margaux_barman",
+          "character_id": "lila_bonnet",
           "mood": "neutral",
           "text_fr": "Quand Léa est arrivée, ses amis étaient déjà partis.",
           "text_native": null
@@ -4778,7 +4780,7 @@
         "alt_native": "The friend turns to you.",
         "dialogue": [
          {
-          "character_id": "margaux_barman",
+          "character_id": "lila_bonnet",
           "mood": "neutral",
           "text_fr": "Alors, on fait quoi ?",
           "text_native": null
@@ -4790,7 +4792,7 @@
       ],
       "pays_plant_id": null,
       "plant_fr": "",
-      "premise_fr": "Romy cherche une idée pour une exposition dans le quartier.",
+      "premise_fr": "Le four du café est en panne le jour du marché.",
       "problem_key": "",
       "returns_to": null,
       "season_checklist": {
@@ -4813,14 +4815,14 @@
       "source_event_ids": [],
       "suggested_response_fr": "Je reste encore un peu, parce que le quartier commence à me plaire, mais je ne promets rien pour l'hiver.",
       "thread_shift": null,
-      "title_fr": "Plusieurs semaines (0)",
+      "title_fr": "Plusieurs semaines (1)",
       "translation_native": "What do you think?"
      },
      "story": {
       "agendas": [],
       "chapter": {
        "already_asked": [
-        "Offer your help for the exhibition."
+        "Propose another time for the market morning."
        ],
        "arc_id": null,
        "beats": [],
@@ -4830,12 +4832,12 @@
         "turn",
         "resolution"
        ],
-       "character_id": "margaux_barman",
-       "dramatic_question": "Comment organiser cette exposition ?",
+       "character_id": "lila_bonnet",
+       "dramatic_question": "Qui gardera le chat pendant le week-end ?",
        "exhausted": false,
        "id": "<id>",
        "index_in_season": 2,
-       "location_id": "le_mistral",
+       "location_id": "quai_de_valmy",
        "problem_key": "",
        "required_beat": "setup",
        "resolved": false,
@@ -4844,7 +4846,7 @@
        "shape": "letter",
        "shape_note": "A letter chapter: the turn beat is a letter arriving, and the learner answers it in writing.",
        "side_story": true,
-       "title_fr": "Entre-deux 0"
+       "title_fr": "Entre-deux 1"
       },
       "commitments": [],
       "consequences": [],
@@ -4852,20 +4854,23 @@
       "day_index": 2,
       "events": [
        {
-        "at": "2026-03-11T09:00:00+00:00",
+        "at": "2026-03-13T09:00:00+00:00",
         "chapter_id": "<id>",
-        "date": "2026-03-11",
+        "date": "2026-03-13",
         "id": "journey:<id>:story",
         "outcome": "met",
         "scene_id": "<id>",
         "source_quotes": [
-         "Plus simple pour vous, ou pour moi ?",
-         "Marin"
+         "Je viens pour vendre. l'appartement est à moi, maintenant.",
+         "Je n'ai rien commande.",
+         "Monter… demain ? j'ai peur un peu.",
+         "Je la prends."
         ],
-        "summary_fr": "La lettre",
+        "summary_fr": "Le mauvais accueil",
         "witnesses": [
-         "camille_marchand",
-         "margaux_barman"
+         "augustin_de_roncourt",
+         "lila_bonnet",
+         "marin_leveque"
         ]
        }
       ],
@@ -4931,11 +4936,11 @@
        ]
       },
       "moods": {
-       "margaux_barman": {}
+       "lila_bonnet": {}
       },
       "recent_situations": [],
       "relationships": {
-       "margaux_barman": {
+       "lila_bonnet": {
         "closeness": 0,
         "register": "tu"
        }
@@ -5006,10 +5011,10 @@
        "season": "s1"
       },
       "secrets": {
-       "margaux_barman": "hidden"
+       "lila_bonnet": "hidden"
       },
       "story_so_far": [
-       "La lettre"
+       "Le mauvais accueil"
       ],
       "thread_id": "<id>",
       "variety": {
@@ -5051,11 +5056,11 @@
         "toit"
        ],
        "must_change": null,
-       "previous_lead": "margaux_barman",
+       "previous_lead": "lila_bonnet",
        "recent_acts": [
         "other",
         "other",
-        "other"
+        "scheduling"
        ],
        "recent_pairs": [
         {
@@ -5067,14 +5072,14 @@
          "location_id": "le_mistral"
         },
         {
-         "character_id": "margaux_barman",
-         "location_id": "le_mistral"
+         "character_id": "lila_bonnet",
+         "location_id": "quai_de_valmy"
         }
        ],
        "rule": "Prefer an unused character or location; the whole cast has a life.",
        "unused_characters": [
-        "lila_bonnet",
         "marin_leveque",
+        "margaux_barman",
         "romy_tremblay",
         "landlord_marchand",
         "mme_diallo",
@@ -5094,7 +5099,6 @@
         "odile_flat",
         "stairwell",
         "mistral_back_room",
-        "quai_de_valmy",
         "marchand_office",
         "mairie",
         "notaire",
@@ -5107,7 +5111,7 @@
        "used_objectives": [
         "Dis qui tu es et pourquoi tu es là.",
         "Dis à Camille si tu vas vendre, et si c'est vraiment plus simple pour tout le monde.",
-        "Offer your help for the exhibition."
+        "Propose another time for the market morning."
        ],
        "used_problems": []
       },
@@ -5115,11 +5119,20 @@
        "arcs": [],
        "cast": [
         {
+         "contradiction": "Thinks the group uses loyalty to keep each other from moving on — and is the one most held here.",
+         "dynamic_with_user": "The accomplice. On the romance path, restraint first; on the friendship path, the pact. Affection shows in gestures (she remembers the usual order, saves the chair), never as a score. Her path moves only on what the learner expresses at the gates.",
+         "flaw": "Keeps her own secret while resenting everyone else's.",
+         "gender": "f",
          "id": "lila_bonnet",
          "name": "Lila Bonnet",
+         "personality": "Quick, amused, the one who looks at the evidence. Grades everyone's life decisions like homework («Sept sur vingt. Peut mieux faire.»). Marseille exclamations when caught off guard («Oh, fan de chichourle !»).",
          "pronoun_fr": "elle",
+         "register_with_user": "tu, from the first night; she mocks the learner's vous («Tu me vouvoies ? Je le dis à ma classe.»)",
          "role": "Teaches a CE1 class (Wednesdays off) and paints. Marin's flatmate and oldest friend — they were together two months in 2016 and still laugh about it; they are NOT a couple. From Marseille. Becomes the learner's accomplice upstairs.",
-         "role_fr": "institutrice et peintre"
+         "role_fr": "institutrice et peintre",
+         "secret": "The 2026 Berlin offer, due 15 December (revealed in T5 — before that, only hints: a phone turned face down, an email closed too quickly, an envelope with a German stamp).",
+         "speech_pattern": "«Tu vas pas me faire croire que c'est un hasard.» «Je déteste avoir raison la nuit.» Says «la lumière est fausse» about the painting above the zinc.",
+         "wants": "Berlin: a one-year residency at the Künstlerhaus am Kanal. She turned one down in 2021."
         },
         {
          "id": "marin_leveque",
@@ -5136,20 +5149,11 @@
          "role_fr": "habitué du Mistral"
         },
         {
-         "contradiction": "Protects everyone and lets nobody protect her.",
-         "dynamic_with_user": "Sees Odile in the learner. Afraid of what they will find.",
-         "flaw": "One sentence too few, always.",
-         "gender": "f",
          "id": "margaux_barman",
          "name": "Margaux",
-         "personality": "Uses the fewest words in the cast. When she says two sentences in a row, something is wrong. Dries a glass that is already dry. «J'ai rien entendu» after hearing everything. Bans people from her zinc («Pas sur mon zinc.»). Pours a café crème nobody ordered for Odile's stool.",
          "pronoun_fr": "elle",
-         "register_with_user": "tu, at once — as she did with Odile",
          "role": "Owner-bartender of Le Mistral since 2001, in her late fifties. The oracle.",
-         "role_fr": "patronne du Mistral",
-         "secret": "The night of the fire (14 March 2023) and her promise to Odile — revealed in T4 only. On generated days before T4: silences and deflections (looking at the ceiling, reacting too fast to smoke), never the cause.",
-         "speech_pattern": "«Ça finira bien, ou ça finira. Bois.»",
-         "wants": "To keep her promise to Odile, and the café, and never to ask anyone for help."
+         "role_fr": "patronne du Mistral"
         },
         {
          "id": "romy_tremblay",
@@ -5389,9 +5393,9 @@
        "label_native": "Le plus-que-parfait : le passé du passé"
       },
       {
-       "id": "1411",
+       "id": "901",
        "kind": "vocabulary",
-       "label_fr": "exposition",
+       "label_fr": "panne",
        "label_native": null
       }
      ],

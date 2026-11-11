@@ -4,7 +4,7 @@
  "control_language": null,
  "day": 3,
  "day_shape": "standard",
- "estimated_active_seconds": 692,
+ "estimated_active_seconds": 693,
  "events": [
   {
    "estimated_seconds": 54,
@@ -124,7 +124,7 @@
        "en": "For something that happened before another past moment, put avoir or être in the imparfait and add the participle.",
        "fr": "Pour une action antérieure à un autre moment passé : avoir ou être à l'imparfait, puis le participe."
       },
-      "speaker": "margaux_barman",
+      "speaker": "lila_bonnet",
       "traps": [
        {
         "right": "J'ai vu que j'[avais oublié] mes clés.",
@@ -147,7 +147,7 @@
       ]
      },
      "scene_example_fr": "Quand Léa est arrivée, ses amis [étaient déjà partis].",
-     "scene_example_speaker": "margaux_barman",
+     "scene_example_speaker": "lila_bonnet",
      "title_fr": "Le plus-que-parfait : le passé du passé",
      "title_native": "Le plus-que-parfait : le passé du passé"
     }
@@ -373,8 +373,8 @@
      "alt_native": "Two friends at the zinc.",
      "dialogue": [
       {
-       "character_id": "margaux_barman",
-       "character_name": "Margaux",
+       "character_id": "lila_bonnet",
+       "character_name": "Lila Bonnet",
        "text_fr": "Tu as une minute ?",
        "text_native": null
       }
@@ -385,8 +385,8 @@
      "alt_native": "A glass.",
      "dialogue": [
       {
-       "character_id": "margaux_barman",
-       "character_name": "Margaux",
+       "character_id": "lila_bonnet",
+       "character_name": "Lila Bonnet",
        "text_fr": "Quand Léa est arrivée, ses amis étaient déjà partis.",
        "text_native": null
       }
@@ -397,8 +397,8 @@
      "alt_native": "The friend turns to you.",
      "dialogue": [
       {
-       "character_id": "margaux_barman",
-       "character_name": "Margaux",
+       "character_id": "lila_bonnet",
+       "character_name": "Lila Bonnet",
        "text_fr": "Alors, on fait quoi ?",
        "text_native": null
       }
@@ -413,10 +413,10 @@
      "audio_available": false,
      "character_line_audio_url": null,
      "character_line_fr": "Tu en penses quoi ?",
-     "image_url": "/assets/serial/locations/le_mistral-booth.webp",
+     "image_url": "/assets/serial/locations/le_mistral-counter.webp",
      "listen_first": false,
      "margin_notes": [],
-     "objective_native": "Offer your help for the exhibition.",
+     "objective_native": "Propose another time for the market morning.",
      "panels": null,
      "premise_native": "Ta grand-mère t'a laissé ce qu'il y a au-dessus du Mistral, et le feu qu'il y a eu dessous. Tu le gardes, tu le partages, ou tu le laisses partir ?",
      "previously_fr": [
@@ -429,7 +429,7 @@
       "season_id": "s1",
       "segment": "g1"
      },
-     "setup_fr": "Romy cherche une idée pour une exposition dans le quartier.",
+     "setup_fr": "Le four du café est en panne le jour du marché.",
      "setup_native": "A day between two tentpoles.",
      "stage": null
     }
@@ -443,16 +443,16 @@
     },
     "intent": "average"
    },
-   "estimated_seconds": 513,
+   "estimated_seconds": 514,
    "result": {
     "character_lines": [],
     "character_reply_fr": "D'accord.",
     "correction": null,
     "next_turn": {
-     "character_id": "margaux_barman",
+     "character_id": "lila_bonnet",
      "character_line_audio_url": null,
      "character_line_fr": "D'accord.",
-     "character_name": "Margaux",
+     "character_name": "Lila",
      "choices": [],
      "help_available": [
       "hint",
@@ -464,7 +464,7 @@
      ],
      "letter": null,
      "max_turns": 3,
-     "objective_native": "Offer your help for the exhibition.",
+     "objective_native": "Propose another time for the market morning.",
      "repair_allowed": false,
      "spoken_reply": false,
      "targets": [
@@ -477,9 +477,9 @@
       },
       {
        "concept_title": false,
-       "id": "1411",
+       "id": "901",
        "kind": "vocabulary",
-       "label_fr": "exposition",
+       "label_fr": "panne",
        "label_native": null
       }
      ],
@@ -500,10 +500,10 @@
     "step_after": {
      "feedback": null,
      "prompt": {
-      "character_id": "margaux_barman",
+      "character_id": "lila_bonnet",
       "character_line_audio_url": null,
       "character_line_fr": "D'accord.",
-      "character_name": "Margaux",
+      "character_name": "Lila",
       "choices": [],
       "help_available": [
        "hint",
@@ -515,7 +515,7 @@
       ],
       "letter": null,
       "max_turns": 3,
-      "objective_native": "Offer your help for the exhibition.",
+      "objective_native": "Propose another time for the market morning.",
       "repair_allowed": false,
       "spoken_reply": false,
       "targets": [
@@ -528,9 +528,9 @@
        },
        {
         "concept_title": false,
-        "id": "1411",
+        "id": "901",
         "kind": "vocabulary",
-        "label_fr": "exposition",
+        "label_fr": "panne",
         "label_native": null
        }
       ],
@@ -554,10 +554,10 @@
     "id": "<id>",
     "kind": "respond",
     "prompt": {
-     "character_id": "margaux_barman",
+     "character_id": "lila_bonnet",
      "character_line_audio_url": null,
      "character_line_fr": "Tu en penses quoi ?",
-     "character_name": "Margaux",
+     "character_name": "Lila",
      "choices": [],
      "help_available": [
       "hint",
@@ -569,7 +569,7 @@
      ],
      "letter": null,
      "max_turns": 3,
-     "objective_native": "Offer your help for the exhibition.",
+     "objective_native": "Propose another time for the market morning.",
      "repair_allowed": true,
      "spoken_reply": false,
      "targets": [
@@ -582,9 +582,9 @@
       },
       {
        "concept_title": false,
-       "id": "1411",
+       "id": "901",
        "kind": "vocabulary",
-       "label_fr": "exposition",
+       "label_fr": "panne",
        "label_native": null
       }
      ],
@@ -601,16 +601,16 @@
     },
     "intent": "average"
    },
-   "estimated_seconds": 513,
+   "estimated_seconds": 514,
    "result": {
     "character_lines": [],
     "character_reply_fr": "D'accord.",
     "correction": null,
     "next_turn": {
-     "character_id": "margaux_barman",
+     "character_id": "lila_bonnet",
      "character_line_audio_url": null,
      "character_line_fr": "D'accord.",
-     "character_name": "Margaux",
+     "character_name": "Lila",
      "choices": [],
      "help_available": [
       "hint",
@@ -622,7 +622,7 @@
      ],
      "letter": null,
      "max_turns": 3,
-     "objective_native": "Offer your help for the exhibition.",
+     "objective_native": "Propose another time for the market morning.",
      "repair_allowed": false,
      "spoken_reply": false,
      "targets": [
@@ -635,9 +635,9 @@
       },
       {
        "concept_title": false,
-       "id": "1411",
+       "id": "901",
        "kind": "vocabulary",
-       "label_fr": "exposition",
+       "label_fr": "panne",
        "label_native": null
       }
      ],
@@ -665,10 +665,10 @@
     "step_after": {
      "feedback": null,
      "prompt": {
-      "character_id": "margaux_barman",
+      "character_id": "lila_bonnet",
       "character_line_audio_url": null,
       "character_line_fr": "D'accord.",
-      "character_name": "Margaux",
+      "character_name": "Lila",
       "choices": [],
       "help_available": [
        "hint",
@@ -680,7 +680,7 @@
       ],
       "letter": null,
       "max_turns": 3,
-      "objective_native": "Offer your help for the exhibition.",
+      "objective_native": "Propose another time for the market morning.",
       "repair_allowed": false,
       "spoken_reply": false,
       "targets": [
@@ -693,9 +693,9 @@
        },
        {
         "concept_title": false,
-        "id": "1411",
+        "id": "901",
         "kind": "vocabulary",
-        "label_fr": "exposition",
+        "label_fr": "panne",
         "label_native": null
        }
       ],
@@ -726,10 +726,10 @@
     "id": "<id>",
     "kind": "respond",
     "prompt": {
-     "character_id": "margaux_barman",
+     "character_id": "lila_bonnet",
      "character_line_audio_url": null,
      "character_line_fr": "D'accord.",
-     "character_name": "Margaux",
+     "character_name": "Lila",
      "choices": [],
      "help_available": [
       "hint",
@@ -741,7 +741,7 @@
      ],
      "letter": null,
      "max_turns": 3,
-     "objective_native": "Offer your help for the exhibition.",
+     "objective_native": "Propose another time for the market morning.",
      "repair_allowed": false,
      "spoken_reply": false,
      "targets": [
@@ -754,9 +754,9 @@
       },
       {
        "concept_title": false,
-       "id": "1411",
+       "id": "901",
        "kind": "vocabulary",
-       "label_fr": "exposition",
+       "label_fr": "panne",
        "label_native": null
       }
      ],
@@ -781,7 +781,7 @@
     },
     "intent": "average"
    },
-   "estimated_seconds": 513,
+   "estimated_seconds": 514,
    "result": {
     "character_lines": [],
     "character_reply_fr": "D'accord.",
@@ -801,10 +801,10 @@
     "step_after": {
      "feedback": null,
      "prompt": {
-      "character_id": "margaux_barman",
+      "character_id": "lila_bonnet",
       "character_line_audio_url": null,
       "character_line_fr": "D'accord.",
-      "character_name": "Margaux",
+      "character_name": "Lila",
       "choices": [],
       "help_available": [
        "hint",
@@ -816,7 +816,7 @@
       ],
       "letter": null,
       "max_turns": 3,
-      "objective_native": "Offer your help for the exhibition.",
+      "objective_native": "Propose another time for the market morning.",
       "repair_allowed": false,
       "spoken_reply": false,
       "targets": [
@@ -829,9 +829,9 @@
        },
        {
         "concept_title": false,
-        "id": "1411",
+        "id": "901",
         "kind": "vocabulary",
-        "label_fr": "exposition",
+        "label_fr": "panne",
         "label_native": null
        }
       ],
@@ -862,10 +862,10 @@
     "id": "<id>",
     "kind": "respond",
     "prompt": {
-     "character_id": "margaux_barman",
+     "character_id": "lila_bonnet",
      "character_line_audio_url": null,
      "character_line_fr": "D'accord.",
-     "character_name": "Margaux",
+     "character_name": "Lila",
      "choices": [],
      "help_available": [
       "hint",
@@ -877,7 +877,7 @@
      ],
      "letter": null,
      "max_turns": 3,
-     "objective_native": "Offer your help for the exhibition.",
+     "objective_native": "Propose another time for the market morning.",
      "repair_allowed": false,
      "spoken_reply": false,
      "targets": [
@@ -890,9 +890,9 @@
       },
       {
        "concept_title": false,
-       "id": "1411",
+       "id": "901",
        "kind": "vocabulary",
-       "label_fr": "exposition",
+       "label_fr": "panne",
        "label_native": null
       }
      ],
@@ -924,7 +924,7 @@
     "prompt": {
      "chapter_recap_fr": null,
      "character_line_fr": "La journée se termine.",
-     "image_url": "/assets/serial/locations/le_mistral-booth.webp",
+     "image_url": "/assets/serial/locations/le_mistral-counter.webp",
      "narrated": false,
      "outcome_key": "resolved",
      "register_note_fr": null,
@@ -945,7 +945,7 @@
  "resolution": {
   "chapter_recap_fr": null,
   "character_line_fr": "La journée se termine.",
-  "image_url": "/assets/serial/locations/le_mistral-booth.webp",
+  "image_url": "/assets/serial/locations/le_mistral-counter.webp",
   "narrated": false,
   "outcome_key": "resolved",
   "register_note_fr": null,
@@ -954,10 +954,10 @@
   "summary_native": "The day ends."
  },
  "scenario": {
-  "character_name": "Margaux",
+  "character_name": "Lila Bonnet",
   "level_band": "B1",
   "scenario_key": "story_<id>",
-  "title_fr": "Plusieurs semaines (0)"
+  "title_fr": "Plusieurs semaines (1)"
  },
  "status": "active"
 }
