@@ -578,7 +578,22 @@ class FakeStoryProvider:
                 and not (member == must_change.get("character_id") and location == must_change.get("location_id"))
             },
         )
-        text, objective, semantics, novelty = PREMISES[n % len(PREMISES)]
+        # #717: a compliant director never sets the day in one of the last five pages'
+        # situations (the engine refuses a repeated premise or objective). Counting on
+        # ``n`` alone, a day's three attempts could all land on recent ones: the walk's
+        # day 7 was lost and re-read T1 Day B in its place.
+        recent = list(context.get("recent_situations") or [])[-5:]
+        used = {str(row.get("premise_fr") or "") for row in recent} | {str(row.get("objective_native") or "") for row in recent}
+        pick = next(
+            (
+                n + k
+                for k in range(len(SEASON_PREMISES))
+                if SEASON_PREMISES[(n + k) % len(SEASON_PREMISES)] not in used
+                and PREMISES[(n + k) % len(PREMISES)][1] not in used
+            ),
+            n,
+        )
+        text, objective, semantics, novelty = PREMISES[pick % len(PREMISES)]
         retired = {str(q).casefold() for q in context.get("resolved_chapter_questions") or []}
         question = next(
             (
@@ -591,7 +606,7 @@ class FakeStoryProvider:
         moment = (today.get("small_moments") or [{}])[0]
         return {
             "title_fr": f"{premise.get('title_fr') or 'Entre deux jours'} ({n + 1})",
-            "premise_fr": SEASON_PREMISES[n % len(SEASON_PREMISES)],
+            "premise_fr": SEASON_PREMISES[pick % len(SEASON_PREMISES)],
             "setup_native": f"[dev fake] {premise.get('text') or text}"[:600],
             "objective_native": objective,
             "objective_semantics": semantics,
@@ -610,7 +625,7 @@ class FakeStoryProvider:
                 "possible_developments": ["Quelque chose change.", "Rien ne bouge encore."],
             },
             "panels": [
-                {"location_id": location, "narration_fr": SEASON_PREMISES[(n + 1) % len(SEASON_PREMISES)], "dialogue": [], "visual_direction": "Wide shot: two friends at work in the place.", "alt_native": "Two friends at work."},
+                {"location_id": location, "narration_fr": SEASON_PREMISES[(pick + 1) % len(SEASON_PREMISES)], "dialogue": [], "visual_direction": "Wide shot: two friends at work in the place.", "alt_native": "Two friends at work."},
                 {"location_id": location, "narration_fr": "", "dialogue": [{"character_id": character, "text_fr": "Tu as une minute ?"}], "visual_direction": "Medium shot, the character turns to Toi.", "alt_native": "A friend turns to you."},
                 {"location_id": location, "narration_fr": "Un silence.", "dialogue": [], "visual_direction": "Close-up of a glass on the zinc.", "alt_native": "A glass on the counter."},
                 {"location_id": location, "narration_fr": "", "dialogue": [{"character_id": character, "text_fr": "Alors, on fait quoi ?"}], "visual_direction": "Close-up, waiting.", "alt_native": "A friend, waiting."},
