@@ -72,7 +72,9 @@ def what_happened(turn: Any, fallback: Any = "") -> str:
     in their bubble and never filed as an event.
     """
 
-    if getattr(turn, "authored_ending", False):
+    from app.services import scene_record
+
+    if getattr(turn, "authored_ending", False) and scene_record.enabled():
         return " ".join(str(fallback or "").split())
     return scene_fact(turn.callback_fr, turn.resolution_fr, fallback=fallback)
 

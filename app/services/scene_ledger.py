@@ -290,6 +290,10 @@ def build(
     * ``in_the_room``: who may speak; empty when the caller does not know.
     """
 
+    from app.services import scene_record
+
+    if not scene_record.enabled():
+        return _main_build(opening_line_fr=opening_line_fr, history=history, learner_text=learner_text)
     exchanges = [row for row in history or [] if isinstance(row, dict)]
     asked: list[dict[str, Any]] = []
     stands: list[dict[str, Any]] = []
@@ -357,6 +361,57 @@ def build(
               for row in stands if row["stance"] == "refused"),
         ],
         "in_the_room": [str(person) for person in in_the_room or [] if person],
+    }
+
+
+def _main_learner_question(text: Any) -> str | None:
+    """``STORY_SCENE_RECORD`` off: main's reading of a learner question («Pourquoi pas ?»
+    still counts as one)."""
+
+    for part in sentences(text):
+        bare = part.strip("«»\"' ")
+        if bare.endswith("?") or _INTERROGATIVE.match(bare):
+            return part[:QUESTION_CHARS]
+    return None
+
+
+def _main_build(*, opening_line_fr: Any, history: list[Any] | None, learner_text: Any = None) -> dict[str, Any]:
+    """``STORY_SCENE_RECORD`` off: main's ledger, questions only (#378). Any learner turn
+    answers the character's question, a question back included."""
+
+    exchanges = [row for row in history or [] if isinstance(row, dict)]
+    asked: list[dict[str, Any]] = []
+    pending_character: dict[str, Any] | None = None
+    pending_learner: dict[str, Any] | None = None
+
+    def ask(by: str, text: str, at: int) -> dict[str, Any]:
+        row = {"by": by, "text_fr": text, "at": at, "answered_at": None}
+        asked.append(row)
+        return row
+
+    if question := character_question(opening_line_fr):
+        pending_character = ask("character", question, 0)
+    turns = [(str(row.get("learner") or ""), str(row.get("character") or "")) for row in exchanges]
+    if str(learner_text or "").strip():
+        turns.append((str(learner_text), ""))
+    for index, (learner, character) in enumerate(turns):
+        if learner.strip():
+            if pending_character is not None:
+                pending_character["answered_at"] = index
+                pending_character = None
+            if question := _main_learner_question(learner):
+                pending_learner = ask("learner", question, index)
+        if character.strip():
+            if pending_learner is not None:
+                pending_learner["answered_at"] = index
+                pending_learner = None
+            if question := character_question(character):
+                pending_character = ask("character", question, index + 1)
+    return {
+        "exchanges": len(exchanges),
+        "asked": asked,
+        "open_for_learner": pending_character["text_fr"] if pending_character else None,
+        "learner_asked": pending_learner["text_fr"] if pending_learner else None,
     }
 
 

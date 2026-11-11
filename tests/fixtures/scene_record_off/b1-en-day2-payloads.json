@@ -1,0 +1,1423 @@
+{
+ "budget_seconds": 600,
+ "cefr": "B1.1",
+ "control_language": null,
+ "day": 2,
+ "day_shape": "standard",
+ "estimated_active_seconds": 363,
+ "events": [
+  {
+   "estimated_seconds": 65,
+   "page": [
+    {
+     "alt_native": null,
+     "dialogue": [
+      {
+       "character_id": "margaux_barman",
+       "character_name": "Margaux",
+       "text_fr": "Chocolat ?",
+       "text_native": null
+      },
+      {
+       "character_id": "camille_marchand",
+       "character_name": "Camille Marchand",
+       "text_fr": "…Vous vous en souvenez ?",
+       "text_native": null
+      },
+      {
+       "character_id": "margaux_barman",
+       "character_name": "Margaux",
+       "text_fr": "Tous les mercredis. Tu avais neuf ans.",
+       "text_native": null
+      }
+     ],
+     "narration_fr": ""
+    },
+    {
+     "alt_native": null,
+     "dialogue": [
+      {
+       "character_id": "camille_marchand",
+       "character_name": "Camille Marchand",
+       "text_fr": "Mon grand-père possède tout l'immeuble, sauf le premier étage. Solvel veut l'ensemble. Il ne manque que vous.",
+       "text_native": null
+      }
+     ],
+     "narration_fr": ""
+    },
+    {
+     "alt_native": null,
+     "dialogue": [
+      {
+       "character_id": "camille_marchand",
+       "character_name": "Camille Marchand",
+       "text_fr": "Leur offre est dans la lettre du notaire. Elle est valable jusqu'au 8 janvier.",
+       "text_native": null
+      }
+     ],
+     "narration_fr": ""
+    },
+    {
+     "alt_native": null,
+     "dialogue": [
+      {
+       "character_id": "camille_marchand",
+       "character_name": "Camille Marchand",
+       "text_fr": "Vous allez vendre, j'imagine ? Ce serait plus simple pour tout le monde.",
+       "text_native": null
+      }
+     ],
+     "narration_fr": ""
+    }
+   ],
+   "step": {
+    "id": "<id>",
+    "kind": "scene",
+    "prompt": {
+     "audio_available": false,
+     "character_line_audio_url": null,
+     "character_line_fr": "Vous allez vendre, j'imagine ? Ce serait plus simple pour tout le monde.",
+     "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+     "listen_first": false,
+     "margin_notes": [],
+     "objective_native": "Dis à Camille si tu vas vendre, et si c'est vraiment plus simple pour tout le monde.",
+     "panels": null,
+     "premise_native": "Ta grand-mère t'a laissé ce qu'il y a au-dessus du Mistral, et le feu qu'il y a eu dessous. Tu le gardes, tu le partages, ou tu le laisses partir ?",
+     "previously_fr": [
+      "Le mauvais accueil"
+     ],
+     "reread_native": null,
+     "season_part": {
+      "day_in_segment": 2,
+      "kind": "tentpole",
+      "season_id": "s1",
+      "segment": "t1"
+     },
+     "setup_fr": "La lettre",
+     "setup_native": "La lettre",
+     "stage": {
+      "band": "B1",
+      "can_do_native": "Dire ce qu'on compte faire et à quel point on en est sûr ; décider à qui faire confiance.",
+      "day": "b",
+      "key": "t1.b",
+      "language": "fr",
+      "location_id": "le_mistral",
+      "movements": [
+       {
+        "diegetic": [],
+        "flashback": false,
+        "id": "b.p1",
+        "in_frame": [
+         "camille_marchand",
+         "margaux_barman"
+        ],
+        "kind": "panel",
+        "lines": [
+         {
+          "direction": null,
+          "kind": "speech",
+          "mood": "neutral",
+          "name": "Margaux",
+          "text_fr": "Chocolat ?",
+          "text_native": null,
+          "who": "margaux_barman"
+         },
+         {
+          "direction": null,
+          "kind": "speech",
+          "mood": "moved",
+          "name": "Camille",
+          "text_fr": "…Vous vous en souvenez ?",
+          "text_native": null,
+          "who": "camille_marchand"
+         },
+         {
+          "direction": null,
+          "kind": "speech",
+          "mood": "neutral",
+          "name": "Margaux",
+          "text_fr": "Tous les mercredis. Tu avais neuf ans.",
+          "text_native": null,
+          "who": "margaux_barman"
+         }
+        ],
+        "location_id": "le_mistral",
+        "silence": false,
+        "visual": "Camille at the zinc, helmet under one arm, dripping. Margaux hands over a towel without a word, then a hot chocolate nobody ordered."
+       },
+       {
+        "diegetic": [],
+        "flashback": false,
+        "id": "b.p2",
+        "in_frame": [
+         "camille_marchand",
+         "toi",
+         "augustin_de_roncourt",
+         "marin_leveque",
+         "lila_bonnet"
+        ],
+        "kind": "panel",
+        "lines": [
+         {
+          "direction": null,
+          "kind": "speech",
+          "mood": "neutral",
+          "name": "Camille",
+          "text_fr": "Mon grand-père possède tout l'immeuble, sauf le premier étage. Solvel veut l'ensemble. Il ne manque que vous.",
+          "text_native": null,
+          "who": "camille_marchand"
+         }
+        ],
+        "location_id": "le_mistral",
+        "silence": false,
+        "visual": "Camille and Toi face to face at the zinc. Behind Toi, the group listens without shame: Gus holds a menu up as a screen, upside down; Marin forgets his soup; Lila openly turns her chair round."
+       },
+       {
+        "diegetic": [
+         "Solvel Immobilier — Bastien Roux"
+        ],
+        "flashback": false,
+        "id": "b.p3",
+        "in_frame": [
+         "camille_marchand",
+         "toi"
+        ],
+        "kind": "panel",
+        "lines": [
+         {
+          "direction": null,
+          "kind": "speech",
+          "mood": "neutral",
+          "name": "Camille",
+          "text_fr": "Leur offre est dans la lettre du notaire. Elle est valable jusqu'au 8 janvier.",
+          "text_native": null,
+          "who": "camille_marchand"
+         }
+        ],
+        "location_id": "le_mistral",
+        "silence": false,
+        "visual": "Camille slides a business card across the zinc (Solvel Immobilier, Bastien Roux) and taps Toi's envelope."
+       },
+       {
+        "choice": false,
+        "id": "b.turn1",
+        "kind": "turn",
+        "only_after": null,
+        "panel": {
+         "diegetic": [],
+         "flashback": false,
+         "id": "b.p4",
+         "in_frame": [
+          "camille_marchand",
+          "toi"
+         ],
+         "kind": "panel",
+         "lines": [
+          {
+           "direction": null,
+           "kind": "speech",
+           "mood": "neutral",
+           "name": "Camille",
+           "text_fr": "Vous allez vendre, j'imagine ? Ce serait plus simple pour tout le monde.",
+           "text_native": null,
+           "who": "camille_marchand"
+          }
+         ],
+         "location_id": "le_mistral",
+         "silence": false,
+         "visual": "Camille, direct and not unkind, waiting. Toi's balloon."
+        },
+        "task_native": "Dis à Camille si tu vas vendre, et si c'est vraiment plus simple pour tout le monde.",
+        "to": "camille_marchand",
+        "to_name": "Camille"
+       },
+       {
+        "diegetic": [],
+        "flashback": false,
+        "id": "b.p5",
+        "in_frame": [
+         "augustin_de_roncourt",
+         "marin_leveque",
+         "lila_bonnet",
+         "margaux_barman"
+        ],
+        "kind": "panel",
+        "lines": [],
+        "location_id": "le_mistral",
+        "silence": true,
+        "visual": "The door closes behind Camille. The group turns, as one, toward Toi and the envelope."
+       },
+       {
+        "diegetic": [],
+        "flashback": false,
+        "id": "b.p6",
+        "in_frame": [
+         "lila_bonnet",
+         "margaux_barman",
+         "augustin_de_roncourt",
+         "marin_leveque"
+        ],
+        "kind": "panel",
+        "lines": [
+         {
+          "direction": null,
+          "kind": "speech",
+          "mood": "neutral",
+          "name": "Lila",
+          "text_fr": "Bon. On peut voir la lettre ?",
+          "text_native": null,
+          "who": "lila_bonnet"
+         }
+        ],
+        "location_id": "le_mistral",
+        "silence": false,
+        "visual": "Lila has pulled her chair up to the zinc. Four hands are more or less open: Margaux's flat on the zinc, Lila's outstretched, Gus's elegantly offered, Marin's hovering and embarrassed."
+       },
+       {
+        "choice": true,
+        "id": "b.letter",
+        "kind": "turn",
+        "only_after": null,
+        "panel": {
+         "diegetic": [],
+         "flashback": false,
+         "id": "b.letter.prompt",
+         "in_frame": [
+          "lila_bonnet"
+         ],
+         "kind": "panel",
+         "lines": [
+          {
+           "direction": null,
+           "kind": "speech",
+           "mood": "neutral",
+           "name": "Lila",
+           "text_fr": "À qui tu montres la lettre ?",
+           "text_native": null,
+           "who": "lila_bonnet"
+          }
+         ],
+         "location_id": "le_mistral",
+         "silence": false,
+         "visual": null
+        },
+        "task_native": "Choisis qui lit la lettre du notaire.",
+        "to": "lila_bonnet",
+        "to_name": "Lila"
+       },
+       {
+        "diegetic": [
+         "1"
+        ],
+        "flashback": false,
+        "id": "b.r1",
+        "in_frame": [
+         "toi",
+         "lila_bonnet"
+        ],
+        "kind": "panel",
+        "lines": [],
+        "location_id": "stairwell",
+        "silence": true,
+        "visual": "After closing. The stairwell of the building next to the café door: one flight up, and the timed light ticks. Toi stands in front of a door with a brass «1». Behind Toi, on the lower steps, Lila has followed without asking."
+       },
+       {
+        "diegetic": [],
+        "flashback": false,
+        "id": "b.r2",
+        "in_frame": [
+         "toi"
+        ],
+        "kind": "panel",
+        "lines": [],
+        "location_id": "odile_flat",
+        "silence": true,
+        "visual": "The key turns and the door opens onto darkness. Street light falls through the shutters: a coat still on its hook, a stopped kitchen clock, a wall calendar. Everything waits. We see only the room and Toi's hand on the frame."
+       },
+       {
+        "diegetic": [],
+        "flashback": false,
+        "id": "b.r3",
+        "in_frame": [
+         "toi",
+         "lila_bonnet"
+        ],
+        "kind": "panel",
+        "lines": [],
+        "location_id": "stairwell",
+        "silence": true,
+        "visual": "Same framing, the door closing again. Toi has not gone in. Lila sits on the step with her chin on her knees."
+       },
+       {
+        "diegetic": [],
+        "flashback": false,
+        "id": "b.r4",
+        "in_frame": [
+         "lila_bonnet",
+         "toi"
+        ],
+        "kind": "panel",
+        "lines": [
+         {
+          "direction": null,
+          "kind": "speech",
+          "mood": "neutral",
+          "name": "Lila",
+          "text_fr": "Pas comme ça, en tout cas.",
+          "text_native": null,
+          "who": "lila_bonnet"
+         },
+         {
+          "direction": null,
+          "kind": "speech",
+          "mood": "moved",
+          "name": "Lila",
+          "text_fr": "Le mercredi, je n'ai pas classe. Je monte avec toi.",
+          "text_native": null,
+          "who": "lila_bonnet"
+         }
+        ],
+        "location_id": "stairwell",
+        "silence": false,
+        "visual": "The stairwell, the timed light. Lila on the step, looking up at Toi."
+       },
+       {
+        "id": "b.suivre",
+        "kind": "hook",
+        "panel": {
+         "diegetic": [
+          "Retour : mercredi 18 novembre"
+         ],
+         "flashback": false,
+         "id": "b.last",
+         "in_frame": [
+          "toi"
+         ],
+         "kind": "panel",
+         "lines": [
+          {
+           "direction": null,
+           "kind": "caption",
+           "mood": "neutral",
+           "name": null,
+           "text_fr": "Ton billet de retour est pour mercredi prochain. Le jour où Lila n'a pas classe. À suivre…",
+           "text_native": null,
+           "who": "caption"
+          }
+         ],
+         "location_id": "user_apartment",
+         "silence": false,
+         "visual": "Toi's rented studio. The radiator is cold, and Toi sits on the bed in the coat. On the phone screen: «Retour : mercredi 18 novembre». The key ring lies next to the phone, the cicada face up."
+        },
+        "role": "a_suivre"
+       }
+      ],
+      "number": 1,
+      "season_id": "s1",
+      "segment": "t1",
+      "story_date_fr": "jeudi 12 novembre",
+      "storylets": [],
+      "title_fr": "La lettre"
+     }
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "text",
+     "text": "Plus simple pour vous, ou pour moi ?"
+    },
+    "intent": "average"
+   },
+   "estimated_seconds": 136,
+   "result": {
+    "character_lines": [
+     {
+      "speaker_id": "camille_marchand",
+      "speaker_name": "Camille",
+      "text_fr": "Pour mon grand-père. Soixante-quatorze ans, et quatre étages à monter."
+     },
+     {
+      "speaker_id": "camille_marchand",
+      "speaker_name": "Camille",
+      "text_fr": "Jeudi prochain, dix-huit heures. Je viens visiter l'appartement."
+     },
+     {
+      "speaker_id": "lila_bonnet",
+      "speaker_name": "Lila",
+      "text_fr": "Bon. On peut voir la lettre ?"
+     }
+    ],
+    "character_reply_fr": "Pour mon grand-père. Soixante-quatorze ans, et quatre étages à monter.\nJeudi prochain, dix-huit heures. Je viens visiter l'appartement.\nBon. On peut voir la lettre ?",
+    "correction": null,
+    "next_turn": {
+     "character_id": "lila_bonnet",
+     "character_line_audio_url": null,
+     "character_line_fr": "Pour mon grand-père. Soixante-quatorze ans, et quatre étages à monter.\nJeudi prochain, dix-huit heures. Je viens visiter l'appartement.\nBon. On peut voir la lettre ?",
+     "character_name": "Lila",
+     "choices": [
+      {
+       "id": "margaux",
+       "label_fr": "Margaux",
+       "label_native": null
+      },
+      {
+       "id": "lila",
+       "label_fr": "Lila",
+       "label_native": null
+      },
+      {
+       "id": "gus",
+       "label_fr": "Gus",
+       "label_native": null
+      },
+      {
+       "id": "marin",
+       "label_fr": "Marin",
+       "label_native": null
+      },
+      {
+       "id": "nobody",
+       "label_fr": "Personne",
+       "label_native": null
+      }
+     ],
+     "help_available": [
+      "hint",
+      "translation",
+      "suggested_response"
+     ],
+     "input_modes": [
+      "text"
+     ],
+     "letter": null,
+     "max_turns": 2,
+     "objective_native": "Choisis qui lit la lettre du notaire.",
+     "repair_allowed": false,
+     "spoken_reply": false,
+     "targets": [
+      {
+       "concept_title": false,
+       "id": "1652",
+       "kind": "vocabulary",
+       "label_fr": "imaginer",
+       "label_native": null
+      }
+     ],
+     "thread": [
+      {
+       "character_fr": "Pour mon grand-père. Soixante-quatorze ans, et quatre étages à monter.\nJeudi prochain, dix-huit heures. Je viens visiter l'appartement.\nBon. On peut voir la lettre ?",
+       "character_lines": [
+        {
+         "speaker_id": "camille_marchand",
+         "speaker_name": "Camille",
+         "text_fr": "Pour mon grand-père. Soixante-quatorze ans, et quatre étages à monter."
+        },
+        {
+         "speaker_id": "camille_marchand",
+         "speaker_name": "Camille",
+         "text_fr": "Jeudi prochain, dix-huit heures. Je viens visiter l'appartement."
+        },
+        {
+         "speaker_id": "lila_bonnet",
+         "speaker_name": "Lila",
+         "text_fr": "Bon. On peut voir la lettre ?"
+        }
+       ],
+       "correction": null,
+       "learner_fr": "Plus simple pour vous, ou pour moi ?",
+       "unchecked": false
+      }
+     ],
+     "turn_index": 1
+    },
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "character_id": "lila_bonnet",
+      "character_line_audio_url": null,
+      "character_line_fr": "Pour mon grand-père. Soixante-quatorze ans, et quatre étages à monter.\nJeudi prochain, dix-huit heures. Je viens visiter l'appartement.\nBon. On peut voir la lettre ?",
+      "character_name": "Lila",
+      "choices": [
+       {
+        "id": "margaux",
+        "label_fr": "Margaux",
+        "label_native": null
+       },
+       {
+        "id": "lila",
+        "label_fr": "Lila",
+        "label_native": null
+       },
+       {
+        "id": "gus",
+        "label_fr": "Gus",
+        "label_native": null
+       },
+       {
+        "id": "marin",
+        "label_fr": "Marin",
+        "label_native": null
+       },
+       {
+        "id": "nobody",
+        "label_fr": "Personne",
+        "label_native": null
+       }
+      ],
+      "help_available": [
+       "hint",
+       "translation",
+       "suggested_response"
+      ],
+      "input_modes": [
+       "text"
+      ],
+      "letter": null,
+      "max_turns": 2,
+      "objective_native": "Choisis qui lit la lettre du notaire.",
+      "repair_allowed": false,
+      "spoken_reply": false,
+      "targets": [
+       {
+        "concept_title": false,
+        "id": "1652",
+        "kind": "vocabulary",
+        "label_fr": "imaginer",
+        "label_native": null
+       }
+      ],
+      "thread": [
+       {
+        "character_fr": "Pour mon grand-père. Soixante-quatorze ans, et quatre étages à monter.\nJeudi prochain, dix-huit heures. Je viens visiter l'appartement.\nBon. On peut voir la lettre ?",
+        "character_lines": [
+         {
+          "speaker_id": "camille_marchand",
+          "speaker_name": "Camille",
+          "text_fr": "Pour mon grand-père. Soixante-quatorze ans, et quatre étages à monter."
+         },
+         {
+          "speaker_id": "camille_marchand",
+          "speaker_name": "Camille",
+          "text_fr": "Jeudi prochain, dix-huit heures. Je viens visiter l'appartement."
+         },
+         {
+          "speaker_id": "lila_bonnet",
+          "speaker_name": "Lila",
+          "text_fr": "Bon. On peut voir la lettre ?"
+         }
+        ],
+        "correction": null,
+        "learner_fr": "Plus simple pour vous, ou pour moi ?",
+        "unchecked": false
+       }
+      ],
+      "turn_index": 1
+     },
+     "status": "active"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "respond",
+    "prompt": {
+     "character_id": "camille_marchand",
+     "character_line_audio_url": null,
+     "character_line_fr": "Vous allez vendre, j'imagine ? Ce serait plus simple pour tout le monde.",
+     "character_name": "Camille",
+     "choices": [],
+     "help_available": [
+      "hint",
+      "translation",
+      "suggested_response"
+     ],
+     "input_modes": [
+      "text"
+     ],
+     "letter": null,
+     "max_turns": 2,
+     "objective_native": "Dis à Camille si tu vas vendre, et si c'est vraiment plus simple pour tout le monde.",
+     "repair_allowed": true,
+     "spoken_reply": false,
+     "targets": [
+      {
+       "concept_title": false,
+       "id": "1652",
+       "kind": "vocabulary",
+       "label_fr": "imaginer",
+       "label_native": null
+      }
+     ],
+     "thread": [],
+     "turn_index": 0
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "text",
+     "text": "Marin"
+    },
+    "intent": "average"
+   },
+   "estimated_seconds": 136,
+   "result": {
+    "character_lines": [
+     {
+      "speaker_id": "marin_leveque",
+      "speaker_name": "Marin",
+      "text_fr": "C'est un signe. Un mauvais."
+     },
+     {
+      "speaker_id": "marin_leveque",
+      "speaker_name": "Marin",
+      "text_fr": "Ma grand-mère disait toujours : l'argent, ça ne mouille pas, mais ça noie."
+     },
+     {
+      "speaker_id": "lila_bonnet",
+      "speaker_name": "Lila",
+      "text_fr": "Pas comme ça, en tout cas."
+     },
+     {
+      "speaker_id": "lila_bonnet",
+      "speaker_name": "Lila",
+      "text_fr": "Le mercredi, je n'ai pas classe. Je monte avec toi."
+     }
+    ],
+    "character_reply_fr": "C'est un signe. Un mauvais.\nMa grand-mère disait toujours : l'argent, ça ne mouille pas, mais ça noie.\nPas comme ça, en tout cas.\nLe mercredi, je n'ai pas classe. Je monte avec toi.",
+    "correction": null,
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "character_id": "lila_bonnet",
+      "character_line_audio_url": null,
+      "character_line_fr": "Pour mon grand-père. Soixante-quatorze ans, et quatre étages à monter.\nJeudi prochain, dix-huit heures. Je viens visiter l'appartement.\nBon. On peut voir la lettre ?",
+      "character_name": "Lila",
+      "choices": [
+       {
+        "id": "margaux",
+        "label_fr": "Margaux",
+        "label_native": null
+       },
+       {
+        "id": "lila",
+        "label_fr": "Lila",
+        "label_native": null
+       },
+       {
+        "id": "gus",
+        "label_fr": "Gus",
+        "label_native": null
+       },
+       {
+        "id": "marin",
+        "label_fr": "Marin",
+        "label_native": null
+       },
+       {
+        "id": "nobody",
+        "label_fr": "Personne",
+        "label_native": null
+       }
+      ],
+      "help_available": [
+       "hint",
+       "translation",
+       "suggested_response"
+      ],
+      "input_modes": [
+       "text"
+      ],
+      "letter": null,
+      "max_turns": 2,
+      "objective_native": "Choisis qui lit la lettre du notaire.",
+      "repair_allowed": false,
+      "spoken_reply": false,
+      "targets": [
+       {
+        "concept_title": false,
+        "id": "1652",
+        "kind": "vocabulary",
+        "label_fr": "imaginer",
+        "label_native": null
+       }
+      ],
+      "thread": [
+       {
+        "character_fr": "Pour mon grand-père. Soixante-quatorze ans, et quatre étages à monter.\nJeudi prochain, dix-huit heures. Je viens visiter l'appartement.\nBon. On peut voir la lettre ?",
+        "character_lines": [
+         {
+          "speaker_id": "camille_marchand",
+          "speaker_name": "Camille",
+          "text_fr": "Pour mon grand-père. Soixante-quatorze ans, et quatre étages à monter."
+         },
+         {
+          "speaker_id": "camille_marchand",
+          "speaker_name": "Camille",
+          "text_fr": "Jeudi prochain, dix-huit heures. Je viens visiter l'appartement."
+         },
+         {
+          "speaker_id": "lila_bonnet",
+          "speaker_name": "Lila",
+          "text_fr": "Bon. On peut voir la lettre ?"
+         }
+        ],
+        "correction": null,
+        "learner_fr": "Plus simple pour vous, ou pour moi ?",
+        "unchecked": false
+       }
+      ],
+      "turn_index": 1
+     },
+     "status": "completed"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "respond",
+    "prompt": {
+     "character_id": "lila_bonnet",
+     "character_line_audio_url": null,
+     "character_line_fr": "Pour mon grand-père. Soixante-quatorze ans, et quatre étages à monter.\nJeudi prochain, dix-huit heures. Je viens visiter l'appartement.\nBon. On peut voir la lettre ?",
+     "character_name": "Lila",
+     "choices": [
+      {
+       "id": "margaux",
+       "label_fr": "Margaux",
+       "label_native": null
+      },
+      {
+       "id": "lila",
+       "label_fr": "Lila",
+       "label_native": null
+      },
+      {
+       "id": "gus",
+       "label_fr": "Gus",
+       "label_native": null
+      },
+      {
+       "id": "marin",
+       "label_fr": "Marin",
+       "label_native": null
+      },
+      {
+       "id": "nobody",
+       "label_fr": "Personne",
+       "label_native": null
+      }
+     ],
+     "help_available": [
+      "hint",
+      "translation",
+      "suggested_response"
+     ],
+     "input_modes": [
+      "text"
+     ],
+     "letter": null,
+     "max_turns": 2,
+     "objective_native": "Choisis qui lit la lettre du notaire.",
+     "repair_allowed": false,
+     "spoken_reply": false,
+     "targets": [
+      {
+       "concept_title": false,
+       "id": "1652",
+       "kind": "vocabulary",
+       "label_fr": "imaginer",
+       "label_native": null
+      }
+     ],
+     "thread": [
+      {
+       "character_fr": "Pour mon grand-père. Soixante-quatorze ans, et quatre étages à monter.\nJeudi prochain, dix-huit heures. Je viens visiter l'appartement.\nBon. On peut voir la lettre ?",
+       "character_lines": [
+        {
+         "speaker_id": "camille_marchand",
+         "speaker_name": "Camille",
+         "text_fr": "Pour mon grand-père. Soixante-quatorze ans, et quatre étages à monter."
+        },
+        {
+         "speaker_id": "camille_marchand",
+         "speaker_name": "Camille",
+         "text_fr": "Jeudi prochain, dix-huit heures. Je viens visiter l'appartement."
+        },
+        {
+         "speaker_id": "lila_bonnet",
+         "speaker_name": "Lila",
+         "text_fr": "Bon. On peut voir la lettre ?"
+        }
+       ],
+       "correction": null,
+       "learner_fr": "Plus simple pour vous, ou pour moi ?",
+       "unchecked": false
+      }
+     ],
+     "turn_index": 1
+    }
+   }
+  },
+  {
+   "estimated_seconds": 27,
+   "step": {
+    "id": "<id>",
+    "kind": "resolution",
+    "prompt": {
+     "chapter_recap_fr": null,
+     "character_line_fr": "Ton billet de retour est pour mercredi prochain. Le jour où Lila n'a pas classe. À suivre…",
+     "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+     "narrated": true,
+     "outcome_key": "resolved",
+     "register_note_fr": null,
+     "register_reason_native": null,
+     "story_pending": false,
+     "summary_native": "Ton billet de retour est pour mercredi prochain. Le jour où Lila n'a pas classe. À suivre…"
+    }
+   }
+  },
+  {
+   "estimated_seconds": 45,
+   "step": {
+    "id": "<id>",
+    "kind": "rule",
+    "prompt": {
+     "concept_id": 91,
+     "review": false,
+     "rule_card": {
+      "contrast": {
+       "right": "[Avant de partir], je ferme la fenêtre.",
+       "wrong": "Avant partir, je ferme la fenêtre."
+      },
+      "contrast_with": [
+       {
+        "id": "FR2_B12_SUBJ_CONJUNCTIONS",
+        "note": {
+         "de": "Zwei verschiedene Subjekte: pour que, avant que, sans que + Subjonctif.",
+         "en": "Two different subjects: pour que, avant que, sans que + subjonctif.",
+         "fr": "Deux sujets différents : pour que, avant que, sans que + subjonctif."
+        },
+        "title": {
+         "de": "Pour que, avant que, sans que + Subjonctif",
+         "en": "Pour que, avant que, sans que + subjonctif",
+         "fr": "Pour que, avant que, sans que + subjonctif"
+        }
+       },
+       {
+        "id": "FR2_B12_GERUND",
+        "note": {
+         "de": "„Beim / indem“ ist en + -ant: en cuisinant.",
+         "en": "'While / by doing' is en + -ant: en cuisinant.",
+         "fr": "« En faisant » se dit avec le gérondif : en cuisinant."
+        },
+        "title": {
+         "de": "Gérondif: en + -ant",
+         "en": "Gérondif: en + -ant",
+         "fr": "Le gérondif : en + -ant"
+        }
+       }
+      ],
+      "example": {
+       "fr": "[Avant de partir], elle a fermé la porte [sans faire] de bruit.",
+       "tr": {
+        "de": "Bevor sie ging, schloss sie die Tür, ohne ein Geräusch zu machen.",
+        "en": "Before leaving, she closed the door without making a sound."
+       }
+      },
+      "examples": [
+       {
+        "fr": "J'économise [pour partir] au Japon.",
+        "tr": {
+         "de": "Ich spare, um nach Japan zu reisen.",
+         "en": "I'm saving up to go to Japan."
+        }
+       },
+       {
+        "fr": "Il est parti [sans dire] au revoir.",
+        "tr": {
+         "de": "Er ist gegangen, ohne sich zu verabschieden.",
+         "en": "He left without saying goodbye."
+        }
+       },
+       {
+        "fr": "Je mets un réveil [pour ne pas oublier].",
+        "tr": {
+         "de": "Ich stelle einen Wecker, um es nicht zu vergessen.",
+         "en": "I set an alarm so as not to forget."
+        }
+       }
+      ],
+      "how": {
+       "de": "1. Prüf, ob beide Handlungen dasselbe Subjekt haben.\n2. Wähle die Verbindung: pour (Zweck), sans (ohne), avant de (bevor).\n3. Häng den Infinitiv an; eine Verneinung steht davor: pour ne pas oublier.",
+       "en": "1. Check that both actions have the same subject.\n2. Choose the link: pour (purpose), sans (without), avant de (before).\n3. Add the infinitive; a negation goes in front of it: pour ne pas oublier.",
+       "fr": "1. Vérifiez que les deux actions ont le même sujet.\n2. Choisissez le mot : pour (but), sans (manière), avant de (antériorité).\n3. Ajoutez l'infinitif ; la négation se place devant : pour ne pas oublier."
+      },
+      "more": {
+       "de": "Deutsch sagt „um zu“, „ohne zu“, „bevor ich gehe“; Französisch nimmt einfach den Infinitiv. Avant braucht vor einem Verb de (avant de partir), vor einem Nomen nicht (avant le départ). Afin de ist ein förmlicheres pour. Das gilt bei gleichem Subjekt; bei zwei Subjekten braucht man pour que + Subjonctif.",
+       "en": "English says 'without saying, before leaving'; German 'ohne zu sagen, bevor ich gehe'. French uses the bare infinitive. Avant needs de before a verb (avant de partir) but not before a noun (avant le départ). Afin de is a more formal pour. This works when the subject is the same; with two subjects you need pour que + subjonctif.",
+       "fr": "Avant demande de devant un infinitif (avant de partir) mais pas devant un nom (avant le départ). Afin de est un pour plus soutenu. Ces tournures supposent le même sujet ; sinon, pour que + subjonctif."
+      },
+      "pattern": {
+       "kind": "rows",
+       "rows": [
+        {
+         "fr": "J'économise [pour partir] au Japon.",
+         "label": "pour",
+         "shape": "none"
+        },
+        {
+         "fr": "Il est parti [sans dire] au revoir.",
+         "label": "sans",
+         "shape": "none"
+        },
+        {
+         "fr": "Lave-toi les mains [avant de manger].",
+         "label": "avant de",
+         "shape": "none"
+        }
+       ]
+      },
+      "rule": {
+       "de": "Nach pour, sans und avant de steht der Infinitiv, nie eine -ant-Form.",
+       "en": "After pour, sans and avant de, French uses the infinitive, never an -ing form.",
+       "fr": "Après pour, sans et avant de, on met l'infinitif, jamais une forme en -ant."
+      },
+      "speaker": "margaux_barman",
+      "traps": [
+       {
+        "right": "Il est parti [sans dire] au revoir.",
+        "why": {
+         "de": "Nach sans kein -ant: Der Infinitiv übernimmt das.",
+         "en": "No -ant after sans: the infinitive does the job of English -ing.",
+         "fr": "Pas de -ant après sans : l'infinitif suffit."
+        },
+        "wrong": "Il est parti sans disant au revoir."
+       },
+       {
+        "right": "Je travaille [pour gagner] ma vie.",
+        "why": {
+         "de": "Pour steht direkt vor dem Infinitiv, ohne à („um zu“ hat hier kein à).",
+         "en": "Pour takes the infinitive directly, with no à (German 'um zu' has no French 'à').",
+         "fr": "Pour se construit directement avec l'infinitif, sans à."
+        },
+        "wrong": "Je travaille pour à gagner ma vie."
+       }
+      ]
+     },
+     "scene_example_fr": null,
+     "scene_example_speaker": null,
+     "title_fr": "Pour, sans, avant de + infinitif",
+     "title_native": "Pour, sans, avant de + infinitif"
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "choice",
+     "option_id": "opt_d5e39a7c"
+    },
+    "intent": "right"
+   },
+   "estimated_seconds": 16,
+   "key": {
+    "accepted_answers": [
+     "Avant de partir, je ferme la fenêtre."
+    ],
+    "solution_fr": "Avant de partir, je ferme la fenêtre.",
+    "target": {
+     "concept_title": true,
+     "id": "91",
+     "kind": "grammar",
+     "label_fr": "Pour, sans, avant de + infinitif",
+     "label_native": "Pour, sans, avant de + infinitif"
+    },
+    "task_type": "choice"
+   },
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": null,
+    "correction": null,
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "answer_key": {
+       "digests": [
+        "<id><id>"
+       ],
+       "salt": "<id>",
+       "version": 1
+      },
+      "goal_native": null,
+      "help_available": [
+       "hint",
+       "solution"
+      ],
+      "instruction_native": "Quelle phrase suit la règle du jour ?",
+      "optional": false,
+      "options": [
+       {
+        "id": "opt_d5e39a7c",
+        "text_fr": "Avant de partir, je ferme la fenêtre."
+       },
+       {
+        "id": "opt_ea67691f",
+        "text_fr": "Avant partir, je ferme la fenêtre."
+       }
+      ],
+      "prompt_fr": null,
+      "source_fr": null,
+      "target": {
+       "concept_title": true,
+       "id": "91",
+       "kind": "grammar",
+       "label_fr": "",
+       "label_native": "Pour, sans, avant de + infinitif"
+      },
+      "task_type": "choice"
+     },
+     "status": "completed"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "recall",
+    "prompt": {
+     "answer_key": {
+      "digests": [
+       "<id><id>"
+      ],
+      "salt": "<id>",
+      "version": 1
+     },
+     "goal_native": null,
+     "help_available": [
+      "hint",
+      "solution"
+     ],
+     "instruction_native": "Quelle phrase suit la règle du jour ?",
+     "optional": false,
+     "options": [
+      {
+       "id": "opt_d5e39a7c",
+       "text_fr": "Avant de partir, je ferme la fenêtre."
+      },
+      {
+       "id": "opt_ea67691f",
+       "text_fr": "Avant partir, je ferme la fenêtre."
+      }
+     ],
+     "prompt_fr": null,
+     "source_fr": null,
+     "target": {
+      "concept_title": true,
+      "id": "91",
+      "kind": "grammar",
+      "label_fr": "",
+      "label_native": "Pour, sans, avant de + infinitif"
+     },
+     "task_type": "choice"
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "text",
+     "text": "Il est parti sans dire au revoir."
+    },
+    "intent": "right-with-slip"
+   },
+   "estimated_seconds": 27,
+   "key": {
+    "accepted_answers": [
+     "Il est parti sans dire au revoir."
+    ],
+    "solution_fr": "Il est parti sans dire au revoir.",
+    "target": {
+     "concept_title": true,
+     "id": "91",
+     "kind": "grammar",
+     "label_fr": "Pour, sans, avant de + infinitif",
+     "label_native": "Pour, sans, avant de + infinitif"
+    },
+    "task_type": "transform"
+   },
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": null,
+    "correction": null,
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "answer_key": null,
+      "goal_native": "Une partie enfreint la règle du jour.",
+      "help_available": [
+       "hint",
+       "solution"
+      ],
+      "instruction_native": "Corrige cette phrase.",
+      "optional": false,
+      "options": [],
+      "prompt_fr": "Il est parti sans disant au revoir.",
+      "source_fr": "Il est parti sans disant au revoir.",
+      "target": {
+       "concept_title": true,
+       "id": "91",
+       "kind": "grammar",
+       "label_fr": "",
+       "label_native": "Pour, sans, avant de + infinitif"
+      },
+      "task_type": "transform"
+     },
+     "status": "completed"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "recall",
+    "prompt": {
+     "answer_key": null,
+     "goal_native": "Une partie enfreint la règle du jour.",
+     "help_available": [
+      "hint",
+      "solution"
+     ],
+     "instruction_native": "Corrige cette phrase.",
+     "optional": false,
+     "options": [],
+     "prompt_fr": "Il est parti sans disant au revoir.",
+     "source_fr": "Il est parti sans disant au revoir.",
+     "target": {
+      "concept_title": true,
+      "id": "91",
+      "kind": "grammar",
+      "label_fr": "",
+      "label_native": "Pour, sans, avant de + infinitif"
+     },
+     "task_type": "transform"
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "text",
+     "text": "Je travaille pour gagner ma vie."
+    },
+    "intent": "right-with-slip"
+   },
+   "estimated_seconds": 27,
+   "key": {
+    "accepted_answers": [
+     "Je travaille pour gagner ma vie."
+    ],
+    "solution_fr": "Je travaille pour gagner ma vie.",
+    "target": {
+     "concept_title": true,
+     "id": "91",
+     "kind": "grammar",
+     "label_fr": "Pour, sans, avant de + infinitif",
+     "label_native": "Pour, sans, avant de + infinitif"
+    },
+    "task_type": "transform"
+   },
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": null,
+    "correction": null,
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "answer_key": null,
+      "goal_native": "Une partie enfreint la règle du jour.",
+      "help_available": [
+       "hint",
+       "solution"
+      ],
+      "instruction_native": "Corrige cette phrase.",
+      "optional": false,
+      "options": [],
+      "prompt_fr": "Je travaille pour à gagner ma vie.",
+      "source_fr": "Je travaille pour à gagner ma vie.",
+      "target": {
+       "concept_title": true,
+       "id": "91",
+       "kind": "grammar",
+       "label_fr": "",
+       "label_native": "Pour, sans, avant de + infinitif"
+      },
+      "task_type": "transform"
+     },
+     "status": "completed"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "recall",
+    "prompt": {
+     "answer_key": null,
+     "goal_native": "Une partie enfreint la règle du jour.",
+     "help_available": [
+      "hint",
+      "solution"
+     ],
+     "instruction_native": "Corrige cette phrase.",
+     "optional": false,
+     "options": [],
+     "prompt_fr": "Je travaille pour à gagner ma vie.",
+     "source_fr": "Je travaille pour à gagner ma vie.",
+     "target": {
+      "concept_title": true,
+      "id": "91",
+      "kind": "grammar",
+      "label_fr": "",
+      "label_native": "Pour, sans, avant de + infinitif"
+     },
+     "task_type": "transform"
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "text",
+     "text": "Il m’en a parlé."
+    },
+    "intent": "right-with-slip"
+   },
+   "estimated_seconds": 20,
+   "key": {
+    "accepted_answers": [
+     "Il m'en a parlé."
+    ],
+    "solution_fr": "Il m'en a parlé.",
+    "target": {
+     "concept_title": true,
+     "id": "82",
+     "kind": "grammar",
+     "label_fr": "Deux pronoms ensemble : je le lui donne",
+     "label_native": "Deux pronoms ensemble : je le lui donne"
+    },
+    "task_type": "transform"
+   },
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": null,
+    "correction": null,
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "answer_key": null,
+      "goal_native": "Une partie enfreint une règle que tu connais.",
+      "help_available": [
+       "hint",
+       "solution"
+      ],
+      "instruction_native": "Corrige cette phrase.",
+      "optional": false,
+      "options": [],
+      "prompt_fr": "Il me en a parlé.",
+      "source_fr": "Il me en a parlé.",
+      "target": {
+       "concept_title": true,
+       "id": "82",
+       "kind": "grammar",
+       "label_fr": "",
+       "label_native": "Deux pronoms ensemble : je le lui donne"
+      },
+      "task_type": "transform"
+     },
+     "status": "completed"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "recall",
+    "prompt": {
+     "answer_key": null,
+     "goal_native": "Une partie enfreint une règle que tu connais.",
+     "help_available": [
+      "hint",
+      "solution"
+     ],
+     "instruction_native": "Corrige cette phrase.",
+     "optional": false,
+     "options": [],
+     "prompt_fr": "Il me en a parlé.",
+     "source_fr": "Il me en a parlé.",
+     "target": {
+      "concept_title": true,
+      "id": "82",
+      "kind": "grammar",
+      "label_fr": "",
+      "label_native": "Deux pronoms ensemble : je le lui donne"
+     },
+     "task_type": "transform"
+    }
+   }
+  }
+ ],
+ "finish_status": 200,
+ "journey_id": "<id>",
+ "learner_level": "B1",
+ "native": "en",
+ "persona": "b1-en",
+ "private_leaks": [],
+ "quality": "average",
+ "resolution": {
+  "chapter_recap_fr": null,
+  "character_line_fr": "Ton billet de retour est pour mercredi prochain. Le jour où Lila n'a pas classe. À suivre…",
+  "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+  "narrated": true,
+  "outcome_key": "resolved",
+  "register_note_fr": null,
+  "register_reason_native": null,
+  "story_pending": false,
+  "summary_native": "Ton billet de retour est pour mercredi prochain. Le jour où Lila n'a pas classe. À suivre…"
+ },
+ "scenario": {
+  "character_name": "Camille Marchand",
+  "level_band": "B1",
+  "scenario_key": "story_<id>",
+  "title_fr": "La lettre"
+ },
+ "status": "active"
+}

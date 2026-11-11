@@ -1,0 +1,963 @@
+{
+ "budget_seconds": 600,
+ "cefr": "B1.1",
+ "control_language": null,
+ "day": 3,
+ "day_shape": "standard",
+ "estimated_active_seconds": 692,
+ "events": [
+  {
+   "estimated_seconds": 54,
+   "step": {
+    "id": "<id>",
+    "kind": "rule",
+    "prompt": {
+     "concept_id": 75,
+     "review": false,
+     "rule_card": {
+      "contrast": {
+       "right": "Quand je suis arrivé, le train [était] déjà parti.",
+       "wrong": "Quand je suis arrivé, le train est déjà parti."
+      },
+      "contrast_with": [
+       {
+        "id": "FR2_A21_PC_AVOIR",
+        "note": {
+         "de": "Das Passé composé erzählt das Ereignis selbst und bringt die Geschichte voran.",
+         "en": "The passé composé tells the event itself and moves the story on.",
+         "fr": "Le passé composé raconte l'événement lui-même et fait avancer le récit."
+        },
+        "title": {
+         "de": "Passé composé mit avoir: regelmäßige und unregelmäßige Partizipien",
+         "en": "Passé composé with avoir, regular and irregular participles",
+         "fr": "Le passé composé avec avoir : formes régulières et irrégulières"
+        }
+       },
+       {
+        "id": "FR2_B11_NARRATION",
+        "note": {
+         "de": "In einer ganzen Geschichte ist das Plus-que-parfait die dritte Ebene neben Imparfait und Passé composé.",
+         "en": "In a whole story the plus-que-parfait is the third layer, next to imparfait and passé composé.",
+         "fr": "Dans un récit complet, le plus-que-parfait est la troisième couche, à côté de l'imparfait et du passé composé."
+        },
+        "title": {
+         "de": "Erzählen: Imparfait, Passé composé, Plus-que-parfait",
+         "en": "Telling a story: imparfait, passé composé, plus-que-parfait",
+         "fr": "Raconter : imparfait, passé composé, plus-que-parfait"
+        }
+       }
+      ],
+      "example": {
+       "fr": "Quand Léa est arrivée, ses amis [étaient déjà partis]."
+      },
+      "examples": [
+       {
+        "fr": "Nous [avions déjà mangé] quand ils ont appelé.",
+        "tr": {
+         "de": "Wir hatten schon gegessen, als sie anriefen.",
+         "en": "We had already eaten when they called."
+        }
+       },
+       {
+        "fr": "Je n'[avais jamais vu] la mer avant mes vingt ans.",
+        "tr": {
+         "de": "Ich hatte das Meer nie gesehen, bevor ich zwanzig war.",
+         "en": "I had never seen the sea before I was twenty."
+        }
+       },
+       {
+        "fr": "Elle [s'était trompée] de jour.",
+        "tr": {
+         "de": "Sie hatte sich im Tag geirrt.",
+         "en": "She had got the day wrong."
+        }
+       }
+      ],
+      "from_scene": true,
+      "how": {
+       "de": "1. Finde den späteren Moment in der Vergangenheit: quand je suis arrivé.\n2. Nimm das Hilfsverb, das das Verb im Passé composé hat: avoir, oder être bei partir, arriver, se lever…\n3. Setz dieses Hilfsverb ins Imparfait: avais, était, étions…\n4. Häng das Participe an, nach être mit Angleichung.",
+       "en": "1. Find the later past moment: quand je suis arrivé.\n2. Take the auxiliary the verb has in the passé composé: avoir, or être for partir, arriver, se lever…\n3. Put that auxiliary in the imparfait: avais, était, étions…\n4. Add the participle, with the usual agreement after être.",
+       "fr": "1. Repérez le moment passé le plus récent : quand je suis arrivé.\n2. Prenez l'auxiliaire du passé composé : avoir, ou être pour partir, arriver, se lever…\n3. Mettez cet auxiliaire à l'imparfait : avais, était, étions…\n4. Ajoutez le participe, accordé comme d'habitude après être."
+      },
+      "more": {
+       "de": "Stell dir die Vergangenheit als Linie vor. Das Passé composé geht auf ihr weiter; das Plus-que-parfait schaut von einem Punkt darauf zurück auf etwas Früheres. Es funktioniert genau wie das deutsche Plusquamperfekt: war abgefahren, hatte vergessen.",
+       "en": "Picture the past as a line. The passé composé moves you along it; the plus-que-parfait looks back from a point on the line to something earlier. English often lets the simple past do both jobs (I saw I forgot my keys), so English speakers tend to skip it. French marks the earlier step.",
+       "fr": "Imaginez le passé comme une ligne. Le passé composé avance sur cette ligne ; le plus-que-parfait regarde en arrière, vers quelque chose d'antérieur. Il accompagne souvent déjà, jamais ou pas encore."
+      },
+      "pattern": {
+       "kind": "table",
+       "note": {
+        "de": "Dasselbe Hilfsverb und dieselbe Angleichung wie im Passé composé; nur das Hilfsverb steht im Imparfait.",
+        "en": "Same auxiliary and agreement as the passé composé; only the auxiliary moves into the imparfait.",
+        "fr": "Même auxiliaire et même accord qu'au passé composé ; seul l'auxiliaire passe à l'imparfait."
+       },
+       "rows": [
+        {
+         "fr": "[avais] fini · [étais] parti(e)",
+         "p": "j'"
+        },
+        {
+         "fr": "[avais] fini · [étais] parti(e)",
+         "p": "tu"
+        },
+        {
+         "fr": "[avait] fini · [était] parti(e)",
+         "p": "il, elle, on"
+        },
+        {
+         "fr": "[avions] fini · [étions] parti(e)s",
+         "p": "nous"
+        },
+        {
+         "fr": "[aviez] fini · [étiez] parti(e)(s)",
+         "p": "vous"
+        },
+        {
+         "fr": "[avaient] fini · [étaient] parti(e)s",
+         "p": "ils, elles"
+        }
+       ],
+       "verb": "finir · partir"
+      },
+      "rule": {
+       "de": "Für etwas, das vor einem anderen vergangenen Moment geschah: avoir oder être ins Imparfait, dazu das Participe.",
+       "en": "For something that happened before another past moment, put avoir or être in the imparfait and add the participle.",
+       "fr": "Pour une action antérieure à un autre moment passé : avoir ou être à l'imparfait, puis le participe."
+      },
+      "speaker": "margaux_barman",
+      "traps": [
+       {
+        "right": "J'ai vu que j'[avais oublié] mes clés.",
+        "why": {
+         "de": "Das Vergessen geschah vor dem Sehen, also eine Stufe zurück ins Plus-que-parfait.",
+         "en": "The forgetting happened before the seeing, so it steps back into the plus-que-parfait.",
+         "fr": "L'oubli précède le moment où je le vois : on recule d'un cran, au plus-que-parfait."
+        },
+        "wrong": "J'ai vu que j'ai oublié mes clés."
+       },
+       {
+        "right": "Nous [étions] arrivé[s] en retard.",
+        "why": {
+         "de": "Arriver bildet alle zusammengesetzten Zeiten mit être, und das Participe richtet sich nach dem Subjekt.",
+         "en": "Arriver takes être in every compound tense, and the participle agrees with the subject.",
+         "fr": "Arriver se conjugue avec être à tous les temps composés, et le participe s'accorde avec le sujet."
+        },
+        "wrong": "Nous avions arrivé en retard."
+       }
+      ]
+     },
+     "scene_example_fr": "Quand Léa est arrivée, ses amis [étaient déjà partis].",
+     "scene_example_speaker": "margaux_barman",
+     "title_fr": "Le plus-que-parfait : le passé du passé",
+     "title_native": "Le plus-que-parfait : le passé du passé"
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "choice",
+     "option_id": "opt_c1644b68"
+    },
+    "intent": "right"
+   },
+   "estimated_seconds": 34,
+   "key": {
+    "accepted_answers": [
+     "Hier soir, quand Gus est arrivé au marché du canal, nous avions déjà choisi une table au Mistral."
+    ],
+    "solution_fr": "Hier soir, quand Gus est arrivé au marché du canal, nous avions déjà choisi une table au Mistral.",
+    "target": {
+     "concept_title": true,
+     "id": "75",
+     "kind": "grammar",
+     "label_fr": "Le plus-que-parfait : le passé du passé",
+     "label_native": "Le plus-que-parfait : le passé du passé"
+    },
+    "task_type": "choice"
+   },
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": null,
+    "correction": null,
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "answer_key": {
+       "digests": [
+        "<id><id>"
+       ],
+       "salt": "<id>",
+       "version": 1
+      },
+      "goal_native": null,
+      "help_available": [
+       "hint",
+       "solution"
+      ],
+      "instruction_native": "Quelle phrase suit la règle du jour ?",
+      "optional": false,
+      "options": [
+       {
+        "id": "opt_14a51b8a",
+        "text_fr": "Hier soir, quand Gus est arrivé au marché du canal, nous avons déjà choisi une table au Mistral."
+       },
+       {
+        "id": "opt_dbeddd4a",
+        "text_fr": "Hier soir, quand Gus est arrivé au marché du canal, nous choisissions déjà une table au Mistral."
+       },
+       {
+        "id": "opt_c1644b68",
+        "text_fr": "Hier soir, quand Gus est arrivé au marché du canal, nous avions déjà choisi une table au Mistral."
+       }
+      ],
+      "prompt_fr": null,
+      "source_fr": null,
+      "target": {
+       "concept_title": true,
+       "id": "75",
+       "kind": "grammar",
+       "label_fr": "",
+       "label_native": "Le plus-que-parfait : le passé du passé"
+      },
+      "task_type": "choice"
+     },
+     "status": "completed"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "recall",
+    "prompt": {
+     "answer_key": {
+      "digests": [
+       "<id><id>"
+      ],
+      "salt": "<id>",
+      "version": 1
+     },
+     "goal_native": null,
+     "help_available": [
+      "hint",
+      "solution"
+     ],
+     "instruction_native": "Quelle phrase suit la règle du jour ?",
+     "optional": false,
+     "options": [
+      {
+       "id": "opt_14a51b8a",
+       "text_fr": "Hier soir, quand Gus est arrivé au marché du canal, nous avons déjà choisi une table au Mistral."
+      },
+      {
+       "id": "opt_dbeddd4a",
+       "text_fr": "Hier soir, quand Gus est arrivé au marché du canal, nous choisissions déjà une table au Mistral."
+      },
+      {
+       "id": "opt_c1644b68",
+       "text_fr": "Hier soir, quand Gus est arrivé au marché du canal, nous avions déjà choisi une table au Mistral."
+      }
+     ],
+     "prompt_fr": null,
+     "source_fr": null,
+     "target": {
+      "concept_title": true,
+      "id": "75",
+      "kind": "grammar",
+      "label_fr": "",
+      "label_native": "Le plus-que-parfait : le passé du passé"
+     },
+     "task_type": "choice"
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "text",
+     "text": "J’ai vu que j’avais oublié mes clés."
+    },
+    "intent": "right-with-slip"
+   },
+   "estimated_seconds": 28,
+   "key": {
+    "accepted_answers": [
+     "J'ai vu que j'avais oublié mes clés."
+    ],
+    "solution_fr": "J'ai vu que j'avais oublié mes clés.",
+    "target": {
+     "concept_title": true,
+     "id": "75",
+     "kind": "grammar",
+     "label_fr": "Le plus-que-parfait : le passé du passé",
+     "label_native": "Le plus-que-parfait : le passé du passé"
+    },
+    "task_type": "transform"
+   },
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": null,
+    "correction": null,
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "answer_key": null,
+      "goal_native": "Une partie enfreint la règle du jour.",
+      "help_available": [
+       "hint",
+       "solution"
+      ],
+      "instruction_native": "Corrige cette phrase.",
+      "optional": false,
+      "options": [],
+      "prompt_fr": "J'ai vu que j'ai oublié mes clés.",
+      "source_fr": "J'ai vu que j'ai oublié mes clés.",
+      "target": {
+       "concept_title": true,
+       "id": "75",
+       "kind": "grammar",
+       "label_fr": "",
+       "label_native": "Le plus-que-parfait : le passé du passé"
+      },
+      "task_type": "transform"
+     },
+     "status": "completed"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "recall",
+    "prompt": {
+     "answer_key": null,
+     "goal_native": "Une partie enfreint la règle du jour.",
+     "help_available": [
+      "hint",
+      "solution"
+     ],
+     "instruction_native": "Corrige cette phrase.",
+     "optional": false,
+     "options": [],
+     "prompt_fr": "J'ai vu que j'ai oublié mes clés.",
+     "source_fr": "J'ai vu que j'ai oublié mes clés.",
+     "target": {
+      "concept_title": true,
+      "id": "75",
+      "kind": "grammar",
+      "label_fr": "",
+      "label_native": "Le plus-que-parfait : le passé du passé"
+     },
+     "task_type": "transform"
+    }
+   }
+  },
+  {
+   "estimated_seconds": 51,
+   "page": [
+    {
+     "alt_native": "The canal in the rain.",
+     "dialogue": [],
+     "narration_fr": "Il pleut sur le canal."
+    },
+    {
+     "alt_native": "Two friends at the zinc.",
+     "dialogue": [
+      {
+       "character_id": "margaux_barman",
+       "character_name": "Margaux",
+       "text_fr": "Tu as une minute ?",
+       "text_native": null
+      }
+     ],
+     "narration_fr": ""
+    },
+    {
+     "alt_native": "A glass.",
+     "dialogue": [
+      {
+       "character_id": "margaux_barman",
+       "character_name": "Margaux",
+       "text_fr": "Quand Léa est arrivée, ses amis étaient déjà partis.",
+       "text_native": null
+      }
+     ],
+     "narration_fr": "Un silence."
+    },
+    {
+     "alt_native": "The friend turns to you.",
+     "dialogue": [
+      {
+       "character_id": "margaux_barman",
+       "character_name": "Margaux",
+       "text_fr": "Alors, on fait quoi ?",
+       "text_native": null
+      }
+     ],
+     "narration_fr": ""
+    }
+   ],
+   "step": {
+    "id": "<id>",
+    "kind": "scene",
+    "prompt": {
+     "audio_available": false,
+     "character_line_audio_url": null,
+     "character_line_fr": "Tu en penses quoi ?",
+     "image_url": "/assets/serial/locations/le_mistral-booth.webp",
+     "listen_first": false,
+     "margin_notes": [],
+     "objective_native": "Offer your help for the exhibition.",
+     "panels": null,
+     "premise_native": "Ta grand-mère t'a laissé ce qu'il y a au-dessus du Mistral, et le feu qu'il y a eu dessous. Tu le gardes, tu le partages, ou tu le laisses partir ?",
+     "previously_fr": [
+      "Le mauvais accueil : Ta grand-mère t'a laissé ce qu'il y a au-dessus du Mistral, et le feu qu'il y a eu dessous. Tu le gardes, tu le partages, ou tu…"
+     ],
+     "reread_native": null,
+     "season_part": {
+      "day_in_segment": 1,
+      "kind": "gap",
+      "season_id": "s1",
+      "segment": "g1"
+     },
+     "setup_fr": "Romy cherche une idée pour une exposition dans le quartier.",
+     "setup_native": "A day between two tentpoles.",
+     "stage": null
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "text",
+     "text": "Je ne sais pas encore. mais je ne pars pas demain."
+    },
+    "intent": "average"
+   },
+   "estimated_seconds": 513,
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": "D'accord.",
+    "correction": null,
+    "next_turn": {
+     "character_id": "margaux_barman",
+     "character_line_audio_url": null,
+     "character_line_fr": "D'accord.",
+     "character_name": "Margaux",
+     "choices": [],
+     "help_available": [
+      "hint",
+      "translation",
+      "suggested_response"
+     ],
+     "input_modes": [
+      "text"
+     ],
+     "letter": null,
+     "max_turns": 3,
+     "objective_native": "Offer your help for the exhibition.",
+     "repair_allowed": false,
+     "spoken_reply": false,
+     "targets": [
+      {
+       "concept_title": true,
+       "id": "75",
+       "kind": "grammar",
+       "label_fr": "Le plus-que-parfait : le passé du passé",
+       "label_native": "Le plus-que-parfait : le passé du passé"
+      },
+      {
+       "concept_title": false,
+       "id": "1411",
+       "kind": "vocabulary",
+       "label_fr": "exposition",
+       "label_native": null
+      }
+     ],
+     "thread": [
+      {
+       "character_fr": "D'accord.",
+       "character_lines": [],
+       "correction": null,
+       "learner_fr": "Je ne sais pas encore. mais je ne pars pas demain.",
+       "unchecked": false
+      }
+     ],
+     "turn_index": 1
+    },
+    "pending": false,
+    "reply_source": "model",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "character_id": "margaux_barman",
+      "character_line_audio_url": null,
+      "character_line_fr": "D'accord.",
+      "character_name": "Margaux",
+      "choices": [],
+      "help_available": [
+       "hint",
+       "translation",
+       "suggested_response"
+      ],
+      "input_modes": [
+       "text"
+      ],
+      "letter": null,
+      "max_turns": 3,
+      "objective_native": "Offer your help for the exhibition.",
+      "repair_allowed": false,
+      "spoken_reply": false,
+      "targets": [
+       {
+        "concept_title": true,
+        "id": "75",
+        "kind": "grammar",
+        "label_fr": "Le plus-que-parfait : le passé du passé",
+        "label_native": "Le plus-que-parfait : le passé du passé"
+       },
+       {
+        "concept_title": false,
+        "id": "1411",
+        "kind": "vocabulary",
+        "label_fr": "exposition",
+        "label_native": null
+       }
+      ],
+      "thread": [
+       {
+        "character_fr": "D'accord.",
+        "character_lines": [],
+        "correction": null,
+        "learner_fr": "Je ne sais pas encore. mais je ne pars pas demain.",
+        "unchecked": false
+       }
+      ],
+      "turn_index": 1
+     },
+     "status": "active"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "respond",
+    "prompt": {
+     "character_id": "margaux_barman",
+     "character_line_audio_url": null,
+     "character_line_fr": "Tu en penses quoi ?",
+     "character_name": "Margaux",
+     "choices": [],
+     "help_available": [
+      "hint",
+      "translation",
+      "suggested_response"
+     ],
+     "input_modes": [
+      "text"
+     ],
+     "letter": null,
+     "max_turns": 3,
+     "objective_native": "Offer your help for the exhibition.",
+     "repair_allowed": true,
+     "spoken_reply": false,
+     "targets": [
+      {
+       "concept_title": true,
+       "id": "75",
+       "kind": "grammar",
+       "label_fr": "Le plus-que-parfait : le passé du passé",
+       "label_native": "Le plus-que-parfait : le passé du passé"
+      },
+      {
+       "concept_title": false,
+       "id": "1411",
+       "kind": "vocabulary",
+       "label_fr": "exposition",
+       "label_native": null
+      }
+     ],
+     "thread": [],
+     "turn_index": 0
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "text",
+     "text": "D’accord, je t’aide. on commence quand ?"
+    },
+    "intent": "average"
+   },
+   "estimated_seconds": 513,
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": "D'accord.",
+    "correction": null,
+    "next_turn": {
+     "character_id": "margaux_barman",
+     "character_line_audio_url": null,
+     "character_line_fr": "D'accord.",
+     "character_name": "Margaux",
+     "choices": [],
+     "help_available": [
+      "hint",
+      "translation",
+      "suggested_response"
+     ],
+     "input_modes": [
+      "text"
+     ],
+     "letter": null,
+     "max_turns": 3,
+     "objective_native": "Offer your help for the exhibition.",
+     "repair_allowed": false,
+     "spoken_reply": false,
+     "targets": [
+      {
+       "concept_title": true,
+       "id": "75",
+       "kind": "grammar",
+       "label_fr": "Le plus-que-parfait : le passé du passé",
+       "label_native": "Le plus-que-parfait : le passé du passé"
+      },
+      {
+       "concept_title": false,
+       "id": "1411",
+       "kind": "vocabulary",
+       "label_fr": "exposition",
+       "label_native": null
+      }
+     ],
+     "thread": [
+      {
+       "character_fr": "D'accord.",
+       "character_lines": [],
+       "correction": null,
+       "learner_fr": "Je ne sais pas encore. mais je ne pars pas demain.",
+       "unchecked": false
+      },
+      {
+       "character_fr": "D'accord.",
+       "character_lines": [],
+       "correction": null,
+       "learner_fr": "D'accord, je t'aide. on commence quand ?",
+       "unchecked": false
+      }
+     ],
+     "turn_index": 2
+    },
+    "pending": false,
+    "reply_source": "model",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "character_id": "margaux_barman",
+      "character_line_audio_url": null,
+      "character_line_fr": "D'accord.",
+      "character_name": "Margaux",
+      "choices": [],
+      "help_available": [
+       "hint",
+       "translation",
+       "suggested_response"
+      ],
+      "input_modes": [
+       "text"
+      ],
+      "letter": null,
+      "max_turns": 3,
+      "objective_native": "Offer your help for the exhibition.",
+      "repair_allowed": false,
+      "spoken_reply": false,
+      "targets": [
+       {
+        "concept_title": true,
+        "id": "75",
+        "kind": "grammar",
+        "label_fr": "Le plus-que-parfait : le passé du passé",
+        "label_native": "Le plus-que-parfait : le passé du passé"
+       },
+       {
+        "concept_title": false,
+        "id": "1411",
+        "kind": "vocabulary",
+        "label_fr": "exposition",
+        "label_native": null
+       }
+      ],
+      "thread": [
+       {
+        "character_fr": "D'accord.",
+        "character_lines": [],
+        "correction": null,
+        "learner_fr": "Je ne sais pas encore. mais je ne pars pas demain.",
+        "unchecked": false
+       },
+       {
+        "character_fr": "D'accord.",
+        "character_lines": [],
+        "correction": null,
+        "learner_fr": "D'accord, je t'aide. on commence quand ?",
+        "unchecked": false
+       }
+      ],
+      "turn_index": 2
+     },
+     "status": "active"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "respond",
+    "prompt": {
+     "character_id": "margaux_barman",
+     "character_line_audio_url": null,
+     "character_line_fr": "D'accord.",
+     "character_name": "Margaux",
+     "choices": [],
+     "help_available": [
+      "hint",
+      "translation",
+      "suggested_response"
+     ],
+     "input_modes": [
+      "text"
+     ],
+     "letter": null,
+     "max_turns": 3,
+     "objective_native": "Offer your help for the exhibition.",
+     "repair_allowed": false,
+     "spoken_reply": false,
+     "targets": [
+      {
+       "concept_title": true,
+       "id": "75",
+       "kind": "grammar",
+       "label_fr": "Le plus-que-parfait : le passé du passé",
+       "label_native": "Le plus-que-parfait : le passé du passé"
+      },
+      {
+       "concept_title": false,
+       "id": "1411",
+       "kind": "vocabulary",
+       "label_fr": "exposition",
+       "label_native": null
+      }
+     ],
+     "thread": [
+      {
+       "character_fr": "D'accord.",
+       "character_lines": [],
+       "correction": null,
+       "learner_fr": "Je ne sais pas encore. mais je ne pars pas demain.",
+       "unchecked": false
+      }
+     ],
+     "turn_index": 1
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "text",
+     "text": "Je reste encore un peu. je veux comprendre qui elle etait."
+    },
+    "intent": "average"
+   },
+   "estimated_seconds": 513,
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": "D'accord.",
+    "correction": {
+     "corrected_fr": "était",
+     "kind": "edit",
+     "note_native": "Il manque l’accent : « était ».",
+     "notes_native": [
+      "Il manque l’accent : « était »."
+     ],
+     "span_fr": "etait"
+    },
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "model",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "character_id": "margaux_barman",
+      "character_line_audio_url": null,
+      "character_line_fr": "D'accord.",
+      "character_name": "Margaux",
+      "choices": [],
+      "help_available": [
+       "hint",
+       "translation",
+       "suggested_response"
+      ],
+      "input_modes": [
+       "text"
+      ],
+      "letter": null,
+      "max_turns": 3,
+      "objective_native": "Offer your help for the exhibition.",
+      "repair_allowed": false,
+      "spoken_reply": false,
+      "targets": [
+       {
+        "concept_title": true,
+        "id": "75",
+        "kind": "grammar",
+        "label_fr": "Le plus-que-parfait : le passé du passé",
+        "label_native": "Le plus-que-parfait : le passé du passé"
+       },
+       {
+        "concept_title": false,
+        "id": "1411",
+        "kind": "vocabulary",
+        "label_fr": "exposition",
+        "label_native": null
+       }
+      ],
+      "thread": [
+       {
+        "character_fr": "D'accord.",
+        "character_lines": [],
+        "correction": null,
+        "learner_fr": "Je ne sais pas encore. mais je ne pars pas demain.",
+        "unchecked": false
+       },
+       {
+        "character_fr": "D'accord.",
+        "character_lines": [],
+        "correction": null,
+        "learner_fr": "D'accord, je t'aide. on commence quand ?",
+        "unchecked": false
+       }
+      ],
+      "turn_index": 2
+     },
+     "status": "completed"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "respond",
+    "prompt": {
+     "character_id": "margaux_barman",
+     "character_line_audio_url": null,
+     "character_line_fr": "D'accord.",
+     "character_name": "Margaux",
+     "choices": [],
+     "help_available": [
+      "hint",
+      "translation",
+      "suggested_response"
+     ],
+     "input_modes": [
+      "text"
+     ],
+     "letter": null,
+     "max_turns": 3,
+     "objective_native": "Offer your help for the exhibition.",
+     "repair_allowed": false,
+     "spoken_reply": false,
+     "targets": [
+      {
+       "concept_title": true,
+       "id": "75",
+       "kind": "grammar",
+       "label_fr": "Le plus-que-parfait : le passé du passé",
+       "label_native": "Le plus-que-parfait : le passé du passé"
+      },
+      {
+       "concept_title": false,
+       "id": "1411",
+       "kind": "vocabulary",
+       "label_fr": "exposition",
+       "label_native": null
+      }
+     ],
+     "thread": [
+      {
+       "character_fr": "D'accord.",
+       "character_lines": [],
+       "correction": null,
+       "learner_fr": "Je ne sais pas encore. mais je ne pars pas demain.",
+       "unchecked": false
+      },
+      {
+       "character_fr": "D'accord.",
+       "character_lines": [],
+       "correction": null,
+       "learner_fr": "D'accord, je t'aide. on commence quand ?",
+       "unchecked": false
+      }
+     ],
+     "turn_index": 2
+    }
+   }
+  },
+  {
+   "estimated_seconds": 12,
+   "step": {
+    "id": "<id>",
+    "kind": "resolution",
+    "prompt": {
+     "chapter_recap_fr": null,
+     "character_line_fr": "La journée se termine.",
+     "image_url": "/assets/serial/locations/le_mistral-booth.webp",
+     "narrated": false,
+     "outcome_key": "resolved",
+     "register_note_fr": null,
+     "register_reason_native": null,
+     "story_pending": false,
+     "summary_native": "The day ends."
+    }
+   }
+  }
+ ],
+ "finish_status": 200,
+ "journey_id": "<id>",
+ "learner_level": "B1",
+ "native": "en",
+ "persona": "b1-en",
+ "private_leaks": [],
+ "quality": "average",
+ "resolution": {
+  "chapter_recap_fr": null,
+  "character_line_fr": "La journée se termine.",
+  "image_url": "/assets/serial/locations/le_mistral-booth.webp",
+  "narrated": false,
+  "outcome_key": "resolved",
+  "register_note_fr": null,
+  "register_reason_native": null,
+  "story_pending": false,
+  "summary_native": "The day ends."
+ },
+ "scenario": {
+  "character_name": "Margaux",
+  "level_band": "B1",
+  "scenario_key": "story_<id>",
+  "title_fr": "Plusieurs semaines (0)"
+ },
+ "status": "active"
+}

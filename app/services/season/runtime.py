@@ -31,7 +31,7 @@ from functools import lru_cache
 from typing import Any
 
 from app.config import settings
-from app.services import address, scene_ledger, story_memory
+from app.services import address, scene_ledger, scene_record, story_memory
 from app.services.cast_registry import display_names
 from app.services.season.clock import SEASON_KEY, Position, played_log, record_played
 from app.services.season.director import (
@@ -68,12 +68,12 @@ from app.services.season.page import (
     turns_of,
 )
 from app.services.season.turns import (
-    CLASSIFIER,
     MATCH_THRESHOLD,
     ReplyChoice,
     ack_panel,
     answers_question,
     classifier_payload,
+    classifier_prompt,
     clean_ack,
     gate_signal,
     generic_ask_again_panel,
@@ -175,7 +175,7 @@ def today_for(live: dict | None, *, user: Any, seed: str, now: Any = None) -> To
     local = learner_date(user, now)
     pos = position_for(season, state, today=local)
     flags = effective_flags(season, state, seed=seed)
-    if pos.is_tentpole and pos.segment is not None:
+    if scene_record.enabled() and pos.is_tentpole and pos.segment is not None:
         # #147: what the tentpole's pages are written with holds from its first page.
         flags = {**flags, **(getattr(pos.segment, "opens_with", None) or {})}
     return Today(
@@ -392,7 +392,7 @@ def routed_sentence(reply: dict[str, Any], understood: bool, turn: dict[str, Any
     #535: the options of a clue (``enquete``, ``dechiffrer``) are things to point at:
     «LARTSIM» is the reversed neon sign, not words anyone says."""
 
-    if not understood or reply.get("clumsy") or is_tap_target(turn):
+    if not understood or reply.get("clumsy") or (scene_record.enabled() and is_tap_target(turn)):
         return None
     examples = [str(example).strip() for example in reply.get("examples") or [] if str(example).strip()]
     return examples[0] if examples else None
@@ -501,7 +501,7 @@ def asks_only_once(turns: list[dict[str, Any]]) -> bool:
     """Whether the page has one exchange: its scene then asks one more, written from what
     the learner said, before it closes (owner decision of 9 Nov 2026)."""
 
-    return len(turns) == 1 and exchanges_for(turns[0]) == 1 and not any(
+    return scene_record.enabled() and len(turns) == 1 and exchanges_for(turns[0]) == 1 and not any(
         reply.get("repeat_once") for reply in turns[0].get("replies") or []
     )
 
@@ -798,7 +798,7 @@ def classify(
         usage: list[dict] = []
         try:
             parsed, _ = engine._json_call(
-                CLASSIFIER,
+                classifier_prompt(),
                 classifier_payload(turn, text, history, band=band, known=known, ledger=ledger, one_exchange=one_exchange),
                 ReplyChoice,
                 usage.append,
@@ -1001,7 +1001,7 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         )
     routed, asked = _replay(db, user, turns, scene_id, history)
     index, answered = _walk(turns, routed)
-    if (first := _listening_route(history, index, turns)) is not None:
+    if scene_record.enabled() and (first := _listening_route(history, index, turns)) is not None:
         # The page's one question has its answer, and the scene asked one of its own: this
         # reply answers that, and closes the day.
         return _listening_answer(
@@ -1027,7 +1027,7 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
     )
     # #145: what the scene has said so far, this turn included. The reader is told it, and
     # it decides below whether the turn's question has been answered.
-    ledger = _ledger_now(scenario, task, turns, history, answer.text)
+    ledger = _ledger_now(scenario, task, turns, history, answer.text) if scene_record.enabled() else None
     planned = int(getattr(task, "max_turns", 0) or len(turns))
     # A day planned with the extra exchange asks it; one already under way keeps its count.
     may_listen = not routed and asks_only_once(turns) and planned > 1
@@ -1038,9 +1038,14 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
     # STORY-LISTENS 2026-10-12: the addressee first answers what the learner actually
     # wrote (a name, a question, a joke), then the authored reaction plays. Only a
     # model reading carries one; a card tap or the matcher plays the page as written.
-    ack = None if carded is not None else _checked_ack(
-        db, user, choice.ack_fr, turn=turn, answer=answer, history=history, ledger=ledger, turn_index=turn_index
-    )
+    if carded is not None:
+        ack = None
+    elif scene_record.enabled():
+        ack = _checked_ack(
+            db, user, choice.ack_fr, turn=turn, answer=answer, history=history, ledger=ledger, turn_index=turn_index
+        )
+    else:
+        ack = clean_ack(choice.ack_fr, learner_text=answer.text, address=turn_address(turn))
     if (
         carded is None
         and not choice.clear
@@ -1055,7 +1060,7 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         # that takes up the question's own subject («Je garde la cuisine», «Je reste
         # trois jours») was an answer: the scene hears it (the fallback route plays, the
         # ack answers the content) and moves on, never re-asking it.
-        and not answers_question(turn, answer.text, intent=choice.learner_intent)
+        and not answers_question(turn, answer.text, intent=choice.learner_intent if scene_record.enabled() else None)
     ):
         # QA-STORY: the reply said none of what the turn is about (a name alone, a
         # greeting, another subject). The addressee asks once for the missing part;
@@ -1093,7 +1098,11 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
     if listen:
         beats.append({**ack_panel(_named_turn(scenario, turn), listen), "id": f"{turn.get('id')}.listen"})
     closed_reading = None
-    if closing:
+    if closing and not scene_record.enabled():
+        # Until WP-110 draws the page, the rest of the day is said here; the
+        # ending is the «À suivre…» caption alone.
+        beats += list(season_ctx.get("tail") or [])
+    elif closing:
         # The conversation ends from what was said, then the rest of the day is said here;
         # the ending is the «À suivre…» caption alone.
         beats, closed_reading = _closed(
@@ -1188,7 +1197,11 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
             # #535: this route's label was a clue's tap target, so the page has no sentence
             # for it. Only then may the recap offer the learner's own corrected sentence; a
             # fallback or clumsy route says nothing the learner meant.
-            **({"tap": True} if understood and not reply.get("clumsy") and is_tap_target(turn) else {}),
+            **(
+                {"tap": True}
+                if scene_record.enabled() and understood and not reply.get("clumsy") and is_tap_target(turn)
+                else {}
+            ),
             # The scene asked one of its own: how the page's question was answered waits
             # with the exchange until the day closes on the next reply.
             **(
@@ -1212,7 +1225,7 @@ def _heard(choice: ReplyChoice | None, reply: dict[str, Any] | None) -> dict[str
         heard["meant"] = str(reply["means"])
     if choice is not None and choice.learned:
         heard["learned"] = [fact.model_dump() for fact in choice.learned]
-    if choice is not None and choice.learner_intent:
+    if choice is not None and choice.learner_intent and scene_record.enabled():
         heard["intent"] = choice.learner_intent
     return heard or None
 
@@ -1385,7 +1398,11 @@ def _cast_names(scenario) -> set[str]:
     from app.services.cast_registry import name_words
 
     season_ctx = scenario.story_context.get(SEASON_CONTEXT_KEY) or {}
-    names: set[str] = name_words()
+    names: set[str] = (
+        name_words()
+        if scene_record.enabled()
+        else {"Odile", "Margaux", "Lila", "Marin", "Gus", "Augustin", "Romy", "Camille", "Marchand"}
+    )
     try:
         season = load_season(str(season_ctx.get("id") or "s1"))
         for member in season.cast:
@@ -1662,7 +1679,7 @@ def _settle_tentpole(season: Season, state: dict, season_ctx: dict, details: dic
             state = apply_sets(season, state, solve.get("sets_on_fail"), source=f"{solve.get('id')}/default")
     position = season_ctx.get("position") or {}
     tentpole = season.tentpoles.get(str(position.get("segment")))
-    if tentpole is not None and tentpole.opens_with:
+    if scene_record.enabled() and tentpole is not None and tentpole.opens_with:
         # The days until Day B read it too: Gus does not go back to «vous» in between.
         state = apply_sets(season, state, tentpole.opens_with, source=f"{tentpole.id}/opens_with")
     if tentpole is not None and int(position.get("day_in_segment") or 0) == 2:
