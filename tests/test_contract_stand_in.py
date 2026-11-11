@@ -219,6 +219,16 @@ def test_the_day_nobody_could_write_is_still_todays_day_of_the_story(
     assembled_client, db_session, journey_enabled, clock, season_on, stand_in_on, no_writer, monkeypatch  # noqa: F811
 ):
     _reads(season_on, monkeypatch, route="named", mark="le petit bateau")
+    # The quarter as it stood before the forge built Marin's flat (11 Nov): the day's own
+    # place is not built, so the stand-in goes to its second place.
+    from app.services.season import world as season_world
+
+    register = season_world.built_stages
+
+    def without_the_flat(season_id: str = "s1") -> dict[str, str]:
+        return {loc: room for loc, room in register(season_id).items() if loc != "marin_lila_flat"}
+
+    monkeypatch.setattr(season_world, "built_stages", without_the_flat)
     d, user = _learner(assembled_client, db_session, gap_id="g3", premise="les_canapes")
     journey = _play(d, season_on, clock, "Le deux. Le petit bateau.")
     assert no_writer and not season_on.director_contexts()
