@@ -63,7 +63,7 @@ def eager(db_session, monkeypatch):
     def same_session():
         yield db_session
 
-    monkeypatch.setattr(celery_app.conf, "task_always_eager", True)
+    monkeypatch.setitem(celery_app.conf, "task_always_eager", True)
     monkeypatch.setattr(settle_task, "_session", same_session)
     monkeypatch.setattr(verdict_settle, "dispatcher", verdict_settle._dispatch_celery)
 
