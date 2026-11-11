@@ -13,6 +13,8 @@
  * Pure: no React, so node tests read it directly.
  */
 
+import { chromeLocale } from './chrome-locale';
+
 import {
   fillForge,
   forgeStageLabel,
@@ -172,8 +174,6 @@ export type RecapRuleRow = {
   proof: Array<{ fr: string; fixed: boolean }>;
 };
 
-const LOCALES: Record<string, string> = { en: 'en-GB', de: 'de-DE', fr: 'fr-FR' };
-
 /** «Thu 26 Sept» in the chrome language; «today» when it is due today or earlier. */
 export function dueText(copy: ForgeCopy, iso: string | null | undefined, language: string, now: Date = new Date()): string {
   if (!iso) return copy.recap_no_due;
@@ -182,7 +182,7 @@ export function dueText(copy: ForgeCopy, iso: string | null | undefined, languag
   const endOfToday = new Date(now);
   endOfToday.setHours(23, 59, 59, 999);
   if (due.getTime() <= endOfToday.getTime()) return copy.recap_due_today;
-  const date = due.toLocaleDateString(LOCALES[language] || 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  const date = due.toLocaleDateString(chromeLocale(language), { weekday: 'short', day: 'numeric', month: 'short' });
   return fillForge(copy.recap_next_due, { date });
 }
 

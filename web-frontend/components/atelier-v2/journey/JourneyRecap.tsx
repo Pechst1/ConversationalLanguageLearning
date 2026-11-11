@@ -105,7 +105,7 @@ export function JourneyRecap({
   // Round 3: mid-day, this is a hand-on, not the day's end.
   const handOn = Boolean(sessionNext);
   const keepsake = view?.keepsake ?? null;
-  const date = keepsakeDate(keepsake?.local_date);
+  const date = keepsakeDate(keepsake?.local_date, language);
   const seal = partial || handOn ? null : view?.seal ?? null;
   const chrome = recapChrome(language);
   const keepsakeTitle = seal && keepsake?.title_fr?.trim() ? keepsake.title_fr.trim() : null;
@@ -175,6 +175,7 @@ export function JourneyRecap({
               variant={seal.variant}
               no={seal.no}
               date={seal.date ?? ''}
+              label={seal.label}
               rings={seal.rings}
               ringsLabel={seal.ringsLabel}
             />

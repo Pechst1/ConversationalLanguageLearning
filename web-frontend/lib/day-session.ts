@@ -18,6 +18,7 @@
 
 import type { DayMarkGroup, DayMarkGroupState, DayMarkState } from '@/components/atelier-v2/journey/day-mark';
 import { dayMarkLabel } from '@/components/atelier-v2/journey/day-mark';
+import { chromeLocale } from './chrome-locale';
 import type {
   ControlLanguage,
   DaySession,
@@ -258,8 +259,6 @@ export function sessionRows(
   });
 }
 
-const LOCALE: Record<ControlLanguage, string> = { en: 'en-GB', de: 'de-DE', fr: 'fr-FR' };
-
 /**
  * The Fertig screen's first tile: the day's scene, or — on a day that played more
  * than one act (Phase 2 «Folge in Akten») — its acts («2 Akte»).
@@ -278,7 +277,7 @@ export function tallyStory(tally: DaySession['tally'], language: ControlLanguage
 export function storyReadLine(tally: DaySession['tally'], language: ControlLanguage): string | null {
   const words = Number(tally.story_words || 0);
   if (!(words > 0)) return null;
-  const formatted = new Intl.NumberFormat(LOCALE[language] ?? 'en-GB').format(words);
+  const formatted = new Intl.NumberFormat(chromeLocale(language)).format(words);
   return daySessionCopy(language).story_read(formatted);
 }
 

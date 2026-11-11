@@ -29,7 +29,8 @@ import type {
   RecapWord,
 } from '@/types/daily-journey';
 
-import { sealForEdition, type SealVariant } from '@/components/ui/Seal';
+import { sealCaption, sealForEdition, type SealVariant } from '@/components/ui/Seal';
+import { chromeDate, chromeLocale } from '@/lib/chrome-locale';
 import { momentumCopy, sealRingsLabel } from '@/lib/momentum-copy';
 
 import { formatDuration } from './journey-state';
@@ -55,8 +56,10 @@ export type RecapSeal = {
   /** The edition (`journey.edition_no`); `null` on a server that does not send it. */
   no: number | null;
   variant: SealVariant;
-  /** «22 sept.», the journey's own local day. */
+  /** «22 Sept» / «22. Sept.» / «22 sept.», the journey's own local day in the chrome language. */
   date: string | null;
+  /** The seal's accessible name in the chrome language («Seal Nº 47 · 22 Sept»). */
+  label: string;
   /** WP-S7: one ring per rule held on this day. */
   rings: number;
   /** WP-S7: the rings' accessible words, in the chrome language. */
@@ -229,6 +232,7 @@ export function rewardView(
   const completed = !partial && journey.status === 'completed';
   const editionNo =
     typeof journey.edition_no === 'number' && Number.isFinite(journey.edition_no) ? journey.edition_no : null;
+  const sealDate = keepsakeDate(recap.keepsake?.local_date ?? journey.local_date, language);
 
   return {
     partial,
@@ -236,7 +240,8 @@ export function rewardView(
       ? {
           no: editionNo,
           variant: editionNo != null ? sealForEdition(editionNo).variant : 'quad',
-          date: keepsakeDate(recap.keepsake?.local_date ?? journey.local_date),
+          date: sealDate,
+          label: [momentumCopy(language).seal_name, sealCaption(editionNo, sealDate)].filter(Boolean).join(' '),
           rings: heldToday(journey),
           ringsLabel: sealRingsLabel(momentumCopy(language), heldToday(journey)),
         }
@@ -301,19 +306,11 @@ export function colophonDigest(
   return said.some((value) => saysTheSame(value, line)) ? null : line;
 }
 
-/** «22 sept.» for the keepsake caption. `null` for an unreadable date. */
-export function keepsakeDate(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const parsed = new Date(`${value}T12:00:00`);
-  if (Number.isNaN(parsed.getTime())) return null;
-  try {
-    return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' }).format(parsed);
-  } catch {
-    return null;
-  }
+/** «22 Sept» / «22. Sept.» / «22 sept.» for the seal and the keepsake caption (#694: chrome, not French).
+ * `null` for an unreadable date. */
+export function keepsakeDate(value: string | null | undefined, language: ControlLanguage): string | null {
+  return chromeDate(value, language, 'day');
 }
-
-const MONTH_LOCALE: Record<ControlLanguage, string> = { en: 'en-GB', de: 'de-DE', fr: 'fr-FR' };
 
 /**
  * WP-L8 — «At this rhythm: A1.2 around November.» in the chrome language, from
@@ -336,7 +333,7 @@ export function forecastLineText(
   const sameYear = !Number.isNaN(today.getTime()) && today.getFullYear() === year;
   let name: string;
   try {
-    name = new Intl.DateTimeFormat(MONTH_LOCALE[language] ?? 'en-GB', {
+    name = new Intl.DateTimeFormat(chromeLocale(language), {
       month: 'long',
       ...(sameYear ? {} : { year: 'numeric' }),
     }).format(new Date(year, month - 1, 15, 12));

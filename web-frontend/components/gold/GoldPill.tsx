@@ -3,15 +3,16 @@
    Card ground, pill radius, the gold square, Instrument Sans 600 in tabular
    numerals. Each paying answer lifts a small square into the pill and rolls the
    digits once; a delayed recall splits the square in two and says «Tu t'en
-   souvenais.». Tapping the pill opens «D'où vient ton or». Renders nothing
+   souvenais.» (in the chrome language, #694). Tapping the pill opens «D'où vient ton or». Renders nothing
    while l'or is not on this learner's screen. Must sit inside an `.av2` root. */
 
 import React, { useEffect, useRef, useState } from 'react';
 
+import { useControlLanguage } from '@/components/atelier-v2/ui';
 import { pulseAppHaptic } from '@/lib/haptics';
 import { isNativePlatform } from '@/lib/native-platform';
 import { useGold } from '@/lib/gold';
-import { GOLD_REMEMBERED_FR, GOLD_SHEET_TITLE_FR, type GoldGrain } from '@/lib/gold-model';
+import { goldCopy, type GoldGrain } from '@/lib/gold-model';
 import { cn } from '@/lib/utils';
 
 import { GoldGlyph } from './GoldGlyph';
@@ -46,6 +47,7 @@ function Grain({ grain }: { grain: GoldGrain }) {
 
 export function GoldPill({ className }: { className?: string }) {
   const { view, grain, visible } = useGold();
+  const copy = goldCopy(useControlLanguage());
   const [shownGrain, setShownGrain] = useState<GoldGrain | null>(null);
   const [open, setOpen] = useState(false);
   const lastGrain = useRef<number>(grain?.id ?? 0);
@@ -64,7 +66,7 @@ export function GoldPill({ className }: { className?: string }) {
 
   if (!visible || !view) return null;
   const balance = view.balance ?? 0;
-  const label = `${balance} feuilles d’or. ${GOLD_SHEET_TITLE_FR}`;
+  const label = copy.pill_label(balance);
 
   return (
     <>
@@ -87,12 +89,12 @@ export function GoldPill({ className }: { className?: string }) {
       </button>
       {shownGrain?.delayed && (
         <span className="av2-gold-remembered" role="status" key={`r-${shownGrain.id}`}>
-          {GOLD_REMEMBERED_FR}
+          {copy.remembered}
         </span>
       )}
       {/* The live region a screen reader hears; the motion itself is decorative. */}
       <span className="sr-only" role="status">
-        {shownGrain ? `+${shownGrain.amount} feuilles d’or` : ''}
+        {shownGrain ? copy.grain_said(shownGrain.amount) : ''}
       </span>
       <GoldSheet open={open} onClose={() => setOpen(false)} view={view} />
     </>
