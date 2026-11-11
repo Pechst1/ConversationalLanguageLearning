@@ -380,12 +380,13 @@ try {
   writeContactSheet({ outDir, shots: shots.list, findings, meta });
   writeFileSync(
     path.join(outDir, 'report.json'),
-    JSON.stringify({ meta, seconds, timings, coverage, summary: findings.summary(), failures: findings.failures, shots: shots.list.length }, null, 2),
+    JSON.stringify({ meta, seconds, timings, coverage, summary: findings.summary(), failures: findings.failures, known: findings.known, shots: shots.list.length }, null, 2),
   );
   if (stack && !argv.includes('--keep')) await stack.stop();
   await sleep(200);
-  console.log(`\n[walk] ${shots.list.length} screens, ${findings.results.length} checks, ${findings.failures.length} failed, ${seconds}s`);
-  for (const r of findings.summary()) console.log(`  ${r.fail ? 'FAIL' : ' ok '} ${r.id}: ${r.pass} pass, ${r.fail} fail`);
+  console.log(`\n[walk] ${shots.list.length} screens, ${findings.results.length} checks, ${findings.failures.length} failed, ${findings.known.length} known (open issues), ${seconds}s`);
+  for (const r of findings.summary()) console.log(`  ${r.fail ? 'FAIL' : ' ok '} ${r.id}: ${r.pass} pass, ${r.fail} fail${r.known ? `, ${r.known} known` : ''}`);
+  for (const r of findings.known) console.log(`  known #${r.known}: ${r.id} — ${r.detail.slice(0, 160)}`);
   console.log(`[walk] contact sheet: ${path.join(outDir, 'index.html')}`);
   if (findings.failures.length) exitCode = 1;
   process.exit(exitCode);

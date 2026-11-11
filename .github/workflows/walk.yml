@@ -141,7 +141,10 @@ jobs:
           d = json.load(open(path))
           lines = [f"### Browser walk · ${{ matrix.shard }}\n", f"{d['meta']}\n", f"{d['shots']} screens; {len(d['failures'])} failed assertions\n"]
           for row in d["summary"]:
-              lines.append(f"- {'FAIL' if row['fail'] else 'ok'} `{row['id']}`: {row['pass']} pass, {row['fail']} fail")
+              known = f", {row['known']} known" if row.get("known") else ""
+              lines.append(f"- {'FAIL' if row['fail'] else 'ok'} `{row['id']}`: {row['pass']} pass, {row['fail']} fail{known}")
+          for row in d.get("known", []):
+              lines.append(f"- known #{row['known']} `{row['id']}`: {row['detail'][:200]}")
           open(os.environ["GITHUB_STEP_SUMMARY"], "a").write("\n".join(lines) + "\n")
           PY
 
