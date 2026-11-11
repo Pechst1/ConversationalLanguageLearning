@@ -1732,6 +1732,21 @@ def _verb_after_subject(word: str) -> bool:
     )
 
 
+def has_verb(text: object) -> bool:
+    """Whether ``text`` holds a word that is, or could be, a verb form: «Tu dois dire.»,
+    «Reste à la table.» do; «Un peu.», «Oui, ce soir.», «Merci beaucoup.» do not (#558:
+    the line a learner repeats aloud is a sentence, never a fragment)."""
+    return any(
+        tok.low in _FORM_LEMMA or tok.low in _AUXILIARY_FORMS or _could_be_verb(tok.low)
+        for tok in _tokens(_norm(text))
+    )
+
+
+def word_count(text: object) -> int:
+    """The words of ``text``, punctuation and elided apostrophes aside."""
+    return len(_tokens(_norm(text)))
+
+
 def _is_number_word(word: str) -> bool:
     return all(_pos(part) == "number" for part in word.split("-")) if word else False
 
@@ -3318,6 +3333,7 @@ __all__ = [
     "edit_is_grounded",
     "first_valid_edit",
     "grounded_errata",
+    "has_verb",
     "known_people",
     "merge_deterministic_errata",
     "repair_text",
@@ -3328,4 +3344,5 @@ __all__ = [
     "to_erratum",
     "verify_edit",
     "verify_erratum",
+    "word_count",
 ]

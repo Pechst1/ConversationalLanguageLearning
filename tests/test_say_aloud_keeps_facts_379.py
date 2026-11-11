@@ -53,7 +53,8 @@ def test_the_walks_line_does_not_replace_the_learners_date_and_reason():
 
 def test_without_a_correction_the_line_is_the_learners_own_sentence():
     line = spoken_reply.repeat_line_for(_step(REPLY, WRITTEN_BEFOREHAND))
-    assert line == REPLY
+    # #558 (11 Nov): their sentence, with the slips no margin flagged made right.
+    assert line == "Je veux retourner le deux décembre, parce que je suis fatigue de Berlin."
 
 
 def test_a_line_that_states_a_different_date_is_not_offered():

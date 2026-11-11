@@ -11,8 +11,8 @@ question was posed, so nothing the learner did could change it; and a reaction n
 its speaker with a text prefix whenever it was not the scene's own character, instead
 of the speaker of the turn being answered. Pinned here:
 
-1. what the learner chose (a card, or a free reply the page clearly heard) is kept
-   with the exchange as the sentence to say, and that is the line the recap offers;
+1. what the learner chose is the line the recap offers: the card they tapped, or
+   (#558) their own free reply, corrected, never another route's example;
 2. a turn's reaction names no one inside the line when the turn's own addressee
    speaks it.
 """
@@ -98,9 +98,10 @@ def test_a_reaction_spoken_by_the_turns_addressee_names_no_one_in_the_line(offli
     assert [line["speaker_id"] for line in evaluation.reply_lines] == ["lila_bonnet"]
 
 
-def test_a_free_reply_the_page_heard_is_said_as_the_route_it_took(monkeypatch, offline):
+def test_a_free_reply_the_page_heard_is_said_in_the_learners_words(monkeypatch, offline):
     """«Non, ce n'est pas lui» routed to the page's «no» reply must not be answered by
-    the page's first example, which says the opposite."""
+    the page's first example, which says the opposite. #558: nor by the route's own
+    example, a sentence the learner did not write; their reply, corrected, is the line."""
 
     season = load_season("s1")
     page = resolve_day(season, "t1", "a", flags=effective_flags(season, {}, seed="x"), band="A1", language="de")
@@ -119,5 +120,5 @@ def test_a_free_reply_the_page_heard_is_said_as_the_route_it_took(monkeypatch, o
     _record(history, text, evaluation)
     # The conversation closes on this turn; the step still holds the question's example.
     line = spoken_reply.repeat_line_for(_the_step_after(history, turn))
-    assert line == other["examples"][0], (line, other["examples"][0])
+    assert line == text, (line, other["examples"][0])
     assert line != turn_example(turn)
