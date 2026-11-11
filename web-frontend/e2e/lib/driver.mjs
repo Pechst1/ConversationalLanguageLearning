@@ -47,6 +47,17 @@ export const FORGE_SPOT = {
   field: 'input.forge-spot__input',
 };
 
+/**
+ * Le Lexique's review deck (pages/vocabulary/review.tsx), where the day's words step
+ * lands: a card is turned («Show the answer», `.lx-turn`), then filed with «Again» or
+ * «I know it». Checked against the page by e2e/lib/lexique-deck-walk.test.mjs.
+ */
+export const LEXIQUE_DECK = {
+  turn: 'button.lx-turn:not([disabled])',
+  again: 'button.lx-rate--again:not([disabled])',
+  know: 'button.lx-rate--know:not([disabled])',
+};
+
 /** What :data:`SNAPSHOT_FN` reads the page with (Playwright hands a page function one argument). */
 export const SNAPSHOT_ARGS = { typeable: TYPEABLE_FIELD, wordBankTile: WORD_BANK_TILE };
 

@@ -3,7 +3,7 @@
 // and runs the learner-clarity assertions as it goes.
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { FORGE_REPAIR, FORGE_SPOT, snapshot, sleep, TYPEABLE_FIELD, WORD_BANK_TILE } from './driver.mjs';
+import { FORGE_REPAIR, FORGE_SPOT, LEXIQUE_DECK, snapshot, sleep, TYPEABLE_FIELD, WORD_BANK_TILE } from './driver.mjs';
 import { missLayoutChecks, readingIsSteady } from './miss-layout.mjs';
 import { reversed, trackKey, trackVerdicts } from './verdict-timeline.mjs';
 import { englishWords, SERVER_BANNER } from './assertions.mjs';
@@ -346,6 +346,21 @@ export class LearnerWalk {
       const next = page.locator('.fr-next:not([disabled])').last();
       if (await next.count()) { await next.click({ timeout: 3000 }).catch(() => {}); return true; }
       return false;
+    }
+    // Le Lexique's deck (the day's words step): turn the card, then file it, «I know it»
+    // mostly and «Again» every fourth card. Main's season walk stood 10 s on «Lexique —
+    // review 0/27» on day 8 (run 43000929857): the walk had no hand for the grades.
+    const grade = page.locator(state.itemIndex % 4 === 3 ? LEXIQUE_DECK.again : LEXIQUE_DECK.know).first();
+    if (await grade.count()) {
+      state.itemIndex += 1;
+      await grade.click({ timeout: 3000 }).catch(() => {});
+      await sleep(250);
+      return true;
+    }
+    const turn = page.locator(LEXIQUE_DECK.turn).first();
+    if (await turn.count()) {
+      await turn.click({ timeout: 3000 }).catch(() => {});
+      return true;
     }
     if (s.epFeedback.length && (await this.copyForgeCorrection())) return true;
     if (s.graded.length && (await this.appealOnce(s))) return true;
