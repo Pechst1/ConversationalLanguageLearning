@@ -1369,17 +1369,18 @@ def note_courrier_push(db: Session, *, mission: RealWorldMission, kind: str, tod
 def letter_register(db: Session, *, user: User, mission: RealWorldMission) -> str:
     """The register this letter's writer uses with the learner: ``tu`` or ``vous``.
 
-    A cast member's is the story's (WP-97); anyone else's is the letter's own.
+    A cast member's is the story's (WP-97); anyone else's is the letter's own. Who is
+    cast is :func:`cast_author_id`'s answer, never a first name (#661): «Gus, ton ami» from
+    the scenario bank kept Augustin de Roncourt's «vous» in his push.
     """
 
     correspondent_id = str(getattr(mission, "correspondent_id", None) or "")
     thread = active_thread(db, user)
     world = (thread.world_bible if thread is not None and isinstance(thread.world_bible, dict) else {}) or {}
     cast = {str(member.get("id")) for member in world.get("cast") or [] if isinstance(member, dict)}
-    from app.services.serial_notifications import portrait_character
-
-    if correspondent_id and (correspondent_id in cast or portrait_character(correspondent_id)):
-        keys = {correspondent_id, portrait_character(correspondent_id) or correspondent_id}
+    author = cast_author_id(mission)
+    if author or (correspondent_id and correspondent_id in cast):
+        keys = {key for key in (correspondent_id, author) if key}
         return "tu" if any(learner_register(thread, key) == "tu" for key in keys) else "vous"
     target = str((mission.prompt_payload or {}).get("target_register") or "").strip().lower()
     return "tu" if target.startswith("tu") else "vous"

@@ -665,7 +665,8 @@ def courrier_push(db: Session, user: User, *, mission: Any, kind: str) -> Charac
 
     identity = courrier.correspondent_of(mission)
     correspondent_id = str(getattr(mission, "correspondent_id", None) or identity.get("id") or "")
-    key = portrait_character(correspondent_id)
+    # #661: the portrait is the cast member who wrote the letter, never a first-name match.
+    key = portrait_character(courrier.cast_author_id(mission))
     name = str(identity.get("name") or CHARACTER_NAMES.get(key or "", "") or "").strip() or "Quelqu’un"
     register = courrier.letter_register(db, user=user, mission=mission)
     mood = character_mood(db, user, key) if key else None

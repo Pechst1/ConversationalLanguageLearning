@@ -6861,6 +6861,8 @@ class MissionConversationService:
                 _record_mission_llm_cost(self.db, user_id=getattr(user, "id", None), result=result, purpose="character_reply", mission_id=getattr(mission, "id", None))
                 problems = voice_problems([result.content], register=expected, level=level)
                 if not problems:
+                    problems = self._logistics_problems(result.content, mission=mission, user_text=user_text)
+                if not problems:
                     return self._keep_relatives_with_their_owner(
                         result.content,
                         mission=mission,
@@ -6882,6 +6884,38 @@ class MissionConversationService:
         except MODEL_CALL_FAILED as exc:
             logger.debug("Mission conversation fallback", error=str(exc))
             return self._fallback_response(mission, branch=preliminary_branch, objective_progress=latest_progress)
+
+    def _logistics_problems(self, reply: str, *, mission: RealWorldMission, user_text: str) -> list[str]:
+        """#114 / #661 (root cause #145): the reply may not bring in an order, a tracking or
+        reference number, or a request for the learner's address that the thread never
+        held, whatever register it is said in. Returned as the rewrite hint, so it rides
+        the same single retry as the voice check, then the plain acknowledgement."""
+
+        from app.services import lane_guards  # late: lane_guards imports the story engine
+
+        payload = mission.prompt_payload or {}
+        messenger = payload.get("messenger") or {}
+        authored = [
+            payload.get("conversation_opening"),
+            messenger.get("opening_message"),
+            messenger.get("brief"),
+            getattr(mission, "brief", None),
+        ]
+        turns = sorted(mission.turns or [], key=lambda item: item.turn_index)
+        grounded = [
+            *authored,
+            getattr(mission, "title", None),
+            messenger.get("twist"),
+            " ".join(str(cue) for cue in messenger.get("ambient_cues") or []),
+            json.dumps(getattr(mission, "source_snapshot", None) or {}, ensure_ascii=False),
+            user_text,
+            *[turn.text for turn in turns],
+        ]
+        found = lane_guards.invented_logistics(reply, grounded=grounded, authored=authored)
+        if found:
+            logger.info("Courrier reply invents logistics", problems=found)
+            return [lane_guards.invented_logistics_hint(found)]
+        return []
 
     def _keep_relatives_with_their_owner(
         self,

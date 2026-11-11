@@ -217,3 +217,90 @@ def test_cast_only(monkeypatch) -> None:
     friend = letter("camille", correspondence={"origin": "chain"}, messenger={"contact_name": "Camille", "target_register": "tu"})
     assert register(friend) is None, "a friend named Camille was given the cast's Camille Marchand's register"
     assert register(letter("boutique_anais", messenger={"contact_name": "Boutique Anaïs"})) is None
+
+
+#: The reply attempt 1 let through (review of #667): the same invented logistics, said in «tu».
+TU_ADDRESS_AND_TRACKING = (
+    "C'est parfait, mais tu peux me rappeler ton adresse ? J'ai un colis qui est arrivé à la "
+    "mauvaise porte. J'ai le numéro de suivi ici, c'est le 12345."
+)
+#: What a friend says to «je peux venir chercher mon colis chez ta voisine à midi».
+FRIEND_MIDDAY = "Super, merci ! Ma voisine est là à midi. Tu me dis quand tu l'as ?"
+CAMILLE_OPENING = "Ton colis est chez ma voisine. Tu as une serviette ? On peut partager la commande après."
+
+
+def _sorry_reply(db_session, *answers: str) -> tuple[str, _Recorded]:
+    from app.services.missions import MissionConversationService
+
+    user = _learner_with_thread(db_session, season=True)
+    llm = _Recorded(*answers)
+    reply = MissionConversationService(db_session, llm_service=llm).respond(
+        user=user, mission=_camille_letter(user, said=LEARNER_SORRY), user_text=LEARNER_SORRY
+    )
+    return reply, llm
+
+
+def _no_logistics(reply: str) -> None:
+    lowered = reply.lower()
+    assert "12345" not in reply and "suivi" not in lowered, f"an invented tracking number reached the learner: {reply}"
+    assert "adresse" not in lowered, f"the friend asked for an address she already has: {reply}"
+
+
+def test_tu_tracking(db_session) -> None:
+    """Done-when (b), whatever the register: the «tu» 12345 reply is rewritten, not shown."""
+
+    reply, llm = _sorry_reply(db_session, TU_ADDRESS_AND_TRACKING, FRIEND_MIDDAY)
+    _no_logistics(reply)
+    assert reply == FRIEND_MIDDAY, f"the rewrite was not the reply the learner got: {reply}"
+    hint = llm.calls[1]["system_prompt"]
+    assert "tracking" in hint and "address" in hint, "the rewrite was not told what to drop"
+
+
+def test_tu_tracking_twice(db_session) -> None:
+    """A model that invents the number again gets no third chance: the friend's plain «tu» line."""
+
+    reply, llm = _sorry_reply(db_session, TU_ADDRESS_AND_TRACKING)
+    _no_logistics(reply)
+    assert not _vous(reply), reply
+    assert len(llm.calls) == 2, llm.calls
+
+
+def test_grounded_kept(db_session) -> None:
+    """A reply about what the thread holds (the parcel, the neighbour, midday) is shown as written."""
+
+    reply, llm = _sorry_reply(db_session, FRIEND_MIDDAY)
+    assert reply == FRIEND_MIDDAY and len(llm.calls) == 1
+
+
+def test_guard_exact_text() -> None:
+    """The 10 Nov text and its «tu» twin are caught by the guard itself; the friend's answers are not."""
+
+    from app.services import lane_guards
+
+    held = [CAMILLE_OPENING, LEARNER_SORRY]
+    for text in (ADDRESS_AND_TRACKING, TU_ADDRESS_AND_TRACKING):
+        found = lane_guards.invented_logistics(text, grounded=held, authored=[CAMILLE_OPENING])
+        assert any("suivi" in item for item in found), found
+        assert any("address" in item for item in found), found
+    assert lane_guards.invented_logistics(FRIEND_MIDDAY, grounded=held, authored=[CAMILLE_OPENING]) == []
+    assert lane_guards.invented_logistics(FRIEND_ANSWER, grounded=held, authored=[CAMILLE_OPENING]) == []
+
+
+def test_push_register(db_session) -> None:
+    """A scenario-bank «Gus, ton ami» (tu) is not Augustin de Roncourt («vous» in the season):
+    his letter's push says «tu» and shows no cast portrait (review of #667, point 2)."""
+
+    from app.services import story_correspondence as courrier
+    from app.services.serial_notifications import courrier_push
+
+    user = _learner_with_thread(db_session, season=True)
+    letter = _camille_letter(user)
+    letter.id = uuid4()
+    letter.correspondent_id = "gus"
+    letter.prompt_payload["messenger"].update(contact_name="Gus", contact_role="ton ami")
+    letter.prompt_payload["correspondence"] = {"correspondent_id": "gus", "origin": "courrier"}
+    assert courrier.letter_register(db_session, user=user, mission=letter) == "tu", (
+        "a friend named Gus was given Augustin de Roncourt's «vous»"
+    )
+    push = courrier_push(db_session, user, mission=letter, kind="arrived")
+    assert push.register == "tu" and push.image is None, push
