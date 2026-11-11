@@ -59,7 +59,7 @@ def _card_problems(line: str, checked: cc.CheckedCorrection) -> list[str]:
     return problems
 
 
-def test_a_model_sentence_does_not_pluralise_the_noun_its_own_note_keeps_singular():
+def test_singular_note_keeps_noun():
     # The model lists «des» -> «de» with a note that says the noun stays singular, and its
     # sentence adds the -s anyway. The card printed «de serviettes» under that note.
     erratum = {"learner_text": "des", "corrected_target": "de", "why_wrong": SINGULAR_NOTE, "task_error_type": "grammar"}
@@ -73,7 +73,7 @@ def test_a_model_sentence_does_not_pluralise_the_noun_its_own_note_keeps_singula
     assert _card_problems(LINE, checked) == []
 
 
-def test_the_walk_correction_prints_the_form_its_note_names():
+def test_walk_card_prints_note_form():
     # «Done when» of #662: the model's sentence says «de serviettes», its note «pas de serviette».
     erratum = {
         "learner_text": "pas des serviette",
@@ -88,7 +88,7 @@ def test_the_walk_correction_prints_the_form_its_note_names():
     assert _card_problems(LINE, checked) == []
 
 
-def test_a_note_quoting_another_form_than_its_fix_is_written_again_from_the_fix():
+def test_note_rewritten_from_fix():
     # The model's fix says «serviettes», its note quotes «pas de serviette»: the card would
     # print one form and explain another. The note is written from the fix the card prints.
     erratum = {
@@ -104,7 +104,7 @@ def test_a_note_quoting_another_form_than_its_fix_is_written_again_from_the_fix(
     assert "pas de serviettes" in shown["why_wrong"]
 
 
-def test_the_rules_note_quotes_the_form_their_card_prints():
+def test_rule_note_quotes_card():
     # The rules alone (no model): «des serviette» settles to «de serviettes» after the
     # negation, and the plural note quoted «des de serviettes», a form nobody wrote.
     errata = cc.deterministic_errata(LINE, language="en")
@@ -117,7 +117,7 @@ def test_the_rules_note_quotes_the_form_their_card_prints():
 
 
 @pytest.mark.parametrize("language", ["en", "fr", "de"])
-def test_a_rule_fix_widened_by_another_rule_explains_both_changes(language):
+def test_widened_fix_two_reasons(language):
     # «des serviette» -> «de serviettes» changes two words for two reasons: the note names both.
     plural = next(item for item in cc.deterministic_errata(LINE, language=language) if "serviette" in item["learner_text"])
     assert (plural["learner_text"], plural["corrected_target"]) == ("des serviette", "de serviettes")
