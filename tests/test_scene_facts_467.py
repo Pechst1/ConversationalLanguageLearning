@@ -77,9 +77,9 @@ def test_marin_does_not_ask_again_the_question_reply_2_just_answered():
     with pytest.raises(engine.SoftRejection) as caught:
         lanes.validate_voice(voice, payload)
     assert str(caught.value) == "reply_reasks_answered_question"
-    # Even if the retry says it again, what is served no longer asks it.
-    served = caught.value.proposal.reply_fr
-    assert "garder" not in served.casefold() and served == "Oui, bien sûr."
+    # A veto: re-rolled once, and if it says it again the authored line plays
+    # (``story_lanes._run_lane``). The reply is never served with the question cut out.
+    assert caught.value.vetoed
 
 
 def test_a_reply_that_takes_up_the_answer_passes():

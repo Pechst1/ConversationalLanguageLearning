@@ -28,6 +28,7 @@ from app.services import (
     correction_contract,
     learner_facts,
     scene_ledger,
+    scene_record,
     verdict_cutover,
     verdict_ledger,
     verdicts,
@@ -223,11 +224,11 @@ def canned_letter_problem(
     """
 
     domain = str(item.get("domain") or "")
-    if letter_register_mixed(item):
+    if scene_record.enabled() and letter_register_mixed(item):
         # #520: a letter that says «vous» in its opening and «ta taille» in its P.S. is
         # not printed, whoever wrote it.
         return "mixed_register"
-    if not follow_up and extra_claims_to_know(
+    if scene_record.enabled() and not follow_up and extra_claims_to_know(
         item.get("contact_name"), [item.get("scene_anchor"), item.get("opening_message"), item.get("twist")]
     ):
         return "claims_to_know"
@@ -2964,7 +2965,11 @@ class MissionGenerator:
                 messenger.get("twist")
                 if generated
                 and not voice_problems(
-                    [messenger.get("scene_anchor"), messenger.get("opening_message"), messenger.get("twist")],
+                    [
+                        *([messenger.get("scene_anchor")] if scene_record.enabled() else []),
+                        messenger.get("opening_message"),
+                        messenger.get("twist"),
+                    ],
                     register=writer_register,
                     level=None,
                 )
@@ -3302,9 +3307,14 @@ class MissionGenerator:
             "If letters_with_this_person is non-empty, this is the SAME person writing again: keep their name and "
             "role exactly, do not re-introduce them, and refer to at most one earlier exchange in passing. If chain "
             "is present, this is that numbered instalment of one continuing affair — carry the previous outcome "
-            "forward rather than starting a new situation. Anyone not in story_context writing here for the first "
-            "time has never met the learner: they write as a stranger with a reason to write, and never say you "
-            "have met, seen or know each other. level_limits is binding and checked by machine "
+            "forward rather than starting a new situation. "
+            + (
+                "Anyone not in story_context writing here for the first time has never met the learner: they write "
+                "as a stranger with a reason to write, and never say you have met, seen or know each other. "
+                if scene_record.enabled()
+                else ""
+            )
+            + "level_limits is binding and checked by machine "
             "after you write: use only words from level_limits.allowed_words when it is given (plus names, "
             "numbers and due_vocabulary), at most level_limits.max_words_outside_the_list other words in the "
             "whole letter, and sentences no longer than level_limits.max_words_per_sentence; a letter that "
@@ -3409,7 +3419,11 @@ class MissionGenerator:
             # and stay inside the learner's band; the lexical check above sees neither.
             problems.extend(
                 voice_problems(
-                    [candidate.get("scene_anchor"), candidate.get("opening_message"), candidate.get("twist")],
+                    [
+                        *([candidate.get("scene_anchor")] if scene_record.enabled() else []),
+                        candidate.get("opening_message"),
+                        candidate.get("twist"),
+                    ],
                     register=register_word((story_context or {}).get("register")),
                     level=str(cefr)[:2],
                 )
@@ -3418,7 +3432,8 @@ class MissionGenerator:
             if gap:
                 problems.append(f"Return {gap}: the objective in the learner's own language.")
             if (
-                not chain
+                scene_record.enabled()
+                and not chain
                 and not (correspondence or {}).get("thread_history")
                 and extra_claims_to_know(
                     candidate.get("contact_name"),
@@ -6188,14 +6203,23 @@ class MissionScheduler:
     def _serial_character_name(thread: SerialThread, character_id: str) -> str:
         """#147: the registry names its people; a world's own row names anyone else."""
 
-        known = cast_registry.display_name(character_id)
+        known = cast_registry.display_name(character_id) if scene_record.enabled() else None
         if known:
             return known
         world = thread.world_bible if isinstance(thread.world_bible, dict) else {}
         for member in world.get("cast") or []:
             if isinstance(member, dict) and member.get("id") == character_id:
                 return str(member.get("name") or character_id)
-        return character_id.replace("_", " ").title()
+        if scene_record.enabled():
+            return character_id.replace("_", " ").title()
+        return {
+            "landlord_marchand": "M. Marchand",
+            "margaux_barman": "Margaux",
+            "augustin_de_roncourt": "Gus",
+            "romy_tremblay": "Romy",
+            "marin_leveque": "Marin",
+            "lila_bonnet": "Lila",
+        }.get(character_id, character_id.replace("_", " ").title())
 
     @staticmethod
     def _serial_register_for_character(*, thread: SerialThread, character_id: str) -> str:
@@ -6887,8 +6911,13 @@ class MissionConversationService:
             else messenger.get("target_register") or (mission.prompt_payload or {}).get("target_register")
         )
         # #145: what was asked, what they said to it, what stands. The letter is its opening.
-        exchanges = thread_exchanges(mission, user_text)
-        ledger = scene_ledger.build(opening_line_fr=thread_opening(mission), history=exchanges, learner_text=user_text)
+        record = scene_record.enabled()
+        exchanges = thread_exchanges(mission, user_text) if record else []
+        ledger = (
+            scene_ledger.build(opening_line_fr=thread_opening(mission), history=exchanges, learner_text=user_text)
+            if record
+            else {}
+        )
         context = json.dumps(
             {
                 "scene_title": mission.title,
@@ -6898,8 +6927,7 @@ class MissionConversationService:
                 "scene_so_far": mission.source_snapshot,
                 "register": register_phrase,
                 "branch_state": preliminary_branch,
-                "ledger": scene_ledger.for_writer(ledger),
-                **who_they_are(self.db, user, mission),
+                **({"ledger": scene_ledger.for_writer(ledger), **who_they_are(self.db, user, mission)} if record else {}),
                 **({"how_you_feel_about_them": feeling} if feeling else {}),
             },
             ensure_ascii=False,
@@ -6912,7 +6940,7 @@ class MissionConversationService:
         # #538 (root cause #145): the letter is the first line of the thread. A letter is
         # not stored as a turn, so the actor used to answer a reply to a question it had
         # never been shown («Tu préfères la poste ou la boutique ?»).
-        letter = thread_opening(mission)
+        letter = thread_opening(mission) if record else ""
         if letter and not any(item["role"] == "assistant" and item["content"] == letter for item in history):
             history = [{"role": "assistant", "content": letter}, *history]
         messages = [
@@ -6939,19 +6967,22 @@ class MissionConversationService:
             "one warm, satisfying closing line that confirms the outcome and the next concrete step, and end with «Bonne journée !» or a "
             "natural sign-off — do NOT ask any further questions. If one or more goals are still open, steer toward the most important "
             "missing one with a single natural question. Never drag the scene out once everything is settled. "
-            "Never break character; never mention lessons, scores, levels, exercises, or vocabulary. "
-            "ANSWER WHAT THEY WROTE: take up the decision, the question or the detail they gave (a pet, a key, a refusal) before "
-            "anything else. Invent no order, parcel, delivery, tracking or reference number, and never ask for their home address, "
-            "phone number or e-mail, unless this scene's own first message already did. "
-            "THE THREAD IS YOUR MEMORY: the conversation starts with your own letter, and ledger is this thread's record. asked lists "
-            "each question and whether it was answered, last_turn says what their last reply did (a yes, a no, a question, or something "
-            "else), stands lists what was put to them and how they took it, established what their own words settled. Take an answer up "
-            "before anything else and never ask that question again; a no stays a no; never raise a problem, an exchange or a refund "
-            "that nobody mentioned. "
-            "who_they_are_to_you, when present, is what you are to each other; never make it warmer than that. "
-            "you_have_never_met_them, when present, means exactly that: you only know them from this thread, so never say you "
-            "have met or seen them, or that you know them."
+            "Never break character; never mention lessons, scores, levels, exercises, or vocabulary."
         )
+        if record:
+            system += (
+                " ANSWER WHAT THEY WROTE: take up the decision, the question or the detail they gave (a pet, a key, a refusal) before "
+                "anything else. Invent no order, parcel, delivery, tracking or reference number, and never ask for their home address, "
+                "phone number or e-mail, unless this scene's own first message already did. "
+                "THE THREAD IS YOUR MEMORY: the conversation starts with your own letter, and ledger is this thread's record. asked lists "
+                "each question and whether it was answered, last_turn says what their last reply did (a yes, a no, a question, or something "
+                "else), stands lists what was put to them and how they took it, established what their own words settled. Take an answer up "
+                "before anything else and never ask that question again; a no stays a no; never raise a problem, an exchange or a refund "
+                "that nobody mentioned. "
+                "who_they_are_to_you, when present, is what you are to each other; never make it warmer than that. "
+                "you_have_never_met_them, when present, means exactly that: you only know them from this thread, so never say you "
+                "have met or seen them, or that you know them."
+            )
         # #117: the reply is the character's own voice, so it keeps the letter's address
         # form and the learner's band (a deterministic check, then one rewrite, then the
         # register-aware acknowledgement).
@@ -6963,7 +6994,6 @@ class MissionConversationService:
         style = band_style_line(level)
         if style:
             system += f" {style}"
-        soft_served: str | None = None
         soft_found: list[str] = []
         try:
             hint = ""
@@ -6996,29 +7026,31 @@ class MissionConversationService:
                 )
                 _record_mission_llm_cost(self.db, user_id=getattr(user, "id", None), result=result, purpose="character_reply", mission_id=getattr(mission, "id", None))
                 problems = voice_problems([result.content], register=expected, level=level)
-                if not problems:
+                if not problems and record:
                     problems = self._logistics_problems(result.content, mission=mission, user_text=user_text)
-                # #145: compared with the thread's record, soft as on a scene: one retry with
-                # the reason, then the reply is served, so a wrong reading never costs a reply.
-                checked = [] if problems else self._against_the_record(result.content, ledger, exchanges, user_text)
-                if not problems and (not checked or soft_found):
-                    self._count_soft_findings(user, soft_found, "served_anyway" if checked else "corrected")
-                    return finish(checked[-1].served if checked else result.content, system + hint)
+                # #145: compared with the thread's record. A veto, never an edit: a reply that
+                # asks an answered question again or quotes words they never wrote is asked
+                # for once more, and if the second says it too the authored line is served.
+                checked = self._against_the_record(result.content, ledger, exchanges, user_text) if record and not problems else []
+                if not problems and not checked:
+                    if soft_found:
+                        self._count_soft_findings(user, soft_found, "corrected")
+                    return finish(result.content, system + hint)
                 if checked:
-                    soft_served = checked[-1].served
                     soft_found = [finding.code for finding in checked]
                     problems = [finding.hint for finding in checked]
                 logger.info("Courrier reply rejected", attempt=attempt + 1, problems=problems)
                 hint = " Rewrite your reply fixing exactly this: " + " ".join(problems)
-            if soft_served is not None:
-                self._count_soft_findings(user, soft_found, "served_first")
-                return finish(soft_served, system)
+            if soft_found:
+                self._count_soft_findings(user, soft_found, "vetoed")
             return _unassessed_acknowledgement(mission, register_now=register_now)
         except MODEL_CALL_FAILED as exc:
             logger.debug("Mission conversation fallback", error=str(exc))
-            if soft_served is not None:
-                self._count_soft_findings(user, soft_found, "served_first")
-                return soft_served
+            if soft_found:
+                # The re-roll after a veto failed outright: the authored line, as when it
+                # came back wanting. Never the vetoed reply, never the letter again.
+                self._count_soft_findings(user, soft_found, "vetoed")
+                return _unassessed_acknowledgement(mission, register_now=register_now)
             return self._fallback_response(mission, branch=preliminary_branch, objective_progress=latest_progress)
 
     @staticmethod
@@ -7193,7 +7225,7 @@ class MissionConversationService:
                 return calm_acknowledgement()
             from app.services import lane_guards  # late: lane_guards imports the story engine
 
-            if lane_guards.invented_logistics(reply, grounded=(scene_context, opener, user_text), authored=(opener, scene_context)):
+            if scene_record.enabled() and lane_guards.invented_logistics(reply, grounded=(scene_context, opener, user_text), authored=(opener, scene_context)):
                 logger.info("Atelier reaction held back: invented logistics")
                 return calm_acknowledgement()
             return reply
@@ -8066,7 +8098,8 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
             }
             for turn in sorted(mission.turns or [], key=lambda item: item.turn_index)
         ]
-        payload["prompt_payload"] = _prompt_payload_for_thread(mission, payload["prompt_payload"])
+        if scene_record.enabled():
+            payload["prompt_payload"] = _prompt_payload_for_thread(mission, payload["prompt_payload"])
     return payload
 
 

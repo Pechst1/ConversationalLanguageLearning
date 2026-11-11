@@ -21,7 +21,6 @@ def enabled() -> bool:
     return bool(getattr(settings, "STORY_SCENE_RECORD", False))
 
 
-
 #: The output fields the stack added to the models a story call is answered in, by the
 #: model's name (a nested model is matched in ``$defs`` by its title). With the flag off
 #: the model is sent the schema without them, exactly what it was sent before; the answer
@@ -33,6 +32,7 @@ STACK_FIELDS: dict[str, frozenset[str]] = {
     "SemanticTurn": frozenset({"tomorrow_question_fr"}),
     "SceneDraft": frozenset({"scene_cast"}),
     "Panel": frozenset({"location_id", "time_jump"}),
+    "WrittenPanel": frozenset({"location_id", "time_jump"}),
 }
 
 

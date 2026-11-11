@@ -143,6 +143,8 @@ services:
       # that misses the day's question hears it once more, simpler; and a day no
       # writer delivered is served on its own stand-in page. The API and the
       # worker carry the same four values.
+      - key: STORY_SCENE_RECORD
+        value: "true"
       - key: STORY_DAY_CONTRACT
         value: "true"
       - key: STORY_SHARED_PAGES
@@ -414,6 +416,8 @@ services:
       # that misses the day's question hears it once more, simpler; and a day no
       # writer delivered is served on its own stand-in page. The API and the
       # worker carry the same four values.
+      - key: STORY_SCENE_RECORD
+        value: "true"
       - key: STORY_DAY_CONTRACT
         value: "true"
       - key: STORY_SHARED_PAGES

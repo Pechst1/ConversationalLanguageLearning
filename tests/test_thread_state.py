@@ -120,17 +120,21 @@ def test_a_reply_that_asks_the_settled_choice_again_is_held_back(monkeypatch) ->
     assert len(llm.systems) == 2
 
 
-def test_a_reask_never_costs_the_reply(monkeypatch) -> None:
-    """Soft, as on a scene: what the retry says again is served without the question, and if
-    the retry fails outright the first draft is served the same way."""
+AUTHORED_LINE = "Merci pour ton message, je l'ai bien lu. Je te réponds vite."
+
+
+def test_a_reask_is_vetoed_rerolled_once_then_the_authored_line_plays(monkeypatch) -> None:
+    """The check is a veto, as on a scene: a reply that asks an answered question again is
+    re-rolled once, and if the re-roll asks it again the authored line plays. The reply is
+    never served with the question cut out of it."""
 
     again = "D'accord ! Alors, la poste ou la boutique ?"
-    service, llm, mission = _letter_two(monkeypatch, [again, again])
-    assert service.respond(user=SimpleNamespace(id=None), mission=mission, user_text=LEARNER_CHOICE) == "D'accord !"
+    service, llm, mission = _letter_two(monkeypatch, [again, again, ANAIS_FOLLOWING_THE_CHOICE])
+    assert service.respond(user=SimpleNamespace(id=None), mission=mission, user_text=LEARNER_CHOICE) == AUTHORED_LINE
     assert len(llm.systems) == 2
 
     service, llm, mission = _letter_two(monkeypatch, [again])
-    assert service.respond(user=SimpleNamespace(id=None), mission=mission, user_text=LEARNER_CHOICE) == "D'accord !"
+    assert service.respond(user=SimpleNamespace(id=None), mission=mission, user_text=LEARNER_CHOICE) == AUTHORED_LINE
 
 
 def test_a_reply_quoting_what_they_never_wrote_is_asked_for_again(monkeypatch) -> None:

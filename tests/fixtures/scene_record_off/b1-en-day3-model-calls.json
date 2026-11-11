@@ -256,15 +256,15 @@
     "level": "B1",
     "level_register": "the cast's own register",
     "lexicon_history": [
-     "immeuble",
-     "posséder",
-     "manque",
-     "imaginer",
-     "étage",
-     "valise",
-     "évidemment",
      "exactement",
-     "vendre"
+     "imaginer",
+     "immeuble",
+     "manque",
+     "posséder",
+     "valise",
+     "vendre",
+     "étage",
+     "évidemment"
     ],
     "line_translation": null,
     "memory": {

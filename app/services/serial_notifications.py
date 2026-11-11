@@ -13,7 +13,7 @@ from app.db.models.daily_journey import DailyJourney
 from app.db.models.serial import SerialEpisode
 from app.db.models.user import User
 from app.services import cast_registry
-from app.services.achievement_recap import ENGINE_TEASER_CHARS
+from app.services.achievement_recap import engine_teaser_chars
 from app.services.address import character_register as resolve_character_register
 
 #: WP-19's title for the morning push. WP-80 replaced it with the speaking
@@ -459,7 +459,7 @@ def engine_teaser(db: Session, user: User) -> dict[str, str] | None:
     if isinstance(teaser, dict) and _compact(teaser.get("text_fr")):
         return {
             # The hook ends on its question (#466): a shorter clip would cut it off.
-            "text_fr": _compact(teaser.get("text_fr"), ENGINE_TEASER_CHARS),
+            "text_fr": _compact(teaser.get("text_fr"), engine_teaser_chars()),
             "character_id": str(teaser.get("character_id") or ""),
             "character_name": str(teaser.get("character_name") or ""),
             # WP-99: the story writes ``date`` with the teaser; kept for the push.
@@ -468,7 +468,7 @@ def engine_teaser(db: Session, user: User) -> dict[str, str] | None:
     journey = _latest_journey(db, user)
     recap = dict(getattr(journey, "recap_snapshot", None) or {}) if journey else {}
     # The same hook, the same limit: the recap snapshot keeps the engine's whole line.
-    text = _compact(recap.get("teaser_fr"), ENGINE_TEASER_CHARS)
+    text = _compact(recap.get("teaser_fr"), engine_teaser_chars())
     if text:
         scenario = dict(getattr(journey, "scenario_snapshot", None) or {})
         return {

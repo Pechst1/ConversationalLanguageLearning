@@ -5,7 +5,8 @@ French in every scene, at the cost of the learner's turn. So:
 
 * every sentence those reviews said must pass is run against every check here, with the
   ledger that would be most likely to catch it; one firing fails the test;
-* every check is a ``SoftRejection``: it can only cost one retry;
+* every check is a veto (``SoftRejection.vetoed``): one re-roll, then the authored line,
+  never the reply with a part cut out (the story-truth decision, 11 Nov);
 * each firing reaches the pilot ledger as a code and an outcome, never as text.
 
 The walk text is exact. No model call.
@@ -166,7 +167,6 @@ def test_words_the_learner_never_wrote_are_not_quoted_at_them():
     reply = "D'accord. Tu as promis, hein : « Je pense que je vais vendre la bouillotte de Odile. »"
     findings = lane_guards.scene_findings(reply, payload)
     assert [finding.code for finding in findings] == ["reply_quotes_unsaid"]
-    assert findings[0].served == "D'accord."
     assert _codes("Tu as dit : « je ne partage pas la pizza ».", payload) == []
 
 
@@ -174,7 +174,6 @@ def test_a_character_does_not_answer_in_the_learners_place():
     payload = _payload("Tu viens ?", "Je ne sais pas.")
     findings = lane_guards.scene_findings("Tu viens samedi ? Oui, tu viens.", payload)
     assert [finding.code for finding in findings] == ["reply_answers_for_learner"]
-    assert "Oui, tu viens" not in findings[0].served
 
 
 def test_a_learner_who_said_no_is_not_told_they_agreed():
@@ -182,7 +181,7 @@ def test_a_learner_who_said_no_is_not_told_they_agreed():
     assert _codes("Bon, vous êtes d'accord. On signe demain.", payload) == ["reply_answers_for_learner"]
 
 
-def test_the_walks_reply_to_marin_drops_the_question_already_answered():
+def test_the_walks_reply_to_marin_asking_the_answered_question_again_is_vetoed():
     """#467, exact: reply 2 said «Non, je veux pas ce nom», and Marin asked it again."""
 
     history = [
@@ -198,11 +197,10 @@ def test_the_walks_reply_to_marin_drops_the_question_already_answered():
     )
     findings = lane_guards.scene_findings("Oui, bien sûr. Tu me le fais garder ?", payload)
     assert findings[0].code == "reply_reasks_answered_question"
-    assert findings[0].served == "Oui, bien sûr."
 
 
 # ---------------------------------------------------------------------------
-# A check can only cost one retry
+# A finding is a veto: one re-roll, then the authored line
 # ---------------------------------------------------------------------------
 
 
@@ -233,10 +231,37 @@ def test_a_finding_the_retry_fixes_is_counted_as_corrected():
     assert firings == [{"code": "reply_contradicts_position", "outcome": "corrected"}]
 
 
-def test_a_finding_that_comes_back_is_served_never_a_lost_turn():
-    served, firings = _lane([CAMILLE_WALK_REPLY, CAMILLE_WALK_REPLY, "never reached"], CAMILLE)
-    assert served.reply_fr == CAMILLE_WALK_REPLY
-    assert firings == [{"code": "reply_contradicts_position", "outcome": "served_anyway"}]
+def test_a_finding_that_comes_back_is_vetoed_and_never_served():
+    """#591: Camille's «Je ne suis pas d'accord non plus» twice. The second is not served:
+    the lane hands the turn to the authored line, and no third call is made."""
+
+    with pytest.raises(lanes.ReplyVetoed) as vetoed:
+        _lane([CAMILLE_WALK_REPLY, CAMILLE_WALK_REPLY, "never reached"], CAMILLE)
+    assert vetoed.value.codes == ("reply_contradicts_position",)
+
+
+def test_the_veto_counts_as_vetoed_in_the_ledger():
+    firings: list[dict] = []
+    replies = iter([CAMILLE_WALK_REPLY, CAMILLE_WALK_REPLY, "never reached"])
+    calls: list[str] = []
+
+    def fake_call(system, request, schema, record, **kwargs):
+        calls.append(system)
+        return schema(reply_fr=next(replies), understood_intent="x", needs_clarification=False), {}
+
+    original = engine._json_call
+    engine._json_call = fake_call
+    try:
+        with pytest.raises(lanes.ReplyVetoed):
+            lanes._run_lane(
+                "system", {}, lanes.VoiceReply, lambda voice: lanes.validate_voice(voice, CAMILLE),
+                deadline=lanes.time.monotonic() + 60, collected=[], max_tokens=100, window=10, firings=firings,
+                attempts=5,
+            )
+    finally:
+        engine._json_call = original
+    assert len(calls) == 2, "a veto buys one re-roll, never more"
+    assert firings == [{"code": "reply_contradicts_position", "outcome": "vetoed"}]
 
 
 def test_a_firing_carries_no_text():

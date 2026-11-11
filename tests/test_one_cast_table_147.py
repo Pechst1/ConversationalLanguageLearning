@@ -21,7 +21,13 @@ REPO = Path(__file__).resolve().parents[1]
 #: The registry's own files.
 THE_REGISTRY = {"app/services/cast_registry.py", "app/services/cast_aliases.py"}
 #: file -> who takes it off the list.
-ALLOWED: dict[str, str] = {}
+ALLOWED: dict[str, str] = {
+    # Main's own tables, kept verbatim for ``STORY_SCENE_RECORD`` off (the story-truth
+    # stack, #147): they go with the flag, once production has run with it on.
+    "app/services/forge_story.py": "whoever removes STORY_SCENE_RECORD",
+    "app/services/missions.py": "whoever removes STORY_SCENE_RECORD",
+    "app/services/season/runtime.py": "whoever removes STORY_SCENE_RECORD",
+}
 
 
 def _people_by_word() -> dict[str, str]:

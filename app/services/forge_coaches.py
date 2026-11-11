@@ -200,7 +200,9 @@ def names_unmet(item: Any, state: dict[str, Any] | None) -> list[str]:
     a letter» on day 1, under a coach who had been replaced). The whole item, as served: its
     prompt in every language, its options, its answers, its scene."""
 
-    if state is None:
+    from app.services import scene_record
+
+    if state is None or not scene_record.enabled():
         return []
     from app.services.cast_registry import unmet_named
 
@@ -210,7 +212,9 @@ def names_unmet(item: Any, state: dict[str, Any] | None) -> list[str]:
 def only_met(detector: Callable[[str], bool] | None, state: dict[str, Any] | None) -> Callable[[str], bool] | None:
     """A bank detector that also passes over a sentence naming someone unmet."""
 
-    if state is None:
+    from app.services import scene_record
+
+    if state is None or not scene_record.enabled():
         return detector
 
     def keeps(sentence: str) -> bool:
@@ -228,7 +232,9 @@ def card_for_learner(
     say the card's example; otherwise the card keeps its rule and example and names nobody.
     """
 
-    if not isinstance(card, dict) or state is None or not card.get("speaker"):
+    from app.services import scene_record
+
+    if not isinstance(card, dict) or state is None or not card.get("speaker") or not scene_record.enabled():
         return card
     from app.services.cast_registry import has_met
 

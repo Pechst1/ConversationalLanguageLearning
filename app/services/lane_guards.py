@@ -1052,15 +1052,6 @@ def _same_question(left: str, right: str) -> bool:
     return bool(words[0]) and words[0] == words[1]
 
 
-def without_reasked_question(reply: str, ledger: dict | None) -> str:
-    """``reply`` without its re-asked question, when something else in it stands; the
-    reply itself when it is only that question."""
-
-    parts = [part.strip() for part in _SENTENCE.findall(reply or "") if part.strip()]
-    kept = [part for part in parts if not (part.endswith("?") and reasked_question(part, ledger))]
-    return " ".join(kept) if kept else reply
-
-
 #: A reply that OPENS by joining the refusal of the speaker's own proposal: «Je ne suis
 #: pas d'accord non plus.», «Moi non plus.», «Ni moi.» (folded text). A sentence carried by
 #: someone else («Mon frère non plus ne cédera pas», «Ni moi ni mon frère ne céderons») or a
@@ -1138,18 +1129,6 @@ def unsaid_quote(reply: str, said: list[str]) -> re.Match[str] | None:
     return None
 
 
-def _without_quote(reply: str, match: re.Match[str]) -> str:
-    """``reply`` without the sentence that carries this quotation, when something else
-    in it stands. The quotation may hold full stops of its own, so the cut runs from the
-    start of its sentence to the closing mark."""
-
-    head = reply[: match.start()]
-    ends = [found.end() for found in re.finditer(r"[.!?…]\s+", head)]
-    start = ends[-1] if ends else 0
-    kept = f"{reply[:start]}{reply[match.end():].lstrip(' .!…')}".strip()
-    return kept or reply
-
-
 #: A character answering their own question in the learner's place: «Tu viens ? Oui, tu
 #: viens.» «Mon grand-père ? Oui, c'est lui.» is a character talking, and is not matched.
 _ANSWERS_FOR_LEARNER = re.compile(
@@ -1180,11 +1159,23 @@ def answers_for_learner(reply: str, ledger: dict | None) -> str | None:
 @dataclass(frozen=True, slots=True)
 class SceneFinding:
     """One thing the reply says against the scene's record: the code the pilot ledger
-    counts, the reason the retry is told, and the reply to serve if it comes back."""
+    counts and the reason the re-roll is told. A finding is a veto: the reply is never
+    served with the offending part cut out (``story_lanes._run_lane``)."""
 
     code: str
     hint: str
-    served: str
+
+
+#: The codes :func:`scene_findings` reports: each one vetoes the reply.
+SCENE_FINDING_CODES = frozenset(
+    {
+        "reply_reasks_answered_question",
+        "reply_contradicts_position",
+        "reply_skips_learner_question",
+        "reply_quotes_unsaid",
+        "reply_answers_for_learner",
+    }
+)
 
 
 def scene_findings(reply: str, payload: dict | None) -> list[SceneFinding]:
@@ -1196,16 +1187,13 @@ def scene_findings(reply: str, payload: dict | None) -> list[SceneFinding]:
         return []
     findings: list[SceneFinding] = []
     if reasked := reasked_question(reply, ledger):
-        reply_without = without_reasked_question(reply, ledger)
         findings.append(
             SceneFinding(
                 "reply_reasks_answered_question",
                 f"The reply asks again a question the learner has already answered («{reasked[:120]}»). "
                 "Take their answer as it is and move on to what follows from it.",
-                reply_without,
             )
         )
-        reply = reply_without
     if stand := joined_refusal(reply, ledger):
         findings.append(
             SceneFinding(
@@ -1213,7 +1201,6 @@ def scene_findings(reply: str, payload: dict | None) -> list[SceneFinding]:
                 f"You proposed «{str(stand.get('text_fr'))[:160]}» and the learner refused it. Joining them "
                 "(«non plus», «ni moi») makes you refuse your own proposal. Hold to it, say why, or give "
                 "way in so many words.",
-                reply,
             )
         )
     if asked := question_handed_back(reply, ledger):
@@ -1222,7 +1209,6 @@ def scene_findings(reply: str, payload: dict | None) -> list[SceneFinding]:
                 "reply_skips_learner_question",
                 f"The learner asked «{asked[:160]}» and the reply only asks back. Answer first, in "
                 "character (a fact, yes or no, or that you will not say and why).",
-                reply,
             )
         )
     if quote := unsaid_quote(reply, learner_lines(payload)):
@@ -1231,16 +1217,14 @@ def scene_findings(reply: str, payload: dict | None) -> list[SceneFinding]:
                 "reply_quotes_unsaid",
                 f"The reply quotes the learner as saying «{quote.group(1)[:120]}», and they never wrote that. "
                 "Quote only their own words, or say it without quoting them.",
-                _without_quote(reply, quote),
             )
         )
-    if answered := answers_for_learner(reply, ledger):
+    if answers_for_learner(reply, ledger):
         findings.append(
             SceneFinding(
                 "reply_answers_for_learner",
                 "The reply answers in the learner's place. Their answer is theirs: react to what they "
                 "wrote, and leave the next word to them.",
-                reply.replace(answered, "").strip() if len(answered) < len(reply) else reply,
             )
         )
     return findings

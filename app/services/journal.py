@@ -55,7 +55,7 @@ from app.db.models.journal import JournalEntry
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
-from app.services import correction_contract, scene_ledger, verdicts
+from app.services import correction_contract, scene_ledger, scene_record, verdicts
 from app.services.atelier import AtelierCorrectionService
 from app.services.atelier_correction_cost import bound_learner_answer
 from app.services.chrome_language import user_mother_tongue
@@ -311,7 +311,7 @@ def scene_facts_for(
 
     facts: list[SceneFact] = []
 
-    for key, kind, line in _said_in_scene(journey):
+    for key, kind, line in _said_in_scene(journey) if scene_record.enabled() else []:
         text_fr = french_only(line)
         cues = tuple(content_cues(text_fr, given=given))
         if cues and all(fact.text_fr != text_fr for fact in facts):
@@ -319,7 +319,7 @@ def scene_facts_for(
 
     outcome = recap.get("story_outcome") or {}
     callback = french_only(outcome.get("callback_fr"))
-    if not facts and callback and not is_closing_filler(callback):
+    if (not facts or not scene_record.enabled()) and callback and not is_closing_filler(callback):
         facts.append(
             SceneFact(
                 key="outcome",

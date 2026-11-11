@@ -51,6 +51,9 @@ _HEX_ID = re.compile(r"\b[0-9a-f]{32}\b")
 _EMAIL = re.compile(r"life-[\w.-]+@example\.com|[\w.-]+-[0-9a-f]{8}@example\.com")
 #: Wall-clock measurements: how long a call took is not behaviour.
 _TIMINGS = {"reply_seconds", "seconds", "latency_ms", "elapsed_ms", "duration_ms"}
+#: Lists whose order among rows written in the same instant follows their random ids
+#: (``kept_words``: ``created_at`` then ``id``): what is in them is behaviour, the order is not.
+_UNORDERED = {"lexicon_history"}
 
 
 def normalised(value: Any) -> Any:
@@ -58,7 +61,13 @@ def normalised(value: Any) -> Any:
 
     if isinstance(value, dict):
         return {
-            key: ("<timing>" if key in _TIMINGS and isinstance(item, int | float) else normalised(item))
+            key: (
+                "<timing>"
+                if key in _TIMINGS and isinstance(item, int | float)
+                else sorted(normalised(item), key=str)
+                if key in _UNORDERED and isinstance(item, list)
+                else normalised(item)
+            )
             for key, item in value.items()
         }
     if isinstance(value, list | tuple):

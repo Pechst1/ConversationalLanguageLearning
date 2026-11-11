@@ -650,8 +650,8 @@ def planner_system(context: dict) -> str:
     role = str(act.get("role") or "")
     if role not in ACT_ROLE_RULES:
         # Red-thread design: a contract day's planner reads the contract's rules too.
-        return PLANNER + day_contract.PLANNER_NOTE if _day_contract(context) else PLANNER
-    return PLANNER + ACT_PLANNER + ACT_ROLE_RULES[role] + ACT_SHAPE_RULES.get(str(act.get("shape") or ""), "")
+        return _planner() + day_contract.PLANNER_NOTE if _day_contract(context) else _planner()
+    return _planner() + ACT_PLANNER + ACT_ROLE_RULES[role] + ACT_SHAPE_RULES.get(str(act.get("shape") or ""), "")
 
 
 def planner_payload(context: dict, rejections: list[str]) -> dict:
@@ -932,11 +932,23 @@ def assemble(context: dict, plan: PagePlan, text: PageText, aids: PageAids | Non
     }
 
 
+def _planner() -> str:
+    from app.services import scene_record, story_split_main
+
+    return PLANNER if scene_record.enabled() else story_split_main.PLANNER
+
+
+def _author() -> str:
+    from app.services import scene_record, story_split_main
+
+    return AUTHOR if scene_record.enabled() else story_split_main.AUTHOR
+
+
 def author_system(context: dict) -> str:
     band = str(context.get("level") or "A2").upper()[:2]
     brief = (context.get("season_script") or {}).get("brief") or {}
     panels = str((brief.get("level") or {}).get("panels") or "4 to 6")
-    system = AUTHOR.format(band=band, panels=panels, level_card=LEVEL_CARDS.get(band, LEVEL_CARDS["A2"]))
+    system = _author().format(band=band, panels=panels, level_card=LEVEL_CARDS.get(band, LEVEL_CARDS["A2"]))
     if _day_contract(context):
         return system + day_contract.AUTHOR_NOTE
     return system + ACT_AUTHOR if context.get(ACT_KEY) else system

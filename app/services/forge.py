@@ -549,8 +549,10 @@ class BankItemProvider:
         first, so a scene the coach takes over is not refused for its old speaker.
         """
 
+        from app.services import scene_record
+
         state = self.story_state
-        if state is None:
+        if state is None or not scene_record.enabled():
             return True
         concept = self.concepts.get(int(concept_id))
         coach = coach_for_concept(concept.external_id, state=state) if concept is not None else None

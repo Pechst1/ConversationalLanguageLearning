@@ -60,6 +60,7 @@ from app.services import (
     cast_registry,
     correction_contract,
     lane_guards,
+    scene_exit,
     scene_ledger,
     scene_record,
     speaker_labels,
@@ -991,6 +992,16 @@ def _refused(voice: VoiceReply) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
+class ReplyVetoed(engine.StoryUnavailable):
+    """The voice lane's reply went against the scene's record, re-rolled once and still
+    did (``lane_guards.scene_findings``): the turn keeps its verdict and the authored
+    line plays (``scene_exit.reaction``). No further model call."""
+
+    def __init__(self, reason: str, *, hint: str | None = None, codes: tuple[str, ...] = ()) -> None:
+        super().__init__(reason, hint=hint)
+        self.codes = tuple(codes)
+
+
 class LaneFailure(engine.StoryUnavailable):
     """A lane exhausted its attempts; ``usage`` is the spend it still cost."""
 
@@ -1002,13 +1013,17 @@ class LaneFailure(engine.StoryUnavailable):
 @dataclass
 class ReplyLanes:
     tutor: TutorVerdict
-    voice: VoiceReply
+    #: ``None`` when the reply was vetoed (:class:`ReplyVetoed`): the caller plays the
+    #: authored line, and the tutor's verdict stands.
+    voice: VoiceReply | None
     usage: dict[str, list[dict]]
     seconds: dict[str, float]
     #: WP-149: why the met-gate lowered the tutor's «met» (empty when it did not).
     gated: list[str] = field(default_factory=list)
     #: #145: what the soft checks found on the way, for the pilot ledger (no text).
     firings: list[dict] = field(default_factory=list)
+    #: The scene findings that vetoed the reply twice, when ``voice`` is ``None``.
+    vetoed: tuple[str, ...] = ()
 
 
 def _run_lane(system, request, schema, validate, *, deadline, collected, max_tokens, window,
@@ -1023,7 +1038,14 @@ def _run_lane(system, request, schema, validate, *, deadline, collected, max_tok
     ``firings`` collects each soft finding with what became of it, so that a check that
     fires too often can be seen in production: ``corrected`` when the retry passed,
     ``served_anyway`` when the retry was found wanting too, ``served_first`` when the
-    retry failed outright and the first attempt was served.
+    retry failed outright and the first attempt was served, ``vetoed`` when the reply
+    went against the scene's record twice.
+
+    A reply that goes against the scene's record (``SoftRejection.vetoed``, the story-truth
+    decision) is a veto, not a length problem: it is re-rolled once with the reason and
+    never served. If the re-roll is vetoed too, or fails, :class:`ReplyVetoed` is raised
+    and the caller plays the authored line. An earlier attempt that was only soft (and
+    went against nothing) is still served as before.
     """
 
     feedback: list[str] = []
@@ -1031,15 +1053,19 @@ def _run_lane(system, request, schema, validate, *, deadline, collected, max_tok
     fallback = None
     hinted = False
     found: list[str] = []
+    vetoed_at: int | None = None
 
     def settle(outcome: str) -> None:
         if firings is not None:
             firings.extend({"code": code, "outcome": outcome} for code in found)
             found.clear()
 
-    for _ in range(attempts or settings.ATELIER_STORY_MAX_ATTEMPTS):
+    for attempt in range(attempts or settings.ATELIER_STORY_MAX_ATTEMPTS):
         if deadline - time.monotonic() < 1:
             reason = "story_generation_deadline"
+            break
+        if vetoed_at is not None and attempt > vetoed_at + 1:
+            # A veto buys one re-roll, never more.
             break
         try:
             proposal, _usage = engine._json_call(
@@ -1056,8 +1082,15 @@ def _run_lane(system, request, schema, validate, *, deadline, collected, max_tok
             settle("corrected")
             return proposal
         except engine.SoftRejection as exc:
-            served = exc.proposal if exc.proposal is not None else proposal
             found.extend(code for code in exc.codes if code not in found)
+            if getattr(exc, "vetoed", False):
+                if hinted:
+                    break
+                vetoed_at, hinted = attempt, True
+                reason = str(exc)
+                feedback = list(dict.fromkeys([*feedback, exc.feedback]))
+                continue
+            served = exc.proposal if exc.proposal is not None else proposal
             if hinted:
                 settle("served_anyway")
                 return served
@@ -1072,6 +1105,11 @@ def _run_lane(system, request, schema, validate, *, deadline, collected, max_tok
         logger.info("story_lanes: serving the reply the soft rejection carried (%s)", reason)
         settle("served_first")
         return fallback
+    if vetoed_at is not None:
+        logger.info("story_lanes: reply vetoed against the scene's record (%s); the authored line plays", reason)
+        codes = tuple(found)
+        settle("vetoed")
+        raise ReplyVetoed(reason, hint=" | ".join(feedback)[:1200] or None, codes=codes)
     raise engine.StoryUnavailable(reason, hint=" | ".join(feedback)[:1200] or None)
 
 
@@ -1118,6 +1156,9 @@ def run_reply_lanes(payload: dict, *, deadline: float | None = None, lexical=Non
         # land on the request's E1 tally.
         futures = {name: pool.submit(contextvars.copy_context().run, timed, name) for name in lanes}
         errors = {name: f.exception() for name, f in futures.items()}
+    vetoed: tuple[str, ...] = ()
+    if isinstance(errors["voice"], ReplyVetoed):
+        vetoed, errors["voice"] = errors["voice"].codes or (str(errors["voice"]),), None
     for name in ("voice", "tutor"):
         error = errors[name]
         if error is not None:
@@ -1130,8 +1171,8 @@ def run_reply_lanes(payload: dict, *, deadline: float | None = None, lexical=Non
     if gated:
         logger.info("story_lanes: met-gate lowered «met» to %s (%s)", tutor.outcome, ", ".join(gated))
     return ReplyLanes(
-        tutor=tutor, voice=futures["voice"].result(), usage=usage, seconds=seconds, gated=gated,
-        firings=firings,
+        tutor=tutor, voice=None if vetoed else futures["voice"].result(), usage=usage, seconds=seconds,
+        gated=gated, firings=firings, vetoed=vetoed,
     )
 
 
@@ -1608,6 +1649,18 @@ def evaluate_turn_lanes(
             book_lane(db, user, scene=scene, lane=lane, usage=lanes.usage[lane],
                       seconds=lanes.seconds.get(lane), payload={"turn_index": turn_index})
         tutor, voice = lanes.tutor, lanes.voice
+        if voice is None:
+            # The reply went against the scene's record twice: the authored line, in the
+            # character's register. The verdict and the correction stand; no model call.
+            voice = VoiceReply(
+                reply_fr=scene_exit.reaction(
+                    character_id=scenario.character_id,
+                    learner_text=answer.text,
+                    register=exit_register(db, user, scenario),
+                ),
+                understood_intent=f"vetoed:{lanes.vetoed[0]}",
+                needs_clarification=False,
+            )
         # Red-thread design: a reply that missed the day's question hears it once more,
         # in the simpler French the contract wrote, before the day moves anywhere else.
         again = day_contract.reask(
@@ -1616,6 +1669,7 @@ def evaluate_turn_lanes(
             turns_left=int(payload.get("turns_left") or 0),
             learner_asked=(payload.get("turn_plan") or {}).get("learner_asked"),
             history=payload.get("history"),
+            ledger=payload.get("ledger"),
         )
         if again:
             voice.reply_fr = again
@@ -1707,7 +1761,8 @@ def evaluate_turn_lanes(
             consequence=proposal,
             needs_repair=needs_repair,
             question_open=question_open,
-            failure_reason="reply_source:model",
+            # A vetoed reply's authored line is labelled authored, never as a live answer.
+            failure_reason="reply_source:authored" if lanes.vetoed else "reply_source:model",
             heard=_heard_of(voice, answer.text),
         )
     except engine.StoryUnavailable as exc:

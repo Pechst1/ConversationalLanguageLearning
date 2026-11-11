@@ -8765,8 +8765,14 @@ def serialize_concept(
         # F-1: the unit's x-ray sentence and its marks, or None.
         "xray": unit_xray(concept),
         # WP-S5: the cast member who teaches this rule (card and feedback face).
-        "coach": _coach_for_concept(concept.external_id, state=state),
+        "coach": _coach_for_concept(concept.external_id, state=state if _scene_record_on() else None),
     }
+
+
+def _scene_record_on() -> bool:
+    from app.services import scene_record
+
+    return scene_record.enabled()
 
 
 def _coach_for_concept(external_id: str | None, *, state: dict[str, Any] | None = None) -> dict[str, Any] | None:

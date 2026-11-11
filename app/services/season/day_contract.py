@@ -229,19 +229,62 @@ def reask(
     turns_left: int,
     learner_asked: Any,
     history: list[Any] | None,
+    ledger: dict[str, Any] | None = None,
 ) -> str | None:
     """The day's question once more, in the simpler French the contract wrote for it
-    (``turns[].ask_again_fr``), or None. Only after a reply that did not answer it
-    (``not_yet``), while the conversation goes on, never over a question the learner
-    asked (that one is answered first) and never twice in a scene."""
+    (``turns[].ask_again_fr``), or None. Only while it is unanswered and the
+    conversation goes on, never over a question the learner asked (that one is
+    answered first) and never twice in a scene.
+
+    This is the only code that asks the day's question again. With
+    ``STORY_SCENE_RECORD`` on, «answered» is read from the scene record (``ledger``,
+    :func:`app.services.scene_ledger.build`) and nothing else: a «non» answers it
+    (#467), whatever the tutor made of the reply. With the flag off it is main's rule:
+    the tutor's ``not_yet``, and the line not yet in the history."""
+
+    from app.services import scene_record
 
     again = str((plan or {}).get(ASK_AGAIN_KEY) or "").strip()
-    if not again or outcome != "not_yet" or turns_left <= 0 or learner_asked:
+    if not again or turns_left <= 0 or learner_asked:
+        return None
+    if scene_record.enabled():
+        return again if _open_in_record(ledger, again) else None
+    if outcome != "not_yet":
         return None
     said = [str(row.get("character") or "") for row in history or [] if isinstance(row, dict)]
     if any(_folded(again) in _folded(line) for line in said):
         return None
     return again
+
+
+def _open_in_record(ledger: dict[str, Any] | None, again: str) -> bool:
+    """Whether the scene record has the day's question unanswered and not yet asked again.
+
+    The day's question is the character's first question in the record (the opening
+    line's, as a rule). It is open while its ``answered_at`` is unset. It counts as asked
+    again once any later question of the character's is the simpler line, or asks it
+    again in other words (:func:`app.services.lane_guards.reasked_question`). A record that
+    holds no question of the character's has nothing to ask again."""
+
+    from app.services import lane_guards, scene_ledger
+
+    rows = [
+        row
+        for row in (ledger or {}).get("asked") or []
+        if isinstance(row, dict) and row.get("by") == "character" and str(row.get("text_fr") or "").strip()
+    ]
+    if not rows or rows[0].get("answered_at") is not None:
+        return False
+    day = rows[0]
+    simpler = _folded(scene_ledger.character_question(again) or again)
+    as_answered = {"asked": [{**day, "answered_at": day.get("at", 0)}]}
+    for row in rows[1:]:
+        text = str(row.get("text_fr") or "")
+        if simpler and simpler in _folded(text):
+            return False
+        if lane_guards.reasked_question(text, as_answered):
+            return False
+    return True
 
 
 _QUOTES = "«»\"“”„‟'’‘ \t\n"

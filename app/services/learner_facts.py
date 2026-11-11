@@ -183,6 +183,14 @@ def _negated_in(words: list[str]) -> set[str]:
     return negated
 
 
+def _stance_read() -> bool:
+    """#556's stance reading is the story-truth stack's: off with ``STORY_SCENE_RECORD``."""
+
+    from app.services import scene_record
+
+    return scene_record.enabled()
+
+
 def stance_of(text: Any) -> dict[str, bool]:
     """What a text says yes or no to: ``{stem: affirmed}``. A question says neither, and a
     word both negated and affirmed in one reply is left out: nothing can be read from it."""
@@ -235,7 +243,7 @@ def clashes(learner_text: Any, line: Any) -> frozenset[str]:
         # A reason is the same reason when it is about one of the same things.
         if (kind == "reason" and not (value & other)) or (kind != "reason" and value != other):
             kinds.add(kind)
-    if _goes_against(stance_of(learner_text), stance_of(line)):
+    if _stance_read() and _goes_against(stance_of(learner_text), stance_of(line)):
         kinds.add("stance")
     return frozenset(kinds)
 
@@ -261,7 +269,7 @@ def latest_clash(turns: list[Any], line: Any) -> int | None:
         if latest is not None and kind in clashes(turns[latest], line):
             clash = latest if clash is None else max(clash, latest)
     decided: dict[str, tuple[int, bool]] = {}
-    for index, turn in enumerate(turns):
+    for index, turn in enumerate(turns if _stance_read() else []):
         decided.update({stem: (index, affirmed) for stem, affirmed in stance_of(turn).items()})
     offered = stance_of(line)
     for stem, (index, affirmed) in decided.items():

@@ -4180,7 +4180,10 @@ def coach_scene_review_task(
     if not external_id or brief.get("concept_id") is None:
         return None
     units = item_bank.units_for_external_id(external_id)
-    coach = forge_coaches.coach_for_concept(external_id, state=state)
+    from app.services import scene_record
+
+    # #147: the coach is someone this learner has met (``STORY_SCENE_RECORD``).
+    coach = forge_coaches.coach_for_concept(external_id, state=state if scene_record.enabled() else None)
     if not units or not coach:
         return None
     unit = units[0]

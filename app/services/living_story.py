@@ -339,12 +339,21 @@ class SoftRejection(StoryUnavailable):
     """
 
     def __init__(
-        self, reason: str, *, hint: str | None = None, proposal: Any = None, codes: tuple[str, ...] = ()
+        self,
+        reason: str,
+        *,
+        hint: str | None = None,
+        proposal: Any = None,
+        codes: tuple[str, ...] = (),
+        vetoed: bool = False,
     ) -> None:
         super().__init__(reason, hint=hint)
         self.proposal = proposal
         #: Every finding behind this rejection, for the pilot ledger; ``reason`` is the first.
         self.codes = tuple(codes) or (reason,)
+        #: The reply goes against the scene's record (``lane_guards.scene_findings``): it is
+        #: re-rolled once and never served; after that the authored line plays.
+        self.vetoed = vetoed
 
 
 class StrictModel(BaseModel):
@@ -1971,7 +1980,7 @@ def _approved(
     # WP-90: a draft refused only for missing reading aids (``SoftRejection``) is kept
     # here. The next attempt carries the hint; an attempt after that accepts the aids as
     # they come; and if no later attempt succeeds, this draft is served.
-    soft: dict[str, Any] = {"fallback": None, "hinted": False, "this_attempt": False}
+    soft: dict[str, Any] = {"fallback": None, "hinted": False, "this_attempt": False, "attempt": 0, "vetoed_at": None}
     # LOSS-RATE 2026-10-06: the completion budget of the next attempt — the default,
     # or a larger one once a draft was cut off by the budget (``_next_budget``).
     budget: int | None = None
@@ -1984,6 +1993,13 @@ def _approved(
         try:
             validate(proposal)
         except SoftRejection as exc:
+            if exc.vetoed:
+                # The story-truth decision: a reply that goes against the scene's record is
+                # never served, trimmed or not. One re-roll with the reason; then the turn
+                # is the authored one (``evaluate_turn``'s fallback).
+                if soft["vetoed_at"] is None:
+                    soft["vetoed_at"] = soft["attempt"]
+                raise StoryUnavailable(str(exc), hint=exc.feedback) from exc
             if soft["hinted"]:
                 return exc.proposal if exc.proposal is not None else proposal
             if soft["fallback"] is None:
@@ -2006,6 +2022,9 @@ def _approved(
             break
         if soft["this_attempt"]:
             soft["hinted"], soft["this_attempt"] = True, False
+        if soft["vetoed_at"] is not None and attempt > soft["vetoed_at"] + 1:
+            break
+        soft["attempt"] = attempt
         try:
             if candidates > 1 and attempt == 0 and draw is None:
                 # WP-59: two drafts side by side, every guard on each, the score keeps
@@ -6271,6 +6290,7 @@ def reply_soft_check(
     if lexical_hint:
         hints.append(str(lexical_hint))
         codes.append("reply_off_lexicon")
+    vetoed = False
     if not getattr(model, "needs_clarification", False):
         from app.services import lane_guards
 
@@ -6283,11 +6303,11 @@ def reply_soft_check(
         for finding in lane_guards.scene_findings(trimmed, payload):
             hints.append(finding.hint)
             codes.append(finding.code)
-            trimmed = finding.served
+            vetoed = True
     if not hints:
         return
     served = model.model_copy(update={"reply_fr": trimmed}) if trimmed != reply else model
-    raise SoftRejection(codes[0], hint=" ".join(hints), proposal=served, codes=tuple(codes))
+    raise SoftRejection(codes[0], hint=" ".join(hints), proposal=served, codes=tuple(codes), vetoed=vetoed)
 
 
 # A graphic-novel page of 4-6 panels (2026-09-25); the prompt asks for ~10 % less.
