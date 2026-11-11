@@ -51,7 +51,9 @@ def _grade(item: dict, answer: str, language: str = "en") -> dict:
     return service._correct_recognize(_concept(), "fill", {"items": [item]}, {"answers": {item["id"]: answer}})
 
 
-def test_an_accent_slip_on_an_accepted_answer_is_measured_against_that_answer(sent_a_message: dict) -> None:
+def test_fill_nearest_key(sent_a_message: dict) -> None:
+    """«Ils ont envoye» is an accent away from «Ils ont envoyé»: told and saved as that."""
+
     result = _grade(sent_a_message, "Ils ont envoye")
     assert result["verdict"] == "incorrect"
     [erratum] = result["errata"]
@@ -64,20 +66,24 @@ def test_an_accent_slip_on_an_accepted_answer_is_measured_against_that_answer(se
     assert "«envoyé», not «envoye»" in why, why
 
 
-def test_the_named_accent_is_in_the_learners_language(sent_a_message: dict) -> None:
+def test_fill_nearest_de(sent_a_message: dict) -> None:
+    """The named accent is in the learner's language."""
+
     [erratum] = _grade(sent_a_message, "Ils ont envoye", language="de")["errata"]
     assert erratum["corrected_target"] == "Ils ont envoyé"
     assert "«envoyé», nicht «envoye»" in erratum["why_wrong"], erratum["why_wrong"]
 
 
-def test_the_key_still_answers_a_miss_that_is_closest_to_it(sent_a_message: dict) -> None:
+def test_fill_key_wins(sent_a_message: dict) -> None:
+    """A miss nearest the stored key is still told against the key."""
+
     [erratum] = _grade(sent_a_message, "Elles ont envoyer")["errata"]
     assert erratum["corrected_target"] == "Elles ont envoyé"
     [erratum] = _grade(sent_a_message, "Elles ont envoye")["errata"]
     assert erratum["corrected_target"] == "Elles ont envoyé"
 
 
-def test_judge_measures_a_miss_against_the_nearest_accepted_answer() -> None:
+def test_judge_nearest() -> None:
     """The shared grader: among misses, an accent away beats a word away."""
 
     verdict = judge("Ils ont envoye", ["Elles ont envoyé", "Ils ont envoyé"], accents="strict", typo=False)
@@ -87,7 +93,7 @@ def test_judge_measures_a_miss_against_the_nearest_accepted_answer() -> None:
     assert (verdict.learner_word, verdict.expected_word) == ("envoye", "envoyé")
 
 
-def test_a_rewrite_miss_is_measured_against_the_nearest_accepted_rewrite() -> None:
+def test_rewrite_nearest() -> None:
     """The same cause on the rewrite rung: its erratum and diff came from the stored key."""
 
     service = AtelierCorrectionService(None)
@@ -110,6 +116,6 @@ def test_a_rewrite_miss_is_measured_against_the_nearest_accepted_rewrite() -> No
     assert "«envoyé», not «envoye»" in erratum["why_wrong"], erratum["why_wrong"]
 
 
-def test_judge_still_prefers_a_clean_accept_over_an_accent_accept() -> None:
+def test_judge_clean_hit() -> None:
     verdict = judge("ils ont envoye", ["Ils ont envoye", "Ils ont envoyé"], accents="lenient", typo=False)
     assert verdict.correct and verdict.exact
