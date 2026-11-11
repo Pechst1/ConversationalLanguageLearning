@@ -209,6 +209,7 @@ import { epreuveOf } from '@/lib/can-dos';
 import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 import { atelierCopy } from '@/lib/atelier-v2-copy';
 import { journeyChromeLanguage, journeyLevel } from '@/lib/language-rule';
+import { chromeDate } from '@/lib/chrome-locale';
 import { cn } from '@/lib/utils';
 import { resolveMediaUrl } from '@/lib/media-url';
 // WP-119 phase 1 — La Revue on La Une, as data in Home's slots (lib/revue-une.ts).
@@ -3146,7 +3147,7 @@ function TodayView({
     <>
     <HomeScreen
       hero={homeHero}
-      dateLabel={formatAtelierEditionDate(new Date(), homeDay ? chromeLanguage : 'fr')}
+      dateLabel={chromeDate(new Date(), homeDay ? chromeLanguage : 'fr', 'heading') ?? ''}
       editionLabel={editionLabel}
       special={specialEdition}
       streak={homeChip.streak}
@@ -3418,26 +3419,6 @@ function parcoursTopicShort(value: string) {
   if (lower.includes('si ') || lower.includes('condition')) return 'si + présent';
   if (lower.includes('négation') || lower.includes('negation')) return 'la négation';
   return normalized.length > 26 ? `${normalized.slice(0, 23).trim()}…` : normalized;
-}
-
-// WP-82: the date line is chrome — it reads in Home's chrome language.
-const DATE_LOCALES: Record<ControlLanguage, string> = { en: 'en-GB', de: 'de-DE', fr: 'fr-FR' };
-
-function formatAtelierEditionDate(date = new Date(), language: ControlLanguage = 'fr') {
-  const formatted = new Intl.DateTimeFormat(DATE_LOCALES[language] || 'fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    // «Mercredi 23 sept.» — the short month keeps the headline on one line.
-    month: 'short',
-  }).format(date);
-  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
-}
-
-function formatAtelierDatestamp(date = new Date()) {
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = String(date.getFullYear()).slice(-2);
-  return `Classée · ${day} · ${month} · ${year}`;
 }
 
 function atelierEditionStreak(today: AtelierToday | null, activeSession: AtelierSessionStart | null) {
@@ -5245,7 +5226,8 @@ function RecapModal({
               ? t.recap_early
               : t.recap_done}
         />
-        <EpRecapHead date={formatAtelierDatestamp().replace('Classée · ', '')} />
+        {/* #694: the séance's day in the chrome language («Wednesday 11 Nov»), not a bare «11 · 11 · 26». */}
+        <EpRecapHead date={chromeDate(new Date(), language, 'heading')} />
         <div className="ep-recap-body">
           {forgeRows.length ? (
             // One Garamond line (the headline above); each rule: its level,

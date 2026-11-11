@@ -16,6 +16,7 @@
  */
 
 import { castIdFor } from '@/lib/cast-faces';
+import { chromeLocale } from './chrome-locale';
 import type { ControlLanguage } from '@/types/daily-journey';
 
 import { canDoCopy, fill } from './can-do-copy';
@@ -77,8 +78,6 @@ export function bandRank(band: unknown): number {
 /* Dates                                                               */
 /* ------------------------------------------------------------------ */
 
-const LOCALE: Record<ControlLanguage, string> = { en: 'en-GB', de: 'de-DE', fr: 'fr-FR' };
-
 function parseDay(value: unknown): Date | null {
   const raw = str(value);
   if (!raw) return null;
@@ -92,7 +91,7 @@ export function carnetDate(value: unknown, language: ControlLanguage): string | 
   const parsed = parseDay(value);
   if (!parsed) return null;
   try {
-    return new Intl.DateTimeFormat(LOCALE[language] ?? 'en-GB', { day: 'numeric', month: 'short' }).format(parsed);
+    return new Intl.DateTimeFormat(chromeLocale(language), { day: 'numeric', month: 'short' }).format(parsed);
   } catch {
     return null;
   }
@@ -104,7 +103,7 @@ export function dayAfter(localDate: unknown, days: number, language: ControlLang
   if (!parsed) return null;
   const next = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate() + days, 12);
   try {
-    return new Intl.DateTimeFormat(LOCALE[language] ?? 'en-GB', { day: 'numeric', month: 'long' }).format(next);
+    return new Intl.DateTimeFormat(chromeLocale(language), { day: 'numeric', month: 'long' }).format(next);
   } catch {
     return null;
   }

@@ -153,11 +153,12 @@ test('a finished day is one screen: seal, facts, words, face, teaser, actions', 
   assert.match(html, /class="av2-seal"[^>]*data-stamp="true"/);
   assert.match(html, /data-edition="47"/);
   assert.match(html, /data-variant="frieze"/, 'edition 47 always presses the same seal');
-  assert.match(html, /aria-label="Sceau Nº 47 · [^"]+"/);
+  // #694: the seal names itself and dates the day in the chrome language.
+  assert.match(html, /aria-label="Seal Nº 47 · 22 Sept"/);
   assert.match(html, /data-keepsake="33333333-3333-4333-8333-333333333301"/);
   assert.match(text, /Atelier · le feuilleton/);
   assert.match(text, /Un café au Mistral/);
-  assert.match(text, /Le Mistral · 22 sept\./);
+  assert.match(text, /Le Mistral · 22 Sept/);
   // «La suite demain».
   assert.match(text, /Tomorrow « Je vous garde une place au Mistral\. Vous venez \? » — Marin/);
   // Actions: «Ranger le sceau» the one primary, «Plus de pratique» quiet.

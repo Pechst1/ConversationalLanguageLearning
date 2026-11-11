@@ -6,13 +6,13 @@
 
 import React, { useEffect, useState } from 'react';
 
-import { BottomSheet } from '@/components/atelier-v2/ui';
+import { BottomSheet, useControlLanguage } from '@/components/atelier-v2/ui';
 import apiService from '@/services/api';
 import {
   dayLabel,
   entriesByDay,
   entryLine,
-  GOLD_SHEET_TITLE_FR,
+  goldCopy,
   previousWeek,
   todayNote,
   voidLine,
@@ -23,6 +23,8 @@ import {
 import { GoldGlyph } from './GoldGlyph';
 
 export function GoldSheet({ open, onClose, view }: { open: boolean; onClose: () => void; view: GoldView }) {
+  const language = useControlLanguage();
+  const copy = goldCopy(language);
   const thisWeek = view.week?.week_id ?? null;
   const [week, setWeek] = useState<string | null>(thisWeek);
   const [ledger, setLedger] = useState<GoldLedgerWeek | null>(null);
@@ -47,7 +49,7 @@ export function GoldSheet({ open, onClose, view }: { open: boolean; onClose: () 
   }, [open, week, view.balance]);
 
   const today = view.today;
-  const note = todayNote(view);
+  const note = todayNote(view, language);
   const groups = ledger?.visible && ledger.week_id === week ? entriesByDay(ledger.entries || []) : [];
   const earlier = week ? previousWeek(week) : null;
 
@@ -55,29 +57,29 @@ export function GoldSheet({ open, onClose, view }: { open: boolean; onClose: () 
     <BottomSheet
       open={open}
       onClose={onClose}
-      title={GOLD_SHEET_TITLE_FR}
-      eyebrow={`Ton livret · ${view.balance ?? 0} feuilles d’or`}
+      title={copy.sheet_title}
+      eyebrow={copy.sheet_eyebrow(view.balance ?? 0)}
     >
       <div className="av2-gold-sheet">
         {today && week === thisWeek && (
           <p className="av2-gold-sheet__today">
-            Aujourd’hui <strong>+{today.settled}</strong>
+            {copy.today} <strong>+{today.settled}</strong>
             {' · '}
-            {today.pleine ? 'journée pleine' : `${today.earn_settled} / ${today.mark} vers la journée pleine`}
-            {view.week ? ` · semaine ${view.week.journees_pleines} / ${view.week.journees_pleines_goal}` : ''}
+            {today.pleine ? copy.day_full : copy.day_toward({ earned: today.earn_settled, mark: today.mark })}
+            {view.week ? ` · ${copy.week({ days: view.week.journees_pleines, goal: view.week.journees_pleines_goal })}` : ''}
             {note ? <span className="av2-gold-sheet__note"> · {note}</span> : null}
           </p>
         )}
-        {failed && <p className="av2-gold-sheet__empty">Le livret ne s’ouvre pas pour l’instant.</p>}
+        {failed && <p className="av2-gold-sheet__empty">{copy.sheet_failed}</p>}
         {!failed && ledger && groups.length === 0 && (
-          <p className="av2-gold-sheet__empty">Rien cette semaine. Chaque réponse juste y laisse une feuille.</p>
+          <p className="av2-gold-sheet__empty">{copy.sheet_empty}</p>
         )}
         {groups.map((group) => (
           <section key={group.day} className="av2-gold-sheet__day">
-            <h3 className="av2-label">{dayLabel(group.day)}</h3>
+            <h3 className="av2-label">{dayLabel(group.day, language)}</h3>
             <ul className="av2-gold-sheet__list">
               {group.entries.map((entry) => {
-                const pulped = voidLine(entry);
+                const pulped = voidLine(entry, language);
                 return (
                   <li key={entry.id} className="av2-gold-entry" data-state={entry.state}>
                     <GoldGlyph state={entry.state === 'settled' ? 'settled' : entry.state === 'void' ? 'void' : 'pending'} />
@@ -92,12 +94,12 @@ export function GoldSheet({ open, onClose, view }: { open: boolean; onClose: () 
         <div className="av2-gold-sheet__weeks">
           {earlier && (
             <button type="button" className="av2-btn av2-btn--quiet av2-btn--inline" onClick={() => setWeek(earlier)}>
-              Semaine d’avant
+              {copy.week_before}
             </button>
           )}
           {week !== thisWeek && (
             <button type="button" className="av2-btn av2-btn--quiet av2-btn--inline" onClick={() => setWeek(thisWeek)}>
-              Cette semaine
+              {copy.this_week}
             </button>
           )}
         </div>
