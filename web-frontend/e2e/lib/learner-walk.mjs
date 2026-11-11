@@ -6,6 +6,7 @@ import path from 'node:path';
 import { FORGE_FOLLOW, FORGE_REPAIR, FORGE_SHEET, FORGE_SPOT, LEXIQUE_DECK, snapshot, sleep, TYPEABLE_FIELD, WORD_BANK_TILE } from './driver.mjs';
 import { missLayoutChecks, readingIsSteady } from './miss-layout.mjs';
 import { reversed, trackKey, trackVerdicts } from './verdict-timeline.mjs';
+import { HAND_ON } from './day-plan.mjs';
 import { englishWords, SERVER_BANNER } from './assertions.mjs';
 
 /**
@@ -61,6 +62,8 @@ export class LearnerWalk {
     this.stepCaptions = [];
     mkdirSync(outDir, { recursive: true });
     this.timelines = new Map();
+    this.played = new Set();
+    this.handOns = 0;
   }
 
   where(extra = {}) {
@@ -107,6 +110,23 @@ export class LearnerWalk {
     this.page = page;
     page.on('pageerror', (e) => this.findings.check('no-uncaught-error', false, String(e.message).slice(0, 200), this.where()));
     page.on('response', (r) => {
+      // The day plan as the page receives it (`TodayEnvelope.session`): its steps, which
+      // are done, and whether the day is. The first one of a day is the plan the day is
+      // held to (`beginDay`, `dayPlanChecks`); the latest says where the day stands.
+      if (r.url().includes('/daily-journeys/today') && r.request().method() === 'GET' && r.ok()) {
+        r.json().then((body) => {
+          // The chrome language the server serves this learner now: French from B1 on the
+          // learner's current estimate (app/services/chrome_language.py), so a B1 walker
+          // whose wrong answers pull the estimate under B1 is rightly served English.
+          if (body && typeof body.control_language === 'string' && body.control_language !== this.chrome) {
+            if (this.chrome) console.log(`[walk] ${this.lang}-${this.level} day ${this.day}: chrome ${this.chrome} → ${body.control_language} (the server's level rule)`);
+            this.chrome = body.control_language;
+          }
+          if (!body || !body.session || !Array.isArray(body.session.steps)) return;
+          this.lastSession = body.session;
+          if (!this.planAtStart) this.planAtStart = body.session;
+        }, () => {});
+      }
       const st = r.status();
       if (st >= 500 && r.url().includes('/api/')) {
         this.findings.check('no-server-error', false, `${st} ${r.request().method()} ${new URL(r.url()).pathname}`, this.where());
@@ -119,7 +139,10 @@ export class LearnerWalk {
   pageChecks(s, kind) {
     const w = this.where({ kind });
     this.findings.check('no-horizontal-scroll', s.scrollW <= s.innerW + 1, `scrollWidth ${s.scrollW} > ${s.innerW}`, w);
-    if (this.level.startsWith('B') || this.level.startsWith('C')) {
+    // A B1+ learner's French screen: while the server serves them French chrome (`this.chrome`,
+    // read off GET /daily-journeys/today; before it answers, the registered level stands).
+    const frenchChrome = (this.level.startsWith('B') || this.level.startsWith('C')) && (!this.chrome || this.chrome === 'fr');
+    if (frenchChrome) {
       // Réglages is not a French screen: the owner carved it out on 2026-09-17 and it
       // follows the learner's native language (lib/settings-copy.ts). Every other
       // screen keeps the check.
@@ -327,7 +350,7 @@ export class LearnerWalk {
     const state = (await answer.getAttribute('data-appeal').catch(() => null)) || 'none';
     const after = await this.page.locator('.av2-graded').first().getAttribute('data-state').catch(() => null);
     await this.shoot(`appeal-${state}`);
-    const w = this.where({ kind: 'appeal', before, after, state });
+    const w = this.where({ kind: 'appeal', before, after, state, drill: s.match ? 'match' : s.choices ? 'choice' : s.tilesBox ? 'tiles' : 'other' });
     const t = this.timelines.get(`${this.day}:${trackKey(this, await snapshot(this.page), 'drill')}`);
     if (t) t.appeal = state;
     this.appeals = [...(this.appeals || []), { lang: this.lang, day: this.day, before, after, state }];
@@ -392,6 +415,13 @@ export class LearnerWalk {
 
   async act(s, kind, state) {
     const page = this.page;
+    // La Forge's end («Les règles du jour sont forgées.», or «Terminée en avance» when the
+    // séance's time ran out first) offers «Passer l'épreuve», which is not the day's step,
+    // and its hand-off home below the fold. A day played to its end takes the day's next
+    // step from there (B1 day 2 stood 30 s on it, the first local full walk of 11 Nov).
+    if (state.toTheEnd && (await page.locator('.ep-bat-stage').count())) {
+      return (await this.nextStep(s)) === 'next';
+    }
     if (kind === 'reader') {
       if (process.env.WALK_ART_SET === 'drawn' && this.mouthShapes == null) await this.sampleMouth();
       const next = page.locator('.fr-next:not([disabled])').last();
@@ -519,9 +549,9 @@ export class LearnerWalk {
   }
 
   /** Play one journey from Home to the recap. Returns the kinds seen. */
-  async playJourney({ maxSeconds = 240, entry = null, label = '' } = {}) {
+  async playJourney({ maxSeconds = 240, entry = null, label = '', toTheEnd = false } = {}) {
     const page = this.page;
-    const state = { itemIndex: 0, typing: false, readerBox: null };
+    const state = { itemIndex: 0, typing: false, readerBox: null, toTheEnd };
     if (!entry) this.timelines.clear();
     if (entry) {
       await page.goto(`${this.stack.web}${entry}`, { waitUntil: 'domcontentloaded' });
@@ -614,19 +644,18 @@ export class LearnerWalk {
           if (this.classify(after) !== kind) continue;
         }
       } else sameFor += 1;
-      // WALK_PLAY_ON=1 (opt-in, never in CI): a recap that still offers the day's next
-      // step («Next: grammar», «Suite : grammaire», «Weiter: Grammatik») is tapped
-      // through, so the walk plays La Forge and the words every day. CI reaches them only
-      // when the scene's save is slow (main's runs 42995373157 and 43000929857); this
-      // finds what stalls there before a main run does.
-      if (kind === 'recap' && process.env.WALK_PLAY_ON && (state.playedOn || 0) < 3) {
-        const on = page.locator('button, a').filter({ hasText: /^\s*(Suite\s?:|Weiter:|Next:)/ }).first();
-        if (await on.count()) {
-          state.playedOn = (state.playedOn || 0) + 1;
-          await on.click({ timeout: 3000 }).catch(() => {});
-          await sleep(500);
+      if (toTheEnd) this.markPlayed(s, kind);
+      // A day is played to its end, whatever the scene's save timing: «Scène terminée ·
+      // Suite : grammaire» is a step of the day, not its recap. The walk takes the next
+      // step for as long as the day plan has one, and stops only at /fertig with the day
+      // done, or at a recap the server's plan agrees is the last screen (`nextStep`).
+      // `toTheEnd` is the daily walk's (walk.mjs); the one-off scripts stop at the recap.
+      if (toTheEnd && (kind === 'recap' || kind === 'home-done')) {
+        if ((await this.nextStep(s)) === 'next') {
+          lastSig = '';
           continue;
         }
+        break;
       }
       if (kind === 'recap' || kind === 'home-done') break;
       const acted = await this.act(s, kind, state);
@@ -648,6 +677,80 @@ export class LearnerWalk {
     }
     this.finishTimelines();
     return kinds;
+  }
+
+  /** A new day: the plan it is held to, the steps played, and how it ended. */
+  beginDay(day) {
+    this.day = day;
+    this.seq = 0;
+    this.planAtStart = null;
+    this.lastSession = null;
+    this.played = new Set();
+    this.dayEnd = null;
+    this.handOns = 0;
+  }
+
+  /** Which step of the day plan this screen belongs to. */
+  markPlayed(s, kind) {
+    const url = s.url || '';
+    if (url.startsWith('/vocabulary/review')) this.played.add('words');
+    else if (url.startsWith('/atelier') && /[?&]mode=forge\b/.test(url)) this.played.add('grammar');
+    else if (url.startsWith('/atelier') && ['reader', 'thread', 'cast', 'read', 'choice', 'field', 'tiles', 'match', 'dictation', 'rule'].includes(kind)) this.played.add('scene');
+  }
+
+  /**
+   * At a screen that looks like the end of the day: take the day's next step when one is
+   * offered («Suite : grammaire», «Weiter: 20 Wörter», «Next: grammar»), on the screen
+   * itself or, when it offers none, on Home, where the server's plan says what is left.
+   * 'next' when a step was taken; 'over' when the day is done (/fertig with the day done,
+   * or a recap whose plan has nothing left); 'stuck' when the plan has a step and no
+   * screen offers it.
+   */
+  async nextStep(s) {
+    const page = this.page;
+    if (this.handOns > 8) return 'stuck';
+    const handOn = () => page.locator('button:not([disabled]), a').filter({ hasText: HAND_ON });
+    if (await handOn().count()) {
+      this.handOns += 1;
+      await this.shoot('hand-on');
+      await handOn().first().click({ timeout: 3000 }).catch(() => {});
+      await sleep(800);
+      return 'next';
+    }
+    if ((s.url || '').startsWith('/fertig') && (await page.locator('[data-fertig="done"]').count())) {
+      this.played.add('finish');
+      this.dayEnd = 'fertig';
+      return 'over';
+    }
+    // The screen offers no next step. Home asks the server again: a scene whose save
+    // had not landed when its recap mounted left this screen without its «Suite».
+    const today = page
+      .waitForResponse((r) => r.url().includes('/daily-journeys/today') && r.request().method() === 'GET', { timeout: 30000 })
+      .then((r) => r.json())
+      // A body the page navigated away from cannot be read; the listener's copy stands in.
+      .catch(() => null);
+    await page.goto(`${this.stack.web}/atelier`, { waitUntil: 'domcontentloaded' });
+    const body = await today;
+    await sleep(1200);
+    const session = (body && body.session) || this.lastSession;
+    if (!session || session.done) {
+      this.played.add('finish');
+      this.dayEnd = session ? 'recap' : 'recap-no-plan';
+      return 'over';
+    }
+    const homeNext = page.locator('[data-session-next] .av2-btn--primary:not([disabled])');
+    await homeNext.first().waitFor({ timeout: 15000 }).catch(() => {});
+    if (await homeNext.count()) {
+      this.handOns += 1;
+      await this.shoot('home-next');
+      await homeNext.first().click({ timeout: 3000 }).catch(() => {});
+      await sleep(800);
+      return 'next';
+    }
+    // Home itself starts the day's first open step: its primary button (the scene).
+    this.findings.check('a-way-forward', false, `the day plan has «${session.next_kind}» left and no screen offers it`, this.where({ kind: 'home' }));
+    await this.shoot('stuck');
+    return 'stuck';
   }
 
   /** WP-109: the four places in order, and Home headlining today's episode. */

@@ -3,10 +3,13 @@
 // how to go on? A failed assertion is a finding: it is recorded (with the screenshot),
 // never swallowed.
 
+import { knownFailure } from './known-failures.mjs';
+
 export class Findings {
-  constructor() {
-    this.results = []; // { id, ok, detail, where, shot }
+  constructor({ known = knownFailure } = {}) {
+    this.results = []; // { id, ok, detail, where, shot, known }
     this.counts = new Map();
+    this.knownFailure = known;
   }
   check(id, ok, detail, where = {}) {
     if (!ok) {
@@ -16,15 +19,24 @@ export class Findings {
       if (this.seen.has(key)) return false;
       this.seen.add(key);
     }
-    this.results.push({ id, ok: !!ok, detail: ok ? '' : String(detail || ''), where });
-    const c = this.counts.get(id) || { pass: 0, fail: 0 };
-    c[ok ? 'pass' : 'fail'] += 1;
+    // An app failure with an open issue (known-failures.mjs) is still recorded and printed
+    // with its issue number, but does not fail the walk; anything else it does not match
+    // fails as before.
+    const known = ok ? null : this.knownFailure(id, String(detail || ''), where);
+    this.results.push({ id, ok: !!ok, detail: ok ? '' : String(detail || ''), where, ...(known ? { known: known.issue } : {}) });
+    const c = this.counts.get(id) || { pass: 0, fail: 0, known: 0 };
+    c[ok ? 'pass' : known ? 'known' : 'fail'] += 1;
     this.counts.set(id, c);
-    if (!ok) console.log(`  [FAIL] ${id} — ${detail} (${JSON.stringify(where)})`);
+    if (!ok) console.log(`  [${known ? `KNOWN #${known.issue}` : 'FAIL'}] ${id} — ${detail} (${JSON.stringify(where)})`);
     return !!ok;
   }
+  /** Failures that fail the walk: every failed check no known issue covers. */
   get failures() {
-    return this.results.filter((r) => !r.ok);
+    return this.results.filter((r) => !r.ok && !r.known);
+  }
+  /** Failures an open issue covers (known-failures.mjs). */
+  get known() {
+    return this.results.filter((r) => !r.ok && r.known);
   }
   summary() {
     return [...this.counts.entries()].map(([id, c]) => ({ id, ...c }));
