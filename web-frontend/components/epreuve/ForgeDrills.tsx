@@ -20,6 +20,7 @@ import { CheckIcon, RepairIcon, useControlLanguage } from '@/components/atelier-
 import { EpBar, EpFoot, EpIco, EpOpt, EpOpts, EpPrompt, EpVerdict } from '@/components/epreuve/Epreuve';
 import { playAskedVoice, speakAskedVoice } from '@/lib/audio-session';
 import { judgementLabel } from '@/lib/classification-copy';
+import { keepCardAboveSheet } from '@/lib/keep-above-sheet';
 import { fillForge, spotHint, type ForgeCopy } from '@/lib/forge-copy';
 import {
   ACCENTS,
@@ -444,10 +445,30 @@ export function ForgeRafaleResult({
   const language = useControlLanguage();
   const right = rows.filter((row) => row.correct).length;
   const perfect = rows.length > 0 && right === rows.length;
+  // The first missed row (the call made, the right one, why) is scrolled above the sticky
+  // sheet as it appears, as every La Forge miss is (#239): a miss in the fourth row would
+  // otherwise sit under «Continuer» on a phone. One owner for that scroll: keepCardAboveSheet.
+  const feedbackRef = React.useRef<HTMLDivElement | null>(null);
+  const firstMiss = rows.findIndex((row) => !row.correct);
+  React.useEffect(() => {
+    if (firstMiss < 0) return undefined;
+    let release = () => {};
+    let frame = window.requestAnimationFrame(() => {
+      frame = window.requestAnimationFrame(() => {
+        const box = feedbackRef.current;
+        const card = box?.querySelector<HTMLElement>('.forge-rafale__rows > li[data-correct="false"]') ?? null;
+        if (card) release = keepCardAboveSheet(box, { card, clearLast: false });
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      release();
+    };
+  }, [firstMiss]);
   const seconds = burstSeconds(ms, language);
   const sub = [seconds ? fillForge(copy.rafale_time, { s: seconds }) : null, cheer || null].filter(Boolean).join(' · ');
   return (
-    <div className="ep-feedback forge-rafale-result" data-verdict={perfect ? 'correct' : 'wrong'}>
+    <div ref={feedbackRef} className="ep-feedback forge-rafale-result" data-verdict={perfect ? 'correct' : 'wrong'}>
       <ul className="forge-rafale__rows">
         {rows.map((row) => {
           const item = items.find((entry) => String(entry.id) === row.itemId);

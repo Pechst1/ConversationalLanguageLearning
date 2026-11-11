@@ -1114,6 +1114,13 @@ export default function VocabularyReviewPage() {
               />
             )}
 
+            {!loading && !loadError && !current && daySession?.kind === 'day' && !dayNext && !dayFallback && (
+              // The day's deck is through and the page is asking for what comes next (the next
+              // dose, or the day's next step). Until the answer it says so: an empty page with
+              // only the count, «33/33», offered nothing to tap (main's walk, run 43073091897).
+              <StateBlock tone="loading" title={dayLeft > 0 ? t.opening_deck : daySessionCopy(language).words_done} />
+            )}
+
             {!loading && !loadError && !current && dayNext && (
               // Round 3: the day's words are done; the day goes on.
               <Surface as="section" shape="hero" className="lx-done" data-day-next="">
