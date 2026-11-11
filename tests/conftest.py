@@ -22,6 +22,10 @@ os.environ.setdefault("ATELIER_LLM_ENABLED", "false")
 # tests/test_wp87_* switch the three-lane turn on (the production default).
 os.environ.setdefault("ATELIER_STORY_TURN_LANES_ENABLED", "false")
 os.environ.setdefault("GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED", "false")
+# The story-truth stack (#145/#147/#621) runs as production runs it (render.yaml); its
+# tests were written against it. tests/test_scene_record_flag_off.py switches it off and
+# checks that a learner then gets exactly what main served.
+os.environ.setdefault("STORY_SCENE_RECORD", "true")
 os.environ.setdefault("ATELIER_PANEL_ART_ENABLED", "false")
 # WP-75: a learner's first day is authored (the café, the cast, two quick
 # recall items). The suite's existing journey tests are about the day the

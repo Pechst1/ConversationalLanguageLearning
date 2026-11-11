@@ -1,0 +1,70 @@
+{
+  "_doc": "What the reply thread says when an authored page moves on after its last exchange: a new time or place, someone coming in. Keyed by tentpole, day, then the panel id. Simple French at any band; the page's art carries the rest. #558.",
+  "t1": {
+    "a": {
+      "a.p8": "La cloche sonne encore. Quelqu'un est à la porte."
+    },
+    "b": {
+      "b.r4": "Après la fermeture. Dans l'escalier."
+    }
+  },
+  "t3": {
+    "a": {
+      "a.p6": "Plus tard, le long du canal."
+    },
+    "b": {
+      "b.r1": "Après la fermeture."
+    }
+  },
+  "t4": {
+    "b": {
+      "b.r1": "Plus tard. Les chaises sont sur les tables.",
+      "b.r4": "Dans l'escalier, chez Odile."
+    }
+  },
+  "t5": {
+    "b": {
+      "va.b.r1.friendship": "Le canal, à une heure du matin."
+    }
+  },
+  "t6": {
+    "a": {
+      "a.p8": "Sur le palier.",
+      "a.p9": "Chez Odile, à onze heures du soir. Lila est au téléphone."
+    },
+    "b": {
+      "b.r3.marchand_only": "Dix heures, chez le notaire.",
+      "b.r2.public": "Dix heures, chez le notaire."
+    }
+  },
+  "t7": {
+    "a": {
+      "a.p9": "Plus tard, après une heure du matin."
+    },
+    "b": {
+      "b.r2": "Le matin, au café. Ils se réveillent."
+    }
+  },
+  "t8": {
+    "a": {
+      "e3.a.r2": "La veille du départ. L'appartement est vide.",
+      "e1.a.r1": "Le soir, au café. Tout le monde est là.",
+      "e1.a.r3.friendship": "Lila est au téléphone.",
+      "e2.a.r2.friendship": "Lila est au téléphone."
+    },
+    "b": {
+      "e3.b.r5": "Sur le quai, après le train.",
+      "e1.b.r5": "De retour au café, après le train."
+    }
+  },
+  "e1": {
+    "a": {
+      "ep1.a.l.hook.p": "Le soir."
+    }
+  },
+  "e3": {
+    "a": {
+      "ep3.a.hook.p": "Le téléphone de Marin vibre : « Papa »."
+    }
+  }
+}

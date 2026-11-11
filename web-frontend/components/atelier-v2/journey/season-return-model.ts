@@ -23,6 +23,7 @@
  * `season-return.test.js` pins every rule.
  */
 
+import { castDisplayName } from '@/lib/cast-faces';
 import type { ControlLanguage, JourneyRecap, RecapTeaser } from '@/types/daily-journey';
 
 // ---------------------------------------------------------------------------
@@ -31,6 +32,9 @@ import type { ControlLanguage, JourneyRecap, RecapTeaser } from '@/types/daily-j
 
 const text = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
 const textOrNull = (value: unknown): string | null => text(value) || null;
+/** The cast's own name for a person (#147); anyone else keeps what the server sent. */
+const printedName = (id: string | null | undefined, name: string | null | undefined): string | null =>
+  name ? castDisplayName(id, name) ?? name : null;
 const list = (value: unknown): any[] => (Array.isArray(value) ? value : []);
 const DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -131,7 +135,10 @@ export function absenceOf(source: AbsenceSource): AbsenceView | null {
   const characterId =
     textOrNull(absence.character_id) ?? (greetingFr ? textOrNull(source?.scenario?.character_id) : null);
   const characterName =
-    textOrNull(absence.character_name) ?? (greetingFr ? textOrNull(source?.scenario?.character_name) : null);
+    printedName(
+      characterId,
+      textOrNull(absence.character_name) ?? (greetingFr ? textOrNull(source?.scenario?.character_name) : null),
+    );
   return { days, greetingFr, characterId, characterName, lines: ordered, letters };
 }
 
@@ -360,15 +367,23 @@ export function rememberPreludeSeen(storage: StorageLike, kind: DayPrelude, jour
  */
 export function recapTeaserOf(recap: (JourneyRecap & { next_teaser_fr?: unknown }) | null | undefined): RecapTeaser | null {
   if (!recap) return null;
-  const structured = recap.teaser && text(recap.teaser.text_fr) ? recap.teaser : null;
+  const sent = recap.teaser && text(recap.teaser.text_fr) ? recap.teaser : null;
+  const structured = sent && {
+    ...sent,
+    character_name: printedName(sent.character_id, sent.character_name),
+  };
   const engine = text(recap.next_teaser_fr);
   if (engine) {
-    return {
+    const teaser: RecapTeaser = {
       text_fr: engine,
       character_id: structured?.character_id ?? null,
       character_name: structured?.character_name ?? null,
       source: 'engine',
-    };
+    } as RecapTeaser;
+    // Only when the engine named what stays open: a recap from before #466 has no such key.
+    const open = text(structured?.open_fr);
+    if (open) teaser.open_fr = open;
+    return teaser;
   }
   return structured;
 }
@@ -384,8 +399,18 @@ export type TomorrowLine = { teaser: RecapTeaser; hint: string };
 export function tomorrowLine(recap: (JourneyRecap & { next_teaser_fr?: unknown }) | null | undefined): TomorrowLine | null {
   if (!recap || recap.completion_kind === 'early') return null;
   const teaser = recapTeaserOf(recap);
-  const hint = teaser ? teaserHint(teaser.text_fr) : null;
+  // #466: what the hook leaves open, whole, is the line. Cutting the hook is for a line that
+  // names nothing (a page's own caption, a learner's pick): the first words of a hook are a
+  // voice opener («Au fait…» was Tomorrow for a week of walks).
+  const hint = teaser ? text(teaser.open_fr) || closingQuestion(teaser.text_fr) || teaserHint(teaser.text_fr) : null;
   return teaser && hint ? { teaser, hint } : null;
+}
+
+/** The question a stored hook ends on, whole, if it says something by itself. */
+function closingQuestion(line: unknown): string | null {
+  const bare = text(line).replace(/\s+/g, ' ').replace(/\s*À suivre\s*(?:…|\.\.\.)?\s*$/i, '').trim();
+  const last = bare.match(/[^.!?…]+\s*\?$/)?.[0]?.trim() ?? '';
+  return last.length < bare.length && hintWords(last).length > 3 ? last : null;
 }
 
 /** Words in a hint: anything with a letter or a digit. */

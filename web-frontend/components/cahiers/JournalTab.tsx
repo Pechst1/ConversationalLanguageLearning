@@ -45,6 +45,7 @@ import {
   Surface,
   textAnswerField,
 } from '@/components/atelier-v2/ui';
+import { castDisplayName } from '@/lib/cast-faces';
 import api, {
   type JournalCorrectionItem,
   type JournalEntryView,
@@ -66,7 +67,8 @@ const FRENCH_JOURNAL: JournalCopy = cahierCopy('fr').journal;
  *  label, not a sentence. */
 export function cueLine(entry: JournalEntryView | null | undefined, t: JournalCopy = FRENCH_JOURNAL): string {
   if (!entry) return '';
-  const who = entry.cue?.character_name?.trim();
+  const sentName = entry.cue?.character_name?.trim();
+  const who = sentName && (castDisplayName(null, sentName) ?? sentName);
   const where = entry.cue?.location_name?.trim();
   const days = entry.cue?.days_ago;
   const when = days == null ? null : days <= 1 ? t.yesterday : fill(t.days_ago, { n: days });

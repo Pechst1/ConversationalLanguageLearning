@@ -80,7 +80,7 @@ export function headlineTitle(headline: EpisodeHeadline | null | undefined, fall
 
 /** The teaser without its own closing «À suivre…» (the label already says it). */
 function bareTeaser(headline: EpisodeHeadline | null | undefined): string {
-  return String(headline?.teaser_fr || '').trim().replace(/\s*À suivre\s*(?:…|\.\.\.)?\s*$/, '').trim();
+  return String(headline?.teaser_open_fr || headline?.teaser_fr || '').trim().replace(/\s*À suivre\s*(?:…|\.\.\.)?\s*$/, '').trim();
 }
 
 /** The teaser to print under the title — never the title twice. */

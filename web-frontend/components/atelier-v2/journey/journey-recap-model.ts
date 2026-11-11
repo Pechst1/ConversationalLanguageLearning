@@ -16,7 +16,7 @@
  *   Keepsake, teaser, level-up — the server's, verbatim.
  */
 
-import { castIdFor, expressionForMood } from '@/lib/cast-faces';
+import { castDisplayName, castIdFor, expressionForMood } from '@/lib/cast-faces';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 import type {
   ControlLanguage,
@@ -150,8 +150,9 @@ function faceOf(recap: JourneyRecap, journey: JourneySnapshot, language: Control
   const chrome = recapChrome(language);
   const mood = recap.mood ?? null;
   const characterId = mood?.character_id || journey.scenario?.character_id || '';
-  const name = mood?.character_name || journey.scenario?.character_name || '';
-  if (!name || !castIdFor(characterId, name)) return null;
+  const sentName = mood?.character_name || journey.scenario?.character_name || '';
+  if (!sentName || !castIdFor(characterId, sentName)) return null;
+  const name = castDisplayName(characterId, sentName) ?? sentName;
   const shift = mood?.shift ?? null;
   const expression: PortraitMood =
     shift === 'warmer'

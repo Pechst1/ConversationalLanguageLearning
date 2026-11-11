@@ -209,6 +209,13 @@ export function RespondThread({
             </li>
           );
         }
+        if (bubble.kind === 'caption') {
+          return (
+            <li key={bubble.key} className="av2-thread__line av2-thread__cut" data-speaker="caption">
+              {frenchSpacing(bubble.text)}
+            </li>
+          );
+        }
         const typing = typingKey === bubble.key && typedText.length < bubble.text.length;
         // A many-voiced reply draws each speaker with their own face; a speaker
         // other than the one the learner addresses is also named.

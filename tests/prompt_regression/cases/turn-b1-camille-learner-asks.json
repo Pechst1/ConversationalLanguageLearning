@@ -1,0 +1,122 @@
+{
+ "id": "turn-b1-camille-learner-asks",
+ "lane": "turn",
+ "level": "B1",
+ "source": "Camille's scene at B1, for the #145 done-when. No walk text exists at this level; the lines are written to be a B1 learner's.",
+ "input": {
+  "payload": {
+   "story": {
+    "control_language": "en",
+    "level": "B1",
+    "level_register": "the cast's own register",
+    "learner": {
+     "address": "neutral",
+     "grammatical_gender_note": "Do not gender the learner: no gendered adjective, participle or endearment about them, no gendered pronoun for them, and never an inclusive-dot form such as trempé·e. Use natural neutral phrasing in EVERY field, including the chapter title and question, narration, dialogue and suggested response. For example: 'Tu as pris la pluie', 'Tu veux entrer ?', 'Ça te plaît', 'Tu peux venir ?'. Do not solve gender agreement by joining masculine and feminine endings.",
+     "register_note": "Address the learner as «vous» in every sentence that is not a character's own line."
+    },
+    "world": {
+     "cast": [
+      {
+       "id": "camille",
+       "name": "Camille",
+       "role": "Heir to the family flat, in a dispute over the family debts.",
+       "personality": "Proud, quick, protective of her grandfather.",
+       "wants": "Her grandfather paid before anyone else.",
+       "speech_pattern": "Short sentences, a challenge at the end.",
+       "contradiction": "Wants peace and keeps picking fights.",
+       "secret": "She signed a paper she did not read.",
+       "flaw": "Cannot say sorry.",
+       "dynamic_with_user": "Wary ally.",
+       "register_with_user": "vous",
+       "gender": "f"
+      }
+     ]
+    },
+    "story_so_far": [],
+    "commitments": [],
+    "moods": {
+     "camille": {}
+    },
+    "relationships": {
+     "camille": {
+      "register": "vous",
+      "closeness": 1
+     }
+    },
+    "secrets": {
+     "camille": "hidden"
+    }
+   },
+   "scene": {
+    "character_id": "camille",
+    "title_fr": "La dette",
+    "premise_fr": "Camille et vous êtes chez Maître Vasseur. Les papiers de la famille sont sur la table.",
+    "location_id": "vasseur_office",
+    "objective_native": "Say whether you agree that the flat pays Grandfather first.",
+    "objective_semantics": "Camille asks if the learner agrees the flat pays her grandfather first. Met when the learner agrees or refuses.",
+    "opening_line_fr": "L'appartement paie d'abord mon grand-père. Vous êtes d'accord, non ?",
+    "suggested_response_fr": "Oui, il passe d'abord.",
+    "panels": []
+   },
+   "rubric": "Grade only what the task asks; any honest answer counts.",
+   "history": [],
+   "learner_text": "Qu'est-ce qui se passe si la vente ne couvre pas toutes les dettes ?",
+   "turns_left": 1,
+   "targets": [],
+   "assistance": "none",
+   "turn_plan": {
+    "closing_turn": false,
+    "clarify_form_fr": null,
+    "noticed_word": null,
+    "keep_talking": true
+   }
+  }
+ },
+ "answers": {
+  "TutorVerdict": [
+   {
+    "origin": "live 2026-11-09 gpt-6-luna",
+    "prompt_digest": "sha256:82b1b4fd32c171928057888ea1aea849d2a3d38c2d1ca12bdc19f882cef129c0",
+    "content": {
+     "outcome": "not_yet",
+     "evidence_quotes": [],
+     "correction_span_fr": null,
+     "correction_fr": null,
+     "correction_note_native": null,
+     "demonstrated_target_ids": []
+    }
+   }
+  ],
+  "VoiceReply": [
+   {
+    "origin": "live 2026-11-09 gpt-6-luna",
+    "prompt_digest": "sha256:b86bc275802af0b7aceaf0cf1b0ad80e52e7f3a645a964949c9d2829e1700330",
+    "content": {
+     "reply_fr": "Je ne sais pas. On devra sûrement négocier avec les créanciers, mais mon grand-père passe d’abord.",
+     "understood_intent": "L'apprenant demande ce qui arrivera si la vente ne couvre pas toutes les dettes.",
+     "needs_clarification": false,
+     "feeling_shift": "steady",
+     "acts": [
+      {
+       "action": "ask",
+       "subject": "conséquences d'une vente insuffisante",
+       "conditions": [],
+       "evidence_quotes": [
+        "Qu'est-ce qui se passe si la vente ne couvre pas toutes les dettes ?"
+       ]
+      }
+     ],
+     "learner_intent": "question",
+     "learned": []
+    }
+   }
+  ]
+ },
+ "expect": {
+  "failure": null,
+  "tutor_refusals": [],
+  "voice_refusals": [],
+  "outcome": "not_yet",
+  "reply_fr": "Je ne sais pas. On devra sûrement négocier avec les créanciers, mais mon grand-père passe d’abord."
+ }
+}

@@ -1,0 +1,983 @@
+{
+ "budget_seconds": 600,
+ "cefr": "A1.1",
+ "control_language": null,
+ "day": 3,
+ "day_shape": "standard",
+ "estimated_active_seconds": 1045,
+ "events": [
+  {
+   "estimated_seconds": 84,
+   "step": {
+    "id": "<id>",
+    "kind": "rule",
+    "prompt": {
+     "concept_id": 3,
+     "review": false,
+     "rule_card": {
+      "contrast": {
+       "right": "[Il y a] un café ici.",
+       "wrong": "Il est un café ici."
+      },
+      "contrast_with": [
+       {
+        "id": "FR2_A12_CEST_IL_EST",
+        "note": {
+         "de": "Il y a stellt etwas Neues vor; c'est zeigt darauf oder kommentiert es: Il y a un café. C'est un bon café.",
+         "en": "Il y a presents something new; c'est points at it or comments on it: Il y a un café. C'est un bon café.",
+         "fr": "Il y a présente une chose nouvelle ; c'est la montre ou la commente : Il y a un café. C'est un bon café."
+        },
+        "title": {
+         "de": "C'est oder il/elle est",
+         "en": "C'est vs il/elle est",
+         "fr": "C'est ou il/elle est"
+        }
+       },
+       {
+        "id": "FR2_A11_NEGATION",
+        "note": {
+         "de": "Die Verneinung il n'y a pas de folgt der Regel pas de.",
+         "en": "The negative il n'y a pas de follows the pas de rule.",
+         "fr": "Il n'y a pas de suit la règle de pas de."
+        },
+        "title": {
+         "de": "Ne…pas und pas de",
+         "en": "Ne…pas, and pas de",
+         "fr": "Ne…pas et pas de"
+        }
+       }
+      ],
+      "example": {
+       "fr": "Dans la rue, [il y a] une boulangerie et deux cafés."
+      },
+      "examples": [
+       {
+        "fr": "[Il y a] une pharmacie près d'ici ?",
+        "tr": {
+         "de": "Gibt es hier in der Nähe eine Apotheke?",
+         "en": "Is there a pharmacy near here?"
+        }
+       },
+       {
+        "fr": "[Il n'y a pas de] lait dans le frigo.",
+        "tr": {
+         "de": "Im Kühlschrank ist keine Milch.",
+         "en": "There's no milk in the fridge."
+        }
+       },
+       {
+        "fr": "Ce soir, [il y a] des amis à la maison.",
+        "tr": {
+         "de": "Heute Abend sind Freunde bei uns.",
+         "en": "Tonight there are friends at our place."
+        }
+       }
+      ],
+      "from_scene": true,
+      "how": {
+       "de": "1. Beginne mit il y a: immer dieselben drei Wörter.\n2. Dann un, une, des oder eine Zahl, dann das Nomen.\n3. Verneint: il n'y a pas de + Nomen.",
+       "en": "1. Start with il y a: always the same three words.\n2. Add un, une, des or a number, then the noun.\n3. Negative: il n'y a pas de + noun.",
+       "fr": "1. Commencez par il y a : toujours les mêmes trois mots.\n2. Ajoutez un, une, des ou un nombre, puis le nom.\n3. À la forme négative : il n'y a pas de + nom."
+      },
+      "more": {
+       "de": "Es bleibt gleich, für eins wie für viele: il y a un café, il y a dix cafés. Verneint werden un, une, des zu de: il n'y a pas de café. Fragen kann man mit Il y a… ? oder Est-ce qu'il y a… ?",
+       "en": "It is the same for one thing and for many: il y a un café, il y a dix cafés. In the negative, un, une, des become de: il n'y a pas de café. To ask, say Il y a… ? or Est-ce qu'il y a… ?",
+       "fr": "C'est pareil pour une chose ou pour plusieurs : il y a un café, il y a dix cafés. À la forme négative, un, une, des deviennent de : il n'y a pas de café. Pour demander : Il y a… ? ou Est-ce qu'il y a… ?"
+      },
+      "pattern": {
+       "kind": "rows",
+       "rows": [
+        {
+         "fr": "[il y a] un café",
+         "label": "+ un, une",
+         "shape": "none"
+        },
+        {
+         "fr": "[il y a] des cafés",
+         "label": "+ des",
+         "shape": "none"
+        },
+        {
+         "fr": "[il y a] deux cafés",
+         "label": "+ nombre",
+         "shape": "none"
+        },
+        {
+         "fr": "[il n'y a pas de] café",
+         "label": "non",
+         "shape": "none"
+        }
+       ]
+      },
+      "rule": {
+       "de": "Il y a heißt „es gibt“ oder „da ist / da sind“ und ändert sich nie.",
+       "en": "Il y a means 'there is' and 'there are'; it never changes.",
+       "fr": "Il y a présente ce qui existe ; la forme ne change jamais."
+      },
+      "speaker": "romy_tremblay",
+      "traps": [
+       {
+        "right": "[Il y a] deux cafés.",
+        "why": {
+         "de": "Il y a bleibt im Singular, auch vor einem Plural.",
+         "en": "Il y a stays singular, even before a plural.",
+         "fr": "Il y a reste au singulier, même devant un pluriel."
+        },
+        "wrong": "Il y ont deux cafés."
+       },
+       {
+        "right": "Il n'y a pas [de] pain.",
+        "why": {
+         "de": "Nach pas werden du, de la und des zu de.",
+         "en": "After pas, du, de la and des become de.",
+         "fr": "Après pas, du, de la et des deviennent de."
+        },
+        "wrong": "Il n'y a pas du pain."
+       }
+      ]
+     },
+     "scene_example_fr": "Dans la rue, [il y a] une boulangerie et deux cafés.",
+     "scene_example_speaker": "romy_tremblay",
+     "title_fr": "Il y a : ce qui existe ici",
+     "title_native": "Il y a: es gibt"
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "choice",
+     "option_id": "opt_72debeee"
+    },
+    "intent": "right"
+   },
+   "estimated_seconds": 29,
+   "key": {
+    "accepted_answers": [
+     "Dans la rue, il y a une boulangerie et deux cafés."
+    ],
+    "solution_fr": "Dans la rue, il y a une boulangerie et deux cafés.",
+    "target": {
+     "concept_title": true,
+     "id": "3",
+     "kind": "grammar",
+     "label_fr": "Il y a : ce qui existe ici",
+     "label_native": "Il y a: es gibt"
+    },
+    "task_type": "choice"
+   },
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": null,
+    "correction": null,
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "answer_key": {
+       "digests": [
+        "<id><id>"
+       ],
+       "salt": "<id>",
+       "version": 1
+      },
+      "goal_native": null,
+      "help_available": [
+       "hint",
+       "solution"
+      ],
+      "instruction_native": "In welchem Satz steckt die Regel von heute?",
+      "optional": false,
+      "options": [
+       {
+        "id": "opt_72debeee",
+        "text_fr": "Dans la rue, il y a une boulangerie et deux cafés."
+       },
+       {
+        "id": "opt_d3729bef",
+        "text_fr": "Tu en penses quoi ?"
+       },
+       {
+        "id": "opt_d83c7e56",
+        "text_fr": "Tu as une minute ?"
+       }
+      ],
+      "prompt_fr": null,
+      "source_fr": null,
+      "target": {
+       "concept_title": true,
+       "id": "3",
+       "kind": "grammar",
+       "label_fr": "",
+       "label_native": "Il y a: es gibt"
+      },
+      "task_type": "choice"
+     },
+     "status": "completed"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "recall",
+    "prompt": {
+     "answer_key": {
+      "digests": [
+       "<id><id>"
+      ],
+      "salt": "<id>",
+      "version": 1
+     },
+     "goal_native": null,
+     "help_available": [
+      "hint",
+      "solution"
+     ],
+     "instruction_native": "In welchem Satz steckt die Regel von heute?",
+     "optional": false,
+     "options": [
+      {
+       "id": "opt_72debeee",
+       "text_fr": "Dans la rue, il y a une boulangerie et deux cafés."
+      },
+      {
+       "id": "opt_d3729bef",
+       "text_fr": "Tu en penses quoi ?"
+      },
+      {
+       "id": "opt_d83c7e56",
+       "text_fr": "Tu as une minute ?"
+      }
+     ],
+     "prompt_fr": null,
+     "source_fr": null,
+     "target": {
+      "concept_title": true,
+      "id": "3",
+      "kind": "grammar",
+      "label_fr": "",
+      "label_native": "Il y a: es gibt"
+     },
+     "task_type": "choice"
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "choice",
+     "option_id": "opt_4816be7d"
+    },
+    "intent": "right"
+   },
+   "estimated_seconds": 18,
+   "key": {
+    "accepted_answers": [
+     "Il y a un café ici."
+    ],
+    "solution_fr": "Il y a un café ici.",
+    "target": {
+     "concept_title": true,
+     "id": "3",
+     "kind": "grammar",
+     "label_fr": "Il y a : ce qui existe ici",
+     "label_native": "Il y a: es gibt"
+    },
+    "task_type": "choice"
+   },
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": null,
+    "correction": null,
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "none",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "answer_key": {
+       "digests": [
+        "<id><id>"
+       ],
+       "salt": "<id>",
+       "version": 1
+      },
+      "goal_native": null,
+      "help_available": [
+       "hint",
+       "solution"
+      ],
+      "instruction_native": "Was ist richtig?",
+      "optional": false,
+      "options": [
+       {
+        "id": "opt_4816be7d",
+        "text_fr": "Il y a un café ici."
+       },
+       {
+        "id": "opt_a91c997d",
+        "text_fr": "Il est un café ici."
+       }
+      ],
+      "prompt_fr": null,
+      "source_fr": null,
+      "target": {
+       "concept_title": true,
+       "id": "3",
+       "kind": "grammar",
+       "label_fr": "",
+       "label_native": "Il y a: es gibt"
+      },
+      "task_type": "choice"
+     },
+     "status": "completed"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "recall",
+    "prompt": {
+     "answer_key": {
+      "digests": [
+       "<id><id>"
+      ],
+      "salt": "<id>",
+      "version": 1
+     },
+     "goal_native": null,
+     "help_available": [
+      "hint",
+      "solution"
+     ],
+     "instruction_native": "Was ist richtig?",
+     "optional": false,
+     "options": [
+      {
+       "id": "opt_4816be7d",
+       "text_fr": "Il y a un café ici."
+      },
+      {
+       "id": "opt_a91c997d",
+       "text_fr": "Il est un café ici."
+      }
+     ],
+     "prompt_fr": null,
+     "source_fr": null,
+     "target": {
+      "concept_title": true,
+      "id": "3",
+      "kind": "grammar",
+      "label_fr": "",
+      "label_native": "Il y a: es gibt"
+     },
+     "task_type": "choice"
+    }
+   }
+  },
+  {
+   "estimated_seconds": 86,
+   "page": [
+    {
+     "alt_native": "The canal in the rain.",
+     "dialogue": [],
+     "narration_fr": "Il pleut sur le canal."
+    },
+    {
+     "alt_native": "Two friends at the zinc.",
+     "dialogue": [
+      {
+       "character_id": "romy_tremblay",
+       "character_name": "Romy Tremblay",
+       "text_fr": "Tu as une minute ?",
+       "text_native": "Got a minute?"
+      }
+     ],
+     "narration_fr": ""
+    },
+    {
+     "alt_native": "A glass.",
+     "dialogue": [
+      {
+       "character_id": "romy_tremblay",
+       "character_name": "Romy Tremblay",
+       "text_fr": "Dans la rue, il y a une boulangerie et deux cafés.",
+       "text_native": null
+      }
+     ],
+     "narration_fr": "Un silence."
+    },
+    {
+     "alt_native": "The friend turns to you.",
+     "dialogue": [
+      {
+       "character_id": "romy_tremblay",
+       "character_name": "Romy Tremblay",
+       "text_fr": "Alors, on fait quoi ?",
+       "text_native": "So, what do we do?"
+      }
+     ],
+     "narration_fr": ""
+    }
+   ],
+   "step": {
+    "id": "<id>",
+    "kind": "scene",
+    "prompt": {
+     "audio_available": false,
+     "character_line_audio_url": null,
+     "character_line_fr": "Tu en penses quoi ?",
+     "image_url": "/assets/serial/locations/user_apartment.webp",
+     "listen_first": false,
+     "margin_notes": [],
+     "objective_native": "Say whether you come on Friday.",
+     "panels": null,
+     "premise_native": "Deine Großmutter hat dir hinterlassen, was über dem Mistral liegt, und das Feuer darunter. Behältst du es, teilst du es, oder lässt du es gehen?",
+     "previously_fr": [
+      "Le mauvais accueil : Ou tu dis au revoir à tout ça ?"
+     ],
+     "reread_native": null,
+     "season_part": {
+      "day_in_segment": 1,
+      "kind": "gap",
+      "season_id": "s1",
+      "segment": "g1"
+     },
+     "setup_fr": "Une affiche annonce une soirée jeux vendredi.",
+     "setup_native": "A day between two tentpoles.",
+     "stage": null
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "text",
+     "text": "Je ne sais pas encore. mais je ne pars pas demain."
+    },
+    "intent": "average"
+   },
+   "estimated_seconds": 816,
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": "D'accord.",
+    "correction": null,
+    "next_turn": {
+     "character_id": "romy_tremblay",
+     "character_line_audio_url": null,
+     "character_line_fr": "D'accord.",
+     "character_name": "Romy",
+     "choices": [],
+     "help_available": [
+      "hint",
+      "translation",
+      "suggested_response"
+     ],
+     "input_modes": [
+      "text"
+     ],
+     "letter": null,
+     "max_turns": 3,
+     "objective_native": "Say whether you come on Friday.",
+     "repair_allowed": false,
+     "spoken_reply": false,
+     "targets": [
+      {
+       "concept_title": true,
+       "id": "3",
+       "kind": "grammar",
+       "label_fr": "Il y a : ce qui existe ici",
+       "label_native": "Il y a: es gibt"
+      },
+      {
+       "concept_title": false,
+       "id": "275",
+       "kind": "vocabulary",
+       "label_fr": "vendredi",
+       "label_native": "der Freitag"
+      }
+     ],
+     "thread": [
+      {
+       "character_fr": "D'accord.",
+       "character_lines": [],
+       "correction": null,
+       "learner_fr": "Je ne sais pas encore. mais je ne pars pas demain.",
+       "unchecked": false
+      }
+     ],
+     "turn_index": 1
+    },
+    "pending": false,
+    "reply_source": "model",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "character_id": "romy_tremblay",
+      "character_line_audio_url": null,
+      "character_line_fr": "D'accord.",
+      "character_name": "Romy",
+      "choices": [],
+      "help_available": [
+       "hint",
+       "translation",
+       "suggested_response"
+      ],
+      "input_modes": [
+       "text"
+      ],
+      "letter": null,
+      "max_turns": 3,
+      "objective_native": "Say whether you come on Friday.",
+      "repair_allowed": false,
+      "spoken_reply": false,
+      "targets": [
+       {
+        "concept_title": true,
+        "id": "3",
+        "kind": "grammar",
+        "label_fr": "Il y a : ce qui existe ici",
+        "label_native": "Il y a: es gibt"
+       },
+       {
+        "concept_title": false,
+        "id": "275",
+        "kind": "vocabulary",
+        "label_fr": "vendredi",
+        "label_native": "der Freitag"
+       }
+      ],
+      "thread": [
+       {
+        "character_fr": "D'accord.",
+        "character_lines": [],
+        "correction": null,
+        "learner_fr": "Je ne sais pas encore. mais je ne pars pas demain.",
+        "unchecked": false
+       }
+      ],
+      "turn_index": 1
+     },
+     "status": "active"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "respond",
+    "prompt": {
+     "character_id": "romy_tremblay",
+     "character_line_audio_url": null,
+     "character_line_fr": "Tu en penses quoi ?",
+     "character_name": "Romy",
+     "choices": [],
+     "help_available": [
+      "hint",
+      "translation",
+      "suggested_response"
+     ],
+     "input_modes": [
+      "text"
+     ],
+     "letter": null,
+     "max_turns": 3,
+     "objective_native": "Say whether you come on Friday.",
+     "repair_allowed": true,
+     "spoken_reply": false,
+     "targets": [
+      {
+       "concept_title": true,
+       "id": "3",
+       "kind": "grammar",
+       "label_fr": "Il y a : ce qui existe ici",
+       "label_native": "Il y a: es gibt"
+      },
+      {
+       "concept_title": false,
+       "id": "275",
+       "kind": "vocabulary",
+       "label_fr": "vendredi",
+       "label_native": "der Freitag"
+      }
+     ],
+     "thread": [],
+     "turn_index": 0
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "text",
+     "text": "D’accord, je t’aide. on commence quand ?"
+    },
+    "intent": "average"
+   },
+   "estimated_seconds": 816,
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": "D'accord.",
+    "correction": null,
+    "next_turn": {
+     "character_id": "romy_tremblay",
+     "character_line_audio_url": null,
+     "character_line_fr": "D'accord.",
+     "character_name": "Romy",
+     "choices": [],
+     "help_available": [
+      "hint",
+      "translation",
+      "suggested_response"
+     ],
+     "input_modes": [
+      "text"
+     ],
+     "letter": null,
+     "max_turns": 3,
+     "objective_native": "Say whether you come on Friday.",
+     "repair_allowed": false,
+     "spoken_reply": false,
+     "targets": [
+      {
+       "concept_title": true,
+       "id": "3",
+       "kind": "grammar",
+       "label_fr": "Il y a : ce qui existe ici",
+       "label_native": "Il y a: es gibt"
+      },
+      {
+       "concept_title": false,
+       "id": "275",
+       "kind": "vocabulary",
+       "label_fr": "vendredi",
+       "label_native": "der Freitag"
+      }
+     ],
+     "thread": [
+      {
+       "character_fr": "D'accord.",
+       "character_lines": [],
+       "correction": null,
+       "learner_fr": "Je ne sais pas encore. mais je ne pars pas demain.",
+       "unchecked": false
+      },
+      {
+       "character_fr": "D'accord.",
+       "character_lines": [],
+       "correction": null,
+       "learner_fr": "D'accord, je t'aide. on commence quand ?",
+       "unchecked": false
+      }
+     ],
+     "turn_index": 2
+    },
+    "pending": false,
+    "reply_source": "model",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "character_id": "romy_tremblay",
+      "character_line_audio_url": null,
+      "character_line_fr": "D'accord.",
+      "character_name": "Romy",
+      "choices": [],
+      "help_available": [
+       "hint",
+       "translation",
+       "suggested_response"
+      ],
+      "input_modes": [
+       "text"
+      ],
+      "letter": null,
+      "max_turns": 3,
+      "objective_native": "Say whether you come on Friday.",
+      "repair_allowed": false,
+      "spoken_reply": false,
+      "targets": [
+       {
+        "concept_title": true,
+        "id": "3",
+        "kind": "grammar",
+        "label_fr": "Il y a : ce qui existe ici",
+        "label_native": "Il y a: es gibt"
+       },
+       {
+        "concept_title": false,
+        "id": "275",
+        "kind": "vocabulary",
+        "label_fr": "vendredi",
+        "label_native": "der Freitag"
+       }
+      ],
+      "thread": [
+       {
+        "character_fr": "D'accord.",
+        "character_lines": [],
+        "correction": null,
+        "learner_fr": "Je ne sais pas encore. mais je ne pars pas demain.",
+        "unchecked": false
+       },
+       {
+        "character_fr": "D'accord.",
+        "character_lines": [],
+        "correction": null,
+        "learner_fr": "D'accord, je t'aide. on commence quand ?",
+        "unchecked": false
+       }
+      ],
+      "turn_index": 2
+     },
+     "status": "active"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "respond",
+    "prompt": {
+     "character_id": "romy_tremblay",
+     "character_line_audio_url": null,
+     "character_line_fr": "D'accord.",
+     "character_name": "Romy",
+     "choices": [],
+     "help_available": [
+      "hint",
+      "translation",
+      "suggested_response"
+     ],
+     "input_modes": [
+      "text"
+     ],
+     "letter": null,
+     "max_turns": 3,
+     "objective_native": "Say whether you come on Friday.",
+     "repair_allowed": false,
+     "spoken_reply": false,
+     "targets": [
+      {
+       "concept_title": true,
+       "id": "3",
+       "kind": "grammar",
+       "label_fr": "Il y a : ce qui existe ici",
+       "label_native": "Il y a: es gibt"
+      },
+      {
+       "concept_title": false,
+       "id": "275",
+       "kind": "vocabulary",
+       "label_fr": "vendredi",
+       "label_native": "der Freitag"
+      }
+     ],
+     "thread": [
+      {
+       "character_fr": "D'accord.",
+       "character_lines": [],
+       "correction": null,
+       "learner_fr": "Je ne sais pas encore. mais je ne pars pas demain.",
+       "unchecked": false
+      }
+     ],
+     "turn_index": 1
+    }
+   }
+  },
+  {
+   "answer": {
+    "input": {
+     "mode": "text",
+     "text": "Je reste encore un peu. je veux comprendre qui elle etait."
+    },
+    "intent": "average"
+   },
+   "estimated_seconds": 816,
+   "result": {
+    "character_lines": [],
+    "character_reply_fr": "D'accord.",
+    "correction": {
+     "corrected_fr": "était",
+     "kind": "edit",
+     "note_native": "Der Akzent fehlt: « était ».",
+     "notes_native": [
+      "Der Akzent fehlt: « était »."
+     ],
+     "span_fr": "etait"
+    },
+    "next_turn": null,
+    "pending": false,
+    "reply_source": "model",
+    "slip_note_native": null,
+    "step_after": {
+     "feedback": null,
+     "prompt": {
+      "character_id": "romy_tremblay",
+      "character_line_audio_url": null,
+      "character_line_fr": "D'accord.",
+      "character_name": "Romy",
+      "choices": [],
+      "help_available": [
+       "hint",
+       "translation",
+       "suggested_response"
+      ],
+      "input_modes": [
+       "text"
+      ],
+      "letter": null,
+      "max_turns": 3,
+      "objective_native": "Say whether you come on Friday.",
+      "repair_allowed": false,
+      "spoken_reply": false,
+      "targets": [
+       {
+        "concept_title": true,
+        "id": "3",
+        "kind": "grammar",
+        "label_fr": "Il y a : ce qui existe ici",
+        "label_native": "Il y a: es gibt"
+       },
+       {
+        "concept_title": false,
+        "id": "275",
+        "kind": "vocabulary",
+        "label_fr": "vendredi",
+        "label_native": "der Freitag"
+       }
+      ],
+      "thread": [
+       {
+        "character_fr": "D'accord.",
+        "character_lines": [],
+        "correction": null,
+        "learner_fr": "Je ne sais pas encore. mais je ne pars pas demain.",
+        "unchecked": false
+       },
+       {
+        "character_fr": "D'accord.",
+        "character_lines": [],
+        "correction": null,
+        "learner_fr": "D'accord, je t'aide. on commence quand ?",
+        "unchecked": false
+       }
+      ],
+      "turn_index": 2
+     },
+     "status": "completed"
+    },
+    "task_outcome": "met"
+   },
+   "status_code": 200,
+   "step": {
+    "id": "<id>",
+    "kind": "respond",
+    "prompt": {
+     "character_id": "romy_tremblay",
+     "character_line_audio_url": null,
+     "character_line_fr": "D'accord.",
+     "character_name": "Romy",
+     "choices": [],
+     "help_available": [
+      "hint",
+      "translation",
+      "suggested_response"
+     ],
+     "input_modes": [
+      "text"
+     ],
+     "letter": null,
+     "max_turns": 3,
+     "objective_native": "Say whether you come on Friday.",
+     "repair_allowed": false,
+     "spoken_reply": false,
+     "targets": [
+      {
+       "concept_title": true,
+       "id": "3",
+       "kind": "grammar",
+       "label_fr": "Il y a : ce qui existe ici",
+       "label_native": "Il y a: es gibt"
+      },
+      {
+       "concept_title": false,
+       "id": "275",
+       "kind": "vocabulary",
+       "label_fr": "vendredi",
+       "label_native": "der Freitag"
+      }
+     ],
+     "thread": [
+      {
+       "character_fr": "D'accord.",
+       "character_lines": [],
+       "correction": null,
+       "learner_fr": "Je ne sais pas encore. mais je ne pars pas demain.",
+       "unchecked": false
+      },
+      {
+       "character_fr": "D'accord.",
+       "character_lines": [],
+       "correction": null,
+       "learner_fr": "D'accord, je t'aide. on commence quand ?",
+       "unchecked": false
+      }
+     ],
+     "turn_index": 2
+    }
+   }
+  },
+  {
+   "estimated_seconds": 12,
+   "step": {
+    "id": "<id>",
+    "kind": "resolution",
+    "prompt": {
+     "chapter_recap_fr": null,
+     "character_line_fr": "La journée se termine.",
+     "image_url": "/assets/serial/locations/user_apartment.webp",
+     "narrated": false,
+     "outcome_key": "resolved",
+     "register_note_fr": null,
+     "register_reason_native": null,
+     "story_pending": false,
+     "summary_native": "The day ends."
+    }
+   }
+  }
+ ],
+ "finish_status": 200,
+ "journey_id": "<id>",
+ "learner_level": "A1",
+ "native": "de",
+ "persona": "a1-de-fresh",
+ "private_leaks": [],
+ "quality": "average",
+ "resolution": {
+  "chapter_recap_fr": null,
+  "character_line_fr": "La journée se termine.",
+  "image_url": "/assets/serial/locations/user_apartment.webp",
+  "narrated": false,
+  "outcome_key": "resolved",
+  "register_note_fr": null,
+  "register_reason_native": null,
+  "story_pending": false,
+  "summary_native": "The day ends."
+ },
+ "scenario": {
+  "character_name": "Romy Tremblay",
+  "level_band": "A1",
+  "scenario_key": "story_<id>",
+  "title_fr": "Plusieurs semaines (4)"
+ },
+ "status": "active"
+}

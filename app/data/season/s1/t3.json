@@ -1053,6 +1053,7 @@
       ]
     }
   ],
+  "opens_with": {"register.augustin_de_roncourt": "tu"},
   "state_out": {"mistral.wall_agreed": true, "marin.first_share": "4000", "register.augustin_de_roncourt": "tu"},
   "for_next_gap": [
     "The camp bed in Marchand's office has been seen once, from the landing. Nobody asks about it yet.",

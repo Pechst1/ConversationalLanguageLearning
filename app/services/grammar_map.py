@@ -188,10 +188,12 @@ def grammar_map(db: Session, user: User, *, now: datetime | None = None) -> dict
     from app.services.atelier import fr_localizations_by_concept_id
     from app.services.eclair import eclair_enabled, eclair_pairs
     from app.services.forge import forge_features, initial_rung
+    from app.services.forge_coaches import card_for_learner, story_state_of
     from app.services.grammar_catalog import FRENCH_CORE_CATALOG_V2_VERSION, active_catalog_version
     from app.services.rule_cards import rule_card_for
 
     now = _aware(now) or datetime.now(UTC)
+    story_state = story_state_of(db, user)
     v2 = active_catalog_version() == FRENCH_CORE_CATALOG_V2_VERSION
     concepts = [
         concept
@@ -238,7 +240,12 @@ def grammar_map(db: Session, user: User, *, now: datetime | None = None) -> dict
                     "due": bool(stage != STAGE_GHOST and next_due is not None and next_due <= now),
                     "tested_out": bool(row is not None and row.tested_out_at is not None),
                     # F-1: the partners of «Compare with» carry their titles.
-                    "rule_card": card_with_partner_titles(rule_card_for(concept.external_id), titles),
+                    # #147: its face is someone this learner has met.
+                    "rule_card": card_for_learner(
+                        card_with_partner_titles(rule_card_for(concept.external_id), titles),
+                        external_id=concept.external_id,
+                        state=story_state,
+                    ),
                     # WP-S5 fills the coach; the page falls back to the card's speaker.
                     "coach": None,
                 }

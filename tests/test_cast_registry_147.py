@@ -106,7 +106,8 @@ def test_94_a_pronoun_in_a_letter_follows_the_registry_gender():
 
     assert reg.member("landlord_marchand").pronoun_fr == "Il"
     assert reg.member("camille_marchand").pronoun_fr == "Iel"
-    checked = 0
+    # No authored letter's P.S. opens on a pronoun since Romy's letter went (#626). This holds
+    # the next one that does.
     for domain in (*REAL_WORLD_MISSION_DOMAINS, *FIRST_LETTERS.values()):
         found = reg.member(domain.get("character_id")) or reg.member(
             "landlord_marchand" if domain.get("contact_name") == "M. Marchand" else str(domain.get("contact_name") or "")
@@ -114,9 +115,7 @@ def test_94_a_pronoun_in_a_letter_follows_the_registry_gender():
         twist = str(domain.get("twist") or "")
         if found is None or not twist.startswith(("Il ", "Elle ")):
             continue
-        checked += 1
         assert twist.startswith(found.pronoun_fr + " "), (domain["domain"], found.id, twist)
-    assert checked >= 1  # Romy's letter
 
 
 def test_94_the_landlord_task_states_the_radiator_problem():
@@ -282,10 +281,8 @@ def test_217_pushes_and_the_client_use_the_registry_names():
 
     for cast_id, name in sn.CHARACTER_NAMES.items():
         assert name == reg.display_name(cast_id), (cast_id, name)
-    source = (Path(__file__).resolve().parents[1] / "web-frontend/components/atelier-v2/journey/journey-faces.ts").read_text(
-        encoding="utf-8"
-    )
-    block = source.split("const COACH_NAMES", 1)[1].split("};", 1)[0]
+    source = (Path(__file__).resolve().parents[1] / "web-frontend/lib/generated/cast.ts").read_text(encoding="utf-8")
+    block = source.split("export const CAST_NAMES", 1)[1].split("};", 1)[0]
     client = dict(re.findall(r"(\w+): '([^']+)'", block))
     assert client
     for cast_id, name in client.items():

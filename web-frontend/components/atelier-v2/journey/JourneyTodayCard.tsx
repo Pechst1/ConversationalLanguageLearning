@@ -702,7 +702,9 @@ function HeadlineCast({
   faces?: boolean;
 }) {
   // Owner, 2026-10-18: a few words, never a paragraph, on Home.
-  const teaser = teaserHint(headlineTeaser(headline, title));
+  // #466: what stays open, written whole, is printed whole.
+  const opened = String(headline.teaser_open_fr || '').trim();
+  const teaser = opened && opened !== title ? opened : teaserHint(headlineTeaser(headline, title));
   // A title cut from the teaser is not printed again under itself.
   const showTeaser = Boolean(teaser) && teaser !== title;
   const cast = faces ? headline.cast || [] : [];

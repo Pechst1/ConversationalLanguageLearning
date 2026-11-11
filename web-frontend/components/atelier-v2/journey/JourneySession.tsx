@@ -530,7 +530,7 @@ export function JourneySession({
               {/* GENTLE-ONBOARDING: the first time a kind of step appears,
                   one sticker above it says what it is. Never over the cast. */}
               {!showCastIntro && (
-                <FirstStepSticker key={step.kind} stepKey={stickerFor(step.kind)} language={chromeLanguage} />
+                <FirstStepSticker key={stickerFor(step) ?? step.kind} stepKey={stickerFor(step)} language={chromeLanguage} />
               )}
               {step.kind === 'scene' && !showCastIntro && (
                 // Story-engine panels when the engine published them for this

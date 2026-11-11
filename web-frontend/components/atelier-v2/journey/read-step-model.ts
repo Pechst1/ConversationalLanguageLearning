@@ -16,6 +16,7 @@
  * Pure: no React, no fetch — unit-tested with `node --test`.
  */
 
+import { castDisplayName } from '@/lib/cast-faces';
 import type { JourneySnapshot, PublicStep, ReadPrompt, ReadStep, StoryEpisode } from '@/types/daily-journey';
 
 import type { JourneyCopy } from './journey-copy';
@@ -77,8 +78,8 @@ export function readStepSpeaker(
 ): { id: string | null; name: string } | null {
   const name = typeof prompt?.character_name === 'string' ? prompt.character_name.trim() : '';
   const id = typeof prompt?.character_id === 'string' ? prompt.character_id.trim() : '';
-  if (name) return { id: id || null, name };
-  if (id) return { id, name: id.split('_')[0].replace(/^./, (c) => c.toUpperCase()) };
+  if (name) return { id: id || null, name: castDisplayName(id, name) ?? name };
+  if (id) return { id, name: castDisplayName(id) ?? id.split('_')[0].replace(/^./, (c) => c.toUpperCase()) };
   return prompt?.variant === 'coulisses' ? fallback : null;
 }
 

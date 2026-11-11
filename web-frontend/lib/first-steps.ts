@@ -18,7 +18,7 @@
  * harmless, and nothing here can block a step when storage is unreachable.
  */
 
-import { ROUTE_STAGE_OF, WORK_STEPS, type RouteStage } from '@/lib/day-order';
+import { ROUTE_STAGE_OF, WORK_STEPS, dayStepOf, type DayWorkKind, type RouteStage } from '@/lib/day-order';
 import type { ControlLanguage } from '@/types/daily-journey';
 import type { ShapeKind } from '@/components/atelier-v2/ui/Shapes';
 
@@ -30,6 +30,7 @@ export type FirstStepKey =
   | 'scene'
   | 'rule'
   | 'recall'
+  | 'practice'
   | 'respond'
   | 'resolution'
   | 'read'
@@ -42,6 +43,7 @@ export const FIRST_STEP_SHAPE: Record<FirstStepKey, ShapeKind> = {
   rule: 'story',
   read: 'story',
   recall: 'reward',
+  practice: 'action',
   desk: 'reward',
   forge: 'reward',
   words: 'reward',
@@ -100,6 +102,10 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       recall: {
         title: 'Die Wörter',
         body: 'Kurze Wortübungen. Bei Fehlern siehst du die Lösung.',
+      },
+      practice: {
+        title: 'Die Regel im Einsatz',
+        body: 'Kurze Übungen zur Regel von heute. Bei Fehlern siehst du die Lösung.',
       },
       respond: {
         title: 'Deine Antwort',
@@ -179,6 +185,10 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
         title: 'The words',
         body: 'Quick word drills. A miss shows the answer.',
       },
+      practice: {
+        title: 'The rule in use',
+        body: 'Quick drills on today’s rule. A miss shows the answer.',
+      },
       respond: {
         title: 'Your reply',
         body: 'Answer in French, typed or spoken. The story reacts.',
@@ -255,7 +265,11 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       },
       recall: {
         title: 'Les mots',
-        body: 'De courts exercices. Une erreur montre la réponse.',
+        body: 'De courts exercices sur les mots. Une erreur montre la réponse.',
+      },
+      practice: {
+        title: 'La règle en action',
+        body: 'De courts exercices sur la règle du jour. Une erreur montre la réponse.',
       },
       respond: {
         title: 'Ta réponse',
@@ -400,18 +414,35 @@ export function rememberWalkthrough(store: KeyValueStore | null): void {
   write(store, WALKTHROUGH_KEY, '1');
 }
 
-/** The sticker a step kind shows, or `null` for a kind with nothing to explain. */
-export function stickerFor(kind: string | null | undefined): FirstStepKey | null {
-  switch (kind) {
+/**
+ * The sticker for a drill is the one of the day step it belongs to (#469): `recall` is the words
+ * only when its target is a word. The type holds one entry per step of the day, so a step added
+ * to `lib/day-order.ts` has to say here what its drill is called.
+ */
+const DRILL_STICKER: Record<DayWorkKind, FirstStepKey> = {
+  scene: 'scene',
+  grammar: 'practice',
+  words: 'recall',
+};
+
+type StickerStep = Parameters<typeof dayStepOf>[0];
+
+/** The sticker a step shows, or `null` for a kind with nothing to explain. */
+export function stickerFor(step: StickerStep | string): FirstStepKey | null {
+  const given = typeof step === 'string' ? { kind: step } : step;
+  switch (given?.kind) {
     case 'scene':
     case 'rule':
-    case 'recall':
     case 'respond':
     case 'resolution':
     case 'read':
     case 'desk':
     case 'forge':
-      return kind;
+      return given.kind;
+    case 'recall': {
+      const stage = dayStepOf(given);
+      return stage ? DRILL_STICKER[stage] : null;
+    }
     default:
       return null;
   }

@@ -15,6 +15,7 @@
  * speaks; Margaux deflects anything near the fire; «L.» is never named.
  */
 import { matches } from './memory';
+import { CAST, CAST_NAMES } from '../generated/cast';
 import type { CastId, Effect, Storylet, Value, Words } from './memory';
 
 /* ------------------------------------------------------------------------------------------ */
@@ -216,10 +217,13 @@ export interface Person {
 
 const learn = (key: string, words: Words, who: CastId): Effect => ({ kind: 'learn', key, words, who });
 
+/** How the learner opens with a person: the registry's word (#147), not this file's. */
+const addressOf = (id: CastId): 'tu' | 'vous' => CAST[id].address ?? 'vous';
+
 export const PEOPLE: Record<CastId, Person> = {
   margaux_barman: {
     id: 'margaux_barman',
-    register: 'tu',
+    register: addressOf('margaux_barman'),
     hello: [
       { id: 'margaux.key', when: { 'item.cle_cigale': 'margaux_barman' }, salience: 3, say: w('Elle est derrière la caisse.', "It's behind the till.", 'Er liegt hinter der Kasse.') },
       { id: 'margaux.cold', when: { 't1.cafe': 'refused' }, salience: 2, mood: 'cold', say: w('Oui ?', 'Yes?', 'Ja?') },
@@ -267,7 +271,7 @@ export const PEOPLE: Record<CastId, Person> = {
   },
   augustin_de_roncourt: {
     id: 'augustin_de_roncourt',
-    register: 'vous',
+    register: addressOf('augustin_de_roncourt'),
     hello: [
       { id: 'gus.selling', when: { 't1.told': 'selling' }, salience: 3, mood: 'cold', say: w('Ah. La personne qui vend.', "Ah. The person who's selling.", 'Ah. Die Person, die verkauft.') },
       { id: 'gus.rude', when: { 't1.cafe': 'refused' }, salience: 2, say: w('Le café crème. Quelle histoire.', 'The café crème. What a business.', 'Der Café Crème. Was für eine Geschichte.') },
@@ -326,7 +330,7 @@ export const PEOPLE: Record<CastId, Person> = {
   },
   marin_leveque: {
     id: 'marin_leveque',
-    register: 'tu',
+    register: addressOf('marin_leveque'),
     hello: [
       { id: 'marin.fed', when: { 'marin.fed': true }, salience: 3, say: w('Il reste de la soupe, hein.', "There's soup left, you know.", 'Es ist noch Suppe da.') },
       { id: 'marin.family', when: { 't1.told': 'family' }, salience: 2, mood: 'happy', say: w('Ma grand-mère disait toujours : « La pluie apporte la famille. »', 'My grandmother always said: “Rain brings family.”', 'Meine Großmutter sagte immer: „Regen bringt die Familie.“') },
@@ -373,7 +377,7 @@ export const PEOPLE: Record<CastId, Person> = {
   },
   lila_bonnet: {
     id: 'lila_bonnet',
-    register: 'tu',
+    register: addressOf('lila_bonnet'),
     hello: [
       { id: 'lila.family', when: { 't1.told': 'family' }, salience: 2, mood: 'happy', say: w("Salut, l'héritage !", "Hi there, l'héritage!", "Hallo, l'héritage!") },
       { id: 'lila.selling', when: { 't1.told': 'selling' }, salience: 2, mood: 'malice', say: w('Sept sur vingt, ta soirée.', 'Seven out of twenty, your evening.', 'Sieben von zwanzig, dein Abend.') },
@@ -436,7 +440,7 @@ export const PEOPLE: Record<CastId, Person> = {
   },
   camille_marchand: {
     id: 'camille_marchand',
-    register: 'vous',
+    register: addressOf('camille_marchand'),
     hello: [{ id: 'camille.hello', say: w('Bonsoir.', 'Good evening.', 'Guten Abend.') }],
     intents: [
       {
@@ -583,13 +587,8 @@ export const WHILE_AWAY: Bark[] = [
 /* the carnet's words                                                                         */
 /* ------------------------------------------------------------------------------------------ */
 
-export const NAMES: Record<CastId, string> = {
-  augustin_de_roncourt: 'Gus',
-  marin_leveque: 'Marin',
-  lila_bonnet: 'Lila',
-  margaux_barman: 'Margaux',
-  camille_marchand: 'Camille',
-};
+/** The cast's names, from the server's registry (#147). */
+export const NAMES: Record<CastId, string> = CAST_NAMES;
 
 /** How someone sees you, in a sentence that names them and never agrees with you. */
 export function regardWords(who: CastId, r: number): Words {
