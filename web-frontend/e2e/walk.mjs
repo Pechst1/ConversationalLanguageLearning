@@ -16,10 +16,14 @@
 //                      T1 A/B, gap 1, T2 A/B and the first day of gap 2 of season 1
 //                      «La clé d'Odile» (WP-111). The server starts every new learner on
 //                      the season unless WALK_SEASON= (empty) is set.
+//   --season-from 6    the season learner's first day in the browser (default 1). The days
+//                      before it are played through the API (scripts/walk_fast_forward.py):
+//                      CI's second season shard plays days 1-5 that way and 6-10 here.
 //   --out DIR          output folder                         (default e2e/out/<stamp>)
 //   --keep             leave the servers and database up (for debugging)
 //   --token-minutes 1  expire access tokens during the walk (WP-107)
 import { chromium } from '@playwright/test';
+import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -29,7 +33,7 @@ import { writeContactSheet } from './lib/contact-sheet.mjs';
 import { LearnerWalk } from './lib/learner-walk.mjs';
 import { daysSeen, SEASON_PAGES } from './lib/season-pages.mjs';
 import { registerLearner } from './lib/session.mjs';
-import { sleep, startStack } from './lib/stack.mjs';
+import { python, REPO_ROOT, sleep, startStack } from './lib/stack.mjs';
 import { WALK_TIMEZONE } from './lib/walk-timezone.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -47,6 +51,8 @@ const langs = opt('langs', 'en,de,fr').split(',').filter(Boolean);
 const days = Number(opt('days', 7));
 const b1Days = Number(opt('b1-days', 3));
 const seasonDays = process.env.WALK_SEASON === '' ? 0 : Number(opt('season-days', 10));
+const seasonFrom = Number(opt('season-from', 1));
+if (!Number.isInteger(seasonFrom) || seasonFrom < 1 || (seasonDays > 0 && seasonFrom > seasonDays)) throw new Error('--season-from must be a day of the season walk');
 const tokenMinutes = Number(opt('token-minutes', 1));
 if (!Number.isInteger(tokenMinutes) || tokenMinutes < 1) throw new Error('--token-minutes must be a positive integer');
 const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -63,7 +69,7 @@ const t00 = Date.now();
 let stack;
 let browser;
 
-async function makeLearner({ native, level, dayCount, tag }) {
+async function makeLearner({ native, level, dayCount, tag, firstDay = 1 }) {
   const learner = await registerLearner({ api: stack.api, secret: SECRET, native, level, tag });
   const context = await browser.newContext({
     viewport: { width: 375, height: 812 },
@@ -83,7 +89,36 @@ async function makeLearner({ native, level, dayCount, tag }) {
   const label = tag === 'b1' ? `${native}-${level}` : tag === 'season' ? `season-${native}` : native;
   const walk = new LearnerWalk({ page: null, findings, outDir: path.join(outDir, label), lang: native, level, stack, shots, scale });
   await walk.newSession(context);
-  return { label, walk, context, dayCount, covered: new Set(), userId: learner.id };
+  return { label, walk, context, dayCount, firstDay, covered: new Set(), userId: learner.id, learner };
+}
+
+// The season shard that starts on a later day: its learner's earlier days, played through
+// the API on this stack (scripts/walk_fast_forward.py), one day per clock step as below.
+// Returns what the server served on each of those days.
+function fastForward(l, lastDay) {
+  return new Promise((resolve, reject) => {
+    const args = [
+      'scripts/walk_fast_forward.py',
+      '--api', stack.api.replace(/\/api\/v1$/, ''),
+      '--db-url', stack.dbUrl,
+      '--email', l.learner.email,
+      '--password', l.learner.password,
+      '--days', `1-${lastDay}`,
+    ];
+    const child = spawn(python(), args, { cwd: REPO_ROOT, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
+    let out = '';
+    child.stdout.on('data', (chunk) => { out += chunk; });
+    child.stderr.on('data', (chunk) => process.stdout.write(chunk));
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code !== 0) return reject(new Error(`fast-forward exited ${code}`));
+      try {
+        resolve(JSON.parse(out.trim().split('\n').pop()).days);
+      } catch (e) {
+        reject(new Error(`fast-forward printed no days: ${out.slice(-300)}`));
+      }
+    });
+  });
 }
 
 async function playDay(l, day) {
@@ -285,18 +320,27 @@ async function readPage(l, day) {
 function seasonChecks(l) {
   // A shorter walk (pull requests play 3 days) asks only for the pages it reached.
   // #717: a page counts in the wording of any level (lib/season-pages.mjs).
+  // A shard that starts later (--season-from) did not see its first days: for those it
+  // holds the page the server served on each day (the fast-forward's report, a reprise
+  // not counted) to the same days.
+  const first = l.firstDay || 1;
+  const served = (page) => (l.fastForward || []).filter((row) => row.day < first && row.key === page.key && !row.reprise).map((row) => row.day);
   for (const page of SEASON_PAGES.filter((row) => Math.max(...row.days) <= l.dayCount)) {
-    const where = daysSeen(page, l.pages);
+    const where = [...new Set([...served(page), ...daysSeen(page, l.pages)])].sort((a, b) => a - b);
+    const how = first > 1 && Math.min(...page.days) < first ? ` (days before ${first} served through the API, not seen)` : '';
+    console.log(`[walk] ${l.label}: ${page.key} on day(s) ${where.join(', ') || 'none'}${how}`);
     findings.check(
       'season-tentpole-on-its-day',
       where.length >= 1 && where.every((day) => page.days.includes(day)) && where.length === 1,
-      `${page.key}: «${page.line}» (or its wording at another level) seen on day(s) ${where.join(', ') || 'none'} (expected one of ${page.days.join(', ')})`,
+      `${page.key}: «${page.line}» (or its wording at another level) seen on day(s) ${where.join(', ') || 'none'} (expected one of ${page.days.join(', ')})${how}`,
       l.walk.where({ kind: 'reader' }),
     );
   }
 }
 
 let exitCode = 0;
+let learnersList = [];
+const learnersFastForward = () => Object.fromEntries(learnersList.filter((l) => l.fastForward).map((l) => [l.label, l.fastForward]));
 try {
   console.log(`[walk] output: ${outDir}`);
   stack = await startStack({ logDir: path.join(outDir, 'logs'), secret: SECRET, tokenMinutes });
@@ -313,13 +357,23 @@ try {
   // Learners walk side by side: the test clock is global, so every day is played by all of
   // them before the clock moves on. It also exercises the engine's writer under concurrency.
   const learners = [];
+  learnersList = learners;
   for (const native of langs) learners.push(await makeLearner({ native, level: 'A1.1', dayCount: days, tag: 'walk' }));
   if (b1Days > 0) learners.push(await makeLearner({ native: 'en', level: 'B1.1', dayCount: b1Days, tag: 'b1' }));
-  if (seasonDays > 0) learners.push(await makeLearner({ native: 'en', level: 'A2.1', dayCount: seasonDays, tag: 'season' }));
+  if (seasonDays > 0) learners.push(await makeLearner({ native: 'en', level: 'A2.1', dayCount: seasonDays, tag: 'season', firstDay: seasonFrom }));
+  for (const l of learners.filter((row) => row.firstDay > 1)) {
+    const t0 = Date.now();
+    l.fastForward = await fastForward(l, l.firstDay - 1);
+    // «Le choix» is asked as cards from day 2 on (readPage): the cards the API days tapped count.
+    l.walk.cardsTapped = l.fastForward.reduce((n, row) => n + (row.cards || 0), 0);
+    timings.push({ label: l.label, day: `1-${l.firstDay - 1} (API)`, seconds: +((Date.now() - t0) / 1000).toFixed(1) });
+    console.log(`[walk] ${l.label}: days 1-${l.firstDay - 1} through the API in ${((Date.now() - t0) / 1000).toFixed(0)}s: ${l.fastForward.map((row) => `${row.day}:${row.key}${row.reprise ? '(reprise)' : ''}`).join(' ')}`);
+  }
   const lastDay = Math.max(days, b1Days, seasonDays);
-  for (let day = 1; day <= lastDay; day += 1) {
+  const firstDay = Math.min(...learners.map((l) => l.firstDay));
+  for (let day = firstDay; day <= lastDay; day += 1) {
     await stack.setClock(day - 1);
-    await Promise.all(learners.filter((l) => day <= l.dayCount).map((l) => playDay(l, day)));
+    await Promise.all(learners.filter((l) => day >= l.firstDay && day <= l.dayCount).map((l) => playDay(l, day)));
   }
   for (const l of learners.filter((row) => row.label.startsWith('season-'))) seasonChecks(l);
   for (const l of learners) {
@@ -367,11 +421,11 @@ try {
     findings.check('provider-down-reads-not-checked', named > 0, 'the provider was down and no screen said a check did not run', {});
   }
   const seconds = Math.round((Date.now() - t00) / 1000);
-  const meta = `${new Date().toISOString()} · ${langs.join('/')} × ${days} days + B1 × ${b1Days} + season × ${seasonDays} · fake provider · ${seconds}s`;
+  const meta = `${new Date().toISOString()} · ${langs.join('/')} × ${days} days + B1 × ${b1Days} + season × ${seasonDays}${seasonFrom > 1 ? ` (days 1-${seasonFrom - 1} through the API)` : ''} · fake provider · ${seconds}s`;
   writeContactSheet({ outDir, shots: shots.list, findings, meta });
   writeFileSync(
     path.join(outDir, 'report.json'),
-    JSON.stringify({ meta, seconds, timings, coverage, summary: findings.summary(), failures: findings.failures, known: findings.known, shots: shots.list.length }, null, 2),
+    JSON.stringify({ meta, seconds, timings, coverage, fastForward: learnersFastForward(), summary: findings.summary(), failures: findings.failures, known: findings.known, shots: shots.list.length }, null, 2),
   );
   if (stack && !argv.includes('--keep')) await stack.stop();
   await sleep(200);

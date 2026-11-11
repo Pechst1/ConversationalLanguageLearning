@@ -6,7 +6,7 @@ import test from 'node:test';
 import { REPO_ROOT } from './stack.mjs';
 import { needsFullWalk, walkMatrix } from './walk-scope.mjs';
 
-test('a pull request that touches what the walk walks plays all four shards at full length', () => {
+test('a pull request that touches what the walk walks plays every shard at full length', () => {
   for (const file of [
     'web-frontend/e2e/lib/learner-walk.mjs',
     'web-frontend/components/atelier-v2/journey/JourneyRecap.tsx',
@@ -19,7 +19,7 @@ test('a pull request that touches what the walk walks plays all four shards at f
   ]) {
     const m = walkMatrix('pull_request', ['README.md', file]);
     assert.equal(m.full, true, file);
-    assert.deepEqual(m.include.map((row) => `${row.shard}×${row.days}`), ['en + B1×7', 'de×7', 'fr×7', 'season×10']);
+    assert.deepEqual(m.include.map((row) => `${row.shard}×${row.days}`), ['en + B1×7', 'de×7', 'fr×7', 'season 1-5×5', 'season 6-10×5']);
     assert.ok(m.include.every((row) => row.pr_args === ''), 'no shortening flag on a full walk');
   }
 });
@@ -31,8 +31,16 @@ test('any other pull request keeps the one short shard', () => {
   assert.equal(needsFullWalk([]), false);
 });
 
+test('the season is played in two halves: the second starts on day 6 after an API fast-forward', () => {
+  const rows = walkMatrix('push', []).include.filter((row) => row.key.startsWith('season'));
+  assert.deepEqual(rows.map((row) => row.args), [
+    '--langs , --b1-days 0 --season-days 5',
+    '--langs , --b1-days 0 --season-days 10 --season-from 6',
+  ]);
+});
+
 test('main, the nightly run and a manual run always play the full set', () => {
-  for (const event of ['push', 'schedule', 'workflow_dispatch']) assert.equal(walkMatrix(event, []).full, true, event);
+  for (const event of ['push', 'schedule', 'workflow_dispatch', 'workflow_run']) assert.equal(walkMatrix(event, []).full, true, event);
 });
 
 test('the workflow names the jobs from the matrix, so main keeps its check names', () => {

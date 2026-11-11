@@ -35,7 +35,7 @@ export async function freePort() {
   throw new Error('no free port found');
 }
 
-function python() {
+export function python() {
   if (process.env.WALK_PYTHON) return process.env.WALK_PYTHON;
   const venv = path.join(REPO_ROOT, 'venv/bin/python');
   return existsSync(venv) ? venv : 'python';
@@ -140,7 +140,9 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
   const apiPort = await freePort();
   const webPort = await freePort();
   const children = [];
-  const stack = { dbName, apiPort, webPort, children };
+  // dbUrl: the season walk's fast-forward (scripts/walk_fast_forward.py) reads the learner's
+  // season state from the same throwaway database.
+  const stack = { dbName, dbUrl, apiPort, webPort, children };
   // Test data only, on the walk's own throwaway database (the name is checked below).
   stack.sql = (statement) => pgAdmin(dbUrl, statement);
 

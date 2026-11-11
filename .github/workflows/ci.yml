@@ -20,13 +20,21 @@ concurrency:
 
 jobs:
   browser-walk:
+    # A pull request (and a tag) plays the walk here, as one of its checks. A push to
+    # main does not: Render deploys a commit when every check on it has passed, and the
+    # walks (26-43 min) held each deploy for about 55 minutes while the other checks were
+    # done in 8. On main the job is skipped (Render counts a skipped check as passed), and
+    # .github/workflows/walk-main.yml plays the same four walks once this run is
+    # finished, filing a walk-finding issue when one fails.
     name: Browser release checks
+    if: github.event_name != 'push' || github.ref != 'refs/heads/main'
     uses: ./.github/workflows/walk.yml
 
   publish:
     name: Publish verified image
     needs: [generated-types, backend, learner-walk, postgres, frontend, docker, browser-walk]
-    if: github.event_name == 'push'
+    # The walk is skipped on main (above): a skipped need is not a failed one.
+    if: github.event_name == 'push' && !failure() && !cancelled()
     permissions:
       contents: read
       packages: write
