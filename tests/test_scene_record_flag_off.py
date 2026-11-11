@@ -1,31 +1,53 @@
-"""STORY_SCENE_RECORD off is main before the story-truth stack: the same payloads.
+"""STORY_SCENE_RECORD off: no code of the story-truth stack runs.
 
-The story-truth stack (#145 scene record, #147 one cast, #621 one scene per page) landed
-behind one switch, ``STORY_SCENE_RECORD``. With it off a learner must meet exactly what
-they met before. This plays the authored first day (a scripted day) and the next day (a
-season day) for an A1 German learner and a B1 English learner, with production's story
-flags, and compares two things with what ``origin/main`` produced at 9fbba75f:
+The story-truth stack (#145 scene record, #147 one cast, #621 one scene per page, the
+veto and the record-read re-ask of #710) landed behind one switch, ``STORY_SCENE_RECORD``.
+With it off a learner must meet what they met before the stack.
 
-* every payload the learner's client received, in reading order (the walk's transcript);
-* every request the story engine sent to a model (system prompt, output schema, data),
-  in order.
+This plays the authored first day, a season page and a generated day for an A1 German
+learner and a B1 English learner, with production's story flags, and asserts through the
+code that the stack stayed shut:
 
-The golden files were written by this same test on ``origin/main``
-(``SCENE_RECORD_GOLDEN_WRITE=1``). A change to main's own behaviour after that commit
-means rewriting them from main, never from this branch.
+* none of the stack's own functions is called (the record's stack build, its reading of a
+  turn, the record handed to a writer, the caption from the record, the record-read
+  re-ask, the veto's authored line, the closing call, the one-scene check…);
+* no request to a model asks for a stack field (``scene_record.STACK_FIELDS``), uses the
+  ``SceneClosing`` schema, or carries a line only the stack's prompts hold;
+* ``day_contract.reask`` decides by main's rule (the tutor's ``not_yet``), never the record;
+* no reply is labelled authored.
+
+The same days with the flag on must reach the stack's code, so the spies are not blind.
+
+Before 11 Nov 2026 this test compared byte-for-byte golden files written on main before
+#710. That proved the merge once; afterwards any payload change on main, or a random draw
+moved by the tests that ran earlier in the process, broke it (main's run 43000929857).
 """
+
+# ruff: noqa: F811 - pytest fixtures are imported, then named as arguments
 from __future__ import annotations
 
 import json
 import os
-import random
-import re
-from pathlib import Path
+from collections import Counter
 from typing import Any
 
 import pytest
 
 from app.config import settings
+from app.services import (
+    journal,
+    living_story,
+    scene_exit,
+    scene_ledger,
+    scene_record,
+    scene_unity,
+    story_lanes,
+    story_split,
+    story_split_main,
+)
+from app.services.season import closing as season_closing
+from app.services.season import day_contract
+from app.services.season import runtime as season_runtime
 from tests import learner_walk as walk
 from tests import test_journey_end_to_end as support
 from tests.test_learner_walk import clock, production_day  # noqa: F401 - fixtures
@@ -34,8 +56,6 @@ from tests.test_season_one import season_on  # noqa: F401 - fixture
 assembled_client = support.assembled_client
 journey_enabled = support.journey_enabled
 
-GOLDEN = Path(__file__).parent / "fixtures" / "scene_record_off"
-WRITE = os.environ.get("SCENE_RECORD_GOLDEN_WRITE") == "1"
 DAYS = tuple(int(day) for day in os.environ.get("SCENE_RECORD_DAYS", "1,2,3").split(","))
 
 #: Production's story flags (render.yaml), so the day runs the paths learners get.
@@ -46,105 +66,219 @@ PRODUCTION_STORY_FLAGS = {
     "STORY_CONTRACT_STAND_IN": True,
 }
 
-_UUID = re.compile(r"[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}")
-_HEX_ID = re.compile(r"\b[0-9a-f]{32}\b")
-_EMAIL = re.compile(r"life-[\w.-]+@example\.com|[\w.-]+-[0-9a-f]{8}@example\.com")
-#: Wall-clock measurements: how long a call took is not behaviour.
-_TIMINGS = {"reply_seconds", "seconds", "latency_ms", "elapsed_ms", "duration_ms"}
-#: Lists whose order among rows written in the same instant follows their random ids
-#: (``kept_words``: ``created_at`` then ``id``): what is in them is behaviour, the order is not.
-_UNORDERED = {"lexicon_history"}
+#: The stack's own functions: each runs only with the flag on.
+STACK_ONLY = (
+    (scene_ledger, "for_writer"),
+    (scene_ledger, "turn_caption"),
+    (scene_ledger, "read_turn"),
+    (scene_ledger, "_established"),
+    (day_contract, "_open_in_record"),
+    (scene_exit, "reaction"),
+    (scene_unity, "gap"),
+    (journal, "_said_in_scene"),
+    (season_runtime, "_ledger_now"),
+    (season_runtime, "_listening_route"),
+    (season_closing, "written_close"),
+)
+
+#: The stack's prompts and main's: a line only the stack's prompt holds is never sent.
+PROMPTS = (
+    (story_lanes.VOICE, story_lanes.VOICE_MAIN),
+    (story_lanes.STORY, story_lanes.STORY_MAIN),
+    (living_story.DIRECTOR, living_story.DIRECTOR_MAIN),
+    (living_story.ACTOR, living_story.ACTOR_MAIN),
+    (story_split.PLANNER, story_split_main.PLANNER),
+    (story_split.AUTHOR, story_split_main.AUTHOR),
+)
 
 
-def normalised(value: Any) -> Any:
-    """``value`` with ids and wall-clock timings replaced, so two runs compare equal."""
-
-    if isinstance(value, dict):
-        return {
-            key: (
-                "<timing>"
-                if key in _TIMINGS and isinstance(item, int | float)
-                else sorted(normalised(item), key=str)
-                if key in _UNORDERED and isinstance(item, list)
-                else normalised(item)
-            )
-            for key, item in value.items()
+def _stack_lines() -> set[str]:
+    lines: set[str] = set()
+    for stack, main in PROMPTS:
+        kept = set(main.splitlines())
+        lines |= {
+            line
+            for line in stack.splitlines()
+            if line not in kept and len(line) > 30 and "{" not in line
         }
-    if isinstance(value, list | tuple):
-        return [normalised(item) for item in value]
-    if isinstance(value, str):
-        value = _UUID.sub("<id>", value)
-        value = _HEX_ID.sub("<hex>", value)
-        return _EMAIL.sub("<email>", value)
-    return value
+    return lines
 
 
-class Recorder:
-    """Every request the engine sends the provider, whole: the system prompt, the output
-    schema and the data. A prompt or a schema the model sees is behaviour too."""
+def _schema_fields(node: Any, found: set[tuple[str, str]]) -> None:
+    """Every (model title, property) the schema names, nested models included."""
+
+    if isinstance(node, dict):
+        title = str(node.get("title") or "")
+        if isinstance(node.get("properties"), dict):
+            found |= {(title, key) for key in node["properties"]}
+        for value in node.values():
+            _schema_fields(value, found)
+    elif isinstance(node, list):
+        for value in node:
+            _schema_fields(value, found)
+
+
+class Spies:
+    """Counts the calls of the stack's functions, the requests sent to the model and what
+    ``day_contract.reask`` decided."""
 
     def __init__(self, provider: Any, monkeypatch: Any) -> None:
+        self.calls: Counter[str] = Counter()
         self.requests: list[dict[str, Any]] = []
+        self.reasks: list[dict[str, Any]] = []
+        for module, name in STACK_ONLY:
+            self._count(monkeypatch, module, name)
+        reask = day_contract.reask
+
+        def reasking(plan, **kwargs):
+            asked = reask(plan, **kwargs)
+            self.reasks.append({**kwargs, "asked": asked, "plan": plan})
+            return asked
+
+        monkeypatch.setattr(day_contract, "reask", reasking)
         answer = provider.generate_chat_completion
 
         def recording(messages, **kwargs):
             try:
                 content: Any = json.loads(messages[0]["content"])
             except (ValueError, KeyError, IndexError, TypeError):
-                content = [message.get("content") for message in messages]
-            self.requests.append({"system": kwargs.get("system_prompt"), "content": content})
+                content = None
+            self.requests.append(
+                {"system": str(kwargs.get("system_prompt") or ""), "content": content}
+            )
             return answer(messages, **kwargs)
 
         monkeypatch.setattr(provider, "generate_chat_completion", recording)
 
+    def _count(self, monkeypatch: Any, module: Any, name: str) -> None:
+        original = getattr(module, name)
+        label = f"{module.__name__.rsplit('.', 1)[-1]}.{name}"
 
-def _compare(name: str, got: Any) -> None:
-    path = GOLDEN / f"{name}.json"
-    text = json.dumps(normalised(got), ensure_ascii=False, indent=1, sort_keys=True, default=str)
-    if WRITE:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text + "\n", encoding="utf-8")
-        return
-    expected = path.read_text(encoding="utf-8").rstrip("\n")
-    if text != expected:
-        import difflib
+        def counted(*args, **kwargs):
+            self.calls[label] += 1
+            return original(*args, **kwargs)
 
-        diff = "\n".join(
-            list(difflib.unified_diff(expected.splitlines(), text.splitlines(), "origin/main", "flag off", lineterm=""))[:120]
+        monkeypatch.setattr(module, name, counted)
+
+    def schemas(self) -> list[dict[str, Any]]:
+        return [
+            request["content"]["output_schema"]
+            for request in self.requests
+            if isinstance(request["content"], dict)
+            and isinstance(request["content"].get("output_schema"), dict)
+        ]
+
+
+def _play(persona, record: bool, monkeypatch, client, db_session, clock, provider):
+    monkeypatch.setattr(settings, "STORY_SCENE_RECORD", record)
+    for flag, value in PRODUCTION_STORY_FLAGS.items():
+        monkeypatch.setattr(settings, flag, value)
+    spies = Spies(provider, monkeypatch)
+    headers, _email = walk.register(client, persona)
+    transcripts = []
+    for day in DAYS:
+        transcript = walk.play_day(
+            client,
+            db_session,
+            headers,
+            persona=persona,
+            quality="average",
+            day=day,
+            provider=provider,
         )
-        pytest.fail(f"{name}: STORY_SCENE_RECORD off differs from origin/main\n{diff}")
+        assert transcript.get("error") is None, transcript.get("error")
+        transcripts.append(transcript)
+        clock.advance(days=1)
+    return spies, transcripts
+
+
+def _authored_replies(value: Any) -> list[Any]:
+    if isinstance(value, dict):
+        own = [value] if value.get("reply_source") == "authored" else []
+        return own + [found for item in value.values() for found in _authored_replies(item)]
+    if isinstance(value, list):
+        return [found for item in value for found in _authored_replies(item)]
+    return []
 
 
 @pytest.mark.parametrize("season_on", [True], indirect=True, ids=["lanes"])
 @pytest.mark.parametrize("persona", [walk.PERSONAS[0], walk.PERSONAS[2]], ids=lambda p: p.key)
-def test_flag_off_days_match_main(
-    persona, season_on, monkeypatch, assembled_client, db_session, journey_enabled, clock, production_day  # noqa: F811
+def test_flag_off_runs_no_stack_code(
+    persona,
+    season_on,
+    monkeypatch,
+    assembled_client,
+    db_session,
+    journey_enabled,
+    clock,
+    production_day,
 ):
-    # On origin/main the setting does not exist yet (the golden files were written there).
-    if "STORY_SCENE_RECORD" in type(settings).model_fields:
-        monkeypatch.setattr(settings, "STORY_SCENE_RECORD", False)
-    for flag, value in PRODUCTION_STORY_FLAGS.items():
-        monkeypatch.setattr(settings, flag, value)
-    # The season seeds its choices (Camille's gender, a chapter's shape) with the learner's
-    # and the thread's ids. Fixed bytes behind ``uuid4`` make the two runs choose alike.
-    # A lazy import or cache that draws random bytes the first time it is used would shift
-    # those bytes depending on which tests ran earlier in the process (CI deals files to
-    # workers), so the same days are played once first by a throwaway learner: after that
-    # everything on this path is warm, cold or not before.
-    warm, _ = walk.register(assembled_client, persona)
-    for day in DAYS:
-        walk.play_day(assembled_client, db_session, warm, persona=persona, quality="average", day=day, provider=production_day)
-        clock.advance(days=1)
-    rng = random.Random(f"scene-record-off|{persona.key}")
-    monkeypatch.setattr(os, "urandom", lambda size: bytes(rng.getrandbits(8) for _ in range(size)))
-    recorder = Recorder(production_day, monkeypatch)
-    headers, _email = walk.register(assembled_client, persona)
-    for day in DAYS:
-        recorder.requests.clear()
-        transcript = walk.play_day(
-            assembled_client, db_session, headers, persona=persona, quality="average", day=day, provider=production_day
-        )
-        assert transcript.get("error") is None, transcript.get("error")
-        _compare(f"{persona.key}-day{day}-payloads", transcript)
-        _compare(f"{persona.key}-day{day}-model-calls", recorder.requests)
-        clock.advance(days=1)
+    spies, transcripts = _play(
+        persona, False, monkeypatch, assembled_client, db_session, clock, production_day
+    )
+    assert spies.requests, "the days made no model call: nothing was checked"
+
+    assert not spies.calls, f"stack code ran with STORY_SCENE_RECORD off: {dict(spies.calls)}"
+
+    fields: set[tuple[str, str]] = set()
+    for schema in spies.schemas():
+        _schema_fields(schema, fields)
+    stack_fields = {
+        (title, key) for title, key in fields if key in scene_record.STACK_FIELDS.get(title, ())
+    }
+    assert not stack_fields, f"a model was asked for the stack's fields: {sorted(stack_fields)}"
+    assert "SceneClosing" not in {title for title, _key in fields}, "the closing call ran"
+
+    lines = _stack_lines()
+    sent = [line for request in spies.requests for line in lines if line in request["system"]]
+    assert not sent, f"a stack-only prompt line was sent: {sent[:3]}"
+
+    # Main's rule: the simpler question comes back only after a «not yet», and only once.
+    for call in spies.reasks:
+        if call["asked"]:
+            assert call["outcome"] == "not_yet", call
+            assert call["asked"] not in [
+                row.get("character") for row in call.get("history") or [] if isinstance(row, dict)
+            ]
+
+    assert not _authored_replies(transcripts), "a reply was labelled authored (the veto ran)"
+
+
+@pytest.mark.parametrize("season_on", [True], indirect=True, ids=["lanes"])
+def test_flag_on_reaches_the_stack_code(
+    season_on,
+    monkeypatch,
+    assembled_client,
+    db_session,
+    journey_enabled,
+    clock,
+    production_day,
+):
+    """The spies above can see: the same days with the flag on run the stack's code."""
+
+    persona = walk.PERSONAS[2]
+    spies, _transcripts = _play(
+        persona, True, monkeypatch, assembled_client, db_session, clock, production_day
+    )
+    reached = (
+        "scene_ledger.for_writer",
+        "scene_ledger.read_turn",
+        "scene_ledger._established",
+        "scene_ledger.turn_caption",
+        "runtime._ledger_now",
+        "runtime._listening_route",
+        "closing.written_close",
+        "scene_unity.gap",
+    )
+    for label in reached:
+        assert spies.calls[label], f"{label} never ran with the flag on: {dict(spies.calls)}"
+    fields: set[tuple[str, str]] = set()
+    for schema in spies.schemas():
+        _schema_fields(schema, fields)
+    assert any(key in scene_record.STACK_FIELDS.get(title, ()) for title, key in fields), (
+        "no stack field was asked for"
+    )
+    lines = _stack_lines()
+    assert any(line in request["system"] for request in spies.requests for line in lines), (
+        "no stack prompt line was sent"
+    )
