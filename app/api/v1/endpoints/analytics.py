@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -284,6 +285,44 @@ def read_pilot_gold(
     from app.services.gold_report import build_gold_report
 
     return build_gold_report(db, days=days)
+
+
+class MemoRevoke(BaseModel):
+    reason: str = Field(default="", max_length=400)
+
+
+@router.get("/pilot-memos")
+def read_pilot_memos(
+    *,
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> dict:
+    """Package V stage 4: the memo's candidates and confirmed answers, newest first."""
+
+    _require_admin(current_user)
+    from app.services import answer_memo
+
+    return answer_memo.listing(db, limit=limit)
+
+
+@router.post("/pilot-memos/{memo_id}/revoke")
+def revoke_pilot_memo(
+    memo_id: uuid.UUID,
+    payload: MemoRevoke,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> dict:
+    """Package V stage 4: end a memo; every answer it settled is superseded and its gold voided."""
+
+    _require_admin(current_user)
+    from app.services import answer_memo
+
+    result = answer_memo.revoke(db, memo_id, reason=payload.reason or f"revoked by {current_user.id}")
+    if result["state"] == "missing":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Memo not found")
+    db.commit()
+    return result
 
 
 @router.get("/pilot-ops")

@@ -2,6 +2,7 @@
 from app.db.models.achievement import Achievement, UserAchievement
 from app.db.models.analytics import AnalyticsSnapshot
 from app.db.models.anki_import_record import AnkiImportRecord
+from app.db.models.answer_memo import AnswerMemo
 from app.db.models.atelier import (
     AtelierAttempt,
     AtelierCollectible,
@@ -127,6 +128,7 @@ __all__ = [
     "VerdictCutover",
     "VerdictRecord",
     "VerdictSettlement",
+    "AnswerMemo",
     "GraphicNovelAttempt",
     "GraphicNovelPanel",
     "GraphicNovelScene",

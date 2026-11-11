@@ -240,6 +240,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/analytics/pilot-memos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Pilot Memos
+         * @description Package V stage 4: the memo's candidates and confirmed answers, newest first.
+         */
+        get: operations["read_pilot_memos_api_v1_analytics_pilot_memos_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/pilot-memos/{memo_id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke Pilot Memo
+         * @description Package V stage 4: end a memo; every answer it settled is superseded and its gold voided.
+         */
+        post: operations["revoke_pilot_memo_api_v1_analytics_pilot_memos__memo_id__revoke_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/analytics/pilot-ops": {
         parameters: {
             query?: never;
@@ -10761,6 +10801,14 @@ export interface components {
             /** Tested Out Concept Ids */
             tested_out_concept_ids: number[];
         };
+        /** MemoRevoke */
+        MemoRevoke: {
+            /**
+             * Reason
+             * @default
+             */
+            reason?: string;
+        };
         /**
          * MetricPoint
          * @description Time series datapoint.
@@ -17376,6 +17424,76 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_pilot_memos_api_v1_analytics_pilot_memos_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_pilot_memo_api_v1_analytics_pilot_memos__memo_id__revoke_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memo_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemoRevoke"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

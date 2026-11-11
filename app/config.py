@@ -144,6 +144,16 @@ class Settings(BaseSettings):
         "5,30,120,480,1440",
         description="Package V stage 3: minutes before attempt 1, 2, … (the last value repeats).",
     )
+    ANSWER_MEMO_ENABLED: bool = Field(
+        True,
+        description=(
+            "Package V stage 4: a model verdict on a keyed item (drill, Forge, placement) is remembered; "
+            "once a second independent check confirms it, the same answer is settled without a model call."
+        ),
+    )
+    ANSWER_MEMO_CONFIRM_DELAY_SECONDS: int = Field(
+        30, ge=0, description="Package V stage 4: seconds before the second check of a new memo runs."
+    )
     VERDICT_LEGACY_ROWS: str = Field(
         "as_counted",
         description=(

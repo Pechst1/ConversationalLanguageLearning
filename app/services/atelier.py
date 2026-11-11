@@ -37,7 +37,7 @@ from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.db.session import SessionLocal
-from app.services import fallback_pools, order_rules, verdicts
+from app.services import answer_memo, fallback_pools, judge, order_rules, verdicts
 from app.services.address import address_instruction
 from app.services.answer_acceptance import accent_policy, is_preference_swap, widened_answers
 from app.services.atelier_assets import AtelierAssetService
@@ -5392,6 +5392,7 @@ class AtelierCorrectionService:
             llm_ms = round((time.perf_counter() - started) * 1000, 1)
             if (ai_correction.get("correction_debug") or {}).get("fallback_used"):
                 return self._mark_ai_review_failed(attempt, "AI correction did not complete.", llm_ms=llm_ms)
+            self._remember_relecture(attempt, ai_correction)
             # Re-read the row (locked, so a concurrent séance completion and this
             # landing are ordered): a micro-repair or confidence tap may have
             # landed while the model ran, and the merge below must see it.
@@ -5780,6 +5781,99 @@ class AtelierCorrectionService:
         self.db.refresh(attempt)
         return attempt
 
+    #: What a remembered Forge correction keeps: the reading, never the attempt's own state.
+    _MEMO_CORRECTION_KEYS = (
+        "verdict", "score_0_4", "errata", "corrected_answer", "missing_targets", "concept_hits",
+        "explanation", "explanation_native", "feedback", "feedback_native", "notes_native",
+        "lexical_gaps", "task_errors",
+    )
+
+    def _memo_correction(
+        self,
+        *,
+        concept: GrammarConcept | None,
+        round_name: str,
+        mode: str,
+        prompt_payload: dict[str, Any],
+        answer_payload: dict[str, Any],
+        session: AtelierSession | None,
+    ) -> dict[str, Any] | None:
+        """Package V stage 4: a free-production answer the memo already knows costs no call.
+
+        The judge's stages 1 to 3 (:func:`app.services.judge.consult`) run before the
+        model: a confirmed memo for this item and answer settles it as ``checked_by: key``,
+        with the same verdict and the same explanation as the reading it was built from.
+        A test-out keeps its own local rule (its verdict is final either way).
+        """
+
+        if round_name not in FREE_PRODUCTION_ROUNDS or (session is not None and session.status == "test_out"):
+            return None
+        task = answer_memo.forge_task(
+            round_name=round_name,
+            mode=mode,
+            prompt_payload=prompt_payload,
+            concept_id=getattr(concept, "id", None),
+        )
+        text = self._answer_text(answer_payload)
+        if task is None or not text.strip():
+            return None
+        ruling = judge.consult(task, text, memos=answer_memo.Memos(self.db))
+        if ruling is None or ruling.memo is None:
+            return None
+        stored = dict((ruling.memo.payload or {}).get("correction") or {})
+        if not stored.get("verdict"):
+            return None
+        correction = {key: stored[key] for key in self._MEMO_CORRECTION_KEYS if key in stored}
+        correction.setdefault("errata", [])
+        correction.setdefault("missing_targets", [])
+        correction.setdefault("concept_hits", [])
+        correction.update(
+            {
+                "assessment_status": "checked",
+                "graded_by": "memo",
+                "correction_debug": {"memo": str(ruling.memo.id), "model": None, "fallback_used": False},
+                "explanation_language": self.explanation_language,
+            }
+        )
+        if ruling.verdict.outcome.value == "right":
+            correction["local_status"] = LOCAL_RIGHT
+        correction["notes_native"] = notes_native(correction.get("errata"))
+        return correction
+
+    def _remember_relecture(self, attempt: AtelierAttempt, ai_correction: dict[str, Any]) -> None:
+        """Package V stage 4: the model judged a keyed Forge item: write a candidate memo."""
+
+        if attempt.round not in FREE_PRODUCTION_ROUNDS or (ai_correction.get("correction_debug") or {}).get("memo"):
+            return
+        prompt_payload = attempt.prompt_payload or {}
+        task = answer_memo.forge_task(
+            round_name=attempt.round, mode=attempt.mode, prompt_payload=prompt_payload, concept_id=attempt.concept_id
+        )
+        word = str(ai_correction.get("verdict") or "")
+        outcome = verdicts._WORDS.get(word)
+        if task is None or outcome is None:
+            return
+        text = self._answer_text(attempt.answer_payload or {})
+        stored = {key: ai_correction[key] for key in self._MEMO_CORRECTION_KEYS if key in ai_correction}
+        answer_memo.remember(
+            self.db,
+            task=task,
+            answer=text,
+            outcome=outcome,
+            payload={
+                "correction": stored,
+                "answer": text,
+                "item": {"round": attempt.round, "mode": attempt.mode, "prompt": prompt_payload},
+            },
+            proposed=verdicts._errata_as_proposed(ai_correction.get("errata") or [], by="model"),
+            backing={
+                "subject_type": "forge_attempt",
+                "subject_id": str(attempt.id),
+                "model": (ai_correction.get("correction_debug") or {}).get("model"),
+            },
+            label=f"{attempt.round} · {attempt.exercise_id}",
+        )
+
     def correct(
         self,
         *,
@@ -5792,6 +5886,16 @@ class AtelierCorrectionService:
         session: AtelierSession | None = None,
         force_llm: bool = False,
     ) -> dict[str, Any]:
+        remembered = self._memo_correction(
+            concept=concept,
+            round_name=round_name,
+            mode=mode,
+            prompt_payload=prompt_payload,
+            answer_payload=answer_payload,
+            session=session,
+        )
+        if remembered is not None:
+            return remembered
         correction = self._correct_for_round(
             concept=concept,
             round_name=round_name,
