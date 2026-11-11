@@ -131,7 +131,11 @@ export function walkApiEnv({ dbUrl, tokenMinutes = 1, comptoir = false, web, bas
 export async function startStack({ logDir, secret, live = false, tokenMinutes = 1, revue = false, comptoir = false }) {
   if (live) throw new Error('--live is not wired up in this harness: it would make paid model calls.');
   mkdirSync(logDir, { recursive: true });
-  const dbName = `atelier_walk_${Date.now()}`;
+  // Two walks started in the same millisecond (two shards side by side) took one name,
+  // and the loser's teardown dropped the winner's database: a random tail, and a stack
+  // drops only a database it created.
+  const dbName = `atelier_walk_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
+  let created = false;
   const { admin, app: dbUrl } = pgUrls(dbName);
   const apiPort = await freePort();
   const webPort = await freePort();
@@ -149,7 +153,7 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
     }
     await sleep(800);
     try {
-      pgAdmin(admin, `DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
+      if (created) pgAdmin(admin, `DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
     } catch (e) {
       console.error(`[walk] could not drop ${dbName}: ${e.message}`);
     }
@@ -160,6 +164,7 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
   try {
     if (!dbName.startsWith('atelier_walk_')) throw new Error('refusing an unexpected database name');
     pgAdmin(admin, `CREATE DATABASE ${dbName}`);
+    created = true;
     const t0 = Date.now();
     // `heads`: parallel work packages branch the migration graph until a merge revision
     // lands; the throwaway database takes every branch (WALK_ALEMBIC_TARGET overrides).
