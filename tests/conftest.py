@@ -70,6 +70,7 @@ from app.db.models import (
 )
 from app.db.models.achievement import Achievement, UserAchievement
 from app.db.models.analytics import AnalyticsSnapshot
+from app.db.models.answer_memo import AnswerMemo
 from app.db.models.atelier import (
     AtelierAttempt,
     AtelierCollectible,
@@ -249,6 +250,7 @@ def db_engine():
             VerdictCutover.__table__,
             VerdictRecord.__table__,
             VerdictSettlement.__table__,
+            AnswerMemo.__table__,
             PlacementSession.__table__,
             Rehearsal.__table__,
             VocabularyWord.__table__,
@@ -328,6 +330,7 @@ def db_engine():
                 SpendReservation.__table__,
                 VerdictRecord.__table__,
                 VerdictSettlement.__table__,
+                AnswerMemo.__table__,
                 VerdictCutover.__table__,
                 PilotEvent.__table__,
                 UserErrorConcept.__table__,

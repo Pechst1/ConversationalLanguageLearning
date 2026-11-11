@@ -2182,6 +2182,21 @@ def _free_sentence_copies_shown(db: Session | None, task: RecallTask, text: str 
     return any(folded == grammar_items._fold(grammar_items.plain(item)) for item in shown if item)
 
 
+def _memo_settles_recall(db: Session, task: RecallTask, text: str | None) -> bool:
+    """Package V stage 4: a drill answer outside the key that a confirmed memo holds right.
+
+    Asked only after the key missed, and before anything else reads the miss. A drill
+    memo is written by an upheld appeal (stage 5); until then there are none.
+    """
+
+    if not text or not str(text).strip():
+        return False
+    from app.services import answer_memo, judge
+
+    ruling = judge.consult(answer_memo.recall_task(task), text, memos=answer_memo.Memos(db))
+    return bool(ruling is not None and ruling.memo is not None and ruling.verdict.outcome.value == "right")
+
+
 def evaluate_recall(
     db: Session,
     *,
@@ -2245,8 +2260,10 @@ def evaluate_recall(
         from app.services.answer_acceptance import judge
 
         typed_verdict = judge(answer.text, _accepted_answers(task), accents=accents)
-        is_correct = _free_sentence_uses_unit(db, task, answer.text) or bool(
-            typed_verdict is not None and typed_verdict.correct
+        is_correct = (
+            _free_sentence_uses_unit(db, task, answer.text)
+            or bool(typed_verdict is not None and typed_verdict.correct)
+            or _memo_settles_recall(db, task, answer.text)
         )
         if not (typed_verdict is not None and typed_verdict.correct):
             typed_verdict = None
@@ -2287,6 +2304,8 @@ def evaluate_recall(
             typed_verdict = judge(
                 answer.text, _accepted_answers(task), article_optional=recall_article_optional, accents=accents
             )
+        if not is_correct and _memo_settles_recall(db, task, answer.text):
+            is_correct = True
 
     observation = classify_observation(
         target=task.target,
