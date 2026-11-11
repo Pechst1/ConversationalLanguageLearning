@@ -15,7 +15,7 @@
  *   GET /can-dos      `{ current_band, bands: [{ band, title_native, can_dos: [...] }] }`
  */
 
-import { castIdFor } from '@/lib/cast-faces';
+import { castDisplayName, castIdFor } from '@/lib/cast-faces';
 import type { ControlLanguage } from '@/types/daily-journey';
 
 import { canDoCopy, fill } from './can-do-copy';
@@ -114,19 +114,9 @@ export function dayAfter(localDate: unknown, days: number, language: ControlLang
 /* Cast names                                                          */
 /* ------------------------------------------------------------------ */
 
-const CAST_NAMES: Record<string, string> = {
-  romy_tremblay: 'Romy',
-  marin_leveque: 'Marin',
-  lila_bonnet: 'Lila',
-  margaux_barman: 'Margaux',
-  augustin_de_roncourt: 'Gus',
-  landlord_marchand: 'M. Marchand',
-};
-
 /** A character id → the name the story calls them, or `null` for someone unknown. */
 export function castName(characterId: unknown): string | null {
-  const id = castIdFor(str(characterId));
-  return id ? CAST_NAMES[id] ?? null : null;
+  return castDisplayName(str(characterId), null);
 }
 
 /* ------------------------------------------------------------------ */

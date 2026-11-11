@@ -8721,8 +8721,12 @@ def serialize_concept(
     fr_localization: GrammarConceptLocalization | None = None,
     *,
     language: str | None = None,
+    state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Serialize a concept; `title_fr` carries the publication-language title.
+
+    `state` is the learner's thread (#147): the card's speaker and the coach are then someone
+    they have met. A shared payload, built for every learner, passes none.
 
     `language` is the learner's chrome language (#561): the payload then also carries
     `title_native`, `concept_title(concept, language)`, which is what La Forge's header
@@ -8733,6 +8737,7 @@ def serialize_concept(
     Callers with several concepts should bulk-fetch the localizations and pass
     them in rather than triggering per-concept lookups.
     """
+    from app.services.forge_coaches import card_for_learner
     from app.services.grammar_map import card_with_partner_titles, unit_xray
 
     return {
@@ -8752,21 +8757,25 @@ def serialize_concept(
         "is_foundation": concept.is_foundation,
         # WP-L10: the authored rule card (all learner languages), or None.
         # F-1: its «Compare with» partners carry their titles.
-        "rule_card": card_with_partner_titles(rule_card_for(concept.external_id)),
+        "rule_card": card_for_learner(
+            card_with_partner_titles(rule_card_for(concept.external_id)),
+            external_id=concept.external_id,
+            state=state,
+        ),
         # F-1: the unit's x-ray sentence and its marks, or None.
         "xray": unit_xray(concept),
         # WP-S5: the cast member who teaches this rule (card and feedback face).
-        "coach": _coach_for_concept(concept.external_id),
+        "coach": _coach_for_concept(concept.external_id, state=state),
     }
 
 
-def _coach_for_concept(external_id: str | None) -> dict[str, Any] | None:
+def _coach_for_concept(external_id: str | None, *, state: dict[str, Any] | None = None) -> dict[str, Any] | None:
     """WP-S5: the rule's coach, or ``None`` (a coach never breaks a concept payload)."""
 
     from app.services.forge_coaches import coach_for_concept
 
     try:
-        return coach_for_concept(external_id)
+        return coach_for_concept(external_id, state=state)
     except Exception:  # pragma: no cover - defensive: data files are validated by tests
         return None
 

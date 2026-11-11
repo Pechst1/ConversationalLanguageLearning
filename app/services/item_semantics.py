@@ -32,6 +32,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
+from app.services import cast_registry
+
 # --------------------------------------------------------------------------- #
 # Time expressions
 # --------------------------------------------------------------------------- #
@@ -134,11 +136,11 @@ def own_time_conflict(marks: list[str]) -> tuple[str, str] | None:
 # Entries
 # --------------------------------------------------------------------------- #
 
-_CAST_NAMES = {
-    "margaux": "margaux", "marin": "marin", "romy": "romy", "lila": "lila", "gus": "gus",
-    "augustin": "gus", "marchand": "marchand",
-}
-_CAST_RE = re.compile(r"\b(margaux|marin|romy|lila|gus|augustin|marchand)\b", re.IGNORECASE)
+#: A word in a sentence → the bank's id for that person, from the cast registry (#147).
+_CAST_NAMES = cast_registry.bank_tokens()
+_CAST_RE = re.compile(rf"\b({'|'.join(_CAST_NAMES)})\b", re.IGNORECASE)
+#: The bank's people who go by one word: what a «Marin et Lila» pair is made of.
+_FIRST_NAMES = "|".join(cast_registry.bank_first_names())
 #: The world bible's recurring places, as a sentence names them.
 BIBLE_PLACE_RE = re.compile(
     r"\b(?:mistral|marché du canal|canal|rédaction|brocante|bureau de l'ong|ong|buttes-chaumont|montmartre)\b",
@@ -299,7 +301,7 @@ _FORM_RULES: tuple[tuple[str, re.Pattern[str]], ...] = (
 )
 #: «Marin et Lila part»: a verb right after a pair of names is plural.
 _PAIR_VERB = re.compile(
-    r"\b(?:margaux|marin|romy|lila|gus) et (?:margaux|marin|romy|lila|gus)\s+(?:(?:ne|se|nous|vous)\s+|[ns]')*(\w+)",
+    rf"\b(?:{_FIRST_NAMES}) et (?:{_FIRST_NAMES})\s+(?:(?:ne|se|nous|vous)\s+|[ns]')*(\w+)",
     re.IGNORECASE,
 )
 _PLURAL_VERB = re.compile(r"(?:ent|ont|aient)$|^(?:sont|ont|font|vont)$")
@@ -330,15 +332,17 @@ _EN_FUTURE_OK = re.compile(
 _EN_RULES: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("english_quantity", re.compile(r"\btoo much \w+s\b(?<!ss)", re.IGNORECASE)),
     ("english_agreement", re.compile(
-        r"\b(?:Margaux|Marin|Romy|Lila|Gus) and (?:Margaux|Marin|Romy|Lila|Gus) (?:is|has|goes|does|was)\b"
+        rf"\b(?:{_FIRST_NAMES}) and (?:{_FIRST_NAMES}) (?:is|has|goes|does|was)\b"
     )),
 )
 
 
-#: QA-FORGE (2026-10-03): the cast's registers (app/data/season/s1/season.json):
-#: the learner says «vous» to Gus and to M. Marchand, «tu» to the others.
-VOUS_ADDRESSEES = frozenset({"gus", "marchand"})
-_ADDRESSEE_NAMES = r"(Margaux|Marin|Romy|Lila|Gus|Monsieur Marchand|M\. Marchand)"
+#: QA-FORGE (2026-10-03): the cast's registers as the season opens (the registry's
+#: ``address``): the learner says «vous» to Gus and to M. Marchand, «tu» to the others.
+VOUS_ADDRESSEES = frozenset(
+    lexicon for cid, lexicon in cast_registry.bank_ids().items() if (found := cast_registry.member(cid)) and found.address == "vous"
+)
+_ADDRESSEE_NAMES = "(" + "|".join(re.escape(name) for name in cast_registry.vocative_names()) + ")"
 #: «…, Lila ?» / «…, Gus.» / «Lila, …» — one person spoken to by name.
 _ADDRESSED_END = re.compile(rf",\s*{_ADDRESSEE_NAMES}\s*([.?!])")
 _ADDRESSED_START = re.compile(rf"(?:^|[.?!]\s+){_ADDRESSEE_NAMES},\s")

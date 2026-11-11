@@ -33,6 +33,7 @@
 import { Euler, Matrix4, Quaternion, Vector3 } from 'three';
 import type { Object3D } from 'three';
 
+import { CAST_NAMES } from '../generated/cast';
 import { BARK_PLACES, LEAVE, MOMENT, PEOPLE as TALKERS, REPLY_EFFECTS, STREET_BARKS, TEXT_SUITCASE, heardEffects } from './agency';
 import type { Hit, Quartier } from './engine';
 import { Memory, eligible } from './memory';
@@ -213,14 +214,14 @@ export interface Handover extends Resume {
 }
 
 const PEOPLE: Record<string, { char: CharKey; name: string }> = {
-  augustin_de_roncourt: { char: 'gus', name: 'Gus' },
-  marin_leveque: { char: 'marin', name: 'Marin' },
-  lila_bonnet: { char: 'lila', name: 'Lila' },
-  margaux_barman: { char: 'margaux', name: 'Margaux' },
-  camille_marchand: { char: 'camille', name: 'Camille' },
-  landlord_marchand: { char: 'passant', name: 'M. Marchand' },
-  romy_tremblay: { char: 'passant', name: 'Romy' },
-  odile_ferrand: { char: 'passant', name: 'Odile' },
+  augustin_de_roncourt: { char: 'gus', name: CAST_NAMES.augustin_de_roncourt },
+  marin_leveque: { char: 'marin', name: CAST_NAMES.marin_leveque },
+  lila_bonnet: { char: 'lila', name: CAST_NAMES.lila_bonnet },
+  margaux_barman: { char: 'margaux', name: CAST_NAMES.margaux_barman },
+  camille_marchand: { char: 'camille', name: CAST_NAMES.camille_marchand },
+  landlord_marchand: { char: 'passant', name: CAST_NAMES.landlord_marchand },
+  romy_tremblay: { char: 'passant', name: CAST_NAMES.romy_tremblay },
+  odile_ferrand: { char: 'passant', name: CAST_NAMES.odile_ferrand },
   toi: { char: 'toi', name: 'Toi' },
 };
 

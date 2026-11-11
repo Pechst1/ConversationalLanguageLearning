@@ -60,7 +60,9 @@
     "walk:miss": "node e2e/miss-layout.mjs",
     "walk:lexique": "node e2e/lexique-reopen.mjs",
     "types:generate": "node scripts/generate-api-types.mjs",
-    "types:check": "node scripts/generate-api-types.mjs --check"
+    "types:check": "node scripts/generate-api-types.mjs --check",
+    "cast:generate": "node scripts/generate-cast.mjs",
+    "cast:check": "node scripts/generate-cast.mjs --check"
   },
   "dependencies": {
     "@capacitor/cli": "~8.4.3",

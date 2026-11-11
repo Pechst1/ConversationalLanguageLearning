@@ -23,6 +23,7 @@
  * `season-return.test.js` pins every rule.
  */
 
+import { castDisplayName } from '@/lib/cast-faces';
 import type { ControlLanguage, JourneyRecap, RecapTeaser } from '@/types/daily-journey';
 
 // ---------------------------------------------------------------------------
@@ -31,6 +32,9 @@ import type { ControlLanguage, JourneyRecap, RecapTeaser } from '@/types/daily-j
 
 const text = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
 const textOrNull = (value: unknown): string | null => text(value) || null;
+/** The cast's own name for a person (#147); anyone else keeps what the server sent. */
+const printedName = (id: string | null | undefined, name: string | null | undefined): string | null =>
+  name ? castDisplayName(id, name) ?? name : null;
 const list = (value: unknown): any[] => (Array.isArray(value) ? value : []);
 const DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -131,7 +135,10 @@ export function absenceOf(source: AbsenceSource): AbsenceView | null {
   const characterId =
     textOrNull(absence.character_id) ?? (greetingFr ? textOrNull(source?.scenario?.character_id) : null);
   const characterName =
-    textOrNull(absence.character_name) ?? (greetingFr ? textOrNull(source?.scenario?.character_name) : null);
+    printedName(
+      characterId,
+      textOrNull(absence.character_name) ?? (greetingFr ? textOrNull(source?.scenario?.character_name) : null),
+    );
   return { days, greetingFr, characterId, characterName, lines: ordered, letters };
 }
 
@@ -360,7 +367,11 @@ export function rememberPreludeSeen(storage: StorageLike, kind: DayPrelude, jour
  */
 export function recapTeaserOf(recap: (JourneyRecap & { next_teaser_fr?: unknown }) | null | undefined): RecapTeaser | null {
   if (!recap) return null;
-  const structured = recap.teaser && text(recap.teaser.text_fr) ? recap.teaser : null;
+  const sent = recap.teaser && text(recap.teaser.text_fr) ? recap.teaser : null;
+  const structured = sent && {
+    ...sent,
+    character_name: printedName(sent.character_id, sent.character_name),
+  };
   const engine = text(recap.next_teaser_fr);
   if (engine) {
     return {

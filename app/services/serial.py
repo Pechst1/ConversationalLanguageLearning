@@ -2265,14 +2265,7 @@ class SerialThreadService:
         member = self._cast_member(thread, character_id)
         if member and member.get("name"):
             return str(member.get("name"))
-        return {
-            "landlord_marchand": "M. Marchand",
-            "margaux_barman": "Margaux",
-            "augustin_de_roncourt": "Gus",
-            "romy_tremblay": "Romy",
-            "marin_leveque": "Marin",
-            "lila_bonnet": "Lila",
-        }.get(character_id, character_id.replace("_", " ").title())
+        return cast_registry.display_name(character_id, character_id.replace("_", " ").title())
 
     def _character_role(self, thread: SerialThread, character_id: str) -> str:
         # #265: the registry's role, the one every other surface prints; the bible's

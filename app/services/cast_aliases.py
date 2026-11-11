@@ -11,11 +11,13 @@ ALIASES: dict[str, str] = {
     "odile": "odile_ferrand",
     "marchand": "landlord_marchand",
     "landlord": "landlord_marchand",
+    "proprietaire": "landlord_marchand",
     "gus": "augustin_de_roncourt",
     "augustin": "augustin_de_roncourt",
     "marin": "marin_leveque",
     "lila": "lila_bonnet",
     "margaux": "margaux_barman",
     "romy": "romy_tremblay",
+    "romane": "romy_tremblay",
     "camille": "camille_marchand",
 }

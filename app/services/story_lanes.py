@@ -65,6 +65,7 @@ from app.services import (
     story_memory,
 )
 from app.services import living_story as engine
+from app.services.address import relationship_register
 from app.services.answer_acceptance import correction_is_grounded, is_preference_swap
 from app.services.chrome_language import user_mother_tongue
 from app.services.journey_contracts import (
@@ -372,16 +373,28 @@ def _scene_register(scene: dict) -> str | None:
 
 
 def _reply_register(payload: dict) -> str | None:
-    """How the reply addresses the learner: as the scene does, or, on a page that mixes
-    both or addresses nobody, as the speaker does in the season today
-    (``story.season_turn.register``). Steering read 2026-10-24: Gus's accidental tu and
-    his panicked return to vous left the scene unclear, and his reply went on with «te»."""
+    """How the reply addresses the learner: as the person it is for does (#147, #594).
 
-    register = _scene_register(payload.get("scene") or {})
-    if register:
-        return register
-    season = ((payload.get("story") or {}).get("season_turn") or {}).get("register")
-    return season if season in ("tu", "vous") else None
+    * On an authored page, the turn's addressee (``payload["addressee"]``), not whoever
+      the scene opened with.
+    * On any other season day, the person as the season has them today
+      (``story.season_turn.register``, from ``address.season_registers``). The page's text
+      is never asked: Gus's accidental tu and his panicked return to vous left a page
+      unclear (steering read 2026-10-24), and a «vous deux» to a group read as a «vous»
+      to the learner from someone who says tu.
+    * Off a season, the relationship (where an accepted «On se tutoie ?» is kept), then
+      the page, the only thing an older story has to say about it.
+    """
+
+    addressee = payload.get("addressee") or {}
+    if addressee.get("register") in ("tu", "vous"):
+        return addressee["register"]
+    story = payload.get("story") or {}
+    if "season_turn" in story:
+        season = (story.get("season_turn") or {}).get("register")
+        return season if season in ("tu", "vous") else None
+    scene = payload.get("scene") or {}
+    return relationship_register(story, scene.get("character_id")) or _scene_register(scene)
 
 
 def _history_by_speaker(history: list) -> list:
@@ -430,7 +443,7 @@ def tutor_payload(payload: dict) -> dict:
             "objective_semantics": scene.get("objective_semantics"),
             "rubric": payload.get("rubric"),
             "character_line_fr": scene.get("opening_line_fr"),
-            "register": _scene_register(scene),
+            "register": _reply_register(payload),
         },
         "targets": payload.get("targets") or [],
         **_turn_tail(payload),

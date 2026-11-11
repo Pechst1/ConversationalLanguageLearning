@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 
+import { castDisplayName } from '@/lib/cast-faces';
 import PhoneProductNav from '@/components/layout/PhoneProductNav';
 import { StoryEpisodeReader } from '@/components/atelier-v2/journey/StoryEpisodeReader';
 import type { StoryEpisode } from '@/types/daily-journey';
@@ -1446,18 +1447,14 @@ function serialBeatCharacterNames(serial: SerialToday) {
     : [];
   const world = serial.thread?.world_bible || {};
   const cast = Array.isArray(world.cast) ? world.cast : [];
-  const namesById: Record<string, string> = {
-    landlord_marchand: 'M. Marchand',
-    marin_leveque: 'Marin',
-    lila_bonnet: 'Lila',
-    romy_tremblay: 'Romy',
-    augustin_de_roncourt: 'Gus',
-    margaux_barman: 'Margaux',
-  };
+  const worldNames: Record<string, string> = {};
   cast.forEach((member: Record<string, any>) => {
-    if (member?.id && member?.name) namesById[String(member.id)] = String(member.name);
+    if (member?.id && member?.name) worldNames[String(member.id)] = String(member.name);
   });
-  return required.map((id: string) => namesById[id] || id.replace(/_/g, ' ')).slice(0, 3);
+  // The cast registry's name (#147); a generated character keeps the name its world gave them.
+  return required
+    .map((id: string) => castDisplayName(id, null) || worldNames[id] || id.replace(/_/g, ' '))
+    .slice(0, 3);
 }
 
 /* The line under a serial hero: the story's own French recap when it has one

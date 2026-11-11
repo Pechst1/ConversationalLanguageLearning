@@ -18,14 +18,10 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-#: World-bible character ids → item-bank cast ids.
-CHARACTERS = {
-    "marin_leveque": "marin",
-    "lila_bonnet": "lila",
-    "augustin_de_roncourt": "gus",
-    "romy_tremblay": "romy",
-    "margaux_barman": "margaux",
-}
+from app.services.cast_registry import bank_ids
+
+#: World-bible character ids → item-bank cast ids, from the cast registry (#147).
+CHARACTERS = bank_ids()
 #: World-bible location ids → item-bank place ids.
 LOCATIONS = {
     "le_mistral": "mistral",

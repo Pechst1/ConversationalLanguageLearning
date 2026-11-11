@@ -40,7 +40,7 @@
     },
     "relationships": {
      "margaux_barman": {
-      "register": "tu",
+      "register": "vous",
       "closeness": 0
      }
     },

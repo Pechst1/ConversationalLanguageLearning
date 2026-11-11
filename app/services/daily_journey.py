@@ -4940,17 +4940,30 @@ class DailyJourneyService:
         if not settings.ATELIER_JOURNEY_PRACTICE_DAY_ENABLED:
             return None
         from app.services.concept_life import introduction_for_today
+        from app.services.forge_coaches import card_for_learner, story_state_of
 
-        return run_best_effort(
-            self.db,
-            "daily_journey: grammar introduction",
-            lambda: introduction_for_today(
+        def introduced() -> Any:
+            brief = introduction_for_today(
                 self.db,
                 user,
                 now=_utcnow(),
                 control_language=str(scenario.control_language),
                 units=units,
-            ),
+            )
+            if not isinstance(brief, dict):
+                return brief
+            # #147: the card's face is someone this learner has met.
+            card = card_for_learner(
+                brief.get("rule_card"),
+                external_id=brief.get("external_id"),
+                state=story_state_of(self.db, user),
+            )
+            return {**brief, "rule_card": card}
+
+        return run_best_effort(
+            self.db,
+            "daily_journey: grammar introduction",
+            introduced,
             default=None,
             log=logger,
         )
