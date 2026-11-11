@@ -38,6 +38,7 @@ celery_app = Celery(
         "app.tasks.gold",
         "app.tasks.season_rollover",
         "app.tasks.season_writer",
+        "app.tasks.verdict_settle",
     ],
 )
 
@@ -59,6 +60,11 @@ celery_app.conf.update(
 )
 
 celery_app.conf.beat_schedule = {
+    # Package V stage 3: answers saved unread are checked again later (capped, budgeted).
+    "settle-unread-verdicts": {
+        "task": "app.tasks.verdict_settle.sweep",
+        "schedule": 300.0,
+    },
     "retry-password-reset-email": {
         "task": "app.tasks.password_reset_delivery.deliver_due",
         "schedule": 30.0,

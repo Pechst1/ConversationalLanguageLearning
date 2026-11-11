@@ -127,6 +127,23 @@ class Settings(BaseSettings):
             "re-checked. Off, nothing is recorded and rows count by re-reading, as in stage 1."
         ),
     )
+    VERDICT_SETTLE_ENABLED: bool = Field(
+        True,
+        description=(
+            "Package V stage 3: an answer saved unread is queued and checked again later by "
+            "app.tasks.verdict_settle. Off, it waits for the learner's «Check again» as before."
+        ),
+    )
+    VERDICT_SETTLE_MAX_ATTEMPTS: int = Field(
+        5, ge=1, description="Package V stage 3: background attempts per unread answer before the job gives up."
+    )
+    VERDICT_SETTLE_DAILY_BUDGET: int = Field(
+        20, ge=0, description="Package V stage 3: background check attempts per learner and UTC day (owner decision 5)."
+    )
+    VERDICT_SETTLE_BACKOFF_MINUTES: str = Field(
+        "5,30,120,480,1440",
+        description="Package V stage 3: minutes before attempt 1, 2, … (the last value repeats).",
+    )
     VERDICT_LEGACY_ROWS: str = Field(
         "as_counted",
         description=(

@@ -16237,6 +16237,8 @@ export interface components {
              * @enum {string}
              */
             checked_by: "key" | "model" | "rules" | "none";
+            /** Checked Since */
+            checked_since?: string | null;
             /** Corrected */
             corrected?: string | null;
             /** Counts */
