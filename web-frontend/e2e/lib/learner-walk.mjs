@@ -5,7 +5,7 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { FORGE_REPAIR, snapshot, sleep, TYPEABLE_FIELD, WORD_BANK_TILE } from './driver.mjs';
 import { missLayoutChecks, readingIsSteady } from './miss-layout.mjs';
-import { reversed, trackVerdicts } from './verdict-timeline.mjs';
+import { reversed, trackKey, trackVerdicts } from './verdict-timeline.mjs';
 import { englishWords, SERVER_BANNER } from './assertions.mjs';
 
 /**
@@ -303,6 +303,42 @@ export class LearnerWalk {
     return true;
   }
 
+  /**
+   * Package V stage 5: once a day, in the languages named by WALK_APPEAL_LANGS (de, fr), the
+   * learner says «I think this is right» under a drill's miss. The fake provider upholds it:
+   * the verdict must turn, and the line must say so. With the provider down it cannot be
+   * read: the verdict must stay.
+   */
+  owesAppeal() {
+    const langs = (process.env.WALK_APPEAL_LANGS ?? 'de,fr').split(',').filter(Boolean);
+    return langs.includes(this.lang) && this.appealedDay !== this.day && this.level !== 'B1.1';
+  }
+
+  async appealOnce(s) {
+    if (!this.owesAppeal()) return false;
+    const line = this.page.locator('.av2-graded [data-appeal="offered"] button').first();
+    if (!(await line.count())) return false;
+    this.appealedDay = this.day;
+    const before = s.graded[0]?.state;
+    await this.shoot('appeal-offered');
+    await line.click({ timeout: 3000 }).catch(() => {});
+    const answer = this.page.locator('.av2-graded [data-appeal]:not([data-appeal="offered"])').first();
+    await answer.waitFor({ timeout: 20000 }).catch(() => {});
+    const state = (await answer.getAttribute('data-appeal').catch(() => null)) || 'none';
+    const after = await this.page.locator('.av2-graded').first().getAttribute('data-state').catch(() => null);
+    await this.shoot(`appeal-${state}`);
+    const w = this.where({ kind: 'appeal', before, after, state });
+    const t = this.timelines.get(`${this.day}:${trackKey(this, await snapshot(this.page), 'drill')}`);
+    if (t) t.appeal = state;
+    this.appeals = [...(this.appeals || []), { lang: this.lang, day: this.day, before, after, state }];
+    if (process.env.WALK_PROVIDER_DOWN) {
+      this.findings.check('appeal-unread-keeps-the-verdict', state === 'unread' && after === before, `appeal ${state}: ${before} → ${after}`, w);
+    } else {
+      this.findings.check('appeal-upheld-turns-the-verdict', state === 'upheld' && after !== before && /^(correct|supported)$/.test(after || ''), `appeal ${state}: ${before} → ${after}`, w);
+    }
+    return true;
+  }
+
   async act(s, kind, state) {
     const page = this.page;
     if (kind === 'reader') {
@@ -312,6 +348,7 @@ export class LearnerWalk {
       return false;
     }
     if (s.epFeedback.length && (await this.copyForgeCorrection())) return true;
+    if (s.graded.length && (await this.appealOnce(s))) return true;
     if (s.graded.length || s.epFeedback.length) {
       const prim = page.locator('.av2-graded .av2-btn, .av2-btn--primary:not([disabled])').last();
       if (await prim.count()) { await prim.click({ timeout: 3000 }).catch(() => {}); return true; }
@@ -329,7 +366,10 @@ export class LearnerWalk {
     const enabledChoice = page.locator('.av2-choice:not([disabled])');
     if (await enabledChoice.count()) {
       const n = await enabledChoice.count();
-      await enabledChoice.nth((this.day + state.itemIndex) % n).click({ timeout: 3000 }).catch(() => {});
+      // Package V stage 5: on a day that still owes its appeal, the learner picks the other
+      // option, so a miss comes to appeal (the walk's own picks are right on day 1).
+      const shift = this.owesAppeal() ? 1 : 0;
+      await enabledChoice.nth((this.day + state.itemIndex + shift) % n).click({ timeout: 3000 }).catch(() => {});
       state.itemIndex += 1;
       await sleep(150);
       const check = page.locator('.av2-btn--primary:not([disabled])').first();

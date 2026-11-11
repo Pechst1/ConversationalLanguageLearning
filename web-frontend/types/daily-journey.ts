@@ -89,6 +89,8 @@ export type JourneyCorrection = Schemas['JourneyCorrection'];
 export type NextTurn = Schemas['NextTurn'];
 export type ReplySource = NonNullable<Schemas['AttemptResult']['reply_source']>;
 export type AttemptResult = Schemas['AttemptResult'];
+/** Package V stage 5: what «I think this is right» came back with. */
+export type AppealView = Schemas['AppealView'];
 export type HelpResult = Schemas['HelpResult'];
 export type CapabilityProgress = Schemas['CapabilityProgress'];
 export type JourneyErrorCode = NonNullable<Schemas['JourneyErrorDetail']['code']>;

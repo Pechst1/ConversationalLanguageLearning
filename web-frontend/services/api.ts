@@ -22,6 +22,7 @@ import { recoverNativeAccessToken } from '@/lib/native-auth';
 import { isNativePlatform } from '@/lib/native-platform';
 import type {
   AdvanceBody,
+  AppealView,
   AttemptBody,
   AttemptResult,
   CapabilityProgress,
@@ -3404,6 +3405,15 @@ class ApiService {
     const result = await this.journeyPost<AttemptResult>(
       `/daily-journeys/${encodeURIComponent(journeyId)}/steps/${encodeURIComponent(stepId)}/attempts`,
       body,
+    );
+    return result.data;
+  }
+
+  /** Package V stage 5: «I think this is right». The stronger model re-judges the drill. */
+  async appealDailyJourneyVerdict(journeyId: string, stepId: string): Promise<AppealView> {
+    const result = await this.journeyPost<AppealView>(
+      `/daily-journeys/${encodeURIComponent(journeyId)}/steps/${encodeURIComponent(stepId)}/appeal`,
+      {},
     );
     return result.data;
   }

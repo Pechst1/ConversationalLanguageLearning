@@ -40,3 +40,11 @@ test('a verdict that really changes on one item is still caught', () => {
   const [timeline] = play([frame(Q12), frame(`${Q12} Not yet`, ['wrong']), frame(`${Q12} Correct`, ['correct'])]);
   assert.equal(timeline.flips, true);
 });
+
+test('an upheld appeal may turn a verdict once, to right; nothing else may', () => {
+  assert.equal(reversed({ states: ['wrong', 'correct'], appeal: 'upheld' }).flips, false);
+  assert.equal(reversed({ states: ['wrong', 'supported'], appeal: 'upheld' }).flips, false);
+  assert.equal(reversed({ states: ['wrong', 'correct'] }).flips, true, 'no appeal: a reversal');
+  assert.equal(reversed({ states: ['wrong', 'correct'], appeal: 'refused' }).flips, true);
+  assert.equal(reversed({ states: ['wrong', 'correct', 'wrong'], appeal: 'upheld' }).flips, true);
+});

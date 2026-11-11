@@ -32,7 +32,7 @@ export function trackVerdicts(walk, s, kind) {
   }
   const step = (s.text.match(STEP_RE) || ['none'])[0];
   if (step !== 'none' && walk.stepCaptions[walk.stepCaptions.length - 1] !== step) walk.stepCaptions.push(step);
-  const key = kind === 'thread' ? `thread ${step}` : `${step} ${walk.questionSig || ''}`;
+  const key = trackKey(walk, s, kind);
   const t = walk.timelines.get(`${walk.day}:${key}`) || { states: [], pending: false };
   if (!leaving) {
     for (const g of s.graded) if (t.states[t.states.length - 1] !== g.state) t.states.push(g.state);
@@ -43,8 +43,20 @@ export function trackVerdicts(walk, s, kind) {
   return t;
 }
 
-/** Whether a timeline's verdicts changed (`unscored` is no verdict). */
+/** The timeline key of the item on screen `s`. */
+export function trackKey(walk, s, kind) {
+  const step = (s.text.match(STEP_RE) || ['none'])[0];
+  return kind === 'thread' ? `thread ${step}` : `${step} ${walk.questionSig || ''}`;
+}
+
+/**
+ * Whether a timeline's verdicts changed (`unscored` is no verdict). Package V stage 5: an
+ * appeal the learner made and the judge upheld (`t.appeal === 'upheld'`) may turn the verdict
+ * once, to right; any other change is still a reversal.
+ */
 export function reversed(t) {
   const distinct = t.states.filter((x) => x && x !== 'unscored');
-  return { flips: distinct.some((x, i) => i > 0 && x !== distinct[i - 1]), distinct };
+  const changes = distinct.filter((x, i) => i > 0 && x !== distinct[i - 1]).length;
+  const upheld = t.appeal === 'upheld' && changes === 1 && /^(correct|supported)$/.test(distinct[distinct.length - 1] || '');
+  return { flips: changes > 0 && !upheld, distinct };
 }

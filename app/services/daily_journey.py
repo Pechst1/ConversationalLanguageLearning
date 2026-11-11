@@ -5500,6 +5500,14 @@ class DailyJourneyService:
         step.completed_at = _utcnow()
         step.turns_used += 1
         self._store_step_result(step, recorded, assistance)
+        # Package V stage 5: the answer itself, so «I think this is right» can be re-judged.
+        stored = dict(step.private_task or {})
+        stored["result"] = {
+            **dict(stored.get("result") or {}),
+            "answer_text": recall_learner_text(task, answer) or "",
+            "failure_reason": getattr(evaluation, "failure_reason", None),
+        }
+        step.private_task = stored
         if missed and not retry:
             self._queue_retry(journey, step)
         self.db.flush()

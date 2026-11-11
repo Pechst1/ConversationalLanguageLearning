@@ -151,6 +151,23 @@ class Settings(BaseSettings):
             "once a second independent check confirms it, the same answer is settled without a model call."
         ),
     )
+    VERDICT_APPEAL_ENABLED: bool = Field(
+        True,
+        description=(
+            "Package V stage 5: under a «not yet» or «partly» drill verdict, the learner can say "
+            "«I think this is right»; a stronger model re-judges it (owner decision 4: on)."
+        ),
+    )
+    VERDICT_APPEAL_DAILY_LIMIT: int = Field(
+        3, ge=0, description="Package V stage 5: appeals per learner and UTC day (owner decision 4)."
+    )
+    VERDICT_APPEAL_MODEL: str | None = Field(
+        None,
+        description="Package V stage 5: the stronger model that re-judges an appeal. Unset: STORY_CRITIC_MODEL, then OPENAI_MODEL.",
+    )
+    VERDICT_APPEAL_REASONING_EFFORT: str | None = Field(
+        "medium", description="Package V stage 5: reasoning effort for the appeal model."
+    )
     ANSWER_MEMO_CONFIRM_DELAY_SECONDS: int = Field(
         30, ge=0, description="Package V stage 4: seconds before the second check of a new memo runs."
     )

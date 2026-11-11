@@ -99,6 +99,8 @@ import {
   verdictTitleKey,
   showsVerdict,
   voiceOffered,
+  appealOffered,
+  type AppealedResult,
   type JourneyFeedback,
 } from './journey-state';
 import {
@@ -1690,6 +1692,57 @@ export function stepKeepsAnswer(stepKind: string | null | undefined): boolean {
   return !stepKind || !ANSWERLESS_STEPS.has(stepKind);
 }
 
+/**
+ * Package V stage 5: one quiet line under a drill's «not yet» or «partly»: «I think this is
+ * right». After it, one line says what came of it (upheld, the reason it was not, unread,
+ * or the day's three used). The existing quiet action and notice, nothing new.
+ */
+function AppealLine({
+  result,
+  stepKind,
+  copy,
+  onAppeal,
+}: {
+  result: AttemptResult;
+  stepKind: string | null;
+  copy: JourneyCopy;
+  onAppeal?: () => Promise<void>;
+}) {
+  const [asking, setAsking] = useState(false);
+  const appeal = (result as AppealedResult).appeal;
+  if (appeal) {
+    const line =
+      appeal.state === 'upheld'
+        ? copy.appeal_upheld
+        : appeal.state === 'refused'
+          ? appeal.reason || copy.appeal_refused
+          : appeal.state === 'limit'
+            ? copy.appeal_limit
+            : copy.appeal_unread;
+    return (
+      <div className="av2-graded__appeal" data-appeal={appeal.state}>
+        <Notice tone="quiet"><p>{line}</p></Notice>
+      </div>
+    );
+  }
+  if (!onAppeal || !appealOffered(result, stepKind)) return null;
+  return (
+    <div className="av2-graded__appeal" data-appeal="offered">
+      <Action
+        tone="quiet"
+        inline
+        disabled={asking}
+        onClick={() => {
+          setAsking(true);
+          void onAppeal().finally(() => setAsking(false));
+        }}
+      >
+        {copy.appeal_line}
+      </Action>
+    </div>
+  );
+}
+
 export function JourneyFeedbackView({
   feedback,
   copy,
@@ -1699,12 +1752,15 @@ export function JourneyFeedbackView({
   speaker = null,
   stepKind = null,
   faceShown = false,
+  onAppeal,
 }: {
   feedback: JourneyFeedback;
   copy: JourneyCopy;
   onContinue: () => void;
   onRetry: () => void;
   onDismiss: () => void;
+  /** Package V stage 5: «I think this is right» (a drill's «not yet» or «partly» only). */
+  onAppeal?: () => Promise<void>;
   /** WP-77: whose face reacts to the verdict. */
   speaker?: JourneySpeaker | null;
   /** La troupe vivante: the one who asked already reacts on the step, so the band carries no second face. */
@@ -1882,6 +1938,7 @@ export function JourneyFeedbackView({
           </FeedbackBand>
           {/* WP-D2: «Marin vous sourit ↑» — the relationship moved, said once. */}
           {verdict === 'correct' && speaker && <CharacterSmiles speaker={speaker} />}
+          <AppealLine result={result} stepKind={stepKind} copy={copy} onAppeal={onAppeal} />
 
           <Action tone="primary" onClick={onContinue}>
             {wide.action_continue}
