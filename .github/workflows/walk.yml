@@ -5,13 +5,21 @@ name: Browser walk
 # contact sheet are attached as an artifact; a nightly run keeps the last 7 walks.
 on:
   workflow_call:
+    inputs:
+      ref:
+        # walk-main.yml: the commit CI just checked on main (not main's tip, which may
+        # have moved on). Empty: the caller's own commit.
+        description: Commit to walk
+        type: string
+        default: ''
   workflow_dispatch:
   schedule:
     - cron: '17 2 * * *'
 
-# Called from CI, this walk is one of the checks Render waits for before it deploys a
-# commit on main, so it is never cancelled there; the event name keeps the nightly
-# schedule and CI's call in separate groups so one cannot cancel the other.
+# Called from CI on a pull request, this walk is one of its checks. On main it is called
+# by walk-main.yml once CI has finished, and no longer holds the deploy; it is still never
+# cancelled there. The event name keeps the nightly schedule and the callers in separate
+# groups so one cannot cancel the other.
 concurrency:
   group: walk-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
@@ -20,7 +28,7 @@ jobs:
   scope:
     # Which walk this run plays (web-frontend/e2e/lib/walk-scope.mjs, tested by
     # walk-scope.test.mjs). Main, the nightly run and a manual run play four shards at
-    # full length: en + B1, de, fr, season. A pull request plays them too when it
+    # full length: en + B1, de, fr, and the season in two halves. A pull request plays them too when it
     # changes the walk or what it walks through (e2e, the journey client, atelier.tsx,
     # daily_journey, living_story, the season, the judge, this file): on 10-11 Nov main
     # went red five times in a row on walks only main played. Any other pull request
@@ -34,6 +42,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.ref }}
           # A pull request's checkout is its merge commit: HEAD^1 is the base branch,
           # so `HEAD^1 HEAD` is what merging would change.
           fetch-depth: 2
@@ -57,8 +66,8 @@ jobs:
     # stack, so the engine's writer still sees concurrent requests; the postgres
     # job in ci.yml tests the row locks directly. `needs:` waits for every shard.
     #
-    # The job names come from the matrix and stay as they were: «Walk · en + B1 × 7
-    # days» … «Walk · season × 10 days» on main and on a full pull-request walk,
+    # The job names come from the matrix: «Walk · en + B1 × 7 days» … «Walk · season
+    # 1-5 × 5 days» and «Walk · season 6-10 × 5 days» on main and on a full pull-request walk,
     # «Walk · en + B1 × 3 days» on a short one.
     needs: scope
     name: Walk · ${{ matrix.shard }} × ${{ matrix.days }} days
@@ -89,6 +98,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
 
       - uses: actions/setup-python@v5
         with:
@@ -162,7 +173,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: walk-${{ github.event_name == 'schedule' && 'nightly' || 'pr' }}-${{ github.run_number }}-${{ matrix.key }}
+          name: walk-${{ github.event_name == 'schedule' && 'nightly' || github.event_name == 'workflow_run' && 'main' || 'pr' }}-${{ github.run_number }}-${{ matrix.key }}
           path: web-frontend/e2e/out/ci
           # A nightly walk is kept for 7 days = the last 7 walks (four artifacts each).
           retention-days: ${{ github.event_name == 'schedule' && 7 || 14 }}

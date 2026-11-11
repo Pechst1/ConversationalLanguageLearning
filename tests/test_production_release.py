@@ -16,11 +16,23 @@ def test_publishing_is_only_callable_after_all_release_checks():
     ci = _workflow("ci.yml")
     publish = ci["jobs"]["publish"]
     assert set(publish["needs"]) == set(ci["jobs"]) - {"publish"}
-    assert publish["if"] == "github.event_name == 'push'"
+    # CI publishes a tag; on main it skips the walks, so it publishes nothing there.
+    assert publish["if"] == "github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')"
     assert publish["uses"] == "./.github/workflows/publish-image.yml"
+    # A commit on main is published after its CI run passed and its walks passed.
+    main = _workflow("walk-main.yml")
+    assert main.get("on", main.get(True)) == {"workflow_run": {"workflows": ["CI"], "types": ["completed"], "branches": ["main"]}}
+    assert "github.event.workflow_run.conclusion == 'success'" in main["jobs"]["walk"]["if"]
+    assert main["jobs"]["walk"]["uses"] == "./.github/workflows/walk.yml"
+    main_publish = main["jobs"]["publish"]
+    assert main_publish["needs"] == "walk"
+    assert main_publish["if"] == "needs.walk.result == 'success'"
+    assert main_publish["uses"] == "./.github/workflows/publish-image.yml"
+    assert main_publish["with"]["ref"] == main["jobs"]["walk"]["with"]["ref"] == "${{ github.event.workflow_run.head_sha }}"
     image = _workflow("publish-image.yml")
     assert set(image.get("on", image.get(True))) == {"workflow_call"}
-    assert "format=long" in (ROOT / ".github/workflows/publish-image.yml").read_text()
+    # The full 40-character commit: the input is workflow_run's head_sha, else github.sha.
+    assert "value=sha-${{ inputs.ref || github.sha }}" in (ROOT / ".github/workflows/publish-image.yml").read_text()
     walk = _workflow("walk.yml")
     assert not any(step.get("continue-on-error") for step in walk["jobs"]["walk"]["steps"])
 

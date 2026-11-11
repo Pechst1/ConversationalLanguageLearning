@@ -6,10 +6,13 @@ implementation and are not part of this batch.
 
 ## Release contract
 
-CI calls the browser walk for the same commit as its backend, PostgreSQL,
-frontend, generated-types and Docker checks. All checks must pass before its
-publish job can call `publish-image.yml`. There is no independent publish trigger.
-Published images include `sha-<full 40-character commit>` tags.
+An image is published only for a commit whose every check passed, the browser
+walks included, and only by a job that waits for them all: for a tag, CI's publish
+job (the walks run in that CI run); for a commit on main, the publish job of
+`walk-main.yml`, which plays the walks once the commit's CI run has passed (on main
+CI skips them, so Render's deploy waits only for the fast checks). There is no
+independent publish trigger. Published images include `sha-<full 40-character
+commit>` tags.
 
 For production Compose, put production credentials in `.env.prod`, then use:
 

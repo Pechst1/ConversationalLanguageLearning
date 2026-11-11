@@ -1,0 +1,82 @@
+name: Browser walk on main
+
+# The four browser walks for a commit on main, played once CI has finished with it.
+#
+# Render deploys a commit when every check on it has passed (render.yaml,
+# autoDeployTrigger: checksPass). The walks took 26-43 minutes while the other checks
+# were done in 8, so merge-to-live was about 55 minutes. CI now skips its walk job on a
+# push to main (a skipped check counts as passed), and this workflow starts only when
+# the CI run is complete, so its checks are not there while Render decides.
+#
+# A walk that fails here does not stop the deploy, so it must not go unnoticed: the
+# last job opens one issue per failing check (label walk-finding, into the night shift's
+# queue), or comments on the open one, never a second issue for the same check.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  walk:
+    # Only a push's run whose fast checks passed (a red CI run is already red on the
+    # commit); a tag also runs CI, and plays the walk there.
+    if: >-
+      github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main'
+      && github.event.workflow_run.conclusion == 'success'
+    name: Browser release checks
+    uses: ./.github/workflows/walk.yml
+    with:
+      ref: ${{ github.event.workflow_run.head_sha }}
+
+  publish:
+    # The image the deploy compose files pull (publish-image.yml), built only from a main
+    # commit whose CI run and walks have all passed, as before the walks left CI.
+    name: Publish verified image
+    needs: walk
+    if: needs.walk.result == 'success'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/publish-image.yml
+    with:
+      ref: ${{ github.event.workflow_run.head_sha }}
+
+  report:
+    name: Walk · file a failure
+    needs: walk
+    if: always() && needs.walk.result == 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          sparse-checkout: |
+            .github/scripts
+            web-frontend/e2e/lib
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reports of the failed walks
+        uses: actions/download-artifact@v4
+        with:
+          pattern: walk-main-${{ github.run_number }}-*
+          path: ${{ runner.temp }}/walks
+        continue-on-error: true
+      - name: Open or update the issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: >-
+          node .github/scripts/walk-main-issue.mjs
+          --reports "${{ runner.temp }}/walks"
+          --run "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          --sha "${{ github.event.workflow_run.head_sha }}"

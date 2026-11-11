@@ -34,5 +34,6 @@ export async function registerLearner({ api, secret, native = 'en', level = 'A1.
       name: me.full_name,
     },
   });
-  return { email, id: me.id, accessToken: tokens.access_token, cookie, me };
+  // The password stays in the walk's process: the season fast-forward signs in with it.
+  return { email, password, id: me.id, accessToken: tokens.access_token, cookie, me };
 }

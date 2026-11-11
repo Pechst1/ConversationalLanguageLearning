@@ -70,8 +70,8 @@ included.
    ```
    `.env.prod.example` carries the same values as `render.yaml`; the API
    listens on `127.0.0.1:8000` only, behind the TLS proxy. The GHCR image is
-   published by CI's publish job (`.github/workflows/publish-image.yml`) after
-   every check passed on a push to main, tagged `sha-<full commit>`; the wrapper
+   published (`.github/workflows/publish-image.yml`) for a commit on main once its
+   CI run and its browser walks (`walk-main.yml`) passed, tagged `sha-<full commit>`; the wrapper
    refuses `latest` (first run: 🧍 make sure the repo's package visibility
    allows your server to pull, or `docker login ghcr.io` with a token).
 
