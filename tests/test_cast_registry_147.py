@@ -106,7 +106,8 @@ def test_94_a_pronoun_in_a_letter_follows_the_registry_gender():
 
     assert reg.member("landlord_marchand").pronoun_fr == "Il"
     assert reg.member("camille_marchand").pronoun_fr == "Iel"
-    checked = 0
+    # No authored letter's P.S. opens on a pronoun since Romy's letter went (#626). This holds
+    # the next one that does.
     for domain in (*REAL_WORLD_MISSION_DOMAINS, *FIRST_LETTERS.values()):
         found = reg.member(domain.get("character_id")) or reg.member(
             "landlord_marchand" if domain.get("contact_name") == "M. Marchand" else str(domain.get("contact_name") or "")
@@ -114,9 +115,7 @@ def test_94_a_pronoun_in_a_letter_follows_the_registry_gender():
         twist = str(domain.get("twist") or "")
         if found is None or not twist.startswith(("Il ", "Elle ")):
             continue
-        checked += 1
         assert twist.startswith(found.pronoun_fr + " "), (domain["domain"], found.id, twist)
-    assert checked >= 1  # Romy's letter
 
 
 def test_94_the_landlord_task_states_the_radiator_problem():

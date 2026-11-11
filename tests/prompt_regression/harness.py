@@ -44,7 +44,7 @@ CONTEXTS = ROOT / "contexts"
 SNAPSHOTS = ROOT / "snapshots"
 UPDATE_ENV = "PROMPT_SNAPSHOT_UPDATE"
 #: The order calls are rendered in (the reply lanes run in parallel threads).
-SCHEMA_ORDER = ("PagePlan", "PageText", "PageAids", "TutorVerdict", "VoiceReply")
+SCHEMA_ORDER = ("PagePlan", "PageText", "PageAids", "TutorVerdict", "VoiceReply", "StoryTurn", "TurnReview", "ReplyChoice", "SceneClosing", "CourrierReply")
 #: Settings that change what a story call sends, pinned so a developer's ``.env``, CI
 #: and the CLI render the same bytes. ``None`` routes keep each call's own effort.
 PINNED_SETTINGS = {
@@ -53,6 +53,7 @@ PINNED_SETTINGS = {
     "STORY_LIVE_MODEL": None,
     "STORY_CRITIC_MODEL": None,
     "ATELIER_STORY_MAX_ATTEMPTS": 2,
+    "OPENAI_MISSION_FAST_MODEL": "pinned-courrier-model",
 }
 #: Call parameters left out of the snapshot: the request timeout is the time left.
 VOLATILE_PARAMS = frozenset({"request_timeout"})
@@ -171,6 +172,71 @@ class Replayer:
         )
 
 
+class Recorder:
+    """Stands in for ``LLMService`` on ``--live``: each call goes to the real client, its
+    answer is kept for replay, and a running total stops the run at the cap.
+
+    The call is recorded without ``model`` (the harness pins the route to the provider's
+    default, so a replay builds the same digest); ``model`` only selects what answers it.
+    """
+
+    def __init__(self, client: Any, *, model: str | None, cap_usd: float, spent: float = 0.0, stamp: str = "live"):
+        self.client = client
+        self.model = model
+        self.cap_usd = cap_usd
+        self.spent = spent
+        self.stamp = stamp
+        self.calls: list[Call] = []
+        self.answers: dict[str, list[dict]] = {}
+        self._lock = threading.Lock()
+
+    def generate_chat_completion(self, messages, *, system_prompt=None, **kwargs):
+        from app.services import living_story as engine
+
+        with self._lock:
+            if self.spent >= self.cap_usd:
+                raise engine.StoryUnavailable("prompt_regression_cap_reached")
+        user = messages[-1]["content"]
+        schema = json.loads(user)["output_schema"].get("title", "?")
+        params = {key: value for key, value in sorted(kwargs.items()) if key not in VOLATILE_PARAMS}
+        result = self.client.generate_chat_completion(
+            messages, system_prompt=system_prompt, **kwargs, **({"model": self.model} if self.model else {})
+        )
+        with self._lock:
+            self.spent += float(result.cost or 0.0)
+            attempt = 1 + sum(1 for call in self.calls if call.schema == schema)
+            call = Call(schema, attempt, system_prompt or "", user, params)
+            self.calls.append(call)
+            try:
+                content: Any = json.loads(result.content)
+            except (TypeError, ValueError):
+                content = result.content
+            self.answers.setdefault(schema, []).append(
+                {"origin": f"{self.stamp} {result.model}", "prompt_digest": call.digest, "content": content}
+            )
+        return result
+
+
+def record_case(case: Case, recorder: Recorder) -> dict:
+    """Run a turn case against the real model and keep its answers; returns what the
+    pipeline made of them. Nothing is written when the run failed or hit the cap, so a
+    half-recorded case can never replay as if it were whole."""
+
+    from app.services import living_story as engine
+
+    if case.lane not in ("turn", "authored"):
+        raise ValueError(f"{case.id}: --live records turn and authored cases only")
+    recorder.calls, recorder.answers = [], {}
+    run = _run_turn if case.lane == "turn" else _run_authored
+    with pinned_settings(), _patched(engine, "_client", lambda: recorder):
+        observed, _ = run(case)
+    if observed.get("failure"):
+        return observed
+    case.raw["answers"] = recorder.answers
+    case.path.write_text(json.dumps(case.raw, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    return observed
+
+
 @contextmanager
 def _patched(target: Any, name: str, value: Any):
     old = getattr(target, name)
@@ -222,6 +288,12 @@ def run_case(case: Case) -> Result:
             observed, served = _run_page(case)
         elif case.lane == "turn":
             observed, served = _run_turn(case)
+        elif case.lane == "authored":
+            observed, served = _run_authored(case)
+        elif case.lane == "story":
+            observed, served = _run_story(case)
+        elif case.lane == "courrier":
+            observed, served = _run_courrier(case, replayer)
         else:
             raise ValueError(f"{case.id}: unknown lane {case.lane!r}")
     observed["missing_answers"] = list(replayer.missing)
@@ -297,11 +369,29 @@ def _run_page(case: Case) -> tuple[dict, Any]:
     return observed, draft
 
 
+def _with_ledger(payload: dict) -> dict:
+    """The ledger ``_turn_payload`` puts on a turn, rebuilt from the case's own lines, so a
+    snapshot shows what production sends and a recorded case cannot go stale against it."""
+
+    from app.services import scene_ledger
+
+    scene = payload.get("scene") or {}
+    payload["ledger"] = scene_ledger.build(
+        opening_line_fr=scene.get("opening_line_fr"),
+        history=payload.get("history") or [],
+        learner_text=payload.get("learner_text"),
+        in_the_room=scene_ledger.room_of(scene),
+    )
+    plan = payload.setdefault("turn_plan", {})
+    plan["learner_asked"] = payload["ledger"]["learner_asked"]
+    return payload
+
+
 def _run_turn(case: Case) -> tuple[dict, Any]:
     from app.services import living_story as engine
     from app.services import story_lanes as lanes
 
-    payload = json.loads(json.dumps(case.input["payload"]))
+    payload = _with_ledger(json.loads(json.dumps(case.input["payload"])))
     observed: dict[str, Any] = {"tutor_refusals": [], "voice_refusals": [], "failure": None}
 
     def spy(name: str, real):
@@ -337,6 +427,178 @@ def _run_turn(case: Case) -> tuple[dict, Any]:
         }
     )
     return observed, result
+
+
+def _run_story(case: Case) -> tuple[dict, Any]:
+    """The story lane (the scene's ending and tomorrow's question) after a reply the
+    learner has already seen: ``input`` holds the turn's payload and the two released
+    verdicts. What ``settle_resolution`` will then do with the question is read here too."""
+
+    from app.services import story_lanes as lanes
+    from app.services import story_teaser
+
+    payload = _with_ledger(json.loads(json.dumps(case.input["payload"])))
+    tutor = lanes.TutorVerdict(**case.input["tutor"])
+    voice = lanes.VoiceReply(**case.input["voice"])
+    result = lanes.run_story_lane(payload, tutor, voice, deadline=time.monotonic() + 600)
+    if result.turn is None:
+        return {"failure": result.reason, "story_hint": result.hint}, None
+    turn = result.turn
+    known = " ".join([json.dumps(payload, ensure_ascii=False), turn.reply_fr, turn.resolution_fr])
+    question = turn.tomorrow_question_fr
+    return {
+        "failure": None,
+        "resolution_fr": turn.resolution_fr,
+        "summary_native": turn.summary_native,
+        "tomorrow_question_fr": question,
+        "tomorrow_problem": story_teaser.question_problem(question, known=known, ledger=payload.get("ledger")),
+        "still_open": [row["text_fr"] for row in payload["ledger"]["still_open"]],
+    }, result
+
+
+class _CourrierAnswers:
+    """The Courrier's reply writer sends plain messages and gets plain text back, so it
+    has no ``output_schema`` for the replayer to name the call by."""
+
+    SCHEMA = "CourrierReply"
+
+    def __init__(self, replayer: Replayer):
+        self.replayer = replayer
+
+    def generate_chat_completion(self, messages, *, system_prompt=None, **kwargs):
+        from app.services.llm_service import LLMProviderError
+
+        replayer = self.replayer
+        params = {key: value for key, value in sorted(kwargs.items()) if key not in VOLATILE_PARAMS}
+        data = [
+            {**message, "content": json.loads(message["content"].removeprefix("Scene context: "))}
+            if message["content"].startswith("Scene context: ")
+            else message
+            for message in messages
+        ]
+        user = json.dumps({"output_schema": None, "data": data}, ensure_ascii=False)
+        attempt = 1 + sum(1 for call in replayer.calls if call.schema == self.SCHEMA)
+        replayer.calls.append(Call(self.SCHEMA, attempt, system_prompt or "", user, params))
+        recorded = replayer.answers.get(self.SCHEMA) or []
+        if attempt > len(recorded):
+            replayer.missing.append(f"{self.SCHEMA} #{attempt}")
+            raise LLMProviderError(f"no recorded answer for {self.SCHEMA} #{attempt}")
+        return SimpleNamespace(content=recorded[attempt - 1]["content"], model="replay", provider="replay", total_tokens=0, cost=0.0)
+
+
+def _run_courrier(case: Case, replayer: Replayer) -> tuple[dict, Any]:
+    """A reply on a thread: ``input`` holds the letter and the turns before the reply."""
+
+    from app.services import missions
+
+    letter = case.input["letter"]
+    turns = [
+        SimpleNamespace(role=row["role"], text=row["text"], turn_index=index, correction_payload=None)
+        for index, row in enumerate(case.input.get("turns") or [], start=1)
+    ]
+    mission = SimpleNamespace(
+        id=None,
+        title=letter["title"],
+        brief=letter["brief"],
+        prompt_payload={"messenger": letter["messenger"], "conversation_opening": letter["messenger"]["opening_message"]},
+        source_snapshot={},
+        turns=turns,
+        attempts=[],
+        stakes_level=1,
+        mission_type="message",
+    )
+    service = missions.MissionConversationService(db=None, llm_service=_CourrierAnswers(replayer))
+    with _patched(missions, "_record_mission_llm_cost", lambda *a, **k: None), _patched(
+        missions, "_learner_level_code", lambda db, user: case.level
+    ):
+        reply = service.respond(user=SimpleNamespace(id=None), mission=mission, user_text=case.input["learner_text"])
+    return {"reply": reply}, reply
+
+
+def _run_authored(case: Case) -> tuple[dict, Any]:
+    """The reader of an authored day (``season.runtime.classify``) on a real page of the
+    season: ``input`` names the page and the turn, and gives what the learner wrote."""
+
+    from types import SimpleNamespace
+
+    from app.services import scene_ledger
+    from app.services.season import runtime
+    from app.services.season.flags import effective_flags
+    from app.services.season.format import load_season
+    from app.services.season.page import resolve_day
+    from app.services.season.turns import answers_question
+
+    spec = case.input
+    season = load_season(spec.get("season", "s1"))
+    page = resolve_day(
+        season,
+        spec["tentpole"],
+        spec["day"],
+        flags=effective_flags(season, {}, seed="prompt-regression"),
+        band=spec.get("band", case.level),
+        language=spec.get("language", "en"),
+    )
+    turn = next(row for row in runtime.projected_turns(page) if row.get("id") == spec["turn"])
+    history, text = list(spec.get("history") or []), spec["learner_text"]
+    ledger = scene_ledger.build(
+        opening_line_fr=spec.get("opening_line_fr") or runtime._opening_of([turn]), history=history, learner_text=text
+    )
+    if spec.get("closes"):
+        return _run_closing(case, page, turn, history, text, ledger)
+    runtime._ROUTE_CACHE.clear()
+    choice = runtime.classify(
+        None, None, scene_id=case.id, turn=turn, text=text, history=history, band=page.get("band"), ledger=ledger
+    )
+    played = runtime._checked_ack(
+        None, None, choice.ack_fr, turn=turn, answer=SimpleNamespace(text=text), history=history, ledger=ledger, turn_index=len(history)
+    )
+    return {
+        "failure": None,
+        "reply_id": choice.reply_id,
+        "clear": choice.clear,
+        "learner_intent": choice.learner_intent,
+        "ack_played": played,
+        "answered": answers_question(turn, text, intent=choice.learner_intent),
+    }, choice
+
+
+def _run_closing(case: Case, page: dict, turn: dict, history: list, text: str, ledger: dict) -> tuple[dict, Any]:
+    """The conversation's last words on an authored day (``season.closing``)."""
+
+    from types import SimpleNamespace
+
+    from app.services.season import closing, runtime
+    from app.services.season.page import hook_caption
+
+    problems: list[str] = []
+    scenario = SimpleNamespace(
+        title_fr=page["title_fr"],
+        character_id=turn.get("to"),
+        story_context={runtime.SEASON_CONTEXT_KEY: {"id": "s1", "page": page, "ending": hook_caption(page), "tail": runtime.page_tail(page)}},
+    )
+    beats = list(next(row for row in turn["replies"] if row["id"] == case.input["reply"]).get("beats") or [])
+    panels, reading = closing.written_close(
+        None,
+        None,
+        scenario=scenario,
+        turn=turn,
+        ledger=ledger,
+        history=history,
+        beats=beats,
+        tail=closing.with_cuts("s1", page, runtime.page_tail(page)),
+        band=page.get("band"),
+        learner_text=text,
+        on_problem=problems.append,
+        on_usage=lambda usage: None,
+    )
+    said = [line["text_fr"] for panel in panels for line in panel["lines"]]
+    return {
+        "failure": None,
+        "lines": said,
+        "dropped": problems,
+        "learner_intent": reading.learner_intent if reading else None,
+        "tomorrow_question_fr": reading.tomorrow_question_fr if reading else None,
+    }, reading
 
 
 # ---------------------------------------------------------------------------

@@ -123,6 +123,25 @@ def test_the_exchange_the_conversation_closes_on_reads_the_tail_not_the_next_que
     assert three - two > 150
 
 
+def test_one_more_exchange_on_the_last_question_reads_the_page_once() -> None:
+    """#378: a page that asks once listens to one more reply, and a ``repeat_once``
+    reply is asked again. Either way the page's answer and tail are read once, on the
+    close. Before this the plan dropped the tail from a day that still reads it."""
+
+    task = engine_brief().response_task
+    page = [planner.AuthoredExchange("reply", 5, going_on=10, closing=110)]
+    silent = [planner.AuthoredExchange("reply", 5, going_on=0, closing=0)]
+    kwargs = {"spt": 0.75, "multiplier": 1.0, "band": "A1"}
+
+    def reading(turns: int) -> int:
+        return planner.respond_seconds(task, turns=turns, authored=page, **kwargs) - (
+            planner.respond_seconds(task, turns=turns, authored=silent, **kwargs)
+        )
+
+    assert reading(1) > 100
+    assert reading(2) == pytest.approx(reading(1), abs=2)
+
+
 def test_a_bare_kind_and_words_pair_keeps_the_old_twelve_word_answer() -> None:
     task = engine_brief().response_task
     kwargs = {"turns": 2, "spt": 0.75, "multiplier": 1.0, "band": "A1"}

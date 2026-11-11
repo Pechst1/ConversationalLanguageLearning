@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -22,6 +23,7 @@ from app.config import settings
 from app.db.models.mission import RealWorldMission
 from app.db.models.serial import SerialThread
 from app.db.models.user import User
+from app.services import cast_registry
 from app.services import story_correspondence as courrier
 from app.services.living_story import STATE_KEY
 from app.services.missions import (
@@ -33,6 +35,7 @@ from app.services.missions import (
     MissionScheduler,
     NoCredibleLetter,
     _unassessed_acknowledgement,
+    first_letter_for,
     letter_band_index,
     letter_reach,
     serialize_mission,
@@ -171,7 +174,7 @@ def test_the_week_has_no_letter_rather_than_one_below_the_learner(beginner_catal
     assert today["weekly_mission"] is None
 
 
-def test_the_c1_first_letter_is_romys_open_interview_not_a_story_frame_below_band(beginner_catalogue, db_session):
+def test_the_c1_first_letter_is_margauxs_open_interview_not_a_story_frame_below_band(beginner_catalogue, db_session):
     """A story frame (A2, open: reach B2) is withheld at C1; the authored B1 interview is not."""
 
     user = _user(db_session, "C1")
@@ -195,9 +198,49 @@ def test_the_c1_first_letter_is_romys_open_interview_not_a_story_frame_below_ban
     today = asyncio.run(MissionScheduler(db_session).today(user))
 
     letter = today["weekly_mission"] or today["active_mission"]
-    assert letter["title"] == "Trois questions de Romy"
+    assert letter["title"] == "Trois questions de Margaux"
     assert letter["letter_fit"]["source"] == "authored"
     assert letter["letter_fit"]["reach"] == "C1"
+
+
+@pytest.mark.parametrize("level", ["A1", "A2", "B1"])
+def test_the_first_letter_comes_from_someone_met_on_day_one(beginner_catalogue, db_session, level):
+    """#626: on a B1 learner's day 1 (Margaux, Gus, Marin, Lila, Camille) the first letter
+    was «Salut ! C'est Romy, on s'est vus au Mistral.» Romy's first page is T4."""
+
+    user = _user(db_session, level)
+    thread = _season_thread(db_session, user)
+    state = dict(thread.state)
+    state[STATE_KEY] = {
+        **state[STATE_KEY],
+        "season_script": {"id": "s1", "played": [{"segment": "t1", "day_in_segment": 1}]},
+    }
+    thread.state = state
+    db_session.add(thread)
+    db_session.commit()
+
+    today = asyncio.run(MissionScheduler(db_session).today(user))
+
+    letter = today["weekly_mission"] or today["active_mission"]
+    assert letter is not None
+    sender = letter["prompt_payload"]["messenger"]["contact_name"]
+    assert cast_registry.people_named(sender) == ["margaux_barman"]
+    assert cast_registry.has_met(thread.state, "margaux_barman")
+    assert cast_registry.has_met(thread.state, "romy_tremblay") is False, "the check above must be able to fail"
+    assert "on s'est vus" not in letter["prompt_payload"]["messenger"]["opening_message"]
+
+
+def test_margauxs_letter_is_margaux_at_b1():
+    """Her three questions, in the fewest words, in both registers: the owner reads this in the PR."""
+
+    assert first_letter_for(SimpleNamespace(cefr_estimate="B1"), register="tu")["opening_message"] == (
+        "C'est Margaux, du Mistral. Je n'écris jamais. D'où tu viens ? Pourquoi Paris ? "
+        "Et qu'est-ce qui te surprend ici ?"
+    )
+    assert first_letter_for(SimpleNamespace(cefr_estimate="B1"), register="vous")["opening_message"] == (
+        "C'est Margaux, du Mistral. Je n'écris jamais. D'où venez-vous ? Pourquoi Paris ? "
+        "Et qu'est-ce qui vous surprend ici ?"
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,34 @@
+{
+ "id": "authored-a1-lila-feu-en-haut",
+ "lane": "authored",
+ "level": "A1",
+ "source": "The walk of 5 Nov 2026 (#535), Nº 23 «La photographie». The learner's text is exact. The walk's answer was the authored «Là. Les lettres. Elles sont à l'envers.» with nothing in front of it; the reader's answer is written for the case, to pin that a line taking up «en haut» reaches the page.",
+ "input": {
+  "tentpole": "t4",
+  "day": "a",
+  "turn": "a.enquete",
+  "learner_text": "Le feu est en haut, chez Odile. Gus dit en bas, mais il ne sais pas. Margaux a raison."
+ },
+ "answers": {
+  "ReplyChoice": [
+   {
+    "content": {
+     "reply_id": "neon",
+     "expresses": "none",
+     "value": null,
+     "confidence": 0.3,
+     "clear": true,
+     "ack_fr": "En haut, chez Odile ? Gus dit le contraire.",
+     "learned": [],
+     "learner_intent": "other"
+    }
+   }
+  ]
+ },
+ "expect": {
+  "failure": null,
+  "clear": true,
+  "learner_intent": "other",
+  "ack_played": "En haut, chez Odile ? Gus dit le contraire."
+ }
+}

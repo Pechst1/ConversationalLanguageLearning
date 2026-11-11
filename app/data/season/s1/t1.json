@@ -214,7 +214,7 @@
               ]}
             ]},
             {"id": "declined", "label": {"a2": "Non merci.", "native": {"en": "No, thank you.", "de": "Nein, danke."}}, "means": "The learner says no, politely: no thank you, not tonight, later.", "examples": ["Non, merci. Pas ce soir.", "Plus tard, merci."], "sets": {"s1.cafe_creme": "declined"}, "beats": [
-              {"kind": "panel", "id": "a.cafe.declined.r1", "visual": "Margaux slides the cup along the zinc to the empty stool at the end, Odile's, and leaves it there. Nobody touches it.", "location_id": "le_mistral", "in_frame": ["margaux_barman", "toi"], "silence": true}
+              {"kind": "panel", "id": "a.cafe.declined.r1", "visual": "Margaux slides the cup along the zinc to the empty stool at the end, Odile's, and leaves it there. Nobody touches it.", "location_id": "le_mistral", "in_frame": ["margaux_barman", "toi"], "lines": [{"who": "caption", "in_thread": true, "say": {"a2": "Margaux pousse la tasse jusqu'au tabouret d'Odile.", "native": {"en": "Margaux pushes the cup over to Odile's stool.", "de": "Margaux schiebt die Tasse zu Odiles Hocker hinüber."}}}], "silence": true}
             ]},
             {"id": "refused", "label": {"a2": "Je n'ai rien commandé.", "native": {"en": "I didn't order anything.", "de": "Ich habe nichts bestellt."}}, "means": "The learner turns the coffee down curtly: they did not order it, they do not want it.", "examples": ["Je n'en veux pas.", "Ce n'est pas pour moi."], "sets": {"s1.cafe_creme": "refused"}, "beats": [
               {"kind": "panel", "id": "a.cafe.refused.r1", "visual": "Margaux takes the cup back without a word. Gus shrugs.", "location_id": "le_mistral", "in_frame": ["margaux_barman", "augustin_de_roncourt"], "lines": [

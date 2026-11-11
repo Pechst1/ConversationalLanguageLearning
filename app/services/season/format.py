@@ -212,6 +212,9 @@ class Line(_Model):
     #: the owner, never printed as dialogue.
     direction: str = ""
     when: Cond = Field(default_factory=dict)
+    #: A caption the reply thread draws too, for a silent answer the learner would
+    #: otherwise not see. Other captions stay on the page.
+    in_thread: bool = False
 
 
 class Panel(_Model):

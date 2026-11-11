@@ -23,6 +23,7 @@ from typing import Any, Literal
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic.json_schema import SkipJsonSchema
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -31,11 +32,11 @@ from app.db.models.daily_journey import DailyJourney
 from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
 from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
-from app.services import correction_contract, scene_ledger, story_memory
+from app.services import cast_registry, correction_contract, scene_exit, scene_ledger, story_memory
 from app.services.address import address_instruction
 from app.services.answer_acceptance import correction_is_grounded, is_preference_swap
 from app.services.chrome_language import user_chrome_language, user_mother_tongue
-from app.services.closing_filler import scene_fact
+from app.services.closing_filler import what_happened
 from app.services.concept_titles import concept_title
 from app.services.journey_contracts import (
     ActBrief,
@@ -329,9 +330,13 @@ class SoftRejection(StoryUnavailable):
     translation is never the reason a learner loses a day.
     """
 
-    def __init__(self, reason: str, *, hint: str | None = None, proposal: Any = None) -> None:
+    def __init__(
+        self, reason: str, *, hint: str | None = None, proposal: Any = None, codes: tuple[str, ...] = ()
+    ) -> None:
         super().__init__(reason, hint=hint)
         self.proposal = proposal
+        #: Every finding behind this rejection, for the pilot ledger; ``reason`` is the first.
+        self.codes = tuple(codes) or (reason,)
 
 
 class StrictModel(BaseModel):
@@ -658,6 +663,13 @@ class SemanticTurn(StrictModel):
     learned: story_memory.LearnedFacts = Field(default_factory=list)
     left_open: story_memory.LeftOpen = Field(default_factory=list)
     answered_open_ids: story_memory.AnsweredIds = Field(default_factory=list)
+    # #466: what the reader carries into tomorrow, as the writer put it. Checked at the
+    # settle (``_tomorrow_question``), where anything wrong with it is simply not used.
+    tomorrow_question_fr: str = Field(default="", max_length=200)
+    # #518: this ending was written by ``scene_exit``, not by a model: the character's own
+    # closing words, which no reader may take for what happened (``what_happened``).
+    # Out of every dump, so no model is shown it; the writers pass it to the settle by hand.
+    authored_ending: SkipJsonSchema[bool] = Field(default=False, exclude=True)
     # «Die Geschichte bestellt, die Schmiede baut»: the places and things the learner
     # named in their own words; the forge builds them first (``learner_marks``).
     named: story_memory.Named = Field(default_factory=list)
@@ -1100,8 +1112,15 @@ callback_fr is a concise fact, not a copy of dialogue. No predetermined outcome 
 When this reply ends the scene it asks nothing new: reply_fr and resolution_fr close on a
 statement, never on a question the learner can no longer answer.
 turn_plan.learner_asked, when not null, is a question the learner just asked: reply_fr
-answers it first, plainly and in character, before anything else. ledger lists what this
-scene has asked so far: never ask again a question whose answered_at is set.
+answers it first, plainly and in character, before anything else. ledger is this scene's
+record so far, and the reply follows from it. asked[] lists every question: never ask again
+a question whose answered_at is set. last_turn is a first reading of how learner_text opens:
+a no changes what happens next, a question gets its answer, words off the subject get a
+reaction to those words. stands lists what you put to the learner for agreement and how it
+was received: a refused proposal is still yours; hold to it, say why, or give way in so many
+words, and never refuse it yourself («moi non plus»). established lists what the learner has
+said about their life, in their words; a name stays with what it was given to. Never quote at
+the learner words that are not in learner_text or history[].learner, and never answer in their place.
 Commitments require exact learner source_quote; only resolve known commitment IDs when
 the exchange actually resolves them. chapter_resolved only if the chapter's question
 has genuinely reached closure, and never before scene.beat is turn or resolution: a
@@ -2969,7 +2988,7 @@ def chapter_digest(
         "title_fr": _one_line(chapter.get("title_fr"), 80),
         # #268: cut on a sentence, never on a character («… Alors,… →»).
         "question": question_line(chapter.get("dramatic_question"), DIGEST_PART_CHARS),
-        "resolved_fr": whole_sentences(scene_fact(turn.callback_fr, turn.resolution_fr), DIGEST_PART_CHARS),
+        "resolved_fr": whole_sentences(what_happened(turn), DIGEST_PART_CHARS),
         "development": _one_line(chapter.get("last_development") or "", 100),
         "characters": characters,
         "location_id": draft.location_id,
@@ -3185,7 +3204,7 @@ def consequences_after_turn(
     if abs(after) >= MOOD_BREAK_THRESHOLD and abs(after) > abs(before):
         add(
             "mood_break",
-            scene_fact(turn.callback_fr, turn.resolution_fr),
+            what_happened(turn),
             weight=3 if after < 0 else 2,
             source=quote,
         )
@@ -4177,6 +4196,55 @@ def _learner_lines(journey: Any, *, act: int | None = None) -> list[str]:
     return lines
 
 
+def _clean_learner_lines(journey: Any, *, act: int | None = None) -> list[str]:
+    """The replies in today's scene that needed no correction: the only ones a hook may
+    quote. A reply the margin corrected comes back told, never as raw text (#445)."""
+
+    lines: list[str] = []
+    for step in getattr(journey, "steps", None) or []:
+        if str(getattr(step, "kind", "")) != "respond" or (act is not None and step_act(step) != act):
+            continue
+        for turn in (getattr(step, "private_task", None) or {}).get("turns") or []:
+            if isinstance(turn, dict) and str(turn.get("learner") or "").strip() and not turn.get("correction"):
+                lines.append(str(turn["learner"]))
+    return lines
+
+
+def _stored_ledger(journey: Any, *, act: int | None = None) -> dict[str, Any] | None:
+    """The scene's record as the last exchange stored it (#145)."""
+
+    ledger = None
+    for step in getattr(journey, "steps", None) or []:
+        if str(getattr(step, "kind", "")) == "respond" and (act is None or step_act(step) == act):
+            ledger = (getattr(step, "private_task", None) or {}).get("ledger") or ledger
+    return ledger if isinstance(ledger, dict) else None
+
+
+def _tomorrow_question(db: Session, user: User, turn: Any, brief: Any, said: list[str], ledger: dict | None) -> str | None:
+    """The question a writer left for tomorrow, if it holds against what the scene holds
+    (``story_teaser.question_problem``). A drop is counted and costs nothing else."""
+
+    question = " ".join(str(getattr(turn, "tomorrow_question_fr", "") or "").split())
+    if not question:
+        return None
+    from app.services.season.closing import cast_names
+    from app.services.story_lanes import GUARD_FIRED_EVENT
+    from app.services.story_teaser import question_problem
+
+    known = " ".join([str(brief.story_context), *said, turn.reply_fr, turn.resolution_fr, *cast_names()])
+    problem = question_problem(question, known=known, ledger=ledger)
+    if problem is None:
+        return question
+    from app.services.pilot_events import PilotEventService
+
+    PilotEventService(db).record(
+        GUARD_FIRED_EVENT, user_id=user.id, entity_type="living_story",
+        payload={"code": problem, "outcome": "dropped", "lane": "tomorrow", "version": VERSION},
+        cost_usd=0.0,
+    )
+    return None
+
+
 def _page_thread(journey: Any, brief: Any, *, act: int | None = None) -> dict[str, Any] | None:
     """WP-110: a generated day's conversation, for the finished page — who turned to
     the learner, what they asked, and each reply with the answer it got; with ``act``,
@@ -4961,39 +5029,26 @@ def season_premiere_of(world: dict) -> dict:
 # cast's agendas already wrote.
 # ---------------------------------------------------------------------------
 
-TEASER_WINDOW_DAYS = 14
-TEASER_LEDGER_LIMIT = 30
-TEASER_QUOTE_CHARS = 110
-TEASER_KEY = "next_teaser"
-TEASERS_KEY = "teasers"
-ABSENCE_MIN_DAYS = 2
+from app.services.story_teaser import (  # noqa: E402,F401  the names this module has always had
+    DEFAULT_TEASER_VOICE,
+    TEASER_KEY,
+    TEASER_LEDGER_LIMIT,
+    TEASER_QUOTE_CHARS,
+    TEASER_VOICES,
+    TEASER_WINDOW_DAYS,
+    TEASERS_KEY,
+    _clip_quote,
+    _days_between,
+    _words,
+    compose_teaser,
+    next_teaser,
+    question_left_open,
+    teaser_candidates,
+    teaser_grounded,
+    teasers_after,
+)
 
-# One opener per cast member, in their own voice; `tu`/`vous` where it matters.
-TEASER_VOICES: dict[str, dict[str, str]] = {
-    "marin_leveque": {"tu": "Dis, j'y repense… C'est peut-être un signe.", "vous": "Dites, j'y repense… C'est peut-être un signe."},
-    "lila_bonnet": {"tu": "Toi, tu me caches quelque chose…", "vous": "Vous, vous me cachez quelque chose…"},
-    "augustin_de_roncourt": {"tu": "Règle numéro un de La Méthode : on n'oublie rien.", "vous": "Règle numéro un de La Méthode : on n'oublie rien."},
-    "romy_tremblay": {"tu": "Bon, c'est quoi la vraie histoire ?", "vous": "Bon, c'est quoi la vraie histoire ?"},
-    "margaux_barman": {"tu": "J'ai rien entendu. Mais quand même…", "vous": "Je n'ai rien entendu. Mais quand même…"},
-    "tiago_moreira": {"tu": "Pardon, une question…", "vous": "Pardon, une question…"},
-}
-DEFAULT_TEASER_VOICE = {"tu": "Au fait…", "vous": "Au fait…"}
-_TEASER_FRAMES = {
-    "commitment": (
-        {"tu": "Tu n'as pas oublié ? « {text} »", "vous": "Vous n'avez pas oublié ? « {text} »"},
-        {"tu": "Tu as promis, hein : « {text} »", "vous": "Vous avez promis, hein : « {text} »"},
-    ),
-    # #378: guillemets hold only words somebody said. A planted detail and a season
-    # question are the story's, not a line of dialogue: they are told, not quoted.
-    "plant": (
-        {"tu": "Je repense à ce détail. {text}", "vous": "Je repense à ce détail. {text}"},
-        {"tu": "Tu as remarqué ? {text}", "vous": "Vous avez remarqué ? {text}"},
-    ),
-    "thread": (
-        {"tu": "Il faudra qu'on en parle. {text}", "vous": "Il faudra qu'on en parle. {text}"},
-        {"tu": "Demain, peut-être, on saura. {text}", "vous": "Demain, peut-être, on saura. {text}"},
-    ),
-}
+ABSENCE_MIN_DAYS = 2
 
 # The gap decides the line; the register decides the words. Warm, never a reproach.
 ABSENCE_GREETINGS: tuple[tuple[int, dict[str, str]], ...] = (
@@ -5015,138 +5070,6 @@ _GUILT = re.compile(
     r"ça\s+fait\s+\d+\s+jours|tu\s+as\s+disparu|vous\s+avez\s+disparu)",
     re.IGNORECASE,
 )
-
-
-def _words(text: Any) -> set[str]:
-    return {word for word in re.findall(r"\w+", str(text or "").casefold()) if len(word) > 3}
-
-
-def _clip_quote(text: Any, limit: int = TEASER_QUOTE_CHARS) -> str:
-    line = " ".join(str(text or "").split()).strip().strip("«»\"").strip()
-    if len(line) <= limit:
-        return line
-    return line[:limit].rsplit(" ", 1)[0].rstrip(",;:") + "…"
-
-
-def teaser_candidates(live: dict, world: dict) -> list[dict]:
-    """The open rows a teaser may name: promises, unpaid plants, open season questions."""
-
-    rows: list[dict] = []
-    for row in live.get("commitments") or []:
-        # #378: a promise is quoted in the learner's own words (``source_quote``), never
-        # in the model's restatement of it: the walk of 30 Oct read «Tu n'as pas oublié ?
-        # « Je serai chez moi après quatorze heures. »», a sentence nobody said. A row
-        # with no words of the learner's is not quoted at all.
-        quote = str(row.get("source_quote") or "").strip() if isinstance(row, dict) else ""
-        if isinstance(row, dict) and row.get("status") == "open" and row.get("id") and quote:
-            rows.append({
-                "ref": str(row["id"]), "kind": "commitment", "text_fr": quote,
-                "characters": [str(who) for who in row.get("witnesses") or []],
-            })
-    for row in live.get("planted") or []:
-        if isinstance(row, dict) and row.get("status") != "paid" and row.get("id") and row.get("text_fr"):
-            rows.append({
-                "ref": str(row["id"]), "kind": "plant", "text_fr": str(row["text_fr"]),
-                "characters": [str(row.get("character_id") or "")],
-            })
-    # Season questions are season-wide: any cast member may raise one.
-    for row in threads_projection(world, live):
-        if row["state"] != "closed" and row.get("text_fr"):
-            rows.append({"ref": row["key"], "kind": "thread", "text_fr": row["text_fr"], "characters": []})
-    return rows
-
-
-def teaser_grounded(text: str, ref: str | None, candidates: list[dict]) -> bool:
-    """True only when the teaser names a real open row: its id, and its words."""
-
-    row = next((item for item in candidates if item["ref"] == ref), None) if ref else None
-    if row is None:
-        return False
-    needed = _words(_clip_quote(row["text_fr"]))
-    if not needed:
-        return False
-    return len(needed & _words(text)) >= min(2, len(needed))
-
-
-def compose_teaser(
-    candidate: dict, *, character_id: str | None, register: str, variant: int = 0
-) -> str:
-    voice = TEASER_VOICES.get(str(character_id or ""), DEFAULT_TEASER_VOICE)
-    key = "tu" if register == "tu" else "vous"
-    frames = _TEASER_FRAMES[candidate["kind"]]
-    frame = frames[int(variant) % len(frames)][key]
-    return f"{voice[key]} {frame.format(text=_clip_quote(candidate['text_fr']))}"
-
-
-def _days_between(earlier: str | None, later: str | None) -> int | None:
-    a, b = _date_of(earlier), _date_of(later)
-    if not a or not b:
-        return None
-    return (_date.fromisoformat(b) - _date.fromisoformat(a)).days
-
-
-def next_teaser(
-    live: dict,
-    world: dict,
-    *,
-    character_id: str | None,
-    register: str,
-    date: str | None,
-    seed: str,
-    name: str | None = None,
-) -> dict | None:
-    """One forward line per resolution, or None — never an invented plot.
-
-    Prefers a row the addressed character witnessed, then any open row, in a seeded
-    order; skips any row or wording already used as a teaser in the last
-    ``TEASER_WINDOW_DAYS`` days; and validates the composed line against the row it
-    names before it is kept.
-    """
-
-    today = _date_of(date) or _today().isoformat()
-    recent = [
-        row for row in live.get(TEASERS_KEY) or []
-        if isinstance(row, dict)
-        and (_days_between(row.get("date"), today) is not None)
-        and 0 <= _days_between(row.get("date"), today) < TEASER_WINDOW_DAYS
-    ]
-    used_refs = {str(row.get("ref")) for row in recent}
-    last_kind = str((recent[-1] if recent else {}).get("kind") or "")
-    used_texts = {str(row.get("text_fr")) for row in recent}
-    candidates = teaser_candidates(live, world)
-    fresh = [row for row in candidates if row["ref"] not in used_refs]
-    varied = len({row["kind"] for row in fresh}) > 1
-    first_name = str(name or "").split(" ")[0].casefold()
-    # Variety first (not the same kind of line as yesterday's), then the rows this
-    # character was there for, then the learner's own dice.
-    fresh.sort(
-        key=lambda row: (
-            1 if varied and row["kind"] == last_kind else 0,
-            # A question about the speaker, quoted in the third person, sounds wrong
-            # in their own mouth: someone else raises it first.
-            1 if first_name and row["kind"] == "thread" and first_name in _words(row["text_fr"]) else 0,
-            0 if character_id and character_id in row["characters"] else 1,
-            _die(seed, "teaser", today, row["ref"]),
-        )
-    )
-    for row in fresh:
-        text = compose_teaser(
-            row,
-            character_id=character_id,
-            register=register,
-            variant=_die(seed, "teaser-frame", today),
-        )
-        if text in used_texts or not teaser_grounded(text, row["ref"], candidates):
-            continue
-        return {
-            "text_fr": text,
-            "character_id": character_id,
-            **({"character_name": name} if name else {}),
-            "date": today,
-            "ref": row["ref"],
-            "kind": row["kind"],
-        }
-    return None
 
 
 def _contract_hook(story_context: dict, *, user: Any, date: str | None) -> dict | None:
@@ -5270,15 +5193,6 @@ def _land_contract(
     turn.summary_native = ending["summary_native"]
     turn.callback_fr = ending["fact_fr"]
     return {"gap": gap, "beat": beat, "choice": choice, "ending": ending}
-
-
-def teasers_after(live: dict, teaser: dict | None) -> list[dict]:
-    rows = [row for row in live.get(TEASERS_KEY) or [] if isinstance(row, dict)]
-    if teaser:
-        rows.append(
-            {key: teaser.get(key) for key in ("ref", "kind", "text_fr", "date", "character_id")}
-        )
-    return rows[-TEASER_LEDGER_LIMIT:]
 
 
 def last_completed_day(db: Session, user: User, *, before: Any) -> str | None:
@@ -6263,22 +6177,32 @@ def trim_reply(reply: str | None, level: Any) -> str:
     return " ".join(words[:cap]).rstrip(" ,;:") + "…"
 
 
-def reply_soft_check(model: Any, level: Any, lexical: Any = None, learner_text: str | None = None) -> None:
+def reply_soft_check(
+    model: Any,
+    level: Any,
+    lexical: Any = None,
+    learner_text: str | None = None,
+    payload: dict | None = None,
+) -> None:
     """The reply checks that never cost a turn (WP-103 T5), run last.
 
     Length: above the band's line → :class:`SoftRejection` carrying the reply trimmed
     at a sentence boundary. Words (WP-89's budget, ``lexical(reply) -> hint | None``):
     too many words this learner has not met → a :class:`SoftRejection` carrying the
-    reply as it is. Either way the retry is told why, and the attempt after it — or,
-    if it fails, this one — is served as the rejection carried it.
+    reply as it is. #145: ``payload`` carries the scene's ledger, and what the reply says
+    against it is refused the same way (``lane_guards.scene_findings``). Either way the
+    retry is told why, and the attempt after it — or, if it fails, this one — is served
+    as the rejection carried it.
     """
 
     reply = str(getattr(model, "reply_fr", "") or "")
     hints: list[str] = []
+    codes: list[str] = []
     issue = reply_length_issue(reply, level)
     trimmed = trim_reply(reply, level) if issue else reply
     if issue:
         hints.append(issue)
+        codes.append("reply_above_level")
     lexical_hint = None
     if lexical is not None:
         try:
@@ -6288,23 +6212,26 @@ def reply_soft_check(model: Any, level: Any, lexical: Any = None, learner_text: 
             lexical_hint = None
     if lexical_hint:
         hints.append(str(lexical_hint))
-    ignored = None
-    if learner_text and not getattr(model, "needs_clarification", False):
-        # #254 (root cause #145): a reasoned learner turn is picked up — a reply that
-        # takes up none of its words is asked again once, then served as it is.
+        codes.append("reply_off_lexicon")
+    if not getattr(model, "needs_clarification", False):
         from app.services import lane_guards
 
-        ignored = lane_guards.ignored_reply_hint(reply, learner_text)
-        if ignored:
-            hints.append(ignored)
+        if learner_text:
+            # #254 (root cause #145): a reasoned learner turn is picked up — a reply that
+            # takes up none of its words is asked again once, then served as it is.
+            if ignored := lane_guards.ignored_reply_hint(reply, learner_text):
+                hints.append(ignored)
+                codes.append("reply_ignores_learner")
+        for finding in lane_guards.scene_findings(trimmed, payload):
+            hints.append(finding.hint)
+            codes.append(finding.code)
+            trimmed = finding.served
     if not hints:
         return
     served = model.model_copy(update={"reply_fr": trimmed}) if trimmed != reply else model
-    raise SoftRejection(
-        "reply_above_level" if issue else ("reply_off_lexicon" if lexical_hint else "reply_ignores_learner"),
-        hint=" ".join(hints),
-        proposal=served,
-    )
+    raise SoftRejection(codes[0], hint=" ".join(hints), proposal=served, codes=tuple(codes))
+
+
 # A graphic-novel page of 4-6 panels (2026-09-25); the prompt asks for ~10 % less.
 _SCENE_WORD_LIMITS = {"A1": 180, "A2": 260, "B1": 330, "B2": 385, "C1": 440}
 MIN_SCENE_PANELS = 4
@@ -10645,7 +10572,10 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_re
     turns_left = max(0, task.max_turns - turn_index)
     # #145 / #378: what this scene has asked and answered so far, rebuilt from its lines.
     ledger = scene_ledger.build(
-        opening_line_fr=task.opening_line_fr, history=history, learner_text=answer.text
+        opening_line_fr=task.opening_line_fr,
+        history=history,
+        learner_text=answer.text,
+        in_the_room=scene_ledger.room_of(scenario.story_context.get("draft")),
     )
     return {
         # Filtered even though `story_context` builds no lexicon: the actor's ignorance
@@ -10992,7 +10922,7 @@ def _validate_turn(turn: SemanticTurn, payload: dict, *, lexical=None, reply_che
     if reply_checks:
         # WP-103 T5: last, on a turn every hard guard has accepted — length and words
         # are refused once with the reason, then the trimmed reply is served.
-        reply_soft_check(turn, story.get("level"), lexical, payload["learner_text"])
+        reply_soft_check(turn, story.get("level"), lexical, payload["learner_text"], payload=payload)
 
 
 def _transfer_target_ids(task: Any) -> set[int]:
@@ -11201,7 +11131,10 @@ def evaluate_turn(
                 pending=True,
                 failure_reason=str(exc),
             )
-        return _fallback_evaluation(db, user=user, scenario=scenario, answer=answer, assistance=assistance, reason=str(exc))
+        return _fallback_evaluation(
+            db, user=user, scenario=scenario, answer=answer, assistance=assistance, reason=str(exc),
+            task=task, turn_index=turn_index,
+        )
 
 
 # Reasons that describe the learner or the stored state rather than the model's work:
@@ -11217,20 +11150,13 @@ NO_FALLBACK_REASONS = frozenset(
     }
 )
 
+#: #518: what the learner reads under the authored ending. It says no one left: a reply was
+#: shown either way, and the conversation was not cut off (R2-5: the old wording said
+#: «left before answering» under the very line that answered).
 _FALLBACK_SUMMARY = {
-    "en": "{name} was called away before answering; your words are noted and the scene picks this up next time.",
-    "de": "{name} wurde weggerufen, bevor eine Antwort kam; deine Worte sind notiert, die Szene nimmt das nächstes Mal wieder auf.",
-    "fr": "{name} a été appelé ailleurs avant de répondre ; tes mots sont notés et la scène reprendra là.",
-}
-
-
-#: Agency pilot run 2 (R2-5): the reply lane had answered («Ah, Paul — merci.») when the
-#: story lane fell back, and the stored summary said the character left *before*
-#: answering, quoting the very line that was answered.
-_FALLBACK_SUMMARY_ANSWERED = {
-    "en": "{name} answered you, then had to go; the rest of the scene stays open and picks up next time.",
-    "de": "{name} hat dir geantwortet und musste dann weg; der Rest der Szene bleibt offen und geht nächstes Mal weiter.",
-    "fr": "{name} a répondu, puis a dû partir ; la suite reste ouverte et la scène reprendra là.",
+    "en": "{name} heard what you said. The rest stays open.",
+    "de": "{name} hat gehört, was du gesagt hast. Der Rest bleibt offen.",
+    "fr": "{name} a écouté ce que tu as dit. La suite reste ouverte.",
 }
 
 
@@ -11246,56 +11172,59 @@ def open_question_of(line: Any) -> str | None:
 
 
 def fallback_turn(
-    *, character_name: str | None, learner_text: str, language: str, reason: str, answered: bool = False
+    *,
+    character_name: str | None,
+    learner_text: str,
+    language: str,
+    reason: str,
+    character_id: str | None = None,
+    register: str | None = None,
+    clean: bool = False,
 ) -> SemanticTurn:
-    """The authored ending used when the actor could not produce one (WP-58).
+    """The authored turn used when the actor could not produce one (WP-58, #518).
 
-    ``answered``: the character's reply was already shown, so the ending never says
-    they left before answering."""
+    ``register``: how this person addresses the learner. ``clean``: the reply was read and
+    needed no correction, so the ending may quote it."""
 
-    name = (character_name or "").split(" « ")[0].split()[0] if character_name else "Quelqu’un"
-    if answered:
-        summary = _FALLBACK_SUMMARY_ANSWERED.get(language, _FALLBACK_SUMMARY_ANSWERED["en"]).format(name=name)
-        return SemanticTurn(
-            outcome="partially_met",
-            understood_intent=f"fallback:{reason}",
-            evidence_quotes=[learner_text[:300]] if learner_text.strip() else [],
-            reply_fr="Attends, on m’appelle — je reviens vers toi très vite, promis.",
-            needs_clarification=False,
-            resolution_fr=f"{name} doit partir. La conversation reprendra là où elle s’est arrêtée.",
-            summary_native=summary,
-            callback_fr=f"{name} a répondu, puis a dû partir.",
-        )
-    summary = _FALLBACK_SUMMARY.get(language, _FALLBACK_SUMMARY["en"]).format(name=name)
+    first = (character_name or "").split(" « ")[0].split()[0] if character_name else "Quelqu’un"
+    name = cast_registry.display_name(character_id, first)
     return SemanticTurn(
         outcome="partially_met",
         understood_intent=f"fallback:{reason}",
         evidence_quotes=[learner_text[:300]] if learner_text.strip() else [],
-        reply_fr="Attends, on m’appelle — je reviens vers toi très vite, promis.",
+        reply_fr=scene_exit.reaction(character_id=character_id, learner_text=learner_text, register=register),
         needs_clarification=False,
-        resolution_fr=f"{name} doit partir avant de répondre. La conversation reprendra là où elle s’est arrêtée.",
-        summary_native=summary,
-        callback_fr=f"{name} a dû partir avant de répondre.",
+        resolution_fr=scene_exit.ending(learner_text=learner_text, register=register, clean=clean),
+        summary_native=_FALLBACK_SUMMARY.get(language, _FALLBACK_SUMMARY["en"]).format(name=name),
+        authored_ending=True,
     )
 
 
-def _fallback_evaluation(db, *, user, scenario, answer, assistance, reason: str):
-    """An honest authored ending when the actor could not produce one (WP-58).
+def _fallback_evaluation(db, *, user, scenario, answer, assistance, reason: str, task=None, turn_index: int = 0):
+    """An honest authored reply when the actor could not produce one (WP-58, #518).
 
     The owner's failed sends on 2026-09-19 were guard rejections of the model's turn,
     twice in a row, at the learner's expense: the sentence they wrote vanished into a
-    red error. This keeps the day alive instead: the character is called away, the
-    learner's words are kept verbatim as evidence, nothing is graded as met, no
-    commitment is invented, and the reply is labelled authored — never shown as the
-    character's live answer.
+    red error. This keeps the day alive instead: the character reacts to the kind of thing
+    the learner said, the learner's words are kept verbatim as evidence, nothing is graded
+    as met, no commitment is invented, and the reply is labelled authored — never shown as
+    the character's live answer.
+
+    The scene goes on while it has exchanges left, so one failed call costs the learner one
+    plain line and not the rest of the conversation. The proposal is there either way: if
+    the scene ends here, it ends on the authored closing line.
     """
+
+    from app.services.story_lanes import exit_register
 
     context = story_context(db, user)
     turn = fallback_turn(
         character_name=scenario.character_name,
+        character_id=scenario.character_id,
         learner_text=answer.text,
         language=normalize_control_language(context.get("control_language")),
         reason=reason,
+        register=exit_register(db, user, scenario),
     )
     logger.warning("living_story: authored fallback turn after %s", reason)
     from app.services.pilot_events import PilotEventService
@@ -11309,10 +11238,11 @@ def _fallback_evaluation(db, *, user, scenario, answer, assistance, reason: str)
     )
     proposal = StoryOutcomeProposal(
         outcome_key="open",
-        callback_fr=turn.callback_fr,
+        callback_fr=None,
         character_id=scenario.character_id,
         details={
             **turn.model_dump(mode="json"),
+            "authored_ending": True,
             "usage": [],
             "revision": context["revision"],
         },
@@ -11324,7 +11254,8 @@ def _fallback_evaluation(db, *, user, scenario, answer, assistance, reason: str)
         character_reply_fr=turn.reply_fr,
         correction=None,
         consequence=proposal,
-        needs_repair=False,
+        needs_repair=task is not None and keeps_talking(task, turn_index),
+        stock_exit=True,
         failure_reason="reply_source:authored",
         check_failure=str(reason or "model_error"),
     )
@@ -11419,7 +11350,7 @@ def settle_resolution(
         "id": event_id,
         "scene_id": str(scene.id),
         "witnesses": witnesses,
-        "summary_fr": scene_fact(turn.callback_fr, turn.resolution_fr, fallback=brief.title_fr),
+        "summary_fr": what_happened(turn, fallback=brief.title_fr),
         "source_quotes": turn.evidence_quotes,
         "outcome": turn.outcome,
         "at": datetime.now(UTC).isoformat(),
@@ -11684,9 +11615,14 @@ def settle_resolution(
     from app.services.season.runtime import season_teaser
     from app.services.story_page import HOOK_PAYLOAD_KEY
 
+    # #466: what the reader carries into tomorrow: the writer's question, else the
+    # scene's own open question, else an open row of the story.
+    said = _learner_lines(journey, act=act)
+    ledger = _stored_ledger(journey, act=act)
+    question = _tomorrow_question(db, user, turn, brief, said, ledger)
     # WP-111: a tentpole day's tomorrow is the page's own «À suivre…».
     teaser = (
-        season_teaser(brief.story_context, date=_journey_date(journey))
+        season_teaser(brief.story_context, date=_journey_date(journey), question=question)
         or _contract_hook(brief.story_context, user=user, date=_journey_date(journey))
     ) or next_teaser(
         live,
@@ -11696,6 +11632,9 @@ def settle_resolution(
         date=_journey_date(journey),
         seed=str(thread.id),
         name=_cast_names(world_after).get(brief.character_id),
+        said=said,
+        clean=_clean_learner_lines(journey, act=act),
+        question=question or question_left_open(ledger),
     )
     if teaser:
         live[TEASER_KEY] = teaser
@@ -11862,7 +11801,7 @@ def _settle_later_act(
         "id": event_id,
         "scene_id": str(scene.id),
         "witnesses": witnesses,
-        "summary_fr": scene_fact(turn.callback_fr, turn.resolution_fr, fallback=brief.title_fr),
+        "summary_fr": what_happened(turn, fallback=brief.title_fr),
         "source_quotes": turn.evidence_quotes,
         "outcome": turn.outcome,
         "at": datetime.now(UTC).isoformat(),

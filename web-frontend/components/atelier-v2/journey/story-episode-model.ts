@@ -1129,6 +1129,10 @@ export function storyFinaleStage(
 ): ReaderResolutionStage {
   const lineFr = String(prompt?.character_line_fr || '').trim();
   const summary = String(prompt?.summary_native || '').trim();
+  // Past A2 the chrome is French, so the «translation» of a French last line can be that line:
+  // «Deux clés, une seule porte. À suivre…» printed twice (walk, 9 Nov).
+  const fold = (value: string) => value.replace(/\s+/g, ' ').trim().toLowerCase();
+  const summaryRepeatsLine = Boolean(lineFr) && fold(summary) === fold(lineFr);
   // A narrated ending is said by nobody: no name, no face.
   if (prompt?.narrated) speaker = null;
   const name = String(speaker?.name || '').trim();
@@ -1158,7 +1162,7 @@ export function storyFinaleStage(
       imageUrl: String(prompt?.image_url || '').trim(),
       imageAlt: alt || summary,
       line,
-      summary,
+      summary: summaryRepeatsLine ? '' : summary,
       waiting: prompt?.story_pending === true,
     },
   };

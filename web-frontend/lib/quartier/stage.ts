@@ -337,6 +337,12 @@ const GOALS = {
 };
 
 /** The silent beats of the replies, and what the director acts out for each. */
+/** A beat the stage has already acted: what is left to say is what people say. */
+export const withoutCaptions = (b: StoryPanel): StoryPanel => ({
+  ...b,
+  lines: (b.lines ?? []).filter((l) => l.who !== 'caption' && l.kind !== 'caption'),
+});
+
 export const SILENT_BEATS: Record<string, RegExp> = {
   /** Margaux sets down a café crème nobody ordered */
   cup: /\.(a\.r1|c\.r2)$/,
@@ -2352,7 +2358,8 @@ export class Stage implements Director {
           await this.tween(gen, 1.1, (t) => cup.position.lerpVectors(from, ODILE_PLACE, t));
         }
       });
-      for (const b of spoken) await this.lines(gen, b);
+      // the room has just shown what the caption says: the thread needs it, this stage does not
+      for (const b of spoken) await this.lines(gen, withoutCaptions(b));
     } else if (reply === 'refused') {
       // an eyebrow; the cup goes back; Gus shrugs
       void this.q.troupe.face('margaux_barman', 'surprise', null);

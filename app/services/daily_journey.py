@@ -88,7 +88,7 @@ from app.schemas.daily_journey import (
     practice_href_for,
 )
 from app.schemas.verdict import VerdictView
-from app.services import gold_ledger, scene_ledger, verdicts
+from app.services import cast_registry, gold_ledger, scene_ledger, verdicts
 from app.services.chrome_language import user_chrome_language, user_mother_tongue
 from app.services.closing_filler import scene_fact
 from app.services.daily_journey_adapters import (
@@ -637,6 +637,22 @@ def _scenario_view(snapshot: Any) -> Any:
     return {**snapshot, "location_name": french}
 
 
+def previous_outcome_of(private: dict[str, Any], history: list[Any]) -> str | None:
+    """O-1: how the exchange before this one went, since a repair follows a miss.
+
+    ``None`` when nothing judged it. A reply no model read (``stock_exit``, #518; a failed
+    check, ``check_failure``, #333) stores an outcome all the same and the scene goes on, so
+    the next reply is not the repair of a miss nobody saw.
+    """
+
+    if not history:
+        return None
+    last = history[-1]
+    if isinstance(last, dict) and (last.get("stock_exit") or last.get("check_failure")):
+        return None
+    return (private.get("result") or {}).get("outcome")
+
+
 def _public_thread(turns: list[Any]) -> list[dict[str, Any]]:
     """WP-89: the respond step's exchanges as the public ``ThreadExchange`` shape.
 
@@ -697,6 +713,12 @@ def _public_acts(ordered: list[DailyJourneyStep]) -> dict[Any, int]:
             scenes += 1
         acts[step.id] = max(scenes, 1) if kind in ACT_STEP_KINDS else 1
     return acts
+
+
+#: The aids written for a scene's opening line (#145): stale once the character moves on.
+_OPENING_LINE_AIDS = frozenset(
+    {str(HelpKind.HINT), str(HelpKind.TRANSLATION), str(HelpKind.SUGGESTED_RESPONSE)}
+)
 
 
 def addressee_fields(person: str) -> dict[str, Any]:
@@ -5570,8 +5592,7 @@ class DailyJourneyService:
         brief = self._pinned_brief(journey, act=act)
         assistance = self._step_assistance(step)
         history = list(private.get("turns", []))
-        # O-1: the outcome of the exchange before this one (a repair follows a miss).
-        previous_outcome = (private.get("result") or {}).get("outcome") if history else None
+        previous_outcome = previous_outcome_of(private, history)
         # WP-89: a turn that cost no exchange (the opening greeting nudge) does
         # not move the conversation's own clock either.
         free_turns = sum(1 for turn in history if isinstance(turn, dict) and turn.get("free"))
@@ -5624,6 +5645,9 @@ class DailyJourneyService:
                 "free": bool(evaluation.needs_repair and not evaluation.turn_consumed),
                 # #333: nobody read this reply; the thread says so after a reload too.
                 **({"check_failure": evaluation.check_failure} if evaluation.check_failure else {}),
+                # #518: no model wrote this reply, so it is not something the scene said
+                # (``scene_ledger.on_screen``). Marked here, never recognised by its words.
+                **({"stock_exit": True} if getattr(evaluation, "stock_exit", False) else {}),
                 # Every speaker of a many-voiced reply, so each gets their bubble.
                 **({"lines": list(evaluation.reply_lines)} if evaluation.reply_lines else {}),
                 # QA-STORY: the season route this exchange took (replayed, never re-read).
@@ -5634,7 +5658,11 @@ class DailyJourneyService:
         )
         private["turns"] = history
         # #145 / #378: what the scene asked and what was answered, kept with its turns.
-        private["ledger"] = scene_ledger.build(opening_line_fr=task.opening_line_fr, history=history)
+        private["ledger"] = scene_ledger.build(
+            opening_line_fr=task.opening_line_fr,
+            history=history,
+            in_the_room=scene_ledger.room_of((brief.story_context or {}).get("draft")),
+        )
         # Persisted before the ending is settled: WP-06 renders the resolution
         # from the learner's own turns, and the decisive one is this turn.
         step.private_task = private
@@ -5658,12 +5686,22 @@ class DailyJourneyService:
             prompt["repair_allowed"] = False
             # WP-113: the next question's cards when it is «Le choix», else none.
             prompt["choices"] = list(getattr(evaluation, "next_choices", None) or [])
-            if getattr(evaluation, "next_task_native", None):
-                prompt["objective_native"] = evaluation.next_task_native
             if getattr(evaluation, "next_addressee", None):
                 # #594: the header names the person the question is put to, not the scene's
                 # first speaker.
                 prompt.update(addressee_fields(evaluation.next_addressee))
+            if getattr(evaluation, "next_task_native", None):
+                prompt["objective_native"] = evaluation.next_task_native
+            elif caption := scene_ledger.turn_caption(
+                evaluation.character_reply_fr,
+                speaker=cast_registry.display_name(
+                    prompt.get("character_id"), str(prompt.get("character_name") or "").split(" ")[0]
+                ),
+                language=brief.control_language,
+            ):
+                # #500: the caption under the input is written for the opening question;
+                # from the second turn on it follows what the character asks now.
+                prompt["objective_native"] = caption
             if getattr(evaluation, "next_hint_native", None) or getattr(evaluation, "next_suggested_fr", None):
                 # QA-STORY: the hint belongs to the question now asked, not the first one.
                 response_task = dict(private.get("response_task") or {})
@@ -5675,13 +5713,20 @@ class DailyJourneyService:
                     response_task["translation_native"] = evaluation.next_translation_native
                 private["response_task"] = response_task
                 step.private_task = private
-            if history[-1].get("free"):
-                # The exchange the nudge did not use is still owed: one more token.
-                prompt["max_turns"] = int(prompt.get("max_turns") or 1) + 1
-            elif question_open and step.turn_index >= int(prompt.get("max_turns") or 1):
-                # #378: the extra exchange the open question takes is counted, so
-                # the scene never reads «4 of 3».
-                prompt["max_turns"] = step.turn_index + 1
+            elif not history[-1].get("free"):
+                # #145: the hint, the translation and the example were written for the
+                # opening line. The character has moved on, so they no longer help:
+                # they are not offered rather than offered wrong. A nudge used no
+                # exchange and the question is unchanged, so its aids stay.
+                prompt["help_available"] = [
+                    kind for kind in prompt.get("help_available") or [] if kind not in _OPENING_LINE_AIDS
+                ]
+            # #467 (root cause #145: the scene has no state of its own, so the
+            # total was whatever the engine decided next): ``max_turns`` is fixed
+            # when the scene starts and never changes. A nudge that did not use
+            # an exchange, or the answer an open question takes (#378), is one
+            # more turn under the same total; the client shows it as the last
+            # exchange instead of promising a bigger scene than the one it began.
             # WP-89 «Le fil»: the conversation so far, so a reloaded client can
             # redraw it. Public by construction: what was said and shown.
             prompt["thread"] = _public_thread(history)

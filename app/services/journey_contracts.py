@@ -1606,6 +1606,9 @@ class ResponseEvaluation:
     correction: Correction | None = None
     consequence: StoryOutcomeProposal | None = None
     needs_repair: bool = False
+    #: #518: this reply stands in for one no model could write (``scene_exit``). Not the same
+    #: as ``reply_source:authored``, which an ordinary authored conversation day also carries.
+    stock_exit: bool = False
     #: #378: the scene stays open because the character's reply asks the learner
     #: something, past the planned exchanges (``SCENE_QUESTION_GRACE`` at most).
     question_open: bool = False

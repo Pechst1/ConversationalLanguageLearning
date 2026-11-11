@@ -26,6 +26,8 @@ from app.db.savepoint import best_effort
 from app.services import (
     cast_registry,
     correction_contract,
+    learner_facts,
+    scene_ledger,
     verdict_cutover,
     verdict_ledger,
     verdicts,
@@ -58,6 +60,7 @@ from app.services.learner_copy import copy_language, learner_text
 from app.services.letter_voice import band_style_line, register_word, voice_problems
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.news_service import NewsService
+from app.services.pragmatics import address_markers
 from app.services.progress import ProgressService
 from app.services.serial_arc_planner import cefr_generation_profile
 from app.services.vocabulary_coverage import VocabularyCoverageService, normalize_category
@@ -157,6 +160,55 @@ class NoCredibleLetter(Exception):
         self.chain_id = chain_id
 
 
+def letter_printed_lines(item: dict[str, Any]) -> list[str]:
+    """Every line a letter prints in a character's voice or around it: the setting line,
+    the opening, the P.S. and each authored follow-up's opening."""
+
+    lines = [item.get("scene_anchor"), item.get("opening_message"), item.get("twist")]
+    lines.extend(entry["opening_message"] for entry in follow_ups_of(item))
+    return [str(line) for line in lines if line]
+
+
+def letter_register_mixed(item: dict[str, Any]) -> bool:
+    """#520: whether the lines of one letter address the learner in both «tu» and «vous».
+
+    The generated letter was held to one register (#117); the authored table was not, and
+    six of its letters said «avez-vous» in the opening and «à ta taille» in the P.S.
+    Each line is read alone, so one line that mixes counts too."""
+
+    seen_tu = seen_vous = False
+    for line in letter_printed_lines(item):
+        tu, vous = address_markers(line)
+        seen_tu, seen_vous = seen_tu or tu, seen_vous or vous
+    return seen_tu and seen_vous
+
+
+#: The words of someone who has met you. Narrow on purpose: this refuses a letter, so a
+#: phrase that also fits a stranger («hier soir», «l'autre jour») does not belong here.
+_CLAIMS_TO_KNOW = re.compile(
+    r"\b(?:on s['’]est (?:vus?|vues?|croisés?|croisées?|rencontrés?|rencontrées?|parlé)"
+    r"|on se conna[iî]t"
+    r"|nous nous (?:sommes (?:vus?|vues?|croisés?|croisées?|rencontrés?|rencontrées?|parlé)|connaissons)"
+    r"|la dernière fois"
+    r"|notre (?:dernière )?rencontre"
+    r"|tu te (?:souviens|rappelles)"
+    r"|vous vous (?:souvenez|rappelez)"
+    r"|je (?:te|vous) connais"
+    r"|je (?:t['’]ai|vous ai) (?:vu|vue|vus|vues|croisé|croisée|rencontré|rencontrée|reconnu|reconnue)\b)",
+    re.IGNORECASE,
+)
+
+
+def extra_claims_to_know(name: Any, lines: Any) -> bool:
+    """Decision of 9 Nov (#626's family): a letter from outside the cast may come, from
+    someone who has never met the learner. A first letter of theirs that says otherwise
+    is refused. A cast member's letter is not read here: the registry answers for them."""
+
+    if cast_registry.people_named(str(name or "")):
+        return False
+    return any(_CLAIMS_TO_KNOW.search(str(line or "")) for line in lines)
+
+
 def canned_letter_problem(
     item: dict[str, Any],
     rotation: dict[str, Any],
@@ -171,6 +223,14 @@ def canned_letter_problem(
     """
 
     domain = str(item.get("domain") or "")
+    if letter_register_mixed(item):
+        # #520: a letter that says «vous» in its opening and «ta taille» in its P.S. is
+        # not printed, whoever wrote it.
+        return "mixed_register"
+    if not follow_up and extra_claims_to_know(
+        item.get("contact_name"), [item.get("scene_anchor"), item.get("opening_message"), item.get("twist")]
+    ):
+        return "claims_to_know"
     if not letter_reaches(item.get("level"), rotation.get("band"), open_ended=bool(item.get("open_ended"))):
         return "below_band"
     if letter_band_index(item.get("level")) > letter_band_index(rotation.get("band")) + LETTER_STRETCH:
@@ -309,7 +369,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "channel_label": "SMS",
         "tone": "polite_firm",
         "register": "vous / polite formal",
-        "scene_anchor": "Chez toi, avec un manteau",
+        "scene_anchor": "À la maison, avec un manteau",
         "opening_message": "Bonjour, j'ai lu votre message. Le radiateur ne marche plus du tout ?",
         "brief": "Le radiateur ne marche plus. Dis le problème et demande un jour pour réparer.",
         "success_signal": "The landlord understands the issue and proposes a concrete time.",
@@ -365,11 +425,11 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "channel_label": "Messagerie du service client",
         "tone": "calm_specific",
         "register": "polite neutral",
-        "scene_anchor": "Sur ton téléphone, une photo : ce n'est pas ta porte",
+        "scene_anchor": "Sur le téléphone, une photo : ce n'est pas la bonne porte",
         "opening_message": "Bonjour, votre paquet est arrivé, mais pas chez vous. Quelle est votre rue ?",
         "brief": "Le colis n'est pas chez toi. Explique et demande une solution.",
         "success_signal": "Support has the right address and a clear next step.",
-        "twist": "Sur la photo, la porte est bleue. Ta porte est verte.",
+        "twist": "Sur la photo, la porte est bleue. Celle de l'immeuble est verte.",
         "ambient_cues": ["une photo du colis", "la mauvaise porte", "un numéro de commande"],
         "quick_replies": ["Bonjour, j'habite rue...", "La photo, ce n'est pas ma porte...", "Vous pouvez envoyer le paquet..."],
         # WP-125B proposal: letter 2 names the earlier exchange, without guessing its content.
@@ -399,7 +459,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "opening_message": "Bonjour, votre rendez-vous de jeudi n'est pas possible. Vendredi matin, c'est bien pour vous ?",
         "brief": "Le dentiste change ton rendez-vous. Dis oui ou propose une autre heure.",
         "success_signal": "The reception desk can book the right slot without calling again.",
-        "twist": "Vendredi matin, tu as cours.",
+        "twist": "Mais vendredi matin, il y a cours.",
         "ambient_cues": ["un message court", "ta semaine", "on dit « vous »"],
         "quick_replies": ["Bonjour, merci pour votre message...", "Vendredi matin...", "Est-ce possible plutôt..."],
     },
@@ -490,7 +550,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "channel_label": "Messagerie du service",
         "tone": "polite_firm",
         "register": "polite formal",
-        "scene_anchor": "Chez toi, internet sur le téléphone",
+        "scene_anchor": "À la maison, internet sur le téléphone",
         "opening_message": "Bonjour, internet ne marche pas dans votre rue. Depuis quand vous n'avez plus internet ?",
         "brief": "Tu n'as pas internet depuis trois jours. Écris un message poli et clair.",
         "success_signal": "Support logs the duration and gives a repair or compensation step.",
@@ -518,11 +578,11 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "channel_label": "Court e-mail",
         "tone": "polite_clear",
         "register": "polite formal",
-        "scene_anchor": "À ton bureau, avec le paquet à renvoyer",
+        "scene_anchor": "Au bureau, avec le paquet à renvoyer",
         "opening_message": "Bonjour, quelle taille avez-vous et quelle taille voulez-vous ?",
         "brief": "Ce n'est pas la bonne taille. Demande un échange.",
         "success_signal": "The shop can send the correct size or confirm the return.",
-        "twist": "Il reste un seul article à ta taille, jusqu'à ce soir.",
+        "twist": "Il reste un seul article de cette taille, jusqu'à ce soir.",
         "ambient_cues": ["le numéro de commande", "le paquet à renvoyer", "une seule taille"],
         "quick_replies": ["Bonjour, j'ai la taille...", "Je voudrais la taille...", "Est-ce que vous pouvez..."],
         # WP-125B proposal: letter 2 names the earlier exchange, without guessing its content.
@@ -680,7 +740,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "channel_label": "Messagerie de location",
         "tone": "polite_firm",
         "register": "vous / polite neutral",
-        "scene_anchor": "Un message de ton hôte, un soir de semaine",
+        "scene_anchor": "Un message de l'hôte, un soir de semaine",
         "opening_message": (
             "Bonjour, j'espère que le studio vous convient, malgré ce radiateur capricieux. Votre "
             "réservation se termine samedi. J'ai une demande pour la semaine suivante, mais si vous "
@@ -835,7 +895,10 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
 # WP-99 (W13) — the Courrier belongs to the cast from day 1
 # ---------------------------------------------------------------------------
 
-#: Who may write a learner's first letter: two people they meet on day 1.
+#: Who may write a story-born first letter: only someone who witnessed a scene the ledger
+#: holds (``courrier.first_letter_candidate``), so the learner has met them by then. The
+#: authored first letters below come from Margaux at every band, because she is the one
+#: person a learner has certainly met on day 1 who has a reason to write (#626).
 FIRST_LETTER_WRITERS: tuple[str, ...] = ("margaux_barman", "romy_tremblay")
 
 #: The cast's roles as the Courrier prints them (French, the letter's language).
@@ -884,36 +947,36 @@ FIRST_LETTERS: dict[str, dict[str, Any]] = {
         "level": "B1",
         "open_ended": True,
         "label": "Le Mistral",
-        "character_id": "romy_tremblay",
-        "title": "Trois questions de Romy",
-        "contact_name": "Romy",
-        "contact_role": role_of("romy_tremblay", "fr"),
-        "contact_initials": "RO",
-        "channel": "email",
-        "channel_label": "Court e-mail",
+        "character_id": "margaux_barman",
+        # #626: Margaux says the fewest words in the cast, so a letter from her is an event.
+        # It keeps WP-125B's three open questions, in her voice.
+        "title": "Trois questions de Margaux",
+        "contact_name": "Margaux",
+        "contact_role": role_of("margaux_barman", "fr"),
+        "contact_initials": "MA",
+        "channel": "sms",
+        "channel_label": "SMS",
         "tone": "light_warm",
         "register": "vous / warm but polite",
-        "scene_anchor": "Un e-mail de Romy, après ta soirée au Mistral",
+        "scene_anchor": "Le soir, un message du café Le Mistral",
         "opening_message": (
-            "Bonjour ! C'est Romy, on s'est vus au Mistral. J'écris un article sur les gens qui "
-            "arrivent à Paris. Vous voulez bien répondre à trois questions : d'où venez-vous, "
-            "pourquoi Paris, et qu'est-ce qui vous surprend ici ?"
+            "C'est Margaux, du Mistral. Je n'écris jamais. D'où venez-vous ? Pourquoi Paris ? "
+            "Et qu'est-ce qui vous surprend ici ?"
         ),
         "opening_message_tu": (
-            "Salut ! C'est Romy, on s'est vus au Mistral. J'écris un article sur les gens qui "
-            "arrivent à Paris. Tu veux bien répondre à trois questions : d'où tu viens, "
-            "pourquoi Paris, et qu'est-ce qui te surprend ici ?"
+            "C'est Margaux, du Mistral. Je n'écris jamais. D'où tu viens ? Pourquoi Paris ? "
+            "Et qu'est-ce qui te surprend ici ?"
         ),
-        "brief": "Romy écrit un article. Réponds à ses trois questions.",
-        "brief_tu": "Romy écrit un article. Réponds à ses trois questions.",
-        "success_signal": "Romy sait d'où tu viens et pourquoi tu es à Paris.",
+        "brief": "Margaux n'écrit jamais, mais là, si. Réponds à ses trois questions.",
+        "brief_tu": "Margaux n'écrit jamais, mais là, si. Réponds à ses trois questions.",
+        "success_signal": "Margaux sait d'où tu viens et pourquoi tu es à Paris.",
         "success_signal_i18n": {
-            "fr": "Romy sait d'où tu viens et pourquoi tu es à Paris.",
-            "en": "Romy knows where you are from and why you are in Paris.",
-            "de": "Romy weiß, woher du kommst und warum du in Paris bist.",
+            "fr": "Margaux sait d'où tu viens et pourquoi tu es à Paris.",
+            "en": "Margaux knows where you are from and why you are in Paris.",
+            "de": "Margaux weiß, woher du kommst und warum du in Paris bist.",
         },
-        "twist": "Elle a déjà un titre pour l'article, mais pas encore de photo.",
-        "ambient_cues": ["un article en préparation", "trois questions", "le café Le Mistral"],
+        "twist": "Ce qu'on écrit ici reste ici. J'ai rien lu.",
+        "ambient_cues": ["un message du soir", "trois questions", "le café Le Mistral"],
         "quick_replies": ["Je viens de...", "Je suis à Paris parce que...", "Ici, ce qui me surprend, c'est..."],
     },
 }
@@ -1036,7 +1099,9 @@ MISSION_SUCCESS_OBJECTIVES: dict[str, list[str]] = {
     "food_dining": ["Say what you want to order or cook", "Handle the one constraint they raise"],
     "housing": ["Describe the broken thing clearly", "Ask for a repair time", "Confirm when you are available"],
     "neighbours": ["Acknowledge their complaint", "Say what you will change"],
-    "deliveries_admin": ["Confirm your address", "Explain what went wrong (the wrong door)", "Give the tracking number or order reference"],
+    # #114: no goal asks the learner for a number or an address they were never given; the
+    # scene's own opening asks for the street where it needs it.
+    "deliveries_admin": ["Explain what went wrong (the wrong door)", "Say what you want done with the parcel", "Say when you are at home to receive it"],
     "health": ["React to the proposed time", "Confirm a slot or propose a workable one"],
     "transport": ["Say whether you want to travel today or get a refund", "Confirm the next concrete step"],
     "social_plans": ["Say yes or no to the plan", "Confirm the time and the place"],
@@ -2899,7 +2964,7 @@ class MissionGenerator:
                 messenger.get("twist")
                 if generated
                 and not voice_problems(
-                    [messenger.get("opening_message"), messenger.get("twist")],
+                    [messenger.get("scene_anchor"), messenger.get("opening_message"), messenger.get("twist")],
                     register=writer_register,
                     level=None,
                 )
@@ -3237,7 +3302,9 @@ class MissionGenerator:
             "If letters_with_this_person is non-empty, this is the SAME person writing again: keep their name and "
             "role exactly, do not re-introduce them, and refer to at most one earlier exchange in passing. If chain "
             "is present, this is that numbered instalment of one continuing affair — carry the previous outcome "
-            "forward rather than starting a new situation. level_limits is binding and checked by machine "
+            "forward rather than starting a new situation. Anyone not in story_context writing here for the first "
+            "time has never met the learner: they write as a stranger with a reason to write, and never say you "
+            "have met, seen or know each other. level_limits is binding and checked by machine "
             "after you write: use only words from level_limits.allowed_words when it is given (plus names, "
             "numbers and due_vocabulary), at most level_limits.max_words_outside_the_list other words in the "
             "whole letter, and sentences no longer than level_limits.max_words_per_sentence; a letter that "
@@ -3342,7 +3409,7 @@ class MissionGenerator:
             # and stay inside the learner's band; the lexical check above sees neither.
             problems.extend(
                 voice_problems(
-                    [candidate.get("opening_message"), candidate.get("twist")],
+                    [candidate.get("scene_anchor"), candidate.get("opening_message"), candidate.get("twist")],
                     register=register_word((story_context or {}).get("register")),
                     level=str(cefr)[:2],
                 )
@@ -3350,6 +3417,18 @@ class MissionGenerator:
             gap = _objective_language_gap(candidate, user)
             if gap:
                 problems.append(f"Return {gap}: the objective in the learner's own language.")
+            if (
+                not chain
+                and not (correspondence or {}).get("thread_history")
+                and extra_claims_to_know(
+                    candidate.get("contact_name"),
+                    [candidate.get("scene_anchor"), candidate.get("opening_message"), candidate.get("twist")],
+                )
+            ):
+                problems.append(
+                    "This person has never met the learner: write as a stranger, without saying you have met, "
+                    "seen or know each other."
+                )
             if not problems:
                 data = candidate
                 break
@@ -5364,7 +5443,7 @@ class MissionScheduler:
 
         A story-born letter from Romy or Margaux when the ledger has a scene one
         of them witnessed (and ``story``); else the authored first letter for the
-        learner's band.
+        learner's band, which is Margaux's.
         """
 
         candidate = None
@@ -6107,18 +6186,16 @@ class MissionScheduler:
 
     @staticmethod
     def _serial_character_name(thread: SerialThread, character_id: str) -> str:
+        """#147: the registry names its people; a world's own row names anyone else."""
+
+        known = cast_registry.display_name(character_id)
+        if known:
+            return known
         world = thread.world_bible if isinstance(thread.world_bible, dict) else {}
         for member in world.get("cast") or []:
             if isinstance(member, dict) and member.get("id") == character_id:
                 return str(member.get("name") or character_id)
-        return {
-            "landlord_marchand": "M. Marchand",
-            "margaux_barman": "Margaux",
-            "augustin_de_roncourt": "Gus",
-            "romy_tremblay": "Romy",
-            "marin_leveque": "Marin",
-            "lila_bonnet": "Lila",
-        }.get(character_id, character_id.replace("_", " ").title())
+        return character_id.replace("_", " ").title()
 
     @staticmethod
     def _serial_register_for_character(*, thread: SerialThread, character_id: str) -> str:
@@ -6715,6 +6792,56 @@ def unanswered_user_turns(
     ]
 
 
+def thread_opening(mission: Any) -> str:
+    """The letter that opens a Courrier thread: what the correspondent wrote first.
+
+    A letter is kept in the payload, not as a turn (only a ``conversation`` mission stores
+    its opening as turn 1), so everything that reads "the thread so far" starts here."""
+
+    payload = getattr(mission, "prompt_payload", None) or {}
+    messenger = payload.get("messenger") or {}
+    return str(messenger.get("opening_message") or payload.get("conversation_opening") or "").strip()
+
+
+def thread_exchanges(mission: Any, user_text: str) -> list[dict[str, str]]:
+    """The thread's turns as exchanges, before the reply being answered: what the ledger and
+    the checks read. A turn the writer sent first is the letter's own, already its opening."""
+
+    exchanges: list[dict[str, str]] = []
+    for turn in sorted(getattr(mission, "turns", None) or [], key=lambda item: item.turn_index):
+        text = str(turn.text or "").strip()
+        if turn.role == "user":
+            exchanges.append({"learner": text, "character": ""})
+        elif exchanges:
+            exchanges[-1]["character"] = f"{exchanges[-1]['character']} {text}".strip()
+    if exchanges and not exchanges[-1]["character"] and exchanges[-1]["learner"] == str(user_text or "").strip():
+        exchanges.pop()
+    return exchanges
+
+
+def who_they_are(db: Session | None, user: Any, mission: Any) -> dict[str, Any]:
+    """#147: what the correspondent is to the learner, from the one read of a person.
+
+    Anyone the registry does not hold is a one-letter extra: they have never met the learner,
+    and nothing in their letter or reply may say they have (decision of 9 Nov)."""
+
+    correspondent = courrier.correspondent_of(mission)
+    name = str(correspondent.get("name") or "")
+    cast_id = cast_registry.resolve_id(str(correspondent.get("id") or "")) or (cast_registry.people_named(name) or [None])[0]
+    state: dict[str, Any] | None = None
+    if cast_id and db is not None and getattr(user, "id", None) is not None:
+        try:
+            thread = courrier.active_thread(db, SimpleNamespace(id=user.id))
+            state = dict(thread.state or {}) if thread is not None else None
+        except Exception:  # noqa: BLE001 - a reply never fails on who someone is
+            state = None
+    found = cast_registry.person(cast_id, state)
+    if found is None:
+        return {"you_have_never_met_them": True}
+    relation = found.relation.label("en") if found.relation else ""
+    return {**({"who_they_are_to_you": relation} if relation else {}), **({} if found.met else {"you_have_never_met_them": True})}
+
+
 class MissionConversationService:
     """Generate mission chat responses without duplicating the old audio route."""
 
@@ -6759,6 +6886,9 @@ class MissionConversationService:
             if register_now
             else messenger.get("target_register") or (mission.prompt_payload or {}).get("target_register")
         )
+        # #145: what was asked, what they said to it, what stands. The letter is its opening.
+        exchanges = thread_exchanges(mission, user_text)
+        ledger = scene_ledger.build(opening_line_fr=thread_opening(mission), history=exchanges, learner_text=user_text)
         context = json.dumps(
             {
                 "scene_title": mission.title,
@@ -6768,6 +6898,8 @@ class MissionConversationService:
                 "scene_so_far": mission.source_snapshot,
                 "register": register_phrase,
                 "branch_state": preliminary_branch,
+                "ledger": scene_ledger.for_writer(ledger),
+                **who_they_are(self.db, user, mission),
                 **({"how_you_feel_about_them": feeling} if feeling else {}),
             },
             ensure_ascii=False,
@@ -6777,6 +6909,12 @@ class MissionConversationService:
             for turn in sorted(mission.turns or [], key=lambda item: item.turn_index)
             if through_turn_index is None or turn.turn_index <= through_turn_index
         ][-10:]
+        # #538 (root cause #145): the letter is the first line of the thread. A letter is
+        # not stored as a turn, so the actor used to answer a reply to a question it had
+        # never been shown («Tu préfères la poste ou la boutique ?»).
+        letter = thread_opening(mission)
+        if letter and not any(item["role"] == "assistant" and item["content"] == letter for item in history):
+            history = [{"role": "assistant", "content": letter}, *history]
         messages = [
             {"role": "user", "content": f"Scene context: {context}"},
             *history,
@@ -6801,7 +6939,18 @@ class MissionConversationService:
             "one warm, satisfying closing line that confirms the outcome and the next concrete step, and end with «Bonne journée !» or a "
             "natural sign-off — do NOT ask any further questions. If one or more goals are still open, steer toward the most important "
             "missing one with a single natural question. Never drag the scene out once everything is settled. "
-            "Never break character; never mention lessons, scores, levels, exercises, or vocabulary."
+            "Never break character; never mention lessons, scores, levels, exercises, or vocabulary. "
+            "ANSWER WHAT THEY WROTE: take up the decision, the question or the detail they gave (a pet, a key, a refusal) before "
+            "anything else. Invent no order, parcel, delivery, tracking or reference number, and never ask for their home address, "
+            "phone number or e-mail, unless this scene's own first message already did. "
+            "THE THREAD IS YOUR MEMORY: the conversation starts with your own letter, and ledger is this thread's record. asked lists "
+            "each question and whether it was answered, last_turn says what their last reply did (a yes, a no, a question, or something "
+            "else), stands lists what was put to them and how they took it, established what their own words settled. Take an answer up "
+            "before anything else and never ask that question again; a no stays a no; never raise a problem, an exchange or a refund "
+            "that nobody mentioned. "
+            "who_they_are_to_you, when present, is what you are to each other; never make it warmer than that. "
+            "you_have_never_met_them, when present, means exactly that: you only know them from this thread, so never say you "
+            "have met or seen them, or that you know them."
         )
         # #117: the reply is the character's own voice, so it keeps the letter's address
         # form and the learner's band (a deterministic check, then one rewrite, then the
@@ -6814,8 +6963,28 @@ class MissionConversationService:
         style = band_style_line(level)
         if style:
             system += f" {style}"
+        soft_served: str | None = None
+        soft_found: list[str] = []
         try:
             hint = ""
+
+            def finish(reply: str, prompt: str) -> str:
+                return self._keep_relatives_with_their_owner(
+                    reply,
+                    mission=mission,
+                    user_text=user_text,
+                    user=user,
+                    register=register_phrase,
+                    call=lambda extra, prompt=prompt: self.llm.generate_chat_completion(
+                        messages=messages,
+                        system_prompt=f"{prompt} {extra}",
+                        temperature=0.7,
+                        max_tokens=220,
+                        model=settings.OPENAI_MISSION_FAST_MODEL,
+                        request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
+                    ),
+                )
+
             for attempt in range(2):
                 result = self.llm.generate_chat_completion(
                     messages=messages,
@@ -6828,27 +6997,83 @@ class MissionConversationService:
                 _record_mission_llm_cost(self.db, user_id=getattr(user, "id", None), result=result, purpose="character_reply", mission_id=getattr(mission, "id", None))
                 problems = voice_problems([result.content], register=expected, level=level)
                 if not problems:
-                    return self._keep_relatives_with_their_owner(
-                        result.content,
-                        mission=mission,
-                        user_text=user_text,
-                        user=user,
-                        register=register_phrase,
-                        call=lambda extra, prompt=system + hint: self.llm.generate_chat_completion(
-                            messages=messages,
-                            system_prompt=f"{prompt} {extra}",
-                            temperature=0.7,
-                            max_tokens=220,
-                            model=settings.OPENAI_MISSION_FAST_MODEL,
-                            request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
-                        ),
-                    )
+                    problems = self._logistics_problems(result.content, mission=mission, user_text=user_text)
+                # #145: compared with the thread's record, soft as on a scene: one retry with
+                # the reason, then the reply is served, so a wrong reading never costs a reply.
+                checked = [] if problems else self._against_the_record(result.content, ledger, exchanges, user_text)
+                if not problems and (not checked or soft_found):
+                    self._count_soft_findings(user, soft_found, "served_anyway" if checked else "corrected")
+                    return finish(checked[-1].served if checked else result.content, system + hint)
+                if checked:
+                    soft_served = checked[-1].served
+                    soft_found = [finding.code for finding in checked]
+                    problems = [finding.hint for finding in checked]
                 logger.info("Courrier reply rejected", attempt=attempt + 1, problems=problems)
                 hint = " Rewrite your reply fixing exactly this: " + " ".join(problems)
+            if soft_served is not None:
+                self._count_soft_findings(user, soft_found, "served_first")
+                return finish(soft_served, system)
             return _unassessed_acknowledgement(mission, register_now=register_now)
         except MODEL_CALL_FAILED as exc:
             logger.debug("Mission conversation fallback", error=str(exc))
+            if soft_served is not None:
+                self._count_soft_findings(user, soft_found, "served_first")
+                return soft_served
             return self._fallback_response(mission, branch=preliminary_branch, objective_progress=latest_progress)
+
+    @staticmethod
+    def _against_the_record(reply: str, ledger: dict[str, Any], exchanges: list[dict[str, str]], user_text: str) -> list[Any]:
+        """What ``reply`` says against the thread's record, each finding carrying the reply to
+        serve. ``scene_findings`` is what a scene's reply is held to; this is the same read."""
+
+        from app.services import lane_guards  # late: lane_guards imports the story engine
+
+        return lane_guards.scene_findings(reply, {"ledger": ledger, "history": exchanges, "learner_text": user_text})
+
+    def _count_soft_findings(self, user: Any, codes: list[str], outcome: str) -> None:
+        """Code and outcome, no text: how often a check fires is visible in production."""
+
+        if not codes or self.db is None:
+            return
+        from app.services.pilot_events import PilotEventService
+
+        with best_effort(self.db, "Courrier: soft finding count"):
+            for code in codes:
+                PilotEventService(self.db).record(
+                    "reply_guard_fired", user_id=getattr(user, "id", None), entity_type="mission",
+                    payload={"code": code, "outcome": outcome, "stage": "courrier"}, cost_usd=0.0,
+                )
+
+    def _logistics_problems(self, reply: str, *, mission: RealWorldMission, user_text: str) -> list[str]:
+        """#114 (root cause #145): the reply may not bring in an order, a tracking or
+        reference number, or a request for the learner's address that the thread never
+        held. Returned as the rewrite hint, so it rides the same retry as the voice check."""
+
+        from app.services import lane_guards  # late: lane_guards imports the story engine
+
+        payload = mission.prompt_payload or {}
+        messenger = payload.get("messenger") or {}
+        authored = [
+            payload.get("conversation_opening"),
+            messenger.get("opening_message"),
+            messenger.get("brief"),
+            getattr(mission, "brief", None),
+        ]
+        turns = sorted(mission.turns or [], key=lambda item: item.turn_index)
+        grounded = [
+            *authored,
+            getattr(mission, "title", None),
+            messenger.get("twist"),
+            " ".join(str(cue) for cue in messenger.get("ambient_cues") or []),
+            json.dumps(getattr(mission, "source_snapshot", None) or {}, ensure_ascii=False),
+            user_text,
+            *[turn.text for turn in turns],
+        ]
+        found = lane_guards.invented_logistics(reply, grounded=grounded, authored=authored)
+        if found:
+            logger.info("Courrier reply invents logistics", problems=found)
+            return [lane_guards.invented_logistics_hint(found)]
+        return []
 
     def _keep_relatives_with_their_owner(
         self,
@@ -6965,6 +7190,11 @@ class MissionConversationService:
             problems = reaction_problems(reply, learner_text=user_text, grounded=(scene_context, opener, name))
             if problems:
                 logger.info("Atelier reaction held back", problems=[problem.kind for problem in problems])
+                return calm_acknowledgement()
+            from app.services import lane_guards  # late: lane_guards imports the story engine
+
+            if lane_guards.invented_logistics(reply, grounded=(scene_context, opener, user_text), authored=(opener, scene_context)):
+                logger.info("Atelier reaction held back: invented logistics")
                 return calm_acknowledgement()
             return reply
         except LLMProviderError as exc:
@@ -7836,7 +8066,26 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
             }
             for turn in sorted(mission.turns or [], key=lambda item: item.turn_index)
         ]
+        payload["prompt_payload"] = _prompt_payload_for_thread(mission, payload["prompt_payload"])
     return payload
+
+
+def _prompt_payload_for_thread(mission: RealWorldMission, prompt_payload: dict[str, Any]) -> dict[str, Any]:
+    """#557 (root cause #145): the suggested replies follow the thread, not the letter's opening.
+
+    The chips are written with the letter, before the learner has said anything. Once
+    they have, a chip that asserts the opposite of what they said («Oui, je viens à ta
+    fête !» after «Non, je ne peux pas venir») or repeats it is not offered. The stored
+    letter is untouched: the filter runs on every read, so a new turn is a new set."""
+
+    messenger = prompt_payload.get("messenger")
+    chips = messenger.get("quick_replies") if isinstance(messenger, dict) else None
+    turns = sorted(mission.turns or [], key=lambda item: item.turn_index)
+    learner = [str(t.text) for t in turns if t.role == "user" and t.text]
+    if not chips or not learner:
+        return prompt_payload
+    fitting = learner_facts.chips_for_thread([str(c) for c in chips], learner)
+    return {**prompt_payload, "messenger": {**messenger, "quick_replies": fitting}}
 
 
 __all__ = [

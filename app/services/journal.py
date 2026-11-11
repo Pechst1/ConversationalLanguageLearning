@@ -28,9 +28,10 @@ Five properties, each with a test:
   "unavailable"``. The learner's text is kept, no erratum is invented, no
   vocabulary is credited, and the screen says so in French.
 * **The story is read, never written.** Scene facts come from the journey's own
-  public snapshot fields and from :func:`app.services.living_story.story_context`,
-  which is a pure read. Nothing here touches serial state, ``private_task``, or
-  the living-story thread.
+  public snapshot fields, from what the scene showed on screen
+  (:func:`app.services.scene_ledger.on_screen`) and from
+  :func:`app.services.living_story.story_context`, which is a pure read. Nothing here
+  touches serial state, ``private_task``, or the living-story thread.
 
 Spacing follows the same evidence: +1 day for the entry, +7 days for a one-line
 follow-up whose answer is the ``used_again_later`` signal — the only number that
@@ -54,11 +55,11 @@ from app.db.models.journal import JournalEntry
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
-from app.services import correction_contract, verdicts
+from app.services import correction_contract, scene_ledger, verdicts
 from app.services.atelier import AtelierCorrectionService
 from app.services.atelier_correction_cost import bound_learner_answer
 from app.services.chrome_language import user_mother_tongue
-from app.services.closing_filler import is_closing_filler, scene_fact
+from app.services.closing_filler import is_closing_filler, is_stock_exit_reply, scene_fact
 from app.services.daily_journey import local_date_for
 from app.services.error_memory import ErrorMemoryService
 from app.services.journey_contracts import Correction, JourneyStatus, StepKind
@@ -67,6 +68,7 @@ from app.services.journey_learning import (
     fold_for_comparison,
     select_foreground_correction,
 )
+from app.services.learner_facts import looks_misspelled, reads_as_sentence
 from app.services.pilot_events import PilotEventService
 from app.services.progress import vocabulary_due_filter
 from app.services.vocabulary_credit import VocabularyCreditService
@@ -243,16 +245,58 @@ class SceneFact:
 # an event of the scene) is decided once, in ``closing_filler``; the Journal reads it.
 
 
+#: The scene's own lines a retell is held to, at most, so a long scene is not scored out of ten.
+_SAID_FACTS = 2
+_SCENE_LINES = 2
+
+
+def _said_in_scene(journey: DailyJourney) -> list[tuple[str, str, str]]:
+    """What was said on screen: ``(key, kind, text)``, the learner's facts first.
+
+    #622: ``callback_fr`` is the hook, the line that opens tomorrow, and on the 9 Nov walk
+    it said «L'appartement est un souvenir de ta grand-mère» on a day at the notary's.
+    What the scene kept is in its record, read through ``scene_ledger.on_screen``.
+    """
+
+    said: list[tuple[str, str, str]] = []
+    lines: list[tuple[str, str, str]] = []
+    for step in sorted(journey.steps or [], key=lambda item: item.ordinal):
+        shown = scene_ledger.on_screen(step)
+        for fact in shown["established"]:
+            at = fact.get("at")
+            turn = shown["turns"][at] if isinstance(at, int) and 0 <= at < len(shown["turns"]) else {}
+            line = _their_sentence(fact.get("quote"), turn)
+            if line:
+                said.append((f"said:{fact.get('key') or at}", "said", line))
+        for index, turn in enumerate(shown["turns"]):
+            if turn["stock_exit"] or is_stock_exit_reply(turn["character"]):
+                continue
+            statement = " ".join(
+                sentence for sentence in scene_ledger.sentences(turn["character"]) if not sentence.endswith("?")
+            )
+            if statement and not is_closing_filler(statement):
+                lines.append((f"scene:{step.ordinal}:{index}", "scene", statement))
+    return said[-_SAID_FACTS:] + lines[-_SCENE_LINES:]
+
+
+def _their_sentence(quote: Any, turn: dict[str, Any]) -> str:
+    """The learner's own words for a fact, when they read as written: the quote if the reply
+    needed no correction, else the corrected reply. A fact's ``fact_fr`` is a note for the
+    writers («L'apprenant a faim»), never something to show them."""
+
+    line = str(turn.get("corrected_fr") or quote or "").strip()
+    return line if reads_as_sentence(line) and not looks_misspelled(line) else ""
+
+
 def scene_facts_for(
     journey: DailyJourney, *, story_context: dict[str, Any] | None = None
 ) -> list[SceneFact]:
-    """What this scene established, from public read paths only.
+    """What this scene established.
 
-    Three sources, in the order they matter to a recap: the commitments the
-    story remembers from this episode, how the evening actually ended, and the
-    scene's own objective. ``private_task`` is never read — the rubric and the
-    accepted answers are evaluator material and a journal that scored against
-    them would be grading the learner's memory of a hidden document.
+    What was said in it comes first, then what the story remembers from this episode.
+    How the evening ended is the hook's field, so it counts only when the scene left no
+    record of its own (a day from before the record). The situation the scene set up is
+    the last resort.
     """
     scenario = dict(journey.scenario_snapshot or {})
     recap = dict(journey.recap_snapshot or {})
@@ -267,9 +311,15 @@ def scene_facts_for(
 
     facts: list[SceneFact] = []
 
+    for key, kind, line in _said_in_scene(journey):
+        text_fr = french_only(line)
+        cues = tuple(content_cues(text_fr, given=given))
+        if cues and all(fact.text_fr != text_fr for fact in facts):
+            facts.append(SceneFact(key=key, kind=kind, text_fr=text_fr, cues=cues))
+
     outcome = recap.get("story_outcome") or {}
     callback = french_only(outcome.get("callback_fr"))
-    if callback and not is_closing_filler(callback):
+    if not facts and callback and not is_closing_filler(callback):
         facts.append(
             SceneFact(
                 key="outcome",
