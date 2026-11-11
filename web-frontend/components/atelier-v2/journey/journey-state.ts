@@ -370,6 +370,39 @@ export function replySourceOf(result: AttemptResult | null | undefined): ReplyPr
   return 'unknown';
 }
 
+/**
+ * Package V stage 5: what «I think this is right» came back with, kept on the graded result
+ * so the sheet says it once. `limit`: the day's three are used; `unread`: nobody could read it.
+ */
+export type AppealOutcome = {
+  state: 'upheld' | 'refused' | 'unread' | 'limit';
+  reason: string | null;
+};
+
+export type AppealedResult = AttemptResult & { appeal?: AppealOutcome };
+
+/** Whether a graded drill shows the appeal line: a «not yet» or «partly» the key or a model decided. */
+export function appealOffered(result: AttemptResult | null | undefined, stepKind: string | null | undefined): boolean {
+  if (stepKind !== 'recall' || !result) return false;
+  if ((result as AppealedResult).appeal) return false;
+  const outcome = result.check?.outcome;
+  return outcome === 'not_yet' || outcome === 'partly';
+}
+
+/** The sheet after an appeal: upheld turns the verdict, anything else keeps it and says why. */
+export function feedbackAfterAppeal(
+  feedback: JourneyFeedback,
+  appeal: AppealOutcome,
+  check: AttemptResult['check'] | null,
+): JourneyFeedback {
+  if (feedback.kind !== 'graded') return feedback;
+  const result: AppealedResult = { ...feedback.result, appeal };
+  if (appeal.state === 'upheld' && check) {
+    return feedbackFromAttempt({ ...result, check, task_outcome: 'met' } as AttemptResult);
+  }
+  return { ...feedback, result };
+}
+
 export function feedbackFromAttempt(result: AttemptResult): JourneyFeedback {
   if (result.pending || result.task_outcome === 'unscored') {
     return {

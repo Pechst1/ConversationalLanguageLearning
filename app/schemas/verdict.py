@@ -42,4 +42,14 @@ class VerdictView(BaseModel):
         return cls.model_validate({**verdict.to_dict(), "checked_since": checked_since})
 
 
-__all__ = ["VerdictEditView", "VerdictView"]
+class AppealView(BaseModel):
+    """Package V stage 5: what «I think this is right» came back with."""
+
+    state: Literal["upheld", "refused", "unread"]
+    check: VerdictView
+    #: One sentence in the learner's language: why it is right, or the one thing that is not.
+    reason: str | None = None
+    remaining_today: int
+
+
+__all__ = ["AppealView", "VerdictEditView", "VerdictView"]

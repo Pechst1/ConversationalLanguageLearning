@@ -648,6 +648,7 @@ export function JourneySession({
                   onContinue={actions.continueJourney}
                   onRetry={actions.retryLastAnswer}
                   onDismiss={actions.clearFeedback}
+                  onAppeal={step ? () => actions.appeal(step.id) : undefined}
                   speaker={step?.kind === 'recall' && asker ? asker : speaker}
                   stepKind={step?.kind ?? null}
                   faceShown={step?.kind === 'recall' && Boolean(asker)}

@@ -76,6 +76,8 @@ import {
   STORY_POLL_LIMIT,
   STORY_POLL_MS,
   storyPollTarget,
+  feedbackAfterAppeal,
+  type AppealOutcome,
   type JourneyFeedback,
   type JourneyPhase,
   type JourneyProgress,
@@ -125,6 +127,8 @@ export type DailyJourneyActions = {
   pickTomorrow: (premiseId: string) => Promise<void>;
   /** Dismiss a feedback card without moving on. */
   clearFeedback: () => void;
+  /** Package V stage 5: «I think this is right» for the drill just graded. */
+  appeal: (stepId: string) => Promise<void>;
 };
 
 export type DailyJourneyController = {
@@ -1080,6 +1084,23 @@ export function useDailyJourney(
     setFeedback({ kind: 'idle' });
   }, []);
 
+  const appeal = useCallback(async (stepId: string) => {
+    const journeyId = journeyRef.current?.id;
+    if (!journeyId) return;
+    let outcome: AppealOutcome;
+    let check: AttemptResult['check'] | null = null;
+    try {
+      const view = await dailyJourneyService.appeal(journeyId, stepId);
+      outcome = { state: view.state, reason: view.reason ?? null };
+      check = view.check as AttemptResult['check'];
+    } catch (error) {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      outcome = { state: status === 429 ? 'limit' : 'unread', reason: null };
+    }
+    if (!mountedRef.current) return;
+    setFeedback((previous) => feedbackAfterAppeal(previous, outcome, check));
+  }, []);
+
   // -----------------------------------------------------------------------
   // Derived
   // -----------------------------------------------------------------------
@@ -1105,6 +1126,7 @@ export function useDailyJourney(
       finish,
       pickTomorrow,
       clearFeedback,
+      appeal,
     }),
     [
       refresh,
@@ -1119,6 +1141,7 @@ export function useDailyJourney(
       finish,
       pickTomorrow,
       clearFeedback,
+      appeal,
     ],
   );
 

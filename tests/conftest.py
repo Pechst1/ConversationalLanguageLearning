@@ -119,6 +119,7 @@ from app.db.models.session import (
 from app.db.models.spend_reservation import SpendReservation
 from app.db.models.story_pool import StoryPoolPage
 from app.db.models.streak_day import StreakDay
+from app.db.models.verdict_appeal import VerdictAppeal
 from app.db.models.verdict_cutover import VerdictCutover
 from app.db.models.verdict_record import VerdictRecord
 from app.db.models.verdict_settlement import VerdictSettlement
@@ -247,6 +248,7 @@ def db_engine():
             VerdictRecord.__table__,
             VerdictSettlement.__table__,
             AnswerMemo.__table__,
+            VerdictAppeal.__table__,
             PlacementSession.__table__,
             Rehearsal.__table__,
             VocabularyWord.__table__,
@@ -327,6 +329,7 @@ def db_engine():
                 VerdictRecord.__table__,
                 VerdictSettlement.__table__,
                 AnswerMemo.__table__,
+                VerdictAppeal.__table__,
                 VerdictCutover.__table__,
                 PilotEvent.__table__,
                 UserErrorConcept.__table__,

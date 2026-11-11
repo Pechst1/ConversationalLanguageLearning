@@ -1580,6 +1580,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/daily-journeys/{journey_id}/steps/{step_id}/appeal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Appeal Verdict
+         * @description Package V stage 5: «I think this is right». The stronger model re-judges the drill.
+         *
+         *     404: not this learner's drill, or nothing to appeal. 429: the day's appeals are used.
+         */
+        post: operations["appeal_verdict_api_v1_daily_journeys__journey_id__steps__step_id__appeal_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/daily-journeys/{journey_id}/steps/{step_id}/attempts": {
         parameters: {
             query?: never;
@@ -6012,6 +6034,22 @@ export interface components {
             tier: string;
             /** Xp Reward */
             xp_reward: number;
+        };
+        /**
+         * AppealView
+         * @description Package V stage 5: what «I think this is right» came back with.
+         */
+        AppealView: {
+            check: components["schemas"]["VerdictView"];
+            /** Reason */
+            reason?: string | null;
+            /** Remaining Today */
+            remaining_today: number;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "upheld" | "refused" | "unread";
         };
         /** ArchiveChapter */
         ArchiveChapter: {
@@ -19536,6 +19574,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JourneySnapshot"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    appeal_verdict_api_v1_daily_journeys__journey_id__steps__step_id__appeal_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                journey_id: string;
+                step_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppealView"];
                 };
             };
             /** @description Validation Error */

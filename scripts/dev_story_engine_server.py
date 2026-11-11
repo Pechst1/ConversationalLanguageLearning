@@ -263,7 +263,7 @@ class FakeStoryProvider:
         schema = data["output_schema"]["title"]
         # #333: the walk with its provider down. The day's content still comes; nothing
         # can read what the learner writes, the way a real outage looks.
-        if os.environ.get("WALK_PROVIDER_DOWN") and schema in {"TutorVerdict", "VoiceReply", "StoryTurn"}:
+        if os.environ.get("WALK_PROVIDER_DOWN") and schema in {"TutorVerdict", "VoiceReply", "StoryTurn", "AppealRuling"}:
             from app.services.llm_service import LLMProviderError
 
             raise LLMProviderError("walk: provider forced down")
@@ -327,6 +327,14 @@ class FakeStoryProvider:
                     "development_index": 0,
                     **_reported(str(source.get("learner_text") or "")),
                 }
+            elif schema == "AppealRuling":
+                # Package V stage 5: the walk's appeal is upheld, in the learner's language.
+                reasons = {
+                    "en": "[dev fake] Your answer says what the exercise asks.",
+                    "de": "[dev fake] Deine Antwort sagt, was die Übung verlangt.",
+                    "fr": "[dev fake] Ta réponse dit ce que l'exercice demande.",
+                }
+                value = {"upheld": True, "reason_native": reasons.get(str(source.get("reason_language")), reasons["en"])}
             elif schema == "TurnReview":
                 value = {"accepted": True, "issues": [], "released_issues": []}
             elif schema == "StoryReview":
@@ -577,9 +585,11 @@ def main() -> None:
 
     from app.main import app
     from app.services import living_story as engine
+    from app.services import verdict_appeal
 
     provider = FakeStoryProvider()
     engine._client = lambda: provider
+    verdict_appeal._client = lambda: provider
     print(
         f"[dev-story-engine] fake provider installed; DATABASE_URL={os.environ['DATABASE_URL']}; "
         "no model call can leave this process",

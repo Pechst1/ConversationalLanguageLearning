@@ -63,6 +63,12 @@ export type JourneyCopyKey =
   | 'empty_answer'
   | 'check_not_checked'
   | 'try_grading_again'
+  // Package V stage 5: «I think this is right» under a «not yet» or «partly».
+  | 'appeal_line'
+  | 'appeal_upheld'
+  | 'appeal_refused'
+  | 'appeal_unread'
+  | 'appeal_limit'
   | 'retrying'
   | 'reconciled'
   | 'transport_error'
@@ -309,6 +315,11 @@ const EN: CopyTable = {
   empty_answer: 'Write something first.',
   check_not_checked: CHECK_COPY.en.not_checked,
   try_grading_again: 'Check again',
+  appeal_line: 'I think this is right',
+  appeal_upheld: 'You were right. It counts now.',
+  appeal_refused: 'The answer stays as it was.',
+  appeal_unread: 'Your appeal could not be read just now. Try again later.',
+  appeal_limit: 'No appeals left today. Three a day.',
   retrying: 'Still working — retrying the same request.',
   reconciled: 'This scene moved on. It has been refreshed for you.',
   transport_error: 'That did not reach the server. Your answer was kept.',
@@ -519,6 +530,11 @@ const DE: CopyTable = {
   empty_answer: 'Schreibe zuerst etwas.',
   check_not_checked: CHECK_COPY.de.not_checked,
   try_grading_again: 'Erneut prüfen',
+  appeal_line: 'Ich glaube, das ist richtig',
+  appeal_upheld: 'Du hattest recht. Es zählt jetzt.',
+  appeal_refused: 'Die Antwort bleibt, wie sie war.',
+  appeal_unread: 'Dein Einspruch konnte gerade nicht gelesen werden. Versuch es später noch einmal.',
+  appeal_limit: 'Heute keine Einsprüche mehr. Drei pro Tag.',
   retrying: 'Läuft noch — dieselbe Anfrage wird wiederholt.',
   reconciled: 'Diese Szene hat sich geändert. Sie wurde für dich aktualisiert.',
   transport_error: 'Das kam nicht beim Server an. Deine Antwort blieb erhalten.',
@@ -729,6 +745,11 @@ const FR: CopyTable = {
   empty_answer: 'Écris d’abord quelque chose.',
   check_not_checked: CHECK_COPY.fr.not_checked,
   try_grading_again: 'Vérifier à nouveau',
+  appeal_line: 'Je pense que c’est juste',
+  appeal_upheld: 'Tu avais raison. Ça compte maintenant.',
+  appeal_refused: 'La réponse reste comme elle était.',
+  appeal_unread: 'Ta contestation n’a pas pu être lue pour l’instant. Réessaie plus tard.',
+  appeal_limit: 'Plus de contestation aujourd’hui. Trois par jour.',
   retrying: 'Toujours en cours — la même requête est relancée.',
   reconciled: 'Cette scène a changé. Elle a été actualisée pour toi.',
   transport_error: 'Le serveur n’a pas reçu cela. Ta réponse est conservée.',
