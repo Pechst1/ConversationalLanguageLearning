@@ -681,6 +681,20 @@ def _public_thread(turns: list[Any]) -> list[dict[str, Any]]:
     return thread
 
 
+def step_thread(step: DailyJourneyStep) -> list[dict[str, Any]]:
+    """#622: every exchange of a respond step, the closing one included, as the
+    learner saw it.
+
+    The stored ``public_prompt["thread"]`` is the conversation *before* the question
+    now asked, so it never holds the turn that closed the scene: the very exchange a
+    recap of that scene is about. This is the same public projection
+    (:func:`_public_thread`), for a reader outside the journey (the Journal) that
+    must not touch the rest of the evaluator's task.
+    """
+
+    return _public_thread(list(dict(step.private_task or {}).get("turns") or []))
+
+
 def _public_acts(ordered: list[DailyJourneyStep]) -> dict[Any, int]:
     """Phase 2 «Folge in Akten»: the act of each step, from the plan's order alone.
 

@@ -188,7 +188,16 @@ def _seed_scene(db_session: Session, email: str, *, days_ago: int = 1) -> DailyJ
             target_kind="grammar",
             target_id=str(concept.id),
             public_prompt={},
-            private_task={},
+            # What was said in the scene: the Journal's facts are read from it (#622).
+            private_task={
+                "turns": [
+                    {
+                        "learner": "Oui, je rapporte le livre mardi.",
+                        "character": "Mardi, alors. Merci !",
+                        "lines": [{"speaker_name": "Romy", "text_fr": "Mardi, alors. Merci !"}],
+                    }
+                ]
+            },
         )
     )
     db_session.commit()
