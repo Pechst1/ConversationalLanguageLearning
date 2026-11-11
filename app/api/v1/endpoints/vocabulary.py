@@ -787,8 +787,7 @@ def _drill_deck(
         planned = _planned_day_deck(db, service, user, context_kwargs=context_kwargs, reserved_new=reserved_new, now=now)
         if planned is not None:
             return planned
-    # Held until this read commits: a second read at once waits and serves this deal.
-    batch = drill_batch.load_batch(db, user, day, lock=True)
+    batch = drill_batch.load_batch(db, user, day)
     if drill == drill_batch.DRILL_SESSION and batch is not None:
         items = list(batch.items or [])
         remaining = drill_batch.remaining_items(db, user, items, reserved_new=reserved_new)

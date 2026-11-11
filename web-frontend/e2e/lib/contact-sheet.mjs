@@ -26,12 +26,6 @@ export function writeContactSheet({ outDir, shots, findings, meta }) {
         .map((f) => `<tr><td>${esc(f.id)}</td><td>${esc(JSON.stringify(f.where))}</td><td>${esc(f.detail)}</td></tr>`)
         .join('')}</table>`
     : '<p>No failed assertions.</p>';
-  const known = findings.known || [];
-  const knownHtml = known.length
-    ? `<table><tr><th>Issue</th><th>Assertion</th><th>Where</th><th>Detail</th></tr>${known
-        .map((f) => `<tr><td>#${f.known}</td><td>${esc(f.id)}</td><td>${esc(JSON.stringify(f.where))}</td><td>${esc(f.detail)}</td></tr>`)
-        .join('')}</table>`
-    : '<p>None.</p>';
   const sum = `<table><tr><th>Assertion</th><th>Pass</th><th>Fail</th></tr>${summary
     .map((r) => `<tr class="${r.fail ? 'bad' : ''}"><td>${esc(r.id)}</td><td>${r.pass}</td><td>${r.fail}</td></tr>`)
     .join('')}</table>`;
@@ -45,7 +39,6 @@ td,th{border:1px solid #8886;padding:3px 8px;text-align:left;vertical-align:top}
 </style>
 <h1>Walk contact sheet</h1><p>${esc(meta)}</p>
 <h2>Failed assertions (${failures.length})</h2>${fail}
-<h2>Known failures, open issues (${known.length})</h2>${knownHtml}
 <h2>Assertion summary</h2>${sum}
 ${rows}`;
   writeFileSync(path.join(outDir, 'index.html'), html);

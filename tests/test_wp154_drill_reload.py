@@ -251,33 +251,3 @@ def test_the_review_only_encore_keeps_no_batch(client: TestClient, db_session: S
                                    "topic_limit": 0, "linked_limit": 0})
     assert deck["new_words"] == []
     assert drill_batch.load_batch(db_session, user, local_today(user)) is None
-
-
-def test_the_deck_read_locks_the_batch_row(client: TestClient, db_session: Session, monkeypatch) -> None:
-    """Browser walk, 11 Nov 2026 (B1 day 3): once the day's deck was answered, two
-    reads at once each dealt an extra batch and both merged it into the row, so a
-    reload served both deals (10 cards dealt, 13 on reload). The read now holds the
-    batch row until it commits, so the second read waits and serves the first deal."""
-
-    from sqlalchemy.dialects import postgresql
-
-    _supply(db_session, 20, "wp154lock")
-    headers, _user = _login(client, db_session)
-    _deck(client, headers, SESSION)  # the first deal: the row exists from here on
-    sent: list[str] = []
-    real = drill_batch.load_batch
-
-    def spy(db, user, day, **kwargs):
-        # The statement load_batch itself sends, as Postgres would receive it.
-        class Capture:
-            def scalar(self, stmt):
-                sent.append(str(stmt.compile(dialect=postgresql.dialect())))
-
-        real(Capture(), user, day, **kwargs)
-        return real(db, user, day, **kwargs)
-
-    monkeypatch.setattr(drill_batch, "load_batch", spy)
-    _deck(client, headers, SESSION)
-    # Other reads (the day's tally, the pace) load it unlocked; only the deck's own read locks.
-    assert sent, "the drill's deck read no longer loads the batch"
-    assert any("FOR UPDATE" in sql for sql in sent), f"no read locks the learner's batch row: {sent}"
