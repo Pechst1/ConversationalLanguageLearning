@@ -373,7 +373,33 @@ def record_flush(session: Session) -> int:
             from app.services import verdict_settle  # stage 3: an unread answer is checked later
 
             verdict_settle.note_unread(session, record)
+            _note_memo(session, obj, subject, record)
     return written
+
+
+def _note_memo(session: Session, obj: Any, subject: Subject, record: VerdictRecord) -> None:
+    """Stage 4: a record a memo settled is noted on the memo, so a revoke can take it back."""
+
+    if subject.subject_type != "forge_attempt" or not record.counts:
+        return
+    payload = getattr(obj, "correction_payload", None) or {}
+    debug = payload.get("correction_debug") if isinstance(payload, dict) else None
+    memo_id = debug.get("memo") if isinstance(debug, dict) else None
+    if not memo_id:
+        return
+    from app.services import answer_memo
+
+    try:
+        answer_memo.note_use(
+            session,
+            memo_id,
+            subject_type=subject.subject_type,
+            subject_id=obj.id,
+            user_id=getattr(obj, "user_id", None),
+            gold_key=f"gold:forge:{obj.id}",
+        )
+    except Exception as exc:  # noqa: BLE001 - a memo note is never worth the learner's answer
+        logger.warning("verdict_ledger: could not note memo use ({})", exc)
 
 
 # ---------------------------------------------------------------------------

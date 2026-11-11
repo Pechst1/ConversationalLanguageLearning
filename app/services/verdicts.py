@@ -351,6 +351,9 @@ def read_placement(grading: dict[str, Any] | None, *, failure: str | None = None
         )
     score = float(grading.get("score_0_4") or 0)
     outcome = Outcome.RIGHT if score >= 3 else Outcome.PARTLY if score >= 2 else Outcome.NOT_YET
+    if grading.get("memo_id"):
+        # Package V stage 4: a confirmed memo settled it, like a key: no call was made.
+        return _read(outcome=outcome, checked_by=CheckedBy.KEY, call=Call.NOT_CALLED)
     return _read(outcome=outcome, checked_by=CheckedBy.MODEL, call=Call.OK)
 
 
