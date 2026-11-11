@@ -169,6 +169,26 @@ def describe_diff(ops: list[dict[str, str]], language: Any) -> str:
     return " ".join(sentences)
 
 
+def accent_miss_note(ops: list[dict[str, str]], language: Any) -> str | None:
+    """The line for a refused answer that differs from its key by accents alone.
+
+    #696: «Ils ont envoye» for «Ils ont envoyé» is one missing accent, and that
+    accent is the participle's -é. :func:`describe_diff` skips accent operations
+    (they ride beside another difference), so an accent-only miss said nothing of
+    its own. It names the word, as a refused accent in a free answer does (#297):
+    «Here the accent changes the word: «envoyé», not «envoye».»"""
+
+    if not ops or any(op.get("kind") != "accent" for op in ops):
+        return None
+    from app.services.answer_acceptance import Verdict, feedback_note
+
+    first = ops[0]
+    return feedback_note(
+        Verdict(correct=False, note="accent", learner_word=first.get("learner"), expected_word=first.get("target")),
+        language,
+    )
+
+
 #: Object pronouns by function: a direct object (COD) has no «à», an indirect one (COI) has.
 _COD_PRONOUNS = frozenset({"le", "la", "les", "l'"})
 _COI_PRONOUNS = frozenset({"lui", "leur"})
@@ -1082,6 +1102,7 @@ __all__ = [
     "TO_CORRECT_LABEL",
     "reconcile_with_sentence",
     "sentence_differences",
+    "accent_miss_note",
     "classify_follow_up",
     "FREE_PRODUCTION_ROUNDS",
     "FRENCH_LOANWORDS",

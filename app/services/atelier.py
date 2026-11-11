@@ -59,6 +59,7 @@ from app.services.exercise_generation import _transform_noop_errors as _transfor
 from app.services.forge_grading import (
     FREE_PRODUCTION_ROUNDS,
     LOCAL_RIGHT,
+    accent_miss_note,
     classify_follow_up,
     describe_diff,
     drop_author_notes,
@@ -6195,7 +6196,10 @@ class AtelierCorrectionService:
             else:
                 # #235: a gap lists several right fillers; the miss is measured against
                 # the closest one (a wrong article is told «une peinture», not «un tableau»).
+                # #696: the card's right line is that same closest answer, so the
+                # struck line and the line under it differ only where the learner slipped.
                 shown = verdict.expected if mode == "fill" and verdict.expected else target
+                corrected[item_id] = shown
                 errata.append(self._recognize_erratum(concept, mode, item, learner_text, str(shown or "")))
         score = round((correct_count / max(len(items), 1)) * 4, 2)
         return {
@@ -6288,7 +6292,10 @@ class AtelierCorrectionService:
             )
         if mode == "classify" and _is_judgement(item):
             return self._judgement_erratum(concept, item, learner_text, target)
-        slip = slip_note(token_diff(learner_text, target), self.explanation_language) if mode != "classify" else None
+        ops = token_diff(learner_text, target) if mode != "classify" else []
+        slip = slip_note(ops, self.explanation_language) if mode != "classify" else None
+        # #696: a line that is its answer up to an accent names that accent.
+        accent_line = accent_miss_note(ops, self.explanation_language) if mode == "fill" else None
         if slip:
             # #449: the slip's own category explains the miss, not the day's rule card.
             return self._recognize_erratum_payload(
@@ -6311,6 +6318,8 @@ class AtelierCorrectionService:
                 if mode == "word_bank"
                 else _copy("atelier.recognize.chose_requires", language, learner=learner_text, target=target)
             )
+            if accent_line:
+                why = f"{why} {accent_line}".strip()
             explanation = str(item.get("explanation") or self._why_for(concept, item) or "").strip()
             outside_rule = mode == "fill" and _miss_outside_the_rule(item, learner_text, target)
             if outside_rule:
@@ -6335,7 +6344,10 @@ class AtelierCorrectionService:
                 task_type=self._task_type_for(concept, item),
             )
         if mode == "fill":
-            return self._fill_erratum(concept, item, learner_text, target)
+            erratum = self._fill_erratum(concept, item, learner_text, target)
+            if accent_line:
+                erratum["why_wrong"] = f"{accent_line} {erratum.get('why_wrong') or ''}".strip()
+            return erratum
         if mode == "classify":
             return self._classify_erratum(concept, item, learner_text, target)
         return self._recognize_erratum_payload(
@@ -6914,9 +6926,13 @@ class AtelierCorrectionService:
                 continue
             # A wrong part («verts») is filed as the sentence it stands for.
             learner = verdict.read_as or learner
+            # #696: the miss is measured against the accepted rewrite nearest to it
+            # (the one the verdict was read against), not the stored key.
+            target = verdict.expected or target
+            corrected[item_id] = target
             erratum = self._erratum(concept, item, learner, target, severity=3, recurring=True)
             ops = mark_given(token_diff(learner, target), source)
-            what = describe_diff(ops, self.explanation_language)
+            what = describe_diff(ops, self.explanation_language) or accent_miss_note(ops, self.explanation_language)
             slip = slip_note(ops, self.explanation_language)
             if slip:
                 # #449: the slip's own category explains it; the rule card does not.
