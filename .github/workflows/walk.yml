@@ -63,7 +63,8 @@ jobs:
     needs: scope
     name: Walk · ${{ matrix.shard }} × ${{ matrix.days }} days
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # A day now plays to its end (scene, grammar, words): the season took 40 min locally.
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -110,11 +111,20 @@ jobs:
           cache: 'npm'
           cache-dependency-path: web-frontend/package-lock.json
 
+      # The browser download is cached by the lockfile (Playwright's version); the
+      # system packages still come from apt, with a fallback mirror when the runner's
+      # own is down (.github/scripts/playwright-install.sh).
+      - name: Cache the Playwright browser
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('web-frontend/package-lock.json') }}
+
       - name: Install frontend and the browser
         working-directory: web-frontend
         run: |
           npm ci
-          npx playwright install --with-deps chromium
+          ../.github/scripts/playwright-install.sh
 
       - name: Walk
         id: walk

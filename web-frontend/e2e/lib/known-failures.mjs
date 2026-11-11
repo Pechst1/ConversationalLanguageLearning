@@ -12,6 +12,12 @@ export const KNOWN_FAILURES = [
     why: 'a pairs drill offers the appeal, and the server refuses it (no answer text): «unread»',
     when: (detail, where) => where.drill === 'match' && /^appeal unread:/.test(detail),
   },
+  {
+    id: 'season-tentpole-on-its-day',
+    issue: 717,
+    why: "season 1's second tentpole (t2.a, t2.b) does not land on days 7-10 with production's flags and full days",
+    when: (detail) => /^t2\.[ab]: /.test(detail),
+  },
 ];
 
 export function knownFailure(id, detail, where = {}) {

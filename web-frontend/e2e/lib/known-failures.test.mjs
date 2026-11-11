@@ -26,3 +26,10 @@ test('a known failure is reported but does not fail the walk; others still do', 
   assert.deepEqual(f.known.map((r) => [r.id, r.known]), [['k', 1]]);
   assert.deepEqual(f.summary().find((r) => r.id === 'k'), { id: 'k', pass: 0, fail: 0, known: 1 });
 });
+
+test('#717: only the second tentpole is known; the first still fails the walk', () => {
+  const id = 'season-tentpole-on-its-day';
+  assert.equal(knownFailure(id, "t2.a: «Tu devais partir aujourd'hui.» seen on day(s) none (expected one of 7, 8, 9)", {})?.issue, 717);
+  assert.equal(knownFailure(id, '«Architecte»', {}), null);
+  assert.equal(knownFailure(id, 't1.b: «Mon grand-père» seen on day(s) 3 (expected one of 2)', {}), null);
+});
