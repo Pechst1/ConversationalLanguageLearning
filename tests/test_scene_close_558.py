@@ -179,7 +179,8 @@ def _made_right_where_marked(said: str, span: str | None, fixed: str | None) -> 
 )
 def test_a_margin_correction_is_applied_only_at_the_occurrence_it_corrects(said, span, fixed, expected):
     shown_span, shown_fix, _note = correction_contract.first_valid_edit(said, span, fixed, None, language="en")
-    assert _made_right_where_marked(said, shown_span, shown_fix) == expected, (shown_span, shown_fix)
+    line = _made_right_where_marked(said, shown_span, shown_fix)
+    assert line == expected, f"the margin «{shown_span} → {shown_fix}» lands on the wrong word: {line!r}"
 
 
 @pytest.mark.parametrize(
@@ -192,7 +193,7 @@ def test_the_verb_of_a_subject_before_it_is_never_corrected_into_a_preposition(s
     word = "a" if " a " in said else "est"
     fixed = "à" if word == "a" else "et"
     verdict = correction_contract.verify_edit(said, word, fixed)
-    assert not verdict.ok, verdict
+    assert not verdict.ok, f"the verb «{word}» of {said!r} is accepted as a slip for «{fixed}»: {verdict}"
 
 
 @pytest.mark.parametrize(
@@ -206,7 +207,8 @@ def test_the_verb_of_a_subject_before_it_is_never_corrected_into_a_preposition(s
 )
 def test_a_span_whose_words_stand_at_several_places_is_shown_at_a_slip(said, expected):
     span, fixed, _note = correction_contract.first_valid_edit(said, "a", "à", None, language="en")
-    assert _made_right_where_marked(said, span, fixed) == expected, (span, fixed)
+    line = _made_right_where_marked(said, span, fixed)
+    assert line == expected, f"the margin «{span} → {fixed}» lands on the wrong word: {line!r}"
 
 
 def test_a_journal_erratum_names_its_words_once():
