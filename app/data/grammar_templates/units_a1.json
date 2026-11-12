@@ -97,7 +97,7 @@
    {"id": "voudrais-do", "fr": "[[Je voudrais // Je voudrait // Je voudrai]] {V|inf} {O}.", "en": "I would like to {S|en_vc:V:O:base}.", "de": "Ich möchte {S|g_cl:V:O:o=inf}.", "slots": {"S": "pron:=je_m", "V": "verb:!modal,!en_only,!coi,!pron,!irregular,!stative,!mishap,!event,!arriver,!entrer", "O": "comp:!adv_pre@V"}, "weight": 2},
    {"id": "voulez-vous", "fr": "[[Vous voulez // Vous voulais // Vous veux]] {N|indef} ?", "en": "Would you like {N|en:a}?", "de": "Möchten Sie {N|g_np:indef:acc}?", "slots": {"N": "noun:count,dish|bakery|produce|drink"}},
    {"id": "tu-veux", "fr": "[[Tu veux // Tu veut // Tu voulez]] {V|inf} {O} ?", "en": "Do you want to {S|en_vc:V:O:base}?", "de": "Willst du {S|g_cl:V:O:o=inf}?", "slots": {"S": "pron:=tu_m", "V": "verb:!modal,!en_only,!coi,!pron,!irregular,!stative,!mishap,!event", "O": "comp:!adv_pre@V"}, "weight": 2},
-   {"id": "voudrais-mistral", "fr": "Margaux, [[je voudrais // je voudrait // je voudrai]] {N|indef}, s'il te plaît.", "en": "Margaux, I would like {N|en:a}, please.", "de": "Margaux, ich möchte {N|g_np:indef:acc}, bitte.", "slots": {"N": "noun:count,dish|bakery|drink"}, "weight": 3}
+   {"id": "voudrais-mistral", "fr": "[[Je voudrais // Je voudrait // Je voudrai]] {N|indef}, s'il te plaît.", "en": "I would like {N|en:a}, please.", "de": "Ich möchte {N|g_np:indef:acc}, bitte.", "slots": {"N": "noun:count,dish|bakery|drink"}, "weight": 3}
   ]
  },
  "FR2_A11_NUMBERS": {
