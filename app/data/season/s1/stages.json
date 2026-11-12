@@ -8,13 +8,13 @@
     "odile_flat": "odile_flat",
     "user_apartment": "user_apartment",
     "marin_lila_flat": "chez_marin_lila",
+    "marchand_office": "gerance_marchand",
     "notaire": "notaire",
     "toit": "toit_mistral"
   },
   "to_be_built": {
     "ngo_office": "Le bureau de l'ONG de Marin",
     "mairie": "La mairie du 10e",
-    "marchand_office": "La gérance Marchand",
     "gare_de_lest": "La gare de l'Est",
     "rue_de_lancry": "La rue de Lancry",
     "gus_loft": "Le « château » de Gus",

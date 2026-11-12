@@ -33,7 +33,7 @@ type XYZ = [number, number, number];
 /** The room itself, what is seen but not entered yet, and what is outside. */
 export type Zone = 'room' | 'sealed' | 'out';
 
-export type FloorFinish = 'cabochons' | 'boards' | 'tomettes' | 'cobbles' | 'stone' | 'zinc';
+export type FloorFinish = 'cabochons' | 'boards' | 'parquet' | 'tomettes' | 'cobbles' | 'stone' | 'zinc';
 export type WallFinish = 'wainscot' | 'plaster' | 'stone';
 
 export interface RoomFloor {
@@ -115,8 +115,9 @@ export interface RoomWindow {
 
 export interface RoomLight {
   key: string;
-  /** a globe on its cord (Le Mistral's), a glass bowl on a wall bracket, a round lamp flat on the wall */
-  kind: 'globe' | 'sconce' | 'hublot';
+  /** a globe on its cord (Le Mistral's), a glass bowl on a wall bracket, a round lamp flat on the wall,
+   * a desk lamp (`at` its shade's mouth, `facing` the way it leans, its foot behind) */
+  kind: 'globe' | 'sconce' | 'hublot' | 'desk';
   /** where it hangs; its pool is laid on the floor under it */
   at: XYZ;
   /** lamps on one circuit go on and off together (the minuterie) */
@@ -180,7 +181,12 @@ export type ThingKind =
   | 'plan'
   | 'fridge'
   | 'crate'
-  | 'canvas';
+  | 'canvas'
+  | 'keyboard'
+  | 'cabinet'
+  | 'desk'
+  | 'campbed'
+  | 'frame';
 
 export interface RoomThing {
   kind: ThingKind;
@@ -447,6 +453,8 @@ const FLOORS: Record<FloorFinish, { color: Hex; pattern: PatternId }> = {
   /** a hall's pale stone with its small black squares */
   cabochons: { color: mix(INKS.card, INKS.ochre, 0.1), pattern: PATTERN.tiles },
   boards: { color: mix(TONES.wood, INKS.ochre, 0.3), pattern: PATTERN.planks },
+  /** an old office's parquet, waxed dark and gone cold */
+  parquet: { color: mix(mix(TONES.wood, INKS.ink, 0.38), INKS.cobalt, 0.08), pattern: PATTERN.planks },
   /** a kitchen's red tiles */
   tomettes: { color: mix(mix(INKS.vermilion, INKS.ochre, 0.5), INKS.paper, 0.3), pattern: PATTERN.tiles },
   cobbles: { color: mix(TONES.stoneGround, INKS.cobalt, 0.08), pattern: PATTERN.cobbles },
@@ -923,6 +931,22 @@ function lampOf(B: Build, L: RoomLight, floor: number): { lit: Press; dark: Pres
   }
   const [fx, fz] = L.facing ?? [0, 1];
   const rot = Math.atan2(fx, fz);
+  if (L.kind === 'desk') {
+    // a desk lamp: its round foot on the desk behind, the arm up and over, a green shade tipped
+    // down at the papers, the bulb's glow in its mouth
+    const shade = zoned(mix(INKS.green, INKS.ink, 0.3), 'room', { wet: 0.5 });
+    B.dry.at(at.x, at.y, at.z, rot, () => {
+      B.dry.cylinder(0, -0.42, -0.24, 0.085, 0.095, 0.025, 14, brass, { flat: true, caps: true });
+      B.dry.bar(new Vector3(0, -0.4, -0.24), new Vector3(0, 0.06, -0.18), 0.012, brass);
+      B.dry.bar(new Vector3(0, 0.06, -0.18), new Vector3(0, 0.07, -0.03), 0.012, brass);
+      B.dry.lathe(0, -0.02, 0, [[0.12, 0], [0.1, 0.05], [0.05, 0.11], [0.015, 0.13], [0, 0.13]], 14, shade);
+    });
+    for (const [P, g] of [[lit, glassLit], [dark, glassDark]] as Array<[Press, Paint]>) {
+      P.at(at.x, at.y, at.z, rot, () => P.ball(0, 0.0, 0, 0.045, 0.03, 0.045, g, 1, { smooth: true }));
+    }
+    B.lamps.push({ pos: new Vector3(at.x, at.y - floor, at.z), color: rgb(mix(INKS.sunflower, INKS.card, 0.15)), power: L.power, range: L.range, glint: false, indoor: true });
+    return { lit, dark };
+  }
   if (L.kind === 'sconce') {
     // a brass arm off the wall, a tulip of glass on it
     B.dry.at(at.x, at.y, at.z, rot, () => {
@@ -1769,6 +1793,136 @@ function thing(B: Build, t: RoomThing, i: number) {
       B.blocks.push(footprint(x, zz, rot, w + 0.4, 0.5));
       return;
     }
+    case 'keyboard': {
+      // a key board on the wall: a plank with rows of brass hooks, on most a key and its paper tag,
+      // here and there a hook empty (`size` the board's width and height; `at` its centre)
+      const [w, h] = t.size ?? [1.2, 0.9];
+      const plank = zoned(mix(TONES.wood, INKS.ink, 0.2), z);
+      const brass = zoned(TONES.brass, z, { wet: 0.6 });
+      const steel = zoned(mix(INKS.paper, INKS.ink, 0.4), z, { wet: 0.6 });
+      const tag = zoned(mix(INKS.card, INKS.ochre, 0.12), z);
+      const ink = zoned(mix(INKS.ink, INKS.paper, 0.2), z);
+      const R = { v: 4271 + i * 31 };
+      const rand = () => {
+        R.v = (R.v * 16807) % 2147483647;
+        return R.v / 2147483647;
+      };
+      const rows = Math.max(1, Math.floor((h - 0.08) / 0.115));
+      const cols = Math.max(1, Math.floor((w - 0.06) / 0.07));
+      D.at(x, y, zz, rot, () => {
+        D.box(0, 0, 0.012, w, h, 0.024, plank);
+        // the rows' painted numbers, a strip of card along the top of each row
+        for (let r = 0; r < rows; r++) {
+          const ry = h / 2 - 0.06 - r * ((h - 0.08) / rows);
+          D.box(0, ry + 0.025, 0.026, w - 0.05, 0.016, 0.003, tag);
+          for (let k = 0; k < cols; k++) {
+            const kx = -w / 2 + 0.05 + k * ((w - 0.08) / cols);
+            D.box(kx, ry + 0.025, 0.028, 0.012, 0.006, 0.002, ink);
+            D.box(kx, ry, 0.035, 0.008, 0.008, 0.024, brass);
+            if (rand() < 0.16) continue;
+            const tilt = (rand() - 0.5) * 0.06;
+            D.box(kx + tilt, ry - 0.035, 0.044, 0.014, 0.05, 0.004, rand() < 0.3 ? brass : steel);
+            D.box(kx + tilt * 1.6, ry - 0.08, 0.046, 0.028, 0.034, 0.002, tag);
+          }
+        }
+      });
+      return;
+    }
+    case 'cabinet': {
+      // a grey metal filing cabinet against the wall: four drawers, their pulls and label holders
+      // (`size` its width and height)
+      const [w, h] = t.size ?? [0.47, 1.32];
+      const d = 0.62;
+      const grey = zoned(mix(mix(INKS.paper, INKS.ink, 0.38), INKS.cobalt, 0.06), z, { wet: 0.3 });
+      const seam = zoned(mix(INKS.ink, INKS.cobalt, 0.15), z);
+      const chrome = zoned(mix(INKS.paper, INKS.ink, 0.15), z, { wet: 0.8 });
+      const label = zoned(INKS.card, z);
+      const drawers = 4;
+      D.at(x, y, zz, rot, () => {
+        D.box(0, h / 2, d / 2, w, h, d, grey, { ny: false });
+        for (let k = 0; k < drawers; k++) {
+          const dy = 0.04 + (k + 0.5) * ((h - 0.08) / drawers);
+          D.box(0, dy - (h - 0.08) / drawers / 2, d + 0.002, w - 0.02, 0.008, 0.004, seam);
+          D.box(0, dy + 0.06, d + 0.006, 0.09, 0.045, 0.006, chrome);
+          D.box(0, dy + 0.06, d + 0.01, 0.07, 0.03, 0.002, label);
+          D.box(0, dy - 0.02, d + 0.02, 0.12, 0.022, 0.03, chrome);
+        }
+      });
+      B.blocks.push(footprint(x, zz, rot, w + 0.04, d + 0.06));
+      return;
+    }
+    case 'desk': {
+      // an old office desk: its top with a green blotter, a pedestal of drawers on the sitter's
+      // side (behind, -z), files stacked at one end (`size` its width and its depth)
+      const [w, dd] = t.size ?? [1.4, 0.75];
+      const wood = zoned(mix(TONES.wood, INKS.ink, 0.25), z, { wet: 0.2 });
+      const dark = zoned(mix(TONES.wood, INKS.ink, 0.5), z);
+      const blotter = zoned(mix(INKS.green, INKS.ink, 0.35), z);
+      const buff = [mix(INKS.ochre, INKS.paper, 0.55), mix(INKS.cobalt, INKS.paper, 0.6), mix(INKS.vermilion, INKS.paper, 0.6), mix(INKS.paper, INKS.ink, 0.25)].map((c) => zoned(c, z));
+      const brass = zoned(TONES.brass, z, { wet: 0.6 });
+      const top = 0.76;
+      D.at(x, y, zz, rot, () => {
+        D.box(0, top - 0.02, 0, w, 0.04, dd, wood);
+        // the modesty panel at the front, the pedestal of drawers at the right, a leg at the left
+        D.box(0, top - 0.3, dd / 2 - 0.03, w - 0.1, 0.5, 0.025, wood);
+        D.box(w / 2 - 0.22, (top - 0.04) / 2, 0, 0.4, top - 0.04, dd - 0.06, wood, { ny: false });
+        for (let k = 0; k < 3; k++) {
+          const ky = 0.12 + k * 0.22;
+          D.box(w / 2 - 0.22, ky + 0.1, -dd / 2 + 0.02, 0.36, 0.19, 0.012, dark);
+          D.box(w / 2 - 0.22, ky + 0.12, -dd / 2 + 0.002, 0.08, 0.014, 0.02, brass);
+        }
+        D.box(-w / 2 + 0.05, (top - 0.04) / 2, 0, 0.05, top - 0.04, dd - 0.06, wood, { ny: false });
+        // the blotter, and the files at the left end in a slanting stack
+        D.box(0.05, top + 0.003, -0.02, 0.62, 0.006, 0.42, blotter);
+        for (let k = 0; k < 7; k++) D.box(-w / 2 + 0.24 + (k % 3) * 0.006, top + 0.012 + k * 0.022, 0.02 - (k % 2) * 0.015, 0.33, 0.02, 0.24, buff[k % buff.length]);
+      });
+      B.blocks.push(centred(x, zz, rot, w + 0.04, dd + 0.04));
+      return;
+    }
+    case 'campbed': {
+      // a camp bed made with hospital corners: its folding frame low on the floor, the grey
+      // blanket pulled tight and tucked square, the sheet turned down over it at the head, a
+      // pillow (`size` its length and width, along local x)
+      const [len, wid] = t.size ?? [1.9, 0.7];
+      const frame = zoned(mix(INKS.paper, INKS.ink, 0.45), z, { wet: 0.5 });
+      const blanket = zoned(ROOM_TONES.blanket, z);
+      const sheet = zoned(INKS.card, z);
+      const crease = zoned(mix(ROOM_TONES.blanket, INKS.ink, 0.3), z);
+      const ht = 0.4;
+      D.at(x, y, zz, rot, () => {
+        // the X legs at each end and the middle, the side rails
+        for (const lx of [-len / 2 + 0.06, 0, len / 2 - 0.06]) {
+          for (const s of [-1, 1]) D.bar(new Vector3(lx, 0, s * (wid / 2 - 0.04)), new Vector3(lx, ht - 0.06, -s * (wid / 2 - 0.04)), 0.012, frame);
+        }
+        for (const s of [-1, 1]) D.bar(new Vector3(-len / 2, ht - 0.05, s * (wid / 2)), new Vector3(len / 2, ht - 0.05, s * (wid / 2)), 0.015, frame);
+        // the blanket, square at its corners, tucked down the sides
+        D.box(0, ht - 0.01, 0, len - 0.02, 0.05, wid + 0.02, blanket);
+        for (const s of [-1, 1]) D.box(0, ht - 0.09, s * (wid / 2 + 0.012), len - 0.02, 0.12, 0.006, blanket);
+        for (const s of [-1, 1]) D.box(s * (len / 2 - 0.01), ht - 0.09, 0, 0.006, 0.12, wid + 0.03, blanket);
+        // the hospital corners' fold, a diagonal crease at each corner
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) D.bar(new Vector3(sx * (len / 2 - 0.0), ht - 0.15, sz * (wid / 2 + 0.016)), new Vector3(sx * (len / 2 - 0.12), ht - 0.03, sz * (wid / 2 + 0.016)), 0.004, crease);
+        // the sheet turned down at the head, and the pillow squared on it
+        D.box(-len / 2 + 0.42, ht + 0.018, 0, 0.16, 0.012, wid + 0.022, sheet);
+        D.box(-len / 2 + 0.2, ht + 0.06, 0, 0.3, 0.08, wid - 0.12, sheet);
+      });
+      B.blocks.push(centred(x, zz, rot, len + 0.06, wid + 0.08));
+      return;
+    }
+    case 'frame': {
+      // a small photo frame standing on a desk, on its strut: with `text`, a Polaroid of two old
+      // people laughing on a bench by a lake, its caption on the white border in a hand; without,
+      // an old portrait gone sepia (`size` the frame's width and height)
+      const [w, h] = t.size ?? [0.13, 0.16];
+      const wood = zoned(mix(TONES.wood, INKS.ink, 0.35), z, { wet: 0.3 });
+      D.at(x, y, zz, rot, () => {
+        D.box(0, h / 2, 0, w, h, 0.012, wood);
+        D.bar(new Vector3(0, h * 0.7, -0.006), new Vector3(0, 0, -0.07), 0.004, wood);
+      });
+      const c = Math.cos(rot);
+      const s = Math.sin(rot);
+      card(B, key, [x + 0.004 * s, y + h / 2, zz + 0.004 * c], rot, w - 0.02, h - 0.02, z, t.text?.length ? polaroidArt(t.text[0]) : portraitArt(), 3200);
+      return;
+    }
     case 'armoire': {
       // a tall wardrobe against the wall: two panelled doors, a key in one, a cornice on top
       const [w, h] = t.size ?? [1.1, 2.2];
@@ -2042,6 +2196,72 @@ function stencilArt(lines: string[]) {
     ctx.globalCompositeOperation = 'destination-out';
     for (let k = 0; k < 40; k++) ctx.fillRect((k / 40) * w + w * 0.008, 0, Math.max(1, w * 0.002), h);
     ctx.globalCompositeOperation = 'source-over';
+  };
+}
+
+/**
+ * A Polaroid: a lake under trees, a bench, two old people laughing on it (small, from where an
+ * arm held the camera; no faces to read), and on the white border below, its caption in a hand.
+ */
+function polaroidArt(caption: string) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(INKS.card);
+    ctx.fillRect(0, 0, w, h);
+    const m = w * 0.07;
+    const ph = h * 0.72;
+    // the picture: sky, trees, the lake, the bank
+    ctx.fillStyle = css(mix(INKS.cobalt, INKS.paper, 0.6));
+    ctx.fillRect(m, m, w - 2 * m, ph - m);
+    ctx.fillStyle = css(mix(INKS.green, INKS.ink, 0.15));
+    ctx.fillRect(m, m + (ph - m) * 0.22, w - 2 * m, (ph - m) * 0.2);
+    ctx.fillStyle = css(mix(INKS.cobalt, INKS.paper, 0.35));
+    ctx.fillRect(m, m + (ph - m) * 0.42, w - 2 * m, (ph - m) * 0.2);
+    ctx.fillStyle = css(mix(INKS.ochre, INKS.paper, 0.45));
+    ctx.fillRect(m, m + (ph - m) * 0.62, w - 2 * m, (ph - m) * 0.38);
+    // the bench, and the two of them on it, leaning into each other
+    const by = m + (ph - m) * 0.78;
+    ctx.fillStyle = css(mix(TONES.wood, INKS.ink, 0.3));
+    ctx.fillRect(w * 0.22, by, w * 0.56, h * 0.025);
+    ctx.fillRect(w * 0.22, by - h * 0.08, w * 0.56, h * 0.02);
+    const person = (cx: number, coat: number, lean: number) => {
+      ctx.fillStyle = css(coat);
+      ctx.beginPath();
+      ctx.ellipse(cx + lean, by - h * 0.05, w * 0.075, h * 0.07, lean * 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = css(mix(INKS.paper, INKS.ink, 0.35));
+      ctx.beginPath();
+      ctx.arc(cx + lean * 2, by - h * 0.135, w * 0.04, 0, Math.PI * 2);
+      ctx.fill();
+    };
+    person(w * 0.4, mix(INKS.green, INKS.sunflower, 0.15), w * 0.02);
+    person(w * 0.6, mix(INKS.ink, INKS.cobalt, 0.3), -w * 0.02);
+    // the caption, in her hand
+    ctx.fillStyle = css(mix(INKS.cobalt, INKS.ink, 0.35));
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    let sz = Math.round(h * 0.075);
+    ctx.font = SERIF(sz, 500);
+    while (sz > 5 && ctx.measureText(caption).width > w * 0.9) ctx.font = SERIF(--sz, 500);
+    ctx.fillText(caption, w / 2, ph + (h - ph) / 2);
+  };
+}
+
+/** An old studio portrait gone sepia: a woman's head and shoulders in an oval, no features drawn. */
+function portraitArt() {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(INKS.ochre, INKS.paper, 0.7));
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = css(mix(INKS.ochre, INKS.ink, 0.25));
+    ctx.beginPath();
+    ctx.ellipse(w / 2, h / 2, w * 0.4, h * 0.42, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = css(mix(INKS.ochre, INKS.paper, 0.4));
+    ctx.beginPath();
+    ctx.ellipse(w / 2, h * 0.42, w * 0.14, h * 0.13, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(w / 2, h * 0.82, w * 0.3, h * 0.2, 0, Math.PI, 0);
+    ctx.fill();
   };
 }
 

@@ -143,8 +143,8 @@ test('a day without blocking plays in the places the world has built for it, and
   assert.deepEqual(placesOf(page([at('p1', null), { kind: 'hook', id: 'h', panel: at('h.p', null) }])), ['quai_de_valmy', 'quai_de_valmy']);
   assert.equal(unbuiltOf(page([at('p1', null)])), null);
   // somewhere nothing is built for yet: no place plays it, and the page says where
-  assert.deepEqual(placesOf(page([at('p1', 'marchand_office'), at('p2', null), at('p3', 'le_mistral')])), [null, null, 'quai_de_valmy']);
-  assert.equal(unbuiltOf(page([at('p1', 'le_mistral'), at('p2', 'marchand_office')])), 'marchand_office');
+  assert.deepEqual(placesOf(page([at('p1', 'gare_de_lest'), at('p2', null), at('p3', 'le_mistral')])), [null, null, 'quai_de_valmy']);
+  assert.equal(unbuiltOf(page([at('p1', 'le_mistral'), at('p2', 'gare_de_lest')])), 'gare_de_lest');
   assert.equal(unbuiltOf(page([at('p1', null)], 'gus_loft')), 'gus_loft');
   assert.equal(unbuiltOf(page([at('p1', 'somewhere_new')])), 'somewhere_new');
   // the season's own pages: T2 climbs the stairwell into Odile's flat; the roof (g3) plays on the roof the forge built

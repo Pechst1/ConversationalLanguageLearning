@@ -179,8 +179,10 @@ café are the same print. The story sets the order (step 0): the next room is th
 `queue --season` lists that is not built. Built so far: the stairwell and Odile's door, the
 learner's studio, Maître Vasseur's office, Odile's flat, the roof over Le Mistral
 (`toit_mistral`, gap 3), Le Mistral's back room (`arriere_salle`, T5 B: through the café's
-back door, at -37.6 x, -18.1 z in the café's own plan) and Marin and Lila's flat
-(`chez_marin_lila`, T5: on the third floor of a building on the quai, its windows on the canal). A room under the sky is a room too: its floors are `zone: "out"` and
+back door, at -37.6 x, -18.1 z in the café's own plan), Marin and Lila's flat
+(`chez_marin_lila`, T5: on the third floor of a building on the quai, its windows on the canal)
+and the gérance Marchand (`gerance_marchand`, T6 A: on the second floor over Le Mistral, floor
+7.9, its windows on the canal). A room under the sky is a room too: its floors are `zone: "out"` and
 you walk them (only a `sealed` floor, or one with `walk: false`, is not walked), and nothing on
 it is dry. A room on a roof of the quai says `quarter: true`: the engine builds the quai round it
 as it is (the canal, the footbridge, the barge, the houses and their lit windows) and walks only
@@ -207,7 +209,7 @@ the steps above with these differences.
    quarter's coordinates (x east, z south, metres; the stairwell stands where the quai's façade
    has its street door):
    - `spaces`: rectangles with a `floor` height, a `ceiling`, a `finish` (`cabochons`, `boards`,
-     `tomettes`, `cobbles`, `stone`, `zinc`), a `zone` (`room` is lit by its lamps; `sealed` is seen and
+     `parquet` (an old office's, dark and cold), `tomettes`, `cobbles`, `stone`, `zinc`), a `zone` (`room` is lit by its lamps; `sealed` is seen and
      not entered yet; `out` is under the sky), `walk: false` for a floor seen, not walked, and
      `walls` (`finish`, `tone`, `dado`, or null where a space opens into the next). `open` cuts a
      side's opening (`{ "w": [{ "u": [1.5, 2.75] }] }`, u along the side from its start); a
@@ -224,7 +226,8 @@ the steps above with these differences.
      on the façade, `sun: true` for the morning sun laid on the floor in the floor's own finish,
      `balcony: 0.6` for a narrow balcony outside with the quai's ironwork), `holes` (a way through
      with no door, `framed` as above).
-   - `lights` (`globe`, `sconce`, `hublot`) on a `circuit`, its `switches` (push-buttons, 1.0 to
+   - `lights` (`globe`, `sconce`, `hublot`, and `desk`: a desk lamp, `at` the green shade's mouth
+     over the desk, `facing` the way it leans, its foot behind) on a `circuit`, its `switches` (push-buttons, 1.0 to
      1.7 m above the floor in front of them) and `timers` (seconds a press keeps it lit). A room
      with no switch (a flat, the studio) is lit from the start and stays lit.
    - `things` the kit draws (`letterboxes`, `coat`, `clock`, `calendar`, `table`, `chair`,
@@ -245,7 +248,12 @@ the steps above with these differences.
      a card in a quick hand under a sardine, the rest of `text`, a line a paragraph, and a
      felt-tip drawing), `crate` (a painting's shipping crate on its edge, its stencil in `text`,
      the first line red), `canvas` (leaning face to the wall, half in bubble wrap) and an
-     `easel` with `size` [0, 0] (nothing on it)) with
+     `easel` with `size` [0, 0] (nothing on it); in an office, `keyboard` (a plank of hooks and
+     tagged keys on the wall, `at` its centre, `size` [w, h]), `cabinet` (a grey metal filing
+     cabinet, four drawers, `size` [w, h]), `desk` (its blotter, files stacked at its left end,
+     the drawers on the sitter's side, local -z), `campbed` (made with hospital corners, `size`
+     [length, width] along local x, the pillow at -x) and `frame` (a small frame on its strut: a
+     Polaroid with its caption in `text`, or without `text` an old portrait gone sepia)) with
      `zone`, `tone`, `text`, `size`. A thing with `look` (three languages) can be tapped and says
      it in a line; its `did` is what the end card remembers. `courts` are seen through a window:
      `storeys` one fewer than your floor puts their zinc at your eye, and `roofs: true` gives
