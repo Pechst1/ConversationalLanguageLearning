@@ -36,6 +36,7 @@ from app.services.error_memory import (
     normalize_error_state,
     serialize_error_memory,
 )
+from app.services.forge_grading import foreign_words
 from app.services.grammar_units import SUPPORTED_LOCALES
 from app.services.journey_contracts import LearningCandidate, TargetKind, TargetRef
 
@@ -219,6 +220,12 @@ def build_errata_target(error: UserError, *, now: datetime | None = None) -> Err
         # No stored French correction means nothing to elicit and nothing to
         # grade: the legacy table holds rows with only an explanation. Such a
         # row can be read in the Cahier, but it cannot be a scene's target.
+        return None
+    if foreign_words(error.correction):
+        # #723: the correction is what the day's repair builds and grades against.
+        # One that kept a non-French word of the learner's line («Im est au
+        # Mistral, Marin.») would be a bank with no pronoun and a key that marks
+        # «Im» right. It stays in the Cahier; it is not a target (as in the Forge, #348).
         return None
     now = now or datetime.now(UTC)
     metadata = error.error_metadata or {}

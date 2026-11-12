@@ -58,6 +58,7 @@ from app.services.chrome_language import user_mother_tongue
 from app.services.concept_titles import concept_title
 from app.services.correction_contract import contraction_reason
 from app.services.error_memory import ErrorMemoryService
+from app.services.forge_grading import foreign_words
 from app.services.glosses import word_gloss
 from app.services.grammar import (
     GrammarService,
@@ -467,6 +468,12 @@ def _target_ref_for_item(item: DueLearningItem) -> TargetRef | None:
             concept_title=True,
         )
     if item.item_type is ItemType.ERROR:
+        if foreign_words(metadata.get("correction")):
+            # #723: the correction is the repair's tile bank and answer key. One that
+            # kept a non-French word of the learner's line («Im est au Mistral,
+            # Marin.») builds a bank with no pronoun and marks «Im» right. Not a
+            # target (journey_errata and the Forge, #348, refuse it too).
+            return None
         return TargetRef(
             kind=TargetKind.ERROR,
             id=str(item.original_id),
