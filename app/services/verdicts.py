@@ -201,12 +201,14 @@ def read_forge(correction: dict[str, Any] | None, *, text: str = "", verdict: st
         return _read(outcome=Outcome.NOT_CHECKED, checked_by=CheckedBy.NONE, call=Call.PENDING)
     if status == "unavailable" or word == "needs_review":
         failed = review.get("status") == "failed"
+        failure = failure_class(review.get("error")) if failed else None
         return _read(
             outcome=Outcome.NOT_CHECKED,
             checked_by=CheckedBy.NONE,
             call=Call.FAILED if failed else Call.NOT_CALLED,
-            failure=failure_class(review.get("error")) if failed else None,
-            retryable=failed,
+            failure=failure,
+            # #724: «Run again» only where asking again can reach a model.
+            retryable=failed and failure is not Failure.NO_MODEL,
             text=text,
             proposed=_errata_as_proposed(errata, by="rules"),
         )

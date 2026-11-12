@@ -86,7 +86,7 @@ const FRENCH_CHROME = [
   'Comparer',
   'Touche pour parler',
   'Je n’ai pas pu vérifier cette réponse. Réessaie.',
-  'Relancer',
+  'Vérifier à nouveau',
   'Préparation de la séance…',
   'Réessayer',
   'Séance terminée',

@@ -167,6 +167,35 @@ def _verdict_passes(verdict: Any) -> bool:
     return str(verdict or "") in {"correct", "accepted"}
 
 
+#: #724: the reason stored when there is no model to ask at all. It reads as
+#: ``Failure.NO_MODEL`` (:func:`app.services.verdicts.failure_class`), which offers no
+#: «Run again»: asking again can never reach a model that is not configured.
+NO_MODEL_REASON = "no_model: the checker is not configured."
+
+
+def _with_rule_fixes(correction: dict[str, Any], text: str, *, language: str | None) -> dict[str, Any]:
+    """#724 / #333: an open answer the model did not read keeps what the rules can say.
+
+    The Courrier, the Journal and the scene run the model-free pass
+    (:func:`app.services.correction_contract.deterministic_errata`) when their model does
+    not answer; La Forge fell back to nothing, so «J'ai trente-deux an.» ended «not checked
+    yet» with «an → ans» never named. The rules' fixes are listed as a basic check: the
+    answer still counts for nothing (#334), only a reading does."""
+
+    from app.services.correction_contract import deterministic_errata
+
+    errata = [item for item in (correction.get("errata") or []) if isinstance(item, dict)]
+    seen = {(item.get("learner_text"), item.get("corrected_target")) for item in errata}
+    for item in deterministic_errata(text, language=language):
+        key = (item.get("learner_text"), item.get("corrected_target"))
+        if key not in seen:
+            seen.add(key)
+            errata.append(item)
+    correction["errata"] = errata
+    correction["notes_native"] = notes_native(errata)
+    return correction
+
+
 def _test_out_local_grade(
     local_check: dict[str, Any], text: str, acceptable: dict[str, Any] | None = None
 ) -> dict[str, Any] | None:
@@ -5261,8 +5290,8 @@ class AtelierCorrectionService:
         mode: str | None = None,
     ) -> dict[str, Any]:
         if (correction or {}).get("assessment_status") == "unavailable":
-            return {"status": "failed", "auto_started": False,
-                    "error": "The answer has not been checked. Retry when the checker is available."}
+            # Only an answer no model could be asked about is unavailable at submit.
+            return {"status": "failed", "auto_started": False, "error": NO_MODEL_REASON}
         correction_debug = (correction or {}).get("correction_debug") or {}
         if correction_debug and not correction_debug.get("fallback_used"):
             return {
@@ -5326,7 +5355,7 @@ class AtelierCorrectionService:
                 "auto_started": auto_started,
                 "model": settings.ATELIER_CORRECTION_LLM_MODEL,
                 "completed_at": self._now_iso(),
-                "error": "AI provider unavailable.",
+                "error": NO_MODEL_REASON,
             }
             attempt.correction_payload = correction
             flag_modified(attempt, "correction_payload")
@@ -5762,6 +5791,9 @@ class AtelierCorrectionService:
             correction["score_0_4"] = 0
             attempt.verdict = "needs_review"
             attempt.score_0_4 = 0.0
+            correction = _with_rule_fixes(
+                correction, self._answer_text(attempt.answer_payload or {}), language=self.explanation_language
+            )
         correction["second_check"] = {"status": "failed", "verdict_changed": False, "llm_ms": llm_ms}
         verdicts.note_failure(self.db, surface="forge", verdict=verdicts.from_forge(correction), user_id=attempt.user_id)
         if llm_ms is not None:
@@ -5984,6 +6016,7 @@ class AtelierCorrectionService:
                 })
                 if local_check is not None:
                     correction["local_check"] = local_check
+                correction = _with_rule_fixes(correction, text, language=self.explanation_language)
         # The client needs to know which language the explanation prose is in;
         # the French in the same payload never changes language.
         correction.setdefault("assessment_status", "checked")
