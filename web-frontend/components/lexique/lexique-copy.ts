@@ -227,6 +227,8 @@ export type LexiqueCopy = {
   filed_many: string;
   nothing_due: string;
   listen_prompt: string;
+  /** The line on a card front in the learner's language: the French is asked (walk finding #725). */
+  ask_in_french: string;
   listen: string;
   playing: string;
   listen_hint: string;
@@ -472,6 +474,7 @@ const EN: LexiqueCopy = {
   filed_many: '{n} cards saved',
   nothing_due: 'Nothing to review today',
   listen_prompt: 'Listen to the French word',
+  ask_in_french: 'How do you say it in French?',
   listen: 'Listen',
   playing: 'Playing…',
   listen_hint: 'Listen · answer',
@@ -714,6 +717,7 @@ const DE: LexiqueCopy = {
   filed_many: '{n} Karten gespeichert',
   nothing_due: 'Heute nichts zu wiederholen',
   listen_prompt: 'Hör dir das französische Wort an',
+  ask_in_french: 'Wie heißt das auf Französisch?',
   listen: 'Anhören',
   playing: 'Spielt…',
   listen_hint: 'Anhören · antworten',
@@ -956,6 +960,7 @@ const FR: LexiqueCopy = {
   filed_many: '{n} cartes classées',
   nothing_due: 'Rien à revoir aujourd’hui',
   listen_prompt: 'Écoute le mot français',
+  ask_in_french: 'Comment dit-on en français ?',
   listen: 'Écouter',
   playing: 'Lecture…',
   listen_hint: 'Écouter · répondre',

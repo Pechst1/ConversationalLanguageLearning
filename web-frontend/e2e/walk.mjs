@@ -259,6 +259,24 @@ async function drillReloadKeepsTheBatch(l) {
   }
   const answered = [];
   for (let i = 0; i < 3; i += 1) {
+    // Walk finding 725: a front is the French, or it says that the French is asked
+    // («school» stood alone on the front with only «Tap to turn»).
+    const front = await page.locator('.lx-card[data-face="front"]').first().evaluate((card) => {
+      const headword = card.querySelector('.lx-card__word');
+      return {
+        word: (headword?.textContent || '').trim(),
+        french: headword?.getAttribute('lang') === 'fr',
+        ask: (card.querySelector('.lx-card__ask')?.textContent || '').trim(),
+      };
+    }).catch(() => null);
+    if (front) {
+      findings.check(
+        'card-front-says-its-direction',
+        front.french || Boolean(front.ask),
+        `the front shows «${front.word}» (not French) with no line that asks for the French`,
+        where,
+      );
+    }
     const filed = page.waitForRequest(
       (r) => r.url().includes('/anki/review') && r.method() === 'POST',
       { timeout: 20000 },

@@ -7,7 +7,6 @@ import toast from 'react-hot-toast';
 import {
   answerSide,
   askedSide,
-  asksFromLearnerSide,
   bareFrench,
   cardMeaning,
   cardTexts,
@@ -19,6 +18,7 @@ import { daySessionCopy } from '@/lib/day-session';
 import { extraWordsOffer } from '@/lib/more-words';
 
 import { GoldPill } from '@/components/gold/GoldPill';
+import { CardFront } from '@/components/lexique/CardFront';
 import MotsDuJour from '@/components/lexique/MotsDuJour';
 import {
   cardMode,
@@ -985,10 +985,18 @@ export default function VocabularyReviewPage() {
   // the line rungs), the other side on the back with the example and its translation.
   const ladderMode = cardMode(current);
   const mode: CardMode = ladderMode === 'recognition' || ladderMode === 'audio' ? 'recognition' : 'production';
-  const { prompt, answer } = cardTexts({ item: current, mode, cue: null, listenPrompt: t.listen_prompt });
+  // The front, its language and its cue come from cardTexts only (walk finding 725: a
+  // front in the learner's language says that the French is asked).
+  const texts = cardTexts({
+    item: current,
+    mode,
+    cue: null,
+    listenPrompt: t.listen_prompt,
+    askPrompt: t.ask_in_french,
+  });
+  const { prompt, answer, promptIsFrench, answerIsFrench } = texts;
   const french = current ? bareFrench(current) : '';
   const meaning = current ? cardMeaning(current) : '';
-  const promptIsFrench = current ? mode === 'recognition' && !asksFromLearnerSide(current) : false;
   // A card with no example sentence quotes nothing, never «lampe - lamp» (walk finding 398).
   const example = current ? cardExample({ french, meaning, example: queueExample(current) }) : '';
   const exampleTranslation = current ? queueExampleTranslation(current) : '';
@@ -1210,19 +1218,7 @@ export default function VocabularyReviewPage() {
                     )}
 
                     {!revealed ? (
-                      <div className="lx-card__middle">
-                        <div className="lx-card__top">
-                          {promptIsFrench && listenButton}
-                        </div>
-                        {/* the one Garamond-italic headline on this screen */}
-                        <p
-                          className="av2-headline lx-card__word review-prompt-term"
-                          lang={promptIsFrench ? 'fr' : undefined}
-                        >
-                          {prompt}
-                        </p>
-                        {hint && <p className="lx-card__hint">{hint}</p>}
-                      </div>
+                      <CardFront texts={texts} hint={hint} listen={listenButton} />
                     ) : (
                       <div className="lx-card__middle review-answer-container">
                         <div className="lx-card__top">
@@ -1244,7 +1240,7 @@ export default function VocabularyReviewPage() {
                         <p className="lx-card__asked" lang={promptIsFrench ? 'fr' : undefined}>{prompt}</p>
                         <p
                           className="av2-headline lx-card__word review-answer-word"
-                          lang={promptIsFrench ? undefined : 'fr'}
+                          lang={answerIsFrench ? 'fr' : undefined}
                         >
                           {answer || meaning || shownFrench(current)}
                         </p>
@@ -1472,6 +1468,8 @@ export default function VocabularyReviewPage() {
           overflow-wrap: anywhere;
           hyphens: auto;
         }
+        /* A front in the learner's language says the French is asked (walk finding 725). */
+        .av2 .lx-card__ask,
         .av2 .lx-card__asked {
           margin: 0 0 -4px;
           font-size: var(--av2-t-body);

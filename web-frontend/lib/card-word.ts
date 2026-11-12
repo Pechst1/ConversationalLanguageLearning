@@ -71,8 +71,23 @@ export function answerSide(item: CardWordItem): string {
 export type CardTexts = {
   /** The card's front. */
   prompt: string;
+  /**
+   * Whether the front is the French itself. Decided here, with the front, so the page
+   * never guesses it from the mode alone (a production card whose word has no gloss
+   * falls back to its French; a recognition card stored `en_to_fr` asks by the gloss).
+   */
+  promptIsFrench: boolean;
+  /**
+   * The line under a front in the learner's language that says the French is asked
+   * («How do you say it in French?»); empty on a French front and on an audio card.
+   * Walk finding #725: «school» and «forty» stood alone on the front, among cards that
+   * all showed their French, and nothing said the card went the other way.
+   */
+  ask: string;
   /** The card's back, as shown. */
   answer: string;
+  /** Whether the back is the French (every card but a recognition card asked in French). */
+  answerIsFrench: boolean;
   /** What a typed answer is graded against (no article required). */
   expected: string;
 };
@@ -83,29 +98,41 @@ export function cardTexts({
   mode,
   cue,
   listenPrompt,
+  askPrompt = '',
 }: {
   item: CardWordItem | null;
   mode: CardMode;
   cue: LadderCue | null;
   listenPrompt: string;
+  /** The chrome line that asks for the French (`ask_in_french`). */
+  askPrompt?: string;
 }): CardTexts {
-  if (!item) return { prompt: '', answer: '', expected: '' };
+  if (!item) return { prompt: '', promptIsFrench: false, ask: '', answer: '', answerIsFrench: false, expected: '' };
   const meaning = cardMeaning(item);
   const french = bareFrench(item);
   const shown = shownFrench(item);
-  const prompt =
+  const line = mode === 'scene' || mode === 'rescue' ? linePrompt(cue) : '';
+  // Which side the front shows: the ear; the French (a recognition card, a blanked French
+  // line, a word with no gloss to ask by); or the meaning, in the learner's language.
+  const side: 'audio' | 'fr' | 'learner' =
     mode === 'audio'
+      ? 'audio'
+      : mode === 'recognition'
+        ? asksFromLearnerSide(item) && learnerGloss(item) ? 'learner' : 'fr'
+        : line || !meaning ? 'fr' : 'learner';
+  const prompt =
+    side === 'audio'
       ? listenPrompt
-      : mode === 'production'
-        ? meaning || shown
-        : mode === 'scene' || mode === 'rescue'
-          ? linePrompt(cue) || meaning || shown
-          : askedSide(item);
+      : mode === 'recognition'
+        ? askedSide(item)
+        : side === 'learner' ? meaning : line || shown;
+  const front = { prompt, promptIsFrench: side === 'fr', ask: side === 'learner' ? askPrompt : '' };
   if (mode === 'recognition') {
     const answer = answerSide(item);
-    return { prompt, answer, expected: asksFromLearnerSide(item) ? french : answer };
+    const fromLearner = asksFromLearnerSide(item);
+    return { ...front, answer, answerIsFrench: fromLearner, expected: fromLearner ? french : answer };
   }
   // Owner decision 2026-10-08: a line card is answered with the form in its line.
   const expected = lineAnswer(mode, cue, french);
-  return { prompt, answer: expected === french ? shown : expected, expected };
+  return { ...front, answer: expected === french ? shown : expected, answerIsFrench: true, expected };
 }
