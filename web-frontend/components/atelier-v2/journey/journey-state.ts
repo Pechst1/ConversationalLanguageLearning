@@ -389,7 +389,14 @@ export function appealOffered(result: AttemptResult | null | undefined, stepKind
   return outcome === 'not_yet' || outcome === 'partly';
 }
 
-/** The sheet after an appeal: upheld turns the verdict, anything else keeps it and says why. */
+/**
+ * The sheet after an appeal: upheld turns the verdict, anything else keeps it and says why.
+ *
+ * #729: upheld settles the whole item, not only its band. The miss's reveal («The rule is in
+ * this sentence: … · Not this one: <the pick>») belongs to the miss: under «Correct» it says
+ * the opposite of the band, so it goes with the verdict it explained. (The server takes the
+ * item out of the set's «Once more» in the same ruling.)
+ */
 export function feedbackAfterAppeal(
   feedback: JourneyFeedback,
   appeal: AppealOutcome,
@@ -398,7 +405,7 @@ export function feedbackAfterAppeal(
   if (feedback.kind !== 'graded') return feedback;
   const result: AppealedResult = { ...feedback.result, appeal };
   if (appeal.state === 'upheld' && check) {
-    return feedbackFromAttempt({ ...result, check, task_outcome: 'met' } as AttemptResult);
+    return feedbackFromAttempt({ ...result, check, task_outcome: 'met', correction: null } as AttemptResult);
   }
   return { ...feedback, result };
 }
