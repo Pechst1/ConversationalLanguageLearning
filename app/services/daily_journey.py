@@ -316,6 +316,41 @@ _ANSWERABLE_KINDS = (StepKind.RECALL, StepKind.RESPOND)
 RETRY_OF_KEY = "retry_of"
 
 
+def withdraw_retry(db: Session, step: DailyJourneyStep) -> bool:
+    """#729: the undo of :meth:`DailyJourneyService._queue_retry`, for a miss that was not one.
+
+    An upheld appeal settles the whole item: the drill is right, so it is not asked again
+    under «Once more». The retry the miss queued leaves the day, and the steps after it move
+    back up one place, so the day is the day it was before the miss. A retry already on
+    screen or answered stays: what the learner has seen is not taken back.
+    """
+
+    journey = step.journey
+    if journey is None:
+        return False
+    retry = next(
+        (
+            item
+            for item in journey.steps
+            if (item.private_task or {}).get(RETRY_OF_KEY) == str(step.id)
+            and StepStatus(item.status) is StepStatus.PENDING
+            and journey.current_step_id != item.id
+        ),
+        None,
+    )
+    if retry is None:
+        return False
+    gone = retry.ordinal
+    journey.steps.remove(retry)
+    db.delete(retry)
+    db.flush()
+    # One row at a time, first first: (journey_id, ordinal) is unique.
+    for later in sorted((item for item in journey.steps if item.ordinal > gone), key=lambda item: item.ordinal):
+        later.ordinal -= 1
+        db.flush([later])
+    return True
+
+
 def _ending_still_written_before_an_act(journey: DailyJourney, step: DailyJourneyStep) -> bool:
     """Phase 2: an act's ending the story lane is still writing, with a later act after it.
 
@@ -5586,6 +5621,7 @@ class DailyJourneyService:
         journey.steps.append(retry)
         self.db.flush([retry])
         return retry
+
 
     def _attempt_respond(
         self,
