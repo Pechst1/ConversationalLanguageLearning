@@ -7177,7 +7177,7 @@ def _check_scene_title(draft: SceneDraft, context: dict) -> None:
             "what happens in it: it is never the chapter's title again after the chapter's "
             "first scene, and never a title already used."
         ),
-        proposal=repaired,
+        proposal=_servable(repaired, context),
     )
 
 
@@ -7222,7 +7222,7 @@ def _check_addressee(draft: SceneDraft, context: dict) -> None:
     raise SoftRejection(
         "objective_addresses_other_character",
         hint=" ".join(part for part in (hint, aids) if part),
-        proposal=repaired,
+        proposal=_servable(repaired, context),
     )
 
 
@@ -8073,6 +8073,24 @@ def line_translation_language(context: dict) -> str | None:
     return None
 
 
+def _unity_compared(context: dict) -> bool:
+    """#621: whether a page's own scene state is compared (``scene_unity``): with the
+    scene record on, and never on an épreuve, where everyone comes (``epreuve_gap``)."""
+
+    from app.services import scene_record
+
+    return scene_record.enabled() and not context.get(EPREUVE_KEY)
+
+
+def _servable(draft: SceneDraft, context: dict) -> SceneDraft:
+    """The page a soft rejection carries to be served if the retry wanders again or
+    fails: ``draft`` held to its scene (:func:`scene_unity.held_to_scene`). Every soft
+    check of a scene passes what it carries through here, so no path serves a page whose
+    own state says it left its scene (#621: the walk's page was served as written)."""
+
+    return scene_unity.held_to_scene(draft) if _unity_compared(context) else draft
+
+
 def _check_reading_aids(draft: SceneDraft, context: dict) -> None:
     """WP-90. Line translations (A1/A2, non-French) and panel alt text, leniently.
 
@@ -8101,11 +8119,9 @@ def _check_reading_aids(draft: SceneDraft, context: dict) -> None:
     moment = " ".join(filter(None, [_season_required_moment(draft, context), _contract_page_issue(draft, context)])) or None
     # Story plan, Phase 1 «Maßstab»: lines a reader hears as a machine ride it too.
     prose = prose_gap(draft, context)
-    # #621: a page whose own state says it left its scene (``scene_unity``) rides it too.
-    # Not an épreuve, where everyone comes (``epreuve_gap``).
-    from app.services import scene_record
-
-    unity = scene_unity.gap(draft) if scene_record.enabled() and not context.get(EPREUVE_KEY) else None
+    # #621: a page whose own state says it left its scene (``scene_unity``) rides it too,
+    # and the page it carries to be served is held to its scene (``_servable``).
+    unity = scene_unity.gap(draft) if _unity_compared(context) else None
     if not untranslated and not undescribed and not grammar and not special and not moment and not prose and not unity:
         return
     if not untranslated and not undescribed:
@@ -8121,7 +8137,7 @@ def _check_reading_aids(draft: SceneDraft, context: dict) -> None:
             if prose
             else "panels_leave_the_scene"
         )
-        raise SoftRejection(reason, hint=hint, proposal=draft)
+        raise SoftRejection(reason, hint=hint, proposal=_servable(draft, context))
     wanted = []
     if moment:
         wanted.append(moment.rstrip("."))
@@ -8143,7 +8159,7 @@ def _check_reading_aids(draft: SceneDraft, context: dict) -> None:
             f"{len(undescribed)} of {len(draft.panels)} panels have no alt_native — give "
             "every panel one plain sentence in control_language saying what the picture shows"
         )
-    raise SoftRejection("missing_reading_aids", hint="; ".join(wanted) + ".", proposal=draft)
+    raise SoftRejection("missing_reading_aids", hint="; ".join(wanted) + ".", proposal=_servable(draft, context))
 
 
 def prose_gap(draft: SceneDraft, context: dict) -> str | None:

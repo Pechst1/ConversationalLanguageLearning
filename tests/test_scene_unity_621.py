@@ -284,7 +284,8 @@ def test_a_page_at_its_place_is_never_refused(monkeypatch):
 
 def test_it_rides_the_one_retry_of_the_reading_aids():
     """Through the real rider: the same soft channel as the translations and the alt text,
-    the hint merged, and the draft carried so it can be served."""
+    the hint merged, and the page carried so it can be served: held to its scene (#621),
+    the draft itself left as written."""
 
     draft = _draft()
     context = {"level": "B1", "control_language": "en"}
@@ -293,7 +294,8 @@ def test_it_rides_the_one_retry_of_the_reading_aids():
     with pytest.raises(engine.SoftRejection) as refused:
         engine._check_reading_aids(draft, context)
     assert str(refused.value) == "panels_leave_the_scene"
-    assert refused.value.proposal is draft
+    assert refused.value.proposal is not draft and len(draft.panels) == 4
+    _assert_one_scene(refused.value.proposal)
     assert GUS in refused.value.hint
 
     for panel in draft.panels:
@@ -473,3 +475,107 @@ def test_an_authored_tentpole_page_carries_no_state_and_is_never_compared():
                 draft = SimpleNamespace(panels=panels, location_id=page["location_id"], character_id="", scene_cast=[])
                 assert scene_unity.gap(draft) is None, (tentpole.id, day.day, band)
     assert pages and moved, "the season files do move between places: the rule is not theirs"
+
+
+# ---------------------------------------------------------------------------
+# What is served: the page held to its scene, whatever the retry did
+# ---------------------------------------------------------------------------
+
+
+def _assert_one_scene(draft) -> None:
+    """The done-when, on the page a learner is served: every panel is at the scene's
+    place or inside a jump its caption opens, and every speaker is in the scene's cast."""
+
+    assert scene_unity.panels_elsewhere(draft) == [], [panel.narration_fr for panel in draft.panels]
+    assert scene_unity.jumps_without_caption(draft) == []
+    assert scene_unity.speakers_outside_cast(draft) == {}
+
+
+def _aids_written(draft):
+    for panel in draft.panels:
+        panel.alt_native = "A panel."
+    return draft
+
+
+def _through_the_reading_aids(proposal):
+    engine._check_reading_aids(proposal, {"level": "B1", "control_language": "en"})
+
+
+def test_wanders_twice_held(monkeypatch):
+    """The walk's page twice: the retry was told and wandered again. What is served is
+    the quay with Lila, not the bar's evening call and Gus's «Bonne journée à vous»."""
+
+    monkeypatch.setattr(engine, "_record_cost", lambda *args, **kwargs: None)
+    served, seen = _approved([_aids_written(_draft()), _aids_written(_draft())], _through_the_reading_aids)
+    assert GUS in seen[1][0]
+    _assert_one_scene(served)
+    texts = [panel.narration_fr for panel in served.panels]
+    assert "Le soir. Au téléphone : l'assurance. Margaux essuie un verre déjà sec." not in texts
+    spoken = [line.text_fr for panel in served.panels for line in panel.dialogue]
+    assert "Bonjour. Bonne journée à vous." not in spoken
+    assert spoken == [
+        "Oui, la photo au mur, c'est mon idée… un secret, c'est pire que l'assurance.",
+        "Les chiffres du notaire. Camille regarde tout.",
+    ]
+
+
+def test_retry_fails_held(monkeypatch):
+    """The provider is down on the retry: the day is not lost, and the walk's page is not
+    what it gets either."""
+
+    monkeypatch.setattr(engine, "_record_cost", lambda *args, **kwargs: None)
+    served, _seen = _approved([_aids_written(_draft())], _through_the_reading_aids)
+    _assert_one_scene(served)
+    assert [panel.location_id for panel in served.panels] == [SCENE_PLACE, SCENE_PLACE]
+
+
+def test_title_retry_held():
+    """A soft rejection raised before the reading aids (#194's title) carries a servable
+    page as well: that page is the one served if the retry fails."""
+
+    draft = _aids_written(_draft())
+    context = {"level": "B1", "control_language": "en", "recent_situations": [{"title_fr": draft.title_fr}]}
+    with pytest.raises(engine.SoftRejection) as refused:
+        engine._check_scene_title(draft, context)
+    assert refused.value.proposal.title_fr != draft.title_fr
+    _assert_one_scene(refused.value.proposal)
+
+
+def test_holding_a_page_reads_no_word_and_keeps_what_the_writer_chose():
+    """Only the page's state decides: a page at its place is the same page, a jump that
+    says when stays, a jump that does not is no jump, and the draft is left as written."""
+
+    from app.services.scene_unity import held_to_scene
+
+    at_its_place = deepcopy(WALK_PANELS)
+    at_its_place[0]["location_id"] = SCENE_PLACE
+    at_its_place[3]["dialogue"] = []
+    draft = _draft(at_its_place)
+    assert held_to_scene(draft) is draft, "nothing to hold: the page itself, uncopied"
+
+    silent_jump = deepcopy(WALK_PANELS)
+    silent_jump[2]["narration_fr"] = ""
+    held = held_to_scene(_draft(silent_jump))
+    _assert_one_scene(held)
+    assert not any(panel.time_jump for panel in held.panels)
+
+    walk = _draft()
+    held = held_to_scene(walk)
+    assert len(walk.panels) == 4 and walk.panels[3].dialogue, "the draft itself is left as written"
+    assert [panel.narration_fr for panel in held.panels] == ["Dehors, sur le quai.", "Le lendemain matin. Le même banc."]
+    _assert_one_scene(held)
+
+
+def test_a_page_that_cannot_keep_two_panels_keeps_its_panels():
+    """Every panel elsewhere: dropping them would leave no page. The outsiders' lines go;
+    the panels stay, and the hint is what the retry had."""
+
+    from app.services.scene_unity import held_to_scene
+
+    panels = [
+        {"narration_fr": "Au bar.", "location_id": "le_mistral", "dialogue": [{"character_id": GUS, "text_fr": "Bonjour."}]},
+        {"narration_fr": "Au bar.", "location_id": "le_mistral", "dialogue": [{"character_id": LILA, "text_fr": "Salut."}]},
+    ]
+    held = held_to_scene(_draft(panels))
+    assert len(held.panels) == 2
+    assert scene_unity.speakers_outside_cast(held) == {}

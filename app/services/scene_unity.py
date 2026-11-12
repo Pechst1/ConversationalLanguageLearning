@@ -20,7 +20,10 @@ tell a story is worth more here than a guard that thinks it can read one. The st
 critic reads the page as a reader does.
 
 Soft, always: :func:`gap` rides the one retry of ``living_story._check_reading_aids``,
-and the draft is served after it either way. A scene that wanders never costs a day.
+and a page is served after it either way. A scene that wanders never costs a day, and
+never reaches the reader as it wandered: what the soft rejection carries to be served
+is :func:`held_to_scene`, the page with what its own state put outside the scene taken
+out (the walk's page was served as written when the retry wandered too).
 
 A page without this state (an authored tentpole, which is never validated here; a
 draft stored before this; a model that left the fields out) makes no claim and passes.
@@ -35,6 +38,8 @@ from typing import Any
 PLACE_CHARS = 80
 #: One deliberate jump on a page; the second is the walk's page, hopping every panel.
 MAX_TIME_JUMPS = 1
+#: The fewest panels :func:`held_to_scene` leaves a page (``SceneDraft.panels``' floor).
+MIN_PANELS_KEPT = 2
 
 
 def lenient_place(value: Any) -> str | None:
@@ -154,3 +159,40 @@ def gap(draft: Any) -> str | None:
     """What the page's state contradicts, as the one retry's hint, or ``None``."""
 
     return " ".join(issues(draft)) or None
+
+
+def held_to_scene(draft: Any, *, keep: int = MIN_PANELS_KEPT) -> Any:
+    """The page as it may be served: a copy with what its own state says left the scene
+    taken out, or ``draft`` itself when nothing did. The one retry is told (:func:`gap`);
+    this is what a soft rejection carries, so the page served when the retry wanders
+    again, or fails, is still one scene (#621: the walk's page was served as written).
+
+    Like the comparison, it reads no word, and it adds none:
+
+    * a jump with no caption is no jump (nothing says when);
+    * a line by someone the cast does not list is taken out;
+    * a panel at another place, outside a jump, is taken out, and so is a panel left
+      with nothing to read once those lines are gone: while ``keep`` panels remain.
+      A silent panel the writer drew stays.
+
+    Extra jumps that each say when are left to the retry: every panel still says where
+    and when it is.
+    """
+
+    if gap(draft) is None:
+        return draft
+    held = draft.model_copy(deep=True)
+    for panel in held.panels:
+        if panel.time_jump and not str(panel.narration_fr or "").strip():
+            panel.time_jump = False
+    emptied: set[int] = set()
+    outside = speakers_outside_cast(held)
+    for number in sorted({number for numbers in outside.values() for number in numbers}):
+        panel = held.panels[number - 1]
+        panel.dialogue = [line for line in panel.dialogue if line.character_id not in outside]
+        if not panel.dialogue and not str(panel.narration_fr or "").strip():
+            emptied.add(number)
+    gone = emptied | {number for number, _place in panels_elsewhere(held)}
+    if gone and len(held.panels) - len(gone) >= keep:
+        held.panels = [panel for number, panel in enumerate(held.panels, start=1) if number not in gone]
+    return held
