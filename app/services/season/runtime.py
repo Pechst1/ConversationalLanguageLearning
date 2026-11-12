@@ -311,6 +311,26 @@ def page_tail(page: dict[str, Any]) -> list[dict[str, Any]]:
     return tail
 
 
+def closing_ack(ack: str | None) -> str | None:
+    """The acknowledgement said on the exchange a conversation closes on (#378).
+
+    Mid-scene the addressee may end on a question: the next exchange takes the answer.
+    On the closing exchange nothing can, so the line drops the question it ends on
+    («« Deux », oui, je le note dans ma tête. Et ce restaurant te fait peur ?» → «« Deux
+    », oui, je le note dans ma tête.»), and a line that is only a question is not said:
+    the page's own reaction plays. A question the line answers itself («En haut, chez
+    Odile ? Gus dit le contraire.») stays. The generated lane ends the same way
+    (``scene_ledger.without_trailing_question``), and the closer's own lines may not
+    ask (``closing._line_problem``)."""
+
+    from app.services.scene_ledger import without_trailing_question
+
+    if not ack:
+        return ack
+    said = without_trailing_question(ack).strip()
+    return None if not said or said.rstrip("»\" ").endswith("?") else said
+
+
 def _lexicon(page: dict[str, Any], language: str, draft_text: str) -> list[dict[str, Any]]:
     """The words the scene needs (``11-pedagogie.md``), for the day's word drills —
     below B1 only: they are A1–A2 words, glossed in the learner's own language."""
@@ -1092,6 +1112,9 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         else None
     )
     closing = closing and listen is None
+    if closing:
+        # #378: nothing can take the answer to a question asked on the last exchange.
+        ack = closing_ack(ack)
     if ack:
         beats = [ack_panel(_named_turn(scenario, turn), ack), *beats]
     beats += list(turn.get("after") or []) if (not reply.get("repeat_once") or again) else []

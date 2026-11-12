@@ -334,6 +334,18 @@ def verify_edit(
 
     if is_variant_edit(span, replacement):
         return Verdict(False, reason="valid_variant")
+    # 0. it names the place it corrects (#378): the first place its words stand.
+    placed = single_out(text, span, replacement, people=people)
+    if placed is None:
+        return Verdict(False, reason="not_its_place")
+    return _verify_placed(text, *placed, note, strict_span=strict_span, people=people)
+
+
+def _verify_placed(
+    text: object, span: str, replacement: str, note: object, *, strict_span: bool, people: Mapping[str, str] | None
+) -> Verdict:
+    """:func:`verify_edit` for a span whose first place is the one it corrects."""
+
     if not _grounded(text, span, replacement, note, strict_span=strict_span):
         return Verdict(False, reason="not_grounded")
     if changes_subject(span, replacement):
@@ -349,7 +361,123 @@ def verify_edit(
     return Verdict(True, replacement=shown, span=shown_span)
 
 
+# ---------------------------------------------------------------------------
+# One place (#378, review of #703): a correction keeps no offsets. Every surface finds
+# its span by the first place its words stand (``span_pattern``: the thread's
+# strike-through, the drill's saved sentence, :func:`_locate` here), so a span is only
+# passed on in a form whose first place is the one it corrects. The rules' own edits
+# are named so in :func:`_found_by_their_words`; a model's span goes through
+# :func:`single_out`.
+# ---------------------------------------------------------------------------
+
+
+def first_place(text: object, span: object) -> tuple[int, int] | None:
+    """Where every surface finds ``span`` in ``text``: the first place its words stand as
+    whole words, whichever case and apostrophe; else, for a span that is no whole words
+    (a near-quote), the first place it occurs as written."""
+
+    source, quoted = "" if text is None else str(text), "" if span is None else str(span)
+    if not quoted.strip():
+        return None
+    found = span_pattern(quoted.strip()).search(source)
+    if found is not None:
+        return found.start(), found.end()
+    at = source.find(quoted)
+    return (at, at + len(quoted)) if at >= 0 else None
+
+
+def _verb_of_its_subject(source: str, start: int, end: int, replacement: str) -> bool:
+    """Whether the words at ``start:end`` are the verb of a subject right before them and
+    the fix makes them a word that is no verb: «Il a peur» → «Il à peur», «Marin a un
+    chat», «le café est loin» → «et». That «a» is avoir; a slip «a» → «à» is elsewhere."""
+
+    words, new = _words_of(source[start:end]), _words_of(replacement)
+    if len(words) != 1 or len(new) != 1 or not _could_be_verb(words[0]) or _could_be_verb(new[0]):
+        return False
+    tokens = _tokens(source)
+    here = next((i for i, tok in enumerate(tokens) if tok.start == start), None)
+    if not here:
+        return False
+    i = here - 1
+    while i > 0 and tokens[i].low in _BETWEEN and _same_clause(source, tokens[i], tokens[i + 1]):
+        i -= 1
+    before = tokens[i]
+    if not _same_clause(source, before, tokens[i + 1]):
+        return False
+    if before.low in _SUBJECT_PRONOUNS or before.low in {"ce", "c", "ça", "cela", "qui"}:
+        return True
+    original = source[before.start : before.end]
+    if original[:1].isupper() and (not _starts_sentence(source, before) or before.low in _cast_first_names()):
+        return True  # a name: «Marin a un chat», «… et Lila a raison»
+    # a noun with its determiner: «le café est loin» (not «…, jeudi a dix-huit heures»)
+    article = tokens[i - 1] if i > 0 and _same_clause(source, tokens[i - 1], before) else None
+    return article is not None and article.low in _DETERMINERS and _noun_gender(before.low) is not None
+
+
+def _named_at(source: str, start: int, end: int, replacement: str) -> tuple[str, str] | None:
+    """``(span, replacement)`` for the edit at ``start:end``, with a neighbouring word when
+    its words also stand earlier in the line; ``None`` when no word tells it apart."""
+
+    probe = Edit(span=source[start:end], replacement=replacement, rule_id="MODEL", label={}, note={}, start=start, end=end)
+    named = _found_by_their_words(source, [probe])
+    return (named[0].span, named[0].replacement) if named else None
+
+
+def single_out(
+    text: object, span: object, replacement: object, *, people: Mapping[str, str] | None = None
+) -> tuple[str, str] | None:
+    """``(span, replacement)`` named so that the first place its words stand is the place
+    the edit corrects, or ``None`` when no place can be singled out.
+
+    A place where the word is the verb of the subject before it is never one
+    (:func:`_verb_of_its_subject`): «a» → «à» in «Il a peur et il va a Paris» is not the
+    «a» of «Il a». Among the places left, the one the model-free pass corrects the same
+    way is the one; else the first, in reading order, where the edit holds
+    (:func:`_verify_placed`). A place after the first is named with a neighbouring word
+    («va a» → «va à»). A span that is not in the sentence as whole words is left to the
+    checks that follow."""
+
+    source = "" if text is None else str(text)
+    quoted = "" if span is None else str(span)
+    proposed = "" if replacement is None else str(replacement)
+    if not quoted.strip() or not proposed:
+        return quoted, proposed
+    places = [(m.start(), m.end()) for m in span_pattern(quoted.strip()).finditer(source)]
+    if not places:
+        return quoted, proposed
+    first = places[0]
+    places = [(a, b) for a, b in places if not _verb_of_its_subject(source, a, b, proposed)]
+
+    def named(place: tuple[int, int]) -> tuple[str, str] | None:
+        return (quoted, proposed) if place == first else _named_at(source, *place, proposed)
+
+    if len(places) == 1:
+        return named(places[0])
+    if len(places) > 1:
+        edits = deterministic_edits(source, people=people)
+        same = [
+            (a, b)
+            for a, b in places
+            if any(
+                e.start <= a and b <= e.end and source[e.start : a] + proposed + source[b : e.end] == e.replacement
+                for e in edits
+            )
+        ]
+        if len(same) == 1:
+            return named(same[0])
+        for place in places:
+            candidate = named(place)
+            if candidate is not None and _verify_placed(source, *candidate, None, strict_span=True, people=people).ok:
+                return candidate
+    return None
+
+
 def _locate(source: str, span: str) -> tuple[int, int] | None:
+    # Where every surface finds it (#378): «a» in «Je pars a Paris» is the word, not the
+    # letter in «pars».
+    found = span_pattern(span.strip()).search(source) if span.strip() else None
+    if found is not None and source[found.start() : found.end()] == span.strip():
+        return found.start(), found.end()
     at = source.find(span)
     if at >= 0:
         return at, at + len(span)

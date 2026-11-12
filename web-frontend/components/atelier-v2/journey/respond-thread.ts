@@ -520,12 +520,28 @@ export function closesConversation(feedback: JourneyFeedback): boolean {
 export type MarkedLine = { before: string; mark: string; after: string };
 
 /**
- * Where `span_fr` sits in the learner's line. Exact first, then ignoring case
- * and the apostrophe the keyboard chose. `null` when the span is not there.
+ * Where `span_fr` sits in the learner's line: the first place its words stand as
+ * whole words, whichever case and apostrophe (the server names a correction so
+ * that this place is the one it corrects, `correction_contract.single_out`);
+ * «a» in «Je pars a Paris» is the word, never the letter in «pars» (#378). Then,
+ * for a span that is no whole words, exact, then ignoring case and the
+ * apostrophe. `null` when the span is not there.
  */
 export function markSpan(text: string, span: string | null | undefined): MarkedLine | null {
   const needle = String(span ?? '').trim();
   if (!needle || !text) return null;
+  const words = needle
+    .split('')
+    .map((char) => ("'’‘ʼ".includes(char) ? "['’‘ʼ]" : char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+    .join('');
+  const whole = new RegExp(`(?<![\\p{L}\\p{N}_])${words}(?![\\p{L}\\p{N}_])`, 'iu').exec(text);
+  if (whole) {
+    return {
+      before: text.slice(0, whole.index),
+      mark: text.slice(whole.index, whole.index + whole[0].length),
+      after: text.slice(whole.index + whole[0].length),
+    };
+  }
   let at = text.indexOf(needle);
   if (at === -1) {
     const fold = (value: string) => value.replace(/[‘’ʼ]/g, "'").toLowerCase();

@@ -398,6 +398,27 @@ test('the proofreader’s mark finds the slip in the learner’s line', () => {
   assert.equal(model.markSpan('Bonjour', ''), null);
 });
 
+test('#378: the mark sits on the words the correction names, never on letters inside another word', () => {
+  // «a» → «à»: the word, not the «a» of «pars» or «Marin».
+  assert.deepEqual(model.markSpan('Je pars a Paris demain.', 'a'), {
+    before: 'Je pars ',
+    mark: 'a',
+    after: ' Paris demain.',
+  });
+  // «est» → «es»: the verb after «tu», not the letters of «reste».
+  assert.deepEqual(model.markSpan('Je reste ici, tu est gentil.', 'est'), {
+    before: 'Je reste ici, tu ',
+    mark: 'est',
+    after: ' gentil.',
+  });
+  // A span the server named with its neighbour («va a» → «va à») is found there.
+  assert.deepEqual(model.markSpan('Il a peur et il va a Paris.', 'va a'), {
+    before: 'Il a peur et il ',
+    mark: 'va a',
+    after: ' Paris.',
+  });
+});
+
 // ===========================================================================
 // 4. The rendered column
 // ===========================================================================

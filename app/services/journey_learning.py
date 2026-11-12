@@ -2675,14 +2675,19 @@ def _corrected_sentence(learner_text: str | None, correction: Correction) -> str
     """The learner's sentence with the span replaced: a correction may carry only its
     span («là» → «venu»), and «venu» alone shows no «je suis» to agree with."""
 
+    from app.services.correction_contract import first_place
+
     text = str(learner_text or "")
     span = str(correction.span_fr or "")
     if not text or not span:
         return None
-    at = text.lower().find(span.lower())
-    if at < 0:
+    # Where every surface finds the span (#378): its words, never letters inside another word.
+    where = first_place(text, span)
+    if where is None:
+        where = (at, at + len(span)) if (at := text.lower().find(span.lower())) >= 0 else None
+    if where is None:
         return None
-    return text[:at] + str(correction.corrected_fr or "") + text[at + len(span):]
+    return text[: where[0]] + str(correction.corrected_fr or "") + text[where[1] :]
 
 
 def introduced_learner_gender(learner_text: str | None, corrected_fr: str | None) -> list[str]:
