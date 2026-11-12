@@ -1178,12 +1178,77 @@ def noun_variants(sentence: str) -> list[str]:
     return out
 
 
+_NAME_WORD = r"[A-ZÀ-ÖØ-Þ][^\W\d_]*(?:[-'’][^\W\d_]+)*"
+#: «Ils sont heureux, Margaux.», «Tu es prête, Lila ?»: one sentence closed by a name.
+_VOCATIVE_LAST = re.compile(
+    rf"^(?P<body>[^.!?…]+?)\s*,\s*(?P<name>{_NAME_WORD}(?:\s+{_NAME_WORD})*)\s*(?P<end>[.!?…]*)\s*$"
+)
+#: «Margaux, ils sont heureux.»: one sentence opened by a name.
+_VOCATIVE_FIRST = re.compile(
+    rf"^(?P<name>{_NAME_WORD}(?:\s+{_NAME_WORD})*)\s*,\s*(?P<body>[^.!?…]+?)\s*(?P<end>[.!?…]*)\s*$"
+)
+
+
+@lru_cache(maxsize=1)
+def _cast_names() -> frozenset[str]:
+    try:
+        from app.services import cast_registry
+
+        return frozenset(
+            str(getattr(member, "name", "") or "").split(" ")[0].strip().casefold()
+            for member in cast_registry.all_members().values()
+        ) - {""}
+    except Exception:  # pragma: no cover - the cast is optional context
+        return frozenset()
+
+
+def _opens_with_a_name(words: str) -> bool:
+    """A capital that starts a sentence is a name only when the word is one: a cast
+    member («Marin», also a noun), a word French does not know («Margaux»), or a
+    second capital («Monsieur Marchand»). «Alors, il est là.» opens with no name."""
+
+    parts = words.split()
+    if len(parts) > 1:
+        return True
+    word = parts[0].casefold()
+    return word in _cast_names() or fold_all(word) not in known_forms()
+
+
+def _lower_first(text: str) -> str:
+    first = text.split(" ", 1)[0]
+    if fold_all(first) in known_forms() and first.casefold() not in _cast_names():
+        return text[:1].lower() + text[1:]
+    return text
+
+
+def vocative_variants(sentence: str) -> list[str]:
+    """#731: the same sentence with its name at the other end.
+
+    A name set off by a comma («…, Margaux.») is said to someone; where it stands is
+    not part of the sentence. The German goal puts it first (#384), the key may store it
+    last, and both are the learner's sentence. Only a whole single sentence moves, and
+    only its name: «Ils Margaux sont heureux» or a sentence with no comma gains nothing."""
+
+    text = " ".join(str(sentence or "").split())
+    out: list[str] = []
+    last = _VOCATIVE_LAST.match(text)
+    if last:
+        body = last["body"].strip()
+        out.append(f"{last['name']}, {_lower_first(body)}{last['end']}")
+    first = _VOCATIVE_FIRST.match(text)
+    if first and _opens_with_a_name(first["name"]):
+        body = first["body"].strip()
+        out.append(f"{body[:1].upper()}{body[1:]}, {first['name']}{first['end']}")
+    return out
+
+
 def widened_answers(accepted: Iterable[object], *, english: object = None) -> list[str]:
     """Every right way to give the item's answer, not one stored string (#174, #380).
 
     The accepted answers, each with its nouns' other right words (:func:`noun_variants`)
     and, when the English says «we» and neither «our» nor «us» (an «on» would need
-    «notre» → «sa»), the other «we» (:func:`on_nous_variants`). A miss is still a miss:
+    «notre» → «sa»), the other «we» (:func:`on_nous_variants`), and the name it is said to
+    at the other end (:func:`vocative_variants`, #731). A miss is still a miss:
     a variant is the same sentence with an equivalent word, never a looser match."""
 
     base = [str(item) for item in accepted if item and str(item).strip()]
@@ -1194,8 +1259,9 @@ def widened_answers(accepted: Iterable[object], *, english: object = None) -> li
     for sentence in base:
         people = [sentence, *(on_nous_variants(sentence) if we else [])]
         for variant in people:
-            out.append(variant)
-            out.extend(noun_variants(variant))
+            for worded in (variant, *noun_variants(variant)):
+                out.append(worded)
+                out.extend(vocative_variants(worded))
     seen: set[str] = set()
     unique: list[str] = []
     for item in out:

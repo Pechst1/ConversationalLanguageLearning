@@ -14,7 +14,7 @@ import { forgeCorrectionNotes } from '@/lib/correction-notes';
 import { classifyRepair } from '@/lib/forge-followup';
 import { classificationCopy, classificationGoal, isJudgementLabels, judgementLabel, judgementQuestion } from '@/lib/classification-copy';
 import { answeredLevel, itemVerdict, productionPhase, reviewIsPending, settleShownCorrection, type RepairStep } from '@/lib/forge-verdict';
-import { checkState } from '@/lib/verdict';
+import { canAskAgain, checkState, unreadLine } from '@/lib/verdict';
 import { keepCardAboveSheet } from '@/lib/keep-above-sheet';
 import { drillGoalLine } from '@/components/atelier-v2/journey/drill-frame';
 import {
@@ -4257,10 +4257,17 @@ export function ExerciseFeedbackMoment({
     // #333: the rules' real fixes stay listed; nothing here is a verdict.
     const unreadFixes: Array<{ span: string; replacement: string; start: number }> = correction?.check?.edits || [];
     const unreadState = checkState(correction?.check) === 'basic' ? 'basic' : 'not_checked';
+    // #724: «Check again» only where asking again can reach a reader; with none, the line
+    // says so plainly instead of «not checked yet» over a button that can never work.
+    const line = unreadLine(correction?.check);
     return (
       <div className="ep-feedback" data-verdict="unscored" data-check={unreadState} role="status">
-        <EpRelecture status="failed" onRetry={onRetryAiReview} retrying={aiReviewSubmitting}>
-          {unreadState === 'basic' ? t.check_basic : t.unscored}
+        <EpRelecture
+          status="failed"
+          onRetry={canAskAgain(correction?.check) ? onRetryAiReview : undefined}
+          retrying={aiReviewSubmitting}
+        >
+          {line === 'basic' ? t.check_basic : line === 'unavailable' ? t.check_unavailable : t.unscored}
         </EpRelecture>
         {unreadFixes.map((edit) => (
           <p className="av2-fr" lang="fr" key={`${edit.start}-${edit.span}`}>

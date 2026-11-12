@@ -1736,6 +1736,12 @@ def _is_number_word(word: str) -> bool:
     return all(_pos(part) == "number" for part in word.split("-")) if word else False
 
 
+def _is_compound_number(word: str) -> bool:
+    """#724: «trente-deux», «dix-sept», «quatre-vingt-dix»: a hyphenated number is one
+    token, and always more than one, so the noun after it is plural («trente-deux ans»)."""
+    return "-" in word and _is_number_word(word)
+
+
 def _space(source: str, left: Tok, right: Tok) -> bool:
     return source[left.end : right.start] in {" ", " "}
 
@@ -2416,7 +2422,7 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
             joined_next
             and nxt is not None
             and not glued_before
-            and tok.low in _PLURAL_DETS
+            and (tok.low in _PLURAL_DETS or _is_compound_number(tok.low))
             and _same_clause(source, tok, nxt)
         ):
             written_noun = source[nxt.start : nxt.end]
