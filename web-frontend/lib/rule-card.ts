@@ -174,7 +174,16 @@ export function cardHasDepth(card: RuleCardData, language: ControlLanguage): boo
  * F-1 — the x-ray sentence: each marked span says what it does.
  * ------------------------------------------------------------------------- */
 
-export type XrayMark = { token: string; role?: string | null; explanation?: string | null };
+export type XrayMark = {
+  token: string;
+  /** The catalogue's role key (data, never shown under de / fr chrome). */
+  role?: string | null;
+  /** Legacy English note (payloads before #730). */
+  explanation?: string | null;
+  /** #730: the role in words and the note, per learner language. */
+  label?: Partial<Record<ControlLanguage, string>> | null;
+  note?: Partial<Record<ControlLanguage, string>> | null;
+};
 export type XrayPayload = { sentence: string; marks: XrayMark[] };
 
 /** The av2 roles the marks are underlined in, in order (red, blue, yellow, green, then again). */
@@ -273,6 +282,25 @@ export function usableXray(xray: unknown): xray is XrayPayload {
   const data = xray as XrayPayload;
   if (typeof data.sentence !== 'string' || !data.sentence.trim() || !Array.isArray(data.marks)) return false;
   return locateXray(data.sentence, data.marks).some((ranges) => ranges.length > 0);
+}
+
+/**
+ * #730 — the x-ray in the learner's language: each mark's `role` and `explanation`
+ * become its label and note in `language`. English may fall back on the role key
+ * read as words and the legacy note; German and French never do: when one mark has
+ * no text in that language the whole box is not drawn (`null`), rather than half of
+ * it in English.
+ */
+export function xrayIn(xray: unknown, language: ControlLanguage): XrayPayload | null {
+  if (!usableXray(xray)) return null;
+  const marks: XrayMark[] = [];
+  for (const mark of xray.marks) {
+    const label = String(mark?.label?.[language] || (language === 'en' ? xrayRoleLabel(mark?.role) : '')).trim();
+    const note = String(mark?.note?.[language] || (language === 'en' ? mark?.explanation || '' : '')).trim();
+    if (language !== 'en' && (!label || !note)) return null;
+    marks.push({ token: mark.token, role: label, explanation: note });
+  }
+  return { sentence: xray.sentence, marks };
 }
 
 /**

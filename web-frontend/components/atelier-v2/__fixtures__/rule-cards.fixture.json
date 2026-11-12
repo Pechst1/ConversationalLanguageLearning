@@ -140,12 +140,30 @@
      {
       "token": "grande",
       "role": "before_noun",
-      "explanation": "a short, frequent adjective: before the noun, and feminine like maison"
+      "label": {
+       "en": "Before noun",
+       "de": "Vor dem Nomen",
+       "fr": "Avant le nom"
+      },
+      "note": {
+       "en": "a short, frequent adjective: before the noun, and feminine like maison",
+       "de": "ein kurzes, häufiges Adjektiv: vor dem Nomen und feminin wie maison",
+       "fr": "adjectif court et fréquent : avant le nom, et au féminin comme maison"
+      }
      },
      {
       "token": "maison blanche",
       "role": "agreement_marks",
-      "explanation": "after the noun; feminine, so blanc becomes blanche"
+      "label": {
+       "en": "Agreement marks",
+       "de": "Angleichung",
+       "fr": "Accord"
+      },
+      "note": {
+       "en": "after the noun; feminine, so blanc becomes blanche",
+       "de": "nach dem Nomen; feminin, also wird blanc zu blanche",
+       "fr": "après le nom ; féminin, donc blanc devient blanche"
+      }
      }
     ]
    }
@@ -301,12 +319,30 @@
      {
       "token": "est arrivée",
       "role": "agreement",
-      "explanation": "arriver takes être; + e because Marie is feminine"
+      "label": {
+       "en": "Agreement",
+       "de": "Angleichung",
+       "fr": "Accord"
+      },
+      "note": {
+       "en": "arriver takes être; + e because Marie is feminine",
+       "de": "arriver steht mit être; + e, weil Marie feminin ist",
+       "fr": "arriver se conjugue avec être ; + e, car Marie est féminin"
+      }
      },
      {
       "token": "sont restés",
       "role": "agreement",
-      "explanation": "rester takes être; + s because ses frères is plural"
+      "label": {
+       "en": "Agreement",
+       "de": "Angleichung",
+       "fr": "Accord"
+      },
+      "note": {
+       "en": "rester takes être; + s because ses frères is plural",
+       "de": "rester steht mit être; + s, weil ses frères Plural ist",
+       "fr": "rester se conjugue avec être ; + s, car ses frères est au pluriel"
+      }
      }
     ]
    }
@@ -446,12 +482,30 @@
      {
       "token": "S'il fait",
       "role": "condition",
-      "explanation": "si + present, never future"
+      "label": {
+       "en": "Condition",
+       "de": "Bedingung",
+       "fr": "Condition"
+      },
+      "note": {
+       "en": "si + present, never future",
+       "de": "si + Präsens, nie Futur",
+       "fr": "si + présent, jamais de futur"
+      }
      },
      {
       "token": "irons",
       "role": "result",
-      "explanation": "futur simple in the main clause"
+      "label": {
+       "en": "Result",
+       "de": "Folge",
+       "fr": "Conséquence"
+      },
+      "note": {
+       "en": "futur simple in the main clause",
+       "de": "Futur simple im Hauptsatz",
+       "fr": "futur simple dans la principale"
+      }
      }
     ]
    }
@@ -573,12 +627,30 @@
      {
       "token": "ne...que",
       "role": "restriction",
-      "explanation": "ne…que = only"
+      "label": {
+       "en": "Restriction",
+       "de": "Einschränkung",
+       "fr": "Restriction"
+      },
+      "note": {
+       "en": "ne…que = only",
+       "de": "ne…que = nur",
+       "fr": "ne…que = seulement"
+      }
      },
      {
       "token": "du thé",
       "role": "article_kept",
-      "explanation": "article stays: no pas de here"
+      "label": {
+       "en": "Article kept",
+       "de": "Artikel bleibt",
+       "fr": "Article gardé"
+      },
+      "note": {
+       "en": "article stays: no pas de here",
+       "de": "der Artikel bleibt: hier kein pas de",
+       "fr": "l'article reste : ne…que ne le change pas en de"
+      }
      }
     ]
    }
