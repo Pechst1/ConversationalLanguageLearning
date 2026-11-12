@@ -76,22 +76,24 @@ def test_a_built_room_is_the_stage_of_its_place_and_the_quarter_of_the_rest():
     assert forge.stage_of("toit")["room"] == "toit_mistral"
     assert forge.stage_of("mistral_back_room")["room"] == "arriere_salle"
     assert forge.stage_of("marin_lila_flat")["room"] == "chez_marin_lila"
-    # the mairie has a world entry but nothing built yet; the gérance Marchand has neither
+    assert forge.stage_of("marchand_office")["room"] == "gerance_marchand"
+    # the mairie has a world entry but nothing built yet; the rue de Lancry has neither
     assert forge.stage_of("mairie") is None
-    assert forge.stage_of("marchand_office") is None
+    assert forge.stage_of("rue_de_lancry") is None
 
 
 def test_the_queue_puts_the_next_unbuilt_place_after_the_frontier_first():
     forge = _forge()
     from_start = [r for r in forge.season_queue() if r["status"] != "built"]
     assert from_start[0]["location"] == "mairie"  # T3 is the first page set somewhere unbuilt
-    # gap 3's roof, T5's back room and Marin and Lila's flat are built: from g3 the next place is the gérance
-    for built in ("toit", "mistral_back_room", "marin_lila_flat"):
+    # gap 3's roof, T5's back room, Marin and Lila's flat and T6's gérance are built: from g3 the
+    # next place is the gare de l'Est
+    for built in ("toit", "mistral_back_room", "marin_lila_flat", "marchand_office"):
         assert next(r for r in forge.season_queue("g3") if r["location"] == built)["status"] == "built"
     from_g3 = [r for r in forge.season_queue("g3") if r["status"] != "built"]
-    assert from_g3[0]["location"] == "marchand_office"
+    assert from_g3[0]["location"] == "gare_de_lest"
     ahead = [r["location"] for r in from_g3 if r["ahead"]]
-    assert ahead[:3] == ["marchand_office", "gare_de_lest", "rue_de_lancry"]
+    assert ahead[:3] == ["gare_de_lest", "rue_de_lancry", "gus_loft"]
     # places only needed before the frontier still come, after the ones ahead
     behind = [r["location"] for r in from_g3 if not r["ahead"]]
     assert "ngo_office" in behind and "mairie" in behind
@@ -101,21 +103,22 @@ def test_the_queue_puts_the_next_unbuilt_place_after_the_frontier_first():
 def test_a_place_built_for_the_season_leaves_the_queue():
     forge = _forge()
     places = forge.world()["places"] + [
-        {"id": "gerance", "kind": "season", "stages": ["marchand_office"], "room": "gerance", "in": "quai_de_valmy"}
+        {"id": "lancry", "kind": "season", "stages": ["rue_de_lancry"], "site": "lancry"}
     ]
-    assert forge.stage_of("marchand_office", places)["room"] == "gerance"
+    assert forge.stage_of("rue_de_lancry") is None
+    assert forge.stage_of("rue_de_lancry", places)["site"] == "lancry"
 
 
 def test_a_place_no_kit_can_build_yet_waits_and_the_queue_names_the_next(tmp_path, monkeypatch):
     forge = _forge()
     monkeypatch.setattr(forge, "BRIEFS", str(tmp_path))
-    (tmp_path / "marchand_office.md").write_text(
-        "Waits for a kit: an office of files needs a camp bed the room kit lacks.\n", encoding="utf-8"
+    (tmp_path / "gare_de_lest.md").write_text(
+        "Waits for a kit: a station's platform needs a glass roof and a train the kit lacks.\n", encoding="utf-8"
     )
     rows = forge.season_queue("g3")
-    assert next(r for r in rows if r["location"] == "marchand_office")["status"] == "no kit"
+    assert next(r for r in rows if r["location"] == "gare_de_lest")["status"] == "no kit"
     todo = [r for r in rows if r["status"] in ("new", "locked")]
-    assert todo[0]["location"] == "gare_de_lest"
+    assert todo[0]["location"] == "rue_de_lancry"
 
 
 def test_the_server_has_the_worlds_register_as_the_forge_writes_it():
@@ -132,11 +135,11 @@ def test_the_server_has_the_worlds_register_as_the_forge_writes_it():
 
 def test_the_queue_builds_first_what_the_nearest_learner_reaches_first():
     forge = _forge()
-    # one learner on gap 3, one still on T1: the mairie (T3) is nearer the second than T6's gérance
+    # one learner on gap 3, one still on T1: the mairie (T3) is nearer the second than T8's gare
     # is to the first
     both = [r for r in forge.season_queue(["t1", "g3"]) if r["status"] != "built"]
     assert both[0]["location"] == "mairie"
-    assert [r["location"] for r in both].index("marchand_office") < [r["location"] for r in both].index("rue_de_lancry")
+    assert [r["location"] for r in both].index("gare_de_lest") < [r["location"] for r in both].index("brocante")
     # the mairie is ahead of the learner on T1, so it is not left behind
     assert next(r for r in both if r["location"] == "mairie")["ahead"]
     # a single segment orders the queue as before
@@ -180,7 +183,7 @@ def test_the_forge_reads_what_the_stories_left_and_builds_the_next_thing(tmp_pat
     forge = _forge()
     source = _orders(
         tmp_path,
-        {"kind": "thing", "name_fr": "une échelle", "location_id": "marchand_office", "look": "", "times": 4, "lives": 3},
+        {"kind": "thing", "name_fr": "une échelle", "location_id": "gare_de_lest", "look": "", "times": 4, "lives": 3},
         {"kind": "thing", "name_fr": "un carnet", "location_id": "le_mistral", "look": "", "times": 1, "lives": 1},
         PETITION,
         {"kind": "place", "name_fr": "la librairie de la rue Bichat", "location_id": None, "look": "", "times": 2, "lives": 2},
@@ -196,7 +199,7 @@ def test_the_forge_reads_what_the_stories_left_and_builds_the_next_thing(tmp_pat
     things = [r for r in rows if r["kind"] == "thing"]
     assert [r["name_fr"] for r in things[:2]] == ["la pétition de Gus", "un carnet"]
     assert things[0]["stage"] == "quai_de_valmy"
-    # a thing in the gérance waits for the gérance; a place the story named is new to the world
+    # a thing in the gare waits for the gare; a place the story named is new to the world
     assert status["une échelle"] == "waits"
     assert status["la librairie de la rue Bichat"] == "new"
     # a place of the season the season queue builds (by its id, or by its name), and one the world has

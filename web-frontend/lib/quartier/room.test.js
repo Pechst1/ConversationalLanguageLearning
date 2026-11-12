@@ -210,7 +210,8 @@ test('every room is the stage of a place of the season, so a page set there find
   assert.equal(stageOf('le_mistral')?.room ?? null, null);
   assert.equal(stageOf('mistral_back_room')?.room, 'arriere_salle');
   assert.equal(stageOf('marin_lila_flat')?.room, 'chez_marin_lila');
-  assert.equal(stageOf('marchand_office'), null);
+  assert.equal(stageOf('marchand_office')?.room, 'gerance_marchand');
+  assert.equal(stageOf('gare_de_lest'), null);
 });
 
 test('Marin and Lila’s flat (T5, B without the key): the crate in the hallway, the card under the sardine, the canvas half wrapped', () => {
@@ -234,6 +235,33 @@ test('Marin and Lila’s flat (T5, B without the key): the crate in the hallway,
   const { built: r } = built.get(file);
   assert.equal(r.inside(r.start.pos.x, r.start.pos.z), true);
   assert.ok(Math.hypot(r.start.pos.x - of('crate').at[0], r.start.pos.z - of('crate').at[2]) < 1.6, 'the crate is the first thing you see');
+});
+
+test('the gérance Marchand (T6 A): the key boards, the camp bed among the files, the Polaroid on the desk under one lamp', () => {
+  const file = 'gerance_marchand.json';
+  const office = rooms.find((r) => r.file === file);
+  assert.ok(office, 'the gérance is built');
+  const { room } = office;
+  const all = (kind) => room.things.filter((t) => t.kind === kind);
+  for (const k of ['keyboard', 'cabinet', 'desk', 'campbed', 'frame', 'armchair', 'chair']) assert.ok(all(k).length, `the gérance has no ${k}`);
+  // walls of keys, filing cabinets, and the only chair for a visitor (P2)
+  assert.ok(all('keyboard').length >= 4 && all('cabinet').length >= 2);
+  assert.equal(all('chair').length, 1);
+  // the Polaroid P3 reads, on the desk; the other frame is the portrait, without a caption
+  const [polaroid, ...others] = all('frame').sort((a, b) => (b.text?.length ?? 0) - (a.text?.length ?? 0));
+  assert.deepEqual(polaroid.text, ['Dimanche. M. rit. Enfin.']);
+  assert.ok(others.every((f) => !f.text?.length));
+  const desk = all('desk')[0];
+  assert.ok(Math.abs(polaroid.at[1] - (desk.at[1] + 0.76)) < 0.01 && Math.hypot(polaroid.at[0] - desk.at[0], polaroid.at[2] - desk.at[2]) < 0.8);
+  // «cold ink and grey, with one warm lamp»: the desk lamp is the room's only light
+  assert.deepEqual(room.lights.map((l) => l.kind), ['desk']);
+  // on the second floor, over the quai; you arrive at the landing's door and the camp bed is before you
+  assert.ok(room.things.every((t) => t.at[1] >= 7.9 - 0.001));
+  assert.ok(room.canals?.length && room.windows.length >= 2);
+  const { built: r } = built.get(file);
+  assert.equal(r.inside(r.start.pos.x, r.start.pos.z), true);
+  const bed = all('campbed')[0];
+  assert.ok(Math.hypot(r.start.pos.x - bed.at[0], r.start.pos.z - bed.at[2]) < 4.5, 'the camp bed is in sight from the door');
 });
 
 test('the back room (T5 B): the easel under its sheet, the board, the new plaster, and Marin’s plan by the door', () => {

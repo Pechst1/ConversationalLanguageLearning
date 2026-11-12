@@ -138,6 +138,20 @@
       "in": "quai_de_valmy"
     },
     {
+      "id": "gerance_marchand",
+      "name": { "fr": "La gérance Marchand", "en": "The Marchand property office", "de": "Die Hausverwaltung Marchand" },
+      "lat": 48.87300,
+      "lon": 2.36368,
+      "status": "locked",
+      "kind": "season",
+      "stages": ["marchand_office"],
+      "why": { "fr": "Au deuxième, au-dessus du Mistral : des clés par centaines, une lampe, un lit de camp.", "en": "On the second floor, above Le Mistral: keys by the hundred, a lamp, a camp bed.", "de": "Im zweiten Stock über dem Mistral: Schlüssel zu Hunderten, eine Lampe, ein Feldbett." },
+      "source": { "kind": "season", "id": "s1" },
+      "site": null,
+      "room": "gerance_marchand",
+      "in": "quai_de_valmy"
+    },
+    {
       "id": "mairie_10e",
       "name": { "fr": "La mairie du 10e", "en": "The town hall of the 10th", "de": "Das Rathaus des 10." },
       "lat": 48.8722,
