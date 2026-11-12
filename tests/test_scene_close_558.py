@@ -195,14 +195,18 @@ def test_the_verb_of_a_subject_before_it_is_never_corrected_into_a_preposition(s
     assert not verdict.ok, verdict
 
 
-def test_when_no_occurrence_can_be_singled_out_the_span_is_not_applied():
-    """Both «a» could be the slip; neither is the verb of a subject. The model's span is not
-    shown; the model-free pass decides, and names its own words once."""
-
-    said = "Je pense a toi et a elle."
+@pytest.mark.parametrize(
+    ("said", "expected"),
+    [
+        # Two verbs «a» around the slip: neither is the place.
+        ("Il a dit a Marin que il a faim.", "Il a dit à Marin que il a faim."),
+        # Two slips, no verb: the first one in reading order is marked, and it is a slip.
+        ("Je pense a toi et a elle.", "Je pense à toi et a elle."),
+    ],
+)
+def test_a_span_whose_words_stand_at_several_places_is_shown_at_a_slip(said, expected):
     span, fixed, _note = correction_contract.first_valid_edit(said, "a", "à", None, language="en")
-    if span is not None:
-        assert span_pattern(span).search(said).start() == said.find(span), span
+    assert _made_right_where_marked(said, span, fixed) == expected, (span, fixed)
 
 
 def test_a_journal_erratum_names_its_words_once():
