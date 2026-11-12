@@ -43,8 +43,10 @@ from app.services.missions import (
     is_echo_reply,
     is_stock_reply,
     learner_zone,
+    note_unanswered_ask,
     serialize_mission,
     stamp_fields,
+    unanswered_fields,
 )
 from app.services.serial import SerialThreadService
 from app.services.transcription_cost import record_transcription_cost
@@ -409,6 +411,13 @@ def _character_reply_turn(
         **({"through_turn_index": user_turn.turn_index} if later else {}),
     )
     if is_stock_reply(assistant_text) or is_echo_reply(assistant_text, user_text):
+        # #693: the ask ran and came back empty. That is kept on the learner's turn, so the
+        # thread (and «Ask again») can say a retry happened and failed, also after a reload.
+        note_unanswered_ask(user_turn)
+        db.add(user_turn)
+        db.commit()
+        db.refresh(user_turn)
+        db.refresh(mission)
         return None
     for turn in sorted(later, key=lambda item: item.turn_index, reverse=True):
         turn.turn_index += 1
@@ -441,13 +450,15 @@ def _turn_outcome(
     db: Session,
     *,
     mission: RealWorldMission,
-    user_text: str,
+    user_turn: RealWorldMissionTurn,
     assistant_turn: RealWorldMissionTurn | None,
 ) -> dict[str, Any]:
     if assistant_turn is None:
-        return {"reply_text": "", "branch": {}, "reply_state": "pending"}
+        # #693: the same state the thread prints under the turn, so the press that asked
+        # again is answered with what happened (asked how often, and when), never silence.
+        return {"reply_text": "", "branch": {}, **unanswered_fields(user_turn, learner_zone(mission))}
     return MissionConversationService(db).turn_outcome(
-        mission=mission, user_text=user_text, assistant_text=assistant_turn.text
+        mission=mission, user_text=user_turn.text, assistant_text=assistant_turn.text
     )
 
 
@@ -469,7 +480,7 @@ def submit_mission_turn(
             assistant_turn = _character_reply_turn(
                 db, user=current_user, mission=mission, user_turn=user_turn, user_text=request.text
             )
-        outcome = _turn_outcome(db, mission=mission, user_text=user_turn.text, assistant_turn=assistant_turn)
+        outcome = _turn_outcome(db, mission=mission, user_turn=user_turn, assistant_turn=assistant_turn)
         return MissionTurnResponse(
             user_turn=_turn_read(user_turn),
             assistant_turn=_turn_read(assistant_turn) if assistant_turn else {},
@@ -523,7 +534,7 @@ def submit_mission_turn(
     assistant_turn = _character_reply_turn(
         db, user=current_user, mission=mission, user_turn=user_turn, user_text=request.text
     )
-    outcome = _turn_outcome(db, mission=mission, user_text=request.text, assistant_turn=assistant_turn)
+    outcome = _turn_outcome(db, mission=mission, user_turn=user_turn, assistant_turn=assistant_turn)
     return MissionTurnResponse(
         user_turn=_turn_read(user_turn),
         assistant_turn=_turn_read(assistant_turn) if assistant_turn else {},
@@ -576,7 +587,7 @@ def retry_mission_turn_reply(
         assistant_turn = _character_reply_turn(
             db, user=current_user, mission=mission, user_turn=user_turn, user_text=user_turn.text
         )
-    outcome = _turn_outcome(db, mission=mission, user_text=user_turn.text, assistant_turn=assistant_turn)
+    outcome = _turn_outcome(db, mission=mission, user_turn=user_turn, assistant_turn=assistant_turn)
     return MissionTurnResponse(
         user_turn=_turn_read(user_turn),
         assistant_turn=_turn_read(assistant_turn) if assistant_turn else {},

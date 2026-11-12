@@ -23,6 +23,7 @@ from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.db.savepoint import best_effort
+from app.schemas.missions import REPLY_ASKS_KEY
 from app.services import (
     cast_registry,
     correction_contract,
@@ -4443,6 +4444,10 @@ class MissionCorrectionService:
         )
         if elision is not None:
             return self._normalized(erratum, elision)
+        if ErrorMemoryService.carries_no_rule(erratum):
+            # #697: «A bientot» → «A bientôt» is no slip in the letter's rule: a spelling
+            # slip names no rule, so the card, recall and the schedule leave the rule alone.
+            return self._normalized(erratum, None)
         if external_id:
             concept = self.db.query(GrammarConcept).filter(GrammarConcept.external_id == external_id).first()
             concept_id = concept.id if concept else None
@@ -6988,6 +6993,73 @@ def who_they_are(db: Session | None, user: Any, mission: Any) -> dict[str, Any]:
     return {**({"who_they_are_to_you": relation} if relation else {}), **({} if found.met else {"you_have_never_met_them": True})}
 
 
+def _reply_asks(turn: Any) -> dict[str, Any]:
+    payload = getattr(turn, "audio_payload", None)
+    asks = payload.get(REPLY_ASKS_KEY) if isinstance(payload, dict) else None
+    return asks if isinstance(asks, dict) else {}
+
+
+def _reply_ask_count(asks: dict[str, Any]) -> int:
+    """The stored count of empty asks, read defensively: anything not a whole number >= 0
+    (an old row, a hand edit, a value that slipped past the request boundary) counts as 0,
+    so a bad value can never take the thread, the mission or «today» down (#693 review)."""
+
+    raw = asks.get("count")
+    if isinstance(raw, bool):
+        return 0
+    try:
+        count = int(raw or 0)
+    except (TypeError, ValueError):
+        return 0
+    return max(0, count)
+
+
+def _reply_asked_at(asks: dict[str, Any]) -> datetime | None:
+    raw = asks.get("last_at")
+    if not raw:
+        return None
+    try:
+        return datetime.fromisoformat(str(raw))
+    except (TypeError, ValueError):
+        return None
+
+
+def note_unanswered_ask(turn: Any) -> int:
+    """#693: one more ask for this learner turn's reply came back empty; how many so far.
+
+    «Ask again» that failed used to leave nothing behind: the thread read exactly as before
+    the press, so the learner could not tell a retry that ran and failed from one that never
+    ran. Each empty ask is now a fact of the turn, read back by ``unanswered_fields``. The
+    counter is server-owned: the send path drops it from what the client sends
+    (``MissionTurnRequest``), and it is parsed defensively here and on every read.
+    """
+
+    payload = dict(turn.audio_payload) if isinstance(turn.audio_payload, dict) else {}
+    count = _reply_ask_count(_reply_asks(turn)) + 1
+    payload[REPLY_ASKS_KEY] = {"count": count, "last_at": utc_iso(datetime.now(UTC))}
+    turn.audio_payload = payload
+    return count
+
+
+def unanswered_fields(turn: Any, zone: str | None) -> dict[str, Any]:
+    """What the thread says under a learner message nobody answered (#590 / #693).
+
+    That it is pending, how many times its reply was asked for (``1``: only when it was
+    sent; ``2`` and more: «Ask again» ran and came back empty) and when it was last asked,
+    on the wire and on the learner's clock. A turn stored before #693 counts as asked once,
+    when it was written.
+    """
+
+    asks = _reply_asks(turn)
+    last = _reply_asked_at(asks) or getattr(turn, "created_at", None)
+    return {
+        "reply_state": "pending",
+        "reply_attempts": max(1, _reply_ask_count(asks)),
+        "reply_asked_at": utc_iso(last),
+        "reply_asked_local_time": local_clock(last, zone),
+    }
+
+
 class MissionConversationService:
     """Generate mission chat responses without duplicating the old audio route."""
 
@@ -8223,8 +8295,9 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
                     if turn.role == "user"
                     else {}
                 ),
-                # #590: every learner message nobody answered says so on the thread itself.
-                **({"reply_state": "pending"} if id(turn) in unanswered_ids else {}),
+                # #590: every learner message nobody answered says so on the thread itself;
+                # #693: with how often its reply was asked for, so a failed retry shows.
+                **(unanswered_fields(turn, zone) if id(turn) in unanswered_ids else {}),
                 **stamp_fields(turn.created_at, zone),
             }
             for turn in sorted(mission.turns or [], key=lambda item: item.turn_index)

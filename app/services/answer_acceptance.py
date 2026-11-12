@@ -295,6 +295,48 @@ def _accent_strict_word(learner_word: str, target_word: str) -> bool:
     return False
 
 
+_GLUE = re.compile(r"[\s'\-]+")
+
+
+def accent_is_grammar(learner_text: object, corrected_text: object) -> bool:
+    """Does the fix change an accent that is grammar or meaning (:func:`_accent_strict_word`)?
+
+    «j'ai mange» → «j'ai mangé», «il a Paris» → «il à Paris», «ou est» → «où est». Word by
+    word, where the two line up; a fix that also changes letters is judged elsewhere.
+    """
+
+    said = [token for token in _GLUE.split(fold_typography(learner_text)) if token]
+    right = [token for token in _GLUE.split(fold_typography(corrected_text)) if token]
+    if len(said) != len(right):
+        return False
+    return any(
+        a != b and strip_accents(a) == strip_accents(b) and _accent_strict_word(a, b)
+        for a, b in zip(said, right, strict=True)
+    )
+
+
+def is_spelling_only(learner_text: object, corrected_text: object) -> bool:
+    """#697: does the fix change only accents, apostrophes, hyphens, spaces or typography?
+
+    «bientot» → «bientôt», «tres» → «très», «jai» → «j'ai», «parceque» → «parce que»: a
+    spelling slip, which no grammar rule teaches. Never one where the accent is grammar
+    or meaning (:func:`accent_is_grammar`), and never a fix that changes a letter: an
+    elided article («le appartement» → «l'appartement») stays the article rule's (#119).
+    """
+
+    learner, corrected = fold_typography(learner_text), fold_typography(corrected_text)
+    if not learner or not corrected or learner == corrected:
+        return False
+    if strip_accents(_GLUE.sub("", learner)) != strip_accents(_GLUE.sub("", corrected)):
+        return False
+    if accent_is_grammar(learner, corrected):
+        return False
+    said = [token for token in _GLUE.split(learner) if token]
+    right = [token for token in _GLUE.split(corrected) if token]
+    # Words glued or split («jai» → «j'ai»): only the glue moved, every letter kept its accent.
+    return len(said) == len(right) or _GLUE.sub("", learner) == _GLUE.sub("", corrected)
+
+
 @lru_cache(maxsize=1)
 def known_lemmas() -> frozenset[str]:
     """The core lexicon's lemmas, accent-folded (``manger``, ``aller`` …)."""

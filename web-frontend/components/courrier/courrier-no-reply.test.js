@@ -68,7 +68,8 @@ test('the thread marks the learner turn nobody answered', () => {
 test('the page prints the pending line under the turn and offers to ask again', () => {
   const page = read('pages', 'missions.tsx');
   assert.match(page, /turnReplyPending\(turn\) &&/);
-  assert.match(page, /t\.reply_pending_line/);
+  // #693: the line and the press are drawn by CrReplyPending (tested below).
+  assert.match(read('components', 'courrier', 'Courrier.tsx'), /t\.reply_pending_line/);
   assert.match(page, /apiService\.retryMissionTurnReply\(mission\.id, turnId\)/);
 });
 
@@ -105,4 +106,86 @@ test('every walk driver sets a time zone on its browser context', () => {
   }
   const zone = read('e2e', 'lib', 'walk-timezone.mjs');
   assert.match(zone, /Europe\/Berlin/);
+});
+
+// #693 — live walk 11 Nov: Lila never answered, «Ask again» was pressed, and for 15 s nothing
+// changed: no reply, no error. The press only swapped its words for a moment and the failure
+// was a toast, so the thread read exactly as before and the learner could not tell whether
+// the retry ran, failed or was still going. The thread now draws that state itself: busy with
+// a spinner while the call runs, and a line under the message once a retry came back empty.
+
+const React = require('react');
+const { renderToStaticMarkup } = require('react-dom/server');
+
+const h = React.createElement;
+const decode = (s) => s.replace(/&#x27;/g, "'").replace(/&amp;/g, '&').replace(/&quot;/g, '"');
+const renderIn = (language, element) => {
+  const { AtelierV2Root } = require('@/components/atelier-v2/ui/AtelierV2Root.tsx');
+  return decode(renderToStaticMarkup(h(AtelierV2Root, { language }, element)));
+};
+const unanswered = (extra = {}) => ({ id: 't1', role: 'user', reply_state: 'pending', reply_attempts: 1, ...extra });
+
+function replyPendingView() {
+  const { CrReplyPending } = require('./Courrier.tsx');
+  assert.equal(typeof CrReplyPending, 'function', 'nothing on the thread draws the state of an unanswered message');
+  return CrReplyPending;
+}
+
+test('while the reply is asked for again the press is busy, spins and is really disabled', () => {
+  const CrReplyPending = replyPendingView();
+  const { courrierCopy } = require('./courrier-copy.ts');
+  for (const language of ['fr', 'en', 'de']) {
+    const t = courrierCopy(language);
+    const html = renderIn(language, h(CrReplyPending, { name: 'Lila', turn: unanswered(), retrying: true, onRetry() {} }));
+    assert.match(html, /aria-busy="true"/, `${language}: the press is not busy while the call runs`);
+    assert.match(html, /disabled=""/, `${language}: a second tap can queue a second call`);
+    assert.match(html, /av2-btn__spinner/, `${language}: no spinner while the call runs`);
+    assert.ok(html.includes(t.reply_retrying), `${language}: the press does not say it is trying again`);
+  }
+});
+
+test('a reply asked again that came back empty says so under the message, and can be asked once more', () => {
+  const CrReplyPending = replyPendingView();
+  const { courrierCopy, crFill } = require('./courrier-copy.ts');
+  for (const language of ['fr', 'en', 'de']) {
+    const t = courrierCopy(language);
+    const before = renderIn(language, h(CrReplyPending, { name: 'Lila', turn: unanswered(), onRetry() {} }));
+    const after = renderIn(
+      language,
+      h(CrReplyPending, { name: 'Lila', turn: unanswered({ reply_attempts: 2, reply_asked_local_time: '05 h 42' }), onRetry() {} }),
+    );
+    assert.notEqual(after, before, `${language}: a failed «Ask again» leaves the thread exactly as it was`);
+    const failed = crFill(t.reply_retry_failed_line || '', { name: 'Lila', time: '05 h 42' });
+    assert.ok(failed && after.includes(failed), `${language}: no line says the retry ran and failed`);
+    assert.ok(after.includes(t.reply_retry), `${language}: the learner cannot ask once more`);
+    assert.doesNotMatch(after, /aria-busy/, `${language}: a finished retry still reads as running`);
+    assert.ok(!before.includes(failed), `${language}: a first miss already reads as a failed retry`);
+    const untimed = renderIn(language, h(CrReplyPending, { name: 'Lila', turn: unanswered({ reply_attempts: 2 }), onRetry() {} }));
+    assert.ok(untimed.includes(crFill(t.reply_retry_failed_line_untimed, { name: 'Lila' })), `${language}: no failure line without a time`);
+  }
+});
+
+test('a retry that did not reach the server is shown as failed on the thread, not only in a toast', () => {
+  const CrReplyPending = replyPendingView();
+  const { courrierCopy, crFill } = require('./courrier-copy.ts');
+  const t = courrierCopy('en');
+  const html = renderIn('en', h(CrReplyPending, { name: 'Lila', turn: unanswered(), failed: true, onRetry() {} }));
+  assert.ok(html.includes(crFill(t.reply_retry_failed_line_untimed, { name: 'Lila' })));
+});
+
+test('a finished letter keeps the unanswered line but offers no retry', () => {
+  const CrReplyPending = replyPendingView();
+  const { courrierCopy, crFill } = require('./courrier-copy.ts');
+  const t = courrierCopy('en');
+  const html = renderIn('en', h(CrReplyPending, { name: 'Lila', turn: unanswered() }));
+  assert.ok(html.includes(crFill(t.reply_pending_line, { name: 'Lila' })));
+  assert.ok(!html.includes(t.reply_retry));
+});
+
+test('the page draws every unanswered message with its retry state and the call in flight', () => {
+  const page = read('pages', 'missions.tsx');
+  const drawn = page.match(/<CrReplyPending[\s\S]*?\/>/);
+  assert.ok(drawn, 'the page draws the unanswered message by hand, without its retry state');
+  assert.match(drawn[0], /retrying=\{retryingReply === turn\.id\}/, 'the press is not busy while its call runs');
+  assert.match(drawn[0], /failed=\{/, 'a retry that never reached the server is not shown on the thread');
 });

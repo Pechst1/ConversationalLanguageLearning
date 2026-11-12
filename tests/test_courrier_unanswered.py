@@ -219,3 +219,90 @@ def test_asking_again_for_an_earlier_message_answers_it_from_the_thread_as_it_st
     client.post(f"/api/v1/missions/{mission_id}/turns/{second_id}/reply", headers=headers)
 
     assert seen == [3], "the retry for message 2 must not read what the learner wrote after it"
+
+
+# #693 — live walk 11 Nov: Lila never answered, «Ask again» was pressed, and the thread read
+# exactly as before: the learner could not tell whether the retry had run, failed or was still
+# going. A failed ask is now a fact of the learner's turn (how many times the correspondent was
+# asked, and when last), so the thread itself says a retry ran and failed, also after a reload.
+
+
+def test_a_reply_asked_again_that_fails_again_says_so_on_the_thread(client, monkeypatch):
+    headers, mission_id = _setup(client, monkeypatch)
+    _provider_answers(monkeypatch, [_stock(), _stock(), "Merci, à demain !"])
+    sent = _send(client, headers, mission_id, MESSAGES[0])
+    turn_id = _user_turns(sent["mission"])[-1]["id"]
+    assert _user_turns(sent["mission"])[-1].get("reply_attempts") == 1, "the first failed ask left no trace"
+
+    retried = client.post(f"/api/v1/missions/{mission_id}/turns/{turn_id}/reply", headers=headers)
+
+    assert retried.status_code == 200, retried.text
+    body = retried.json()
+    assert body["outcome"]["reply_state"] == "pending"
+    assert body["outcome"].get("reply_attempts") == 2, "«Ask again» ran and failed, but the answer reads as before it"
+    asked = _user_turns(body["mission"])[-1]
+    assert asked["reply_state"] == "pending"
+    assert asked.get("reply_attempts") == 2, "the thread does not say the retry ran and failed"
+    assert asked.get("reply_asked_at"), "the thread does not say when the correspondent was last asked"
+    reloaded = client.get(f"/api/v1/missions/{mission_id}", headers=headers).json()
+    reloaded = reloaded.get("mission", reloaded)
+    assert _user_turns(reloaded)[-1].get("reply_attempts") == 2, "a reload forgets the failed retry"
+
+    answered = client.post(f"/api/v1/missions/{mission_id}/turns/{turn_id}/reply", headers=headers).json()
+
+    assert answered["assistant_turn"]["text"] == "Merci, à demain !"
+    assert "reply_state" not in answered["outcome"]
+    assert "reply_attempts" not in _user_turns(answered["mission"])[-1], "an answered message still reads as failed"
+
+
+# #693 review of #701: the ask counter is server-owned. It lived in the turn's audio_payload,
+# which the send path fills from the client's `transcript_metadata`, and was read with a bare
+# int(): `{"reply_asks": {"count": "x"}}` made the send, the mission and «today» answer 500, and
+# `{"count": 5}` made a first send read as «Asked again … still cannot answer».
+
+
+def _send_with_metadata(client, headers, mission_id, text, metadata):
+    return client.post(
+        f"/api/v1/missions/{mission_id}/turns",
+        json={"text": text, "mode": "chat", "transcript_metadata": metadata},
+        headers=headers,
+    )
+
+
+def test_a_client_written_ask_counter_cannot_break_the_courrier(client, monkeypatch):
+    headers, mission_id = _setup(client, monkeypatch)
+    _provider_answers(monkeypatch, [_stock()])
+
+    sent = _send_with_metadata(client, headers, mission_id, MESSAGES[0], {"reply_asks": {"count": "x"}})
+
+    assert sent.status_code == 200, f"a client-written ask counter broke the send: {sent.status_code}"
+    assert sent.json()["outcome"].get("reply_attempts") == 1
+    mission = client.get(f"/api/v1/missions/{mission_id}", headers=headers)
+    assert mission.status_code == 200, f"one bad turn locks the learner out of the letter: {mission.status_code}"
+    today = client.get("/api/v1/missions/today", headers=headers)
+    assert today.status_code == 200, f"one bad turn takes the whole Courrier down: {today.status_code}"
+
+
+def test_a_client_cannot_make_a_first_send_read_as_a_failed_retry(client, monkeypatch):
+    headers, mission_id = _setup(client, monkeypatch)
+    _provider_answers(monkeypatch, [_stock()])
+
+    sent = _send_with_metadata(
+        client, headers, mission_id, MESSAGES[0], {"reply_asks": {"count": 5}, "source": "keyboard"}
+    )
+
+    assert sent.status_code == 200, sent.text
+    assert sent.json()["outcome"].get("reply_attempts") == 1, "the client wrote the server's ask counter"
+    turn = _user_turns(sent.json()["mission"])[-1]
+    assert turn.get("reply_attempts") == 1, "«Ask again» never ran, yet the thread says it ran and failed"
+    assert turn["audio_payload"].get("source") == "keyboard", "the client's own metadata was dropped too"
+
+
+def test_a_stored_counter_that_is_not_a_count_reads_as_asked_once():
+    from app.services.missions import note_unanswered_ask, unanswered_fields
+
+    for bad in ("x", None, -4, [1], {"n": 1}, True):
+        turn = SimpleNamespace(audio_payload={"reply_asks": {"count": bad, "last_at": 7}}, created_at=None)
+        assert unanswered_fields(turn, None)["reply_attempts"] == 1, bad
+        assert note_unanswered_ask(turn) == 1, bad
+    assert unanswered_fields(SimpleNamespace(audio_payload="oops", created_at=None), None)["reply_attempts"] == 1

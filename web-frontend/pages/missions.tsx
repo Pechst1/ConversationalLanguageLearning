@@ -40,6 +40,7 @@ import {
   CrMemo,
   CrPS,
   CrRepair,
+  CrReplyPending,
   CrRibbon,
   CrSeal,
   CrSituation,
@@ -609,6 +610,8 @@ export default function MissionsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [rechecking, setRechecking] = useState<string | null>(null);
   const [retryingReply, setRetryingReply] = useState<string | null>(null);
+  // #693: the turn whose last «Ask again» did not reach the server (the server counts the rest).
+  const [replyRetryFailed, setReplyRetryFailed] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState<LoadErrorKind | null>(null);
   const [reply, setReply] = useState('');
@@ -885,17 +888,20 @@ export default function MissionsPage() {
   };
 
   // #590: the correspondent did not answer this message. Ask again from the stored text;
-  // the thread keeps saying so until a reply exists.
+  // the thread keeps saying so until a reply exists. #693: while the ask runs the press is
+  // busy, and an ask that comes back empty is drawn on the thread by CrReplyPending (the
+  // server counts it on the turn), so the screen never reads as it did before the press.
   const retryReply = async (turnId: string) => {
     if (!mission || retryingReply || completed) return;
     setRetryingReply(turnId);
+    setReplyRetryFailed(null);
     try {
       const result = await apiService.retryMissionTurnReply(mission.id, turnId);
-      setMission({ ...result.mission, outcome: result.outcome || result.mission.outcome });
       // The retry answers the stored message, so whatever the composer holds is a new draft.
-      if (replyPending(result.outcome)) toast(t.toast_reply_retry_failed);
+      setMission({ ...result.mission, outcome: result.outcome || result.mission.outcome });
     } catch (retryError) {
       console.error(retryError);
+      setReplyRetryFailed(turnId);
       toast.error(t.toast_reply_retry_failed);
     } finally {
       setRetryingReply(null);
@@ -1250,23 +1256,17 @@ export default function MissionsPage() {
                         </p>
                       )}
                       {/* #590: nobody answered this message. The thread says so until a reply
-                          exists, and the reply can be asked for again from here. */}
+                          exists, and the reply can be asked for again from here; #693: busy
+                          while the ask runs, and an ask that failed says so on the thread. */}
                       {turnReplyPending(turn) && (
-                        <>
-                          <p className="cr-unassessed cr-unanswered" role="status">
-                            {crFill(t.reply_pending_line, { name: messenger.contact_name })}
-                          </p>
-                          {!completed && turn.id && (
-                            <button
-                              type="button"
-                              className="cr-trad-btn"
-                              disabled={retryingReply !== null || submitting}
-                              onClick={() => { void retryReply(String(turn.id)); }}
-                            >
-                              {retryingReply === turn.id ? t.reply_retrying : t.reply_retry}
-                            </button>
-                          )}
-                        </>
+                        <CrReplyPending
+                          name={messenger.contact_name}
+                          turn={turn}
+                          retrying={retryingReply === turn.id}
+                          failed={replyRetryFailed === turn.id}
+                          disabled={retryingReply !== null || submitting}
+                          onRetry={!completed && turn.id ? () => { void retryReply(String(turn.id)); } : undefined}
+                        />
                       )}
                       {isUser && (lines.length > 0 || correctedAnswer) && (
                         <CrRepair

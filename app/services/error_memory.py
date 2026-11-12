@@ -20,7 +20,7 @@ from app.db.models.grammar import GrammarConcept
 from app.db.models.session import ConversationMessage, LearningSession
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
-from app.services.answer_acceptance import is_real_correction
+from app.services.answer_acceptance import accent_is_grammar, is_real_correction, is_spelling_only
 from app.services.chrome_language import user_mother_tongue
 from app.services.grammar_feedback import infer_grammar_profile, profile_search_terms
 from app.services.learner_copy import learner_text
@@ -377,9 +377,12 @@ class ErrorMemoryService:
             # #119: a free-text correction that elides an article is the article rule's,
             # whichever rule the entrance guessed. A keyed item (``item_id``) belongs to
             # the unit it was drilled under.
-            concept_id = self.elision_concept_id(
+            elision = self.elision_concept_id(
                 erratum.get("learner_text"), erratum.get("corrected_target"), context=erratum.get("context_fr")
-            ) or concept_id
+            )
+            # #697: a spelling slip carries no rule, whichever rule the entrance borrowed
+            # (the letter's, the scene task's, the step's).
+            concept_id = elision or (None if self.carries_no_rule(erratum) else concept_id)
         task_type = str(erratum.get("task_error_type") or "grammar_target")
         display_label = str(
             erratum.get("display_label")
@@ -959,6 +962,25 @@ class ErrorMemoryService:
             .first()
         )
         return concept.id if concept is not None else None
+
+    @classmethod
+    def carries_no_rule(cls, erratum: dict[str, Any]) -> bool:
+        """#697: a spelling slip, which no grammar rule teaches: it is filed under no concept.
+
+        «A bientot» → «A bientôt» in a letter that practised the passé composé was filed
+        under the passé composé, because every entrance fell back on *its own* rule (the
+        letter's, the scene task's) for a slip it could not name. Recall then printed
+        «Rule: Passé composé» over an accent, and a right «bientôt» spent that rule's
+        review. This is the one place that decides it, as :meth:`elision_concept_id` is for
+        «l'» and «d'» (ask that first: an elided article is a rule). A slip is rule-free
+        when it is filed as spelling, or its fix changes only accents, apostrophes or
+        typography, unless the accent is grammar («mange» → «mangé», «a» → «à»).
+        """
+
+        learner, corrected = erratum.get("learner_text"), erratum.get("corrected_target")
+        if accent_is_grammar(learner, corrected):
+            return False
+        return cls._error_category_for_erratum(erratum) == "spelling" or is_spelling_only(learner, corrected)
 
     def infer_concept_id_for_correction(
         self, *, learner_text: str | None, corrected_text: str | None, note: str | None = None

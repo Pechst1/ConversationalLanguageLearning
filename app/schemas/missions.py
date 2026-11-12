@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.verdict import VerdictView
 
@@ -119,10 +119,26 @@ class MissionSubmitRequest(BaseModel):
     mode: str = Field("writing", pattern="^(writing|chat|voice)$")
 
 
+#: #693: how often a learner turn's reply was asked for and came back empty. The server
+#: keeps it in the turn's ``audio_payload``, next to the transcript metadata the client sends,
+#: so the request may never write it (see ``MissionTurnRequest``).
+REPLY_ASKS_KEY = "reply_asks"
+#: Keys of a turn's ``audio_payload`` that only the server writes.
+SERVER_OWNED_TURN_METADATA = frozenset({REPLY_ASKS_KEY})
+
+
 class MissionTurnRequest(BaseModel):
     text: str = Field("", max_length=3000)
     mode: str = Field("chat", pattern="^(chat|voice)$")
     transcript_metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("transcript_metadata")
+    @classmethod
+    def _drop_server_owned(cls, value: dict[str, Any]) -> dict[str, Any]:
+        """#693 review: the client's metadata is stored as the turn's ``audio_payload``; keys
+        the server owns there are dropped at the boundary, never trusted from the request."""
+
+        return {key: item for key, item in value.items() if key not in SERVER_OWNED_TURN_METADATA}
 
 
 class MissionTodayResponse(BaseModel):

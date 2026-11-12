@@ -68,3 +68,8 @@ export function replyPending(outcome: Record<string, any> | null | undefined): b
 export function turnReplyPending(turn: Record<string, any> | null | undefined): boolean {
   return turn?.role === 'user' && turn?.reply_state === 'pending';
 }
+
+/** #693: «Ask again» ran for this message and came back empty (the server counts each ask). */
+export function turnReplyAskedAgain(turn: Record<string, any> | null | undefined): boolean {
+  return turnReplyPending(turn) && Number(turn?.reply_attempts || 0) >= 2;
+}
