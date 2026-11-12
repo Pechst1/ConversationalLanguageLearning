@@ -36,18 +36,29 @@ def test_unit_xray_reads_the_marks_and_keeps_discontinuous_tokens() -> None:
                 "explanation": "ignored",
                 "marks": [
                     {"token": "ne...que", "role": "restriction", "explanation": "ne…que = only", "color": "ink"},
-                    {"token": "du thé", "role": "article_kept", "explanation": "article stays"},
+                    {
+                        "token": "du thé",
+                        "role": "article_kept",
+                        "explanation": "article stays",
+                        "localized": {"de": {"role": "Artikel bleibt", "explanation": "du bleibt nach ne…que"}},
+                    },
                     {"token": "", "role": "empty", "explanation": "dropped"},
                     "not a mark",
                 ],
             }
         )
     )
+    # #730: label and note per language; a language without text is absent, never English.
     assert xray == {
         "sentence": "Je ne bois que du thé le matin.",
         "marks": [
-            {"token": "ne...que", "role": "restriction", "explanation": "ne…que = only"},
-            {"token": "du thé", "role": "article_kept", "explanation": "article stays"},
+            {"token": "ne...que", "role": "restriction", "label": {"en": "Restriction"}, "note": {"en": "ne…que = only"}},
+            {
+                "token": "du thé",
+                "role": "article_kept",
+                "label": {"en": "Article kept", "de": "Artikel bleibt"},
+                "note": {"en": "article stays", "de": "du bleibt nach ne…que"},
+            },
         ],
     }
 
@@ -114,7 +125,8 @@ def test_notebook_detail_carries_card_xray_and_sub_band_for_a_v2_unit(client: Te
     assert any(partner.get("title", {}).get("fr") for partner in card["contrast_with"])
     xray = body["xray"]
     assert xray["sentence"]
-    assert xray["marks"] and set(xray["marks"][0]) == {"token", "role", "explanation"}
+    assert xray["marks"] and set(xray["marks"][0]) == {"token", "role", "label", "note"}
+    assert set(xray["marks"][0]["note"]) == {"en", "de", "fr"}, "#730: the marks speak every chrome language"
 
     rows = client.get("/api/v1/grammar/notebook", headers=headers, params={"limit": 500}).json()
     bands = {row["external_id"]: row["sub_band"] for row in rows}
