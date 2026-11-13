@@ -152,6 +152,20 @@
       "in": "quai_de_valmy"
     },
     {
+      "id": "rue_de_lancry",
+      "name": { "fr": "La rue de Lancry", "en": "The rue de Lancry", "de": "Die Rue de Lancry" },
+      "lat": 48.8712,
+      "lon": 2.36163,
+      "status": "locked",
+      "kind": "season",
+      "stages": ["rue_de_lancry"],
+      "why": { "fr": "À deux cents mètres du Mistral : une porte verte, un interphone, une fenêtre allumée au troisième.", "en": "Two hundred metres from Le Mistral: a green door, an intercom, a lit window on the third floor.", "de": "Zweihundert Meter vom Mistral: eine grüne Tür, eine Sprechanlage, ein erleuchtetes Fenster im dritten Stock." },
+      "source": { "kind": "season", "id": "s1" },
+      "site": null,
+      "room": "rue_de_lancry",
+      "in": "quai_de_valmy"
+    },
+    {
       "id": "mairie_10e",
       "name": { "fr": "La mairie du 10e", "en": "The town hall of the 10th", "de": "Das Rathaus des 10." },
       "lat": 48.8722,

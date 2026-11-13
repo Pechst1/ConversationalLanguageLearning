@@ -287,7 +287,8 @@ test('the back room (T5 B): the easel under its sheet, the board, the new plaste
 });
 
 test("a room in the quarter (the roof) lies on Le Mistral's roof, and you walk round its chimneys", () => {
-  const roofs = rooms.filter(({ room }) => room.quarter);
+  // a room on a roof: its ground is high above the street (a street of the quai is the next test's)
+  const roofs = rooms.filter(({ room }) => room.quarter && room.floors.every((f) => f.y > 5));
   if (!roofs.length) return;
   const { buildQuai } = require('./quai.ts');
   const B = { dry: new Press(), fine: new Press(), wet: new Press(), lace: new LacePress(), glass: new Press(), cards: new CardPress(), signs: [], lamps: [], walk: [], blocks: [], rand: seeded(1102) };
@@ -316,5 +317,42 @@ test("a room in the quarter (the roof) lies on Le Mistral's roof, and you walk r
     assert.equal(r.inside(r.start.pos.x, r.start.pos.z), false, `${file}: the roof counts as indoors`);
     Object.entries(r.marks).forEach(([k, m]) => clear(m.x, m.z, `the mark ${k}`));
     room.things.forEach((t) => clear(t.at[0], t.at[2], `the ${t.kind}`));
+  });
+});
+
+test('a room in a street of the quarter (the rue de Lancry) walks the ground the quai lays, and draws none of its own', () => {
+  const streets = rooms.filter(({ room }) => room.quarter && room.floors.some((f) => f.y <= 5));
+  if (!streets.length) return;
+  const { buildQuai } = require('./quai.ts');
+  const B = { dry: new Press(), fine: new Press(), wet: new Press(), lace: new LacePress(), glass: new Press(), cards: new CardPress(), signs: [], lamps: [], walk: [], blocks: [], rand: seeded(1102) };
+  const quai = buildQuai(B);
+  const inside = (shape, x, z) => {
+    let c = false;
+    for (let i = 0, j = shape.length - 1; i < shape.length; j = i++) {
+      const [ax, az] = shape[j];
+      const [bx, bz] = shape[i];
+      if (az > z !== bz > z && x < ((bx - ax) * (z - az)) / (bz - az) + ax) c = !c;
+    }
+    return c;
+  };
+  // a point of the quai's own walked ground at that height (a pavement at the kerb, the road at 0)
+  const onQuai = (x, z, y) => B.walk.some((w) => Math.abs(w.y - y) < 0.02 && inside(w.shape, x, z));
+  streets.forEach(({ file, room }) => {
+    room.floors.forEach((f) => {
+      assert.ok(f.y <= 5, `${file}: ${f.key} is a street's and a roof's at once`);
+      assert.equal(f.drawn, false, `${file}: ${f.key} lays the street over the quai's own`);
+      const [cx, cz] = f.shape.reduce(([sx, sz], [x, z]) => [sx + x / f.shape.length, sz + z / f.shape.length], [0, 0]);
+      f.shape.forEach(([x, z]) => {
+        const px = x + (cx - x) * 0.02;
+        const pz = z + (cz - z) * 0.02;
+        assert.ok(onQuai(px, pz, f.y), `${file}: ${f.key} reaches (${x}, ${z}), off the quai's ground at ${f.y} m`);
+      });
+    });
+    const { built: r } = built.get(file);
+    // a street is out of doors, and «L.»'s window is there to look up at
+    assert.equal(r.inside(r.start.pos.x, r.start.pos.z), false, `${file}: the street counts as indoors`);
+    assert.ok(quai.easel, 'the quai has «L.»\'s window');
+    const gaze = room.things.find((t) => t.kind === 'gaze');
+    if (gaze) assert.ok(Math.hypot(gaze.at[0] - quai.easel.center.x, gaze.at[1] - quai.easel.center.y, gaze.at[2] - quai.easel.center.z) < 0.5, `${file}: what you look up at is not «L.»'s window`);
   });
 });

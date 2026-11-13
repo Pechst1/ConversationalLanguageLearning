@@ -155,6 +155,8 @@ export class Quartier {
   private extras: Array<Troupe<Figure>> = [];
   nav!: Nav;
   lightMap!: LightMap;
+  /** «L.»'s window, when a room stands in the quarter's own build (the rue de Lancry, the roof) */
+  private quarterEasel: { center: Vector3; normal: Vector3 } | null = null;
   /** the hand-drawn quarter (absent in a forged place) */
   quai?: Quai;
   parts?: MistralParts;
@@ -334,13 +336,15 @@ export class Quartier {
       const hall = this.site.landmarks.find((l) => l.room)?.room;
       this.rainRoom.set(hall ? hall[0] : 0, hall ? hall[1] : 0, hall ? hall[2] : -1, hall ? hall[3] : -1);
     } else if (room) {
-      // a room on the roof stands in the quarter as it is: the quai, the canal, the houses round it
-      // (only the room's own ground is walked, round the chimneys of the building it stands on)
+      // a room on the roof, or in a street of the quai, stands in the quarter as it is: the quai, the
+      // canal, the houses round it, «L.»'s window (only the room's own ground is walked, round the
+      // chimneys of the building it stands on)
       const quarter = room.quarter ? buildQuai(B) : null;
       if (quarter) {
         B.walk.length = 0;
         B.blocks.length = 0;
       }
+      this.quarterEasel = quarter?.easel ?? null;
       this.room = buildRoom(B, room);
       (quarter?.mistral.stacks ?? []).forEach((s) => B.blocks.push(s));
       const [x0, z0, x1, z1] = this.room.dry;
@@ -529,7 +533,8 @@ export class Quartier {
     // the rain
     this.scene.add(this.rain.mesh);
     // the easel's old man: a tiny silhouette at a dim window
-    if (this.quai?.easel) this.addEasel(this.quai.easel);
+    const easel = this.quai?.easel ?? this.quarterEasel;
+    if (easel) this.addEasel(easel);
   }
 
   /** A room's moving parts: its doors on their hinges, its lamps' glass lit and gone out. */

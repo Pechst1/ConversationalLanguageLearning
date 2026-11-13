@@ -44,6 +44,8 @@ export interface RoomFloor {
   zone?: Zone;
   /** seen, not walked */
   walk?: boolean;
+  /** false: the quarter already lays this ground (a street of the quai): walked, not drawn again */
+  drawn?: boolean;
 }
 
 export interface RoomFlight {
@@ -182,6 +184,8 @@ export type ThingKind =
   | 'fridge'
   | 'crate'
   | 'canvas'
+  | 'intercom'
+  | 'gaze'
   | 'keyboard'
   | 'cabinet'
   | 'desk'
@@ -1923,6 +1927,26 @@ function thing(B: Build, t: RoomThing, i: number) {
       card(B, key, [x + 0.004 * s, y + h / 2, zz + 0.004 * c], rot, w - 0.02, h - 0.02, z, t.text?.length ? polaroidArt(t.text[0]) : portraitArt(), 3200);
       return;
     }
+    case 'intercom': {
+      // an old building's intercom beside its door: a brushed plate on the wall, the grille of the
+      // speaker at the top, then a row a flat (a name on a card, its push-button), `text` the names
+      // from the top floor down (`at` the plate's centre on the wall)
+      const names = t.text ?? [];
+      const rows = Math.max(1, Math.ceil(names.length / 2));
+      const w = 0.2;
+      const h = 0.12 + rows * 0.045;
+      const steel = zoned(mix(mix(INKS.paper, INKS.ink, 0.3), INKS.ochre, 0.08), z, { wet: 0.6 });
+      D.at(x, y, zz, rot, () => D.box(0, 0, 0.008, w + 0.02, h + 0.02, 0.016, steel));
+      const c = Math.cos(rot);
+      const sn = Math.sin(rot);
+      card(B, key, [x + 0.005 * sn, y, zz + 0.005 * c], rot, w, h, z, intercomArt(names, rows), 2400);
+      return;
+    }
+    case 'gaze': {
+      // nothing to draw: a point you look at from where you can stand (a window up the street),
+      // so the story can be tapped where the quarter already draws it
+      return;
+    }
     case 'armoire': {
       // a tall wardrobe against the wall: two panelled doors, a key in one, a cornice on top
       const [w, h] = t.size ?? [1.1, 2.2];
@@ -2266,6 +2290,48 @@ function portraitArt() {
 }
 
 /** A letterbox's card: a name typed on a slip. */
+/** An intercom's face: the speaker's grille, then two columns of name cards and their buttons. */
+function intercomArt(names: string[], rows: number) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(mix(INKS.paper, INKS.ink, 0.22), INKS.ochre, 0.08));
+    ctx.fillRect(0, 0, w, h);
+    const top = h * (0.12 / (0.12 + rows * 0.045));
+    // the grille: rows of small holes
+    ctx.fillStyle = css(mix(INKS.ink, INKS.paper, 0.15));
+    for (let gy = top * 0.25; gy < top * 0.8; gy += top * 0.14) {
+      for (let gx = w * 0.32; gx < w * 0.68; gx += w * 0.045) {
+        ctx.beginPath();
+        ctx.arc(gx, gy, Math.max(1, w * 0.008), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    const rh = (h - top) / rows;
+    const cw = w / 2;
+    names.forEach((name, i) => {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const x0 = col * cw + cw * 0.06;
+      const y0 = top + row * rh + rh * 0.14;
+      const lw = cw * 0.66;
+      const lh = rh * 0.72;
+      ctx.fillStyle = css(INKS.card);
+      ctx.fillRect(x0, y0, lw, lh);
+      ctx.fillStyle = css(INKS.ink);
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      let s = Math.round(lh * 0.62);
+      ctx.font = SANS(s, 500);
+      while (s > 5 && ctx.measureText(name).width > lw * 0.9) ctx.font = SANS(--s, 500);
+      ctx.fillText(name, x0 + lw * 0.05, y0 + lh * 0.54);
+      // the button
+      ctx.fillStyle = css(mix(INKS.paper, INKS.ink, 0.5));
+      ctx.beginPath();
+      ctx.arc(x0 + lw + cw * 0.14, y0 + lh / 2, lh * 0.32, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  };
+}
+
 function labelArt(text: string) {
   return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
     ctx.fillStyle = css(INKS.card);
@@ -2711,7 +2777,7 @@ export function buildRoom(B: Build, spec: RoomSpec): RoomBuilt {
     const paint = zoned(finish.color, fl.zone, { pattern: finish.pattern });
     // a landing over the stairwell shows the thickness of its floor
     const thick = fl.y > 1 ? 0.32 : 0.2;
-    B.dry.prism(fl.shape, fl.y - thick, fl.y, paint, { sides: fl.y > 1, bottom: fl.y > 1 });
+    if (fl.drawn !== false) B.dry.prism(fl.shape, fl.y - thick, fl.y, paint, { sides: fl.y > 1, bottom: fl.y > 1 });
     if (walked(fl)) B.walk.push({ shape: fl.shape, y: fl.y });
   });
   spec.ceilings.forEach((c) => {
