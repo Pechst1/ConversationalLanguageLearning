@@ -2,7 +2,7 @@
   "id": "notaire",
   "version": 1,
   "kind": "room",
-  "in": "quai_de_valmy",
+  "in": "mairie_10e",
   "ambiance": "matin",
   "title": {
     "fr": "Chez le notaire",

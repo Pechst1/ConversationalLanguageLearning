@@ -47,12 +47,12 @@
       "more": {
         "en": "You already know this shift from reported speech (il a dit qu'il viendrait). At C1 it becomes a habit for every clause tied to a past moment: savoir, ignorer, comprendre, croire, imaginer, and also relatives and time clauses. The conditionnel here is not a condition at all: it is simply the future seen from the past. A general truth can stay in the present.",
         "de": "Du kennst die Verschiebung aus der indirekten Rede (il a dit qu'il viendrait). Auf C1 wird sie zur Gewohnheit für jeden Nebensatz, der an einem vergangenen Moment hängt: savoir, ignorer, comprendre, croire, imaginer, auch in Relativ- und Temporalsätzen. Der Conditionnel ist hier keine Bedingung, sondern einfach die Zukunft aus Sicht der Vergangenheit. Allgemeine Wahrheiten dürfen im Präsens bleiben.",
-        "fr": "Vous connaissez ce décalage grâce au discours rapporté. Au niveau C1, il s'applique à toute proposition rattachée à un moment passé : après savoir, ignorer, comprendre, croire, imaginer, mais aussi dans les relatives et les temporelles. Le conditionnel n'exprime ici aucune condition : c'est le futur vu du passé. Une vérité générale peut rester au présent."
+        "fr": "Tu connais ce décalage grâce au discours rapporté. Au niveau C1, il s'applique à toute proposition rattachée à un moment passé : après savoir, ignorer, comprendre, croire, imaginer, mais aussi dans les relatives et les temporelles. Le conditionnel n'exprime ici aucune condition : c'est le futur vu du passé. Une vérité générale peut rester au présent."
       },
       "how": {
         "en": "1. Find the past moment set by the main verb (il ignorait).\n2. Ask: before, at the same time or after that moment?\n3. Before → plus-que-parfait; same time → imparfait; after → conditionnel (completed → conditionnel passé).",
         "de": "1. Finde den vergangenen Moment, den das Hauptverb setzt (il ignorait).\n2. Frag: vorher, gleichzeitig oder nachher?\n3. Vorher → Plus-que-parfait; gleichzeitig → Imparfait; nachher → Conditionnel (abgeschlossen → Conditionnel passé).",
-        "fr": "1. Repérez le moment passé fixé par le verbe principal (il ignorait).\n2. Demandez-vous : avant, en même temps ou après ?\n3. Avant → plus-que-parfait ; en même temps → imparfait ; après → conditionnel (accompli → conditionnel passé)."
+        "fr": "1. Repère le moment passé fixé par le verbe principal (il ignorait).\n2. Demande-toi : avant, en même temps ou après ?\n3. Avant → plus-que-parfait ; en même temps → imparfait ; après → conditionnel (accompli → conditionnel passé)."
       },
       "examples": [
         {
@@ -169,7 +169,7 @@
       "how": {
         "en": "1. Spot the trigger (voulait, fallait, regrettait, aurais aimé…).\n2. Was the action in the que-clause already done?\n3. No → subjonctif présent (vienne); yes → subjonctif passé (soit venu).",
         "de": "1. Finde den Auslöser (voulait, fallait, regrettait, aurais aimé…).\n2. War die Handlung im que-Satz schon erledigt?\n3. Nein → Subjonctif présent (vienne); ja → Subjonctif passé (soit venu).",
-        "fr": "1. Repérez le déclencheur (voulait, fallait, regrettait, aurais aimé…).\n2. L'action de la subordonnée était-elle déjà accomplie ?\n3. Non → subjonctif présent (vienne) ; oui → subjonctif passé (soit venu)."
+        "fr": "1. Repère le déclencheur (voulait, fallait, regrettait, aurais aimé…).\n2. L'action de la subordonnée était-elle déjà accomplie ?\n3. Non → subjonctif présent (vienne) ; oui → subjonctif passé (soit venu)."
       },
       "examples": [
         {
@@ -279,7 +279,7 @@
       "how": {
         "en": "1. Start with Que (or Le fait que).\n2. Put the verb in the subjonctif: qu'il soit venu, que tu aies raison.\n3. Add your comment: m'étonne, or a comma and a clause that picks it up (personne n'en doute).",
         "de": "1. Beginne mit Que (oder Le fait que).\n2. Setz das Verb in den Subjonctif: qu'il soit venu, que tu aies raison.\n3. Füg deinen Kommentar an: m'étonne, oder Komma und ein Satz, der es aufgreift (personne n'en doute).",
-        "fr": "1. Commencez par Que (ou Le fait que).\n2. Mettez le verbe au subjonctif : qu'il soit venu, que tu aies raison.\n3. Ajoutez le commentaire : m'étonne, ou une virgule et une reprise (personne n'en doute)."
+        "fr": "1. Commence par Que (ou Le fait que).\n2. Mets le verbe au subjonctif : qu'il soit venu, que tu aies raison.\n3. Ajoute le commentaire : m'étonne, ou une virgule et une reprise (personne n'en doute)."
       },
       "examples": [
         {
@@ -320,7 +320,7 @@
           "why": {
             "en": "Partiez, not partez: the vous form of the subjonctif ends in -iez.",
             "de": "Partiez, nicht partez: Die vous-Form des Subjonctif endet auf -iez.",
-            "fr": "Partiez et non partez : au subjonctif, vous se termine en -iez."
+            "fr": "« Partiez » et non « partez » : au subjonctif, vous se termine en -iez."
           }
         }
       ],
@@ -355,7 +355,7 @@
       "rule": {
         "en": "Same subject after affirmer, croire, nier, reconnaître…? Use an infinitive instead of que + subject.",
         "de": "Gleiches Subjekt nach affirmer, croire, nier, reconnaître…? Nimm einen Infinitiv statt que + Subjekt.",
-        "fr": "Même sujet après affirmer, croire, nier, reconnaître… ? Employez l'infinitif plutôt que que + sujet."
+        "fr": "Même sujet après affirmer, croire, nier, reconnaître… ? Emploie l'infinitif plutôt que que + sujet."
       },
       "pattern": {
         "kind": "rows",
@@ -384,12 +384,12 @@
       "more": {
         "en": "«Je crois que je peux finir ce soir» is correct, but it sounds heavy. Written French prefers «je crois pouvoir finir ce soir». The infinitive works only when both verbs share the subject. Use the infinitif passé (avoir or être + participle) for an earlier action; with être the participle still agrees. No de or à comes in between.",
         "de": "«Je crois que je peux finir ce soir» ist richtig, klingt aber schwer. Schriftlich sagt man lieber «je crois pouvoir finir ce soir», ähnlich wie im Deutschen «ich glaube, heute fertig werden zu können». Das geht nur bei gleichem Subjekt. Für etwas Früheres nimmst du den Infinitif passé (avoir oder être + Partizip); mit être wird weiter angeglichen. Anders als im Deutschen steht kein de dazwischen.",
-        "fr": "« Je crois que je peux finir ce soir » est correct mais lourd ; l'écrit préfère « je crois pouvoir finir ce soir ». L'infinitif n'est possible qu'avec le même sujet. Pour une action antérieure, employez l'infinitif passé (avoir ou être + participe), avec l'accord habituel après être. Pas de de ni de à."
+        "fr": "« Je crois que je peux finir ce soir » est correct mais lourd ; l'écrit préfère « je crois pouvoir finir ce soir ». L'infinitif n'est possible qu'avec le même sujet. Pour une action antérieure, emploie l'infinitif passé (avoir ou être + participe), avec l'accord habituel après être. Pas de de ni de à."
       },
       "how": {
         "en": "1. Check that the subject is the same in both parts.\n2. Remove que + subject.\n3. Put the verb in the infinitive (être, pouvoir) or infinitif passé (avoir vu, s'être trompée), pronouns before it.",
         "de": "1. Prüf, ob beide Teile dasselbe Subjekt haben.\n2. Streich que + Subjekt.\n3. Setz das Verb in den Infinitiv (être, pouvoir) oder Infinitif passé (avoir vu, s'être trompée), Pronomen davor.",
-        "fr": "1. Vérifiez que le sujet est le même.\n2. Supprimez que + sujet.\n3. Mettez le verbe à l'infinitif (être, pouvoir) ou à l'infinitif passé (avoir vu, s'être trompée), pronoms devant."
+        "fr": "1. Vérifie que le sujet est le même.\n2. Supprime que + sujet.\n3. Mets le verbe à l'infinitif (être, pouvoir) ou à l'infinitif passé (avoir vu, s'être trompée), pronoms devant."
       },
       "examples": [
         {
@@ -513,7 +513,7 @@
       "how": {
         "en": "1. Start with il (never a noun).\n2. Choose the formula: s'agit de (topic), convient de (advice), importe que (priority), y va de (what is at stake).\n3. Add de + noun / infinitive, or que + subjonctif.",
         "de": "1. Beginne mit il (nie mit einem Nomen).\n2. Wähl die Wendung: s'agit de (Thema), convient de (Rat), importe que (Priorität), y va de (was auf dem Spiel steht).\n3. Füg de + Nomen / Infinitiv oder que + Subjonctif an.",
-        "fr": "1. Commencez par il (jamais par un nom).\n2. Choisissez la tournure : s'agit de (sujet), convient de (conseil), importe que (priorité), y va de (enjeu).\n3. Ajoutez de + nom / infinitif, ou que + subjonctif."
+        "fr": "1. Commence par il (jamais par un nom).\n2. Choisis la tournure : s'agit de (sujet), convient de (conseil), importe que (priorité), y va de (enjeu).\n3. Ajoute de + nom / infinitif, ou que + subjonctif."
       },
       "examples": [
         {
@@ -628,7 +628,7 @@
       "how": {
         "en": "1. Start with il.\n2. Add the verb in the third person singular: reste, manque, existe, s'est produit.\n3. Put the real subject after it, singular or plural.",
         "de": "1. Beginne mit il.\n2. Füg das Verb in der 3. Person Singular an: reste, manque, existe, s'est produit.\n3. Setz das eigentliche Subjekt danach, Singular oder Plural.",
-        "fr": "1. Commencez par il.\n2. Ajoutez le verbe à la 3e personne du singulier : reste, manque, existe, s'est produit.\n3. Placez ensuite le sujet réel, singulier ou pluriel."
+        "fr": "1. Commence par il.\n2. Ajoute le verbe à la 3e personne du singulier : reste, manque, existe, s'est produit.\n3. Place ensuite le sujet réel, singulier ou pluriel."
       },
       "examples": [
         {
@@ -743,7 +743,7 @@
       "how": {
         "en": "1. Take the perception verb: voir, entendre, regarder, écouter, sentir (or laisser).\n2. Add the bare infinitive and the noun, in either order.\n3. With a pronoun, put it before the perception verb (or its auxiliary): je l'ai entendue chanter.",
         "de": "1. Nimm das Wahrnehmungsverb: voir, entendre, regarder, écouter, sentir (oder laisser).\n2. Füg Infinitiv und Nomen an, in beliebiger Reihenfolge.\n3. Ein Pronomen kommt vor das Wahrnehmungsverb (oder sein Hilfsverb): je l'ai entendue chanter.",
-        "fr": "1. Prenez le verbe de perception : voir, entendre, regarder, écouter, sentir (ou laisser).\n2. Ajoutez l'infinitif et le nom, dans l'ordre de votre choix.\n3. Un pronom se place devant le verbe de perception (ou son auxiliaire) : je l'ai entendue chanter."
+        "fr": "1. Prends le verbe de perception : voir, entendre, regarder, écouter, sentir (ou laisser).\n2. Ajoute l'infinitif et le nom, dans l'ordre de ton choix.\n3. Un pronom se place devant le verbe de perception (ou son auxiliaire) : je l'ai entendue chanter."
       },
       "examples": [
         {
@@ -863,7 +863,7 @@
       "how": {
         "en": "1. Choose the phase: about to, almost, in the end, to the extreme, by chance.\n2. Conjugate the helper verb (être, avoir failli, finir, en venir, venir).\n3. Add its preposition (de, par, à, or none) and the infinitive.",
         "de": "1. Wähl die Phase: gleich, beinahe, schließlich, bis zum Äußersten, zufällig.\n2. Konjugiere das Hilfsverb (être, avoir failli, finir, en venir, venir).\n3. Füg seine Präposition (de, par, à oder keine) und den Infinitiv an.",
-        "fr": "1. Choisissez la phase : imminence, de justesse, aboutissement, extrême, hasard.\n2. Conjuguez le verbe (être, avoir failli, finir, en venir, venir).\n3. Ajoutez sa préposition (de, par, à ou rien) et l'infinitif."
+        "fr": "1. Choisis la phase : imminence, de justesse, aboutissement, extrême, hasard.\n2. Conjugue le verbe (être, avoir failli, finir, en venir, venir).\n3. Ajoute sa préposition (de, par, à ou rien) et l'infinitif."
       },
       "examples": [
         {
@@ -973,7 +973,7 @@
       "how": {
         "en": "1. Take the noun of the first event: le repas, les contrats.\n2. Add its participle, agreeing with it: terminé, signés (or a participe présent: tombant).\n3. Comma, then the main clause with its own subject.",
         "de": "1. Nimm das Nomen des ersten Ereignisses: le repas, les contrats.\n2. Füg sein Partizip an, angeglichen: terminé, signés (oder ein Participe présent: tombant).\n3. Komma, dann der Hauptsatz mit eigenem Subjekt.",
-        "fr": "1. Prenez le nom du premier événement : le repas, les contrats.\n2. Ajoutez son participe, accordé : terminé, signés (ou un participe présent : tombant).\n3. Virgule, puis la principale avec son propre sujet."
+        "fr": "1. Prends le nom du premier événement : le repas, les contrats.\n2. Ajoute son participe, accordé : terminé, signés (ou un participe présent : tombant).\n3. Virgule, puis la principale avec son propre sujet."
       },
       "examples": [
         {
@@ -1074,7 +1074,7 @@
       "how": {
         "en": "1. Start with une fois, sitôt, aussitôt or à peine.\n2. Add the past participle, agreeing with the person who acts next.\n3. Comma, then the main clause with that same person as subject.",
         "de": "1. Beginne mit une fois, sitôt, aussitôt oder à peine.\n2. Füg das Partizip an, angeglichen an die Person, die danach handelt.\n3. Komma, dann der Hauptsatz mit genau dieser Person als Subjekt.",
-        "fr": "1. Commencez par une fois, sitôt, aussitôt ou à peine.\n2. Ajoutez le participe passé, accordé avec la personne qui agit ensuite.\n3. Virgule, puis la principale avec cette même personne pour sujet."
+        "fr": "1. Commence par une fois, sitôt, aussitôt ou à peine.\n2. Ajoute le participe passé, accordé avec la personne qui agit ensuite.\n3. Virgule, puis la principale avec cette même personne pour sujet."
       },
       "examples": [
         {
@@ -1184,7 +1184,7 @@
       "how": {
         "en": "1. Conjugate avoir in the tense you need: j'ai, tu auras, elle avait.\n2. Add beau (never changes) + the infinitive of the effort.\n3. Comma, then what happens anyway, without mais.",
         "de": "1. Konjugiere avoir in der passenden Zeit: j'ai, tu auras, elle avait.\n2. Füg beau (unveränderlich) + Infinitiv der Anstrengung an.\n3. Komma, dann das, was trotzdem passiert, ohne mais.",
-        "fr": "1. Conjuguez avoir au temps voulu : j'ai, tu auras, elle avait.\n2. Ajoutez beau (invariable) + l'infinitif de l'effort.\n3. Virgule, puis ce qui arrive malgré tout, sans mais."
+        "fr": "1. Conjugue avoir au temps voulu : j'ai, tu auras, elle avait.\n2. Ajoute beau (invariable) + l'infinitif de l'effort.\n3. Virgule, puis ce qui arrive malgré tout, sans mais."
       },
       "examples": [
         {
@@ -1294,7 +1294,7 @@
       "how": {
         "en": "1. Start with quand bien même (no que).\n2. Put the imagined case in the conditionnel: il pleuvrait, tu aurais raison.\n3. Main clause in the conditionnel (or futur / présent for a firm decision).",
         "de": "1. Beginne mit quand bien même (ohne que).\n2. Setz den gedachten Fall in den Conditionnel: il pleuvrait, tu aurais raison.\n3. Hauptsatz im Conditionnel (oder Futur / Präsens für einen festen Entschluss).",
-        "fr": "1. Commencez par quand bien même (sans que).\n2. Mettez le cas imaginé au conditionnel : il pleuvrait, tu aurais raison.\n3. Principale au conditionnel (ou au futur / présent pour une décision ferme)."
+        "fr": "1. Commence par quand bien même (sans que).\n2. Mets le cas imaginé au conditionnel : il pleuvrait, tu aurais raison.\n3. Principale au conditionnel (ou au futur / présent pour une décision ferme)."
       },
       "examples": [
         {
@@ -1402,7 +1402,7 @@
       "how": {
         "en": "1. Choose: thing → quoi que, person → qui que, place → où que.\n2. Add the subject and the verb in the subjonctif.\n3. Comma, then what stays true in every case.",
         "de": "1. Wähl: Sache → quoi que, Person → qui que, Ort → où que.\n2. Füg Subjekt und Verb im Subjonctif an.\n3. Komma, dann das, was in jedem Fall gilt.",
-        "fr": "1. Choisissez : chose → quoi que, personne → qui que, lieu → où que.\n2. Ajoutez le sujet et le verbe au subjonctif.\n3. Virgule, puis ce qui reste vrai dans tous les cas."
+        "fr": "1. Choisis : chose → quoi que, personne → qui que, lieu → où que.\n2. Ajoute le sujet et le verbe au subjonctif.\n3. Virgule, puis ce qui reste vrai dans tous les cas."
       },
       "examples": [
         {
@@ -1512,12 +1512,12 @@
       "more": {
         "en": "The most common spelling mistake of educated French writers is «quelque soit». Remember the logic: quel is an adjective that describes the noun coming after soit, so it takes its gender and number (quelles que soient vos raisons), and soit goes plural with a plural noun. Quelque in one word only appears in the other pattern, quelques efforts qu'il fasse, where the noun sits inside.",
         "de": "Der häufigste Rechtschreibfehler sogar gebildeter Franzosen ist «quelque soit». Merk dir die Logik: quel ist ein Adjektiv zum Nomen nach soit, übernimmt also dessen Geschlecht und Zahl (quelles que soient vos raisons), und soit steht bei einem Plural im Plural. Quelque in einem Wort gibt es nur im anderen Muster, quelques efforts qu'il fasse, mit dem Nomen in der Mitte.",
-        "fr": "Erreur fréquente même chez les natifs : « quelque soit ». Quel est un adjectif attribut du nom placé après soit : il en prend le genre et le nombre (quelles que soient vos raisons), et soit se met au pluriel. Quelque en un mot n'apparaît que dans l'autre tournure, quelques efforts qu'il fasse, où le nom est à l'intérieur."
+        "fr": "Erreur fréquente même chez les natifs : « quelque soit ». Quel est un adjectif attribut du nom placé après soit : il en prend le genre et le nombre (quelles que soient tes raisons), et soit se met au pluriel. Quelque en un mot n'apparaît que dans l'autre tournure, quelques efforts qu'il fasse, où le nom est à l'intérieur."
       },
       "how": {
         "en": "1. Find the noun that will follow: le prix, les risques, vos raisons.\n2. Write quel / quelle / quels / quelles to match it, then que.\n3. Add soit (singular) or soient (plural), then the noun.",
         "de": "1. Finde das Nomen, das folgen wird: le prix, les risques, vos raisons.\n2. Schreib passend quel / quelle / quels / quelles, dann que.\n3. Füg soit (Singular) oder soient (Plural) an, dann das Nomen.",
-        "fr": "1. Repérez le nom qui suivra : le prix, les risques, vos raisons.\n2. Écrivez quel / quelle / quels / quelles en accord, puis que.\n3. Ajoutez soit (singulier) ou soient (pluriel), puis le nom."
+        "fr": "1. Repère le nom qui suivra : le prix, les risques, tes raisons.\n2. Écris quel / quelle / quels / quelles en accord, puis que.\n3. Ajoute soit (singulier) ou soient (pluriel), puis le nom."
       },
       "examples": [
         {
@@ -1632,7 +1632,7 @@
       "how": {
         "en": "1. Start with si, aussi, pour or quelque + the adjective.\n2. Add que + subject + verb in the subjonctif (the subject may follow: que soient ses résultats).\n3. Comma, then the main clause that the degree does not change.",
         "de": "1. Beginne mit si, aussi, pour oder quelque + Adjektiv.\n2. Füg que + Subjekt + Verb im Subjonctif an (das Subjekt darf folgen: que soient ses résultats).\n3. Komma, dann der Hauptsatz, den der Grad nicht ändert.",
-        "fr": "1. Commencez par si, aussi, pour ou quelque + l'adjectif.\n2. Ajoutez que + sujet + verbe au subjonctif (le sujet peut suivre : que soient ses résultats).\n3. Virgule, puis la principale que le degré ne change pas."
+        "fr": "1. Commence par si, aussi, pour ou quelque + l'adjectif.\n2. Ajoute que + sujet + verbe au subjonctif (le sujet peut suivre : que soient ses résultats).\n3. Virgule, puis la principale que le degré ne change pas."
       },
       "examples": [
         {
@@ -1708,7 +1708,7 @@
       "rule": {
         "en": "First grant the other side (certes, il est vrai que), then turn it (mais, toutefois): your point comes second.",
         "de": "Erst der Gegenseite recht geben (certes, il est vrai que), dann wenden (mais, toutefois): Dein Punkt kommt zuletzt.",
-        "fr": "Concédez d'abord (certes, il est vrai que), puis réfutez (mais, toutefois) : votre position vient en second."
+        "fr": "Concède d'abord (certes, il est vrai que), puis réfute (mais, toutefois) : ta position vient en second."
       },
       "pattern": {
         "kind": "rows",
@@ -1747,7 +1747,7 @@
       "how": {
         "en": "1. State the objection with certes, il est vrai que or sans doute (indicative).\n2. Turn with mais, toutefois, néanmoins or il n'en reste pas moins que.\n3. Give your position: it is the part the reader should remember.",
         "de": "1. Nenn den Einwand mit certes, il est vrai que oder sans doute (Indikativ).\n2. Wende mit mais, toutefois, néanmoins oder il n'en reste pas moins que.\n3. Bring deine Position: Sie soll beim Leser hängen bleiben.",
-        "fr": "1. Énoncez l'objection avec certes, il est vrai que ou sans doute (indicatif).\n2. Retournez-la avec mais, toutefois, néanmoins ou il n'en reste pas moins que.\n3. Donnez votre position : c'est elle que le lecteur doit retenir."
+        "fr": "1. Énonce l'objection avec certes, il est vrai que ou sans doute (indicatif).\n2. Retourne-la avec mais, toutefois, néanmoins ou il n'en reste pas moins que.\n3. Donne ta position : c'est elle que le lecteur doit retenir."
       },
       "examples": [
         {
@@ -1788,7 +1788,7 @@
           "why": {
             "en": "This is your firm position: indicative.",
             "de": "Das ist deine feste Position: Indikativ.",
-            "fr": "C'est votre position : indicatif."
+            "fr": "C'est ta position : indicatif."
           }
         }
       ],
@@ -1852,12 +1852,12 @@
       "more": {
         "en": "Loin de works like a reversal switch: the reader expects one effect, you name it, and then show the opposite happened. Like every infinitive phrase at the head of a sentence, it shares the subject of the main clause, so make sure that subject is the one who did, or failed to do, the action.",
         "de": "Loin de funktioniert wie ein Umschalter: Der Leser erwartet eine Wirkung, du nennst sie und zeigst dann, dass das Gegenteil eingetreten ist, wie das deutsche «weit davon entfernt, … zu». Wie jede Infinitivgruppe am Satzanfang teilt sie das Subjekt des Hauptsatzes; achte also darauf, dass dieses Subjekt wirklich die Handlung (nicht) ausgeführt hat.",
-        "fr": "Loin de renverse l'attente du lecteur : on nomme l'effet prévu, puis on montre que c'est l'inverse qui s'est produit. Comme tout groupe infinitif en tête de phrase, il partage le sujet de la principale : vérifiez que ce sujet est bien celui de l'action."
+        "fr": "Loin de renverse l'attente du lecteur : on nomme l'effet prévu, puis on montre que c'est l'inverse qui s'est produit. Comme tout groupe infinitif en tête de phrase, il partage le sujet de la principale : vérifie que ce sujet est bien celui de l'action."
       },
       "how": {
         "en": "1. Name the expected effect with loin de + infinitive.\n2. Comma, then the main clause whose subject did (not) do it.\n3. Optionally stress the reversal with au contraire.",
         "de": "1. Nenn die erwartete Wirkung mit loin de + Infinitiv.\n2. Komma, dann der Hauptsatz, dessen Subjekt das (nicht) getan hat.\n3. Wenn du willst, unterstreich die Wende mit au contraire.",
-        "fr": "1. Nommez l'effet attendu avec loin de + infinitif.\n2. Virgule, puis la principale dont le sujet est celui de l'action.\n3. Soulignez au besoin le renversement avec au contraire."
+        "fr": "1. Nomme l'effet attendu avec loin de + infinitif.\n2. Virgule, puis la principale dont le sujet est celui de l'action.\n3. Souligne au besoin le renversement avec au contraire."
       },
       "examples": [
         {
@@ -1967,12 +1967,12 @@
       "more": {
         "en": "Pour autant blocks a lazy conclusion: X is true, but Y does not follow from it. It lives in negative or questioning sentences, and it is the perfect partner of German «deshalb noch lange nicht». Do not confuse it with pourtant (yet, surprisingly): pourtant contrasts two facts, pour autant cuts a link of cause.",
         "de": "Pour autant stoppt einen voreiligen Schluss: X stimmt, aber Y folgt daraus nicht, wie das deutsche «deshalb noch lange nicht». Es steht in verneinten Sätzen oder Fragen. Verwechsle es nicht mit pourtant (trotzdem, überraschenderweise): pourtant stellt zwei Tatsachen gegenüber, pour autant kappt eine Ursache-Wirkungs-Verbindung.",
-        "fr": "Pour autant bloque une conclusion hâtive : X est vrai, mais Y n'en découle pas. Il s'emploie dans une phrase négative ou interrogative. Ne le confondez pas avec pourtant, qui oppose deux faits : pour autant rompt un lien de cause à effet."
+        "fr": "Pour autant bloque une conclusion hâtive : X est vrai, mais Y n'en découle pas. Il s'emploie dans une phrase négative ou interrogative. Ne le confonds pas avec pourtant, qui oppose deux faits : pour autant rompt un lien de cause à effet."
       },
       "how": {
         "en": "1. State the fact: il est riche.\n2. Deny the expected result with a negation or a question.\n3. Add pour autant after the verb, or use sans pour autant + infinitive.",
         "de": "1. Nenn die Tatsache: il est riche.\n2. Bestreite die erwartete Folge mit einer Verneinung oder Frage.\n3. Setz pour autant hinter das Verb oder nimm sans pour autant + Infinitiv.",
-        "fr": "1. Posez le fait : il est riche.\n2. Niez la conséquence attendue par une négation ou une question.\n3. Placez pour autant après le verbe, ou employez sans pour autant + infinitif."
+        "fr": "1. Pose le fait : il est riche.\n2. Nie la conséquence attendue par une négation ou une question.\n3. Place pour autant après le verbe, ou emploie sans pour autant + infinitif."
       },
       "examples": [
         {
@@ -2077,7 +2077,7 @@
       "how": {
         "en": "1. State your decision: je pars tôt.\n2. Comma, quitte à.\n3. Add the infinitive of the cost you accept: attendre à la gare.",
         "de": "1. Nenn deine Entscheidung: je pars tôt.\n2. Komma, quitte à.\n3. Füg den Infinitiv des Preises an, den du akzeptierst: attendre à la gare.",
-        "fr": "1. Énoncez la décision : je pars tôt.\n2. Virgule, quitte à.\n3. Ajoutez l'infinitif du prix accepté : attendre à la gare."
+        "fr": "1. Énonce la décision : je pars tôt.\n2. Virgule, quitte à.\n3. Ajoute l'infinitif du prix accepté : attendre à la gare."
       },
       "examples": [
         {
@@ -2187,7 +2187,7 @@
       "how": {
         "en": "1. Make your statement: je reste.\n2. Add d'autant plus que (or split: d'autant plus + adjective + que) and the extra reason.\n3. For a reason that limits, use dans la mesure où + indicatif.",
         "de": "1. Stell deine Behauptung auf: je reste.\n2. Füg d'autant plus que (oder geteilt: d'autant plus + Adjektiv + que) und den zusätzlichen Grund an.\n3. Für einen begrenzenden Grund nimm dans la mesure où + Indikativ.",
-        "fr": "1. Posez l'affirmation : je reste.\n2. Ajoutez d'autant plus que (ou d'autant plus + adjectif + que) et la raison supplémentaire.\n3. Pour une cause-limite, employez dans la mesure où + indicatif."
+        "fr": "1. Pose l'affirmation : je reste.\n2. Ajoute d'autant plus que (ou d'autant plus + adjectif + que) et la raison supplémentaire.\n3. Pour une cause-limite, emploie dans la mesure où + indicatif."
       },
       "examples": [
         {
@@ -2408,7 +2408,7 @@
       "how": {
         "en": "1. Check whether il / elle could point to two nouns.\n2. Use ce dernier for the last one named (cette dernière, ces derniers…).\n3. For a pair, use celui-ci / celui-là or le premier / le second, agreeing with each noun.",
         "de": "1. Prüf, ob il / elle auf zwei Nomen verweisen könnte.\n2. Nimm ce dernier für das zuletzt genannte (cette dernière, ces derniers…).\n3. Für ein Paar celui-ci / celui-là oder le premier / le second, jeweils angeglichen.",
-        "fr": "1. Vérifiez si il / elle pourrait renvoyer à deux noms.\n2. Employez ce dernier pour le dernier nommé (cette dernière, ces derniers…).\n3. Pour une paire : celui-ci / celui-là ou le premier / le second, accordés."
+        "fr": "1. Vérifie si il / elle pourrait renvoyer à deux noms.\n2. Emploie ce dernier pour le dernier nommé (cette dernière, ces derniers…).\n3. Pour une paire : celui-ci / celui-là ou le premier / le second, accordés."
       },
       "examples": [
         {
@@ -2509,7 +2509,7 @@
       "how": {
         "en": "1. Find the group around the noun: au pied de + le château.\n2. Keep the preposition + noun (au pied) and replace de + noun by duquel / de laquelle / de qui.\n3. With simple dont, use le / la, never a possessive: dont j'admire le style.",
         "de": "1. Finde die Gruppe um das Nomen: au pied de + le château.\n2. Behalte Präposition + Nomen (au pied) und ersetze de + Nomen durch duquel / de laquelle / de qui.\n3. Bei einfachem dont le / la, nie ein Possessiv: dont j'admire le style.",
-        "fr": "1. Repérez le groupe : au pied de + le château.\n2. Gardez préposition + nom (au pied) et remplacez de + nom par duquel / de laquelle / de qui.\n3. Avec dont simple, employez le / la, jamais un possessif : dont j'admire le style."
+        "fr": "1. Repère le groupe : au pied de + le château.\n2. Garde préposition + nom (au pied) et remplace de + nom par duquel / de laquelle / de qui.\n3. Avec dont simple, emploie le / la, jamais un possessif : dont j'admire le style."
       },
       "examples": [
         {
@@ -2624,7 +2624,7 @@
       "how": {
         "en": "1. Take the piece to highlight in its normal form: en lisant, parce qu'il pleuvait.\n2. Put c'est in front of it.\n3. Close with que + the rest of the sentence.",
         "de": "1. Nimm das hervorzuhebende Stück in seiner normalen Form: en lisant, parce qu'il pleuvait.\n2. Setz c'est davor.\n3. Schließ mit que + Rest des Satzes.",
-        "fr": "1. Prenez l'élément à mettre en relief sous sa forme normale : en lisant, parce qu'il pleuvait.\n2. Placez c'est devant.\n3. Fermez avec que + la suite de la phrase."
+        "fr": "1. Prends l'élément à mettre en relief sous sa forme normale : en lisant, parce qu'il pleuvait.\n2. Place c'est devant.\n3. Ferme avec que + la suite de la phrase."
       },
       "examples": [
         {
@@ -2739,7 +2739,7 @@
       "how": {
         "en": "1. State the fact with si + indicative (any tense).\n2. Comma, then c'est que, c'est parce que or c'est pour.\n3. Give the explanation, still in the indicative.",
         "de": "1. Nenn die Tatsache mit si + Indikativ (beliebige Zeit).\n2. Komma, dann c'est que, c'est parce que oder c'est pour.\n3. Gib die Erklärung, weiter im Indikativ.",
-        "fr": "1. Énoncez le fait avec si + indicatif (tout temps).\n2. Virgule, puis c'est que, c'est parce que ou c'est pour.\n3. Donnez l'explication, toujours à l'indicatif."
+        "fr": "1. Énonce le fait avec si + indicatif (tout temps).\n2. Virgule, puis c'est que, c'est parce que ou c'est pour.\n3. Donne l'explication, toujours à l'indicatif."
       },
       "examples": [
         {
@@ -2854,7 +2854,7 @@
       "how": {
         "en": "1. Decide what you want to do: restate, list, specify or correct.\n2. Pick the word: autrement dit, à savoir, en ce sens que, ou plutôt / du moins.\n3. Follow it with the new wording (en ce sens que + indicative clause).",
         "de": "1. Entscheide, was du tun willst: umformulieren, aufzählen, präzisieren, korrigieren.\n2. Wähl das Wort: autrement dit, à savoir, en ce sens que, ou plutôt / du moins.\n3. Lass die neue Formulierung folgen (en ce sens que + Indikativsatz).",
-        "fr": "1. Choisissez l'opération : reformuler, énumérer, préciser, corriger.\n2. Prenez le mot : autrement dit, à savoir, en ce sens que, ou plutôt / du moins.\n3. Ajoutez la nouvelle formulation (en ce sens que + indicatif)."
+        "fr": "1. Choisis l'opération : reformuler, énumérer, préciser, corriger.\n2. Prends le mot : autrement dit, à savoir, en ce sens que, ou plutôt / du moins.\n3. Ajoute la nouvelle formulation (en ce sens que + indicatif)."
       },
       "examples": [
         {
@@ -3070,7 +3070,7 @@
       "how": {
         "en": "1. Choose: doubt (si tant est que), limit (pour autant que), little needed (pour peu que).\n2. Add the subject and the verb in the subjonctif.\n3. The main clause says what follows if the condition holds.",
         "de": "1. Wähl: Zweifel (si tant est que), Grenze (pour autant que), wenig nötig (pour peu que).\n2. Füg Subjekt und Verb im Subjonctif an.\n3. Der Hauptsatz sagt, was folgt, wenn die Bedingung erfüllt ist.",
-        "fr": "1. Choisissez : doute (si tant est que), limite (pour autant que), il suffit de peu (pour peu que).\n2. Ajoutez le sujet et le verbe au subjonctif.\n3. La principale dit ce qui suit si la condition est remplie."
+        "fr": "1. Choisis : doute (si tant est que), limite (pour autant que), il suffit de peu (pour peu que).\n2. Ajoute le sujet et le verbe au subjonctif.\n3. La principale dit ce qui suit si la condition est remplie."
       },
       "examples": [
         {
@@ -3185,7 +3185,7 @@
       "how": {
         "en": "1. Choose the shape: two conditionnels, sans / avec + noun, inversion, or à + infinitive.\n2. Put the condition first, followed by a comma.\n3. Put the result in the conditionnel (or futur after dût-il).",
         "de": "1. Wähl die Form: zwei Conditionnels, sans / avec + Nomen, Inversion oder à + Infinitiv.\n2. Stell die Bedingung voran, dann ein Komma.\n3. Setz das Ergebnis in den Conditionnel (oder Futur nach dût-il).",
-        "fr": "1. Choisissez la tournure : deux conditionnels, sans / avec + nom, inversion ou à + infinitif.\n2. Placez la condition en tête, suivie d'une virgule.\n3. Mettez le résultat au conditionnel (ou au futur après dût-il)."
+        "fr": "1. Choisis la tournure : deux conditionnels, sans / avec + nom, inversion ou à + infinitif.\n2. Place la condition en tête, suivie d'une virgule.\n3. Mets le résultat au conditionnel (ou au futur après dût-il)."
       },
       "examples": [
         {
@@ -3300,7 +3300,7 @@
       "how": {
         "en": "1. Spot the idea or noun you would otherwise repeat.\n2. Choose the link: ledit + noun, ce faisant, à cet égard, voilà pourquoi.\n3. With ce faisant, keep the same subject as the previous action.",
         "de": "1. Finde die Idee oder das Nomen, das du sonst wiederholen würdest.\n2. Wähl die Verbindung: ledit + Nomen, ce faisant, à cet égard, voilà pourquoi.\n3. Bei ce faisant dasselbe Subjekt wie bei der vorigen Handlung.",
-        "fr": "1. Repérez l'idée ou le nom à ne pas répéter.\n2. Choisissez le lien : ledit + nom, ce faisant, à cet égard, voilà pourquoi.\n3. Avec ce faisant, gardez le sujet de l'action précédente."
+        "fr": "1. Repère l'idée ou le nom à ne pas répéter.\n2. Choisis le lien : ledit + nom, ce faisant, à cet égard, voilà pourquoi.\n3. Avec ce faisant, garde le sujet de l'action précédente."
       },
       "examples": [
         {
@@ -3507,7 +3507,7 @@
       "how": {
         "en": "1. Find the object before avoir (que, les, l', la).\n2. Ask: does it do the infinitive's action?\n3. Yes → agree (vus, entendue); no → no agreement; fait → never.",
         "de": "1. Finde das Objekt vor avoir (que, les, l', la).\n2. Frag: Führt es die Handlung des Infinitivs aus?\n3. Ja → angleichen (vus, entendue); nein → nicht angleichen; fait → nie.",
-        "fr": "1. Repérez le complément placé avant avoir (que, les, l', la).\n2. Fait-il l'action de l'infinitif ?\n3. Oui → accord (vus, entendue) ; non → pas d'accord ; fait → jamais."
+        "fr": "1. Repère le complément placé avant avoir (que, les, l', la).\n2. Fait-il l'action de l'infinitif ?\n3. Oui → accord (vus, entendue) ; non → pas d'accord ; fait → jamais."
       },
       "examples": [
         {
@@ -3612,12 +3612,12 @@
       "more": {
         "en": "Listen to any French film and you'll hear it everywhere: c'est pas grave, t'inquiète pas, y a pas de souci. The meaning doesn't change at all; only the register does, a bit like German «hab ich nicht» instead of «habe ich nicht». Understand it, use it among friends if you like, but write ne in every email, exam and formal conversation.",
         "de": "Hör dir einen beliebigen französischen Film an, und du hörst es überall: c'est pas grave, t'inquiète pas, y a pas de souci. Die Bedeutung ändert sich nicht, nur das Register, ein bisschen wie «hab ich nicht» statt «habe ich nicht». Versteh es, benutz es gern unter Freunden, aber schreib ne in jeder E-Mail, Prüfung und förmlichen Unterhaltung.",
-        "fr": "Dans n'importe quel film on l'entend : c'est pas grave, t'inquiète pas, y a pas de souci. Le sens ne change pas, seul le registre. Comprenez-le, employez-le entre amis si vous voulez, mais écrivez ne dans tout courriel, examen ou échange formel."
+        "fr": "Dans n'importe quel film on l'entend : c'est pas grave, t'inquiète pas, y a pas de souci. Le sens ne change pas, seul le registre. Comprends-le, emploie-le entre amis si tu veux, mais écris ne dans tout courriel, examen ou échange formel."
       },
       "how": {
         "en": "1. Recognise the shape: subject + verb + pas / jamais / rien, no ne.\n2. To write it formally, put ne (n' before a vowel) after the subject and pronouns.\n3. Restore the full forms too: c'est → ce n'est, y a → il n'y a.",
         "de": "1. Erkenne die Form: Subjekt + Verb + pas / jamais / rien, ohne ne.\n2. Für die förmliche Version ne (vor Vokal n') nach Subjekt und Pronomen einsetzen.\n3. Auch volle Formen herstellen: c'est → ce n'est, y a → il n'y a.",
-        "fr": "1. Repérez la forme : sujet + verbe + pas / jamais / rien, sans ne.\n2. Pour l'écrit, rétablissez ne (n' devant voyelle) après le sujet et les pronoms.\n3. Rétablissez aussi les formes pleines : c'est → ce n'est, y a → il n'y a."
+        "fr": "1. Repère la forme : sujet + verbe + pas / jamais / rien, sans ne.\n2. Pour l'écrit, rétablis ne (n' devant voyelle) après le sujet et les pronoms.\n3. Rétablis aussi les formes pleines : c'est → ce n'est, y a → il n'y a."
       },
       "examples": [
         {
@@ -3649,7 +3649,7 @@
           "why": {
             "en": "In writing, keep ne and prefer il est to c'est before de + infinitive.",
             "de": "Schriftlich ne behalten und vor de + Infinitiv il est statt c'est.",
-            "fr": "À l'écrit, gardez ne et préférez il est devant de + infinitif."
+            "fr": "À l'écrit, garde ne et préfère il est devant de + infinitif."
           }
         }
       ],
@@ -3684,7 +3684,7 @@
       "rule": {
         "en": "Formal French uses cela and nous; familiar French uses ça and on. Switch them together.",
         "de": "Förmliches Französisch nimmt cela und nous, umgangssprachliches ça und on. Wechsle sie zusammen.",
-        "fr": "Le registre soutenu emploie cela et nous ; le familier, ça et on. Changez-les ensemble."
+        "fr": "Le registre soutenu emploie cela et nous ; le familier, ça et on. Change-les ensemble."
       },
       "pattern": {
         "kind": "rows",
@@ -3713,12 +3713,12 @@
       "more": {
         "en": "Before a reader even notices your vocabulary, ça and on tell them you are chatting, while cela and nous tell them you are writing. In a letter to an administration or an essay, use cela and nous throughout. With friends, cela sounds stiff and nous a little cold. The real mistake is mixing them in one text.",
         "de": "Noch bevor der Leser deinen Wortschatz bemerkt, verraten ça und on, dass du plauderst, cela und nous, dass du schreibst. In einem Brief an eine Behörde oder einem Aufsatz durchgehend cela und nous. Unter Freunden klingt cela steif und nous etwas kühl. Der eigentliche Fehler ist, beides in einem Text zu mischen.",
-        "fr": "Avant même le vocabulaire, ça et on signalent la conversation, cela et nous l'écrit. Dans un courrier administratif ou une dissertation, employez cela et nous partout ; entre amis, cela paraît raide et nous un peu froid. La vraie faute est de mélanger les deux dans un même texte."
+        "fr": "Avant même le vocabulaire, ça et on signalent la conversation, cela et nous l'écrit. Dans un courrier administratif ou une dissertation, emploie cela et nous partout ; entre amis, cela paraît raide et nous un peu froid. La vraie faute est de mélanger les deux dans un même texte."
       },
       "how": {
         "en": "1. Decide the register of the whole text.\n2. Formal: cela / ceci and nous (with the nous verb form: nous avons).\n3. Familiar: ça and on (on a); avoid switching midway.",
         "de": "1. Leg das Register des ganzen Textes fest.\n2. Förmlich: cela / ceci und nous (mit nous-Verbform: nous avons).\n3. Umgangssprachlich: ça und on (on a); nicht mittendrin wechseln.",
-        "fr": "1. Fixez le registre de tout le texte.\n2. Soutenu : cela / ceci et nous (avec la forme nous avons).\n3. Familier : ça et on (on a) ; ne changez pas en cours de route."
+        "fr": "1. Fixe le registre de tout le texte.\n2. Soutenu : cela / ceci et nous (avec la forme nous avons).\n3. Familier : ça et on (on a) ; ne change pas en cours de route."
       },
       "examples": [
         {
@@ -3814,12 +3814,12 @@
       "more": {
         "en": "All three are correct French; they just belong to different situations. Familiar questions keep statement order and add the question word at the end, where que becomes quoi (tu fais quoi ?). Est-ce que is the safe everyday choice. Inversion sounds formal and belongs in interviews, letters and exams. Don't mix the patterns inside one question.",
         "de": "Alle drei sind korrektes Französisch, sie gehören nur zu verschiedenen Situationen. Umgangssprachliche Fragen behalten die Aussagestellung und hängen das Fragewort hinten an, wo que zu quoi wird (tu fais quoi ?). Est-ce que ist die sichere Alltagswahl. Inversion klingt förmlich und gehört in Interviews, Briefe und Prüfungen. Misch die Muster nicht in einer Frage.",
-        "fr": "Les trois formes sont correctes mais relèvent de situations différentes. La question familière garde l'ordre de la phrase affirmative et place le mot interrogatif à la fin, où que devient quoi. Est-ce que convient partout au quotidien. L'inversion est soutenue : entretiens, lettres, examens. Ne mélangez pas les tournures."
+        "fr": "Les trois formes sont correctes mais relèvent de situations différentes. La question familière garde l'ordre de la phrase affirmative et place le mot interrogatif à la fin, où que devient quoi. Est-ce que convient partout au quotidien. L'inversion est soutenue : entretiens, lettres, examens. Ne mélange pas les tournures."
       },
       "how": {
         "en": "1. Choose the register of the situation.\n2. Familiar: statement + question word at the end (quoi for que).\n3. Standard: word + est-ce que + statement; formal: word + verb-pronoun.",
         "de": "1. Wähl das Register der Situation.\n2. Umgangssprachlich: Aussagesatz + Fragewort am Ende (quoi statt que).\n3. Neutral: Wort + est-ce que + Aussagesatz; förmlich: Wort + Verb-Pronomen.",
-        "fr": "1. Choisissez le registre de la situation.\n2. Familier : phrase affirmative + mot interrogatif à la fin (quoi pour que).\n3. Courant : mot + est-ce que + phrase ; soutenu : mot + verbe-pronom."
+        "fr": "1. Choisis le registre de la situation.\n2. Familier : phrase affirmative + mot interrogatif à la fin (quoi pour que).\n3. Courant : mot + est-ce que + phrase ; soutenu : mot + verbe-pronom."
       },
       "examples": [
         {
@@ -3934,7 +3934,7 @@
       "how": {
         "en": "1. Identify the situation: friends, everyday, formal.\n2. Pick the word of that level (bosser / travailler / œuvrer).\n3. Reread and replace any word from another level.",
         "de": "1. Bestimm die Situation: Freunde, Alltag, förmlich.\n2. Wähl das Wort dieser Ebene (bosser / travailler / œuvrer).\n3. Lies nochmal und ersetze jedes Wort aus einer anderen Ebene.",
-        "fr": "1. Identifiez la situation : amis, quotidien, formel.\n2. Choisissez le mot de ce niveau (bosser / travailler / œuvrer).\n3. Relisez et remplacez tout mot d'un autre niveau."
+        "fr": "1. Identifie la situation : amis, quotidien, formel.\n2. Choisis le mot de ce niveau (bosser / travailler / œuvrer).\n3. Relis et remplace tout mot d'un autre niveau."
       },
       "examples": [
         {
@@ -4040,7 +4040,7 @@
       "how": {
         "en": "1. Turn the verb into its noun: démissionner → démission, fermer → fermeture.\n2. Drop the article and add de / du / des + what is concerned.\n3. For a passive, use noun + agreeing participle: réunion annulée.",
         "de": "1. Mach aus dem Verb sein Nomen: démissionner → démission, fermer → fermeture.\n2. Lass den Artikel weg und füg de / du / des + das Betroffene an.\n3. Statt Passiv: Nomen + angeglichenes Partizip: réunion annulée.",
-        "fr": "1. Transformez le verbe en nom : démissionner → démission, fermer → fermeture.\n2. Supprimez l'article et ajoutez de / du / des + l'élément concerné.\n3. Pour un passif : nom + participe accordé : réunion annulée."
+        "fr": "1. Transforme le verbe en nom : démissionner → démission, fermer → fermeture.\n2. Supprime l'article et ajoute de / du / des + l'élément concerné.\n3. Pour un passif : nom + participe accordé : réunion annulée."
       },
       "examples": [
         {
@@ -4155,7 +4155,7 @@
       "how": {
         "en": "1. Spot the condition you would write with si: s'il le faut, si c'est possible.\n2. Replace it with the short phrase: si besoin, si possible, le cas échéant.\n3. Set it off with commas, at the start or at the end.",
         "de": "1. Finde die Bedingung, die du mit si schreiben würdest: s'il le faut, si c'est possible.\n2. Ersetze sie durch die Kurzform: si besoin, si possible, le cas échéant.\n3. Grenz sie mit Kommas ab, am Anfang oder am Ende.",
-        "fr": "1. Repérez la condition en si : s'il le faut, si c'est possible.\n2. Remplacez-la par la formule courte : si besoin, si possible, le cas échéant.\n3. Encadrez-la de virgules, en tête ou en fin de phrase."
+        "fr": "1. Repère la condition en si : s'il le faut, si c'est possible.\n2. Remplace-la par la formule courte : si besoin, si possible, le cas échéant.\n3. Encadre-la de virgules, en tête ou en fin de phrase."
       },
       "examples": [
         {
@@ -4265,7 +4265,7 @@
       "more": {
         "en": "Sans que already means 'without', so pas would make a double negative. You will often hear sans que personne ne le sache, but careful written French leaves the ne out: personne, rien and aucun carry the negation on their own here, much like German «ohne dass es jemand merkt». When both clauses have the same subject, use sans + infinitive instead.",
         "de": "Sans que heißt schon «ohne dass», pas wäre also eine doppelte Verneinung. Man hört oft sans que personne ne le sache, aber gepflegtes Schriftfranzösisch lässt das ne weg: personne, rien und aucun tragen hier die Verneinung allein, wie im Deutschen «ohne dass es jemand merkt». Bei gleichem Subjekt nimmst du stattdessen sans + Infinitiv.",
-        "fr": "Sans que exprime déjà la négation : pas ferait double emploi. On entend souvent sans que personne ne le sache, mais l'écrit soigné omet ne : personne, rien, aucun portent seuls la négation. Avec le même sujet, employez sans + infinitif."
+        "fr": "Sans que exprime déjà la négation : pas ferait double emploi. On entend souvent sans que personne ne le sache, mais l'écrit soigné omet ne : personne, rien, aucun portent seuls la négation. Avec le même sujet, emploie sans + infinitif."
       },
       "how": {
         "en": "1. Same subject? Use sans + infinitive.\n2. Different subject: sans que + subjonctif.\n3. No pas; with personne, rien or aucun, leave out ne.",
@@ -4385,7 +4385,7 @@
       "how": {
         "en": "1. Put ne (n') before the verb or auxiliary, as usual.\n2. Replace pas with guère, nullement, aucunement or point.\n3. For 'nobody', start with nul + ne + verb.",
         "de": "1. Setz ne (n') wie gewohnt vor Verb oder Hilfsverb.\n2. Ersetze pas durch guère, nullement, aucunement oder point.\n3. Für «niemand»: nul + ne + Verb am Satzanfang.",
-        "fr": "1. Placez ne (n') devant le verbe ou l'auxiliaire.\n2. Remplacez pas par guère, nullement, aucunement ou point.\n3. Pour « personne », commencez par nul + ne + verbe."
+        "fr": "1. Place ne (n') devant le verbe ou l'auxiliaire.\n2. Remplace pas par guère, nullement, aucunement ou point.\n3. Pour « personne », commence par nul + ne + verbe."
       },
       "examples": [
         {
@@ -4495,12 +4495,12 @@
       "more": {
         "en": "This is a real negation, not the empty ne explétif: je ne saurais vous dire means 'I couldn't tell you'. It only works with these four verbs followed by an infinitive, plus fixed phrases like si je ne me trompe. Je ne saurais is in the conditionnel (a polite 'I could not'), so don't write the futur saurai. Je ne puis is the old, very formal form of je ne peux.",
         "de": "Das ist eine echte Verneinung, kein leeres ne explétif: je ne saurais vous dire heißt «das könnte ich Ihnen nicht sagen». Es funktioniert nur mit diesen vier Verben vor einem Infinitiv und in festen Wendungen wie si je ne me trompe. Je ne saurais steht im Conditionnel, also nicht das Futur saurai schreiben. Je ne puis ist die alte, sehr förmliche Form von je ne peux.",
-        "fr": "Il s'agit d'une vraie négation, non du ne explétif. Elle n'est possible qu'avec ces quatre verbes suivis d'un infinitif, et dans quelques formules (si je ne me trompe). Je ne saurais est au conditionnel : n'écrivez pas le futur saurai. Je ne puis est la forme ancienne et très soutenue de je ne peux."
+        "fr": "Il s'agit d'une vraie négation, non du ne explétif. Elle n'est possible qu'avec ces quatre verbes suivis d'un infinitif, et dans quelques formules (si je ne me trompe). Je ne saurais est au conditionnel : n'écris pas le futur saurai. Je ne puis est la forme ancienne et très soutenue de je ne peux."
       },
       "how": {
         "en": "1. Check the verb: savoir (conditionnel), oser, cesser or pouvoir.\n2. Put ne before it and leave out pas.\n3. Add the infinitive (de + infinitive after cesser).",
         "de": "1. Prüf das Verb: savoir (Conditionnel), oser, cesser oder pouvoir.\n2. Setz ne davor und lass pas weg.\n3. Füg den Infinitiv an (nach cesser de + Infinitiv).",
-        "fr": "1. Vérifiez le verbe : savoir (au conditionnel), oser, cesser ou pouvoir.\n2. Placez ne devant et omettez pas.\n3. Ajoutez l'infinitif (de + infinitif après cesser)."
+        "fr": "1. Vérifie le verbe : savoir (au conditionnel), oser, cesser ou pouvoir.\n2. Place ne devant et omets pas.\n3. Ajoute l'infinitif (de + infinitif après cesser)."
       },
       "examples": [
         {
@@ -4616,7 +4616,7 @@
       "how": {
         "en": "1. Use it only in a story told in the passé simple.\n2. After quand / dès que / après que, put avoir or être in the passé simple + participle.\n3. Put the next event in the passé simple.",
         "de": "1. Nur in einer Erzählung im Passé simple verwenden.\n2. Nach quand / dès que / après que avoir oder être im Passé simple + Partizip.\n3. Das nächste Ereignis steht im Passé simple.",
-        "fr": "1. Ne l'employez que dans un récit au passé simple.\n2. Après quand / dès que / après que : avoir ou être au passé simple + participe.\n3. L'événement suivant se met au passé simple."
+        "fr": "1. Ne l'emploie que dans un récit au passé simple.\n2. Après quand / dès que / après que : avoir ou être au passé simple + participe.\n3. L'événement suivant se met au passé simple."
       },
       "examples": [
         {
@@ -4731,7 +4731,7 @@
       "how": {
         "en": "1. Sort your sentences: scenery, events, earlier facts.\n2. Scenery → imparfait; events → passé simple; earlier facts → plus-que-parfait.\n3. Keep the passé composé for dialogue only.",
         "de": "1. Ordne deine Sätze: Kulisse, Ereignisse, frühere Fakten.\n2. Kulisse → Imparfait; Ereignisse → Passé simple; Früheres → Plus-que-parfait.\n3. Das Passé composé nur im Dialog.",
-        "fr": "1. Classez les phrases : décor, événements, faits antérieurs.\n2. Décor → imparfait ; événements → passé simple ; antérieur → plus-que-parfait.\n3. Réservez le passé composé aux dialogues."
+        "fr": "1. Classe les phrases : décor, événements, faits antérieurs.\n2. Décor → imparfait ; événements → passé simple ; antérieur → plus-que-parfait.\n3. Réserve le passé composé aux dialogues."
       },
       "examples": [
         {
@@ -4851,12 +4851,12 @@
       "more": {
         "en": "Classic novels follow the old concordance: after a past main verb, the subjonctif goes into the imparfait. You don't need to produce it; you need to recognise it. Spot the circumflex on the third person (fût, eût, vînt, parlât) and translate it in your head into the present subjonctif: qu'il vienne, qu'il parle. Watch il fut (passé simple) vs qu'il fût (subjonctif): one accent changes the mood.",
         "de": "Klassische Romane folgen der alten Zeitenfolge: Nach einem Hauptverb in der Vergangenheit steht der Subjonctif im Imparfait. Du musst ihn nicht bilden, nur erkennen. Achte auf den Zirkumflex in der 3. Person (fût, eût, vînt, parlât) und übersetze im Kopf in den Subjonctif présent: qu'il vienne, qu'il parle. Vorsicht bei il fut (Passé simple) und qu'il fût (Subjonctif): Ein Akzent ändert den Modus.",
-        "fr": "Les romans classiques suivent l'ancienne concordance : après un verbe principal au passé, subjonctif imparfait. Il suffit de le reconnaître : repérez l'accent circonflexe (fût, eût, vînt, parlât) et transposez au subjonctif présent. Attention : il fut (passé simple) / qu'il fût (subjonctif)."
+        "fr": "Les romans classiques suivent l'ancienne concordance : après un verbe principal au passé, subjonctif imparfait. Il suffit de le reconnaître : repère l'accent circonflexe (fût, eût, vînt, parlât) et transpose au subjonctif présent. Attention : il fut (passé simple) / qu'il fût (subjonctif)."
       },
       "how": {
         "en": "1. Spot a past main verb + que + a form with a circumflex (fût, vînt, parlât).\n2. Find the passé simple behind it: il vint → vînt.\n3. Read it as the present subjonctif: qu'il vienne.",
         "de": "1. Erkenne ein Hauptverb in der Vergangenheit + que + eine Form mit Zirkumflex (fût, vînt, parlât).\n2. Finde das Passé simple dahinter: il vint → vînt.\n3. Lies es als Subjonctif présent: qu'il vienne.",
-        "fr": "1. Repérez un verbe principal au passé + que + une forme à circonflexe (fût, vînt, parlât).\n2. Retrouvez le passé simple : il vint → vînt.\n3. Lisez-le comme un subjonctif présent : qu'il vienne."
+        "fr": "1. Repère un verbe principal au passé + que + une forme à circonflexe (fût, vînt, parlât).\n2. Retrouve le passé simple : il vint → vînt.\n3. Lis-le comme un subjonctif présent : qu'il vienne."
       },
       "examples": [
         {
@@ -4971,7 +4971,7 @@
       "how": {
         "en": "1. Spot eût / fût (with a circumflex) + participle.\n2. After que, read it as the subjonctif passé: qu'il ait fini.\n3. Elsewhere, read it as the conditionnel passé: il aurait fallu.",
         "de": "1. Erkenne eût / fût (mit Zirkumflex) + Partizip.\n2. Nach que lies es als Subjonctif passé: qu'il ait fini.\n3. Sonst lies es als Conditionnel passé: il aurait fallu.",
-        "fr": "1. Repérez eût / fût (avec circonflexe) + participe.\n2. Après que, lisez-le comme un subjonctif passé : qu'il ait fini.\n3. Ailleurs, comme un conditionnel passé : il aurait fallu."
+        "fr": "1. Repère eût / fût (avec circonflexe) + participe.\n2. Après que, lis-le comme un subjonctif passé : qu'il ait fini.\n3. Ailleurs, comme un conditionnel passé : il aurait fallu."
       },
       "examples": [
         {

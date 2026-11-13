@@ -395,6 +395,32 @@ def fix_words(source: Any, expected: Any) -> int:
     return 0 if window is None else window[1] - window[0]
 
 
+#: The drills that pose a sentence with its wrong words to touch.
+SPOTTED_DRILLS = frozenset({DRILL_SPOT, DRILL_MINE})
+
+
+def posed_item(drill: str | None, item: Mapping[str, Any]) -> dict[str, Any]:
+    """``item`` as ``drill`` poses it: what the card asks is read from the item.
+
+    #755: a spot's hint («Touche le mot faux» or «Touche les 2 mots faux») is
+    the number of words its fix touches. That number belongs to the item's own
+    sentence and key, not to the builder that made it: a repair item from the
+    fallback set («Je lui le donne.» → «Je le lui donne.») is a spot like a bank
+    one. Counted here, where the drill is chosen, for every item it poses; a
+    count the stored item carried is replaced, never trusted.
+    """
+
+    out = dict(item)
+    if drill not in SPOTTED_DRILLS:
+        return out
+    words = fix_words(out.get("source_fr") or out.get("source"), out.get("expected_answer"))
+    if words > 1:
+        out["fix_words"] = words
+    else:
+        out.pop("fix_words", None)
+    return out
+
+
 #: An authored transform that changes a right sentence into another (a tense, a
 #: negation): there is no mistake in it to find.
 REWRITE_KINDS = frozenset({"directed_rewrite", "contrast_rewrite"})
@@ -650,6 +676,7 @@ __all__ = [
     "item_fits",
     "learner_signal",
     "mine_fits",
+    "posed_item",
     "rank_drills",
     "spot_fits",
     "spot_window",
