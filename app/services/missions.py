@@ -3967,7 +3967,9 @@ class MissionCorrectionService:
                 continue
             if not self._quote_is_grounded(erratum, submission_text=submission_text):
                 continue
-            verified = correction_contract.verify_erratum(submission_text, erratum, strict_span=False)
+            verified = correction_contract.verify_erratum(
+                submission_text, erratum, strict_span=False, language=copy_language(language)
+            )
             if verified is None:
                 # #250: the note cites a subject that is not in the reply, the swapped
                 # form is wrong for the subject in front of it, the fix rewrites who

@@ -2793,7 +2793,7 @@ def grounded_errata(
         quoted = " ".join(_words_of(item.get("learner_text")))
         if quoted and quoted in seen:
             continue  # one note per issue, not two near-duplicates (#93)
-        verified = verify_erratum(text, item, strict_span=strict_span)
+        verified = verify_erratum(text, item, strict_span=strict_span, language=language)
         if verified is not None:
             kept.append(reconcile_notes(verified, language=language))
             if quoted:
@@ -2802,10 +2802,14 @@ def grounded_errata(
 
 
 def verify_erratum(
-    text: object, item: Mapping[str, Any], *, strict_span: bool = False
+    text: object, item: Mapping[str, Any], *, strict_span: bool = False, language: str | None = None
 ) -> dict[str, Any] | None:
     """``item`` (an erratum) as the learner should see it, its fix settled and its
-    notes quoting that fix, or ``None`` when :func:`verify_edit` rejects it."""
+    notes quoting that fix, or ``None`` when :func:`verify_edit` rejects it.
+
+    #745: a fix that changes the number the learner said, where the rules fix the same
+    words keeping it, is the rules' fix, with the rules' note (:func:`rule_fix_keeping_number`).
+    ``overruled_fix`` keeps the model's, so its sentence can be held to the list."""
     verdict = verify_edit(
         text,
         item.get("learner_text"),
@@ -2815,7 +2819,58 @@ def verify_erratum(
     )
     if not verdict.ok:
         return None
+    rule = rule_fix_keeping_number(text, verdict.span or item.get("learner_text"), verdict.replacement)
+    if rule is not None:
+        out = {**item, **to_erratum(rule, language=language), "overruled_fix": verdict.replacement}
+        if item.get("external_id"):
+            out["external_id"] = item["external_id"]  # the unit it was drilled under stays its unit
+        out.pop("source", None)
+        return out
     return _with_replacement(item, verdict.replacement, verdict.span)
+
+
+#: Determiners that say one thing, and those that say several (#745). «leur(s)» and
+#: the numbers are left out: they say nothing a rule could keep.
+_SAYS_ONE = frozenset({"le", "la", "l", "un", "une", "ce", "cet", "cette", "mon", "ton", "son", "ma", "ta", "sa", "du", "au"})
+_SAYS_SEVERAL = frozenset({"les", "des", "ces", "mes", "tes", "ses", "nos", "vos", "aux"})
+
+
+def _number_said(text: object) -> str | None:
+    """«one» or «several», as the first determiner of ``text`` says it, or ``None``."""
+    for tok in _tokens(_norm(text)):
+        if tok.low in _SAYS_ONE:
+            return "one"
+        if tok.low in _SAYS_SEVERAL:
+            return "several"
+    return None
+
+
+def rule_fix_keeping_number(
+    text: object, span: object, replacement: object, *, people: Mapping[str, str] | None = None
+) -> Edit | None:
+    """#745: the rules' fix of ``span`` when ``replacement`` changes the number the learner
+    said («la oiseau» -> «les oiseaux») and the rules fix the same words keeping it
+    («l'oiseau»), else ``None``.
+
+    A model's fix passed the one check when it settled, and «oiseaux» is the same word as
+    «oiseau», so nothing asked whether the fix kept what the learner said: the learner
+    who wrote one bird was told a plural was needed, and the minimal fix of their own
+    line was refused. The rules' fix is the minimal one and stands. A number change the
+    rules have no fix for («Le chat sont noirs» -> «Les chats sont noirs») stays the model's."""
+
+    said = _number_said(span)
+    if said is None or _number_said(replacement) in {None, said}:
+        return None
+    source = "" if text is None else str(text)
+    where = _locate(source, str(span or ""))
+    if where is None:
+        return None
+    for edit in deterministic_edits(source, people=people):
+        if where[0] <= edit.start and edit.end <= where[1]:
+            kept = source[where[0] : edit.start] + edit.replacement + source[edit.end : where[1]]
+            if _number_said(kept) == said:
+                return edit
+    return None
 
 
 def _with_replacement(item: Mapping[str, Any], replacement: str | None, span: str | None = None) -> dict[str, Any]:
@@ -2872,6 +2927,9 @@ def first_valid_edit(
         span, replacement, listed=True, question=in_a_question(text, span)
     ) is None:
         verdict = verify_edit(text, span, replacement, note, people=people)
+        rule = rule_fix_keeping_number(text, verdict.span or span, verdict.replacement, people=people) if verdict.ok else None
+        if rule is not None:
+            return rule.span, rule.replacement, rule.note_for(language)  # #745: the learner's number stands
         if verdict.ok and verdict.replacement:
             shown = _requote(str(note), str(replacement), verdict.replacement) if note else None
             if shown:
@@ -3233,7 +3291,7 @@ def verify_correction(
         if not is_about_the_line(item):
             kept.append(item)
             continue
-        verified = verify_erratum(line, item, strict_span=False)
+        verified = verify_erratum(line, item, strict_span=False, language=language)
         reason = "not_verified" if verified is None else changes_what_was_said(
             verified.get("learner_text"),
             verified.get("corrected_target"),
@@ -3327,6 +3385,7 @@ __all__ = [
     "known_people",
     "merge_deterministic_errata",
     "repair_text",
+    "rule_fix_keeping_number",
     "note_for_form",
     "note_from_form",
     "note_matches_form",

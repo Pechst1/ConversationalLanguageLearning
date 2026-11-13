@@ -822,7 +822,9 @@ def held_to_sentence(
         if not text or str(erratum.get("task_error_type") or "") in _UNCHECKED_ERRATA:
             shown.append(erratum)
             continue
-        verified = correction_contract.verify_erratum(text, erratum, strict_span=False)
+        verified = correction_contract.verify_erratum(
+            text, erratum, strict_span=False, language=mother_tongue(language)
+        )
         if verified is None or correction_contract.changes_what_was_said(
             verified.get("learner_text"),
             verified.get("corrected_target"),
@@ -833,6 +835,27 @@ def held_to_sentence(
             continue
         shown.append(correction_contract.reconcile_notes(verified, language=mother_tongue(language)))
     return shown, dropped
+
+
+def _sentence_keeps_rule_fixes(refined: dict[str, Any]) -> dict[str, Any]:
+    """#745: the shown sentence says what the list says. A fix the rules overruled
+    («les oiseaux» for a learner's «la oiseau», ``overruled_fix``) is the rules' fix in
+    the model's sentence too; otherwise the sentence would bring the model's fix back
+    as a gap of its own (:func:`reconcile_with_sentence`)."""
+
+    sentence = refined.get("corrected_answer")
+    if not isinstance(sentence, str):
+        return refined
+    for erratum in refined.get("errata") or []:
+        model_fix = erratum.get("overruled_fix") if isinstance(erratum, dict) else None
+        if not model_fix:
+            continue
+        pattern = re.compile(rf"(?<!\w){re.escape(str(model_fix))}(?!\w)", re.IGNORECASE)
+        fix = str(erratum.get("corrected_target") or "")
+        sentence = pattern.sub(
+            lambda match, fix=fix: fix[:1].upper() + fix[1:] if match.group()[:1].isupper() else fix, sentence, count=1
+        )
+    return {**refined, "corrected_answer": sentence}
 
 
 def sentence_differences(line: Any, sentence: Any) -> list[tuple[str, int, int, int, int]]:
@@ -964,6 +987,7 @@ def refine_production_correction(
     errata, unproven = held_to_sentence(errata, learner_text, language)
     if refined.get("errata") is not None or errata:
         refined["errata"] = errata  # settled fixes and reconciled notes, dropped or not
+    refined = _sentence_keeps_rule_fixes(refined)
     if unproven:
         refined["dropped_errata"] = [
             {"learner_text": item.get("learner_text"), "reason": "not_in_sentence"} for item in unproven
