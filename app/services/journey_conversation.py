@@ -76,7 +76,7 @@ from app.db.models.serial import SerialThread
 from app.db.models.user import User
 from app.services import correction_contract, pragmatics
 from app.services.chrome_language import user_chrome_language, user_mother_tongue
-from app.services.error_memory import ErrorMemoryService
+from app.services.error_memory import ErrorMemoryService, answer_key
 from app.services.journey_content import render_authored_text
 from app.services.journey_contracts import (
     FALLBACK_CONTROL_LANGUAGE,
@@ -3114,7 +3114,7 @@ def _repairable(error: UserError) -> tuple[str, str] | None:
     """``(wrong, correct)`` for an erratum this policy can actually prompt on."""
 
     wrong = str(error.original_text or "").strip()
-    correct = str(error.correction or "").strip()
+    correct = answer_key(error)  # #723: never a key that keeps a non-French word
     if not wrong or not correct:
         return None
     folded_wrong, folded_correct = fold_for_comparison(wrong), fold_for_comparison(correct)

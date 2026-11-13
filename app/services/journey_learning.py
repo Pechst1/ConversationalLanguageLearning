@@ -467,6 +467,11 @@ def _target_ref_for_item(item: DueLearningItem) -> TargetRef | None:
             concept_title=True,
         )
     if item.item_type is ItemType.ERROR:
+        if "correction" in metadata and not metadata.get("correction"):
+            # #723: the queue hands over the French key (`error_memory.answer_key`);
+            # none means the stored correction is not French and cannot be made so.
+            # Its display label is a category, never an answer (journey_errata too).
+            return None
         return TargetRef(
             kind=TargetKind.ERROR,
             id=str(item.original_id),

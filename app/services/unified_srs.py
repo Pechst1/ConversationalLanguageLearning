@@ -27,7 +27,7 @@ from app.services.chrome_language import user_mother_tongue
 from app.services.concept_titles import concept_title
 from app.services.conjugation import DISPLAY_TENSES, ConjugationService
 from app.services.enhanced_srs import EnhancedSRSService
-from app.services.error_memory import ErrorMemoryService
+from app.services.error_memory import ErrorMemoryService, answer_key
 from app.services.glosses import word_gloss
 from app.services.grammar import GrammarService
 from app.services.progress import (
@@ -942,7 +942,8 @@ class UnifiedSRSService:
                     "occurrences": error.occurrences or 1,
                     "severity": severity,
                     "original_text": error.original_text,
-                    "correction": error.correction,
+                    # #723: the French key, repaired once (the recall's bank and answer).
+                    "correction": answer_key(error) or None,
                     "context": error.context_snippet,
                     "why_wrong": error.why_wrong,
                     "repair_hint": error.repair_hint,

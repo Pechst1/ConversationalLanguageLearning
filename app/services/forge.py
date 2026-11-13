@@ -1045,8 +1045,10 @@ def _mine_sentence(db: Session, error: Any) -> tuple[str, str]:
     own line again — not a fragment.
     """
 
+    from app.services.error_memory import answer_key
+
     learner = re.sub(r"\s+", " ", str(error.original_text or "")).strip()
-    corrected = re.sub(r"\s+", " ", str(error.correction or "")).strip()
+    corrected = re.sub(r"\s+", " ", answer_key(error) or str(error.correction or "")).strip()
     if not learner or not corrected:
         return learner, corrected
     context = ""

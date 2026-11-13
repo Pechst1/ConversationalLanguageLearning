@@ -33,6 +33,7 @@ from app.services.error_memory import (
     ERROR_STATE_MASTERED,
     ERROR_STATE_REPAIRING,
     ErrorMemoryService,
+    answer_key,
     normalize_error_state,
     serialize_error_memory,
 )
@@ -215,10 +216,13 @@ def build_errata_target(error: UserError, *, now: datetime | None = None) -> Err
     label = str(payload.get("display_label") or "").strip()
     if not label:
         return None
-    if not str(error.correction or "").strip():
+    correct = answer_key(error)
+    if not correct:
         # No stored French correction means nothing to elicit and nothing to
         # grade: the legacy table holds rows with only an explanation. Such a
         # row can be read in the Cahier, but it cannot be a scene's target.
+        # #723: nor can one whose correction keeps a non-French word that no
+        # verb lets us repair («Je suis im café.»): it would be the answer key.
         return None
     now = now or datetime.now(UTC)
     metadata = error.error_metadata or {}
@@ -232,7 +236,7 @@ def build_errata_target(error: UserError, *, now: datetime | None = None) -> Err
         memory_key=error.memory_key,
         concept_id=error.concept_id,
         example_learner=error.original_text,
-        example_correct=error.correction,
+        example_correct=correct,
         why=error.why_wrong or error.context_snippet,
         label=label,
         review_mode=str(error.review_mode or "grammar"),

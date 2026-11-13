@@ -65,6 +65,7 @@ from app.services.error_memory import (
     ERROR_STATE_REPAIRING,
     MASTERY_REQUIRED_REPAIRS,
     ErrorMemoryService,
+    answer_key,
     normalize_error_state,
     serialize_error_memory,
 )
@@ -959,7 +960,7 @@ def _erratum_check(db: Session, *, user: User, target_id: str) -> ClaimCheck:
             message_fr=_UNVERIFIABLE_FR["already_mastered"],
         )
 
-    correction = str(error.correction or "").strip()
+    correction = answer_key(error)  # #723: the French key, not the stored string
     learner_text = str(error.original_text or "").strip()
     items: list[ClaimItem] = []
     if correction:
@@ -986,7 +987,7 @@ def _erratum_check(db: Session, *, user: User, target_id: str) -> ClaimCheck:
         items.append(cloze)
     else:
         sibling = _sibling_erratum(db, user=user, error=error)
-        if sibling is not None and sibling.correction:
+        if sibling is not None and answer_key(sibling):
             task = ErrorMemoryService(db).build_review_task(user=user, error_id=sibling.id) or {}
             items.append(
                 ClaimItem(
@@ -1002,7 +1003,7 @@ def _erratum_check(db: Session, *, user: User, target_id: str) -> ClaimCheck:
                     placeholder_fr=str(
                         task.get("placeholder") or _ITEM_COPY["repair"]["placeholder"]
                     ),
-                    accepted=(str(sibling.correction).strip(),),
+                    accepted=(answer_key(sibling),),
                 )
             )
 

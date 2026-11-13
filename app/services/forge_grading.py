@@ -517,6 +517,69 @@ def foreign_words(line: Any) -> list[str]:
     return found
 
 
+#: The subject pronoun a form of être, avoir or aller names (#723). A foreign word
+#: right before one of them stands where its subject belongs. Only forms that name
+#: one person: «fais», «peux» are «je» or «tu» and derive nothing.
+_SUBJECT_OF_VERB: dict[str, str] = {
+    "suis": "je", "es": "tu", "est": "il", "sommes": "nous", "êtes": "vous", "etes": "vous", "sont": "ils",
+    "ai": "j'", "as": "tu", "a": "il", "avons": "nous", "avez": "vous", "ont": "ils",
+    "vais": "je", "vas": "tu", "va": "il", "allons": "nous", "allez": "vous", "vont": "ils",
+}
+_SENTENCE_START = re.compile(r"(?:^|[.!?…]\s*)[«\"(\s]*$")
+
+
+def _flagged(token: str) -> bool:
+    """Is ``token`` certainly not French (the rule of :func:`foreign_words`)?"""
+
+    if is_french_word(token):
+        return False
+    return _fold_word(token) in _FOREIGN_FUNCTION_WORDS or bool(re.search("[äöüßÄÖÜ]", token))
+
+
+def french_answer_key(line: Any) -> str | None:
+    """``line`` as an answer key a learner can be graded against, or ``None``.
+
+    #723: a stored correction fixes the span its error named and keeps the rest of
+    the learner's line, so «Im suis au Mistral, Marin.» was stored as «Im est au
+    Mistral, Marin.», and every reader of the row used it as the key: a tile bank
+    with «Im» and no pronoun, and «Im est …» judged right. The key is repaired once
+    here, for all of them:
+
+    * a line nothing flags (:func:`foreign_words`) is its own key;
+    * a flagged word right before a form of être, avoir or aller is that verb's
+      subject, and becomes the pronoun the verb agrees with («Im est» → «Il est»,
+      «im ai» → «j'ai»);
+    * a capitalised word inside the line flagged only for its letters is a name
+      («chez Müller», «à Zürich»), not a foreign word;
+    * any other flagged word derives nothing, and the line is no key (``None``).
+    """
+
+    text = str(line or "")
+    words = list(_LINE_WORD.finditer(text))
+    edits: list[tuple[int, int, str]] = []
+    for index, match in enumerate(words):
+        token = match.group(0)
+        if not _flagged(token):
+            continue
+        initial = bool(_SENTENCE_START.search(text[: match.start()]))
+        if token[:1].isupper() and not initial and _fold_word(token) not in _FOREIGN_FUNCTION_WORDS:
+            continue
+        following = words[index + 1] if index + 1 < len(words) else None
+        between = text[match.end() : following.start()] if following else ""
+        pronoun = _SUBJECT_OF_VERB.get(_fold_word(following.group(0))) if following else None
+        if pronoun is None or between.strip():
+            return None
+        if initial or token[:1].isupper():
+            pronoun = pronoun[:1].upper() + pronoun[1:]
+        if pronoun.endswith("'"):
+            edits.append((match.start(), following.start(), pronoun))
+        else:
+            edits.append((match.start(), match.end(), pronoun))
+    for start, end, replacement in reversed(edits):
+        text = text[:start] + replacement + text[end:]
+    return text
+
+
 def _all_french(fragment: Any) -> bool:
     words = [word for word in re.findall(r"[^\W\d_][\w'’-]*", str(fragment or "")) if word]
     return bool(words) and all(is_french_word(word) for word in words)
@@ -1097,6 +1160,7 @@ __all__ = [
     "is_author_note",
     "fold_typography",
     "foreign_words",
+    "french_answer_key",
     "is_french_word",
     "mark_given",
     "matches_accepted",

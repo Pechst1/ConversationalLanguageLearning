@@ -69,6 +69,22 @@ def review_answer_repairs(answer: str, target: str, original: str = "") -> bool:
     return False
 
 
+def answer_key(error: UserError) -> str:
+    """The French a repair of ``error`` is graded against (``""``: none).
+
+    #723: ``error.correction`` is what the corrector stored, and it can keep a
+    non-French word of the learner's line («Im est au Mistral, Marin.»). Every
+    reader that grades or builds a repair from the row reads it through here, so
+    the key is repaired once (:func:`forge_grading.french_answer_key`) and a row
+    whose key cannot be made French is never posed.
+    """
+
+    from app.services.forge_grading import french_answer_key
+
+    stored = str(error.correction or "").strip()
+    return (french_answer_key(stored) or "").strip() if stored else ""
+
+
 def _normalize_review_answer(value: Any) -> str:
     return re.sub(r"[^a-z0-9]+", " ", _normalize(value)).strip()
 
@@ -681,7 +697,9 @@ class ErrorMemoryService:
         if not error:
             return None
 
-        target = str(error.correction or "").strip()
+        # #723: graded against the French key; a row whose key cannot be made
+        # French (never posed by the day) is still closable here, on what was stored.
+        target = answer_key(error) or str(error.correction or "").strip()
         answer = str(answer_text or "").strip()
         answer_norm = _normalize_review_answer(answer)
         is_correct = review_answer_repairs(answer, target, str(error.original_text or ""))
@@ -789,6 +807,7 @@ class ErrorMemoryService:
         }
 
     def _review_feedback(self, error: UserError, *, is_correct: bool) -> str:
+        wanted = answer_key(error) or error.correction
         # Publication French, and « guillemets » rather than markdown backticks —
         # the card prints this verbatim.
         if is_correct:
@@ -799,8 +818,8 @@ class ErrorMemoryService:
                 return f"Juste. Ce mot repart en révision ; encore {remaining} reprise(s) justes et il est acquis."
             return f"Juste. Encore {remaining} reprise(s) justes, à des jours différents, et cet erratum est acquis."
         if error.review_mode == "vocabulary":
-            return f"Pas encore. La forme visée est « {error.correction} » ; revoyez le sens et reprenez-la bientôt."
-        return f"Pas encore. La forme visée est « {error.correction} » ; l’erratum reste à reprendre."
+            return f"Pas encore. La forme visée est « {wanted} » ; revoyez le sens et reprenez-la bientôt."
+        return f"Pas encore. La forme visée est « {wanted} » ; l’erratum reste à reprendre."
 
     def _next_review(self, *, now: datetime, severity: int, repeated: bool, source_type: str) -> datetime:
         if repeated:
@@ -1068,7 +1087,7 @@ def serialize_error_memory(error: UserError, *, language: Any = None) -> dict[st
     the stored halves were already authored in it, but the last-resort labels
     here have to be resolved at read time."""
     learner = error.original_text
-    corrected = error.correction
+    corrected = answer_key(error) or error.correction
     repair_label = learner_text("erratum.label_language_repair", language)
     reason = error.display_label or error.error_pattern or repair_label
     if learner and corrected:
