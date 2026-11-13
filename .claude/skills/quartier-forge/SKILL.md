@@ -181,13 +181,18 @@ learner's studio, Maître Vasseur's office, Odile's flat, the roof over Le Mistr
 (`toit_mistral`, gap 3), Le Mistral's back room (`arriere_salle`, T5 B: through the café's
 back door, at -37.6 x, -18.1 z in the café's own plan), Marin and Lila's flat
 (`chez_marin_lila`, T5: on the third floor of a building on the quai, its windows on the canal)
-and the gérance Marchand (`gerance_marchand`, T6 A: on the second floor over Le Mistral, floor
-7.9, its windows on the canal). A room under the sky is a room too: its floors are `zone: "out"` and
+the gérance Marchand (`gerance_marchand`, T6 A: on the second floor over Le Mistral, floor
+7.9, its windows on the canal) and the rue de Lancry (`rue_de_lancry`, T8 and E2: the quai's own
+street, `quarter: true`, round «L.»'s green door and his third-floor window). A room under the sky is a room too: its floors are `zone: "out"` and
 you walk them (only a `sealed` floor, or one with `walk: false`, is not walked), and nothing on
 it is dry. A room on a roof of the quai says `quarter: true`: the engine builds the quai round it
 as it is (the canal, the footbridge, the barge, the houses and their lit windows) and walks only
 the room's own ground, round the chimney stacks the quai's building already has
-(`BuildingInfo.stacks`). Le Mistral's roof is the flat top of its mansard (the terrasson, at
+(`BuildingInfo.stacks`). A street the quai already lays (the rue de Lancry, at x -53 to -178 and z
+-6 to 6: the road at 0, its pavements at the kerb, 0.14) is a room in the quarter too: its floors
+are that ground with `drawn: false` (walked, not drawn again), and the quai's own houses, doors and
+lit windows are its walls; tap them through things (`intercom`, `gaze`). Build a place the quai
+already has there, never a second copy of it from the map data. Le Mistral's roof is the flat top of its mansard (the terrasson, at
 23.49 m, inside the building's walls; the mansard falls away at the street sides, so you see the
 canal from its edge, not from the middle). A run builds one room instead of a street; it follows
 the steps above with these differences.
@@ -253,7 +258,10 @@ the steps above with these differences.
      cabinet, four drawers, `size` [w, h]), `desk` (its blotter, files stacked at its left end,
      the drawers on the sitter's side, local -z), `campbed` (made with hospital corners, `size`
      [length, width] along local x, the pillow at -x) and `frame` (a small frame on its strut: a
-     Polaroid with its caption in `text`, or without `text` an old portrait gone sepia)) with
+     Polaroid with its caption in `text`, or without `text` an old portrait gone sepia); in a
+     street, `intercom` (a plate on the wall by a door, `text` its names from the top floor down,
+     two to a row, `at` its centre) and `gaze` (nothing drawn: a point to tap where the quarter
+     already draws something, a window up the street)) with
      `zone`, `tone`, `text`, `size`. A thing with `look` (three languages) can be tapped and says
      it in a line; its `did` is what the end card remembers. `courts` are seen through a window:
      `storeys` one fewer than your floor puts their zinc at your eye, and `roofs: true` gives

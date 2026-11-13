@@ -34,13 +34,14 @@ def _places(*ids: str) -> list[dict]:
 def test_the_server_reads_the_places_the_forge_built():
     stages = built_stages("s1")
     # the café and its quai, the stairwell, Odile's flat, the studio, the notary's, the roof, the back room,
-    # Marin and Lila's flat, the gérance Marchand
+    # Marin and Lila's flat, the gérance Marchand, the rue de Lancry
     assert stages["stairwell"] == "escalier_mistral"
     assert stages["le_mistral"] == "quai_de_valmy"
     assert stages["toit"] == "toit_mistral"
     assert stages["mistral_back_room"] == "arriere_salle"
     assert stages["marin_lila_flat"] == "chez_marin_lila"
     assert stages["marchand_office"] == "gerance_marchand"
+    assert stages["rue_de_lancry"] == "rue_de_lancry"
     assert "gare_de_lest" not in stages and "gus_loft" not in stages
     # every one of them is a place of the season the director reads
     ids = {place["id"] for place in season_world_bible("s1")["setting"]["recurring_locations"]}
@@ -113,8 +114,13 @@ def _learner(db, day: int | None):
 
 
 def test_the_forge_reads_the_segments_the_learners_are_on(client, db_session, monkeypatch):
-    from app.services.season import frontier
+    from datetime import date
 
+    from app.services.season import frontier, runtime
+
+    # The learners' day is a Wednesday: on a Friday the clock keeps a learner at the end
+    # of a gap one more day (a Day A never falls on a Friday), and day 8 reads g1.
+    monkeypatch.setattr(runtime, "learner_date", lambda user, now=None: date(2026, 11, 11))
     monkeypatch.setattr(frontier, "_cache", {})
     first = client.get("/api/v1/story-engine/season-frontier")
     assert first.status_code == 200

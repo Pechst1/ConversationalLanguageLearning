@@ -8,6 +8,7 @@ export const ROOM_FILES: Record<string, () => Promise<RoomSpec>> = {
   gerance_marchand: () => import('./gerance_marchand.json').then((m) => (m.default ?? m) as unknown as RoomSpec),
   notaire: () => import('./notaire.json').then((m) => (m.default ?? m) as unknown as RoomSpec),
   odile_flat: () => import('./odile_flat.json').then((m) => (m.default ?? m) as unknown as RoomSpec),
+  rue_de_lancry: () => import('./rue_de_lancry.json').then((m) => (m.default ?? m) as unknown as RoomSpec),
   toit_mistral: () => import('./toit_mistral.json').then((m) => (m.default ?? m) as unknown as RoomSpec),
   user_apartment: () => import('./user_apartment.json').then((m) => (m.default ?? m) as unknown as RoomSpec),
 };

@@ -24,7 +24,7 @@ FLOOR_FINISHES = {"cabochons", "boards", "parquet", "tomettes", "cobbles", "ston
 WALL_FINISHES = {"wainscot", "plaster", "stone"}
 ZONES = {"room", "sealed", "out"}
 TONES = {"ochre", "cream", "faux", "wainscot", "stone", "porch", "oxblood", "brown", "wood", "grey", "celadon", "white", "render", "coat", "oilcloth", "blanket", "navy", "walnut", "leather", "dust", "counterpane"}
-THINGS = {"letterboxes", "mat", "radiator", "coat", "clock", "calendar", "table", "chair", "slippers", "camera", "cup", "stove", "patch", "doorway", "bed", "phone", "keys", "suitcase", "kitchenette", "longtable", "armchair", "pen", "folder", "bookcase", "polaroids", "armoire", "drink", "skylight", "chimney", "edge", "easel", "crates", "board", "plan", "fridge", "crate", "canvas", "keyboard", "cabinet", "desk", "campbed", "frame"}
+THINGS = {"letterboxes", "mat", "radiator", "coat", "clock", "calendar", "table", "chair", "slippers", "camera", "cup", "stove", "patch", "doorway", "bed", "phone", "keys", "suitcase", "kitchenette", "longtable", "armchair", "pen", "folder", "bookcase", "polaroids", "armoire", "drink", "skylight", "chimney", "edge", "easel", "crates", "board", "plan", "fridge", "crate", "canvas", "keyboard", "cabinet", "desk", "campbed", "frame", "intercom", "gaze"}
 LIGHTS = {"globe", "sconce", "hublot", "desk"}
 DIRS = {"x+": (1, 0), "x-": (-1, 0), "z+": (0, 1), "z-": (0, -1)}
 
