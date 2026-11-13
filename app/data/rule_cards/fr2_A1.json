@@ -62,7 +62,7 @@
       "how": {
         "en": "1. Choose the subject: je, tu, il/elle/on, nous, vous, ils/elles.\n2. Take its form of être: suis, es, est, sommes, êtes, sont.\n3. Add who, where or what: je suis Paul, nous sommes à Lyon, il est grand.",
         "de": "1. Wähle das Subjekt: je, tu, il/elle/on, nous, vous, ils/elles.\n2. Nimm die passende Form von être: suis, es, est, sommes, êtes, sont.\n3. Ergänze wer, wo oder wie: je suis Paul, nous sommes à Lyon, il est grand.",
-        "fr": "1. Choisissez le sujet : je, tu, il/elle/on, nous, vous, ils/elles.\n2. Prenez la forme d'être : suis, es, est, sommes, êtes, sont.\n3. Ajoutez qui, où ou comment : je suis Paul, nous sommes à Lyon, il est grand."
+        "fr": "1. Choisis le sujet : je, tu, il/elle/on, nous, vous, ils/elles.\n2. Prends la forme d'être : suis, es, est, sommes, êtes, sont.\n3. Ajoute qui, où ou comment : je suis Paul, nous sommes à Lyon, il est grand."
       },
       "examples": [
         {
@@ -196,7 +196,7 @@
       "how": {
         "en": "1. Subject + the form of avoir: j'ai, tu as, il a, nous avons, vous avez, ils ont.\n2. Je becomes j' before ai.\n3. Add a noun (un vélo), an age (vingt ans) or a state (faim, froid).",
         "de": "1. Subjekt + Form von avoir: j'ai, tu as, il a, nous avons, vous avez, ils ont.\n2. Vor ai wird je zu j'.\n3. Ergänze ein Nomen (un vélo), ein Alter (vingt ans) oder einen Zustand (faim, froid).",
-        "fr": "1. Sujet + forme d'avoir : j'ai, tu as, il a, nous avons, vous avez, ils ont.\n2. Devant ai, je devient j'.\n3. Ajoutez un nom (un vélo), un âge (vingt ans) ou un état (faim, froid)."
+        "fr": "1. Sujet + forme d'avoir : j'ai, tu as, il a, nous avons, vous avez, ils ont.\n2. Devant ai, je devient j'.\n3. Ajoute un nom (un vélo), un âge (vingt ans) ou un état (faim, froid)."
       },
       "examples": [
         {
@@ -246,7 +246,7 @@
           "why": {
             "en": "Ils sont = they are; ils ont = they have. Listen for the z sound.",
             "de": "Ils sont = sie sind; ils ont = sie haben. Achte auf das stimmhafte s.",
-            "fr": "Ils sont, c'est être ; ils ont, c'est avoir : écoutez le son z."
+            "fr": "Ils sont, c'est être ; ils ont, c'est avoir : écoute le son z."
           }
         }
       ],
@@ -320,7 +320,7 @@
       "how": {
         "en": "1. Start with il y a: always the same three words.\n2. Add un, une, des or a number, then the noun.\n3. Negative: il n'y a pas de + noun.",
         "de": "1. Beginne mit il y a: immer dieselben drei Wörter.\n2. Dann un, une, des oder eine Zahl, dann das Nomen.\n3. Verneint: il n'y a pas de + Nomen.",
-        "fr": "1. Commencez par il y a : toujours les mêmes trois mots.\n2. Ajoutez un, une, des ou un nombre, puis le nom.\n3. À la forme négative : il n'y a pas de + nom."
+        "fr": "1. Commence par il y a : toujours les mêmes trois mots.\n2. Ajoute un, une, des ou un nombre, puis le nom.\n3. À la forme négative : il n'y a pas de + nom."
       },
       "examples": [
         {
@@ -425,12 +425,12 @@
       "more": {
         "en": "Every noun is masculine or feminine, and there is little logic to it: une table, un problème. Learn each noun with its un or une. In the plural, English can drop the article (I have questions); French keeps des: j'ai des questions.",
         "de": "Jedes Nomen ist männlich oder weiblich, und das passt selten zum Deutschen: une table (der Tisch), le soleil (die Sonne). Lern jedes Nomen mit un oder une. Im Plural fällt der Artikel im Deutschen weg (Ich habe Fragen); im Französischen bleibt des: j'ai des questions.",
-        "fr": "Chaque nom est masculin ou féminin, sans vraie logique : une table, un problème. Apprenez chaque nom avec un ou une. Au pluriel, on garde des : j'ai des questions."
+        "fr": "Chaque nom est masculin ou féminin, sans vraie logique : une table, un problème. Apprends chaque nom avec un ou une. Au pluriel, on garde des : j'ai des questions."
       },
       "how": {
         "en": "1. Know the noun's gender: learn it with un or une.\n2. One thing: un (masculine) or une (feminine).\n3. Several: des, for both genders, and a silent -s on the noun.",
         "de": "1. Kenne das Genus des Nomens: lern es mit un oder une.\n2. Eine Sache: un (männlich) oder une (weiblich).\n3. Mehrere: des, für beide Genera, und ein stummes -s am Nomen.",
-        "fr": "1. Connaissez le genre du nom : apprenez-le avec un ou une.\n2. Une seule chose : un (masculin) ou une (féminin).\n3. Plusieurs : des, pour les deux genres, et un -s muet sur le nom."
+        "fr": "1. Connais le genre du nom : apprends-le avec un ou une.\n2. Une seule chose : un (masculin) ou une (féminin).\n3. Plusieurs : des, pour les deux genres, et un -s muet sur le nom."
       },
       "examples": [
         {
@@ -595,7 +595,7 @@
           "why": {
             "en": "Problème ends in -e but is masculine: learn each noun with its article.",
             "de": "Problème endet auf -e, ist aber männlich: lern jedes Nomen mit Artikel.",
-            "fr": "Problème finit par -e mais il est masculin : apprenez le nom avec son article."
+            "fr": "Problème finit par -e mais il est masculin : apprends le nom avec son article."
           }
         }
       ],
@@ -669,7 +669,7 @@
       "how": {
         "en": "1. Look at the end of the noun.\n2. Most nouns: add -s. Ending in -eau or -eu: add -x. Ending in -al: change it to -aux.\n3. Already ending in -s, -x or -z: change nothing.\n4. Put les, des, mes… in front: that's what people hear.",
         "de": "1. Schau auf das Ende des Nomens.\n2. Die meisten: -s anhängen. Auf -eau oder -eu: -x anhängen. Auf -al: zu -aux ändern.\n3. Endet es schon auf -s, -x oder -z: nichts ändern.\n4. Davor les, des, mes…: das hört man.",
-        "fr": "1. Regardez la fin du nom.\n2. La plupart des noms : ajoutez -s. En -eau ou -eu : ajoutez -x. En -al : changez en -aux.\n3. Déjà en -s, -x ou -z : rien ne change.\n4. Mettez les, des, mes… devant : c'est ce qu'on entend."
+        "fr": "1. Regarde la fin du nom.\n2. La plupart des noms : ajoute -s. En -eau ou -eu : ajoute -x. En -al : change en -aux.\n3. Déjà en -s, -x ou -z : rien ne change.\n4. Mets les, des, mes… devant : c'est ce qu'on entend."
       },
       "examples": [
         {
@@ -803,7 +803,7 @@
       "how": {
         "en": "1. Take the infinitive and remove -er: parler → parl-.\n2. Add the ending: je -e, tu -es, il/elle/on -e, nous -ons, vous -ez, ils/elles -ent.\n3. Before a vowel, je becomes j': j'aime, j'habite.",
         "de": "1. Nimm den Infinitiv und streich -er: parler → parl-.\n2. Häng die Endung an: je -e, tu -es, il/elle/on -e, nous -ons, vous -ez, ils/elles -ent.\n3. Vor einem Vokal wird je zu j': j'aime, j'habite.",
-        "fr": "1. Prenez l'infinitif et enlevez -er : parler → parl-.\n2. Ajoutez la terminaison : je -e, tu -es, il/elle/on -e, nous -ons, vous -ez, ils/elles -ent.\n3. Devant une voyelle, je devient j' : j'aime, j'habite."
+        "fr": "1. Prends l'infinitif et enlève -er : parler → parl-.\n2. Ajoute la terminaison : je -e, tu -es, il/elle/on -e, nous -ons, vous -ez, ils/elles -ent.\n3. Devant une voyelle, je devient j' : j'aime, j'habite."
       },
       "examples": [
         {
@@ -922,7 +922,7 @@
       "how": {
         "en": "1. In speech, use on for 'we' (or for 'people' in general).\n2. Conjugate the verb like il: on va, on est, on a, on parle.\n3. To insist, say Nous, on…: Nous, on reste ici.",
         "de": "1. Im Gespräch: on für „wir“ (oder für „man“).\n2. Das Verb wie bei il: on va, on est, on a, on parle.\n3. Zur Betonung: Nous, on…: Nous, on reste ici.",
-        "fr": "1. À l'oral, dites on pour nous (ou pour « les gens »).\n2. Conjuguez comme avec il : on va, on est, on a, on parle.\n3. Pour insister : Nous, on… : Nous, on reste ici."
+        "fr": "1. À l'oral, dis on pour nous (ou pour « les gens »).\n2. Conjugue comme avec il : on va, on est, on a, on parle.\n3. Pour insister : Nous, on… : Nous, on reste ici."
       },
       "examples": [
         {
@@ -1037,7 +1037,7 @@
       "how": {
         "en": "1. Find the conjugated verb.\n2. Put ne (n' before a vowel) in front of it and pas right after it.\n3. If un, une, des, du or de la follows, change it to de (d' before a vowel), except after être.",
         "de": "1. Finde das konjugierte Verb.\n2. Setz ne (vor Vokal n') davor und pas direkt dahinter.\n3. Folgt un, une, des, du oder de la, wird daraus de (vor Vokal d'), außer nach être.",
-        "fr": "1. Trouvez le verbe conjugué.\n2. Mettez ne (n' devant une voyelle) avant, et pas juste après.\n3. Si un, une, des, du ou de la suit, mettez de (d' devant une voyelle), sauf après être."
+        "fr": "1. Trouve le verbe conjugué.\n2. Mets ne (n' devant une voyelle) avant, et pas juste après.\n3. Si un, une, des, du ou de la suit, mets de (d' devant une voyelle), sauf après être."
       },
       "examples": [
         {
@@ -1161,7 +1161,7 @@
       "how": {
         "en": "1. Say the statement: tu viens ce soir.\n2. Raise your voice at the end, or put est-ce que (est-ce qu' before a vowel) in front.\n3. Don't move the verb.",
         "de": "1. Sag den Aussagesatz: tu viens ce soir.\n2. Heb am Ende die Stimme oder setz est-ce que (vor Vokal est-ce qu') davor.\n3. Das Verb bleibt, wo es ist.",
-        "fr": "1. Dites la phrase : tu viens ce soir.\n2. Montez la voix à la fin, ou mettez est-ce que (est-ce qu' devant une voyelle) devant.\n3. Ne déplacez pas le verbe."
+        "fr": "1. Dis la phrase : tu viens ce soir.\n2. Monte la voix à la fin, ou mets est-ce que (est-ce qu' devant une voyelle) devant.\n3. Ne déplace pas le verbe."
       },
       "examples": [
         {
@@ -1286,7 +1286,7 @@
       "how": {
         "en": "1. Pick the word for what you want to know.\n2. Put it first + est-ce que + the statement, or, in speech, at the end.\n3. With quel, match the noun: quel, quelle, quels, quelles.",
         "de": "1. Wähl das Fragewort für das, was du wissen willst.\n2. Stell es an den Anfang + est-ce que + Aussagesatz, oder im Gespräch ans Ende.\n3. Quel passt sich dem Nomen an: quel, quelle, quels, quelles.",
-        "fr": "1. Choisissez le mot selon ce que vous voulez savoir.\n2. Mettez-le au début + est-ce que + la phrase, ou à l'oral, à la fin.\n3. Avec quel, accordez : quel, quelle, quels, quelles."
+        "fr": "1. Choisis le mot selon ce que tu veux savoir.\n2. Mets-le au début + est-ce que + la phrase, ou à l'oral, à la fin.\n3. Avec quel, accorde : quel, quelle, quels, quelles."
       },
       "examples": [
         {
@@ -1405,7 +1405,7 @@
       "how": {
         "en": "1. Start with je voudrais.\n2. Add un/une/du + noun, or a verb in the infinitive.\n3. End with s'il vous plaît (s'il te plaît with a friend).",
         "de": "1. Beginne mit je voudrais.\n2. Dann un/une/du + Nomen oder ein Verb im Infinitiv.\n3. Zum Schluss s'il vous plaît (bei Freunden s'il te plaît).",
-        "fr": "1. Commencez par je voudrais.\n2. Ajoutez un/une/du + nom, ou un verbe à l'infinitif.\n3. Finissez par s'il vous plaît (s'il te plaît avec un ami)."
+        "fr": "1. Commence par je voudrais.\n2. Ajoute un/une/du + nom, ou un verbe à l'infinitif.\n3. Finis par s'il vous plaît (s'il te plaît avec un ami)."
       },
       "examples": [
         {
@@ -1520,7 +1520,7 @@
       "how": {
         "en": "1. Say the ten: vingt, trente, quarante, cinquante, soixante.\n2. For 1, add et un (vingt et un); for 2 to 9, a hyphen and the unit (vingt-deux).\n3. For a price: number + euros + cents (deux euros cinquante).",
         "de": "1. Sag den Zehner: vingt, trente, quarante, cinquante, soixante.\n2. Für 1: et un (vingt et un); für 2 bis 9: Bindestrich und Einer (vingt-deux). Der Zehner kommt zuerst, anders als im Deutschen.\n3. Preis: Zahl + euros + Cent (deux euros cinquante).",
-        "fr": "1. Dites la dizaine : vingt, trente, quarante, cinquante, soixante.\n2. Pour 1, ajoutez et un (vingt et un) ; de 2 à 9, un trait d'union et l'unité (vingt-deux).\n3. Pour un prix : nombre + euros + centimes (deux euros cinquante)."
+        "fr": "1. Dis la dizaine : vingt, trente, quarante, cinquante, soixante.\n2. Pour 1, ajoute et un (vingt et un) ; de 2 à 9, un trait d'union et l'unité (vingt-deux).\n3. Pour un prix : nombre + euros + centimes (deux euros cinquante)."
       },
       "examples": [
         {
@@ -1644,7 +1644,7 @@
       "how": {
         "en": "1. Find the noun: masculine or feminine, singular or plural?\n2. Feminine: add -e (unless it already ends in -e). Plural: add -s.\n3. Put the adjective after the noun, unless it is one of the short ones (beau, bon, petit, grand, jeune, vieux, nouveau, joli).",
         "de": "1. Finde das Nomen: männlich oder weiblich, Singular oder Plural?\n2. Weiblich: -e anhängen (außer es endet schon auf -e). Plural: -s anhängen.\n3. Das Adjektiv hinter das Nomen stellen, außer es ist eines der kurzen (beau, bon, petit, grand, jeune, vieux, nouveau, joli).",
-        "fr": "1. Trouvez le nom : masculin ou féminin, singulier ou pluriel ?\n2. Féminin : ajoutez -e (sauf s'il finit déjà par -e). Pluriel : ajoutez -s.\n3. Placez l'adjectif après le nom, sauf les adjectifs courts (beau, bon, petit, grand, jeune, vieux, nouveau, joli)."
+        "fr": "1. Trouve le nom : masculin ou féminin, singulier ou pluriel ?\n2. Féminin : ajoute -e (sauf s'il finit déjà par -e). Pluriel : ajoute -s.\n3. Place l'adjectif après le nom, sauf les adjectifs courts (beau, bon, petit, grand, jeune, vieux, nouveau, joli)."
       },
       "examples": [
         {
@@ -1768,7 +1768,7 @@
       "how": {
         "en": "1. A city? Use à.\n2. A country? Find its gender: la France → en, le Japon → au, les États-Unis → aux.\n3. Does it start with a vowel? en.",
         "de": "1. Eine Stadt? à.\n2. Ein Land? Genus prüfen: la France → en, le Japon → au, les États-Unis → aux.\n3. Beginnt es mit einem Vokal? en.",
-        "fr": "1. Une ville ? à.\n2. Un pays ? Cherchez son genre : la France → en, le Japon → au, les États-Unis → aux.\n3. Il commence par une voyelle ? en."
+        "fr": "1. Une ville ? à.\n2. Un pays ? Cherche son genre : la France → en, le Japon → au, les États-Unis → aux.\n3. Il commence par une voyelle ? en."
       },
       "examples": [
         {
@@ -1888,7 +1888,7 @@
       "how": {
         "en": "1. Is there à or de right before le or les?\n2. Replace: à le → au, à les → aux, de le → du, de les → des.\n3. Leave à la, à l', de la, de l' as they are.",
         "de": "1. Steht à oder de direkt vor le oder les?\n2. Ersetzen: à le → au, à les → aux, de le → du, de les → des.\n3. À la, à l', de la, de l' bleiben, wie sie sind.",
-        "fr": "1. Il y a à ou de juste avant le ou les ?\n2. Remplacez : à le → au, à les → aux, de le → du, de les → des.\n3. À la, à l', de la, de l' ne changent pas."
+        "fr": "1. Il y a à ou de juste avant le ou les ?\n2. Remplace : à le → au, à les → aux, de le → du, de les → des.\n3. À la, à l', de la, de l' ne changent pas."
       },
       "examples": [
         {
@@ -2003,7 +2003,7 @@
       "how": {
         "en": "1. Who owns it? Pick the series: mon/ton/son, notre/votre/leur.\n2. Look at the thing: masculine, feminine or plural?\n3. Feminine but starting with a vowel? Use mon, ton, son.",
         "de": "1. Wem gehört es? Reihe wählen: mon/ton/son, notre/votre/leur.\n2. Schau auf die Sache: männlich, weiblich oder Plural?\n3. Weiblich, aber mit Vokal am Anfang? mon, ton, son.",
-        "fr": "1. À qui est-ce ? Choisissez la série : mon/ton/son, notre/votre/leur.\n2. Regardez la chose : masculin, féminin ou pluriel ?\n3. Féminin mais avec une voyelle au début ? mon, ton, son."
+        "fr": "1. À qui est-ce ? Choisis la série : mon/ton/son, notre/votre/leur.\n2. Regarde la chose : masculin, féminin ou pluriel ?\n3. Féminin mais avec une voyelle au début ? mon, ton, son."
       },
       "examples": [
         {
@@ -2137,7 +2137,7 @@
       "how": {
         "en": "1. Going somewhere: aller + à (city), en/au (country), au/à la (place).\n2. Coming from somewhere: venir + de/d', du, des.\n3. Learn the forms by heart: they don't follow the -er pattern.",
         "de": "1. Wohin: aller + à (Stadt), en/au (Land), au/à la (Ort).\n2. Woher: venir + de/d', du, des.\n3. Die Formen auswendig lernen: sie folgen nicht dem -er-Muster.",
-        "fr": "1. Pour la destination : aller + à (ville), en/au (pays), au/à la (lieu).\n2. Pour l'origine : venir + de/d', du, des.\n3. Apprenez les formes par cœur : elles ne suivent pas le modèle en -er."
+        "fr": "1. Pour la destination : aller + à (ville), en/au (pays), au/à la (lieu).\n2. Pour l'origine : venir + de/d', du, des.\n3. Apprends les formes par cœur : elles ne suivent pas le modèle en -er."
       },
       "examples": [
         {
@@ -2247,7 +2247,7 @@
       "more": {
         "en": "English often says 'some' or nothing (I drink water); French needs the article: je bois de l'eau. Compare j'aime le fromage (cheese in general) with je mange du fromage (some cheese). After a negative, all of them become de: je ne bois pas de café.",
         "de": "Wo im Deutschen gar nichts steht (ich trinke Wasser), braucht das Französische einen Artikel: je bois de l'eau. Vergleiche j'aime le fromage (Käse allgemein) mit je mange du fromage (etwas Käse). Nach einer Verneinung werden alle zu de: je ne bois pas de café.",
-        "fr": "Le nom ne reste pas seul : je bois de l'eau. Comparez j'aime le fromage (en général) et je mange du fromage (une partie). Après une négation, tout devient de : je ne bois pas de café."
+        "fr": "Le nom ne reste pas seul : je bois de l'eau. Compare j'aime le fromage (en général) et je mange du fromage (une partie). Après une négation, tout devient de : je ne bois pas de café."
       },
       "how": {
         "en": "1. Is it something you don't count (bread, water, sport)?\n2. Masculine: du; feminine: de la; before a vowel: de l'.\n3. After pas, just de: pas de pain.",
@@ -2377,7 +2377,7 @@
       "how": {
         "en": "1. An activity or the weather? faire. Ordering, eating, transport? prendre.\n2. Learn the forms: je fais, vous faites, ils font; je prends, nous prenons, ils prennent.\n3. Weather: always il fait + adjective.",
         "de": "1. Tätigkeit oder Wetter? faire. Bestellen, essen, Verkehrsmittel? prendre.\n2. Lern die Formen: je fais, vous faites, ils font; je prends, nous prenons, ils prennent.\n3. Wetter: immer il fait + Adjektiv.",
-        "fr": "1. Une activité ou la météo ? faire. Commander, manger, un transport ? prendre.\n2. Apprenez les formes : je fais, vous faites, ils font ; je prends, nous prenons, ils prennent.\n3. La météo : toujours il fait + adjectif."
+        "fr": "1. Une activité ou la météo ? faire. Commander, manger, un transport ? prendre.\n2. Apprends les formes : je fais, vous faites, ils font ; je prends, nous prenons, ils prennent.\n3. La météo : toujours il fait + adjectif."
       },
       "examples": [
         {
@@ -2511,7 +2511,7 @@
       "how": {
         "en": "1. Conjugate aller in the present: je vais, tu vas, il va, nous allons, vous allez, ils vont.\n2. Add the second verb in the infinitive (-er, -ir, -re).\n3. Negative: ne + aller + pas + infinitive.",
         "de": "1. Konjugiere aller im Präsens: je vais, tu vas, il va, nous allons, vous allez, ils vont.\n2. Häng das zweite Verb im Infinitiv an (-er, -ir, -re).\n3. Verneint: ne + aller + pas + Infinitiv.",
-        "fr": "1. Conjuguez aller au présent : je vais, tu vas, il va, nous allons, vous allez, ils vont.\n2. Ajoutez le deuxième verbe à l'infinitif (-er, -ir, -re).\n3. Négation : ne + aller + pas + infinitif."
+        "fr": "1. Conjugue aller au présent : je vais, tu vas, il va, nous allons, vous allez, ils vont.\n2. Ajoute le deuxième verbe à l'infinitif (-er, -ir, -re).\n3. Négation : ne + aller + pas + infinitif."
       },
       "examples": [
         {
@@ -2636,7 +2636,7 @@
       "how": {
         "en": "1. Conjugate pouvoir, vouloir or devoir.\n2. Put the second verb right after it, in the infinitive.\n3. Then add the rest: time, place, object.",
         "de": "1. Konjugiere pouvoir, vouloir oder devoir.\n2. Stell das zweite Verb im Infinitiv direkt dahinter.\n3. Dann der Rest: Zeit, Ort, Objekt.",
-        "fr": "1. Conjuguez pouvoir, vouloir ou devoir.\n2. Mettez le deuxième verbe juste après, à l'infinitif.\n3. Puis le reste : le moment, le lieu, l'objet."
+        "fr": "1. Conjugue pouvoir, vouloir ou devoir.\n2. Mets le deuxième verbe juste après, à l'infinitif.\n3. Puis le reste : le moment, le lieu, l'objet."
       },
       "examples": [
         {
@@ -2770,7 +2770,7 @@
       "how": {
         "en": "1. Find the pronoun for the subject: je → me, tu → te, il/elle/on → se, nous → nous, vous → vous, ils/elles → se.\n2. Put it right before the verb; before a vowel use m', t', s'.\n3. Negative: ne before the pronoun, pas after the verb.",
         "de": "1. Finde das Pronomen zum Subjekt: je → me, tu → te, il/elle/on → se, nous → nous, vous → vous, ils/elles → se.\n2. Setz es direkt vor das Verb; vor Vokal m', t', s'.\n3. Verneint: ne vor das Pronomen, pas hinter das Verb.",
-        "fr": "1. Trouvez le pronom du sujet : je → me, tu → te, il/elle/on → se, nous → nous, vous → vous, ils/elles → se.\n2. Placez-le juste avant le verbe ; devant une voyelle : m', t', s'.\n3. Négation : ne avant le pronom, pas après le verbe."
+        "fr": "1. Trouve le pronom du sujet : je → me, tu → te, il/elle/on → se, nous → nous, vous → vous, ils/elles → se.\n2. Place-le juste avant le verbe ; devant une voyelle : m', t', s'.\n3. Négation : ne avant le pronom, pas après le verbe."
       },
       "examples": [
         {
@@ -2890,7 +2890,7 @@
       "how": {
         "en": "1. Choose tu, nous or vous and take the present form: tu prends, vous tournez.\n2. Drop the pronoun: Prends ! Tournez !\n3. -er verbs drop the -s with tu (Regarde !). Être and avoir: sois/soyez, aie/ayez.\n4. Negative: ne + verb + pas: Ne pars pas !",
         "de": "1. Wähle tu, nous oder vous und nimm die Präsensform: tu prends, vous tournez.\n2. Lass das Pronomen weg: Prends ! Tournez !\n3. -er-Verben verlieren bei tu das -s (Regarde !). Être und avoir: sois/soyez, aie/ayez.\n4. Verneint: ne + Verb + pas: Ne pars pas !",
-        "fr": "1. Choisissez tu, nous ou vous et prenez la forme du présent : tu prends, vous tournez.\n2. Enlevez le pronom : Prends ! Tournez !\n3. Les verbes en -er perdent le -s avec tu (Regarde !). Être et avoir : sois/soyez, aie/ayez.\n4. Négation : ne + verbe + pas : Ne pars pas !"
+        "fr": "1. Choisis tu, nous ou vous et prends la forme du présent : tu prends, vous tournez.\n2. Enlève le pronom : Prends ! Tournez !\n3. Les verbes en -er perdent le -s avec tu (Regarde !). Être et avoir : sois/soyez, aie/ayez.\n4. Négation : ne + verbe + pas : Ne pars pas !"
       },
       "examples": [
         {
@@ -3021,7 +3021,7 @@
       "how": {
         "en": "1. Find the noun's gender and number.\n2. Masculine: ce; masculine before a vowel or silent h: cet; feminine: cette; plural: ces.\n3. To contrast, add -ci or -là to the noun.",
         "de": "1. Bestimme Genus und Zahl des Nomens.\n2. Männlich: ce; männlich vor Vokal oder stummem h: cet; weiblich: cette; Plural: ces.\n3. Zum Gegenüberstellen -ci oder -là ans Nomen hängen.",
-        "fr": "1. Trouvez le genre et le nombre du nom.\n2. Masculin : ce ; masculin devant une voyelle ou un h muet : cet ; féminin : cette ; pluriel : ces.\n3. Pour contraster, ajoutez -ci ou -là au nom."
+        "fr": "1. Trouve le genre et le nombre du nom.\n2. Masculin : ce ; masculin devant une voyelle ou un h muet : cet ; féminin : cette ; pluriel : ces.\n3. Pour contraster, ajoute -ci ou -là au nom."
       },
       "examples": [
         {
@@ -3371,7 +3371,7 @@
       "how": {
         "en": "1. Find the noun you react to: masculine or feminine, singular or plural?\n2. Put quel, quelle, quels or quelles before it, with no article.\n3. An adjective can go in between (Quelle belle vue !). No noun? Say Que c'est + adjective !",
         "de": "1. Finde das Nomen, auf das du reagierst: männlich oder weiblich, Singular oder Plural?\n2. Setz quel, quelle, quels oder quelles davor, ohne Artikel.\n3. Ein Adjektiv darf dazwischen (Quelle belle vue !). Kein Nomen? Que c'est + Adjektiv !",
-        "fr": "1. Trouvez le nom : masculin ou féminin, singulier ou pluriel ?\n2. Mettez quel, quelle, quels ou quelles devant, sans article.\n3. Un adjectif peut se placer entre les deux (Quelle belle vue !). Pas de nom ? Que c'est + adjectif !"
+        "fr": "1. Trouve le nom : masculin ou féminin, singulier ou pluriel ?\n2. Mets quel, quelle, quels ou quelles devant, sans article.\n3. Un adjectif peut se placer entre les deux (Quelle belle vue !). Pas de nom ? Que c'est + adjectif !"
       },
       "examples": [
         {
@@ -3611,7 +3611,7 @@
       "how": {
         "en": "1. Start with il est (now) or à (when).\n2. Say the hour + heure(s): huit heures, une heure.\n3. Add the minutes, et quart, et demie or moins le quart.",
         "de": "1. Beginne mit il est (jetzt) oder à (um).\n2. Stunde + heure(s): huit heures, une heure.\n3. Dann Minuten, et quart, et demie oder moins le quart.",
-        "fr": "1. Commencez par il est (maintenant) ou à (quand).\n2. L'heure + heure(s) : huit heures, une heure.\n3. Ajoutez les minutes, et quart, et demie ou moins le quart."
+        "fr": "1. Commence par il est (maintenant) ou à (quand).\n2. L'heure + heure(s) : huit heures, une heure.\n3. Ajoute les minutes, et quart, et demie ou moins le quart."
       },
       "examples": [
         {
@@ -3975,7 +3975,7 @@
       "how": {
         "en": "1. Conjugate as a normal -er verb.\n2. A g or c before -ons? Write ge or ç.\n3. A silent ending (-e, -es, -ent)? e/é → è (achète, préfère), or double l/t (appelle, jette), or y → i (paie).\n4. Nous and vous keep the plain stem: nous achetons, vous appelez.",
         "de": "1. Konjugiere wie ein normales -er-Verb.\n2. g oder c vor -ons? Schreib ge oder ç.\n3. Stumme Endung (-e, -es, -ent)? e/é → è (achète, préfère), oder l/t verdoppeln (appelle, jette), oder y → i (paie).\n4. Nous und vous behalten den einfachen Stamm: nous achetons, vous appelez.",
-        "fr": "1. Conjuguez comme un verbe en -er normal.\n2. Un g ou un c devant -ons ? Écrivez ge ou ç.\n3. Une terminaison muette (-e, -es, -ent) ? e/é → è (achète, préfère), ou on double l/t (appelle, jette), ou y → i (paie).\n4. Nous et vous gardent le radical simple : nous achetons, vous appelez."
+        "fr": "1. Conjugue comme un verbe en -er normal.\n2. Un g ou un c devant -ons ? Écris ge ou ç.\n3. Une terminaison muette (-e, -es, -ent) ? e/é → è (achète, préfère), ou on double l/t (appelle, jette), ou y → i (paie).\n4. Nous et vous gardent le radical simple : nous achetons, vous appelez."
       },
       "examples": [
         {
@@ -4094,7 +4094,7 @@
       "how": {
         "en": "1. Conjugate the verb.\n2. Put toujours, souvent, parfois or rarement right after it.\n3. Put longer expressions (tous les jours, deux fois par semaine) at the start or the end.",
         "de": "1. Konjugiere das Verb.\n2. Setz toujours, souvent, parfois oder rarement direkt dahinter.\n3. Längere Ausdrücke (tous les jours, deux fois par semaine) an den Anfang oder ans Ende.",
-        "fr": "1. Conjuguez le verbe.\n2. Mettez toujours, souvent, parfois ou rarement juste après.\n3. Mettez les expressions plus longues (tous les jours, deux fois par semaine) au début ou à la fin."
+        "fr": "1. Conjugue le verbe.\n2. Mets toujours, souvent, parfois ou rarement juste après.\n3. Mets les expressions plus longues (tous les jours, deux fois par semaine) au début ou à la fin."
       },
       "examples": [
         {
@@ -4209,7 +4209,7 @@
       "how": {
         "en": "1. Choose the preposition: dans, sur, sous, devant, derrière, entre, or a compound with de.\n2. A compound? Check the article: de + le = du, de + les = des.\n3. A person's place? chez + person.",
         "de": "1. Wähl die Präposition: dans, sur, sous, devant, derrière, entre oder eine mit de.\n2. Mit de? Artikel prüfen: de + le = du, de + les = des.\n3. Bei einer Person? chez + Person.",
-        "fr": "1. Choisissez la préposition : dans, sur, sous, devant, derrière, entre, ou une préposition avec de.\n2. Avec de ? Vérifiez l'article : de + le = du, de + les = des.\n3. Chez une personne ? chez + personne."
+        "fr": "1. Choisis la préposition : dans, sur, sous, devant, derrière, entre, ou une préposition avec de.\n2. Avec de ? Vérifie l'article : de + le = du, de + les = des.\n3. Chez une personne ? chez + personne."
       },
       "examples": [
         {
@@ -4324,7 +4324,7 @@
       "how": {
         "en": "1. Say the amount: beaucoup, un peu, trop, assez, un kilo, une bouteille, un verre.\n2. Add de (d' before a vowel).\n3. Add the noun with no article.",
         "de": "1. Nenne die Menge: beaucoup, un peu, trop, assez, un kilo, une bouteille, un verre.\n2. Dann de (vor Vokal d').\n3. Dann das Nomen ohne Artikel.",
-        "fr": "1. Dites la quantité : beaucoup, un peu, trop, assez, un kilo, une bouteille, un verre.\n2. Ajoutez de (d' devant une voyelle).\n3. Ajoutez le nom, sans article."
+        "fr": "1. Dis la quantité : beaucoup, un peu, trop, assez, un kilo, une bouteille, un verre.\n2. Ajoute de (d' devant une voyelle).\n3. Ajoute le nom, sans article."
       },
       "examples": [
         {
@@ -4439,7 +4439,7 @@
       "how": {
         "en": "1. Two ideas of equal weight? Join them with et, mais or ou.\n2. A reason? Add parce que (parce qu' before a vowel) + subject + verb.\n3. Keep the normal word order after parce que.",
         "de": "1. Zwei gleichwertige Ideen? Verbinde sie mit et, mais oder ou.\n2. Ein Grund? parce que (vor Vokal parce qu') + Subjekt + Verb.\n3. Nach parce que bleibt die normale Wortstellung, das Verb wandert nicht ans Ende.",
-        "fr": "1. Deux idées de même poids ? Reliez-les avec et, mais ou ou.\n2. Une raison ? Ajoutez parce que (parce qu' devant une voyelle) + sujet + verbe.\n3. Gardez l'ordre normal après parce que."
+        "fr": "1. Deux idées de même poids ? Relie-les avec et, mais ou ou.\n2. Une raison ? Ajoute parce que (parce qu' devant une voyelle) + sujet + verbe.\n3. Garde l'ordre normal après parce que."
       },
       "examples": [
         {
@@ -4554,7 +4554,7 @@
       "how": {
         "en": "1. Conjugate avoir in the present: j'ai, tu as, il a, nous avons, vous avez, ils ont.\n2. An -er verb: replace -er with -é (manger → mangé).\n3. An irregular verb: learn the form (faire → fait, prendre → pris, voir → vu).",
         "de": "1. Konjugiere avoir im Präsens: j'ai, tu as, il a, nous avons, vous avez, ils ont.\n2. -er-Verb: -er durch -é ersetzen (manger → mangé).\n3. Unregelmäßiges Verb: Form lernen (faire → fait, prendre → pris, voir → vu).",
-        "fr": "1. Conjuguez avoir au présent : j'ai, tu as, il a, nous avons, vous avez, ils ont.\n2. Un verbe en -er : remplacez -er par -é (manger → mangé).\n3. Un verbe irrégulier : apprenez la forme (faire → fait, prendre → pris, voir → vu)."
+        "fr": "1. Conjugue avoir au présent : j'ai, tu as, il a, nous avons, vous avez, ils ont.\n2. Un verbe en -er : remplace -er par -é (manger → mangé).\n3. Un verbe irrégulier : apprends la forme (faire → fait, prendre → pris, voir → vu)."
       },
       "examples": [
         {
