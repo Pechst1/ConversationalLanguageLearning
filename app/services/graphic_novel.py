@@ -6806,7 +6806,8 @@ class GraphicNovelCorrectionService:
         from app.services import correction_contract
 
         errata = [
-            {**item, "concept_id": item.get("concept_id") or task.get("concept_id")}
+            # #697: the task's rule is lent to a slip, never to a spelling slip.
+            {**item, "concept_id": item.get("concept_id") or ErrorMemoryService.lent_rule(item, task.get("concept_id"))}
             for item in correction_contract.deterministic_errata(text)
         ]
         checked = correction_contract.verify_correction(text, None, errata)
@@ -6899,7 +6900,8 @@ class GraphicNovelCorrectionService:
                     **item,
                     "why_wrong": _clean_feedback(item.get("why_wrong")),
                     "repair_hint": _clean_feedback(item.get("repair_hint")),
-                    "concept_id": task.get("concept_id"),
+                    # #697: the task's rule is lent to the model's slips, not to a spelling slip.
+                    "concept_id": ErrorMemoryService.lent_rule(item, task.get("concept_id")),
                 }
                 for item in parsed.get("errata") or []
             ]
@@ -6924,8 +6926,12 @@ def _held_to_sentence(parsed: dict[str, Any], text: str) -> dict[str, Any]:
     checked = correction_contract.verify_correction(
         text, None if parsed.get("verdict") == "accepted" else parsed.get("corrected_answer"), merged
     )
-    concept_id = next((item.get("concept_id") for item in proposed), None)
-    kept = [{**item, "concept_id": item.get("concept_id") or concept_id} for item in checked.errata]
+    concept_id = next((item.get("concept_id") for item in proposed if item.get("concept_id")), None)
+    # #697: the rule the model's slips carry is lent to the checker's, never to a spelling slip.
+    kept = [
+        {**item, "concept_id": item.get("concept_id") or ErrorMemoryService.lent_rule(item, concept_id)}
+        for item in checked.errata
+    ]
     out = {**parsed, "errata": kept, "corrected_answer": checked.corrected}
     unchanged = [
         (item.get("learner_text"), item.get("corrected_target")) for item in kept

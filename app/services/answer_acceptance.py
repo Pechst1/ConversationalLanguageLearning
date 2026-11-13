@@ -295,6 +295,94 @@ def _accent_strict_word(learner_word: str, target_word: str) -> bool:
     return False
 
 
+#: The endings an -er verb puts after its stem, longest first (présent, futur, conditionnel).
+_ER_STEM_ENDINGS = (
+    "eraient", "erions", "eriez", "erais", "erait", "erons", "eront",
+    "erez", "erai", "eras", "era", "ent", "ons", "es", "ez", "e",
+)
+#: The stem's last vowel, an «e» of some kind, and the consonants that close it.
+_STEM_LAST_E = re.compile(r"[eéèê][^aeiouyàâäéèêëîïôöùûü]+$")
+#: Words that make the next one a noun, never a verb («des élèves», «mes achats»).
+_NOUN_DETERMINERS = frozenset(
+    "un une des mes tes ses nos vos ces mon ton son ma ta sa notre votre leurs".split()
+)
+
+
+def _stem_change_accent(learner_word: str, target_word: str) -> bool:
+    """«achete» → «achète», «préfere» → «préfère», «leve» → «lève»: the è/é in the stem of
+    an -er verb that changes it (acheter, lever, mener, préférer, espérer, répéter …).
+
+    That accent is the whole content of the A1 unit «Les verbes en -er qui changent»
+    (``FR2_A12_ER_SPELLING``), so it is grammar, not spelling (#734 review). Read off the
+    core lexicon's lemmas: the stem plus «-er» is a verb whose last stem vowel is an «e»,
+    and the accent that differs is on that vowel.
+    """
+
+    lemmas = known_lemmas()
+    for ending in _ER_STEM_ENDINGS:
+        if not (target_word.endswith(ending) and learner_word.endswith(ending)):
+            continue
+        target_stem, learner_stem = target_word[: -len(ending)], learner_word[: -len(ending)]
+        if len(target_stem) != len(learner_stem) or strip_accents(target_stem) + "er" not in lemmas:
+            continue
+        vowel = _STEM_LAST_E.search(target_stem)
+        if vowel is None:
+            continue
+        said, right = learner_stem[vowel.start()], target_stem[vowel.start()]
+        if said != right and ({said, right} & {"è", "é"}):
+            return True
+    return False
+
+
+_GLUE = re.compile(r"[\s'\-]+")
+
+
+def accent_is_grammar(learner_text: object, corrected_text: object) -> bool:
+    """Does the fix change an accent that is grammar or meaning?
+
+    A participle's «-é» or a homograph (:func:`_accent_strict_word`: «j'ai mange» →
+    «j'ai mangé», «il a Paris» → «il à Paris», «ou est» → «où est»), or the è/é of a
+    stem-changing -er verb (:func:`_stem_change_accent`: «j'achete» → «j'achète»). Word
+    by word, where the two line up; a fix that also changes letters is judged elsewhere.
+    """
+
+    said = [token for token in _GLUE.split(fold_typography(learner_text)) if token]
+    right = [token for token in _GLUE.split(fold_typography(corrected_text)) if token]
+    if len(said) != len(right):
+        return False
+    for index, (a, b) in enumerate(zip(said, right, strict=True)):
+        if a == b or strip_accents(a) != strip_accents(b):
+            continue
+        if _accent_strict_word(a, b):
+            return True
+        if (index == 0 or right[index - 1] not in _NOUN_DETERMINERS) and _stem_change_accent(a, b):
+            return True
+    return False
+
+
+def is_spelling_only(learner_text: object, corrected_text: object) -> bool:
+    """#697: does the fix change only accents, apostrophes, hyphens, spaces or typography?
+
+    «bientot» → «bientôt», «tres» → «très», «jai» → «j'ai», «l appartement» →
+    «l'appartement»: a spelling slip, which no grammar rule teaches. Never one where the
+    accent is grammar or meaning (:func:`accent_is_grammar`), and never a fix that changes
+    a letter: an elided article («le appartement» → «l'appartement») stays the article
+    rule's (#119).
+    """
+
+    learner, corrected = fold_typography(learner_text), fold_typography(corrected_text)
+    if not learner or not corrected or learner == corrected:
+        return False
+    if strip_accents(_GLUE.sub("", learner)) != strip_accents(_GLUE.sub("", corrected)):
+        return False
+    if accent_is_grammar(learner, corrected):
+        return False
+    said = [token for token in _GLUE.split(learner) if token]
+    right = [token for token in _GLUE.split(corrected) if token]
+    # Words glued or split («jai» → «j'ai»): only the glue moved, every letter kept its accent.
+    return len(said) == len(right) or _GLUE.sub("", learner) == _GLUE.sub("", corrected)
+
+
 @lru_cache(maxsize=1)
 def known_lemmas() -> frozenset[str]:
     """The core lexicon's lemmas, accent-folded (``manger``, ``aller`` …)."""

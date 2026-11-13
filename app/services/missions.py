@@ -4449,7 +4449,11 @@ class MissionCorrectionService:
         if not concept_id and external_id and str(external_id).startswith("FR_ORTHO_"):
             concept_id = None
         elif not concept_id and (mission.selected_concept_ids or []):
-            concept_id = int((mission.selected_concept_ids or [0])[0] or 0) or None
+            # #697: the letter's rule is only lent to a slip the corrector could not name,
+            # and never to a spelling slip («A bientot» in a passé composé letter).
+            concept_id = ErrorMemoryService.lent_rule(
+                erratum, int((mission.selected_concept_ids or [0])[0] or 0) or None
+            )
         return self._normalized(erratum, concept_id)
 
     @staticmethod

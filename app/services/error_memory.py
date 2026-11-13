@@ -20,7 +20,7 @@ from app.db.models.grammar import GrammarConcept
 from app.db.models.session import ConversationMessage, LearningSession
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
-from app.services.answer_acceptance import is_real_correction
+from app.services.answer_acceptance import accent_is_grammar, is_real_correction, is_spelling_only
 from app.services.chrome_language import user_mother_tongue
 from app.services.grammar_feedback import infer_grammar_profile, profile_search_terms
 from app.services.learner_copy import learner_text
@@ -372,7 +372,12 @@ class ErrorMemoryService:
             # another («Vous êtes … ?» → «Êtes-vous … ?»), is never saved as an error.
             return None
 
-        concept_id = concept_id or erratum.get("concept_id")
+        named = erratum.get("concept_id")
+        if concept_id and concept_id != named and not erratum.get("item_id"):
+            # #697: a rule the entrance passes that the slip itself does not carry is a
+            # loan (the scene task's, the step's): a spelling slip takes none of it.
+            concept_id = self.lent_rule(erratum, concept_id)
+        concept_id = concept_id or named
         if not erratum.get("item_id"):
             # #119: a free-text correction that elides an article is the article rule's,
             # whichever rule the entrance guessed. A keyed item (``item_id``) belongs to
@@ -959,6 +964,39 @@ class ErrorMemoryService:
             .first()
         )
         return concept.id if concept is not None else None
+
+    @classmethod
+    def carries_no_rule(cls, erratum: dict[str, Any]) -> bool:
+        """#697: a spelling slip, which no grammar rule teaches.
+
+        Filed as spelling, or a fix that changes only accents, apostrophes or typography
+        («A bientot» → «A bientôt», «tres» → «très», «l appartement» → «l'appartement»),
+        unless the accent is grammar: a participle («mange» → «mangé»), a homograph
+        («a» → «à») or a stem-changing -er verb («j'achete» → «j'achète»), see
+        :func:`answer_acceptance.accent_is_grammar`. Ask :meth:`elision_concept_id`
+        first: an elided article is a rule.
+        """
+
+        learner, corrected = erratum.get("learner_text"), erratum.get("corrected_target")
+        if accent_is_grammar(learner, corrected):
+            return False
+        return cls._error_category_for_erratum(erratum) == "spelling" or is_spelling_only(learner, corrected)
+
+    @classmethod
+    def lent_rule(cls, erratum: dict[str, Any], concept_id: int | None) -> int | None:
+        """#697: the rule a surface lends a slip that names none, or ``None`` for a spelling slip.
+
+        A letter, a scene task or a step practises one rule, and every entrance filed the
+        slips it could not name under that rule: «A bientot» in a passé composé letter
+        became a passé composé slip, recall printed «Rule: Passé composé» over an accent
+        and a right «bientôt» spent that rule's review. Every place that falls back on
+        its own rule asks this. It never overrides a rule the slip names itself (the
+        corrector's ``external_id``, a keyed item): it only stops the loan.
+        """
+
+        if not concept_id:
+            return None
+        return None if cls.carries_no_rule(erratum) else concept_id
 
     def infer_concept_id_for_correction(
         self, *, learner_text: str | None, corrected_text: str | None, note: str | None = None
