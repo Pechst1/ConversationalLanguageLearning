@@ -7978,12 +7978,51 @@ def _validate_scene(draft: SceneDraft, context: dict):
         )
     _validate_lexicon(draft, context)
     # Last, on the draft every hard guard has accepted: a soft rejection carries a
-    # scene that is servable as it stands.
-    _check_scene_title(draft, context)
-    _check_addressee(draft, context)
-    _check_reading_aids(draft, context)
-    _check_story_words(draft, context)
-    _check_learner_words(draft, context)
+    # scene that is servable as it stands. Whichever soft check refuses, the page it
+    # carries is made servable here, in one place (#621: ``_servable``), so a new soft
+    # check or a new order cannot carry a page out that left its scene.
+    try:
+        _check_scene_title(draft, context)
+        _check_addressee(draft, context)
+        _check_reading_aids(draft, context)
+        _check_story_words(draft, context)
+        _check_learner_words(draft, context)
+    except SoftRejection as exc:
+        exc.proposal = _servable(exc.proposal if exc.proposal is not None else draft, context)
+        raise
+
+
+#: #621: on a brief's ``story_context``, what the served page's own state still says
+#: left its scene (``scene_unity.issues``) once it was held to it: what the panel floor
+#: kept. Absent when nothing did. For the story critic's reading and the next night.
+SCENE_UNITY_KEY = "scene_unity"
+
+
+def _unity_compared(context: dict) -> bool:
+    """#621: whether a page's own scene state is compared (``scene_unity``): with the
+    scene record on, and never on an épreuve, where everyone comes (``epreuve_gap``)."""
+
+    from app.services import scene_record
+
+    return scene_record.enabled() and not context.get(EPREUVE_KEY)
+
+
+def _servable(draft: SceneDraft, context: dict) -> SceneDraft:
+    """The page a soft rejection of a scene carries to be served if the retry wanders
+    again or fails: ``draft`` held to its scene (:func:`scene_unity.held_to_scene`).
+
+    A soft rejection's page is served without the hard guards running again, so what
+    holding changes is checked here against the two guards it can break (#740's review):
+    the panel floor is ``held_to_scene``'s own (``MIN_SCENE_PANELS``), and the lexicon is
+    validated again on the held page, so no word is taught that the page no longer
+    prints and every ``line_ref`` points at the line that holds it."""
+
+    if not _unity_compared(context):
+        return draft
+    held = scene_unity.held_to_scene(draft, floor=MIN_SCENE_PANELS)
+    if held is not draft:
+        _validate_lexicon(held, context)
+    return held
 
 
 def _check_learner_words(draft: SceneDraft, context: dict) -> None:
@@ -8101,11 +8140,9 @@ def _check_reading_aids(draft: SceneDraft, context: dict) -> None:
     moment = " ".join(filter(None, [_season_required_moment(draft, context), _contract_page_issue(draft, context)])) or None
     # Story plan, Phase 1 «Maßstab»: lines a reader hears as a machine ride it too.
     prose = prose_gap(draft, context)
-    # #621: a page whose own state says it left its scene (``scene_unity``) rides it too.
-    # Not an épreuve, where everyone comes (``epreuve_gap``).
-    from app.services import scene_record
-
-    unity = scene_unity.gap(draft) if scene_record.enabled() and not context.get(EPREUVE_KEY) else None
+    # #621: a page whose own state says it left its scene (``scene_unity``) rides it too,
+    # and the page it is served as is held to its scene (``_validate_scene``: ``_servable``).
+    unity = scene_unity.gap(draft) if _unity_compared(context) else None
     if not untranslated and not undescribed and not grammar and not special and not moment and not prose and not unity:
         return
     if not untranslated and not undescribed:
@@ -9511,6 +9548,9 @@ def _scene_brief(draft: SceneDraft, context: dict, *, usage: list[dict], pool: d
     brief = _brief(draft, context, usage=usage)
     if season_day:
         brief.story_context["season"] = season_day
+    left = scene_unity.issues(draft) if _unity_compared(context) else []
+    if left:
+        brief.story_context[SCENE_UNITY_KEY] = left
     if pool is not None:
         brief.story_context["pool"] = pool
     return brief
