@@ -10,7 +10,7 @@ import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recordi
 import { oncePerLoad } from '@/lib/once-per-load';
 import { correctRunFrom, seanceAssessment, secondCheckChange } from '@/lib/seance-feedback';
 import { withinWordRange } from '@/lib/word-range';
-import { forgeCorrectionNotes } from '@/lib/correction-notes';
+import { dedupeNotes, forgeCorrectionNotes } from '@/lib/correction-notes';
 import { classifyRepair } from '@/lib/forge-followup';
 import { classificationCopy, classificationGoal, isJudgementLabels, judgementLabel, judgementQuestion } from '@/lib/classification-copy';
 import { answeredLevel, itemVerdict, productionPhase, reviewIsPending, settleShownCorrection, type RepairStep } from '@/lib/forge-verdict';
@@ -63,6 +63,7 @@ import {
   EpMotif,
   EpRule,
   EpPrompt,
+  EpScenePrompt,
   Blank,
   EpOpts,
   EpOpt,
@@ -203,6 +204,7 @@ import { playComboTone } from '@/lib/sound';
 import { atelierErrorText, type AtelierErrorNotice } from '@/lib/atelier-errors';
 import { epreuveCopy, fill, wordRangeState, wordRangeText, type EpreuveCopy } from '@/components/epreuve/epreuve-copy';
 import { markedLine, retryOffered, solutionState, solutionWithheld, withheldHints, withheldRepairParts } from '@/lib/solution-gate';
+import { promptParts } from '@/lib/prompt-parts';
 import { usableCard } from '@/lib/rule-card';
 import { RuleCard } from '@/components/atelier-v2/rule/RuleCard';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
@@ -4391,6 +4393,12 @@ export function ExerciseFeedbackMoment({
   // The typed retype only gates Next for corrections that are real lines;
   // one-word fixes are settled by the galley marks alone.
   const needsNewAnswer = issues.some((issue) => issue.task_error_type === 'task_compliance' || !issue.corrected_target);
+  // Owner 2026-11-13: what the task asked is said once, in one quiet line; the rest behind «More».
+  const isTaskIssue = (issue: AtelierErratum) => issue.task_error_type === 'task_compliance' || !String(issue.corrected_target || feedback.target || '').trim();
+  const taskIssues = issues.filter(isTaskIssue);
+  const taskNotes = dedupeNotes(taskIssues.map((issue) => issue.why_wrong || feedback.why));
+  const taskNote = taskNotes[0] || '';
+  const taskMore = dedupeNotes([...taskNotes, ...taskIssues.map((issue) => issue.repair_hint)]).filter((note) => note !== taskNote);
   // #381: one reading of the repair step for the band and the buttons: once every line
   // on screen is mended, the band says so instead of «Not yet» under «Line fixed».
   const { complete: repairsComplete, mended } = repairState({
@@ -4472,25 +4480,30 @@ export function ExerciseFeedbackMoment({
         const target = String(issue.corrected_target || feedback.target || '').trim();
         const repairKey = `${feedbackKey}:${index}`;
         const repair = repairs[String(index)] || null;
-        if (issue.task_error_type === 'task_compliance' || !target) {
-          return <React.Fragment key={`task-${index}`}>
-            {/* The second-check note rides on the first card, whatever kind it is. */}
-            {index === 0 && relecture}
-            <div className="av2-surface" role="status">
-              <p className="av2-label">{t.task}</p>
-              <p className="av2-body">{issue.why_wrong || feedback.why}</p>
-              {issue.repair_hint && <p className="av2-body">{issue.repair_hint}</p>}
-            </div>
-          </React.Fragment>;
+        if (isTaskIssue(issue)) {
+          // Owner 2026-11-13: the task is reminded once, in one quiet line under the
+          // cards (below), never as a card of its own. The second-check note rides here.
+          return index === 0 && relecture ? <React.Fragment key={`task-${index}`}>{relecture}</React.Fragment> : null;
         }
+        // One short reason on the card; the repair hint, when it says more, waits behind «More».
+        // (While a repair is still open, its hint is the next action and stays on the card.)
+        const whyText = display(printableWhy(withoutRuleReference(issue.why_wrong || feedback.why || '', ruleShown)));
+        const hintText = display(printableWhy(issue.repair_hint || (index === 0 ? feedback.repair : '')));
+        // A whole line's card joins one note per issue: the task's note is said once, in
+        // the task line below, never again on the card.
+        const taskSaid = new Set(taskNotes.map((note) => note.trim()));
+        const [reason, ...rest] = dedupeNotes([...whyText.split('\n'), hintText])
+          .filter((note) => !taskSaid.has(note.trim()));
+        const repairHint = solutionOnScreen ? '' : rest.join(' ');
         return (
           <React.Fragment key={`${issue.display_label || 'repair'}-${index}`}>
             <EpGalley
               anchor={ruleShown
                 ? correctionAnchor(issue.display_label, ruleShown) ?? (issues.length > 1 ? fill(t.correction_n, { n: index + 1 }) : undefined)
                 : issue.display_label || fill(t.correction_n, { n: index + 1 })}
-              why={display(printableWhy(withoutRuleReference(issue.why_wrong || feedback.why || '', ruleShown)))}
-              repair={display(printableWhy(issue.repair_hint || (index === 0 ? feedback.repair : ''))) || undefined}
+              why={reason || undefined}
+              repair={repairHint || undefined}
+              more={solutionOnScreen && rest.length ? <EpMore label={t.more}>{rest.map((note) => <p key={note}>{note}</p>)}</EpMore> : undefined}
               // One second-look note per correction sheet, not one per erratum.
               relecture={index === 0 ? relecture : undefined}
             >
@@ -4528,6 +4541,12 @@ export function ExerciseFeedbackMoment({
           </React.Fragment>
         );
       })}
+      {taskNote && (
+        <>
+          <EpTaskLine label={t.task}>{taskNote}</EpTaskLine>
+          {taskMore.length > 0 && <EpMore label={t.more}>{taskMore.map((note) => <p key={note}>{note}</p>)}</EpMore>}
+        </>
+      )}
       {followUpBlock}
       {vocabularyGaps.length > 0 && (
         <div className="ep-notebook-add">
@@ -4912,7 +4931,7 @@ function correctionTargetText(value: unknown): string {
   return String(value);
 }
 
-function feedbackFromFreeformCorrection(correction: Record<string, any> | null, fallbackTarget = '', learner = '', t: EpreuveCopy = epreuveCopy('fr')): InlineFeedbackModel {
+export function feedbackFromFreeformCorrection(correction: Record<string, any> | null, fallbackTarget = '', learner = '', t: EpreuveCopy = epreuveCopy('fr')): InlineFeedbackModel {
   if (!correction) return null;
   const allErrata: AtelierErratum[] = Array.isArray(correction?.errata) ? correction.errata : [];
   // Task compliance is part of the assessment and must remain visible.
@@ -5077,7 +5096,7 @@ function EpreuveWiringStyles() {
   );
 }
 
-function OutputLadderPanel({
+export function OutputLadderPanel({
   payload,
   round,
   answer,
@@ -5170,9 +5189,17 @@ function OutputLadderPanel({
   };
 
   const instruction = t[`${round}_instruction` as const];
+  // Owner 2026-11-13: one voice per level. A scene prompt is cut at its quote: the
+  // situation and the instruction are quiet sans, only the quoted line is Garamond,
+  // set as speech from the named speaker. With no quote it is today's headline.
+  const split = promptParts(promptText);
+  const promptLang = promptLocalized ? cueLanguage : 'fr';
+  const speakerInFigure = Boolean(round === 'conversation' && split && character.name);
+  // The prompt's own instruction says what to do: the generic round cue would say it twice.
+  const promptCue = split?.instruction ? item.instruction || undefined : item.instruction || instruction;
   return (
-    <div className={`ep-exercise ep-output ep-output-${round}`}>
-      {round === 'conversation' && character.name && (
+    <div className={`ep-exercise ep-output ep-output-${round}`} data-prompt={split ? 'scene' : 'line'}>
+      {round === 'conversation' && character.name && !speakerInFigure && (
         <div className="ep-character-byline" aria-label={fill(t.conversation_with, { name: character.name })}>
           {/* WP-S5: a free-use scene is said by the rule's coach. */}
           {item.scene && character.id && (
@@ -5182,9 +5209,19 @@ function OutputLadderPanel({
           <em lang="fr">{String(character.register || 'vous')}</em>
         </div>
       )}
-      <EpPrompt cue={item.instruction || instruction} lang={promptLocalized ? cueLanguage : 'fr'}>
-        {promptText}
-      </EpPrompt>
+      <EpScenePrompt
+        text={promptText}
+        split={split}
+        cue={promptCue}
+        lang={promptLang}
+        speaker={speakerInFigure ? {
+          name: String(character.name),
+          register: String(character.register || 'vous'),
+          portrait: item.scene && character.id
+            ? <CastPortrait characterId={String(character.id)} name={String(character.name)} size="xs" ring />
+            : null,
+        } : null}
+      />
       <ForgeGoalLine goal={itemGoal(item, item.instruction || instruction)} />
       {round === 'speak' && (
         <EpRecord
@@ -5205,7 +5242,7 @@ function OutputLadderPanel({
         className="ep-composed-input"
         placeholder={t[`${round}_placeholder` as const]}
       />
-      <div className="word-count">
+      <div className="word-count" data-state={wordRangeState(wordCount(answer), item.min_words, item.max_words)}>
         {wordRangeText(t, wordCount(answer), item.min_words, item.max_words)}
       </div>
       {submitted && (() => {
@@ -5256,9 +5293,12 @@ function ProducePanel({
   const t = useEpCopy();
   return (
     <div className="ep-exercise ep-produce-panel">
-      <EpPrompt cue={sourceFragment ? `« ${sourceFragment} »` : undefined} lang={promptLocalized ? cueLanguage : 'fr'}>
-        {promptText || t.produce_missing}
-      </EpPrompt>
+      <EpScenePrompt
+        text={promptText || t.produce_missing}
+        split={promptParts(promptText)}
+        cue={sourceFragment ? `« ${sourceFragment} »` : undefined}
+        lang={promptLocalized ? cueLanguage : 'fr'}
+      />
       <div className="target-chips">
         {requirements.map((req: { label: string; count: number }) => <span key={req.label}>{req.count} × {req.label}</span>)}
       </div>
@@ -5273,7 +5313,7 @@ function ProducePanel({
         </div>
       )}
       <textarea className="ep-composed-input" value={answer} onChange={(event) => updateAnswer(event.target.value)} placeholder={t.produce_placeholder} readOnly={submitted || sending} />
-      <div className="word-count">{wordRangeText(t, wordCount(answer), produce.min_words, produce.max_words)}</div>
+      <div className="word-count" data-state={wordRangeState(wordCount(answer), produce.min_words, produce.max_words)}>{wordRangeText(t, wordCount(answer), produce.min_words, produce.max_words)}</div>
     </div>
   );
 }
