@@ -48,7 +48,7 @@ import difflib
 import re
 import unicodedata
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from typing import Any
 
@@ -628,9 +628,14 @@ class Edit:
     end: int = 0
     task_error_type: str = "grammar_target"
     severity: int = 2
+    #: Owner 2026-11-13: the note without the right form, shown before a second chance.
+    hint: dict[str, str] = field(default_factory=dict)
 
     def note_for(self, language: str | None) -> str:
         return _pick(self.note, language)
+
+    def hint_for(self, language: str | None) -> str:
+        return _pick(self.hint, language) if self.hint else ""
 
     def label_for(self, language: str | None) -> str:
         return _pick(self.label, language)
@@ -1003,6 +1008,141 @@ _RULE_TEXT: dict[str, dict[str, dict[str, str]]] = {
         },
     },
 }
+#: Owner 2026-11-13: each rule's note without the right form. It is what the
+#: learner reads before a second chance (app/services/solution_gate.py): where
+#: and why, as a question or a pointer, never «{right}» and never the fix.
+_RULE_HINT: dict[str, dict[str, str]] = {
+    "FR_PERSON_AUX": {
+        "en": "After « {subject} » the verb takes another form: which one?",
+        "de": "Nach « {subject} » braucht das Verb eine andere Form: welche?",
+        "fr": "Après « {subject} », le verbe prend une autre forme : laquelle ?",
+    },
+    "FR_AUX_ETRE": {
+        "en": "« {part} » forms its passé composé with être: which form of être fits here?",
+        "de": "« {part} » bildet das Perfekt mit être: Welche Form von être passt hier?",
+        "fr": "« {part} » se conjugue avec être au passé composé : quelle forme d’être convient ici ?",
+    },
+    "FR_PARTICIPLE_AGREE": {
+        "en": "With être the participle agrees with the subject: what does it need here?",
+        "de": "Mit être richtet sich das Partizip nach dem Subjekt: Was braucht es hier?",
+        "fr": "Avec être, le participe s’accorde avec le sujet : que lui faut-il ici ?",
+    },
+    "FR_ADJ_AGREE": {
+        "en": "« {noun} » is feminine: the adjective has to follow it.",
+        "de": "« {noun} » ist feminin: Das Adjektiv muss sich anpassen.",
+        "fr": "« {noun} » est féminin : l’adjectif doit suivre.",
+    },
+    "FR_ALLER_INF": {
+        "en": "After aller (near future) the next verb keeps one fixed form: which?",
+        "de": "Nach aller (nahe Zukunft) bleibt das nächste Verb in einer festen Form: in welcher?",
+        "fr": "Après aller (futur proche), le verbe suivant garde une forme fixe : laquelle ?",
+    },
+    "FR_VERB_DRE_S": {
+        "en": "With « {subject} » check this verb's ending.",
+        "de": "Prüf mit « {subject} » die Endung dieses Verbs.",
+        "fr": "Avec « {subject} », vérifie la terminaison de ce verbe.",
+    },
+    "FR_GENDER_DET": {
+        "en": "« {noun} » is {gender_en}: which article fits?",
+        "de": "« {noun} » ist {gender_de}: Welcher Artikel passt?",
+        "fr": "« {noun} » est {gender_fr} : quel déterminant convient ?",
+    },
+    "FR_APOSTROPHE": {
+        "en": "Two words meet here: look at the apostrophe.",
+        "de": "Hier treffen zwei Wörter aufeinander: Denk an den Apostroph.",
+        "fr": "Deux mots se rencontrent ici : pense à l’apostrophe.",
+    },
+    "FR_ACCENT": {
+        "en": "This word needs an accent: which one, and where?",
+        "de": "Diesem Wort fehlt ein Akzent: welcher, und wo?",
+        "fr": "Il manque un accent à ce mot : lequel, et où ?",
+    },
+    "FR_TENSE_PC": {
+        "en": "The sentence tells the story in the passé composé: keep the same tense.",
+        "de": "Der Satz erzählt im passé composé: Bleib bei derselben Zeit.",
+        "fr": "La phrase raconte au passé composé : garde le même temps.",
+    },
+    "FR_ELISION": {
+        "en": "« {word} » meets a vowel or a silent h here: what happens to its vowel?",
+        "de": "« {word} » trifft hier auf einen Vokal oder ein stummes h: Was passiert mit seinem Vokal?",
+        "fr": "« {word} » est suivi d’une voyelle ou d’un h muet : que devient sa voyelle ?",
+    },
+    "FR_CET": {
+        "en": "The next word starts with a vowel or a silent h: « ce » changes there.",
+        "de": "Das nächste Wort beginnt mit einem Vokal oder stummem h: « ce » ändert sich dort.",
+        "fr": "Le mot suivant commence par une voyelle ou un h muet : « ce » change.",
+    },
+    "FR_MON_VOWEL": {
+        "en": "In front of a vowel « {wrong} » changes, even for a feminine word.",
+        "de": "Vor einem Vokal ändert sich « {wrong} », auch bei einem femininen Wort.",
+        "fr": "Devant une voyelle, « {wrong} » change, même pour un mot féminin.",
+    },
+    "FR_PLURAL_NOUN": {
+        "en": "After « {det} » the noun is plural: what changes?",
+        "de": "Nach « {det} » steht das Nomen im Plural: Was ändert sich?",
+        "fr": "Après « {det} », le nom est au pluriel : qu’est-ce qui change ?",
+    },
+    "FR_SPELLING": {
+        "en": "Check how this word is spelt.",
+        "de": "Prüf, wie man dieses Wort schreibt.",
+        "fr": "Vérifie l’orthographe de ce mot.",
+    },
+    "FR_CONTRACTION": {
+        "en": "« {wrong} » contracts into one word: which?",
+        "de": "« {wrong} » verschmilzt zu einem Wort: zu welchem?",
+        "fr": "« {wrong} » se contracte en un seul mot : lequel ?",
+    },
+    "FR_BARE_INFINITIVE": {
+        "en": "After « {word} » the infinitive follows directly: one word is too many.",
+        "de": "Nach « {word} » folgt der Infinitiv direkt: Ein Wort ist zu viel.",
+        "fr": "Après « {word} », l’infinitif suit directement : un mot est en trop.",
+    },
+    "FR_DOUBLE_NEGATION": {
+        "en": "« {word} » already makes the sentence negative: one word is too many.",
+        "de": "« {word} » verneint schon: Ein Wort ist zu viel.",
+        "fr": "« {word} » rend déjà la phrase négative : un mot est en trop.",
+    },
+    "FR_NEGATION_ORDER": {
+        "en": "« ne … {word} » goes around the conjugated verb: check the order.",
+        "de": "« ne … {word} » umschließt das konjugierte Verb: Prüf die Reihenfolge.",
+        "fr": "« ne … {word} » encadre le verbe conjugué : vérifie l’ordre.",
+    },
+    "FR_NEGATION_AUX": {
+        "en": "In a compound tense « ne … {word} » goes around the auxiliary: check the order.",
+        "de": "In zusammengesetzten Zeiten umschließt « ne … {word} » das Hilfsverb: Prüf die Reihenfolge.",
+        "fr": "Aux temps composés, « ne … {word} » encadre l’auxiliaire : vérifie l’ordre.",
+    },
+    "FR_PARTITIVE_NEG": {
+        "en": "After a negation « {wrong} » changes: into what?",
+        "de": "Nach einer Verneinung ändert sich « {wrong} »: wie?",
+        "fr": "Après une négation, « {wrong} » change : en quoi ?",
+    },
+    "FR_MISSING_DE": {
+        "en": "After « {word} » a small word is missing.",
+        "de": "Nach « {word} » fehlt ein kleines Wort.",
+        "fr": "Après « {word} », il manque un petit mot.",
+    },
+    "FR_A_GRAVE": {
+        "en": "« a » without an accent is the verb avoir: here you need the preposition.",
+        "de": "« a » ohne Akzent ist das Verb avoir: Hier brauchst du die Präposition.",
+        "fr": "« a » sans accent, c’est le verbe avoir : ici, il faut la préposition.",
+    },
+    "FR_ETRE_AGE": {
+        "en": "Age is not said with être in French: which verb is it?",
+        "de": "Das Alter sagt man auf Französisch nicht mit être: mit welchem Verb?",
+        "fr": "L’âge ne se dit pas avec être : avec quel verbe ?",
+    },
+    "FR_STRESSED_PRONOUN": {
+        "en": "After « {word} » the pronoun takes its stressed form: which one?",
+        "de": "Nach « {word} » steht das betonte Pronomen: welches?",
+        "fr": "Après « {word} », il faut le pronom tonique : lequel ?",
+    },
+    "FR_PLURAL_FORM": {
+        "en": "« {noun} » has a plural of its own: which?",
+        "de": "« {noun} » hat einen eigenen Plural: welchen?",
+        "fr": "« {noun} » a un pluriel particulier : lequel ?",
+    },
+}
 _GENDER_WORD = {
     "m": {"en": "masculine", "de": "maskulin", "fr": "masculin"},
     "f": {"en": "feminine", "de": "feminin", "fr": "féminin"},
@@ -1022,6 +1162,8 @@ def _edit(rule_id: str, text: str, start: int, end: int, replacement: str, **fie
             "gender_fr": _GENDER_WORD.get(gender, {}).get("fr", ""),
         }
         note[lang] = template.format(**{**base, **extra})
+    gender_words = {f"gender_{key}": _GENDER_WORD.get(gender, {}).get(key, "") for key in ("en", "de", "fr")}
+    hint = {lang: template.format(**{**base, **gender_words}) for lang, template in _RULE_HINT.get(rule_id, {}).items()}
     task_type = {
         "FR_ACCENT": "orthography",
         "FR_APOSTROPHE": "orthography",
@@ -1054,6 +1196,7 @@ def _edit(rule_id: str, text: str, start: int, end: int, replacement: str, **fie
         end=end,
         task_error_type=task_type,
         severity=1 if rule_id in {"FR_ACCENT", "FR_APOSTROPHE", "FR_SPELLING", "FR_A_GRAVE"} else 2,
+        hint=hint,
     )
 
 
@@ -2646,6 +2789,7 @@ def to_erratum(edit: Edit, *, language: str | None = None) -> dict[str, Any]:
         "corrected_target": edit.replacement,
         "why_wrong": edit.note_for(language),
         "repair_hint": edit.note_for(language),
+        "hint": edit.hint_for(language),
         "severity": edit.severity,
         "recurring": False,
         "task_error_type": edit.task_error_type,

@@ -415,6 +415,14 @@ export class LearnerWalk {
       return true;
     }
     if (await page.locator(FORGE_SHEET.primary).count()) return false;
+    // Owner 2026-11-13: a miss with its second chance open holds its solution back; the walk
+    // takes «Show the solution», and the sheet then offers «Continue».
+    const reveal = page.locator(FORGE_SHEET.reveal).first();
+    if (await reveal.count()) {
+      await reveal.click({ timeout: 3000 }).catch(() => {});
+      await page.locator(FORGE_SHEET.primary).first().waitFor({ timeout: 10000 }).catch(() => {});
+      return true;
+    }
     const skip = page.locator(FORGE_SHEET.links).filter({ hasText: FORGE_SHEET.skip }).first();
     if (!(await skip.count())) return false;
     await skip.click({ timeout: 3000 }).catch(() => {});

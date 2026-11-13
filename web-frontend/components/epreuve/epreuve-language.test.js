@@ -40,7 +40,7 @@ const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
 
 const Ep = require('./Epreuve.tsx');
-const { epreuveCopy, wordRangeText } = require('./epreuve-copy.ts');
+const { epreuveCopy, wordRangeState, wordRangeText } = require('./epreuve-copy.ts');
 const { chromeLanguage } = require('@/lib/language-rule.ts');
 
 const h = React.createElement;
@@ -160,7 +160,14 @@ test('the three Épreuve copy tables are complete and never empty', () => {
   }
   assert.equal(epreuveCopy('de-AT').finish, 'Beenden');
   assert.equal(epreuveCopy(null).finish, 'Finish');
-  assert.equal(wordRangeText(epreuveCopy('en'), 3, 10, 20), '3 / 10–20 words · 7 more');
+  // Owner 2026-11-13: a quiet sentence-case counter; emphasis only out of range.
+  assert.equal(wordRangeText(epreuveCopy('en'), 3, 10, 20), '3 of 10–20 words');
+  assert.equal(wordRangeText(epreuveCopy('de'), 0, 5, 10), '0 von 5–10 Wörtern');
+  assert.equal(wordRangeText(epreuveCopy('fr'), 7, 5, 10), '7 sur 5–10 mots');
+  assert.equal(wordRangeState(0, 5, 10), 'none');
+  assert.equal(wordRangeState(3, 5, 10), 'under');
+  assert.equal(wordRangeState(7, 5, 10), 'in');
+  assert.equal(wordRangeState(12, 5, 10), 'over');
   assert.equal(wordRangeText(epreuveCopy('fr'), 4, null, null), '4 mots');
 });
 

@@ -588,6 +588,25 @@ export function EpGalley({ anchor, children, why, repair, relecture }: { anchor?
     </div>
   );
 }
+/* Owner 2026-11-13: one reason on the card; whatever else there is to say waits
+   behind «More», closed by default. */
+export function EpMore({ label, children }: { label: Node; children: Node }) {
+  return (
+    <details className="ep-more">
+      <summary>{label}</summary>
+      <div className="ep-more__body">{children}</div>
+    </details>
+  );
+}
+/* The task, reminded in one quiet line under the card, never a card of its own. */
+export function EpTaskLine({ label, children }: { label: Node; children: Node }) {
+  return (
+    <p className="ep-task-line">
+      <span className="ep-task-line__k">{label}</span>{' '}
+      <span>{children}</span>
+    </p>
+  );
+}
 /* The second look. `failed` is a real state: the endpoint to ask again exists,
    so the note must resolve into a retry rather than hang. */
 export function EpRelecture({ status = 'pending', children, onRetry, retrying }: {
@@ -740,6 +759,7 @@ export function EpPartsRepair({
   onChange,
   onSubmit,
   submitting,
+  children,
 }: {
   parts: RepairPart[];
   typed: Record<number, string>;
@@ -747,6 +767,8 @@ export function EpPartsRepair({
   onChange?: (typed: Record<number, string>) => void;
   onSubmit?: () => void;
   submitting?: boolean;
+  /** Owner 2026-11-13: before the solution, the reason sits in this card, under the line. */
+  children?: Node;
 }) {
   const t = useEpCopy();
   const done = status === 'ok';
@@ -782,6 +804,7 @@ export function EpPartsRepair({
           );
         })}
       </p>
+      {children}
       {onSubmit && !done && (
         <button
           type="button"
@@ -1457,6 +1480,17 @@ export function LEpreuveStyles() {
 .av2 .ep-parts__gap:disabled { color: var(--av2-ink); border-bottom-color: transparent; }
 .av2 .ep-parts__gap[data-state="wrong"] { color: var(--av2-red-deep); text-decoration: underline wavy var(--av2-red); }
 .av2 .ep-parts__gap[data-state="fixed"] { color: var(--av2-green); }
+/* Owner 2026-11-13: before the second chance, the wrong words are marked in the
+   learner's own line (red underline, the same mark as a gap to fix), nothing more. */
+.av2 .ep-marked { margin: 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-option); line-height: 1.5; color: var(--av2-ink); overflow-wrap: anywhere; }
+.av2 .ep-mark { background: transparent; color: var(--av2-ink); text-decoration: underline 2px var(--av2-red); text-decoration-skip-ink: none; text-underline-offset: 4px; }
+.av2 .ep-more { margin: 0; font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2); }
+.av2 .ep-more > summary { cursor: pointer; min-height: var(--av2-tap); display: inline-flex; align-items: center; font-weight: 600; color: var(--av2-ink-2); text-decoration: underline; text-underline-offset: 3px; list-style: none; }
+.av2 .ep-more > summary::-webkit-details-marker { display: none; }
+.av2 .ep-more__body { display: flex; flex-direction: column; gap: 6px; }
+.av2 .ep-more__body p { margin: 0; }
+.av2 .ep-task-line { margin: 0; font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2); }
+.av2 .ep-task-line__k { font-weight: 700; color: var(--av2-ink); }
 
 /* ============================================================
    LISTEN · RECORD

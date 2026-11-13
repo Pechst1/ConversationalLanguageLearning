@@ -221,7 +221,14 @@ test('the walk leaves a Forge sheet with no «Continue» by what the page render
   assert.match(page, /className="ep-feedback" data-verdict="unscored"/, 'the unchecked sheet is marked data-verdict="unscored"');
   assert.match(page, /<EpBar tone="ghost" onClick=\{onNext\}>\{t\.skip_unscored\}<\/EpBar>/, 'the unchecked sheet goes on with an EpBar');
   assert.match(page, /<div className="ep-fb-links">/, 'the sheet\'s quiet links are .ep-fb-links');
-  assert.match(page, /\{needsNewAnswer && <button type="button" onClick=\{onNext\}>\{t\.skip\}<\/button>\}/, 'the skip is a link button');
+  assert.match(page, /\{needsNewAnswer && !canGoOn && <button type="button" onClick=\{onNext\}>\{t\.skip\}<\/button>\}/, 'the skip is a link button');
+  // Owner 2026-11-13: a miss with its second chance open has no «Continue» and no solution;
+  // the walk takes «Show the solution» (driver FORGE_SHEET.reveal), which the page renders so.
+  assert.match(page, /className="ep-feedback" data-verdict="wrong" data-solution="withheld"/, 'the withheld sheet is marked data-solution="withheld"');
+  assert.match(page, /<button type="button" data-action="reveal" onClick=\{onRevealSolution\}/, '«Show the solution» is a link button with data-action="reveal"');
+  assert.match(FORGE_SHEET.reveal, /data-action="reveal"/);
+  const walk = fs.readFileSync(path.join(WEB_ROOT, 'e2e/lib/learner-walk.mjs'), 'utf8');
+  assert.match(walk, /page\.locator\(FORGE_SHEET\.reveal\)/, 'the walk takes «Show the solution» before it skips');
   const bar = fs.readFileSync(path.join(__dirname, 'Epreuve.tsx'), 'utf8');
   assert.match(bar, /'av2-btn ep-bar ' \+ \(tone === 'ghost' \? 'av2-btn--secondary' : 'av2-btn--primary'\)/, 'EpBar is button.ep-bar, primary unless ghost');
   const copy = fs.readFileSync(path.join(__dirname, 'epreuve-copy.ts'), 'utf8');

@@ -82,6 +82,8 @@ import {
   EpCorrect,
   EpRepair,
   EpPartsRepair,
+  EpMore,
+  EpTaskLine,
   EpListen,
   EpRecord,
   EpLock,
@@ -199,7 +201,8 @@ import { bestComboLine, fillMomentum, momentumCopy } from '@/lib/momentum-copy';
 import { eclairHref, eclairPairLabel } from '@/lib/grammar-map';
 import { playComboTone } from '@/lib/sound';
 import { atelierErrorText, type AtelierErrorNotice } from '@/lib/atelier-errors';
-import { epreuveCopy, fill, wordRangeText, type EpreuveCopy } from '@/components/epreuve/epreuve-copy';
+import { epreuveCopy, fill, wordRangeState, wordRangeText, type EpreuveCopy } from '@/components/epreuve/epreuve-copy';
+import { markedLine, retryOffered, solutionState, solutionWithheld, withheldHints, withheldRepairParts } from '@/lib/solution-gate';
 import { usableCard } from '@/lib/rule-card';
 import { RuleCard } from '@/components/atelier-v2/rule/RuleCard';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
@@ -1618,6 +1621,24 @@ export default function AtelierPage() {
     }
   };
 
+  // Owner 2026-11-13: «Show the solution» spends the second chance; the server sends the
+  // correction whole (app/services/solution_gate.py), and «Continue» takes the retry's place.
+  const [revealing, setRevealing] = useState<Record<string, boolean>>({});
+  const revealSolution = async () => {
+    const attemptId = attemptIdsByKey[scopedKey];
+    if (!attemptId || revealing[scopedKey]) return;
+    setRevealing((prev) => ({ ...prev, [scopedKey]: true }));
+    try {
+      const result = await apiService.revealAtelierAttempt(attemptId);
+      applyAttemptResult(scopedKey, result, true, false);
+    } catch (error) {
+      console.error(error);
+      say(pageCopy.say_check_failed, 'alert');
+    } finally {
+      setRevealing((prev) => ({ ...prev, [scopedKey]: false }));
+    }
+  };
+
   // WP-S3 — «Épreuve de la règle» from the séance's rule header.
   const startTestOut = async (conceptId: number, options?: Parameters<typeof apiService.startForgeTestOut>[1]) => {
     if (testOutPending) return false;
@@ -2345,6 +2366,8 @@ export default function AtelierPage() {
             onSetRepairDraft={(key, value) => setRepairDrafts((prev) => ({ ...prev, [key]: value }))}
             onSubmitRepair={submitMicroRepair}
             repairSubmitting={repairSubmitting}
+            onRevealSolution={revealSolution}
+            revealing={!!revealing[scopedKey]}
             isRetest={Boolean(activeRetest)}
             onBack={() => {
               // WP-S8: leaving an unfinished forge séance is an abandon (the
@@ -3667,6 +3690,8 @@ function SessionView({
   onSetRepairDraft,
   onSubmitRepair,
   repairSubmitting,
+  onRevealSolution,
+  revealing = false,
   isRetest,
   onBack,
   produceAnswer,
@@ -3711,6 +3736,9 @@ function SessionView({
   onSetRepairDraft: (key: string, value: string) => void;
   onSubmitRepair: (erratumIndex: number) => void;
   repairSubmitting: Record<string, boolean>;
+  /** Owner 2026-11-13: «Show the solution» spends the second chance. */
+  onRevealSolution?: () => void;
+  revealing?: boolean;
   isRetest: boolean;
   onBack: () => void;
   produceAnswer: string;
@@ -4089,6 +4117,8 @@ function SessionView({
                 onSetRepairDraft={onSetRepairDraft}
                 onSubmitRepair={onSubmitRepair}
                 repairSubmitting={repairSubmitting}
+                onRevealSolution={onRevealSolution}
+                revealing={revealing}
                 feedbackKey={currentKey}
                 isLabelCompare={round === 'recognize' && mode === 'classify'}
                 onRetryAiReview={requestAiReview}
@@ -4174,6 +4204,8 @@ export function ExerciseFeedbackMoment({
   picked = false,
   ruleShown = null,
   attempt = null,
+  onRevealSolution,
+  revealing = false,
 }: {
   feedback: InlineFeedbackModel;
   submitted: boolean;
@@ -4205,6 +4237,9 @@ export function ExerciseFeedbackMoment({
   ruleShown?: string | null;
   /** The server's id for the attempt on screen: the cast counts a checked answer once (#302). */
   attempt?: string | null;
+  /** Owner 2026-11-13: «Show the solution» spends the second chance. */
+  onRevealSolution?: () => void;
+  revealing?: boolean;
 }) {
   const t = useEpCopy();
   // WP-103 T8: the follow-up's draft, per exercise, so a return finds it as it was left.
@@ -4280,6 +4315,68 @@ export function ExerciseFeedbackMoment({
       </div>
     );
   }
+  // Owner 2026-11-13: «the user should not see what is right when he then gets another
+  // chance to fix it; only afterwards the solution.» While the chance is open the server
+  // sends no solution (app/services/solution_gate.py); the screen shows WHERE (the marked
+  // words of the learner's own line) and WHY (the rule, as a hint), then the chance.
+  if (!feedback.correct && solutionWithheld(correction)) {
+    const hints = withheldHints(correction);
+    const line = String(correction?.marked_line || feedback.learner || '').trim();
+    const marks = Array.isArray(correction?.marks) ? correction!.marks : [];
+    const inPlace = production && !isLabelCompare ? withheldRepairParts(line, marks) : null;
+    const repairKey = `${feedbackKey}:0`;
+    const reason = hints.reason ? <p className="ep-why">{hints.reason}</p> : null;
+    const more = hints.more.length ? <EpMore label={t.more}>{hints.more.map((note) => <p key={note}>{note}</p>)}</EpMore> : null;
+    return (
+      <div className="ep-feedback" data-verdict="wrong" data-solution="withheld" ref={feedbackRef}>
+        {inPlace ? (
+          <EpPartsRepair
+            parts={inPlace}
+            typed={partsTyped[repairKey] || {}}
+            status={null}
+            onChange={(next) => {
+              setPartsTyped((prev) => ({ ...prev, [repairKey]: next }));
+              onSetRepairDraft(repairKey, assembleRepair(inPlace, next));
+            }}
+            onSubmit={() => onSubmitRepair(0)}
+            submitting={!!repairSubmitting[repairKey]}
+          >
+            {reason}
+            {more}
+          </EpPartsRepair>
+        ) : (
+          <EpGalley anchor={picked || !line ? t.miss_choice : t.miss_where}>
+            {!picked && line ? (
+              <p className="ep-marked" lang="fr">
+                {markedLine(line, marks).map((segment, index) => (segment.marked
+                  ? <mark key={index} className="ep-mark">{segment.text}</mark>
+                  : <React.Fragment key={index}>{segment.text}</React.Fragment>))}
+              </p>
+            ) : null}
+            {reason}
+            {more}
+          </EpGalley>
+        )}
+        {hints.task && <EpTaskLine label={t.task}>{hints.task}</EpTaskLine>}
+        <EpFoot tone="wrong">
+          <EpVerdict tone="no" sub={t.miss_sub} coach={coach} coachMood={mood} attempt={attempt}>{t.verdict_wrong}</EpVerdict>
+          {onTryAgain && <EpBar tone="ghost" icon="retry" onClick={onTryAgain}>{production ? t.retry_line : t.retry}</EpBar>}
+          <div className="ep-fb-links">
+            {onRevealSolution && (
+              <button type="button" data-action="reveal" onClick={onRevealSolution} disabled={revealing} aria-busy={revealing || undefined}>
+                {revealing ? t.showing_solution : t.show_solution}
+              </button>
+            )}
+            {onReport && <button type="button" onClick={onReport}>{t.report}</button>}
+          </div>
+        </EpFoot>
+      </div>
+    );
+  }
+  // After the chance (or with none) the solution is on screen: no retry, the way on is «Continue».
+  const shownState = solutionState(correction);
+  const solutionOnScreen = shownState === 'spent' || shownState === 'shown';
+  const repairSpent = shownState === 'spent' && correction?.solution?.revealed_by === 'repair';
   const issues = feedback.issues?.length
     ? feedback.issues
     : feedback.target
@@ -4303,6 +4400,9 @@ export function ExerciseFeedbackMoment({
     isLabelCompare: Boolean(isLabelCompare),
     needsNewAnswer,
   });
+  // Owner 2026-11-13: with the solution on screen the chance is over: «Continue», no retry.
+  const canGoOn = repairsComplete || solutionOnScreen;
+  const retry = retryOffered(correction) ? onTryAgain : undefined;
   // WP-S1: the verdict on screen is the local one and it never waits. The
   // model's second reading runs quietly behind it; a note appears only if it
   // changed the verdict. (An open answer it could not read at all becomes
@@ -4400,20 +4500,22 @@ export function ExerciseFeedbackMoment({
                   ? <EpLineFix old={learner} fix={target || t.corrected} />
                   : learner ? <EpFix old={learner} fix={target || t.corrected} /> : <EpIns fix={target || t.corrected} />}
             </EpGalley>
-            {index === 0 && lineParts && (
+            {/* The repair is the second chance: once the solution is on screen it is shown
+                only as it was sent, never offered again as a copy of the line above. */}
+            {index === 0 && lineParts && (!solutionOnScreen || repairSpent) && (
               <EpPartsRepair
                 parts={lineParts}
                 typed={partsTyped[repairKey] || {}}
                 status={repair?.status || null}
-                onChange={(next) => {
+                onChange={repairSpent ? undefined : (next) => {
                   setPartsTyped((prev) => ({ ...prev, [repairKey]: next }));
                   onSetRepairDraft(repairKey, assembleRepair(lineParts, next));
                 }}
-                onSubmit={() => onSubmitRepair(index)}
+                onSubmit={repairSpent ? undefined : () => onSubmitRepair(index)}
                 submitting={!!repairSubmitting[repairKey]}
               />
             )}
-            {!isLabelCompare && target && isRepairableLine(target) && !(index === 0 && lineParts) && (
+            {!solutionOnScreen && !isLabelCompare && target && isRepairableLine(target) && !(index === 0 && lineParts) && (
               <EpRepair
                 target={target}
                 typed={repair?.typed || repairDrafts[repairKey] || ''}
@@ -4449,14 +4551,14 @@ export function ExerciseFeedbackMoment({
         <EpVerdict tone={mended ? 'go' : 'no'} sub={rule} coach={coach} coachMood={mended ? 'happy' : mood} attempt={attempt}>
           {mended ? t.verdict_correct : t.verdict_wrong}
         </EpVerdict>
-        {repairsComplete
+        {canGoOn
           ? (!followGate && <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>)
-          : onTryAgain && <EpBar tone="ghost" icon="retry" onClick={onTryAgain}>{t.retry_line}</EpBar>}
+          : retry && <EpBar tone="ghost" icon="retry" onClick={retry}>{t.retry_line}</EpBar>}
         <div className="ep-fb-links">
-          {repairsComplete && onTryAgain && (
-            <button type="button" onClick={onTryAgain}>{t.retry}</button>
+          {canGoOn && retry && (
+            <button type="button" onClick={retry}>{t.retry}</button>
           )}
-          {needsNewAnswer && <button type="button" onClick={onNext}>{t.skip}</button>}
+          {needsNewAnswer && !canGoOn && <button type="button" onClick={onNext}>{t.skip}</button>}
           {onReport && (
             <button type="button" onClick={onReport}>{t.report}</button>
           )}
@@ -4691,7 +4793,7 @@ function TransformPanel({
   const sentence = String(item.source_fr || item.source || '');
   // La Forge says a miss's right line once, in its correction; a right answer
   // hears it here.
-  const modelAudio = submitted && !(drill && correction?.verdict !== 'correct') && (() => {
+  const modelAudio = submitted && !solutionWithheld(correction) && !(drill && correction?.verdict !== 'correct') && (() => {
     const corrected = correction?.corrected_answer;
     const correctedForItem = corrected && typeof corrected === 'object' ? corrected[item.id] : undefined;
     const modelText = String(correctedForItem || item.expected_answer || answers[item.id] || '').trim();
@@ -4742,7 +4844,11 @@ function itemFeedback(item: any, learner: any, correction: Record<string, any> |
   const corrected = correction.corrected_answer || {};
   const target = typeof corrected === 'object' ? corrected[item.id] : item.correct_answer || item.expected_answer;
   const learnerText = Array.isArray(learner) ? learner.join(' ') : String(learner || '');
-  const targetText = String(target || item.correct_answer || item.expected_answer || item.correct_label || '');
+  // Owner 2026-11-13: while the second chance is open the solution is not drawn from the
+  // item's own key either: no right card turns green, no corrected word is printed.
+  const targetText = solutionWithheld(correction)
+    ? ''
+    : String(target || item.correct_answer || item.expected_answer || item.correct_label || '');
   const errata: AtelierErratum[] = Array.isArray(correction.errata) ? correction.errata : [];
   const hasItemScopedErrata = errata.some((erratum) => Boolean(String(erratum.item_id || '').trim()));
   const targetNorm = normalizeClient(targetText);
@@ -4817,7 +4923,10 @@ function feedbackFromFreeformCorrection(correction: Record<string, any> | null, 
   // it when corrected_answer is unavailable or unchanged.
   const cleanRewrite = correctionTargetText(correction?.corrected_answer);
   const rewriteDiffers = !!cleanRewrite && normalizeClient(cleanRewrite) !== normalizeClient(learner);
-  const shownTarget = rewriteDiffers ? cleanRewrite : (errata[0]?.corrected_target || cleanRewrite || fallbackTarget);
+  // Owner 2026-11-13: no model answer stands in for a solution that is withheld.
+  const shownTarget = solutionWithheld(correction)
+    ? ''
+    : rewriteDiffers ? cleanRewrite : (errata[0]?.corrected_target || cleanRewrite || fallbackTarget);
   // WP-103 T9/T10: one explanation per distinct issue, never the same one three times.
   const whyLines = forgeCorrectionNotes(correction);
   const assessment = seanceAssessment(correction);
