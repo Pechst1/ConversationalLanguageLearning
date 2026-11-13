@@ -210,6 +210,17 @@ class ForgeItem:
         return out
 
 
+def _posed(item: ForgeItem, drill: str | None) -> ForgeItem:
+    """``item`` as the drill chosen for it (its own, when the provider set one).
+
+    #755: what the drill's card says (how many words a spot fixes) is read from
+    the item here, where the drill is chosen, not left to whichever builder made it.
+    """
+
+    chosen = item.drill or drill
+    return replace(item, drill=chosen, payload=drills.posed_item(chosen, item.payload or {}))
+
+
 #: ``accept(drill, item)``: may this item be posed as this drill?
 DrillCheck = Callable[[str | None, dict[str, Any]], bool]
 
@@ -1567,11 +1578,11 @@ class ForgeService:
                     concept_id=slot.concept_id, rung=slot.rung, exclude=exclude, drill=drill, accept=accept
                 )
                 if item is not None:
-                    return item if item.drill else replace(item, drill=drill)
+                    return _posed(item, drill)
         item = provider.item_for(concept_id=slot.concept_id, rung=slot.rung, exclude=exclude)
         if item is None:
             return None
-        return item if item.drill else replace(item, drill=drills.drill_of_item(item.rung, item.payload, item.round))
+        return _posed(item, drills.drill_of_item(item.rung, item.payload, item.round))
 
     def next_item(self, *, user: User, session: AtelierSession) -> dict[str, Any] | None:
         """The item the learner is on (pending) or the next one; stored as pending."""
