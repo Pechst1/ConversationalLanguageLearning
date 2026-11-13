@@ -57,7 +57,7 @@ const FAKE_PROVIDER_ENGLISH = [
   /Explain what happened to the parcel\.?/g,
   /Say whether you come on Friday and what you bring\.?/g,
   /Ask a neighbour for help, or offer yours\.?/g,
-  /Accept or decline, and say when you are free\.?/g,
+  /Say if you can keep the cat this weekend\.?/g,
   /Say yes or no, and when\.?/g,
   /Can you help me\?/g,
   /You (declined|offered to help)\.?/g,
