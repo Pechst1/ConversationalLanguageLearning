@@ -149,6 +149,10 @@ def _stem(word: str) -> str:
 
 
 def _carries_meaning(word: str) -> bool:
+    if word == "ne":
+        # The negation's first word, never a word of meaning: the lexicon folds it to
+        # «naître» (#748), which made every negative reply «about» being born.
+        return False
     lemma = _lemma(word)
     if len(word) < 4 and lemma == word:
         return False
@@ -163,6 +167,9 @@ def _clause_words(clause: str) -> list[str]:
         head, _, tail = piece.rpartition("'")
         if head == "n":
             words.append("ne")
+        elif head == "d":
+            # «pas d'argent» is «pas de» + «argent»: the «de» marks what is refused (#748).
+            words.append("de")
         if tail:
             words.append(tail)
     return words
@@ -176,7 +183,14 @@ def _negated_in(words: list[str]) -> set[str]:
             continue
         head = words[index - 1] if index else ""
         after = next((other for other in words[index + 1 :] if other not in _OBJECTS), "")
-        if head in _AUXILIARIES or _INFINITIVE.search(after):
+        if after == "de" and word != "rien":
+            # #748: «je ne veux pas de pizza», «pas de café pour moi», «jamais de viande»
+            # refuse the thing after «de», the commonest refusal at A1. Read as wanted,
+            # the refused pizza came back as the line to say aloud.
+            thing = next((other for other in words[index + 2 :] if other not in _OBJECTS), "")
+            if thing:
+                negated.add(thing)
+        elif head in _AUXILIARIES or _INFINITIVE.search(after):
             negated.add(after)
         if head not in _CARRIERS and head not in _AUXILIARIES:
             negated.add(head)
