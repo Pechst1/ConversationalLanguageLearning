@@ -50,6 +50,7 @@ import {
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
 import { CastActor, actorFigure } from '@/components/cast/vivant/CastActor';
 import { emitCameo } from '@/lib/cameo';
+import { frenchQuote } from '@/lib/french-typography';
 import { pulseAppHaptic } from '@/lib/haptics';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 
@@ -325,8 +326,6 @@ export function EpScenePrompt({
   split: { situation: string; quote: string; instruction: string } | null;
 }) {
   if (!split) return <EpPrompt cue={cue} lang={lang}>{text}</EpPrompt>;
-  const open = lang === 'fr' ? '« ' : lang === 'de' ? '„' : '“';
-  const close = lang === 'fr' ? ' »' : lang === 'de' ? '“' : '”';
   return (
     <div className="ep-prompt ep-prompt--scene" lang={lang || undefined}>
       {split.situation && <p className="ep-situation">{split.situation}</p>}
@@ -338,7 +337,9 @@ export function EpScenePrompt({
             {speaker.register && <span className="ep-speech__register" lang="fr">{speaker.register}</span>}
           </figcaption>
         )}
-        <blockquote className="ep-speech__line av2-fr" lang="fr">{open}{split.quote}{close}</blockquote>
+        {/* French speech is always in guillemets with French spacing, whatever the
+            chrome language (owner 2026-11-13): « Tu peux payer par carte ? » */}
+        <blockquote className="ep-speech__line av2-fr" lang="fr">{frenchQuote(split.quote)}</blockquote>
       </figure>
       {split.instruction && <p className="ep-instruction">{split.instruction}</p>}
       {cue && <p className="ep-cue ep-cue--quiet">{cue}</p>}

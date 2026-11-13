@@ -83,7 +83,7 @@ const FRENCH_CHROME = [
   'Tu es…',
   'sûr·e',
   'Recopie la correction',
-  'Comparer',
+  'Vérifier',
   'Touche pour parler',
   'Je n’ai pas pu vérifier cette réponse. Réessaie.',
   'Vérifier à nouveau',

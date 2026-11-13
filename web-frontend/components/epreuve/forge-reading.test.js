@@ -14,9 +14,22 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const Module = require('node:module');
 const { test } = require('node:test');
 
 const WEB_ROOT = path.resolve(__dirname, '..', '..');
+require(path.join(WEB_ROOT, 'node_modules/sucrase/register/ts'));
+require(path.join(WEB_ROOT, 'node_modules/sucrase/register/tsx'));
+const originalResolve = Module._resolveFilename;
+Module._resolveFilename = function resolve(request, ...rest) {
+  if (request.startsWith('@/')) return originalResolve.call(this, path.join(WEB_ROOT, request.slice(2)), ...rest);
+  return originalResolve.call(this, request, ...rest);
+};
+const React = require('react');
+const { renderToStaticMarkup } = require('react-dom/server');
+const Ep = require('./Epreuve.tsx');
+const { promptParts } = require('@/lib/prompt-parts.ts');
+const { epreuveCopy } = require('./epreuve-copy.ts');
 const PAGE = fs.readFileSync(path.join(WEB_ROOT, 'pages/atelier.tsx'), 'utf8');
 const EPREUVE = fs.readFileSync(path.join(WEB_ROOT, 'components/epreuve/Epreuve.tsx'), 'utf8');
 
@@ -48,6 +61,37 @@ test('only the quoted line is Garamond; the situation and instruction are sans p
   assert.match(css('.av2 .ep-speech__line'), /font-style: italic/);
   assert.match(EPREUVE, /\.av2 \.ep-situation,\n\.av2 \.ep-instruction \{[^}]*font-family: var\(--av2-sans\)[^}]*font-style: normal/);
   assert.match(css('.av2 .ep-prompt--scene'), /max-width: 36em/);
+});
+
+test('French speech is in guillemets with French spacing in every chrome language', () => {
+  const NNBSP = ' ';
+  const prompts = {
+    de: 'Auf dem Markt fragt dich die Verkäuferin: „Tu peux payer par carte ?“ Antworte mit dem Infinitiv.',
+    en: 'At the market the stallholder asks you: “Tu peux payer par carte ?” Answer with the infinitive.',
+    fr: 'Au marché, la vendeuse te demande : « Tu peux payer par carte ? » Réponds avec l’infinitif.',
+  };
+  for (const [lang, prompt] of Object.entries(prompts)) {
+    const html = renderToStaticMarkup(React.createElement(Ep.EpScenePrompt, { text: prompt, split: promptParts(prompt), lang }));
+    const line = /<blockquote[^>]*>([^<]*)<\/blockquote>/.exec(html);
+    assert.ok(line, `${lang}: the quoted line is set as speech`);
+    assert.equal(line[1], `«${NNBSP}Tu peux payer par carte${NNBSP}?${NNBSP}»`, `${lang}: ${line[1]}`);
+    assert.doesNotMatch(line[1], /[„“”"]/);
+  }
+});
+
+test('the button under a repair line says it checks, as the item screen does', () => {
+  for (const lang of ['de', 'en', 'fr']) {
+    const t = epreuveCopy(lang);
+    assert.equal(t.repair_submit, t.check, lang);
+    assert.equal(t.repair_submitting, t.checking, lang);
+  }
+});
+
+test('the card counts only the corrections it shows, never the task note', () => {
+  const free = slice(PAGE, 'export function feedbackFromFreeformCorrection(', 'function feedbackForExercise(');
+  assert.match(free, /const lineErrata = errata\.filter\(\(item\) => item\.task_error_type !== 'task_compliance'\)/);
+  assert.match(free, /shownCount > 1\s*\? fill\(t\.corrections_n, \{ n: shownCount \}\)/);
+  assert.doesNotMatch(free, /n: whyLines\.length/);
 });
 
 test('the counter is sentence case, emphatic only when out of range', () => {

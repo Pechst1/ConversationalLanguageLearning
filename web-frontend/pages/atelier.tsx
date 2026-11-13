@@ -4953,10 +4953,14 @@ export function feedbackFromFreeformCorrection(correction: Record<string, any> |
   const taskOnly = !rewriteDiffers && (errata.length === 0 || errata.every((item) => item.task_error_type === 'task_compliance'));
   // One clean before/after for the whole line, with each error explained in the
   // note — instead of one messy before/after per erratum.
+  // Owner 2026-11-13: the card counts the corrections it shows. A task note is said in
+  // its own line under the card, so it is not one of them.
+  const lineErrata = errata.filter((item) => item.task_error_type !== 'task_compliance');
+  const shownCount = errata.length ? lineErrata.length : whyLines.length;
   const issues: AtelierErratum[] = correct ? [] : [{
-    display_label: whyLines.length > 1
-      ? fill(t.corrections_n, { n: whyLines.length })
-      : ((errata.length === 1 ? errata[0]?.display_label : '') || t.corrected_line),
+    display_label: shownCount > 1
+      ? fill(t.corrections_n, { n: shownCount })
+      : ((lineErrata.length === 1 ? lineErrata[0]?.display_label : '') || t.corrected_line),
     learner_text: learner,
     corrected_target: taskOnly ? '' : (rewriteDiffers ? shownTarget : (errata[0]?.corrected_target || '')),
     why_wrong: whyLines.join('\n') || t.task_default_why,
