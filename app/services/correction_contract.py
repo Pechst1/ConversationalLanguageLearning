@@ -994,6 +994,14 @@ _RULE_TEXT: dict[str, dict[str, dict[str, str]]] = {
             "fr": "Après « {word} », on emploie le pronom tonique : « {right} ».",
         },
     },
+    "FR_OBJECT_PRONOUN": {
+        "label": {"en": "Pronoun", "de": "Pronomen", "fr": "Pronom"},
+        "note": {
+            "en": "« à {word} » after this verb becomes « {clitic} » in front of it: « {right} ».",
+            "de": "« à {word} » wird bei diesem Verb zu « {clitic} » vor dem Verb: « {right} ».",
+            "fr": "Avec ce verbe, « à {word} » devient « {clitic} », placé devant le verbe : « {right} ».",
+        },
+    },
     "FR_PLURAL_FORM": {
         "label": {"en": "Plural", "de": "Plural", "fr": "Pluriel"},
         "note": {
@@ -1043,6 +1051,7 @@ def _edit(rule_id: str, text: str, start: int, end: int, replacement: str, **fie
         "FR_NEGATION_AUX": "word_order",
         "FR_PARTITIVE_NEG": "negation",
         "FR_STRESSED_PRONOUN": "pronouns",
+        "FR_OBJECT_PRONOUN": "pronouns",
     }.get(rule_id, "verb_conjugation")
     return Edit(
         span=span,
@@ -1628,6 +1637,11 @@ def _dropped_apostrophe(source: str, tokens: list[Tok], index: int) -> tuple[int
         if prev_low != "comment":
             return None
     elif tok.low in {"n", "m", "t", "l"} and not _subject_fits(_clitic_subject(tokens, index), word):
+        # #754: «Gus m a demandé»: a name in front is a subject like «il», for a form of «il».
+        if tok.low != "n" and _names_a_subject_in_front(source, prev, opens_clause) and (
+            _FORM_PERSONS.get(word) is None or "3sg" in _FORM_PERSONS[word]
+        ):
+            return tok.start, nxt.end, f"{written}{mark}{word_written}"
         # «Lila n est pas là»: a name in front holds too, with its negation after the verb
         if not (
             tok.low == "n"
@@ -1639,6 +1653,14 @@ def _dropped_apostrophe(source: str, tokens: list[Tok], index: int) -> tuple[int
         ):
             return None
     return tok.start, nxt.end, f"{written}{mark}{word_written}"
+
+
+def _names_a_subject_in_front(source: str, prev: Tok | None, opens_clause: bool) -> bool:
+    """Whether the word in front is a person's name: a cast first name («Marin», also a noun)
+    or a capitalised word French does not know («Gus», «Margaux»). «Puis m a» has none."""
+    if prev is None or opens_clause or not source[prev.start : prev.end][:1].isupper():
+        return False
+    return prev.low in _cast_first_names() or _lemma(prev.low) is None
 
 
 def _clitic_subject(tokens: list[Tok], index: int) -> str | None:
@@ -1689,6 +1711,89 @@ _RELATIVES = frozenset(
 )
 _ETRE_TO_AVOIR = {"suis": "ai", "es": "as", "est": "a", "sommes": "avons", "êtes": "avez", "sont": "ont"}
 _NUMBER_GAP = re.compile(r"\s+\d+\s+")
+
+
+#: #749: «à moi / à toi» after these verbs is the object pronoun in front of the verb
+#: («il m'a dit», «elle te parle»). Verbs that keep the stressed pronoun after «à»
+#: («penser à moi», «tenir à toi», «venir à moi», «être à moi») are not here.
+_INDIRECT_OBJECT_VERBS = frozenset(
+    {"dire", "donner", "parler", "faire", "montrer", "demander", "répondre", "écrire", "envoyer", "apporter",
+     "offrir", "expliquer", "raconter", "sourire", "téléphoner", "prêter", "rendre", "poser", "proposer",
+     "présenter", "annoncer", "souhaiter", "passer", "acheter", "servir", "laisser", "conseiller", "apprendre",
+     "lancer", "promettre", "rapporter", "vendre", "confier", "plaire", "mentir", "obéir"}
+)
+#: «faire attention à moi», «faire appel à toi»: these keep «à» and the stressed pronoun.
+_FAIRE_KEEPS_A = frozenset({"attention", "appel", "allusion", "face", "honneur"})
+#: The stressed pronoun -> the object pronoun before a consonant and before a vowel.
+_OBJECT_CLITIC_OF = {"moi": ("me", "m"), "toi": ("te", "t")}
+#: What may stand between the verb and «à moi»: a short noun group, nothing that opens
+#: another phrase or negates the verb.
+_NOT_IN_OBJECT = frozenset(
+    {"à", "au", "aux", "que", "qu", "qui", "ne", "n", "pas", "plus", "jamais", "rien", "y", "en", "lui", "leur",
+     "le", "la", "les", "l", "se", "s", "me", "m", "te", "t", "et", "ou", "pour", "avec", "sans", "chez", "dans"}
+)
+_OBJECT_DETERMINERS = frozenset(
+    {"un", "une", "des", "du", "de", "d", "le", "la", "l", "les", "mon", "ma", "mes", "ton", "ta", "tes", "son", "sa",
+     "ses", "notre", "votre", "nos", "vos", "leur", "leurs", "ce", "cet", "cette", "ces"}
+)
+
+
+def _object_pronoun_edit(source: str, tokens: list[Tok], index: int) -> Edit | None:
+    """«à moi / à toi» closing a clause whose verb takes the object pronoun in front of it.
+
+    Closed on every side: the clause ends after the pronoun (no «, pas à toi», no «et à
+    Lila»), a subject stands right in front of the verb with nothing between (no «ne»,
+    no clitic), and between the verb and «à» stands at most a short noun group."""
+
+    at, pronoun = tokens[index], tokens[index + 1]
+    if source[at.start : at.end] != "à" or not _space(source, at, pronoun):
+        return None
+    after = tokens[index + 2] if index + 2 < len(tokens) else None
+    if after is not None and (
+        _same_clause(source, pronoun, after) or after.low in {"pas", "non", "mais", "et", "ou", "ni", "aussi", "seul"}
+    ):
+        return None
+    # The verb group: «a fait» (avoir + participle) or a finite verb, with its subject in front.
+    for k in range(index - 1, max(index - 7, 0), -1):
+        if not _same_clause(source, tokens[k], at):
+            return None
+        verb, first = tokens[k], tokens[k]
+        last = k
+        if verb.low in _AVOIR_FORMS and k + 1 < index and _participle(tokens[k + 1].low):
+            lemma, last = _verb_lemma(tokens[k + 1].low), k + 1
+        elif _finite_verb(verb.low) and not _participle(verb.low):
+            lemma = _verb_lemma(verb.low)
+        else:
+            continue
+        subject = tokens[k - 1] if k >= 1 else None
+        if subject is None or not _joined(source, subject, first) or not _same_clause(source, subject, first):
+            return None
+        if subject.low not in _SUBJECT_PRONOUN_WORDS and not _names_a_subject_in_front(source, subject, False):
+            return None
+        if lemma not in _INDIRECT_OBJECT_VERBS:
+            return None
+        between = tokens[last + 1 : index]
+        if len(between) > 4 or any(t.low in _NOT_IN_OBJECT - _OBJECT_DETERMINERS for t in between):
+            return None
+        if any(_is_verb(t.low) for t in between):
+            return None
+        if lemma == "faire" and any(t.low in _FAIRE_KEEPS_A for t in between):
+            return None
+        person = {"moi": {"je", "j"}, "toi": {"tu"}}[pronoun.low]
+        if subject.low in person:
+            return None  # «je … à moi» is no object pronoun
+        full, elided = _OBJECT_CLITIC_OF[pronoun.low]
+        verb_word = source[first.start : first.end]
+        clitic = f"{elided}{_apostrophe(source)}" if _vowel_sound(verb_word.casefold()) else f"{full} "
+        kept = source[first.start : tokens[index - 1].end]
+        start, prefix = first.start, ""
+        if subject.low == "j":
+            # «J'ai écrit une lettre à toi» -> «Je t'ai écrit une lettre»
+            start, prefix = subject.start, _case(source[subject.start : subject.end], "je") + " "
+        right = f"{prefix}{clitic}{kept}"
+        return _edit("FR_OBJECT_PRONOUN", source, start, pronoun.end, right,
+                     word=pronoun.low, clitic=f"{full} / {elided}{_apostrophe(source)}", right=right)
+    return None
 
 
 def _finite_verb(word: str) -> bool:
@@ -2050,6 +2155,13 @@ def _phrase_edits(source: str, tokens: list[Tok], add) -> None:
                         right = _case(written, avoir)
                         add(_edit("FR_ETRE_AGE", source, tok.start, tok.end, right, right=f"{pronoun} {right} {age}"))
                     continue
+
+        # #749: «Elle a fait un signe à moi» -> «Elle m'a fait un signe»
+        if tok.low == "à" and nxt is not None and nxt.low in _OBJECT_CLITIC_OF:
+            object_edit = _object_pronoun_edit(source, tokens, i)
+            if object_edit is not None:
+                add(object_edit)
+                continue
 
         # «c'est je» -> «c'est moi»; «chez il» -> «chez lui»
         if tok.low in _STRESSED and prev is not None and _space(source, prev, tok):
