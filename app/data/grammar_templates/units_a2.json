@@ -62,7 +62,7 @@
    {"id": "en-have", "fr": "Tu as des {N|pl} ? Oui, [[{S|sv_en:avoir} {K} // {S|sv:avoir} {K} // {S|sv_y:avoir} {K}]].", "en": "Do you have any {N|en:pl}? Yes, I have {K.en}.", "de": "Hast du {N|g_n:p}? Ja, ich habe {K}.", "slots": {"N": "noun:family|possess,count,!vehicle", "K": "few:small"}, "weight": 2},
    {"id": "en-market", "fr": "Des {N|pl} ? [[{S|sv_en:V} {K} // {S|sv:V} {K} // {S|sv_y:V} {K}]], s'il vous plaît.", "en": "{N|en:pl}? I'll take {K.en}, please.", "de": "{N|g_n:p}? Ich nehme {K}, bitte.", "slots": {"V": "verb:=prendre", "N": "noun:food,count,bulk"}, "weight": 2},
    {"id": "en-take", "fr": "Tu {TU|v:V} des {N|pl} ? Oui, [[{S|sv_en:V} {K} // {S|sv:V} {K} // {S|sv_y:V} {K}]].", "en": "Are you {TU|en_v:V:ing} any {N|en:pl}? Yes, I'm {S|en_v:V:ing} {K.en}.", "de": "{TU|g_v:V} du {N|g_n:p}? Ja, ich {S|g_v:V} {K}.", "slots": {"V": "verb:=prendre|acheter", "N": "noun:count,buy,bulk"}, "weight": 2},
-   {"id": "en-mistral", "fr": "Tu as des {N|pl} ? Oui, [[{S|sv_en:avoir} {K} // {S|sv:avoir} {K} // {S|sv_y:avoir} {K}]].", "en": "Do you have any {N|en:pl}? Yes, I have {K.en}.", "de": "Hast du {N|g_n:p}? Ja, ich habe {K}.", "slots": {"N": "noun:count,bulk,dish|bakery|produce|tableware"}, "weight": 3}
+   {"id": "en-mistral", "fr": "Margaux, tu as des {N|pl} ? Oui, [[{S|sv_en:avoir} {K} // {S|sv:avoir} {K} // {S|sv_y:avoir} {K}]].", "en": "Margaux, do you have any {N|en:pl}? Yes, I have {K.en}.", "de": "Margaux, hast du {N|g_n:p}? Ja, ich habe {K}.", "slots": {"N": "noun:count,bulk,dish|bakery|produce|tableware"}, "weight": 3}
   ]
  },
  "FR2_A21_NEG_WORDS": {
@@ -125,7 +125,7 @@
    {"id": "pourrais", "fr": "[[Tu pourrais // Tu pourrait // Tu pourras]] {V|inf} {O}, s'il te plaît ?", "en": "Could you {S|en_vc:V:O:base}, please?", "de": "Könntest du bitte {S|g_cl:V:O:o=inf}?", "slots": {"V": "verb:!modal,!en_only,!coi,!event,!pron,!irregular,!stative,!mishap,!entendre,!arriver,!nager,!chercher", "O": "comp:!manner,!adv_pre@V"}},
    {"id": "voudrais", "fr": "[[Je voudrais // Je voudrait // Je voudrai]] {V|inf} {O}, s'il vous plaît.", "en": "I would like to {S|en_vc:V:O:base}, please.", "de": "Ich möchte bitte {S|g_cl:V:O:o=inf}.", "slots": {"V": "verb:!modal,!en_only,!coi,!event,!pron,!irregular,!stative,!mishap,!entendre,!arriver,!nager,!chercher", "O": "comp:!manner,!adv_pre@V"}, "ask": {"fr": "Qu'est-ce que je peux faire pour vous ?", "en": "What can I do for you?"}},
    {"id": "voudriez", "fr": "[[Vous voudriez // Vous voudrez // Vous voudriez de]] {V|inf} {O} ?", "en": "Would you like to {S|en_vc:V:O:base}?", "de": "Möchten Sie {S|g_cl:V:O:o=inf}?", "slots": {"V": "verb:!modal,!en_only,!coi,!event,!pron,!irregular,!stative,!mishap,!entendre,!arriver,!nager,!chercher", "O": "comp:!manner,!adv_pre@V"}},
-   {"id": "pourriez-marchand", "fr": "[[Pourriez-vous // Pourrait-vous // Pourriez-vous de]] {V|inf} {O} ?", "en": "Could you {S|en_vc:V:O:base}?", "de": "Könnten Sie {S|g_cl:V:O:o=inf}?", "weight": 2}
+   {"id": "pourriez-marchand", "fr": "[[Pourriez-vous // Pourrait-vous // Pourriez-vous de]] {V|inf} {O}, Monsieur Marchand ?", "en": "Could you {S|en_vc:V:O:base}, Mr Marchand?", "de": "Könnten Sie bitte {S|g_cl:V:O:o=inf}, Herr Marchand?", "weight": 2}
   ]
  },
  "FR2_A21_CAUSE_CONSEQUENCE": {

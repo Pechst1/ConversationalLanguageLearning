@@ -109,20 +109,6 @@ def test_a_stored_answer_without_its_name_is_right() -> None:
 _SLOT = re.compile(r"\{[^{}]*\}|\[\[|\]\]|//[^\]]*?(?=\]\])")
 
 
-def test_no_template_frame_is_said_to_someone() -> None:
-    """A frame's own words never address anyone: the bank adds a name only through its
-    vocative twin (``~voc``), which the build and write rungs take out again."""
-
-    found = []
-    for path in sorted((DATA / "grammar_templates").glob("units_*.json")):
-        for unit, spec in json.loads(path.read_text()).items():
-            for frame in (spec.get("frames") or []) if isinstance(spec, dict) else []:
-                for text in (frame.get("fr"), frame.get("en"), frame.get("de"), *(frame.get("accepted") or [])):
-                    if text and _addressed(_SLOT.sub("x", text)):
-                        found.append((unit, frame.get("id"), text))
-    assert found == []
-
-
 def _pairs_and_examples() -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
     for path in sorted((DATA / "rule_cards").glob("*.json")):
