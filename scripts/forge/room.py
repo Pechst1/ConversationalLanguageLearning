@@ -305,6 +305,7 @@ def draft(brief: dict, place: dict | None = None):
         **({"canals": brief["canals"]} if brief.get("canals") else {}),
         **({"quarter": True} if brief.get("quarter") else {}),
         "marks": brief.get("marks", {}),
+        **({"passages": brief["passages"]} if brief.get("passages") else {}),
         "provenance": {
             "canon": canon.get("doc", ""),
             "place": canon.get("place", ""),
@@ -482,6 +483,20 @@ def check(room: dict) -> list[str]:
                 p.append(f"door {o['key']}: {o['height']} m does not fit under {w['key']}'s top")
             if kind != "door" and not (base - 0.02 <= o["y0"] < o["y1"] <= top + 0.01):
                 p.append(f"{kind} {o.get('key', '')}: y {o['y0']}..{o['y1']} outside {w['key']}")
+    # the ways the walking grid cannot hold (a climb past a storey, a door into the flat): both
+    # ends on ground you walk, its words in three languages, its door a door of the room
+    door_keys = {d["key"] for d in room["doors"]}
+    for pg in room.get("passages", []):
+        for end in ("a", "b"):
+            if walk_y(room, *pg[end]) is None:
+                p.append(f"passage {pg.get('key')}: its end {end} {pg[end]} is off the walkable ground")
+        for k in ("to_a", "to_b") + (("shut",) if pg.get("until") else ()):
+            if not all((pg.get(k) or {}).get(lang) for lang in ("fr", "en", "de")):
+                p.append(f"passage {pg.get('key')}: {k} in three languages")
+        if pg.get("door") and pg["door"] not in door_keys:
+            p.append(f"passage {pg.get('key')}: no door {pg['door']}")
+        if pg.get("until") not in (None, "story"):
+            p.append(f"passage {pg.get('key')}: until is «story» or nothing")
     for wn in room["windows"]:
         if wn.get("shutters", "open") not in ("open", "closed"):
             p.append(f"window {wn['key']}: its shutters are open or closed")

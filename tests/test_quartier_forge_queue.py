@@ -322,3 +322,37 @@ def test_what_a_learner_named_in_their_own_words_is_built_first(tmp_path, capsys
     forge.cmd_orders_queue(Args)
     out = capsys.readouterr().out
     assert "1 lives, said by 1" in out and "next detail: «des fleurs»" in out
+
+
+def _world_places():
+    return json.loads(
+        (ROOT / "web-frontend/lib/quartier/world/world.json").read_text(encoding="utf-8")
+    )["places"]
+
+
+def test_every_place_keeps_the_two_rules_on_foot_and_on_the_map():
+    """Owner, 13 Nov 2026: a place the story uses is walked into from the quarter, and the map
+    gets a pin only for a place far enough from the others (the forge's ``check`` and ``publish``
+    refuse a place that breaks either; ``world-rules.test.js`` walks the grids)."""
+    forge = _forge()
+    places = _world_places()
+    for place in places:
+        assert forge.rule_problems(place, places) == [], place["id"]
+    assert forge.MAP_PIN_MIN_METRES == 300
+    # Marin and Lila's flat: 44 m from the quai, so inside it, walked into by its building's door
+    flat = next(p for p in places if p["id"] == "chez_marin_lila")
+    assert flat["in"] == "quai_de_valmy" and flat["entrance"]["from"] == "quai_de_valmy"
+
+
+def test_a_new_place_without_a_door_or_too_near_a_pin_is_refused():
+    forge = _forge()
+    places = _world_places()
+    quai = next(p for p in places if p["id"] == "quai_de_valmy")
+    room = {"id": "librairie_bichat", "lat": quai["lat"], "lon": quai["lon"], "in": "quai_de_valmy", "room": "librairie_bichat", "status": "locked", "kind": "story"}
+    assert any("no «entrance»" in p for p in forge.rule_problems(room, places + [room]))
+    pin = {"id": "boulangerie_valmy", "lat": quai["lat"] + 0.001, "lon": quai["lon"], "status": "en_chantier", "kind": "news"}
+    assert any("not a pin of its own" in p for p in forge.rule_problems(pin, places + [pin]))
+    far = {"id": "bastille", "lat": 48.8532, "lon": 2.3692, "status": "en_chantier", "kind": "news"}
+    assert forge.rule_problems(far, places + [far]) == []
+    # the places waiting for their door: no new one joins them
+    assert set(forge.WAITS_FOR_A_WAY) <= {p["id"] for p in places if p.get("in") and not p.get("entrance")}

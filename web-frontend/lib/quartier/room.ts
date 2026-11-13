@@ -299,7 +299,29 @@ export interface RoomSpec {
   quarter?: boolean;
   /** where the stage stands you and the cast */
   marks: Record<string, XYZ>;
+  /**
+   * The ways through the room the walking grid cannot hold: the climb past a storey (the grid is
+   * one sheet, so no landing lies over another), a door into the flat. You stand at one end and
+   * tap to be at the other; `door` swings that leaf as you go, and `until: 'story'` keeps it shut
+   * until the learner's story has played here (`playedHere` in `world.ts`).
+   */
+  passages?: RoomPassage[];
   provenance: { canon: string; place: string; scenes: string[]; brief_round?: number };
+}
+
+export interface RoomPassage {
+  key: string;
+  a: XZ;
+  b: XZ;
+  look_a?: XYZ;
+  look_b?: XYZ;
+  /** what the button says at `a` (going to `b`), and at `b` */
+  to_b: Words;
+  to_a: Words;
+  door?: string;
+  until?: 'story';
+  /** said when it is shut */
+  shut?: Words;
 }
 
 export interface RoomBuilt {
