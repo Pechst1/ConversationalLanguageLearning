@@ -114,8 +114,13 @@ def _learner(db, day: int | None):
 
 
 def test_the_forge_reads_the_segments_the_learners_are_on(client, db_session, monkeypatch):
-    from app.services.season import frontier
+    from datetime import date
 
+    from app.services.season import frontier, runtime
+
+    # The learners' day is a Wednesday: on a Friday the clock keeps a learner at the end
+    # of a gap one more day (a Day A never falls on a Friday), and day 8 reads g1.
+    monkeypatch.setattr(runtime, "learner_date", lambda user, now=None: date(2026, 11, 11))
     monkeypatch.setattr(frontier, "_cache", {})
     first = client.get("/api/v1/story-engine/season-frontier")
     assert first.status_code == 200
