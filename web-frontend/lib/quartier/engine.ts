@@ -44,6 +44,7 @@ import { roundFigure } from './cast3d';
 import { CardPress, LacePress, Press, seeded, tile } from './geo';
 import type { Build, Lamp } from './kit';
 import { bakeLightMap } from './lightmap';
+import { ResolutionGovernor, SCALE_CEILING } from './resolution';
 import type { LightMap } from './lightmap';
 import {
   MAX_GLINTS,
@@ -103,6 +104,8 @@ export interface Stats {
   calls: number;
   triangles: number;
   scale: number;
+  /** the display's frame interval as the loop has shown it (ms): 16.7 at 60 Hz, 33.3 in Low Power Mode */
+  cadence: number;
   textures: number;
   geometries: number;
 }
@@ -231,8 +234,9 @@ export class Quartier {
   private raf = 0;
   private last = 0;
   private times: number[] = [];
-  private lastScaleChange = 0;
-  stats: Stats = { fps: 0, frameMs: 0, calls: 0, triangles: 0, scale: 1, textures: 0, geometries: 0 };
+  /** how many pixels a frame can afford, against the display's own cadence (`resolution.ts`) */
+  private governor: ResolutionGovernor;
+  stats: Stats = { fps: 0, frameMs: 0, calls: 0, triangles: 0, scale: 1, cadence: 0, textures: 0, geometries: 0 };
   private pointer: { id: number; x: number; y: number; sx: number; sy: number; t: number; moved: boolean } | null = null;
   private disposed = false;
   private started = false;
@@ -243,7 +247,9 @@ export class Quartier {
   constructor(private opts: QuartierOptions) {
     this.renderer = new WebGLRenderer({ canvas: opts.canvas, antialias: false, alpha: false, stencil: false, powerPreference: 'high-performance' });
     this.renderer.info.autoReset = false;
-    this.scale = opts.scale ?? Math.min(2, typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1);
+    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+    this.scale = opts.scale ?? Math.min(SCALE_CEILING, dpr);
+    this.governor = new ResolutionGovernor(Math.min(SCALE_CEILING, dpr), this.scale);
     this.resolution = opts.resolution ?? 'auto';
     // a forged place has no canal to mirror, nor a room
     this.mirrorOn = (opts.mirror ?? true) && !opts.site && !opts.room;
@@ -1205,24 +1211,19 @@ export class Quartier {
     if (this.times.length > 40) this.times.shift();
     const avg = this.times.reduce((s, x) => s + x, 0) / this.times.length;
     const info = this.renderer.info;
+    const next = this.resolution === 'auto' ? this.governor.frame(dt * 1000, t) : null;
     this.stats = {
       fps: avg > 0 ? 1000 / avg : 0,
       frameMs: avg,
       calls: info.render.calls,
       triangles: info.render.triangles,
       scale: this.scale,
+      cadence: this.governor.state().cadence,
       textures: info.memory.textures,
       geometries: info.memory.geometries,
     };
-    if (this.resolution !== 'auto' || this.times.length < 40 || t - this.lastScaleChange < 1500) return;
-    const max = Math.min(2, window.devicePixelRatio || 1);
-    if (avg > 21 && this.scale > 0.75) {
-      this.scale = Math.max(0.75, this.scale - 0.15);
-      this.lastScaleChange = t;
-      this.resize();
-    } else if (avg < 14.5 && this.scale < max) {
-      this.scale = Math.min(max, this.scale + 0.1);
-      this.lastScaleChange = t;
+    if (next !== null && next !== this.scale) {
+      this.scale = next;
       this.resize();
     }
   }
