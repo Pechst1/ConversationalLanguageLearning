@@ -1441,8 +1441,8 @@
           }
         },
         {
-          "wrong": "Monsieur, un café, s'il te plaît.",
-          "right": "Monsieur, un café, [s'il vous plaît].",
+          "wrong": "Vous désirez ? Un café, s'il te plaît.",
+          "right": "Vous désirez ? Un café, [s'il vous plaît].",
           "why": {
             "en": "Speak to staff with vous: s'il vous plaît.",
             "de": "Bedienung und Personal siezt man: s'il vous plaît.",

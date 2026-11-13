@@ -3147,6 +3147,47 @@ def _wrong_here(answer: str, span: str, correct: str, why: str) -> bool:
     return verdict.ok
 
 
+def _register_moved_to(wrong: str, correct: str) -> str | None:
+    """The address a stored correction moved the learner into, when that is what it did.
+
+    #752: «vous → te» is not a fact about the word «vous»; it was right because Margaux
+    says *tu*. Such a pair is a claim about the person the learner was answering, so it is
+    only wrong again in front of someone who addresses the learner the corrected way.
+    ``None`` for every other erratum (both halves in one register, or neither marked).
+    """
+
+    before = pragmatics.address_register(wrong)
+    after = pragmatics.address_register(correct)
+    if before is None or after is None or before == after:
+        return None
+    return after
+
+
+def _register_erratum_here(
+    *,
+    user: User,
+    moved_to: str,
+    counterpart: _CounterpartRegister,
+) -> str | None:
+    """The note for a recurring register slip, about the person answered *now* — or
+    ``None`` when this person addresses the learner the way the learner just did.
+
+    The stored note names whoever the slip was made to («Margaux te tutoie»); replayed to
+    Camille, who says *vous*, it taught the opposite of the rule. The register check's own
+    note is rebuilt instead, from the addressee the turn is for (#594's ``addressee_of``).
+    """
+
+    if counterpart.expected != moved_to:
+        return None
+    code = pragmatics.SLIP_VOUS_FOR_TU if moved_to == "tu" else pragmatics.SLIP_TU_FOR_VOUS
+    return _meta_pragmatic_note(
+        pragmatics.RegisterFinding(code=code),
+        counterpart=counterpart.counterpart,
+        reason_native=counterpart.reason_native,
+        language=user_chrome_language(user),
+    )
+
+
 # -- the question ----------------------------------------------------------
 
 #: Sentence openers that are lower-cased once they follow « Pardon, »; a name keeps
@@ -3462,6 +3503,7 @@ def feedback_decision(
         return FeedbackDecision(reason="already_prompted")
 
     # 3. Does this turn repeat a mistake the learner has had explained?
+    addressee: _CounterpartRegister | None = None
     for error in errata:
         pair = _repairable(error)
         if pair is None:
@@ -3472,19 +3514,30 @@ def feedback_decision(
         span = _verbatim_span(answer, wrong)
         if span is None:
             continue
-        if not _wrong_here(answer, span, correct, str(error.why_wrong or error.context_snippet or "")):
+        why = str(error.why_wrong or error.context_snippet or "")
+        moved_to = _register_moved_to(wrong, correct)
+        if moved_to is not None:
+            # #752: a register slip is wrong for a person, not in a sentence. It recurs
+            # only before someone who addresses the learner that way, and says who.
+            if addressee is None:
+                addressee = expected_counterpart_register(
+                    scenario=scenario,
+                    task=task,
+                    history=history,
+                    native_language=user_chrome_language(user),
+                )
+            here = _register_erratum_here(user=user, moved_to=moved_to, counterpart=addressee)
+            if here is None:
+                continue
+            why = here
+        if not _wrong_here(answer, span, correct, why):
             continue
         if in_margin:
             return FeedbackDecision(
                 explicit=Correction(
                     span_fr=span,
                     corrected_fr=_preserve_case(span, correct),
-                    note_native=_margin_note(
-                        user=user,
-                        wrong=wrong,
-                        correct=correct,
-                        why=str(error.why_wrong or error.context_snippet or ""),
-                    ),
+                    note_native=_margin_note(user=user, wrong=wrong, correct=correct, why=why),
                 ),
                 reason="recurrence_in_margin",
             )
@@ -3496,7 +3549,7 @@ def feedback_decision(
                 error_id=str(error.id),
                 span_fr=span,
                 corrected_fr=correct,
-                why_native=str(error.why_wrong or error.context_snippet or ""),
+                why_native=why,
                 question_fr=question,
                 kind=kind,
             ),

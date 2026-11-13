@@ -63,4 +63,5 @@ def test_the_widened_key_moves_a_name_both_ways_and_only_a_name() -> None:
     # A capital that starts the sentence is not a name: «Alors, il est là.» keeps its order.
     assert {fold_typography(item) for item in widened_answers(["Alors, il est là."])} == {"alors il est là"}
     # Two sentences: the name belongs to the one it closes.
-    assert len(widened_answers(["Bonjour. Il est là, Gus."])) == 1
+    # (12 Nov 2026: the sentence said to nobody counts too — a build is served without it.)
+    assert widened_answers(["Bonjour. Il est là, Gus."]) == ["Bonjour. Il est là, Gus.", "Bonjour. Il est là."]

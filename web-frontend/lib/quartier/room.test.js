@@ -45,6 +45,31 @@ function reach(nav, a, b) {
   return Math.hypot(end.x - b.x, end.z - b.z) < 0.8 && Math.abs(nav.heightAt(end.x, end.z) - nav.heightAt(b.x, b.z)) < 0.35;
 }
 
+/**
+ * Can you get from `a` to `b` in a room, on its walking grid and along its passages (the climb past
+ * a storey the grid cannot hold, a door into the flat), either way?
+ */
+function reachIn(room, nav, a, b) {
+  const V = a.constructor;
+  const seen = [a];
+  const queue = [a];
+  while (queue.length) {
+    const at = queue.shift();
+    if (reach(nav, at, b)) return true;
+    for (const p of room.passages ?? []) {
+      for (const [x, y] of [[p.a, p.b], [p.b, p.a]]) {
+        const there = new V(y[0], nav.heightAt(y[0], y[1]), y[1]);
+        if (seen.some((s) => Math.hypot(s.x - there.x, s.z - there.z) < 0.01)) continue;
+        if (reach(nav, at, new V(x[0], nav.heightAt(x[0], x[1]), x[1]))) {
+          seen.push(there);
+          queue.push(there);
+        }
+      }
+    }
+  }
+  return false;
+}
+
 test('there is at least one room, and every room names itself after its file and its canon', () => {
   assert.ok(rooms.length >= 1);
   rooms.forEach(({ file, room }) => {
@@ -97,7 +122,7 @@ test('you walk in from the street door, up the flight, to the door the story ope
       if (!nav.walkable(m.x, m.z)) return;
       const y = nav.heightAt(m.x, m.z);
       if (Math.abs(y - m.y) > 0.3) return;
-      assert.ok(reach(nav, r.start.pos, m), `${file}: no way from the street door to the mark ${key}`);
+      assert.ok(reachIn(room, nav, r.start.pos, m), `${file}: no way from the street door to the mark ${key}`);
     });
     r.openings
       .filter((o) => o.opens === 'once')
@@ -183,7 +208,7 @@ test('what you can tap says what it is in three languages, and you can walk up t
           }
         }
       }
-      assert.ok(near && reach(nav, r.start.pos, near), `${file}: nobody can walk up to the ${t.kind}`);
+      assert.ok(near && reachIn(room, nav, r.start.pos, near), `${file}: nobody can walk up to the ${t.kind}`);
     });
   });
 });
@@ -229,8 +254,10 @@ test('Marin and Lila’s flat (T5, B without the key): the crate in the hallway,
   assert.match(card[card.length - 1], /Berlin.* et je$/);
   // the easel stands empty: its canvas is the one leaning on the wall, face to it
   assert.deepEqual(of('easel').size, [0, 0]);
-  // on the third floor, its windows on the canal; you arrive in the hallway, by the crate
-  assert.ok(room.things.every((t) => t.at[1] >= 11.2 - 0.001));
+  // on the third floor, its windows on the canal; you arrive in the hallway, by the crate (the
+  // building's letterboxes are in its vestibule, on the ground floor)
+  assert.ok(room.things.filter((t) => t.kind !== 'letterboxes').every((t) => t.at[1] >= 11.2 - 0.001));
+  assert.ok(room.things.some((t) => t.kind === 'letterboxes' && t.text.some((l) => /Lévêque/.test(l) && /Bonnet/.test(l))), 'their names on the letterbox');
   assert.ok(room.canals?.length && room.windows.length >= 2);
   const { built: r } = built.get(file);
   assert.equal(r.inside(r.start.pos.x, r.start.pos.z), true);

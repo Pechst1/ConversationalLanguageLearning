@@ -53,7 +53,10 @@ def test_a_coach_line_is_always_the_question_of_the_item_it_comes_with() -> None
                 continue
             scenes += 1
             line = built["scene"]["lines"][0]
-            if (line["fr"], line["en"]) not in {(fr, en) for fr, en in _own_questions(item)}:
+            # A write item is said to nobody (owner, 12 Nov 2026): its question is the
+            # item's own, without the address a frame may open on.
+            asked = ib.without_vocative(item) or item
+            if (line["fr"], line["en"]) not in {(fr, en) for fr, en in _own_questions(asked)}:
                 stray.append(f"{unit}: {line['fr']} -> {built['example_answer']}")
     assert checked > 100 and scenes > 20
     assert stray == [], "a character line that is not the item's own question:\n" + "\n".join(stray[:10])

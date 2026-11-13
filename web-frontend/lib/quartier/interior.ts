@@ -64,6 +64,8 @@ export interface InteriorOptions {
   onCue?: (cue: Cue) => void;
   /** the day's story, when its page goes on in this room (T1 day b's stairwell) */
   scene?: Story;
+  /** you walked in from the street (its door's `arrive`): the caption you come in to */
+  arrive?: Words;
 }
 
 /** Who follows you into the stairwell after closing (T1 R1), and how tall she stands. */
@@ -102,6 +104,8 @@ export class Interior implements Director {
   /** the page's panels this room plays (R1 to R4), and its hook */
   private panels: StoryPanel[] = [];
   private hook: StoryPanel | null = null;
+  /** the caption on foot, in place of the room's own */
+  private arrive: Words | null;
 
   constructor(private q: Quartier, opts: InteriorOptions = {}) {
     if (!q.room) throw new Error('An interior is a room of the season');
@@ -111,6 +115,7 @@ export class Interior implements Director {
     this.onCue = opts.onCue;
     this.memory = opts.memory ?? new Memory(false);
     this.scene = opts.scene ?? null;
+    this.arrive = opts.arrive ?? null;
     if (this.scene) {
       const page = this.scene.page;
       day = dayOf(page);
@@ -193,7 +198,7 @@ export class Interior implements Director {
     if (this.memory.places()[this.room.spec.id] !== 'visited') this.memory.apply(this.day, { kind: 'place', id: this.room.spec.id, status: 'visited' });
     // the story opens the door (R2) whatever an earlier visit did
     this.step = (this.opened() && !this.scene) || this.steady ? 'done' : 'light';
-    this.show({ ...BLANK, phase: 'roam', canLeave: true, caption: this.say(this.room.spec.arrive ?? LINES.arrive), beat: this.panels[0]?.id ?? null, progress: this.scene ? 0.8 : 0 });
+    this.show({ ...BLANK, phase: 'roam', canLeave: true, caption: this.say(this.arrive ?? this.room.spec.arrive ?? LINES.arrive), beat: this.panels[0]?.id ?? null, progress: this.scene ? 0.8 : 0 });
     this.nextGoal();
   }
 

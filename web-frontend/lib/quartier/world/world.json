@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-24",
+  "updated": "2026-11-13",
   "places": [
     {
       "id": "quai_de_valmy",
@@ -79,7 +79,7 @@
       "source": { "kind": "season", "id": "s1" },
       "site": null,
       "room": "notaire",
-      "in": "quai_de_valmy"
+      "in": "mairie_10e"
     },
     {
       "id": "odile_flat",
@@ -135,7 +135,18 @@
       "source": { "kind": "season", "id": "s1" },
       "site": null,
       "room": "chez_marin_lila",
-      "in": "quai_de_valmy"
+      "in": "quai_de_valmy",
+      "entrance": {
+        "from": "quai_de_valmy",
+        "door": [-27.0, 17.08],
+        "outside": [-25.9, 17.08],
+        "inside": [-27.75, 17.08],
+        "look_in": [-37.0, 1.6, 16.3],
+        "look_out": [-14.0, 1.6, 17.08],
+        "enter": { "fr": "Entrer dans l'immeuble de Marin et Lila", "en": "Go into Marin and Lila's building", "de": "Ins Haus von Marin und Lila gehen" },
+        "leave": { "fr": "Sortir sur le quai", "en": "Go out onto the quai", "de": "Hinaus auf den Quai" },
+        "arrive": { "fr": "L'immeuble de Marin et Lila, sur le quai. Ils habitent au troisième.", "en": "Marin and Lila's building, on the quai. They live on the third floor.", "de": "Das Haus von Marin und Lila, am Quai. Sie wohnen im dritten Stock." }
+      }
     },
     {
       "id": "gerance_marchand",
