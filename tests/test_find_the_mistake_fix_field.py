@@ -71,8 +71,9 @@ def test_the_stored_fix_is_right(built: str) -> None:
 
 # -- #395: the miss sheet shows the learner's own line, and blames only wrong words --
 
-HAT_SOURCE = "On n'a pas un chapeau, Gus."
-HAT_ANSWER = "On n'a pas de chapeau, Gus."
+# The line is said to nobody: a build or repair item never addresses anyone (owner, 12 Nov 2026).
+HAT_SOURCE = "On n'a pas un chapeau ici."
+HAT_ANSWER = "On n'a pas de chapeau ici."
 
 
 def _hat_miss(built: str) -> dict:
@@ -90,8 +91,8 @@ def _hat_miss(built: str) -> dict:
 @pytest.mark.parametrize(
     "built",
     [
-        "On n'a pas d'chapeau, Gus.",  # «un» → «d'», the page joins the elision to the next word
-        "On n'a pas d' chapeau, Gus.",
+        "On n'a pas d'chapeau ici.",  # «un» → «d'», the page joins the elision to the next word
+        "On n'a pas d' chapeau ici.",
     ],
     ids=["elided", "spaced"],
 )
@@ -104,7 +105,7 @@ def test_miss_shows_own_line(built: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "built", ["On n'a pas d'chapeau, Gus.", "On n'a pas d' chapeau, Gus."], ids=["elided", "spaced"]
+    "built", ["On n'a pas d'chapeau ici.", "On n'a pas d' chapeau ici."], ids=["elided", "spaced"]
 )
 def test_no_right_word_blamed(built: str) -> None:
     from app.services.forge_grading import tokens

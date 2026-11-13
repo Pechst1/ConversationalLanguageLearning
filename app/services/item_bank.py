@@ -3027,6 +3027,11 @@ def public_item(item: Any, language: Any = None, native: Any = None) -> Any:
 
     if not isinstance(item, dict):
         return item
+    from app.services.no_address import unaddressed_item
+
+    # 12 Nov 2026: a build or write item is said to nobody — an item stored before is
+    # served without its name too (and graded the same way: ``AtelierCorrectionService``).
+    item = unaddressed_item(item) or item
     out = with_goal(without_frames(item), language, native)
     for key in _PRIVATE_ITEM_KEYS:
         out.pop(key, None)
@@ -3371,6 +3376,66 @@ def _join(tokens: list[str]) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+#: Fewest words a build or write item keeps once its address is taken out
+#: («Merci, madame.» → «Merci.» is no sentence to build).
+MIN_WORDS_WITHOUT_ADDRESS = 3
+_TARGET_MARK = "\x02"
+
+
+def without_vocative(item: BankItem) -> BankItem | None:
+    """Owner decision (12 Nov 2026): ``item`` said to nobody, for a rung where the learner
+    builds or writes the sentence (tiles, «Say in French», a repair, the paragraph).
+
+    The frame's vocative twin (:func:`_with_vocative`, «On peut rester chez Lila, Marin.»)
+    and a frame that opens on a name both make the learner decide where a name goes,
+    which is not the rule. The French, its accepted answers, its ✗ sentences and its
+    English and German meanings lose the same address («Wir können bei Lila bleiben.» /
+    «On peut rester chez Lila.»), so the tray, the key and the quote stay one sentence.
+    Recognition rungs (fill, sort, pair) keep the name. ``None`` when what is left is too
+    short to be a sentence or the target cannot be found in it again; the item is then
+    not posed as a build."""
+
+    from app.services.answer_acceptance import addressed_names, strip_vocative
+
+    names = addressed_names(item.sentence)
+    if not names:
+        return item
+    voc = dict(item.bindings).get("VOC") or {}
+    spoken = [*names, *(str(voc.get(key) or "") for key in ("fr", "en", "deu") if voc.get(key))]
+
+    marked = strip_vocative(f"{item.prefix}{_TARGET_MARK}{item.suffix}", spoken)
+    if marked.count(_TARGET_MARK) != 1:
+        return None
+    prefix, _, suffix = marked.partition(_TARGET_MARK)
+    target = item.target
+    traps = item.traps
+    if not prefix.strip() or re.search(r"[.?!…]\s*$", prefix):
+        target = capitalize_first(target)
+        traps = tuple(capitalize_first(trap) for trap in traps)
+    sentence = f"{prefix}{target}{suffix}"
+    if len(re.findall(r"[^\W\d_]+", sentence)) < MIN_WORDS_WITHOUT_ADDRESS or addressed_names(sentence):
+        return None
+    accepted = tuple(dict.fromkeys([sentence, *(strip_vocative(answer, spoken) for answer in item.accepted)]))
+    if any(addressed_names(answer) for answer in accepted):
+        return None
+    wrong = tuple(finish_sentence(f"{prefix}{trap}{suffix}") for trap in traps)
+    de = strip_vocative(item.de, spoken) if item.de else item.de
+    if de and de.startswith("Sie ") and not de.startswith("Sie (alle)"):
+        de = disambiguate_plural_sie(de, {slot: entry for slot, entry in item.bindings if slot != "VOC"})
+    return replace(
+        item,
+        sentence=sentence,
+        target=target,
+        traps=traps,
+        wrong_sentences=wrong,
+        prefix=prefix,
+        suffix=suffix,
+        en=strip_vocative(item.en, spoken),
+        accepted=accepted,
+        de=de,
+    )
+
+
 def word_bank_item(item: BankItem, *, lesson_external_id: str | None = None) -> dict[str, Any] | None:
     """A tile build of ``item``.
 
@@ -3379,8 +3444,13 @@ def word_bank_item(item: BankItem, *, lesson_external_id: str | None = None) -> 
     (:func:`answer_scope`). When the answer sentence alone is too short to be a
     build («Quelle journée !»), or the two languages' sentences cannot be matched,
     the whole exchange is the build and the quote holds all of it: the target is
-    never longer than what the prompt quotes."""
+    never longer than what the prompt quotes. The build is said to nobody
+    (:func:`without_vocative`)."""
 
+    bare = without_vocative(item)
+    if bare is None:
+        return None
+    item = bare
     scope = answer_scope(item)
     if scope is not None and scope.context:
         built = _word_bank_payload(item, scope, lesson_external_id)
@@ -3456,6 +3526,11 @@ def _word_bank_payload(item: BankItem, scope: AnswerScope, lesson_external_id: s
 
 
 def transform_item(item: BankItem) -> dict[str, Any] | None:
+    # The learner writes the repaired sentence: it is said to nobody (12 Nov 2026).
+    bare = without_vocative(item)
+    if bare is None:
+        return None
+    item = bare
     # The ✗ sentence to repair: never one that still contains the whole
     # answer (a trap that only adds a word, «Vous venez …» for «Venez …»).
     choice = next(
@@ -3522,6 +3597,11 @@ def output_item(
     scene (WP-S5) when the item carries its own question for the coach to ask;
     an item that does not (#176) is the plain task, with no character line."""
 
+    # «Say in French: …» is written or said by the learner: to nobody (12 Nov 2026).
+    bare = without_vocative(item)
+    if bare is None:
+        return None
+    item = bare
     if round_name == "conversation" and coach:
         scene = scene_item(item, coach=coach, requirement=requirement)
         if scene is not None:
@@ -3589,7 +3669,12 @@ def scene_item(item: BankItem, *, coach: dict[str, Any], requirement: dict[str, 
 
 
 def produce_block(item: BankItem, model: BankItem, *, requirement: dict[str, Any]) -> dict[str, Any]:
-    """The session paragraph: a model line to vary, and a situation that needs the rule."""
+    """The session paragraph: a model line to vary, and a situation that needs the rule.
+    Both are said to nobody (:func:`without_vocative`); the caller passes items that keep
+    a sentence once their address is out."""
+
+    item = without_vocative(item) or item
+    model = without_vocative(model) or model
 
     return {
         "source_fragment": model.sentence,
@@ -3755,6 +3840,9 @@ def build_bank_set(
             show = (int(items[0].fingerprint[:2], 16) + index) % 2 == 0
             sorts.append(take(lambda item, show=show: classify_item(item, show_correct=show, lesson_external_id=lesson)))
         repairs.append(take(transform_item))
+    # The output rungs and the paragraph are written: only items that stay a sentence
+    # once said to nobody (:func:`without_vocative`).
+    queue = [candidate for candidate in queue if without_vocative(candidate) is not None]
     if any(entry is None for entry in (*fills, *builds, *sorts, *repairs)) or len(queue) < 5:
         return None
     # WP-S5: the free-use rung is a two-line scene with the rule's coach —

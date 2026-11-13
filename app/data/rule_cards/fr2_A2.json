@@ -4325,10 +4325,10 @@
           }
         },
         {
-          "fr": "Je te présente mon [nouvel] ami, Karim.",
+          "fr": "Je te présente Karim, mon [nouvel] ami.",
           "tr": {
-            "en": "This is my new friend, Karim.",
-            "de": "Das ist mein neuer Freund Karim."
+            "en": "This is Karim, my new friend.",
+            "de": "Das ist Karim, mein neuer Freund."
           }
         },
         {

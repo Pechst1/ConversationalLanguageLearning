@@ -2882,7 +2882,9 @@ class AtelierExerciseGenerator:
                 return cached_shared_llm
             if cached_fallback and self.validate_payload(cached_fallback.payload, concept=concept):
                 return cached_fallback
-            payload = self._fallback_payload(concept)
+            from app.services.no_address import unaddressed_generated
+
+            payload = unaddressed_generated(self._fallback_payload(concept))
             validation_errors = self._payload_validation_errors(payload, concept=concept)
             if validation_errors:
                 raise AtelierExerciseGenerationError(
@@ -3249,7 +3251,11 @@ class AtelierExerciseGenerator:
         sentence_signals = {"je", "tu", "il", "elle", "nous", "vous", "ils", "elles", "on", "ce", "c", "si", "quand"}
         fragment_markers = {"de", "du", "des", "d", "le", "la", "les", "un", "une", "a", "au", "aux"}
         content_parts = [part for part in normalized_parts if part not in fragment_markers]
-        has_sentence_signal = any(part in sentence_signals for part in normalized_parts)
+        # An imperative is a whole sentence with no subject («Prends le train !»): it used
+        # to pass only when said to someone («…, Lila !»), which a build no longer is.
+        has_sentence_signal = any(part in sentence_signals for part in normalized_parts) or str(
+            item.get("correct_answer") or ""
+        ).rstrip().endswith("!")
         if len(normalized_parts) < 3 or (not has_sentence_signal and len(content_parts) < 3):
             errors.append(f"word_bank item {item_id} answer must be a complete sentence")
         if cue and joined_answer and joined_answer in cue:
@@ -3318,7 +3324,11 @@ class AtelierExerciseGenerator:
                     target_vocabulary=target_vocabulary,
                     validation_feedback=validation_feedback,
                 )
-                payload = self._normalize_llm_exercise_payload(concept, bundle.payload)
+                # 12 Nov 2026: the prompt asks for builds said to nobody; what comes back
+                # is held to it (:mod:`app.services.no_address`), never trusted.
+                from app.services.no_address import unaddressed_generated
+
+                payload = unaddressed_generated(self._normalize_llm_exercise_payload(concept, bundle.payload))
                 validation_errors = self._payload_validation_errors(payload, concept=concept)
                 if validation_errors:
                     self._record_generation_event(
@@ -4840,6 +4850,11 @@ class AtelierCorrectionService:
             session=session,
             item_ids=_burst_ids(answer_payload) if _is_burst(exercise_id) else None,
         )
+        # 12 Nov 2026: graded as served (``item_bank.public_item``) — a build or write
+        # item said to nobody, an item stored before the decision included.
+        from app.services.no_address import unaddressed_payload
+
+        prompt_payload = unaddressed_payload(prompt_payload)
         if not retest_of:
             check_answer_length(round_name, prompt_payload, answer_payload)
         target_vocabulary = session_vocabulary_context(session)

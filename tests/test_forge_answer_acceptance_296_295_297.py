@@ -106,6 +106,8 @@ def test_no_build_of_a_day_targets_more_than_the_prompt_quotes():
             built = ib.word_bank_item(item)
             if built is None:
                 continue
+            # 12 Nov 2026: the build is of the sentence said to nobody.
+            item = ib.without_vocative(item)
             checked += 1
             quote = _quoted(built["goal_native"])
             assert _sentences(built["correct_answer"]) <= _sentences(quote), (unit, built["goal_native"], built["correct_answer"])
