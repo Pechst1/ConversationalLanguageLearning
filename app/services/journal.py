@@ -667,6 +667,10 @@ class _JournalCorrector(AtelierCorrectionService):
 # ---------------------------------------------------------------------------
 
 
+#: Failure reasons asking again can never change (#754): no model, nothing to anchor on.
+_NOT_RETRYABLE = frozenset({"no_model", "no_check_target"})
+
+
 def _utcnow() -> datetime:
     return datetime.now(UTC)
 
@@ -973,18 +977,21 @@ class JournalService:
             **shaped,
             "checker": "deterministic",
             "failure_reason": reason,
-            "retryable": reason != "no_check_target",
+            "retryable": reason not in _NOT_RETRYABLE,
         }
 
     def _failure_reason(self, user: User, entry: JournalEntry, corrector: Any) -> str:
-        """Why the check did not happen: ``no_check_target`` | ``timeout`` | ``model_error``.
+        """Why the check did not happen: ``no_model`` | ``no_check_target`` | ``timeout`` | ``model_error``.
 
-        ``no_check_target`` is the one a retry cannot fix (the scene taught no
-        grammar to anchor on), so the client offers no button for it.
+        ``no_model`` (no checker is configured, #754 / #724) and ``no_check_target``
+        (the scene taught no grammar to anchor on) are the two a retry cannot fix, so
+        the client offers no button for them.
         """
         reason = getattr(corrector, "_llm_failure_reason", None)
         if reason in {"timeout", "model_error"}:
             return reason
+        if getattr(corrector, "has_no_model", False):
+            return "no_model"
         if getattr(corrector, "paid_calls", 0) == 0 and self.concepts_for(user, entry) is None:
             return "no_check_target"
         return "model_error"
@@ -1162,7 +1169,13 @@ class JournalService:
             }
 
         foreground_view = None
-        if foreground is not None:
+        if foreground is None and keep:
+            # #754: the foreground filter passes no mechanical fix («j étais» -> «j'étais»
+            # folds to the same letters), but the list below still holds it and the Relevé
+            # records it. The card's one correction comes from that same list, so a fix
+            # the card counts is never a fix it does not show.
+            foreground_view = view(keep[0])
+        elif foreground is not None:
             source = by_span.get(foreground.span_fr, {})
             foreground_view = {
                 **view(source),

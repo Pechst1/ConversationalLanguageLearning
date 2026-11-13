@@ -381,12 +381,14 @@ def read_journal(correction: dict[str, Any] | None, *, text: str = "") -> Read:
             text=text,
             proposed=_errata_as_proposed(errata, by="model"),
         )
+    failure = failure_class(payload.get("failure_reason"))
     return _read(
         outcome=Outcome.NOT_CHECKED,
         checked_by=CheckedBy.NONE,
-        call=Call.FAILED,
-        failure=failure_class(payload.get("failure_reason")),
-        retryable=bool(payload.get("retryable")),
+        # #754: with no model there was no call to fail, and nothing to ask again (#724).
+        call=Call.NOT_CALLED if failure is Failure.NO_MODEL else Call.FAILED,
+        failure=failure,
+        retryable=bool(payload.get("retryable")) and failure is not Failure.NO_MODEL,
         text=text,
         proposed=_errata_as_proposed(errata, by="rules"),
     )

@@ -8257,6 +8257,17 @@ class AtelierCorrectionService:
             logger.info("Atelier LLM correction unavailable; using deterministic fallback", error=str(exc))
             return None
 
+    @property
+    def has_no_model(self) -> bool:
+        """#754: no model could be asked at all (switched off, or no provider configured).
+
+        Unlike a call that failed, asking again cannot help, so a surface offers no retry
+        for it (#724). ``False`` until :meth:`_get_llm_service` has been tried, unless the
+        checker is switched off."""
+        if self.llm_service is not None:
+            return False
+        return not settings.ATELIER_CORRECTION_LLM_ENABLED or self._llm_unavailable
+
     def _should_use_correction_llm(self) -> bool:
         return self.llm_service is not None or bool(settings.ATELIER_CORRECTION_LLM_ENABLED)
 
