@@ -32,7 +32,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useControlLanguage } from '@/components/atelier-v2/ui/AtelierV2Root';
 import { errorToastText, errorToState, isRecheckLimit } from '@/lib/app-errors';
-import { checkState, checkedSince, isUnread, type CheckState } from '@/lib/verdict';
+import { canAskAgain, checkState, checkedSince, isUnread, type CheckState } from '@/lib/verdict';
 
 import {
   Action,
@@ -140,6 +140,8 @@ export function journalCheckState(entry: JournalEntryView | null | undefined): C
 export function correctionLine(entry: JournalEntryView | null | undefined, t: JournalCopy = FRENCH_JOURNAL): string {
   const correction = entry?.correction;
   const state = journalCheckState(entry);
+  // #754: with no model at all, «not checked yet» would promise a check that cannot come.
+  if (correction && state === 'not_checked' && correction.failure_reason === 'no_model') return t.correction_check_unavailable;
   if (!correction || state === 'not_checked') return t.correction_unavailable;
   if (state === 'basic') return t.correction_basic;
   if (!correction.errata?.length) return t.correction_clean;
@@ -156,21 +158,161 @@ export function correctionFailureReason(
   if (!correction || journalCheckState(entry) === 'settled') return null;
   if (correction.failure_reason === 'timeout') return t.correction_why_timeout;
   if (correction.failure_reason === 'no_check_target') return t.correction_why_no_check_target;
+  if (correction.failure_reason === 'no_model') {
+    // Unread and unfixed, the line above already says it all (`correction_check_unavailable`).
+    return journalCheckState(entry) === 'basic' ? t.correction_why_no_model : null;
+  }
   return t.correction_why_model_error;
 }
 
-/** A failed check can be run again unless the scene gave it nothing to check against. */
+/** A failed check can be run again only where asking again can reach a model (#754, #724):
+ *  the shared `canAskAgain` of the verdict decides, as on every other surface. */
 export function canRetryCorrection(entry: JournalEntryView | null | undefined): boolean {
   const correction = entry?.correction;
-  return Boolean(
-    correction
-      && (correction.retryable === true
-        || (journalCheckState(entry) !== 'settled' && correction.failure_reason !== 'no_check_target')),
+  if (!correction) return false;
+  if (correction.check) return canAskAgain(correction.check);
+  // A payload from before `check`: its own fields, never a retry no model can answer.
+  return (
+    correction.retryable === true
+    || (journalCheckState(entry) !== 'settled'
+      && correction.failure_reason !== 'no_check_target'
+      && correction.failure_reason !== 'no_model')
   );
+}
+
+/** The corrections the card draws, in its order: the one up front, then the full list
+ *  behind «Tout voir» when it holds more than one. The one up front is the list's first
+ *  when the server named none, so a fix the card counts is never a fix it hides (#754). */
+export function shownCorrections(entry: JournalEntryView | null | undefined): JournalCorrectionItem[] {
+  const lead = leadCorrection(entry);
+  if (!lead) return [];
+  const errata = entry?.correction?.errata || [];
+  return errata.length > 1 ? errata : [lead];
+}
+
+/** The one correction up front: the server's choice, else the first of the list. */
+export function leadCorrection(entry: JournalEntryView | null | undefined): JournalCorrectionItem | null {
+  const correction = entry?.correction;
+  return correction?.foreground || correction?.errata?.[0] || null;
+}
+
+/** How many mistakes the «noted in Le Relevé» line may say: never more than the card shows. */
+export function errataNoted(entry: JournalEntryView | null | undefined): number {
+  return Math.min(entry?.errata_recorded || 0, shownCorrections(entry).length);
 }
 
 export function wordCount(text: string): number {
   return String(text || '').trim().split(/\s+/).filter(Boolean).length;
+}
+
+/** The «Your French» card of a written entry (WP-30). Its fixes, its count and its retry
+ *  come from one reading of the entry, so it can never say «a mistake is noted» over no
+ *  correction, nor offer a retry no model can answer (#754). */
+export function FrenchCheck({
+  entry,
+  t = FRENCH_JOURNAL,
+  retrying = false,
+  onRetry,
+}: {
+  entry: JournalEntryView;
+  t?: JournalCopy;
+  retrying?: boolean;
+  onRetry?: () => void;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const lead = leadCorrection(entry);
+  const noted = errataNoted(entry);
+  return (
+    <Surface as="section" tone="paper" shape="card" className="jn-card">
+      <p className="av2-label">{t.french_label}</p>
+      {journalCheckState(entry) === 'not_checked' ? (
+        <>
+          <div data-check="not_checked">
+            <Notice tone="quiet" live="status">
+              {correctionLine(entry, t)} {correctionFailureReason(entry, t)}
+            </Notice>
+          </div>
+          {canRetryCorrection(entry) && (
+            <Action
+              tone="secondary"
+              pending={retrying}
+              pendingLabel={t.retrying}
+              onClick={onRetry}
+            >
+              {t.retry_correction}
+            </Action>
+          )}
+        </>
+      ) : (
+        <>
+          <p className="jn-verdict" data-check={isUnread(journalCheckState(entry)) ? journalCheckState(entry) : undefined}>
+            {correctionLine(entry, t)}
+          </p>
+          {checkedSince(entry.correction?.check) && (
+            <p className="jn-verdict" role="status" data-check="checked_since">
+              {t.correction_checked_since}
+            </p>
+          )}
+          {lead && (
+            <Correction
+              label={lead.label}
+              spanFr={lead.span_fr}
+              correctedFr={lead.corrected_fr}
+              noteNative={lead.note_native}
+            />
+          )}
+          {(entry.correction?.errata?.length || 0) > 1 && (
+            <>
+              <Action
+                tone="quiet"
+                inline
+                aria-expanded={showAll}
+                onClick={() => setShowAll((value) => !value)}
+              >
+                {showAll ? t.hide_detail : t.show_all}
+              </Action>
+              {showAll && (
+                <ul className="jn-list">
+                  {(entry.correction?.errata || []).map(
+                    (item: JournalCorrectionItem, index: number) => (
+                      <li key={`${item.span_fr}-${index}`}>
+                        <Correction
+                          label={item.label}
+                          spanFr={item.span_fr}
+                          correctedFr={item.corrected_fr}
+                          noteNative={item.note_native}
+                        />
+                      </li>
+                    ),
+                  )}
+                </ul>
+              )}
+            </>
+          )}
+          {journalCheckState(entry) === 'basic' && canRetryCorrection(entry) && (
+            <Action
+              tone="quiet"
+              pending={retrying}
+              pendingLabel={t.retrying}
+              onClick={onRetry}
+            >
+              {t.retry_correction}
+            </Action>
+          )}
+          {journalCheckState(entry) === 'basic' && entry.correction?.failure_reason === 'no_model' && (
+            <p className="jn-hint" data-check="unavailable">
+              {t.correction_why_no_model}
+            </p>
+          )}
+          {noted > 0 && (
+            <p className="jn-hint">
+              {noted === 1 ? t.errata_one : fill(t.errata_many, { n: noted })}
+            </p>
+          )}
+        </>
+      )}
+    </Surface>
+  );
 }
 
 /* ---------- the tab ---------- */
@@ -189,7 +331,6 @@ export default function JournalTab() {
   // away again.
   const [followupResult, setFollowupResult] = useState<JournalFollowup | null>(null);
   const [pending, setPending] = useState<'write' | 'skip' | 'followup' | 'retry' | null>(null);
-  const [showAll, setShowAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
@@ -225,7 +366,6 @@ export default function JournalTab() {
       const next = await api.writeJournalEntry(entry.id, draft);
       setState(next);
       setDraft('');
-      setShowAll(false);
     } catch {
       setError(t.send_failed);
     } finally {
@@ -438,92 +578,12 @@ export default function JournalTab() {
             </Surface>
           )}
 
-          <Surface as="section" tone="paper" shape="card" className="jn-card">
-            <p className="av2-label">{t.french_label}</p>
-            {journalCheckState(entry) === 'not_checked' ? (
-              <>
-                <div data-check="not_checked">
-                  <Notice tone="quiet" live="status">
-                    {correctionLine(entry, t)} {correctionFailureReason(entry, t)}
-                  </Notice>
-                </div>
-                {canRetryCorrection(entry) && (
-                  <Action
-                    tone="secondary"
-                    pending={pending === 'retry'}
-                    pendingLabel={t.retrying}
-                    onClick={() => void retryCorrection()}
-                  >
-                    {t.retry_correction}
-                  </Action>
-                )}
-              </>
-            ) : (
-              <>
-                <p className="jn-verdict" data-check={isUnread(journalCheckState(entry)) ? journalCheckState(entry) : undefined}>
-                  {correctionLine(entry, t)}
-                </p>
-                {checkedSince(entry.correction?.check) && (
-                  <p className="jn-verdict" role="status" data-check="checked_since">
-                    {t.correction_checked_since}
-                  </p>
-                )}
-                {entry.correction?.foreground && (
-                  <Correction
-                    label={entry.correction.foreground.label}
-                    spanFr={entry.correction.foreground.span_fr}
-                    correctedFr={entry.correction.foreground.corrected_fr}
-                    noteNative={entry.correction.foreground.note_native}
-                  />
-                )}
-                {(entry.correction?.errata?.length || 0) > 1 && (
-                  <>
-                    <Action
-                      tone="quiet"
-                      inline
-                      aria-expanded={showAll}
-                      onClick={() => setShowAll((value) => !value)}
-                    >
-                      {showAll ? t.hide_detail : t.show_all}
-                    </Action>
-                    {showAll && (
-                      <ul className="jn-list">
-                        {(entry.correction?.errata || []).map(
-                          (item: JournalCorrectionItem, index: number) => (
-                            <li key={`${item.span_fr}-${index}`}>
-                              <Correction
-                                label={item.label}
-                                spanFr={item.span_fr}
-                                correctedFr={item.corrected_fr}
-                                noteNative={item.note_native}
-                              />
-                            </li>
-                          ),
-                        )}
-                      </ul>
-                    )}
-                  </>
-                )}
-                {journalCheckState(entry) === 'basic' && canRetryCorrection(entry) && (
-                  <Action
-                    tone="quiet"
-                    pending={pending === 'retry'}
-                    pendingLabel={t.retrying}
-                    onClick={() => void retryCorrection()}
-                  >
-                    {t.retry_correction}
-                  </Action>
-                )}
-                {entry.errata_recorded > 0 && (
-                  <p className="jn-hint">
-                    {entry.errata_recorded === 1
-                      ? t.errata_one
-                      : fill(t.errata_many, { n: entry.errata_recorded })}
-                  </p>
-                )}
-              </>
-            )}
-          </Surface>
+          <FrenchCheck
+            entry={entry}
+            t={t}
+            retrying={pending === 'retry'}
+            onRetry={() => void retryCorrection()}
+          />
 
           <Surface as="section" tone="paper" shape="card" className="jn-card">
             <p className="av2-label">{t.recall_label}</p>

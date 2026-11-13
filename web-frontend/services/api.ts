@@ -315,8 +315,8 @@ export interface JournalCorrection {
   assessment_truncated: boolean;
   verdict?: string | null;
   corrected_answer: string;
-  /** Set only when nothing was checked: 'timeout' | 'model_error' | 'no_check_target'.
-   *  'no_check_target' cannot be retried. */
+  /** Set only when nothing was checked: 'timeout' | 'model_error' | 'no_check_target' | 'no_model'.
+   *  'no_check_target' and 'no_model' cannot be retried (#754). */
   failure_reason?: string | null;
   /** 'model' | 'deterministic'. A deterministic check is the model-free pass of the shared corrector
    *  (#250): it marks real mistakes but cannot say a text is right, so a clean result says it was
