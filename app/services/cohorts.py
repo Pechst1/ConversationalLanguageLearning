@@ -326,23 +326,36 @@ def _read_own_words(db: Session, learners: dict[UUID, _Learner]) -> None:
     """French out: the words of each learner's own judged answers, per learner-day.
 
     A re-judged answer has a superseded row and a current one; only the current row
-    counts, so an appeal never doubles the words.
+    counts, so an appeal never doubles the words. Its words belong to the day the learner
+    first gave the answer (the first row of its chain), not the day it was re-judged.
     """
 
     rows = (
-        db.query(VerdictRecord.user_id, VerdictRecord.answer_text, VerdictRecord.created_at)
-        .filter(
-            VerdictRecord.user_id.in_(list(learners)),
-            VerdictRecord.superseded_by_id.is_(None),
+        db.query(
+            VerdictRecord.id,
+            VerdictRecord.user_id,
+            VerdictRecord.answer_text,
+            VerdictRecord.created_at,
+            VerdictRecord.supersedes_id,
+            VerdictRecord.superseded_by_id,
         )
+        .filter(VerdictRecord.user_id.in_(list(learners)))
         .all()
     )
-    for user_id, answer_text, created_at in rows:
-        if created_at is None:
+    by_id = {row.id: row for row in rows}
+    for row in rows:
+        if row.superseded_by_id is not None:
             continue
-        learner = learners[user_id]
-        day = _aware(created_at).astimezone(learner.zone).date()
-        words = _word_count(answer_text)
+        origin = row
+        seen = {row.id}
+        while origin.supersedes_id is not None and origin.supersedes_id in by_id and origin.supersedes_id not in seen:
+            origin = by_id[origin.supersedes_id]
+            seen.add(origin.id)
+        if origin.created_at is None:
+            continue
+        learner = learners[row.user_id]
+        day = _aware(origin.created_at).astimezone(learner.zone).date()
+        words = _word_count(row.answer_text)
         if words:
             learner.own_words_by_day[day] = learner.own_words_by_day.get(day, 0) + words
 

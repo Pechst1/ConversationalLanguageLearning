@@ -297,13 +297,17 @@ def test_words_in_and_out_per_active_day(db_session, frozen, monkeypatch):
     new = verdict("Il est parti hier soir", day0, supersedes_id=old.id)
     old.superseded_by_id = new.id
     verdict("Oui", _local(signup + timedelta(days=1), PARIS, hour=11))
+    # Re-judged on day 1, given on day 0: its words stay on day 0.
+    late_old = verdict("Elle a mangé", day0)
+    late_new = verdict("Elle a mangé", _local(signup + timedelta(days=1), PARIS, hour=15), supersedes_id=late_old.id)
+    late_old.superseded_by_id = late_new.id
     db_session.flush()
 
     report = cohorts.build_cohorts(db_session, weeks=8)
     [row] = [r for week in report["cohorts"] for r in week["learner_rows"] if r["user_id"] == str(user.id)]
-    # Story words: 120 and 180, median 150. Own words: 4 + 5 = 9 and 1, median 5.
+    # Story words: 120 and 180, median 150. Own words: 4 + 5 + 3 = 12 and 1, median 6.5.
     assert row["median_story_words"] == 150.0
-    assert row["median_own_words"] == 5.0
+    assert row["median_own_words"] == 6.5
     week = _by_week(report)["2026-06-15"]
     assert week["median_story_words"] == 150.0
     text = "\n".join(cohorts.cohort_table_lines(report))
