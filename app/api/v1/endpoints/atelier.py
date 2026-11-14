@@ -97,7 +97,7 @@ from app.services.concept_titles import concept_title, concept_title_fr
 from app.services.error_memory import ErrorMemoryService
 from app.services.forge import ForgeService, is_forge_session  # WP-S3 La Forge
 from app.services.forge_coaches import story_state_of
-from app.services.forge_item_validator import item_problems  # #267: an item agrees with its badge
+from app.services.forge_item_validator import speaker_problems  # #267/#780: agrees with its badge
 from app.services.forge_metrics import record_forge_abandoned, sweep_stale_forge_seances  # WP-S8
 from app.services.forge_picker import forge_plan  # WP-S4 one picker
 from app.services.glosses import DEFAULT_GLOSS_LANGUAGE, normalize_language
@@ -335,7 +335,10 @@ def _with_serial_conversation(
     # model, and nothing checked that they agree («Lila · tu» over «Répondez …»).
     # A prompt that disagrees with its badge is served as a plain situation, with
     # no speaker, so no portrait and no reaction is put in a mouth that cannot say it.
-    if item_problems(items[0].get("prompt"), register=register):
+    # #780: and a bare «Say in French: "Du bist 39 Jahre alt."» has no line anyone says, so
+    # no speaker; the register is read on every line the learner reads or says (the cue in
+    # their language, the model answer), not only on a French prompt that may be empty.
+    if speaker_problems(items[0], register=register):
         return payload
     items[0].update(
         {

@@ -1179,15 +1179,15 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "fr": "Dis-le en français.",
     },
     "forge.conversation": {
-        "en": "Reply in French, with today's rule.",
-        "de": "Beantworte die Nachricht auf Französisch, mit der Regel von heute.",
-        "fr": "Réponds au message en français, avec la règle du jour.",
+        "en": "Write it in French, with this rule.",
+        "de": "Schreib es auf Französisch, mit dieser Regel.",
+        "fr": "Écris-le en français, avec cette règle.",
     },
     # WP-S5: the free-use rung as a two-line scene with the rule's coach.
     "forge.scene": {
-        "en": "Answer in French, with the rule of the day.",
-        "de": "Antworte auf Französisch, mit der Regel von heute.",
-        "fr": "Réponds en français, avec la règle du jour.",
+        "en": "Answer in French, with this rule.",
+        "de": "Antworte auf Französisch, mit dieser Regel.",
+        "fr": "Réponds en français, avec cette règle.",
     },
     "atelier.fallback.output_instruction": {
         "en": "Use the target grammar visibly in your answer.",
@@ -1478,6 +1478,9 @@ _ENGLISH_INDEX.update(
         "Correct the sentence: fix the part that breaks today's rule. Keep the rest.": "forge.transform",
         "Say it aloud in French, then check the transcript.": "forge.speak",
         "Answer the message in French, with the rule of the day.": "forge.conversation",
+        # #780: the same stored item is posed on a review too; «today's» left the cue.
+        "Reply in French, with today's rule.": "forge.conversation",
+        "Answer in French, with the rule of the day.": "forge.scene",
     }
 )
 

@@ -2502,8 +2502,8 @@ _INSTRUCTIONS = {
     "forge.transform": "Fix the one mistake.",
     "forge.sentence": "Write the sentence in French.",
     "forge.speak": "Say it in French.",
-    "forge.conversation": "Reply in French, with today's rule.",
-    "forge.scene": "Answer in French, with the rule of the day.",
+    "forge.conversation": "Write it in French, with this rule.",
+    "forge.scene": "Answer in French, with this rule.",
     "forge.mine": MINE_INSTRUCTION_L10N["en"],
 }
 
@@ -2527,13 +2527,13 @@ _CUES: dict[str, dict[str, str]] = {
     },
     "say": {
         "en": '{scene} Say in French: "{meaning}"',
-        "de": "{scene} Schreib einen eigenen kurzen Satz auf Französisch, mit der Regel von heute.",
-        "fr": "{scene} Écris une courte phrase à toi en français, avec la règle du jour.",
+        "de": "{scene} Schreib einen eigenen kurzen Satz auf Französisch, mit dieser Regel.",
+        "fr": "{scene} Écris une courte phrase à toi en français, avec cette règle.",
     },
     "message": {
         "en": '{scene} In two or three French sentences: "{meaning}", and why.',
-        "de": "{scene} Zwei, drei Sätze auf Französisch, mit der Regel von heute und einem Grund.",
-        "fr": "{scene} Deux ou trois phrases en français, avec la règle du jour et une raison.",
+        "de": "{scene} Zwei, drei Sätze auf Französisch, mit dieser Regel und einem Grund.",
+        "fr": "{scene} Deux ou trois phrases en français, avec cette règle et une raison.",
     },
 }
 
@@ -2573,17 +2573,28 @@ INSTRUCTIONS_L10N: dict[str, dict[str, str]] = {
         "de": "Sag es auf Französisch.",
         "fr": "Dis-le en français.",
     },
+    # #780: a plain «Say in French: …» on the free-use rung has nothing to reply to, and
+    # the same stored item is posed on today's rule and on a review: «this rule», never
+    # «today's».
     "forge.conversation": {
-        "en": "Reply in French, with today's rule.",
-        "de": "Antworte auf Französisch, mit der Regel von heute.",
-        "fr": "Réponds en français, avec la règle du jour.",
+        "en": "Write it in French, with this rule.",
+        "de": "Schreib es auf Französisch, mit dieser Regel.",
+        "fr": "Écris-le en français, avec cette règle.",
     },
     "forge.scene": {
-        "en": "Answer in French, with the rule of the day.",
-        "de": "Antworte auf Französisch, mit der Regel von heute.",
-        "fr": "Réponds en français, avec la règle du jour.",
+        "en": "Answer in French, with this rule.",
+        "de": "Antworte auf Französisch, mit dieser Regel.",
+        "fr": "Réponds en français, avec cette règle.",
     },
     "forge.mine": MINE_INSTRUCTION_L10N,
+}
+
+#: #780: the English a stored item may still carry for a key whose cue changed. The cue
+#: was «today's rule», but an exercise set is stored once per rule and posed on today's
+#: rule, on a review and as a contrast alike, so no cue may name the day's role.
+_RETIRED_INSTRUCTIONS: dict[str, frozenset[str]] = {
+    "forge.conversation": frozenset({"Reply in French, with today's rule."}),
+    "forge.scene": frozenset({"Answer in French, with the rule of the day."}),
 }
 
 #: #300: a repair with more than one wrong word says how many to fix.
@@ -2654,18 +2665,18 @@ _GOALS: dict[str, dict[str, str]] = {
     },
     "say": {
         "en": 'Say in French: "{meaning}"',
-        "de": "Schreib einen eigenen kurzen Satz auf Französisch, mit der Regel von heute.",
-        "fr": "Écris une courte phrase à toi en français, avec la règle du jour.",
+        "de": "Schreib einen eigenen kurzen Satz auf Französisch, mit dieser Regel.",
+        "fr": "Écris une courte phrase à toi en français, avec cette règle.",
     },
     "reply": {
         "en": 'Reply in French: "{meaning}"',
-        "de": "Antworte auf Französisch, mit der Regel von heute.",
-        "fr": "Réponds en français, avec la règle du jour.",
+        "de": "Antworte auf Französisch, mit dieser Regel.",
+        "fr": "Réponds en français, avec cette règle.",
     },
     "message": {
         "en": 'A short message in French: "{meaning}"',
-        "de": "Schreib eine kurze Nachricht auf Französisch, mit der Regel von heute.",
-        "fr": "Écris un court message en français, avec la règle du jour.",
+        "de": "Schreib eine kurze Nachricht auf Französisch, mit dieser Regel.",
+        "fr": "Écris un court message en français, avec cette règle.",
     },
     "judge": {
         "en": "Is this sentence correct?",
@@ -2866,6 +2877,10 @@ def with_goal(item: dict[str, Any], language: Any = None, native: Any = None) ->
     if out.get("source") and not out.get("source_fr") and ("expected_answer" in out) and kind != "rewrite":
         out["source_fr"] = out["source"]
     key = out.get("instruction_key")
+    if isinstance(key, str) and out.get("instruction") in _RETIRED_INSTRUCTIONS.get(key, ()):
+        # #780: a set stored before reads the current cue (no «today's» on a review).
+        out["instruction"] = INSTRUCTIONS_L10N[key]["en"]
+        out.pop("instruction_l10n", None)
     if isinstance(key, str) and key in INSTRUCTIONS_L10N:
         table = dict(out.get("instruction_l10n") or {}) if isinstance(out.get("instruction_l10n"), dict) else {}
         out["instruction_l10n"] = {**INSTRUCTIONS_L10N[key], **{k: v for k, v in table.items() if k == "en"}}
