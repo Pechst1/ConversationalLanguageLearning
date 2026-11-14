@@ -295,6 +295,29 @@ def fold_for_comparison(value: str | None) -> str:
     return " ".join(text.split())
 
 
+def fold_for_written_comparison(value: str | None) -> str:
+    """The no-op fold for a *written* text (#754): case, smart quotes, spacing and
+    punctuation fold away, the letters and their marks stay.
+
+    :func:`fold_for_comparison` was built for speech, where an accent or an apostrophe
+    is the transcriber's spelling, not the learner's: it reads «j étais» and «j'étais»,
+    «cle» and «clé» as the same answer. A learner who typed the text wrote those
+    marks themselves, so a fix that only restores one is a fix of their French.
+    """
+
+    text = normalize_answer_text(value).casefold()
+    text = re.sub(r"[^\w\s'-]+", " ", text)
+    text = re.sub(r"\s*'\s*", "'", text)
+    return " ".join(text.split())
+
+
+def _same_answer(a: str | None, b: str | None, *, written: bool) -> bool:
+    """Whether a "correction" from ``a`` to ``b`` changes nothing the learner did."""
+
+    fold = fold_for_written_comparison if written else fold_for_comparison
+    return fold(a) == fold(b)
+
+
 def _tokens(value: str | None) -> list[str]:
     return [token for token in fold_for_comparison(value).split() if token]
 
@@ -2609,20 +2632,21 @@ def evaluate_dictation(
 # --------------------------------------------------------------------------
 
 def build_correction(
-    *, learner_text: str | None, corrected_fr: str | None, note_native: str | None
+    *, learner_text: str | None, corrected_fr: str | None, note_native: str | None, written: bool = False
 ) -> Correction | None:
     """A validated correction, or ``None``.
 
     Rejects the no-op (span equals correction, or they differ only by folding,
     which is where ASR punctuation and smart quotes end up) and any span the
-    learner did not write.
+    learner did not write. ``written``: the learner typed the text, so a restored
+    accent or apostrophe is a fix (:func:`fold_for_written_comparison`).
     """
 
     span = normalize_answer_text(learner_text)
     corrected = normalize_answer_text(corrected_fr)
     if not span or not corrected:
         return None
-    if fold_for_comparison(span) == fold_for_comparison(corrected):
+    if _same_answer(span, corrected, written=written):
         return None
     candidate = Correction(
         span_fr=span,
@@ -2711,13 +2735,14 @@ def _introduced_agreements(learner_text: str | None, texts: Sequence[str | None]
 
 
 def validate_correction(
-    correction: Correction | None, learner_text: str | None, *, address: str | None = None
+    correction: Correction | None, learner_text: str | None, *, address: str | None = None, written: bool = False
 ) -> bool:
     """True when a proposed correction may be shown and may inform memory.
 
     ``address`` is the learner's ``address_preference``: a learner who chose
     «masculine» or «feminine» may be corrected into an agreement of that gender
-    only; anyone else into none."""
+    only; anyone else into none. ``written``: the learner typed the text (the
+    Journal), so restoring an accent or an apostrophe is a real fix (#754)."""
 
     if correction is None:
         return False
@@ -2733,8 +2758,9 @@ def validate_correction(
     if any(gender != address for _word, gender in introduced):
         return False
     # A "correction" that only re-punctuates or re-accents the learner's own
-    # words is a stylistic preference, not an error worth a punishment event.
-    if fold_for_comparison(correction.span_fr) == fold_for_comparison(correction.corrected_fr):
+    # words is a stylistic preference, not an error worth a punishment event —
+    # in speech. In a typed text the accent and the apostrophe are the learner's.
+    if _same_answer(correction.span_fr, correction.corrected_fr, written=written):
         return False
     if correction.kind != "edit" or correction.rule_written:
         # ``pick`` and ``meaning`` quote a different sentence or the learner's
@@ -2778,6 +2804,7 @@ def select_foreground_correction(
     learner_text: str | None,
     candidates: Sequence[Correction],
     targets: Sequence[TargetRef] = (),
+    written: bool = False,
 ) -> tuple[Correction | None, list[Correction]]:
     """At most one foreground correction, plus the conservative remainder.
 
@@ -2789,7 +2816,7 @@ def select_foreground_correction(
     """
 
     address = getattr(user, "address_preference", None)
-    validated = [c for c in candidates if validate_correction(c, learner_text, address=address)]
+    validated = [c for c in candidates if validate_correction(c, learner_text, address=address, written=written)]
     if not validated:
         return None, []
     validated.sort(key=lambda c: correction_relevance(c, targets), reverse=True)

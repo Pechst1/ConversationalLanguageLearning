@@ -67,6 +67,7 @@ from app.services.journey_learning import (
     build_correction,
     fold_for_comparison,
     select_foreground_correction,
+    validate_correction,
 )
 from app.services.learner_facts import looks_misspelled, reads_as_sentence
 from app.services.pilot_events import PilotEventService
@@ -1136,26 +1137,30 @@ class JournalService:
         checked = correction_contract.verify_correction(
             text, correction.get("corrected_answer"), errata, language=user_mother_tongue(user)
         )
-        keep = [
-            item
-            for item in checked.errata
-            if str(item.get("task_error_type") or "")
-            not in {"task_compliance", "length_compliance"}
-        ]
+        # #754: the card's one correction, its list and the Relevé read one validated
+        # list: what the shared validator refuses (a gender the learner never gave, a
+        # right sentence re-ordered) is in none of them, and what it passes is in all.
+        # The text is typed, so a restored accent or apostrophe is a fix (``written``).
+        address = getattr(user, "address_preference", None)
+        keep: list[dict[str, Any]] = []
         candidates: list[Correction] = []
         by_span: dict[str, dict[str, Any]] = {}
-        for item in keep:
+        for item in checked.errata:
+            if str(item.get("task_error_type") or "") in {"task_compliance", "length_compliance"}:
+                continue
             built = build_correction(
                 learner_text=item.get("learner_text"),
                 corrected_fr=item.get("corrected_target"),
                 note_native=item.get("why_wrong"),
+                written=True,
             )
-            if built is None:
+            if not validate_correction(built, text, address=address, written=True):
                 continue
+            keep.append(item)
             candidates.append(built)
             by_span.setdefault(built.span_fr, item)
         foreground, _background = select_foreground_correction(
-            user=user, learner_text=text, candidates=candidates
+            user=user, learner_text=text, candidates=candidates, written=True
         )
 
         def view(item: dict[str, Any]) -> dict[str, Any]:
@@ -1169,13 +1174,7 @@ class JournalService:
             }
 
         foreground_view = None
-        if foreground is None and keep:
-            # #754: the foreground filter passes no mechanical fix («j étais» -> «j'étais»
-            # folds to the same letters), but the list below still holds it and the Relevé
-            # records it. The card's one correction comes from that same list, so a fix
-            # the card counts is never a fix it does not show.
-            foreground_view = view(keep[0])
-        elif foreground is not None:
+        if foreground is not None:
             source = by_span.get(foreground.span_fr, {})
             foreground_view = {
                 **view(source),
