@@ -1004,6 +1004,14 @@ class JournalService:
             return entry
 
         recall = score_content_recall(written, list(entry.scene_facts or []))
+        # #775: the answer is the learner's own French, so it gets the rules' check like
+        # every other free sentence; it was saved with no check at all («sa travail»).
+        # Rules only: no paid call, so it counts for nothing and the screen says so.
+        recall = {
+            **recall,
+            "errata": correction_contract.deterministic_errata(written, language=user_mother_tongue(user)),
+            "checked_by": "rules",
+        }
         signal = (
             "used_again_later"
             if recall.get("status") == "scored" and (recall.get("score") or 0) > 0

@@ -371,6 +371,10 @@ export interface JournalFollowup {
   /** How much of the scene the answer named; set once answered (#337). */
   facts_total?: number | null;
   facts_matched?: number | null;
+  /** The rules' fixes for the answer (#775); null before it is answered. */
+  corrections?: Array<{ learner_text?: string | null; corrected_target?: string | null; why_wrong?: string | null }> | null;
+  /** 'rules': only the basic check ran on the answer. */
+  checked_by?: string | null;
 }
 
 export interface JournalEnvelope {

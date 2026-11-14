@@ -831,7 +831,7 @@ def held_to_sentence(
         ):
             dropped.append(erratum)
             continue
-        shown.append(correction_contract.reconcile_notes(verified, language=mother_tongue(language)))
+        shown.append(correction_contract.reconcile_notes(verified, language=mother_tongue(language), context=text))
     return shown, dropped
 
 
