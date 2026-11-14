@@ -238,15 +238,28 @@ def slip_kind(learner: str, target: str) -> str | None:
     if a in _COI_PRONOUNS | _COD_PRONOUNS and b in _COI_PRONOUNS | _COD_PRONOUNS:
         return "object_pronoun"
     lemma = _verb_lemma(target)
-    if lemma and lemma == _verb_lemma(learner) and _finite(learner) and _finite(target):
+    if lemma and lemma == _verb_lemma(learner) and _same_tense(lemma, a, b):
         return "person"
     return None
 
 
-def _finite(word: str) -> bool:
-    from app.services import correction_contract
+def _same_tense(lemma: str, learner: str, target: str) -> bool:
+    """Both words are one-word forms of ``lemma`` in one tense: a person slip («est» for
+    «es»), not a tense one («avions» for «aurons»)."""
 
-    return correction_contract._finite_verb(word.casefold())  # noqa: SLF001 - the one lexicon reading
+    from app.services.conjugation import fallback_conjugation_table
+
+    try:
+        table = fallback_conjugation_table(lemma)
+    except Exception:  # pragma: no cover - an unknown verb is no person slip
+        return False
+    for tense, forms in table.items():
+        if tense in {"passe_compose", "imperatif"}:
+            continue
+        row = {strip_accents(form) for form in forms.values()}
+        if learner in row and target in row:
+            return True
+    return False
 
 
 def slip_category(ops: list[dict[str, str]], sentence: Any = None) -> dict[str, str] | None:
@@ -269,8 +282,11 @@ def slip_category(ops: list[dict[str, str]], sentence: Any = None) -> dict[str, 
         return {"category": "coi_for_cod", "learner": learner, "target": target}
     if target.endswith("'") and _ELISIONS.get(learner) == target:
         return {"category": "elision", "learner": learner, "target": target}
-    # #596: an article that differs only in gender or number is about the noun after it
-    # («le clé»: «clé» is feminine), not the day's rule card.
+    if sentence is None:
+        return None
+    # #596: given the right sentence, an article that differs only in gender or number is
+    # about the noun after it («le clé»: «clé» is feminine), and a verb form of the wrong
+    # person about its subject, not the day's rule card.
     shown_learner, shown_target = slips[0].get("learner") or "", slips[0].get("target") or ""
     kind = slip_kind(shown_learner, shown_target)
     if kind in {"gender", "number"}:

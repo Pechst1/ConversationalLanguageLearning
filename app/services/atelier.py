@@ -71,6 +71,7 @@ from app.services.forge_grading import (
     production_local_check,
     refine_production_correction,
     sentence_differences,
+    slip_category,
     slip_note,
     token_diff,
 )
@@ -6440,11 +6441,7 @@ class AtelierCorrectionService:
             )
         if mode == "classify" and _is_judgement(item):
             return self._judgement_erratum(concept, item, learner_text, target)
-        slip = (
-            slip_note(token_diff(learner_text, target), self.explanation_language, target)
-            if mode != "classify"
-            else None
-        )
+        slip = slip_note(token_diff(learner_text, target), self.explanation_language) if mode != "classify" else None
         if slip:
             # #449: the slip's own category explains the miss, not the day's rule card.
             return self._recognize_erratum_payload(
@@ -6469,6 +6466,22 @@ class AtelierCorrectionService:
             )
             explanation = str(item.get("explanation") or self._why_for(concept, item) or "").strip()
             outside_rule = mode == "fill" and _miss_outside_the_rule(item, learner_text, target)
+            # #596: a slip the classifier can name (an article's gender or number, a verb
+            # form of another person) is explained as that slip, with the rule only cited.
+            ops = token_diff(learner_text, target)
+            named = None if outside_rule else slip_note(ops, language, target)
+            if named:
+                title = _concept_title_for(concept, language)
+                # A verb form is the rule's own matter, so the rule is cited; an article's
+                # gender or number is the noun's, whatever the day's rule is.
+                category = (slip_category(ops, target) or {}).get("category", "")
+                cite = _copy("atelier.recognize.rule_reference", language, title=title) if category.startswith("person") else ""
+                return self._recognize_erratum_payload(
+                    concept, item, label=title, learner_text=learner_text, target=target,
+                    why=" ".join(part for part in (why, named[0], cite) if part),
+                    repair=named[1],
+                    task_type=self._task_type_for(concept, item),
+                )
             if outside_rule:
                 # #380: say what differs in the learner's text, not the rule's headline.
                 why = f"{why} {_copy('atelier.recognize.other_words', language, learner=learner_text, target=target)}"
@@ -7073,7 +7086,7 @@ class AtelierCorrectionService:
             erratum = self._erratum(concept, item, learner, target, severity=3, recurring=True)
             ops = mark_given(token_diff(learner, target), source)
             what = describe_diff(ops, self.explanation_language)
-            slip = slip_note(ops, self.explanation_language, target)
+            slip = slip_note(ops, self.explanation_language)
             if slip:
                 # #449: the slip's own category explains it; the rule card does not.
                 erratum["why_wrong"], erratum["repair_hint"] = slip
