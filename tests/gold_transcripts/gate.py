@@ -178,6 +178,10 @@ def compare(base: dict, head: dict, surface: str, *, tolerance: float = TOLERANC
     if coverage < MIN_COVERAGE or fell_back["base"] > MAX_FALLBACK_SHARE * total:
         # A base that mostly fell back says nothing about the head, even when both read 0.
         verdict = "incomplete"
+    elif fell_back["head"] > MAX_FALLBACK_SHARE * total:
+        # A head that mostly fell back never passes: a fall when the base answered, else
+        # an outage that measured nothing.
+        verdict = "fell" if diff < -tolerance else "incomplete"
     elif diff < -tolerance:
         verdict = "fell"
     elif diff > tolerance:

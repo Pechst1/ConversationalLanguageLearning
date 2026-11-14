@@ -94,6 +94,8 @@ def test_a_base_that_mostly_fell_back_judges_nothing():
     assert G.compare(dead, dead, "scene")["verdict"] == "incomplete"
     # A head that falls back where the base answered is a fall, not an outage.
     assert G.compare(_run("scene", dict.fromkeys(ids, 1.0)), dead, "scene")["verdict"] == "fell"
+    # A head that mostly fell back against a base already near zero is not «held».
+    assert G.compare(_run("scene", dict.fromkeys(ids, 0.02)), dead, "scene")["verdict"] == "incomplete"
 
 
 @pytest.fixture(scope="module")
