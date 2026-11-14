@@ -1151,7 +1151,12 @@
       },
       "contrast": {
         "wrong": "Est-ce que il pleut ?",
-        "right": "[Est-ce qu']il pleut ?"
+        "right": "[Est-ce qu']il pleut ?",
+        "why": {
+          "en": "Before a vowel, que drops its e: est-ce qu'il, est-ce qu'elle, not est-ce que il.",
+          "de": "Vor einem Vokal fällt das e von que weg: est-ce qu'il, est-ce qu'elle, nicht est-ce que il.",
+          "fr": "Devant une voyelle, que perd son e : est-ce qu'il, est-ce qu'elle, pas est-ce que il."
+        }
       },
       "more": {
         "en": "The word order doesn't change: the question looks like a normal statement. In conversation the rising voice is the most common. Swapping verb and subject (Viens-tu ?) is a third, more formal way (A2.1). To say yes to a negative question, answer si.",
