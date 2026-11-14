@@ -506,6 +506,16 @@ def asks_only_once(turns: list[dict[str, Any]]) -> bool:
     )
 
 
+def sure_exchanges(turns: list[dict[str, Any]]) -> int:
+    """#776: the exchanges the page plays whatever the learner says, the total the learner is
+    shown. Each question asked on every route is one (a «Convaincre» the learner wins at once
+    included); a deflection asked again, a further objection, a question that waits for an
+    earlier answer (``only_after``) and the scene's own extra question (:func:`asks_only_once`)
+    are played past it."""
+
+    return max(1, sum(1 for turn in turns if not turn.get("only_after")))
+
+
 def routes_the_story(turn: dict[str, Any]) -> bool:
     """Does what the learner answers here change the story? A «Le choix» or a
     «Convaincre», Lila's gate, a reply that sets (or conditionally sets) a flag,
@@ -593,6 +603,7 @@ def tentpole_brief(
         min_turns=sum(exchanges_for(turn) for turn in turns[: last_posed + 1]),
         opening_choices=choice_cards(turns[0]) if turns else [],
         max_turns=max(1, exchanges + (1 if repeats else 0)) + (1 if asks_only_once(turns) else 0),
+        sure_turns=sure_exchanges(turns),
         allowed_outcomes=["resolved", "open"],
         estimated_seconds=60 * max(1, len(turns)),
     )
@@ -1082,6 +1093,12 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         beats = convince_outcome(turn, reply.get("id"), attempt=answered.get(index, 0))
     routed.append((answer.text, reply))
     next_index, _ = _walk(turns, routed)
+    # #776: the reader's lines join the page's own in one reply; one that says a line of
+    # the page again is dropped, and the page's words stand.
+    after = list(turn.get("after") or []) if (not reply.get("repeat_once") or again) else []
+    page_lines = _page_lines(scenario, [*beats, *after])
+    if ack and scene_record.enabled() and _says_again(db, user, ack, page_lines, turn_index):
+        ack = None
     # The day's rhythm may plan fewer exchanges than the page has turns: the
     # conversation then closes on this one, and the turns it did not reach keep
     # only what they set whatever is said (``_settle_tentpole``).
@@ -1091,10 +1108,12 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         if carded is None and closing and may_listen
         else None
     )
+    if listen and _says_again(db, user, listen, [*page_lines, *([ack] if ack else [])], turn_index):
+        listen = None
     closing = closing and listen is None
     if ack:
         beats = [ack_panel(_named_turn(scenario, turn), ack), *beats]
-    beats += list(turn.get("after") or []) if (not reply.get("repeat_once") or again) else []
+    beats += after
     if listen:
         beats.append({**ack_panel(_named_turn(scenario, turn), listen), "id": f"{turn.get('id')}.listen"})
     closed_reading = None
@@ -1365,6 +1384,25 @@ def _checked_ack(db, user, ack, *, turn, answer, history, ledger, turn_index) ->
         _count_dropped_line(db, user, [finding.code for finding in findings], turn_index)
         return None
     return line
+
+
+def _page_lines(scenario, panels: list[dict[str, Any]]) -> list[str]:
+    """The words of ``panels`` as the learner reads them, one entry a line."""
+
+    from app.services.season.turns import reaction_text
+
+    return reaction_text(panels, addressee=str(scenario.character_id), labelled=False).splitlines()
+
+
+def _says_again(db, user, line: str, said: list[str], turn_index: int) -> bool:
+    """#776: whether a written line says a line of the same reply again (counted when it does)."""
+
+    from app.services import lane_guards
+
+    if lane_guards.repeated_line(line, said) is None:
+        return False
+    _count_dropped_line(db, user, ["reply_repeats_a_line"], turn_index)
+    return True
 
 
 def _checked_listen(db, user, line, *, turn, answer, history, ledger, turn_index) -> str | None:

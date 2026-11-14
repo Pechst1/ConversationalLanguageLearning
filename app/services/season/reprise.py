@@ -327,6 +327,7 @@ def reprise_brief(db, user, *, input_mode: Any = None, now: Any = None, reason: 
         page_tail,
         panel_images,
         projected_turns,
+        sure_exchanges,
         tentpole_annotation,
     )
     from app.services.season.world import location_name_fr, plate_for
@@ -379,6 +380,7 @@ def reprise_brief(db, user, *, input_mode: Any = None, now: Any = None, reason: 
         character_name=character_name,
         opening_line_fr=draft["opening_line_fr"],
         max_turns=max(1, exchanges + (1 if repeats else 0)),
+        sure_turns=sure_exchanges(turns),
         required_intents=[draft["objective_semantics"]],
         allowed_outcomes=["resolved", "open"],
         rubric_native=draft["objective_semantics"],

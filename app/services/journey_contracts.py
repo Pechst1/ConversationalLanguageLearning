@@ -959,6 +959,18 @@ class ResponseTask:
     min_turns: int = 0
     #: WP-113: the opening question is «Le choix»: its cards ``[{id, label_fr, label_native}]``.
     opening_choices: list[dict[str, Any]] = field(default_factory=list)
+    #: #776 (root cause #145): the exchanges the scene plays on every route. ``max_turns`` is
+    #: the most it may take (a deflection asked again, a «Convaincre»'s objections, the
+    #: question an authored page asks only when the reader writes one); the learner's
+    #: «Exchange N of M» counts only these, and an exchange past them is shown as the last
+    #: one again. ``0``: every planned exchange is played (a generated scene).
+    sure_turns: int = 0
+
+    def shown_turns(self, planned: int) -> int:
+        """The «Exchange N of M» total of a reply planned with ``planned`` exchanges."""
+
+        planned = max(1, int(planned))
+        return min(planned, max(1, int(self.sure_turns))) if self.sure_turns else planned
 
 
 @dataclass(frozen=True, slots=True)

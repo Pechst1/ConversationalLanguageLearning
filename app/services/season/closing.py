@@ -146,8 +146,13 @@ def cast_names() -> list[str]:
     return [name for member in all_members().values() for name in (member.name, member.short_name) if name]
 
 
-def _line_problem(line: ClosingLine, *, room: list[str], registers: dict, known: str, learner_text: str, payload: dict) -> str | None:
-    """The code of what is wrong with a line of the close, or ``None``."""
+def _line_problem(
+    line: ClosingLine, *, room: list[str], registers: dict, known: str, learner_text: str, payload: dict,
+    said: list[str] | None = None,
+) -> str | None:
+    """The code of what is wrong with a line of the close, or ``None``. ``said`` is every
+    other line of the same reply: what was just said, what the page says next and the
+    close's other line (#776: the close said the page's next line first)."""
 
     from app.services import lane_guards
     from app.services.season.turns import clean_ack
@@ -163,6 +168,8 @@ def _line_problem(line: ClosingLine, *, room: list[str], registers: dict, known:
         return "closing_asks_a_question"
     if scene_ledger.brings_in_new(spoken, known):
         return "closing_brings_in_new_fact"
+    if lane_guards.repeated_line(spoken, said or []):
+        return "closing_repeats_a_line"
     findings = lane_guards.scene_findings(spoken, payload)
     return findings[0].code if findings else None
 
@@ -258,10 +265,20 @@ def written_close(
         + [f"{row.get('learner') or ''} {row.get('character') or ''}" for row in history or [] if isinstance(row, dict)]
     )
     checks = {"ledger": ledger, "learner_text": learner_text, "history": history}
+    # The reply's other lines as the learner reads them: the close says none of them again.
+    page_lines = [
+        *reaction_text(beats, addressee=addressee, labelled=False).splitlines(),
+        *reaction_text(tail, addressee=addressee, labelled=False).splitlines(),
+    ]
     problems = [
         problem
-        for line in written.lines
-        if (problem := _line_problem(line, room=room, registers=registers, known=known, learner_text=learner_text, payload=checks))
+        for number, line in enumerate(written.lines)
+        if (
+            problem := _line_problem(
+                line, room=room, registers=registers, known=known, learner_text=learner_text, payload=checks,
+                said=[*page_lines, *(other.text_fr for other in written.lines[:number])],
+            )
+        )
     ]
     if problems:
         for problem in problems:
