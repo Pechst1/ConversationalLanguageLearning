@@ -8656,7 +8656,7 @@ export interface components {
              * Category
              * @enum {string}
              */
-            category: "bug" | "broken_link" | "content" | "layout" | "slow_loading" | "suggestion" | "other";
+            category: "bug" | "broken_link" | "content" | "layout" | "slow_loading" | "suggestion" | "other" | "looks_wrong";
             /** Context Payload */
             context_payload?: {
                 [key: string]: unknown;
@@ -20011,7 +20011,7 @@ export interface operations {
     list_feedback_reports_api_v1_feedback_reports_get: {
         parameters: {
             query?: {
-                category?: ("bug" | "broken_link" | "content" | "layout" | "slow_loading" | "suggestion" | "other") | null;
+                category?: ("bug" | "broken_link" | "content" | "layout" | "slow_loading" | "suggestion" | "other" | "looks_wrong") | null;
                 limit?: number;
                 offset?: number;
                 route?: string | null;

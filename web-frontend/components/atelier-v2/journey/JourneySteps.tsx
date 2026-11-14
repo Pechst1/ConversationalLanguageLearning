@@ -1743,6 +1743,71 @@ function AppealLine({
   );
 }
 
+/**
+ * Beta: «Something here looks wrong», one quiet tap under every verdict. It sends what the
+ * screen showed (the verdict, the correction, the slip note) as a `looks_wrong` report, which
+ * the morning triage turns into a finding. No form: the screen is the evidence.
+ */
+export function LooksWrongLine({
+  copy,
+  onReport,
+  resetKey,
+}: {
+  copy: JourneyCopy;
+  onReport: () => Promise<boolean>;
+  resetKey: unknown;
+}) {
+  const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
+  useEffect(() => {
+    setState('idle');
+  }, [resetKey]);
+  if (state === 'sent') {
+    return (
+      <div className="av2-graded__looks-wrong" data-looks-wrong="sent">
+        <Notice tone="quiet"><p>{copy.looks_wrong_sent}</p></Notice>
+      </div>
+    );
+  }
+  return (
+    <div className="av2-graded__looks-wrong" data-looks-wrong={state}>
+      <Action
+        tone="quiet"
+        inline
+        disabled={state === 'sending'}
+        onClick={() => {
+          setState('sending');
+          void onReport()
+            .then((ok) => setState(ok ? 'sent' : 'failed'))
+            .catch(() => setState('failed'));
+        }}
+      >
+        {copy.looks_wrong_line}
+      </Action>
+      {state === 'failed' && <p className="av2-graded__slip">{copy.looks_wrong_failed}</p>}
+    </div>
+  );
+}
+
+/** What a «looks wrong» report carries from a graded verdict: what the screen showed. */
+export function looksWrongContext(result: AttemptResult, stepKind: string | null): Record<string, unknown> {
+  const correction = result.correction
+    ? {
+        kind: result.correction.kind,
+        span_fr: result.correction.span_fr ?? null,
+        corrected_fr: result.correction.corrected_fr ?? null,
+        notes_native: correctionNotes(result.correction),
+      }
+    : null;
+  return {
+    surface: 'journey',
+    step_kind: stepKind,
+    outcome: result.check?.outcome ?? null,
+    assistance_level: result.assistance_level ?? null,
+    correction,
+    slip_note_native: result.slip_note_native ?? null,
+  };
+}
+
 export function JourneyFeedbackView({
   feedback,
   copy,
@@ -1753,6 +1818,7 @@ export function JourneyFeedbackView({
   stepKind = null,
   faceShown = false,
   onAppeal,
+  onLooksWrong,
 }: {
   feedback: JourneyFeedback;
   copy: JourneyCopy;
@@ -1761,6 +1827,8 @@ export function JourneyFeedbackView({
   onDismiss: () => void;
   /** Package V stage 5: «I think this is right» (a drill's «not yet» or «partly» only). */
   onAppeal?: () => Promise<void>;
+  /** Beta: «Something here looks wrong» sends what the verdict showed. Resolves true when stored. */
+  onLooksWrong?: (shown: Record<string, unknown>) => Promise<boolean>;
   /** WP-77: whose face reacts to the verdict. */
   speaker?: JourneySpeaker | null;
   /** La troupe vivante: the one who asked already reacts on the step, so the band carries no second face. */
@@ -1939,6 +2007,13 @@ export function JourneyFeedbackView({
           {/* WP-D2: «Marin vous sourit ↑» — the relationship moved, said once. */}
           {verdict === 'correct' && speaker && <CharacterSmiles speaker={speaker} />}
           <AppealLine result={result} stepKind={stepKind} copy={copy} onAppeal={onAppeal} />
+          {onLooksWrong && (
+            <LooksWrongLine
+              copy={copy}
+              resetKey={result}
+              onReport={() => onLooksWrong(looksWrongContext(result, stepKind))}
+            />
+          )}
 
           <Action tone="primary" onClick={onContinue}>
             {wide.action_continue}

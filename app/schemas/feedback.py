@@ -15,6 +15,8 @@ FeedbackCategory = Literal[
     "slow_loading",
     "suggestion",
     "other",
+    # Beta: the one tap under a verdict («Something here looks wrong»).
+    "looks_wrong",
 ]
 
 

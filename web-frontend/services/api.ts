@@ -1985,7 +1985,9 @@ export type FeedbackCategory =
   | 'layout'
   | 'slow_loading'
   | 'suggestion'
-  | 'other';
+  | 'other'
+  // Beta: the one tap under a verdict («Something here looks wrong»).
+  | 'looks_wrong';
 
 export interface FeedbackReportPayload {
   category: FeedbackCategory;

@@ -1,6 +1,6 @@
 {
   "_note": "WP-72 canonical source for the privacy policy and the terms. DRAFT — the owner reviews it before App Store submission and fills operator + contact_email. The API serves it at /privacy and /terms (app/api/legal.py); web-frontend/lib/legal-content.json is a byte-identical copy written by `node web-frontend/scripts/sync-legal-content.mjs` and guarded by tests/test_wp72_legal.py. Bump `version` whenever the substance changes: the sign-up consent records it.",
-  "version": "2026-09-22",
+  "version": "2026-11-14",
   "operator": "Pixel Lab",
   "contact_email": "[contact e-mail]",
   "languages": ["en", "de", "fr"],
@@ -24,11 +24,11 @@
             "Usage and diagnostics: which steps you completed and when, error reports from the app, and the cost of each AI request. No advertising identifiers and no tracking across other apps or websites.",
             "A push token, only if you allow notifications."
           ] },
-          { "h": "Why", "p": ["To run the course: correct your French, answer you, write your stories, schedule reviews, send the reminders you turned on, and fix what breaks."] },
+          { "h": "Why", "p": ["To run the course: correct your French, answer you, write your stories, schedule reviews, send the reminders you turned on, and fix what breaks.", "Legal basis: running the course you signed up for (Art. 6(1)(b) GDPR). Error reports and usage counts rest on our legitimate interest in a course that works (Art. 6(1)(f) GDPR).", "During the beta we read, per learner, which days you practised, for how long and how many French words you read and wrote, to see whether the course helps, and we may ask you for a short conversation. When you tap «Something here looks wrong», the report carries what the screen showed."] },
           { "h": "Who processes it for us", "p": [
             "OpenAI (USA) reads your answers, voice recordings and photos to correct and respond, and creates the story images and audio. Under OpenAI’s API terms this data is not used to train its models and is kept for at most 30 days for abuse monitoring.",
             "If enabled: Anthropic (USA) as a fallback for text when OpenAI is unavailable, and ElevenLabs for reading text aloud (it only receives the text to be read).",
-            "Render (servers in Frankfurt, EU) hosts the app and its database. An e-mail provider sends sign-in and password e-mails. Apple delivers push notifications."
+            "Render (servers in Frankfurt, EU) hosts the app and its database. An e-mail provider sends sign-in and password e-mails. Apple delivers push notifications.", "If enabled: Sentry receives crash and error reports from the app and the servers, without the content of your answers."
           ] },
           { "h": "How long we keep it", "p": ["For as long as your account exists. Deleting a document deletes it. Deleting your account deletes your account data; anonymous counters that no longer point to you may remain. Server backups expire on the host’s schedule."] },
           { "h": "Your choices and rights", "p": [
@@ -52,11 +52,11 @@
             "Nutzung und Diagnose: welche Schritte Sie wann abgeschlossen haben, Fehlerberichte der App und die Kosten jeder KI-Anfrage. Keine Werbe-IDs und kein Tracking über andere Apps oder Websites.",
             "Ein Push-Token, nur wenn Sie Mitteilungen erlauben."
           ] },
-          { "h": "Wozu", "p": ["Um den Kurs zu betreiben: Ihr Französisch korrigieren, Ihnen antworten, Ihre Geschichten schreiben, Wiederholungen planen, die von Ihnen eingeschalteten Erinnerungen senden und Fehler beheben."] },
+          { "h": "Wozu", "p": ["Um den Kurs zu betreiben: Ihr Französisch korrigieren, Ihnen antworten, Ihre Geschichten schreiben, Wiederholungen planen, die von Ihnen eingeschalteten Erinnerungen senden und Fehler beheben.", "Rechtsgrundlage: die Durchführung des Kurses, für den Sie sich angemeldet haben (Art. 6 Abs. 1 lit. b DSGVO). Fehlerberichte und Nutzungszahlen beruhen auf unserem berechtigten Interesse an einem Kurs, der funktioniert (Art. 6 Abs. 1 lit. f DSGVO).", "Während der Beta sehen wir uns pro Person an, an welchen Tagen Sie geübt haben, wie lange und wie viele französische Wörter Sie gelesen und geschrieben haben, um zu prüfen, ob der Kurs hilft, und wir bitten Sie vielleicht um ein kurzes Gespräch. Wenn Sie «Hier stimmt etwas nicht» antippen, enthält die Meldung, was der Bildschirm zeigte."] },
           { "h": "Wer für uns verarbeitet", "p": [
             "OpenAI (USA) liest Ihre Antworten, Sprachaufnahmen und Fotos, um zu korrigieren und zu antworten, und erstellt Bilder und Audio der Geschichte. Laut den API-Bedingungen von OpenAI werden diese Daten nicht zum Training genutzt und höchstens 30 Tage zur Missbrauchskontrolle aufbewahrt.",
             "Falls aktiviert: Anthropic (USA) als Ersatz für Text, wenn OpenAI nicht erreichbar ist, und ElevenLabs zum Vorlesen (erhält nur den vorzulesenden Text).",
-            "Render (Server in Frankfurt, EU) betreibt die App und ihre Datenbank. Ein E-Mail-Anbieter versendet Anmelde- und Passwort-E-Mails. Apple stellt Push-Mitteilungen zu."
+            "Render (Server in Frankfurt, EU) betreibt die App und ihre Datenbank. Ein E-Mail-Anbieter versendet Anmelde- und Passwort-E-Mails. Apple stellt Push-Mitteilungen zu.", "Falls aktiviert: Sentry erhält Absturz- und Fehlerberichte der App und der Server, ohne den Inhalt Ihrer Antworten."
           ] },
           { "h": "Wie lange", "p": ["Solange Ihr Konto besteht. Wenn Sie ein Dokument löschen, ist es gelöscht. Wenn Sie Ihr Konto löschen, werden Ihre Kontodaten gelöscht; anonyme Zähler ohne Bezug zu Ihnen können bleiben. Server-Backups verfallen nach dem Zeitplan des Hosters."] },
           { "h": "Ihre Möglichkeiten und Rechte", "p": [
@@ -80,11 +80,11 @@
             "Usage et diagnostic : les étapes terminées et quand, les rapports d’erreur de l’app et le coût de chaque requête d’IA. Aucun identifiant publicitaire, aucun suivi dans d’autres apps ou sites.",
             "Un jeton de notification, seulement si vous autorisez les notifications."
           ] },
-          { "h": "Pourquoi", "p": ["Pour faire fonctionner le cours : corriger votre français, vous répondre, écrire vos histoires, planifier les révisions, envoyer les rappels que vous avez activés et réparer ce qui casse."] },
+          { "h": "Pourquoi", "p": ["Pour faire fonctionner le cours : corriger votre français, vous répondre, écrire vos histoires, planifier les révisions, envoyer les rappels que vous avez activés et réparer ce qui casse.", "Base légale : l’exécution du cours auquel vous vous êtes inscrit (art. 6, par. 1, b du RGPD). Les rapports d’erreur et les statistiques d’usage reposent sur notre intérêt légitime à un cours qui fonctionne (art. 6, par. 1, f du RGPD).", "Pendant la bêta, nous regardons pour chaque personne les jours où vous avez pratiqué, combien de temps et combien de mots français vous avez lus et écrits, pour savoir si le cours aide, et nous pouvons vous proposer une courte conversation. Quand vous touchez «Quelque chose cloche ici», le signalement contient ce que l’écran affichait."] },
           { "h": "Qui les traite pour nous", "p": [
             "OpenAI (États-Unis) lit vos réponses, enregistrements et photos pour vous corriger et vous répondre, et crée les images et l’audio de l’histoire. Selon les conditions de l’API d’OpenAI, ces données ne servent pas à entraîner ses modèles et sont gardées au plus 30 jours pour la détection d’abus.",
             "Si activés : Anthropic (États-Unis) en secours pour le texte quand OpenAI est indisponible, et ElevenLabs pour la lecture à voix haute (il ne reçoit que le texte à lire).",
-            "Render (serveurs à Francfort, UE) héberge l’app et sa base de données. Un prestataire d’e-mail envoie les messages de connexion et de mot de passe. Apple achemine les notifications."
+            "Render (serveurs à Francfort, UE) héberge l’app et sa base de données. Un prestataire d’e-mail envoie les messages de connexion et de mot de passe. Apple achemine les notifications.", "Si activé : Sentry reçoit les rapports de plantage et d’erreur de l’app et des serveurs, sans le contenu de vos réponses."
           ] },
           { "h": "Durée de conservation", "p": ["Tant que votre compte existe. Un document supprimé est supprimé. La suppression du compte efface les données du compte ; des compteurs anonymes qui ne renvoient plus à vous peuvent rester. Les sauvegardes du serveur expirent selon le calendrier de l’hébergeur."] },
           { "h": "Vos choix et vos droits", "p": [
