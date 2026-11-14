@@ -980,6 +980,37 @@ def echoed_thread(reply: str, earlier: list[str]) -> list[str]:
     return []
 
 
+#: A line of this many words or more, said whole inside another line of the same reply, is
+#: said twice. Shorter ones («Je comprends.», «Merci.») are habits, not repeats.
+REPEATED_RUN_WORDS = 3
+
+
+def repeated_line(line: str, others: Iterable[str]) -> str | None:
+    """The line of ``others`` that ``line`` says again, or ``None`` (#776, root cause #145).
+
+    One reply is put together from several writers: the reader's first line, the page's
+    authored reaction, the closer's last words, the page's tail. Each was told what the others
+    say and none was checked against them, so on the walk of 14 Nov Lila said «Je comprends.
+    Viens, tu vas voir une chose.» and then the page's «Viens. Tu vas voir une chose.».
+
+    Two lines are the same when their words are, up to punctuation and case, or when one says
+    the other whole (``REPEATED_RUN_WORDS`` words or more) inside itself."""
+
+    mine = _tokens(line)
+    if not mine:
+        return None
+    for other in others:
+        theirs = _tokens(other)
+        if not theirs:
+            continue
+        if mine == theirs:
+            return other
+        short, long = (mine, theirs) if len(mine) <= len(theirs) else (theirs, mine)
+        if len(short) >= REPEATED_RUN_WORDS and _contains_run(long, short):
+            return other
+    return None
+
+
 # ---------------------------------------------------------------------------
 # #145 — the reply, compared with what the scene's ledger knows
 # ---------------------------------------------------------------------------

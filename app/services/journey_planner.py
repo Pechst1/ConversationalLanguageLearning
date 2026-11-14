@@ -2987,7 +2987,7 @@ def later_act_steps(
             estimated_seconds=item.respond_seconds,
             public_prompt={
                 "turn_index": 0,
-                "max_turns": item.turns,
+                "max_turns": task.shown_turns(item.turns),
                 "repair_allowed": bool(task.repair_allowed),
                 "character_id": task.character_id,
                 "character_name": display_name(task.character_id, task.character_name),
@@ -3791,7 +3791,7 @@ def plan_journey(
             estimated_seconds=respond_cost,
             public_prompt={
                 "turn_index": 0,
-                "max_turns": turns,
+                "max_turns": task.shown_turns(turns),
                 "repair_allowed": bool(task.repair_allowed),
                 "character_id": task.character_id,
                 "character_name": display_name(task.character_id, task.character_name),
@@ -6372,7 +6372,7 @@ def _plan_practice_day(
             estimated_seconds=respond_cost,
             public_prompt={
                 "turn_index": 0,
-                "max_turns": turns,
+                "max_turns": task.shown_turns(turns),
                 "repair_allowed": bool(task.repair_allowed),
                 "character_id": task.character_id,
                 "character_name": display_name(task.character_id, task.character_name),
