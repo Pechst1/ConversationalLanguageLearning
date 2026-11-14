@@ -732,10 +732,19 @@ _NOTE_PRIORITY = {"line_form": 6, "gender": 5, "elision": 4, "accent": 3, "form"
 
 
 def _rank(verdict: Verdict) -> tuple[int, int, int, int]:
+    """Which accepted answer a verdict is measured against: the best one.
+
+    An accept is better the cleaner it is (exact, then without a slip). A miss is
+    better the nearer it is: a miss that is only an accent or a typo away from an
+    accepted answer is measured against that answer, never against one a whole word
+    away (#696: «Ils ont envoye» was told «Elles ont envoyé» because the key, a
+    pronoun away, ranked above «Ils ont envoyé», an accent away)."""
+
+    slipped = verdict.accent_slip or verdict.typo
     return (
         int(verdict.correct),
         int(verdict.exact),
-        int(not verdict.accent_slip and not verdict.typo),
+        int(not slipped) if verdict.correct else int(slipped),
         _NOTE_PRIORITY.get(verdict.note or "", 0),
     )
 
