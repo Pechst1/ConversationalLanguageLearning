@@ -361,7 +361,35 @@ def build(
               for row in stands if row["stance"] == "refused"),
         ],
         "in_the_room": [str(person) for person in in_the_room or [] if person],
+        "addressed": addressed(learner_text if str(learner_text or "").strip() else (turns[-1][0] if turns else ""),
+                               in_the_room),
     }
+
+
+def addressed(learner_text: Any, in_the_room: list[Any] | None) -> dict[str, str] | None:
+    """#750: someone in the room other than the scene's character, whom the learner's turn
+    speaks to by name («Marin, tu peux m'aider ?»), or ``None``.
+
+    The reply is still the character's line, so the character must not answer as that
+    person: they say what the person answers or does, or that they answer for them. The
+    room's first person is the scene's character (:func:`room_of`), never «someone else».
+    """
+
+    from app.services.answer_acceptance import addressed_names
+    from app.services.cast_registry import display_name
+
+    room = [str(person) for person in in_the_room or [] if person]
+    if len(room) < 2:
+        return None
+    names = {_folded(name) for name in addressed_names(learner_text)}
+    if not names:
+        return None
+    for person in room[1:]:
+        name = display_name(person) or ""
+        first = name.split()[0] if name.strip() else ""
+        if first and _folded(first) in names:
+            return {"id": person, "name": first}
+    return None
 
 
 def _main_learner_question(text: Any) -> str | None:
