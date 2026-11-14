@@ -10,7 +10,7 @@ import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recordi
 import { oncePerLoad } from '@/lib/once-per-load';
 import { correctRunFrom, seanceAssessment, secondCheckChange } from '@/lib/seance-feedback';
 import { withinWordRange } from '@/lib/word-range';
-import { forgeCorrectionNotes } from '@/lib/correction-notes';
+import { dedupeNotes, forgeCorrectionNotes } from '@/lib/correction-notes';
 import { classifyRepair } from '@/lib/forge-followup';
 import { classificationCopy, classificationGoal, isJudgementLabels, judgementLabel, judgementQuestion } from '@/lib/classification-copy';
 import { answeredLevel, itemVerdict, productionPhase, reviewIsPending, settleShownCorrection, type RepairStep } from '@/lib/forge-verdict';
@@ -63,6 +63,7 @@ import {
   EpMotif,
   EpRule,
   EpPrompt,
+  EpScenePrompt,
   Blank,
   EpOpts,
   EpOpt,
@@ -82,6 +83,8 @@ import {
   EpCorrect,
   EpRepair,
   EpPartsRepair,
+  EpMore,
+  EpTaskLine,
   EpListen,
   EpRecord,
   EpLock,
@@ -199,7 +202,9 @@ import { bestComboLine, fillMomentum, momentumCopy } from '@/lib/momentum-copy';
 import { eclairHref, eclairPairLabel } from '@/lib/grammar-map';
 import { playComboTone } from '@/lib/sound';
 import { atelierErrorText, type AtelierErrorNotice } from '@/lib/atelier-errors';
-import { epreuveCopy, fill, wordRangeText, type EpreuveCopy } from '@/components/epreuve/epreuve-copy';
+import { epreuveCopy, fill, wordRangeState, wordRangeText, type EpreuveCopy } from '@/components/epreuve/epreuve-copy';
+import { markedLine, retryOffered, solutionState, solutionWithheld, withheldHints, withheldRepairParts } from '@/lib/solution-gate';
+import { promptParts } from '@/lib/prompt-parts';
 import { usableCard } from '@/lib/rule-card';
 import { RuleCard } from '@/components/atelier-v2/rule/RuleCard';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
@@ -1618,6 +1623,24 @@ export default function AtelierPage() {
     }
   };
 
+  // Owner 2026-11-13: «Show the solution» spends the second chance; the server sends the
+  // correction whole (app/services/solution_gate.py), and «Continue» takes the retry's place.
+  const [revealing, setRevealing] = useState<Record<string, boolean>>({});
+  const revealSolution = async () => {
+    const attemptId = attemptIdsByKey[scopedKey];
+    if (!attemptId || revealing[scopedKey]) return;
+    setRevealing((prev) => ({ ...prev, [scopedKey]: true }));
+    try {
+      const result = await apiService.revealAtelierAttempt(attemptId);
+      applyAttemptResult(scopedKey, result, true, false);
+    } catch (error) {
+      console.error(error);
+      say(pageCopy.say_check_failed, 'alert');
+    } finally {
+      setRevealing((prev) => ({ ...prev, [scopedKey]: false }));
+    }
+  };
+
   // WP-S3 — «Épreuve de la règle» from the séance's rule header.
   const startTestOut = async (conceptId: number, options?: Parameters<typeof apiService.startForgeTestOut>[1]) => {
     if (testOutPending) return false;
@@ -2345,6 +2368,8 @@ export default function AtelierPage() {
             onSetRepairDraft={(key, value) => setRepairDrafts((prev) => ({ ...prev, [key]: value }))}
             onSubmitRepair={submitMicroRepair}
             repairSubmitting={repairSubmitting}
+            onRevealSolution={revealSolution}
+            revealing={!!revealing[scopedKey]}
             isRetest={Boolean(activeRetest)}
             onBack={() => {
               // WP-S8: leaving an unfinished forge séance is an abandon (the
@@ -3667,6 +3692,8 @@ function SessionView({
   onSetRepairDraft,
   onSubmitRepair,
   repairSubmitting,
+  onRevealSolution,
+  revealing = false,
   isRetest,
   onBack,
   produceAnswer,
@@ -3711,6 +3738,9 @@ function SessionView({
   onSetRepairDraft: (key: string, value: string) => void;
   onSubmitRepair: (erratumIndex: number) => void;
   repairSubmitting: Record<string, boolean>;
+  /** Owner 2026-11-13: «Show the solution» spends the second chance. */
+  onRevealSolution?: () => void;
+  revealing?: boolean;
   isRetest: boolean;
   onBack: () => void;
   produceAnswer: string;
@@ -4089,6 +4119,8 @@ function SessionView({
                 onSetRepairDraft={onSetRepairDraft}
                 onSubmitRepair={onSubmitRepair}
                 repairSubmitting={repairSubmitting}
+                onRevealSolution={onRevealSolution}
+                revealing={revealing}
                 feedbackKey={currentKey}
                 isLabelCompare={round === 'recognize' && mode === 'classify'}
                 onRetryAiReview={requestAiReview}
@@ -4174,6 +4206,8 @@ export function ExerciseFeedbackMoment({
   picked = false,
   ruleShown = null,
   attempt = null,
+  onRevealSolution,
+  revealing = false,
 }: {
   feedback: InlineFeedbackModel;
   submitted: boolean;
@@ -4205,6 +4239,9 @@ export function ExerciseFeedbackMoment({
   ruleShown?: string | null;
   /** The server's id for the attempt on screen: the cast counts a checked answer once (#302). */
   attempt?: string | null;
+  /** Owner 2026-11-13: «Show the solution» spends the second chance. */
+  onRevealSolution?: () => void;
+  revealing?: boolean;
 }) {
   const t = useEpCopy();
   // WP-103 T8: the follow-up's draft, per exercise, so a return finds it as it was left.
@@ -4280,6 +4317,68 @@ export function ExerciseFeedbackMoment({
       </div>
     );
   }
+  // Owner 2026-11-13: «the user should not see what is right when he then gets another
+  // chance to fix it; only afterwards the solution.» While the chance is open the server
+  // sends no solution (app/services/solution_gate.py); the screen shows WHERE (the marked
+  // words of the learner's own line) and WHY (the rule, as a hint), then the chance.
+  if (!feedback.correct && solutionWithheld(correction)) {
+    const hints = withheldHints(correction);
+    const line = String(correction?.marked_line || feedback.learner || '').trim();
+    const marks = Array.isArray(correction?.marks) ? correction!.marks : [];
+    const inPlace = production && !isLabelCompare ? withheldRepairParts(line, marks) : null;
+    const repairKey = `${feedbackKey}:0`;
+    const reason = hints.reason ? <p className="ep-why">{hints.reason}</p> : null;
+    const more = hints.more.length ? <EpMore label={t.more}>{hints.more.map((note) => <p key={note}>{note}</p>)}</EpMore> : null;
+    return (
+      <div className="ep-feedback" data-verdict="wrong" data-solution="withheld" ref={feedbackRef}>
+        {inPlace ? (
+          <EpPartsRepair
+            parts={inPlace}
+            typed={partsTyped[repairKey] || {}}
+            status={null}
+            onChange={(next) => {
+              setPartsTyped((prev) => ({ ...prev, [repairKey]: next }));
+              onSetRepairDraft(repairKey, assembleRepair(inPlace, next));
+            }}
+            onSubmit={() => onSubmitRepair(0)}
+            submitting={!!repairSubmitting[repairKey]}
+          >
+            {reason}
+            {more}
+          </EpPartsRepair>
+        ) : (
+          <EpGalley anchor={picked || !line ? t.miss_choice : t.miss_where}>
+            {!picked && line ? (
+              <p className="ep-marked" lang="fr">
+                {markedLine(line, marks).map((segment, index) => (segment.marked
+                  ? <mark key={index} className="ep-mark">{segment.text}</mark>
+                  : <React.Fragment key={index}>{segment.text}</React.Fragment>))}
+              </p>
+            ) : null}
+            {reason}
+            {more}
+          </EpGalley>
+        )}
+        {hints.task && <EpTaskLine label={t.task}>{hints.task}</EpTaskLine>}
+        <EpFoot tone="wrong">
+          <EpVerdict tone="no" sub={t.miss_sub} coach={coach} coachMood={mood} attempt={attempt}>{t.verdict_wrong}</EpVerdict>
+          {onTryAgain && <EpBar tone="ghost" icon="retry" onClick={onTryAgain}>{production ? t.retry_line : t.retry}</EpBar>}
+          <div className="ep-fb-links">
+            {onRevealSolution && (
+              <button type="button" data-action="reveal" onClick={onRevealSolution} disabled={revealing} aria-busy={revealing || undefined}>
+                {revealing ? t.showing_solution : t.show_solution}
+              </button>
+            )}
+            {onReport && <button type="button" onClick={onReport}>{t.report}</button>}
+          </div>
+        </EpFoot>
+      </div>
+    );
+  }
+  // After the chance (or with none) the solution is on screen: no retry, the way on is «Continue».
+  const shownState = solutionState(correction);
+  const solutionOnScreen = shownState === 'spent' || shownState === 'shown';
+  const repairSpent = shownState === 'spent' && correction?.solution?.revealed_by === 'repair';
   const issues = feedback.issues?.length
     ? feedback.issues
     : feedback.target
@@ -4294,6 +4393,12 @@ export function ExerciseFeedbackMoment({
   // The typed retype only gates Next for corrections that are real lines;
   // one-word fixes are settled by the galley marks alone.
   const needsNewAnswer = issues.some((issue) => issue.task_error_type === 'task_compliance' || !issue.corrected_target);
+  // Owner 2026-11-13: what the task asked is said once, in one quiet line; the rest behind «More».
+  const isTaskIssue = (issue: AtelierErratum) => issue.task_error_type === 'task_compliance' || !String(issue.corrected_target || feedback.target || '').trim();
+  const taskIssues = issues.filter(isTaskIssue);
+  const taskNotes = dedupeNotes(taskIssues.map((issue) => issue.why_wrong || feedback.why));
+  const taskNote = taskNotes[0] || '';
+  const taskMore = dedupeNotes([...taskNotes, ...taskIssues.map((issue) => issue.repair_hint)]).filter((note) => note !== taskNote);
   // #381: one reading of the repair step for the band and the buttons: once every line
   // on screen is mended, the band says so instead of «Not yet» under «Line fixed».
   const { complete: repairsComplete, mended } = repairState({
@@ -4303,6 +4408,9 @@ export function ExerciseFeedbackMoment({
     isLabelCompare: Boolean(isLabelCompare),
     needsNewAnswer,
   });
+  // Owner 2026-11-13: with the solution on screen the chance is over: «Continue», no retry.
+  const canGoOn = repairsComplete || solutionOnScreen;
+  const retry = retryOffered(correction) ? onTryAgain : undefined;
   // WP-S1: the verdict on screen is the local one and it never waits. The
   // model's second reading runs quietly behind it; a note appears only if it
   // changed the verdict. (An open answer it could not read at all becomes
@@ -4372,25 +4480,30 @@ export function ExerciseFeedbackMoment({
         const target = String(issue.corrected_target || feedback.target || '').trim();
         const repairKey = `${feedbackKey}:${index}`;
         const repair = repairs[String(index)] || null;
-        if (issue.task_error_type === 'task_compliance' || !target) {
-          return <React.Fragment key={`task-${index}`}>
-            {/* The second-check note rides on the first card, whatever kind it is. */}
-            {index === 0 && relecture}
-            <div className="av2-surface" role="status">
-              <p className="av2-label">{t.task}</p>
-              <p className="av2-body">{issue.why_wrong || feedback.why}</p>
-              {issue.repair_hint && <p className="av2-body">{issue.repair_hint}</p>}
-            </div>
-          </React.Fragment>;
+        if (isTaskIssue(issue)) {
+          // Owner 2026-11-13: the task is reminded once, in one quiet line under the
+          // cards (below), never as a card of its own. The second-check note rides here.
+          return index === 0 && relecture ? <React.Fragment key={`task-${index}`}>{relecture}</React.Fragment> : null;
         }
+        // One short reason on the card; the repair hint, when it says more, waits behind «More».
+        // (While a repair is still open, its hint is the next action and stays on the card.)
+        const whyText = display(printableWhy(withoutRuleReference(issue.why_wrong || feedback.why || '', ruleShown)));
+        const hintText = display(printableWhy(issue.repair_hint || (index === 0 ? feedback.repair : '')));
+        // A whole line's card joins one note per issue: the task's note is said once, in
+        // the task line below, never again on the card.
+        const taskSaid = new Set(taskNotes.map((note) => note.trim()));
+        const [reason, ...rest] = dedupeNotes([...whyText.split('\n'), hintText])
+          .filter((note) => !taskSaid.has(note.trim()));
+        const repairHint = solutionOnScreen ? '' : rest.join(' ');
         return (
           <React.Fragment key={`${issue.display_label || 'repair'}-${index}`}>
             <EpGalley
               anchor={ruleShown
                 ? correctionAnchor(issue.display_label, ruleShown) ?? (issues.length > 1 ? fill(t.correction_n, { n: index + 1 }) : undefined)
                 : issue.display_label || fill(t.correction_n, { n: index + 1 })}
-              why={display(printableWhy(withoutRuleReference(issue.why_wrong || feedback.why || '', ruleShown)))}
-              repair={display(printableWhy(issue.repair_hint || (index === 0 ? feedback.repair : ''))) || undefined}
+              why={reason || undefined}
+              repair={repairHint || undefined}
+              more={solutionOnScreen && rest.length ? <EpMore label={t.more}>{rest.map((note) => <p key={note}>{note}</p>)}</EpMore> : undefined}
               // One second-look note per correction sheet, not one per erratum.
               relecture={index === 0 ? relecture : undefined}
             >
@@ -4400,20 +4513,22 @@ export function ExerciseFeedbackMoment({
                   ? <EpLineFix old={learner} fix={target || t.corrected} />
                   : learner ? <EpFix old={learner} fix={target || t.corrected} /> : <EpIns fix={target || t.corrected} />}
             </EpGalley>
-            {index === 0 && lineParts && (
+            {/* The repair is the second chance: once the solution is on screen it is shown
+                only as it was sent, never offered again as a copy of the line above. */}
+            {index === 0 && lineParts && (!solutionOnScreen || repairSpent) && (
               <EpPartsRepair
                 parts={lineParts}
                 typed={partsTyped[repairKey] || {}}
                 status={repair?.status || null}
-                onChange={(next) => {
+                onChange={repairSpent ? undefined : (next) => {
                   setPartsTyped((prev) => ({ ...prev, [repairKey]: next }));
                   onSetRepairDraft(repairKey, assembleRepair(lineParts, next));
                 }}
-                onSubmit={() => onSubmitRepair(index)}
+                onSubmit={repairSpent ? undefined : () => onSubmitRepair(index)}
                 submitting={!!repairSubmitting[repairKey]}
               />
             )}
-            {!isLabelCompare && target && isRepairableLine(target) && !(index === 0 && lineParts) && (
+            {!solutionOnScreen && !isLabelCompare && target && isRepairableLine(target) && !(index === 0 && lineParts) && (
               <EpRepair
                 target={target}
                 typed={repair?.typed || repairDrafts[repairKey] || ''}
@@ -4426,6 +4541,12 @@ export function ExerciseFeedbackMoment({
           </React.Fragment>
         );
       })}
+      {taskNote && (
+        <>
+          <EpTaskLine label={t.task}>{taskNote}</EpTaskLine>
+          {taskMore.length > 0 && <EpMore label={t.more}>{taskMore.map((note) => <p key={note}>{note}</p>)}</EpMore>}
+        </>
+      )}
       {followUpBlock}
       {vocabularyGaps.length > 0 && (
         <div className="ep-notebook-add">
@@ -4449,14 +4570,14 @@ export function ExerciseFeedbackMoment({
         <EpVerdict tone={mended ? 'go' : 'no'} sub={rule} coach={coach} coachMood={mended ? 'happy' : mood} attempt={attempt}>
           {mended ? t.verdict_correct : t.verdict_wrong}
         </EpVerdict>
-        {repairsComplete
+        {canGoOn
           ? (!followGate && <EpBar icon="check" onClick={onNext}>{nextLabel}</EpBar>)
-          : onTryAgain && <EpBar tone="ghost" icon="retry" onClick={onTryAgain}>{t.retry_line}</EpBar>}
+          : retry && <EpBar tone="ghost" icon="retry" onClick={retry}>{t.retry_line}</EpBar>}
         <div className="ep-fb-links">
-          {repairsComplete && onTryAgain && (
-            <button type="button" onClick={onTryAgain}>{t.retry}</button>
+          {canGoOn && retry && (
+            <button type="button" onClick={retry}>{t.retry}</button>
           )}
-          {needsNewAnswer && <button type="button" onClick={onNext}>{t.skip}</button>}
+          {needsNewAnswer && !canGoOn && <button type="button" onClick={onNext}>{t.skip}</button>}
           {onReport && (
             <button type="button" onClick={onReport}>{t.report}</button>
           )}
@@ -4691,7 +4812,7 @@ function TransformPanel({
   const sentence = String(item.source_fr || item.source || '');
   // La Forge says a miss's right line once, in its correction; a right answer
   // hears it here.
-  const modelAudio = submitted && !(drill && correction?.verdict !== 'correct') && (() => {
+  const modelAudio = submitted && !solutionWithheld(correction) && !(drill && correction?.verdict !== 'correct') && (() => {
     const corrected = correction?.corrected_answer;
     const correctedForItem = corrected && typeof corrected === 'object' ? corrected[item.id] : undefined;
     const modelText = String(correctedForItem || item.expected_answer || answers[item.id] || '').trim();
@@ -4742,7 +4863,11 @@ function itemFeedback(item: any, learner: any, correction: Record<string, any> |
   const corrected = correction.corrected_answer || {};
   const target = typeof corrected === 'object' ? corrected[item.id] : item.correct_answer || item.expected_answer;
   const learnerText = Array.isArray(learner) ? learner.join(' ') : String(learner || '');
-  const targetText = String(target || item.correct_answer || item.expected_answer || item.correct_label || '');
+  // Owner 2026-11-13: while the second chance is open the solution is not drawn from the
+  // item's own key either: no right card turns green, no corrected word is printed.
+  const targetText = solutionWithheld(correction)
+    ? ''
+    : String(target || item.correct_answer || item.expected_answer || item.correct_label || '');
   const errata: AtelierErratum[] = Array.isArray(correction.errata) ? correction.errata : [];
   const hasItemScopedErrata = errata.some((erratum) => Boolean(String(erratum.item_id || '').trim()));
   const targetNorm = normalizeClient(targetText);
@@ -4806,7 +4931,7 @@ function correctionTargetText(value: unknown): string {
   return String(value);
 }
 
-function feedbackFromFreeformCorrection(correction: Record<string, any> | null, fallbackTarget = '', learner = '', t: EpreuveCopy = epreuveCopy('fr')): InlineFeedbackModel {
+export function feedbackFromFreeformCorrection(correction: Record<string, any> | null, fallbackTarget = '', learner = '', t: EpreuveCopy = epreuveCopy('fr')): InlineFeedbackModel {
   if (!correction) return null;
   const allErrata: AtelierErratum[] = Array.isArray(correction?.errata) ? correction.errata : [];
   // Task compliance is part of the assessment and must remain visible.
@@ -4817,7 +4942,10 @@ function feedbackFromFreeformCorrection(correction: Record<string, any> | null, 
   // it when corrected_answer is unavailable or unchanged.
   const cleanRewrite = correctionTargetText(correction?.corrected_answer);
   const rewriteDiffers = !!cleanRewrite && normalizeClient(cleanRewrite) !== normalizeClient(learner);
-  const shownTarget = rewriteDiffers ? cleanRewrite : (errata[0]?.corrected_target || cleanRewrite || fallbackTarget);
+  // Owner 2026-11-13: no model answer stands in for a solution that is withheld.
+  const shownTarget = solutionWithheld(correction)
+    ? ''
+    : rewriteDiffers ? cleanRewrite : (errata[0]?.corrected_target || cleanRewrite || fallbackTarget);
   // WP-103 T9/T10: one explanation per distinct issue, never the same one three times.
   const whyLines = forgeCorrectionNotes(correction);
   const assessment = seanceAssessment(correction);
@@ -4825,10 +4953,14 @@ function feedbackFromFreeformCorrection(correction: Record<string, any> | null, 
   const taskOnly = !rewriteDiffers && (errata.length === 0 || errata.every((item) => item.task_error_type === 'task_compliance'));
   // One clean before/after for the whole line, with each error explained in the
   // note — instead of one messy before/after per erratum.
+  // Owner 2026-11-13: the card counts the corrections it shows. A task note is said in
+  // its own line under the card, so it is not one of them.
+  const lineErrata = errata.filter((item) => item.task_error_type !== 'task_compliance');
+  const shownCount = errata.length ? lineErrata.length : whyLines.length;
   const issues: AtelierErratum[] = correct ? [] : [{
-    display_label: whyLines.length > 1
-      ? fill(t.corrections_n, { n: whyLines.length })
-      : ((errata.length === 1 ? errata[0]?.display_label : '') || t.corrected_line),
+    display_label: shownCount > 1
+      ? fill(t.corrections_n, { n: shownCount })
+      : ((lineErrata.length === 1 ? lineErrata[0]?.display_label : '') || t.corrected_line),
     learner_text: learner,
     corrected_target: taskOnly ? '' : (rewriteDiffers ? shownTarget : (errata[0]?.corrected_target || '')),
     why_wrong: whyLines.join('\n') || t.task_default_why,
@@ -4968,7 +5100,7 @@ function EpreuveWiringStyles() {
   );
 }
 
-function OutputLadderPanel({
+export function OutputLadderPanel({
   payload,
   round,
   answer,
@@ -5061,9 +5193,17 @@ function OutputLadderPanel({
   };
 
   const instruction = t[`${round}_instruction` as const];
+  // Owner 2026-11-13: one voice per level. A scene prompt is cut at its quote: the
+  // situation and the instruction are quiet sans, only the quoted line is Garamond,
+  // set as speech from the named speaker. With no quote it is today's headline.
+  const split = promptParts(promptText);
+  const promptLang = promptLocalized ? cueLanguage : 'fr';
+  const speakerInFigure = Boolean(round === 'conversation' && split && character.name);
+  // The prompt's own instruction says what to do: the generic round cue would say it twice.
+  const promptCue = split?.instruction ? item.instruction || undefined : item.instruction || instruction;
   return (
-    <div className={`ep-exercise ep-output ep-output-${round}`}>
-      {round === 'conversation' && character.name && (
+    <div className={`ep-exercise ep-output ep-output-${round}`} data-prompt={split ? 'scene' : 'line'}>
+      {round === 'conversation' && character.name && !speakerInFigure && (
         <div className="ep-character-byline" aria-label={fill(t.conversation_with, { name: character.name })}>
           {/* WP-S5: a free-use scene is said by the rule's coach. */}
           {item.scene && character.id && (
@@ -5073,9 +5213,19 @@ function OutputLadderPanel({
           <em lang="fr">{String(character.register || 'vous')}</em>
         </div>
       )}
-      <EpPrompt cue={item.instruction || instruction} lang={promptLocalized ? cueLanguage : 'fr'}>
-        {promptText}
-      </EpPrompt>
+      <EpScenePrompt
+        text={promptText}
+        split={split}
+        cue={promptCue}
+        lang={promptLang}
+        speaker={speakerInFigure ? {
+          name: String(character.name),
+          register: String(character.register || 'vous'),
+          portrait: item.scene && character.id
+            ? <CastPortrait characterId={String(character.id)} name={String(character.name)} size="xs" ring />
+            : null,
+        } : null}
+      />
       <ForgeGoalLine goal={itemGoal(item, item.instruction || instruction)} />
       {round === 'speak' && (
         <EpRecord
@@ -5096,7 +5246,7 @@ function OutputLadderPanel({
         className="ep-composed-input"
         placeholder={t[`${round}_placeholder` as const]}
       />
-      <div className="word-count">
+      <div className="word-count" data-state={wordRangeState(wordCount(answer), item.min_words, item.max_words)}>
         {wordRangeText(t, wordCount(answer), item.min_words, item.max_words)}
       </div>
       {submitted && (() => {
@@ -5147,9 +5297,12 @@ function ProducePanel({
   const t = useEpCopy();
   return (
     <div className="ep-exercise ep-produce-panel">
-      <EpPrompt cue={sourceFragment ? `« ${sourceFragment} »` : undefined} lang={promptLocalized ? cueLanguage : 'fr'}>
-        {promptText || t.produce_missing}
-      </EpPrompt>
+      <EpScenePrompt
+        text={promptText || t.produce_missing}
+        split={promptParts(promptText)}
+        cue={sourceFragment ? `« ${sourceFragment} »` : undefined}
+        lang={promptLocalized ? cueLanguage : 'fr'}
+      />
       <div className="target-chips">
         {requirements.map((req: { label: string; count: number }) => <span key={req.label}>{req.count} × {req.label}</span>)}
       </div>
@@ -5164,7 +5317,7 @@ function ProducePanel({
         </div>
       )}
       <textarea className="ep-composed-input" value={answer} onChange={(event) => updateAnswer(event.target.value)} placeholder={t.produce_placeholder} readOnly={submitted || sending} />
-      <div className="word-count">{wordRangeText(t, wordCount(answer), produce.min_words, produce.max_words)}</div>
+      <div className="word-count" data-state={wordRangeState(wordCount(answer), produce.min_words, produce.max_words)}>{wordRangeText(t, wordCount(answer), produce.min_words, produce.max_words)}</div>
     </div>
   );
 }

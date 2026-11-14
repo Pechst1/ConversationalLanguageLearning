@@ -662,6 +662,7 @@ ATELIER_CORRECTION_RESPONSE_FORMAT: dict[str, Any] = {
                             "corrected_target": {"type": "string"},
                             "why_wrong": {"type": "string"},
                             "repair_hint": {"type": "string"},
+                            "hint": {"type": "string"},
                             "severity": {"type": "integer"},
                             "recurring": {"type": "boolean"},
                             "task_error_type": {"type": "string"},
@@ -674,6 +675,7 @@ ATELIER_CORRECTION_RESPONSE_FORMAT: dict[str, Any] = {
                             "corrected_target",
                             "why_wrong",
                             "repair_hint",
+                            "hint",
                             "severity",
                             "recurring",
                             "task_error_type",
@@ -5039,6 +5041,10 @@ class AtelierCorrectionService:
             "submitted_at": datetime.now(UTC).isoformat(),
         }
         correction["micro_repairs"] = repairs
+        # Owner 2026-11-13: the repair was the second chance; the solution is shown from now on.
+        from app.services import solution_gate
+
+        correction = solution_gate.reveal(correction, by="repair")
 
         # A correct retype earns a delayed retrieval attempt. It is not an
         # attempt reward and it is tied to this source correction for reloads.
@@ -5517,7 +5523,7 @@ class AtelierCorrectionService:
         "micro_repairs", "retest", "retest_of", "confidence", "calibration", "adaptive_lock",
         "vocabulary_gaps", "vocabulary_credit", "local_check", "local_verdict", "local_status", "latency",
         "accent_notes", "rule_reference", "evidence_deferred", "evidence_applied", "world_reply",
-        "forge",
+        "forge", "solution",
     )
 
     def _amend_forge_evidence(self, attempt: AtelierAttempt, *, user: User, session: AtelierSession | None) -> bool:
@@ -8017,6 +8023,7 @@ class AtelierCorrectionService:
                     "corrected_target": corrected_target,
                     "why_wrong": why_wrong,
                     "repair_hint": repair_hint,
+                    "hint": self._clean_feedback_text(item.get("hint") or ""),
                     "severity": severity,
                     "recurring": bool(item.get("recurring")) and task_error_type != "task_compliance",
                     "task_error_type": str(task_error_type),
@@ -8215,7 +8222,12 @@ class AtelierCorrectionService:
             "email, film, sport, taxi, match or jean are French words. Never call a French word English, never list it in "
             "lexical_gaps and never replace it only because it looks English; correct only what is actually wrong around it. "
             "One explanation per issue: why_wrong is ONE short sentence (about 15 words at most) naming the rule and the fixed form, about that issue only; never repeat the same "
-            "explanation in several errata, and repair_hint never restates why_wrong."
+            "explanation in several errata, and repair_hint never restates why_wrong. "
+            # Owner 2026-11-13: the hint is read BEFORE the learner tries again (solution_gate.py).
+            "hint is ONE short sentence, in the same language as why_wrong, that the learner reads before trying again: "
+            "it points at the rule and at the words that are wrong, as a pointer or a question, and NEVER contains the "
+            "corrected form, any word of corrected_target or corrected_answer the learner did not write, or the "
+            "answer spelt out (write «„carte“ is feminine: which article fits?», never «carte needs une»)."
         )
 
     def _explanation_language_instruction(self) -> str:

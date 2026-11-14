@@ -59,7 +59,7 @@ from app.schemas.atelier import (
     AtelierWorkshopComposeResponse,
 )
 from app.schemas.verdict import VerdictView
-from app.services import verdicts
+from app.services import solution_gate, verdicts
 from app.services.address import character_register
 from app.services.atelier import (
     ATELIER_GENERATOR_VERSION,
@@ -95,7 +95,7 @@ from app.services.cefr_progress import CEFRProgressService, live_level, with_can
 from app.services.chrome_language import user_chrome_language, user_mother_tongue
 from app.services.concept_titles import concept_title, concept_title_fr
 from app.services.error_memory import ErrorMemoryService
-from app.services.forge import ForgeService, is_forge_session  # WP-S3 La Forge
+from app.services.forge import TEST_OUT_STATUS, ForgeService, is_forge_session  # WP-S3 La Forge
 from app.services.forge_coaches import story_state_of
 from app.services.forge_item_validator import speaker_problems  # #267/#780: agrees with its badge
 from app.services.forge_metrics import record_forge_abandoned, sweep_stale_forge_seances  # WP-S8
@@ -639,8 +639,14 @@ def _attempt_response(
     minted_collectibles: list[dict[str, Any]] | None = None,
     forge: dict[str, Any] | None = None,
 ) -> AtelierAttemptResponse:
-    correction = attempt.correction_payload or {}
+    stored = attempt.correction_payload or {}
+    # Owner 2026-11-13: before the second chance is spent the learner sees where and why,
+    # never the solution (app/services/solution_gate.py).
+    correction = _learner_correction(attempt)
     ai_review = correction.get("ai_review") if isinstance(correction, dict) else {}
+    check = verdicts.from_forge(
+        stored, text=str((attempt.answer_payload or {}).get("text") or ""), verdict=attempt.verdict
+    ).to_dict()
     return AtelierAttemptResponse(
         attempt_id=attempt.id,
         verdict=attempt.verdict,
@@ -650,11 +656,19 @@ def _attempt_response(
         ai_review=ai_review if isinstance(ai_review, dict) else {},
         minted_collectibles=minted_collectibles or [],
         forge=forge or {},
-        check=VerdictView.of(
-            verdicts.from_forge(
-                correction, text=str((attempt.answer_payload or {}).get("text") or ""), verdict=attempt.verdict
-            )
-        ),
+        check=VerdictView.model_validate(solution_gate.withhold_check(check, stored, attempt.verdict)),
+    )
+
+
+def _learner_correction(attempt: AtelierAttempt) -> dict[str, Any]:
+    """The correction as the learner may see it now: without its solution while a second chance is open."""
+
+    stored = attempt.correction_payload or {}
+    return solution_gate.learner_view(
+        stored,
+        verdict=attempt.verdict,
+        answer_payload=attempt.answer_payload or {},
+        context=solution_gate.task_text(attempt.prompt_payload or {}),
     )
 
 
@@ -1121,8 +1135,14 @@ def _submitted_map(
 
 
 def _attempt_read(attempt: AtelierAttempt) -> dict[str, Any]:
-    correction = attempt.correction_payload or {}
+    stored = attempt.correction_payload or {}
+    withheld = solution_gate.is_withheld(stored, attempt.verdict)
+    # Owner 2026-11-13: a reload in the middle of a second chance shows it as it was.
+    correction = _learner_correction(attempt)
     submitted_keys = _submitted_keys_for_attempt(attempt)
+    check = verdicts.from_forge(
+        stored, text=str((attempt.answer_payload or {}).get("text") or ""), verdict=attempt.verdict
+    ).to_dict()
     return {
         "attempt_id": str(attempt.id),
         "session_id": str(attempt.atelier_session_id),
@@ -1130,15 +1150,13 @@ def _attempt_read(attempt: AtelierAttempt) -> dict[str, Any]:
         "round": attempt.round,
         "mode": attempt.mode,
         "exercise_id": attempt.exercise_id,
-        "prompt_payload": attempt.prompt_payload or {},
+        "prompt_payload": solution_gate.withhold_item(attempt.prompt_payload or {}) if withheld else (attempt.prompt_payload or {}),
         "answer_payload": attempt.answer_payload or {},
         "correction": correction,
         "ai_review": correction.get("ai_review") if isinstance(correction, dict) else {},
         "verdict": attempt.verdict,
         "score_0_4": attempt.score_0_4,
-        "check": verdicts.from_forge(
-            correction, text=str((attempt.answer_payload or {}).get("text") or ""), verdict=attempt.verdict
-        ).to_dict(),
+        "check": solution_gate.withhold_check(check, stored, attempt.verdict),
         "submitted_key": _submitted_key(attempt),
         "submitted_keys": submitted_keys,
         "created_at": attempt.created_at.isoformat() if attempt.created_at else None,
@@ -1723,6 +1741,21 @@ def submit_attempt(
     correction = dict(attempt.correction_payload or {})
     second_check_pending = AtelierCorrectionService.ai_review_from_correction(correction).get("status") == "pending"
     correction["latency"] = {**dict(correction.get("latency") or {}), "local_ms": local_ms}
+    # Owner 2026-11-13: a miss followed by a second chance keeps its solution until the
+    # chance is spent (a repair sent, «Show the solution»); the retry itself has none.
+    correction = solution_gate.mark(
+        correction,
+        chance=solution_gate.second_chance_for(
+            round_name=payload.round,
+            exercise_id=payload.exercise_id,
+            prompt_payload=attempt.prompt_payload or {},
+            answer_payload=answer_payload,
+            first_submission=first_submission,
+            retest=retest_source is not None,
+            rule_check=session.status == TEST_OUT_STATUS or correction.get("graded_by") == "local_test_out",
+        ),
+        language=user_chrome_language(current_user),
+    )
     attempt.correction_payload = correction
     db.add(attempt)
     PilotEventService(db).record(
@@ -1776,6 +1809,23 @@ def repair_attempt(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     return _attempt_response(updated)
+
+
+@router.post("/attempts/{attempt_id}/reveal", response_model=AtelierAttemptResponse)
+def reveal_attempt_solution(
+    attempt_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_atelier_user),
+) -> AtelierAttemptResponse:
+    """Owner 2026-11-13: «Show the solution» spends the second chance; the correction comes whole."""
+
+    attempt = _attempt_or_404(db, attempt_id, current_user)
+    attempt.correction_payload = solution_gate.reveal(dict(attempt.correction_payload or {}), by="reveal")
+    flag_modified(attempt, "correction_payload")
+    db.add(attempt)
+    db.commit()
+    db.refresh(attempt)
+    return _attempt_response(attempt)
 
 
 @router.post("/exercises/report", response_model=AtelierExerciseReportResponse, status_code=status.HTTP_201_CREATED)

@@ -70,6 +70,12 @@ export const FORGE_SHEET = {
   primary: '.ep-feedback button.ep-bar.av2-btn--primary:not([disabled])',
   links: '.ep-feedback .ep-fb-links button',
   skip: /^\s*(Skip this exercise|Passer cet exercice|Übung überspringen)\s*$/,
+  /**
+   * Owner 2026-11-13: a miss with a second chance shows no solution and no «Continue»
+   * (`data-solution="withheld"`); «Show the solution» spends the chance and brings both.
+   */
+  withheld: '.ep-feedback[data-solution="withheld"]',
+  reveal: '.ep-feedback .ep-fb-links button[data-action="reveal"]:not([disabled])',
 };
 
 /**

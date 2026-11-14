@@ -2844,6 +2844,11 @@ class ApiService {
     return this.atelierPost<AtelierAttemptResult>(`/atelier/attempts/${attemptId}/repair`, data);
   }
 
+  /** Owner 2026-11-13: «Show the solution» spends the second chance; the correction comes whole. */
+  async revealAtelierAttempt(attemptId: string) {
+    return this.atelierPost<AtelierAttemptResult>(`/atelier/attempts/${attemptId}/reveal`, {});
+  }
+
   async requestAtelierAttemptAiReview(attemptId: string) {
     return this.atelierPost<AtelierAttemptResult>(`/atelier/attempts/${attemptId}/ai-review`, {});
   }

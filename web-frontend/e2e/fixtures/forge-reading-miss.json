@@ -1,0 +1,344 @@
+{
+ "de": {
+  "withheld": {
+   "assessment_status": "checked",
+   "verdict": "partial",
+   "solution": {
+    "state": "withheld",
+    "language": "de"
+   },
+   "corrected_answer": "",
+   "errata": [
+    {
+     "item_id": "",
+     "display_label": "Artikel",
+     "learner_text": "un carte",
+     "corrected_target": "",
+     "why_wrong": "„Un“ ist maskulin.",
+     "repair_hint": "",
+     "hint": "„Un“ ist maskulin.",
+     "severity": null,
+     "recurring": null,
+     "task_error_type": "gender_agreement",
+     "concept_id": null,
+     "external_id": null,
+     "erratum_index": 0,
+     "mark": {
+      "start": 9,
+      "end": 11,
+      "text": "un",
+      "erratum": 0
+     },
+     "withheld": true
+    },
+    {
+     "item_id": "",
+     "display_label": "",
+     "learner_text": "",
+     "corrected_target": "",
+     "why_wrong": "Deine Antwort nennt eine Karte, verwendet aber nicht das geforderte Modalverb mit Infinitiv.",
+     "repair_hint": "",
+     "hint": "Deine Antwort nennt eine Karte, verwendet aber nicht das geforderte Modalverb mit Infinitiv.",
+     "severity": null,
+     "recurring": null,
+     "task_error_type": "task_compliance",
+     "concept_id": null,
+     "external_id": null,
+     "erratum_index": 1,
+     "mark": null,
+     "withheld": true
+    }
+   ],
+   "notes_native": [
+    "„Un“ ist maskulin.",
+    "Deine Antwort nennt eine Karte, verwendet aber nicht das geforderte Modalverb mit Infinitiv."
+   ],
+   "marks": [
+    {
+     "start": 9,
+     "end": 11,
+     "text": "un",
+     "erratum": 0
+    }
+   ],
+   "marked_line": "Oui j'ai un carte bancaire"
+  },
+  "shown": {
+   "assessment_status": "checked",
+   "verdict": "partial",
+   "corrected_answer": "Oui, j'ai une carte bancaire.",
+   "errata": [
+    {
+     "learner_text": "un carte",
+     "corrected_target": "une carte",
+     "why_wrong": "„Un“ ist maskulin; das feminine Substantiv „carte“ verlangt „une“.",
+     "repair_hint": "Setze vor „carte“ den Artikel „une“.",
+     "task_error_type": "gender_agreement",
+     "display_label": "Artikel"
+    },
+    {
+     "learner_text": "",
+     "corrected_target": "",
+     "why_wrong": "Deine Antwort nennt eine Karte, verwendet aber nicht das geforderte Modalverb mit Infinitiv.",
+     "repair_hint": "Antworte auf die Frage mit „je peux“ und dem Infinitiv „payer“.",
+     "task_error_type": "task_compliance"
+    }
+   ],
+   "solution": {
+    "state": "shown",
+    "language": "de",
+    "revealed_by": "reveal"
+   }
+  },
+  "before": {
+   "assessment_status": "checked",
+   "verdict": "partial",
+   "corrected_answer": "Oui, j'ai une carte bancaire.",
+   "errata": [
+    {
+     "learner_text": "un carte",
+     "corrected_target": "une carte",
+     "why_wrong": "„Un“ ist maskulin; das feminine Substantiv „carte“ verlangt „une“.",
+     "repair_hint": "Setze vor „carte“ den Artikel „une“.",
+     "task_error_type": "gender_agreement",
+     "display_label": "Artikel"
+    },
+    {
+     "learner_text": "",
+     "corrected_target": "",
+     "why_wrong": "Deine Antwort nennt eine Karte, verwendet aber nicht das geforderte Modalverb mit Infinitiv.",
+     "repair_hint": "Antworte auf die Frage mit „je peux“ und dem Infinitiv „payer“.",
+     "task_error_type": "task_compliance"
+    }
+   ]
+  }
+ },
+ "en": {
+  "withheld": {
+   "assessment_status": "checked",
+   "verdict": "partial",
+   "solution": {
+    "state": "withheld",
+    "language": "en"
+   },
+   "corrected_answer": "",
+   "errata": [
+    {
+     "item_id": "",
+     "display_label": "Article",
+     "learner_text": "un carte",
+     "corrected_target": "",
+     "why_wrong": "«Un» is masculine.",
+     "repair_hint": "",
+     "hint": "«Un» is masculine.",
+     "severity": null,
+     "recurring": null,
+     "task_error_type": "gender_agreement",
+     "concept_id": null,
+     "external_id": null,
+     "erratum_index": 0,
+     "mark": {
+      "start": 9,
+      "end": 11,
+      "text": "un",
+      "erratum": 0
+     },
+     "withheld": true
+    },
+    {
+     "item_id": "",
+     "display_label": "",
+     "learner_text": "",
+     "corrected_target": "",
+     "why_wrong": "Your answer names a card but does not use the modal verb with an infinitive that the task asks for.",
+     "repair_hint": "",
+     "hint": "Your answer names a card but does not use the modal verb with an infinitive that the task asks for.",
+     "severity": null,
+     "recurring": null,
+     "task_error_type": "task_compliance",
+     "concept_id": null,
+     "external_id": null,
+     "erratum_index": 1,
+     "mark": null,
+     "withheld": true
+    }
+   ],
+   "notes_native": [
+    "«Un» is masculine.",
+    "Your answer names a card but does not use the modal verb with an infinitive that the task asks for."
+   ],
+   "marks": [
+    {
+     "start": 9,
+     "end": 11,
+     "text": "un",
+     "erratum": 0
+    }
+   ],
+   "marked_line": "Oui j'ai un carte bancaire"
+  },
+  "shown": {
+   "assessment_status": "checked",
+   "verdict": "partial",
+   "corrected_answer": "Oui, j'ai une carte bancaire.",
+   "errata": [
+    {
+     "learner_text": "un carte",
+     "corrected_target": "une carte",
+     "why_wrong": "«Un» is masculine; the feminine noun «carte» takes «une».",
+     "repair_hint": "Put «une» before «carte».",
+     "task_error_type": "gender_agreement",
+     "display_label": "Article"
+    },
+    {
+     "learner_text": "",
+     "corrected_target": "",
+     "why_wrong": "Your answer names a card but does not use the modal verb with an infinitive that the task asks for.",
+     "repair_hint": "Answer the question with «je peux» and the infinitive «payer».",
+     "task_error_type": "task_compliance"
+    }
+   ],
+   "solution": {
+    "state": "shown",
+    "language": "en",
+    "revealed_by": "reveal"
+   }
+  },
+  "before": {
+   "assessment_status": "checked",
+   "verdict": "partial",
+   "corrected_answer": "Oui, j'ai une carte bancaire.",
+   "errata": [
+    {
+     "learner_text": "un carte",
+     "corrected_target": "une carte",
+     "why_wrong": "«Un» is masculine; the feminine noun «carte» takes «une».",
+     "repair_hint": "Put «une» before «carte».",
+     "task_error_type": "gender_agreement",
+     "display_label": "Article"
+    },
+    {
+     "learner_text": "",
+     "corrected_target": "",
+     "why_wrong": "Your answer names a card but does not use the modal verb with an infinitive that the task asks for.",
+     "repair_hint": "Answer the question with «je peux» and the infinitive «payer».",
+     "task_error_type": "task_compliance"
+    }
+   ]
+  }
+ },
+ "fr": {
+  "withheld": {
+   "assessment_status": "checked",
+   "verdict": "partial",
+   "solution": {
+    "state": "withheld",
+    "language": "fr"
+   },
+   "corrected_answer": "",
+   "errata": [
+    {
+     "item_id": "",
+     "display_label": "Article",
+     "learner_text": "un carte",
+     "corrected_target": "",
+     "why_wrong": "« Un » est masculin.",
+     "repair_hint": "",
+     "hint": "« Un » est masculin.",
+     "severity": null,
+     "recurring": null,
+     "task_error_type": "gender_agreement",
+     "concept_id": null,
+     "external_id": null,
+     "erratum_index": 0,
+     "mark": {
+      "start": 9,
+      "end": 11,
+      "text": "un",
+      "erratum": 0
+     },
+     "withheld": true
+    },
+    {
+     "item_id": "",
+     "display_label": "",
+     "learner_text": "",
+     "corrected_target": "",
+     "why_wrong": "Réponds avec « je peux » et l’infinitif « payer ».",
+     "repair_hint": "",
+     "hint": "Réponds avec « je peux » et l’infinitif « payer ».",
+     "severity": null,
+     "recurring": null,
+     "task_error_type": "task_compliance",
+     "concept_id": null,
+     "external_id": null,
+     "erratum_index": 1,
+     "mark": null,
+     "withheld": true
+    }
+   ],
+   "notes_native": [
+    "« Un » est masculin.",
+    "Réponds avec « je peux » et l’infinitif « payer »."
+   ],
+   "marks": [
+    {
+     "start": 9,
+     "end": 11,
+     "text": "un",
+     "erratum": 0
+    }
+   ],
+   "marked_line": "Oui j'ai un carte bancaire"
+  },
+  "shown": {
+   "assessment_status": "checked",
+   "verdict": "partial",
+   "corrected_answer": "Oui, j'ai une carte bancaire.",
+   "errata": [
+    {
+     "learner_text": "un carte",
+     "corrected_target": "une carte",
+     "why_wrong": "« Un » est masculin ; le nom féminin « carte » demande « une ».",
+     "repair_hint": "Mets « une » devant « carte ».",
+     "task_error_type": "gender_agreement",
+     "display_label": "Article"
+    },
+    {
+     "learner_text": "",
+     "corrected_target": "",
+     "why_wrong": "Ta réponse parle d’une carte, mais n’emploie pas le verbe modal avec l’infinitif demandé.",
+     "repair_hint": "Réponds avec « je peux » et l’infinitif « payer ».",
+     "task_error_type": "task_compliance"
+    }
+   ],
+   "solution": {
+    "state": "shown",
+    "language": "fr",
+    "revealed_by": "reveal"
+   }
+  },
+  "before": {
+   "assessment_status": "checked",
+   "verdict": "partial",
+   "corrected_answer": "Oui, j'ai une carte bancaire.",
+   "errata": [
+    {
+     "learner_text": "un carte",
+     "corrected_target": "une carte",
+     "why_wrong": "« Un » est masculin ; le nom féminin « carte » demande « une ».",
+     "repair_hint": "Mets « une » devant « carte ».",
+     "task_error_type": "gender_agreement",
+     "display_label": "Article"
+    },
+    {
+     "learner_text": "",
+     "corrected_target": "",
+     "why_wrong": "Ta réponse parle d’une carte, mais n’emploie pas le verbe modal avec l’infinitif demandé.",
+     "repair_hint": "Réponds avec « je peux » et l’infinitif « payer ».",
+     "task_error_type": "task_compliance"
+    }
+   ]
+  }
+ }
+}

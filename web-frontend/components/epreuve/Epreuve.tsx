@@ -50,6 +50,7 @@ import {
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
 import { CastActor, actorFigure } from '@/components/cast/vivant/CastActor';
 import { emitCameo } from '@/lib/cameo';
+import { frenchQuote } from '@/lib/french-typography';
 import { pulseAppHaptic } from '@/lib/haptics';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 
@@ -302,6 +303,46 @@ export function EpPrompt({ children, cue, lang = 'fr' }: { children: Node; cue?:
     <div className="ep-prompt">
       <div className="av2-headline ep-line" lang={lang || undefined}>{children}</div>
       {cue && <p className="av2-body av2-body--lg ep-cue">{cue}</p>}
+    </div>
+  );
+}
+/* Owner 2026-11-13: one voice per level. A scene prompt («À la gare, ton amie te
+   dit : « Le train part dans dix minutes ! » Réponds-lui…») is cut at its quote
+   (lib/prompt-parts.ts): the situation and the instruction are prose in the sans,
+   and only the quoted line — what the named speaker says — is set in Garamond
+   italic. With no quoted line it is today's single headline. */
+export function EpScenePrompt({
+  text,
+  cue,
+  lang = 'fr',
+  speaker,
+  split,
+}: {
+  text: string;
+  cue?: Node;
+  lang?: string;
+  /** The named speaker of the quoted line, and the register tag («tu»). */
+  speaker?: { name: string; register?: string; portrait?: Node } | null;
+  split: { situation: string; quote: string; instruction: string } | null;
+}) {
+  if (!split) return <EpPrompt cue={cue} lang={lang}>{text}</EpPrompt>;
+  return (
+    <div className="ep-prompt ep-prompt--scene" lang={lang || undefined}>
+      {split.situation && <p className="ep-situation">{split.situation}</p>}
+      <figure className="ep-speech">
+        {speaker?.name && (
+          <figcaption className="ep-speech__who">
+            {speaker.portrait}
+            <span className="ep-speech__name">{speaker.name}</span>
+            {speaker.register && <span className="ep-speech__register" lang="fr">{speaker.register}</span>}
+          </figcaption>
+        )}
+        {/* French speech is always in guillemets with French spacing, whatever the
+            chrome language (owner 2026-11-13): « Tu peux payer par carte ? » */}
+        <blockquote className="ep-speech__line av2-fr" lang="fr">{frenchQuote(split.quote)}</blockquote>
+      </figure>
+      {split.instruction && <p className="ep-instruction">{split.instruction}</p>}
+      {cue && <p className="ep-cue ep-cue--quiet">{cue}</p>}
     </div>
   );
 }
@@ -572,7 +613,7 @@ export function EpLineFix({ old, fix }: { old: Node; fix: Node }) {
 }
 /* `repair` is the corrector's concrete next action (repair_hint); it sits
    under the why, quieter than it, with the red triangle = action. */
-export function EpGalley({ anchor, children, why, repair, relecture }: { anchor?: Node; children: Node; why?: Node; repair?: Node; relecture?: Node }) {
+export function EpGalley({ anchor, children, why, repair, relecture, more }: { anchor?: Node; children: Node; why?: Node; repair?: Node; relecture?: Node; more?: Node }) {
   return (
     <div className="av2-correction ep-galley">
       {anchor && <p className="av2-label ep-galley__anchor">{anchor}</p>}
@@ -584,8 +625,28 @@ export function EpGalley({ anchor, children, why, repair, relecture }: { anchor?
           <span>{repair}</span>
         </p>
       )}
+      {more}
       {relecture}
     </div>
+  );
+}
+/* Owner 2026-11-13: one reason on the card; whatever else there is to say waits
+   behind «More», closed by default. */
+export function EpMore({ label, children }: { label: Node; children: Node }) {
+  return (
+    <details className="ep-more">
+      <summary>{label}</summary>
+      <div className="ep-more__body">{children}</div>
+    </details>
+  );
+}
+/* The task, reminded in one quiet line under the card, never a card of its own. */
+export function EpTaskLine({ label, children }: { label: Node; children: Node }) {
+  return (
+    <p className="ep-task-line">
+      <span className="ep-task-line__k">{label}</span>{' '}
+      <span>{children}</span>
+    </p>
   );
 }
 /* The second look. `failed` is a real state: the endpoint to ask again exists,
@@ -740,6 +801,7 @@ export function EpPartsRepair({
   onChange,
   onSubmit,
   submitting,
+  children,
 }: {
   parts: RepairPart[];
   typed: Record<number, string>;
@@ -747,6 +809,8 @@ export function EpPartsRepair({
   onChange?: (typed: Record<number, string>) => void;
   onSubmit?: () => void;
   submitting?: boolean;
+  /** Owner 2026-11-13: before the solution, the reason sits in this card, under the line. */
+  children?: Node;
 }) {
   const t = useEpCopy();
   const done = status === 'ok';
@@ -782,6 +846,7 @@ export function EpPartsRepair({
           );
         })}
       </p>
+      {children}
       {onSubmit && !done && (
         <button
           type="button"
@@ -1245,6 +1310,39 @@ export function LEpreuveStyles() {
 }
 .av2 .ep-blank[data-set='true'] { color: var(--av2-blue); }
 
+/* Owner 2026-11-13: one voice per level. The situation and the instruction are
+   quiet sans prose held to a reading measure; only the quoted line is Garamond
+   italic, set as speech under its speaker's name. */
+.av2 .ep-prompt--scene { gap: 12px; max-width: 36em; }
+.av2 .ep-situation,
+.av2 .ep-instruction {
+  margin: 0;
+  font-family: var(--av2-sans);
+  font-size: var(--av2-t-body-lg);
+  font-style: normal;
+  line-height: 1.5;
+  color: var(--av2-ink-2);
+}
+.av2 .ep-instruction { color: var(--av2-ink); }
+.av2 .ep-speech { margin: 0; display: flex; flex-direction: column; gap: 6px; padding-left: 14px; border-left: 2px solid var(--av2-line); }
+.av2 .ep-speech__who { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: var(--av2-t-label); color: var(--av2-ink-2); }
+.av2 .ep-speech__name { font-weight: 700; color: var(--av2-ink); }
+.av2 .ep-speech__register { font-weight: 700; color: var(--av2-blue); }
+.av2 .ep-speech__line {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-family: var(--av2-serif);
+  font-style: italic;
+  font-size: var(--av2-t-title);
+  line-height: 1.3;
+  color: var(--av2-ink);
+  overflow-wrap: anywhere;
+}
+.av2 .ep-cue--quiet { font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2); }
+/* Prose under any prompt keeps to a reading measure (about 45–65 characters on a phone). */
+.av2 .ep-prompt .ep-cue { max-width: 36em; }
+
 /* option cards: everything is the system's .av2-choice */
 .av2 .ep-opts { margin-top: 4px; }
 .av2 .ep-choices { min-width: 0; }
@@ -1301,7 +1399,25 @@ export function LEpreuveStyles() {
 .av2 .ep-field__caret { display: inline-block; width: 2px; height: 1.05em; background: var(--av2-red); vertical-align: -2px; margin-left: 1px; }
 @media (prefers-reduced-motion: no-preference) { .av2 .ep-field__caret { animation: ep-blink 1s step-end infinite; } }
 @keyframes ep-blink { 50% { opacity: 0; } }
-.av2 .word-count { margin: -6px 0 0; text-align: right; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); font-variant-numeric: tabular-nums; }
+/* Owner 2026-11-13: the counter is a quiet sentence-case line («0 von 5–10 Wörtern»),
+   emphatic only once the answer is out of range (data-state from wordRangeState). */
+.av2 .word-count {
+  margin: -4px 0 0;
+  text-align: right;
+  font-family: var(--av2-sans);
+  font-size: var(--av2-t-label);
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--av2-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.av2 .word-count[data-state='over'] { font-weight: 700; color: var(--av2-red-deep); }
+/* More air between what is asked and where it is answered. */
+.av2 .ep-output > .ep-prompt + *,
+.av2 .ep-produce-panel > .ep-prompt + * { margin-top: 8px; }
+.av2 .ep-output > .ep-composed-input,
+.av2 .ep-produce-panel > .ep-composed-input { margin-top: 8px; }
 .av2 .target-chips,
 .av2 .target-word-strip { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; min-width: 0; }
 .av2 .target-chips span,
@@ -1457,6 +1573,17 @@ export function LEpreuveStyles() {
 .av2 .ep-parts__gap:disabled { color: var(--av2-ink); border-bottom-color: transparent; }
 .av2 .ep-parts__gap[data-state="wrong"] { color: var(--av2-red-deep); text-decoration: underline wavy var(--av2-red); }
 .av2 .ep-parts__gap[data-state="fixed"] { color: var(--av2-green); }
+/* Owner 2026-11-13: before the second chance, the wrong words are marked in the
+   learner's own line (red underline, the same mark as a gap to fix), nothing more. */
+.av2 .ep-marked { margin: 0; font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-option); line-height: 1.5; color: var(--av2-ink); overflow-wrap: anywhere; }
+.av2 .ep-mark { background: transparent; color: var(--av2-ink); text-decoration: underline 2px var(--av2-red); text-decoration-skip-ink: none; text-underline-offset: 4px; }
+.av2 .ep-more { margin: 0; font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2); }
+.av2 .ep-more > summary { cursor: pointer; min-height: var(--av2-tap); display: inline-flex; align-items: center; font-weight: 600; color: var(--av2-ink-2); text-decoration: underline; text-underline-offset: 3px; list-style: none; }
+.av2 .ep-more > summary::-webkit-details-marker { display: none; }
+.av2 .ep-more__body { display: flex; flex-direction: column; gap: 6px; }
+.av2 .ep-more__body p { margin: 0; }
+.av2 .ep-task-line { margin: 0; font-size: var(--av2-t-label); line-height: 1.45; color: var(--av2-ink-2); }
+.av2 .ep-task-line__k { font-weight: 700; color: var(--av2-ink); }
 
 /* ============================================================
    LISTEN · RECORD
