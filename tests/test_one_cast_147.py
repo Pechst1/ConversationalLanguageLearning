@@ -143,8 +143,11 @@ def _served(payload: dict) -> dict:
     return payload["output_ladder"]["conversation"]["items"][0]
 
 
-def test_forge_item_goes_to_its_addressee() -> None:
-    """The EXACT item of 31 Oct: under Lila, said to Gus. It is Gus's now, «Gus · tu»."""
+def test_forge_item_said_to_gus_is_not_lilas() -> None:
+    """The EXACT item of 31 Oct: under Lila, said to Gus. Lila never answers it.
+
+    It went to Gus («Gus · tu») until #780: a «Say in French: …» is a sentence the learner
+    says to nobody (owner, 12 Nov), and nobody says a line to answer, so it is plain."""
 
     from app.api.v1.endpoints.atelier import _with_serial_conversation
 
@@ -156,9 +159,8 @@ def test_forge_item_goes_to_its_addressee() -> None:
             concept=SimpleNamespace(id=1, name="être"),
         )
     )
-    assert item["character"]["id"] == "augustin_de_roncourt"
-    assert item["character"]["name"] == "Gus"
-    assert item["character"]["register"] == "tu"
+    assert "character" not in item
+    assert "serial_context" not in item
 
 
 def test_forge_badge_uses_the_registry_name() -> None:
@@ -166,7 +168,8 @@ def test_forge_badge_uses_the_registry_name() -> None:
 
     item = _served(
         _with_serial_conversation(
-            _payload('Say in French: "The café is closed today."', "Le café est fermé aujourd'hui."),
+            # #780: a line the badge's person says, not a bare «Say in French: …».
+            _payload('« Le café est fermé aujourd\'hui. » Reply in French: "Then we go to the market."', "Alors on va au marché."),
             context=_context(_day_19()),
             concept=SimpleNamespace(id=1, name="être"),
         )
