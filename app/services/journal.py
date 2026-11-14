@@ -67,6 +67,7 @@ from app.services.journey_learning import (
     build_correction,
     fold_for_comparison,
     select_foreground_correction,
+    validate_correction,
 )
 from app.services.learner_facts import looks_misspelled, reads_as_sentence
 from app.services.pilot_events import PilotEventService
@@ -667,6 +668,10 @@ class _JournalCorrector(AtelierCorrectionService):
 # ---------------------------------------------------------------------------
 
 
+#: Failure reasons asking again can never change (#754): no model, nothing to anchor on.
+_NOT_RETRYABLE = frozenset({"no_model", "no_check_target"})
+
+
 def _utcnow() -> datetime:
     return datetime.now(UTC)
 
@@ -973,18 +978,21 @@ class JournalService:
             **shaped,
             "checker": "deterministic",
             "failure_reason": reason,
-            "retryable": reason != "no_check_target",
+            "retryable": reason not in _NOT_RETRYABLE,
         }
 
     def _failure_reason(self, user: User, entry: JournalEntry, corrector: Any) -> str:
-        """Why the check did not happen: ``no_check_target`` | ``timeout`` | ``model_error``.
+        """Why the check did not happen: ``no_model`` | ``no_check_target`` | ``timeout`` | ``model_error``.
 
-        ``no_check_target`` is the one a retry cannot fix (the scene taught no
-        grammar to anchor on), so the client offers no button for it.
+        ``no_model`` (no checker is configured, #754 / #724) and ``no_check_target``
+        (the scene taught no grammar to anchor on) are the two a retry cannot fix, so
+        the client offers no button for them.
         """
         reason = getattr(corrector, "_llm_failure_reason", None)
         if reason in {"timeout", "model_error"}:
             return reason
+        if getattr(corrector, "has_no_model", False):
+            return "no_model"
         if getattr(corrector, "paid_calls", 0) == 0 and self.concepts_for(user, entry) is None:
             return "no_check_target"
         return "model_error"
@@ -1129,26 +1137,30 @@ class JournalService:
         checked = correction_contract.verify_correction(
             text, correction.get("corrected_answer"), errata, language=user_mother_tongue(user)
         )
-        keep = [
-            item
-            for item in checked.errata
-            if str(item.get("task_error_type") or "")
-            not in {"task_compliance", "length_compliance"}
-        ]
+        # #754: the card's one correction, its list and the Relevé read one validated
+        # list: what the shared validator refuses (a gender the learner never gave, a
+        # right sentence re-ordered) is in none of them, and what it passes is in all.
+        # The text is typed, so a restored accent or apostrophe is a fix (``written``).
+        address = getattr(user, "address_preference", None)
+        keep: list[dict[str, Any]] = []
         candidates: list[Correction] = []
         by_span: dict[str, dict[str, Any]] = {}
-        for item in keep:
+        for item in checked.errata:
+            if str(item.get("task_error_type") or "") in {"task_compliance", "length_compliance"}:
+                continue
             built = build_correction(
                 learner_text=item.get("learner_text"),
                 corrected_fr=item.get("corrected_target"),
                 note_native=item.get("why_wrong"),
+                written=True,
             )
-            if built is None:
+            if not validate_correction(built, text, address=address, written=True):
                 continue
+            keep.append(item)
             candidates.append(built)
             by_span.setdefault(built.span_fr, item)
         foreground, _background = select_foreground_correction(
-            user=user, learner_text=text, candidates=candidates
+            user=user, learner_text=text, candidates=candidates, written=True
         )
 
         def view(item: dict[str, Any]) -> dict[str, Any]:
