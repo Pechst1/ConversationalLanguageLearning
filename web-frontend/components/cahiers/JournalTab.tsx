@@ -121,12 +121,27 @@ export function followupResultLine(
 export function FollowupResult({ followup, t = FRENCH_JOURNAL }: { followup: JournalFollowup; t?: JournalCopy }) {
   const line = followupResultLine(followup, t);
   if (!line) return null;
+  // #775: the answer is French the learner wrote; its first fix is shown like the entry's.
+  const first = (followup.corrections || []).find((item) => item?.learner_text && item?.corrected_target);
   return (
     <Surface as="section" tone="paper" shape="card" className="jn-card">
       <p className="av2-label">{t.followup_kicker}</p>
       <p className="jn-verdict" role="status" aria-live="polite">
         {line}
       </p>
+      {first && (
+        <Correction
+          label={t.french_label}
+          spanFr={String(first.learner_text || '')}
+          correctedFr={String(first.corrected_target || '')}
+          noteNative={first.why_wrong || undefined}
+        />
+      )}
+      {followup.checked_by === 'rules' && (
+        <p className="jn-verdict" data-check="basic">
+          {t.correction_basic}
+        </p>
+      )}
     </Surface>
   );
 }

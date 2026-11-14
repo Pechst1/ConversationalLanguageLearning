@@ -113,6 +113,10 @@ class JournalFollowupView(BaseModel):
     #: until answered.
     facts_total: int | None = None
     facts_matched: int | None = None
+    #: The rules' fixes for the answer (#775): ``None`` before it is answered, or for an
+    #: answer saved before the check existed. ``checked_by`` is ``rules``: a basic check.
+    corrections: list[dict] | None = None
+    checked_by: str | None = None
 
 
 class JournalEnvelope(BaseModel):
@@ -206,6 +210,18 @@ def _followup_view(entry: JournalEntry) -> JournalFollowupView:
         signal=entry.followup_signal,
         facts_total=int(recall.get("facts_total") or 0) if answered else None,
         facts_matched=len(recall.get("matched") or []) if answered else None,
+        corrections=[
+            {
+                "learner_text": item.get("learner_text"),
+                "corrected_target": item.get("corrected_target"),
+                "why_wrong": item.get("why_wrong"),
+            }
+            for item in recall.get("errata") or []
+            if isinstance(item, dict)
+        ]
+        if answered and recall.get("checked_by")
+        else None,
+        checked_by=recall.get("checked_by") if answered else None,
     )
 
 
