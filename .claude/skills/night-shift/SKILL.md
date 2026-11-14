@@ -52,6 +52,12 @@ Without the Workflow tool, do the same steps with the Agent tool:
 4. **Digest**: `python scripts/loop/loop_queue.py merge-ready` (lists only) and
    `python scripts/loop/loop_queue.py digest --date <date>`.
 
+**Gold gate:** `python scripts/gold_transcripts.py check` (free) in every PR's checkout.
+STALE means the change alters what a model is asked, or which model answers, on a gold
+surface: run `python scripts/gold_transcripts.py gate --max-usd 1.5` (paid), commit the
+`tests/gold_transcripts/gate.json` it writes and put its table in the PR body. A surface
+that falls is blocked: release the issue instead of opening the PR. CI fails on STALE.
+
 ## Lanes
 
 | | code lane | story lane |

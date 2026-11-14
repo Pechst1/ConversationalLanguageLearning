@@ -61,9 +61,9 @@ Lanes:
   it is caught. Always a draft with `needs-owner-review`. No paid model calls in tests.
   `scripts/prompt_regression.py` replays 10 golden story cases (`tests/prompt_regression/`)
   through the real planner, writer and reply checks with recorded answers: a changed
-  prompt shows as a snapshot diff the PR must explain. A story fix counts as proven only
-  when it moves its surface's gold-transcript score on the runs after it is deployed
-  (see «Gold transcripts» below).
+  prompt shows as a snapshot diff the PR must explain. A change to a gold surface's prompts
+  or models must pass the gold gate before it merges, and a story fix counts as proven only
+  when its gate verdict is «rose» (see «Gold transcripts» below).
 
 ## The nightly routines
 
@@ -142,28 +142,39 @@ before it re-tests a fix.
 The walks say whether a day felt right; they cannot say whether a story fix helped,
 because each walk plays different text. The gold transcripts can: 20 to 30 fixed learner
 inputs per surface (scene answer, La Forge free text, Courrier reply, correction), taken
-from the live-walk reports, run every Sunday against the production prompts and models
+from the live-walk reports, run every night against the production prompts and models
 (`render.yaml`'s values for `atelier-api`) and scored 0–100 by a judge model on fixed
 written criteria (`tests/gold_transcripts/criteria.py`).
 
-- **When:** the «Weekly gold transcripts» cloud routine, Sundays 05:40 Berlin, before the night
-  shift (weekly by the owner's choice, 31 Oct; run it by hand after a story fix is deployed):
-  `python scripts/gold_transcripts.py run --max-usd 1.5 --post`. Never in PR CI (the
-  script refuses there); the offline tests in `tests/test_gold_transcripts.py` run in CI.
+- **When:** the «Nightly gold transcripts» cloud routine, every night at 05:40 Berlin, before
+  the night shift (weekly from 31 Oct; nightly since 14 Nov, when the owner chose «the core
+  day plus 25 real learners»): `python scripts/gold_transcripts.py run --max-usd 1.5 --post`.
+  Never in PR CI (the script refuses there); the offline tests in
+  `tests/test_gold_transcripts.py` and `tests/test_gold_gate.py` run in CI.
 - **Cost:** every call goes through a meter that refuses the call that could pass the cap
-  (US$1.50 a run, at most US$2); a full run costs about US$0.40, under US$2 a month.
+  (US$1.50 a run, at most US$2); a full run costs about US$0.60, about US$18 a month nightly.
+- **The gate** (since 14 Nov): no change to what a model is asked, or to which model answers,
+  on a gold surface merges unless that surface's gold score holds. `gold_transcripts.py check`
+  runs in PR CI (backend shard 1, free): it renders every call the four weekly surfaces make
+  on the gold inputs with production settings, hashes them per surface and compares with
+  `tests/gold_transcripts/gate.json`. A changed surface fails CI until whoever made the change
+  runs `gold_transcripts.py gate --max-usd 1.5` (paid): main and the branch are run on the
+  same night, on the branch's inputs and criteria, and paired item by item. A surface that
+  falls by more than the tolerance stays blocked; one that holds or rises gets its new
+  fingerprint in `gate.json`, and committing it turns CI green. A fix that claims to improve
+  a surface counts only when its verdict is «rose». Details: `tests/gold_transcripts/README.md`.
 - **Where:** its own comment on the digest issue (#121): per surface the score, the change
   since the last run, the last seven runs, and the weakest criterion; the items that
   lost points under a fold. The hidden `gold-scores` line in each comment is the history.
-- **Proof:** a story-lane fix is proven when its surface's score moves on the runs after
-  it is deployed. A drop with no story change is a regression to look at; changing a
+- **Proof:** a story-lane fix is proven when its gate verdict is «rose», and its surface's
+  score holds on the nightly runs after it is deployed. A drop with no story change is a regression to look at; changing a
   criterion restarts the trend.
 - **Judge:** `claude-sonnet-5-5`, paid from the owner's Claude API credits (calibrated on
   31 Oct with `rejudge`); a judge change restarts the trend.
 - **Comparing models:** `--label NAME --set KEY=VALUE` runs the same inputs with other
   settings outside the production trend; `--surface page` scores the night writer's page
   (not in the weekly run; `tests/gold_transcripts/README.md`).
-- **A day of acts** (Phase 2 «Folge in Akten»): the same routine then runs
+- **A day of acts** (Phase 2 «Folge in Akten»): on Sundays its own routine runs
   `python scripts/gold_transcripts.py run --surface day --max-usd 2 --post`, one day of the
   set a week: the page and each later act an Intensif learner plays, written as the night
   writes them and judged act by act by `gpt-6.1-sol` (a later act's «new» against the day's
