@@ -647,8 +647,32 @@ def ending_voice_issue(resolution_fr: str, summary_native: str, character_name: 
     return None
 
 
-def check_ending_voice(resolution_fr: str, summary_native: str, character_name: str | None) -> None:
-    issue = ending_voice_issue(resolution_fr, summary_native, character_name)
+def summary_speaker_issue(summary_native: str, character_name: str | None, addressed: dict | None) -> str | None:
+    """#750: the summary makes the person the learner spoke to act, while the line above it
+    is the character's («Marin agrees to help you look for your key» under Lila's «Je
+    cherche ta clé avec toi»). The summary tells what the speaker of the ending did; the
+    addressed person acts in it only through the character's words."""
+
+    other = str((addressed or {}).get("name") or "").strip()
+    first = str(character_name or "").split()[0] if str(character_name or "").strip() else ""
+    summary = str(summary_native or "").strip()
+    if not other or not summary or (first and first.casefold() == other.casefold()):
+        return None
+    if re.match(rf"{re.escape(other)}\b", summary, re.IGNORECASE):
+        return (
+            f"summary_native opens on {other} doing something, but the ending is {first or 'the character'}'s "
+            f"own line and {other} says nothing in this scene. Tell what {first or 'the character'} says or "
+            f"does about {other}'s answer («{first or 'Lila'} says {other} will help»), or what happens next."
+        )
+    return None
+
+
+def check_ending_voice(
+    resolution_fr: str, summary_native: str, character_name: str | None, addressed: dict | None = None
+) -> None:
+    issue = ending_voice_issue(resolution_fr, summary_native, character_name) or summary_speaker_issue(
+        summary_native, character_name, addressed
+    )
     if issue:
         raise engine.StoryUnavailable("ending_voice", hint=issue)
 
