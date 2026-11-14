@@ -849,15 +849,15 @@ export default function MissionsPage() {
     try {
       const result = await apiService.submitMissionTurn(mission.id, { text, mode: 'chat' });
       setMission({ ...result.mission, outcome: result.outcome || result.mission.outcome });
-      if (replyPending(result.outcome)) {
-        // #397/#333: nobody answered (the stock line is not stored as Gus's turn). The text
-        // stays in the composer: sending it again asks the correspondent again.
-        toast(t.toast_reply_pending);
-        return;
-      }
+      // #782: the server answered, so the message is stored and stands in the thread. The
+      // composer empties whether or not the correspondent wrote back: an answer nobody gave
+      // is asked for again under that message (#590), never by sending the text twice.
       setReply('');
       window.localStorage.removeItem(`pilot:mission-draft:${mission.id}`);
+      // #397/#333: nobody answered (the stock line is not stored as Gus's turn). Say so.
+      if (replyPending(result.outcome)) toast(t.toast_reply_pending);
     } catch (sendError) {
+      // Nothing was stored: the text stays in the composer (and its saved draft) to send again.
       console.error(sendError);
       toast.error(t.toast_send_failed);
     } finally {
