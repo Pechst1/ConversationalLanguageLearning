@@ -27,6 +27,15 @@ import type {
   PaceOption,
 } from '@/types/daily-journey';
 
+/**
+ * #783: a count names one thing in the singular («Noch 1 neues Wort», not «Noch
+ * 1 neue Wörter»). Every copy line below that takes a count picks its noun here,
+ * so a new counted line cannot be written with the plural alone.
+ */
+function counted(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
 type Copy = {
   scene: string;
   papier: string;
@@ -72,17 +81,17 @@ type Copy = {
 const DE: Copy = {
   scene: 'Szene',
   papier: 'Le Papier',
-  words: (n) => `${n} Wörter`,
+  words: (n) => counted(n, 'Wort', 'Wörter'),
   words_split: (fresh, due) => `${fresh} neu · ${due} zum Wiederholen`,
   grammar: 'Grammatik',
   finish: 'Fertig',
   minutes: (n) => `${n} Min.`,
   start: 'Los geht’s',
-  next_words: (n) => `Weiter: ${n} Wörter`,
+  next_words: (n) => `Weiter: ${counted(n, 'Wort', 'Wörter')}`,
   next_grammar: 'Weiter: Grammatik',
   next_finish: 'Fertig für heute',
   done_today: 'Heute erledigt',
-  more_words: (n) => `Noch ${n} neue Wörter`,
+  more_words: (n) => `Noch ${counted(n, 'neues Wort', 'neue Wörter')}`,
   tempo: (pace) => `Tempo: ${pace}`,
   pace: { ruhig: 'Ruhig', normal: 'Normal', schnell: 'Schnell' },
   sheet_title: 'Dein Tempo',
@@ -92,7 +101,7 @@ const DE: Copy = {
     `Wörter kommen zur Wiederholung zurück. Nach 8 Wochen dauert ein Tag etwa ${low} bis ${high} Min. länger.`,
   sheet_apply: 'Übernehmen',
   sheet_close: 'Schließen',
-  weeks: (n) => `≈ ${n} Wochen`,
+  weeks: (n) => `≈ ${counted(n, 'Woche', 'Wochen')}`,
   months: (n) => `≈ ${n} Monaten`,
   finish_title: 'Fertig für heute',
   tally_scene: 'Szene',
@@ -112,17 +121,17 @@ const DE: Copy = {
 const FR: Copy = {
   scene: 'Scène',
   papier: 'Le Papier',
-  words: (n) => `${n} mots`,
-  words_split: (fresh, due) => `${fresh} nouveaux · ${due} à revoir`,
+  words: (n) => counted(n, 'mot', 'mots'),
+  words_split: (fresh, due) => `${counted(fresh, 'nouveau', 'nouveaux')} · ${due} à revoir`,
   grammar: 'Grammaire',
   finish: 'Fin',
   minutes: (n) => `${n} min`,
   start: 'C’est parti',
-  next_words: (n) => `Suite : ${n} mots`,
+  next_words: (n) => `Suite : ${counted(n, 'mot', 'mots')}`,
   next_grammar: 'Suite : grammaire',
   next_finish: 'Fini pour aujourd’hui',
   done_today: 'Fait aujourd’hui',
-  more_words: (n) => `Encore ${n} nouveaux mots`,
+  more_words: (n) => `Encore ${counted(n, 'nouveau mot', 'nouveaux mots')}`,
   tempo: (pace) => `Rythme : ${pace}`,
   pace: { ruhig: 'Calme', normal: 'Normal', schnell: 'Rapide' },
   sheet_title: 'Ton rythme',
@@ -132,7 +141,7 @@ const FR: Copy = {
     `Les mots reviennent en révision. Dans 8 semaines, une journée prend environ ${low} à ${high} min de plus.`,
   sheet_apply: 'Valider',
   sheet_close: 'Fermer',
-  weeks: (n) => `≈ ${n} semaines`,
+  weeks: (n) => `≈ ${counted(n, 'semaine', 'semaines')}`,
   months: (n) => `≈ ${n} mois`,
   finish_title: 'Fini pour aujourd’hui',
   tally_scene: 'Scène',
@@ -152,17 +161,17 @@ const FR: Copy = {
 const EN: Copy = {
   scene: 'Scene',
   papier: 'Le Papier',
-  words: (n) => `${n} words`,
+  words: (n) => counted(n, 'word', 'words'),
   words_split: (fresh, due) => `${fresh} new · ${due} to review`,
   grammar: 'Grammar',
   finish: 'Done',
   minutes: (n) => `${n} min`,
   start: 'Let’s go',
-  next_words: (n) => `Next: ${n} words`,
+  next_words: (n) => `Next: ${counted(n, 'word', 'words')}`,
   next_grammar: 'Next: grammar',
   next_finish: 'Done for today',
   done_today: 'Done today',
-  more_words: (n) => `${n} more new words`,
+  more_words: (n) => counted(n, 'more new word', 'more new words'),
   tempo: (pace) => `Pace: ${pace}`,
   pace: { ruhig: 'Easy', normal: 'Normal', schnell: 'Fast' },
   sheet_title: 'Your pace',
@@ -172,7 +181,7 @@ const EN: Copy = {
     `Words come back for review. In 8 weeks a day takes about ${low} to ${high} min longer.`,
   sheet_apply: 'Use this pace',
   sheet_close: 'Close',
-  weeks: (n) => `≈ ${n} weeks`,
+  weeks: (n) => `≈ ${counted(n, 'week', 'weeks')}`,
   months: (n) => `≈ ${n} months`,
   finish_title: 'Done for today',
   tally_scene: 'Scene',
