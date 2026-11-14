@@ -9926,6 +9926,12 @@ export interface components {
              * @default false
              */
             answered?: boolean;
+            /** Checked By */
+            checked_by?: string | null;
+            /** Corrections */
+            corrections?: {
+                [key: string]: unknown;
+            }[] | null;
             /** Due On */
             due_on: string;
             /** Entry Id */
