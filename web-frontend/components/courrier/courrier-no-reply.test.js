@@ -4,7 +4,8 @@
 // and the walks read the Courrier in the learner's time zone.
 //
 //   1. the server marks a turn nobody answered `reply_state: 'pending'`; the page
-//      keeps the text in the composer and says so, in all three chrome languages;
+//      says so, in all three chrome languages (since #782 the composer still empties:
+//      the message went out, see courrier-sent-clears.test.js);
 //   2. every walk driver gives its browser a time zone, so the Courrier's stamps
 //      are the learner's hours and not the machine's UTC (#316 «again»).
 
@@ -36,13 +37,10 @@ test('a turn the server marks pending is a reply nobody gave', () => {
   assert.equal(replyPending(null), false);
 });
 
-test('the page keeps the text and says nobody answered', () => {
+test('the page says nobody answered', () => {
   const page = read('pages', 'missions.tsx');
   const send = page.slice(page.indexOf('const sendReply'), page.indexOf('const recheckReply'));
-  const pending = send.indexOf('replyPending(result.outcome)');
-  assert.ok(pending > 0, 'sendReply never looks at the pending state');
-  assert.ok(pending < send.indexOf("setReply('')"), 'the composer is emptied before the pending state is read');
-  assert.match(send.slice(pending, send.indexOf("setReply('')")), /toast\(t\.toast_reply_pending\)/);
+  assert.match(send, /replyPending\(result\.outcome\)\) toast\(t\.toast_reply_pending\)/, 'sendReply never says nobody answered');
 });
 
 test('the pending line exists in every chrome language and is not the stock reply', () => {
