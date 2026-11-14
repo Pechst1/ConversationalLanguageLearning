@@ -145,7 +145,10 @@ test('a day without blocking plays in the places the world has built for it, and
   // somewhere nothing is built for yet: no place plays it, and the page says where
   assert.deepEqual(placesOf(page([at('p1', 'gare_de_lest'), at('p2', null), at('p3', 'le_mistral')])), [null, null, 'quai_de_valmy']);
   assert.equal(unbuiltOf(page([at('p1', 'le_mistral'), at('p2', 'gare_de_lest')])), 'gare_de_lest');
-  assert.equal(unbuiltOf(page([at('p1', null)], 'gus_loft')), 'gus_loft');
+  assert.equal(unbuiltOf(page([at('p1', null)], 'brocante')), 'brocante');
+  // Gus's loft plays in the «château» the forge built on the quai
+  assert.deepEqual(placesOf(page([at('p1', null)], 'gus_loft')), ['chateau_gus']);
+  assert.equal(unbuiltOf(page([at('p1', null)], 'gus_loft')), null);
   assert.equal(unbuiltOf(page([at('p1', 'somewhere_new')])), 'somewhere_new');
   // the season's own pages: T2 climbs the stairwell into Odile's flat; the roof (g3) plays on the roof the forge built
   // (the season file's own movements: a solve the server poses as a question has no place of its own)

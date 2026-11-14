@@ -217,8 +217,10 @@ learner's studio, Maître Vasseur's office, Odile's flat, the roof over Le Mistr
 back door, at -37.6 x, -18.1 z in the café's own plan), Marin and Lila's flat
 (`chez_marin_lila`, T5: on the third floor of a building on the quai, its windows on the canal)
 the gérance Marchand (`gerance_marchand`, T6 A: on the second floor over Le Mistral, floor
-7.9, its windows on the canal) and the rue de Lancry (`rue_de_lancry`, T8 and E2: the quai's own
-street, `quarter: true`, round «L.»'s green door and his third-floor window). A room under the sky is a room too: its floors are `zone: "out"` and
+7.9, its windows on the canal), the rue de Lancry (`rue_de_lancry`, T8 and E2: the quai's own
+street, `quarter: true`, round «L.»'s green door and his third-floor window) and Gus's «château»
+(`chateau_gus`, T8 À suivre (2) and the epilogue: the fifth floor of the Haussmann house on the
+quai at z 36 to 52.8, its door bay 0, the painting turned to the wall between two windows). A room under the sky is a room too: its floors are `zone: "out"` and
 you walk them (only a `sealed` floor, or one with `walk: false`, is not walked), and nothing on
 it is dry. A room on a roof of the quai says `quarter: true`: the engine builds the quai round it
 as it is (the canal, the footbridge, the barge, the houses and their lit windows) and walks only
@@ -296,6 +298,14 @@ the steps above with these differences.
      the drawers on the sitter's side, local -z), `campbed` (made with hospital corners, `size`
      [length, width] along local x, the pillow at -x) and `frame` (a small frame on its strut: a
      Polaroid with its caption in `text`, or without `text` an old portrait gone sepia); in a
+     showman's flat, `banner` (a banner on a gilt pole, red to a point, a crown, a chevron and
+     three stars: `at` the cloth's centre, `size` [w, h]), `mantel` (a marble chimneypiece, cold
+     logs, a tall gilt mirror over it: `size` [width, the mirror's height], `tone` the marble),
+     `candelabra` (three candles lit, `at` its foot on a shelf), `lowtable` (glass on brass, a
+     decanter and two tumblers, `size` [w, d]), `letter` (an envelope face up: `text` the name in a
+     hand and the postmark's town), `rug` (a red rug, its border and medallion, `size` [w, d]),
+     and `canvas` with `text`: a small oil in its gilt frame leaning face to the wall, what is
+     written on its back a line each (the first in ink, the rest in pencil, shaky); in a
      street, `intercom` (a plate on the wall by a door, `text` its names from the top floor down,
      two to a row, `at` its centre) and `gaze` (nothing drawn: a point to tap where the quarter
      already draws something, a window up the street)) with

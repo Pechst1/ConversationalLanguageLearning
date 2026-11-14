@@ -113,7 +113,7 @@
       "id": "arriere_salle",
       "name": { "fr": "L'arrière-salle du Mistral", "en": "Le Mistral's back room", "de": "Das Hinterzimmer des Mistral" },
       "lat": 48.87293,
-      "lon": 2.36360,
+      "lon": 2.3636,
       "status": "locked",
       "kind": "season",
       "stages": ["mistral_back_room"],
@@ -127,7 +127,7 @@
       "id": "chez_marin_lila",
       "name": { "fr": "Chez Marin et Lila", "en": "Marin and Lila's flat", "de": "Bei Marin und Lila" },
       "lat": 48.87255,
-      "lon": 2.36400,
+      "lon": 2.364,
       "status": "locked",
       "kind": "season",
       "stages": ["marin_lila_flat"],
@@ -151,7 +151,7 @@
     {
       "id": "gerance_marchand",
       "name": { "fr": "La gérance Marchand", "en": "The Marchand property office", "de": "Die Hausverwaltung Marchand" },
-      "lat": 48.87300,
+      "lat": 48.873,
       "lon": 2.36368,
       "status": "locked",
       "kind": "season",
@@ -175,6 +175,31 @@
       "site": null,
       "room": "rue_de_lancry",
       "in": "quai_de_valmy"
+    },
+    {
+      "id": "chateau_gus",
+      "name": { "fr": "Le « château » de Gus", "en": "Gus's “château”", "de": "Gus' „Schloss“" },
+      "lat": 48.87224,
+      "lon": 2.36405,
+      "status": "locked",
+      "kind": "season",
+      "stages": ["gus_loft"],
+      "why": { "fr": "Au cinquième, sur le quai : une bannière, un miroir doré, et le tableau du Mistral retourné contre le mur.", "en": "On the fifth floor, on the quai: a banner, a gilt mirror, and the painting of Le Mistral turned to the wall.", "de": "Im fünften Stock am Quai: ein Banner, ein Goldspiegel und das Bild vom Mistral, zur Wand gedreht." },
+      "source": { "kind": "season", "id": "s1" },
+      "site": null,
+      "room": "chateau_gus",
+      "in": "quai_de_valmy",
+      "entrance": {
+        "from": "quai_de_valmy",
+        "door": [-27.0, 51.38],
+        "outside": [-25.9, 51.38],
+        "inside": [-27.75, 51.38],
+        "look_in": [-37.0, 1.6, 50.6],
+        "look_out": [-14.0, 1.6, 51.38],
+        "enter": { "fr": "Entrer dans l'immeuble de Gus", "en": "Go into Gus's building", "de": "Ins Haus von Gus gehen" },
+        "leave": { "fr": "Sortir sur le quai", "en": "Go out onto the quai", "de": "Hinaus auf den Quai" },
+        "arrive": { "fr": "L'immeuble de Gus, sur le quai. Il habite au cinquième.", "en": "Gus's building, on the quai. He lives on the fifth floor.", "de": "Das Haus von Gus, am Quai. Er wohnt im fünften Stock." }
+      }
     },
     {
       "id": "mairie_10e",
