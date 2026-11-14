@@ -205,19 +205,74 @@ def authored_unit(concept: GrammarConcept | None) -> dict[str, str] | None:
     return unit if unit and (unit.get("pattern") or "").strip() else None
 
 
-def authored_repair(concept: GrammarConcept | None) -> str:
-    """The unit's own first slip, «✗ Je es français. → ✓ Je suis français.», or ``""``.
+_DETERMINERS = frozenset(
+    {"le", "la", "les", "l'", "un", "une", "des", "du", "de", "d'", "au", "aux", "mon", "ma", "mes", "ton", "ta",
+     "tes", "son", "sa", "ses", "ce", "cet", "cette", "ces"}
+)
+
+
+def _trap_change(trap: str) -> tuple[list[str], list[str]] | None:
+    """The words a «✗ … → ✓ …» trap crosses out and the words it puts in."""
+
+    import difflib
+
+    from app.services.forge_grading import tokens
+
+    if "→" not in trap:
+        return None
+    wrong, right = trap.split("→", 1)
+    bad, good = tokens(wrong.replace("✗", "")), tokens(right.replace("✓", ""))
+    out_words: list[str] = []
+    in_words: list[str] = []
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(a=bad, b=good, autojunk=False).get_opcodes():
+        if tag != "equal":
+            out_words.extend(bad[i1:i2])
+            in_words.extend(good[j1:j2])
+    return out_words, in_words
+
+
+def authored_repair(concept: GrammarConcept | None, learner: str | None = None, target: str | None = None) -> str:
+    """The unit's own slip, «✗ Je es français. → ✓ Je suis français.», or ``""``.
 
     #239 / #146: the line a learner reads after a miss came from the interface
     language (a fixed «name the trigger» sentence for German and French) instead of
     from the concept. The catalogue's slips are French sentences, so they read the
     same in every language and need no translation.
+
+    #596: given the miss (``learner`` wrote, ``target`` was right), the example is
+    one about the same slip: never a trap that crosses out the word this answer
+    needed («✗ Je es» right after «here it is «es»»), and a trap of the same kind
+    (gender, number, person, elision) before the unit's first. With no fitting trap
+    the first one that does not contradict the answer is shown.
     """
 
     unit = authored_unit(concept)
     if not unit:
         return ""
-    return (unit.get("main_traps") or "").split(" | ")[0].strip()
+    traps = [trap.strip() for trap in (unit.get("main_traps") or "").split(" | ") if trap.strip()]
+    if not traps:
+        return ""
+    if not learner or not target:
+        return traps[0]
+    from app.services.forge_grading import slip_kind, strip_accents, token_diff
+
+    needed = {strip_accents(op["target"]) for op in token_diff(learner, target) if op.get("target")}
+    slips = [op for op in token_diff(learner, target) if op.get("learner") and op.get("target")]
+    kind = slip_kind(slips[0]["learner"], slips[0]["target"]) if len(slips) == 1 else None
+    fitting: list[str] = []
+    for trap in traps:
+        change = _trap_change(trap)
+        if change is None:
+            continue
+        crossed, _put = change
+        if ({strip_accents(word) for word in crossed} & needed) - _DETERMINERS:
+            # it would cross out the very form this answer needed («✗ Je es» after «es»).
+            # An article is right before one noun and wrong before another, so it is not.
+            continue
+        fitting.append(trap)
+        if kind and any(slip_kind(a, b) == kind for a, b in zip(*change, strict=False)):
+            return trap
+    return fitting[0] if fitting else ""
 
 
 def infer_grammar_profile(

@@ -6440,7 +6440,11 @@ class AtelierCorrectionService:
             )
         if mode == "classify" and _is_judgement(item):
             return self._judgement_erratum(concept, item, learner_text, target)
-        slip = slip_note(token_diff(learner_text, target), self.explanation_language) if mode != "classify" else None
+        slip = (
+            slip_note(token_diff(learner_text, target), self.explanation_language, target)
+            if mode != "classify"
+            else None
+        )
         if slip:
             # #449: the slip's own category explains the miss, not the day's rule card.
             return self._recognize_erratum_payload(
@@ -6477,7 +6481,7 @@ class AtelierCorrectionService:
             elif normalize_language(language) == "en":
                 repair = infer_grammar_profile(concept).pattern
             else:
-                repair = self._repair_for(concept)
+                repair = self._repair_for(concept, learner_text, target)
             return self._recognize_erratum_payload(
                 concept, item, label=_concept_title_for(concept, language), learner_text=learner_text, target=target,
                 why=why,
@@ -6497,7 +6501,7 @@ class AtelierCorrectionService:
             learner_text=learner_text,
             target=target,
             why=item.get("why_wrong") or self._why_for(concept, item),
-            repair=item.get("repair_hint") or self._repair_for(concept),
+            repair=item.get("repair_hint") or self._repair_for(concept, learner_text, target),
             task_type=self._task_type_for(concept, item),
         )
 
@@ -6512,7 +6516,7 @@ class AtelierCorrectionService:
         target_norm = _normalize(target)
         label = self._label_for(concept, item)
         why = _copy("atelier.recognize.blank_needs", self.explanation_language, learner=learner_text, target=target)
-        repair = item.get("repair_hint") or self._repair_for(concept)
+        repair = item.get("repair_hint") or self._repair_for(concept, learner_text, target)
         profile_key = infer_grammar_profile(concept).key if concept else ""
 
         language = self.explanation_language
@@ -7069,7 +7073,7 @@ class AtelierCorrectionService:
             erratum = self._erratum(concept, item, learner, target, severity=3, recurring=True)
             ops = mark_given(token_diff(learner, target), source)
             what = describe_diff(ops, self.explanation_language)
-            slip = slip_note(ops, self.explanation_language)
+            slip = slip_note(ops, self.explanation_language, target)
             if slip:
                 # #449: the slip's own category explains it; the rule card does not.
                 erratum["why_wrong"], erratum["repair_hint"] = slip
@@ -8401,10 +8405,13 @@ class AtelierCorrectionService:
             return infer_grammar_profile(concept).principle
         return _copy("atelier.generic.why", self.explanation_language)
 
-    def _repair_for(self, concept: GrammarConcept | None) -> str:
+    def _repair_for(
+        self, concept: GrammarConcept | None, learner: str | None = None, target: str | None = None
+    ) -> str:
         # #239 / #146: the unit's own slip first, in every language; the fixed
         # «name the trigger» line is only for a concept the catalogue does not know.
-        authored = authored_repair(concept) if concept else ""
+        # #596: given the miss, the slip that fits it, never one crossing out its answer.
+        authored = authored_repair(concept, learner, target) if concept else ""
         if authored:
             return authored
         if self.explanation_language in {"fr", "de"}:

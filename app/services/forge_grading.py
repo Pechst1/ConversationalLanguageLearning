@@ -179,7 +179,77 @@ _ELISIONS: dict[str, str] = {
 }
 
 
-def slip_category(ops: list[dict[str, str]]) -> dict[str, str] | None:
+#: Determiners that differ only in gender, and only in number (#596). The noun after
+#: them decides which is right, so the slip is about that noun, not the day's rule.
+_GENDER_SWAPS = frozenset(
+    {("le", "la"), ("la", "le"), ("un", "une"), ("une", "un"), ("mon", "ma"), ("ma", "mon"),
+     ("ton", "ta"), ("ta", "ton"), ("son", "sa"), ("sa", "son"), ("ce", "cette"), ("cette", "ce"),
+     ("cet", "cette"), ("cette", "cet"), ("au", "a la"), ("du", "de la")}
+)
+_NUMBER_SWAPS = frozenset(
+    {("le", "les"), ("la", "les"), ("les", "le"), ("les", "la"), ("un", "des"), ("une", "des"),
+     ("des", "un"), ("des", "une"), ("mon", "mes"), ("ma", "mes"), ("mes", "mon"), ("mes", "ma"),
+     ("ce", "ces"), ("cette", "ces"), ("ces", "ce"), ("ces", "cette")}
+)
+_FEMININE_DETERMINERS = frozenset({"la", "une", "ma", "ta", "sa", "cette"})
+_SUBJECTS = frozenset({"je", "j'", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles"})
+
+
+def _verb_lemma(word: str) -> str | None:
+    from app.services import correction_contract
+
+    return correction_contract._verb_lemma(word)  # noqa: SLF001 - the one lexicon reading
+
+
+def _after(sentence: Any, word: str) -> str | None:
+    """The word that follows ``word`` in ``sentence``, or ``None``."""
+
+    words = tokens(sentence)
+    folded = strip_accents(word)
+    for index, token in enumerate(words[:-1]):
+        if strip_accents(token) == folded:
+            return words[index + 1]
+    return None
+
+
+def _before(sentence: Any, word: str) -> str | None:
+    words = tokens(sentence)
+    folded = strip_accents(word)
+    for index, token in enumerate(words[1:], start=1):
+        if strip_accents(token) == folded:
+            return words[index - 1]
+    return None
+
+
+def slip_kind(learner: str, target: str) -> str | None:
+    """What kind of slip one word for another is: ``gender``, ``number``, ``elision``,
+    ``person`` (another form of the same verb), or ``None``. The one classifier the
+    miss note and the rule card's example are chosen by (#146)."""
+
+    a, b = strip_accents(learner or ""), strip_accents(target or "")
+    if not a or not b or a == b:
+        return None
+    if (a, b) in _GENDER_SWAPS:
+        return "gender"
+    if (a, b) in _NUMBER_SWAPS:
+        return "number"
+    if b.endswith("'") and _ELISIONS.get(a) == b:
+        return "elision"
+    if a in _COI_PRONOUNS | _COD_PRONOUNS and b in _COI_PRONOUNS | _COD_PRONOUNS:
+        return "object_pronoun"
+    lemma = _verb_lemma(target)
+    if lemma and lemma == _verb_lemma(learner) and _finite(learner) and _finite(target):
+        return "person"
+    return None
+
+
+def _finite(word: str) -> bool:
+    from app.services import correction_contract
+
+    return correction_contract._finite_verb(word.casefold())  # noqa: SLF001 - the one lexicon reading
+
+
+def slip_category(ops: list[dict[str, str]], sentence: Any = None) -> dict[str, str] | None:
     """The one slip a diff makes, by category, or ``None`` when it is not one we name.
 
     #449 (and #146): La Forge explained a miss with the day's rule card, so «lui» for
@@ -189,7 +259,7 @@ def slip_category(ops: list[dict[str, str]]) -> dict[str, str] | None:
     """
 
     slips = [op for op in ops if op.get("kind") != "accent"]
-    if len(slips) != 1 or slips[0].get("kind") != "word" or slips[0].get("given"):
+    if len(slips) != 1 or slips[0].get("kind") not in {"word", "ending"} or slips[0].get("given"):
         return None
     learner = strip_accents(slips[0].get("learner") or "")
     target = strip_accents(slips[0].get("target") or "")
@@ -199,16 +269,52 @@ def slip_category(ops: list[dict[str, str]]) -> dict[str, str] | None:
         return {"category": "coi_for_cod", "learner": learner, "target": target}
     if target.endswith("'") and _ELISIONS.get(learner) == target:
         return {"category": "elision", "learner": learner, "target": target}
+    # #596: an article that differs only in gender or number is about the noun after it
+    # («le clé»: «clé» is feminine), not the day's rule card.
+    shown_learner, shown_target = slips[0].get("learner") or "", slips[0].get("target") or ""
+    kind = slip_kind(shown_learner, shown_target)
+    if kind in {"gender", "number"}:
+        noun = _after(sentence, shown_target) if sentence else None
+        if noun:
+            gender = "f" if strip_accents(shown_target) in _FEMININE_DETERMINERS else "m"
+            return {"category": kind, "learner": shown_learner, "target": shown_target, "noun": noun, "gender": gender}
+    if kind == "person":
+        lemma = _verb_lemma(shown_target) or ""
+        subject = _before(sentence, shown_target) if sentence else None
+        subject = subject if subject and strip_accents(subject) in _SUBJECTS else None
+        return {
+            "category": "person_subject" if subject else "person",
+            "learner": shown_learner,
+            "target": shown_target,
+            "lemma": lemma,
+            "subject": subject or "",
+        }
     return None
 
 
-def slip_note(ops: list[dict[str, str]], language: Any) -> tuple[str, str] | None:
-    """``(why, repair)`` for the slip's category, in the learner's language."""
+def slip_note(ops: list[dict[str, str]], language: Any, target: Any = None) -> tuple[str, str] | None:
+    """``(why, repair)`` for the slip's category, in the learner's language.
 
-    slip = slip_category(ops)
+    ``target`` is the right sentence, when the item has one: the noun after a wrong
+    article and the subject before a wrong verb form are read from it."""
+
+    slip = slip_category(ops, target)
     if slip is None:
         return None
-    fields = {"learner": slip["learner"], "target": slip["target"]}
+    fields = {key: value for key, value in slip.items() if key != "category"}
+    if slip["category"] in {"gender", "number"}:
+        gender = _copy(f"forge.slip.gender.{slip['gender']}", language)
+        plural = strip_accents(slip["target"]) in {"les", "des", "mes", "ces", "tes", "ses"}
+        count = _copy(f"forge.slip.count.{'p' if plural else 's'}", language)
+        return (
+            _copy(f"forge.slip.{slip['category']}.why", language, gender_word=gender, count=count, **fields),
+            _copy(f"forge.slip.{slip['category']}.repair", language, **fields),
+        )
+    if slip["category"] in {"person", "person_subject"}:
+        return (
+            _copy(f"forge.slip.{slip['category']}.why", language, **fields),
+            _copy("forge.slip.person.repair", language, **fields),
+        )
     if slip["category"] == "elision":
         return (
             _copy("forge.slip.elision.why", language, **fields),
@@ -1107,6 +1213,7 @@ __all__ = [
     "same_answer",
     "similarity",
     "slip_category",
+    "slip_kind",
     "slip_note",
     "strip_accents",
     "token_diff",
