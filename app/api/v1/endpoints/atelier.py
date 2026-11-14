@@ -89,7 +89,7 @@ from app.services.atelier import (
 from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService, AtelierWorkshopShortfall
 from app.services.book_library import BookLibraryService
-from app.services.cast_registry import display_name, people_addressed, people_named
+from app.services.cast_registry import display_name, people_addressed, people_named, people_speaking
 from app.services.cast_registry import resolve_id as _resolve_cast_id
 from app.services.cefr_progress import CEFRProgressService, live_level, with_can_do_line
 from app.services.chrome_language import user_chrome_language, user_mother_tongue
@@ -318,7 +318,17 @@ def _with_serial_conversation(
     words = f"{items[0].get('prompt') or ''} {items[0].get('example_answer') or ''}"
     named, addressed = people_named(words), people_addressed(words)
     met = context.get("met") or {}
-    if addressed:
+    speaking = people_speaking(words)
+    if speaking:
+        # #147 (14 Nov): «Gus : « Tu es où ? »» went out under Lila. A line the item puts
+        # in someone's mouth is that person's: their badge when the learner has met them,
+        # no badge when not.
+        speaker = met.get(speaking[0])
+        if speaker is None:
+            return payload
+        if str(speaker.get("id")) != str(character.get("id")):
+            character = _cast_badge(speaker, state=context.get("state") or {})
+    elif addressed:
         addressee = met.get(addressed[0])
         if addressee is None:
             return payload

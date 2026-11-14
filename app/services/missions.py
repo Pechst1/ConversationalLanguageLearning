@@ -3980,7 +3980,11 @@ class MissionCorrectionService:
                 continue
             # #369: the explanation is held to the corrected form it explains
             # («an accent on « hui »» for aujourd'hui is replaced, not shown).
-            cleaned.append(correction_contract.reconcile_notes(narrowed, language=copy_language(language)))
+            cleaned.append(
+                correction_contract.reconcile_notes(
+                    narrowed, language=copy_language(language), context=submission_text
+                )
+            )
         return cleaned
 
     @staticmethod
