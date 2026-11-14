@@ -58,10 +58,15 @@ from app.services.glosses import (
     word_gloss,
 )
 from app.services.learner_copy import copy_language, learner_text
-from app.services.letter_voice import band_style_line, register_word, voice_problems
+from app.services.letter_voice import (
+    band_style_line,
+    contradicted_things,
+    register_word,
+    voice_problems,
+)
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.news_service import NewsService
-from app.services.pragmatics import address_markers
+from app.services.pragmatics import address_markers, address_register
 from app.services.progress import ProgressService
 from app.services.serial_arc_planner import cefr_generation_profile
 from app.services.vocabulary_coverage import VocabularyCoverageService, normalize_category
@@ -2973,6 +2978,7 @@ class MissionGenerator:
                     register=writer_register,
                     level=None,
                 )
+                and not contradicted_things(messenger.get("opening_message"), messenger.get("twist"))
                 else None
             ),
             "success_signal": (messenger.get("success_signal") if generated else None) or outcome,
@@ -3428,6 +3434,13 @@ class MissionGenerator:
                     level=str(cefr)[:2],
                 )
             )
+            # #747: the twist is printed under the letter; it may not move what the letter placed.
+            moved = contradicted_things(candidate.get("opening_message"), candidate.get("twist"))
+            if moved:
+                problems.append(
+                    f"The twist puts «{'», «'.join(moved)}» somewhere else than opening_message does: "
+                    "keep every thing where the letter says it is."
+                )
             gap = _objective_language_gap(candidate, user)
             if gap:
                 problems.append(f"Return {gap}: the objective in the learner's own language.")
@@ -6710,6 +6723,26 @@ def live_register(db: Session | None, user: Any, mission: Any) -> str | None:
     return known_register(None, cast_id)
 
 
+def correspondent_register(mission: Any, *, register_now: str | None = None) -> str | None:
+    """#747: «tu» or «vous» for everything the correspondent writes in this thread.
+
+    The story's register for a cast member today (``register_now``) first; then the
+    address form of the correspondent's own letter, which the learner has already read;
+    only then the register the letter was stored with. A letter written from a domain
+    stores a description, not a form («natural French; formal only when the scenario
+    requires it»): the reply's actor read that, wrote «Avez-vous une idée ?» to a
+    colleague whose letter said «Tu as la commande ?», and its guard, holding the reply
+    to no register at all, let it through. ``None`` only when nothing settles it."""
+
+    payload = getattr(mission, "prompt_payload", None) or {}
+    messenger = payload.get("messenger") or {}
+    return (
+        register_now
+        or address_register(thread_opening(mission))
+        or register_word(messenger.get("target_register") or messenger.get("register") or payload.get("target_register"))
+    )
+
+
 def _unassessed_acknowledgement(mission: Any, *, register_now: str | None = None) -> str:
     """The correspondent's honest answer when nothing could assess the letter: it was
     read, and nothing is claimed about it (EXPERIENCE-REVIEW 2026-10-04)."""
@@ -6721,7 +6754,7 @@ def _unassessed_acknowledgement(mission: Any, *, register_now: str | None = None
     # #350: the register the letter was written in outranks a guess from its first words
     # (a tu letter from Gus opening «Bonjour, c'est Gus» was answered «votre message»);
     # the register the story has today outranks both (#147).
-    declared = register_now or register_word(messenger.get("target_register") or payload.get("target_register"))
+    declared = correspondent_register(mission, register_now=register_now)
     tu = (
         declared == "tu"
         if declared
@@ -7031,9 +7064,12 @@ class MissionConversationService:
         # #147 / #350: a cast member's register is read now, from the record the scene
         # reads, not from the letter's copy of it.
         register_now = live_register(self.db, user, mission)
+        # #747: one register per character, read once: the actor is told it and the reply's
+        # guard holds the reply to it.
+        expected = correspondent_register(mission, register_now=register_now)
         register_phrase = (
-            ("tu / registre familier" if register_now == "tu" else "vous / registre poli")
-            if register_now
+            ("tu / registre familier" if expected == "tu" else "vous / registre poli")
+            if expected
             else messenger.get("target_register") or (mission.prompt_payload or {}).get("target_register")
         )
         # #145: what was asked, what they said to it, what stands. The letter is its opening.
@@ -7113,9 +7149,6 @@ class MissionConversationService:
         # form and the learner's band (a deterministic check, then one rewrite, then the
         # register-aware acknowledgement).
         level = _learner_level_code(self.db, user)
-        expected = register_now or register_word(
-            messenger.get("target_register") or messenger.get("register") or (mission.prompt_payload or {}).get("target_register")
-        )
         # The actor is told which French to write, never that its reader is a beginner.
         style = band_style_line(level)
         if style:
@@ -8235,7 +8268,25 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
         ]
         if scene_record.enabled():
             payload["prompt_payload"] = _prompt_payload_for_thread(mission, payload["prompt_payload"])
+    payload["prompt_payload"] = _without_a_twist_against_the_letter(payload["prompt_payload"])
     return payload
+
+
+def _without_a_twist_against_the_letter(prompt_payload: dict[str, Any]) -> dict[str, Any]:
+    """#747: the note under a letter never puts a thing somewhere the letter does not.
+
+    The writer is held to this when the letter is written; a letter stored before that
+    (Nina's «ma serviette est au travail» over «la serviette est restée chez Nina») is
+    served without its note. The stored letter is untouched: the filter runs on every read."""
+
+    messenger = prompt_payload.get("messenger") if isinstance(prompt_payload.get("messenger"), dict) else {}
+    opening = str(messenger.get("opening_message") or prompt_payload.get("conversation_opening") or "")
+    served = dict(prompt_payload)
+    for key in ("messenger", "variety", "slim_payload"):
+        block = served.get(key)
+        if isinstance(block, dict) and block.get("twist") and contradicted_things(opening, block.get("twist")):
+            served[key] = {**block, "twist": None}
+    return served
 
 
 def _prompt_payload_for_thread(mission: RealWorldMission, prompt_payload: dict[str, Any]) -> dict[str, Any]:
