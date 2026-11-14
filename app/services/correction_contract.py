@@ -871,7 +871,7 @@ _RULE_TEXT: dict[str, dict[str, dict[str, str]]] = {
         "note": {
             "en": "The sentence tells the story in the passé composé; keep the same tense: « {right} ».",
             "de": "Der Satz erzählt im passé composé; bleib bei derselben Zeit: « {right} ».",
-            "fr": "La phrase raconte au passé composé ; gardez le même temps : « {right} ».",
+            "fr": "La phrase raconte au passé composé ; garde le même temps : « {right} ».",
         },
     },
     "FR_ELISION": {
@@ -1724,6 +1724,19 @@ _INDIRECT_OBJECT_VERBS = frozenset(
 )
 #: «faire attention à moi», «faire appel à toi»: these keep «à» and the stressed pronoun.
 _FAIRE_KEEPS_A = frozenset({"attention", "appel", "allusion", "face", "honneur"})
+#: «un ami à moi» is «a friend of mine»: after a person's relation «à moi» is the
+#: possessive, and «Elle a présenté un ami à moi» means something else than «Elle m'a
+#: présenté un ami». The floor only claims what is sure, so it leaves these alone.
+_POSSESSIVE_A_NOUNS = frozenset(
+    {"ami", "amie", "amis", "amies", "copain", "copine", "copains", "copines", "cousin", "cousine", "cousins",
+     "cousines", "frère", "frères", "sœur", "sœurs", "soeur", "soeurs", "collègue", "collègues", "voisin",
+     "voisine", "voisins", "voisines", "fils", "fille", "filles", "enfant", "enfants", "oncle", "tante", "père",
+     "mère", "parents", "neveu", "nièce", "camarade", "camarades", "connaissance", "client", "cliente", "patron",
+     "patronne", "chien", "chat", "idée", "idées"}
+)
+#: «Il a donné tout à moi» -> «Il m'a tout donné»: «tout» and «rien» move in front of the
+#: participle, which a span edit cannot say; the floor leaves the sentence to the model.
+_MOVES_BEFORE_PARTICIPLE = frozenset({"tout", "rien"})
 #: The stressed pronoun -> the object pronoun before a consonant and before a vowel.
 _OBJECT_CLITIC_OF = {"moi": ("me", "m"), "toi": ("te", "t")}
 #: What may stand between the verb and «à moi»: a short noun group, nothing that opens
@@ -1779,7 +1792,11 @@ def _object_pronoun_edit(source: str, tokens: list[Tok], index: int) -> Edit | N
             return None
         if lemma == "faire" and any(t.low in _FAIRE_KEEPS_A for t in between):
             return None
-        person = {"moi": {"je", "j"}, "toi": {"tu"}}[pronoun.low]
+        if between and between[-1].low in _POSSESSIVE_A_NOUNS:
+            return None  # «un ami à moi»: a friend of mine
+        if any(t.low in _MOVES_BEFORE_PARTICIPLE for t in between):
+            return None  # «donné tout à moi»: «m'a tout donné» moves a word
+        person ={"moi": {"je", "j"}, "toi": {"tu"}}[pronoun.low]
         if subject.low in person:
             return None  # «je … à moi» is no object pronoun
         full, elided = _OBJECT_CLITIC_OF[pronoun.low]

@@ -71,6 +71,14 @@ def test_a_stressed_pronoun_after_a_verb_becomes_the_object_pronoun_before_it():
         "Elle tient à moi.",
         "À moi de jouer.",
         "Elle ne parle pas à moi.",
+        # «un ami à moi» is a friend of mine: the possessive, not the object of the verb
+        "Elle a présenté un ami à moi.",
+        "Il a montré une amie à toi.",
+        "Elle a appelé la sœur à moi.",
+        "Il a donné les clés du voisin à moi.",
+        # «tout à moi» would come out «Il m'a donné tout», still wrong French
+        "Il a donné tout à moi.",
+        "Il a dit tout à toi.",
     ],
 )
 def test_a_stressed_pronoun_that_belongs_after_its_word_is_left_alone(right):
@@ -107,6 +115,49 @@ def test_the_journal_names_the_slip_the_model_let_through(db_session):
         f"«Nothing to correct» for «à moi»: {entry.correction}"
     )
     assert entry.correction["foreground"] is not None
+
+
+def test_the_foreground_never_shows_a_fix_the_validator_refuses(db_session):
+    """Review of #763: the card's one correction passes the same validator as every
+    surface. A rewrite into a gender the learner never gave is no correction of their
+    French, so it is neither up front nor in the list, nor noted in the Relevé."""
+    user = _user(db_session)
+    _journey(db_session, user, local_date=TODAY - timedelta(days=1), concept=_concept(db_session))
+    corrector = _FakeCorrector(
+        {
+            "verdict": "partial",
+            "score_0_4": 3,
+            "errata": [
+                {
+                    "item_id": "a",
+                    "display_label": "Accord",
+                    "learner_text": "Je suis content",
+                    "corrected_target": "Je suis contente",
+                    "why_wrong": "Agreement.",
+                    "repair_hint": "contente",
+                    "severity": 2,
+                    "recurring": True,
+                    "task_error_type": "gender_agreement",
+                }
+            ],
+        }
+    )
+    entry = _write(db_session, user, corrector, "Je suis content de voir Margaux au Mistral.")
+    assert entry.correction["foreground"] is None, entry.correction["foreground"]
+    assert not any("contente" in item["corrected_fr"] for item in entry.correction["errata"]), entry.correction
+    assert entry.errata_ids == []
+
+
+def test_a_written_apostrophe_fix_is_the_one_up_front(db_session):
+    """A dropped apostrophe is a mistake in a written text, not punctuation noise: the
+    speech fold reads «j étais» and «j'étais» as one word, the written check does not."""
+    user = _user(db_session)
+    _journey(db_session, user, local_date=TODAY - timedelta(days=1), concept=_concept(db_session))
+    entry = _write(
+        db_session, user, _FakeCorrector({"verdict": "accepted", "score_0_4": 4, "errata": []}),
+        "Gus a demandé qui j étais.",
+    )
+    assert (entry.correction["foreground"] or {}).get("corrected_fr") == "j'étais", entry.correction
 
 
 @pytest.fixture(params=["switched_off", "no_provider"])
