@@ -183,15 +183,41 @@ def trap_reason(external_id: str | None, wrong: str, right: str) -> dict[str, st
     The card's ``traps[].why`` is the reason for one slip, authored per language. The pair
     matches its trap exactly, or by the one word it swaps (so «ma affiche → mon affiche»,
     a Forge sentence the card never printed, is explained as «ma amie → mon amie» is).
+
+    #774: the card's lead pair (``contrast``) is a trap too, and the first one the recall
+    drill asks: it carries its own ``why``. A pair no card explains but that only misses
+    an elision («Est-ce que il pleut ?») is explained by that elision, in its own words,
+    never by the unit's headline rule that the learner had followed.
     """
 
+    if not wrong or not right:
+        return None
     card = rule_card_for(external_id) or {}
     traps = [
         trap
-        for trap in card.get("traps") or []
+        for trap in [card.get("contrast"), *(card.get("traps") or [])]
         if isinstance(trap, dict) and isinstance(trap.get("why"), dict) and trap.get("wrong") and trap.get("right")
     ]
-    if not traps or not wrong or not right:
+    return _authored_reason(traps, wrong, right) or elision_reason(wrong, right)
+
+
+def elision_reason(wrong: str, right: str) -> dict[str, str] | None:
+    """The reason of a pair that only misses an elision, per language, else ``None``."""
+
+    from app.services.answer_acceptance import NOTE_COPY, elision_slip_words
+
+    words = elision_slip_words(plain(wrong), plain(right))
+    if words is None:
+        return None
+    particle, elided, written = words
+    return {
+        code: template.format(particle=particle, elided=elided, written=written)
+        for code, template in NOTE_COPY["elision_pair"].items()
+    }
+
+
+def _authored_reason(traps: list[dict[str, Any]], wrong: str, right: str) -> dict[str, str] | None:
+    if not traps:
         return None
     exact = (_fold_words(wrong), _fold_words(right))
     for trap in traps:
