@@ -130,7 +130,7 @@ def _walk_choice() -> ReplyChoice:
 # ---------------------------------------------------------------------------
 
 
-def test_the_walks_total_is_the_exchanges_the_scene_plays(model):
+def test_walk_total_is_honest(model):
     brief, prompt, task = _planned("t5", 1)
     assert [turn["id"] for turn in brief.story_context["season"]["turns"]] == ["va.a.turn1"]
     model.choice = _walk_choice()
@@ -141,7 +141,7 @@ def test_the_walks_total_is_the_exchanges_the_scene_plays(model):
     )
 
 
-def test_a_deflection_asked_again_still_plays_under_the_same_total(model):
+def test_deflection_past_total(model):
     """The exchange the page plays only after a deflection is past the plan, never promised."""
 
     brief, prompt, task = _planned("t5", 1)
@@ -151,7 +151,7 @@ def test_a_deflection_asked_again_still_plays_under_the_same_total(model):
     assert prompt["max_turns"] <= len(played)
 
 
-def test_a_page_that_asks_once_promises_no_question_the_model_may_not_write(model):
+def test_extra_question_unpromised(model):
     """T4 day A: the scene's own extra question comes only when the reader writes one that
     holds. Without it the day closes on the first reply, so the total may not count it."""
 
@@ -165,7 +165,7 @@ def test_a_page_that_asks_once_promises_no_question_the_model_may_not_write(mode
     )
 
 
-def test_the_extra_question_still_gets_its_answer(model):
+def test_extra_question_still_asked(model):
     """The total no longer counts it, and the scene still asks it and takes the answer."""
 
     brief, _prompt, task = _planned("t4", 1)
@@ -177,7 +177,7 @@ def test_the_extra_question_still_gets_its_answer(model):
     assert [evaluation.needs_repair for evaluation in played] == [True, False]
 
 
-def test_a_page_every_route_plays_whole_keeps_its_total():
+def test_whole_page_keeps_total():
     _brief, prompt, task = _planned("t4", 2)
     assert prompt["max_turns"] == task.max_turns == 4
 
@@ -187,7 +187,9 @@ def test_a_page_every_route_plays_whole_keeps_its_total():
 # ---------------------------------------------------------------------------
 
 
-def test_the_walks_close_does_not_say_the_pages_next_line_first(model):
+def test_walk_close_said_once(model):
+    """The walk's reply exactly: the reader's line, the page's reaction, the close, the page."""
+
     brief, _prompt, task = _planned("t5", 1)
     model.choice = _walk_choice()
     model.closing = SceneClosing(lines=[ClosingLine(who="lila_bonnet", text_fr=WALK_CLOSE)])
@@ -197,14 +199,6 @@ def test_the_walks_close_does_not_say_the_pages_next_line_first(model):
     assert "Viens. Tu vas voir une chose." in said, "the page's own line stays, word for word"
     assert _repeated_pairs(said) == [], said
 
-
-def test_a_close_that_holds_is_still_played(model):
-    brief, _prompt, task = _planned("t5", 1)
-    model.choice = _walk_choice()
-    model.closing = SceneClosing(lines=[ClosingLine(who="lila_bonnet", text_fr="Moi aussi, j'ai peur.")])
-    evaluation = _play(brief, task, [WALK_REPLY])[0]
-    said = [line["text_fr"] for line in evaluation.reply_lines]
-    assert "Moi aussi, j'ai peur." in said
 
 #: The page's lines on the walk's route, at A1: the reaction, then the next panel.
 PAGE_REACTION = "Moi aussi, je veux rester ici. Alors je dois partir."
@@ -227,21 +221,21 @@ def _walk_said(model, *, ack: str = WALK_ACK, close: str | None = None) -> list[
         "viens, tu vas voir une chose !",  # the same words, other punctuation and case
         "Moi aussi je veux rester ici, alors je dois partir.",  # the reaction just said
     ],
-    ids=["walk", "punctuation-and-case", "the-reaction-again"],
+    ids=["walk", "punct", "reaction"],
 )
-def test_a_close_that_says_a_line_of_the_reply_again_is_not_played(model, close):
+def test_close_repeat_dropped(model, close):
     said = _walk_said(model, close=close)
     assert close not in said
     assert PAGE_REACTION in said and PAGE_NEXT in said, "the page's own words stand"
     assert _repeated_pairs(said) == [], said
 
 
-def test_the_readers_first_line_never_says_the_pages_reaction_first(model):
+def test_ack_repeat_dropped(model):
     said = _walk_said(model, ack="moi aussi, je veux rester ici ! alors je dois partir")
     assert said.count(PAGE_REACTION) == 1
     assert _repeated_pairs(said) == [], said
 
 
 @pytest.mark.parametrize("close", ["Je comprends.", "Moi aussi, j'ai peur."])
-def test_a_short_habit_or_a_new_line_is_no_repeat(model, close):
+def test_new_line_kept(model, close):
     assert close in _walk_said(model, close=close)
