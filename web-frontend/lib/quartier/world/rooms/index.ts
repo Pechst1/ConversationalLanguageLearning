@@ -3,6 +3,7 @@ import type { RoomSpec } from '../../room';
 
 export const ROOM_FILES: Record<string, () => Promise<RoomSpec>> = {
   arriere_salle: () => import('./arriere_salle.json').then((m) => (m.default ?? m) as unknown as RoomSpec),
+  chateau_gus: () => import('./chateau_gus.json').then((m) => (m.default ?? m) as unknown as RoomSpec),
   chez_marin_lila: () => import('./chez_marin_lila.json').then((m) => (m.default ?? m) as unknown as RoomSpec),
   escalier_mistral: () => import('./escalier_mistral.json').then((m) => (m.default ?? m) as unknown as RoomSpec),
   gerance_marchand: () => import('./gerance_marchand.json').then((m) => (m.default ?? m) as unknown as RoomSpec),

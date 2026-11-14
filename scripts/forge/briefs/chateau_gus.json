@@ -1,0 +1,916 @@
+{
+  "id": "chateau_gus",
+  "kind": "room",
+  "round": 3,
+  "in": "quai_de_valmy",
+  "canon": {
+    "doc": "docs/story/season-1/10-lieux-et-images.md",
+    "place": "Gus's loft (canon)",
+    "scenes": [
+      "T8 · À suivre… (2): the loft at night, the painting face to the wall",
+      "E1 B · À suivre (partager); E3 A P3 and B P5"
+    ]
+  },
+  "ambiance": "nuit",
+  "title": {
+    "fr": "Le « château » de Gus",
+    "en": "Gus's “château”",
+    "de": "Gus' „Schloss“"
+  },
+  "can_do": {
+    "fr": "Lire le dos du tableau, voir la bannière, la cheminée, et l'enveloppe sur la table.",
+    "en": "Read the back of the painting, see the banner, the fireplace, and the envelope on the table.",
+    "de": "Die Rückseite des Bildes lesen, das Banner sehen, den Kamin und den Umschlag auf dem Tisch."
+  },
+  "arrive": {
+    "fr": "Chez Gus, au cinquième. Il appelle ça son château. Contre le mur, un tableau retourné.",
+    "en": "At Gus's, on the fifth floor. He calls it his château. Against the wall, a painting turned round.",
+    "de": "Bei Gus, im fünften Stock. Er nennt es sein Schloss. An der Wand ein umgedrehtes Bild."
+  },
+  "start": {
+    "pos": [
+      -36.3,
+      44.45
+    ],
+    "look": [
+      -27.5,
+      17.45,
+      44.39
+    ]
+  },
+  "spaces": [
+    {
+      "key": "vestibule",
+      "rect": [
+        -28.6,
+        50.0,
+        -27.26,
+        52.75
+      ],
+      "floor": 0.16,
+      "ceiling": 4.25,
+      "finish": "cabochons",
+      "walls": {
+        "finish": "wainscot",
+        "tone": "celadon",
+        "dado": "faux"
+      },
+      "open": {
+        "w": [
+          {
+            "u": [
+              1.5,
+              2.75
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "couloir",
+      "rect": [
+        -37.2,
+        50.0,
+        -28.6,
+        51.25
+      ],
+      "floor": 0.16,
+      "finish": "cabochons",
+      "walls": null
+    },
+    {
+      "key": "pied",
+      "rect": [
+        -38.7,
+        50.0,
+        -37.2,
+        52.75
+      ],
+      "floor": 0.16,
+      "finish": "cabochons",
+      "walls": null
+    },
+    {
+      "key": "palier",
+      "rect": [
+        -30.45,
+        51.4,
+        -28.6,
+        52.75
+      ],
+      "floor": 4.6,
+      "finish": "boards",
+      "walls": null
+    },
+    {
+      "key": "palier5",
+      "rect": [
+        -38.6,
+        43.0,
+        -37.25,
+        49.6
+      ],
+      "floor": 17.1,
+      "ceiling": 19.7,
+      "finish": "boards",
+      "walls": {
+        "finish": "wainscot",
+        "tone": "celadon",
+        "dado": "faux"
+      }
+    },
+    {
+      "key": "salon",
+      "rect": [
+        -37.0,
+        40.6,
+        -27.26,
+        49.6
+      ],
+      "floor": 17.1,
+      "ceiling": 19.7,
+      "finish": "parquet",
+      "walls": {
+        "finish": "plaster",
+        "tone": "bottle"
+      }
+    }
+  ],
+  "floors": [
+    {
+      "key": "seuil",
+      "shape": [
+        [
+          -37.25,
+          44.0
+        ],
+        [
+          -37.0,
+          44.0
+        ],
+        [
+          -37.0,
+          44.9
+        ],
+        [
+          -37.25,
+          44.9
+        ]
+      ],
+      "y": 17.1,
+      "finish": "boards"
+    }
+  ],
+  "walls": [
+    {
+      "key": "cage.n",
+      "a": [
+        -38.7,
+        50.0
+      ],
+      "b": [
+        -28.6,
+        50.0
+      ],
+      "base": 0.16,
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux"
+    },
+    {
+      "key": "cage.e1",
+      "a": [
+        -28.6,
+        50.0
+      ],
+      "b": [
+        -28.6,
+        51.25
+      ],
+      "base": 0.16,
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux"
+    },
+    {
+      "key": "cage.e2",
+      "a": [
+        -28.6,
+        51.25
+      ],
+      "b": [
+        -28.6,
+        52.75
+      ],
+      "base": 4.6,
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux"
+    },
+    {
+      "key": "cage.s1",
+      "a": [
+        -28.6,
+        52.75
+      ],
+      "b": [
+        -30.45,
+        52.75
+      ],
+      "base": 4.6,
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux"
+    },
+    {
+      "key": "cage.s2",
+      "a": [
+        -30.45,
+        52.75
+      ],
+      "b": [
+        -37.2,
+        52.75
+      ],
+      "base": [
+        4.6,
+        0.16
+      ],
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux"
+    },
+    {
+      "key": "cage.s3",
+      "a": [
+        -37.2,
+        52.75
+      ],
+      "b": [
+        -38.7,
+        52.75
+      ],
+      "base": 0.16,
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux"
+    },
+    {
+      "key": "cage.w",
+      "a": [
+        -38.7,
+        52.75
+      ],
+      "b": [
+        -38.7,
+        50.0
+      ],
+      "base": 0.16,
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux"
+    },
+    {
+      "key": "cloison.1",
+      "a": [
+        -28.6,
+        51.27
+      ],
+      "b": [
+        -30.45,
+        51.27
+      ],
+      "base": 0.16,
+      "top": 4.28,
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux",
+      "plain": true
+    },
+    {
+      "key": "cloison.2",
+      "a": [
+        -30.45,
+        51.27
+      ],
+      "b": [
+        -37.2,
+        51.27
+      ],
+      "base": 0.16,
+      "top": [
+        4.3,
+        0.18
+      ],
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux",
+      "plain": true
+    }
+  ],
+  "flights": [
+    {
+      "key": "volee",
+      "from": [
+        -37.2,
+        52.075
+      ],
+      "dir": "x+",
+      "width": 1.35,
+      "y0": 0.16,
+      "y1": 4.6,
+      "risers": 26,
+      "tread": 0.27,
+      "rail": "left"
+    }
+  ],
+  "rails": [
+    {
+      "a": [
+        -30.45,
+        4.6,
+        51.36
+      ],
+      "b": [
+        -28.6,
+        4.6,
+        51.36
+      ]
+    }
+  ],
+  "doors": [
+    {
+      "key": "porte_rue",
+      "wall": "vestibule.e",
+      "u": [
+        0.38,
+        2.38
+      ],
+      "height": 3.2,
+      "hinge": "both",
+      "swing": "in",
+      "tone": "porch",
+      "opens": "never"
+    },
+    {
+      "key": "porte_premier",
+      "wall": "cage.s1",
+      "u": [
+        0.5,
+        1.4
+      ],
+      "height": 2.2,
+      "hinge": "right",
+      "swing": "out",
+      "tone": "brown",
+      "opens": "never",
+      "mat": true
+    },
+    {
+      "key": "porte_palier",
+      "wall": "salon.w",
+      "u": [
+        4.7,
+        5.6
+      ],
+      "height": 2.2,
+      "hinge": "left",
+      "swing": "in",
+      "tone": "brown",
+      "opens": "never",
+      "mat": true
+    }
+  ],
+  "windows": [
+    {
+      "key": "fenetre_1",
+      "wall": "salon.e",
+      "u": [
+        1.765,
+        3.015
+      ],
+      "y": [
+        17.18,
+        19.2
+      ],
+      "balcony": 0.6
+    },
+    {
+      "key": "fenetre_2",
+      "wall": "salon.e",
+      "u": [
+        4.565,
+        5.815
+      ],
+      "y": [
+        17.18,
+        19.2
+      ],
+      "balcony": 0.6
+    },
+    {
+      "key": "fenetre_3",
+      "wall": "salon.e",
+      "u": [
+        7.355,
+        8.605
+      ],
+      "y": [
+        17.18,
+        19.2
+      ],
+      "balcony": 0.6
+    }
+  ],
+  "lights": [
+    {
+      "key": "globe_vestibule",
+      "kind": "globe",
+      "at": [
+        -27.93,
+        3.6,
+        51.35
+      ],
+      "ceiling": 4.25,
+      "power": 0.9,
+      "range": 4.6
+    },
+    {
+      "key": "applique_pied",
+      "kind": "sconce",
+      "at": [
+        -38.44,
+        2.4,
+        51.35
+      ],
+      "facing": [
+        1,
+        0
+      ],
+      "power": 0.85,
+      "range": 5.2
+    },
+    {
+      "key": "hublot_premier",
+      "kind": "hublot",
+      "at": [
+        -28.835,
+        6.9,
+        52.05
+      ],
+      "facing": [
+        -1,
+        0
+      ],
+      "power": 0.85,
+      "range": 4.6
+    },
+    {
+      "key": "globe_palier5",
+      "kind": "globe",
+      "at": [
+        -37.92,
+        19.2,
+        46.3
+      ],
+      "ceiling": 19.7,
+      "power": 0.7,
+      "range": 4.2
+    },
+    {
+      "key": "applique_ouest",
+      "kind": "sconce",
+      "at": [
+        -33.4,
+        18.85,
+        40.65
+      ],
+      "facing": [
+        0,
+        1
+      ],
+      "power": 0.8,
+      "range": 4.6
+    },
+    {
+      "key": "applique_est",
+      "kind": "sconce",
+      "at": [
+        -30.8,
+        18.85,
+        40.65
+      ],
+      "facing": [
+        0,
+        1
+      ],
+      "power": 0.8,
+      "range": 4.6
+    },
+    {
+      "key": "applique_sud",
+      "kind": "sconce",
+      "at": [
+        -27.31,
+        18.85,
+        43.85
+      ],
+      "facing": [
+        -1,
+        0
+      ],
+      "power": 0.75,
+      "range": 4.4
+    },
+    {
+      "key": "globe_salon",
+      "kind": "globe",
+      "at": [
+        -32.0,
+        19.15,
+        45.3
+      ],
+      "ceiling": 19.7,
+      "power": 0.45,
+      "range": 5.0
+    }
+  ],
+  "switches": [],
+  "timers": {},
+  "things": [
+    {
+      "kind": "letterboxes",
+      "at": [
+        -27.93,
+        1.45,
+        50.0
+      ],
+      "rot": 0,
+      "tone": "brown",
+      "text": [
+        "1er",
+        "2e",
+        "3e",
+        "4e",
+        "5e · A. de Roncourt"
+      ]
+    },
+    {
+      "kind": "mantel",
+      "at": [
+        -32.1,
+        17.1,
+        40.6
+      ],
+      "rot": 0,
+      "size": [
+        1.6,
+        1.1
+      ],
+      "look": {
+        "fr": "Une cheminée de marbre, un grand miroir doré. Sur la cheminée, le chandelier du réveillon.",
+        "en": "A marble fireplace, a tall gilt mirror. On the mantelpiece, the candelabrum from Christmas Eve.",
+        "de": "Ein Marmorkamin, ein hoher Goldspiegel. Auf dem Sims der Kerzenleuchter vom Heiligabend."
+      },
+      "did": {
+        "fr": "Tu as vu le chandelier sur la cheminée.",
+        "en": "You saw the candelabrum on the mantelpiece.",
+        "de": "Du hast den Leuchter auf dem Kaminsims gesehen."
+      }
+    },
+    {
+      "kind": "candelabra",
+      "at": [
+        -32.65,
+        18.22,
+        40.8
+      ],
+      "rot": 0
+    },
+    {
+      "kind": "banner",
+      "at": [
+        -36.98,
+        18.55,
+        42.3
+      ],
+      "rot": 1.5707963267948966,
+      "size": [
+        0.85,
+        1.4
+      ],
+      "look": {
+        "fr": "Une bannière rouge et or : une couronne, trois étoiles. Les armes des Roncourt, d'après Gus.",
+        "en": "A red and gold banner: a crown, three stars. The arms of the Roncourts, according to Gus.",
+        "de": "Ein rot-goldenes Banner: eine Krone, drei Sterne. Das Wappen der Roncourts, sagt Gus."
+      },
+      "did": {
+        "fr": "Tu as vu les armes des Roncourt.",
+        "en": "You saw the arms of the Roncourts.",
+        "de": "Du hast das Wappen der Roncourts gesehen."
+      }
+    },
+    {
+      "kind": "bookcase",
+      "at": [
+        -37.0,
+        17.1,
+        47.6
+      ],
+      "rot": 1.5707963267948966,
+      "size": [
+        1.8,
+        2.4
+      ]
+    },
+    {
+      "kind": "canvas",
+      "at": [
+        -27.26,
+        17.1,
+        44.39
+      ],
+      "rot": -1.5707963267948966,
+      "size": [
+        0.62,
+        0.52
+      ],
+      "text": [
+        "Pour Odile, qui part. — L., 1970",
+        "Toujours rue de Lancry. — L., 2021"
+      ],
+      "look": {
+        "fr": "Le tableau du Mistral, retourné contre le mur. Au dos, à l'encre : « Pour Odile, qui part. — L., 1970 ». Au crayon : « Toujours rue de Lancry. — L., 2021 ».",
+        "en": "The painting of Le Mistral, turned to the wall. On the back, in ink: «Pour Odile, qui part. — L., 1970». In pencil: «Toujours rue de Lancry. — L., 2021».",
+        "de": "Das Bild vom Mistral, zur Wand gedreht. Auf der Rückseite, mit Tinte: «Pour Odile, qui part. — L., 1970». Mit Bleistift: «Toujours rue de Lancry. — L., 2021»."
+      },
+      "did": {
+        "fr": "Tu as lu le dos du tableau.",
+        "en": "You read the back of the painting.",
+        "de": "Du hast die Rückseite des Bildes gelesen."
+      }
+    },
+    {
+      "kind": "rug",
+      "at": [
+        -32.0,
+        17.1,
+        45.3
+      ],
+      "rot": 0,
+      "size": [
+        2.8,
+        1.9
+      ]
+    },
+    {
+      "kind": "lowtable",
+      "at": [
+        -32.0,
+        17.1,
+        45.3
+      ],
+      "rot": 0,
+      "size": [
+        1.1,
+        0.6
+      ]
+    },
+    {
+      "kind": "letter",
+      "at": [
+        -32.25,
+        17.526,
+        45.38
+      ],
+      "rot": 0,
+      "text": [
+        "Augustin",
+        "CRÉTEIL"
+      ],
+      "look": {
+        "fr": "Une enveloppe, une écriture ronde : « Augustin ». Le tampon de la poste dit : Créteil.",
+        "en": "An envelope, in a round hand: «Augustin». The postmark says: Créteil.",
+        "de": "Ein Umschlag, in runder Schrift: «Augustin». Der Poststempel sagt: Créteil."
+      },
+      "did": {
+        "fr": "Tu as vu l'enveloppe de Créteil.",
+        "en": "You saw the envelope from Créteil.",
+        "de": "Du hast den Umschlag aus Créteil gesehen."
+      }
+    },
+    {
+      "kind": "armchair",
+      "at": [
+        -33.45,
+        17.1,
+        45.3
+      ],
+      "rot": 1.5707963267948966,
+      "tone": "velvet"
+    },
+    {
+      "kind": "armchair",
+      "at": [
+        -30.55,
+        17.1,
+        45.3
+      ],
+      "rot": -1.5707963267948966,
+      "tone": "velvet"
+    }
+  ],
+  "courts": [],
+  "canals": [
+    {
+      "z0": 0.0,
+      "z1": 90.0,
+      "storeys": 6,
+      "seed": 49,
+      "lit": 0.35
+    }
+  ],
+  "marks": {
+    "streetDoor": [
+      -27.6,
+      0.16,
+      51.35
+    ],
+    "hall": [
+      -28.0,
+      0.16,
+      50.65
+    ],
+    "foot": [
+      -37.9,
+      0.16,
+      51.75
+    ],
+    "premier": [
+      -29.5,
+      4.6,
+      52.05
+    ],
+    "palier5": [
+      -37.92,
+      17.1,
+      48.9
+    ],
+    "porte": [
+      -36.3,
+      17.1,
+      44.45
+    ],
+    "tableau": [
+      -28.3,
+      17.1,
+      44.39
+    ],
+    "cheminee": [
+      -32.1,
+      17.1,
+      42.0
+    ],
+    "banniere": [
+      -35.9,
+      17.1,
+      42.3
+    ],
+    "table": [
+      -32.0,
+      17.1,
+      46.6
+    ],
+    "fenetre": [
+      -27.9,
+      17.1,
+      45.79
+    ]
+  },
+  "ceilings": [
+    {
+      "shape": [
+        [
+          -38.7,
+          50.0
+        ],
+        [
+          -28.6,
+          50.0
+        ],
+        [
+          -28.6,
+          52.75
+        ],
+        [
+          -38.7,
+          52.75
+        ]
+      ],
+      "y": 8.4
+    }
+  ],
+  "holes": [
+    {
+      "wall": "cage.e1",
+      "u": [
+        0.0,
+        1.25
+      ],
+      "y": [
+        0.15,
+        4.25
+      ]
+    },
+    {
+      "wall": "palier5.e",
+      "u": [
+        1.0,
+        1.9
+      ],
+      "y": [
+        17.1,
+        19.3
+      ],
+      "framed": true
+    }
+  ],
+  "passages": [
+    {
+      "key": "escalier",
+      "a": [
+        -29.5,
+        52.05
+      ],
+      "b": [
+        -37.92,
+        48.9
+      ],
+      "look_a": [
+        -37.0,
+        2.2,
+        52.075
+      ],
+      "look_b": [
+        -37.92,
+        18.4,
+        44.45
+      ],
+      "to_b": {
+        "fr": "Monter au cinquième",
+        "en": "Go up to the fifth floor",
+        "de": "In den fünften Stock gehen"
+      },
+      "to_a": {
+        "fr": "Redescendre au premier",
+        "en": "Go back down to the first floor",
+        "de": "In den ersten Stock hinuntergehen"
+      }
+    },
+    {
+      "key": "porte",
+      "a": [
+        -37.92,
+        44.45
+      ],
+      "b": [
+        -36.3,
+        44.45
+      ],
+      "door": "porte_palier",
+      "until": "story",
+      "look_a": [
+        -37.92,
+        18.4,
+        48.6
+      ],
+      "look_b": [
+        -27.5,
+        17.45,
+        44.39
+      ],
+      "to_b": {
+        "fr": "Entrer chez Gus",
+        "en": "Go into Gus's place",
+        "de": "Zu Gus hineingehen"
+      },
+      "to_a": {
+        "fr": "Sortir sur le palier",
+        "en": "Go out onto the landing",
+        "de": "Auf den Treppenabsatz gehen"
+      },
+      "shut": {
+        "fr": "Tu sonnes. Personne n'ouvre, pas encore.",
+        "en": "You ring. Nobody opens, not yet.",
+        "de": "Du klingelst. Niemand macht auf, noch nicht."
+      }
+    }
+  ]
+}

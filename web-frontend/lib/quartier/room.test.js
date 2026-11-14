@@ -383,3 +383,24 @@ test('a room in a street of the quarter (the rue de Lancry) walks the ground the
     if (gaze) assert.ok(Math.hypot(gaze.at[0] - quai.easel.center.x, gaze.at[1] - quai.easel.center.y, gaze.at[2] - quai.easel.center.z) < 0.5, `${file}: what you look up at is not «L.»'s window`);
   });
 });
+
+test('Gus’s loft: the painting of Le Mistral leans face to the wall, the two lines of its back to the room', () => {
+  const file = 'chateau_gus.json';
+  const loft = rooms.find((r) => r.file === file);
+  assert.ok(loft, 'the loft has its room');
+  const painting = loft.room.things.find((t) => t.kind === 'canvas');
+  // the canon's two lines, in ink and in pencil, and nothing else written there
+  assert.deepEqual(painting.text, ['Pour Odile, qui part. — L., 1970', 'Toujours rue de Lancry. — L., 2021']);
+  const { B } = built.get(file);
+  const back = B.signs.find((s) => s.key.startsWith('room:canvas'));
+  assert.ok(back, 'the back of the painting is written on');
+  // the writing faces the room (away from the wall it leans on), tilted up as the canvas leans
+  const out = { x: Math.sin(painting.rot), z: Math.cos(painting.rot) };
+  assert.ok(back.normal.x * out.x + back.normal.z * out.z > 0.8, 'the inscriptions face the wall');
+  assert.ok(back.normal.y > 0 && back.normal.y < 0.6);
+  // a framed oil, not a canvas packed for a journey: no bubble wrap
+  assert.equal(B.signs.some((s) => s.key.startsWith('room:canvas') && s.key.endsWith(':wrap')), false);
+  // and the arrival looks at it
+  const look = loft.room.start.look;
+  assert.ok(Math.hypot(look[0] - painting.at[0], look[2] - painting.at[2]) < 0.5, 'you come in facing the painting');
+});
