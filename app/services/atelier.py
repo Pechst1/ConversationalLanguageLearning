@@ -849,6 +849,27 @@ def repair_line_from_parts(learner: str, errata: list[dict[str, Any]] | None) ->
     return "".join(str(part.get("text", part.get("fix")) or "") for part in parts)
 
 
+_GAP_BLANK = re.compile(r"_{3,}")
+_PARENTHETICAL = re.compile(r"\s*\([^()]*\)")
+
+
+def gap_line(prompt: Any, filler: Any) -> str | None:
+    """A gap drill's whole line: ``filler`` in the prompt's one blank, ``None`` without one.
+
+    What stands in parentheses is not the line: the bank's gloss at the end, which can
+    hold its own («(You (informal) are ill…)», so innermost first), or a cue beside the
+    blank.
+    """
+
+    filler = str(filler or "").strip()
+    text = str(prompt or "")
+    removed = 1
+    while removed:
+        text, removed = _PARENTHETICAL.subn("", text)
+    line, blanks = _GAP_BLANK.subn(lambda _match: filler, text)
+    return " ".join(line.split()) if filler and blanks == 1 else None
+
+
 def _normalize(value: Any) -> str:
     text = "" if value is None else str(value)
     # Fold every smart/curly apostrophe and prime variant to a straight quote so a
@@ -4960,6 +4981,16 @@ class AtelierCorrectionService:
         return text if isinstance(text, str) else ""
 
     @staticmethod
+    def _keyed_repair_item(attempt: AtelierAttempt, erratum: dict[str, Any]) -> dict[str, Any]:
+        """The item a keyed erratum belongs to. The relecture's errata can lose their id,
+        and an attempt on one item does not need it."""
+
+        items = (attempt.prompt_payload or {}).get("items")
+        items = [item for item in items if isinstance(item, dict)] if isinstance(items, list) else []
+        named = next((item for item in items if item.get("id") == erratum.get("item_id")), None)
+        return named or (items[0] if len(items) == 1 else {})
+
+    @staticmethod
     def _repair_is_right(typed: str, source: str, accepted: list[str | None]) -> bool:
         """#503: the one judge of a typed repair, for keyed and model-judged rounds.
 
@@ -5029,6 +5060,12 @@ class AtelierCorrectionService:
             source = self._keyed_repair_source(attempt, erratum)
             key_line = (correction.get("corrected_answer") or {}).get(erratum.get("item_id")) if isinstance(correction.get("corrected_answer"), dict) else None
             accepted = [target, key_line if isinstance(key_line, str) else None, repair_line_from_parts(source, [erratum]) if source else None]
+            if attempt.mode == "fill":
+                # A gap's key and the learner's answer are only the gap, so neither
+                # holds the line the field asks for: the prompt does.
+                item = self._keyed_repair_item(attempt, erratum)
+                source = gap_line(item.get("prompt"), source) or source
+                accepted += [gap_line(item.get("prompt"), target), gap_line(item.get("prompt"), item.get("correct_answer"))]
         is_correct = self._repair_is_right(typed, source, accepted)
         repairs = dict(correction.get("micro_repairs") or {})
         repairs[str(erratum_index)] = {
