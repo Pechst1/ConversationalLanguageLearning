@@ -49,6 +49,7 @@ import { atelierCopy, stepOfLabel, type AtelierCopy } from '@/lib/atelier-v2-cop
 import { useImmersiveSurface } from '@/lib/immersive-surface';
 import { journeyChromeLanguage } from '@/lib/language-rule';
 import Router from 'next/router';
+import apiService from '@/services/api';
 import { handOnAfterScene } from '@/lib/day-plan';
 import { daySessionCopy } from '@/lib/day-session';
 import type { ConnectionView } from '@/lib/journey-recovery';
@@ -651,6 +652,7 @@ export function JourneySession({
                   onRetry={actions.retryLastAnswer}
                   onDismiss={actions.clearFeedback}
                   onAppeal={step ? () => actions.appeal(step.id) : undefined}
+                  onLooksWrong={step ? (shown) => reportLooksWrong(journey?.id ?? null, step.id, shown) : undefined}
                   speaker={step?.kind === 'recall' && asker ? asker : speaker}
                   stepKind={step?.kind ?? null}
                   faceShown={step?.kind === 'recall' && Boolean(asker)}
@@ -937,3 +939,26 @@ export function JourneyRecapView({
 }
 
 export default JourneySession;
+
+/**
+ * Beta: the «Something here looks wrong» tap under a verdict. Stores what the screen showed as a
+ * `looks_wrong` report (private to the operator, never in the public repository), which the
+ * morning triage turns into a finding. Resolves true once stored.
+ */
+export async function reportLooksWrong(
+  journeyId: string | null,
+  stepId: string,
+  shown: Record<string, unknown>,
+): Promise<boolean> {
+  try {
+    await apiService.submitFeedbackReport({
+      category: 'looks_wrong',
+      route: typeof window !== 'undefined' ? window.location.pathname : '/atelier',
+      screen: 'journey',
+      context_payload: { ...shown, journey_id: journeyId, step_id: stepId },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}

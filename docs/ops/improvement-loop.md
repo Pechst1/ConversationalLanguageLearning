@@ -48,6 +48,14 @@ that starts with **Done when:** and names the check a fix must pass.
 | `lane:code` / `lane:story` | how it is fixed and proven (below) |
 | `size:S` / `size:M` | one focused change / several files or one subsystem; larger work is split or goes to `queue:owner` |
 
+**Learner reports** (beta): a learner's «Something here looks wrong» tap under a verdict
+is stored as a `looks_wrong` feedback report. `scripts/loop/learner_reports.py --file`
+(owner account in `ATELIER_ADMIN_EMAIL`/`ATELIER_ADMIN_PASSWORD`, API in `ATELIER_API_URL`)
+files one `walk-finding` + `source:learner` + `queue:owner` issue per new report. The issue
+names the report and its shape only; the exact text stays on /pilot-ops («What looked
+wrong?») because this repository is public. The owner reads it there and triages the issue
+into the queue like any other finding.
+
 `scripts/loop/loop_queue.py` does the label moves (`claim`, `release`, `mark-pr`),
 lists the queue in fix order (`ready`: severity, then size, then age), creates the
 labels (`ensure-labels`) and writes the digest (`digest`).
