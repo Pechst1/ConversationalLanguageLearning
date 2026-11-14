@@ -634,6 +634,7 @@ def _folded(value: object) -> str:
 
 
 _GUILLEMETS = re.compile(r"«\s*([^»]+?)\s*»")
+_DOUBLE_QUOTED = re.compile(r"“\s*([^”]+?)\s*”|\"([^\"]+)\"")
 
 
 def _quote_body(fragment: str) -> str:
@@ -659,11 +660,15 @@ def note_quotes_hold(note: object, span: object, replacement: object, context: o
     fixed = source.replace(old, new, 1) if old and old in source else source
     places = [_words_of(place) for place in (source, fixed, new, old)]
     words = {w for place in places for w in place}
-    for match in _GUILLEMETS.finditer(text):  # the French a note quotes; English glosses aside
-        body = _quote_body(match.group(1))
+    fragments = [(match.group(1), True) for match in _GUILLEMETS.finditer(text)]
+    fragments += [(match.group(1) or match.group(2), False) for match in _DOUBLE_QUOTED.finditer(text)]
+    for fragment, french in fragments:
+        body = _quote_body(fragment)
         quoted = _words_of(body)
         if not quoted or body.startswith("-"):
             continue  # a mark, a number or an ending («-x»)
+        if not french and not all(_is_grammar_word(w) or _verb_lemma(w) for w in quoted):
+            continue  # a double-quoted English gloss («means "meeting"»), not French
         n = len(quoted)
         if any(place[i : i + n] == quoted for place in places for i in range(len(place) - n + 1)):
             continue

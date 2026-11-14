@@ -58,12 +58,21 @@ def test_a_quote_that_matches_nothing_the_learner_wrote_is_dropped():
     [
         # #193: «tu» is nowhere in the sentence
         ("Odile est parti parce que la restaurant est fermé.", "est", "es", "With « tu », « est » must be « es »."),
+        # the same claim in double quotes (Codex review on #798)
+        ("Odile est parti parce que la restaurant est fermé.", "est", "es", 'With "tu", "est" must be "es".'),
+        ("Odile est parti parce que la restaurant est fermé.", "est", "es", "With “tu”, “est” must be “es”."),
     ],
 )
 def test_a_note_quoting_french_from_another_sentence_is_rewritten(text, span, replacement, note):
     assert cc.note_quotes_hold(note, span, replacement, text) is False
     rewritten = cc.note_for_form(span, replacement, note, language="en", context=text)
-    assert "tu" not in _quotes(rewritten)
+    assert "tu" not in _quotes(rewritten) and '"tu"' not in rewritten and "“tu”" not in rewritten
+
+
+def test_an_english_gloss_in_double_quotes_is_not_read_as_french():
+    note = 'Here « réunion » means "meeting": « une grande réunion ».'
+    text = "J'ai une grand réunion."
+    assert cc.note_quotes_hold(note, "une grand réunion", "une grande réunion", text) is True
 
 
 @pytest.mark.parametrize(
