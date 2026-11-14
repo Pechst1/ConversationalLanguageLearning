@@ -1606,7 +1606,7 @@ class ForgeService:
                     **slot.to_dict(),
                     **item.to_dict(),
                     "position": slot.position,
-                    "length": state.length,
+                    "length": state.shown_length,
                     "role": slot.role,
                     "reprise": slot.reprise,
                     # The item itself: a bank top-up is not in the exercise
@@ -1627,11 +1627,13 @@ class ForgeService:
                 self.db.add(session)
                 self.db.commit()
                 return dict(pending)
-            # Nothing left for this rule: it retires from the séance.
+            # Nothing left for this rule: it retires from the séance, and is dry:
+            # it does not come back to fill the minimum either (#443).
             track = state.track(slot.concept_id)
             if track is None:  # pragma: no cover - slots come from tracks
                 break
             track.topped = True
+            track.dry = True
         state.finished = True
         state.pending = None
         _store_state(session, state)
@@ -1647,10 +1649,14 @@ class ForgeService:
             return {}
         upcoming = self.next_item(user=user, session=session)
         state = forge_state_of(session) or state
+        if upcoming is not None:
+            # #443: one length on every screen, re-read as the séance runs (a rule
+            # topped out since this item was stored shortens it).
+            upcoming = {**upcoming, "length": state.shown_length}
         combo, best_combo = core.combo_runs(state.history)
         return {
             "mode": state.mode,
-            "length": state.length,
+            "length": state.shown_length,
             "answered": state.position,
             "counted": state.counted_items,
             "finished": state.finished,
@@ -1701,7 +1707,9 @@ class ForgeService:
             return self.view(user=user, session=session)
         exercise_key = _exercise_key(attempt)
         if exercise_key in state.served_fingerprints:
-            return self.view(user=user, session=session)  # a resubmission: the first answer counted
+            # A resubmission («Try the line again»): the first answer counted.
+            self._note_resubmission(state=state, attempt=attempt, exercise_key=exercise_key)
+            return self.view(user=user, session=session)
         fingerprint = fingerprint_for(
             int(attempt.concept_id), str(attempt.round), _pool_mode(attempt), _attempt_item_id(attempt)
         )
@@ -1790,6 +1798,30 @@ class ForgeService:
         self.db.commit()
         self.db.refresh(session)
         return self.view(user=user, session=session)
+
+    def _note_resubmission(self, *, state: ForgeState, attempt: AtelierAttempt, exercise_key: str) -> None:
+        """#699: a retried item keeps the way it was posed.
+
+        The page reads how an answered item was posed from its answer's record
+        (``correction.forge.drill``); the forge has moved on by then. A retry is
+        not counted again, but its answer is the one the page shows: without the
+        record a typed gap came back drawn the classic way, its choice cards
+        (one a wrong form) printed under «Well done!». Only how it was posed is
+        copied: no count, no climb, no run, which belong to the first answer.
+        """
+
+        first = next(
+            (entry for entry in reversed(state.history) if entry.get("exercise_key") == exercise_key), None
+        )
+        drill = str((first or {}).get("drill") or "")
+        if not drill:
+            return
+        correction = dict(attempt.correction_payload or {})
+        correction["forge"] = {"drill": drill, "counted": False, "resubmission": True}
+        attempt.correction_payload = correction
+        flag_modified(attempt, "correction_payload")
+        self.db.add(attempt)
+        self.db.commit()
 
     def amend_attempt(
         self, *, user: User, session: AtelierSession, attempt: AtelierAttempt, commit: bool = True

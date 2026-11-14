@@ -24,7 +24,11 @@ rung, and a rule that is clean at the top retires altogether.
 **Composition.** A séance is ≈ 40 % today's rule, ≈ 40 % due rules, ≈ 20 %
 contrast partners (shares renormalised over the roles that are present, and
 over the rules still able to take a slot). Never two items of one rule back to
-back (the one exception: a séance with a single rule). At most
+back (the one exception: a single rule left able to take a slot). A séance
+serves at least :data:`MIN_SEANCE_ITEMS` items even when its rules retire
+early (#443): they come back to fill it, and one that ends by itself before its
+planned length is as long as what it served (:attr:`ForgeState.shown_length`).
+At most
 :data:`MAX_NEW_RULES` brand-new rule per séance. The day's step («Forge
 today's rule», #169) sets ``review_share`` instead: today's rule throughout,
 review rules only within that share (:meth:`ForgeState._today_first_slot`).
@@ -319,6 +323,10 @@ class RuleTrack:
     exhausted_rungs: list[int] = field(default_factory=list)
     #: See :attr:`ForgeUnit.warmup`; cleared by the first right answer on it.
     warmup: int | None = None
+    #: #443: the item provider had nothing left for this rule. Unlike ``topped``
+    #: (the mix retires a rule clean at the top), a dry rule takes no slot at all,
+    #: not even to fill the séance's :attr:`ForgeState.minimum`.
+    dry: bool = False
 
     def entry_rung(self) -> int:
         """The rung an item of this rule is posed at: the level, or its easier entry."""
@@ -539,6 +547,48 @@ class ForgeState:
     def last_concept_id(self) -> int | None:
         return int(self.history[-1]["concept_id"]) if self.history else None
 
+    @property
+    def minimum(self) -> int:
+        """#443: the items a séance serves before the mix may end it (fewer only when
+        the planned length is shorter, or the item provider runs dry)."""
+
+        return min(MIN_SEANCE_ITEMS, self.length)
+
+    @property
+    def shown_length(self) -> int:
+        """#443: the séance's length as every screen reads it (counter, end sheet, Done).
+
+        One number, read from the mix itself: the items the séance deals from here
+        if every one is answered right (:meth:`dealable_length`). A miss books a
+        reprise and keeps the rung, so the count can grow after one; it never
+        promises an item the mix would not deal, so the item the séance ends on is
+        the counter's last («Finish» under «6/6», never under «6/16», #443). A
+        séance that ended by itself is as long as what it served. A learner who
+        stops is not ``finished``: the length stays, and the sheet reads «early».
+        """
+
+        if self.mode != MODE_SEANCE:
+            return self.length
+        if self.finished:
+            return self.position
+        return self.dealable_length()
+
+    def dealable_length(self) -> int:
+        """#443: the séance's length if every item from here is answered right.
+
+        A dry run of the very composer that deals the items (:meth:`_slot_ahead`
+        and :meth:`record` on a copy), so the counter and the slots cannot tell two
+        stories: today's rule topping out, the day's review cap (#169) and the
+        :attr:`minimum` all shorten it exactly as they will end the séance. A rule
+        the item provider ran dry on (``dry``) is already out of the copy.
+        """
+
+        probe = ForgeState.from_dict(self.to_dict())
+        probe.pending = None
+        while (slot := probe._slot_ahead()) is not None:
+            probe.record(concept_id=slot.concept_id, rung=slot.rung, verdict=Verdict.right(), role=slot.role)
+        return max(probe.position, min(self.position + 1, self.length))
+
     # -- composing the next item ---------------------------------------------
 
     def next_slot(self) -> Slot | None:
@@ -563,13 +613,43 @@ class ForgeState:
             track = self.tracks[0]
             return Slot(position=position, concept_id=track.concept_id, rung=self.plan[position], role=track.role)
 
-        live = [track for track in self.tracks if not track.topped]
-        if not live:
+        live = [track for track in self.tracks if not track.topped and not track.dry]
+        slot = self._mixed_slot(position, live) if live else None
+        if slot is None and position < self.minimum:
+            # #443: the mix retiring its rules does not end a séance short of its
+            # minimum (a rule at Level 6 tops out on its first right line).
+            slot = self._filling_slot(position)
+        return slot
+
+    def _filling_slot(self, position: int) -> Slot | None:
+        """#443: under :attr:`minimum`, a rule the mix retired comes back.
+
+        The day's step stays on today's rule (the review cap of #169 holds);
+        otherwise the least-served rule other than the one just served, unless it
+        is the only one. Posed at its level: the item provider falls back to the
+        lower rungs when that rung has nothing new. A dry rule never comes back.
+        """
+
+        pool = [track for track in self.tracks if not track.dry]
+        if self.review_share is not None:
+            pool = [track for track in pool if track.role == Role.TODAY.value]
+        elif len(pool) > 1:
+            pool = [track for track in pool if track.concept_id != self.last_concept_id()]
+        if not pool:
             return None
+        role_order = {Role.TODAY.value: 0, Role.DUE.value: 1, Role.CONTRAST.value: 2}
+        pick = min(pool, key=lambda track: (track.served, role_order.get(track.role, 3), track.concept_id))
+        return Slot(position, pick.concept_id, pick.rung, pick.role)
+
+    def _mixed_slot(self, position: int, live: list[RuleTrack]) -> Slot | None:
+        """The mix's next slot among the rules still able to take one, or ``None``."""
+
         if self.review_share is not None:
             return self._today_first_slot(position, live)
         last = self.last_concept_id()
-        single_rule = len(self.tracks) == 1
+        # Never back to back, unless one rule is all the mix has left (#443: a
+        # séance of two whose first rule retired went on, alone, with the other).
+        single_rule = len(live) == 1
         eligible = [track for track in live if single_rule or track.concept_id != last]
         if not eligible:
             # Only the rule just served could go on: never back to back.
@@ -611,7 +691,8 @@ class ForgeState:
         (``floor``: 0.25 puts them at items 4, 8, 12 — never item 2), and never
         right after another review item. Today's rule may follow itself: the
         day's step is about it. The cap holds even once today's rule is topped
-        out: the séance then ends rather than turn into a review séance.
+        out: the séance then ends rather than turn into a review séance, once
+        today's rule has filled its minimum (:meth:`_filling_slot`, #443).
         """
 
         today = [track for track in live if track.role == Role.TODAY.value]
