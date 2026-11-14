@@ -71,6 +71,7 @@ from app.services.forge_grading import (
     production_local_check,
     refine_production_correction,
     sentence_differences,
+    slip_category,
     slip_note,
     token_diff,
 )
@@ -6465,6 +6466,22 @@ class AtelierCorrectionService:
             )
             explanation = str(item.get("explanation") or self._why_for(concept, item) or "").strip()
             outside_rule = mode == "fill" and _miss_outside_the_rule(item, learner_text, target)
+            # #596: a slip the classifier can name (an article's gender or number, a verb
+            # form of another person) is explained as that slip, with the rule only cited.
+            ops = token_diff(learner_text, target, positions=True)
+            named = None if outside_rule else slip_note(ops, language, target)
+            if named:
+                title = _concept_title_for(concept, language)
+                # A verb form is the rule's own matter, so the rule is cited; an article's
+                # gender or number is the noun's, whatever the day's rule is.
+                category = (slip_category(ops, target) or {}).get("category", "")
+                cite = _copy("atelier.recognize.rule_reference", language, title=title) if category.startswith("person") else ""
+                return self._recognize_erratum_payload(
+                    concept, item, label=title, learner_text=learner_text, target=target,
+                    why=" ".join(part for part in (why, named[0], cite) if part),
+                    repair=named[1],
+                    task_type=self._task_type_for(concept, item),
+                )
             if outside_rule:
                 # #380: say what differs in the learner's text, not the rule's headline.
                 why = f"{why} {_copy('atelier.recognize.other_words', language, learner=learner_text, target=target)}"
@@ -6477,7 +6494,7 @@ class AtelierCorrectionService:
             elif normalize_language(language) == "en":
                 repair = infer_grammar_profile(concept).pattern
             else:
-                repair = self._repair_for(concept)
+                repair = self._repair_for(concept, learner_text, target)
             return self._recognize_erratum_payload(
                 concept, item, label=_concept_title_for(concept, language), learner_text=learner_text, target=target,
                 why=why,
@@ -6497,7 +6514,7 @@ class AtelierCorrectionService:
             learner_text=learner_text,
             target=target,
             why=item.get("why_wrong") or self._why_for(concept, item),
-            repair=item.get("repair_hint") or self._repair_for(concept),
+            repair=item.get("repair_hint") or self._repair_for(concept, learner_text, target),
             task_type=self._task_type_for(concept, item),
         )
 
@@ -6512,7 +6529,7 @@ class AtelierCorrectionService:
         target_norm = _normalize(target)
         label = self._label_for(concept, item)
         why = _copy("atelier.recognize.blank_needs", self.explanation_language, learner=learner_text, target=target)
-        repair = item.get("repair_hint") or self._repair_for(concept)
+        repair = item.get("repair_hint") or self._repair_for(concept, learner_text, target)
         profile_key = infer_grammar_profile(concept).key if concept else ""
 
         language = self.explanation_language
@@ -8401,10 +8418,13 @@ class AtelierCorrectionService:
             return infer_grammar_profile(concept).principle
         return _copy("atelier.generic.why", self.explanation_language)
 
-    def _repair_for(self, concept: GrammarConcept | None) -> str:
+    def _repair_for(
+        self, concept: GrammarConcept | None, learner: str | None = None, target: str | None = None
+    ) -> str:
         # #239 / #146: the unit's own slip first, in every language; the fixed
         # «name the trigger» line is only for a concept the catalogue does not know.
-        authored = authored_repair(concept) if concept else ""
+        # #596: given the miss, the slip that fits it, never one crossing out its answer.
+        authored = authored_repair(concept, learner, target) if concept else ""
         if authored:
             return authored
         if self.explanation_language in {"fr", "de"}:

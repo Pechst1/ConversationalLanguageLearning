@@ -291,8 +291,9 @@ def test_wrong_article() -> None:
     # The noun was allowed: the miss is about the article's gender, not «this item
     # needs un tableau», and it names the form that goes with the noun typed.
     assert "un tableau" not in erratum["why_wrong"]
-    assert "“une peinture”" in erratum["why_wrong"]
-    assert "masculine or feminine" in erratum["why_wrong"]
+    assert "une peinture" in erratum["why_wrong"]
+    # #596: the slip itself is named: «peinture» is feminine.
+    assert "feminine" in erratum["why_wrong"]
 
 
 def test_gloss_mates_decided() -> None:
