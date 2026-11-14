@@ -192,7 +192,7 @@ def test_a_day_not_over_yet_is_not_due(db_session, frozen):
     week = _by_week(cohorts.build_cohorts(db_session, weeks=8))["2026-06-22"]
     assert week["returns"]["d1"] == {"returned": 0, "due": 0, "rate": None, "display": "not due"}
     [row] = week["learner_rows"]
-    assert row["returns"] == {"d1": None, "d3": None, "d7": None, "d14": None}
+    assert row["returns"] == {"d1": None, "d3": None, "d7": None, "d14": None, "d30": None}
 
 
 def test_synthetic_accounts_are_left_out_unless_asked(db_session, frozen):
@@ -220,11 +220,11 @@ def test_learner_rows_say_what_each_learner_did(db_session, frozen):
         for row in week["learner_rows"]
     }
     a = rows[str(learners["a"].id)]
-    assert a["returns"] == {"d1": True, "d3": True, "d7": True, "d14": True}
+    assert a["returns"] == {"d1": True, "d3": True, "d7": True, "d14": True, "d30": None}
     assert (a["days_started"], a["days_completed"]) == (5, 5)
     assert a["median_active_minutes"] == 12.0
     b = rows[str(learners["b"].id)]
-    assert b["returns"] == {"d1": True, "d3": False, "d7": False, "d14": False}
+    assert b["returns"] == {"d1": True, "d3": False, "d7": False, "d14": False, "d30": None}
     assert b["stops"] == [{"date": "2026-06-04", "after_step": "scene"}]
     c = rows[str(learners["c"].id)]
     assert c["returns"]["d3"] is True  # the Séance day
@@ -235,10 +235,79 @@ def test_the_table_reads_as_text(db_session, frozen):
     _seed(db_session)
     lines = cohorts.cohort_table_lines(cohorts.build_cohorts(db_session, weeks=8))
     text = "\n".join(lines)
-    assert "| 2026-06-01 | 3 | 2 of 3 | 2 of 3 | 1 of 3 | 1 of 3 |" in text
-    assert "| 2026-06-08 | 5 | 80% (4 of 5) |" in text
+    assert "| 2026-06-01 | 3 | 3 of 3 | 2 of 3 | 2 of 3 | 1 of 3 | 1 of 3 | not due |" in text
+    assert "| 2026-06-08 | 5 | 100% (5 of 5) | 80% (4 of 5) |" in text
     # The digest is posted in a public repository: no learner rows, no emails.
     assert "@example.com" not in text
+
+
+def test_day_thirty_is_reported_once_it_is_over(db_session, frozen):
+    signup = date(2026, 5, 4)  # Monday, 51 days before NOW
+    back = _learner(db_session, _signup_day(signup))
+    _day(db_session, back, _local(signup, PARIS))
+    _day(db_session, back, _local(signup + timedelta(days=30), PARIS))
+    gone = _learner(db_session, _signup_day(signup))
+    _day(db_session, gone, _local(signup, PARIS), steps=1, finish=False)
+    db_session.flush()
+
+    week = _by_week(cohorts.build_cohorts(db_session, weeks=8))["2026-05-04"]
+    assert week["returns"]["d30"] == {"returned": 1, "due": 2, "rate": None, "display": "1 of 2"}
+    # The first day: one finished it, one stopped after the first step.
+    assert week["finished_first_day"]["display"] == "1 of 2"
+    rows = {row["user_id"]: row for row in week["learner_rows"]}
+    assert rows[str(back.id)]["finished_first_day"] is True
+    assert rows[str(gone.id)]["finished_first_day"] is False
+    assert rows[str(gone.id)]["days_abandoned"] == 1
+
+
+def test_words_in_and_out_per_active_day(db_session, frozen, monkeypatch):
+    from app.db.models.daily_journey import DailyJourney
+    from app.db.models.verdict_record import VerdictRecord
+    from app.services.story_reading import StoryReading
+
+    signup = date(2026, 6, 15)
+    user = _learner(db_session, _signup_day(signup))
+    journeys = []
+    for offset in (0, 1):
+        journey = DailyJourney(
+            user_id=user.id, local_date=signup + timedelta(days=offset), timezone=PARIS, status="completed"
+        )
+        db_session.add(journey)
+        db_session.flush()
+        journeys.append(journey)
+        start = _local(signup + timedelta(days=offset), PARIS)
+        _event(db_session, user, str(JourneyEventName.STARTED), start, str(journey.id), PARIS)
+        _event(db_session, user, str(JourneyEventName.COMPLETED), start + timedelta(minutes=5), str(journey.id), PARIS)
+    words = {journeys[0].id: 120, journeys[1].id: 180}
+    monkeypatch.setattr(cohorts, "day_reading", lambda journey: StoryReading(acts=1, words=words[journey.id]))
+
+    def verdict(text: str, at: datetime, **extra) -> VerdictRecord:
+        row = VerdictRecord(
+            user_id=user.id, surface="journey", subject_type="step", subject_id=str(uuid4()),
+            answer_text=text, verdict={}, judge_version="t", created_at=at, **extra,
+        )
+        db_session.add(row)
+        db_session.flush()
+        return row
+
+    day0 = _local(signup, PARIS, hour=11)
+    verdict("Je voudrais un café", day0)
+    # An appealed answer: the superseded row never counts twice.
+    old = verdict("Il est parti hier soir", day0)
+    new = verdict("Il est parti hier soir", day0, supersedes_id=old.id)
+    old.superseded_by_id = new.id
+    verdict("Oui", _local(signup + timedelta(days=1), PARIS, hour=11))
+    db_session.flush()
+
+    report = cohorts.build_cohorts(db_session, weeks=8)
+    [row] = [r for week in report["cohorts"] for r in week["learner_rows"] if r["user_id"] == str(user.id)]
+    # Story words: 120 and 180, median 150. Own words: 4 + 5 = 9 and 1, median 5.
+    assert row["median_story_words"] == 150.0
+    assert row["median_own_words"] == 5.0
+    week = _by_week(report)["2026-06-15"]
+    assert week["median_story_words"] == 150.0
+    text = "\n".join(cohorts.cohort_table_lines(report))
+    assert "Median own words/day" in text
 
 
 def test_only_the_owner_reads_the_cohorts(client: TestClient, db_session):
