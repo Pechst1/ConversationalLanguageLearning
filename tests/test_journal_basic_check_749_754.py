@@ -76,6 +76,10 @@ def test_a_stressed_pronoun_after_a_verb_becomes_the_object_pronoun_before_it():
         "Il a montré une amie à toi.",
         "Elle a appelé la sœur à moi.",
         "Il a donné les clés du voisin à moi.",
+        # the relation noun need not be the last word before «à»
+        "Elle a présenté un ami d'enfance à moi.",
+        "Elle a présenté un ami proche à moi.",
+        "Elle a présenté la fille aînée à moi.",
         # «tout à moi» would come out «Il m'a donné tout», still wrong French
         "Il a donné tout à moi.",
         "Il a dit tout à toi.",

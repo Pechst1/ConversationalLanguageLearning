@@ -1792,8 +1792,8 @@ def _object_pronoun_edit(source: str, tokens: list[Tok], index: int) -> Edit | N
             return None
         if lemma == "faire" and any(t.low in _FAIRE_KEEPS_A for t in between):
             return None
-        if between and between[-1].low in _POSSESSIVE_A_NOUNS:
-            return None  # «un ami à moi»: a friend of mine
+        if any(t.low in _POSSESSIVE_A_NOUNS for t in between):
+            return None  # «un ami (proche) à moi»: a friend of mine, whatever follows the noun
         if any(t.low in _MOVES_BEFORE_PARTICIPLE for t in between):
             return None  # «donné tout à moi»: «m'a tout donné» moves a word
         person ={"moi": {"je", "j"}, "toi": {"tu"}}[pronoun.low]
