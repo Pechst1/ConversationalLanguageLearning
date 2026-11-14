@@ -128,6 +128,13 @@ jobs:
         if: matrix.shard == 1
         run: ruff check .
 
+      - name: Gold gate (prompts and models of the gold surfaces)
+        # Free and offline: renders every model call the four weekly gold surfaces make
+        # and compares it with tests/gold_transcripts/gate.json. A change there must pass
+        # `python scripts/gold_transcripts.py gate` (paid, outside CI) first.
+        if: matrix.shard == 1
+        run: python scripts/gold_transcripts.py check
+
       - name: Run backend tests
         # `-n auto --dist loadfile`: every xdist worker is its own process with its
         # own in-memory SQLite database, and a test file never leaves its worker,

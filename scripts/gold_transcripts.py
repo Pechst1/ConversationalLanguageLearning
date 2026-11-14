@@ -14,13 +14,20 @@
     python scripts/gold_transcripts.py rejudge var/gold/<date>-production.json --judge-model claude-sonnet-5-5 --max-usd 1
                                                                    # the same answers, another judge (calibrate a judge change)
     python scripts/gold_transcripts.py trend                       # the history kept in the digest comments
+    python scripts/gold_transcripts.py check                       # free, in PR CI: did prompts or models change ungated?
+    python scripts/gold_transcripts.py gate --max-usd 1.5          # paid: base vs this checkout on the changed surfaces;
+                                                                   # a surface that holds or rises is written to gate.json
 
 The inputs live in ``tests/gold_transcripts/sets/`` (20–30 per surface, taken from the live
 walks), the criteria in ``tests/gold_transcripts/criteria.py``. A run drives the same code
 production runs (the scene's reply lanes, La Forge's second check, the Courrier's reply and
 its correction) with the settings ``render.yaml`` declares for the API service, then asks a
 judge model the fixed criteria. Every call goes through a meter that refuses the call that
-could pass ``--max-usd`` (at most US$2). Never run from PR CI: the weekly routine runs it.
+could pass ``--max-usd`` (at most US$2). Never run from PR CI: the nightly routine runs it.
+
+The gate (``tests/gold_transcripts/gate.py``): ``check`` is free and runs in PR CI; it
+fails when what the weekly surfaces send a model (prompts, models, parameters) differs
+from what last passed ``gate``. ``gate`` is paid and is run by whoever made the change.
 """
 
 from __future__ import annotations
@@ -28,7 +35,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
+import subprocess
 import sys
+import tempfile
 from datetime import UTC, date, datetime
 from pathlib import Path
 
@@ -220,10 +230,24 @@ def cmd_run(args: argparse.Namespace) -> int:
     (out.with_suffix(".md")).write_text(report + "\n", encoding="utf-8")
     print(report)
     print(f"\nfull results: {out}")
+    dead = _dead_run(result)
+    if dead:
+        print(f"\nthe model did not answer: {dead}. Most likely an expired or missing key, or an outage.")
     if args.post:
-        why = _not_posted(args)
+        why = _not_posted(args) or (dead and "most answers fell back, so the scores would only say the model was unreachable")
         print(f"not posted: {why}." if why else "posted: " + R.post_comment(report))
-    return 0
+    return 1 if dead else 0
+
+
+def _dead_run(result: dict) -> str | None:
+    """Why a run measured nothing: every surface run fell back on more than half its items
+    (on 14 Nov an expired key scored every surface 0). Such a run is kept out of the trend."""
+
+    surfaces = result.get("surfaces") or {}
+    counts = {s: (v.get("failed_outright") or 0, v.get("items") or 0) for s, v in surfaces.items()}
+    if counts and all(total and failed > total / 2 for failed, total in counts.values()):
+        return ", ".join(f"{s} {failed}/{total} fell back" for s, (failed, total) in counts.items())
+    return None
 
 
 def _not_posted(args: argparse.Namespace) -> str | None:
@@ -297,6 +321,141 @@ def cmd_trend(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_check(args: argparse.Namespace) -> int:
+    """Free: fail when a surface's prompts or models differ from what last passed the gate."""
+
+    from tests.gold_transcripts import gate as G
+
+    current = G.fingerprints()
+    gate = G.load_gate()
+    todo = G.stale(current, gate)
+    for surface, now in current.items():
+        mark = "STALE " if surface in todo else "gated "
+        print(f"{mark}{surface:10s} {now['fingerprint']}  {now['calls']:3d} calls"
+              + (f"  ({todo[surface]})" if surface in todo else ""))
+    if not todo:
+        print("gold gate: every surface's prompts and models passed the gate.")
+        return 0
+    print(
+        f"\ngold gate: {', '.join(todo)} changed what a model is asked or which model answers. Before this can merge,\n"
+        "run the paired gold run and commit the gate.json it writes (needs OPENAI_API_KEY and ANTHROPIC_API_KEY):\n"
+        "    python scripts/gold_transcripts.py gate --max-usd 1.5\n"
+        "A surface that falls by more than "
+        f"{G.TOLERANCE:g} points stays blocked. See tests/gold_transcripts/README.md, «The gate»."
+    )
+    return 1
+
+
+def _git(*argv: str, cwd: Path = REPO) -> str:
+    return subprocess.run(["git", *argv], cwd=cwd, capture_output=True, text=True, check=True).stdout.strip()  # noqa: S603, S607
+
+
+def _run_side(root: Path, label: str, surfaces: list[str], cap: float, out: Path, log: Path) -> subprocess.Popen:
+    argv = [sys.executable, str(root / "scripts" / "gold_transcripts.py"), "run", "--label", label,
+            "--max-usd", f"{cap:.2f}", "--out", str(out)]
+    for surface in surfaces:
+        argv += ["--surface", surface]
+    env = dict(os.environ, GOLD_GATE_SIDE=label)
+    return subprocess.Popen(argv, cwd=root, stdout=log.open("w"), stderr=subprocess.STDOUT, env=env)  # noqa: S603
+
+
+def cmd_gate(args: argparse.Namespace) -> int:
+    """Paid: the changed surfaces, base against this checkout, paired item by item."""
+
+    from tests.gold_transcripts import gate as G
+
+    current = G.fingerprints()
+    gate = G.load_gate()
+    if args.baseline:
+        # Bootstrapping only: a surface the gate has never seen takes today's fingerprint as
+        # its starting point, without a run. A surface already in gate.json is never reset.
+        entries = gate.setdefault("surfaces", {})
+        added = [s for s in current if s not in entries]
+        for surface in added:
+            entries[surface] = {**current[surface], "verdict": "baseline", "date": _when(args).isoformat(),
+                                "base_ref": _git("rev-parse", "--short=9", "HEAD")}
+        G.save_gate(gate)
+        print(f"gold gate: baseline for {', '.join(added) or 'no surface (all already gated)'}.")
+        return 0
+    refused = _refuse_paid(args, "gate")
+    if refused is not None:
+        return refused
+    if args.surface:
+        surfaces = list(dict.fromkeys(args.surface))
+    elif args.all:
+        surfaces = list(WEEKLY_SURFACES)
+    else:
+        surfaces = list(G.stale(current, gate))
+    if not surfaces:
+        print("gold gate: nothing to run, every surface is gated.")
+        return 0
+    base_sha = _git("merge-base", "HEAD", args.base)
+    head_sha = _git("rev-parse", "HEAD")
+    dirty = bool(_git("status", "--porcelain", "--untracked-files=no"))
+    head_ref = head_sha[:9] + (" + uncommitted changes" if dirty else "")
+    print(f"gold gate: {', '.join(surfaces)} · base {args.base} ({base_sha[:9]}) · head {head_ref} · cap US${args.max_usd:.2f}")
+    work = Path(tempfile.mkdtemp(prefix="gold-gate-"))
+    base_root = work / "base"
+    _git("worktree", "add", "--detach", str(base_root), base_sha)
+    try:
+        # Both sides are asked the same questions: this checkout's inputs and criteria.
+        here = REPO / "tests" / "gold_transcripts"
+        there = base_root / "tests" / "gold_transcripts"
+        shutil.rmtree(there / "sets")
+        shutil.copytree(here / "sets", there / "sets")
+        shutil.copy2(here / "criteria.py", there / "criteria.py")
+        half = args.max_usd / 2
+        sides = {
+            "base": (_run_side(base_root, "gate-base", surfaces, half, work / "base.json", work / "base.log")),
+            "head": (_run_side(REPO, "gate-head", surfaces, half, work / "head.json", work / "head.log")),
+        }
+        failed = []
+        for name, proc in sides.items():
+            if proc.wait() != 0 or not (work / f"{name}.json").exists():
+                failed.append(name)
+        if failed:
+            for name in failed:
+                print(f"--- {name} run failed; its last lines:")
+                print("\n".join((work / f"{name}.log").read_text(encoding="utf-8").splitlines()[-15:]))
+            return 1
+        base = json.loads((work / "base.json").read_text(encoding="utf-8"))
+        head = json.loads((work / "head.json").read_text(encoding="utf-8"))
+    finally:
+        subprocess.run(["git", "worktree", "remove", "--force", str(base_root)], cwd=REPO, check=False)  # noqa: S603, S607
+    spent = float(base.get("spent_usd") or 0) + float(head.get("spent_usd") or 0)
+    rows = {surface: G.compare(base, head, surface) for surface in surfaces}
+    report = G.render(rows, base_ref=f"{args.base} {base_sha[:9]}", head_ref=head_ref, spent=spent)
+    print(report)
+    day = _when(args).isoformat()
+    OUT.mkdir(parents=True, exist_ok=True)
+    for name, result in (("base", base), ("head", head)):
+        (OUT / f"{day}-gate-{name}.json").write_text(json.dumps(result, ensure_ascii=False, indent=1, default=str) + "\n", encoding="utf-8")
+    (OUT / f"{day}-gate.md").write_text(report + "\n", encoding="utf-8")
+    entries = gate.setdefault("surfaces", {})
+    for surface, row in rows.items():
+        if row["verdict"] not in G.PASSING:
+            continue
+        entries[surface] = {
+            "fingerprint": current[surface]["fingerprint"], "calls": current[surface]["calls"],
+            "verdict": row["verdict"], "base": row["base"], "head": row["head"], "diff": row["diff"],
+            "paired": row["paired"], "date": day, "base_ref": base_sha[:9],
+            "criteria": head.get("criteria_version"), "judge": head.get("judge_model"),
+        }
+    if args.calibrate:
+        gate["calibration"] = {
+            "date": day, "ref": base_sha[:9], "judge": head.get("judge_model"), "spent_usd": round(spent, 2),
+            "diffs": {surface: row["diff"] for surface, row in rows.items()},
+        }
+    G.save_gate(gate)
+    blocked = [s for s, row in rows.items() if row["verdict"] not in G.PASSING]
+    print(f"\nreport: {OUT / (day + '-gate.md')} · gate.json updated for "
+          f"{', '.join(s for s in rows if s not in blocked) or 'no surface'}")
+    if blocked:
+        print("blocked: " + ", ".join(f"{s} ({rows[s]['verdict']})" for s in blocked))
+        return 1
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -323,6 +482,17 @@ def main(argv: list[str] | None = None) -> int:
     rejudge.add_argument("--show-flips", type=int, default=8, help="verdicts that changed, shown per surface")
     rejudge.add_argument("--allow-ci", action="store_true", help=argparse.SUPPRESS)
     rejudge.add_argument("--verbose", "-v", action="store_true")
+    sub.add_parser("check", help="free: fail when prompts or models changed since they last passed the gate")
+    gate = sub.add_parser("gate", help="paid: base against this checkout on the changed surfaces, paired")
+    gate.add_argument("--max-usd", type=float, default=None, help=f"spending cap for both sides (required, at most {R.HARD_CAP_USD})")
+    gate.add_argument("--base", default="origin/main", help="the base to compare with (its merge-base with HEAD)")
+    gate.add_argument("--surface", action="append", choices=list(WEEKLY_SURFACES), help="gate this surface even if unchanged")
+    gate.add_argument("--all", action="store_true", help="gate every weekly surface")
+    gate.add_argument("--calibrate", action="store_true", help="record the paired differences as the noise calibration")
+    gate.add_argument("--baseline", action="store_true",
+                      help="free, bootstrapping only: accept today's fingerprint for surfaces never gated")
+    gate.add_argument("--date", default=None, help=argparse.SUPPRESS)
+    gate.add_argument("--allow-ci", action="store_true", help=argparse.SUPPRESS)
     trend = sub.add_parser("trend")
     trend.add_argument("--runs", "--nights", dest="nights", type=int, default=14)
     args = parser.parse_args(argv)
@@ -337,7 +507,9 @@ def main(argv: list[str] | None = None) -> int:
         except ValueError as exc:
             print(f"{args.command} refuses: {exc}.")
             return 2
-    return {"plan": cmd_plan, "run": cmd_run, "rejudge": cmd_rejudge, "trend": cmd_trend}[args.command](args)
+    commands = {"plan": cmd_plan, "run": cmd_run, "rejudge": cmd_rejudge, "trend": cmd_trend,
+                "check": cmd_check, "gate": cmd_gate}
+    return commands[args.command](args)
 
 
 if __name__ == "__main__":
