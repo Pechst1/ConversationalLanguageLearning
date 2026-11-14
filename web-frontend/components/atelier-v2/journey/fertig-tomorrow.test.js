@@ -270,3 +270,21 @@ test('#466 Home reads what stays open before the hook', () => {
   assert.equal(headlineTeaser({ teaser_fr: hook, teaser_open_fr: open }, 'Nº 28'), open);
   assert.equal(headlineTeaser({ teaser_fr: 'Deux clés. À suivre…' }, 'Nº 28'), 'Deux clés.');
 });
+
+// #727: the walk caught «Done for today · Back to La Une» in English on a B1 learner's
+// French Done screen. The page printed its chrome before `GET /daily-journeys/today`
+// had answered, in the profile hook's hydration-safe default (`en`): it did not know
+// the language yet and printed English anyway. Until the day is read, it prints no words.
+test('#727 before the day is read, the Done screen prints no chrome in a language it does not know yet', () => {
+  const text = textOf(fertig(null));
+  for (const english of ['Done for today', 'Back to La Une']) {
+    assert.ok(!text.includes(english), `the pending Done screen prints «${english}» before it knows the learner's language: «${text}»`);
+  }
+  assert.equal(text, '', `the pending Done screen prints words before it knows their language: «${text}»`);
+});
+
+test('#727 once the day is read, the Done screen speaks the envelope’s language', () => {
+  const text = textOf(fertig(envelopeOf('fr', recapOf())));
+  assert.ok(text.includes('Fini pour aujourd’hui'), text.slice(0, 160));
+  assert.ok(!/Done for today|Back to La Une/.test(text), text.slice(0, 160));
+});

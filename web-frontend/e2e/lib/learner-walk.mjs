@@ -725,6 +725,11 @@ export class LearnerWalk {
       await sleep(800);
       return 'next';
     }
+    // Fertig prints nothing until the day is read (`data-fertig="pending"`, #727): read
+    // whether the day is done once it has answered, not off the empty first paint.
+    if ((s.url || '').startsWith('/fertig')) {
+      await page.locator('[data-fertig]:not([data-fertig="pending"])').first().waitFor({ timeout: 15000 }).catch(() => {});
+    }
     if ((s.url || '').startsWith('/fertig') && (await page.locator('[data-fertig="done"]').count())) {
       this.played.add('finish');
       this.dayEnd = 'fertig';
