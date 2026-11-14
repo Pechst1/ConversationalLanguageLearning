@@ -356,3 +356,33 @@ def test_shared_scene_is_said_by_the_learners_coach() -> None:
         assert served["scene"]["lines"][0]["speaker"] == stand_in["id"]
     assert "Romy" not in served["prompt"]
     assert forge_coaches.recast_scene(scene, romy) is scene
+
+
+def test_a_line_the_item_gives_gus_goes_out_under_gus_not_the_beats_character() -> None:
+    """#147 (14 Nov): «Gus : « Tu es où ? »» kept Lila's badge, because the registry could
+    tell who an item names but not who speaks. A line put in a met person's mouth is theirs."""
+
+    from app.api.v1.endpoints.atelier import _with_serial_conversation
+
+    item = _served(
+        _with_serial_conversation(
+            _payload('Gus : « Tu es où ? » Reply in French: "I am at the café."', "Je suis au café."),
+            context=_context(_day_19()),
+            concept=SimpleNamespace(id=1, name="être"),
+        )
+    )
+    assert item["character"]["name"] == "Gus", item.get("character")
+
+
+@pytest.mark.parametrize(
+    ("text", "speakers"),
+    [
+        ("Gus : « Tu es où ? »", ["augustin_de_roncourt"]),
+        ("« Salut », dit Gus.", ["augustin_de_roncourt"]),
+        ("Lila dit : « Salut ! »", ["lila_bonnet"]),
+        ("Elle est à l'église, Gus.", []),
+        ("Lila est au café avec Gus.", []),
+    ],
+)
+def test_who_a_text_gives_a_line_to(text, speakers) -> None:
+    assert cast_registry.people_speaking(text) == speakers
