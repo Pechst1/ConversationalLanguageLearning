@@ -206,31 +206,42 @@ def test_a_close_that_holds_is_still_played(model):
     said = [line["text_fr"] for line in evaluation.reply_lines]
     assert "Moi aussi, j'ai peur." in said
 
+#: The page's lines on the walk's route, at A1: the reaction, then the next panel.
+PAGE_REACTION = "Moi aussi, je veux rester ici. Alors je dois partir."
+PAGE_NEXT = "Viens. Tu vas voir une chose."
 
-@pytest.mark.parametrize(
-    ("line", "others"),
-    [
-        (WALK_CLOSE, ["Viens. Tu vas voir une chose."]),
-        ("Viens. Tu vas voir une chose.", [WALK_CLOSE]),
-        ("D'accord, merci !", ["D'accord. Merci."]),
-        ("tu as peur de rester seul au mistral", [WALK_ACK]),
-    ],
-)
-def test_the_guard_catches_a_line_said_again_up_to_punctuation_and_case(line, others):
-    from app.services.lane_guards import repeated_line
 
-    assert repeated_line(line, others) is not None
+def _walk_said(model, *, ack: str = WALK_ACK, close: str | None = None) -> list[str]:
+    brief, _prompt, task = _planned("t5", 1)
+    model.choice = ReplyChoice(reply_id="b", confidence=0.9, clear=True, ack_fr=ack, learner_intent="no")
+    if close is not None:
+        model.closing = SceneClosing(lines=[ClosingLine(who="lila_bonnet", text_fr=close)])
+    evaluation = _play(brief, task, [WALK_REPLY])[0]
+    return [line["text_fr"] for line in evaluation.reply_lines if line.get("speaker_id") != "caption"]
 
 
 @pytest.mark.parametrize(
-    ("line", "others"),
+    "close",
     [
-        ("Moi aussi, j'ai peur.", ["Viens. Tu vas voir une chose."]),
-        ("Merci.", ["Merci, Lila. Vraiment."]),  # a short habit inside a longer line
-        ("Je comprends.", [WALK_CLOSE]),
+        WALK_CLOSE,  # the walk: the page's next line said whole inside the close
+        "viens, tu vas voir une chose !",  # the same words, other punctuation and case
+        "Moi aussi je veux rester ici, alors je dois partir.",  # the reaction just said
     ],
+    ids=["walk", "punctuation-and-case", "the-reaction-again"],
 )
-def test_the_guard_leaves_different_lines_alone(line, others):
-    from app.services.lane_guards import repeated_line
+def test_a_close_that_says_a_line_of_the_reply_again_is_not_played(model, close):
+    said = _walk_said(model, close=close)
+    assert close not in said
+    assert PAGE_REACTION in said and PAGE_NEXT in said, "the page's own words stand"
+    assert _repeated_pairs(said) == [], said
 
-    assert repeated_line(line, others) is None
+
+def test_the_readers_first_line_never_says_the_pages_reaction_first(model):
+    said = _walk_said(model, ack="moi aussi, je veux rester ici ! alors je dois partir")
+    assert said.count(PAGE_REACTION) == 1
+    assert _repeated_pairs(said) == [], said
+
+
+@pytest.mark.parametrize("close", ["Je comprends.", "Moi aussi, j'ai peur."])
+def test_a_short_habit_or_a_new_line_is_no_repeat(model, close):
+    assert close in _walk_said(model, close=close)
