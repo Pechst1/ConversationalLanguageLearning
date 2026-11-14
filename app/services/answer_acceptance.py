@@ -54,6 +54,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from app.services.chrome_language import mother_tongue
+from app.services.journey_contracts import split_article
 
 AccentPolicy = Literal["lenient", "strict"]
 
@@ -1417,16 +1418,87 @@ def strip_vocative(text: object, names: Iterable[str] | None = None) -> str:
 _OPENED = "\x00"
 
 
+#: English plurals that do not end in -s.
+_ENGLISH_IRREGULAR_PLURALS = frozenset(
+    {"children", "people", "men", "women", "feet", "teeth", "mice", "geese", "fish", "sheep"}
+)
+#: English words in -s that are not plurals (the -ss/-us/-is endings are excluded by rule).
+_ENGLISH_SINGULAR_IN_S = frozenset({"news", "always", "perhaps", "yes", "gas", "lens", "series", "species"})
+_ENGLISH_LEADING = re.compile(r"^(?:the|some|a|an|to)\s+", re.IGNORECASE)
+
+
+def english_is_plural(english: object) -> bool:
+    """#746: does the gloss a prompt shows ask for more than one («eggs», «the keys»)?
+
+    One-sided: a gloss of one or two words whose last word is an English plural.
+    A longer gloss is a phrase, whose number this does not read."""
+
+    text = _ENGLISH_LEADING.sub("", " ".join(str(english or "").split()).strip(" .!?"))
+    words = text.casefold().split()
+    if not words or len(words) > 2 or any(not word.isalpha() for word in words):
+        return False
+    last = words[-1]
+    if last in _ENGLISH_IRREGULAR_PLURALS:
+        return True
+    if last in _ENGLISH_SINGULAR_IN_S or len(last) < 3:
+        return False
+    return last.endswith("s") and not last.endswith(("ss", "us", "is"))
+
+
+_PLURAL_AUX = frozenset({"bail", "corail", "émail", "soupirail", "travail", "vitrail", "vantail"})
+_PLURAL_ALS = frozenset({"bal", "carnaval", "chacal", "festival", "récital", "régal"})
+_PLURAL_OUX = frozenset({"bijou", "caillou", "chou", "genou", "hibou", "joujou", "pou"})
+_PLURAL_EUS = frozenset({"landau", "sarrau", "bleu", "pneu", "émeu"})
+_SINGULAR_ARTICLES = frozenset({"un", "une", "le", "la", "l'"})
+
+
+def french_plural(noun: str) -> str:
+    """The plural of one French noun, by the regular rules and their listed exceptions."""
+
+    word = noun.casefold()
+    if word == "œil":
+        return "yeux"
+    if word.endswith(("s", "x", "z")):
+        return noun
+    if word in _PLURAL_AUX:
+        return noun[:-3] + "aux"
+    if word.endswith("al") and word not in _PLURAL_ALS:
+        return noun[:-2] + "aux"
+    if word.endswith(("eau", "au", "eu")) and word not in _PLURAL_EUS:
+        return noun + "x"
+    if word in _PLURAL_OUX:
+        return noun + "x"
+    return noun + "s"
+
+
+def plural_noun_answers(answer: object) -> list[str]:
+    """#746: «un œuf» as the plural a plural prompt asks for: «les œufs», «des œufs», «œufs».
+
+    Only a key that is one singular article and one noun is read; anything longer
+    is a phrase or a sentence, whose number is not this function's to change."""
+
+    article, noun = split_article(str(answer or ""))
+    if article not in _SINGULAR_ARTICLES or not noun or " " in noun or not noun[:1].isalpha():
+        return []
+    plural = french_plural(noun)
+    return [f"les {plural}", f"des {plural}", plural]
+
+
 def widened_answers(accepted: Iterable[object], *, english: object = None) -> list[str]:
     """Every right way to give the item's answer, not one stored string (#174, #380).
 
-    The accepted answers, each with its nouns' other right words (:func:`noun_variants`)
-    and, when the English says «we» and neither «our» nor «us» (an «on» would need
+    The accepted answers, their plural when the English asks for more than one
+    (:func:`plural_noun_answers`, #746), each with its nouns' other right words
+    (:func:`noun_variants`) and, when the English says «we» and neither «our» nor «us» (an «on» would need
     «notre» → «sa»), the other «we» (:func:`on_nous_variants`), and the name it is said to
     at the other end (:func:`vocative_variants`, #731). A miss is still a miss:
     a variant is the same sentence with an equivalent word, never a looser match."""
 
     base = [str(item) for item in accepted if item and str(item).strip()]
+    if english_is_plural(english):
+        # #746: «How do you say "eggs"?» is answered by the plural the prompt asks
+        # for, whatever number the item's one stored key («un œuf») was written in.
+        base += [plural for item in list(base) for plural in plural_noun_answers(item)]
     out: list[str] = list(base)
     we = isinstance(english, str) and re.search(r"\bwe\b", english, re.IGNORECASE) and not re.search(
         r"\b(?:our|ours|us)\b", english, re.IGNORECASE
@@ -1505,7 +1577,25 @@ NOTE_COPY: dict[str, dict[str, str]] = {
         "de": "Richtig — vor einem Vokal: «{expected_word}».",
         "fr": "Juste — devant une voyelle : « {expected_word} ».",
     },
+    # #781: a build right in all but a capital is a hit; the capital is named on it.
+    "case_ok": {
+        "en": "Right — watch the capital letter: «{expected_word}».",
+        "de": "Richtig — achte auf den Großbuchstaben: «{expected_word}».",
+        "fr": "Juste — attention à la majuscule : « {expected_word} ».",
+    },
 }
+
+
+def case_slip_note(learner: object, expected: object, language: str | None) -> str | None:
+    """The one line naming a capital on a hit whose words differ from ``expected`` by
+    case alone («j'ai vingt-cinq ans et J'ai faim !»), or ``None`` (#781)."""
+
+    said = " ".join(str(learner or "").split())
+    right = " ".join(str(expected or "").split())
+    if not said or not right or said == right or said.casefold() != right.casefold():
+        return None
+    table = NOTE_COPY["case_ok"]
+    return (table.get(mother_tongue(language)) or table["en"]).format(expected_word=right, learner_word=said)
 
 
 def feedback_note(verdict: Verdict, language: str | None) -> str | None:

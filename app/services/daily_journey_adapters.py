@@ -397,7 +397,10 @@ class _MissingLearningAdapter:
         if task.correct_option_id and answer.option_id:
             correct = answer.option_id == task.correct_option_id
         elif task.correct_tile_order and answer.tile_ids:
-            correct = list(answer.tile_ids) == list(task.correct_tile_order)
+            from app.services.journey_answer_key import accepted_tile_orders
+
+            # #781: the same list of right orders as the real grader and the device key.
+            correct = [str(tile) for tile in answer.tile_ids] in accepted_tile_orders(task)
         elif task.accepted_answers:
             normalized = normalize_answer_text(answer.text).casefold()
             correct = any(

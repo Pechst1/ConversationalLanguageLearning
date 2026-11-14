@@ -2270,9 +2270,13 @@ def evaluate_recall(
         learner_text = answer.text
         opportunity = "open_production"
     elif task.task_type in {"tiles", "word_bank", "unscramble"}:
-        expected = [str(tile) for tile in task.correct_tile_order]
+        # #174 / #781: right is any order of the tiles that spells a right sentence
+        # (case and apostrophes folded), the list the device's hashed key holds too;
+        # never the one id order that was stored.
+        from app.services.journey_answer_key import accepted_tile_orders
+
         submitted = [str(tile) for tile in answer.tile_ids]
-        is_correct = bool(expected) and submitted == expected
+        is_correct = bool(submitted) and submitted in accepted_tile_orders(task)
         # The words placed, not their ids: the correction shows this span.
         learner_text = recall_learner_text(task, answer) if submitted else answer.text
         opportunity = "tiles"
@@ -2397,6 +2401,20 @@ def evaluate_recall(
                 note_native=note or "",
             )
             correction = candidate if candidate.is_valid_for(normalize_answer_text(learner_text)) else None
+        if (
+            correction is None
+            and task.task_type in TILE_ORDER_FORMATS
+            and learner_text
+            and expected
+            and normalize_answer_text(learner_text) != normalize_answer_text(expected)
+        ):
+            # #781: a tile build the folds cannot tell from the answer (a «!» moved, a
+            # capital) is still a miss; it is never served without the right sentence.
+            correction = Correction(
+                span_fr=normalize_answer_text(learner_text),
+                corrected_fr=normalize_answer_text(expected),
+                note_native=note or "",
+            )
         if correction is not None and part_answer and expected:
             correction = replace(correction, saved_span_fr=typed.read_as, saved_corrected_fr=expected)
         if correction is not None and task.task_type == "choice" and task.options_kind == "sentences":
@@ -2432,7 +2450,15 @@ def evaluate_recall(
             correction = replace(correction, context_fr=context)
     slip_note = None
     slip_kind = None
-    if is_correct and typed is not None and typed.correct and (typed.accent_slip or typed.typo):
+    if is_correct and task.task_type in TILE_ORDER_FORMATS and learner_text:
+        # #781: a build right in all but a capital («j'ai … J'ai») is a hit that names
+        # the capital and shows the sentence, the way a forgiven accent is named.
+        from app.services.answer_acceptance import case_slip_note
+        from app.services.chrome_language import user_chrome_language
+
+        slip_note = case_slip_note(learner_text, task.solution_fr, str(user_chrome_language(user)))
+        slip_kind = "case" if slip_note else None
+    elif is_correct and typed is not None and typed.correct and (typed.accent_slip or typed.typo):
         # QA-CLOSE (owner decision d): a forgiven slip is named on a hit, one line.
         from app.services.answer_acceptance import feedback_note
         from app.services.chrome_language import user_chrome_language

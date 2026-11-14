@@ -580,7 +580,11 @@ def _items_for(user_id: Any, words: list[dict[str, Any]], sessions: dict[str, Re
             "progress_ids": [word["progress_id"]],
             "prompt_fr": None,
             "options": [{"id": i, "text_fr": t, "side": None} for i, t in _shuffled(bank)],
-            "answer_key": answer_key_for(item_id, {"task_type": task, "correct_tile_order": order}),
+            # #781: the key holds every order the grader takes (two tiles that differ only
+            # by case are the same word), so the device never colours a right build red.
+            "answer_key": answer_key_for(
+                item_id, {"task_type": task, "correct_tile_order": order, "options": [{"id": i, "text_fr": t} for i, t in bank]}
+            ),
             "audio_url": None,
             "_answer_texts": chunk,
             "_bank": dict(bank),

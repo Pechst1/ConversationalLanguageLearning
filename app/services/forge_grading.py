@@ -822,7 +822,9 @@ def held_to_sentence(
         if not text or str(erratum.get("task_error_type") or "") in _UNCHECKED_ERRATA:
             shown.append(erratum)
             continue
-        verified = correction_contract.verify_erratum(text, erratum, strict_span=False)
+        verified = correction_contract.verify_erratum(
+            text, erratum, strict_span=False, language=mother_tongue(language)
+        )
         if verified is None or correction_contract.changes_what_was_said(
             verified.get("learner_text"),
             verified.get("corrected_target"),
@@ -833,6 +835,76 @@ def held_to_sentence(
             continue
         shown.append(correction_contract.reconcile_notes(verified, language=mother_tongue(language)))
     return shown, dropped
+
+
+#: A verb's plural that is not its singular plus an ending (#745).
+_PLURAL_VERBS = {"est": "sont", "a": "ont", "va": "vont", "fait": "font", "peut": "peuvent", "veut": "veulent"}
+
+
+def _words(text: Any) -> list[str]:
+    return [word.strip(".,;:!?«»\"").casefold() for word in str(text or "").split() if word.strip(".,;:!?«»\"")]
+
+
+def _plural_of_word(word: str, other: str) -> bool:
+    """Is ``other`` the plural that agrees where ``word`` is singular («chante» ->
+    «chantent», «beau» -> «beaux», «rouge» -> «rouges», «est» -> «sont»)?"""
+
+    if word == other:
+        return True
+    if _PLURAL_VERBS.get(word) == other:
+        return True
+    if word.endswith("al") and other == word[:-2] + "aux":
+        return True
+    return other in {word + "s", word + "x", word + "nt", word[:-1] + "ent"} if word else False
+
+
+def follows_the_models_number(wrong: Any, fix: Any, overruled: Any) -> bool:
+    """#745: a difference of the model's sentence that only carries the number of a fix
+    the rules overruled: the overruled words themselves («les oiseaux»), or a word that
+    agreed with them («chante» -> «chantent»). Neither is a fix of what the learner said."""
+
+    fix_words, wrong_words = _words(fix), _words(wrong)
+    gone = _words(overruled)
+    if gone and any(fix_words[i : i + len(gone)] == gone for i in range(len(fix_words) - len(gone) + 1)):
+        return True
+    return (
+        bool(fix_words)
+        and len(fix_words) == len(wrong_words)
+        and fix_words != wrong_words
+        and all(_plural_of_word(left, right) for left, right in zip(wrong_words, fix_words, strict=True))
+    )
+
+
+def _sentence_keeps_the_learners_number(refined: dict[str, Any], learner_text: Any) -> dict[str, Any]:
+    """#745: when the rules overruled a fix that changed the number the learner said
+    («la oiseau» -> «les oiseaux» became «l'oiseau», ``overruled_fix``), the model's
+    sentence was written around its number. The shown sentence is then rebuilt from
+    the learner's own line with the settled fixes in place, plus only those differences
+    of the model's sentence that do not carry the overruled number. The line is never
+    searched for the model's words: an earlier correct «les oiseaux» stays as written."""
+
+    from app.services import correction_contract
+    from app.services.atelier import repair_line_from_parts
+
+    errata = [item for item in refined.get("errata") or [] if isinstance(item, dict)]
+    overruled = [str(item["overruled_fix"]) for item in errata if item.get("overruled_fix")]
+    sentence = refined.get("corrected_answer")
+    line = str(learner_text or "").strip()
+    if not overruled or not line or not isinstance(sentence, str):
+        return refined
+    base = repair_line_from_parts(line, errata)
+    if base is None:
+        return refined
+    gaps = correction_contract.sentence_gaps(base, sentence) or []
+    kept = [
+        gap for gap in gaps
+        if not any(follows_the_models_number(gap.wrong, gap.fix, fix) for fix in overruled)
+    ]
+    built = correction_contract.apply_gaps(base, kept)
+    # The rules read the rebuilt line once more, as the Journal's check does
+    # (``verify_correction``): a slip the dropped stretch also held («agreable») is
+    # still fixed, in the learner's number.
+    return {**refined, "corrected_answer": correction_contract.repair_text(built)}
 
 
 def sentence_differences(line: Any, sentence: Any) -> list[tuple[str, int, int, int, int]]:
@@ -964,6 +1036,7 @@ def refine_production_correction(
     errata, unproven = held_to_sentence(errata, learner_text, language)
     if refined.get("errata") is not None or errata:
         refined["errata"] = errata  # settled fixes and reconciled notes, dropped or not
+    refined = _sentence_keeps_the_learners_number(refined, learner_text)
     if unproven:
         refined["dropped_errata"] = [
             {"learner_text": item.get("learner_text"), "reason": "not_in_sentence"} for item in unproven
