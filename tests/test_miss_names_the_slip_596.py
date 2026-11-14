@@ -12,7 +12,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.services.forge_grading import slip_kind, slip_note, token_diff
+from app.services.forge_grading import slip_category, slip_kind, slip_note, token_diff
 from app.services.grammar_feedback import authored_repair
 
 ETRE = SimpleNamespace(external_id="FR2_A11_ETRE")
@@ -71,3 +71,37 @@ def test_the_forge_miss_on_le_cle_is_about_the_noun(db_session):
     erratum = service._recognize_erratum(concept, "choice", item, "Marin cherche le clé.", "Marin cherche la clé.")
     assert "weiblich" in erratum["why_wrong"], erratum
     assert "J'aime café" not in f"{erratum['why_wrong']} {erratum['repair_hint']}"
+
+
+# Review of the PR: the context is read at the changed word, the gender from the noun,
+# and a prose trap is still a trap.
+
+
+def test_the_noun_is_read_after_the_changed_article_not_the_first_one():
+    target = "La femme et la clé."
+    slip = slip_category(token_diff("La femme et le clé.", target, positions=True), target)
+    assert slip and slip["noun"] == "clé" and slip["gender"] == "f"
+
+
+def test_a_repeated_word_without_a_position_claims_no_neighbour():
+    target = "La femme et la clé."
+    assert slip_category(token_diff("La femme et le clé.", target), target) is None
+
+
+def test_the_subject_is_read_before_the_changed_verb():
+    target = "Je parle, il parle."
+    slip = slip_category(token_diff("Je parle, il parles.", target, positions=True), target)
+    assert slip and slip["category"] == "person_subject" and slip["subject"] == "il"
+
+
+def test_mon_before_a_vowel_claims_no_gender():
+    target = "Je vois mon amie."
+    assert slip_category(token_diff("Je vois ma amie.", target, positions=True), target) is None
+
+
+def test_a_prose_trap_is_kept_when_no_example_parses(monkeypatch):
+    from app.services import grammar_feedback
+
+    unit = {"main_traps": "Forgetting the article before a noun"}
+    monkeypatch.setattr(grammar_feedback, "authored_unit", lambda _concept: unit)
+    assert authored_repair(LE_LA, "Marin cherche le clé.", "Marin cherche la clé.") == "Forgetting the article before a noun"

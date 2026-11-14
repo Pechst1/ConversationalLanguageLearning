@@ -91,11 +91,13 @@ def _ending(learner: str, target: str) -> tuple[str, str] | None:
     return None
 
 
-def token_diff(learner: Any, target: Any) -> list[dict[str, str]]:
+def token_diff(learner: Any, target: Any, *, positions: bool = False) -> list[dict[str, Any]]:
     """What separates the learner's line from the key, one operation per difference.
 
     Kinds: ``ending`` (same stem), ``accent``, ``word`` (a different word),
     ``missing``, ``extra`` and ``order`` (same words, other order — reported alone).
+    With ``positions``, a ``word`` or ``ending`` op also carries ``at``: the index of
+    its target word in the key, so its neighbours are read at that place (#596).
     """
 
     left, right = tokens(learner), tokens(target)
@@ -105,7 +107,7 @@ def token_diff(learner: Any, target: Any) -> list[dict[str, str]]:
         strip_accents(token) for token in left
     ] != [strip_accents(token) for token in right]:
         return [{"kind": "order", "learner": " ".join(left), "target": " ".join(right)}]
-    ops: list[dict[str, str]] = []
+    ops: list[dict[str, Any]] = []
     matcher = SequenceMatcher(a=[strip_accents(token) for token in left], b=[strip_accents(token) for token in right], autojunk=False)
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():
         if tag == "equal":
@@ -121,9 +123,12 @@ def token_diff(learner: Any, target: Any) -> list[dict[str, str]]:
             continue
         # replace: pair the words up in order; any surplus is missing / extra.
         pairs = list(zip(left[i1:i2], right[j1:j2], strict=False))
-        for learner_word, target_word in pairs:
+        for offset, (learner_word, target_word) in enumerate(pairs):
             kind = "ending" if _ending(learner_word, target_word) else "word"
-            ops.append({"kind": kind, "learner": learner_word, "target": target_word})
+            op: dict[str, Any] = {"kind": kind, "learner": learner_word, "target": target_word}
+            if positions:
+                op["at"] = j1 + offset
+            ops.append(op)
         ops.extend({"kind": "extra", "learner": token, "target": ""} for token in left[i1 + len(pairs):i2])
         ops.extend({"kind": "missing", "learner": "", "target": token} for token in right[j1 + len(pairs):j2])
     return ops
@@ -192,7 +197,23 @@ _NUMBER_SWAPS = frozenset(
      ("ce", "ces"), ("cette", "ces"), ("ces", "ce"), ("ces", "cette")}
 )
 _FEMININE_DETERMINERS = frozenset({"la", "une", "ma", "ta", "sa", "cette"})
+_PLURAL_DETERMINERS = frozenset({"les", "des", "mes", "tes", "ses", "ces"})
 _SUBJECTS = frozenset({"je", "j'", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles"})
+
+
+def _noun_gender(word: str) -> str | None:
+    from app.services import correction_contract
+
+    return correction_contract._noun_gender(word)  # noqa: SLF001 - the one lexicon reading
+
+
+def _elided_possessive(learner: str, target: str, noun: str) -> bool:
+    """«ma amie» → «mon amie»: «mon» stands before a vowel whatever the noun's gender,
+    so the swap says nothing about gender and no gender is claimed."""
+
+    words = {strip_accents(learner), strip_accents(target)}
+    first = strip_accents(noun)[:1]
+    return bool(words & {"mon", "ton", "son"}) and (first in "aeiouy" or first == "h")
 
 
 def _verb_lemma(word: str) -> str | None:
@@ -201,24 +222,31 @@ def _verb_lemma(word: str) -> str | None:
     return correction_contract._verb_lemma(word)  # noqa: SLF001 - the one lexicon reading
 
 
-def _after(sentence: Any, word: str) -> str | None:
+def _place(sentence: Any, word: str, at: Any = None) -> int | None:
+    """Where ``word`` stands in ``sentence``: at ``at`` when the op says so, else its
+    one occurrence. A word that occurs twice with no position is nowhere: guessing
+    which one would read the wrong neighbour («La femme et le clé»)."""
+
+    words = tokens(sentence)
+    folded = strip_accents(word)
+    if isinstance(at, int) and 0 <= at < len(words) and strip_accents(words[at]) == folded:
+        return at
+    found = [index for index, token in enumerate(words) if strip_accents(token) == folded]
+    return found[0] if len(found) == 1 else None
+
+
+def _after(sentence: Any, word: str, at: Any = None) -> str | None:
     """The word that follows ``word`` in ``sentence``, or ``None``."""
 
     words = tokens(sentence)
-    folded = strip_accents(word)
-    for index, token in enumerate(words[:-1]):
-        if strip_accents(token) == folded:
-            return words[index + 1]
-    return None
+    index = _place(sentence, word, at)
+    return words[index + 1] if index is not None and index + 1 < len(words) else None
 
 
-def _before(sentence: Any, word: str) -> str | None:
+def _before(sentence: Any, word: str, at: Any = None) -> str | None:
     words = tokens(sentence)
-    folded = strip_accents(word)
-    for index, token in enumerate(words[1:], start=1):
-        if strip_accents(token) == folded:
-            return words[index - 1]
-    return None
+    index = _place(sentence, word, at)
+    return words[index - 1] if index else None
 
 
 def slip_kind(learner: str, target: str) -> str | None:
@@ -289,14 +317,21 @@ def slip_category(ops: list[dict[str, str]], sentence: Any = None) -> dict[str, 
     # person about its subject, not the day's rule card.
     shown_learner, shown_target = slips[0].get("learner") or "", slips[0].get("target") or ""
     kind = slip_kind(shown_learner, shown_target)
+    at = slips[0].get("at")
     if kind in {"gender", "number"}:
-        noun = _after(sentence, shown_target) if sentence else None
-        if noun:
-            gender = "f" if strip_accents(shown_target) in _FEMININE_DETERMINERS else "m"
+        noun = _after(sentence, shown_target, at) if sentence else None
+        gender = _noun_gender(noun) if noun else None
+        if gender is None and noun and kind == "number":
+            # a plural target names the count, not the gender: read it off a singular
+            # determiner when the noun is not in the lexicon.
+            singular = shown_learner if strip_accents(shown_target) in _PLURAL_DETERMINERS else shown_target
+            gender = "f" if strip_accents(singular) in _FEMININE_DETERMINERS else "m"
+        if noun and gender and not _elided_possessive(shown_learner, shown_target, noun):
             return {"category": kind, "learner": shown_learner, "target": shown_target, "noun": noun, "gender": gender}
+        return None
     if kind == "person":
         lemma = _verb_lemma(shown_target) or ""
-        subject = _before(sentence, shown_target) if sentence else None
+        subject = _before(sentence, shown_target, at) if sentence else None
         subject = subject if subject and strip_accents(subject) in _SUBJECTS else None
         return {
             "category": "person_subject" if subject else "person",
@@ -320,7 +355,7 @@ def slip_note(ops: list[dict[str, str]], language: Any, target: Any = None) -> t
     fields = {key: value for key, value in slip.items() if key != "category"}
     if slip["category"] in {"gender", "number"}:
         gender = _copy(f"forge.slip.gender.{slip['gender']}", language)
-        plural = strip_accents(slip["target"]) in {"les", "des", "mes", "ces", "tes", "ses"}
+        plural = strip_accents(slip["target"]) in _PLURAL_DETERMINERS
         count = _copy(f"forge.slip.count.{'p' if plural else 's'}", language)
         return (
             _copy(f"forge.slip.{slip['category']}.why", language, gender_word=gender, count=count, **fields),

@@ -263,6 +263,8 @@ def authored_repair(concept: GrammarConcept | None, learner: str | None = None, 
     for trap in traps:
         change = _trap_change(trap)
         if change is None:
+            # a prose trap names no form to cross out, so it cannot contradict the answer.
+            fitting.append(trap)
             continue
         crossed, _put = change
         if ({strip_accents(word) for word in crossed} & needed) - _DETERMINERS:

@@ -6468,7 +6468,7 @@ class AtelierCorrectionService:
             outside_rule = mode == "fill" and _miss_outside_the_rule(item, learner_text, target)
             # #596: a slip the classifier can name (an article's gender or number, a verb
             # form of another person) is explained as that slip, with the rule only cited.
-            ops = token_diff(learner_text, target)
+            ops = token_diff(learner_text, target, positions=True)
             named = None if outside_rule else slip_note(ops, language, target)
             if named:
                 title = _concept_title_for(concept, language)
