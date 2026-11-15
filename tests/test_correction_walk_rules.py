@@ -96,8 +96,8 @@ def test_a_missing_accent_comes_back_when_the_word_can_only_be_one_word(text, sp
     ("text", "bare"),
     [
         pytest.param("Ça m'enerve.", "enerve", id="énerve-or-énervé"),
-        pytest.param("J'ai ecoute la radio.", "ecoute", id="écoute-or-écouté"),
-        pytest.param("Il a complete le formulaire.", "complete", id="complète-or-complété"),
+        pytest.param("Ça m'ecoute.", "ecoute", id="écoute-or-écouté"),
+        pytest.param("Il complete le formulaire.", "complete", id="complète-or-complété"),
         pytest.param("Je suis desole.", "desole", id="désole-or-désolé"),
         pytest.param("Je mange un desert.", "desert", id="désert-or-dessert"),
         pytest.param("Je vais metre la table.", "metre", id="mètre-or-mettre"),
@@ -110,6 +110,18 @@ def test_a_missing_accent_comes_back_when_the_word_can_only_be_one_word(text, sp
 )
 def test_a_word_that_can_be_two_words_gets_no_accent(text, bare):
     assert bare not in [edit.span for edit in cc.deterministic_edits(text)]
+
+
+@pytest.mark.parametrize(
+    ("text", "span", "replacement"),
+    [
+        pytest.param("J'ai ecoute la radio.", "ecoute", "écouté", id="écouté-after-ai"),
+        pytest.param("Il a complete le formulaire.", "complete", "complété", id="complété-after-a"),
+    ],
+)
+def test_after_an_auxiliary_the_two_words_are_one_the_participle(text, span, replacement):
+    """#807: «complete» alone is «complète» or «complété»; after «a» it is the participle."""
+    _finds(text, span, replacement, "FR_PARTICIPLE")
 
 
 @pytest.mark.parametrize(

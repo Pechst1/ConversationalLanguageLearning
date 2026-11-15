@@ -1095,6 +1095,57 @@ def _asks_for_a_retype(target: Any) -> bool:
     return words >= 3 or (words >= 2 and trimmed[-1:] in {".", "!", "?", "…"})
 
 
+#: Floor fixes a lenient item names without failing the answer: a spelling accent
+#: («gus a un telephone»), as :func:`accent_reading` reads the keyed rungs.
+_LENIENT_FLOOR_RULES = frozenset({"FR_ACCENT", "FR_SPELLING"})
+
+
+def with_floor_errata(
+    correction: dict[str, Any], learner_text: Any, *, language: Any = "en", accents: str = "lenient"
+) -> dict[str, Any]:
+    """The model's reading of a free sentence plus what the rules floor finds in it (#773).
+
+    The Journal, the Courrier and the scene add the model-free pass
+    (:func:`correction_contract.deterministic_edits`) to the model's errata
+    (``merge_deterministic_errata``); La Forge took the model's reading as it came, so
+    «Est-ce que on commence le travail ?» was «Right» in the free sentence while the
+    recall drill marked «Est-ce que il pleut ?» wrong. A fix the floor vouches for and
+    the model did not list is added, the corrected sentence carries it, and a «correct»
+    verdict becomes «partial» (a spelling accent on a lenient item is named only)."""
+
+    from app.services import correction_contract
+
+    line = str(learner_text or "")
+    if not line.strip():
+        return correction
+    errata = [item for item in correction.get("errata") or [] if isinstance(item, dict)]
+    folded = line.casefold()
+    taken: list[tuple[int, int]] = []
+    for item in errata:
+        span = str(item.get("learner_text") or "").casefold()
+        at = folded.find(span) if span else -1
+        if at >= 0:
+            taken.append((at, at + len(span)))
+    edits = [
+        edit
+        for edit in correction_contract.deterministic_edits(line)
+        if not any(edit.start < end and start < edit.end for start, end in taken)
+    ]
+    if not edits:
+        return correction
+    code = fold_language(language) or "en"
+    out = {**correction, "errata": [*errata, *(correction_contract.to_erratum(e, language=code) for e in edits)]}
+    corrected = correction.get("corrected_answer")
+    base = corrected if isinstance(corrected, str) and corrected.strip() else line
+    out["corrected_answer"] = correction_contract.repair_text(base)
+    fails = accents != "lenient" or any(edit.rule_id not in _LENIENT_FLOOR_RULES for edit in edits)
+    if fails and str(out.get("verdict") or "") in {"correct", "accepted"}:
+        out["verdict"] = "partial"
+        out["score_0_4"] = min(float(out.get("score_0_4") or 4.0), 2.5)
+    out["notes_native"] = notes_native(out["errata"])
+    return out
+
+
 def refine_production_correction(
     correction: dict[str, Any],
     *,
@@ -1155,6 +1206,9 @@ def refine_production_correction(
         # Nothing was left but the false «English» note: the answer stands as written.
         refined["corrected_answer"] = str(learner_text or refined.get("corrected_answer") or "")
     if reordered is None and not matches_accepted(learner_text, accepted):
+        # #773: the rules floor reads the sentence the model passed, as it does on the
+        # Journal, the Courrier and the scene.
+        refined = with_floor_errata(refined, learner_text, language=language, accents=accents)
         # #574: the gaps, the right sentence and the list say the same thing. (An
         # answer the key accepts has nothing to fix: the model's rewrite is style.)
         refined = reconcile_with_sentence(refined, learner_text, language)
