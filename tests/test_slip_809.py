@@ -36,7 +36,7 @@ def _service(db_session, language: str = "en"):
 # -- 1. a judged sentence goes through the same classifier as a gap --------------
 
 
-def test_a_judged_wrong_sentence_names_the_noun_like_a_choice_gap(db_session):
+def test_judged_noun(db_session):
     concept = _concept("FR2_A11_LE_LA", "Le, la, l', les", "A1", "Articles")
     item = ib.judgement_item("judge", "Margaux cherche la téléphone.", fix="Margaux cherche le téléphone.")
     item["lesson_external_id"] = "FR2_A11_LE_LA"
@@ -57,7 +57,7 @@ def test_a_judged_wrong_sentence_names_the_noun_like_a_choice_gap(db_session):
 # -- 2. an irregular participle is named as one ----------------------------------
 
 
-def test_the_classifier_has_a_participle_kind():
+def test_participle_kind():
     assert slip_kind("écrivé", "écrit") == "participle"
     assert slip_kind("prendu", "pris") == "participle"
     assert slip_kind("finé", "fini") == "participle"
@@ -67,7 +67,7 @@ def test_the_classifier_has_a_participle_kind():
     assert slip_kind("mange", "mangé") is None
 
 
-def test_a_regularised_participle_names_the_irregular_one(db_session):
+def test_participle_note(db_session):
     concept = _concept("FR2_A21_PC_AVOIR", "Passé composé avec avoir", "A2", "Tenses")
     item = {
         "id": "gap", "prompt": "L'été dernier, ___ un article.", "choices": ["tu as écrit", "tu as écrire"],
@@ -83,7 +83,7 @@ def test_a_regularised_participle_names_the_irregular_one(db_session):
 # -- 3. a fix that changed another word is named as such -------------------------
 
 
-def test_a_spot_fix_that_changed_another_word_is_not_labelled_with_the_fixed_category(db_session):
+def test_spot_fix_other(db_session):
     concept = _concept("FR2_A11_LE_LA", "Le, la, l', les", "A1", "Articles")
     item = {
         "id": "repair", "type": "rewrite", "instruction": "Fix the one mistake.", "instruction_key": "forge.transform",
@@ -122,12 +122,12 @@ def _judge_cases():
 _CASES = _judge_cases()
 
 
-def test_the_guard_covers_the_bank():
+def test_guard_size():
     assert len(_CASES) > 100
 
 
 @pytest.mark.parametrize(("unit", "item"), _CASES)
-def test_every_judged_sentence_is_explained_like_a_gap(db_session, unit, item):
+def test_judge_bank(db_session, unit, item):
     concept = _concept(unit, unit, str(ib.unit_row(unit).get("level") or "A1"), "")
     wrong, right = item["source_fr"], item["follow_up_key"]["corrected_fr"]
     service = _service(db_session)
