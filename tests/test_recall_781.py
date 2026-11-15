@@ -103,7 +103,7 @@ def _one_tile_per_word(sentence: str) -> RecallTask:
     )
 
 
-def test_a_case_only_tile_swap_is_right_and_names_the_capital(db_session) -> None:
+def test_case_swap_is_right(db_session) -> None:
     task, texts = _avoir_tiles()
     swapped = _case_swapped(task, texts)
     assert " ".join(texts[tile] for tile in swapped) == "j'ai vingt-cinq ans et J'ai faim !"
@@ -121,7 +121,7 @@ def test_a_case_only_tile_swap_is_right_and_names_the_capital(db_session) -> Non
     assert any(word in verdict.slip_note_native for word in ("capital", "Großbuchstaben", "majuscule"))
 
 
-def test_identical_tiles_swapped_spell_the_same_sentence(db_session) -> None:
+def test_twin_tiles_swap(db_session) -> None:
     """Attempt 1's cap: four «le» and two «,» are 48 orders; any of them is the sentence."""
 
     task = _one_tile_per_word("Je vois le chat, le chien, le lapin et le cheval.")
@@ -137,7 +137,7 @@ def test_identical_tiles_swapped_spell_the_same_sentence(db_session) -> None:
     )
 
 
-def test_the_device_key_takes_exactly_the_orders_the_grader_takes(db_session) -> None:
+def test_key_matches_grader(db_session) -> None:
     """The client colours a build from the hashed key: it must never flash red on a
     build the server then calls right, nor green on a miss."""
 
@@ -164,7 +164,7 @@ def test_the_device_key_takes_exactly_the_orders_the_grader_takes(db_session) ->
         )
 
 
-def test_a_tiles_miss_always_shows_the_right_sentence(db_session) -> None:
+def test_miss_shows_answer(db_session) -> None:
     """A «not yet» on a tile build is never served with an empty explanation."""
 
     task, texts = _avoir_tiles()
@@ -197,7 +197,7 @@ def _senses(gloss: str) -> set[str]:
     return {" ".join(part.split()).casefold() for part in re.split(r"[;,/]", text) if part.strip()}
 
 
-def test_no_meaning_distractor_is_a_meaning_of_the_key(db_session) -> None:
+def test_no_key_meaning_decoy(db_session) -> None:
     # The partners are drawn in an order seeded by the target's id: try a spread of ids.
     for band in (None, "B1", "A1"):
         for seed in range(12):
@@ -219,7 +219,7 @@ def test_no_meaning_distractor_is_a_meaning_of_the_key(db_session) -> None:
         assert right.outcome is TaskOutcome.MET
 
 
-def test_match_pairs_never_pairs_a_meaning_twice() -> None:
+def test_pairs_one_meaning() -> None:
     task = planner.build_match_pairs_task(target=UNE, pool=POOL, optional=False, control_language="en")
     if task is None:
         return
@@ -242,7 +242,7 @@ def _build_pick(db_session, task, option_id):
 # -- #805: «Write this correctly» over a line that is already right ---------------
 
 
-def test_a_repair_is_not_posed_over_a_line_that_already_says_the_key() -> None:
+def test_no_repair_of_right() -> None:
     target = TargetRef(kind=TargetKind.ERROR, id="err-poste", label_fr="la poste", label_native="the post office")
     task = planner.build_recall_task(
         target=target,
@@ -265,7 +265,7 @@ def test_a_repair_is_not_posed_over_a_line_that_already_says_the_key() -> None:
     assert " ".join(texts[tile] for tile in task.correct_tile_order) == target.label_fr
 
 
-def test_a_real_repair_is_still_posed() -> None:
+def test_real_repair_posed() -> None:
     target = TargetRef(kind=TargetKind.ERROR, id="err-ai", label_fr="j'ai faim", label_native="avoir faim")
     task = planner.build_recall_task(
         target=target,
