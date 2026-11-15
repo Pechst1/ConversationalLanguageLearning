@@ -69,17 +69,17 @@ def _status(db_session, item: dict, typed: str, answer: str = "tu as écrivé") 
     return _copied(db_session, _miss(db_session, item, answer), typed)
 
 
-@pytest.mark.parametrize("typed", [LINE, "L’été dernier, tu as écrit un article.", "tu as écrit"])
-def test_the_whole_corrected_line_or_the_gap_is_copied(db_session, typed):
+@pytest.mark.parametrize("typed", [LINE, "L’été dernier, tu as écrit un article.", "tu as écrit"], ids=["line", "curly", "gap"])
+def test_line_or_gap_copied(db_session, typed):
     assert _status(db_session, ITEM, typed) == "ok", f"«{typed}» is the corrected line the box asks for"
 
 
-@pytest.mark.parametrize("typed", ["L'été dernier, tu as écrivé un article.", "tu as écrivé", "L'été dernier, tu écris un article."])
-def test_the_wrong_line_is_still_refused(db_session, typed):
+@pytest.mark.parametrize("typed", ["L'été dernier, tu as écrivé un article.", "tu as écrivé", "L'été dernier, tu écris un article."], ids=["line", "gap", "other"])
+def test_wrong_refused(db_session, typed):
     assert _status(db_session, ITEM, typed) == "no"
 
 
-def test_a_glossed_gap_prompt_gives_the_french_line_only(db_session):
+def test_glossed_gap(db_session):
     """A bank fill may carry its meaning in brackets after the French; that is not the line."""
 
     glossed = {**ITEM, "id": "pc-fill-808-gloss", "prompt": "L'été dernier, ___ un article. (Last summer, you wrote an article.)"}
@@ -87,7 +87,7 @@ def test_a_glossed_gap_prompt_gives_the_french_line_only(db_session):
     assert _status(db_session, glossed, "tu as écrit") == "ok"
 
 
-def test_a_gap_answered_with_the_whole_line_is_read_as_that_line(db_session):
+def test_gap_typed_whole(db_session):
     """A learner who typed the whole sentence into the gap is not given a doubled line."""
 
     assert _status(db_session, ITEM, LINE, answer="L'été dernier, tu as écrivé un article.") == "ok"
@@ -100,8 +100,9 @@ def test_a_gap_answered_with_the_whole_line_is_read_as_that_line(db_session):
         (ITEM, "fill", "tu as écrivé", LINE),
         (WORD_BANK, "word_bank", "Samedi dernier, elle a travaillée à la rédaction.", WORD_BANK["correct_answer"]),
     ],
+    ids=["fill", "build"],
 )
-def test_every_keyed_repair_box_takes_the_part_and_the_whole_line(db_session, item, mode, answer, whole):
+def test_every_box(db_session, item, mode, answer, whole):
     """Guard (#808): whatever keyed item shows the box, its corrected part and the full line both count."""
 
     part = _miss(db_session, item, answer, mode).correction_payload["errata"][0]["corrected_target"]
