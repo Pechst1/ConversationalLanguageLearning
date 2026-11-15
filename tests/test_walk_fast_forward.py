@@ -63,7 +63,8 @@ def api(monkeypatch: pytest.MonkeyPatch) -> FakeWalkApi:
     return fake
 
 
-def test_a_rate_limit_wait_that_outlives_the_token_signs_in_again(api: FakeWalkApi) -> None:
+def test_wait_outlives_token(api: FakeWalkApi) -> None:
+    """A rate-limit wait that outlives the token signs in again (the CI failure of #802)."""
     from scripts import walk_fast_forward as ff
 
     client = ff.WalkClient("http://walk.test", "learner@example.com", "pw")
@@ -85,7 +86,7 @@ def test_a_rate_limit_wait_that_outlives_the_token_signs_in_again(api: FakeWalkA
     assert api.log[-1] == ("/api/v1/daily-journeys/j/steps/s/attempts", 200)
 
 
-def test_an_expired_token_then_a_rate_limit_still_lands(api: FakeWalkApi) -> None:
+def test_expired_then_limited(api: FakeWalkApi) -> None:
     """The other order: the token has expired, the fresh one meets the rate limit."""
     from scripts import walk_fast_forward as ff
 
