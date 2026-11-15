@@ -47,6 +47,7 @@ WALK_PARTICIPLES = [
     (JOURNAL_RETELL, "m'a demandé"),
     (JOURNAL_RETELL, "m'a donné"),
 ]
+WALK_IDS = ["invite", "expliquer", "appele", "arrive", "demande", "donne"]
 
 
 def _named(errata: list[dict], right: str) -> bool:
@@ -54,8 +55,9 @@ def _named(errata: list[dict], right: str) -> bool:
     return any(participle in str(item.get("corrected_target") or "") for item in errata)
 
 
-@pytest.mark.parametrize(("sentence", "right"), WALK_PARTICIPLES)
-def test_the_floor_names_the_participle_after_an_auxiliary(sentence, right):
+@pytest.mark.parametrize(("sentence", "right"), WALK_PARTICIPLES, ids=WALK_IDS)
+def test_pc_floor(sentence, right):
+    """The floor names the participle after an auxiliary, on the walk's exact sentences."""
     errata = correction_contract.deterministic_errata(sentence, language="en")
     assert _named(errata, right), (
         f"«{sentence}»: the basic check never names «{right}»; it listed "
@@ -64,8 +66,8 @@ def test_the_floor_names_the_participle_after_an_auxiliary(sentence, right):
     assert right in correction_contract.repair_text(sentence)
 
 
-@pytest.mark.parametrize(("sentence", "right"), WALK_PARTICIPLES)
-def test_la_forge_basic_check_names_the_participle(sentence, right):
+@pytest.mark.parametrize(("sentence", "right"), WALK_PARTICIPLES, ids=WALK_IDS)
+def test_pc_forge(sentence, right):
     """La Forge's free sentence with no model to read it (#724's fallback)."""
     from app.services.atelier import _with_rule_fixes
 
@@ -123,7 +125,7 @@ _ETRE = [("je", "suis"), ("tu", "es"), ("il", "est"), ("nous", "sommes"), ("vous
 _ETRE_ER_VERBS = ("aller", "arriver", "entrer", "rester", "tomber", "rentrer", "monter", "retourner")
 
 
-def test_every_a1_a2_er_verb_after_every_auxiliary_is_caught():
+def test_pc_every_er_verb():
     """The guard of #807's done-when: an -er verb of the A1–A2 lexicon, written as its
     infinitive or as its bare «il» form, after each auxiliary form, is named."""
     verbs = _er_verbs()
@@ -155,7 +157,7 @@ def journal(db_engine, db_session):
     yield
 
 
-def test_the_journal_basic_check_names_the_participles(journal, db_session, monkeypatch):
+def test_pc_journal(journal, db_session, monkeypatch):
     """#807 done-when: the Journal's basic check (no model) on the walk's retell."""
     from app.config import settings
     from tests.test_journal import TODAY, _concept, _journey, _user, _write
@@ -240,8 +242,9 @@ def _relecture(db_session, monkeypatch, text: str):
     return verdicts.from_forge(landed.correction_payload, text=text, verdict=landed.verdict).to_dict(), landed
 
 
-@pytest.mark.parametrize(("text", "fix"), [(ESTCE_FORGE, "qu'on"), (ESTCE_RECALL, "qu'il")])
-def test_la_forge_does_not_call_a_missing_elision_right(db_session, monkeypatch, text, fix):
+@pytest.mark.parametrize(("text", "fix"), [(ESTCE_FORGE, "qu'on"), (ESTCE_RECALL, "qu'il")], ids=["on", "il"])
+def test_forge_estce(db_session, monkeypatch, text, fix):
+    """La Forge does not call a missing «qu'» elision right when its model does."""
     check, attempt = _relecture(db_session, monkeypatch, text)
     edits = [(edit["span"], edit["replacement"]) for edit in check["edits"]]
     assert attempt.verdict not in {"correct", "accepted"}, (
@@ -273,7 +276,8 @@ COURRIER_MARGAUX = "Salut Margaux ! Mais je n ai pas d echarpe, ce n est pas a m
 COURRIER_FIBRE = "Mais je suis pas a la maison, je dors a l hotel !"
 
 
-def test_the_courrier_line_is_fixed_in_every_place():
+def test_courrier_line():
+    """#810 done-when: the corrected line is fixed in every place, not half."""
     assert correction_contract.repair_text(COURRIER_MARGAUX) == (
         "Salut Margaux ! Mais je n'ai pas d'écharpe, ce n'est pas à moi. Peut-être c'est à Gus ?"
     )
