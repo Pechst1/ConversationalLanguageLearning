@@ -70,5 +70,22 @@ export function englishWords(text) {
   return [...new Set(words.filter((w) => ENGLISH.has(w)))];
 }
 
-export const SERVER_BANNER = /(reach(ed)? the server|Server (an|erreicht)|serveur|Sending to the server|gesendet)/i;
+// The sentences the app says when an answer has not reached the server or is on its way
+// (journey-copy.ts: transport_error, transport_error_plain, pending_sync, syncing), in each
+// interface language. Whole phrases, never a bare word: the screen's text holds the scene,
+// and a scene says «serveur» (a waiter) or «gesendet» as freely as anything (#794).
+// e2e/lib/server-banner.test.mjs holds this to the shipped copy.
+export const SERVER_BANNER = new RegExp(
+  [
+    'did not reach the server', 'has not reached the server', 'Sending to the server',
+    'kam nicht beim Server an', 'hat den Server noch nicht erreicht', 'Wird an den Server gesendet',
+    'Le serveur n[’\']a pas reçu', 'pas encore arrivé au serveur', 'Envoi au serveur',
+  ].join('|'),
+  'i',
+);
+
+/** Whether screen `s` shows a connection banner: the banner element, or its sentence elsewhere. */
+export function serverBanner(s) {
+  return s.connection.length > 0 || SERVER_BANNER.test(s.text);
+}
 export const PENDING_VERDICT = /(Je relis|Checking|Prüfe|Wird geprüft|Reading it over)/i;
