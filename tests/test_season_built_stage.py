@@ -34,7 +34,7 @@ def _places(*ids: str) -> list[dict]:
 def test_the_server_reads_the_places_the_forge_built():
     stages = built_stages("s1")
     # the café and its quai, the stairwell, Odile's flat, the studio, the notary's, the roof, the back room,
-    # Marin and Lila's flat, the gérance Marchand, the rue de Lancry, Gus's loft
+    # Marin and Lila's flat, the gérance Marchand, the rue de Lancry, Gus's loft, Marin's NGO office
     assert stages["stairwell"] == "escalier_mistral"
     assert stages["le_mistral"] == "quai_de_valmy"
     assert stages["toit"] == "toit_mistral"
@@ -43,6 +43,7 @@ def test_the_server_reads_the_places_the_forge_built():
     assert stages["marchand_office"] == "gerance_marchand"
     assert stages["rue_de_lancry"] == "rue_de_lancry"
     assert stages["gus_loft"] == "chateau_gus"
+    assert stages["ngo_office"] == "bureau_ong"
     assert "gare_de_lest" not in stages and "brocante" not in stages
     # every one of them is a place of the season the director reads
     ids = {place["id"] for place in season_world_bible("s1")["setting"]["recurring_locations"]}
