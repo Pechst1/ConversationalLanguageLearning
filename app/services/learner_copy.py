@@ -648,6 +648,38 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Schreib «{target}» mit Apostroph und ohne Leerzeichen an das nächste Wort.",
         "fr": "Colle « {target} » au mot suivant, avec l’apostrophe et sans espace.",
     },
+    # #809: a participle built by the regular pattern for another one («écrivé» for «écrit»).
+    "forge.slip.participle_irregular.why": {
+        "en": "«{lemma}» has an irregular past participle: «{target}», not «{learner}».",
+        "de": "«{lemma}» hat ein unregelmäßiges Partizip: «{target}», nicht «{learner}».",
+        "fr": "« {lemma} » a un participe passé irrégulier : « {target} », pas « {learner} ».",
+    },
+    "forge.slip.participle.why": {
+        "en": "The past participle of «{lemma}» is «{target}», not «{learner}».",
+        "de": "Das Partizip von «{lemma}» ist «{target}», nicht «{learner}».",
+        "fr": "Le participe passé de « {lemma} » est « {target} », pas « {learner} ».",
+    },
+    "forge.slip.participle.repair": {
+        "en": "Learn it with the verb: «{lemma}» → «{target}».",
+        "de": "Lern es mit dem Verb: «{lemma}» → «{target}».",
+        "fr": "Apprends-le avec le verbe : « {lemma} » → « {target} ».",
+    },
+    # #809: a «fix the one mistake» answer that fixed it and changed another word.
+    "forge.spot.other_word.label": {
+        "en": "Another word changed",
+        "de": "Ein anderes Wort geändert",
+        "fr": "Un autre mot a changé",
+    },
+    "forge.spot.other_word.why": {
+        "en": "You fixed the mistake («{shown}» → «{fixed}»). What differs is another word: you wrote «{learner}», this line keeps «{target}».",
+        "de": "Den Fehler hast du korrigiert («{shown}» → «{fixed}»). Anders ist ein anderes Wort: Du hast «{learner}» geschrieben, der Satz behält «{target}».",
+        "fr": "Tu as corrigé la faute (« {shown} » → « {fixed} »). Ce qui diffère, c’est un autre mot : tu as écrit « {learner} », la phrase garde « {target} ».",
+    },
+    "forge.spot.other_word.repair": {
+        "en": "Change only the mistake; leave the other words as they are shown.",
+        "de": "Ändere nur den Fehler; lass die anderen Wörter so, wie sie dastehen.",
+        "fr": "Ne change que la faute ; laisse les autres mots comme ils sont.",
+    },
     "forge.diff.missing": {
         "en": "«{target}» is missing.",
         "de": "«{target}» fehlt.",

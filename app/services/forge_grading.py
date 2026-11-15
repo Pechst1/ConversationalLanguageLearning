@@ -249,10 +249,57 @@ def _before(sentence: Any, word: str, at: Any = None) -> str | None:
     return words[index - 1] if index else None
 
 
+#: A participle ending a learner builds by the regular pattern (-é, -i, -u), with
+#: agreement after it: «écrivé», «prendu», «finé», «venue».
+_REGULAR_PARTICIPLE = re.compile(r"(?:é|i|u)(?:e|s|es)?$")
+
+
+def _participle(lemma: str) -> str | None:
+    """The past participle of ``lemma``, from the conjugation table, or ``None``."""
+
+    from app.services.conjugation import fallback_conjugation_table
+
+    try:
+        compound = (fallback_conjugation_table(lemma).get("passe_compose") or {}).get("je") or ""
+    except Exception:  # pragma: no cover - an unknown verb has no participle here
+        return None
+    words = str(compound).split()
+    return words[-1] if len(words) >= 2 else None
+
+
+def _with_agreement(participle: str) -> set[str]:
+    folded = strip_accents(participle)
+    return {folded, f"{folded}e", f"{folded}s", f"{folded}es"}
+
+
+def participle_irregular(lemma: str, participle: str) -> bool:
+    """``participle`` is not what the -é/-i/-u pattern makes of ``lemma``
+    («écrire» → «écrit», not «écru»; «venir» → «venu», not «veni»)."""
+
+    regular = {"er": "é", "ir": "i", "re": "u"}.get(lemma[-2:])
+    return regular is None or strip_accents(participle) != strip_accents(lemma[:-2] + regular)
+
+
+def _participle_slip(lemma: str | None, learner: str, target: str) -> bool:
+    """«écrivé» for «écrit»: the target is ``lemma``'s past participle and the learner
+    built another one by the regular pattern. Agreement («écrite» for «écrit») is not
+    a participle slip: the participle itself is right."""
+
+    if not lemma:
+        return False
+    participle = _participle(lemma)
+    if not participle or strip_accents(target) not in _with_agreement(participle):
+        return False
+    return bool(_REGULAR_PARTICIPLE.search(learner.casefold())) and strip_accents(learner) not in _with_agreement(
+        participle
+    )
+
+
 def slip_kind(learner: str, target: str) -> str | None:
     """What kind of slip one word for another is: ``gender``, ``number``, ``elision``,
-    ``person`` (another form of the same verb), or ``None``. The one classifier the
-    miss note and the rule card's example are chosen by (#146)."""
+    ``person`` (another form of the same verb), ``participle`` (a past participle built
+    by the regular pattern for another one: «écrivé» for «écrit»), or ``None``. The one
+    classifier the miss note and the rule card's example are chosen by (#146)."""
 
     a, b = strip_accents(learner or ""), strip_accents(target or "")
     if not a or not b or a == b:
@@ -268,6 +315,8 @@ def slip_kind(learner: str, target: str) -> str | None:
     lemma = _verb_lemma(target)
     if lemma and lemma == _verb_lemma(learner) and _same_tense(lemma, a, b):
         return "person"
+    if _participle_slip(lemma, fold_typography(learner), fold_typography(target)):
+        return "participle"
     return None
 
 
@@ -310,12 +359,22 @@ def slip_category(ops: list[dict[str, str]], sentence: Any = None) -> dict[str, 
         return {"category": "coi_for_cod", "learner": learner, "target": target}
     if target.endswith("'") and _ELISIONS.get(learner) == target:
         return {"category": "elision", "learner": learner, "target": target}
+    shown_learner, shown_target = slips[0].get("learner") or "", slips[0].get("target") or ""
+    if slip_kind(shown_learner, shown_target) == "participle":
+        # #809: «écrivé» for «écrit» is the regular pattern applied to an irregular verb;
+        # quoting that pattern as the reason would repeat what produced the slip.
+        lemma = _verb_lemma(shown_target) or ""
+        return {
+            "category": "participle_irregular" if participle_irregular(lemma, shown_target) else "participle",
+            "learner": shown_learner,
+            "target": shown_target,
+            "lemma": lemma,
+        }
     if sentence is None:
         return None
     # #596: given the right sentence, an article that differs only in gender or number is
     # about the noun after it («le clé»: «clé» is feminine), and a verb form of the wrong
     # person about its subject, not the day's rule card.
-    shown_learner, shown_target = slips[0].get("learner") or "", slips[0].get("target") or ""
     kind = slip_kind(shown_learner, shown_target)
     at = slips[0].get("at")
     if kind in {"gender", "number"}:
@@ -371,10 +430,61 @@ def slip_note(ops: list[dict[str, str]], language: Any, target: Any = None) -> t
             _copy("forge.slip.elision.why", language, **fields),
             _copy("forge.slip.elision.repair", language, **fields),
         )
+    if slip["category"] in {"participle", "participle_irregular"}:
+        return (
+            _copy(f"forge.slip.{slip['category']}.why", language, **fields),
+            _copy("forge.slip.participle.repair", language, **fields),
+        )
     return (
         _copy(f"forge.slip.{slip['category']}.why", language, **fields),
         _copy("forge.slip.object_pronoun.repair", language),
     )
+
+
+def _changes(sentence: Any, target: Any) -> list[tuple[int, int, int, int]]:
+    """Where ``sentence`` differs from ``target`` (accents folded), as
+    ``(i1, i2, j1, j2)`` spans: ``sentence`` words i1:i2 stand for ``target`` words j1:j2."""
+
+    left = [strip_accents(token) for token in tokens(sentence)]
+    right = [strip_accents(token) for token in tokens(target)]
+    matcher = SequenceMatcher(a=left, b=right, autojunk=False)
+    return [(i1, i2, j1, j2) for tag, i1, i2, j1, j2 in matcher.get_opcodes() if tag != "equal"]
+
+
+def _touched(spans: list[tuple[int, int, int, int]]) -> set[float]:
+    """The target positions a set of changes touches; a deletion touches the gap it leaves."""
+
+    touched: set[float] = set()
+    for _i1, _i2, j1, j2 in spans:
+        touched.update(range(j1, j2) if j2 > j1 else {j1 - 0.5})
+    return touched
+
+
+def fixed_but_changed_elsewhere(learner: Any, target: Any, source: Any) -> dict[str, str] | None:
+    """#809: a «fix the one mistake» answer that fixed it and changed another word.
+
+    «La bague est neuve.» for «Le bague est nouvelle.» → «La bague est nouvelle.»: the
+    article (the mistake) is right; «neuve» is what differs. The miss is that other
+    word, not the category of the mistake the learner just fixed. Returns the mistake as
+    shown and fixed and the one other word (learner's, key's), or ``None`` when the
+    mistake is not fixed or the other change is more than one word for one word.
+    """
+
+    mistake = _changes(source, target)
+    if not mistake:
+        return None
+    if _touched(mistake) & _touched(_changes(learner, target)):
+        return None
+    others = [op for op in token_diff(learner, target) if op.get("kind") != "accent"]
+    if len(others) != 1 or others[0].get("kind") not in {"word", "ending"}:
+        return None
+    shown, right = tokens(source), tokens(target)
+    return {
+        "shown": " … ".join(" ".join(shown[i1:i2]) or "…" for i1, i2, _j1, _j2 in mistake),
+        "fixed": " … ".join(" ".join(right[j1:j2]) or "…" for _i1, _i2, j1, j2 in mistake),
+        "learner": others[0]["learner"],
+        "target": others[0]["target"],
+    }
 
 
 def similarity(learner: Any, target: Any) -> float:
@@ -1253,10 +1363,12 @@ __all__ = [
     "drop_false_english",
     "is_author_note",
     "fold_typography",
+    "fixed_but_changed_elsewhere",
     "foreign_words",
     "is_french_word",
     "mark_given",
     "matches_accepted",
+    "participle_irregular",
     "notes_native",
     "production_local_check",
     "refine_production_correction",

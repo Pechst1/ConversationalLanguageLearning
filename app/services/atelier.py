@@ -63,6 +63,7 @@ from app.services.forge_grading import (
     describe_diff,
     drop_author_notes,
     drop_false_english,
+    fixed_but_changed_elsewhere,
     fold_typography,
     free_use_acceptable,
     held_to_sentence,
@@ -6475,7 +6476,11 @@ class AtelierCorrectionService:
                 # A verb form is the rule's own matter, so the rule is cited; an article's
                 # gender or number is the noun's, whatever the day's rule is.
                 category = (slip_category(ops, target) or {}).get("category", "")
-                cite = _copy("atelier.recognize.rule_reference", language, title=title) if category.startswith("person") else ""
+                cite = (
+                    _copy("atelier.recognize.rule_reference", language, title=title)
+                    if category.startswith(("person", "participle"))
+                    else ""
+                )
                 return self._recognize_erratum_payload(
                     concept, item, label=title, learner_text=learner_text, target=target,
                     why=" ".join(part for part in (why, named[0], cite) if part),
@@ -6629,10 +6634,18 @@ class AtelierCorrectionService:
                 ),
                 "remember": False,
             }
+        # #809: the slip is the diff between the sentence shown and its right form, read by
+        # the classifier a gap uses («la téléphone»: «téléphone» is masculine); the
+        # answer here is a button, which no classifier can read.
+        why = _copy("atelier.judgement.should_be", language, sentence=sentence, corrected=corrected)
+        named = slip_note(token_diff(sentence, corrected, positions=True), language, corrected)
+        if named:
+            why, repair = f"{why} {named[0]}", named[1]
+        else:
+            repair = item.get("repair_hint") or self._repair_for(concept, sentence, corrected)
         return self._recognize_erratum_payload(
             concept, item, label=label, learner_text=sentence, target=corrected,
-            why=_copy("atelier.judgement.should_be", language, sentence=sentence, corrected=corrected),
-            repair=repair, task_type=self._task_type_for(concept, item),
+            why=why, repair=repair, task_type=self._task_type_for(concept, item),
         )
 
     def _classify_erratum(
@@ -7087,7 +7100,16 @@ class AtelierCorrectionService:
             ops = mark_given(token_diff(learner, target), source)
             what = describe_diff(ops, self.explanation_language)
             slip = slip_note(ops, self.explanation_language)
-            if slip:
+            elsewhere = fixed_but_changed_elsewhere(learner, target, source) if source else None
+            if elsewhere:
+                # #809: the mistake is fixed and another word changed: that word is the
+                # miss, never the category of the mistake just fixed.
+                language = self.explanation_language
+                erratum["display_label"] = _copy("forge.spot.other_word.label", language)
+                erratum["why_wrong"] = _copy("forge.spot.other_word.why", language, **elsewhere)
+                erratum["repair_hint"] = _copy("forge.spot.other_word.repair", language)
+                erratum["diff"] = ops
+            elif slip:
                 # #449: the slip's own category explains it; the rule card does not.
                 erratum["why_wrong"], erratum["repair_hint"] = slip
                 erratum["diff"] = ops
