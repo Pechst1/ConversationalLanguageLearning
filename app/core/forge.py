@@ -28,6 +28,8 @@ back (the one exception: a single rule left able to take a slot). A séance
 serves at least :data:`MIN_SEANCE_ITEMS` items even when its rules retire
 early (#443): they come back to fill it, and one that ends by itself before its
 planned length is as long as what it served (:attr:`ForgeState.shown_length`).
+An unchecked answer takes its own slot: the séance ends where the counter
+said when it was posed, and only a checked answer moves that end (#826).
 At most
 :data:`MAX_NEW_RULES` brand-new rule per séance. The day's step («Forge
 today's rule», #169) sets ``review_share`` instead: today's rule throughout,
@@ -425,6 +427,10 @@ class ForgeState:
     #: #169: the day's step («Forge today's rule»): the share of items the
     #: non-today rules may take at most (``None``: :data:`ROLE_SHARES`).
     review_share: float | None = None
+    #: #826: the séance ends here at the latest: the length the counter showed
+    #: when an answer came back unchecked. Only a checked answer moves it
+    #: (:meth:`record`, :meth:`settle`); ``None`` until an answer was unchecked.
+    horizon: int | None = None
 
     # -- construction ------------------------------------------------------
 
@@ -474,6 +480,7 @@ class ForgeState:
             "finished": self.finished,
             "result": self.result,
             "review_share": self.review_share,
+            "horizon": self.horizon,
         }
 
     @classmethod
@@ -490,6 +497,7 @@ class ForgeState:
             finished=bool(raw.get("finished")),
             result=raw.get("result"),
             review_share=float(raw["review_share"]) if isinstance(raw.get("review_share"), (int, float)) else None,
+            horizon=int(raw["horizon"]) if isinstance(raw.get("horizon"), int) else None,
         )
 
     # -- reading -----------------------------------------------------------
@@ -559,8 +567,9 @@ class ForgeState:
         """#443: the séance's length as every screen reads it (counter, end sheet, Done).
 
         One number, read from the mix itself: the items the séance deals from here
-        if every one is answered right (:meth:`dealable_length`). A miss books a
-        reprise and keeps the rung, so the count can grow after one; it never
+        if every one is answered right (:meth:`dealable_length`). A checked miss
+        books a reprise and keeps the rung, so the count can grow after one; an
+        answer nobody could check never grows it (:attr:`horizon`, #826); it never
         promises an item the mix would not deal, so the item the séance ends on is
         the counter's last («Finish» under «6/6», never under «6/16», #443). A
         séance that ended by itself is as long as what it served. A learner who
@@ -586,8 +595,46 @@ class ForgeState:
         probe = ForgeState.from_dict(self.to_dict())
         probe.pending = None
         while (slot := probe._slot_ahead()) is not None:
-            probe.record(concept_id=slot.concept_id, rung=slot.rung, verdict=Verdict.right(), role=slot.role)
-        return max(probe.position, min(self.position + 1, self.length))
+            probe._apply(concept_id=slot.concept_id, rung=slot.rung, verdict=Verdict.right(), role=slot.role)
+        return max(probe.position, min(self.position + 1, self.end))
+
+    @property
+    def end(self) -> int:
+        """#826: the item the séance ends on at the latest: its planned length, or
+        the :attr:`horizon` an unchecked answer left, whichever comes first."""
+
+        return self.length if self.horizon is None else min(self.length, self.horizon)
+
+    def _mix_length(self) -> int:
+        """#826: :meth:`dealable_length` as the mix alone reads it, no :attr:`horizon`.
+
+        What a *checked* answer did to the séance is the change it made here; the
+        horizon moves by exactly that, and by nothing an unchecked answer did.
+        """
+
+        probe = ForgeState.from_dict(self.to_dict())
+        probe.horizon = None
+        return probe.dealable_length()
+
+    def _move_horizon(self, mix_before: int, verdict: Verdict, shown_before: int) -> None:
+        """#826: the séance's end after one answer (or one relecture) on it.
+
+        An unchecked answer is neither right nor the learner's miss: it does not
+        climb, so the dry run after it needs one more item to take the rule where
+        a right answer would have. That item is not the learner's doing, so the
+        séance ends where the counter said when the item was posed. A checked miss
+        keeps the rung and books a reprise: the séance grows by what it costs
+        (:meth:`_mix_length` after against before), as it did without a horizon.
+        """
+
+        if self.mode != MODE_SEANCE:
+            return
+        if not verdict.checked:
+            if self.horizon is None:
+                self.horizon = shown_before
+            return
+        if self.horizon is not None:
+            self.horizon += max(0, self._mix_length() - mix_before)
 
     # -- composing the next item ---------------------------------------------
 
@@ -607,7 +654,7 @@ class ForgeState:
         """
 
         position = self.position
-        if position >= self.length:
+        if position >= self.end:
             return None
         if self.mode == MODE_TEST_OUT:
             track = self.tracks[0]
@@ -732,6 +779,9 @@ class ForgeState:
         track = self.track(int(entry["concept_id"]))
         if track is None:
             return clamp_rung(entry.get("rung"))
+        # #826: the relecture is this answer's check: a miss it reads grows the
+        # séance as a checked miss does; one that never lands moves nothing.
+        mix_before = self._mix_length() if self.horizon is not None else 0
         rung = clamp_rung(entry.get("rung"))
         moved = int(entry.get("rung_move") or 0)
         position = int(entry.get("position", -1))
@@ -784,6 +834,8 @@ class ForgeState:
                 if track.reprise_at <= self.position:
                     track.reprise_at = None
             entry["rung_move"] = final
+        if self.horizon is not None:
+            self._move_horizon(mix_before, verdict, self.horizon)
         if self.mode == MODE_SEANCE:
             # #443: a provisional top-out may have ended the séance; withdrawing it
             # (or confirming it) re-reads the end from the tracks.
@@ -803,7 +855,30 @@ class ForgeState:
         fingerprint: str | None = None,
         role: str | None = None,
     ) -> EvidenceDecision:
-        """One answered item: move the staircase, decide the evidence."""
+        """One answered item: move the staircase, decide the evidence, keep the
+        séance's end where only a checked answer moves it (#826)."""
+
+        was_finished = self.finished
+        shown_before = self.shown_length
+        mix_before = self._mix_length() if self.horizon is not None else 0
+        decision = self._apply(concept_id=concept_id, rung=rung, verdict=verdict, fingerprint=fingerprint, role=role)
+        if self.mode == MODE_SEANCE:
+            self._move_horizon(mix_before, verdict, shown_before)
+            if not was_finished:
+                # The end is re-read with the horizon where this answer left it.
+                self.finished = self._slot_ahead() is None
+        return decision
+
+    def _apply(
+        self,
+        *,
+        concept_id: int,
+        rung: int,
+        verdict: Verdict,
+        fingerprint: str | None = None,
+        role: str | None = None,
+    ) -> EvidenceDecision:
+        """One answered item on the staircase alone (the dry run's step too)."""
 
         track = self.track(concept_id)
         if track is None:
