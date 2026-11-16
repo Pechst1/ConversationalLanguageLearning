@@ -2016,12 +2016,19 @@ _ORDER_NOTES: dict[str, dict[str, str]] = {
         "de": "Es fehlen Wörter.",
         "fr": "Il manque des mots.",
     },
+    "left_out": {
+        "en": "You left out {words}.",
+        "de": "Es fehlt: {words}.",
+        "fr": "Il manque {words}.",
+    },
     "extra": {
         "en": "Some words were extra.",
         "de": "Manche Wörter waren zu viel.",
         "fr": "Certains mots étaient en trop.",
     },
 }
+#: #821: how a tile's words are quoted inside a note, per learner language.
+_NOTE_QUOTES: dict[str, tuple[str, str]] = {"en": ("“", "”"), "de": ("„", "“"), "fr": ("« ", " »")}
 
 
 def _tile_texts(task: RecallTask, tile_ids: Sequence[str]) -> list[str]:
@@ -2051,7 +2058,13 @@ def recall_learner_text(task: RecallTask, answer: AttemptAnswer) -> str:
 
 
 def tile_order_note(task: RecallTask, tile_ids: Sequence[str], language: str) -> str | None:
-    """Where a rebuilt sentence went wrong, in the learner's language."""
+    """Where a rebuilt sentence went wrong, in the learner's language.
+
+    #821: the tiles the learner placed are checked against the key *without the
+    tiles they left out*, so a missing tile is named as missing and never shifts
+    every word after it into «From “un” on, the order is off». A real slip in the
+    order is still named at its first misplaced word.
+    """
 
     expected = [str(tile) for tile in task.correct_tile_order]
     submitted = [str(tile) for tile in tile_ids]
@@ -2060,15 +2073,21 @@ def tile_order_note(task: RecallTask, tile_ids: Sequence[str], language: str) ->
         return None
     if any(tile not in expected for tile in submitted):
         return table("extra")
-    if len(submitted) < len(expected) and submitted == expected[: len(submitted)]:
-        return table("missing")
-    index = next((i for i, (got, want) in enumerate(zip(submitted, expected, strict=False)) if got != want), None)
-    if index is None:
-        return table("missing")
-    word = (_tile_texts(task, [submitted[index]]) or [""])[0]
-    if not word:
-        return None
-    return table("first" if index == 0 else "from").format(word=word)
+    placed = set(submitted)
+    left_out = [tile for tile in expected if tile not in placed]
+    # The order the learner's own tiles should have had.
+    key = [tile for tile in expected if tile in placed]
+    notes: list[str] = []
+    index = next((i for i, (got, want) in enumerate(zip(submitted, key, strict=False)) if got != want), None)
+    if index is not None:
+        word = (_tile_texts(task, [submitted[index]]) or [""])[0]
+        if word:
+            notes.append(table("first" if index == 0 else "from").format(word=word))
+    if left_out:
+        opening, closing = _NOTE_QUOTES.get(language, _NOTE_QUOTES["en"])
+        words = ", ".join(f"{opening}{text}{closing}" for text in _tile_texts(task, left_out))
+        notes.append(table("left_out").format(words=words) if words else table("missing"))
+    return " ".join(notes) or None
 
 
 #: #146 / #86 / #167: what a wrong tap is told. A picked answer has no span of French
