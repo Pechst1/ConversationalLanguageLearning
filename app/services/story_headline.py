@@ -48,24 +48,32 @@ def _ordered(ids: list[str]) -> list[str]:
 
 
 def _scene_cast(db: Session, journey: Any) -> tuple[str | None, list[str], bool, str | None]:
-    """The day's scene: (title, speakers, finished, the first panel's picture)."""
+    """The day's episode: (title, speakers, finished, the first panel's picture). The
+    title is ``episode_title``: the first act's page, else what the journey stored when
+    planned; only a day with neither is named by the season's plan (``_tentpole``)."""
 
     from sqlalchemy import select
 
     from app.db.models.graphic_novel import GraphicNovelScene
+    from app.services.journey_contracts import episode_title, first_act_scene
     from app.services.living_story import ENGINE_VERSION_PREFIX
 
-    scene = db.scalars(
+    scenes = db.scalars(
         select(GraphicNovelScene)
         .where(
             GraphicNovelScene.user_id == journey.user_id,
             GraphicNovelScene.prompt_version.like(f"{ENGINE_VERSION_PREFIX}%"),
             GraphicNovelScene.source_snapshot["journey_id"].as_string() == str(journey.id),
         )
-        .order_by(GraphicNovelScene.created_at.desc())
-    ).first()
+        .order_by(GraphicNovelScene.created_at.asc(), GraphicNovelScene.id.asc())
+    ).all()
+    # #577: the episode is the day's first act, as the Feuilleton files it; the newest
+    # scene of a several-act day is its last act, which gave Home another title.
+    scene = first_act_scene(scenes)
+    snapshot = journey.scenario_snapshot if isinstance(journey.scenario_snapshot, dict) else {}
+    title = episode_title(scene, snapshot) or None
     if scene is None:
-        return None, [], False, None
+        return title, [], False, None
     panels = sorted(scene.panels, key=lambda p: p.panel_index)
     speakers = [
         str(line.get("character_id") or "")
@@ -73,7 +81,9 @@ def _scene_cast(db: Session, journey: Any) -> tuple[str | None, list[str], bool,
         for line in (panel.overlay_payload or {}).get("dialogue") or []
     ]
     image = next((panel.image_url for panel in panels if panel.image_url), None)
-    return scene.title or None, _ordered(speakers), scene.status in ("completed", "abandoned"), image
+    # The day is over when every act's page is settled, not the title page alone.
+    finished = all(page.status in ("completed", "abandoned") for page in scenes)
+    return title, _ordered(speakers), finished, image
 
 
 def _tentpole(live: dict, user: Any) -> tuple[str | None, list[str], str | None, str | None]:
