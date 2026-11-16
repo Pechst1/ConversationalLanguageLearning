@@ -1242,6 +1242,181 @@ def vocative_variants(sentence: str) -> list[str]:
     return out
 
 
+#: Owner decision 12 Nov 2026: a sentence the learner builds or writes is said to nobody.
+#: A form of address may stand alone («…, madame.») or before a name («Monsieur Marchand»).
+_ADDRESS_TITLE = (
+    r"(?:[Mm]adame|[Mm]onsieur|[Mm]ademoiselle|[Mm]a[iî]tre|[Dd]octeur|[Mm]essieurs|[Mm]esdames"
+    r"|M\.|Mme\.?|Mlle\.?|Mr\.?|Mrs\.?|Ms\.?|Miss|Herr|Frau|[Mm]adam|[Ss]ir|[Mm]a'am)"
+)
+_ADDRESS = rf"(?:{_ADDRESS_TITLE}(?:\s+{_NAME_WORD}(?:\s+{_NAME_WORD})*)?|{_NAME_WORD}(?:\s+{_NAME_WORD})*)"
+_TITLE_ONLY = re.compile(rf"^{_ADDRESS_TITLE}(?:\s|$)")
+#: «…, Marin.», «…, madame ?», «Tu viens, Lila ? Oui, …»: a name closing a sentence.
+_ADDRESS_LAST = re.compile(rf",[  ]*(?P<name>{_ADDRESS})(?=[  ]*(?:[.?!…;]|[»“”\"]|$))")
+#: «Margaux, sie sind glücklich.», «„Lila, tu viens ?“»: a name opening a sentence.
+_ADDRESS_FIRST = re.compile(
+    rf"(?P<lead>(?:^|[.?!…:][  ]+)(?:[«“„\"][  ]?)?)(?P<name>{_ADDRESS})[  ]*,[  ]*(?P<next>\S)"
+)
+#: «Odile, c'est ma grand-mère.»: a name the sentence goes on to talk about is its topic,
+#: not the person it is said to.
+_DISLOCATION = re.compile(r"^(?:c'est|c’est|c'était|c’était|ce\s+(?:sont|n'est|n’est)\b)", re.IGNORECASE)
+#: How a title is said in each chrome language, so a German or English prompt loses the
+#: same address its French sentence lost («Monsieur Marchand» / «Mr Marchand» / «Herr Marchand»).
+_TITLE_EQUIVALENTS: tuple[frozenset[str], ...] = (
+    frozenset({"monsieur", "m.", "mr", "mr.", "herr", "sir"}),
+    frozenset({"madame", "mme", "mme.", "mrs", "mrs.", "ms", "ms.", "frau", "madam", "ma'am"}),
+    frozenset({"mademoiselle", "mlle", "mlle.", "miss", "fräulein"}),
+)
+
+
+@lru_cache(maxsize=1)
+def _people() -> frozenset[str]:
+    """Every word the cast is called by: first names and the names said to their face
+    («Gus», «Marchand»), folded."""
+
+    try:
+        from app.services import cast_registry
+
+        spoken = {word.casefold() for name in cast_registry.vocative_names() for word in name.split()}
+    except Exception:  # pragma: no cover - the cast is optional context
+        spoken = set()
+    return frozenset(spoken | _cast_names()) - {"m.", "mme", "mr", "maître", "monsieur", "madame"}
+
+
+def _is_person_name(words: str) -> bool:
+    """A capitalised run names a person when each word is a name: a cast member («Marin»,
+    also a noun), or a word French does not know («Margaux»). «Le Mistral», «Paris»,
+    «Alors» are French words, so they name nobody it is said to."""
+
+    if _TITLE_ONLY.match(words):
+        return True
+    for word in words.split():
+        folded = word.casefold()
+        if folded in _people():
+            continue
+        if re.match(r"(?:l|d|j|m|t|s|n|c|qu)['’]", folded) or fold_all(folded) in known_forms():
+            return False
+        parts = re.split(r"[-'’]", folded)
+        if len(parts) > 1 and all(fold_all(part) in known_forms() for part in parts):
+            # «Avant-hier, tu as bu un verre.»: French words joined, not a name.
+            return False
+    return True
+
+
+def _opens_with_address(name: str, rest: str) -> bool:
+    """Is ``name``, opening a French sentence before a comma, the person it is said to?
+    A cast member or a title is; a topic the sentence goes on to name («Odile, c'est …»)
+    is not, and neither is any other capital: every first word has one."""
+
+    if not _is_person_name(name) or _DISLOCATION.match(rest):
+        return False
+    # A sentence's first word has a capital whatever it is («Désolée, je …», «Écoutez
+    # Lila, …», «L'addition, …»), so only a cast member or a title opens as an address.
+    return bool(_TITLE_ONLY.match(name)) or all(word.casefold() in _people() for word in name.split())
+
+
+def _address_keys(names: Iterable[str]) -> frozenset[str]:
+    """The folded spellings of ``names`` in the three chrome languages: the name, and the
+    name under each title the other languages use for the same title."""
+
+    keys: set[str] = set()
+    for name in names:
+        text = " ".join(str(name or "").split())
+        if not text:
+            continue
+        keys.add(text.casefold())
+        head, _, rest = text.partition(" ")
+        for group in _TITLE_EQUIVALENTS:
+            if head.casefold() in group:
+                for title in group:
+                    keys.add(f"{title} {rest}".strip().casefold() if rest else title)
+                if rest:
+                    keys.add(rest.casefold())
+    return frozenset(keys)
+
+
+def addressed_names(sentence: object) -> list[str]:
+    """The names or forms of address a French sentence is said to, set off by a comma
+    («On peut rester chez Lila, Marin.» → ``["Marin"]``). A name that is part of the
+    sentence («chez Lila»), a fronted word («Alors, il est là.») or a topic («Odile, c'est
+    ma grand-mère.») is no address."""
+
+    text = str(sentence or "")
+    found: list[str] = []
+    for match in _ADDRESS_LAST.finditer(text):
+        if _is_person_name(match["name"]) and match["name"] not in found:
+            found.append(match["name"])
+    for match in _ADDRESS_FIRST.finditer(text):
+        rest = text[match.start("next"):]
+        if _opens_with_address(match["name"], rest) and match["name"] not in found:
+            found.append(match["name"])
+    return found
+
+
+def has_vocative(sentence: object) -> bool:
+    return bool(addressed_names(sentence))
+
+
+def opens_on_a_person(sentence: object) -> bool:
+    """A sentence that opens on a cast member and a comma, said to them or about them:
+    «Gus, c'est la famille d'Odile.» may be either, so a build or write item made of it
+    is not posed (taking the name out could change what it says)."""
+
+    text = str(sentence or "")
+    return any(
+        _TITLE_ONLY.match(match["name"]) or all(word.casefold() in _people() for word in match["name"].split())
+        for match in _ADDRESS_FIRST.finditer(text)
+    )
+
+
+def strip_vocative(text: object, names: Iterable[str] | None = None) -> str:
+    """Owner decision (12 Nov 2026): ``text`` with the person it is said to taken out.
+
+    «On peut rester chez Lila, Marin.» → «On peut rester chez Lila.»; «Margaux, sie sind
+    glücklich.» → «Sie (alle) sind glücklich.» A sentence the learner builds or writes is
+    not said to anyone, so the learner never has to decide where a name goes.
+
+    With no ``names``, ``text`` is French and a name is found as :func:`addressed_names`
+    finds it. With ``names`` (those :func:`addressed_names` found in the French), only
+    those are taken out, in any of the three chrome languages: a German or English prompt
+    («Say in French: "They are happy, Margaux."») loses exactly what its French lost.
+    The rest of the sentence is unchanged; a comma that sets off no address («Alors, il
+    est là.») stays."""
+
+    value = str(text or "")
+    if "," not in value:
+        return value
+    keys = _address_keys(names) if names is not None else None
+    if keys is not None and not keys:
+        return value
+
+    def is_address(name: str) -> bool:
+        if keys is not None:
+            return " ".join(name.split()).casefold() in keys
+        return _is_person_name(name)
+
+    def drop_last(match: re.Match[str]) -> str:
+        return "" if is_address(match["name"]) else match.group(0)
+
+    def drop_first(match: re.Match[str]) -> str:
+        rest = value[match.start("next"):]
+        if not (is_address(match["name"]) if keys is not None else _opens_with_address(match["name"], rest)):
+            return match.group(0)
+        return f"{match['lead']}{_OPENED}{match['next']}"
+
+    value = _ADDRESS_LAST.sub(drop_last, value)
+    out = _ADDRESS_FIRST.sub(drop_first, value)
+    if keys is not None:
+        # #384 put the name first so that a small «sie» reads «they». With no name the
+        # sentence opens on «Sie» again, which reads «you» (#126): it says «Sie (alle)».
+        out = re.sub(rf"{_OPENED}sie (?=(?:sind|\w+n)\b)", "Sie (alle) ", out)
+    out = re.sub(rf"{_OPENED}(.)", lambda match: match.group(1).upper(), out)
+    return re.sub(r"[  ]{2,}", " ", out).strip()
+
+
+#: Marks where a sentence now opens after its address was taken out (never in a text).
+_OPENED = "\x00"
+
+
 def widened_answers(accepted: Iterable[object], *, english: object = None) -> list[str]:
     """Every right way to give the item's answer, not one stored string (#174, #380).
 
@@ -1262,6 +1437,11 @@ def widened_answers(accepted: Iterable[object], *, english: object = None) -> li
             for worded in (variant, *noun_variants(variant)):
                 out.append(worded)
                 out.extend(vocative_variants(worded))
+                # 12 Nov 2026: a build or write item is said to nobody; a stored item
+                # served without its name is answered without it.
+                bare = strip_vocative(worded)
+                if bare != worded and len(bare.split()) >= 2:
+                    out.append(bare)
     seen: set[str] = set()
     unique: list[str] = []
     for item in out:

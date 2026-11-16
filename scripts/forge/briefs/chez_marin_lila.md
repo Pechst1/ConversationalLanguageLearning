@@ -88,6 +88,15 @@ empty easel, the wrapped canvas. The end card remembers each.
 3. The bubbles became a printed sheet on a fat block of wrap, with its tape and loose end, which
    reads as a wrapped canvas from across the room. The easel moved off the south-east corner so
    you can walk up to it.
+4. (13 Nov, owner's rule "every story place on foot") The building around the flat: the cobalt
+   door in bay 2 of the corner house south of the rue de Lancry on the quai (the façade the quai
+   already draws), a tiled vestibule with the letterboxes («3e · Lévêque · Bonnet»), a corridor
+   to the foot of the stairs, one flight of 26 risers to the first-floor landing in the cage of
+   Le Mistral's own stairwell (same wainscot, same celadon), and the third-floor landing outside
+   the flat's door. The walking grid holds one floor per cell, so the climb from the first to
+   the third floor is a passage («Monter au troisième» / «Redescendre au premier»), and so is
+   the flat's door. That door stays shut until the story has played here («Tu sonnes. Personne
+   ne répond, pas encore.»).
 
 ## Played
 
@@ -103,3 +112,7 @@ errors.
   close up as a print.
 - The opposite quai through the windows is the quai's generic façades, not surveyed for this
   stretch.
+- The climb between the first and the third floor is not drawn: a passage carries you up.
+- The stairwell has no court window; its light is the four lamps.
+- The street door is cobalt from the quai, but the vestibule draws its inside face in the porch
+  tone (green).

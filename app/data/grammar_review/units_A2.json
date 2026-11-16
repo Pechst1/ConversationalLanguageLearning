@@ -1042,7 +1042,7 @@
       "pattern": "un bel/nouvel/vieil + masculine noun starting with a vowel or mute h",
       "contrast_rules": "It works like ce → cet (cet hôtel): a special form before a vowel. | It only exists in the masculine singular before a vowel: les nouveaux amis, never les nouvels amis. | Only directly before the noun: l'appartement est beau, not bel.",
       "main_traps": "✗ On a un nouveau appartement. → ✓ On a un nouvel appartement. | ✗ Ce sont de nouvels amis. → ✓ Ce sont de nouveaux amis. | ✗ Cet hôtel est bel. → ✓ Cet hôtel est beau.",
-      "anchor_examples": "On a trouvé un bel appartement près du parc. | Je te présente mon nouvel ami, Karim. | C'est un vieil immeuble, mais il est très calme.",
+      "anchor_examples": "On a trouvé un bel appartement près du parc. | Je te présente Karim, mon nouvel ami. | C'est un vieil immeuble, mais il est très calme.",
       "exercise_tags": "adjectives | agreement | liaison | beau_nouveau_vieux",
       "xray_sentence": "Mon nouvel appartement est dans un vieil immeuble avec un beau jardin.",
       "xray_marks": "nouvel appartement=>vowel_form=>nouveau → nouvel before a vowel||vieil immeuble=>vowel_form=>vieux → vieil before a vowel||beau jardin=>consonant_form=>the usual form before a consonant",

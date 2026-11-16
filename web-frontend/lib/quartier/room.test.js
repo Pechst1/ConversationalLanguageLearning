@@ -45,6 +45,31 @@ function reach(nav, a, b) {
   return Math.hypot(end.x - b.x, end.z - b.z) < 0.8 && Math.abs(nav.heightAt(end.x, end.z) - nav.heightAt(b.x, b.z)) < 0.35;
 }
 
+/**
+ * Can you get from `a` to `b` in a room, on its walking grid and along its passages (the climb past
+ * a storey the grid cannot hold, a door into the flat), either way?
+ */
+function reachIn(room, nav, a, b) {
+  const V = a.constructor;
+  const seen = [a];
+  const queue = [a];
+  while (queue.length) {
+    const at = queue.shift();
+    if (reach(nav, at, b)) return true;
+    for (const p of room.passages ?? []) {
+      for (const [x, y] of [[p.a, p.b], [p.b, p.a]]) {
+        const there = new V(y[0], nav.heightAt(y[0], y[1]), y[1]);
+        if (seen.some((s) => Math.hypot(s.x - there.x, s.z - there.z) < 0.01)) continue;
+        if (reach(nav, at, new V(x[0], nav.heightAt(x[0], x[1]), x[1]))) {
+          seen.push(there);
+          queue.push(there);
+        }
+      }
+    }
+  }
+  return false;
+}
+
 test('there is at least one room, and every room names itself after its file and its canon', () => {
   assert.ok(rooms.length >= 1);
   rooms.forEach(({ file, room }) => {
@@ -97,7 +122,7 @@ test('you walk in from the street door, up the flight, to the door the story ope
       if (!nav.walkable(m.x, m.z)) return;
       const y = nav.heightAt(m.x, m.z);
       if (Math.abs(y - m.y) > 0.3) return;
-      assert.ok(reach(nav, r.start.pos, m), `${file}: no way from the street door to the mark ${key}`);
+      assert.ok(reachIn(room, nav, r.start.pos, m), `${file}: no way from the street door to the mark ${key}`);
     });
     r.openings
       .filter((o) => o.opens === 'once')
@@ -183,7 +208,7 @@ test('what you can tap says what it is in three languages, and you can walk up t
           }
         }
       }
-      assert.ok(near && reach(nav, r.start.pos, near), `${file}: nobody can walk up to the ${t.kind}`);
+      assert.ok(near && reachIn(room, nav, r.start.pos, near), `${file}: nobody can walk up to the ${t.kind}`);
     });
   });
 });
@@ -229,8 +254,10 @@ test('Marin and Lila’s flat (T5, B without the key): the crate in the hallway,
   assert.match(card[card.length - 1], /Berlin.* et je$/);
   // the easel stands empty: its canvas is the one leaning on the wall, face to it
   assert.deepEqual(of('easel').size, [0, 0]);
-  // on the third floor, its windows on the canal; you arrive in the hallway, by the crate
-  assert.ok(room.things.every((t) => t.at[1] >= 11.2 - 0.001));
+  // on the third floor, its windows on the canal; you arrive in the hallway, by the crate (the
+  // building's letterboxes are in its vestibule, on the ground floor)
+  assert.ok(room.things.filter((t) => t.kind !== 'letterboxes').every((t) => t.at[1] >= 11.2 - 0.001));
+  assert.ok(room.things.some((t) => t.kind === 'letterboxes' && t.text.some((l) => /Lévêque/.test(l) && /Bonnet/.test(l))), 'their names on the letterbox');
   assert.ok(room.canals?.length && room.windows.length >= 2);
   const { built: r } = built.get(file);
   assert.equal(r.inside(r.start.pos.x, r.start.pos.z), true);
@@ -355,4 +382,48 @@ test('a room in a street of the quarter (the rue de Lancry) walks the ground the
     const gaze = room.things.find((t) => t.kind === 'gaze');
     if (gaze) assert.ok(Math.hypot(gaze.at[0] - quai.easel.center.x, gaze.at[1] - quai.easel.center.y, gaze.at[2] - quai.easel.center.z) < 0.5, `${file}: what you look up at is not «L.»'s window`);
   });
+});
+
+test('Gus’s loft: the painting of Le Mistral leans face to the wall, the two lines of its back to the room', () => {
+  const file = 'chateau_gus.json';
+  const loft = rooms.find((r) => r.file === file);
+  assert.ok(loft, 'the loft has its room');
+  const painting = loft.room.things.find((t) => t.kind === 'canvas');
+  // the canon's two lines, in ink and in pencil, and nothing else written there
+  assert.deepEqual(painting.text, ['Pour Odile, qui part. — L., 1970', 'Toujours rue de Lancry. — L., 2021']);
+  const { B } = built.get(file);
+  const back = B.signs.find((s) => s.key.startsWith('room:canvas'));
+  assert.ok(back, 'the back of the painting is written on');
+  // the writing faces the room (away from the wall it leans on), tilted up as the canvas leans
+  const out = { x: Math.sin(painting.rot), z: Math.cos(painting.rot) };
+  assert.ok(back.normal.x * out.x + back.normal.z * out.z > 0.8, 'the inscriptions face the wall');
+  assert.ok(back.normal.y > 0 && back.normal.y < 0.6);
+  // a framed oil, not a canvas packed for a journey: no bubble wrap
+  assert.equal(B.signs.some((s) => s.key.startsWith('room:canvas') && s.key.endsWith(':wrap')), false);
+  // and the arrival looks at it
+  const look = loft.room.start.look;
+  assert.ok(Math.hypot(look[0] - painting.at[0], look[2] - painting.at[2]) < 0.5, 'you come in facing the painting');
+});
+
+test('Marin’s NGO office: «LE MISTRAL À NOUS» on the wall you face, the café’s plan, the fern, the leek', () => {
+  const file = 'bureau_ong.json';
+  const office = rooms.find((r) => r.file === file);
+  assert.ok(office, 'the office has its room');
+  const kinds = (k) => office.room.things.filter((t) => t.kind === k);
+  const [sheet] = kinds('projection');
+  // T3 B P1 and P2: the spreadsheet's title, two hundred members at a thousand euros, and a bank
+  assert.equal(sheet.text[0], 'LE MISTRAL À NOUS');
+  assert.ok(sheet.text.some((t) => /200\b/.test(t)) && sheet.text.some((t) => /1 000 €/.test(t)) && sheet.text.some((t) => /banque/i.test(t)));
+  // P3: the café's plan, its back room an «ATELIER», the long tables a canteen at noon
+  const [plan] = kinds('plan');
+  assert.ok(plan.text.includes('ATELIER') && plan.text.includes('CANTINE LE MIDI'));
+  assert.equal(kinds('fern').length, 1, 'the fern Marin sprays');
+  assert.equal(kinds('leek').length, 1, 'the leek for a pointer');
+  // every sheet of lettering fits the atlas: none left blank
+  const { B } = built.get(file);
+  const want = B.signs.reduce((n, s) => n + (s.width * (s.density ?? 150) + 4) * (s.height * (s.density ?? 150) + 4), 0);
+  assert.ok(want < 2048 * 2048 * 0.82, 'the posters, the map, the plan and the spreadsheet print at full size');
+  // and the arrival looks at the spreadsheet
+  const look = office.room.start.look;
+  assert.ok(Math.hypot(look[0] - sheet.at[0], look[2] - sheet.at[2]) < 0.5, 'you come in facing the spreadsheet');
 });
