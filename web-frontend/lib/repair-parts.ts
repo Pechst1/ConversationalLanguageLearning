@@ -167,6 +167,44 @@ export function isRepairableLine(target: string): boolean {
 
 type RepairIssue = { corrected_target?: unknown; task_error_type?: unknown };
 type RepairRecords = Record<string, { status?: unknown } | null | undefined> | null | undefined;
+type MissIssue = RepairIssue & { display_label?: unknown; learner_text?: unknown; why_wrong?: unknown; repair_hint?: unknown };
+
+const lineOf = (issue: RepairIssue): string => String(issue?.corrected_target || '').trim();
+
+/**
+ * #779: what a miss draws, one row per thing it asks of the learner.
+ *
+ * The miss used to draw one card and one «Copy the correction» field per erratum. A
+ * word-bank miss whose erratum came back twice (main walk, fr days 4 and 5, en day 2)
+ * showed the same line struck and corrected twice, with two fields to copy it into; the
+ * two cards and two fields did not fit above the verdict sheet at 375×812, the first card
+ * keeps its place under the header (#239), and the second «Compare» stood behind the sheet.
+ *
+ * Grouped here, once, for the screen and for `repairState`:
+ *   - a correction that repeats an earlier one word for word is not drawn again;
+ *   - a corrected line is copied once: the first correction naming it carries the field
+ *     (`repair`), a later note on the same line (a si-type word bank names the tense and
+ *     the clause) is explained without a second field.
+ * `index` stays the erratum's own index: the server keys a repair by it.
+ */
+export function missCorrections<T extends MissIssue>(issues: T[]): Array<{ issue: T; index: number; repair: boolean }> {
+  const said = new Set<string>();
+  const lines = new Set<string>();
+  const rows: Array<{ issue: T; index: number; repair: boolean }> = [];
+  (issues || []).forEach((issue, index) => {
+    const words = [issue?.display_label, issue?.learner_text, issue?.corrected_target, issue?.why_wrong, issue?.repair_hint, issue?.task_error_type]
+      .map((value) => fold(String(value ?? '')))
+      .join('|');
+    if (said.has(words)) return;
+    said.add(words);
+    const line = lineOf(issue);
+    const repairable = issue?.task_error_type !== 'task_compliance' && isRepairableLine(line);
+    const repair = repairable && !lines.has(fold(line));
+    if (repairable) lines.add(fold(line));
+    rows.push({ issue, index, repair });
+  });
+  return rows;
+}
 
 /**
  * #381: where the repair step of a missed answer stands, for its verdict band.
@@ -195,13 +233,10 @@ export function repairState({
   needsNewAnswer: boolean;
 }): { complete: boolean; mended: boolean } {
   const accepted = (index: number) => repairs?.[String(index)]?.status === 'ok';
-  const lines = issues.map((issue, index) => ({
-    index,
-    target: String(issue?.corrected_target || '').trim(),
-    task: issue?.task_error_type === 'task_compliance',
-  }));
-  const complete = !needsNewAnswer && (isLabelCompare || lines.every(({ index, target }) => !isRepairableLine(target) || accepted(index)));
+  // #779: a line is fixed once, whichever of the corrections naming it carried the field.
+  const lineFixed = (line: string) => issues.some((issue, index) => accepted(index) && fold(lineOf(issue)) === fold(line));
+  const complete = !needsNewAnswer && (isLabelCompare || issues.every((issue) => !isRepairableLine(lineOf(issue)) || lineFixed(lineOf(issue))));
   if (isLabelCompare) return { complete, mended: false };
-  const fields = lines.filter(({ index, target, task }) => (inPlace && index === 0) || (!task && isRepairableLine(target)));
+  const fields = missCorrections(issues).filter(({ index, repair }) => (inPlace && index === 0) || repair);
   return { complete, mended: complete && fields.length > 0 && fields.every(({ index }) => accepted(index)) };
 }
