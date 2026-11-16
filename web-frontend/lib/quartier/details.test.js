@@ -138,3 +138,18 @@ test('a story order is laid once a page of the learner\'s own story left it ther
   assert.deepEqual(left([]), []);
   assert.equal(foldName('  La   Pétition '), 'la pétition');
 });
+
+test("Lila's banner, rolled behind the zinc: laid once a page left it at Le Mistral, not where her flat has its own", () => {
+  const banner = details.find(({ spec }) => spec.id === 'banderole_lila').spec;
+  assert.deepEqual(banner.mark, { name_fr: 'la banderole de Lila', location_id: 'le_mistral' });
+  const laid = (marks) => setBy([banner], { flags: {}, marks }).map((d) => d.spec.id);
+  assert.deepEqual(laid([{ kind: 'thing', name_fr: 'la banderole de Lila', location_id: 'le_mistral' }]), ['banderole_lila']);
+  // the same name left in Marin and Lila's flat is another thing (a cloth banner drying there)
+  assert.deepEqual(laid([{ kind: 'thing', name_fr: 'la banderole de Lila', location_id: 'marin_lila_flat' }]), []);
+  // a roll standing on the floor at the zinc's far end, by the booth, its top no higher than the zinc
+  const [roll] = banner.things;
+  assert.equal(roll.kind, 'roll');
+  assert.ok(Math.abs(roll.at[1] - ROOM.floor) < 0.01, 'it stands on the floor');
+  assert.ok(roll.at[2] < -17.4 && roll.at[2] > ROOM.z0, 'between the zinc and the north wall, by the booth');
+  assert.ok(roll.size[0] * Math.cos(0.33) < 1.3, 'it leans on the zinc, not over it');
+});
