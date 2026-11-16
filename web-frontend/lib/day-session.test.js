@@ -94,6 +94,52 @@ test('only a finished day offers five more words', () => {
   });
 });
 
+// #783: «Noch 1 neue Wörter» on the words end screen. Every count in the day's
+// copy says one word in the singular, in the three chrome languages.
+test('one more word is one word, not «1 neue Wörter» (#783)', () => {
+  const finished = (n) => session(['done', 'done', 'done', 'done'], { more_words: n, more_href: `/vocabulary/review?more=${n}` });
+  const expected = {
+    de: ['Noch 1 neues Wort', 'Noch 5 neue Wörter'],
+    fr: ['Encore 1 nouveau mot', 'Encore 5 nouveaux mots'],
+    en: ['1 more new word', '5 more new words'],
+  };
+  for (const [language, [one, five]] of Object.entries(expected)) {
+    assert.equal(ds.sessionMore(finished(1), language).label, one, language);
+    assert.equal(ds.sessionMore(finished(5), language).label, five, language);
+  }
+});
+
+test('a deck of one word reads «1 Wort» on the row and the button (#783)', () => {
+  const one = session(['done', 'done', 'next', 'todo']);
+  one.steps[2] = { ...one.steps[2], count: 1, new_left: 1, reviews: 1 };
+  const expected = {
+    de: ['1 Wort', 'Weiter: 1 Wort', '1 neu · 1 zum Wiederholen · 8 Min.'],
+    fr: ['1 mot', 'Suite : 1 mot', '1 nouveau · 1 à revoir · 8 min'],
+    en: ['1 word', 'Next: 1 word', '1 new · 1 to review · 8 min'],
+  };
+  for (const [language, [row, button, meta]] of Object.entries(expected)) {
+    assert.equal(ds.sessionRows(one, language)[2].label, row, language);
+    const next = ds.sessionNextAction(one, language);
+    assert.equal(next.label, button, language);
+    assert.equal(next.meta, meta, language);
+  }
+  // Five stays plural.
+  const five = session(['done', 'done', 'next', 'todo']);
+  five.steps[2] = { ...five.steps[2], count: 5, new_left: 5, reviews: 5 };
+  assert.equal(ds.sessionNextAction(five, 'de').label, 'Weiter: 5 Wörter');
+  assert.equal(ds.sessionNextAction(five, 'fr').meta, '5 nouveaux · 5 à revoir · 8 min');
+  assert.equal(ds.sessionRows(five, 'en')[2].label, '5 words');
+});
+
+test('a goal one week away reads «≈ 1 Woche» (#783)', () => {
+  assert.equal(ds.etaLabel(1, 'de'), '≈ 1 Woche');
+  assert.equal(ds.etaLabel(1, 'fr'), '≈ 1 semaine');
+  assert.equal(ds.etaLabel(1, 'en'), '≈ 1 week');
+  assert.equal(ds.etaLabel(5, 'de'), '≈ 5 Wochen');
+  assert.equal(ds.etaLabel(5, 'fr'), '≈ 5 semaines');
+  assert.equal(ds.etaLabel(5, 'en'), '≈ 5 weeks');
+});
+
 test('the mark’s four shapes are the four steps', () => {
   const mark = ds.sessionMarkState(session(['done', 'next', 'todo', 'todo']), 'de');
   // The mark's groups follow the step's kind: La Forge (respond) is active now.
