@@ -127,6 +127,9 @@ export const SNAPSHOT_FN = ({ typeable, wordBankTile }) => {
     match: q('.av2-match__card').length,
     goal: q('[data-goal]').map((n) => n.innerText.trim()),
     bodyLg: q('.av2-body--lg').map((n) => n.innerText.trim()),
+    // Owner 2026-11-13: a scene prompt says its situation and instruction as quiet sans
+    // prose (components/epreuve/Epreuve.tsx EpScenePrompt), not as a headline and cue.
+    scene: q('.ep-prompt--scene .ep-situation, .ep-prompt--scene .ep-instruction, .ep-prompt--scene .ep-cue').map((n) => n.innerText.trim()),
     headline: q('.av2-headline').map((n) => n.innerText.trim()),
     stepLabel: (q('.av2-label')[0] || {}).innerText || '',
     // The journey step on screen (JourneySession's header), for the verdict timeline.

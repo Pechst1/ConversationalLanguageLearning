@@ -125,3 +125,27 @@ test('the new CSS uses tokens only', () => {
   assert.doesNotMatch(block, /#[0-9a-f]{3,6}\b/i);
   assert.doesNotMatch(block, /text-transform: uppercase/);
 });
+
+test('the walk reads a scene prompt\'s situation and instruction as the drill\'s goal', () => {
+  const driver = fs.readFileSync(path.join(WEB_ROOT, 'e2e/lib/driver.mjs'), 'utf8');
+  assert.match(driver, /scene: q\('\.ep-prompt--scene \.ep-situation, \.ep-prompt--scene \.ep-instruction, \.ep-prompt--scene \.ep-cue'\)/);
+  const walk = fs.readFileSync(path.join(WEB_ROOT, 'e2e/lib/learner-walk.mjs'), 'utf8');
+  assert.match(walk, /const goalText = \[\.\.\.s\.goal, \.\.\.s\.bodyLg, \.\.\.s\.headline, \.\.\.\(s\.scene \|\| \[\]\)\]/);
+  // The classes the walk reads are the ones EpScenePrompt renders.
+  for (const cls of ['ep-prompt ep-prompt--scene', 'ep-situation', 'ep-instruction', 'ep-cue ep-cue--quiet']) {
+    assert.ok(EPREUVE.includes(`className="${cls}"`), cls);
+  }
+});
+
+test('«Show the solution» starts the miss scroll again for the new card', () => {
+  const moment = slice(PAGE, 'export function ExerciseFeedbackMoment(', 'function ConceptRulePanel(');
+  assert.match(moment, /const solutionShown = solutionState\(correction\);/);
+  assert.match(moment, /\}, \[feedbackKey, shownVerdict, repairOutcome, missOpen, solutionShown\]\);/);
+});
+
+test('after the solution, a whole line is copied (main #779), never offered as a retry', () => {
+  const moment = slice(PAGE, 'export function ExerciseFeedbackMoment(', 'function ConceptRulePanel(');
+  assert.match(moment, /const canGoOn = repairsComplete;/);
+  assert.match(moment, /const retry = retryOffered\(correction\) \? onTryAgain : undefined;/);
+  assert.match(moment, /!\(index === 0 && partsShown\) && !lineCopiedAbove && \(\s*<EpRepair/);
+});

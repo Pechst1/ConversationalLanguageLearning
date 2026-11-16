@@ -171,7 +171,7 @@ export class LearnerWalk {
     const w = this.where({ kind });
     // Drill goal line (WP-103 T3): a learner must be told what to produce.
     if (['tiles', 'choice', 'match', 'dictation', 'field', 'read'].includes(kind) && !s.thread) {
-      const goalText = [...s.goal, ...s.bodyLg, ...s.headline].join(' ').trim();
+      const goalText = [...s.goal, ...s.bodyLg, ...s.headline, ...(s.scene || [])].join(' ').trim();
       this.findings.check('drill-shows-a-goal', goalText.length >= 8, `no goal/instruction on a ${kind} drill: «${s.text.slice(0, 100)}»`, w);
       if (kind === 'tiles') this.findings.check('tiles-drill-goal-line', s.goal.length > 0, `word bank without a [data-goal] line: «${s.text.slice(0, 100)}»`, w);
     }
@@ -415,11 +415,12 @@ export class LearnerWalk {
     }
     if (await page.locator(FORGE_SHEET.primary).count()) return false;
     // Owner 2026-11-13: a miss with its second chance open holds its solution back; the walk
-    // takes «Show the solution», and the sheet then offers «Continue».
+    // takes «Show the solution», and the sheet then offers «Continue» — or, for a whole
+    // line, «Copy the correction» first (#779), which the walk's copy step then fills.
     const reveal = page.locator(FORGE_SHEET.reveal).first();
     if (await reveal.count()) {
       await reveal.click({ timeout: 3000 }).catch(() => {});
-      await page.locator(FORGE_SHEET.primary).first().waitFor({ timeout: 10000 }).catch(() => {});
+      await page.locator(`${FORGE_SHEET.primary}, ${FORGE_REPAIR.open}`).first().waitFor({ timeout: 10000 }).catch(() => {});
       return true;
     }
     const skip = page.locator(FORGE_SHEET.links).filter({ hasText: FORGE_SHEET.skip }).first();

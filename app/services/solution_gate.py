@@ -30,7 +30,8 @@ from __future__ import annotations
 import copy
 import re
 import unicodedata
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 STATE_KEY = "solution"
 WITHHELD = "withheld"
