@@ -13,7 +13,7 @@ fi
 if [ "${BOOTSTRAP_REFERENCE_DATA:-0}" = "1" ]; then
   echo "Installing idempotent grammar and starter-vocabulary catalogs"
   python scripts/import_french_core_grammar.py --backfill-blueprints
-  python scripts/seed_vocabulary.py --csv vocabulary_fr_sample.csv
+  python scripts/seed_vocabulary.py --csv app/data/vocabulary_fr_sample.csv
 fi
 
 if [ "$#" -gt 0 ]; then

@@ -297,6 +297,24 @@ export function formatDuration(
   return `${minutes} min`;
 }
 
+/**
+ * #470: a *planned* duration, said the way the plan says it: whole minutes,
+ * rounded up, at least one — the server's `daily_session.minutes()`. Home's
+ * card and the plan row under it price the same seconds, so they round the same
+ * way; `formatDuration` (rounds to nearest, seconds under 90) is for what was
+ * *measured*. `null` in, `null` out.
+ */
+export function formatPlannedDuration(
+  seconds: number | null | undefined,
+  language: ControlLanguage = 'en',
+): string | null {
+  if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds <= 0) {
+    return null;
+  }
+  const minutes = Math.max(1, Math.ceil(seconds / 60));
+  return language === 'de' ? `${minutes} Min.` : `${minutes} min`;
+}
+
 // ---------------------------------------------------------------------------
 // Verdicts
 // ---------------------------------------------------------------------------
@@ -352,17 +370,57 @@ export function replySourceOf(result: AttemptResult | null | undefined): ReplyPr
   return 'unknown';
 }
 
+/**
+ * Package V stage 5: what «I think this is right» came back with, kept on the graded result
+ * so the sheet says it once. `limit`: the day's three are used; `unread`: nobody could read it.
+ */
+export type AppealOutcome = {
+  state: 'upheld' | 'refused' | 'unread' | 'limit';
+  reason: string | null;
+};
+
+export type AppealedResult = AttemptResult & { appeal?: AppealOutcome };
+
+/** Whether a graded drill shows the appeal line: a «not yet» or «partly» the key or a model decided. */
+export function appealOffered(result: AttemptResult | null | undefined, stepKind: string | null | undefined): boolean {
+  if (stepKind !== 'recall' || !result) return false;
+  if ((result as AppealedResult).appeal) return false;
+  const outcome = result.check?.outcome;
+  return outcome === 'not_yet' || outcome === 'partly';
+}
+
+/**
+ * The sheet after an appeal: upheld turns the verdict, anything else keeps it and says why.
+ *
+ * #729: upheld settles the whole item, not only its band. The miss's reveal («The rule is in
+ * this sentence: … · Not this one: <the pick>») belongs to the miss: under «Correct» it says
+ * the opposite of the band, so it goes with the verdict it explained. (The server takes the
+ * item out of the set's «Once more» in the same ruling.)
+ */
+export function feedbackAfterAppeal(
+  feedback: JourneyFeedback,
+  appeal: AppealOutcome,
+  check: AttemptResult['check'] | null,
+): JourneyFeedback {
+  if (feedback.kind !== 'graded') return feedback;
+  const result: AppealedResult = { ...feedback.result, appeal };
+  if (appeal.state === 'upheld' && check) {
+    return feedbackFromAttempt({ ...result, check, task_outcome: 'met', correction: null } as AttemptResult);
+  }
+  return { ...feedback, result };
+}
+
 export function feedbackFromAttempt(result: AttemptResult): JourneyFeedback {
   if (result.pending || result.task_outcome === 'unscored') {
     return {
       kind: 'unscored',
-      message: 'still_grading',
+      message: 'check_not_checked',
       result,
     };
   }
   const verdict = attemptVerdict(result.task_outcome, result.assistance_level);
   if (verdict === 'unscored') {
-    return { kind: 'unscored', message: 'still_grading', result };
+    return { kind: 'unscored', message: 'check_not_checked', result };
   }
   return { kind: 'graded', verdict, result, replySource: replySourceOf(result) };
 }

@@ -25,7 +25,9 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { replyTaskLine } from './reply-task';
+import { connectionBanner } from '@/lib/connection-banner';
 import { reconnectWebSession, sessionExpiredCopy } from '@/lib/session-recovery';
+import { checkState, isUnread } from '@/lib/verdict';
 
 import {
   Action,
@@ -98,6 +100,8 @@ import {
   verdictTitleKey,
   showsVerdict,
   voiceOffered,
+  appealOffered,
+  type AppealedResult,
   type JourneyFeedback,
 } from './journey-state';
 import {
@@ -1033,6 +1037,7 @@ export function RespondStepView({
       turn: step.prompt.turn_index,
       text,
       prompt_fr: step.prompt.character_line_fr || null,
+      prompt_speaker: respondSpeaker(step.prompt),
     };
     setOpenNote(null);
     // WP-158: a spoken story reply goes through exactly this call, as `voice`.
@@ -1092,6 +1097,7 @@ export function RespondStepView({
             sent?.turn ??
             (typeof nextIndex === 'number' ? Math.max(0, nextIndex - 1) : step.prompt.turn_index),
           prompt_fr: sent?.prompt_fr ?? null,
+          prompt_speaker: sent?.prompt_speaker ?? null,
           learner_fr: sent?.text ?? text,
           character_fr: reply,
           // WP-103 T6: every turn's corrected form is printed under its line,
@@ -1132,6 +1138,7 @@ export function RespondStepView({
       turn: step.prompt.turn_index,
       text: card.label_fr,
       prompt_fr: step.prompt.character_line_fr || null,
+      prompt_speaker: respondSpeaker(step.prompt),
     };
     setOpenNote(null);
     onSubmit({ mode: 'text', text: card.label_fr });
@@ -1686,6 +1693,57 @@ export function stepKeepsAnswer(stepKind: string | null | undefined): boolean {
   return !stepKind || !ANSWERLESS_STEPS.has(stepKind);
 }
 
+/**
+ * Package V stage 5: one quiet line under a drill's «not yet» or «partly»: «I think this is
+ * right». After it, one line says what came of it (upheld, the reason it was not, unread,
+ * or the day's three used). The existing quiet action and notice, nothing new.
+ */
+function AppealLine({
+  result,
+  stepKind,
+  copy,
+  onAppeal,
+}: {
+  result: AttemptResult;
+  stepKind: string | null;
+  copy: JourneyCopy;
+  onAppeal?: () => Promise<void>;
+}) {
+  const [asking, setAsking] = useState(false);
+  const appeal = (result as AppealedResult).appeal;
+  if (appeal) {
+    const line =
+      appeal.state === 'upheld'
+        ? copy.appeal_upheld
+        : appeal.state === 'refused'
+          ? appeal.reason || copy.appeal_refused
+          : appeal.state === 'limit'
+            ? copy.appeal_limit
+            : copy.appeal_unread;
+    return (
+      <div className="av2-graded__appeal" data-appeal={appeal.state}>
+        <Notice tone="quiet"><p>{line}</p></Notice>
+      </div>
+    );
+  }
+  if (!onAppeal || !appealOffered(result, stepKind)) return null;
+  return (
+    <div className="av2-graded__appeal" data-appeal="offered">
+      <Action
+        tone="quiet"
+        inline
+        disabled={asking}
+        onClick={() => {
+          setAsking(true);
+          void onAppeal().finally(() => setAsking(false));
+        }}
+      >
+        {copy.appeal_line}
+      </Action>
+    </div>
+  );
+}
+
 export function JourneyFeedbackView({
   feedback,
   copy,
@@ -1695,12 +1753,15 @@ export function JourneyFeedbackView({
   speaker = null,
   stepKind = null,
   faceShown = false,
+  onAppeal,
 }: {
   feedback: JourneyFeedback;
   copy: JourneyCopy;
   onContinue: () => void;
   onRetry: () => void;
   onDismiss: () => void;
+  /** Package V stage 5: «I think this is right» (a drill's «not yet» or «partly» only). */
+  onAppeal?: () => Promise<void>;
   /** WP-77: whose face reacts to the verdict. */
   speaker?: JourneySpeaker | null;
   /** La troupe vivante: the one who asked already reacts on the step, so the band carries no second face. */
@@ -1759,9 +1820,9 @@ export function JourneyFeedbackView({
 
     case 'unscored':
       return (
-        <div data-state="unscored">
+        <div data-state="unscored" data-check="not_checked">
           <Notice shape="story">
-            <p>{copy.still_grading}</p>
+            <p>{copy.check_not_checked}</p>
             <Action tone="secondary" inline onClick={onRetry}>
               {copy.try_grading_again}
             </Action>
@@ -1785,9 +1846,12 @@ export function JourneyFeedbackView({
       return (
         <div data-state="error">
           <Notice tone="alert" live="alert" shape="action">
-            <p>{feedback.message === 'session_expired'
-              ? sessionExpiredCopy[copyLanguage(copy)].message
-              : stepKeepsAnswer(stepKind) ? copy.transport_error : copy.transport_error_plain}</p>
+            {/* #794: the connection sentence carries its marker; a sign-in prompt is no banner. */}
+            {feedback.message === 'session_expired'
+              ? <p>{sessionExpiredCopy[copyLanguage(copy)].message}</p>
+              : stepKeepsAnswer(stepKind)
+                ? <p {...connectionBanner('transport_error')}>{copy.transport_error}</p>
+                : <p {...connectionBanner('transport_error_plain')}>{copy.transport_error_plain}</p>}
             {feedback.message === 'session_expired' && <Action tone="primary" onClick={() => void reconnectWebSession(window.location.pathname + window.location.search)}>
               {sessionExpiredCopy[copyLanguage(copy)].action}
             </Action>}
@@ -1805,11 +1869,21 @@ export function JourneyFeedbackView({
       // the verdict — «Written reply from the script» told the learner nothing
       // they could act on. The payload still carries `reply_source`.
       const { result, verdict } = feedback;
-      if (!showsVerdict(stepKind)) {
+      // #333: the authored line stays so the day goes on. Where the chip sits, the state
+      // line says nobody read this reply. It reads as no verdict, whatever the step.
+      const unread = isUnread(checkState(result.check));
+      if (!showsVerdict(stepKind) || unread) {
         // QA-STORY: a story reply is never «Richtig»: the scene answered it. What is
         // left is the margin correction (if any) and the way on.
         return (
-          <div className="av2-graded" data-state="story" ref={gradedRef} tabIndex={-1}>
+          <div
+            className="av2-graded"
+            data-state={unread ? 'unscored' : 'story'}
+            data-check={unread ? checkState(result.check) : undefined}
+            ref={gradedRef}
+            tabIndex={-1}
+          >
+            {unread && <Notice tone="quiet"><p>{copy.check_not_checked}</p></Notice>}
             {result.correction && (
               <Correction
                 label={copy[correctionLabelKey(result.correction.kind)]}
@@ -1868,6 +1942,7 @@ export function JourneyFeedbackView({
           </FeedbackBand>
           {/* WP-D2: «Marin vous sourit ↑» — the relationship moved, said once. */}
           {verdict === 'correct' && speaker && <CharacterSmiles speaker={speaker} />}
+          <AppealLine result={result} stepKind={stepKind} copy={copy} onAppeal={onAppeal} />
 
           <Action tone="primary" onClick={onContinue}>
             {wide.action_continue}

@@ -3004,6 +3004,8 @@ def test_atelier_api_today_session_attempt_and_complete(client: TestClient, db_s
     assert attempt.json()["verdict"] == "correct"
     assert attempt.json()["ai_review"]["status"] == "not_applicable"
     assert attempt.json()["correction"]["rule_reference"]
+    check = attempt.json()["check"]
+    assert (check["outcome"], check["checked_by"], check["counts"]) == ("right", "key", True)
     assert attempt.json()["minted_collectibles"][0]["kind"] == "logo_token"
 
     read_attempt = client.get(f"/api/v1/atelier/attempts/{attempt.json()['attempt_id']}", headers=headers)

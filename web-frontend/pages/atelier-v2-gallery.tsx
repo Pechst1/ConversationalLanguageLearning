@@ -18,6 +18,7 @@
 import React, { useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
+import { CAST } from '@/lib/generated/cast';
 
 import {
   Action,
@@ -175,6 +176,7 @@ const FIL_TURN_ONE = filStep('gallery-fil-1', {
       character_fr: 'Un café, très bien. Au comptoir ou en terrasse ?',
       correction: null,
       character_lines: [],
+      unchecked: false,
     },
   ],
 });
@@ -188,6 +190,7 @@ const FIL_MARKED = filStep('gallery-fil-2', {
       character_fr: 'Noir, très bien. Au comptoir ou en terrasse ?',
       correction: FIL_SLIP,
       character_lines: [],
+      unchecked: false,
     },
   ],
 });
@@ -201,8 +204,9 @@ const FIL_CLOSING = filStep('gallery-fil-3', {
       character_fr: 'Un café, très bien. Au comptoir ou en terrasse ?',
       correction: null,
       character_lines: [],
+      unchecked: false,
     },
-    { learner_fr: 'Au comptoir, merci.', character_fr: 'Et avec ça ?', correction: null, character_lines: [] },
+    { learner_fr: 'Au comptoir, merci.', character_fr: 'Et avec ça ?', correction: null, character_lines: [], unchecked: false },
   ],
 });
 
@@ -466,7 +470,7 @@ export default function AtelierV2Gallery() {
             <div className="av2-graded" data-state="wrong">
               <FeedbackBand tone="wrong" title={copy.wrong} />
             </div>
-            <FeedbackBand tone="neutral" title={copy.still_grading} />
+            <FeedbackBand tone="neutral" title={copy.check_not_checked} />
           </Section>
 
           <Section title="La planche — the story reader (WP-90)">
@@ -583,7 +587,7 @@ export default function AtelierV2Gallery() {
               <p className="av2-label">Outlined — locked or nothing yet</p>
             </Surface>
             <div className="av2-help__actions">
-              {['Marin', 'Lila', 'Gus', 'Romy', 'Margaux', 'Monsieur Marchand', 'Inconnu'].map(
+              {[CAST.marin_leveque.name, CAST.lila_bonnet.name, CAST.augustin_de_roncourt.name, CAST.romy_tremblay.name, CAST.margaux_barman.name, CAST.landlord_marchand.spokenName, 'Inconnu'].map(
                 (name) => (
                   <Portrait key={name} name={name} />
                 ),

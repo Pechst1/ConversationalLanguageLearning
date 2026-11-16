@@ -393,6 +393,78 @@ def test_a_day_with_a_retry_still_finishes(db_session: Session, enabled: None) -
     assert final.recap is not None
 
 
+# ---------------------------------------------------------------------------
+# #729: an upheld appeal settles the whole item, the retry included
+# ---------------------------------------------------------------------------
+
+
+def _as_the_walks_choice(db: Session, step_id: str) -> None:
+    """The 12 Nov walk's item: «In welchem Satz steckt die Regel von heute?», key «C'est qui, vous ?»."""
+
+    step = db.get(DailyJourneyStep, uuid.UUID(step_id))
+    private = dict(step.private_task or {})
+    task = dict(private["recall_task"])
+    task.update(
+        {
+            "task_type": "choice",
+            "instruction_native": "In welchem Satz steckt die Regel von heute?",
+            "prompt_fr": None,
+            "correct_option_id": "o1",
+            "correct_tile_order": [],
+            "accepted_answers": [],
+            "solution_fr": "C'est qui, vous ?",
+            "options": [
+                {"id": "o1", "text_fr": "C'est qui, vous ?"},
+                {"id": "o2", "text_fr": "Vous allez vendre l'appartement d'Odile ?"},
+                {"id": "o3", "text_fr": "Il pleut."},
+            ],
+        }
+    )
+    private["recall_task"] = task
+    step.private_task = private
+    db.commit()
+
+
+class _UpholdingModel:
+    def generate_chat_completion(self, _messages, **_kwargs):
+        import json
+        from types import SimpleNamespace
+
+        return SimpleNamespace(content=json.dumps({"upheld": True, "reason_native": "Ja."}), model="appeal-model")
+
+
+def test_an_upheld_appeal_takes_the_item_out_of_the_repeat_queue(
+    db_session: Session, enabled: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.services import answer_memo, verdict_appeal
+
+    monkeypatch.setattr(verdict_appeal.settings, "VERDICT_APPEAL_ENABLED", True, raising=False)
+    monkeypatch.setattr(verdict_appeal, "_client", lambda: _UpholdingModel())
+    monkeypatch.setattr(answer_memo, "dispatcher", lambda _memo_id: None)
+    service, user, state = _start(db_session, "retry-upheld@example.com")
+    state = _walk_to_run(service, user, state)
+    before = [s.id for s in state.steps]
+    missed_id = state.current_step_id
+    _as_the_walks_choice(db_session, missed_id)
+
+    result, state = _answer(service, user, state, missed_id, {"mode": "choice", "option_id": "o3"})
+    assert result.task_outcome is TaskOutcome.NOT_YET
+    assert [getattr(s.prompt, "retry", None) for s in state.steps].count(True) == 1, "the miss queued the item once more"
+    on_screen = state.current_step_id
+
+    ruled = verdict_appeal.appeal(db_session, user=user, subject_type="journey_step", subject_id=missed_id)
+    assert ruled.state == "upheld"
+
+    state = service.get_journey(user, uuid.UUID(state.id))
+    assert [s.id for s in state.steps if getattr(s.prompt, "retry", None)] == [], "an upheld item still comes back under «Noch einmal»"
+    # The day is the day it was before the miss: the same steps, in the same places.
+    assert [s.id for s in state.steps] == before
+    assert [s.ordinal for s in state.steps] == list(range(state.steps[0].ordinal, state.steps[0].ordinal + len(before)))
+    assert state.current_step_id == on_screen
+    rows = db_session.get(DailyJourney, uuid.UUID(state.id)).steps
+    assert not [row for row in rows if (row.private_task or {}).get(RETRY_OF_KEY) == missed_id]
+
+
 def test_a_part_refused_for_a_grammar_accent_is_corrected_as_a_part(db_session: Session) -> None:
     user = _user(db_session, "repair-part-accent@example.com")
     task = RecallTask(

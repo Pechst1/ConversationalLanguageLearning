@@ -14,6 +14,8 @@
 
 import type { ControlLanguage } from '@/types/daily-journey';
 
+import { CHECK_COPY } from '@/lib/verdict';
+
 export type JourneyCopyKey =
   | 'today_eyebrow'
   | 'start'
@@ -59,8 +61,14 @@ export type JourneyCopyKey =
   | 'voice_offline'
   | 'voice_empty'
   | 'empty_answer'
-  | 'still_grading'
+  | 'check_not_checked'
   | 'try_grading_again'
+  // Package V stage 5: «I think this is right» under a «not yet» or «partly».
+  | 'appeal_line'
+  | 'appeal_upheld'
+  | 'appeal_refused'
+  | 'appeal_unread'
+  | 'appeal_limit'
   | 'retrying'
   | 'reconciled'
   | 'transport_error'
@@ -83,6 +91,8 @@ export type JourneyCopyKey =
   | 'pick_not_it'
   // #167: a missed meaning names the French word.
   | 'correction_meaning'
+  // #624: a missed free sentence is shown a model, not «your sentence → this».
+  | 'correction_example'
   | 'reply_authored_note'
   | 'progress_label'
   | 'time_left'
@@ -303,8 +313,13 @@ const EN: CopyTable = {
   voice_offline: 'Without a connection there is no transcription. Answer in writing, or try again later.',
   voice_empty: 'Nothing was recorded. Your turn is still open.',
   empty_answer: 'Write something first.',
-  still_grading: 'Still being checked. Nothing was scored yet.',
+  check_not_checked: CHECK_COPY.en.not_checked,
   try_grading_again: 'Check again',
+  appeal_line: 'I think this is right',
+  appeal_upheld: 'You were right. It counts now.',
+  appeal_refused: 'The answer stays as it was.',
+  appeal_unread: 'Your appeal could not be read just now. Try again later.',
+  appeal_limit: 'No appeals left today. Three a day.',
   retrying: 'Still working — retrying the same request.',
   reconciled: 'This scene moved on. It has been refreshed for you.',
   transport_error: 'That did not reach the server. Your answer was kept.',
@@ -323,6 +338,7 @@ const EN: CopyTable = {
   correction_pick: 'This sentence uses the rule',
   pick_not_it: 'Not this one:',
   correction_meaning: 'The word',
+  correction_example: 'An example that uses the rule',
   reply_authored_note: 'Written reply from the script',
   progress_label: 'Progress in today’s scene',
   time_left: 'left',
@@ -512,8 +528,13 @@ const DE: CopyTable = {
   voice_offline: 'Ohne Verbindung gibt es keine Transkription. Antworte schriftlich oder versuche es später.',
   voice_empty: 'Es wurde nichts aufgenommen. Du bist weiterhin dran.',
   empty_answer: 'Schreibe zuerst etwas.',
-  still_grading: 'Wird noch geprüft. Es wurde noch nichts bewertet.',
+  check_not_checked: CHECK_COPY.de.not_checked,
   try_grading_again: 'Erneut prüfen',
+  appeal_line: 'Ich glaube, das ist richtig',
+  appeal_upheld: 'Du hattest recht. Es zählt jetzt.',
+  appeal_refused: 'Die Antwort bleibt, wie sie war.',
+  appeal_unread: 'Dein Einspruch konnte gerade nicht gelesen werden. Versuch es später noch einmal.',
+  appeal_limit: 'Heute keine Einsprüche mehr. Drei pro Tag.',
   retrying: 'Läuft noch — dieselbe Anfrage wird wiederholt.',
   reconciled: 'Diese Szene hat sich geändert. Sie wurde für dich aktualisiert.',
   transport_error: 'Das kam nicht beim Server an. Deine Antwort blieb erhalten.',
@@ -532,6 +553,7 @@ const DE: CopyTable = {
   correction_pick: 'In diesem Satz steckt die Regel',
   pick_not_it: 'Nicht dieser:',
   correction_meaning: 'Das Wort',
+  correction_example: 'Ein Beispiel mit der Regel',
   reply_authored_note: 'Vorgeschriebene Antwort aus dem Skript',
   progress_label: 'Fortschritt in der heutigen Szene',
   time_left: 'übrig',
@@ -721,8 +743,13 @@ const FR: CopyTable = {
   voice_offline: 'Sans connexion, pas de transcription. Réponds par écrit, ou réessaie plus tard.',
   voice_empty: 'Rien n’a été enregistré. C’est toujours ton tour.',
   empty_answer: 'Écris d’abord quelque chose.',
-  still_grading: 'Toujours en cours de vérification. Rien n’a encore été évalué.',
+  check_not_checked: CHECK_COPY.fr.not_checked,
   try_grading_again: 'Vérifier à nouveau',
+  appeal_line: 'Je pense que c’est juste',
+  appeal_upheld: 'Tu avais raison. Ça compte maintenant.',
+  appeal_refused: 'La réponse reste comme elle était.',
+  appeal_unread: 'Ta contestation n’a pas pu être lue pour l’instant. Réessaie plus tard.',
+  appeal_limit: 'Plus de contestation aujourd’hui. Trois par jour.',
   retrying: 'Toujours en cours — la même requête est relancée.',
   reconciled: 'Cette scène a changé. Elle a été actualisée pour toi.',
   transport_error: 'Le serveur n’a pas reçu cela. Ta réponse est conservée.',
@@ -741,6 +768,7 @@ const FR: CopyTable = {
   correction_pick: 'La règle est dans cette phrase',
   pick_not_it: 'Pas celle-ci :',
   correction_meaning: 'Le mot',
+  correction_example: 'Par exemple, avec la règle',
   reply_authored_note: 'Réponse écrite, tirée du scénario',
   progress_label: 'Progression dans la scène du jour',
   time_left: 'restant',

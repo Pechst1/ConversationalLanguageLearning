@@ -45,6 +45,7 @@ import {
   StepProgress,
   type StepSegment,
 } from '@/components/atelier-v2/ui';
+import { connectionBanner, type ConnectionBannerKind } from '@/lib/connection-banner';
 import { atelierCopy, stepOfLabel, type AtelierCopy } from '@/lib/atelier-v2-copy';
 import { useImmersiveSurface } from '@/lib/immersive-surface';
 import { journeyChromeLanguage } from '@/lib/language-rule';
@@ -442,7 +443,9 @@ export function JourneySession({
             /* One separator between two real parts. The story engine ships an
                empty `location_name`, which used to render a dangling "·"
                (WP-20 D-7). */
-            <p className="av2-label" data-header={headerLine ? 'step' : undefined}>
+            /* data-step-id: which step of the journey this is, so the browser walk files a
+               verdict under its own item (e2e/lib/verdict-timeline.mjs). */
+            <p className="av2-label" data-header={headerLine ? 'step' : undefined} data-step-id={step?.id || undefined}>
               {specialKicker && (
                 <>
                   <span className="av2-special__kicker" lang="fr" data-special-kicker="">
@@ -530,7 +533,7 @@ export function JourneySession({
               {/* GENTLE-ONBOARDING: the first time a kind of step appears,
                   one sticker above it says what it is. Never over the cast. */}
               {!showCastIntro && (
-                <FirstStepSticker key={step.kind} stepKey={stickerFor(step.kind)} language={chromeLanguage} />
+                <FirstStepSticker key={stickerFor(step) ?? step.kind} stepKey={stickerFor(step)} language={chromeLanguage} />
               )}
               {step.kind === 'scene' && !showCastIntro && (
                 // Story-engine panels when the engine published them for this
@@ -648,6 +651,7 @@ export function JourneySession({
                   onContinue={actions.continueJourney}
                   onRetry={actions.retryLastAnswer}
                   onDismiss={actions.clearFeedback}
+                  onAppeal={step ? () => actions.appeal(step.id) : undefined}
                   speaker={step?.kind === 'recall' && asker ? asker : speaker}
                   stepKind={step?.kind ?? null}
                   faceShown={step?.kind === 'recall' && Boolean(asker)}
@@ -695,7 +699,7 @@ function preludeStorage(): Storage | null {
 // Connection state — stated plainly, never dressed as a result
 // ---------------------------------------------------------------------------
 
-const CONNECTION_COPY: Record<ConnectionView['state'], keyof AtelierCopy | null> = {
+const CONNECTION_COPY: Record<ConnectionView['state'], (ConnectionBannerKind & keyof AtelierCopy) | null> = {
   live: null,
   syncing: 'syncing',
   offline_cached: 'offline_cached',
@@ -724,7 +728,7 @@ export function ConnectionNotice({
   if (!key && !connection.stale) return null;
 
   return (
-    <div className="journey-connection" data-state={connection.state}>
+    <div className="journey-connection" data-state={connection.state} {...connectionBanner(key ?? 'stale')}>
       <Notice tone="quiet" shape="story">
         <p>
           {key ? copy[key] : null}
@@ -772,7 +776,7 @@ function JourneyPhaseView({
         <StateBlock
           tone="error"
           title={copy.error_title}
-          body={copy.transport_error}
+          body={<span {...connectionBanner('transport_error')}>{copy.transport_error}</span>}
           action={{ label: copy.retry, onSelect: () => void actions.refresh() }}
         />
       );

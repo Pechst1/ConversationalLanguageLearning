@@ -28,6 +28,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any
 
+from app.services.chrome_language import localized, mother_tongue
 from app.services.sentence_line import cut_sentences
 
 LEXICON_MIN = 3
@@ -224,8 +225,8 @@ def _digest(*parts: Any) -> str:
     return hashlib.sha256("\x1f".join(str(part) for part in parts).encode("utf-8")).hexdigest()
 
 
-def _localized(table: dict[str, str], language: Any) -> str:
-    return table.get(str(language or "en"), table["en"])
+# S3: one ``{en, de, fr}`` picker for the whole server (chrome_language.localized).
+_localized = localized
 
 
 def draft_of(scenario: Any) -> dict[str, Any]:
@@ -264,7 +265,7 @@ def line_meanings(scenario: Any) -> dict[str, str]:
 def with_meaning(goal: str, meaning: str, language: Any) -> str:
     """NATIVE-MEANING: «Écris les 2 mots manquants.» + meaning → «Écris les 2 mots manquants : « … »»."""
 
-    code = str(language or "en").strip().lower()[:2]
+    code = mother_tongue(language)
     head = goal.strip().rstrip(" .:")
     meaning = " ".join(meaning.split())
     if code == "fr":
@@ -450,7 +451,7 @@ def build_cloze_task(
             if meaning and speaker_name
             else (
                 _localized(CLOZE_INSTRUCTION, control_language).rstrip(".") + f' : "{meaning}"'
-                if meaning and str(control_language or "en")[:2] == "fr"
+                if meaning and mother_tongue(control_language) == "fr"
                 else (
                     _localized(CLOZE_INSTRUCTION, control_language).rstrip(".") + f': "{meaning}"'
                     if meaning

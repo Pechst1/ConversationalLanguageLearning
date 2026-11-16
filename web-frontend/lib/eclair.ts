@@ -21,7 +21,8 @@ export type EclairRound = {
   eclair_id: string;
   pair: string;
   concept_ids: number[];
-  rules: Array<{ concept_id: number; title_fr: string; category?: string | null; subskill?: string | null; name?: string | null }>;
+  /** Each rule's French title and (#561) its title in the learner's chrome language. */
+  rules: Array<{ concept_id: number; title_fr: string; title_native?: string | null; category?: string | null; subskill?: string | null; name?: string | null }>;
   seconds: number;
   best: number;
   plays: number;

@@ -28,6 +28,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, Literal
 
+from app.services.chrome_language import mother_tongue
+
 Register = Literal["tu", "vous"]
 
 #: The one setting: the form the *app* uses to address a learner, per interface
@@ -49,7 +51,7 @@ _ADDRESS_FORMS: Mapping[str, Mapping[str, str]] = {
 def learner_address(language: str | None) -> str | None:
     """«tu» for French, «du» for German, ``None`` where the language has no choice."""
 
-    return LEARNER_ADDRESS.get(str(language or "").strip().lower()[:2])
+    return LEARNER_ADDRESS.get(mother_tongue(language))
 
 
 def address_instruction(language: str | None) -> str:
@@ -60,7 +62,7 @@ def address_instruction(language: str | None) -> str:
     (:func:`character_register`).
     """
 
-    form = _ADDRESS_FORMS.get(str(language or "").strip().lower()[:2])
+    form = _ADDRESS_FORMS.get(mother_tongue(language))
     if form is None:
         return ""
     return (
@@ -104,6 +106,14 @@ def _relationship_register(state: Mapping[str, Any] | None, character_id: str) -
     return None
 
 
+def relationship_register(state: Mapping[str, Any] | None, character_id: Any) -> Register | None:
+    """What the relationship map alone records. Off a season this is the person's register
+    (an accepted «On se tutoie ?» is kept there); a season's value never comes from here."""
+
+    key = str(character_id or "").strip()
+    return _relationship_register(state, key) if key else None
+
+
 def _season_register(state: Mapping[str, Any] | None, character_id: str) -> Register | None:
     """What the season's cast opens with: ``address``, overridden by ``register.<id>`` flags."""
 
@@ -130,19 +140,53 @@ def _season_register(state: Mapping[str, Any] | None, character_id: str) -> Regi
             return None
         stored = live.get(SEASON_KEY)
         flags = effective_flags(season, stored if isinstance(stored, dict) else None)
-        return register_of(flags.get(f"register.{member.id}") or member.address)
+        return season_registers(season, flags).get(member.id)
     except Exception:  # noqa: BLE001 - a missing season file must not break a letter
         return None
 
 
-def known_register(state: Mapping[str, Any] | None, character_id: Any) -> Register | None:
+def season_registers(season: Any, flags: Mapping[str, Any]) -> dict[str, Register]:
+    """How each person of the season's cast addresses the learner, ``{id: "tu"|"vous"}``:
+    the cast's ``address`` overridden by its ``register.<id>`` flag (Gus's «vous» until T3).
+
+    The one place that reads a cast row's register (#594): the Courrier, the scene's
+    voice and the check on a learner's reply all take it from here.
+    """
+
+    return {
+        member.id: register_of(flags.get(f"register.{member.id}") or member.address) or DEFAULT_CHARACTER_REGISTER
+        for member in season.cast
+    }
+
+
+def _snapshot_register(registers: Mapping[str, Any] | None, character_id: str) -> Register | None:
+    """The register a scene kept for ``character_id`` when it was planned (``season_registers``)."""
+
+    if not isinstance(registers, Mapping):
+        return None
+    rows = sorted(registers.items(), key=lambda item: str(item[0]) != character_id)
+    for key, value in rows:
+        if _same_person(str(key), character_id):
+            found = register_of(value)
+            if found:
+                return found
+    return None
+
+
+def known_register(
+    state: Mapping[str, Any] | None,
+    character_id: Any,
+    *,
+    registers: Mapping[str, Any] | None = None,
+) -> Register | None:
     """What the cast itself says about how ``character_id`` addresses the learner, or ``None``.
 
     ``character_register`` without its last-resort default: «tu» or «vous» only when a
     source above it knows, so a caller whose own text can decide (a letter that carries
     its register) does not mistake the default for knowledge (#506). ``state`` may be
     ``None``: a first letter is made before any scene has started a thread, and the
-    season still names its cast.
+    season still names its cast. ``registers`` is a scene's own snapshot of the season's
+    registers (``season_registers``, kept with the day), read before the season file.
     """
 
     key = str(character_id or "").strip()
@@ -155,7 +199,11 @@ def known_register(state: Mapping[str, Any] | None, character_id: Any) -> Regist
         name in ALWAYS_VOUS or name.startswith(ALWAYS_VOUS_PREFIXES) for name in (key, canonical)
     ):
         return DEFAULT_CHARACTER_REGISTER
-    return _relationship_register(state, key) or _season_register(state, key)
+    return (
+        _relationship_register(state, key)
+        or _snapshot_register(registers, key)
+        or _season_register(state, key)
+    )
 
 
 def character_register(state: Mapping[str, Any] | None, character_id: Any) -> Register:
@@ -187,4 +235,6 @@ __all__ = [
     "known_register",
     "learner_address",
     "register_of",
+    "relationship_register",
+    "season_registers",
 ]

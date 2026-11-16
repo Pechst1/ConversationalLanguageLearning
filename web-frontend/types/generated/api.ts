@@ -160,6 +160,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/analytics/pilot-cohorts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Pilot Cohorts
+         * @description S6: return on day 1, 3, 7 and 14 per sign-up week, from the ledger.
+         */
+        get: operations["read_pilot_cohorts_api_v1_analytics_pilot_cohorts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/analytics/pilot-daily": {
         parameters: {
             query?: never;
@@ -214,6 +234,46 @@ export interface paths {
         get: operations["read_pilot_gold_api_v1_analytics_pilot_gold_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/pilot-memos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Pilot Memos
+         * @description Package V stage 4: the memo's candidates and confirmed answers, newest first.
+         */
+        get: operations["read_pilot_memos_api_v1_analytics_pilot_memos_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/pilot-memos/{memo_id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke Pilot Memo
+         * @description Package V stage 4: end a memo; every answer it settled is superseded and its gold voided.
+         */
+        post: operations["revoke_pilot_memo_api_v1_analytics_pilot_memos__memo_id__revoke_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -614,6 +674,26 @@ export interface paths {
         put?: never;
         /** Repair Attempt */
         post: operations["repair_attempt_api_v1_atelier_attempts__attempt_id__repair_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/atelier/attempts/{attempt_id}/reveal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reveal Attempt Solution
+         * @description Owner 2026-11-13: «Show the solution» spends the second chance; the correction comes whole.
+         */
+        post: operations["reveal_attempt_solution_api_v1_atelier_attempts__attempt_id__reveal_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1272,6 +1352,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/verify-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify Email
+         * @description Spend the emailed code: the address is verified, or a pending change takes effect.
+         *
+         *     A completed change ends every session (the address is the sign-in name).
+         */
+        post: operations["verify_email_api_v1_auth_verify_email_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/verify-email/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resend Verification Email
+         * @description Send a fresh code to the address waiting to be verified (once a minute at most).
+         */
+        post: operations["resend_verification_email_api_v1_auth_verify_email_resend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/avatar": {
         parameters: {
             query?: never;
@@ -1472,6 +1594,28 @@ export interface paths {
          * @description Bounded recovery for a preparing/unavailable journey, reusing its id.
          */
         post: operations["retry_api_v1_daily_journeys__journey_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/daily-journeys/{journey_id}/steps/{step_id}/appeal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Appeal Verdict
+         * @description Package V stage 5: «I think this is right». The stronger model re-judges the drill.
+         *
+         *     404: not this learner's drill, or nothing to appeal. 429: the day's appeals are used.
+         */
+        post: operations["appeal_verdict_api_v1_daily_journeys__journey_id__steps__step_id__appeal_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2380,7 +2524,8 @@ export interface paths {
          * @description Run the French check again on a paragraph whose check failed.
          *
          *     No body: the stored text is what gets checked. A no-op on any entry whose
-         *     check already succeeded, so a double tap buys one call.
+         *     check already succeeded, so a double tap buys one call. Limited per learner and
+         *     day (``VERDICT_RECHECK_DAILY_LIMIT``, package V).
          */
         post: operations["retry_correction_api_v1_journal__entry_id__retry_post"];
         delete?: never;
@@ -2620,6 +2765,31 @@ export interface paths {
          *     a second time, the reply keeps its first correction.
          */
         post: operations["retry_mission_turn_correction_api_v1_missions__mission_id__turns__turn_id__correction_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/missions/{mission_id}/turns/{turn_id}/reply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry Mission Turn Reply
+         * @description #590: ask the correspondent again for a message nobody answered.
+         *
+         *     The learner's text is already stored and corrected; only the reply is asked for. Any
+         *     message nobody answered can be asked again, not only the latest: a learner who wrote on
+         *     because the reply failed still has that gap to close. When it is already answered the
+         *     answer is handed back, and a second failure leaves the message ``pending`` for the next try.
+         */
+        post: operations["retry_mission_turn_reply_api_v1_missions__mission_id__turns__turn_id__reply_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4976,7 +5146,11 @@ export interface paths {
         head?: never;
         /**
          * Change Current User Email
-         * @description Change the current user's email after password confirmation.
+         * @description Ask to change the sign-in address (S4 stage 3).
+         *
+         *     Needs the password and a verified current address. The new address is held
+         *     in ``pending_email`` and gets a code; ``email`` changes only when that code
+         *     is typed (``POST /auth/verify-email``), and the old address is then told.
          */
         patch: operations["change_current_user_email_api_v1_users_me_email_patch"];
         trace?: never;
@@ -5815,6 +5989,8 @@ export interface components {
         };
         /** AnonymousClientErrorRequest */
         AnonymousClientErrorRequest: {
+            /** Event Id */
+            event_id?: string | null;
             /** Message */
             message: string;
             /** Release */
@@ -5878,6 +6054,22 @@ export interface components {
             tier: string;
             /** Xp Reward */
             xp_reward: number;
+        };
+        /**
+         * AppealView
+         * @description Package V stage 5: what «I think this is right» came back with.
+         */
+        AppealView: {
+            check: components["schemas"]["VerdictView"];
+            /** Reason */
+            reason?: string | null;
+            /** Remaining Today */
+            remaining_today: number;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "upheld" | "refused" | "unread";
         };
         /** ArchiveChapter */
         ArchiveChapter: {
@@ -6107,6 +6299,7 @@ export interface components {
              * Format: uuid
              */
             attempt_id: string;
+            check?: components["schemas"]["VerdictView"] | null;
             /** Correction */
             correction: {
                 [key: string]: unknown;
@@ -6221,6 +6414,8 @@ export interface components {
             subskill?: string | null;
             /** Title Fr */
             title_fr?: string | null;
+            /** Title Native */
+            title_native?: string | null;
         };
         /**
          * AtelierErrataAttemptRequest
@@ -6534,6 +6729,7 @@ export interface components {
             character_lines: components["schemas"]["ThreadLine"][];
             /** Character Reply Fr */
             character_reply_fr: string | null;
+            check: components["schemas"]["VerdictView"] | null;
             /**
              * Contract Version
              * @default 1
@@ -6645,6 +6841,10 @@ export interface components {
             ai_audio_text: string;
             /** Ai Response */
             ai_response: string;
+            /** Check */
+            check?: {
+                [key: string]: unknown;
+            } | null;
             /** Detected Errors */
             detected_errors?: {
                 [key: string]: unknown;
@@ -7547,6 +7747,8 @@ export interface components {
         };
         /** ClientErrorRequest */
         ClientErrorRequest: {
+            /** Event Id */
+            event_id?: string | null;
             /** Message */
             message: string;
             /** Route */
@@ -8200,6 +8402,11 @@ export interface components {
             /** Pair */
             pair?: string | null;
         };
+        /** EmailVerificationCode */
+        EmailVerificationCode: {
+            /** Code */
+            code: string;
+        };
         /**
          * EntreTempsItem
          * @description WP-99. One off-screen beat the cast lived while the learner was away.
@@ -8252,6 +8459,7 @@ export interface components {
          * @description WP-109: today's episode as Home and the Feuilleton headline it.
          */
         EpisodeHeadline: {
+            arc: components["schemas"]["HeadlineArc"] | null;
             /** Cast */
             cast: components["schemas"]["HeadlineCastMember"][];
             /** Cast Variants */
@@ -8271,6 +8479,8 @@ export interface components {
             season_title_fr: string | null;
             /** Teaser Fr */
             teaser_fr: string | null;
+            /** Teaser Open Fr */
+            teaser_open_fr: string | null;
             /** Title Fr */
             title_fr: string | null;
         };
@@ -8485,6 +8695,11 @@ export interface components {
             viewport?: {
                 [key: string]: unknown;
             };
+            /**
+             * Wants Reply
+             * @default false
+             */
+            wants_reply?: boolean;
         };
         /**
          * FeedbackReportRead
@@ -8526,6 +8741,11 @@ export interface components {
             viewport: {
                 [key: string]: unknown;
             };
+            /**
+             * Wants Reply
+             * @default false
+             */
+            wants_reply?: boolean;
         };
         /** FollowupRequest */
         FollowupRequest: {
@@ -9007,6 +9227,8 @@ export interface components {
             subskill: string | null;
             /** Title Fr */
             title_fr?: string | null;
+            /** Title Native */
+            title_native?: string | null;
             /** Xray */
             xray?: {
                 [key: string]: unknown;
@@ -9090,6 +9312,8 @@ export interface components {
             subskill: string | null;
             /** Title Fr */
             title_fr?: string | null;
+            /** Title Native */
+            title_native?: string | null;
         };
         /**
          * GrammarNotebookNotesRequest
@@ -9419,6 +9643,20 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * HeadlineArc
+         * @description Red-thread design: where the gap is going and how far it is.
+         */
+        HeadlineArc: {
+            /** Days Left */
+            days_left: number;
+            /** Gap Title Fr */
+            gap_title_fr: string;
+            /** Title Fr */
+            title_fr: string;
+            /** When Fr */
+            when_fr: string;
+        };
         /** HeadlineCastMember */
         HeadlineCastMember: {
             /** Id */
@@ -9591,6 +9829,7 @@ export interface components {
              * @default false
              */
             assessment_truncated?: boolean;
+            check?: components["schemas"]["VerdictView"] | null;
             /** Checker */
             checker?: string | null;
             /**
@@ -9707,6 +9946,12 @@ export interface components {
              * @default false
              */
             answered?: boolean;
+            /** Checked By */
+            checked_by?: string | null;
+            /** Corrections */
+            corrections?: {
+                [key: string]: unknown;
+            }[] | null;
             /** Due On */
             due_on: string;
             /** Entry Id */
@@ -9829,7 +10074,7 @@ export interface components {
              * @default edit
              * @enum {string}
              */
-            kind?: "edit" | "pick" | "meaning";
+            kind?: "edit" | "pick" | "meaning" | "example";
             /** Note Native */
             note_native: string;
             /** Notes Native */
@@ -10622,6 +10867,14 @@ export interface components {
             /** Tested Out Concept Ids */
             tested_out_concept_ids: number[];
         };
+        /** MemoRevoke */
+        MemoRevoke: {
+            /**
+             * Reason
+             * @default
+             */
+            reason?: string;
+        };
         /**
          * MetricPoint
          * @description Time series datapoint.
@@ -10641,6 +10894,7 @@ export interface components {
             attempt: {
                 [key: string]: unknown;
             };
+            check?: components["schemas"]["VerdictView"] | null;
             correction: components["schemas"]["MissionCorrectionRead"];
             /** Errata */
             errata?: components["schemas"]["LinkedVocabularyErratumRead"][];
@@ -10816,6 +11070,7 @@ export interface components {
         };
         /** MissionTurnCorrectionResponse */
         MissionTurnCorrectionResponse: {
+            check?: components["schemas"]["VerdictView"] | null;
             correction: components["schemas"]["MissionCorrectionRead"];
             /** Errata */
             errata?: components["schemas"]["LinkedVocabularyErratumRead"][];
@@ -10848,6 +11103,7 @@ export interface components {
             assistant_turn?: {
                 [key: string]: unknown;
             };
+            check?: components["schemas"]["VerdictView"] | null;
             correction: components["schemas"]["MissionCorrectionRead"];
             /** Errata */
             errata?: components["schemas"]["LinkedVocabularyErratumRead"][];
@@ -11217,6 +11473,10 @@ export interface components {
          * @description One shape for every placement route.
          */
         PlacementEnvelope: {
+            /** Check */
+            check?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Confidence
              * @default 0
@@ -11814,6 +12074,8 @@ export interface components {
             character_id: string | null;
             /** Character Name */
             character_name: string | null;
+            /** Open Fr */
+            open_fr: string | null;
             /**
              * Source
              * @enum {string}
@@ -15155,6 +15417,11 @@ export interface components {
             correction: components["schemas"]["JourneyCorrection"] | null;
             /** Learner Fr */
             learner_fr: string;
+            /**
+             * Unchecked
+             * @default false
+             */
+            unchecked: boolean;
         };
         /**
          * ThreadLine
@@ -15693,6 +15960,8 @@ export interface components {
              * @default true
              */
             notifications_enabled?: boolean;
+            /** Pending Email */
+            pending_email?: string | null;
             /**
              * Practice Reminders
              * @default true
@@ -15851,6 +16120,8 @@ export interface components {
             new_words_per_day: number;
             /** Notifications Enabled */
             notifications_enabled: boolean;
+            /** Pending Email */
+            pending_email?: string | null;
             /** Practice Reminders */
             practice_reminders: boolean;
             /** Preferred Session Time */
@@ -16041,6 +16312,63 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** VerdictEditView */
+        VerdictEditView: {
+            /**
+             * By
+             * @default model
+             * @enum {string}
+             */
+            by?: "key" | "model" | "rules";
+            /** End */
+            end: number;
+            /**
+             * Note
+             * @default
+             */
+            note?: string;
+            /** Replacement */
+            replacement: string;
+            /** Rule Id */
+            rule_id?: string | null;
+            /** Span */
+            span: string;
+            /** Start */
+            start: number;
+        };
+        /** VerdictView */
+        VerdictView: {
+            /**
+             * Call
+             * @enum {string}
+             */
+            call: "ok" | "empty" | "failed" | "pending" | "not_called";
+            /**
+             * Checked By
+             * @enum {string}
+             */
+            checked_by: "key" | "model" | "rules" | "none";
+            /** Checked Since */
+            checked_since?: string | null;
+            /** Corrected */
+            corrected?: string | null;
+            /** Counts */
+            counts: boolean;
+            /** Edits */
+            edits?: components["schemas"]["VerdictEditView"][];
+            /** Failure */
+            failure?: ("timeout" | "provider_error" | "invalid_output" | "no_model" | "no_check_target") | null;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "right" | "partly" | "not_yet" | "not_checked";
+            /**
+             * Retryable
+             * @default false
+             */
+            retryable?: boolean;
         };
         /** VignettesResponse */
         VignettesResponse: {
@@ -17064,6 +17392,40 @@ export interface operations {
             };
         };
     };
+    read_pilot_cohorts_api_v1_analytics_pilot_cohorts_get: {
+        parameters: {
+            query?: {
+                include_synthetic?: boolean;
+                weeks?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_pilot_daily_api_v1_analytics_pilot_daily_get: {
         parameters: {
             query?: {
@@ -17130,6 +17492,76 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_pilot_memos_api_v1_analytics_pilot_memos_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_pilot_memo_api_v1_analytics_pilot_memos__memo_id__revoke_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memo_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemoRevoke"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -17727,6 +18159,37 @@ export interface operations {
                 "application/json": components["schemas"]["AtelierAttemptRepairRequest"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AtelierAttemptResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reveal_attempt_solution_api_v1_atelier_attempts__attempt_id__reveal_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attempt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -18776,6 +19239,61 @@ export interface operations {
             };
         };
     };
+    verify_email_api_v1_auth_verify_email_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailVerificationCode"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resend_verification_email_api_v1_auth_verify_email_resend_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+        };
+    };
     read_avatar_api_v1_avatar_get: {
         parameters: {
             query?: never;
@@ -19117,6 +19635,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JourneySnapshot"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    appeal_verdict_api_v1_daily_journeys__journey_id__steps__step_id__appeal_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                journey_id: string;
+                step_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppealView"];
                 };
             };
             /** @description Validation Error */
@@ -20998,6 +21548,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MissionTurnCorrectionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_mission_turn_reply_api_v1_missions__mission_id__turns__turn_id__reply_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mission_id: string;
+                turn_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MissionTurnResponse"];
                 };
             };
             /** @description Validation Error */

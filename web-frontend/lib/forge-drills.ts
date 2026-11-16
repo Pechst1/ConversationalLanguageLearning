@@ -18,6 +18,7 @@
 
 import { fillForge, type ForgeCopy } from './forge-copy';
 import { clampRung } from './forge-progress';
+import { pick, plainText, type RuleCardData } from './rule-card';
 
 export { levelText } from './forge-progress';
 
@@ -133,6 +134,38 @@ export function burstRows(
         correctedFr: String(row.corrected_fr || '').trim() || null,
       };
     });
+}
+
+/** Fold a sentence for comparing: lower case, one kind of apostrophe, single spaces. */
+function foldSentence(value: string | null | undefined): string {
+  return String(value || '').normalize('NFC').toLowerCase().replace(/[’‘`´]/g, "'").replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Why a missed sentence is missed, in the learner's language (#564): the card's
+ * own words, never the rule chip's label. A wrong sentence that contains one of
+ * the card's traps (`le école`) gets that trap's «why»; any other miss gets the
+ * card's one-line rule. `null` without a card or a line in a language we can
+ * read: nothing is made up.
+ */
+export function rafaleReason(
+  card: RuleCardData | null | undefined,
+  row: Pick<BurstRow, 'sentence' | 'expected'>,
+  language: string,
+): string | null {
+  if (!card) return null;
+  const lang = language === 'de' || language === 'fr' ? language : 'en';
+  const needsFix = foldSentence(row.expected) !== 'correct';
+  if (needsFix) {
+    const sentence = foldSentence(row.sentence);
+    const trap = (card.traps || []).find((entry) => {
+      const wrong = foldSentence(plainText(entry.wrong)).replace(/[.!?]+$/, '');
+      return wrong.length > 2 && sentence.includes(wrong);
+    });
+    const why = trap ? pick(trap.why, lang) : '';
+    if (why) return plainText(why);
+  }
+  return plainText(pick(card.rule, lang)) || null;
 }
 
 /** «7,4 s» in French and German, «7.4 s» in English; null without a time. */

@@ -1,0 +1,42 @@
+{
+ "id": "authored-a1-margaux-oui-un-peu",
+ "lane": "authored",
+ "level": "A1",
+ "source": "The walk of 6 Nov 2026 (#558), Margaux at Le Mistral. The learner's text is exact; the walk records «Je comprends…» first, then the authored lines; the reading is written for the case.",
+ "input": {
+  "tentpole": "t4",
+  "day": "b",
+  "turn": "b.turn2",
+  "history": [
+   {
+    "learner": "Oui, je savais.",
+    "character": "D'accord. D'accord. Je te crois."
+   }
+  ],
+  "opening_line_fr": "Tu mets les photos au mur. Tu sais ça ?",
+  "learner_text": "Oui, un peu. Tu as menti pendant trois ans a ma grand-mere. Mais je veux comprendre pourquoi tu as fait ca."
+ },
+ "answers": {
+  "ReplyChoice": [
+   {
+    "content": {
+     "reply_id": "a_little",
+     "expresses": "none",
+     "value": null,
+     "confidence": 0.8,
+     "clear": true,
+     "ack_fr": "Je comprends…",
+     "learned": [],
+     "learner_intent": "yes"
+    }
+   }
+  ]
+ },
+ "expect": {
+  "failure": null,
+  "reply_id": "a_little",
+  "learner_intent": "yes",
+  "ack_played": "Je comprends…",
+  "answered": true
+ }
+}

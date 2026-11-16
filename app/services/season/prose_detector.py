@@ -345,8 +345,9 @@ _WAITING_ENDING = _rule(
     r"\battendant\s+que\s+(?:tu|vous)\b",
 )
 
-#: leaves_without_answer — the authored fallback ending (``living_story.fallback_turn``):
-#: the character leaves before answering. Not «Elle hésite avant de répondre.»
+#: leaves_without_answer — the old authored fallback ending, which stored rows still hold
+#: and a writer can imitate: the character leaves before answering. Not «Elle hésite avant de
+#: répondre.»
 _LEAVES = _rule(
     r"\b(?:doi(?:t|s|vent)\s+partir|(?:a|ont)\s+dû\s+partir|part|partent|s'en\s+va|s'en\s+vont|"
     r"est\s+partie?|sont\s+parti(?:e)?s|appelée?s?\s+ailleurs)\s+avant\s+de\s+répondre\b"

@@ -106,7 +106,7 @@ test('the session shows the walkthrough before the cast, a sticker per step, and
   );
   assert.match(source, /showWalkthrough && \(\s*<Walkthrough/);
   assert.match(source, /showCastIntro && !showWalkthrough/);
-  assert.match(source, /<FirstStepSticker key=\{step\.kind\} stepKey=\{stickerFor\(step\.kind\)\}/);
+  assert.match(source, /<FirstStepSticker key=\{stickerFor\(step\) \?\? step\.kind\} stepKey=\{stickerFor\(step\)\}/);
   // A day ended early is not the story done (Codex review, #95).
   assert.match(source, /const storyCompleted = dayFinished && journey\?\.status === 'completed'/);
   assert.match(source, /firstDay && storyCompleted && firstDayRoute/);
@@ -155,5 +155,36 @@ test('#123: the episode-end sticker does not say the day is done, and names what
     // The walkthrough's «your first day» card says the same order.
     const { day_body: dayBody } = steps.firstStepsCopy(language).walkthrough;
     assert.match(dayBody, expected[language], `${language}: ${dayBody}`);
+  }
+});
+
+test('#469 a drill’s sticker is named by its place in the day order, not by its kind', () => {
+  const order = require('./day-order.ts');
+  const wordDrill = { kind: 'recall', prompt: { target: { kind: 'word' } } };
+  const ruleDrill = { kind: 'recall', prompt: { target: { kind: 'grammar' } } };
+  // (`?.`: a missing helper fails these as assertions, not as a crash.)
+  assert.equal(order.dayStepOf?.(ruleDrill), 'grammar', 'the drill on the rule is the grammar step');
+  assert.equal(order.dayStepOf?.(wordDrill), 'words', 'a word drill is the words step');
+  assert.ok(order.WORK_STEPS.includes(order.dayStepOf?.(ruleDrill)));
+  const named = {
+    de: { rule: /Regel/, words: /Wörter/ },
+    en: { rule: /rule/i, words: /words/i },
+    fr: { rule: /règle/i, words: /mots/i },
+  };
+  for (const language of ['de', 'en', 'fr']) {
+    const copy = steps.firstStepsCopy(language);
+    const stickerOf = (step) => {
+      const key = steps.stickerFor(step);
+      return key ? copy.stickers[key] : null;
+    };
+    const rule = stickerOf(ruleDrill);
+    const words = stickerOf(wordDrill);
+    assert.ok(rule, `${language}: the drill after the rule has a sticker`);
+    assert.ok(words, `${language}: the word drill has a sticker`);
+    // Before: both said «Die Wörter · Kurze Wortübungen» because both are `recall`.
+    assert.doesNotMatch(rule.title, named[language].words, `${language}: «${rule.title}» names the words`);
+    assert.match(`${rule.title} ${rule.body}`, named[language].rule, `${language}: «${rule.title}» does not name the rule`);
+    assert.match(words.title, named[language].words);
+    assert.notEqual(steps.stickerFor(ruleDrill), steps.stickerFor(wordDrill), 'one sticker per place, so one does not hide the other');
   }
 });

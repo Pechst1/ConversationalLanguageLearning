@@ -269,6 +269,18 @@ def _resolution_line(journey: DailyJourney) -> str | None:
     return None
 
 
+#: A hook in full: voice, what leads in, the row's words (110) and its question.
+ENGINE_TEASER_CHARS = 260
+#: ``STORY_SCENE_RECORD`` off: main's cut (the hook told with its question runs longer).
+MAIN_ENGINE_TEASER_CHARS = 160
+
+
+def engine_teaser_chars() -> int:
+    from app.services import scene_record
+
+    return ENGINE_TEASER_CHARS if scene_record.enabled() else MAIN_ENGINE_TEASER_CHARS
+
+
 def recap_teaser(user: User, journey: DailyJourney, live: dict[str, Any]) -> dict[str, Any]:
     from app.services.serial_notifications import (
         CHARACTER_NAMES,
@@ -286,13 +298,24 @@ def recap_teaser(user: User, journey: DailyJourney, live: dict[str, Any]) -> dic
     if isinstance(teaser, dict) and _clean(teaser.get("text_fr")):
         # A teaser the engine wrote for an earlier day is not tomorrow's.
         source_event = teaser.get("source_event_id")
+        # #466: what stays open, as «Tomorrow» prints it. Absent on a line that names none.
+        opened = _clean(teaser.get("open_fr"), 160)
+        opening = {"open_fr": opened} if opened else {}
         if teaser.get("kind") == "season" and (not source_event or source_event == _event_id(journey)):
             # WP-111: a tentpole's «À suivre…» is the page's caption — nobody says it.
-            return {"text_fr": _clean(teaser.get("text_fr"), 160), "character_id": None, "character_name": None, "source": "engine"}
+            return {
+                "text_fr": _clean(teaser.get("text_fr"), engine_teaser_chars()),
+                **opening,
+                "character_id": None,
+                "character_name": None,
+                "source": "engine",
+            }
         if not source_event or source_event == _event_id(journey):
             teaser_id = str(teaser.get("character_id") or "").strip() or raw_id
             return {
-                "text_fr": _clean(teaser.get("text_fr"), 160),
+                # The hook ends on its question: a shorter clip would cut the question off.
+                "text_fr": _clean(teaser.get("text_fr"), engine_teaser_chars()),
+                **opening,
                 "character_id": teaser_id or None,
                 "character_name": _clean(teaser.get("character_name"), 60)
                 or (name if teaser_id == raw_id else CHARACTER_NAMES.get(_portrait_id(teaser_id) or "", ""))

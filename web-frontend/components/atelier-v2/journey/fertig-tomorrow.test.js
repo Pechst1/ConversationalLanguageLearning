@@ -218,3 +218,73 @@ test('with no teaser the Done screen shows no empty «Tomorrow» label', () => {
   const envelope = envelopeOf('en', recapOf({ teaser: null, next_teaser_fr: null }));
   assert.doesNotMatch(fertig(envelope), /data-tomorrow/);
 });
+
+// #466: what Home and Done print is checked itself, on the walks' own hooks.
+const model = require('./season-return-model.ts');
+const { headlineTeaser } = require('@/lib/episode-headline');
+const WALK_OPEN = 'Margaux range une lettre sans nom dans le tiroir du comptoir. Pourquoi ?';
+const WALK_HOOK = `J'ai rien entendu. Mais quand même… Je repense à ce détail. ${WALK_OPEN}`;
+
+test('#466 Tomorrow prints what stays open, whole, and never a cut of the hook', () => {
+  const { tomorrowLine } = model;
+  const line = tomorrowLine({
+    teaser: { text_fr: WALK_HOOK, open_fr: WALK_OPEN, character_id: 'margaux_barman', character_name: 'Margaux', source: 'engine' },
+    next_teaser_fr: WALK_HOOK,
+  });
+  assert.equal(line.hint, WALK_OPEN);
+  assert.ok(line.hint.endsWith('?'));
+  assert.ok(line.hint.split(/\s+/).length > 3);
+  assert.ok(!WALK_HOOK.startsWith(line.hint), 'not a prefix of the hook');
+  assert.ok(!/…\s*$/.test(line.hint), 'no trailing clip');
+});
+
+test('#466 the writer\'s question leads on Home and Done', () => {
+  const { tomorrowLine } = model;
+  const hook = 'Toi, tu me caches quelque chose… Qui a vraiment écrit cette lettre ?';
+  const line = tomorrowLine({
+    teaser: { text_fr: hook, open_fr: 'Qui a vraiment écrit cette lettre ?', character_id: 'lila_bonnet', character_name: 'Lila', source: 'engine' },
+  });
+  assert.equal(line.hint, 'Qui a vraiment écrit cette lettre ?');
+});
+
+test('#466 a hook stored before this prints the question it ends on, not its voice opener', () => {
+  const { tomorrowLine } = model;
+  for (const opener of ['Au fait…', "Dis, j'y repense… C'est peut-être un signe.", "J'ai rien entendu. Mais quand même…"]) {
+    const hook = `${opener} Il faudra qu'on en parle. Qui était Odile, et pourquoi est-elle partie ?`;
+    const line = tomorrowLine({ teaser: { text_fr: hook, character_id: null, character_name: null, source: 'engine' } });
+    assert.equal(line.hint, 'Qui était Odile, et pourquoi est-elle partie ?');
+  }
+});
+
+test('#466 a page\'s own caption with no question still stands, as written', () => {
+  const { tomorrowLine } = model;
+  const line = tomorrowLine({
+    teaser: { text_fr: 'Deux clés pour la même porte. À suivre…', character_id: null, character_name: null, source: 'engine' },
+  });
+  assert.equal(line.hint, 'Deux clés pour la même porte');
+});
+
+test('#466 Home reads what stays open before the hook', () => {
+  const hook = "Dis, j'y repense… Qui a vraiment écrit cette lettre ?";
+  const open = 'Qui a vraiment écrit cette lettre ?';
+  assert.equal(headlineTeaser({ teaser_fr: hook, teaser_open_fr: open }, 'Nº 28'), open);
+  assert.equal(headlineTeaser({ teaser_fr: 'Deux clés. À suivre…' }, 'Nº 28'), 'Deux clés.');
+});
+
+// #727: the walk caught «Done for today · Back to La Une» in English on a B1 learner's
+// French Done screen. The page printed its chrome before `GET /daily-journeys/today`
+// had answered, in the profile hook's hydration-safe default (`en`): it did not know
+// the language yet and printed English anyway. Until the day is read, it prints no words.
+test('#727 before the day is read, the Done screen prints no chrome in a language it does not know yet', () => {
+  const text = textOf(fertig(null));
+  for (const english of ['Done for today', 'Back to La Une']) {
+    assert.ok(!text.includes(english), `the pending Done screen prints «${english}» before it knows the learner's language: «${text}»`);
+  }
+  assert.equal(text, '', `the pending Done screen prints words before it knows their language: «${text}»`);
+});
+
+test('#727 once the day is read, the Done screen speaks the envelope’s language', () => {
+  const text = textOf(fertig(envelopeOf('fr', recapOf())));
+  assert.ok(text.includes('Fini pour aujourd’hui'), text.slice(0, 160));
+  assert.ok(!/Done for today|Back to La Une/.test(text), text.slice(0, 160));
+});

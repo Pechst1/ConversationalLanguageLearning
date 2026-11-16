@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
@@ -34,6 +34,7 @@ from app.schemas.daily_journey import (
     PaceUpdate,
     TodayEnvelope,
 )
+from app.schemas.verdict import AppealView, VerdictView
 from app.services.daily_journey import DailyJourneyService
 from app.services.daily_journey_adapters import JourneyAdapters, build_default_adapters
 
@@ -175,6 +176,41 @@ def submit_attempt(
     """Canonical server evaluation. The client never supplies a score."""
 
     return service.submit_attempt(current_user, journey_id, step_id, payload)
+
+
+@router.post("/{journey_id}/steps/{step_id}/appeal", response_model=AppealView)
+def appeal_verdict(
+    journey_id: uuid.UUID,  # noqa: ARG001 - the step names its journey; ownership is checked on it
+    step_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> AppealView:
+    """Package V stage 5: «I think this is right». The stronger model re-judges the drill.
+
+    404: not this learner's drill, or nothing to appeal. 429: the day's appeals are used.
+    """
+
+    from app.services import verdict_appeal
+    from app.services.chrome_language import user_chrome_language
+
+    try:
+        result = verdict_appeal.appeal(
+            db,
+            user=current_user,
+            subject_type="journey_step",
+            subject_id=step_id,
+            language=str(user_chrome_language(current_user)),
+        )
+    except verdict_appeal.AppealLimit as exc:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="appeal_daily_limit") from exc
+    except verdict_appeal.AppealClosed as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"appeal_{exc}") from exc
+    return AppealView(
+        state=result.state,
+        check=VerdictView.of(result.verdict),
+        reason=result.reason,
+        remaining_today=result.remaining,
+    )
 
 
 @router.post("/{journey_id}/advance", response_model=JourneySnapshot)

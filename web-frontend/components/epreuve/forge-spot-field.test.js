@@ -178,3 +178,31 @@ test('leaving the field untouched changes nothing', async (t) => {
   await page.locator('#elsewhere').click();
   assert.equal(await answer(), '');
 });
+
+// #573: an edited word is drawn as the old word struck through and the new one
+// beside it. A sighted learner reads that; the text layer (a screen reader, the
+// walk's page text) read the two spans glued together («lale», «aimeaiment»).
+test('an edited word reads as its replacement, the old word marked as removed', async (t) => {
+  if (skip) return t.skip(skip);
+  await fresh();
+  await word('la').click();
+  await page.keyboard.type('le');
+  await page.keyboard.press('Enter');
+  await word('aime').click();
+  await page.keyboard.type('aiment');
+  await page.keyboard.press('Enter');
+
+  const line = await page.locator('.forge-spot__line').evaluate((node) => node.textContent.replace(/\s+/g, ' '));
+  assert.doesNotMatch(line, /lale|aimeaiment/, `the old and the new word are not glued: «${line}»`);
+  assert.match(line, /\ble\b/);
+  assert.match(line, /\baiment\b/);
+
+  // The struck-through old word is still drawn, as a deletion.
+  const struck = await page.locator('.forge-spot__line del').allInnerTexts();
+  assert.deepEqual(struck, ['aime', 'la']);
+  const names = await page
+    .locator('.forge-spot__word[data-edited="true"]')
+    .evaluateAll((nodes) => nodes.map((node) => node.textContent.replace(/\s+/g, ' ').trim()));
+  assert.equal(names.length, 2);
+  for (const name of names) assert.doesNotMatch(name, /lale|aimeaiment/);
+});

@@ -12,7 +12,7 @@ from psycopg2 import sql
 CRITICAL_COLUMNS = {
     "users": {"id", "email", "hashed_password", "auth_version"},
     "refresh_tokens": {"id", "user_id", "token_hash", "revoked_at"},
-    "password_reset_deliveries": {"id", "user_id", "status", "encrypted_payload"},
+    "mail_deliveries": {"id", "user_id", "kind", "recipient", "status", "encrypted_payload"},
     "user_vocabulary_progress": {"id", "user_id", "word_id"},
     "review_logs": {"id", "progress_id"},
     "daily_journeys": {"id", "user_id"},
@@ -20,7 +20,7 @@ CRITICAL_COLUMNS = {
 }
 RELATIONS = (
     ("refresh_tokens", "user_id", "users"),
-    ("password_reset_deliveries", "user_id", "users"),
+    ("mail_deliveries", "user_id", "users"),
     ("user_vocabulary_progress", "user_id", "users"),
     ("review_logs", "progress_id", "user_vocabulary_progress"),
     ("daily_journeys", "user_id", "users"),

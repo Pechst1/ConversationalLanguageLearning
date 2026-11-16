@@ -24,6 +24,7 @@ from app.services.address import character_register
 from app.services.atelier_rewards import AtelierRewardService
 from app.services.cast_registry import card_line
 from app.services.chrome_language import user_chrome_language
+from app.services.closing_filler import scene_fact
 from app.services.graphic_novel import (
     GraphicNovelGenerationError,
     GraphicNovelScheduler,
@@ -1738,6 +1739,9 @@ class SerialThreadService:
             if callback_override is not None
             else self._harvest_callback(mission=mission)
         )
+        # #597: the relationship's shared callbacks are what a character may quote
+        # later; a season page's «À suivre…» is nobody's memory.
+        callback = scene_fact(callback)
         if callback:
             callbacks = [str(item) for item in entry.get("callbacks") or [] if str(item or "").strip()]
             if callback not in callbacks:
@@ -2261,14 +2265,7 @@ class SerialThreadService:
         member = self._cast_member(thread, character_id)
         if member and member.get("name"):
             return str(member.get("name"))
-        return {
-            "landlord_marchand": "M. Marchand",
-            "margaux_barman": "Margaux",
-            "augustin_de_roncourt": "Gus",
-            "romy_tremblay": "Romy",
-            "marin_leveque": "Marin",
-            "lila_bonnet": "Lila",
-        }.get(character_id, character_id.replace("_", " ").title())
+        return cast_registry.display_name(character_id, character_id.replace("_", " ").title())
 
     def _character_role(self, thread: SerialThread, character_id: str) -> str:
         # #265: the registry's role, the one every other surface prints; the bible's

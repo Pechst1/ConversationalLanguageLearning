@@ -27,6 +27,73 @@ Every generated day must end with **something different from how it began**, and
 - **A dramatic investigation that learns nothing.** A mystery beat that ends where it began is refused.
 - **A day that advances a thread the tentpole owns.** See each gap's «must not» list.
 
+## The day contract (gaps 3 and 4, 2026-11-10, waiting for the owner's review)
+
+A planned day can carry a **contract** next to its «before → after» (`days[].contract` in `gaps.json`; design in `docs/story/red-thread-design-2026-11-10.md`). It splits the day's `after` into what the plan owns and what the learner owns:
+
+| Field | What it says |
+|---|---|
+| `place`, `place_alt` | Where the page is set, and a canon-safe second place while the first is not built. |
+| `lands` | The floor: what becomes true today whatever the learner answers. |
+| `turns` | At most two asks, one ask per level (`a1`, `b1`), with the simpler re-ask for an off-topic reply. The level guard is run over every ask in `tests/test_day_contract.py`. |
+| `mark` | What the learner's own words add (a name, a line on a card), its authored default, and the later day or tentpole where it comes back. |
+| `routes` | The ways the day can land. Exactly one is the default, taken on a question, a refusal or silence; it still makes every `lands` fact true. |
+| `hook` | The «À suivre…»: who says it, the next planned day it leads into, the line, and the words a rephrased line must keep. |
+| `after_fr` | «What changed», one line, with its English and German (`native`, `native_a1`): the day's summary, and the last line of the next day's «Précédemment». |
+| `lead`, `routes[].line` | Who the learner talks to, and that character's last spoken line on each route. A route without a line, or a page that turned to someone else, closes on `after_fr` as a caption. |
+| `routes[].needs_mark` | A route taken only with the learner's own mark («named»). Without one the day lands on the route that needs none. |
+
+Each gap can also name its `destination` (gap 3: «Les 25 ans du Mistral», samedi).
+
+With `STORY_DAY_CONTRACT` on, a contract day **ends on its contract** (`app/services/season/day_contract.py`):
+
+1. The model only reads the learner: which route their words took (`contract_route`) and their own words for the mark (`contract_mark_fr`).
+2. The code decides. An unknown route is the default one. A mark is kept only when it is a verbatim span of what the learner wrote today, short enough, not a question, and free of the gap's «must not» patterns. Otherwise the authored default stands («le canapé de Vincent»).
+3. The ending is the contract's: the lead's line for that route in the bubble, `after_fr` as the summary and as the fact the story keeps. A model's own ending, a critic-refused one and the authored fallback all land the same floor.
+4. The season keeps a ledger (`season_script.contract_ledger`): the facts that became true and by which route, the learner's mark as written, and each day's «what changed».
+
+The page before the ending is **written to the contract** too. The brief carries `today.contract` (who asks, the place and its second place, the one ask at the learner's level, what must hold, the routes, the hook), and the planner, the one-call director and the story critic each get a short note on a contract day only:
+
+- The lead and the place are the contract's. A plan that casts someone else or goes elsewhere is refused before any French is written; a one-call page gets one retry with the hint and is then served. A place the quarter has not built yet is never forced: the second place is used, or the writer chooses.
+- The page stops just before the day's facts become true. The ending makes them true, so no page has to, and none may say they already happened or put them off.
+- The critic reads the day's change as certain (`learner_turn.guaranteed`) and refuses a page only when it contradicts that change.
+
+The learner's mark **comes back** on the planned day its `comes_back` names (the canapé's name on g3.7, the card on g3.6). The brief gives the writer only a slot (`today.contract.brings_back`: `{g3.canape_name}` and the mark's `what`), never the learner's words. The writer puts the slot once in a line; the code fills it with what the ledger holds (the learner's words, or the authored default) before any guard reads the page, so every guard reads the page the learner will read. A page that dropped the slot gets one retry with the hint and is then served. A slot aimed at a tentpole (`T4`) is not wired: authored episodes change only with the owner's word.
+
+A chapter opened in a gap whose days carry contracts is a **standard** chapter: the contract says who leads and where, so the hands that say otherwise (one room, two voices, a letter) are not dealt there.
+
+### The stand-in page (`STORY_CONTRACT_STAND_IN`, needs `STORY_DAY_CONTRACT`)
+
+A planned day whose page no writer delivered used to re-read the last page, and the story stood still for a day. With the flag on, such a day is served on its own short page, written here in `gaps.json` under `contract.stand_in`: four to six panels (a caption each, or one line of the day's lead), the lead's question, the task per level in German and French (English reads the turn's own `ask`), and a reply to lean on.
+
+- **No model writes it**, and it is built only in the request a learner waits on: a failure at night leaves the morning its own try.
+- **Every guard reads it in the learner's life**, exactly as it reads a written page. A page a guard refuses for them, a lead who may not speak today, or a place the quarter has not built (and no `place_alt`) keeps the re-read.
+- **The page says where it is.** Set at the contract's `place_alt` (the first place is not built yet), it reads `alt_panels`, its panels for that place; a page without them (the roof) is not served there.
+- **It is a normal contract day**: it stages the planned premise, ends on the contract's routes, hook and `after_fr`, and the season moves on.
+- Eleven of the thirteen planned days of gaps 3 and 4 have one. `le_billet_encore` (nobody leads) and `l_abattant` (Margaux is silent) do not.
+- The format check (`_check_stand_in`) refuses a page without a lead, without English and German for every line, with an open slot, or with a line one of the gap's `must_not` rows forbids. Each served stand-in writes the pilot event `journey_story_stand_in`.
+
+The French and German of the stand-ins are a first draft, to be read by the owner before the flag goes on.
+
+### The question, once more (`STORY_CONTRACT_REASK`, needs `STORY_DAY_CONTRACT`)
+
+A reply that does not answer the day's question (the tutor's `not_yet`) is met once with the same question in the simpler French the contract wrote, `turns[].ask_again_fr`, in place of the reply lane's own reply (`day_contract.reask`, applied in `story_lanes`). Never over a question the learner asked (that one is answered first), never twice in a scene, and not on the last turn. The reply lane never reads the line; a day without one is left to the reply lane.
+
+### Shared pages (`STORY_SHARED_PAGES`, needs `STORY_DAY_CONTRACT`)
+
+Owner decision of 10 November: the page is shared, the learning material stays in the training. With the flag on, a contract day's page is no longer written once per learner (`app/services/season/page_pool.py`):
+
+1. **Written without the life.** The writer gets the day, the cast, the places, the registers, the flags and the contract. It does not get the learner's earlier pages, memory, callbacks, commitments, grammar plan or review words, nor the dice a life rolls for itself (the complication card, whose secret is next, the arcs).
+2. **Kept.** A page the guards and the critic accepted is stored in `story_pool_pages` as written: the learner's marks still as slots, and nothing it claims about one life. A page served over the critic's refusal is never kept.
+3. **Served.** The next learner whose day gives the writer exactly the same input (same day, level, language, registers, flags, open chapter, days left) reads that page with no model call. Their own words fill its slots, and **every guard runs on the page in their own life** before it is served. A page a guard refuses for them is not served to them: theirs is written, and kept beside it (three per day and input at most).
+4. **Retired.** `scripts/story_pool.py list | show <id> | retire <id> --reason …` lets the owner read the pool and take a page out of it for everyone who has not read it yet.
+
+What still makes two learners' days different, and so their pages: the level, the language, a flag the day reads (Camille, as chosen in T1), the registers, the weekday the gap started on (days left), and a chapter opened by a page that was not shared. A day after an absence, an épreuve and a later act are always written for their learner. Each lookup writes a `journey_story_pool` pilot event (served or not, and why not), so the share of days served from the pool can be read once the flag is on.
+
+Still to come: an authored page per beat for the night every attempt fails (today that night still falls to a re-read), and the re-ask (`ask_again_fr`).
+
+Open for the owner: the French of the hooks, the closing lines and the `after_fr` lines, the second places, and gap 4's destination (none yet, so nothing hints at T5).
+
 ## The shape of a generated day
 
 - **Length.** One page of **4–6 panels**, **2–3 exchanges**, and at most one mechanic (Enquête, Convaincre, Choix, Déchiffrer).

@@ -1,0 +1,38 @@
+{
+ "surfaces": {
+  "scene": {
+   "fingerprint": "70e5134192dbbea5",
+   "calls": 112,
+   "verdict": "baseline",
+   "date": "2026-11-14",
+   "base_ref": "7c7de3020"
+  },
+  "forge": {
+   "fingerprint": "1da9c4436c71310c",
+   "calls": 28,
+   "verdict": "held",
+   "base": 85.5,
+   "head": 85.8,
+   "diff": 0.4,
+   "paired": 28,
+   "date": "2026-11-16",
+   "base_ref": "68b7eff8b",
+   "criteria": "adfd25c6eb00",
+   "judge": "claude-sonnet-5-5"
+  },
+  "courrier": {
+   "fingerprint": "27ac431131509f28",
+   "calls": 24,
+   "verdict": "baseline",
+   "date": "2026-11-14",
+   "base_ref": "7c7de3020"
+  },
+  "correction": {
+   "fingerprint": "d807bf0a88210e88",
+   "calls": 26,
+   "verdict": "baseline",
+   "date": "2026-11-14",
+   "base_ref": "7c7de3020"
+  }
+ }
+}

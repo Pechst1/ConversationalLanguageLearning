@@ -20,7 +20,7 @@ from app.db.models.grammar import GrammarConcept
 from app.services.grammar_feedback import infer_grammar_profile
 
 ROOT = Path(__file__).resolve().parents[1]
-CATALOGUES = ("templates/french_core_grammar_v1.tsv", "templates/french_core_grammar_v2.tsv")
+CATALOGUES = ("app/data/grammar_catalog/french_core_grammar_v1.tsv", "app/data/grammar_catalog/french_core_grammar_v2.tsv")
 
 #: Words that only a template with a hole in it can print to a learner.
 PLACEHOLDERS = (

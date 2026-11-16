@@ -80,4 +80,32 @@ def concept_title_fr(concept: Any, localization: Any = None) -> str:
     return concept_title(concept, "fr", localizations={"fr": title} if title else {})
 
 
-__all__ = ["FALLBACK_LANGUAGE", "concept_title", "concept_title_fr", "concept_titles"]
+def localizations_by_concept_id(db: Any, concept_ids: Any) -> dict[int, dict[str, str]]:
+    """``{concept_id: {locale: title}}`` for many rules in one query (every locale).
+
+    The batch twin of ``concept.localizations``: hand a rule's entry to
+    ``concept_title(..., localizations=)`` so a list of rules (the Cahier, a day's
+    concepts) does not load the rows once per rule.
+    """
+
+    from app.db.models.grammar import GrammarConceptLocalization
+
+    ids = [concept_id for concept_id in set(concept_ids) if concept_id is not None]
+    found: dict[int, dict[str, str]] = {concept_id: {} for concept_id in ids}
+    if not ids:
+        return found
+    rows = db.query(GrammarConceptLocalization).filter(GrammarConceptLocalization.concept_id.in_(ids)).all()
+    for row in rows:
+        title = str(row.title or "").strip()
+        if title:
+            found[row.concept_id][normalize_language(row.locale)] = title
+    return found
+
+
+__all__ = [
+    "FALLBACK_LANGUAGE",
+    "concept_title",
+    "concept_title_fr",
+    "concept_titles",
+    "localizations_by_concept_id",
+]

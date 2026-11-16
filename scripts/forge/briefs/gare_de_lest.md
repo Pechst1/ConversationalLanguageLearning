@@ -1,0 +1,1 @@
+Waits for a kit: the platform of 8 January (T8 B, F1 to F5) is a train shed under a glass roof with a long white high-speed train whose doors open and close, and the room kit has neither a vaulted glass roof on iron trusses, a platform edge with its track, nor a train.

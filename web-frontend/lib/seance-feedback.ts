@@ -1,3 +1,5 @@
+import { checkState, isUnread } from './verdict';
+
 /** Server assessment is authoritative; an empty error list is not a pass. */
 export function seanceAssessment(correction: Record<string, any> | null): 'correct' | 'needs_work' | 'unavailable' | 'pending' {
   if (!correction) return 'pending';
@@ -7,11 +9,10 @@ export function seanceAssessment(correction: Record<string, any> | null): 'corre
   // blocks the learner behind a «pending» screen.
   const checked = correction.assessment_status === 'checked' || correction.assessment_status === 'provisional';
   if (!checked && ['pending', 'queued', 'reviewing'].includes(status)) return 'pending';
-  // A rule check («Épreuve») graded on the spot by the rule's detector is
-  // final without the model: it is checked, not a legacy unchecked line.
-  const legacyUnchecked = typeof correction.corrected_answer === 'string' && correction.correction_debug?.fallback_used
-    && correction.assessment_status !== 'provisional' && correction.graded_by !== 'local_test_out';
-  if (correction.assessment_status === 'unavailable' || legacyUnchecked || (!checked && ['failed', 'error'].includes(status))) return 'unavailable';
+  // #471, #333: the server says whether the answer was read, in `check`. `fallback_used` only
+  // says no model wrote the reply: the rule-based key sets it on answers that ARE checked.
+  if (isUnread(checkState(correction.check)) || correction.assessment_status === 'unavailable') return 'unavailable';
+  if (!checked && ['failed', 'error'].includes(status)) return 'unavailable';
   if (!['correct', 'accepted'].includes(correction.verdict)) return 'needs_work';
   if (correction.errata?.length || correction.missing_targets?.length || correction.lexical_gaps?.length) return 'needs_work';
   return 'correct';

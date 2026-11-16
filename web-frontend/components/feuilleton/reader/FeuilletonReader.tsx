@@ -33,6 +33,7 @@ import type { LineVoice } from '@/components/atelier-v2/journey/useLineVoice';
 import { frenchSpacing } from '@/lib/french-typography';
 import { enterImmersiveSurface } from '@/lib/immersive-surface';
 import { resolveMediaUrl } from '@/lib/media-url';
+import { checkState, isUnread } from '@/lib/verdict';
 import apiService from '@/services/api';
 import type { ControlLanguage } from '@/types/daily-journey';
 
@@ -1295,6 +1296,7 @@ function TaskCard({
   const promptEn = taskPromptTranslation(task);
   const branch = correctionIsBranch(correction);
   const positive = correctionIsPositive(correction);
+  const readState = checkState(correction?.check);
   const feedback = correctionLine(correction);
   const errored = submitError?.taskId === taskId;
   const recorded = String(attempt?.answer_payload?.answer ?? attempt?.answer ?? '').trim();
@@ -1319,7 +1321,15 @@ function TaskCard({
               <p className="fr-quote-fr">{recorded}</p>
             </blockquote>
           )}
-          {correction && (
+          {correction && isUnread(readState) && (
+            <p className="fr-feedback" role="status" data-check={readState}>
+              <span>
+                <b>{readState === 'basic' ? t.check_basic : t.check_not_checked}</b>
+                {readState === 'basic' ? feedback : ''}
+              </span>
+            </p>
+          )}
+          {correction && !isUnread(readState) && (
             <p className={`fr-feedback ${branch ? 'is-branch' : positive ? '' : 'is-wrong'}`} role="status">
               <span className="tok" aria-hidden="true">
                 {positive ? <CheckIcon size={15} /> : <CrossIcon size={15} />}

@@ -337,7 +337,7 @@ test('wiring: the séance cheers the run and feels it, the Cahier shows the map,
   assert.match(atelier, /forge\.result\.passed && forge\.result\.token/);
   assert.match(read('pages/grammar.tsx'), /<GrammarMap language=\{language\} onOpenPage=\{selectConcept\} \/>/);
   assert.match(read('components/atelier-v2/journey/JourneyRecap.tsx'), /rings=\{seal\.rings\}/);
-  assert.match(read('lib/product-shell.ts'), /'\/eclair'/);
+  assert.match(read('lib/places.ts'), /route: '\/eclair',/);
 });
 
 test('fillMomentum fills placeholders', () => {

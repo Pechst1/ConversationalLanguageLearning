@@ -1,0 +1,410 @@
+{
+  "id": "gerance_marchand",
+  "kind": "room",
+  "round": 3,
+  "in": "quai_de_valmy",
+  "canon": {
+    "doc": "docs/story/season-1/10-lieux-et-images.md",
+    "place": "M. Marchand's office · second floor, «Gérance Marchand»",
+    "scenes": [
+      "T6 A · «L'autre côté»: P1 to P7",
+      "T3 · À suivre"
+    ]
+  },
+  "ambiance": "nuit",
+  "title": {
+    "fr": "La gérance Marchand",
+    "en": "The Marchand property office",
+    "de": "Die Hausverwaltung Marchand"
+  },
+  "can_do": {
+    "fr": "Voir les clés, le lit de camp, et le Polaroid sur le bureau.",
+    "en": "See the keys, the camp bed, and the Polaroid on the desk.",
+    "de": "Die Schlüssel sehen, das Feldbett und das Polaroid auf dem Schreibtisch."
+  },
+  "arrive": {
+    "fr": "La gérance Marchand, au deuxième. Une lampe, des clés, et un lit de camp.",
+    "en": "The Marchand office, on the second floor. A lamp, keys, and a camp bed.",
+    "de": "Die Hausverwaltung Marchand, im zweiten Stock. Eine Lampe, Schlüssel und ein Feldbett."
+  },
+  "start": {
+    "pos": [
+      -29.55,
+      -18.2
+    ],
+    "look": [
+      -29.9,
+      8.6,
+      -15.0
+    ]
+  },
+  "spaces": [
+    {
+      "key": "bureau",
+      "rect": [
+        -31.8,
+        -18.75,
+        -27.26,
+        -13.5
+      ],
+      "floor": 7.9,
+      "ceiling": 10.9,
+      "finish": "parquet",
+      "walls": {
+        "finish": "plaster",
+        "tone": "grey"
+      }
+    }
+  ],
+  "floors": [],
+  "walls": [],
+  "flights": [],
+  "rails": [],
+  "doors": [
+    {
+      "key": "porte_palier",
+      "wall": "bureau.n",
+      "u": [
+        1.8,
+        2.7
+      ],
+      "height": 2.2,
+      "hinge": "left",
+      "swing": "in",
+      "tone": "brown",
+      "opens": "never",
+      "mat": true
+    }
+  ],
+  "windows": [
+    {
+      "key": "fenetre_1",
+      "wall": "bureau.e",
+      "u": [
+        1.0,
+        2.2
+      ],
+      "y": [
+        7.98,
+        10.3
+      ],
+      "shutters": "open",
+      "guard": true
+    },
+    {
+      "key": "fenetre_2",
+      "wall": "bureau.e",
+      "u": [
+        3.2,
+        4.4
+      ],
+      "y": [
+        7.98,
+        10.3
+      ],
+      "shutters": "open",
+      "guard": true
+    }
+  ],
+  "lights": [
+    {
+      "key": "lampe",
+      "kind": "desk",
+      "at": [
+        -28.75,
+        9.08,
+        -16.8
+      ],
+      "facing": [
+        -1,
+        0
+      ],
+      "power": 0.9,
+      "range": 4.5
+    }
+  ],
+  "switches": [],
+  "timers": [],
+  "things": [
+    {
+      "kind": "keyboard",
+      "at": [
+        -31.8,
+        9.35,
+        -17.6
+      ],
+      "rot": 1.5707963267948966,
+      "size": [
+        1.3,
+        0.9
+      ],
+      "look": {
+        "fr": "Des tableaux de clés sur tout le mur. Sur chaque étiquette, une adresse.",
+        "en": "Key boards all along the wall. On every tag, an address.",
+        "de": "Schlüsselbretter über die ganze Wand. Auf jedem Anhänger eine Adresse."
+      },
+      "did": {
+        "fr": "Tu as vu les clés de ses immeubles.",
+        "en": "You saw the keys to his buildings.",
+        "de": "Du hast die Schlüssel zu seinen Häusern gesehen."
+      }
+    },
+    {
+      "kind": "keyboard",
+      "at": [
+        -31.8,
+        10.3,
+        -17.6
+      ],
+      "rot": 1.5707963267948966,
+      "size": [
+        1.3,
+        0.7
+      ]
+    },
+    {
+      "kind": "keyboard",
+      "at": [
+        -31.8,
+        9.35,
+        -16.1
+      ],
+      "rot": 1.5707963267948966,
+      "size": [
+        1.3,
+        0.9
+      ]
+    },
+    {
+      "kind": "keyboard",
+      "at": [
+        -31.8,
+        10.3,
+        -16.1
+      ],
+      "rot": 1.5707963267948966,
+      "size": [
+        1.3,
+        0.7
+      ]
+    },
+    {
+      "kind": "keyboard",
+      "at": [
+        -31.8,
+        9.35,
+        -14.6
+      ],
+      "rot": 1.5707963267948966,
+      "size": [
+        1.3,
+        0.9
+      ]
+    },
+    {
+      "kind": "keyboard",
+      "at": [
+        -31.8,
+        10.3,
+        -14.6
+      ],
+      "rot": 1.5707963267948966,
+      "size": [
+        1.3,
+        0.7
+      ]
+    },
+    {
+      "kind": "desk",
+      "at": [
+        -28.6,
+        7.9,
+        -16.6
+      ],
+      "rot": -1.5707963267948966,
+      "size": [
+        1.4,
+        0.75
+      ]
+    },
+    {
+      "kind": "armchair",
+      "at": [
+        -27.92,
+        7.9,
+        -16.6
+      ],
+      "rot": -1.5707963267948966
+    },
+    {
+      "kind": "chair",
+      "at": [
+        -29.45,
+        7.9,
+        -16.6
+      ],
+      "rot": 1.5707963267948966
+    },
+    {
+      "kind": "frame",
+      "at": [
+        -28.75,
+        8.66,
+        -16.05
+      ],
+      "rot": -1.5707963267948966,
+      "text": [
+        "Dimanche. M. rit. Enfin."
+      ],
+      "look": {
+        "fr": "Un Polaroid dans un petit cadre : un vieil homme et une vieille femme rient sur un banc, au bord d'un lac. En dessous, à la main : «Dimanche. M. rit. Enfin.»",
+        "en": "A Polaroid in a small frame: an old man and an old woman laughing on a bench by a lake. Underneath, by hand: «Dimanche. M. rit. Enfin.»",
+        "de": "Ein Polaroid in einem kleinen Rahmen: ein alter Mann und eine alte Frau lachen auf einer Bank an einem See. Darunter, von Hand: «Dimanche. M. rit. Enfin.»"
+      },
+      "did": {
+        "fr": "Tu as vu le Polaroid sur le bureau.",
+        "en": "You saw the Polaroid on the desk.",
+        "de": "Du hast das Polaroid auf dem Schreibtisch gesehen."
+      }
+    },
+    {
+      "kind": "frame",
+      "at": [
+        -28.5,
+        8.66,
+        -15.98
+      ],
+      "rot": -1.3207963267948966
+    },
+    {
+      "kind": "campbed",
+      "at": [
+        -30.4,
+        7.9,
+        -14.5
+      ],
+      "rot": 0,
+      "size": [
+        1.9,
+        0.7
+      ],
+      "look": {
+        "fr": "Un lit de camp, au milieu des dossiers. La couverture est tirée, les coins au carré.",
+        "en": "A camp bed, among the files. The blanket pulled tight, the corners squared.",
+        "de": "Ein Feldbett, mitten zwischen den Akten. Die Decke straff gezogen, die Ecken akkurat."
+      },
+      "did": {
+        "fr": "Tu as vu le lit de camp.",
+        "en": "You saw the camp bed.",
+        "de": "Du hast das Feldbett gesehen."
+      }
+    },
+    {
+      "kind": "cabinet",
+      "at": [
+        -28.85,
+        7.9,
+        -13.5
+      ],
+      "rot": 3.141592653589793
+    },
+    {
+      "kind": "cabinet",
+      "at": [
+        -28.35,
+        7.9,
+        -13.5
+      ],
+      "rot": 3.141592653589793
+    },
+    {
+      "kind": "cabinet",
+      "at": [
+        -27.85,
+        7.9,
+        -13.5
+      ],
+      "rot": 3.141592653589793
+    },
+    {
+      "kind": "folder",
+      "at": [
+        -28.35,
+        9.22,
+        -13.82
+      ],
+      "rot": 3.141592653589793,
+      "text": [
+        "TOITURE · FAÇADE"
+      ]
+    },
+    {
+      "kind": "calendar",
+      "at": [
+        -31.2,
+        9.4,
+        -18.75
+      ],
+      "rot": 0,
+      "text": [
+        "DÉCEMBRE 2026"
+      ]
+    },
+    {
+      "kind": "coat",
+      "at": [
+        -30.45,
+        9.65,
+        -18.75
+      ],
+      "rot": 0,
+      "tone": "navy"
+    },
+    {
+      "kind": "radiator",
+      "at": [
+        -27.26,
+        7.9,
+        -16.1
+      ],
+      "rot": -1.5707963267948966
+    }
+  ],
+  "courts": [],
+  "canals": [
+    {
+      "z0": -45.0,
+      "z1": 30.0,
+      "storeys": 6,
+      "seed": 37,
+      "lit": 0.35
+    }
+  ],
+  "marks": {
+    "porte": [
+      -29.55,
+      7.9,
+      -18.2
+    ],
+    "bureau": [
+      -29.6,
+      7.9,
+      -17.4
+    ],
+    "lit": [
+      -30.4,
+      7.9,
+      -15.45
+    ],
+    "cles": [
+      -31.0,
+      7.9,
+      -16.9
+    ],
+    "fenetre": [
+      -27.75,
+      7.9,
+      -14.9
+    ]
+  }
+}

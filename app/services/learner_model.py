@@ -58,6 +58,7 @@ from app.services.cefr_progress import (
     declared_level_floor,
     live_level,
 )
+from app.services.chrome_language import user_mother_tongue
 from app.services.error_memory import (
     ERROR_STATE_MASTERED,
     ERROR_STATE_OPEN,
@@ -220,7 +221,7 @@ def build_dossier(db: Session, *, user: User, control_language: str | None = Non
     cannot be opened is worse than one with a hole in it.
     """
 
-    language = str(control_language or getattr(user, "native_language", None) or "en")
+    language = str(control_language or user_mother_tongue(user))
     return Dossier(
         version=DOSSIER_VERSION,
         level=_level_belief(db, user=user),
@@ -478,7 +479,7 @@ def _errata_beliefs(db: Session, *, user: User) -> dict[str, Any]:
         ERROR_STATE_MASTERED: [],
     }
     for row in rows:
-        payload = serialize_error_memory(row, language=getattr(user, "native_language", None))
+        payload = serialize_error_memory(row, language=user_mother_tongue(user))
         state = str(payload.get("state") or ERROR_STATE_OPEN)
         bucket = by_state.setdefault(state, [])
         if len(bucket) >= ERRATA_PER_STATE:
@@ -1214,7 +1215,7 @@ def _word_row(db: Session, *, user: User, target_id: str) -> VocabularyWord | No
 def _gloss_for(word: VocabularyWord, *, user: User) -> str:
     """The learner's own language first, then the other stored translation."""
 
-    native = str(getattr(user, "native_language", None) or "en").lower()
+    native = user_mother_tongue(user)
     ordered = (
         [word.german_translation, word.english_translation]
         if native.startswith("de")

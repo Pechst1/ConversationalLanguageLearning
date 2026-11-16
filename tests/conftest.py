@@ -22,6 +22,10 @@ os.environ.setdefault("ATELIER_LLM_ENABLED", "false")
 # tests/test_wp87_* switch the three-lane turn on (the production default).
 os.environ.setdefault("ATELIER_STORY_TURN_LANES_ENABLED", "false")
 os.environ.setdefault("GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED", "false")
+# The story-truth stack (#145/#147/#621) runs as production runs it (render.yaml); its
+# tests were written against it. tests/test_scene_record_flag_off.py switches it off and
+# checks that a learner then gets exactly what main served.
+os.environ.setdefault("STORY_SCENE_RECORD", "true")
 os.environ.setdefault("ATELIER_PANEL_ART_ENABLED", "false")
 # WP-75: a learner's first day is authored (the café, the cast, two quick
 # recall items). The suite's existing journey tests are about the day the
@@ -66,6 +70,7 @@ from app.db.models import (
 )
 from app.db.models.achievement import Achievement, UserAchievement
 from app.db.models.analytics import AnalyticsSnapshot
+from app.db.models.answer_memo import AnswerMemo
 from app.db.models.atelier import (
     AtelierAttempt,
     AtelierCollectible,
@@ -116,7 +121,12 @@ from app.db.models.session import (
     WordInteraction,
 )
 from app.db.models.spend_reservation import SpendReservation
+from app.db.models.story_pool import StoryPoolPage
 from app.db.models.streak_day import StreakDay
+from app.db.models.verdict_appeal import VerdictAppeal
+from app.db.models.verdict_cutover import VerdictCutover
+from app.db.models.verdict_record import VerdictRecord
+from app.db.models.verdict_settlement import VerdictSettlement
 from app.db.models.vocabulary import UserDailyWordSlate, VocabularyDrillBatch
 from app.main import create_app
 from app.utils.cache import cache_backend
@@ -238,6 +248,11 @@ def db_engine():
             AnalyticsSnapshot.__table__,
             PilotEvent.__table__,
             SpendReservation.__table__,
+            VerdictCutover.__table__,
+            VerdictRecord.__table__,
+            VerdictSettlement.__table__,
+            AnswerMemo.__table__,
+            VerdictAppeal.__table__,
             PlacementSession.__table__,
             Rehearsal.__table__,
             VocabularyWord.__table__,
@@ -288,6 +303,7 @@ def db_engine():
             StreakDay.__table__,
             GoldLedgerEntry.__table__,
             GoldBalance.__table__,
+            StoryPoolPage.__table__,
         ],
     )
     try:
@@ -296,6 +312,7 @@ def db_engine():
         Base.metadata.drop_all(
             bind=engine,
             tables=[
+                StoryPoolPage.__table__,
                 GoldBalance.__table__,
                 GoldLedgerEntry.__table__,
                 StreakDay.__table__,
@@ -313,6 +330,11 @@ def db_engine():
                 AnalyticsSnapshot.__table__,
                 Rehearsal.__table__,
                 SpendReservation.__table__,
+                VerdictRecord.__table__,
+                VerdictSettlement.__table__,
+                AnswerMemo.__table__,
+                VerdictAppeal.__table__,
+                VerdictCutover.__table__,
                 PilotEvent.__table__,
                 UserErrorConcept.__table__,
                 UserError.__table__,
@@ -467,6 +489,62 @@ def pinned_clock() -> Generator[datetime, None, None]:
         test_clock.uninstall()
 
 
+#: The wall-clock moments the midnight regression runs at (``learner_clock``): a
+#: plain noon, 23:30 UTC (00:30 or 01:30 in Berlin: the UTC date is a day behind the
+#: learner's) and five minutes past the learner's own midnight, whatever the season.
+LEARNER_CLOCK_MOMENTS = ("noon-utc", "2330-utc", "berlin-0005")
+
+
+def _next_moment(real: datetime, label: str) -> datetime:
+    from zoneinfo import ZoneInfo
+
+    if label == "berlin-0005":
+        zone = ZoneInfo("Europe/Berlin")
+        local = real.astimezone(zone)
+        target = datetime.combine(local.date(), datetime.min.time(), tzinfo=zone) + timedelta(minutes=5)
+        while target.astimezone(UTC) < real:
+            target = datetime.combine(target.date() + timedelta(days=1), datetime.min.time(), tzinfo=zone) + timedelta(
+                minutes=5
+            )
+        return target.astimezone(UTC)
+    hour, minute = {"noon-utc": (12, 0), "2330-utc": (23, 30)}[label]
+    target = real.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    return target if target >= real else target + timedelta(days=1)
+
+
+@pytest.fixture(params=LEARNER_CLOCK_MOMENTS)
+def learner_clock(request: pytest.FixtureRequest) -> Generator[datetime, None, None]:
+    """Every app clock at one of :data:`LEARNER_CLOCK_MOMENTS`, restored after.
+
+    The 9 Nov CI jobs (PRs #656–#658) failed only between 23:00 and 24:00 UTC, the
+    hour when Berlin's date is a day ahead of UTC's. A test that takes this fixture
+    runs at each moment and must compute its own «now» from the moment it yields.
+    Like ``pinned_clock``: forward only, and request it *after* ``client``. Every
+    ``app.*`` module is imported first, so a lazy import inside a test reads the
+    same clock as the rest of the app.
+    """
+
+    import contextlib
+    import importlib
+    import pkgutil
+
+    import app as app_package
+    from app.core import test_clock
+
+    for info in pkgutil.walk_packages(app_package.__path__, "app."):
+        if info.name.startswith(("app.services", "app.core", "app.api")):
+            with contextlib.suppress(Exception):  # an optional module stays unpatched
+                importlib.import_module(info.name)
+    real = datetime.now(UTC)
+    target = _next_moment(real, request.param)
+    test_clock.install()
+    test_clock.set_offset(target - real)
+    try:
+        yield target
+    finally:
+        test_clock.uninstall()
+
+
 @pytest.fixture()
 def local_demo_auth(monkeypatch: pytest.MonkeyPatch) -> None:
     """Enable the unauthenticated local-demo user for one test.
@@ -556,3 +634,25 @@ def french_vocabulary(db_session):
     finally:
         db_session.query(VocabularyWord).delete()
         db_session.commit()
+
+
+@pytest.fixture()
+def verified_signups(monkeypatch):
+    """S4 stage 3: accounts created in this test start with a verified address.
+
+    A reset by mail needs a verified address now. Tests about the reset itself
+    (codes, links, cooldowns, delivery) start from an account that has one, as
+    every account that existed before the stage-3 migration does.
+    """
+    from app.services.auth import AuthService
+
+    original = AuthService.register_user
+
+    def register_verified(self, payload):
+        user = original(self, payload)
+        user.is_verified = True
+        self.db.add(user)
+        self.db.commit()
+        return user
+
+    monkeypatch.setattr(AuthService, "register_user", register_verified)

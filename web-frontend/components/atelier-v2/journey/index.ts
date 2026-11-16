@@ -21,6 +21,7 @@ export {
   detailOfPayload,
   feedbackFromAttempt,
   formatDuration,
+  formatPlannedDuration,
   isReconcileCode,
   journeyOfPhase,
   journeyProgress,

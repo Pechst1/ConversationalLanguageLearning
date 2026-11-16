@@ -10,6 +10,8 @@
  * and out, so the page runs through the real parsers.
  */
 
+import { CAST_NAMES } from './generated/cast';
+
 type Json = Record<string, any>;
 type Lang = 'en' | 'de' | 'fr';
 type Band = 'A1' | 'A2' | 'B1' | 'B2';
@@ -22,14 +24,7 @@ export const STANCES: Stance[] = ['pour', 'contre', 'nuance'];
 const STEPS = ['read', 'takes', 'intox', 'opinion', 'page'] as const;
 const MAX_TRIES = 2;
 
-export const COMPTOIR_NAME_FR: Record<string, string> = {
-  romy_tremblay: 'Romy',
-  augustin_de_roncourt: 'Gus',
-  margaux_barman: 'Margaux',
-  lila_bonnet: 'Lila',
-  marin_leveque: 'Marin',
-  landlord_marchand: 'M. Marchand',
-};
+export const COMPTOIR_NAME_FR: Record<string, string> = CAST_NAMES;
 const ROLE_FR: Record<string, string> = {
   romy_tremblay: 'journaliste',
   augustin_de_roncourt: 'consultant',

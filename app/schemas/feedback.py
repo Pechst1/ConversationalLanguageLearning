@@ -29,6 +29,7 @@ class FeedbackReportCreate(BaseModel):
     viewport: dict[str, Any] = Field(default_factory=dict)
     user_agent: str | None = Field(default=None, max_length=500)
     context_payload: dict[str, Any] = Field(default_factory=dict)
+    wants_reply: bool = False
 
     model_config = ConfigDict(extra="forbid")
 
@@ -61,6 +62,7 @@ class FeedbackReportRead(BaseModel):
     viewport: dict[str, Any]
     user_agent: str | None = None
     context_payload: dict[str, Any]
+    wants_reply: bool = False
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

@@ -3,6 +3,8 @@
 The Apple enrollment and App Store Connect app record remain owner actions. Everything
 below is the repeatable release contract for `com.pixellab.feuilleton`.
 
+What is done so far, with dates, is in [ops/release-status.md](ops/release-status.md).
+
 ## 1. Backend production gate
 
 - Set `APP_ENV=production`.

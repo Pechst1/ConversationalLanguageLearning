@@ -86,24 +86,26 @@ def new_words_pace(db: Session, user: Any, *, now: datetime | None = None) -> di
     (``schemas.vocabulary.NewWordsPace``)."""
 
     from app.services.vocabulary_pace import (
-        EXTRA_WORDS_STEP,
-        MAX_EXTRA_NEW_WORDS,
         effective_new_word_cap,
         extra_new_words_today,
+        next_extra_step,
         planned_new_words,
     )
 
     base = planned_new_words(user)
     extra = extra_new_words_today(db, user, now=now)
+    # #563: one number for the next tap. The label, the grant and the goal line
+    # all take it; the pool decides it, not the step's name.
+    step = next_extra_step(db, user, now=now)
     goal, words_left = learner_goal(db, user, now=now)
-    more_words = base + extra + EXTRA_WORDS_STEP
+    more_words = base + extra + step
     (more,) = speedups(goal=goal, words_left=words_left, base_per_day=base, options=[more_words])
     return {
         "words_per_day": base,
         "extra_today": extra,
         "cap_today": effective_new_word_cap(db, user, now=now),
-        "step": EXTRA_WORDS_STEP,
-        "can_add_more": extra + EXTRA_WORDS_STEP <= MAX_EXTRA_NEW_WORDS,
+        "step": step,
+        "can_add_more": step > 0,
         "goal": goal,
         "words_left": words_left,
         "more": more,

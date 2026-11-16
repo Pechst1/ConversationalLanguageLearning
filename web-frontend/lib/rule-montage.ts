@@ -7,10 +7,16 @@
  * without a word about grammatical gender. `[…]` marks what carries the rule, as on the rule card.
  */
 
+import { castDisplayName } from '@/lib/cast-faces';
 import type { ControlLanguage } from '@/types/daily-journey';
 
 export type MontageLine = Record<ControlLanguage, string>;
 export type MontageCast = { id: string; name: string };
+
+/** A person of the cast, named as the registry names them (#147: no second table of names here). */
+function castOf(id: string): MontageCast {
+  return { id, name: castDisplayName(id) ?? id };
+}
 
 export type MontageToken = {
   /** The word's identity: a kept key glides to its new place, a new key drops in. */
@@ -55,13 +61,13 @@ export type RuleMontageScript = {
   examples: Array<{ cast: MontageCast; fr: string }>;
 };
 
-const GUS: MontageCast = { id: 'augustin_de_roncourt', name: 'Gus' };
-const ROMY: MontageCast = { id: 'romy_tremblay', name: 'Romy' };
+const GUS = castOf('augustin_de_roncourt');
+const ROMY = castOf('romy_tremblay');
 
 const HIER: MontageToken = { k: 'hier', text: 'Hier,' };
 const STOP: MontageToken = { k: 'stop', text: '.' };
-const S_GUS: MontageToken = { k: 's-gus', text: 'Gus' };
-const S_ROMY: MontageToken = { k: 's-romy', text: 'Romy' };
+const S_GUS: MontageToken = { k: 's-gus', text: GUS.name };
+const S_ROMY: MontageToken = { k: 's-romy', text: ROMY.name };
 const MANGE: MontageToken = { k: 'v-mange', text: 'mangé', tight: true };
 const PARTI: MontageToken = { k: 'v-parti', text: 'parti', tight: true };
 
@@ -153,8 +159,8 @@ const PC_ETRE: RuleMontageScript = {
   ],
 };
 
-const LILA: MontageCast = { id: 'lila_bonnet', name: 'Lila' };
-const MARIN: MontageCast = { id: 'marin_leveque', name: 'Marin' };
+const LILA = castOf('lila_bonnet');
+const MARIN = castOf('marin_leveque');
 
 /* Step 2 (owner's approval of 10 November 2026): three more rules of the same family, each held to
    its rule card. The pronominal and the negation build on the pilot's être; the object pronoun
@@ -166,7 +172,7 @@ const REVEILLE: MontageToken = { k: 'v-reveille', text: 'réveillé', tight: tru
 const PC_PRONOMINAL: RuleMontageScript = {
   unit: 'FR2_A21_PC_PRONOMINAL',
   subject: MARIN,
-  start: [MATIN, { k: 's-marin', text: 'Marin' }, { k: 'h-a', text: 'a' }, { k: 'v-reveille', text: 'réveillé' }, { k: 'o-lila', text: 'Lila', tight: true }, STOP],
+  start: [MATIN, { k: 's-marin', text: MARIN.name }, { k: 'h-a', text: 'a' }, { k: 'v-reveille', text: 'réveillé' }, { k: 'o-lila', text: LILA.name, tight: true }, STOP],
   beats: [
     {
       ask: {
@@ -175,7 +181,7 @@ const PC_PRONOMINAL: RuleMontageScript = {
         fr: 'Marin a réveillé Lila. Maintenant, il se réveille lui-même : touche se.',
       },
       tap: { kind: 'tile', label: 'se' },
-      then: [MATIN, { k: 's-marin', text: 'Marin' }, { k: 'se', text: '[s’]', tight: true }, { k: 'h-a', text: 'a', off: true }, REVEILLE, STOP],
+      then: [MATIN, { k: 's-marin', text: MARIN.name }, { k: 'se', text: '[s’]', tight: true }, { k: 'h-a', text: 'a', off: true }, REVEILLE, STOP],
       flyInto: 'se',
       wobble: 'h-a',
       hold: 0,
@@ -187,7 +193,7 @@ const PC_PRONOMINAL: RuleMontageScript = {
         fr: 'Avec se, cet auxiliaire ne va plus. Touche-le.',
       },
       tap: { kind: 'token', k: 'h-a' },
-      then: [MATIN, { k: 's-marin', text: 'Marin' }, { k: 'se', text: '[s’]', tight: true }, { k: 'h-est', text: '[est]' }, REVEILLE, STOP],
+      then: [MATIN, { k: 's-marin', text: MARIN.name }, { k: 'se', text: '[s’]', tight: true }, { k: 'h-est', text: '[est]' }, REVEILLE, STOP],
       say: {
         en: 'Verbs with se take être.',
         de: 'Verben mit se nehmen être, anders als „ich habe mich“.',
@@ -202,7 +208,7 @@ const PC_PRONOMINAL: RuleMontageScript = {
         fr: 'Maintenant, Lila. Touche-la.',
       },
       tap: { kind: 'cast', cast: LILA },
-      then: [MATIN, { k: 's-lila', text: 'Lila' }, { k: 'se', text: '[s’]', tight: true }, { k: 'h-est', text: '[est]' }, REVEILLE, STOP],
+      then: [MATIN, { k: 's-lila', text: LILA.name }, { k: 'se', text: '[s’]', tight: true }, { k: 'h-est', text: '[est]' }, REVEILLE, STOP],
       subject: LILA,
       thread: { through: ['s-lila', 'se', 'h-est', 'v-reveille'], prints: { k: 'v-reveille', text: 'réveillé[e]' } },
       say: {
@@ -388,11 +394,11 @@ const COD: RuleMontageScript = {
    can see in the sentence. Each stays inside its rule card; the one wrong sentence on the way is the
    card's own contrast, struck and tapped away. */
 
-const MARGAUX: MontageCast = { id: 'margaux_barman', name: 'Margaux' };
+const MARGAUX = castOf('margaux_barman');
 
-const S_LILA: MontageToken = { k: 's-lila', text: 'Lila' };
-const S_MARIN: MontageToken = { k: 's-marin', text: 'Marin' };
-const S_MARGAUX: MontageToken = { k: 's-margaux', text: 'Margaux' };
+const S_LILA: MontageToken = { k: 's-lila', text: LILA.name };
+const S_MARIN: MontageToken = { k: 's-marin', text: MARIN.name };
+const S_MARGAUX: MontageToken = { k: 's-margaux', text: MARGAUX.name };
 
 const ADJ_AGREEMENT: RuleMontageScript = {
   unit: 'FR2_A11_ADJ_AGREEMENT',
@@ -776,7 +782,7 @@ const PC_AVOIR: RuleMontageScript = {
     {
       ask: { en: 'Now attendre. Tap it.', de: 'Jetzt attendre. Tippe darauf.', fr: 'Maintenant, attendre. Touche-le.' },
       tap: { kind: 'tile', label: 'attendre' },
-      then: [HIER, S_GUS, H_A, { k: 'v-attendu', text: 'attend[u]' }, { k: 'o-romy', text: 'Romy', tight: true }, STOP],
+      then: [HIER, S_GUS, H_A, { k: 'v-attendu', text: 'attend[u]' }, { k: 'o-romy', text: ROMY.name, tight: true }, STOP],
       say: { en: '-re becomes -u.', de: '-re wird zu -u.', fr: '-re devient -u.' },
       hold: 1300,
     },

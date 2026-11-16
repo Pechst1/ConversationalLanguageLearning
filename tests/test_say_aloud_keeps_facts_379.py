@@ -52,8 +52,15 @@ def test_the_walks_line_does_not_replace_the_learners_date_and_reason():
 
 
 def test_without_a_correction_the_line_is_the_learners_own_sentence():
-    line = spoken_reply.repeat_line_for(_step(REPLY, WRITTEN_BEFOREHAND))
-    assert line == REPLY
+    said = "Je veux retourner le deux décembre, parce que je suis fatigué de Berlin."
+    assert spoken_reply.repeat_line_for(_step(said, WRITTEN_BEFOREHAND)) == said
+
+
+def test_a_sentence_with_its_mistakes_in_it_is_not_offered():
+    """#558: the reply above with no correction on record reads «decembre». It used to come
+    back as the learner's own line, so the card taught the mistake."""
+
+    assert spoken_reply.repeat_line_for(_step(REPLY, WRITTEN_BEFOREHAND)) is None
 
 
 def test_a_line_that_states_a_different_date_is_not_offered():
@@ -94,9 +101,18 @@ def test_an_earlier_exchange_still_vetoes_the_line():
 
 
 def test_the_learners_latest_fact_wins():
+    step = _step("Non, finalement je rentre le 5 mars.", "Je rentre le 19 décembre.")
+    step.private_task["turns"].insert(0, {"learner": "Je rentre le 2 décembre.", "character": "Ah ?"})
+    assert spoken_reply.repeat_line_for(step) == "Non, finalement je rentre le 5 mars."
+
+
+def test_a_latest_fact_without_a_verb_hides_the_card_rather_than_going_back_on_it():
+    """#558: a line has a verb, so «Non, finalement le 5 mars.» is not one. The learner's
+    earlier sentence is not offered instead: it holds the date they took back."""
+
     step = _step("Non, finalement le 5 mars.", "Je rentre le 19 décembre.")
     step.private_task["turns"].insert(0, {"learner": "Je rentre le 2 décembre.", "character": "Ah ?"})
-    assert spoken_reply.repeat_line_for(step) == "Non, finalement le 5 mars."
+    assert spoken_reply.repeat_line_for(step) is None
 
 
 @pytest.mark.parametrize(

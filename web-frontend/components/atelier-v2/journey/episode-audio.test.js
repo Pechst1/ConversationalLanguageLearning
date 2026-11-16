@@ -150,7 +150,7 @@ test('the spoken lines keep panel order and skip what has nothing to say', () =>
   );
   assert.equal(lines[0].characterId, model.NARRATOR_ID);
   assert.equal(lines[0].who, '', 'narration has no speaker name');
-  assert.equal(lines[2].who, 'Monsieur Marchand');
+  assert.equal(lines[2].who, 'M. Marchand');
 });
 
 test('the clip key format is the one the backend writes', () => {
@@ -173,7 +173,7 @@ test('the two guesses are deterministic, French, and name the counterpart', () =
     first.map((guess) => guess.id),
     ['accord', 'resistance'],
   );
-  assert.ok(first[0].fr.startsWith('Monsieur Marchand'), first[0].fr);
+  assert.ok(first[0].fr.startsWith('M. Marchand'), first[0].fr);
   assert.ok(first[1].fr.includes('refuse'));
 });
 

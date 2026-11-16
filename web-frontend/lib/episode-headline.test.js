@@ -49,3 +49,23 @@ test('the teaser does not say «À suivre…» twice', () => {
   const hooked = { ...tentpole, teaser_fr: 'Deux clés pour la même porte. À suivre…' };
   assert.equal(model.headlineTeaser(hooked, 'La lettre'), 'Deux clés pour la même porte.');
 });
+
+test('inside a gap with a destination, the kicker says where the week is going', () => {
+  const day = {
+    edition_no: 23,
+    season_title_fr: 'La clé d’Odile',
+    arc: { gap_title_fr: 'Avant la fête', title_fr: 'Les 25 ans du Mistral', when_fr: 'samedi', days_left: 3 },
+  };
+  assert.equal(model.headlineKicker(day, 'de'), 'Nº 23 · Avant la fête · noch 3 Tage bis Samstag');
+  assert.equal(model.headlineKicker(day, 'en'), 'Nº 23 · Avant la fête · 3 days to Saturday');
+  assert.equal(model.headlineKicker(day, 'fr'), 'Nº 23 · Avant la fête · samedi, dans 3 jours');
+  const eve = { ...day, arc: { ...day.arc, days_left: 1 } };
+  assert.equal(model.headlineKicker(eve, 'de'), 'Nº 23 · Avant la fête · morgen ist Samstag');
+  assert.equal(model.headlineArc(eve, 'fr'), "Avant la fête · demain, c'est samedi");
+});
+
+test('without an arc the kicker is the season’s, as before', () => {
+  const day = { edition_no: 7, season_title_fr: 'La clé d’Odile', arc: null };
+  assert.equal(model.headlineKicker(day, 'de'), 'Nº 7 · La clé d’Odile');
+  assert.equal(model.headlineArc(day, 'de'), '');
+});

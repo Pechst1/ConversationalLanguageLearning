@@ -618,6 +618,19 @@
                 "margaux_barman",
                 "toi"
               ],
+              "lines": [
+                {
+                  "who": "caption",
+                  "in_thread": true,
+                  "say": {
+                    "a2": "Margaux pousse la tasse jusqu'au tabouret d'Odile.",
+                    "native": {
+                      "en": "Margaux pushes the cup over to Odile's stool.",
+                      "de": "Margaux schiebt die Tasse zu Odiles Hocker hinüber."
+                    }
+                  }
+                }
+              ],
               "silence": true
             }
           ]

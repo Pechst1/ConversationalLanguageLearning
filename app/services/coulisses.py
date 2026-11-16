@@ -46,6 +46,7 @@ from app.config import settings
 from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
 from app.db.models.pilot_event import PilotEvent
 from app.services import living_story as engine
+from app.services.chrome_language import user_mother_tongue
 
 COULISSES_VERSION = "coulisses-" + engine.VERSION
 CADENCE = "coulisses"
@@ -269,7 +270,7 @@ def point_of_view(scene: GraphicNovelScene, cast_ids: list[str]) -> str | None:
 
 def coulisses_payload(scene: GraphicNovelScene, world: dict, user: Any) -> dict:
     level = engine.learner_level_band(user)
-    control = engine.normalize_control_language(getattr(user, "native_language", None))
+    control = engine.normalize_control_language(user_mother_tongue(user))
     cast = engine._cast_for_level(
         [{key: member.get(key) for key in _CAST_KEYS} for member in world.get("cast", []) if member.get("id")],
         level,

@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.schemas.verdict import VerdictView
+
 
 class AtelierConceptRead(BaseModel):
     id: int
@@ -15,6 +17,8 @@ class AtelierConceptRead(BaseModel):
     category: str | None = None
     subskill: str | None = None
     title_fr: str | None = None
+    # #561: the rule's title in the learner's chrome language (`concept_title`).
+    title_native: str | None = None
     category_label_fr: str | None = None
     core_rule: str | None = None
     main_traps: list[str] = Field(default_factory=list)
@@ -154,6 +158,8 @@ class AtelierAttemptResponse(BaseModel):
     minted_collectibles: list[AtelierCollectibleRead] = Field(default_factory=list)
     # WP-S3 La Forge: the staircase after this answer and the next item.
     forge: dict[str, Any] = Field(default_factory=dict)
+    #: The one verdict shape (#333): who checked this and whether it counts.
+    check: VerdictView | None = None
 
 
 class AtelierForgeTestOutRequest(BaseModel):
