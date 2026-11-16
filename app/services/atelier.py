@@ -63,6 +63,7 @@ from app.services.forge_grading import (
     describe_diff,
     drop_author_notes,
     drop_false_english,
+    every_line_copied,
     fold_typography,
     free_use_acceptable,
     held_to_sentence,
@@ -5082,10 +5083,8 @@ class AtelierCorrectionService:
 
         # A correct retype earns a delayed retrieval attempt. It is not an
         # attempt reward and it is tied to this source correction for reloads.
-        all_repaired = len(repairs) >= len(targets) and all(
-            repairs.get(str(index), {}).get("status") == "ok"
-            for index in range(len(targets))
-        )
+        # #779: counted per line the screen asks to copy, not per erratum.
+        all_repaired = every_line_copied(targets, repairs)
         if all_repaired and not correction.get("retest"):
             # Distinct drills, because the client compares this threshold against
             # its own completed-drill count. Counting raw attempt rows scheduled

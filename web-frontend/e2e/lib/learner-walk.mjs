@@ -7,7 +7,7 @@ import { FORGE_FOLLOW, FORGE_REPAIR, FORGE_SHEET, FORGE_SPOT, LEXIQUE_DECK, snap
 import { missLayoutChecks, readingIsSteady } from './miss-layout.mjs';
 import { reversed, trackKey, trackVerdicts } from './verdict-timeline.mjs';
 import { HAND_ON } from './day-plan.mjs';
-import { englishWords, SERVER_BANNER } from './assertions.mjs';
+import { bannersOn, englishWords, serverBanner } from './assertions.mjs';
 
 /**
  * A word a character says, in either reader: the list's caption cards, or the
@@ -190,8 +190,7 @@ export class LearnerWalk {
     }
     // Connection banner while typing.
     if (state.typing) {
-      const banner = s.connection.length > 0 || SERVER_BANNER.test(s.text);
-      this.findings.check('no-server-banner-while-typing', !banner, `banner while typing: «${s.text.slice(0, 160)}»`, w);
+      this.findings.check('no-server-banner-while-typing', !serverBanner(s), `banner while typing [${bannersOn(s)}]: «${s.text.slice(0, 160)}»`, w);
     }
   }
 
@@ -230,10 +229,10 @@ export class LearnerWalk {
       return;
     }
     let s = await snapshot(this.page);
-    this.findings.check('no-server-banner-while-typing', !(s.connection.length || SERVER_BANNER.test(s.text)), `banner mid-typing: «${s.text.slice(0, 160)}»`, this.where({ kind: 'typing' }));
+    this.findings.check('no-server-banner-while-typing', !serverBanner(s), `banner mid-typing [${bannersOn(s)}]: «${s.text.slice(0, 160)}»`, this.where({ kind: 'typing' }));
     await locator.pressSequentially(text.slice(half), { delay: 25 });
     s = await snapshot(this.page);
-    this.findings.check('no-server-banner-while-typing', !(s.connection.length || SERVER_BANNER.test(s.text)), `banner after typing: «${s.text.slice(0, 160)}»`, this.where({ kind: 'typing' }));
+    this.findings.check('no-server-banner-while-typing', !serverBanner(s), `banner after typing [${bannersOn(s)}]: «${s.text.slice(0, 160)}»`, this.where({ kind: 'typing' }));
     state.typing = false;
   }
 
