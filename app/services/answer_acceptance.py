@@ -1505,7 +1505,25 @@ NOTE_COPY: dict[str, dict[str, str]] = {
         "de": "Richtig — vor einem Vokal: «{expected_word}».",
         "fr": "Juste — devant une voyelle : « {expected_word} ».",
     },
+    # #781: a build right in all but a capital is a hit; the capital is named on it.
+    "case_ok": {
+        "en": "Right — watch the capital letter: «{expected_word}».",
+        "de": "Richtig — achte auf den Großbuchstaben: «{expected_word}».",
+        "fr": "Juste — attention à la majuscule : « {expected_word} ».",
+    },
 }
+
+
+def case_slip_note(learner: object, expected: object, language: str | None) -> str | None:
+    """The one line naming a capital on a hit whose words differ from ``expected`` by
+    case alone («j'ai vingt-cinq ans et J'ai faim !»), or ``None`` (#781)."""
+
+    said = " ".join(str(learner or "").split())
+    right = " ".join(str(expected or "").split())
+    if not said or not right or said == right or said.casefold() != right.casefold():
+        return None
+    table = NOTE_COPY["case_ok"]
+    return (table.get(mother_tongue(language)) or table["en"]).format(expected_word=right, learner_word=said)
 
 
 def feedback_note(verdict: Verdict, language: str | None) -> str | None:
