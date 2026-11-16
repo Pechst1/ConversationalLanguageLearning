@@ -3323,9 +3323,78 @@ def plan_journey(
     if not extra or acts or plan.acts:
         return plan
     plain = _plan_journey_once(**kwargs, story_extra=False)
-    if _keeps_the_day(plan, plain, wanted=_first_reply_turns(plain) + extra):
+    wanted = _first_reply_turns(plain) + extra
+    if _keeps_the_day(plan, plain, wanted=wanted):
         return plan
+    # The planner's own fit trims the Rappel first; story first trims plain items.
+    grafted = _story_first(plan, plain, wanted=wanted)
+    if grafted is not None and _keeps_the_day(grafted, plain, wanted=wanted):
+        return grafted
     return plain
+
+
+def _story_first(extra_plan: PlannedJourney, plain: PlannedJourney, *, wanted: int) -> PlannedJourney | None:
+    """Owner 2026-11-16 («story first»): ``plain`` with ``extra_plan``'s longer reply,
+    paid for by plain vocabulary items — the last after the ending first, down to
+    three builds, then the Rappel's down to one more than Léger's — never below
+    :data:`STORY_FIRST_MIN_ITEMS`.
+    ``None`` when the reply differs in more than its exchanges or it cannot fit."""
+
+    longer = next((step for step in extra_plan.steps if step.kind is StepKind.RESPOND), None)
+    reply = next((step for step in plain.steps if step.kind is StepKind.RESPOND), None)
+    if longer is None or reply is None or extra_plan.longer_day or plain.longer_day:
+        return None
+    if _first_reply_turns(extra_plan) < wanted:
+        return None
+    if {**(longer.public_prompt or {}), "max_turns": None} != {**(reply.public_prompt or {}), "max_turns": None}:
+        return None
+    steps = [replace(longer, ordinal=step.ordinal) if step is reply else step for step in plain.steps]
+    budget = plain.budget_seconds
+    total = sum(int(step.estimated_seconds) for step in steps)
+    floor_items = min(STORY_FIRST_MIN_ITEMS, recall_count(plain))
+    keep_warm = min(_warmups(plain), rhythm_caps(RHYTHM_BUDGETS[0]).max_warmups + 1)
+    scene_at = next(index for index, step in enumerate(steps) if step.kind is StepKind.SCENE)
+    after, before = steps[scene_at:], steps[:scene_at]
+    # WP-109: the builds after the ending stay (three, or what the plain day had).
+    keep_builds = min(STORY_FIRST_MIN_ITEMS, sum(step.kind is StepKind.RECALL for step in after))
+    dropped: list[PlannedStep] = []
+    for step in [*reversed(after), *reversed(before)]:
+        if total <= budget:
+            break
+        items = sum(item.kind is StepKind.RECALL for item in steps) - len(dropped)
+        if items <= floor_items:
+            break
+        if step.kind is not StepKind.RECALL or step.target is None:
+            continue
+        if not target_identity(step.target).startswith("vocabulary:"):
+            continue
+        side, keep = (before, keep_warm) if any(step is s for s in before) else (after, keep_builds)
+        if sum(s.kind is StepKind.RECALL for s in side if not any(s is gone for gone in dropped)) <= keep:
+            continue
+        dropped.append(step)
+        total -= int(step.estimated_seconds)
+    if total > budget:
+        return None
+    kept = [step for step in steps if not any(step is gone for gone in dropped)]
+    kept = [replace(step, ordinal=index) for index, step in enumerate(kept)]
+    still = {target_identity(step.target) for step in kept if step.target is not None}
+    still |= {f"{t.get('kind')}:{t.get('id')}" for t in (longer.public_prompt or {}).get("targets") or []}
+    gone = [
+        identity
+        for identity in dict.fromkeys(target_identity(step.target) for step in dropped)
+        if identity not in still
+    ]
+    note = f"story first: {wanted} exchanges; {len(dropped)} practice item(s) gave way"
+    grafted = replace(
+        plain,
+        steps=kept,
+        estimated_active_seconds=sum(int(step.estimated_seconds) for step in kept),
+        selected_target_ids=[identity for identity in plain.selected_target_ids if identity not in gone],
+        omitted_candidate_ids=[*plain.omitted_candidate_ids, *gone],
+        rationale=f"{plain.rationale}; {note}" if plain.rationale else note,
+    )
+    grafted.validate()
+    return grafted
 
 
 def _plan_journey_once(

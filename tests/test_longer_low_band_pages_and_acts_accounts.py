@@ -56,9 +56,8 @@ def test_the_page_writer_is_asked_for_the_band_s_panels(band, panels):
 @pytest.mark.parametrize(
     ("band", "budget", "exchanges"),
     [
-        # Régulier with practice at its floor: no room, the exchange is given back.
-        ("A1", 600, MIN_SCENE_EXCHANGES),
-        ("A2", 600, MIN_SCENE_EXCHANGES),
+        ("A1", 600, MIN_SCENE_EXCHANGES),  # the reply alone leaves no room: given back
+        ("A2", 600, MIN_SCENE_EXCHANGES + 1),  # story first: plain items make room
         ("A1", 1200, MAX_PLANNED_RESPOND_TURNS),
         ("A2", 1800, MAX_PLANNED_RESPOND_TURNS),
         ("B1", 600, MIN_SCENE_EXCHANGES),  # B1 up as before
@@ -168,20 +167,26 @@ def _warmups(plan) -> int:
 
 
 @pytest.mark.parametrize("band", ["A1", "A2"])
-def test_a_regulier_day_with_practice_at_its_floor_gives_the_exchange_back(band, monkeypatch):
-    """Owner 2026-11-16 (CI on f13d7ba1): the exchange more may cost plain practice
-    items only — never the budget, the rule, the desk, nor the Rappel below what a
-    Léger day has. A Régulier day with practice has no such room: it is the day it
-    was without the exchange."""
+def test_story_first_takes_plain_items_only_inside_the_budget(band, monkeypatch):
+    """Owner 2026-11-16: the exchange more is paid for by plain practice items, down
+    to three — never the budget, any other step, the builds after the ending below
+    three, nor the Rappel down to Léger's. A1 cannot fit it and keeps its day."""
 
     plan = _day(band, 600)
     monkeypatch.setattr(planner, "LOW_BAND_EXTRA_EXCHANGES", 0)
     plain = _day(band, 600)
     plan.validate()
     assert plan.budget_seconds == 600 and plan.estimated_active_seconds <= 600
-    assert [step.kind for step in plan.steps] == [step.kind for step in plain.steps]
-    assert _respond(plan).public_prompt["max_turns"] == _respond(plain).public_prompt["max_turns"]
-    assert _warmups(plan) > planner.rhythm_caps(300).max_warmups or _warmups(plan) == _warmups(plain)
+    others = [step.kind for step in plan.steps if step.kind.value != "recall"]
+    assert others == [step.kind for step in plain.steps if step.kind.value != "recall"]
+    assert len(_recalls(plan)) >= min(planner.STORY_FIRST_MIN_ITEMS, len(_recalls(plain)))
+    assert _warmups(plan) >= min(_warmups(plain), planner.rhythm_caps(300).max_warmups + 1)
+    turns, plain_turns = (_respond(p).public_prompt["max_turns"] for p in (plan, plain))
+    if band == "A1":
+        assert turns == plain_turns and len(_recalls(plan)) == len(_recalls(plain))
+    else:
+        assert turns == plain_turns + 1 and len(_recalls(plan)) < len(_recalls(plain)), plan.rationale
+        assert "story first" in plan.rationale
 
 
 @pytest.mark.parametrize("band", ["A1", "A2"])
