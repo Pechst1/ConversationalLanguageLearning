@@ -69,6 +69,10 @@ export type JourneyCopyKey =
   | 'appeal_refused'
   | 'appeal_unread'
   | 'appeal_limit'
+  // Beta: one tap under every verdict, «this looks wrong», into the findings queue.
+  | 'looks_wrong_line'
+  | 'looks_wrong_sent'
+  | 'looks_wrong_failed'
   | 'retrying'
   | 'reconciled'
   | 'transport_error'
@@ -316,6 +320,9 @@ const EN: CopyTable = {
   check_not_checked: CHECK_COPY.en.not_checked,
   try_grading_again: 'Check again',
   appeal_line: 'I think this is right',
+  looks_wrong_line: 'Something here looks wrong',
+  looks_wrong_sent: 'Thank you. We read every report and fix what is wrong.',
+  looks_wrong_failed: 'That did not go through. Try once more.',
   appeal_upheld: 'You were right. It counts now.',
   appeal_refused: 'The answer stays as it was.',
   appeal_unread: 'Your appeal could not be read just now. Try again later.',
@@ -531,6 +538,9 @@ const DE: CopyTable = {
   check_not_checked: CHECK_COPY.de.not_checked,
   try_grading_again: 'Erneut prüfen',
   appeal_line: 'Ich glaube, das ist richtig',
+  looks_wrong_line: 'Hier stimmt etwas nicht',
+  looks_wrong_sent: 'Danke. Wir lesen jede Meldung und beheben, was falsch ist.',
+  looks_wrong_failed: 'Das ist nicht angekommen. Versuch es noch einmal.',
   appeal_upheld: 'Du hattest recht. Es zählt jetzt.',
   appeal_refused: 'Die Antwort bleibt, wie sie war.',
   appeal_unread: 'Dein Einspruch konnte gerade nicht gelesen werden. Versuch es später noch einmal.',
@@ -746,6 +756,9 @@ const FR: CopyTable = {
   check_not_checked: CHECK_COPY.fr.not_checked,
   try_grading_again: 'Vérifier à nouveau',
   appeal_line: 'Je pense que c’est juste',
+  looks_wrong_line: 'Quelque chose cloche ici',
+  looks_wrong_sent: 'Merci. Nous lisons chaque signalement et corrigeons ce qui ne va pas.',
+  looks_wrong_failed: 'Le signalement n’est pas parti. Réessaie.',
   appeal_upheld: 'Tu avais raison. Ça compte maintenant.',
   appeal_refused: 'La réponse reste comme elle était.',
   appeal_unread: 'Ta contestation n’a pas pu être lue pour l’instant. Réessaie plus tard.',
