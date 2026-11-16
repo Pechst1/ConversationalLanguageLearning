@@ -126,7 +126,8 @@ def test_tomorrow_is_a_whole_question_and_not_a_prefix_of_the_hook():
     tomorrow = hook["open_fr"]
     assert tomorrow.endswith("?") and len(tomorrow.split()) > 3
     assert "Margaux range une lettre sans nom dans le tiroir du comptoir." in tomorrow
-    assert hook["text_fr"].endswith(tomorrow) and not hook["text_fr"].startswith(tomorrow)
+    # #822: Margaux's «J'ai rien entendu. Mais quand même…» is nobody's line on the page.
+    assert hook["text_fr"].endswith(tomorrow) and "rien entendu" not in hook["text_fr"]
 
 
 @pytest.mark.parametrize("register", ["tu", "vous"])
@@ -209,7 +210,8 @@ def test_the_writers_question_leads_the_hook():
         {"planted": [WALK_PLANT]}, question="Qui a vraiment écrit cette lettre ?", said=WALK_REPLIES, clean=[]
     )
     assert hook["open_fr"] == "Qui a vraiment écrit cette lettre ?"
-    assert hook["text_fr"] == "Toi, tu me caches quelque chose… Qui a vraiment écrit cette lettre ?"
+    # #822: Lila's «Toi, tu me caches quelque chose…» is a speech act nobody made here.
+    assert hook["text_fr"] == "Qui a vraiment écrit cette lettre ?"
     assert hook["kind"] == "question" and hook["date"] == TODAY
 
 
