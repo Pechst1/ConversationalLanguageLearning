@@ -133,6 +133,13 @@ export type EpreuveCopy = {
   repair_no: string;
   repair_parts_label: string;
   repair_parts_gap: string;
+  /** Owner 2026-11-13: before the second chance, where and why, never the solution. */
+  miss_where: string;
+  miss_choice: string;
+  miss_sub: string;
+  show_solution: string;
+  showing_solution: string;
+  more: string;
   repair_parts_no: string;
   // listen + record
   listen: string;
@@ -265,7 +272,7 @@ const FR: EpreuveCopy = {
   produce_missing: 'La consigne est indisponible.',
   produce_words_label: 'Les mots à placer',
   words_count: '{n} mots',
-  words_range: '{n} / {min}–{max} mots',
+  words_range: '{n} sur {min}–{max} mots',
   words_more: 'encore {n}',
   confidence_label: 'Ta confiance',
   confidence_ask: 'Tu es…',
@@ -310,12 +317,18 @@ const FR: EpreuveCopy = {
   relaunching: 'Vérification…',
   repair_label: 'Recopie la correction',
   repair_placeholder: 'Tape la ligne corrigée…',
-  repair_submit: 'Comparer',
-  repair_submitting: 'Comparaison…',
+  repair_submit: 'Vérifier',
+  repair_submitting: 'Vérification…',
   repair_ok: 'Phrase recopiée. Elle reviendra plus tard.',
   repair_parts_ok: 'Phrase corrigée. Elle reviendra plus tard.',
   repair_no: 'Pas tout à fait — reprends la ligne.',
-  repair_parts_label: 'Corrige seulement les mots soulignés',
+  repair_parts_label: 'Corrige les mots marqués',
+  miss_where: 'Ce qui ne va pas',
+  miss_choice: 'Pas cette réponse',
+  miss_sub: 'Cherche d’abord toi-même ; la solution vient après.',
+  show_solution: 'Voir la solution',
+  showing_solution: 'Un instant…',
+  more: 'Plus',
   repair_parts_gap: 'À corriger :',
   repair_parts_no: 'Pas encore : les mots en rouge sont encore à corriger.',
   listen: 'Écouter',
@@ -443,7 +456,7 @@ const EN: EpreuveCopy = {
   produce_missing: 'The task is unavailable.',
   produce_words_label: 'Words to use',
   words_count: '{n} words',
-  words_range: '{n} / {min}–{max} words',
+  words_range: '{n} of {min}–{max} words',
   words_more: '{n} more',
   confidence_label: 'Your confidence',
   confidence_ask: 'Are you…',
@@ -488,12 +501,18 @@ const EN: EpreuveCopy = {
   relaunching: 'Checking…',
   repair_label: 'Copy the correction',
   repair_placeholder: 'Type the corrected line…',
-  repair_submit: 'Compare',
-  repair_submitting: 'Comparing…',
+  repair_submit: 'Check',
+  repair_submitting: 'Checking…',
   repair_ok: 'Line copied. It comes back later.',
   repair_parts_ok: 'Line fixed. It comes back later.',
   repair_no: 'Not quite — try the line again.',
-  repair_parts_label: 'Fix only the underlined words',
+  repair_parts_label: 'Fix the marked words',
+  miss_where: 'What is off',
+  miss_choice: 'Not this answer',
+  miss_sub: 'Find it yourself first; the solution comes after.',
+  show_solution: 'Show the solution',
+  showing_solution: 'One moment…',
+  more: 'More',
   repair_parts_gap: 'To fix:',
   repair_parts_no: 'Not yet: the words in red still need fixing.',
   listen: 'Listen',
@@ -621,7 +640,7 @@ const DE: EpreuveCopy = {
   produce_missing: 'Die Aufgabe ist nicht verfügbar.',
   produce_words_label: 'Wörter zum Einbauen',
   words_count: '{n} Wörter',
-  words_range: '{n} / {min}–{max} Wörter',
+  words_range: '{n} von {min}–{max} Wörtern',
   words_more: 'noch {n}',
   confidence_label: 'Wie sicher bist du?',
   confidence_ask: 'Du bist…',
@@ -666,12 +685,18 @@ const DE: EpreuveCopy = {
   relaunching: 'Wird geprüft…',
   repair_label: 'Schreib die Korrektur ab',
   repair_placeholder: 'Tippe die korrigierte Zeile…',
-  repair_submit: 'Vergleichen',
-  repair_submitting: 'Wird verglichen…',
+  repair_submit: 'Prüfen',
+  repair_submitting: 'Wird geprüft…',
   repair_ok: 'Abgeschrieben. Der Satz kommt später wieder.',
   repair_parts_ok: 'Ausgebessert. Der Satz kommt später wieder.',
   repair_no: 'Nicht ganz — versuch die Zeile noch einmal.',
-  repair_parts_label: 'Korrigiere nur die unterstrichenen Wörter',
+  repair_parts_label: 'Korrigiere die markierten Wörter',
+  miss_where: 'Was nicht stimmt',
+  miss_choice: 'Nicht diese Antwort',
+  miss_sub: 'Finde es zuerst selbst; die Lösung kommt danach.',
+  show_solution: 'Lösung zeigen',
+  showing_solution: 'Einen Moment…',
+  more: 'Mehr',
   repair_parts_gap: 'Zu korrigieren:',
   repair_parts_no: 'Noch nicht: die roten Wörter sind noch falsch.',
   listen: 'Anhören',
@@ -757,16 +782,32 @@ export function fill(template: string, values: Record<string, string | number>):
   return template.replace(/\{(\w+)\}/g, (match, key: string) => (key in values ? String(values[key]) : match));
 }
 
-/** «3 / 20–40 words · 17 more», in the chrome language. */
+/**
+ * «3 of 20–40 words», in the chrome language, in sentence case (owner 2026-11-13: the
+ * counter is a quiet line, not tracked capitals; it speaks up only when out of range,
+ * see {@link wordRangeState}).
+ */
 export function wordRangeText(copy: EpreuveCopy, count: number, minWords?: unknown, maxWords?: unknown): string {
   const min = Number(minWords);
   const max = Number(maxWords);
   if (Number.isFinite(min) && Number.isFinite(max) && min > 0 && max >= min) {
-    const remaining = Math.max(0, Math.round(min) - count);
-    const range = fill(copy.words_range, { n: count, min: Math.round(min), max: Math.round(max) });
-    return remaining > 0 ? `${range} · ${fill(copy.words_more, { n: remaining })}` : range;
+    return fill(copy.words_range, { n: count, min: Math.round(min), max: Math.round(max) });
   }
   return fill(copy.words_count, { n: count });
+}
+
+/**
+ * Where a count stands against the item's range: `none` before the first word and when
+ * the item has no range, `in` inside it, `under`/`over` outside it once something is
+ * written. Only `under` (with words written) and `over` are drawn emphatic.
+ */
+export function wordRangeState(count: number, minWords?: unknown, maxWords?: unknown): 'none' | 'in' | 'under' | 'over' {
+  const min = Number(minWords);
+  const max = Number(maxWords);
+  if (!(Number.isFinite(min) && Number.isFinite(max) && min > 0 && max >= min) || count <= 0) return 'none';
+  if (count < min) return 'under';
+  if (count > max) return 'over';
+  return 'in';
 }
 
 export default epreuveCopy;

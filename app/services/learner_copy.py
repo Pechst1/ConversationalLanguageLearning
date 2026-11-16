@@ -565,6 +565,23 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Schick die Umformung ab, wenn du sie geprüft haben willst; ausgelassene Zeilen werden nicht als Grammatik-Erratum eingeplant.",
         "fr": "Envoie la réécriture quand tu veux qu’elle soit relue ; une ligne laissée de côté n’est pas consignée comme erratum de grammaire.",
     },
+    # -- Owner 2026-11-13: the hint shown before a second chance -------------
+    # It says where and why, never the right form (app/services/solution_gate.py).
+    "forge.second_chance.hint": {
+        "en": "Look again at the marked words: what does the rule ask for here?",
+        "de": "Sieh dir die markierten Wörter noch einmal an: Was verlangt die Regel hier?",
+        "fr": "Regarde encore les mots marqués : que demande la règle ici ?",
+    },
+    "forge.second_chance.task_hint": {
+        "en": "Read the task again: what is it asking you to use?",
+        "de": "Lies die Aufgabe noch einmal: Was sollst du verwenden?",
+        "fr": "Relis la consigne : qu’est-ce qu’elle te demande d’utiliser ?",
+    },
+    "forge.second_chance.choice_hint": {
+        "en": "Not this one. Look at the rule again and choose once more.",
+        "de": "Nicht diese. Sieh dir die Regel noch einmal an und wähle neu.",
+        "fr": "Pas celle-ci. Relis la règle et choisis à nouveau.",
+    },
     # -- WP-S1 (La Forge): the local token diff names what is wrong -----------
     "forge.diff.ending": {
         "en": "The ending is off: you wrote «{learner}», the form here is «{target}».",
