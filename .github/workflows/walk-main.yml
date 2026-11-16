@@ -21,12 +21,56 @@ permissions:
   contents: read
 
 jobs:
+  gate:
+    # Every run of this workflow puts its checks on main's newest commit (github.sha),
+    # whichever CI run fired it. When that CI run was cancelled or red, or belonged to an
+    # older commit, the jobs below are skipped, and Render counts a skipped check as
+    # passed: on 16 Nov the newest commit had only those skipped checks, its own CI run
+    # was still queued, and Render deployed it untested. This job is never skipped. It
+    # stays in progress until the newest commit's own CI run has finished, and passes
+    # only if that run passed, so Render waits for CI on the commit it deploys.
+    name: Deploy gate · CI passed on this commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Wait for this commit's CI run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TIP: ${{ github.sha }}
+          FIRED_BY_SHA: ${{ github.event.workflow_run.head_sha }}
+          FIRED_BY_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+        run: |
+          if [ "$FIRED_BY_SHA" = "$TIP" ] && [ "$FIRED_BY_CONCLUSION" = "success" ]; then
+            echo "CI passed on $TIP (the run that fired this workflow)."
+            exit 0
+          fi
+          echo "Fired by CI on $FIRED_BY_SHA ($FIRED_BY_CONCLUSION); main is at $TIP. Waiting for CI on $TIP."
+          for _ in $(seq 1 460); do
+            state=$(gh run list --workflow ci.yml --commit "$TIP" --event push --limit 1 \
+              --json status,conclusion -q '.[0] | "\(.status) \(.conclusion)"' 2>/dev/null || true)
+            case "$state" in
+              "completed success") echo "CI passed on $TIP."; exit 0 ;;
+              completed*) echo "CI on $TIP ended: $state. This commit must not deploy."; exit 1 ;;
+            esac
+            sleep 15
+          done
+          echo "No finished CI run on $TIP after 115 minutes."
+          exit 1
+
   walk:
     # Only a push's run whose fast checks passed (a red CI run is already red on the
-    # commit); a tag also runs CI, and plays the walk there.
+    # commit); a tag also runs CI, and plays the walk there. And only when that commit
+    # is still main's newest: this run's checks land on the newest commit, so a walk of
+    # an older one would hold the newest commit's deploy for half an hour. The newest
+    # commit gets its own walk when its own CI run finishes.
     if: >-
       github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main'
       && github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.head_sha == github.sha
     name: Browser release checks
     uses: ./.github/workflows/walk.yml
     with:
