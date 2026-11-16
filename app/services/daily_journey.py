@@ -88,7 +88,7 @@ from app.schemas.daily_journey import (
     practice_href_for,
 )
 from app.schemas.verdict import VerdictView
-from app.services import cast_registry, gold_ledger, scene_ledger, scene_record, verdicts
+from app.services import cast_registry, day_brief, gold_ledger, scene_ledger, scene_record, verdicts
 from app.services.chrome_language import user_chrome_language, user_mother_tongue
 from app.services.closing_filler import scene_fact
 from app.services.daily_journey_adapters import (
@@ -1279,7 +1279,12 @@ class DailyJourneyService:
             available = self._available_descriptor(user)
 
         # #443: the day's rule is the one the day planned, not a second reading of the picker.
-        forge_anchor = self._forge_anchor_id(user, planned=_planned_rule_id(journey, today))
+        planned_rule = _planned_rule_id(journey, today)
+        forge_anchor = self._forge_anchor_id(user, planned=planned_rule)
+        if journey is not None and journey.local_date == today:
+            # S1.1 shadow: Home's two choosers against the day brief (flag off: no-op).
+            day_brief.shadow(journey, "daily_journey._planned_rule_id", planned_rule, field="rule_concept_id")
+            day_brief.shadow(journey, "daily_journey._forge_anchor_id", forge_anchor, field="forge_anchor")
         forge_entry = self._forge_entry(user, anchor=forge_anchor) if enabled else None
         if forge_entry is not None:
             forge_entry = forge_entry.model_copy(
@@ -2028,6 +2033,8 @@ class DailyJourneyService:
         card_rule = _planned_rule_id(journey, journey.local_date)
         if card_rule is not None:
             prompt["concept_id"] = card_rule
+        # S1.1 shadow: the Forge step's rule against the day brief (flag off: no-op).
+        day_brief.shadow(journey, "daily_journey._forge_prompt_view", prompt.get("concept_id"), field="forge_anchor")
         prompt["href"] = forge_href_for(
             prompt.get("concept_id"), budget_seconds=budget, step_id=step.id
         )
@@ -4172,6 +4179,17 @@ class DailyJourneyService:
             # into the plan. The unit is *introduced* when the rule is read.
             "introduction": _planned_introduction(plan),
         }
+        if day_brief.enabled():
+            # S1.1: the day's brief, decided once here and stored with the plan;
+            # the choosers that ran above are compared with it (shadow, read by nobody yet).
+            day_brief.store(
+                fresh,
+                day_brief.build(
+                    self.db, user, journey=fresh, plan=plan, scenario=result,
+                    story_units=story_units, now=_utcnow(),
+                ),
+            )
+            day_brief.shadow_planning(fresh, introduction=introduction, page_review=page_review, forge=forge)
         if first_day:
             fresh.plan_selection = {
                 **dict(fresh.plan_selection or {}),
