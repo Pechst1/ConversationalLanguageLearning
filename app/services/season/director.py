@@ -508,11 +508,15 @@ def must_not_rows(season: Season, gap_id: str, flags: dict[str, Any]) -> list[Fo
 
 #: T-2: how a generated day is built at each band. The scene guard enforces the
 #: words (lexicon v3, A1 → C1); this tells the director the size and texture.
+#: Owner 2026-11-16 («zu kurz, nicht fesselnd»): an A1 and an A2 page is one panel and
+#: one exchange longer (A1 3-4 → 4-5 panels, 1-2 → 2-3 exchanges; A2 4-5 → 5-6, 2 → 3;
+#: the planner's floor: ``journey_contracts.LOW_BAND_SCENE_EXCHANGES``). The words per
+#: line stay: at A1 the limit is how much French the learner can read.
 LEVEL_SHAPES: dict[str, dict[str, Any]] = {
-    "A1": {"panels": "3-4", "exchanges": "1-2", "max_words_per_line": 8,
+    "A1": {"panels": "4-5", "exchanges": "2-3", "max_words_per_line": 8,
            "texture": "present tense, futur proche and fixed chunks; one idea per line; "
                       "the learner's turn can be answered in 3-6 words"},
-    "A2": {"panels": "4-5", "exchanges": "2", "max_words_per_line": 12,
+    "A2": {"panels": "5-6", "exchanges": "3", "max_words_per_line": 12,
            "texture": "passé composé and imparfait in short lines; everyday words"},
     "B1": {"panels": "4-6", "exchanges": "2-3", "max_words_per_line": 16,
            "texture": "narration across tenses, opinions with reasons, simple hypotheses"},

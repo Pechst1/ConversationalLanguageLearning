@@ -1077,6 +1077,16 @@ class Settings(BaseSettings):
             "production (the same rule as ATELIER_DAILY_JOURNEY_COHORT)."
         ),
     )
+    ATELIER_STORY_ACTS_ACCOUNTS: str = Field(
+        "",
+        description=(
+            "Owner 2026-11-16: comma-separated user ids or emails (case-insensitive) the "
+            "night writes acts for even while ATELIER_STORY_ACTS is off — the owner tries "
+            "«Le soir» on his own account before any tester sees it. Names accounts only: "
+            "'*' names nobody here (the global switch and its cohort are for everyone). "
+            "Empty: nobody. Set in the dashboard on the API and the worker (sync: false)."
+        ),
+    )
     ATELIER_STORY_ACTS_DAILY_SPEND_CAP_USD: float = Field(
         0.0,
         ge=0,

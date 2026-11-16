@@ -130,20 +130,25 @@ def _respond(plan):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("band", ["A1", "A2"])
-def test_an_a1_a2_regulier_reply_asks_three_exchanges_inside_the_budget(band: str) -> None:
+@pytest.mark.parametrize(("band", "exchanges"), [("A1", MIN_SCENE_EXCHANGES), ("A2", MIN_SCENE_EXCHANGES + 1)])
+def test_an_a1_a2_regulier_reply_asks_its_exchanges_inside_the_budget(band: str, exchanges: int) -> None:
     # #378 (owner decision 2026-10-30, «Kern zuerst») replaces WP-129's two-exchange
     # core: a generated scene is a conversation of three exchanges on every rhythm.
+    # Owner 2026-11-16: A1 and A2 ask one more — A2 gets it on Régulier; A1, which
+    # composes slowest, gives it back rather than make a longer day.
     # The day still fits Régulier; the items give way first.
     plan = _day(band)
     plan.validate()
-    assert _respond(plan).public_prompt["max_turns"] == MIN_SCENE_EXCHANGES
+    assert _respond(plan).public_prompt["max_turns"] == exchanges
     assert plan.estimated_active_seconds <= plan.budget_seconds
+    assert not plan.longer_day
     assert len(_recalls(plan)) >= 3, plan.rationale
 
 
 def test_soutenu_keeps_its_story_and_b1_keeps_its_three_exchanges() -> None:
-    assert _respond(_day("A2", 1200)).public_prompt["max_turns"] == 4
+    # Owner 2026-11-16: an A2 scene on Soutenu has five exchanges, one more than B1.
+    assert _respond(_day("A2", 1200)).public_prompt["max_turns"] == 5
+    assert _respond(_day("B1", 1200)).public_prompt["max_turns"] == 4
     assert _respond(_day("B1")).public_prompt["max_turns"] == 3
 
 

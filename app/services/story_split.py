@@ -432,7 +432,7 @@ RETURN ONLY THIS JSON
 LEVEL_CARDS = {
     "A1": """Present tense, everyday words, lines mostly under 10 words, one idea per line.
 Gestures, objects and names carry the rest: the drama stays, the words get simple. At most
-about 160 words in premise, captions and lines together.
+about 190 words in premise, captions and lines together.
 Words: the ones a beginner learns first (the café, the flat, family, food, days, the
 weather; être, avoir, aller, faire, vouloir, pouvoir). A thing a beginner cannot name (a
 notary's papers, a stove, a hot-water bottle) is drawn in visual_direction and pointed at,
@@ -441,7 +441,7 @@ From the bible: «Le café d'Odile. Toujours le même.» · «Bravo, Gus. Belle 
 grand-mère dit : beaucoup d'argent, beaucoup de problèmes.»
 suggested_response_fr: one short sentence («Oui, ce soir.», «Je ne sais pas encore.»).""",
     "A2": """Present, passé composé and futur proche; simple reasons with parce que or mais;
-lines up to 12 words. At most about 240 words.
+lines up to 12 words. At most about 280 words.
 Words: everyday words only. A word an A2 learner would look up (succession, tribunal,
 palier, brûleur, bouillotte) becomes a common one («les papiers», «devant la porte»,
 «le feu») or is drawn and not named.

@@ -79,6 +79,13 @@ services:
       # (tests/test_story_acts_budget.py checks it against STORY_WRITER_MODEL).
       - key: ATELIER_STORY_ACTS_DAILY_SPEND_CAP_USD
         value: "2.50"
+      # Owner 2026-11-16: «Le soir» for named accounts while ATELIER_STORY_ACTS is
+      # off for everyone else — the owner's own account first, before any tester.
+      # Comma-separated emails or user ids; `sync: false` so no address is ever
+      # committed here. Set it on the API (the morning plays the acts) and on the
+      # worker (the night writes them), with the same value.
+      - key: ATELIER_STORY_ACTS_ACCOUNTS
+        sync: false
       # WP-138: the whole service's day (every learner, art included, UTC).
       # About five learners at their own cap, or about a dozen at the ~US$0.42
       # of a day with Opus writing the page.
@@ -589,6 +596,10 @@ services:
         fromService: {type: web, name: atelier-api, envVarKey: ATELIER_STORY_ACTS_DAILY_SPEND_CAP_USD}
       - key: ATELIER_STORY_ACTS_WEEKLY_COST_GUARDRAIL_USD
         fromService: {type: web, name: atelier-api, envVarKey: ATELIER_STORY_ACTS_WEEKLY_COST_GUARDRAIL_USD}
+      # The worker's own key (a fromService on an API key with no value fails the
+      # whole Blueprint sync, #134): the same list as on the API, typed in both.
+      - key: ATELIER_STORY_ACTS_ACCOUNTS
+        sync: false
       - key: APNS_TEAM_ID
         sync: false
       - key: APNS_KEY_ID
