@@ -2058,8 +2058,35 @@ def offer_test_out(
     as a pilot event, which is what paces the next one.
     """
 
-    from app.db.models.pilot_event import PilotEvent
     from app.services.pilot_events import PilotEventService
+
+    now = _aware(now) or datetime.now(UTC)
+    offer = test_out_candidate(db, user=user, concept_ids=concept_ids, now=now)
+    if offer is not None:
+        PilotEventService(db).record(
+            TEST_OUT_OFFER_EVENT,
+            user_id=user.id,
+            entity_type="grammar_concept",
+            entity_id=offer["concept_id"],
+            payload=offer,
+            occurred_at=now,
+        )
+        # S1.1 shadow: an offer made on a rule the day brief did not name (flag off: no-op).
+        from app.services import day_brief
+
+        day_brief.shadow_today(
+            db, user, "forge.offer_test_out", offer["concept_id"], field="test_out_concept_id", now=now
+        )
+    return offer
+
+
+def test_out_candidate(
+    db: Session, *, user: User, concept_ids: Iterable[int], now: datetime | None = None
+) -> dict[str, Any] | None:
+    """The rule :func:`offer_test_out` would offer now, or ``None``. Read-only:
+    records nothing, so the day brief can ask it when the day is planned."""
+
+    from app.db.models.pilot_event import PilotEvent
 
     wanted = list(dict.fromkeys(int(cid) for cid in concept_ids))
     if not wanted:
@@ -2104,16 +2131,7 @@ def offer_test_out(
     if not candidates:
         return None
     rung, _stability, concept_id = max(candidates)
-    offer = {"concept_id": concept_id, "rung": rung, "short": True, "items": len(core.TEST_OUT_SHORT_RUNGS)}
-    PilotEventService(db).record(
-        TEST_OUT_OFFER_EVENT,
-        user_id=user.id,
-        entity_type="grammar_concept",
-        entity_id=concept_id,
-        payload=offer,
-        occurred_at=now,
-    )
-    return offer
+    return {"concept_id": concept_id, "rung": rung, "short": True, "items": len(core.TEST_OUT_SHORT_RUNGS)}
 
 
 def forge_features() -> dict[str, bool]:

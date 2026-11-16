@@ -786,6 +786,17 @@ class Settings(BaseSettings):
             "runs on what they read. Off: every learner's page is written for them."
         ),
     )
+    DAY_BRIEF_ENABLED: bool = Field(
+        False,
+        description=(
+            "S1.1 «one day brief», shadow stage: when a day is planned, its rule, page "
+            "review, Forge anchor, test-out candidate, word-plan pointer and the scene's "
+            "grammar pick are stored once in plan_selection['brief'] (app/services/"
+            "day_brief.py), and every surface that still picks today's rule on its own "
+            "logs a 'day_brief_disagreement' warning when its answer differs. Nothing "
+            "reads the brief yet. Off: nothing is built, stored or compared."
+        ),
+    )
     ATELIER_SEASON_WRITER_ENABLED: bool = Field(
         False,
         description=(
