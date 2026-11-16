@@ -4951,6 +4951,38 @@ class AtelierCorrectionService:
         return attempt
 
     @staticmethod
+    def _keyed_gap_line(attempt: AtelierAttempt, erratum: dict[str, Any]) -> str | None:
+        """#808: the printed line of the gap item a keyed erratum belongs to, or ``None``.
+
+        A gap's key and the learner's text are only what stands in the gap («tu as
+        écrit»), while «Copy the correction» asks for the corrected line. The line
+        is the item's prompt («L'été dernier, ___ un article.»), without a bracketed
+        gloss after the French; ``None`` when the item prints no gap.
+        """
+
+        items = (attempt.prompt_payload or {}).get("items") or []
+        item = next(
+            (entry for entry in items if isinstance(entry, dict) and entry.get("id") and entry.get("id") == erratum.get("item_id")),
+            None,
+        )
+        prompt = " ".join(str((item or {}).get("prompt") or "").split())
+        if not BLANK_RE.search(prompt):
+            return None
+        last_blank = list(BLANK_RE.finditer(prompt))[-1].end()
+        gloss = re.search(r"\s*\([^()]*\)\s*$", prompt[last_blank:])
+        return prompt[: last_blank + gloss.start()].strip() if gloss else prompt
+
+    @staticmethod
+    def _in_gap_line(gap_line: str, text: str) -> str:
+        """``text`` as the line it stands in: the gap filled with it, unless it already is the line."""
+
+        text = text.strip()
+        frame = [fold_typography(part) for part in BLANK_RE.split(gap_line) if fold_typography(part)]
+        if not text or all(part in fold_typography(text) for part in frame):
+            return text
+        return fill_blank(gap_line, text)
+
+    @staticmethod
     def _keyed_repair_source(attempt: AtelierAttempt, erratum: dict[str, Any]) -> str:
         """The learner's own text for the item a keyed erratum belongs to."""
 
@@ -5031,7 +5063,15 @@ class AtelierCorrectionService:
             erratum = errata[erratum_index] if erratum_index < len(errata) else {}
             source = self._keyed_repair_source(attempt, erratum)
             key_line = (correction.get("corrected_answer") or {}).get(erratum.get("item_id")) if isinstance(correction.get("corrected_answer"), dict) else None
-            accepted = [target, key_line if isinstance(key_line, str) else None, repair_line_from_parts(source, [erratum]) if source else None]
+            key_line = key_line if isinstance(key_line, str) else None
+            # #808: a gap item's answer and key are only the gap; its line is the
+            # printed sentence with the gap filled. The learner's line is the source
+            # the part is read in, and the key's line is right too.
+            gap_line = self._keyed_gap_line(attempt, erratum)
+            if gap_line:
+                source = self._in_gap_line(gap_line, source) if source.strip() else source
+                key_line = self._in_gap_line(gap_line, key_line or target)
+            accepted = [target, key_line, repair_line_from_parts(source, [erratum]) if source else None]
         is_correct = self._repair_is_right(typed, source, accepted)
         repairs = dict(correction.get("micro_repairs") or {})
         repairs[str(erratum_index)] = {

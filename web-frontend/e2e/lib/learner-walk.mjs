@@ -139,6 +139,12 @@ export class LearnerWalk {
       if (st >= 500 && r.url().includes('/api/')) {
         this.findings.check('no-server-error', false, `${st} ${r.request().method()} ${new URL(r.url()).pathname}`, this.where());
       }
+      if (st >= 400 && st < 500 && r.url().includes('/api/') && r.request().method() !== 'GET') {
+        // #770/#771: a stalled item showed only «The correction could not be sent.»; what the
+        // server answered stayed in the CI artifact. The stuck findings now name it.
+        const said = `${st} ${r.request().method()} ${new URL(r.url()).pathname}`;
+        r.text().then((body) => { this.noteRefusal(said, body); }, () => { this.noteRefusal(said, ''); });
+      }
     });
     return page;
   }
@@ -679,14 +685,14 @@ export class LearnerWalk {
       // waiting on the server (a cold scene is budgeted at ~20 s, WP-76; several
       // learners generating at once on one walk server take longer): 45 s then.
       if (!acted && sameFor > (s.pending ? 180 : 40) && !entry) {
-        this.findings.check('a-way-forward', false, `stuck for ${(sameFor * 0.25).toFixed(0)}s on «${s.text.slice(0, 140)}»`, this.where({ kind }));
+        this.findings.check('a-way-forward', false, `stuck for ${(sameFor * 0.25).toFixed(0)}s on «${s.text.slice(0, 140)}»${this.refusalNote()}`, this.where({ kind }));
         await this.shoot('stuck');
         break;
       }
       if (entry && sameFor > 40) break; // the loop ended by itself (no recap to reach)
       // The 30 s cap must not undercut the server wait above.
       if (sameFor > (s.pending ? 180 : 120)) {
-        this.findings.check('a-way-forward', false, `no change for ${(sameFor * 0.25).toFixed(0)}s on «${s.text.slice(0, 140)}»`, this.where({ kind }));
+        this.findings.check('a-way-forward', false, `no change for ${(sameFor * 0.25).toFixed(0)}s on «${s.text.slice(0, 140)}»${this.refusalNote()}`, this.where({ kind }));
         await this.shoot('stuck');
         break;
       }
@@ -696,9 +702,25 @@ export class LearnerWalk {
   }
 
   /** A new day: the plan it is held to, the steps played, and how it ended. */
+  /** A write the server refused this day (4xx), counted: the stuck findings say it. */
+  noteRefusal(said, body) {
+    this.refusals = this.refusals || new Map();
+    const seen = this.refusals.get(said) || { count: 0, body: '' };
+    this.refusals.set(said, { count: seen.count + 1, body: String(body || '').replace(/\s+/g, ' ').slice(0, 140) });
+  }
+
+  /** « · refused: 409 POST /api/v1/… ×3 («…»)» for the most repeated refusal of the day, or ''. */
+  refusalNote() {
+    const rows = [...(this.refusals || new Map()).entries()].sort((a, b) => b[1].count - a[1].count);
+    if (!rows.length) return '';
+    const [said, { count, body }] = rows[0];
+    return ` · refused: ${said} ×${count}${body ? ` («${body}»)` : ''}`;
+  }
+
   beginDay(day) {
     this.day = day;
     this.seq = 0;
+    this.refusals = new Map();
     this.planAtStart = null;
     this.lastSession = null;
     this.played = new Set();
