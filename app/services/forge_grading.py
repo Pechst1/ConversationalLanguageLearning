@@ -1095,6 +1095,43 @@ def _asks_for_a_retype(target: Any) -> bool:
     return words >= 3 or (words >= 2 and trimmed[-1:] in {".", "!", "?", "…"})
 
 
+_RETYPE_APOSTROPHES = re.compile(r"[‘’‚‛′´`ʹʻʼ]")
+_RETYPE_PUNCTUATION = re.compile(r"[.,!?;:«»\"“”]")
+
+
+def retype_line_key(target: Any) -> str:
+    """Which corrected line a retype copies: typography folded, accents kept.
+
+    Mirrors ``fold`` in ``web-frontend/lib/repair-parts.ts``, which the miss screen
+    uses to give a line one copy field however many corrections name it (#779)."""
+
+    text = unicodedata.normalize("NFC", str(target or ""))
+    text = _RETYPE_PUNCTUATION.sub(" ", _RETYPE_APOSTROPHES.sub("'", text).lower())
+    return " ".join(text.split())
+
+
+def every_line_copied(targets: list[str], repairs: dict[str, Any] | None) -> bool:
+    """#779: whether every line the miss asks the learner to copy has an accepted copy.
+
+    The one count of «repaired» on the server, the same as ``repairState`` on the screen:
+    a line is copied once, whichever correction naming it carried the field, and a
+    one-word fix (no field of its own, ``_asks_for_a_retype``) is not waited for. With
+    no line on screen at all, every target counts, as before. Counting errata instead
+    left a word-bank miss whose erratum came back twice without its retest: the screen
+    asked for one copy and said «mended», the server waited for a second."""
+
+    named = [target for target in targets if str(target or "").strip()]
+    asked = {retype_line_key(target) for target in named if _asks_for_a_retype(target)} or {
+        retype_line_key(target) for target in named
+    }
+    copied = {
+        retype_line_key(record.get("target"))
+        for record in (repairs or {}).values()
+        if isinstance(record, dict) and record.get("status") == "ok"
+    }
+    return bool(asked) and asked <= copied
+
+
 def refine_production_correction(
     correction: dict[str, Any],
     *,

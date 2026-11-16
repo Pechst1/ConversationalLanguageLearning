@@ -79,7 +79,7 @@ PREMISES = [
     ("Le facteur a livré un colis pour quelqu'un d'autre.", "Explain what happened to the parcel.", "Describe the mistaken delivery and propose what to do.", "wrong-parcel"),
     ("Une affiche annonce une soirée jeux vendredi.", "Say whether you come on Friday and what you bring.", "Accept or decline the invitation and mention a contribution.", "game-night"),
     ("La pluie a inondé la cave de l'immeuble.", "Ask a neighbour for help, or offer yours.", "Request or offer help with the flooded cellar.", "flooded-cellar"),
-    ("Margaux cherche quelqu'un pour garder son chat ce week-end.", "Accept or decline, and say when you are free.", "Give an answer about cat-sitting with a time.", "cat-sitting"),
+    ("Margaux cherche quelqu'un pour garder son chat ce week-end.", "Say if you can keep the cat this weekend.", "Give an answer about cat-sitting with a time.", "cat-sitting"),
 ]
 # Seven premises: the engine rejects a premise that overlaps one of the last five.
 
@@ -90,7 +90,9 @@ SEASON_CAST = ("margaux_barman", "lila_bonnet", "marin_leveque", "romy_tremblay"
 SEASON_PLACES = ("le_mistral", "boulangerie", "quai_de_valmy", "user_apartment", "marin_lila_flat", "stairwell", "ngo_office")
 SEASON_PREMISES = (
     "Il pleut sur le canal, et le radiateur du studio refuse encore de chauffer.",
-    "Au comptoir, Margaux essuie un verre déjà sec et attend ta commande.",
+    # Never «attend ta commande»: a caption that waits on the learner is a machine line
+    # (prose_detector ``quiz_caption``), and the walk lost a day to it on 11 Nov.
+    "Au comptoir, Margaux essuie un verre déjà sec.",
     "Mme Diallo sort les baguettes du four ; Lila compte ses pièces.",
     "Marin arrive avec une soupe et une bouillotte, trempé jusqu'aux os.",
     "Gus répète un discours sur des fiches, qui tombent une à une.",
@@ -116,6 +118,10 @@ SEASON_QUESTIONS = (
     "Le marché du dimanche aura-t-il lieu sous la pluie ?",
     "Qui gagnera la dispute sur la playlist du café ?",
 )
+
+
+#: A «vous» to the learner: a line a «tu» speaker never says (``season_register_vous``).
+_VOUS = re.compile(r"\b(?:vous|votre|vos)\b", re.IGNORECASE)
 
 
 def _suggested(context: dict, answer: str) -> str:
@@ -555,7 +561,15 @@ class FakeStoryProvider:
         # This page speaks «tu». ``n`` is shared by every learner of the walk, so under
         # concurrency all three attempts of one day could land on Gus while he is still
         # on «vous» (canon_register), and the day was lost: honour the brief's registers.
-        registers = (brief.get("address") or {}).get("registers") or {}
+        # The brief carries today's registers at its top (``gap_brief``) and in its page
+        # rules (``page_rules.address``). Until 13 Nov the fake read ``brief.address``,
+        # which no brief has, so Gus led on «vous» days with «Tu m'aides ?».
+        registers = (
+            brief.get("registers")
+            or (((brief.get("page_rules") or {}).get("address")) or {}).get("registers")
+            or (brief.get("address") or {}).get("registers")
+            or {}
+        )
         if registers.get(character) == "vous":
             character = next(
                 (
@@ -604,6 +618,26 @@ class FakeStoryProvider:
             SEASON_QUESTIONS[n % len(SEASON_QUESTIONS)],
         )
         moment = (today.get("small_moments") or [{}])[0]
+        # WP-92: the day's new form, said once by the cast (never in the question). The
+        # example is one the speaker may say: this page is «tu», so never a «vous» one,
+        # and never one naming what the gap must not («Berlin, in any form.»).
+        forbidden = {
+            word.casefold()
+            for text in (brief.get("gap") or {}).get("must_not") or []
+            for word in re.findall(r"\b[A-ZÀ-Ý][\w'-]{2,}", str(text))
+        }
+        examples = [
+            str(example)
+            for example in ((context.get("grammar_plan") or {}).get("introduce") or {}).get("examples") or []
+            if example
+            and not _VOUS.search(str(example))
+            and not forbidden & {word.casefold() for word in re.findall(r"[\w'-]+", str(example))}
+        ]
+        weave = (
+            [{"character_id": character, "text_fr": examples[0], "text_native": "[dev fake] the day's new form."}]
+            if examples
+            else []
+        )
         return {
             "title_fr": f"{premise.get('title_fr') or 'Entre deux jours'} ({n + 1})",
             "premise_fr": SEASON_PREMISES[pick % len(SEASON_PREMISES)],
@@ -626,9 +660,9 @@ class FakeStoryProvider:
             },
             "panels": [
                 {"location_id": location, "narration_fr": SEASON_PREMISES[(pick + 1) % len(SEASON_PREMISES)], "dialogue": [], "visual_direction": "Wide shot: two friends at work in the place.", "alt_native": "Two friends at work."},
-                {"location_id": location, "narration_fr": "", "dialogue": [{"character_id": character, "text_fr": "Tu as une minute ?"}], "visual_direction": "Medium shot, the character turns to Toi.", "alt_native": "A friend turns to you."},
-                {"location_id": location, "narration_fr": "Un silence.", "dialogue": [], "visual_direction": "Close-up of a glass on the zinc.", "alt_native": "A glass on the counter."},
-                {"location_id": location, "narration_fr": "", "dialogue": [{"character_id": character, "text_fr": "Alors, on fait quoi ?"}], "visual_direction": "Close-up, waiting.", "alt_native": "A friend, waiting."},
+                {"location_id": location, "narration_fr": "", "dialogue": [{"character_id": character, "text_fr": "Tu as une minute ?", "text_native": "[dev fake] got a minute."}], "visual_direction": "Medium shot, the character turns to Toi.", "alt_native": "A friend turns to you."},
+                {"location_id": location, "narration_fr": "Un silence.", "dialogue": weave, "visual_direction": "Close-up of a glass on the zinc.", "alt_native": "A glass on the counter."},
+                {"location_id": location, "narration_fr": "", "dialogue": [{"character_id": character, "text_fr": "Alors, on fait quoi ?", "text_native": "[dev fake] so, what do we do."}], "visual_direction": "Close-up, waiting.", "alt_native": "A friend, waiting."},
             ],
             "opening_line_fr": "Tu m'aides ?",
             "suggested_response_fr": _suggested(context, "Oui, je peux t'aider samedi."),
