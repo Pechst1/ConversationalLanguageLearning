@@ -207,10 +207,10 @@ def test_every_tentpole_fits_or_is_flagged(band: str, key: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(("band", "extra"), [("A1", 0), ("A2", 1)])
+@pytest.mark.parametrize(("band", "extra"), [("A1", 1), ("A2", 1)])
 def test_a_generated_a1_a2_regulier_day_keeps_its_three_exchange_core(band: str, extra: int) -> None:
-    # Owner 2026-11-16: one exchange more at A1 and A2 while the day holds it (A2 on
-    # Régulier; A1 gives it back rather than make a longer day).
+    # Owner 2026-11-16 («story first»): one exchange more at A1 and A2; practice
+    # gives way, down to three items.
     scenario = engine_brief(level_band=band)
     assert planner.authored_turns(scenario) == []
     plan = _plan(scenario)

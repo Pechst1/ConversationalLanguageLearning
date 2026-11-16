@@ -130,17 +130,17 @@ def _respond(plan):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(("band", "exchanges"), [("A1", MIN_SCENE_EXCHANGES), ("A2", MIN_SCENE_EXCHANGES + 1)])
+@pytest.mark.parametrize(("band", "exchanges"), [("A1", MIN_SCENE_EXCHANGES + 1), ("A2", MIN_SCENE_EXCHANGES + 1)])
 def test_an_a1_a2_regulier_reply_asks_its_exchanges_inside_the_budget(band: str, exchanges: int) -> None:
     # #378 (owner decision 2026-10-30, «Kern zuerst») replaces WP-129's two-exchange
     # core: a generated scene is a conversation of three exchanges on every rhythm.
-    # Owner 2026-11-16: A1 and A2 ask one more — A2 gets it on Régulier; A1, which
-    # composes slowest, gives it back rather than make a longer day.
-    # The day still fits Régulier; the items give way first.
+    # Owner 2026-11-16 («story first»): A1 and A2 ask one more and keep it; the items
+    # give way, down to three. A1, which composes slowest, runs past Régulier by at
+    # most that exchange (``plan.budget_seconds``) rather than give it back.
     plan = _day(band)
     plan.validate()
     assert _respond(plan).public_prompt["max_turns"] == exchanges
-    assert plan.estimated_active_seconds <= plan.budget_seconds
+    assert plan.estimated_active_seconds <= plan.budget_seconds <= 600 + 150
     assert not plan.longer_day
     assert len(_recalls(plan)) >= 3, plan.rationale
 

@@ -60,6 +60,7 @@ from app.services.journey_contracts import (
     MAX_RESPOND_TURNS,
     MIN_SCENE_EXCHANGES,
     READ_MIN_BUDGET_SECONDS,
+    RHYTHM_BUDGETS,
     ActBrief,
     ActRole,
     ControlLanguage,
@@ -3229,6 +3230,23 @@ def _first_day_recall(
     )
 
 
+#: Owner 2026-11-16 («story first»): the fewest practice items an A1/A2 day keeps
+#: when its reply takes the low bands' exchange more — WP-129's floor for an A1/A2
+#: Régulier day («the items give way first», at least three). A day that had fewer
+#: keeps what it had.
+STORY_FIRST_MIN_ITEMS = 3
+#: How far past its rhythm a day may run to keep that exchange, searched in these
+#: steps and never further than the exchange itself costs (nor into the next rhythm).
+STORY_FIRST_STEP_SECONDS = 15
+
+
+def _first_reply_turns(plan: PlannedJourney) -> int:
+    for step in plan.steps:
+        if step.kind is StepKind.RESPOND:
+            return int((step.public_prompt or {}).get("max_turns") or 0)
+    return 0
+
+
 def plan_journey(
     *,
     scenario: ScenarioBrief,
@@ -3252,7 +3270,94 @@ def plan_journey(
     page_review: list[dict[str, Any]] | None = None,
     acts: list[ActBrief] | None = None,
 ) -> PlannedJourney:
-    """Build today's immutable plan.
+    """Build today's immutable plan (:func:`_plan_journey_once`), story first.
+
+    Owner 2026-11-16 («story first»): an A1 or A2 generated scene asks one exchange
+    more (:func:`low_band_extra_exchanges`). When the day as planned had to give it
+    back — the story with it does not fit the rhythm, or it would cost the rule —
+    the day keeps it and practice gives way instead: the day may run past its rhythm
+    by at most what that exchange costs, the least that still keeps the day's rule
+    and :data:`STORY_FIRST_MIN_ITEMS` practice items. Only when even that fails is
+    the exchange given back. A day with acts is left to the acts' own rule (the
+    exchange never costs an act); Léger and B1 up never ask for it.
+    """
+
+    kwargs = {
+        "scenario": scenario, "candidates": candidates, "budget_seconds": budget_seconds, "pace": pace,
+        "input_mode": input_mode, "errata_targets": errata_targets, "day_shape": day_shape,
+        "shape_reason": shape_reason, "dice": dice, "letter": letter, "chapter_recap_fr": chapter_recap_fr,
+        "audio_available": audio_available, "first_day": first_day, "practice": practice,
+        "introduction": introduction, "forge": forge, "reading": reading, "desk": desk,
+        "page_review": page_review, "acts": acts,
+    }
+    plan = _plan_journey_once(**kwargs)
+    extra = low_band_extra_exchanges(scenario, scenario.response_task, budget_seconds)
+    if not extra or acts or plan.acts:
+        return plan
+    plain = _plan_journey_once(**kwargs, story_extra=False)
+    if plain.longer_day:
+        return plan
+    wanted = _first_reply_turns(plain) + extra
+    floor_items = min(STORY_FIRST_MIN_ITEMS, recall_count(plain))
+    has_rule = any(step.kind is StepKind.RULE for step in plain.steps)
+
+    def holds(candidate: PlannedJourney) -> bool:
+        """The exchange kept, and with it the day's rule and its floor of items."""
+
+        return (
+            not candidate.longer_day
+            and _first_reply_turns(candidate) >= wanted
+            and recall_count(candidate) >= floor_items
+            and (not has_rule or any(step.kind is StepKind.RULE for step in candidate.steps))
+        )
+
+    if holds(plan):
+        return plan
+    higher = [value for value in RHYTHM_BUDGETS if value > budget_seconds]
+    respond = next((step for step in plain.steps if step.kind is StepKind.RESPOND), None)
+    exchange_seconds = (
+        -(-int(respond.estimated_seconds) * extra // max(1, _first_reply_turns(plain))) if respond else 0
+    )
+    limit = min(exchange_seconds, (higher[0] - 1 - budget_seconds) if higher else exchange_seconds)
+    for allowance in range(STORY_FIRST_STEP_SECONDS, limit + STORY_FIRST_STEP_SECONDS, STORY_FIRST_STEP_SECONDS):
+        allowance = min(allowance, limit)
+        candidate = _plan_journey_once(**{**kwargs, "budget_seconds": budget_seconds + allowance})
+        if holds(candidate):
+            note = (
+                f"story first: {wanted} exchanges at {_band_key(scenario.level_band)}; the day runs "
+                f"{allowance}s past its {budget_seconds}s rhythm and practice gives way"
+            )
+            return replace(candidate, rationale=f"{candidate.rationale}; {note}" if candidate.rationale else note)
+    # Even one exchange's overrun cannot keep the rule and the items: given back.
+    return plain
+
+
+def _plan_journey_once(
+    *,
+    scenario: ScenarioBrief,
+    candidates: list[LearningCandidate],
+    budget_seconds: int = DEFAULT_BUDGET_SECONDS,
+    pace: PacingProfile | None = None,
+    input_mode: InputMode = InputMode.TEXT,
+    errata_targets: list[ErrataTarget] | None = None,
+    day_shape: DayShape | str | None = None,
+    shape_reason: str = "",
+    dice: DayShapeInputs | None = None,
+    letter: LetterOffer | None = None,
+    chapter_recap_fr: str | None = None,
+    audio_available: bool = False,
+    first_day: bool = False,
+    practice: bool = False,
+    introduction: dict[str, Any] | None = None,
+    forge: dict[str, Any] | None = None,
+    reading: dict[str, Any] | list[dict[str, Any]] | None = None,
+    desk: dict[str, Any] | None = None,
+    page_review: list[dict[str, Any]] | None = None,
+    acts: list[ActBrief] | None = None,
+    story_extra: bool = True,
+) -> PlannedJourney:
+    """Build today's immutable plan once (``story_extra=False``: without the low
+    bands' exchange more, the plain day :func:`plan_journey` compares against).
 
     ``acts`` (Phase 2 «Folge in Akten») are the acts the night wrote after the
     day's first («À côté», «Le soir»). On a practice day of a rhythm that plays
@@ -3441,7 +3546,7 @@ def plan_journey(
     turns = max(turns, floor)
     # Owner 2026-11-16: an A1 or A2 generated scene asks one exchange more; the fit
     # below gives it back, down to the floor, before the story makes a longer day.
-    extra = low_band_extra_exchanges(scenario, task, budget_seconds)
+    extra = low_band_extra_exchanges(scenario, task, budget_seconds) if story_extra else 0
     if extra:
         turns = min(turns + extra, MAX_PLANNED_RESPOND_TURNS)
     optional_turns = 0
