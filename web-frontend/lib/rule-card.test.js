@@ -268,8 +268,18 @@ test('the x-ray sentence underlines each mark and reads out the first one', () =
       xray: {
         sentence: 'Je ne bois que du thé le matin.',
         marks: [
-          { token: 'ne...que', role: 'restriction', explanation: 'ne…que = only' },
-          { token: 'du thé', role: 'article_kept', explanation: 'article stays' },
+          {
+            token: 'ne...que',
+            role: 'restriction',
+            label: { en: 'Restriction', fr: 'Restriction' },
+            note: { en: 'ne…que = only', fr: 'ne…que = seulement' },
+          },
+          {
+            token: 'du thé',
+            role: 'article_kept',
+            label: { en: 'Article kept', fr: 'Article gardé' },
+            note: { en: 'article stays', fr: "l'article reste" },
+          },
         ],
       },
     }),
@@ -281,8 +291,55 @@ test('the x-ray sentence underlines each mark and reads out the first one', () =
   assert.match(html, /<span class="xr-key__token" lang="fr">ne … que<\/span>/);
   assert.match(html, /aria-pressed="true"/);
   assert.match(html, /<p class="xr-note__role">Restriction<\/p>/);
-  assert.match(html, /ne…que = only/);
+  assert.match(html, /ne…que = seulement/);
   assert.equal(renderToStaticMarkup(React.createElement(XraySentence, { language: 'en', xray: null })), '');
+});
+
+// #730: under German or French chrome the box speaks that language, or is not drawn.
+test('the x-ray never reads an English role key or note out under de or fr chrome', () => {
+  const sentence = 'Je suis au café. Et toi, tu es où ?';
+  const english = {
+    sentence,
+    marks: [
+      { token: 'Je suis', role: 'subject_verb', explanation: 'je takes suis' },
+      { token: 'tu es', role: 'informal_form', explanation: 'tu for a friend: tu es' },
+    ],
+  };
+  const render = (language, xray) => renderToStaticMarkup(React.createElement(XraySentence, { language, xray }));
+
+  // A catalogue mark with only its English text: no box in German or French …
+  assert.equal(render('de', english), '', 'no English x-ray under German chrome');
+  assert.equal(render('fr', english), '', 'no English x-ray under French chrome');
+  // … and English chrome still reads the key as words.
+  assert.match(render('en', english), /<p class="xr-note__role">Subject verb<\/p>/);
+
+  const localized = {
+    sentence,
+    marks: [
+      {
+        token: 'Je suis',
+        role: 'subject_verb',
+        label: { en: 'Subject verb', de: 'Subjekt und Verb', fr: 'Sujet et verbe' },
+        note: { en: 'je takes suis', de: 'zu je gehört suis', fr: 'avec je : suis' },
+      },
+      {
+        token: 'tu es',
+        role: 'informal_form',
+        label: { en: 'Informal form', de: 'Du-Form', fr: 'Tutoiement' },
+        note: { en: 'tu for a friend: tu es', de: 'tu für Freunde: tu es', fr: 'tu pour un ami : tu es' },
+      },
+    ],
+  };
+  const de = render('de', localized);
+  assert.match(de, /<p class="xr-note__role">Subjekt und Verb<\/p>/);
+  assert.match(de, /zu je gehört suis/);
+  assert.doesNotMatch(de, /Subject verb|je takes suis|subject_verb/);
+  assert.match(render('fr', localized), /<p class="xr-note__role">Sujet et verbe<\/p>/);
+  assert.match(render('en', localized), /je takes suis/);
+
+  // One mark without German text: the box is not drawn half in English.
+  const partial = { sentence, marks: [localized.marks[0], { ...localized.marks[1], note: { en: 'tu for a friend: tu es' } }] };
+  assert.equal(render('de', partial), '');
 });
 
 test('the x-ray and the card depth are drawn with av2 tokens only', () => {

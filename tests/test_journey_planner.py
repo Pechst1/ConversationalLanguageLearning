@@ -873,6 +873,9 @@ def test_the_planner_imports_no_ladder_and_no_scheduler() -> None:
         # #398: where a sentence ends («M.» and «J.» end none) — the one cut every
         # French text shares, pure string functions, no ORM and no scheduler.
         "app.services.sentence_line",
+        # 12 Nov 2026: a build or write item said to nobody — string functions over
+        # the task (`answer_acceptance.strip_vocative`), no ORM and no scheduler.
+        "app.services.no_address",
     }, imported
     assert _typing_only_imports(PLANNER_SOURCE) >= {
         "app.services.journey_errata"

@@ -2,7 +2,7 @@
   "id": "notaire",
   "kind": "room",
   "round": 3,
-  "in": "quai_de_valmy",
+  "in": "mairie_10e",
   "canon": {
     "doc": "docs/story/season-1/10-lieux-et-images.md",
     "place": "The notary's office (Maître Vasseur)",

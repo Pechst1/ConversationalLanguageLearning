@@ -45,6 +45,21 @@ export function isUnread(state: CheckState): state is 'not_checked' | 'basic' {
   return state === 'not_checked' || state === 'basic';
 }
 
+/** Whether asking again can reach a reader: `retryable: false` means there is none to ask (#724). */
+export function canAskAgain(check: CheckLike | null | undefined): boolean {
+  return isUnread(checkState(check)) && check?.retryable !== false;
+}
+
+/**
+ * #724: the line of an unread answer. The rules' fixes make it a basic check; with none, an
+ * answer that can be checked again says «not checked yet» next to its retry, and one that
+ * cannot says plainly that checking is unavailable, never «not checked yet» over a dead retry.
+ */
+export function unreadLine(check: CheckLike | null | undefined): 'basic' | 'not_checked' | 'unavailable' {
+  if (checkState(check) === 'basic') return 'basic';
+  return canAskAgain(check) ? 'not_checked' : 'unavailable';
+}
+
 /** Whether this answer was saved unread and has been checked since: the screen says so once. */
 export function checkedSince(check: CheckLike | null | undefined): boolean {
   return Boolean(check?.checked_since) && checkState(check) === 'settled';
@@ -55,16 +70,19 @@ export const CHECK_COPY = {
   en: {
     not_checked: "Answer saved, not checked yet. It doesn't count yet.",
     basic: 'Basic check only. The full check did not run.',
+    unavailable: 'Checking is not available right now, so this answer does not count. Go on with the next one.',
     checked_since: 'Checked since. It counts now.',
   },
   de: {
     not_checked: 'Antwort gespeichert, noch nicht geprüft. Sie zählt noch nicht.',
     basic: 'Nur Grundprüfung. Die volle Prüfung lief nicht.',
+    unavailable: 'Die Prüfung ist gerade nicht verfügbar, darum zählt diese Antwort nicht. Mach mit der nächsten weiter.',
     checked_since: 'Inzwischen geprüft. Sie zählt jetzt.',
   },
   fr: {
     not_checked: 'Réponse enregistrée, pas encore vérifiée. Elle ne compte pas encore.',
     basic: 'Vérification de base seulement. La vérification complète n’a pas eu lieu.',
+    unavailable: 'La vérification n’est pas disponible pour le moment : cette réponse ne compte pas. Passe à la suivante.',
     checked_since: 'Vérifiée depuis. Elle compte maintenant.',
   },
 } as const;

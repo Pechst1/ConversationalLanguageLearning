@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import re
 from pathlib import Path
 
@@ -89,3 +90,126 @@ def test_the_card_travels_with_the_serialized_concept():
     data = serialize_concept(concept)
     assert data["rule_card"]["pattern"]["kind"] == "table"
     assert data["rule_card"]["pattern"]["verb"] == "habiter"
+
+
+# --------------------------------------------------------------------------
+# #753: the French text of a rule card speaks to the learner with «tu».
+#
+# The cards are stored text, served as written; two authoring batches wrote two
+# registers (A2/B2 «Mets avoir au présent», A1/B1/C1 «Mettez…») and nothing
+# checked which one a card was in. This is the register contract for that text.
+# A *mention* of vous (a form being taught: «nous, vous, ils», «: vous êtes»,
+# «(pourriez-vous…)», «« Avez-vous… ? »») is not an address and is left alone.
+# --------------------------------------------------------------------------
+
+RULE_CARD_FILES = sorted((ROOT / "app" / "data" / "rule_cards").glob("fr2_*.json"))
+#: Quoted or bracketed text is an example or a form, never the card talking.
+_MENTIONED = re.compile(r"«[^»]*»|“[^”]*”|\"[^\"]*\"|\([^)]*\)")
+_STEP = r"^[ \t]*(?:\d+[.)][ \t]*)?"
+#: A vous imperative that opens a step: «Remplacez…», «Dites…», «Ne déplacez pas…».
+_VOUS_VERB = (
+    r"(?:ne[ \t]+|n['’][ \t]*)?(?:(?:le|la|les|en|y|lui|leur)[ \t]+|l['’])?"
+    r"([A-Za-zÀ-ÿ]{2,}ez|dites|faites)\b(?!-(?:vous|nous)\b)"
+)
+_VOUS_IMPERATIVE = re.compile(rf"{_STEP}{_VOUS_VERB}", re.MULTILINE | re.IGNORECASE)
+#: …or a later sentence or clause («…, regardez la terminaison», «Prends l'infinitif
+#: et enlevez -er»), unless it stands alone in a list of forms («aie, ayons, ayez.»,
+#: «Prends ! Tournez !»).
+_VOUS_IMPERATIVE_INSIDE = re.compile(
+    rf"(?:[.!?;:,]|\b(?:et|ou|puis|mais|alors))[ \t]+{_VOUS_VERB}(?![ \t]*(?:[,.;!?/]|$))",
+    re.MULTILINE | re.IGNORECASE,
+)
+#: «Demandez-vous», «Rappelez-vous» opening a sentence (not an inversion being taught).
+_VOUS_REFLEXIVE = re.compile(
+    rf"(?:{_STEP}|[.!?;][ \t]+)([A-Za-zÀ-ÿ]+ez-vous)\b(?![ \t]*(?:…|\?))", re.MULTILINE
+)
+#: «votre choix», «vos raisons» (not «notre/votre/leur», a series being taught).
+_VOUS_POSSESSIVE = re.compile(r"(?<![/\w])(votre|vos)\b(?![ \t]*/)", re.IGNORECASE)
+#: «vous voulez savoir»: vous as the subject of the card's own sentence, before any
+#: colon (after a colon come the forms: «: nous avons, vous avez»).
+_VOUS_SUBJECT = re.compile(r"\b(vous[ \t]+[a-zà-ÿ]+(?<!i)ez)\b(?![ \t]*(?:…|\?))", re.IGNORECASE)
+_NOT_VERBS = {"chez", "assez", "nez", "rez"}
+
+
+def _french_lines() -> list[tuple[str, str, str, str]]:
+    """``(file, card, field, text)`` for every French learner-facing string of every card."""
+
+    found: list[tuple[str, str, str, str]] = []
+
+    def walk(node, card_id: str, where: str, path: Path) -> None:
+        if isinstance(node, dict):
+            if isinstance(node.get("fr"), str) and ("en" in node or "de" in node):
+                found.append((path.name, card_id, where, node["fr"]))
+            for key, value in node.items():
+                walk(value, card_id, f"{where}.{key}" if where else key, path)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value, card_id, f"{where}[]", path)
+
+    for path in RULE_CARD_FILES:
+        for card_id, card in json.loads(path.read_text(encoding="utf-8"))["cards"].items():
+            walk(card, card_id, "", path)
+    return found
+
+
+def vous_address(text: str) -> list[str]:
+    """The places where ``text`` addresses its reader with vous, mentions aside."""
+
+    plain = _MENTIONED.sub(" ", text)
+    # «1. Remplacez» opens a step and also follows «.»: one hit per place, not per pattern.
+    imperatives = {
+        m.start(1): m.group(1)
+        for pattern in (_VOUS_IMPERATIVE, _VOUS_IMPERATIVE_INSIDE)
+        for m in pattern.finditer(plain)
+        if m.group(1).lower() not in _NOT_VERBS
+    }
+    hits = [imperatives[start] for start in sorted(imperatives)]
+    hits +=[m.group(1) for m in _VOUS_REFLEXIVE.finditer(plain)]
+    hits += [m.group(1) for m in _VOUS_POSSESSIVE.finditer(plain)]
+    for sentence in re.split(r"[.!?;\n]", plain):
+        hits += [m.group(1) for m in _VOUS_SUBJECT.finditer(sentence.split(":")[0])]
+    return hits
+
+
+def test_register_guard_tells_address_from_mention():
+    for addressed in (
+        "1. Remplacez chaque complément par son pronom.",
+        "2. Rangez-les : me/te/nous/vous · le/la/les.",
+        "Je ferai et je ferais se prononcent pareil : à l'écrit, regardez la terminaison.",
+        "1. Demandez-vous : avant ou après ?",
+        "Choisissez le mot selon ce que vous voulez savoir.",
+        "Ajoute l'infinitif, dans l'ordre de votre choix.",
+        "1. Dites la phrase : tu viens ce soir.",
+        "3. Ne déplacez pas le verbe.",
+        "1. Prends l'infinitif et enlevez -er : parler → parl-.",
+        "Concède d'abord, puis réfutez : ta position vient en second.",
+    ):
+        assert vous_address(addressed), addressed
+    for mentioned in (
+        "1. Mets avoir au présent : j'ai, tu as, il a, nous avons, vous avez, ils ont.",
+        "Je voudrais pour demander poliment ; vous voulez… ? pour proposer.",
+        "Choisis la série : mon/ton/son, notre/votre/leur.",
+        "« Avez-vous… ? » inverse le verbe et le sujet.",
+        "D'autres formes polies : j'aimerais, pourriez-vous…",
+        "Que nous parlions, que vous preniez : les mêmes formes qu'à l'imparfait.",
+        "Quand on dit Madame ou Monsieur, on dit vous.",
+        "Certaines formes servent aussi d'impératif (sois sage, ayez confiance).",
+        "Après chez : moi, toi, lui, elle, nous, vous, eux, elles.",
+        "Avoir a son propre impératif : aie, ayons, ayez.",
+        "2. Enlève le pronom : Prends ! Tournez !",
+        "3. Mets le verbe au subjonctif : viennes, finisse, preniez.",
+    ):
+        assert not vous_address(mentioned), mentioned
+
+
+def test_rule_cards_say_tu():
+    """Every French learner-facing line of every fr2 card addresses the learner with tu."""
+    assert len(RULE_CARD_FILES) == 5
+    slips = [
+        f"{name} {card_id} {where}: {hits} in «{text}»"
+        for name, card_id, where, text in _french_lines()
+        for hits in [vous_address(text)]
+        if hits
+    ]
+    per_file = {path.name: sum(s.startswith(path.name) for s in slips) for path in RULE_CARD_FILES}
+    assert not slips, f"French rule-card text says vous to the learner {per_file}:\n" + "\n".join(slips)

@@ -21,6 +21,7 @@ from app.services.forge_item_validator import advice, scenario_problems
 from app.services.grammar_feedback import infer_grammar_profile
 from app.services.item_bank import TRANSFORM_TASK_KINDS
 from app.services.llm_service import LLMProviderError, LLMService
+from app.services.no_address import NO_ADDRESS_INSTRUCTION, unaddressed_exercise
 from app.services.progress import ProgressService
 from app.services.unified_srs import InterleavingMode, ItemType, UnifiedSRSService
 
@@ -573,6 +574,8 @@ class ExerciseGenerationService:
             f"{address_instruction('fr')} This holds for every output_ladder prompt and the produce.prompt "
             "(«Ta sœur te demande où est ta clé. Que lui dis-tu ?», never «Votre sœur vous demande … Répondez …»); "
             "a character's own line goes inside « » and keeps that character's register. "
+            # Owner decision 12 Nov 2026: a sentence the learner builds or writes is said to nobody.
+            f"{NO_ADDRESS_INSTRUCTION} "
             "When context.target_vocabulary is provided, naturally weave those French words into prompts or examples where they fit. "
             "When context.due_errata includes task_error_type or error_pattern, aim at those sub-patterns directly. "
             "Worked examples: fill = prompt 'Je ne bois pas ____ café.' choices ['de','du'] correct_answer 'de'; "
@@ -679,7 +682,8 @@ class ExerciseGenerationService:
                 [{"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],
                 system_prompt=(
                     "Generate exactly three brief learner-facing French grammar exercises. "
-                    "Return only JSON matching the schema. Keep prompts concrete, answerable, and tied to the target concept."
+                    "Return only JSON matching the schema. Keep prompts concrete, answerable, and tied to the target concept. "
+                    + NO_ADDRESS_INSTRUCTION
                 ),
                 response_format=BRIEF_GRAMMAR_RESPONSE_FORMAT,
                 temperature=0.35,
@@ -692,6 +696,7 @@ class ExerciseGenerationService:
             errors = validate_brief_grammar_payload(parsed)
             if errors:
                 raise ExerciseGenerationUnavailable("; ".join(errors))
+            parsed["exercises"] = [unaddressed_exercise(exercise) for exercise in parsed.get("exercises") or []]
             parsed["concept_id"] = concept.id
             parsed["concept_name"] = concept.name
             parsed["level"] = concept.level
@@ -739,7 +744,8 @@ class ExerciseGenerationService:
                 [{"role": "user", "content": json.dumps(prompt_payload, ensure_ascii=False, default=str)}],
                 system_prompt=(
                     "Generate one brief French repair exercise from the stored learner error. "
-                    "Return only JSON matching the schema. The prompt must be answerable without exposing the answer."
+                    "Return only JSON matching the schema. The prompt must be answerable without exposing the answer. "
+                    + NO_ADDRESS_INSTRUCTION
                 ),
                 response_format=ERROR_EXERCISE_RESPONSE_FORMAT,
                 temperature=0.3,
@@ -752,6 +758,7 @@ class ExerciseGenerationService:
             errors = validate_error_exercise_payload(parsed)
             if errors:
                 raise ExerciseGenerationUnavailable("; ".join(errors))
+            parsed = unaddressed_exercise(parsed)
             parsed["error_id"] = str(error.id)
             parsed["original_text"] = error.original_text
             parsed["stored_correction"] = error.correction

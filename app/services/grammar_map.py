@@ -105,9 +105,11 @@ def _bands(concepts: list[GrammarConcept], *, v2: bool) -> list[tuple[str, list[
 
 
 def unit_xray(concept: Any) -> dict[str, Any] | None:
-    """The unit's x-ray sentence, ``{sentence, marks: [{token, role, explanation}]}``.
+    """The unit's x-ray sentence, ``{sentence, marks: [{token, role, label, note}]}``.
 
-    Read from the catalogue seed the concept was stored with
+    ``label`` and ``note`` are ``{en, de, fr}`` blocks, like the rule card's text: the
+    client reads them in the learner's chrome language and draws no x-ray in a
+    language a mark has no text in (#730). Read from the catalogue seed the concept was stored with
     (``source_refs.blueprint_seed.sentence_xray``). A token may be
     discontinuous (``ne...que``); the client finds its pieces in the sentence.
     ``None`` when the unit has no sentence or no mark.
@@ -120,17 +122,44 @@ def unit_xray(concept: Any) -> dict[str, Any] | None:
         return None
     sentence = str(xray.get("sentence") or "").strip()
     marks = [
-        {
-            "token": str(mark.get("token") or "").strip(),
-            "role": str(mark.get("role") or "").strip(),
-            "explanation": str(mark.get("explanation") or "").strip(),
-        }
+        _xray_mark(mark)
         for mark in xray.get("marks") or []
         if isinstance(mark, dict) and str(mark.get("token") or "").strip()
     ]
     if not sentence or not marks:
         return None
     return {"sentence": sentence, "marks": marks}
+
+
+def _role_words(role: str) -> str:
+    """``subject_verb`` -> ``Subject verb``: the English label, never the key."""
+
+    words = " ".join(role.replace("_", " ").replace("-", " ").split())
+    return words[:1].upper() + words[1:]
+
+
+def _xray_mark(mark: dict[str, Any]) -> dict[str, Any]:
+    """One mark, its role label and note as ``{en, de, fr}`` blocks (#730).
+
+    ``role`` stays the catalogue key (data, never shown). A language the catalogue
+    has no text for is left out of the blocks, never filled with the English text:
+    the client then does not draw the x-ray in that language.
+    """
+
+    role = str(mark.get("role") or "").strip()
+    label: dict[str, str] = {}
+    note: dict[str, str] = {}
+    english_label, english_note = _role_words(role), str(mark.get("explanation") or "").strip()
+    if english_label and english_note:
+        label["en"], note["en"] = english_label, english_note
+    localized = mark.get("localized") if isinstance(mark.get("localized"), dict) else {}
+    for locale, text in localized.items():
+        if not isinstance(text, dict):
+            continue
+        role_text, note_text = str(text.get("role") or "").strip(), str(text.get("explanation") or "").strip()
+        if role_text and note_text:
+            label[str(locale)], note[str(locale)] = role_text, note_text
+    return {"token": str(mark.get("token") or "").strip(), "role": role, "label": label, "note": note}
 
 
 @lru_cache(maxsize=2)

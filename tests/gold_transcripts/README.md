@@ -1,8 +1,10 @@
 # Gold transcripts
 
-Fixed learner inputs, taken from the live walks, run every Sunday against the production
-prompts and models and scored by a judge on fixed written criteria. A story fix counts as
-proven when it moves its surface's score here.
+Fixed learner inputs, taken from the live walks, run every night against the production
+prompts and models and scored by a judge on fixed written criteria. They are also a gate:
+a change to what a model is asked, or which model answers, on a weekly surface merges only
+when that surface's score holds (see «The gate»). A story fix counts as proven when its
+gate verdict is «rose».
 
 | surface | what runs (production code) | inputs |
 |---|---|---|
@@ -98,6 +100,50 @@ A page costs about US$0.04 on Haiku 5.5, US$0.21 on Sonnet 5.5 and US$0.30 on Op
 `GOLD_CAPTURE_PAGES=1 python -m pytest tests/gold_transcripts/test_capture_pages.py` when the
 story context changes shape. `rejudge` scores a saved run's answers with another judge and
 prints how often the two agree: run it before changing the judge.
+
+## The gate
+
+Owner decision, 14 Nov 2026 («the core day plus 25 real learners»): run the gold
+transcripts every night and before any prompt or model change goes live; a lower score
+blocks the change.
+
+```
+python scripts/gold_transcripts.py check                 # free, in PR CI: STALE when a surface changed ungated
+python scripts/gold_transcripts.py gate --max-usd 1.5    # paid: main against this checkout, changed surfaces only
+```
+
+- **What counts as a change.** `check` drives the four weekly surfaces over their gold
+  inputs with `render.yaml`'s production settings and a client that records each call and
+  sends nothing (`gate.py`), then hashes every call per surface: system prompt, messages,
+  model (the settings' default when a call names none), reasoning effort, temperature,
+  token limit, response format. A prompt edited anywhere, a model or parameter changed in
+  `render.yaml` or `app/config.py`, a change to the context a prompt is built from: each
+  changes the hash, whatever file it was made in. A refactor that sends exactly the same
+  calls does not. Editing a set's inputs changes it too, since the inputs are in the
+  messages. It covers each item's first-attempt calls (a retry after a failure is not
+  rendered), which on these surfaces are all of their model calls. About five seconds.
+- **What `gate` does.** It runs the stale surfaces (or `--surface`, `--all`) twice at
+  once, on the merge-base with `--base` (default `origin/main`) in a temporary worktree and
+  on this checkout, both with this checkout's `sets/` and `criteria.py`, so the same
+  questions are asked of both. The cap is shared, half a side. The two runs are paired item
+  by item over the items scored on both sides: a surface whose paired score falls by more
+  than `gate.TOLERANCE` points is «fell», one that rises by more is «rose», anything
+  between is «held», and fewer than 90 % of items paired is «incomplete». «held» and «rose»
+  write the surface's new fingerprint, scores and verdict to `gate.json`; «fell» and
+  «incomplete» leave it, so CI stays red. The table goes to `var/gold/<date>-gate.md` for the
+  PR body; both runs' full results to `var/gold/<date>-gate-base.json` and `-head.json`.
+- **The tolerance** (`gate.TOLERANCE`, 4 points) is provisional: one answer of a 24–28
+  item surface going from full marks to a fallback moves it 3.6–4.2 points. A same-code run
+  (`gate --all --calibrate --base HEAD`, kept in `gate.json`'s `calibration`) measures the
+  real noise of the models and the judge, and the tolerance is then set just above it.
+- **A side that mostly fell back** (more than half its items: an expired key, an outage)
+  makes the verdict «incomplete», so an outage on both sides can never pass as «held».
+- **Baseline.** The gate started on 14 Nov 2026 with main's fingerprints accepted as they
+  were (`gate --baseline`, verdict «baseline», free); it only adds surfaces `gate.json`
+  does not have yet and never resets one.
+- **Overriding.** There is no switch. When a fall is right (a criterion no longer fits
+  the product), change the criterion in its own PR first; a criteria change restarts the
+  trend and both sides of the next gate are judged on it.
 
 ## Adding an input
 

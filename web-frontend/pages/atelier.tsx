@@ -14,7 +14,7 @@ import { forgeCorrectionNotes } from '@/lib/correction-notes';
 import { classifyRepair } from '@/lib/forge-followup';
 import { classificationCopy, classificationGoal, isJudgementLabels, judgementLabel, judgementQuestion } from '@/lib/classification-copy';
 import { answeredLevel, itemVerdict, productionPhase, reviewIsPending, settleShownCorrection, type RepairStep } from '@/lib/forge-verdict';
-import { checkState } from '@/lib/verdict';
+import { canAskAgain, checkState, unreadLine } from '@/lib/verdict';
 import { keepCardAboveSheet } from '@/lib/keep-above-sheet';
 import { drillGoalLine } from '@/components/atelier-v2/journey/drill-frame';
 import {
@@ -192,7 +192,7 @@ import {
   type ForgeDrill,
 } from '@/lib/forge-drills';
 import { rewardMomentCopy } from '@/lib/reward-moment-copy';
-import { assembleRepair, isRepairableLine, repairParts, repairState } from '@/lib/repair-parts';
+import { assembleRepair, isRepairableLine, missCorrections, repairParts, repairState } from '@/lib/repair-parts';
 import { forgeSeatIsSamePlace, isForgeOutputRound, scopeOutputItem, seatForgeItem } from '@/lib/forge-items';
 import { comboEnabled, comboFeel, comboStep } from '@/lib/forge-combo';
 import { bestComboLine, fillMomentum, momentumCopy } from '@/lib/momentum-copy';
@@ -4257,10 +4257,17 @@ export function ExerciseFeedbackMoment({
     // #333: the rules' real fixes stay listed; nothing here is a verdict.
     const unreadFixes: Array<{ span: string; replacement: string; start: number }> = correction?.check?.edits || [];
     const unreadState = checkState(correction?.check) === 'basic' ? 'basic' : 'not_checked';
+    // #724: «Check again» only where asking again can reach a reader; with none, the line
+    // says so plainly instead of «not checked yet» over a button that can never work.
+    const line = unreadLine(correction?.check);
     return (
       <div className="ep-feedback" data-verdict="unscored" data-check={unreadState} role="status">
-        <EpRelecture status="failed" onRetry={onRetryAiReview} retrying={aiReviewSubmitting}>
-          {unreadState === 'basic' ? t.check_basic : t.unscored}
+        <EpRelecture
+          status="failed"
+          onRetry={canAskAgain(correction?.check) ? onRetryAiReview : undefined}
+          retrying={aiReviewSubmitting}
+        >
+          {line === 'basic' ? t.check_basic : line === 'unavailable' ? t.check_unavailable : t.unscored}
         </EpRelecture>
         {unreadFixes.map((edit) => (
           <p className="av2-fr" lang="fr" key={`${edit.start}-${edit.span}`}>
@@ -4296,6 +4303,8 @@ export function ExerciseFeedbackMoment({
     isLabelCompare: Boolean(isLabelCompare),
     needsNewAnswer,
   });
+  // #779: what the miss draws, grouped by what it asks (lib/repair-parts.ts).
+  const shownCorrections = missCorrections(issues);
   // WP-S1: the verdict on screen is the local one and it never waits. The
   // model's second reading runs quietly behind it; a note appears only if it
   // changed the verdict. (An open answer it could not read at all becomes
@@ -4360,11 +4369,15 @@ export function ExerciseFeedbackMoment({
     // The answer stays a miss (`data-verdict`, the line comes back later); `data-mended`
     // says its line was fixed.
     <div className="ep-feedback" data-verdict="wrong" data-mended={mended ? 'true' : undefined} ref={feedbackRef}>
-      {issues.map((issue, index) => {
+      {/* #779: one card per correction and one field per corrected line (a repeated
+          erratum drew the same line twice, and its second «Compare» behind the sheet). */}
+      {shownCorrections.map(({ issue, index, repair: fieldHere }, position) => {
         const learner = String(issue.learner_text || feedback.learner || '').trim();
         const target = String(issue.corrected_target || feedback.target || '').trim();
         const repairKey = `${feedbackKey}:${index}`;
         const repair = repairs[String(index)] || null;
+        // The field for this line is under an earlier correction of the same line.
+        const lineCopiedAbove = !fieldHere && isRepairableLine(String(issue.corrected_target || '').trim());
         if (issue.task_error_type === 'task_compliance' || !target) {
           return <React.Fragment key={`task-${index}`}>
             {/* The second-check note rides on the first card, whatever kind it is. */}
@@ -4380,8 +4393,8 @@ export function ExerciseFeedbackMoment({
           <React.Fragment key={`${issue.display_label || 'repair'}-${index}`}>
             <EpGalley
               anchor={ruleShown
-                ? correctionAnchor(issue.display_label, ruleShown) ?? (issues.length > 1 ? fill(t.correction_n, { n: index + 1 }) : undefined)
-                : issue.display_label || fill(t.correction_n, { n: index + 1 })}
+                ? correctionAnchor(issue.display_label, ruleShown) ?? (shownCorrections.length > 1 ? fill(t.correction_n, { n: position + 1 }) : undefined)
+                : issue.display_label || fill(t.correction_n, { n: position + 1 })}
               why={display(printableWhy(withoutRuleReference(issue.why_wrong || feedback.why || '', ruleShown)))}
               repair={display(printableWhy(issue.repair_hint || (index === 0 ? feedback.repair : ''))) || undefined}
               // One second-look note per correction sheet, not one per erratum.
@@ -4406,7 +4419,7 @@ export function ExerciseFeedbackMoment({
                 submitting={!!repairSubmitting[repairKey]}
               />
             )}
-            {!isLabelCompare && target && isRepairableLine(target) && !(index === 0 && lineParts) && (
+            {!isLabelCompare && target && isRepairableLine(target) && !(index === 0 && lineParts) && !lineCopiedAbove && (
               <EpRepair
                 target={target}
                 typed={repair?.typed || repairDrafts[repairKey] || ''}

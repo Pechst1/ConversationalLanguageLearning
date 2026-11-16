@@ -72,3 +72,54 @@ test('the line is the quiet action and notice already on the sheet: no new shape
   assert.doesNotMatch(block, /#[0-9a-fA-F]{3,6}|uppercase|style=\{/);
   assert.match(block, /data-appeal=/);
 });
+
+// #729: the 12 Nov walk's item. «In welchem Satz steckt die Regel von heute?», the pick
+// «Il pleut.», the key «C'est qui, vous ?». An upheld appeal turned the band «Richtig» and
+// left the miss's reveal under it: «In diesem Satz steckt die Regel: C'est qui, vous ? ·
+// Nicht dieser: Il pleut.». Upheld is one state: the item is right everywhere.
+test('an upheld appeal leaves no trace of the miss on the sheet: no reveal of the key, no struck pick', () => {
+  const apiPath = Module._resolveFilename('@/services/api', module, false);
+  require.cache[apiPath] = {
+    id: apiPath, filename: apiPath, loaded: true, exports: { __esModule: true, default: {}, apiService: {} },
+  };
+  const React = require('react');
+  const { renderToStaticMarkup } = require('react-dom/server');
+  const { JourneyFeedbackView } = require('./JourneySteps.tsx');
+
+  const pick = {
+    ...miss,
+    correction: {
+      kind: 'pick',
+      span_fr: 'Il pleut.',
+      corrected_fr: 'C’est qui, vous ?',
+      note_native: 'Être heißt sein: je suis, tu es, il est.',
+      notes_native: [],
+    },
+  };
+  const sheet = { kind: 'graded', verdict: 'incorrect', result: pick, replySource: 'unknown' };
+  const right = { ...miss.check, outcome: 'right', checked_by: 'model', call: 'ok' };
+  const upheld = feedbackAfterAppeal(sheet, { state: 'upheld', reason: 'Ja.' }, right);
+  const de = journeyCopy('de');
+  const html = renderToStaticMarkup(
+    React.createElement(JourneyFeedbackView, {
+      feedback: upheld,
+      copy: de,
+      stepKind: 'recall',
+      onContinue() {},
+      onRetry() {},
+      onDismiss() {},
+      onAppeal: async () => {},
+    }),
+  );
+
+  assert.equal(upheld.verdict, 'correct');
+  assert.ok(html.includes(de.correct), `«${de.correct}» on the band`);
+  assert.ok(!html.includes(de.pick_not_it), `no «${de.pick_not_it}» under «${de.correct}»`);
+  assert.ok(!html.includes(de.correction_pick), `no «${de.correction_pick}» under «${de.correct}»`);
+  assert.ok(!html.includes('Il pleut.'), 'the pick is not struck through');
+  assert.ok(!html.includes('av2-correction'), 'no reveal of the key at all');
+
+  // A refused appeal keeps the miss, reveal and all.
+  const refused = feedbackAfterAppeal(sheet, { state: 'refused', reason: 'Nein.' }, null);
+  assert.equal(refused.result.correction.span_fr, 'Il pleut.');
+});

@@ -131,21 +131,51 @@ def _parse_bool(value: str | None) -> bool:
     return str(value or "").strip().casefold() in {"1", "true", "yes", "y"}
 
 
-def _parse_xray_marks(value: str | None) -> list[dict[str, str]]:
-    marks: list[dict[str, str]] = []
+# #730: the x-ray marks are learner-facing text, so they carry the same locale contract as
+# a unit's title (``name_de`` / ``name_fr``) and short rule (``rule_short_de`` / ``_fr``).
+# ``xray_marks`` holds the English note and the role *key*; ``xray_marks_de`` / ``_fr``
+# hold, for the same tokens in the same order, the role in words and the note.
+XRAY_MARK_LOCALES: tuple[str, ...] = ("de", "fr")
+
+
+def _xray_triples(value: str | None) -> list[tuple[str, str, str]]:
+    triples: list[tuple[str, str, str]] = []
     for item in _split(value, "||"):
         parts = [part.strip() for part in item.split("=>", 2)]
         if len(parts) == 3:
-            token, role, explanation = parts
-            marks.append(
-                {
-                    "token": token,
-                    "role": role,
-                    "explanation": explanation,
-                    "color": _role_color(role),
-                    "underline": "solid",
-                }
-            )
+            triples.append((parts[0], parts[1], parts[2]))
+    return triples
+
+
+def _parse_xray_marks(value: str | None, localized: dict[str, str | None] | None = None) -> list[dict[str, Any]]:
+    """``token=>role=>note||…`` -> marks; ``localized`` adds each mark's role label and note per locale.
+
+    A localized entry is kept only for the token it names (same position as in the
+    English column); a locale whose entry is missing or names another token stays
+    absent, so a reader can tell «no German text» from «German text» and never has to
+    show the English note instead.
+    """
+
+    translations = {
+        locale: _xray_triples(text) for locale, text in (localized or {}).items() if str(text or "").strip()
+    }
+    marks: list[dict[str, Any]] = []
+    for index, (token, role, explanation) in enumerate(_xray_triples(value)):
+        mark: dict[str, Any] = {
+            "token": token,
+            "role": role,
+            "explanation": explanation,
+            "color": _role_color(role),
+            "underline": "solid",
+        }
+        texts = {
+            locale: {"role": entries[index][1], "explanation": entries[index][2]}
+            for locale, entries in translations.items()
+            if index < len(entries) and entries[index][0] == token
+        }
+        if texts:
+            mark["localized"] = texts
+        marks.append(mark)
     return marks
 
 
@@ -266,7 +296,10 @@ def _normalize_row(row: dict[str, str], version: str = FRENCH_CORE_CATALOG_VERSI
                     for part in [row.get("core_rule", "").strip(), row.get("when_to_use", "").strip()]
                     if part
                 ),
-                "marks": _parse_xray_marks(row.get("xray_marks")),
+                "marks": _parse_xray_marks(
+                    row.get("xray_marks"),
+                    {locale: row.get(f"xray_marks_{locale}") for locale in XRAY_MARK_LOCALES},
+                ),
             },
         },
     }
