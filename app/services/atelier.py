@@ -663,6 +663,7 @@ ATELIER_CORRECTION_RESPONSE_FORMAT: dict[str, Any] = {
                             "corrected_target": {"type": "string"},
                             "why_wrong": {"type": "string"},
                             "repair_hint": {"type": "string"},
+                            "hint": {"type": "string"},
                             "severity": {"type": "integer"},
                             "recurring": {"type": "boolean"},
                             "task_error_type": {"type": "string"},
@@ -675,6 +676,7 @@ ATELIER_CORRECTION_RESPONSE_FORMAT: dict[str, Any] = {
                             "corrected_target",
                             "why_wrong",
                             "repair_hint",
+                            "hint",
                             "severity",
                             "recurring",
                             "task_error_type",
@@ -850,25 +852,8 @@ def repair_line_from_parts(learner: str, errata: list[dict[str, Any]] | None) ->
     return "".join(str(part.get("text", part.get("fix")) or "") for part in parts)
 
 
-_GAP_BLANK = re.compile(r"_{3,}")
+#: One bracketed aside with no bracket inside it, and the space before it.
 _PARENTHETICAL = re.compile(r"\s*\([^()]*\)")
-
-
-def gap_line(prompt: Any, filler: Any) -> str | None:
-    """A gap drill's whole line: ``filler`` in the prompt's one blank, ``None`` without one.
-
-    What stands in parentheses is not the line: the bank's gloss at the end, which can
-    hold its own («(You (informal) are ill…)», so innermost first), or a cue beside the
-    blank.
-    """
-
-    filler = str(filler or "").strip()
-    text = str(prompt or "")
-    removed = 1
-    while removed:
-        text, removed = _PARENTHETICAL.subn("", text)
-    line, blanks = _GAP_BLANK.subn(lambda _match: filler, text)
-    return " ".join(line.split()) if filler and blanks == 1 else None
 
 
 def _normalize(value: Any) -> str:
@@ -4969,6 +4954,35 @@ class AtelierCorrectionService:
         self.db.refresh(attempt)
         return attempt
 
+    @classmethod
+    def _keyed_gap_line(cls, attempt: AtelierAttempt, erratum: dict[str, Any]) -> str | None:
+        """#808: the printed line of the gap item a keyed erratum belongs to, or ``None``.
+
+        A gap's key and the learner's text are only what stands in the gap («tu as
+        écrit»), while «Copy the correction» asks for the corrected line. The line
+        is the item's prompt («L'été dernier, ___ un article.») without what stands
+        in brackets: the bank's gloss after the French, which can hold its own
+        («(You (informal) are ill.)», so innermost first), or a cue beside the gap
+        («(descendre)»). ``None`` when the item prints no gap.
+        """
+
+        prompt = str(cls._keyed_repair_item(attempt, erratum).get("prompt") or "")
+        removed = 1
+        while removed:
+            prompt, removed = _PARENTHETICAL.subn("", prompt)
+        prompt = " ".join(prompt.split())
+        return prompt if BLANK_RE.search(prompt) else None
+
+    @staticmethod
+    def _in_gap_line(gap_line: str, text: str) -> str:
+        """``text`` as the line it stands in: the gap filled with it, unless it already is the line."""
+
+        text = text.strip()
+        frame = [fold_typography(part) for part in BLANK_RE.split(gap_line) if fold_typography(part)]
+        if not text or all(part in fold_typography(text) for part in frame):
+            return text
+        return fill_blank(gap_line, text)
+
     @staticmethod
     def _keyed_repair_source(attempt: AtelierAttempt, erratum: dict[str, Any]) -> str:
         """The learner's own text for the item a keyed erratum belongs to."""
@@ -4988,7 +5002,7 @@ class AtelierCorrectionService:
 
         items = (attempt.prompt_payload or {}).get("items")
         items = [item for item in items if isinstance(item, dict)] if isinstance(items, list) else []
-        named = next((item for item in items if item.get("id") == erratum.get("item_id")), None)
+        named = next((item for item in items if item.get("id") and item.get("id") == erratum.get("item_id")), None)
         return named or (items[0] if len(items) == 1 else {})
 
     @staticmethod
@@ -5060,13 +5074,15 @@ class AtelierCorrectionService:
             erratum = errata[erratum_index] if erratum_index < len(errata) else {}
             source = self._keyed_repair_source(attempt, erratum)
             key_line = (correction.get("corrected_answer") or {}).get(erratum.get("item_id")) if isinstance(correction.get("corrected_answer"), dict) else None
-            accepted = [target, key_line if isinstance(key_line, str) else None, repair_line_from_parts(source, [erratum]) if source else None]
-            if attempt.mode == "fill":
-                # A gap's key and the learner's answer are only the gap, so neither
-                # holds the line the field asks for: the prompt does.
-                item = self._keyed_repair_item(attempt, erratum)
-                source = gap_line(item.get("prompt"), source) or source
-                accepted += [gap_line(item.get("prompt"), target), gap_line(item.get("prompt"), item.get("correct_answer"))]
+            key_line = key_line if isinstance(key_line, str) else None
+            # #808: a gap item's answer and key are only the gap; its line is the
+            # printed sentence with the gap filled. The learner's line is the source
+            # the part is read in, and the key's line is right too.
+            gap_line = self._keyed_gap_line(attempt, erratum)
+            if gap_line:
+                source = self._in_gap_line(gap_line, source) if source.strip() else source
+                key_line = self._in_gap_line(gap_line, key_line or target)
+            accepted = [target, key_line, repair_line_from_parts(source, [erratum]) if source else None]
         is_correct = self._repair_is_right(typed, source, accepted)
         repairs = dict(correction.get("micro_repairs") or {})
         repairs[str(erratum_index)] = {
@@ -5077,6 +5093,10 @@ class AtelierCorrectionService:
             "submitted_at": datetime.now(UTC).isoformat(),
         }
         correction["micro_repairs"] = repairs
+        # Owner 2026-11-13: the repair was the second chance; the solution is shown from now on.
+        from app.services import solution_gate
+
+        correction = solution_gate.reveal(correction, by="repair")
 
         # A correct retype earns a delayed retrieval attempt. It is not an
         # attempt reward and it is tied to this source correction for reloads.
@@ -5480,6 +5500,11 @@ class AtelierCorrectionService:
             self.db.refresh(attempt, with_for_update=True)
             correction = dict(attempt.correction_payload or {})
             review = self.ai_review_from_correction(correction)
+            if review.get("status") == "complete":
+                # R1: another run (a background recheck, «Check again») landed while the
+                # model read this one. Its reading, evidence and gold stand; once is enough.
+                self.db.commit()
+                return attempt
             previous_verdict = str(attempt.verdict or correction.get("verdict") or "")
             previous_score = float(attempt.score_0_4 or 0)
             final = self._merge_relecture(
@@ -5553,7 +5578,7 @@ class AtelierCorrectionService:
         "micro_repairs", "retest", "retest_of", "confidence", "calibration", "adaptive_lock",
         "vocabulary_gaps", "vocabulary_credit", "local_check", "local_verdict", "local_status", "latency",
         "accent_notes", "rule_reference", "evidence_deferred", "evidence_applied", "world_reply",
-        "forge",
+        "forge", "solution",
     )
 
     def _amend_forge_evidence(self, attempt: AtelierAttempt, *, user: User, session: AtelierSession | None) -> bool:
@@ -5819,8 +5844,14 @@ class AtelierCorrectionService:
         return True
 
     def _mark_ai_review_failed(self, attempt: AtelierAttempt, error: str, *, llm_ms: float | None = None) -> AtelierAttempt:
+        # R1: locked, like the landing, so a failure never overwrites a reading another
+        # run (a background recheck, «Check again») landed meanwhile.
+        self.db.refresh(attempt, with_for_update=True)
         correction = dict(attempt.correction_payload or {})
         review = self.ai_review_from_correction(correction)
+        if review.get("status") == "complete":
+            self.db.commit()
+            return attempt
         correction["ai_review"] = {
             **review,
             "status": "failed",
@@ -8053,6 +8084,7 @@ class AtelierCorrectionService:
                     "corrected_target": corrected_target,
                     "why_wrong": why_wrong,
                     "repair_hint": repair_hint,
+                    "hint": self._clean_feedback_text(item.get("hint") or ""),
                     "severity": severity,
                     "recurring": bool(item.get("recurring")) and task_error_type != "task_compliance",
                     "task_error_type": str(task_error_type),
@@ -8251,7 +8283,12 @@ class AtelierCorrectionService:
             "email, film, sport, taxi, match or jean are French words. Never call a French word English, never list it in "
             "lexical_gaps and never replace it only because it looks English; correct only what is actually wrong around it. "
             "One explanation per issue: why_wrong is ONE short sentence (about 15 words at most) naming the rule and the fixed form, about that issue only; never repeat the same "
-            "explanation in several errata, and repair_hint never restates why_wrong."
+            "explanation in several errata, and repair_hint never restates why_wrong. "
+            # Owner 2026-11-13: the hint is read BEFORE the learner tries again (solution_gate.py).
+            "hint is ONE short sentence, in the same language as why_wrong, that the learner reads before trying again: "
+            "it points at the rule and at the words that are wrong, as a pointer or a question, and NEVER contains the "
+            "corrected form, any word of corrected_target or corrected_answer the learner did not write, or the "
+            "answer spelt out (write «„carte“ is feminine: which article fits?», never «carte needs une»)."
         )
 
     def _explanation_language_instruction(self) -> str:
@@ -8477,8 +8514,27 @@ def run_atelier_ai_review(attempt_id: UUID | str) -> None:
         AtelierCorrectionService(db).run_ai_review_for_attempt(attempt_id)
     except Exception as exc:  # pragma: no cover - background safety net
         logger.warning("Atelier AI review worker could not run", attempt_id=str(attempt_id), error=str(exc))
+        _fail_unrun_review(db, attempt_id)
     finally:
         db.close()
+
+
+def _fail_unrun_review(db: Session, attempt_id: UUID | str) -> None:
+    """R1: a second check that could not run is a failed one, not one pending for ever.
+
+    Recorded as failed, the ledger reads it as retryable and the background recheck
+    (:mod:`app.services.verdict_settle`) queues it like any refused call.
+    """
+
+    try:
+        db.rollback()
+        attempt = db.get(AtelierAttempt, UUID(str(attempt_id)))
+        service = AtelierCorrectionService(db)
+        if attempt is not None and service.ai_review_from_correction(attempt.correction_payload).get("status") == "pending":
+            service._mark_ai_review_failed(attempt, "AI correction could not run.")
+    except Exception as exc:  # pragma: no cover - the safety net never raises
+        db.rollback()
+        logger.warning("Atelier AI review could not be marked failed", attempt_id=str(attempt_id), error=str(exc))
 
 
 class AtelierSRSService:

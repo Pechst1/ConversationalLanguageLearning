@@ -546,6 +546,7 @@ export const PLACES: Place[] = [
     ['/troupe-vivante', 'public'],
     ['/mobile-visual-qa', 'public'],
     ['/dev/miss-layout', 'public'],
+    ['/dev/forge-reading', 'public'],
     ['/dev/styleguide', 'signed_in'],
   ] as const).map(([route, access]): Place => ({
     route,

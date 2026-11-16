@@ -181,7 +181,8 @@ async function playTheDay(native) {
 
   // 5 · Fertig für heute.
   await page.waitForURL(/\/fertig/, { timeout: 30000 }).catch(() => {});
-  await page.locator('.av2-fertig__body[data-fertig]').waitFor({ timeout: 30000 }).catch(() => {});
+  // `pending` is the wordless paint before the day is read (#727); wait for the answer.
+  await page.locator('.av2-fertig__body[data-fertig]:not([data-fertig="pending"])').waitFor({ timeout: 30000 }).catch(() => {});
   await sleep(1500);
   const state = await page.locator('.av2-fertig__body').getAttribute('data-fertig').catch(() => null);
   findings.check('fertig-says-the-day-is-done', state === 'done', `data-fertig=${state}`, where('fertig'));
