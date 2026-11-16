@@ -322,6 +322,9 @@ export class LearnerWalk {
       if (await next.count()) { await next.click({ timeout: 3000 }).catch(() => {}); return true; }
       return false;
     }
+    // Le Montage (the grammar pilot): one thing to tap at a time, then «Try it» as a primary.
+    const montageTap = page.locator('.rm-tap').first();
+    if (await montageTap.count()) { await montageTap.click({ timeout: 3000 }).catch(() => {}); await sleep(300); return true; }
     if (s.epFeedback.length && (await this.copyForgeCorrection())) return true;
     if (s.graded.length || s.epFeedback.length) {
       const prim = page.locator('.av2-graded .av2-btn, .av2-btn--primary:not([disabled])').last();

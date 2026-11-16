@@ -26,6 +26,7 @@ import '@/styles/globals.css';
 // use it. Everything in the file is scoped under `.av2` or is an @font-face, so
 // a page that never renders <AtelierV2Root> is unaffected by its presence.
 import '@/styles/atelier-v2.css';
+import '@/styles/grammar-pilot.css';
 import '@/styles/atelier-v2-voices.css';
 import '@/styles/day-session.css';
 // WP-116: the drawn cast's motion (idle loops, blinks), all stoppable by reduced motion.
