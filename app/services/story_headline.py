@@ -131,6 +131,22 @@ def cast_variants(live: dict, *, seed: str | None = None) -> dict[str, str]:
     return {"camille_marchand": gender} if gender in ("f", "m") else {}
 
 
+def _arc(live: dict, user: Any) -> dict[str, Any] | None:
+    """Where today's gap is going (``season/day_contract.arc``), or None."""
+
+    from app.services.season import day_contract
+    from app.services.season import runtime as season_runtime
+
+    if not day_contract.enabled():
+        return None
+    try:
+        today = season_runtime.today_for(live, user=user, seed=str(user.id))
+        return day_contract.arc(today.season, today.pos) if today else None
+    except Exception:  # noqa: BLE001 - the strip is never worth the headline
+        logger.exception("story_headline: the gap's destination is unavailable")
+        return None
+
+
 def episode_headline(db: Session, user: Any, journey: Any = None, *, local_date: Any = None) -> dict[str, Any] | None:
     """``{edition_no, title_fr, teaser_fr, season_title_fr, cast: [{id, name}]}`` or None."""
 
@@ -191,9 +207,11 @@ def episode_headline(db: Session, user: Any, journey: Any = None, *, local_date:
 
         teaser = live.get(engine.TEASER_KEY) or {}
         teaser_fr = str(teaser.get("text_fr") or "").strip() or None
+        # #466: what stays open, whole, for the line Home prints.
+        teaser_open_fr = str(teaser.get("open_fr") or "").strip() or None
         written = str(teaser.get("date") or "")
         if teaser_fr and local_date is not None and written == str(local_date):
-            teaser_fr = None  # written by today's ending: it speaks of tomorrow
+            teaser_fr = teaser_open_fr = None  # written by today's ending: it speaks of tomorrow
         if not cast and teaser_fr and teaser.get("character_id"):
             cast = _ordered([str(teaser["character_id"])])
         if not (title or teaser_fr or thread is not None or season_title):
@@ -208,7 +226,9 @@ def episode_headline(db: Session, user: Any, journey: Any = None, *, local_date:
             "reread": reread,
             "title_fr": title,
             "teaser_fr": teaser_fr,
+            **({"teaser_open_fr": teaser_open_fr} if teaser_open_fr else {}),
             "season_title_fr": season_title,
+            "arc": None if reread else _arc(live, user),
             # The episode's picture for Home's card: the scene's first panel, else
             # the tentpole's opening place.
             "image_url": image,

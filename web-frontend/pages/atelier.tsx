@@ -9,10 +9,12 @@ import toast from 'react-hot-toast';
 import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
 import { oncePerLoad } from '@/lib/once-per-load';
 import { correctRunFrom, seanceAssessment, secondCheckChange } from '@/lib/seance-feedback';
+import { withinWordRange } from '@/lib/word-range';
 import { forgeCorrectionNotes } from '@/lib/correction-notes';
 import { classifyRepair } from '@/lib/forge-followup';
 import { classificationCopy, classificationGoal, isJudgementLabels, judgementLabel, judgementQuestion } from '@/lib/classification-copy';
-import { itemVerdict, productionPhase, reviewIsPending, settleShownCorrection, type RepairStep } from '@/lib/forge-verdict';
+import { answeredLevel, itemVerdict, productionPhase, reviewIsPending, settleShownCorrection, type RepairStep } from '@/lib/forge-verdict';
+import { canAskAgain, checkState, unreadLine } from '@/lib/verdict';
 import { keepCardAboveSheet } from '@/lib/keep-above-sheet';
 import { drillGoalLine } from '@/components/atelier-v2/journey/drill-frame';
 import {
@@ -133,6 +135,7 @@ import { DaySessionNext, TempoSheet } from '@/components/atelier-v2/home/DaySess
 import {
   daySessionCopy,
   homeDayChip,
+  recapStreak,
   sessionMarkState,
   sessionMore,
   sessionNextAction,
@@ -140,7 +143,7 @@ import {
 } from '@/lib/day-session';
 import { dayIsDone, handOnAfterGrammar, ruleCheckExitFromDay, ruleCheckIsFromDay, ruleCheckPath } from '@/lib/day-plan';
 import { todayInterlude } from '@/components/atelier-v2/journey/season-return-model';
-import type { ControlLanguage, JourneySnapshot, TodayEnvelope } from '@/types/daily-journey';
+import type { ControlLanguage, DaySession, JourneySnapshot, TodayEnvelope } from '@/types/daily-journey';
 import { ExerciseShell } from '@/components/ui/ExerciseShell';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Confetti, Seal, sealForEdition, type SealVariant } from '@/components/ui/Seal';
@@ -181,6 +184,7 @@ import {
   drillOnScreen,
   forgeCheer,
   isNamedDrill,
+  rafaleReason,
   spotAnswer,
   spotChanged,
   spotTokens,
@@ -188,11 +192,11 @@ import {
   type ForgeDrill,
 } from '@/lib/forge-drills';
 import { rewardMomentCopy } from '@/lib/reward-moment-copy';
-import { assembleRepair, isRepairableLine, repairParts, repairState } from '@/lib/repair-parts';
+import { assembleRepair, isRepairableLine, missCorrections, repairParts, repairState } from '@/lib/repair-parts';
 import { forgeSeatIsSamePlace, isForgeOutputRound, scopeOutputItem, seatForgeItem } from '@/lib/forge-items';
 import { comboEnabled, comboFeel, comboStep } from '@/lib/forge-combo';
 import { bestComboLine, fillMomentum, momentumCopy } from '@/lib/momentum-copy';
-import { eclairHref } from '@/lib/grammar-map';
+import { eclairHref, eclairPairLabel } from '@/lib/grammar-map';
 import { playComboTone } from '@/lib/sound';
 import { atelierErrorText, type AtelierErrorNotice } from '@/lib/atelier-errors';
 import { epreuveCopy, fill, wordRangeText, type EpreuveCopy } from '@/components/epreuve/epreuve-copy';
@@ -550,7 +554,12 @@ function drillAnswerIsReady(
     return answerValueHasContent(currentAnswers[item.id]);
   }
   if (round === 'sentence' || round === 'speak' || round === 'conversation') {
-    return answerValueHasContent(currentAnswers.text);
+    if (!answerValueHasContent(currentAnswers.text)) return false;
+    // #574: a typed line is not above the word ceiling its item states (the
+    // server refuses the same lines); a spoken transcript's length is the recogniser's.
+    if (round === 'speak') return true;
+    const item = payload.output_ladder?.[round]?.items?.[0] || {};
+    return withinWordRange(String(currentAnswers.text || ''), item.max_words);
   }
   return false;
 }
@@ -693,6 +702,9 @@ function correctionWithAiReview(result: AtelierAttemptResult | AtelierAttemptRea
   // WP-103 T9: the server's local verdict rides on the result; it belongs to the correction.
   const localStatus = (result as Record<string, any>).local_status;
   if (localStatus && !correction.local_status) correction.local_status = localStatus;
+  // #333: who read it, in the one shape. It too belongs to the correction on screen.
+  const check = (result as Record<string, any>).check;
+  if (check) correction.check = check;
   return correction;
 }
 
@@ -2372,6 +2384,7 @@ export default function AtelierPage() {
             language={pageChromeLanguage}
             recommendation={legacyRecommendation}
             dayHandOn={dayHandOn ? { label: dayHandOn.label } : null}
+            daySession={journey.envelope?.session ?? null}
             testOutPending={testOutPending}
             onTestOut={(conceptId) => {
               void startTestOut(conceptId, { short: true, source: 'forge' }).then((started) => {
@@ -3548,9 +3561,18 @@ function AtelierEditionNav({
 }
 
 function displayConceptTitle(concept: AtelierConcept) {
-  // Publication surfaces speak French first; catalog names stay the native-
-  // language fallback until every concept carries its fr localization.
-  return String(concept.title_fr || concept.atelier_blueprint?.display_title || concept.name || 'Règle du jour');
+  // #561: a rule is called what the rule card calls it, in the learner's chrome
+  // language (`title_native`, the server's concept_title). The French title is the
+  // fallback, then the catalog name.
+  return String(
+    concept.title_native || concept.title_fr || concept.atelier_blueprint?.display_title || concept.name || 'Règle du jour',
+  );
+}
+
+/** The `lang` of what `displayConceptTitle` returns: the chrome language when the title is native. */
+function conceptTitleLang(concept: AtelierConcept | null | undefined, language: string) {
+  const native = String(concept?.title_native || '').trim();
+  return native && native !== String(concept?.title_fr || '').trim() ? language : 'fr';
 }
 
 function firstDueErratum(today: AtelierToday | null, activeSession: AtelierSessionStart | null) {
@@ -3790,8 +3812,8 @@ function SessionView({
   // The level is the rule's own (#402, `headerLevel`), not the rung the item on
   // screen is posed at; once answered, the level the answer left.
   const forgeRung = headerLevel({
-    answeredRung: currentSubmitted ? currentCorrection?.forge?.new_rung : null,
-    ruleRung: forgeRule?.rung,
+    answeredRung: currentSubmitted ? answeredLevel(currentCorrection) : null,
+    ruleRung: forgeRule?.shown_rung ?? forgeRule?.rung,
     itemRung: forgeNext?.rung,
     testOut: forgeTestOut,
   });
@@ -3874,6 +3896,7 @@ function SessionView({
             <ForgeHead
               copy={fc}
               title={activeConceptTitle}
+              titleLang={conceptTitleLang(activeConcept, language)}
               rung={forgeRung}
               levelRule={forge.level_rule}
               eyebrow={forgeTestOut ? fc.test_out_eyebrow : null}
@@ -3936,7 +3959,7 @@ function SessionView({
                       cheer={forgeCheer(currentCorrection, fc)}
                       coach={ruleCoach}
                       coachMood={coachMood(currentCorrection, { correct: burstMarks.every((row) => row.correct) })}
-                      rule={feedbackRuleLine(activeSet, activeConcept, t)}
+                      reasonFor={(row) => rafaleReason(ruleCard, row, language)}
                       onNext={feedbackNext}
                       nextLabel={feedbackNextLabel}
                     />
@@ -4231,10 +4254,26 @@ export function ExerciseFeedbackMoment({
   }
   const mood = coachMood(correction, { correct: feedback.correct });
   if (feedback.unscored) {
+    // #333: the rules' real fixes stay listed; nothing here is a verdict.
+    const unreadFixes: Array<{ span: string; replacement: string; start: number }> = correction?.check?.edits || [];
+    const unreadState = checkState(correction?.check) === 'basic' ? 'basic' : 'not_checked';
+    // #724: «Check again» only where asking again can reach a reader; with none, the line
+    // says so plainly instead of «not checked yet» over a button that can never work.
+    const line = unreadLine(correction?.check);
     return (
-      <div className="ep-feedback" data-verdict="unscored" role="status">
-        <p className="av2-body">{t.unscored}</p>
-        <EpRelecture status="failed" onRetry={onRetryAiReview} retrying={aiReviewSubmitting} />
+      <div className="ep-feedback" data-verdict="unscored" data-check={unreadState} role="status">
+        <EpRelecture
+          status="failed"
+          onRetry={canAskAgain(correction?.check) ? onRetryAiReview : undefined}
+          retrying={aiReviewSubmitting}
+        >
+          {line === 'basic' ? t.check_basic : line === 'unavailable' ? t.check_unavailable : t.unscored}
+        </EpRelecture>
+        {unreadFixes.map((edit) => (
+          <p className="av2-fr" lang="fr" key={`${edit.start}-${edit.span}`}>
+            <s>{edit.span}</s> → <strong>{edit.replacement}</strong>
+          </p>
+        ))}
         <EpFoot tone="neutral">
           <EpBar tone="ghost" onClick={onNext}>{t.skip_unscored}</EpBar>
         </EpFoot>
@@ -4264,6 +4303,8 @@ export function ExerciseFeedbackMoment({
     isLabelCompare: Boolean(isLabelCompare),
     needsNewAnswer,
   });
+  // #779: what the miss draws, grouped by what it asks (lib/repair-parts.ts).
+  const shownCorrections = missCorrections(issues);
   // WP-S1: the verdict on screen is the local one and it never waits. The
   // model's second reading runs quietly behind it; a note appears only if it
   // changed the verdict. (An open answer it could not read at all becomes
@@ -4297,9 +4338,8 @@ export function ExerciseFeedbackMoment({
     : <ForgeCorrectedLine fr={repairOf.correctedFr} />;
 
   if (feedback.correct) {
-    // #213: one verdict per card. A right judgement takes the result of the
-    // repair step: «Well done!» only once the sentence was corrected, «Not yet»
-    // when the right sentence had to be shown, and nothing while it is open.
+    // #213 / #553: one verdict per card. A right judgement stays right; nothing is
+    // shown while the repair is open, and the repair has its own line.
     const repairStep: RepairStep = repairOf.followUp ? (followDraft.outcome ?? 'open') : 'none';
     const verdict = itemVerdict({ judgedRight: feedback.correct, repair: repairStep });
     return (
@@ -4329,11 +4369,15 @@ export function ExerciseFeedbackMoment({
     // The answer stays a miss (`data-verdict`, the line comes back later); `data-mended`
     // says its line was fixed.
     <div className="ep-feedback" data-verdict="wrong" data-mended={mended ? 'true' : undefined} ref={feedbackRef}>
-      {issues.map((issue, index) => {
+      {/* #779: one card per correction and one field per corrected line (a repeated
+          erratum drew the same line twice, and its second «Compare» behind the sheet). */}
+      {shownCorrections.map(({ issue, index, repair: fieldHere }, position) => {
         const learner = String(issue.learner_text || feedback.learner || '').trim();
         const target = String(issue.corrected_target || feedback.target || '').trim();
         const repairKey = `${feedbackKey}:${index}`;
         const repair = repairs[String(index)] || null;
+        // The field for this line is under an earlier correction of the same line.
+        const lineCopiedAbove = !fieldHere && isRepairableLine(String(issue.corrected_target || '').trim());
         if (issue.task_error_type === 'task_compliance' || !target) {
           return <React.Fragment key={`task-${index}`}>
             {/* The second-check note rides on the first card, whatever kind it is. */}
@@ -4349,8 +4393,8 @@ export function ExerciseFeedbackMoment({
           <React.Fragment key={`${issue.display_label || 'repair'}-${index}`}>
             <EpGalley
               anchor={ruleShown
-                ? correctionAnchor(issue.display_label, ruleShown) ?? (issues.length > 1 ? fill(t.correction_n, { n: index + 1 }) : undefined)
-                : issue.display_label || fill(t.correction_n, { n: index + 1 })}
+                ? correctionAnchor(issue.display_label, ruleShown) ?? (shownCorrections.length > 1 ? fill(t.correction_n, { n: position + 1 }) : undefined)
+                : issue.display_label || fill(t.correction_n, { n: position + 1 })}
               why={display(printableWhy(withoutRuleReference(issue.why_wrong || feedback.why || '', ruleShown)))}
               repair={display(printableWhy(issue.repair_hint || (index === 0 ? feedback.repair : ''))) || undefined}
               // One second-look note per correction sheet, not one per erratum.
@@ -4375,7 +4419,7 @@ export function ExerciseFeedbackMoment({
                 submitting={!!repairSubmitting[repairKey]}
               />
             )}
-            {!isLabelCompare && target && isRepairableLine(target) && !(index === 0 && lineParts) && (
+            {!isLabelCompare && target && isRepairableLine(target) && !(index === 0 && lineParts) && !lineCopiedAbove && (
               <EpRepair
                 target={target}
                 typed={repair?.typed || repairDrafts[repairKey] || ''}
@@ -5137,6 +5181,7 @@ function RecapModal({
   filedEarly = false,
   recommendation,
   dayHandOn = null,
+  daySession = null,
   onRecommendedAction,
   onClose,
   language,
@@ -5144,6 +5189,8 @@ function RecapModal({
   testOutPending = false,
 }: {
   recap: Record<string, any>;
+  /** #559: the day's session, so the recap prints the streak Home prints. */
+  daySession?: DaySession | null;
   /** Round 3: the day's grammar step hands on to the next step, not a suggestion. */
   dayHandOn?: { label: string } | null;
   concepts: AtelierConcept[];
@@ -5162,8 +5209,17 @@ function RecapModal({
   const fc = forgeCopy(language);
   const mc = momentumCopy(language);
   // WP-S6: a forge séance's recap is each rule's progress, not a tally.
-  const forgeRows = recapRuleRows(recap, concepts, (concept) => displayConceptTitle(concept as AtelierConcept), fc, language);
+  const forgeRows = recapRuleRows(
+    recap,
+    concepts,
+    (concept) => displayConceptTitle(concept as AtelierConcept),
+    fc,
+    language,
+    new Date(),
+    (concept) => conceptTitleLang(concept as AtelierConcept, language),
+  );
   const offer = onTestOut ? testOutOffer(recap) : null;
+  const shownStreak = recapStreak(recap.streak_before, recap.streak_after, daySession);
   const offerConcept = offer ? concepts.find((concept) => Number(concept.id) === offer.conceptId) : null;
   const offerTitle = offerConcept
     ? displayConceptTitle(offerConcept)
@@ -5214,6 +5270,7 @@ function RecapModal({
                 <ForgeTestOutOffer
                   copy={fc}
                   title={offerTitle}
+                  titleLang={offerConcept ? conceptTitleLang(offerConcept as AtelierConcept, language) : 'fr'}
                   items={offer.items}
                   pending={testOutPending}
                   onStart={() => onTestOut(offer.conceptId)}
@@ -5224,11 +5281,8 @@ function RecapModal({
               {recap.forge?.eclair?.pair && (
                 <Link className="av2-btn av2-btn--secondary av2-btn--inline forge-recap__eclair" href={eclairHref(String(recap.forge.eclair.pair))}>
                   <span>{mc.eclair_action}</span>
-                  <span className="forge-recap__eclair-pair" lang="fr">
-                    {fillMomentum(mc.eclair_pair_label, {
-                      a: String(recap.forge.eclair.rules?.[0]?.title_fr || ''),
-                      b: String(recap.forge.eclair.rules?.[1]?.title_fr || ''),
-                    })}
+                  <span className="forge-recap__eclair-pair" lang={eclairPairLabel(recap.forge.eclair.rules, mc.eclair_pair_label, language).lang}>
+                    {eclairPairLabel(recap.forge.eclair.rules, mc.eclair_pair_label, language).text}
                   </span>
                 </Link>
               )}
@@ -5253,7 +5307,9 @@ function RecapModal({
               />
             )}
           </div>
-          <EpStreak was={recap.streak_before || 0} now={recap.streak_after || 1} on={Math.min(5, Number(recap.streak_after || 1))} />
+          {shownStreak.now > 0 && (
+            <EpStreak was={shownStreak.was} now={shownStreak.now} on={Math.min(5, shownStreak.now)} />
+          )}
           <EpHandoff
             // recapActionLabel returns a verb phrase ("Réviser maintenant",
             // "Ouvrir la lettre"), so it IS the button.

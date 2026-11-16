@@ -12,7 +12,7 @@ from uuid import UUID
 
 from loguru import logger
 from sqlalchemy import and_, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, object_session
 
 from app.config import settings
 from app.db.models.atelier import AtelierSession
@@ -23,7 +23,16 @@ from app.db.models.serial import SerialEpisode, SerialThread
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.db.savepoint import best_effort
-from app.services import cast_registry, correction_contract
+from app.services import (
+    cast_registry,
+    correction_contract,
+    learner_facts,
+    scene_ledger,
+    scene_record,
+    verdict_cutover,
+    verdict_ledger,
+    verdicts,
+)
 from app.services import story_correspondence as courrier
 from app.services.address import address_instruction, known_register
 from app.services.answer_acceptance import is_preference_swap
@@ -31,6 +40,7 @@ from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService
 from app.services.cast_roles import ROLES as CAST_ROLES
 from app.services.cast_roles import role_of
+from app.services.chrome_language import user_mother_tongue
 
 # WP-64 — every write into `thread.state["living_story"]` on behalf of a letter
 # goes through this module, and nothing here reaches into that ledger directly.
@@ -51,9 +61,14 @@ from app.services.learner_copy import copy_language, learner_text
 from app.services.letter_voice import band_style_line, register_word, voice_problems
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.news_service import NewsService
+from app.services.pragmatics import address_markers
 from app.services.progress import ProgressService
 from app.services.serial_arc_planner import cefr_generation_profile
-from app.services.vocabulary_coverage import VocabularyCoverageService, normalize_category
+from app.services.vocabulary_coverage import (
+    VocabularyCoverageService,
+    normalize_category,
+    primary_category,
+)
 from app.services.vocabulary_credit import (
     LETTER_OMISSION_POLICY,
     UNUSED_TARGET_EVENT,
@@ -117,6 +132,15 @@ LETTER_STRETCH = 1
 COMPLETED_REQUEST_DAYS = 7
 #: A canned letter's exact text is not reprinted within this many days.
 CANNED_REUSE_DAYS = 28
+#: #777: and a situation (a letter's request: the shop, the size problem) is not served
+#: again within this many days, whoever writes it. The model is handed the situation's
+#: title, contact and opening, so its letter on a played situation is that letter again.
+SITUATION_REUSE_DAYS = CANNED_REUSE_DAYS
+#: #777: words of general use fit any letter; a topical word (food, clothes, a place)
+#: fits only a situation of its own topic.
+GENERAL_WORD_CATEGORIES = frozenset(
+    {"verbs", "adjectives_adverbs", "function_words", "uncategorized", "time_calendar", "communication"}
+)
 #: Where the fit of a letter is stamped on its ``prompt_payload``.
 LETTER_FIT_KEY = "letter_fit"
 
@@ -150,6 +174,55 @@ class NoCredibleLetter(Exception):
         self.chain_id = chain_id
 
 
+def letter_printed_lines(item: dict[str, Any]) -> list[str]:
+    """Every line a letter prints in a character's voice or around it: the setting line,
+    the opening, the P.S. and each authored follow-up's opening."""
+
+    lines = [item.get("scene_anchor"), item.get("opening_message"), item.get("twist")]
+    lines.extend(entry["opening_message"] for entry in follow_ups_of(item))
+    return [str(line) for line in lines if line]
+
+
+def letter_register_mixed(item: dict[str, Any]) -> bool:
+    """#520: whether the lines of one letter address the learner in both «tu» and «vous».
+
+    The generated letter was held to one register (#117); the authored table was not, and
+    six of its letters said «avez-vous» in the opening and «à ta taille» in the P.S.
+    Each line is read alone, so one line that mixes counts too."""
+
+    seen_tu = seen_vous = False
+    for line in letter_printed_lines(item):
+        tu, vous = address_markers(line)
+        seen_tu, seen_vous = seen_tu or tu, seen_vous or vous
+    return seen_tu and seen_vous
+
+
+#: The words of someone who has met you. Narrow on purpose: this refuses a letter, so a
+#: phrase that also fits a stranger («hier soir», «l'autre jour») does not belong here.
+_CLAIMS_TO_KNOW = re.compile(
+    r"\b(?:on s['’]est (?:vus?|vues?|croisés?|croisées?|rencontrés?|rencontrées?|parlé)"
+    r"|on se conna[iî]t"
+    r"|nous nous (?:sommes (?:vus?|vues?|croisés?|croisées?|rencontrés?|rencontrées?|parlé)|connaissons)"
+    r"|la dernière fois"
+    r"|notre (?:dernière )?rencontre"
+    r"|tu te (?:souviens|rappelles)"
+    r"|vous vous (?:souvenez|rappelez)"
+    r"|je (?:te|vous) connais"
+    r"|je (?:t['’]ai|vous ai) (?:vu|vue|vus|vues|croisé|croisée|rencontré|rencontrée|reconnu|reconnue)\b)",
+    re.IGNORECASE,
+)
+
+
+def extra_claims_to_know(name: Any, lines: Any) -> bool:
+    """Decision of 9 Nov (#626's family): a letter from outside the cast may come, from
+    someone who has never met the learner. A first letter of theirs that says otherwise
+    is refused. A cast member's letter is not read here: the registry answers for them."""
+
+    if cast_registry.people_named(str(name or "")):
+        return False
+    return any(_CLAIMS_TO_KNOW.search(str(line or "")) for line in lines)
+
+
 def canned_letter_problem(
     item: dict[str, Any],
     rotation: dict[str, Any],
@@ -164,6 +237,14 @@ def canned_letter_problem(
     """
 
     domain = str(item.get("domain") or "")
+    if scene_record.enabled() and letter_register_mixed(item):
+        # #520: a letter that says «vous» in its opening and «ta taille» in its P.S. is
+        # not printed, whoever wrote it.
+        return "mixed_register"
+    if scene_record.enabled() and not follow_up and extra_claims_to_know(
+        item.get("contact_name"), [item.get("scene_anchor"), item.get("opening_message"), item.get("twist")]
+    ):
+        return "claims_to_know"
     if not letter_reaches(item.get("level"), rotation.get("band"), open_ended=bool(item.get("open_ended"))):
         return "below_band"
     if letter_band_index(item.get("level")) > letter_band_index(rotation.get("band")) + LETTER_STRETCH:
@@ -182,6 +263,38 @@ def canned_letter_problem(
 
 def canned_letter_credible(item: dict[str, Any], rotation: dict[str, Any]) -> bool:
     return canned_letter_problem(item, rotation) is None
+
+
+def situation_categories(domain: Any) -> set[str]:
+    """The vocabulary categories a catalogue situation is about (#777)."""
+
+    for item in REAL_WORLD_MISSION_DOMAINS:
+        if str(item.get("domain")) == str(domain or ""):
+            return set(item.get("categories") or ())
+    return set()
+
+
+def word_fits_situation(word_categories: set[str], situation: set[str]) -> bool:
+    """#777: whether a word belongs on a letter about ``situation``.
+
+    A word of general use (a verb, a number, «demain») fits any letter; a topical word
+    («restaurant», «marché») fits only a situation of its own topic."""
+
+    topical = set(word_categories) - GENERAL_WORD_CATEGORIES
+    return not topical or not situation or bool(topical & situation)
+
+
+def least_recently_served(catalogue: list[dict[str, Any]], served: dict[str, datetime]) -> list[dict[str, Any]]:
+    """#777: the catalogue without a situation served in the reuse window; when every one
+    was, those served longest ago, never a recent one."""
+
+    if not served or not catalogue:
+        return catalogue
+    unserved = [item for item in catalogue if str(item.get("domain")) not in served]
+    if unserved:
+        return unserved
+    oldest = min(served[str(item.get("domain"))] for item in catalogue)
+    return [item for item in catalogue if served[str(item.get("domain"))] == oldest]
 
 
 def follow_ups_of(item: dict[str, Any]) -> list[dict[str, str]]:
@@ -302,7 +415,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "channel_label": "SMS",
         "tone": "polite_firm",
         "register": "vous / polite formal",
-        "scene_anchor": "Chez toi, avec un manteau",
+        "scene_anchor": "À la maison, avec un manteau",
         "opening_message": "Bonjour, j'ai lu votre message. Le radiateur ne marche plus du tout ?",
         "brief": "Le radiateur ne marche plus. Dis le problème et demande un jour pour réparer.",
         "success_signal": "The landlord understands the issue and proposes a concrete time.",
@@ -358,11 +471,11 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "channel_label": "Messagerie du service client",
         "tone": "calm_specific",
         "register": "polite neutral",
-        "scene_anchor": "Sur ton téléphone, une photo : ce n'est pas ta porte",
+        "scene_anchor": "Sur le téléphone, une photo : ce n'est pas la bonne porte",
         "opening_message": "Bonjour, votre paquet est arrivé, mais pas chez vous. Quelle est votre rue ?",
         "brief": "Le colis n'est pas chez toi. Explique et demande une solution.",
         "success_signal": "Support has the right address and a clear next step.",
-        "twist": "Sur la photo, la porte est bleue. Ta porte est verte.",
+        "twist": "Sur la photo, la porte est bleue. Celle de l'immeuble est verte.",
         "ambient_cues": ["une photo du colis", "la mauvaise porte", "un numéro de commande"],
         "quick_replies": ["Bonjour, j'habite rue...", "La photo, ce n'est pas ma porte...", "Vous pouvez envoyer le paquet..."],
         # WP-125B proposal: letter 2 names the earlier exchange, without guessing its content.
@@ -392,7 +505,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "opening_message": "Bonjour, votre rendez-vous de jeudi n'est pas possible. Vendredi matin, c'est bien pour vous ?",
         "brief": "Le dentiste change ton rendez-vous. Dis oui ou propose une autre heure.",
         "success_signal": "The reception desk can book the right slot without calling again.",
-        "twist": "Vendredi matin, tu as cours.",
+        "twist": "Mais vendredi matin, il y a cours.",
         "ambient_cues": ["un message court", "ta semaine", "on dit « vous »"],
         "quick_replies": ["Bonjour, merci pour votre message...", "Vendredi matin...", "Est-ce possible plutôt..."],
     },
@@ -483,7 +596,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "channel_label": "Messagerie du service",
         "tone": "polite_firm",
         "register": "polite formal",
-        "scene_anchor": "Chez toi, internet sur le téléphone",
+        "scene_anchor": "À la maison, internet sur le téléphone",
         "opening_message": "Bonjour, internet ne marche pas dans votre rue. Depuis quand vous n'avez plus internet ?",
         "brief": "Tu n'as pas internet depuis trois jours. Écris un message poli et clair.",
         "success_signal": "Support logs the duration and gives a repair or compensation step.",
@@ -511,11 +624,11 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "channel_label": "Court e-mail",
         "tone": "polite_clear",
         "register": "polite formal",
-        "scene_anchor": "À ton bureau, avec le paquet à renvoyer",
+        "scene_anchor": "Au bureau, avec le paquet à renvoyer",
         "opening_message": "Bonjour, quelle taille avez-vous et quelle taille voulez-vous ?",
         "brief": "Ce n'est pas la bonne taille. Demande un échange.",
         "success_signal": "The shop can send the correct size or confirm the return.",
-        "twist": "Il reste un seul article à ta taille, jusqu'à ce soir.",
+        "twist": "Il reste un seul article de cette taille, jusqu'à ce soir.",
         "ambient_cues": ["le numéro de commande", "le paquet à renvoyer", "une seule taille"],
         "quick_replies": ["Bonjour, j'ai la taille...", "Je voudrais la taille...", "Est-ce que vous pouvez..."],
         # WP-125B proposal: letter 2 names the earlier exchange, without guessing its content.
@@ -673,7 +786,7 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
         "channel_label": "Messagerie de location",
         "tone": "polite_firm",
         "register": "vous / polite neutral",
-        "scene_anchor": "Un message de ton hôte, un soir de semaine",
+        "scene_anchor": "Un message de l'hôte, un soir de semaine",
         "opening_message": (
             "Bonjour, j'espère que le studio vous convient, malgré ce radiateur capricieux. Votre "
             "réservation se termine samedi. J'ai une demande pour la semaine suivante, mais si vous "
@@ -828,7 +941,10 @@ REAL_WORLD_MISSION_DOMAINS: tuple[dict[str, Any], ...] = (
 # WP-99 (W13) — the Courrier belongs to the cast from day 1
 # ---------------------------------------------------------------------------
 
-#: Who may write a learner's first letter: two people they meet on day 1.
+#: Who may write a story-born first letter: only someone who witnessed a scene the ledger
+#: holds (``courrier.first_letter_candidate``), so the learner has met them by then. The
+#: authored first letters below come from Margaux at every band, because she is the one
+#: person a learner has certainly met on day 1 who has a reason to write (#626).
 FIRST_LETTER_WRITERS: tuple[str, ...] = ("margaux_barman", "romy_tremblay")
 
 #: The cast's roles as the Courrier prints them (French, the letter's language).
@@ -877,36 +993,36 @@ FIRST_LETTERS: dict[str, dict[str, Any]] = {
         "level": "B1",
         "open_ended": True,
         "label": "Le Mistral",
-        "character_id": "romy_tremblay",
-        "title": "Trois questions de Romy",
-        "contact_name": "Romy",
-        "contact_role": role_of("romy_tremblay", "fr"),
-        "contact_initials": "RO",
-        "channel": "email",
-        "channel_label": "Court e-mail",
+        "character_id": "margaux_barman",
+        # #626: Margaux says the fewest words in the cast, so a letter from her is an event.
+        # It keeps WP-125B's three open questions, in her voice.
+        "title": "Trois questions de Margaux",
+        "contact_name": "Margaux",
+        "contact_role": role_of("margaux_barman", "fr"),
+        "contact_initials": "MA",
+        "channel": "sms",
+        "channel_label": "SMS",
         "tone": "light_warm",
         "register": "vous / warm but polite",
-        "scene_anchor": "Un e-mail de Romy, après ta soirée au Mistral",
+        "scene_anchor": "Le soir, un message du café Le Mistral",
         "opening_message": (
-            "Bonjour ! C'est Romy, on s'est vus au Mistral. J'écris un article sur les gens qui "
-            "arrivent à Paris. Vous voulez bien répondre à trois questions : d'où venez-vous, "
-            "pourquoi Paris, et qu'est-ce qui vous surprend ici ?"
+            "C'est Margaux, du Mistral. Je n'écris jamais. D'où venez-vous ? Pourquoi Paris ? "
+            "Et qu'est-ce qui vous surprend ici ?"
         ),
         "opening_message_tu": (
-            "Salut ! C'est Romy, on s'est vus au Mistral. J'écris un article sur les gens qui "
-            "arrivent à Paris. Tu veux bien répondre à trois questions : d'où tu viens, "
-            "pourquoi Paris, et qu'est-ce qui te surprend ici ?"
+            "C'est Margaux, du Mistral. Je n'écris jamais. D'où tu viens ? Pourquoi Paris ? "
+            "Et qu'est-ce qui te surprend ici ?"
         ),
-        "brief": "Romy écrit un article. Réponds à ses trois questions.",
-        "brief_tu": "Romy écrit un article. Réponds à ses trois questions.",
-        "success_signal": "Romy sait d'où tu viens et pourquoi tu es à Paris.",
+        "brief": "Margaux n'écrit jamais, mais là, si. Réponds à ses trois questions.",
+        "brief_tu": "Margaux n'écrit jamais, mais là, si. Réponds à ses trois questions.",
+        "success_signal": "Margaux sait d'où tu viens et pourquoi tu es à Paris.",
         "success_signal_i18n": {
-            "fr": "Romy sait d'où tu viens et pourquoi tu es à Paris.",
-            "en": "Romy knows where you are from and why you are in Paris.",
-            "de": "Romy weiß, woher du kommst und warum du in Paris bist.",
+            "fr": "Margaux sait d'où tu viens et pourquoi tu es à Paris.",
+            "en": "Margaux knows where you are from and why you are in Paris.",
+            "de": "Margaux weiß, woher du kommst und warum du in Paris bist.",
         },
-        "twist": "Elle a déjà un titre pour l'article, mais pas encore de photo.",
-        "ambient_cues": ["un article en préparation", "trois questions", "le café Le Mistral"],
+        "twist": "Ce qu'on écrit ici reste ici. J'ai rien lu.",
+        "ambient_cues": ["un message du soir", "trois questions", "le café Le Mistral"],
         "quick_replies": ["Je viens de...", "Je suis à Paris parce que...", "Ici, ce qui me surprend, c'est..."],
     },
 }
@@ -1029,7 +1145,9 @@ MISSION_SUCCESS_OBJECTIVES: dict[str, list[str]] = {
     "food_dining": ["Say what you want to order or cook", "Handle the one constraint they raise"],
     "housing": ["Describe the broken thing clearly", "Ask for a repair time", "Confirm when you are available"],
     "neighbours": ["Acknowledge their complaint", "Say what you will change"],
-    "deliveries_admin": ["Confirm your address", "Explain what went wrong (the wrong door)", "Give the tracking number or order reference"],
+    # #114: no goal asks the learner for a number or an address they were never given; the
+    # scene's own opening asks for the street where it needs it.
+    "deliveries_admin": ["Explain what went wrong (the wrong door)", "Say what you want done with the parcel", "Say when you are at home to receive it"],
     "health": ["React to the proposed time", "Confirm a slot or propose a workable one"],
     "transport": ["Say whether you want to travel today or get a refund", "Confirm the next concrete step"],
     "social_plans": ["Say yes or no to the plan", "Confirm the time and the place"],
@@ -1433,6 +1551,14 @@ def _record_mission_llm_cost(
         logger.warning("Mission cost row could not be written", purpose=purpose)
 
 
+#: What «the model call did not give an answer» means for every Courrier call (#333). Each call
+#: site used to list its own exceptions, so a timeout that did not arrive as an
+#: ``LLMProviderError`` took the learner's turn down at one site and was a quiet fallback at the
+#: next. A call that raised any of these is a failed call: the caller says so, it never
+#: reads it as an empty result.
+MODEL_CALL_FAILED = (LLMProviderError, TimeoutError, OSError, ValueError, TypeError, KeyError, AttributeError)
+
+
 def _safe_llm() -> LLMService | None:
     if not settings.ATELIER_LLM_ENABLED:
         return None
@@ -1500,7 +1626,7 @@ def _objective_language_gap(data: dict[str, Any], user: User) -> str | None:
     """WP-68 §8: a generated letter's objective must exist in the learner's
     own language (en/de); the French one alone is not enough up to A2."""
 
-    language = str(getattr(user, "native_language", None) or "en").strip().lower()[:2]
+    language = user_mother_tongue(user)
     if language not in {"en", "de"}:
         return None
     value = data.get(f"success_signal_{language}")
@@ -1694,7 +1820,6 @@ _META_FEEDBACK_MARKERS: tuple[str, ...] = (
 # "[votre adresse]", "{name}", "XXX" — scaffolding a provider slipped into a
 # "polished" answer. Printing it as the learner's corrected reply is worse than
 # printing nothing.
-_PLACEHOLDER_PATTERN = re.compile(r"[\[\{][^\]\}]{1,60}[\]\}]|\bx{3,}\b", re.IGNORECASE)
 
 
 def _repair_tokens(value: Any) -> list[str]:
@@ -1799,6 +1924,13 @@ class MissionGenerator:
             limit=4,
         )
         variety_category = active_category
+        if preferred_vocabulary_ids:
+            # #777: words the learner asked to use choose the situation; the coverage
+            # category only steps in when they have no topic of their own.
+            variety_category = (
+                self._dominant_vocabulary_category([item for item in vocabulary if item.get("bucket") == "preferred"])
+                or variety_category
+            )
         if not variety_category and (fuel_source == "vocab" or preferred_vocabulary_ids):
             variety_category = self._dominant_vocabulary_category(vocabulary)
         if authored_letter:
@@ -1823,6 +1955,11 @@ class MissionGenerator:
                 forced_domain=(chain or {}).get("domain"),
                 rotation=rotation,
             )
+            if not custom_context:
+                # #777: the situation is chosen; the «Use:» words are its words.
+                vocabulary = self._vocabulary_for_situation(
+                    user=user, vocabulary=vocabulary, domain=variety.get("domain"), limit=4
+                )
         source_snapshot = await self._source_snapshot(
             user=user,
             mission_type=mission_type,
@@ -2264,7 +2401,7 @@ class MissionGenerator:
             translations = item.get("translations") if isinstance(item.get("translations"), dict) else {}
             translation = (
                 _compact_text(item.get("translation"), max_length=90)
-                or _compact_text(gloss_from_map(translations, user.native_language), max_length=90)
+                or _compact_text(gloss_from_map(translations, user_mother_tongue(user)), max_length=90)
             )
             selected.append(
                 {
@@ -2294,7 +2431,7 @@ class MissionGenerator:
                     {
                         "word_id": word.id,
                         "word": word.word,
-                        **gloss_payload(word, user.native_language),
+                        **gloss_payload(word, user_mother_tongue(user)),
                         "bucket": "preferred",
                         "scheduler": "explicit",
                         "priority_score": 1.0,
@@ -2327,7 +2464,7 @@ class MissionGenerator:
                         {
                             "word_id": word.id,
                             "word": word.word,
-                            **gloss_payload(word, user.native_language),
+                            **gloss_payload(word, user_mother_tongue(user)),
                             "bucket": "mot_du_jour",
                             "scheduler": "slate",
                             "priority_score": 0.9,
@@ -2368,7 +2505,7 @@ class MissionGenerator:
                     {
                         "word_id": word.id,
                         "word": word.word,
-                        **gloss_payload(word, user.native_language),
+                        **gloss_payload(word, user_mother_tongue(user)),
                         "bucket": "topic",
                         "scheduler": "explicit",
                         "priority_score": 0.5,
@@ -2497,6 +2634,9 @@ class MissionGenerator:
                 lambda item: rotation.get("model_available", True) or canned_letter_credible(item, rotation),
             ):
                 catalogue = [item for item in catalogue if keep(item)] or catalogue
+            # #777: a situation the learner played this month is not served again, by
+            # the model or the canned text, until every other one has been.
+            catalogue = least_recently_served(catalogue, rotation.get("served_recent") or {})
         pool: list[dict[str, Any]] = []
         if forced_domain:
             pool = [item for item in REAL_WORLD_MISSION_DOMAINS if str(item.get("domain")) == str(forced_domain)]
@@ -2575,6 +2715,76 @@ class MissionGenerator:
             (item, (0.5 if item not in recent_formats else 0.15)) for item in alternatives
         )
         return str(courrier.weighted_pick(weighted, "format", *seed) or natural)
+
+    def _word_categories(self, vocabulary: list[dict[str, Any]]) -> dict[int, set[str]]:
+        """Each word's vocabulary categories: its topic tags and the category the
+        coverage map files it under (keywords included: «marché» is food)."""
+
+        ids = _dedupe_ints([item.get("word_id") for item in vocabulary])
+        rows = self.db.query(VocabularyWord).filter(VocabularyWord.id.in_(ids)).all() if ids else []
+        by_id = {row.id: row for row in rows}
+        result: dict[int, set[str]] = {}
+        for item in vocabulary:
+            try:
+                word_id = int(item.get("word_id"))
+            except (TypeError, ValueError):
+                continue
+            tags = list(item.get("topic_tags") or [])
+            row = by_id.get(word_id)
+            categories = {normalize_category(str(tag)) for tag in tags}
+            if row is not None:
+                categories |= {normalize_category(str(tag)) for tag in row.topic_tags or []}
+                categories.add(primary_category(row))
+            result[word_id] = categories
+        return result
+
+    def _vocabulary_for_situation(
+        self,
+        *,
+        user: User,
+        vocabulary: list[dict[str, Any]],
+        domain: Any,
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        """#777: the «Use:» words of a letter about ``domain``.
+
+        The words used to be picked from the learner's coverage category and the
+        situation from wherever the catalogue fell back to, so a clothes-shop letter
+        said «Use: restaurant, marche». A word the learner asked for stays (it chose the
+        situation, see :meth:`build_payload`); any other topical word off the situation
+        gives its place to one of the situation's own words."""
+
+        situation = situation_categories(domain)
+        if not situation or not vocabulary:
+            return vocabulary
+
+        def fits(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            categories = self._word_categories(items)
+            return [
+                item
+                for item in items
+                if item.get("bucket") == "preferred"
+                or word_fits_situation(categories.get(int(item.get("word_id") or 0), set()), situation)
+            ]
+
+        kept = fits(vocabulary)
+        if len(kept) == len(vocabulary):
+            return vocabulary
+        seen = {item.get("word_id") for item in vocabulary}
+        for category in sorted(situation - GENERAL_WORD_CATEGORIES) or sorted(situation):
+            if len(kept) >= limit:
+                break
+            more = [
+                item
+                for item in self._select_vocabulary(user=user, limit=limit, active_category=category)
+                if item.get("word_id") not in seen
+            ]
+            for item in fits(more):
+                if len(kept) >= limit:
+                    break
+                kept.append(item)
+                seen.add(item.get("word_id"))
+        return kept
 
     @staticmethod
     def _dominant_vocabulary_category(vocabulary: list[dict[str, Any]]) -> str | None:
@@ -2885,7 +3095,11 @@ class MissionGenerator:
                 messenger.get("twist")
                 if generated
                 and not voice_problems(
-                    [messenger.get("opening_message"), messenger.get("twist")],
+                    [
+                        *([messenger.get("scene_anchor")] if scene_record.enabled() else []),
+                        messenger.get("opening_message"),
+                        messenger.get("twist"),
+                    ],
                     register=writer_register,
                     level=None,
                 )
@@ -3223,7 +3437,14 @@ class MissionGenerator:
             "If letters_with_this_person is non-empty, this is the SAME person writing again: keep their name and "
             "role exactly, do not re-introduce them, and refer to at most one earlier exchange in passing. If chain "
             "is present, this is that numbered instalment of one continuing affair — carry the previous outcome "
-            "forward rather than starting a new situation. level_limits is binding and checked by machine "
+            "forward rather than starting a new situation. "
+            + (
+                "Anyone not in story_context writing here for the first time has never met the learner: they write "
+                "as a stranger with a reason to write, and never say you have met, seen or know each other. "
+                if scene_record.enabled()
+                else ""
+            )
+            + "level_limits is binding and checked by machine "
             "after you write: use only words from level_limits.allowed_words when it is given (plus names, "
             "numbers and due_vocabulary), at most level_limits.max_words_outside_the_list other words in the "
             "whole letter, and sentences no longer than level_limits.max_words_per_sentence; a letter that "
@@ -3314,7 +3535,7 @@ class MissionGenerator:
                 )
                 _record_mission_llm_cost(self.db, user_id=getattr(user, "id", None), result=result, purpose="scenario")
                 candidate = json.loads(result.content)
-            except (LLMProviderError, json.JSONDecodeError, ValueError, TypeError, KeyError) as exc:
+            except MODEL_CALL_FAILED as exc:
                 logger.info("Mission scenario generation unavailable", error=str(exc))
                 return None
             if not isinstance(candidate, dict) or not candidate.get("opening_message"):
@@ -3328,7 +3549,11 @@ class MissionGenerator:
             # and stay inside the learner's band; the lexical check above sees neither.
             problems.extend(
                 voice_problems(
-                    [candidate.get("opening_message"), candidate.get("twist")],
+                    [
+                        *([candidate.get("scene_anchor")] if scene_record.enabled() else []),
+                        candidate.get("opening_message"),
+                        candidate.get("twist"),
+                    ],
                     register=register_word((story_context or {}).get("register")),
                     level=str(cefr)[:2],
                 )
@@ -3336,6 +3561,19 @@ class MissionGenerator:
             gap = _objective_language_gap(candidate, user)
             if gap:
                 problems.append(f"Return {gap}: the objective in the learner's own language.")
+            if (
+                scene_record.enabled()
+                and not chain
+                and not (correspondence or {}).get("thread_history")
+                and extra_claims_to_know(
+                    candidate.get("contact_name"),
+                    [candidate.get("scene_anchor"), candidate.get("opening_message"), candidate.get("twist")],
+                )
+            ):
+                problems.append(
+                    "This person has never met the learner: write as a stranger, without saying you have met, "
+                    "seen or know each other."
+                )
             if not problems:
                 data = candidate
                 break
@@ -3640,8 +3878,9 @@ class MissionCorrectionService:
     ) -> dict[str, Any]:
         # The authored fallback prose is an *explanation*, so it follows the
         # learner's native language; the Courrier's fiction around it stays French.
-        language = getattr(user, "native_language", None)
+        language = user_mother_tongue(user)
         deterministic_errata, deterministic_answer = self._deterministic_errata(text, language=language)
+        self._correction_failure = "no_model" if near_realtime else None
         if near_realtime:
             correction = self._fallback_correction(
                 mission=mission,
@@ -3676,17 +3915,26 @@ class MissionCorrectionService:
             "prompt_version": correction.get("_prompt_version") or MISSION_CORRECTION_PROMPT_VERSION,
             "fallback_used": correction.get("_fallback_used", False),
             "model": correction.get("_model"),
+            # #333: why no model verdict exists. The screen and the failure log read it.
+            "failure": getattr(self, "_correction_failure", None) if correction.get("_fallback_used") else None,
             "deterministic_rule_count": len(deterministic_errata),
             "near_realtime": near_realtime,
         }
         correction = self._apply_vocabulary_feedback(
             mission=mission, text=text, correction=correction, language=language
         )
-        # #318: the sentence the learner copies goes through the same rules as their
-        # own: a model rewrite never prints «le appartement».
-        correction["corrected_answer"] = correction_contract.repair_text(
-            self._complete_corrected_answer(text=text, correction=correction)
+        # #133: the sentence the learner copies is their own, with every listed fix in it.
+        # A model sentence is read for fixes it did not list, and never printed as it came.
+        checked = correction_contract.verify_correction(
+            text,
+            None if correction.get("verdict") == "accepted" else correction.get("corrected_answer"),
+            correction.get("errata") or [],
+            language=copy_language(language),
         )
+        correction["errata"] = checked.errata
+        correction["corrected_answer"] = checked.corrected
+        if checked.refused:
+            correction["dropped_errata"] = checked.refused
         # Design contract, principle 4: a card headed "Correction" has to be backed
         # by a repair. When every erratum failed the gates, the provider's polished
         # rewrite is a style preference — hand back the learner's own sentence so
@@ -3862,7 +4110,11 @@ class MissionCorrectionService:
                 continue
             # #369: the explanation is held to the corrected form it explains
             # («an accent on « hui »» for aujourd'hui is replaced, not shown).
-            cleaned.append(correction_contract.reconcile_notes(narrowed, language=copy_language(language)))
+            cleaned.append(
+                correction_contract.reconcile_notes(
+                    narrowed, language=copy_language(language), context=submission_text
+                )
+            )
         return cleaned
 
     @staticmethod
@@ -3959,39 +4211,6 @@ class MissionCorrectionService:
             return None
         return {**erratum, "learner_text": narrowed_learner, "corrected_target": narrowed_corrected}
 
-    @staticmethod
-    def _complete_corrected_answer(*, text: str, correction: dict[str, Any]) -> str:
-        """Keep the polished answer complete — but still the learner's own message.
-
-        A provider may return an excerpt (too short, repaired below) or, for a
-        one-word reply, invent a whole new message with template placeholders.
-        Both are refused: what prints under "Correction" has to be a cleaned-up
-        version of what the learner actually sent.
-        """
-        submitted = text.strip()
-        candidate = str(correction.get("corrected_answer") or "").strip()
-        learner_words = re.findall(r"\S+", submitted)
-        candidate_words = re.findall(r"\S+", candidate)
-        minimum_words = max(3, round(len(learner_words) * 0.65))
-        maximum_words = max(minimum_words + 6, round(len(learner_words) * 1.8) + 6)
-        if candidate and _PLACEHOLDER_PATTERN.search(candidate):
-            candidate = ""
-            candidate_words = []
-        if candidate and (not learner_words or minimum_words <= len(candidate_words) <= maximum_words):
-            return candidate
-
-        repaired = submitted
-        for erratum in correction.get("errata") or []:
-            task_type = str(erratum.get("task_error_type") or "")
-            if task_type == "task_compliance" or task_type.startswith("vocabulary"):
-                continue
-            wrong = str(erratum.get("learner_text") or "").strip()
-            fixed = str(erratum.get("corrected_target") or "").strip()
-            if not wrong or not fixed or wrong.casefold() == fixed.casefold():
-                continue
-            repaired = re.sub(re.escape(wrong), lambda _match, value=fixed: value, repaired, count=1, flags=re.IGNORECASE)
-        return repaired or candidate
-
     def persist_errata(
         self,
         *,
@@ -4042,13 +4261,15 @@ class MissionCorrectionService:
         return persisted
 
     def _llm_correction(self, *, user: User, mission: RealWorldMission, text: str, mode: str) -> dict[str, Any] | None:
+        self._correction_failure = None
         if not self.llm:
+            self._correction_failure = "no_model"
             return None
         # An explanation the learner cannot read teaches nothing: follow the same
         # contract as the Atelier corrector — French stays French, the prose that
         # explains the mistake follows the learner's own language.
         gloss_language = EXPLANATION_LANGUAGE_NAMES.get(
-            normalize_language(getattr(user, "native_language", None)),
+            user_mother_tongue(user),
             EXPLANATION_LANGUAGE_NAMES[DEFAULT_GLOSS_LANGUAGE],
         )
         payload = {
@@ -4083,7 +4304,7 @@ class MissionCorrectionService:
             f"LANGUAGE RULE, applies to every field: write why_wrong, repair_hint and display_label in {gloss_language}, "
             f"and ONLY in {gloss_language}. Keep learner_text, corrected_target and corrected_answer in French — never "
             f"translate the French itself. If you are about to write why_wrong in French, write it in {gloss_language} instead. "
-            f"{address_instruction(normalize_language(getattr(user, 'native_language', None)))}"
+            f"{address_instruction(user_mother_tongue(user))}"
         ).strip()
         try:
             result = self.llm.generate_error_detection(
@@ -4103,12 +4324,18 @@ class MissionCorrectionService:
                 purpose="correction",
                 mission_id=getattr(mission, "id", None),
             )
+            if not str(result.content or "").strip():
+                self._correction_failure = "empty"
+                return None
             parsed = json.loads(result.content)
+            if not parsed.get("verdict"):
+                raise ValueError("invalid output: the corrector returned no verdict")
             parsed["_model"] = result.model
             parsed["_fallback_used"] = False
             return parsed
-        except (LLMProviderError, json.JSONDecodeError, ValueError) as exc:
+        except MODEL_CALL_FAILED as exc:
             logger.debug("Mission correction LLM fallback", error=str(exc))
+            self._correction_failure = f"{type(exc).__name__}: {exc}"
             return None
 
     def _fallback_correction(
@@ -4172,15 +4399,11 @@ class MissionCorrectionService:
                     "external_id": "MISSION_TASK",
                 }
             )
-        # WP-74 — the grader was unavailable (or never asked, on the fast path):
-        # a non-empty answer is ``unassessed``, never ``accepted``. Only the
-        # deterministic rules below are real evidence, and they can only lower it.
+        # WP-74 / #333 — the grader was unavailable (or never asked, on the fast path):
+        # a non-empty answer is ``unassessed``, whatever the rules found. Their fixes are
+        # real and stay listed, but rules add fixes, never a verdict or a score.
         score = None if stripped else 1
         verdict = "unassessed" if stripped else "needs_revision"
-        if deterministic_errata:
-            max_severity = max(int(item.get("severity") or 1) for item in deterministic_errata)
-            verdict = "needs_revision" if max_severity >= 2 else "partial"
-            score = 2 if max_severity >= 2 else 3
         return {
             "verdict": verdict,
             "score_0_4": score,
@@ -4310,7 +4533,9 @@ class MissionCorrectionService:
                 existing.append(item)
                 existing_keys.add(key)
         merged["errata"] = existing
-        merged["corrected_answer"] = corrected_answer or merged.get("corrected_answer") or ""
+        merged["corrected_answer"] = merged.get("corrected_answer") or corrected_answer or ""
+        if merged.get("verdict") == "unassessed":
+            return merged  # #333: rules add fixes, never a score
         max_severity = max(int(item.get("severity") or 1) for item in deterministic_errata)
         if max_severity >= 2 and merged.get("verdict") == "accepted":
             merged["verdict"] = "needs_revision"
@@ -4610,7 +4835,7 @@ class MissionCorrectionService:
     def _mission_native_language(self, mission: RealWorldMission) -> str:
         """The language this mission's learner reads glosses in."""
         user = self.db.get(User, mission.user_id) if mission.user_id else None
-        return normalize_language(getattr(user, "native_language", None))
+        return user_mother_tongue(user)
 
     def _mission_vocabulary_items(self, mission: RealWorldMission) -> list[dict[str, Any]]:
         payload_items = [
@@ -4798,7 +5023,7 @@ class MissionSRSService:
         """
 
         now = datetime.now(UTC)
-        native = getattr(user, "native_language", None)
+        native = user_mother_tongue(user)
         saved: list[dict[str, Any]] = []
         for phrase in self._phrase_bank(mission)[:5]:
             normalized = _normalize_phrase(phrase["phrase"])
@@ -4899,6 +5124,8 @@ class MissionDebriefService:
         turns: list[RealWorldMissionTurn],
         errata_count: int,
         srs_result: dict[str, Any],
+        reply_pending: bool = False,
+        unchecked: bool = False,
     ) -> dict[str, Any]:
         # An objective met in turn 1 stays met: reading only the LAST correction
         # scored a whole conversation on its closing "Oui." and reported 0%
@@ -4938,6 +5165,7 @@ class MissionDebriefService:
             objectives=objectives,
             progress_by_id=progress_by_id,
             had_submission=bool(attempts or turns),
+            reply_pending=reply_pending or unchecked,
         )
         measured = {
             "objectives_met": met_required,
@@ -4959,6 +5187,15 @@ class MissionDebriefService:
         if unassessed:
             label = "Pas encore corrigée : le correcteur n’était pas disponible."
         measured["assessed"] = not unassessed
+        if reply_pending:
+            # #590: the correspondent never answered one of the learner's messages. Nothing
+            # was settled or missed; the letter says so rather than printing a verdict.
+            label = "Pas de réponse : un de tes messages est resté sans réponse."
+            measured["reply_pending"] = True
+        elif unchecked:
+            # #333: nobody read one of the learner's messages, so nothing here is a verdict.
+            label = "Pas vérifiée : un de tes messages n'a pas pu être relu."
+            measured["unchecked"] = True
         return {
             "debrief_version": "mission-debrief-v2",
             "outcome": courrier_outcome,
@@ -5355,7 +5592,7 @@ class MissionScheduler:
 
         A story-born letter from Romy or Margaux when the ledger has a scene one
         of them witnessed (and ``story``); else the authored first letter for the
-        learner's band.
+        learner's band, which is Margaux's.
         """
 
         candidate = None
@@ -5739,7 +5976,9 @@ class MissionScheduler:
         ``band`` (see :meth:`MissionGenerator._letter_band`), ``completed_recent``
         (requests answered in the last ``COMPLETED_REQUEST_DAYS``),
         ``canned_recent`` (canned letters printed in the last
-        ``CANNED_REUSE_DAYS``), ``season_active`` and ``model_available``. Dates
+        ``CANNED_REUSE_DAYS``), ``served_recent`` (each request served in the last
+        ``SITUATION_REUSE_DAYS`` by any writer, and when: #777), ``season_active``
+        and ``model_available``. Dates
         are the app's own clock (``completed_at`` and the stamped ``served_at``),
         never the database's ``created_at`` default.
         """
@@ -5755,6 +5994,7 @@ class MissionScheduler:
         completed_recent: set[str] = set()
         canned_recent: set[str] = set()
         canned_ever: set[str] = set()
+        served_recent: dict[str, datetime] = {}
         for row in rows:
             prompt = row.prompt_payload or {}
             fit = prompt.get(LETTER_FIT_KEY) if isinstance(prompt.get(LETTER_FIT_KEY), dict) else {}
@@ -5769,6 +6009,9 @@ class MissionScheduler:
             if row.status == "completed" and done and now - done < timedelta(days=COMPLETED_REQUEST_DAYS):
                 completed_recent.add(str(key))
             served = _parse_moment(fit.get("served_at")) if fit else None
+            if served and now - served < timedelta(days=SITUATION_REUSE_DAYS):
+                # #777: whoever wrote it, the latest time this situation was served.
+                served_recent[str(key)] = max(served, served_recent.get(str(key), served))
             if fit.get("source") == "canned":
                 canned_ever.add(str(key))
                 if served and now - served < timedelta(days=CANNED_REUSE_DAYS):
@@ -5778,6 +6021,7 @@ class MissionScheduler:
             "completed_recent": completed_recent,
             "canned_recent": canned_recent,
             "canned_ever": canned_ever,
+            "served_recent": served_recent,
             "season_active": self._season_active(user),
             # Read from the switch, not by building a client: asking is not free.
             "model_available": bool(settings.ATELIER_LLM_ENABLED),
@@ -6098,10 +6342,17 @@ class MissionScheduler:
 
     @staticmethod
     def _serial_character_name(thread: SerialThread, character_id: str) -> str:
+        """#147: the registry names its people; a world's own row names anyone else."""
+
+        known = cast_registry.display_name(character_id) if scene_record.enabled() else None
+        if known:
+            return known
         world = thread.world_bible if isinstance(thread.world_bible, dict) else {}
         for member in world.get("cast") or []:
             if isinstance(member, dict) and member.get("id") == character_id:
                 return str(member.get("name") or character_id)
+        if scene_record.enabled():
+            return character_id.replace("_", " ").title()
         return {
             "landlord_marchand": "M. Marchand",
             "margaux_barman": "Margaux",
@@ -6381,12 +6632,18 @@ class MissionScheduler:
             attempts=attempts,
             turns=turns,
         )
+        # Package V: old rows keep what they counted for; newer ones count by their ledger record.
+        legacy = verdict_ledger.counting(self.db, [*attempts, *(mission.turns or [])])
+        reply_pending = bool(unanswered_user_turns(mission.turns, cut=legacy))
+        unchecked = bool(unchecked_messages(attempts, mission.turns, cut=legacy))
         debrief = MissionDebriefService().build(
             mission=mission,
             attempts=attempts,
             turns=turns,
             errata_count=errata_count,
             srs_result=srs_result,
+            reply_pending=reply_pending,
+            unchecked=unchecked,
         )
         outcome: dict[str, Any] | None = None
         if getattr(mission, "serial_thread_id", None):
@@ -6408,9 +6665,10 @@ class MissionScheduler:
             # Letters written before WP-64 shipped, and serial acts, get their
             # identity here rather than staying outside every future thread.
             mission.correspondent_id = courrier.correspondent_of(mission).get("id") or None
+        # #590 / #333: a token is the reward for a letter that was answered and read.
         minted_collectibles = (
             AtelierRewardService(self.db).mint_logo_token_for_mission(mission)
-            if not getattr(mission, "serial_thread_id", None)
+            if not getattr(mission, "serial_thread_id", None) and not reply_pending and not unchecked
             else []
         )
         mission.recap_payload = {
@@ -6430,7 +6688,12 @@ class MissionScheduler:
             # reader; `courrier_outcome` above is the per-letter verdict WP-65 reads.
             mission.recap_payload["outcome"] = outcome
         story_event = self._write_letter_into_story(
-            user=user, mission=mission, outcome=courrier_outcome, attempts=attempts, turns=turns
+            user=user,
+            mission=mission,
+            outcome=courrier_outcome,
+            attempts=attempts,
+            turns=turns,
+            reply_pending=reply_pending or unchecked,
         )
         if story_event:
             mission.recap_payload["story_event"] = {
@@ -6465,7 +6728,8 @@ class MissionScheduler:
         # O-1: l'or in shadow — the letter's first written attempt (best effort).
         from app.services import gold_ledger
 
-        gold_ledger.record_letter(self.db, user=user, mission=mission, attempts=attempts)
+        if not unchecked:
+            gold_ledger.record_letter(self.db, user=user, mission=mission, attempts=attempts)
         self.db.add(mission)
         self.db.commit()
         self.db.refresh(mission)
@@ -6479,6 +6743,7 @@ class MissionScheduler:
         outcome: str,
         attempts: list[RealWorldMissionAttempt],
         turns: list[RealWorldMissionTurn],
+        reply_pending: bool = False,
     ) -> dict[str, Any] | None:
         """WP-64 — the Courrier's half of the coupling that never existed.
 
@@ -6503,7 +6768,8 @@ class MissionScheduler:
                     *[str((attempt.answer_payload or {}).get("text") or "") for attempt in attempts],
                     *[turn.text or "" for turn in turns],
                 ]
-                if text
+                # #590: what nobody answered is not a promise the story keeps.
+                if text and not reply_pending
             )
             event = courrier.record_letter(
                 self.db,
@@ -6616,6 +6882,253 @@ def is_stock_reply(text: Any) -> bool:
     folded = " ".join(str(text or "").split())
     return folded in {STOCK_ACKNOWLEDGEMENT_TU, STOCK_ACKNOWLEDGEMENT_VOUS}
 
+
+def is_echo_reply(reply: Any, message: Any) -> bool:
+    """Whether a reply only says the learner's own message back to them (#333)."""
+
+    def folded(text: Any) -> str:
+        return " ".join(str(text or "").split()).casefold().strip(" .,;:!?…«»\"'’")
+
+    return bool(folded(reply)) and folded(reply) == folded(message)
+
+
+def _stored_check(correction: Any, text: Any, *, row: Any = None, subject_type: str | None = None) -> dict[str, Any]:
+    """The ``check`` field of a stored message. A row never sent for correction has none.
+
+    With ``row`` (package V stage 3), the check says when it was checked since it was saved
+    unread (``checked_since``).
+    """
+
+    if not correction:
+        return {}
+    check = verdicts.from_courrier(correction, text=str(text or "")).to_dict()
+    if row is not None and subject_type:
+        from app.services import verdict_settle
+
+        since = verdict_settle.checked_since(object_session(row), subject_type, row.id)
+        check["checked_since"] = since.isoformat() if since else None
+    return {"check": check}
+
+
+def erratum_key(item: dict) -> tuple[str, str]:
+    return (str(item.get("learner_text") or "").casefold(), str(item.get("corrected_target") or "").casefold())
+
+
+def correction_with_persistence(correction: dict, persisted: list[dict]) -> dict:
+    """``correction`` with the errata rows it filed (``persistence``), as every message stores it."""
+
+    saved = [item for item in persisted if item.get("id")]
+    # `saved_count` also counts the vocabulary credit rows, which the repair card
+    # never shows — printing it as "N réparations enregistrées" claimed repairs
+    # that were not on screen. `repair_count` is the honest one for that line.
+    repairs = [
+        item
+        for item in saved
+        if not item.get("linked_word_id") and str(item.get("error_category") or "") != "vocabulary"
+    ]
+    return {
+        **correction,
+        "persistence": {
+            "saved_count": len(saved),
+            "repair_count": len(repairs),
+            "error_ids": [str(item["id"]) for item in saved],
+            "records": saved,
+        },
+    }
+
+
+def recheck_message(db: Session, *, user: User, row: Any) -> list[dict]:
+    """#251 / package V stage 3: ask the corrector again for a message it could not read.
+
+    ``row`` is a learner's Courrier attempt or turn. Only an ``unassessed`` message is asked
+    again (the model failed and the model-free pass found nothing); anything else is left as
+    it stands. When the model fails again, the message keeps its first correction. The first
+    pass already credited the words and filed the rule fixes (#333): only what the model adds
+    is filed now, so one mistake is counted once. Returns the errata filed now. Commits.
+    """
+
+    previous = dict(row.correction_payload or {})
+    if previous.get("verdict") != "unassessed":
+        return []
+    mission = row.mission
+    is_turn = isinstance(row, RealWorldMissionTurn)
+    text = row.text if is_turn else str((row.answer_payload or {}).get("text") or "")
+    service = MissionCorrectionService(db)
+    correction = service.correct_submission(user=user, mission=mission, text=text or "", mode=row.mode, near_realtime=False)
+    if correction.get("verdict") == "unassessed":
+        return []
+    filed = {erratum_key(item) for item in previous.get("errata") or [] if isinstance(item, dict)}
+    persisted = service.persist_errata(
+        user=user,
+        mission=mission,
+        correction={**correction, "errata": [item for item in correction.get("errata") or [] if erratum_key(item) not in filed]},
+        mode=row.mode,
+        source_id=str(row.id),
+        include_vocabulary=False,
+    )
+    already = [record for record in (previous.get("persistence") or {}).get("records") or [] if isinstance(record, dict)]
+    row.correction_payload = correction_with_persistence(correction, [*persisted, *already])
+    if not is_turn:
+        row.verdict = correction.get("verdict", "needs_revision")
+        row.score_0_4 = float(correction.get("score_0_4") or 0)
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return persisted
+
+
+#: The debrief's line once a letter nobody could read has been read since.
+CHECKED_SINCE_LABEL = "Vérifiée depuis : tes messages ont été relus."
+
+
+def settle_finished_letter(db: Session, *, user: User, mission: Any, now: datetime | None = None) -> bool:
+    """Package V stage 3: a finished letter whose last unread message was read since pays now.
+
+    At «Terminer», a letter with a message nobody could read paid no gold and no token
+    (#333). When the settlement job (or «Ask again») reads that message later, the letter is
+    paid what it was due, once: the gold through the first attempt's ledger record
+    (:func:`gold_ledger.record_letter`), the token by its own key. The debrief says it was
+    checked since. Returns whether it paid. Does not commit.
+    """
+
+    if mission is None or getattr(mission, "status", None) != "completed" or getattr(mission, "serial_thread_id", None):
+        return False
+    recap = dict(mission.recap_payload or {})
+    measured = dict(recap.get("measured") or {})
+    if recap.get("checked_since") or not measured.get("unchecked"):
+        return False  # paid at «Terminer», or already settled
+    attempts = sorted(mission.attempts or [], key=lambda item: item.created_at)
+    counting = verdict_ledger.counting(db, [*attempts, *(mission.turns or [])])
+    if unanswered_user_turns(mission.turns, cut=counting) or unchecked_messages(attempts, mission.turns, cut=counting):
+        return False
+    from app.services import gold_ledger
+
+    when = now or datetime.now(UTC)
+    gold_ledger.record_letter(db, user=user, mission=mission, attempts=attempts, now=when)
+    minted = AtelierRewardService(db).mint_logo_token_for_mission(mission)
+    measured["unchecked"] = False
+    measured["checked_since"] = when.isoformat()
+    branch = dict(recap.get("branch_outcome") or {})
+    if branch:
+        branch["label"] = CHECKED_SINCE_LABEL
+        recap["branch_outcome"] = branch
+    mission.recap_payload = {
+        **recap,
+        "measured": measured,
+        "minted_collectibles": [*(recap.get("minted_collectibles") or []), *minted],
+        "checked_since": when.isoformat(),
+    }
+    db.add(mission)
+    return True
+
+
+def unchecked_messages(
+    attempts: Any, turns: Any, *, cut: verdict_cutover.Cutover | verdict_ledger.Counting | None = None
+) -> list[Any]:
+    """Every message of this letter a failed check left unread (#333).
+
+    Read once here, like :func:`unanswered_user_turns`: the verdict, the mood, the token
+    and l'or all read this list, so they cannot disagree. One unread message is enough:
+    a letter is judged as a whole, so a part nobody read can't be called kept. A row with
+    no correction stored was never sent for one, and it is not a failed check.
+
+    ``cut`` (package V): a row stored before the cut-over keeps what it counted for, so it
+    is never «unchecked» here; the token and l'or of a letter begun before the deploy are
+    paid as main's code paid them.
+    """
+
+    rows = [*(attempts or []), *[turn for turn in turns or [] if getattr(turn, "role", None) == "user"]]
+    def read(row: Any) -> Any:
+        return verdicts.from_courrier(row.correction_payload, verdict=getattr(row, "verdict", None))
+
+    if isinstance(cut, verdict_ledger.Counting):
+        # Package V stage 2: a message with a ledger record is read from its record.
+        return [row for row in rows if getattr(row, "correction_payload", None) and not cut.counts(row, read=read)]
+    return [
+        row
+        for row in rows
+        if getattr(row, "correction_payload", None)
+        and not (cut is not None and cut.keeps(row))
+        and not read(row).counts
+    ]
+
+
+def unanswered_user_turns(
+    turns: Any, *, cut: verdict_cutover.Cutover | verdict_ledger.Counting | None = None
+) -> list[Any]:
+    """Every learner message nobody answered, in thread order (#590 / #145).
+
+    A reply nobody wrote is not stored (#397), so «answered» was a fact the thread only
+    implied. It is read here, once, for each learner turn: a learner turn is answered when
+    the turn that follows it is the correspondent's. The page's retry line, the retry
+    endpoint, the finish guard, the token and the story writeback all read this list, so
+    they cannot disagree. A gap in the middle counts as much as one at the end: the
+    learner who wrote again because the reply failed did not choose to write past it.
+
+    ``cut`` (package V): where it is given (the token and l'or), a turn stored before the
+    cut-over is not counted as unanswered; main paid a letter whatever its gaps.
+    """
+
+    ordered = sorted(turns or [], key=lambda turn: int(getattr(turn, "turn_index", 0) or 0))
+    return [
+        turn
+        for position, turn in enumerate(ordered)
+        if getattr(turn, "role", None) == "user"
+        and (position + 1 >= len(ordered) or getattr(ordered[position + 1], "role", None) != "assistant")
+        and not (cut is not None and cut.keeps(turn))
+    ]
+
+
+def thread_opening(mission: Any) -> str:
+    """The letter that opens a Courrier thread: what the correspondent wrote first.
+
+    A letter is kept in the payload, not as a turn (only a ``conversation`` mission stores
+    its opening as turn 1), so everything that reads "the thread so far" starts here."""
+
+    payload = getattr(mission, "prompt_payload", None) or {}
+    messenger = payload.get("messenger") or {}
+    return str(messenger.get("opening_message") or payload.get("conversation_opening") or "").strip()
+
+
+def thread_exchanges(mission: Any, user_text: str) -> list[dict[str, str]]:
+    """The thread's turns as exchanges, before the reply being answered: what the ledger and
+    the checks read. A turn the writer sent first is the letter's own, already its opening."""
+
+    exchanges: list[dict[str, str]] = []
+    for turn in sorted(getattr(mission, "turns", None) or [], key=lambda item: item.turn_index):
+        text = str(turn.text or "").strip()
+        if turn.role == "user":
+            exchanges.append({"learner": text, "character": ""})
+        elif exchanges:
+            exchanges[-1]["character"] = f"{exchanges[-1]['character']} {text}".strip()
+    if exchanges and not exchanges[-1]["character"] and exchanges[-1]["learner"] == str(user_text or "").strip():
+        exchanges.pop()
+    return exchanges
+
+
+def who_they_are(db: Session | None, user: Any, mission: Any) -> dict[str, Any]:
+    """#147: what the correspondent is to the learner, from the one read of a person.
+
+    Anyone the registry does not hold is a one-letter extra: they have never met the learner,
+    and nothing in their letter or reply may say they have (decision of 9 Nov)."""
+
+    correspondent = courrier.correspondent_of(mission)
+    name = str(correspondent.get("name") or "")
+    cast_id = cast_registry.resolve_id(str(correspondent.get("id") or "")) or (cast_registry.people_named(name) or [None])[0]
+    state: dict[str, Any] | None = None
+    if cast_id and db is not None and getattr(user, "id", None) is not None:
+        try:
+            thread = courrier.active_thread(db, SimpleNamespace(id=user.id))
+            state = dict(thread.state or {}) if thread is not None else None
+        except Exception:  # noqa: BLE001 - a reply never fails on who someone is
+            state = None
+    found = cast_registry.person(cast_id, state)
+    if found is None:
+        return {"you_have_never_met_them": True}
+    relation = found.relation.label("en") if found.relation else ""
+    return {**({"who_they_are_to_you": relation} if relation else {}), **({} if found.met else {"you_have_never_met_them": True})}
+
+
 class MissionConversationService:
     """Generate mission chat responses without duplicating the old audio route."""
 
@@ -6623,7 +7136,19 @@ class MissionConversationService:
         self.db = db
         self.llm = llm_service or _safe_llm()
 
-    def respond(self, *, user: User, mission: RealWorldMission, user_text: str) -> str:
+    def respond(
+        self,
+        *,
+        user: User,
+        mission: RealWorldMission,
+        user_text: str,
+        through_turn_index: int | None = None,
+    ) -> str:
+        """The correspondent's reply to ``user_text``.
+
+        ``through_turn_index`` (#590): asking again for an earlier message answers it from
+        the thread as it stood then, not from what the learner wrote after it.
+        """
         latest_progress = self._latest_objective_progress(mission)
         preliminary_branch = self.branch_state(mission=mission, user_text=user_text, assistant_text="")
         if not self.llm:
@@ -6648,6 +7173,14 @@ class MissionConversationService:
             if register_now
             else messenger.get("target_register") or (mission.prompt_payload or {}).get("target_register")
         )
+        # #145: what was asked, what they said to it, what stands. The letter is its opening.
+        record = scene_record.enabled()
+        exchanges = thread_exchanges(mission, user_text) if record else []
+        ledger = (
+            scene_ledger.build(opening_line_fr=thread_opening(mission), history=exchanges, learner_text=user_text)
+            if record
+            else {}
+        )
         context = json.dumps(
             {
                 "scene_title": mission.title,
@@ -6657,6 +7190,7 @@ class MissionConversationService:
                 "scene_so_far": mission.source_snapshot,
                 "register": register_phrase,
                 "branch_state": preliminary_branch,
+                **({"ledger": scene_ledger.for_writer(ledger), **who_they_are(self.db, user, mission)} if record else {}),
                 **({"how_you_feel_about_them": feeling} if feeling else {}),
             },
             ensure_ascii=False,
@@ -6664,7 +7198,14 @@ class MissionConversationService:
         history = [
             {"role": turn.role if turn.role in {"user", "assistant"} else "assistant", "content": turn.text}
             for turn in sorted(mission.turns or [], key=lambda item: item.turn_index)
+            if through_turn_index is None or turn.turn_index <= through_turn_index
         ][-10:]
+        # #538 (root cause #145): the letter is the first line of the thread. A letter is
+        # not stored as a turn, so the actor used to answer a reply to a question it had
+        # never been shown («Tu préfères la poste ou la boutique ?»).
+        letter = thread_opening(mission) if record else ""
+        if letter and not any(item["role"] == "assistant" and item["content"] == letter for item in history):
+            history = [{"role": "assistant", "content": letter}, *history]
         messages = [
             {"role": "user", "content": f"Scene context: {context}"},
             *history,
@@ -6691,6 +7232,20 @@ class MissionConversationService:
             "missing one with a single natural question. Never drag the scene out once everything is settled. "
             "Never break character; never mention lessons, scores, levels, exercises, or vocabulary."
         )
+        if record:
+            system += (
+                " ANSWER WHAT THEY WROTE: take up the decision, the question or the detail they gave (a pet, a key, a refusal) before "
+                "anything else. Invent no order, parcel, delivery, tracking or reference number, and never ask for their home address, "
+                "phone number or e-mail, unless this scene's own first message already did. "
+                "THE THREAD IS YOUR MEMORY: the conversation starts with your own letter, and ledger is this thread's record. asked lists "
+                "each question and whether it was answered, last_turn says what their last reply did (a yes, a no, a question, or something "
+                "else), stands lists what was put to them and how they took it, established what their own words settled. Take an answer up "
+                "before anything else and never ask that question again; a no stays a no; never raise a problem, an exchange or a refund "
+                "that nobody mentioned. "
+                "who_they_are_to_you, when present, is what you are to each other; never make it warmer than that. "
+                "you_have_never_met_them, when present, means exactly that: you only know them from this thread, so never say you "
+                "have met or seen them, or that you know them."
+            )
         # #117: the reply is the character's own voice, so it keeps the letter's address
         # form and the learner's band (a deterministic check, then one rewrite, then the
         # register-aware acknowledgement).
@@ -6702,8 +7257,27 @@ class MissionConversationService:
         style = band_style_line(level)
         if style:
             system += f" {style}"
+        soft_found: list[str] = []
         try:
             hint = ""
+
+            def finish(reply: str, prompt: str) -> str:
+                return self._keep_relatives_with_their_owner(
+                    reply,
+                    mission=mission,
+                    user_text=user_text,
+                    user=user,
+                    register=register_phrase,
+                    call=lambda extra, prompt=prompt: self.llm.generate_chat_completion(
+                        messages=messages,
+                        system_prompt=f"{prompt} {extra}",
+                        temperature=0.7,
+                        max_tokens=220,
+                        model=settings.OPENAI_MISSION_FAST_MODEL,
+                        request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
+                    ),
+                )
+
             for attempt in range(2):
                 result = self.llm.generate_chat_completion(
                     messages=messages,
@@ -6715,28 +7289,86 @@ class MissionConversationService:
                 )
                 _record_mission_llm_cost(self.db, user_id=getattr(user, "id", None), result=result, purpose="character_reply", mission_id=getattr(mission, "id", None))
                 problems = voice_problems([result.content], register=expected, level=level)
-                if not problems:
-                    return self._keep_relatives_with_their_owner(
-                        result.content,
-                        mission=mission,
-                        user_text=user_text,
-                        user=user,
-                        register=register_phrase,
-                        call=lambda extra, prompt=system + hint: self.llm.generate_chat_completion(
-                            messages=messages,
-                            system_prompt=f"{prompt} {extra}",
-                            temperature=0.7,
-                            max_tokens=220,
-                            model=settings.OPENAI_MISSION_FAST_MODEL,
-                            request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
-                        ),
-                    )
+                if not problems and record:
+                    problems = self._logistics_problems(result.content, mission=mission, user_text=user_text)
+                # #145: compared with the thread's record. A veto, never an edit: a reply that
+                # asks an answered question again or quotes words they never wrote is asked
+                # for once more, and if the second says it too the authored line is served.
+                checked = self._against_the_record(result.content, ledger, exchanges, user_text) if record and not problems else []
+                if not problems and not checked:
+                    if soft_found:
+                        self._count_soft_findings(user, soft_found, "corrected")
+                    return finish(result.content, system + hint)
+                if checked:
+                    soft_found = [finding.code for finding in checked]
+                    problems = [finding.hint for finding in checked]
                 logger.info("Courrier reply rejected", attempt=attempt + 1, problems=problems)
                 hint = " Rewrite your reply fixing exactly this: " + " ".join(problems)
+            if soft_found:
+                self._count_soft_findings(user, soft_found, "vetoed")
             return _unassessed_acknowledgement(mission, register_now=register_now)
-        except LLMProviderError as exc:
+        except MODEL_CALL_FAILED as exc:
             logger.debug("Mission conversation fallback", error=str(exc))
+            if soft_found:
+                # The re-roll after a veto failed outright: the authored line, as when it
+                # came back wanting. Never the vetoed reply, never the letter again.
+                self._count_soft_findings(user, soft_found, "vetoed")
+                return _unassessed_acknowledgement(mission, register_now=register_now)
             return self._fallback_response(mission, branch=preliminary_branch, objective_progress=latest_progress)
+
+    @staticmethod
+    def _against_the_record(reply: str, ledger: dict[str, Any], exchanges: list[dict[str, str]], user_text: str) -> list[Any]:
+        """What ``reply`` says against the thread's record, each finding carrying the reply to
+        serve. ``scene_findings`` is what a scene's reply is held to; this is the same read."""
+
+        from app.services import lane_guards  # late: lane_guards imports the story engine
+
+        return lane_guards.scene_findings(reply, {"ledger": ledger, "history": exchanges, "learner_text": user_text})
+
+    def _count_soft_findings(self, user: Any, codes: list[str], outcome: str) -> None:
+        """Code and outcome, no text: how often a check fires is visible in production."""
+
+        if not codes or self.db is None:
+            return
+        from app.services.pilot_events import PilotEventService
+
+        with best_effort(self.db, "Courrier: soft finding count"):
+            for code in codes:
+                PilotEventService(self.db).record(
+                    "reply_guard_fired", user_id=getattr(user, "id", None), entity_type="mission",
+                    payload={"code": code, "outcome": outcome, "stage": "courrier"}, cost_usd=0.0,
+                )
+
+    def _logistics_problems(self, reply: str, *, mission: RealWorldMission, user_text: str) -> list[str]:
+        """#114 (root cause #145): the reply may not bring in an order, a tracking or
+        reference number, or a request for the learner's address that the thread never
+        held. Returned as the rewrite hint, so it rides the same retry as the voice check."""
+
+        from app.services import lane_guards  # late: lane_guards imports the story engine
+
+        payload = mission.prompt_payload or {}
+        messenger = payload.get("messenger") or {}
+        authored = [
+            payload.get("conversation_opening"),
+            messenger.get("opening_message"),
+            messenger.get("brief"),
+            getattr(mission, "brief", None),
+        ]
+        turns = sorted(mission.turns or [], key=lambda item: item.turn_index)
+        grounded = [
+            *authored,
+            getattr(mission, "title", None),
+            messenger.get("twist"),
+            " ".join(str(cue) for cue in messenger.get("ambient_cues") or []),
+            json.dumps(getattr(mission, "source_snapshot", None) or {}, ensure_ascii=False),
+            user_text,
+            *[turn.text for turn in turns],
+        ]
+        found = lane_guards.invented_logistics(reply, grounded=grounded, authored=authored)
+        if found:
+            logger.info("Courrier reply invents logistics", problems=found)
+            return [lane_guards.invented_logistics_hint(found)]
+        return []
 
     def _keep_relatives_with_their_owner(
         self,
@@ -6776,7 +7408,7 @@ class MissionConversationService:
                     purpose="character_reply", mission_id=getattr(mission, "id", None),
                 )
                 reply = retry.content
-            except LLMProviderError:
+            except MODEL_CALL_FAILED:
                 logger.debug("Mission relative-owner retry failed")
         return lane_guards.settle_kin_owner(
             reply,
@@ -6853,6 +7485,11 @@ class MissionConversationService:
             problems = reaction_problems(reply, learner_text=user_text, grounded=(scene_context, opener, name))
             if problems:
                 logger.info("Atelier reaction held back", problems=[problem.kind for problem in problems])
+                return calm_acknowledgement()
+            from app.services import lane_guards  # late: lane_guards imports the story engine
+
+            if scene_record.enabled() and lane_guards.invented_logistics(reply, grounded=(scene_context, opener, user_text), authored=(opener, scene_context)):
+                logger.info("Atelier reaction held back: invented logistics")
                 return calm_acknowledgement()
             return reply
         except LLMProviderError as exc:
@@ -6977,10 +7614,13 @@ class MissionConversationService:
         if not thread:
             return {}
         progress = self._latest_objective_progress(mission)
+        legacy = verdict_ledger.counting(self.db, [*(attempts or []), *(turns or [])])
         outcome = courrier.outcome_from_objectives(
             objectives=mission.objectives or [],
             progress_by_id={str(item.get("id")): item for item in progress if item.get("id")},
             had_submission=bool(attempts or turns),
+            reply_pending=bool(unanswered_user_turns(turns, cut=legacy))
+            or bool(unchecked_messages(attempts, turns, cut=legacy)),
         )
         success = outcome == "kept"
         score = self._latest_score(attempts=attempts, turns=turns)
@@ -7049,7 +7689,7 @@ class MissionConversationService:
                         "next_beat_kind": "feuilleton",
                         "teaser": str(parsed.get("teaser") or ""),
                     }
-            except (LLMProviderError, json.JSONDecodeError, ValueError, AttributeError) as exc:
+            except MODEL_CALL_FAILED as exc:
                 logger.debug("Mission hook fallback", error=str(exc))
         updates = state_delta.get("set") if isinstance(state_delta, dict) else {}
         if isinstance(updates, dict) and updates.get("heating_fixed") in {True, "pending_tomorrow"}:
@@ -7699,10 +8339,17 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
                 "correction": attempt.correction_payload or {},
                 "verdict": attempt.verdict,
                 "score_0_4": attempt.score_0_4,
+                **_stored_check(
+                    attempt.correction_payload,
+                    (attempt.answer_payload or {}).get("text"),
+                    row=attempt,
+                    subject_type="courrier_attempt",
+                ),
                 **stamp_fields(attempt.created_at, zone),
             }
             for attempt in sorted(mission.attempts or [], key=lambda item: item.created_at)
         ]
+        unanswered_ids = {id(turn) for turn in unanswered_user_turns(mission.turns)}
         payload["turns"] = [
             {
                 "id": str(turn.id),
@@ -7712,11 +8359,38 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
                 "text": turn.text,
                 "audio_payload": turn.audio_payload or {},
                 "correction": turn.correction_payload or {},
+                **(
+                    _stored_check(turn.correction_payload, turn.text, row=turn, subject_type="courrier_turn")
+                    if turn.role == "user"
+                    else {}
+                ),
+                # #590: every learner message nobody answered says so on the thread itself.
+                **({"reply_state": "pending"} if id(turn) in unanswered_ids else {}),
                 **stamp_fields(turn.created_at, zone),
             }
             for turn in sorted(mission.turns or [], key=lambda item: item.turn_index)
         ]
+        if scene_record.enabled():
+            payload["prompt_payload"] = _prompt_payload_for_thread(mission, payload["prompt_payload"])
     return payload
+
+
+def _prompt_payload_for_thread(mission: RealWorldMission, prompt_payload: dict[str, Any]) -> dict[str, Any]:
+    """#557 (root cause #145): the suggested replies follow the thread, not the letter's opening.
+
+    The chips are written with the letter, before the learner has said anything. Once
+    they have, a chip that asserts the opposite of what they said («Oui, je viens à ta
+    fête !» after «Non, je ne peux pas venir») or repeats it is not offered. The stored
+    letter is untouched: the filter runs on every read, so a new turn is a new set."""
+
+    messenger = prompt_payload.get("messenger")
+    chips = messenger.get("quick_replies") if isinstance(messenger, dict) else None
+    turns = sorted(mission.turns or [], key=lambda item: item.turn_index)
+    learner = [str(t.text) for t in turns if t.role == "user" and t.text]
+    if not chips or not learner:
+        return prompt_payload
+    fitting = learner_facts.chips_for_thread([str(c) for c in chips], learner)
+    return {**prompt_payload, "messenger": {**messenger, "quick_replies": fitting}}
 
 
 __all__ = [
@@ -7732,5 +8406,6 @@ __all__ = [
     "SerialEpisodeNotReadyError",
     "artefact_mission_payload",
     "create_artefact_mission",
+    "is_echo_reply",
     "serialize_mission",
 ]

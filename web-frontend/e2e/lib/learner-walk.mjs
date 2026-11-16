@@ -3,9 +3,11 @@
 // and runs the learner-clarity assertions as it goes.
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { FORGE_REPAIR, snapshot, sleep, TYPEABLE_FIELD, WORD_BANK_TILE } from './driver.mjs';
+import { FORGE_FOLLOW, FORGE_REPAIR, FORGE_SHEET, FORGE_SPOT, LEXIQUE_DECK, snapshot, sleep, TYPEABLE_FIELD, WORD_BANK_TILE } from './driver.mjs';
 import { missLayoutChecks, readingIsSteady } from './miss-layout.mjs';
-import { englishWords, PENDING_VERDICT, SERVER_BANNER } from './assertions.mjs';
+import { reversed, trackKey, trackVerdicts } from './verdict-timeline.mjs';
+import { HAND_ON } from './day-plan.mjs';
+import { bannersOn, englishWords, serverBanner } from './assertions.mjs';
 
 /**
  * A word a character says, in either reader: the list's caption cards, or the
@@ -19,7 +21,6 @@ const CHARACTER_WORDS = [
   '.vp-sheet__row:not([data-you]):not([data-kind="caption"]):not([data-shown="false"]) button[data-word]',
 ].join(', ');
 
-const STEP_RE = /(Step \d+ of \d+|Schritt \d+ von \d+|Étape \d+ sur \d+)/;
 const REPLIES = ['Oui, je peux vous aider samedi.', 'Merci, à samedi !', 'Avec plaisir, à bientôt.', 'D’accord, je viens.'];
 const FREE = 'Je voudrais un café, s’il vous plaît.';
 
@@ -29,11 +30,19 @@ const SETTLE_STEADY = 4;
 const SETTLE_STEP_MS = 100;
 const SETTLE_MAX_MS = 6000;
 
-/** Where the correction card is, in viewport pixels (runs in the page). null: no wrong verdict on screen. */
-function measureForgeMiss() {
+/**
+ * Where the correction card is, in viewport pixels (runs in the page). null: no wrong verdict on screen.
+ * The rafale's result lists all four sentences, right ones too; its correction card is the first
+ * missed row, the one its page keeps above the sheet (run 43073091897, fr day 3: the whole list
+ * was measured, and a right fourth row under the sheet read as a hidden correction).
+ */
+export function measureForgeMiss() {
   const feedback = document.querySelector('.ep-feedback[data-verdict="wrong"]');
   const foot = feedback && (feedback.querySelector('.ep-foot') || document.querySelector('.ep-foot'));
-  const card = feedback && [...feedback.children].find((el) => !el.classList.contains('ep-foot'));
+  const card = feedback && (
+    feedback.querySelector('.forge-rafale__rows > li[data-correct="false"]')
+    || [...feedback.children].find((el) => !el.classList.contains('ep-foot'))
+  );
   if (!foot || !card) return null;
   const top = document.querySelector('.ep-top');
   const c = card.getBoundingClientRect();
@@ -61,6 +70,8 @@ export class LearnerWalk {
     this.stepCaptions = [];
     mkdirSync(outDir, { recursive: true });
     this.timelines = new Map();
+    this.played = new Set();
+    this.handOns = 0;
   }
 
   where(extra = {}) {
@@ -107,6 +118,23 @@ export class LearnerWalk {
     this.page = page;
     page.on('pageerror', (e) => this.findings.check('no-uncaught-error', false, String(e.message).slice(0, 200), this.where()));
     page.on('response', (r) => {
+      // The day plan as the page receives it (`TodayEnvelope.session`): its steps, which
+      // are done, and whether the day is. The first one of a day is the plan the day is
+      // held to (`beginDay`, `dayPlanChecks`); the latest says where the day stands.
+      if (r.url().includes('/daily-journeys/today') && r.request().method() === 'GET' && r.ok()) {
+        r.json().then((body) => {
+          // The chrome language the server serves this learner now: French from B1 on the
+          // learner's current estimate (app/services/chrome_language.py), so a B1 walker
+          // whose wrong answers pull the estimate under B1 is rightly served English.
+          if (body && typeof body.control_language === 'string' && body.control_language !== this.chrome) {
+            if (this.chrome) console.log(`[walk] ${this.lang}-${this.level} day ${this.day}: chrome ${this.chrome} → ${body.control_language} (the server's level rule)`);
+            this.chrome = body.control_language;
+          }
+          if (!body || !body.session || !Array.isArray(body.session.steps)) return;
+          this.lastSession = body.session;
+          if (!this.planAtStart) this.planAtStart = body.session;
+        }, () => {});
+      }
       const st = r.status();
       if (st >= 500 && r.url().includes('/api/')) {
         this.findings.check('no-server-error', false, `${st} ${r.request().method()} ${new URL(r.url()).pathname}`, this.where());
@@ -119,7 +147,10 @@ export class LearnerWalk {
   pageChecks(s, kind) {
     const w = this.where({ kind });
     this.findings.check('no-horizontal-scroll', s.scrollW <= s.innerW + 1, `scrollWidth ${s.scrollW} > ${s.innerW}`, w);
-    if (this.level.startsWith('B') || this.level.startsWith('C')) {
+    // A B1+ learner's French screen: while the server serves them French chrome (`this.chrome`,
+    // read off GET /daily-journeys/today; before it answers, the registered level stands).
+    const frenchChrome = (this.level.startsWith('B') || this.level.startsWith('C')) && (!this.chrome || this.chrome === 'fr');
+    if (frenchChrome) {
       // Réglages is not a French screen: the owner carved it out on 2026-09-17 and it
       // follows the learner's native language (lib/settings-copy.ts). Every other
       // screen keeps the check.
@@ -153,31 +184,19 @@ export class LearnerWalk {
     }
     // Connection banner while typing.
     if (state.typing) {
-      const banner = s.connection.length > 0 || SERVER_BANNER.test(s.text);
-      this.findings.check('no-server-banner-while-typing', !banner, `banner while typing: «${s.text.slice(0, 160)}»`, w);
+      this.findings.check('no-server-banner-while-typing', !serverBanner(s), `banner while typing [${bannersOn(s)}]: «${s.text.slice(0, 160)}»`, w);
     }
   }
 
   trackVerdicts(s, kind) {
     // One verdict per question: a conversation is one question for its whole length;
     // any other item is identified by the text it showed before it was answered.
-    const hasVerdict = s.graded.length + s.epFeedback.length > 0;
-    if (!hasVerdict) this.questionSig = s.text.slice(0, 140);
-    const step = (s.text.match(STEP_RE) || ['none'])[0];
-    if (step !== 'none' && this.stepCaptions[this.stepCaptions.length - 1] !== step) this.stepCaptions.push(step);
-    const key = kind === 'thread' ? `thread ${step}` : `${step} ${this.questionSig || ''}`;
-    const t = this.timelines.get(`${this.day}:${key}`) || { states: [], pending: false };
-    for (const g of s.graded) if (t.states[t.states.length - 1] !== g.state) t.states.push(g.state);
-    for (const f of s.epFeedback) if (t.states[t.states.length - 1] !== f.verdict) t.states.push(f.verdict);
-    if (PENDING_VERDICT.test(s.text)) t.pending = true;
-    this.timelines.set(`${this.day}:${key}`, t);
-    return t;
+    return trackVerdicts(this, s, kind);
   }
 
   finishTimelines() {
     for (const [k, t] of this.timelines) {
-      const distinct = t.states.filter((x) => x && x !== 'unscored');
-      const flips = distinct.some((x, i) => i > 0 && x !== distinct[i - 1]);
+      const { flips, distinct } = reversed(t);
       this.findings.check('one-verdict-never-reversed', !flips, `verdict changed on ${k}: ${distinct.join(' → ')}`, this.where());
     }
     this.timelines.clear();
@@ -204,10 +223,10 @@ export class LearnerWalk {
       return;
     }
     let s = await snapshot(this.page);
-    this.findings.check('no-server-banner-while-typing', !(s.connection.length || SERVER_BANNER.test(s.text)), `banner mid-typing: «${s.text.slice(0, 160)}»`, this.where({ kind: 'typing' }));
+    this.findings.check('no-server-banner-while-typing', !serverBanner(s), `banner mid-typing [${bannersOn(s)}]: «${s.text.slice(0, 160)}»`, this.where({ kind: 'typing' }));
     await locator.pressSequentially(text.slice(half), { delay: 25 });
     s = await snapshot(this.page);
-    this.findings.check('no-server-banner-while-typing', !(s.connection.length || SERVER_BANNER.test(s.text)), `banner after typing: «${s.text.slice(0, 160)}»`, this.where({ kind: 'typing' }));
+    this.findings.check('no-server-banner-while-typing', !serverBanner(s), `banner after typing [${bannersOn(s)}]: «${s.text.slice(0, 160)}»`, this.where({ kind: 'typing' }));
     state.typing = false;
   }
 
@@ -314,15 +333,127 @@ export class LearnerWalk {
     return true;
   }
 
+  /**
+   * Package V stage 5: once a day, in the languages named by WALK_APPEAL_LANGS (de, fr), the
+   * learner says «I think this is right» under a drill's miss. The fake provider upholds it:
+   * the verdict must turn, and the line must say so. With the provider down it cannot be
+   * read: the verdict must stay.
+   */
+  owesAppeal() {
+    const langs = (process.env.WALK_APPEAL_LANGS ?? 'de,fr').split(',').filter(Boolean);
+    return langs.includes(this.lang) && this.appealedDay !== this.day && this.level !== 'B1.1';
+  }
+
+  async appealOnce(s) {
+    if (!this.owesAppeal()) return false;
+    const line = this.page.locator('.av2-graded [data-appeal="offered"] button').first();
+    if (!(await line.count())) return false;
+    this.appealedDay = this.day;
+    const before = s.graded[0]?.state;
+    await this.shoot('appeal-offered');
+    await line.click({ timeout: 3000 }).catch(() => {});
+    const answer = this.page.locator('.av2-graded [data-appeal]:not([data-appeal="offered"])').first();
+    await answer.waitFor({ timeout: 20000 }).catch(() => {});
+    const state = (await answer.getAttribute('data-appeal').catch(() => null)) || 'none';
+    const after = await this.page.locator('.av2-graded').first().getAttribute('data-state').catch(() => null);
+    await this.shoot(`appeal-${state}`);
+    const w = this.where({ kind: 'appeal', before, after, state, drill: s.match ? 'match' : s.choices ? 'choice' : s.tilesBox ? 'tiles' : 'other' });
+    const t = this.timelines.get(`${this.day}:${trackKey(this, await snapshot(this.page), 'drill')}`);
+    if (t) t.appeal = state;
+    this.appeals = [...(this.appeals || []), { lang: this.lang, day: this.day, before, after, state }];
+    if (process.env.WALK_PROVIDER_DOWN) {
+      this.findings.check('appeal-unread-keeps-the-verdict', state === 'unread' && after === before, `appeal ${state}: ${before} → ${after}`, w);
+    } else {
+      this.findings.check('appeal-upheld-turns-the-verdict', state === 'upheld' && after !== before && /^(correct|supported)$/.test(after || ''), `appeal ${state}: ${before} → ${after}`, w);
+    }
+    return true;
+  }
+
+  /**
+   * La Forge «Correct the sentence»: after a right «Needs fixing» the sheet and its
+   * «Continue» wait until the sentence is corrected and checked. The walk sets the tiles
+   * in the order offered (or retypes the quoted sentence) and checks; right or wrong,
+   * the step settles. False when no follow-up is open.
+   */
+  async answerForgeFollowUp() {
+    const page = this.page;
+    const follow = page.locator(FORGE_FOLLOW.open).first();
+    if (!(await follow.count())) return false;
+    const tiles = follow.locator(WORD_BANK_TILE);
+    for (let i = 0; i < 20 && (await tiles.count()); i += 1) {
+      await tiles.first().click({ timeout: 2000 }).catch(() => {});
+      await sleep(80);
+    }
+    const field = follow.locator(FORGE_FOLLOW.field);
+    if (await field.count()) {
+      // The sentence as quoted, without its screen-reader label.
+      const quoted = await follow.locator(FORGE_FOLLOW.quote).first().evaluate((node) => {
+        const copy = node.cloneNode(true);
+        copy.querySelectorAll('.av2-sr').forEach((label) => label.remove());
+        return (copy.textContent || '').trim();
+      }).catch(() => '');
+      await field.first().fill(quoted || FREE, { timeout: 3000 }).catch(() => {});
+      await sleep(120);
+    }
+    const check = follow.locator(FORGE_FOLLOW.check).first();
+    if (await check.count()) await check.click({ timeout: 3000 }).catch(() => {});
+    await sleep(300);
+    return true;
+  }
+
+  /**
+   * La Forge's verdict sheet with no «Continue»: an unchecked answer goes on with «Skip
+   * without a check»; a line the walk cannot rewrite («Try the line again» only) is
+   * skipped. False when the sheet has its «Continue».
+   */
+  async leaveForgeSheet() {
+    const page = this.page;
+    const unscored = page.locator(FORGE_SHEET.unscored).first();
+    if (await unscored.count()) {
+      await unscored.click({ timeout: 3000 }).catch(() => {});
+      return true;
+    }
+    if (await page.locator(FORGE_SHEET.primary).count()) return false;
+    const skip = page.locator(FORGE_SHEET.links).filter({ hasText: FORGE_SHEET.skip }).first();
+    if (!(await skip.count())) return false;
+    await skip.click({ timeout: 3000 }).catch(() => {});
+    return true;
+  }
+
   async act(s, kind, state) {
     const page = this.page;
+    // La Forge's end («Les règles du jour sont forgées.», or «Terminée en avance» when the
+    // séance's time ran out first) offers «Passer l'épreuve», which is not the day's step,
+    // and its hand-off home below the fold. A day played to its end takes the day's next
+    // step from there (B1 day 2 stood 30 s on it, the first local full walk of 11 Nov).
+    if (state.toTheEnd && (await page.locator('.ep-bat-stage').count())) {
+      return (await this.nextStep(s)) === 'next';
+    }
     if (kind === 'reader') {
       if (process.env.WALK_ART_SET === 'drawn' && this.mouthShapes == null) await this.sampleMouth();
       const next = page.locator('.fr-next:not([disabled])').last();
       if (await next.count()) { await next.click({ timeout: 3000 }).catch(() => {}); return true; }
       return false;
     }
+    // Le Lexique's deck (the day's words step): turn the card, then file it, «I know it»
+    // mostly and «Again» every fourth card. Main's season walk stood 10 s on «Lexique —
+    // review 0/27» on day 8 (run 43000929857): the walk had no hand for the grades.
+    const grade = page.locator(state.itemIndex % 4 === 3 ? LEXIQUE_DECK.again : LEXIQUE_DECK.know).first();
+    if (await grade.count()) {
+      state.itemIndex += 1;
+      await grade.click({ timeout: 3000 }).catch(() => {});
+      await sleep(250);
+      return true;
+    }
+    const turn = page.locator(LEXIQUE_DECK.turn).first();
+    if (await turn.count()) {
+      await turn.click({ timeout: 3000 }).catch(() => {});
+      return true;
+    }
     if (s.epFeedback.length && (await this.copyForgeCorrection())) return true;
+    if (s.epFeedback.length && (await this.answerForgeFollowUp())) return true;
+    if (s.epFeedback.length && (await this.leaveForgeSheet())) return true;
+    if (s.graded.length && (await this.appealOnce(s))) return true;
     if (s.graded.length || s.epFeedback.length) {
       const prim = page.locator('.av2-graded .av2-btn, .av2-btn--primary:not([disabled])').last();
       if (await prim.count()) { await prim.click({ timeout: 3000 }).catch(() => {}); return true; }
@@ -340,7 +471,10 @@ export class LearnerWalk {
     const enabledChoice = page.locator('.av2-choice:not([disabled])');
     if (await enabledChoice.count()) {
       const n = await enabledChoice.count();
-      await enabledChoice.nth((this.day + state.itemIndex) % n).click({ timeout: 3000 }).catch(() => {});
+      // Package V stage 5: on a day that still owes its appeal, the learner picks the other
+      // option, so a miss comes to appeal (the walk's own picks are right on day 1).
+      const shift = this.owesAppeal() ? 1 : 0;
+      await enabledChoice.nth((this.day + state.itemIndex + shift) % n).click({ timeout: 3000 }).catch(() => {});
       state.itemIndex += 1;
       await sleep(150);
       const check = page.locator('.av2-btn--primary:not([disabled])').first();
@@ -353,6 +487,24 @@ export class LearnerWalk {
       const n = await faces.count();
       await faces.nth((this.day + state.itemIndex) % n).click({ timeout: 3000 }).catch(() => {});
       state.itemIndex += 1;
+      await sleep(150);
+      const check = page.locator('.av2-btn--primary:not([disabled])').first();
+      if (await check.count()) await check.click({ timeout: 3000 }).catch(() => {});
+      return true;
+    }
+    // La Forge «Trouve l'erreur»: tap a word, type its replacement, Check. Main's 7-day
+    // walk stood 10 s on «Trouve l'erreur» at 11/12 of B1 day 3's grammar step
+    // (run 42995373157): the walk had no hand for it.
+    const spotWords = page.locator(FORGE_SPOT.word);
+    if ((await spotWords.count()) && !(await page.locator(FORGE_SPOT.edited).count())) {
+      const n = await spotWords.count();
+      const word = spotWords.nth((this.day + state.itemIndex) % n);
+      state.itemIndex += 1;
+      const was = ((await word.innerText().catch(() => '')) || '').trim().toLowerCase();
+      await word.click({ timeout: 3000 }).catch(() => {});
+      const field = page.locator(FORGE_SPOT.field).first();
+      await field.fill(was === 'le' ? 'la' : 'le', { timeout: 3000 }).catch(() => {});
+      await field.press('Enter').catch(() => {});
       await sleep(150);
       const check = page.locator('.av2-btn--primary:not([disabled])').first();
       if (await check.count()) await check.click({ timeout: 3000 }).catch(() => {});
@@ -404,9 +556,9 @@ export class LearnerWalk {
   }
 
   /** Play one journey from Home to the recap. Returns the kinds seen. */
-  async playJourney({ maxSeconds = 240, entry = null, label = '' } = {}) {
+  async playJourney({ maxSeconds = 240, entry = null, label = '', toTheEnd = false } = {}) {
     const page = this.page;
-    const state = { itemIndex: 0, typing: false, readerBox: null };
+    const state = { itemIndex: 0, typing: false, readerBox: null, toTheEnd };
     if (!entry) this.timelines.clear();
     if (entry) {
       await page.goto(`${this.stack.web}${entry}`, { waitUntil: 'domcontentloaded' });
@@ -456,6 +608,16 @@ export class LearnerWalk {
         kinds.push(kind);
         this.pageChecks(s, kind);
         await this.stepPass(s, kind, state);
+        // #333: a screen that says nobody read the answer prints no verdict beside it.
+        if (s.dataCheck.length) {
+          const judged = [...s.graded.map((g) => g.state), ...s.epFeedback.map((f) => f.verdict)]
+            .filter((state) => state && state !== 'unscored');
+          this.findings.check('unread-answer-shows-no-verdict', judged.length === 0, `«${s.dataCheck[0]}» beside a verdict: ${judged.join(', ')}`, this.where({ kind }));
+        }
+        // With the provider forced down, a reply the scene took as read is the bug itself.
+        if (process.env.WALK_PROVIDER_DOWN && s.graded.some((g) => g.state === 'story')) {
+          this.findings.check('provider-down-reads-not-checked', false, 'a reply nobody could read was shown as read', this.where({ kind }));
+        }
         const verdict = s.graded[0]?.state || s.epFeedback[0]?.verdict;
         if (verdict) {
           this.findings.check('one-verdict-on-screen', s.graded.length + s.epFeedback.length === 1, `${s.graded.length + s.epFeedback.length} verdicts at once`, this.where({ kind }));
@@ -464,6 +626,9 @@ export class LearnerWalk {
             // holds the words the instruction names. A cameo and the scroll to the repair arrive
             // a moment after the verdict, so the screen is read once more.
             await sleep(700);
+            // #665: and, like the card (#319), only once the page says its miss scroll is done:
+            // a reading taken while it is still «settling» judged «Compare» on its way.
+            if (s.epFeedback.length) await this.settledBox(measureForgeMiss);
             const settled = await snapshot(page);
             for (const check of missLayoutChecks(settled.layout)) {
               this.findings.check(check.name, check.ok, check.detail, this.where({ kind }));
@@ -486,6 +651,19 @@ export class LearnerWalk {
           if (this.classify(after) !== kind) continue;
         }
       } else sameFor += 1;
+      if (toTheEnd) this.markPlayed(s, kind);
+      // A day is played to its end, whatever the scene's save timing: «Scène terminée ·
+      // Suite : grammaire» is a step of the day, not its recap. The walk takes the next
+      // step for as long as the day plan has one, and stops only at /fertig with the day
+      // done, or at a recap the server's plan agrees is the last screen (`nextStep`).
+      // `toTheEnd` is the daily walk's (walk.mjs); the one-off scripts stop at the recap.
+      if (toTheEnd && (kind === 'recap' || kind === 'home-done')) {
+        if ((await this.nextStep(s)) === 'next') {
+          lastSig = '';
+          continue;
+        }
+        break;
+      }
       if (kind === 'recap' || kind === 'home-done') break;
       const acted = await this.act(s, kind, state);
       // 10 s without change is stuck — unless the screen honestly says it is
@@ -506,6 +684,80 @@ export class LearnerWalk {
     }
     this.finishTimelines();
     return kinds;
+  }
+
+  /** A new day: the plan it is held to, the steps played, and how it ended. */
+  beginDay(day) {
+    this.day = day;
+    this.seq = 0;
+    this.planAtStart = null;
+    this.lastSession = null;
+    this.played = new Set();
+    this.dayEnd = null;
+    this.handOns = 0;
+  }
+
+  /** Which step of the day plan this screen belongs to. */
+  markPlayed(s, kind) {
+    const url = s.url || '';
+    if (url.startsWith('/vocabulary/review')) this.played.add('words');
+    else if (url.startsWith('/atelier') && /[?&]mode=forge\b/.test(url)) this.played.add('grammar');
+    else if (url.startsWith('/atelier') && ['reader', 'thread', 'cast', 'read', 'choice', 'field', 'tiles', 'match', 'dictation', 'rule'].includes(kind)) this.played.add('scene');
+  }
+
+  /**
+   * At a screen that looks like the end of the day: take the day's next step when one is
+   * offered («Suite : grammaire», «Weiter: 20 Wörter», «Next: grammar»), on the screen
+   * itself or, when it offers none, on Home, where the server's plan says what is left.
+   * 'next' when a step was taken; 'over' when the day is done (/fertig with the day done,
+   * or a recap whose plan has nothing left); 'stuck' when the plan has a step and no
+   * screen offers it.
+   */
+  async nextStep(s) {
+    const page = this.page;
+    if (this.handOns > 8) return 'stuck';
+    const handOn = () => page.locator('button:not([disabled]), a').filter({ hasText: HAND_ON });
+    if (await handOn().count()) {
+      this.handOns += 1;
+      await this.shoot('hand-on');
+      await handOn().first().click({ timeout: 3000 }).catch(() => {});
+      await sleep(800);
+      return 'next';
+    }
+    if ((s.url || '').startsWith('/fertig') && (await page.locator('[data-fertig="done"]').count())) {
+      this.played.add('finish');
+      this.dayEnd = 'fertig';
+      return 'over';
+    }
+    // The screen offers no next step. Home asks the server again: a scene whose save
+    // had not landed when its recap mounted left this screen without its «Suite».
+    const today = page
+      .waitForResponse((r) => r.url().includes('/daily-journeys/today') && r.request().method() === 'GET', { timeout: 30000 })
+      .then((r) => r.json())
+      // A body the page navigated away from cannot be read; the listener's copy stands in.
+      .catch(() => null);
+    await page.goto(`${this.stack.web}/atelier`, { waitUntil: 'domcontentloaded' });
+    const body = await today;
+    await sleep(1200);
+    const session = (body && body.session) || this.lastSession;
+    if (!session || session.done) {
+      this.played.add('finish');
+      this.dayEnd = session ? 'recap' : 'recap-no-plan';
+      return 'over';
+    }
+    const homeNext = page.locator('[data-session-next] .av2-btn--primary:not([disabled])');
+    await homeNext.first().waitFor({ timeout: 15000 }).catch(() => {});
+    if (await homeNext.count()) {
+      this.handOns += 1;
+      await this.shoot('home-next');
+      await homeNext.first().click({ timeout: 3000 }).catch(() => {});
+      await sleep(800);
+      return 'next';
+    }
+    // Home itself starts the day's first open step: its primary button (the scene).
+    this.findings.check('a-way-forward', false, `the day plan has «${session.next_kind}» left and no screen offers it`, this.where({ kind: 'home' }));
+    await this.shoot('stuck');
+    return 'stuck';
   }
 
   /** WP-109: the four places in order, and Home headlining today's episode. */

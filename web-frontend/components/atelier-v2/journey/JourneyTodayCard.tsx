@@ -46,6 +46,7 @@ import {
 import { atelierCopy, type AtelierCopy } from '@/lib/atelier-v2-copy';
 import { canDoCopy } from '@/lib/can-do-copy';
 import { epreuveOf, specialListLine } from '@/lib/can-dos';
+import { connectionBanner, type ConnectionBannerKind } from '@/lib/connection-banner';
 import { frenchQuote, frenchSpacing } from '@/lib/french-typography';
 import { gentleReturnLabel } from '@/lib/gentle-return';
 import { preparingLine } from '@/lib/journey-reply-reveal';
@@ -334,7 +335,7 @@ function JourneyTodayBody({
           // WP-98: a quiet authored interlude scene says it is one.
           eyebrow={
             joinMeta(
-              headlineKicker(headline),
+              headlineKicker(headline, controlLanguage),
               interlude ? seasonReturnCopy(controlLanguage).interlude_kicker : gentle,
               scenario.location_name,
             ) || copy.today_eyebrow
@@ -400,7 +401,7 @@ function JourneyTodayBody({
           copy={copy}
           eyebrow={
             // Phase 2: «Acte 2 t'attend» when the day waits in a later act.
-            joinMeta(openActLine(phase.journey), headlineKicker(headline), gentle, longer, scenario.location_name) ||
+            joinMeta(openActLine(phase.journey), headlineKicker(headline, controlLanguage), gentle, longer, scenario.location_name) ||
             copy.today_eyebrow
           }
           title={cardTitle(headline, scenario.title_fr)}
@@ -517,7 +518,7 @@ function JourneyTodayBody({
 
     case 'load_failed':
       return (
-        <Card copy={statusCopy} eyebrow={statusCopy.today_eyebrow} title={statusCopy.transport_error}>
+        <Card copy={statusCopy} eyebrow={statusCopy.today_eyebrow} title={statusCopy.transport_error} banner="transport_error">
           <Action tone="secondary" inline onClick={onRefresh}>
             {statusCopy.retry}
           </Action>
@@ -560,6 +561,7 @@ function Card({
   special = null,
   headline = null,
   controlLanguage = null,
+  banner,
   children,
 }: {
   headline?: Headline | null;
@@ -580,6 +582,8 @@ function Card({
   done?: boolean;
   /** WP-76: the scene is being prepared — the place breathes, no spinner. */
   preparing?: boolean;
+  /** #794: the title is a sentence about the connection, marked as such. */
+  banner?: ConnectionBannerKind;
   children?: React.ReactNode;
 }) {
   return (
@@ -604,7 +608,7 @@ function Card({
           )}
           {eyebrow}
         </p>
-        <h2 className="av2-headline av2-headline--title" lang={lang}>
+        <h2 className="av2-headline av2-headline--title" lang={lang} {...(banner ? connectionBanner(banner) : {})}>
           {lang === 'fr' ? frenchSpacing(title) : title}
         </h2>
         {byline}
@@ -702,7 +706,9 @@ function HeadlineCast({
   faces?: boolean;
 }) {
   // Owner, 2026-10-18: a few words, never a paragraph, on Home.
-  const teaser = teaserHint(headlineTeaser(headline, title));
+  // #466: what stays open, written whole, is printed whole.
+  const opened = String(headline.teaser_open_fr || '').trim();
+  const teaser = opened && opened !== title ? opened : teaserHint(headlineTeaser(headline, title));
   // A title cut from the teaser is not printed again under itself.
   const showTeaser = Boolean(teaser) && teaser !== title;
   const cast = faces ? headline.cast || [] : [];

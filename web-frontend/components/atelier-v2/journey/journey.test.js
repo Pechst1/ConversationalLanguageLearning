@@ -718,8 +718,30 @@ const noSleep = () => Promise.resolve();
 
   const unscoredHtml = renderFeedback(pendingFeedback);
   assert.ok(unscoredHtml.includes('data-state="unscored"'));
-  assert.ok(htmlHas(unscoredHtml, EN.still_grading) && htmlHas(unscoredHtml, EN.try_grading_again));
+  assert.ok(htmlHas(unscoredHtml, EN.check_not_checked) && htmlHas(unscoredHtml, EN.try_grading_again));
   assert.ok(!htmlHas(unscoredHtml, EN.wrong), 'unscored never reads as wrong');
+
+  assert.ok(unscoredHtml.includes('data-check="not_checked"'), '#333: the walk can name this line');
+
+  // #333: an authored reply nobody read keeps the way on, says so, and prints no verdict.
+  const unreadHtml = renderToStaticMarkup(
+    React.createElement(steps.JourneyFeedbackView, {
+      feedback: {
+        kind: 'graded',
+        verdict: 'partially_met',
+        result: { task_outcome: 'partially_met', check: { outcome: 'not_checked', call: 'failed', edits: [] } },
+      },
+      copy: EN,
+      stepKind: 'recall',
+      onContinue: () => {},
+      onRetry: () => {},
+      onDismiss: () => {},
+    }),
+  );
+  assert.ok(unreadHtml.includes('data-check="not_checked"'));
+  assert.ok(unreadHtml.includes('data-state="unscored"'));
+  assert.ok(htmlHas(unreadHtml, EN.check_not_checked));
+  assert.ok(!htmlHas(unreadHtml, EN.wrong) && !unreadHtml.includes('data-state="story"'));
 
   const reconciledHtml = renderFeedback({
     kind: 'reconciled',
@@ -938,7 +960,8 @@ const noSleep = () => Promise.resolve();
   );
   assert.ok(htmlHas(todayHtml, EN.start), 'one clear start action');
   assert.ok(htmlHas(todayHtml, 'Un café au Mistral'));
-  assert.ok(htmlHas(todayHtml, '4 min'), 'the estimate is the plan\'s own number');
+  // 264 s, said as the plan row says it (#470): whole minutes, rounded up.
+  assert.ok(htmlHas(todayHtml, '5 min'), 'the estimate is the plan\'s own number');
   assert.ok(!htmlHas(todayHtml, EN.legacy_resume_title));
 
   const legacyEnvelope = fixture('active_legacy').response;

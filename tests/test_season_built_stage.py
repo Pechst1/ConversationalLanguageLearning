@@ -33,11 +33,18 @@ def _places(*ids: str) -> list[dict]:
 
 def test_the_server_reads_the_places_the_forge_built():
     stages = built_stages("s1")
-    # the café and its quai, the stairwell, Odile's flat, the studio, the notary's, the roof
+    # the café and its quai, the stairwell, Odile's flat, the studio, the notary's, the roof, the back room,
+    # Marin and Lila's flat, the gérance Marchand, the rue de Lancry, Gus's loft, Marin's NGO office
     assert stages["stairwell"] == "escalier_mistral"
     assert stages["le_mistral"] == "quai_de_valmy"
     assert stages["toit"] == "toit_mistral"
-    assert "mistral_back_room" not in stages and "marchand_office" not in stages
+    assert stages["mistral_back_room"] == "arriere_salle"
+    assert stages["marin_lila_flat"] == "chez_marin_lila"
+    assert stages["marchand_office"] == "gerance_marchand"
+    assert stages["rue_de_lancry"] == "rue_de_lancry"
+    assert stages["gus_loft"] == "chateau_gus"
+    assert stages["ngo_office"] == "bureau_ong"
+    assert "gare_de_lest" not in stages and "brocante" not in stages
     # every one of them is a place of the season the director reads
     ids = {place["id"] for place in season_world_bible("s1")["setting"]["recurring_locations"]}
     assert set(stages) <= ids
@@ -109,8 +116,13 @@ def _learner(db, day: int | None):
 
 
 def test_the_forge_reads_the_segments_the_learners_are_on(client, db_session, monkeypatch):
-    from app.services.season import frontier
+    from datetime import date
 
+    from app.services.season import frontier, runtime
+
+    # The learners' day is a Wednesday: on a Friday the clock keeps a learner at the end
+    # of a gap one more day (a Day A never falls on a Friday), and day 8 reads g1.
+    monkeypatch.setattr(runtime, "learner_date", lambda user, now=None: date(2026, 11, 11))
     monkeypatch.setattr(frontier, "_cache", {})
     first = client.get("/api/v1/story-engine/season-frontier")
     assert first.status_code == 200
@@ -164,8 +176,8 @@ def test_a_place_not_built_is_one_a_page_may_name_never_one_it_is_set_in():
     on_built_stage(context)
     built = set(built_stages("s1"))
     elsewhere = {place["id"] for place in context["world"]["elsewhere"]}
-    # the mairie, the back room, the gérance: named, not entered
-    assert {"mairie", "mistral_back_room", "marchand_office"} <= elsewhere
+    # the mairie, the gare de l'Est, the brocante: named, not entered
+    assert {"mairie", "gare_de_lest", "brocante"} <= elsewhere
     assert not elsewhere & built
     assert all(place["name_fr"] for place in context["world"]["elsewhere"])
 
@@ -220,3 +232,22 @@ def test_the_walk_s_fake_director_sets_a_season_page_where_it_was_offered():
     offered = {place["id"] for place in context["world"]["locations"]}
     context["season_script"] = {"brief": {}}
     assert {dev.FakeStoryProvider._season_draft(context, n)["location_id"] for n in range(14)} <= offered
+
+
+def test_the_walk_s_fake_director_never_repeats_one_of_the_last_five_situations():
+    """#717: the fake set a season page from a counter shared by the whole walk. On the
+    11 Nov season walk all three attempts of day 7 landed on situations of the last five
+    pages, the engine refused each one as ``repeated_situation``, and the day was lost
+    (it re-read T1 Day B). A compliant director picks a situation not recently played."""
+
+    import dev_story_engine_server as dev
+
+    for n in range(14):
+        recent = [
+            {"premise_fr": dev.SEASON_PREMISES[(n + k) % len(dev.SEASON_PREMISES)], "objective_native": dev.PREMISES[(n + k) % len(dev.PREMISES)][1]}
+            for k in range(5)
+        ]
+        context = {"season_script": {"brief": {}}, "recent_situations": recent}
+        draft = dev.FakeStoryProvider._season_draft(context, n)
+        assert draft["premise_fr"] not in {row["premise_fr"] for row in recent}, n
+        assert draft["objective_native"] not in {row["objective_native"] for row in recent}, n

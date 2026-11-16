@@ -696,16 +696,19 @@ export default function VocabularyReviewPage() {
   const addExtraWords = useCallback(async () => {
     setAddingWords(true);
     try {
+      // The deck deals the step the button promised; the answer's `step`
+      // is the next tap's (0 once the pool is empty).
+      const promised = newWordsPace?.step || 0;
       const body = await apiService.addExtraNewWords();
       setNewWordsPace(body);
-      await loadQueue(body.step);
+      await loadQueue(promised || body.step);
     } catch (error) {
       console.error(error);
       toast.error(t.deck_unavailable);
     } finally {
       setAddingWords(false);
     }
-  }, [loadQueue, t]);
+  }, [loadQueue, newWordsPace, t]);
 
   const moreWords = useMemo(() => {
     const left = Number(context?.new_words_left_today || 0);
@@ -1109,6 +1112,13 @@ export default function VocabularyReviewPage() {
                 forgeHref={null}
                 onNavigate={(href) => { void router.push(href); }}
               />
+            )}
+
+            {!loading && !loadError && !current && daySession?.kind === 'day' && !dayNext && !dayFallback && (
+              // The day's deck is through and the page is asking for what comes next (the next
+              // dose, or the day's next step). Until the answer it says so: an empty page with
+              // only the count, «33/33», offered nothing to tap (main's walk, run 43073091897).
+              <StateBlock tone="loading" title={dayLeft > 0 ? t.opening_deck : daySessionCopy(language).words_done} />
             )}
 
             {!loading && !loadError && !current && dayNext && (

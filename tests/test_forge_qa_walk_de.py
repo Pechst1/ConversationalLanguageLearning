@@ -202,7 +202,9 @@ def test_every_meaning_unit_serves_a_german_meaning_with_no_english(unit: str) -
         if rung in {"fill", "word_bank", "transform", "pair", "production"}:
             # #296: a build of an exchange quotes its answer and says the lines before
             # it ahead of the quote, so every German sentence is there, not in one run.
-            parts = [part for part in re.split(r"(?<=[.!?…])\s+", item.de.strip()) if part]
+            # 12 Nov 2026: a build or write rung quotes the sentence said to nobody.
+            german = (ib.without_vocative(item) or item).de if rung in {"word_bank", "transform", "production"} else item.de
+            parts = [part for part in re.split(r"(?<=[.!?…])\s+", german.strip()) if part]
             assert all(part in cue for part in parts), (rung, cue)
         # French learners keep the gloss-free cue: no English, no German.
         french = ib.public_item(payload, "fr")

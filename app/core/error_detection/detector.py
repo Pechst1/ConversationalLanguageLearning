@@ -10,6 +10,7 @@ from loguru import logger
 
 from app.config import settings
 from app.core.conversation import build_error_detection_prompt
+from app.services.chrome_language import mother_tongue
 from app.services.learner_copy import learner_text
 from app.services.llm_service import LLMResult
 
@@ -55,7 +56,7 @@ class ErrorDetector:
         self.llm_service = llm_service
         # Explanations follow the learner's native language (contract: instruction
         # in L1). The old prompt hardcoded German for every learner.
-        self.explanation_language = (explanation_language or "en").strip().lower()[:2] or "en"
+        self.explanation_language = mother_tongue(explanation_language)
         self.rules = list(rules) if rules is not None else build_default_rules()
         self._nlp = nlp or self._load_language_model()
 
@@ -95,7 +96,7 @@ class ErrorDetector:
         # The learner's language can arrive per-call (a shared detector serves
         # several learners) — resolve it before the rules render their prose.
         if explanation_language:
-            self.explanation_language = explanation_language.strip().lower()[:2] or self.explanation_language
+            self.explanation_language = mother_tongue(explanation_language) or self.explanation_language
 
         doc = self._nlp(learner_message)
         errors: list[DetectedError] = []
@@ -118,6 +119,10 @@ class ErrorDetector:
                 llm_errors, summary, review_vocabulary, provider_meta = llm_result
                 errors.extend(llm_errors)
                 metadata.update(provider_meta)
+                metadata["llm_read"] = True
+            else:
+                # #333: the rules ran and the model did not, so an empty list proves nothing.
+                metadata["llm_failure"] = getattr(self, "_llm_failure", None) or "invalid_output"
         return ErrorDetectionResult(errors=errors, summary=summary, review_vocabulary=review_vocabulary, metadata=metadata)
 
     def _localized(self, errors: list[DetectedError]) -> list[DetectedError]:
@@ -189,6 +194,7 @@ class ErrorDetector:
                 )
         except Exception as exc:  # pragma: no cover - defensive logging path
             logger.warning("LLM analysis failed", error=str(exc))
+            self._llm_failure = f"{type(exc).__name__}: {exc}"
             return None
 
         parsed = self._parse_llm_response(result)

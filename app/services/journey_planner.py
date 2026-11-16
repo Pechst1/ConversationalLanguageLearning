@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 from app.services import grammar_items, pragmatics
 from app.services.cast_registry import display_name
 from app.services.cast_voices import NARRATOR_ID, line_audio_url, voice_for_character
+from app.services.chrome_language import localized, mother_tongue
 from app.services.journey_content import (
     SPOILER_SIMILARITY,
     line_spoils_reply,
@@ -92,6 +93,7 @@ from app.services.journey_day_shapes import (
     rotate_recall_formats,
     shape_allows_format,
 )
+from app.services.no_address import unaddressed_task
 from app.services.repair_context import (
     RepairContext,
     clean_text,
@@ -415,7 +417,7 @@ _WORD_COUNT: dict[str, tuple[str, str]] = {
 def word_count_phrase(count: int, control_language: Any) -> str:
     """«1 Wort» / «3 Wörter», «1 word» / «3 words», «1 mot» / «3 mots»."""
 
-    one, many = _WORD_COUNT.get(str(control_language or "en")[:2], _WORD_COUNT["en"])
+    one, many = _WORD_COUNT.get(mother_tongue(control_language), _WORD_COUNT["en"])
     return (one if int(count) == 1 else many).format(count=int(count))
 
 # -- WP-66: the three Séance formats, posed in the journey -------------------
@@ -502,8 +504,8 @@ _GENDER_ARTICLES: dict[str, str] = {
 }
 
 
-def _localized(table: dict[str, str], control_language: ControlLanguage) -> str:
-    return table.get(str(control_language), table["en"])
+# S3: one ``{en, de, fr}`` picker for the whole server (chrome_language.localized).
+_localized = localized
 
 
 # --------------------------------------------------------------------------
@@ -2441,6 +2443,11 @@ class AuthoredExchange(NamedTuple):
     task_words: int = 0
 
 
+#: ``season.turns.REPLY_KINDS``, repeated here: the planner imports nothing from the
+#: season runtime (``test_the_planner_imports_no_ladder_and_no_scheduler``).
+_REPLY_KINDS: tuple[str, ...] = ("speech", "all", "sms")
+
+
 def _spoken_words(panels: Any) -> int:
     """Words of the spoken lines of ``panels`` — what ``season.turns.reaction_lines``
     shows in the conversation (captions and silent panels stay on the page)."""
@@ -2450,7 +2457,7 @@ def _spoken_words(panels: Any) -> int:
         if not isinstance(panel, dict):
             continue
         for line in panel.get("lines") or []:
-            if isinstance(line, dict) and line.get("kind") in ("speech", "all"):
+            if isinstance(line, dict) and line.get("kind") in _REPLY_KINDS:
                 total += _tokens(str(line.get("text_fr") or ""))
     return total
 
@@ -2596,19 +2603,31 @@ def respond_seconds(
             # planned ``max_turns``), the rest of the page.
             prose = spt * page_reading_factor(band)
             floor = REPLY_WORDS_FLOOR[_band_key(band) or "B1"]
+            from app.services import scene_record
+
+            record = scene_record.enabled()
             costs = []
             for index in range(turns):
+                closes = index == turns - 1
                 if index >= len(authored):
-                    # A reply asked again (``repeat_once``): one more exchange.
-                    costs.append(default_turn)
+                    # One more exchange on the page's last question: a reply asked
+                    # again (``repeat_once``), or a page that asks only once and
+                    # listens to one more (#378, ``season.runtime.asks_only_once``).
+                    # The conversation closes here, so the page's answer and tail
+                    # are read here.
+                    closing = AuthoredExchange(*authored[-1]).closing if record and closes and authored else 0
+                    costs.append(default_turn + closing * prose)
                     continue
                 # A bare ``(kind, words)`` (pre-tentpole callers) reads the old
                 # twelve-word answer.
                 turn = AuthoredExchange(*authored[index])
-                read = turn.closing if index == turns - 1 else turn.going_on
-                said = read * prose + (
-                    0 if index == turns - 1 else turn.task_words * NATIVE_SECONDS_PER_TOKEN
-                )
+                if closes:
+                    read = turn.closing
+                else:
+                    # When one more exchange follows the page's last question, the
+                    # page's answer waits for it: it is read once, on the close.
+                    read = 0 if record and index == len(authored) - 1 else turn.going_on
+                said = read * prose + (0 if closes else turn.task_words * NATIVE_SECONDS_PER_TOKEN)
                 if turn.kind == "card":
                     costs.append(card(turn.words) + said)
                 else:
@@ -3606,6 +3625,9 @@ def plan_journey(
                     learner_text=learner_wording,
                     repair=repair,
                 )
+            # 12 Nov 2026: a sentence the learner builds or writes is said to nobody;
+            # one that is no sentence without its address is not posed.
+            recall = unaddressed_task(recall) if recall is not None else None
             if recall is None:
                 used_targets.append(entry)
                 notes.append(f"{identity}: no recall form could be posed without revealing it")
@@ -3721,6 +3743,8 @@ def plan_journey(
     for entry, recall, cost, skipped in recalls:
         # #155: who says the line the item is cut from, as on a practice day.
         recall = replace(recall, speaker_id=recall_speaker(recall, scenario))
+        # 12 Nov 2026: said to nobody (the planner already left out what cannot be).
+        recall = unaddressed_task(recall) or recall
         recall_steps.append(
             PlannedStep(
                 ordinal=0,
@@ -4027,7 +4051,15 @@ _GAP_GOALS = {
 }
 
 
-def practice_task(
+def practice_task(task_type: str, **kwargs: Any) -> RecallTask | None:
+    """One quick item in one named format (:func:`_practice_task`), said to nobody when
+    the learner builds or writes it; ``None`` when that leaves no sentence (12 Nov 2026)."""
+
+    task = _practice_task(task_type, **kwargs)
+    return unaddressed_task(task) if task is not None else None
+
+
+def _practice_task(
     task_type: str,
     *,
     target: TargetRef,
@@ -4270,37 +4302,93 @@ def gives_away_gender(task: RecallTask, earlier: RecallTask) -> bool:
     return re.search(rf"(?<!\w)(?:{articles})\s+{re.escape(noun)}(?!\w)", _shown_text(earlier)) is not None
 
 
-def without_given_away_genders(items: list[PracticeItem]) -> list[PracticeItem]:
-    """#474: the day as the learner meets it never asks a gender its answer is printed before.
+def _recognition_pair(task: RecallTask) -> tuple[str, str] | None:
+    """The French word and its meaning a recognition drill puts to the learner.
+
+    «Which French phrase means "to sell"?» (``choice``) prints the meaning and
+    the answer's card; «vendre · What does it mean?» (``listen_tap``) prints the
+    word and the answer's card. Either way both sides of one pair are on screen.
+    """
+
+    if task.task_type == "choice":
+        french, native = task.solution_fr, task.translation_native
+    elif task.task_type == "listen_tap":
+        correct = next((o for o in task.options or [] if o.get("id") == task.correct_option_id), None)
+        french, native = task.prompt_fr, str((correct or {}).get("text_fr") or "")
+    else:
+        return None
+    pair = (_fold(str(french or "")), _fold(str(native or "")))
+    return pair if all(pair) else None
+
+
+def gives_away_recognition(task: RecallTask, earlier: RecallTask) -> bool:
+    """#580: is ``task`` a recognition drill whose answer ``earlier`` has already printed?
+
+    «Which French phrase means "to sell"?» · vendre, then «vendre · What does it
+    mean?» asks nothing: the first printed the pair the second asks for (and the
+    other way round). Two recognition drills on one French word, whichever
+    direction, are one drill and its answer key.
+    """
+
+    pair, other = _recognition_pair(task), _recognition_pair(earlier)
+    return pair is not None and other is not None and pair[0] == other[0]
+
+
+def gives_away_answer(task: RecallTask, earlier: RecallTask, *, same_block: bool) -> bool:
+    """#474 and #580, one rule: does ``earlier`` print the answer ``task`` asks for?
+
+    A noun's gender is given away for the rest of the day (the article is the
+    answer, wherever it was shown). A recognition pair is given away within a
+    block; the scene between two blocks is the spacing that makes the second
+    ask a retrieval (:data:`_BLOCK_OF`).
+    """
+
+    return gives_away_gender(task, earlier) or (same_block and gives_away_recognition(task, earlier))
+
+
+def _same_block(left: str, right: str) -> bool:
+    return _BLOCK_OF.get(left, left) == _BLOCK_OF.get(right, right)
+
+
+def without_given_away_answers(items: list[PracticeItem]) -> list[PracticeItem]:
+    """#474, #580: the day as the learner meets it never asks what an earlier item printed.
 
     The placement checks in :func:`_repeats_the_day` keep the planner from
     making this; this walks the *final* items in display order, so no later
-    fill, top-up or swap can bring it back, and drops the gender drill (the
-    item that printed the article is the one that teaches the noun).
+    fill, top-up or swap can bring it back, and drops the item that asks (the
+    one that printed the answer is the one that teaches it).
     """
 
     kept: list[PracticeItem] = []
     dropped: set[int] = set()
     for item in sorted(items, key=_display_key):
-        if any(gives_away_gender(item.task, earlier.task) for earlier in kept):
+        if any(
+            gives_away_answer(item.task, earlier.task, same_block=_same_block(item.slot, earlier.slot))
+            for earlier in kept
+        ):
             dropped.add(id(item))
         else:
             kept.append(item)
     return [item for item in items if id(item) not in dropped] if dropped else items
 
 
-def _gender_given_away(task: RecallTask, items: list[PracticeItem], slot: str) -> bool:
-    """#474, both ways, on the display order: ``task`` is a gender drill an item
-    met before it has answered, or it prints the article of a gender drill that
-    an item already placed would show *after* it (a later fill can land earlier
-    on screen). An item placed in the same slot is met first: positions grow."""
+#: The #474 name of the final pass, kept for its callers: it is no longer gender-only.
+without_given_away_genders = without_given_away_answers
+
+
+def _answer_given_away(task: RecallTask, items: list[PracticeItem], slot: str) -> bool:
+    """#474, #580, both ways, on the display order: ``task`` asks what an item met
+    before it has answered, or it prints the answer to an item already placed that
+    would show *after* it (a later fill can land earlier on screen). An item placed
+    in the same slot is met first: positions grow."""
 
     here = _DISPLAY_ORDER.get(slot, 0)
     for item in items:
+        same_block = _same_block(item.slot, slot)
         if _DISPLAY_ORDER.get(item.slot, 0) <= here:
-            if gives_away_gender(task, item.task):
+            if gives_away_answer(task, item.task, same_block=same_block):
                 return True
-        elif gives_away_gender(item.task, task):
+        elif gives_away_answer(item.task, task, same_block=same_block):
             return True
     return False
 
@@ -4321,8 +4409,9 @@ def _repeats_the_day(
         return True
     if overlaps_the_day(task, [item.task for item in items], avoid):
         return True
-    # #474: nor a gender drill on a noun the séance has already printed with its article.
-    if slot is not None and _gender_given_away(task, items, str(slot)):
+    # #474, #580: nor a drill whose answer an item met before it has printed (the
+    # article of a gender, the other direction of a recognition pair).
+    if slot is not None and _answer_given_away(task, items, str(slot)):
         return True
     identity = target_identity(entry.target)
     block = _BLOCK_OF.get(str(slot), str(slot)) if slot is not None else None
@@ -5520,6 +5609,9 @@ def _recall_step(ordinal: int, item: PracticeItem, scenario: ScenarioBrief | Non
     speaker_id = recall.speaker_id or (recall_speaker(recall, scenario) if scenario is not None else None)
     if speaker_id != recall.speaker_id:
         recall = replace(recall, speaker_id=speaker_id)
+    # 12 Nov 2026: a sentence the learner builds or writes is said to nobody, whichever
+    # builder posed it (:func:`practice_task` already leaves out what cannot be).
+    recall = unaddressed_task(recall) or recall
     prompt: dict[str, Any] = {
         "task_type": recall.task_type,
         "instruction_native": recall.instruction_native,
@@ -5977,7 +6069,7 @@ def _plan_practice_day(
             avoid_sentences=avoid,
         )
         if not audio_available:
-            return cost, without_given_away_genders(topped)
+            return cost, without_given_away_answers(topped)
         # WP-91: a deployment that speaks makes the day's listening real.
         listened = add_listening_items(
             scenario=scenario,
@@ -5994,9 +6086,9 @@ def _plan_practice_day(
             extra_heard=caps.max_heard if scene_page(scenario) else 0,
             avoid_sentences=avoid,
         )
-        # #474: whichever fill placed what, the day as it is met asks no gender
+        # #474, #580: whichever fill placed what, the day as it is met asks nothing
         # whose answer an earlier item printed.
-        return cost, without_given_away_genders(listened)
+        return cost, without_given_away_answers(listened)
 
     respond_cost, items = attempt(turns)
     min_turns = scene_exchange_floor(scenario, task, budget_seconds)

@@ -36,6 +36,10 @@ celery_app = Celery(
         "app.tasks.password_reset_delivery",
         "app.tasks.revue",
         "app.tasks.gold",
+        "app.tasks.season_rollover",
+        "app.tasks.season_writer",
+        "app.tasks.verdict_settle",
+        "app.tasks.answer_memo",
     ],
 )
 
@@ -57,6 +61,16 @@ celery_app.conf.update(
 )
 
 celery_app.conf.beat_schedule = {
+    # Package V stage 3: answers saved unread are checked again later (capped, budgeted).
+    "settle-unread-verdicts": {
+        "task": "app.tasks.verdict_settle.sweep",
+        "schedule": 300.0,
+    },
+    # Package V stage 4: a memo whose second check was lost or unread is asked again.
+    "confirm-answer-memos": {
+        "task": "app.tasks.answer_memo.sweep",
+        "schedule": 900.0,
+    },
     "retry-password-reset-email": {
         "task": "app.tasks.password_reset_delivery.deliver_due",
         "schedule": 30.0,
@@ -129,6 +143,12 @@ celery_app.conf.beat_schedule = {
     "gold-nightly-report": {
         "task": "app.tasks.gold.nightly_report",
         "schedule": crontab(hour=5, minute=20),
+    },
+    # S5: the season rollover moves by the date, never by a request. Every 15
+    # minutes because the promised day begins at each learner's own midnight.
+    "advance-due-season-rollovers": {
+        "task": "app.tasks.season_rollover.advance_due_rollovers",
+        "schedule": crontab(minute="*/15"),
     },
     # WP-73: liveness — a fresh Redis heartbeat proves beat, broker and a worker.
     "worker-heartbeat": {

@@ -15,7 +15,7 @@
 
 import React, { useEffect, useState } from 'react';
 
-import { faceSrcFor } from '@/lib/cast-faces';
+import { castDisplayName, faceSrcFor } from '@/lib/cast-faces';
 import { useArtSet } from '@/lib/art-set';
 import { CastFace, drawnFaceId } from '@/components/cast/CastFace';
 import { resolveMediaUrl } from '@/lib/media-url';
@@ -91,8 +91,11 @@ export type CorrectionProps = {
    * the word, shown on its own, and the note says what it means. `spanFr` is the
    * tapped meaning, in the learner's language: «to write → coopérative» drew it as
    * French to fix, so it is not shown (the cards already mark it).
+   * #624: `example` says `correctedFr` is a model sentence for a free sentence that
+   * missed the rule, not the learner's sentence made right. It is shown on its own,
+   * under an «example» label: no strike-through of what they wrote, no arrow.
    */
-  kind?: 'edit' | 'pick' | 'meaning';
+  kind?: 'edit' | 'pick' | 'meaning' | 'example';
   /** The label before the tapped sentence of a `pick`: «Not this one:». */
   pickNotItLabel?: string;
 };
@@ -121,7 +124,7 @@ export function Correction({
             </p>
           )}
         </>
-      ) : kind === 'meaning' ? (
+      ) : kind === 'meaning' || kind === 'example' ? (
         <p className="av2-correction__line" style={{ margin: '4px 0 0' }}>
           <span className="av2-correction__fix" lang="fr">
             {correctedFr}
@@ -321,7 +324,7 @@ export function Byline({
     <span className="av2-byline">
       <Portrait name={name} characterId={characterId} mood={mood} size="sm" />
       <span className="av2-label">
-        {name}
+        {castDisplayName(characterId, name) ?? name}
         {meta ? <> · {meta}</> : null}
       </span>
     </span>

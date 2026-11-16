@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import RouteAuthGate from '@/components/auth/RouteAuthGate';
+import AppErrorBoundary from '@/components/layout/AppErrorBoundary';
 import Layout from '@/components/layout/Layout';
 import { CameoLayer } from '@/components/cast/CameoLayer';
 import { AppAuthProvider, useAppSession } from '@/lib/app-auth';
@@ -20,6 +21,7 @@ import { resolveLaunchResumeHref } from '@/lib/journey-resume';
 import { installKeyboardFocusGuard, installKeyboardInsets } from '@/lib/journey-lifecycle';
 import { isNativePlatform } from '@/lib/native-platform';
 import { initObservability, isSignedInForObservability, setObservabilityUser } from '@/lib/observability';
+import { newErrorEventId } from '@/lib/app-errors';
 import '@/styles/globals.css';
 // Atelier V2 design system (WP-01). Next only permits a global stylesheet to be
 // imported from _app, so it is loaded here rather than from the components that
@@ -45,6 +47,38 @@ import '@/styles/correcteur.css';
 import '@/styles/radio.css';
 // Les appels (pages/appel.tsx, components/appels), scoped under `.av2`.
 import '@/styles/appels.css';
+
+/**
+ * The silent crash reporter (WP-73), shared by the window listeners and the
+ * error boundary. Each report carries an event id; the boundary prints the same
+ * id, so a learner's «Référence» finds the report. Reports within five seconds
+ * of each other are one incident: they are not sent again and share its id.
+ */
+let lastCrash: { id: string; at: number } | null = null;
+
+function reportClientCrash(message: string, stack?: string): string {
+  const now = Date.now();
+  if (lastCrash && now - lastCrash.at < 5000) return lastCrash.id;
+  const eventId = newErrorEventId();
+  lastCrash = { id: eventId, at: now };
+  const body = {
+    message: (message || 'Unhandled client error').slice(0, 1000),
+    stack: stack?.slice(0, 8000),
+    route: window.location.pathname,
+    source: isNativePlatform() ? 'capacitor' : 'web',
+    event_id: eventId,
+  };
+  // WP-73: before sign-in (onboarding, placement, sign-in itself) the authed
+  // intake would answer 401, so those crashes go to the signed-out door.
+  const request = isSignedInForObservability()
+    ? apiService.recordClientError(body)
+    : apiService.post('/analytics/client-error/anonymous', body, {
+      skipAuth: true,
+      suppressGlobalError: true,
+    } as Parameters<typeof apiService.post>[2]);
+  void request.catch(() => undefined);
+  return eventId;
+}
 
 // Create a client
 const queryClient = new QueryClient({
@@ -166,31 +200,10 @@ export default function App({
   }, []);
 
   useEffect(() => {
-    let sent = false;
-    const report = (message: string, stack?: string) => {
-      if (sent) return;
-      sent = true;
-      const body = {
-        message: message.slice(0, 1000),
-        stack: stack?.slice(0, 8000),
-        route: window.location.pathname,
-        source: isNativePlatform() ? 'capacitor' : 'web',
-      };
-      // WP-73: before sign-in (onboarding, placement, sign-in itself) the authed
-      // intake would answer 401, so those crashes go to the signed-out door.
-      const request = isSignedInForObservability()
-        ? apiService.recordClientError(body)
-        : apiService.post('/analytics/client-error/anonymous', body, {
-          skipAuth: true,
-          suppressGlobalError: true,
-        } as Parameters<typeof apiService.post>[2]);
-      void request.catch(() => undefined);
-      window.setTimeout(() => { sent = false; }, 5000);
-    };
-    const onError = (event: ErrorEvent) => report(event.message || 'Unhandled client error', event.error?.stack);
+    const onError = (event: ErrorEvent) => { reportClientCrash(event.message || 'Unhandled client error', event.error?.stack); };
     const onRejection = (event: PromiseRejectionEvent) => {
       const reason = event.reason;
-      report(reason instanceof Error ? reason.message : String(reason), reason instanceof Error ? reason.stack : undefined);
+      reportClientCrash(reason instanceof Error ? reason.message : String(reason), reason instanceof Error ? reason.stack : undefined);
     };
     window.addEventListener('error', onError);
     window.addEventListener('unhandledrejection', onRejection);
@@ -212,11 +225,13 @@ export default function App({
           <link rel="manifest" href="/manifest.webmanifest" />
           <link rel="apple-touch-icon" href="/icons/atelier-mark.svg" />
         </Head>
-        <Layout>
-          <RouteAuthGate>
-            <Component {...pageProps} />
-          </RouteAuthGate>
-        </Layout>
+        <AppErrorBoundary report={reportClientCrash} resetKey={router.asPath}>
+          <Layout>
+            <RouteAuthGate>
+              <Component {...pageProps} />
+            </RouteAuthGate>
+          </Layout>
+        </AppErrorBoundary>
         <CameoLayer />
       </QueryClientProvider>
     </AppAuthProvider>

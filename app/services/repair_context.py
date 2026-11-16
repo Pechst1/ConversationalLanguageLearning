@@ -14,6 +14,8 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+from app.services.chrome_language import mother_tongue
+
 #: A gap in a printed sentence: «Nous ____ contents.» or «Nous … contents.»
 _BLANK = re.compile(r"_{2,}|…|\.{3}")
 
@@ -95,7 +97,7 @@ class RepairContext:
     def rule_in(self, language: object) -> str:
         """The rule's title in ``language`` (the language the goal line around it is in)."""
 
-        wanted = str(language or "en")[:2].lower()
+        wanted = mother_tongue(language)
         return _clean(dict(self.rule_titles).get(wanted)) or _clean(self.rule)
 
 

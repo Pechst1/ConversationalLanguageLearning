@@ -41,6 +41,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db.models.pilot_event import PilotEvent
 from app.db.models.user import User
+from app.services.chrome_language import user_mother_tongue
 from app.services.journey_contracts import InputMode, ScenarioBrief
 
 logger = logging.getLogger(__name__)
@@ -179,7 +180,7 @@ def scene_cache_key_parts(db: Session, user: User) -> dict[str, Any] | None:
         # it), and the nightly prefetch writes for text while the app asks in
         # voice, so keying on it threw every night's scene away.
         "level_band": living_story.learner_level_band(user),
-        "control_language": str(normalize_control_language(user.native_language)),
+        "control_language": str(normalize_control_language(user_mother_tongue(user))),
         "address": living_story.learner_address(user)["address"],
         "errata_targets": errata,
         # 4. prompt version, plus the attempt policy that shapes the output

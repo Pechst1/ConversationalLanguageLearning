@@ -18,6 +18,7 @@ from urllib.parse import quote
 from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
 
 from app.schemas.revue_relecture import RelectureOffer
+from app.schemas.verdict import VerdictView
 from app.services.journey_contracts import (
     AssistanceLevel,
     CapabilityKey,
@@ -570,7 +571,9 @@ class JourneyCorrection(JourneyModel):
     #: #167: ``meaning`` is a wrong meaning tapped for a French word: ``corrected_fr``
     #: is the word, the note says what it means, and the tapped meaning (``span_fr``,
     #: not French) is never drawn as a correction of it.
-    kind: Literal["edit", "pick", "meaning"] = "edit"
+    #: #624: ``example`` is a model sentence shown after a free sentence missed the
+    #: rule. It is not the learner's sentence made right: the screen draws no arrow.
+    kind: Literal["edit", "pick", "meaning", "example"] = "edit"
 
     @model_validator(mode="after")
     def _one_note_per_issue(self) -> JourneyCorrection:
@@ -600,6 +603,8 @@ class ThreadExchange(JourneyModel):
     learner_fr: str
     character_fr: str
     correction: JourneyCorrection | None = None
+    #: #333: nobody read this reply, so it counted for nothing.
+    unchecked: bool = False
     #: The reply as its speakers' lines, when several people answer (an authored
     #: season page); empty for a one-voiced reply.
     character_lines: list[ThreadLine] = Field(default_factory=list)
@@ -963,6 +968,9 @@ class RecapTeaser(JourneyModel):
     """
 
     text_fr: str
+    #: What the hook leaves open, as a whole sentence (#466): what «Tomorrow» prints, so
+    #: no surface cuts the character's voice out of ``text_fr`` to stand for it.
+    open_fr: str | None = None
     character_id: str | None = None
     character_name: str | None = None
     source: Literal["engine", "resolution", "authored"]
@@ -1297,6 +1305,19 @@ class HeadlineCastMember(JourneyModel):
     name: str
 
 
+class HeadlineArc(JourneyModel):
+    """Red-thread design: where the gap is going and how far it is."""
+
+    #: The gap's own title («Avant la fête»).
+    gap_title_fr: str
+    #: What it leads to, in the learner's words («Les 25 ans du Mistral»).
+    title_fr: str
+    #: The day it happens, as the pages say it («samedi»).
+    when_fr: str
+    #: Days until then (1 = tomorrow).
+    days_left: int
+
+
 class EpisodeHeadline(JourneyModel):
     """WP-109: today's episode as Home and the Feuilleton headline it."""
 
@@ -1308,7 +1329,12 @@ class EpisodeHeadline(JourneyModel):
     title_fr: str | None = None
     #: Yesterday's «À suivre…».
     teaser_fr: str | None = None
+    #: What it left open, as a whole sentence (#466): the line Home prints.
+    teaser_open_fr: str | None = None
     season_title_fr: str | None = None
+    #: ``STORY_DAY_CONTRACT``: the gap's destination and the days left to it; ``None``
+    #: on a tentpole day, in a gap without one, and with the flag off.
+    arc: HeadlineArc | None = None
     #: The episode's picture: the scene's first panel, else its opening place.
     image_url: str | None = None
     cast: list[HeadlineCastMember] = Field(default_factory=list)
@@ -1485,6 +1511,8 @@ class AttemptResult(JourneyModel):
     next_turn: NextTurn | None = None
     #: ``True`` means grading is retryable; the outcome is then ``unscored``.
     pending: bool = False
+    #: The one verdict shape (#333): who checked this and whether it counts.
+    check: VerdictView | None = None
     #: QA-CLOSE: a forgiven slip on a hit, named in one line in the learner's
     #: language («Richtig — kleiner Tippfehler: «appartement»»). Never a correction.
     slip_note_native: str | None = None

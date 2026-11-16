@@ -15,6 +15,7 @@ import {
   recallClipId,
 } from '@/components/atelier-v2/journey/line-audio';
 import type {
+  AppealView,
   AdvanceBody,
   AttemptBody,
   AttemptInput,
@@ -224,6 +225,11 @@ export const dailyJourneyService = {
       input: options.input,
     };
     return apiService.submitDailyJourneyAttempt(journeyId, stepId, body);
+  },
+
+  /** Package V stage 5: «I think this is right» for a drill's «not yet» or «partly». */
+  appeal(journeyId: string, stepId: string): Promise<AppealView> {
+    return apiService.appealDailyJourneyVerdict(journeyId, stepId);
   },
 
   advance(

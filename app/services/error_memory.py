@@ -21,6 +21,7 @@ from app.db.models.session import ConversationMessage, LearningSession
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.services.answer_acceptance import is_real_correction
+from app.services.chrome_language import user_mother_tongue
 from app.services.grammar_feedback import infer_grammar_profile, profile_search_terms
 from app.services.learner_copy import learner_text
 from app.services.progress import ProgressService
@@ -313,7 +314,7 @@ class ErrorMemoryService:
         concept_id = self._infer_grammar_concept_id(code=code, category=category)
         # Explanations follow the learner's own language; the French chrome around
         # them does not (docs/design-overhaul-2026-08-31.md §Principles).
-        language = getattr(user, "native_language", None)
+        language = user_mother_tongue(user)
         erratum = {
             "display_label": self._display_label_for(code=code, category=category, language=language),
             "learner_text": getattr(detected_error, "span", "") or "",
@@ -385,7 +386,7 @@ class ErrorMemoryService:
             or self._display_label_for(
                 code=task_type,
                 category="grammar",
-                language=getattr(user, "native_language", None),
+                language=user_mother_tongue(user),
             )
         )[:120]
         category = self._error_category_for_erratum(erratum)

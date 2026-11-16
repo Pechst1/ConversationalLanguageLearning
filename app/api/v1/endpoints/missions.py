@@ -14,6 +14,7 @@ from app.api.deps import get_db
 from app.api.v1.endpoints.atelier import get_atelier_user
 from app.config import settings
 from app.core.offload import off_event_loop
+from app.core.rate_limit import enforce_recheck_limit
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
 from app.db.models.serial import SerialThread
 from app.db.models.user import User
@@ -28,7 +29,9 @@ from app.schemas.missions import (
     MissionTurnRequest,
     MissionTurnResponse,
 )
+from app.schemas.verdict import VerdictView
 from app.services import story_correspondence as courrier
+from app.services import verdict_settle, verdicts
 from app.services.cefr_progress import CEFRProgressService
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.missions import (
@@ -36,6 +39,8 @@ from app.services.missions import (
     MissionCorrectionService,
     MissionScheduler,
     SerialEpisodeNotReadyError,
+    correction_with_persistence,
+    is_echo_reply,
     is_stock_reply,
     learner_zone,
     serialize_mission,
@@ -79,6 +84,28 @@ def _attempt_read(attempt: RealWorldMissionAttempt) -> dict:
     }
 
 
+def _check(
+    correction: dict | None,
+    text: str | None,
+    *,
+    db: Session | None = None,
+    user: User | None = None,
+    subject: tuple[str, Any] | None = None,
+    session: Session | None = None,
+) -> VerdictView:
+    """The message's check. With ``db``, this is the first read, so a failure is logged once.
+
+    ``subject`` (package V stage 3): the stored row, so the check says when it was checked
+    since it was saved unread.
+    """
+
+    verdict = verdicts.from_courrier(correction, text=text or "")
+    if db is not None:
+        verdicts.note_failure(db, surface="courrier", verdict=verdict, user_id=getattr(user, "id", None))
+    since = verdict_settle.checked_since(db or session, *subject) if subject else None
+    return VerdictView.of(verdict, checked_since=since)
+
+
 def _turn_read(turn: RealWorldMissionTurn) -> dict:
     return {
         "id": str(turn.id),
@@ -92,28 +119,7 @@ def _turn_read(turn: RealWorldMissionTurn) -> dict:
     }
 
 
-def _correction_with_persistence(
-    correction: dict,
-    persisted: list[dict],
-) -> dict:
-    saved = [item for item in persisted if item.get("id")]
-    # `saved_count` also counts the vocabulary credit rows, which the repair card
-    # never shows — printing it as "N réparations enregistrées" claimed repairs
-    # that were not on screen. `repair_count` is the honest one for that line.
-    repairs = [
-        item
-        for item in saved
-        if not item.get("linked_word_id") and str(item.get("error_category") or "") != "vocabulary"
-    ]
-    return {
-        **correction,
-        "persistence": {
-            "saved_count": len(saved),
-            "repair_count": len(repairs),
-            "error_ids": [str(item["id"]) for item in saved],
-            "records": saved,
-        },
-    }
+_correction_with_persistence = correction_with_persistence
 
 
 def _next_turn_index(db: Session, mission: RealWorldMission) -> int:
@@ -330,6 +336,7 @@ def submit_mission(
             correction=duplicate.correction_payload or {},
             errata=[],
             mission=serialize_mission(mission) or {},
+            check=_check(duplicate.correction_payload, request.text),
         )
 
     correction_service = MissionCorrectionService(db)
@@ -371,6 +378,7 @@ def submit_mission(
         correction=correction,
         errata=persisted,
         mission=serialize_mission(mission) or {},
+        check=_check(correction, request.text, db=db, user=current_user),
     )
 
 
@@ -387,12 +395,25 @@ def _character_reply_turn(
     The stock acknowledgement is what the Courrier says when no character reply could be
     produced. It is not Gus's turn: stored, it made the thread read as answered, and the
     letter closed on a reply nobody gave. Nothing is stored; the same text sent again asks again.
+
+    A reply to a message the learner wrote past (#590) lands directly after that message:
+    the turns behind it move down one place, so the thread still reads in the order spoken.
     """
 
     conversation_service = MissionConversationService(db)
-    assistant_text = conversation_service.respond(user=user, mission=mission, user_text=user_text)
-    if is_stock_reply(assistant_text):
+    later = [turn for turn in mission.turns if turn.turn_index > user_turn.turn_index]
+    assistant_text = conversation_service.respond(
+        user=user,
+        mission=mission,
+        user_text=user_text,
+        **({"through_turn_index": user_turn.turn_index} if later else {}),
+    )
+    if is_stock_reply(assistant_text) or is_echo_reply(assistant_text, user_text):
         return None
+    for turn in sorted(later, key=lambda item: item.turn_index, reverse=True):
+        turn.turn_index += 1
+        db.add(turn)
+        db.flush()
     assistant_turn = RealWorldMissionTurn(
         mission_id=mission.id,
         user_id=user.id,
@@ -456,6 +477,7 @@ def submit_mission_turn(
             errata=[],
             mission=serialize_mission(mission) or {},
             outcome=outcome,
+            check=_check(user_turn.correction_payload, user_turn.text),
         )
 
     correction_service = MissionCorrectionService(db)
@@ -509,6 +531,59 @@ def submit_mission_turn(
         errata=persisted,
         mission=serialize_mission(mission) or {},
         outcome=outcome,
+        check=_check(correction, user_turn.text, db=db, user=current_user),
+    )
+
+
+@router.post("/{mission_id}/turns/{turn_id}/reply", response_model=MissionTurnResponse)
+def retry_mission_turn_reply(
+    mission_id: UUID,
+    turn_id: UUID,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_atelier_user)],
+) -> MissionTurnResponse:
+    """#590: ask the correspondent again for a message nobody answered.
+
+    The learner's text is already stored and corrected; only the reply is asked for. Any
+    message nobody answered can be asked again, not only the latest: a learner who wrote on
+    because the reply failed still has that gap to close. When it is already answered the
+    answer is handed back, and a second failure leaves the message ``pending`` for the next try.
+    """
+    mission = _mission_or_404(db, mission_id, current_user)
+    _ensure_open(mission)
+    user_turn = (
+        db.query(RealWorldMissionTurn)
+        .filter(
+            RealWorldMissionTurn.id == turn_id,
+            RealWorldMissionTurn.mission_id == mission.id,
+            RealWorldMissionTurn.user_id == current_user.id,
+            RealWorldMissionTurn.role == "user",
+        )
+        .first()
+    )
+    if not user_turn:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reply not found")
+    assistant_turn = (
+        db.query(RealWorldMissionTurn)
+        .filter(
+            RealWorldMissionTurn.mission_id == mission.id,
+            RealWorldMissionTurn.turn_index == user_turn.turn_index + 1,
+            RealWorldMissionTurn.role == "assistant",
+        )
+        .first()
+    )
+    if assistant_turn is None:
+        assistant_turn = _character_reply_turn(
+            db, user=current_user, mission=mission, user_turn=user_turn, user_text=user_turn.text
+        )
+    outcome = _turn_outcome(db, mission=mission, user_text=user_turn.text, assistant_turn=assistant_turn)
+    return MissionTurnResponse(
+        user_turn=_turn_read(user_turn),
+        assistant_turn=_turn_read(assistant_turn) if assistant_turn else {},
+        correction=user_turn.correction_payload or {},
+        errata=[],
+        mission=serialize_mission(mission) or {},
+        outcome=outcome,
     )
 
 
@@ -525,6 +600,7 @@ def retry_mission_turn_correction(
     pass found nothing. Anything else is handed back as it stands. When the model fails
     a second time, the reply keeps its first correction.
     """
+    enforce_recheck_limit(current_user)
     mission = _mission_or_404(db, mission_id, current_user)
     _ensure_open(mission)
     user_turn = (
@@ -539,44 +615,23 @@ def retry_mission_turn_correction(
     )
     if not user_turn:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reply not found")
-    previous = dict(user_turn.correction_payload or {})
-    persisted: list[dict] = []
-    if previous.get("verdict") == "unassessed":
-        correction_service = MissionCorrectionService(db)
-        correction = correction_service.correct_submission(
-            user=current_user,
-            mission=mission,
-            text=user_turn.text,
-            mode=user_turn.mode,
-            near_realtime=False,
-        )
-        if correction.get("verdict") != "unassessed":
-            # The words this reply used were credited the first time; only the
-            # language errata are new.
-            persisted = correction_service.persist_errata(
-                user=current_user,
-                mission=mission,
-                correction=correction,
-                mode=user_turn.mode,
-                source_id=str(user_turn.id),
-                include_vocabulary=False,
-            )
-            credited = [
-                record
-                for record in (previous.get("persistence") or {}).get("records") or []
-                if isinstance(record, dict)
-                and (record.get("linked_word_id") or str(record.get("error_category") or "") == "vocabulary")
-            ]
-            user_turn.correction_payload = _correction_with_persistence(correction, [*persisted, *credited])
-            db.add(user_turn)
-            db.commit()
-            db.refresh(user_turn)
-            db.refresh(mission)
+    # Package V stage 3: the same job the background sweep runs, inline and on the
+    # learner's own limit; a reply that already counts is handed back as it stands.
+    persisted = verdict_settle.ask(db, user=current_user, row=user_turn, subject_type="courrier_turn")
+    db.refresh(user_turn)
+    db.refresh(mission)
     return MissionTurnCorrectionResponse(
         user_turn=_turn_read(user_turn),
         correction=user_turn.correction_payload or {},
         errata=persisted,
         mission=serialize_mission(mission) or {},
+        check=_check(
+            user_turn.correction_payload,
+            user_turn.text,
+            db=db,
+            user=current_user,
+            subject=("courrier_turn", user_turn.id),
+        ),
     )
 
 

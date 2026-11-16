@@ -1,0 +1,36 @@
+{
+ "id": "authored-a1-gus-oui-je-savais",
+ "lane": "authored",
+ "level": "A1",
+ "source": "The walk of 6 Nov 2026 (#556), Nº 24 «Le silence de Margaux». The learner's text and Gus's first line back are exact; the walk does not record the rest of the reading, which is written for the case. Gus then said his authored «Réponds ! Tu sais ça, oui ou non ?».",
+ "input": {
+  "tentpole": "t4",
+  "day": "b",
+  "turn": "b.turn1",
+  "learner_text": "Oui, je savais. Ma grand-mère elle a laissé le Mistral à moi, mais je suis pas sûr de le garder."
+ },
+ "answers": {
+  "ReplyChoice": [
+   {
+    "content": {
+     "reply_id": "c",
+     "expresses": "none",
+     "value": null,
+     "confidence": 0.4,
+     "clear": true,
+     "ack_fr": "Tu savais pour le Mistral, mais tu hésites à le garder.",
+     "learned": [],
+     "learner_intent": "yes"
+    }
+   }
+  ]
+ },
+ "expect": {
+  "failure": null,
+  "reply_id": "c",
+  "clear": true,
+  "learner_intent": "yes",
+  "ack_played": "Tu savais pour le Mistral, mais tu hésites à le garder.",
+  "answered": true
+ }
+}

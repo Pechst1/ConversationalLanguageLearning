@@ -33,11 +33,12 @@ from app.schemas.vocabulary import (
     VocabularyListResponse,
     VocabularyWordRead,
 )
+from app.services.chrome_language import user_mother_tongue
 from app.services.conjugation import ConjugationService
 from app.services.core_lexicon import CORE_DECK
 from app.services.daily_session import DAY_DECK_LIMIT, DAY_DECK_NEW_WORDS
 from app.services.daily_words import DailyWordSlateService
-from app.services.glosses import gloss_payload, normalize_language
+from app.services.glosses import gloss_payload
 from app.services.progress import ProgressService
 from app.services.vocabulary import VocabularyNotFoundError, VocabularyService
 from app.services.vocabulary_coverage import VocabularyCoverageService
@@ -226,7 +227,7 @@ def optional_viewer(
 
 
 def _viewer_language(viewer: User | None) -> str:
-    return normalize_language(getattr(viewer, "native_language", None))
+    return user_mother_tongue(viewer)
 
 
 def _word_payload(word: Any, viewer_language: str) -> dict[str, Any]:
@@ -814,13 +815,12 @@ def _drill_deck(
         if new_room is not None:
             # The room counts only the words already met; the batch's new cards
             # still unanswered take their share of it too, or a reload of the
-            # continuation dealt past the day's cap.
-            waiting = sum(
-                1
-                for item in drill_batch.remaining_items(db, user, list(batch.items or []), reserved_new=reserved_new)
-                if item.get("list") == "new_words"
-            )
-            new_limit = max(0, min(new_limit, new_room - waiting))
+            # continuation dealt past the day's cap. #563: the same room the
+            # «Noch N neue Wörter» offer counts with (vocabulary_pace.next_extra_step).
+            from app.services.vocabulary_pace import more_deck_room
+
+            room = more_deck_room(db, user, room=new_room, batch=batch, reserved=reserved_new)
+            new_limit = min(new_limit, room)
             context_kwargs = {**context_kwargs, "new_limit": new_limit}
     payload = service.get_vocabulary_due_context(**{**context_kwargs, "exclude_new_word_ids": exclude, "now": now})
     served_new = len(payload.get("new_words") or [])
@@ -932,13 +932,9 @@ def add_extra_new_words(
     now has room for. Refused past the day's last step."""
 
     from app.services.goal_estimate import new_words_pace
-    from app.services.vocabulary_pace import (
-        EXTRA_WORDS_STEP,
-        MAX_EXTRA_NEW_WORDS,
-        extra_new_words_today,
-    )
+    from app.services.vocabulary_pace import next_extra_step
 
-    if extra_new_words_today(db, current_user) + EXTRA_WORDS_STEP > MAX_EXTRA_NEW_WORDS:
+    if next_extra_step(db, current_user) <= 0:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No more extra words today")
     grant_extra_new_words(db, current_user)
     db.commit()
@@ -1362,7 +1358,7 @@ def keep_vocabulary_word(
         # the French chrome line and the learner's own-language line.
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=keep_refusal(exc.reason, getattr(current_user, "native_language", None)),
+            detail=keep_refusal(exc.reason, user_mother_tongue(current_user)),
         ) from exc
     db.commit()
     return kept.as_public()

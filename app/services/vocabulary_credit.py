@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.db.models.session import ConversationMessage, LearningSession
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
+from app.services.chrome_language import user_mother_tongue
 from app.services.error_memory import ErrorMemoryService
 from app.services.glosses import word_gloss
 from app.services.progress import ProgressService
@@ -257,8 +258,8 @@ class VocabularyCreditService:
         corrected = (corrected_text or word.word or word.french_translation or "").strip()
         from app.services.learner_copy import learner_text
 
-        translation = word_gloss(word, user.native_language)
-        language = getattr(user, "native_language", None)
+        translation = word_gloss(word, user_mother_tongue(user))
+        language = user_mother_tongue(user)
         fields = {"word": word.word, "meaning": translation or word.word}
         kind = "missed" if credit_kind == "missed_target" else "wrong"
         label = learner_text(f"vocabulary.erratum.{kind}.label", language, **fields)

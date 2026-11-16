@@ -75,7 +75,12 @@ class _Ctx:
 
 
 def _line(line: Line, ctx: _Ctx) -> dict[str, Any] | None:
+    from app.services import scene_record
+
     if not ctx.ok(line.when):
+        return None
+    if line.in_thread and not scene_record.enabled():
+        # A caption said in the reply thread (#558) is the stack's: the page is main's.
         return None
     said = ctx.say(line.say)
     kind = line.who if line.who in {"caption", "sms", "letter", "card", "toi", "all"} else "speech"
@@ -86,6 +91,7 @@ def _line(line: Line, ctx: _Ctx) -> dict[str, Any] | None:
         "mood": line.mood,
         "direction": line.direction or None,
         **(said or {}),
+        **({"cut": True} if line.in_thread else {}),
     }
 
 

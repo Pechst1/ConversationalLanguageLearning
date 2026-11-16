@@ -20,13 +20,22 @@ concurrency:
 
 jobs:
   browser-walk:
+    # A pull request (and a tag) plays the walk here, as one of its checks. A push to
+    # main does not: Render deploys a commit when every check on it has passed, and the
+    # walks (26-43 min) held each deploy for about 55 minutes while the other checks were
+    # done in 8. On main the job is skipped (Render counts a skipped check as passed), and
+    # .github/workflows/walk-main.yml plays the same four walks once this run is
+    # finished, filing a walk-finding issue when one fails.
     name: Browser release checks
+    if: github.event_name != 'push' || github.ref != 'refs/heads/main'
     uses: ./.github/workflows/walk.yml
 
   publish:
     name: Publish verified image
     needs: [generated-types, backend, learner-walk, postgres, frontend, docker, browser-walk]
-    if: github.event_name == 'push'
+    # A tag's image, after every check of its run, the walks included. A commit on main
+    # is published by walk-main.yml once its walks have passed too: here they are skipped.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: read
       packages: write
@@ -52,6 +61,9 @@ jobs:
         working-directory: web-frontend
       - name: Reject stale generated types
         run: npm run types:check
+        working-directory: web-frontend
+      - name: Reject a stale generated cast
+        run: npm run cast:check
         working-directory: web-frontend
 
   backend:
@@ -115,6 +127,13 @@ jobs:
       - name: Check Python with Ruff
         if: matrix.shard == 1
         run: ruff check .
+
+      - name: Gold gate (prompts and models of the gold surfaces)
+        # Free and offline: renders every model call the four weekly gold surfaces make
+        # and compares it with tests/gold_transcripts/gate.json. A change there must pass
+        # `python scripts/gold_transcripts.py gate` (paid, outside CI) first.
+        if: matrix.shard == 1
+        run: python scripts/gold_transcripts.py check
 
       - name: Run backend tests
         # `-n auto --dist loadfile`: every xdist worker is its own process with its

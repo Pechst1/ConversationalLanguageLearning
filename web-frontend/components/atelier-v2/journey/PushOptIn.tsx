@@ -12,6 +12,7 @@ import React from 'react';
 
 import { Action, Surface } from '@/components/atelier-v2/ui';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
+import { castDisplayName } from '@/lib/cast-faces';
 import { enablePush, pushAvailability, type PushAvailability } from '@/lib/push';
 import {
   pushOptInCopy,
@@ -71,7 +72,7 @@ export function PushOptIn({
     return null;
   }
 
-  const copy = pushOptInCopy(language, characterName);
+  const copy = pushOptInCopy(language, castDisplayName(characterId, characterName) ?? characterName);
   const answer = async (value: PushOptInAnswer) => {
     if (busy) return;
     setBusy(true);

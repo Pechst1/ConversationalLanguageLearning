@@ -25,6 +25,7 @@ import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
 import { SpeakingPortrait } from '@/components/atelier-v2/journey/SpeakingPortrait';
 import type { LineVoice } from '@/components/atelier-v2/journey/useLineVoice';
 import apiService from '@/services/api';
+import { castDisplayName } from '@/lib/cast-faces';
 import {
   RULE_CARD_COPY,
   cardExamples,
@@ -43,15 +44,6 @@ import {
 import type { ControlLanguage } from '@/types/daily-journey';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 import { playAskedVoice } from '@/lib/audio-session';
-
-export const RULE_CARD_SPEAKERS: Record<string, string> = {
-  margaux_barman: 'Margaux',
-  marin_leveque: 'Marin',
-  romy_tremblay: 'Romy',
-  lila_bonnet: 'Lila',
-  augustin_de_roncourt: 'Gus',
-  landlord_marchand: 'M. Marchand',
-};
 
 export function Marked({ value }: { value: string }) {
   return (
@@ -222,18 +214,44 @@ export type RuleCardProps = {
   review?: boolean;
 };
 
+function ListenButton({ label, busy, onClick }: { label: string; busy: boolean; onClick: () => void }) {
+  return (
+    <button type="button" className="rc-listen" aria-label={label} aria-busy={busy || undefined} onClick={onClick}>
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M3 8v4h3l4 3V5L6 8H3z" />
+        <path d="M13.5 7.5a3.5 3.5 0 0 1 0 5M15.5 5a7 7 0 0 1 0 10" />
+      </svg>
+    </button>
+  );
+}
+
+/** Same words whatever the marks, the case, the spacing or the quote style. */
+function sameLine(a: string | null | undefined, b: string | null | undefined): boolean {
+  const fold = (value: string | null | undefined) =>
+    plainText(value || '')
+      .replace(/[\u2018\u2019\u02bc]/g, "'")
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+  const first = fold(a);
+  return first !== '' && first === fold(b);
+}
+
 function SceneAnchor({
   anchor,
   variant,
   label,
   voice,
   listenLabel,
+  onListen,
 }: {
   anchor: RuleSceneAnchor;
   variant: 'intro' | 'inline';
   label: string;
   voice?: LineVoice | null;
   listenLabel?: string;
+  /** The card's own example is this very line (a review): its listen button lives here, once. */
+  onListen?: { label: string; busy: boolean; play: () => void } | null;
 }) {
   const text = plainText(anchor.fr);
   return (
@@ -254,6 +272,7 @@ function SceneAnchor({
           {anchor.name && <span className="rc-scene__who">{anchor.name}</span>}
           <span className="rc-scene__label">{label}</span>
         </span>
+        {onListen && <ListenButton label={onListen.label} busy={onListen.busy} onClick={onListen.play} />}
       </div>
       {variant === 'intro' ? (
         <h2 className="av2-headline rc-example" lang="fr">
@@ -292,11 +311,13 @@ export function RuleCard({
   const rule = pick(card.rule, language);
   const more = pick(card.more, language);
   const speakerId = card.speaker || coach?.id || null;
+  // The cast registry's name (#147); a coach outside the drawn cast keeps their own.
   const speakerName = card.speaker
-    ? RULE_CARD_SPEAKERS[card.speaker] ?? null
+    ? castDisplayName(card.speaker, null)
     : coach
-      ? RULE_CARD_SPEAKERS[coach.id] ?? coach.name
+      ? castDisplayName(coach.id, null) ?? coach.name
       : null;
+  const mergedWithAnchor = Boolean(sceneAnchor) && sameLine(sceneAnchor?.fr, card.example.fr);
   const speakerMood: PortraitMood = coach && speakerId === coach.id ? coachMood : 'neutral';
   const pattern = card.pattern;
   // F-1: the v2+ depth, each part optional.
@@ -334,36 +355,38 @@ export function RuleCard({
           label={copy.fromScene}
           voice={sceneVoice}
           listenLabel={sceneListenLabel}
+          onListen={
+            // The speaking face is the listen control, but only a painted portrait has one:
+            // a merged card said by Camille or Odile keeps this button, voice or no voice.
+            mergedWithAnchor && !(sceneVoice?.supported && sceneAnchor.castId)
+              ? { label: copy.listen, busy: speech.busy, play: () => void speech.play() }
+              : null
+          }
         />
       )}
 
-      <div className="rc-source">
-        {speakerId && speakerName && (
-          <CastPortrait characterId={speakerId} name={speakerName} mood={speakerMood} size="sm" ring />
-        )}
-        {speakerName && <span className="rc-source__name">{speakerName}</span>}
-        <button
-          type="button"
-          className="rc-listen"
-          aria-label={copy.listen}
-          aria-busy={speech.busy || undefined}
-          onClick={() => void speech.play()}
-        >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M3 8v4h3l4 3V5L6 8H3z" />
-            <path d="M13.5 7.5a3.5 3.5 0 0 1 0 5M15.5 5a7 7 0 0 1 0 10" />
-          </svg>
-        </button>
-      </div>
+      {/* #473: a review's example IS the page's line. It is printed once, in the anchor
+          (whose speaker is named there); the example's own row would say it again. */}
+      {!mergedWithAnchor && (
+        <>
+          <div className="rc-source">
+            {speakerId && speakerName && (
+              <CastPortrait characterId={speakerId} name={speakerName} mood={speakerMood} size="sm" ring />
+            )}
+            {speakerName && <span className="rc-source__name">{speakerName}</span>}
+            <ListenButton label={copy.listen} busy={speech.busy} onClick={() => void speech.play()} />
+          </div>
 
-      {variant === 'intro' && !sceneAnchor ? (
-        <h2 className="av2-headline rc-example" lang="fr">
-          <Marked value={card.example.fr} />
-        </h2>
-      ) : (
-        <p className="rc-example rc-example--inline" lang="fr">
-          <Marked value={card.example.fr} />
-        </p>
+          {variant === 'intro' && !sceneAnchor ? (
+            <h2 className="av2-headline rc-example" lang="fr">
+              <Marked value={card.example.fr} />
+            </h2>
+          ) : (
+            <p className="rc-example rc-example--inline" lang="fr">
+              <Marked value={card.example.fr} />
+            </p>
+          )}
+        </>
       )}
 
       {showKey && <ColourKey tones={tones} copy={copy} />}

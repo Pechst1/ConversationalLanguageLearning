@@ -69,6 +69,82 @@ def test_the_line_is_right_when_the_learner_only_typed_the_gap(db_session, typed
     assert updated.correction_payload["micro_repairs"]["0"]["status"] == "ok"
 
 
+# #779: the miss screen asks for one copy per corrected line (``missCorrections`` and
+# ``repairState`` in web-frontend/lib/repair-parts.ts). A word-bank miss whose erratum
+# came back twice names one line twice; the screen shows one field, under erratum 0, and
+# calls the line mended once that copy is accepted. The server must count lines the same
+# way, or the delayed retest the copy earns is never queued.
+LINE_779 = "Je suis à la rédaction."
+ERRATUM_779 = {
+    "item_id": "i1",
+    "learner_text": "suis la rédaction à Je es.",
+    "corrected_target": LINE_779,
+    "task_error_type": "word_order",
+}
+
+
+def _miss_779(db_session, errata):
+    attempt = _keyed_miss(db_session, "suis la rédaction à Je es.")
+    attempt.correction_payload = {
+        "assessment_status": "checked",
+        "corrected_answer": {"i1": LINE_779},
+        "errata": errata,
+    }
+    db_session.add(attempt)
+    db_session.commit()
+    return attempt
+
+
+def test_one_copy_of_a_line_named_twice_queues_the_retest(db_session):
+    attempt = _miss_779(db_session, [ERRATUM_779, dict(ERRATUM_779)])
+    updated = AtelierCorrectionService(db_session).record_micro_repair(attempt=attempt, text=LINE_779, erratum_index=0)
+    payload = updated.correction_payload
+    assert payload["micro_repairs"]["0"]["status"] == "ok"
+    assert (payload.get("retest") or {}).get("status") == "queued", (
+        "the screen calls the line mended after its one copy; the server still waits for a second copy it never asks for"
+    )
+
+
+def test_two_notes_on_one_line_typed_differently_count_as_one_line(db_session):
+    # A si-type word bank: two notes on one line, the second with other typography.
+    other = {**ERRATUM_779, "corrected_target": "je suis à la rédaction", "task_error_type": "grammar"}
+    attempt = _miss_779(db_session, [ERRATUM_779, other])
+    updated = AtelierCorrectionService(db_session).record_micro_repair(attempt=attempt, text=LINE_779, erratum_index=0)
+    assert (updated.correction_payload.get("retest") or {}).get("status") == "queued", "one line, one copy"
+
+
+def test_two_different_lines_still_need_both_copies(db_session):
+    second = {**ERRATUM_779, "item_id": "i2", "learner_text": "tu es a Paris", "corrected_target": "Tu es à Paris."}
+    attempt = _miss_779(db_session, [ERRATUM_779, second])
+    service = AtelierCorrectionService(db_session)
+    first = service.record_micro_repair(attempt=attempt, text=LINE_779, erratum_index=0)
+    assert not first.correction_payload.get("retest"), "one line of two is not the whole repair"
+    both = service.record_micro_repair(attempt=first, text="Tu es à Paris.", erratum_index=1)
+    assert both.correction_payload["micro_repairs"]["1"]["status"] == "ok"
+    assert (both.correction_payload.get("retest") or {}).get("status") == "queued"
+
+
+def test_the_server_names_a_line_the_way_the_screen_folds_it():
+    # ``fold`` in web-frontend/lib/repair-parts.ts: typography folded, accents kept.
+    from app.services.forge_grading import retype_line_key
+
+    assert retype_line_key(LINE_779) == retype_line_key("je suis à la rédaction") == "je suis à la rédaction"
+    assert retype_line_key("S’il pleut, je resterai.") == retype_line_key("s'il pleut je resterai")
+    assert retype_line_key("« Tu es là ? »") == "tu es là"
+    assert retype_line_key("tâches") != retype_line_key("taches")
+
+
+def test_a_one_word_fix_beside_a_line_does_not_hold_the_retest(db_session):
+    # The screen gives a one-word fix no copy field (``isRepairableLine``): the line's copy
+    # is the whole repair it asks for, so it is the whole repair the server waits for.
+    word = {"item_id": "i2", "learner_text": "taches", "corrected_target": "tâches", "task_error_type": "spelling"}
+    attempt = _miss_779(db_session, [ERRATUM_779, word])
+    updated = AtelierCorrectionService(db_session).record_micro_repair(attempt=attempt, text=LINE_779, erratum_index=0)
+    assert (updated.correction_payload.get("retest") or {}).get("status") == "queued", (
+        "the screen asks for no copy of a one-word fix; the server waits for one"
+    )
+
+
 # A fill or choice drill: its key and the learner's answer are only the gap, so the line
 # the field asks for is nowhere but in the prompt. Graded by the real keyed corrector.
 CANAL_LINE = "Avant-hier, je suis descendu vers le canal."

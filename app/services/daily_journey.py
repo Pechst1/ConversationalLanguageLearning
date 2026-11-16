@@ -87,8 +87,10 @@ from app.schemas.daily_journey import (
     forge_href_for,
     practice_href_for,
 )
-from app.services import gold_ledger, scene_ledger
-from app.services.chrome_language import user_chrome_language
+from app.schemas.verdict import VerdictView
+from app.services import cast_registry, gold_ledger, scene_ledger, scene_record, verdicts
+from app.services.chrome_language import user_chrome_language, user_mother_tongue
+from app.services.closing_filler import scene_fact
 from app.services.daily_journey_adapters import (
     AdapterUnavailable,
     JourneyAdapters,
@@ -216,23 +218,37 @@ def _planned_introduction(plan: Any) -> dict[str, Any] | None:
     return None
 
 
-def _planned_rule_id(journey: Any, today: date) -> int | None:
-    """#443: the grammar unit today's journey was planned to introduce, or None.
+def _positive_id(value: Any) -> int | None:
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return None
+    return number if number > 0 else None
 
-    The plan is the one place that decides the day's rule (``_planned_introduction``
-    stores it); the forge entry Home links to reads it from there instead of asking
-    the forge picker again, which knows nothing of the scene's own rule.
+
+def _planned_rule_id(journey: Any, today: date) -> int | None:
+    """#443: the rule today's rule card shows, whether it introduces or reviews it, or None.
+
+    The plan is the one place that decides the day's rule. A day that introduces
+    a rule stores it (``_planned_introduction``); a day whose card only reviews a
+    known rule (WP-129) introduces nothing, so the card's own step is the reader.
+    The forge entry Home links to reads it from here instead of asking the forge
+    picker, which knows nothing of the scene's rule and would put a due erratum's
+    rule in the «today's rule» slot.
     """
 
     if journey is None or getattr(journey, "local_date", None) != today:
         return None
     selection = getattr(journey, "plan_selection", None)
     planned = selection.get("introduction") if isinstance(selection, dict) else None
-    try:
-        concept_id = int(planned.get("concept_id")) if isinstance(planned, dict) else 0
-    except (TypeError, ValueError):
-        return None
-    return concept_id if concept_id > 0 else None
+    if isinstance(planned, dict) and (concept_id := _positive_id(planned.get("concept_id"))):
+        return concept_id
+    for step in getattr(journey, "steps", None) or []:
+        if str(getattr(step, "kind", "")) == str(StepKind.RULE):
+            prompt = getattr(step, "public_prompt", None) or {}
+            if concept_id := _positive_id(prompt.get("concept_id")):
+                return concept_id
+    return None
 
 
 def _forge_block_completed(db: Session, user_id: Any, step_id: Any) -> bool:
@@ -300,6 +316,41 @@ _ANSWERABLE_KINDS = (StepKind.RECALL, StepKind.RESPOND)
 RETRY_OF_KEY = "retry_of"
 
 
+def withdraw_retry(db: Session, step: DailyJourneyStep) -> bool:
+    """#729: the undo of :meth:`DailyJourneyService._queue_retry`, for a miss that was not one.
+
+    An upheld appeal settles the whole item: the drill is right, so it is not asked again
+    under «Once more». The retry the miss queued leaves the day, and the steps after it move
+    back up one place, so the day is the day it was before the miss. A retry already on
+    screen or answered stays: what the learner has seen is not taken back.
+    """
+
+    journey = step.journey
+    if journey is None:
+        return False
+    retry = next(
+        (
+            item
+            for item in journey.steps
+            if (item.private_task or {}).get(RETRY_OF_KEY) == str(step.id)
+            and StepStatus(item.status) is StepStatus.PENDING
+            and journey.current_step_id != item.id
+        ),
+        None,
+    )
+    if retry is None:
+        return False
+    gone = retry.ordinal
+    journey.steps.remove(retry)
+    db.delete(retry)
+    db.flush()
+    # One row at a time, first first: (journey_id, ordinal) is unique.
+    for later in sorted((item for item in journey.steps if item.ordinal > gone), key=lambda item: item.ordinal):
+        later.ordinal -= 1
+        db.flush([later])
+    return True
+
+
 def _ending_still_written_before_an_act(journey: DailyJourney, step: DailyJourneyStep) -> bool:
     """Phase 2: an act's ending the story lane is still writing, with a later act after it.
 
@@ -345,6 +396,15 @@ def resolve_timezone(value: str | None, fallback: str = "UTC") -> str:
         else:
             return candidate
     return fallback
+
+
+def learner_timezone(user: Any, hint: str | None = None) -> str:
+    """The zone «today» is read in: the client's when it sends a valid one, else the
+    learner's stored zone (``streak.user_timezone``), never UTC by default."""
+
+    from app.services.streak import user_timezone
+
+    return resolve_timezone(hint, fallback=user_timezone(user))
 
 
 def _streak_snapshot_fields(db: Session, journey: DailyJourney) -> dict[str, Any]:
@@ -466,6 +526,7 @@ def _recall_task_to_json(task: RecallTask) -> dict[str, Any]:
         **({"options_kind": task.options_kind} if task.options_kind != "variants" else {}),
         **({"slip_fr": task.slip_fr} if task.slip_fr else {}),
         **({"rule_native": task.rule_native} if task.rule_native else {}),
+        **({"why_native": task.why_native} if task.why_native else {}),
         # #155: only when set, so every other stored task reads as before.
         **({"speaker_id": task.speaker_id} if task.speaker_id else {}),
     }
@@ -492,6 +553,7 @@ def _recall_task_from_json(payload: dict[str, Any]) -> RecallTask:
         options_kind="sentences" if payload.get("options_kind") == "sentences" else "variants",
         slip_fr=payload.get("slip_fr") or None,
         rule_native=payload.get("rule_native") or None,
+        why_native=payload.get("why_native") or None,
         speaker_id=payload.get("speaker_id") or None,
     )
 
@@ -610,6 +672,24 @@ def _scenario_view(snapshot: Any) -> Any:
     return {**snapshot, "location_name": french}
 
 
+def previous_outcome_of(private: dict[str, Any], history: list[Any]) -> str | None:
+    """O-1: how the exchange before this one went, since a repair follows a miss.
+
+    ``None`` when nothing judged it. A reply no model read (``stock_exit``, #518; a failed
+    check, ``check_failure``, #333) stores an outcome all the same and the scene goes on, so
+    the next reply is not the repair of a miss nobody saw.
+    """
+
+    if not history:
+        return None
+    if not scene_record.enabled():
+        return (private.get("result") or {}).get("outcome")
+    last = history[-1]
+    if isinstance(last, dict) and (last.get("stock_exit") or last.get("check_failure")):
+        return None
+    return (private.get("result") or {}).get("outcome")
+
+
 def _public_thread(turns: list[Any]) -> list[dict[str, Any]]:
     """WP-89: the respond step's exchanges as the public ``ThreadExchange`` shape.
 
@@ -647,6 +727,7 @@ def _public_thread(turns: list[Any]) -> list[dict[str, Any]]:
                 "learner_fr": learner,
                 "character_fr": str(turn.get("character") or ""),
                 "correction": correction,
+                **({"unchecked": True} if turn.get("check_failure") else {}),
                 **({"character_lines": lines} if lines else {}),
             }
         )
@@ -669,6 +750,25 @@ def _public_acts(ordered: list[DailyJourneyStep]) -> dict[Any, int]:
             scenes += 1
         acts[step.id] = max(scenes, 1) if kind in ACT_STEP_KINDS else 1
     return acts
+
+
+#: The aids written for a scene's opening line (#145): stale once the character moves on.
+_OPENING_LINE_AIDS = frozenset(
+    {str(HelpKind.HINT), str(HelpKind.TRANSLATION), str(HelpKind.SUGGESTED_RESPONSE)}
+)
+
+
+def addressee_fields(person: str) -> dict[str, Any]:
+    """``character_id`` / ``character_name`` of a respond prompt for the person the next
+    question is put to (#594), named as the cast registry names them; nothing for anyone
+    outside the cast."""
+
+    from app.services import cast_registry
+
+    name = cast_registry.display_name(person)
+    if not name:
+        return {}
+    return {"character_id": cast_registry.resolve_id(person) or person, "character_name": name}
 
 
 def _public_prompt_view(step: DailyJourneyStep) -> dict[str, Any]:
@@ -1158,12 +1258,15 @@ class DailyJourneyService:
         if journey is not None and self._heal_interrupted(journey):
             # WP-69: a dead `preparing` journey no longer occupies the day.
             journey = self._occupying_journey(user)
+        # «Today» is the learner's local day: a read without a zone (the Feuilleton's
+        # card) took the UTC date, and from 00:00 to 01:00 in Berlin it found
+        # yesterday's finished journey and showed no episode (#656–#658, 9 Nov).
+        learner_tz = learner_timezone(user, timezone_hint)
         if journey is None:
-            fallback_tz = resolve_timezone(timezone_hint)
-            today = local_date_for(fallback_tz)
+            today = local_date_for(learner_tz)
             journey = self._journey_for_date(user, today)
 
-        timezone_name = journey.timezone if journey else resolve_timezone(timezone_hint)
+        timezone_name = journey.timezone if journey else learner_tz
         today = local_date_for(timezone_name)
         # WP-80: the client's zone is the learner's zone (it moves the streak
         # day and the push schedule), and the streak is settled on this read.
@@ -1920,6 +2023,11 @@ class DailyJourneyService:
         prompt = dict(step.public_prompt or {})
         budget = int(prompt.get("budget_seconds") or step.estimated_seconds or 0)
         prompt["budget_seconds"] = budget
+        # #443: planned before the card was known, the step's own rule can be the
+        # picker's; the link names the rule the day's card shows.
+        card_rule = _planned_rule_id(journey, journey.local_date)
+        if card_rule is not None:
+            prompt["concept_id"] = card_rule
         prompt["href"] = forge_href_for(
             prompt.get("concept_id"), budget_seconds=budget, step_id=step.id
         )
@@ -2786,7 +2894,7 @@ class DailyJourneyService:
             return {
                 "special": script["special"],
                 "epreuve": epreuve_snapshot_view(
-                    script["epreuve"], getattr(user, "native_language", None)
+                    script["epreuve"], user_mother_tongue(user)
                 ),
             }
 
@@ -4047,7 +4155,7 @@ class DailyJourneyService:
             close_acts(self.db, user, acts, played=list(getattr(plan, "acts", None) or []))
         self._persist_plan(
             fresh, result, plan, input_mode, because=because, fallback=fallback,
-            native_language=getattr(user, "native_language", None),
+            native_language=user_mother_tongue(user),
         )
         # WP-93: the «Lecture» remembers what it offers; «coulisses» is asked
         # for now that today's scene is bound (the story lane writes it).
@@ -4891,17 +4999,30 @@ class DailyJourneyService:
         if not settings.ATELIER_JOURNEY_PRACTICE_DAY_ENABLED:
             return None
         from app.services.concept_life import introduction_for_today
+        from app.services.forge_coaches import card_for_learner, story_state_of
 
-        return run_best_effort(
-            self.db,
-            "daily_journey: grammar introduction",
-            lambda: introduction_for_today(
+        def introduced() -> Any:
+            brief = introduction_for_today(
                 self.db,
                 user,
                 now=_utcnow(),
                 control_language=str(scenario.control_language),
                 units=units,
-            ),
+            )
+            if not isinstance(brief, dict) or not scene_record.enabled():
+                return brief
+            # #147: the card's face is someone this learner has met.
+            card = card_for_learner(
+                brief.get("rule_card"),
+                external_id=brief.get("external_id"),
+                state=story_state_of(self.db, user),
+            )
+            return {**brief, "rule_card": card}
+
+        return run_best_effort(
+            self.db,
+            "daily_journey: grammar introduction",
+            introduced,
             default=None,
             log=logger,
         )
@@ -4910,7 +5031,12 @@ class DailyJourneyService:
         """WP-129 (D7): briefs of the units today's tentpole page uses that the
         learner was introduced to before today — the page's own order, a unit
         not yet held first. ``None`` when there are none (nothing is reviewed:
-        a new unit is never shown as review). A failure costs the review only."""
+        a new unit is never shown as review). A failure costs the review only.
+
+        #698: «introduced» here is *taught* (a rule card read, or La Forge worked
+        it: :func:`concept_life.taught_concept_ids`), never the first evidence on
+        any surface. A scene that corrected «de Odile» stamps the articles as
+        introduced; they are not «a rule you know» for that."""
 
         if not story_units or not settings.ATELIER_JOURNEY_PRACTICE_DAY_ENABLED:
             return None
@@ -4918,7 +5044,7 @@ class DailyJourneyService:
         def briefs() -> list[dict[str, Any]] | None:
             from app.db.models.grammar import GrammarConcept, UserGrammarProgress
             from app.services.chrome_language import user_chrome_language
-            from app.services.concept_life import concept_brief
+            from app.services.concept_life import concept_brief, taught_concept_ids
 
             today = _utcnow()
             rows = (
@@ -4933,6 +5059,8 @@ class DailyJourneyService:
                 )
                 .all()
             )
+            taught = taught_concept_ids(self.db, user.id, before=today) if rows else set()
+            rows = [row for row in rows if row[1].id in taught]
             order = {unit: index for index, unit in enumerate(story_units)}
             rows.sort(key=lambda row: (row[0].held_at is not None, order.get(row[1].external_id, 10**6)))
             language = str(user_chrome_language(user))
@@ -5414,6 +5542,14 @@ class DailyJourneyService:
         step.completed_at = _utcnow()
         step.turns_used += 1
         self._store_step_result(step, recorded, assistance)
+        # Package V stage 5: the answer itself, so «I think this is right» can be re-judged.
+        stored = dict(step.private_task or {})
+        stored["result"] = {
+            **dict(stored.get("result") or {}),
+            "answer_text": recall_learner_text(task, answer) or "",
+            "failure_reason": getattr(evaluation, "failure_reason", None),
+        }
+        step.private_task = stored
         if missed and not retry:
             self._queue_retry(journey, step)
         self.db.flush()
@@ -5441,6 +5577,13 @@ class DailyJourneyService:
             character_reply_fr=None,
             next_turn=None,
             pending=False,
+            check=VerdictView.of(
+                verdicts.from_recall(
+                    outcome=evaluation.outcome,
+                    correction=evaluation.correction,
+                    text=recall_learner_text(task, answer) or "",
+                )
+            ),
             slip_note_native=getattr(evaluation, "slip_note_native", None),
             journey=self.snapshot(journey),
         )
@@ -5486,6 +5629,7 @@ class DailyJourneyService:
         self.db.flush([retry])
         return retry
 
+
     def _attempt_respond(
         self,
         user: User,
@@ -5501,8 +5645,7 @@ class DailyJourneyService:
         brief = self._pinned_brief(journey, act=act)
         assistance = self._step_assistance(step)
         history = list(private.get("turns", []))
-        # O-1: the outcome of the exchange before this one (a repair follows a miss).
-        previous_outcome = (private.get("result") or {}).get("outcome") if history else None
+        previous_outcome = previous_outcome_of(private, history)
         # WP-89: a turn that cost no exchange (the opening greeting nudge) does
         # not move the conversation's own clock either.
         free_turns = sum(1 for turn in history if isinstance(turn, dict) and turn.get("free"))
@@ -5553,6 +5696,11 @@ class DailyJourneyService:
                     public_correction.model_dump(mode="json") if public_correction else None
                 ),
                 "free": bool(evaluation.needs_repair and not evaluation.turn_consumed),
+                # #333: nobody read this reply; the thread says so after a reload too.
+                **({"check_failure": evaluation.check_failure} if evaluation.check_failure else {}),
+                # #518: no model wrote this reply, so it is not something the scene said
+                # (``scene_ledger.on_screen``). Marked here, never recognised by its words.
+                **({"stock_exit": True} if getattr(evaluation, "stock_exit", False) else {}),
                 # Every speaker of a many-voiced reply, so each gets their bubble.
                 **({"lines": list(evaluation.reply_lines)} if evaluation.reply_lines else {}),
                 # QA-STORY: the season route this exchange took (replayed, never re-read).
@@ -5563,7 +5711,11 @@ class DailyJourneyService:
         )
         private["turns"] = history
         # #145 / #378: what the scene asked and what was answered, kept with its turns.
-        private["ledger"] = scene_ledger.build(opening_line_fr=task.opening_line_fr, history=history)
+        private["ledger"] = scene_ledger.build(
+            opening_line_fr=task.opening_line_fr,
+            history=history,
+            in_the_room=scene_ledger.room_of((brief.story_context or {}).get("draft")),
+        )
         # Persisted before the ending is settled: WP-06 renders the resolution
         # from the learner's own turns, and the decisive one is this turn.
         step.private_task = private
@@ -5587,8 +5739,22 @@ class DailyJourneyService:
             prompt["repair_allowed"] = False
             # WP-113: the next question's cards when it is «Le choix», else none.
             prompt["choices"] = list(getattr(evaluation, "next_choices", None) or [])
+            if getattr(evaluation, "next_addressee", None):
+                # #594: the header names the person the question is put to, not the scene's
+                # first speaker.
+                prompt.update(addressee_fields(evaluation.next_addressee))
             if getattr(evaluation, "next_task_native", None):
                 prompt["objective_native"] = evaluation.next_task_native
+            elif scene_record.enabled() and (caption := scene_ledger.turn_caption(
+                evaluation.character_reply_fr,
+                speaker=cast_registry.display_name(
+                    prompt.get("character_id"), str(prompt.get("character_name") or "").split(" ")[0]
+                ),
+                language=brief.control_language,
+            )):
+                # #500: the caption under the input is written for the opening question;
+                # from the second turn on it follows what the character asks now.
+                prompt["objective_native"] = caption
             if getattr(evaluation, "next_hint_native", None) or getattr(evaluation, "next_suggested_fr", None):
                 # QA-STORY: the hint belongs to the question now asked, not the first one.
                 response_task = dict(private.get("response_task") or {})
@@ -5600,13 +5766,28 @@ class DailyJourneyService:
                     response_task["translation_native"] = evaluation.next_translation_native
                 private["response_task"] = response_task
                 step.private_task = private
-            if history[-1].get("free"):
-                # The exchange the nudge did not use is still owed: one more token.
-                prompt["max_turns"] = int(prompt.get("max_turns") or 1) + 1
-            elif question_open and step.turn_index >= int(prompt.get("max_turns") or 1):
-                # #378: the extra exchange the open question takes is counted, so
-                # the scene never reads «4 of 3».
-                prompt["max_turns"] = step.turn_index + 1
+            elif scene_record.enabled() and not history[-1].get("free"):
+                # #145: the hint, the translation and the example were written for the
+                # opening line. The character has moved on, so they no longer help:
+                # they are not offered rather than offered wrong. A nudge used no
+                # exchange and the question is unchanged, so its aids stay.
+                prompt["help_available"] = [
+                    kind for kind in prompt.get("help_available") or [] if kind not in _OPENING_LINE_AIDS
+                ]
+            # #467 (root cause #145: the scene has no state of its own, so the
+            # total was whatever the engine decided next): ``max_turns`` is fixed
+            # when the scene starts and never changes. A nudge that did not use
+            # an exchange, or the answer an open question takes (#378), is one
+            # more turn under the same total; the client shows it as the last
+            # exchange instead of promising a bigger scene than the one it began.
+            if not scene_record.enabled():
+                if history[-1].get("free"):
+                    # The exchange the nudge did not use is still owed: one more token.
+                    prompt["max_turns"] = int(prompt.get("max_turns") or 1) + 1
+                elif question_open and step.turn_index >= int(prompt.get("max_turns") or 1):
+                    # #378: the extra exchange the open question takes is counted, so
+                    # the scene never reads «4 of 3».
+                    prompt["max_turns"] = step.turn_index + 1
             # WP-89 «Le fil»: the conversation so far, so a reloaded client can
             # redraw it. Public by construction: what was said and shown.
             prompt["thread"] = _public_thread(history)
@@ -5638,6 +5819,14 @@ class DailyJourneyService:
         if step.status == str(StepStatus.COMPLETED) and act == 1:
             self._finish_answered_letter(user, journey, step, evaluation)
 
+        scene_check = verdicts.from_scene(
+            outcome=evaluation.outcome,
+            correction=evaluation.correction,
+            text=answer.text or "",
+            failure_reason=evaluation.failure_reason,
+            check_failure=evaluation.check_failure,
+        )
+        verdicts.note_failure(self.db, surface="scene", verdict=scene_check, user_id=user.id)
         return AttemptResult(
             evidence_ref=applied.evidence_ref,
             task_outcome=evaluation.outcome,
@@ -5648,6 +5837,7 @@ class DailyJourneyService:
             reply_source=self._reply_source(evaluation),
             next_turn=next_turn,
             pending=False,
+            check=VerdictView.of(scene_check),
             repeat_line_fr=(
                 repeat_line_for(step, public_correction)
                 if step.status == str(StepStatus.COMPLETED)
@@ -5785,6 +5975,7 @@ class DailyJourneyService:
             character_reply_fr=None,
             next_turn=None,
             pending=True,
+            check=VerdictView.of(verdicts.from_recall(outcome=TaskOutcome.UNSCORED, pending=True)),
             journey=self.snapshot(journey),
         )
 
@@ -5885,7 +6076,8 @@ class DailyJourneyService:
                 # nothing else, so a word the letter hoped for and the reply
                 # never used stays unmet.
                 produced_target_ids=_produced_target_ids(evaluation),
-                language=getattr(user, "native_language", None),
+                language=user_mother_tongue(user),
+                check_failure=getattr(evaluation, "check_failure", None),
             )
         except Exception:
             logger.exception("daily_journey: the answered Courrier letter could not be filed")
@@ -6394,7 +6586,13 @@ class DailyJourneyService:
                 and private.get("story_outcome")
                 and step_act(step) == 1
             ):
-                story_outcome = StoryOutcome.model_validate(private["story_outcome"])
+                # #597: the hook may be a closing caption; the recap presents it as
+                # what happened, so only a real event leaves here.
+                outcome_record = dict(private["story_outcome"])
+                outcome_record["callback_fr"] = (
+                    scene_fact(outcome_record.get("callback_fr")) or None
+                )
+                story_outcome = StoryOutcome.model_validate(outcome_record)
 
         # WP-09 owns the CONTRACTS §8 rubric. WP-02 asks it what this journey
         # proved and reports that verbatim; it has no rubric of its own, so the

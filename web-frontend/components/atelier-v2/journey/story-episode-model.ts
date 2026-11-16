@@ -27,7 +27,7 @@ import {
   type ReaderResolutionStage,
   type ReaderStage,
 } from '@/components/feuilleton/reader/panel-model';
-import { castIdFor, expressionForMood, isColdBeat, stageMoodFor, type StageMood } from '@/lib/cast-faces';
+import { castDisplayName, castIdFor, expressionForMood, isColdBeat, stageMoodFor, type StageMood } from '@/lib/cast-faces';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 
 /**
@@ -59,38 +59,27 @@ type StoryPanelSource = StoryPanel & {
   overlay_payload?: { alt_native?: string | null } | null;
 };
 
-const CHARACTER_NAMES: Record<string, string> = {
-  romy: 'Romy',
-  marin: 'Marin',
-  lila: 'Lila',
-  gus: 'Gus',
-  margaux: 'Margaux',
-  marchand: 'Monsieur Marchand',
-  toi: 'Toi',
-  learner: 'Toi',
-  you: 'Toi',
-};
+/** The learner's own lines. */
+const LEARNER_IDS = new Set(['toi', 'learner', 'you']);
 
 /**
  * The name to print above a line.
  *
- * The server's own `character_name` wins whenever it sent one: it comes from
- * the thread's world bible and is the only source that knows a generated cast.
- * Only when the field is absent or null does the local table stand in, and an
- * id it does not know keeps its own spelling — which is how a generated id such
- * as `marin_leveque` used to reach the reader as "Marin_leveque".
+ * The cast registry answers for anyone in it (#147): a page carries the world bible's full
+ * name, and the walk of 9 Nov printed «Augustin « Gus » de Roncourt» above a panel while the
+ * reply thread said «Gus». Anyone it does not know keeps what the server sent, since that is
+ * the only source that knows a generated cast, and an id alone keeps its own spelling.
  */
 export function storyCharacterName(
   characterId: string | null | undefined,
   characterName?: string | null,
 ): string {
   const given = String(characterName ?? '').trim();
-  if (given) return given;
   const id = String(characterId || '').trim();
-  if (!id) return '';
+  if (!given && !id) return '';
   const key = id.toLowerCase();
-  if (CHARACTER_NAMES[key]) return CHARACTER_NAMES[key];
-  return id.charAt(0).toUpperCase() + id.slice(1);
+  if (!given && LEARNER_IDS.has(key)) return 'Toi';
+  return castDisplayName(key, given || null) ?? (given || id.charAt(0).toUpperCase() + id.slice(1));
 }
 
 /**
@@ -1140,6 +1129,10 @@ export function storyFinaleStage(
 ): ReaderResolutionStage {
   const lineFr = String(prompt?.character_line_fr || '').trim();
   const summary = String(prompt?.summary_native || '').trim();
+  // Past A2 the chrome is French, so the «translation» of a French last line can be that line:
+  // «Deux clés, une seule porte. À suivre…» printed twice (walk, 9 Nov).
+  const fold = (value: string) => value.replace(/\s+/g, ' ').trim().toLowerCase();
+  const summaryRepeatsLine = Boolean(lineFr) && fold(summary) === fold(lineFr);
   // A narrated ending is said by nobody: no name, no face.
   if (prompt?.narrated) speaker = null;
   const name = String(speaker?.name || '').trim();
@@ -1169,7 +1162,7 @@ export function storyFinaleStage(
       imageUrl: String(prompt?.image_url || '').trim(),
       imageAlt: alt || summary,
       line,
-      summary,
+      summary: summaryRepeatsLine ? '' : summary,
       waiting: prompt?.story_pending === true,
     },
   };

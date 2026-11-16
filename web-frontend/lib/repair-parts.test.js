@@ -79,6 +79,18 @@ const WALK_ERRATA = [
 ];
 const { gapTyped, isRepairableLine, repairState } = require('./repair-parts.ts');
 
+test('#634: a correction naming the whole line sends it back to be retyped, and that retype alone finishes it', () => {
+  const line = 'Elle a achete livre.';
+  const errata = [
+    { learner_text: line, corrected_target: 'Elle a acheté un livre.', task_error_type: 'grammar' },
+    { learner_text: 'achete', corrected_target: 'acheté', task_error_type: 'grammar_target' },
+  ];
+  assert.equal(repairParts(line, errata), null);
+  const state = (repairs) => repairState({ issues: errata, repairs, inPlace: false, isLabelCompare: false, needsNewAnswer: false });
+  assert.deepEqual(state({}), { complete: false, mended: false });
+  assert.deepEqual(state({ 0: { status: 'ok' } }), { complete: true, mended: true });
+});
+
 test('#381 · a gap typed with the words the line already has around it holds the fix', () => {
   const parts = repairParts(WALK_LINE, WALK_ERRATA);
   assert.deepEqual(parts, [
@@ -138,4 +150,62 @@ test('#381 · the band says the line is mended only once every repair on screen 
   // The field in place counts even on a line too short to need a retype.
   assert.deepEqual(state([{ learner_text: 'Merci beaucop', corrected_target: 'Merci beaucoup' }], { 0: { status: 'ok' } }, { inPlace: true }), { complete: true, mended: true });
   assert.ok(isRepairableLine('Il est allé hier.') && !isRepairableLine('tâches') && !isRepairableLine('Merci beaucoup'));
+});
+
+// #779 (main walk: fr day 4 and 5, en day 2; reproduced locally in La Forge): a word-bank
+// miss came back with its erratum twice. The screen drew «Correction 1» and «Correction 2»,
+// the same line struck and corrected twice, each with its own «Copy the correction» field.
+// Two cards and two fields do not fit between the header and the verdict sheet at 375×812;
+// the first card keeps its place under the header (#239), so the second «Compare» stood
+// behind the sheet. A line is one thing to repair, however many corrections name it.
+const WALK_779 = {
+  display_label: 'Je suis, tu es : les pronoms et être',
+  learner_text: 'suis la rédaction à Je es.',
+  corrected_target: 'Je suis à la rédaction.',
+  why_wrong: '',
+  repair_hint: '✗ Je es français. → ✓ Je suis français.',
+  task_error_type: 'word_order',
+};
+
+test('#779 · two corrections of the same line ask for one repair, and that repair settles the line', () => {
+  const state = (repairs) => repairState({ issues: [WALK_779, { ...WALK_779 }], repairs, inPlace: false, isLabelCompare: false, needsNewAnswer: false });
+  assert.deepEqual(state({}), { complete: false, mended: false });
+  // The learner copies the line once, in the one field the miss shows: the line is fixed.
+  assert.deepEqual(state({ 0: { status: 'ok' } }), { complete: true, mended: true }, 'a second copy of the same line is still asked for');
+});
+
+test('#779 · the miss draws a repeated correction once, and one field per corrected line', () => {
+  const { missCorrections } = require('./repair-parts.ts');
+  const shown = missCorrections([WALK_779, { ...WALK_779 }]);
+  assert.deepEqual(shown.map(({ index, repair }) => ({ index, repair })), [{ index: 0, repair: true }], 'the same correction twice is one card');
+  // Two notes on one line (a si-type word bank names the tense and the clause): both are
+  // explained, the line is copied once, under the first.
+  const notes = missCorrections([
+    { learner_text: 'Si il pleut, je resterais.', corrected_target: 'S’il pleut, je resterai.', why_wrong: 'Après si : le présent.' },
+    { learner_text: 'Si il pleut, je resterais.', corrected_target: 'S’il pleut, je resterai.', why_wrong: 'Le résultat se met au futur.' },
+  ]);
+  assert.deepEqual(notes.map(({ index, repair }) => ({ index, repair })), [{ index: 0, repair: true }, { index: 1, repair: false }]);
+  // Different lines keep their own fields; a one-word fix and a task note have none.
+  const mixed = missCorrections([
+    { learner_text: 'Il est allé', corrected_target: 'Il est allé hier.' },
+    { learner_text: 'taches', corrected_target: 'tâches' },
+    { learner_text: 'tu a', corrected_target: 'Tu as un chat.' },
+    { task_error_type: 'task_compliance', corrected_target: '', why_wrong: 'Écris une phrase.' },
+  ]);
+  assert.deepEqual(mixed.map(({ index, repair }) => ({ index, repair })), [
+    { index: 0, repair: true }, { index: 1, repair: false }, { index: 2, repair: true }, { index: 3, repair: false },
+  ]);
+  // Two lines that differ only in typography are one line.
+  const typo = missCorrections([WALK_779, { ...WALK_779, corrected_target: 'je suis à la rédaction', why_wrong: 'Une autre note.' }]);
+  assert.equal(typo.filter((row) => row.repair).length, 1);
+});
+
+test('#779 · the miss screen draws its corrections through missCorrections', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const page = fs.readFileSync(path.join(__dirname, '..', 'pages/atelier.tsx'), 'utf8');
+  const miss = page.slice(page.indexOf('const { complete: repairsComplete, mended } = repairState('), page.indexOf('function ConceptRulePanel'));
+  assert.match(miss, /const shownCorrections = missCorrections\(issues\);/, 'the miss groups its corrections once');
+  assert.match(miss, /\{shownCorrections\.map\(/, 'every correction card comes from that grouping');
+  assert.doesNotMatch(miss, /\{issues\.map\(/, 'no card is drawn per raw erratum');
 });

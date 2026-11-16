@@ -18,6 +18,9 @@ export type FeedbackCopy = {
   sending: string;
   sent: string;
   failed: string;
+  /** S4 stage 4: the learner may ask to be answered, at the account's address. */
+  reply: string;
+  reply_hint: string;
   categories: Record<FeedbackCategory, string>;
 };
 
@@ -33,6 +36,8 @@ export const FEEDBACK_COPY: Record<ControlLanguage, FeedbackCopy> = {
     sending: 'Sending',
     sent: 'Feedback sent.',
     failed: 'Could not send feedback.',
+    reply: 'I’d like an answer',
+    reply_hint: 'We write back to your account’s address.',
     categories: {
       bug: 'Bug',
       broken_link: 'Broken link',
@@ -54,6 +59,8 @@ export const FEEDBACK_COPY: Record<ControlLanguage, FeedbackCopy> = {
     sending: 'Wird gesendet',
     sent: 'Feedback gesendet.',
     failed: 'Feedback konnte nicht gesendet werden.',
+    reply: 'Ich möchte eine Antwort',
+    reply_hint: 'Wir antworten an die Adresse deines Kontos.',
     categories: {
       bug: 'Fehler',
       broken_link: 'Defekter Link',
@@ -75,6 +82,8 @@ export const FEEDBACK_COPY: Record<ControlLanguage, FeedbackCopy> = {
     sending: 'Envoi',
     sent: 'Avis envoyé.',
     failed: 'L’avis n’a pas pu être envoyé.',
+    reply: 'Je veux une réponse',
+    reply_hint: 'On te répond à l’adresse de ton compte.',
     categories: {
       bug: 'Bogue',
       broken_link: 'Lien cassé',

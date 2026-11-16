@@ -493,6 +493,8 @@ CRITIC_REVIEW_EVENT = "journey_story_critic_review"
 MET_GATED_EVENT = "reply_met_gated"
 GRADING_CORRECTED_EVENT = "reply_grading_corrected"
 AFTER_RELEASE_EVENT = "reply_refused_after_release"
+#: #145: a soft check found something in a reply (``story_lanes.GUARD_FIRED_EVENT``).
+GUARD_FIRED_EVENT = "reply_guard_fired"
 
 
 def format_story_correctness_line(db, day: date, user_id: str | None = None) -> str:
@@ -510,7 +512,7 @@ def format_story_correctness_line(db, day: date, user_id: str | None = None) -> 
     normalized_user_id = UUID(str(user_id)) if user_id else None
     wanted = (
         CRITIC_OVERRIDE_EVENT, CRITIC_REVIEW_EVENT, MET_GATED_EVENT,
-        GRADING_CORRECTED_EVENT, AFTER_RELEASE_EVENT,
+        GRADING_CORRECTED_EVENT, AFTER_RELEASE_EVENT, GUARD_FIRED_EVENT,
     )
     rows = db.query(PilotEvent.event_type, PilotEvent.payload).filter(
         PilotEvent.event_type.in_(wanted),
@@ -540,7 +542,8 @@ def format_story_correctness_line(db, day: date, user_id: str | None = None) -> 
         f"{refused_correctness} correctness refusal(s), never served · "
         f"{counts[MET_GATED_EVENT]} «met» lowered by the met-gate before release · "
         f"{counts[GRADING_CORRECTED_EVENT]} after-release grading correction(s) of "
-        f"{counts[AFTER_RELEASE_EVENT]} after-release issue(s)"
+        f"{counts[AFTER_RELEASE_EVENT]} after-release issue(s) · "
+        f"{counts[GUARD_FIRED_EVENT]} soft reply finding(s)"
     )
 
 
@@ -567,6 +570,16 @@ def format_register_line(report: dict, user_id: str | None = None) -> str:
     )
 
 
+def format_cohort_lines(weeks: int = 8) -> list[str]:
+    """S6: the return table, cohort rows only (the digest is posted in public)."""
+
+    from app.services.cohorts import build_cohorts, cohort_table_lines
+
+    with SessionLocal() as db:
+        report = build_cohorts(db, weeks=weeks)
+    return ["", f"Return by sign-up week (S6, learner-local days, last {weeks} weeks):", *cohort_table_lines(report)]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--day", type=date.fromisoformat, default=date.today() - timedelta(days=1))
@@ -589,7 +602,17 @@ def main() -> None:
         action="store_true",
         help="Print only the daily-journey section (WP-11 release metrics).",
     )
+    parser.add_argument(
+        "--cohorts-only",
+        action="store_true",
+        help="Print only the S6 return table (day 1, 3, 7, 14 per sign-up week).",
+    )
+    parser.add_argument("--cohort-weeks", type=int, default=8)
     args = parser.parse_args()
+
+    if args.cohorts_only:
+        print("\n".join(format_cohort_lines(args.cohort_weeks)))
+        return
 
     # WP-26 §3: latency is a release metric, so it can be read on its own and
     # can fail a build.
@@ -662,6 +685,9 @@ def main() -> None:
     # WP-33: read off the rollup above — no extra query, and it cannot disagree
     # with the capability line the journey section prints.
     print(format_register_line(report, args.user_id))
+    # S6: who came back, per sign-up week. All learners, so not under --user-id.
+    if not args.user_id:
+        print("\n".join(format_cohort_lines(args.cohort_weeks)))
 
 
 if __name__ == "__main__":

@@ -1,3 +1,4 @@
+import type { CheckLike } from '@/lib/verdict';
 import type { components } from '@/types/generated/api';
 import { noteGoldRequest } from '@/lib/gold-events';
 import { rememberCastVariants } from '@/lib/cast-variants';
@@ -11,6 +12,9 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import toast from 'react-hot-toast';
 import { getSession } from 'next-auth/react';
 import { SESSION_EXPIRED_EVENT, webSessionRecovery } from '@/lib/session-recovery';
+import { errorToastId, errorToastText, errorToState, retryAfterSeconds } from '@/lib/app-errors';
+import { chromeLanguage } from '@/lib/language-rule';
+import { readLearnerLanguage, readLearnerLevel } from '@/lib/learner-language';
 
 import { getAppAccessToken } from '@/lib/app-auth';
 import { audioUploadFilename } from '@/lib/audio-recording';
@@ -18,6 +22,7 @@ import { recoverNativeAccessToken } from '@/lib/native-auth';
 import { isNativePlatform } from '@/lib/native-platform';
 import type {
   AdvanceBody,
+  AppealView,
   AttemptBody,
   AttemptResult,
   CapabilityProgress,
@@ -128,6 +133,8 @@ export interface AtelierConcept {
   name: string;
   /** French publication title (grammar_concept_localizations fr row). */
   title_fr?: string | null;
+  /** #561: the rule's title in the learner's chrome language (`concept_title`); what La Forge's header shows. */
+  title_native?: string | null;
   level: string;
   category?: string | null;
   subskill?: string | null;
@@ -308,13 +315,15 @@ export interface JournalCorrection {
   assessment_truncated: boolean;
   verdict?: string | null;
   corrected_answer: string;
-  /** Set only when nothing was checked: 'timeout' | 'model_error' | 'no_check_target'.
-   *  'no_check_target' cannot be retried. */
+  /** Set only when nothing was checked: 'timeout' | 'model_error' | 'no_check_target' | 'no_model'.
+   *  'no_check_target' and 'no_model' cannot be retried (#754). */
   failure_reason?: string | null;
   /** 'model' | 'deterministic'. A deterministic check is the model-free pass of the shared corrector
    *  (#250): it marks real mistakes but cannot say a text is right, so a clean result says it was
    *  a basic check only (never «nothing found»), and `retryable` says whether the model could be asked again. */
   checker?: string | null;
+  /** #333: who read it, in the one verdict shape. */
+  check?: CheckLike | null;
   retryable?: boolean;
   explanation_language?: string | null;
   /** The one correction shown up front, chosen by the journey's own policy. */
@@ -362,6 +371,10 @@ export interface JournalFollowup {
   /** How much of the scene the answer named; set once answered (#337). */
   facts_total?: number | null;
   facts_matched?: number | null;
+  /** The rules' fixes for the answer (#775); null before it is answered. */
+  corrections?: Array<{ learner_text?: string | null; corrected_target?: string | null; why_wrong?: string | null }> | null;
+  /** 'rules': only the basic check ran on the answer. */
+  checked_by?: string | null;
 }
 
 export interface JournalEnvelope {
@@ -449,6 +462,7 @@ export interface RehearsalView {
     already_correct?: boolean | null;
     /** False means the line was NOT checked — never that it was correct. */
     correction_available: boolean;
+    check?: CheckLike | null;
     recorded_at: string;
   } | null;
   outcome?: string | null;
@@ -1241,6 +1255,8 @@ export interface AtelierForgeView {
     rung: number;
     rung_name: string;
     served: number;
+    /** #333: the level to show, without the steps still waiting on a reading. */
+    shown_rung?: number | null;
     topped: boolean;
     /** WP-S5: the rule's coach. */
     coach?: ForgeCoach | null;
@@ -1334,6 +1350,8 @@ export interface GrammarNotebookItem {
   localized_title?: string | null;
   localized_category?: string | null;
   title_fr?: string | null;
+  /** #561: the rule's title in the learner's chrome language (`concept_title`), what the rule card shows. */
+  title_native?: string | null;
   category_label_fr?: string | null;
   localized_subskill?: string | null;
   level: string;
@@ -1590,6 +1608,10 @@ export interface MissionMeasured {
   phrases_saved: number;
   replies: number;
   words_written: number;
+  /** #590: the learner's last message was never answered. */
+  reply_pending?: boolean;
+  /** #333: a message of this letter was never read. */
+  unchecked?: boolean;
 }
 
 export interface RealWorldMission {
@@ -1978,6 +2000,8 @@ export interface FeedbackReportPayload {
   viewport?: Record<string, any>;
   user_agent?: string;
   context_payload?: Record<string, any>;
+  /** S4 stage 4: stored only; nothing sends the reply yet. */
+  wants_reply?: boolean;
 }
 
 export interface FeedbackReport {
@@ -1992,17 +2016,6 @@ export interface FeedbackReport {
   user_agent?: string | null;
   context_payload: Record<string, any>;
   created_at: string;
-}
-
-function apiErrorMessage(error: any): string {
-  const detail = error?.response?.data?.detail;
-  if (typeof detail === 'string') return detail;
-  if (detail && typeof detail === 'object') {
-    if (typeof detail.message === 'string') return detail.message;
-    if (typeof detail.code === 'string') return detail.code.replaceAll('_', ' ');
-  }
-  if (typeof error?.message === 'string') return error.message;
-  return 'An error occurred';
 }
 
 type SilentRequestConfig = AxiosRequestConfig & {
@@ -2096,7 +2109,6 @@ class ApiService {
       },
       async (error) => {
         const detail = error.response?.data?.detail;
-        const message = apiErrorMessage(error);
         const requestConfig = error.config as SilentRequestConfig | undefined;
         if ((error.response?.status ?? 0) >= 500) {
           // WP-73: a server failure is findable from both sides by its request id.
@@ -2148,58 +2160,24 @@ class ApiService {
         // WP-70: a 429 is never an auth problem — no refresh, no sign-out.
         if (error.response?.status === 429) {
           const code = detail?.code;
-          const waitSeconds = Math.max(1, Number(error.response?.headers?.['retry-after']) || 5);
+          const waitSeconds = retryAfterSeconds(error);
           const method = String(requestConfig?.method || 'get').toLowerCase();
           if (code === 'rate_limited' && method === 'get' && requestConfig && !requestConfig._retry429 && waitSeconds <= 10) {
             requestConfig._retry429 = true;
             await new Promise((resolve) => setTimeout(resolve, waitSeconds * 1000));
             return this.api.request(requestConfig);
           }
-          if (!requestConfig?.suppressGlobalError) {
-            toast(
-              code === 'daily_budget_reached'
-                ? 'C’est tout pour aujourd’hui. À demain !'
-                : `Doucement — réessayez dans ${waitSeconds} s.`,
-              { id: code || 'rate_limited' },
-            );
-          }
-          return Promise.reject(error);
         }
 
         if ((error.config as SilentRequestConfig)?.suppressGlobalError) {
           return Promise.reject(error);
         }
 
-        switch (error.response?.status) {
-          case 401:
-            toast.error('Authentication required. Please log in.');
-            // Redirect to login or refresh token
-            break;
-          case 403:
-            toast.error('Access denied.');
-            break;
-          case 404:
-            toast.error('Resource not found.');
-            break;
-          case 422:
-            if (detail && typeof detail === 'object') {
-              // Handle validation errors
-              const validationErrors = detail.detail || detail;
-              if (Array.isArray(validationErrors)) {
-                validationErrors.forEach((err: any) => {
-                  toast.error(`${err.loc?.join(' -> ')}: ${err.msg}`);
-                });
-              }
-            } else {
-              toast.error(message);
-            }
-            break;
-          case 500:
-            toast.error('Server error. Please try again later.');
-            break;
-          default:
-            toast.error(message);
-        }
+        // S4 stage 2: one error path. What went wrong is said in the learner's
+        // chrome language by lib/app-errors.ts; this handler writes no words.
+        const state = errorToState(error, chromeLanguage(readLearnerLanguage(), readLearnerLevel()));
+        const show = state.kind === 'rate_limited' ? toast : toast.error;
+        show(errorToastText(state), { id: errorToastId(error, state) });
 
         return Promise.reject(error);
       }
@@ -2380,7 +2358,18 @@ class ApiService {
   }
 
   async changeEmail(data: { current_password: string; new_email: string }) {
-    return this.patch('/users/me/email', data);
+    return this.patch('/users/me/email', data, { suppressGlobalError: true } as SilentRequestConfig);
+  }
+
+  /** S4 stage 3: spend the emailed code (verifies the address, or completes a change). */
+  async verifyEmail(code: string) {
+    return this.post<{ email: string; is_verified: boolean; pending_email?: string | null }>(
+      '/auth/verify-email', { code }, { suppressGlobalError: true } as SilentRequestConfig,
+    );
+  }
+
+  async resendEmailVerification() {
+    return this.post<{ sent: boolean }>('/auth/verify-email/resend', {}, { suppressGlobalError: true } as SilentRequestConfig);
   }
 
   async exportUserData() {
@@ -2417,7 +2406,7 @@ class ApiService {
     return this.post('/notifications/tap', data, { suppressGlobalError: true } as SilentRequestConfig);
   }
 
-  async recordClientError(data: { message: string; stack?: string; route?: string; source?: string }) {
+  async recordClientError(data: { message: string; stack?: string; route?: string; source?: string; event_id?: string }) {
     return this.post('/analytics/client-error', data, { suppressGlobalError: true } as SilentRequestConfig);
   }
 
@@ -2943,6 +2932,11 @@ class ApiService {
     return this.atelierPost<MissionTurnCorrectionResult>(`/missions/${missionId}/turns/${turnId}/correction`);
   }
 
+  // #590: ask the correspondent again for the learner's latest unanswered message.
+  async retryMissionTurnReply(missionId: string, turnId: string) {
+    return this.atelierPost<MissionTurnResult>(`/missions/${missionId}/turns/${turnId}/reply`);
+  }
+
   async completeMission(missionId: string) {
     const response = await this.atelierPost<MissionCompleteResult>(`/missions/${missionId}/complete`);
     return response;
@@ -3124,6 +3118,7 @@ class ApiService {
   }): Promise<{
     ai_response: string;
     ai_audio_text: string;
+    check?: CheckLike | null;
     detected_errors: Array<{
       original: string;
       correction: string;
@@ -3414,6 +3409,15 @@ class ApiService {
     const result = await this.journeyPost<AttemptResult>(
       `/daily-journeys/${encodeURIComponent(journeyId)}/steps/${encodeURIComponent(stepId)}/attempts`,
       body,
+    );
+    return result.data;
+  }
+
+  /** Package V stage 5: «I think this is right». The stronger model re-judges the drill. */
+  async appealDailyJourneyVerdict(journeyId: string, stepId: string): Promise<AppealView> {
+    const result = await this.journeyPost<AppealView>(
+      `/daily-journeys/${encodeURIComponent(journeyId)}/steps/${encodeURIComponent(stepId)}/appeal`,
+      {},
     );
     return result.data;
   }

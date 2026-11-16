@@ -58,12 +58,15 @@ from app.schemas.atelier import (
     AtelierWorkshopComposeRequest,
     AtelierWorkshopComposeResponse,
 )
+from app.schemas.verdict import VerdictView
+from app.services import verdicts
 from app.services.address import character_register
 from app.services.atelier import (
     ATELIER_GENERATOR_VERSION,
     ATELIER_ITEMS_PER_RECOGNIZE_MODE,
     ATELIER_TRANSFORM_ITEMS,
     FORGE_VERDICT_EVENT,
+    AnswerLengthError,
     AtelierCorrectionService,
     AtelierExerciseGenerationError,
     AtelierExerciseQualityService,
@@ -86,14 +89,15 @@ from app.services.atelier import (
 from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService, AtelierWorkshopShortfall
 from app.services.book_library import BookLibraryService
-from app.services.cast_registry import display_name, people_addressed, people_named
+from app.services.cast_registry import display_name, people_addressed, people_named, people_speaking
 from app.services.cast_registry import resolve_id as _resolve_cast_id
 from app.services.cefr_progress import CEFRProgressService, live_level, with_can_do_line
-from app.services.chrome_language import user_chrome_language
-from app.services.concept_titles import concept_title_fr
+from app.services.chrome_language import user_chrome_language, user_mother_tongue
+from app.services.concept_titles import concept_title, concept_title_fr
 from app.services.error_memory import ErrorMemoryService
 from app.services.forge import ForgeService, is_forge_session  # WP-S3 La Forge
-from app.services.forge_item_validator import item_problems  # #267: an item agrees with its badge
+from app.services.forge_coaches import story_state_of
+from app.services.forge_item_validator import speaker_problems  # #267/#780: agrees with its badge
 from app.services.forge_metrics import record_forge_abandoned, sweep_stale_forge_seances  # WP-S8
 from app.services.forge_picker import forge_plan  # WP-S4 one picker
 from app.services.glosses import DEFAULT_GLOSS_LANGUAGE, normalize_language
@@ -314,7 +318,17 @@ def _with_serial_conversation(
     words = f"{items[0].get('prompt') or ''} {items[0].get('example_answer') or ''}"
     named, addressed = people_named(words), people_addressed(words)
     met = context.get("met") or {}
-    if addressed:
+    speaking = people_speaking(words)
+    if speaking:
+        # #147 (14 Nov): «Gus : « Tu es où ? »» went out under Lila. A line the item puts
+        # in someone's mouth is that person's: their badge when the learner has met them,
+        # no badge when not.
+        speaker = met.get(speaking[0])
+        if speaker is None:
+            return payload
+        if str(speaker.get("id")) != str(character.get("id")):
+            character = _cast_badge(speaker, state=context.get("state") or {})
+    elif addressed:
         addressee = met.get(addressed[0])
         if addressee is None:
             return payload
@@ -331,7 +345,10 @@ def _with_serial_conversation(
     # model, and nothing checked that they agree («Lila · tu» over «Répondez …»).
     # A prompt that disagrees with its badge is served as a plain situation, with
     # no speaker, so no portrait and no reaction is put in a mouth that cannot say it.
-    if item_problems(items[0].get("prompt"), register=register):
+    # #780: and a bare «Say in French: "Du bist 39 Jahre alt."» has no line anyone says, so
+    # no speaker; the register is read on every line the learner reads or says (the cue in
+    # their language, the model answer), not only on a French prompt that may be empty.
+    if speaker_problems(items[0], register=register):
         return payload
     items[0].update(
         {
@@ -576,10 +593,14 @@ def _concept_read(
     due_errata_by_concept: dict[int, list[dict[str, Any]]] | None = None,
     asset_service: AtelierAssetService | None = None,
     fr_localizations: dict[int, GrammarConceptLocalization] | None = None,
+    language: str | None = None,
+    state: dict[str, Any] | None = None,
 ) -> AtelierConceptRead:
     data = serialize_concept(
         selection.concept,
         fr_localization=(fr_localizations or {}).get(selection.concept.id),
+        language=language,
+        state=state,
     )
     data["role"] = selection.role
     data["mastery"] = selection.progress.score if selection.progress else 0
@@ -629,6 +650,11 @@ def _attempt_response(
         ai_review=ai_review if isinstance(ai_review, dict) else {},
         minted_collectibles=minted_collectibles or [],
         forge=forge or {},
+        check=VerdictView.of(
+            verdicts.from_forge(
+                correction, text=str((attempt.answer_payload or {}).get("text") or ""), verdict=attempt.verdict
+            )
+        ),
     )
 
 
@@ -717,7 +743,7 @@ def _maybe_apply_adaptive_lock(
     lock.update(
         {
             "concept_id": concept.id,
-            "title": concept.name,
+            "title": concept_title(concept, "fr"),
             # What this moment just retired (what the learner is told), versus the
             # concept's running total across both rungs (session accounting).
             "retired_now": retired_now,
@@ -1110,6 +1136,9 @@ def _attempt_read(attempt: AtelierAttempt) -> dict[str, Any]:
         "ai_review": correction.get("ai_review") if isinstance(correction, dict) else {},
         "verdict": attempt.verdict,
         "score_0_4": attempt.score_0_4,
+        "check": verdicts.from_forge(
+            correction, text=str((attempt.answer_payload or {}).get("text") or ""), verdict=attempt.verdict
+        ).to_dict(),
         "submitted_key": _submitted_key(attempt),
         "submitted_keys": submitted_keys,
         "created_at": attempt.created_at.isoformat() if attempt.created_at else None,
@@ -1238,7 +1267,7 @@ def _session_response(
         # WP-103: every item's goal in the learner's language, no retired frame, no
         # server-only key (the classify follow-up's).
         payload = public_payload(
-            payload, user_chrome_language(user), getattr(user, "native_language", None)
+            payload, user_chrome_language(user), user_mother_tongue(user)
         )
         if user_chrome_language(user) == "fr":
             from app.services.grammar_units import french_rule
@@ -1256,11 +1285,15 @@ def _session_response(
             }
         )
     attempts = _session_attempts(db, session)
+    story_state = story_state_of(db, user)
     return AtelierSessionStartResponse(
         session_id=session.id,
         status=session.status,
         concepts=[
-            _concept_read(selection, due_by_concept, asset_service, fr_localizations) for selection in selections
+            _concept_read(
+                selection, due_by_concept, asset_service, fr_localizations, user_chrome_language(user), story_state
+            )
+            for selection in selections
         ],
         quote=session.quote_payload or scheduler.quote_for_today(),
         exercise_sets=exercise_sets,
@@ -1336,9 +1369,18 @@ async def get_today(
     # level as it stands now, so Home's goal line and Fortschritt agree.
     cefr = with_can_do_line(db, current_user, live_level(db, current_user))
     fr_localizations = fr_localizations_by_concept_id(db, (selection.concept.id for selection in selections))
+    story_state = story_state_of(db, current_user)
     return AtelierTodayResponse(
         concepts=[
-            _concept_read(selection, due_by_concept, asset_service, fr_localizations) for selection in selections
+            _concept_read(
+                selection,
+                due_by_concept,
+                asset_service,
+                fr_localizations,
+                user_chrome_language(current_user),
+                story_state,
+            )
+            for selection in selections
         ],
         quote=scheduler.quote_for_today(),
         summary=summary,
@@ -1642,17 +1684,21 @@ def submit_attempt(
         answer_payload["confidence"] = payload.confidence
     correction_service = AtelierCorrectionService(db)
     first_submission = existing is None
-    attempt = correction_service.submit_attempt(
-        session=session,
-        user=current_user,
-        concept=concept,
-        round_name=payload.round,
-        mode=payload.mode,
-        exercise_id=payload.exercise_id,
-        answer_payload=answer_payload,
-        prompt_payload_override=prompt_payload_override,
-        retest_of=retest_source.id if retest_source else None,
-    )
+    try:
+        attempt = correction_service.submit_attempt(
+            session=session,
+            user=current_user,
+            concept=concept,
+            round_name=payload.round,
+            mode=payload.mode,
+            exercise_id=payload.exercise_id,
+            answer_payload=answer_payload,
+            prompt_payload_override=prompt_payload_override,
+            retest_of=retest_source.id if retest_source else None,
+        )
+    except AnswerLengthError as exc:
+        # #574: the item states a word range; a line outside it is not an answer to it.
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     # WP-S1: the conversation rung's in-character reply follows the relecture
     # (AtelierCorrectionService._attach_world_reply), never this request.
     # WP-S3 La Forge: the staircase replaces the adaptive lock in a forge séance.
@@ -1942,7 +1988,7 @@ def _learner_help_language(user: User) -> tuple[str, str]:
 
     from app.services.glosses import EXPLANATION_LANGUAGE_NAMES
 
-    language = normalize_language(getattr(user, "native_language", None))
+    language = user_mother_tongue(user)
     if language == "fr" or language not in EXPLANATION_LANGUAGE_NAMES:
         language = "en"
     return language, EXPLANATION_LANGUAGE_NAMES[language]

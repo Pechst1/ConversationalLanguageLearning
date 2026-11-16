@@ -41,6 +41,7 @@ from app.db.models.vocabulary import VocabularyWord
 from app.schemas import PracticeIssue, TargetWordRead
 from app.services.achievement import AchievementService
 from app.services.auto_context_service import SessionContext  # [NEW]
+from app.services.chrome_language import user_mother_tongue
 from app.services.error_memory import ErrorMemoryService
 from app.services.grammar import GrammarService
 from app.services.llm_service import LLMResult, LLMService
@@ -272,7 +273,7 @@ class SessionService:
         existing_ids = {
             row[0] for row in self.db.query(VocabularyWord.id).all()
         }
-        sample_path = Path(__file__).resolve().parents[2] / "vocabulary_fr_sample.csv"
+        sample_path = Path(__file__).resolve().parents[1] / "data" / "vocabulary_fr_sample.csv"
         if not sample_path.exists():
             logger.warning("Vocabulary sample file missing", path=str(sample_path))
             return
@@ -1709,7 +1710,7 @@ class SessionService:
             content,
             learner_level=user.proficiency_level or "B1",
             target_vocabulary=[word.word for word, _ in previous_targets],
-            explanation_language=getattr(user, "native_language", None),
+            explanation_language=user_mother_tongue(user),
         )
         user_message.errors_detected = self._serialize_errors(error_result)
         self._persist_errors(

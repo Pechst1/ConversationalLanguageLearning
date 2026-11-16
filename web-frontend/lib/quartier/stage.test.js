@@ -12,7 +12,7 @@ const { test } = require('node:test');
 const WEB_ROOT = path.resolve(__dirname, '..', '..');
 require(path.join(WEB_ROOT, 'node_modules/sucrase/register/ts'));
 
-const { GUESTS, OUTSIDE, STAGED, SILENT_BEATS, personOf } = require('./stage.ts');
+const { GUESTS, OUTSIDE, STAGED, SILENT_BEATS, personOf, withoutCaptions } = require('./stage.ts');
 const { T1A_COPY: T1A } = require('./story.ts');
 
 test('the copy of the day in the frontend is the season file, word for word', () => {
@@ -43,6 +43,14 @@ test('every silent beat of a reply is acted out', () => {
       assert.ok(acted, `${beat.id} is silent and nothing acts it`);
     }
   }
+});
+
+test('the slide of the cup is acted, so its caption is left to the reply thread', () => {
+  const caption = { who: 'caption', kind: 'caption', text_fr: "Margaux pousse la tasse jusqu'au tabouret d'Odile." };
+  const said = { who: 'margaux_barman', kind: 'speech', text_fr: 'Bien.' };
+  const beat = { kind: 'panel', id: 'a.cafe.declined.r1', silence: true, lines: [caption, said] };
+  assert.deepEqual(withoutCaptions(beat).lines, [said]);
+  assert.deepEqual(beat.lines, [caption, said]);
 });
 
 test('the café crème and the key are acted from the reply the engine read', () => {
@@ -135,9 +143,14 @@ test('a day without blocking plays in the places the world has built for it, and
   assert.deepEqual(placesOf(page([at('p1', null), { kind: 'hook', id: 'h', panel: at('h.p', null) }])), ['quai_de_valmy', 'quai_de_valmy']);
   assert.equal(unbuiltOf(page([at('p1', null)])), null);
   // somewhere nothing is built for yet: no place plays it, and the page says where
-  assert.deepEqual(placesOf(page([at('p1', 'mistral_back_room'), at('p2', null), at('p3', 'le_mistral')])), [null, null, 'quai_de_valmy']);
-  assert.equal(unbuiltOf(page([at('p1', 'le_mistral'), at('p2', 'mistral_back_room')])), 'mistral_back_room');
-  assert.equal(unbuiltOf(page([at('p1', null)], 'marin_lila_flat')), 'marin_lila_flat');
+  assert.deepEqual(placesOf(page([at('p1', 'gare_de_lest'), at('p2', null), at('p3', 'le_mistral')])), [null, null, 'quai_de_valmy']);
+  assert.equal(unbuiltOf(page([at('p1', 'le_mistral'), at('p2', 'gare_de_lest')])), 'gare_de_lest');
+  assert.equal(unbuiltOf(page([at('p1', null)], 'brocante')), 'brocante');
+  // Gus's loft plays in the «château» the forge built on the quai
+  assert.deepEqual(placesOf(page([at('p1', null)], 'gus_loft')), ['chateau_gus']);
+  assert.equal(unbuiltOf(page([at('p1', null)], 'gus_loft')), null);
+  // Marin's NGO office plays in the office the forge built on the quai's first floor
+  assert.deepEqual(placesOf(page([at('p1', null)], 'ngo_office')), ['bureau_ong']);
   assert.equal(unbuiltOf(page([at('p1', 'somewhere_new')])), 'somewhere_new');
   // the season's own pages: T2 climbs the stairwell into Odile's flat; the roof (g3) plays on the roof the forge built
   // (the season file's own movements: a solve the server poses as a question has no place of its own)
@@ -156,6 +169,10 @@ test('a day without blocking plays in the places the world has built for it, and
   const g3page = { location_id: g3.location_id, movements: staged(g3.moments.flatMap((m) => m.movements)) };
   assert.equal(unbuiltOf(g3page), null);
   assert.ok(placesOf(g3page).includes('toit_mistral'), 'the pages of the roof play on the roof');
+  // T5 B: the portrait is shown in the back room the forge built, and its R2 goes up to Marin and Lila's flat
+  const t5b = season('t5.json', 'b');
+  assert.ok(placesOf(t5b).includes('arriere_salle'), 'the portrait plays in the back room');
+  assert.ok(placesOf(t5b).includes('chez_marin_lila'), 'the door Marin opens is his flat’s');
   // the card
   assert.equal(placeCard('le_mistral'), null);
   assert.equal(placeCard('mistral_back_room'), null);

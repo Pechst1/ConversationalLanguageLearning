@@ -15,6 +15,7 @@
 import type { ControlLanguage } from '@/types/daily-journey';
 
 import { normalizeControlLanguage } from '@/lib/atelier-v2-copy';
+import { CHECK_COPY } from '@/lib/verdict';
 
 export type EpreuveCopy = {
   // screen
@@ -94,6 +95,9 @@ export type EpreuveCopy = {
   task: string;
   task_default_why: string;
   unscored: string;
+  check_basic: string;
+  /** #724: no reader to ask again: said plainly, with no retry. */
+  check_unavailable: string;
   skip_unscored: string;
   // WP-103: the goal's scene label, «Je relis…», and the follow-up after «À corriger»
   from_scene: string;
@@ -279,7 +283,9 @@ const FR: EpreuveCopy = {
   corrections_n: '{n} corrections',
   task: 'La consigne',
   task_default_why: 'La réponse ne suit pas encore la consigne. Relis-la et réessaie.',
-  unscored: 'Réponse enregistrée, pas encore vérifiée.',
+  unscored: CHECK_COPY.fr.not_checked,
+  check_basic: CHECK_COPY.fr.basic,
+  check_unavailable: CHECK_COPY.fr.unavailable,
   skip_unscored: 'Passer sans évaluation',
   from_scene: 'Dans la scène',
   reading: 'Je relis…',
@@ -300,8 +306,8 @@ const FR: EpreuveCopy = {
   relecture_done: 'Relecture terminée',
   second_check_better: 'Relecture : finalement, la ligne est juste.',
   second_check_worse: 'Relecture : il reste une faute — vois la correction.',
-  relaunch: 'Relancer',
-  relaunching: 'Relance…',
+  relaunch: 'Vérifier à nouveau',
+  relaunching: 'Vérification…',
   repair_label: 'Recopie la correction',
   repair_placeholder: 'Tape la ligne corrigée…',
   repair_submit: 'Comparer',
@@ -455,7 +461,9 @@ const EN: EpreuveCopy = {
   corrections_n: '{n} corrections',
   task: 'The task',
   task_default_why: 'The answer does not follow the task yet. Read it again and retry.',
-  unscored: 'Answer saved, not checked yet.',
+  unscored: CHECK_COPY.en.not_checked,
+  check_basic: CHECK_COPY.en.basic,
+  check_unavailable: CHECK_COPY.en.unavailable,
   skip_unscored: 'Skip without a check',
   from_scene: 'From the scene',
   reading: 'Let me read it again…',
@@ -476,8 +484,8 @@ const EN: EpreuveCopy = {
   relecture_done: 'Second check done',
   second_check_better: 'Second check: the line is right after all.',
   second_check_worse: 'Second check: there is still a mistake — see the correction.',
-  relaunch: 'Run again',
-  relaunching: 'Running…',
+  relaunch: 'Check again',
+  relaunching: 'Checking…',
   repair_label: 'Copy the correction',
   repair_placeholder: 'Type the corrected line…',
   repair_submit: 'Compare',
@@ -631,7 +639,9 @@ const DE: EpreuveCopy = {
   corrections_n: '{n} Korrekturen',
   task: 'Die Aufgabe',
   task_default_why: 'Die Antwort erfüllt die Aufgabe noch nicht. Lies sie noch einmal und versuch es erneut.',
-  unscored: 'Antwort gespeichert, noch nicht geprüft.',
+  unscored: CHECK_COPY.de.not_checked,
+  check_basic: CHECK_COPY.de.basic,
+  check_unavailable: CHECK_COPY.de.unavailable,
   skip_unscored: 'Ohne Prüfung weiter',
   from_scene: 'Aus der Szene',
   reading: 'Ich lese es noch einmal …',
@@ -652,8 +662,8 @@ const DE: EpreuveCopy = {
   relecture_done: 'Zweite Prüfung fertig',
   second_check_better: 'Zweite Prüfung: Der Satz stimmt doch.',
   second_check_worse: 'Zweite Prüfung: Es bleibt ein Fehler – siehe die Korrektur.',
-  relaunch: 'Neu starten',
-  relaunching: 'Läuft…',
+  relaunch: 'Erneut prüfen',
+  relaunching: 'Wird geprüft…',
   repair_label: 'Schreib die Korrektur ab',
   repair_placeholder: 'Tippe die korrigierte Zeile…',
   repair_submit: 'Vergleichen',

@@ -25,6 +25,7 @@ from difflib import SequenceMatcher
 from functools import lru_cache
 from typing import Any
 
+from app.services.chrome_language import fold_language, mother_tongue
 from app.services.journey_contracts import normalize_answer_text
 from app.services.learner_copy import learner_text as _copy
 
@@ -90,11 +91,13 @@ def _ending(learner: str, target: str) -> tuple[str, str] | None:
     return None
 
 
-def token_diff(learner: Any, target: Any) -> list[dict[str, str]]:
+def token_diff(learner: Any, target: Any, *, positions: bool = False) -> list[dict[str, Any]]:
     """What separates the learner's line from the key, one operation per difference.
 
     Kinds: ``ending`` (same stem), ``accent``, ``word`` (a different word),
     ``missing``, ``extra`` and ``order`` (same words, other order — reported alone).
+    With ``positions``, a ``word`` or ``ending`` op also carries ``at``: the index of
+    its target word in the key, so its neighbours are read at that place (#596).
     """
 
     left, right = tokens(learner), tokens(target)
@@ -104,7 +107,7 @@ def token_diff(learner: Any, target: Any) -> list[dict[str, str]]:
         strip_accents(token) for token in left
     ] != [strip_accents(token) for token in right]:
         return [{"kind": "order", "learner": " ".join(left), "target": " ".join(right)}]
-    ops: list[dict[str, str]] = []
+    ops: list[dict[str, Any]] = []
     matcher = SequenceMatcher(a=[strip_accents(token) for token in left], b=[strip_accents(token) for token in right], autojunk=False)
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():
         if tag == "equal":
@@ -120,9 +123,12 @@ def token_diff(learner: Any, target: Any) -> list[dict[str, str]]:
             continue
         # replace: pair the words up in order; any surplus is missing / extra.
         pairs = list(zip(left[i1:i2], right[j1:j2], strict=False))
-        for learner_word, target_word in pairs:
+        for offset, (learner_word, target_word) in enumerate(pairs):
             kind = "ending" if _ending(learner_word, target_word) else "word"
-            ops.append({"kind": kind, "learner": learner_word, "target": target_word})
+            op: dict[str, Any] = {"kind": kind, "learner": learner_word, "target": target_word}
+            if positions:
+                op["at"] = j1 + offset
+            ops.append(op)
         ops.extend({"kind": "extra", "learner": token, "target": ""} for token in left[i1 + len(pairs):i2])
         ops.extend({"kind": "missing", "learner": "", "target": token} for token in right[j1 + len(pairs):j2])
     return ops
@@ -178,7 +184,113 @@ _ELISIONS: dict[str, str] = {
 }
 
 
-def slip_category(ops: list[dict[str, str]]) -> dict[str, str] | None:
+#: Determiners that differ only in gender, and only in number (#596). The noun after
+#: them decides which is right, so the slip is about that noun, not the day's rule.
+_GENDER_SWAPS = frozenset(
+    {("le", "la"), ("la", "le"), ("un", "une"), ("une", "un"), ("mon", "ma"), ("ma", "mon"),
+     ("ton", "ta"), ("ta", "ton"), ("son", "sa"), ("sa", "son"), ("ce", "cette"), ("cette", "ce"),
+     ("cet", "cette"), ("cette", "cet"), ("au", "a la"), ("du", "de la")}
+)
+_NUMBER_SWAPS = frozenset(
+    {("le", "les"), ("la", "les"), ("les", "le"), ("les", "la"), ("un", "des"), ("une", "des"),
+     ("des", "un"), ("des", "une"), ("mon", "mes"), ("ma", "mes"), ("mes", "mon"), ("mes", "ma"),
+     ("ce", "ces"), ("cette", "ces"), ("ces", "ce"), ("ces", "cette")}
+)
+_FEMININE_DETERMINERS = frozenset({"la", "une", "ma", "ta", "sa", "cette"})
+_PLURAL_DETERMINERS = frozenset({"les", "des", "mes", "tes", "ses", "ces"})
+_SUBJECTS = frozenset({"je", "j'", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles"})
+
+
+def _noun_gender(word: str) -> str | None:
+    from app.services import correction_contract
+
+    return correction_contract._noun_gender(word)  # noqa: SLF001 - the one lexicon reading
+
+
+def _elided_possessive(learner: str, target: str, noun: str) -> bool:
+    """«ma amie» → «mon amie»: «mon» stands before a vowel whatever the noun's gender,
+    so the swap says nothing about gender and no gender is claimed."""
+
+    words = {strip_accents(learner), strip_accents(target)}
+    first = strip_accents(noun)[:1]
+    return bool(words & {"mon", "ton", "son"}) and (first in "aeiouy" or first == "h")
+
+
+def _verb_lemma(word: str) -> str | None:
+    from app.services import correction_contract
+
+    return correction_contract._verb_lemma(word)  # noqa: SLF001 - the one lexicon reading
+
+
+def _place(sentence: Any, word: str, at: Any = None) -> int | None:
+    """Where ``word`` stands in ``sentence``: at ``at`` when the op says so, else its
+    one occurrence. A word that occurs twice with no position is nowhere: guessing
+    which one would read the wrong neighbour («La femme et le clé»)."""
+
+    words = tokens(sentence)
+    folded = strip_accents(word)
+    if isinstance(at, int) and 0 <= at < len(words) and strip_accents(words[at]) == folded:
+        return at
+    found = [index for index, token in enumerate(words) if strip_accents(token) == folded]
+    return found[0] if len(found) == 1 else None
+
+
+def _after(sentence: Any, word: str, at: Any = None) -> str | None:
+    """The word that follows ``word`` in ``sentence``, or ``None``."""
+
+    words = tokens(sentence)
+    index = _place(sentence, word, at)
+    return words[index + 1] if index is not None and index + 1 < len(words) else None
+
+
+def _before(sentence: Any, word: str, at: Any = None) -> str | None:
+    words = tokens(sentence)
+    index = _place(sentence, word, at)
+    return words[index - 1] if index else None
+
+
+def slip_kind(learner: str, target: str) -> str | None:
+    """What kind of slip one word for another is: ``gender``, ``number``, ``elision``,
+    ``person`` (another form of the same verb), or ``None``. The one classifier the
+    miss note and the rule card's example are chosen by (#146)."""
+
+    a, b = strip_accents(learner or ""), strip_accents(target or "")
+    if not a or not b or a == b:
+        return None
+    if (a, b) in _GENDER_SWAPS:
+        return "gender"
+    if (a, b) in _NUMBER_SWAPS:
+        return "number"
+    if b.endswith("'") and _ELISIONS.get(a) == b:
+        return "elision"
+    if a in _COI_PRONOUNS | _COD_PRONOUNS and b in _COI_PRONOUNS | _COD_PRONOUNS:
+        return "object_pronoun"
+    lemma = _verb_lemma(target)
+    if lemma and lemma == _verb_lemma(learner) and _same_tense(lemma, a, b):
+        return "person"
+    return None
+
+
+def _same_tense(lemma: str, learner: str, target: str) -> bool:
+    """Both words are one-word forms of ``lemma`` in one tense: a person slip («est» for
+    «es»), not a tense one («avions» for «aurons»)."""
+
+    from app.services.conjugation import fallback_conjugation_table
+
+    try:
+        table = fallback_conjugation_table(lemma)
+    except Exception:  # pragma: no cover - an unknown verb is no person slip
+        return False
+    for tense, forms in table.items():
+        if tense in {"passe_compose", "imperatif"}:
+            continue
+        row = {strip_accents(form) for form in forms.values()}
+        if learner in row and target in row:
+            return True
+    return False
+
+
+def slip_category(ops: list[dict[str, str]], sentence: Any = None) -> dict[str, str] | None:
     """The one slip a diff makes, by category, or ``None`` when it is not one we name.
 
     #449 (and #146): La Forge explained a miss with the day's rule card, so «lui» for
@@ -188,7 +300,7 @@ def slip_category(ops: list[dict[str, str]]) -> dict[str, str] | None:
     """
 
     slips = [op for op in ops if op.get("kind") != "accent"]
-    if len(slips) != 1 or slips[0].get("kind") != "word" or slips[0].get("given"):
+    if len(slips) != 1 or slips[0].get("kind") not in {"word", "ending"} or slips[0].get("given"):
         return None
     learner = strip_accents(slips[0].get("learner") or "")
     target = strip_accents(slips[0].get("target") or "")
@@ -198,16 +310,62 @@ def slip_category(ops: list[dict[str, str]]) -> dict[str, str] | None:
         return {"category": "coi_for_cod", "learner": learner, "target": target}
     if target.endswith("'") and _ELISIONS.get(learner) == target:
         return {"category": "elision", "learner": learner, "target": target}
+    if sentence is None:
+        return None
+    # #596: given the right sentence, an article that differs only in gender or number is
+    # about the noun after it («le clé»: «clé» is feminine), and a verb form of the wrong
+    # person about its subject, not the day's rule card.
+    shown_learner, shown_target = slips[0].get("learner") or "", slips[0].get("target") or ""
+    kind = slip_kind(shown_learner, shown_target)
+    at = slips[0].get("at")
+    if kind in {"gender", "number"}:
+        noun = _after(sentence, shown_target, at) if sentence else None
+        gender = _noun_gender(noun) if noun else None
+        if gender is None and noun and kind == "number":
+            # a plural target names the count, not the gender: read it off a singular
+            # determiner when the noun is not in the lexicon.
+            singular = shown_learner if strip_accents(shown_target) in _PLURAL_DETERMINERS else shown_target
+            gender = "f" if strip_accents(singular) in _FEMININE_DETERMINERS else "m"
+        if noun and gender and not _elided_possessive(shown_learner, shown_target, noun):
+            return {"category": kind, "learner": shown_learner, "target": shown_target, "noun": noun, "gender": gender}
+        return None
+    if kind == "person":
+        lemma = _verb_lemma(shown_target) or ""
+        subject = _before(sentence, shown_target, at) if sentence else None
+        subject = subject if subject and strip_accents(subject) in _SUBJECTS else None
+        return {
+            "category": "person_subject" if subject else "person",
+            "learner": shown_learner,
+            "target": shown_target,
+            "lemma": lemma,
+            "subject": subject or "",
+        }
     return None
 
 
-def slip_note(ops: list[dict[str, str]], language: Any) -> tuple[str, str] | None:
-    """``(why, repair)`` for the slip's category, in the learner's language."""
+def slip_note(ops: list[dict[str, str]], language: Any, target: Any = None) -> tuple[str, str] | None:
+    """``(why, repair)`` for the slip's category, in the learner's language.
 
-    slip = slip_category(ops)
+    ``target`` is the right sentence, when the item has one: the noun after a wrong
+    article and the subject before a wrong verb form are read from it."""
+
+    slip = slip_category(ops, target)
     if slip is None:
         return None
-    fields = {"learner": slip["learner"], "target": slip["target"]}
+    fields = {key: value for key, value in slip.items() if key != "category"}
+    if slip["category"] in {"gender", "number"}:
+        gender = _copy(f"forge.slip.gender.{slip['gender']}", language)
+        plural = strip_accents(slip["target"]) in _PLURAL_DETERMINERS
+        count = _copy(f"forge.slip.count.{'p' if plural else 's'}", language)
+        return (
+            _copy(f"forge.slip.{slip['category']}.why", language, gender_word=gender, count=count, **fields),
+            _copy(f"forge.slip.{slip['category']}.repair", language, **fields),
+        )
+    if slip["category"] in {"person", "person_subject"}:
+        return (
+            _copy(f"forge.slip.{slip['category']}.why", language, **fields),
+            _copy("forge.slip.person.repair", language, **fields),
+        )
     if slip["category"] == "elision":
         return (
             _copy("forge.slip.elision.why", language, **fields),
@@ -692,9 +850,8 @@ _ORDER_NOTES: dict[str, dict[str, str]] = {
 }
 
 
-def _language(value: Any) -> str:
-    language = str(value or "en").strip().lower()[:2]
-    return language if language in {"en", "de", "fr"} else "en"
+# S3: the one fold onto en / de / fr (chrome_language.fold_language).
+_language = fold_language
 
 
 def reordering_correction(
@@ -823,11 +980,156 @@ def held_to_sentence(
             shown.append(erratum)
             continue
         verified = correction_contract.verify_erratum(text, erratum, strict_span=False)
-        if verified is None:
+        if verified is None or correction_contract.changes_what_was_said(
+            verified.get("learner_text"),
+            verified.get("corrected_target"),
+            listed=True,
+            question=correction_contract.in_a_question(text, verified.get("learner_text")),
+        ):
             dropped.append(erratum)
             continue
-        shown.append(correction_contract.reconcile_notes(verified, language=str(language or "en")[:2]))
+        shown.append(correction_contract.reconcile_notes(verified, language=mother_tongue(language), context=text))
     return shown, dropped
+
+
+def sentence_differences(line: Any, sentence: Any) -> list[tuple[str, int, int, int, int]]:
+    """The word-level differences between two lines (case, spacing and edge marks aside)."""
+
+    from app.services import correction_contract
+
+    return correction_contract.line_differences(line, sentence)
+
+
+def reconcile_with_sentence(refined: dict[str, Any], learner_text: Any, language: Any = "en") -> dict[str, Any]:
+    """The corrections cover every difference the shown correct sentence has (#574).
+
+    A model returns the right sentence and a list of corrections as two separate
+    pieces of text, and nothing held them to each other: «agreable» was changed to
+    «agréable» in the sentence but was in no correction, so no gap asked for it
+    and the line counted as fixed with the error still in it. Every word where the
+    learner's line, after the listed corrections, still differs from the sentence
+    becomes a correction of its own; fixing every gap gives the sentence.
+
+    Case, spacing and the final mark are typography (:func:`fold_typography`), not
+    differences. If a gap cannot be placed in the line the corrections stay as the
+    model gave them and the line is retyped whole.
+    """
+
+    from app.services import correction_contract
+    from app.services.atelier import repair_line_from_parts, repair_parts
+
+    if str(refined.get("verdict") or "") in {"correct", "accepted"}:
+        return refined
+    corrected = refined.get("corrected_answer")
+    line = str(learner_text or "").strip()
+    if not isinstance(corrected, str) or not corrected.strip() or not line:
+        return refined
+    errata = [item for item in refined.get("errata") or [] if isinstance(item, dict)]
+    asks = [
+        item for item in errata
+        if item.get("task_error_type") != "task_compliance"
+        and str(item.get("learner_text") or "").strip() != str(item.get("corrected_target") or "").strip()
+    ]
+    base = repair_line_from_parts(line, errata) if asks else line
+    # #133: a difference only the model's sentence holds is a fix if it passes the one check,
+    # and otherwise it is dropped, from the list and from the line the learner retypes.
+    held = correction_contract.held_gaps(line if base is None else base, corrected)
+    if held is None:
+        return refined
+    allowed, refused = held
+    if refused:
+        refined = {
+            **refined,
+            "corrected_answer": correction_contract.apply_gaps(line if base is None else base, allowed),
+            "dropped_errata": [*refined.get("dropped_errata", []), *refused],
+        }
+    if base is None:
+        return refined  # a correction the line cannot hold: it is retyped whole
+    derived = [_derived_gap(gap.wrong, gap.fix, _language(language)) for gap in allowed]
+    if not derived:
+        return refined
+    merged = [*errata, *derived]
+    if repair_parts(line, merged) is None:
+        # A difference the line cannot hold as a gap: in «Elle a achete livre.» the word
+        # beside the missing «un» is itself a listed fix. The model's own gaps may still
+        # fit, and filling them gives a line record_micro_repair refuses, so the learner
+        # could never finish. The line is retyped whole instead. The retype comes first
+        # because a line repair has one target, index 0, and no other correction may ask
+        # for a retype of its own.
+        target = str(refined.get("corrected_answer") or "").strip()
+        whole = _derived_gap(line, target, _language(language))
+        kept = [item for item in errata if not _asks_for_a_retype(item.get("corrected_target"))]
+        return {**refined, "errata": [whole, *kept]}
+    return {**refined, "errata": merged}
+
+
+def _derived_gap(wrong: str, fix: str, language_key: str) -> dict[str, Any]:
+    """A correction read off the two sentences, for a difference the model did not list."""
+
+    ops = token_diff(wrong, fix)
+    accent_only = bool(ops) and all(op["kind"] == "accent" for op in ops)
+    note = describe_diff(ops, language_key)
+    if accent_only:
+        note = _copy("forge.diff.accent", language_key, target=fix)
+    return {
+        "item_id": "",
+        "display_label": _ACCENT_LABEL[language_key] if accent_only else _copy("forge.diff.label", language_key),
+        "learner_text": wrong,
+        "corrected_target": fix,
+        "why_wrong": note,
+        "repair_hint": "",
+        "severity": 1,
+        "recurring": False,
+        "task_error_type": "orthography" if accent_only else "grammar",
+        "derived_from_sentence": True,
+    }
+
+
+def _asks_for_a_retype(target: Any) -> bool:
+    """Whether the screen gives this correction a retype field of its own.
+
+    Mirrors ``isRepairableLine`` in ``web-frontend/lib/repair-parts.ts``."""
+
+    trimmed = str(target or "").strip()
+    words = len(trimmed.split())
+    return words >= 3 or (words >= 2 and trimmed[-1:] in {".", "!", "?", "…"})
+
+
+_RETYPE_APOSTROPHES = re.compile(r"[‘’‚‛′´`ʹʻʼ]")
+_RETYPE_PUNCTUATION = re.compile(r"[.,!?;:«»\"“”]")
+
+
+def retype_line_key(target: Any) -> str:
+    """Which corrected line a retype copies: typography folded, accents kept.
+
+    Mirrors ``fold`` in ``web-frontend/lib/repair-parts.ts``, which the miss screen
+    uses to give a line one copy field however many corrections name it (#779)."""
+
+    text = unicodedata.normalize("NFC", str(target or ""))
+    text = _RETYPE_PUNCTUATION.sub(" ", _RETYPE_APOSTROPHES.sub("'", text).lower())
+    return " ".join(text.split())
+
+
+def every_line_copied(targets: list[str], repairs: dict[str, Any] | None) -> bool:
+    """#779: whether every line the miss asks the learner to copy has an accepted copy.
+
+    The one count of «repaired» on the server, the same as ``repairState`` on the screen:
+    a line is copied once, whichever correction naming it carried the field, and a
+    one-word fix (no field of its own, ``_asks_for_a_retype``) is not waited for. With
+    no line on screen at all, every target counts, as before. Counting errata instead
+    left a word-bank miss whose erratum came back twice without its retest: the screen
+    asked for one copy and said «mended», the server waited for a second."""
+
+    named = [target for target in targets if str(target or "").strip()]
+    asked = {retype_line_key(target) for target in named if _asks_for_a_retype(target)} or {
+        retype_line_key(target) for target in named
+    }
+    copied = {
+        retype_line_key(record.get("target"))
+        for record in (repairs or {}).values()
+        if isinstance(record, dict) and record.get("status") == "ok"
+    }
+    return bool(asked) and asked <= copied
 
 
 def refine_production_correction(
@@ -889,6 +1191,10 @@ def refine_production_correction(
     elif dropped and not refined.get("errata") and not refined.get("lexical_gaps"):
         # Nothing was left but the false «English» note: the answer stands as written.
         refined["corrected_answer"] = str(learner_text or refined.get("corrected_answer") or "")
+    if reordered is None and not matches_accepted(learner_text, accepted):
+        # #574: the gaps, the right sentence and the list say the same thing. (An
+        # answer the key accepts has nothing to fix: the model's rewrite is style.)
+        refined = reconcile_with_sentence(refined, learner_text, language)
     refined["notes_native"] = notes_native(refined.get("errata"))
     return refined
 
@@ -968,6 +1274,8 @@ def classify_follow_up(
 
 __all__ = [
     "TO_CORRECT_LABEL",
+    "reconcile_with_sentence",
+    "sentence_differences",
     "classify_follow_up",
     "FREE_PRODUCTION_ROUNDS",
     "FRENCH_LOANWORDS",
@@ -993,6 +1301,7 @@ __all__ = [
     "same_answer",
     "similarity",
     "slip_category",
+    "slip_kind",
     "slip_note",
     "strip_accents",
     "token_diff",

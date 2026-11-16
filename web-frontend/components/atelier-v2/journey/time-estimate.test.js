@@ -73,3 +73,42 @@ test('the ending sets the measured minutes beside the planned core, never a verd
   assert.equal(measuredBesidePlanned('10 min', 570, 'en'), '10 min', 'the same number once');
   assert.equal(measuredBesidePlanned('9 min', null, 'en'), '9 min');
 });
+
+// #470 — Home printed the day's words twice with two roundings of one number of
+// seconds: the card through `formatDuration` (round), the plan row through the
+// server's `minutes()` (round up). 17 new and 5 due = 370 s: «6 Min.» and «7 Min.».
+test('#470 · the day card and the plan row print the words step with the same minutes', () => {
+  const { sessionRows } = require(path.join(WEB_ROOT, 'lib/day-session.ts'));
+  const WORDS_SECONDS = 17 * 20 + 5 * 6;
+  // The server's `daily_session.minutes()`: whole minutes, rounded up.
+  const planMinutes = Math.ceil(WORDS_SECONDS / 60);
+  const estimate = { ...ESTIMATE, extensions: [{ kind: 'words', seconds: WORDS_SECONDS, in_day: false }] };
+  const session = {
+    pace: 'normal',
+    steps: [
+      { kind: 'words', state: 'next', minutes: planMinutes, href: '/vocabulary/review?day=1', count: 22, new_left: 17, reviews: 5 },
+      { kind: 'finish', state: 'todo', minutes: 0, href: '/fertig' },
+    ],
+    next_kind: 'words',
+    minutes_left: planMinutes,
+    done: false,
+    tally: { scenes: 0, words: 0, exercises: 0 },
+    more_words: 5,
+    more_minutes: 2,
+    more_href: '/vocabulary/review?more=5',
+  };
+  for (const language of ['de', 'en', 'fr']) {
+    const card = extensionLabel(estimate, 'words', language).match(/(\d+)\s*(?:Min\.|min)/);
+    const row = sessionRows(session, language)[0].meta.match(/(\d+)\s*(?:Min\.|min)/);
+    assert.ok(card && row, `both print minutes (${language})`);
+    assert.equal(card[1], row[1], `the card says ${card[1]}, the plan row ${row[1]} (${language})`);
+  }
+  // The chips beside the card read the same extension.
+  assert.equal(extensionMinutes(estimate, 'words', 'de'), `≈ ${planMinutes} Min.`);
+});
+
+test('#470 · a planned estimate is whole minutes, rounded up, below a minute and a half too', () => {
+  const short = { ...ESTIMATE, extensions: [{ kind: 'words', seconds: 40, in_day: false }] };
+  assert.equal(extensionLabel(short, 'words', 'de'), '+ Wörter ≈ 1 Min.');
+  assert.equal(coreEstimateLabel({ ...ESTIMATE, core_seconds: 361 }, null, 'en'), '7 min');
+});

@@ -553,3 +553,14 @@ test('#403: day 2 «La lettre» — the finished card names day 2, and the chapt
   assert.match(same, /data-episode-title/);
   assert.doesNotMatch(same, /data-chapter-title/);
 });
+
+test('the finished card calls a cast member what the rest of the day called them', () => {
+  // Walk of 9 Nov: «Szene beendet» printed the world bible's name.
+  const { journey, recap } = day({
+    mood: { character_id: 'augustin_de_roncourt', character_name: 'Augustin « Gus » de Roncourt', mood: 1, shift: 'warmer' },
+  });
+  const { face } = model.rewardView(journey, recap, 'en');
+  assert.equal(face.name, 'Gus');
+  assert.match(face.moodLine, /Gus/);
+  assert.doesNotMatch(face.moodLine, /Roncourt/);
+});

@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.services.chrome_language import mother_tongue
+
 # Columns that exist on VocabularyWord, keyed by the language they hold.
 _GLOSS_COLUMNS: dict[str, str] = {
     "de": "german_translation",
@@ -36,12 +38,8 @@ EXPLANATION_LANGUAGE_NAMES: dict[str, str] = {
 }
 
 
-def normalize_language(value: Any) -> str:
-    """Reduce 'en-GB', 'EN', None to a bare lowercase code with a safe default."""
-    text = str(value or "").strip().lower()
-    if not text:
-        return DEFAULT_GLOSS_LANGUAGE
-    return text.split("-", 1)[0].split("_", 1)[0]
+# S3: «en-GB», «EN», None → a bare code. One primitive, owned by chrome_language.
+normalize_language = mother_tongue
 
 
 def gloss_map(word: Any) -> dict[str, str | None]:

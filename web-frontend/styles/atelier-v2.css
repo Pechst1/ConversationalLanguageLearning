@@ -3415,6 +3415,13 @@
   min-width: 0;
 }
 .av2 .av2-thread__line { min-width: 0; }
+/* The page moves on: a new time or place, a message. Nobody says it. */
+.av2 .av2-thread__cut {
+  color: var(--av2-muted);
+  font-family: var(--av2-serif);
+  font-style: italic;
+  text-align: center;
+}
 /* In a conversation the latest line is still the one headline, a size down so
    the column reads as talk rather than as a title card. */
 .av2 .av2-step--thread .av2-speech__bubble:not([data-long]) > .av2-headline {
@@ -3450,6 +3457,7 @@
   color: var(--av2-ink);
 }
 .av2 .av2-thread__mine[data-pending] { color: var(--av2-ink-2); }
+.av2 .av2-thread__check { margin: 4px 0 0 auto; max-width: 80%; text-align: right; font-size: var(--av2-t-meta); color: var(--av2-muted); }
 
 /* WP-103 T6. The slip in the learner's line is only marked (a red dotted
    underline, nothing to tap); under the line the corrected form is always

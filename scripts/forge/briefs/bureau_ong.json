@@ -1,0 +1,1021 @@
+{
+  "id": "bureau_ong",
+  "kind": "room",
+  "round": 3,
+  "in": "quai_de_valmy",
+  "canon": {
+    "doc": "docs/story/season-1/10-lieux-et-images.md",
+    "place": "Marin's NGO office (canon)",
+    "scenes": [
+      "T3 B · P1 to P6: Friday afternoon, the fern, the spreadsheet on the wall, the leek, the plan"
+    ]
+  },
+  "ambiance": "matin",
+  "title": {
+    "fr": "Le bureau de l'ONG de Marin",
+    "en": "Marin's NGO office",
+    "de": "Marins NGO-Büro"
+  },
+  "can_do": {
+    "fr": "Lire le tableau projeté et le plan du Mistral, voir la fougère, le poireau et la carte des canaux.",
+    "en": "Read the projected spreadsheet and Le Mistral's plan, see the fern, the leek and the map of the canals.",
+    "de": "Die projizierte Tabelle und den Plan des Mistral lesen, den Farn, den Lauch und die Kanalkarte sehen."
+  },
+  "arrive": {
+    "fr": "L'ONG de Marin, au premier. Des affiches, des plantes qui ont soif. Au mur, un tableau : « LE MISTRAL À NOUS ».",
+    "en": "Marin's NGO, on the first floor. Posters, thirsty plants. On the wall, a spreadsheet: «LE MISTRAL À NOUS».",
+    "de": "Marins NGO, im ersten Stock. Plakate, durstige Pflanzen. An der Wand eine Tabelle: «LE MISTRAL À NOUS»."
+  },
+  "start": {
+    "pos": [
+      -29.55,
+      64.7
+    ],
+    "look": [
+      -32.2,
+      6.0,
+      56.5
+    ]
+  },
+  "spaces": [
+    {
+      "key": "vestibule",
+      "rect": [
+        -28.6,
+        65.84,
+        -27.26,
+        68.59
+      ],
+      "floor": 0.16,
+      "ceiling": 4.25,
+      "finish": "cabochons",
+      "walls": {
+        "finish": "wainscot",
+        "tone": "celadon",
+        "dado": "faux"
+      },
+      "open": {
+        "w": [
+          {
+            "u": [
+              0.0,
+              1.25
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "couloir",
+      "rect": [
+        -37.2,
+        67.34,
+        -28.6,
+        68.59
+      ],
+      "floor": 0.16,
+      "finish": "cabochons",
+      "walls": null
+    },
+    {
+      "key": "pied",
+      "rect": [
+        -38.7,
+        65.84,
+        -37.2,
+        68.59
+      ],
+      "floor": 0.16,
+      "finish": "cabochons",
+      "walls": null
+    },
+    {
+      "key": "palier",
+      "rect": [
+        -30.45,
+        65.84,
+        -28.6,
+        67.19
+      ],
+      "floor": 4.6,
+      "finish": "boards",
+      "walls": null
+    },
+    {
+      "key": "bureau",
+      "rect": [
+        -37.0,
+        56.5,
+        -27.26,
+        65.55
+      ],
+      "floor": 4.6,
+      "ceiling": 7.55,
+      "finish": "parquet",
+      "walls": {
+        "finish": "plaster",
+        "tone": "white"
+      }
+    }
+  ],
+  "floors": [
+    {
+      "key": "seuil",
+      "shape": [
+        [
+          -30.05,
+          65.55
+        ],
+        [
+          -29.05,
+          65.55
+        ],
+        [
+          -29.05,
+          65.84
+        ],
+        [
+          -30.05,
+          65.84
+        ]
+      ],
+      "y": 4.6,
+      "finish": "boards"
+    }
+  ],
+  "walls": [
+    {
+      "key": "cage.n",
+      "a": [
+        -28.6,
+        68.59
+      ],
+      "b": [
+        -38.7,
+        68.59
+      ],
+      "base": 0.16,
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux"
+    },
+    {
+      "key": "cage.e1",
+      "a": [
+        -28.6,
+        67.34
+      ],
+      "b": [
+        -28.6,
+        68.59
+      ],
+      "base": 0.16,
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux"
+    },
+    {
+      "key": "cage.e2",
+      "a": [
+        -28.6,
+        65.84
+      ],
+      "b": [
+        -28.6,
+        67.34
+      ],
+      "base": 4.6,
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux"
+    },
+    {
+      "key": "cage.s1",
+      "a": [
+        -30.45,
+        65.84
+      ],
+      "b": [
+        -28.6,
+        65.84
+      ],
+      "base": 4.6,
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux"
+    },
+    {
+      "key": "cage.s2",
+      "a": [
+        -37.2,
+        65.84
+      ],
+      "b": [
+        -30.45,
+        65.84
+      ],
+      "base": [
+        0.16,
+        4.6
+      ],
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux"
+    },
+    {
+      "key": "cage.s3",
+      "a": [
+        -38.7,
+        65.84
+      ],
+      "b": [
+        -37.2,
+        65.84
+      ],
+      "base": 0.16,
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux"
+    },
+    {
+      "key": "cage.w",
+      "a": [
+        -38.7,
+        68.59
+      ],
+      "b": [
+        -38.7,
+        65.84
+      ],
+      "base": 0.16,
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux"
+    },
+    {
+      "key": "cloison.1",
+      "a": [
+        -30.45,
+        67.32
+      ],
+      "b": [
+        -28.6,
+        67.32
+      ],
+      "base": 0.16,
+      "top": 4.28,
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux",
+      "plain": true
+    },
+    {
+      "key": "cloison.2",
+      "a": [
+        -37.2,
+        67.32
+      ],
+      "b": [
+        -30.45,
+        67.32
+      ],
+      "base": 0.16,
+      "top": [
+        0.18,
+        4.3
+      ],
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux",
+      "plain": true
+    }
+  ],
+  "flights": [
+    {
+      "key": "volee",
+      "from": [
+        -37.2,
+        66.515
+      ],
+      "dir": "x+",
+      "width": 1.35,
+      "y0": 0.16,
+      "y1": 4.6,
+      "risers": 26,
+      "tread": 0.27,
+      "rail": "right"
+    }
+  ],
+  "rails": [
+    {
+      "a": [
+        -28.6,
+        4.6,
+        67.23
+      ],
+      "b": [
+        -30.45,
+        4.6,
+        67.23
+      ]
+    }
+  ],
+  "doors": [
+    {
+      "key": "porte_rue",
+      "wall": "vestibule.e",
+      "u": [
+        0.37,
+        2.37
+      ],
+      "height": 3.2,
+      "hinge": "both",
+      "swing": "in",
+      "tone": "porch",
+      "opens": "never"
+    },
+    {
+      "key": "porte_ong",
+      "wall": "bureau.s",
+      "u": [
+        1.84,
+        2.74
+      ],
+      "height": 2.2,
+      "hinge": "right",
+      "swing": "in",
+      "tone": "brown",
+      "opens": "never",
+      "mat": true
+    }
+  ],
+  "windows": [
+    {
+      "key": "fenetre_1",
+      "wall": "bureau.e",
+      "u": [
+        0.4750000000000001,
+        1.725
+      ],
+      "y": [
+        4.68,
+        7.0
+      ],
+      "shutters": "open",
+      "guard": true
+    },
+    {
+      "key": "fenetre_2",
+      "wall": "bureau.e",
+      "u": [
+        3.675,
+        4.925
+      ],
+      "y": [
+        4.68,
+        7.0
+      ],
+      "shutters": "open",
+      "guard": true
+    },
+    {
+      "key": "fenetre_3",
+      "wall": "bureau.e",
+      "u": [
+        6.875,
+        8.125
+      ],
+      "y": [
+        4.68,
+        7.0
+      ],
+      "shutters": "open",
+      "guard": true
+    }
+  ],
+  "lights": [
+    {
+      "key": "globe_vestibule",
+      "kind": "globe",
+      "at": [
+        -27.93,
+        3.6,
+        67.24
+      ],
+      "ceiling": 4.25,
+      "power": 0.9,
+      "range": 4.6
+    },
+    {
+      "key": "applique_pied",
+      "kind": "sconce",
+      "at": [
+        -38.44,
+        2.4,
+        67.24
+      ],
+      "facing": [
+        1,
+        0
+      ],
+      "power": 0.85,
+      "range": 5.2
+    },
+    {
+      "key": "hublot_premier",
+      "kind": "hublot",
+      "at": [
+        -28.835,
+        6.9,
+        66.54
+      ],
+      "facing": [
+        -1,
+        0
+      ],
+      "power": 0.85,
+      "range": 4.6
+    },
+    {
+      "key": "globe_nord",
+      "kind": "globe",
+      "at": [
+        -32.2,
+        7.4,
+        59.0
+      ],
+      "ceiling": 7.55,
+      "power": 0.7,
+      "range": 5.5
+    },
+    {
+      "key": "globe_sud",
+      "kind": "globe",
+      "at": [
+        -32.2,
+        7.4,
+        63.2
+      ],
+      "ceiling": 7.55,
+      "power": 0.6,
+      "range": 5.0
+    }
+  ],
+  "switches": [],
+  "timers": {},
+  "things": [
+    {
+      "kind": "letterboxes",
+      "at": [
+        -27.93,
+        1.45,
+        68.59
+      ],
+      "rot": 3.141592653589793,
+      "tone": "brown",
+      "text": [
+        "1er",
+        "2e",
+        "3e",
+        "4e",
+        "5e"
+      ]
+    },
+    {
+      "kind": "projection",
+      "at": [
+        -32.2,
+        6.0,
+        56.5
+      ],
+      "rot": 0,
+      "size": [
+        2.3,
+        1.4
+      ],
+      "text": [
+        "LE MISTRAL À NOUS",
+        "Sociétaires | 200",
+        "Part | 1 000 €",
+        "Total | 200 000 €",
+        "Prêt de la banque | ?"
+      ],
+      "look": {
+        "fr": "Au mur, un tableau projeté : « LE MISTRAL À NOUS ». Deux cents sociétaires, mille euros chacun. Et la banque : un point d'interrogation.",
+        "en": "On the wall, a projected spreadsheet: «LE MISTRAL À NOUS». Two hundred members, a thousand euros each. And the bank: a question mark.",
+        "de": "An der Wand eine projizierte Tabelle: «LE MISTRAL À NOUS». Zweihundert Mitglieder, je tausend Euro. Und die Bank: ein Fragezeichen."
+      },
+      "did": {
+        "fr": "Tu as lu le tableau de Marin.",
+        "en": "You read Marin's spreadsheet.",
+        "de": "Du hast Marins Tabelle gelesen."
+      }
+    },
+    {
+      "kind": "map",
+      "at": [
+        -35.5,
+        6.0,
+        56.5
+      ],
+      "rot": 0,
+      "size": [
+        0.95,
+        0.68
+      ],
+      "text": [
+        "Les canaux de Paris",
+        "La Seine",
+        "Canal Saint-Martin",
+        "Bassin de la Villette",
+        "Canal de l'Ourcq",
+        "Canal Saint-Denis"
+      ],
+      "look": {
+        "fr": "Une carte des canaux de Paris, des punaises rouges tout du long. Le canal Saint-Martin passe sous nos fenêtres.",
+        "en": "A map of the canals of Paris, red pins all along them. The canal Saint-Martin runs under these windows.",
+        "de": "Eine Karte der Pariser Kanäle, überall rote Stecknadeln. Der Canal Saint-Martin fließt unter diesen Fenstern."
+      },
+      "did": {
+        "fr": "Tu as regardé la carte des canaux.",
+        "en": "You looked at the map of the canals.",
+        "de": "Du hast die Karte der Kanäle angesehen."
+      }
+    },
+    {
+      "kind": "poster",
+      "at": [
+        -28.95,
+        6.1,
+        56.5
+      ],
+      "rot": 0,
+      "size": [
+        0.6,
+        0.85
+      ],
+      "text": [
+        "SAUVONS",
+        "LE CANAL"
+      ]
+    },
+    {
+      "kind": "plan",
+      "at": [
+        -37.0,
+        6.0,
+        57.9
+      ],
+      "rot": 1.5707963267948966,
+      "size": [
+        0.75,
+        0.54
+      ],
+      "text": [
+        "LE MISTRAL À NOUS",
+        "ATELIER",
+        "CANTINE LE MIDI",
+        "BANQUETTE",
+        "ZINC"
+      ],
+      "look": {
+        "fr": "Le plan du Mistral, dessiné à la main. Devant, de longues tables : « cantine le midi ». La banquette est au fond. L'arrière-salle dit : « ATELIER ».",
+        "en": "Le Mistral's floor plan, drawn by hand. At the front, long tables: «cantine le midi». The booth is at the back. The back room says: «ATELIER».",
+        "de": "Der Grundriss des Mistral, von Hand gezeichnet. Vorne lange Tische: «cantine le midi». Die Sitzbank ist hinten. Im Hinterzimmer steht: «ATELIER»."
+      },
+      "did": {
+        "fr": "Tu as vu le plan du Mistral.",
+        "en": "You saw the plan of Le Mistral.",
+        "de": "Du hast den Plan des Mistral gesehen."
+      }
+    },
+    {
+      "kind": "poster",
+      "at": [
+        -37.0,
+        6.05,
+        59.45
+      ],
+      "rot": 1.5707963267948966,
+      "size": [
+        0.6,
+        0.85
+      ],
+      "text": [
+        "L'EAU",
+        "N'EST PAS",
+        "À VENDRE"
+      ],
+      "look": {
+        "fr": "Une affiche : « L'eau n'est pas à vendre ». Il y en a partout, ici.",
+        "en": "A poster: «L'eau n'est pas à vendre» (water is not for sale). They are everywhere here.",
+        "de": "Ein Plakat: «L'eau n'est pas à vendre» (Wasser ist nicht zu verkaufen). Hier hängen sie überall."
+      },
+      "did": {
+        "fr": "Tu as lu une affiche de l'ONG.",
+        "en": "You read one of the NGO's posters.",
+        "de": "Du hast ein Plakat der NGO gelesen."
+      }
+    },
+    {
+      "kind": "bookcase",
+      "at": [
+        -37.0,
+        4.6,
+        61.4
+      ],
+      "rot": 1.5707963267948966,
+      "size": [
+        1.8,
+        2.2
+      ]
+    },
+    {
+      "kind": "cabinet",
+      "at": [
+        -37.0,
+        4.6,
+        63.4
+      ],
+      "rot": 1.5707963267948966
+    },
+    {
+      "kind": "plant",
+      "at": [
+        -36.7,
+        5.92,
+        63.4
+      ],
+      "rot": 0.4,
+      "size": [
+        0.18,
+        0.3
+      ]
+    },
+    {
+      "kind": "poster",
+      "at": [
+        -37.0,
+        6.1,
+        64.6
+      ],
+      "rot": 1.5707963267948966,
+      "size": [
+        0.55,
+        0.8
+      ],
+      "text": [
+        "MOINS",
+        "DE BÉTON,",
+        "PLUS",
+        "D'ARBRES"
+      ]
+    },
+    {
+      "kind": "poster",
+      "at": [
+        -33.6,
+        6.1,
+        65.55
+      ],
+      "rot": 3.141592653589793,
+      "size": [
+        0.6,
+        0.85
+      ],
+      "text": [
+        "ZÉRO",
+        "PLASTIQUE",
+        "DANS",
+        "LA SEINE"
+      ]
+    },
+    {
+      "kind": "plant",
+      "at": [
+        -36.45,
+        4.6,
+        56.95
+      ],
+      "rot": 1.1,
+      "size": [
+        0.34,
+        0.55
+      ]
+    },
+    {
+      "kind": "desk",
+      "at": [
+        -32.2,
+        4.6,
+        61.6
+      ],
+      "rot": 3.141592653589793,
+      "size": [
+        1.5,
+        0.8
+      ]
+    },
+    {
+      "kind": "desk",
+      "at": [
+        -32.2,
+        4.6,
+        60.75
+      ],
+      "rot": 0,
+      "size": [
+        1.5,
+        0.8
+      ]
+    },
+    {
+      "kind": "chair",
+      "at": [
+        -32.0,
+        4.6,
+        62.5
+      ],
+      "rot": 3.141592653589793
+    },
+    {
+      "kind": "chair",
+      "at": [
+        -32.4,
+        4.6,
+        59.85
+      ],
+      "rot": 0
+    },
+    {
+      "kind": "projector",
+      "at": [
+        -31.75,
+        5.359999999999999,
+        60.62
+      ],
+      "rot": 3.141592653589793
+    },
+    {
+      "kind": "leek",
+      "at": [
+        -32.45,
+        5.366,
+        61.75
+      ],
+      "rot": 0.35,
+      "look": {
+        "fr": "Un poireau du marché, posé sur le bureau. Marin s'en sert comme d'une baguette.",
+        "en": "A leek from the market, lying on the desk. Marin uses it as a pointer.",
+        "de": "Ein Lauch vom Markt, auf dem Schreibtisch. Marin benutzt ihn als Zeigestock."
+      },
+      "did": {
+        "fr": "Tu as vu le poireau de Marin.",
+        "en": "You saw Marin's leek.",
+        "de": "Du hast Marins Lauch gesehen."
+      }
+    },
+    {
+      "kind": "mug",
+      "at": [
+        -31.65,
+        5.366,
+        61.5
+      ],
+      "rot": 0.6
+    },
+    {
+      "kind": "mug",
+      "at": [
+        -32.75,
+        5.366,
+        60.85
+      ],
+      "rot": 2.1
+    },
+    {
+      "kind": "desk",
+      "at": [
+        -29.1,
+        4.6,
+        62.6
+      ],
+      "rot": -1.5707963267948966,
+      "size": [
+        1.4,
+        0.75
+      ]
+    },
+    {
+      "kind": "chair",
+      "at": [
+        -28.2,
+        4.6,
+        62.6
+      ],
+      "rot": -1.5707963267948966
+    },
+    {
+      "kind": "mug",
+      "at": [
+        -29.25,
+        5.366,
+        63.15
+      ],
+      "rot": 1.0
+    },
+    {
+      "kind": "plant",
+      "at": [
+        -29.2,
+        5.366,
+        62.15
+      ],
+      "rot": 0.2,
+      "size": [
+        0.12,
+        0.22
+      ]
+    },
+    {
+      "kind": "fern",
+      "at": [
+        -27.8,
+        4.6,
+        59.2
+      ],
+      "rot": 0.0,
+      "size": [
+        0.7,
+        0.45
+      ],
+      "look": {
+        "fr": "Une fougère, un vaporisateur à côté. « Attention à la fougère. Elle est fragile », dit Marin.",
+        "en": "A fern, a spray bottle beside it. «Careful of the fern. She's fragile,» Marin says.",
+        "de": "Ein Farn, daneben eine Sprühflasche. «Vorsicht mit dem Farn. Sie ist empfindlich», sagt Marin."
+      },
+      "did": {
+        "fr": "Tu as vu la fougère de Marin.",
+        "en": "You saw Marin's fern.",
+        "de": "Du hast Marins Farn gesehen."
+      }
+    }
+  ],
+  "courts": [],
+  "canals": [
+    {
+      "z0": 20.0,
+      "z1": 110.0,
+      "storeys": 6,
+      "seed": 48,
+      "lit": 0.2
+    }
+  ],
+  "marks": {
+    "streetDoor": [
+      -27.6,
+      0.16,
+      67.24
+    ],
+    "hall": [
+      -28.0,
+      0.16,
+      67.94
+    ],
+    "foot": [
+      -37.9,
+      0.16,
+      66.84
+    ],
+    "premier": [
+      -29.5,
+      4.6,
+      66.54
+    ],
+    "porte": [
+      -29.55,
+      4.6,
+      64.7
+    ],
+    "tableur": [
+      -32.2,
+      4.6,
+      58.3
+    ],
+    "plan": [
+      -35.9,
+      4.6,
+      58.2
+    ],
+    "bureau": [
+      -30.4,
+      4.6,
+      61.0
+    ],
+    "fougere": [
+      -28.75,
+      4.6,
+      59.3
+    ],
+    "fenetre": [
+      -27.9,
+      4.6,
+      60.8
+    ]
+  },
+  "ceilings": [
+    {
+      "shape": [
+        [
+          -38.7,
+          65.84
+        ],
+        [
+          -28.6,
+          65.84
+        ],
+        [
+          -28.6,
+          68.59
+        ],
+        [
+          -38.7,
+          68.59
+        ]
+      ],
+      "y": 8.4
+    }
+  ],
+  "holes": [
+    {
+      "wall": "cage.e1",
+      "u": [
+        0.0,
+        1.25
+      ],
+      "y": [
+        0.15,
+        4.25
+      ]
+    },
+    {
+      "wall": "cage.s1",
+      "u": [
+        0.4,
+        1.4
+      ],
+      "y": [
+        4.6,
+        6.8
+      ],
+      "framed": true
+    }
+  ],
+  "passages": [
+    {
+      "key": "porte",
+      "a": [
+        -29.55,
+        66.4
+      ],
+      "b": [
+        -29.55,
+        64.7
+      ],
+      "door": "porte_ong",
+      "until": "story",
+      "look_a": [
+        -29.55,
+        5.9,
+        65.6
+      ],
+      "look_b": [
+        -32.2,
+        6.0,
+        56.5
+      ],
+      "to_b": {
+        "fr": "Entrer à l'ONG",
+        "en": "Go into the NGO's office",
+        "de": "Ins Büro der NGO gehen"
+      },
+      "to_a": {
+        "fr": "Sortir sur le palier",
+        "en": "Go out onto the landing",
+        "de": "Auf den Treppenabsatz gehen"
+      },
+      "shut": {
+        "fr": "Tu frappes. Personne ne répond, pas encore.",
+        "en": "You knock. Nobody answers, not yet.",
+        "de": "Du klopfst. Niemand antwortet, noch nicht."
+      }
+    }
+  ]
+}

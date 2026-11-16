@@ -11,7 +11,7 @@ assert.equal(seanceAssessment({ verdict: 'accepted', lexical_gaps: [{}] }), 'nee
 assert.equal(seanceAssessment({ verdict: 'accepted', errata: [], ai_review: { status: 'complete' } }), 'correct');
 assert.equal(seanceAssessment({ verdict: 'correct', errata: [], ai_review: { status: 'not_applicable' } }), 'correct');
 console.log('Séance assessment regression checks passed');
-assert.equal(seanceAssessment({ verdict: 'accepted', corrected_answer: 'there is no question', correction_debug: {fallback_used: true}, ai_review: {status: 'not_applicable'} }), 'unavailable');
+assert.equal(seanceAssessment({ verdict: 'accepted', corrected_answer: 'there is no question', correction_debug: {fallback_used: true}, check: { outcome: 'not_checked', call: 'not_called', edits: [] }, ai_review: {status: 'not_applicable'} }), 'unavailable');
 assert.equal(seanceAssessment({ verdict: 'incorrect', assessment_status: 'checked', ai_review: {status: 'failed'} }), 'needs_work');
 
 // WP-S1: a provisional local verdict is shown at once, not as «pending».
@@ -24,7 +24,7 @@ assert.equal(seanceAssessment({ verdict: 'incorrect', assessment_status: 'checke
   const right = { verdict: 'correct', errata: [], assessment_status: 'checked', ai_review: { status: 'not_applicable' } };
   const wrong = { verdict: 'incorrect', errata: [{ task_error_type: 'agreement' }], assessment_status: 'checked' };
   const unchecked = { verdict: 'needs_review', errata: [], assessment_status: 'unavailable', ai_review: { status: 'failed' } };
-  const legacyUnchecked = { verdict: 'accepted', errata: [], corrected_answer: 'x', correction_debug: { fallback_used: true } };
+  const legacyUnchecked = { verdict: 'accepted', errata: [], corrected_answer: 'x', correction_debug: { fallback_used: true }, check: { outcome: 'not_checked', call: 'not_called', edits: [] } };
 
   // Unchecked and provisional answers never count as correct…
   assert.equal(runOutcome(unchecked), 'skips');
@@ -61,3 +61,34 @@ assert.equal(seanceAssessment({ verdict: 'incorrect', assessment_status: 'checke
   assert.equal(seanceAssessment(testOut), 'correct');
   assert.equal(seanceAssessment({ ...testOut, verdict: 'incorrect' }), 'needs_work');
 }
+
+// #471 (6 Nov walk): the server's assessment_status is the one source of truth.
+// A key-accepted answer is stored «checked» with correction_debug.fallback_used
+// (the rule-based key, no model); the client must not re-derive «unchecked»
+// from that debug field. Payload of attempt 7c9c5dcf, as the API sent it.
+{
+  const { runOutcome, correctRunFrom } = require('./seance-feedback.ts');
+  const keyAccepted = {
+    assessment_status: 'checked', verdict: 'correct', local_status: 'right', errata: [],
+    ai_review: { status: 'not_applicable' },
+    correction_debug: { fallback_used: true },
+    corrected_answer: 'je suis jeune, Lila',
+  };
+  assert.equal(seanceAssessment(keyAccepted), 'correct');
+  assert.equal(runOutcome(keyAccepted), 'extends');
+  assert.equal(correctRunFrom([keyAccepted, keyAccepted]), 2);
+  // A checked wrong key answer is wrong, not unchecked.
+  assert.equal(seanceAssessment({ ...keyAccepted, verdict: 'incorrect', errata: [{ task_error_type: 'agreement' }] }), 'needs_work');
+  // An answer the server stored «unavailable» still reads as unchecked and moves nothing.
+  const unavailable = { ...keyAccepted, assessment_status: 'unavailable', verdict: 'needs_review', corrected_answer: '' };
+  assert.equal(seanceAssessment(unavailable), 'unavailable');
+  assert.equal(runOutcome(unavailable), 'skips');
+  assert.equal(seanceAssessment({ ...unavailable, corrected_answer: 'x' }), 'unavailable');
+  console.log('Séance server-status authority checks passed');
+}
+
+// #333: the server says who read it. `fallback_used` alone never says «unchecked»: the rule-based
+// key sets it on answers that ARE checked (#471).
+assert.equal(seanceAssessment({ verdict: 'accepted', errata: [], correction_debug: { fallback_used: true }, check: { outcome: 'right', call: 'not_called', edits: [] } }), 'correct');
+assert.equal(seanceAssessment({ verdict: 'accepted', errata: [], correction_debug: { fallback_used: true } }), 'correct');
+assert.equal(seanceAssessment({ verdict: 'accepted', errata: [], check: { outcome: 'not_checked', call: 'failed', edits: [] } }), 'unavailable');
