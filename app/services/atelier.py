@@ -5483,6 +5483,11 @@ class AtelierCorrectionService:
             self.db.refresh(attempt, with_for_update=True)
             correction = dict(attempt.correction_payload or {})
             review = self.ai_review_from_correction(correction)
+            if review.get("status") == "complete":
+                # R1: another run (a background recheck, «Check again») landed while the
+                # model read this one. Its reading, evidence and gold stand; once is enough.
+                self.db.commit()
+                return attempt
             previous_verdict = str(attempt.verdict or correction.get("verdict") or "")
             previous_score = float(attempt.score_0_4 or 0)
             final = self._merge_relecture(
@@ -5822,8 +5827,14 @@ class AtelierCorrectionService:
         return True
 
     def _mark_ai_review_failed(self, attempt: AtelierAttempt, error: str, *, llm_ms: float | None = None) -> AtelierAttempt:
+        # R1: locked, like the landing, so a failure never overwrites a reading another
+        # run (a background recheck, «Check again») landed meanwhile.
+        self.db.refresh(attempt, with_for_update=True)
         correction = dict(attempt.correction_payload or {})
         review = self.ai_review_from_correction(correction)
+        if review.get("status") == "complete":
+            self.db.commit()
+            return attempt
         correction["ai_review"] = {
             **review,
             "status": "failed",
@@ -8480,8 +8491,27 @@ def run_atelier_ai_review(attempt_id: UUID | str) -> None:
         AtelierCorrectionService(db).run_ai_review_for_attempt(attempt_id)
     except Exception as exc:  # pragma: no cover - background safety net
         logger.warning("Atelier AI review worker could not run", attempt_id=str(attempt_id), error=str(exc))
+        _fail_unrun_review(db, attempt_id)
     finally:
         db.close()
+
+
+def _fail_unrun_review(db: Session, attempt_id: UUID | str) -> None:
+    """R1: a second check that could not run is a failed one, not one pending for ever.
+
+    Recorded as failed, the ledger reads it as retryable and the background recheck
+    (:mod:`app.services.verdict_settle`) queues it like any refused call.
+    """
+
+    try:
+        db.rollback()
+        attempt = db.get(AtelierAttempt, UUID(str(attempt_id)))
+        service = AtelierCorrectionService(db)
+        if attempt is not None and service.ai_review_from_correction(attempt.correction_payload).get("status") == "pending":
+            service._mark_ai_review_failed(attempt, "AI correction could not run.")
+    except Exception as exc:  # pragma: no cover - the safety net never raises
+        db.rollback()
+        logger.warning("Atelier AI review could not be marked failed", attempt_id=str(attempt_id), error=str(exc))
 
 
 class AtelierSRSService:

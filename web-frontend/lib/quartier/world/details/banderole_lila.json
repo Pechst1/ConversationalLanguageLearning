@@ -1,0 +1,19 @@
+{
+  "id": "banderole_lila",
+  "version": 1,
+  "kind": "detail",
+  "in": "quai_de_valmy",
+  "title": { "fr": "La banderole de Lila", "en": "Lila's banner", "de": "Lilas Banner" },
+  "moment": "a page of the learner's own story left «la banderole de Lila» at Le Mistral: a long painted paper banner, rolled and tied with string, leaning behind the zinc next to the booth",
+  "mark": { "name_fr": "la banderole de Lila", "location_id": "le_mistral" },
+  "things": [
+    { "kind": "roll", "at": [-35.15, 0.16, -17.92], "rot": 0, "size": [1.3, 0.065] }
+  ],
+  "provenance": {
+    "canon": "docs/story/season-1/10-lieux-et-images.md",
+    "scenes": [
+      "the story order «la banderole de Lila» at le_mistral (1 life): «A long painted paper banner, rolled and tied with string, leaning behind the zinc next to the booth.»",
+      "T4 party: Lila's hand-painted banner «LE MISTRAL · 25 ANS · ON RESTE» across the mirror (10-lieux-et-images.md, 04-la-photographie.md P1)"
+    ]
+  }
+}
