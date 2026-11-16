@@ -205,7 +205,8 @@ def test_background_checks_stop_at_the_daily_budget(client, db_session, monkeypa
         f"/api/v1/missions/{_mission_id}/turns", json={"text": SEEN_BY_RULES, "mode": "chat"}, headers=_headers
     ).json()["user_turn"]
 
-    assert verdict_settle.sweep(db_session, now=datetime.now(UTC) + LATER) == 2
+    # R1: the budget is spent at the sweep, so the second subject is not even sent.
+    assert verdict_settle.sweep(db_session, now=datetime.now(UTC) + LATER) == 1
     states = {
         subject: _settlements(db_session, subject)[-1].state for subject in (str(attempt.id), turn["id"])
     }

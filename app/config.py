@@ -134,6 +134,14 @@ class Settings(BaseSettings):
             "app.tasks.verdict_settle. Off, it waits for the learner's «Check again» as before."
         ),
     )
+    VERDICT_SETTLE_FORGE: bool = Field(
+        False,
+        description=(
+            "Stage R1: a La Forge free sentence whose second check failed (refused call, timeout, "
+            "invalid output) is queued and checked again by app.tasks.verdict_settle. Off, nothing "
+            "of La Forge's is queued or settled; «Check again» stays the only way out."
+        ),
+    )
     VERDICT_SETTLE_MAX_ATTEMPTS: int = Field(
         5, ge=1, description="Package V stage 3: background attempts per unread answer before the job gives up."
     )

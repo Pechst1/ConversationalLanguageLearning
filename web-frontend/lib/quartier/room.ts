@@ -204,7 +204,8 @@ export type ThingKind =
   | 'plant'
   | 'fern'
   | 'leek'
-  | 'mug';
+  | 'mug'
+  | 'roll';
 
 export interface RoomThing {
   kind: ThingKind;
@@ -2269,6 +2270,42 @@ function thing(B: Build, t: RoomThing, i: number) {
         D.bar(new Vector3(0.042, 0.075, 0), new Vector3(0.07, 0.065, 0), 0.012, glaze);
         D.bar(new Vector3(0.07, 0.065, 0), new Vector3(0.07, 0.03, 0), 0.012, glaze);
         D.bar(new Vector3(0.07, 0.03, 0), new Vector3(0.042, 0.022, 0), 0.012, glaze);
+      });
+      return;
+    }
+    case 'roll': {
+      // a long paper banner rolled up and tied with string, standing on its end and leaning on
+      // whatever is at local +z: the paper's cream, the paint showing at the roll's ends and along
+      // the edge of its last turn, two ties of twine with their knots (`size` [length, radius])
+      const [len, r] = t.size ?? [1.3, 0.055];
+      // about 19° off the vertical, the top resting on what it leans on
+      const lean = 0.33;
+      const paper = zoned(mix(INKS.card, INKS.ochre, 0.1), z);
+      const inner = zoned(mix(INKS.card, INKS.ochre, 0.22), z);
+      const core = zoned(mix(INKS.ochre, INKS.ink, 0.55), z);
+      const paints = [mix(INKS.vermilion, INKS.paper, 0.1), mix(INKS.cobalt, INKS.paper, 0.15), mix(INKS.sunflower, INKS.ochre, 0.2)].map((c) => zoned(c, z));
+      const twine = zoned(mix(INKS.ochre, INKS.paper, 0.4), z);
+      D.at(x, y, zz, rot, () => {
+        D.push(new Matrix4().makeRotationX(lean));
+        D.cylinder(0, 0, 0, r, r, len, 16, paper, { caps: true });
+        // the ends: the turns of paper round the core, a ring of paint in them
+        for (const ey of [-0.002, len - 0.002]) {
+          D.cylinder(0, ey, 0, r * 0.82, r * 0.82, 0.006, 16, inner, { caps: true });
+          D.cylinder(0, ey - 0.001, 0, r * 0.62, r * 0.62, 0.009, 16, paints[0], { caps: true });
+          D.cylinder(0, ey - 0.002, 0, r * 0.48, r * 0.48, 0.012, 16, inner, { caps: true });
+          D.cylinder(0, ey - 0.003, 0, r * 0.22, r * 0.22, 0.015, 10, core, { caps: true });
+        }
+        // the last turn's edge down the roll, the paint just showing under it
+        D.box(r * 0.72, len / 2, r * 0.72, 0.006, len - 0.02, 0.022, paper);
+        for (let k = 0; k < 7; k++) D.box(r * 0.76, 0.12 + k * ((len - 0.24) / 6), r * 0.62, 0.004, 0.07 + (k % 3) * 0.03, 0.012, paints[k % paints.length]);
+        // two ties of twine, a knot and its ends
+        for (const ty of [len * 0.27, len * 0.73]) {
+          D.cylinder(0, ty, 0, r + 0.004, r + 0.004, 0.008, 16, twine);
+          D.ball(0, ty + 0.004, r + 0.008, 0.011, 0.009, 0.009, twine, 0);
+          D.bar(new Vector3(0, ty, r + 0.012), new Vector3(0.012, ty - 0.06, r + 0.02), 0.004, twine);
+          D.bar(new Vector3(0, ty, r + 0.012), new Vector3(-0.01, ty - 0.05, r + 0.024), 0.004, twine);
+        }
+        D.pop();
       });
       return;
     }
