@@ -25,6 +25,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { replyTaskLine } from './reply-task';
+import { connectionBanner } from '@/lib/connection-banner';
 import { reconnectWebSession, sessionExpiredCopy } from '@/lib/session-recovery';
 import { checkState, isUnread } from '@/lib/verdict';
 
@@ -1913,9 +1914,12 @@ export function JourneyFeedbackView({
       return (
         <div data-state="error">
           <Notice tone="alert" live="alert" shape="action">
-            <p>{feedback.message === 'session_expired'
-              ? sessionExpiredCopy[copyLanguage(copy)].message
-              : stepKeepsAnswer(stepKind) ? copy.transport_error : copy.transport_error_plain}</p>
+            {/* #794: the connection sentence carries its marker; a sign-in prompt is no banner. */}
+            {feedback.message === 'session_expired'
+              ? <p>{sessionExpiredCopy[copyLanguage(copy)].message}</p>
+              : stepKeepsAnswer(stepKind)
+                ? <p {...connectionBanner('transport_error')}>{copy.transport_error}</p>
+                : <p {...connectionBanner('transport_error_plain')}>{copy.transport_error_plain}</p>}
             {feedback.message === 'session_expired' && <Action tone="primary" onClick={() => void reconnectWebSession(window.location.pathname + window.location.search)}>
               {sessionExpiredCopy[copyLanguage(copy)].action}
             </Action>}

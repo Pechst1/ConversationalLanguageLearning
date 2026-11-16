@@ -202,6 +202,31 @@
       }
     },
     {
+      "id": "bureau_ong",
+      "name": { "fr": "Le bureau de l'ONG de Marin", "en": "Marin's NGO office", "de": "Marins NGO-Büro" },
+      "lat": 48.87215,
+      "lon": 2.36407,
+      "status": "locked",
+      "kind": "season",
+      "stages": ["ngo_office"],
+      "why": { "fr": "Au premier, sur le quai : des affiches, une fougère, et « LE MISTRAL À NOUS » projeté au mur.", "en": "On the first floor, on the quai: posters, a fern, and «LE MISTRAL À NOUS» projected on the wall.", "de": "Im ersten Stock am Quai: Plakate, ein Farn und «LE MISTRAL À NOUS» an die Wand projiziert." },
+      "source": { "kind": "season", "id": "s1" },
+      "site": null,
+      "room": "bureau_ong",
+      "in": "quai_de_valmy",
+      "entrance": {
+        "from": "quai_de_valmy",
+        "door": [-27.0, 67.21],
+        "outside": [-25.9, 67.21],
+        "inside": [-27.75, 67.21],
+        "look_in": [-37.0, 1.6, 67.99],
+        "look_out": [-14.0, 1.6, 67.21],
+        "enter": { "fr": "Entrer dans l'immeuble de l'ONG", "en": "Go into the NGO's building", "de": "Ins Haus der NGO gehen" },
+        "leave": { "fr": "Sortir sur le quai", "en": "Go out onto the quai", "de": "Hinaus auf den Quai" },
+        "arrive": { "fr": "L'immeuble de l'ONG de Marin, sur le quai. Le bureau est au premier.", "en": "The building of Marin's NGO, on the quai. The office is on the first floor.", "de": "Das Haus von Marins NGO, am Quai. Das Büro ist im ersten Stock." }
+      }
+    },
+    {
       "id": "mairie_10e",
       "name": { "fr": "La mairie du 10e", "en": "The town hall of the 10th", "de": "Das Rathaus des 10." },
       "lat": 48.8722,

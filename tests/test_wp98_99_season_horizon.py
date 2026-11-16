@@ -387,7 +387,9 @@ def test_a_teaser_names_a_real_open_row_and_is_not_repeated_within_fourteen_days
         live["teasers"] = engine.teasers_after(live, teaser)
     assert seen, "open rows exist, so teasers are written"
     # The witness of a promise raises it first.
-    assert seen[0]["ref"] == "e3:commitment:0" and seen[0]["text_fr"].startswith("Dis, j'y repense")
+    # #822: the hook is printed in nobody's bubble, so Marin's «j'y repense» is not said.
+    assert seen[0]["ref"] == "e3:commitment:0" and "repense" not in seen[0]["text_fr"]
+    assert seen[0]["text_fr"].startswith(("Tu n'as pas oublié", "Tu as promis")), seen[0]["text_fr"]
 
     # Nothing open → nothing written; an invented line or an unknown id never passes.
     bare = {"threads": {key: {"state": "closed"} for key in [f"s3:{n}" for n in range(5)]}}
