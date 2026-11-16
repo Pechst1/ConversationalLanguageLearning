@@ -463,6 +463,11 @@ def mark_words_done(db: Session, journey: Any) -> None:
     selection[SESSION_KEY] = session
     journey.plan_selection = selection
     flag_modified(journey, "plan_selection")
+    # S2.1: the stored plan's word step is written by the same event (flag on).
+    from app.services import day_plan
+
+    if day_plan.enabled():
+        day_plan.apply_to_journey(journey, "words_done", "words", key="words:done")
     db.add(journey)
     db.flush([journey])
 
@@ -637,6 +642,12 @@ def build_session(
         step = _extra_step_or_none(db, user, now=now)
         if step is not None:
             view = session_view(replace(inputs, more_words=step))
+    # S2.1 shadow: the stored plan read beside the view; a mismatch is logged, the
+    # view is what the API serves.
+    from app.services import day_plan
+
+    if day_plan.enabled():
+        day_plan.shadow_compare(journey, view)
     return view
 
 

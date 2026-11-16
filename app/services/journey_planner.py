@@ -1107,6 +1107,19 @@ def _repairs_the_wording(learner: str, answer: str) -> bool:
     return 2 * common / (len(left) + len(right)) >= 0.35
 
 
+def _says_the_key(learner: str, key: str) -> bool:
+    """Is the learner's line already one of the key's right wordings?
+
+    #174 / #805: «right» is the shared accept-list (``widened_answers``: «le bureau de
+    poste» for «la poste», «un appart» for «un appartement»), never the one stored key,
+    so an erratum filed against a synonym is not posed as a line to correct."""
+
+    from app.services.answer_acceptance import widened_answers
+
+    said = _fold(learner)
+    return any(_fold(answer) == said for answer in widened_answers([key]))
+
+
 def build_recall_task(
     *,
     target: TargetRef,
@@ -1159,7 +1172,9 @@ def build_recall_task(
     sentence_answers: list[str] = []
     if target.kind is TargetKind.ERROR:
         learner = " ".join(str(learner_text or "").split())
-        if not learner or _fold(learner) == _fold(label_fr):
+        if not learner or _says_the_key(learner, label_fr):
+            # #805: «Write this correctly» over «le bureau de poste» for «la poste»:
+            # a line that is already a right way to say the key is no error.
             return None
         if _fold(label_fr) in _JUDGEMENT_BUTTONS or _fold(learner) in _JUDGEMENT_BUTTONS:
             # Issue #104: errata filed before the fix carry a judgement item's
@@ -1577,18 +1592,20 @@ def _gloss_partners(
 
     # QA-PRACTICE: compared without articles — «appartement» beside «un
     # appartement» (or «Wohnung» beside «eine Wohnung») made two right answers.
+    # #804: compared meaning by meaning — «one» beside «a, an (f.); one» made two
+    # right answers, the whole glosses being different strings.
     taken_fr = {_bare(target.label_fr)}
-    taken_gloss = {_bare(_glossed(target))}
+    taken_gloss = set(gloss_senses(_glossed(target)))
     partners: list[TargetRef] = []
     ranked = sorted(pool, key=lambda item: _digest(target.id, "partner", target_identity(item)))
     for item in ranked:
         gloss = _glossed(item)
         if gloss is None or target_identity(item) == target_identity(target):
             continue
-        if _bare(item.label_fr) in taken_fr or _bare(gloss) in taken_gloss:
+        if _bare(item.label_fr) in taken_fr or gloss_senses(gloss) & taken_gloss:
             continue
         taken_fr.add(_bare(item.label_fr))
-        taken_gloss.add(_bare(gloss))
+        taken_gloss |= gloss_senses(gloss)
         partners.append(item)
         if len(partners) == count:
             break
@@ -1644,6 +1661,19 @@ def _part_of_speech(label_fr: str | None) -> str | None:
     return "noun" if article else None
 
 
+def gloss_senses(gloss: str | None) -> frozenset[str]:
+    """Every meaning a gloss gives, bare and folded: «a, an (f.); one» is {«a», «an»,
+    «one»}, «the post office» is {«post office»}.
+
+    #174 / #804: a wrong card is wrong only when none of its meanings is one of the
+    key's. Comparing whole glosses let «one» stand beside «a, an (f.); one»."""
+
+    text = re.sub(r"\([^)]*\)", " ", str(gloss or ""))
+    senses = {_bare(part) for part in re.split(r"[;,/]", text)}
+    senses.add(_bare(" ".join(text.split())))
+    return frozenset(sense for sense in senses if sense)
+
+
 def _meaning_words(text: str | None) -> set[str]:
     return {word for word in re.findall(r"\w+", _bare(text)) if len(word) >= 4}
 
@@ -1673,18 +1703,18 @@ def core_decoys(
     if gloss is None or pos is None:
         return []
     taken_fr = {_bare(target.label_fr)}
-    taken_gloss = {_bare(gloss)}
+    taken_gloss = set(gloss_senses(gloss))
     target_words = _meaning_words(gloss)
     chosen: list[tuple[TargetRef, str | None]] = []
     ranked = sorted(core_words(key, pos), key=lambda row: _digest(target.id, "decoy", row[0]))
     for lemma, gender, glosses in ranked:
         meaning = _first_meaning(dict(glosses).get(language))
-        if not meaning or _bare(lemma) in taken_fr or _bare(meaning) in taken_gloss:
+        if not meaning or _bare(lemma) in taken_fr or gloss_senses(meaning) & taken_gloss:
             continue
         if _meaning_words(meaning) & target_words:
             continue
         taken_fr.add(_bare(lemma))
-        taken_gloss.add(_bare(meaning))
+        taken_gloss |= gloss_senses(meaning)
         chosen.append(
             (
                 TargetRef(

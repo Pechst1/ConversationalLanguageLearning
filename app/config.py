@@ -134,6 +134,14 @@ class Settings(BaseSettings):
             "app.tasks.verdict_settle. Off, it waits for the learner's «Check again» as before."
         ),
     )
+    VERDICT_SETTLE_FORGE: bool = Field(
+        False,
+        description=(
+            "Stage R1: a La Forge free sentence whose second check failed (refused call, timeout, "
+            "invalid output) is queued and checked again by app.tasks.verdict_settle. Off, nothing "
+            "of La Forge's is queued or settled; «Check again» stays the only way out."
+        ),
+    )
     VERDICT_SETTLE_MAX_ATTEMPTS: int = Field(
         5, ge=1, description="Package V stage 3: background attempts per unread answer before the job gives up."
     )
@@ -1101,6 +1109,19 @@ class Settings(BaseSettings):
             "so this is a hard cost bound, not a nudge: at the cap the learner is told "
             "in French how long until the next one. 0 switches the feature off — the "
             "page then explains why rather than 500-ing."
+        ),
+    )
+
+    # ---- S2.1: one stored day plan (shadow) ---------------------------------
+    DAY_PLAN_STORED: bool = Field(
+        False,
+        description=(
+            "S2.1: store the day's plan (scene, grammar, words) on the journey row when the "
+            "day is planned, write each step's status from the events that already happen "
+            "(journey started/paused/finished, a Forge séance finished, words done), and on "
+            "every read of the day's session compare it with today's recomputed view, logging "
+            "`day_plan_shadow_mismatch`. The API keeps serving the recomputed view. Off: nothing "
+            "is stored or compared."
         ),
     )
 
