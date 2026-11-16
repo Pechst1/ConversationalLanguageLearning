@@ -927,6 +927,14 @@ _RULE_TEXT: dict[str, dict[str, dict[str, str]]] = {
             "fr": "Après « {subject} », on écrit « {right} » et non « {wrong} ».",
         },
     },
+    "FR_PARTICIPLE": {
+        "label": {"en": "Past participle", "de": "Partizip", "fr": "Participe passé"},
+        "note": {
+            "en": "After « {word} » the passé composé takes the past participle: « {right} », not « {wrong} ».",
+            "de": "Nach « {word} » steht im Passé composé das Partizip: « {right} », nicht « {wrong} ».",
+            "fr": "Après « {word} », le passé composé prend le participe passé : « {right} » et non « {wrong} ».",
+        },
+    },
     "FR_AUX_ETRE": {
         "label": {"en": "Auxiliary", "de": "Hilfsverb", "fr": "Auxiliaire"},
         "note": {
@@ -1979,6 +1987,187 @@ def _verb_after_subject(word: str) -> bool:
     )
 
 
+# ---------------------------------------------------------------------------
+# #807: the participle after an auxiliary («il a invite» -> «il a invité»)
+# ---------------------------------------------------------------------------
+#
+# The accent pass repairs only words that are not words, and «invite», «donne»,
+# «arrive», «expliquer» all are: after an auxiliary the floor named the apostrophes
+# around the verb and never the verb. The rule reads the closed shape «subject (+
+# clitics) + present of avoir / être (+ adverb) + an -er verb written as its
+# infinitive or its bare present form».
+
+_AVOIR_PRESENT = frozenset({"ai", "as", "a", "avons", "avez", "ont"})
+_ETRE_PRESENT = frozenset({"suis", "es", "est", "sommes", "êtes", "sont"})
+#: The -er verbs whose passé composé takes être. Any other -er verb takes être only
+#: when it is reflexive («je me suis levé»): «elle est calme» is an adjective.
+_ETRE_ER_VERBS = frozenset(p[:-1] + "er" for p in _ETRE_PARTICIPLES if p.endswith("é"))
+#: What may stand between the auxiliary and its participle: «je n'ai pas mangé».
+_BEFORE_A_PARTICIPLE = frozenset(
+    {"pas", "plus", "jamais", "rien", "bien", "déjà", "toujours", "encore", "aussi", "vraiment", "beaucoup", "tout",
+     "trop", "souvent", "mal", "enfin", "presque", "assez", "tellement", "longtemps", "point", "guère", "seulement",
+     "finalement", "même", "juste"}
+)
+#: Words written right after avoir or être that only look like an -er verb: «j'ai
+#: envie», «j'ai hâte», «j'en ai marre», «il a entre vingt et trente ans», «ils ont
+#: classe le lundi», «il a peine à marcher», «il a affaire à», «c'est contre moi»,
+#: «on a contrôle demain» (a test at school).
+_NOT_A_PARTICIPLE = frozenset(
+    {"envie", "hâte", "hate", "marre", "entre", "classe", "peine", "affaire", "contre", "contrôle", "controle"}
+)
+#: Who may stand in front of the auxiliary, its subject …
+_SUBJECTS_OF_AUX = frozenset({"je", "j", "tu", "il", "elle", "on", "ils", "elles", "qui", "ça", "cela", "c", "ce"})
+#: … and the clitics between them: «Gus m'a donné», «je ne l'ai pas vu», «il y est allé».
+_CLITICS_BEFORE_AUX = frozenset(
+    {"ne", "n", "me", "m", "te", "t", "se", "s", "le", "la", "l", "les", "lui", "leur", "y", "en", "nous", "vous"}
+)
+_REFLEXIVE_CLITICS = frozenset({"me", "m", "te", "t", "se", "s", "nous", "vous"})
+
+
+@lru_cache(maxsize=1)
+def _er_verbs_by_spelling() -> Mapping[str, str]:  # pragma: no cover - thin cache
+    """Every -er infinitive of the lexicon, keyed by its letters without accents."""
+    try:
+        lemmas = _lexicon().lemmas
+    except Exception:
+        return {}
+    return {
+        _strip_marks(word): word
+        for word, entry in lemmas.items()
+        if word.endswith("er") and (entry or {}).get("pos") == "verb"
+    }
+
+
+def _er_infinitive(word: str) -> str | None:
+    """The -er verb ``word`` is written as, when it is its infinitive («expliquer») or
+    its bare present form («invite», «appele», «achète», «appelle», «paie»), else
+    ``None``. A participle already («invité») is ``None``."""
+
+    if word in _NOT_A_PARTICIPLE:
+        return None
+    for ending in ("ées", "és", "ée", "é"):
+        if word.endswith(ending) and _is_verb(word[: -len(ending)] + "er"):
+            return None  # a participle already: «invitée»; «crée» is «créer»'s present
+    letters = _strip_marks(word)
+    if letters.endswith("er"):
+        candidates = [letters]
+    elif letters.endswith("e") and len(letters) > 2:
+        stem = letters[:-1]
+        candidates = [stem + "er"]
+        if stem.endswith(("ll", "tt")):
+            candidates.append(stem[:-1] + "er")  # «appelle», «jette»
+        if stem.endswith("i"):
+            candidates.append(stem[:-1] + "yer")  # «paie», «envoie», «essaie»
+    else:
+        return None
+    verbs = _er_verbs_by_spelling()
+    infinitive = next((verbs[c] for c in candidates if c in verbs), None)
+    known = _forms().get(word)
+    if infinitive is not None and known is not None and known != infinitive:
+        return None  # «mise» is «mettre»'s participle, not «miser»'s present
+    return infinitive
+
+
+def _subject_of_aux(source: str, tokens: list[Tok], index: int) -> tuple[int | None, bool]:
+    """``(subject, reflexive)`` for the auxiliary at ``index``: the index of the subject
+    pronoun or name in front of it, past its clitics («Gus m'a», «je ne me suis»), or
+    ``None``; and whether the clitic right before the auxiliary is reflexive. «la machine
+    a laver», «prêt a manger» have no subject: that «a» is a preposition."""
+
+    reflexive = False
+    right = tokens[index]
+    j = index - 1
+    while j >= 0 and _joined(source, tokens[j], right) and _same_clause(source, tokens[j], right):
+        word = tokens[j].low
+        before = tokens[j - 1] if j > 0 else None
+        chained = (
+            before is not None
+            and _joined(source, before, tokens[j])
+            and _same_clause(source, before, tokens[j])
+            and (before.low in _SUBJECTS_OF_AUX or before.low in _CLITICS_BEFORE_AUX)
+        )
+        if word in {"nous", "vous"} and not chained:
+            return j, reflexive  # «nous avons», «vous êtes»: the subject
+        if word in _SUBJECTS_OF_AUX:
+            return j, reflexive
+        if word in _CLITICS_BEFORE_AUX:
+            if j == index - 1 and word in _REFLEXIVE_CLITICS:
+                reflexive = True
+            right = tokens[j]
+            j -= 1
+            continue
+        written = source[tokens[j].start : tokens[j].end]
+        named = written[:1].isupper() and (word in _cast_first_names() or _lemma(word) is None)
+        return (j if named else None), reflexive
+    return None, reflexive
+
+
+#: Reflexives whose «se» is an indirect object: no agreement («elles se sont parlé»).
+_INDIRECT_REFLEXIVES = frozenset(
+    {"téléphoner", "parler", "demander", "ressembler", "donner", "envoyer", "raconter", "acheter", "succéder"}
+)
+
+
+def _there_is(source: str, tokens: list[Tok], index: int) -> bool:
+    """Whether the «a» at ``index`` is impersonal «il y a» («there is»): its clitics run
+    through «y» back to «il», with or without a negation between («il n'y a pas foule»,
+    «il ne y a» typed apart). Such an «a» never opens a passé composé."""
+
+    j = index - 1
+    through_y = False
+    while j >= 0 and tokens[j].low in {"y", "n", "ne"} and _joined(source, tokens[j], tokens[j + 1]):
+        through_y = through_y or tokens[j].low == "y"
+        j -= 1
+    return through_y and j >= 0 and tokens[j].low == "il" and _joined(source, tokens[j], tokens[j + 1])
+
+
+def _participle_edit(source: str, tokens: list[Tok], index: int, cast: Mapping[str, str]) -> Edit | None:
+    """«il a invite» -> «il a invité», «ils ont expliquer» -> «ils ont expliqué», «je suis
+    arrive» -> «je suis arrivé», «Gus m a demande» -> «m'a demandé» (#807)."""
+
+    aux = tokens[index]
+    avoir = aux.low in _AVOIR_PRESENT
+    if not (avoir or aux.low in _ETRE_PRESENT):
+        return None
+    at = index + 1
+    while at < len(tokens) and tokens[at].low in _BEFORE_A_PARTICIPLE and at - index <= 3:
+        at += 1
+    if at >= len(tokens):
+        return None
+    verb = tokens[at]
+    if not all(
+        _space(source, tokens[k], tokens[k + 1]) and _same_clause(source, tokens[k], tokens[k + 1])
+        for k in range(index, at)
+    ):
+        return None
+    written = source[verb.start : verb.end]
+    if written[:1].isupper() and not written.isupper():
+        return None  # a name: «il a Marine au téléphone»
+    infinitive = _er_infinitive(verb.low)
+    if infinitive is None:
+        return None
+    subject, reflexive = _subject_of_aux(source, tokens, index)
+    if subject is None:
+        return None
+    if aux.low == "a" and _there_is(source, tokens, index):
+        return None  # «il y a place pour deux», «il n'y a pas foule»: there is, not a passé composé
+    if not avoir and not reflexive and infinitive not in _ETRE_ER_VERBS:
+        return None  # «elle est calme», «la salle est vide»: an adjective after être
+    participle = infinitive[:-2] + "é"
+    after = tokens[at + 1] if at + 1 < len(tokens) else None
+    object_follows = after is not None and _same_clause(source, verb, after) and after.low in _DETERMINERS
+    if not avoir and not (reflexive and (infinitive in _INDIRECT_REFLEXIVES or object_follows)):
+        # after être the participle agrees with its subject: «elle est arrivée»
+        gender, plural = _subject_gender(tokens, source, subject + 1, cast)
+        participle = _agree(participle, gender, plural or aux.low in {"sont", "sommes"})
+    if verb.low == participle:
+        return None
+    right = _case(written, participle)
+    # The verb alone: the apostrophe of «m a donne» stays its own fix, named as such.
+    return _edit("FR_PARTICIPLE", source, verb.start, verb.end, right,
+                 word=source[aux.start : aux.end], right=right, wrong=written)
+
+
 def _is_number_word(word: str) -> bool:
     return all(_pos(part) == "number" for part in word.split("-")) if word else False
 
@@ -1991,6 +2180,24 @@ def _is_compound_number(word: str) -> bool:
 
 def _space(source: str, left: Tok, right: Tok) -> bool:
     return source[left.end : right.start] in {" ", " "}
+
+
+#: The words that close a negation by themselves after the verb: with one of them
+#: there, «pas» has no place («je ne mange plus», «je ne vois personne»).
+_CLOSES_A_NEGATION = frozenset({"plus", "jamais", "rien", "personne", "guère", "aucun", "aucune", "point"})
+
+
+def _closer_after(source: str, tokens: list[Tok], verb: int) -> Tok | None:
+    """The negation word right after the verb at ``verb`` («oublie **plus**»), or
+    ``None``. Both negation reorders read it before they move «pas» behind the verb:
+    «je ne pas oublie plus» moved blindly printed «je n'oublie pas plus» (#825)."""
+
+    if verb + 1 >= len(tokens):
+        return None
+    word = tokens[verb + 1]
+    if word.low in _CLOSES_A_NEGATION | {"pas"} and _space(source, tokens[verb], word):
+        return word
+    return None
 
 
 #: A day or a time of day: what «à dix-huit heures» can follow where «a» is no verb.
@@ -2118,7 +2325,16 @@ def _phrase_edits(source: str, tokens: list[Tok], add) -> None:
             and _finite_verb(after.low)
             and not source[after.start : after.end][:1].isupper()
         ):
-            right = f"{written} {source[after.start:after.end]} {source[nxt.start:nxt.end]}"
+            verb = source[after.start : after.end]
+            closer = _closer_after(source, tokens, i + 2)
+            if closer is not None and "pas" in {nxt.low, closer.low}:
+                # #825: «je ne pas oublie plus» -> «je n'oublie plus», never «n'oublie pas
+                # plus»: the word after the verb already closes the negation, «pas» goes.
+                word = closer.low if nxt.low == "pas" else nxt.low
+                right = f"{written} {verb} {_case(source[closer.start:closer.end], word)}"
+                add(_edit("FR_NEGATION_ORDER", source, tok.start, closer.end, right, word=word, right=right))
+                continue
+            right = f"{written} {verb} {source[nxt.start:nxt.end]}"
             add(_edit("FR_NEGATION_ORDER", source, tok.start, after.end, right, word=nxt.low, right=right))
             continue
 
@@ -2138,6 +2354,12 @@ def _phrase_edits(source: str, tokens: list[Tok], add) -> None:
         ):
             verb = source[after.start : after.end]
             ne = f"n{_apostrophe(source)}{verb}" if _vowel_sound(after.low) else f"ne {verb}"
+            closer = _closer_after(source, tokens, i + 2)
+            if closer is not None:
+                # #825: «je pas oublie plus» -> «je n'oublie plus»: one negation word after the verb
+                right = f"{written} {ne} {source[closer.start : closer.end]}"
+                add(_edit("FR_NEGATION_ORDER", source, tok.start, closer.end, right, word=closer.low, right=right))
+                continue
             right = f"{written} {ne} {source[nxt.start : nxt.end]}"
             add(_edit("FR_NEGATION_ORDER", source, tok.start, after.end, right, word="pas", right=right))
             continue
@@ -2504,6 +2726,10 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
         prev = tokens[i - 1] if i > 0 else None
         joined_next = nxt is not None and _joined(source, tok, nxt)
         joined_prev = prev is not None and _joined(source, prev, tok)
+
+        # --- the participle after an auxiliary: «il a invite» -> «il a invité» (#807).
+        # Its span is the verb, so the rules on the auxiliary itself still run below.
+        add(_participle_edit(source, tokens, i, cast))
 
         # --- the dropped apostrophe: «c est», «Qu est-ce», «s il te plaît», «d Odile» ---
         dropped = _dropped_apostrophe(source, tokens, i)

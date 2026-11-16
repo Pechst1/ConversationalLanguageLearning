@@ -511,12 +511,17 @@ def test_the_phrase_rules_fix_the_classic_mistakes(sentence, span, fix):
         # unsure means silent: «d'un café» or «un café»? «leur voiture» or «leurs voitures»?
         "Je voudrais de un café.",
         "Ils ont pris leurs voiture.",
-        "J'ai reve de toi.",  # «rêvé», not «rêve»
     ],
 )
 def test_the_phrase_rules_leave_the_near_misses_alone(sentence):
     edits = _contract().deterministic_edits(sentence)
     assert edits == [], [(e.rule_id, e.span, e.replacement) for e in edits]
+
+
+def test_after_avoir_reve_is_the_participle_never_the_noun():
+    """«J'ai reve de toi»: never the noun «rêve»; since #807 the participle «rêvé» is named."""
+    edits = _contract().deterministic_edits("J'ai reve de toi.")
+    assert [(e.rule_id, e.span, e.replacement) for e in edits] == [("FR_PARTICIPLE", "reve", "rêvé")]
 
 
 # ---------------------------------------------------------------------------
