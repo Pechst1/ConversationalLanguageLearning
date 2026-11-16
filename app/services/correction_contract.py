@@ -360,6 +360,40 @@ def _locate(source: str, span: str) -> tuple[int, int] | None:
     return None
 
 
+def _anchor(source: str, quoted: str) -> tuple[int, int] | None:
+    """Where the learner wrote the words a near-quote stands for, or ``None``.
+
+    The stretch has as many words as the quote, each the same word or a form of it
+    (``_same_word``) or both grammar words (an article, a pronoun), and at least one
+    word written exactly as quoted. The stretch with the most exact words wins, then
+    the first. A quote that matches no stretch is about words the learner did not
+    write, and has nothing to correct.
+    """
+
+    tokens = _tokens(source)
+    wanted = _words_of(quoted)
+    n = len(wanted)
+    if not n or n > len(tokens):
+        return None
+    best: tuple[int, int] | None = None
+    best_exact = 0
+    for i in range(len(tokens) - n + 1):
+        window = tokens[i : i + n]
+        exact = 0
+        for tok, word in zip(window, wanted, strict=True):
+            if tok.low == word:
+                exact += 1
+            elif not (
+                _same_word(tok.low, word)
+                or (_strip_marks(tok.low) in _GRAMMAR_WORDS and _strip_marks(word) in _GRAMMAR_WORDS)
+            ):
+                break
+        else:
+            if (exact or n == 1) and (best is None or exact > best_exact):
+                best, best_exact = (window[0].start, window[-1].end), exact
+    return best
+
+
 def _settled(
     text: object, span: object, replacement: object, people: Mapping[str, str] | None
 ) -> tuple[str, str] | None:
@@ -372,9 +406,12 @@ def _settled(
     cast = known_people() if people is None else {k.casefold(): v for k, v in people.items()}
     where = _locate(source, quoted)
     if where is None:
-        # a near-quote (the Courrier's «une photo» for «un photo»): the replacement is
-        # checked on its own
-        return quoted, repair_text(proposed, people=cast) or proposed
+        # A near-quote (the Courrier's «un photo» for the learner's «une photo», the
+        # Forge's «un grand réunion» for «une grand réunion», #772): the span shown is
+        # always the learner's own stretch, never the model's paraphrase of it (#250).
+        where = _anchor(source, quoted)
+        if where is None:
+            return None
     start, end = where
     probe = Edit(span=source[start:end], replacement=proposed, rule_id="MODEL", label={}, note={}, start=start, end=end)
     final = _settle(source, probe, cast)
@@ -591,21 +628,109 @@ def note_from_form(span: object, replacement: object, *, language: str | None = 
     return _pick(_FORM_NOTES["form"], language).format(**fills)
 
 
-def note_for_form(span: object, replacement: object, note: object, *, language: str | None = None) -> str:
-    """``note`` when the pair bears out what it says, else a note written from the pair."""
+def _folded(value: object) -> str:
+    """Text as a quote is compared: NFC, one apostrophe, case and spacing folded."""
+    return " ".join(_norm(value).casefold().split())
+
+
+_GUILLEMETS = re.compile(r"«\s*([^»]+?)\s*»")
+_DOUBLE_QUOTED = re.compile(r"“\s*([^”]+?)\s*”|\"([^\"]+)\"")
+
+
+def _quote_body(fragment: str) -> str:
+    return _folded(fragment).strip(_EDGE_MARKS + " ")
+
+
+def note_quotes_hold(note: object, span: object, replacement: object, context: object) -> bool:
+    """Whether every French stretch a note quotes is one the learner wrote or the fix writes (#250, #772).
+
+    A note quotes to point: «You wrote « un grand réunion »» must point at words in
+    ``context`` (the learner's text), in that text once the fix is made, or in the
+    fix itself. A quoted ending («-x», «-e») or a single word that is a form of a word
+    there («être» for «est») is a pointer too. Anything else is the model describing
+    a sentence the learner did not write («With « tu », …» when nobody is «tu», #193).
+    Without ``context`` nothing is claimed false.
+    """
+
+    text = _norm(note)
+    if not text.strip() or context is None or not str(context).strip():
+        return True
+    source = _norm(context)
+    old, new = _norm(span), _norm(replacement)
+    fixed = source.replace(old, new, 1) if old and old in source else source
+    places = [_words_of(place) for place in (source, fixed, new, old)]
+    words = {w for place in places for w in place}
+    fragments = [(match.group(1), True) for match in _GUILLEMETS.finditer(text)]
+    fragments += [(match.group(1) or match.group(2), False) for match in _DOUBLE_QUOTED.finditer(text)]
+    for fragment, french in fragments:
+        body = _quote_body(fragment)
+        quoted = _words_of(body)
+        if not quoted or body.startswith("-"):
+            continue  # a mark, a number or an ending («-x»)
+        if not french and not all(_is_grammar_word(w) or _verb_lemma(w) for w in quoted):
+            continue  # a double-quoted English gloss («means "meeting"»), not French
+        n = len(quoted)
+        if any(place[i : i + n] == quoted for place in places for i in range(len(place) - n + 1)):
+            continue
+        if n == 1 and any((_lemmas(quoted[0]) | {quoted[0]}) & (_lemmas(w) | {w}) for w in words):
+            continue  # «être» for «est»: the word's own family
+        return False
+    return True
+
+
+#: A note that says a noun stays singular, or takes no plural ending.
+_NO_PLURAL_CLAIM = re.compile(
+    r"\bsingular\b|\bno plural\b|\btakes? no (?:plural )?-?s\b|\bsingulier\b|\bpas de pluriel\b|"
+    r"\bsans -?s\b|\bSingular\b|\bkein(?:e|en)? Plural\b|\bohne -?s\b",
+    re.IGNORECASE,
+)
+
+
+def _adds_plural(span: str, replacement: str) -> bool:
+    """Whether the fix turns a word of the span into its plural («serviette» -> «serviettes»)."""
+
+    old = set(_words_of(span))
+    return any(w[-1:] in {"s", "x"} and w[:-1] in old and w not in old for w in _words_of(replacement))
+
+
+def note_for_form(
+    span: object, replacement: object, note: object, *, language: str | None = None, context: object = None
+) -> str:
+    """``note`` when the pair (and the learner's ``context``) bear out what it says,
+    else a note written from the pair."""
     text = "" if note is None else str(note)
-    if not text.strip() or note_matches_form(span, replacement, text):
+    if not text.strip():
+        return text
+    holds = note_matches_form(span, replacement, text) and note_quotes_hold(text, span, replacement, context)
+    if holds and _NO_PLURAL_CLAIM.search(text) and _adds_plural(_norm(span), _norm(replacement)):
+        holds = False  # #662: «singular nouns take no plural -s» over a fix that adds one
+    if holds:
         return text
     return note_from_form(span, replacement, language=language)
 
 
-def reconcile_notes(erratum: Mapping[str, Any], *, language: str | None = None) -> dict[str, Any]:
-    """The erratum with every explanation held to its own (learner_text, corrected_target)."""
+def reconcile_notes(
+    erratum: Mapping[str, Any], *, language: str | None = None, context: object = None
+) -> dict[str, Any]:
+    """The erratum with every explanation held to its own (learner_text, corrected_target),
+    and, given the learner's ``context``, quoting only words that are there or in the fix.
+
+    When the explanation is rewritten the hint is dropped: both came from the same
+    reading of the sentence, and that reading was wrong (#772: «Change the article»
+    for an article the learner wrote right)."""
     out = dict(erratum)
-    for key in ("why_wrong", "repair_hint"):
-        if out.get(key):
-            out[key] = note_for_form(
-                out.get("learner_text"), out.get("corrected_target"), out[key], language=language
+    why = out.get("why_wrong")
+    if why:
+        out["why_wrong"] = note_for_form(
+            out.get("learner_text"), out.get("corrected_target"), why, language=language, context=context
+        )
+    hint = out.get("repair_hint")
+    if hint:
+        if why and out["why_wrong"] != why:
+            out["repair_hint"] = ""
+        else:
+            out["repair_hint"] = note_for_form(
+                out.get("learner_text"), out.get("corrected_target"), hint, language=language, context=context
             )
     return out
 
@@ -2924,7 +3049,7 @@ def grounded_errata(
             continue  # one note per issue, not two near-duplicates (#93)
         verified = verify_erratum(text, item, strict_span=strict_span)
         if verified is not None:
-            kept.append(reconcile_notes(verified, language=language))
+            kept.append(reconcile_notes(verified, language=language, context=text))
             if quoted:
                 seen.add(quoted)
     return kept
@@ -3005,7 +3130,10 @@ def first_valid_edit(
             shown = _requote(str(note), str(replacement), verdict.replacement) if note else None
             if shown:
                 # #93: a note naming an accent the corrected form lacks is rewritten.
-                shown = note_for_form(verdict.span or span, verdict.replacement, shown, language=language) or None
+                shown = (
+                    note_for_form(verdict.span or span, verdict.replacement, shown, language=language, context=text)
+                    or None
+                )
             return verdict.span or str(span), verdict.replacement, shown
     edits = deterministic_edits(text, people=people)
     if edits:
