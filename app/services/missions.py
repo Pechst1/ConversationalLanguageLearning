@@ -69,7 +69,11 @@ from app.services.news_service import NewsService
 from app.services.pragmatics import address_markers, address_register
 from app.services.progress import ProgressService
 from app.services.serial_arc_planner import cefr_generation_profile
-from app.services.vocabulary_coverage import VocabularyCoverageService, normalize_category
+from app.services.vocabulary_coverage import (
+    VocabularyCoverageService,
+    normalize_category,
+    primary_category,
+)
 from app.services.vocabulary_credit import (
     LETTER_OMISSION_POLICY,
     UNUSED_TARGET_EVENT,
@@ -133,6 +137,15 @@ LETTER_STRETCH = 1
 COMPLETED_REQUEST_DAYS = 7
 #: A canned letter's exact text is not reprinted within this many days.
 CANNED_REUSE_DAYS = 28
+#: #777: and a situation (a letter's request: the shop, the size problem) is not served
+#: again within this many days, whoever writes it. The model is handed the situation's
+#: title, contact and opening, so its letter on a played situation is that letter again.
+SITUATION_REUSE_DAYS = CANNED_REUSE_DAYS
+#: #777: words of general use fit any letter; a topical word (food, clothes, a place)
+#: fits only a situation of its own topic.
+GENERAL_WORD_CATEGORIES = frozenset(
+    {"verbs", "adjectives_adverbs", "function_words", "uncategorized", "time_calendar", "communication"}
+)
 #: Where the fit of a letter is stamped on its ``prompt_payload``.
 LETTER_FIT_KEY = "letter_fit"
 
@@ -255,6 +268,38 @@ def canned_letter_problem(
 
 def canned_letter_credible(item: dict[str, Any], rotation: dict[str, Any]) -> bool:
     return canned_letter_problem(item, rotation) is None
+
+
+def situation_categories(domain: Any) -> set[str]:
+    """The vocabulary categories a catalogue situation is about (#777)."""
+
+    for item in REAL_WORLD_MISSION_DOMAINS:
+        if str(item.get("domain")) == str(domain or ""):
+            return set(item.get("categories") or ())
+    return set()
+
+
+def word_fits_situation(word_categories: set[str], situation: set[str]) -> bool:
+    """#777: whether a word belongs on a letter about ``situation``.
+
+    A word of general use (a verb, a number, «demain») fits any letter; a topical word
+    («restaurant», «marché») fits only a situation of its own topic."""
+
+    topical = set(word_categories) - GENERAL_WORD_CATEGORIES
+    return not topical or not situation or bool(topical & situation)
+
+
+def least_recently_served(catalogue: list[dict[str, Any]], served: dict[str, datetime]) -> list[dict[str, Any]]:
+    """#777: the catalogue without a situation served in the reuse window; when every one
+    was, those served longest ago, never a recent one."""
+
+    if not served or not catalogue:
+        return catalogue
+    unserved = [item for item in catalogue if str(item.get("domain")) not in served]
+    if unserved:
+        return unserved
+    oldest = min(served[str(item.get("domain"))] for item in catalogue)
+    return [item for item in catalogue if served[str(item.get("domain"))] == oldest]
 
 
 def follow_ups_of(item: dict[str, Any]) -> list[dict[str, str]]:
@@ -1884,6 +1929,13 @@ class MissionGenerator:
             limit=4,
         )
         variety_category = active_category
+        if preferred_vocabulary_ids:
+            # #777: words the learner asked to use choose the situation; the coverage
+            # category only steps in when they have no topic of their own.
+            variety_category = (
+                self._dominant_vocabulary_category([item for item in vocabulary if item.get("bucket") == "preferred"])
+                or variety_category
+            )
         if not variety_category and (fuel_source == "vocab" or preferred_vocabulary_ids):
             variety_category = self._dominant_vocabulary_category(vocabulary)
         if authored_letter:
@@ -1908,6 +1960,11 @@ class MissionGenerator:
                 forced_domain=(chain or {}).get("domain"),
                 rotation=rotation,
             )
+            if not custom_context:
+                # #777: the situation is chosen; the «Use:» words are its words.
+                vocabulary = self._vocabulary_for_situation(
+                    user=user, vocabulary=vocabulary, domain=variety.get("domain"), limit=4
+                )
         source_snapshot = await self._source_snapshot(
             user=user,
             mission_type=mission_type,
@@ -2582,6 +2639,9 @@ class MissionGenerator:
                 lambda item: rotation.get("model_available", True) or canned_letter_credible(item, rotation),
             ):
                 catalogue = [item for item in catalogue if keep(item)] or catalogue
+            # #777: a situation the learner played this month is not served again, by
+            # the model or the canned text, until every other one has been.
+            catalogue = least_recently_served(catalogue, rotation.get("served_recent") or {})
         pool: list[dict[str, Any]] = []
         if forced_domain:
             pool = [item for item in REAL_WORLD_MISSION_DOMAINS if str(item.get("domain")) == str(forced_domain)]
@@ -2660,6 +2720,76 @@ class MissionGenerator:
             (item, (0.5 if item not in recent_formats else 0.15)) for item in alternatives
         )
         return str(courrier.weighted_pick(weighted, "format", *seed) or natural)
+
+    def _word_categories(self, vocabulary: list[dict[str, Any]]) -> dict[int, set[str]]:
+        """Each word's vocabulary categories: its topic tags and the category the
+        coverage map files it under (keywords included: «marché» is food)."""
+
+        ids = _dedupe_ints([item.get("word_id") for item in vocabulary])
+        rows = self.db.query(VocabularyWord).filter(VocabularyWord.id.in_(ids)).all() if ids else []
+        by_id = {row.id: row for row in rows}
+        result: dict[int, set[str]] = {}
+        for item in vocabulary:
+            try:
+                word_id = int(item.get("word_id"))
+            except (TypeError, ValueError):
+                continue
+            tags = list(item.get("topic_tags") or [])
+            row = by_id.get(word_id)
+            categories = {normalize_category(str(tag)) for tag in tags}
+            if row is not None:
+                categories |= {normalize_category(str(tag)) for tag in row.topic_tags or []}
+                categories.add(primary_category(row))
+            result[word_id] = categories
+        return result
+
+    def _vocabulary_for_situation(
+        self,
+        *,
+        user: User,
+        vocabulary: list[dict[str, Any]],
+        domain: Any,
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        """#777: the «Use:» words of a letter about ``domain``.
+
+        The words used to be picked from the learner's coverage category and the
+        situation from wherever the catalogue fell back to, so a clothes-shop letter
+        said «Use: restaurant, marche». A word the learner asked for stays (it chose the
+        situation, see :meth:`build_payload`); any other topical word off the situation
+        gives its place to one of the situation's own words."""
+
+        situation = situation_categories(domain)
+        if not situation or not vocabulary:
+            return vocabulary
+
+        def fits(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            categories = self._word_categories(items)
+            return [
+                item
+                for item in items
+                if item.get("bucket") == "preferred"
+                or word_fits_situation(categories.get(int(item.get("word_id") or 0), set()), situation)
+            ]
+
+        kept = fits(vocabulary)
+        if len(kept) == len(vocabulary):
+            return vocabulary
+        seen = {item.get("word_id") for item in vocabulary}
+        for category in sorted(situation - GENERAL_WORD_CATEGORIES) or sorted(situation):
+            if len(kept) >= limit:
+                break
+            more = [
+                item
+                for item in self._select_vocabulary(user=user, limit=limit, active_category=category)
+                if item.get("word_id") not in seen
+            ]
+            for item in fits(more):
+                if len(kept) >= limit:
+                    break
+                kept.append(item)
+                seen.add(item.get("word_id"))
+        return kept
 
     @staticmethod
     def _dominant_vocabulary_category(vocabulary: list[dict[str, Any]]) -> str | None:
@@ -3993,7 +4123,11 @@ class MissionCorrectionService:
                 continue
             # #369: the explanation is held to the corrected form it explains
             # («an accent on « hui »» for aujourd'hui is replaced, not shown).
-            cleaned.append(correction_contract.reconcile_notes(narrowed, language=copy_language(language)))
+            cleaned.append(
+                correction_contract.reconcile_notes(
+                    narrowed, language=copy_language(language), context=submission_text
+                )
+            )
         return cleaned
 
     @staticmethod
@@ -5855,7 +5989,9 @@ class MissionScheduler:
         ``band`` (see :meth:`MissionGenerator._letter_band`), ``completed_recent``
         (requests answered in the last ``COMPLETED_REQUEST_DAYS``),
         ``canned_recent`` (canned letters printed in the last
-        ``CANNED_REUSE_DAYS``), ``season_active`` and ``model_available``. Dates
+        ``CANNED_REUSE_DAYS``), ``served_recent`` (each request served in the last
+        ``SITUATION_REUSE_DAYS`` by any writer, and when: #777), ``season_active``
+        and ``model_available``. Dates
         are the app's own clock (``completed_at`` and the stamped ``served_at``),
         never the database's ``created_at`` default.
         """
@@ -5871,6 +6007,7 @@ class MissionScheduler:
         completed_recent: set[str] = set()
         canned_recent: set[str] = set()
         canned_ever: set[str] = set()
+        served_recent: dict[str, datetime] = {}
         for row in rows:
             prompt = row.prompt_payload or {}
             fit = prompt.get(LETTER_FIT_KEY) if isinstance(prompt.get(LETTER_FIT_KEY), dict) else {}
@@ -5885,6 +6022,9 @@ class MissionScheduler:
             if row.status == "completed" and done and now - done < timedelta(days=COMPLETED_REQUEST_DAYS):
                 completed_recent.add(str(key))
             served = _parse_moment(fit.get("served_at")) if fit else None
+            if served and now - served < timedelta(days=SITUATION_REUSE_DAYS):
+                # #777: whoever wrote it, the latest time this situation was served.
+                served_recent[str(key)] = max(served, served_recent.get(str(key), served))
             if fit.get("source") == "canned":
                 canned_ever.add(str(key))
                 if served and now - served < timedelta(days=CANNED_REUSE_DAYS):
@@ -5894,6 +6034,7 @@ class MissionScheduler:
             "completed_recent": completed_recent,
             "canned_recent": canned_recent,
             "canned_ever": canned_ever,
+            "served_recent": served_recent,
             "season_active": self._season_active(user),
             # Read from the switch, not by building a client: asking is not free.
             "model_available": bool(settings.ATELIER_LLM_ENABLED),

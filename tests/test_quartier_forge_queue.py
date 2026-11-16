@@ -90,10 +90,10 @@ def test_the_queue_puts_the_next_unbuilt_place_after_the_frontier_first():
     forge = _forge()
     from_start = [r for r in forge.season_queue() if r["status"] != "built"]
     assert from_start[0]["location"] == "mairie"  # T3 is the first page set somewhere unbuilt
-    # gap 3's roof, T5's back room, Marin and Lila's flat, T6's gérance, the rue de Lancry and
-    # Gus's loft are built: from g3 the gare de l'Est comes first (it waits for a kit), then the
-    # brocante
-    for built in ("toit", "mistral_back_room", "marin_lila_flat", "marchand_office", "rue_de_lancry", "gus_loft"):
+    # gap 3's roof, T5's back room, Marin and Lila's flat, T6's gérance, the rue de Lancry, Gus's
+    # loft and Marin's NGO office are built: from g3 the gare de l'Est comes first (it waits for a
+    # kit), then the brocante (it waits too)
+    for built in ("toit", "mistral_back_room", "marin_lila_flat", "marchand_office", "rue_de_lancry", "gus_loft", "ngo_office"):
         assert next(r for r in forge.season_queue("g3") if r["location"] == built)["status"] == "built"
     from_g3 = [r for r in forge.season_queue("g3") if r["status"] != "built"]
     assert from_g3[0]["location"] == "gare_de_lest"
@@ -101,7 +101,7 @@ def test_the_queue_puts_the_next_unbuilt_place_after_the_frontier_first():
     assert ahead[:2] == ["gare_de_lest", "brocante"]
     # places only needed before the frontier still come, after the ones ahead
     behind = [r["location"] for r in from_g3 if not r["ahead"]]
-    assert "ngo_office" in behind and "mairie" in behind
+    assert "mairie" in behind and "ngo_office" not in behind
     assert all(r["ahead"] for r in from_g3[: len(ahead)])
 
 
@@ -248,10 +248,12 @@ def test_a_place_of_the_season_the_stories_named_is_built_first(tmp_path):
     source = _orders(tmp_path, {"kind": "place", "name_fr": "La mairie du 10e", "location_id": None, "look": "", "times": 1, "lives": 3})
     asked = forge.asked_places(forge.orders_queue(forge.story_orders(source)))
     assert asked == {"mairie": 3}
-    todo = [r for r in forge.season_queue("g3", asked=asked) if r["status"] in ("new", "locked")]
+    # the mairie waits for a kit (`briefs/mairie.md`): the stories' word still puts it first of
+    # what is not built, so the forge sees it the night its kit comes
+    todo = [r for r in forge.season_queue("g3", asked=asked) if r["status"] != "built"]
     assert todo[0]["location"] == "mairie" and todo[0]["asked"] == 3
-    # without the stories' word, the roof the learner reaches first comes first
-    assert [r for r in forge.season_queue("g3") if r["status"] in ("new", "locked")][0]["location"] != "mairie"
+    # without the stories' word, the place the learner reaches first comes first
+    assert [r for r in forge.season_queue("g3") if r["status"] != "built"][0]["location"] != "mairie"
 
 
 def test_a_place_of_the_season_no_authored_page_is_set_in_is_built_once_named(tmp_path):

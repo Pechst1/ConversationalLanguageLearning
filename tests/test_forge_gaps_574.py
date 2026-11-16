@@ -85,7 +85,9 @@ def test_a_line_that_differs_only_in_case_and_the_full_stop_gets_no_gap() -> Non
     refined = refine_production_correction(
         _model_result([_erratum("tres", "très")], "Il est très petit."), learner_text="il est très petit", accepted=[], language="en"
     )
-    assert [item["learner_text"] for item in refined["errata"]] == ["tres"], "the model's own list is left as it was"
+    # No gap is derived from case or the full stop. The model's «tres» -> «très» quotes a
+    # word the learner did not write (they wrote «très»), so it is not shown either (#250).
+    assert [item["learner_text"] for item in refined["errata"]] == []
 
 
 def _attempt(db_session, errata: list[dict], *, learner: str = LEARNER, corrected: str = CORRECTED):
