@@ -16,7 +16,7 @@ import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 
-import { Action, AtelierV2Root, ShapeToken } from '@/components/atelier-v2/ui';
+import { Action, AtelierV2Root, ShapeToken, Skeleton } from '@/components/atelier-v2/ui';
 import { rewardView } from '@/components/atelier-v2/journey/journey-recap-model';
 import { PushOptIn } from '@/components/atelier-v2/journey/PushOptIn';
 import { tomorrowLine } from '@/components/atelier-v2/journey/season-return-model';
@@ -104,6 +104,32 @@ export default function FertigPage() {
   const gold = useGold();
   const tirage = gold.visible && session?.done ? tirageLine(gold.view) : null;
 
+  // #727: the screen speaks the envelope's language (`control_language`: French from B1).
+  // Until the day is read the page does not know it, and the profile hook's first answer
+  // is its hydration-safe `en`; printing the chrome then put «Done for today · Back to
+  // La Une» on a B1 learner's French screen. So no words until the envelope answers; if
+  // the day cannot be read at all, the learner's chrome language (`useChromeLanguage`) stands.
+  if (!envelope && !failed) {
+    return (
+      <>
+        <Head>
+          <title>L’Atelier</title>
+        </Head>
+        <AtelierV2Root as="main" language={language} className="av2-fertig">
+          <div className="av2-fertig__body" data-fertig="pending" aria-busy="true">
+            <div className="av2-finish">
+              <Skeleton height={120} radius={60} />
+              <Skeleton height={40} />
+            </div>
+            <Skeleton height={88} />
+            <div className="av2-fertig__spacer" />
+            <Skeleton height={56} />
+          </div>
+        </AtelierV2Root>
+      </>
+    );
+  }
+
   return (
     <>
       <Head>
@@ -177,7 +203,7 @@ export default function FertigPage() {
               {next.meta ? <span className="av2-btn__meta">· {next.meta}</span> : null}
             </Action>
           ) : (
-            <Action tone="done" onClick={home} disabled={!envelope && !failed}>
+            <Action tone="done" onClick={home}>
               {copy.back_home}
             </Action>
           )}
