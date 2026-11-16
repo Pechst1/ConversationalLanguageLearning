@@ -93,6 +93,7 @@ from app.services.journey_day_shapes import (
     rotate_recall_formats,
     shape_allows_format,
 )
+from app.services.no_address import unaddressed_task
 from app.services.repair_context import (
     RepairContext,
     clean_text,
@@ -3624,6 +3625,9 @@ def plan_journey(
                     learner_text=learner_wording,
                     repair=repair,
                 )
+            # 12 Nov 2026: a sentence the learner builds or writes is said to nobody;
+            # one that is no sentence without its address is not posed.
+            recall = unaddressed_task(recall) if recall is not None else None
             if recall is None:
                 used_targets.append(entry)
                 notes.append(f"{identity}: no recall form could be posed without revealing it")
@@ -3739,6 +3743,8 @@ def plan_journey(
     for entry, recall, cost, skipped in recalls:
         # #155: who says the line the item is cut from, as on a practice day.
         recall = replace(recall, speaker_id=recall_speaker(recall, scenario))
+        # 12 Nov 2026: said to nobody (the planner already left out what cannot be).
+        recall = unaddressed_task(recall) or recall
         recall_steps.append(
             PlannedStep(
                 ordinal=0,
@@ -4045,7 +4051,15 @@ _GAP_GOALS = {
 }
 
 
-def practice_task(
+def practice_task(task_type: str, **kwargs: Any) -> RecallTask | None:
+    """One quick item in one named format (:func:`_practice_task`), said to nobody when
+    the learner builds or writes it; ``None`` when that leaves no sentence (12 Nov 2026)."""
+
+    task = _practice_task(task_type, **kwargs)
+    return unaddressed_task(task) if task is not None else None
+
+
+def _practice_task(
     task_type: str,
     *,
     target: TargetRef,
@@ -5595,6 +5609,9 @@ def _recall_step(ordinal: int, item: PracticeItem, scenario: ScenarioBrief | Non
     speaker_id = recall.speaker_id or (recall_speaker(recall, scenario) if scenario is not None else None)
     if speaker_id != recall.speaker_id:
         recall = replace(recall, speaker_id=speaker_id)
+    # 12 Nov 2026: a sentence the learner builds or writes is said to nobody, whichever
+    # builder posed it (:func:`practice_task` already leaves out what cannot be).
+    recall = unaddressed_task(recall) or recall
     prompt: dict[str, Any] = {
         "task_type": recall.task_type,
         "instruction_native": recall.instruction_native,

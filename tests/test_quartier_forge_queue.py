@@ -77,36 +77,41 @@ def test_a_built_room_is_the_stage_of_its_place_and_the_quarter_of_the_rest():
     assert forge.stage_of("mistral_back_room")["room"] == "arriere_salle"
     assert forge.stage_of("marin_lila_flat")["room"] == "chez_marin_lila"
     assert forge.stage_of("marchand_office")["room"] == "gerance_marchand"
-    # the mairie has a world entry but nothing built yet; the rue de Lancry has neither
+    # the rue de Lancry is a room in the quai's own street
+    assert forge.stage_of("rue_de_lancry")["room"] == "rue_de_lancry"
+    # Gus's «château», on the fifth floor of a house on the quai
+    assert forge.stage_of("gus_loft")["room"] == "chateau_gus"
+    # the mairie has a world entry but nothing built yet; the brocante has neither
     assert forge.stage_of("mairie") is None
-    assert forge.stage_of("rue_de_lancry") is None
+    assert forge.stage_of("brocante") is None
 
 
 def test_the_queue_puts_the_next_unbuilt_place_after_the_frontier_first():
     forge = _forge()
     from_start = [r for r in forge.season_queue() if r["status"] != "built"]
     assert from_start[0]["location"] == "mairie"  # T3 is the first page set somewhere unbuilt
-    # gap 3's roof, T5's back room, Marin and Lila's flat and T6's gérance are built: from g3 the
-    # next place is the gare de l'Est
-    for built in ("toit", "mistral_back_room", "marin_lila_flat", "marchand_office"):
+    # gap 3's roof, T5's back room, Marin and Lila's flat, T6's gérance, the rue de Lancry, Gus's
+    # loft and Marin's NGO office are built: from g3 the gare de l'Est comes first (it waits for a
+    # kit), then the brocante (it waits too)
+    for built in ("toit", "mistral_back_room", "marin_lila_flat", "marchand_office", "rue_de_lancry", "gus_loft", "ngo_office"):
         assert next(r for r in forge.season_queue("g3") if r["location"] == built)["status"] == "built"
     from_g3 = [r for r in forge.season_queue("g3") if r["status"] != "built"]
     assert from_g3[0]["location"] == "gare_de_lest"
     ahead = [r["location"] for r in from_g3 if r["ahead"]]
-    assert ahead[:3] == ["gare_de_lest", "rue_de_lancry", "gus_loft"]
+    assert ahead[:2] == ["gare_de_lest", "brocante"]
     # places only needed before the frontier still come, after the ones ahead
     behind = [r["location"] for r in from_g3 if not r["ahead"]]
-    assert "ngo_office" in behind and "mairie" in behind
+    assert "mairie" in behind and "ngo_office" not in behind
     assert all(r["ahead"] for r in from_g3[: len(ahead)])
 
 
 def test_a_place_built_for_the_season_leaves_the_queue():
     forge = _forge()
     places = forge.world()["places"] + [
-        {"id": "lancry", "kind": "season", "stages": ["rue_de_lancry"], "site": "lancry"}
+        {"id": "brocante_canal", "kind": "season", "stages": ["brocante"], "room": "brocante_canal"}
     ]
-    assert forge.stage_of("rue_de_lancry") is None
-    assert forge.stage_of("rue_de_lancry", places)["site"] == "lancry"
+    assert forge.stage_of("brocante") is None
+    assert forge.stage_of("brocante", places)["room"] == "brocante_canal"
 
 
 def test_a_place_no_kit_can_build_yet_waits_and_the_queue_names_the_next(tmp_path, monkeypatch):
@@ -118,7 +123,7 @@ def test_a_place_no_kit_can_build_yet_waits_and_the_queue_names_the_next(tmp_pat
     rows = forge.season_queue("g3")
     assert next(r for r in rows if r["location"] == "gare_de_lest")["status"] == "no kit"
     todo = [r for r in rows if r["status"] in ("new", "locked")]
-    assert todo[0]["location"] == "rue_de_lancry"
+    assert todo[0]["location"] == "brocante"
 
 
 def test_the_server_has_the_worlds_register_as_the_forge_writes_it():
@@ -159,9 +164,12 @@ def test_a_learner_on_the_epilogue_is_a_learner_of_the_season():
     forge = _forge()
     assert [s["id"] for s in forge.season_segments()][-3:] == ["e1", "e2", "e3"]
     assert any(n["segment"] == "e1" and n["location"] == "gus_loft" for n in forge.season_needs())
-    rows = [r for r in forge.season_queue(["t2", "e1"]) if r["status"] != "built"]
-    # Gus's «château» is that learner's next page; the mairie is a week ahead of the one on T2
-    assert rows[0]["location"] == "gus_loft"
+    queue = forge.season_queue(["t2", "e1"])
+    assert next(r for r in queue if r["location"] == "gus_loft")["status"] == "built"
+    rows = [r for r in queue if r["status"] != "built"]
+    # Gus's «château» is built: the brocante is that learner's next page; the mairie is a week
+    # ahead of the one on T2
+    assert rows[0]["location"] == "brocante"
     assert next(r for r in rows if r["location"] == "mairie")["ahead"]
 
 
@@ -240,10 +248,12 @@ def test_a_place_of_the_season_the_stories_named_is_built_first(tmp_path):
     source = _orders(tmp_path, {"kind": "place", "name_fr": "La mairie du 10e", "location_id": None, "look": "", "times": 1, "lives": 3})
     asked = forge.asked_places(forge.orders_queue(forge.story_orders(source)))
     assert asked == {"mairie": 3}
-    todo = [r for r in forge.season_queue("g3", asked=asked) if r["status"] in ("new", "locked")]
+    # the mairie waits for a kit (`briefs/mairie.md`): the stories' word still puts it first of
+    # what is not built, so the forge sees it the night its kit comes
+    todo = [r for r in forge.season_queue("g3", asked=asked) if r["status"] != "built"]
     assert todo[0]["location"] == "mairie" and todo[0]["asked"] == 3
-    # without the stories' word, the roof the learner reaches first comes first
-    assert [r for r in forge.season_queue("g3") if r["status"] in ("new", "locked")][0]["location"] != "mairie"
+    # without the stories' word, the place the learner reaches first comes first
+    assert [r for r in forge.season_queue("g3") if r["status"] != "built"][0]["location"] != "mairie"
 
 
 def test_a_place_of_the_season_no_authored_page_is_set_in_is_built_once_named(tmp_path):
@@ -320,3 +330,37 @@ def test_what_a_learner_named_in_their_own_words_is_built_first(tmp_path, capsys
     forge.cmd_orders_queue(Args)
     out = capsys.readouterr().out
     assert "1 lives, said by 1" in out and "next detail: «des fleurs»" in out
+
+
+def _world_places():
+    return json.loads(
+        (ROOT / "web-frontend/lib/quartier/world/world.json").read_text(encoding="utf-8")
+    )["places"]
+
+
+def test_every_place_keeps_the_two_rules_on_foot_and_on_the_map():
+    """Owner, 13 Nov 2026: a place the story uses is walked into from the quarter, and the map
+    gets a pin only for a place far enough from the others (the forge's ``check`` and ``publish``
+    refuse a place that breaks either; ``world-rules.test.js`` walks the grids)."""
+    forge = _forge()
+    places = _world_places()
+    for place in places:
+        assert forge.rule_problems(place, places) == [], place["id"]
+    assert forge.MAP_PIN_MIN_METRES == 300
+    # Marin and Lila's flat: 44 m from the quai, so inside it, walked into by its building's door
+    flat = next(p for p in places if p["id"] == "chez_marin_lila")
+    assert flat["in"] == "quai_de_valmy" and flat["entrance"]["from"] == "quai_de_valmy"
+
+
+def test_a_new_place_without_a_door_or_too_near_a_pin_is_refused():
+    forge = _forge()
+    places = _world_places()
+    quai = next(p for p in places if p["id"] == "quai_de_valmy")
+    room = {"id": "librairie_bichat", "lat": quai["lat"], "lon": quai["lon"], "in": "quai_de_valmy", "room": "librairie_bichat", "status": "locked", "kind": "story"}
+    assert any("no «entrance»" in p for p in forge.rule_problems(room, places + [room]))
+    pin = {"id": "boulangerie_valmy", "lat": quai["lat"] + 0.001, "lon": quai["lon"], "status": "en_chantier", "kind": "news"}
+    assert any("not a pin of its own" in p for p in forge.rule_problems(pin, places + [pin]))
+    far = {"id": "bastille", "lat": 48.8532, "lon": 2.3692, "status": "en_chantier", "kind": "news"}
+    assert forge.rule_problems(far, places + [far]) == []
+    # the places waiting for their door: no new one joins them
+    assert set(forge.WAITS_FOR_A_WAY) <= {p["id"] for p in places if p.get("in") and not p.get("entrance")}

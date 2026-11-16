@@ -14,12 +14,17 @@
  * movement, the replies so far), the place is built, and a director there plays the page on. T1
  * day b climbs the stairwell after closing (its `Interior`); any other page plays on in the room
  * with its people there (a `Stage`), and back at the café when it comes back there.
+ * Some places are walked into as well: a door on the quai (`entrance` in `world.json`) leads into
+ * Marin and Lila's building, and its stairwell up to their flat (the room's `passages`). Standing at
+ * a door, its card says where it goes; the place is built and you are inside the door, or back on
+ * the street before it.
  * In the app the episode is today's (`day`): the page hands over the journey's story, or a card in
  * its stead, and the end card's lower half (the engine's recap, «Demain»). Without one (the
  * standalone page) the quarter plays its own copy of T1 day a.
  * Nothing here is server-rendered: the page imports it with `ssr: false`.
  */
 import React from 'react';
+import { Vector3 } from 'three';
 
 import { WHILE_AWAY } from '@/lib/quartier/agency';
 import { Sound } from '@/lib/quartier/audio';
@@ -41,7 +46,8 @@ import type { AnswerUi, Cue, Director, Handover, Level, Native, PhoneUi, SpeechU
 import { STAGED_DAYS, pageOfCopy } from '@/lib/quartier/story';
 import type { HelpStep, Story, StoryPage } from '@/lib/quartier/story';
 import { Visit } from '@/lib/quartier/visit';
-import { placeOf, worldState } from '@/lib/quartier/world';
+import { doorsAt, placeOf, playedHere, worldState } from '@/lib/quartier/world';
+import type { Way } from '@/lib/quartier/world';
 import { ROOM_FILES } from '@/lib/quartier/world/rooms';
 import { DETAIL_FILES } from '@/lib/quartier/world/details';
 import { setBy } from '@/lib/quartier/details';
@@ -53,6 +59,17 @@ import type { SeasonItemId } from '@/lib/season-items';
 import { Carnet } from './Carnet';
 import { QuartierMap } from './QuartierMap';
 import { QUARTIER_CSS } from './quartier-styles';
+
+/** How near a door (or a passage's end) you stand for its card to show, in metres. */
+const WAY_REACH = 1.3;
+
+/** A room's passages, both ways: at `a` it takes you to `b`, and back. */
+function passagesOf(room: RoomSpec | null, place: string): Way[] {
+  return (room?.passages ?? []).flatMap((p) => [
+    { key: `${p.key}:b`, at: p.a, to: place, arrive: p.b, look: p.look_b, label: p.to_b, door: p.door, until: p.until, shut: p.shut },
+    { key: `${p.key}:a`, at: p.b, to: place, arrive: p.a, look: p.look_a, label: p.to_a, door: p.door },
+  ]);
+}
 
 /** A card in place of the episode's title card: the day is on its way, played, or the Feuilleton's. */
 export interface DayNote {
@@ -252,6 +269,11 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
   const carried = React.useRef<Handover | null>(null);
   const [scene, setScene] = React.useState(false);
   const goTo = React.useRef<(id: string, carry?: Handover) => void>(() => undefined);
+  // you walked here through a door: where you stand inside it, and the caption you come in to
+  const walked = React.useRef<{ pos: [number, number]; look?: [number, number, number]; caption?: Words } | null>(null);
+  // the door or the passage you stand at, and what it said when it stayed shut
+  const [near, setNear] = React.useState<Way | null>(null);
+  const [shut, setShut] = React.useState<Words | null>(null);
   const copy = COPY[native];
   const here = placeOf(place);
   // the episode: today's in the app, the quarter's own copy on the standalone page
@@ -346,6 +368,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
         if (cancelled) return;
         const opts = { level, native, onCue: (c: Cue) => sn.cue(c), onSay: (fr: string, heat: number) => sn.announce(fr, heat), memory };
         const carry = carried.current;
+        const onFoot = carry ? null : walked.current;
         // T1 day b's stairwell is blocked by hand; any other page goes on with the stage director
         const blocked = Boolean(carry && STAGED_DAYS.includes(carry.story.page.key));
         const onPlace = (to: Handover) => goTo.current(to.place, to);
@@ -359,13 +382,19 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
                 ? new Course(eq, opts)
                 : new Visit(eq, opts)
               : inside
-                ? new Interior(eq, { ...opts, scene: carry?.story })
+                ? new Interior(eq, { ...opts, scene: carry?.story, arrive: onFoot?.caption })
                 : new Stage(eq, undefined, { ...opts, onPlace });
         st = director;
         stage.current = director;
         unsubscribe = director.subscribe(setUi);
         await director.prepare();
         if (cancelled) return;
+        // through the door you came by: you stand just inside it (or, back out, on the street before it)
+        if (onFoot) eq.place(new Vector3(onFoot.pos[0], 0, onFoot.pos[1]), onFoot.look ? new Vector3(...onFoot.look) : undefined);
+        // the doors and passages here: their card shows when you stand at one
+        const ways: Way[] = [...doorsAt(place), ...passagesOf(inside, place)];
+        let wayAt = 0;
+        let nearKey: string | null = null;
         unbind = eq.bindInput();
         const last = eq.feet.clone();
         let statAt = 0;
@@ -375,6 +404,15 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
           const a = AMBIANCES[eq.ambiance];
           const neon = eq.parts ? eq.camera.position.distanceTo(eq.parts.neon.center) : 999;
           sn.update({ indoors: eq.indoors, walking: moved, rain: a.rain, night: a.night > 0.5, neon, din: director.din?.(), quiet: Boolean(inside) });
+          if (ways.length && now - wayAt > 0.2) {
+            wayAt = now;
+            const w = ways.find((x) => Math.hypot(eq.feet.x - x.at[0], eq.feet.z - x.at[1]) < WAY_REACH) ?? null;
+            if ((w?.key ?? null) !== nearKey) {
+              nearKey = w?.key ?? null;
+              setNear(w);
+              setShut(null);
+            }
+          }
           if (showStats && now - statAt > 0.5) {
             statAt = now;
             setStats({ ...eq.stats });
@@ -387,6 +425,12 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
         if (carry) {
           startSound();
           director.begin();
+        } else if (onFoot) {
+          // walked in (or out): no title card, you are already there
+          walked.current = null;
+          startSound();
+          if (inside) director.begin();
+          else director.roam();
         }
         // the street fills while you read the title card; a market more than the quai at night;
         // nobody passes through a stairwell after closing
@@ -459,9 +503,12 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
    * Ride somewhere on the map: the quarter is taken down and the place built in its stead. With
    * `carry`, the day's page goes on there where it stands (the café hands the stairwell its scene).
    */
-  const travel = (id: string, carry?: Handover) => {
+  const travel = (id: string, carry?: Handover, onFoot?: { pos: [number, number]; look?: [number, number, number]; caption?: Words }) => {
     if (id === place) return;
     carried.current = carry ?? null;
+    walked.current = carry ? null : onFoot ?? null;
+    setNear(null);
+    setShut(null);
     setScene(Boolean(carry));
     const to = placeOf(id);
     setPanel(null);
@@ -470,12 +517,34 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
     setStats(null);
     setSite(null);
     setRoom(null);
-    setRide(id === HOME || carry ? null : to?.ride ?? null);
-    setBack(id === HOME && !carry);
+    setRide(id === HOME || carry || onFoot ? null : to?.ride ?? null);
+    setBack(id === HOME && !carry && !onFoot);
     setLoading({ share: 0, label: 'Les encres' });
     setPlace(id);
   };
   goTo.current = travel;
+
+  /** Through the door you stand at: into the place it leads to, or along the room's passage. */
+  const take = (w: Way) => {
+    const q = engine.current;
+    if (!q) return;
+    if (w.until === 'story' && !playedHere(memory.entries, room?.id ?? place)) {
+      // it says why, then the door is there to try again
+      setShut(w.shut ?? null);
+      window.setTimeout(() => setShut(null), 3500);
+      return;
+    }
+    if (w.to !== place) {
+      travel(w.to, undefined, { pos: w.arrive, look: w.look, caption: w.caption });
+      return;
+    }
+    if (w.door) q.openDoor(true, w.door);
+    setNear(null);
+    window.setTimeout(() => {
+      q.place(new Vector3(w.arrive[0], 0, w.arrive[1]), w.look ? new Vector3(...w.look) : undefined);
+      if (w.door) window.setTimeout(() => q.openDoor(false, w.door), 700);
+    }, w.door ? 450 : 0);
+  };
 
   const toggleSound = () => {
     const on = !soundOn;
@@ -640,13 +709,29 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
         </div>
       ) : null}
 
+      {near && ready && phase === 'roam' && !ui?.goal && !ui?.talk && !ui?.answer && !ui?.aside ? (
+        <div className="qz-goal" data-way={near.key}>
+          <div className="qz-goal-label" lang="fr">
+            {shut ? shut.fr : near.label.fr}
+            {translate ? <small>{shut ? shut[native] : near.label[native]}</small> : null}
+          </div>
+          {shut ? null : (
+            <div className="qz-goal-actions">
+              <button type="button" className="qz-primary" onClick={() => take(near)}>
+                {copy.go}
+              </button>
+            </div>
+          )}
+        </div>
+      ) : null}
+
       {walkable && ready ? <Stick onMove={(x, y) => engine.current?.setStick(x, y)} /> : null}
 
       {ui?.answer ? <AnswerSheet key={ui.answer.id} a={ui.answer} copy={copy} onSend={(t) => st?.answer(t)} onHelp={() => st?.askHelp?.()} /> : null}
 
       {ui?.talk ? <TalkSheet key={ui.talk.who} t={ui.talk} translate={translate} copy={copy} onSay={(t) => st?.talkSay(t)} onClose={() => st?.endTalk()} /> : null}
 
-      {phase === 'roam' && !ui?.talk && !ui?.goal ? <div className="qz-hint">{room ? (room.switches.length ? copy.roomHint : copy.litHint) : copy.roamHint}</div> : null}
+      {phase === 'roam' && !ui?.talk && !ui?.goal && !near ? <div className="qz-hint">{room ? (room.switches.length ? copy.roomHint : copy.litHint) : copy.roamHint}</div> : null}
       {phase === 'roam' && ui?.met ? (
         <div key={ui.met.at} className="qz-met" data-char={ui.met.char}>
           {ui.met.name}

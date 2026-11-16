@@ -63,6 +63,7 @@ from app.services.forge_grading import (
     describe_diff,
     drop_author_notes,
     drop_false_english,
+    every_line_copied,
     fold_typography,
     free_use_acceptable,
     held_to_sentence,
@@ -71,6 +72,7 @@ from app.services.forge_grading import (
     production_local_check,
     refine_production_correction,
     sentence_differences,
+    slip_category,
     slip_note,
     token_diff,
 )
@@ -165,6 +167,35 @@ def local_check_status(correction: dict[str, Any]) -> str | None:
 
 def _verdict_passes(verdict: Any) -> bool:
     return str(verdict or "") in {"correct", "accepted"}
+
+
+#: #724: the reason stored when there is no model to ask at all. It reads as
+#: ``Failure.NO_MODEL`` (:func:`app.services.verdicts.failure_class`), which offers no
+#: «Run again»: asking again can never reach a model that is not configured.
+NO_MODEL_REASON = "no_model: the checker is not configured."
+
+
+def _with_rule_fixes(correction: dict[str, Any], text: str, *, language: str | None) -> dict[str, Any]:
+    """#724 / #333: an open answer the model did not read keeps what the rules can say.
+
+    The Courrier, the Journal and the scene run the model-free pass
+    (:func:`app.services.correction_contract.deterministic_errata`) when their model does
+    not answer; La Forge fell back to nothing, so «J'ai trente-deux an.» ended «not checked
+    yet» with «an → ans» never named. The rules' fixes are listed as a basic check: the
+    answer still counts for nothing (#334), only a reading does."""
+
+    from app.services.correction_contract import deterministic_errata
+
+    errata = [item for item in (correction.get("errata") or []) if isinstance(item, dict)]
+    seen = {(item.get("learner_text"), item.get("corrected_target")) for item in errata}
+    for item in deterministic_errata(text, language=language):
+        key = (item.get("learner_text"), item.get("corrected_target"))
+        if key not in seen:
+            seen.add(key)
+            errata.append(item)
+    correction["errata"] = errata
+    correction["notes_native"] = notes_native(errata)
+    return correction
 
 
 def _test_out_local_grade(
@@ -2853,7 +2884,9 @@ class AtelierExerciseGenerator:
                 return cached_shared_llm
             if cached_fallback and self.validate_payload(cached_fallback.payload, concept=concept):
                 return cached_fallback
-            payload = self._fallback_payload(concept)
+            from app.services.no_address import unaddressed_generated
+
+            payload = unaddressed_generated(self._fallback_payload(concept))
             validation_errors = self._payload_validation_errors(payload, concept=concept)
             if validation_errors:
                 raise AtelierExerciseGenerationError(
@@ -3220,7 +3253,11 @@ class AtelierExerciseGenerator:
         sentence_signals = {"je", "tu", "il", "elle", "nous", "vous", "ils", "elles", "on", "ce", "c", "si", "quand"}
         fragment_markers = {"de", "du", "des", "d", "le", "la", "les", "un", "une", "a", "au", "aux"}
         content_parts = [part for part in normalized_parts if part not in fragment_markers]
-        has_sentence_signal = any(part in sentence_signals for part in normalized_parts)
+        # An imperative is a whole sentence with no subject («Prends le train !»): it used
+        # to pass only when said to someone («…, Lila !»), which a build no longer is.
+        has_sentence_signal = any(part in sentence_signals for part in normalized_parts) or str(
+            item.get("correct_answer") or ""
+        ).rstrip().endswith("!")
         if len(normalized_parts) < 3 or (not has_sentence_signal and len(content_parts) < 3):
             errors.append(f"word_bank item {item_id} answer must be a complete sentence")
         if cue and joined_answer and joined_answer in cue:
@@ -3289,7 +3326,11 @@ class AtelierExerciseGenerator:
                     target_vocabulary=target_vocabulary,
                     validation_feedback=validation_feedback,
                 )
-                payload = self._normalize_llm_exercise_payload(concept, bundle.payload)
+                # 12 Nov 2026: the prompt asks for builds said to nobody; what comes back
+                # is held to it (:mod:`app.services.no_address`), never trusted.
+                from app.services.no_address import unaddressed_generated
+
+                payload = unaddressed_generated(self._normalize_llm_exercise_payload(concept, bundle.payload))
                 validation_errors = self._payload_validation_errors(payload, concept=concept)
                 if validation_errors:
                     self._record_generation_event(
@@ -4811,6 +4852,11 @@ class AtelierCorrectionService:
             session=session,
             item_ids=_burst_ids(answer_payload) if _is_burst(exercise_id) else None,
         )
+        # 12 Nov 2026: graded as served (``item_bank.public_item``) — a build or write
+        # item said to nobody, an item stored before the decision included.
+        from app.services.no_address import unaddressed_payload
+
+        prompt_payload = unaddressed_payload(prompt_payload)
         if not retest_of:
             check_answer_length(round_name, prompt_payload, answer_payload)
         target_vocabulary = session_vocabulary_context(session)
@@ -4997,10 +5043,8 @@ class AtelierCorrectionService:
 
         # A correct retype earns a delayed retrieval attempt. It is not an
         # attempt reward and it is tied to this source correction for reloads.
-        all_repaired = len(repairs) >= len(targets) and all(
-            repairs.get(str(index), {}).get("status") == "ok"
-            for index in range(len(targets))
-        )
+        # #779: counted per line the screen asks to copy, not per erratum.
+        all_repaired = every_line_copied(targets, repairs)
         if all_repaired and not correction.get("retest"):
             # Distinct drills, because the client compares this threshold against
             # its own completed-drill count. Counting raw attempt rows scheduled
@@ -5261,8 +5305,8 @@ class AtelierCorrectionService:
         mode: str | None = None,
     ) -> dict[str, Any]:
         if (correction or {}).get("assessment_status") == "unavailable":
-            return {"status": "failed", "auto_started": False,
-                    "error": "The answer has not been checked. Retry when the checker is available."}
+            # Only an answer no model could be asked about is unavailable at submit.
+            return {"status": "failed", "auto_started": False, "error": NO_MODEL_REASON}
         correction_debug = (correction or {}).get("correction_debug") or {}
         if correction_debug and not correction_debug.get("fallback_used"):
             return {
@@ -5326,7 +5370,7 @@ class AtelierCorrectionService:
                 "auto_started": auto_started,
                 "model": settings.ATELIER_CORRECTION_LLM_MODEL,
                 "completed_at": self._now_iso(),
-                "error": "AI provider unavailable.",
+                "error": NO_MODEL_REASON,
             }
             attempt.correction_payload = correction
             flag_modified(attempt, "correction_payload")
@@ -5762,6 +5806,9 @@ class AtelierCorrectionService:
             correction["score_0_4"] = 0
             attempt.verdict = "needs_review"
             attempt.score_0_4 = 0.0
+            correction = _with_rule_fixes(
+                correction, self._answer_text(attempt.answer_payload or {}), language=self.explanation_language
+            )
         correction["second_check"] = {"status": "failed", "verdict_changed": False, "llm_ms": llm_ms}
         verdicts.note_failure(self.db, surface="forge", verdict=verdicts.from_forge(correction), user_id=attempt.user_id)
         if llm_ms is not None:
@@ -5984,6 +6031,7 @@ class AtelierCorrectionService:
                 })
                 if local_check is not None:
                     correction["local_check"] = local_check
+                correction = _with_rule_fixes(correction, text, language=self.explanation_language)
         # The client needs to know which language the explanation prose is in;
         # the French in the same payload never changes language.
         correction.setdefault("assessment_status", "checked")
@@ -6417,6 +6465,22 @@ class AtelierCorrectionService:
             )
             explanation = str(item.get("explanation") or self._why_for(concept, item) or "").strip()
             outside_rule = mode == "fill" and _miss_outside_the_rule(item, learner_text, target)
+            # #596: a slip the classifier can name (an article's gender or number, a verb
+            # form of another person) is explained as that slip, with the rule only cited.
+            ops = token_diff(learner_text, target, positions=True)
+            named = None if outside_rule else slip_note(ops, language, target)
+            if named:
+                title = _concept_title_for(concept, language)
+                # A verb form is the rule's own matter, so the rule is cited; an article's
+                # gender or number is the noun's, whatever the day's rule is.
+                category = (slip_category(ops, target) or {}).get("category", "")
+                cite = _copy("atelier.recognize.rule_reference", language, title=title) if category.startswith("person") else ""
+                return self._recognize_erratum_payload(
+                    concept, item, label=title, learner_text=learner_text, target=target,
+                    why=" ".join(part for part in (why, named[0], cite) if part),
+                    repair=named[1],
+                    task_type=self._task_type_for(concept, item),
+                )
             if outside_rule:
                 # #380: say what differs in the learner's text, not the rule's headline.
                 why = f"{why} {_copy('atelier.recognize.other_words', language, learner=learner_text, target=target)}"
@@ -6429,7 +6493,7 @@ class AtelierCorrectionService:
             elif normalize_language(language) == "en":
                 repair = infer_grammar_profile(concept).pattern
             else:
-                repair = self._repair_for(concept)
+                repair = self._repair_for(concept, learner_text, target)
             return self._recognize_erratum_payload(
                 concept, item, label=_concept_title_for(concept, language), learner_text=learner_text, target=target,
                 why=why,
@@ -6449,7 +6513,7 @@ class AtelierCorrectionService:
             learner_text=learner_text,
             target=target,
             why=item.get("why_wrong") or self._why_for(concept, item),
-            repair=item.get("repair_hint") or self._repair_for(concept),
+            repair=item.get("repair_hint") or self._repair_for(concept, learner_text, target),
             task_type=self._task_type_for(concept, item),
         )
 
@@ -6464,7 +6528,7 @@ class AtelierCorrectionService:
         target_norm = _normalize(target)
         label = self._label_for(concept, item)
         why = _copy("atelier.recognize.blank_needs", self.explanation_language, learner=learner_text, target=target)
-        repair = item.get("repair_hint") or self._repair_for(concept)
+        repair = item.get("repair_hint") or self._repair_for(concept, learner_text, target)
         profile_key = infer_grammar_profile(concept).key if concept else ""
 
         language = self.explanation_language
@@ -8209,6 +8273,17 @@ class AtelierCorrectionService:
             logger.info("Atelier LLM correction unavailable; using deterministic fallback", error=str(exc))
             return None
 
+    @property
+    def has_no_model(self) -> bool:
+        """#754: no model could be asked at all (switched off, or no provider configured).
+
+        Unlike a call that failed, asking again cannot help, so a surface offers no retry
+        for it (#724). ``False`` until :meth:`_get_llm_service` has been tried, unless the
+        checker is switched off."""
+        if self.llm_service is not None:
+            return False
+        return not settings.ATELIER_CORRECTION_LLM_ENABLED or self._llm_unavailable
+
     def _should_use_correction_llm(self) -> bool:
         return self.llm_service is not None or bool(settings.ATELIER_CORRECTION_LLM_ENABLED)
 
@@ -8342,10 +8417,13 @@ class AtelierCorrectionService:
             return infer_grammar_profile(concept).principle
         return _copy("atelier.generic.why", self.explanation_language)
 
-    def _repair_for(self, concept: GrammarConcept | None) -> str:
+    def _repair_for(
+        self, concept: GrammarConcept | None, learner: str | None = None, target: str | None = None
+    ) -> str:
         # #239 / #146: the unit's own slip first, in every language; the fixed
         # «name the trigger» line is only for a concept the catalogue does not know.
-        authored = authored_repair(concept) if concept else ""
+        # #596: given the miss, the slip that fits it, never one crossing out its answer.
+        authored = authored_repair(concept, learner, target) if concept else ""
         if authored:
             return authored
         if self.explanation_language in {"fr", "de"}:

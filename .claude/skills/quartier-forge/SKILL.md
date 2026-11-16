@@ -26,6 +26,40 @@ street, `hippodrome_longchamp.json` and `.md` of a venue, `escalier_mistral.json
 room: read the pair that fits before writing a brief. A room of the season is written from the
 canon, not surveyed: see **Rooms of the season** below for how its run differs.
 
+## Two rules every place keeps (owner, 13 Nov 2026)
+
+Every place a run builds keeps both; `forge.py check` and `forge.py publish` refuse one that does
+not, and the PR's tests (`web-frontend/lib/quartier/world-rules.test.js`,
+`tests/test_quartier_forge_queue.py`) fail on it. Never work round them by editing those tests or
+the lists in them.
+
+1. **On foot.** A place the story uses is walked into from the walkable quarter, never only
+   handed over by the story: a flat through its building's street door and up its stairwell, a
+   shop or a café through its door. In `world.json` the place has an `entrance`: `from` (the place
+   whose ground the door is on, usually `quai_de_valmy`), `door` (the door in the façade, x and z
+   in the quarter's coordinates: find the façade's own door in `lib/quartier/quai.ts`, a `door`
+   bay, and use it rather than cutting a new one), `outside` (where you stand on the pavement,
+   walkable in `from`), `inside` (just inside the door, walkable in the place), `look_in`,
+   `look_out`, and in three languages `enter`, `leave` and `arrive` (the caption you walk in to).
+   From `inside`, the place's own ground must lead to its start, to every mark the story stands
+   people at and to everything you can tap. The walking grid is one sheet, so a climb past a
+   storey and a door the story keeps shut are `passages` in the room's brief (`a`, `b`,
+   `look_a`, `look_b`, `to_a`, `to_b` in three languages, `door`: the leaf it swings, `until:
+   "story"` and `shut` for a door that opens on foot only once the learner's story has played
+   there, so nobody walks into a scene before the story gets there). A flat upstairs is built
+   with its stairwell in the same room file: the vestibule behind the street door, the
+   corridor, the flight to the first floor (Le Mistral's stairwell's plan, as in
+   `chez_marin_lila.json`), and a passage up to the landing before its door.
+   The places built before the rule that have no door yet are listed in `WAITS_FOR_A_WAY`
+   (`forge.py` and `world-rules.test.js`): the list only shrinks. A run that gives one of them
+   its door removes it from both lists.
+2. **On the map.** A place gets a pin of its own only when it lies `MAP_PIN_MIN_METRES` (300 m)
+   or more from every other pin (`lib/quartier/world.ts`, `forge.py`: on a phone two pins nearer
+   than that overlap where a thumb lands). A place nearer to a pin is inside it: `in` names that
+   pin, it has no pin, and you reach it through the pin (and on foot, through its door). A
+   street or a venue far enough from every pin is a pin. Say in the PR which way the place fell
+   and how far it is from the nearest pin (`forge.py check` prints it when it fails).
+
 ## Setup
 
 ```
@@ -158,7 +192,8 @@ itself); `check` and `tests/test_quartier_forge_queue.py` refuse a stale copy.
 8. **Publish** (only when step 7 is met): `$PY scripts/forge/forge.py publish <id>` checks the
    site, opens it on the map (`world.json`) and regenerates `world/sites/index.ts`.
 9. **Tests and checks.** From `web-frontend/`: `npm test` (`lib/quartier/site.test.js` holds
-   every site to the forge's checks, `market-talk.test.js` to the canon), `npx tsc --noEmit -p .`,
+   every site to the forge's checks, `market-talk.test.js` to the canon, `world-rules.test.js`
+   every place to the two rules), `npx tsc --noEmit -p .`,
    `npm run lint`, `npm run build`. Play it once: `node scripts/quartier/build-standalone.mjs`,
    open `out-quartier/le-quartier.html?place=<id>&debug`, begin, follow the errands, buy
    something, leave, go home.
@@ -181,13 +216,22 @@ learner's studio, Maître Vasseur's office, Odile's flat, the roof over Le Mistr
 (`toit_mistral`, gap 3), Le Mistral's back room (`arriere_salle`, T5 B: through the café's
 back door, at -37.6 x, -18.1 z in the café's own plan), Marin and Lila's flat
 (`chez_marin_lila`, T5: on the third floor of a building on the quai, its windows on the canal)
-and the gérance Marchand (`gerance_marchand`, T6 A: on the second floor over Le Mistral, floor
-7.9, its windows on the canal). A room under the sky is a room too: its floors are `zone: "out"` and
+the gérance Marchand (`gerance_marchand`, T6 A: on the second floor over Le Mistral, floor
+7.9, its windows on the canal), the rue de Lancry (`rue_de_lancry`, T8 and E2: the quai's own
+street, `quarter: true`, round «L.»'s green door and his third-floor window) and Gus's «château»
+(`chateau_gus`, T8 À suivre (2) and the epilogue: the fifth floor of the Haussmann house on the
+quai at z 36 to 52.8, its door bay 0, the painting turned to the wall between two windows) and
+Marin's NGO office (`bureau_ong`, T3 B: the first floor of the next house south, z 52.8 to 72,
+its door bay 1, Gus's stairwell turned over so the office lies north of the cage). A room under the sky is a room too: its floors are `zone: "out"` and
 you walk them (only a `sealed` floor, or one with `walk: false`, is not walked), and nothing on
 it is dry. A room on a roof of the quai says `quarter: true`: the engine builds the quai round it
 as it is (the canal, the footbridge, the barge, the houses and their lit windows) and walks only
 the room's own ground, round the chimney stacks the quai's building already has
-(`BuildingInfo.stacks`). Le Mistral's roof is the flat top of its mansard (the terrasson, at
+(`BuildingInfo.stacks`). A street the quai already lays (the rue de Lancry, at x -53 to -178 and z
+-6 to 6: the road at 0, its pavements at the kerb, 0.14) is a room in the quarter too: its floors
+are that ground with `drawn: false` (walked, not drawn again), and the quai's own houses, doors and
+lit windows are its walls; tap them through things (`intercom`, `gaze`). Build a place the quai
+already has there, never a second copy of it from the map data. Le Mistral's roof is the flat top of its mansard (the terrasson, at
 23.49 m, inside the building's walls; the mansard falls away at the street sides, so you see the
 canal from its edge, not from the middle). A run builds one room instead of a street; it follows
 the steps above with these differences.
@@ -201,8 +245,10 @@ the steps above with these differences.
    stage for (`["toit"]`; the id the queue named), `sees` if a page looks into another place from
    it, `source: { kind: "season", id: "s1" }`,
    `site: null`, `room: "<id>"`, and `in`: the place on the map it is inside (the stairwell, the
-   studio and the notary's office are in `quai_de_valmy` until the map has their streets). A room is never a pin of its own and is never published (`forge.py publish`
-   refuses it): the story opens it.
+   studio are in `quai_de_valmy`; the notary's office, 86 m from the mairie's pin, is in
+   `mairie_10e`: `in` is the nearest pin, within `MAP_PIN_MIN_METRES`). A room is never a pin of
+   its own and is never published (`forge.py publish` refuses it): the story opens it. It has its
+   `entrance` (**Two rules**, above): the door you walk in by, and the stairwell up to it.
 3. **Brief.** `scripts/forge/briefs/<id>.json` with `kind: "room"`, `in`, `canon` (`doc`,
    `place`, `scenes`), `ambiance`, `title`, `can_do`, `arrive` (the caption you arrive to, in
    three languages; the kit's default speaks of the dark), `start` (`pos`, `look`), and the room in the
@@ -253,7 +299,26 @@ the steps above with these differences.
      cabinet, four drawers, `size` [w, h]), `desk` (its blotter, files stacked at its left end,
      the drawers on the sitter's side, local -z), `campbed` (made with hospital corners, `size`
      [length, width] along local x, the pillow at -x) and `frame` (a small frame on its strut: a
-     Polaroid with its caption in `text`, or without `text` an old portrait gone sepia)) with
+     Polaroid with its caption in `text`, or without `text` an old portrait gone sepia); in a
+     showman's flat, `banner` (a banner on a gilt pole, red to a point, a crown, a chevron and
+     three stars: `at` the cloth's centre, `size` [w, h]), `mantel` (a marble chimneypiece, cold
+     logs, a tall gilt mirror over it: `size` [width, the mirror's height], `tone` the marble),
+     `candelabra` (three candles lit, `at` its foot on a shelf), `lowtable` (glass on brass, a
+     decanter and two tumblers, `size` [w, d]), `letter` (an envelope face up: `text` the name in a
+     hand and the postmark's town), `rug` (a red rug, its border and medallion, `size` [w, d]),
+     and `canvas` with `text`: a small oil in its gilt frame leaning face to the wall, what is
+     written on its back a line each (the first in ink, the rest in pencil, shaky); in a
+     campaigner's office, `poster` (taped up, a slogan a line of `text`, sea green, poster red or
+     paper by turn, `size` [w, h]), `map` (the waterways: `text` the title, then Seine, canal,
+     basin, Ourcq, Saint-Denis), `projection` (a spreadsheet on the wall: `text` its title, then
+     a row a «label | value»), `projector` (on a desk, its lens on local +z), `plant` (a pot
+     plant in need of water, `size` [pot height, reach]), `fern` (on its stand with the spray
+     bottle, `size` [stand height, reach]), `leek` (lying along local x) and `mug` (a colour each);
+     a room's cards share one sign atlas (2048 px square): keep what they ask under about 0.6 of
+     it, or the last ones print blank; in a
+     street, `intercom` (a plate on the wall by a door, `text` its names from the top floor down,
+     two to a row, `at` its centre) and `gaze` (nothing drawn: a point to tap where the quarter
+     already draws something, a window up the street)) with
      `zone`, `tone`, `text`, `size`. A thing with `look` (three languages) can be tapped and says
      it in a line; its `did` is what the end card remembers. `courts` are seen through a window:
      `storeys` one fewer than your floor puts their zinc at your eye, and `roofs: true` gives
@@ -290,12 +355,18 @@ the steps above with these differences.
 6. **Play it.** The standalone page with `?place=<id>&debug` opens the room even while it is
    locked: press the button, climb, open the door once, see it shut and the light go out, come
    back to find it shut, leave. In a lit room: tap each thing with a `look`, read its line, leave,
-   and read the end card. `lib/quartier/room.test.js` builds every room file and holds it to
-   the same checks.
+   and read the end card. Then walk it in from the street: open the standalone page with no
+   `place`, walk the quai to the door (its card shows when you stand at it), go in, climb, take
+   the passages, and walk back out onto the quai. `lib/quartier/room.test.js` builds every room
+   file and holds it to the same checks; `lib/quartier/world-rules.test.js` walks from the quai's
+   start to the door and from inside it to every mark and every thing you can tap.
 7. **PR.** Run `$PY scripts/forge/forge.py stages` once the room is built (`room` set and
    `stages` given in `world.json`). Commit the brief, its notes, the room file, `rooms/index.ts`,
    `world.json`, `app/data/season/s1/stages.json` and any kit change (never `var/`), titled
-   «Le Quartier forge: <what was built>».
+   «Le Quartier forge: <what was built>». The PR says where the door is (which street, which
+   bay of which façade), how you climb to the place, and the map's verdict: «inside <pin>, N m
+   away» or «a pin of its own, N m from the nearest». Its checks are the run's checks and
+   `pytest tests/test_quartier_forge_queue.py` (the register, `stages.json`, the two rules).
 
 ## A place the stories named
 

@@ -39,7 +39,7 @@ import { XraySentence } from '@/components/atelier-v2/rule/XraySentence';
 import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 import { ruleTitle } from '@/lib/grammar-map';
 import { useChromeLanguage } from '@/lib/learner-language';
-import { cardExamples, plainText, usableCard, usableXray } from '@/lib/rule-card';
+import { cardExamples, plainText, usableCard, xrayIn } from '@/lib/rule-card';
 import api, { AtelierErratum, GrammarNotebookDetail, GrammarNotebookItem } from '@/services/api';
 import { forgeCopy } from '@/lib/forge-copy';
 import {
@@ -538,7 +538,8 @@ function GrammarFiche({
   // sentences the card already shows.
   const cardLanguage = useChromeLanguage(concept.level);
   const card = usableCard(concept.rule_card) ? concept.rule_card : null;
-  const xray = usableXray(concept.xray) ? concept.xray : null;
+  // #730: no x-ray section in a language its marks have no text in.
+  const xray = xrayIn(concept.xray, cardLanguage) ? concept.xray : null;
   const cardSentences = card
     ? [card.example.fr, ...cardExamples(card).map((item) => item.fr)].map((value) => plainText(value).trim().toLowerCase())
     : [];

@@ -223,7 +223,14 @@ def _ask(item: dict[str, Any], answer: str, language: str) -> AppealRuling:
     return AppealRuling.model_validate(json.loads(result.content))
 
 
-def _amend_step(drill: _Drill, appeal_id: str, now: datetime) -> None:
+def _amend_step(db: Session, drill: _Drill, appeal_id: str, now: datetime) -> None:
+    """Upheld settles the whole item, not only its verdict (#729).
+
+    The miss left two things beside its verdict: the stored outcome, and the item queued once
+    more at the end of its set. Both go: the outcome is «met», and the retry leaves the day.
+    """
+
+    from app.services.daily_journey import withdraw_retry
     from app.services.journey_contracts import TaskOutcome
 
     private = dict(drill.step.private_task or {})
@@ -233,6 +240,7 @@ def _amend_step(drill: _Drill, appeal_id: str, now: datetime) -> None:
     private["result"] = result
     drill.step.private_task = private
     flag_modified(drill.step, "private_task")
+    withdraw_retry(db, drill.step)
 
 
 def _remember(db: Session, drill: _Drill, appeal_id: str, now: datetime) -> Any:
@@ -338,7 +346,7 @@ def appeal(
             answer=drill.text, reading=reading, task=judge_task, now=now,
         )
         row.record_id = record.id if record is not None else None
-        _amend_step(drill, str(row.id), now)
+        _amend_step(db, drill, str(row.id), now)
         memo = _remember(db, drill, str(row.id), now)
         row.memo_id = memo.id if memo is not None else None
     else:

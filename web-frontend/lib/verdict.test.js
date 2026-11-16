@@ -158,3 +158,27 @@ test('package V stage 3: an answer read since says so once, in every chrome lang
     assert.ok(source.includes(key), `${file.join('/')} says ${key}`);
   }
 });
+
+test('#724 · La Forge offers «Check again» only where a reader can be asked, and never ends on a dead «not checked yet»', () => {
+  const verdict = require('./verdict.ts');
+  const { epreuveCopy } = require('../components/epreuve/epreuve-copy.ts');
+  assert.equal(typeof verdict.unreadLine, 'function', 'one reading of the unread line, for every surface');
+  const failed = { outcome: 'not_checked', call: 'failed', failure: 'provider_error', retryable: true, edits: [] };
+  const noModel = { outcome: 'not_checked', call: 'failed', failure: 'no_model', retryable: false, edits: [] };
+  const rules = { ...noModel, edits: [{ span: 'an', replacement: 'ans' }] };
+  assert.equal(verdict.unreadLine(failed), 'not_checked');
+  assert.equal(verdict.canAskAgain(failed), true, 'a failed call is worth asking again');
+  assert.equal(verdict.unreadLine(noModel), 'unavailable', 'no model: say so, not «not checked yet»');
+  assert.equal(verdict.canAskAgain(noModel), false, 'no button that can never work');
+  assert.equal(verdict.unreadLine(rules), 'basic', 'the rules named «an → ans»');
+  assert.equal(verdict.canAskAgain({ outcome: 'right', call: 'ok', edits: [] }), false);
+  for (const language of ['en', 'de', 'fr']) {
+    const t = epreuveCopy(language);
+    assert.equal(t.check_unavailable, CHECK_COPY[language].unavailable, language);
+    assert.ok(!/not checked yet|noch nicht geprüft|pas encore vérifiée/.test(t.check_unavailable), language);
+  }
+  assert.notEqual(epreuveCopy('de').relaunch, 'Neu starten', '«Neu starten» reads as «restart the exercise»');
+  const page = read('pages', 'atelier.tsx');
+  assert.match(page, /onRetry=\{canAskAgain\(correction\?\.check\) \? onRetryAiReview : undefined\}/);
+  assert.match(page, /line === 'unavailable' \? t\.check_unavailable/);
+});
