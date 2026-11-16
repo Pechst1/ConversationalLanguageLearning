@@ -81,7 +81,10 @@ def _listed(raw: str | None, user: User) -> bool:
     """``user`` is named (by id or email, any case) in the comma-separated ``raw``."""
 
     allowed = {entry.strip().lower() for entry in str(raw or "").split(",") if entry.strip()}
-    return bool(allowed & {str(user.id).lower(), (getattr(user, "email", None) or "").strip().lower()})
+    if not allowed:
+        return False
+    names = {str(getattr(user, "id", "") or "").lower(), str(getattr(user, "email", "") or "").strip().lower()}
+    return bool(allowed & (names - {""}))
 
 
 def acts_enabled_for(user: User) -> bool:

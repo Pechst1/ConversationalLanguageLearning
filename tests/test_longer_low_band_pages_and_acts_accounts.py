@@ -56,8 +56,9 @@ def test_the_page_writer_is_asked_for_the_band_s_panels(band, panels):
 @pytest.mark.parametrize(
     ("band", "budget", "exchanges"),
     [
-        ("A1", 600, MIN_SCENE_EXCHANGES + 1),  # story first: kept, practice gives way
-        ("A2", 600, MIN_SCENE_EXCHANGES + 1),
+        # Régulier with practice at its floor: no room, the exchange is given back.
+        ("A1", 600, MIN_SCENE_EXCHANGES),
+        ("A2", 600, MIN_SCENE_EXCHANGES),
         ("A1", 1200, MAX_PLANNED_RESPOND_TURNS),
         ("A2", 1800, MAX_PLANNED_RESPOND_TURNS),
         ("B1", 600, MIN_SCENE_EXCHANGES),  # B1 up as before
@@ -69,6 +70,7 @@ def test_a_low_band_scene_keeps_one_exchange_more_and_practice_gives_way(band, b
     plan.validate()
     assert _respond(plan).public_prompt["max_turns"] == exchanges, plan.rationale
     assert not plan.longer_day, plan.rationale
+    assert plan.budget_seconds == budget and plan.estimated_active_seconds <= budget, plan.rationale
     assert len(_recalls(plan)) >= 3, plan.rationale
 
 
@@ -160,17 +162,57 @@ def test_the_blueprint_declares_the_list_for_the_dashboard_on_both_services():
         assert entry == {"key": "ATELIER_STORY_ACTS_ACCOUNTS", "sync": False}, name
 
 
-def test_story_first_a1_regulier_keeps_its_exchange_its_three_items_and_overruns_by_one_exchange_at_most():
-    plain = planner._plan_journey_once(
-        scenario=_day("A1").scenario, candidates=[], budget_seconds=600, practice=True, story_extra=False
-    )
-    plan = _day("A1", 600)
+def _warmups(plan) -> int:
+    kinds = [step.kind.value for step in plan.steps]
+    return kinds[: kinds.index("scene")].count("recall")
+
+
+@pytest.mark.parametrize("band", ["A1", "A2"])
+def test_a_regulier_day_with_practice_at_its_floor_gives_the_exchange_back(band, monkeypatch):
+    """Owner 2026-11-16 (CI on f13d7ba1): the exchange more may cost plain practice
+    items only — never the budget, the rule, the desk, nor the Rappel below what a
+    Léger day has. A Régulier day with practice has no such room: it is the day it
+    was without the exchange."""
+
+    plan = _day(band, 600)
+    monkeypatch.setattr(planner, "LOW_BAND_EXTRA_EXCHANGES", 0)
+    plain = _day(band, 600)
     plan.validate()
-    assert _respond(plan).public_prompt["max_turns"] == MIN_SCENE_EXCHANGES + 1
-    assert len(_recalls(plan)) >= planner.STORY_FIRST_MIN_ITEMS
-    assert not plan.longer_day and not plain.longer_day
-    assert 600 < plan.budget_seconds < 1200, "past Régulier by one exchange, never into Soutenu"
-    assert "story first" in plan.rationale
+    assert plan.budget_seconds == 600 and plan.estimated_active_seconds <= 600
+    assert [step.kind for step in plan.steps] == [step.kind for step in plain.steps]
+    assert _respond(plan).public_prompt["max_turns"] == _respond(plain).public_prompt["max_turns"]
+    assert _warmups(plan) > planner.rhythm_caps(300).max_warmups or _warmups(plan) == _warmups(plain)
+
+
+@pytest.mark.parametrize("band", ["A1", "A2"])
+def test_a_regulier_day_with_nothing_to_give_keeps_the_exchange_when_it_fits(band):
+    from tests.test_wp129_practice import engine_brief
+
+    plan = planner.plan_journey(scenario=engine_brief(level_band=band), candidates=[], budget_seconds=600)
+    plain = planner._plan_journey_once(
+        scenario=engine_brief(level_band=band), candidates=[], budget_seconds=600, story_extra=False
+    )
+    assert plan.estimated_active_seconds <= 600 and not plan.longer_day
+    with_extra = planner._plan_journey_once(scenario=engine_brief(level_band=band), candidates=[], budget_seconds=600)
+    expected = _respond(with_extra if with_extra.estimated_active_seconds <= 600 else plain)
+    assert _respond(plan).public_prompt["max_turns"] == expected.public_prompt["max_turns"]
+
+
+def test_the_exchange_is_refused_when_it_would_cost_a_step_or_the_rappel():
+    plain = _day("A2", 600)
+    keeps = planner._keeps_the_day
+    turns = planner._first_reply_turns(plain) + 1
+    # A candidate that dropped the warm-ups to Léger's or lost a non-item step fails.
+    from dataclasses import replace
+
+    respond = _respond(plain)
+    longer = replace(respond, public_prompt={**respond.public_prompt, "max_turns": turns})
+    steps = [longer if step is respond else step for step in plain.steps]
+    assert keeps(replace(plain, steps=steps), plain, wanted=turns)
+    no_warmups = [step for i, step in enumerate(steps) if not (step.kind.value == "recall" and i < 4)]
+    assert not keeps(replace(plain, steps=no_warmups), plain, wanted=turns)
+    over = replace(plain, steps=steps, estimated_active_seconds=601)
+    assert not keeps(over, plain, wanted=turns)
 
 
 def test_leger_and_b1_never_take_the_extra_exchange():

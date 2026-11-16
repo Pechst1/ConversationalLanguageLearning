@@ -154,10 +154,7 @@ def test_an_ordinary_day_fits_its_rhythm_at_every_band(band: str) -> None:
     for budget in (300, 600, 1200):
         plan = _day(band, budget)
         plan.validate()
-        # Owner 2026-11-16 («story first»): an A1/A2 day may run past its rhythm by
-        # its one exchange more (``plan.budget_seconds`` says by how much), never further.
-        assert plan.longer_day or plan.core_seconds() <= plan.budget_seconds, (band, budget)
-        assert plan.budget_seconds == budget or band in ("A1", "A2"), (band, budget)
+        assert plan.longer_day or plan.core_seconds() <= budget, (band, budget)
         if plan.longer_day:
             # Only a slow band on the shortest rhythm.
             assert (band, budget) in {("A1", 300), ("A2", 300)}, (band, budget)
@@ -372,9 +369,7 @@ def test_the_estimate_and_the_measurement_are_reported_side_by_side() -> None:
 def test_a_slower_learner_gets_a_shorter_plan_not_a_timer() -> None:
     prior = _day("A2", 600)
     slow = _day("A2", 600, pace=planner.PacingProfile(step_multiplier=1.35, observations=5))
-    # Owner 2026-11-16 («story first»): an A2 day keeps its exchange more and may run
-    # past the rhythm by that exchange, which ``budget_seconds`` says; never further.
-    assert slow.core_seconds() <= slow.budget_seconds < 600 + 200
+    assert slow.core_seconds() <= 600
     for plan in (prior, slow):
         # The page and the reply are whole either way …
         assert [s.kind for s in plan.steps].count(StepKind.SCENE) == 1
@@ -399,9 +394,14 @@ def test_story_first_keeps_the_day_s_rule_with_the_exchange_more_or_gives_the_ex
     )
     plan = _day(band, 600, introduction=a_rule)
     plan.validate()
+    assert plan.budget_seconds == 600
+    assert plan.longer_day or plan.estimated_active_seconds <= 600
     kinds = [step.kind for step in plan.steps]
     assert (StepKind.RULE in kinds) == (StepKind.RULE in [step.kind for step in plain.steps])
     turns = next(s for s in plan.steps if s.kind is StepKind.RESPOND).public_prompt["max_turns"]
     plain_turns = next(s for s in plain.steps if s.kind is StepKind.RESPOND).public_prompt["max_turns"]
     assert turns in (plain_turns, plain_turns + LOW_BAND_EXTRA_EXCHANGES), plan.rationale
+    if plain.longer_day:
+        # A day already longer than its rhythm never takes the exchange more.
+        assert turns == plain_turns, plan.rationale
 

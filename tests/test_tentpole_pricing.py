@@ -207,14 +207,12 @@ def test_every_tentpole_fits_or_is_flagged(band: str, key: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(("band", "extra"), [("A1", 1), ("A2", 1)])
-def test_a_generated_a1_a2_regulier_day_keeps_its_three_exchange_core(band: str, extra: int) -> None:
-    # Owner 2026-11-16 («story first»): one exchange more at A1 and A2; practice
-    # gives way, down to three items.
+@pytest.mark.parametrize("band", ["A1", "A2"])
+def test_a_generated_a1_a2_regulier_day_keeps_its_three_exchange_core(band: str) -> None:
     scenario = engine_brief(level_band=band)
     assert planner.authored_turns(scenario) == []
     plan = _plan(scenario)
-    assert _step(plan, StepKind.RESPOND).public_prompt["max_turns"] == MIN_SCENE_EXCHANGES + extra
+    assert _step(plan, StepKind.RESPOND).public_prompt["max_turns"] == MIN_SCENE_EXCHANGES
     assert not plan.longer_day
     assert sum(1 for step in plan.steps if step.kind is StepKind.RECALL) >= 3
 
