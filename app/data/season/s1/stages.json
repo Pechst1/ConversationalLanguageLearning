@@ -8,6 +8,7 @@
     "odile_flat": "odile_flat",
     "user_apartment": "user_apartment",
     "marin_lila_flat": "chez_marin_lila",
+    "ngo_office": "bureau_ong",
     "marchand_office": "gerance_marchand",
     "notaire": "notaire",
     "rue_de_lancry": "rue_de_lancry",
@@ -15,7 +16,6 @@
     "toit": "toit_mistral"
   },
   "to_be_built": {
-    "ngo_office": "Le bureau de l'ONG de Marin",
     "mairie": "La mairie du 10e",
     "gare_de_lest": "La gare de l'Est",
     "boulangerie": "La boulangerie de Mme Diallo",
