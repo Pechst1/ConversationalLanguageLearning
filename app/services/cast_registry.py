@@ -655,6 +655,33 @@ def unmet_named(state: Mapping[str, Any] | None, *texts: Any) -> list[str]:
     return [cid for cid in people_named(" ".join(str(text) for text in texts if text)) if cid not in known]
 
 
+#: A line put in someone's mouth: «Gus : « Tu es où ? »», «Gus dit : …», «…, says Gus».
+_SAYS_AFTER = re.compile(
+    r"^\s*(?::\s*[«\"“]|(?:dit|demande|répond|ajoute|says|asks|answers|sagt|fragt|antwortet)\b)", re.IGNORECASE
+)
+_SAYS_BEFORE = re.compile(r"\b(?:dit|demande|répond|says|asks|answers|sagt|fragt|antwortet)\s*$", re.IGNORECASE)
+
+
+def people_speaking(text: Any) -> list[str]:
+    """Registry ids of the people a text gives a line to, in order: «Gus : « Tu es où ? »»,
+    «Lila dit : …», «…», says Gus. A badge over such an item is that person's (#147, #780):
+    a line Gus says never goes out under Lila."""
+
+    content = str(text or "")
+    hits: list[tuple[int, str]] = []
+    for pattern, cid in _name_patterns():
+        for match in pattern.finditer(content):
+            after = content[match.end():]
+            before = content[: match.start()].rstrip(" \u00a0,»\"”")
+            if _SAYS_AFTER.match(after) or _SAYS_BEFORE.search(before):
+                hits.append((match.start(), cid))
+    out: list[str] = []
+    for _pos, cid in sorted(hits):
+        if cid not in out:
+            out.append(cid)
+    return out
+
+
 def people_addressed(text: Any) -> list[str]:
     """Registry ids of the people a text speaks *to* (a vocative): «…, Gus.», «Lila, tu…».
 

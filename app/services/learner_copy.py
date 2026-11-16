@@ -599,6 +599,45 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Kein «à» vor dem Nomen: le/la/les (direktes Objekt). Mit «à»: lui/leur (indirektes Objekt).",
         "fr": "Pas de « à » devant le nom : le/la/les (COD). Avec « à » : lui/leur (COI).",
     },
+    "forge.slip.count.p": {"en": "plural", "de": "Mehrzahl", "fr": "pluriel"},
+    "forge.slip.count.s": {"en": "singular", "de": "Einzahl", "fr": "singulier"},
+    "forge.slip.gender.f": {"en": "feminine", "de": "weiblich", "fr": "féminin"},
+    "forge.slip.gender.m": {"en": "masculine", "de": "männlich", "fr": "masculin"},
+    "forge.slip.gender.why": {
+        "en": "«{noun}» is {gender_word} in French: «{target} {noun}», not «{learner} {noun}».",
+        "de": "«{noun}» ist im Französischen {gender_word}: «{target} {noun}», nicht «{learner} {noun}».",
+        "fr": "« {noun} » est {gender_word} : « {target} {noun} », pas « {learner} {noun} ».",
+    },
+    "forge.slip.gender.repair": {
+        "en": "Learn the noun with its article: «{target} {noun}».",
+        "de": "Lern das Nomen mit seinem Artikel: «{target} {noun}».",
+        "fr": "Apprends le nom avec son article : « {target} {noun} ».",
+    },
+    "forge.slip.number.why": {
+        "en": "«{noun}» here is {count}: «{target} {noun}», not «{learner}».",
+        "de": "«{noun}» steht hier in der {count}: «{target} {noun}», nicht «{learner}».",
+        "fr": "Ici, « {noun} » est au {count} : « {target} {noun} », pas « {learner} ».",
+    },
+    "forge.slip.number.repair": {
+        "en": "The article shows how many: «{target} {noun}».",
+        "de": "Der Artikel zeigt, wie viele: «{target} {noun}».",
+        "fr": "L’article dit combien : « {target} {noun} ».",
+    },
+    "forge.slip.person_subject.why": {
+        "en": "With «{subject}», «{lemma}» is «{target}», not «{learner}».",
+        "de": "Mit «{subject}» heißt «{lemma}» «{target}», nicht «{learner}».",
+        "fr": "Avec « {subject} », « {lemma} » se conjugue « {target} », pas « {learner} ».",
+    },
+    "forge.slip.person.why": {
+        "en": "The form of «{lemma}» needed here is «{target}», not «{learner}».",
+        "de": "Hier braucht es die Form «{target}» von «{lemma}», nicht «{learner}».",
+        "fr": "Ici, la forme de « {lemma} » est « {target} », pas « {learner} ».",
+    },
+    "forge.slip.person.repair": {
+        "en": "Look at who does it, then pick the form of «{lemma}» for that person.",
+        "de": "Schau, wer es tut, und nimm die Form von «{lemma}» für diese Person.",
+        "fr": "Regarde qui fait l’action, puis prends la forme de « {lemma} » pour cette personne.",
+    },
     "forge.slip.elision.why": {
         "en": "Before a vowel or a silent h, «{learner}» drops its vowel and takes an apostrophe: «{target}». That is the spelling, not another verb.",
         "de": "Vor einem Vokal oder stummen h verliert «{learner}» den Vokal und bekommt einen Apostroph: «{target}». Das ist die Schreibweise, nicht ein anderes Verb.",
@@ -1179,15 +1218,15 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "fr": "Dis-le en français.",
     },
     "forge.conversation": {
-        "en": "Reply in French, with today's rule.",
-        "de": "Beantworte die Nachricht auf Französisch, mit der Regel von heute.",
-        "fr": "Réponds au message en français, avec la règle du jour.",
+        "en": "Write it in French, with this rule.",
+        "de": "Schreib es auf Französisch, mit dieser Regel.",
+        "fr": "Écris-le en français, avec cette règle.",
     },
     # WP-S5: the free-use rung as a two-line scene with the rule's coach.
     "forge.scene": {
-        "en": "Answer in French, with the rule of the day.",
-        "de": "Antworte auf Französisch, mit der Regel von heute.",
-        "fr": "Réponds en français, avec la règle du jour.",
+        "en": "Answer in French, with this rule.",
+        "de": "Antworte auf Französisch, mit dieser Regel.",
+        "fr": "Réponds en français, avec cette règle.",
     },
     "atelier.fallback.output_instruction": {
         "en": "Use the target grammar visibly in your answer.",
@@ -1478,6 +1517,9 @@ _ENGLISH_INDEX.update(
         "Correct the sentence: fix the part that breaks today's rule. Keep the rest.": "forge.transform",
         "Say it aloud in French, then check the transcript.": "forge.speak",
         "Answer the message in French, with the rule of the day.": "forge.conversation",
+        # #780: the same stored item is posed on a review too; «today's» left the cue.
+        "Reply in French, with today's rule.": "forge.conversation",
+        "Answer in French, with the rule of the day.": "forge.scene",
     }
 )
 

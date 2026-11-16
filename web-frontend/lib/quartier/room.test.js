@@ -404,3 +404,26 @@ test('Gus’s loft: the painting of Le Mistral leans face to the wall, the two l
   const look = loft.room.start.look;
   assert.ok(Math.hypot(look[0] - painting.at[0], look[2] - painting.at[2]) < 0.5, 'you come in facing the painting');
 });
+
+test('Marin’s NGO office: «LE MISTRAL À NOUS» on the wall you face, the café’s plan, the fern, the leek', () => {
+  const file = 'bureau_ong.json';
+  const office = rooms.find((r) => r.file === file);
+  assert.ok(office, 'the office has its room');
+  const kinds = (k) => office.room.things.filter((t) => t.kind === k);
+  const [sheet] = kinds('projection');
+  // T3 B P1 and P2: the spreadsheet's title, two hundred members at a thousand euros, and a bank
+  assert.equal(sheet.text[0], 'LE MISTRAL À NOUS');
+  assert.ok(sheet.text.some((t) => /200\b/.test(t)) && sheet.text.some((t) => /1 000 €/.test(t)) && sheet.text.some((t) => /banque/i.test(t)));
+  // P3: the café's plan, its back room an «ATELIER», the long tables a canteen at noon
+  const [plan] = kinds('plan');
+  assert.ok(plan.text.includes('ATELIER') && plan.text.includes('CANTINE LE MIDI'));
+  assert.equal(kinds('fern').length, 1, 'the fern Marin sprays');
+  assert.equal(kinds('leek').length, 1, 'the leek for a pointer');
+  // every sheet of lettering fits the atlas: none left blank
+  const { B } = built.get(file);
+  const want = B.signs.reduce((n, s) => n + (s.width * (s.density ?? 150) + 4) * (s.height * (s.density ?? 150) + 4), 0);
+  assert.ok(want < 2048 * 2048 * 0.82, 'the posters, the map, the plan and the spreadsheet print at full size');
+  // and the arrival looks at the spreadsheet
+  const look = office.room.start.look;
+  assert.ok(Math.hypot(look[0] - sheet.at[0], look[2] - sheet.at[2]) < 0.5, 'you come in facing the spreadsheet');
+});

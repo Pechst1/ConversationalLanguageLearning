@@ -149,6 +149,8 @@ test('a day without blocking plays in the places the world has built for it, and
   // Gus's loft plays in the «château» the forge built on the quai
   assert.deepEqual(placesOf(page([at('p1', null)], 'gus_loft')), ['chateau_gus']);
   assert.equal(unbuiltOf(page([at('p1', null)], 'gus_loft')), null);
+  // Marin's NGO office plays in the office the forge built on the quai's first floor
+  assert.deepEqual(placesOf(page([at('p1', null)], 'ngo_office')), ['bureau_ong']);
   assert.equal(unbuiltOf(page([at('p1', 'somewhere_new')])), 'somewhere_new');
   // the season's own pages: T2 climbs the stairwell into Odile's flat; the roof (g3) plays on the roof the forge built
   // (the season file's own movements: a solve the server poses as a question has no place of its own)

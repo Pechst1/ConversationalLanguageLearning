@@ -130,6 +130,9 @@ export const SNAPSHOT_FN = ({ typeable, wordBankTile }) => {
     // #333: every line that says nobody read an answer carries its state.
     dataCheck: q('[data-check]').map((n) => n.getAttribute('data-check')),
     connection: q('.journey-connection').map((n) => n.getAttribute('data-state')),
+    // #794: every sentence the app says about the connection carries this marker
+    // (lib/connection-banner.ts). The walk reads it, never the screen's prose.
+    connectionBanners: q('[data-connection-banner]').map((n) => n.getAttribute('data-connection-banner')),
     dataStates: q('[data-state]').map((n) => n.getAttribute('data-state')),
     reader: q('.fr-next').map((n) => {
       const r = n.getBoundingClientRect();

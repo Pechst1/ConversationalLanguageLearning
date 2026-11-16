@@ -45,6 +45,7 @@ import {
   StepProgress,
   type StepSegment,
 } from '@/components/atelier-v2/ui';
+import { connectionBanner, type ConnectionBannerKind } from '@/lib/connection-banner';
 import { atelierCopy, stepOfLabel, type AtelierCopy } from '@/lib/atelier-v2-copy';
 import { useImmersiveSurface } from '@/lib/immersive-surface';
 import { journeyChromeLanguage } from '@/lib/language-rule';
@@ -698,7 +699,7 @@ function preludeStorage(): Storage | null {
 // Connection state — stated plainly, never dressed as a result
 // ---------------------------------------------------------------------------
 
-const CONNECTION_COPY: Record<ConnectionView['state'], keyof AtelierCopy | null> = {
+const CONNECTION_COPY: Record<ConnectionView['state'], (ConnectionBannerKind & keyof AtelierCopy) | null> = {
   live: null,
   syncing: 'syncing',
   offline_cached: 'offline_cached',
@@ -727,7 +728,7 @@ export function ConnectionNotice({
   if (!key && !connection.stale) return null;
 
   return (
-    <div className="journey-connection" data-state={connection.state}>
+    <div className="journey-connection" data-state={connection.state} {...connectionBanner(key ?? 'stale')}>
       <Notice tone="quiet" shape="story">
         <p>
           {key ? copy[key] : null}
@@ -775,7 +776,7 @@ function JourneyPhaseView({
         <StateBlock
           tone="error"
           title={copy.error_title}
-          body={copy.transport_error}
+          body={<span {...connectionBanner('transport_error')}>{copy.transport_error}</span>}
           action={{ label: copy.retry, onSelect: () => void actions.refresh() }}
         />
       );

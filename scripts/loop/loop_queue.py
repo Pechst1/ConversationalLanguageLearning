@@ -74,6 +74,11 @@ MERGE_DENY_PREFIXES = (
     "app/db/",
     "scripts/loop/",
     "docs/ops/improvement-loop.md",
+    # The gold gate itself: its tolerance, its criteria and its runner are the owner's,
+    # so a night fix can never pass the gate by loosening it. gate.json stays open.
+    "scripts/gold_transcripts.py",
+    "tests/gold_transcripts/gate.py",
+    "tests/gold_transcripts/criteria.py",
     "render.yaml",
     "Dockerfile",
     "docker-compose",
