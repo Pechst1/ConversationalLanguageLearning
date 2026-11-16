@@ -70,5 +70,19 @@ export function englishWords(text) {
   return [...new Set(words.filter((w) => ENGLISH.has(w)))];
 }
 
-export const SERVER_BANNER = /(reach(ed)? the server|Server (an|erreicht)|serveur|Sending to the server|gesendet)/i;
+/**
+ * Whether screen `s` shows a connection banner (an answer did not reach the server, is on its
+ * way, or is kept on this device): an element the app marks `data-connection-banner`
+ * (lib/connection-banner.ts) or the session's `.journey-connection` notice. Never a word in the
+ * screen's text: that text holds the scene, and a scene says «serveur» (a waiter) or
+ * «gesendet» as freely as any other word (#794).
+ */
+export function serverBanner(s) {
+  return (s.connection || []).length > 0 || (s.connectionBanners || []).length > 0;
+}
+
+/** The banners on screen `s`, for a finding's detail. */
+export function bannersOn(s) {
+  return [...new Set([...(s.connectionBanners || []), ...(s.connection || [])])].join(', ');
+}
 export const PENDING_VERDICT = /(Je relis|Checking|Prüfe|Wird geprüft|Reading it over)/i;
