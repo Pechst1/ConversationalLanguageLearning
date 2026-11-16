@@ -680,6 +680,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/atelier/attempts/{attempt_id}/reveal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reveal Attempt Solution
+         * @description Owner 2026-11-13: «Show the solution» spends the second chance; the correction comes whole.
+         */
+        post: operations["reveal_attempt_solution_api_v1_atelier_attempts__attempt_id__reveal_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/atelier/errata/{error_id}/attempt": {
         parameters: {
             query?: never;
@@ -18139,6 +18159,37 @@ export interface operations {
                 "application/json": components["schemas"]["AtelierAttemptRepairRequest"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AtelierAttemptResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reveal_attempt_solution_api_v1_atelier_attempts__attempt_id__reveal_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attempt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

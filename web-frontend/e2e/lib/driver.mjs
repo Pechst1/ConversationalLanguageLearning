@@ -70,6 +70,12 @@ export const FORGE_SHEET = {
   primary: '.ep-feedback button.ep-bar.av2-btn--primary:not([disabled])',
   links: '.ep-feedback .ep-fb-links button',
   skip: /^\s*(Skip this exercise|Passer cet exercice|Übung überspringen)\s*$/,
+  /**
+   * Owner 2026-11-13: a miss with a second chance shows no solution and no «Continue»
+   * (`data-solution="withheld"`); «Show the solution» spends the chance and brings both.
+   */
+  withheld: '.ep-feedback[data-solution="withheld"]',
+  reveal: '.ep-feedback .ep-fb-links button[data-action="reveal"]:not([disabled])',
 };
 
 /**
@@ -121,6 +127,9 @@ export const SNAPSHOT_FN = ({ typeable, wordBankTile }) => {
     match: q('.av2-match__card').length,
     goal: q('[data-goal]').map((n) => n.innerText.trim()),
     bodyLg: q('.av2-body--lg').map((n) => n.innerText.trim()),
+    // Owner 2026-11-13: a scene prompt says its situation and instruction as quiet sans
+    // prose (components/epreuve/Epreuve.tsx EpScenePrompt), not as a headline and cue.
+    scene: q('.ep-prompt--scene .ep-situation, .ep-prompt--scene .ep-instruction, .ep-prompt--scene .ep-cue').map((n) => n.innerText.trim()),
     headline: q('.av2-headline').map((n) => n.innerText.trim()),
     stepLabel: (q('.av2-label')[0] || {}).innerText || '',
     // The journey step on screen (JourneySession's header), for the verdict timeline.
