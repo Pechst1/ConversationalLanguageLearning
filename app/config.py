@@ -1122,6 +1122,19 @@ class Settings(BaseSettings):
         ),
     )
 
+    # ---- S2.1: one stored day plan (shadow) ---------------------------------
+    DAY_PLAN_STORED: bool = Field(
+        False,
+        description=(
+            "S2.1: store the day's plan (scene, grammar, words) on the journey row when the "
+            "day is planned, write each step's status from the events that already happen "
+            "(journey started/paused/finished, a Forge séance finished, words done), and on "
+            "every read of the day's session compare it with today's recomputed view, logging "
+            "`day_plan_shadow_mismatch`. The API keeps serving the recomputed view. Off: nothing "
+            "is stored or compared."
+        ),
+    )
+
     # ---- WP-34: bring your own French ------------------------------------
     ATELIER_INTAKE_ENABLED: bool = Field(
         True,

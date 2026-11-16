@@ -165,5 +165,7 @@ __all__ = [
     "DailyJourneyMutation",
 ]
 
+# S2.1: the stored day plan is written as flushes land (DAY_PLAN_STORED; off by default).
 # Package V stage 2: the verdict ledger is written on every flush.
+from app.db import day_plan_listener as _day_plan_listener  # noqa: E402,F401
 from app.db import verdict_listener as _verdict_listener  # noqa: E402,F401
