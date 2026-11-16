@@ -314,6 +314,8 @@ the steps above with these differences.
      a row a «label | value»), `projector` (on a desk, its lens on local +z), `plant` (a pot
      plant in need of water, `size` [pot height, reach]), `fern` (on its stand with the spray
      bottle, `size` [stand height, reach]), `leek` (lying along local x) and `mug` (a colour each);
+     `roll` (a paper banner rolled and tied, standing on its end and leaning about 19° toward
+     local +z: `size` [length, radius]);
      a room's cards share one sign atlas (2048 px square): keep what they ask under about 0.6 of
      it, or the last ones print blank; in a
      street, `intercom` (a plate on the wall by a door, `text` its names from the top floor down,
@@ -396,7 +398,8 @@ One a run, in this order:
 
 - **What the stories left** (step 0b): the `next detail:` of `queue --orders`, a thing the
   learners' own pages left at a built place (Gus's petition on Le Mistral's window). It waits on
-  that mark: a learner sees it once a page of theirs left it.
+  that mark: a learner sees it once a page of theirs left it. Done: Lila's banner, rolled at the
+  zinc's far end by the booth (`banderole_lila`).
 - **The plan's ladder** (`docs/story/season-1/09-entre-les-episodes.md` and the episodes): the
   learner's usual cup on the zinc after «La même chose ?» (done), then the next line of the
   ladder that leaves a thing in Le Mistral (the party's garlands…). It waits on the season flag
