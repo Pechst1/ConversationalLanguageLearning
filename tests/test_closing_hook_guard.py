@@ -41,7 +41,7 @@ def _hook(**kwargs):
     return engine.next_teaser({}, {}, **{**defaults, **kwargs})
 
 
-def test_the_walks_hook_is_the_question_alone():
+def test_walk_hook():
     """Done when: «Margaux lira-t-elle la lettre avec toi ?» alone is accepted, and is what
     the last panel prints."""
 
@@ -95,7 +95,7 @@ def test_no_hook_puts_a_line_nobody_said_before_its_question(register, character
             assert _NE.search(sentence), f"a dropped «ne»: {hook['text_fr']!r}"
 
 
-def test_a_promise_keeps_what_leads_into_it():
+def test_promise_lead():
     """The kind's own lead is grounded (the learner promised it): only the voice goes."""
 
     hook = engine.next_teaser(
