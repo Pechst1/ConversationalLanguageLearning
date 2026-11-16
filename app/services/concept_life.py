@@ -466,6 +466,79 @@ def mark_introduced(db: Session, *, user: Any, concept_id: int, now: datetime | 
 
 
 # ---------------------------------------------------------------------------
+# Taught, not merely met (#169, #698)
+# ---------------------------------------------------------------------------
+#
+# ``introduced_at`` has two writers with two meanings: the Règle read
+# (:func:`mark_introduced`) and the first evidence on *any* surface
+# (:func:`note_concept_evidence`). A scene that corrected «de Odile» stamps
+# «Le, la, l', les» as introduced although no card ever showed it. Whatever
+# offers a rule as one the learner *knows* — the day's review card, La Forge's
+# «today's rule», a review beside it — reads these two instead.
+
+
+def rule_was_taught(progress: Any | None) -> bool:
+    """Did the learner work this rule's own teaching? (#169) From the progress row alone.
+
+    La Forge has worked it (``forge_rung`` is set the first time the forge
+    writes evidence for it), its épreuve was passed, or it is held. A rule card
+    read leaves no mark of its own on the row: :func:`taught_concept_ids` adds it.
+    """
+
+    if progress is None:
+        return False
+    return (
+        getattr(progress, "forge_rung", None) is not None
+        or getattr(progress, "tested_out_at", None) is not None
+        or getattr(progress, "held_at", None) is not None
+    )
+
+
+def card_read_concept_ids(db: Session, user_id: Any, *, before: datetime | None = None) -> set[int]:
+    """#698: the rules a completed rule step showed this learner (it introduced or reviewed them)."""
+
+    from app.db.models.daily_journey import DailyJourney, DailyJourneyStep
+
+    query = (
+        db.query(DailyJourneyStep.public_prompt, DailyJourneyStep.private_task, DailyJourneyStep.completed_at)
+        .join(DailyJourney, DailyJourney.id == DailyJourneyStep.journey_id)
+        .filter(
+            DailyJourney.user_id == user_id,
+            DailyJourneyStep.kind == "rule",
+            DailyJourneyStep.status == "completed",
+        )
+    )
+    cutoff = _aware(before)
+    out: set[int] = set()
+    for public, private, completed_at in query.all():
+        if cutoff is not None and ((stamp := _aware(completed_at)) is None or stamp >= cutoff):
+            continue
+        for source, key in ((private, "concept_id"), (private, "review_concept_id"), (public, "concept_id")):
+            value = source.get(key) if isinstance(source, dict) else None
+            try:
+                concept_id = int(value) if value is not None else 0
+            except (TypeError, ValueError):
+                concept_id = 0
+            if concept_id > 0:
+                out.add(concept_id)
+    return out
+
+
+def taught_concept_ids(db: Session, user_id: Any, *, before: datetime | None = None) -> set[int]:
+    """#698: the rules this learner was taught: shown a rule card, or worked in La Forge
+    (:func:`rule_was_taught`). Never a rule only a scene, a recall card or an
+    erratum touched. ``before`` keeps only rule cards read before then."""
+
+    rows = (
+        db.query(UserGrammarProgress)
+        .filter(UserGrammarProgress.user_id == user_id)
+        .all()
+    )
+    taught = {int(progress.concept_id) for progress in rows if rule_was_taught(progress)}
+    return taught | card_read_concept_ids(db, user_id, before=before)
+
+
+# ---------------------------------------------------------------------------
 # The intake plan
 # ---------------------------------------------------------------------------
 
@@ -670,6 +743,7 @@ __all__ = [
     "concept_stage",
     "earliest_held_at",
     "free_use_opens_on",
+    "card_read_concept_ids",
     "held_concept_ids",
     "held_conditions",
     "held_missing",
@@ -684,9 +758,11 @@ __all__ = [
     "mark_introduced",
     "note_concept_evidence",
     "progress_stage",
+    "rule_was_taught",
     "spaced_item_owed",
     "stage_counts",
     "stage_label",
+    "taught_concept_ids",
     "unit_stage_counts",
     "weekly_concept_quota",
     "weekly_concept_rate",

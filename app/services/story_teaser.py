@@ -28,7 +28,10 @@ TEASER_QUOTE_CHARS = 110
 TEASER_KEY = "next_teaser"
 TEASERS_KEY = "teasers"
 
-# One opener per cast member, in their own voice; `tu`/`vous` where it matters.
+# One opener per cast member, in their own voice; `tu`/`vous` where it matters. #822: the
+# «À suivre…» prints the hook as a caption, in nobody's bubble, so an opener is said only
+# when :func:`lead_problem` lets it through (no «je» nobody said, no «ne» dropped):
+# Margaux's «J'ai rien entendu», Marin's «j'y repense» and Lila's «tu me caches» never are.
 TEASER_VOICES: dict[str, dict[str, str]] = {
     "marin_leveque": {"tu": "Dis, j'y repense… C'est peut-être un signe.", "vous": "Dites, j'y repense… C'est peut-être un signe."},
     "lila_bonnet": {"tu": "Toi, tu me caches quelque chose…", "vous": "Vous, vous me cachez quelque chose…"},
@@ -73,6 +76,77 @@ _NUMBER_WORDS = {
     "un", "une", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix", "onze", "douze",
     "treize", "quatorze", "quinze", "seize", "vingt", "trente", "quarante", "cinquante", "soixante", "cent", "mille",
 }
+
+
+#: #822: what may stand before a hook's question. The hook is printed as a caption, the
+#: last words of the page, so it may not speak as somebody («je», «me», «moi») unless a
+#: character said that very line in the scene, and it never drops the «ne» of a negation.
+_NEGATIVE = re.compile(r"\b(?:rien|jamais|personne)\b", re.IGNORECASE)
+_NE = re.compile(r"\bn(?:e\b|['’])", re.IGNORECASE)
+#: Uses of the words that are no negation: «de rien», «pour rien», «une personne».
+_NOT_A_NEGATION = re.compile(
+    r"\b(?:de|pour)\s+rien\b|\b(?:une|la|les|des|cette|chaque|en)\s+personnes?\b", re.IGNORECASE
+)
+#: A negation needs its «ne» only on a verb: «Rien de grave.», «Jamais !» need none.
+_HAS_SUBJECT = re.compile(
+    r"(?:^|[\s,;:…(])(?:(?:je|tu|il|elle|on|nous|vous|ils|elles|ça|cela)\b|[jc]['’])"
+    r"|^(?:personne|rien)\s+(?!de\b|d['’])\w",
+    re.IGNORECASE,
+)
+_FIRST_PERSON = re.compile(r"(?:^|[\s,;:…(])(?:(?:je|me|moi)\b|[jm]['’])", re.IGNORECASE)
+_SENTENCE_END = re.compile(r"(?<=[.!?…])\s+")
+
+
+def drops_ne(sentence: Any) -> bool:
+    """Whether a sentence says «rien», «jamais» or «personne» on a verb without its «ne»
+    («J'ai rien entendu.»): spoken French an A1 page does not teach (#822)."""
+
+    line = _NOT_A_NEGATION.sub(" ", " ".join(str(sentence or "").split())).strip()
+    return bool(_NEGATIVE.search(line) and _HAS_SUBJECT.search(line) and not _NE.search(line))
+
+
+def lead_problem(lead: Any, *, spoken: Iterable[str] = ()) -> str | None:
+    """Why a line cannot stand before a hook's question, as a code, or ``None`` (#822).
+
+    ``hook_dropped_ne``: a sentence drops the «ne» of its negation. ``hook_unsaid_speech_act``:
+    a sentence speaks in the first person and is not a line a character said in this scene
+    (``spoken``): the hook is printed in nobody's bubble, so «Je n'ai rien entendu» there is
+    a speech act no character made. Guillemets are the learner's words, checked by
+    :func:`teaser_quotes_only_said`."""
+
+    said = {_folded(line).strip(" .!?…") for line in spoken or [] if str(line or "").strip()}
+    text = _TEASER_QUOTE.sub(" ", " ".join(str(lead or "").split()))
+    for sentence in _SENTENCE_END.split(text):
+        if not sentence.strip():
+            continue
+        if drops_ne(sentence):
+            return "hook_dropped_ne"
+        if _FIRST_PERSON.search(sentence) and _folded(sentence).strip(" .!?…") not in said:
+            return "hook_unsaid_speech_act"
+    return None
+
+
+def hook_problem(text: Any, *, open_fr: Any = None, spoken: Iterable[str] = ()) -> str | None:
+    """Why a finished hook cannot be filed, as a code, or ``None`` (#822).
+
+    What stays open (``open_fr``, else the hook's last sentence) is checked where it is
+    written (:func:`question_problem`, :func:`open_line`); this checks what comes before it
+    (:func:`lead_problem`). A question alone always holds."""
+
+    line = " ".join(str(text or "").split())
+    question = " ".join(str(open_fr or "").split())
+    if not question or not line.endswith(question):
+        question = _SENTENCE_END.split(line)[-1] if line else ""
+    return lead_problem(line[: len(line) - len(question)], spoken=spoken)
+
+
+def held_hook(leads: Iterable[str], open_fr: str, *, spoken: Iterable[str] = ()) -> str:
+    """The hook as filed: each lead in front of ``open_fr`` that :func:`lead_problem` lets
+    through, in order. A lead that fails goes whole («J'ai rien entendu. Mais quand même…»
+    is one voice: no stray «Mais quand même…» is left behind) and is never repaired."""
+
+    kept = [part for part in leads if str(part or "").strip() and lead_problem(part, spoken=spoken) is None]
+    return " ".join([*kept, open_fr])
 
 
 def _engine() -> Any:
@@ -218,7 +292,7 @@ def compose_teaser(
     key = "tu" if register == "tu" else "vous"
     kind = "told" if candidate.get("told") else candidate["kind"]
     lead = _TEASER_LEADS[kind][int(variant) % 2][key]
-    return " ".join(part for part in (voice[key], lead, open_line(candidate, register=register, variant=variant)) if part)
+    return held_hook((voice[key], lead), open_line(candidate, register=register, variant=variant))
 
 
 def teaser_quotes_only_said(text: str, said: Iterable[str]) -> bool:
@@ -260,6 +334,8 @@ def question_problem(text: Any, *, known: str, ledger: dict | None = None) -> st
         return "tomorrow_length"
     if any(mark in line for mark in "«»\"“”"):
         return "tomorrow_quotes"
+    if drops_ne(line):
+        return "tomorrow_dropped_ne"
     if scene_ledger.brings_in_new(line, known):
         return "tomorrow_brings_in_new_fact"
     if not _words(line) & _words(known):
@@ -328,7 +404,7 @@ def next_teaser(
     if question and question not in used_open:
         voice = TEASER_VOICES.get(str(character_id or ""), DEFAULT_TEASER_VOICE)["tu" if register == "tu" else "vous"]
         return {
-            "text_fr": f"{voice} {question}",
+            "text_fr": held_hook((voice,), question),
             "open_fr": question,
             "character_id": character_id,
             **({"character_name": name} if name else {}),

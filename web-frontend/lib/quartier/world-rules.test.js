@@ -263,6 +263,44 @@ test('the walk to Marin and Lila’s: the quai, the street door, the stairwell, 
   assert.ok(reachable(g, inside)(g.built.marks.caisse), 'through the door, the crate in the hallway');
 });
 
+test('the walk to Gus’s «château»: the quai, the street door, the stairwell, the fifth floor, the loft', () => {
+  const loft = WORLD.places.find((p) => p.id === 'chateau_gus');
+  // the door is the quai's own street door: the Haussmann house at z 36 to 52.8, its bay 0
+  assert.equal(loft.entrance.from, HOME_PLACE);
+  assert.ok(loft.entrance.door[0] === -27 && loft.entrance.door[1] > 50.33 && loft.entrance.door[1] < 52.43);
+  assert.ok(doorsAt(HOME_PLACE).some((w) => w.to === 'chateau_gus'), 'the quai has the door into the building');
+  assert.ok(doorsAt('chateau_gus').some((w) => w.to === HOME_PLACE), 'and the building has the door back out');
+  const g = gridOf('chateau_gus');
+  const inside = v(...loft.entrance.inside);
+  const premier = v(-29.5, 52.05);
+  assert.ok(walk(g.nav, inside, premier), 'up the flight to the first floor');
+  assert.ok(Math.abs(g.nav.heightAt(premier.x, premier.z) - 4.6) < 0.1);
+  assert.deepEqual(g.passages.map((p) => p.key), ['escalier', 'porte']);
+  const door = g.passages.find((p) => p.key === 'porte');
+  assert.equal(door.until, 'story', 'the loft opens on foot once the story has played there (no spoiler of T8)');
+  assert.ok(Math.abs(g.nav.heightAt(...door.a) - 17.1) < 0.1, 'the landing before Gus’s door is on the fifth floor');
+  assert.ok(reachable(g, inside)(g.built.marks.tableau), 'through the door, the painting against the wall');
+});
+
+test('the walk to Marin’s NGO office: the quai, the street door, the stairwell, the first floor, the office', () => {
+  const office = WORLD.places.find((p) => p.id === 'bureau_ong');
+  // the door is the quai's own street door: the Haussmann house at z 52.8 to 72, its bay 1
+  assert.equal(office.entrance.from, HOME_PLACE);
+  assert.ok(office.entrance.door[0] === -27 && office.entrance.door[1] > 65.96 && office.entrance.door[1] < 68.46);
+  assert.ok(doorsAt(HOME_PLACE).some((w) => w.to === 'bureau_ong'), 'the quai has the door into the building');
+  assert.ok(doorsAt('bureau_ong').some((w) => w.to === HOME_PLACE), 'and the building has the door back out');
+  const g = gridOf('bureau_ong');
+  const inside = v(...office.entrance.inside);
+  const premier = v(-29.5, 66.54);
+  assert.ok(walk(g.nav, inside, premier), 'up the flight to the first floor');
+  assert.ok(Math.abs(g.nav.heightAt(premier.x, premier.z) - 4.6) < 0.1);
+  assert.deepEqual(g.passages.map((p) => p.key), ['porte']);
+  const door = g.passages.find((p) => p.key === 'porte');
+  assert.equal(door.until, 'story', 'the office opens on foot once the story has played there (no spoiler of T3)');
+  assert.ok(walk(g.nav, premier, v(...door.a)), 'the office’s door is on the first-floor landing');
+  assert.ok(reachable(g, inside)(g.built.marks.tableur), 'through the door, the spreadsheet on the wall');
+});
+
 test('played here: the story’s visit opens the flat’s door, a visit on foot does not', () => {
   const log = (day) => [{ day, at: 0, effect: { kind: 'place', id: 'chez_marin_lila', status: 'visited' } }];
   assert.equal(playedHere(log('room.chez_marin_lila'), 'chez_marin_lila'), false);

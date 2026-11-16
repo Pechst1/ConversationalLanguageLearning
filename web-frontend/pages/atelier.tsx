@@ -195,7 +195,7 @@ import {
   type ForgeDrill,
 } from '@/lib/forge-drills';
 import { rewardMomentCopy } from '@/lib/reward-moment-copy';
-import { assembleRepair, isRepairableLine, repairParts, repairState } from '@/lib/repair-parts';
+import { assembleRepair, isRepairableLine, missCorrections, repairParts, repairState } from '@/lib/repair-parts';
 import { forgeSeatIsSamePlace, isForgeOutputRound, scopeOutputItem, seatForgeItem } from '@/lib/forge-items';
 import { comboEnabled, comboFeel, comboStep } from '@/lib/forge-combo';
 import { bestComboLine, fillMomentum, momentumCopy } from '@/lib/momentum-copy';
@@ -4269,6 +4269,9 @@ export function ExerciseFeedbackMoment({
   // #282: a miss also scrolls on until its last repair and «Compare» stand clear of the
   // sheet. #319: that is the same scroll, by the same owner, not a second one on a timer.
   const missOpen = Boolean(submitted && feedback && !feedback.correct && !feedback.unscored);
+  // Owner 2026-11-13: «Show the solution» swaps the withheld card for the correction, a
+  // new and taller card: the scroll owner starts again for it (season walk, day 10).
+  const solutionShown = solutionState(correction);
   useEffect(() => {
     if (!shownVerdict) return undefined;
     let release = () => {};
@@ -4281,7 +4284,7 @@ export function ExerciseFeedbackMoment({
       window.cancelAnimationFrame(frame);
       release();
     };
-  }, [feedbackKey, shownVerdict, repairOutcome, missOpen]);
+  }, [feedbackKey, shownVerdict, repairOutcome, missOpen, solutionShown]);
   if (!submitted || !feedback) return null;
   // WP-103 T9: until the model has read a free-production answer there is no
   // verdict to show — the grading character says so, and a verdict shown later
@@ -4408,9 +4411,18 @@ export function ExerciseFeedbackMoment({
     isLabelCompare: Boolean(isLabelCompare),
     needsNewAnswer,
   });
-  // Owner 2026-11-13: with the solution on screen the chance is over: «Continue», no retry.
-  const canGoOn = repairsComplete || solutionOnScreen;
+  // #779: what the miss draws, grouped by what it asks (lib/repair-parts.ts).
+  const shownCorrections = missCorrections(issues);
+  // The cards the miss draws (a task note is one quiet line, not a card).
+  const cardCount = shownCorrections.filter(({ issue }) => !isTaskIssue(issue)).length;
+  // Owner 2026-11-13: with the solution on screen the chance is over: no retry (it would
+  // be a copy of the answer above). What is left is main's «Copy the correction» step,
+  // which «Continue» waits for (and which queues the retest, #779).
+  const canGoOn = repairsComplete;
   const retry = retryOffered(correction) ? onTryAgain : undefined;
+  // The in-place repair was the chance: once the solution is on screen it is shown only
+  // as it was sent and accepted; a forfeited or refused one becomes a copy of the line.
+  const partsShown = Boolean(lineParts) && (!solutionOnScreen || (repairSpent && repairs['0']?.status === 'ok'));
   // WP-S1: the verdict on screen is the local one and it never waits. The
   // model's second reading runs quietly behind it; a note appears only if it
   // changed the verdict. (An open answer it could not read at all becomes
@@ -4475,11 +4487,15 @@ export function ExerciseFeedbackMoment({
     // The answer stays a miss (`data-verdict`, the line comes back later); `data-mended`
     // says its line was fixed.
     <div className="ep-feedback" data-verdict="wrong" data-mended={mended ? 'true' : undefined} ref={feedbackRef}>
-      {issues.map((issue, index) => {
+      {/* #779: one card per correction and one field per corrected line (a repeated
+          erratum drew the same line twice, and its second «Compare» behind the sheet). */}
+      {shownCorrections.map(({ issue, index, repair: fieldHere }, position) => {
         const learner = String(issue.learner_text || feedback.learner || '').trim();
         const target = String(issue.corrected_target || feedback.target || '').trim();
         const repairKey = `${feedbackKey}:${index}`;
         const repair = repairs[String(index)] || null;
+        // The field for this line is under an earlier correction of the same line.
+        const lineCopiedAbove = !fieldHere && isRepairableLine(String(issue.corrected_target || '').trim());
         if (isTaskIssue(issue)) {
           // Owner 2026-11-13: the task is reminded once, in one quiet line under the
           // cards (below), never as a card of its own. The second-check note rides here.
@@ -4499,8 +4515,8 @@ export function ExerciseFeedbackMoment({
           <React.Fragment key={`${issue.display_label || 'repair'}-${index}`}>
             <EpGalley
               anchor={ruleShown
-                ? correctionAnchor(issue.display_label, ruleShown) ?? (issues.length > 1 ? fill(t.correction_n, { n: index + 1 }) : undefined)
-                : issue.display_label || fill(t.correction_n, { n: index + 1 })}
+                ? correctionAnchor(issue.display_label, ruleShown) ?? (cardCount > 1 ? fill(t.correction_n, { n: position + 1 }) : undefined)
+                : issue.display_label || fill(t.correction_n, { n: position + 1 })}
               why={reason || undefined}
               repair={repairHint || undefined}
               more={solutionOnScreen && rest.length ? <EpMore label={t.more}>{rest.map((note) => <p key={note}>{note}</p>)}</EpMore> : undefined}
@@ -4515,7 +4531,7 @@ export function ExerciseFeedbackMoment({
             </EpGalley>
             {/* The repair is the second chance: once the solution is on screen it is shown
                 only as it was sent, never offered again as a copy of the line above. */}
-            {index === 0 && lineParts && (!solutionOnScreen || repairSpent) && (
+            {index === 0 && lineParts && partsShown && (
               <EpPartsRepair
                 parts={lineParts}
                 typed={partsTyped[repairKey] || {}}
@@ -4528,7 +4544,9 @@ export function ExerciseFeedbackMoment({
                 submitting={!!repairSubmitting[repairKey]}
               />
             )}
-            {!solutionOnScreen && !isLabelCompare && target && isRepairableLine(target) && !(index === 0 && lineParts) && (
+            {/* «Copy the correction» (main, #779) — only ever under a line already on
+                screen, so it is never the second chance. */}
+            {!isLabelCompare && target && isRepairableLine(target) && !(index === 0 && partsShown) && !lineCopiedAbove && (
               <EpRepair
                 target={target}
                 typed={repair?.typed || repairDrafts[repairKey] || ''}
@@ -4577,7 +4595,9 @@ export function ExerciseFeedbackMoment({
           {canGoOn && retry && (
             <button type="button" onClick={retry}>{t.retry}</button>
           )}
-          {needsNewAnswer && !canGoOn && <button type="button" onClick={onNext}>{t.skip}</button>}
+          {/* With no retry left (the solution is on screen), «Skip» is the way on
+              until the line is copied: never a dead end. */}
+          {(needsNewAnswer || !retry) && !canGoOn && <button type="button" onClick={onNext}>{t.skip}</button>}
           {onReport && (
             <button type="button" onClick={onReport}>{t.report}</button>
           )}

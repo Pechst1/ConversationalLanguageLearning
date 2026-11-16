@@ -89,7 +89,7 @@ from app.services.atelier import (
 from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService, AtelierWorkshopShortfall
 from app.services.book_library import BookLibraryService
-from app.services.cast_registry import display_name, people_addressed, people_named
+from app.services.cast_registry import display_name, people_addressed, people_named, people_speaking
 from app.services.cast_registry import resolve_id as _resolve_cast_id
 from app.services.cefr_progress import CEFRProgressService, live_level, with_can_do_line
 from app.services.chrome_language import user_chrome_language, user_mother_tongue
@@ -97,7 +97,7 @@ from app.services.concept_titles import concept_title, concept_title_fr
 from app.services.error_memory import ErrorMemoryService
 from app.services.forge import TEST_OUT_STATUS, ForgeService, is_forge_session  # WP-S3 La Forge
 from app.services.forge_coaches import story_state_of
-from app.services.forge_item_validator import item_problems  # #267: an item agrees with its badge
+from app.services.forge_item_validator import speaker_problems  # #267/#780: agrees with its badge
 from app.services.forge_metrics import record_forge_abandoned, sweep_stale_forge_seances  # WP-S8
 from app.services.forge_picker import forge_plan  # WP-S4 one picker
 from app.services.glosses import DEFAULT_GLOSS_LANGUAGE, normalize_language
@@ -318,7 +318,17 @@ def _with_serial_conversation(
     words = f"{items[0].get('prompt') or ''} {items[0].get('example_answer') or ''}"
     named, addressed = people_named(words), people_addressed(words)
     met = context.get("met") or {}
-    if addressed:
+    speaking = people_speaking(words)
+    if speaking:
+        # #147 (14 Nov): «Gus : « Tu es où ? »» went out under Lila. A line the item puts
+        # in someone's mouth is that person's: their badge when the learner has met them,
+        # no badge when not.
+        speaker = met.get(speaking[0])
+        if speaker is None:
+            return payload
+        if str(speaker.get("id")) != str(character.get("id")):
+            character = _cast_badge(speaker, state=context.get("state") or {})
+    elif addressed:
         addressee = met.get(addressed[0])
         if addressee is None:
             return payload
@@ -335,7 +345,10 @@ def _with_serial_conversation(
     # model, and nothing checked that they agree («Lila · tu» over «Répondez …»).
     # A prompt that disagrees with its badge is served as a plain situation, with
     # no speaker, so no portrait and no reaction is put in a mouth that cannot say it.
-    if item_problems(items[0].get("prompt"), register=register):
+    # #780: and a bare «Say in French: "Du bist 39 Jahre alt."» has no line anyone says, so
+    # no speaker; the register is read on every line the learner reads or says (the cue in
+    # their language, the model answer), not only on a French prompt that may be empty.
+    if speaker_problems(items[0], register=register):
         return payload
     items[0].update(
         {

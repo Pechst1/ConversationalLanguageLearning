@@ -221,7 +221,7 @@ test('the walk leaves a Forge sheet with no «Continue» by what the page render
   assert.match(page, /className="ep-feedback" data-verdict="unscored"/, 'the unchecked sheet is marked data-verdict="unscored"');
   assert.match(page, /<EpBar tone="ghost" onClick=\{onNext\}>\{t\.skip_unscored\}<\/EpBar>/, 'the unchecked sheet goes on with an EpBar');
   assert.match(page, /<div className="ep-fb-links">/, 'the sheet\'s quiet links are .ep-fb-links');
-  assert.match(page, /\{needsNewAnswer && !canGoOn && <button type="button" onClick=\{onNext\}>\{t\.skip\}<\/button>\}/, 'the skip is a link button');
+  assert.match(page, /\{\(needsNewAnswer \|\| !retry\) && !canGoOn && <button type="button" onClick=\{onNext\}>\{t\.skip\}<\/button>\}/, 'the skip is a link button');
   // Owner 2026-11-13: a miss with its second chance open has no «Continue» and no solution;
   // the walk takes «Show the solution» (driver FORGE_SHEET.reveal), which the page renders so.
   assert.match(page, /className="ep-feedback" data-verdict="wrong" data-solution="withheld"/, 'the withheld sheet is marked data-solution="withheld"');
