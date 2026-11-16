@@ -122,6 +122,25 @@ async function repairedLine(page) {
   check('381 repaired-line-has-no-failure-banner', Boolean(banner) && banner.ok, banner ? banner.detail : `the screen did not offer the parts to check: ${JSON.stringify(snap.layout.repairs)}`);
 }
 
+/**
+ * #779: the main walk's word-bank miss whose erratum came back twice. One card, one field,
+ * and its «Compare» above the sheet once the page says its miss scroll is settled.
+ */
+async function repeatedErratum(page) {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto(`http://localhost:${port}/dev/miss-layout?case=779`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+  await page.waitForSelector('.ep-feedback[data-verdict="wrong"]', { timeout: 120000 });
+  await page.waitForSelector('.ep-feedback[data-scroll="settled"]', { timeout: 10000 }).catch(() => {});
+  await page.screenshot({ path: path.join(outDir, 'miss-779-repeated-correction.png') });
+  const snap = await page.evaluate(SNAPSHOT_FN, SNAPSHOT_ARGS);
+  const cards = await page.locator('.ep-feedback .ep-galley').count();
+  check('779 a correction that came back twice is drawn once', cards === 1, `${cards} correction cards`);
+  check('779 the line is copied in one field', snap.layout.compare.length === 1, `compare boxes: ${JSON.stringify(snap.layout.compare)}`);
+  check('779 the page scroll is settled', snap.layout.scroll === 'settled', `data-scroll=${snap.layout.scroll}`);
+  const above = missLayoutChecks(snap.layout).find((entry) => entry.name === 'miss-action-above-the-sheet');
+  check('779 miss-action-above-the-sheet', Boolean(above) && above.ok, above ? above.detail : 'no sheet or «Compare» on screen');
+}
+
 let browser;
 let failed = 0;
 const check = (name, ok, detail) => {
@@ -151,6 +170,7 @@ try {
   await sleep(1500);
   await measure(page, '375x1100', { cameoComes: true });
   await repairedLine(page);
+  await repeatedErratum(page);
 } catch (error) {
   console.log(`FAIL the page did not come up: ${error.message}`);
   failed += 1;
