@@ -599,6 +599,14 @@ def forge_plan(
                 continue
             units.append(ForgeUnit(concept_id, ROLE_DUE, why))
             seen.add(concept_id)
+        # S1.1 shadow: the day's Forge start against the day brief (flag off: no-op).
+        from app.services import day_brief
+
+        day_brief.shadow_today(db, user, "forge_picker._anchor", anchor_id, field="forge_anchor", now=now)
+        day_brief.shadow_today(
+            db, user, "forge_picker.day_reviews",
+            [unit.concept_id for unit in units if unit.role == ROLE_DUE], field="forge_review_ids", now=now,
+        )
         return ForgePlan(
             units=tuple(units),
             budget_seconds=budget,
