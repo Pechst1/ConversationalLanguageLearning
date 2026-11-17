@@ -74,8 +74,9 @@ services:
       # ATELIER_STORY_ACTS and its cohort, both set in the dashboard) is held to
       # this cap instead, so it rises with the switch and for the cohort alone.
       # Their night writes the page and up to two acts, billed on the day they are
-      # played: the dearest night Opus was measured to write (US$0.37 a page,
-      # US$0.68 an act) leaves the day its voices and its panels under it
+      # played: the dearest night the writer was measured to write (Opus: US$0.37
+      # a page, US$0.68 an act; Sonnet, the writer since 2026-11-17, less) leaves
+      # the day its voices and its panels under it
       # (tests/test_story_acts_budget.py checks it against STORY_WRITER_MODEL).
       - key: ATELIER_STORY_ACTS_DAILY_SPEND_CAP_USD
         value: "2.50"
@@ -160,8 +161,10 @@ services:
         value: "true"
       - key: STORY_CONTRACT_STAND_IN
         value: "true"
+      # Owner 2026-11-17: Sonnet writes the night's page (Opus is too dear to run
+      # the app on). Measured at about US$0.19 a page, US$0.26–0.33 with the critic.
       - key: STORY_WRITER_MODEL
-        value: claude-opus-5-5
+        value: claude-sonnet-5-5
       - key: STORY_WRITER_REASONING_EFFORT
         value: medium
       - key: STORY_CRITIC_MODEL
@@ -252,6 +255,10 @@ services:
       # Content program 2026-10-03 (D5): season 1 «La clé d'Odile», read at the
       # learner's own level (A1 … C1), for lives not yet begun. Begun lives keep
       # the generated serial (D6).
+      # Pilot 2026-11-17 (P0): the Courrier's character reply gets 15 s (default
+      # 2 s), so a letter is answered by its correspondent, not by a stock line.
+      - key: MISSION_CHAT_TIMEOUT_SECONDS
+        value: "15"
       - key: ATELIER_SEASON_SCRIPT
         value: "s1"
       # --- Owner 2026-10-12: every product feature on (begin) ------------
@@ -260,19 +267,22 @@ services:
       # feature back out. Kept off on purpose: VOCAB_STORY_PILOT_ENABLED (an A/B
       # split that withholds half of each learner's words from the story, not a
       # feature).
+      # Pilot 2026-11-17 (P0): La Revue (Papier, Radio, Correcteur, Comptoir)
+      # stays out of the ten-learner pilot. REVUE_MIN_BAND only stops the news
+      # day shape; the Home card and chips reach every level, so the switch is off.
       - key: REVUE_ENABLED
-        value: "true"
+        value: "false"
       - key: REVUE_RADIO_ENABLED
-        value: "true"
+        value: "false"
       - key: REVUE_CORRECTEUR_ENABLED
-        value: "true"
+        value: "false"
       # Owner 2026-10-30: «Au comptoir» replaces the Papier chat for new
       # sessions whose story has takes (WP-119-AU-COMPTOIR).
       - key: REVUE_COMPTOIR_ENABLED
-        value: "true"
+        value: "false"
       # Refuses on its own (nearest known plate) until S3 storage is set.
       - key: REVUE_PLATE_GENERATION_ENABLED
-        value: "true"
+        value: "false"
       - key: ATELIER_SPOKEN_REPLY_ENABLED
         value: "true"
       - key: ATELIER_SEASON_WRITER_ENABLED
@@ -294,9 +304,10 @@ services:
       - key: ATELIER_GOLD_MODE
         value: shadow
       # Package O-2: l'or on screen. off | owner (admin accounts only) | all.
-      # Owner 2026-11-08: on for every pilot learner.
+      # Owner 2026-11-08: on for every pilot learner. Pilot 2026-11-17 (P0): off
+      # (no pill, no «vers la journée pleine»); the ledger keeps running in shadow.
       - key: ATELIER_GOLD_UI
-        value: all
+        value: "off"
       # --- Owner 2026-10-12: every product feature on (end) --------------
       # Durable image storage (any S3-compatible bucket; docs/ops/image-storage.md
       # sets up Cloudflare R2). Entered here on the API only: the worker inherits it.
@@ -433,8 +444,10 @@ services:
         value: "true"
       - key: STORY_CONTRACT_STAND_IN
         value: "true"
+      # Owner 2026-11-17: Sonnet writes the night's page (Opus is too dear to run
+      # the app on). Measured at about US$0.19 a page, US$0.26–0.33 with the critic.
       - key: STORY_WRITER_MODEL
-        value: claude-opus-5-5
+        value: claude-sonnet-5-5
       - key: STORY_WRITER_REASONING_EFFORT
         value: medium
       - key: STORY_CRITIC_MODEL
@@ -521,6 +534,10 @@ services:
       # Content program 2026-10-03 (D5): season 1 «La clé d'Odile», read at the
       # learner's own level (A1 … C1), for lives not yet begun. Begun lives keep
       # the generated serial (D6).
+      # Pilot 2026-11-17 (P0): the Courrier's character reply gets 15 s (default
+      # 2 s), so a letter is answered by its correspondent, not by a stock line.
+      - key: MISSION_CHAT_TIMEOUT_SECONDS
+        value: "15"
       - key: ATELIER_SEASON_SCRIPT
         value: "s1"
       # --- Owner 2026-10-12: every product feature on (begin) ------------
@@ -529,19 +546,22 @@ services:
       # feature back out. Kept off on purpose: VOCAB_STORY_PILOT_ENABLED (an A/B
       # split that withholds half of each learner's words from the story, not a
       # feature).
+      # Pilot 2026-11-17 (P0): La Revue (Papier, Radio, Correcteur, Comptoir)
+      # stays out of the ten-learner pilot. REVUE_MIN_BAND only stops the news
+      # day shape; the Home card and chips reach every level, so the switch is off.
       - key: REVUE_ENABLED
-        value: "true"
+        value: "false"
       - key: REVUE_RADIO_ENABLED
-        value: "true"
+        value: "false"
       - key: REVUE_CORRECTEUR_ENABLED
-        value: "true"
+        value: "false"
       # Owner 2026-10-30: «Au comptoir» replaces the Papier chat for new
       # sessions whose story has takes (WP-119-AU-COMPTOIR).
       - key: REVUE_COMPTOIR_ENABLED
-        value: "true"
+        value: "false"
       # Refuses on its own (nearest known plate) until S3 storage is set.
       - key: REVUE_PLATE_GENERATION_ENABLED
-        value: "true"
+        value: "false"
       - key: ATELIER_SPOKEN_REPLY_ENABLED
         value: "true"
       - key: ATELIER_SEASON_WRITER_ENABLED
@@ -563,9 +583,10 @@ services:
       - key: ATELIER_GOLD_MODE
         value: shadow
       # Package O-2: l'or on screen. off | owner (admin accounts only) | all.
-      # Owner 2026-11-08: on for every pilot learner.
+      # Owner 2026-11-08: on for every pilot learner. Pilot 2026-11-17 (P0): off
+      # (no pill, no «vers la journée pleine»); the ledger keeps running in shadow.
       - key: ATELIER_GOLD_UI
-        value: all
+        value: "off"
       # --- Owner 2026-10-12: every product feature on (end) --------------
       # Durable image storage: inherited from the API's dashboard values.
       - key: GRAPHIC_NOVEL_IMAGE_STORAGE
