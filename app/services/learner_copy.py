@@ -133,6 +133,28 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Du hast „{learner}“ gewählt; hier ist „{target}“ nötig.",
         "fr": "Tu as choisi « {learner} » ; il faut « {target} » ici.",
     },
+    # #828: a typed answer is written, not chosen; with a named slip after it, the
+    # line says only what was given (the slip names the right form).
+    "atelier.recognize.wrote_requires": {
+        "en": "You wrote “{learner}”; this item needs “{target}”.",
+        "de": "Du hast „{learner}“ geschrieben; hier ist „{target}“ nötig.",
+        "fr": "Tu as écrit « {learner} » ; il faut « {target} » ici.",
+    },
+    "atelier.recognize.chose": {
+        "en": "You chose “{learner}”.",
+        "de": "Du hast „{learner}“ gewählt.",
+        "fr": "Tu as choisi « {learner} ».",
+    },
+    "atelier.recognize.wrote": {
+        "en": "You wrote “{learner}”.",
+        "de": "Du hast „{learner}“ geschrieben.",
+        "fr": "Tu as écrit « {learner} ».",
+    },
+    "atelier.recognize.blank_needs_typed": {
+        "en": "You wrote “{learner}”, but this blank needs “{target}”.",
+        "de": "Du hast „{learner}“ geschrieben, aber in diese Lücke gehört „{target}“.",
+        "fr": "Tu as écrit « {learner} », mais ce blanc demande « {target} ».",
+    },
     "atelier.recognize.blank_needs": {
         "en": "You chose “{learner}”, but this blank needs “{target}”.",
         "de": "Du hast „{learner}“ gewählt, aber in diese Lücke gehört „{target}“.",
@@ -640,6 +662,29 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Der Artikel zeigt, wie viele: «{target} {noun}».",
         "fr": "L’article dit combien : « {target} {noun} ».",
     },
+    # #852: «quel» agrees with its noun (it is no article).
+    "forge.slip.quel.repair": {
+        "en": "«quel» agrees with its noun: «{target} {noun}».",
+        "de": "«quel» richtet sich nach seinem Nomen: «{target} {noun}».",
+        "fr": "« quel » s’accorde avec son nom : « {target} {noun} ».",
+    },
+    # #852: a question word for another: say what each one asks about.
+    "forge.slip.question_word.why": {
+        "en": "«{learner}» asks “{learner_asks}”; this question asks “{target_asks}”: «{target}».",
+        "de": "«{learner}» fragt „{learner_asks}“; diese Frage fragt „{target_asks}“: «{target}».",
+        "fr": "« {learner} » demande {learner_asks} ; cette question demande {target_asks} : « {target} ».",
+    },
+    "forge.slip.question_word.repair": {
+        "en": "Read what the question asks, then take its word: “{target_asks}” is «{target}».",
+        "de": "Lies, wonach gefragt wird, und nimm sein Fragewort: „{target_asks}“ ist «{target}».",
+        "fr": "Regarde ce que la question demande, puis prends son mot : {target_asks}, c’est « {target} ».",
+    },
+    "forge.slip.question_word.asks.place": {"en": "where", "de": "wo", "fr": "le lieu"},
+    "forge.slip.question_word.asks.time": {"en": "when", "de": "wann", "fr": "le moment"},
+    "forge.slip.question_word.asks.manner": {"en": "how", "de": "wie", "fr": "la manière"},
+    "forge.slip.question_word.asks.amount": {"en": "how much, how many", "de": "wie viel", "fr": "la quantité"},
+    "forge.slip.question_word.asks.reason": {"en": "why", "de": "warum", "fr": "la raison"},
+    "forge.slip.question_word.asks.person": {"en": "who", "de": "wer", "fr": "la personne"},
     "forge.slip.person_subject.why": {
         "en": "With «{subject}», «{lemma}» is «{target}», not «{learner}».",
         "de": "Mit «{subject}» heißt «{lemma}» «{target}», nicht «{learner}».",
@@ -664,6 +709,53 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "en": "Join «{target}» to the next word, with the apostrophe and no space.",
         "de": "Schreib «{target}» mit Apostroph und ohne Leerzeichen an das nächste Wort.",
         "fr": "Colle « {target} » au mot suivant, avec l’apostrophe et sans espace.",
+    },
+    # #809: a participle built by the regular pattern for another one («écrivé» for «écrit»).
+    "forge.slip.participle_irregular.why": {
+        "en": "«{lemma}» has an irregular past participle: «{target}», not «{learner}».",
+        "de": "«{lemma}» hat ein unregelmäßiges Partizip: «{target}», nicht «{learner}».",
+        "fr": "« {lemma} » a un participe passé irrégulier : « {target} », pas « {learner} ».",
+    },
+    "forge.slip.participle.why": {
+        "en": "The past participle of «{lemma}» is «{target}», not «{learner}».",
+        "de": "Das Partizip von «{lemma}» ist «{target}», nicht «{learner}».",
+        "fr": "Le participe passé de « {lemma} » est « {target} », pas « {learner} ».",
+    },
+    "forge.slip.participle.repair": {
+        "en": "Learn it with the verb: «{lemma}» → «{target}».",
+        "de": "Lern es mit dem Verb: «{lemma}» → «{target}».",
+        "fr": "Apprends-le avec le verbe : « {lemma} » → « {target} ».",
+    },
+    # #809: a «fix the one mistake» answer that fixed it and changed another word.
+    "forge.spot.other_word.label": {
+        "en": "Another word changed",
+        "de": "Ein anderes Wort geändert",
+        "fr": "Un autre mot a changé",
+    },
+    "forge.spot.other_word.why": {
+        "en": "You fixed the mistake ({fix}). What differs is another word: you wrote «{learner}», this line keeps «{target}».",
+        "de": "Den Fehler hast du korrigiert ({fix}). Anders ist ein anderes Wort: Du hast «{learner}» geschrieben, der Satz behält «{target}».",
+        "fr": "Tu as corrigé la faute ({fix}). Ce qui diffère, c’est un autre mot : tu as écrit « {learner} », la phrase garde « {target} ».",
+    },
+    "forge.spot.fix.swap": {
+        "en": "«{shown}» → «{fixed}»",
+        "de": "«{shown}» → «{fixed}»",
+        "fr": "« {shown} » → « {fixed} »",
+    },
+    "forge.spot.fix.missing": {
+        "en": "«{fixed}» was missing",
+        "de": "«{fixed}» fehlte",
+        "fr": "« {fixed} » manquait",
+    },
+    "forge.spot.fix.extra": {
+        "en": "«{shown}» was one word too many",
+        "de": "«{shown}» war ein Wort zu viel",
+        "fr": "« {shown} » était en trop",
+    },
+    "forge.spot.other_word.repair": {
+        "en": "Change only the mistake; leave the other words as they are shown.",
+        "de": "Ändere nur den Fehler; lass die anderen Wörter so, wie sie dastehen.",
+        "fr": "Ne change que la faute ; laisse les autres mots comme ils sont.",
     },
     "forge.diff.missing": {
         "en": "«{target}» is missing.",

@@ -189,15 +189,28 @@ _ELISIONS: dict[str, str] = {
 _GENDER_SWAPS = frozenset(
     {("le", "la"), ("la", "le"), ("un", "une"), ("une", "un"), ("mon", "ma"), ("ma", "mon"),
      ("ton", "ta"), ("ta", "ton"), ("son", "sa"), ("sa", "son"), ("ce", "cette"), ("cette", "ce"),
-     ("cet", "cette"), ("cette", "cet"), ("au", "a la"), ("du", "de la")}
+     ("cet", "cette"), ("cette", "cet"), ("au", "a la"), ("du", "de la"),
+     # #852: «quel» agrees with its noun like an article («quel heure» → «quelle heure»).
+     ("quel", "quelle"), ("quelle", "quel"), ("quels", "quelles"), ("quelles", "quels")}
 )
 _NUMBER_SWAPS = frozenset(
     {("le", "les"), ("la", "les"), ("les", "le"), ("les", "la"), ("un", "des"), ("une", "des"),
      ("des", "un"), ("des", "une"), ("mon", "mes"), ("ma", "mes"), ("mes", "mon"), ("mes", "ma"),
-     ("ce", "ces"), ("cette", "ces"), ("ces", "ce"), ("ces", "cette")}
+     ("ce", "ces"), ("cette", "ces"), ("ces", "ce"), ("ces", "cette"),
+     ("quel", "quels"), ("quels", "quel"), ("quelle", "quelles"), ("quelles", "quelle")}
 )
-_FEMININE_DETERMINERS = frozenset({"la", "une", "ma", "ta", "sa", "cette"})
-_PLURAL_DETERMINERS = frozenset({"les", "des", "mes", "tes", "ses", "ces"})
+_FEMININE_DETERMINERS = frozenset({"la", "une", "ma", "ta", "sa", "cette", "quelle", "quelles"})
+_PLURAL_DETERMINERS = frozenset({"les", "des", "mes", "tes", "ses", "ces", "quels", "quelles"})
+#: «quel» and its forms: an interrogative that agrees, not an article (#852).
+_QUEL = frozenset({"quel", "quelle", "quels", "quelles"})
+#: Question words that each ask about one thing (#852): «Quand» for «Où» is a question
+#: about the time where the sentence asks about the place, whatever the day's rule is.
+#: What each asks is worded in the learner's language
+#: (``forge.slip.question_word.asks.<key>``).
+_QUESTION_WORDS: dict[str, str] = {
+    "où": "place", "quand": "time", "comment": "manner", "combien": "amount",
+    "pourquoi": "reason", "qui": "person",
+}
 _SUBJECTS = frozenset({"je", "j'", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles"})
 
 
@@ -249,10 +262,65 @@ def _before(sentence: Any, word: str, at: Any = None) -> str | None:
     return words[index - 1] if index else None
 
 
+#: A participle ending a learner builds by the regular pattern (-é, -i, -u), with
+#: agreement after it: «écrivé», «prendu», «finé», «venue».
+_REGULAR_PARTICIPLE = re.compile(r"(?:é|i|u)(?:e|s|es)?$")
+
+
+def _participle(lemma: str) -> str | None:
+    """The past participle of ``lemma``, from the conjugation table, or ``None``."""
+
+    from app.services.conjugation import fallback_conjugation_table
+
+    try:
+        compound = (fallback_conjugation_table(lemma).get("passe_compose") or {}).get("je") or ""
+    except Exception:  # pragma: no cover - an unknown verb has no participle here
+        return None
+    words = str(compound).split()
+    return words[-1] if len(words) >= 2 else None
+
+
+def _with_agreement(participle: str) -> set[str]:
+    folded = strip_accents(participle)
+    return {folded, f"{folded}e", f"{folded}s", f"{folded}es"}
+
+
+def participle_irregular(lemma: str, participle: str) -> bool:
+    """``participle`` is not what the -é/-i/-u pattern makes of ``lemma``
+    («écrire» → «écrit», not «écru»; «venir» → «venu», not «veni»)."""
+
+    regular = {"er": "é", "ir": "i", "re": "u"}.get(lemma[-2:])
+    return regular is None or strip_accents(participle) != strip_accents(lemma[:-2] + regular)
+
+
+def _participle_slip(lemma: str | None, learner: str, target: str) -> bool:
+    """«écrivé» for «écrit»: the target is ``lemma``'s past participle and the learner
+    built another one by the regular pattern. Agreement («écrite» for «écrit») is not
+    a participle slip: the participle itself is right."""
+
+    if not lemma:
+        return False
+    participle = _participle(lemma)
+    if not participle or strip_accents(target) not in _with_agreement(participle):
+        return False
+    return bool(_REGULAR_PARTICIPLE.search(learner.casefold())) and strip_accents(learner) not in _with_agreement(
+        participle
+    )
+
+
+def _question_word(word: str) -> str | None:
+    """What the question word ``word`` asks about («quand» → ``time``), or ``None``.
+    Accents count: «ou» (or) is no question word."""
+
+    return _QUESTION_WORDS.get(fold_typography(word or "").casefold().strip(" ?"))
+
+
 def slip_kind(learner: str, target: str) -> str | None:
     """What kind of slip one word for another is: ``gender``, ``number``, ``elision``,
-    ``person`` (another form of the same verb), or ``None``. The one classifier the
-    miss note and the rule card's example are chosen by (#146)."""
+    ``person`` (another form of the same verb), ``participle`` (a past participle built
+    by the regular pattern for another one: «écrivé» for «écrit»), ``question_word``
+    («quand» for «où»: another thing asked), or ``None``. The one classifier the miss
+    note and the rule card's example are chosen by (#146)."""
 
     a, b = strip_accents(learner or ""), strip_accents(target or "")
     if not a or not b or a == b:
@@ -265,9 +333,13 @@ def slip_kind(learner: str, target: str) -> str | None:
         return "elision"
     if a in _COI_PRONOUNS | _COD_PRONOUNS and b in _COI_PRONOUNS | _COD_PRONOUNS:
         return "object_pronoun"
+    if _question_word(learner) and _question_word(target):
+        return "question_word"
     lemma = _verb_lemma(target)
     if lemma and lemma == _verb_lemma(learner) and _same_tense(lemma, a, b):
         return "person"
+    if _participle_slip(lemma, fold_typography(learner), fold_typography(target)):
+        return "participle"
     return None
 
 
@@ -310,12 +382,32 @@ def slip_category(ops: list[dict[str, str]], sentence: Any = None) -> dict[str, 
         return {"category": "coi_for_cod", "learner": learner, "target": target}
     if target.endswith("'") and _ELISIONS.get(learner) == target:
         return {"category": "elision", "learner": learner, "target": target}
+    shown_learner, shown_target = slips[0].get("learner") or "", slips[0].get("target") or ""
+    if slip_kind(shown_learner, shown_target) == "question_word":
+        # #852: «Quand» for «Où» asks about another thing; the rule's general line
+        # («question words ask for information») says nothing about which.
+        return {
+            "category": "question_word",
+            "learner": shown_learner,
+            "target": shown_target,
+            "learner_asks": _question_word(shown_learner) or "",
+            "target_asks": _question_word(shown_target) or "",
+        }
+    if slip_kind(shown_learner, shown_target) == "participle":
+        # #809: «écrivé» for «écrit» is the regular pattern applied to an irregular verb;
+        # quoting that pattern as the reason would repeat what produced the slip.
+        lemma = _verb_lemma(shown_target) or ""
+        return {
+            "category": "participle_irregular" if participle_irregular(lemma, shown_target) else "participle",
+            "learner": shown_learner,
+            "target": shown_target,
+            "lemma": lemma,
+        }
     if sentence is None:
         return None
     # #596: given the right sentence, an article that differs only in gender or number is
     # about the noun after it («le clé»: «clé» is feminine), and a verb form of the wrong
     # person about its subject, not the day's rule card.
-    shown_learner, shown_target = slips[0].get("learner") or "", slips[0].get("target") or ""
     kind = slip_kind(shown_learner, shown_target)
     at = slips[0].get("at")
     if kind in {"gender", "number"}:
@@ -357,9 +449,21 @@ def slip_note(ops: list[dict[str, str]], language: Any, target: Any = None) -> t
         gender = _copy(f"forge.slip.gender.{slip['gender']}", language)
         plural = strip_accents(slip["target"]) in _PLURAL_DETERMINERS
         count = _copy(f"forge.slip.count.{'p' if plural else 's'}", language)
+        # «quel» is no article: it agrees with the noun, and the repair says so.
+        repair = "quel" if strip_accents(slip["target"]).casefold() in _QUEL else slip["category"]
         return (
             _copy(f"forge.slip.{slip['category']}.why", language, gender_word=gender, count=count, **fields),
-            _copy(f"forge.slip.{slip['category']}.repair", language, **fields),
+            _copy(f"forge.slip.{repair}.repair", language, **fields),
+        )
+    if slip["category"] == "question_word":
+        fields = {
+            **fields,
+            "learner_asks": _copy(f"forge.slip.question_word.asks.{slip['learner_asks']}", language),
+            "target_asks": _copy(f"forge.slip.question_word.asks.{slip['target_asks']}", language),
+        }
+        return (
+            _copy("forge.slip.question_word.why", language, **fields),
+            _copy("forge.slip.question_word.repair", language, **fields),
         )
     if slip["category"] in {"person", "person_subject"}:
         return (
@@ -371,10 +475,69 @@ def slip_note(ops: list[dict[str, str]], language: Any, target: Any = None) -> t
             _copy("forge.slip.elision.why", language, **fields),
             _copy("forge.slip.elision.repair", language, **fields),
         )
+    if slip["category"] in {"participle", "participle_irregular"}:
+        return (
+            _copy(f"forge.slip.{slip['category']}.why", language, **fields),
+            _copy("forge.slip.participle.repair", language, **fields),
+        )
     return (
         _copy(f"forge.slip.{slip['category']}.why", language, **fields),
         _copy("forge.slip.object_pronoun.repair", language),
     )
+
+
+def _changes(sentence: Any, target: Any) -> list[tuple[int, int, int, int]]:
+    """Where ``sentence`` differs from ``target`` (accents folded), as
+    ``(i1, i2, j1, j2)`` spans: ``sentence`` words i1:i2 stand for ``target`` words j1:j2."""
+
+    left = [strip_accents(token) for token in tokens(sentence)]
+    right = [strip_accents(token) for token in tokens(target)]
+    matcher = SequenceMatcher(a=left, b=right, autojunk=False)
+    return [(i1, i2, j1, j2) for tag, i1, i2, j1, j2 in matcher.get_opcodes() if tag != "equal"]
+
+
+def _touched(spans: list[tuple[int, int, int, int]]) -> set[float]:
+    """The target positions a set of changes touches; a deletion touches the gap it leaves."""
+
+    touched: set[float] = set()
+    for _i1, _i2, j1, j2 in spans:
+        touched.update(range(j1, j2) if j2 > j1 else {j1 - 0.5})
+    return touched
+
+
+def fixed_but_changed_elsewhere(learner: Any, target: Any, source: Any, language: Any = "en") -> dict[str, str] | None:
+    """#809: a «fix the one mistake» answer that fixed it and changed another word.
+
+    «La bague est neuve.» for «Le bague est nouvelle.» → «La bague est nouvelle.»: the
+    article (the mistake) is right; «neuve» is what differs. The miss is that other
+    word, not the category of the mistake the learner just fixed. Returns the fix the
+    learner made, in ``language`` («le» → «la», «le» was missing), and the one other
+    word (learner's, key's), or ``None`` when the mistake is not fixed or the other
+    change is more than one word for one word.
+
+    Only for a sentence that *carries* a mistake (``forge_drills.is_repair``): a
+    rewrite's source is a right sentence, and nothing in it was fixed.
+    """
+
+    mistake = _changes(source, target)
+    if not mistake:
+        return None
+    if _touched(mistake) & _touched(_changes(learner, target)):
+        return None
+    others = [op for op in token_diff(learner, target) if op.get("kind") != "accent"]
+    if len(others) != 1 or others[0].get("kind") not in {"word", "ending"}:
+        return None
+    shown, right = tokens(source), tokens(target)
+    fixes = []
+    for i1, i2, j1, j2 in mistake:
+        was, now = " ".join(shown[i1:i2]), " ".join(right[j1:j2])
+        if not was:
+            fixes.append(_copy("forge.spot.fix.missing", language, fixed=now))
+        elif not now:
+            fixes.append(_copy("forge.spot.fix.extra", language, shown=was))
+        else:
+            fixes.append(_copy("forge.spot.fix.swap", language, shown=was, fixed=now))
+    return {"fix": ", ".join(fixes), "learner": others[0]["learner"], "target": others[0]["target"]}
 
 
 def similarity(learner: Any, target: Any) -> float:
@@ -1290,10 +1453,12 @@ __all__ = [
     "drop_false_english",
     "is_author_note",
     "fold_typography",
+    "fixed_but_changed_elsewhere",
     "foreign_words",
     "is_french_word",
     "mark_given",
     "matches_accepted",
+    "participle_irregular",
     "notes_native",
     "production_local_check",
     "refine_production_correction",
