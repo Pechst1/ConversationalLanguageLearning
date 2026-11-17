@@ -153,3 +153,48 @@ test("Lila's banner, rolled behind the zinc: laid once a page left it at Le Mist
   assert.ok(roll.at[2] < -17.4 && roll.at[2] > ROOM.z0, 'between the zinc and the north wall, by the booth');
   assert.ok(roll.size[0] * Math.cos(0.33) < 1.3, 'it leans on the zinc, not over it');
 });
+
+test("Lila's banner in her flat, drying over two chairs: laid once a page left it there, standing clear of the room's things", () => {
+  const banner = details.find(({ spec }) => spec.id === 'banderole_lila_seche').spec;
+  assert.equal(banner.in, 'chez_marin_lila');
+  assert.deepEqual(banner.mark, { name_fr: 'la banderole de Lila', location_id: 'marin_lila_flat' });
+  const laid = (marks) => setBy([banner], { flags: {}, marks }).map((d) => d.spec.id);
+  assert.deepEqual(laid([{ kind: 'thing', name_fr: 'La  banderole de Lila', location_id: 'marin_lila_flat' }]), ['banderole_lila_seche']);
+  // the same name left at Le Mistral is the rolled paper one, not this
+  assert.deepEqual(laid([{ kind: 'thing', name_fr: 'la banderole de Lila', location_id: 'le_mistral' }]), []);
+  const room = ROOMS.chez_marin_lila;
+  const sejour = room.floors.find((f) => f.key === 'sejour');
+  const [[sx0, sz0], , [sx1, sz1]] = sejour.shape;
+  const drape = banner.things.find((t) => t.kind === 'drape');
+  const chairs = banner.things.filter((t) => t.kind === 'chair');
+  assert.equal(chairs.length, 2, 'two chairs to dry it on');
+  assert.ok(drape.text.join(' ').includes('25 ANS DU MISTRAL'), 'it reads «Les 25 ans du Mistral»');
+  banner.things.forEach((t) => {
+    assert.ok(Math.abs(t.at[1] - sejour.y) < 0.01, `${t.kind} stands on the séjour's floor`);
+    assert.ok(t.at[0] > sx0 + 0.3 && t.at[0] < sx1 - 0.3 && t.at[2] > sz0 + 0.3 && t.at[2] < sz1 - 0.3, `${t.kind} inside the séjour, off its walls`);
+  });
+  // the chairs' top rails are where the cloth hangs: one at each end of the span
+  const half = drape.size[0] / 2;
+  chairs.forEach((c) => {
+    assert.ok(Math.abs(c.at[2] - 0.185 - drape.at[2]) < 0.01, 'its back under the cloth');
+    assert.ok(Math.abs(Math.abs(c.at[0] - drape.at[0]) - (half - 0.21)) < 0.01, 'at an end of the span');
+  });
+  // clear of the room's own furniture (the walk keeps to what the room blocks)
+  const B = press();
+  buildRoom(B, room);
+  const before = B.blocks.length;
+  const D = press();
+  buildDetail(D, banner);
+  const box = (poly) => poly.reduce((b, [x, z]) => [Math.min(b[0], x), Math.min(b[1], z), Math.max(b[2], x), Math.max(b[3], z)], [Infinity, Infinity, -Infinity, -Infinity]);
+  const [bx0, bz0, bx1, bz1] = box(D.blocks[0]);
+  B.blocks.slice(0, before).forEach((poly) => {
+    const [x0, z0, x1, z1] = box(poly);
+    assert.ok(x1 <= bx0 || x0 >= bx1 || z1 <= bz0 || z0 >= bz1, `the banner's chairs stand in a thing of the room at ${[x0, z0, x1, z1].map((v) => v.toFixed(2))}`);
+  });
+  // the room's marks stay where you can stand
+  Object.entries(room.marks).forEach(([name, [mx, , mz]]) => assert.ok(!(mx > bx0 && mx < bx1 && mz > bz0 && mz < bz1), `the mark ${name} is under the banner`));
+  // the flat's cards and the banner's words all print
+  buildDetail(B, banner);
+  const want = B.signs.reduce((n, s) => n + (s.width * (s.density ?? 150) + 4) * (s.height * (s.density ?? 150) + 4), 0);
+  assert.ok(want < 2048 * 2048 * 0.6, `the flat's lettering and the banner's words fit the sign atlas (${(want / (2048 * 2048)).toFixed(2)})`);
+});

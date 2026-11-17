@@ -19,7 +19,7 @@ import { Matrix4, Vector3 } from 'three';
 
 import { KERB, WALLS, bench, building, chair, frameOf, planeTree, quayLamp } from './kit';
 import type { Build, Frame, Shop } from './kit';
-import { LACE, PATTERN, Press, nextId } from './geo';
+import { LACE, PATTERN, Press, nextId, seeded } from './geo';
 import type { Paint, PatternId } from './geo';
 import type { Words } from './memory';
 import { AMBIANCES, INKS, TONES, css, mix, rgb } from './palette';
@@ -205,7 +205,8 @@ export type ThingKind =
   | 'fern'
   | 'leek'
   | 'mug'
-  | 'roll';
+  | 'roll'
+  | 'drape';
 
 export interface RoomThing {
   kind: ThingKind;
@@ -2309,6 +2310,63 @@ function thing(B: Build, t: RoomThing, i: number) {
       });
       return;
     }
+    case 'drape': {
+      // a cloth banner pegged to dry over the backs of two chairs pulled out side by side: its
+      // painted face hangs on local +z, a hem's width folded over the top rails to the back and
+      // pegged there; the end on local -x hemmed, the one on +x freshly cut (frayed), the offcut
+      // and the scissors on the floor beside it (`at` the middle of the span on the floor, under
+      // the rails; `size` [length, drop]; `text` the words painted on)
+      const [len, drop] = t.size ?? [1.76, 0.56];
+      const half = len / 2;
+      // just over the chairs' top rails (`chair`: 0.925 m), each 0.42 m long, at ±(half - 0.21)
+      const top = 0.937;
+      const back = zoned(mix(INKS.card, INKS.ochre, 0.14), z);
+      const fold = zoned(mix(INKS.card, INKS.ochre, 0.1), z);
+      const offcut = zoned(mix(INKS.card, INKS.ochre, 0.08), z);
+      const red = zoned(mix(INKS.vermilion, INKS.paper, 0.08), z);
+      const steel = zoned(mix(INKS.paper, INKS.ink, 0.35), z, { wet: 0.7 });
+      const grip = zoned(mix(INKS.vermilion, INKS.ink, 0.2), z);
+      const peg = zoned(mix(TONES.wood, INKS.paper, 0.35), z);
+      D.at(x, y, zz, rot, () => {
+        // the cloth's back behind the painted face (the card), the hem over the rails, the flap behind
+        D.box(0, top - drop / 2, 0.019, len, drop, 0.004, back, { pz: false });
+        D.box(0, top + 0.001, 0, len, 0.008, 0.046, fold);
+        D.box(0, top - 0.05, -0.022, len, 0.1, 0.005, fold);
+        // two wooden pegs on each chair's back
+        for (const cx of [-(half - 0.21), half - 0.21]) {
+          for (const dx of [-0.12, 0.12]) {
+            D.box(cx + dx, top - 0.035, -0.03, 0.016, 0.09, 0.012, peg);
+            D.box(cx + dx, top - 0.035, -0.043, 0.016, 0.09, 0.012, peg);
+          }
+        }
+        // the cut end's threads, loose
+        for (let k = 0; k < 9; k++) {
+          const v = top - 0.04 - k * ((drop - 0.08) / 8);
+          D.bar(new Vector3(half, v, 0.022), new Vector3(half + 0.016 + (k % 3) * 0.007, v - 0.02 - (k % 2) * 0.012, 0.024), 0.0025, fold);
+        }
+        // the offcut on the floor, crumpled in three folds, a stroke of paint across it
+        D.push(new Matrix4().makeTranslation(half + 0.2, 0, 0.32).multiply(new Matrix4().makeRotationY(0.35)));
+        D.box(0, 0.003, -0.12, 0.26, 0.004, 0.2, offcut, { ny: false });
+        D.push(new Matrix4().makeTranslation(0, 0.012, 0.02).multiply(new Matrix4().makeRotationX(0.14)));
+        D.box(0, 0, 0, 0.25, 0.004, 0.14, offcut, { ny: false });
+        D.pop();
+        D.box(0.01, 0.006, 0.15, 0.24, 0.004, 0.14, offcut, { ny: false });
+        D.box(-0.04, 0.0095, -0.1, 0.04, 0.0015, 0.16, red, { ny: false });
+        D.pop();
+        // the scissors, open
+        D.push(new Matrix4().makeTranslation(half + 0.06, 0.008, 0.62).multiply(new Matrix4().makeRotationY(-0.7)));
+        D.bar(new Vector3(0, 0, 0), new Vector3(0.16, 0, 0.012), 0.01, steel);
+        D.bar(new Vector3(0, 0.002, 0.012), new Vector3(0.16, 0.002, -0.004), 0.01, steel);
+        for (const sz of [-0.032, 0.044]) D.cylinder(-0.045, 0, sz, 0.026, 0.026, 0.01, 10, grip, { caps: true });
+        D.pop();
+      });
+      // the painted face: the card is the cloth itself, its folds, hem and cut drawn on
+      const fz = 0.009;
+      card(B, key, [x + fz * Math.sin(rot), y + top - drop / 2, zz + fz * Math.cos(rot)], rot, len, drop, z, clothArt(t.text ?? ['']), 420);
+      // the chairs under the cloth are not walked through (the offcut and the scissors, flat on the floor, are)
+      B.blocks.push(centred(x - 0.185 * Math.sin(rot), zz - 0.185 * Math.cos(rot), rot, len + 0.04, 0.48));
+      return;
+    }
     case 'gaze': {
       // nothing to draw: a point you look at from where you can stand (a window up the street),
       // so the story can be tapped where the quarter already draws it
@@ -2439,6 +2497,88 @@ function planArt(text: string[]) {
 }
 
 /** A poster: a coloured sheet (sea green, poster red, paper), a slogan in white or ink capitals, a line each. */
+/** A banner's words painted by hand: capitals in red, each a little off its line, a cobalt shadow, the paint run under a few. */
+function clothArt(lines: string[]) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    const rand = seeded(2512).next;
+    ctx.fillStyle = css(mix(INKS.card, INKS.ochre, 0.08));
+    ctx.fillRect(0, 0, w, h);
+    // the folds of a cloth hung up wet: soft darker bands down it
+    for (let k = 0; k < 9; k++) {
+      const fx = w * (0.06 + k * 0.11 + (rand() - 0.5) * 0.04);
+      const fw = w * (0.02 + rand() * 0.03);
+      const g = ctx.createLinearGradient(fx - fw, 0, fx + fw, 0);
+      g.addColorStop(0, 'rgba(120, 90, 40, 0)');
+      g.addColorStop(0.5, `rgba(120, 90, 40, ${0.08 + rand() * 0.07})`);
+      g.addColorStop(1, 'rgba(120, 90, 40, 0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(fx - fw, 0, fw * 2, h);
+    }
+    // the hem along the top and down the far end, its stitches
+    ctx.fillStyle = 'rgba(120, 90, 40, 0.16)';
+    ctx.fillRect(0, 0, w, h * 0.07);
+    ctx.fillRect(0, 0, w * 0.018, h);
+    ctx.strokeStyle = 'rgba(80, 60, 30, 0.45)';
+    ctx.lineWidth = Math.max(1, h * 0.006);
+    ctx.setLineDash([h * 0.025, h * 0.02]);
+    ctx.beginPath();
+    ctx.moveTo(w * 0.012, h * 0.06);
+    ctx.lineTo(w, h * 0.06);
+    ctx.moveTo(w * 0.014, h * 0.06);
+    ctx.lineTo(w * 0.014, h);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // the cut end: no hem, the weave loose along it
+    ctx.strokeStyle = 'rgba(120, 90, 40, 0.5)';
+    ctx.lineWidth = Math.max(1, h * 0.004);
+    for (let k = 0; k < 40; k++) {
+      const fy = (k / 40) * h + rand() * 3;
+      ctx.beginPath();
+      ctx.moveTo(w - 1, fy);
+      ctx.lineTo(w - w * (0.004 + rand() * 0.01), fy + rand() * 4);
+      ctx.stroke();
+    }
+    const n = Math.max(1, lines.length);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    lines.forEach((line, row) => {
+      // the painter ran out of room at the cut: the left margin wider than the right
+      const left = w * 0.06;
+      const right = w * 0.015;
+      let s = Math.round(((h * 0.93) / n) * 0.5);
+      ctx.font = SANS(s, 800);
+      const fit = () => Array.from(line).reduce((sum, ch) => sum + ctx.measureText(ch).width * 1.08, 0);
+      while (s > 6 && fit() > w - left - right) ctx.font = SANS(--s, 800);
+      let px = w - right - fit();
+      const cy = h * 0.07 + (h * 0.93 * (row + 0.5)) / n;
+      Array.from(line).forEach((ch) => {
+        const cw = ctx.measureText(ch).width * 1.08;
+        const dy = (rand() - 0.5) * s * 0.12;
+        const turn = (rand() - 0.5) * 0.09;
+        ctx.save();
+        ctx.translate(px + cw / 2, cy + dy);
+        ctx.rotate(turn);
+        ctx.fillStyle = css(mix(INKS.cobalt, INKS.paper, 0.2));
+        ctx.fillText(ch, s * 0.05, s * 0.05);
+        ctx.fillStyle = css(mix(INKS.vermilion, INKS.paper, 0.06));
+        ctx.fillText(ch, 0, 0);
+        ctx.restore();
+        // a run of paint under some letters, still wet
+        if (ch.trim() && rand() < 0.28) {
+          ctx.fillStyle = css(mix(INKS.vermilion, INKS.paper, 0.15));
+          const rx = px + cw * (0.3 + rand() * 0.4);
+          const rl = s * (0.15 + rand() * 0.3);
+          ctx.fillRect(rx, cy + dy + s * 0.36, Math.max(2, s * 0.05), rl);
+          ctx.beginPath();
+          ctx.arc(rx + Math.max(2, s * 0.05) / 2, cy + dy + s * 0.36 + rl, Math.max(2, s * 0.045), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        px += cw;
+      });
+    });
+  };
+}
+
 function posterArt(lines: string[], variant: number) {
   return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
     const grounds = [mix(INKS.green, INKS.paper, 0.12), mix(INKS.vermilion, INKS.paper, 0.08), mix(INKS.card, INKS.ochre, 0.06)];
