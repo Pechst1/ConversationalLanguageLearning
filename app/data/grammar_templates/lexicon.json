@@ -8454,6 +8454,7 @@
     },
     {
      "fr": "en Italie",
+     "rule": "FR2_A11_PLACES",
      "en": "in Italy"
     },
     {
@@ -9650,7 +9651,8 @@
     "en": "Paris",
     "tags": [
      "city"
-    ]
+    ],
+    "story": true
    },
    {
     "in": "à Lyon",
@@ -9871,7 +9873,8 @@
     "en": "France",
     "tags": [
      "fem"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Allemagne",
@@ -9884,7 +9887,8 @@
     "en": "Germany",
     "tags": [
      "fem"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Espagne",
@@ -9897,7 +9901,8 @@
     "en": "Spain",
     "tags": [
      "fem"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Italie",
@@ -9910,7 +9915,8 @@
     "en": "Italy",
     "tags": [
      "fem"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Angleterre",
@@ -9923,7 +9929,8 @@
     "en": "England",
     "tags": [
      "fem"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Suisse",
@@ -9936,7 +9943,8 @@
     "en": "Switzerland",
     "tags": [
      "fem"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Belgique",
@@ -9949,7 +9957,8 @@
     "en": "Belgium",
     "tags": [
      "fem"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Chine",
@@ -9962,7 +9971,8 @@
     "en": "China",
     "tags": [
      "fem"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Grèce",
@@ -9975,7 +9985,8 @@
     "en": "Greece",
     "tags": [
      "fem"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Autriche",
@@ -9988,7 +9999,8 @@
     "en": "Austria",
     "tags": [
      "fem"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Irlande",
@@ -10001,7 +10013,8 @@
     "en": "Ireland",
     "tags": [
      "fem"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Inde",
@@ -10014,7 +10027,8 @@
     "en": "India",
     "tags": [
      "fem"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Iran",
@@ -10027,7 +10041,8 @@
     "en": "Iran",
     "tags": [
      "masc_vowel"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Israël",
@@ -10040,7 +10055,8 @@
     "en": "Israel",
     "tags": [
      "masc_vowel"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "au Canada",
@@ -10053,7 +10069,8 @@
     "en": "Canada",
     "tags": [
      "masc"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "au Japon",
@@ -10066,7 +10083,8 @@
     "en": "Japan",
     "tags": [
      "masc"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "au Portugal",
@@ -10079,7 +10097,8 @@
     "en": "Portugal",
     "tags": [
      "masc"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "au Maroc",
@@ -10092,7 +10111,8 @@
     "en": "Morocco",
     "tags": [
      "masc"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "au Brésil",
@@ -10105,7 +10125,8 @@
     "en": "Brazil",
     "tags": [
      "masc"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "au Mexique",
@@ -10118,7 +10139,8 @@
     "en": "Mexico",
     "tags": [
      "masc"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "au Québec",
@@ -10131,7 +10153,8 @@
     "en": "Quebec",
     "tags": [
      "masc"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "au Luxembourg",
@@ -10144,7 +10167,8 @@
     "en": "Luxembourg",
     "tags": [
      "masc"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "au Danemark",
@@ -10157,7 +10181,8 @@
     "en": "Denmark",
     "tags": [
      "masc"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "au Sénégal",
@@ -10170,7 +10195,8 @@
     "en": "Senegal",
     "tags": [
      "masc"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "au Liban",
@@ -10183,7 +10209,8 @@
     "en": "Lebanon",
     "tags": [
      "masc"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "aux États-Unis",
@@ -10196,7 +10223,8 @@
     "en": "the United States",
     "tags": [
      "plural"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "aux Pays-Bas",
@@ -10209,7 +10237,8 @@
     "en": "the Netherlands",
     "tags": [
      "plural"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    }
   ],
   "activity": [
@@ -16267,6 +16296,7 @@
      },
      {
       "fr": "en Italie",
+      "rule": "FR2_A11_PLACES",
       "en": "in Italy"
      },
      {
