@@ -114,7 +114,7 @@ from app.services.scene_items import (
     scene_lines,
     with_meaning,
 )
-from app.services.sentence_line import ends_sentence, stops_at_title
+from app.services.sentence_line import continues_sentence, ends_sentence, stops_at_title
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     # WP-24. Imported for types alone: `journey_errata` reaches the ORM, and the
@@ -1874,26 +1874,31 @@ def scene_sentences(*texts: str | None) -> list[str]:
 
     sentences: list[str] = []
     seen: set[str] = set()
+
+    def keep(words: list[str]) -> None:
+        sentence = " ".join(words)
+        if sentence and _fold(sentence) not in seen and not stops_at_title(sentence):
+            seen.add(_fold(sentence))
+            sentences.append(sentence)
+
     for text in texts:
         current: list[str] = []
+        ended = False
         for raw in " ".join(str(text or "").split()).split(" "):
             # Quotation marks are layout, not words: a tile reading «»
             # would be a puzzle about typography.
             word = raw.strip(_QUOTE_MARKS)
             if not word:
                 continue
-            current.append(word)
-            if ends_sentence(word):
-                sentence = " ".join(current)
+            # #849: a stop is a sentence's end only when the next word opens a new one.
+            # «Comment on dit, déjà… le groupe qui tient le café ensemble ?» is one
+            # question; cut after «déjà…», its tail lost the question word it asks with.
+            if ended and not continues_sentence(word):
+                keep(current)
                 current = []
-                if _fold(sentence) not in seen and not stops_at_title(sentence):
-                    seen.add(_fold(sentence))
-                    sentences.append(sentence)
-        if current:
-            sentence = " ".join(current)
-            if _fold(sentence) not in seen and not stops_at_title(sentence):
-                seen.add(_fold(sentence))
-                sentences.append(sentence)
+            current.append(word)
+            ended = ends_sentence(word)
+        keep(current)
     return sentences
 
 

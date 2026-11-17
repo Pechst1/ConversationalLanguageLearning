@@ -71,6 +71,16 @@ def ends_sentence(word: str) -> bool:
     return not _TITLE_WORD.fullmatch(bare)
 
 
+def continues_sentence(word: str) -> bool:
+    """Whether a word right after a . ! ? … carries the same sentence on: it opens on a small
+    letter. «Comment on dit, déjà… le groupe qui tient le café ensemble ?» is one question
+    (#849); a new sentence opens on a capital, a digit, a quote or a dash, as :data:`_BOUNDARY`
+    already reads a text."""
+
+    bare = str(word or "").lstrip("«»“”\"„([")
+    return bool(bare) and bare[0].isalpha() and bare[0].islower()
+
+
 def stops_at_title(text: object) -> bool:
     """Whether a text stops on a title or an initial («Sur le toit, la lampe de M.», «— M.»):
     the rest of a sentence cut at its abbreviation, or a signature, never a sentence a drill
