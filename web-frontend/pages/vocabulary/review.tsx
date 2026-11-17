@@ -1202,10 +1202,15 @@ export default function VocabularyReviewPage() {
                     onPointerUp={onCardPointerEnd}
                     onPointerCancel={onCardPointerEnd}
                   >
+                    {/* Issue 851: the card is a control (a tap turns it back), so its text is
+                        its own: the stamps (and the hint line below) draw «Encore» /
+                        «Je sais» from an attribute through CSS. As text they made the
+                        card the first thing named «I know it», and a tap that found the
+                        grade by its words turned the card back instead of filing it. */}
                     {revealed && (
                       <>
-                        <span className="lx-stamp lx-stamp--again" aria-hidden="true">{t.deck_again}</span>
-                        <span className="lx-stamp lx-stamp--know" aria-hidden="true">{t.deck_know}</span>
+                        <span className="lx-stamp lx-stamp--again" data-stamp={t.deck_again} aria-hidden="true" />
+                        <span className="lx-stamp lx-stamp--know" data-stamp={t.deck_know} aria-hidden="true" />
                       </>
                     )}
 
@@ -1265,7 +1270,7 @@ export default function VocabularyReviewPage() {
                       {revealed && !faces.backExample && currentSlateEntry?.anchor && (
                         <p className="av2-fr lx-card__example lx-card__anchor review-context-anchor">{currentSlateEntry.anchor}</p>
                       )}
-                      <p className="lx-card__cta" aria-hidden="true">{revealed ? t.swipe_hint : t.flip_front}</p>
+                      <p className="lx-card__cta" data-cta={revealed ? t.swipe_hint : t.flip_front} aria-hidden="true" />
                     </div>
                   </div>
                 </div>
@@ -1434,6 +1439,8 @@ export default function VocabularyReviewPage() {
           pointer-events: none;
           opacity: 0;
         }
+        /* The stamp's word is drawn, not written: the card's text stays its own (issue 851). */
+        .av2 .lx-stamp::after { content: attr(data-stamp); }
         .av2 .lx-stamp--know {
           left: 20px;
           color: var(--av2-green-deep);
@@ -1524,6 +1531,8 @@ export default function VocabularyReviewPage() {
           font-weight: 600;
           opacity: 0.55;
         }
+        /* «← Again · swipe · I know it →» is drawn too: the card names no grade (issue 851). */
+        .av2 .lx-card__cta::after { content: attr(data-cta); }
         .av2 .lx-cast { gap: 6px; min-width: 0; }
         .av2 .lx-cast .av2-label { color: inherit; opacity: 0.85; }
         .av2 .lx-cast__portrait--drawn { display: inline-block; overflow: hidden; background: var(--av2-card); }
