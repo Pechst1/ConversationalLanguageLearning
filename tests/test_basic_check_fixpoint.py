@@ -48,30 +48,31 @@ EXPECTED = [
         COURRIER_856,
         "Salut Margaux ! Non, ce n'est pas mon écharpe, j'ai pas d'écharpe rouge. Peut-être c'est à Gus ? "
         "Je ne passe pas demain, je suis ailleurs, chez le notaire.",
-        id="856-peut-etre-c-est",
+        id="856",
     ),
-    pytest.param("Peut-etre c est a Gus ?", "Peut-être c'est à Gus ?", id="856-short"),
+    pytest.param("Peut-etre c est a Gus ?", "Peut-être c'est à Gus ?", id="856s"),
     pytest.param(
         COURRIER_825,
         "Merci Margaux ! Oui, je passe demain. Je suis très fatigue, je n'oublie plus.",
-        id="825-ne-pas-oublie-plus",
+        id="825",
     ),
-    pytest.param("je ne pas oublie plus", "je n'oublie plus", id="825-short"),
+    pytest.param("je ne pas oublie plus", "je n'oublie plus", id="825s"),
     pytest.param(
         COURRIER_810_DAY1,
         "Salut Margaux ! Mais je n'ai pas d'écharpe, ce n'est pas à moi. Peut-être c'est à Gus ?",
-        id="810-day1-pas-a-moi",
+        id="810a",
     ),
-    pytest.param(COURRIER_810_DAY2, "Mais je suis pas à la maison, je dors à l'hôtel !", id="810-day2-pas-a-la-maison"),
+    pytest.param(COURRIER_810_DAY2, "Mais je suis pas à la maison, je dors à l'hôtel !", id="810b"),
 ]
 
 
 @pytest.mark.parametrize(("line", "right"), EXPECTED)
-def test_the_walk_lines_come_out_right(line, right):
+def test_walk_line(line, right):
+    """The children of #857, word for word."""
     assert cc.repair_text(line) == right
 
 
-def test_the_courrier_basic_check_prints_the_whole_line_right():
+def test_courrier_856():
     """#856 done-when, through the Courrier's own model-free pass."""
     from app.services.missions import MissionCorrectionService
 
@@ -105,7 +106,7 @@ CORPUS = [
     "Hier soir, je suis arrive au Mistral avec la cle de ma grand-mère. Gus m a demande qui j etais, "
     "et Margaux m a donne la cle.",
 ]
-_CORPUS_IDS = [f"walk-line-{number}" for number in range(1, len(CORPUS) + 1)]
+_CORPUS_IDS = [f"w{number}" for number in range(1, len(CORPUS) + 1)]
 
 #: The slips the check fixes, as they would show in a printed line: a lone letter that
 #: elides, a space, a word that takes the elision; «pas» doubled by a second negation
@@ -120,14 +121,16 @@ def _residual_slips(line: str) -> list[str]:
 
 
 @pytest.mark.parametrize("line", CORPUS, ids=_CORPUS_IDS)
-def test_every_corrected_walk_line_is_a_fixed_point(line):
+def test_fixpoint(line):
+    """A second pass over the corrected walk line makes no edit."""
     fixed = cc.repair_text(line)
     again = [(e.rule_id, e.span, e.replacement) for e in cc.deterministic_edits(fixed)]
     assert again == [], f"{line!r} -> {fixed!r}, second pass: {again}"
 
 
 @pytest.mark.parametrize("line", CORPUS, ids=_CORPUS_IDS)
-def test_no_corrected_walk_line_keeps_a_slip_the_check_fixes(line):
+def test_no_slip_left(line):
+    """The corrected walk line keeps no slip the check fixes elsewhere."""
     fixed = cc.repair_text(line)
     assert _residual_slips(fixed) == [], f"{line!r} -> {fixed!r}"
 
@@ -156,8 +159,10 @@ def test_no_corrected_walk_line_keeps_a_slip_the_check_fixes(line):
         ("Je pas ai beaucoup de bagages.", "Je n'ai pas beaucoup de bagages."),
         ("Je ne jamais vois rien.", "Je ne vois jamais rien."),
     ],
+    ids=[f"n{number}" for number in range(1, 13)],
 )
-def test_the_negation_reorder_reads_the_word_after_the_verb(sentence, right):
+def test_negation(sentence, right):
+    """Both negation reorders read the word after the verb."""
     assert cc.repair_text(sentence) == right
 
 
@@ -174,8 +179,10 @@ def test_the_negation_reorder_reads_the_word_after_the_verb(sentence, right):
         "Ce qu'il ne savait pas a été dit.",
         "Elle ne sait pas, Gus a la clé.",
     ],
+    ids=["a1", "a2", "a3", "a4"],
 )
-def test_a_after_a_negation_that_is_avoir_stays(sentence):
+def test_a_stays(sentence):
+    """An «a» after a negation that is avoir, or in another clause, stays."""
     assert cc.repair_text(sentence) == sentence
 
 
@@ -222,7 +229,7 @@ def _floor_sentences() -> list[str]:
     return list(seen)
 
 
-def test_no_printed_line_triggers_its_own_rule_again():
+def test_floor_corpora_settle():
     """#825's guard, widened: every basic-check edit is applied to its sentence, and the
     printed line triggers no further edit of a kind that already fired, nor holds a doubled
     negation the learner did not write."""
