@@ -505,6 +505,12 @@ TASK_WORDS = 12
 PLAN_TRIES = 2
 #: A page whose JSON missed a field is asked for once more on the same plan.
 AUTHOR_TRIES = 2
+#: P11 (real-model play of 17 Nov: one night lost all six plans to a 13-word task): the
+#: words a re-asked plan's task may run over ``TASK_WORDS`` and still be written. The
+#: limit is a readability rule, not a correctness one: the first plan is held to it, the
+#: re-ask quotes the line, and the last plan a draw may spend is kept if it is within
+#: this margin (the overage is logged). The prompt still asks for at most 12.
+TASK_WORDS_GRACE = 3
 
 
 def applies(context: dict) -> bool:
@@ -767,8 +773,11 @@ def aids_payload(context: dict, text: PageText) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def plan_issue(plan: PagePlan, context: dict) -> str | None:
-    """Why this plan cannot be written, as a hint for the next plan; ``None`` if it can."""
+def plan_issue(plan: PagePlan, context: dict, *, task_grace: int = 0) -> str | None:
+    """Why this plan cannot be written, as a hint for the next plan; ``None`` if it can.
+
+    ``task_grace``: the words the task may run over ``TASK_WORDS`` (P11; the last plan
+    of a draw only, ``draw``)."""
 
     from app.services import living_story as engine
 
@@ -799,8 +808,12 @@ def plan_issue(plan: PagePlan, context: dict) -> str | None:
             f"Leave {others} off the page: cast is [{plan.lead_id!r}]."
         )
     words = len(plan.task.split())
-    if words > TASK_WORDS:
-        return f"The task has {words} words; say who asks what in at most {TASK_WORDS}."
+    if words > TASK_WORDS + task_grace:
+        # P11: the line is quoted, so the re-ask shortens it instead of guessing.
+        return (
+            f"The task «{plan.task}» has {words} words; say who asks what in at most "
+            f"{TASK_WORDS}: the same one ask, fewer words."
+        )
     avoid = (context.get("variety") or {}).get("must_change") or {}
     if (
         avoid
@@ -962,21 +975,37 @@ def draw(context: dict):
     def run(request: dict, record, *, deadline: float, budget: int | None = None):
         rejections = list(request.get("previous_rejections") or [])
         plan = None
-        for _ in range(PLAN_TRIES):
-            # The planner thinks more than it writes: medium effort unless the writer's
-            # own effort is configured (``story_route``).
-            plan, _usage = engine._json_call(
-                planner_system(context),
-                planner_payload(context, rejections),
-                PagePlan,
-                record,
-                deadline=deadline,
-                reasoning_effort="medium",
-            )
-            issue = plan_issue(plan, context) or act_plan_issue(plan, context)
+        for tried in range(PLAN_TRIES):
+            last = tried + 1 >= PLAN_TRIES
+            try:
+                # The planner thinks more than it writes: medium effort unless the
+                # writer's own effort is configured (``story_route``).
+                plan, _usage = engine._json_call(
+                    planner_system(context),
+                    planner_payload(context, rejections),
+                    PagePlan,
+                    record,
+                    deadline=deadline,
+                    reasoning_effort="medium",
+                )
+            except engine.StoryUnavailable as exc:
+                # P11 (17 Nov: a plan with beats empty cost a whole attempt): a plan that
+                # missed the schema is still refused, and costs a plan, like a refused
+                # one; the page's schema miss is handled the same way below.
+                if str(exc) != "invalid_story_output" or last:
+                    raise
+                issue = exc.feedback
+                logger.info("story_split: plan schema refused ({})", issue[:200])
+                rejections = list(dict.fromkeys([*rejections, issue]))
+                continue
+            # P11: the last plan's task may run a few words over (``TASK_WORDS_GRACE``).
+            grace = TASK_WORDS_GRACE if last else 0
+            issue = plan_issue(plan, context, task_grace=grace) or act_plan_issue(plan, context)
             if issue is None:
+                if (words := len(plan.task.split())) > TASK_WORDS:
+                    logger.info("story_split: task kept {} words over ({} words)", words - TASK_WORDS, words)
                 break
-            logger.info("story_split: plan refused (%s)", issue[:200])
+            logger.info("story_split: plan refused ({})", issue[:200])
             rejections = list(dict.fromkeys([*rejections, issue]))
         else:
             raise engine.StoryUnavailable("plan_refused", hint=issue)
@@ -997,18 +1026,18 @@ def draw(context: dict):
                 # whole attempt. A schema miss is the author's: ask it once more, same plan.
                 if str(exc) != "invalid_story_output" or attempt + 1 >= AUTHOR_TRIES:
                     raise
-                logger.info("story_split: page text refused (%s)", (exc.feedback or "")[:200])
+                logger.info("story_split: page text refused ({})", (exc.feedback or "")[:200])
                 rejections = list(dict.fromkeys([*rejections, exc.feedback]))
         try:
             aids, _usage = engine._json_call(AIDS, aids_payload(context, text), PageAids, record, deadline=deadline)
         except engine.StoryUnavailable as exc:
             # The aids are help, never the page: without them the reader offers no
             # translation, and the guards ask for them as they always did (soft).
-            logger.info("story_split: aids unavailable (%s)", exc)
+            logger.info("story_split: aids unavailable ({})", exc)
             aids = None
         raw, repairs = engine.tolerant_scene_json(assemble(context, plan, text, aids))
         if repairs:
-            logger.info("story_split: page shape repaired (%s)", "; ".join(repairs)[:300])
+            logger.info("story_split: page shape repaired ({})", "; ".join(repairs)[:300])
         try:
             return engine.SceneDraft.model_validate(raw)
         except Exception as exc:  # noqa: BLE001 - named for the retry like any draft
