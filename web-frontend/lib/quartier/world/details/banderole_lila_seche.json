@@ -1,0 +1,22 @@
+{
+  "id": "banderole_lila_seche",
+  "version": 1,
+  "kind": "detail",
+  "in": "chez_marin_lila",
+  "title": { "fr": "La banderole de Lila, qui sèche", "en": "Lila's banner, drying", "de": "Lilas Banner, zum Trocknen" },
+  "moment": "a page of the learner's own story left «la banderole de Lila» in Marin and Lila's flat: a long cloth banner reading «Les 25 ans du Mistral», freshly cut shorter, drying across two chairs in the cramped living room",
+  "mark": { "name_fr": "la banderole de Lila", "location_id": "marin_lila_flat" },
+  "things": [
+    { "kind": "chair", "at": [-29.17, 11.2, 12.135], "rot": 0 },
+    { "kind": "chair", "at": [-27.83, 11.2, 12.135], "rot": 0 },
+    { "kind": "drape", "at": [-28.5, 11.2, 11.95], "rot": 3.1416, "size": [1.76, 0.56], "text": ["LES 25 ANS DU MISTRAL"] }
+  ],
+  "provenance": {
+    "canon": "docs/story/season-1/10-lieux-et-images.md",
+    "scenes": [
+      "the story order «la banderole de Lila» at marin_lila_flat (1 life): «A long cloth banner reading «Les 25 ans du Mistral», freshly cut shorter, drying across two chairs in the cramped living room.»",
+      "T4 party: Lila paints the banner for Le Mistral's 25 years (10-lieux-et-images.md, 04-la-photographie.md P1)",
+      "T5, B without the key, P2: the flat «full of Lila» (05-berlin.md)"
+    ]
+  }
+}
