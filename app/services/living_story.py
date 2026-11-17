@@ -4297,9 +4297,18 @@ def _stored_ledger(journey: Any, *, act: int | None = None) -> dict[str, Any] | 
     return ledger if isinstance(ledger, dict) else None
 
 
-def _tomorrow_question(db: Session, user: User, turn: Any, brief: Any, said: list[str], ledger: dict | None) -> str | None:
+def _tomorrow_question(
+    db: Session,
+    user: User,
+    turn: Any,
+    brief: Any,
+    said: list[str],
+    ledger: dict | None,
+    asked: list[str] | None = None,
+) -> str | None:
     """The question a writer left for tomorrow, if it holds against what the scene holds
-    (``story_teaser.question_problem``). A drop is counted and costs nothing else."""
+    and asks nothing an earlier day's hook asked (``asked``: ``story_teaser.hooks_asked``,
+    #850; ``story_teaser.question_problem``). A drop is counted and costs nothing else."""
 
     question = " ".join(str(getattr(turn, "tomorrow_question_fr", "") or "").split())
     if not question:
@@ -4309,7 +4318,7 @@ def _tomorrow_question(db: Session, user: User, turn: Any, brief: Any, said: lis
     from app.services.story_teaser import question_problem
 
     known = " ".join([str(brief.story_context), *said, turn.reply_fr, turn.resolution_fr, *cast_names()])
-    problem = question_problem(question, known=known, ledger=ledger)
+    problem = question_problem(question, known=known, ledger=ledger, asked=asked or ())
     if problem is None:
         return question
     from app.services.pilot_events import PilotEventService
@@ -5118,6 +5127,7 @@ from app.services.story_teaser import (  # noqa: E402,F401  the names this modul
     _days_between,
     _words,
     compose_teaser,
+    hooks_asked,
     next_teaser,
     question_left_open,
     teaser_candidates,
@@ -11824,7 +11834,11 @@ def settle_resolution(
         # scene's own open question, else an open row of the story.
         said = _learner_lines(journey, act=act)
         ledger = _stored_ledger(journey, act=act)
-        question = _tomorrow_question(db, user, turn, brief, said, ledger)
+        # #850: a tentpole prints the writer's question as «Tomorrow» too, without
+        # ``next_teaser``: a question an earlier hook asked is dropped here, for every surface.
+        question = _tomorrow_question(
+            db, user, turn, brief, said, ledger, asked=hooks_asked(live, date=_journey_date(journey))
+        )
         # WP-111: a tentpole day's tomorrow is the page's own «À suivre…».
         teaser = (
             season_teaser(brief.story_context, date=_journey_date(journey), question=question)
