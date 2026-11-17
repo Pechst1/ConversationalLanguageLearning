@@ -5,8 +5,8 @@ Two small, pure rules the story engine and the archive share (night shift 2026-1
 * **Whole sentences.** ``_one_line(text, 120)`` cut «… Alors, tu gardes l'appartement…» to
   «… Alors,…» and filed it under a chapter for months (#268). :func:`whole_sentences`
   keeps the sentences that fit and never a fragment; :func:`question_line` keeps the
-  sentence that actually asks the question; :func:`drop_cut_tail` repairs a line an
-  older version already cut.
+  sentences that actually ask the question, from the first of them (#827);
+  :func:`drop_cut_tail` repairs a line an older version already cut.
 * **No planning notes.** The director's scratch note reached a reader caption
   (#263). :func:`is_planning_note` names the shapes a note takes («(!)», «40 × 1 000 €»,
   «M. M. :», «NB :») that a line of narration never has. The reader keeps a mirror of
@@ -106,24 +106,75 @@ def whole_sentences(text: object, limit: int, *, hard_cap: int | None = None) ->
     return _word_cut(first, hard_cap or limit * 2)
 
 
+#: A sentence that opens on «Ou», «Et», «Mais», «Pour»… is not a question of its own: it
+#: carries on the one before it («Tu prends l'appartement pour toi ? Pour toi et les
+#: autres ? Ou tu dis au revoir à tout ça ?», #827).
+_CONTINUES = re.compile(r"^[«\"“(]?\s*(?:ou|et|mais|pour|ni|sinon)\b", re.IGNORECASE)
+
+
+def continues_sentence(sentence: object) -> bool:
+    """Whether a sentence opens on a word that carries on the one before it (#827)."""
+
+    return bool(_CONTINUES.match(_flat(sentence)))
+
+
+def _asking_chain(parts: list[str]) -> list[str]:
+    """The last question the text asks, as the run of sentences that asks it: a chain of
+    alternatives («… ? Pour toi et les autres ? Ou tu dis au revoir à tout ça ?») is one
+    question, and a sentence that carries on another brings that other one with it."""
+
+    end = max(index for index, sentence in enumerate(parts) if sentence.endswith("?"))
+    start = end
+    while start > 0 and (
+        continues_sentence(parts[start])
+        or (parts[start].endswith("?") and parts[start - 1].endswith("?"))
+    ):
+        start -= 1
+    return parts[start : end + 1]
+
+
 def question_line(text: object, limit: int) -> str:
-    """The sentence that asks the question (the last one ending in «?»), whole; else the
-    opening sentences that fit. A chapter's question is its last sentence, not its first."""
+    """The question the text asks, whole; else the opening sentences that fit. A chapter's
+    question is its last one, not its first.
+
+    A question asked over several sentences is filed from its first one, as many of them
+    as fit, and always up to a «?»: never its last alternative alone («Ou tu dis au revoir
+    à tout ça ?», #827). If even its opening does not fit, there is no question line rather
+    than a fragment of one."""
 
     flat = _flat(text)
     if len(flat) <= limit:
         return flat
-    asking = [sentence for sentence in sentences(flat) if sentence.endswith("?")]
-    if asking:
-        return whole_sentences(asking[-1], limit)
-    return whole_sentences(flat, limit)
+    parts = sentences(flat)
+    if not any(sentence.endswith("?") for sentence in parts):
+        return whole_sentences(flat, limit)
+    chain = _asking_chain(parts)
+    kept = line = ""
+    for sentence in chain:
+        candidate = f"{line} {sentence}".strip()
+        if len(candidate) > limit:
+            break
+        line = candidate
+        if sentence.endswith("?"):
+            kept = line
+    if kept:
+        return kept
+    # Only one question sentence, longer than the limit: kept whole, as whole_sentences does.
+    if len(chain) == 1:
+        return whole_sentences(chain[0], limit)
+    return ""
 
 
 def drop_cut_tail(text: object) -> str:
     """A stored line that an older cut left ending mid-sentence («… Alors,…»), without the
-    fragment. A whole line, and a deliberate «À suivre…», are returned as they were."""
+    fragment. A whole line, and a deliberate «À suivre…», are returned as they were.
+
+    A question an older :func:`question_line` filed as its last alternative alone («Ou tu
+    dis au revoir à tout ça ?», #827) is all fragment: nothing is left of it."""
 
     flat = _flat(text)
+    if continues_sentence(flat) and flat.rstrip(" »\"”)").endswith("?"):
+        return ""
     if not flat.endswith("…") or _DELIBERATE_ELLIPSIS.search(flat):
         return flat
     parts = sentences(flat)
