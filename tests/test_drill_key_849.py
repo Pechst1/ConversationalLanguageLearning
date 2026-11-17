@@ -42,14 +42,14 @@ def _key(task) -> str:
     return next(option["text_fr"] for option in task.options if option["id"] == task.correct_option_id)
 
 
-def test_a_hesitation_that_runs_on_in_small_letters_is_one_sentence() -> None:
+def test_hesitation_one_sentence() -> None:
     assert planner.scene_sentences(MARIN) == [MARIN]
     # A real end still ends one, an ellipsis included.
     assert planner.scene_sentences("Je ne sais pas… Tu viens ?") == ["Je ne sais pas…", "Tu viens ?"]
     assert planner.scene_sentences(AD, QUESTION) == [AD, QUESTION]
 
 
-def test_a_relative_qui_is_no_question_word(db_session: Session) -> None:
+def test_relative_qui(db_session: Session) -> None:
     brief = _question_words(db_session)
     assert grammar_items.rule_span(brief, FRAGMENT) is None
     assert grammar_items.rule_span(brief, "Tu connais le groupe qui joue ce soir ?") is None
@@ -59,7 +59,7 @@ def test_a_relative_qui_is_no_question_word(db_session: Session) -> None:
         assert grammar_items.rule_span(brief, text) is not None, text
 
 
-def test_the_drill_never_keys_the_fragment_over_the_real_question(db_session: Session) -> None:
+def test_walk_strings(db_session: Session) -> None:
     """The done-when, with the walk's exact strings: «le groupe qui tient le café
     ensemble ?» is not the key while «La huitième part, c'est pour le train ?» is «Not
     this one»."""
@@ -71,7 +71,7 @@ def test_the_drill_never_keys_the_fragment_over_the_real_question(db_session: Se
         assert MARKERS.search(_key(task)), _key(task)
 
 
-def test_the_scene_drill_keys_a_sentence_with_a_question_word(db_session: Session) -> None:
+def test_scene_drill(db_session: Session) -> None:
     brief = _question_words(db_session)
     sentences = planner.scene_sentences(AD, QUESTION, MARIN)
     task = grammar_items.recognise_item(brief, sentences=sentences, language="en")
