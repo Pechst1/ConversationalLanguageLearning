@@ -14,6 +14,15 @@ Two kinds, both answering ``429`` with a ``Retry-After`` header and a stable
   also enforces the per-learner daily spend cap
   (:mod:`app.services.spend_guard`) before the provider is called.
 
+**A ``rate_limited`` refusal did nothing.** Every limit here is checked in a router
+dependency (or a route's first line) before the route runs, so the refused request
+stored nothing and paid nothing, whatever its method. The web client relies on it: it
+sends a ``rate_limited`` request again, as it was, once ``Retry-After`` has passed
+(``web-frontend/services/api.ts``). Before #847 it did so only for a GET, and a refused
+POST (a journey step's answer, a La Forge check) reached the screen as «could not be
+sent» and could leave the step with no way forward. Keep new limits in that place:
+a limit raised after a route has written something must use another ``code``.
+
 Counters are fixed windows in Redis (``REDIS_URL``) so every uvicorn worker
 shares them; when Redis is unreachable the limiter falls back to a per-process
 in-memory window (and retries Redis after a short pause), so a Redis outage
@@ -307,7 +316,10 @@ PAID_ROUTES: frozenset[tuple[str, str]] = frozenset(
         # Atelier practice and correction
         ("POST", "/atelier/sessions"),
         ("POST", "/atelier/sessions/{session_id}/attempts"),
-        ("POST", "/atelier/attempts/{attempt_id}/repair"),
+        # Not «/atelier/attempts/{attempt_id}/repair»: a copied correction is judged by
+        # string comparison (AtelierCorrectionService.record_micro_repair) and pays no
+        # one. Counted here, La Forge's copies used up the minute its next Check needed
+        # (#770: main's walk read «429 POST …/repair ×77»).
         ("POST", "/atelier/attempts/{attempt_id}/ai-review"),
         ("POST", "/atelier/errata/{error_id}/attempt"),
         ("POST", "/atelier/workshop/compose"),
