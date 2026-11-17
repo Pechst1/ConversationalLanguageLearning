@@ -3656,6 +3656,8 @@ def secrets_after_turn(
 # ---------------------------------------------------------------------------
 
 PREVIOUSLY_LINES = 3
+#: P8: the played days «Précédemment» opens with (each by how it ended).
+PREVIOUSLY_PLAYED_DAYS = 2
 PREVIOUSLY_LINE_CHARS = 150
 MARGIN_QUOTE_CHARS = 70
 TUTOIEMENT_KEY = "tutoiement"
@@ -3963,9 +3965,13 @@ def previously_lines(
 ) -> list[str]:
     """«Précédemment»: at most three lines the learner needs before this scene.
 
-    Deterministic and drawn only from what happened: the scenes already settled in the
-    chapter this scene continues (their stored event), the past this scene calls back
-    to, then the most recently closed chapters of the chronicle. Printed oldest first.
+    Deterministic and drawn only from what happened. P8 (walk of 17 Nov: day 6 still
+    opened on day 1's «Le mauvais accueil»): first the last two days the learner played,
+    each by how it ended (its stored event), the last one under its own title; then the
+    past this scene calls back to, the scenes already settled in the chapter this scene
+    continues, and the most recently closed chapters and the season's facts while room
+    remains. Printed oldest first. Once a day has been played, an older chapter's title
+    no longer heads the box: its line keeps only what it resolved.
     """
 
     seen: set[str] = set()
@@ -3977,26 +3983,55 @@ def previously_lines(
         seen.add(_folded(line))
         return line
 
+    events = [
+        event
+        for event in live.get("events") or []
+        if isinstance(event, dict) and event.get("scene_id") and event.get("summary_fr")
+    ]
+    # The last event of each of the last two played days (a day's later act ends it).
+    last_days: list[dict] = []
+    for event in reversed(events):
+        if len(last_days) >= PREVIOUSLY_PLAYED_DAYS:
+            break
+        day = event.get("date") or event.get("id")
+        if not any((row.get("date") or row.get("id")) == day for row in last_days):
+            last_days.append(event)
+    played: list[str] = []
+    for index, event in enumerate(last_days):
+        summary = str(event.get("summary_fr") or "")
+        title = str(event.get("title_fr") or "").strip() if index == 0 else ""
+        same = title and _folded(title) == _folded(summary)
+        line = line_of(f"{title} : {summary}" if title and not same else summary)
+        if line:
+            played.append(line)
+    played.reverse()
+    shown = {id(event) for event in last_days}
     in_chapter = []
     if chapter_id:
-        events = [
-            event
-            for event in live.get("events") or []
-            if isinstance(event, dict) and event.get("chapter_id") == chapter_id
+        in_chapter = [
+            line
+            for line in (
+                line_of(e.get("summary_fr"))
+                for e in [
+                    e for e in live.get("events") or [] if isinstance(e, dict) and e.get("chapter_id") == chapter_id
+                ][-2:]
+                if id(e) not in shown
+            )
+            if line
         ]
-        in_chapter = [line for line in (line_of(e.get("summary_fr")) for e in events[-2:]) if line]
     callback = []
     row = ledger_row(live, callback_ref) if callback_ref else None
     if row:
         callback = [line for line in [line_of(row.get("text_fr"))] if line]
-    budget = max(0, limit - len(in_chapter) - len(callback))
+    budget = max(0, limit - len(played) - len(in_chapter) - len(callback))
     past: list[str] = []
     chapters = [r for r in live.get("chronicle") or [] if isinstance(r, dict) and r.get("kind") != "season"]
     for entry in reversed(chapters):
         if len(past) >= budget:
             break
         resolved = entry.get("resolved_fr") or entry.get("development") or entry.get("question")
-        line = line_of(f"{entry.get('title_fr')} : {resolved}" if entry.get("title_fr") else resolved)
+        titled = entry.get("title_fr") and not played
+        line = line_of(f"{entry.get('title_fr')} : {resolved}" if titled else resolved)
         if line:
             past.append(line)
     seasons = [r for r in live.get("chronicle") or [] if isinstance(r, dict) and r.get("kind") == "season"]
@@ -4008,8 +4043,9 @@ def previously_lines(
             if line:
                 past.append(line)
     # Gathered newest first; printed the way a reader lived them — the older past,
-    # the fact this scene calls back to, then this chapter's own last scenes.
-    return (list(reversed(past)) + callback + in_chapter)[-limit:]
+    # the fact this scene calls back to, this chapter's own earlier scenes, then the last
+    # two days played, the last one last.
+    return (list(reversed(past)) + callback + in_chapter + played)[-limit:]
 
 
 def margin_note_weeks(
@@ -5675,6 +5711,8 @@ def story_context(db: Session, user: User, *, now: datetime | None = None) -> di
             if (memory := story_memory.view(live.get(story_memory.MEMORY_KEY)))
             else {}
         ),
+        # P8: the «À suivre…» the last played day ended on; today's page takes it up.
+        **({YESTERDAY_HOOK_KEY: hook} if (hook := yesterday_hook(live)) else {}),
         "relationships": state.get("relationships") or {},
         "moods": live.get("moods") or {},
         # WP-62 long memory, all four ledgers projected compactly.
@@ -7193,6 +7231,192 @@ def _check_scene_title(draft: SceneDraft, context: dict) -> None:
     )
 
 
+#: P8 (walk of 17 Nov): three generated days in a row were headlined «Le Mistral», the
+#: name of the café they happened in. The words a title may open with before the place.
+_PLACE_TITLE_LEAD = frozenset({"le", "la", "les", "l", "au", "aux", "a", "à", "chez", "du", "de", "des", "d", "dans", "sur"})
+
+
+def _place_core(text: str) -> str:
+    words = _folded(str(text or "").replace("_", " ")).split()
+    while words and words[0] in _PLACE_TITLE_LEAD:
+        words = words[1:]
+    return " ".join(words)
+
+
+def place_names(context: dict) -> set[str]:
+    """The world's places as a title would name them (folded, without «le», «au», «chez»):
+    each location's id, name and French name, and the places of the quarter not built yet."""
+
+    world = context.get("world") or {}
+    places = [*(world.get("locations") or []), *(world.get("elsewhere") or [])]
+    names: set[str] = set()
+    for place in places:
+        if not isinstance(place, dict):
+            continue
+        for key in ("id", "name", "name_fr"):
+            if core := _place_core(str(place.get(key) or "")):
+                names.add(core)
+    return names
+
+
+def title_issue(title: str, context: dict) -> str | None:
+    """P8: why ``title`` cannot head this page, as a hint for the rewrite; ``None`` if it can.
+    A place's name is where the page happens, not what happens on it; a title one of the
+    earlier pages wears (folded) makes two episodes one."""
+
+    core = _place_core(title)
+    if core and core in place_names(context):
+        return (
+            f"title_fr «{title}» is the name of a place. title_fr says who and what the page "
+            "is about, in three to six plain words (the form of «Margaux perd ses clés»), "
+            "never only where it happens."
+        )
+    if _folded(title) in _taken_scene_titles(context):
+        return (
+            f"title_fr «{title}» is already the title of an earlier page (taken_titles). "
+            "Write this page's own headline, about what happens on it."
+        )
+    return None
+
+
+def _check_place_title(draft: SceneDraft, context: dict) -> None:
+    """P8 (walk of 17 Nov): «Le Mistral» headlined days 3, 4 and 5. Soft, like the
+    repeated title: one retry names the place; a retry that keeps it is served."""
+
+    core = _place_core(draft.title_fr)
+    if not core or core not in place_names(context):
+        return
+    raise SoftRejection("place_name_title", hint=title_issue(draft.title_fr, context), proposal=draft)
+
+
+# ---------------------------------------------------------------------------
+# P8 · Today's page answers yesterday's hook
+# ---------------------------------------------------------------------------
+
+#: The context key: the «À suivre…» the learner was left with on the last day they
+#: played (``next_teaser``, as Home and the push showed it), with its date.
+YESTERDAY_HOOK_KEY = "yesterday_hook"
+#: Words of a hook that say nothing about what it is about (the question's frame and
+#: the little words), compared by their first five letters.
+_HOOK_FRAME = frozenset(
+    word[:5]
+    for word in """
+    que qui quoi pourquoi comment quand combien quel quelle quels quelles est ce cette ces
+    tu te ton ta tes toi vous votre vos je moi mon ma mes il elle ils elles lui leur nous
+    son sa ses le la les un une des du de en au aux et ou mais pour avec sans dans sur par
+    chez vers entre avant après plus pas rien tout tous toute bien très aussi comme déjà
+    oui non ça cela alors encore toujours vraiment demain aujourd hui hier jour soir peut
+    être avoir fait faire veux veut voulez vais vas va fais dire dis penses pense pensez
+    crois croit sais savoir sait demande demander demandes ferais feras seras serais
+    regarder regardant regarde près suite suivre vient venir
+    """.split()
+)
+
+
+def yesterday_hook(live: dict) -> dict | None:
+    """The hook the last played day ended on, or ``None``.
+
+    ``None`` on a learner's first day (no day played), when no hook was written, and when
+    the stored hook is older than the last played day (a day ended without one)."""
+
+    teaser = (live or {}).get(TEASER_KEY)
+    if not isinstance(teaser, dict):
+        return None
+    text = " ".join(str(teaser.get("text_fr") or "").split())
+    date = str(teaser.get("date") or "")
+    if not text or not date:
+        return None
+    played = [
+        str(event.get("date"))
+        for event in (live or {}).get("events") or []
+        if isinstance(event, dict) and event.get("scene_id") and event.get("date")
+    ]
+    if not played or date != max(played):
+        return None
+    question = " ".join(str(teaser.get("open_fr") or "").split())
+    return {
+        "text_fr": text,
+        **({"question_fr": question} if question and question != text else {}),
+        "date": date,
+        **({"character_id": teaser["character_id"]} if teaser.get("character_id") else {}),
+    }
+
+
+def _hook_stems(hook: dict) -> set[str]:
+    """What a hook is about, as five-letter stems: its words of three letters or more that
+    are not the question's frame («vol», «décid», «gus»). The question it left open when
+    there is one, else the whole line (whose voice opener is frame)."""
+
+    text = str(hook.get("question_fr") or hook.get("text_fr") or "")
+    return {stem for word in re.findall(r"\w+", text.casefold()) if len(word) >= 3 and (stem := word[:5]) not in _HOOK_FRAME}
+
+
+def _mentions(stems: set[str], text: str) -> bool:
+    return any(word[:5] in stems for word in re.findall(r"\w+", str(text or "").casefold()) if len(word) >= 3)
+
+
+def hook_taken_up(hook: dict | None, draft: Any) -> bool:
+    """Whether the page takes up yesterday's hook, as a first deterministic reading (the
+    story critic's ``takes_up_hook`` is the judgement): what the hook is about comes up in
+    the premise, the first two panels or the lead's question (answered or moved on), or in
+    one line of dialogue anywhere (set aside, with a reason). True when there is no hook."""
+
+    if not hook:
+        return True
+    stems = _hook_stems(hook)
+    if not stems:
+        return True
+
+    def get(obj: Any, key: str) -> Any:
+        return obj.get(key) if isinstance(obj, dict) else getattr(obj, key, None)
+
+    panels = list(get(draft, "panels") or [])
+
+    def panel_text(panel: Any) -> str:
+        lines = [get(line, "text_fr") or "" for line in get(panel, "dialogue") or []]
+        return " ".join([str(get(panel, "narration_fr") or ""), *map(str, lines)])
+
+    opening = [str(get(draft, "premise_fr") or ""), str(get(draft, "opening_line_fr") or "")]
+    if any(_mentions(stems, text) for text in [*opening, *(panel_text(panel) for panel in panels[:2])]):
+        return True
+    return any(
+        _mentions(stems, str(get(line, "text_fr") or ""))
+        for panel in panels[2:]
+        for line in get(panel, "dialogue") or []
+    )
+
+
+def hook_applies(context: dict) -> dict | None:
+    """Yesterday's hook when today's page must take it up, else ``None``: not on a later
+    act (the day's first act took it), an épreuve, «On se tutoie ?», or a page written
+    to be shared by many learners (``season.page_pool``)."""
+
+    hook = context.get(YESTERDAY_HOOK_KEY)
+    if not hook or context.get(ACT_STORY_KEY) or context.get(EPREUVE_KEY) or context.get(TUTOIEMENT_KEY):
+        return None
+    if context.get(_POOL_RAW_KEY) is not None:
+        return None
+    return hook
+
+
+def hook_issue(draft: Any, context: dict) -> str | None:
+    """P8 (walk of 17 Nov): «Que décideras-tu pour ton vol ?» closed day 3 and day 4
+    never asked it. The deterministic reading the story critic's ``takes_up_hook`` is
+    checked against: the instruction for a rewrite, or ``None`` when the page takes the
+    hook up (or there is none). Read with the critic, never as a page guard, so a page it
+    refuses is still one the critic has read when it is served (WP-114)."""
+
+    hook = hook_applies(context)
+    if hook is None or hook_taken_up(hook, draft):
+        return None
+    said = hook.get("question_fr") or hook.get("text_fr")
+    return (
+        f"Yesterday ended on «{said}» (yesterday_hook) and the learner comes back for it: "
+        "take it up. In the first two panels someone answers it or moves it on, or one line "
+        "says plainly why it waits today."
+    )
+
+
 def _check_addressee(draft: SceneDraft, context: dict) -> None:
     """WP-103 T4. The objective's addressee is the addressed character.
 
@@ -7903,10 +8127,13 @@ def _validate_scene(draft: SceneDraft, context: dict):
     open_title = (
         str(chapter.get("title_fr") or "") if chapter and not closing else ""
     )
+    # P8: a page that takes up yesterday's hook may come back to yesterday's person,
+    # place and question: that is the hook answered, not the day staged again.
+    asked_before = recent[:-1] if recent and hook_applies(context) and hook_taken_up(hook_applies(context), draft) else recent
     triple = next(
         (
             item
-            for item in recent
+            for item in asked_before
             if not (open_title and item.get("chapter_title_fr") == open_title)
             and item.get("character_id") == draft.character_id
             and item.get("location_id") == draft.location_id
@@ -7950,7 +8177,7 @@ def _validate_scene(draft: SceneDraft, context: dict):
     twin = next(
         (
             item
-            for item in recent
+            for item in asked_before
             if _task_overlap(draft.objective_native, item.get("objective_native", ""), names) >= 0.6
         ),
         None,
@@ -7992,6 +8219,7 @@ def _validate_scene(draft: SceneDraft, context: dict):
     # Last, on the draft every hard guard has accepted: a soft rejection carries a
     # scene that is servable as it stands.
     _check_scene_title(draft, context)
+    _check_place_title(draft, context)
     _check_addressee(draft, context)
     _check_reading_aids(draft, context)
     _check_story_words(draft, context)
@@ -9406,9 +9634,13 @@ def generate_scene(
         try:
             draft, usage = _approved(
                 # Red-thread design: a contract day's director reads the contract's rules.
-                director_prompt() + story_split.day_contract.DIRECTOR_NOTE
-                if story_split._day_contract(context)
-                else director_prompt(),
+                (
+                    director_prompt() + story_split.day_contract.DIRECTOR_NOTE
+                    if story_split._day_contract(context)
+                    else director_prompt()
+                )
+                # P8: yesterday's «À suivre…» is taken up (on a page written for its learner).
+                + (story_split.HOOK_DIRECTOR_NOTE if pool is None and hook_applies(context) else ""),
                 _prompt_payload(writer),
                 SceneDraft,
                 # The validator closes over the *unfiltered* context: it needs the lexicon,
@@ -9856,6 +10088,7 @@ def _season_story_review(context: dict, reviews: list[dict]):
                     recent_days=(context.get("recent_situations") or [])[-3:],
                     memory=context.get(story_memory.MEMORY_KEY),
                     act=act,
+                    yesterday_hook=hook_applies(context),
                 ),
                 StoryReview,
                 record,
@@ -9866,6 +10099,13 @@ def _season_story_review(context: dict, reviews: list[dict]):
             # A critic that cannot answer never refuses a draft.
             reviews.append({"accepted": True, "unavailable": str(exc), "final": final})
             return None
+        # P8: the hook yesterday ended on, read deterministically too: a page that never
+        # touches it fails takes_up_hook whatever the model scored (a reader item:
+        # storytelling, so a second refusal for it alone is still served and logged).
+        if verdict.takes_up_hook and (missed := hook_issue(proposal, context)):
+            verdict = verdict.model_copy(
+                update={"takes_up_hook": False, "issues": [*verdict.issues, missed][-8:]}
+            )
         accepted = review_verdict(verdict, act=act is not None)
         # WP-149: a refusal that names a correctness defect (the register canon, the
         # flags, a spoiler) is never served — not on the final reading, not as the
@@ -11548,6 +11788,8 @@ def settle_resolution(
         "scene_id": str(scene.id),
         "witnesses": witnesses,
         "summary_fr": what_happened(turn, fallback=brief.title_fr),
+        # P8: «Précédemment» names the last played day by its own headline.
+        "title_fr": brief.title_fr,
         "source_quotes": turn.evidence_quotes,
         "outcome": turn.outcome,
         "at": datetime.now(UTC).isoformat(),
@@ -12022,6 +12264,8 @@ def _settle_later_act(
         "scene_id": str(scene.id),
         "witnesses": witnesses,
         "summary_fr": what_happened(turn, fallback=brief.title_fr),
+        # P8: «Précédemment» names the last played day by its own headline.
+        "title_fr": brief.title_fr,
         "source_quotes": turn.evidence_quotes,
         "outcome": turn.outcome,
         "at": datetime.now(UTC).isoformat(),
