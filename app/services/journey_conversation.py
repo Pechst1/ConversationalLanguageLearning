@@ -3150,6 +3150,56 @@ def _wrong_here(answer: str, span: str, correct: str, why: str) -> bool:
     return verdict.ok
 
 
+def _flagged_here(answer: str, span: str, correct: str) -> bool:
+    """Does something other than the stored record say this span is wrong *now*? (P1)
+
+    :func:`_wrong_here` only proves that the swapped sentence is acceptable French —
+    «Je vais leur poser des questions» is, so a stored «lui → leur» was stamped on
+    «Je vais lui poser des questions», which is right (walk 17 Nov, about eight
+    times in one day; once reversed, «leur → lui» on a correct plural). The stored
+    pair is evidence of what the learner once got wrong, never that this sentence
+    is wrong. That evidence comes from the model-free rule pass: one of its edits
+    must cover the same words and make the same fix. No model is asked; a span
+    only the tutor lane would flag reaches the learner through the tutor's own
+    correction, which outranks a stored one (:func:`apply_feedback_policy`).
+    """
+
+    wanted = set(_folded_tokens(correct))
+    for edit in correction_contract.deterministic_edits(answer):
+        overlaps = any(
+            edit.start < start + len(span) and start < edit.end
+            for start in (m.start() for m in re.finditer(re.escape(span), answer))
+        )
+        if not overlaps:
+            continue
+        fix = set(_folded_tokens(edit.replacement))
+        if fix and (fix <= wanted or wanted <= fix):
+            return True
+    return False
+
+
+def _stored_fault_noted(history: list[dict] | None, errata: list[UserError]) -> bool:
+    """Has an earlier turn of this scene already carried a stored mistake's correction?
+
+    Recomputed from the transcript, like :func:`_already_elicited`: an earlier turn
+    whose shown correction is one of the learner's stored pairs counts. P1: a season
+    day's margin note skipped the once-per-scene bound and came back on every reply.
+    """
+
+    pairs = [pair for pair in (_repairable(error) for error in errata) if pair is not None]
+    if not pairs:
+        return False
+    for entry in history or []:
+        shown = entry.get("correction") if isinstance(entry, dict) else None
+        if not isinstance(shown, dict):
+            continue
+        span, corrected = shown.get("span_fr"), shown.get("corrected_fr")
+        for wrong, correct in pairs:
+            if _contains_phrase(span, wrong) and _contains_phrase(corrected, correct):
+                return True
+    return False
+
+
 def _register_moved_to(wrong: str, correct: str) -> str | None:
     """The address a stored correction moved the learner into, when that is what it did.
 
@@ -3499,11 +3549,14 @@ def feedback_decision(
     # margin, never in the plot.» A margin note asks nothing, so it needs no turn left.
     in_margin = _is_season_day(scenario)
 
-    # 2. Bounds, before anything is asked.
+    # 2. Bounds, before anything is asked. A margin note asks nothing, so it needs no
+    # turn left; but it is held to the same once-per-scene bound as the question (P1).
     if not in_margin and remaining_turns(task, turn_index) <= 0:
         return FeedbackDecision(reason="last_turn")
-    if not in_margin and _already_elicited(history):
+    if _already_elicited(history):
         return FeedbackDecision(reason="already_prompted")
+    if _stored_fault_noted(history, errata):
+        return FeedbackDecision(reason="already_noted")
 
     # 3. Does this turn repeat a mistake the learner has had explained?
     addressee: _CounterpartRegister | None = None
@@ -3534,6 +3587,10 @@ def feedback_decision(
                 continue
             why = here
         if not _wrong_here(answer, span, correct, why):
+            continue
+        if moved_to is None and not _flagged_here(answer, span, correct):
+            # P1: nothing but the record says it is wrong here. A register slip has
+            # its own evidence — the person answered now — and was checked above.
             continue
         if in_margin:
             return FeedbackDecision(
@@ -3675,7 +3732,10 @@ def apply_feedback_policy(
 
     text = _normalized(answer.text)
     updates: dict[str, Any] = {}
-    if decision.explicit is not None:
+    # P1: a stored mistake's margin note never displaces the turn's own correction (the
+    # tutor lane's or the rule pass's): that one was read off this sentence.
+    outranked = decision.reason == "recurrence_in_margin" and evaluation.correction is not None
+    if decision.explicit is not None and not outranked:
         candidates = [decision.explicit]
         if evaluation.correction is not None:
             candidates.append(evaluation.correction)
