@@ -803,7 +803,7 @@ objective asks the learner to talk to IS character_id: never "Ask Romy…" while
 the one who speaks to the learner and answers — if the learner must talk to Romy, Romy is
 character_id and says opening_line_fr. location_id must
 be an id from world.locations. Premise plus all panel narration and dialogue stay
-under about 160 words for A1, 240 for A2, 300 for B1, 350 for B2 and 400 for C1. Preserve
+under about 190 words for A1, 280 for A2, 300 for B1, 350 for B2 and 400 for C1. Preserve
 character knowledge: a character only knows witnessed events or facts explicitly
 shared with them. The current scene can introduce a new complication, not a fake memory.
 Use the established cast and locations. No external news or user biography inference.
@@ -6311,7 +6311,9 @@ def reply_soft_check(
 
 
 # A graphic-novel page of 4-6 panels (2026-09-25); the prompt asks for ~10 % less.
-_SCENE_WORD_LIMITS = {"A1": 180, "A2": 260, "B1": 330, "B2": 385, "C1": 440}
+# Owner 2026-11-16: an A1 and an A2 page is one panel longer (``LEVEL_SHAPES``), so its
+# words rise by about that panel (A1 180 → 210, A2 260 → 300); a line's words do not.
+_SCENE_WORD_LIMITS = {"A1": 210, "A2": 300, "B1": 330, "B2": 385, "C1": 440}
 MIN_SCENE_PANELS = 4
 
 #: «te» and «t'» count (steering read 2026-10-24: Gus's «ce café te réveille ?», right

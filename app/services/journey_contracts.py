@@ -55,6 +55,15 @@ MAX_RESPOND_TURNS = 4
 #: The planner never cuts a generated scene below it; an authored page keeps its own
 #: count (``ResponseTask.min_turns``).
 MIN_SCENE_EXCHANGES = 3
+#: Owner 2026-11-16 («zu kurz, nicht fesselnd»): at A1 and A2 a generated scene asks
+#: one exchange more than its rhythm gives B1 — four on Régulier, five on Soutenu and
+#: Intensif, four in each act of a day of several acts — while the day's time holds
+#: it: the planner gives it back before it makes a longer day or gives up an act
+#: (``journey_planner.low_band_extra_exchanges``). Léger keeps its five minutes.
+LOW_BAND_EXTRA_EXCHANGES = 1
+#: The most exchanges any planned reply has: :data:`MAX_RESPOND_TURNS` and the low
+#: bands' one more. An authored brief still declares at most ``MAX_RESPOND_TURNS``.
+MAX_PLANNED_RESPOND_TURNS = MAX_RESPOND_TURNS + LOW_BAND_EXTRA_EXCHANGES
 #: Léger keeps its five minutes (WP-75, WP-78): three exchanges are 6.5 to 9
 #: minutes at A1 to B1 and leave no drill, so the rhythm plans what fits, down to
 #: one. The scene still never closes under the character's open question

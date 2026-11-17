@@ -80,6 +80,7 @@ from app.services.error_memory import ErrorMemoryService
 from app.services.journey_content import render_authored_text
 from app.services.journey_contracts import (
     FALLBACK_CONTROL_LANGUAGE,
+    MAX_PLANNED_RESPOND_TURNS,
     MAX_RESPOND_TURNS,
     AssistanceLevel,
     AttemptAnswer,
@@ -1098,7 +1099,9 @@ def _unknown_intent(signals: _Signals) -> bool:
 # --------------------------------------------------------------------------
 
 def normal_turns(task: ResponseTask) -> int:
-    return max(1, min(int(task.max_turns or MAX_RESPOND_TURNS), MAX_RESPOND_TURNS))
+    # The plan's count: up to MAX_RESPOND_TURNS, and one more at A1 and A2
+    # (``journey_planner.low_band_extra_exchanges``, owner 2026-11-16).
+    return max(1, min(int(task.max_turns or MAX_RESPOND_TURNS), MAX_PLANNED_RESPOND_TURNS))
 
 
 def turn_budget(task: ResponseTask) -> int:

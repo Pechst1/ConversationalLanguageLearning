@@ -64,6 +64,9 @@ MIN_PANELS = 3
 MAX_PANELS = 4
 #: The page is a short read beside the scene: this share of the band's scene word cap.
 WORD_SHARE = 0.6
+#: The scene word cap the share is taken of, pinned at A1 and A2: the scene's own cap
+#: rose there with its extra panel (owner 2026-11-16), «Coulisses» stays as long as it was.
+_BASE_SCENE_WORDS = {"A1": 180, "A2": 260}
 #: A request older than this with no page and no failure is a job that died.
 WRITING_TIMEOUT = timedelta(minutes=15)
 MAX_TOKENS = 2500
@@ -278,7 +281,7 @@ def coulisses_payload(scene: GraphicNovelScene, world: dict, user: Any) -> dict:
     cast_ids = [str(member["id"]) for member in cast]
     location_id = str((scene.script_payload or {}).get("location_id") or "")
     location = next((place for place in engine._locations(world) if place.get("id") == location_id), None)
-    limit = int(engine._SCENE_WORD_LIMITS.get(level, 170) * WORD_SHARE)
+    limit = int(_BASE_SCENE_WORDS.get(level, engine._SCENE_WORD_LIMITS.get(level, 170)) * WORD_SHARE)
     script = scene.script_payload or {}
     return {
         "level": level,

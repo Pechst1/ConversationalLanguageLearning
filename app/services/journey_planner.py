@@ -53,11 +53,14 @@ from app.services.journey_contracts import (
     INPUT_FLOOR_SHARE,
     LEGER_SCENE_EXCHANGES,
     LISTENING_RECALL_FORMATS,
+    LOW_BAND_EXTRA_EXCHANGES,
+    MAX_PLANNED_RESPOND_TURNS,
     MAX_PLANNED_STEPS,
     MAX_RECALL_STEPS,
     MAX_RESPOND_TURNS,
     MIN_SCENE_EXCHANGES,
     READ_MIN_BUDGET_SECONDS,
+    RHYTHM_BUDGETS,
     ActBrief,
     ActRole,
     ControlLanguage,
@@ -2504,7 +2507,9 @@ def scene_exchange_floor(
     :data:`MIN_SCENE_EXCHANGES` from Régulier up, and of
     :data:`LEGER_SCENE_EXCHANGES` on Léger: the live walk of 30 Oct was cut to one
     reply to fit a new rule, and the character's question then closed the scene.
-    A longer day is said before the learner starts, never a hidden cut.
+    A longer day is said before the learner starts, never a hidden cut. (The low
+    bands' exchange more, :func:`low_band_extra_exchanges`, is above the floor: the
+    day gives it back before it gets longer.)
     """
 
     authored_min = max(1, int(getattr(task, "min_turns", 0) or 0))
@@ -2512,6 +2517,21 @@ def scene_exchange_floor(
         return authored_min
     floor = LEGER_SCENE_EXCHANGES if budget_seconds <= RHYTHM_FIVE_MINUTES else MIN_SCENE_EXCHANGES
     return max(authored_min, min(floor, MAX_RESPOND_TURNS))
+
+
+def low_band_extra_exchanges(scenario: ScenarioBrief, task: ResponseTask, budget_seconds: int) -> int:
+    """Owner 2026-11-16 («zu kurz, nicht fesselnd»): the exchanges an A1 or A2
+    generated scene asks for on top of its rhythm's count, from Régulier up
+    (:data:`LOW_BAND_EXTRA_EXCHANGES`). An authored page keeps its own count and
+    Léger its five minutes. The planner gives this exchange back, down to
+    :func:`scene_exchange_floor`, before the story makes a longer day, and an act
+    keeps it only when the day still plays as many acts with it."""
+
+    if budget_seconds <= RHYTHM_FIVE_MINUTES or _band_key(scenario.level_band) not in LOW_BANDS:
+        return 0
+    if not draft_of(scenario) or authored_turns(scenario) or scenario.is_authored_fallback:
+        return 0
+    return LOW_BAND_EXTRA_EXCHANGES
 
 
 def authored_turns(scenario: ScenarioBrief) -> list[AuthoredExchange]:
@@ -2802,21 +2822,26 @@ class PricedAct:
         return self.scene_seconds + self.respond_seconds + self.resolution_seconds
 
 
-def act_turns(scenario: ScenarioBrief, task: ResponseTask, budget_seconds: int) -> int:
+def act_turns(scenario: ScenarioBrief, task: ResponseTask, budget_seconds: int, *, plain: bool = False) -> int:
     """The exchanges an act's reply plans on a day of several acts: the scene's
     floor (#378: three from Régulier up, an authored page's own count), never
-    more — on such a day a longer rhythm buys another act, not a fourth exchange."""
+    more — on such a day a longer rhythm buys another act, not a fourth exchange.
+    At A1 and A2 one more (:func:`low_band_extra_exchanges`) unless ``plain``:
+    the day falls back to the plain count when the extra exchange would cost it
+    an act."""
 
     ceiling = max(
         1,
         min(int(task.max_turns or MAX_RESPOND_TURNS), MAX_RESPOND_TURNS, rhythm_caps(budget_seconds).max_turns),
     )
-    return max(scene_exchange_floor(scenario, task, budget_seconds), min(MIN_SCENE_EXCHANGES, ceiling))
+    turns = max(scene_exchange_floor(scenario, task, budget_seconds), min(MIN_SCENE_EXCHANGES, ceiling))
+    extra = 0 if plain else low_band_extra_exchanges(scenario, task, budget_seconds)
+    return min(turns + extra, MAX_PLANNED_RESPOND_TURNS) if extra else turns
 
 
 def price_act(
     act: ActBrief, *, budget_seconds: int, spt: float, multiplier: float, audio: bool,
-    band: str | None,
+    band: str | None, plain: bool = False,
 ) -> PricedAct:
     """An act's scene, reply and ending, each priced as the day's first is: the
     page by what is on it, the reply by its exchanges at the band (at
@@ -2826,7 +2851,7 @@ def price_act(
     scenario = act.scenario
     outcome_key = _require_plannable(scenario)
     task = guard_opening_line(scenario.response_task)
-    turns = act_turns(scenario, task, budget_seconds)
+    turns = act_turns(scenario, task, budget_seconds, plain=plain)
     return PricedAct(
         act=act,
         task=task,
@@ -2965,19 +2990,24 @@ def acts_to_write(
     spt = profile.effective_seconds_per_token(key)
     multiplier = profile.effective_step_multiplier()
 
-    def priced(role: ActRole) -> PricedAct:
+    def priced(role: ActRole, plain: bool) -> PricedAct:
         return price_act(
             ActBrief(role=role, scenario=nominal_act_brief(key, role)),
             budget_seconds=budget_seconds, spt=spt, multiplier=multiplier, audio=False, band=key,
+            plain=plain,
         )
 
-    first = priced(ActRole.FIL).seconds
-    kept = fit_acts(
-        first,
-        [priced(role) for role in ACT_ROLE_ORDER if role is not ActRole.FIL],
-        budget_seconds=budget_seconds,
-        spare=NIGHT_ACT_SPARE,
-    )
+    def kept_acts(plain: bool) -> list[PricedAct]:
+        return fit_acts(
+            priced(ActRole.FIL, plain).seconds,
+            [priced(role, plain) for role in ACT_ROLE_ORDER if role is not ActRole.FIL],
+            budget_seconds=budget_seconds,
+            spare=NIGHT_ACT_SPARE,
+        )
+
+    # The low bands' exchange more never costs the day an act (owner 2026-11-16): the
+    # night writes the acts the morning plays with or without it (``plan_journey``).
+    kept = max(kept_acts(False), kept_acts(True), key=len)
     return (ActRole.FIL, *(ActRole(str(item.act.role)) for item in kept))
 
 
@@ -3200,6 +3230,52 @@ def _first_day_recall(
     )
 
 
+#: Owner 2026-11-16 («story first»): the fewest practice items an A1/A2 day keeps
+#: when its reply takes the low bands' exchange more — WP-129's floor for an A1/A2
+#: Régulier day («the items give way first», at least three). A day that had fewer
+#: keeps what it had.
+STORY_FIRST_MIN_ITEMS = 3
+
+
+def _first_reply_turns(plan: PlannedJourney) -> int:
+    for step in plan.steps:
+        if step.kind is StepKind.RESPOND:
+            return int((step.public_prompt or {}).get("max_turns") or 0)
+    return 0
+
+
+def _warmups(plan: PlannedJourney) -> int:
+    """The Rappel: the recall items before the scene."""
+
+    count = 0
+    for step in plan.steps:
+        if step.kind is StepKind.SCENE:
+            break
+        count += step.kind is StepKind.RECALL
+    return count
+
+
+def _keeps_the_day(plan: PlannedJourney, plain: PlannedJourney, *, wanted: int) -> bool:
+    """Owner 2026-11-16 («story first»): ``plan`` has the low bands' exchange more and
+    paid for it with plain practice items only — inside the day's budget, never a
+    longer day, every other step of ``plain`` (the rule, a desk, the forge, the
+    «Lecture» …) still there, at least :data:`STORY_FIRST_MIN_ITEMS` items, and a
+    Rappel still longer than Léger's where the plain day's was."""
+
+    if plan.longer_day or _first_reply_turns(plan) < wanted:
+        return False
+    if plan.estimated_active_seconds > plan.budget_seconds:
+        return False
+    kept = {StepKind.RECALL, StepKind.RESPOND}
+    for kind in {step.kind for step in plain.steps} - kept:
+        if sum(step.kind is kind for step in plan.steps) < sum(step.kind is kind for step in plain.steps):
+            return False
+    if recall_count(plan) < min(STORY_FIRST_MIN_ITEMS, recall_count(plain)):
+        return False
+    leger = rhythm_caps(RHYTHM_BUDGETS[0]).max_warmups
+    return _warmups(plan) >= min(_warmups(plain), leger + 1)
+
+
 def plan_journey(
     *,
     scenario: ScenarioBrief,
@@ -3223,7 +3299,130 @@ def plan_journey(
     page_review: list[dict[str, Any]] | None = None,
     acts: list[ActBrief] | None = None,
 ) -> PlannedJourney:
-    """Build today's immutable plan.
+    """Build today's immutable plan (:func:`_plan_journey_once`), story first.
+
+    Owner 2026-11-16 («story first»): an A1 or A2 generated scene asks one exchange
+    more (:func:`low_band_extra_exchanges`), and plain practice items give way for it
+    — but only items: the day keeps its budget, its rule, its desk and every other
+    step, :data:`STORY_FIRST_MIN_ITEMS` items and a Rappel longer than Léger's
+    (:func:`_keeps_the_day`). When the exchange cannot be had for items alone, the
+    day is planned without it. A day with acts is left to the acts' own rule (the
+    exchange never costs an act); Léger and B1 up never ask for it.
+    """
+
+    kwargs = {
+        "scenario": scenario, "candidates": candidates, "budget_seconds": budget_seconds, "pace": pace,
+        "input_mode": input_mode, "errata_targets": errata_targets, "day_shape": day_shape,
+        "shape_reason": shape_reason, "dice": dice, "letter": letter, "chapter_recap_fr": chapter_recap_fr,
+        "audio_available": audio_available, "first_day": first_day, "practice": practice,
+        "introduction": introduction, "forge": forge, "reading": reading, "desk": desk,
+        "page_review": page_review, "acts": acts,
+    }
+    plan = _plan_journey_once(**kwargs)
+    extra = low_band_extra_exchanges(scenario, scenario.response_task, budget_seconds)
+    if not extra or acts or plan.acts:
+        return plan
+    plain = _plan_journey_once(**kwargs, story_extra=False)
+    wanted = _first_reply_turns(plain) + extra
+    if _keeps_the_day(plan, plain, wanted=wanted):
+        return plan
+    # The planner's own fit trims the Rappel first; story first trims plain items.
+    grafted = _story_first(plan, plain, wanted=wanted)
+    if grafted is not None and _keeps_the_day(grafted, plain, wanted=wanted):
+        return grafted
+    return plain
+
+
+def _story_first(extra_plan: PlannedJourney, plain: PlannedJourney, *, wanted: int) -> PlannedJourney | None:
+    """Owner 2026-11-16 («story first»): ``plain`` with ``extra_plan``'s longer reply,
+    paid for by plain vocabulary items — the last after the ending first, down to
+    three builds, then the Rappel's down to one more than Léger's — never below
+    :data:`STORY_FIRST_MIN_ITEMS`.
+    ``None`` when the reply differs in more than its exchanges or it cannot fit."""
+
+    longer = next((step for step in extra_plan.steps if step.kind is StepKind.RESPOND), None)
+    reply = next((step for step in plain.steps if step.kind is StepKind.RESPOND), None)
+    if longer is None or reply is None or extra_plan.longer_day or plain.longer_day:
+        return None
+    if _first_reply_turns(extra_plan) < wanted:
+        return None
+    if {**(longer.public_prompt or {}), "max_turns": None} != {**(reply.public_prompt or {}), "max_turns": None}:
+        return None
+    steps = [replace(longer, ordinal=step.ordinal) if step is reply else step for step in plain.steps]
+    budget = plain.budget_seconds
+    total = sum(int(step.estimated_seconds) for step in steps)
+    floor_items = min(STORY_FIRST_MIN_ITEMS, recall_count(plain))
+    keep_warm = min(_warmups(plain), rhythm_caps(RHYTHM_BUDGETS[0]).max_warmups + 1)
+    scene_at = next(index for index, step in enumerate(steps) if step.kind is StepKind.SCENE)
+    after, before = steps[scene_at:], steps[:scene_at]
+    # WP-109: the builds after the ending stay (three, or what the plain day had).
+    keep_builds = min(STORY_FIRST_MIN_ITEMS, sum(step.kind is StepKind.RECALL for step in after))
+    dropped: list[PlannedStep] = []
+    for step in [*reversed(after), *reversed(before)]:
+        if total <= budget:
+            break
+        items = sum(item.kind is StepKind.RECALL for item in steps) - len(dropped)
+        if items <= floor_items:
+            break
+        if step.kind is not StepKind.RECALL or step.target is None:
+            continue
+        if not target_identity(step.target).startswith("vocabulary:"):
+            continue
+        side, keep = (before, keep_warm) if any(step is s for s in before) else (after, keep_builds)
+        if sum(s.kind is StepKind.RECALL for s in side if not any(s is gone for gone in dropped)) <= keep:
+            continue
+        dropped.append(step)
+        total -= int(step.estimated_seconds)
+    if total > budget:
+        return None
+    kept = [step for step in steps if not any(step is gone for gone in dropped)]
+    kept = [replace(step, ordinal=index) for index, step in enumerate(kept)]
+    still = {target_identity(step.target) for step in kept if step.target is not None}
+    still |= {f"{t.get('kind')}:{t.get('id')}" for t in (longer.public_prompt or {}).get("targets") or []}
+    gone = [
+        identity
+        for identity in dict.fromkeys(target_identity(step.target) for step in dropped)
+        if identity not in still
+    ]
+    note = f"story first: {wanted} exchanges; {len(dropped)} practice item(s) gave way"
+    grafted = replace(
+        plain,
+        steps=kept,
+        estimated_active_seconds=sum(int(step.estimated_seconds) for step in kept),
+        selected_target_ids=[identity for identity in plain.selected_target_ids if identity not in gone],
+        omitted_candidate_ids=[*plain.omitted_candidate_ids, *gone],
+        rationale=f"{plain.rationale}; {note}" if plain.rationale else note,
+    )
+    grafted.validate()
+    return grafted
+
+
+def _plan_journey_once(
+    *,
+    scenario: ScenarioBrief,
+    candidates: list[LearningCandidate],
+    budget_seconds: int = DEFAULT_BUDGET_SECONDS,
+    pace: PacingProfile | None = None,
+    input_mode: InputMode = InputMode.TEXT,
+    errata_targets: list[ErrataTarget] | None = None,
+    day_shape: DayShape | str | None = None,
+    shape_reason: str = "",
+    dice: DayShapeInputs | None = None,
+    letter: LetterOffer | None = None,
+    chapter_recap_fr: str | None = None,
+    audio_available: bool = False,
+    first_day: bool = False,
+    practice: bool = False,
+    introduction: dict[str, Any] | None = None,
+    forge: dict[str, Any] | None = None,
+    reading: dict[str, Any] | list[dict[str, Any]] | None = None,
+    desk: dict[str, Any] | None = None,
+    page_review: list[dict[str, Any]] | None = None,
+    acts: list[ActBrief] | None = None,
+    story_extra: bool = True,
+) -> PlannedJourney:
+    """Build today's immutable plan once (``story_extra=False``: without the low
+    bands' exchange more, the plain day :func:`plan_journey` compares against).
 
     ``acts`` (Phase 2 «Folge in Akten») are the acts the night wrote after the
     day's first («À côté», «Le soir»). On a practice day of a rhythm that plays
@@ -3410,13 +3609,19 @@ def plan_journey(
     # WP-113: an authored day's «Le choix» is never cut by the rhythm; #378: a
     # generated scene is never cut below MIN_SCENE_EXCHANGES.
     turns = max(turns, floor)
+    # Owner 2026-11-16: an A1 or A2 generated scene asks one exchange more; the fit
+    # below gives it back, down to the floor, before the story makes a longer day.
+    extra = low_band_extra_exchanges(scenario, task, budget_seconds) if story_extra else 0
+    if extra:
+        turns = min(turns + extra, MAX_PLANNED_RESPOND_TURNS)
     optional_turns = 0
     if practice and not first_day and band in LOW_BANDS and rhythm_caps(budget_seconds).budget_seconds <= 600:
         # WP-129 (owner decision): fewer reply exchanges, more practice items —
         # on Léger and Régulier, where the reply filled the day. Soutenu and
         # Intensif keep their four: a longer rhythm buys story and input
-        # (WP-93), and their days had room for items already.
-        core_turns = max(LOW_BAND_CORE_REPLY_TURNS, floor)
+        # (WP-93), and their days had room for items already. The low bands'
+        # exchange more (owner 2026-11-16) is part of the core.
+        core_turns = max(LOW_BAND_CORE_REPLY_TURNS, floor) + extra
         if turns > core_turns:
             optional_turns = turns - core_turns
             turns = core_turns
@@ -3486,6 +3691,8 @@ def plan_journey(
     # nothing below changes.
     kept_acts: list[PricedAct] = []
     act_turn_count, act_scene_cost = turns, scene_cost
+    #: The same acts with the plain exchanges, tried before one act fewer.
+    plain_acts: tuple[list[PricedAct], int] | None = None
     if acts:
         playable = (
             practice
@@ -3498,30 +3705,48 @@ def plan_journey(
         if not playable:
             notes.append(f"acts set aside: this {shape} day plays one act")
         else:
-            priced_acts: list[PricedAct] = []
-            for act in acts:
-                try:
-                    priced_acts.append(
-                        price_act(
-                            act, budget_seconds=budget_seconds, spt=spt, multiplier=multiplier,
-                            audio=False, band=band,
-                        )
-                    )
-                except PlanUnavailable as exc:
-                    notes.append(f"act «{act.role}» set aside: {exc.reason}")
-            act_turn_count = act_turns(scenario, task, budget_seconds)
             act_scene_cost = scene_seconds(
                 scenario, spt=spt, multiplier=multiplier, audio=False, band=band
             )
-            first_act_seconds = (
-                act_scene_cost
-                + respond_seconds(
-                    task, turns=act_turn_count, spt=spt, multiplier=multiplier, band=band,
-                    authored=authored,
+
+            def acts_fitting(plain: bool) -> tuple[list[PricedAct], int, list[PricedAct]]:
+                """Every act priced, the first act's exchanges and the acts that fit —
+                with the low bands' exchange more, or ``plain`` without it."""
+
+                priced: list[PricedAct] = []
+                for act in acts:
+                    try:
+                        priced.append(
+                            price_act(
+                                act, budget_seconds=budget_seconds, spt=spt, multiplier=multiplier,
+                                audio=False, band=band, plain=plain,
+                            )
+                        )
+                    except PlanUnavailable as exc:
+                        if not plain:
+                            notes.append(f"act «{act.role}» set aside: {exc.reason}")
+                count = act_turns(scenario, task, budget_seconds, plain=plain)
+                first_seconds = (
+                    act_scene_cost
+                    + respond_seconds(
+                        task, turns=count, spt=spt, multiplier=multiplier, band=band, authored=authored,
+                    )
+                    + resolution_cost
                 )
-                + resolution_cost
-            )
-            kept_acts = fit_acts(first_act_seconds, priced_acts, budget_seconds=budget_seconds)
+                return priced, count, fit_acts(first_seconds, priced, budget_seconds=budget_seconds)
+
+            priced_acts, act_turn_count, kept_acts = acts_fitting(False)
+            if act_turn_count != act_turns(scenario, task, budget_seconds, plain=True) or any(
+                item.turns != act_turns(item.act.scenario, item.task, budget_seconds, plain=True)
+                for item in priced_acts
+            ):
+                # Owner 2026-11-16: the low bands' exchange more never costs the day an act.
+                plain_priced, plain_count, plain_kept = acts_fitting(True)
+                if len(plain_kept) > len(kept_acts):
+                    notes.append("acts keep their plain exchanges: one more would cost the day an act")
+                    priced_acts, act_turn_count, kept_acts = plain_priced, plain_count, plain_kept
+                elif plain_kept:
+                    plain_acts = (plain_kept, plain_count)
             for item in priced_acts:
                 if all(item is not kept for kept in kept_acts):
                     notes.append(
@@ -3531,15 +3756,19 @@ def plan_journey(
     if practice and not first_day and practice_day_shape_rule(shape, budget_seconds).max_recall > 0:
         # Phase 2: the acts that fit, then one act fewer at a time — «À côté»
         # first — while they would cost the day its rule; last, the one-act day.
-        tries = [list(kept_acts)]
+        # With the low bands' exchange more, the same acts without it come first.
+        tries: list[tuple[list[PricedAct], int]] = [(list(kept_acts), act_turn_count)]
+        if plain_acts is not None and kept_acts:
+            tries.append((list(plain_acts[0]), plain_acts[1]))
         for role in ACT_DROP_ORDER:
-            fewer = [item for item in tries[-1] if item.act.role != role]
-            if len(fewer) < len(tries[-1]):
-                tries.append(fewer)
-        if tries[-1]:
-            tries.append([])
+            last, count = tries[-1]
+            fewer = [item for item in last if item.act.role != role]
+            if len(fewer) < len(last):
+                tries.append((fewer, count))
+        if tries[-1][0]:
+            tries.append(([], act_turn_count))
         practice_plan = None
-        for later in tries:
+        for later, later_turns in tries:
             practice_plan = _plan_practice_day(
                 scenario=scenario,
                 task=task,
@@ -3556,7 +3785,7 @@ def plan_journey(
                 audio_available=audio_available,
                 input_mode=input_mode,
                 budget_seconds=budget_seconds,
-                turns=act_turn_count if later else turns,
+                turns=later_turns if later else turns,
                 spt=spt,
                 multiplier=multiplier,
                 scene_cost=act_scene_cost if later else scene_cost,
