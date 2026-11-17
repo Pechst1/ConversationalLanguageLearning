@@ -75,6 +75,8 @@ export type EpreuveCopy = {
   produce_words_label: string;
   words_count: string;
   words_range: string;
+  /** #853: said beside the counter once a line is over the item's ceiling («Check» waits for it). */
+  words_over: string;
   words_more: string;
   // confidence + primary
   confidence_label: string;
@@ -273,6 +275,7 @@ const FR: EpreuveCopy = {
   produce_words_label: 'Les mots à placer',
   words_count: '{n} mots',
   words_range: '{n} sur {min}–{max} mots',
+  words_over: '{max} mots au plus : raccourcis ta phrase.',
   words_more: 'encore {n}',
   confidence_label: 'Ta confiance',
   confidence_ask: 'Tu es…',
@@ -457,6 +460,7 @@ const EN: EpreuveCopy = {
   produce_words_label: 'Words to use',
   words_count: '{n} words',
   words_range: '{n} of {min}–{max} words',
+  words_over: 'Max {max} words: shorten your sentence.',
   words_more: '{n} more',
   confidence_label: 'Your confidence',
   confidence_ask: 'Are you…',
@@ -641,6 +645,7 @@ const DE: EpreuveCopy = {
   produce_words_label: 'Wörter zum Einbauen',
   words_count: '{n} Wörter',
   words_range: '{n} von {min}–{max} Wörtern',
+  words_over: 'Höchstens {max} Wörter: kürze deinen Satz.',
   words_more: 'noch {n}',
   confidence_label: 'Wie sicher bist du?',
   confidence_ask: 'Du bist…',
@@ -790,10 +795,19 @@ export function fill(template: string, values: Record<string, string | number>):
 export function wordRangeText(copy: EpreuveCopy, count: number, minWords?: unknown, maxWords?: unknown): string {
   const min = Number(minWords);
   const max = Number(maxWords);
-  if (Number.isFinite(min) && Number.isFinite(max) && min > 0 && max >= min) {
-    return fill(copy.words_range, { n: count, min: Math.round(min), max: Math.round(max) });
-  }
-  return fill(copy.words_count, { n: count });
+  const counter = Number.isFinite(min) && Number.isFinite(max) && min > 0 && max >= min
+    ? fill(copy.words_range, { n: count, min: Math.round(min), max: Math.round(max) })
+    : fill(copy.words_count, { n: count });
+  // #853: the ceiling is a rule, not a label (#574: «Check» waits until the line is under
+  // it, lib/word-range.ts). A rule that holds the button says so where the learner looks:
+  // «12 of 4–10 words» alone left Check disabled with nothing to say why.
+  if (overCeiling(count, max)) return `${counter} · ${fill(copy.words_over, { max: Math.round(max) })}`;
+  return counter;
+}
+
+/** Above the item's ceiling, the one `withinWordRange` (lib/word-range.ts) refuses. */
+function overCeiling(count: number, max: number): boolean {
+  return Number.isFinite(max) && max > 0 && count > max;
 }
 
 /**
@@ -804,6 +818,7 @@ export function wordRangeText(copy: EpreuveCopy, count: number, minWords?: unkno
 export function wordRangeState(count: number, minWords?: unknown, maxWords?: unknown): 'none' | 'in' | 'under' | 'over' {
   const min = Number(minWords);
   const max = Number(maxWords);
+  if (overCeiling(count, max)) return 'over';
   if (!(Number.isFinite(min) && Number.isFinite(max) && min > 0 && max >= min) || count <= 0) return 'none';
   if (count < min) return 'under';
   if (count > max) return 'over';

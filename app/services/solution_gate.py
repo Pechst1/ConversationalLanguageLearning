@@ -131,7 +131,29 @@ def is_withheld(correction: dict[str, Any] | None, verdict: Any = None) -> bool:
     state = correction.get(STATE_KEY)
     if not isinstance(state, dict) or state.get("state") != WITHHELD:
         return False
+    if _unread(correction, verdict):
+        return False
     return not _passes(correction, verdict)
+
+
+def _unread(correction: dict[str, Any], verdict: Any = None) -> bool:
+    """Nobody read the answer and nobody is reading it now (#855, #333).
+
+    The ``withheld`` state is written when the answer is posed, before anyone has
+    read it. If the check then does not run, the screen that shows the answer is
+    the unread one («Basic check only», «Skip without a check»): it offers no second
+    chance, so there is nothing to wait for and the rules' fixes are served whole.
+    This is the same reading the screen draws from (``check.outcome``/``check.call``),
+    so the gate and the screen cannot disagree on whether a chance follows. While
+    the check is still running the answer stays withheld: its chance may come.
+    """
+
+    from app.core.verdict import Call, Outcome
+    from app.services.verdicts import from_forge
+
+    shown = verdict if verdict is not None else correction.get("verdict")
+    read = from_forge(correction, verdict=str(shown) if shown is not None else None)
+    return read.outcome is Outcome.NOT_CHECKED and read.call is not Call.PENDING
 
 
 def mark(correction: dict[str, Any], *, chance: bool, language: str | None = None) -> dict[str, Any]:

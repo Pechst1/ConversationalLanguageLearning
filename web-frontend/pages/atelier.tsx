@@ -75,6 +75,7 @@ import {
   EpBar,
   EpFoot,
   EpFix,
+  EpBasicFixes,
   EpIns,
   EpLabelFix,
   EpLineFix,
@@ -4294,8 +4295,8 @@ export function ExerciseFeedbackMoment({
   }
   const mood = coachMood(correction, { correct: feedback.correct });
   if (feedback.unscored) {
-    // #333: the rules' real fixes stay listed; nothing here is a verdict.
-    const unreadFixes: Array<{ span: string; replacement: string; start: number }> = correction?.check?.edits || [];
+    // #333: the rules' real fixes stay listed; nothing here is a verdict. #855: an unread
+    // answer has no second chance, so the server sends them whole (solution_gate._unread).
     const unreadState = checkState(correction?.check) === 'basic' ? 'basic' : 'not_checked';
     // #724: «Check again» only where asking again can reach a reader; with none, the line
     // says so plainly instead of «not checked yet» over a button that can never work.
@@ -4309,11 +4310,7 @@ export function ExerciseFeedbackMoment({
         >
           {line === 'basic' ? t.check_basic : line === 'unavailable' ? t.check_unavailable : t.unscored}
         </EpRelecture>
-        {unreadFixes.map((edit) => (
-          <p className="av2-fr" lang="fr" key={`${edit.start}-${edit.span}`}>
-            <s>{edit.span}</s> → <strong>{edit.replacement}</strong>
-          </p>
-        ))}
+        <EpBasicFixes edits={correction?.check?.edits} />
         <EpFoot tone="neutral">
           <EpBar tone="ghost" onClick={onNext}>{t.skip_unscored}</EpBar>
         </EpFoot>
