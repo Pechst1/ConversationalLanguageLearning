@@ -47,7 +47,7 @@ def _items(bank: ItemBank, unit: str, seeds: int = 6, count: int = 60) -> list:
     return items
 
 
-def test_every_a1_unit_before_places_keeps_out_country_prepositions() -> None:
+def test_early_a1_no_country() -> None:
     """Today's rule and every review an A1.1 learner meets before FR2_A11_PLACES."""
 
     bank = default_bank()
@@ -65,7 +65,7 @@ def test_every_a1_unit_before_places_keeps_out_country_prepositions() -> None:
     )
 
 
-def test_every_lexicon_country_preposition_names_its_rule() -> None:
+def test_lexicon_names_rule() -> None:
     """The gate only works on what is marked: a geo country, a verb complement
     («voyager en Italie»), any entry whose words carry a country preposition."""
 
@@ -90,7 +90,7 @@ def test_every_lexicon_country_preposition_names_its_rule() -> None:
     assert not unmarked, f"entries with a country preposition but no «rule»: {unmarked[:10]}"
 
 
-def test_etre_still_places_people_in_cities_and_the_story_city() -> None:
+def test_etre_in_cities() -> None:
     items = _items(default_bank(), "FR2_A11_ETRE")
     city_lines = [item.sentence for item in items if "cette semaine" in item.sentence]
     assert city_lines, "être's «… cette semaine» frames still render"
@@ -98,7 +98,7 @@ def test_etre_still_places_people_in_cities_and_the_story_city() -> None:
     assert any("à Paris" in line for line in city_lines)
 
 
-def test_places_and_later_units_still_drill_countries() -> None:
+def test_places_has_countries() -> None:
     bank = default_bank()
     for unit in (PLACES, "FR2_A11_ALLER_VENIR"):
         assert _order(unit) >= _order(PLACES)
