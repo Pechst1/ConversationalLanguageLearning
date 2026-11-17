@@ -1,10 +1,10 @@
 # prompt snapshot · page-a1-walk-four-moments · lane page · level A1
-# key: sha256:c12c25a1f213b61ab65eb29d27e7991224082a2097f39cbcce177b50dbda2f96
+# key: sha256:70de3bddb5809775b4d9db2176dbdc4de8c158e54f326f94bd123ab730d64a4a
 # accept a change: PROMPT_SNAPSHOT_UPDATE=1 python -m pytest tests/test_prompt_regression.py (or scripts/prompt_regression.py --update)
 
-======== call 1 · PagePlan #1 · 5c503328c39b5200 ========
+======== call 1 · PagePlan #1 · 364df060db5aa544 ========
 params: {"disable_retries": true, "max_provider_attempts": 1, "max_tokens": 16000, "prompt_cache_key": "atelier-PagePlan", "reasoning_effort": "medium", "response_format": {"type": "json_object"}, "temperature": 0.55}
-output_schema: PagePlan sha256:f87df9ba8fd5bb48
+output_schema: PagePlan sha256:9875b956d37ec3e3
 -------- system --------
 You plan one day of «La clé d'Odile», a graphic-novel serial in French that a
 learner lives inside. You decide what happens today. You write no French and no dialogue:

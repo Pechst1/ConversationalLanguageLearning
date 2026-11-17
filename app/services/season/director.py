@@ -145,9 +145,9 @@ class StoryReview(BaseModel):
     #: Story engine Phase 3: the page agrees with what the learner said on earlier days
     #: (``memory``): nothing settled is asked again, nobody knows what they never heard.
     remembers: bool = True
-    #: P8: the page takes up yesterday's hook (``yesterday_hook``): answers it or moves
-    #: it on in its first two panels, or one line sets it aside with a reason. True when
-    #: there is none.
+    #: P8: the page takes up yesterday's hook (``yesterday_hook``) in its first two panels
+    #: or as the question put to the learner, never deciding for the learner, and sets it
+    #: aside only with a reason (never two days running). True when there is none.
     takes_up_hook: bool = True
     change_summary: str = Field(default="", max_length=240)
     issues: list[str] = Field(default_factory=list, max_length=8)
@@ -208,9 +208,11 @@ Then read the page as its reader will:
   row they are not listed on (known_by, heard_by), or if a line brings back something the
   learner never said. True when memory is absent.
 - takes_up_hook: when yesterday_hook is present (the «À suivre…» the learner read at the
-  end of the last day they played), the page takes it up: in panel 1 or 2 someone answers
-  it or moves it on, or one line says plainly why it waits today. False if the page never
-  touches it. True when yesterday_hook is absent.
+  end of the last day they played), the page takes it up in panel 1 or 2, or it is the
+  question put to the learner. False if the page never touches it or reaches it only later;
+  false if it asks the learner and a panel says what the learner decided; false if a line
+  puts it off with no reason from this scene, or puts it off when
+  yesterday_hook.set_aside_yesterday is true. True when yesterday_hook is absent.
 The page is not the whole day (learner_turn). It ends where the learner answers: the
 learner never has a line on the page, and their reply, the character's answer and the
 day's ending come after the last panel. learner_turn.planned_change is the change that

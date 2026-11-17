@@ -509,8 +509,13 @@ HOOK_PLANNER_NOTE = """
 YESTERDAY'S HOOK (yesterday_hook)
 yesterday_hook is the «À suivre…» line the learner read at the end of the last day they
 played (text_fr, and question_fr when it left a question open). They come back for it.
-- Today takes it up. One of the first two beats answers it or moves it on, or one beat
-  has a person on the page say plainly why it waits today (a reason, not a shrug).
+- Today takes it up in beat 1 or 2, or it is the question put to the learner. Taking it up
+  moves it on: it is settled or it changes, and today does not end on the same question.
+- When question_fr asks the learner, the learner answers it: it is the question put to
+  the learner, or beat 1 or 2 asks it and that question follows from it. No beat says
+  what the learner decided.
+- A beat may put it off only with a reason from this scene, said in that same line, and
+  never when yesterday_hook.set_aside_yesterday is true.
 - Add "takes_up_hook" to the JSON: one sentence, the beat that does it, or who puts it
   off and why.
 - Taking it up is not a repeat: rule 3 never forbids coming back to yesterday_hook."""
@@ -519,15 +524,20 @@ HOOK_AUTHOR_NOTE = """
 
 YESTERDAY'S HOOK (plan.yesterday_hook)
 The learner ended yesterday on plan.yesterday_hook and comes back for it. The page takes it
-up as plan.takes_up_hook says: in panel 1 or 2 someone answers it or moves it on, or one
-line says plainly why it waits today. It is never left out."""
+up as plan.takes_up_hook says, in panel 1 or 2 or as the question put to the learner; it is
+never left out and never reached late. When it asks the learner, the learner answers it:
+no panel says what the learner decided. A line that puts it off gives a reason from this
+scene in that same line."""
 
 HOOK_DIRECTOR_NOTE = """
 
 YESTERDAY'S HOOK (yesterday_hook)
 yesterday_hook is the «À suivre…» line the learner read at the end of the last day they
-played. Today's page takes it up: in panel 1 or 2 someone answers it or moves it on, or
-one line says plainly why it waits today. Taking it up is never a repeat of recent_situations."""
+played. Today's page takes it up in panel 1 or 2, or it is the question put to the learner,
+and moves it on: settled or changed. When it asks the learner, the learner answers it: no
+panel says what the learner decided. A line that puts it off gives a reason from this scene
+in that same line, and never when yesterday_hook.set_aside_yesterday is true. Taking it up
+is never a repeat of recent_situations."""
 
 #: How many recent days the planner reads.
 RECENT_DAYS = 5

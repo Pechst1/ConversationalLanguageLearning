@@ -34,10 +34,13 @@ test('a known title leads; the teaser follows it', () => {
   assert.equal(model.headlineTeaser(tentpole, 'La lettre'), 'Demain, Camille.');
 });
 
-test('a generated day not yet written: yesterday’s «À suivre…» leads, never twice', () => {
+// P8 (real-model check, 17 Nov): Home read the hook as the title, then another title once the
+// page existed. Before the page is written there is no title; the hook is the hook.
+test('a generated day not yet written: no title is invented, yesterday’s «À suivre…» is the hook', () => {
   const gap = { ...tentpole, title_fr: null };
-  assert.equal(model.headlineTitle(gap, 'Votre prochain chapitre'), 'Demain, Camille.');
-  assert.equal(model.headlineTeaser(gap, 'Demain, Camille.'), null);
+  assert.equal(model.headlineTitle(gap, 'Votre prochain chapitre'), '');
+  assert.equal(model.headlineTitle(gap), '');
+  assert.equal(model.headlineTeaser(gap, ''), 'Demain, Camille.');
   assert.equal(model.headlineTitle(gap, 'Un café au Mistral'), 'Un café au Mistral', 'a real scene title is kept');
 });
 

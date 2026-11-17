@@ -9,6 +9,7 @@ days 3, 4 and 5 were all headlined «Le Mistral», the café's name.
 from __future__ import annotations
 
 import json
+from datetime import date
 from types import SimpleNamespace
 
 import pytest
@@ -208,11 +209,10 @@ def test_a_page_that_never_touches_the_flight_is_refused(monkeypatch):
         _page("Lila tient ton billet.", "Alors, ton vol ? Mercredi ou pas ?"),
         _page(
             "Le studio est froid.",
-            "Tu as faim ?",
-            last_line="Ton vol ? On en parle demain, promis.",
+            "Ton vol, on en parle plus tard : d'abord le radiateur, il gèle ici.",
         ),
     ],
-    ids=["answers-it-in-panel-2", "sets-it-aside-in-a-line"],
+    ids=["answers-it-in-panel-2", "sets-it-aside-with-a-reason"],
 )
 def test_a_page_that_takes_the_hook_up_or_sets_it_aside_is_accepted(monkeypatch, page):
     outcome, _sent = _review(monkeypatch, _season_context(), page)
@@ -297,7 +297,7 @@ def test_day_six_s_previously_names_the_last_played_day_not_day_one():
     assert lines, "the box has lines"
     assert not lines[0].startswith("Le mauvais accueil")
     assert (
-        lines[-1] == "Lila et Marin aident pour le vol : Tu soupçonnes Gus ; Lila veut une preuve."
+        lines[0] == "Lila et Marin aident pour le vol : Tu soupçonnes Gus ; Lila veut une preuve."
     )
     assert "Marin répare le radiateur." in lines
     assert len(lines) <= engine.PREVIOUSLY_LINES
@@ -347,3 +347,200 @@ def test_the_author_is_asked_again_for_a_place_headline(
     plans = [schema for schema, _ in split_on.calls if schema == "PagePlan"]
     assert len(plans) == 1, "on the same plan"
     json.dumps(texts[1], ensure_ascii=False)
+
+
+# ===================================================================================
+# Second commit: the real-model check of 17 Nov (Sonnet 5.5, A1 de and B1 en, 5 days)
+# ===================================================================================
+
+# -- 1. ONE hook: the end card's promise is Home's, the push's and tomorrow's ---------
+
+#: B1 day 4: the ending (end card) promised Gus and the key; Home showed the plan's hook.
+B1_DAY4_ENDING = (
+    "Je note que vous restez à Paris pour les papiers. Vos amis seront peut-être déçus, mais "
+    "vous leur direz la vérité. Et demain, vous parlerez à Gus de la clé."
+)
+PLANNED = {
+    "text_fr": "L'avenir du Mistral : le garder, le changer, ou le laisser partir ?",
+    "character_id": "maitre_vasseur",
+    "date": "2026-11-20",
+    "ref": "contract:g2.notaire",
+    "kind": "season",
+}
+
+
+def _respond(*lines: str) -> SimpleNamespace:
+    return SimpleNamespace(
+        kind="respond", private_task={"turns": [{"learner": line, "character": "…"} for line in lines]}
+    )
+
+
+def _settle_hook(monkeypatch, ending: str, *, live: dict | None = None, said=(), context=None):
+    from app.services import scene_record
+
+    monkeypatch.setattr(scene_record, "enabled", lambda: True)
+    monkeypatch.setattr(engine, "_contract_hook", lambda *a, **k: dict(PLANNED))
+    turn = SimpleNamespace(tomorrow_question_fr="", resolution_fr=ending, reply_fr="D'accord.", commitments=[])
+    brief = SimpleNamespace(character_id="maitre_vasseur", story_context=context or {"draft": {"panels": []}})
+    journey = SimpleNamespace(local_date=date(2026, 11, 20), steps=[_respond(*said)])
+    return engine._hook_after_day(
+        None, SimpleNamespace(id=1), live=live or {}, world_after={}, brief=brief, turn=turn,
+        journey=journey, act=None, relationships={}, seed="p8",
+    )
+
+
+def test_the_end_card_s_promise_is_the_one_hook(monkeypatch):
+    teaser, teasers = _settle_hook(
+        monkeypatch, B1_DAY4_ENDING, said=["Demain, je veux parler à Gus de la clé."]
+    )
+    assert teaser is not None and "Gus" in teaser["text_fr"] and "clé" in teaser["text_fr"], teaser
+    assert "avenir du Mistral" not in teaser["text_fr"], "Home's hook is not another line than the end card's"
+    assert teasers[-1]["text_fr"] == teaser["text_fr"]
+    # Tomorrow's page reads that same stored line.
+    live = {"next_teaser": teaser, "events": [{"scene_id": "s4", "date": "2026-11-20", "summary_fr": "x"}]}
+    assert engine.yesterday_hook(live)["text_fr"] == teaser["text_fr"]
+    # An ending that names no tomorrow keeps the plan's hook.
+    planned, _rows = _settle_hook(monkeypatch, "Je note que vous restez à Paris pour les papiers.")
+    assert planned["ref"] == PLANNED["ref"]
+
+
+# -- 2. a hook taken up moves: not the same question the next day --------------------
+
+DAY3_Q = "Que fais-tu de ton vol de mercredi ?"
+DAY4_Q = "Tu gardes ton vol de mercredi ?"
+
+
+def _after_day3() -> dict:
+    day3 = engine.next_teaser(
+        {}, {}, character_id="lila_bonnet", register="tu", date="2026-11-19", seed="a1", question=DAY3_Q
+    )
+    assert day3 is not None and day3["open_fr"] == DAY3_Q
+    return {"next_teaser": day3, "teasers": engine.teasers_after({}, day3)}
+
+
+def test_the_flight_is_not_the_hook_a_second_day_running():
+    """A1 days 3 and 4 both ended on the Wednesday flight; day 4 never put it off."""
+
+    said = ["Je suis fatigué. Je vais lui dire merci pour la soupe.", "Oui. Demain, je vais lui téléphoner, à Lila."]
+    day4 = engine.next_teaser(
+        _after_day3(), {}, character_id="marin_leveque", register="tu", date="2026-11-20", seed="a1",
+        question=DAY4_Q, said=said,
+    )
+    assert day4 is None or "vol" not in day4["text_fr"], day4
+
+
+def test_a_hook_the_learner_put_off_comes_back_once_only():
+    said = ["Je ne sais pas encore pour mon vol. Je réfléchis."]
+    live = _after_day3()
+    day4 = engine.next_teaser(
+        live, {}, character_id="marin_leveque", register="tu", date="2026-11-20", seed="a1",
+        question=DAY4_Q, said=said,
+    )
+    assert day4 is not None and day4["open_fr"] == DAY4_Q and day4.get("renewed") == 1, day4
+    live5 = {"next_teaser": day4, "teasers": engine.teasers_after(live, day4)}
+    day5 = engine.next_teaser(
+        live5, {}, character_id="lila_bonnet", register="tu", date="2026-11-21", seed="a1",
+        question="Tu prends ton vol mercredi ?", said=said,
+    )
+    assert day5 is None or "vol" not in day5["text_fr"], day5
+
+
+# -- 3. taken up early; set aside only with a reason, never two days running ---------
+
+
+def test_a_hook_reached_only_in_panel_four_is_refused(monkeypatch):
+    """A1 day 4: soup in panels 1–2, the flight in panel 4."""
+
+    page = _page("Le soir. Marin frappe.", "Tu manges la soupe.", last_line="Lila dit : ton vol de mercredi.")
+    outcome, _sent = _review(monkeypatch, _season_context(), page)
+    assert outcome is not None and outcome["accepted"] is False
+    assert any("too late" in issue for issue in outcome["issues"]), outcome["issues"]
+
+
+MISTRAL = {
+    "text_fr": "Il faudra qu'on en parle. L'avenir du Mistral : le garder, le changer, ou le laisser partir ?",
+    "question_fr": "L'avenir du Mistral : le garder, le changer, ou le laisser partir ?",
+    "date": "2026-11-20",
+}
+
+
+def _marin_page(*second: str) -> dict:
+    page = _page("Sixième étage. Le radiateur ne marche plus.", "x")
+    page["panels"][1]["dialogue"] = [{"character_id": "marin_leveque", "text_fr": line} for line in second]
+    return page
+
+
+def test_a_hook_waved_away_in_one_line_is_refused(monkeypatch):
+    """B1 day 5: «Son avenir, tout ça. Pas ce soir.»"""
+
+    page = _marin_page(
+        "Margaux voulait que je te parle du Mistral. Son avenir, tout ça. Pas ce soir. Quand tu auras chaud, et tes papiers.",
+        "Mange d'abord. Moi, je m'assieds après.",
+    )
+    outcome, _sent = _review(monkeypatch, {**_context(), "yesterday_hook": MISTRAL}, page)
+    assert outcome is not None and outcome["accepted"] is False
+    assert any("reason" in issue for issue in outcome["issues"]), outcome["issues"]
+    assert outcome["class"] == "storytelling"
+
+
+def test_a_set_aside_with_its_reason_holds_once_but_not_two_days_running(monkeypatch):
+    page = _marin_page("L'avenir du Mistral, on en parle plus tard : d'abord le radiateur, il gèle ici.")
+    outcome, _sent = _review(monkeypatch, {**_context(), "yesterday_hook": MISTRAL}, page)
+    assert outcome is not None and outcome["accepted"] is True
+    assert engine.hook_set_aside(MISTRAL, page)
+    again = {**MISTRAL, "set_aside_yesterday": True}
+    outcome, _sent = _review(monkeypatch, {**_context(), "yesterday_hook": again}, page)
+    assert outcome is not None and outcome["accepted"] is False
+    assert any("already put its hook off" in issue for issue in outcome["issues"]), outcome["issues"]
+
+
+def test_the_settle_marks_a_set_aside_for_the_next_page(monkeypatch):
+    page = _marin_page("L'avenir du Mistral, on en parle plus tard : d'abord le radiateur, il gèle ici.")
+    teaser, _rows = _settle_hook(
+        monkeypatch, "Bonne nuit.", context={"draft": page, "yesterday_hook": MISTRAL}
+    )
+    assert teaser["after_set_aside"] is True
+    live = {"next_teaser": teaser, "events": [{"scene_id": "s5", "date": teaser["date"], "summary_fr": "x"}]}
+    assert engine.yesterday_hook(live)["set_aside_yesterday"] is True
+
+
+# -- 4. a question to the learner is the learner's to answer -------------------------
+
+FLIGHT = {"text_fr": f"Marin te regarde. {DAY4_Q}", "question_fr": DAY4_Q, "date": "2026-11-20"}
+
+
+def test_the_page_never_decides_the_learner_s_answer(monkeypatch):
+    """A1 day 5: the panels narrated the airline call and «Mercredi 2 décembre. C'est noté.»"""
+
+    page = _page(
+        "Jeudi matin. Il fait froid dans le studio.",
+        "Marin dit que tu appelles aujourd'hui. Mercredi, c'est fini.",
+        last_line="Mercredi 2 décembre. C'est noté.",
+        opening="L'agent demande pourquoi tu changes la date. Tu lui dis quoi ?",
+    )
+    outcome, _sent = _review(monkeypatch, {**_context(), "yesterday_hook": FLIGHT}, page)
+    assert outcome is not None and outcome["accepted"] is False
+    assert any("No panel says what the learner decided" in issue for issue in outcome["issues"])
+    asked = _page(
+        "Jeudi matin. Il fait froid dans le studio.",
+        "Lila pose le téléphone sur la table.",
+        opening="Alors, ton vol de mercredi : tu le gardes ?",
+    )
+    outcome, _sent = _review(monkeypatch, {**_context(), "yesterday_hook": FLIGHT}, asked)
+    assert outcome is not None and outcome["accepted"] is True
+
+
+# -- 5. «Précédemment»: the last played day first, never the stake ------------------
+
+
+def test_previously_opens_on_what_the_learner_did_and_never_repeats_the_stake():
+    live = _day_six_live()
+    live["events"][-1]["did_fr"] = "Tu parleras à Gus de la clé."
+    live["chronicle"].insert(0, {"id": "ch-0", "title_fr": "Le mauvais accueil", "question": "Ou tu dis au revoir à tout ça ?"})
+    live["chronicle"][1]["resolved_fr"] = ""
+    lines = engine.previously_lines(live, chapter_id="ch-2")
+    assert lines[0] == "Lila et Marin aident pour le vol : Tu parleras à Gus de la clé.", lines
+    assert lines[1] == "Marin répare le radiateur.", "then the day before"
+    assert not any(line.endswith("?") for line in lines), "the stake block says the season's question"
+    commitment = SimpleNamespace(text_fr="Tu parleras à Gus de la clé.")
+    assert engine._learner_did(SimpleNamespace(commitments=[commitment])) == "Tu parleras à Gus de la clé."

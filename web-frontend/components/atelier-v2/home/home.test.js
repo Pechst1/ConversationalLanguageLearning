@@ -356,9 +356,9 @@ test('WP-119: on other days the Revue is one quiet chip beside the letter, gone 
   assert.match(resume.href, /^\/revue\?session=/);
 });
 
-// Owner, 2026-10-19: a generated day has no title yet, and yesterday's whole
-// «À suivre…» stood in at headline size. The headline is its heart, once.
-test('an untitled day headlines the teaser’s heart, not the whole teaser', () => {
+// Owner, 2026-10-19: yesterday's whole «À suivre…» stood in at headline size. P8 (17 Nov):
+// a day not yet written has no title at all; the hook is printed once, as the hook.
+test('an untitled day has no invented title; the hook is printed once, under «À suivre»', () => {
   const base = fixture('first_day');
   const envelope = {
     ...base,
@@ -374,8 +374,8 @@ test('an untitled day headlines the teaser’s heart, not the whole teaser', () 
     },
   };
   const html = renderToStaticMarkup(h(JourneyTodayCard, { controller: controllerFor(envelope, 'fr'), onOpen: () => {} }));
-  const title = decode((html.match(/<h2 class="av2-headline av2-headline--title"[^>]*>([\s\S]*?)<\/h2>/) || [])[1] || '');
-  assert.equal(title, 'Lila et Berlin');
+  assert.doesNotMatch(html, /av2-headline--title/, 'no title before the page exists');
+  assert.match(html, /data-headline-teaser=""/);
   assert.doesNotMatch(visibleText(html), /caches quelque chose/);
   assert.equal((visibleText(html).match(/Lila et Berlin/g) || []).length, 1);
 });

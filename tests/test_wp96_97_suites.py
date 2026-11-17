@@ -134,11 +134,12 @@ def test_previously_lines_are_only_facts_the_ledgers_hold():
         "Romy accepte votre aide au marché.",
     }
     mid_chapter = engine.previously_lines(live, chapter_id="ch-2")
-    # P8: once a day has been played, the older chapter's title no longer heads the box.
+    # P8: once a day has been played, the older chapter's title no longer heads the box,
+    # and the box reads newest first: the last day played leads.
     assert mid_chapter == [
-        "Romy obtient un stand.",
-        "Vous avez promis d'aider Romy au marché.",
         "Romy a trouvé un stand près du canal.",
+        "Vous avez promis d'aider Romy au marché.",
+        "Romy obtient un stand.",
     ]
     new_chapter = engine.previously_lines(live, callback_ref="journey:j1:story:branch:0")
     assert 1 <= len(new_chapter) <= 3 and set(new_chapter) <= facts
