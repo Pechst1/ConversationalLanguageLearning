@@ -46,9 +46,11 @@ export const KNOWN_FAILURES = [
     issue: 196,
     why: 'a La Forge item under French chrome quotes its sentence in English («Complète la phrase : « Last night… »»)',
     // Only the quoted sentence of a «… la phrase : « … »» item, and only when that quote is English.
+    // Two marker words are enough: «… arrived at the flea market, I had already booked…» has only
+    // «at» and «the» among them, and a French sentence has neither.
     when: (detail) => {
       const quote = detail.match(/la phrase\s*:\s*«\s*([^»]+)»/);
-      return Boolean(quote) && englishWords(quote[1]).length >= 3;
+      return Boolean(quote) && englishWords(quote[1]).length >= 2;
     },
   },
 ];
