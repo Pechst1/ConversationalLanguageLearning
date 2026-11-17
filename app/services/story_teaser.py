@@ -312,13 +312,16 @@ def teaser_quotes_only_said(text: str, said: Iterable[str]) -> bool:
     return True
 
 
-def question_problem(text: Any, *, known: str, ledger: dict | None = None) -> str | None:
+def question_problem(
+    text: Any, *, known: str, ledger: dict | None = None, asked: Iterable[str] = ()
+) -> str | None:
     """Why a written question cannot be tomorrow's line, as a code, or ``None``.
 
     Compared against what the scene holds, never against what the question means: it is
     one sentence that ends on its question, at most :data:`TOMORROW_WORDS` words, quotes
     nobody, brings in no number or name the scene does not hold, touches something the
-    scene holds, and does not ask again what the learner has answered. A failed check
+    scene holds, does not ask again what the learner has answered, and is not a hook an
+    earlier day already left open (``asked``: :func:`hooks_asked`, #850). A failed check
     drops the question and the hook falls back to the story's open rows: it costs no
     retry and no turn, and the writer stays free to write any question that holds."""
 
@@ -342,6 +345,8 @@ def question_problem(text: Any, *, known: str, ledger: dict | None = None) -> st
         return "tomorrow_off_the_scene"
     if lane_guards.reasked_question(line, ledger):
         return "tomorrow_already_answered"
+    if asked_before(line, asked):
+        return "tomorrow_asked_before"
     return None
 
 
@@ -365,6 +370,75 @@ def _days_between(earlier: str | None, later: str | None) -> int | None:
     return (_date.fromisoformat(b) - _date.fromisoformat(a)).days
 
 
+def _recent_hooks(live: dict, today: str) -> list[dict]:
+    """The teaser ledger's rows of the last :data:`TEASER_WINDOW_DAYS` days, oldest first."""
+
+    rows = []
+    for row in live.get(TEASERS_KEY) or []:
+        days = _days_between(row.get("date"), today) if isinstance(row, dict) else None
+        if days is not None and 0 <= days < TEASER_WINDOW_DAYS:
+            rows.append(row)
+    return rows
+
+
+def _left_open(row: dict) -> str:
+    """What a filed hook left the reader with: its ``open_fr``, else the question its line
+    ends on (a plan's or a page's own hook has no ``open_fr``), else nothing."""
+
+    line = " ".join(str(row.get("open_fr") or "").split())
+    if line:
+        return line
+    last = (_SENTENCE_END.split(" ".join(str(row.get("text_fr") or "").split())) or [""])[-1]
+    return last if last.endswith("?") else ""
+
+
+def hooks_asked(live: dict | None, *, date: str | None) -> list[str]:
+    """#850: the questions the hooks of the last :data:`TEASER_WINDOW_DAYS` days left open,
+    oldest first. A question in this list was printed on Home, Done and the last panel
+    already: whether the learner answered it or not, asking it again is the story standing
+    still (:func:`asked_before`)."""
+
+    engine = _engine()
+    today = engine._date_of(date) or engine._today().isoformat()
+    asked: list[str] = []
+    for row in _recent_hooks(live or {}, today):
+        line = _left_open(row)
+        if line and line not in asked:
+            asked.append(line)
+    return asked
+
+
+def same_question(left: Any, right: Any) -> bool:
+    """#850: whether two hook questions ask the same thing, in whatever words or tense.
+
+    What a question is about is its words of meaning by lemma and stem
+    (:func:`learner_facts.content_of`): «Margaux lira-t-elle la lettre avec toi ?» and
+    «Margaux va-t-elle lire la lettre ?» are both {margaux, lire, lettre}. The same when one
+    is about nothing the other is not (two words of meaning at least, so «Et Lila ?» is not
+    every question about Lila); a question that adds a topic («Qui a écrit cette lettre ?»)
+    is a new one, and so is one with another number. A question with no word of meaning is
+    the same only word for word. A row of the story (a promise, a detail, a season question)
+    is told again only under another ``ref``: that is a new row, not this check's."""
+
+    from app.services.learner_facts import content_of, fold, numbers_of
+
+    # «Lila part-elle le 3 ?» and «Lila part-elle le 5 ?» are two questions.
+    if numbers_of(left) != numbers_of(right):
+        return False
+    a, b = content_of(left), content_of(right)
+    if not a or not b:
+        bare = [fold(text).strip(" ?!.…") for text in (left, right)]
+        return bool(bare[0]) and bare[0] == bare[1]
+    small, large = sorted((a, b), key=len)
+    return small == large or (len(small) >= 2 and small <= large)
+
+
+def asked_before(question: Any, asked: Iterable[str]) -> str | None:
+    """The earlier hook question ``question`` asks again (:func:`same_question`), or None."""
+
+    return next((line for line in asked or [] if same_question(question, line)), None)
+
+
 def next_teaser(
     live: dict,
     world: dict,
@@ -381,27 +455,26 @@ def next_teaser(
     """One forward line per resolution, or None — never an invented plot.
 
     ``question``: what a writer left open in this scene, already checked
-    (:func:`question_problem`), or the scene's own (:func:`question_left_open`). It leads.
-    Otherwise this prefers a row the addressed character witnessed, then any open row, in
-    a seeded order; skips any row or wording already used as a teaser in the last
-    ``TEASER_WINDOW_DAYS`` days; and validates the composed line against the row it names
+    (:func:`question_problem`), or the scene's own (:func:`question_left_open`). It leads,
+    unless an earlier hook asked it (:func:`asked_before`, #850). Otherwise this prefers a
+    row the addressed character witnessed, then any open row, in a seeded order; skips any
+    row or wording already used as a teaser in the last ``TEASER_WINDOW_DAYS`` days; and
+    validates the composed line against the row it names
     before it is kept. ``said`` and ``clean`` are this scene's replies, and those that
     needed no correction: a hook quotes only the second, whatever row wrote it.
     """
 
     engine = _engine()
     today = engine._date_of(date) or engine._today().isoformat()
-    recent = [
-        row for row in live.get(TEASERS_KEY) or []
-        if isinstance(row, dict)
-        and (_days_between(row.get("date"), today) is not None)
-        and 0 <= _days_between(row.get("date"), today) < TEASER_WINDOW_DAYS
-    ]
+    recent = _recent_hooks(live, today)
     used_refs = {str(row.get("ref")) for row in recent}
     last_kind = str((recent[-1] if recent else {}).get("kind") or "")
     used_texts = {str(row.get("text_fr")) for row in recent}
-    used_open = {str(row.get("open_fr")) for row in recent if row.get("open_fr")}
-    if question and question not in used_open:
+    # #850: what earlier hooks asked, compared by what it asks, not by its words: the
+    # walk's «Margaux lira-t-elle la lettre avec toi ?» came back as «Margaux va-t-elle
+    # lire la lettre ?», a new string, for a third day.
+    asked = hooks_asked(live, date=today)
+    if question and not asked_before(question, asked):
         voice = TEASER_VOICES.get(str(character_id or ""), DEFAULT_TEASER_VOICE)["tu" if register == "tu" else "vous"]
         return {
             "text_fr": held_hook((voice,), question),
