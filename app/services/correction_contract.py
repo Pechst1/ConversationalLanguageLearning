@@ -824,8 +824,9 @@ _DRE_FIRST_PERSON = {
 _ACCENTS = {
     "apres": "après", "deja": "déjà", "tres": "très", "ecole": "école", "cafe": "café", "ete": "été",
     "etre": "être", "francais": "français", "meme": "même", "pere": "père", "mere": "mère",
-    "frere": "frère", "voila": "voilà", "ca": "ça", "etait": "était", "hopital": "hôpital",
-    "theatre": "théâtre", "gateau": "gâteau", "plait": "plaît", "etes": "êtes", "cheminee": "cheminée",
+    "frere": "frère", "voila": "voilà", "ca": "ça", "etait": "était", "etais": "étais", "etaient": "étaient",
+    "hopital": "hôpital", "theatre": "théâtre", "gateau": "gâteau", "plait": "plaît", "etes": "êtes",
+    "cheminee": "cheminée",
     "etudiant": "étudiant", "etudiante": "étudiante", "arrivee": "arrivée", "journee": "journée",
     "soiree": "soirée", "idee": "idée", "annee": "année", "equipe": "équipe", "eglise": "église",
 }
@@ -1778,11 +1779,14 @@ _ELIDED_LETTERS: dict[str, frozenset[str]] = {
 #: Who may stand in front of a clitic letter: only a subject makes «n est», «l a» French
 #: («si n est pair» is about a number).
 _PRONOUN_PERSONS = {**_SUBJECT_PRONOUNS, "nous": "1pl", "vous": "2pl", "ce": "3sg", "ça": "3sg", "cela": "3sg", "qui": "3sg"}
-#: What may stand in front of «c est»: the start of a clause or one of these.
-_BEFORE_C_EST = frozenset(
-    {"que", "qu", "et", "mais", "ou", "car", "donc", "alors", "oui", "non", "parce", "puisque", "comme", "quand", "puis",
-     "lorsque", "aussi", "bon", "ah", "oh", "eh", "bonjour", "salut", "merci", "voilà", "pense", "crois", "trouve", "sais",
-     "dit"}
+#: «c est» is «c'est» wherever its «c» is not a letter. The letter is named by what stands in
+#: front (``_letter_names_itself``: «le c est muet», «la ligne C») or is a variable after
+#: these («si c est pair»). The rule used to fire only after a hand-kept list of words, so
+#: «Peut-être c est à Gus» kept its slip in the line printed as corrected (#856).
+_C_IS_A_VARIABLE_AFTER = frozenset({"si", "soit"})
+#: The words that take «de» before a noun with no article: «pas d'écharpe», «beaucoup d'amis».
+_DE_BEFORE_A_BARE_NOUN = frozenset(
+    {"pas", "plus", "jamais", "beaucoup", "peu", "trop", "assez", "moins", "autant", "tant", "combien"}
 )
 #: What may stand in front of «l» and a noun, besides the start of a clause or a verb.
 _BEFORE_L_NOUN = frozenset(
@@ -1892,14 +1896,17 @@ def _dropped_apostrophe(source: str, tokens: list[Tok], index: int) -> tuple[int
         # «la clé d Odile»: a noun in front of it, a name after it, a small «d»
         if written != "d" or prev_low is None or not _is_noun(_spelled(prev_low)):
             return None
-    elif word not in allowed:
-        # «l hotel», «l immeuble»: a noun that takes elision, after a word that can stand before one
+    elif word not in allowed and _spelled(word) not in allowed:
+        # «l hotel», «l immeuble»: a noun that takes elision, after a word that can stand before one;
+        # «pas d echarpe»: a bare noun after a word that takes «de» (#810)
         spelled = _spelled(word)
-        if tok.low != "l" or not (_vowel_sound(spelled) and _reads_as_noun(spelled)):
+        if tok.low not in {"l", "d"} or not (_vowel_sound(spelled) and _reads_as_noun(spelled)):
             return None
-        if not (prev_low is None or prev_low in _BEFORE_L_NOUN or _could_be_verb(prev_low)):
+        if tok.low == "d" and prev_low not in _DE_BEFORE_A_BARE_NOUN:
             return None
-    elif tok.low == "c" and not (opens_clause or prev_low in _BEFORE_C_EST):
+        if tok.low == "l" and not (prev_low is None or prev_low in _BEFORE_L_NOUN or _could_be_verb(prev_low)):
+            return None
+    elif tok.low == "c" and prev_low in _C_IS_A_VARIABLE_AFTER:
         return None
     elif tok.low == "s" and word not in {"il", "ils"} and not _subject_fits(_clitic_subject(tokens, index), word):
         if prev_low != "comment":
@@ -2136,6 +2143,73 @@ def _space(source: str, left: Tok, right: Tok) -> bool:
     return source[left.end : right.start] in {" ", " "}
 
 
+#: The words that close a negation by themselves after the verb: with one of them there,
+#: «pas» has no place («je ne mange jamais», «je ne vois personne»). «plus» is read apart.
+_CLOSES_A_NEGATION = frozenset({"jamais", "rien", "personne", "guère", "aucun", "aucune"})
+
+
+def _closer_after(source: str, tokens: list[Tok], verb: int) -> Tok | None:
+    """The word right after the verb at ``verb`` that already closes the negation
+    («oublie **plus**», «vois **personne**», «oublie **pas**»), or ``None``.
+
+    Both negation reorders read it before they move «pas» behind the verb: moved blindly,
+    «je ne pas oublie plus» printed «je n'oublie pas plus» (#825). A comparative «plus»
+    closes nothing: «plus grand», «plus fort», «plus que toi», «plus de café» keep «pas»
+    («je ne suis pas plus grand que toi»)."""
+
+    if verb + 1 >= len(tokens):
+        return None
+    word = tokens[verb + 1]
+    if not _space(source, tokens[verb], word):
+        return None
+    if word.low in _CLOSES_A_NEGATION or word.low == "pas":
+        return word
+    if word.low != "plus":
+        return None
+    then = tokens[verb + 2] if verb + 2 < len(tokens) else None
+    if then is None or not _same_clause(source, word, then):
+        return word  # «je n'oublie plus.»
+    if then.low in _CLOSES_A_NEGATION:
+        return word  # «je ne vois plus personne»
+    if then.low in {"que", "qu", "de", "d", "du", "des"} or _pos(_spelled(then.low)) in {"adjective", "adverb"}:
+        return None  # a comparative, or «plus de», which may be one
+    return word
+
+
+#: The words a negation puts between a verb and what follows it: «ce n'est **pas** à moi».
+_NEGATION_AFTER_VERB = frozenset({"pas", "plus", "jamais"})
+
+
+def _verb_before_a(source: str, tokens: list[Tok], index: int) -> int | None:
+    """Where the verb stands that makes the «a» at ``index`` the preposition, or ``None``.
+
+    Right after a subject and its verb («je vais a Paris»), or an auxiliary and its
+    participle («je suis allé a Lyon»), «a» cannot be avoir: avoir would need a subject of
+    its own. The same holds with the negation between them («ce n'est pas a moi», «je suis
+    pas a la maison»): the floor once read only the word right before «a», so a negation
+    left the line half fixed (#810)."""
+
+    verb = index - 1
+    if verb >= 1 and tokens[verb].low in _NEGATION_AFTER_VERB and _joined(source, tokens[verb - 1], tokens[verb]):
+        verb -= 1
+        subject = verb - 1
+        if subject >= 1 and tokens[subject].low in {"ne", "n"} and _joined(source, tokens[subject - 1], tokens[subject]):
+            subject -= 1
+        subjects = _SUBJECT_PRONOUN_WORDS | {"c", "ce"}
+    else:
+        subject = verb - 1
+        subjects = _SUBJECT_PRONOUN_WORDS | {"c"}
+    if subject < 0 or not _joined(source, tokens[subject], tokens[subject + 1]):
+        return None
+    word, before = tokens[verb].low, tokens[subject].low
+    # after a subject pronoun «reste», «porte» are the verbs
+    if before in subjects and (_finite_verb(word) or _verb_after_subject(word)):
+        return verb
+    if before in _AUXILIARY_FORMS and _participle(word) and verb == index - 1:
+        return verb
+    return None
+
+
 #: A day or a time of day: what «à dix-huit heures» can follow where «a» is no verb.
 _BEFORE_THE_CLOCK = frozenset(
     {"lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche", "demain", "hier", "hui", "matin", "soir",
@@ -2261,7 +2335,16 @@ def _phrase_edits(source: str, tokens: list[Tok], add) -> None:
             and _finite_verb(after.low)
             and not source[after.start : after.end][:1].isupper()
         ):
-            right = f"{written} {source[after.start:after.end]} {source[nxt.start:nxt.end]}"
+            verb = source[after.start : after.end]
+            closer = _closer_after(source, tokens, i + 2)
+            if closer is not None and "pas" in {nxt.low, closer.low}:
+                # #825: «je ne pas oublie plus» -> «je n'oublie plus», never «je n'oublie pas
+                # plus»: the word after the verb already closes the negation, «pas» goes.
+                word = closer if nxt.low == "pas" else nxt
+                right = f"{written} {verb} {source[word.start : word.end]}"
+                add(_edit("FR_NEGATION_ORDER", source, tok.start, closer.end, right, word=word.low, right=right))
+                continue
+            right = f"{written} {verb} {source[nxt.start:nxt.end]}"
             add(_edit("FR_NEGATION_ORDER", source, tok.start, after.end, right, word=nxt.low, right=right))
             continue
 
@@ -2281,6 +2364,12 @@ def _phrase_edits(source: str, tokens: list[Tok], add) -> None:
         ):
             verb = source[after.start : after.end]
             ne = f"n{_apostrophe(source)}{verb}" if _vowel_sound(after.low) else f"ne {verb}"
+            closer = _closer_after(source, tokens, i + 2)
+            if closer is not None:
+                # #825: «je pas oublie plus» -> «je n'oublie plus»: one negation word after the verb
+                right = f"{written} {ne} {source[closer.start : closer.end]}"
+                add(_edit("FR_NEGATION_ORDER", source, tok.start, closer.end, right, word=closer.low, right=right))
+                continue
             right = f"{written} {ne} {source[nxt.start : nxt.end]}"
             add(_edit("FR_NEGATION_ORDER", source, tok.start, after.end, right, word="pas", right=right))
             continue
@@ -2365,27 +2454,21 @@ def _phrase_edits(source: str, tokens: list[Tok], add) -> None:
             continue
 
         # «je vais a Paris» -> «je vais à Paris»: right after a subject and its verb (or an
-        # auxiliary and its participle: «je suis allé a Lyon»), «a» cannot be avoir
+        # auxiliary and its participle: «je suis allé a Lyon»), negated or not («ce n'est
+        # pas a moi»), «a» cannot be avoir
         if (
             tok.low == "a"
             and written == "a"
             and prev is not None
-            and i >= 2
-            and _joined(source, tokens[i - 2], prev)
+            and (verb_at := _verb_before_a(source, tokens, i)) is not None
             and _space(source, prev, tok)
-            and (
-                (
-                    (tokens[i - 2].low in _SUBJECT_PRONOUN_WORDS or tokens[i - 2].low == "c")
-                    # after a subject pronoun «reste», «porte» are the verbs
-                    and (_finite_verb(prev.low) or _verb_after_subject(prev.low))
-                )
-                or (tokens[i - 2].low in _AUXILIARY_FORMS and _participle(prev.low))
-            )
             and nxt is not None
             and _same_clause(source, tok, nxt)
             # «le projet auquel je croyais a échoué»: that «a» belongs to the main clause
             and not _participle(nxt.low)
-            and not any(t.low in _RELATIVES and _same_sentence(source, t, tok) for t in tokens[max(0, i - 8) : i - 2])
+            and not any(
+                t.low in _RELATIVES and _same_sentence(source, t, tok) for t in tokens[max(0, verb_at - 7) : verb_at - 1]
+            )
         ):
             add(_edit("FR_A_GRAVE", source, tok.start, tok.end, "à", right="à"))
             continue
