@@ -6886,6 +6886,17 @@ def _unassessed_acknowledgement(mission: Any, *, register_now: str | None = None
     return STOCK_ACKNOWLEDGEMENT_TU if tu else STOCK_ACKNOWLEDGEMENT_VOUS
 
 
+def held_reply(mission: Any, db: Session | None = None) -> str:
+    """What the thread shows under a learner message nobody answered (pilot P0, walk 17 Nov).
+
+    The acknowledgement is not the correspondent's turn (#397/#333: stored, it closed the
+    letter as answered), but a thread that only said «not answered yet» read as silent
+    while the reply had merely been vetoed. The learner reads it, in today's register."""
+
+    session = db if db is not None else object_session(mission)
+    return _unassessed_acknowledgement(mission, register_now=live_register(session, None, mission))
+
+
 #: The line nobody wrote. It is what the Courrier says when no character reply could be
 #: produced; it is not a turn of the conversation and is never stored as one (#397/#333).
 STOCK_ACKNOWLEDGEMENT_TU = "Merci pour ton message, je l'ai bien lu. Je te réponds vite."
@@ -8389,6 +8400,7 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
             for attempt in sorted(mission.attempts or [], key=lambda item: item.created_at)
         ]
         unanswered_ids = {id(turn) for turn in unanswered_user_turns(mission.turns)}
+        held = held_reply(mission) if unanswered_ids else ""
         payload["turns"] = [
             {
                 "id": str(turn.id),
@@ -8404,7 +8416,7 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
                     else {}
                 ),
                 # #590: every learner message nobody answered says so on the thread itself.
-                **({"reply_state": "pending"} if id(turn) in unanswered_ids else {}),
+                **({"reply_state": "pending", "held_reply": held} if id(turn) in unanswered_ids else {}),
                 **stamp_fields(turn.created_at, zone),
             }
             for turn in sorted(mission.turns or [], key=lambda item: item.turn_index)
