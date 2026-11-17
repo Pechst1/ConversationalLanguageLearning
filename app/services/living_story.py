@@ -4306,6 +4306,19 @@ def _learner_lines(journey: Any, *, act: int | None = None) -> list[str]:
     return lines
 
 
+def _character_replies(journey: Any, *, act: int | None = None) -> list[str]:
+    """P8: what the character answered each of the learner's replies today, in order."""
+
+    lines: list[str] = []
+    for step in getattr(journey, "steps", None) or []:
+        if str(getattr(step, "kind", "")) != "respond" or (act is not None and step_act(step) != act):
+            continue
+        for turn in (getattr(step, "private_task", None) or {}).get("turns") or []:
+            if isinstance(turn, dict) and str(turn.get("learner") or "").strip():
+                lines.append(str(turn.get("character") or ""))
+    return lines
+
+
 def _clean_learner_lines(journey: Any, *, act: int | None = None) -> list[str]:
     """The replies in today's scene that needed no correction: the only ones a hook may
     quote. A reply the margin corrected comes back told, never as raw text (#445)."""
@@ -5717,7 +5730,7 @@ def story_context(db: Session, user: User, *, now: datetime | None = None) -> di
             if (memory := story_memory.view(live.get(story_memory.MEMORY_KEY)))
             else {}
         ),
-        # P8: the «À suivre…» the last played day ended on; today's page takes it up.
+        # P8: the «À suivre…» the last played day ended on; today is first about it.
         **({YESTERDAY_HOOK_KEY: hook} if (hook := yesterday_hook(live)) else {}),
         "relationships": state.get("relationships") or {},
         "moods": live.get("moods") or {},
@@ -7323,9 +7336,7 @@ def yesterday_hook(live: dict) -> dict | None:
     """The hook the last played day ended on, or ``None``.
 
     ``None`` on a learner's first day (no day played), when no hook was written, and when
-    the stored hook is older than the last played day (a day ended without one). P8:
-    ``set_aside_yesterday`` when the page of that day set its own hook aside: today's page
-    may not set one aside again (two days in a row is the story standing still)."""
+    the stored hook is older than the last played day (a day ended without one)."""
 
     teaser = (live or {}).get(TEASER_KEY)
     if not isinstance(teaser, dict):
@@ -7347,7 +7358,6 @@ def yesterday_hook(live: dict) -> dict | None:
         **({"question_fr": question} if question and question != text else {}),
         "date": date,
         **({"character_id": teaser["character_id"]} if teaser.get("character_id") else {}),
-        **({"set_aside_yesterday": True} if teaser.get("after_set_aside") else {}),
     }
 
 
@@ -7370,12 +7380,6 @@ _TO_THE_LEARNER = re.compile(r"\b(?:tu|te|t|toi|ton|ta|tes|vous|votre|vos)\b", r
 _SETS_ASIDE = re.compile(
     r"\b(?:pas\s+(?:ce\s+soir|maintenant|aujourd['’]hui|tout\s+de\s+suite|encore)|plus\s+tard|demain"
     r"|une\s+autre\s+fois|ça\s+attend\w*|attendr\w*|on\s+verra|on\s+en\s+(?:parle|reparle)\w*)\b",
-    re.IGNORECASE,
-)
-#: …and gives a reason for it in the same line («d'abord le radiateur», «parce que…»).
-_A_REASON = re.compile(
-    r"\b(?:parce\s+qu|car|puisqu|d['’]abord|avant\s+(?:de|qu|ça|le|la|les|tes|ton|ta)|tant\s+qu|à\s+cause"
-    r"|il\s+faut|sinon|sans\s+(?:le|la|les|tes|ton|ta))",
     re.IGNORECASE,
 )
 #: A panel that says the learner's answer is given: «C'est noté.», «Mercredi, c'est fini.»
@@ -7407,76 +7411,55 @@ def _hook_lines(draft: Any) -> tuple[str, list[list[str]]]:
     return str(get(draft, "opening_line_fr") or ""), panels
 
 
-def hook_reading(hook: dict | None, draft: Any) -> str | None:
-    """How the page treats yesterday's hook, as a first deterministic reading (the story
-    critic's ``takes_up_hook`` is the judgement): ``None`` when it takes it up, else why
-    not, as a code.
-
-    P8, after the real-model check of 17 Nov:
-    - ``missing``: the hook never comes up. ``late``: only after panel 2 (A1 day 4: soup
-      in panels 1–2, the flight in panel 4). The take-up is in panel 1 or 2, or it is the
-      question put to the learner.
-    - ``decided``: the hook asks the learner and a panel gives the learner's answer
-      («Mercredi 2 décembre. C'est noté.», A1 day 5). It is answered by the learner: the
-      question put to them, or a line in panel 1 or 2 asking it back.
-    - ``cheap_set_aside``: one line waves it away with no reason in that line («Son
-      avenir… Pas ce soir.», B1 day 5). ``set_aside_twice``: yesterday's page set its hook
-      aside too (``set_aside_yesterday``).
-    """
-
-    if not hook:
-        return None
-    stems = _hook_stems(hook)
-    if not stems:
-        return None
-    question, panels = _hook_lines(draft)
-    to_learner = bool(hook.get("question_fr")) and bool(_TO_THE_LEARNER.search(str(hook.get("question_fr"))))
-    if to_learner and any(_DECIDED.search(line) for panel in panels for line in panel):
-        return "decided"
-    early = [line for panel in panels[:2] for line in panel if _mentions(stems, line)]
-    asked = _mentions(stems, question)
-    put_off = [line for line in early if _SETS_ASIDE.search(line) and "?" not in line]
-    if early and len(put_off) == len(early) and not asked:
-        if hook.get("set_aside_yesterday"):
-            return "set_aside_twice"
-        return None if any(_A_REASON.search(line) for line in put_off) else "cheap_set_aside"
-    if to_learner:
-        if asked or any("?" in line for line in early):
-            return None
-    elif asked or early:
-        return None
-    if early:
-        # A question to the learner that panel 1 or 2 only tells, never asks.
-        return "decided"
-    later = any(_mentions(stems, line) for panel in panels[2:] for line in panel)
-    return "late" if later else "missing"
+#: P8 (third commit): where a page's reading of yesterday's hook is stored and counted.
+HOOK_OBSERVATION_KEY = "hook_observation"
 
 
-def hook_taken_up(hook: dict | None, draft: Any) -> bool:
-    """Whether the page takes up yesterday's hook (:func:`hook_reading` finds nothing to
-    say). True when there is no hook."""
+def hook_observation(hook: dict | None, draft: Any) -> dict | None:
+    """How an accepted page treats yesterday's hook, as counts for a walk or the ops view.
+    An observation only: it never refuses a page and never asks for a rewrite (P8, third
+    commit: the refusals cost five night runs in ten and did not buy the behaviour).
 
-    return hook_reading(hook, draft) is None
+    - ``hook_taken_up``: ``early`` (panel 1 or 2, or the question put to the learner),
+      ``late`` (only after panel 2), ``set_aside`` (every early mention puts it off) or
+      ``no``.
+    - ``hook_repeats``: the question put to the learner is yesterday's hook asked again,
+      not its next step (``story_teaser.same_question``).
+    - ``decides_for_learner``: the hook asked the learner, and a panel says the answer
+      is given («Mercredi 2 décembre. C'est noté.»).
 
-
-def hook_set_aside(hook: dict | None, draft: Any) -> bool:
-    """P8: whether the page set yesterday's hook aside (with its reason) instead of
-    answering it: the next page may not do that again."""
+    ``None`` when there is no hook. Word-based, like every reading here: «ton avion» for
+    «ton vol» reads as ``no``."""
 
     if not hook:
-        return False
+        return None
+    from app.services.story_teaser import same_question
+
+    said = str(hook.get("question_fr") or hook.get("text_fr") or "")
     stems = _hook_stems(hook)
     question, panels = _hook_lines(draft)
-    early = [line for panel in panels[:2] for line in panel if _mentions(stems, line)]
-    return bool(early) and not _mentions(stems, question) and all(
-        _SETS_ASIDE.search(line) and "?" not in line for line in early
-    )
+    early = [line for panel in panels[:2] for line in panel if _mentions(stems, line)] if stems else []
+    asked = bool(stems) and _mentions(stems, question)
+    later = bool(stems) and any(_mentions(stems, line) for panel in panels[2:] for line in panel)
+    put_off = bool(early) and all(_SETS_ASIDE.search(line) and "?" not in line for line in early)
+    if asked or (early and not put_off):
+        taken = "early"
+    elif early:
+        taken = "set_aside"
+    else:
+        taken = "late" if later else "no"
+    to_learner = said.rstrip().endswith("?") and bool(_TO_THE_LEARNER.search(said))
+    return {
+        "hook_taken_up": taken,
+        "hook_repeats": bool(question.strip()) and same_question(question, said),
+        "decides_for_learner": to_learner and any(_DECIDED.search(line) for panel in panels for line in panel),
+    }
 
 
 def hook_applies(context: dict) -> dict | None:
-    """Yesterday's hook when today's page must take it up, else ``None``: not on a later
-    act (the day's first act took it), an épreuve, «On se tutoie ?», or a page written
-    to be shared by many learners (``season.page_pool``)."""
+    """Yesterday's hook when today's page is about it, else ``None``: not on a later act
+    (the day's first act took it), an épreuve, «On se tutoie ?», or a page written to be
+    shared by many learners (``season.page_pool``)."""
 
     hook = context.get(YESTERDAY_HOOK_KEY)
     if not hook or context.get(ACT_STORY_KEY) or context.get(EPREUVE_KEY) or context.get(TUTOIEMENT_KEY):
@@ -7486,38 +7469,19 @@ def hook_applies(context: dict) -> dict | None:
     return hook
 
 
-#: P8: the rewrite instruction for each way a page misses yesterday's hook.
-_HOOK_ISSUES = {
-    "missing": "take it up. In panel 1 or 2 someone answers it or moves it on, or it is the question put to the learner.",
-    "late": "take it up in panel 1 or 2, or make it the question put to the learner: the page reaches it too late.",
-    "decided": (
-        "it asks the learner, so the learner answers it: make it the question put to the learner, or have "
-        "someone ask it in panel 1 or 2. No panel says what the learner decided."
-    ),
-    "cheap_set_aside": (
-        "a line that puts it off needs a reason from this scene in that same line (what has to happen "
-        "first, and why); otherwise answer it or move it on in panel 1 or 2."
-    ),
-    "set_aside_twice": (
-        "yesterday's page already put its hook off: today someone answers it or moves it on in panel 1 or 2, "
-        "or it is the question put to the learner."
-    ),
-}
+def _observe_hook(context: dict, draft: Any) -> None:
+    """P8: the accepted page's ``hook_observation``, stored with the scene's context and
+    logged as one line. Never raises: an observation never costs the day."""
 
-
-def hook_issue(draft: Any, context: dict) -> str | None:
-    """P8 (walk of 17 Nov): «Que décideras-tu pour ton vol ?» closed day 3 and day 4
-    never asked it. The deterministic reading the story critic's ``takes_up_hook`` is
-    checked against: the instruction for a rewrite, or ``None`` when the page takes the
-    hook up (or there is none). Read with the critic, never as a page guard, so a page it
-    refuses is still one the critic has read when it is served (WP-114)."""
-
-    hook = hook_applies(context)
-    code = hook_reading(hook, draft) if hook is not None else None
-    if code is None:
-        return None
-    said = hook.get("question_fr") or hook.get("text_fr")
-    return f"Yesterday ended on «{said}» (yesterday_hook) and the learner comes back for it: {_HOOK_ISSUES[code]}"
+    try:
+        observed = hook_observation(hook_applies(context), draft)
+    except Exception:  # noqa: BLE001 - an observation never costs the day
+        logger.exception("living_story: hook observation unavailable")
+        return
+    if observed is None:
+        return
+    context[HOOK_OBSERVATION_KEY] = observed
+    logger.info("living_story: hook_observation %s", json.dumps(observed, sort_keys=True))
 
 
 def _check_addressee(draft: SceneDraft, context: dict) -> None:
@@ -8230,9 +8194,12 @@ def _validate_scene(draft: SceneDraft, context: dict):
     open_title = (
         str(chapter.get("title_fr") or "") if chapter and not closing else ""
     )
-    # P8: a page that takes up yesterday's hook may come back to yesterday's person,
-    # place and question: that is the hook answered, not the day staged again.
-    asked_before = recent[:-1] if recent and hook_applies(context) and hook_taken_up(hook_applies(context), draft) else recent
+    # P8: a page about yesterday's hook may come back to yesterday's person, place and
+    # question: that is the hook taken up, not the day staged again. (Read only to relax
+    # this check: the hook never refuses a page.)
+    hook = hook_applies(context)
+    observed = hook_observation(hook, draft) if recent and hook else None
+    asked_before = recent[:-1] if observed and observed["hook_taken_up"] != "no" else recent
     triple = next(
         (
             item
@@ -8615,6 +8582,8 @@ def _brief(draft: SceneDraft, context: dict, *, usage: list[dict]) -> ScenarioBr
             # WP-92 / WP-93: what the accepted draft did with the plan and the words.
             GRAMMAR_OUTCOME_KEY: context.get(GRAMMAR_OUTCOME_KEY),
             WORDS_OUTCOME_KEY: context.get(WORDS_OUTCOME_KEY),
+            # P8: how the page treats yesterday's hook (an observation, never a guard).
+            **({HOOK_OBSERVATION_KEY: context[HOOK_OBSERVATION_KEY]} if context.get(HOOK_OBSERVATION_KEY) else {}),
             # WP-115c: the planner makes each a target the reply is graded on.
             **({STORY_WORDS_KEY: context[STORY_WORDS_KEY]} if context.get(STORY_WORDS_KEY) else {}),
         },
@@ -9742,7 +9711,7 @@ def generate_scene(
                     if story_split._day_contract(context)
                     else director_prompt()
                 )
-                # P8: yesterday's «À suivre…» is taken up (on a page written for its learner).
+                # P8: today is first about yesterday's «À suivre…» (a page for its learner).
                 + (story_split.HOOK_DIRECTOR_NOTE if pool is None and hook_applies(context) else ""),
                 _prompt_payload(writer),
                 SceneDraft,
@@ -9762,6 +9731,9 @@ def generate_scene(
             # A lost day's readings are the metric too.
             _record_story_reviews(db, user, context, reviews)
             raw_drafts = context.pop(_POOL_RAW_KEY, None)
+        if pool is None:
+            # P8: how the accepted page treats yesterday's hook, counted, never enforced.
+            _observe_hook(context, draft)
         kept_page = _to_pool(db, context, pool[0], draft, raw_drafts, usage, reviews) if pool is not None else None
         return _scene_brief(
             draft,
@@ -10191,7 +10163,6 @@ def _season_story_review(context: dict, reviews: list[dict]):
                     recent_days=(context.get("recent_situations") or [])[-3:],
                     memory=context.get(story_memory.MEMORY_KEY),
                     act=act,
-                    yesterday_hook=hook_applies(context),
                 ),
                 StoryReview,
                 record,
@@ -10202,13 +10173,6 @@ def _season_story_review(context: dict, reviews: list[dict]):
             # A critic that cannot answer never refuses a draft.
             reviews.append({"accepted": True, "unavailable": str(exc), "final": final})
             return None
-        # P8: the hook yesterday ended on, read deterministically too: a page that never
-        # touches it fails takes_up_hook whatever the model scored (a reader item:
-        # storytelling, so a second refusal for it alone is still served and logged).
-        if verdict.takes_up_hook and (missed := hook_issue(proposal, context)):
-            verdict = verdict.model_copy(
-                update={"takes_up_hook": False, "issues": [*verdict.issues, missed][-8:]}
-            )
         accepted = review_verdict(verdict, act=act is not None)
         # WP-149: a refusal that names a correctness defect (the register canon, the
         # flags, a spoiler) is never served — not on the final reading, not as the
@@ -11829,25 +11793,35 @@ def _hook_after_day(
     files them: the end card, Home, the push and tomorrow's page (``yesterday_hook``) all
     read this one row.
 
-    The order: a tentpole's own «À suivre…»; P8 (B1 walk, day 4) the ending's own step
-    forward, so the end card and Home never promise two different things; the contract's
-    planned hook; then the writer's question, the scene's open question or an open row
-    (``next_teaser``). P8: no hook asks again what today's page took up
-    (``story_teaser.hook_again``), and a page that set yesterday's hook aside marks the
-    new one (``after_set_aside``) so tomorrow's page may not do it again."""
+    The order: a tentpole's own «À suivre…»; P8 the learner's own «demain …» as the
+    scene said it back, else the ending's own step forward, so the end card and Home never
+    promise two different things; the contract's planned hook; then the writer's question,
+    the scene's open question or an open row (``next_teaser``). P8: no hook asks again what
+    today's page took up (``story_teaser.hook_again``) or what the learner answered in this
+    scene (``story_teaser.answered_in_scene``). The row is filed as ONE line
+    (``story_teaser.one_hook``): every surface prints it as it is."""
 
     from app.services.season.runtime import season_teaser
-    from app.services.story_teaser import ending_hook
+    from app.services.story_teaser import answered_in_scene, ending_hook, one_hook
 
     date = _journey_date(journey)
     register = _register_of(relationships, brief.character_id)
     name = _cast_names(world_after).get(brief.character_id)
     said = _learner_lines(journey, act=act)
+    replies = _character_replies(journey, act=act)
     step = (
-        ending_hook(turn.resolution_fr, live, character_id=brief.character_id, date=date, name=name, said=said)
+        ending_hook(
+            turn.resolution_fr, live, character_id=brief.character_id, date=date, name=name, said=said, replies=replies
+        )
         if not getattr(turn, "authored_ending", False)
         else None
     )
+    # The questions the learner answered here: the page's own, and every reply's but the last.
+    draft = (getattr(brief, "story_context", None) or {}).get("draft") or {}
+    answered = [str(draft.get("opening_line_fr") or ""), *replies[:-1]]
+
+    def still_open(question: str | None) -> str | None:
+        return None if question and answered_in_scene(question, answered) else question
     if not scene_record.enabled():
         # Main's tomorrow: the page's own «À suivre…», the plan's hook, else an open row.
         from app.services import story_teaser_main
@@ -11859,6 +11833,7 @@ def _hook_after_day(
         ) or story_teaser_main.next_teaser(
             live, world_after, character_id=brief.character_id, register=register, date=date, seed=seed, name=name
         )
+        teaser = one_hook(teaser)
         teasers = story_teaser_main.teasers_after(live, teaser)
     else:
         # #466: what the reader carries into tomorrow: the writer's question, else the
@@ -11866,7 +11841,7 @@ def _hook_after_day(
         ledger = _stored_ledger(journey, act=act)
         # #850: a tentpole prints the writer's question as «Tomorrow» too, without
         # ``next_teaser``: a question an earlier hook asked is dropped here, for every surface.
-        question = _tomorrow_question(db, user, turn, brief, said, ledger, asked=hooks_asked(live, date=date))
+        question = still_open(_tomorrow_question(db, user, turn, brief, said, ledger, asked=hooks_asked(live, date=date)))
         # WP-111: a tentpole day's tomorrow is the page's own «À suivre…».
         teaser = (
             season_teaser(brief.story_context, date=date, question=question)
@@ -11882,12 +11857,10 @@ def _hook_after_day(
             name=name,
             said=said,
             clean=_clean_learner_lines(journey, act=act),
-            question=question or question_left_open(ledger),
+            question=question or still_open(question_left_open(ledger)),
         )
+        teaser = one_hook(teaser)
         teasers = teasers_after(live, teaser)
-    context = getattr(brief, "story_context", None) or {}
-    if teaser and hook_set_aside(context.get(YESTERDAY_HOOK_KEY), context.get("draft") or {}):
-        teaser = {**teaser, "after_set_aside": True}
     return teaser, teasers
 
 

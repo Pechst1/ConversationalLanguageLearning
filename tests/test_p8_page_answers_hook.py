@@ -17,7 +17,7 @@ import pytest
 from app.services import living_story as engine
 from app.services import story_split
 from app.services.journey_contracts import InputMode
-from app.services.season.director import StoryReview, critic_payload
+from app.services.season.director import StoryReview
 from tests.test_season_one import season_on  # noqa: F401 - fixture
 from tests.test_story_split import (  # noqa: F401 - fixtures
     _context,
@@ -127,18 +127,17 @@ def test_the_one_call_director_reads_yesterday_s_hook(
     assert (director.get("yesterday_hook") or {}).get("question_fr") == HOOK
 
 
-def test_the_plan_says_how_it_takes_the_hook_up_and_may_come_back_to_yesterday_s_question():
+def test_a_day_about_yesterday_s_hook_may_come_back_to_yesterday_s_question():
+    """Third commit: no plan field and no plan refusal; yesterday's question is the hook's."""
+
     context = _with_hook(_context())
     yesterday = context["recent_situations"][-1]["objective_native"]
-    # Without a word on the hook the first plan is asked again.
-    assert "yesterday_hook" in (story_split.hook_plan_issue(_plan(), context) or "")
-    # Taking it up is not «already asked»: yesterday's question is the hook's.
-    taking_up = _plan(task=yesterday, takes_up_hook="Beat 1: Lila asks again about the flight.")
-    assert story_split.plan_issue(taking_up, context) is None
+    assert story_split.plan_issue(_plan(task=yesterday), context) is None
     assert "already asked" in (story_split.plan_issue(_plan(task=yesterday), _context()) or "")
+    assert "takes_up_hook" not in story_split.PagePlan.model_fields
 
 
-# -- the critic: takes_up_hook ------------------------------------------------------
+# -- the critic: back to main's prompt; the hook never refuses a page ----------------
 
 
 def _page(
@@ -178,7 +177,7 @@ def _review(monkeypatch, context: dict, page: dict) -> tuple[dict | None, list[d
     sent: list[dict] = []
 
     def fake_call(system, payload, schema, record, **kwargs):
-        sent.append(payload)
+        sent.append({"system": system, **payload})
         return GOOD_REVIEW, None
 
     monkeypatch.setattr(engine, "_json_call", fake_call)
@@ -194,41 +193,103 @@ def _season_context() -> dict:
     return _with_hook(_context())
 
 
-def test_a_page_that_never_touches_the_flight_is_refused(monkeypatch):
+def test_a_page_that_never_touches_the_hook_is_accepted_and_observed_as_no(monkeypatch):
+    """Third commit (real-model check 2, 17 Nov): the hook refused five night runs in ten
+    and did not buy the behaviour. It never refuses a page; it is counted."""
+
     page = _page("Le studio est froid.", "Tu as faim ?")
     outcome, sent = _review(monkeypatch, _season_context(), page)
-    assert sent[0]["yesterday_hook"]["question_fr"] == HOOK, "the critic reads the hook"
-    assert outcome is not None and outcome["accepted"] is False
-    assert any(HOOK in issue for issue in outcome["issues"])
-    assert outcome["class"] == "storytelling", "a reader item: a second refusal is still served"
+    assert outcome is not None and outcome["accepted"] is True, outcome
+    assert "yesterday_hook" not in sent[0], "the critic is not asked about the hook"
+    assert "yesterday_hook" not in sent[0]["system"] and "takes_up_hook" not in sent[0]["system"]
+    assert "takes_up_hook" not in StoryReview.model_fields
+    observed = engine.hook_observation(_season_context()["yesterday_hook"], page)
+    assert observed == {"hook_taken_up": "no", "hook_repeats": False, "decides_for_learner": False}
 
 
 @pytest.mark.parametrize(
-    "page",
+    "page, taken",
     [
-        _page("Lila tient ton billet.", "Alors, ton vol ? Mercredi ou pas ?"),
-        _page(
-            "Le studio est froid.",
-            "Ton vol, on en parle plus tard : d'abord le radiateur, il gèle ici.",
-        ),
+        (_page("Lila tient ton billet.", "Alors, ton vol ? Mercredi ou pas ?"), "early"),
+        (_page("Le studio est froid.", "Ton vol, on en parle plus tard : d'abord le radiateur."), "set_aside"),
+        (_page("Le soir. Marin frappe.", "Tu manges la soupe.", last_line="Lila dit : ton vol de mercredi."), "late"),
+        (_page("Le soir.", "Tu manges ?", opening="Ton vol de mercredi : tu le gardes ?"), "early"),
     ],
-    ids=["answers-it-in-panel-2", "sets-it-aside-with-a-reason"],
+    ids=["panel-2", "set-aside", "panel-4", "as-the-question"],
 )
-def test_a_page_that_takes_the_hook_up_or_sets_it_aside_is_accepted(monkeypatch, page):
+def test_every_take_up_is_accepted_and_counted(monkeypatch, page, taken):
     outcome, _sent = _review(monkeypatch, _season_context(), page)
     assert outcome is not None and outcome["accepted"] is True
+    assert engine.hook_observation(_season_context()["yesterday_hook"], page)["hook_taken_up"] == taken
 
 
-def test_the_critic_never_counts_the_hook_as_a_repeat():
-    payload = critic_payload({}, _page("x", "y"), yesterday_hook={"question_fr": HOOK})
-    assert payload["yesterday_hook"]["question_fr"] == HOOK
-    assert "yesterday_hook" not in critic_payload(
-        {}, _page("x", "y"), yesterday_hook={"question_fr": HOOK}, act={"role": "soir"}
-    )
-    from app.services.season.director import STORY_CRITIC
+def test_a_page_that_ignores_the_hook_is_written_once_and_the_observation_says_no(
+    assembled_client, db_session, journey_enabled, clock, split_on
+):
+    """The guard of point 1: on a day with a hook, the fake writer's page (a box of photos,
+    never the flight) is accepted on the first attempt: one plan, one page, one reading."""
 
-    moves_on = " ".join(STORY_CRITIC.split("- moves_on:")[1].split("- remembers:")[0].split())
-    assert "Taking up yesterday_hook is never a repeat" in moves_on
+    split_on.critic_refusals_left = 0
+    user = _learner_on_gap_day(assembled_client, db_session)
+    _store_hook(db_session, user)
+    with engine.written_ahead_of_time():
+        brief = engine.generate_scene(db_session, user=user, input_mode=InputMode.TEXT)
+    assert not isinstance(brief, engine.ContentUnavailable), brief
+    schemas = [schema for schema, _ in split_on.calls]
+    assert schemas.count("PagePlan") == 1 and schemas.count("PageText") == 1, schemas
+    assert schemas.count("StoryReview") == 1, schemas
+    assert brief.story_context[engine.HOOK_OBSERVATION_KEY]["hook_taken_up"] == "no"
+
+
+def _night_calls(assembled_client, db_session, split_on, *, hook: bool, refusals: int) -> list[str]:
+    split_on.calls.clear()
+    split_on.plans.clear()
+    split_on.critic_refusals_left = refusals
+    user = _learner_on_gap_day(assembled_client, db_session)
+    if hook:
+        _store_hook(db_session, user)
+    with engine.written_ahead_of_time():
+        engine.generate_scene(db_session, user=user, input_mode=InputMode.TEXT)
+    model = ("PagePlan", "PageText", "PageAids", "SceneDraft", "StoryReview")
+    return [schema for schema, _ in split_on.calls if schema in model]
+
+
+#: The writer and critic calls of a night run on ``origin/main`` (d1486e6c), measured with
+#: this fake provider on a day without a hook: a critic that accepts, and one that refuses
+#: every page it reads.
+MAIN_NIGHT_CALLS = {0: 4, 99: 8}
+
+
+@pytest.mark.parametrize("refusals", [0, 99], ids=["critic-accepts", "critic-refuses-everything"])
+def test_a_hook_costs_no_writer_or_critic_call(
+    assembled_client, db_session, journey_enabled, clock, split_on, refusals
+):
+    """The guard of point 4 (check 2: a failed night run with a hook cost 2–3 minutes and
+    US$0.30–0.45): at most as many writer and critic calls as main makes without one."""
+
+    without = _night_calls(assembled_client, db_session, split_on, hook=False, refusals=refusals)
+    with_hook = _night_calls(assembled_client, db_session, split_on, hook=True, refusals=refusals)
+    assert len(without) == MAIN_NIGHT_CALLS[refusals], without
+    assert len(with_hook) <= MAIN_NIGHT_CALLS[refusals], with_hook
+
+
+def test_a_refused_plan_logs_its_reason(assembled_client, db_session, journey_enabled, clock, split_on):
+    """Check 2's server log read «story_split: plan refused (%s)»: loguru formats with «{}»."""
+
+    from loguru import logger
+
+    lines: list[str] = []
+    sink = logger.add(lambda message: lines.append(str(message)), format="{message}")
+    try:
+        split_on.stranger_once = True
+        split_on.critic_refusals_left = 0
+        user = _learner_on_gap_day(assembled_client, db_session)
+        with engine.written_ahead_of_time():
+            engine.generate_scene(db_session, user=user, input_mode=InputMode.TEXT)
+    finally:
+        logger.remove(sink)
+    refused = [line for line in lines if "plan refused" in line]
+    assert refused and "%s" not in refused[0] and "odile" in refused[0], refused
 
 
 # -- 2. «Précédemment» --------------------------------------------------------------
@@ -445,17 +506,9 @@ def test_a_hook_the_learner_put_off_comes_back_once_only():
     assert day5 is None or "vol" not in day5["text_fr"], day5
 
 
-# -- 3. taken up early; set aside only with a reason, never two days running ---------
-
-
-def test_a_hook_reached_only_in_panel_four_is_refused(monkeypatch):
-    """A1 day 4: soup in panels 1–2, the flight in panel 4."""
-
-    page = _page("Le soir. Marin frappe.", "Tu manges la soupe.", last_line="Lila dit : ton vol de mercredi.")
-    outcome, _sent = _review(monkeypatch, _season_context(), page)
-    assert outcome is not None and outcome["accepted"] is False
-    assert any("too late" in issue for issue in outcome["issues"]), outcome["issues"]
-
+# -- 3./4. late, waved away, decided for the learner: counted, never refused -------
+# Third commit: commit 2 refused these pages (and marked a set-aside for the next day).
+# Check 2 showed the refusals cost the night run and did not change the pages.
 
 MISTRAL = {
     "text_fr": "Il faudra qu'on en parle. L'avenir du Mistral : le garder, le changer, ou le laisser partir ?",
@@ -470,7 +523,7 @@ def _marin_page(*second: str) -> dict:
     return page
 
 
-def test_a_hook_waved_away_in_one_line_is_refused(monkeypatch):
+def test_a_hook_waved_away_in_one_line_is_served_and_counted_as_set_aside(monkeypatch):
     """B1 day 5: «Son avenir, tout ça. Pas ce soir.»"""
 
     page = _marin_page(
@@ -478,38 +531,14 @@ def test_a_hook_waved_away_in_one_line_is_refused(monkeypatch):
         "Mange d'abord. Moi, je m'assieds après.",
     )
     outcome, _sent = _review(monkeypatch, {**_context(), "yesterday_hook": MISTRAL}, page)
-    assert outcome is not None and outcome["accepted"] is False
-    assert any("reason" in issue for issue in outcome["issues"]), outcome["issues"]
-    assert outcome["class"] == "storytelling"
-
-
-def test_a_set_aside_with_its_reason_holds_once_but_not_two_days_running(monkeypatch):
-    page = _marin_page("L'avenir du Mistral, on en parle plus tard : d'abord le radiateur, il gèle ici.")
-    outcome, _sent = _review(monkeypatch, {**_context(), "yesterday_hook": MISTRAL}, page)
     assert outcome is not None and outcome["accepted"] is True
-    assert engine.hook_set_aside(MISTRAL, page)
-    again = {**MISTRAL, "set_aside_yesterday": True}
-    outcome, _sent = _review(monkeypatch, {**_context(), "yesterday_hook": again}, page)
-    assert outcome is not None and outcome["accepted"] is False
-    assert any("already put its hook off" in issue for issue in outcome["issues"]), outcome["issues"]
+    assert engine.hook_observation(MISTRAL, page)["hook_taken_up"] == "set_aside"
 
-
-def test_the_settle_marks_a_set_aside_for_the_next_page(monkeypatch):
-    page = _marin_page("L'avenir du Mistral, on en parle plus tard : d'abord le radiateur, il gèle ici.")
-    teaser, _rows = _settle_hook(
-        monkeypatch, "Bonne nuit.", context={"draft": page, "yesterday_hook": MISTRAL}
-    )
-    assert teaser["after_set_aside"] is True
-    live = {"next_teaser": teaser, "events": [{"scene_id": "s5", "date": teaser["date"], "summary_fr": "x"}]}
-    assert engine.yesterday_hook(live)["set_aside_yesterday"] is True
-
-
-# -- 4. a question to the learner is the learner's to answer -------------------------
 
 FLIGHT = {"text_fr": f"Marin te regarde. {DAY4_Q}", "question_fr": DAY4_Q, "date": "2026-11-20"}
 
 
-def test_the_page_never_decides_the_learner_s_answer(monkeypatch):
+def test_a_page_that_decides_for_the_learner_is_served_and_counted(monkeypatch):
     """A1 day 5: the panels narrated the airline call and «Mercredi 2 décembre. C'est noté.»"""
 
     page = _page(
@@ -519,15 +548,15 @@ def test_the_page_never_decides_the_learner_s_answer(monkeypatch):
         opening="L'agent demande pourquoi tu changes la date. Tu lui dis quoi ?",
     )
     outcome, _sent = _review(monkeypatch, {**_context(), "yesterday_hook": FLIGHT}, page)
-    assert outcome is not None and outcome["accepted"] is False
-    assert any("No panel says what the learner decided" in issue for issue in outcome["issues"])
+    assert outcome is not None and outcome["accepted"] is True
+    assert engine.hook_observation(FLIGHT, page)["decides_for_learner"] is True
     asked = _page(
         "Jeudi matin. Il fait froid dans le studio.",
         "Lila pose le téléphone sur la table.",
-        opening="Alors, ton vol de mercredi : tu le gardes ?",
+        opening="Tu gardes ton vol de mercredi ?",
     )
-    outcome, _sent = _review(monkeypatch, {**_context(), "yesterday_hook": FLIGHT}, asked)
-    assert outcome is not None and outcome["accepted"] is True
+    observed = engine.hook_observation(FLIGHT, asked)
+    assert observed == {"hook_taken_up": "early", "hook_repeats": True, "decides_for_learner": False}
 
 
 # -- 5. «Précédemment»: the last played day first, never the stake ------------------
@@ -544,3 +573,116 @@ def test_previously_opens_on_what_the_learner_did_and_never_repeats_the_stake():
     assert not any(line.endswith("?") for line in lines), "the stake block says the season's question"
     commitment = SimpleNamespace(text_fr="Tu parleras à Gus de la clé.")
     assert engine._learner_did(SimpleNamespace(commitments=[commitment])) == "Tu parleras à Gus de la clé."
+
+
+# ===================================================================================
+# Third commit: one hook, really one (check 2 of 17 Nov)
+# ===================================================================================
+
+
+def _settle(monkeypatch, *, ending: str, opening: str, exchanges, question: str | None, character="marin_leveque"):
+    from app.services import scene_record
+
+    monkeypatch.setattr(scene_record, "enabled", lambda: True)
+    monkeypatch.setattr(engine, "_contract_hook", lambda *a, **k: None)
+    monkeypatch.setattr(engine, "_tomorrow_question", lambda *a, **k: question)
+    turn = SimpleNamespace(tomorrow_question_fr=question or "", resolution_fr=ending, reply_fr="", commitments=[])
+    step = SimpleNamespace(
+        kind="respond",
+        private_task={"turns": [{"learner": learner, "character": said} for learner, said in exchanges]},
+    )
+    brief = SimpleNamespace(character_id=character, story_context={"draft": {"opening_line_fr": opening, "panels": []}})
+    journey = SimpleNamespace(local_date=date(2026, 11, 20), steps=[step])
+    return engine._hook_after_day(
+        None, SimpleNamespace(id=1), live={}, world_after={}, brief=brief, turn=turn,
+        journey=journey, act=None, relationships={"marin_leveque": {"register": "tu"}}, seed="p8",
+    )
+
+
+#: A1 day 4 of check 2: the hook asked what the learner had just answered.
+A1_DAY4 = {
+    "opening": "Jonas, tu vas comment, vraiment ?",
+    "exchanges": [
+        ("Fatigué.", "Je comprends. Qu'est-ce qui t'a fatigué ?"),
+        ("Le froid et le avion. Je ne sais pas si je reste.", "Le froid et le voyage, oui… Qu'est-ce qui te ferait rester ?"),
+        (
+            "Un ami et un radiateur chaud. Demain, je veux voir Lila.",
+            "Un ami et un radiateur chaud… je comprends. Tiens, « demain » ! Alors, demain, tu verras Lila.",
+        ),
+    ],
+    "ending": (
+        "Je comprends mieux. Un ami et un radiateur chaud te feraient du bien. Je ne peux pas tout "
+        "réparer aujourd'hui, mais je reste un peu avec toi."
+    ),
+    "question": "Qu'est-ce qui te ferait rester à Paris ?",
+}
+
+
+def test_the_hook_is_the_learner_s_plan_never_the_question_just_answered(monkeypatch):
+    teaser, _rows = _settle(monkeypatch, **A1_DAY4)
+    assert teaser is not None and teaser["text_fr"] == "Demain, tu verras Lila.", teaser
+    # Without the learner's «demain», the answered question is still never the hook.
+    exchanges = [*A1_DAY4["exchanges"][:2], ("Un ami et un radiateur chaud.", "Un ami… je comprends.")]
+    teaser, _rows = _settle(monkeypatch, **{**A1_DAY4, "exchanges": exchanges})
+    assert teaser is None or "rester" not in teaser["text_fr"], teaser
+
+
+def test_the_learner_s_plan_said_back_in_a_clause_of_the_ending_is_the_hook(monkeypatch):
+    """B1 day 3: «Demain, je veux parler à Gus de la clé.»; the ending said it back in its
+    second clause, and the hook was «Que feras-tu de l'appartement ?»."""
+
+    teaser, _rows = _settle(
+        monkeypatch,
+        opening="Votre billet est pour le 18 novembre. Qu'est-ce que vous en faites ?",
+        exchanges=[
+            ("Je reste à Paris parce que je dois attendre les papiers.", "Votre mère sait-elle que le dossier prendra plusieurs semaines ?"),
+            (
+                "Le plus difficile sera de leur dire que je ne sais pas encore. Demain, je veux parler à Gus de la clé.",
+                "C'est juste. Gus pourra vous parler de la clé.",
+            ),
+        ],
+        ending=(
+            "Je note que vous restez à Paris plusieurs semaines. Vous n'avez pas à choisir tout de suite "
+            "pour l'appartement ; demain, vous pourrez parler de la clé avec Gus."
+        ),
+        question="Que feras-tu de l'appartement ?",
+        character="maitre_vasseur",
+    )
+    assert teaser is not None and teaser["text_fr"] == "Demain, vous pourrez parler de la clé avec Gus.", teaser
+
+
+def test_every_surface_reads_the_one_stored_hook_unmodified(monkeypatch):
+    """The guard of point 5. Check 2: the end card printed «Au fait… Que feras-tu de
+    l'appartement ?», Home and «Done» «Que feras-tu de l'appartement ?»; the end card had
+    two sentences («… mercredi prochain. Le jour où Lila n'a pas classe.»), Home one."""
+
+    from app.services import achievement_recap, serial_notifications
+    from app.services.story_page import HOOK_PAYLOAD_KEY, hook_of
+    from app.services.story_teaser import hook_line
+
+    teaser, rows = _settle(
+        monkeypatch,
+        opening="Tu restes ?",
+        exchanges=[("Oui, je reste.", "Bien.")],
+        ending="Je note que tu restes.",
+        question="Que feras-tu de l'appartement ?",
+    )
+    line = "Que feras-tu de l'appartement ?"
+    assert teaser["text_fr"] == teaser["open_fr"] == line, teaser
+    assert rows[-1]["text_fr"] == rows[-1]["open_fr"] == line
+    # The end card (the scene's «À suivre…»), the push, the recap («Done» and Home).
+    assert hook_of({HOOK_PAYLOAD_KEY: teaser["text_fr"]}) == line
+    live = {"next_teaser": teaser}
+    thread = SimpleNamespace(state={"living_story": live})
+    pushed = serial_notifications.engine_teaser(SimpleNamespace(scalar=lambda *_a, **_k: thread), SimpleNamespace(id=1))
+    assert pushed["text_fr"] == line
+    journey = SimpleNamespace(id="j", scenario_snapshot={}, recap_snapshot={})
+    recap = achievement_recap.recap_teaser(SimpleNamespace(id=1), journey, live)
+    assert recap["text_fr"] == recap["open_fr"] == line
+    # Tomorrow's page reads the same line.
+    played = {**live, "events": [{"scene_id": "s", "date": teaser["date"], "summary_fr": "x"}]}
+    assert engine.yesterday_hook(played)["text_fr"] == line
+    # Too long for one line: clipped once, here, to whole sentences, for every surface.
+    tentpole = {"text_fr": "Ton billet de retour est pour mercredi prochain. Le jour où Lila n'a pas classe, elle viendra. À suivre…"}
+    assert hook_line(tentpole) == "Ton billet de retour est pour mercredi prochain."
+    assert hook_line({"text_fr": "Deux clés pour la même porte. À suivre…"}) == "Deux clés pour la même porte."

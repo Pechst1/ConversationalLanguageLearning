@@ -508,20 +508,87 @@ def hook_again(line: Any, live: dict | None, *, said: Iterable[str] = ()) -> str
     return "again" if _put_off(previous, said) else "refused"
 
 
-def ending_step(ending_fr: Any) -> str | None:
-    """P8 (B1 walk, day 4): the sentence of the day's ending that says what happens
-    tomorrow («Et demain, vous parlerez à Gus de la clé.»), as it can stand alone as the
-    day's hook, or None. The end card prints the ending; this is the promise in it."""
+#: A clause break inside a sentence: «… l'appartement ; demain, vous pourrez …».
+_CLAUSE_BREAK = re.compile(r"\s*(?:;|\s[—–]\s)\s*")
 
-    text = " ".join(str(ending_fr or "").split())
-    for sentence in reversed(_SENTENCE_END.split(text)):
-        if not _TOMORROW.search(sentence) or _TEASER_QUOTE.search(sentence) or drops_ne(sentence):
+
+def _tomorrow_clauses(text: Any) -> list[str]:
+    """The sentences and clauses of ``text`` that name tomorrow and can stand alone as the
+    day's hook (3 to :data:`TOMORROW_TOLD_WORDS` words, nobody quoted, no dropped «ne»),
+    last first, as they would be printed («Et demain, vous parlerez à Gus.» → «Demain, vous
+    parlerez à Gus.»)."""
+
+    found: list[str] = []
+    line = " ".join(str(text or "").split())
+    for sentence in reversed(_SENTENCE_END.split(line)):
+        if _TEASER_QUOTE.search(sentence):
             continue
-        step = _STEP_OPENER.sub("", sentence.strip())
-        step = step[:1].upper() + step[1:]
-        if 3 <= _word_count(step) <= TOMORROW_TOLD_WORDS:
-            return step
+        parts = [sentence] if _word_count(sentence) <= TOMORROW_TOLD_WORDS else _CLAUSE_BREAK.split(sentence)
+        for part in parts:
+            if not _TOMORROW.search(part) or drops_ne(part):
+                continue
+            step = _STEP_OPENER.sub("", part.strip()).strip()
+            step = step[:1].upper() + step[1:]
+            if step and step[-1] not in ".!?…":
+                step += "."
+            if 3 <= _word_count(step) <= TOMORROW_TOLD_WORDS:
+                found.append(step)
+    return found
+
+
+def ending_step(ending_fr: Any) -> str | None:
+    """P8 (B1 walk, day 4): the sentence (or clause) of the day's ending that says what
+    happens tomorrow («Et demain, vous parlerez à Gus de la clé.»), as it can stand alone
+    as the day's hook, or None. The end card prints the ending; this is the promise in it."""
+
+    found = _tomorrow_clauses(ending_fr)
+    return found[0] if found else None
+
+
+def plan_step(said: Iterable[str], told: Iterable[str]) -> str | None:
+    """P8 (third commit): the learner's own plan for tomorrow, as the scene said it back.
+
+    The learner's last line that names tomorrow («Demain, je veux parler à Gus de la clé.»),
+    matched to a sentence of ``told`` (the ending, then the character's replies, newest
+    first) that names tomorrow and shares a word of meaning with it («… demain, vous
+    pourrez parler de la clé avec Gus.»). The learner's words are never turned into a hook
+    themselves: the hook is said to the learner, so it is the character's sentence."""
+
+    plans = [
+        sentence
+        for line in said or ()
+        for sentence in _SENTENCE_END.split(" ".join(str(line or "").split()))
+        if _TOMORROW.search(sentence)
+    ]
+    if not plans:
+        return None
+    subject = subject_of(plans[-1])
+    for text in told or ():
+        for step in _tomorrow_clauses(text):
+            if subject & subject_of(step):
+                return step
     return None
+
+
+def answered_in_scene(question: Any, asked: Iterable[str]) -> bool:
+    """P8 (A1 walk, day 4: «Qu'est-ce qui te ferait rester à Paris ?» filed as the hook
+    right after the learner answered «Qu'est-ce qui te ferait rester ?»): whether
+    ``question`` asks again a question the learner has already answered in this scene
+    (``asked``: the opening question and every reply but the last). The same question
+    (:func:`same_question`), or one about everything an answered one was about."""
+
+    line = " ".join(str(question or "").split())
+    if not line:
+        return False
+    wanted = subject_of(line)
+    for text in asked or ():
+        for sentence in _SENTENCE_END.split(" ".join(str(text or "").split())):
+            if not sentence.endswith("?"):
+                continue
+            about = subject_of(sentence)
+            if same_question(line, sentence) or (about and about <= wanted):
+                return True
+    return False
 
 
 def ending_hook(
@@ -532,30 +599,71 @@ def ending_hook(
     date: str | None,
     name: str | None = None,
     said: Iterable[str] = (),
+    replies: Iterable[str] = (),
 ) -> dict | None:
-    """P8: the ending's own step forward as the day's ONE hook, or None. The end card shows
-    the ending, and Home, the push and tomorrow's page then read the same promise — not a
-    loose end drawn at random beside it (B1 walk, day 4: the ending promised Gus and the key,
-    Home said «L'avenir du Mistral…», and day 5 followed Home)."""
+    """P8: the day's step forward as its ONE hook, or None: first the learner's own plan
+    for tomorrow as the ending or a reply said it back (:func:`plan_step`), else the
+    ending's own sentence about tomorrow (:func:`ending_step`). The end card shows the
+    ending, and Home, the push and tomorrow's page then read the same promise — not a
+    loose end drawn at random beside it (B1 walk, day 4: the ending promised Gus and the
+    key, Home said «L'avenir du Mistral…», and day 5 followed Home)."""
 
-    step = ending_step(ending_fr)
-    if not step:
-        return None
-    again = hook_again(step, live, said=said)
-    if again == "refused":
-        return None
-    engine = _engine()
-    today = engine._date_of(date) or engine._today().isoformat()
-    return {
-        "text_fr": step,
-        "open_fr": step,
-        "character_id": character_id,
-        **({"character_name": name} if name else {}),
-        "date": today,
-        "ref": f"ending:{today}",
-        "kind": "promise",
-        **({"renewed": 1} if again == "again" else {}),
-    }
+    for step in (plan_step(said, [ending_fr, *reversed(list(replies or ()))]), ending_step(ending_fr)):
+        if not step:
+            continue
+        again = hook_again(step, live, said=said)
+        if again == "refused":
+            continue
+        engine = _engine()
+        today = engine._date_of(date) or engine._today().isoformat()
+        return {
+            "text_fr": step,
+            "open_fr": step,
+            "character_id": character_id,
+            **({"character_name": name} if name else {}),
+            "date": today,
+            "ref": f"ending:{today}",
+            "kind": "promise",
+            **({"renewed": 1} if again == "again" else {}),
+        }
+    return None
+
+
+#: P8 (third commit): the one line every surface prints is at most this long.
+HOOK_LINE_WORDS = TOMORROW_TOLD_WORDS
+_A_SUIVRE_TAIL = re.compile(r"\s*À suivre\s*(?:…|\.\.\.)?\s*$", re.IGNORECASE)
+
+
+def hook_line(teaser: dict | None) -> str:
+    """P8 (third commit): the ONE line of a hook, as the end card, Home, «Done» and the push
+    all print it. What it leaves open (``open_fr``) when it names it, else its line; never
+    the «À suivre…» label (each surface prints its own). A line longer than
+    :data:`HOOK_LINE_WORDS` keeps its first whole sentences that fit (at least one), here,
+    once, so no surface can shorten it differently (walk of 17 Nov: the end card had two
+    sentences, Home and «Done» one; the end card had «Au fait…», Home did not)."""
+
+    row = teaser or {}
+    line = " ".join(str(row.get("open_fr") or row.get("text_fr") or "").split())
+    line = _A_SUIVRE_TAIL.sub("", line).strip()
+    if _word_count(line) <= HOOK_LINE_WORDS:
+        return line
+    sentences = _SENTENCE_END.split(line)
+    kept = sentences[0]
+    for sentence in sentences[1:]:
+        if _word_count(f"{kept} {sentence}") > HOOK_LINE_WORDS:
+            break
+        kept = f"{kept} {sentence}"
+    return kept
+
+
+def one_hook(teaser: dict | None) -> dict | None:
+    """The hook as it is filed: ``text_fr`` and ``open_fr`` are both :func:`hook_line`, so
+    every reader of the stored row prints the same words."""
+
+    if not teaser:
+        return teaser
+    line = hook_line(teaser)
+    return {**teaser, "text_fr": line, "open_fr": line} if line else teaser
 
 
 def next_teaser(

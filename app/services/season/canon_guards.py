@@ -53,8 +53,7 @@ def issue_class(issue: str) -> str:
 #: Failing one is a judgement on the telling, never a canon defect. (``moves_on`` is
 #: not refused for yet; when it is, a refusal for it alone is storytelling too.)
 #: Phase 3: ``remembers`` — the page agrees with what the learner said on earlier days.
-#: P8: ``takes_up_hook`` — the page takes up the hook yesterday ended on.
-READER_ITEMS = ("reads_like_people", "one_plain_question", "moves_on", "remembers", "takes_up_hook")
+READER_ITEMS = ("reads_like_people", "one_plain_question", "moves_on", "remembers")
 #: The other items the verdict refuses for besides the correctness two
 #: (``spoils_next_tentpole``, ``honours_choices``).
 _STORY_ITEMS = ("meaningful_change", "in_character", "obstacle_faced")
