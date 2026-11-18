@@ -100,11 +100,15 @@ def _tentpole(live: dict, user: Any) -> tuple[str | None, list[str], str | None,
     return page.get("title_fr"), _ordered(speakers), today.season.title_fr, image
 
 
-def _planned_stage(live: dict, user: Any) -> dict[str, Any] | None:
+def _planned_stage(live: dict, user: Any, db: Session | None = None) -> dict[str, Any] | None:
     """P12 (round 2): where today's planned page plays, for Home's «Play in the Quartier» before
     the day is opened: its key («t1.a»), the place it opens at, and each movement's place in
-    order (``None`` where a movement names none). Only a tentpole's page is known before Start;
-    a gap day is written at night and its place is not known here (``None``).
+    order (``None`` where a movement names none). A tentpole's page is known before Start.
+
+    Round 3: a gap day's page is written at night. Once the night has written it (a prefetched
+    scene that Start would serve), its place is known too: ``{"key": "jour.<segment>",
+    "location_id": <its place>, "locations": []}``; the client stages a page the director does
+    not block wherever its place is built. Before that, ``None``: the day is offered as a page.
 
     Observed 17 Nov: the offer before Start is the story engine's invitation
     (``living_story.describe_next``: ``location_id=""``), so Home could never tell that day 1
@@ -113,8 +117,15 @@ def _planned_stage(live: dict, user: Any) -> dict[str, Any] | None:
     from app.services.season import runtime as season_runtime
 
     today = season_runtime.today_for(live, user=user, seed=str(user.id))
-    if today is None or not today.pos.is_tentpole or today.pos.segment is None:
+    if today is None or today.pos.segment is None:
         return None
+    if not today.pos.is_tentpole:
+        if db is None:
+            return None
+        from app.services.journey_latency import waiting_scene_place
+
+        place = waiting_scene_place(db, user)
+        return {"key": f"jour.{today.pos.segment.id}", "location_id": place, "locations": []} if place else None
     page = season_runtime.page_for(today) or {}
     locations: list[str | None] = []
     for movement in page.get("movements") or []:
@@ -234,7 +245,7 @@ def episode_headline(db: Session, user: Any, journey: Any = None, *, local_date:
         stage = None
         if journey is None:
             try:
-                stage = _planned_stage(live, user)
+                stage = _planned_stage(live, user, db)
             except Exception:  # noqa: BLE001 - the Quartier's offer never costs Home's headline
                 logger.exception("story_headline: planned stage unavailable")
         if edition_no is None:

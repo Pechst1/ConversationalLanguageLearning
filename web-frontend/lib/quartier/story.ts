@@ -307,6 +307,12 @@ export interface Heard {
    * the end card and the carnet say nothing of it (round 2: «Tu as dit que tu viens pour vendre»).
    */
   understood?: boolean;
+  /**
+   * The answer was one of the turn's cards, word for word (the engine's `stage.chosen`; here, an
+   * example typed as written). Only then does the carnet say «Tu as dit…» of the route
+   * (`replyEffects`); of a free answer it says what the room took it to mean.
+   */
+  chosen?: boolean;
 }
 
 /** A gesture, as the engine takes it. */
@@ -352,6 +358,13 @@ export interface Story {
   gesture(g: Gesture): Promise<Answered | null>;
   /** The scene has played to its hook: what the engine needs before the rest of the day. */
   close(): Promise<void>;
+  /**
+   * Where the scene stands, kept so that leaving it and coming back plays on from there (an
+   * engine's day; the quarter's own copy starts again). `from`: the movement it plays on from.
+   */
+  keepPlace?(place: { from: string; routes: Record<string, string>; asking: string | null }): void;
+  /** The place kept for the day as the engine has it now, or null: the scene starts from the top. */
+  keptPlace?(): { from: string; routes: Record<string, string>; asking: string | null } | null;
 }
 
 /* ------------------------------------------------------------------------------------------ */
@@ -646,6 +659,7 @@ export class OfflineStory implements Story {
       closing: next === null,
       mend: null,
       understood: said !== null,
+      chosen: said !== null,
     };
   }
 

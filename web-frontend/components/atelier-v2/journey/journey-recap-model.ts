@@ -16,6 +16,7 @@
  *   Keepsake, teaser, level-up — the server's, verbatim.
  */
 
+import { frenchOrNothing } from '@/lib/line-language';
 import { castDisplayName, castIdFor, expressionForMood } from '@/lib/cast-faces';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 import type {
@@ -176,7 +177,8 @@ function faceOf(recap: JourneyRecap, journey: JourneySnapshot, language: Control
     expression,
     moodLine,
     moodDirection: shift === 'warmer' ? 'up' : shift === 'colder' ? 'down' : null,
-    lineFr: recap.story_outcome?.callback_fr?.trim() || null,
+    // round 3: the French line, only when it is French («Tu hast gesagt, dass dir kalt ist …» is left out)
+    lineFr: frenchOrNothing(recap.story_outcome?.callback_fr) || null,
   };
 }
 

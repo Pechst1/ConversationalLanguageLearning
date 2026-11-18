@@ -18,6 +18,7 @@
  *     (`resolution` is null until the exchange actually settles).
  */
 
+import { nativeOrNothing } from '@/lib/line-language';
 import type { ControlLanguage, GrammarFocus, StoryEpisode, StoryPanel } from '@/types/daily-journey';
 import { lineMarkRanges } from '@/components/feuilleton/reader/grammar-marks';
 import { isPlanningNote } from '@/components/feuilleton/reader/planning-note';
@@ -312,7 +313,7 @@ export function buildStoryStages(episode: StoryEpisode | null | undefined): Read
       ordinal: stages.length + 1,
       character: 'toi',
       hookQuestion: String(episode.resolution.text_fr || '').trim(),
-      hookBeat: String(episode.resolution.summary_native || '').trim(),
+      hookBeat: nativeOrNothing(episode.resolution.summary_native),
       tasks: [],
       ...(episode.page?.a_suivre_fr ? { aSuivre: String(episode.page.a_suivre_fr).trim() } : {}),
     });
@@ -1148,7 +1149,8 @@ export function storyFinaleStage(
   ordinal = 1,
 ): ReaderResolutionStage {
   const lineFr = String(prompt?.character_line_fr || '').trim();
-  const summary = String(prompt?.summary_native || '').trim();
+  // round 3: a line that turns French halfway («… und reste avec toi dans l’attente …») is left out
+  const summary = nativeOrNothing(prompt?.summary_native);
   // Past A2 the chrome is French, so the «translation» of a French last line can be that line:
   // «Deux clés, une seule porte. À suivre…» printed twice (walk, 9 Nov).
   const fold = (value: string) => value.replace(/\s+/g, ' ').trim().toLowerCase();
