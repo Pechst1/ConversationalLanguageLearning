@@ -346,8 +346,9 @@ def test_the_register_line_explains_itself_in_the_learners_own_language(
     assert "Mistral" in note
 
 
-def test_from_b1_the_register_line_is_french_like_the_rest_of_the_chrome(db_session: Session):
-    """WP-82: from B1 the app's own words are French, the explanation included."""
+def test_from_b1_the_register_line_is_in_the_mother_tongue(db_session: Session):
+    """Owner decision 18 Nov 2026 (it was WP-82's French from B1): the chrome is French
+    from B1, but a correction is explained in the mother tongue, as in the Courrier."""
 
     user = _user(db_session, native_language="en", proficiency_level="B1", cefr_estimate="B1.1")
     scenario = _brief()
@@ -359,8 +360,8 @@ def test_from_b1_the_register_line_is_french_like_the_rest_of_the_chrome(db_sess
     )
     assert len(candidates) == 1
     note = candidates[0].note_native
-    assert "vouvoie" in note and "Mistral" in note
-    assert "addresses you" not in note and "She runs" not in note
+    assert "addresses you" in note and "She runs" in note and "Mistral" in note
+    assert "vouvoie" not in note
 
 
 def test_the_register_correction_is_shown_in_the_evaluation(db_session: Session):
