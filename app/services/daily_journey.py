@@ -5746,13 +5746,22 @@ class DailyJourneyService:
         correction just read, it would be copying, not recall.
 
         P5: ``solution_withheld`` says the miss kept its solution back for this retry.
+
+        Round 3 (walk 2, A1 day 2, «Je fatigué suis»): the last drill of its run —
+        there the last step of the journey — queued no retry, so its solution came
+        at once. A miss whose solution waits is now asked again right after its
+        run even when no drill follows it: the solution was not read, so the
+        retry is recall, not copying. A miss whose solution is shown (a choice
+        between two, a solution asked for) still queues none there.
         """
 
         ordered = sorted(journey.steps, key=lambda item: item.ordinal)
         start = end = ordered.index(step)
         while end + 1 < len(ordered) and StepKind(ordered[end + 1].kind) is StepKind.RECALL:
             end += 1
-        if not any(StepStatus(item.status) is StepStatus.PENDING for item in ordered[start + 1 : end + 1]):
+        if not solution_withheld and not any(
+            StepStatus(item.status) is StepStatus.PENDING for item in ordered[start + 1 : end + 1]
+        ):
             return None
         ordinal = ordered[end].ordinal + 1
         # One row at a time, last first: (journey_id, ordinal) is unique.
