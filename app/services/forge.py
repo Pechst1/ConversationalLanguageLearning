@@ -680,6 +680,10 @@ class BankItemProvider:
         except Exception as exc:  # pragma: no cover - a read never blocks a séance
             logger.warning("La Forge could not read the learner's mistakes", error=str(exc))
             rows = []
+        # Round 3: «Ta phrase» never replays a half-finished edit as the learner's line.
+        from app.services.fault_quality import drillable_errors
+
+        rows = drillable_errors(self.db, rows)
         far = now + timedelta(days=3650)
 
         def urgency(row: Any) -> tuple[datetime, int]:

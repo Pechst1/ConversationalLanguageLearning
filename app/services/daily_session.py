@@ -533,8 +533,11 @@ def day_deck(db: Session, user: Any, *, reviews_due: int, now: datetime | None =
             new = sum(1 for item in remaining if item.get("list") == "new_words")
             top_up = drill_batch.top_up_new_words(room, batch, remaining, new_limit)
             return new + top_up, len(remaining) - new
+    from app.services.day_review_cap import day_review_cap
+
     reviews = min(max(0, reviews_due), review_room(new_limit, reviews_left=reviews_left_today(db, user, now=now)))
-    return new_limit, reviews
+    # Round 3: the deck holds at most as many reviews as the day's new words.
+    return new_limit, min(reviews, day_review_cap(user))
 
 
 def dealt_deck(db: Session, user: Any, *, now: datetime | None = None) -> int | None:

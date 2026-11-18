@@ -267,7 +267,14 @@ class ErrorMemoryService:
         updates: list[dict[str, Any]] = []
         correction = attempt.correction_payload or {}
         items = [item for item in (attempt.prompt_payload or {}).get("items") or [] if isinstance(item, dict)]
+        from app.services.fault_quality import attempt_fault_is_own
+
         for index, erratum in enumerate(correction.get("errata") or []):
+            if isinstance(erratum, dict) and not attempt_fault_is_own(attempt, erratum):
+                # Round 3: a half-finished edit («je les les donne»), a word the item
+                # planted and the learner left, or a judgement is not the learner's
+                # French: the verdict says it, the drill never deals it.
+                continue
             if not erratum.get("context_fr"):
                 # #278: the item the slip was made in gives the sentence it sat in.
                 item = next((entry for entry in items if entry.get("id") and entry.get("id") == erratum.get("item_id")), None)
