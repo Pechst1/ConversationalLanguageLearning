@@ -633,6 +633,11 @@ export type ThreadFixes = {
   collapsed: Array<PrintedFix & { span: string }>;
 };
 
+/** P3 walk 2: the open-note key of a reply's collapsed corrections (one note open at a time). */
+export function moreNoteKey(bubbleKey: string): string {
+  return `${bubbleKey}:more`;
+}
+
 export function threadFixes(correction: JourneyCorrection | null | undefined): ThreadFixes {
   const open = printedFix(correction);
   if (!open || !correction) return { open: null, collapsed: [] };
