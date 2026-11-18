@@ -44,6 +44,18 @@ PLAN_VERSION = 1
 #: The list a scene's word takes in the batch when it was met before the deck.
 SCENE_LIST = "due_words"
 CARD_DIRECTIONS = {"fr_to_de", "de_to_fr"}
+#: P7 (pilot, 17 Nov): after an absence (the gentle restart's two missed days,
+#: ``web-frontend/lib/gentle-return.ts``), the day deck holds at most this many
+#: reviews, the oldest due first, until the backlog is below it. The walk's
+#: return after four days dealt 100 cards (80 reviews).
+RETURN_REVIEW_CAP = 20
+#: The same signal as the gentle restart (``GENTLE_RETURN_MIN_MISSED_DAYS``).
+RETURN_MISSED_DAYS = 2
+#: The batch item flag (and the payload card's) of a word the learner kept.
+KEPT_KEY = "kept_word"
+#: A miss in the scene is a journey review graded «Again» (``ProgressService.record_context_credit``).
+_SCENE_SOURCE = "daily_journey"
+_MISSED_RATING = 0
 
 
 def _iso(value: datetime) -> str:
@@ -137,14 +149,16 @@ def new_word_split(
       the deck frees no intake if the scene introduced it or will: only a word
       the scene left unmet once it is over (released into the deck) does, by
       not being dealt.
-    * **The share** (owner rule, 2 Nov, :func:`app.services.deck_order.scene_slots`):
-      the most scene cards ``k`` with ``k <= scene_slots(new_slots, k)``, where
-      the new-word slots are those ``k`` plus the scheduler's words the intake
-      leaves (and the new cards ``kept`` from a smaller deck). Met words first,
-      then released ones, then the ones still to come. A scene word the
-      scheduler had due anyway is one of the day's reviews: always dealt, no slot.
-      Before the journey is planned, the share kept free for it is a count, not
-      words: it is held whole, as before (the deck dealt then releases it).
+    * **The scene's words, all of them** (P7, pilot 17 Nov; the owner rule of
+      2 Nov capped them at a third of the new-word slots, and the walk's days
+      dealt one to five scene words among twenty): met words, then released
+      ones, then the ones still to come. They take the intake first; the
+      scheduler's next new words fill what is left. A released word (one the
+      scene reserved and left unmet) takes an intake slot, so the day never
+      passes its dose because of them. A scene word the scheduler had due anyway
+      is one of the day's reviews: always dealt, no slot. Before the journey is
+      planned, the share kept free for it is a count, not words: it is held
+      whole, as before (the deck dealt then releases it).
 
     ``exclude``: word ids the deck already holds (the Lexique's cards). ``release``:
     the deck is dealt before any scene was planned, so the share kept free for
@@ -152,7 +166,6 @@ def new_word_split(
     """
 
     from app.services.daily_session import DAY_DECK_NEW_WORDS
-    from app.services.deck_order import scene_slots
     from app.services.vocabulary_pace import introduced_today
 
     scene, pending = ([], 0) if release else _scene_cards(
@@ -170,17 +183,140 @@ def new_word_split(
         # No journey planned yet: the share the dose keeps free for it is a count,
         # not words; the scene decides them (and the share applies) once it is planned.
         return NewWordSplit(scene=[], pending=pending, scheduler=max(0, allowance - kept_new))
-    for k in range(len(met) + len(released) + pending, -1, -1):
-        met_k = min(k, len(met))
-        released_k = min(k - met_k, len(released))
-        scheduler = max(0, allowance - kept_new - released_k)
-        if k <= scene_slots(k + scheduler + kept_new, k):
-            break
+    # Met words were introduced (and pending ones are held) out of the intake
+    # already; a released word takes one of the slots the intake leaves.
+    released = released[: max(0, allowance - kept_new)]
     return NewWordSplit(
-        scene=scene_due + met[:met_k] + released[:released_k],
-        pending=k - met_k - released_k,
-        scheduler=scheduler,
+        scene=scene_due + met + released,
+        pending=pending,
+        scheduler=max(0, allowance - kept_new - len(released)),
     )
+
+
+def kept_waiting_ids(db: Session, user: Any) -> list[int]:
+    """P7: the words the learner kept («Garder» / «Behalten») and has not been asked
+    yet, in the order they were kept.
+
+    A kept word is a progress row ``kept_from_story`` with no review
+    (:func:`app.services.kept_words.keep_word`). It is due at once, but the day's
+    reviews are frozen at the first read and cut by priority, so «valise», promised
+    «es kommt morgen wieder», was in no deck on days 2 to 5. Each one now opens the
+    next deck dealt after it was kept, whatever the review list would have cut.
+    """
+
+    from sqlalchemy import select
+
+    from app.db.models.progress import UserVocabularyProgress
+    from app.services.kept_words import KEPT_PROVENANCE
+
+    if not getattr(user, "id", None):
+        return []
+    rows = db.execute(
+        select(UserVocabularyProgress.word_id)
+        .where(
+            UserVocabularyProgress.user_id == user.id,
+            UserVocabularyProgress.provenance == KEPT_PROVENANCE,
+            UserVocabularyProgress.last_review_date.is_(None),
+            (UserVocabularyProgress.reps.is_(None)) | (UserVocabularyProgress.reps == 0),
+        )
+        .order_by(UserVocabularyProgress.created_at.asc(), UserVocabularyProgress.id.asc())
+    ).all()
+    return [int(row[0]) for row in rows if row[0] is not None]
+
+
+def scene_missed_ids(db: Session, user: Any, *, now: datetime) -> list[int]:
+    """P7: the words the learner missed in yesterday's and today's scene, most recent first.
+
+    What the journey already records: a missed practice item lapses the word, a
+    review logged ``daily_journey`` with the «Again» grade. (A word looked up in the
+    reader is not recorded anywhere: ``GET /vocabulary/lookup`` writes nothing, and
+    no new tracking is built for it.)
+    """
+
+    from datetime import timedelta
+
+    from sqlalchemy import select
+
+    from app.db.models.progress import ReviewLog, UserVocabularyProgress
+    from app.services.vocabulary_pace import _local_window
+
+    if not getattr(user, "id", None):
+        return []
+    start, _end = _local_window(user, now)
+    rows = db.execute(
+        select(UserVocabularyProgress.word_id, ReviewLog.review_date)
+        .join(UserVocabularyProgress, ReviewLog.progress_id == UserVocabularyProgress.id)
+        .where(
+            UserVocabularyProgress.user_id == user.id,
+            ReviewLog.source == _SCENE_SOURCE,
+            ReviewLog.rating == _MISSED_RATING,
+            ReviewLog.review_date >= start - timedelta(days=1),
+            ReviewLog.review_date <= now,
+        )
+        .order_by(ReviewLog.review_date.desc())
+    ).all()
+    ordered: list[int] = []
+    for word_id, _at in rows:
+        if word_id is not None and int(word_id) not in ordered:
+            ordered.append(int(word_id))
+    return ordered
+
+
+def _returning(db: Session, user: Any, *, now: datetime) -> bool:
+    """Is the learner back after an absence, or still clearing the backlog of one?
+
+    Back: two or more whole days missed (the gentle restart's signal,
+    :func:`app.services.streak.missed_days_before`). Still clearing: the last
+    plan this learner was dealt (today's, or the day before's, still stored
+    until today's batch replaces it) was capped and its backlog was not yet
+    below the cap.
+    """
+
+    from sqlalchemy import select
+
+    from app.db.models.vocabulary import VocabularyDrillBatch
+    from app.services.streak import local_today, missed_days_before
+
+    today = local_today(user, now)
+    if missed_days_before(getattr(user, "grammar_last_review_date", None), today) >= RETURN_MISSED_DAYS:
+        return True
+    latest = db.scalars(
+        select(VocabularyDrillBatch)
+        .where(VocabularyDrillBatch.user_id == user.id, VocabularyDrillBatch.day <= today)
+        .order_by(VocabularyDrillBatch.day.desc())
+        .limit(1)
+    ).first()
+    plan = read_plan(latest)
+    return bool(plan and plan.get("review_cap"))
+
+
+def _oldest_due_first(db: Session, user: Any, word_ids: list[int]) -> list[int]:
+    """``word_ids`` ordered by when they fell due, the longest waiting first."""
+
+    from sqlalchemy import select
+
+    from app.db.models.progress import UserVocabularyProgress
+
+    if not word_ids:
+        return []
+    floor = datetime.min.replace(tzinfo=UTC)
+
+    def due_of(row: Any) -> datetime:
+        for value in (row.due_at, row.next_review_date):
+            if value is not None:
+                return value if value.tzinfo else value.replace(tzinfo=UTC)
+        if row.due_date is not None:
+            return datetime.combine(row.due_date, datetime.min.time(), tzinfo=UTC)
+        return floor
+
+    rows = db.scalars(
+        select(UserVocabularyProgress).where(
+            UserVocabularyProgress.user_id == user.id, UserVocabularyProgress.word_id.in_(word_ids)
+        )
+    ).all()
+    when = {int(row.word_id): due_of(row) for row in rows}
+    position = {word_id: index for index, word_id in enumerate(word_ids)}
+    return sorted(word_ids, key=lambda word_id: (when.get(word_id, floor), position[word_id]))
 
 
 def _due_review_ids(db: Session, user: Any, *, room: int, now: datetime) -> list[int]:
@@ -223,6 +359,12 @@ def make_plan(db: Session, user: Any, *, now: datetime) -> dict[str, Any]:
     share = 0 if planned else min(quota, journey_word_share(user, factor))
     new_words = min(DAY_DECK_NEW_WORDS, max(0, quota - len(introduced_today(db, user, now=now))))
     room = review_room(new_words, reviews_left=reviews_left_today(db, user, now=now), deck_limit=DAY_DECK_LIMIT)
+    reviews = _due_review_ids(db, user, room=room, now=now)
+    # P7: back after an absence, the deck holds the oldest RETURN_REVIEW_CAP
+    # reviews, and keeps doing so on the next days until the backlog is below it.
+    review_cap = _returning(db, user, now=now) and len(reviews) >= RETURN_REVIEW_CAP
+    if review_cap:
+        reviews = _oldest_due_first(db, user, reviews)[:RETURN_REVIEW_CAP]
     return {
         "v": PLAN_VERSION,
         "at": _iso(now),
@@ -231,7 +373,8 @@ def make_plan(db: Session, user: Any, *, now: datetime) -> dict[str, Any]:
         "dose": _dose(user),
         "quota": int(quota),
         "share": int(share),
-        "reviews": _due_review_ids(db, user, room=room, now=now),
+        "reviews": reviews,
+        "review_cap": review_cap,
         "dealt_at": None,
         "size": None,
     }
@@ -312,7 +455,10 @@ def planned_counts(
                 kept_new += 1
             else:
                 review_ids.add(word_id)
-    split = new_word_split(db, user, plan, now=now, kept_new=kept_new, exclude=kept_ids)
+    # P7: the kept words and the scene's misses open the deck, whatever the plan cut.
+    front = front_counts(db, user, now=now, exclude=kept_ids)
+    review_ids |= front
+    split = new_word_split(db, user, plan, now=now, kept_new=kept_new, exclude=kept_ids | front)
     scene_ids = {word_id for word_id, _name in split.scene}
     return kept_new + split.scene_keep + split.scheduler, len(review_ids - scene_ids)
 
@@ -355,14 +501,17 @@ def deal_items(
     """The day deck from the plan: ``(items, new_dealt, pending)``.
 
     The cards a smaller deck dealt earlier today still holds keep their places
-    (``kept``: the Lexique's eight, #143), then the scene's words, the plan's
-    reviews and the drill's new words. ``pending`` are the scene's words still to come (the deck was opened
-    before the scene met them); they join the deck when it is next read.
+    (``kept``: the Lexique's eight, #143), then (P7) every word the learner kept
+    from the story and was not asked yet (:func:`kept_waiting_ids`, flagged
+    :data:`KEPT_KEY`: the deck shows them first), the words they missed in
+    yesterday's and today's scene (:func:`scene_missed_ids`), the scene's words,
+    the plan's reviews and the drill's new words. ``pending`` are the scene's
+    words still to come (the deck was opened before the scene met them); they
+    join the deck when it is next read.
 
-    The new words are :func:`new_word_split`'s: the scene's share (owner rule,
-    2 Nov) and the scheduler's next new words, inside the day's intake. The
-    share is recorded as ``scene_keep`` so the words that join later stay
-    inside it.
+    The new words are :func:`new_word_split`'s: all of the scene's words and the
+    scheduler's next new words, inside the day's intake. The scene's cards are
+    recorded as ``scene_keep`` so the words that join later stay inside it.
     """
 
     from app.db.models.progress import UserVocabularyProgress
@@ -389,8 +538,10 @@ def deal_items(
             name = str(item.get("list") or "due_words")
             add(word_id, name, str(item.get("bucket") or ("new" if name == "new_words" else "due")))
             kept_new += 1 if name == "new_words" else 0
-    # Owner rule, 2 Nov (app/services/deck_order.py): the scene's words take at most
-    # their share of the new-word slots, inside the day's intake (new_word_split).
+    # P7: a word the learner kept is in the next deck after it was kept, first,
+    # whatever the review list would have cut; then the words the scene saw them miss.
+    _front(db, user, items, seen, add, now=now)
+    # P7: all of the scene's words, inside the day's intake (new_word_split).
     split = new_word_split(db, user, plan, now=now, kept_new=kept_new, exclude=seen, release=release)
     plan["scene_keep"] = split.scene_keep
     pending = split.pending
@@ -431,6 +582,58 @@ def deal_items(
                 add(word_id, "new_words", str(card.get("bucket") or "new"))
                 new_dealt += 1
     return items, new_dealt, pending
+
+
+def _front(
+    db: Session, user: Any, items: list[dict[str, Any]], seen: set[int], add: Any, *, now: datetime
+) -> None:
+    """Deal the kept words (flagged) and the scene's misses: the deck's front (P7)."""
+
+    from app.db.models.progress import UserVocabularyProgress
+
+    kept_ids = kept_waiting_ids(db, user)
+    missed = [word_id for word_id in scene_missed_ids(db, user, now=now) if word_id not in kept_ids]
+    owned = (
+        {
+            int(row[0])
+            for row in db.query(UserVocabularyProgress.word_id).filter(
+                UserVocabularyProgress.user_id == user.id, UserVocabularyProgress.word_id.in_(missed)
+            )
+        }
+        if missed
+        else set()
+    )
+    for word_id in kept_ids:
+        if word_id not in seen:
+            add(word_id, "due_words", "due")
+        for item in items:
+            if int(item["word_id"]) == word_id:
+                item[KEPT_KEY] = True
+    for word_id in missed:
+        if word_id in owned:
+            add(word_id, "due_words", "due")
+
+
+def front_counts(db: Session, user: Any, *, now: datetime, exclude: set[int]) -> set[int]:
+    """The kept and missed words :func:`deal_items` deals at the deck's front, less ``exclude``."""
+
+    return (set(kept_waiting_ids(db, user)) | set(scene_missed_ids(db, user, now=now))) - set(exclude)
+
+
+def mark_kept_cards(batch: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    """Flag the payload's cards the batch dealt as kept words (:data:`KEPT_KEY`)."""
+
+    from app.services.drill_batch import PAYLOAD_LISTS
+
+    kept = {int(item["word_id"]) for item in getattr(batch, "items", None) or [] if item.get(KEPT_KEY)}
+    if not kept:
+        return payload
+    for name in PAYLOAD_LISTS:
+        payload[name] = [
+            {**card, KEPT_KEY: True} if int(card.get("word_id") or 0) in kept else card
+            for card in payload.get(name) or []
+        ]
+    return payload
 
 
 def mark_dealt(batch: Any, plan: dict[str, Any], *, size: int, now: datetime) -> None:
@@ -524,20 +727,26 @@ def dealt_size(batch: Any) -> int | None:
 
 
 __all__ = [
+    "KEPT_KEY",
     "PLAN_VERSION",
+    "RETURN_REVIEW_CAP",
     "NewWordSplit",
     "day_items",
     "deal_items",
     "dealt_size",
     "ensure_plan",
+    "front_counts",
     "is_dealt",
     "join_scene_words",
+    "kept_waiting_ids",
     "make_plan",
     "mark_dealt",
+    "mark_kept_cards",
     "new_word_split",
     "pending_scene_words",
     "planned_counts",
     "read_plan",
     "remaining_reserved",
+    "scene_missed_ids",
     "scene_words",
 ]

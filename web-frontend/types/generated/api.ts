@@ -16796,6 +16796,11 @@ export interface components {
              * @default false
              */
             is_new?: boolean;
+            /**
+             * Kept Word
+             * @default false
+             */
+            kept_word?: boolean;
             /** Ladder */
             ladder?: string | null;
             /** Language */

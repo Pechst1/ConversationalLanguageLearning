@@ -172,7 +172,7 @@ class AuthService:
             daily_goal_minutes=payload.daily_goal_minutes,
             daily_goal_xp=payload.daily_goal_xp,
             # Round 3 (owner, 2026-10-14): a new learner starts on the Normal
-            # pace, 20 new words a day; the Tempo sheet changes it. A number
+            # pace (15 new words a day since 17 Nov); the Tempo sheet changes it. A number
             # the client sends itself is a custom intake, kept without a pace.
             daily_pace=None if explicit_words else DEFAULT_PACE,
             new_words_per_day=payload.new_words_per_day if explicit_words else PACES[DEFAULT_PACE].words,

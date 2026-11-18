@@ -60,9 +60,11 @@ class Pace:
     forge_seconds: int
 
 
+#: Owner decision 1, 17 Nov 2026: «Normal» deals 15 new words a day (it was 20;
+#: the pilot's day deck was a frequency list around one to five scene words).
 PACES: dict[PaceName, Pace] = {
     "ruhig": Pace("ruhig", words=10, rules_per_week=3, forge_seconds=300),
-    "normal": Pace("normal", words=20, rules_per_week=5, forge_seconds=300),
+    "normal": Pace("normal", words=15, rules_per_week=5, forge_seconds=300),
     "schnell": Pace("schnell", words=40, rules_per_week=8, forge_seconds=420),
 }
 PACE_NAMES: tuple[PaceName, ...] = ("ruhig", "normal", "schnell")

@@ -239,7 +239,9 @@ const interestTopicPresets = INTEREST_TOPICS;
 
 // Round 3: the paces, in the order of the Tempo sheet, and the words each brings.
 const PACE_NAMES: PaceName[] = ['ruhig', 'normal', 'schnell'];
-const PACE_WORDS: Record<PaceName, number> = { ruhig: 10, normal: 20, schnell: 40 };
+// Owner decision 1 (17 Nov 2026): Normal is 15 (`app/services/daily_session.py` PACES).
+const PACE_WORDS: Record<PaceName, number> = { ruhig: 10, normal: 15, schnell: 40 };
+const isPaceName = (value: unknown): value is PaceName => PACE_NAMES.includes(value as PaceName);
 // Owner, 2 Nov: the steps of «Neue Wörter pro Tag» until the server's own
 // (`goal_estimate.WORD_STEPS`, each priced against the goal) have arrived.
 const NEW_WORD_STEPS = [10, 15, 20, 30, 40];
@@ -586,7 +588,9 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                         ? user.rhythm
                         : rhythmForMinutes(user.daily_goal_minutes),
                     dailyPace: user.daily_pace ?? null,
-                    newWordsPerDay: user.new_words_per_day || prev.newWordsPerDay,
+                    // A pace speaks for its words (a learner stored at Normal's old 20 reads 15).
+                    newWordsPerDay: (isPaceName(user.daily_pace) ? PACE_WORDS[user.daily_pace] : user.new_words_per_day)
+                        || prev.newWordsPerDay,
                     maxReviewsPerDay: user.max_reviews_per_day || prev.maxReviewsPerDay,
                     defaultVocabDirection: normalizeVocabDirection(
                         user.default_vocab_direction || prev.defaultVocabDirection,
