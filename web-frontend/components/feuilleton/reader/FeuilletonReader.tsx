@@ -408,7 +408,7 @@ export function FeuilletonReader({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [translationOn, stage?.key]);
 
-  /* P11: the wait for the ending has a clock; after 30 s the learner may go on. */
+  /* P11: the wait for the ending has a clock; after FINALE_ESCAPE_MS (8 s) the learner may go on. */
   const finaleWaiting = Boolean(
     isLast && stage?.kind === 'resolution' && stage.finale?.waiting && !filed,
   );
@@ -739,7 +739,7 @@ export function FeuilletonReader({
           {lastNav === 'writing' ? (
             /* WP-90: the ending is still being written — its face says so; there is
                no dead primary to stare at. P11: from the first second the slot says
-               so too, with the pending indicator; after 30 s it is «Continuer». */
+               so too, with the pending indicator; after 8 s it is «Continuer». */
             <p className="fr-finale-wait" role="status" aria-live="polite">
               <SpinnerToken /> {t.ending_writing}
             </p>

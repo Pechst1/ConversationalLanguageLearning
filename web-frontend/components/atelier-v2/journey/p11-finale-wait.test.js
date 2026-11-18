@@ -3,7 +3,7 @@
  *
  * 17 Nov walk: «La suite s’écrit…» held the last panel with no button and no
  * timeout. Now the slot says the ending is being written from the first second;
- * after 30 s it is «Continuer» again with «the ending will be there next time»,
+ * after 8 s (R2; P11 had 30 s) it is «Continuer» again with «the ending will be there next time»,
  * the hook lets that tap pass, and the journey keeps polling behind it.
  *
  * Run: `node --test components/atelier-v2/journey/p11-finale-wait.test.js`
@@ -39,16 +39,16 @@ const {
 
 const waiting = { isLast: true, waiting: true, filed: false };
 
-test('the last panel says the ending is being written, then lets the learner on after 30 s', () => {
-  assert.equal(FINALE_ESCAPE_MS, 30_000);
+test('the last panel says the ending is being written, then lets the learner on after 8 s', () => {
+  assert.equal(FINALE_ESCAPE_MS, 8_000);
   assert.equal(finaleNav({ ...waiting, waitedMs: 0 }), 'writing');
-  assert.equal(finaleNav({ ...waiting, waitedMs: 29_999 }), 'writing');
-  assert.equal(finaleNav({ ...waiting, waitedMs: 30_000 }), 'continue_late');
+  assert.equal(finaleNav({ ...waiting, waitedMs: 7_999 }), 'writing');
+  assert.equal(finaleNav({ ...waiting, waitedMs: 8_000 }), 'continue_late');
   assert.equal(finaleNav({ ...waiting, waitedMs: null }), 'writing');
   assert.equal(finaleNav({ ...waiting, waiting: false, waitedMs: 60_000 }), 'normal');
   assert.equal(finaleNav({ ...waiting, isLast: false, waitedMs: 60_000 }), 'normal');
-  assert.equal(finaleWaitOver(1_000, 31_000), true);
-  assert.equal(finaleWaitOver(1_000, 30_999), false);
+  assert.equal(finaleWaitOver(1_000, 9_000), true);
+  assert.equal(finaleWaitOver(1_000, 8_999), false);
   assert.equal(finaleWaitOver(null, 99_000), false);
 });
 
@@ -67,8 +67,8 @@ function step(id, ordinal, kind, prompt = {}) {
 test('«Continuer» passes a late ending only after the wait, and never before a later act', () => {
   const pending = step('r1', 3, 'resolution', { story_pending: true });
   const oneAct = { id: 'j', status: 'active', revision: 4, current_step_id: 'r1', steps: [step('s', 1, 'scene'), pending] };
-  assert.equal(continueAfterStoryWait(oneAct, pending, false), false, 'not before 30 s');
-  assert.equal(continueAfterStoryWait(oneAct, pending, true), true, 'after 30 s the learner goes on');
+  assert.equal(continueAfterStoryWait(oneAct, pending, false), false, 'not before 8 s');
+  assert.equal(continueAfterStoryWait(oneAct, pending, true), true, 'after 8 s the learner goes on');
   const twoActs = { ...oneAct, steps: [...oneAct.steps, step('s2', 4, 'scene'), step('r2', 5, 'resolution')] };
   assert.equal(continueAfterStoryWait(twoActs, pending, true), false, 'the server holds a later act');
   const settled = step('r1', 3, 'resolution', { story_pending: false });
