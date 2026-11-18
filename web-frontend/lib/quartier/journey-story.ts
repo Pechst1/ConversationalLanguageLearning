@@ -19,7 +19,8 @@ import dailyJourneyService, { journeyErrorCode, mutationId } from '@/services/da
 import type { AttemptResult, HelpKind, JourneySnapshot, RespondStep, SceneStep, StoryletChoiceResult } from '@/types/daily-journey';
 
 import type { Value } from './memory';
-import { STAGED_DAYS, nextTurn, unbuiltOf } from './story';
+import { STAGED_DAYS, locationOf, nextTurn, unbuiltOf } from './story';
+import { unfinishedAt } from './world';
 export { episodeLabel } from './story';
 import type {
   Answered,
@@ -324,7 +325,8 @@ export function todayOf(journey: JourneySnapshot | null): Today {
   const step = currentStepOf(journey);
   if (!step) return { kind: 'practice', page };
   // a scene set where nothing is built yet is not played here in a place it is not: the whole day is the Feuilleton's
-  const away = blockedPage(page) ? null : unbuiltOf(page);
+  // a day the director blocks plays where it is, unless a place it goes to is unfinished (P12 place check)
+  const away = blockedPage(page) ? unfinishedAt([page.location_id, ...page.movements.map(locationOf)]) : unbuiltOf(page);
   const elsewhere: Today | null = away ? { kind: 'handoff', why: 'elsewhere', place: away, page } : null;
   // steps before the scene are the Feuilleton's, in its order, played over the quarter
   if (step.ordinal < scene.ordinal) return elsewhere ?? { kind: 'before', page };
