@@ -44,13 +44,6 @@ PLAN_VERSION = 1
 #: The list a scene's word takes in the batch when it was met before the deck.
 SCENE_LIST = "due_words"
 CARD_DIRECTIONS = {"fr_to_de", "de_to_fr"}
-#: P7 (pilot, 17 Nov): after an absence (the gentle restart's two missed days,
-#: ``web-frontend/lib/gentle-return.ts``), the day deck holds at most this many
-#: reviews, the oldest due first, until the backlog is below it. The walk's
-#: return after four days dealt 100 cards (80 reviews).
-RETURN_REVIEW_CAP = 20
-#: The same signal as the gentle restart (``GENTLE_RETURN_MIN_MISSED_DAYS``).
-RETURN_MISSED_DAYS = 2
 #: The batch item flag (and the payload card's) of a word the learner kept.
 KEPT_KEY = "kept_word"
 #: A miss in the scene is a journey review graded «Again» (``ProgressService.record_context_credit``).
@@ -262,63 +255,6 @@ def scene_missed_ids(db: Session, user: Any, *, now: datetime) -> list[int]:
     return ordered
 
 
-def _returning(db: Session, user: Any, *, now: datetime) -> bool:
-    """Is the learner back after an absence, or still clearing the backlog of one?
-
-    Back: two or more whole days missed (the gentle restart's signal,
-    :func:`app.services.streak.missed_days_before`). Still clearing: the last
-    plan this learner was dealt (today's, or the day before's, still stored
-    until today's batch replaces it) was capped and its backlog was not yet
-    below the cap.
-    """
-
-    from sqlalchemy import select
-
-    from app.db.models.vocabulary import VocabularyDrillBatch
-    from app.services.streak import local_today, missed_days_before
-
-    today = local_today(user, now)
-    if missed_days_before(getattr(user, "grammar_last_review_date", None), today) >= RETURN_MISSED_DAYS:
-        return True
-    latest = db.scalars(
-        select(VocabularyDrillBatch)
-        .where(VocabularyDrillBatch.user_id == user.id, VocabularyDrillBatch.day <= today)
-        .order_by(VocabularyDrillBatch.day.desc())
-        .limit(1)
-    ).first()
-    plan = read_plan(latest)
-    return bool(plan and plan.get("review_cap"))
-
-
-def _oldest_due_first(db: Session, user: Any, word_ids: list[int]) -> list[int]:
-    """``word_ids`` ordered by when they fell due, the longest waiting first."""
-
-    from sqlalchemy import select
-
-    from app.db.models.progress import UserVocabularyProgress
-
-    if not word_ids:
-        return []
-    floor = datetime.min.replace(tzinfo=UTC)
-
-    def due_of(row: Any) -> datetime:
-        for value in (row.due_at, row.next_review_date):
-            if value is not None:
-                return value if value.tzinfo else value.replace(tzinfo=UTC)
-        if row.due_date is not None:
-            return datetime.combine(row.due_date, datetime.min.time(), tzinfo=UTC)
-        return floor
-
-    rows = db.scalars(
-        select(UserVocabularyProgress).where(
-            UserVocabularyProgress.user_id == user.id, UserVocabularyProgress.word_id.in_(word_ids)
-        )
-    ).all()
-    when = {int(row.word_id): due_of(row) for row in rows}
-    position = {word_id: index for index, word_id in enumerate(word_ids)}
-    return sorted(word_ids, key=lambda word_id: (when.get(word_id, floor), position[word_id]))
-
-
 def _due_review_ids(db: Session, user: Any, *, room: int, now: datetime) -> list[int]:
     from app.services.progress import ProgressService
 
@@ -364,11 +300,6 @@ def make_plan(db: Session, user: Any, *, now: datetime) -> dict[str, Any]:
     new_words = min(DAY_DECK_NEW_WORDS, max(0, quota - len(introduced_today(db, user, now=now))))
     room = review_room(new_words, reviews_left=reviews_left_today(db, user, now=now), deck_limit=DAY_DECK_LIMIT)
     reviews = _due_review_ids(db, user, room=room, now=now)
-    # P7: back after an absence, the deck holds the oldest RETURN_REVIEW_CAP
-    # reviews, and keeps doing so on the next days until the backlog is below it.
-    review_cap = _returning(db, user, now=now) and len(reviews) >= RETURN_REVIEW_CAP
-    if review_cap:
-        reviews = _oldest_due_first(db, user, reviews)[:RETURN_REVIEW_CAP]
     return {
         "v": PLAN_VERSION,
         "at": _iso(now),
@@ -378,7 +309,6 @@ def make_plan(db: Session, user: Any, *, now: datetime) -> dict[str, Any]:
         "quota": int(quota),
         "share": int(share),
         "reviews": reviews,
-        "review_cap": review_cap,
         "dealt_at": None,
         "size": None,
     }
@@ -733,7 +663,6 @@ def dealt_size(batch: Any) -> int | None:
 __all__ = [
     "KEPT_KEY",
     "PLAN_VERSION",
-    "RETURN_REVIEW_CAP",
     "NewWordSplit",
     "day_items",
     "deal_items",
