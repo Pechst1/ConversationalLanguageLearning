@@ -467,6 +467,31 @@ test('#237: «Fin du chapitre» never prints a second question, and the day summ
   assert.match(said, /Qui était Odile/);
 });
 
+test('#827: a chapter with no resolution prints no question under «Fin du chapitre»', () => {
+  // Walk 2026-11-16, A1 day 2: the chapter closed without a resolution, so the server's
+  // digest was its question alone, and the card printed it (then only its last alternative,
+  // «Ou tu dis au revoir à tout ça ?»). A question is never the card's: the day's open
+  // question is under «La suite demain», the chapter's is the Feuilleton's.
+  const question =
+    "Alors, qu'est-ce que tu fais ? Tu prends l'appartement pour toi ? Pour toi et les autres ? Ou tu dis au revoir à tout ça ?";
+  assert.equal(model.colophonDigest(question, []), null);
+  assert.equal(model.colophonDigest('Ou tu dis au revoir à tout ça ?', []), null);
+  assert.equal(model.colophonDigest(`${question} → `, []), null);
+  assert.equal(model.colophonDigest('« Qui a gardé la clé ? »', []), null);
+  // A resolution alone is still the card's line.
+  assert.equal(model.colophonDigest('La clé est retrouvée.', []), 'La clé est retrouvée.');
+
+  const html = render(
+    day({
+      story_outcome: { callback_fr: 'Marin garde la clé.' },
+      chapter_closed: { index: 1, title_fr: 'Le mauvais accueil', digest_fr: 'Ou tu dis au revoir à tout ça ?' },
+    }),
+  );
+  const said = textOf(html);
+  assert.match(said, /Fin du chapitre/);
+  assert.doesNotMatch(said, /Ou tu dis au revoir/);
+});
+
 // «Demain» (steering read 2026-10-24): the finished card's choice of tomorrow's thread.
 const { TomorrowChoice } = require('./TomorrowChoice.tsx');
 

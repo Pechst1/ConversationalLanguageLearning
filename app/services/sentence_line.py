@@ -1,7 +1,11 @@
 """Text the learner reads is cut on a sentence, never on a character count; notes are not text.
 
-Two small, pure rules the story engine and the archive share (night shift 2026-10-21):
+Small, pure rules the story engine, the archive and the device share (night shift 2026-10-21):
 
+* **One sentence splitter.** :func:`sentences` is the one way a text is cut into sentences
+  (#896): a quotation the sentence carries on after, a hesitation that runs on and a chain
+  of alternatives stay whole. ``web-frontend/lib/sentence-split.ts`` mirrors it, and
+  ``tests/fixtures/sentence_split_cases.json`` pins both.
 * **Whole sentences.** ``_one_line(text, 120)`` cut «… Alors, tu gardes l'appartement…» to
   «… Alors,…» and filed it under a chapter for months (#268). :func:`whole_sentences`
   keeps the sentences that fit and never a fragment; :func:`question_line` keeps the
@@ -31,11 +35,6 @@ _TITLE_WORD = re.compile(_TITLE)
 #: What is left of a sentence cut at its title («Sur le toit, la lampe de M.»), or a signature.
 _STOPS_AT_TITLE = re.compile(rf"(?<![^\s(«\"“'’—–-]){_TITLE}[\s»\"”)]*$")
 
-#: A sentence ends on . ! ? … (a closing quote or bracket may follow) and the next one opens
-#: on a capital, an opening quote or a digit.
-_BOUNDARY = re.compile(
-    r"(?:(?<=[.!?…])|(?<=[.!?…][\"»”)]))" + NOT_AFTER_TITLE + r"\s+(?=[A-ZÀ-ÖØ-Þ«\"“(\d])"
-)
 #: The looser cut a scene line is looked up by: after any . ! ? … that is no title's.
 _LOOSE_BOUNDARY = re.compile(r"(?<=[.!?…])" + NOT_AFTER_TITLE + r"\s+")
 #: A line that ends on a closed sentence.
@@ -44,13 +43,124 @@ _CLOSED = re.compile(r"[.!?»\"”)]$")
 _DELIBERATE_ELLIPSIS = re.compile(r"(?:^|[.!?]\s+)À suivre\s*…$", re.IGNORECASE)
 
 
+# ---------------------------------------------------------------------------------------
+# The one sentence splitter (#896). Every surface that cuts a text into sentences, on the
+# server and on the device, reads it the same way: ``web-frontend/lib/sentence-split.ts``
+# is its mirror, and ``tests/fixtures/sentence_split_cases.json`` pins both. It is a scan,
+# not one regex, so the device runs the same steps without lookbehind (older iOS).
+#
+# A sentence ends on . ! ? … that is no title's or initial's (one closing mark may follow,
+# or a French-spaced « »»), before a word that opens a new one: a capital, a digit, an
+# opening quote or bracket, a dash. Three things a «?» or a «.» there does not end:
+#   * a quotation the sentence carries on after («„Tu est française, Margaux ?“ stimmt
+#     nicht; …», #893): what is inside it is one piece of the sentence that quotes it;
+#   * a hesitation that runs on in small letters («déjà… le groupe qui …», #849);
+#   * a chain of alternatives («Tu prends l'appartement pour toi ? Pour toi et les
+#     autres ? Ou tu dis au revoir à tout ça ?», #827): a question that opens on «Ou»,
+#     «Et», «Pour»… right after another question goes on asking that question.
+# ---------------------------------------------------------------------------------------
+
+_STOPS = ".!?…"
+#: The one closing mark a stop may carry before the space («?“ stimmt», «brille.»»).
+_CLOSERS = "\"»”“’)]›"
+#: Where a quotation opens, and what closes it: «“» closes a German «„» and opens an
+#: English quotation; «"» opens and closes.
+_QUOTE_PAIRS = {"«": "»", "„": "“”", "“": "”", "‹": "›", '"': '"'}
+#: What a new sentence opens on.
+_OPENS = re.compile(r"[A-ZÀ-ÖØ-Þ0-9«\"“„(\[—–]")
+#: The words a question opens on when it goes on asking the question before it: the next
+#: alternative, never a question of its own (fr, en, de: notes come in all three).
+CHAIN_WORDS = frozenset({"ou", "et", "pour", "ni", "sinon", "or", "and", "for", "nor", "oder", "und", "für"})
+#: The word only a later alternative opens on: «Ou …?» is never a question of its own.
+_ALTERNATIVE_WORDS = frozenset({"ou", "or", "oder"})
+_FIRST_WORD = re.compile(r"[^\W\d_]+")
+_LEADING_MARKS = "«“„\"'‘’([—–- "
+
+
 def _flat(text: object) -> str:
     return " ".join(str(text or "").split())
 
 
+def _quotation_spans(flat: str) -> list[tuple[int, int]]:
+    """Each quotation that opens and closes again, as (open, close) indexes."""
+
+    spans: list[tuple[int, int]] = []
+    stack: list[tuple[str, int]] = []
+    for index, char in enumerate(flat):
+        if stack and char in stack[-1][0]:
+            spans.append((stack.pop()[1], index))
+        elif char in _QUOTE_PAIRS:
+            stack.append((_QUOTE_PAIRS[char], index))
+    return spans
+
+
+def _carried_on(flat: str, spans: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    """The quotations their sentence carries on after: what follows the closing mark is
+    no new sentence and not the end of the text («“ stimmt nicht», «”.», «» demande»)."""
+
+    kept = []
+    for start, end in spans:
+        rest = flat[end + 1 :].lstrip()
+        if rest and not _OPENS.match(rest):
+            kept.append((start, end))
+    return kept
+
+
+def _ends_here(left: str) -> bool:
+    """Whether the text before a space closes a sentence: a stop, then at most one closing
+    mark or a French-spaced «»» («Margaux ? »»), and not a title's or an initial's stop."""
+
+    stem = left
+    if stem.endswith(" »"):
+        stem = stem[:-2]
+    elif stem and stem[-1] in _CLOSERS:
+        stem = stem[:-1]
+    if not stem or stem[-1] not in _STOPS:
+        return False
+    return not _TITLE_WORD.fullmatch(stem.rsplit(" ", 1)[-1].lstrip(_LEADING_MARKS))
+
+
+def asks(sentence: object) -> bool:
+    """Whether a sentence asks: it ends on «?», a closing mark may follow."""
+
+    return str(sentence or "").rstrip(_CLOSERS + " \u00a0\u202f").endswith("?")
+
+
+def _first_word(sentence: str) -> str:
+    found = _FIRST_WORD.match(sentence.lstrip(_LEADING_MARKS))
+    return found.group(0).lower() if found else ""
+
+
+def _chained(pieces: list[str]) -> list[str]:
+    joined: list[str] = []
+    for piece in pieces:
+        if joined and asks(joined[-1]) and asks(piece) and _first_word(piece) in CHAIN_WORDS:
+            joined[-1] = f"{joined[-1]} {piece}"
+        else:
+            joined.append(piece)
+    return joined
+
+
 def sentences(text: object) -> list[str]:
+    """``text`` as its sentences, the one way every surface reads them (#896)."""
+
     flat = _flat(text)
-    return [part.strip() for part in _BOUNDARY.split(flat) if part.strip()] if flat else []
+    if not flat:
+        return []
+    inside = _carried_on(flat, _quotation_spans(flat))
+    pieces: list[str] = []
+    start = 0
+    for index, char in enumerate(flat):
+        if char != " " or not 0 < index < len(flat) - 1:
+            continue
+        if not _OPENS.match(flat[index + 1]) or not _ends_here(flat[:index]):
+            continue
+        if any(opened < index < closed for opened, closed in inside):
+            continue
+        pieces.append(flat[start:index])
+        start = index + 1
+    pieces.append(flat[start:])
+    return _chained([piece.strip() for piece in pieces if piece.strip()])
 
 
 def cut_sentences(text: object) -> list[str]:
@@ -69,16 +179,6 @@ def ends_sentence(word: str) -> bool:
     if not bare or bare[-1] not in ".!?…":
         return False
     return not _TITLE_WORD.fullmatch(bare)
-
-
-def continues_sentence(word: str) -> bool:
-    """Whether a word right after a . ! ? … carries the same sentence on: it opens on a small
-    letter. «Comment on dit, déjà… le groupe qui tient le café ensemble ?» is one question
-    (#849); a new sentence opens on a capital, a digit, a quote or a dash, as :data:`_BOUNDARY`
-    already reads a text."""
-
-    bare = str(word or "").lstrip("«»“”\"„([")
-    return bool(bare) and bare[0].isalpha() and bare[0].islower()
 
 
 def stops_at_title(text: object) -> bool:
@@ -117,23 +217,45 @@ def whole_sentences(text: object, limit: int, *, hard_cap: int | None = None) ->
 
 
 def question_line(text: object, limit: int) -> str:
-    """The sentence that asks the question (the last one ending in «?»), whole; else the
-    opening sentences that fit. A chapter's question is its last sentence, not its first."""
+    """The question the text asks (its last asking sentence), whole; else the opening
+    sentences that fit. A chapter's question is its last sentence, not its first.
+
+    A chain of alternatives is one sentence to :func:`sentences`, so it is never cut to its
+    last alternative («Ou tu dis au revoir à tout ça ?», #827); the questions right before
+    it that lead into it («Alors, qu'est-ce que tu fais ?») come along while they fit."""
 
     flat = _flat(text)
     if len(flat) <= limit:
         return flat
-    asking = [sentence for sentence in sentences(flat) if sentence.endswith("?")]
-    if asking:
-        return whole_sentences(asking[-1], limit)
-    return whole_sentences(flat, limit)
+    parts = sentences(flat)
+    asking = [index for index, sentence in enumerate(parts) if asks(sentence)]
+    if not asking:
+        return whole_sentences(flat, limit)
+    start = asking[-1]
+    line = parts[start]
+    if len(line) > limit:
+        return whole_sentences(line, limit)
+    while start > 0 and asks(parts[start - 1]) and len(f"{parts[start - 1]} {line}") <= limit:
+        start -= 1
+        line = f"{parts[start]} {line}"
+    if _first_word(line) in _ALTERNATIVE_WORDS:
+        # «Ou …?» after a statement offers that statement's other way: both, or nothing.
+        lead = f"{parts[start - 1]} {line}" if start > 0 else ""
+        return lead if lead and len(lead) <= limit else ""
+    return line
 
 
 def drop_cut_tail(text: object) -> str:
     """A stored line that an older cut left ending mid-sentence («… Alors,…»), without the
-    fragment. A whole line, and a deliberate «À suivre…», are returned as they were."""
+    fragment. A whole line, and a deliberate «À suivre…», are returned as they were.
+
+    An older :func:`question_line` filed a chain of alternatives as its last one alone («Ou
+    tu dis au revoir à tout ça ?», #827): a lone question opening on «Ou» is all fragment.
+    Any other whole question («Et si … ?», «Mais qui … ?», «Pour qui … ?») is kept."""
 
     flat = _flat(text)
+    if _first_word(flat) in _ALTERNATIVE_WORDS and len(sentences(flat)) == 1 and asks(flat):
+        return ""
     if not flat.endswith("…") or _DELIBERATE_ELLIPSIS.search(flat):
         return flat
     parts = sentences(flat)
