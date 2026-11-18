@@ -400,6 +400,109 @@ def leading_hook(
     return (leading[-1].hook if leading else "") or beat.hook
 
 
+def beats_for(
+    gap: Gap, day: int, state: dict | None, flags: dict[str, Any], *, length: int | None
+) -> tuple[DayBeat | None, DayBeat | None]:
+    """``(beat, plan)`` for gap day ``day``: the beat the day stages (the learner's
+    «Demain» pick while it is still on offer, else the plan's own) and the plan's own.
+    The one resolution ``gap_brief`` and the settle's hook (P8, fourth commit) share:
+    tomorrow's hook is composed from the beat tomorrow's brief will carry."""
+
+    if not gap.days:
+        return None, None
+    done = used_premises(state, gap.id)
+    dropped = dropped_beats(state, gap.id)
+    plan = planned_beat(gap, day, done | dropped, flags, length=length)
+    pick = learner_pick(state, gap.id, day)
+    offered = tomorrow_options(gap, day, done, flags, length=length, dropped=dropped) if pick else []
+    if pick in {option.premise for option in offered}:
+        return planned_beat(gap, day, done | dropped, flags, length=length, prefer=pick), plan
+    return plan, plan
+
+
+def beat_line(gap: Gap, beat: DayBeat) -> str:
+    """P8 (fourth commit): the hook a day leaves when ``beat`` is tomorrow's, in French
+    the learner can read, from the season's own words: the beat's «Demain» label as
+    the learner would pick it («On va cuisiner avec Lila.», ``story_tomorrow.hook_for``),
+    else its premise's title («La soupe de Marin»), the episode's own name. Never the
+    English plan line (``beat.hook``) and never a season question."""
+
+    if beat.pick_fr.strip():
+        from app.services.story_tomorrow import hook_for
+
+        return hook_for(beat.pick_fr)
+    premise = next((row for row in gap.premises if row.id == beat.premise), None)
+    return " ".join(str(premise.title_fr if premise else "").split())
+
+
+#: P8 (fourth commit): the ``state`` key of the learner's own plan for the gap's next
+#: day («Demain, je veux parler à Gus de la clé.»): ``{gap, day, said_fr, hook_fr,
+#: with, date, event_id}``, written by the settle, read by ``gap_brief`` on that day.
+PLAN_KEY = "tomorrow_plan"
+
+
+def learner_plan(state: dict | None, gap_id: str, day: int) -> dict | None:
+    """The learner's own plan for this gap day, if their last day stated one."""
+
+    row = (state or {}).get(PLAN_KEY)
+    if isinstance(row, dict) and row.get("gap") == gap_id and row.get("day") == day and row.get("said_fr"):
+        return row
+    return None
+
+
+def _cast_name(season: Season, member_id: str | None) -> str:
+    member = next((row for row in season.cast if row.id == member_id), None) if member_id else None
+    if member is None:
+        return ""
+    nickname = re.search(r"«\s*([^»]+?)\s*»", member.name)
+    return nickname.group(1) if nickname else member.name
+
+
+def _plan_first(beat: dict[str, Any], required: dict[str, Any] | None, plan: dict, name: str) -> None:
+    """P8 (fourth commit): the learner's plan as the start of today's beat. The page
+    opens on it, with the person the learner named, and the question put to the learner
+    is its next step; the beat's own question follows when the scene holds both."""
+
+    said = str(plan.get("said_fr") or "").strip()
+    present = f" {name} is there when the page opens." if name else ""
+    beat["before"] = (
+        f"Yesterday the learner said what they want to do today: «{said}»{present} "
+        f"Then, as planned: {beat.get('before') or ''}"
+    ).strip()
+    if required is not None:
+        asker = name or "The lead"
+        required["turn"] = (
+            f"First, {asker} asks the learner the next step of their own plan («{said}»). "
+            f"Then, when the same scene holds it: {required.get('turn') or ''}"
+        ).strip()
+
+
+#: The ``state`` key of the flags the learner set in their own words (``runtime``).
+_LEARNER_SET_KEY = "learner_set"
+
+
+def learner_decides(premise: Any, state: dict | None, flags: dict[str, Any]) -> list[dict[str, Any]]:
+    """P8 (fourth commit): what today's premise lets the learner decide (``sets``) that
+    they have not decided yet. The brief showed the premise's ``settles`` («the ticket:
+    mercredi 2 décembre») as a fact, and a page of 17 Nov narrated «Au téléphone,
+    l'agent a une place le 2 décembre.» and asked why the learner changed the date
+    before they chose to. Each row: the flag, what it says now, and the story's value
+    when the learner decides nothing (applied after the day, ``runtime._settle_gap``)."""
+
+    if premise is None:
+        return []
+    decided = (state or {}).get(_LEARNER_SET_KEY) or {}
+    return [
+        {
+            "flag": flag,
+            "now": flags.get(flag),
+            "if_the_learner_decides_nothing": premise.settles.get(flag),
+        }
+        for flag in premise.sets
+        if flag not in decided
+    ]
+
+
 def _waiting(gap: Gap, beat: DayBeat) -> dict[str, str]:
     premise = next((row for row in gap.premises if row.id == beat.premise), None)
     return {"title_fr": premise.title_fr if premise else beat.premise, "before": beat.before}
@@ -594,16 +697,9 @@ def gap_brief(
     # missed twice is left behind (``dropped_beats``); a required one is still owed to
     # the bridge (``recovery.missing_required`` reads ``done`` alone).
     dropped = dropped_beats(state, gap.id)
-    plan = planned_beat(gap, day, done | dropped, flags, length=pos.segment.days) if gap.days else None
     # «Demain»: the beat the learner picked yesterday, while it is still one of today's
     # options (a flag set since may have closed it).
-    pick = learner_pick(state, gap.id, day)
-    offered = tomorrow_options(gap, day, done, flags, length=pos.segment.days, dropped=dropped) if pick else []
-    beat = (
-        planned_beat(gap, day, done | dropped, flags, length=pos.segment.days, prefer=pick)
-        if pick in {option.premise for option in offered}
-        else plan
-    )
+    beat, plan = beats_for(gap, day, state, flags, length=pos.segment.days)
     if gap.days:
         required = beat.premise if beat else None
     else:
@@ -631,6 +727,45 @@ def gap_brief(
     obstacle = open_obstacle(state, gap.id)
     required_row = next((premise for premise in gap.premises if premise.id == required), None)
     rules = season.gap_rules or {}
+    # P8 (fourth commit): what the learner has not decided yet is shown as theirs to
+    # decide, not as the premise's settled value.
+    deciding = learner_decides(required_row, state, flags)
+    open_flags = {row["flag"] for row in deciding}
+    required_out = (
+        {
+            **required_row.model_dump(exclude={"when"}),
+            "settles": {flag: value for flag, value in required_row.settles.items() if flag not in open_flags},
+        }
+        if required_row
+        else None
+    )
+    beat_out = (
+        {
+            **beat.model_dump(exclude={"day", "premise", "pick_fr", "needs", "contract"}),
+            # «Demain» paid check: the «À suivre…» leads into what the plan stages
+            # next, which a pick or a beat left behind may have changed.
+            "hook": leading_hook(gap, beat, done | dropped, flags, day=day, length=pos.segment.days),
+        }
+        if beat
+        else None
+    )
+    # «Demain»: the learner chose today's thread yesterday; the plan's own beat waits.
+    picked: dict[str, Any] = (
+        {"by_learner": beat.pick_fr, "waits": _waiting(gap, plan)}
+        if beat and plan and beat.premise != plan.premise
+        else {}
+    )
+    # P8 (fourth commit): the learner's own plan for today («Demain, je veux parler à
+    # Gus de la clé.») enters where a «Demain» pick does, and opens today's beat.
+    stated = learner_plan(state, gap.id, day)
+    if stated and beat_out is not None:
+        name = _cast_name(season, stated.get("with"))
+        _plan_first(beat_out, required_out, stated, name)
+        picked = {
+            **picked,
+            "plan_fr": str(stated.get("said_fr") or ""),
+            **({"with": stated["with"]} if name else {}),
+        }
     return {
         "season": {
             "id": season.id,
@@ -655,23 +790,13 @@ def gap_brief(
             "establish_before_next_tentpole": list(gap.establish),
         },
         "today": {
-            "required_premise": required_row.model_dump(exclude={"when"}) if required_row else None,
+            "required_premise": required_out,
             # The day plan's change for today: the page starts from ``before``, the
             # learner's exchange ends at ``after``.
-            "beat": {
-                **beat.model_dump(exclude={"day", "premise", "pick_fr", "needs", "contract"}),
-                # «Demain» paid check: the «À suivre…» leads into what the plan stages
-                # next, which a pick or a beat left behind may have changed.
-                "hook": leading_hook(gap, beat, done | dropped, flags, day=day, length=pos.segment.days),
-            }
-            if beat
-            else None,
-            # «Demain»: the learner chose today's thread yesterday; the plan's own beat waits.
-            **(
-                {"picked": {"by_learner": beat.pick_fr, "waits": _waiting(gap, plan)}}
-                if beat and plan and beat.premise != plan.premise
-                else {}
-            ),
+            "beat": beat_out,
+            **({"picked": picked} if picked else {}),
+            # P8 (fourth commit): what the learner decides today and has not yet.
+            **({"learner_decides": deciding} if deciding else {}),
             "premises": [premise.model_dump(exclude={"when"}) for premise in premises],
             "small_moments": [moment.model_dump() for moment in moments],
             "gate": required_row.gate if required_row else None,

@@ -1078,7 +1078,11 @@ day's plan for it: the page starts from its before, the learner's exchange ends 
 after (change_before and change_after say the same), «also» is a small extra to carry if
 it fits, and the «À suivre…» points where its hook says. Otherwise choose one of
 brief.today.premises or a day of your own inside brief.gap.threads (they may advance
-only as far as they say). Offer one of brief.today.small_moments when it fits.
+only as far as they say). brief.today.picked.plan_fr, when set, is the learner's own
+plan for today, in their words: the beat opens on it, and picked.with, when set, is the
+person it names. brief.today.learner_decides, when set, is what the learner decides
+today and has not yet: it is still open when the page ends; the character asks, and no
+panel says it is decided or done. Offer one of brief.today.small_moments when it fits.
 brief.writing_rules and brief.registers are the season's register: lines addressed to
 the learner never agree an adjective with them; Camille's lines never agree an adjective
 with Camille. A cast member whose register is tu never says vous to the learner.
@@ -5233,6 +5237,7 @@ from app.services.story_teaser import (  # noqa: E402,F401  the names this modul
     _days_between,
     _words,
     compose_teaser,
+    hook_source,
     hooks_asked,
     next_teaser,
     question_left_open,
@@ -5284,6 +5289,90 @@ def _contract_hook(story_context: dict, *, user: Any, date: str | None) -> dict 
     except Exception:  # noqa: BLE001 - a broken season file never costs the ending
         return None
     return day_contract.hook_teaser(season, season_ctx, band=learner_level_band(user), date=date)
+
+
+def _tomorrow_beat(story_context: dict, live: dict, *, user: Any, date: str | None) -> dict | None:
+    """P8 (fourth commit): tomorrow's planned beat once today is settled
+    (``season.runtime.tomorrow_beat``), or None off a season or before a tentpole."""
+
+    from app.services.season.runtime import SEASON_CONTEXT_KEY, tomorrow_beat
+
+    season_ctx = (story_context or {}).get(SEASON_CONTEXT_KEY) or {}
+    if season_ctx.get("reprise"):
+        return None
+    seed = str(season_ctx.get("seed") or getattr(user, "id", "") or "")
+    return tomorrow_beat(live, date_iso=date, seed=seed)
+
+
+def _beat_teaser(ahead: dict | None, *, date: str | None) -> dict | None:
+    """P8 (fourth commit): the hook composed from tomorrow's beat, unvoiced like a
+    tentpole's line (nobody in the story says it): ``source: beat``."""
+
+    if not ahead or not ahead.get("line_fr"):
+        return None
+    beat = ahead.get("beat")
+    return {
+        "text_fr": str(ahead["line_fr"]),
+        "character_id": None,
+        "date": date,
+        "ref": f"beat:{ahead.get('gap')}.{ahead.get('day')}:{getattr(beat, 'premise', '')}",
+        "kind": "season",
+        "source": "beat",
+    }
+
+
+#: A word of the learner's plan that names a cast member («Gus», «Lila», «Marchand»).
+_NAME_WORD = re.compile(r"[A-ZÀ-ÖØ-Þ][\w'’-]+")
+
+
+def _named_in(text: str, world: dict | None) -> str | None:
+    """The cast member a learner's sentence names, by their usual name first («Gus»,
+    «Lila»), then by another word of their name («Marchand»), or None."""
+
+    words = {word.casefold() for word in _NAME_WORD.findall(str(text or ""))}
+    if not words:
+        return None
+    usual = _cast_names(world)
+    for member_id, name in usual.items():
+        if name.casefold() in words and member_id != "odile":
+            return member_id
+    for member in (world or {}).get("cast") or []:
+        if not isinstance(member, dict) or not member.get("id") or member.get("id") == "odile":
+            continue
+        tokens = {token.casefold() for token in re.findall(r"[\w'’-]{3,}", str(member.get("name") or ""))}
+        if tokens & words - {"mme", "maître"}:
+            return str(member["id"])
+    return None
+
+
+def _file_learner_plan(
+    live: dict, plan: dict | None, ahead: dict | None, *, said: list[str], world: dict | None, date: str | None
+) -> None:
+    """P8 (fourth commit): the learner's own plan for tomorrow, as tomorrow's brief reads
+    it (``season.director.learner_plan``): their own sentence that names tomorrow, the
+    hook the scene said it back as, and the cast member it names. Filed in the season's
+    state for the next planned gap day only; any older plan is dropped."""
+
+    from app.services.season.clock import SEASON_KEY as SEASON_STATE_KEY
+    from app.services.season.director import PLAN_KEY
+    from app.services.story_teaser import learner_plan_line
+
+    state = live.get(SEASON_STATE_KEY)
+    if not isinstance(state, dict):
+        return
+    state = dict(state)
+    state.pop(PLAN_KEY, None)
+    line = learner_plan_line(said) if plan and ahead else None
+    if line:
+        state[PLAN_KEY] = {
+            "gap": ahead["gap"],
+            "day": ahead["day"],
+            "said_fr": line,
+            "hook_fr": str(plan.get("text_fr") or ""),
+            **({"with": who} if (who := _named_in(line, world) or _named_in(plan.get("text_fr") or "", world)) else {}),
+            "date": date,
+        }
+    live[SEASON_STATE_KEY] = state
 
 
 def _contract_previously(live: dict, lines: list[str]) -> list[str]:
@@ -7440,6 +7529,8 @@ def yesterday_hook(live: dict) -> dict | None:
         **({"question_fr": question} if question and question != text else {}),
         "date": date,
         **({"character_id": teaser["character_id"]} if teaser.get("character_id") else {}),
+        # P8 (fourth commit): where it came from (``story_teaser.hook_source``).
+        "source": hook_source(teaser),
     }
 
 
@@ -7510,6 +7601,9 @@ def hook_observation(hook: dict | None, draft: Any) -> dict | None:
     - ``decides_for_learner``: the hook asked the learner, and a panel says the answer
       is given («Mercredi 2 décembre. C'est noté.»).
 
+    - ``hook_source``: where the hook came from (``story_teaser.hook_source``: plan,
+      beat, contract, tentpole, pick, scene, generic), so a walk counts take-up by source.
+
     ``None`` when there is no hook. Word-based, like every reading here: «ton avion» for
     «ton vol» reads as ``no``."""
 
@@ -7532,6 +7626,8 @@ def hook_observation(hook: dict | None, draft: Any) -> dict | None:
         taken = "late" if later else "no"
     to_learner = said.rstrip().endswith("?") and bool(_TO_THE_LEARNER.search(said))
     return {
+        # P8 (fourth commit): which source of hook this page was given.
+        "hook_source": hook_source(hook),
         "hook_taken_up": taken,
         "hook_repeats": bool(question.strip()) and same_question(question, said),
         "decides_for_learner": to_learner and any(_DECIDED.search(line) for panel in panels for line in panel),
@@ -11942,13 +12038,23 @@ def _hook_after_day(
     files them: the end card, Home, the push and tomorrow's page (``yesterday_hook``) all
     read this one row.
 
-    The order: a tentpole's own «À suivre…»; P8 the learner's own «demain …» as the
-    scene said it back, else the ending's own step forward, so the end card and Home never
-    promise two different things; the contract's planned hook; then the writer's question,
-    the scene's open question or an open row (``next_teaser``). P8: no hook asks again what
-    today's page took up (``story_teaser.hook_again``) or what the learner answered in this
-    scene (``story_teaser.answered_in_scene``). The row is filed as ONE line
-    (``story_teaser.one_hook``): every surface prints it as it is."""
+    P8, fourth commit: the hook is something tomorrow's page can take up. On a day whose
+    next day is a planned gap beat (``season.runtime.tomorrow_beat``, the beat tomorrow's
+    brief will carry), the order is: a tentpole's own «À suivre…» (without the writer's
+    question: the tentpole's line leads into the gap); the learner's own «demain …» as
+    the scene said it back (``source: plan``, and filed for tomorrow's brief, see
+    :func:`_file_learner_plan`); the contract's planned hook; the hook composed from
+    tomorrow's beat (``source: beat``). Only when tomorrow's beat is not known (the
+    gap's last day, a tentpole ahead, no season) do today's scene and the season's
+    questions supply it, as before: the ending's own step, the writer's question, the
+    scene's open question or an open row (``next_teaser``). Real play of 17 Nov (third
+    commit): of seven hooks taken from the scene or the season's questions, tomorrow's
+    page took up two; the brief followed the beat.
+
+    P8 (earlier commits): no hook asks again what today's page took up
+    (``story_teaser.hook_again``) or what the learner answered in this scene
+    (``story_teaser.answered_in_scene``). The row is filed as ONE line
+    (``story_teaser.one_hook``), with its ``source``: every surface prints it as it is."""
 
     from app.services.season.runtime import season_teaser
     from app.services.story_teaser import answered_in_scene, ending_hook, one_hook
@@ -11965,20 +12071,29 @@ def _hook_after_day(
         if not getattr(turn, "authored_ending", False)
         else None
     )
+    plan = step if step and step.get("source") == "plan" else None
+    scene_step = None if plan else step
+    ahead = _tomorrow_beat(brief.story_context, live, user=user, date=date)
+    _file_learner_plan(live, plan, ahead, said=said, world=world_after, date=date)
     # The questions the learner answered here: the page's own, and every reply's but the last.
     draft = (getattr(brief, "story_context", None) or {}).get("draft") or {}
     answered = [str(draft.get("opening_line_fr") or ""), *replies[:-1]]
 
     def still_open(question: str | None) -> str | None:
         return None if question and answered_in_scene(question, answered) else question
+
+    def planned() -> dict | None:
+        return _contract_hook(brief.story_context, user=user, date=date) or _beat_teaser(ahead, date=date)
+
     if not scene_record.enabled():
         # Main's tomorrow: the page's own «À suivre…», the plan's hook, else an open row.
         from app.services import story_teaser_main
 
         teaser = (
             season_teaser(brief.story_context, date=date)
-            or step
-            or _contract_hook(brief.story_context, user=user, date=date)
+            or plan
+            or planned()
+            or scene_step
         ) or story_teaser_main.next_teaser(
             live, world_after, character_id=brief.character_id, register=register, date=date, seed=seed, name=name
         )
@@ -11991,11 +12106,13 @@ def _hook_after_day(
         # #850: a tentpole prints the writer's question as «Tomorrow» too, without
         # ``next_teaser``: a question an earlier hook asked is dropped here, for every surface.
         question = still_open(_tomorrow_question(db, user, turn, brief, said, ledger, asked=hooks_asked(live, date=date)))
-        # WP-111: a tentpole day's tomorrow is the page's own «À suivre…».
+        # WP-111: a tentpole day's tomorrow is the page's own «À suivre…». P8: before a
+        # planned gap day, without the writer's question, which tomorrow's beat ignores.
         teaser = (
-            season_teaser(brief.story_context, date=date, question=question)
-            or step
-            or _contract_hook(brief.story_context, user=user, date=date)
+            season_teaser(brief.story_context, date=date, question=None if ahead else question)
+            or plan
+            or planned()
+            or scene_step
         ) or next_teaser(
             live,
             world_after,

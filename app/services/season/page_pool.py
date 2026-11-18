@@ -146,6 +146,10 @@ def applies(context: dict) -> bool:
         return False
     if any(context.get(key) for key in PERSONAL_DAY_KEYS):
         return False
+    # P8 (fourth commit): a day that opens on the learner's own plan is theirs.
+    today = ((context.get("season_script") or {}).get("brief") or {}).get("today") or {}
+    if (today.get("picked") or {}).get("plan_fr"):
+        return False
     if str((context.get("season") or {}).get("phase") or "running") != "running":
         return False
     known = SHARED_KEYS | UNFRAMED_KEYS | DROPPED_KEYS | RUNTIME_KEYS | PERSONAL_DAY_KEYS | set(LIFE_KEYS)
