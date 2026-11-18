@@ -43,7 +43,7 @@ import type { RoomSpec } from '@/lib/quartier/room';
 import type { SiteSpec } from '@/lib/quartier/site';
 import { Stage } from '@/lib/quartier/stage';
 import type { AnswerUi, Cue, Director, Handover, Level, Native, PhoneUi, SpeechUi, StageUi, TalkUi } from '@/lib/quartier/stage';
-import { STAGED_DAYS, pageOfCopy } from '@/lib/quartier/story';
+import { STAGED_DAYS, episodeLabel, pageOfCopy } from '@/lib/quartier/story';
 import type { HelpStep, Story, StoryPage } from '@/lib/quartier/story';
 import { Visit } from '@/lib/quartier/visit';
 import { doorsAt, placeOf, playedHere, worldState } from '@/lib/quartier/world';
@@ -235,9 +235,9 @@ const COPY = {
 
 type Copy = (typeof COPY)['en'];
 
-/** «Épisode 12», or the quarter's name when the page has no number. */
+/** «Nº 12» (the day's edition, as Home prints it), or the quarter's name when the page has no number. */
 function episodeOf(page: StoryPage | null) {
-  return page?.number ? `Épisode ${page.number}` : 'Le Quartier';
+  return episodeLabel(page?.number) ?? 'Le Quartier';
 }
 
 export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance: firstAmbiance = 'nuit', onExit, showStats = false, startPlace, cast, onReady, hidden = false, details, world }: QuartierScreenProps) {

@@ -132,6 +132,11 @@ export interface StoryPage {
  */
 export const STAGED_DAYS = ['t1.a', 't1.b'];
 
+/** P12 · «Nº 8»: the episode as Home numbers it (`headlineKicker`); null without a number. */
+export function episodeLabel(number: number | null | undefined): string | null {
+  return typeof number === 'number' && number > 0 ? `Nº ${number}` : null;
+}
+
 /** Le Mistral itself: no card names it. */
 const AT_MISTRAL = new Set(['le_mistral', 'mistral_back_room']);
 

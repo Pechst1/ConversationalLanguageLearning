@@ -143,6 +143,7 @@ import {
   sessionMore,
   sessionNextAction,
   sessionRows,
+  withScenePlayed,
 } from '@/lib/day-session';
 import { dayIsDone, handOnAfterGrammar, ruleCheckExitFromDay, ruleCheckIsFromDay, ruleCheckPath } from '@/lib/day-plan';
 import { todayInterlude } from '@/components/atelier-v2/journey/season-return-model';
@@ -2909,7 +2910,10 @@ function TodayView({
    * after the scene opens the next step. Words and La Forge are then part of
    * the day, so no chip offers them beside it.
    */
-  const daySession = journeyDay ? (dayEnvelope as TodayEnvelope | null)?.session ?? null : null;
+  const serverSession = journeyDay ? (dayEnvelope as TodayEnvelope | null)?.session ?? null : null;
+  // P12: a scene played (as pages or in Le Quartier) is done on the tracker while the journey's
+  // own steps go on; the button stays the journey card's «Continue today» meanwhile.
+  const daySession = withScenePlayed(serverSession, dayJourney);
   const homeDay = daySession ? sessionMarkState(daySession, chromeLanguage) : journeyDay;
   const [tempoOpen, setTempoOpen] = useState(false);
   /**
@@ -3152,8 +3156,8 @@ function TodayView({
     Boolean((today as { streak?: { today_done?: boolean } } | null)?.streak?.today_done),
     daySession,
   );
-  const sessionNext = sessionNextAction(daySession, chromeLanguage);
-  const sessionExtra = sessionMore(daySession, chromeLanguage);
+  const sessionNext = sessionNextAction(serverSession, chromeLanguage);
+  const sessionExtra = sessionMore(serverSession, chromeLanguage);
   const homeHero = daySession && (sessionNext || sessionExtra) ? (
     <>
       {revueHero ?? journeyCard}
