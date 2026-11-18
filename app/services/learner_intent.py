@@ -241,7 +241,9 @@ def said_fallback(language: str | None, quote: str) -> str:
     quote = " ".join(str(quote or "").split()).strip()
     if not quote:
         return ""
-    template = _SAID_FALLBACK.get(str(language or "").lower()[:2], _SAID_FALLBACK["en"])
+    from app.services.chrome_language import fold_language
+
+    template = _SAID_FALLBACK[fold_language(language)]
     return template.format(quote=quote[:160])
 
 
