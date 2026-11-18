@@ -33,7 +33,7 @@ import { replyFinishedTyping } from './voice-autoplay';
 import {
   exchangeLabel,
   markSpan,
-  printedFix,
+  threadFixes,
   type ExchangeProgress,
   type LearnerBubble,
   type ThreadBubble,
@@ -78,7 +78,8 @@ function LearnerLine({
   onToggle: (key: string) => void;
 }) {
   const correction = bubble.correction;
-  const fix = printedFix(correction);
+  // P3: the first correction open, from B1 up to two more collapsed under it.
+  const { open: fix, collapsed } = threadFixes(correction);
   const noteId = `av2-thread-note-${bubble.key}`;
   // The span is a real substring by contract; a payload that breaks that just
   // leaves the line unmarked — the corrected form under it still says it all.
@@ -137,6 +138,34 @@ function LearnerLine({
                 <p key={index}>{note}</p>
               ))}
             </div>
+          )}
+          {collapsed.length > 0 && (
+            <details className="av2-thread__more">
+              <summary>
+                {collapsed.length === 1
+                  ? copy.thread_more_one
+                  : copy.thread_more_many.replace('{n}', String(collapsed.length))}
+              </summary>
+              {collapsed.map((more, index) => (
+                <div key={index} className="av2-thread__fix">
+                  <p className="av2-thread__fixline">
+                    <span className="av2-sr">{copy.thread_fix_sr} </span>
+                    <s lang="fr">{more.span}</s>
+                    <span aria-hidden="true"> → </span>
+                    <span className="av2-thread__fixed" lang="fr">
+                      {more.fixed}
+                    </span>
+                  </p>
+                  {more.notes.length > 0 && (
+                    <div className="av2-thread__note" role="note">
+                      {more.notes.map((note, line) => (
+                        <p key={line}>{note}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </details>
           )}
         </div>
       )}

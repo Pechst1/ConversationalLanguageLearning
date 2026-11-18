@@ -299,3 +299,102 @@ def test_an_answer_in_the_shape_before_p3_is_still_read():
     lanes.validate_tutor(verdict, _payload("Tu est gentil."))
     assert (verdict.correction_span_fr, verdict.correction_fr) == ("est", "es")
     assert [c.corrected_fr for c in verdict.corrections] == ["es"]
+
+
+# ---------------------------------------------------------------------------
+# Stage 2 (owner decision 2, as proposed): one correction at A1–A2, up to three from B1
+# ---------------------------------------------------------------------------
+
+THREE_TEXT = "Je voudrais que tu reviens avant que je prends le train, il fait froid dans le appartement."
+AVANT = {
+    "span_fr": "que je prends",
+    "corrected_fr": "que je prenne",
+    "note_native": "After « avant que » the verb takes the subjunctive.",
+    "rule_id": None,
+}
+
+
+def _three(level: str) -> lanes.TutorVerdict:
+    verdict = _verdict(ELISION, AVANT, SUBJ)
+    lanes.validate_tutor(verdict, _payload(THREE_TEXT, level=level, rules=_rules()))
+    return verdict
+
+
+def test_a_b1_reply_with_three_errors_keeps_three_corrections_the_days_rule_first():
+    verdict = _three("B1")
+
+    assert [c.span_fr for c in verdict.corrections] == ["que tu reviens", "le appartement", "que je prends"]
+    assert verdict.correction_span_fr == "que tu reviens"  # the foreground, as every reader has it
+    assert lanes.tutor_payload(_payload(level="B1"))["max_corrections"] == 3
+
+
+@pytest.mark.parametrize("level", ["A1", "A2"])
+def test_an_a1_a2_reply_keeps_exactly_one(level):
+    verdict = _three(level)
+
+    assert [c.span_fr for c in verdict.corrections] == ["que tu reviens"]
+    assert lanes.tutor_payload(_payload(level=level))["max_corrections"] == 1
+
+
+def test_each_correction_passes_the_checks_on_its_own_and_overlaps_collapse():
+    gender_only = {"span_fr": "reviens", "corrected_fr": "reviens", "note_native": "Same.", "rule_id": None}
+    overlapping = {**SUBJ, "span_fr": "tu reviens", "corrected_fr": "tu reviennes", "rule_id": None}
+    verdict = _verdict(SUBJ, SUBJ, overlapping)
+    lanes.validate_tutor(verdict, _payload(THREE_TEXT, level="B2", rules=_rules()))
+    assert [c.span_fr for c in verdict.corrections] == ["que tu reviens"]
+
+    verdict = _verdict(gender_only, {**AVANT, "note_native": "La forme correcte est « que je prenne »."}, ELISION)
+    lanes.validate_tutor(verdict, _payload(THREE_TEXT, level="B1", rules=_rules()))
+    assert [c.span_fr for c in verdict.corrections] == ["le appartement"]
+
+
+def test_the_turn_carries_all_accepted_corrections_and_shows_the_first_in_front():
+    from app.services.daily_journey import DailyJourneyService
+
+    correction = lanes.turn_correction(_three("B1"), THREE_TEXT)
+    assert correction.span_fr == "que tu reviens"
+    assert [c.span_fr for c in correction.more] == ["le appartement", "que je prends"]
+    assert all(c.more == () for c in correction.more)
+
+    public = DailyJourneyService._public_correction(correction, THREE_TEXT)
+    assert public.span_fr == "que tu reviens"
+    assert [c.corrected_fr for c in public.more] == ["l'appartement", "que je prenne"]
+    assert public.more[0].notes_native  # one note per issue, as the first has
+
+    assert lanes.turn_correction(_three("A2"), THREE_TEXT).more == ()
+
+
+def test_a_prompt_that_withholds_the_correction_withholds_the_others_too(db_session, monkeypatch):
+    """No-spoil: the self-repair prompt clears the turn's correction; the ones collapsed
+    under it live on it, so they go with it (journey_conversation is unchanged)."""
+
+    from app.services import journey_conversation as jc
+    from app.services.journey_contracts import (
+        AssistanceLevel,
+        AttemptAnswer,
+        InputMode,
+        ResponseEvaluation,
+        TaskOutcome,
+    )
+
+    evaluation = ResponseEvaluation(
+        outcome=TaskOutcome.MET,
+        assistance=AssistanceLevel.NONE,
+        observations=[],
+        character_reply_fr="D'accord.",
+        correction=lanes.turn_correction(_three("B1"), THREE_TEXT),
+    )
+    from types import SimpleNamespace
+
+    prompt = jc.SelfRepairPrompt(
+        error_id="e1", span_fr="que tu reviens", corrected_fr="que tu reviennes", why_native="Subjonctif.",
+        question_fr="Pardon, tu veux que je… quoi ?", kind="repetition",
+    )
+    decision = jc.FeedbackDecision(reason="recurrence", prompt=prompt)
+    task = SimpleNamespace(max_turns=3, targets=[], repair_allowed=False)
+    monkeypatch.setattr(jc, "remaining_turns", lambda *_a: 2)
+    after = jc.apply_feedback_policy(
+        evaluation, db_session, user=None, task=task,
+        answer=AttemptAnswer(mode=InputMode.TEXT, text=THREE_TEXT), turn_index=0, decision=decision,
+    )
+    assert after.correction is None

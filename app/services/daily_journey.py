@@ -76,6 +76,7 @@ from app.schemas.daily_journey import (
     JourneySnapshot,
     JourneyTomorrowRequest,
     LegacyResume,
+    MoreCorrection,
     NextFocus,
     NextTurn,
     PaceOptions,
@@ -6394,15 +6395,20 @@ class DailyJourneyService:
         would silently drop a correct correction that contains an apostrophe.
         """
 
-        if correction is None or not correction.is_valid_for(
-            normalize_answer_text(learner_text)
-        ):
+        normalized = normalize_answer_text(learner_text)
+        if correction is None or not correction.is_valid_for(normalized):
             return None
         return JourneyCorrection(
             span_fr=correction.span_fr,
             corrected_fr=correction.corrected_fr,
             note_native=correction.note_native,
             kind=correction.kind,
+            # P3: from B1, a scene reply's other corrections, collapsed under this one.
+            more=[
+                MoreCorrection(span_fr=item.span_fr, corrected_fr=item.corrected_fr, note_native=item.note_native)
+                for item in getattr(correction, "more", ()) or ()
+                if item.note_native and item.is_valid_for(normalized)
+            ],
         )
 
     def _reply_source(self, evaluation: Any) -> str:

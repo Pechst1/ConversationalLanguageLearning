@@ -1,9 +1,9 @@
 # prompt snapshot · turn-a1-reason-ignored · lane turn · level A1
-# key: sha256:64c1fc89d332831e74d8f293031ecb694dd273f7e5ed02b78f1c6ad4a3a7a9ae
+# key: sha256:fb819a82393376fb3fc365af242a758751668d1cb2a1e1ac72b580fdffd9f14f
 # accept a change: PROMPT_SNAPSHOT_UPDATE=1 python -m pytest tests/test_prompt_regression.py (or scripts/prompt_regression.py --update)
 
-======== call 1 · TutorVerdict #1 · e207462e4776f0e1 ========
-params: {"disable_retries": true, "max_provider_attempts": 1, "max_tokens": 1300, "prompt_cache_key": "atelier-TutorVerdict", "reasoning_effort": "minimal", "response_format": {"type": "json_object"}, "temperature": 0.2}
+======== call 1 · TutorVerdict #1 · 5b89bd47787c1859 ========
+params: {"disable_retries": true, "max_provider_attempts": 1, "max_tokens": 1450, "prompt_cache_key": "atelier-TutorVerdict", "reasoning_effort": "minimal", "response_format": {"type": "json_object"}, "temperature": 0.2}
 output_schema: TutorVerdict sha256:a487c2629950c1a2
 -------- system --------
 You are the language tutor of Atelier. You grade ONE learner turn of a short

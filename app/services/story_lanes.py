@@ -46,7 +46,7 @@ import threading
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import UUID, uuid4
@@ -103,7 +103,8 @@ PENDING_JOBS_KEY = "wp87_story_lane_jobs"
 # reasoning left over returns empty content (see the starvation memo). So the lanes run
 # with ``reasoning_effort="minimal"`` AND a ceiling of output + headroom. The ceiling
 # costs nothing unless it is used; latency follows the tokens actually generated.
-TUTOR_OUTPUT_TOKENS = 300
+#: P3: up to three corrections from B1, each with a one-line rule (was 300 for one).
+TUTOR_OUTPUT_TOKENS = 450
 VOICE_OUTPUT_TOKENS = 330
 #: ``STORY_SCENE_RECORD`` off: main's ceiling (the record's reading adds ``learner_intent``
 #: and ``learned`` to the answer).
@@ -547,9 +548,34 @@ def tutor_payload(payload: dict) -> dict:
 
 
 def max_corrections(level: object) -> int:
-    """How many corrections one scene reply may show (P3, owner decision 2 proposed)."""
+    """How many corrections one scene reply may show (P3, owner decision 2 as proposed):
+    one at A1–A2, up to three from B1."""
 
-    return 1
+    band = str(level or "").strip().upper()[:2]
+    return 1 if band in ("", "A1", "A2") or not band.startswith(("B", "C")) else TUTOR_MAX_CORRECTIONS
+
+
+def turn_correction(verdict: TutorVerdict, learner_text: str) -> Correction | None:
+    """The verdict's corrections as the turn's one foreground :class:`Correction`, the
+    others under it (``more``); each must hold for the learner's words on its own."""
+
+    listed = list(verdict.corrections) or (
+        # A verdict in the shape before P3 (stored, never re-validated).
+        [TutorCorrection(span_fr=verdict.correction_span_fr, corrected_fr=verdict.correction_fr,
+                         note_native=verdict.correction_note_native)]
+        if verdict.correction_span_fr and verdict.correction_fr
+        else []
+    )
+    shown = [
+        candidate
+        for item in listed
+        if item.note_native
+        and (candidate := Correction(span_fr=item.span_fr, corrected_fr=item.corrected_fr, note_native=item.note_native))
+        .is_valid_for(learner_text)
+    ]
+    if not shown:
+        return None
+    return replace(shown[0], more=tuple(shown[1:]))
 
 
 def voice_payload(payload: dict) -> dict:
@@ -1678,15 +1704,7 @@ def margin_correction(
     except Exception as exc:  # noqa: BLE001 - a correction is never worth the turn
         logger.info("story_lanes: no margin correction on the season page (%s)", exc)
         return MarginFailure(f"{type(exc).__name__}: {exc}")
-    if verdict.correction_span_fr and verdict.correction_fr and verdict.correction_note_native:
-        candidate = Correction(
-            span_fr=verdict.correction_span_fr,
-            corrected_fr=verdict.correction_fr,
-            note_native=verdict.correction_note_native,
-        )
-        if candidate.is_valid_for(answer.text):
-            return candidate
-    return None
+    return turn_correction(verdict, answer.text)
 
 
 def _agency_details(payload: dict, voice: VoiceReply, learner_text: str) -> dict:
@@ -1805,15 +1823,8 @@ def evaluate_turn_lanes(
         )
         if question_open:
             needs_repair = True  # #378: the character's question waits for its answer
-        correction = None
-        if tutor.correction_span_fr and tutor.correction_fr and tutor.correction_note_native:
-            candidate = Correction(
-                span_fr=tutor.correction_span_fr,
-                corrected_fr=tutor.correction_fr,
-                note_native=tutor.correction_note_native,
-            )
-            if candidate.is_valid_for(answer.text):
-                correction = candidate
+        # P3: the foreground correction, and from B1 up to two more under it.
+        correction = turn_correction(tutor, answer.text)
         observations = [
             TargetObservation(
                 target=target,

@@ -555,6 +555,24 @@ class RespondLetter(JourneyModel):
     objective_native: str
 
 
+class MoreCorrection(JourneyModel):
+    """P3: one more correction of a scene reply, of other words than the first («A → B»)."""
+
+    model_config = ConfigDict(json_schema_serialization_defaults_required=False)
+    span_fr: str
+    corrected_fr: str
+    note_native: str
+    notes_native: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _one_note_per_issue(self) -> MoreCorrection:
+        if not self.notes_native and self.note_native:
+            from app.services.forge_grading import notes_native
+
+            self.notes_native = notes_native([{"why_wrong": self.note_native}])
+        return self
+
+
 class JourneyCorrection(JourneyModel):
     # Persisted corrections predating WP-103 do not carry the additive notes list.
     model_config = ConfigDict(json_schema_serialization_defaults_required=False)
@@ -574,6 +592,9 @@ class JourneyCorrection(JourneyModel):
     #: #624: ``example`` is a model sentence shown after a free sentence missed the
     #: rule. It is not the learner's sentence made right: the screen draws no arrow.
     kind: Literal["edit", "pick", "meaning", "example"] = "edit"
+    #: P3 (additive): from B1 a scene reply's other corrections, shown collapsed under
+    #: this one, in the order the tutor ranked them. Empty below B1 and elsewhere.
+    more: list[MoreCorrection] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _one_note_per_issue(self) -> JourneyCorrection:

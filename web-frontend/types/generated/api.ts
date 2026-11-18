@@ -10075,6 +10075,8 @@ export interface components {
              * @enum {string}
              */
             kind?: "edit" | "pick" | "meaning" | "example";
+            /** More */
+            more?: components["schemas"]["MoreCorrection"][];
             /** Note Native */
             note_native: string;
             /** Notes Native */
@@ -11116,6 +11118,20 @@ export interface components {
             user_turn: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * MoreCorrection
+         * @description P3: one more correction of a scene reply, of other words than the first («A → B»).
+         */
+        MoreCorrection: {
+            /** Corrected Fr */
+            corrected_fr: string;
+            /** Note Native */
+            note_native: string;
+            /** Notes Native */
+            notes_native?: string[];
+            /** Span Fr */
+            span_fr: string;
         };
         /**
          * NarrativeChoiceRequest
