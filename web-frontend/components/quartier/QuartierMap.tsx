@@ -10,6 +10,8 @@
 import React from 'react';
 
 import { projectPoint } from '@/components/carte/carte-projection';
+import { LABEL, placeLabels } from '@/lib/quartier/map-labels';
+import type { PlacedLabel } from '@/lib/quartier/map-labels';
 import type { Words } from '@/lib/quartier/memory';
 import type { Native } from '@/lib/quartier/stage';
 import { mapPlaces } from '@/lib/quartier/world';
@@ -51,6 +53,24 @@ const path = (pts: Array<[number, number]>) =>
 const CANAL_OPEN = PARIS.canal.open.map(path);
 const CANAL_COVERED = PARIS.canal.covered.map(path);
 
+/** The frame «Ton quartier» shows: the square around the pins, padded, never under 150 units across. */
+export function quarterBox(points: XY[]): [number, number, number, number] {
+  return around(points, 34, 150);
+}
+
+/** «Tout Paris»: La Carte's whole drawing. */
+export const WHOLE_BOX: [number, number, number, number] = [0, 0, 1000, 544.4];
+
+/** The pins' names, placed so none runs over another or off the frame (`map-labels.ts`). */
+export function labelsFor(pins: Array<{ p: WorldPlace; xy: XY }>, box: [number, number, number, number], here: string) {
+  const rank = (p: WorldPlace) => (p.id === here ? 0 : p.status === 'open' ? 1 : p.status === 'en_chantier' ? 2 : 3);
+  return placeLabels(
+    pins.map(({ p, xy }) => ({ id: p.id, name: p.name.fr, xy, rank: rank(p) })),
+    box,
+    box[2] / 100,
+  );
+}
+
 /** The square around the pins, padded, and never closer than `min` units across. */
 function around(points: XY[], pad: number, min: number): [number, number, number, number] {
   let x0 = Infinity;
@@ -76,6 +96,16 @@ function tagOf(p: WorldPlace, here: string, been: string | undefined) {
   return 'À découvrir';
 }
 
+/** A pin's name where `placeLabels` put it (relative to the pin), or none when no place was free. */
+function PinLabel({ at, label, u }: { at: XY; label: PlacedLabel | undefined; u: number }) {
+  if (!label) return null;
+  return (
+    <text x={(label.x - at[0]).toFixed(1)} y={(label.y - at[1]).toFixed(1)} textAnchor={label.anchor} dominantBaseline="central" style={{ fontSize: u * LABEL.size, strokeWidth: u * 0.9 }}>
+      {label.text}
+    </text>
+  );
+}
+
 export function QuartierMap({ native, translate, here, been, onGo, onClose }: QuartierMapProps) {
   const pins = React.useMemo(
     () =>
@@ -86,8 +116,9 @@ export function QuartierMap({ native, translate, here, been, onGo, onClose }: Qu
   );
   const [whole, setWhole] = React.useState(false);
   const [picked, setPicked] = React.useState<string>(here);
-  const box = whole ? [0, 0, 1000, 544.4] : around(pins.map((x) => x.xy), 34, 150);
+  const box = whole ? WHOLE_BOX : quarterBox(pins.map((x) => x.xy));
   const u = box[2] / 100;
+  const labels = React.useMemo(() => new Map(labelsFor(pins, box, here).map((l) => [l.id, l])), [pins, box[0], box[1], box[2], box[3], here]); // eslint-disable-line react-hooks/exhaustive-deps
   const sel = pins.find((x) => x.p.id === picked)?.p ?? null;
   const tr = (w: Words) => (translate ? <small>{w[native]}</small> : null);
 
@@ -141,9 +172,7 @@ export function QuartierMap({ native, translate, here, been, onGo, onClose }: Qu
                 {p.status === 'en_chantier' ? (
                   <path className="qz-pin-scaffold" d={`M${-u * 1.2} ${u * 1.2}L${u * 1.2} ${-u * 1.2}M${-u * 1.2} ${-u * 1.2}L${u * 1.2} ${u * 1.2}`} style={{ strokeWidth: u * 0.35 }} />
                 ) : null}
-                <text x={u * 2.6} y={u * 0.1} dominantBaseline="central" style={{ fontSize: u * 3.4, strokeWidth: u * 0.9 }}>
-                  {p.name.fr}
-                </text>
+                <PinLabel at={xy} label={labels.get(p.id)} u={u} />
               </g>
             ))}
           </svg>

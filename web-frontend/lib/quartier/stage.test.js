@@ -99,7 +99,19 @@ test('every walk the scene asks for has a way through the streets', () => {
   assert.ok(Math.abs(nav.heightAt(MARKS.atZinc.x, MARKS.atZinc.z) - MARKS.atZinc.y) < 0.05);
 });
 
-test('day b: the director has blocking for every movement, in order, and the stairwell is a room of the season', () => {
+/** P12: the routing a room has once finished; a room marked `unfinished` (`place-check.test.js`) stages nothing meanwhile. */
+function asFinished(fn) {
+  const { WORLD } = require('./world.ts');
+  const marked = WORLD.places.filter((p) => p.unfinished).map((p) => [p, p.unfinished]);
+  marked.forEach(([p]) => delete p.unfinished);
+  try {
+    return fn();
+  } finally {
+    marked.forEach(([p, why]) => (p.unfinished = why));
+  }
+}
+
+test('day b: the director has blocking for every movement, in order, and the stairwell is a room of the season', () => asFinished(() => {
   const season = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, '..', 'app/data/season/s1/t1.json'), 'utf8'));
   const day = season.days.find((d) => d.day === 'b');
   const ids = day.movements.map((m) => m.id);
@@ -124,9 +136,9 @@ test('day b: the director has blocking for every movement, in order, and the sta
       assert.ok(Object.values(SILENT_BEATS).some((re) => re.test(beat.id)), `${beat.id} is silent and nothing acts it`);
     }
   }
-});
+}));
 
-test('a day without blocking plays in the places the world has built for it, and a card names the place', () => {
+test('a day without blocking plays in the places the world has built for it, and a card names the place', () => asFinished(() => {
   const { PLACE_NAMES, placeCard, placesOf, unbuiltOf } = require('./story.ts');
   const page = (movements, location_id = null) => ({ key: 'x.y', location_id, movements });
   const at = (id, location_id) => ({ kind: 'panel', id, location_id, lines: [] });
@@ -189,7 +201,7 @@ test('a day without blocking plays in the places the world has built for it, and
     assert.ok(PLACE_NAMES[id], `${id} has no name for the card`);
     assert.equal(PLACE_NAMES[id].fr.replace(/’/g, "'"), name, `${id}: the card's name is not the season's`);
   }
-});
+}));
 
 test('in a room the forge built, the moment’s people stand in front of you on your floor, apart', () => {
   const { Vector3 } = require('three');

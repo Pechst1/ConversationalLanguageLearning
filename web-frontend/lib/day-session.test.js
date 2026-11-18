@@ -233,3 +233,74 @@ test('Phase 2 · under the tally, the story’s words read, in the learner’s o
   assert.equal(ds.storyReadLine({ scenes: 0, words: 20, exercises: 12, acts: 0, story_words: 0 }, 'de'), null);
   assert.equal(ds.storyReadLine({ scenes: 1, words: 20, exercises: 12 }, 'de'), null);
 });
+
+// P12 · one day, one state. Observed 17 Nov: the scene played in Le Quartier, «Continuer» went on
+// to the rule as step 4 of 6, and Home's tracker still said «Szene — als Nächstes · 11 Min.»: the
+// server marks the scene done only once the whole journey has ended.
+function journeyAt(current, { status = 'active', storyStatus = 'completed' } = {}) {
+  const steps = [
+    { id: 's', kind: 'scene', ordinal: 0 },
+    { id: 'r', kind: 'respond', ordinal: 1 },
+    { id: 'e', kind: 'resolution', ordinal: 2 },
+    { id: 'g', kind: 'rule', ordinal: 3 },
+    { id: 'w', kind: 'recall', ordinal: 4 },
+  ];
+  const at = steps.findIndex((s) => s.id === current);
+  return {
+    id: 'j',
+    status,
+    current_step_id: current,
+    steps: steps.map((s, i) => ({ ...s, status: i < at ? (i < 3 ? storyStatus : 'completed') : i === at ? 'active' : 'pending' })),
+  };
+}
+
+test('P12: a scene played (in the quarter or as pages) is done on Home while the day goes on', () => {
+  const server = session(['next', 'todo', 'todo', 'todo'], { tally: { scenes: 0, words: 0, exercises: 0 } });
+  const after = ds.withScenePlayed(server, journeyAt('g'));
+  assert.deepEqual(after.steps.map((s) => s.state), ['done', 'next', 'todo', 'todo']);
+  assert.equal(after.next_kind, 'grammar');
+  assert.equal(after.minutes_left, 13, 'the scene’s minutes are spent');
+  assert.equal(after.tally.scenes, 1);
+  assert.equal(after.done, false);
+  assert.deepEqual(ds.sessionRows(after, 'de').map((r) => [r.label, r.state, r.meta]), [
+    ['Szene', 'done', ''],
+    ['Grammatik', 'next', '5 Min.'],
+    ['32 Wörter', 'todo', '20 neu · 12 zum Wiederholen · 8 Min.'],
+    ['Fertig', 'todo', ''],
+  ]);
+  assert.equal(ds.sessionMarkState(after, 'de').done, 1);
+  // the server's session is left as it came (Home's button reads it)
+  assert.deepEqual(server.steps.map((s) => s.state), ['next', 'todo', 'todo', 'todo']);
+  // a step already done stays done; the next one not done is next
+  const grammarDone = ds.withScenePlayed(session(['next', 'done', 'todo', 'todo']), journeyAt('w'));
+  assert.deepEqual(grammarDone.steps.map((s) => s.state), ['done', 'done', 'next', 'todo']);
+  assert.equal(grammarDone.next_kind, 'words');
+  // paused after the scene: the same
+  assert.equal(ds.withScenePlayed(server, journeyAt('g', { status: 'paused' })).steps[0].state, 'done');
+});
+
+test('P12: a scene not yet played, or a day the server already settled, is the server’s session', () => {
+  const server = session(['next', 'todo', 'todo', 'todo']);
+  for (const [what, journey] of [
+    ['no journey', null],
+    ['the scene ahead', journeyAt('s')],
+    ['the talk open', journeyAt('r')],
+    ['the ending open', journeyAt('e')],
+    ['a finished day (the server decides)', journeyAt('w', { status: 'completed' })],
+  ]) {
+    assert.equal(ds.withScenePlayed(server, journey), server, what);
+  }
+  assert.equal(ds.journeyScenePlayed(journeyAt('g')), true);
+  assert.equal(ds.journeyScenePlayed(journeyAt('g', { storyStatus: 'skipped' })), true);
+  assert.equal(ds.journeyScenePlayed({ ...journeyAt('g'), steps: journeyAt('g').steps.filter((s) => s.kind !== 'scene') }), false, 'a day without a scene');
+  const settled = session(['done', 'next', 'todo', 'todo']);
+  assert.equal(ds.withScenePlayed(settled, journeyAt('g')), settled);
+  assert.equal(ds.withScenePlayed(null, journeyAt('g')), null);
+});
+
+test('P12: Home’s tracker reads the played scene through withScenePlayed', () => {
+  const src = require('node:fs').readFileSync(path.join(WEB_ROOT, 'pages/atelier.tsx'), 'utf8');
+  assert.match(src, /const daySession = withScenePlayed\(serverSession, dayJourney\);/);
+  // the one button stays the journey card's while the journey is open: no second press
+  assert.match(src, /sessionNextAction\(serverSession, chromeLanguage\)/);
+});

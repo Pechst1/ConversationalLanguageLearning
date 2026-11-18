@@ -19,7 +19,9 @@ import dailyJourneyService, { journeyErrorCode, mutationId } from '@/services/da
 import type { AttemptResult, HelpKind, JourneySnapshot, RespondStep, SceneStep, StoryletChoiceResult } from '@/types/daily-journey';
 
 import type { Value } from './memory';
-import { STAGED_DAYS, nextTurn, unbuiltOf } from './story';
+import { STAGED_DAYS, locationOf, nextTurn, unbuiltOf } from './story';
+import { unfinishedAt } from './world';
+export { episodeLabel } from './story';
 import type {
   Answered,
   Ask,
@@ -160,11 +162,17 @@ export function pageOfStage(x: unknown): StoryPage | null {
   };
 }
 
-/** Today's page, from the journey's scene step: the authored season page, else the scene written today. */
+/**
+ * Today's page, from the journey's scene step: the authored season page, else the scene written today.
+ * P12: its number is the day's edition (`journey.edition_no`), the «Nº n» Home, the reader and the
+ * recap print; the authored page's own number counts the season's pages («Épisode 2» on Nº 8).
+ */
 export function pageOfJourney(journey: JourneySnapshot | null): StoryPage | null {
   const scene = journey?.steps.find((s): s is SceneStep => s.kind === 'scene');
   if (!journey || !scene) return null;
-  return pageOfStage(scene.prompt.stage) ?? pageOfScene(journey, scene);
+  const page = pageOfStage(scene.prompt.stage) ?? pageOfScene(journey, scene);
+  const edition = typeof journey.edition_no === 'number' && journey.edition_no > 0 ? journey.edition_no : null;
+  return page && edition !== null ? { ...page, number: edition } : page;
 }
 
 /** The one question of a scene written today: the talk, which goes on for as long as the engine keeps it open. */
@@ -317,7 +325,8 @@ export function todayOf(journey: JourneySnapshot | null): Today {
   const step = currentStepOf(journey);
   if (!step) return { kind: 'practice', page };
   // a scene set where nothing is built yet is not played here in a place it is not: the whole day is the Feuilleton's
-  const away = blockedPage(page) ? null : unbuiltOf(page);
+  // a day the director blocks plays where it is, unless a place it goes to is unfinished (P12 place check)
+  const away = blockedPage(page) ? unfinishedAt([page.location_id, ...page.movements.map(locationOf)]) : unbuiltOf(page);
   const elsewhere: Today | null = away ? { kind: 'handoff', why: 'elsewhere', place: away, page } : null;
   // steps before the scene are the Feuilleton's, in its order, played over the quarter
   if (step.ordinal < scene.ordinal) return elsewhere ?? { kind: 'before', page };
@@ -378,7 +387,17 @@ function answeredOf(x: StoryletChoiceResult): Answered {
     learned,
     sets,
     people: Array.isArray(x.people) ? x.people.map(personOf).filter(some) : null,
+    mend: mendOf(x.correction),
   };
+}
+
+/** A correction off the wire, the one card the scripted answers use: only an edit that changes something. */
+function mendOf(c: unknown): Mend | null {
+  if (!isRaw(c)) return null;
+  const span = str(c.span_fr);
+  const corrected = str(c.corrected_fr);
+  if (!span || !corrected || span === corrected || (c.kind !== undefined && c.kind !== 'edit')) return null;
+  return { span, corrected, note: str(c.note_native) || null };
 }
 
 export class JourneyStory implements Story {

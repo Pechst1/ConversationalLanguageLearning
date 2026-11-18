@@ -132,6 +132,11 @@ export interface StoryPage {
  */
 export const STAGED_DAYS = ['t1.a', 't1.b'];
 
+/** P12 · «Nº 8»: the episode as Home numbers it (`headlineKicker`); null without a number. */
+export function episodeLabel(number: number | null | undefined): string | null {
+  return typeof number === 'number' && number > 0 ? `Nº ${number}` : null;
+}
+
 /** Le Mistral itself: no card names it. */
 const AT_MISTRAL = new Set(['le_mistral', 'mistral_back_room']);
 
@@ -323,6 +328,8 @@ export interface Answered {
   sets: Record<string, Value>;
   /** who will talk, with what each says now as you come up; none: as the page has them */
   people?: StoryPerson[] | null;
+  /** what you said to someone, corrected (the rule pass, at most one edit); none when it was right */
+  mend?: Mend | null;
 }
 
 export interface Story {
