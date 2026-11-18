@@ -389,7 +389,9 @@ def _sizes_for(session: Session, journey: Any, user: Any, *, now: datetime) -> t
     from app.services.forge_picker import forge_budget_seconds
 
     scene_seconds = int(_stored_core_seconds(journey) or DEFAULT_SCENE_SECONDS)
-    grammar_items = forge_items(forge_budget_seconds(user))
+    from app.services.forge import seance_max_items
+
+    grammar_items = forge_items(forge_budget_seconds(user), seance_max_items(user))
     words_new = words_reviews = 0
     try:
         with session.connection().begin_nested():
