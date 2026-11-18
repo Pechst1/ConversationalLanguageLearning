@@ -5567,6 +5567,8 @@ export interface components {
             greeting_fr: string | null;
             /** Lapsed Letters */
             lapsed_letters: components["schemas"]["LapsedLetter"][];
+            /** Where Left */
+            where_left: string[];
         };
         /**
          * AchievementProgressResponse

@@ -1141,6 +1141,10 @@ class AbsenceView(JourneyModel):
 
     days: int
     greeting_fr: str | None = None
+    #: Pilot P9: up to two lines in the learner's interface language — where the story
+    #: stood when they left (the last played day's stored end summary, then its open
+    #: hook). Empty when no summary is stored.
+    where_left: list[str] = Field(default_factory=list)
     entre_temps: list[EntreTempsItem] = Field(default_factory=list)
     lapsed_letters: list[LapsedLetter] = Field(default_factory=list)
 
