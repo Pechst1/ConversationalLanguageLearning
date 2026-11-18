@@ -1,8 +1,8 @@
 # prompt snapshot · turn-b1-clean-lendemain · lane turn · level B1
-# key: sha256:52ae806e648a351f997b16227aba99afd32c996e23b5a6871a3898c8bc0edbf2
+# key: sha256:cd693bdcf325848d2b33039d31cb2e0c18b41a51d5994babe1ed0dc3fe9f46e7
 # accept a change: PROMPT_SNAPSHOT_UPDATE=1 python -m pytest tests/test_prompt_regression.py (or scripts/prompt_regression.py --update)
 
-======== call 1 · TutorVerdict #1 · 07aab6b8c97fd9d1 ========
+======== call 1 · TutorVerdict #1 · f3218db559d0ea08 ========
 params: {"disable_retries": true, "max_provider_attempts": 1, "max_tokens": 1450, "prompt_cache_key": "atelier-TutorVerdict", "reasoning_effort": "minimal", "response_format": {"type": "json_object"}, "temperature": 0.2}
 output_schema: TutorVerdict sha256:a487c2629950c1a2
 -------- system --------
@@ -17,9 +17,12 @@ pronouns, revised choices. Separate grammatical polish from communication: an
 understandable sentence with a form error can be met.
 evidence_quotes: exact verbatim quotes from learner_text or history.learner showing what
 was communicated; met needs at least one.
-corrections lists real errors in learner_text (grammar, mood, agreement, vocabulary,
-register), at most max_corrections of them, the one to show first first; a correct
-sentence gets an empty list and stylistic preferences are not corrections. rules, when
+corrections lists every real error in learner_text (grammar, mood, agreement, vocabulary,
+register) up to max_corrections: a reply with two or three errors gets two or three
+corrections, the one to show first first; a correct sentence gets an empty list and
+stylistic preferences are not corrections. A tense or mood is an error only when the
+learner's sentence shows it (a time marker, «déjà» before a past, the clause that governs
+the mood); a future, a plan or a wish the learner states is never made a past. rules, when
 present, is what this learner is being taught: rules.today the day's own rule, rules.recent
 the rules of the last seven days. An error against rules.today comes first, then one
 against rules.recent, then the most structural (verb form, mood, auxiliary, agreement,

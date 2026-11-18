@@ -67,6 +67,7 @@ from app.services import (
     scene_record,
     speaker_labels,
     story_memory,
+    tense_change,
 )
 from app.services import living_story as engine
 from app.services.address import DEFAULT_CHARACTER_REGISTER, known_register, relationship_register
@@ -239,9 +240,12 @@ pronouns, revised choices. Separate grammatical polish from communication: an
 understandable sentence with a form error can be met.
 evidence_quotes: exact verbatim quotes from learner_text or history.learner showing what
 was communicated; met needs at least one.
-corrections lists real errors in learner_text (grammar, mood, agreement, vocabulary,
-register), at most max_corrections of them, the one to show first first; a correct
-sentence gets an empty list and stylistic preferences are not corrections. rules, when
+corrections lists every real error in learner_text (grammar, mood, agreement, vocabulary,
+register) up to max_corrections: a reply with two or three errors gets two or three
+corrections, the one to show first first; a correct sentence gets an empty list and
+stylistic preferences are not corrections. A tense or mood is an error only when the
+learner's sentence shows it (a time marker, «déjà» before a past, the clause that governs
+the mood); a future, a plan or a wish the learner states is never made a past. rules, when
 present, is what this learner is being taught: rules.today the day's own rule, rules.recent
 the rules of the last seven days. An error against rules.today comes first, then one
 against rules.recent, then the most structural (verb form, mood, auxiliary, agreement,
@@ -752,9 +756,10 @@ def _accepted_correction(
     it, on its own (P3: each of several the same as the one before)."""
 
     span, fixed, note = item.span_fr, engine._scrub_paren_gender(item.corrected_fr), item.note_native
-    if not fixed or engine.gender_only_change(span, fixed):
+    if not fixed or (engine.gender_only_change(span, fixed) and not tense_change.changed_tenses(span, fixed)):
         # «Je suis perdu» → «perdu(e)» (live read 2026-09-30): the learner's
-        # gender is theirs to give; a gender-only "correction" is dropped.
+        # gender is theirs to give; a gender-only "correction" is dropped. A verb whose
+        # mood changes is not a gender (walk 2, day 4: «que tu me dis» → «dises»).
         return None
     if is_preference_swap(span, fixed):
         # Agency walk run 3: «mais sans mon nom» → «mais pas mon nom». Both are correct.
@@ -773,6 +778,11 @@ def _accepted_correction(
     if verified is None:
         return None
     span, fixed, note = verified
+    if tense_change.unsupported_tense_change(text, span, fixed):
+        # Walk 2, day 5: «je lui dirai» → «je lui ai dit» settles as French and turned a
+        # correct plan into a wrong past. A tense or mood changes only on evidence in
+        # the learner's own sentence (a time marker, the governing clause, the rules).
+        return None
     if note and not correction_contract.note_states_a_rule(note, span, fixed):
         # P3 (walk 17 Nov): «La forme correcte est « X ».» explains nothing, whether the
         # model wrote it or #93 wrote it from the pair. The rule's own line takes its
