@@ -1568,6 +1568,26 @@ def json_system(system: str) -> str:
     return f"{text.rstrip()}\n\n{JSON_REMINDER}" if text.strip() else JSON_REMINDER
 
 
+def _leading_json(content: Any, schema: type[BaseModel]) -> Any:
+    """P11 (17 Nov: a plan refused for «trailing characters at line 3 column 1»): the
+    JSON value the answer opens with, without what the model wrote after it. Anything
+    that does not start with a complete JSON value is returned as it came, so the parse
+    names the fault exactly as before; what the value holds is the schema's to judge."""
+
+    if not isinstance(content, str):
+        return content
+    text = content.strip()
+    try:
+        _value, end = json.JSONDecoder().raw_decode(text)
+    except json.JSONDecodeError:
+        return content
+    if end < len(text):
+        logger.info(
+            "living_story: %s characters after the %s JSON dropped", len(text) - end, schema.__name__
+        )
+    return text[:end]
+
+
 def _json_call(
     system: str,
     payload: dict,
@@ -1629,13 +1649,13 @@ def _json_call(
         if issubclass(schema, SceneDraft):
             # LOSS-RATE 2026-10-06: the no-story shape slips are repaired before the
             # schema reads the page (``tolerant_scene_json``); the rest is judged.
-            raw = json.loads(result.content)
+            raw = json.loads(_leading_json(result.content, schema))
             raw, repairs = tolerant_scene_json(raw)
             if repairs:
                 logger.info("living_story: draft shape repaired (%s)", "; ".join(repairs)[:400])
             parsed = schema.model_validate(raw)
         else:
-            parsed = schema.model_validate_json(result.content)
+            parsed = schema.model_validate_json(_leading_json(result.content, schema))
         return parsed, usage
     except ValidationError as exc:
         # Name the fields so the retry can fix them (WP-60): a bare token here cost
@@ -1863,6 +1883,38 @@ def _scene_score(draft: SceneDraft, context: dict) -> float:
 #: (``tests/test_wp133a_live_read.py`` appends a recorder here). Production logs only.
 REFUSAL_OBSERVERS: list = []
 REFUSAL_HINT_CHARS = 600
+#: P11: how a generation went, for the night run's one outcome line
+#: (``journey_latency.prefetch_scene_for``). ``None`` outside :func:`generation_outcome`.
+_OUTCOME: ContextVar[dict | None] = ContextVar("story_generation_outcome", default=None)
+#: How much of a refusal's reason the outcome line keeps.
+OUTCOME_REASON_CHARS = 160
+
+
+@contextmanager
+def generation_outcome():
+    """Collect the attempts, refusals, model calls and kept draft of the generations
+    run inside this block (P11). Yields the dict it fills."""
+
+    outcome: dict[str, Any] = {"attempts": 0, "calls": 0, "refusals": [], "kept": None}
+    token = _OUTCOME.set(outcome)
+    try:
+        yield outcome
+    finally:
+        _OUTCOME.reset(token)
+
+
+def _outcome_note(**fields) -> None:
+    outcome = _OUTCOME.get()
+    if outcome is None:
+        return
+    if "refusal" in fields:
+        outcome["refusals"].append(fields["refusal"])
+    if fields.get("attempt") is not None:
+        outcome["attempts"] += 1
+    if fields.get("call"):
+        outcome["calls"] += 1
+    if fields.get("kept"):
+        outcome["kept"] = fields["kept"]
 
 
 def _clip(value: Any, limit: int = 160) -> Any:
@@ -1917,6 +1969,9 @@ def _refused(stage: str, exc: StoryUnavailable, *, attempt: int, proposal: Any =
         except Exception:  # pragma: no cover - a record never costs the draft
             logger.exception("living_story: refusal digest unavailable")
     logger.info("living_story: %s attempt %s refused (%s): %s", stage, attempt, exc, record["hint"][:300])
+    _outcome_note(
+        refusal={"stage": stage, "attempt": attempt, "class": str(exc), "reason": record["hint"][:OUTCOME_REASON_CHARS]}
+    )
     for observer in list(REFUSAL_OBSERVERS):
         try:
             observer(record)
@@ -1956,6 +2011,7 @@ def _approved(
         from app.services.pilot_events import PilotEventService
 
         usage.append(entry)
+        _outcome_note(call=True)
         PilotEventService(db).record(
             "journey_story_model_call",
             user_id=user.id,
@@ -2025,6 +2081,7 @@ def _approved(
         if soft["vetoed_at"] is not None and attempt > soft["vetoed_at"] + 1:
             break
         soft["attempt"] = attempt
+        _outcome_note(attempt=attempt)
         try:
             if candidates > 1 and attempt == 0 and draw is None:
                 # WP-59: two drafts side by side, every guard on each, the score keeps
@@ -2169,12 +2226,14 @@ def _approved(
         override = getattr(story_review, "override", None)
         if callable(override):
             override()
+        _outcome_note(kept="critic_kept")
         return critic_kept, usage
     if soft["fallback"] is not None and keep_refused:
         # WP-90: every later attempt failed, but an earlier draft was only missing
         # reading aids — serve it, with those aids left empty, rather than lose the day.
         # Never a later act (Phase 2): that draft was refused before the critic read it.
         logger.info("living_story: serving the draft kept without reading aids (%s)", reason)
+        _outcome_note(kept="soft_kept")
         return soft["fallback"], usage
     if usage:
         # Spend on a proposal nobody can use is still spend; record it where the weekly
@@ -5609,6 +5668,12 @@ def story_context(db: Session, user: User, *, now: datetime | None = None) -> di
         # shape the director is told here, and the one the guards check (LOSS-RATE
         # 2026-10-06: a closed two-hander's shape used to bind the next setup scene).
         shape = str(chapter.get("shape") or shape)
+    shape_line = shape_note(shape, chapter)
+    if shape == "bottle" and season_today is not None and season_today.pos.is_gap:
+        # The brief says what ``bottle_room`` checks: on a season's day the room is the day's.
+        shape_line = SEASON_BOTTLE_NOTE
+        if chapter:
+            chapter = {**chapter, "shape_note": shape_line}
     gap = gap_days(db, user, live, today=_today())
     absence = absence_context(gap)
     # WP-97: the one character, if any, whose trust has earned «On se tutoie ?» today.
@@ -5681,7 +5746,7 @@ def story_context(db: Session, user: User, *, now: datetime | None = None) -> di
         "chapter_shape": {
             "shape": shape,
             "beats": list(CHAPTER_SHAPES.get(shape, CHAPTER_BEATS)),
-            "note": shape_note(shape, chapter),
+            "note": shape_line,
             # The seam WP-64/65 read: a letter chapter says which beat is the letter.
             "letter_beat": LETTER_BEAT if shape == "letter" else None,
             # ``bind_journey`` stores a chapter opened today with this hand.
@@ -6833,10 +6898,26 @@ _PINCER_EXIT = (
 )
 
 
-def _check_objective_scope(objective: str, level: str | None, *, asked: list[str] | None = None) -> None:
+def _planned_task_grace(context: dict) -> int:
+    """P11: the words a planned page's task may run over twelve. The plan's own guard
+    (``story_split.plan_issue``) already held the task to twelve, with a small margin on
+    a re-asked plan only; the page carries that task as its objective, so this check
+    applies the same margin. The one-call director's objective gets none."""
+
+    from app.services import story_split
+
+    planned = story_split.applies(context) or bool(context.get(story_split.ACT_KEY))
+    return story_split.TASK_WORDS_GRACE if planned else 0
+
+
+def _check_objective_scope(
+    objective: str, level: str | None, *, asked: list[str] | None = None, word_grace: int = 0
+) -> None:
     """The task line is one short instruction at every band: what the character asks, in
     at most twelve words. From B1 it never says «in one sentence»: the situation invites
-    a move, and the learner answers as long as a person would."""
+    a move, and the learner answers as long as a person would. ``word_grace``: the words
+    a planned page's task may run over (``_planned_task_grace``); clauses are counted as
+    strictly as ever."""
 
     move = str(level or "") in _MOVE_BANDS
     if move and _ONE_SENTENCE_FRAMING.search(objective):
@@ -6862,7 +6943,7 @@ def _check_objective_scope(objective: str, level: str | None, *, asked: list[str
     objective = re.sub(r"\([^)]*\)", " ", objective)
     separators, words = limits
     found = len(_OBJECTIVE_SEPARATORS.findall(objective))
-    if found > separators or len(objective.split()) > words:
+    if found > separators or len(objective.split()) > words + word_grace:
         answer = (
             "it says what the character asks; the answer is the learner's"
             if move
@@ -7763,6 +7844,38 @@ def page_shape(context: dict) -> str:
     )
 
 
+#: What a bottle asks on a season's generated day (``bottle_room``), for the brief.
+SEASON_BOTTLE_NOTE = (
+    "One place per day: today's page is set where today's beat is, and a later act of "
+    "today stays in that room with someone else."
+)
+
+
+def bottle_room(context: dict) -> str | None:
+    """The one room today's page must be in, or ``None`` when no bottle binds it.
+
+    A bottle (WP-63) makes a few scenes feel like one evening in one room. A later act of
+    today keeps the room its first act is in (``act.room``). On a season's generated day
+    the season says where the day happens (its premise or contract: Maître Vasseur's
+    office, the zinc at Le Mistral, the learner's flat), so the day's first page goes
+    there and the bottle holds within that day: the room is not carried over from the
+    chapter's first day. Night runs of 18 Nov: four of five nights lost an attempt to
+    «This chapter is a bottle: every scene happens in rue_de_lancry» while the day's
+    beat was set elsewhere."""
+
+    if page_shape(context) != "bottle":
+        return None
+    act = context.get("act") or {}
+    if act.get("shape") == "bottle" and act.get("room"):
+        return str(act["room"])
+    chapter = context.get("chapter") or {}
+    if chapter.get("resolved") or chapter.get("exhausted") or not chapter.get("location_id"):
+        return None
+    if ((context.get("season_script") or {}).get("brief") or {}).get("gap"):
+        return None
+    return str(chapter["location_id"])
+
+
 def _wrong_beat_hint(draft: SceneDraft, chapter: dict, allowed: tuple[str, ...], closing: bool) -> str:
     """LOSS-RATE 2026-10-06: the retry is told WHICH chapter the scene belongs to.
 
@@ -7928,6 +8041,7 @@ def _validate_scene(draft: SceneDraft, context: dict):
             draft.objective_native,
             context.get("level"),
             asked=(context.get("variety") or {}).get("used_objectives"),
+            word_grace=_planned_task_grace(context),
         )
     else:
         # WP-94: the special edition asks for its 2–3 can-dos across the conversation —
@@ -7965,8 +8079,8 @@ def _validate_scene(draft: SceneDraft, context: dict):
                     "chapter."
                 ),
             )
-    if shape == "bottle" and chapter.get("location_id") and not closing:
-        room = str(chapter["location_id"])
+    room = bottle_room(context)
+    if room:
         if draft.location_id != room:
             raise StoryUnavailable(
                 "bottle_left_the_room",
@@ -8468,7 +8582,10 @@ def prose_gap(draft: SceneDraft, context: dict) -> str | None:
 
     try:
         hits = prose_detector.page_hits(
-            draft, level=str(context.get("level") or ""), signature_phrases=_signature_phrases(context)
+            draft,
+            level=str(context.get("level") or ""),
+            signature_phrases=_signature_phrases(context),
+            task_grace=_planned_task_grace(context),
         )
     except Exception:  # noqa: BLE001 - a broken detector never refuses a page
         logger.exception("living_story: prose detector failed; page not checked")

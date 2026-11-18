@@ -322,6 +322,26 @@ def _weekly_spend_usd(db: Session, user: User) -> float:
     return round(sum(float(value or 0.0) for value in rows), 6)
 
 
+def _log_night_run(status: str, outcome: dict, seconds: float, *, reason: str | None = None) -> None:
+    """P11: one structured line per night run that asked the writer for a page, so the
+    pilot can count how often a night lands and why it does not (``night_run {json}``).
+    ``kept``: ``critic_kept`` / ``soft_kept`` when a draft refused earlier was served."""
+
+    line = {
+        "status": status,
+        **({"reason": reason} if reason else {}),
+        "attempts": outcome.get("attempts", 0),
+        "calls": outcome.get("calls", 0),
+        "seconds": round(seconds, 1),
+        "kept": outcome.get("kept"),
+        "refusals": [
+            {"attempt": row.get("attempt"), "class": row.get("class"), "reason": row.get("reason")}
+            for row in outcome.get("refusals") or []
+        ],
+    }
+    logger.info("journey_latency: night_run %s", json.dumps(line, ensure_ascii=False))
+
+
 def prefetch_scene_for(
     db: Session, user: User, *, input_mode: InputMode = InputMode.TEXT
 ) -> str:
@@ -380,18 +400,20 @@ def prefetch_scene_for(
         return "skipped_budget"
 
     from app.services.journey_contracts import ContentUnavailable
-    from app.services.living_story import generate_scene, written_ahead_of_time
+    from app.services.living_story import generate_scene, generation_outcome, written_ahead_of_time
 
     started = time.monotonic()
     # WP-92: the day this scene is for is the learner's today (an open or finished day
     # refuses the prefetch above), so ``generate_scene``'s default ``now`` picks its
     # grammar plan, and the cache key carries that plan's new unit.
-    with written_ahead_of_time():
+    with written_ahead_of_time(), generation_outcome() as outcome:
         result = generate_scene(db, user=user, input_mode=input_mode)
     elapsed = time.monotonic() - started
     if isinstance(result, ContentUnavailable) or not isinstance(result, ScenarioBrief):
+        _log_night_run("unavailable", outcome, elapsed, reason=getattr(result, "reason", None))
         db.commit()
         return "unavailable"
+    _log_night_run("prefetched", outcome, elapsed)
 
     # The key is recomputed from the brief the provider actually produced: if the
     # thread moved under a long generation, this row is born stale and the serve

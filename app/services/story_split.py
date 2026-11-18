@@ -192,6 +192,7 @@ WRITER_SCHEMAS = frozenset({"PagePlan", "PageText", "PageAids"})
 PLANNER = """You plan one day of «La clé d'Odile», a graphic-novel serial in French that a
 learner lives inside. You decide what happens today. You write no French and no dialogue:
 a writer turns your plan into the page, at the learner's level.
+brief.today.checked, when present, is what today's page is checked for: plan a day that holds it.
 
 WHAT MAKES A GOOD DAY
 1. Something happens that is worth telling a friend about. Someone wants something today,
@@ -327,6 +328,7 @@ peut écrire ton nom.»"""
 AUTHOR = """You write one page of «La clé d'Odile» in French, for a learner at level {band}.
 The plan says what happens. You make it happen in pictures and in the cast's own voices.
 Write the page you would want to read.
+today lists what this page is checked for, one line each: every line holds.
 
 THE PAGE
 - {panels} panels. Each has visual_direction (English, for the illustrator: who is in
@@ -368,8 +370,6 @@ THE PAGE
   and nobody knows a row they are not listed on. """ + story_memory.NAME_NOTE + " " + story_memory.NAME_SCOPE + """
   plan.returns_to, when present, is the open question today answers or comes back to:
   the page does.
-- When the plan has a chapter, chapter_title_fr names it and chapter_question_fr asks its
-  question in French; otherwise both are null.
 - title_fr is this page's own headline, about what happens on it. It is never one of
   taken_titles (the pages already published), and after a chapter's first page it is never
   the chapter's title again.
@@ -378,17 +378,11 @@ LEVEL {band}
 {level_card}
 
 FRENCH
-- Each character keeps their register with the learner (registers: tu or vous). The
-  premise and the captions describe; they do not address the learner.
-- Address, agreement and pet names aimed at the learner follow learner.address. When it is
-  neutral, nothing addressed to the learner has a gender: no agreed adjective or
-  participle, no gendered noun, no pet name. «Tu le savais ?», «Tu es en colère ?», «la
-  première personne», «C'est toi, l'héritage ?» (not «l'héritier»); never «mon vieux» or
-  «ma belle».
+- Each character keeps their register with the learner (registers: tu or vous).
 - writing_rules holds the season's own rules: follow them.
 - Below B1, no coarse words (putain, merde, bordel, con…).
-- concept, when present: if a line the situation needs can carry it, use it once,
-  naturally. Never as a model sentence, never named, never twice for its own sake.
+- concept, when present: one line the situation needs carries it, once, naturally. Never
+  as a model sentence, never named, never twice for its own sake.
 - story_words, when the plan has someone hunt for one: the character describes the word
   and cannot find it; the word itself is never printed.
 - special, when present, is today's one special rule: follow it.
@@ -518,6 +512,12 @@ TASK_WORDS = 12
 PLAN_TRIES = 2
 #: A page whose JSON missed a field is asked for once more on the same plan.
 AUTHOR_TRIES = 2
+#: P11 (real-model play of 17 Nov: one night lost all six plans to a 13-word task): the
+#: words a re-asked plan's task may run over ``TASK_WORDS`` and still be written. The
+#: limit is a readability rule, not a correctness one: the first plan is held to it, the
+#: re-ask quotes the line, and the last plan a draw may spend is kept if it is within
+#: this margin (the overage is logged). The prompt still asks for at most 12.
+TASK_WORDS_GRACE = 3
 
 
 def applies(context: dict) -> bool:
@@ -548,7 +548,7 @@ def _brief(context: dict) -> dict:
     return {
         "season": brief.get("season"),
         "gap": brief.get("gap"),
-        "today": brief.get("today"),
+        "today": _today_with_checks(brief.get("today"), today_checks(context)),
         "next_tentpole": brief.get("next_tentpole"),
         "flags": brief.get("flags"),
         "callback": context.get("callback"),
@@ -564,6 +564,17 @@ def _brief(context: dict) -> dict:
             "retired_questions": chapter.get("retired_questions") or [],
         },
     }
+
+
+def _today_with_checks(today: Any, checks: list[str]) -> Any:
+    """``brief.today`` with ``checked`` (:func:`today_checks`) when there is one; with
+    ``STORY_SCENE_RECORD`` off the writer reads exactly what main sent."""
+
+    from app.services import scene_record
+
+    if not checks or not isinstance(today, dict) or not scene_record.enabled():
+        return today
+    return {**today, "checked": checks}
 
 
 def _shape(context: dict) -> str:
@@ -645,6 +656,68 @@ def _concept(context: dict) -> Any:
 
     plan = context.get(engine.GRAMMAR_PLAN_KEY)
     return engine.grammar_plan_prompt(plan) if plan else None
+
+
+def today_checks(context: dict, plan: PagePlan | None = None) -> list[str]:
+    """What today's finished page is checked for, one line each, with today's values.
+
+    Night runs of 18 Nov: every first draft was refused, by rules the writer read late,
+    conditionally or not at all — ``grammar_not_woven`` (the concept line said «if a line
+    can carry it»), ``mixed_address_register``, ``chapter_missing`` and
+    ``gendered_learner_noun``. Each line here is one of those guards' own rule, said
+    before the writing; none is new and no guard changes. The planner reads the lines it
+    can plan for (``plan`` is ``None``); the author reads them all."""
+
+    from app.services import living_story as engine
+
+    lines: list[str] = []
+    unit = (context.get(engine.GRAMMAR_PLAN_KEY) or {}).get("introduce") or {}
+    if unit.get("detectors"):
+        # ``grammar_weave_gap``: the form, said once in a cast member's dialogue.
+        title = unit.get("title_fr") or unit.get("title_native") or "the new form"
+        example = next(iter(unit.get("examples") or []), "")
+        coach = unit.get("coach_id")
+        who = coach if plan and coach and coach in {plan.lead_id, *plan.cast} else "Someone on the page"
+        lines.append(
+            f"{who} says today's form «{title}» once, in their own dialogue"
+            + (f" (as in «{example}»)" if example else "")
+            + ", before the question to the learner."
+        )
+    if plan is None:
+        return lines
+    if plan.chapter is not None:
+        # ``_chapter`` (chapter_missing).
+        lines.append(
+            "This page opens a chapter: chapter_title_fr names it and chapter_question_fr "
+            "asks plan.chapter.question in French."
+        )
+    register = _registers(context).get(plan.lead_id)
+    # ``_check_scene_address_register`` (mixed_address_register).
+    # Beside a «vous» the captions address nobody: the page's own «tu» (story_memory's
+    # name note) is allowed there, a captioned «vous» would read as the lead's.
+    lines.append(
+        f"{plan.lead_id} says tu to the learner; premise_fr and the captions say tu too, "
+        "or address nobody."
+        if register == "tu"
+        else f"{plan.lead_id} says vous to the learner; premise_fr and the captions address nobody."
+        if register == "vous"
+        else "premise_fr and the captions describe and address nobody."
+    )
+    # ``_check_address`` (gendered_learner_noun, gendered_agreement, gendered_address).
+    address = str((context.get("learner") or {}).get("address") or engine.DEFAULT_ADDRESS)
+    examples = (
+        "«C'est vous, l'héritage ?», «vous habitez au-dessus ?»"
+        if register == "vous"
+        else "«C'est toi, l'héritage ?», «tu habites au-dessus ?»"
+    )
+    lines.append(
+        f"The learner is addressed as a {'woman' if address == 'feminine' else 'man'}: every "
+        "noun, agreement and pet name for them says so."
+        if address in ("feminine", "masculine")
+        else f"Words for the learner carry no gender: {examples} or their name, never "
+        "l'héritier or l'héritière, an agreed adjective or a pet name («mon vieux», «ma belle»)."
+    )
+    return lines
 
 
 def _day_contract(context: dict) -> dict | None:
@@ -731,8 +804,12 @@ def author_payload(context: dict, plan: PagePlan, rejections: list[str]) -> dict
 
     brief = (context.get("season_script") or {}).get("brief") or {}
     on_page = list(dict.fromkeys([plan.lead_id, *plan.cast]))
+    from app.services import scene_record
+
     return {
         "level": context.get("level"),
+        # What this page is checked for, before the plan it writes (``today_checks``).
+        **({"today": today_checks(context, plan)} if scene_record.enabled() else {}),
         "plan": {
             "location": next((place for place in _places(context) if place["id"] == plan.location_id), None),
             "lead_id": plan.lead_id,
@@ -794,8 +871,11 @@ def aids_payload(context: dict, text: PageText) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def plan_issue(plan: PagePlan, context: dict) -> str | None:
-    """Why this plan cannot be written, as a hint for the next plan; ``None`` if it can."""
+def plan_issue(plan: PagePlan, context: dict, *, task_grace: int = 0) -> str | None:
+    """Why this plan cannot be written, as a hint for the next plan; ``None`` if it can.
+
+    ``task_grace``: the words the task may run over ``TASK_WORDS`` (P11; the last plan
+    of a draw only, ``draw``)."""
 
     from app.services import living_story as engine
 
@@ -826,8 +906,12 @@ def plan_issue(plan: PagePlan, context: dict) -> str | None:
             f"Leave {others} off the page: cast is [{plan.lead_id!r}]."
         )
     words = len(plan.task.split())
-    if words > TASK_WORDS:
-        return f"The task has {words} words; say who asks what in at most {TASK_WORDS}."
+    if words > TASK_WORDS + task_grace:
+        # P11: the line is quoted, so the re-ask shortens it instead of guessing.
+        return (
+            f"The task «{plan.task}» has {words} words; say who asks what in at most "
+            f"{TASK_WORDS}: the same one ask, fewer words."
+        )
     avoid = (context.get("variety") or {}).get("must_change") or {}
     if (
         avoid
@@ -995,19 +1079,35 @@ def draw(context: dict):
     def run(request: dict, record, *, deadline: float, budget: int | None = None):
         rejections = list(request.get("previous_rejections") or [])
         plan = None
-        for _ in range(PLAN_TRIES):
-            # The planner thinks more than it writes: medium effort unless the writer's
-            # own effort is configured (``story_route``).
-            plan, _usage = engine._json_call(
-                planner_system(context),
-                planner_payload(context, rejections),
-                PagePlan,
-                record,
-                deadline=deadline,
-                reasoning_effort="medium",
-            )
-            issue = plan_issue(plan, context) or act_plan_issue(plan, context)
+        for tried in range(PLAN_TRIES):
+            last = tried + 1 >= PLAN_TRIES
+            try:
+                # The planner thinks more than it writes: medium effort unless the
+                # writer's own effort is configured (``story_route``).
+                plan, _usage = engine._json_call(
+                    planner_system(context),
+                    planner_payload(context, rejections),
+                    PagePlan,
+                    record,
+                    deadline=deadline,
+                    reasoning_effort="medium",
+                )
+            except engine.StoryUnavailable as exc:
+                # P11 (17 Nov: a plan with beats empty cost a whole attempt): a plan that
+                # missed the schema is still refused, and costs a plan, like a refused
+                # one; the page's schema miss is handled the same way below.
+                if str(exc) != "invalid_story_output" or last:
+                    raise
+                issue = exc.feedback
+                logger.info("story_split: plan schema refused ({})", issue[:200])
+                rejections = list(dict.fromkeys([*rejections, issue]))
+                continue
+            # P11: the last plan's task may run a few words over (``TASK_WORDS_GRACE``).
+            grace = TASK_WORDS_GRACE if last else 0
+            issue = plan_issue(plan, context, task_grace=grace) or act_plan_issue(plan, context)
             if issue is None:
+                if (words := len(plan.task.split())) > TASK_WORDS:
+                    logger.info("story_split: task kept {} words over ({} words)", words - TASK_WORDS, words)
                 break
             logger.info("story_split: plan refused ({})", issue[:200])
             rejections = list(dict.fromkeys([*rejections, issue]))
@@ -1225,7 +1325,9 @@ def act_context(context: dict, draft: dict, role: str) -> dict:
         }
     act = {"role": str(role), "first_act": first, "day_hook": day_hook or None, "shape": shape}
     if shape == "bottle":
-        act["room"] = chapter.get("location_id") or first.get("location_id")
+        # The room of today's first act: on a season's day the bottle holds within the
+        # day, and the day is where its beat is (``living_story.bottle_room``).
+        act["room"] = first.get("location_id") or chapter.get("location_id")
     written = {
         key: value
         for key, value in context.items()
