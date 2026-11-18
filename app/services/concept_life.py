@@ -466,7 +466,7 @@ def mark_introduced(db: Session, *, user: Any, concept_id: int, now: datetime | 
 
 
 # ---------------------------------------------------------------------------
-# Taught, not merely met (#169, #698)
+# Taught, not merely met (#169, #698, #895)
 # ---------------------------------------------------------------------------
 #
 # ``introduced_at`` has two writers with two meanings: the Règle read
@@ -474,7 +474,8 @@ def mark_introduced(db: Session, *, user: Any, concept_id: int, now: datetime | 
 # (:func:`note_concept_evidence`). A scene that corrected «de Odile» stamps
 # «Le, la, l', les» as introduced although no card ever showed it. Whatever
 # offers a rule as one the learner *knows* — the day's review card, La Forge's
-# «today's rule», a review beside it — reads these two instead.
+# «today's rule», a review beside it — or counts it as one *taught* — the
+# week's intake and its spacing (#895) — reads these two instead.
 
 
 def rule_was_taught(progress: Any | None) -> bool:
@@ -573,9 +574,17 @@ def weekly_concept_quota(db: Session, user: Any, *, now: datetime) -> int:
 def introductions_in_window(
     db: Session, user: Any, *, now: datetime, days: int = INTAKE_WINDOW_DAYS
 ) -> list[datetime]:
+    """When this learner's taught rules of the last ``days`` days were introduced.
+
+    The week's intake is the rules the learner was *taught* (#895): a rule card
+    read or La Forge's work (:func:`rule_was_taught`). A rule only a scene, a
+    recall card or a Courrier slip stamped is an extra, never a lesson: it spends
+    no slot of the week and sets no spacing.
+    """
+
     since = now - timedelta(days=days)
     rows = (
-        db.query(UserGrammarProgress.introduced_at)
+        db.query(UserGrammarProgress)
         .filter(
             UserGrammarProgress.user_id == user.id,
             UserGrammarProgress.introduced_at.isnot(None),
@@ -585,10 +594,13 @@ def introductions_in_window(
         )
         .all()
     )
+    card_read = card_read_concept_ids(db, user.id) if rows else set()
     return sorted(
         stamp
-        for (value,) in rows
-        if (stamp := _aware(value)) is not None and since < stamp <= now + timedelta(minutes=1)
+        for progress in rows
+        if (rule_was_taught(progress) or int(progress.concept_id) in card_read)
+        and (stamp := _aware(progress.introduced_at)) is not None
+        and since < stamp <= now + timedelta(minutes=1)
     )
 
 
