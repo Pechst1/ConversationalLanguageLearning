@@ -101,6 +101,7 @@ from app.services.item_bank import (
     fill_blank,
     judgement_item,
     label_table,
+    meaning_cue_text,
     units_for_external_id,
 )
 from app.services.item_bank import fingerprint as bank_fingerprint
@@ -1128,35 +1129,36 @@ def _extra_normalized_tokens(answer_tokens: list[Any], tokens: list[Any]) -> lis
 
 
 _FALLBACK_MEANING_CUES: dict[str, str] = {
-    "si tu viens demain nous partirons tot": "Express: If you come tomorrow, we will leave early.",
-    "s il pleut prends ton manteau": "Express: If it rains, take your coat.",
-    "si elle appelle je repondrai tout de suite": "Express: If she calls, I will answer right away.",
-    "je ne bois pas de cafe": "Express: I do not drink coffee.",
-    "elle n a pas d idee": "Express: She does not have an idea.",
-    "nous n avons pas de dossier aujourd hui": "Express: We do not have a file today.",
-    "je marchais quand une voiture est passee": "Express: I was walking when a car passed.",
-    "il faisait froid puis nous sommes entres": "Express: It was cold, then we went in.",
-    "elle attendait quand j ai repondu": "Express: She was waiting when I replied.",
-    "je voudrais partir demain": "Express: I would like to leave tomorrow.",
-    "nous pourrions venir plus tot": "Express: We could come earlier.",
-    "elle aimerait parler avec vous": "Express: She would like to speak with you.",
-    "il faut que tu sois pret": "Express: You have to be ready.",
-    "je veux qu elle vienne demain": "Express: I want her to come tomorrow.",
-    "bien qu il soit tard nous continuons": "Express: Although it is late, we are continuing.",
-    "c est le livre que j ai lu": "Express: It is the book that I read.",
-    "voici l ami qui arrive": "Express: Here is the friend who is arriving.",
-    "la ville ou j habite est calme": "Express: The city where I live is calm.",
+    "si tu viens demain nous partirons tot": "If you come tomorrow, we will leave early.",
+    "s il pleut prends ton manteau": "If it rains, take your coat.",
+    "si elle appelle je repondrai tout de suite": "If she calls, I will answer right away.",
+    "je ne bois pas de cafe": "I do not drink coffee.",
+    "elle n a pas d idee": "She does not have an idea.",
+    "nous n avons pas de dossier aujourd hui": "We do not have a file today.",
+    "je marchais quand une voiture est passee": "I was walking when a car passed.",
+    "il faisait froid puis nous sommes entres": "It was cold, then we went in.",
+    "elle attendait quand j ai repondu": "She was waiting when I replied.",
+    "je voudrais partir demain": "I would like to leave tomorrow.",
+    "nous pourrions venir plus tot": "We could come earlier.",
+    "elle aimerait parler avec vous": "She would like to speak with you.",
+    "il faut que tu sois pret": "You have to be ready.",
+    "je veux qu elle vienne demain": "I want her to come tomorrow.",
+    "bien qu il soit tard nous continuons": "Although it is late, we are continuing.",
+    "c est le livre que j ai lu": "It is the book that I read.",
+    "voici l ami qui arrive": "Here is the friend who is arriving.",
+    "la ville ou j habite est calme": "The city where I live is calm.",
 }
 
 
 def _word_bank_meaning_cue(concept: GrammarConcept | None, correct_answer: Any) -> str:
+    """The English meaning of a known fallback sentence, else ``""`` (P10)."""
     answer = _join_french_tokens(correct_answer) if isinstance(correct_answer, list) else str(correct_answer or "")
     normalized = _normalize(answer)
     if _FALLBACK_MEANING_CUES.get(normalized):
         return _FALLBACK_MEANING_CUES[normalized]
-    profile = infer_grammar_profile(concept) if concept else None
-    label = profile.label.lower() if profile else "the target grammar"
-    return f"Express a complete sentence in French using {label}; use every target chip once."
+    # P10: no meaning known, no cue — the card states its task line alone. The old
+    # «Express a complete sentence in French using …» was printed as the sentence to build.
+    return ""
 
 
 def _quoted_fragments(value: Any) -> list[str]:
@@ -3129,7 +3131,7 @@ class AtelierExerciseGenerator:
             if not (
                 filled(item.get("id"))
                 and filled(item.get("prompt"))
-                and filled(item.get("meaning_cue"))
+                # P10: an empty meaning cue is allowed — the card then states its task alone.
                 and filled(item.get("correct_answer"))
                 and len(item.get("tokens") or []) >= 1
                 and len(item.get("answer_tokens") or []) >= 1
@@ -3497,7 +3499,7 @@ class AtelierExerciseGenerator:
                 "Judge each item independently against the exact shown lesson. Only fail an item for a concrete defect listed below — not for stylistic preferences.",
                 "Concrete defects that fail an item: (1) the answer key is wrong, or is not selectable from the choices / not buildable from the chips; (2) the French in the answer key is clearly ungrammatical or unnatural; (3) the item has essentially NO connection to the target concept's grammar family (adjacent sub-skills fail unless the shown lesson explicitly explains them); (4) the prompt or labels hand over the answer so no thinking is required.",
                 "Do NOT fail an item merely for the number, style, or strength of distractors — distractor quality is repaired automatically. Two distinct plausible choices is acceptable.",
-                "For word_bank, meaning_cue must tell the learner what sentence to build, must match the answer sentence's meaning, must not expose the French target sentence, prompt/tokens must not contain blanks, answer_tokens must form the complete target French sentence, and tokens must include at least one plausible distractor chip. The assembled answer_tokens MUST be a grammatically complete, natural French sentence: FAIL it if two clauses are spliced without the conjunction the meaning needs (e.g. an English cue 'I was reading WHEN the phone rang' whose French answer omits 'quand', or a si/parce que/que clause missing its connector). Do NOT fail word_bank items for chip order, token ordering, placement clarity, or extra plausible distractors; chips are intentionally unordered.",
+                "For word_bank, a non-empty meaning_cue must be the meaning of the sentence to build (never an instruction), must match the answer sentence's meaning, must not expose the French target sentence, prompt/tokens must not contain blanks, answer_tokens must form the complete target French sentence, and tokens must include at least one plausible distractor chip. The assembled answer_tokens MUST be a grammatically complete, natural French sentence: FAIL it if two clauses are spliced without the conjunction the meaning needs (e.g. an English cue 'I was reading WHEN the phone rang' whose French answer omits 'quand', or a si/parce que/que clause missing its connector). Do NOT fail word_bank items for chip order, token ordering, placement clarity, or extra plausible distractors; chips are intentionally unordered.",
                 "For transform items, judge ONLY the learner-facing `instruction` text (never the `expected_answer` field — that is the hidden grading key and SHOULD contain the full corrected sentence; never treat it as a spoiler). Be LENIENT: a transform passes whenever it (a) quotes the exact source word or phrase to change and (b) names a grammatical target — a tense, mood, or rule name such as 'the imparfait', 'the passé composé', 'the future', 'the present', 'its negated form'. Naming the target tense/mood is REQUIRED and is NOT a spoiler, even when the answer ends up in that tense: \"Change 'pleuvait' to the passé composé\" must PASS. Only FAIL a transform when the instruction literally writes the conjugated answer word the learner must type (for example \"change 'pleut' to 'pleuvait'\", or \"change 'avais' to 'as'\"), or when it is so vague it names neither a specific source word nor any grammatical target. Do not fail for style, prescriptiveness, or for omitting the answer word.",
                 "Do not rewrite items. Return pass/fail and one concise reason only.",
             ],
@@ -4407,8 +4409,9 @@ class AtelierExerciseGenerator:
             item["answer_tokens"] = [str(token) for token in answer_tokens]
             if not str(item.get("correct_answer") or "").strip():
                 item["correct_answer"] = _join_french_tokens(item["answer_tokens"])
-            if not str(item.get("meaning_cue") or "").strip():
-                item["meaning_cue"] = _word_bank_meaning_cue(concept, item.get("correct_answer") or item["answer_tokens"])
+            item["meaning_cue"] = meaning_cue_text(item.get("meaning_cue")) or _word_bank_meaning_cue(
+                concept, item.get("correct_answer") or item["answer_tokens"]
+            )
             # Always build the chips from the answer tokens (+ distractors) so the answer is
             # guaranteed buildable from the offered chips — the LLM's own token list is unreliable.
             chips = [str(token) for token in item["answer_tokens"]]
@@ -8281,7 +8284,7 @@ class AtelierCorrectionService:
             "not know the French — including words inside parentheses, brackets, or quotes — do NOT silently replace it and do NOT mark the "
             "answer flawless. Keep the learner's intended meaning: put the correct French for that specific word into corrected_answer, and "
             "add an entry to lexical_gaps giving the exact fragment they wrote (learner_fragment), its language (de/en/other), the correct "
-            "French (french), and a short English gloss. An answer that leans on a non-French word is at most 'partial', never 'correct' or "
+            f"French (french), and a short gloss in {self._gloss_language_name()} (the learner's own language). An answer that leans on a non-French word is at most 'partial', never 'correct' or "
             "'accepted'. When the answer is fully French, return lexical_gaps as an empty array. "
             # WP-103 T10: the owner's «Lila cherche un poster grand» was told «poster» is English.
             "A word that looks English can be French: established loanwords such as poster, week-end, parking, sandwich, "
@@ -8295,6 +8298,14 @@ class AtelierCorrectionService:
             "corrected form, any word of corrected_target or corrected_answer the learner did not write, or the "
             "answer spelt out (write «„carte“ is feminine: which article fits?», never «carte needs une»)."
         )
+
+    def _gloss_language_name(self) -> str:
+        """P10: a lexical gap's gloss is read in the learner's own language (the
+        mother tongue), never English for everyone — «bague — ring» for a German
+        learner."""
+
+        code = mother_tongue(self._learner_native or self.explanation_language)
+        return EXPLANATION_LANGUAGE_NAMES.get(code, EXPLANATION_LANGUAGE_NAMES[DEFAULT_GLOSS_LANGUAGE])
 
     def _explanation_language_instruction(self) -> str:
         """Tell the model which language the *explanation* must be written in.

@@ -2819,6 +2819,27 @@ def _goal_kind(item: dict[str, Any]) -> str | None:
     return None
 
 
+#: P10: what a word bank's ``meaning_cue`` must never be — the generator's own ask
+#: («Express a complete sentence in French using pronoun choice; use every target chip
+#: once.»), which a B1 learner read quoted as the sentence to build.
+_INSTRUCTION_CUE = re.compile(
+    r"^\s*express\s+(a|an|the)\b|\btarget chips?\b|\bcomplete sentence in french\b"
+    r"|^\s*build the (full )?french sentence\b|\bthe target grammar\b",
+    re.IGNORECASE,
+)
+
+
+def meaning_cue_text(value: Any) -> str:
+    """A word bank's meaning cue as a learner may read it: the sentence's meaning with
+    no «Express:» prefix, or ``""`` when the cue is an instruction, not a meaning (P10).
+    An empty cue means the card states its task line alone."""
+
+    text = re.sub(r"^\s*express\s*:\s*", "", str(value or ""), flags=re.IGNORECASE).strip()
+    if not text or _INSTRUCTION_CUE.search(text):
+        return ""
+    return text
+
+
 def _without_gloss(prompt: Any, meaning: Any) -> Any:
     """«Je reste ___ (I stay …)» → «Je reste ___»: the bank's English gloss off a French prompt."""
 
@@ -2852,6 +2873,10 @@ def with_goal(item: dict[str, Any], language: Any = None, native: Any = None) ->
         code = "en"
     # No native language given: no meaning cue (the French-only goal), not English.
     own = mother_tongue(native) if str(native or "").strip() else ""
+    if "meaning_cue" in out:
+        # P10: a set stored before carries «Express: …» or the generator's ask; the
+        # learner reads the meaning or nothing, never the instruction.
+        out["meaning_cue"] = meaning_cue_text(out["meaning_cue"])
     _with_fallback_task(out, code)
     kind = _goal_kind(out)
     l10n = out.get("goal_l10n") if isinstance(out.get("goal_l10n"), dict) else None

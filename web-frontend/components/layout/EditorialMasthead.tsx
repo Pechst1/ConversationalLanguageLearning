@@ -4,7 +4,8 @@ import { useRouter } from 'next/router';
 import { GearIcon } from '@/components/atelier-v2/ui';
 
 import { atelierChrome } from '@/lib/atelier-v2-copy';
-import { readLearnerLanguage } from '@/lib/learner-language';
+import { chromeLanguage } from '@/lib/language-rule';
+import { readLearnerLanguage, readLearnerLevel } from '@/lib/learner-language';
 import {
   PHONE_PRODUCT_TABS,
   resolveProductSection,
@@ -60,14 +61,20 @@ export default function EditorialMasthead({
   // network: this header is on every page and F-20 is already about one page
   // load asking the same question nine times.
   const [learnerLanguage, setLearnerLanguage] = React.useState<ControlLanguage>('en');
+  // P10: the gear is a nav link on every page, so it reads the interface language —
+  // French from B1 — like the page around it, not the mother tongue («Settings» on a
+  // French page). Réglages' own title stays in the mother tongue (WP-46).
+  const [interfaceLanguage, setInterfaceLanguage] = React.useState<ControlLanguage>('en');
   React.useEffect(() => {
-    setLearnerLanguage(readLearnerLanguage());
+    const language = readLearnerLanguage();
+    setLearnerLanguage(language);
+    setInterfaceLanguage(chromeLanguage(language, readLearnerLevel()));
   }, []);
   const mobileSection = resolveProductSection(router.pathname) || productSectionFromMasthead(active);
   const mobileTitle = resolveProductTitle(mobileSection, router.pathname, learnerLanguage);
   const isSettingsActive = active === 'settings' || router.pathname === '/settings';
-  // The gear's word follows the learner's language too («Einstellungen», «Réglages»).
-  const settingsLabel = String(atelierChrome(learnerLanguage).settings || 'Settings');
+  // The gear's word follows the interface language («Einstellungen», «Réglages»).
+  const settingsLabel = String(atelierChrome(interfaceLanguage).settings || 'Settings');
 
   return (
     <header className={`app-masthead ${hideMobileHeader ? 'app-mobile-header-hidden' : ''} ${hideMobileTitle ? 'app-mobile-title-hidden' : ''} ${mobileAction ? 'app-has-mobile-action' : ''}`}>

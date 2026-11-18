@@ -11804,7 +11804,9 @@ def _fallback_evaluation(db, *, user, scenario, answer, assistance, reason: str,
         character_name=scenario.character_name,
         character_id=scenario.character_id,
         learner_text=answer.text,
-        language=normalize_control_language(context.get("control_language")),
+        # P10: the caption under the authored ending is interface text — the learner's
+        # interface language (French from B1), not the mother tongue.
+        language=normalize_control_language(user_chrome_language(user)),
         reason=reason,
         register=exit_register(db, user, scenario),
     )
@@ -11849,7 +11851,9 @@ def _main_fallback_evaluation(db, *, user, scenario, answer, assistance, reason:
     turn = _main_fallback_turn(
         character_name=scenario.character_name,
         learner_text=answer.text,
-        language=normalize_control_language(context.get("control_language")),
+        # P10: the caption under the authored ending is interface text — the learner's
+        # interface language (French from B1), not the mother tongue.
+        language=normalize_control_language(user_chrome_language(user)),
         reason=reason,
         answered=False,
     )
