@@ -1059,9 +1059,10 @@
    }
   },
   "entrer": {
-   "inf": "gehen",
+   "inf": "hineingehen",
+   "sep": "hinein",
    "prt": "ging",
-   "pp": "gegangen",
+   "pp": "hineingegangen",
    "aux": "sein",
    "comps": {
     "dans le café": "ins Café",

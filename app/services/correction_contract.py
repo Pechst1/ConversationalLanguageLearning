@@ -334,6 +334,12 @@ def verify_edit(
 
     if is_variant_edit(span, replacement):
         return Verdict(False, reason="valid_variant")
+    if _PAREN_GENDER.search(_norm(replacement)):
+        # P4 (walk 17 Nov): «fatigue → fatigué(e)», «fatigué → fatigué(e)». The learner's
+        # gender is theirs to give; a bracket form imposes none only by not being shown.
+        return Verdict(False, reason="gender_form")
+    if _regenders_a_two_gender_noun(text, span, replacement):
+        return Verdict(False, reason="two_gender_noun")
     if not _grounded(text, span, replacement, note, strict_span=strict_span):
         return Verdict(False, reason="not_grounded")
     if changes_subject(span, replacement):
@@ -347,6 +353,29 @@ def verify_edit(
     if is_variant_edit(shown_span, shown):
         return Verdict(False, reason="valid_variant")
     return Verdict(True, replacement=shown, span=shown_span)
+
+
+#: «fatigué(e)», «content(e)s», «acteur(trice)»: a form that leaves the gender open.
+_PAREN_GENDER = re.compile(r"(?<=[^\W\d_])\((?:e|es|ne|le|ve|se|te|trice|euse|ère|ères)\)", re.IGNORECASE)
+
+
+def _regenders_a_two_gender_noun(text: object, span: object, replacement: object) -> bool:
+    """P4 (walk 17 Nov): whether the edit turns a determiner to the other gender in front
+    of a person noun French uses for a woman and a man (``_PERSON_NOUNS_BOTH_GENDERS``:
+    «à la notaire» -> «au notaire»). A homograph («la livre» -> «le livre») is left to the
+    reader of the meaning. The noun is read in the replacement or, right after the span,
+    in the line."""
+
+    old, new = _words_of(span), _words_of(replacement)
+    source = _norm(text)
+    where = _locate(source, _norm(span))
+    after = _words_of(source[where[1] :])[:1] if where else []
+    old_genders = [_DET_GENDER[w] for w in old if w in _DET_GENDER]
+    new_genders = [_DET_GENDER[w] for w in new if w in _DET_GENDER]
+    if not old_genders or not new_genders or old_genders == new_genders:
+        return False
+    nouns = [w for w in new if w not in _DET_GENDER and w not in {"à", "de", "d", "l"}] or after
+    return bool(nouns) and nouns[0] in _PERSON_NOUNS_BOTH_GENDERS
 
 
 def _locate(source: str, span: str) -> tuple[int, int] | None:
@@ -834,15 +863,10 @@ _ACCENTS = {
 #: determiner is never «corrected». Homographs whose meaning sets the gender («le
 #: tour / la tour», «le poste / la poste»), and person nouns French uses for a woman
 #: too while the core lexicon stores one gender («une enfant», «la ministre»).
-_TWO_GENDER_NOUNS = frozenset(
+#: Person nouns French uses for a woman and a man while the core lexicon stores one
+#: gender. Which article is right depends on who is meant, which no check here can see.
+_PERSON_NOUNS_BOTH_GENDERS = frozenset(
     {
-        # homographs
-        "tour", "poste", "livre", "mode", "page", "voile", "manche", "critique", "vase", "mémoire",
-        "moule", "somme", "solde", "aide", "physique", "pendule", "office", "œuvre", "espace", "gens",
-        "mousse", "manœuvre", "parallèle", "finale", "geste", "mort", "après-midi", "foudre", "hymne",
-        "crêpe", "garde", "merci", "pupille", "enseigne", "greffe", "radio", "relâche", "orge", "période",
-        "faux", "physionomie", "interligne", "chose", "personne", "crème", "porte-parole",
-        # person nouns used for women and men
         "enfant", "propriétaire", "ministre", "juge", "membre", "stagiaire", "guide", "médecin",
         "professeur", "prof", "peintre", "poète", "auteur", "écrivain", "chef", "témoin", "maire",
         "docteur", "ingénieur", "pompier", "auteure", "élève", "artiste", "journaliste", "collègue",
@@ -850,10 +874,26 @@ _TWO_GENDER_NOUNS = frozenset(
         "architecte", "pianiste", "photographe", "interprète", "pilote", "bibliothécaire", "locataire",
         "fonctionnaire", "responsable", "célibataire", "partenaire", "astronaute", "comptable", "fleuriste",
         "bénévole", "complice", "convive", "cadre", "mannequin", "bébé", "star", "vedette",
+        # P4 (walk 17 Nov): «à la notaire» was «corrected» to «au»; Maître Vasseur is a woman
+        "notaire", "vétérinaire", "commissaire", "antiquaire", "gendarme", "capitaine",
+    }
+)
+_TWO_GENDER_NOUNS = _PERSON_NOUNS_BOTH_GENDERS | frozenset(
+    {
+        # homographs
+        "tour", "poste", "livre", "mode", "page", "voile", "manche", "critique", "vase", "mémoire",
+        "moule", "somme", "solde", "aide", "physique", "pendule", "office", "œuvre", "espace", "gens",
+        "mousse", "manœuvre", "parallèle", "finale", "geste", "mort", "après-midi", "foudre", "hymne",
+        "crêpe", "garde", "merci", "pupille", "enseigne", "greffe", "radio", "relâche", "orge", "période",
+        "faux", "physionomie", "interligne", "chose", "personne", "crème", "porte-parole",
     }
 )
 _MASC_DET = {"le": "la", "un": "une", "ce": "cette", "mon": "ma", "ton": "ta", "son": "sa", "quel": "quelle"}
 _FEM_DET = {"la": "le", "une": "un", "cette": "ce", "ma": "mon", "ta": "ton", "sa": "son", "quelle": "quel"}
+#: Determiners and contracted articles, by the gender they give the noun after them.
+_DET_GENDER = {
+    **dict.fromkeys(_MASC_DET, "m"), **dict.fromkeys(_FEM_DET, "f"), "au": "m", "du": "m", "cet": "m",
+}
 #: «je la porte», «il le mange»: in front of a verb form that is also a noun, «le/la» is
 #: a pronoun, not a determiner, and says nothing about the noun's gender.
 _PRONOUN_CONTEXT = frozenset(
@@ -2657,6 +2697,37 @@ def _found_by_their_words(source: str, edits: list[Edit]) -> list[Edit]:
     return named
 
 
+#: P4 (walk 17 Nov): the prepositions after which a bare «de» before a noun is not French
+#: («pas avec de lait»): the partitive keeps its article there («avec du lait»).
+_BARE_DE_PREPOSITIONS = frozenset({"avec", "sans", "pour", "dans", "sur", "sous", "par", "chez", "contre", "entre"})
+
+
+def _bare_de_after_preposition(source: str, start: int, end: int) -> bool:
+    """Whether ``source`` holds «preposition + de + noun» with no article, touching
+    ``start``–``end`` («avec de lait»).
+
+    A check with no fix of its own: which article the noun takes there («du», «de la»,
+    nothing) is a choice the learner makes, so the rules never write one. It only keeps a
+    proposed fix from being printed when the line it makes holds this (the fixpoint of
+    #860). Silent before an adjective («avec de bons amis», «pour de vrai»), an elided
+    article («avec de l'eau»), a capital («avec de Gaulle») or a verb form."""
+
+    tokens = _tokens(source)
+    for i in range(1, len(tokens) - 1):
+        prep, de, noun = tokens[i - 1], tokens[i], tokens[i + 1]
+        if de.low != "de" or prep.low not in _BARE_DE_PREPOSITIONS:
+            continue
+        if not (_space(source, prep, de) and _space(source, de, noun)):
+            continue
+        if not (prep.start < end and start < noun.end):
+            continue
+        written = source[noun.start : noun.end]
+        if not written[:1].islower() or _pos(noun.low) != "noun" or _could_be_verb(noun.low):
+            continue
+        return True
+    return False
+
+
 def _settle(source: str, edit: Edit, cast: Mapping[str, str], depth: int = 0) -> Edit | None:
     """``edit`` once its replacement passes the rules in place, or ``None``.
 
@@ -2666,6 +2737,11 @@ def _settle(source: str, edit: Edit, cast: Mapping[str, str], depth: int = 0) ->
 
     region_start, region_end = edit.start, edit.start + len(edit.replacement)
     context = source[: edit.start] + edit.replacement + source[edit.end :]
+    if _bare_de_after_preposition(context, region_start, region_end) and not _bare_de_after_preposition(
+        source, edit.start, edit.end
+    ):
+        # P4: «pas avec lait» -> «pas avec de lait» makes a line the rules know is wrong.
+        return None
     inner = [e for e in _raw_edits(context, cast) if e.start < region_end and region_start < e.end]
     if not inner:
         return edit
@@ -3511,6 +3587,10 @@ class SentenceGap:
     start: int
     wrong: str
     fix: str
+    #: P4: the difference is a word the sentence has and the line does not. The gap still
+    #: reads «anchor → anchor + word», which a list of «wrong → right» shows as a fix of a
+    #: right word («beaucoup → beaucoup et», walk 17 Nov).
+    inserted: bool = False
 
     @property
     def end(self) -> int:
@@ -3601,7 +3681,7 @@ def sentence_gaps(line: str, sentence: str, *, fixed: Iterable[tuple[int, int]] 
             fix = f"{want} {wrong}"
         wrong, fix = _trim_shared_marks(wrong, fix)
         if wrong.strip() and fix.strip() and wrong.strip() != fix.strip():
-            gaps.append(_only_there(line, left, SentenceGap(start, wrong, fix)))
+            gaps.append(_only_there(line, left, SentenceGap(start, wrong, fix, inserted=tag == "insert")))
     return gaps
 
 
@@ -3619,7 +3699,7 @@ def _only_there(line: str, words: list[tuple[int, int, str]], gap: SentenceGap) 
             return gap
         start = before[-1][0]
         between = line[start : gap.start]
-        gap = SentenceGap(start, between + gap.wrong, between + gap.fix)
+        gap = SentenceGap(start, between + gap.wrong, between + gap.fix, inserted=gap.inserted)
 
 
 def _place_fix(line: str, span: str, fix: str, taken: list[tuple[int, int, str]], sentence: object) -> tuple[int, int] | None:
@@ -3645,9 +3725,60 @@ def _place_fix(line: str, span: str, fix: str, taken: list[tuple[int, int, str]]
     return max(spots, key=closeness)
 
 
+_BREAK_THEN_WORDS = re.compile(r"\s*[.!?…;:,]+\s*\w")
+_WORDS_THEN_BREAK = re.compile(r"\w\s*[.!?…;:,]+\s*$")
+
+
+def _joins_what_the_learner_split(line: str, gap: SentenceGap) -> bool:
+    """P4 (walk 17 Nov): a word the model added that joins two of the learner's sentences or
+    clauses («Gus parle beaucoup. Je suis …» -> «beaucoup et je suis …»), or that is a
+    conjunction. Joining is how the model writes, not a mistake the learner made."""
+
+    if not gap.inserted:
+        return False
+    added = [word for word in _words_of(gap.fix) if word not in _words_of(gap.wrong)]
+    if any(word in _CONJUNCTIONS for word in added):
+        return True
+    if _norm(gap.fix).casefold().startswith(_norm(gap.wrong).casefold()):
+        # added after the anchor: a mark right after it, with more of the line behind it
+        return bool(_BREAK_THEN_WORDS.match(line[gap.end :]))
+    return bool(_WORDS_THEN_BREAK.search(line[: gap.start]))
+
+
+_MISSING_AFTER = {
+    "en": "« {word} » is missing after « {anchor} ».",
+    "de": "Nach « {anchor} » fehlt « {word} ».",
+    "fr": "Il manque « {word} » après « {anchor} ».",
+}
+_MISSING_BEFORE = {
+    "en": "« {word} » is missing before « {anchor} ».",
+    "de": "Vor « {anchor} » fehlt « {word} ».",
+    "fr": "Il manque « {word} » avant « {anchor} ».",
+}
+
+
+def _missing_word_note(gap: SentenceGap, language: str | None) -> str | None:
+    """The note of a gap that only adds words: which words, and next to which word of the
+    learner's (P4), or ``None`` for any other gap."""
+
+    if not gap.inserted:
+        return None
+    wrong, fix = gap.wrong.strip(), gap.fix.strip()
+    if fix.casefold().startswith(wrong.casefold()):
+        word, table = fix[len(wrong) :].strip(), _MISSING_AFTER
+    elif fix.casefold().endswith(wrong.casefold()):
+        word, table = fix[: len(fix) - len(wrong)].strip(), _MISSING_BEFORE
+    else:
+        return None
+    anchor = (wrong.split() or [wrong])[-1 if table is _MISSING_AFTER else 0]
+    return _pick(table, language).format(word=word, anchor=anchor) if word else None
+
+
 def _refused_change(line: str, gap: SentenceGap) -> dict[str, Any] | None:
     """Why a change only the model's sentence holds may not be made, or ``None``."""
 
+    if _joins_what_the_learner_split(line, gap):
+        return {"learner_text": gap.wrong, "corrected_target": gap.fix, "reason": "joins_sentences"}
     reason = changes_what_was_said(gap.wrong, gap.fix, question=in_a_question(line, gap.wrong))
     if reason is None and not verify_edit(line, gap.wrong, gap.fix).ok:
         reason = "not_verified"
@@ -3761,7 +3892,9 @@ def verify_correction(
                 refused.append(why)
                 continue
             placed.append(gap)
-            note = note_from_form(gap.wrong, gap.fix, language=language)
+            # P4: a missing word says so; «Die richtige Form ist « vais à »» named the right
+            # word beside it as the fault.
+            note = _missing_word_note(gap, language) or note_from_form(gap.wrong, gap.fix, language=language)
             kept.append(
                 {
                     "display_label": "",

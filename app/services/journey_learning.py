@@ -404,9 +404,40 @@ def answer_matches(
         short_enough = within_reply or len(answer_tokens) <= len(target_tokens) + max(
             CONTAINED_ANSWER_PADDING, len(target_tokens)
         )
-        if short_enough and _contains_run(answer_tokens, target_tokens):
+        if (
+            short_enough
+            and _contains_run(answer_tokens, target_tokens)
+            and not _wrong_article_before(answer_tokens, target_tokens)
+        ):
             run = " ".join(_original_run(answer, len(target_tokens), target_tokens))
             if judge(run, [candidate], accents=accents, article_optional=article_optional).correct:
+                return True
+    return False
+
+
+#: The articles that give the noun after them a gender («le valise»).
+_GENDERED_ARTICLES = {"le": "m", "un": "m", "la": "f", "une": "f"}
+
+
+def _wrong_article_before(answer_tokens: list[str], target_tokens: list[str]) -> bool:
+    """P4 (walk 17 Nov): «le valise» held the key «valise» as a run of words and was
+    «Richtig». A bare noun found in the answer does not count when the article right in
+    front of it gives it the other gender. A noun right with both genders («la livre»)
+    stays right."""
+
+    from app.services.answer_acceptance import _gender_of
+    from app.services.correction_contract import _TWO_GENDER_NOUNS
+
+    if len(target_tokens) != 1 or target_tokens[0] in _GENDERED_ARTICLES:
+        return False
+    noun = target_tokens[0]
+    gender = _gender_of(noun)
+    if gender is None or noun in {fold_for_comparison(word) for word in _TWO_GENDER_NOUNS}:
+        return False
+    for index in range(1, len(answer_tokens)):
+        if answer_tokens[index] == noun:
+            given = _GENDERED_ARTICLES.get(answer_tokens[index - 1])
+            if given is not None and given != gender:
                 return True
     return False
 
