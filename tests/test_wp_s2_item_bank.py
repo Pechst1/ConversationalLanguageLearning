@@ -137,8 +137,9 @@ def test_unit_yields_200_distinct_valid_items_per_rung(unit: str) -> None:
 
     # 12 Nov 2026: the rungs the learner builds or writes are said to nobody, so a frame's
     # vocative twin adds no new build: a small unit («Nous mangeons / Je paie …», about
-    # 190 sentences) has that many builds, still a month of three a day.
-    floor = {rung: MIN_BUILDS if rung in {"word_bank", "transform", "production"} else MIN_ITEMS for rung in ib.RUNG_TYPES}
+    # 190 sentences) has that many builds, still a month of three a day. R2 (walk of
+    # 17 Nov): the fills, sorts and pairs are said to nobody too, so the same floor holds.
+    floor = dict.fromkeys(ib.RUNG_TYPES, MIN_BUILDS)
     short = {rung: distinct(rung) for rung in ib.RUNG_TYPES if distinct(rung) < floor[rung]}
     assert not short, f"{unit}: fewer distinct valid items than {floor} for {short}"
 

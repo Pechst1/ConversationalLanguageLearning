@@ -6544,12 +6544,15 @@ class AtelierCorrectionService:
                 # gender or number is the noun's, whatever the day's rule is.
                 category = (slip_category(ops, target) or {}).get("category", "")
                 cite = _copy("atelier.recognize.rule_reference", language, title=title) if category.startswith("person") else ""
-                return self._recognize_erratum_payload(
+                erratum = self._recognize_erratum_payload(
                     concept, item, label=title, learner_text=learner_text, target=target,
                     why=" ".join(part for part in (why, named[0], cite) if part),
                     repair=named[1],
                     task_type=self._task_type_for(concept, item),
                 )
+                if normalize_language(language) != "en":
+                    self._hint_without_answer(erratum, concept, item, (named[0], named[1], self._why_for(concept, item)))
+                return erratum
             if outside_rule:
                 # #380: say what differs in the learner's text, not the rule's headline.
                 why = f"{why} {_copy('atelier.recognize.other_words', language, learner=learner_text, target=target)}"
@@ -6563,7 +6566,7 @@ class AtelierCorrectionService:
                 repair = infer_grammar_profile(concept).pattern
             else:
                 repair = self._repair_for(concept, learner_text, target)
-            return self._recognize_erratum_payload(
+            erratum = self._recognize_erratum_payload(
                 concept, item, label=_concept_title_for(concept, language), learner_text=learner_text, target=target,
                 why=why,
                 # QA-FORGE: the profile's pattern is an English formula
@@ -6571,6 +6574,14 @@ class AtelierCorrectionService:
                 repair=repair,
                 task_type=self._task_type_for(concept, item),
             )
+            if not outside_rule and normalize_language(language) != "en":
+                # R2 (walk of 17 Nov): while the solution waits, the miss said «Tu as choisi
+                # « noire » ; Règle : Les adjectifs : accord et place.» — the rule's name and
+                # nothing else, though its reason in plain words was there behind «Voir la
+                # solution». The hint is that reason (``solution_gate.learner_view`` drops any
+                # clause of it that would name the answer).
+                self._hint_without_answer(erratum, concept, item, (self._why_for(concept, item), repair))
+            return erratum
         if mode == "fill":
             erratum = self._fill_erratum(concept, item, learner_text, target)
             if accent_line:
@@ -6588,6 +6599,35 @@ class AtelierCorrectionService:
             repair=item.get("repair_hint") or self._repair_for(concept, learner_text, target),
             task_type=self._task_type_for(concept, item),
         )
+
+    def _hint_without_answer(
+        self,
+        erratum: dict[str, Any],
+        concept: GrammarConcept | None,
+        item: dict[str, Any],
+        candidates: tuple[Any, ...],
+    ) -> None:
+        """R2 (walk of 17 Nov): the first miss of a choice said «Tu as choisi « noire » ;
+        Règle : Les adjectifs : accord et place.» — the rule's name and nothing else, while
+        its reason in plain words waited behind «Voir la solution». ``hint`` (what
+        ``solution_gate.learner_view`` serves while the solution waits) is the first
+        candidate reason that still says something once every clause naming the answer
+        is out; the scrub there drops those clauses again."""
+
+        from app.services import solution_gate
+
+        language = self.explanation_language
+        learner_text = str(erratum.get("learner_text") or "")
+        target = str(erratum.get("corrected_target") or "")
+        phrases, tokens = solution_gate.leak_terms(
+            {"errata": [erratum], "corrected_answer": target}, learner_text, solution_gate.task_text(item)
+        )
+        generic = {_copy("atelier.generic.why", language), _copy("atelier.generic.repair", language)}
+        for candidate in candidates:
+            text = str(candidate or "").strip()
+            if text and text not in generic and solution_gate.scrub_hint(text, phrases, tokens):
+                erratum["hint"] = text
+                return
 
     def _fill_erratum(
         self,
@@ -7702,6 +7742,8 @@ class AtelierCorrectionService:
         read, and ``own_sentence``: the content is the learner's to choose.
         """
 
+        from app.services.free_card_contract import quoted_meanings
+
         language = mother_tongue(self.explanation_language)
         if language == "en" or item.get("type") not in {"short_sentence", "spoken_response", "conversation_turn"}:
             return item
@@ -7714,6 +7756,10 @@ class AtelierCorrectionService:
             ]
             if isinstance(value, str) and value.strip()
         ]
+        # R2 (walk of 17 Nov): a coach scene keeps the reply it wants only in its goals and
+        # its English prompt («Reply in French: "Yes, I'm suggesting it to them."»); on a
+        # French screen the learner read «Lila : « La fête des voisins ? »» and nothing more.
+        meanings.extend(meaning for meaning in quoted_meanings(raw_item) if meaning not in meanings)
         if not meanings:
             return item
         from app.services.item_bank import public_item
@@ -7820,13 +7866,23 @@ class AtelierCorrectionService:
                 "give the French in corrected_answer, list it in lexical_gaps, and do not mark the answer flawless.",
             ],
         }
-        return self._llm_correction(
+        result = self._llm_correction(
             messages=[{"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)}],
             system_prompt=system_prompt,
             concepts=[concept],
             fallback=fallback,
             corrected_answer_mode="text",
         )
+        if any(isinstance(item, dict) and item.get("own_sentence") for item in compact_task.get("items") or []):
+            # R2 (walk of 17 Nov): a card that asked for a sentence of the learner's own with
+            # the rule is judged on the rule and on correct French, nothing it never stated.
+            from app.services.forge_grading import detector_check
+            from app.services.free_card_contract import only_what_the_card_asked
+
+            text = str(answer_payload.get("text") or "")
+            rule_used = not fallback.get("missing_targets") or detector_check(concept, text)["status"] == "hit"
+            result = only_what_the_card_asked(result, rule_used=rule_used)
+        return result
 
     def _correct_transform_with_llm(
         self,

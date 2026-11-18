@@ -663,13 +663,18 @@ def _attempt_response(
 def _learner_correction(attempt: AtelierAttempt) -> dict[str, Any]:
     """The correction as the learner may see it now: without its solution while a second chance is open."""
 
+    from app.services.free_card_contract import with_model_answer
+
     stored = attempt.correction_payload or {}
-    return solution_gate.learner_view(
+    view = solution_gate.learner_view(
         stored,
         verdict=attempt.verdict,
         answer_payload=attempt.answer_payload or {},
         context=solution_gate.task_text(attempt.prompt_payload or {}),
     )
+    # R2 (walk of 17 Nov): a free card refused twice ends in its solution — one acceptable
+    # model answer — never in «Passer» as the only way out.
+    return with_model_answer(view, round_name=attempt.round, prompt_payload=attempt.prompt_payload or {})
 
 
 ADAPTIVE_LOCK_CLEAN_RECOGNIZE_ITEMS = 3

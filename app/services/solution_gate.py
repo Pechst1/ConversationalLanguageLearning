@@ -407,6 +407,14 @@ def learner_view(
             hint = scrub_hint(source, phrases, tokens)
             if hint:
                 break
+        if not hint and task and str(erratum.get("display_label") or "").strip() and not _leaks(
+            str(erratum.get("display_label")), phrases, tokens
+        ):
+            # R2 (walk of 17 Nov): «Relis la consigne : qu'est-ce qu'elle te demande
+            # d'utiliser ?» said nothing; what is missing is the card's rule, by name and in words.
+            from app.services.learner_copy import learner_text
+
+            hint = learner_text("forge.second_chance.task_rule_hint", language, rule=str(erratum.get("display_label")).strip())
         if not hint:
             key = "forge.second_chance.task_hint" if task else "forge.second_chance.hint" if mark else "forge.second_chance.choice_hint"
             hint = _fallback(key, language)

@@ -577,6 +577,13 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Lies die Aufgabe noch einmal: Was sollst du verwenden?",
         "fr": "Relis la consigne : qu’est-ce qu’elle te demande d’utiliser ?",
     },
+    # R2 (walk of 17 Nov): a free card's task note, said in plain words — what is missing
+    # is the card's rule; what the sentence says is the learner's to choose.
+    "forge.second_chance.task_rule_hint": {
+        "en": "Your sentence does not show this card's rule yet ({rule}). What it says is up to you.",
+        "de": "In deinem Satz fehlt noch die Regel dieser Karte ({rule}). Was er sagt, entscheidest du.",
+        "fr": "Ta phrase ne montre pas encore la règle de cette carte ({rule}). Ce qu’elle dit, c’est toi qui choisis.",
+    },
     "forge.second_chance.choice_hint": {
         "en": "Not this one. Look at the rule again and choose once more.",
         "de": "Nicht diese. Sieh dir die Regel noch einmal an und wähle neu.",
