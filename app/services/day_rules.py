@@ -69,6 +69,8 @@ def for_turn(
     from app.db.models.grammar import GrammarConcept, UserGrammarProgress
     from app.services.concept_life import _aware
 
+    if db is None:  # the gold gate builds a turn's prompt offline, without a session
+        return None
     language = str(control_language or "en")
     now = _aware(now) or datetime.now(UTC)
     try:
