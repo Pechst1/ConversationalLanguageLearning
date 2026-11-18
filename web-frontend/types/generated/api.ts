@@ -9994,6 +9994,11 @@ export interface components {
             expected_revision: number;
             /** Mutation Id */
             mutation_id: string;
+            /**
+             * Skip To Scene
+             * @default false
+             */
+            skip_to_scene?: boolean;
         };
         /** JourneyAttemptRequest */
         JourneyAttemptRequest: {

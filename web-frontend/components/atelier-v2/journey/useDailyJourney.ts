@@ -73,6 +73,7 @@ import {
   phaseFromEnvelope,
   phaseFromJourney,
   resolutionAwaitsStory,
+  sessionStopControl,
   STORY_POLL_LIMIT,
   STORY_POLL_MS,
   storyPollTarget,
@@ -123,6 +124,12 @@ export type DailyJourneyActions = {
   pause: () => Promise<void>;
   resume: () => Promise<void>;
   finish: (kind: 'complete' | 'early') => Promise<void>;
+  /**
+   * P11 «Passer à la scène»: from a step before the day's unplayed scene, one
+   * `advance` with `skip_to_scene` skips what is left before it (a rule card
+   * unread, a drill item with no lapse) and opens the scene. Never ends the day.
+   */
+  skipToScene: () => Promise<void>;
   /** «Demain»: pick the thread tomorrow follows, from the finished recap's choice. */
   pickTomorrow: (premiseId: string) => Promise<void>;
   /** Dismiss a feedback card without moving on. */
@@ -922,20 +929,25 @@ export function useDailyJourney(
     [finishSnapshot],
   );
 
-  const advance = useCallback(async (): Promise<JourneySnapshot | null> => {
+  const advance = useCallback(async (options: { skipToScene?: boolean } = {}): Promise<JourneySnapshot | null> => {
     const target = journeyRef.current;
     const step = currentStepOf(target);
     if (!target || !step) return null;
-    const intent = `advance:${target.id}:${step.id}:${target.revision}`;
+    const skipToScene = Boolean(options.skipToScene);
+    const intent = `advance:${target.id}:${step.id}:${target.revision}${skipToScene ? ':skip' : ''}`;
     let advanced: JourneySnapshot | null = null;
     await once(intent, async () => {
       setBusy(true);
       try {
-        const result = await unwrap(intent, { kind: 'advance', stepId: step.id }, (id) =>
+        const meta = skipToScene
+          ? { kind: 'advance' as const, stepId: step.id, body: { skip_to_scene: true } }
+          : { kind: 'advance' as const, stepId: step.id };
+        const result = await unwrap(intent, meta, (id) =>
           dailyJourneyService.advance(target.id, {
             expectedRevision: target.revision,
             currentStepId: step.id,
             mutationId: id,
+            skipToScene,
           }),
         );
         if (result.ok) {
@@ -979,6 +991,12 @@ export function useDailyJourney(
       await finishSnapshot(advanced, 'complete');
     }
   }, [advance, feedback, finishSnapshot]);
+
+  const skipToScene = useCallback(async () => {
+    revealRef.current.cancel();
+    if (sessionStopControl(journeyRef.current, currentStepOf(journeyRef.current)) !== 'skip') return;
+    await advance({ skipToScene: true });
+  }, [advance]);
 
   // A current step the server already completed, with no verdict on screen: the
   // learner answered and then reloaded, closed the app, or answered on another
@@ -1124,6 +1142,7 @@ export function useDailyJourney(
       pause,
       resume,
       finish,
+      skipToScene,
       pickTomorrow,
       clearFeedback,
       appeal,
@@ -1139,6 +1158,7 @@ export function useDailyJourney(
       pause,
       resume,
       finish,
+      skipToScene,
       pickTomorrow,
       clearFeedback,
       appeal,

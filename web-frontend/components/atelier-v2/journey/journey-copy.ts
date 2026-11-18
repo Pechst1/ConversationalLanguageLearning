@@ -102,6 +102,7 @@ export type JourneyCopyKey =
   | 'time_left'
   | 'time_unknown'
   | 'finish_early'
+  | 'skip_to_scene'
   | 'pause'
   | 'paused_title'
   | 'paused_body'
@@ -355,6 +356,7 @@ const EN: CopyTable = {
   time_left: 'left',
   time_unknown: 'Time not measured',
   finish_early: 'Stop here',
+  skip_to_scene: 'Skip to the scene',
   pause: 'Pause',
   paused_title: 'Paused',
   paused_body: 'Everything you finished is saved. Pick up where you left off.',
@@ -576,6 +578,7 @@ const DE: CopyTable = {
   time_left: 'übrig',
   time_unknown: 'Zeit nicht gemessen',
   finish_early: 'Hier aufhören',
+  skip_to_scene: 'Weiter zur Szene',
   pause: 'Pause',
   paused_title: 'Pausiert',
   paused_body: 'Alles Erledigte ist gespeichert. Mach dort weiter, wo du aufgehört hast.',
@@ -797,6 +800,7 @@ const FR: CopyTable = {
   time_left: 'restant',
   time_unknown: 'Durée non mesurée',
   finish_early: 'Arrêter ici',
+  skip_to_scene: 'Passer à la scène',
   pause: 'Pause',
   paused_title: 'En pause',
   paused_body: 'Tout ce qui est terminé est enregistré. Reprends où tu en étais.',

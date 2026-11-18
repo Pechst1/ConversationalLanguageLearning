@@ -5,15 +5,24 @@ The 17 Nov experience review (findings 6 and 12):
 
 1. A played scene counts as played: Home's tracker said «Szene — als Nächstes» and
    the Feuilleton did not hold the page until the WHOLE day had ended.
+2. Leaving before the scene does not throw the scene away: «Arrêter ici» on the rule
+   card ended the day, scene included. «Passer à la scène» skips what is left before
+   it (the card unread, no lapse), and a stop there pauses the day.
 """
 from __future__ import annotations
+
+import uuid
 
 from app.services.daily_session import SessionInputs, session_view
 from tests import test_living_story_longitudinal as story
 from tests.test_journey_end_to_end import (  # noqa: F401 - fixtures
+    Driver,
     assembled_client,
     clock,
     journey_enabled,
+    key,
+    learner_id,
+    register,
 )
 from tests.test_living_story_longitudinal import provider  # noqa: F401 - fixture
 
@@ -106,3 +115,116 @@ def test_the_day_is_done_only_once_the_journey_ended():
     assert ended["done"] is True and ended["steps"][-1]["state"] == "done"
     # A caller that does not say (the pure tests of before): the scene decides.
     assert session_view(_inputs())["done"] is True
+
+
+# ---------------------------------------------------------------------------
+# 2. Leaving before the scene does not throw the scene away
+# ---------------------------------------------------------------------------
+
+
+def _rule_first_day(client, db_session, monkeypatch):
+    """A day that opens on the rule card and its drill, before the scene (WP-93)."""
+
+    from app.config import settings
+    from app.services.grammar_catalog import FrenchCoreGrammarCatalog
+
+    monkeypatch.setattr(settings, "ATELIER_JOURNEY_PRACTICE_DAY_ENABLED", True)
+    FrenchCoreGrammarCatalog(db_session, "v1").ensure_catalog()
+    email = f"p11-{uuid.uuid4().hex[:8]}@example.com"
+    d = Driver(client, register(client, email), db=db_session)
+    d.create()
+    kinds = [step["kind"] for step in sorted(d.journey["steps"], key=lambda s: s["ordinal"])]
+    assert "rule" in kinds and kinds.index("rule") < kinds.index("scene"), kinds
+    assert "recall" in kinds[: kinds.index("scene")], kinds
+    assert d.current()["kind"] != "scene", kinds
+    return d, learner_id(db_session, email)
+
+
+def _post_advance(d, **extra):
+    step = d.current()
+    return d.client.post(
+        f"/api/v1/daily-journeys/{d.id}/advance",
+        headers=d.headers,
+        json={
+            "mutation_id": key(),
+            "expected_revision": d.revision,
+            "current_step_id": step["id"],
+            **extra,
+        },
+    )
+
+
+def test_skip_to_the_scene_reads_no_rule_and_books_no_lapse(
+    assembled_client, db_session, journey_enabled, monkeypatch
+):
+    from app.services.daily_journey import DailyJourneyService
+
+    read: list[object] = []
+    monkeypatch.setattr(DailyJourneyService, "_mark_rule_read", lambda self, user, step: read.append(step.id))
+    d, user_id = _rule_first_day(assembled_client, db_session, monkeypatch)
+    lapses_before = _lapses(db_session, user_id)
+
+    response = _post_advance(d, skip_to_scene=True)
+    assert response.status_code == 200, response.text
+    d.journey = response.json()
+
+    assert d.current()["kind"] == "scene", "the skip lands on the scene"
+    by_kind = {step["kind"]: step for step in d.journey["steps"]}
+    assert by_kind["rule"]["status"] == "skipped", "the card is not read"
+    assert read == [], "a skipped card never marks the rule read"
+    pre_scene = [s for s in d.journey["steps"] if s["ordinal"] < by_kind["scene"]["ordinal"]]
+    assert all(step["status"] == "skipped" for step in pre_scene), pre_scene
+    assert _lapses(db_session, user_id) == lapses_before, "a skipped drill books no lapse"
+
+    # Once the scene is open there is nothing ahead to skip to.
+    again = _post_advance(d, skip_to_scene=True)
+    assert again.status_code == 409, again.text
+
+
+def test_skip_from_the_unanswered_drill_lands_on_the_scene(
+    assembled_client, db_session, journey_enabled, monkeypatch
+):
+    d, user_id = _rule_first_day(assembled_client, db_session, monkeypatch)
+    while d.current()["kind"] != "recall":
+        d.advance()  # the card, read
+    lapses_before = _lapses(db_session, user_id)
+    plain = _post_advance(d)
+    assert plain.status_code == 409, "an unanswered drill item is still not passed by «Continuer»"
+
+    response = _post_advance(d, skip_to_scene=True)
+    assert response.status_code == 200, response.text
+    d.journey = response.json()
+    assert d.current()["kind"] == "scene"
+    assert next(s for s in d.journey["steps"] if s["kind"] == "recall")["status"] == "skipped"
+    assert _lapses(db_session, user_id) == lapses_before
+
+
+def test_stop_before_the_scene_pauses_the_day(assembled_client, db_session, journey_enabled, monkeypatch):
+    d, _user_id = _rule_first_day(assembled_client, db_session, monkeypatch)
+    stopped_on = d.current()["id"]
+
+    response = d.finish("early")
+    assert response.status_code == 200, response.text
+    assert d.journey["status"] == "paused", "the day is paused, not ended"
+    assert d.journey["current_step_id"] == stopped_on
+    assert all(step["status"] != "skipped" for step in d.journey["steps"])
+
+    resumed = d.client.post(
+        f"/api/v1/daily-journeys/{d.id}/resume",
+        headers=d.headers,
+        json={"mutation_id": key(), "expected_revision": d.revision},
+    )
+    assert resumed.status_code == 200, resumed.text
+    assert resumed.json()["status"] == "active"
+    assert resumed.json()["current_step_id"] == stopped_on
+
+
+def _lapses(db_session, user_id) -> int:
+    from sqlalchemy import func, select
+
+    from app.db.models.grammar import UserGrammarProgress
+
+    total = db_session.scalar(
+        select(func.coalesce(func.sum(UserGrammarProgress.lapses), 0)).where(UserGrammarProgress.user_id == user_id)
+    )
+    return int(total or 0)

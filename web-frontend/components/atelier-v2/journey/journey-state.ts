@@ -199,6 +199,28 @@ export function currentStepOf(journey: JourneySnapshot | null): PublicStep | nul
   return journey.steps.find((step) => step.id === journey.current_step_id) ?? null;
 }
 
+/**
+ * P11 · what the session's quiet third-tier control does on this step.
+ *
+ * - `'end'`: «Arrêter ici», the day ends early (the scene or anything after it).
+ * - `'skip'`: any step BEFORE the day's unplayed scene (the rule card, its drill,
+ *   La Forge). In both real-model checks of 17 Nov, «Arrêter ici» on the day's
+ *   first card ended the whole day, scene included. There the control reads
+ *   «Passer à la scène»: one `POST …/advance` with `skip_to_scene` skips every
+ *   step left before the scene (a card unread, a drill item with no lapse) and
+ *   opens it. A stop there would only pause the day (the server's own rule).
+ */
+export type SessionStopControl = 'end' | 'skip';
+
+export function sessionStopControl(journey: JourneySnapshot | null, step: PublicStep | null): SessionStopControl {
+  if (!journey || !step) return 'end';
+  const scene = journey.steps
+    .filter((entry) => entry.kind === 'scene')
+    .sort((a, b) => a.ordinal - b.ordinal)[0];
+  if (!scene || scene.status !== 'pending') return 'end';
+  return step.ordinal < scene.ordinal ? 'skip' : 'end';
+}
+
 /** The journey the shell should render, whatever produced it. */
 export function journeyOfPhase(phase: JourneyPhase): JourneySnapshot | null {
   switch (phase.kind) {

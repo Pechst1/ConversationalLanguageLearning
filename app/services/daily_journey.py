@@ -1011,6 +1011,22 @@ def scene_played(journey: DailyJourney | None) -> bool:
     return StepStatus.COMPLETED in statuses and statuses <= {StepStatus.COMPLETED, StepStatus.SKIPPED}
 
 
+def _first_scene(journey: DailyJourney) -> DailyJourneyStep | None:
+    scenes = [step for step in journey.steps or [] if StepKind(step.kind) is StepKind.SCENE]
+    return min(scenes, key=lambda step: step.ordinal) if scenes else None
+
+
+def _unplayed_scene_after(journey: DailyJourney, step: DailyJourneyStep) -> DailyJourneyStep | None:
+    """P11: the day's first scene when ``step`` comes before it and it is not opened yet."""
+
+    scene = _first_scene(journey)
+    if scene is None or step.ordinal >= scene.ordinal:
+        return None
+    if StepStatus(scene.status) is not StepStatus.PENDING:
+        return None
+    return scene
+
+
 def _journey_input_mode(journey: DailyJourney) -> InputMode:
     """The mode a journey was created in: voice when its reply offered voice."""
 
@@ -1974,7 +1990,10 @@ class DailyJourneyService:
             user,
             scope="advance",
             mutation_id=payload.mutation_id,
-            digest=_digest({"current_step_id": payload.current_step_id}),
+            digest=_digest(
+                {"current_step_id": payload.current_step_id}
+                | ({"skip_to_scene": True} if payload.skip_to_scene else {})
+            ),
             journey=journey,
             expected_revision=payload.expected_revision,
         )
@@ -1989,7 +2008,28 @@ class DailyJourneyService:
                 self._parse_uuid(payload.current_step_id),
                 require_active=False,
             )
-            if (
+            if payload.skip_to_scene:
+                scene = _unplayed_scene_after(journey, step)
+                if scene is None:
+                    raise journey_error(
+                        http_status.HTTP_409_CONFLICT,
+                        JourneyErrorCode.STEP_NOT_ACTIVE,
+                        "There is no scene ahead to skip to.",
+                        current_revision=journey.revision,
+                        refresh_href=refresh_href_for(journey.id),
+                    )
+                self._claim_revision(journey, payload.expected_revision)
+                # Skipped, not done: no ``completed_at``, no rule read, no attempt and
+                # so no lapse; a drill's item stays due for a later day.
+                for earlier in journey.steps:
+                    if earlier.ordinal < scene.ordinal and StepStatus(earlier.status) in (
+                        StepStatus.PENDING,
+                        StepStatus.ACTIVE,
+                    ):
+                        earlier.status = str(StepStatus.SKIPPED)
+                self._activate_next_step(journey, after_ordinal=scene.ordinal - 1)
+                self.db.flush()
+            elif (
                 StepKind(step.kind) in _ANSWERABLE_KINDS
                 and StepStatus(step.status) is not StepStatus.COMPLETED
             ):
@@ -2008,20 +2048,24 @@ class DailyJourneyService:
                     current_revision=journey.revision,
                     refresh_href=refresh_href_for(journey.id),
                 )
-            self._claim_revision(journey, payload.expected_revision)
-            if StepStatus(step.status) not in (StepStatus.COMPLETED, StepStatus.SKIPPED):
-                step.status = str(StepStatus.COMPLETED)
-                step.completed_at = _utcnow()
-                if StepKind(step.kind) is StepKind.RULE:
-                    self._mark_rule_read(user, step)
-            self._activate_next_step(journey, after_ordinal=step.ordinal)
-            self.db.flush()
+            if not payload.skip_to_scene:
+                self._claim_revision(journey, payload.expected_revision)
+                if StepStatus(step.status) not in (StepStatus.COMPLETED, StepStatus.SKIPPED):
+                    step.status = str(StepStatus.COMPLETED)
+                    step.completed_at = _utcnow()
+                    if StepKind(step.kind) is StepKind.RULE:
+                        self._mark_rule_read(user, step)
+                self._activate_next_step(journey, after_ordinal=step.ordinal)
+                self.db.flush()
         except HTTPException as exc:
             self._record_error(receipt, exc)
             raise
 
         snapshot = self.snapshot(journey)
         self._commit_mutation(receipt, journey, http_status.HTTP_200_OK, snapshot)
+        if payload.skip_to_scene:
+            # Skipped steps were not completed: no step boundary for WP-11.
+            return snapshot
         self._emit(
             JourneyEventName.STEP_COMPLETED,
             user,
@@ -2559,6 +2603,23 @@ class DailyJourneyService:
                     current_revision=journey.revision,
                     refresh_href=refresh_href_for(journey.id),
                 )
+            current_step = next(
+                (step for step in journey.steps if step.id == journey.current_step_id), None
+            )
+            if (
+                payload.finish_kind == "early"
+                and current_step is not None
+                and _unplayed_scene_after(journey, current_step) is not None
+            ):
+                # P11: «Arrêter ici» before the day's scene pauses the day; it does not
+                # end it with the scene unplayed. Nothing is skipped, nothing counted.
+                self._claim_revision(journey, payload.expected_revision)
+                journey.status = str(JourneyStatus.PAUSED)
+                self.db.flush()
+                paused = self.snapshot(journey)
+                self._commit_mutation(receipt, journey, http_status.HTTP_200_OK, paused)
+                self._emit(JourneyEventName.PAUSED, user, journey, {"finish_kind": "early"})
+                return paused
             if payload.finish_kind == "complete":
                 unresolved = [
                     step
