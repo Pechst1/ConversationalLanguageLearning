@@ -199,6 +199,33 @@ export function currentStepOf(journey: JourneySnapshot | null): PublicStep | nul
   return journey.steps.find((step) => step.id === journey.current_step_id) ?? null;
 }
 
+/**
+ * P9 · what the session's quiet third-tier control does on this step.
+ *
+ * - `'end'`: «Arrêter ici», the day ends early (the scene or anything after it).
+ * - `'skip'`: a rule or forge step that comes BEFORE an unplayed scene. In both
+ *   real-model checks of 17 Nov, «Arrêter ici» on the day's first card (the rule)
+ *   ended the whole day, scene included, and the scene counted as done. There the
+ *   control reads «Passer à la scène» and acknowledges the pre-scene steps
+ *   (`POST …/advance`, which takes a rule or a forge unanswered) up to the scene.
+ * - `'none'`: an answerable step (the «Avant la scène» drill) before the scene.
+ *   The server refuses to advance it unanswered and there is no skip route, so
+ *   the control is not drawn: ending the day there would throw the scene away.
+ */
+export type SessionStopControl = 'end' | 'skip' | 'none';
+
+const PRE_SCENE_SKIPPABLE: ReadonlySet<string> = new Set(['rule', 'forge']);
+
+export function sessionStopControl(journey: JourneySnapshot | null, step: PublicStep | null): SessionStopControl {
+  if (!journey || !step) return 'end';
+  const scene = journey.steps
+    .filter((entry) => entry.kind === 'scene')
+    .sort((a, b) => a.ordinal - b.ordinal)[0];
+  if (!scene || scene.status === 'completed' || scene.status === 'skipped') return 'end';
+  if (step.ordinal >= scene.ordinal) return 'end';
+  return PRE_SCENE_SKIPPABLE.has(step.kind) ? 'skip' : 'none';
+}
+
 /** The journey the shell should render, whatever produced it. */
 export function journeyOfPhase(phase: JourneyPhase): JourneySnapshot | null {
   switch (phase.kind) {

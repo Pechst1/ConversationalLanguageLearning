@@ -73,6 +73,7 @@ import {
   phaseFromEnvelope,
   phaseFromJourney,
   resolutionAwaitsStory,
+  sessionStopControl,
   STORY_POLL_LIMIT,
   STORY_POLL_MS,
   storyPollTarget,
@@ -123,6 +124,12 @@ export type DailyJourneyActions = {
   pause: () => Promise<void>;
   resume: () => Promise<void>;
   finish: (kind: 'complete' | 'early') => Promise<void>;
+  /**
+   * P9: «Passer à la scène» on a rule or forge step before an unplayed scene —
+   * acknowledges those steps (`advance`) up to the scene, or to an answerable
+   * step the server will not pass unanswered. Never ends the day.
+   */
+  skipToScene: () => Promise<void>;
   /** «Demain»: pick the thread tomorrow follows, from the finished recap's choice. */
   pickTomorrow: (premiseId: string) => Promise<void>;
   /** Dismiss a feedback card without moving on. */
@@ -980,6 +987,17 @@ export function useDailyJourney(
     }
   }, [advance, feedback, finishSnapshot]);
 
+  const skipToScene = useCallback(async () => {
+    revealRef.current.cancel();
+    // One advance per pre-scene step; the plan has a handful, the bound is a guard.
+    for (let guard = 0; guard < 8; guard += 1) {
+      const target = journeyRef.current;
+      if (sessionStopControl(target, currentStepOf(target)) !== 'skip') return;
+      const advanced = await advance();
+      if (!advanced) return;
+    }
+  }, [advance]);
+
   // A current step the server already completed, with no verdict on screen: the
   // learner answered and then reloaded, closed the app, or answered on another
   // device before «Continue». The verdict and its «Continue» were local state, so
@@ -1124,6 +1142,7 @@ export function useDailyJourney(
       pause,
       resume,
       finish,
+      skipToScene,
       pickTomorrow,
       clearFeedback,
       appeal,
@@ -1139,6 +1158,7 @@ export function useDailyJourney(
       pause,
       resume,
       finish,
+      skipToScene,
       pickTomorrow,
       clearFeedback,
       appeal,
