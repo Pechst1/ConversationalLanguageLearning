@@ -140,7 +140,6 @@ import {
   homeDayChip,
   recapStreak,
   sessionMarkState,
-  sessionMore,
   sessionNextAction,
   sessionRows,
 } from '@/lib/day-session';
@@ -3153,11 +3152,11 @@ function TodayView({
     daySession,
   );
   const sessionNext = sessionNextAction(daySession, chromeLanguage);
-  const sessionExtra = sessionMore(daySession, chromeLanguage);
-  const homeHero = daySession && (sessionNext || sessionExtra) ? (
+  // P7: no «Noch 5 neue Wörter» on Home after the day; Settings holds the offer.
+  const homeHero = daySession && sessionNext ? (
     <>
       {revueHero ?? journeyCard}
-      <DaySessionNext next={sessionNext} more={sessionExtra} onNavigate={(href) => { void router.push(href); }} />
+      <DaySessionNext next={sessionNext} onNavigate={(href) => { void router.push(href); }} />
       {revueNews}
     </>
   ) : revueNews ? (

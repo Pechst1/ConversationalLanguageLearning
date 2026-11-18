@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import logging
 import math
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Literal
 
@@ -42,7 +42,6 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.schemas.daily_journey import DAY_STEP_ORDER
-from app.services.vocabulary_pace import EXTRA_WORDS_STEP
 
 logger = logging.getLogger(__name__)
 
@@ -78,10 +77,6 @@ REVIEWS_PER_NEW_WORD_WEEK_8 = 2.85
 WORD_RETENTION = 0.87
 #: The scene's minutes before today's estimate exists.
 DEFAULT_SCENE_SECONDS = 8 * 60
-#: «Noch 5 Wörter» after the day: one step of today's extras (owner, 2 Nov 2026),
-#: the same step the day deck's end offers. The tap raises today's cap first
-#: (``POST /vocabulary/new-words/more``); the link only opens the continuation.
-MORE_WORDS = EXTRA_WORDS_STEP
 #: One day deck holds at most this many cards, new words and reviews together
 #: (``pages/vocabulary/review.tsx`` asks for it as ``limit``); the reviews past it
 #: come tomorrow, the new words are never the ones left out (#279).
@@ -91,9 +86,6 @@ DAY_DECK_NEW_WORDS = 50
 
 WORDS_HREF = "/vocabulary/review?day=1"
 
-
-def more_words_href(n: int) -> str:
-    return f"/vocabulary/review?more={max(0, int(n))}"
 
 FINISH_HREF = "/fertig"
 #: The plan_selection key that records the word step as done today.
@@ -217,9 +209,6 @@ class SessionInputs:
     #: words it read or heard (``story_reading.day_reading``).
     acts: int = 0
     story_words: int = 0
-    #: #563: the «Noch N neue Wörter» after the day, N = what the next tap really
-    #: brings (:func:`vocabulary_pace.next_extra_step`), not the step's name.
-    more_words: int = MORE_WORDS
 
 
 def review_room(new_words: int, *, reviews_left: int | None = None, deck_limit: int = DAY_DECK_LIMIT) -> int:
@@ -320,9 +309,6 @@ def session_view(inputs: SessionInputs) -> dict[str, Any]:
             "acts": max(0, inputs.acts),
             "story_words": max(0, inputs.story_words),
         },
-        "more_words": max(0, inputs.more_words),
-        "more_minutes": minutes(words_seconds(inputs.more_words, 0)),
-        "more_href": more_words_href(inputs.more_words),
     }
 
 
@@ -637,13 +623,9 @@ def build_session(
         acts=story.acts,
         story_words=story.words,
     )
+    # P7 (pilot, 17 Nov): no «Noch 5 neue Wörter» after the day (Home, Fertig); the
+    # extras are offered in Settings, where the pace is chosen.
     view = session_view(inputs)
-    if view["done"]:
-        # #563: the offer after the day is the pool's: the label, the link and the
-        # grant all say what the next tap brings (read only once the day is done).
-        step = _extra_step_or_none(db, user, now=now)
-        if step is not None:
-            view = session_view(replace(inputs, more_words=step))
     # S2.1 shadow: the stored plan read beside the view; a mismatch is logged, the
     # view is what the API serves.
     from app.services import day_plan
@@ -651,19 +633,6 @@ def build_session(
     if day_plan.enabled():
         day_plan.shadow_compare(journey, view)
     return view
-
-
-def _extra_step_or_none(db: Session, user: Any, *, now: datetime) -> int | None:
-    from app.services.vocabulary_pace import next_extra_step
-
-    if not getattr(user, "id", None):
-        return None
-    try:
-        with db.begin_nested():
-            return next_extra_step(db, user, now=now)
-    except Exception:  # noqa: BLE001 - a count that cannot be read never costs Home its day
-        logger.warning("daily_session: the extra words could not be counted", exc_info=True)
-        return None
 
 
 def goal_gap(db: Session, user: Any, *, now: datetime | None = None) -> tuple[str, int, int]:

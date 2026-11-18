@@ -8123,12 +8123,6 @@ export interface components {
              * @default 0
              */
             minutes_left: number;
-            /** More Href */
-            more_href: string;
-            /** More Minutes */
-            more_minutes: number;
-            /** More Words */
-            more_words: number;
             /** Next Kind */
             next_kind: ("scene" | "grammar" | "words" | "finish") | null;
             /**

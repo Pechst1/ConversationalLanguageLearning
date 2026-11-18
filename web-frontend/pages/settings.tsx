@@ -61,7 +61,7 @@ import {
     type Rhythm,
 } from '@/lib/rhythm';
 import { daySessionCopy, paceRows, type PaceRow } from '@/lib/day-session';
-import { moreWordsCopy, settingsGoalLine } from '@/lib/more-words';
+import { extraWordsOffer, moreWordsCopy, settingsGoalLine } from '@/lib/more-words';
 import type { PaceName } from '@/types/daily-journey';
 import { playFeelSound, setSoundsEnabled, soundsEnabled } from '@/lib/sound';
 import { ambiancePreferred, setAmbianceEnabled } from '@/lib/sound-bed';
@@ -523,6 +523,23 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
     const wordsCopy = moreWordsCopy(copyLanguage);
     const wordsGoalLine = settingsGoalLine(copyLanguage, settings.newWordsPerDay, newWordsPace);
     const wordSteps = newWordsPace?.steps?.length ? newWordsPace.steps.map((step) => step.words) : NEW_WORD_STEPS;
+    // P7 (pilot, 17 Nov): «Encore 5 nouveaux mots» lives here, where the pace is
+    // chosen, no longer after every deck and on the end screen. The tap raises
+    // today's cap on the server, then opens the continuation (`?more=N`).
+    const extraOffer = extraWordsOffer(newWordsPace, copyLanguage);
+    const [addingWords, setAddingWords] = useState(false);
+    const addExtraWords = async () => {
+        const step = newWordsPace?.step || 0;
+        if (step <= 0) return;
+        setAddingWords(true);
+        try {
+            await api.addExtraNewWords();
+            await router.push(`/vocabulary/review?more=${step}`);
+        } catch (error) {
+            console.error(error);
+            setAddingWords(false);
+        }
+    };
     const castArt = useArtSet();
     const legalLanguage = resolveLegalLanguage(copyLanguage);
     const legalCopy = SETTINGS_LEGAL_COPY[legalLanguage];
@@ -589,7 +606,7 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                         : rhythmForMinutes(user.daily_goal_minutes),
                     dailyPace: user.daily_pace ?? null,
                     // A pace speaks for its words (a learner stored at Normal's old 20 reads 15).
-                    newWordsPerDay: (isPaceName(user.daily_pace) ? PACE_WORDS[user.daily_pace] : user.new_words_per_day)
+                    newWordsPerDay: (isPaceName(user.daily_pace) ? PACE_WORDS[user.daily_pace as PaceName] : user.new_words_per_day)
                         || prev.newWordsPerDay,
                     maxReviewsPerDay: user.max_reviews_per_day || prev.maxReviewsPerDay,
                     defaultVocabDirection: normalizeVocabDirection(
@@ -1479,6 +1496,20 @@ export default function SettingsPage({ userEmail, userName }: SettingsPageProps)
                                     }}
                                 />
                             </Row>
+                            {extraOffer && (
+                                <Row label={wordsCopy.today_more} hint={extraOffer.line} id="st-words-more-label">
+                                    <button
+                                        type="button"
+                                        className="av2-btn av2-btn--quiet av2-btn--inline"
+                                        onClick={() => void addExtraWords()}
+                                        disabled={addingWords}
+                                        aria-busy={addingWords || undefined}
+                                        data-more-words=""
+                                    >
+                                        {extraOffer.label}
+                                    </button>
+                                </Row>
+                            )}
                             {/* WP-115a: Anki's «Maximum reviews/day», set by the learner. */}
                             <Row label={copy.row_max_reviews} id="st-reviews-label" hint={copy.row_max_reviews_hint}>
                                 <input

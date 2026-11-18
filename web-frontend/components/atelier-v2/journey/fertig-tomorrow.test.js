@@ -144,9 +144,6 @@ function envelopeOf(language, recap) {
       minutes_left: 0,
       done: true,
       tally: { scenes: 1, words: 13, exercises: 15 },
-      more_words: 10,
-      more_minutes: 4,
-      more_href: '/vocabulary/review?more=10',
     },
   };
 }

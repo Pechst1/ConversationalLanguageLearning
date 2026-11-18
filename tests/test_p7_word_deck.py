@@ -23,7 +23,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.core.security import decode_token
-from app.db.models.daily_journey import DailyJourney, DailyJourneyStep
+from app.db.models.daily_journey import DailyJourney
 from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord

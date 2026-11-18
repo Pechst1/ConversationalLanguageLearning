@@ -136,44 +136,11 @@ async function playTheDay(native) {
   }
   const wordsDone = await page.locator('[data-day-next]').count();
   findings.check('words-deck-ends-with-the-next-step', wordsDone === 1, `${presses} presses, no «words done» screen`, where('drill'));
-  // Owner, 2 Nov: the day deck's end offers «Noch 5 neue Wörter», with its line on the goal.
-  await page.locator('[data-day-next] [data-extra-words]').waitFor({ timeout: 10000 }).catch(() => {});
-  const extraOffer = (await page.locator('[data-day-next] [data-extra-words] [data-goal-line]').first().innerText().catch(() => '')).trim();
-  findings.check('words-done-offers-five-more-with-the-goal', extraOffer.length > 0, 'no «Noch 5 neue Wörter» with its goal line', where('drill'));
+  // P7 (pilot, 17 Nov): the day deck's end offers no «Noch 5 neue Wörter» and no
+  // «N words a day … sooner» line; the offer lives in Settings.
+  const extraOffer = await page.locator('[data-day-next] [data-extra-words], [data-day-next] [data-goal-line], [data-day-next] [data-more-words]').count();
+  findings.check('words-done-offers-no-more-words', extraOffer === 0, 'the deck\'s end still offers more words', where('drill'));
   await walk.shoot('words-done');
-  // Codex review on #490: «Noch 5» taken on the day deck, two answered, the page reloaded:
-  // the three still unanswered come back (the server's day deck serves today's extras).
-  const extraButton = page.locator('[data-day-next] [data-extra-words] button').first();
-  if (await extraButton.count()) {
-    await extraButton.click().catch(() => {});
-    const count = () => page.locator('.av2-progress__count').first().innerText().catch(() => '');
-    await page.locator('.av2-progress__count').first().waitFor({ timeout: 15000 }).catch(() => {});
-    let extraPresses = 0;
-    while (extraPresses < 20 && !/^2\//.test((await count()).trim())) {
-      const rate = page.locator('.lx-review__foot .lx-turn, .lx-review__foot .lx-rate').last();
-      if (await rate.count()) {
-        await rate.click().catch(() => {});
-        extraPresses += 1;
-      }
-      await sleep(250);
-    }
-    const answered = (await count()).trim();
-    await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
-    await page.locator('.av2-progress__count').first().waitFor({ timeout: 15000 }).catch(() => {});
-    await sleep(1000);
-    const afterReload = (await count()).trim();
-    const left = Number((answered.match(/^\d+\/(\d+)/) || [])[1] || 0) - 2;
-    findings.check('extra-words-survive-a-reload', left > 0 && afterReload === `0/${left}`, `answered «${answered}», after the reload «${afterReload}»`, where('drill'));
-    let rest = 0;
-    while (rest < 60 && (await page.locator('[data-day-next]').count()) === 0) {
-      const rate = page.locator('.lx-review__foot .lx-turn, .lx-review__foot .lx-rate').last();
-      if (await rate.count()) {
-        await rate.click().catch(() => {});
-        rest += 1;
-      }
-      await sleep(250);
-    }
-  }
   const toFinish = page.locator('[data-day-next] .av2-btn--primary').first();
   const toFinishText = await toFinish.innerText().catch(() => '');
   findings.check('words-hand-on-to-fertig', FINISH.test(toFinishText), `the button reads «${toFinishText.trim()}»`, where('drill'));
@@ -195,7 +162,8 @@ async function playTheDay(native) {
   const storyRead = (await page.locator('[data-story-words]').first().innerText().catch(() => '')).trim();
   findings.check('fertig-counts-the-story-read', Number(storyRead.replace(/\D/g, '')) > 0, `the story line reads «${storyRead}»`, where('fertig'));
   findings.check('fertig-words-is-the-deck', Number(tally[1]) === promised, `the deck held ${promised}, Done says ${tally[1]} words`, where('fertig'));
-  findings.check('fertig-offers-five-more-words', (await page.locator('[data-more-words]').count()) === 1, 'no «Noch 5 neue Wörter»', where('fertig'));
+  // P7: the end screen offers no more words and prints no «N words a day … sooner» banner.
+  findings.check('fertig-offers-no-more-words', (await page.locator('[data-more-words], [data-goal-line]').count()) === 0, 'Fertig still offers more words', where('fertig'));
   // #359: the Done screen names tomorrow's open question (the line Home prints, checked below
   // against Home), and the curtain call's «End of the session» tag is centred over the cast and
   // touches no bubble at phone width.

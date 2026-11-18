@@ -121,8 +121,8 @@ def test_the_day_is_done_only_when_all_three_are_and_then_offers_five_more_words
     assert view["steps"][-1]["state"] == "done"
     # Phase 2: the acts the day opened and the story's words it read (story_reading).
     assert view["tally"] == {"scenes": 1, "words": 20, "exercises": 12, "acts": 2, "story_words": 640}
-    # Owner, 2 Nov: one step of today's extras, the same as at the day deck's end.
-    assert (view["more_words"], view["more_minutes"], view["more_href"]) == (5, 2, "/vocabulary/review?more=5")
+    # P7 (pilot, 17 Nov): no «Noch 5 neue Wörter» after the day; Settings holds the offer.
+    assert not {"more_words", "more_minutes", "more_href"} & set(view)
 
 
 def test_the_word_step_names_the_cards_it_will_show_and_the_tally_what_was_done() -> None:
