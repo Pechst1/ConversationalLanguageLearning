@@ -439,6 +439,233 @@ def asked_before(question: Any, asked: Iterable[str]) -> str | None:
     return next((line for line in asked or [] if same_question(question, line)), None)
 
 
+# ---------------------------------------------------------------------------
+# P8 · one hook, and a hook that moves (real-model check of 17 Nov)
+# ---------------------------------------------------------------------------
+
+#: What a learner's line says when it puts a question off: «demain», «pas encore»…
+_PUT_OFF = re.compile(
+    r"\b(?:demain|plus\s+tard|pas\s+encore|pas\s+maintenant|pas\s+ce\s+soir|je\s+ne\s+sais\s+pas"
+    r"|je\s+sais\s+pas|on\s+verra|je\s+(?:vais\s+)?r[ée]fl[ée]chi\w*|attend\w*|la\s+semaine\s+prochaine)\b",
+    re.IGNORECASE,
+)
+#: The day's ending names tomorrow: the sentence that does is the day's step forward.
+_TOMORROW = re.compile(r"\bdemain\b", re.IGNORECASE)
+_STEP_OPENER = re.compile(r"^(?:et|alors|bon|donc|mais)\s*,?\s+", re.IGNORECASE)
+
+
+def subject_of(text: Any) -> set[str]:
+    """What a hook line is about: its words of meaning as five-letter stems, the question's
+    frame left out (``living_story._hook_stems``): «Tu gardes ton vol de mercredi ?» is
+    {garde, vol, mercr}."""
+
+    return _engine()._hook_stems({"text_fr": str(text or "")})
+
+
+def same_subject(left: Any, right: Any) -> bool:
+    """P8: whether two hook lines ask the same thing of the same subject. The same question
+    in other words (:func:`same_question`), or two words of meaning in common with no new
+    number (A1 walk: «Que fais-tu de ton vol de mercredi ?» on day 3, «Tu gardes ton vol de
+    mercredi ?» on day 4). A date that moved («le 2 décembre») is a new question."""
+
+    from app.services.learner_facts import numbers_of
+
+    if numbers_of(left) != numbers_of(right):
+        return False
+    if same_question(left, right):
+        return True
+    return len(subject_of(left) & subject_of(right)) >= 2
+
+
+def _put_off(hook_line: str, said: Iterable[str]) -> bool:
+    """Whether one of the learner's replies today put ``hook_line`` off in so many words: it
+    speaks of what the hook is about and says «demain», «pas encore», «je ne sais pas»…"""
+
+    subject = subject_of(hook_line)
+    for line in said or ():
+        if _PUT_OFF.search(str(line or "")) and subject & subject_of(line):
+            return True
+    return False
+
+
+def hook_again(line: Any, live: dict | None, *, said: Iterable[str] = ()) -> str:
+    """P8 (A1 walk, days 2–4: three days ended on the Wednesday flight): whether ``line``
+    may be tomorrow's hook after today's page took up the stored one.
+
+    ``"new"``: it asks something else. ``"again"``: the same question, once more, because
+    the learner's reply put it off (:func:`_put_off`). ``"refused"``: the same question
+    without that, or a second time after it. Taking a hook up moves it: it is settled or
+    it changes."""
+
+    stored = (live or {}).get(TEASER_KEY)
+    if not isinstance(stored, dict):
+        return "new"
+    previous = _left_open(stored) or " ".join(str(stored.get("text_fr") or "").split())
+    if not previous or not same_subject(line, previous):
+        return "new"
+    if stored.get("renewed"):
+        return "refused"
+    return "again" if _put_off(previous, said) else "refused"
+
+
+#: A clause break inside a sentence: «… l'appartement ; demain, vous pourrez …».
+_CLAUSE_BREAK = re.compile(r"\s*(?:;|\s[—–]\s)\s*")
+
+
+def _tomorrow_clauses(text: Any) -> list[str]:
+    """The sentences and clauses of ``text`` that name tomorrow and can stand alone as the
+    day's hook (3 to :data:`TOMORROW_TOLD_WORDS` words, nobody quoted, no dropped «ne»),
+    last first, as they would be printed («Et demain, vous parlerez à Gus.» → «Demain, vous
+    parlerez à Gus.»)."""
+
+    found: list[str] = []
+    line = " ".join(str(text or "").split())
+    for sentence in reversed(_SENTENCE_END.split(line)):
+        if _TEASER_QUOTE.search(sentence):
+            continue
+        parts = [sentence] if _word_count(sentence) <= TOMORROW_TOLD_WORDS else _CLAUSE_BREAK.split(sentence)
+        for part in parts:
+            if not _TOMORROW.search(part) or drops_ne(part):
+                continue
+            step = _STEP_OPENER.sub("", part.strip()).strip()
+            step = step[:1].upper() + step[1:]
+            if step and step[-1] not in ".!?…":
+                step += "."
+            if 3 <= _word_count(step) <= TOMORROW_TOLD_WORDS:
+                found.append(step)
+    return found
+
+
+def ending_step(ending_fr: Any) -> str | None:
+    """P8 (B1 walk, day 4): the sentence (or clause) of the day's ending that says what
+    happens tomorrow («Et demain, vous parlerez à Gus de la clé.»), as it can stand alone
+    as the day's hook, or None. The end card prints the ending; this is the promise in it."""
+
+    found = _tomorrow_clauses(ending_fr)
+    return found[0] if found else None
+
+
+def plan_step(said: Iterable[str], told: Iterable[str]) -> str | None:
+    """P8 (third commit): the learner's own plan for tomorrow, as the scene said it back.
+
+    The learner's last line that names tomorrow («Demain, je veux parler à Gus de la clé.»),
+    matched to a sentence of ``told`` (the ending, then the character's replies, newest
+    first) that names tomorrow and shares a word of meaning with it («… demain, vous
+    pourrez parler de la clé avec Gus.»). The learner's words are never turned into a hook
+    themselves: the hook is said to the learner, so it is the character's sentence."""
+
+    plans = [
+        sentence
+        for line in said or ()
+        for sentence in _SENTENCE_END.split(" ".join(str(line or "").split()))
+        if _TOMORROW.search(sentence)
+    ]
+    if not plans:
+        return None
+    subject = subject_of(plans[-1])
+    for text in told or ():
+        for step in _tomorrow_clauses(text):
+            if subject & subject_of(step):
+                return step
+    return None
+
+
+def answered_in_scene(question: Any, asked: Iterable[str]) -> bool:
+    """P8 (A1 walk, day 4: «Qu'est-ce qui te ferait rester à Paris ?» filed as the hook
+    right after the learner answered «Qu'est-ce qui te ferait rester ?»): whether
+    ``question`` asks again a question the learner has already answered in this scene
+    (``asked``: the opening question and every reply but the last). The same question
+    (:func:`same_question`), or one about everything an answered one was about."""
+
+    line = " ".join(str(question or "").split())
+    if not line:
+        return False
+    wanted = subject_of(line)
+    for text in asked or ():
+        for sentence in _SENTENCE_END.split(" ".join(str(text or "").split())):
+            if not sentence.endswith("?"):
+                continue
+            about = subject_of(sentence)
+            if same_question(line, sentence) or (about and about <= wanted):
+                return True
+    return False
+
+
+def ending_hook(
+    ending_fr: Any,
+    live: dict | None,
+    *,
+    character_id: str | None,
+    date: str | None,
+    name: str | None = None,
+    said: Iterable[str] = (),
+    replies: Iterable[str] = (),
+) -> dict | None:
+    """P8: the day's step forward as its ONE hook, or None: first the learner's own plan
+    for tomorrow as the ending or a reply said it back (:func:`plan_step`), else the
+    ending's own sentence about tomorrow (:func:`ending_step`). The end card shows the
+    ending, and Home, the push and tomorrow's page then read the same promise — not a
+    loose end drawn at random beside it (B1 walk, day 4: the ending promised Gus and the
+    key, Home said «L'avenir du Mistral…», and day 5 followed Home)."""
+
+    for step in (plan_step(said, [ending_fr, *reversed(list(replies or ()))]), ending_step(ending_fr)):
+        if not step:
+            continue
+        again = hook_again(step, live, said=said)
+        if again == "refused":
+            continue
+        engine = _engine()
+        today = engine._date_of(date) or engine._today().isoformat()
+        return {
+            "text_fr": step,
+            "open_fr": step,
+            "character_id": character_id,
+            **({"character_name": name} if name else {}),
+            "date": today,
+            "ref": f"ending:{today}",
+            "kind": "promise",
+            **({"renewed": 1} if again == "again" else {}),
+        }
+    return None
+
+
+#: P8 (third commit): the one line every surface prints is at most this long.
+HOOK_LINE_WORDS = TOMORROW_TOLD_WORDS
+_A_SUIVRE_TAIL = re.compile(r"\s*À suivre\s*(?:…|\.\.\.)?\s*$", re.IGNORECASE)
+
+
+def hook_line(teaser: dict | None) -> str:
+    """P8 (third commit): the ONE line of a hook, as the end card, Home, «Done» and the push
+    all print it. What it leaves open (``open_fr``) when it names it, else its line; never
+    the «À suivre…» label (each surface prints its own). A line longer than
+    :data:`HOOK_LINE_WORDS` keeps its first whole sentences that fit (at least one), here,
+    once, so no surface can shorten it differently (walk of 17 Nov: the end card had two
+    sentences, Home and «Done» one; the end card had «Au fait…», Home did not)."""
+
+    row = teaser or {}
+    line = " ".join(str(row.get("open_fr") or row.get("text_fr") or "").split())
+    line = _A_SUIVRE_TAIL.sub("", line).strip()
+    if _word_count(line) <= HOOK_LINE_WORDS:
+        return line
+    sentences = _SENTENCE_END.split(line)
+    kept = sentences[0]
+    for sentence in sentences[1:]:
+        if _word_count(f"{kept} {sentence}") > HOOK_LINE_WORDS:
+            break
+        kept = f"{kept} {sentence}"
+    return kept
+
+
+def one_hook(teaser: dict | None) -> dict | None:
+    """The hook as it is filed: ``text_fr`` and ``open_fr`` are both :func:`hook_line`, so
+    every reader of the stored row prints the same words."""
+
+    if not teaser:
+        return teaser
+    line = hook_line(teaser)
+    return {**teaser, "text_fr": line, "open_fr": line} if line else teaser
+
+
 def next_teaser(
     live: dict,
     world: dict,
@@ -474,7 +701,10 @@ def next_teaser(
     # walk's «Margaux lira-t-elle la lettre avec toi ?» came back as «Margaux va-t-elle
     # lire la lettre ?», a new string, for a third day.
     asked = hooks_asked(live, date=today)
-    if question and not asked_before(question, asked):
+    # P8: a hook today's page took up is settled or changed, not asked again (unless the
+    # learner put it off, and then once).
+    again = hook_again(question, live, said=said) if question else "refused"
+    if question and not asked_before(question, asked) and again != "refused":
         voice = TEASER_VOICES.get(str(character_id or ""), DEFAULT_TEASER_VOICE)["tu" if register == "tu" else "vous"]
         return {
             "text_fr": held_hook((voice,), question),
@@ -484,6 +714,7 @@ def next_teaser(
             "date": today,
             "ref": f"scene:{today}",
             "kind": "question",
+            **({"renewed": 1} if again == "again" else {}),
         }
     candidates = teaser_candidates(live, world, clean=clean)
     fresh = [row for row in candidates if row["ref"] not in used_refs]
@@ -513,6 +744,9 @@ def next_teaser(
         opened = open_line(row, register=register, variant=variant)
         if _clip_quote(row["text_fr"], 10_000) != _clip_quote(row["text_fr"]) or _word_count(opened) > TOMORROW_TOLD_WORDS:
             continue
+        # P8: an open row that is today's hook again is no step forward either.
+        if hook_again(opened, live, said=said) == "refused":
+            continue
         return {
             "text_fr": text,
             "open_fr": opened,
@@ -529,6 +763,9 @@ def teasers_after(live: dict, teaser: dict | None) -> list[dict]:
     rows = [row for row in live.get(TEASERS_KEY) or [] if isinstance(row, dict)]
     if teaser:
         rows.append(
-            {key: teaser.get(key) for key in ("ref", "kind", "text_fr", "open_fr", "date", "character_id")}
+            {
+                **{key: teaser.get(key) for key in ("ref", "kind", "text_fr", "open_fr", "date", "character_id")},
+                **({"renewed": teaser["renewed"]} if teaser.get("renewed") else {}),
+            }
         )
     return rows[-TEASER_LEDGER_LIMIT:]

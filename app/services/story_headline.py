@@ -5,8 +5,9 @@ its title (when it is known), yesterday's «À suivre…» and the faces of who 
 
 * **Title.** The day's scene once the journey exists. Before that, the season's
   tentpole title on a tentpole day (authored, known in advance). A generated day's
-  title is not known until the director writes it, and nothing is invented: the
-  teaser leads instead.
+  title is not known until the director writes it, and nothing is invented: ``title_fr``
+  stays None and the teaser is sent as the teaser (P8, 17 Nov: Home prints it under
+  «À suivre», never in the title's place).
 * **Teaser.** The «À suivre…» written when the previous day settled — only when it
   was written on an earlier day (after today's ending it already speaks of tomorrow).
 * **Cast.** Who speaks in the day's scene; before it exists, who speaks on the

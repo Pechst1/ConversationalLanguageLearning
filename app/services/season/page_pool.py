@@ -87,7 +87,9 @@ LIFE_KEYS: dict[str, Any] = {
 }
 #: Dropped from the writer's context altogether (learning material and the long memory:
 #: the owner's decision of 10 November, «Seite geteilt, Lernstoff im Training»).
-DROPPED_KEYS = frozenset({"memory", "grammar_plan", "story_words", "mots_a_placer"})
+#: P8: ``yesterday_hook`` too, the hook this learner's last day ended on (a shared page
+#: cannot take it up, and the frame's hash stays what it was).
+DROPPED_KEYS = frozenset({"memory", "grammar_plan", "story_words", "mots_a_placer", "yesterday_hook"})
 #: The engine's own handles: never prompted, kept for the guards the writing runs.
 RUNTIME_KEYS = frozenset({"_season", "lexicon", "lexical_coverage", "grammar", "words", "_contract_missing_slots"})
 #: A day with one of these is written for its learner.
