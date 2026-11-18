@@ -38,9 +38,6 @@ function session(states, overrides = {}) {
     minutes_left: 21,
     done: finish === 'done',
     tally: { scenes: 1, words: 20, exercises: 12 },
-    more_words: 5,
-    more_minutes: 2,
-    more_href: '/vocabulary/review?more=5',
     ...overrides,
   };
 }
@@ -85,27 +82,22 @@ test('the journey card starts the scene; after it the one button names the next 
   assert.equal(ds.sessionNextAction(session(['done', 'done', 'done', 'done']), 'de'), null);
 });
 
-test('only a finished day offers five more words', () => {
-  assert.equal(ds.sessionMore(session(['done', 'next', 'todo', 'todo']), 'de'), null);
-  assert.deepEqual(ds.sessionMore(session(['done', 'done', 'done', 'done']), 'de'), {
-    label: 'Noch 5 neue Wörter',
-    meta: '2 Min.',
-    href: '/vocabulary/review?more=5',
-  });
+test('P7: a finished day offers no more words (Settings holds the offer)', () => {
+  assert.equal(ds.sessionMore, undefined);
+  assert.equal(ds.sessionNextAction(session(['done', 'done', 'done', 'done']), 'de'), null);
 });
 
 // #783: «Noch 1 neue Wörter» on the words end screen. Every count in the day's
 // copy says one word in the singular, in the three chrome languages.
 test('one more word is one word, not «1 neue Wörter» (#783)', () => {
-  const finished = (n) => session(['done', 'done', 'done', 'done'], { more_words: n, more_href: `/vocabulary/review?more=${n}` });
   const expected = {
     de: ['Noch 1 neues Wort', 'Noch 5 neue Wörter'],
     fr: ['Encore 1 nouveau mot', 'Encore 5 nouveaux mots'],
     en: ['1 more new word', '5 more new words'],
   };
   for (const [language, [one, five]] of Object.entries(expected)) {
-    assert.equal(ds.sessionMore(finished(1), language).label, one, language);
-    assert.equal(ds.sessionMore(finished(5), language).label, five, language);
+    assert.equal(ds.daySessionCopy(language).more_words(1), one, language);
+    assert.equal(ds.daySessionCopy(language).more_words(5), five, language);
   }
 });
 

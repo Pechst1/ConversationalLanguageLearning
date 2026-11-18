@@ -1413,10 +1413,6 @@ class DaySession(JourneyModel):
     minutes_left: int = 0
     done: bool = False
     tally: DaySessionTally
-    #: After the day, the one optional extra: «Noch 10 Wörter».
-    more_words: int
-    more_minutes: int
-    more_href: str
 
 
 class PaceOption(JourneyModel):

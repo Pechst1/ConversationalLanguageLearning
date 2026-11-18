@@ -16,7 +16,6 @@ import {
 import { useChromeLanguage } from '@/lib/learner-language';
 import { handOnAfterWords } from '@/lib/day-plan';
 import { daySessionCopy } from '@/lib/day-session';
-import { extraWordsOffer } from '@/lib/more-words';
 
 import { GoldPill } from '@/components/gold/GoldPill';
 import MotsDuJour from '@/components/lexique/MotsDuJour';
@@ -72,7 +71,6 @@ import {
 } from '@/components/atelier-v2/ui';
 import apiService, {
   DailyWordSlate,
-  NewWordsPace,
   VocabularyBiography,
   VocabularyDueContext,
   VocabularyRecommendationItem,
@@ -213,10 +211,10 @@ const encoreQueueParams = {
 /**
  * Round 3 (owner, 2026-10-14): the words are the day's second step. `?day=1`
  * is the day's deck — all of today's new words at the learner's pace (Normal
- * 20, Schnell 40) and the reviews due, in bounded decks one after the other
+ * 15, Schnell 40) and the reviews due, in bounded decks one after the other
  * until the dose is met, then «Weiter: Grammatik». `?more=5` is «Noch 5 neue
- * Wörter» after the day: new words past the pace, the learner's own choice.
- * Owner, 2 Nov: the tap raises today's cap on the server first
+ * Wörter»: new words past the pace, the learner's own choice, offered in
+ * Settings only (P7). The tap there raises today's cap on the server first
  * (`POST /vocabulary/new-words/more`); the deck only deals what the cap holds.
  */
 const DAY_DECK_NEW_WORDS = 50;
@@ -238,31 +236,6 @@ function dayMoreParams(n: number) {
 function extraWordsParams(n: number) {
   const words = Math.max(1, Math.min(20, Math.floor(n)));
   return { ...moreWordsParams(SESSION_NEW_WORDS), limit: words + 30, new_limit: words };
-}
-
-// Owner request, 2 Nov: «Noch 5 neue Wörter» at the end of the day's deck (and of
-// each continuation), with one line on how much sooner that pace reaches the goal.
-function ExtraWordsOffer({
-  pace,
-  language,
-  pending,
-  onSelect,
-}: {
-  pace: NewWordsPace | null;
-  language: ReturnType<typeof useChromeLanguage>;
-  pending: boolean;
-  onSelect: () => void;
-}) {
-  const offer = extraWordsOffer(pace, language);
-  if (!offer) return null;
-  return (
-    <div className="lx-done__quiet" data-extra-words="">
-      <p className="av2-body" data-goal-line="">{offer.line}</p>
-      <Action tone="quiet" inline pending={pending} pendingLabel={offer.label} onClick={onSelect}>
-        {offer.label}
-      </Action>
-    </div>
-  );
 }
 
 function daySessionMode(): { kind: 'day' } | { kind: 'more'; words: number } | null {
@@ -728,40 +701,8 @@ export default function VocabularyReviewPage() {
       .catch(() => setDayFallback(true));
   }, [deckEmpty, daySession, dayLeft, dayMarked, language, loadQueue]);
 
-  // Owner request, 2 Nov: «Noch 5 neue Wörter» once the day's deck is through (and
-  // after each continuation): the server raises today's cap, then the deck deals
-  // the five. The offer carries the server's line on how much sooner that pace
-  // covers the goal's words.
-  const [newWordsPace, setNewWordsPace] = useState<NewWordsPace | null>(null);
-  const [addingWords, setAddingWords] = useState(false);
-  const offersExtra = deckEmpty && (daySession?.kind === 'day' ? Boolean(dayNext) : daySession?.kind === 'more');
-  useEffect(() => {
-    if (!offersExtra) return;
-    let live = true;
-    apiService
-      .getNewWordsPace()
-      .then((body) => live && setNewWordsPace(body))
-      .catch(() => live && setNewWordsPace(null));
-    return () => {
-      live = false;
-    };
-  }, [offersExtra]);
-  const addExtraWords = useCallback(async () => {
-    setAddingWords(true);
-    try {
-      // The deck deals the step the button promised; the answer's `step`
-      // is the next tap's (0 once the pool is empty).
-      const promised = newWordsPace?.step || 0;
-      const body = await apiService.addExtraNewWords();
-      setNewWordsPace(body);
-      await loadQueue(promised || body.step);
-    } catch (error) {
-      console.error(error);
-      toast.error(t.deck_unavailable);
-    } finally {
-      setAddingWords(false);
-    }
-  }, [loadQueue, newWordsPace, t]);
+  // P7 (pilot, 17 Nov): the deck's end offers no «Encore 5 nouveaux mots» and no
+  // «N mots par jour … plus tôt»; Settings, where the pace is chosen, holds the offer.
 
   const moreWords = useMemo(() => {
     const left = Number(context?.new_words_left_today || 0);
@@ -1194,12 +1135,6 @@ export default function VocabularyReviewPage() {
                     {dayNext.label}
                     {dayNext.meta ? <span className="av2-btn__meta">· {dayNext.meta}</span> : null}
                   </Action>
-                  <ExtraWordsOffer
-                    pace={newWordsPace}
-                    language={language}
-                    pending={addingWords}
-                    onSelect={() => void addExtraWords()}
-                  />
                 </div>
               </Surface>
             )}
@@ -1213,15 +1148,6 @@ export default function VocabularyReviewPage() {
                 onReturn={returnToAtelier}
                 returning={returning}
                 more={moreWords}
-              />
-            )}
-
-            {!loading && !loadError && !current && daySession?.kind === 'more' && (
-              <ExtraWordsOffer
-                pace={newWordsPace}
-                language={language}
-                pending={addingWords}
-                onSelect={() => void addExtraWords()}
               />
             )}
 
