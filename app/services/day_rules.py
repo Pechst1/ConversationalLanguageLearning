@@ -111,8 +111,10 @@ def for_turn(
                 if today_concept is None or concept.id != today_concept.id
                 if (entry := _rule_entry(db, concept, language)) is not None
             ][:RECENT_LIMIT]
-    except Exception:  # pragma: no cover - defensive: a hint is not a turn
-        logger.exception("day_rules: the day's rules are unavailable")
+    except Exception as exc:  # pragma: no cover - defensive: a hint is not a turn
+        # One line, no traceback: the gold gate's offline session (``_NoDB``) lands here
+        # on every scene turn, and a hint that is missing costs nothing else.
+        logger.warning("day_rules: the day's rules are unavailable (%s: %s)", type(exc).__name__, exc)
         return None
     if today is None and not others:
         return None
