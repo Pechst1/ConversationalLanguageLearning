@@ -122,6 +122,8 @@ export interface TalkUi {
   busy?: boolean;
   /** what you said did not reach them */
   failed?: boolean;
+  /** what you said, corrected, as an answer in the scene is (`Mend`); none when it was right */
+  mend?: Mend | null;
 }
 
 export interface PhoneUi {
@@ -906,7 +908,7 @@ export class Stage implements Director {
     const talk = this.ui.talk;
     if (!t || !talk || !text.trim() || talk.busy) return;
     const said = text.trim();
-    this.show({ talk: { ...talk, you: said, busy: true, failed: false } });
+    this.show({ talk: { ...talk, you: said, mend: null, busy: true, failed: false } });
     const gen = this.gen;
     void this.story.gesture({ storylet: 'talk', to: t.who, text: said }).then((a) => {
       if (gen !== this.gen || this.talking !== t) return;
@@ -923,6 +925,7 @@ export class Stage implements Director {
           ...now,
           busy: false,
           failed: !a,
+          mend: a?.mend ?? null,
           lines: lines.length ? lines.map((l) => this.talkLine(l)) : now.lines,
           chips: a?.chips ?? now.chips,
         },

@@ -10052,6 +10052,7 @@ export interface components {
              * @constant
              */
             contract_version: 1;
+            correction: components["schemas"]["JourneyCorrection"] | null;
             /** Heard */
             heard: string | null;
             /** Learned */

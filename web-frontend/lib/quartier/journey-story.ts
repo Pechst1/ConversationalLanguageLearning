@@ -385,7 +385,17 @@ function answeredOf(x: StoryletChoiceResult): Answered {
     learned,
     sets,
     people: Array.isArray(x.people) ? x.people.map(personOf).filter(some) : null,
+    mend: mendOf(x.correction),
   };
+}
+
+/** A correction off the wire, the one card the scripted answers use: only an edit that changes something. */
+function mendOf(c: unknown): Mend | null {
+  if (!isRaw(c)) return null;
+  const span = str(c.span_fr);
+  const corrected = str(c.corrected_fr);
+  if (!span || !corrected || span === corrected || (c.kind !== undefined && c.kind !== 'edit')) return null;
+  return { span, corrected, note: str(c.note_native) || null };
 }
 
 export class JourneyStory implements Story {

@@ -1125,9 +1125,16 @@ export function TalkSheet({ t, translate, native, copy, onSay, onClose }: { t: T
         </button>
       </div>
       {t.you ? (
-        <p className="qz-talk-you" lang="fr">
+        <p className="qz-talk-you" lang="fr" data-mend={t.mend ? true : undefined}>
           <b>Toi</b>
           {t.you}
+          {/* the same correction a scripted answer gets: the span, the right form, why */}
+          {t.mend ? (
+            <span className="qz-mend">
+              <s lang="fr">{t.mend.span}</s> <span lang="fr">{t.mend.corrected}</span>
+              {t.mend.note ? <small lang={native}>{t.mend.note}</small> : null}
+            </span>
+          ) : null}
         </p>
       ) : null}
       <div className="qz-talk-lines" aria-live="polite">

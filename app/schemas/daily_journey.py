@@ -1698,6 +1698,10 @@ class JourneyChoiceResult(JourneyModel):
     sets: dict[str, bool | int | str] = Field(default_factory=dict)
     #: Everyone the learner may talk to today, their hello as things now stand.
     people: list[StagePerson] = Field(default_factory=list)
+    #: P12: what the learner said to someone (``talk`` with a ``text``), corrected by the
+    #: model-free rule pass: at most one edit with its note in the learner's language;
+    #: ``None`` when the rules find nothing.
+    correction: JourneyCorrection | None = None
 
 
 # ---------------------------------------------------------------------------

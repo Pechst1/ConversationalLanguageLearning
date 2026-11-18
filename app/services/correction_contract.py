@@ -1734,6 +1734,42 @@ def _accent_folds() -> Mapping[str, str]:  # pragma: no cover - thin cache
     return folds
 
 
+#: P12 (walk 17 Nov, «Je suis fatigue»): the person of «être» each plain subject takes. «elle»
+#: (the participle would also agree), «on», «nous», «vous» (plural, or the learner's own gender
+#: unknown in the plural) are left alone.
+_ETRE_AFTER_SUBJECT = {"je": "suis", "tu": "es", "il": "est"}
+
+
+def _state_after_etre(source: str, tokens: list[Tok], index: int) -> str | None:
+    """«fatigué» for «fatigue» in «Je suis fatigue», or ``None``.
+
+    The word follows «je suis», «tu es» or «il est» in one clause, is no adjective itself, is a
+    form of an «-er» verb whose participle the lexicon holds as an adjective («fatigué»,
+    «pressé», «désolé») or is an être-participle («arrivé», «tombé»). «Je suis entre deux
+    chaises», «il est calme», «je suis la rue» stay as written: their word is French there."""
+
+    if index < 2:
+        return None
+    word, verb, subject = tokens[index], tokens[index - 1], tokens[index - 2]
+    if _ETRE_AFTER_SUBJECT.get(subject.low) != verb.low:
+        return None
+    if not (_joined(source, subject, verb) and _joined(source, verb, word)):
+        return None
+    if not _same_clause(source, subject, word):
+        return None
+    low = word.low
+    if len(low) < 4 or not low.endswith("e") or low.endswith("ée") or low[-2] in "éeè":
+        return None
+    if _pos(low) not in {None, "noun", "verb"}:
+        return None
+    if not _is_verb(low[:-1] + "er"):
+        return None
+    right = low[:-1] + "é"
+    if right not in _ETRE_PARTICIPLES and _pos(right) != "adjective":
+        return None
+    return right
+
+
 def _accent_fold(word: str) -> str | None:
     """The accented word ``word`` must be, its plural too («cles» -> «clés»), or ``None``."""
 
@@ -2992,6 +3028,11 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
             and not _in_another_language(source, tokens, i)
         ):
             add(_edit("FR_ACCENT", source, tok.start, tok.end, _case(written, fold), right=fold))
+            continue
+        # «Je suis fatigue» -> «fatigué»: after «je suis / tu es / il est» the word is the state
+        right = _state_after_etre(source, tokens, i)
+        if right is not None and not acronym and written.islower() and not _in_another_language(source, tokens, i):
+            add(_edit("FR_ACCENT", source, tok.start, tok.end, right, right=right))
             continue
 
     _phrase_edits(source, tokens, add)
