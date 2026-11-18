@@ -87,6 +87,25 @@ let seq = 0;
 let lastShot = null;
 const consoleErrors = [];
 
+// Review walk: sign the browser in as an existing learner of a reused database.
+async function resumeLearner({ email, native = 'de' }) {
+  const { encode } = (await import('node:module')).createRequire(import.meta.url)('next-auth/jwt');
+  const root = `http://127.0.0.1:${stack.apiPort}`;
+  const tok = await (await fetch(`${root}/__walk/token`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email }) })).json();
+  const me = await (await fetch(`${stack.api}/users/me`, { headers: { authorization: `Bearer ${tok.access_token}` } })).json();
+  const exp = JSON.parse(Buffer.from(tok.access_token.split('.')[1], 'base64url').toString()).exp * 1000;
+  const cookie = await encode({ secret: SECRET, token: { accessToken: tok.access_token, refreshToken: '', accessTokenExpires: exp, id: me.id, sub: me.id, email, name: me.full_name } });
+  if (context) await context.close();
+  context = await browser.newContext({ viewport: { width: vw || 375, height: vh || 812 }, colorScheme: theme, isMobile: true, hasTouch: true, locale: native === 'de' ? 'de-DE' : 'en-GB', timezoneId: WALK_TIMEZONE });
+  await context.addCookies([{ name: 'next-auth.session-token', value: cookie, url: stack.web }]);
+  page = await context.newPage();
+  page.on('pageerror', (e) => consoleErrors.push(`pageerror: ${String(e.message).slice(0, 200)}`));
+  page.on('response', (r) => { if (r.status() >= 500 && r.url().includes('/api/')) consoleErrors.push(`${r.status()} ${r.request().method()} ${new URL(r.url()).pathname}`); });
+  await page.goto(`${stack.web}/atelier`, { waitUntil: 'domcontentloaded' });
+  log('transcript.jsonl', { action: 'resume', email });
+  return { email, native };
+}
+
 async function newLearner({ native = 'de', level = 'A1.1', fresh = false } = {}) {
   if (context) await context.close();
   context = await browser.newContext({
@@ -186,6 +205,32 @@ const routes = {
   wait: async ({ ms = 2000 }) => { await sleep(Number(ms)); return snap(); },
   clock: async ({ days }) => { await stack.setClock(Number(days)); log('transcript.jsonl', { action: 'clock', days }); return { ok: true, days }; },
   learner: (b) => newLearner(b),
+  resume: (b) => resumeLearner(b),
+  // Review walk: touch the 3D canvas. tap {x,y}; drag {x1,y1,x2,y2,ms}; hold {key,ms}.
+  tap: async ({ x, y }) => { await page.touchscreen.tap(Number(x), Number(y)); log('transcript.jsonl', { action: 'tap', x, y }); return snap(); },
+  drag: async ({ x1, y1, x2, y2, ms = 1500 }) => {
+    await page.mouse.move(Number(x1), Number(y1)); await page.mouse.down();
+    const steps = Math.max(4, Math.round(Number(ms) / 100));
+    for (let i = 1; i <= steps; i += 1) { await page.mouse.move(Number(x1) + ((Number(x2) - Number(x1)) * i) / steps, Number(y1) + ((Number(y2) - Number(y1)) * i) / steps); await sleep(100); }
+    await sleep(Math.max(0, Number(ms) - steps * 100)); await page.mouse.up();
+    log('transcript.jsonl', { action: 'drag', x1, y1, x2, y2, ms }); return snap();
+  },
+  hold: async ({ key, ms = 1500 }) => { await page.keyboard.down(key); await sleep(Number(ms)); await page.keyboard.up(key); log('transcript.jsonl', { action: 'hold', key, ms }); return snap(); },
+  // Review walk: a bad connection. offline {on:true|false}; slow {ms} delays every API call (0 clears).
+  offline: async ({ on = true }) => { await context.setOffline(Boolean(on)); log('transcript.jsonl', { action: 'offline', on }); return { ok: true, offline: Boolean(on) }; },
+  slow: async ({ ms = 0 }) => {
+    await page.unroute('**/api/**').catch(() => {});
+    if (Number(ms) > 0) await page.route('**/api/**', async (route) => { await sleep(Number(ms)); await route.continue().catch(() => {}); });
+    log('transcript.jsonl', { action: 'slow', ms });
+    return { ok: true, ms: Number(ms) };
+  },
+  // Review walk: the walk server's own routes (/__walk/prefetch, /__walk/spend, /__walk/jump ...).
+  walk: async ({ path: p, body, method }) => {
+    const r = await fetch(`http://127.0.0.1:${stack.apiPort}${p}`, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : { method: method || 'GET' });
+    const text = await r.text();
+    log('transcript.jsonl', { action: 'walk', path: p, body, status: r.status });
+    try { return { status: r.status, ...JSON.parse(text) }; } catch { return { status: r.status, text: text.slice(0, 800) }; }
+  },
   note: (b) => {
     log('findings.jsonl', { shot: lastShot, url: page.url().replace(stack.web, ''), ...b });
     return { ok: true };
@@ -204,7 +249,8 @@ async function main() {
     comptoir: argv.includes('--comptoir'),
   });
   browser = await chromium.launch(process.env.WALK_CHROMIUM ? { executablePath: process.env.WALK_CHROMIUM } : {});
-  await newLearner({ native: opt('native', 'de'), level: opt('level', 'A1.1'), fresh: argv.includes('--fresh') });
+  if (opt('resume', '')) await resumeLearner({ email: opt('resume'), native: opt('native', 'de') });
+  else await newLearner({ native: opt('native', 'de'), level: opt('level', 'A1.1'), fresh: argv.includes('--fresh') });
   http
     .createServer(async (req, res) => {
       let body = '';

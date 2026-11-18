@@ -1,0 +1,1285 @@
+generated_seconds 192.647
+panels:
+setup_fr: Chez Maître Vasseur, la notaire explique les papiers de l'héritage d'Odile. Lila arrive dans la porte avec deux cafés.
+title_fr: Les papiers chez le notaire
+image_url: /assets/serial/locations/office_admin.webp
+level_band: A1
+location_id: notaire
+character_id: lila_bonnet
+scenario_key: story_e258e8e4c1a249b898ced160cbb32355
+setup_native: Beim Notar Maître Vasseur erklärt die Notarin die Papiere für Odiles Erbe. Draußen regnet es, und Lila kommt mit zwei Kaffees zur Tür herein.
+location_name: Chez Maître Vasseur
+objective_key: story_e258e8e4c1a249b898ced160cbb32355
+response_task:
+  targets:
+  max_turns: 4
+  hint_native: Du sitzt Lila gegenüber, und sie fragt dich nach deinem Flug. Überlege, ob du schon einen Plan hast oder ob du es noch nicht weißt.
+  character_id: lila_bonnet
+  rubric_native: Lila asks what the notary said and what the learner will do about Wednesday's flight. Met when the learner's words answer it, in any direction (I will call the airline and move the flight. → The ticket moves to 2 December at le_billet tomorrow, for the learner's own reason.; I keep Wednesday. I will fly on the 18th. → The 18 November flight stands; the papers stay unsigned and Lila tells the learner it will not work.; I don't know yet. → Lila lets it sit with a coffee and a grade; the flight stays open and the heading stays undecided.).
+  character_name: Lila Bonnet
+  repair_allowed: True
+  opening_line_fr: Alors, ton vol de mercredi, tu fais quoi ?
+  allowed_outcomes:
+    - resolved
+    - open
+  objective_native: Lila fragt, was du wegen des Mittwochsflugs machst.
+  optional_intents:
+  required_intents:
+    - Lila asks what the notary said and what the learner will do about Wednesday's flight. Met when the learner's words answer it, in any direction (I will call the airline and move the flight. → The ticket moves to 2 December at le_billet tomorrow, for the learner's own reason.; I keep Wednesday. I will fly on the 18th. → The 18 November flight stands; the papers stay unsigned and Lila tells the learner it will not work.; I don't know yet. → Lila lets it sit with a coffee and a grade; the flight stays open and the heading stays undecided.).
+  estimated_seconds: 115
+  translation_native: Also, dein Flug am Mittwoch, was machst du?
+  suggested_response_fr: Je ne sais pas encore.
+story_context:
+  draft:
+    beat: setup
+    leaves:
+    panels:
+      - [0]
+        dialogue:
+          - [0]
+            mood: neutral
+            text_fr: On ne peut rien vendre.
+            text_native: Man kann nichts verkaufen.
+            character_id: maitre_vasseur
+          - [1]
+            mood: neutral
+            text_fr: Pas avant les papiers. Plusieurs semaines.
+            text_native: Nicht vor den Papieren. Mehrere Wochen.
+            character_id: maitre_vasseur
+        time_jump: False
+        alt_native: Die Notarin sitzt hinter einem polierten Tisch mit Füllfederhalter und Mappe, die Lernende sitzt ihr gegenüber, hinter beiden hohe Fenster.
+        location_id: notaire
+        narration_fr: Chez la notaire. Il pleut.
+        visual_direction: Wide shot of the notary's office. Maître Vasseur sits behind a polished table with a fountain pen and a folder. The learner sits across from her. Tall windows behind them. She lays one hand flat on the folder and speaks calmly.
+      - [1]
+        dialogue:
+          - [0]
+            mood: neutral
+            text_fr: Vous revenez pour signer. Plus tard.
+            text_native: Sie kommen zum Unterschreiben. Später.
+            character_id: maitre_vasseur
+        time_jump: False
+        alt_native: Regen fällt draußen am Boulevard. Die Notarin schiebt die Mappe über den Tisch und tippt mit dem Stift auf eine Zeile.
+        location_id: notaire
+        visual_direction: Medium shot from the side. Rain falls on the boulevard through the tall windows. Maître Vasseur slides the folder across the table toward the learner and taps one line on the page with her pen.
+      - [2]
+        dialogue:
+        time_jump: False
+        alt_native: Lila steht in der Tür, ihre Haare sind vom Regen nass, sie hält zwei Kaffeebecher und schaut lange zur Lernenden hinüber.
+        location_id: notaire
+        narration_fr: Lila, dans la porte. Deux cafés.
+        visual_direction: Close-up on the doorway. Lila stands there, her hair wet from the rain, two coffee cups in her hands. She looks at the learner across the room for a long moment, not moving.
+      - [3]
+        dialogue:
+          - [0]
+            mood: neutral
+            text_fr: Tiens.
+            text_native: Hier, bitte.
+            character_id: lila_bonnet
+        time_jump: False
+        alt_native: Lila geht durch den Raum und reicht der Lernenden einen Becher. Die Notarin klappt die Mappe zu und schaut auf ihren Schreibtisch.
+        location_id: notaire
+        visual_direction: Lila crosses the room and holds one cup out to the learner. Maître Vasseur closes the folder and looks down at her desk. The rain keeps falling behind them.
+    chapter:
+      title_fr: Le billet du 18 novembre
+      dramatic_question: Le billet du 18 novembre tient-il, ou faut-il le changer ?
+      possible_developments:
+        - The learner moves the flight to 2 December and stays on for the papers.
+        - The learner keeps the 18 November flight and leaves before the papers are signed.
+        - Lila books the new seat herself without asking, and the learner has to decide whether to forgive it.
+    lexicon:
+      - [0]
+        lemma: signer
+        band_fit: 1.0
+        line_ref: panel:1:line:0
+        surface_fr: signer
+        gloss_native: unterschreiben
+        part_of_speech: verb
+      - [1]
+        lemma: porte
+        gender: f
+        band_fit: 1.0
+        line_ref: panel:2:narration
+        surface_fr: porte
+        gloss_native: Tür
+        part_of_speech: noun
+      - [2]
+        lemma: café
+        gender: m
+        band_fit: 1.0
+        line_ref: panel:2:narration
+        surface_fr: cafés
+        gloss_native: Kaffee, hier: Tassen Kaffee
+        part_of_speech: noun
+      - [3]
+        lemma: pleuvoir
+        band_fit: 1.0
+        line_ref: panel:0:narration
+        surface_fr: pleut
+        gloss_native: regnen
+        part_of_speech: verb
+      - [4]
+        lemma: papier
+        gender: m
+        band_fit: 0.5
+        line_ref: panel:0:line:1
+        surface_fr: papiers
+        gloss_native: Papier, hier: Dokumente
+        part_of_speech: noun
+    title_fr: Les papiers chez le notaire
+    premise_fr: Chez Maître Vasseur, la notaire explique les papiers de l'héritage d'Odile. Lila arrive dans la porte avec deux cafés.
+    scene_cast:
+      - lila_bonnet
+      - maitre_vasseur
+    hint_native: Du sitzt Lila gegenüber, und sie fragt dich nach deinem Flug. Überlege, ob du schon einen Plan hast oder ob du es noch nicht weißt.
+    location_id: notaire
+    novelty_key: notary_weeks_news
+    problem_key: flight_wednesday_conflict
+    advances_arc: False
+    carries_over: False
+    character_id: lila_bonnet
+    setup_native: Beim Notar Maître Vasseur erklärt die Notarin die Papiere für Odiles Erbe. Draußen regnet es, und Lila kommt mit zwei Kaffees zur Tür herein.
+    causal_reason: The learner thinks they will sign next week and fly home on Wednesday 18 November. → They know nothing can be sold for weeks, and the flight on the 18th is now a question they must answer.
+    opening_line_fr: Alors, ton vol de mercredi, tu fais quoi ?
+    objective_native: Lila fragt, was du wegen des Mittwochsflugs machst.
+    season_checklist:
+      hook_fr: Demain, il faut appeler la compagnie aérienne, et Lila écoute.
+      threads:
+        - Settling: the notary explains that nothing can be sold for weeks, and the learner's return ticket moves to 2 December (user.return_ticket). The usual order is established (user.usual_order).
+      turn_want: Lila asks what the notary said and what the learner will do about Wednesday's flight.
+      premise_id: plusieurs_semaines
+      change_after: They know nothing can be sold for weeks, and the flight on the 18th is now a question they must answer.
+      complication: The 18 November flight still stands until the learner calls the airline, and the agent wants a reason.
+      change_before: The learner thinks they will sign next week and fly home on Wednesday 18 November.
+      forbidden_respected: True
+    source_event_ids:
+    translation_native: Also, dein Flug am Mittwoch, was machst du?
+    objective_semantics: Lila asks what the notary said and what the learner will do about Wednesday's flight. Met when the learner's words answer it, in any direction (I will call the airline and move the flight. → The ticket moves to 2 December at le_billet tomorrow, for the learner's own reason.; I keep Wednesday. I will fly on the 18th. → The 18 November flight stands; the papers stay unsigned and Lila tells the learner it will not work.; I don't know yet. → Lila lets it sit with a coffee and a grade; the flight stays open and the heading stays undecided.).
+    suggested_response_fr: Je ne sais pas encore.
+  words:
+    pool: 0
+    placed:
+      - semaine
+      - mercredi
+      - revenir
+    recycled:
+  season:
+    id: s1
+    kind: gap
+    seed: 4edb5fdd-488a-4e0b-9f0b-5a0cc99c0b3d
+    heading:
+      means: The learner has not decided whether to stay. Nobody decides for them or pushes them either way; the day may let them see something of what each way would cost.
+      value: undecided
+    may_set:
+      - user.usual_order
+      - user.return_ticket
+      - user.heading
+    position:
+      key: g1.2
+      flex: 0
+      kind: gap
+      segment: g1
+      finished: False
+      season_id: s1
+      season_day: 4
+      day_in_segment: 2
+    checklist:
+      hook_fr: Demain, il faut appeler la compagnie aérienne, et Lila écoute.
+      threads:
+        - Settling: the notary explains that nothing can be sold for weeks, and the learner's return ticket moves to 2 December (user.return_ticket). The usual order is established (user.usual_order).
+      turn_want: Lila asks what the notary said and what the learner will do about Wednesday's flight.
+      premise_id: plusieurs_semaines
+      change_after: They know nothing can be sold for weeks, and the flight on the 18th is now a question they must answer.
+      complication: The 18 November flight still stands until the learner calls the airline, and the agent wants a reason.
+      change_before: The learner thinks they will sign next week and fly home on Wednesday 18 November.
+      forbidden_respected: True
+    required_premise: plusieurs_semaines
+  source:
+    level: A1
+    moods:
+    world:
+      arcs:
+      cast:
+        - [0]
+          id: lila_bonnet
+          flaw: Keeps her own secret while resenting everyone else's.
+          name: Lila Bonnet
+          role: Teaches a CE1 class (Wednesdays off) and paints. Marin's flatmate and oldest friend — they were together two months in 2016 and still laugh about it; they are NOT a couple. From Marseille. Becomes the learner's accomplice upstairs.
+          wants: Berlin: a one-year residency at the Künstlerhaus am Kanal. She turned one down in 2021.
+          gender: f
+          secret: The 2026 Berlin offer, due 15 December (revealed in T5 — before that, only hints: a phone turned face down, an email closed too quickly, an envelope with a German stamp).
+          role_fr: institutrice et peintre
+          pronoun_fr: elle
+          personality: Quick, amused, the one who looks at the evidence. Grades everyone's life decisions like homework («Sept sur vingt. Peut mieux faire.»). Marseille exclamations when caught off guard («Oh, fan de chichourle !»).
+          contradiction: Thinks the group uses loyalty to keep each other from moving on — and is the one most held here.
+          register_note: No coarse or vulgar word at this level; keep the warmth without it.
+          speech_pattern: «Mais arrête. C'est évident.» «Toi, tu me caches quelque chose.» «Bon, on fait quoi ?» Says «la lumière est fausse» about the painting above the zinc.
+          dynamic_with_user: The accomplice. On the romance path, restraint first; on the friendship path, the pact. Affection shows in gestures (she remembers the usual order, saves the chair), never as a score. Her path moves only on what the learner expresses at the gates.
+          register_with_user: tu, from the first night; she mocks the learner's vous («Tu me vouvoies ? Je le dis à ma classe.»)
+        - [1]
+          id: marin_leveque
+          flaw: Cannot ask for anything without a grandmother's saying and three apologies.
+          name: Marin Lévêque
+          role: Works at an environmental NGO and writes a novel nobody may read. Son of a Finistère fisherman. Author of the co-op plan «Le Mistral à nous» (from T2 on; it is Odile's idea before it is his).
+          wants: That the café survives, even changed. That something he builds holds people together.
+          gender: m
+          secret: He has already put €4,000 of savings in as the first share (known from T3).
+          role_fr: ton premier ami à Paris
+          pronoun_fr: il
+          personality: A gentle giant. Sentimental, superstitious, believes in signs. Feeds everyone (far breton, soupe de poisson). Cries at adverts. Conflict-avoidant.
+          contradiction: Wants to hold the group together and is afraid of being the one who breaks it.
+          register_note: No coarse or vulgar word at this level; keep the warmth without it.
+          speech_pattern: «C'est un signe, ça.» «Bon. Qui veut une soupe ?» «Ma grand-mère disait toujours…» (her sayings grow more absurd). Breton words he then explains («Kenavo ! Ça veut dire au revoir. Enfin, à la prochaine.»).
+          dynamic_with_user: Brings soup when you're ill. Holds the chair, and later the ladder.
+          register_with_user: tu
+        - [2]
+          id: augustin_de_roncourt
+          flaw: Would rather be magnificent than true.
+          name: Augustin « Gus » de Roncourt
+          role: Consultant («du conseil»), showman, inventor of «La Méthode». Wants Le Mistral kept exactly as it is: the zinc, the booth, the plaque. Says his great-grandfather laid the zinc.
+          wants: To keep the booth where he did his homework while his mother worked the room — without ever having to say that sentence.
+          gender: m
+          secret: «De Roncourt» was invented at 15; he grew up in Créteil and his mother waited tables at Le Mistral (his confession belongs to T7 — before that, never; the costume may crack, never fall). He pays other people's tabs anonymously.
+          role_fr: habitué du Mistral
+          pronoun_fr: il
+          personality: Superlatives that grow («C'est magnifique. Non : c'est sublime.»). Index cards for every speech; they fall. «Au château» on Sundays. Straightens the salt cellars when upset. Always sits in the booth's corner seat.
+          contradiction: Performs an aristocrat to hide that he is the one who most needs the place as it was.
+          register_note: No coarse or vulgar word at this level; keep the warmth without it.
+          speech_pattern: «Règle numéro un de La Méthode : …» «Mesdames, messieurs !»
+          dynamic_with_user: Charmed, suspicious, then loyal in his fashion. The learner can hurt him, and he knows it.
+          register_with_user: vous — theatrical, a weapon — until T3; tu after. Gap 1 may show one accidental tu followed by a panicked return to vous.
+        - [3]
+          id: margaux_barman
+          flaw: One sentence too few, always.
+          name: Margaux
+          role: Owner-bartender of Le Mistral since 2001, in her late fifties. The oracle.
+          wants: To keep her promise to Odile, and the café, and never to ask anyone for help.
+          gender: f
+          secret: The night of the fire (14 March 2023) and her promise to Odile — revealed in T4 only. On generated days before T4: silences and deflections (looking at the ceiling, reacting too fast to smoke), never the cause.
+          role_fr: patronne du Mistral
+          pronoun_fr: elle
+          personality: Uses the fewest words in the cast. When she says two sentences in a row, something is wrong. Dries a glass that is already dry. «J'ai rien entendu» after hearing everything. Bans people from her zinc («Pas sur mon zinc.»). Pours a café crème nobody ordered for Odile's stool.
+          contradiction: Protects everyone and lets nobody protect her.
+          register_note: No coarse or vulgar word at this level; keep the warmth without it.
+          speech_pattern: «La même chose ?» «J'ai rien entendu.» «Bois.»
+          dynamic_with_user: Sees Odile in the learner. Afraid of what they will find.
+          register_with_user: tu, at once — as she did with Odile
+        - [4]
+          id: romy_tremblay
+          flaw: Knows more than she says, and it shows.
+          name: Romy Tremblay
+          role: Québécoise journalist investigating Solvel's purchases of cafés in the 10th and 11th, «les bistrots qui disparaissent». The learner's friend (no romance). Introduced in gap 1.
+          wants: The story that earns her a Paris contract — earned by listening, not by leaving.
+          gender: f
+          secret: She kept her Montréal apartment. From T4 she holds the memory card of the party (romy.footage).
+          role_fr: journaliste québécoise, elle aussi nouvelle à Paris
+          pronoun_fr: elle
+          personality: Warm, curious, principled. Québec against Paris words (souper / dîner, char / voiture, magasiner). The red light of her camera.
+          contradiction: A journalist who does not want to publish the thing that breaks her friends.
+          register_note: No coarse or vulgar word at this level; keep the warmth without it.
+          speech_pattern: «Voyons donc.» «C'est quoi, la vraie histoire ?» «C'est pas pire.»
+          dynamic_with_user: A source, then a friend. She hates that order. Switches the camera off in front of the learner so they can see her do it.
+          register_with_user: tu (Québec norm); performs vous badly on purpose
+        - [5]
+          id: landlord_marchand
+          flaw: Would rather be right on paper than ask a question.
+          name: M. Marchand
+          role: Owns the building (the café's walls and floors 2–4) and runs his buildings from a 2nd-floor office, «Gérance Marchand». 74, widowed. Cannot climb to his 4th-floor flat any more; sleeps on a camp bed among his files. The opponent who becomes the other side (T6).
+          wants: A home without stairs, not to be a burden to Camille, and to know why Odile left.
+          gender: m
+          secret: Six years of Sunday lunches with Odile, and his question the day before the fire (T6 only — generated days before T6 never mention the Sundays). His pledge «oui, si Margaux reste».
+          role_fr: ton propriétaire
+          pronoun_fr: il
+          personality: Turns grief into procedure: recorded letters (recommandé avec accusé de réception). The ring of old keys. The 46 bus. Calls the learner «la succession Ferrand» to their face. Reads with his glasses pushed down his nose.
+          contradiction: Plays the villain the café needs and is the loneliest man in the building.
+          register_note: No coarse or vulgar word at this level; keep the warmth without it.
+          speech_pattern: «La succession Ferrand est en retard.» «C'est mon immeuble.»
+          dynamic_with_user: Procedure, then respect. From T4 (mistral.villain_story broken) never written as the villain.
+          register_with_user: vous, always
+        - [6]
+          id: camille_marchand
+          flaw: Trusts numbers more than people, and knows it.
+          name: Camille Marchand
+          role: M. Marchand's grandchild, about thirty, an urban planner at a consultancy, born in the 10th and still rooted there. Handles the sale for their grandfather. The second romantic possibility — for season 2; in season 1 Camille stays on vous and the attraction grows through disagreement and earned respect.
+          wants: For Grand-père to be safe and for the numbers to work. «Un immeuble, ce n'est pas un musée.»
+          gender: x
+          secret: Camille's gender comes from s1.camille_gender (set by the learner in T1); Camille's own lines NEVER agree an adjective with Camille; other characters say «il» or «elle» from the flag.
+          pronoun_fr: elle
+          personality: Precise, dry, never contemptuous. Arrives everywhere by bike, helmet under one arm, slightly rained on. Corrects everyone's numbers, including Gus's superlatives. Knows the year of every building on the quai.
+          contradiction: Loved Le Mistral as a child (hot chocolate on Wednesdays) and is selling it.
+          register_note: No coarse or vulgar word at this level; keep the warmth without it.
+          speech_pattern: «Les chiffres sont simples.» «Je ne suis pas d'accord.»
+          dynamic_with_user: An obstacle with an interesting face. Disagreement first, respect earned.
+          register_with_user: vous
+        - [7]
+          id: mme_diallo
+          name: Mme Diallo
+          role: Minor character: the baker on the corner, in her fifties, floured apron, reading glasses on a chain.
+          wants: Her regulars, and Le Mistral next door.
+          gender: f
+          pronoun_fr: elle
+          personality: Brisk and kind. Running line: «Une tradition pas trop cuite, c'est ça ?»
+          register_note: No coarse or vulgar word at this level; keep the warmth without it.
+          speech_pattern: «Une tradition pas trop cuite, c'est ça ?» «Et demain ?»
+          dynamic_with_user: Knows the learner's face from gap 1.
+          register_with_user: vous
+        - [8]
+          id: maitre_vasseur
+          name: Maître Vasseur
+          role: Minor character: the notary handling Odile's succession. Brisk and kind.
+          wants: The papers in order.
+          gender: f
+          pronoun_fr: elle
+          personality: Explains the law in two plain sentences («La dette peut prendre l'appartement. Pas plus.»).
+          register_note: No coarse or vulgar word at this level; keep the warmth without it.
+          speech_pattern: «Rien ne peut être vendu avant plusieurs semaines.»
+          dynamic_with_user: Professional, kind.
+          register_with_user: vous
+        - [9]
+          id: bastien_roux
+          name: Bastien Roux
+          role: Minor character: Solvel Immobilier's acquisitions man, in a good camel coat. He measures rooms with a laser whose red dot crosses people's things.
+          wants: The whole building, before 8 January.
+          gender: m
+          pronoun_fr: il
+          personality: Smooth, pleasant, relentless. «Très bien. On ouvre tout, ici.»
+          register_note: No coarse or vulgar word at this level; keep the warmth without it.
+          speech_pattern: «L'offre est valable jusqu'au 8 janvier.»
+          dynamic_with_user: Pressure with a smile.
+          register_with_user: vous
+      logline: You come to Paris for a week, to sign the papers for a small flat your grandmother Odile left you and to go home. The flat is above a café called Le Mistral. Everyone downstairs remembers her, and each of them remembers someone different. Keep it, share it, or let it go?
+      elsewhere:
+        - [0]
+          id: newsroom
+          name_fr: La rédaction de Romy
+        - [1]
+          id: marche_canal
+          name_fr: Le marché du canal
+        - [2]
+          id: buttes_chaumont
+          name_fr: Le parc des Buttes-Chaumont
+        - [3]
+          id: metro_platform
+          name_fr: Le quai du métro
+        - [4]
+          id: brocante
+          name_fr: La brocante
+        - [5]
+          id: mairie
+          name_fr: La mairie du 10e
+        - [6]
+          id: gare_de_lest
+          name_fr: La gare de l'Est
+        - [7]
+          id: boulangerie
+          name_fr: La boulangerie de Mme Diallo
+        - [8]
+          id: ecole
+          name_fr: La classe de Lila
+      locations:
+        - [0]
+          id: le_mistral
+          use: home base — but NOT every episode; the anchor, not the default
+          name: Le Mistral
+          type: café-bar
+          name_fr: Le Mistral
+          image_url: /assets/serial/locations/le_mistral-booth.webp
+          description: A narrow corner café-bar with a worn zinc counter near the Canal. The group's headquarters — their booth in the back is unofficially theirs. Open late, smells of coffee and rain.
+        - [1]
+          id: user_apartment
+          name: Your apartment
+          type: home
+          name_fr: Ton appartement
+          image_url: /assets/serial/locations/user_apartment.webp
+          description: A sixth-floor walk-up studio with a temperamental radiator and a view of zinc rooftops. The arrival point of the whole story.
+        - [2]
+          id: marin_lila_flat
+          name: Marin & Lila's flat
+          type: home
+          name_fr: L’appartement de Marin et Lila
+          image_url: /assets/serial/locations/marin_lila_flat.webp
+          description: A cramped, art-covered two-room flat near République, always full of people and casserole.
+        - [3]
+          id: ngo_office
+          name: Marin's NGO office
+          type: workplace
+          name_fr: Le bureau de l’ONG de Marin
+          image_url: /assets/serial/locations/ngo_office.webp
+          description: A cluttered environmental-NGO office with protest posters and dying plants Marin keeps reviving.
+        - [4]
+          id: gus_loft
+          name: Gus's 'château'
+          type: home
+          name_fr: Le « château » de Gus
+          image_url: /assets/serial/locations/gus_loft.webp
+          description: An aggressively styled bachelor loft Gus passes off as ancestral. (The real address is in Créteil.)
+        - [5]
+          id: odile_flat
+          name: Odile's flat
+          type: home
+          name_fr: L'appartement d'Odile
+          image_url: /assets/serial/locations/user_apartment.webp
+          description: A small two-room Paris flat on the first floor above Le Mistral, stopped in April 2023: shutters, dust in bars of light, a green coat on its hook, felt slippers under a chair, an old Polaroid camera beside a cup with a dried ring of café crème, a kitchen calendar on April 2023, a patch of whiter white above the stove, a narrow balcony over the canal. A room that waited, never one that rotted.
+        - [6]
+          id: stairwell
+          name: The stairwell
+          type: home
+          name_fr: L'escalier
+          image_url: /assets/serial/locations/user_apartment.webp
+          description: A narrow old Paris stairwell with worn wooden steps and a timed light (minuterie) that clicks off mid-scene. A brass «1» on Odile's door. Where people sit to say what they cannot say at a table.
+        - [7]
+          id: mistral_back_room
+          name: Le Mistral's back room
+          type: café-bar
+          name_fr: L'arrière-salle du Mistral
+          image_url: /assets/serial/locations/le_mistral-booth.webp
+          description: Rebuilt after the 2023 fire: new plaster of a slightly different white, the café's electrical board, stacked crates.
+        - [8]
+          id: quai_de_valmy
+          name: Quai de Valmy
+          type: outdoor
+          name_fr: Le quai de Valmy
+          image_url: /assets/serial/locations/le_mistral-counter.webp
+          description: The Canal Saint-Martin outside Le Mistral: green iron footbridges, locks with black water, plane trees, barges, the red neon MISTRAL on the corner. Where things are said sideways.
+        - [9]
+          id: marchand_office
+          name: Gérance Marchand
+          type: workplace
+          name_fr: La gérance Marchand
+          image_url: /assets/serial/locations/office_admin.webp
+          description: M. Marchand's second-floor office: walls of key boards, grey filing cabinets, a desk lamp, a framed photo of his late wife, and a camp bed made with hospital corners.
+        - [10]
+          id: notaire
+          name: Maître Vasseur's office
+          type: institutional
+          name_fr: Chez Maître Vasseur
+          image_url: /assets/serial/locations/office_admin.webp
+          description: A notary's office: a polished table, a fountain pen, tall windows on a boulevard.
+        - [11]
+          id: rue_de_lancry
+          name: Rue de Lancry
+          type: outdoor
+          name_fr: La rue de Lancry
+          image_url: /assets/serial/locations/marche_canal.webp
+          description: A narrow street off the quai de Valmy, tall pale façades, wrought-iron balconies. (Background only in season 1.)
+        - [12]
+          id: toit
+          name: The roof
+          type: outdoor
+          name_fr: Le toit de l'immeuble
+          image_url: /assets/serial/locations/buttes_chaumont.webp
+          description: Zinc roofs, chimney pots, an open fifth-floor skylight, the canal below.
+      warmth_rule: Comedy first, but every episode lands one genuine beat of feeling. The bond is the product.
+      open_threads:
+        - [0]
+          key: s1:0
+          text: Who was Odile, and why did she leave?
+          state: open
+          text_fr: Qui était Odile, et pourquoi est-elle partie ?
+        - [1]
+          key: s1:1
+          text: Lila and Berlin: can you want someone here and want their leaving for them?
+          state: open
+          text_fr: Lila et Berlin : peut-on vouloir quelqu'un ici, et vouloir son départ pour elle ?
+        - [2]
+          key: s1:2
+          text: The future of Le Mistral: keep it as it was, change it, or let it go?
+          state: open
+          text_fr: L'avenir du Mistral : le garder, le changer, ou le laisser partir ?
+      season_number: 1
+      complication_card: a stranger knows more than they should
+    errata:
+    events:
+    season:
+      phase: running
+      number: 1
+      chapters: 0
+      completion: 0.0
+    agendas:
+    can_dos:
+      band: A1.1
+      prefer:
+        - CD_A11_GREET
+        - CD_A11_ORDER_CAFE
+        - CD_A11_PAY
+        - CD_A11_FAMILY
+        - CD_A11_LIKES
+        - CD_A11_WHERE
+        - CD_A11_GOING
+        - CD_A11_YESNO
+      options:
+        - [0]
+          id: CD_A11_GREET
+          title: jemanden begrüßen und sich vorstellen
+          words:
+            - bonjour
+            - salut
+            - nom
+            - âge
+            - habiter
+            - ville
+            - pays
+            - français
+          stamped: False
+          title_fr: saluer et se présenter
+        - [1]
+          id: CD_A11_ORDER_CAFE
+          title: im Café bestellen
+          words:
+            - café
+            - thé
+            - eau
+            - pain
+            - merci
+            - s'il
+            - addition
+            - euro
+          stamped: False
+          title_fr: commander au café
+        - [2]
+          id: CD_A11_PAY
+          title: nach dem Preis fragen und bezahlen
+          words:
+            - combien
+            - coûter
+            - prix
+            - payer
+            - carte
+            - monnaie
+            - euro
+          stamped: False
+          title_fr: demander un prix et payer
+        - [3]
+          id: CD_A11_FAMILY
+          title: über die eigene Familie sprechen
+          words:
+            - famille
+            - père
+            - mère
+            - frère
+            - sœur
+            - enfant
+            - petit
+            - grand
+          stamped: False
+          title_fr: parler de sa famille
+        - [4]
+          id: CD_A11_LIKES
+          title: sagen, was man mag und nicht mag
+          words:
+            - aimer
+            - adorer
+            - détester
+            - préférer
+            - musique
+            - film
+            - cuisine
+          stamped: False
+          title_fr: dire ce qu'on aime ou n'aime pas
+        - [5]
+          id: CD_A11_WHERE
+          title: fragen, wo ein Ort ist
+          words:
+            - où
+            - gare
+            - pharmacie
+            - banque
+            - rue
+            - ici
+            - là
+          stamped: False
+          title_fr: demander où se trouve un lieu
+        - [6]
+          id: CD_A11_GOING
+          title: sagen, wohin man geht und woher man kommt
+          words:
+            - aller
+            - venir
+            - marché
+            - travail
+            - école
+            - maison
+          stamped: False
+          title_fr: dire où on va et d'où on vient
+        - [7]
+          id: CD_A11_YESNO
+          title: eine einfache Frage stellen und mit ja oder nein antworten
+          words:
+            - oui
+            - non
+            - pas
+            - question
+            - réponse
+          stamped: False
+          title_fr: poser une question simple et répondre oui ou non
+    learner:
+      address: neutral
+      register_note: Address the learner as «tu» (ton/ta/tes; e.g. «Tu as …») in every sentence that is not a character's own line. Never «vous, votre, vos» for the learner.
+      grammatical_gender_note: Do not gender the learner: no gendered adjective, participle or endearment about them, no gendered pronoun for them, and never an inclusive-dot form such as trempé·e. Use natural neutral phrasing in EVERY field, including the chapter title and question, narration, dialogue and suggested response. For example: 'Tu as pris la pluie', 'Tu veux entrer ?', 'Ça te plaît', 'Tu peux venir ?'. Do not solve gender agreement by joining masculine and feminine endings.
+    lexicon:
+      known:
+        band: A1
+        version: lexical-coverage-v1
+        core_words: 811
+        nailed_rule:
+          retrievability: 0.9
+        known_lemmas: 811
+        nailed_words: 0
+        estimate_level: A1.1
+        estimate_source: declared
+      target_count: 0
+      proper_noun_count: 50
+    secrets:
+      next: romy_tremblay
+      order:
+        - romy_tremblay
+        - marin_leveque
+        - lila_bonnet
+        - bastien_roux
+        - mme_diallo
+        - maitre_vasseur
+        - margaux_barman
+        - camille_marchand
+        - augustin_de_roncourt
+        - landlord_marchand
+      states:
+        mme_diallo: hidden
+        lila_bonnet: hidden
+        bastien_roux: hidden
+        marin_leveque: hidden
+        romy_tremblay: hidden
+        maitre_vasseur: hidden
+        margaux_barman: hidden
+        camille_marchand: hidden
+        landlord_marchand: hidden
+        augustin_de_roncourt: hidden
+    variety:
+      rule: Prefer an unused character or location; the whole cast has a life.
+      act_rule: Rotate what the learner does, not only where and with whom: refuse politely, apologise, negotiate a condition, tell what happened, ask for information, invite, complain, thank, explain a plan, describe someone or something, comfort without advising, admit something, make a request of your own — and not only arrange a time.
+      recent_acts:
+      recent_pairs:
+      all_locations:
+        - le_mistral
+        - user_apartment
+        - marin_lila_flat
+        - ngo_office
+        - gus_loft
+        - odile_flat
+        - stairwell
+        - mistral_back_room
+        - quai_de_valmy
+        - marchand_office
+        - notaire
+        - rue_de_lancry
+        - toit
+      used_problems:
+      all_characters:
+        - lila_bonnet
+        - marin_leveque
+        - augustin_de_roncourt
+        - margaux_barman
+        - romy_tremblay
+        - landlord_marchand
+        - camille_marchand
+        - mme_diallo
+        - maitre_vasseur
+        - bastien_roux
+      used_objectives:
+      unused_locations:
+        - le_mistral
+        - user_apartment
+        - marin_lila_flat
+        - ngo_office
+        - gus_loft
+        - odile_flat
+        - stairwell
+        - mistral_back_room
+        - quai_de_valmy
+        - marchand_office
+        - notaire
+        - rue_de_lancry
+        - toit
+      unused_characters:
+        - lila_bonnet
+        - marin_leveque
+        - augustin_de_roncourt
+        - margaux_barman
+        - romy_tremblay
+        - landlord_marchand
+        - camille_marchand
+        - mme_diallo
+        - maitre_vasseur
+        - bastien_roux
+    revision: 5ec52f2472935702a37fae350554e4e251dbe3b7f726a73364b9e427b6f5c4d1
+    chronicle:
+    day_index: 3
+    thread_id: da570cc8-f25d-4a86-a86e-f72191a305d9
+    kept_words:
+    plants_due:
+    commitments:
+    consequences:
+    grammar_plan:
+      avoid: 8
+      weave:
+      allowed: 0
+      introduce: 1
+    story_so_far:
+    chapter_shape:
+      note: A letter chapter: the turn beat is a letter arriving, and the learner answers it in writing.
+      beats:
+        - setup
+        - complication
+        - turn
+        - resolution
+      shape: letter
+      letter_beat: turn
+    drilled_words:
+    relationships:
+      child:
+        register: tu
+      clerk:
+        register: vous
+      odile:
+        register: tu
+      dealer:
+        register: vous
+      builder:
+        register: vous
+      clerk_2:
+        register: vous
+      mme_diallo:
+        register: vous
+      lila_bonnet:
+        register: tu
+        closeness: 0
+      bastien_roux:
+        register: vous
+      marin_leveque:
+        register: tu
+        closeness: 0
+      romy_tremblay:
+        register: tu
+        closeness: 0
+      maitre_vasseur:
+        register: vous
+      margaux_barman:
+        register: tu
+        closeness: 0
+      camille_marchand:
+        register: vous
+        closeness: 0
+      landlord_marchand:
+        register: vous
+        closeness: 0
+      augustin_de_roncourt:
+        register: vous
+        closeness: 0
+    season_script:
+      id: s1
+      brief:
+        gap:
+          id: g1
+          day: 2
+          days: 5
+          facts:
+            - Nobody knows the price; Gus finds it «mystérieux».
+          threads:
+            - Settling: the notary explains that nothing can be sold for weeks, and the learner's return ticket moves to 2 December (user.return_ticket). The usual order is established (user.usual_order).
+            - The group, one by one: one-on-one time with each of Lila, Marin, Gus and Margaux.
+            - Romy is introduced (she was not in T1). She is interviewing Margaux for her story on Solvel buying cafés, and she finds «l'héritage d'Odile» more interesting than the story.
+            - Marchand is glimpsed on the stairs with his keys: «La succession Ferrand. Bonjour.»
+            - Solvel: a formal letter reminds the learner of the offer, valid until 8 January.
+            - The café's fire of 2023 may be mentioned ONCE, as the official story: the back room and the wiring. Gus: «Marchand en profite.»
+          must_not:
+            - «L.», the painter at the rue de Lancry window, is never named, never noticed and never discussed. The painting above the zinc may hang there; nobody reads its back.
+            - Toi's face is the learner's own (owner decision 2026-10-02, WP-118: made at registration, drawn like the cast). Never describe it in words: no hair, skin, eyes or features in a line, a caption or a panel description; the drawing shows it. Lila's portrait still never gains a face during the season (its payoff is an open owner question).
+            - WP-113: the price in the notary's letter (trois cent dix mille euros) is never said in a generated day unless it is public (Gus read it out to the café in T1 B). Whoever the learner trusted with the letter may hint that they know, never say the figure.
+            - WP-149: a generated day never dates a past event the canon does not hold. Day 66 of the WP-136 read invented «la nuit du 14 mars», which no tentpole or flag supports. Refer to what happened by what it was (the fire, the party, the notary's letter), never by an invented date. (A full date-canon check is a later package.)
+            - Anyone entering Odile's flat. The door was opened once and closed in T1; nobody goes in before T2.
+            - Any Polaroid of Odile's, or the notebook.
+            - Berlin, in any form.
+            - The Sundays (Odile and Marchand).
+            - The co-op idea («Le Mistral à nous»).
+            - Anything romantic beyond Lila being curious.
+            - T5 reveals Berlin. Before it, never write «Berlin», «Künstlerhaus», «Allemagne» or «résidence d'artiste», not even as a guess or a question: only hints (her phone turned face down, an unanswered message, an envelope with a German stamp closed quickly).
+          title_fr: La première semaine
+          complications:
+            - The radiator dies (canon).
+            - The notary needs a document from «là-bas».
+            - The price becomes gossip (only if s1.price_public).
+            - Rain, every day.
+          days_left_after_today: 3
+          establish_before_next_tentpole:
+            - The notary has explained that nothing can be sold before the succession papers, which takes weeks.
+            - The return ticket has moved to 2 December (user.return_ticket).
+            - The usual order is known (user.usual_order).
+            - Romy has been introduced.
+            - Nobody has been inside the flat since T1.
+        flags:
+          s1.ending: laisser_partir
+          camille.met: True
+          s1.key_with: toi
+          s1.painting: lost
+          s1.lila_path: open
+          user.heading: undecided
+          s1.cafe_creme: not_offered
+          s1.fire_photo: wall
+          s1.promised_to: neither
+          s1.flat_decision: sell
+          user.first_entry: door_closed
+          s1.camille_gender: f
+          s1.evidence_shared: marchand_only
+          user.has_met_group: True
+          user.return_ticket: mercredi 18 novembre
+          s1.letter_trusted_to: nobody
+          s1.calendar_contradiction: found_by_lila
+        level:
+          band: A1
+          panels: 4-5
+          texture: present tense, futur proche and fixed chunks; one idea per line; the learner's turn can be answered in 3-6 words
+          exchanges: 2-3
+          max_words_per_line: 8
+        rules:
+          gates: Gates 2 and 3 (Lila's path) live in gaps 2 and 4. The director must include the gate's moment; the classifier reads only what the learner expresses. When the learner doesn't take it, nothing is lost: the gate stays open, and a later small moment can still register it. Never generate a second chance the same day. Never show the path: no hearts, no meters, no «Lila s'en souviendra» on romance moments.
+          shape: One page of 4–6 panels, 2–3 exchanges, and at most one mechanic (Enquête, Convaincre, Choix, Déchiffrer). Every day has a goal (someone wants something today), an obstacle, a turn to the learner (what they must want to say, never a grammar target) and a hook («À suivre…»). At least one panel without dialogue. At least one laugh most days, Gus and Marin first. Two characters in frame on most panels, doing something (carrying, cooking, measuring, painting, arguing). A complication card creates an obstacle in the NEXT day, visibly.
+          refused:
+            - «Une soirée comme une autre»: the group chats about the weather, the playlist or the metro, and nothing moves.
+            - An errand that could happen on any day with any cast («Help Romy record fifteen minutes on Tuesday»), unless it changes something between you.
+            - A dramatic investigation that learns nothing: a mystery beat that ends where it began.
+            - A day that advances a thread the next tentpole owns (the gap's «must not» list).
+          register: Lines addressed to Toi are agreement-free («Tu le savais ?», «Tu es en colère ?», «la première personne»). Camille's lines about Camille are agreement-free, and other characters' pronouns for Camille come from s1.camille_gender. Margaux, Lila, Marin and Romy say tu; Gus says vous until T3, then tu; M. Marchand and Camille say vous.
+          the_rule: Episodes without meaningful change are refused. Every generated day ends with something different from how it began, and the difference is something the learner can see: a relationship (something said that can't be unsaid, a gesture that becomes a habit, a first tu, a first time someone waits for you), knowledge (the learner or a character learns something true, or something false they now believe), a situation (an object moves, a plan advances or is blocked, a decision is taken, a letter arrives), or the learner's life in Paris (the return ticket moves, the usual order is known, a first time 
+          checklist:
+            - Thread(s) touched, from the gap's list.
+            - The change, written as «before → after» in one sentence.
+            - The turn, and what the learner must want to say (never a grammar target).
+            - The small moment, and whose it is.
+            - The hook.
+            - Forbidden reveals respected: the gap's «must not» list.
+        today:
+          beat:
+            also: On the stairs back, Marchand with his ring of keys: «La succession Ferrand. Bonjour.»
+            hook: Wednesday's flight: what will the learner tell the airline?
+            after: They know nothing can be sold for weeks, and the flight on the 18th is now a question they must answer.
+            before: The learner thinks they will sign next week and fly home on Wednesday 18 November.
+          heading:
+            means: The learner has not decided whether to stay. Nobody decides for them or pushes them either way; the day may let them see something of what each way would cost.
+            value: undecided
+          may_set:
+            - user.usual_order
+            - user.return_ticket
+            - user.heading
+          premises:
+            - [0]
+              id: plusieurs_semaines
+              sets:
+              text: Maître Vasseur's office, in the morning. The learner came to sign and fly home on Wednesday. Vasseur says it in two plain sentences: nothing can be sold before the succession papers, and that takes weeks. Outside, Lila waits in the rain with two coffees: «Alors ?»
+              turn: Tell Lila what the notary said, and what you will do about your flight.
+              change: The learner knows they cannot sign and leave this week, and Wednesday's flight now makes no sense.
+              settles:
+              title_fr: Plusieurs semaines
+            - [1]
+              id: le_billet
+              sets:
+                - user.return_ticket
+              text: The learner must call the airline to move their ticket, in French, with Lila as a coach who keeps making it worse on purpose. Wednesday no longer works, whatever the learner wants: Camille brings Solvel to see the flat on Thursday at 18:00, and Maître Vasseur needs the heir in person for the papers before anything can be sold. The first seat the agent has after that is Wednesday 2 December.
+              turn: Tell the agent why you are changing the date. The learner decides how honest to be.
+              change: The ticket moves to 2 December, for the learner's own reason (to show the flat, to sign, to sell, to stay: theirs).
+              settles:
+                user.return_ticket: mercredi 2 décembre
+              title_fr: Le billet
+            - [2]
+              id: romy_enquete
+              sets:
+              text: Romy interviews Margaux at the zinc («J'ai rien entendu»), then turns to the learner: «C'est toi, l'héritage ?»
+              turn: Tell Romy who you are and what you think of Solvel, as much or as little as you want.
+              change: The learner learns that Solvel has bought three cafés in the quartier this year, and Romy has a source she likes.
+              settles:
+              title_fr: Romy enquête
+            - [3]
+              id: la_meme_chose
+              sets:
+                - user.usual_order
+              text: Margaux asks the learner's order for the third time. Gus insists your order says who you are. The learner chooses, and says why they're still here.
+              turn: Choose your order, and say why you are still here.
+              change: The learner's usual order exists. Gus announces that the learner is «un habitué», and it is not a joke.
+              settles:
+              title_fr: La même chose ?
+            - [4]
+              id: pain_avec_lila
+              sets:
+              text: The learner's first awkward morning with Lila at Mme Diallo's bakery. Lila orders for them, «une tradition pas trop cuite». Then she makes them order the second one themselves, and she pays for theirs without a word.
+              turn: Order your own bread at the counter.
+              change: The baker knows the learner's face, and Lila has started looking after them.
+              settles:
+              title_fr: Une tradition pas trop cuite
+            - [5]
+              id: soupe_de_marin
+              sets:
+              text: The learner's radiator dies. Marin arrives with soup and a hot-water bottle and does not leave until they've eaten.
+              turn: Tell Marin how you are, really, in the cold studio.
+              change: Someone knows where the learner lives.
+              settles:
+              title_fr: La soupe de Marin
+          small_moments:
+            - [0]
+              id: la_meme_chose
+              sets:
+              text: Margaux's first «La même chose ?»
+              owner: margaux_barman
+            - [1]
+              id: pain_avec_lila
+              sets:
+              text: Bread with Lila and Mme Diallo: Lila orders for the learner, «une tradition pas trop cuite», then makes them order the second one themselves, and pays for theirs without a word.
+              owner: lila_bonnet
+            - [2]
+              id: soupe_de_marin
+              sets:
+              text: Soup in the learner's cold studio: the radiator dies, Marin arrives with soup and a hot-water bottle and does not leave until they've eaten.
+              owner: marin_leveque
+            - [3]
+              id: tu_de_gus
+              sets:
+              text: Gus's first accidental tu, followed by a panicked return to vous.
+              owner: augustin_de_roncourt
+            - [4]
+              id: romy_eteint
+              sets:
+              text: Romy switching off her recorder when the learner looks uncomfortable.
+              owner: romy_tremblay
+            - [5]
+              id: succession_ferrand
+              sets:
+              text: «La succession Ferrand» on the stairs.
+              owner: landlord_marchand
+          required_premise:
+            id: plusieurs_semaines
+            sets:
+            text: Maître Vasseur's office, in the morning. The learner came to sign and fly home on Wednesday. Vasseur says it in two plain sentences: nothing can be sold before the succession papers, and that takes weeks. Outside, Lila waits in the rain with two coffees: «Alors ?»
+            turn: Tell Lila what the notary said, and what you will do about your flight.
+            change: The learner knows they cannot sign and leave this week, and Wednesday's flight now makes no sense.
+            settles:
+            title_fr: Plusieurs semaines
+        season:
+          id: s1
+          of: 65
+          day: 4
+          title_fr: La clé d'Odile
+          question_fr: Ta grand-mère te donne son appartement. Il est sur un café. Dans ce café, il y a l'histoire d'un feu. Alors, qu'est-ce que tu fais ? Tu prends l'appartement pour toi ? Pour toi et les autres ? Ou tu dis au revoir à tout ça ?
+        registers:
+          child: tu
+          clerk: vous
+          odile: tu
+          dealer: vous
+          builder: vous
+          clerk_2: vous
+          mme_diallo: vous
+          lila_bonnet: tu
+          bastien_roux: vous
+          marin_leveque: tu
+          romy_tremblay: tu
+          maitre_vasseur: vous
+          margaux_barman: tu
+          camille_marchand: vous
+          landlord_marchand: vous
+          augustin_de_roncourt: vous
+        page_rules:
+          limits: 4 to 6 panels; at most 3 dialogue lines per panel; season_checklist.threads at most 4; keep every field under its schema limit.
+          voices:
+            rule: Every dialogue character_id is one of speakers. The learner (Toi) never has a dialogue line, and nobody outside speakers speaks on a generated page (Odile and the walk-ons speak only in tentpoles).
+            speakers:
+              - lila_bonnet
+              - marin_leveque
+              - augustin_de_roncourt
+              - margaux_barman
+              - romy_tremblay
+              - landlord_marchand
+              - camille_marchand
+              - mme_diallo
+              - maitre_vasseur
+              - bastien_roux
+          address:
+            rule: Each character speaks to the learner with their register here. premise_fr and every narration_fr address the learner exactly as character_id does (tu or vous) — or, simplest, not at all (describe, do not address).
+            registers:
+              mme_diallo: vous
+              lila_bonnet: tu
+              bastien_roux: vous
+              marin_leveque: tu
+              romy_tremblay: tu
+              maitre_vasseur: vous
+              margaux_barman: tu
+              camille_marchand: vous
+              landlord_marchand: vous
+              augustin_de_roncourt: vous
+          chapter:
+            beat: setup
+            rule: The last chapter is closed (a tentpole or a resolution ended it). Today OPENS a new chapter: beat is setup; chapter.title_fr is new; chapter.dramatic_question is a new, small question this gap can answer in a few days (from today's premise or one of gap.threads) — never the season's question, never one of retired_questions, never a rewording.
+            open_new: True
+            retired_questions:
+          checked: Each rule below is checked on the finished page; a page that breaks one is refused and the learner loses the day. Follow them literally.
+          objective: objective_native asks for ONE act: at most 12 words and at most 1 comma, semicolon or «and/et/und».
+        next_tentpole:
+          id: t2
+          state_in:
+            - From gap 1: the notary has explained that nothing can be sold before the succession papers, which takes weeks.
+            - From gap 1: you have moved your ticket to 2 December (user.return_ticket).
+            - From gap 1: your usual order is known (user.usual_order).
+            - From gap 1: nobody has been inside the flat since T1.
+            - Flags read: s1.letter_trusted_to (if Lila, she has already asked to see the flat «avant eux»), s1.price_public, s1.camille_gender.
+          title_fr: Là-haut
+        writing_rules:
+          - Toi is gender-neutral: lines addressed to Toi avoid agreement («Tu le savais ?», «Tu es en colère ?», «la première personne»). The learner's own lines may agree freely, and every form is accepted.
+          - Camille's own lines never agree an adjective with Camille. Other characters use «il» or «elle» from s1.camille_gender.
+          - Silence is a tool: every day has at least one panel without dialogue.
+          - Nobody explains their feelings. People act (they dry a dry glass, lift the flap of the zinc, turn a phone face down) and say one sentence.
+          - Humour in every day: Gus and Marin first, then Romy's words, Lila's grades and Marchand's procedure.
+          - Grammar is corrected in the margin, never in the plot. The clumsy, sincere reply must always be able to lead to the best version of a scene.
+          - Every episode changes something. Episodes without meaningful change are refused.
+          - The weight is accepted: Odile's memory and the fire's debt are real, never played for pity and never solved by a speech.
+          - Toi's face is the learner's own, made at registration (owner decision 2026-10-02, WP-118); never describe it in words. The slightly-too-heavy coat.
+      position:
+        key: g1.2
+        flex: 0
+        kind: gap
+        segment: g1
+        finished: False
+        season_id: s1
+        season_day: 4
+        day_in_segment: 2
+      title_fr: La clé d'Odile
+    level_register: no coarse or vulgar vocabulary
+    lexicon_history:
+    control_language: de
+    lexical_coverage:
+      band: A1
+      floor: 0.95
+      budget: 1
+      verdict: rejected
+      version: lexical-coverage-v1
+      coverage: 0.8718
+      enforced: False
+      resolver: curated
+      assessable: True
+      known_words: 68
+      target_count: 0
+      running_words: 78
+      unknown_words: 10
+      unknown_lemmas: 8
+      verdict_reason: lexical_coverage_low
+      estimate_source: declared
+      target_unknowns:
+      accidental_count: 8
+      proper_noun_words: 16
+      accidental_unknowns:
+        - [0]
+          band: A2
+          rank: 850
+          count: 1
+          lemma: changer
+          surface: changer
+          is_target: False
+        - [1]
+          band: A2
+          rank: 856
+          count: 1
+          lemma: signer
+          surface: signer
+          is_target: False
+        - [2]
+          band: A2
+          rank: 859
+          count: 1
+          lemma: expliquer
+          surface: explique
+          is_target: False
+        - [3]
+          band: A2
+          rank: 886
+          count: 2
+          lemma: papier
+          surface: papiers
+          is_target: False
+        - [4]
+          band: A2
+          rank: 1075
+          count: 1
+          lemma: vol
+          surface: vol
+          is_target: False
+        - [5]
+          band: A2
+          rank: 1164
+          count: 2
+          lemma: tenir
+          surface: Tiens
+          is_target: False
+    line_translation: de
+    recent_situations:
+    escalated_problems:
+    resolved_chapter_questions:
+  grammar:
+    plan:
+      avoid: 8
+      weave:
+      allowed: 0
+      introduce: 1
+    uses: 0
+    focus:
+      woven: False
+      unit_id: 1
+      title_fr: Je suis, tu es : les pronoms et être
+      title_native: Ich bin, du bist: Subjektpronomen und être
+    marks:
+    invited: False
+  version: living-story-v2
+  generation_usage:
+    - [0]
+      model: claude-opus-5-5
+      stage: PagePlan
+      tokens: 15410
+      seconds: 21.743
+      cost_usd: 0.095256
+      provider: anthropic
+    - [1]
+      model: claude-opus-5-5
+      stage: PagePlan
+      tokens: 15380
+      seconds: 20.733
+      cost_usd: 0.09432
+      provider: anthropic
+    - [2]
+      model: claude-opus-5-5
+      stage: PageText
+      tokens: 8766
+      seconds: 25.215
+      cost_usd: 0.078952
+      provider: anthropic
+    - [3]
+      model: claude-opus-5-5
+      stage: PageAids
+      tokens: 4650
+      seconds: 13.981
+      cost_usd: 0.044536
+      provider: anthropic
+    - [4]
+      model: gpt-6.1-sol
+      stage: StoryReview
+      tokens: 5924
+      seconds: 13.204
+      cost_usd: 0.015592
+      provider: openai
+    - [5]
+      model: claude-opus-5-5
+      stage: PagePlan
+      tokens: 15552
+      seconds: 22.716
+      cost_usd: 0.0968
+      provider: anthropic
+    - [6]
+      model: claude-opus-5-5
+      stage: PageText
+      tokens: 8338
+      seconds: 21.264
+      cost_usd: 0.06988
+      provider: anthropic
+    - [7]
+      model: claude-opus-5-5
+      stage: PageAids
+      tokens: 4559
+      seconds: 13.128
+      cost_usd: 0.043484
+      provider: anthropic
+    - [8]
+      model: claude-haiku-5-5
+      stage: PagePlan
+      tokens: 16636
+      seconds: 15.373
+      cost_usd: 0.002916
+      provider: anthropic
+    - [9]
+      model: claude-haiku-5-5
+      stage: PageText
+      tokens: 9765
+      seconds: 17.137
+      cost_usd: 0.002453
+      provider: anthropic
+    - [10]
+      model: claude-haiku-5-5
+      stage: PageAids
+      tokens: 4520
+      seconds: 7.959
+      cost_usd: 0.001196
+      provider: anthropic
+  lexical_coverage:
+    band: A1
+    floor: 0.95
+    budget: 1
+    verdict: rejected
+    version: lexical-coverage-v1
+    coverage: 0.8718
+    enforced: False
+    resolver: curated
+    assessable: True
+    known_words: 68
+    target_count: 0
+    running_words: 78
+    unknown_words: 10
+    unknown_lemmas: 8
+    verdict_reason: lexical_coverage_low
+    estimate_source: declared
+    target_unknowns:
+    accidental_count: 8
+    proper_noun_words: 16
+    accidental_unknowns:
+      - [0]
+        band: A2
+        rank: 850
+        count: 1
+        lemma: changer
+        surface: changer
+        is_target: False
+      - [1]
+        band: A2
+        rank: 856
+        count: 1
+        lemma: signer
+        surface: signer
+        is_target: False
+      - [2]
+        band: A2
+        rank: 859
+        count: 1
+        lemma: expliquer
+        surface: explique
+        is_target: False
+      - [3]
+        band: A2
+        rank: 886
+        count: 2
+        lemma: papier
+        surface: papiers
+        is_target: False
+      - [4]
+        band: A2
+        rank: 1075
+        count: 1
+        lemma: vol
+        surface: vol
+        is_target: False
+      - [5]
+        band: A2
+        rank: 1164
+        count: 2
+        lemma: tenir
+        surface: Tiens
+        is_target: False
+character_name: Lila Bonnet
+content_version: living-story-v2
+opening_line_fr: Alors, ton vol de mercredi, tu fais quoi ?
+control_language: de
+objective_native: Lila fragt, was du wegen des Mittwochsflugs machst.
+resolution_lines:
+serial_thread_id: da570cc8-f25d-4a86-a86e-f72191a305d9
+estimated_seconds: 270
+is_authored_fallback: False
+resolution_summaries:

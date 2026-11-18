@@ -1,0 +1,18 @@
+#!/bin/bash
+# usage: p PORT command [json]   e.g.  p 7781 snap ; p 7781 click '{"text":"Weiter"}' ; P_FULL=1 p 7781 snap
+port=$1; cmd=$2; body=$3
+if [ -n "$body" ]; then out=$(curl -s -m 150 localhost:$port/$cmd -d "$body"); else out=$(curl -s -m 150 localhost:$port/$cmd); fi
+echo "$out" | P_FULL=${P_FULL:-0} python3 -c '
+import sys,json,os
+raw=sys.stdin.read()
+try: d=json.loads(raw)
+except Exception: print(raw[:1500]); sys.exit()
+if "text" in d and "controls" in d:
+    lim=6000 if os.environ.get("P_FULL")=="1" else 2600
+    print("SHOT", os.path.basename(d.get("shot","")), "URL", d.get("url"), "BUSY" if d.get("busy") else "")
+    print(d["text"][:lim])
+    print("-- controls:"); print("\n".join(d["controls"][:45]))
+    if d.get("fields"): print("-- fields:", json.dumps(d["fields"],ensure_ascii=False)[:500])
+    if d.get("errors"): print("-- ERRORS:", d["errors"])
+else: print(json.dumps(d,ensure_ascii=False)[:1500])
+'

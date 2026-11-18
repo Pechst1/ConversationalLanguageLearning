@@ -134,7 +134,8 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
   // Two walks started in the same millisecond (two shards side by side) took one name,
   // and the loser's teardown dropped the winner's database: a random tail, and a stack
   // drops only a database it created.
-  const dbName = `atelier_walk_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
+  const reuse = process.env.WALK_REUSE_DB || '';
+  const dbName = reuse || `atelier_walk_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
   let created = false;
   const { admin, app: dbUrl } = pgUrls(dbName);
   const apiPort = await freePort();
@@ -155,7 +156,7 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
     }
     await sleep(800);
     try {
-      if (created) pgAdmin(admin, `DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
+      if (created && !process.env.WALK_KEEP_DB) pgAdmin(admin, `DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
     } catch (e) {
       console.error(`[walk] could not drop ${dbName}: ${e.message}`);
     }
@@ -165,12 +166,12 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
 
   try {
     if (!dbName.startsWith('atelier_walk_')) throw new Error('refusing an unexpected database name');
-    pgAdmin(admin, `CREATE DATABASE ${dbName}`);
-    created = true;
+    if (!reuse) { pgAdmin(admin, `CREATE DATABASE ${dbName}`);
+    created = true; }
     const t0 = Date.now();
     // `heads`: parallel work packages branch the migration graph until a merge revision
     // lands; the throwaway database takes every branch (WALK_ALEMBIC_TARGET overrides).
-    const mig = spawnSync(python(), ['-m', 'alembic', 'upgrade', process.env.WALK_ALEMBIC_TARGET || 'heads'], {
+    const mig = reuse ? { status: 0 } : spawnSync(python(), ['-m', 'alembic', 'upgrade', process.env.WALK_ALEMBIC_TARGET || 'heads'], {
       cwd: REPO_ROOT,
       env: { ...process.env, DATABASE_URL: dbUrl },
       encoding: 'utf8',
@@ -181,7 +182,7 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
     // own dozen words: almost every tapped word had no lookup and no «Garder», and the
     // day-7 drill had no kept word to bring back on its line (a flake that depended on
     // whether the day's lines happened to use one of those words).
-    const lex = spawnSync(python(), ['scripts/sync_core_lexicon.py'], {
+    const lex = reuse ? { status: 0 } : spawnSync(python(), ['scripts/sync_core_lexicon.py'], {
       cwd: REPO_ROOT,
       env: { ...process.env, DATABASE_URL: dbUrl },
       encoding: 'utf8',
@@ -193,7 +194,7 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
     const apiLog = log('api');
     // WP-120 phase D: `revue` starts the same API with La Revue on (e2e/lib/carte_server.py).
     // «Au comptoir» (`comptoir`, implies `revue`): the same server with its switch on.
-    const server = revue || comptoir ? 'web-frontend/e2e/lib/carte_server.py' : 'scripts/dev_walk_server.py';
+    const server = process.env.WALK_API_SERVER || (revue || comptoir ? 'web-frontend/e2e/lib/carte_server.py' : 'scripts/dev_walk_server.py');
     const api = spawn(python(), [server, '--port', String(apiPort)], {
       cwd: REPO_ROOT,
       env: walkApiEnv({ dbUrl, tokenMinutes, comptoir, web }),
