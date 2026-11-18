@@ -4666,6 +4666,17 @@ class DailyJourneyService:
             recovered = self._serve_season_recovery(user, journey, input_mode, failure, decision)
             if recovered is None:
                 return None
+        from app.services.season.recovery import AUTHORED_DAY_LOST
+
+        if decision is not None and decision.reason == AUTHORED_DAY_LOST:
+            # P11: a tentpole or epilogue page is never served as a re-read. Its own
+            # page could not be built either: the honest «unavailable, retry» day.
+            logger.error(
+                "daily_journey: authored season day %s lost (%s); never a re-read",
+                decision.position.key if decision.position else "?",
+                failure.reason,
+            )
+            return failure
         brief = run_best_effort(
             self.db,
             "daily_journey: season reprise",

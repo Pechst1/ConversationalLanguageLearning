@@ -222,17 +222,40 @@ def context_block(today: Today | None) -> dict[str, Any] | None:
 
 
 def page_for(today: Today) -> dict[str, Any] | None:
+    """Today's authored page for this learner. P11: a page authored only for another
+    band is served in the nearest band's variant rather than lost to the director."""
+
     if not today.pos.is_tentpole or today.pos.segment is None:
         return None
-    return resolve_day(
-        today.season,
-        today.pos.segment.id,
-        str(today.pos.tentpole_day),
-        flags=today.flags,
-        band=today.band,
-        language=today.language,
-        neutral=today.neutral,
-    )
+    for band in (today.band, *_nearest_other_bands(today.band)):
+        page = resolve_day(
+            today.season,
+            today.pos.segment.id,
+            str(today.pos.tentpole_day),
+            flags=today.flags,
+            band=band,
+            language=today.language,
+            neutral=today.neutral,
+        )
+        if page is not None:
+            if band != today.band:
+                logger.warning(
+                    "season: %s has no variant for %s; served in %s", today.pos.key, today.band, band
+                )
+            return page
+    return None
+
+
+#: The bands a day's variant may be conditioned on, lowest first (``flags._band_key``
+#: folds them into «a1a2» and «b1»).
+_BAND_LADDER = ("A1", "A2", "B1", "B2", "C1")
+
+
+def _nearest_other_bands(band: str | None) -> list[str]:
+    here = str(band or "")[:2].upper()
+    index = _BAND_LADDER.index(here) if here in _BAND_LADDER else 1
+    others = [b for b in _BAND_LADDER if b != here]
+    return sorted(others, key=lambda b: (abs(_BAND_LADDER.index(b) - index), _BAND_LADDER.index(b)))
 
 
 def projected_turns(page: dict[str, Any]) -> list[dict[str, Any]]:
