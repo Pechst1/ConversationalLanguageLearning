@@ -39,6 +39,27 @@ export function retryOffered(correction: Correction): boolean {
   return state === 'withheld' || state === 'none';
 }
 
+/**
+ * R2 (walk of 17 Nov 2026): a free card refused twice ends in its solution. Once the
+ * solution is on screen, the server sends `model_answer` (one acceptable answer of the
+ * card, app/services/free_card_contract.py). The card then shows it and ends as seen:
+ * a task note has no line to copy, so without it «Skip» was the only way out.
+ */
+export function modelAnswer(correction: Correction): string {
+  if (solutionWithheld(correction)) return '';
+  const answer = correction?.model_answer;
+  return typeof answer === 'string' ? answer.trim() : '';
+}
+
+/** With the model answer on screen, a miss whose only notes are about the task can end. */
+export function endsOnModelAnswer(
+  correction: Correction,
+  issues: ReadonlyArray<{ task_error_type?: unknown; corrected_target?: unknown }>,
+): boolean {
+  if (!modelAnswer(correction)) return false;
+  return issues.every((issue) => issue.task_error_type === 'task_compliance' || issue.task_error_type === 'length_compliance' || !String(issue.corrected_target || '').trim());
+}
+
 export type MarkedSegment = { text: string; marked: boolean };
 
 /**

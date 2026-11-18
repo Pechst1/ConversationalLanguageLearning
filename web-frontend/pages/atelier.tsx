@@ -203,7 +203,7 @@ import { eclairHref, eclairPairLabel } from '@/lib/grammar-map';
 import { playComboTone } from '@/lib/sound';
 import { atelierErrorText, type AtelierErrorNotice } from '@/lib/atelier-errors';
 import { epreuveCopy, fill, wordRangeState, wordRangeText, type EpreuveCopy } from '@/components/epreuve/epreuve-copy';
-import { markedLine, retryOffered, solutionState, solutionWithheld, withheldHints, withheldRepairParts } from '@/lib/solution-gate';
+import { endsOnModelAnswer, markedLine, modelAnswer, retryOffered, solutionState, solutionWithheld, withheldHints, withheldRepairParts } from '@/lib/solution-gate';
 import { promptParts } from '@/lib/prompt-parts';
 import { usableCard } from '@/lib/rule-card';
 import { RuleCard } from '@/components/atelier-v2/rule/RuleCard';
@@ -4418,7 +4418,10 @@ export function ExerciseFeedbackMoment({
   // Owner 2026-11-13: with the solution on screen the chance is over: no retry (it would
   // be a copy of the answer above). What is left is main's «Copy the correction» step,
   // which «Continue» waits for (and which queues the retest, #779).
-  const canGoOn = repairsComplete;
+  // R2 (walk of 17 Nov): a free card refused twice shows one acceptable answer and ends
+  // as seen; a task note has no line to copy, so «Skip» was the only way out.
+  const shownModelAnswer = production ? modelAnswer(correction) : '';
+  const canGoOn = repairsComplete || (Boolean(shownModelAnswer) && endsOnModelAnswer(correction, issues));
   const retry = retryOffered(correction) ? onTryAgain : undefined;
   // The in-place repair was the chance: once the solution is on screen it is shown only
   // as it was sent and accepted; a forfeited or refused one becomes a copy of the line.
@@ -4564,6 +4567,11 @@ export function ExerciseFeedbackMoment({
           <EpTaskLine label={t.task}>{taskNote}</EpTaskLine>
           {taskMore.length > 0 && <EpMore label={t.more}>{taskMore.map((note) => <p key={note}>{note}</p>)}</EpMore>}
         </>
+      )}
+      {shownModelAnswer && (
+        <EpGalley anchor={t.model_answer}>
+          <p className="ep-model-answer" lang="fr">{display(shownModelAnswer)}</p>
+        </EpGalley>
       )}
       {followUpBlock}
       {vocabularyGaps.length > 0 && (
