@@ -95,7 +95,7 @@ def _forge_session(db: Session, user_id: uuid.UUID, *, status: str = "in_progres
 
 def _fresh_plan() -> day_plan.DayPlan:
     return day_plan.new_plan(
-        journey_id="j", local_date="2026-03-10", scene_seconds=420, grammar_items=12, words_new=17, words_reviews=3
+        journey_id="j", local_date="2026-03-10", scene_seconds=420, grammar_items=8, words_new=17, words_reviews=3
     )
 
 
@@ -104,9 +104,9 @@ def test_a_new_plan_is_the_three_working_steps_in_the_owners_order() -> None:
     assert [step.kind for step in plan.steps] == ["scene", "grammar", "words"]
     assert [step.id for step in plan.steps] == ["2026-03-10:scene", "2026-03-10:grammar", "2026-03-10:words"]
     assert _statuses(plan) == {"scene": "todo", "grammar": "todo", "words": "todo"}
-    assert plan.step("grammar").size == 12 and plan.step("grammar").minutes == 5
+    assert plan.step("grammar").size == 8 and plan.step("grammar").minutes == 4
     assert plan.step("words").size == 20
-    assert plan.minutes_left == 7 + 5 + plan.step("words").minutes
+    assert plan.minutes_left == 7 + 4 + plan.step("words").minutes
     assert day_plan.DayPlan.from_json(plan.to_json()) == plan
 
 

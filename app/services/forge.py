@@ -1323,6 +1323,14 @@ def seconds_per_item(db: Session, user: User) -> float:
     return float(measured or core.DEFAULT_SECONDS_PER_ITEM)
 
 
+def seance_max_items(user: User) -> int:
+    """P6: a learner on a stored pace gets at most :data:`core.PACE_MAX_SEANCE_ITEMS` items."""
+
+    from app.services.daily_session import stored_pace
+
+    return core.PACE_MAX_SEANCE_ITEMS if stored_pace(user) is not None else core.MAX_SEANCE_ITEMS
+
+
 def seance_budget_seconds(user: User) -> int:
     from app.services.journey_rhythm import rhythm_of
 
@@ -1390,7 +1398,9 @@ class ForgeService:
                 for u in units
             ]
         budget = plan.get("budget_seconds") if isinstance(plan.get("budget_seconds"), (int, float)) else None
-        length = core.seance_length(budget or seance_budget_seconds(user), seconds_per_item(self.db, user))
+        length = core.seance_length(
+            budget or seance_budget_seconds(user), seconds_per_item(self.db, user), max_items=seance_max_items(user)
+        )
         share = plan.get("review_share")
         state = ForgeState.seance(
             units,

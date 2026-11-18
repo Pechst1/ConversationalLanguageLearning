@@ -63,9 +63,9 @@ def test_a_fresh_day_is_four_steps_and_the_scene_comes_first() -> None:
     # #143: the step names every card the deck shows, the reviews too.
     assert (words["count"], words["new_left"], words["reviews"], words["minutes"]) == (32, 20, 12, 8)
     grammar = _step(view, "grammar")
-    # 300 s at 25 s an item: twelve items, five minutes.
-    assert (grammar["count"], grammar["minutes"]) == (12, 5)
-    assert view["minutes_left"] == 8 + 8 + 5
+    # P6: at most eight items (300 s at 25 s an item would be twelve), four minutes.
+    assert (grammar["count"], grammar["minutes"]) == (8, 4)
+    assert view["minutes_left"] == 8 + 8 + 4
 
 
 def test_after_the_scene_la_forge_is_next_then_the_words() -> None:
@@ -159,15 +159,15 @@ def test_each_pace_says_what_it_costs_today_and_in_eight_weeks() -> None:
     normal = pace_option(
         PACES["normal"], scene_seconds=480, reviews_due=10, words_left=504, units_left=33, hold_lag_days=27
     )
-    assert (normal["words"], normal["rules_per_week"], normal["exercises"]) == (20, 5, 12)
-    # 8 min scene + 400 s words + 60 s reviews + 300 s grammar.
-    assert normal["minutes_today"] == 21
+    assert (normal["words"], normal["rules_per_week"], normal["exercises"]) == (20, 5, 8)
+    # 8 min scene + 400 s words + 60 s reviews + 200 s grammar (P6: eight items).
+    assert normal["minutes_today"] == 19
     assert normal["reviews_week_8"] == 57
     assert normal["minutes_week_8"] > normal["minutes_today"]
     schnell = pace_option(
         PACES["schnell"], scene_seconds=480, reviews_due=10, words_left=504, units_left=33, hold_lag_days=27
     )
-    assert schnell["exercises"] == 17
+    assert schnell["exercises"] == 8
     assert schnell["minutes_today"] > normal["minutes_today"]
 
 
