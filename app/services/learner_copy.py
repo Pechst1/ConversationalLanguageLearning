@@ -133,6 +133,28 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Du hast „{learner}“ gewählt; hier ist „{target}“ nötig.",
         "fr": "Tu as choisi « {learner} » ; il faut « {target} » ici.",
     },
+    # #828: a typed answer is written, not chosen; with a named slip after it, the
+    # line says only what was given (the slip names the right form).
+    "atelier.recognize.wrote_requires": {
+        "en": "You wrote “{learner}”; this item needs “{target}”.",
+        "de": "Du hast „{learner}“ geschrieben; hier ist „{target}“ nötig.",
+        "fr": "Tu as écrit « {learner} » ; il faut « {target} » ici.",
+    },
+    "atelier.recognize.chose": {
+        "en": "You chose “{learner}”.",
+        "de": "Du hast „{learner}“ gewählt.",
+        "fr": "Tu as choisi « {learner} ».",
+    },
+    "atelier.recognize.wrote": {
+        "en": "You wrote “{learner}”.",
+        "de": "Du hast „{learner}“ geschrieben.",
+        "fr": "Tu as écrit « {learner} ».",
+    },
+    "atelier.recognize.blank_needs_typed": {
+        "en": "You wrote “{learner}”, but this blank needs “{target}”.",
+        "de": "Du hast „{learner}“ geschrieben, aber in diese Lücke gehört „{target}“.",
+        "fr": "Tu as écrit « {learner} », mais ce blanc demande « {target} ».",
+    },
     "atelier.recognize.blank_needs": {
         "en": "You chose “{learner}”, but this blank needs “{target}”.",
         "de": "Du hast „{learner}“ gewählt, aber in diese Lücke gehört „{target}“.",
@@ -324,10 +346,11 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Das Futur `prendras` ist beim si-Typ 1 grammatisch möglich, aber diese Lücke ist eine direkte Aufforderung: „nimm deinen Mantel“. Erwartet wird der Imperativ `prends`.",
         "fr": "Le futur `prendras` est possible au si de type 1, mais ce blanc est une consigne directe : « prends ton manteau ». La forme attendue est l’impératif `prends`.",
     },
+    # #828: these lines serve a typed gap too, so they say what does not fit, not «You chose».
     "atelier.si.fill_imperative_generic": {
-        "en": "You chose `{learner}`, but the result clause is a command, so it needs the imperative `prends`.",
-        "de": "Du hast `{learner}` gewählt, aber der Folgesatz ist eine Aufforderung und braucht den Imperativ `prends`.",
-        "fr": "Tu as choisi `{learner}`, mais la principale est un ordre : il faut l’impératif `prends`.",
+        "en": "`{learner}` does not fit: the result clause is a command, so it needs the imperative `prends`.",
+        "de": "`{learner}` passt hier nicht: Der Folgesatz ist eine Aufforderung und braucht den Imperativ `prends`.",
+        "fr": "`{learner}` ne va pas ici : la principale est un ordre, il faut l’impératif `prends`.",
     },
     "atelier.si.repair_imperative_result": {
         "en": "When the result tells someone what to do, use the imperative after the si-clause.",
@@ -465,14 +488,14 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "fr": "Arrière-plan ou événement",
     },
     "atelier.tense.fill_needs_imparfait": {
-        "en": "You chose `{learner}`, but this verb describes the ongoing background of the sentence, so it needs imparfait: `{target}`.",
-        "de": "Du hast `{learner}` gewählt, aber dieses Verb beschreibt den laufenden Hintergrund des Satzes und braucht das Imparfait: `{target}`.",
-        "fr": "Tu as choisi `{learner}`, mais ce verbe décrit l’arrière-plan en cours : il demande l’imparfait `{target}`.",
+        "en": "`{learner}` does not fit: this verb describes the ongoing background of the sentence, so it needs imparfait: `{target}`.",
+        "de": "`{learner}` passt hier nicht: Dieses Verb beschreibt den laufenden Hintergrund des Satzes und braucht das Imparfait: `{target}`.",
+        "fr": "`{learner}` ne va pas ici : ce verbe décrit l’arrière-plan en cours, il demande l’imparfait `{target}`.",
     },
     "atelier.tense.fill_needs_passe_compose": {
-        "en": "You chose `{learner}`, but this verb is the bounded completed event, so it needs passé composé: `{target}`.",
-        "de": "Du hast `{learner}` gewählt, aber dieses Verb ist das abgeschlossene, begrenzte Ereignis und braucht das Passé composé: `{target}`.",
-        "fr": "Tu as choisi `{learner}`, mais ce verbe est l’événement borné et achevé : il demande le passé composé `{target}`.",
+        "en": "`{learner}` does not fit: this verb is the bounded completed event, so it needs passé composé: `{target}`.",
+        "de": "`{learner}` passt hier nicht: Dieses Verb ist das abgeschlossene, begrenzte Ereignis und braucht das Passé composé: `{target}`.",
+        "fr": "`{learner}` ne va pas ici : ce verbe est l’événement borné et achevé, il demande le passé composé `{target}`.",
     },
     "atelier.tense.repair_ask_ongoing": {
         "en": "Ask whether the verb is ongoing background or a completed event, then choose imparfait or passé composé.",
@@ -640,6 +663,29 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Der Artikel zeigt, wie viele: «{target} {noun}».",
         "fr": "L’article dit combien : « {target} {noun} ».",
     },
+    # #852: «quel» agrees with its noun (it is no article).
+    "forge.slip.quel.repair": {
+        "en": "«quel» agrees with its noun: «{target} {noun}».",
+        "de": "«quel» richtet sich nach seinem Nomen: «{target} {noun}».",
+        "fr": "« quel » s’accorde avec son nom : « {target} {noun} ».",
+    },
+    # #852: a question word for another: say what each one asks about.
+    "forge.slip.question_word.why": {
+        "en": "«{learner}» asks “{learner_asks}”; this question asks “{target_asks}”: «{target}».",
+        "de": "«{learner}» fragt „{learner_asks}“; diese Frage fragt „{target_asks}“: «{target}».",
+        "fr": "« {learner} » demande {learner_asks} ; cette question demande {target_asks} : « {target} ».",
+    },
+    "forge.slip.question_word.repair": {
+        "en": "Read what the question asks, then take its word: “{target_asks}” is «{target}».",
+        "de": "Lies, wonach gefragt wird, und nimm sein Fragewort: „{target_asks}“ ist «{target}».",
+        "fr": "Regarde ce que la question demande, puis prends son mot : {target_asks}, c’est « {target} ».",
+    },
+    "forge.slip.question_word.asks.place": {"en": "where", "de": "wo", "fr": "le lieu"},
+    "forge.slip.question_word.asks.time": {"en": "when", "de": "wann", "fr": "le moment"},
+    "forge.slip.question_word.asks.manner": {"en": "how", "de": "wie", "fr": "la manière"},
+    "forge.slip.question_word.asks.amount": {"en": "how much, how many", "de": "wie viel", "fr": "la quantité"},
+    "forge.slip.question_word.asks.reason": {"en": "why", "de": "warum", "fr": "la raison"},
+    "forge.slip.question_word.asks.person": {"en": "who", "de": "wer", "fr": "la personne"},
     "forge.slip.person_subject.why": {
         "en": "With «{subject}», «{lemma}» is «{target}», not «{learner}».",
         "de": "Mit «{subject}» heißt «{lemma}» «{target}», nicht «{learner}».",

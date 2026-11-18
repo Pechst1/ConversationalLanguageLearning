@@ -2197,7 +2197,36 @@ def _pool_mode(attempt: AtelierAttempt) -> str:
 
 
 def _exercise_key(attempt: AtelierAttempt) -> str:
-    return f"ex:{attempt.concept_id}:{attempt.round}:{attempt.mode}:{attempt.exercise_id}"
+    return exercise_key_for(attempt.concept_id, attempt.round, attempt.mode, attempt.exercise_id)
+
+
+def exercise_key_for(concept_id: Any, round_name: Any, mode: Any, exercise_id: Any) -> str:
+    return f"ex:{concept_id}:{round_name}:{mode}:{exercise_id}"
+
+
+def posed_drill(
+    session: AtelierSession, *, concept_id: Any, round_name: str, mode: str, exercise_id: str
+) -> str:
+    """How the forge posed the item an answer is for (``forge_drills.DRILL_*``), or ``""``.
+
+    #828 (child of #542): the miss note said «You chose» under a typed gap because the
+    grader picked its words by its own path (the recognize round's), not by how the
+    item was posed. The forge is the one that knows: the item it serves now
+    (``state.pending``), or, for «Try the line again» on an answered item, that
+    answer's history entry (#699). Read before the answer is observed.
+    """
+
+    state = forge_state_of(session)
+    if state is None or concept_id is None:
+        return ""
+    key = exercise_key_for(concept_id, round_name, mode, exercise_id)
+    answered = next((entry for entry in reversed(state.history) if entry.get("exercise_key") == key), None)
+    if answered is not None:
+        return str(answered.get("drill") or "")
+    pending = state.pending or {}
+    if str(pending.get("concept_id")) == str(concept_id) and str(pending.get("round")) == str(round_name):
+        return str(pending.get("drill") or "")
+    return ""
 
 
 def _attempt_item_id(attempt: AtelierAttempt) -> str:

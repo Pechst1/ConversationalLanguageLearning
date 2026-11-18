@@ -56,6 +56,7 @@ from app.services.exercise_generation import (
     ExerciseGenerationUnavailable,
 )
 from app.services.exercise_generation import _transform_noop_errors as _transform_noop_errors_shared
+from app.services.forge_drills import DRILL_TYPED
 from app.services.forge_grading import (
     FREE_PRODUCTION_ROUNDS,
     LOCAL_RIGHT,
@@ -4814,6 +4815,9 @@ class AtelierCorrectionService:
         self._llm_failure_reason: str | None = None
         # WP-16 additive: defaults for paths that skip `submit_attempt`.
         self._answer_truncated = False
+        #: #828: how La Forge posed the item being graded (``forge_drills.DRILL_*``);
+        #: a typed answer was written, not chosen. ``""`` outside a forge séance.
+        self._posed = ""
         self._cost_user_id: UUID | None = None
         self._cost_session_id: UUID | None = None
         self.generator = AtelierExerciseGenerator(db, llm_service=llm_service)
@@ -4840,6 +4844,7 @@ class AtelierCorrectionService:
         from app.services.chrome_language import user_chrome_language
         self.explanation_language = user_chrome_language(user)
         self._learner_native = user_mother_tongue(user)
+        self._read_posed(session, concept.id if concept else None, round_name, mode, exercise_id)
         # WP-103 T8: an A1 learner corrects a sorted sentence with tiles.
         self._learner_band = str(getattr(user, "cefr_estimate", "") or "A1").strip().upper()[:2]
         # WP-16 additive: per-attempt state for the answer bound and the cost row.
@@ -4966,6 +4971,13 @@ class AtelierCorrectionService:
             (entry for entry in items if isinstance(entry, dict) and entry.get("id") and entry.get("id") == erratum.get("item_id")),
             None,
         )
+        return AtelierCorrectionService._gap_line(item)
+
+    @staticmethod
+    def _gap_line(item: dict[str, Any] | None) -> str | None:
+        """The printed line of a gap item, its gap kept and its bracketed gloss dropped
+        («___ est-ce que Gus travaille ?»), or ``None`` when the item prints no gap."""
+
         prompt = " ".join(str((item or {}).get("prompt") or "").split())
         if not BLANK_RE.search(prompt):
             return None
@@ -5468,6 +5480,7 @@ class AtelierCorrectionService:
         from app.services.chrome_language import user_chrome_language
         self.explanation_language = user_chrome_language(user)
         self._learner_native = user_mother_tongue(user)
+        self._read_posed(session, attempt.concept_id, attempt.round, attempt.mode, attempt.exercise_id)
         started = time.perf_counter()
         try:
             ai_correction = self.correct(
@@ -6507,9 +6520,12 @@ class AtelierCorrectionService:
         accent_line = accent_miss_note(ops, self.explanation_language) if mode == "fill" else None
         if slip:
             # #449: the slip's own category explains the miss, not the day's rule card.
+            # #828: after what the learner gave, said once; the slip names the right form.
+            answered = self._answered(mode, learner_text)
             return self._recognize_erratum_payload(
                 concept, item, label=self._label_for(concept, item), learner_text=learner_text, target=target,
-                why=slip[0], repair=slip[1], task_type=self._task_type_for(concept, item),
+                why=" ".join(part for part in (answered, slip[0]) if part), repair=slip[1],
+                task_type=self._task_type_for(concept, item),
             )
         if concept and item.get("lesson_external_id") == concept.external_id:
             # WP-56: the immediate line is in the learner's language. The item's
@@ -6522,11 +6538,7 @@ class AtelierCorrectionService:
             # both again in the why doubled a long line's height, and at 375×812 the
             # card and «Copy the correction» no longer fitted above the verdict sheet
             # (walk of 5 Nov). A pick's why still names the two words.
-            why = (
-                ""
-                if mode == "word_bank"
-                else _copy("atelier.recognize.chose_requires", language, learner=learner_text, target=target)
-            )
+            why = self._answered(mode, learner_text, target)
             if accent_line:
                 why = f"{why} {accent_line}".strip()
             explanation = str(item.get("explanation") or self._why_for(concept, item) or "").strip()
@@ -6534,16 +6546,23 @@ class AtelierCorrectionService:
             # #596: a slip the classifier can name (an article's gender or number, a verb
             # form of another person) is explained as that slip, with the rule only cited.
             ops = token_diff(learner_text, target, positions=True)
-            named = None if outside_rule else slip_note(ops, language, target)
+            # #852: a gap's key is only the word that fills it; whether a question word
+            # asks («Où est-ce que …») or links a relative («le jour où») is read from
+            # the line it stands in.
+            gap_line = self._gap_line(item) if mode == "fill" else None
+            line = fill_blank(gap_line, target) if gap_line else None
+            named = None if outside_rule else slip_note(ops, language, target, line)
             if named:
                 title = _concept_title_for(concept, language)
                 # A verb form is the rule's own matter, so the rule is cited; an article's
                 # gender or number is the noun's, whatever the day's rule is.
-                category = (slip_category(ops, target) or {}).get("category", "")
+                category = (slip_category(ops, target, line) or {}).get("category", "")
                 cite = _copy("atelier.recognize.rule_reference", language, title=title) if category.startswith("person") else ""
+                # #828: the slip names the right form, so the line before it does not.
+                answered = self._answered(mode, learner_text)
                 return self._recognize_erratum_payload(
                     concept, item, label=title, learner_text=learner_text, target=target,
-                    why=" ".join(part for part in (why, named[0], cite) if part),
+                    why=" ".join(part for part in (answered, named[0], cite) if part),
                     repair=named[1],
                     task_type=self._task_type_for(concept, item),
                 )
@@ -6586,6 +6605,33 @@ class AtelierCorrectionService:
             task_type=self._task_type_for(concept, item),
         )
 
+    def _read_posed(self, session: AtelierSession, concept_id: Any, round_name: str, mode: str, exercise_id: str) -> None:
+        """#828: how the forge posed the item graded next (``""`` outside La Forge)."""
+
+        from app.services.forge import posed_drill
+
+        self._posed = posed_drill(
+            session, concept_id=concept_id, round_name=round_name, mode=mode, exercise_id=exercise_id
+        )
+
+    def _typed(self) -> bool:
+        """#828: the item was posed for the learner to type, not to pick from options."""
+
+        return self._posed == DRILL_TYPED
+
+    def _answered(self, mode: str, learner_text: str, target: str = "") -> str:
+        """What the learner gave, in the verb of how the item was posed (#828, #542):
+        «You wrote “est”» under a typed gap, «You chose “est”» under options; with
+        ``target`` the form the item needed too. A built line (``word_bank``) is printed
+        whole on the card, so nothing is said about it here."""
+
+        if mode == "word_bank":
+            return ""
+        verb = "wrote" if self._typed() else "chose"
+        if target:
+            return _copy(f"atelier.recognize.{verb}_requires", self.explanation_language, learner=learner_text, target=target)
+        return _copy(f"atelier.recognize.{verb}", self.explanation_language, learner=learner_text)
+
     def _fill_erratum(
         self,
         concept: GrammarConcept | None,
@@ -6596,7 +6642,12 @@ class AtelierCorrectionService:
         learner_norm = _normalize(learner_text)
         target_norm = _normalize(target)
         label = self._label_for(concept, item)
-        why = _copy("atelier.recognize.blank_needs", self.explanation_language, learner=learner_text, target=target)
+        why = _copy(
+            "atelier.recognize.blank_needs_typed" if self._typed() else "atelier.recognize.blank_needs",
+            self.explanation_language,
+            learner=learner_text,
+            target=target,
+        )
         repair = item.get("repair_hint") or self._repair_for(concept, learner_text, target)
         profile_key = infer_grammar_profile(concept).key if concept else ""
 
