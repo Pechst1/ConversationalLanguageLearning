@@ -29,7 +29,7 @@ otherwise calibrated to the 17 Nov 2026 walk (R2 (7), ``app.services.day_pace``)
 20 s a new card, 10 s a review card, 48 s a La Forge item, the plan's estimate
 for the scene. A simulation with the app's FSRS
 scheduler (retention 0.87) puts the reviews eight weeks in at about 2.85 a day
-per daily new word: 57 a day at Normal's 20.
+per daily new word: 43 a day at Normal's 15.
 """
 from __future__ import annotations
 
