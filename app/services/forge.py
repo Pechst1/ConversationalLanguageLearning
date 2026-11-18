@@ -888,6 +888,17 @@ class BankItemProvider:
         check = accept or drills.item_fits
         order = units[len(appended) % len(units):] + units[: len(appended) % len(units)]
         made: list[tuple[dict[str, Any], Any]] = []
+        round_name, mode = drills.DRILL_POOL[drill] if drill else RUNG_POOLS[Rung(rung)][0]
+        # An item's id names its sentence said to nobody (``item_bank.without_vocative``),
+        # while ``blocked`` holds the bank's own fingerprints, the name included: «Ils ont
+        # faim ce soir, Lila.» passes a set that holds «…, Marin.» and is seated under the
+        # same id. Two items of one id break the set's shape (``base_count`` in
+        # ``_payload_validation_errors``), the séance's next read builds a new set without
+        # them, and the item on screen is graded against sentences the learner never saw:
+        # «You left this item blank», and its «Copy the correction» is never accepted
+        # (the 30 s «Build» stalls of the browser walks, 17-18 Nov). An id the set holds
+        # is taken.
+        taken = {str(item.get("id")) for item in _payload_items(payload, round_name, mode) if item.get("id")}
         for unit in order:
             if len(made) >= count:
                 break
@@ -913,14 +924,16 @@ class BankItemProvider:
                 )
                 if built is None or (drill is not None and not check(drill, built)):
                     continue
+                if str(built.get("id")) in taken:
+                    continue
                 if not self._fits_story(concept_id, built):
                     continue
                 blocked = blocked | {candidate.fingerprint}
+                taken.add(str(built.get("id")))
                 made.append((built, candidate))
         if not made:
             return []
 
-        round_name, mode = drills.DRILL_POOL[drill] if drill else RUNG_POOLS[Rung(rung)][0]
         indexes = self._seat_many(concept, round_name=round_name, mode=mode, rows=made, rung=int(rung))
         return [
             ForgeItem(
