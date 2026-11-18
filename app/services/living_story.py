@@ -1081,7 +1081,10 @@ only as far as they say). brief.today.picked.plan_fr, when set, is the learner's
 plan for today, in their words: the beat opens on it, and picked.with, when set, is the
 person it names. brief.today.learner_decides, when set, is what the learner decides
 today and has not yet: it is still open when the page ends; the character asks, and no
-panel says it is decided or done. Offer one of brief.today.small_moments when it fits.
+panel says it is decided or done. brief.flags are facts of the season, never the
+learner's intentions: a ticket for Wednesday is «ton billet est pour mercredi», never «tu
+pars mercredi»; no panel says the learner will leave, stay, sell, sign or change a date
+unless they said so. Offer one of brief.today.small_moments when it fits.
 brief.writing_rules and brief.registers are the season's register: lines addressed to
 the learner never agree an adjective with them; Camille's lines never agree an adjective
 with Camille. A cast member whose register is tu never says vous to the learner.
@@ -3960,6 +3963,20 @@ def payback_panel(draft: SceneDraft, cues: list[str]) -> int | None:
     return best if best_score >= CALLBACK_OVERLAP else None
 
 
+def _own_record(event: dict) -> str:
+    """P8 (fifth commit): a day's record as «Précédemment» prints it, without a decision
+    the learner's own words in that scene (``source_quotes``) do not hold. Real play of
+    17 Nov: «Le chat ne décide pas ; tu pars mercredi.» (the learner had said «Je reste
+    peut-être jeudi.») was printed for two days. Rows stored before the ending's guard
+    (``story_lanes.keep_decisions_theirs``) are read the same way."""
+
+    from app.services.learner_intent import without_unsaid
+
+    summary = str(event.get("summary_fr") or "")
+    quotes = [str(quote) for quote in event.get("source_quotes") or [] if quote]
+    return without_unsaid(summary, quotes) if summary else ""
+
+
 def previously_lines(
     live: dict,
     *,
@@ -4007,10 +4024,10 @@ def previously_lines(
             last_days.append(event)
     played: list[str] = []
     for index, event in enumerate(last_days):
-        summary = str(event.get("did_fr") or event.get("summary_fr") or "")
+        summary = str(event.get("did_fr") or _own_record(event) or "")
         title = str(event.get("title_fr") or "").strip() if index == 0 else ""
         same = title and _folded(title) == _folded(summary)
-        line = line_of(f"{title} : {summary}" if title and not same else summary)
+        line = line_of(f"{title} : {summary}" if title and summary and not same else summary or title)
         if line:
             played.append(line)
     shown = {id(event) for event in last_days}
@@ -4020,7 +4037,7 @@ def previously_lines(
             e for e in live.get("events") or [] if isinstance(e, dict) and e.get("chapter_id") == chapter_id
         ][-2:]
         in_chapter = [
-            line for line in (happened(e.get("summary_fr")) for e in reversed(chapter_events) if id(e) not in shown) if line
+            line for line in (happened(_own_record(e)) for e in reversed(chapter_events) if id(e) not in shown) if line
         ]
     callback = []
     row = ledger_row(live, callback_ref) if callback_ref else None
@@ -5258,6 +5275,9 @@ def _beat_teaser(ahead: dict | None, *, date: str | None) -> dict | None:
         "ref": f"beat:{ahead.get('gap')}.{ahead.get('day')}:{getattr(beat, 'premise', '')}",
         "kind": "season",
         "source": "beat",
+        # P8 (fifth commit): the line in the learner's language, where the season has it
+        # (``{"de": …, "en": …}``); Home and the push below B1 read it.
+        **({"text_native": dict(ahead["text_native"])} if ahead.get("text_native") else {}),
     }
 
 
@@ -7506,7 +7526,7 @@ def _hook_lines(draft: Any) -> tuple[str, list[list[str]]]:
 HOOK_OBSERVATION_KEY = "hook_observation"
 
 
-def hook_observation(hook: dict | None, draft: Any) -> dict | None:
+def hook_observation(hook: dict | None, draft: Any, *, open_choices: Any = ()) -> dict | None:
     """How an accepted page treats yesterday's hook, as counts for a walk or the ops view.
     An observation only: it never refuses a page and never asks for a rewrite (P8, third
     commit: the refusals cost five night runs in ten and did not buy the behaviour).
@@ -7517,7 +7537,12 @@ def hook_observation(hook: dict | None, draft: Any) -> dict | None:
     - ``hook_repeats``: the question put to the learner is yesterday's hook asked again,
       not its next step (``story_teaser.same_question``).
     - ``decides_for_learner``: the hook asked the learner, and a panel says the answer
-      is given («Mercredi 2 décembre. C'est noté.»).
+      is given («Mercredi 2 décembre. C'est noté.»). P8 (fifth commit): also, whatever the
+      hook, a line states a decision of the learner's («La valise part mercredi.»), the
+      question asks why they made one («Pourquoi tu changes la date ?»), or a choice that
+      is theirs today (``open_choices``, the brief's ``today.learner_decides``) is said
+      done («C'est confirmé.») or given the story's value (``learner_intent.page_decides``).
+      A season fact said as a fact («Ton billet de retour est pour mercredi.») is not one.
 
     - ``hook_source``: where the hook came from (``story_teaser.hook_source``: plan,
       beat, contract, tentpole, pick, scene, generic), so a walk counts take-up by source.
@@ -7527,6 +7552,7 @@ def hook_observation(hook: dict | None, draft: Any) -> dict | None:
 
     if not hook:
         return None
+    from app.services.learner_intent import page_decides
     from app.services.story_teaser import same_question
 
     said = str(hook.get("question_fr") or hook.get("text_fr") or "")
@@ -7548,7 +7574,8 @@ def hook_observation(hook: dict | None, draft: Any) -> dict | None:
         "hook_source": hook_source(hook),
         "hook_taken_up": taken,
         "hook_repeats": bool(question.strip()) and same_question(question, said),
-        "decides_for_learner": to_learner and any(_DECIDED.search(line) for panel in panels for line in panel),
+        "decides_for_learner": (to_learner and any(_DECIDED.search(line) for panel in panels for line in panel))
+        or page_decides([line for panel in panels for line in panel], question, open_choices=list(open_choices or ())),
     }
 
 
@@ -7565,12 +7592,21 @@ def hook_applies(context: dict) -> dict | None:
     return hook
 
 
+def _open_choices(context: dict) -> list[dict]:
+    """P8 (fifth commit): what the learner decides today and has not yet (the gap
+    brief's ``today.learner_decides``), for the page's observation."""
+
+    brief = ((context or {}).get("season_script") or {}).get("brief") or {}
+    rows = (brief.get("today") or {}).get("learner_decides") or []
+    return [row for row in rows if isinstance(row, dict)]
+
+
 def _observe_hook(context: dict, draft: Any) -> None:
     """P8: the accepted page's ``hook_observation``, stored with the scene's context and
     logged as one line. Never raises: an observation never costs the day."""
 
     try:
-        observed = hook_observation(hook_applies(context), draft)
+        observed = hook_observation(hook_applies(context), draft, open_choices=_open_choices(context))
     except Exception:  # noqa: BLE001 - an observation never costs the day
         logger.exception("living_story: hook observation unavailable")
         return

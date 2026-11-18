@@ -30,6 +30,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
+import unicodedata
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -420,19 +421,109 @@ def beats_for(
     return plan, plan
 
 
-def beat_line(gap: Gap, beat: DayBeat) -> str:
-    """P8 (fourth commit): the hook a day leaves when ``beat`` is tomorrow's, in French
-    the learner can read, from the season's own words: the beat's «Demain» label as
-    the learner would pick it («On va cuisiner avec Lila.», ``story_tomorrow.hook_for``),
-    else its premise's title («La soupe de Marin»), the episode's own name. Never the
-    English plan line (``beat.hook``) and never a season question."""
+def beat_line(gap: Gap, beat: DayBeat, *, met: Any = None) -> str:
+    """The hook's French line for ``beat`` (:func:`beat_hook`), or ``""``."""
+
+    return str((beat_hook(gap, beat, met=met) or {}).get("text_fr") or "")
+
+
+#: People a beat's premise may name who are never on a page (Odile is dead).
+_NOT_ON_A_PAGE = frozenset({"odile_ferrand", "odile"})
+
+
+def _people_in(text: str) -> list[str]:
+    """Cast ids named in a premise's text (English prose), in the order they come."""
+
+    from app.services import cast_registry
+
+    folded = unicodedata.normalize("NFKD", str(text or "").casefold()).encode("ascii", "ignore").decode()
+    found: list[tuple[int, str]] = []
+    for cast_id, tokens in cast_registry.name_tokens().items():
+        if cast_id in _NOT_ON_A_PAGE:
+            continue
+        hits = [m.start() for token in tokens for m in re.finditer(rf"\b{re.escape(token)}\b", folded)]
+        if hits:
+            found.append((min(hits), cast_id))
+    return [cast_id for _, cast_id in sorted(found)]
+
+
+def _described(cast_id: str) -> tuple[str, dict[str, str]]:
+    """A person the learner has not met, as a description («une journaliste
+    québécoise»), in French and in the learner's languages; ``("", {})`` when nobody
+    wrote a role for them."""
+
+    from app.services import cast_registry
+
+    feminine = cast_registry.pronoun_for(cast_id) == "elle"
+    out: dict[str, str] = {}
+    for lang in ("fr", "de", "en"):
+        role = cast_registry.role(cast_id, lang).split(",")[0].strip()
+        if not role:
+            return "", {}
+        first = role.split()[0].casefold()
+        if first in {"un", "une", "le", "la", "l'", "ton", "ta", "son", "sa", "a", "an", "the", "your", "ein", "eine", "dein", "deine", "der", "die"}:
+            out[lang] = role
+        elif lang == "fr":
+            out[lang] = f"{'une' if feminine else 'un'} {role}"
+        elif lang == "de":
+            out[lang] = f"{'eine' if feminine else 'ein'} {role}"
+        else:
+            out[lang] = f"{'an' if role[:1].lower() in 'aeiou' else 'a'} {role}"
+    return out.pop("fr"), out
+
+
+def _who(cast_id: str, met: Any) -> tuple[str, dict[str, str]]:
+    from app.services import cast_registry
+
+    if met is None or met(cast_id):
+        name = cast_registry.display_name(cast_id, cast_id)
+        return name, {"de": name, "en": name}
+    return _described(cast_id)
+
+
+def beat_hook(gap: Gap, beat: DayBeat, *, met: Any = None) -> dict[str, Any] | None:
+    """P8 (fourth commit, fifth commit): the hook a day leaves when ``beat`` is
+    tomorrow's: ``{text_fr, text_native?}``, from the season's own words. The beat's
+    «Demain» label as the learner would pick it («On va cuisiner avec Lila.»); else a
+    whole line built from its premise (``story_teaser.compose_beat_hook``): who is in it
+    and what is about to happen, never the bare title (second walk of 17 Nov: «Le
+    billet», «Romy enquête», «La même chose ?»), and never the name of somebody the
+    learner has not met (``met(cast_id)``; ``None``: everybody counts as met).
+    ``text_native`` only where the season's data has every part of the line in the
+    learner's language. Never the English plan line (``beat.hook``), never a season
+    question."""
+
+    from app.services.story_teaser import compose_beat_hook
 
     if beat.pick_fr.strip():
         from app.services.story_tomorrow import hook_for
 
-        return hook_for(beat.pick_fr)
+        line = hook_for(beat.pick_fr)
+        return {"text_fr": line} if line else None
     premise = next((row for row in gap.premises if row.id == beat.premise), None)
-    return " ".join(str(premise.title_fr if premise else "").split())
+    if premise is None:
+        return None
+    title = " ".join(premise.title_fr.split())
+    people = _people_in(premise.text)
+    # «Romy enquête»: a person and what they do.
+    first, _, rest = title.partition(" ")
+    subject = next(
+        (cast_id for cast_id in _people_in(first) if rest and rest[:1].islower()),
+        None,
+    )
+    if subject:
+        from app.services import cast_registry
+
+        who, _native = _who(subject, met)
+        pronoun = cast_registry.pronoun_for(subject) or ""
+        return compose_beat_hook(title, who_fr=who, subject_rest=rest, pronoun=pronoun)
+    # The first person of the premise the learner can be told about: by name once met,
+    # else by their role; nobody without either.
+    for lead in people:
+        who, native = _who(lead, met)
+        if who:
+            return compose_beat_hook(title, who_fr=who, who_native=native)
+    return None
 
 
 #: P8 (fourth commit): the ``state`` key of the learner's own plan for the gap's next
@@ -501,6 +592,39 @@ def learner_decides(premise: Any, state: dict | None, flags: dict[str, Any]) -> 
         for flag in premise.sets
         if flag not in decided
     ]
+
+
+#: P8 (fifth commit): how today's beat and premise read while the learner's choice is open.
+OPEN_CHOICE_TURN = (
+    "The learner decides this in their reply: ask what they want to do about {flags}, and "
+    "why. Whatever they answer, the page continues from it; it is never decided before."
+)
+OPEN_CHOICE_AFTER = (
+    "Open until the learner answers: {flags}. If their words decide it: {planned}"
+)
+
+
+def _left_to_the_learner(required: dict[str, Any] | None, beat: dict[str, Any] | None, deciding: list[dict]) -> None:
+    """P8 (fifth commit): the second real-model walk of 17 Nov. Gap 1's ticket day was
+    briefed as «The ticket moves to 2 December» (``change``), «Tell the agent why you are
+    changing the date» (``turn``) and «The ticket says 2 December» (``after``): both pages
+    presupposed the learner's choice («Pourquoi tu changes la date ?», «Mercredi 2
+    décembre. C'est confirmé.») before she made it. While ``learner_decides`` lists a
+    flag, those lines ask instead, and the authored text stays as what happens if the
+    learner's words decide it."""
+
+    flags = ", ".join(
+        f"{row['flag']} (now: {row.get('now') or 'not set'})" for row in deciding if row.get("flag")
+    )
+    if required is not None:
+        planned_turn = str(required.get("turn") or "")
+        required["turn"] = OPEN_CHOICE_TURN.format(flags=flags)
+        if planned_turn:
+            required["turn_if_they_decide"] = planned_turn
+        if required.get("change"):
+            required["change"] = OPEN_CHOICE_AFTER.format(flags=flags, planned=required["change"])
+    if beat is not None and beat.get("after"):
+        beat["after"] = OPEN_CHOICE_AFTER.format(flags=flags, planned=beat["after"])
 
 
 def _waiting(gap: Gap, beat: DayBeat) -> dict[str, str]:
@@ -749,6 +873,10 @@ def gap_brief(
         if beat
         else None
     )
+    # P8 (fifth commit): a beat that needs the learner's choice asks for it; until they
+    # answer, nothing in the brief says it is made.
+    if deciding:
+        _left_to_the_learner(required_out, beat_out, deciding)
     # «Demain»: the learner chose today's thread yesterday; the plan's own beat waits.
     picked: dict[str, Any] = (
         {"by_learner": beat.pick_fr, "waits": _waiting(gap, plan)}

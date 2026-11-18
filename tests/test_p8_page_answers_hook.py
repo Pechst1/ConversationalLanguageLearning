@@ -780,14 +780,20 @@ NOTARY_DAY = {
 def test_the_hook_before_a_planned_day_is_tomorrow_s_beat(monkeypatch, question):
     teaser, rows, _live = _settle_on_gap_day(monkeypatch, gap_days=1, question=question, **NOTARY_DAY)
     assert teaser is not None
-    assert teaser["text_fr"] == "La soupe de Marin", teaser
+    # P8 (fifth commit): a whole line from the beat's premise, never the bare title.
+    assert teaser["text_fr"] == "Demain, Marin est là : la soupe de Marin.", teaser
     assert teaser["source"] == "beat"
     assert teaser["text_fr"] not in SEASON_LINES
     assert rows[-1]["source"] == "beat"
 
 
 def test_no_generic_season_line_on_any_day_of_gap_one_whose_next_day_is_planned(monkeypatch):
-    for gap_days, beat in [(1, "La soupe de Marin"), (2, "Le billet"), (3, "Romy enquête"), (4, "La même chose ?")]:
+    for gap_days, beat in [
+        (1, "Demain, Marin est là : la soupe de Marin."),
+        (2, "Demain, Lila te parle du billet."),
+        (3, "Demain, une journaliste québécoise est là et elle enquête."),
+        (4, "Demain, Margaux te demande : « La même chose ? »"),
+    ]:
         teaser, _rows, _live = _settle_on_gap_day(monkeypatch, gap_days=gap_days, question=None, **NOTARY_DAY)
         assert teaser["text_fr"] == beat, (gap_days, teaser)
         assert teaser["text_fr"] not in SEASON_LINES
@@ -849,7 +855,10 @@ def test_the_learner_s_plan_is_the_hook_and_opens_tomorrow_s_beat(monkeypatch):
     assert today["required_premise"]["turn"].startswith(f"First, Gus asks the learner the next step of their own plan («{GUS_PLAN}»)")
     # The season's own beat is kept, after it.
     assert "The ticket still says Wednesday 18 November." in today["beat"]["before"]
-    assert "Tell the agent why you are changing the date." in today["required_premise"]["turn"]
+    # P8 (fifth commit): the ticket is the learner's to decide; the beat's own turn waits
+    # for their answer instead of presupposing it.
+    assert "The learner decides this in their reply" in today["required_premise"]["turn"]
+    assert today["required_premise"]["turn_if_they_decide"].startswith("Tell the agent why you are changing the date.")
     # A day without a plan keeps its beat as written, and drops yesterday's plan.
     teaser, _rows, live = _settle_on_gap_day(monkeypatch, gap_days=2, question=None, **NOTARY_DAY)
     assert PLAN_KEY not in live[SEASON_KEY]
