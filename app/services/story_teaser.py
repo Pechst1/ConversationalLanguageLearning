@@ -545,6 +545,19 @@ def ending_step(ending_fr: Any) -> str | None:
     return found[0] if found else None
 
 
+def learner_plan_line(said: Iterable[str]) -> str | None:
+    """The learner's own last sentence that names tomorrow («Demain, je veux parler à Gus
+    de la clé.»), verbatim, or None. P8 (fourth commit): tomorrow's brief opens on it."""
+
+    plans = [
+        sentence
+        for line in said or ()
+        for sentence in _SENTENCE_END.split(" ".join(str(line or "").split()))
+        if _TOMORROW.search(sentence)
+    ]
+    return plans[-1].strip() if plans else None
+
+
 def plan_step(said: Iterable[str], told: Iterable[str]) -> str | None:
     """P8 (third commit): the learner's own plan for tomorrow, as the scene said it back.
 
@@ -554,15 +567,10 @@ def plan_step(said: Iterable[str], told: Iterable[str]) -> str | None:
     pourrez parler de la clé avec Gus.»). The learner's words are never turned into a hook
     themselves: the hook is said to the learner, so it is the character's sentence."""
 
-    plans = [
-        sentence
-        for line in said or ()
-        for sentence in _SENTENCE_END.split(" ".join(str(line or "").split()))
-        if _TOMORROW.search(sentence)
-    ]
-    if not plans:
+    plan = learner_plan_line(said)
+    if not plan:
         return None
-    subject = subject_of(plans[-1])
+    subject = subject_of(plan)
     for text in told or ():
         for step in _tomorrow_clauses(text):
             if subject & subject_of(step):
@@ -608,7 +616,8 @@ def ending_hook(
     loose end drawn at random beside it (B1 walk, day 4: the ending promised Gus and the
     key, Home said «L'avenir du Mistral…», and day 5 followed Home)."""
 
-    for step in (plan_step(said, [ending_fr, *reversed(list(replies or ()))]), ending_step(ending_fr)):
+    steps = (("plan", plan_step(said, [ending_fr, *reversed(list(replies or ()))])), ("scene", ending_step(ending_fr)))
+    for source, step in steps:
         if not step:
             continue
         again = hook_again(step, live, said=said)
@@ -624,6 +633,8 @@ def ending_hook(
             "date": today,
             "ref": f"ending:{today}",
             "kind": "promise",
+            # P8 (fourth commit): the learner's own plan, or the ending's own step.
+            "source": source,
             **({"renewed": 1} if again == "again" else {}),
         }
     return None
@@ -656,14 +667,40 @@ def hook_line(teaser: dict | None) -> str:
     return kept
 
 
+#: P8 (fourth commit): where a filed hook came from, stored with it and logged with the
+#: next page's ``hook_observation``, so a walk can count which sources get taken up.
+#: ``plan``: the learner's own «demain …» said back; ``beat``: composed from tomorrow's
+#: planned beat; ``contract``: the day contract's authored hook; ``tentpole``: an
+#: authored tentpole's own line; ``pick``: the learner's «Demain» pick; ``scene``: what
+#: today's scene left (its ending's step, the writer's question, a promise or a plant);
+#: ``generic``: one of the season's long questions.
+HOOK_SOURCES = ("plan", "beat", "contract", "tentpole", "pick", "scene", "generic")
+
+
+def hook_source(teaser: dict | None) -> str:
+    """The source of a hook row (:data:`HOOK_SOURCES`); a row that does not say is read
+    from its ``ref`` and ``kind`` (rows filed before the fourth commit)."""
+
+    row = teaser or {}
+    if row.get("source") in HOOK_SOURCES:
+        return str(row["source"])
+    ref = str(row.get("ref") or "")
+    for prefix, source in (("contract:", "contract"), ("season:", "tentpole"), ("tomorrow:", "pick"), ("beat:", "beat")):
+        if ref.startswith(prefix):
+            return source
+    return "generic" if row.get("kind") == "thread" else "scene"
+
+
 def one_hook(teaser: dict | None) -> dict | None:
     """The hook as it is filed: ``text_fr`` and ``open_fr`` are both :func:`hook_line`, so
-    every reader of the stored row prints the same words."""
+    every reader of the stored row prints the same words; ``source`` says where it came
+    from (:func:`hook_source`)."""
 
     if not teaser:
         return teaser
     line = hook_line(teaser)
-    return {**teaser, "text_fr": line, "open_fr": line} if line else teaser
+    sourced = {**teaser, "source": hook_source(teaser)}
+    return {**sourced, "text_fr": line, "open_fr": line} if line else sourced
 
 
 def next_teaser(
@@ -764,7 +801,7 @@ def teasers_after(live: dict, teaser: dict | None) -> list[dict]:
     if teaser:
         rows.append(
             {
-                **{key: teaser.get(key) for key in ("ref", "kind", "text_fr", "open_fr", "date", "character_id")},
+                **{key: teaser.get(key) for key in ("ref", "kind", "text_fr", "open_fr", "date", "character_id", "source")},
                 **({"renewed": teaser["renewed"]} if teaser.get("renewed") else {}),
             }
         )

@@ -67,6 +67,7 @@ def test_the_hook_is_the_last_played_day_s_and_only_that():
         "question_fr": HOOK,
         "date": "2026-11-19",
         "character_id": "lila_bonnet",
+        "source": "scene",
     }
     # First day: nothing played. A hook older than the last played day: that day ended without one.
     assert engine.yesterday_hook({"next_teaser": TEASER, "events": []}) is None
@@ -204,7 +205,7 @@ def test_a_page_that_never_touches_the_hook_is_accepted_and_observed_as_no(monke
     assert "yesterday_hook" not in sent[0]["system"] and "takes_up_hook" not in sent[0]["system"]
     assert "takes_up_hook" not in StoryReview.model_fields
     observed = engine.hook_observation(_season_context()["yesterday_hook"], page)
-    assert observed == {"hook_taken_up": "no", "hook_repeats": False, "decides_for_learner": False}
+    assert observed == {"hook_source": "scene", "hook_taken_up": "no", "hook_repeats": False, "decides_for_learner": False}
 
 
 @pytest.mark.parametrize(
@@ -556,7 +557,7 @@ def test_a_page_that_decides_for_the_learner_is_served_and_counted(monkeypatch):
         opening="Tu gardes ton vol de mercredi ?",
     )
     observed = engine.hook_observation(FLIGHT, asked)
-    assert observed == {"hook_taken_up": "early", "hook_repeats": True, "decides_for_learner": False}
+    assert observed == {"hook_source": "scene", "hook_taken_up": "early", "hook_repeats": True, "decides_for_learner": False}
 
 
 # -- 5. «Précédemment»: the last played day first, never the stake ------------------
@@ -686,3 +687,224 @@ def test_every_surface_reads_the_one_stored_hook_unmodified(monkeypatch):
     tentpole = {"text_fr": "Ton billet de retour est pour mercredi prochain. Le jour où Lila n'a pas classe, elle viendra. À suivre…"}
     assert hook_line(tentpole) == "Ton billet de retour est pour mercredi prochain."
     assert hook_line({"text_fr": "Deux clés pour la même porte. À suivre…"}) == "Deux clés pour la même porte."
+
+
+# ===================================================================================
+# Fourth commit: the hook is decided where the day is decided (real play of 17 Nov,
+# third commit: taken up early 1, late 1, not at all 5 of 7; one page decided for the
+# learner). The brief follows its planned beat; the hook now comes from that beat.
+# ===================================================================================
+
+GAP1 = ["plusieurs_semaines", "soupe_de_marin", "le_billet", "romy_enquete", "la_meme_chose"]
+SEASON_LINES = (
+    "Qui était Odile, et pourquoi est-elle partie ?",
+    "Lila et Berlin : peut-on vouloir quelqu'un ici, et vouloir son départ pour elle ?",
+    "L'avenir du Mistral : le garder, le changer, ou le laisser partir ?",
+)
+WORLD = {
+    "cast": [
+        {"id": "lila_bonnet", "name": "Lila Bonnet"},
+        {"id": "marin_leveque", "name": "Marin Lévêque"},
+        {"id": "augustin_de_roncourt", "name": "Augustin « Gus » de Roncourt"},
+        {"id": "odile", "name": "Odile"},
+    ],
+    "season_one_situation": {
+        "open_threads": ["Who was Odile?", "Lila and Berlin?", "The future of Le Mistral?"],
+        "open_threads_fr": list(SEASON_LINES),
+    },
+}
+
+
+def _season_after(gap_days: int) -> dict:
+    """The season's state once T1 and ``gap_days`` days of gap 1 are played (the settle
+    files the day's hook after the season's own settle)."""
+
+    played = [
+        {"segment": "t1", "kind": "tentpole", "day_in_segment": d, "season_day": d, "key": f"t1.{d}",
+         "flex": 0, "date": f"2026-11-{17 + d}", "event_id": f"t1-{d}"}
+        for d in (1, 2)
+    ]
+    played += [
+        {"segment": "g1", "kind": "gap", "day_in_segment": d, "season_day": 2 + d, "key": f"g1.{d}",
+         "flex": 0, "date": f"2026-11-{19 + d}", "event_id": f"g1-{d}"}
+        for d in range(1, gap_days + 1)
+    ]
+    return {
+        "id": "s1",
+        "played": played,
+        "premises": [{"gap": "g1", "premise": GAP1[d - 1], "day": d} for d in range(1, gap_days + 1)],
+    }
+
+
+def _settle_on_gap_day(monkeypatch, *, gap_days: int, ending: str, exchanges, question: str | None, kind="gap"):
+    from app.services import scene_record
+    from app.services.season.clock import SEASON_KEY
+
+    monkeypatch.setattr(scene_record, "enabled", lambda: True)
+    monkeypatch.setattr(engine, "_contract_hook", lambda *a, **k: None)
+    monkeypatch.setattr(engine, "_tomorrow_question", lambda *a, **k: question)
+    turn = SimpleNamespace(tomorrow_question_fr=question or "", resolution_fr=ending, reply_fr="", commitments=[])
+    step = SimpleNamespace(
+        kind="respond",
+        private_task={"turns": [{"learner": learner, "character": said} for learner, said in exchanges]},
+    )
+    season = {"id": "s1", "kind": kind, "seed": "p8", "position": {"segment": "g1", "key": f"g1.{gap_days}"}}
+    if kind == "tentpole":
+        season = {**season, "position": {"segment": "t1", "key": "t1.2"},
+                  "ending": {"text_fr": "Ton billet de retour est pour mercredi prochain."}}
+    brief = SimpleNamespace(
+        character_id="lila_bonnet",
+        story_context={"draft": {"opening_line_fr": "Alors ?", "panels": []}, "season": season},
+    )
+    played = date(2026, 11, 19 + gap_days)
+    journey = SimpleNamespace(local_date=played, steps=[step])
+    live = {SEASON_KEY: _season_after(gap_days)}
+    teaser, rows = engine._hook_after_day(
+        None, SimpleNamespace(id=1), live=live, world_after=WORLD, brief=brief, turn=turn,
+        journey=journey, act=None, relationships={"lila_bonnet": {"register": "tu"}}, seed="p8",
+    )
+    return teaser, rows, live
+
+
+#: B1 day 3 (g1.1, the notary): the stored hook was the writer's question about the key,
+#: and day 4 (Marin's soup) never touched it.
+NOTARY_DAY = {
+    "ending": "Tu restes quelques semaines, alors. On verra pour le reste.",
+    "exchanges": [("Je reste. Je ne peux pas vendre avant les papiers.", "D'accord. Tu restes.")],
+}
+
+
+@pytest.mark.parametrize(
+    "question", ["Pourquoi Odile t'a-t-elle laissé la clé ?", None], ids=["writer-question", "no-question"]
+)
+def test_the_hook_before_a_planned_day_is_tomorrow_s_beat(monkeypatch, question):
+    teaser, rows, _live = _settle_on_gap_day(monkeypatch, gap_days=1, question=question, **NOTARY_DAY)
+    assert teaser is not None
+    assert teaser["text_fr"] == "La soupe de Marin", teaser
+    assert teaser["source"] == "beat"
+    assert teaser["text_fr"] not in SEASON_LINES
+    assert rows[-1]["source"] == "beat"
+
+
+def test_no_generic_season_line_on_any_day_of_gap_one_whose_next_day_is_planned(monkeypatch):
+    for gap_days, beat in [(1, "La soupe de Marin"), (2, "Le billet"), (3, "Romy enquête"), (4, "La même chose ?")]:
+        teaser, _rows, _live = _settle_on_gap_day(monkeypatch, gap_days=gap_days, question=None, **NOTARY_DAY)
+        assert teaser["text_fr"] == beat, (gap_days, teaser)
+        assert teaser["text_fr"] not in SEASON_LINES
+
+
+def test_the_gap_s_last_day_falls_back_to_today_s_scene(monkeypatch):
+    """Before a tentpole nothing is planned: the old order holds, and the source says so."""
+
+    teaser, _rows, _live = _settle_on_gap_day(
+        monkeypatch, gap_days=5, question="Tu commandes la même chose demain ?", **NOTARY_DAY
+    )
+    assert teaser["source"] == "scene", teaser
+
+
+def test_a_tentpole_before_a_planned_day_keeps_its_own_line_not_the_writer_s_question(monkeypatch):
+    """B1 day 2 (T1's last day): «Que dira Lila en voyant la clé ?» was filed over the
+    tentpole's own line, and g1.1 (the notary, the flight) never touched it."""
+
+    teaser, _rows, _live = _settle_on_gap_day(
+        monkeypatch, gap_days=0, question="Que dira Lila en voyant la clé ?", kind="tentpole", **NOTARY_DAY
+    )
+    assert teaser["text_fr"] == "Ton billet de retour est pour mercredi prochain.", teaser
+    assert teaser["source"] == "tentpole"
+
+
+#: B1 day 3 of the integration walk: the learner's plan, said back by the ending.
+GUS_PLAN = "Demain, je veux parler à Gus de la clé."
+
+
+def test_the_learner_s_plan_is_the_hook_and_opens_tomorrow_s_beat(monkeypatch):
+    from app.services.season.clock import SEASON_KEY
+    from app.services.season.director import PLAN_KEY, gap_brief
+    from app.services.season.epilogue import position_for
+    from app.services.season.flags import effective_flags
+    from app.services.season.format import load_season
+
+    teaser, _rows, live = _settle_on_gap_day(
+        monkeypatch,
+        gap_days=2,
+        question=None,
+        ending="D'accord. Demain, tu parleras de la clé avec Gus.",
+        exchanges=[(f"Je reste deux semaines. {GUS_PLAN}", "Avec Gus ? Bonne idée.")],
+    )
+    assert teaser["text_fr"] == "Demain, tu parleras de la clé avec Gus.", teaser
+    assert teaser["source"] == "plan"
+    state = live[SEASON_KEY]
+    stored = state[PLAN_KEY]
+    assert stored["said_fr"] == GUS_PLAN and stored["with"] == "augustin_de_roncourt"
+    assert (stored["gap"], stored["day"]) == ("g1", 3)
+
+    season = load_season("s1")
+    pos = position_for(season, state, today=date(2026, 11, 22))
+    brief = gap_brief(season, pos, flags=effective_flags(season, state, seed="p8"), state=state, seed="p8", band="B1")
+    today = brief["today"]
+    assert today["picked"]["plan_fr"] == GUS_PLAN
+    assert today["picked"]["with"] == "augustin_de_roncourt"
+    # The opening situation is the plan, with Gus on the page; the question is its next step.
+    assert today["beat"]["before"].startswith(f"Yesterday the learner said what they want to do today: «{GUS_PLAN}» Gus is there")
+    assert today["required_premise"]["turn"].startswith(f"First, Gus asks the learner the next step of their own plan («{GUS_PLAN}»)")
+    # The season's own beat is kept, after it.
+    assert "The ticket still says Wednesday 18 November." in today["beat"]["before"]
+    assert "Tell the agent why you are changing the date." in today["required_premise"]["turn"]
+    # A day without a plan keeps its beat as written, and drops yesterday's plan.
+    teaser, _rows, live = _settle_on_gap_day(monkeypatch, gap_days=2, question=None, **NOTARY_DAY)
+    assert PLAN_KEY not in live[SEASON_KEY]
+
+
+def test_the_planner_may_cast_the_person_the_plan_names_again():
+    context = _context(picked={"plan_fr": GUS_PLAN, "with": "marin_leveque"})
+    plan = _plan(lead_id="marin_leveque", cast=["marin_leveque"], location_id="le_mistral",
+                 task="Marin asks what you want to tell Gus.")
+    assert story_split.plan_issue(plan, context) is None
+    unnamed = _context()
+    assert "carried the last days" in (story_split.plan_issue(plan, unnamed) or "")
+
+
+def test_an_undecided_learner_choice_is_presented_as_open():
+    """A1/B1 day 5 (g1.3, the ticket): the brief carried «settles: mercredi 2 décembre»
+    beside «The ticket moves to 2 December»; the page narrated the new date and asked
+    why the learner changed it before they chose to."""
+
+    from app.services.season.director import gap_brief
+    from app.services.season.epilogue import position_for
+    from app.services.season.flags import effective_flags
+    from app.services.season.format import load_season
+
+    season = load_season("s1")
+    state = _season_after(2)
+    pos = position_for(season, state, today=date(2026, 11, 22))
+    today = gap_brief(season, pos, flags=effective_flags(season, state, seed="p8"), state=state, seed="p8", band="A1")["today"]
+    assert today["required_premise"]["id"] == "le_billet"
+    assert today["learner_decides"] == [
+        {"flag": "user.return_ticket", "now": None, "if_the_learner_decides_nothing": "mercredi 2 décembre"}
+    ]
+    assert "user.return_ticket" not in today["required_premise"]["settles"], "a default is not a fact"
+    # Once the learner said it in their own words, it is theirs and no longer open.
+    decided = {**state, "learner_set": {"user.return_ticket": "g1"}}
+    today = gap_brief(season, pos, flags=effective_flags(season, decided, seed="p8"), state=decided, seed="p8", band="A1")["today"]
+    assert "learner_decides" not in today
+    # The planner and the one-call director are told what the field means.
+    assert "brief.today.learner_decides" in story_split.PLANNER
+    assert "brief.today.learner_decides" in engine.DIRECTOR
+
+
+def test_the_hook_s_source_is_stored_and_logged_with_the_observation(monkeypatch, caplog):
+    teaser, _rows, _live = _settle_on_gap_day(monkeypatch, gap_days=1, question=None, **NOTARY_DAY)
+    live = {"next_teaser": teaser, "events": [{"scene_id": "s", "date": teaser["date"], "summary_fr": "x"}]}
+    hook = engine.yesterday_hook(live)
+    assert hook["source"] == "beat"
+    page = {"opening_line_fr": "Ça va, vraiment ?", "panels": [
+        {"narration_fr": "Le radiateur est mort.", "dialogue": [{"text_fr": "Marin : J'ai de la soupe."}]},
+    ]}
+    observed = engine.hook_observation(hook, page)
+    assert observed["hook_source"] == "beat" and observed["hook_taken_up"] == "early", observed
+    # Rows filed before this commit say where they came from by their ref and kind.
+    from app.services.story_teaser import hook_source
+
+    assert hook_source({"ref": "thread:odile", "kind": "thread"}) == "generic"
+    assert hook_source({"ref": "contract:g3.cartes", "kind": "season"}) == "contract"
+    assert hook_source({"ref": "scene:2026-11-20", "kind": "question"}) == "scene"
