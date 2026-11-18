@@ -4266,6 +4266,21 @@ class MissionCorrectionService:
         )
         return persisted
 
+    def _taught_rules(self, user: User) -> dict[str, Any] | None:
+        """The day's rule and the week's, as the scene's tutor reads them (P3); never raises."""
+
+        from app.services import day_rules
+
+        if self.db is None:  # the gold gate's offline fingerprint builds the prompt without a session
+            return None
+        try:
+            return day_rules.for_model(
+                day_rules.for_turn(self.db, user, control_language=user_mother_tongue(user))
+            )
+        except Exception:  # pragma: no cover - a hint, never a letter
+            logger.exception("missions: the day's rules are unavailable")
+            return None
+
     def _llm_correction(self, *, user: User, mission: RealWorldMission, text: str, mode: str) -> dict[str, Any] | None:
         self._correction_failure = None
         if not self.llm:
@@ -4284,10 +4299,15 @@ class MissionCorrectionService:
             "learner_text": text,
             "learner_level": user.proficiency_level or "A2",
             "explanation_language": gloss_language,
+            # P3 walk 2 (B1, days 3–6): the plus-que-parfait the learner was taught that week
+            # passed four letters in a row. The rules the scene's tutor is told, here too.
+            **({"rules": rules} if (rules := self._taught_rules(user)) else {}),
         }
         system = (
             "You are a concise French correction engine for one chat reply in a real-world mission. "
             "Find AT MOST the 3 most important real mistakes (grammar, agreement, gender, wrong word, spelling, conjugation). "
+            "rules, when present, is what this learner is being taught (rules.today, rules.recent): a real mistake "
+            "against one of them is among the ones you list, first. "
             "For each mistake: set learner_text to the EXACT short wrong fragment the person wrote, copied character for character "
             f"from their message and AT MOST {MISSION_FRAGMENT_MAX_WORDS} words; set corrected_target to ONLY the corrected "
             f"fragment — at most {MISSION_FRAGMENT_MAX_WORDS} words, NEVER a whole sentence and NEVER a full-message rewrite. "

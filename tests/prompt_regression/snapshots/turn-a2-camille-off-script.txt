@@ -1,8 +1,8 @@
 # prompt snapshot · turn-a2-camille-off-script · lane turn · level A2
-# key: sha256:d32aacc8ca96da91b1d18dbf7c65b01feca8c04009c2f914744a310bb3a9c7b5
+# key: sha256:26fe7c008cf187437f86843077311d5619d2efcc4c62f2c2d7d38594f369c97c
 # accept a change: PROMPT_SNAPSHOT_UPDATE=1 python -m pytest tests/test_prompt_regression.py (or scripts/prompt_regression.py --update)
 
-======== call 1 · TutorVerdict #1 · 986240e9a7544f39 ========
+======== call 1 · TutorVerdict #1 · 952a65daaec14009 ========
 params: {"disable_retries": true, "max_provider_attempts": 1, "max_tokens": 1450, "prompt_cache_key": "atelier-TutorVerdict", "reasoning_effort": "minimal", "response_format": {"type": "json_object"}, "temperature": 0.2}
 output_schema: TutorVerdict sha256:a487c2629950c1a2
 -------- system --------
@@ -17,9 +17,12 @@ pronouns, revised choices. Separate grammatical polish from communication: an
 understandable sentence with a form error can be met.
 evidence_quotes: exact verbatim quotes from learner_text or history.learner showing what
 was communicated; met needs at least one.
-corrections lists real errors in learner_text (grammar, mood, agreement, vocabulary,
-register), at most max_corrections of them, the one to show first first; a correct
-sentence gets an empty list and stylistic preferences are not corrections. rules, when
+corrections lists every real error in learner_text (grammar, mood, agreement, vocabulary,
+register) up to max_corrections: a reply with two or three errors gets two or three
+corrections, the one to show first first; a correct sentence gets an empty list and
+stylistic preferences are not corrections. A tense or mood is an error only when the
+learner's sentence shows it (a time marker, «déjà» before a past, the clause that governs
+the mood); a future, a plan or a wish the learner states is never made a past. rules, when
 present, is what this learner is being taught: rules.today the day's own rule, rules.recent
 the rules of the last seven days. An error against rules.today comes first, then one
 against rules.recent, then the most structural (verb form, mood, auxiliary, agreement,

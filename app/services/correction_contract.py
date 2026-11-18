@@ -703,8 +703,37 @@ def note_quotes_hold(note: object, span: object, replacement: object, context: o
             continue
         if n == 1 and any((_lemmas(quoted[0]) | {quoted[0]}) & (_lemmas(w) | {w}) for w in words):
             continue  # «être» for «est»: the word's own family
+        if n > 1 and _names_the_governing_verb(quoted, places):
+            continue  # «avoir peur que» for «j'ai peur qu'il …» (walk 2, day 4)
         return False
     return True
+
+
+def _names_the_governing_verb(quoted: list[str], places: list[list[str]]) -> bool:
+    """A note names a construction by its dictionary form: «avoir peur que» for the
+    learner's «j'ai peur qu'il», «vouloir que» for «je veux que». It points, it does
+    not invent: one word is an infinitive whose own form the learner wrote, every
+    other word is there as written (``qu`` for ``que``), in the same order."""
+
+    def same(a: str, b: str) -> bool:
+        return a == b or {a, b} == {"que", "qu"}
+
+    infinitives = [i for i, w in enumerate(quoted) if _is_verb(w) and _verb_lemma(w) == w]
+    if len(infinitives) != 1:
+        return False
+    at = infinitives[0]
+    head, tail = quoted[:at], quoted[at + 1 :]
+    for place in places:
+        for i, word in enumerate(place):
+            if word == quoted[at] or quoted[at] not in _lemmas(word):
+                continue
+            if len(head) > i or len(tail) > len(place) - i - 1:
+                continue
+            if all(same(a, b) for a, b in zip(head, place[i - len(head) : i], strict=True)) and all(
+                same(a, b) for a, b in zip(tail, place[i + 1 : i + 1 + len(tail)], strict=True)
+            ):
+                return True
+    return False
 
 
 #: A note that says a noun stays singular, or takes no plural ending.

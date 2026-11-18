@@ -3529,16 +3529,22 @@
   gap: 6px;
   max-width: 100%;
 }
-.av2 .av2-thread__more > summary {
+.av2 .av2-thread__morebtn {
   min-height: var(--av2-tap);
   display: inline-flex;
   align-items: center;
   padding: 0 12px 0 0;
+  border: 0;
+  background: none;
   color: var(--av2-muted);
+  font: inherit;
   font-size: var(--av2-t-meta);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
   cursor: pointer;
 }
-.av2 .av2-thread__more > summary:focus-visible { outline: 2px solid var(--av2-focus); outline-offset: 2px; border-radius: 4px; }
+.av2 .av2-thread__morebtn:focus-visible { outline: 2px solid var(--av2-focus); outline-offset: 2px; border-radius: 4px; }
+.av2 .av2-thread__morelist { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; max-width: 100%; }
 .av2 .av2-thread__more s { text-decoration-color: var(--av2-red); }
 
 /* WP-103 T3. What a drill asks for, right under its instruction: the goal in
