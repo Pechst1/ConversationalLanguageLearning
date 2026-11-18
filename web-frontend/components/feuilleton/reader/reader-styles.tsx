@@ -892,6 +892,29 @@ export function FeuilletonReaderStyles() {
         padding: 14px max(16px, calc((100vw - 560px) / 2 + 16px)) max(12px, env(safe-area-inset-bottom, 0px));
         background: linear-gradient(to bottom, color-mix(in srgb, var(--fr-paper) 0%, transparent), var(--fr-paper) 16px);
       }
+      /* R2: a reader under the phone's fixed tab bar (the archive's replay at
+         /graphic-novel) keeps its foot navigation above the bar. Real play,
+         375×812: «Weiter» and the dots sat under the four tabs and the tap went
+         to the bar (a1-d2-replay-nav-overlap.png). The bar is drawn only below
+         761px (atelier-v2.css) and paints over the reader (z 70). Its height is
+         --phone-bottom-nav-space (64px + the safe area) plus what its tabs draw
+         past the 64px token (8px + a 57px tab + 8px ≈ 10px more), so the
+         navigation stands on that, with its own 12px under the buttons; the bar
+         pads the safe area itself. The journey session has no bar and keeps the
+         rules above (e2e/replay-nav-layout.mjs measures both). */
+      @media (max-width: 760px) {
+        /* sticky in the list reader, fixed in the story reader: both lifted */
+        .app-root:has(.phone-product-nav.fixed) .av2 .fr-nav {
+          bottom: calc(var(--phone-bottom-nav-space) + 10px);
+          padding-bottom: 12px;
+        }
+        .app-root:has(.phone-product-nav.fixed) .av2 .fr-reader[data-story] {
+          padding-bottom: calc(138px + var(--phone-bottom-nav-space));
+        }
+        .app-root:has(.phone-product-nav.fixed) .av2 .fr-over-nav:not(:empty) {
+          bottom: calc(138px + var(--phone-bottom-nav-space));
+        }
+      }
       .av2 .fr-nav-row .fr-btn { flex: 0 0 auto; }
       .av2 .fr-nav-row .fr-prev { width: 3rem; padding: 0; }
       .av2 .fr-nav-row .fr-next { flex: 1 1 auto; min-width: 0; }
