@@ -56,6 +56,15 @@ export function dayOf(page: { key: string }) {
 /* ------------------------------------------------------------------------------------------ */
 
 export type Level = 'a2' | 'b1';
+
+/**
+ * P12 · the help a question offers now. «Un exemple» is the full sentence: it is offered only once
+ * the learner has tried this answer (the room asked again), never before a try (owner rule: no
+ * solution before a retry). The hint and the words come whenever asked.
+ */
+export function helpOnOffer(steps: HelpStep[], tried: boolean): HelpStep[] {
+  return tried ? steps : steps.filter((step) => step !== 'example');
+}
 export type Native = 'en' | 'de';
 export type Phase = 'title' | 'scene' | 'answer' | 'end' | 'roam';
 
@@ -1225,9 +1234,9 @@ export class Stage implements Director {
         to: turn.to_name ?? who.name,
         task: ask.task,
         line: ask.line ?? null,
-        steps: ask.help,
+        steps: helpOnOffer(ask.help, again),
         help: [],
-        more: ask.help[0] ?? null,
+        more: helpOnOffer(ask.help, again)[0] ?? null,
         busy: false,
         again,
         failed: false,
