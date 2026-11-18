@@ -529,6 +529,17 @@ export function helloOf(who: CastId, state: Record<string, Value>): Hello {
  * What the quarter keeps when the engine heard one of `who`'s lines in free talk: the regard and
  * the carnet's line. The engine sends what was learned and the flags itself.
  */
+/**
+ * What a reply the engine routed changes (`REPLY_EFFECTS`). The route's facts, regard and objects
+ * follow the engine either way; the carnet's line («Tu as dit que…») only when the reply is what
+ * the learner said (`understood`: a card chosen, or a route expressed). Round 2, walk 17 Nov: the
+ * end card said «Tu as dit que tu viens pour vendre» of a reply that said nothing of the kind.
+ */
+export function replyEffects(turnId: string, replyId: string, understood: boolean | undefined): Effect[] {
+  const effects = REPLY_EFFECTS[`${turnId}.${replyId}`] ?? [];
+  return understood ? effects : effects.filter((e) => e.kind !== 'journal');
+}
+
 export function heardEffects(who: CastId, heard: string | null): Effect[] {
   const intent = heard ? PEOPLE[who]?.intents.find((i) => i.id === heard) : undefined;
   return (intent?.effects ?? []).filter((e) => e.kind === 'regard' || e.kind === 'journal');

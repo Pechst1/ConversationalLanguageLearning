@@ -10,7 +10,7 @@
 import React from 'react';
 
 import { projectPoint } from '@/components/carte/carte-projection';
-import { LABEL, placeLabels } from '@/lib/quartier/map-labels';
+import { LABEL, placeLabels, spreadPins } from '@/lib/quartier/map-labels';
 import type { PlacedLabel } from '@/lib/quartier/map-labels';
 import type { Words } from '@/lib/quartier/memory';
 import type { Native } from '@/lib/quartier/stage';
@@ -61,6 +61,15 @@ export function quarterBox(points: XY[]): [number, number, number, number] {
 /** «Tout Paris»: La Carte's whole drawing. */
 export const WHOLE_BOX: [number, number, number, number] = [0, 0, 1000, 544.4];
 
+/** Where each pin is drawn in `box`: its place, moved just enough that no pin touches another (`spreadPins`). */
+export function pinsIn<T extends { p: WorldPlace; xy: XY }>(pins: T[], box: [number, number, number, number], here: string): T[] {
+  const at = spreadPins(
+    pins.map(({ p, xy }) => ({ id: p.id, xy, here: p.id === here })),
+    box[2] / 100,
+  );
+  return pins.map((x) => ({ ...x, xy: at.get(x.p.id) ?? x.xy }));
+}
+
 /** The pins' names, placed so none runs over another or off the frame (`map-labels.ts`). */
 export function labelsFor(pins: Array<{ p: WorldPlace; xy: XY }>, box: [number, number, number, number], here: string) {
   const rank = (p: WorldPlace) => (p.id === here ? 0 : p.status === 'open' ? 1 : p.status === 'en_chantier' ? 2 : 3);
@@ -107,7 +116,7 @@ function PinLabel({ at, label, u }: { at: XY; label: PlacedLabel | undefined; u:
 }
 
 export function QuartierMap({ native, translate, here, been, onGo, onClose }: QuartierMapProps) {
-  const pins = React.useMemo(
+  const placed = React.useMemo(
     () =>
       mapPlaces()
         .map((p) => ({ p, xy: toXY(p.lat, p.lon) }))
@@ -116,8 +125,10 @@ export function QuartierMap({ native, translate, here, been, onGo, onClose }: Qu
   );
   const [whole, setWhole] = React.useState(false);
   const [picked, setPicked] = React.useState<string>(here);
-  const box = whole ? WHOLE_BOX : quarterBox(pins.map((x) => x.xy));
+  const box = whole ? WHOLE_BOX : quarterBox(placed.map((x) => x.xy));
   const u = box[2] / 100;
+  // the pins as drawn at this zoom: none touches another
+  const pins = React.useMemo(() => pinsIn(placed, box, here), [placed, box[0], box[1], box[2], box[3], here]); // eslint-disable-line react-hooks/exhaustive-deps
   const labels = React.useMemo(() => new Map(labelsFor(pins, box, here).map((l) => [l.id, l])), [pins, box[0], box[1], box[2], box[3], here]); // eslint-disable-line react-hooks/exhaustive-deps
   const sel = pins.find((x) => x.p.id === picked)?.p ?? null;
   const tr = (w: Words) => (translate ? <small>{w[native]}</small> : null);

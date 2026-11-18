@@ -710,3 +710,20 @@ test('P12 stage 4: a line said to someone outside the script comes back correcte
   const stage = fs.readFileSync(path.join(WEB_ROOT, 'lib/quartier/stage.ts'), 'utf8');
   assert.match(stage, /mend: a\?\.mend \?\? null/, 'the stage hands the talk sheet the correction');
 });
+
+test('round 2: the answer says whether the engine heard it as meant (task outcome «met»), never assumed', async () => {
+  // walk 17 Nov, day 1 in 3D: «Je suis Jonas. Je venir pour la apartement.» took route b and the end
+  // card said «Tu as dit que tu viens pour vendre.»; a fallback route says nothing the learner meant
+  const routed = (task_outcome) => ({ pending: false, task_outcome, journey: journey({ revision: 5, current: 'talk', turn: 1 }), correction: null, character_lines: [], next_turn: { step_id: 'talk' }, stage: { turn_id: 'a.turn1', reply_id: 'b', beats: [], next_turn_id: 'a.cafe', closing: false } });
+  const fallback = await storyOn(journey({ revision: 4, current: 'talk' }), { attempt: async () => routed('partially_met') }).story.answer('a.turn1', 'Je suis Jonas. Je venir pour la apartement.');
+  assert.equal(fallback.reply, 'b');
+  assert.equal(fallback.understood, false);
+  const met = await storyOn(journey({ revision: 4, current: 'talk' }), { attempt: async () => routed('met') }).story.answer('a.turn1', 'Je viens pour vendre.');
+  assert.equal(met.understood, true);
+  const { replyEffects } = require('./agency.ts');
+  const line = (effects) => effects.filter((e) => e.kind === 'journal').map((e) => e.words.fr);
+  assert.deepEqual(line(replyEffects('a.turn1', 'b', fallback.understood)), [], 'no «Tu as dit…» for a fallback route');
+  assert.ok(replyEffects('a.turn1', 'b', false).some((e) => e.kind === 'fact'), 'the route’s facts still follow the engine');
+  assert.deepEqual(line(replyEffects('a.turn1', 'b', met.understood)), ['Tu as dit que tu viens pour vendre.']);
+  assert.deepEqual(line(replyEffects('a.turn2', 'dont_know', undefined)), [], 'unknown: the line is left out');
+});

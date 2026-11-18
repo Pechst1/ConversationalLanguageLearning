@@ -669,6 +669,7 @@ def stand_in_draft(
     title = (premise.title_fr if premise else "") or beat.premise
     keeps = bool(chapter) and not (chapter.get("resolved") or chapter.get("exhausted"))
     lean = {"de": "Zum Beispiel:", "fr": "Par exemple :"}.get(lang, "For example:")
+    from app.services.season.runtime import hint_start as _hint_start
     return {
         "title_fr": title[:100],
         "premise_fr": " ".join(text for text, _native in captions[:2])[:600],
@@ -698,7 +699,8 @@ def stand_in_draft(
         ],
         "opening_line_fr": asks,
         "suggested_response_fr": reply,
-        "hint_native": f"{lean} «{reply}»",
+        # the start of the reply, never the whole of it: the hint is asked before any attempt
+        "hint_native": f"{lean} «{start}»" if (start := _hint_start(reply)) else task[:400],
         "translation_native": asks_native,
         "capability_key": None,
         "season_checklist": {

@@ -749,6 +749,45 @@ def _acts_played(db: Session, user: Any) -> dict[Any, int]:
     return played
 
 
+def choices_of(payload: Any) -> list[dict[str, Any]]:
+    """P12 round 2: the cards the learner chose on a season page played as a page, in
+    play order: ``[{turn_id, reply_id, label_fr}]``. Only a «Le choix» turn's route is a
+    choice (the card tapped, certain); a free reply's route may be the turn's fallback,
+    which says nothing the learner meant, so it is left out.
+
+    Observed 17 Nov: Le Quartier's «Ton carnet» listed only the day played in 3D; the
+    page reader's routes (``script_payload.season_routing``) were never read."""
+
+    payload = payload if isinstance(payload, dict) else {}
+    page = payload.get("season_page")
+    if not isinstance(page, dict) or not page.get("movements") or not payload.get("season_routing"):
+        return []
+    from app.services.season.runtime import projected_turns
+
+    try:
+        # the page's questions as the reply router asked them («Le choix» solves are turns there)
+        turns = {str(t.get("id")): t for t in projected_turns(page) if isinstance(t, dict) and t.get("choice")}
+    except Exception:  # noqa: BLE001 - a choice never costs the archive
+        logger.exception("story_archive: a season page's turns could not be read")
+        return []
+    out: list[dict[str, Any]] = []
+    for row in payload.get("season_routing") or []:
+        if not isinstance(row, dict):
+            continue
+        turn = turns.get(str(row.get("turn_id")))
+        reply_id = str(row.get("reply_id") or "")
+        if turn is None or not reply_id:
+            continue
+        reply = next((r for r in turn.get("replies") or [] if isinstance(r, dict) and str(r.get("id")) == reply_id), None)
+        if reply is None:
+            continue
+        label = reply.get("label")
+        if isinstance(label, dict):
+            label = label.get("a2") or label.get("fr")
+        out.append({"turn_id": str(row.get("turn_id")), "reply_id": reply_id, "label_fr": _text(label, 160) or None})
+    return out
+
+
 def _later_act_row(
     first: dict[str, Any],
     *,
@@ -894,6 +933,8 @@ def _day_payloads(
             "location_id": str(snapshot.get("location_id") or "") or None,
             "location_name": _text(snapshot.get("location_name"), 120) or None,
             "learner_lines": _learner_lines(kinds.get("respond")),
+            # P12 round 2: the cards chosen on a season page, for Le Quartier's carnet
+            "choices": choices_of(payload),
             "ending_fr": ending,
             # #237: the day's one tomorrow-hook, the very string the last panel,
             # Home and the finished card said — not a second one written for the volume.
