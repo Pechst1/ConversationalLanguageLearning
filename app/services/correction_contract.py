@@ -1109,6 +1109,14 @@ _RULE_TEXT: dict[str, dict[str, dict[str, str]]] = {
             "fr": "La préposition prend un accent grave (sans lui, « a » est le verbe avoir) : « {right} ».",
         },
     },
+    "FR_ET_EST": {
+        "label": {"en": "Verb", "de": "Verb", "fr": "Verbe"},
+        "note": {
+            "en": "« et » means «and»; the verb être is written « est »: « {right} ».",
+            "de": "« et » heißt «und»; das Verb être schreibt man « est »: « {right} ».",
+            "fr": "« et » relie deux mots ; le verbe être s’écrit « est » : « {right} ».",
+        },
+    },
     "FR_ETRE_AGE": {
         "label": {"en": "Verb", "de": "Verb", "fr": "Verbe"},
         "note": {
@@ -1260,6 +1268,11 @@ _RULE_HINT: dict[str, dict[str, str]] = {
         "en": "« a » without an accent is the verb avoir: here you need the preposition.",
         "de": "« a » ohne Akzent ist das Verb avoir: Hier brauchst du die Präposition.",
         "fr": "« a » sans accent, c’est le verbe avoir : ici, il faut la préposition.",
+    },
+    "FR_ET_EST": {
+        "en": "« et » means «and»: which word sounds the same and is the verb être?",
+        "de": "« et » heißt «und»: Welches Wort klingt gleich und ist das Verb être?",
+        "fr": "« et » relie deux mots : quel mot se prononce pareil et est le verbe être ?",
     },
     "FR_ETRE_AGE": {
         "en": "Age is not said with être in French: which verb is it?",
@@ -2702,6 +2715,76 @@ def _requote(note: str, old: str, new: str) -> str:
     return re.sub(rf"(?<!\w){re.escape(old)}(?!\w)", new, note)
 
 
+#: #824: «Elle et a Paris» -> «Elle est à Paris». «et» and «est» sound the same; after a
+#: subject clitic that opens its clause, «et» is the verb when what follows can only follow
+#: être: a place («à», «en», «chez», «dans», «ici», «là»), a degree word, or an adjective.
+#: «il» and «on» are never coordinated («il et …» is always the slip); «elle» is also the
+#: stressed pronoun («Paul, elle et Marie», «plus grand qu'elle et très fort»), so it is
+#: read only at the start of a sentence or after a conjunction.
+_ET_EST_SUBJECTS = frozenset({"il", "elle", "on"})
+_ET_EST_AFTER_CONJUNCTION = frozenset({"et", "mais", "ou", "donc", "puis", "alors", "quand", "si", "car"})
+_ET_EST_PLACE = frozenset({"au", "aux", "en", "chez", "dans", "ici", "là"})
+_ET_EST_DEGREE = frozenset({"très", "trop", "assez", "déjà", "vraiment"})
+#: «en» that opens an adverb, not a place: «elle et en plus Gus».
+_EN_ADVERB = frozenset({"plus", "effet", "fait", "tout", "outre", "revanche", "même"})
+#: what «à» points at when it is a place or a time: a name, or an article
+_A_PLACE_START = frozenset({"la", "le", "l", "les"})
+
+
+def _adjective_form(word: str) -> bool:
+    """Whether ``word`` is an adjective, read through its feminine and plural endings
+    («contente», «malades», «fatiguée»): the lexicon lists the masculine singular."""
+
+    if _pos(word) not in {None, "adjective"}:
+        return False
+    candidates = [word, _forms().get(word)]
+    for ending in ("es", "s", "e"):
+        if word.endswith(ending) and len(word) > len(ending) + 2:
+            candidates.append(word[: -len(ending)])
+    return any(candidate and _pos(candidate) == "adjective" for candidate in candidates)
+
+
+def _et_for_est_edit(source: str, tokens: list[Tok], i: int) -> Edit | None:
+    """«Il et en retard», «Elle et a Paris»: the «et» that is the verb être (#824)."""
+
+    tok = tokens[i]
+    if tok.low != "et" or i == 0 or i + 1 >= len(tokens):
+        return None
+    subject, nxt = tokens[i - 1], tokens[i + 1]
+    if subject.low not in _ET_EST_SUBJECTS or not _space(source, subject, tok) or not _space(source, tok, nxt):
+        return None
+    before = tokens[i - 2] if i >= 2 else None
+    opens = _starts_sentence(source, subject) or (
+        before is not None
+        and _joined(source, before, subject)
+        and (before.low in _ET_EST_AFTER_CONJUNCTION or (subject.low == "il" and before.low == "s"))
+    )
+    if not opens and subject.low != "elle" and before is not None:
+        opens = not _same_clause(source, before, subject)  # «Il pleut, il et en retard»
+    if not opens:
+        return None
+    after = tokens[i + 2] if i + 2 < len(tokens) else None
+    joined_after = after is not None and _space(source, nxt, after) and _same_clause(source, nxt, after)
+    end, replacement = tok.end, "est"
+    if nxt.low in {"a", "à"}:
+        if not joined_after or not (source[after.start : after.start + 1].isupper() or after.low in _A_PLACE_START):
+            return None
+        if nxt.low == "a":
+            end, replacement = nxt.end, "est à"
+    elif nxt.low == "en":
+        if after is not None and after.low in _EN_ADVERB:
+            return None
+    elif nxt.low in _ET_EST_PLACE or nxt.low in _ET_EST_DEGREE:
+        pass
+    elif _adjective_form(nxt.low) and not source[nxt.start : nxt.end][:1].isupper():
+        if joined_after and _pos(after.low) == "noun":
+            return None  # «elle et petite Lou»: a noun phrase, not a predicate
+    else:
+        return None
+    subject_text = source[subject.start : subject.end]
+    return _edit("FR_ET_EST", source, tok.start, end, replacement, right=f"{subject_text} {replacement}")
+
+
 def repair_text(text: object, *, people: Mapping[str, str] | None = None) -> str:
     """``text`` with every model-free correction applied: the check a model's whole
     corrected sentence goes through before the learner copies it (#318)."""
@@ -2737,6 +2820,13 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
             start, end, glued = dropped
             add(_edit("FR_APOSTROPHE", source, start, end, glued, right=glued))
             continue
+
+        # --- «et» for «est»: «Elle et a Paris» -> «Elle est à Paris» (#824) -----------
+        if tok.low == "et":
+            et_est = _et_for_est_edit(source, tokens, i)
+            if et_est is not None:
+                add(et_est)
+                continue
 
         # --- person of être / avoir / aller after a plain subject pronoun -------------
         if tok.low in _FORM_PERSONS and prev is not None and joined_prev:
@@ -3148,6 +3238,51 @@ def deterministic_errata(
     text: object, *, language: str | None = None, people: Mapping[str, str] | None = None
 ) -> list[dict[str, Any]]:
     return [to_erratum(edit, language=language) for edit in deterministic_edits(text, people=people)]
+
+
+#: #824 / #773: which floor fix is a card's own trap. The floor was a list of token rules
+#: that never knew which card it was checking, so the avoir card's «Falsch» («Tu es faim»)
+#: could pass a day unnamed, and La Forge's free check could call right what the card's
+#: recall drill keys wrong. Each A1 card the floor reads is listed with the rule(s) that
+#: fix its «Falsch» line, and, where the rule is wider than the card, the words the fix
+#: must hold. ``tests/test_floor_day_traps.py`` runs every A1 card's «Falsch» through it:
+#: a card that is read must be listed here, and a card listed here must be read.
+CARD_TRAP_RULES: dict[str, tuple[tuple[str, str | None], ...]] = {
+    "FR2_A11_AVOIR": (("FR_AVOIR_STATE", None), ("FR_ETRE_AGE", None)),
+    "FR2_A11_ETRE": (("FR_PERSON_AUX", r"\b(?:suis|es|est|sommes|êtes|sont)\b"), ("FR_ET_EST", None)),
+    "FR2_A11_ON_NOUS": (("FR_PERSON_AUX", None),),
+    "FR2_A11_CONTRACTIONS": (("FR_CONTRACTION", None),),
+    "FR2_A11_PARTITIVE": (("FR_CONTRACTION", None),),
+    "FR2_A12_PLACE_PREPOSITIONS": (("FR_CONTRACTION", None),),
+    "FR2_A11_NOUN_PLURALS": (("FR_PLURAL_FORM", None),),
+    "FR2_A11_POSSESSIVES": (("FR_MON_VOWEL", None),),
+    # «Est-ce que il» / «parce que il»: the elision of «que», not of every article
+    "FR2_A11_QUESTIONS": (("FR_ELISION", r"\bqu'"),),
+    "FR2_A12_CONNECTORS": (("FR_ELISION", r"\bqu'"),),
+    "FR2_A11_QUESTION_WORDS": (("FR_GENDER_DET", r"\bquel"),),
+    "FR2_A12_DEMONSTRATIVES": (("FR_CET", None),),
+    "FR2_A12_STRESSED_PRONOUNS": (("FR_STRESSED_PRONOUN", None),),
+}
+
+
+def card_trap_edits(text: object, card: object) -> list[Edit]:
+    """The floor's fixes in ``text`` that are the card ``card``'s own trap (#824).
+
+    ``card`` is the rule card's (and the concept's) external id. Empty for a card the
+    floor does not read, or a sentence that does not fall into its trap."""
+
+    traps = CARD_TRAP_RULES.get(str(card or ""))
+    if not traps:
+        return []
+    found = []
+    for edit in deterministic_edits(text):
+        for rule_id, words in traps:
+            if edit.rule_id != rule_id:
+                continue
+            if words is None or re.search(words, _norm(edit.replacement).casefold()):
+                found.append(edit)
+                break
+    return found
 
 
 #: #119: the unit that teaches «l'» and «d'» in front of a vowel («Le, la, l', les»).
@@ -3803,6 +3938,7 @@ __all__ = [
     "sentence_gaps",
     "verify_correction",
     "changes_subject",
+    "card_trap_edits",
     "deterministic_edits",
     "deterministic_errata",
     "edit_is_grounded",

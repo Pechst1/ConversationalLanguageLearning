@@ -1955,9 +1955,20 @@ def _swap_holds(
     return True
 
 
+#: #824: être for avoir, in every person. «Tu es faim ce soir ?» is the avoir card's own
+#: trap («Falsch: Je suis vingt ans.»), and the basic check read only «je suis».
+_AVOIR_FOR_ETRE = {
+    "je suis": "j'ai", "tu es": "tu as", "il est": "il a", "elle est": "elle a", "on est": "on a",
+    "nous sommes": "nous avons", "vous êtes": "vous avez", "ils sont": "ils ont", "elles sont": "elles ont",
+}
 _BE_FOR_HAVE = re.compile(
-    r"\bje suis (froid|faim|soif|peur|sommeil)\b(?: (\w+)(?: (\w+))?)?", re.IGNORECASE
+    r"\b(" + "|".join(_AVOIR_FOR_ETRE) + r") (froid|faim|soif|peur|sommeil)\b(?: (\w+)(?: (\w+))?)?",
+    re.IGNORECASE,
 )
+#: «Il est froid» is the soup, the room or the man: a thing or a person may be cold.
+#: Only the speaker and the one spoken to «are cold» in the slip («Je suis froid.»,
+#: «Tu es froid ?»), and only as :func:`_cold_is_temperature` reads what follows.
+_COLD_PERSONS = frozenset({"je suis", "tu es", "vous êtes"})
 #: «Je suis froid avec elle», «… et distant», «… de nature» are French: «froid» then
 #: describes the person. It is the slip only when nothing follows, a time or place
 #: does («Je suis froid ici»), or a new clause starts («Je suis froid et un peu triste»).
@@ -1966,9 +1977,9 @@ _COLD_THEN_CLAUSE = frozenset(
     {"je", "j", "il", "elle", "on", "nous", "vous", "un", "une", "ma", "mon", "mes", "le", "la", "les", "ça", "c"}
 )
 _SLIP_NOTE = {
-    "en": "In French you «have» cold, hunger or thirst: j'ai {word}, not je suis {word}.",
-    "de": "Auf Französisch «hat» man Kälte, Hunger oder Durst: j'ai {word}, nicht je suis {word}.",
-    "fr": "En français on « a » froid, faim ou soif : j'ai {word}, pas je suis {word}.",
+    "en": "In French you «have» cold, hunger or thirst: {right}, not {wrong}.",
+    "de": "Auf Französisch «hat» man Kälte, Hunger oder Durst: {right}, nicht {wrong}.",
+    "fr": "En français on « a » froid, faim ou soif : {right}, pas {wrong}.",
 }
 
 
@@ -1980,21 +1991,22 @@ def _cold_is_temperature(next_word: str | None, after: str | None) -> bool:
 
 
 def known_slip(learner_text: object, language: str | None = "en") -> tuple[str, str, str] | None:
-    """A slip the app can name without a model: «Je suis froid» -> «J'ai froid»
-    (French says «avoir froid», not «être froid»). Returns ``(span, fix, note)``, the
-    note in the learner's language. Unambiguous cases only: «je suis froid avec elle»
-    and «je suis chaud pour ça» are valid French and never match."""
+    """A slip the app can name without a model: «Je suis froid» -> «J'ai froid», «Tu es
+    faim» -> «Tu as faim» (French says «avoir faim», not «être faim»). Returns ``(span,
+    fix, note)``, the note in the learner's language. Unambiguous cases only: «je suis
+    froid avec elle», «il est froid» and «je suis chaud pour ça» are valid French and
+    never match."""
 
     text = " ".join(str(learner_text or "").replace("’", "'").split())
     for match in _BE_FOR_HAVE.finditer(text):
-        word = match.group(1).casefold()
-        if word == "froid" and not _cold_is_temperature(match.group(2), match.group(3)):
+        person = match.group(1).casefold()
+        word = match.group(2).casefold()
+        if word == "froid" and not (person in _COLD_PERSONS and _cold_is_temperature(match.group(3), match.group(4))):
             continue
-        span = " ".join(match.group(0).split(" ")[:3])
-        fix = f"j'ai {word}"
-        if span[:1].isupper():
-            fix = fix[:1].upper() + fix[1:]
+        span = " ".join(match.group(0).split(" ")[: len(person.split()) + 1])
+        right = f"{_AVOIR_FOR_ETRE[person]} {word}"
+        fix = right[:1].upper() + right[1:] if span[:1].isupper() else right
         table = _SLIP_NOTE.get(mother_tongue(language)) or _SLIP_NOTE["en"]
-        return span, fix, table.format(word=word)
+        return span, fix, table.format(right=right, wrong=f"{person} {word}")
     return None
 

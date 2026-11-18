@@ -199,6 +199,34 @@ def _with_rule_fixes(correction: dict[str, Any], text: str, *, language: str | N
     return correction
 
 
+def _with_card_trap(correction: dict[str, Any], text: str, concept: Any) -> dict[str, Any]:
+    """#824: an answer no model read that falls into the day's own card trap is a miss.
+
+    The rule card's «Falsch» line («Je suis vingt ans.» on the avoir card) is the key the
+    recall drill already grades by. When the floor names that trap in a free sentence
+    («Tu es faim ce soir ?» on the avoir day,
+    :func:`app.services.correction_contract.card_trap_edits`), the answer is read against
+    the card, not left «not checked»: it counts as a miss with the card's right form.
+    Anything else the rules name (#334) still counts for nothing until a reading."""
+
+    from app.services.correction_contract import card_trap_edits, repair_text
+
+    if not str(text or "").strip() or concept is None:
+        return correction
+    trap = card_trap_edits(text, getattr(concept, "external_id", None))
+    if not trap:
+        return correction
+    correction.update({
+        "verdict": "incorrect",
+        "score_0_4": 1.0,
+        "assessment_status": "checked",
+        "graded_by": "card_trap",
+        "corrected_answer": repair_text(text),
+        "card_trap": [{"span": edit.span, "replacement": edit.replacement, "rule_id": edit.rule_id} for edit in trap],
+    })
+    return correction
+
+
 def _test_out_local_grade(
     local_check: dict[str, Any], text: str, acceptable: dict[str, Any] | None = None
 ) -> dict[str, Any] | None:
@@ -6090,6 +6118,10 @@ class AtelierCorrectionService:
                 if local_check is not None:
                     correction["local_check"] = local_check
                 correction = _with_rule_fixes(correction, text, language=self.explanation_language)
+                card_concept = concept
+                if card_concept is None and session is not None:
+                    card_concept = next(iter(self._session_concepts(session)), None)
+                correction = _with_card_trap(correction, text, card_concept)
         # The client needs to know which language the explanation prose is in;
         # the French in the same payload never changes language.
         correction.setdefault("assessment_status", "checked")
