@@ -71,9 +71,19 @@ export function journalHomeChip(waiting: JournalWaiting | null, language: unknow
  * Applied last, so the Revue and the Radio (which also follow the letter) come
  * after it. An empty row stays empty: on the Revue day the Papier takes La Une
  * whole (`revueHomeChips`), and the journal waits in the Cahier that day.
+ *
+ * R2 (4): on a finished day Home draws ONE chip (`HomeScreen`'s `chipRoom`),
+ * and the letter took it: the walk's learners saw the retell vanish the moment
+ * the day was done, though it was still waiting. There the journal goes first.
  */
-export function withJournalChip<T extends { id: string }>(chips: T[], chip: T | null, papierDay = false): T[] {
+export function withJournalChip<T extends { id: string }>(
+  chips: T[],
+  chip: T | null,
+  papierDay = false,
+  dayDone = false,
+): T[] {
   if (!chip || papierDay) return chips;
+  if (dayDone) return [chip, ...chips];
   const letter = chips.findIndex((entry) => entry.id === 'courrier');
   const at = letter + 1; // 0 when there is no letter
   return [...chips.slice(0, at), chip, ...chips.slice(at)];

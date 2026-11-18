@@ -3067,13 +3067,20 @@ function TodayView({
     : [];
   const radioWeek = useRadioWeek();
   const correcteurWeek = useCorrecteurWeek();
+  const homeChip = homeDayChip(
+    streak,
+    Boolean((today as { streak?: { today_done?: boolean } } | null)?.streak?.today_done),
+    daySession,
+  );
   // P9: the journal's retell, when one is waiting — second after the letter, so it
-  // goes in last (the Revue and the Radio also follow the letter).
+  // goes in last (the Revue and the Radio also follow the letter). R2 (4): on a
+  // finished day Home draws one chip, so there the retell is the first.
   const journalWaiting = useJournalWaiting(Boolean(homeDay));
   const homeChips: HomeChip[] = withJournalChip<HomeChip>(
     withCorrecteurChip<HomeChip>(withRadioChip<HomeChip>(revueHomeChips<HomeChip>(revueEntry, dayChips, revueDayDone && Boolean(revueWeek?.enabled && !revueWeek.offer.filed)), homeDay ? radioHomeChip(radioWeek, chromeLanguage) : null, Boolean(revueEntry.hero)), homeDay ? correcteurHomeChip(correcteurWeek, chromeLanguage) : null, Boolean(revueEntry.hero)),
     homeDay ? journalHomeChip(journalWaiting, chromeLanguage) : null,
     Boolean(revueEntry.hero),
+    homeChip.dayDone,
   );
   const homeEntries: HomeEntry[] = errorOnlyPage || homeDay
     ? []
@@ -3168,11 +3175,6 @@ function TodayView({
       ];
 
   const sessionCopy = daySessionCopy(chromeLanguage);
-  const homeChip = homeDayChip(
-    streak,
-    Boolean((today as { streak?: { today_done?: boolean } } | null)?.streak?.today_done),
-    daySession,
-  );
   const sessionNext = sessionNextAction(daySession, chromeLanguage);
   const sessionExtra = sessionMore(daySession, chromeLanguage);
   const homeHero = daySession && (sessionNext || sessionExtra) ? (
