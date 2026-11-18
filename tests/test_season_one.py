@@ -871,7 +871,7 @@ def _play_until_the_scene_is_over(d, db, provider) -> None:
     assert d.journey["status"] == "active" and d.current() is not None, "the day must still be open"
 
 
-def test_home_headlines_the_episode_while_its_day_is_open(assembled_client, db_session, journey_enabled, clock, season_on):
+def test_open_day_keeps_its_number(assembled_client, db_session, journey_enabled, clock, season_on):
     """#868 (walk-main-57-season-b, day 7): the day's scene was over, its day was not
     (a step left; the day before had stopped on a 429). Home still shows the episode's
     card for that open day, so it carries the episode's number: the headline follows
