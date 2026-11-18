@@ -791,8 +791,39 @@ export function resolutionAwaitsStory(step: PublicStep | null | undefined): bool
   return Boolean(step && step.kind === 'resolution' && step.prompt.story_pending === true);
 }
 
-/** The id of the journey to poll, or `null` when nothing is being written. */
+/**
+ * The id of the journey to poll, or `null` when nothing is being written.
+ *
+ * P11: any resolution of the day still being written, not only the current step:
+ * after the learner went on past a late ending (`continueAfterStoryWait`) the
+ * journey is still re-read in the background, so the ending lands on its page.
+ */
 export function storyPollTarget(journey: JourneySnapshot | null | undefined): string | null {
-  if (!journey || (journey.status !== 'active' && journey.status !== 'paused')) return null;
-  return resolutionAwaitsStory(currentStepOf(journey)) ? journey.id : null;
+  if (!journey || journey.status === 'preparing' || journey.status === 'unavailable') return null;
+  return journey.steps.some(resolutionAwaitsStory) ? journey.id : null;
+}
+
+/**
+ * P11: may «Continuer» pass a resolution whose ending is still being written?
+ *
+ * Only once the learner waited {@link FINALE_ESCAPE_MS}-long (`waitOver`), and only
+ * when no later act follows: the server holds a later act until this ending settled
+ * (`_ending_still_written_before_an_act`), so there the day keeps waiting.
+ */
+export function continueAfterStoryWait(
+  journey: JourneySnapshot | null | undefined,
+  step: PublicStep | null | undefined,
+  waitOver: boolean,
+): boolean {
+  if (!resolutionAwaitsStory(step)) return true;
+  if (!waitOver || !journey || !step) return false;
+  return !journey.steps.some((other) => other.kind === 'resolution' && other.ordinal > step.ordinal);
+}
+
+/** P11: a polled snapshot never replaces a newer one the learner's own tap brought. */
+export function polledSnapshotIsCurrent(
+  polled: Pick<JourneySnapshot, 'id' | 'revision'>,
+  current: Pick<JourneySnapshot, 'id' | 'revision'> | null | undefined,
+): boolean {
+  return !current || current.id !== polled.id || polled.revision >= current.revision;
 }

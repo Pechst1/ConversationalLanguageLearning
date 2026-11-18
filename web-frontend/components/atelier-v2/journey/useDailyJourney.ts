@@ -32,6 +32,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { finaleWaitOver } from '@/components/feuilleton/reader/finale-wait';
 
 import dailyJourneyService, {
   getStoryEpisodeForJourney,
@@ -77,6 +78,8 @@ import {
   STORY_POLL_LIMIT,
   STORY_POLL_MS,
   storyPollTarget,
+  continueAfterStoryWait,
+  polledSnapshotIsCurrent,
   feedbackAfterAppeal,
   type AppealOutcome,
   type JourneyFeedback,
@@ -515,11 +518,29 @@ export function useDailyJourney(
       storyPollsRef.current += 1;
       void dailyJourneyService
         .get(storyTarget)
-        .then((next) => applySnapshot(next))
+        .then((next) => {
+          // P11: the poll runs behind the learner now; never undo a tap it raced.
+          if (polledSnapshotIsCurrent(next, journeyRef.current)) applySnapshot(next);
+        })
         .catch(() => undefined);
     }, STORY_POLL_MS);
     return () => clearTimeout(timer);
   }, [storyTarget, journey, applySnapshot]);
+
+  // P11: when the current ending began to be awaited, so «Continuer» can pass it
+  // after FINALE_ESCAPE_MS (the reader shows the button again by then).
+  const storyWaitRef = useRef<{ stepId: string; since: number } | null>(null);
+  const awaitedStepId = (() => {
+    const step = currentStepOf(journey);
+    return resolutionAwaitsStory(step) ? step?.id ?? null : null;
+  })();
+  useEffect(() => {
+    if (!awaitedStepId) {
+      storyWaitRef.current = null;
+    } else if (storyWaitRef.current?.stepId !== awaitedStepId) {
+      storyWaitRef.current = { stepId: awaitedStepId, since: Date.now() };
+    }
+  }, [awaitedStepId]);
 
   // WP-93: «Coulisses» is written in the background. While the current READ
   // step says `writing`, re-read the journey gently (a safe GET) until it is
@@ -985,8 +1006,12 @@ export function useDailyJourney(
       setHelp(null);
       return;
     }
-    // WP-87: an ending still being written is not skipped past.
-    if (resolutionAwaitsStory(currentStepOf(journeyRef.current))) return;
+    // WP-87: an ending still being written is not skipped past — P11: until the
+    // learner waited FINALE_ESCAPE_MS for it; the ending is there next time.
+    const current = currentStepOf(journeyRef.current);
+    const wait = storyWaitRef.current;
+    const waitOver = Boolean(wait && wait.stepId === current?.id && finaleWaitOver(wait.since, Date.now()));
+    if (!continueAfterStoryWait(journeyRef.current, current, waitOver)) return;
     const advanced = await advance();
     if (advanced && journeyAwaitsFinish(advanced)) {
       await finishSnapshot(advanced, 'complete');
