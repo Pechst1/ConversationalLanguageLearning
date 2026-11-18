@@ -546,8 +546,8 @@
      }
     },
     "tôt": "früh",
-    "pour Lyon": {
-     "deu": "nach Lyon",
+    "pour Marseille": {
+     "deu": "nach Marseille",
      "deu_verb": {
       "inf": "fahren",
       "pres2": "fährst",
@@ -1780,8 +1780,8 @@
       "aux": "sein"
      }
     },
-    "jusqu'à Lyon": {
-     "deu": "bis nach Lyon",
+    "jusqu'à Marseille": {
+     "deu": "bis nach Marseille",
      "deu_verb": {
       "inf": "fahren",
       "pres2": "fährst",
@@ -4716,7 +4716,7 @@
     "comps": {
      "du pain au marché du canal": "auf dem Markt am Kanal Brot",
      "des fleurs pour Lila": "Blumen für Lila",
-     "un billet pour Lyon": "ein Ticket nach Lyon",
+     "un billet pour Marseille": "ein Ticket nach Marseille",
      "le journal": "die Zeitung",
      "une lampe à la brocante": "auf dem Flohmarkt eine Lampe"
     }
@@ -4728,7 +4728,7 @@
     "comps": {
      "du pain au marché du canal": "auf dem Markt am Kanal Brot",
      "des fleurs pour Lila": "Blumen für Lila",
-     "un billet pour Lyon": "ein Ticket nach Lyon",
+     "un billet pour Marseille": "ein Ticket nach Marseille",
      "le journal": "die Zeitung",
      "une lampe à la brocante": "auf dem Flohmarkt eine Lampe"
     }
@@ -4740,7 +4740,7 @@
     "comps": {
      "du pain au marché du canal": "auf dem Markt am Kanal Brot",
      "des fleurs pour Lila": "Blumen für Lila",
-     "un billet pour Lyon": "ein Ticket nach Lyon",
+     "un billet pour Marseille": "ein Ticket nach Marseille",
      "le journal": "die Zeitung",
      "une lampe à la brocante": "auf dem Flohmarkt eine Lampe"
     }
@@ -4752,7 +4752,7 @@
     "comps": {
      "du pain au marché du canal": "auf dem Markt am Kanal Brot",
      "des fleurs pour Lila": "Blumen für Lila",
-     "un billet pour Lyon": "ein Ticket nach Lyon",
+     "un billet pour Marseille": "ein Ticket nach Marseille",
      "le journal": "die Zeitung",
      "une lampe à la brocante": "auf dem Flohmarkt eine Lampe"
     }
