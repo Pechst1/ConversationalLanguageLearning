@@ -1,9 +1,10 @@
 /**
  * WP-75 — the placement, offered quietly and only when it can help.
  *
- * `GET /placement/offer` says `{ offer: true }` from the first completed ending
- * on (WP-126) for a learner who did not start as «Nouveau». Until then — and on any error —
- * this renders nothing: the placement is never a first task, and never a nag.
+ * `GET /placement/offer` says `{ offer: true }` from the learner's eighth completed
+ * day on (P9; it was the first ending, WP-126) for a learner who did not start as
+ * «Nouveau». Until then — and on any error — this renders nothing: the placement is
+ * never a first task, and never a nag.
  */
 
 import React from 'react';
@@ -18,8 +19,8 @@ export const PLACEMENT_OFFER_HREF = '/placement?from=offer';
 /** `className` goes on a wrapper that exists only when the chip does. */
 export function PlacementOfferChip({ className }: { className?: string }) {
   const [offer, setOffer] = React.useState(false);
-  // WP-126 / P10: chrome in the learner's interface language — their own up to A2,
-  // French from B1, like Home around it (it was French for everyone, then the mother tongue).
+  // WP-126 / P9 / P10: Home's chrome language — the learner's own up to A2, French from
+  // B1 — so a B1 learner on French chrome is not handed the one English chip.
   const copy = placementCopy(useChromeLanguage());
 
   React.useEffect(() => {

@@ -234,6 +234,9 @@ import {
 } from '@/lib/revue-une';
 import { radioHomeChip, useRadioWeek, withRadioChip } from '@/lib/radio-une'; // WP-122 A: «La Radio · 50 s» after the Revue chip
 import { correcteurHomeChip, useCorrecteurWeek, withCorrecteurChip } from '@/lib/correcteur-une'; // WP-122 B: «Le Correcteur» after the Radio chip
+import { journalHomeChip, useJournalWaiting, withJournalChip } from '@/lib/journal-home'; // P9: «Raconter hier» right after the letter
+import { getStoryArchive } from '@/components/feuilleton/archive/archive-api';
+import { homeReplayHref } from '@/components/feuilleton/archive/archive-model';
 import { FirstDayRoute } from '@/components/onboarding/FirstDayRoute';
 import { IncomingCall } from '@/components/appels/IncomingCall';
 import { FirstStepSticker } from '@/components/onboarding/FirstStepSticker';
@@ -2237,6 +2240,17 @@ export default function AtelierPage() {
                     <JourneyTodayCard
                       controller={journey}
                       onOpen={() => setView('journey')}
+                      // P9: «Revoir» on a finished day replays its episode in the
+                      // archive reader (back to Home from there); a day not filed
+                      // in the archive yet keeps the end card.
+                      onReview={() => {
+                        const journeyId = journey.journey?.id ?? null;
+                        void getStoryArchive().then((archive) => {
+                          const href = homeReplayHref(archive, journeyId);
+                          if (href) void router.push(href);
+                          else setView('journey');
+                        });
+                      }}
                       restOfDayOpen={restOfDayOpen}
                       onOpenLegacy={(href) => {
                         // The old Atelier session is resumed on its own terms: the
@@ -3045,7 +3059,14 @@ function TodayView({
     : [];
   const radioWeek = useRadioWeek();
   const correcteurWeek = useCorrecteurWeek();
-  const homeChips: HomeChip[] = withCorrecteurChip<HomeChip>(withRadioChip<HomeChip>(revueHomeChips<HomeChip>(revueEntry, dayChips, revueDayDone && Boolean(revueWeek?.enabled && !revueWeek.offer.filed)), homeDay ? radioHomeChip(radioWeek, chromeLanguage) : null, Boolean(revueEntry.hero)), homeDay ? correcteurHomeChip(correcteurWeek, chromeLanguage) : null, Boolean(revueEntry.hero));
+  // P9: the journal's retell, when one is waiting — second after the letter, so it
+  // goes in last (the Revue and the Radio also follow the letter).
+  const journalWaiting = useJournalWaiting(Boolean(homeDay));
+  const homeChips: HomeChip[] = withJournalChip<HomeChip>(
+    withCorrecteurChip<HomeChip>(withRadioChip<HomeChip>(revueHomeChips<HomeChip>(revueEntry, dayChips, revueDayDone && Boolean(revueWeek?.enabled && !revueWeek.offer.filed)), homeDay ? radioHomeChip(radioWeek, chromeLanguage) : null, Boolean(revueEntry.hero)), homeDay ? correcteurHomeChip(correcteurWeek, chromeLanguage) : null, Boolean(revueEntry.hero)),
+    homeDay ? journalHomeChip(journalWaiting, chromeLanguage) : null,
+    Boolean(revueEntry.hero),
+  );
   const homeEntries: HomeEntry[] = errorOnlyPage || homeDay
     ? []
     : [

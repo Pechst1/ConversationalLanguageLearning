@@ -82,6 +82,11 @@ export type JourneyTodayCardProps = {
   /** Open the connected session shell. */
   onOpen: () => void;
   /**
+   * P9: «Revoir» on a finished day. Home hands in the replay (the day's episode in
+   * the archive reader); without it, «Revoir» opens the session shell's end card.
+   */
+  onReview?: () => void;
+  /**
    * Kept for callers; unused since WP-81 removed the legacy-session card from
    * Home.
    */
@@ -96,6 +101,7 @@ export type JourneyTodayCardProps = {
 export function JourneyTodayCard({
   controller,
   onOpen,
+  onReview,
   restOfDayOpen = false,
 }: JourneyTodayCardProps) {
   // WP-82: the card is one chrome language — the learner's up to A2, French
@@ -140,7 +146,7 @@ export function JourneyTodayCard({
           copy={copy}
           statusCopy={statusCopy}
           busy={busy}
-          onOpen={onOpen}
+          onOpen={phase.kind === 'finished' && onReview ? onReview : onOpen}
           onStart={() => {
             void actions.start().then(onOpen);
           }}
