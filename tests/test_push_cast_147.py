@@ -99,7 +99,16 @@ def test_unmet_scene_speaker_not_pushed(db_session) -> None:
 
 def test_met_speaker_still_speaks(db_session) -> None:
     user = _learner(db_session)
-    _thread(db_session, user, {"text_fr": "Demain, je vous montre la lettre.", "character_id": "lila_bonnet"})
+    # Pilot P9: an A1 learner gets the hook with its stored gloss on a second line.
+    _thread(
+        db_session,
+        user,
+        {
+            "text_fr": "Demain, je vous montre la lettre.",
+            "text_native": "Tomorrow I'll show you the letter.",
+            "character_id": "lila_bonnet",
+        },
+    )
 
     push = copy.daily_journey_morning_push(db_session, user, today=TODAY)
 
