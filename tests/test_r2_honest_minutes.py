@@ -118,11 +118,11 @@ def _played_day(db: Session, user: User, day: date, *, estimated: list[int], pla
     db.flush()
 
 
-def _forge_seance(db: Session, user: User, *, items: int, seconds_per_item: int) -> None:
+def _forge_seance(db: Session, user: User, *, items: int, seconds_per_item: int, days_back: int = 1) -> None:
     session = AtelierSession(user_id=user.id, selected_concept_ids=[], status="completed", quote_payload={}, recap_payload={})
     db.add(session)
     db.flush()
-    start = NOW - timedelta(days=1)
+    start = NOW - timedelta(days=days_back)
     for index in range(items):
         db.add(
             AtelierAttempt(
@@ -142,12 +142,12 @@ def _forge_seance(db: Session, user: User, *, items: int, seconds_per_item: int)
     db.flush()
 
 
-def _deck_answers(db: Session, user: User, *, cards: int, seconds_per_card: int) -> None:
-    start = NOW - timedelta(days=1, hours=2)
+def _deck_answers(db: Session, user: User, *, cards: int, seconds_per_card: int, days_back: int = 1) -> None:
+    start = NOW - timedelta(days=days_back, hours=2)
     for index in range(cards):
         word = VocabularyWord(
             word=f"r2mot{uuid.uuid4().hex[:6]}",
-            normalized_word=f"r2mot{index}",
+            normalized_word=f"r2mot{index}{uuid.uuid4().hex[:6]}",
             language="fr",
             english_translation="x",
             frequency_rank=100,
@@ -176,9 +176,10 @@ def test_a_measured_learner_is_quoted_within_a_fifth_of_their_own_steps(db_sessi
     # Three ended days: scenes estimated 600 s, played 900 s (1.5×).
     for back in (1, 2, 3):
         _played_day(db_session, user, NOW.date() - timedelta(days=back), estimated=[200, 200, 200], played=[300, 300, 300])
-    # La Forge: an item every 55 s. The deck: a card every 16 s.
-    _forge_seance(db_session, user, items=12, seconds_per_item=55)
-    _deck_answers(db_session, user, cards=20, seconds_per_card=16)
+    # La Forge: an item every 55 s. The deck: a card every 16 s. Round 3: over two days.
+    for back in (1, 2):
+        _forge_seance(db_session, user, items=12, seconds_per_item=55, days_back=back)
+        _deck_answers(db_session, user, cards=12, seconds_per_card=16, days_back=back)
 
     pace = day_pace(db_session, user, now=NOW)
     assert pace.measured == frozenset({"scene", "forge", "words"})
