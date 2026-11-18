@@ -68,6 +68,7 @@ import { castIdFor, expressionForVerdict } from '@/lib/cast-faces';
 import { feel, markVerdictFelt } from '@/lib/feel';
 import { frenchSpacing } from '@/lib/french-typography';
 import { ruleSceneAnchor, usableCard } from '@/lib/rule-card';
+import { markRuleRead } from '@/lib/rule-read-today';
 import type { FaceMood, PortraitMood } from '@/lib/onboarding-portraits';
 import type {
   AttemptInput,
@@ -1493,7 +1494,11 @@ export function RuleStepView({
         variant="intro"
         review={review}
         conceptId={step.prompt.concept_id}
-        onDone={proceed}
+        onDone={() => {
+          // R2: today's card was read — La Forge from the day opens on its first item.
+          if (!review && !busy) markRuleRead(step.prompt.concept_id);
+          proceed();
+        }}
         sceneAnchor={anchor}
         sceneVoice={anchor ? voice : null}
         sceneListenLabel={anchor ? listenLabel(copy, anchor.name) : undefined}

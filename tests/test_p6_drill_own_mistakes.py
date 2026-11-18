@@ -142,9 +142,17 @@ def test_own_mistakes_first() -> None:
 
 
 def test_guided_item_when_thin() -> None:
-    """Nothing due: one guided item on today's rule, not the card's pair."""
+    """Nothing due: one guided item on today's rule, not the card's pair — only
+    with R2's «rule taught once» off (tests/test_r2_rule_taught_once.py)."""
 
-    plan = _day(list(WORDS), introduction=_etre())
+    import pytest
+
+    mp = pytest.MonkeyPatch()
+    mp.setattr(planner, "RULE_TAUGHT_ONCE", False)
+    try:
+        plan = _day(list(WORDS), introduction=_etre())
+    finally:
+        mp.undo()
     drills = _drills(plan)
 
     assert len(drills) == 1
