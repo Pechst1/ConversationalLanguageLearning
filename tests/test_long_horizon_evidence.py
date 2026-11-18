@@ -1531,7 +1531,8 @@ def test_a_returning_learner_is_told_what_happened_meanwhile(horizon: Horizon) -
         absence = back.absence
         assert absence is not None, life.label
         assert absence["days"] == back.missed_days
-        assert set(absence) == {"days", "greeting_fr", "entre_temps", "lapsed_letters"}
+        # P9 stage 2 (PR 885): `where_left`, where the story stood when the learner left.
+        assert set(absence) == {"days", "greeting_fr", "where_left", "entre_temps", "lapsed_letters"}
         assert 1 <= len(absence["entre_temps"]) <= 5, (life.label, absence)
         for beat in absence["entre_temps"]:
             assert beat["text_fr"].strip(), beat
