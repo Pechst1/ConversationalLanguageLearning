@@ -143,13 +143,14 @@ test('the mark’s four shapes are the four steps', () => {
 test('the Tempo sheet says what each pace holds, costs and reaches', () => {
   const options = [
     { pace: 'ruhig', words: 10, rules_per_week: 3, exercises: 12, minutes_today: 18, minutes_week_8: 21, reviews_week_8: 28, goal_weeks: 15.1 },
-    { pace: 'normal', words: 20, rules_per_week: 5, exercises: 12, minutes_today: 23, minutes_week_8: 28, reviews_week_8: 57, goal_weeks: 10.5 },
+    // Owner decision 1 (P7): Normal is 15 words; R2 (7) prices them (daily_session.pace_option).
+    { pace: 'normal', words: 15, rules_per_week: 5, exercises: 8, minutes_today: 22, minutes_week_8: 27, reviews_week_8: 43, goal_weeks: 10.5 },
     { pace: 'schnell', words: 40, rules_per_week: 8, exercises: 17, minutes_today: 35, minutes_week_8: 43, reviews_week_8: 114, goal_weeks: 8.1 },
   ];
   const rows = ds.paceRows(options, 'A1.2', 'de');
   assert.deepEqual(rows.map((row) => row.name), ['Ruhig', 'Normal', 'Schnell']);
-  assert.equal(rows[1].detail, '20 Wörter · 5 Regeln pro Woche');
-  assert.equal(rows[1].minutes, '≈ 23 Min.');
+  assert.equal(rows[1].detail, '15 Wörter · 5 Regeln pro Woche');
+  assert.equal(rows[1].minutes, '≈ 22 Min.');
   assert.equal(rows[0].goal, 'A1 in ≈ 3½ Monaten');
   assert.equal(rows[1].goal, 'A1 in ≈ 11 Wochen');
   assert.equal(rows[2].goal, 'A1 in ≈ 8 Wochen');
