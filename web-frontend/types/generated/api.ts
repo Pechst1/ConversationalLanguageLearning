@@ -6154,6 +6154,11 @@ export interface components {
             special?: "epreuve" | null;
             /** Title Fr */
             title_fr: string;
+            /**
+             * Today
+             * @default false
+             */
+            today?: boolean;
         };
         /**
          * ArchivePanel

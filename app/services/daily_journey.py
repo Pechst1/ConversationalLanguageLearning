@@ -993,6 +993,24 @@ def _is_opening_day(journey: DailyJourney | None) -> bool:
     return journey is not None and _stored_cast_intro(journey) is not None
 
 
+def scene_played(journey: DailyJourney | None) -> bool:
+    """P11: the day's scene is played — its ending (every act's resolution step) was
+    acknowledged — whatever of the day is still open (a drill, the words).
+
+    An ended journey says nothing here: «day done» is its status, read on its own."""
+
+    if journey is None or str(journey.status) not in {
+        str(JourneyStatus.ACTIVE),
+        str(JourneyStatus.PAUSED),
+    }:
+        return False
+    endings = [step for step in journey.steps or [] if StepKind(step.kind) is StepKind.RESOLUTION]
+    if not endings:
+        return False
+    statuses = {StepStatus(step.status) for step in endings}
+    return StepStatus.COMPLETED in statuses and statuses <= {StepStatus.COMPLETED, StepStatus.SKIPPED}
+
+
 def _journey_input_mode(journey: DailyJourney) -> InputMode:
     """The mode a journey was created in: voice when its reply offered voice."""
 
@@ -1446,9 +1464,12 @@ class DailyJourneyService:
         from app.services.daily_session import build_session
 
         todays = journey if journey is not None and journey.local_date == today else None
-        scene_done = todays is not None and todays.status in {
+        day_ended = todays is not None and todays.status in {
             status.value for status in TERMINAL_JOURNEY_STATUSES
         }
+        # P11: the scene is played once its ending was acknowledged, whatever of the
+        # day is still open (a drill, the words). «Day done» stays the ended journey.
+        scene_done = day_ended or (todays is not None and scene_played(todays))
         scene_seconds: int | None = None
         if snapshot is not None and snapshot.time_estimate is not None:
             scene_seconds = int(snapshot.time_estimate.core_seconds)
@@ -1461,6 +1482,7 @@ class DailyJourneyService:
                 user,
                 journey=todays,
                 scene_done=scene_done,
+                day_ended=day_ended,
                 scene_seconds=scene_seconds,
                 reviews_due=due_words,
                 forge_href=f"{forge_href}&from=day",
