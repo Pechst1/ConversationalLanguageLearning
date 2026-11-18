@@ -1146,6 +1146,7 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         beats,
         next_turn_id=None if closing else str((turns[next_index] if next_index < len(turns) and next_index != index else turn).get("id")),
         closing=closing,
+        chosen=carded is not None,
     )
     from app.services.season.turns import reaction_lines
 

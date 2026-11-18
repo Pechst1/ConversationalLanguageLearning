@@ -6785,6 +6785,11 @@ export interface components {
             /** Beats */
             beats: components["schemas"]["StagePanel"][];
             /**
+             * Chosen
+             * @default false
+             */
+            chosen: boolean;
+            /**
              * Closing
              * @default false
              */
@@ -9685,7 +9690,8 @@ export interface components {
         };
         /**
          * HeadlineStage
-         * @description P12: where today's planned page plays, known before the day is opened (a tentpole's).
+         * @description P12: where today's planned page plays, known before the day is opened: a tentpole's,
+         *     or a gap day's once the night has written it (round 3: the prefetched scene's place).
          */
         HeadlineStage: {
             /** Key */

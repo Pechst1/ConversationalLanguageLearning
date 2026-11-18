@@ -336,6 +336,9 @@ class AttemptStage(JourneyModel):
     #: The question now asked; ``None`` once the conversation is over.
     next_turn_id: str | None = None
     closing: bool = False
+    #: The answer was one of the turn's «Le choix» cards, word for word. Only then is
+    #: the route what the learner said; a free answer the engine routed is its reading.
+    chosen: bool = False
 
 
 class ScenePrompt(JourneyModel):
@@ -1319,7 +1322,8 @@ class HeadlineArc(JourneyModel):
 
 
 class HeadlineStage(JourneyModel):
-    """P12: where today's planned page plays, known before the day is opened (a tentpole's)."""
+    """P12: where today's planned page plays, known before the day is opened: a tentpole's,
+    or a gap day's once the night has written it (round 3: the prefetched scene's place)."""
 
     #: The page's key («t1.a»), as the Quartier's stage names it.
     key: str

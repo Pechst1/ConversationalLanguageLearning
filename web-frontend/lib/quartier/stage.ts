@@ -1771,14 +1771,17 @@ export class Stage implements Director {
     const all = this.story.page.movements;
     const i = all.findIndex((m) => m.id === id);
     this.set({ beat: id, progress: Math.max(0, i) / all.length });
+    // round 3: where the scene stands, so that leaving it and coming back plays on from here
+    if (i >= 0 && this.ui.phase !== 'roam' && this.ui.phase !== 'end') this.story.keepPlace?.({ from: id, routes: this.routes, asking: this.asking });
   }
 
   private async play() {
     const gen = ++this.gen;
     this.clearWaits();
     const page = this.story.page;
-    // the page as another place left it: played on from there, the day already begun
-    const resume = this.resume;
+    // the page as another place left it: played on from there, the day already begun; else where
+    // this device left the scene (round 3: a stray tap mid-scene, then back in), else from the top
+    const resume = this.resume ?? this.story.keptPlace?.() ?? null;
     this.resume = null;
     const startAt = resume ? page.movements.findIndex((m) => m.id === resume.from) : 0;
     this.startAt = Math.max(0, startAt);
@@ -1799,6 +1802,7 @@ export class Stage implements Director {
     if (resume) {
       this.routes = { ...resume.routes };
       this.asking = resume.asking;
+      if (this.blocked && this.day === 't1a') this.pickUpA(page.movements[this.startAt]?.id ?? null);
     } else {
       this.beginDay();
       this.routes = {};
@@ -1912,6 +1916,33 @@ export class Stage implements Director {
         return this.bP6(gen, m);
       default:
         return this.beat(gen, m);
+    }
+  }
+
+  /**
+   * Day a picked up where this device left it: past the quai you are inside the door, past the
+   * zinc's close-up you stand at the zinc with the envelope and the key ring on it.
+   */
+  private pickUpA(from: string | null) {
+    const ids = this.story.page.movements.map((m) => m.id);
+    const at = from ? ids.indexOf(from) : -1;
+    const past = (id: string) => ids.indexOf(id) >= 0 && at > ids.indexOf(id);
+    if (past('a.p3')) {
+      this.q.place(MARKS.atZinc, MARKS.zincTop);
+      const env = this.prop('envelope');
+      if (env) {
+        env.position.copy(this.envHome);
+        env.rotation.set(0, 0.25, 0);
+        env.visible = true;
+      }
+      const key = this.prop('key');
+      if (key) {
+        key.position.copy(this.keyHome);
+        key.quaternion.copy(this.keyFlat);
+        key.visible = true;
+      }
+    } else if (past('a.p1')) {
+      this.q.place(MARKS.doorIn, this.faceOf('augustin_de_roncourt'));
     }
   }
 
@@ -2276,6 +2307,9 @@ export class Stage implements Director {
       if (heard.reply !== null || heard.next !== turn.id) {
         if (heard.reply !== null) this.routes[turn.id] = heard.reply;
         this.asking = heard.next;
+        // answered: coming back, the scene plays on after this question, never asks it again
+        const after = this.story.page.movements[this.story.page.movements.findIndex((m) => m.id === turn.id) + 1];
+        if (after) this.story.keepPlace?.({ from: after.id, routes: this.routes, asking: this.asking });
         break;
       }
       // a talk the engine keeps open: what they said back is the next thing you answer
@@ -2336,8 +2370,8 @@ export class Stage implements Director {
   /** What the room does with what you said: the first line back, then the reply the engine read. */
   private async react(gen: number, turn: StoryTurn, heard: Heard) {
     this.set({ beat: heard.reply !== null ? `${turn.id}.${heard.reply}` : heard.goesOn ? `${turn.id}.on` : `${turn.id}.again` });
-    // the line «Tu as dit…» only when the reply is what the learner said (`replyEffects`)
-    if (heard.reply !== null && this.blocked) this.remember(replyEffects(turn.id, heard.reply, heard.understood));
+    // «Tu as dit…» only of a card chosen word for word; of a free answer, what the room took it to mean (`replyEffects`)
+    if (heard.reply !== null && this.blocked) this.remember(replyEffects(turn.id, heard.reply, { understood: heard.understood, chosen: heard.chosen }));
     // your line stays while the room takes it in; a correction stays until you have read it
     if (heard.mend) await this.waitTap(gen);
     else await this.wait(gen, 1.2);

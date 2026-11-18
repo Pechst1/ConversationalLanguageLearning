@@ -282,6 +282,29 @@ def has_live_prefetch(db: Session, user: User, *, input_mode: InputMode = InputM
     return bool(_live_prefetch_rows(db, user, cache_key=key))
 
 
+def waiting_scene_place(db: Session, user: User) -> str | None:
+    """Where the scene waiting for Start plays (its brief's ``location_id``), or ``None``
+    when no prefetched scene would be served right now. Reads only: nothing is consumed
+    or discarded here (``take_prefetched_scene`` does that at Start).
+
+    P12 round 3: a gap day is written at night. Once it is, Home knows its place before
+    Start, so Le Quartier can be offered on a day set in a place it has built (walk
+    17 Nov: day 3 «Chez le notaire» and day 5 «Ton appartement» were written ahead of
+    time, and Home offered the page only)."""
+
+    if not prefetch_enabled_for(user):
+        return None
+    key = scene_cache_key(db, user)
+    if key is None:
+        return None
+    for row in _live_prefetch_rows(db, user, cache_key=key):
+        brief = (row.payload or {}).get("brief")
+        place = str(brief.get("location_id") or "").strip() if isinstance(brief, dict) else ""
+        if place:
+            return place
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Producing a prefetch
 # ---------------------------------------------------------------------------
