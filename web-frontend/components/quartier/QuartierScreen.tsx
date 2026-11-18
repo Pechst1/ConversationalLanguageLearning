@@ -155,6 +155,8 @@ export const COPY = {
     replay: 'Rejouer',
     roam: 'Se promener',
     roamHint: 'Touche le sol pour marcher · touche quelqu’un pour parler',
+    /** round 2: a day with nobody to talk to promises no talk */
+    walkHint: 'Touche le sol pour marcher',
     silent: 'Touche pour continuer',
     asks: 'te demande',
     choice: 'À toi',
@@ -202,6 +204,8 @@ export const COPY = {
     replay: 'Rejouer',
     roam: 'Se promener',
     roamHint: 'Touche le sol pour marcher · touche quelqu’un pour parler',
+    /** round 2: a day with nobody to talk to promises no talk */
+    walkHint: 'Touche le sol pour marcher',
     silent: 'Touche pour continuer',
     asks: 'te demande',
     choice: 'À toi',
@@ -758,7 +762,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
 
       {ui?.talk ? <TalkSheet key={ui.talk.who} t={ui.talk} translate={translate} native={native} copy={copy} onSay={(t) => st?.talkSay(t)} onClose={() => st?.endTalk()} /> : null}
 
-      {phase === 'roam' && !ui?.talk && !ui?.goal && !near ? <div className="qz-hint">{room ? (room.switches.length ? copy.roomHint : copy.litHint) : copy.roamHint}</div> : null}
+      {phase === 'roam' && !ui?.talk && !ui?.goal && !near ? <div className="qz-hint">{room ? (room.switches.length ? copy.roomHint : copy.litHint) : ui?.canTalk === false ? copy.walkHint : copy.roamHint}</div> : null}
       {phase === 'roam' && ui?.met ? (
         <div key={ui.met.at} className="qz-met" data-char={ui.met.char}>
           {ui.met.name}

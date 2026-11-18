@@ -99,6 +99,39 @@ def _tentpole(live: dict, user: Any) -> tuple[str | None, list[str], str | None,
     return page.get("title_fr"), _ordered(speakers), today.season.title_fr, image
 
 
+def _planned_stage(live: dict, user: Any) -> dict[str, Any] | None:
+    """P12 (round 2): where today's planned page plays, for Home's «Play in the Quartier» before
+    the day is opened: its key («t1.a»), the place it opens at, and each movement's place in
+    order (``None`` where a movement names none). Only a tentpole's page is known before Start;
+    a gap day is written at night and its place is not known here (``None``).
+
+    Observed 17 Nov: the offer before Start is the story engine's invitation
+    (``living_story.describe_next``: ``location_id=""``), so Home could never tell that day 1
+    plays at Le Mistral and offered the Quartier on no day."""
+
+    from app.services.season import runtime as season_runtime
+
+    today = season_runtime.today_for(live, user=user, seed=str(user.id))
+    if today is None or not today.pos.is_tentpole or today.pos.segment is None:
+        return None
+    page = season_runtime.page_for(today) or {}
+    locations: list[str | None] = []
+    for movement in page.get("movements") or []:
+        if not isinstance(movement, dict):
+            continue
+        panel = movement if movement.get("kind") == "panel" else (movement.get("panel") or {})
+        location = panel.get("location_id") if isinstance(panel, dict) else None
+        locations.append(str(location) if location else None)
+    opening = str(page.get("location_id") or "") or next((loc for loc in locations if loc), None)
+    if not opening and not any(locations):
+        return None
+    return {
+        "key": f"{today.pos.segment.id}.{today.pos.tentpole_day}",
+        "location_id": opening,
+        "locations": locations,
+    }
+
+
 def cast_variants(live: dict, *, seed: str | None = None) -> dict[str, str]:
     """WP-116: how the drawn cast looks for this learner.
 
@@ -196,6 +229,13 @@ def episode_headline(db: Session, user: Any, journey: Any = None, *, local_date:
         else:
             _unused, _cast, season_title, planned_image = _tentpole(live, user)
             image = image or planned_image
+        # P12: before the day is opened, where its page plays (a tentpole's; never a re-read's)
+        stage = None
+        if journey is None:
+            try:
+                stage = _planned_stage(live, user)
+            except Exception:  # noqa: BLE001 - the Quartier's offer never costs Home's headline
+                logger.exception("story_headline: planned stage unavailable")
         if edition_no is None:
             # Before the day is planned: the number it will be given (seals.next_edition_no
             # is the rule the plan applies), not the thread's index on its own.
@@ -234,6 +274,7 @@ def episode_headline(db: Session, user: Any, journey: Any = None, *, local_date:
             "image_url": image,
             "cast": [{"id": who, "name": names.get(who) or more.get(who) or who.split("_")[0].title()} for who in cast],
             "cast_variants": cast_variants(live, seed=str(user.id)),
+            "stage": stage,
         }
     except Exception:  # noqa: BLE001 - a headline never costs Home
         logger.exception("story_headline: headline unavailable")

@@ -301,6 +301,12 @@ export interface Heard {
   mend: Mend | null;
   /** the talk goes on (a scene written today): the question stays open, asked anew, not again */
   goesOn?: boolean;
+  /**
+   * The reply is what the learner said: a card they chose, or a route their words expressed (the
+   * engine's task outcome «met»). False: the turn's fallback, which says nothing they meant, so
+   * the end card and the carnet say nothing of it (round 2: «Tu as dit que tu viens pour vendre»).
+   */
+  understood?: boolean;
 }
 
 /** A gesture, as the engine takes it. */
@@ -622,7 +628,8 @@ export class OfflineStory implements Story {
     const q = this.turn(turnId);
     if (!q) return { turn: turnId, reply: null, beats: [], next: null, closing: true, mend: null };
     const typed = fold(text).replace(/[.!?…\s]+$/, '');
-    const reply = q.answers.find((r) => r.examples.some((e) => fold(e).replace(/[.!?…\s]+$/, '') === typed)) ?? (q.fallback ? this.fallback(q) : null);
+    const said = q.answers.find((r) => r.examples.some((e) => fold(e).replace(/[.!?…\s]+$/, '') === typed)) ?? null;
+    const reply = said ?? (q.fallback ? this.fallback(q) : null);
     if (!reply) {
       // a choice the quarter could not read: asked again, as the engine asks
       const prompt = q.panel.lines?.[0];
@@ -638,6 +645,7 @@ export class OfflineStory implements Story {
       next,
       closing: next === null,
       mend: null,
+      understood: said !== null,
     };
   }
 

@@ -41,6 +41,56 @@ export const LETTER_EM = 0.52;
 /** The name's size and the gap to its pin, in units of the map (`u`, a hundredth of the frame). */
 export const LABEL = { size: 3.4, gap: 2.6, dot: 1.7, margin: 1 };
 
+/**
+ * A pin as drawn, in units of the map: the dot (`r` 1.7) with its stroke (0.45 wide, half outside),
+ * the ring round the pin you are at (`r` 3.2, stroke 0.5), and the paper kept between two pins.
+ */
+export const PIN = { dot: 1.7 + 0.45 / 2, ring: 3.2 + 0.5 / 2, apart: 0.6 };
+
+/** How far a pin reaches from its centre, in units of the map. */
+export function pinReach(here: boolean): number {
+  return here ? PIN.ring : PIN.dot;
+}
+
+/**
+ * Where each pin is drawn so that none touches another (round 2, walk 17 Nov, `a1-d3-q-map.png`:
+ * the gare de l’Est, the mairie du 10e and the quai sit a few hundred metres apart, and at the
+ * map's scale their grey dots and the red ring ran into each other). Pins that would touch are
+ * pushed apart along the line between them, the pin you are at never moves; a pin moves no
+ * further than it must. Deterministic: the same map on the server, in a test and on a phone.
+ */
+export function spreadPins(pins: Array<{ id: string; xy: XY; here?: boolean }>, u: number): Map<string, XY> {
+  const at = pins.map((p) => [p.xy[0], p.xy[1]] as XY);
+  for (let round = 0; round < 60; round++) {
+    let moved = false;
+    for (let i = 0; i < pins.length; i++) {
+      for (let j = i + 1; j < pins.length; j++) {
+        const need = (pinReach(Boolean(pins[i].here)) + pinReach(Boolean(pins[j].here)) + PIN.apart) * u;
+        let dx = at[j][0] - at[i][0];
+        let dy = at[j][1] - at[i][1];
+        let d = Math.hypot(dx, dy);
+        if (d >= need - 1e-9) continue;
+        if (d < 1e-9) {
+          // one on the other: part them along a fixed bearing, by their order
+          const a = ((i * 7 + j * 3) % 8) * (Math.PI / 4);
+          dx = Math.cos(a);
+          dy = Math.sin(a);
+          d = 1;
+        }
+        const ux = dx / d;
+        const uy = dy / d;
+        const push = need - Math.hypot(at[j][0] - at[i][0], at[j][1] - at[i][1]);
+        const [si, sj] = pins[i].here ? [0, 1] : pins[j].here ? [1, 0] : [0.5, 0.5];
+        at[i] = [at[i][0] - ux * push * si, at[i][1] - uy * push * si];
+        at[j] = [at[j][0] + ux * push * sj, at[j][1] + uy * push * sj];
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+  return new Map(pins.map((p, i) => [p.id, at[i]]));
+}
+
 export function textWidth(text: string, size: number): number {
   return Array.from(text).length * LETTER_EM * size;
 }

@@ -314,6 +314,15 @@ export type Today =
   /** the scene goes somewhere the world has not built yet (`place`, a season location): the Feuilleton tells it until the forge has */
   | { kind: 'handoff'; why: 'elsewhere'; place: string; page: StoryPage };
 
+/**
+ * Where a page goes that the quarter cannot play it: for a day the director blocks, the first
+ * unfinished place it moves to (P12 place check); for any other, the first place nothing is
+ * built for (`unbuiltOf`). Null when the quarter can play the whole page.
+ */
+export function awayOf(page: StoryPage): string | null {
+  return blockedPage(page) ? unfinishedAt([page.location_id, ...page.movements.map(locationOf)]) : unbuiltOf(page);
+}
+
 export function todayOf(journey: JourneySnapshot | null): Today {
   if (!journey) return { kind: 'start' };
   if (journey.status === 'preparing') return { kind: 'preparing' };
@@ -326,7 +335,7 @@ export function todayOf(journey: JourneySnapshot | null): Today {
   if (!step) return { kind: 'practice', page };
   // a scene set where nothing is built yet is not played here in a place it is not: the whole day is the Feuilleton's
   // a day the director blocks plays where it is, unless a place it goes to is unfinished (P12 place check)
-  const away = blockedPage(page) ? unfinishedAt([page.location_id, ...page.movements.map(locationOf)]) : unbuiltOf(page);
+  const away = awayOf(page);
   const elsewhere: Today | null = away ? { kind: 'handoff', why: 'elsewhere', place: away, page } : null;
   // steps before the scene are the Feuilleton's, in its order, played over the quarter
   if (step.ordinal < scene.ordinal) return elsewhere ?? { kind: 'before', page };
@@ -589,6 +598,8 @@ export class JourneyStory implements Story {
         next: str(stage.next_turn_id),
         closing: stage.closing === true,
         mend,
+        // what the engine judged the answer to mean: a route expressed («met»), not the fallback
+        understood: r.task_outcome === 'met',
       };
     }
     // a server that does not stage its answers: the room says what the engine said, and the

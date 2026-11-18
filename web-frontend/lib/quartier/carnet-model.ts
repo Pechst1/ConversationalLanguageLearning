@@ -20,7 +20,7 @@
  */
 import { castRegister, knownAboutYou } from '@/components/feuilleton/archive/trombinoscope-model';
 
-import { NAMES, NOTES, regardWords } from './agency';
+import { NAMES, NOTES, regardWords, replyEffects } from './agency';
 import { editionKey, eligible } from './memory';
 import type { CastId, Memory, Value, Words } from './memory';
 import { PLACE_NAMES, episodeLabel } from './story';
@@ -44,6 +44,8 @@ export interface CarnetDay {
   title_fr?: string | null;
   location_id?: string | null;
   location_name?: string | null;
+  /** the cards chosen on a season page played as a page (the archive's `choices`) */
+  choices?: Array<{ turn_id: string; reply_id: string; label_fr?: string | null }> | null;
 }
 
 /** What the app knows of the learner's story; each part `null` when it could not be read. */
@@ -135,6 +137,14 @@ function worldPlaceOf(location: string): WorldPlace | null {
   return WORLD.places.find((p) => p.id === location || (p.stages ?? []).includes(location)) ?? null;
 }
 
+/** A card chosen on a page, as the carnet says it: the quarter's own line for it, else the card. */
+export function choiceWords(turnId: string, replyId: string, label: string | null): Words | null {
+  const line = replyEffects(turnId, replyId, true).find((e) => e.kind === 'journal');
+  if (line && line.kind === 'journal') return line.words;
+  const card = label?.trim();
+  return card ? w(`Tu as choisi : « ${card} »`, `You chose: “${card}”`, `Du hast gewählt: „${card}“`) : null;
+}
+
 const knownCast = (id: string): id is CastId => Object.prototype.hasOwnProperty.call(NAMES, id);
 
 export function carnetOf(memory: Memory, story: CarnetStory | null, world: Record<string, Value> = {}): CarnetModel {
@@ -167,10 +177,23 @@ export function carnetOf(memory: Memory, story: CarnetStory | null, world: Recor
   }
 
   /* ---- what you did: the end card's lines, under the day's own number --------------------- */
-  const did: CarnetDid[] = memory
-    .journal()
-    .slice(0, 14)
-    .map((j) => ({ words: j.words, label: dayLabel(j.day, state) }));
+  const did: CarnetDid[] = memory.journal().map((j) => ({ words: j.words, label: dayLabel(j.day, state) }));
+  // round 2: the days played as pages too (observed 17 Nov: only day 1, played here, was listed).
+  // The page reader keeps its choices on the server (the archive's `choices`), never in this
+  // phone's memory: each card chosen is the line the quarter's end card says for it, else «Tu as
+  // choisi : …», under the day's number, once.
+  const byEdition = [...(story?.days ?? [])].sort((a, b) => (b.edition_no ?? 0) - (a.edition_no ?? 0));
+  for (const day of byEdition) {
+    const label = episodeLabel(day.edition_no);
+    for (const c of day.choices ?? []) {
+      const words = choiceWords(c.turn_id, c.reply_id, c.label_fr ?? null);
+      if (!words || did.some((d) => d.words.fr === words.fr && (d.label === label || !d.label || !label))) continue;
+      did.push({ words, label });
+    }
+  }
+  const edition = (d: CarnetDid) => Number(/^Nº (\d+)$/.exec(d.label ?? '')?.[1] ?? Infinity);
+  did.sort((a, b) => edition(b) - edition(a));
+  did.splice(14);
 
   /* ---- the places of the played days, then the ones walked into here ---------------------- */
   const places: CarnetPlace[] = [];
