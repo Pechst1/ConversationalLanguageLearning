@@ -386,7 +386,12 @@ story.season_turn.gate is set, is what the learner expressed toward Lila (romanc
 friendship or none) — read from meaning, never accuracy.
 story.season_turn.must_not lists what the season keeps for later: never name it, hint at most.
 The ending credits the learner only with what their own words say or accepted; a plan or a
-proposal a character made stays the character's. It never says the learner agreed or
+proposal a character made stays the character's. resolution_fr, summary_native and
+callback_fr never say the learner will leave, stay, sell, keep, sign or change their date
+(«tu pars», «tu vas vendre», «tu restes») unless the learner's own words in this scene say
+it without «peut-être» or «je ne sais pas»; a fact of the season stays a fact («ton billet
+de retour est pour mercredi»), never the learner's intention, and what they left open stays
+open («tu n'as pas encore décidé pour ton billet»). It never says the learner agreed or
 changed their mind when their words did not: when the season moves something the learner
 wanted kept (a ticket they meant to use), the character gives the world's reason for it,
 and the learner's reason stays the one they gave.
@@ -1414,6 +1419,9 @@ def validate_story(turn: engine.SemanticTurn, payload: dict) -> None:
     lane_guards.check_agreement([turn.resolution_fr, turn.summary_native], address, own=own)
     # WP-155 §2: the ending credits the learner only with what they said or accepted.
     lane_guards.check_invented_choice(_ending_french(turn, payload), payload)
+    # P8 (fifth commit): the ending, the summary and the day's record never decide for the
+    # learner («Alors, tu pars mercredi.» after «Je reste peut-être jeudi.»).
+    keep_decisions_theirs(turn, payload)
     # WP-155 §3: a generated day's ending keeps the reveals of the tentpoles ahead.
     lane_guards.check_season_spoiler(written, payload)
     # #466: tomorrow's question never costs the ending. What the ending's text would be
@@ -1439,6 +1447,50 @@ def validate_story(turn: engine.SemanticTurn, payload: dict) -> None:
                 "native-language summary, honestly, from what was released."
             ),
         )
+
+
+def _learner_words(payload: dict) -> tuple[list[str], list[tuple[str, str]]]:
+    """The learner's words in this scene, and each line put to them with their answer
+    (the page's question, then each reply before the next turn), as ``invented_choice``
+    reads them."""
+
+    scene = payload.get("scene") or {}
+    history = [h for h in payload.get("history") or [] if isinstance(h, dict)]
+    said = [str(h.get("learner") or "") for h in history] + [str(payload.get("learner_text") or "")]
+    asked = [str(scene.get("opening_line_fr") or "")] + [str(h.get("character") or "") for h in history]
+    return said, list(zip(asked, said, strict=False))
+
+
+def keep_decisions_theirs(turn: engine.SemanticTurn, payload: dict) -> list[str]:
+    """P8 (fifth commit): what the ending wrote of the learner's decisions that their own
+    words do not hold, taken out (``learner_intent``). The character's line and the day's
+    record lose that sentence or clause; the summary, which retells the whole ending,
+    falls back to what the learner said. Returns what was taken out (logged). Never a
+    refusal: a regex over a sentence never costs the learner the written ending."""
+
+    from app.services import learner_intent
+
+    said, put_to = _learner_words(payload)
+    fields = {
+        "resolution_fr": turn.resolution_fr,
+        "callback_fr": turn.callback_fr,
+        "summary_native": turn.summary_native,
+    }
+    dropped = {name: learner_intent.unsaid(text, said, put_to) for name, text in fields.items() if text}
+    dropped = {name: rows for name, rows in dropped.items() if rows}
+    if not dropped:
+        return []
+    if "resolution_fr" in dropped:
+        turn.resolution_fr = learner_intent.without_unsaid(turn.resolution_fr, said, put_to)
+    if "callback_fr" in dropped:
+        turn.callback_fr = learner_intent.without_unsaid(turn.callback_fr, said, put_to)
+    if "summary_native" in dropped:
+        language = normalize_control_language((payload.get("story") or {}).get("control_language"))
+        last = next((text for text in reversed(said) if text.strip()), "")
+        turn.summary_native = learner_intent.said_fallback(language, last)
+    taken = [row for rows in dropped.values() for row in rows]
+    logger.info("story_lanes: decided_for_learner removed %s", taken)
+    return taken
 
 
 def run_story_lane(

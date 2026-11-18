@@ -36,7 +36,7 @@ from app.services.cast_registry import display_names
 from app.services.season.clock import SEASON_KEY, Position, played_log, record_played
 from app.services.season.director import (
     TOMORROW_KEY,
-    beat_line,
+    beat_hook,
     beats_for,
     dropped_beats,
     gap_brief,
@@ -680,7 +680,8 @@ def season_teaser(
 def tomorrow_beat(live: dict | None, *, date_iso: str | None, seed: str) -> dict[str, Any] | None:
     """P8 (fourth commit): the next day's planned beat, once today is settled, as the
     brief will carry it (``director.beats_for``): ``{gap, day, beat, line_fr}``, where
-    ``line_fr`` is the hook composed from it (``director.beat_line``). None when the
+    ``line_fr`` is the hook composed from it (``director.beat_hook``), with ``text_native``
+    when the season's data has the line in the learner's languages. None when the
     next day is not a planned gap day (a tentpole, a gap without a day plan, the end),
     or when the line would name something the gap must not.
 
@@ -703,10 +704,21 @@ def tomorrow_beat(live: dict | None, *, date_iso: str | None, seed: str) -> dict
         beat, _plan = beats_for(gap, pos.day_in_segment, state, flags, length=pos.segment.days)
         if beat is None:
             return None
-        line = beat_line(gap, beat)
+        # P8 (fifth commit): nobody the learner has not met is named in the hook.
+        from app.services import cast_registry
+
+        met_state = {"living_story": dict(live or {})}
+        hook = beat_hook(gap, beat, met=lambda cast_id: cast_registry.has_met(met_state, cast_id)) or {}
+        line = str(hook.get("text_fr") or "")
         if not line or pattern_hits(must_not_rows(season, gap.id, flags), [line]):
             return None
-        return {"gap": gap.id, "day": pos.day_in_segment, "beat": beat, "line_fr": line}
+        return {
+            "gap": gap.id,
+            "day": pos.day_in_segment,
+            "beat": beat,
+            "line_fr": line,
+            **({"text_native": hook["text_native"]} if hook.get("text_native") else {}),
+        }
     except Exception:  # noqa: BLE001 - tomorrow's hook never costs today's ending
         logger.exception("season: tomorrow's beat is unavailable; the day's hook is chosen as before")
         return None

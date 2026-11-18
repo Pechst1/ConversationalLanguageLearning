@@ -806,3 +806,96 @@ def teasers_after(live: dict, teaser: dict | None) -> list[dict]:
             }
         )
     return rows[-TEASER_LEDGER_LIMIT:]
+
+
+# ---------------------------------------------------------------------------
+# P8 (fifth commit): a hook composed from tomorrow's beat is a line the learner can read
+# ---------------------------------------------------------------------------
+
+#: The second real-model walk of 17 Nov filed a beat's bare title as the hook: «Le
+#: billet» (two words), «Romy enquête» (a name the learner had not met), «La même
+#: chose ?» (a question with no referent). A hook from a beat is now a whole line, built
+#: from the beat's premise: who, and what is about to happen (its title).
+BEAT_HOOK_MIN_WORDS = 4
+_DE_ARTICLE = (
+    (re.compile(r"^le\s+", re.IGNORECASE), "du "),
+    (re.compile(r"^les\s+", re.IGNORECASE), "des "),
+    (re.compile(r"^la\s+", re.IGNORECASE), "de la "),
+    (re.compile(r"^l['’]\s*", re.IGNORECASE), "de l'"),
+    (re.compile(r"^(une?)\s+", re.IGNORECASE), r"d'\1 "),
+)
+
+
+def _with_de(title: str) -> str:
+    """«Le billet» → «du billet», «La soupe de Marin» → «de la soupe de Marin»."""
+
+    lowered = title[:1].lower() + title[1:]
+    for pattern, replacement in _DE_ARTICLE:
+        if pattern.match(lowered):
+            return pattern.sub(replacement, lowered, count=1)
+    return f"de {lowered}"
+
+
+def readable_hook(line: Any) -> bool:
+    """A hook the learner can read on its own: at least four words, not a bare question
+    that only makes sense inside its scene («La même chose ?»)."""
+
+    text = " ".join(str(line or "").split())
+    if _word_count(text) < BEAT_HOOK_MIN_WORDS:
+        return False
+    return not (text.endswith("?") and _word_count(text) <= BEAT_HOOK_MIN_WORDS)
+
+
+def compose_beat_hook(
+    title_fr: Any,
+    *,
+    who_fr: str = "",
+    who_native: dict[str, str] | None = None,
+    subject_rest: str = "",
+    pronoun: str = "",
+) -> dict | None:
+    """``{text_fr, text_native?}`` for tomorrow's beat, or None when no readable line can
+    be built. Deterministic, no model call.
+
+    - the title is somebody doing something («Romy enquête»): ``subject_rest`` is what
+      follows the name, and ``who_fr`` says who (a description when the learner has not
+      met them: «Demain, une journaliste québécoise est là et elle enquête.»). No native line: the verb
+      is the season's French and has no translation in its data.
+    - the title is a question («La même chose ?»): «Demain, Margaux te demande : « La même
+      chose ? »», natively «Morgen fragt dich Margaux: „La même chose ?“» (the quoted line
+      is fiction and stays French).
+    - the title names a thing («Le billet»): «Demain, Lila te parle du billet.» («Morgen
+      spricht Lila mit dir über „Le billet“.»); when the person is in the title already,
+      «Demain, Marin est là : la soupe de Marin.»
+    """
+
+    title = " ".join(str(title_fr or "").split()).strip()
+    who = " ".join(str(who_fr or "").split())
+    native = {lang: " ".join(str(text or "").split()) for lang, text in (who_native or {}).items() if text}
+    if not title or not who:
+        return None
+    text_native: dict[str, str] = {}
+    if subject_rest:
+        text = f"Demain, {who} est là et {pronoun or 'on'} {subject_rest.strip().rstrip('.')}."
+    elif title.endswith("?"):
+        text = f"Demain, {who} te demande : « {title} »"
+        text_native = {
+            lang: template.format(who=native[lang], title=title)
+            for lang, template in (("de", "Morgen fragt dich {who}: „{title}“"), ("en", "Tomorrow {who} asks you: “{title}”"))
+            if lang in native
+        }
+    else:
+        bare = title.rstrip(" .")
+        if _folded(who) and _folded(who) in _folded(bare):
+            text = f"Demain, {who} est là : {bare[:1].lower()}{bare[1:]}."
+            templates = (("de", "Morgen ist {who} da: „{title}“."), ("en", "Tomorrow {who} is there: “{title}”."))
+        else:
+            text = f"Demain, {who} te parle {_with_de(bare)}."
+            templates = (
+                ("de", "Morgen spricht {who} mit dir über „{title}“."),
+                ("en", "Tomorrow {who} talks to you about “{title}”."),
+            )
+        text_native = {lang: template.format(who=native[lang], title=bare) for lang, template in templates if lang in native}
+    if not readable_hook(text):
+        return None
+    return {"text_fr": text, **({"text_native": text_native} if text_native else {})}
