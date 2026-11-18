@@ -277,6 +277,18 @@ def mentions_rule(brief: dict[str, Any], text: str | None) -> bool:
     return bool(brief.get("noun_phrase")) and bool(_NOUN_PHRASE.search(fold_apostrophes(text)))
 
 
+def reads_as_rule(brief: dict[str, Any], text: str | None) -> bool:
+    """#894: could a learner who read the rule's *title* take ``text`` for it?
+
+    :func:`mentions_rule`, or anything else the title names (``title_scope``:
+    «Subjektpronomen und être» names the subject pronouns, so «Vous allez
+    vendre…» reads as the rule). Only the «does not use this rule» distractors
+    ask this; a contrast with a partner unit keeps to the partner's forms.
+    """
+
+    return mentions_rule(brief, text) or raw_detector_hit(list(brief.get("title_scope") or []), text)
+
+
 # S3: one ``{en, de, fr}`` picker for the whole server (chrome_language.localized).
 _localized = localized
 
@@ -420,8 +432,9 @@ def recognise_item(
 
     Exactly one option may use the rule: the answer is a trustworthy use
     (:func:`rule_span`), and every distractor is a sentence no one could read
-    as using it (:func:`mentions_rule`: no detector hit at all, and for a
-    noun-phrase unit no noun phrase). A scene without such sentences gets no
+    as using it (:func:`reads_as_rule`: no detector hit at all, for a
+    noun-phrase unit no noun phrase, and nothing else the rule's title names).
+    A scene without such sentences gets no
     recognise item: the Essai starts with «choose».
     """
 
@@ -448,7 +461,7 @@ def recognise_item(
         others = []
         for sentence in sentences:
             text = plain(sentence)
-            if (_usable(text) and not mentions_rule(brief, text)
+            if (_usable(text) and not reads_as_rule(brief, text)
                 and _fold(text) not in {_fold(item) for item in [answer, *others]}):
                 others.append(text)
     if not others:
@@ -1046,6 +1059,7 @@ __all__ = [
     "detector_span",
     "fold_apostrophes",
     "mentions_rule",
+    "reads_as_rule",
     "raw_detector_hit",
     "rule_span",
     "plain",
