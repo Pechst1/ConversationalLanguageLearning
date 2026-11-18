@@ -45,8 +45,9 @@ from app.services.llm_service import LLMResult
         ("Vous êtes soif ?", "Vous avez soif ?"),
         ("Ils sont sommeil.", "Ils ont sommeil."),
     ],
+    ids=["tu", "je-ans", "je", "tu-froid", "il", "elle", "on", "nous", "vous", "ils"],
 )
-def test_etre_for_avoir_in_every_person(sentence, right):
+def test_avoir(sentence, right):
     """#824: the basic check names «avoir faim» whoever is hungry, with the card's form."""
     errata = correction_contract.deterministic_errata(sentence, language="de")
     fixed = correction_contract.repair_text(sentence)
@@ -95,8 +96,9 @@ def test_etre_for_avoir_leaves_french_alone(right):
         ("Il et malade.", "Il est malade."),
         ("Il pleut et elle et chez Gus.", "Il pleut et elle est chez Gus."),
     ],
+    ids=["a", "à", "il-a", "en", "très", "ici", "adj", "after-et"],
 )
-def test_et_for_est(sentence, right):
+def test_et_est(sentence, right):
     """#824: «Elle et a Paris» is the être card's slip of the ear: «est», and «à» after it."""
     errata = correction_contract.deterministic_errata(sentence, language="de")
     fixed = correction_contract.repair_text(sentence)
@@ -177,7 +179,7 @@ _A1_TRAPS = _card_traps("A1")
         for trap in _A1_TRAPS
     ],
 )
-def test_every_a1_card_trap_is_named_by_the_basic_check(card, wrong, right):
+def test_card(card, wrong, right):
     """#824's guard: each A1 card's own «Falsch» line comes out as the card's «Richtig»,
     and the floor knows the edit it makes there is that card's trap."""
     fixed = correction_contract.repair_text(wrong)
@@ -198,8 +200,10 @@ _TRAP_SHAPES = [
 ]
 
 
-@pytest.mark.parametrize(("card", "sentence", "right"), _TRAP_SHAPES, ids=[s for _c, s, _r in _TRAP_SHAPES])
-def test_a_sentence_built_on_the_trap_is_named_as_the_trap(card, sentence, right):
+@pytest.mark.parametrize(
+    ("card", "sentence", "right"), _TRAP_SHAPES, ids=["faim", "ans", "froid", "et", "que-on", "que-il"]
+)
+def test_shape(card, sentence, right):
     fixed = correction_contract.repair_text(sentence)
     assert fixed == right, f"{card}: «{sentence}» is printed as «{fixed}», the card says «{right}»"
     assert correction_contract.deterministic_edits(fixed) == [], "the printed line is left as it is"
@@ -324,7 +328,7 @@ ESTCE_RECALL = "Est-ce que il pleut ?"
 
 
 @pytest.mark.parametrize(("text", "fix"), [(ESTCE_FORGE, "qu'on"), (ESTCE_RECALL, "qu'il")], ids=["on", "il"])
-def test_forge_relecture_holds_the_model_to_the_floor(db_session, monkeypatch, text, fix):
+def test_forge_estce(db_session, monkeypatch, text, fix):
     """#773: La Forge does not call a missing «qu'» elision right when its model does."""
     service, attempt, model = _submit(
         db_session, monkeypatch, text, external_id="FR2_A11_QUESTIONS", model_configured=True
@@ -367,7 +371,7 @@ def test_the_recall_item_and_the_forge_free_check_agree():
     assert held["verdict"] == "correct"
 
 
-def test_tu_es_faim_on_the_avoir_day_counts_as_a_miss_without_a_model(db_session, monkeypatch):
+def test_forge_avoir_miss(db_session, monkeypatch):
     """#824 done-when: with no model, La Forge's free item «Tu es faim ce soir ?» on the avoir
     rule is the card's own trap. It counts as a miss with the avoir note, never «zählt nicht»."""
     text = "Tu es faim ce soir ?"
