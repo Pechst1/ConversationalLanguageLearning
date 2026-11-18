@@ -19,6 +19,10 @@ the same item, which never gets a chance of its own: its miss shows the
 solution. Items with no second chance (a two-way choice, a burst, a rule check,
 a re-test) are ``shown`` from the start.
 
+An answer nobody read and nobody can be asked to read again (no model) is no miss
+and never gets its chance: :func:`no_chance_follows` serves it whole, and a later
+re-check reveals it first (#855).
+
 :func:`learner_view` is the one place the withheld payload is made. The hints
 are the model's or the rule's own ``hint`` when it has one, else its note; every
 one goes through :func:`scrub_hint`, which drops each clause naming a word the
@@ -131,7 +135,46 @@ def is_withheld(correction: dict[str, Any] | None, verdict: Any = None) -> bool:
     state = correction.get(STATE_KEY)
     if not isinstance(state, dict) or state.get("state") != WITHHELD:
         return False
+    if no_chance_follows(correction, verdict):
+        return False
     return not _passes(correction, verdict)
+
+
+def no_chance_follows(correction: dict[str, Any] | None, verdict: Any = None) -> bool:
+    """Nobody read this answer and nobody can be asked to read it again (#855, #333).
+
+    ``withheld`` is written when the answer is posed, before anyone has read it: it says
+    a chance follows a MISS. An unread answer is no miss, and when its check cannot run
+    again (no model: the screen offers «Skip without a check», never «Check again») no
+    miss can ever come, so there is no chance to wait for and the rules' fixes are the
+    only help it gets: they are served whole. This is the reading the screen draws from
+    (``check.outcome``, ``check.call``, ``check.retryable``: ``canAskAgain``), so the gate
+    and the screen cannot disagree on whether a chance follows. While the check runs, or
+    while it can be asked again (a timeout, a provider error), the answer stays withheld:
+    a read miss then opens its chance with nothing given away.
+    """
+
+    if not isinstance(correction, dict):
+        return False
+    from app.core.verdict import Call, Outcome
+    from app.services.verdicts import from_forge
+
+    shown = verdict if verdict is not None else correction.get("verdict")
+    read = from_forge(correction, verdict=str(shown) if shown is not None else None)
+    return read.outcome is Outcome.NOT_CHECKED and read.call is not Call.PENDING and not read.retryable
+
+
+def served_whole_unread(correction: dict[str, Any] | None, verdict: Any = None) -> bool:
+    """Posed with a chance, but served whole because no chance could follow (#855).
+
+    What was served stays served: a re-check of such an answer must :func:`reveal` it
+    first, so a miss read later shows the solution instead of offering a chance.
+    """
+
+    if not isinstance(correction, dict):
+        return False
+    state = correction.get(STATE_KEY)
+    return isinstance(state, dict) and state.get("state") == WITHHELD and no_chance_follows(correction, verdict)
 
 
 def mark(correction: dict[str, Any], *, chance: bool, language: str | None = None) -> dict[str, Any]:
@@ -365,6 +408,10 @@ def learner_view(
 ) -> dict[str, Any]:
     """The correction as the learner may see it now (unchanged unless withheld)."""
 
+    if served_whole_unread(correction, verdict):
+        # #855: the solution IS on this payload, so it says so (``solution.state`` is what
+        # the screen reads as «nothing right may be drawn», lib/solution-gate.ts).
+        return {**correction, STATE_KEY: {**correction[STATE_KEY], "state": SHOWN, "served": "unread"}}  # type: ignore[index]
     if not isinstance(correction, dict) or not is_withheld(correction, verdict):
         return correction or {}
     state = correction.get(STATE_KEY) or {}
