@@ -259,6 +259,10 @@ def fill_blank(prompt: Any, answer: Any, *, count: int = 1) -> str:
 
 PERSON_KEYS = ("1s", "2s", "3s", "1p", "2p", "3p")
 _IMPARFAIT = ("ais", "ais", "ait", "ions", "iez", "aient")
+_SUBJONCTIF = ("e", "es", "e", "ions", "iez", "ent")
+_IRREGULAR_SUBJONCTIF = frozenset(
+    {"être", "avoir", "aller", "faire", "pouvoir", "savoir", "vouloir", "valoir", "falloir", "pleuvoir"}
+)
 _FUTUR = ("ai", "as", "a", "ons", "ez", "ont")
 _REFLEXIVE = ("me", "te", "se", "nous", "vous", "se")
 _TRAP_PERSONS = {0: (1, 2), 1: (2, 0), 2: (1, 5), 3: (4, 2), 4: (3, 2), 5: (2, 3)}
@@ -313,6 +317,25 @@ class Morph:
     def conditionnel(self, verb: str | dict[str, Any], person: int) -> str:
         return self.future_stem(verb) + _IMPARFAIT[person]
 
+    def subjonctif(self, verb: str | dict[str, Any], person: int) -> str:
+        """P6 (2026-11-18): the regular present subjunctive — the ils stem + e/es/e/ent,
+        and the imparfait's nous/vous forms (que nous prenions). A verb with an
+        irregular subjunctive (être, avoir, aller, faire, pouvoir, savoir, vouloir…)
+        has no form unless its entry lists a ``subj`` table, so no frame can render
+        a wrong one."""
+
+        entry = self.verb(verb)
+        if entry.get("subj"):
+            return entry["subj"][person]
+        if entry["inf"] in _IRREGULAR_SUBJONCTIF:
+            raise KeyError(f"{entry['inf']} has an irregular subjunctive")
+        if person in (3, 4):
+            return self.imparfait(entry, person)
+        stem = self.present(entry, 5)
+        if not stem.endswith("ent"):
+            raise KeyError(f"{entry['inf']}: no ils stem")
+        return stem[:-3] + _SUBJONCTIF[person]
+
     def participle(self, verb: str | dict[str, Any], gender: str = "m", plural: bool = False, agree: bool | None = None) -> str:
         entry = self.verb(verb)
         pp = entry["pp"]
@@ -338,6 +361,8 @@ class Morph:
             return self.futur(verb, person)
         if tense == "conditionnel":
             return self.conditionnel(verb, person)
+        if tense == "subjonctif":
+            return self.subjonctif(verb, person)
         raise KeyError(tense)
 
 
@@ -2314,8 +2339,8 @@ class ItemBank:
                     stats[f"rejected:{clash.kind}"] += 1
                 misses += 1
                 continue
-            key = item.fingerprint
-            if key in seen or (detector is not None and not detector(item.sentence)):
+            keys = self._variety_keys(item)
+            if keys & seen or (detector is not None and not detector(item.sentence)):
                 misses += 1
                 continue
             variants = self._person_variants(frame, bindings, item.sentence)
@@ -2325,8 +2350,31 @@ class ItemBank:
             if named != item.en:
                 item = replace(item, en=named)
             misses = 0
-            seen.add(key)
+            seen |= keys
             yield item
+
+    def _variety_keys(self, item: BankItem) -> frozenset[str]:
+        """P6: the fingerprints a sentence stands for in the variety guarantee — its own
+        and its vocative twins' («On peut rester chez Lila.», «…, Marin.»). A build rung
+        says the sentence to nobody (:func:`without_vocative`), so a twin served two days
+        after its plain sentence had the learner build the same sentence twice."""
+
+        voiced = any(slot == "VOC" for slot, _ in item.bindings)
+        bare = without_vocative(item) if voiced else item
+        if bare is None:
+            return frozenset({item.fingerprint})
+        sentence = bare.sentence.rstrip()
+        keys = {item.fingerprint, bare.fingerprint}
+        question = sentence.find("?")
+        for entry in self.lex.pool("cast"):
+            name = str(entry.get("fr") or "")
+            if not name:
+                continue
+            if 0 < question < len(sentence) - 1:
+                keys.add(fingerprint(f"{sentence[:question].rstrip()}, {name} {sentence[question:]}"))
+            else:
+                keys.add(fingerprint(f"{sentence[:-1].rstrip()}, {name}{sentence[-1:]}"))
+        return frozenset(keys)
 
     def generate(
         self,

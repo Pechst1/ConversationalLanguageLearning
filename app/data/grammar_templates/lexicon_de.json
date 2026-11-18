@@ -5089,6 +5089,1879 @@
      "le comptoir": "die Theke"
     }
    }
+  },
+  "dp_obj": {
+   "dp_rapport": {
+    "deu": "den Bericht",
+    "deu_cap": "Der Bericht",
+    "deu_pro": "ihn",
+    "deu_v1": "schicke",
+    "deu_part": "",
+    "deu_inf": "schicken",
+    "deu_pp": "geschickt"
+   },
+   "dp_cles": {
+    "deu": "die Schlüssel",
+    "deu_cap": "Die Schlüssel",
+    "deu_pro": "sie",
+    "deu_v1": "gebe",
+    "deu_part": "zurück",
+    "deu_inf": "zurückgeben",
+    "deu_pp": "zurückgegeben"
+   },
+   "dp_recette": {
+    "deu": "das Rezept",
+    "deu_cap": "Das Rezept",
+    "deu_pro": "es",
+    "deu_v1": "schicke",
+    "deu_part": "",
+    "deu_inf": "schicken",
+    "deu_pp": "geschickt"
+   },
+   "dp_photos": {
+    "deu": "die Fotos",
+    "deu_cap": "Die Fotos",
+    "deu_pro": "sie",
+    "deu_v1": "zeige",
+    "deu_part": "",
+    "deu_inf": "zeigen",
+    "deu_pp": "gezeigt"
+   },
+   "dp_livre": {
+    "deu": "das Buch",
+    "deu_cap": "Das Buch",
+    "deu_pro": "es",
+    "deu_v1": "leihe",
+    "deu_part": "",
+    "deu_inf": "leihen",
+    "deu_pp": "geliehen"
+   },
+   "dp_facture": {
+    "deu": "die Rechnung",
+    "deu_cap": "Die Rechnung",
+    "deu_pro": "sie",
+    "deu_v1": "schicke",
+    "deu_part": "",
+    "deu_inf": "schicken",
+    "deu_pp": "geschickt"
+   },
+   "dp_parapluie": {
+    "deu": "den Regenschirm",
+    "deu_cap": "Der Regenschirm",
+    "deu_pro": "ihn",
+    "deu_v1": "bringe",
+    "deu_part": "zurück",
+    "deu_inf": "zurückbringen",
+    "deu_pp": "zurückgebracht"
+   },
+   "dp_billets": {
+    "deu": "die Tickets",
+    "deu_cap": "Die Tickets",
+    "deu_pro": "sie",
+    "deu_v1": "gebe",
+    "deu_part": "",
+    "deu_inf": "geben",
+    "deu_pp": "gegeben"
+   },
+   "dp_gateau": {
+    "deu": "den Kuchen",
+    "deu_cap": "Der Kuchen",
+    "deu_pro": "ihn",
+    "deu_v1": "bringe",
+    "deu_part": "",
+    "deu_inf": "bringen",
+    "deu_pp": "gebracht"
+   },
+   "dp_code": {
+    "deu": "den WLAN-Code",
+    "deu_cap": "Der WLAN-Code",
+    "deu_pro": "ihn",
+    "deu_v1": "gebe",
+    "deu_part": "",
+    "deu_inf": "geben",
+    "deu_pp": "gegeben"
+   },
+   "dp_voiture": {
+    "deu": "das Auto",
+    "deu_cap": "Das Auto",
+    "deu_pro": "es",
+    "deu_v1": "leihe",
+    "deu_part": "",
+    "deu_inf": "leihen",
+    "deu_pp": "geliehen"
+   },
+   "dp_lien": {
+    "deu": "den Link",
+    "deu_cap": "Der Link",
+    "deu_pro": "ihn",
+    "deu_v1": "schicke",
+    "deu_part": "",
+    "deu_inf": "schicken",
+    "deu_pp": "geschickt"
+   },
+   "dp_numero": {
+    "deu": "die Nummer des Klempners",
+    "deu_cap": "Die Nummer des Klempners",
+    "deu_pro": "sie",
+    "deu_v1": "gebe",
+    "deu_part": "",
+    "deu_inf": "geben",
+    "deu_pp": "gegeben"
+   },
+   "dp_adresse": {
+    "deu": "die Adresse",
+    "deu_cap": "Die Adresse",
+    "deu_pro": "sie",
+    "deu_v1": "schicke",
+    "deu_part": "",
+    "deu_inf": "schicken",
+    "deu_pp": "geschickt"
+   }
+  },
+  "dp_who": {
+   "dw_soeur": {
+    "deu": "deine Schwester",
+    "deu_cap": "Deine Schwester",
+    "deu_dat": "ihr",
+    "deu_wartet": "Wartet",
+    "deu_sucht": "Sucht",
+    "deu_hat": "Hat",
+    "deu_weiss": "weiß"
+   },
+   "dw_frere": {
+    "deu": "dein Bruder",
+    "deu_cap": "Dein Bruder",
+    "deu_dat": "ihm",
+    "deu_wartet": "Wartet",
+    "deu_sucht": "Sucht",
+    "deu_hat": "Hat",
+    "deu_weiss": "weiß"
+   },
+   "dw_parents": {
+    "deu": "deine Eltern",
+    "deu_cap": "Deine Eltern",
+    "deu_dat": "ihnen",
+    "deu_wartet": "Warten",
+    "deu_sucht": "Suchen",
+    "deu_hat": "Haben",
+    "deu_weiss": "wissen"
+   },
+   "dw_voisine": {
+    "deu": "die Nachbarin",
+    "deu_cap": "Die Nachbarin",
+    "deu_dat": "ihr",
+    "deu_wartet": "Wartet",
+    "deu_sucht": "Sucht",
+    "deu_hat": "Hat",
+    "deu_weiss": "weiß"
+   },
+   "dw_voisins": {
+    "deu": "die Nachbarn",
+    "deu_cap": "Die Nachbarn",
+    "deu_dat": "ihnen",
+    "deu_wartet": "Warten",
+    "deu_sucht": "Suchen",
+    "deu_hat": "Haben",
+    "deu_weiss": "wissen"
+   },
+   "dw_collegue": {
+    "deu": "dein Kollege",
+    "deu_cap": "Dein Kollege",
+    "deu_dat": "ihm",
+    "deu_wartet": "Wartet",
+    "deu_sucht": "Sucht",
+    "deu_hat": "Hat",
+    "deu_weiss": "weiß"
+   },
+   "dw_proprio": {
+    "deu": "der Vermieter",
+    "deu_cap": "Der Vermieter",
+    "deu_dat": "ihm",
+    "deu_wartet": "Wartet",
+    "deu_sucht": "Sucht",
+    "deu_hat": "Hat",
+    "deu_weiss": "weiß"
+   },
+   "dw_copine": {
+    "deu": "deine Freundin",
+    "deu_cap": "Deine Freundin",
+    "deu_dat": "ihr",
+    "deu_wartet": "Wartet",
+    "deu_sucht": "Sucht",
+    "deu_hat": "Hat",
+    "deu_weiss": "weiß"
+   },
+   "dw_amis": {
+    "deu": "deine Freunde",
+    "deu_cap": "Deine Freunde",
+    "deu_dat": "ihnen",
+    "deu_wartet": "Warten",
+    "deu_sucht": "Suchen",
+    "deu_hat": "Haben",
+    "deu_weiss": "wissen"
+   }
+  },
+  "dp_when": {
+   "dt_soir": {
+    "deu": "heute Abend"
+   },
+   "dt_demain": {
+    "deu": "morgen früh"
+   },
+   "dt_aprem": {
+    "deu": "heute Nachmittag"
+   },
+   "dt_midi": {
+    "deu": "vor zwölf"
+   },
+   "dt_travail": {
+    "deu": "nach der Arbeit"
+   },
+   "dt_samedi": {
+    "deu": "am Samstag"
+   }
+  },
+  "dp_today": {
+   "dd_auj": {
+    "deu": "heute"
+   },
+   "dd_soir": {
+    "deu": "heute Abend"
+   },
+   "dd_semaine": {
+    "deu": "diese Woche"
+   },
+   "dd_maint": {
+    "deu": "jetzt"
+   }
+  },
+  "dp_topic": {
+   "tp_concert": {
+    "deu": "das Konzert",
+    "deu_cap": "Das Konzert"
+   },
+   "tp_fete": {
+    "deu": "das Nachbarschaftsfest",
+    "deu_cap": "Das Nachbarschaftsfest"
+   },
+   "tp_bar": {
+    "deu": "die neue Bar",
+    "deu_cap": "Die neue Bar"
+   },
+   "tp_expo": {
+    "deu": "die Ausstellung",
+    "deu_cap": "Die Ausstellung"
+   },
+   "tp_travaux": {
+    "deu": "die Bauarbeiten",
+    "deu_cap": "Die Bauarbeiten"
+   },
+   "tp_reunion": {
+    "deu": "die Sitzung",
+    "deu_cap": "Die Sitzung"
+   },
+   "tp_videgrenier": {
+    "deu": "der Flohmarkt",
+    "deu_cap": "Der Flohmarkt"
+   },
+   "tp_greve": {
+    "deu": "der Streik",
+    "deu_cap": "Der Streik"
+   }
+  },
+  "dp_teller": {
+   "tl_soeur": {
+    "deu": "Meine Schwester",
+    "deu_low": "deine Schwester"
+   },
+   "tl_frere": {
+    "deu": "Mein Bruder",
+    "deu_low": "dein Bruder"
+   },
+   "tl_collegue": {
+    "deu": "Mein Kollege",
+    "deu_low": "dein Kollege"
+   },
+   "tl_voisine": {
+    "deu": "Die Nachbarin",
+    "deu_low": "die Nachbarin"
+   },
+   "tl_coloc": {
+    "deu": "Meine Mitbewohnerin",
+    "deu_low": "deine Mitbewohnerin"
+   },
+   "tl_proprio": {
+    "deu": "Der Vermieter",
+    "deu_low": "der Vermieter"
+   }
+  },
+  "dp_past": {
+   "dpt_hier": {
+    "deu": "gestern"
+   },
+   "dpt_matin": {
+    "deu": "heute Morgen"
+   },
+   "dpt_semaine": {
+    "deu": "letzte Woche"
+   },
+   "dpt_soir": {
+    "deu": "gestern Abend"
+   },
+   "dpt_lundi": {
+    "deu": "am Montag"
+   }
+  },
+  "dp_food": {
+   "df_sel": {
+    "deu_kein": "kein Salz",
+    "deu_welch": "welches"
+   },
+   "df_sucre": {
+    "deu_kein": "keinen Zucker",
+    "deu_welch": "welchen"
+   },
+   "df_cafe": {
+    "deu_kein": "keinen Kaffee",
+    "deu_welch": "welchen"
+   },
+   "df_lait": {
+    "deu_kein": "keine Milch",
+    "deu_welch": "welche"
+   },
+   "df_oeufs": {
+    "deu_kein": "keine Eier",
+    "deu_welch": "welche"
+   },
+   "df_farine": {
+    "deu_kein": "kein Mehl",
+    "deu_welch": "welches"
+   },
+   "df_pain": {
+    "deu_kein": "kein Brot",
+    "deu_welch": "welches"
+   },
+   "df_bougies": {
+    "deu_kein": "keine Kerzen",
+    "deu_welch": "welche"
+   }
+  },
+  "dp_place": {
+   "dpl_cafe": {
+    "deu_cap": "Das Café an der Ecke"
+   },
+   "dpl_gare": {
+    "deu_cap": "Der Bahnhof"
+   },
+   "dpl_marche": {
+    "deu_cap": "Der Markt"
+   },
+   "dpl_biblio": {
+    "deu_cap": "Die Bibliothek"
+   },
+   "dpl_parc": {
+    "deu_cap": "Der Park"
+   },
+   "dpl_cinema": {
+    "deu_cap": "Das Kino"
+   },
+   "dpl_piscine": {
+    "deu_cap": "Das Schwimmbad"
+   }
+  },
+  "dp_hour": {
+   "dh_huit": {
+    "deu": "um acht"
+   },
+   "dh_midi": {
+    "deu": "um zwölf"
+   },
+   "dh_heure": {
+    "deu": "in einer Stunde"
+   },
+   "dh_dixhuit": {
+    "deu": "um sechs"
+   },
+   "dh_travail": {
+    "deu": "nach der Arbeit"
+   }
+  },
+  "dont_thing": {
+   "dx_resto": {
+    "deu": "das Restaurant",
+    "deu_von": "von dem"
+   },
+   "dx_collegue": {
+    "deu": "der Kollege",
+    "deu_von": "von dem"
+   },
+   "dx_boulangerie": {
+    "deu": "die Bäckerei",
+    "deu_von": "von der"
+   },
+   "dx_film": {
+    "deu": "der Film",
+    "deu_von": "von dem"
+   },
+   "dx_appart": {
+    "deu": "die Wohnung",
+    "deu_von": "von der"
+   },
+   "dx_serie": {
+    "deu": "die Serie",
+    "deu_von": "von der"
+   },
+   "dx_livre": {
+    "deu": "das Buch",
+    "deu_von": "von dem"
+   },
+   "dx_bar": {
+    "deu": "die Bar",
+    "deu_von": "von der"
+   },
+   "dx_expo": {
+    "deu": "die Ausstellung",
+    "deu_von": "von der"
+   },
+   "dx_voisine": {
+    "deu": "die Nachbarin",
+    "deu_von": "von der"
+   },
+   "dx_plombier": {
+    "deu": "der Klempner",
+    "deu_von": "von dem"
+   },
+   "dx_appli": {
+    "deu": "die App",
+    "deu_von": "von der"
+   },
+   "dx_marche": {
+    "deu": "der Markt",
+    "deu_von": "von dem"
+   },
+   "dx_piscine": {
+    "deu": "das Schwimmbad",
+    "deu_von": "von dem"
+   },
+   "dx_yoga": {
+    "deu": "der Yogalehrer",
+    "deu_von": "von dem"
+   },
+   "dx_brocante": {
+    "deu": "der Flohmarkt",
+    "deu_von": "von dem"
+   },
+   "dx_podcast": {
+    "deu": "der Podcast",
+    "deu_von": "von dem"
+   },
+   "dx_recette": {
+    "deu": "das Rezept",
+    "deu_von": "von dem"
+   }
+  },
+  "dont_teller": {
+   "dtl_soeur": {
+    "deu": "meine Schwester"
+   },
+   "dtl_frere": {
+    "deu": "mein Bruder"
+   },
+   "dtl_collegue": {
+    "deu": "meine Kollegin"
+   },
+   "dtl_coloc": {
+    "deu": "mein Mitbewohner"
+   },
+   "dtl_ami": {
+    "deu": "ein Freund"
+   }
+  },
+  "dont_need": {
+   "dn_ordi": {
+    "deu": "der Computer",
+    "deu_cap": "Der Computer",
+    "deu_acc": "den Computer",
+    "deu_rel": "den",
+    "deu_ist": "ist"
+   },
+   "dn_velo": {
+    "deu": "das Fahrrad",
+    "deu_cap": "Das Fahrrad",
+    "deu_acc": "das Fahrrad",
+    "deu_rel": "das",
+    "deu_ist": "ist"
+   },
+   "dn_valise": {
+    "deu": "der Koffer",
+    "deu_cap": "Der Koffer",
+    "deu_acc": "den Koffer",
+    "deu_rel": "den",
+    "deu_ist": "ist"
+   },
+   "dn_chaussures": {
+    "deu": "die Schuhe",
+    "deu_cap": "Die Schuhe",
+    "deu_acc": "die Schuhe",
+    "deu_rel": "die",
+    "deu_ist": "sind"
+   },
+   "dn_canape": {
+    "deu": "das Sofa",
+    "deu_cap": "Das Sofa",
+    "deu_acc": "das Sofa",
+    "deu_rel": "das",
+    "deu_ist": "ist"
+   },
+   "dn_sac": {
+    "deu": "der Rucksack",
+    "deu_cap": "Der Rucksack",
+    "deu_acc": "den Rucksack",
+    "deu_rel": "den",
+    "deu_ist": "ist"
+   },
+   "dn_lampe": {
+    "deu": "die Lampe",
+    "deu_cap": "Die Lampe",
+    "deu_acc": "die Lampe",
+    "deu_rel": "die",
+    "deu_ist": "ist"
+   },
+   "dn_bureau": {
+    "deu": "der Schreibtisch",
+    "deu_cap": "Der Schreibtisch",
+    "deu_acc": "den Schreibtisch",
+    "deu_rel": "den",
+    "deu_ist": "ist"
+   },
+   "dn_rideaux": {
+    "deu": "die Vorhänge",
+    "deu_cap": "Die Vorhänge",
+    "deu_acc": "die Vorhänge",
+    "deu_rel": "die",
+    "deu_ist": "sind"
+   },
+   "dn_cafe": {
+    "deu": "die Kaffeemaschine",
+    "deu_cap": "Die Kaffeemaschine",
+    "deu_acc": "die Kaffeemaschine",
+    "deu_rel": "die",
+    "deu_ist": "ist"
+   },
+   "dn_matelas": {
+    "deu": "die Matratze",
+    "deu_cap": "Die Matratze",
+    "deu_acc": "die Matratze",
+    "deu_rel": "die",
+    "deu_ist": "ist"
+   },
+   "dn_manteau": {
+    "deu": "der Mantel",
+    "deu_cap": "Der Mantel",
+    "deu_acc": "den Mantel",
+    "deu_rel": "den",
+    "deu_ist": "ist"
+   },
+   "dn_perceuse": {
+    "deu": "die Bohrmaschine",
+    "deu_cap": "Die Bohrmaschine",
+    "deu_acc": "die Bohrmaschine",
+    "deu_rel": "die",
+    "deu_ist": "ist"
+   }
+  },
+  "dont_friend": {
+   "df_amie": {
+    "deu": "eine Freundin",
+    "deu_rel": "deren"
+   },
+   "df_collegue_m": {
+    "deu": "einen Kollegen",
+    "deu_rel": "dessen"
+   },
+   "df_voisine": {
+    "deu": "eine Nachbarin",
+    "deu_rel": "deren"
+   },
+   "df_cousin": {
+    "deu": "einen Cousin",
+    "deu_rel": "dessen"
+   },
+   "df_collegue_f": {
+    "deu": "eine Kollegin",
+    "deu_rel": "deren"
+   },
+   "df_ami": {
+    "deu": "einen Freund",
+    "deu_rel": "dessen"
+   }
+  },
+  "dont_whose": {
+   "dw_chef": {
+    "deu": "Bruder Koch ist"
+   },
+   "dw_cello": {
+    "deu": "Tochter Cello spielt"
+   },
+   "dw_montreal": {
+    "deu": "Sohn in Montreal wohnt"
+   },
+   "dw_mairie": {
+    "deu": "Schwester im Rathaus arbeitet"
+   },
+   "dw_librairie": {
+    "deu": "Vater eine Buchhandlung führt"
+   },
+   "dw_chien": {
+    "deu": "Hund Angst vor Tauben hat"
+   },
+   "dw_seine": {
+    "deu": "Wohnung auf die Seine hinausgeht"
+   }
+  },
+  "dont_envie": {
+   "de_weekend": {
+    "deu": "das Wochenende",
+    "deu_auf": "auf das"
+   },
+   "de_soiree": {
+    "deu": "der Abend",
+    "deu_auf": "auf den"
+   },
+   "de_repas": {
+    "deu": "das Essen",
+    "deu_auf": "auf das"
+   },
+   "de_balade": {
+    "deu": "der Spaziergang",
+    "deu_auf": "auf den"
+   },
+   "de_cafe": {
+    "deu": "der Kaffee",
+    "deu_auf": "auf den"
+   },
+   "de_musique": {
+    "deu": "die Musik",
+    "deu_auf": "auf die"
+   },
+   "de_dessert": {
+    "deu": "der Nachtisch",
+    "deu_auf": "auf den"
+   }
+  },
+  "dont_memory": {
+   "dm_plage": {
+    "deu": "der Strand",
+    "deu_an": "an den"
+   },
+   "dm_hotel": {
+    "deu": "das kleine Hotel",
+    "deu_an": "an das"
+   },
+   "dm_marche": {
+    "deu": "der Weihnachtsmarkt",
+    "deu_an": "an den"
+   },
+   "dm_chanson": {
+    "deu": "das Lied",
+    "deu_an": "an das"
+   },
+   "dm_creperie": {
+    "deu": "die kleine Crêperie",
+    "deu_an": "an die"
+   },
+   "dm_musee": {
+    "deu": "das Museum",
+    "deu_an": "an das"
+   },
+   "dm_canal": {
+    "deu": "das Picknick am Kanal",
+    "deu_an": "an das"
+   },
+   "dm_prof": {
+    "deu": "der Mathelehrer",
+    "deu_an": "an den"
+   }
+  },
+  "dont_dream": {
+   "dr_appart": {
+    "deu": "die Wohnung",
+    "deu_von": "von der"
+   },
+   "dr_voyage": {
+    "deu": "die Reise",
+    "deu_von": "von der"
+   },
+   "dr_cuisine": {
+    "deu": "die Küche",
+    "deu_von": "von der"
+   },
+   "dr_velo": {
+    "deu": "das Fahrrad",
+    "deu_von": "von dem"
+   },
+   "dr_balcon": {
+    "deu": "der Balkon",
+    "deu_von": "von dem"
+   },
+   "dr_job": {
+    "deu": "der Job",
+    "deu_von": "von dem"
+   },
+   "dr_jardin": {
+    "deu": "der Garten",
+    "deu_von": "von dem"
+   }
+  },
+  "dont_talk": {
+   "dk_bar": {
+    "deu_cap": "Die Bar",
+    "deu_von": "von der",
+    "deu_pred": "hat letztes Jahr zugemacht"
+   },
+   "dk_collegue": {
+    "deu_cap": "Der Kollege",
+    "deu_von": "von dem",
+    "deu_pred": "arbeitet nicht mehr hier"
+   },
+   "dk_boulangerie": {
+    "deu_cap": "Die Bäckerei",
+    "deu_von": "von der",
+    "deu_pred": "hat montags zu"
+   },
+   "dk_film": {
+    "deu_cap": "Der Film",
+    "deu_von": "von dem",
+    "deu_pred": "läuft noch im Kino im Viertel"
+   },
+   "dk_appli": {
+    "deu_cap": "Die App",
+    "deu_von": "von der",
+    "deu_pred": "funktioniert nicht mehr"
+   },
+   "dk_voisine": {
+    "deu_cap": "Die Nachbarin",
+    "deu_von": "von der",
+    "deu_pred": "ist im September ausgezogen"
+   },
+   "dk_livre": {
+    "deu_cap": "Das Buch",
+    "deu_von": "von dem",
+    "deu_pred": "steht in der Bibliothek"
+   }
+  },
+  "si1_when": {
+   "sw_demain": {
+    "deu": "morgen"
+   },
+   "sw_samedi": {
+    "deu": "am Samstag"
+   },
+   "sw_weekend": {
+    "deu": "dieses Wochenende"
+   },
+   "sw_dimanche": {
+    "deu": "am Sonntag"
+   },
+   "sw_aprem": {
+    "deu": "heute Nachmittag"
+   }
+  },
+  "si1_out": {
+   "so_parc": {
+    "deu_inv": "gehen wir in den Park",
+    "deu_main": "Wir gehen in den Park"
+   },
+   "so_dehors": {
+    "deu_inv": "essen wir draußen",
+    "deu_main": "Wir essen draußen"
+   },
+   "so_canal": {
+    "deu_inv": "machen wir ein Picknick am Kanal",
+    "deu_main": "Wir machen ein Picknick am Kanal"
+   },
+   "so_velos": {
+    "deu_inv": "nehmen wir die Fahrräder",
+    "deu_main": "Wir nehmen die Fahrräder"
+   },
+   "so_courir": {
+    "deu_inv": "gehen wir laufen",
+    "deu_main": "Wir gehen laufen"
+   },
+   "so_quais": {
+    "deu_inv": "gehen wir am Fluss spazieren",
+    "deu_main": "Wir gehen am Fluss spazieren"
+   },
+   "so_terrasse": {
+    "deu_inv": "trinken wir draußen auf einer Terrasse etwas",
+    "deu_main": "Wir trinken draußen auf einer Terrasse etwas"
+   }
+  },
+  "si1_in": {
+   "si_maison": {
+    "deu_inv": "bleiben wir zu Hause",
+    "deu_main": "Wir bleiben zu Hause"
+   },
+   "si_cinema": {
+    "deu_inv": "gehen wir ins Kino",
+    "deu_main": "Wir gehen ins Kino"
+   },
+   "si_film": {
+    "deu_inv": "schauen wir einen Film",
+    "deu_main": "Wir schauen einen Film"
+   },
+   "si_musee": {
+    "deu_inv": "gehen wir ins Museum",
+    "deu_main": "Wir gehen ins Museum"
+   },
+   "si_cartes": {
+    "deu_inv": "spielen wir Karten",
+    "deu_main": "Wir spielen Karten"
+   },
+   "si_taxi": {
+    "deu_inv": "nehmen wir ein Taxi",
+    "deu_main": "Wir nehmen ein Taxi"
+   },
+   "si_soupe": {
+    "deu_inv": "kochen wir eine Suppe",
+    "deu_main": "Wir kochen eine Suppe"
+   }
+  },
+  "si1_tu": {
+   "st_soir": {
+    "deu": "heute Abend"
+   },
+   "st_demain": {
+    "deu": "morgen"
+   },
+   "st_aprem": {
+    "deu": "heute Nachmittag"
+   },
+   "st_semaine": {
+    "deu": "diese Woche"
+   },
+   "st_samedi": {
+    "deu": "am Samstag"
+   }
+  },
+  "si1_ask": {
+   "sa_bureau": {
+    "deu": "komm im Büro vorbei"
+   },
+   "sa_appelle": {
+    "deu": "ruf mich an"
+   },
+   "sa_diner": {
+    "deu": "komm zum Abendessen vorbei"
+   },
+   "sa_boulangerie": {
+    "deu": "geh für mich beim Bäcker vorbei"
+   },
+   "sa_cartons": {
+    "deu": "hilf mir mit den Kartons"
+   },
+   "sa_cv": {
+    "deu": "lies meinen Lebenslauf durch"
+   },
+   "sa_plantes": {
+    "deu": "gieß meine Pflanzen"
+   }
+  },
+  "si1_she": {
+   "se_faim": {
+    "deu_f": "Wenn sie Hunger hat, isst sie mit uns",
+    "deu_m": "Wenn er Hunger hat, isst er mit uns",
+    "deu_verb": {
+     "inf": "bekommen",
+     "prt": "bekam",
+     "pp": "bekommen"
+    }
+   },
+   "se_retard": {
+    "deu_f": "Wenn sie zu spät kommt, fangen wir ohne sie an",
+    "deu_m": "Wenn er zu spät kommt, fangen wir ohne ihn an",
+    "deu_verb": {
+     "inf": "umgehen",
+     "prt": "umging",
+     "pp": "umgangen"
+    }
+   },
+   "se_appelle": {
+    "deu_f": "Sag ihr, dass ich auf dem Markt bin, wenn sie anruft",
+    "deu_m": "Sag ihm, dass ich auf dem Markt bin, wenn er anruft",
+    "deu_verb": {
+     "inf": "zahlen",
+     "pp": "gezahlt"
+    }
+   },
+   "se_aide": {
+    "deu_f": "Wenn sie Hilfe braucht, bleibe ich ein bisschen länger",
+    "deu_m": "Wenn er Hilfe braucht, bleibe ich ein bisschen länger",
+    "deu_verb": {
+     "inf": "unterschreiben",
+     "prt": "unterschrieb",
+     "pp": "unterschrieben"
+    }
+   },
+   "se_film": {
+    "deu_f": "Wenn ihr der Film gefällt, sehen wir uns zusammen die Fortsetzung an",
+    "deu_m": "Wenn ihm der Film gefällt, sehen wir uns zusammen die Fortsetzung an",
+    "deu_verb": {
+     "inf": "abschicken",
+     "sep": "ab",
+     "pp": "abgeschickt"
+    }
+   },
+   "se_poste": {
+    "deu_f": "Wenn sie die Stelle annimmt, zieht sie nach Lyon",
+    "deu_m": "Wenn er die Stelle annimmt, zieht er nach Lyon",
+    "deu_verb": {
+     "inf": "vergleichen",
+     "prt": "verglich",
+     "pp": "verglichen"
+    }
+   },
+   "se_cles": {
+    "deu_f": "Wenn sie ihre Schlüssel vergisst, nimmt sie meine",
+    "deu_m": "Wenn er seine Schlüssel vergisst, nimmt er meine",
+    "deu_verb": {
+     "inf": "prüfen",
+     "pp": "geprüft"
+    }
+   },
+   "se_train": {
+    "deu_f": "Wenn sie ihren Zug verpasst, schläft sie bei uns",
+    "deu_m": "Wenn er seinen Zug verpasst, schläft er bei uns",
+    "deu_verb": {
+     "inf": "waschen",
+     "pres2": "wäschst",
+     "pres3": "wäscht",
+     "prt": "wusch",
+     "pp": "gewaschen"
+    }
+   }
+  },
+  "si1_promise": {
+   "sp_appel": {
+    "deu": "Ich rufe dich an"
+   },
+   "sp_ecrire": {
+    "deu": "Ich schreibe dir"
+   },
+   "sp_previens": {
+    "deu": "Ich sage dir Bescheid"
+   }
+  },
+  "si1_event": {
+   "sv_train": {
+    "deu": "der Zug Verspätung hat"
+   },
+   "sv_magasin": {
+    "deu": "der Laden zu ist"
+   },
+   "sv_reunion": {
+    "deu": "die Sitzung früh zu Ende ist"
+   },
+   "sv_colis": {
+    "deu": "das Paket heute ankommt"
+   },
+   "sv_probleme": {
+    "deu": "es ein Problem gibt"
+   },
+   "sv_plombier": {
+    "deu": "der Klempner nicht kommen kann"
+   },
+   "sv_proprio": {
+    "deu": "der Vermieter antwortet"
+   },
+   "sv_places": {
+    "deu": "es noch Plätze gibt"
+   }
+  },
+  "si1_on": {
+   "sn_part": {
+    "deu": "Wenn wir jetzt losgehen, sind wir pünktlich da",
+    "deu_verb": {
+     "inf": "lesen",
+     "pres2": "liest",
+     "pres3": "liest",
+     "prt": "las",
+     "pp": "gelesen"
+    }
+   },
+   "sn_metro": {
+    "deu": "Wenn wir die Metro nehmen, sind wir schneller",
+    "deu_verb": {
+     "inf": "schließen",
+     "pres2": "schließt",
+     "prt": "schloss",
+     "pp": "geschlossen"
+    }
+   },
+   "sn_reserve": {
+    "deu": "Wenn wir heute reservieren, bekommen wir einen guten Tisch",
+    "deu_verb": {
+     "inf": "geben",
+     "pres2": "gibst",
+     "pres3": "gibt",
+     "prt": "gab",
+     "pp": "gegeben"
+    }
+   },
+   "sn_billets": {
+    "deu": "Wenn wir die Tickets heute Abend kaufen, zahlen wir weniger",
+    "deu_verb": {
+     "inf": "schreiben",
+     "prt": "schrieb",
+     "pp": "geschrieben"
+    }
+   },
+   "sn_vite": {
+    "deu": "Wenn wir uns beeilen, sehen wir den Anfang des Films",
+    "deu_verb": {
+     "inf": "nachdenken",
+     "sep": "nach",
+     "prt": "dachte",
+     "pp": "nachgedacht"
+    }
+   },
+   "sn_rue": {
+    "deu": "Wenn wir die kleine Straße nehmen, umgehen wir den Stau",
+    "deu_verb": {
+     "inf": "trinken",
+     "prt": "trank",
+     "pp": "getrunken"
+    }
+   },
+   "sn_gardien": {
+    "deu": "Wenn wir den Hausmeister fragen, wissen wir, wo das Paket ist",
+    "deu_verb": {
+     "inf": "aufräumen",
+     "sep": "auf",
+     "pp": "aufgeräumt"
+    }
+   }
+  },
+  "si1_office": {
+   "so_docs": {
+    "deu": "alle Unterlagen",
+    "deu_cons": "den Antrag heute abgeben"
+   },
+   "so_question": {
+    "deu": "eine Frage",
+    "deu_cons": "dem Kundenservice schreiben"
+   },
+   "so_justif": {
+    "deu": "einen Wohnsitznachweis",
+    "deu_cons": "das Konto sofort eröffnen"
+   },
+   "so_numero": {
+    "deu": "Ihre Aktennummer",
+    "deu_cons": "den Antrag online verfolgen"
+   },
+   "so_etudiant": {
+    "deu": "einen Studierendenausweis",
+    "deu_cons": "den ermäßigten Preis zahlen"
+   },
+   "so_rdv": {
+    "deu": "einen Termin",
+    "deu_cons": "direkt zum Schalter gehen"
+   },
+   "so_recu": {
+    "deu": "eine Quittung brauchen",
+    "deu_cons": "an der Kasse danach fragen"
+   }
+  },
+  "si1_offer": {
+   "sf_prendre": {
+    "deu": "Ich hole dich um acht ab"
+   },
+   "sf_pizzas": {
+    "deu": "Wir bestellen Pizza"
+   },
+   "sf_velo": {
+    "deu": "Ich leihe dir mein Fahrrad"
+   },
+   "sf_cartons": {
+    "deu": "Ich helfe dir, die Kartons zu tragen"
+   },
+   "sf_cinema": {
+    "deu": "Wir gehen heute Abend ins Kino"
+   },
+   "sf_quartier": {
+    "deu": "Ich zeige dir morgen das Viertel"
+   },
+   "sf_gare": {
+    "deu": "Ich begleite dich zum Bahnhof"
+   }
+  },
+  "nar_open": {
+   "no_autre": {
+    "deu": "Neulich"
+   },
+   "no_fois": {
+    "deu": "Einmal"
+   },
+   "no_derniere": {
+    "deu": "Letztes Mal"
+   }
+  },
+  "nar_story": {
+   "ns_hotel": {
+    "deu_set": "es war fast Mitternacht",
+    "deu_set_inv": "war es fast Mitternacht",
+    "deu_ev": "wir im Hotel ankamen",
+    "deu_link": "aber",
+    "deu_er": "die Rezeption hatte schon geschlossen",
+    "deu_verb": {
+     "inf": "verlassen",
+     "pres2": "verlässt",
+     "pres3": "verlässt",
+     "prt": "verließ",
+     "pp": "verlassen"
+    }
+   },
+   "ns_bus": {
+    "deu_set": "es war schon spät",
+    "deu_set_inv": "war es schon spät",
+    "deu_ev": "ich das Büro verließ",
+    "deu_link": "und",
+    "deu_er": "der letzte Bus war schon weg",
+    "deu_verb": {
+     "inf": "aufmachen",
+     "sep": "auf",
+     "pp": "aufgemacht"
+    }
+   },
+   "ns_film": {
+    "deu_set": "es war Viertel nach acht",
+    "deu_set_inv": "war es Viertel nach acht",
+    "deu_ev": "ich einen Platz im Kinosaal fand",
+    "deu_link": "aber",
+    "deu_er": "der Film hatte schon angefangen",
+    "deu_verb": {
+     "inf": "treffen",
+     "pres2": "triffst",
+     "pres3": "trifft",
+     "prt": "traf",
+     "pp": "getroffen"
+    }
+   },
+   "ns_mairie": {
+    "deu_set": "es war Mittagszeit",
+    "deu_set_inv": "war es Mittagszeit",
+    "deu_ev": "ich im Rathaus anrief",
+    "deu_link": "aber",
+    "deu_er": "alle Büros hatten schon geschlossen",
+    "deu_verb": {
+     "inf": "zurückkommen",
+     "sep": "zurück",
+     "prt": "kam",
+     "pp": "zurückgekommen",
+     "aux": "sein"
+    }
+   },
+   "ns_baguette": {
+    "deu_set": "es war Sonntag",
+    "deu_set_inv": "war es Sonntag",
+    "deu_ev": "ich Brot kaufen wollte",
+    "deu_link": "aber",
+    "deu_er": "die Bäckerei hatte ihr letztes Baguette schon verkauft",
+    "deu_verb": {
+     "inf": "schauen",
+     "pp": "geschaut"
+    }
+   },
+   "ns_musique": {
+    "deu_set": "es war dunkel",
+    "deu_set_inv": "war es dunkel",
+    "deu_ev": "wir nach Hause kamen",
+    "deu_link": "und",
+    "deu_er": "die Nachbarn hatten die Musik schon sehr laut aufgedreht",
+    "deu_verb": {
+     "inf": "vorbeigehen",
+     "sep": "vorbei",
+     "prt": "ging",
+     "pp": "vorbeigegangen",
+     "aux": "sein"
+    }
+   },
+   "ns_menage": {
+    "deu_set": "es war Mittag",
+    "deu_set_inv": "war es Mittag",
+    "deu_ev": "ich endlich die Augen aufmachte",
+    "deu_link": "und",
+    "deu_er": "mein Mitbewohner hatte schon geputzt",
+    "deu_verb": {
+     "inf": "verpassen",
+     "pp": "verpasst"
+    }
+   },
+   "ns_resto": {
+    "deu_set": "es war halb acht",
+    "deu_set_inv": "war es halb acht",
+    "deu_ev": "ich meine Freunde im Restaurant traf",
+    "deu_link": "aber",
+    "deu_er": "sie hatten schon bestellt",
+    "deu_verb": {
+     "inf": "annehmen",
+     "sep": "an",
+     "pres2": "nimmst",
+     "pres3": "nimmt",
+     "prt": "nahm",
+     "pp": "angenommen"
+    }
+   },
+   "ns_taxi": {
+    "deu_set": "es war sechs Uhr morgens",
+    "deu_set_inv": "war es sechs Uhr morgens",
+    "deu_ev": "das Taxi kam",
+    "deu_link": "aber",
+    "deu_er": "ich hatte meinen Koffer schon fertig gepackt",
+    "deu_verb": {
+     "inf": "reservieren",
+     "pp": "reserviert"
+    }
+   },
+   "ns_mails": {
+    "deu_set": "es war fast zehn",
+    "deu_set_inv": "war es fast zehn",
+    "deu_ev": "ich meine Mails öffnete",
+    "deu_link": "und",
+    "deu_er": "der Vermieter hatte schon geantwortet",
+    "deu_verb": {
+     "inf": "fragen",
+     "pp": "gefragt"
+    }
+   },
+   "ns_gare": {
+    "deu_set": "es war Hauptverkehrszeit",
+    "deu_set_inv": "war es Hauptverkehrszeit",
+    "deu_ev": "wir am Bahnhof ankamen",
+    "deu_link": "aber",
+    "deu_er": "unser Zug war schon abgefahren",
+    "deu_verb": {
+     "inf": "kaufen",
+     "pp": "gekauft"
+    }
+   },
+   "ns_appel": {
+    "deu_set": "es war elf Uhr abends",
+    "deu_set_inv": "war es elf Uhr abends",
+    "deu_ev": "meine Schwester anrief",
+    "deu_link": "aber",
+    "deu_er": "ich hatte mein Handy schon ausgeschaltet",
+    "deu_verb": {
+     "inf": "gefallen",
+     "pres2": "gefällst",
+     "pres3": "gefällt",
+     "prt": "gefiel",
+     "pp": "gefallen"
+    }
+   },
+   "ns_boulangerie": {
+    "deu_set": "es war acht Uhr abends",
+    "deu_set_inv": "war es acht Uhr abends",
+    "deu_ev": "ich bei der Bäckerei vorbeiging",
+    "deu_link": "aber",
+    "deu_er": "sie hatten schon das ganze Brot verkauft",
+    "deu_verb": {
+     "inf": "regnen",
+     "pp": "geregnet"
+    }
+   },
+   "ns_reunion": {
+    "deu_set": "es war Viertel nach neun",
+    "deu_set_inv": "war es Viertel nach neun",
+    "deu_ev": "ich in den Raum kam",
+    "deu_link": "aber",
+    "deu_er": "die Sitzung hatte schon angefangen",
+    "deu_verb": {
+     "inf": "anrufen",
+     "sep": "an",
+     "prt": "rief",
+     "pp": "angerufen"
+    }
+   },
+   "ns_jour": {
+    "deu_set": "es war schon hell",
+    "deu_set_inv": "war es schon hell",
+    "deu_ev": "wir von der Party zurückkamen",
+    "deu_link": "und",
+    "deu_er": "die Vögel hatten schon angefangen zu singen",
+    "deu_verb": {
+     "inf": "losgehen",
+     "sep": "los",
+     "prt": "ging",
+     "pp": "losgegangen",
+     "aux": "sein"
+    }
+   },
+   "ns_poste": {
+    "deu_set": "es war fünf vor zwölf",
+    "deu_set_inv": "war es fünf vor zwölf",
+    "deu_ev": "ich bei der Post ankam",
+    "deu_link": "aber",
+    "deu_er": "der Schalter hatte schon geschlossen",
+    "deu_verb": {
+     "inf": "nehmen",
+     "pres2": "nimmst",
+     "pres3": "nimmt",
+     "prt": "nahm",
+     "pp": "genommen"
+    }
+   }
+  },
+  "nar_lead": {
+   "nl_autre": {
+    "deu": "Neulich"
+   },
+   "nl_derniere": {
+    "deu": "Letztes Mal"
+   }
+  },
+  "nar_dur": {
+   "nd_vingt": {
+    "deu": "zwanzig Minuten lang"
+   },
+   "nd_heure": {
+    "deu": "eine Stunde lang"
+   },
+   "nd_deux": {
+    "deu": "zwei Stunden lang"
+   },
+   "nd_aprem": {
+    "deu": "den ganzen Nachmittag"
+   }
+  },
+  "nar_while": {
+   "nw_bus": {
+    "deu_aux": "habe",
+    "deu_pp": "auf den Bus gewartet",
+    "deu_why": "weil es auf der Linie einen Unfall gegeben hatte"
+   },
+   "nw_cles": {
+    "deu_aux": "habe",
+    "deu_pp": "meine Schlüssel gesucht",
+    "deu_why": "weil ich sie in einer anderen Jacke gelassen hatte"
+   },
+   "nw_poste": {
+    "deu_aux": "habe",
+    "deu_pp": "auf der Post angestanden",
+    "deu_why": "weil der Ticketautomat kaputtgegangen war"
+   },
+   "nw_plombier": {
+    "deu_aux": "habe",
+    "deu_pp": "auf den Klempner gewartet",
+    "deu_why": "weil er sich in der Adresse geirrt hatte"
+   },
+   "nw_marche": {
+    "deu_aux": "bin",
+    "deu_pp": "zu Fuß gegangen",
+    "deu_why": "weil ich die letzte Metro verpasst hatte"
+   },
+   "nw_range": {
+    "deu_aux": "habe",
+    "deu_pp": "die Wohnung aufgeräumt",
+    "deu_why": "weil meine Eltern ihren Besuch angekündigt hatten"
+   },
+   "nw_revise": {
+    "deu_aux": "habe",
+    "deu_pp": "gelernt",
+    "deu_why": "weil ich die erste Prüfung nicht bestanden hatte"
+   },
+   "nw_voisine": {
+    "deu_aux": "habe",
+    "deu_pp": "mit der Nachbarin geredet",
+    "deu_why": "weil sie meine Katze im Treppenhaus gefunden hatte"
+   }
+  },
+  "nar_scene": {
+   "nc_vide": {
+    "deu": "Als ich die Tür aufmachte, war die Wohnung leer: Meine Mitbewohner waren schon in den Urlaub gefahren"
+   },
+   "nc_neige": {
+    "deu": "Als ich aus dem Fenster schaute, war die Straße ganz weiß: Es hatte die ganze Nacht geschneit"
+   },
+   "nc_soupe": {
+    "deu": "Als ich die Suppe probierte, war sie kalt: Niemand hatte sie aufgewärmt"
+   },
+   "nc_frigo": {
+    "deu": "Als ich den Kühlschrank aufmachte, war er leer: Mein Mitbewohner hatte alles gegessen"
+   },
+   "nc_chat": {
+    "deu": "Als ich die Nachbarin traf, sah sie besorgt aus: Sie hatte ihre Katze verloren"
+   },
+   "nc_clair": {
+    "deu": "Als ich den Brief las, war alles klar: Der Vermieter hatte das Haus verkauft"
+   },
+   "nc_tables": {
+    "deu": "Als wir im Restaurant ankamen, gab es keine Tische mehr: Eine Gruppe hatte den ganzen Saal reserviert"
+   },
+   "nc_bureau": {
+    "deu": "Als ich meine Schwester anrief, war sie noch im Büro: Ihr Zug war gestrichen worden"
+   }
+  },
+  "nar_forgot": {
+   "nf_prefecture": {
+    "deu": "Vor der Präfektur war eine lange Schlange, und da habe ich gesehen, dass ich meinen Pass vergessen hatte"
+   },
+   "nf_serveur": {
+    "deu": "Der Kellner wartete mit der Rechnung, und da habe ich gesehen, dass ich meinen Geldbeutel vergessen hatte"
+   },
+   "nf_train": {
+    "deu": "Der Zug fuhr in fünf Minuten ab, und da habe ich gesehen, dass ich mein Ticket vergessen hatte"
+   },
+   "nf_table": {
+    "deu": "Alle saßen schon am Tisch, und da habe ich gesehen, dass ich den Nachtisch vergessen hatte"
+   },
+   "nf_pluie": {
+    "deu": "Es regnete sehr stark, und da habe ich gesehen, dass ich meinen Regenschirm vergessen hatte"
+   },
+   "nf_porte": {
+    "deu": "Der Vermieter wartete vor der Tür, und da habe ich gesehen, dass ich die Wohnungsschlüssel vergessen hatte"
+   },
+   "nf_banque": {
+    "deu": "Die Bankberaterin wartete auf meine Unterlagen, und da habe ich gesehen, dass ich meinen Wohnsitznachweis vergessen hatte"
+   }
+  },
+  "pi_avant": {
+   "pa_partir": {
+    "deu_imp": "schließ alle Fenster",
+    "deu_sub_tu": "du gehst",
+    "deu_sub": "ich gehe",
+    "deu_inv": "schließe ich alle Fenster",
+    "deu_main": "Ich schließe alle Fenster",
+    "deu_verb": {
+     "inf": "essen",
+     "pres2": "isst",
+     "pres3": "isst",
+     "prt": "aß",
+     "pp": "gegessen"
+    }
+   },
+   "pa_sortir": {
+    "deu_imp": "prüf, ob du deine Schlüssel hast",
+    "deu_sub_tu": "du aus dem Haus gehst",
+    "deu_sub": "ich aus dem Haus gehe",
+    "deu_inv": "prüfe ich, ob ich meine Schlüssel habe",
+    "deu_main": "Ich prüfe, ob ich meine Schlüssel habe",
+    "deu_verb": {
+     "inf": "schlafen",
+     "pres2": "schläfst",
+     "pres3": "schläft",
+     "prt": "schlief",
+     "pp": "geschlafen"
+    }
+   },
+   "pa_manger": {
+    "deu_imp": "wasch dir die Hände",
+    "deu_sub_tu": "du isst",
+    "deu_sub": "ich esse",
+    "deu_inv": "wasche ich mir die Hände",
+    "deu_main": "Ich wasche mir die Hände",
+    "deu_verb": {
+     "inf": "kochen",
+     "pp": "gekocht"
+    }
+   },
+   "pa_dormir": {
+    "deu_imp": "schalte dein Handy aus",
+    "deu_sub_tu": "du schlafen gehst",
+    "deu_sub": "ich schlafen gehe",
+    "deu_inv": "lese ich ein bisschen",
+    "deu_main": "Ich lese ein bisschen"
+   },
+   "pa_bail": {
+    "deu_imp": "lies alles noch einmal",
+    "deu_sub_tu": "du den Mietvertrag unterschreibst",
+    "deu_sub": "ich den Mietvertrag unterschreibe",
+    "deu_inv": "lese ich alles noch einmal",
+    "deu_main": "Ich lese alles noch einmal"
+   },
+   "pa_velo": {
+    "deu_imp": "vergleich die Preise",
+    "deu_sub_tu": "du ein Fahrrad kaufst",
+    "deu_sub": "ich ein Fahrrad kaufe",
+    "deu_inv": "vergleiche ich die Preise",
+    "deu_main": "Ich vergleiche die Preise"
+   },
+   "pa_plombier": {
+    "deu_imp": "lies die Bewertungen im Internet",
+    "deu_sub_tu": "du den Klempner anrufst",
+    "deu_sub": "ich den Klempner anrufe",
+    "deu_inv": "lese ich die Bewertungen im Internet",
+    "deu_main": "Ich lese die Bewertungen im Internet"
+   },
+   "pa_vacances": {
+    "deu_imp": "gib der Nachbarin deine Schlüssel",
+    "deu_sub_tu": "du in den Urlaub fährst",
+    "deu_sub": "ich in den Urlaub fahre",
+    "deu_inv": "gebe ich der Nachbarin meine Schlüssel",
+    "deu_main": "Ich gebe der Nachbarin meine Schlüssel"
+   },
+   "pa_courses": {
+    "deu_imp": "schreib eine Liste",
+    "deu_sub_tu": "du einkaufen gehst",
+    "deu_sub": "ich einkaufen gehe",
+    "deu_inv": "schreibe ich eine Liste",
+    "deu_main": "Ich schreibe eine Liste"
+   },
+   "pa_repondre": {
+    "deu_imp": "denk kurz nach",
+    "deu_sub_tu": "du antwortest",
+    "deu_sub": "ich antworte",
+    "deu_inv": "denke ich kurz nach",
+    "deu_main": "Ich denke kurz nach"
+   },
+   "pa_travail": {
+    "deu_imp": "trink einen Kaffee",
+    "deu_sub_tu": "du mit der Arbeit anfängst",
+    "deu_sub": "ich mit der Arbeit anfange",
+    "deu_inv": "trinke ich einen Kaffee",
+    "deu_main": "Ich trinke einen Kaffee"
+   },
+   "pa_mail": {
+    "deu_imp": "lies den Text noch einmal",
+    "deu_sub_tu": "du die Mail abschickst",
+    "deu_sub": "ich die Mail abschicke",
+    "deu_inv": "lese ich den Text noch einmal",
+    "deu_main": "Ich lese den Text noch einmal"
+   },
+   "pa_entretien": {
+    "deu_imp": "lies deinen Lebenslauf noch einmal",
+    "deu_sub_tu": "du zu einem Vorstellungsgespräch gehst",
+    "deu_sub": "ich zu einem Vorstellungsgespräch gehe",
+    "deu_inv": "lese ich meinen Lebenslauf noch einmal",
+    "deu_main": "Ich lese meinen Lebenslauf noch einmal"
+   },
+   "pa_rentrer": {
+    "deu_imp": "geh beim Bäcker vorbei",
+    "deu_sub_tu": "du nach Hause gehst",
+    "deu_sub": "ich nach Hause gehe",
+    "deu_inv": "gehe ich beim Bäcker vorbei",
+    "deu_main": "Ich gehe beim Bäcker vorbei"
+   },
+   "pa_cuisiner": {
+    "deu_imp": "räum die Küche auf",
+    "deu_sub_tu": "du kochst",
+    "deu_sub": "ich koche",
+    "deu_inv": "räume ich die Küche auf",
+    "deu_main": "Ich räume die Küche auf"
+   },
+   "pa_train": {
+    "deu_imp": "kauf eine Flasche Wasser",
+    "deu_sub_tu": "du den Zug nimmst",
+    "deu_sub": "ich den Zug nehme",
+    "deu_inv": "kaufe ich eine Flasche Wasser",
+    "deu_main": "Ich kaufe eine Flasche Wasser"
+   }
+  },
+  "pi_sans": {
+   "ps_aurevoir": {
+    "deu": "Er ist gegangen, ohne sich zu verabschieden."
+   },
+   "ps_contrat": {
+    "deu": "Sie hat den Vertrag unterschrieben, ohne ihn zu lesen."
+   },
+   "ps_prix": {
+    "deu": "Ich habe bezahlt, ohne auf den Preis zu schauen."
+   },
+   "ps_frapper": {
+    "deu": "Der Nachbar ist hereingekommen, ohne anzuklopfen."
+   },
+   "ps_demander": {
+    "deu": "Mein Mitbewohner hat mein Auto genommen, ohne zu fragen."
+   },
+   "ps_reflechir": {
+    "deu": "Er hat geantwortet, ohne nachzudenken."
+   },
+   "ps_rue": {
+    "deu": "Sie ist über die Straße gegangen, ohne zu schauen."
+   },
+   "ps_date": {
+    "deu": "Ich habe das Ticket gekauft, ohne das Datum zu prüfen."
+   },
+   "ps_cles": {
+    "deu": "Du hast die Tür zugemacht, ohne deine Schlüssel mitzunehmen?"
+   },
+   "ps_concert": {
+    "deu": "Die Veranstalter haben das Konzert abgesagt, ohne das Publikum zu informieren."
+   }
+  },
+  "pi_cannot": {
+   "pc_collegues": {
+    "deu": "Ich kann nicht gehen, ohne mich von meinen Kollegen zu verabschieden."
+   },
+   "pc_contrat": {
+    "deu": "Ich kann nicht unterschreiben, ohne den Vertrag zu lesen."
+   },
+   "pc_visiter": {
+    "deu": "Ich kann diese Wohnung nicht mieten, ohne sie zu besichtigen."
+   },
+   "pc_soeur": {
+    "deu": "Ich kann nicht antworten, ohne mit meiner Schwester darüber zu sprechen."
+   },
+   "pc_carte": {
+    "deu": "Ich kann nicht bestellen, ohne in die Karte zu schauen."
+   },
+   "pc_lire": {
+    "deu": "Ich kann nicht schlafen, ohne ein bisschen zu lesen."
+   },
+   "pc_cafe": {
+    "deu": "Ich kann nicht arbeiten, ohne einen Kaffee zu trinken."
+   }
+  },
+  "pi_pour": {
+   "pp_japon": {
+    "deu": "Ich spare, um nach Japan zu reisen."
+   },
+   "pp_courir": {
+    "deu": "Ich stehe früh auf, um laufen zu gehen."
+   },
+   "pp_metro": {
+    "deu": "Ich nehme die Metro, um schneller da zu sein."
+   },
+   "pp_paris": {
+    "deu": "Ich lerne Französisch, um in Paris zu arbeiten."
+   },
+   "pp_service": {
+    "deu": "Ich rufe dich an, um dich um einen Gefallen zu bitten."
+   },
+   "pp_banque": {
+    "deu": "Ich gehe bei der Bank vorbei, um ein Konto zu eröffnen."
+   },
+   "pp_coloc": {
+    "deu": "Ich suche einen Mitbewohner, um weniger Miete zu zahlen."
+   },
+   "pp_passeport": {
+    "deu": "Ich gehe zum Rathaus, um meinen Pass zu verlängern."
+   },
+   "pp_loyer": {
+    "deu": "Ich arbeite samstags, um meine Miete zu bezahlen."
+   },
+   "pp_journal": {
+    "deu": "Ich gehe runter zum Kiosk, um die Zeitung zu kaufen."
+   }
+  },
+  "pi_afin": {
+   "pf_dossier": {
+    "deu": "Bitte schicken Sie uns das Formular, um Ihre Akte abzuschließen."
+   },
+   "pf_avance": {
+    "deu": "Bitte kommen Sie zehn Minuten früher, um das Anmeldeformular auszufüllen."
+   },
+   "pf_rdv": {
+    "deu": "Wir rufen Sie an, um Ihren Termin zu bestätigen."
+   },
+   "pf_parking": {
+    "deu": "Behalten Sie Ihr Ticket, um aus dem Parkhaus herauszukommen."
+   },
+   "pf_colis": {
+    "deu": "Zeigen Sie einen Ausweis vor, um Ihr Paket abzuholen."
+   },
+   "pf_rib": {
+    "deu": "Wir brauchen Ihre Bankverbindung, um die Rückerstattung vorzunehmen."
+   },
+   "pf_attente": {
+    "deu": "Vereinbaren Sie online einen Termin, um die Wartezeit zu vermeiden."
+   },
+   "pf_code": {
+    "deu": "Bitte lassen Sie Ihr Handy eingeschaltet, um den Bestätigungscode zu erhalten."
+   }
+  },
+  "pi_ask": {
+   "pq_message": {
+    "deu": "Schreibst du mir, bevor du gehst?"
+   },
+   "pq_appeler": {
+    "deu": "Kannst du mich anrufen, bevor du kommst?"
+   },
+   "pq_adresse": {
+    "deu": "Hast du die Adresse geprüft, bevor du gebucht hast?"
+   },
+   "pq_manger": {
+    "deu": "Willst du etwas essen, bevor du ausgehst?"
+   },
+   "pq_contrat": {
+    "deu": "Hast du den Vertrag gelesen, bevor du unterschrieben hast?"
+   },
+   "pq_four": {
+    "deu": "Hast du den Ofen ausgemacht, bevor du gegangen bist?"
+   },
+   "pq_poubelles": {
+    "deu": "Kannst du den Müll rausbringen, bevor du zur Arbeit gehst?"
+   }
+  },
+  "pi_too": {
+   "pt_tard": {
+    "deu": "Es ist zu spät, um einen Tisch zu reservieren."
+   },
+   "pt_froid": {
+    "deu": "Es ist zu kalt, um draußen zu essen."
+   },
+   "pt_loin": {
+    "deu": "Es ist zu weit, um zu Fuß hinzugehen."
+   },
+   "pt_tot": {
+    "deu": "Es ist zu früh, um im Rathaus anzurufen."
+   },
+   "pt_studio": {
+    "deu": "Die Einzimmerwohnung ist zu klein, um zehn Leute einzuladen."
+   },
+   "pt_pluie": {
+    "deu": "Es regnet zu stark, um mit dem Fahrrad rauszufahren."
+   },
+   "pt_cher": {
+    "deu": "Es ist zu teuer, um ein Taxi zu nehmen."
+   },
+   "pt_bruit": {
+    "deu": "Es ist zu laut, um hier zu arbeiten."
+   }
+  },
+  "pi_reach": {
+   "pr_ecris": {
+    "deu": "Ich schreibe dir"
+   },
+   "pr_appelle": {
+    "deu": "Ich rufe dich an"
+   },
+   "pr_passe": {
+    "deu": "Ich komme bei dir vorbei"
+   },
+   "pr_message": {
+    "deu": "Ich schicke dir eine Nachricht"
+   },
+   "pr_mot": {
+    "deu": "Ich lasse dir einen Zettel da"
+   }
+  },
+  "pi_why": {
+   "pw_merci": {
+    "deu": "um dir zu danken"
+   },
+   "pw_service": {
+    "deu": "um dich um einen Gefallen zu bitten"
+   },
+   "pw_inviter": {
+    "deu": "um dich für Samstag einzuladen"
+   },
+   "pw_nouvelles": {
+    "deu": "um dir Neuigkeiten zu erzählen"
+   },
+   "pw_anniv": {
+    "deu": "um dir alles Gute zum Geburtstag zu wünschen"
+   },
+   "pw_probleme": {
+    "deu": "um dir das Problem zu erklären"
+   },
+   "pw_cine": {
+    "deu": "um dir vorzuschlagen, ins Kino zu gehen"
+   },
+   "pw_conseil": {
+    "deu": "um dich um Rat zu fragen"
+   },
+   "pw_adresse": {
+    "deu": "um dich nach der Adresse zu fragen"
+   },
+   "pw_excuse": {
+    "deu": "um mich für gestern zu entschuldigen"
+   }
+  },
+  "pi_who": {
+   "pwh_coloc": {
+    "deu": "Mein Mitbewohner"
+   },
+   "pwh_soeur": {
+    "deu": "Meine Schwester"
+   },
+   "pwh_frere": {
+    "deu": "Mein Bruder"
+   },
+   "pwh_cousine": {
+    "deu": "Meine Cousine"
+   }
+  },
+  "pi_took": {
+   "pk_velo": {
+    "deu": "hat mein Fahrrad genommen"
+   },
+   "pk_yaourt": {
+    "deu": "hat meinen Joghurt gegessen"
+   },
+   "pk_ordi": {
+    "deu": "hat meinen Computer benutzt"
+   },
+   "pk_chargeur": {
+    "deu": "hat sich mein Ladekabel ausgeliehen"
+   },
+   "pk_courrier": {
+    "deu": "hat meine Post aufgemacht"
+   },
+   "pk_fromage": {
+    "deu": "hat meinen Käse aufgegessen"
+   },
+   "pk_ecouteurs": {
+    "deu": "hat meine Kopfhörer genommen"
+   },
+   "pk_affaires": {
+    "deu": "hat meine Sachen weggeräumt"
+   },
+   "pk_pull": {
+    "deu": "hat meinen Pullover angezogen"
+   }
+  },
+  "nar_state": {
+   "nst_creve": {
+    "deu": "Ich war fix und fertig"
+   },
+   "nst_retard": {
+    "deu": "Ich kam zu spät zur Arbeit"
+   },
+   "nst_faim": {
+    "deu": "Ich bin mit einem Bärenhunger aufgewacht"
+   },
+   "nst_humeur": {
+    "deu": "Ich hatte schlechte Laune"
+   },
+   "nst_concentrer": {
+    "deu": "Ich konnte mich im Büro nicht konzentrieren"
+   }
+  },
+  "nar_cause": {
+   "nca_bebe": {
+    "deu": "am Abend davor auf das Baby meiner Schwester aufgepasst hatte"
+   },
+   "nca_soiree": {
+    "deu": "am Abend davor sehr spät von einer Party nach Hause gekommen war"
+   },
+   "nca_reviser": {
+    "deu": "am Abend davor bis Mitternacht gelernt hatte"
+   },
+   "nca_couche": {
+    "deu": "am Abend davor sehr spät ins Bett gegangen war"
+   },
+   "nca_reveil": {
+    "deu": "am Abend davor vergessen hatte, meinen Wecker zu stellen"
+   },
+   "nca_courses": {
+    "deu": "am Tag davor das Einkaufen vergessen hatte"
+   },
+   "nca_couru": {
+    "deu": "am Tag davor zehn Kilometer gelaufen war"
+   },
+   "nca_bureau": {
+    "deu": "am Abend davor lange im Büro gearbeitet hatte"
+   },
+   "nca_cartons": {
+    "deu": "am Tag davor alle meine Kartons in den fünften Stock getragen hatte"
+   },
+   "nca_batterie": {
+    "deu": "am Abend davor vergessen hatte, mein Handy aufzuladen"
+   },
+   "nca_diner": {
+    "deu": "am Abend davor das Abendessen ausgelassen hatte"
+   }
   }
  }
 }
