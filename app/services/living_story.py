@@ -5613,6 +5613,12 @@ def story_context(db: Session, user: User, *, now: datetime | None = None) -> di
         # shape the director is told here, and the one the guards check (LOSS-RATE
         # 2026-10-06: a closed two-hander's shape used to bind the next setup scene).
         shape = str(chapter.get("shape") or shape)
+    shape_line = shape_note(shape, chapter)
+    if shape == "bottle" and season_today is not None and season_today.pos.is_gap:
+        # The brief says what ``bottle_room`` checks: on a season's day the room is the day's.
+        shape_line = SEASON_BOTTLE_NOTE
+        if chapter:
+            chapter = {**chapter, "shape_note": shape_line}
     gap = gap_days(db, user, live, today=_today())
     absence = absence_context(gap)
     # WP-97: the one character, if any, whose trust has earned «On se tutoie ?» today.
@@ -5685,7 +5691,7 @@ def story_context(db: Session, user: User, *, now: datetime | None = None) -> di
         "chapter_shape": {
             "shape": shape,
             "beats": list(CHAPTER_SHAPES.get(shape, CHAPTER_BEATS)),
-            "note": shape_note(shape, chapter),
+            "note": shape_line,
             # The seam WP-64/65 read: a letter chapter says which beat is the letter.
             "letter_beat": LETTER_BEAT if shape == "letter" else None,
             # ``bind_journey`` stores a chapter opened today with this hand.
@@ -7547,6 +7553,38 @@ def page_shape(context: dict) -> str:
     )
 
 
+#: What a bottle asks on a season's generated day (``bottle_room``), for the brief.
+SEASON_BOTTLE_NOTE = (
+    "One place per day: today's page is set where today's beat is, and a later act of "
+    "today stays in that room with someone else."
+)
+
+
+def bottle_room(context: dict) -> str | None:
+    """The one room today's page must be in, or ``None`` when no bottle binds it.
+
+    A bottle (WP-63) makes a few scenes feel like one evening in one room. A later act of
+    today keeps the room its first act is in (``act.room``). On a season's generated day
+    the season says where the day happens (its premise or contract: Maître Vasseur's
+    office, the zinc at Le Mistral, the learner's flat), so the day's first page goes
+    there and the bottle holds within that day: the room is not carried over from the
+    chapter's first day. Night runs of 18 Nov: four of five nights lost an attempt to
+    «This chapter is a bottle: every scene happens in rue_de_lancry» while the day's
+    beat was set elsewhere."""
+
+    if page_shape(context) != "bottle":
+        return None
+    act = context.get("act") or {}
+    if act.get("shape") == "bottle" and act.get("room"):
+        return str(act["room"])
+    chapter = context.get("chapter") or {}
+    if chapter.get("resolved") or chapter.get("exhausted") or not chapter.get("location_id"):
+        return None
+    if ((context.get("season_script") or {}).get("brief") or {}).get("gap"):
+        return None
+    return str(chapter["location_id"])
+
+
 def _wrong_beat_hint(draft: SceneDraft, chapter: dict, allowed: tuple[str, ...], closing: bool) -> str:
     """LOSS-RATE 2026-10-06: the retry is told WHICH chapter the scene belongs to.
 
@@ -7750,8 +7788,8 @@ def _validate_scene(draft: SceneDraft, context: dict):
                     "chapter."
                 ),
             )
-    if shape == "bottle" and chapter.get("location_id") and not closing:
-        room = str(chapter["location_id"])
+    room = bottle_room(context)
+    if room:
         if draft.location_id != room:
             raise StoryUnavailable(
                 "bottle_left_the_room",

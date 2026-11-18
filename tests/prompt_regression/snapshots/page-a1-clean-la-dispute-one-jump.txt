@@ -1,14 +1,15 @@
 # prompt snapshot · page-a1-clean-la-dispute-one-jump · lane page · level A1
-# key: sha256:d11f1a68c0585247807c99ce1e392cf516a3c3ae6e922b1990674bef364148df
+# key: sha256:4375f7eedd829b464fffa3edab9814ee3e5fecc3f1d1645a8691bff07af6b52f
 # accept a change: PROMPT_SNAPSHOT_UPDATE=1 python -m pytest tests/test_prompt_regression.py (or scripts/prompt_regression.py --update)
 
-======== call 1 · PagePlan #1 · 5c503328c39b5200 ========
+======== call 1 · PagePlan #1 · 63527dd1ebf433f5 ========
 params: {"disable_retries": true, "max_provider_attempts": 1, "max_tokens": 16000, "prompt_cache_key": "atelier-PagePlan", "reasoning_effort": "medium", "response_format": {"type": "json_object"}, "temperature": 0.55}
 output_schema: PagePlan sha256:f87df9ba8fd5bb48
 -------- system --------
 You plan one day of «La clé d'Odile», a graphic-novel serial in French that a
 learner lives inside. You decide what happens today. You write no French and no dialogue:
 a writer turns your plan into the page, at the learner's level.
+brief.today.checked, when present, is what today's page is checked for: plan a day that holds it.
 
 WHAT MAKES A GOOD DAY
 1. Something happens that is worth telling a friend about. Someone wants something today,
@@ -602,13 +603,14 @@ peut écrire ton nom.»
  "previous_rejections": []
 }
 
-======== call 2 · PageText #1 · f7f5eddc02d19dd4 ========
+======== call 2 · PageText #1 · 8fd0835902a931e0 ========
 params: {"disable_retries": true, "max_provider_attempts": 1, "max_tokens": 16000, "prompt_cache_key": "atelier-PageText", "reasoning_effort": "low", "response_format": {"type": "json_object"}, "temperature": 0.55}
 output_schema: PageText sha256:b3bc7a5ef89e0700
 -------- system --------
 You write one page of «La clé d'Odile» in French, for a learner at level A1.
 The plan says what happens. You make it happen in pictures and in the cast's own voices.
 Write the page you would want to read.
+today lists what this page is checked for, one line each: every line holds.
 
 THE PAGE
 - 3-4 panels. Each has visual_direction (English, for the illustrator: who is in
@@ -650,8 +652,6 @@ THE PAGE
   and nobody knows a row they are not listed on. Their name says nothing about their gender: how the learner is gendered, in any language, follows their address alone. The name is for the characters' own lines: everything the page itself says (narration, visual_direction, alt text, the chapter, the objective, plants, callbacks) still speaks to the learner as «tu» and «you», or says «the learner», as if nobody knew it.
   plan.returns_to, when present, is the open question today answers or comes back to:
   the page does.
-- When the plan has a chapter, chapter_title_fr names it and chapter_question_fr asks its
-  question in French; otherwise both are null.
 - title_fr is this page's own headline, about what happens on it. It is never one of
   taken_titles (the pages already published), and after a chapter's first page it is never
   the chapter's title again.
@@ -669,17 +669,11 @@ grand-mère dit : beaucoup d'argent, beaucoup de problèmes.»
 suggested_response_fr: one short sentence («Oui, ce soir.», «Je ne sais pas encore.»).
 
 FRENCH
-- Each character keeps their register with the learner (registers: tu or vous). The
-  premise and the captions describe; they do not address the learner.
-- Address, agreement and pet names aimed at the learner follow learner.address. When it is
-  neutral, nothing addressed to the learner has a gender: no agreed adjective or
-  participle, no gendered noun, no pet name. «Tu le savais ?», «Tu es en colère ?», «la
-  première personne», «C'est toi, l'héritage ?» (not «l'héritier»); never «mon vieux» or
-  «ma belle».
+- Each character keeps their register with the learner (registers: tu or vous).
 - writing_rules holds the season's own rules: follow them.
 - Below B1, no coarse words (putain, merde, bordel, con…).
-- concept, when present: if a line the situation needs can carry it, use it once,
-  naturally. Never as a model sentence, never named, never twice for its own sake.
+- concept, when present: one line the situation needs carries it, once, naturally. Never
+  as a model sentence, never named, never twice for its own sake.
 - story_words, when the plan has someone hunt for one: the character describes the word
   and cannot find it; the word itself is never printed.
 - special, when present, is today's one special rule: follow it.
@@ -722,6 +716,11 @@ RETURN ONLY THIS JSON
 -------- data --------
 {
  "level": "A1",
+ "today": [
+  "This page opens a chapter: chapter_title_fr names it and chapter_question_fr asks plan.chapter.question in French.",
+  "lila_bonnet says tu to the learner; premise_fr and the captions say tu too, or address nobody.",
+  "Words for the learner carry no gender: «C'est toi, l'héritage ?», «tu habites au-dessus ?» or their name, never l'héritier or l'héritière, an agreed adjective or a pet name («mon vieux», «ma belle»)."
+ ],
  "plan": {
   "location": {
    "id": "quai_de_valmy",
