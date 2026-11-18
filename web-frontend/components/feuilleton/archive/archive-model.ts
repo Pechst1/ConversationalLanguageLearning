@@ -49,6 +49,9 @@ export type ArchiveDay = {
   special: 'epreuve' | null;
   /** The day's speaker, when the server names one. */
   character_id: string | null;
+  /** P12: where the day is set (the scenario's place), for Le Quartier's carnet; an older server sends none. */
+  location_id?: string | null;
+  location_name?: string | null;
   /** The authored first day, or an authored fallback day. */
   authored: boolean;
   /** An authored day's own page (engine days are read through `scene_id`). */
@@ -144,6 +147,8 @@ function normalizeDay(raw: any): ArchiveDay | null {
     can_do_id: textOrNull(raw?.can_do_id),
     special: raw?.special === 'epreuve' ? 'epreuve' : null,
     character_id: textOrNull(raw?.character_id),
+    location_id: textOrNull(raw?.location_id),
+    location_name: textOrNull(raw?.location_name),
     authored: Boolean(raw?.authored),
     panels: normalizePanels(raw?.panels),
     // An older server sends no act: every day it files is a day of one act.

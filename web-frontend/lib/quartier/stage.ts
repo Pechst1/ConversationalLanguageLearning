@@ -36,7 +36,7 @@ import type { Object3D } from 'three';
 import { CAST_NAMES } from '../generated/cast';
 import { BARK_PLACES, LEAVE, MOMENT, PEOPLE as TALKERS, REPLY_EFFECTS, STREET_BARKS, TEXT_SUITCASE, heardEffects } from './agency';
 import type { Hit, Quartier } from './engine';
-import { Memory, eligible } from './memory';
+import { Memory, editionKey, eligible } from './memory';
 import type { CastId, Effect, Value, Words } from './memory';
 import { CHAIR, MARKS } from './mistral';
 import { AMBIANCES } from './palette';
@@ -1776,7 +1776,7 @@ export class Stage implements Director {
     // a page that starts somewhere else the world has built goes there straight away
     const first = this.blocked ? null : places[this.startAt];
     if (first && first !== here && this.onPlace && page.movements[this.startAt]) {
-      if (!resume) this.memory.beginDay(this.day);
+      if (!resume) this.beginDay();
       this.onPlace({ place: first, story: this.story, from: page.movements[this.startAt].id, routes: resume ? { ...resume.routes } : {}, asking: resume ? resume.asking : nextTurn(page, null, {}) });
       return;
     }
@@ -1789,7 +1789,7 @@ export class Stage implements Director {
       this.routes = { ...resume.routes };
       this.asking = resume.asking;
     } else {
-      this.memory.beginDay(this.day);
+      this.beginDay();
       this.routes = {};
       this.asking = nextTurn(page, null, {});
     }
@@ -1845,6 +1845,17 @@ export class Stage implements Director {
     } catch (e) {
       if (!(e instanceof Cancelled)) throw e;
     }
+  }
+
+  /**
+   * The day starts (or starts over): what was done in it before is forgotten, and an engine's day
+   * keeps its edition number, so the carnet says «Nº 8» over what you did in it (`carnet-model`),
+   * never the season page's own number. The quarter's own copy of a page has no edition.
+   */
+  private beginDay() {
+    this.memory.beginDay(this.day);
+    const n = this.story.page.number;
+    if (!this.story.replayable && typeof n === 'number' && n > 0) this.remember({ kind: 'fact', key: editionKey(this.day), value: n });
   }
 
   /** The end card's own lines: what you did tonight. What comes next is the engine's. */

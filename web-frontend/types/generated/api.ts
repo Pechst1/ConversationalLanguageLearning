@@ -6139,6 +6139,10 @@ export interface components {
             journey_id: string;
             /** Learner Lines */
             learner_lines?: string[];
+            /** Location Id */
+            location_id?: string | null;
+            /** Location Name */
+            location_name?: string | null;
             /** Margin Notes */
             margin_notes?: components["schemas"]["MarginNote"][];
             /** Panels */

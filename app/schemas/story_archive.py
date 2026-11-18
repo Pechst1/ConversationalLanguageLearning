@@ -41,6 +41,9 @@ class ArchiveDay(_Model):
     reread: bool = False
     image_url: str | None = None
     character_id: str | None = None
+    #: P12: where the day is set (the scenario's place), for Le Quartier's carnet.
+    location_id: str | None = None
+    location_name: str | None = None
     #: «La réplique de l'abonné·e» — the learner's own lines, oldest first.
     learner_lines: list[str] = Field(default_factory=list)
     ending_fr: str | None = None

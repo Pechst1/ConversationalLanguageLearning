@@ -742,7 +742,7 @@ def _later_act_row(
     stored_role = (scene_step.private_task or {}).get("act_role") if scene_step is not None else None
     role = (scene_act(scene)[1] if scene is not None else None) or (str(stored_role) if stored_role else None)
     return {
-        **{key: first[key] for key in ("date", "journey_id", "edition_no", "reread")},
+        **{key: first[key] for key in ("date", "journey_id", "edition_no", "reread", "location_id", "location_name")},
         "scene_id": str(scene.id) if scene is not None else None,
         "title_fr": (scene.title if scene is not None else "") or str(brief.get("title_fr") or ""),
         "image_url": image or prompt.get("image_url"),
@@ -851,6 +851,9 @@ def _day_payloads(
             "reread": is_reprise_journey(journey),
             "image_url": image,
             "character_id": str(snapshot.get("character_id") or "") or None,
+            # P12: the day's place, as the scenario named it (Le Quartier's carnet lists it)
+            "location_id": str(snapshot.get("location_id") or "") or None,
+            "location_name": _text(snapshot.get("location_name"), 120) or None,
             "learner_lines": _learner_lines(kinds.get("respond")),
             "ending_fr": ending,
             # #237: the day's one tomorrow-hook, the very string the last panel,
