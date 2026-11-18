@@ -8,8 +8,9 @@
  * puts before the scene (a rule, a few words) and what follows it are the Feuilleton's own steps,
  * played over the quarter. A day left in the middle of its talk is the Feuilleton's to finish.
  *
- * Behind `quartierVisible` in launch-flags.json in a production build; a development build
- * always has it. The street is WebGL, so it never renders on the server.
+ * Behind `quartierVisible` in launch-flags.json in a production build, launched since 17 Nov
+ * (P12: a choice beside the page on Home, not the default); a development build always has it.
+ * The street is WebGL, so it never renders on the server.
  */
 import dynamic from 'next/dynamic';
 import Head from 'next/head';
