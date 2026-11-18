@@ -2108,6 +2108,68 @@ def pick_miss_note(task: RecallTask, language: str) -> str | None:
     return table("answer").format(answer=answer)
 
 
+#: P5: the formats answered by a tap among the item's own options.
+PICK_FORMATS = frozenset({"choice", "classify", "listen_tap", "who_said"})
+
+
+def solution_waits_for_retry(task: RecallTask) -> bool:
+    """P5 (owner, 2026-11-13): may this drill's miss keep its solution for the retry?
+
+    La Forge's rule (``solution_gate.second_chance_for``) read for the daily drill: a
+    choice between two (two cards, two labels, two tiles) is exempt, since the miss
+    names the other one. Everything else waits, when a retry is queued at all.
+    """
+
+    if task.task_type in PICK_FORMATS:
+        return len(task.options) > 2
+    if task.task_type in TILE_ORDER_FORMATS:
+        return len(task.options) > 2
+    return True
+
+
+def withheld_recall_note(task: RecallTask, correction: Correction, *, language: str) -> str:
+    """P5: where and why a drill was missed, without the answer.
+
+    The correction's own note (the rule, the trap, «from "X" on, the order is off»)
+    with every clause that names the answer dropped by La Forge's scrub
+    (``solution_gate.scrub_hint``); La Forge's own fallback line when nothing is left.
+    """
+
+    from app.services import solution_gate
+
+    learner = correction.span_fr or ""
+    answers = [correction.corrected_fr, task.solution_fr, *task.accepted_answers]
+    if task.correct_option_id:
+        answers.append(_option_text(task, task.correct_option_id))
+    phrases: list[str] = []
+    tokens: set[str] = set()
+    for answer in answers:
+        answer = str(answer or "").strip()
+        if not answer:
+            continue
+        found, leaked = solution_gate.leak_terms(
+            {"corrected_answer": answer, "errata": [{"learner_text": learner, "corrected_target": answer}]},
+            learner,
+        )
+        phrases.extend(found)
+        tokens |= leaked
+    if task.task_type in TILE_ORDER_FORMATS:
+        # A build is made of the answer's own words: naming one of them says where the
+        # order goes wrong, not what it is. Only the whole sentence gives it away.
+        tokens = set()
+    note = solution_gate.scrub_hint(correction.note_native, phrases, tokens)
+    if note:
+        return note
+    key = (
+        "forge.second_chance.choice_hint"
+        if task.task_type in PICK_FORMATS
+        else "forge.second_chance.task_hint"
+    )
+    from app.services.learner_copy import learner_text
+
+    return learner_text(key, language)
+
+
 def _selected_option_id(task: RecallTask, answer: AttemptAnswer) -> str | None:
     if answer.option_id:
         return answer.option_id

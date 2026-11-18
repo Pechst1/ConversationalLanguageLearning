@@ -555,6 +555,17 @@ class RespondLetter(JourneyModel):
     objective_native: str
 
 
+class JourneySolution(JourneyModel):
+    """P5 (owner, 2026-11-13): a drill's solution waits for its retry.
+
+    La Forge's vocabulary (``app/services/solution_gate.py``): ``withheld`` while the
+    item is still to be asked again. The correction then carries the learner's own
+    span and the reason, and ``corrected_fr`` is empty.
+    """
+
+    state: Literal["withheld", "shown"]
+
+
 class JourneyCorrection(JourneyModel):
     # Persisted corrections predating WP-103 do not carry the additive notes list.
     model_config = ConfigDict(json_schema_serialization_defaults_required=False)
@@ -574,6 +585,9 @@ class JourneyCorrection(JourneyModel):
     #: #624: ``example`` is a model sentence shown after a free sentence missed the
     #: rule. It is not the learner's sentence made right: the screen draws no arrow.
     kind: Literal["edit", "pick", "meaning", "example"] = "edit"
+    #: P5 (additive): ``{"state": "withheld"}`` while the item's retry is still to come.
+    #: Absent (``None``) when the solution is on the payload.
+    solution: JourneySolution | None = None
 
     @model_validator(mode="after")
     def _one_note_per_issue(self) -> JourneyCorrection:
