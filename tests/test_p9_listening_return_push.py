@@ -79,6 +79,39 @@ def test_the_played_day_is_read_from_the_seasons_position() -> None:
     assert played_day_from_story({"season": {"position": {"season_day": "x"}}}) is None
 
 
+def test_the_service_hands_the_dice_the_played_day(db_session, monkeypatch) -> None:
+    """The planner's own inputs carry the season day: a learner on day 3 of the season,
+    on Soutenu with audio, is not dealt a listening day; the same learner on day 9 is."""
+
+    from app.services.daily_journey import DailyJourneyService
+
+    monkeypatch.setattr(settings, "ATELIER_EPISODE_AUDIO_ENABLED", True)
+    user = User(
+        id=uuid.uuid4(), email=f"p9-played-{uuid.uuid4().hex}@example.com",
+        hashed_password="test", native_language="en", target_language="fr",
+        proficiency_level="A1",
+    )
+    db_session.add(user)
+    db_session.commit()
+    journey = DailyJourney(
+        user_id=user.id, local_date=_cadence_day(str(user.id)), timezone="UTC",
+        status="preparing", budget_seconds=1200,
+    )
+    db_session.add(journey)
+    db_session.commit()
+    service = DailyJourneyService(db_session, adapters=None)  # type: ignore[arg-type]
+
+    def dealt(season_day: int) -> DayShape:
+        class _Brief:
+            story_context = {"season": {"kind": "gap", "position": {"season_day": season_day}}}
+
+        inputs = service._day_shape_inputs(user, journey, _Brief(), errata_count=0)
+        return choose_day_shape(inputs).shape
+
+    assert dealt(3) is not DayShape.LISTENING
+    assert dealt(9) is DayShape.LISTENING
+
+
 # ---------------------------------------------------------------------------
 # 2. The return card says where the story stood
 # ---------------------------------------------------------------------------
