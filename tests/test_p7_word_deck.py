@@ -7,8 +7,8 @@ restart after four days away dealt 100 cards (80 reviews); «frais» in «les fr
 de changement du vol» was glossed «fresh; cool».
 
 Guards: a kept word opens the next deck; all of the scene's words are dealt
-inside the dose; after two or more missed days the deck holds 20 reviews, the
-oldest due, and Home's minutes follow; «Normal» plans 15; a scene word shows the
+inside the dose; a return after two or more missed days is dealt like any other
+day (no special twenty, owner 18 Nov), and Home's minutes follow; «Normal» plans 15; a scene word shows the
 sense its line gives it.
 """
 from __future__ import annotations
@@ -210,39 +210,40 @@ def test_every_scene_word_is_dealt_inside_the_dose(client: TestClient, db_sessio
     assert set(order[:6]) == scene_ids, order
 
 
-def test_a_return_after_four_days_holds_twenty_reviews_and_its_minutes(
+def test_a_return_day_is_dealt_like_any_other_day_and_its_minutes_follow(
     client: TestClient, db_session: Session
 ) -> None:
-    """Four missed days, eighty due: twenty reviews, the oldest due; Home's count and
-    minutes say twenty; the next day still caps while the backlog is twenty or more."""
+    """Owner decision (18 Nov): no special twenty after an absence. Four missed days
+    and eighty due deal the same reviews as a learner who came yesterday with the
+    same backlog; Home's count and minutes say so. Where the every-day cap exists
+    (``app.services.day_review_cap``, round 3), a return day holds at most the
+    day's new-word count of reviews (15 at «Normal»)."""
+
+    import importlib.util
 
     from app.services import daily_session, day_words
 
-    _headers, user = _login(client, db_session)
     now = datetime.now(UTC)
-    today = local_today(user, now)
-    user.grammar_last_review_date = today - timedelta(days=5)  # four whole days missed
     words = [_word(db_session, f"pret{index:02d}{uuid.uuid4().hex[:4]}") for index in range(80)]
-    for index, word in enumerate(words):
-        _due(db_session, user, word, now=now, days_ago=1 + index / 4)
-    db_session.commit()
+    counts = {}
+    for name, missed in (("back", 5), ("daily", 1)):
+        _headers, user = _login(client, db_session)
+        today = local_today(user, now)
+        user.grammar_last_review_date = today - timedelta(days=missed)  # 4 whole days missed, or none
+        for index, word in enumerate(words):
+            _due(db_session, user, word, now=now, days_ago=1 + index / 4)
+        db_session.commit()
+        day_words.ensure_plan(db_session, user, now=now)
+        new, reviews = daily_session.day_deck(db_session, user, reviews_due=80, now=now)
+        seconds = daily_session.day_words_seconds(db_session, user, reviews_due=80, now=now)
+        assert seconds == daily_session.words_seconds(new, reviews)
+        counts[name] = (new, reviews, seconds)
+        if importlib.util.find_spec("app.services.day_review_cap") is not None:
+            from app.services.day_review_cap import day_review_cap
 
-    day_words.ensure_plan(db_session, user, now=now)
-    new, reviews = daily_session.day_deck(db_session, user, reviews_due=80, now=now)
-    assert reviews == 20, (new, reviews)
-    seconds = daily_session.day_words_seconds(db_session, user, reviews_due=80, now=now)
-    assert seconds == daily_session.words_seconds(new, 20)
-    from app.services import drill_batch
-
-    plan = day_words.read_plan(drill_batch.load_batch(db_session, user, today))
-    oldest = {word.id for word in words[-20:]}
-    assert set(plan["reviews"]) == oldest, "the oldest due first"
-
-    # The next day, back to a daily rhythm: still capped while the backlog stands.
-    user.grammar_last_review_date = today
-    db_session.flush()
-    tomorrow = day_words.make_plan(db_session, user, now=now + timedelta(days=1))
-    assert len(tomorrow["reviews"]) == 20 and tomorrow["review_cap"] is True
+            assert day_review_cap(user) == 15
+            assert reviews <= day_review_cap(user), (name, reviews)
+    assert counts["back"] == counts["daily"], counts
 
 
 def test_a_scene_word_shows_the_sense_its_line_gives_it() -> None:
