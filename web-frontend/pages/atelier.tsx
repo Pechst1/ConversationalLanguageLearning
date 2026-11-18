@@ -206,6 +206,7 @@ import { epreuveCopy, fill, wordRangeState, wordRangeText, type EpreuveCopy } fr
 import { endsOnModelAnswer, markedLine, modelAnswer, retryOffered, solutionState, solutionWithheld, withheldHints, withheldRepairParts } from '@/lib/solution-gate';
 import { promptParts } from '@/lib/prompt-parts';
 import { usableCard } from '@/lib/rule-card';
+import { ruleReadToday } from '@/lib/rule-read-today';
 import { RuleCard } from '@/components/atelier-v2/rule/RuleCard';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
 import { coachFor, coachMood, type ForgeCoach } from '@/lib/forge-coach';
@@ -2339,6 +2340,7 @@ export default function AtelierPage() {
             )}
           <SessionView
             session={session}
+            forgeFromJourney={forgeFromDay || Boolean(forgeStepId)}
             activeConceptIndex={activeConceptIndex}
             activeItemIndex={activeItemIndexSafe}
             activeItemCount={Math.max(activeItems.length, 1)}
@@ -3682,6 +3684,7 @@ function epMotifPrimsFrom(concept: AtelierConcept | null, roundOrdinal: number):
 
 function SessionView({
   session,
+  forgeFromJourney = false,
   activeConceptIndex,
   activeItemIndex,
   activeItemCount,
@@ -3730,6 +3733,8 @@ function SessionView({
   activeConceptIndex: number;
   activeItemIndex: number;
   activeItemCount: number;
+  /** R2: the Forge was opened from the day (its grammar step or a folded step). */
+  forgeFromJourney?: boolean;
   round: RoundName;
   mode: RecognizeMode;
   activeSet: Record<string, any> | null;
@@ -3801,7 +3806,12 @@ function SessionView({
       && !hasConceptRecognizeSubmission(submitted, activeConcept.id),
   );
   const rulePreference = ruleOpenByConcept[conceptRuleKey];
-  const ruleExpanded = firstConceptDrill ? rulePreference !== false : rulePreference === true;
+  // R2: a Forge opened from the day whose rule card the learner read today starts
+  // on its first item; «La règle» still opens the card. The day teaches it once.
+  const cardReadToday = Boolean(forgeFromJourney && activeConcept && ruleReadToday(activeConcept.id));
+  const ruleExpanded = firstConceptDrill
+    ? (cardReadToday ? rulePreference === true : rulePreference !== false)
+    : rulePreference === true;
   const isFinalConversation = forge
     ? Boolean(forge.finished && forge.mode === 'seance')
     : !isRetest && round === 'conversation' && activeConceptIndex >= session.concepts.length - 1;

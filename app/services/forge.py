@@ -1344,6 +1344,22 @@ def seance_max_items(user: User) -> int:
     return core.PACE_MAX_SEANCE_ITEMS if stored_pace(user) is not None else core.MAX_SEANCE_ITEMS
 
 
+def day_seance_max_items(db: Session, user: User, concept_id: int | None) -> int:
+    """R2: the day's séance on ``concept_id`` — a short review when the rule is learned.
+
+    A rule the learner holds (its épreuve passed) or has at rest comes back as the
+    day's rule only when nothing else qualifies or its review is due: then at most
+    :data:`forge_picker.SHORT_REVIEW_ITEMS` items. Home's quote reads the same number.
+    """
+
+    from app.services.forge_picker import SHORT_REVIEW_ITEMS, short_review_anchor
+
+    cap = seance_max_items(user)
+    if short_review_anchor(db, user, concept_id):
+        return min(cap, SHORT_REVIEW_ITEMS)
+    return cap
+
+
 def seance_budget_seconds(user: User) -> int:
     from app.services.journey_rhythm import rhythm_of
 
@@ -1411,8 +1427,14 @@ class ForgeService:
                 for u in units
             ]
         budget = plan.get("budget_seconds") if isinstance(plan.get("budget_seconds"), (int, float)) else None
+        max_items = seance_max_items(user)
+        from app.services.forge_picker import DAY_ORIGINS
+
+        if not keep_concepts and plan.get("origin") in DAY_ORIGINS and units:
+            # R2: the day's grammar step on a learned rule is a short review.
+            max_items = day_seance_max_items(self.db, user, units[0].concept_id)
         length = core.seance_length(
-            budget or seance_budget_seconds(user), seconds_per_item(self.db, user), max_items=seance_max_items(user)
+            budget or seance_budget_seconds(user), seconds_per_item(self.db, user), max_items=max_items
         )
         share = plan.get("review_share")
         state = ForgeState.seance(

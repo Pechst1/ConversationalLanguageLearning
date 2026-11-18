@@ -121,6 +121,11 @@ export type StoryEpisodeReaderProps = {
   finaleExtra?: React.ReactNode;
   /** In the finale while the ending is being written: the speaker's face. */
   finaleWait?: React.ReactNode;
+  /**
+   * R2: where a finale page opens instead of on the finale itself — the first of
+   * the closing panels the learner reads while the ending is being written.
+   */
+  openAt?: number | null;
   /** The headline, when the caller knows better than the episode (the scenario's). */
   title?: string | null;
   /** WP-93: the kicker, when the caller knows better («Relecture · la page d'hier»). */
@@ -157,6 +162,7 @@ export function StoryEpisodeReader({
   finale = null,
   finaleExtra = null,
   finaleWait = null,
+  openAt = null,
   title = null,
   eyebrow = null,
   marginNotes = null,
@@ -183,7 +189,9 @@ export function StoryEpisodeReader({
   // The finale opens on itself: the ending is what the learner came back for.
   // A page re-read (WP-93) opens on its first panel, whatever was saved yesterday.
   const start = finale
-    ? Math.max(0, stages.length - 1)
+    ? openAt !== null && openAt >= 0 && openAt < stages.length
+      ? openAt
+      : Math.max(0, stages.length - 1)
     : reread
       ? 0
       : storyStartIndex(episode, stages.length);

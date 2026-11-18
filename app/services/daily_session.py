@@ -24,9 +24,10 @@ after its introduction (``level_forecast.hold_lag_days``). So the rules a week,
 not the words, decide when the goal is reached: A1 (504 words, 33 units) takes
 about 15, 10½ or 8 weeks at 3, 5 or 8 rules a week.
 
-The costs are the app's own: about 20 s a new word, 6 s a review
-(``vocabulary_pace.SECONDS_PER_REVIEW``), 25 s a La Forge item
-(``app.core.forge.DEFAULT_SECONDS_PER_ITEM``). A simulation with the app's FSRS
+The costs Home quotes are the learner's own, step by step, once measured, and
+otherwise calibrated to the 17 Nov 2026 walk (R2 (7), ``app.services.day_pace``):
+20 s a new card, 10 s a review card, 48 s a La Forge item, the plan's estimate
+for the scene. A simulation with the app's FSRS
 scheduler (retention 0.87) puts the reviews eight weeks in at about 2.85 a day
 per daily new word: 57 a day at Normal's 20.
 """
@@ -70,6 +71,7 @@ PACE_NAMES: tuple[PaceName, ...] = ("ruhig", "normal", "schnell")
 #: New learners start here (owner, 2026-10-14: Normal unless they say otherwise).
 DEFAULT_PACE: PaceName = "normal"
 
+#: R2 (7): kept for readers of the old constant; the quote prices words with ``day_pace``.
 SECONDS_PER_NEW_WORD = 20
 #: Reviews a day, eight weeks in, per daily new word (FSRS simulation, see above).
 REVIEWS_PER_NEW_WORD_WEEK_8 = 2.85
@@ -149,10 +151,13 @@ def forge_items(forge_seconds: int, max_items: int | None = None) -> int:
     return seance_length(forge_seconds, DEFAULT_SECONDS_PER_ITEM, max_items=cap)
 
 
-def words_seconds(new_words: int, reviews: int) -> int:
-    from app.services.vocabulary_pace import SECONDS_PER_REVIEW
+def words_seconds(new_words: int, reviews: int, pace: Any = None) -> int:
+    """R2 (7): the deck's cards at ``pace`` (``day_pace.DayPace``), else the
+    calibrated defaults (20 s a new card, 10 s a review card)."""
 
-    return max(0, int(new_words)) * SECONDS_PER_NEW_WORD + max(0, int(reviews)) * SECONDS_PER_REVIEW
+    from app.services.day_pace import DEFAULT_PACE
+
+    return (pace or DEFAULT_PACE).words_seconds(new_words, reviews)
 
 
 def day_words_seconds(
@@ -167,13 +172,15 @@ def day_words_seconds(
     read the way :func:`build_session` reads it. 0 once the words are done.
     """
 
+    from app.services.day_pace import day_pace
+
     if session is not None:
         step = next((step for step in session.steps if step.kind == "words"), None)
         if step is None or step.state == "done":
             return 0
-        return words_seconds(step.new_left or 0, step.reviews or 0)
+        return words_seconds(step.new_left or 0, step.reviews or 0, day_pace(db, user, now=now))
     deck = _day_deck_or_none(db, user, reviews_due=reviews_due, now=now or datetime.now(UTC))
-    return words_seconds(*deck) if deck else 0
+    return words_seconds(*deck, day_pace(db, user, now=now)) if deck else 0
 
 
 def minutes(seconds: float) -> int:
@@ -222,6 +229,9 @@ class SessionInputs:
     #: acknowledged (``scene_done``); the day is done only once the journey ended too.
     #: ``None``: the scene's own state decides (a played scene was an ended day).
     day_ended: bool | None = None
+    #: R2 (7): the learner's pace per step (``day_pace.DayPace``); ``None``: the
+    #: calibrated defaults.
+    pace_per_step: Any = None
 
 
 def review_room(new_words: int, *, reviews_left: int | None = None, deck_limit: int = DAY_DECK_LIMIT) -> int:
@@ -262,17 +272,21 @@ def session_view(inputs: SessionInputs) -> dict[str, Any]:
     )
     grammar_done = inputs.forge_blocks_today > 0
     items = forge_items(inputs.forge_seconds, inputs.forge_max_items)
+    from app.services.day_pace import DEFAULT_PACE
+
+    # R2 (7): each step at the learner's measured pace, else the calibrated defaults.
+    pace = inputs.pace_per_step or DEFAULT_PACE
     by_kind = [
         {
             "kind": "scene",
             "done": inputs.scene_done,
-            "minutes": minutes(inputs.scene_seconds),
+            "minutes": minutes(pace.scene_seconds(inputs.scene_seconds)),
             "href": None,
         },
         {
             "kind": "words",
             "done": words_done,
-            "minutes": 0 if words_done else minutes(words_seconds(new_left, reviews)),
+            "minutes": 0 if words_done else minutes(words_seconds(new_left, reviews, pace)),
             "href": WORDS_HREF,
             # #153: the number the learner will meet, not the pace's target. The
             # scene already introduced some of the quota; «20 words» over a
@@ -286,7 +300,7 @@ def session_view(inputs: SessionInputs) -> dict[str, Any]:
         {
             "kind": "grammar",
             "done": grammar_done,
-            "minutes": 0 if grammar_done else minutes(items * 25),
+            "minutes": 0 if grammar_done else minutes(pace.forge_seconds(items)),
             "href": inputs.forge_href,
             "count": items,
         },
@@ -356,12 +370,18 @@ def pace_option(
     words_left: int,
     units_left: int,
     hold_lag_days: int,
+    pace_per_step: Any = None,
 ) -> dict[str, Any]:
-    grammar = forge_items(grammar_seconds_override or pace.forge_seconds) * 25
+    from app.services.day_pace import DEFAULT_PACE
+
+    # R2 (7): the learner's measured pace per step, else the calibrated defaults.
+    step_pace = pace_per_step or DEFAULT_PACE
+    scene_seconds = step_pace.scene_seconds(scene_seconds)
+    grammar = step_pace.forge_seconds(forge_items(grammar_seconds_override or pace.forge_seconds))
     reviews = min(max(0, reviews_due), DAY_DECK_LIMIT)
-    today = scene_seconds + words_seconds(pace.words, reviews) + grammar
+    today = scene_seconds + words_seconds(pace.words, reviews, step_pace) + grammar
     week8_reviews = round(pace.words * REVIEWS_PER_NEW_WORD_WEEK_8)
-    week8 = scene_seconds + words_seconds(pace.words, week8_reviews) + grammar
+    week8 = scene_seconds + words_seconds(pace.words, week8_reviews, step_pace) + grammar
     return {
         "pace": pace.name,
         "words": pace.words,
@@ -609,9 +629,11 @@ def build_session(
     forge_blocks_today: int,
     now: datetime | None = None,
     day_ended: bool | None = None,
+    forge_concept_id: int | None = None,
 ) -> dict[str, Any]:
+    from app.services.day_pace import day_pace
     from app.services.day_words import ensure_plan
-    from app.services.forge import seance_max_items
+    from app.services.forge import day_seance_max_items
     from app.services.forge_picker import forge_budget_seconds
     from app.services.story_reading import safe_day_reading
     from app.services.vocabulary_pace import daily_quota, introduced_today
@@ -630,7 +652,8 @@ def build_session(
         reviews_due=reviews_due,
         words_marked_done=words_marked_done(journey),
         forge_seconds=forge_budget_seconds(user),
-        forge_max_items=seance_max_items(user),
+        # R2: a learned rule's day is a short review; the quote says so.
+        forge_max_items=day_seance_max_items(db, user, forge_concept_id),
         forge_blocks_today=forge_blocks_today,
         forge_href=forge_href,
         exercises_today=exercises_today(db, user, now=now),
@@ -641,6 +664,7 @@ def build_session(
         acts=story.acts,
         story_words=story.words,
         day_ended=day_ended,
+        pace_per_step=day_pace(db, user, now=now),
     )
     # P7 (pilot, 17 Nov): no «Noch 5 neue Wörter» after the day (Home, Fertig); the
     # extras are offered in Settings, where the pace is chosen.
@@ -691,10 +715,12 @@ def pace_options(
     reviews_due: int,
     now: datetime | None = None,
 ) -> dict[str, Any]:
+    from app.services.day_pace import day_pace
     from app.services.level_forecast import hold_lag_days
 
     goal, words_left, units_left = goal_gap(db, user, now=now)
     lag = hold_lag_days()
+    step_pace = day_pace(db, user, now=now)
     return {
         "current": pace_of(user),
         "chosen": stored_pace(user) is not None,
@@ -709,6 +735,7 @@ def pace_options(
                 words_left=words_left,
                 units_left=units_left,
                 hold_lag_days=lag,
+                pace_per_step=step_pace,
             )
             for name in PACE_NAMES
         ],

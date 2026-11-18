@@ -104,9 +104,10 @@ def test_a_new_plan_is_the_three_working_steps_in_the_owners_order() -> None:
     assert [step.kind for step in plan.steps] == ["scene", "grammar", "words"]
     assert [step.id for step in plan.steps] == ["2026-03-10:scene", "2026-03-10:grammar", "2026-03-10:words"]
     assert _statuses(plan) == {"scene": "todo", "grammar": "todo", "words": "todo"}
-    assert plan.step("grammar").size == 8 and plan.step("grammar").minutes == 4
+    # R2 (7): eight items at the calibrated 48 s (day_pace), not 25 s.
+    assert plan.step("grammar").size == 8 and plan.step("grammar").minutes == 7
     assert plan.step("words").size == 20
-    assert plan.minutes_left == 7 + 4 + plan.step("words").minutes
+    assert plan.minutes_left == 7 + 7 + plan.step("words").minutes
     assert day_plan.DayPlan.from_json(plan.to_json()) == plan
 
 
