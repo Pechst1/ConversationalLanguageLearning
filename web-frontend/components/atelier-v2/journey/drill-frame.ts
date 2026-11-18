@@ -65,6 +65,20 @@ export function drillGoalLine(prompt: GoalPrompt | null | undefined): DrillGoal 
   return null;
 }
 
+/** P10: the generator's own ask, never a meaning («Express a complete sentence in French using …»). */
+const INSTRUCTION_CUE =
+  /^\s*express\s+(a|an|the)\b|\btarget chips?\b|\bcomplete sentence in french\b|^\s*build the (full )?french sentence\b|\bthe target grammar\b/i;
+
+/**
+ * A word bank's meaning cue as the card may quote it: the meaning without an
+ * «Express:» prefix, or `''` when there is none or it is an instruction — the
+ * card then states its task line alone (`app/services/item_bank.py` `meaning_cue_text`).
+ */
+export function meaningCueText(value: unknown): string {
+  const text = clean(value).replace(/^\s*express\s*:\s*/i, '').trim();
+  return !text || INSTRUCTION_CUE.test(text) ? '' : text;
+}
+
 export type SlipSegment = { text: string; slip: boolean };
 
 const WORD_CHAR = /[0-9A-Za-zÀ-ÖØ-öø-ÿŒœ'’-]/;
