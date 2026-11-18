@@ -201,12 +201,16 @@ def test_recall_with_a_bare_noun_key_refuses_the_wrong_article():
 
     from app.services.journey_learning import answer_matches
 
+    # The prompt «der Koffer» names the article: it is part of the question.
+    assert not answer_matches("le valise", ["la valise", "valise"]), WALK
+    assert not answer_matches("un valise", ["valise"])
     for optional in (False, True):
-        assert not answer_matches("le valise", ["la valise", "valise"], article_optional=optional), WALK
-        assert not answer_matches("un valise", ["valise"], article_optional=optional)
         assert answer_matches("la valise", ["la valise", "valise"], article_optional=optional)
         assert answer_matches("une valise", ["valise"], article_optional=optional)
         assert answer_matches("valise", ["valise"], article_optional=optional)
+    # #174 (owner, 2 Nov): a noun asked without its article («Koffer») keeps any article
+    # as a hit; the right one is named on it (tests/test_article_named_on_hit_174.py).
+    assert answer_matches("le valise", ["la valise", "valise"], article_optional=True)
     # a noun with two genders keeps both
     assert answer_matches("la livre", ["livre"])
 

@@ -407,7 +407,9 @@ def answer_matches(
         if (
             short_enough
             and _contains_run(answer_tokens, target_tokens)
-            and not _wrong_article_before(answer_tokens, target_tokens)
+            # #174 (owner, 2 Nov): when the article is not part of the question, a
+            # wrong one stays a hit and is named on it (``article_slip_note``).
+            and (article_optional or not _wrong_article_before(answer_tokens, target_tokens))
         ):
             run = " ".join(_original_run(answer, len(target_tokens), target_tokens))
             if judge(run, [candidate], accents=accents, article_optional=article_optional).correct:
@@ -421,8 +423,10 @@ _GENDERED_ARTICLES = {"le": "m", "un": "m", "la": "f", "une": "f"}
 
 def _wrong_article_before(answer_tokens: list[str], target_tokens: list[str]) -> bool:
     """P4 (walk 17 Nov): «le valise» held the key «valise» as a run of words and was
-    «Richtig». A bare noun found in the answer does not count when the article right in
-    front of it gives it the other gender. A noun right with both genders («la livre»)
+    «Richtig». The prompt «der Koffer» names the article, so it is part of the question:
+    a bare noun found in the answer does not count when the article right in front of it
+    gives it the other gender. Only when the article is asked (``article_optional`` is
+    false); otherwise #174 holds: the hit stands and the right article is named. A noun right with both genders («la livre»)
     stays right."""
 
     from app.services.answer_acceptance import _gender_of
