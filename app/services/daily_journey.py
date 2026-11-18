@@ -1503,6 +1503,7 @@ class DailyJourneyService:
                 reviews_due=due_words,
                 forge_href=f"{forge_href}&from=day",
                 forge_blocks_today=forge.blocks_today,
+                forge_concept_id=forge.concept_id,
             )
         )
 

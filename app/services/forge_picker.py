@@ -374,6 +374,51 @@ def resting_concept_ids(
     return {concept_id for concept_id in top if not misses.get(concept_id, False)}
 
 
+#: R2: a day whose rule is already learned (held, or resting at the top rung)
+#: forges a short review of it, at most this many items, not a full séance.
+SHORT_REVIEW_ITEMS = 4
+
+
+def retired_until_due(progress: UserGrammarProgress | None, *, now: datetime) -> bool:
+    """R2: a held rule (épreuve passed, or held by evidence) whose own review is not due.
+
+    Such a rule is not the day's anchor — not for a due slip on it, not as a «due»
+    rule because a slip on it is due — until its spaced review comes round.
+    """
+
+    if progress is None or progress.held_at is None:
+        return False
+    due_at = _aware(progress.next_review)
+    return due_at is None or due_at > now
+
+
+def short_review_anchor(db: Session, user: Any, concept_id: int | None) -> bool:
+    """R2: is today's rule one the learner already holds or has at rest?
+
+    Then the day's grammar step is a short review (:data:`SHORT_REVIEW_ITEMS`):
+    the rule came back because nothing else qualified, or for its spaced review.
+    """
+
+    if concept_id is None:
+        return False
+    try:
+        progress = (
+            db.query(UserGrammarProgress)
+            .filter(UserGrammarProgress.user_id == user.id, UserGrammarProgress.concept_id == int(concept_id))
+            .one_or_none()
+        )
+    except Exception:  # pragma: no cover - a read never blocks a plan
+        return False
+    if progress is None or not _introduced(progress):
+        return False
+    if progress.held_at is not None:
+        return True
+    concept = db.get(GrammarConcept, int(concept_id))
+    if concept is None:
+        return False
+    return int(concept_id) in resting_concept_ids(db, user, [(progress, concept)])
+
+
 def _anchor(
     db: Session,
     user: Any,
@@ -416,9 +461,13 @@ def _anchor(
 
     for concept_id in errata_ids:
         concept = db.get(GrammarConcept, concept_id)
-        if _usable(concept, language):
-            progress = by_id.get(concept_id)
-            return concept_id, REASON_DUE_ERRATUM, progress is None or not _introduced(progress)
+        progress = by_id.get(concept_id)
+        if not _usable(concept, language) or retired_until_due(progress, now=now):
+            # R2: a held rule (its épreuve passed) is not the day's rule again
+            # because an old slip on it is due: the slip is reviewed around the
+            # scene; the rule waits for its own spaced review.
+            continue
+        return concept_id, REASON_DUE_ERRATUM, progress is None or not _introduced(progress)
 
     if concept_life.introduction_due(db, user, now=now):
         from app.services.atelier import AtelierScheduler
@@ -437,29 +486,21 @@ def _anchor(
         return min(in_progress)[3], REASON_WEAKEST_IN_PROGRESS, False
 
     for concept_id in due_ids:
+        if retired_until_due(by_id.get(concept_id), now=now):
+            continue
         if _usable(db.get(GrammarConcept, concept_id), language):
             return concept_id, REASON_MOST_DUE, False
 
-    # P6: nothing else qualifies. A resting rule is still the day's rule (a short
-    # séance: it tops out on its first right line), never an empty step.
-    resting_rows = sorted(
+    # P6: nothing else qualifies. R2: the day's grammar step is then a short review
+    # (:data:`SHORT_REVIEW_ITEMS`, :func:`short_review_anchor`) of the nearest-due
+    # rule, resting or held, never an empty step and never a full séance.
+    keep_warm = sorted(
         (_aware(progress.next_review) or now, concept.id)
         for progress, concept in rows
-        if concept.id in resting and _introduced(progress)
+        if (concept.id in resting and _introduced(progress)) or progress.held_at is not None
     )
-    if resting_rows:
-        return resting_rows[0][1], REASON_KEEP_WARM, False
-
-    held = sorted(
-        (
-            _aware(progress.next_review) or now,
-            concept.id,
-        )
-        for progress, concept in rows
-        if progress.held_at is not None
-    )
-    if held:
-        return held[0][1], REASON_KEEP_WARM, False
+    if keep_warm:
+        return keep_warm[0][1], REASON_KEEP_WARM, False
     return None, REASON_EMPTY, False
 
 
@@ -831,6 +872,9 @@ __all__ = [
     "story_review_concept_id",
     "forge_plan",
     "resting_concept_ids",
+    "retired_until_due",
+    "short_review_anchor",
+    "SHORT_REVIEW_ITEMS",
     "unit_caps",
     "weak_spot_id",
 ]

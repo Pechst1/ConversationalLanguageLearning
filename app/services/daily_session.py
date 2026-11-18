@@ -621,9 +621,10 @@ def build_session(
     forge_blocks_today: int,
     now: datetime | None = None,
     day_ended: bool | None = None,
+    forge_concept_id: int | None = None,
 ) -> dict[str, Any]:
     from app.services.day_words import ensure_plan
-    from app.services.forge import seance_max_items
+    from app.services.forge import day_seance_max_items
     from app.services.forge_picker import forge_budget_seconds
     from app.services.story_reading import safe_day_reading
     from app.services.vocabulary_pace import daily_quota, introduced_today
@@ -642,7 +643,8 @@ def build_session(
         reviews_due=reviews_due,
         words_marked_done=words_marked_done(journey),
         forge_seconds=forge_budget_seconds(user),
-        forge_max_items=seance_max_items(user),
+        # R2: a learned rule's day is a short review; the quote says so.
+        forge_max_items=day_seance_max_items(db, user, forge_concept_id),
         forge_blocks_today=forge_blocks_today,
         forge_href=forge_href,
         exercises_today=exercises_today(db, user, now=now),
