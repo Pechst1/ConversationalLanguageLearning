@@ -29,7 +29,7 @@ const { renderToStaticMarkup } = require('react-dom/server');
 const { dedupeNotes, forgeCorrectionNotes } = require('./correction-notes.ts');
 
 const FIXTURE = path.resolve(WEB_ROOT, '..', 'tests', 'fixtures', 'sentence_split_cases.json');
-const { cases } = JSON.parse(fs.readFileSync(FIXTURE, 'utf8'));
+const fixtureCases = () => JSON.parse(fs.readFileSync(FIXTURE, 'utf8')).cases;
 
 // atelier.judgement.should_be (app/services/learner_copy.py), filled with a question.
 const SHOULD_BE = {
@@ -40,6 +40,7 @@ const SHOULD_BE = {
 
 test('#896: the device splitter reads every fixture line as the server does', () => {
   const { splitSentences } = require('./sentence-split.ts');
+  const cases = fixtureCases();
   assert.ok(cases.length >= 10);
   for (const { text, sentences, why } of cases) {
     assert.deepEqual(splitSentences(text), sentences, why);
@@ -47,7 +48,7 @@ test('#896: the device splitter reads every fixture line as the server does', ()
 });
 
 test('#893/#896: a note is never cut inside its sentences (every fixture line comes back whole)', () => {
-  for (const { text, why } of cases) {
+  for (const { text, why } of fixtureCases()) {
     assert.deepEqual(dedupeNotes([text]), [text], why);
   }
 });

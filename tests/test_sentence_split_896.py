@@ -30,7 +30,16 @@ from app.services.season.levels import VARIANT_FIELDS, level_key, read_levels
 from app.services.sentence_line import drop_cut_tail, question_line, sentences
 
 ROOT = Path(__file__).resolve().parents[1]
-CASES = json.loads((ROOT / "tests/fixtures/sentence_split_cases.json").read_text(encoding="utf-8"))["cases"]
+FIXTURE = ROOT / "tests/fixtures/sentence_split_cases.json"
+
+
+def _cases() -> list[dict]:
+    return json.loads(FIXTURE.read_text(encoding="utf-8"))["cases"]
+
+
+#: Read at collection for the parametrised test; the walk-lines test below reads it again
+#: and fails loudly if the fixture is gone.
+CASES = _cases() if FIXTURE.exists() else []
 SEASON = ROOT / "app/data/season/s1"
 #: A line opening on one of these is the tail of a chain of alternatives (#827 done-when).
 FRAGMENT_OPENING = re.compile(r"^[«\"“(]?\s*(?:ou|et|mais|pour)\b", re.IGNORECASE)
@@ -42,7 +51,7 @@ def test_the_server_splitter_reads_every_fixture_line(case: dict) -> None:
 
 
 def test_the_fixture_holds_the_walk_lines() -> None:
-    texts = [case["text"] for case in CASES]
+    texts = [case["text"] for case in _cases()]
     assert "„Tu est française, Margaux ?“ stimmt nicht; richtig ist „Tu es française, Margaux ?“." in texts
     assert "Comment on dit, déjà… le groupe qui tient le café ensemble ?" in texts
     assert _season_questions()["a1"] in texts
