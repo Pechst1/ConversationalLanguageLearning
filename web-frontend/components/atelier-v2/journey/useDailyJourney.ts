@@ -87,11 +87,13 @@ import {
   createMutationKeyring,
   createRequestGate,
   planFailure,
+  retryPlan,
   runMutation,
   runWithWaitHint,
   stageAttemptFeedback,
   WAIT_HINT_DELAY_MS,
   WARM_WAIT_HINT_DELAY_MS,
+  type FailedMutation,
   type MutationOutcome,
 } from './journey-requests';
 import { loadStoryEpisode, storyEpisodeKey, useStoryEpisodeEntry } from './story-episode-store';
@@ -117,7 +119,10 @@ export type DailyJourneyActions = {
   requestHelp: (helpKind: HelpKind) => Promise<void>;
   /** Submit an answer. A blank text/voice answer is refused before it is sent. */
   submitAnswer: (input: AttemptInput) => Promise<void>;
-  /** Resubmit the identical body with the identical mutation id. */
+  /**
+   * «Erneut versuchen»: re-send what failed with the identical mutation id — the
+   * answer, or (P11) the advance from the same step, or the finish.
+   */
   retryLastAnswer: () => Promise<void>;
   /** The single forward action: next turn, next step, or finish. */
   continueJourney: () => Promise<void>;
@@ -306,6 +311,8 @@ export function useDailyJourney(
   const keyringRef = useRef(createMutationKeyring());
   /** In-flight promises by intent: a double tap awaits the first request. */
   const gateRef = useRef(createRequestGate());
+  // P11: what «Erneut versuchen» re-sends — the last mutation that failed.
+  const lastFailedRef = useRef<FailedMutation | null>(null);
   const lastAttemptRef = useRef<{
     journeyId: string;
     stepId: string;
@@ -781,6 +788,7 @@ export function useDailyJourney(
               mutationId: id,
             }),
           );
+          lastFailedRef.current = result.ok ? null : { kind: 'attempt' };
           if (result.ok) {
             const attempt = result.value;
             // Read before the snapshot moves on: the kind of the step answered.
@@ -829,17 +837,6 @@ export function useDailyJourney(
     },
     [journey, performAttempt],
   );
-
-  const retryLastAnswer = useCallback(async () => {
-    const last = lastAttemptRef.current;
-    if (!last) {
-      // After a reload there is no answer to resend: the failure was the recovery's
-      // advance. Clearing the error lets it run again (review on #65).
-      if (mountedRef.current) setFeedback({ kind: 'idle' });
-      return;
-    }
-    await performAttempt(last.journeyId, last.stepId, last.expectedRevision, last.input);
-  }, [performAttempt]);
 
   /**
    * Finish what the previous run of the app started (WP-10).
@@ -900,6 +897,7 @@ export function useDailyJourney(
               mutationId: id,
             }),
           );
+          lastFailedRef.current = result.ok ? null : { kind: 'finish', finishKind: kind };
           if (result.ok) {
             applySnapshot(result.value);
             if (mountedRef.current) setFeedback({ kind: 'idle' });
@@ -950,6 +948,9 @@ export function useDailyJourney(
             skipToScene,
           }),
         );
+        lastFailedRef.current = result.ok
+          ? null
+          : { kind: 'advance', journeyId: target.id, stepId: step.id, skipToScene };
         if (result.ok) {
           advanced = result.value;
           applySnapshot(result.value);
@@ -997,6 +998,31 @@ export function useDailyJourney(
     if (sessionStopControl(journeyRef.current, currentStepOf(journeyRef.current)) !== 'skip') return;
     await advance({ skipToScene: true });
   }, [advance]);
+
+  const retryLastAnswer = useCallback(async () => {
+    const plan = retryPlan(lastFailedRef.current, Boolean(lastAttemptRef.current), journeyRef.current);
+    switch (plan.kind) {
+      case 'advance':
+        // P11: the same advance, from the same step and panel — never the last answer.
+        if (mountedRef.current) setFeedback({ kind: 'idle' });
+        if (plan.skipToScene) await skipToScene();
+        else await continueJourney();
+        return;
+      case 'finish':
+        if (mountedRef.current) setFeedback({ kind: 'idle' });
+        await finish(plan.finishKind);
+        return;
+      case 'attempt': {
+        const last = lastAttemptRef.current;
+        if (last) await performAttempt(last.journeyId, last.stepId, last.expectedRevision, last.input);
+        return;
+      }
+      default:
+        // After a reload there is no answer to resend: the failure was the recovery's
+        // advance. Clearing the error lets it run again (review on #65).
+        if (mountedRef.current) setFeedback({ kind: 'idle' });
+    }
+  }, [continueJourney, finish, performAttempt, skipToScene]);
 
   // A current step the server already completed, with no verdict on screen: the
   // learner answered and then reloaded, closed the app, or answered on another
