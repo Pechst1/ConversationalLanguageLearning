@@ -22,11 +22,13 @@ journey and the séance can never disagree about what today is:
      — the same pick :func:`concept_life.introduction_for_today` makes for the
      journey), when nothing was introduced today;
   5. the weakest rule in progress (introduced, not held; lowest stability,
-     then score);
+     then score) that is not *resting* (:func:`resting_concept_ids`: at the top
+     rung with a clean last séance — P6, a rule that is learned leaves);
   6. the most urgent due rule (a scheduled rule the learner never formally
-     met, e.g. from an older surface);
-  7. a held rule kept warm (earliest next review), so the forge is never empty
-     for a learner who holds everything and has no quota left.
+     met, e.g. from an older surface, or a resting rule whose review is due);
+  7. a resting rule (earliest next review), then a held rule kept warm
+     (earliest next review), so the forge is never empty for a learner who
+     holds everything and has no quota left.
 
 * **due** — grammar rules the one review queue (WP-L3
   ``UnifiedSRSService.plan_review_items``) says are due, including rules a due
@@ -301,6 +303,77 @@ def _second_new_rule_due(db: Session, user: Any, *, now: datetime) -> bool:
     return quota > concept_life.INTAKE_WINDOW_DAYS and concept_life.introduction_due(db, user, now=now)
 
 
+#: P6: the séances a resting check reads back, newest first.
+RESTING_SESSIONS_READ = 30
+
+
+def _last_seance_misses(db: Session, user: Any, concept_ids: set[int]) -> dict[int, bool]:
+    """``{concept_id: had a checked miss}`` from each rule's latest forge séance that answered it.
+
+    A rule no séance in the last :data:`RESTING_SESSIONS_READ` answered is absent.
+    """
+
+    from app.db.models.atelier import AtelierSession
+    from app.services.forge import forge_state_of
+
+    found: dict[int, bool] = {}
+    if not concept_ids:
+        return found
+    try:
+        sessions = (
+            db.query(AtelierSession)
+            .filter(AtelierSession.user_id == user.id)
+            .order_by(AtelierSession.started_at.desc())
+            .limit(RESTING_SESSIONS_READ)
+            .all()
+        )
+    except Exception:  # pragma: no cover - a read never blocks a plan
+        return found
+    for session in sessions:
+        state = forge_state_of(session)
+        if state is None or state.mode != "seance":
+            continue
+        answered: dict[int, bool] = {}
+        for entry in state.history:
+            try:
+                concept_id = int(entry.get("concept_id"))
+            except (TypeError, ValueError):
+                continue
+            if concept_id not in concept_ids or concept_id in found or not entry.get("checked"):
+                continue
+            missed = entry.get("outcome") == "incorrect"
+            answered[concept_id] = answered.get(concept_id, False) or missed
+        found.update(answered)
+        if len(found) == len(concept_ids):
+            break
+    return found
+
+
+def resting_concept_ids(
+    db: Session, user: Any, rows: list[tuple[UserGrammarProgress, GrammarConcept]]
+) -> set[int]:
+    """P6: rules in progress that have nothing left to prove in La Forge for now.
+
+    At the top rung (``forge_rung`` at free use, «Level 6») and not held, with no
+    checked miss in the latest séance that answered them. Such a rule is not the
+    day's anchor again while another rule qualifies: it comes back as a review
+    when its schedule says it is due (:func:`day_review_eligible`), or as the
+    anchor only when nothing else is left. A miss in its last séance keeps it in.
+    """
+
+    from app.core.forge import TOP_RUNG
+
+    top = {
+        concept.id
+        for progress, concept in rows
+        if progress.held_at is None and progress.forge_rung is not None and int(progress.forge_rung) >= int(TOP_RUNG)
+    }
+    if not top:
+        return set()
+    misses = _last_seance_misses(db, user, top)
+    return {concept_id for concept_id in top if not misses.get(concept_id, False)}
+
+
 def _anchor(
     db: Session,
     user: Any,
@@ -354,10 +427,11 @@ def _anchor(
         if picked:
             return picked[0].id, REASON_NEW_FROM_QUOTA, True
 
+    resting = resting_concept_ids(db, user, rows)
     in_progress = [
         (float(progress.stability or 0.0), float(progress.score or 0.0), concept.difficulty_order or 0, concept.id)
         for progress, concept in rows
-        if _introduced(progress) and progress.held_at is None
+        if _introduced(progress) and progress.held_at is None and concept.id not in resting
     ]
     if in_progress:
         return min(in_progress)[3], REASON_WEAKEST_IN_PROGRESS, False
@@ -365,6 +439,16 @@ def _anchor(
     for concept_id in due_ids:
         if _usable(db.get(GrammarConcept, concept_id), language):
             return concept_id, REASON_MOST_DUE, False
+
+    # P6: nothing else qualifies. A resting rule is still the day's rule (a short
+    # séance: it tops out on its first right line), never an empty step.
+    resting_rows = sorted(
+        (_aware(progress.next_review) or now, concept.id)
+        for progress, concept in rows
+        if concept.id in resting and _introduced(progress)
+    )
+    if resting_rows:
+        return resting_rows[0][1], REASON_KEEP_WARM, False
 
     held = sorted(
         (
@@ -746,6 +830,7 @@ __all__ = [
     "forge_is_folded",
     "story_review_concept_id",
     "forge_plan",
+    "resting_concept_ids",
     "unit_caps",
     "weak_spot_id",
 ]

@@ -56,7 +56,7 @@ class Pace:
     words: int
     #: New grammar units a week (``concept_life.weekly_concept_rate``).
     rules_per_week: int
-    #: One La Forge séance's budget: 12 items at 300 s, 17 at 420 s.
+    #: One La Forge séance's budget (P6: at most 8 items, ``PACE_MAX_SEANCE_ITEMS``).
     forge_seconds: int
 
 
@@ -142,10 +142,17 @@ def pace_forge_seconds(user: Any) -> int | None:
     return PACES[name].forge_seconds if name else None
 
 
-def forge_items(forge_seconds: int) -> int:
-    from app.core.forge import DEFAULT_SECONDS_PER_ITEM, seance_length
+def forge_items(forge_seconds: int, max_items: int | None = None) -> int:
+    """The items one séance of this budget deals, at most ``max_items``.
 
-    return seance_length(forge_seconds, DEFAULT_SECONDS_PER_ITEM)
+    P6: a pace's séance is at most ``PACE_MAX_SEANCE_ITEMS`` (8) items, so that is
+    the default here; :func:`app.services.forge.seance_max_items` gives a learner's own.
+    """
+
+    from app.core.forge import DEFAULT_SECONDS_PER_ITEM, PACE_MAX_SEANCE_ITEMS, seance_length
+
+    cap = PACE_MAX_SEANCE_ITEMS if max_items is None else int(max_items)
+    return seance_length(forge_seconds, DEFAULT_SECONDS_PER_ITEM, max_items=cap)
 
 
 def words_seconds(new_words: int, reviews: int) -> int:
@@ -199,6 +206,8 @@ class SessionInputs:
     forge_blocks_today: int
     forge_href: str
     exercises_today: int
+    #: P6: the most items one séance deals this learner (8 on a stored pace).
+    forge_max_items: int | None = None
     #: Distinct words reviewed today, every surface together (the end screen's «Words»).
     words_reviewed_today: int = 0
     #: ``(new, reviews)``: the cards the day deck holds right now (:func:`day_deck`).
@@ -257,7 +266,7 @@ def session_view(inputs: SessionInputs) -> dict[str, Any]:
         words_done_count + max(0, inputs.extras_answered) if inputs.dealt else words_done_count
     )
     grammar_done = inputs.forge_blocks_today > 0
-    items = forge_items(inputs.forge_seconds)
+    items = forge_items(inputs.forge_seconds, inputs.forge_max_items)
     by_kind = [
         {
             "kind": "scene",
@@ -607,6 +616,7 @@ def build_session(
     now: datetime | None = None,
 ) -> dict[str, Any]:
     from app.services.day_words import ensure_plan
+    from app.services.forge import seance_max_items
     from app.services.forge_picker import forge_budget_seconds
     from app.services.story_reading import safe_day_reading
     from app.services.vocabulary_pace import daily_quota, introduced_today
@@ -625,6 +635,7 @@ def build_session(
         reviews_due=reviews_due,
         words_marked_done=words_marked_done(journey),
         forge_seconds=forge_budget_seconds(user),
+        forge_max_items=seance_max_items(user),
         forge_blocks_today=forge_blocks_today,
         forge_href=forge_href,
         exercises_today=exercises_today(db, user, now=now),
