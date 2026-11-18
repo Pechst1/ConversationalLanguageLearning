@@ -534,7 +534,8 @@ def tutor_payload(payload: dict) -> dict:
     story = payload.get("story") or {}
     scene = payload.get("scene") or {}
     return {
-        "control_language": story.get("control_language"),
+        # The tutor writes only notes in it: the mother tongue (owner, 18 Nov 2026).
+        "control_language": correction_language(payload),
         "level": story.get("level"),
         "task": {
             "objective_native": scene.get("objective_native"),
@@ -549,6 +550,14 @@ def tutor_payload(payload: dict) -> dict:
         **({"rules": rules} if (rules := day_rules.for_model(payload.get("day_rules"))) else {}),
         **_turn_tail(payload),
     }
+
+
+def correction_language(payload: dict) -> str | None:
+    """The language a scene correction is explained in: the learner's mother tongue
+    (owner decision 18 Nov 2026, as in the Courrier), while the chrome stays French
+    from B1. A payload from before it (recorded, stored) keeps its control language."""
+
+    return payload.get(engine.CORRECTION_LANGUAGE_KEY) or (payload.get("story") or {}).get("control_language")
 
 
 def max_corrections(level: object) -> int:
@@ -670,7 +679,7 @@ def story_payload(payload: dict, released: dict) -> dict:
     story = payload.get("story") or {}
     return {
         # P3: the day's rules are the tutor's, never the ending's.
-        **{key: value for key, value in payload.items() if key != "day_rules"},
+        **{key: value for key, value in payload.items() if key not in engine.TUTOR_ONLY_KEYS},
         "story": {**story, "carries_over": bool(story.get("carries_over"))},
         "released": released,
     }
@@ -723,7 +732,7 @@ def validate_tutor(verdict: TutorVerdict, payload: dict) -> None:
     if not (payload.get("turn_plan") or {}).get("clarify_form_fr"):
         # WP-36: when the app is eliciting the form, a correction would hand it over.
         text = payload["learner_text"]
-        language = (payload.get("story") or {}).get("control_language")
+        language = correction_language(payload)
         rules = payload.get("day_rules")
         today, recent = day_rules.rule_ids(rules)
         for item in proposed:

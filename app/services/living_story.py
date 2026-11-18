@@ -44,7 +44,11 @@ from app.services import (
 )
 from app.services.address import address_instruction
 from app.services.answer_acceptance import correction_is_grounded, is_preference_swap
-from app.services.chrome_language import user_chrome_language, user_mother_tongue
+from app.services.chrome_language import (
+    user_chrome_language,
+    user_correction_language,
+    user_mother_tongue,
+)
 from app.services.closing_filler import what_happened
 from app.services.concept_titles import concept_title
 from app.services.journey_contracts import (
@@ -89,6 +93,11 @@ ENGINE_VERSION_PREFIX = "living-story-"
 # and the legacy route guards match on the prefix, never on one revision.
 VERSION = ENGINE_VERSION_PREFIX + "v2"
 STATE_KEY = "living_story"
+#: The language a scene correction's note is written in (owner decision 18 Nov 2026:
+#: the learner's mother tongue at every level, as in the Courrier).
+CORRECTION_LANGUAGE_KEY = "correction_language"
+#: Turn-payload keys only the tutor lane reads; every other model call is sent without them.
+TUTOR_ONLY_KEYS = frozenset({"day_rules", CORRECTION_LANGUAGE_KEY})
 MAX_HISTORY = 40
 # WP-17: a chapter closes when its dramatic question is answered, or once the learner has
 # resolved this many commitments inside it, whichever comes first. Module constants, not
@@ -10677,6 +10686,7 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_re
     if (scenario.story_context.get("draft") or {}).get("carries_over"):
         context["carries_over"] = True
     turns_left = max(0, task.max_turns - turn_index)
+    correction_language = user_correction_language(user)
     # #145 / #378: what this scene has asked and answered so far, rebuilt from its lines.
     ledger = scene_ledger.build(
         opening_line_fr=task.opening_line_fr,
@@ -10715,6 +10725,10 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_re
             "learner_asked": ledger["learner_asked"],
         },
         "ledger": ledger,
+        # Owner decision 18 Nov 2026: a correction is explained in the learner's mother
+        # tongue at every level, as the Courrier's are; the chrome stays French from B1.
+        # The tutor's data only (``TUTOR_ONLY_KEYS``): the tutor lane reads it.
+        CORRECTION_LANGUAGE_KEY: correction_language,
         # P3: the day's rule and the week's, for the tutor (an error against one of them
         # is corrected first). Read here, never by a model call.
         **(
@@ -10723,7 +10737,7 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_re
                 rules := day_rules.for_turn(
                     db,
                     user,
-                    control_language=context.get("control_language"),
+                    control_language=correction_language,
                     focus_unit_id=((scene.script_payload or {}).get("grammar_focus") or {}).get("unit_id"),
                 )
             )
@@ -11183,7 +11197,7 @@ def evaluate_turn(
         turn, usage = _approved(
             actor_prompt() + day_contract.voice_note() + day_contract.ending_note() if planned else actor_prompt(),
             # P3: the day's rules are the tutor lane's (with the app's own detectors).
-            {key: value for key, value in payload.items() if key != "day_rules"},
+            {key: value for key, value in payload.items() if key not in TUTOR_ONLY_KEYS},
             _contract_turn_schema(SemanticTurn) if planned else SemanticTurn,
             lambda t: _validate_turn(t, payload, lexical=lexical),
             db=db,

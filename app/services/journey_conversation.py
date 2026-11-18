@@ -75,7 +75,10 @@ from app.db.models.error import UserError
 from app.db.models.serial import SerialThread
 from app.db.models.user import User
 from app.services import correction_contract, pragmatics
-from app.services.chrome_language import user_chrome_language, user_mother_tongue
+from app.services.chrome_language import (
+    user_correction_language,
+    user_mother_tongue,
+)
 from app.services.error_memory import ErrorMemoryService
 from app.services.journey_content import render_authored_text
 from app.services.journey_contracts import (
@@ -2760,9 +2763,9 @@ def register_corrections(
     fabricated span — WP-05 would reject it anyway, and rightly.
     """
 
-    # The note is the app's own explanation, so it follows the chrome: the
-    # learner's language up to A2, French from B1 (WP-82).
-    language = user_chrome_language(user)
+    # The note explains a correction: the learner's mother tongue at every level
+    # (owner decision 18 Nov 2026, as in the Courrier); the chrome stays French from B1.
+    language = user_correction_language(user)
     counterpart = expected_counterpart_register(
         scenario=scenario,
         task=task,
@@ -3187,7 +3190,7 @@ def _register_erratum_here(
         pragmatics.RegisterFinding(code=code),
         counterpart=counterpart.counterpart,
         reason_native=counterpart.reason_native,
-        language=user_chrome_language(user),
+        language=user_correction_language(user),
     )
 
 
@@ -3287,7 +3290,7 @@ def _margin_note(*, user: User, wrong: str, correct: str, why: str) -> str:
     asked the learner about it first, so it never says they were."""
 
     note = learner_copy_text(
-        "self_repair.margin_note", user_chrome_language(user), correct=correct, wrong=wrong
+        "self_repair.margin_note", user_correction_language(user), correct=correct, wrong=wrong
     )
     reason = " ".join(str(why or "").split())
     return f"{note} {reason}".strip() if reason else note
@@ -3297,12 +3300,11 @@ def _explicit_note(*, user: User, wrong: str, correct: str, why: str) -> str:
     """The explicit correction's note: the rule, then the stored reason.
 
     Explicit means explicit (Lyster & Ranta): the learner is told which form is
-    right, in the chrome's language, not shown a recast and left to notice. That
-    is their own language up to A2 and French from B1 (WP-82): a B1 walk read
-    «That was the one you were just asked about…» on a French screen.
+    right, not shown a recast and left to notice — in their mother tongue at every
+    level (owner decision 18 Nov 2026, as in the Courrier; WP-82 had it French from B1).
     """
 
-    language = user_chrome_language(user)
+    language = user_correction_language(user)
     note = learner_copy_text("self_repair.explicit_note", language, correct=correct, wrong=wrong)
     reason = " ".join(str(why or "").split())
     return f"{note} {reason}".strip() if reason else note
@@ -3527,7 +3529,7 @@ def feedback_decision(
                     scenario=scenario,
                     task=task,
                     history=history,
-                    native_language=user_chrome_language(user),
+                    native_language=user_correction_language(user),
                 )
             here = _register_erratum_here(user=user, moved_to=moved_to, counterpart=addressee)
             if here is None:
