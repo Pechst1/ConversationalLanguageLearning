@@ -4265,6 +4265,8 @@ class MissionCorrectionService:
 
         from app.services import day_rules
 
+        if self.db is None:  # the gold gate's offline fingerprint builds the prompt without a session
+            return None
         try:
             return day_rules.for_model(
                 day_rules.for_turn(self.db, user, control_language=user_mother_tongue(user))
