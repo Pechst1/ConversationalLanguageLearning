@@ -3425,6 +3425,25 @@ def first_valid_edit(
     """The single correction a scene turn can show: the model's when it passes
     :func:`verify_edit` (as settled there), else the most serious model-free edit
     (grammar before spelling, then reading order), else nothing."""
+    verified = verified_model_edit(text, span, replacement, note, language=language, people=people)
+    if verified is not None:
+        return verified
+    return best_deterministic_edit(text, language=language, people=people)
+
+
+def verified_model_edit(
+    text: object,
+    span: object,
+    replacement: object,
+    note: object = None,
+    *,
+    language: str | None = None,
+    people: Mapping[str, str] | None = None,
+) -> tuple[str, str, str | None] | None:
+    """A model's edit as :func:`verify_edit` settles it, or ``None`` when it fails.
+
+    The first half of :func:`first_valid_edit`, for a turn that carries several model
+    corrections (P3): each passes this on its own."""
     if span and replacement and changes_what_was_said(
         span, replacement, listed=True, question=in_a_question(text, span)
     ) is None:
@@ -3438,11 +3457,58 @@ def first_valid_edit(
                     or None
                 )
             return verdict.span or str(span), verdict.replacement, shown
+    return None
+
+
+def best_deterministic_edit(
+    text: object,
+    *,
+    language: str | None = None,
+    people: Mapping[str, str] | None = None,
+) -> tuple[str | None, str | None, str | None]:
+    """The most serious model-free edit (grammar before spelling, then reading order)."""
     edits = deterministic_edits(text, people=people)
     if edits:
         best = min(edits, key=lambda e: (-e.severity, e.start))
         return best.span, best.replacement, best.note_for(language)
     return None, None, None
+
+
+#: P3 (walk 17 Nov): «La forme correcte est « je veux que quelqu'un me dise ».» explains
+#: nothing. Words that only frame a corrected form, in the three explanation languages.
+_FORM_ONLY_WORDS = frozenset(
+    """
+    la le les l un une des de du d au aux en ici et ou c ce cet cette ça est sont être devrait
+    serait forme formes correcte correct correcte bonne bon juste exacte version réponse phrase mot mots
+    il faut dire on dit écrit écris écrivez écrire utilise utilisez utiliser mets mettez plutôt que qu
+    au lieu pas non mais voici voilà français
+    the a an is are be should would it this that here form forms correct right proper version answer
+    sentence word words say use write instead of not but in french correctly
+    der die das den dem des ein eine einen ist sind sein sollte wäre richtig richtige richtigen
+    korrekt korrekte korrekten form formen lautet heißt heisst man sagt schreibt schreib schreibe
+    sag sage benutze verwende statt anstatt nicht aber hier auf französisch version antwort satz wort
+    """.split()
+)
+_ANY_QUOTE = re.compile(r"«[^»]*»|“[^”]*”|„[^“”]*[“”]|\"[^\"]*\"|‹[^›]*›")
+_NOTE_WORD = re.compile(r"[^\W\d_]+(?:['’][^\W\d_]+)?")
+
+
+def note_states_a_rule(note: object, *forms: object) -> bool:
+    """Does the note say something besides the corrected form (P3)?
+
+    The quoted forms and the forms the correction names are taken out, then the
+    words that only frame a form («la forme correcte est», «the correct form is»,
+    «richtig ist»); a word must be left («Use the subjunctive: « X ».» keeps
+    «subjunctive»), or the note only restates the correction and is refused.
+    Deterministic, no model."""
+    rest = _ANY_QUOTE.sub(" ", str(note or ""))
+    for form in sorted({str(f).strip() for f in forms if f and str(f).strip()}, key=len, reverse=True):
+        rest = re.sub(re.escape(form), " ", rest, flags=re.IGNORECASE)
+    words = [
+        word for word in _NOTE_WORD.findall(rest.casefold())
+        if len(word) > 1 and word.replace("’", "'") not in _FORM_ONLY_WORDS
+    ]
+    return bool(words)
 
 
 # ---------------------------------------------------------------------------

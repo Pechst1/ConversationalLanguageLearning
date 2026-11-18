@@ -257,6 +257,9 @@ export type JourneyCopyKey =
   // verdict's list of what the conversation corrected.
   | 'thread_fix_sr'
   | 'thread_note_close'
+  // P3: from B1, the reply's other corrections, collapsed under the first.
+  | 'thread_more_one'
+  | 'thread_more_many'
   | 'conversation_fixes'
   // WP-103 T2: «Afficher le texte» at every stage of the listening cycle, and
   // the question the learner is listening for.
@@ -483,6 +486,8 @@ const EN: CopyTable = {
   exchange_last: 'Last exchange',
   thread_fix_sr: 'Corrected form:',
   thread_note_close: 'Hide the explanation',
+  thread_more_one: '1 more correction',
+  thread_more_many: '{n} more corrections',
   conversation_fixes: 'What was corrected',
   radio_text_show: 'Show the text',
   radio_text_hide: 'Hide the text',
@@ -705,6 +710,8 @@ const DE: CopyTable = {
   exchange_last: 'Letzter Austausch',
   thread_fix_sr: 'Korrigierte Form:',
   thread_note_close: 'Erklärung verbergen',
+  thread_more_one: '1 weitere Korrektur',
+  thread_more_many: '{n} weitere Korrekturen',
   conversation_fixes: 'Was korrigiert wurde',
   radio_text_show: 'Text anzeigen',
   radio_text_hide: 'Text verbergen',
@@ -927,6 +934,8 @@ const FR: CopyTable = {
   exchange_last: 'Dernier échange',
   thread_fix_sr: 'Forme corrigée :',
   thread_note_close: 'Masquer l’explication',
+  thread_more_one: '1 autre correction',
+  thread_more_many: '{n} autres corrections',
   conversation_fixes: 'Ce qui a été corrigé',
   radio_text_show: 'Afficher le texte',
   radio_text_hide: 'Masquer le texte',

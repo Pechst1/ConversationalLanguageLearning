@@ -3521,6 +3521,25 @@
 .av2 .av2-thread__note .av2-correction { margin: 0; padding: 0; background: none; }
 /* In the conversation's margin note the fix stays a margin note, not a headline. */
 .av2 .av2-thread__note .av2-correction__line { font-size: var(--av2-t-body-lg); }
+/* P3: from B1 a reply's other corrections wait collapsed under the first. */
+.av2 .av2-thread__more {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: 100%;
+}
+.av2 .av2-thread__more > summary {
+  min-height: var(--av2-tap);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px 0 0;
+  color: var(--av2-muted);
+  font-size: var(--av2-t-meta);
+  cursor: pointer;
+}
+.av2 .av2-thread__more > summary:focus-visible { outline: 2px solid var(--av2-focus); outline-offset: 2px; border-radius: 4px; }
+.av2 .av2-thread__more s { text-decoration-color: var(--av2-red); }
 
 /* WP-103 T3. What a drill asks for, right under its instruction: the goal in
    the learner's language (sans, ink, a card of its own), or the scene line the

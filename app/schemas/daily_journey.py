@@ -566,6 +566,24 @@ class JourneySolution(JourneyModel):
     state: Literal["withheld", "shown"]
 
 
+class MoreCorrection(JourneyModel):
+    """P3: one more correction of a scene reply, of other words than the first («A → B»)."""
+
+    model_config = ConfigDict(json_schema_serialization_defaults_required=False)
+    span_fr: str
+    corrected_fr: str
+    note_native: str
+    notes_native: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _one_note_per_issue(self) -> MoreCorrection:
+        if not self.notes_native and self.note_native:
+            from app.services.forge_grading import notes_native
+
+            self.notes_native = notes_native([{"why_wrong": self.note_native}])
+        return self
+
+
 class JourneyCorrection(JourneyModel):
     # Persisted corrections predating WP-103 do not carry the additive notes list.
     model_config = ConfigDict(json_schema_serialization_defaults_required=False)
@@ -588,6 +606,9 @@ class JourneyCorrection(JourneyModel):
     #: P5 (additive): ``{"state": "withheld"}`` while the item's retry is still to come.
     #: Absent (``None``) when the solution is on the payload.
     solution: JourneySolution | None = None
+    #: P3 (additive): from B1 a scene reply's other corrections, shown collapsed under
+    #: this one, in the order the tutor ranked them. Empty below B1 and elsewhere.
+    more: list[MoreCorrection] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _one_note_per_issue(self) -> JourneyCorrection:

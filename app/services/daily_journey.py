@@ -77,6 +77,7 @@ from app.schemas.daily_journey import (
     JourneySolution,
     JourneyTomorrowRequest,
     LegacyResume,
+    MoreCorrection,
     NextFocus,
     NextTurn,
     PaceOptions,
@@ -6533,9 +6534,8 @@ class DailyJourneyService:
         own span and the note (where and why), no corrected line.
         """
 
-        if correction is None or not correction.is_valid_for(
-            normalize_answer_text(learner_text)
-        ):
+        normalized = normalize_answer_text(learner_text)
+        if correction is None or not correction.is_valid_for(normalized):
             return None
         if withheld_note is not None:
             return JourneyCorrection(
@@ -6550,6 +6550,12 @@ class DailyJourneyService:
             corrected_fr=correction.corrected_fr,
             note_native=correction.note_native,
             kind=correction.kind,
+            # P3: from B1, a scene reply's other corrections, collapsed under this one.
+            more=[
+                MoreCorrection(span_fr=item.span_fr, corrected_fr=item.corrected_fr, note_native=item.note_native)
+                for item in getattr(correction, "more", ()) or ()
+                if item.note_native and item.is_valid_for(normalized)
+            ],
         )
 
     def _reply_source(self, evaluation: Any) -> str:

@@ -3927,6 +3927,16 @@ def apply_learning_evidence(
                 "span_fr": correction.span_fr,
                 "corrected_fr": correction.corrected_fr,
                 "note_native": correction.note_native,
+                # P3: the other corrections shown under it (from B1), kept with the
+                # moment; one erratum per turn stays the rule (the foreground's).
+                **(
+                    {"more": [
+                        {"span_fr": c.span_fr, "corrected_fr": c.corrected_fr, "note_native": c.note_native}
+                        for c in correction.more
+                    ]}
+                    if getattr(correction, "more", ())
+                    else {}
+                ),
                 "erratum": erratum,
                 "concept_credit": concept_credit,
                 "suppressed_reason": None if erratum else "one_punishment_event_per_turn",

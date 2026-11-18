@@ -35,6 +35,7 @@ from app.db.models.user import User
 from app.services import (
     cast_registry,
     correction_contract,
+    day_rules,
     scene_exit,
     scene_ledger,
     scene_record,
@@ -11138,6 +11139,20 @@ def _turn_payload(db, user, scenario, task, answer, history, turn_index, self_re
             "learner_asked": ledger["learner_asked"],
         },
         "ledger": ledger,
+        # P3: the day's rule and the week's, for the tutor (an error against one of them
+        # is corrected first). Read here, never by a model call.
+        **(
+            {"day_rules": rules}
+            if (
+                rules := day_rules.for_turn(
+                    db,
+                    user,
+                    control_language=context.get("control_language"),
+                    focus_unit_id=((scene.script_payload or {}).get("grammar_focus") or {}).get("unit_id"),
+                )
+            )
+            else {}
+        ),
         # #147: on an authored page, who this turn is for (the tutor's register reads it).
         **(
             {"addressee": addressee}
@@ -11386,6 +11401,18 @@ def _validate_turn(turn: SemanticTurn, payload: dict, *, lexical=None, reply_che
             turn.correction_note_native,
             language=story.get("control_language"),
         )
+        if turn.correction_note_native and not correction_contract.note_states_a_rule(
+            turn.correction_note_native, turn.correction_span_fr, turn.correction_fr
+        ):
+            # P3: «La forme correcte est « X ».» explains nothing. This path names no
+            # rule to put in its place: the model-free edit stands in, or nothing.
+            (
+                turn.correction_span_fr,
+                turn.correction_fr,
+                turn.correction_note_native,
+            ) = correction_contract.best_deterministic_edit(
+                payload["learner_text"], language=story.get("control_language")
+            )
     _check_register([turn.reply_fr, turn.resolution_fr], story.get("level"))
     # #212: the speaker never names themselves in their own lines, and the mood label
     # is the one their last lines left.
@@ -11579,7 +11606,8 @@ def evaluate_turn(
             from app.services.season import day_contract
         turn, usage = _approved(
             actor_prompt() + day_contract.voice_note() + day_contract.ending_note() if planned else actor_prompt(),
-            payload,
+            # P3: the day's rules are the tutor lane's (with the app's own detectors).
+            {key: value for key, value in payload.items() if key != "day_rules"},
             _contract_turn_schema(SemanticTurn) if planned else SemanticTurn,
             lambda t: _validate_turn(t, payload, lexical=lexical),
             db=db,
