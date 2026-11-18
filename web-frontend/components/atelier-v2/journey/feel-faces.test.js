@@ -274,7 +274,8 @@ function baseProps(step, extra = {}) {
 
 test('a choice pick turns red on the device, the right card green, and the server corrects quietly', async () => {
   feelLib.resetFeltVerdicts();
-  const step = recallStep({ task_type: 'choice', options: CHOICE, answer_key: keyFor('opt-b') });
+  // P5: the device draws the right card at once only where no retry follows (here: the retry).
+  const step = recallStep({ task_type: 'choice', options: CHOICE, answer_key: keyFor('opt-b'), retry: true });
   const sent = [];
   const props = baseProps(step, { onSubmit: (input) => sent.push(input) });
   const view = mount(steps.RecallStepView, props);
@@ -310,6 +311,31 @@ test('a choice pick turns red on the device, the right card green, and the serve
     ),
     null,
   );
+});
+
+// P5 (owner, 2026-11-13): no solution before the retry. A first miss among three cards
+// waits for the server; a withheld solution keeps the right card blank, a shown one draws it.
+test('a first miss among three cards draws the right card only when the server shows the solution', async () => {
+  feelLib.resetFeltVerdicts();
+  const step = recallStep({ task_type: 'choice', options: CHOICE, answer_key: keyFor('opt-b') });
+  const props = baseProps(step);
+  const view = mount(steps.RecallStepView, props);
+  const states = () =>
+    Object.fromEntries(find(view.tree, byType(ui.ChoiceList)).props.options.map((o) => [o.id, o.state]));
+
+  find(view.tree, byType(ui.ChoiceList)).props.onSelect('opt-a');
+  find(view.tree, (el) => el.type === ui.Action && el.props.children === EN.check).props.onClick();
+  await settleUntil(() => states()['opt-a'] === 'wrong');
+  await settleUntil(() => states()['opt-b'] === 'correct', 200);
+  assert.deepEqual(states(), { 'opt-a': 'wrong', 'opt-b': undefined, 'opt-c': undefined }, 'the device waits');
+
+  const withheld = { kind: 'pick', span_fr: 'a', corrected_fr: '', note_native: 'x', solution: { state: 'withheld' } };
+  view.rerender({ ...props, feedback: { kind: 'graded', verdict: 'wrong', result: { correction: withheld }, replySource: 'unknown' } });
+  assert.deepEqual(states(), { 'opt-a': 'wrong', 'opt-b': undefined, 'opt-c': undefined }, 'withheld: no right card');
+
+  const shown = { kind: 'pick', span_fr: 'a', corrected_fr: 'b', note_native: 'x' };
+  view.rerender({ ...props, feedback: { kind: 'graded', verdict: 'wrong', result: { correction: shown }, replySource: 'unknown' } });
+  assert.deepEqual(states(), { 'opt-a': 'wrong', 'opt-b': 'correct', 'opt-c': undefined }, 'shown: the right card');
 });
 
 test('a word bank sentence is coloured on the device', async () => {

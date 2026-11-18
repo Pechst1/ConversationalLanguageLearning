@@ -93,6 +93,16 @@ import { deviceStore, localDateToday, markRouteStage, onFirstDay, routeDone, typ
 import { markWordsDoneToday } from '@/lib/continue-learning';
 import { cardExample, cardFaces, type MarkedExample } from '@/lib/card-example';
 import { playAskedVoice, speakAskedVoice } from '@/lib/audio-session';
+import {
+  deckConnection,
+  enqueueGrade,
+  flushGradeQueue,
+  gradeLostToNetwork,
+  readGradeQueue,
+} from '@/lib/grade-queue';
+import { atelierCopy, type AtelierCopy } from '@/lib/atelier-v2-copy';
+import { journeyCopy } from '@/components/atelier-v2/journey/journey-copy';
+import { ConnectionNotice } from '@/components/atelier-v2/journey/JourneySession';
 
 /* "Le Lexique" — the review session, on the Claude design system (Atelier V2).
  *
@@ -580,6 +590,48 @@ export default function VocabularyReviewPage() {
     }
   }, []);
 
+  // P11: grades the network lost, held on the device and sent on reconnect or next open.
+  const [queuedGrades, setQueuedGrades] = useState(0);
+  const [online, setOnline] = useState(true);
+  const [sendingGrades, setSendingGrades] = useState(false);
+  const sendingGradesRef = useRef(false);
+  const sendQueuedGrades = useCallback(async () => {
+    if (sendingGradesRef.current) return;
+    if (!readGradeQueue().length) {
+      setQueuedGrades(0);
+      return;
+    }
+    sendingGradesRef.current = true;
+    setSendingGrades(true);
+    try {
+      const result = await flushGradeQueue((grade) =>
+        apiService.submitAnkiReview({ word_id: grade.word_id, rating: grade.rating, format: grade.format }),
+      );
+      setQueuedGrades(result.left);
+    } finally {
+      sendingGradesRef.current = false;
+      setSendingGrades(false);
+    }
+  }, []);
+  useEffect(() => {
+    const read = () => setOnline(typeof navigator === 'undefined' || navigator.onLine !== false);
+    const reconnected = () => {
+      read();
+      void sendQueuedGrades();
+    };
+    read();
+    window.addEventListener('online', reconnected);
+    window.addEventListener('offline', read);
+    return () => {
+      window.removeEventListener('online', reconnected);
+      window.removeEventListener('offline', read);
+    };
+  }, [sendQueuedGrades]);
+  const connectionCopy = useMemo<AtelierCopy>(
+    () => ({ ...atelierCopy(language), ...journeyCopy(language) }),
+    [language],
+  );
+
   useEffect(() => {
     const cached = readReviewContextCache<VocabularyDueContext, DailyWordSlate>();
     if (cached) {
@@ -591,8 +643,9 @@ export default function VocabularyReviewPage() {
     }
     const stored = Number(window.localStorage.getItem(REVIEW_WORD_KEY) || 0);
     if (stored) setResumeWordId(stored);
-    void loadQueue(undefined, 'revalidate');
-  }, [loadQueue]);
+    // P11: the grades held from last time go first, so the fresh deck counts them.
+    void sendQueuedGrades().finally(() => loadQueue(undefined, 'revalidate'));
+  }, [loadQueue, sendQueuedGrades]);
 
   // "Les mots du jour" ride to the front of the deck: the day's slate words
   // are the retrieval half of the read → retrieve → produce loop.
@@ -827,6 +880,12 @@ export default function VocabularyReviewPage() {
         emitCameo({ type: 'answer', correct: !wrong });
       })
       .catch((error) => {
+        // P11: a grade the network lost is kept on the device and stays filed (the
+        // counter moves on); it is sent on reconnect or on the next open.
+        if (gradeLostToNetwork(error)) {
+          setQueuedGrades(enqueueGrade({ word_id: item.word_id, rating, format: 'flashcard' }).length);
+          return;
+        }
         console.error(error);
         toast.error(t.review_failed);
         setDeck((prev) => reviewNotSaved(prev, item.word_id));
@@ -1087,6 +1146,10 @@ export default function VocabularyReviewPage() {
           </header>
 
           <div className="av2-screen__body lx-review__body">
+            <ConnectionNotice
+              connection={deckConnection({ online, queued: queuedGrades, syncing: sendingGrades })}
+              copy={connectionCopy}
+            />
             {cachedContextAt && (
               <Notice tone="quiet" shape="story">
                 <p>{t.cached_notice}</p>

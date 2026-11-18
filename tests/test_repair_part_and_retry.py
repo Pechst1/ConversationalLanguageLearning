@@ -359,7 +359,9 @@ def test_a_retry_answered_right_counts_as_supported(db_session: Session, enabled
 
     assert result.task_outcome is TaskOutcome.MET
     stored = db_session.get(DailyJourneyStep, uuid.UUID(retry_id)).private_task["result"]
-    assert stored["assistance_level"] == str(AssistanceLevel.SOLUTION)
+    # P5: a miss that kept its solution back for the retry gave the reason, not the answer.
+    withheld = db_session.get(DailyJourneyStep, uuid.UUID(retry_id)).private_task.get("solution_withheld")
+    assert stored["assistance_level"] == str(AssistanceLevel.HINT if withheld else AssistanceLevel.SOLUTION)
     assert all(o["evidence_kind"] != "produced_independent" for o in stored["observations"])
     # The public record of help stays the learner's own.
     assert next(s for s in state.steps if s.id == retry_id).assistance_used == []

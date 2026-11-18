@@ -102,6 +102,7 @@ export type JourneyCopyKey =
   | 'time_left'
   | 'time_unknown'
   | 'finish_early'
+  | 'skip_to_scene'
   | 'pause'
   | 'paused_title'
   | 'paused_body'
@@ -240,6 +241,10 @@ export type JourneyCopyKey =
   | 'drill_recall'
   | 'drill_warmup'
   | 'drill_retry'
+  // P5 (owner, 2026-11-13): a miss asked again later says where and why, not what.
+  | 'drill_miss_where'
+  | 'drill_miss_choice'
+  | 'drill_solution_later'
   | 'drill_rule'
   | 'drill_forge'
   | 'drill_from_scene'
@@ -351,6 +356,7 @@ const EN: CopyTable = {
   time_left: 'left',
   time_unknown: 'Time not measured',
   finish_early: 'Stop here',
+  skip_to_scene: 'Skip to the scene',
   pause: 'Pause',
   paused_title: 'Paused',
   paused_body: 'Everything you finished is saved. Pick up where you left off.',
@@ -466,6 +472,9 @@ const EN: CopyTable = {
   drill_recall: 'Recall',
   drill_warmup: 'Before the scene',
   drill_retry: 'Once more',
+  drill_miss_where: 'What is off',
+  drill_miss_choice: 'Not this answer',
+  drill_solution_later: 'This one comes back at the end of the set. Find it yourself first; the solution comes after.',
   drill_rule: 'Rule',
   drill_forge: 'La Forge',
   drill_from_scene: 'From the scene',
@@ -569,6 +578,7 @@ const DE: CopyTable = {
   time_left: 'übrig',
   time_unknown: 'Zeit nicht gemessen',
   finish_early: 'Hier aufhören',
+  skip_to_scene: 'Weiter zur Szene',
   pause: 'Pause',
   paused_title: 'Pausiert',
   paused_body: 'Alles Erledigte ist gespeichert. Mach dort weiter, wo du aufgehört hast.',
@@ -684,6 +694,9 @@ const DE: CopyTable = {
   drill_recall: 'Wiederholung',
   drill_warmup: 'Vor der Szene',
   drill_retry: 'Noch einmal',
+  drill_miss_where: 'Was nicht stimmt',
+  drill_miss_choice: 'Nicht diese Antwort',
+  drill_solution_later: 'Diese Aufgabe kommt am Ende der Reihe noch einmal. Finde es zuerst selbst; die Lösung kommt danach.',
   drill_rule: 'Regel',
   drill_forge: 'La Forge',
   drill_from_scene: 'Aus der Szene',
@@ -787,6 +800,7 @@ const FR: CopyTable = {
   time_left: 'restant',
   time_unknown: 'Durée non mesurée',
   finish_early: 'Arrêter ici',
+  skip_to_scene: 'Passer à la scène',
   pause: 'Pause',
   paused_title: 'En pause',
   paused_body: 'Tout ce qui est terminé est enregistré. Reprends où tu en étais.',
@@ -902,6 +916,9 @@ const FR: CopyTable = {
   drill_recall: 'Rappel',
   drill_warmup: 'Avant la scène',
   drill_retry: 'Encore une fois',
+  drill_miss_where: 'Ce qui ne va pas',
+  drill_miss_choice: 'Pas cette réponse',
+  drill_solution_later: 'Cette question revient à la fin de la série. Cherche d’abord toi-même ; la solution vient après.',
   drill_rule: 'Règle',
   drill_forge: 'La Forge',
   drill_from_scene: 'Dans la scène',

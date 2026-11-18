@@ -218,6 +218,10 @@ class SessionInputs:
     #: #563: the «Noch N neue Wörter» after the day, N = what the next tap really
     #: brings (:func:`vocabulary_pace.next_extra_step`), not the step's name.
     more_words: int = MORE_WORDS
+    #: P11: the day's journey has ended. The scene step is done once its ending was
+    #: acknowledged (``scene_done``); the day is done only once the journey ended too.
+    #: ``None``: the scene's own state decides (a played scene was an ended day).
+    day_ended: bool | None = None
 
 
 def review_room(new_words: int, *, reviews_left: int | None = None, deck_limit: int = DAY_DECK_LIMIT) -> int:
@@ -289,7 +293,9 @@ def session_view(inputs: SessionInputs) -> dict[str, Any]:
     ]
     # The order is the schema's (DAY_STEP_ORDER), never the list above.
     raw = sorted(by_kind, key=lambda step: DAY_STEP_ORDER.index(step["kind"]))
-    all_done = all(step["done"] for step in raw)
+    all_done = all(step["done"] for step in raw) and (
+        inputs.day_ended if inputs.day_ended is not None else True
+    )
     steps: list[dict[str, Any]] = []
     next_seen = False
     for step in raw:
@@ -605,6 +611,7 @@ def build_session(
     forge_href: str,
     forge_blocks_today: int,
     now: datetime | None = None,
+    day_ended: bool | None = None,
 ) -> dict[str, Any]:
     from app.services.day_words import ensure_plan
     from app.services.forge_picker import forge_budget_seconds
@@ -634,6 +641,7 @@ def build_session(
         extras_answered=_extras_answered_or_zero(db, user, now=now),
         acts=story.acts,
         story_words=story.words,
+        day_ended=day_ended,
     )
     view = session_view(inputs)
     if view["done"]:

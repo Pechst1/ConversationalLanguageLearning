@@ -895,6 +895,24 @@ export function FeuilletonReaderStyles() {
       .av2 .fr-nav-row .fr-btn { flex: 0 0 auto; }
       .av2 .fr-nav-row .fr-prev { width: 3rem; padding: 0; }
       .av2 .fr-nav-row .fr-next { flex: 1 1 auto; min-width: 0; }
+      /* P11: the last panel's wait for its ending, then «Continuer» with its line. */
+      .av2 .fr-nav-row .fr-next-plain { display: contents; }
+      .av2 .fr-nav-row .fr-next-stack {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .av2 .fr-nav-row .fr-finale-wait {
+        flex: 1 1 auto;
+        margin: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--av2-muted);
+        font-size: var(--av2-t-meta);
+      }
       .av2 .fr-dots {
         list-style: none;
         display: flex;

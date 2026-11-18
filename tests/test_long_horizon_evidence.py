@@ -1165,12 +1165,10 @@ def test_every_recall_format_posed_is_one_the_contract_knows(horizon: Horizon) -
     assert posed
     assert set(posed) <= set(RECALL_FORMATS)
     assert len(set(posed)) >= 3, Counter(posed)
-    # The two formats WP-66 added that do not need a scene affordance are really
-    # posed to a real learner through the real API, which is the claim that had
-    # never been made end to end.
-    assert {"classify", "transform"} <= set(posed), Counter(posed)
-    for life in horizon.lives:
-        assert set(life.formats()) & {"classify", "transform"}
+    # P6 (decision 8): the drill around the scene is the learner's own mistakes and
+    # one due rule; the word warm-ups that posed WP-66's «classify» are gone. A rule
+    # is still repaired («transform») by a real learner through the real API.
+    assert "transform" in set(posed), Counter(posed)
 
 
 def test_the_listening_day_never_poses_a_format_that_cannot_be_heard(
@@ -1300,14 +1298,19 @@ def test_the_prompt_does_not_grow_with_the_horizon(horizon: Horizon) -> None:
 
 
 def test_the_median_day_holds_six_graded_interactions(horizon: Horizon) -> None:
-    """WP-86: the scene teaches words and the floor builds from its lines, so a
-    median day is six things answered (five quick items and the reply) — every
-    one of them inside the stated minutes, which the practice day's own
-    `PlannedJourney.validate()` refuses to break."""
+    """P6 (decision 8) replaced WP-86's floor: the drill around the scene is the
+    learner's own mistakes and one due rule, so a day with nothing due is the
+    scene and its reply (the median of these two lives, who make no saved
+    mistakes), and the scene's own lines are never dictated outside a listening
+    day. WP-86's «six graded a median day» is the WP-78 fill's
+    (``journey_planner.RAPPEL_OWN_MISTAKES_ONLY`` off)."""
 
     for life in horizon.lives:
         graded = sorted(len(row.recall_formats) + 1 for row in life.played)
-        assert graded[len(graded) // 2] >= 6, (life.label, Counter(graded))
+        assert graded[len(graded) // 2] >= 1, (life.label, Counter(graded))
+        for row in life.played:
+            if row.day_shape != "listening":
+                assert "dictation" not in row.recall_formats, (life.label, row.ordinal)
         # QA-PRACTICE (owner, 2026-10-03): «Qui a dit ça ?» is plot memory, not
         # French, and is never dealt; the days stay full without it.
         assert "who_said" not in life.formats(), life.label

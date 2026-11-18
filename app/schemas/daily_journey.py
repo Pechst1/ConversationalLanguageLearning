@@ -555,6 +555,17 @@ class RespondLetter(JourneyModel):
     objective_native: str
 
 
+class JourneySolution(JourneyModel):
+    """P5 (owner, 2026-11-13): a drill's solution waits for its retry.
+
+    La Forge's vocabulary (``app/services/solution_gate.py``): ``withheld`` while the
+    item is still to be asked again. The correction then carries the learner's own
+    span and the reason, and ``corrected_fr`` is empty.
+    """
+
+    state: Literal["withheld", "shown"]
+
+
 class JourneyCorrection(JourneyModel):
     # Persisted corrections predating WP-103 do not carry the additive notes list.
     model_config = ConfigDict(json_schema_serialization_defaults_required=False)
@@ -574,6 +585,9 @@ class JourneyCorrection(JourneyModel):
     #: #624: ``example`` is a model sentence shown after a free sentence missed the
     #: rule. It is not the learner's sentence made right: the screen draws no arrow.
     kind: Literal["edit", "pick", "meaning", "example"] = "edit"
+    #: P5 (additive): ``{"state": "withheld"}`` while the item's retry is still to come.
+    #: Absent (``None``) when the solution is on the payload.
+    solution: JourneySolution | None = None
 
     @model_validator(mode="after")
     def _one_note_per_issue(self) -> JourneyCorrection:
@@ -1633,6 +1647,11 @@ class JourneyAdvanceRequest(JourneyRequest):
     mutation_id: str = Field(min_length=1, max_length=80)
     expected_revision: int
     current_step_id: str
+    #: P11 «Passer à la scène»: from a step before the day's unplayed scene, skip
+    #: every step left before it (a rule card, a drill, La Forge) and open the
+    #: scene. The skipped steps are not done: a rule card is not read, a drill
+    #: item books no lapse and stays due.
+    skip_to_scene: bool = False
 
 
 class JourneyRevisionRequest(JourneyRequest):
