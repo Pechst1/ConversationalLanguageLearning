@@ -3042,11 +3042,19 @@ def public_item(item: Any, language: Any = None, native: Any = None) -> Any:
 
     if not isinstance(item, dict):
         return item
-    from app.services.no_address import unaddressed_item
+    from app.services.no_address import unaddressed_served
 
     # 12 Nov 2026: a build or write item is said to nobody — an item stored before is
     # served without its name too (and graded the same way: ``AtelierCorrectionService``).
-    item = unaddressed_item(item) or item
+    # R2 (walk of 17 Nov): so is a fill, a pair and a judgement.
+    item = unaddressed_served(item) or item
+    if item.get("min_words") is not None and isinstance(item.get("example_answer"), str):
+        # R2 (walk of 17 Nov): a free card's floor never exceeds its own model answer.
+        from app.services.free_card_contract import word_floor
+
+        floor = word_floor(item.get("min_words"), [item["example_answer"], *(item.get("accepted_answers") or [])])
+        if floor is not None and floor != item.get("min_words"):
+            item = {**item, "min_words": floor}
     out = with_goal(without_frames(item), language, native)
     for key in _PRIVATE_ITEM_KEYS:
         out.pop(key, None)
@@ -3247,6 +3255,11 @@ def target_answers(item: BankItem) -> list[str]:
 
 
 def fill_item(item: BankItem, *, lesson_external_id: str | None = None) -> dict[str, Any] | None:
+    # R2 (walk of 17 Nov): the sentence to complete is said to nobody («Tu ___ prêt ?»).
+    bare = without_vocative(item)
+    if bare is None:
+        return None
+    item = bare
     prompt = f"{item.prefix}___{item.suffix}".strip()
     if contains_phrase(fill_blank(prompt, " ", count=0), item.target):
         return None
@@ -3272,6 +3285,11 @@ def fill_item(item: BankItem, *, lesson_external_id: str | None = None) -> dict[
 
 
 def classify_item(item: BankItem, *, show_correct: bool, lesson_external_id: str | None = None) -> dict[str, Any] | None:
+    # R2 (walk of 17 Nov): the sentence to judge is said to nobody («Il part à Lille demain.»).
+    bare = without_vocative(item)
+    if bare is None:
+        return None
+    item = bare
     prompt = item.sentence if show_correct else item.wrong_sentences[0]
     if item.gloss:
         prompt = f"{prompt} ({item.en})"
@@ -3334,6 +3352,15 @@ def judgement_item(item_id: str, sentence: str, *, fix: str | None = None) -> di
     the sentence is wrong (a sentence sorted «À corriger» is then corrected, like every
     judgement: :func:`classify_item`). For a unit the bank has no sentences for (#196)."""
 
+    from app.services.answer_acceptance import addressed_names, strip_vocative
+
+    # R2 (walk of 17 Nov): the sentence to judge, and its fix, are said to nobody.
+    names = [*addressed_names(sentence), *(addressed_names(fix) if fix else [])]
+    if names:
+        sentence = strip_vocative(sentence, names)
+        fix = strip_vocative(fix, names) if fix else fix
+        if addressed_names(sentence) or len(re.findall(r"[^\W\d_]+", sentence)) < MIN_WORDS_WITHOUT_ADDRESS:
+            return None
     label = "À corriger" if fix else "Correct"
     payload: dict[str, Any] = {
         "id": item_id,
@@ -3353,8 +3380,13 @@ def judgement_item(item_id: str, sentence: str, *, fix: str | None = None) -> di
 
 
 def pair_item(item: BankItem, *, lesson_external_id: str | None = None) -> dict[str, Any] | None:
-    """The minimal pair («discriminate»), as a classify variant: which one says …?"""
+    """The minimal pair («discriminate»), as a classify variant: which one says …?
+    Both sentences are said to nobody (R2, walk of 17 Nov)."""
 
+    bare = without_vocative(item)
+    if bare is None:
+        return None
+    item = bare
     wrong = item.wrong_sentences[0]
     if normalize(wrong) == normalize(item.sentence):
         return None
@@ -3406,7 +3438,8 @@ def without_vocative(item: BankItem) -> BankItem | None:
     which is not the rule. The French, its accepted answers, its ✗ sentences and its
     English and German meanings lose the same address («Wir können bei Lila bleiben.» /
     «On peut rester chez Lila.»), so the tray, the key and the quote stay one sentence.
-    Recognition rungs (fill, sort, pair) keep the name. ``None`` when what is left is too
+    R2 (walk of 17 Nov): the recognition rungs (fill, sort, pair) are said to nobody as
+    well — every Forge format goes through here. ``None`` when what is left is too
     short to be a sentence or the target cannot be found in it again; the item is then
     not posed as a build."""
 
@@ -3622,7 +3655,11 @@ def output_item(
         if scene is not None:
             return scene
     kind = {"sentence": "short_sentence", "speak": "spoken_response", "conversation": "conversation_turn"}[round_name]
-    words = len(item.sentence.split())
+    # R2 (walk of 17 Nov): the floor fits the card's shortest right answer. «Marin demande
+    # ton âge. J'ai trente ans.» asked «Ich bin 30 Jahre alt.» against «5–24 words»; the
+    # quoted reply alone (:func:`answer_scope`) is three.
+    scope = answer_scope(item)
+    words = min(len(answer.split()) for answer in (item.sentence, *(item.accepted or ()), *((scope.sentence,) if scope else ())))
     return {
         "id": _item_id(item.unit, item, round_name),
         "type": kind,
@@ -3657,6 +3694,8 @@ def scene_item(item: BankItem, *, coach: dict[str, Any], requirement: dict[str, 
         return None
     coach_line, reply = scene["lines"][0], scene["reply"]
     words = len(reply.split())
+    # R2: the floor fits the card's shortest right answer, never more.
+    from app.services.free_card_contract import word_floor
     return {
         "id": _item_id(item.unit, item, "scene"),
         "type": "conversation_turn",
@@ -3676,7 +3715,7 @@ def scene_item(item: BankItem, *, coach: dict[str, Any], requirement: dict[str, 
         **_goal("reply", scene["reply_en"], scene.get("reply_de")),
         "example_answer": reply,
         "requirements": [dict(requirement)],
-        "min_words": max(2, min(words - 2, 5)),
+        "min_words": word_floor(max(2, min(words - 2, 5)), [reply]),
         "max_words": max(24, words + 12),
         **_answer_key(item),
         "accepted_answers": [reply],

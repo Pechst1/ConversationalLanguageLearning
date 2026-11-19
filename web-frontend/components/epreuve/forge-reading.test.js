@@ -145,7 +145,8 @@ test('«Show the solution» starts the miss scroll again for the new card', () =
 
 test('after the solution, a whole line is copied (main #779), never offered as a retry', () => {
   const moment = slice(PAGE, 'export function ExerciseFeedbackMoment(', 'function ConceptRulePanel(');
-  assert.match(moment, /const canGoOn = repairsComplete;/);
+  // R2: a refused free card may also end on its model answer once the solution is shown.
+  assert.match(moment, /const canGoOn = repairsComplete \|\| \(Boolean\(shownModelAnswer\) && endsOnModelAnswer\(correction, issues\)\);/);
   assert.match(moment, /const retry = retryOffered\(correction\) \? onTryAgain : undefined;/);
   assert.match(moment, /!\(index === 0 && partsShown\) && !lineCopiedAbove && \(\s*<EpRepair/);
 });
