@@ -27,7 +27,7 @@ import re
 from typing import Any, Literal
 
 from loguru import logger
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.config import settings
 from app.services import scene_unity, story_memory
@@ -92,6 +92,25 @@ class PagePlan(_Lenient):
     stays_open: bool = False
     #: «Die Geschichte bestellt»: what today leaves in Le Quartier (``living_story.WorldMark``).
     leaves: list[Any] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _lead_from_cast(cls, value: Any) -> Any:
+        """Round 4 (walk of 19 Nov, B1 night 2→3: «lead_id: Field required» cost a whole
+        attempt): a plan that leaves lead_id out names its lead anyway, in the task
+        («Lila veut savoir…») or as the first of its cast. That one is filled in, with no
+        model call; :func:`plan_issue` then checks the plan as it checks any other."""
+
+        if not isinstance(value, dict) or str(value.get("lead_id") or "").strip():
+            return value
+        cast = [str(member).strip() for member in value.get("cast") or [] if str(member or "").strip()]
+        if not cast:
+            return value
+        said = {word.casefold() for word in re.findall(r"[\w'’-]+", f"{value.get('task') or ''} {value.get('question') or ''}")}
+        named = [member for member in cast if member.split("_")[0].casefold() in said]
+        lead = named[0] if len(named) == 1 else cast[0]
+        logger.info("story_split: plan without lead_id, lead read as {} ({})", lead, "named" if len(named) == 1 else "first of cast")
+        return {**value, "lead_id": lead}
 
     @field_validator("leaves", mode="before")
     @classmethod

@@ -348,7 +348,11 @@ def _weekly_spend_usd(db: Session, user: User) -> float:
 def _log_night_run(status: str, outcome: dict, seconds: float, *, reason: str | None = None) -> None:
     """P11: one structured line per night run that asked the writer for a page, so the
     pilot can count how often a night lands and why it does not (``night_run {json}``).
-    ``kept``: ``critic_kept`` / ``soft_kept`` when a draft refused earlier was served."""
+    ``kept``: null when the served draft was accepted as it was (or nothing was served);
+    else ``{"as", "attempt", "why", "issue"}`` (``living_story._kept_note``): a draft the
+    critic refused for storytelling only (``critic_kept`` / ``critic_override``) or one
+    refused for its reading aids (``soft_kept``). A refusal row carries ``failed``, the
+    critic's rubric items, when the critic refused (round 4)."""
 
     line = {
         "status": status,
@@ -358,7 +362,12 @@ def _log_night_run(status: str, outcome: dict, seconds: float, *, reason: str | 
         "seconds": round(seconds, 1),
         "kept": outcome.get("kept"),
         "refusals": [
-            {"attempt": row.get("attempt"), "class": row.get("class"), "reason": row.get("reason")}
+            {
+                "attempt": row.get("attempt"),
+                "class": row.get("class"),
+                **({"failed": row["failed"]} if row.get("failed") else {}),
+                "reason": row.get("reason"),
+            }
             for row in outcome.get("refusals") or []
         ],
     }

@@ -1934,6 +1934,24 @@ def _outcome_note(**fields) -> None:
         outcome["kept"] = fields["kept"]
 
 
+def _kept_note(how: str, attempt: int, verdict: dict | None) -> dict:
+    """Round 4: what the night served although the critic refused it, and why that was
+    allowed: ``as`` (``critic_kept``: the first storytelling refusal, served after the
+    retries failed; ``critic_override``: refused for storytelling on the final reading
+    and served), the attempt that wrote it, and the soft items it was refused for."""
+
+    verdict = verdict or {}
+    issues = [str(issue) for issue in verdict.get("issues") or [] if str(issue).strip()]
+    failed = list(verdict.get("failed") or [])
+    why = f"{verdict.get('class') or 'storytelling'} refusal only" + (f" ({', '.join(failed)})" if failed else "")
+    return {
+        "as": how,
+        "attempt": attempt,
+        "why": why,
+        **({"issue": _clip(issues[0], OUTCOME_REASON_CHARS)} if issues else {}),
+    }
+
+
 def _clip(value: Any, limit: int = 160) -> Any:
     if isinstance(value, str):
         return value if len(value) <= limit else value[: limit - 1] + "…"
@@ -1967,8 +1985,11 @@ def scene_digest(draft: Any, context: dict | None = None) -> dict[str, Any]:
     }
 
 
-def _refused(stage: str, exc: StoryUnavailable, *, attempt: int, proposal: Any = None, digest=None) -> None:
-    """One refused proposal: logged, and handed to any observer (never raises)."""
+def _refused(
+    stage: str, exc: StoryUnavailable, *, attempt: int, proposal: Any = None, digest=None, failed: list | None = None
+) -> None:
+    """One refused proposal: logged, and handed to any observer (never raises).
+    ``failed``: the critic's rubric items the refusal was for (round 4), on the outcome line."""
 
     exc._noted = True  # type: ignore[attr-defined]
     record: dict[str, Any] = {
@@ -1987,7 +2008,13 @@ def _refused(stage: str, exc: StoryUnavailable, *, attempt: int, proposal: Any =
             logger.exception("living_story: refusal digest unavailable")
     logger.info("living_story: %s attempt %s refused (%s): %s", stage, attempt, exc, record["hint"][:300])
     _outcome_note(
-        refusal={"stage": stage, "attempt": attempt, "class": str(exc), "reason": record["hint"][:OUTCOME_REASON_CHARS]}
+        refusal={
+            "stage": stage,
+            "attempt": attempt,
+            "class": str(exc),
+            **({"failed": list(failed)} if failed else {}),
+            "reason": record["hint"][:OUTCOME_REASON_CHARS],
+        }
     )
     for observer in list(REFUSAL_OBSERVERS):
         try:
@@ -2050,6 +2077,7 @@ def _approved(
     # 2026-09-30: a refusal followed by a guard rejection lost g1.3).
     critic_refusals = 0
     critic_kept: Any = None
+    critic_kept_note: dict | None = None
     # WP-90: a draft refused only for missing reading aids (``SoftRejection``) is kept
     # here. The next attempt carries the hint; an attempt after that accepts the aids as
     # they come; and if no later attempt succeeds, this draft is served.
@@ -2077,6 +2105,7 @@ def _approved(
                 return exc.proposal if exc.proposal is not None else proposal
             if soft["fallback"] is None:
                 soft["fallback"] = exc.proposal if exc.proposal is not None else proposal
+                soft["fallback_attempt"] = soft["attempt"]
             soft["this_attempt"] = True
             raise
         return proposal
@@ -2198,6 +2227,7 @@ def _approved(
                         attempt=attempt,
                         proposal=proposal,
                         digest=digest,
+                        failed=verdict.get("failed"),
                     )
                     if correctness or not keep_refused:
                         # Never kept, never served: the next attempt carries the
@@ -2206,8 +2236,15 @@ def _approved(
                         # A later act (Phase 2) is written again or dropped.
                         continue
                     if critic_refusals <= 1:
-                        critic_kept = critic_kept or proposal
+                        if critic_kept is None:
+                            critic_kept = proposal
+                            critic_kept_note = _kept_note("critic_kept", attempt, verdict)
                         continue
+                elif verdict is not None and verdict.get("class"):
+                    # Round 4 (walk of 19 Nov: «kept» was null on a night that served a
+                    # refused draft): the final reading refused this draft for storytelling
+                    # only and it is served (WP-114) — the outcome line says so.
+                    _outcome_note(kept=_kept_note("critic_override", attempt, verdict))
             if not CRITIC_ENABLED or schema.__name__ not in CRITIC_STAGES:
                 # A/B only (scripts/longitudinal_story_review.py --critic). The
                 # deterministic guards above have already run; nothing else is skipped.
@@ -2243,14 +2280,16 @@ def _approved(
         override = getattr(story_review, "override", None)
         if callable(override):
             override()
-        _outcome_note(kept="critic_kept")
+        _outcome_note(kept=critic_kept_note)
         return critic_kept, usage
     if soft["fallback"] is not None and keep_refused:
         # WP-90: every later attempt failed, but an earlier draft was only missing
         # reading aids — serve it, with those aids left empty, rather than lose the day.
         # Never a later act (Phase 2): that draft was refused before the critic read it.
         logger.info("living_story: serving the draft kept without reading aids (%s)", reason)
-        _outcome_note(kept="soft_kept")
+        _outcome_note(
+            kept={"as": "soft_kept", "attempt": soft.get("fallback_attempt"), "why": "refused only for its reading aids"}
+        )
         return soft["fallback"], usage
     if usage:
         # Spend on a proposal nobody can use is still spend; record it where the weekly
@@ -10404,6 +10443,7 @@ def _season_story_review(context: dict, reviews: list[dict]):
         StoryReview,
         critic_payload,
         review_verdict,
+        verdict_failures,
     )
     from app.services.story_split import ACT_KEY, _day_contract
 
@@ -10439,6 +10479,9 @@ def _season_story_review(context: dict, reviews: list[dict]):
         # accepted and logged, and the critic never costs a learner a day for it.
         kind = None if accepted else review_class(verdict)
         served = accepted or (final and kind == STORYTELLING and act is None)
+        # Round 4: the rubric items this reading failed, as the verdict reads them, so the
+        # night's outcome line says why a draft was hard (``honours_choices``) or soft.
+        failed = [] if accepted else verdict_failures(verdict, act=act is not None)
         reviews.append(
             {
                 **verdict.model_dump(),
@@ -10450,7 +10493,7 @@ def _season_story_review(context: dict, reviews: list[dict]):
                 **({"act": act.get("role")} if act else {}),
             }
         )
-        return {"accepted": served, "issues": list(verdict.issues), "class": kind}
+        return {"accepted": served, "issues": list(verdict.issues), "class": kind, **({"failed": failed} if failed else {})}
 
     def override() -> None:
         """The refused draft is served after all: its reading is the override. Only a
