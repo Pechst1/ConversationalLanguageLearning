@@ -4610,8 +4610,9 @@ export function ExerciseFeedbackMoment({
               {isLabelCompare && learner
                 ? <EpLabelFix old={display(learner)} fix={display(target || t.corrected)} />
                 : isRepairableLine(target) || isRepairableLine(learner)
-                  // The learner's own line is above, its wrong words struck: only the right one here.
-                  ? <EpLineFix old={lineEchoed ? '' : learner} fix={target || t.corrected} />
+                  // The learner's own line is above (a typed line with its wrong words struck, the
+                  // tiles as set, the sentence as tapped): only the right one here, never theirs again.
+                  ? <EpLineFix old={lineEchoed || picked ? '' : learner} fix={target || t.corrected} />
                   : learner ? <EpFix old={learner} fix={target || t.corrected} /> : <EpIns fix={target || t.corrected} />}
             </EpGalley>
             {/* The repair is the second chance: once the solution is on screen it is shown
