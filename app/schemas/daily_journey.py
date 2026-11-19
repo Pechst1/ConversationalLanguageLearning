@@ -1668,6 +1668,11 @@ class JourneyAdvanceRequest(JourneyRequest):
     mutation_id: str = Field(min_length=1, max_length=80)
     expected_revision: int
     current_step_id: str
+    #: P11 «Passer à la scène»: from a step before the day's unplayed scene, skip
+    #: every step left before it (a rule card, a drill, La Forge) and open the
+    #: scene. The skipped steps are not done: a rule card is not read, a drill
+    #: item books no lapse and stays due.
+    skip_to_scene: bool = False
 
 
 class JourneyRevisionRequest(JourneyRequest):

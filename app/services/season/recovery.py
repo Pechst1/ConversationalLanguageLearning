@@ -33,8 +33,13 @@ a second request or a retry of the same day reads the same rows, so the decision
 is the same (the plan itself is chosen once, under the generation claim).
 
 **Edge cases.** The first gap after T1 has a page to re-read (T1 B), so it follows
-the policy like any gap. A tentpole day is authored and does not fail; if one
-cannot be served, the day is a reprise. **After the finale** there is no season
+the policy like any gap. A tentpole day (an epilogue page too) is authored and is
+never a reprise (P11): a lost one is served as written, its own page, through the
+recovery; if even that cannot be built, the day stays the honest «unavailable,
+retry». A **weekend-flex day** (one gap day past the gap's nominal length, so the
+next Day A lands on the weekend) is optional: lost, it is the next tentpole at once
+when the gap's prerequisites hold, never a re-read of the last page (17 Nov walk:
+a Friday flex day after T7 re-read «Huit heures» where T8 A was due). **After the finale** there is no season
 left to stall: a lost day re-reads the last page and nothing moves (the epilogue,
 WP-132B, owns what comes after T8). A prefetched generated scene is keyed on the
 story revision, which any settled bridge or tentpole changes, so it is discarded
@@ -62,6 +67,10 @@ RECOVER_AT_FAILURE = REPRISES_BEFORE_RECOVERY + 1
 MAX_CONSECUTIVE_REPRISES = REPRISES_BEFORE_RECOVERY
 #: How many of the learner's earlier days are read to count the run.
 FAILURE_SCAN_LIMIT = 14
+#: P11: why an authored day (a tentpole or epilogue page) lost to a failure is served
+#: as written instead of re-read; and why a lost weekend-flex day is the next tentpole.
+AUTHORED_DAY_LOST = "authored_day_lost"
+FLEX_DAY_LOST = "flex_day_lost"
 #: ``plan_selection["generation_fallback"]["kind"]`` of a recovered day.
 RECOVERY_FALLBACK_KIND = "season_recovery"
 #: ``story_context["season"][RECOVERY_KEY]`` marks a recovered day (and why).
@@ -170,11 +179,19 @@ def decide(
     failure = int(failures_before) + 1
     if pos.finished or pos.segment is None:
         return Decision("reprise", "season_finished", None, failure)
+    if pos.is_tentpole:
+        # P11: an authored page is served as written, never re-read.
+        return Decision("tentpole", AUTHORED_DAY_LOST, None, failure, pos)
     if not pos.is_gap:
         return Decision("reprise", "not_a_gap_day", None, failure)
     gap_id = pos.segment.id
     if gap_id in shortened_gaps(state):  # pragma: no cover - the clock is past it already
         return Decision("reprise", "gap_already_closed", gap_id, failure)
+    if pos.flex > 0 and not missing_required(season, state, gap_id):
+        # P11: the weekend flex's extra day is optional; the gap already ran its length.
+        target = next_tentpole(season, pos, state)
+        if target is not None:
+            return Decision("tentpole", FLEX_DAY_LOST, gap_id, failure, target)
     if failure < RECOVER_AT_FAILURE:
         return Decision("reprise", "first_lost_day", gap_id, failure)
     missing = tuple(missing_required(season, state, gap_id))
@@ -281,7 +298,13 @@ def recovery_brief(db, user, decision: Decision, *, now: Any = None):
         moved = dc_replace(today, pos=decision.position)
         context["season_script"] = season_runtime.context_block(moved)
         brief = season_runtime.tentpole_brief(moved, context, season_extra={RECOVERY_KEY: marker})
-        note = recovery_text("season_recovery_tentpole", today.language)
+        # An authored day served as written, or the flex day skipped: no days went
+        # by without an episode, so the page is not prefaced with that line.
+        note = (
+            ""
+            if decision.reason in (AUTHORED_DAY_LOST, FLEX_DAY_LOST)
+            else recovery_text("season_recovery_tentpole", today.language)
+        )
     else:
         bridge = load_bridges(today.season.id).get(str(decision.gap))
         if bridge is None:
@@ -319,7 +342,9 @@ def is_recovery(story_context: dict[str, Any] | None) -> bool:
 
 
 __all__ = [
+    "AUTHORED_DAY_LOST",
     "BRIDGE_KEY",
+    "FLEX_DAY_LOST",
     "Decision",
     "FAILURE_SCAN_LIMIT",
     "MAX_CONSECUTIVE_REPRISES",

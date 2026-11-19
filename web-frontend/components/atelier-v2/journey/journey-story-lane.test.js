@@ -68,6 +68,9 @@ test('a settled or legacy resolution is shown at once and never polled', () => {
     assert.equal(resolutionAwaitsStory(step), false);
     assert.equal(storyPollTarget(journey(step)), null);
   }
-  assert.equal(storyPollTarget(journey(resolution({ story_pending: true }), 'completed')), null);
+  // P11: a day the learner left past a late ending is still polled for it (the
+  // ending lands on its page); a day not yet built never is.
+  assert.equal(storyPollTarget(journey(resolution({ story_pending: true }), 'completed')), 'j1');
+  assert.equal(storyPollTarget(journey(resolution({ story_pending: true }), 'preparing')), null);
   assert.equal(storyPollTarget(null), null);
 });

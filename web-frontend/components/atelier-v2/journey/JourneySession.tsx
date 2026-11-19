@@ -60,6 +60,7 @@ import { dayMarkState, STEP_SHAPE } from './day-mark';
 import { journeyCopy } from './journey-copy';
 import {
   journeyHeaderCaption,
+  sessionStopControl,
   type JourneyPhase,
 } from './journey-state';
 import {
@@ -202,6 +203,8 @@ export function JourneySession({
   };
   const journey = controller.journey;
   const recovery = controller.recovery;
+  // P11: before the day's unplayed scene the control skips to it; it never ends the day.
+  const stopControl = sessionStopControl(journey, step);
   // WP-76/77: a haptic (and a sound, when on) per state; the face on screen.
   useJourneyFeel(phase.kind, step?.id ?? null, feedback);
   const speaker = journeySpeaker(journey, step);
@@ -671,9 +674,9 @@ export function JourneySession({
                     tone="quiet"
                     inline
                     disabled={busy}
-                    onClick={() => void actions.finish('early')}
+                    onClick={() => void (stopControl === 'skip' ? actions.skipToScene() : actions.finish('early'))}
                   >
-                    {copy.finish_early}
+                    {stopControl === 'skip' ? copy.skip_to_scene : copy.finish_early}
                   </Action>
                 </div>
               )}

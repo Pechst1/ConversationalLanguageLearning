@@ -28,8 +28,8 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, or_, select
+from sqlalchemy.orm import Session, aliased
 
 from app.db.models.daily_journey import DailyJourney, DailyJourneyStep
 from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
@@ -42,6 +42,9 @@ logger = logging.getLogger(__name__)
 
 #: Journey statuses whose day happened (a planche exists for it).
 LIVED_STATUSES = ("completed", "ended_early")
+#: P11: a day still open whose scene was played (its ending acknowledged) has its
+#: planche too, from that moment, whatever of the day is still to do.
+OPEN_STATUSES = ("active", "paused")
 PROLOGUE_TITLE_FR = "Prologue"
 MAX_MARGIN_NOTES = 5
 MAX_PREVIOUSLY = 3
@@ -505,6 +508,37 @@ def _authored_panels(prompt: dict[str, Any]) -> list[dict[str, Any]] | None:
     return out or None
 
 
+def _lived():
+    """The days that have a planche: ended, or open with the scene's ending acknowledged."""
+
+    ending = aliased(DailyJourneyStep)
+    ending_read = (
+        select(ending.id)
+        .where(
+            ending.journey_id == DailyJourney.id,
+            ending.kind == "resolution",
+            ending.status == "completed",
+        )
+        .correlate(DailyJourney)
+        .exists()
+    )
+    return or_(
+        DailyJourney.status.in_(LIVED_STATUSES),
+        and_(DailyJourney.status.in_(OPEN_STATUSES), ending_read),
+    )
+
+
+def _is_today(journey: DailyJourney) -> bool:
+    """The journey's date is the learner's today, in the journey's own zone."""
+
+    from app.services.daily_journey import local_date_for
+
+    try:
+        return journey.local_date == local_date_for(journey.timezone or "UTC")
+    except Exception:  # noqa: BLE001 - a zone that cannot be read only loses the mark
+        return False
+
+
 def build_archive(db: Session, user: Any, *, season: int | None = None) -> dict[str, Any]:
     """The learner's whole Feuilleton as seasons of chapters of days.
 
@@ -528,7 +562,7 @@ def build_archive(db: Session, user: Any, *, season: int | None = None) -> dict[
     journeys = list(
         db.scalars(
             select(DailyJourney)
-            .where(DailyJourney.user_id == user.id, DailyJourney.status.in_(LIVED_STATUSES))
+            .where(DailyJourney.user_id == user.id, _lived())
             .order_by(DailyJourney.local_date.asc(), DailyJourney.created_at.asc())
         )
     )
@@ -704,7 +738,7 @@ def _acts_played(db: Session, user: Any) -> dict[Any, int]:
         .join(DailyJourney, DailyJourney.id == DailyJourneyStep.journey_id)
         .where(
             DailyJourney.user_id == user.id,
-            DailyJourney.status.in_(LIVED_STATUSES),
+            _lived(),
             DailyJourneyStep.kind == "scene",
         )
         .order_by(DailyJourneyStep.journey_id, DailyJourneyStep.ordinal.asc())
@@ -742,7 +776,7 @@ def _later_act_row(
     stored_role = (scene_step.private_task or {}).get("act_role") if scene_step is not None else None
     role = (scene_act(scene)[1] if scene is not None else None) or (str(stored_role) if stored_role else None)
     return {
-        **{key: first[key] for key in ("date", "journey_id", "edition_no", "reread")},
+        **{key: first[key] for key in ("date", "journey_id", "edition_no", "reread", "today")},
         "scene_id": str(scene.id) if scene is not None else None,
         "title_fr": (scene.title if scene is not None else "") or str(brief.get("title_fr") or ""),
         "image_url": image or prompt.get("image_url"),
@@ -849,6 +883,8 @@ def _day_payloads(
             "title_fr": (scene.title if scene is not None else "") or str(snapshot.get("title_fr") or ""),
             "edition_no": editions.get(journey.id),
             "reread": is_reprise_journey(journey),
+            # P11: today's page, filed from the moment its ending was read.
+            "today": _is_today(journey),
             "image_url": image,
             "character_id": str(snapshot.get("character_id") or "") or None,
             "learner_lines": _learner_lines(kinds.get("respond")),
