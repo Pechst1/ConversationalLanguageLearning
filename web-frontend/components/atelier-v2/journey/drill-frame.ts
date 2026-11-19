@@ -27,10 +27,70 @@ export type DrillGoal = {
   /** `goal`: what to produce, in the learner's language. `source`: a French scene line. */
   kind: 'goal' | 'source';
   text: string;
+  /**
+   * R5: stretches of a French goal written in the learner's own language (the quoted
+   * meaning, the line said before it), each with its `lang`. The rest is interface.
+   */
+  marks?: GoalMark[];
 };
+
+export type GoalMark = { text: string; lang: string };
+
+/** A goal line cut into its stretches: interface (`lang` unset) and marked meaning. */
+export function goalSegments(goal: Pick<DrillGoal, 'text' | 'marks'>): Array<{ text: string; lang?: string }> {
+  const out: Array<{ text: string; lang?: string }> = [];
+  let rest = goal.text;
+  for (const mark of goal.marks ?? []) {
+    const at = mark.text ? rest.indexOf(mark.text) : -1;
+    if (at < 0) continue;
+    if (at > 0) out.push({ text: rest.slice(0, at) });
+    out.push({ text: mark.text, lang: mark.lang });
+    rest = rest.slice(at + mark.text.length);
+  }
+  if (rest) out.push({ text: rest });
+  return out;
+}
+
+/** Words English or German write and French never does (a quote's language, R5). */
+const OWN_WORDS: Record<string, Set<string>> = {
+  en: new Set(['the', 'you', 'your', 'i', "i'll", "i'm", 'we', 'he', 'she', 'they', 'is', 'are', 'was', 'were', 'have', 'has', 'do', 'does', 'did', "don't", "doesn't", 'will', 'shall', 'can', 'to', 'of', 'and', 'with', 'for', 'after', 'before', 'him', 'her', 'them', 'it', 'this', 'that', 'at', 'what', 'who', 'still', 'some', 'my', 'me', 'us', 'our', 'their', 'there', 'not', 'from', 'about', 'tell', 'give', 'back', 'want', 'know']),
+  de: new Set(['der', 'die', 'das', 'und', 'ist', 'ich', 'du', 'wir', 'er', 'sie', 'nicht', 'mit', 'für', 'ein', 'eine', 'einen', 'den', 'dem', 'hast', 'hat', 'habe', 'sind', 'noch', 'schon', 'auch', 'zu', 'was', 'wer', 'heute', 'dir', 'mir', 'ihm', 'ihr', 'ihnen', 'uns', 'kannst', 'willst', 'wird', 'nach', 'vor', 'dass', 'aber']),
+};
+/** Words only French writes: a quote holding one is French. */
+const FRENCH_WORDS = new Set(['je', 'tu', 'il', 'elle', 'nous', 'vous', 'ils', 'elles', 'est', 'les', 'des', 'une', 'avec', 'dans', 'pour', 'que', 'qui', "c'est", 'le', 'la', 'au', 'et', 'pas', 'ne', "j'ai", 'lui', 'leur', 'en', 'y']);
+
+/**
+ * R5: a French goal of the day's drills quotes the learner's own language in « … »
+ * («Écris correctement ce que tu as dit … : « The yard sale? … »»). The journey's prompt
+ * carries no marks, so a quote with two words of the learner's language and none that
+ * only French writes is marked with that language; a French quote never is.
+ */
+export function quotedMeaningMarks(text: string, learner: string): GoalMark[] {
+  const own = OWN_WORDS[learner];
+  if (!own) return [];
+  const marks: GoalMark[] = [];
+  const quote = /«\s*([^»]+?)\s*»/g;
+  let match: RegExpExecArray | null;
+  while ((match = quote.exec(text)) !== null) {
+    const words = match[1].toLowerCase().replace(/[’`]/g, "'").split(/[^a-zà-öø-ÿœæß']+/).filter(Boolean);
+    if (words.some((word) => FRENCH_WORDS.has(word))) continue;
+    if (words.filter((word) => own.has(word)).length >= 2) marks.push({ text: match[1], lang: learner });
+  }
+  return marks;
+}
+
+/** `goal_native_marks` as the server sent them, cleaned; `undefined` when there are none. */
+export function goalMarks(value: unknown): GoalMark[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const marks = value
+    .map((mark) => ({ text: clean(mark?.text), lang: clean(mark?.lang) }))
+    .filter((mark) => mark.text && mark.lang);
+  return marks.length ? marks : undefined;
+}
 
 type GoalPrompt = {
   goal_native?: unknown;
+  goal_native_marks?: unknown;
   source_fr?: unknown;
   instruction_native?: unknown;
   prompt_fr?: unknown;
@@ -59,7 +119,11 @@ export function drillGoalLine(prompt: GoalPrompt | null | undefined): DrillGoal 
   if (!prompt) return null;
   const shown = [fold(prompt.instruction_native), fold(prompt.prompt_fr)].filter(Boolean);
   const goal = clean(prompt.goal_native);
-  if (goal) return shown.includes(fold(goal)) ? null : { kind: 'goal', text: goal };
+  if (goal) {
+    if (shown.includes(fold(goal))) return null;
+    const marks = goalMarks(prompt.goal_native_marks);
+    return marks ? { kind: 'goal', text: goal, marks } : { kind: 'goal', text: goal };
+  }
   const source = clean(prompt.source_fr);
   if (source) return shown.includes(fold(source)) ? null : { kind: 'source', text: source };
   return null;

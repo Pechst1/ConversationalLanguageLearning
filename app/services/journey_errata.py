@@ -96,6 +96,9 @@ class ErrataTarget:
     #: that matches the language of the goal line it prints beside it, so the
     #: «Regel:» prefix and the title can never be in different languages.
     rule_titles: dict[str, str] = field(default_factory=dict)
+    #: R5: the language a repair's miss note explains in (the mother tongue), set only
+    #: where it differs from the chrome (B1+). The goal line keeps the chrome.
+    explain_language: str | None = None
 
     @property
     def reason(self) -> str:
@@ -149,6 +152,7 @@ class ErrataTarget:
                 "erratum_context": self.context_fr,
                 "erratum_rule": self.rule,
                 "erratum_rule_titles": dict(self.rule_titles),
+                **({"erratum_explain_language": self.explain_language} if self.explain_language else {}),
             },
         )
 
@@ -296,11 +300,20 @@ def errata_targets_for_user(
 
     ``due_by`` widens "due" from now to that moment, and ranks as of then."""
 
+    from dataclasses import replace
+
+    from app.services.chrome_language import user_chrome_language, user_correction_language
     from app.services.fault_quality import drillable_errors
 
     records = ErrorMemoryService(db).due_error_records(user, limit=max(limit * 6, 12), due_by=due_by)
     # Round 3: a stored half-finished edit is never a repair to deal.
-    return rank_errata_targets(drillable_errors(db, records), limit=limit, now=due_by or now)
+    ranked = rank_errata_targets(drillable_errors(db, records), limit=limit, now=due_by or now)
+    explain = str(user_correction_language(user))
+    if explain == str(user_chrome_language(user)):
+        return ranked
+    # R5 (check walk of 19 Nov): a missed repair ends on the rule it broke; that line
+    # explains, so from B1 it is in the mother tongue, not the French chrome.
+    return [replace(target, explain_language=explain) for target in ranked]
 
 
 def errata_candidates_for_user(
