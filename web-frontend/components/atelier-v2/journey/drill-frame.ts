@@ -79,7 +79,8 @@ export function quotedMeaningMarks(text: string, learner: string): GoalMark[] {
   return marks;
 }
 
-function goalMarks(value: unknown): GoalMark[] | undefined {
+/** `goal_native_marks` as the server sent them, cleaned; `undefined` when there are none. */
+export function goalMarks(value: unknown): GoalMark[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const marks = value
     .map((mark) => ({ text: clean(mark?.text), lang: clean(mark?.lang) }))

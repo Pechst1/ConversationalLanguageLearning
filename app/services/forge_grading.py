@@ -1263,7 +1263,12 @@ def _scrambled(values: list[str], key: str) -> list[str]:
 
 
 def classify_follow_up(
-    item: dict[str, Any], learner_answer: Any, *, band: Any = None, language: Any = None
+    item: dict[str, Any],
+    learner_answer: Any,
+    *,
+    band: Any = None,
+    language: Any = None,
+    chrome: Any = None,
 ) -> dict[str, Any] | None:
     """What a judgement item adds once it is answered (WP-103 T8).
 
@@ -1302,6 +1307,20 @@ def classify_follow_up(
         "goal_native": goal.get(code) or goal["en"],
         "accepted_fr": list(dict.fromkeys(accepted)),
     }
+    # R5 (CI walk «en + B1», 19 Nov): the goal is interface, so it is in the chrome
+    # (French from B1), and quotes the meaning in the learner's own language, marked;
+    # «It should say: "…"» on a French screen was the explanation language's template.
+    chrome_code = _language(chrome) if chrome else code
+    if chrome_code != code:
+        if chrome_code == "fr" and meaning:
+            from app.services.item_bank import _GOALS_FR_NATIVE_MEANING
+
+            own = str((key.get("meaning_l10n") or {}).get(code) or "").strip()
+            quoted, quoted_lang = (own, code) if own else (meaning, "en")
+            follow_up["goal_native"] = _GOALS_FR_NATIVE_MEANING["repair"].format(meaning=quoted)
+            follow_up["goal_native_marks"] = [{"text": quoted, "lang": quoted_lang}]
+        else:
+            follow_up["goal_native"] = goal.get(chrome_code) or goal["en"]
     if str(band or "").strip().upper()[:2] in TILE_BANDS:
         words = sentence_tokens(corrected)
         spare = [

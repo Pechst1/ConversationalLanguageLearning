@@ -35,3 +35,41 @@ def test_no_marks_where_the_goal_quotes_nothing_foreign() -> None:
     # A stored set's old marks never outlive the goal they belonged to.
     stale = {**_word_bank(), "goal_native_marks": [{"text": "x", "lang": "en"}]}
     assert _marks(ib.with_goal(stale, "fr", "fr")) == []
+
+
+# R5 (CI walk «en + B1», day 3): «Corrige la phrase · It should say: "I'm going to the town
+# hall to renew my passport."» — the follow-up's goal took the explanation language's
+# template. The goal is interface: French from B1, quoting the meaning, marked.
+def _judged() -> dict:
+    from app.services.forge_grading import TO_CORRECT_LABEL
+
+    return {
+        "id": "j1",
+        "correct_label": TO_CORRECT_LABEL,
+        "prompt": "Je vais à la mairie pour renouvelle mon passeport.",
+        "follow_up_key": {
+            "corrected_fr": "Je vais à la mairie pour renouveler mon passeport.",
+            "meaning": "I'm going to the town hall to renew my passport.",
+            "meaning_l10n": {"de": "Ich gehe zum Rathaus, um meinen Pass zu verlängern."},
+        },
+    }
+
+
+def test_a_b1_follow_up_goal_is_french_and_quotes_the_marked_meaning() -> None:
+    from app.services.forge_grading import TO_CORRECT_LABEL, classify_follow_up
+
+    for native, meaning in (
+        ("en", "I'm going to the town hall to renew my passport."),
+        ("de", "Ich gehe zum Rathaus, um meinen Pass zu verlängern."),
+    ):
+        out = classify_follow_up(_judged(), TO_CORRECT_LABEL, band="B1", language=native, chrome="fr")["follow_up"]
+        assert out["goal_native"] == f"La phrase veut dire : « {meaning} »"
+        assert out["goal_native_marks"] == [{"text": meaning, "lang": native}]
+
+
+def test_below_b1_the_follow_up_goal_is_unchanged() -> None:
+    from app.services.forge_grading import TO_CORRECT_LABEL, classify_follow_up
+
+    out = classify_follow_up(_judged(), TO_CORRECT_LABEL, band="A1", language="en", chrome="en")["follow_up"]
+    assert out["goal_native"] == 'It should say: "I\'m going to the town hall to renew my passport."'
+    assert "goal_native_marks" not in out

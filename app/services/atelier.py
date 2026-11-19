@@ -4826,6 +4826,8 @@ class AtelierCorrectionService:
         self.explanation_language = DEFAULT_GLOSS_LANGUAGE
         #: The learner's own language, for the task as their screen showed it.
         self._learner_native: str | None = None
+        #: R5: the interface language (French from B1), for a goal line the screen states.
+        self._learner_chrome: str | None = None
 
     def submit_attempt(
         self,
@@ -4843,8 +4845,9 @@ class AtelierCorrectionService:
         # R4 (walk of 19 Nov): why an answer was wrong is explained in the mother tongue
         # at every level, as the scene's notes and the Courrier's (owner decision 18 Nov
         # 2026); the chrome around it stays French from B1.
-        from app.services.chrome_language import user_correction_language
+        from app.services.chrome_language import user_chrome_language, user_correction_language
         self.explanation_language = user_correction_language(user)
+        self._learner_chrome = user_chrome_language(user)
         self._learner_native = user_mother_tongue(user)
         # WP-103 T8: an A1 learner corrects a sorted sentence with tiles.
         self._learner_band = str(getattr(user, "cefr_estimate", "") or "A1").strip().upper()[:2]
@@ -5481,8 +5484,9 @@ class AtelierCorrectionService:
         # R4 (walk of 19 Nov): why an answer was wrong is explained in the mother tongue
         # at every level, as the scene's notes and the Courrier's (owner decision 18 Nov
         # 2026); the chrome around it stays French from B1.
-        from app.services.chrome_language import user_correction_language
+        from app.services.chrome_language import user_chrome_language, user_correction_language
         self.explanation_language = user_correction_language(user)
+        self._learner_chrome = user_chrome_language(user)
         self._learner_native = user_mother_tongue(user)
         started = time.perf_counter()
         try:
@@ -6176,6 +6180,7 @@ class AtelierCorrectionService:
                 answers.get(item["id"]),
                 band=getattr(self, "_learner_band", None),
                 language=self.explanation_language,
+                chrome=getattr(self, "_learner_chrome", None),
             )
             if extra:
                 follow_ups[str(item["id"])] = extra

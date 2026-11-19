@@ -59,3 +59,29 @@ test('a day drill’s French goal marks an English quote, never a French one', (
   assert.doesNotMatch(renderToStaticMarkup(h(steps.DrillGoalLine, { goal: french, copy })), /<span lang=/);
   assert.deepEqual(frame.quotedMeaningMarks(english.text, 'fr'), [], 'a French speaker’s page marks nothing');
 });
+
+// R5 (CI walk «en + B1», day 3): «Corrige la phrase · It should say: "…"» — the follow-up's
+// French goal quotes the meaning in the learner's language, marked.
+test('the «Corrige la phrase» follow-up marks the meaning its French goal quotes', () => {
+  const { classifyRepair } = require('@/lib/forge-followup.ts');
+  const { ForgeFollowUp } = require('@/components/epreuve/ForgeFollowUp.tsx');
+  const meaning = "I'm going to the town hall to renew my passport.";
+  const { followUp } = classifyRepair(
+    { id: 'j1', prompt: 'Je vais à la mairie pour renouvelle mon passeport.' },
+    {
+      corrected_fr: 'Je vais à la mairie pour renouveler mon passeport.',
+      follow_up: {
+        kind: 'correct_it',
+        source_fr: 'Je vais à la mairie pour renouvelle mon passeport.',
+        goal_native: `La phrase veut dire : « ${meaning} »`,
+        goal_native_marks: [{ text: meaning, lang: 'en' }],
+        accepted_fr: ['Je vais à la mairie pour renouveler mon passeport.'],
+      },
+    },
+  );
+  assert.deepEqual(followUp.goalMarks, [{ text: meaning, lang: 'en' }]);
+  const html = renderToStaticMarkup(
+    h(EpShell, { language: 'fr' }, h(ForgeFollowUp, { followUp, draft: { text: '', tiles: [], outcome: null }, onDraft: () => undefined })),
+  );
+  assert.match(html, /La phrase veut dire : « <span lang="en">I(&#x27;|')m going to the town hall to renew my passport\.<\/span> »/);
+});

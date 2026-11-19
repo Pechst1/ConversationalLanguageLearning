@@ -153,7 +153,16 @@ export function ForgeFollowUp({
   return (
     <section className="ep-follow" data-outcome={draft.outcome ?? 'open'} aria-label={t.follow_title}>
       <p className="av2-label ep-follow__title">{t.follow_title}</p>
-      {followUp.goalNative && <p className="av2-body ep-follow__goal">{followUp.goalNative}</p>}
+      {followUp.goalNative && (
+        <p className="av2-body ep-follow__goal">
+          {/* R5: the meaning a French goal quotes is the learner's own language, marked. */}
+          {followUp.goalMarks?.length
+            ? goalSegments({ text: followUp.goalNative, marks: followUp.goalMarks }).map((part, index) =>
+                part.lang ? <span key={index} lang={part.lang}>{part.text}</span> : <React.Fragment key={index}>{part.text}</React.Fragment>,
+              )
+            : followUp.goalNative}
+        </p>
+      )}
       <blockquote className="ep-follow__quote" lang="fr">
         <span className="av2-sr">{t.follow_wrong_label} </span>
         {frenchSpacing(followUp.sourceFr)}

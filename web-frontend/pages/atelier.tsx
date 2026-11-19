@@ -16,7 +16,7 @@ import { classificationCopy, classificationGoal, isJudgementLabels, judgementLab
 import { answeredLevel, itemVerdict, pollStillCurrent, productionPhase, reviewIsPending, settleShownCorrection, type RepairStep } from '@/lib/forge-verdict';
 import { canAskAgain, checkState, unreadLine } from '@/lib/verdict';
 import { keepCardAboveSheet } from '@/lib/keep-above-sheet';
-import { drillGoalLine, meaningCueText } from '@/components/atelier-v2/journey/drill-frame';
+import { drillGoalLine, goalMarks, meaningCueText } from '@/components/atelier-v2/journey/drill-frame';
 import {
   FOLLOW_UP_EMPTY,
   ForgeCorrectedLine,
@@ -4753,6 +4753,9 @@ function RecognizePanel({
   // P10: an empty or instruction-like cue is never quoted; the task line stands alone.
   const buildCue = meaningCueText(item.meaning_cue) || String(item.prompt || '');
   const buildGoal = itemGoal(item, '') ?? (buildCue ? { kind: 'goal' as const, text: buildCue } : null);
+  // R5: a word bank's goal is its prompt too, so the cue keeps the goal's marks.
+  const buildMarks = goalMarks(item.goal_native_marks);
+  if (buildGoal && buildMarks && !('marks' in buildGoal && buildGoal.marks)) Object.assign(buildGoal, { marks: buildMarks });
   // «Dictée»: the sentence is heard, so its meaning waits for the answer.
   const dictation = mode === 'word_bank' && drill === 'dictation';
   return (
