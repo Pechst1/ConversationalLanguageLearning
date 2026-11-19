@@ -138,6 +138,17 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Du hast „{learner}“ gewählt, aber in diese Lücke gehört „{target}“.",
         "fr": "Tu as choisi « {learner} », mais ce blanc demande « {target} ».",
     },
+    # Walk of 19 Nov: a typed fill (La Forge's «Tape la forme») was written, not chosen.
+    "atelier.recognize.wrote_requires": {
+        "en": "You wrote “{learner}”; this item needs “{target}”.",
+        "de": "Du hast „{learner}“ geschrieben; hier ist „{target}“ nötig.",
+        "fr": "Tu as écrit « {learner} » ; il faut « {target} » ici.",
+    },
+    "atelier.recognize.wrote_blank_needs": {
+        "en": "You wrote “{learner}”, but this blank needs “{target}”.",
+        "de": "Du hast „{learner}“ geschrieben, aber in diese Lücke gehört „{target}“.",
+        "fr": "Tu as écrit « {learner} », mais ce blanc demande « {target} ».",
+    },
     "atelier.recognize.classified_as": {
         "en": "You classified “{prompt}” as “{learner}”, but the target label is “{target}”.",
         "de": "Du hast „{prompt}“ als „{learner}“ eingeordnet; richtig wäre „{target}“.",

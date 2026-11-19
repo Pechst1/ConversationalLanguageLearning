@@ -99,7 +99,12 @@ from app.services.chrome_language import (
 )
 from app.services.concept_titles import concept_title, concept_title_fr
 from app.services.error_memory import ErrorMemoryService
-from app.services.forge import TEST_OUT_STATUS, ForgeService, is_forge_session  # WP-S3 La Forge
+from app.services.forge import (  # WP-S3 La Forge
+    TEST_OUT_STATUS,
+    ForgeService,
+    forge_state_of,
+    is_forge_session,
+)
 from app.services.forge_coaches import story_state_of
 from app.services.forge_item_validator import speaker_problems  # #267/#780: agrees with its badge
 from app.services.forge_metrics import record_forge_abandoned, sweep_stale_forge_seances  # WP-S8
@@ -1630,6 +1635,27 @@ def get_session(
     return _session_response(db, current_user, session)
 
 
+def _posed_drill(session: AtelierSession, answer_payload: Any, existing: AtelierAttempt | None) -> str | None:
+    """How La Forge posed the item this answer is for («typed», «choice», …), if it did.
+
+    Walk of 19 Nov: a typed fill keeps the options of its classic form in the stored
+    item, so the item alone cannot tell a typed answer from a picked one. The forge's
+    pending item says how it was posed; a retry («Réessayer») reads it from the first
+    answer's record, since the forge has moved on by then.
+    """
+
+    if existing is not None:
+        drill = ((existing.correction_payload or {}).get("forge") or {}).get("drill")
+        if drill:
+            return str(drill)
+    state = forge_state_of(session)
+    pending = (state.pending if state else None) or {}
+    answers = (answer_payload or {}).get("answers") if isinstance(answer_payload, dict) else None
+    if not pending.get("drill") or not isinstance(answers, dict):
+        return None
+    return str(pending["drill"]) if str(pending.get("item_id") or "") in {str(key) for key in answers} else None
+
+
 @router.post("/sessions/{session_id}/attempts", response_model=AtelierAttemptResponse)
 def submit_attempt(
     session_id: UUID,
@@ -1716,6 +1742,7 @@ def submit_attempt(
         answer_payload["confidence"] = payload.confidence
     correction_service = AtelierCorrectionService(db)
     first_submission = existing is None
+    posed_drill = _posed_drill(session, answer_payload, existing) if is_forge_session(session) else None
     try:
         attempt = correction_service.submit_attempt(
             session=session,
@@ -1727,6 +1754,7 @@ def submit_attempt(
             answer_payload=answer_payload,
             prompt_payload_override=prompt_payload_override,
             retest_of=retest_source.id if retest_source else None,
+            posed_drill=posed_drill,
         )
     except AnswerLengthError as exc:
         # #574: the item states a word range; a line outside it is not an answer to it.
@@ -1767,6 +1795,7 @@ def submit_attempt(
             first_submission=first_submission,
             retest=retest_source is not None,
             rule_check=session.status == TEST_OUT_STATUS or correction.get("graded_by") == "local_test_out",
+            drill=posed_drill,
         ),
         # R4: a withheld solution's hint explains, so it is in the mother tongue.
         language=user_correction_language(current_user),

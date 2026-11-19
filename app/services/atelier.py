@@ -4806,6 +4806,21 @@ def check_answer_length(round_name: str, prompt_payload: dict[str, Any], answer_
         raise AnswerLengthError(f"This item takes at most {high} words; the answer has {words} words.")
 
 
+#: Walk of 19 Nov: a fill's own lines («You chose `prendras`, but …») said of a typed
+#: answer that it was chosen. The same line, said of what was written.
+_CHOSEN_AS_WRITTEN = (
+    (re.compile(r"^You chose\b"), "You wrote"),
+    (re.compile(r"^Tu as choisi\b"), "Tu as écrit"),
+    (re.compile(r"^(Du hast .+?) gewählt(?=[,;])"), r"\1 geschrieben"),
+)
+
+
+def _written_not_chosen(why: str) -> str:
+    for pattern, replacement in _CHOSEN_AS_WRITTEN:
+        why = pattern.sub(replacement, why, count=1)
+    return why
+
+
 class AtelierCorrectionService:
     """Exercise-aware checking and structured correction payloads."""
 
@@ -4826,6 +4841,8 @@ class AtelierCorrectionService:
         self.explanation_language = DEFAULT_GLOSS_LANGUAGE
         #: The learner's own language, for the task as their screen showed it.
         self._learner_native: str | None = None
+        #: How La Forge posed the answered item («typed», «choice», …), when it did.
+        self._posed_drill: str | None = None
 
     def submit_attempt(
         self,
@@ -4839,7 +4856,10 @@ class AtelierCorrectionService:
         answer_payload: dict[str, Any],
         prompt_payload_override: dict[str, Any] | None = None,
         retest_of: UUID | None = None,
+        posed_drill: str | None = None,
     ) -> AtelierAttempt:
+        # Walk of 19 Nov: a typed fill's miss says «Tu as écrit», not «Tu as choisi».
+        self._posed_drill = posed_drill
         # R4 (walk of 19 Nov): why an answer was wrong is explained in the mother tongue
         # at every level, as the scene's notes and the Courrier's (owner decision 18 Nov
         # 2026); the chrome around it stays French from B1.
@@ -6541,7 +6561,12 @@ class AtelierCorrectionService:
             why = (
                 ""
                 if mode == "word_bank"
-                else _copy("atelier.recognize.chose_requires", language, learner=learner_text, target=target)
+                else _copy(
+                    "atelier.recognize.wrote_requires" if self._typed_fill(mode, item, learner_text) else "atelier.recognize.chose_requires",
+                    language,
+                    learner=learner_text,
+                    target=target,
+                )
             )
             if accent_line:
                 why = f"{why} {accent_line}".strip()
@@ -6614,6 +6639,20 @@ class AtelierCorrectionService:
             task_type=self._task_type_for(concept, item),
         )
 
+    def _typed_fill(self, mode: str, item: dict[str, Any], learner_text: str) -> bool:
+        """Walk of 19 Nov: was this fill typed (La Forge's «Tape la forme», a gap with no
+        options, an answer that is none of them) rather than picked? A typed line was
+        written, not chosen: «Tu as écrit … », never «Tu as choisi … »."""
+
+        from app.services import solution_gate
+
+        if mode != "fill":
+            return False
+        item_id = str(item.get("id") or "fill")
+        return solution_gate.typed_answer(
+            {"items": [{**item, "id": item_id}]}, {"answers": {item_id: learner_text}}, getattr(self, "_posed_drill", None)
+        )
+
     def _hint_without_answer(
         self,
         erratum: dict[str, Any],
@@ -6653,7 +6692,12 @@ class AtelierCorrectionService:
         learner_norm = _normalize(learner_text)
         target_norm = _normalize(target)
         label = self._label_for(concept, item)
-        why = _copy("atelier.recognize.blank_needs", self.explanation_language, learner=learner_text, target=target)
+        why = _copy(
+            "atelier.recognize.wrote_blank_needs" if self._typed_fill("fill", item, learner_text) else "atelier.recognize.blank_needs",
+            self.explanation_language,
+            learner=learner_text,
+            target=target,
+        )
         repair = item.get("repair_hint") or self._repair_for(concept, learner_text, target)
         profile_key = infer_grammar_profile(concept).key if concept else ""
 
@@ -6699,6 +6743,8 @@ class AtelierCorrectionService:
             else:
                 why = _copy("atelier.tense.fill_needs_passe_compose", language, learner=learner_text, target=target)
             repair = _copy("atelier.tense.repair_ask_ongoing", language)
+        if self._typed_fill("fill", item, learner_text):
+            why = _written_not_chosen(why)
 
         return self._recognize_erratum_payload(
             concept,
