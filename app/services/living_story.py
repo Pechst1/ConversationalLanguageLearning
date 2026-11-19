@@ -10493,7 +10493,7 @@ def _season_story_review(context: dict, reviews: list[dict]):
                 **({"act": act.get("role")} if act else {}),
             }
         )
-        return {"accepted": served, "issues": list(verdict.issues), "class": kind, "failed": failed}
+        return {"accepted": served, "issues": list(verdict.issues), "class": kind, **({"failed": failed} if failed else {})}
 
     def override() -> None:
         """The refused draft is served after all: its reading is the override. Only a
