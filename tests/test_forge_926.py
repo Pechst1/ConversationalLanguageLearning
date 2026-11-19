@@ -51,7 +51,7 @@ def _walk_item() -> ib.BankItem:
     return next(bank.sample(UNIT, random.Random(926)))
 
 
-def test_the_walk_item_accepts_tu_es_arrive_or_says_which_you_it_means():
+def test_walk_item_tu_es_arrive():
     item = _walk_item()
     assert item.sentence == "Tu es arrivée à la gare samedi dernier."
     masculine = "Tu es arrivé à la gare samedi dernier."
@@ -71,7 +71,7 @@ def test_the_walk_item_accepts_tu_es_arrive_or_says_which_you_it_means():
     assert repair["meaning"] == item.en
 
 
-def test_a_named_woman_is_not_keyed_as_a_group_of_men():
+def test_named_woman_key():
     """Once the English says «you (a woman)», the key lists only what that allows:
     no masculine, no plural «Vous êtes arrivés»."""
 
@@ -99,7 +99,7 @@ def _gender_and_number_twins(entry: dict) -> list[dict]:
     return [t for t in twins if (t.get("g"), t.get("n")) != (entry.get("g"), entry.get("n"))]
 
 
-def test_no_open_subject_item_shows_another_right_person_as_wrong():
+def test_open_subject_guard():
     """The done-when, on every unit: an item whose subject is je / tu / nous / on /
     vous never shows as ✗ a sentence that is right for another person the English
     allows, unless the English names its own («I (a woman)», «you (plural)»)."""
