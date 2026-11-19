@@ -16,6 +16,7 @@
 import { LEAVE, NAMES, PEOPLE as TALKERS, TEXT_SUITCASE, chipsFor, fold, helloOf, registerOf, respond } from './agency';
 import type { CastId, Value, Words } from './memory';
 import scene from './scenes/t1-a.json';
+import { renderDates, shiftDays } from './season-dates';
 import { HOME_PLACE, playsIn, stageOf } from './world';
 
 /* ------------------------------------------------------------------------------------------ */
@@ -451,9 +452,16 @@ export const T1A_COPY = scene as unknown as Copy;
 export interface CopyOptions {
   level?: 'a2' | 'b1';
   native?: 'en' | 'de';
+  /** the learner's first season day, for the copy's date tokens (`season-dates.ts`); today when unknown */
+  start?: Date;
 }
 
-type Resolved = Required<CopyOptions>;
+type Resolved = Required<Omit<CopyOptions, 'start'>>;
+
+/** The copy with its date tokens rendered for the learner's start, as the engine renders a page. */
+function datedCopy(copy: Copy, start?: Date): Copy {
+  return renderDates(copy, shiftDays(start ?? new Date()));
+}
 
 function lineOf(l: CopyLine, o: Resolved): StoryLine {
   return {
@@ -536,8 +544,9 @@ function storyletsOf(o: Resolved): Storylet[] {
 }
 
 /** The copy resolved the way the server resolves a page: one level, one language. */
-export function pageOfCopy(copy: Copy = T1A_COPY, opts: CopyOptions = {}): StoryPage {
+export function pageOfCopy(raw: Copy = T1A_COPY, opts: CopyOptions = {}): StoryPage {
   const o: Resolved = { level: opts.level ?? 'a2', native: opts.native ?? 'en' };
+  const copy = datedCopy(raw, opts.start);
   return {
     season_id: 's1',
     segment: copy.episode,
@@ -616,10 +625,10 @@ export class OfflineStory implements Story {
   private talking: { who: CastId; used: string[]; slipped: boolean; turns: number } | null = null;
 
   constructor(opts: CopyOptions & { state?: () => Record<string, Value> } = {}, copy: Copy = T1A_COPY) {
-    this.copy = copy;
+    this.copy = datedCopy(copy, opts.start);
     this.o = { level: opts.level ?? 'a2', native: opts.native ?? 'en' };
     this.state = opts.state ?? (() => ({}));
-    this.page = pageOfCopy(copy, this.o);
+    this.page = pageOfCopy(this.copy, this.o);
   }
 
   private turn(turnId: string): Question | null {
