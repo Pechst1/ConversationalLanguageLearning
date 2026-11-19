@@ -16,7 +16,7 @@ import { classificationCopy, classificationGoal, isJudgementLabels, judgementLab
 import { answeredLevel, itemVerdict, productionPhase, reviewIsPending, settleShownCorrection, type RepairStep } from '@/lib/forge-verdict';
 import { canAskAgain, checkState, unreadLine } from '@/lib/verdict';
 import { keepCardAboveSheet } from '@/lib/keep-above-sheet';
-import { drillGoalLine } from '@/components/atelier-v2/journey/drill-frame';
+import { drillGoalLine, meaningCueText } from '@/components/atelier-v2/journey/drill-frame';
 import {
   FOLLOW_UP_EMPTY,
   ForgeCorrectedLine,
@@ -338,13 +338,6 @@ const roundLabels: Array<{ id: RoundName; label: string; roman: string }> = [
 function answerKey(round: RoundName, mode: string, conceptId?: number | null, itemId?: string | null) {
   const base = `${round}:${mode}:${conceptId || 'session'}`;
   return itemId ? `${base}:${itemId}` : base;
-}
-
-// The word-bank meaning cue often arrives as "Express: I was reading…". The task
-// is already stated once at the top of the screen, so each subtask shows only the
-// bare English sentence to translate.
-function stripExpressPrefix(value: unknown): string {
-  return String(value || '').replace(/^\s*express\s*:\s*/i, '').trim();
 }
 
 /**
@@ -4724,7 +4717,8 @@ function RecognizePanel({
   const fc = forgeCopy(cueLanguage);
   // Owner, 2026-10-18: what to do comes first, then the box the answer goes in.
   // A word bank's cue and goal say the same thing: one line, above the box.
-  const buildCue = stripExpressPrefix(item.meaning_cue) || String(item.prompt || '');
+  // P10: an empty or instruction-like cue is never quoted; the task line stands alone.
+  const buildCue = meaningCueText(item.meaning_cue) || String(item.prompt || '');
   const buildGoal = itemGoal(item, '') ?? (buildCue ? { kind: 'goal' as const, text: buildCue } : null);
   // «Dictée»: the sentence is heard, so its meaning waits for the answer.
   const dictation = mode === 'word_bank' && drill === 'dictation';

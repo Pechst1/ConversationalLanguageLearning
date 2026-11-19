@@ -39,7 +39,7 @@ def test_home_offers_the_placement_only_when_the_server_says_so():
     assert "<PlacementOfferChip" in home
     assert "'/placement/offer'" in chip
     assert "body?.offer === true" in chip
-    # WP-126: the label lives in placement-copy. P9: in Home's chrome language (French
+    # WP-126: the label lives in placement-copy. P9 / P10: in Home's chrome language (French
     # from B1), not the level-blind native language.
     assert "placementCopy(useChromeLanguage())" in chip
     assert "useLearnerLanguage" not in chip

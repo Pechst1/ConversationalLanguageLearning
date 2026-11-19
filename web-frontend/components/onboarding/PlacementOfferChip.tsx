@@ -19,7 +19,7 @@ export const PLACEMENT_OFFER_HREF = '/placement?from=offer';
 /** `className` goes on a wrapper that exists only when the chip does. */
 export function PlacementOfferChip({ className }: { className?: string }) {
   const [offer, setOffer] = React.useState(false);
-  // WP-126 / P9: Home's chrome language — the learner's own up to A2, French from
+  // WP-126 / P9 / P10: Home's chrome language — the learner's own up to A2, French from
   // B1 — so a B1 learner on French chrome is not handed the one English chip.
   const copy = placementCopy(useChromeLanguage());
 
