@@ -253,3 +253,64 @@ test('the bridges’ people who are not regulars come on as guests with a body (
     assert.ok(regulars.includes(who) || GUESTS[who] > 1.4, `${who} has a body and never comes on`);
   }
 });
+
+/* ---- round 4 (third walk, 19 Nov): the free moment, and lines to tap through ---------------- */
+
+const { nearestTalker, momentWords, speakerRuns } = require('./stage.ts');
+const { MOMENT } = require('./agency.ts');
+
+test('the free moment turns you toward the nearest character who can be talked to', () => {
+  const feet = { x: -31, z: -15.5 };
+  const people = [
+    { who: 'augustin_de_roncourt', pos: { x: -27, z: -15.5 } },
+    { who: 'margaux_barman', pos: { x: -32, z: -16.5 } },
+    { who: 'lila_bonnet', pos: { x: -34, z: -12 } },
+  ];
+  assert.equal(nearestTalker(feet, people), 'margaux_barman');
+  assert.equal(nearestTalker(feet, people.slice(0, 1)), 'augustin_de_roncourt');
+  assert.equal(momentWords('margaux_barman'), MOMENT.caption);
+});
+
+test('with nobody to talk to, the free moment does not invite talking', () => {
+  assert.equal(nearestTalker({ x: 0, z: 0 }, []), null);
+  const card = momentWords(null);
+  assert.notEqual(card, MOMENT.caption);
+  for (const lang of ['fr', 'en', 'de']) {
+    assert.ok(card[lang], lang);
+    assert.doesNotMatch(card[lang], /parle|talk|sprich|quelqu|someone|jemand/i, `${lang}: «${card[lang]}»`);
+  }
+});
+
+test("one speaker's consecutive lines share one card, at most three, each line kept", () => {
+  const l = (who, text_fr, extra = {}) => ({ who, text_fr, text_native: `${text_fr} (gloss)`, ...extra });
+  const lines = [
+    l('margaux_barman', 'Pas ce soir.'),
+    l('margaux_barman', 'La clé ?'),
+    l('caption', 'La pluie.'),
+    l('augustin_de_roncourt', 'Un.'),
+    l('augustin_de_roncourt', 'Deux.'),
+    l('augustin_de_roncourt', 'Trois.'),
+    l('augustin_de_roncourt', 'Quatre.'),
+    l('augustin_de_roncourt', 'Cinq.', { direction: 'bowing' }),
+    l('toi', 'Oui.'),
+    l('toi', 'Non.'),
+    l('lila_bonnet', 'Salut.'),
+  ];
+  assert.deepEqual(speakerRuns(lines), [[0, 1], [2], [3, 4, 5], [6], [7], [8], [9], [10]]);
+  assert.deepEqual(speakerRuns(lines).flat(), lines.map((_, i) => i));
+});
+
+test("day a's scene asks fewer taps for its lines than it has lines", () => {
+  const panels = [];
+  const walk = (o) => {
+    if (Array.isArray(o)) o.forEach(walk);
+    else if (o && typeof o === 'object') {
+      if (Array.isArray(o.lines) && o.lines.every((x) => x && typeof x.text_fr === 'string')) panels.push(o.lines);
+      Object.values(o).forEach(walk);
+    }
+  };
+  walk(require('./story.ts').pageOfCopy().movements);
+  const lines = panels.reduce((n, ls) => n + ls.length, 0);
+  const cards = panels.reduce((n, ls) => n + speakerRuns(ls).length, 0);
+  assert.ok(lines > 10 && cards < lines, `${cards} cards for ${lines} lines`);
+});

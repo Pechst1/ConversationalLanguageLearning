@@ -703,6 +703,14 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
             {line.text}
           </p>
           {translate && line.native ? <p className="qz-native">{line.native}</p> : null}
+          {(line.more ?? []).map((m, i) => (
+            <React.Fragment key={i}>
+              <p className="qz-line" lang="fr">
+                {m.text}
+              </p>
+              {translate && m.native ? <p className="qz-native">{m.native}</p> : null}
+            </React.Fragment>
+          ))}
           {ui?.waitingTap || ui?.aside ? <span className="qz-more" aria-hidden /> : null}
         </button>
       ) : null}

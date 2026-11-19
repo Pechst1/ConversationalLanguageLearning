@@ -212,6 +212,11 @@ export const TEXT_SUITCASE: PhoneText = {
 
 export const MOMENT = {
   caption: w("Tu as un moment. Parle à quelqu'un, ou attends.", 'You have a moment. Talk to someone, or wait.', 'Du hast einen Moment. Sprich mit jemandem, oder warte.'),
+  /**
+   * The same moment with nobody here who can be talked to: it invites no talk. Round 4 (third walk,
+   * 19 Nov, day 1): «Parle à quelqu'un» over a camera that faced a wall, nobody in view.
+   */
+  wait: w('Tu as un moment. Regarde autour de toi, puis continue.', 'You have a moment. Look around, then go on.', 'Du hast einen Moment. Schau dich um, dann geh weiter.'),
   go: 'Continuer',
 };
 
