@@ -30,7 +30,9 @@ from tests.test_wp36_self_repair import _user, record
 
 LUI_LEUR = "On dit « leur », pas « lui » : le complément est au pluriel."
 LEUR_LUI = "On dit « lui », pas « leur » : le complément est au singulier."
-NOTAIRE = "«notaire» est masculin ici : à + le = au."
+#: «bureau», not «notaire»: P4 (PR 884) made «notaire» a noun used for both genders
+#: («à la notaire» is right for Maître Vasseur), so the rule pass no longer flags it.
+BUREAU = "«bureau» est masculin : à + le = au."
 
 
 @pytest.fixture(autouse=True)
@@ -82,16 +84,16 @@ def test_a_stored_pronoun_slip_never_stamps_a_correct_reply(db_session, wrong, r
 
 @pytest.mark.parametrize("season", [True, False], ids=["margin", "question"])
 def test_a_real_recurrence_the_rule_pass_also_flags_is_still_surfaced(db_session, season):
-    # (d) stored «à la notaire → au notaire»; the rule pass flags «à la» → «au» here too.
+    # (d) stored «à la bureau → au bureau»; the rule pass flags «à la» → «au» here too.
     user = _user(db_session)
-    record(db_session, user, wrong="à la notaire", right="au notaire", why=NOTAIRE, label="à la->au")
+    record(db_session, user, wrong="à la bureau", right="au bureau", why=BUREAU, label="à la->au")
 
-    decision = _decide(db_session, user, "Demain je dois parler à la notaire.", season=season)
+    decision = _decide(db_session, user, "Demain je dois passer à la bureau.", season=season)
 
     if season:
         assert decision.reason == "recurrence_in_margin"
-        assert decision.explicit is not None and decision.explicit.span_fr == "à la notaire"
-        assert decision.explicit.corrected_fr == "au notaire"
+        assert decision.explicit is not None and decision.explicit.span_fr == "à la bureau"
+        assert decision.explicit.corrected_fr == "au bureau"
     else:
         assert decision.reason == "recurrence" and decision.prompt is not None
 
@@ -114,11 +116,11 @@ def _turn(learner: str, correction: Correction | None) -> dict:
 def test_a_season_scene_carries_at_most_one_stored_fault_note(db_session):
     # (c) three replies, each genuinely repeating the stored slip, on one season page.
     user = _user(db_session)
-    record(db_session, user, wrong="à la notaire", right="au notaire", why=NOTAIRE, label="à la->au")
+    record(db_session, user, wrong="à la bureau", right="au bureau", why=BUREAU, label="à la->au")
     replies = [
-        "Je parle à la notaire ce matin.",
-        "Ensuite je retourne à la notaire avec les papiers.",
-        "Et je téléphone à la notaire ce soir.",
+        "Je passe à la bureau ce matin.",
+        "Ensuite je retourne à la bureau avec les papiers.",
+        "Et je téléphone à la bureau ce soir.",
     ]
 
     history: list[dict] = []
@@ -147,8 +149,8 @@ def _graded(correction: Correction | None) -> ResponseEvaluation:
 
 def test_the_turns_own_correction_outranks_a_stored_margin_note(db_session):
     user = _user(db_session)
-    record(db_session, user, wrong="à la notaire", right="au notaire", why=NOTAIRE, label="à la->au")
-    text = "Je vais à la notaire et je suis fatigue."
+    record(db_session, user, wrong="à la bureau", right="au bureau", why=BUREAU, label="à la->au")
+    text = "Je vais à la bureau et je suis fatigue."
     brief = _brief(db_session, user, season=True)
     decision = _decide(db_session, user, text, season=True)
     assert decision.reason == "recurrence_in_margin"
