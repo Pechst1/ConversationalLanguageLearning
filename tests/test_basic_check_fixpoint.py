@@ -431,14 +431,18 @@ def test_merges_add_the_rules_second_place():
 def test_merges_keep_one_card_per_fragment():
     """#250 still holds by place: a longer quote of the model's around a rule's fragment
     keeps the fragment off a second card."""
+    import inspect
+
     from app.services.missions import MissionCorrectionService
 
     service = MissionCorrectionService.__new__(MissionCorrectionService)
     line = "Mon carte est jolie."
     model = {"learner_text": "Mon carte", "corrected_target": "Ma carte", "why_wrong": "carte is feminine.", "task_error_type": "gender_agreement"}
     rule = {"learner_text": "Mon", "corrected_target": "Ma", "why_wrong": "", "task_error_type": "gender_agreement"}
-    merged = service._merge_deterministic_errata(
-        correction={"errata": [model], "verdict": "needs_revision"}, deterministic_errata=[rule], corrected_answer="", text=line
+    merge = service._merge_deterministic_errata
+    where = {"text": line} if "text" in inspect.signature(merge).parameters else {}
+    merged = merge(
+        correction={"errata": [model], "verdict": "needs_revision"}, deterministic_errata=[rule], corrected_answer="", **where
     )["errata"]
     assert [item["learner_text"] for item in merged] == ["Mon carte"]
 
