@@ -1018,6 +1018,20 @@ export function readListenFirst(fallback = false): boolean {
   return fallback;
 }
 
+/**
+ * Pilot P9: the learner switched «Écouter d'abord» off on this device — the stored
+ * value is `'0'`, not merely absent. A dealt listening day then opens on the text,
+ * with the offer above the first panel; a learner who never touched the setting
+ * keeps the dealt day.
+ */
+export function listenFirstSwitchedOff(): boolean {
+  try {
+    return storage()?.getItem(LISTEN_FIRST_KEY) === '0';
+  } catch {
+    return false;
+  }
+}
+
 export function writeListenFirst(enabled: boolean): void {
   try {
     storage()?.setItem(LISTEN_FIRST_KEY, enabled ? '1' : '0');
@@ -1050,6 +1064,7 @@ export function listenFirstPlacement({
   preferred = false,
   dealt = false,
   declined = false,
+  switchedOff = false,
 }: {
   /** The server's own answer about this deployment (`prompt.audio_available`). */
   audioAvailable: boolean;
@@ -1064,10 +1079,15 @@ export function listenFirstPlacement({
    * decision about the placement itself, and it wins over both.
    */
   declined?: boolean;
+  /**
+   * Pilot P9: the device's stored preference is an explicit «off» (`'0'`). A dealt
+   * day does not open on the cycle then; the offer above the first panel still does.
+   */
+  switchedOff?: boolean;
 }): ListenFirstPlacement {
   if (!audioAvailable) return 'none';
   if (declined) return 'before_first_panel';
-  return preferred || dealt ? 'cycle' : 'before_first_panel';
+  return preferred || (dealt && !switchedOff) ? 'cycle' : 'before_first_panel';
 }
 
 /**

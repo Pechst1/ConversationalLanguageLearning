@@ -358,6 +358,7 @@ export function EpisodeRadio({
   onContinue,
   onReadInstead,
   onPrediction,
+  dealtDay = false,
 }: {
   episode: StoryEpisode;
   copy: JourneyCopy;
@@ -368,6 +369,8 @@ export function EpisodeRadio({
   onReadInstead: () => void;
   /** Record the prediction check. Never awaited: measurement must not block. */
   onPrediction?: (guess: EpisodeGuessId, verification: EpisodeVerification) => void;
+  /** Pilot P9: the planner dealt today as a listening day; the first stage says so. */
+  dealtDay?: boolean;
 }) {
   const [state, dispatch] = useReducer(radioReduce, episode, radioInitialFor);
   // WP-103 T2: the text, hidden until asked for — at every stage.
@@ -415,6 +418,7 @@ export function EpisodeRadio({
       onReadInstead={onReadInstead}
       dispatch={dispatch}
       dispatchText={dispatchText}
+      dealtDay={dealtDay}
     />
   );
 }
@@ -436,6 +440,7 @@ export function EpisodeRadioView({
   onReadInstead,
   dispatch,
   dispatchText,
+  dealtDay = false,
 }: {
   episode: StoryEpisode;
   copy: JourneyCopy;
@@ -448,6 +453,8 @@ export function EpisodeRadioView({
   onReadInstead: () => void;
   dispatch: (event: RadioEvent) => void;
   dispatchText: (event: RadioTextEvent) => void;
+  /** Pilot P9: today is a dealt listening day — said once, on the first stage. */
+  dealtDay?: boolean;
 }) {
   const guesses = useMemo(() => buildEpisodeGuesses(episode), [episode]);
   const lines = useMemo(() => episodeListenLines(episode), [episode]);
@@ -570,6 +577,12 @@ export function EpisodeRadioView({
 
       {state.stage === 'predire' && (
         <>
+          {/* Pilot P9: a dealt listening day says what it is before the first ask. */}
+          {dealtDay && (
+            <p className="av2-label" data-state="listen-first-day">
+              {copy.listen_first_day}
+            </p>
+          )}
           <p className="av2-body av2-body--lg">
             {copy.radio_predire_body}
           </p>

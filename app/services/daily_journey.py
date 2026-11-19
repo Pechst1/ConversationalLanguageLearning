@@ -141,6 +141,7 @@ from app.services.journey_day_shapes import (
     choose_day_shape,
     choose_desk,
     letter_offer_for,
+    played_day_from_story,
 )
 from app.services.journey_errata import errata_targets_for_user
 from app.services.journey_events import MIN_MEASURED_PACE_DAYS, measured_pace
@@ -5010,6 +5011,8 @@ class DailyJourneyService:
             # WP-91: Soutenu/Intensif hear every third day first.
             budget_seconds=int(journey.budget_seconds or 0) or None,
             errata_count=int(errata_count),
+            # P9 decision 7: no listening day before the 8th played day.
+            played_day=played_day_from_story(brief.story_context),
             # The WP-64 seam, wired: the letter the Courrier is already showing
             # this learner, read inside this transaction. `None` — no letter
             # waiting, or no provider — makes «jour de lettre» ineligible
