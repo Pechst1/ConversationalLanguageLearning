@@ -420,6 +420,28 @@ def db_session(db_engine) -> Generator[Session, None, None]:
 PRACTICE_DAY_MODULE_PREFIXES = ("test_wp78_", "test_long_horizon_evidence", "test_wp_l4_", "test_wp_s4_", "test_forge_integration")
 
 
+#: P6 (decision 8): the practice day's drill around the scene is the learner's own
+#: mistakes and one due rule (``journey_planner.RAPPEL_OWN_MISTAKES_ONLY``). These
+#: modules pin the WP-78 fill it replaced (word drills, scene-line items, the WP-86
+#: floor, WP-129's mixed units), which still runs on a listening day and with the
+#: switch off; ``tests/test_p6_drill_own_mistakes.py`` holds the day as it is now.
+WP78_FILL_MODULE_PREFIXES = (
+    "test_wp78_", "test_wp86_", "test_wp91_", "test_wp93_", "test_wp107_", "test_wp128_",
+    "test_wp129_", "test_wp130b_", "test_wp_l4_", "test_wp_l9_", "test_wpl6_", "test_revue_desk_steps",
+    "test_longer_low_band", "test_story_acts_plan", "test_tentpole_pricing", "test_season_orientation",
+)
+
+
+@pytest.fixture(autouse=True)
+def wp78_fill_in_its_own_suites(request, monkeypatch) -> None:
+    from app.services import journey_planner
+
+    module = getattr(request, "module", None)
+    name = str(getattr(module, "__name__", "")).rsplit(".", 1)[-1]
+    if name.startswith(WP78_FILL_MODULE_PREFIXES):
+        monkeypatch.setattr(journey_planner, "RAPPEL_OWN_MISTAKES_ONLY", False)
+
+
 @pytest.fixture(autouse=True)
 def classic_day_unless_practice_suite(request, monkeypatch) -> None:
     from app.config import settings
