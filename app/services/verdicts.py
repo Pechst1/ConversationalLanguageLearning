@@ -81,18 +81,20 @@ def failure_class(reason: Any) -> Failure:
 
 
 def _errata_as_proposed(errata: Iterable[Any], *, by: str) -> list[dict[str, Any]]:
-    """Stored corrections as proposed edits: an erratum's fields, or the Journal's card fields."""
+    """Stored corrections as proposed edits: an erratum's fields, or the Journal's card fields.
+
+    Every row is kept, a repeated one too (#925). A fix is a change at one place of the
+    line, and an erratum names its words, not its place: «n ai → n'ai» listed twice is the
+    slip written twice. :func:`app.core.verdict.locate_edits` gives each row the next
+    place its words stand that no other fix holds, and leaves out a row with none left.
+    """
 
     rows: list[dict[str, Any]] = []
-    seen: set[tuple[Any, Any]] = set()
     for item in errata or []:
         if not isinstance(item, dict) or not is_about_the_line(item):
             continue
         span = item.get("learner_text") or item.get("span_fr")
         replacement = item.get("corrected_target") or item.get("corrected_fr")
-        if (span, replacement) in seen:
-            continue
-        seen.add((span, replacement))
         rows.append(
             {
                 "span": span,
@@ -103,6 +105,15 @@ def _errata_as_proposed(errata: Iterable[Any], *, by: str) -> list[dict[str, Any
             }
         )
     return rows
+
+
+def _is_listed(item: dict[str, Any], errata: Iterable[dict[str, Any]]) -> bool:
+    """Whether ``errata`` holds the fix ``item`` makes (its words, an erratum's or the card's)."""
+
+    def fix(row: dict[str, Any]) -> tuple[Any, Any]:
+        return (row.get("learner_text") or row.get("span_fr"), row.get("corrected_target") or row.get("corrected_fr"))
+
+    return any(fix(row) == fix(item) for row in errata)
 
 
 def _correction_as_proposed(correction: Correction | None, *, by: str) -> list[dict[str, Any]]:
@@ -367,8 +378,11 @@ def read_journal(correction: dict[str, Any] | None, *, text: str = "") -> Read:
     """
 
     payload = correction if isinstance(correction, dict) else {}
-    # The card's one foreground correction is kept apart from the rest (WP-30).
-    errata = [*([payload["foreground"]] if payload.get("foreground") else []), *(payload.get("errata") or [])]
+    # The card's one foreground correction is kept apart from the rest (WP-30). It is one
+    # of the listed fixes, shown first: the same place, not one more (#925).
+    listed = [item for item in payload.get("errata") or [] if isinstance(item, dict)]
+    foreground = payload.get("foreground")
+    errata = [*([foreground] if isinstance(foreground, dict) and not _is_listed(foreground, listed) else []), *listed]
     checker = payload.get("checker")
     by_model = checker == "model" or (checker is None and payload.get("assessment_status") == "checked")
     if by_model:

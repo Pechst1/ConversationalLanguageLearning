@@ -15,6 +15,7 @@ from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, object_session
 
 from app.config import settings
+from app.core.verdict import times_written
 from app.db.models.atelier import AtelierSession
 from app.db.models.error import UserError
 from app.db.models.grammar import GrammarConcept, GrammarConceptLocalization
@@ -3904,6 +3905,7 @@ class MissionCorrectionService:
                     correction=correction,
                     deterministic_errata=deterministic_errata,
                     corrected_answer=deterministic_answer,
+                    text=text,
                 )
         correction["errata"] = self._clean_errata(
             correction.get("errata") or [],
@@ -4070,7 +4072,7 @@ class MissionCorrectionService:
         gates 1 and 3 but still have to be grounded.
         """
         cleaned: list[dict[str, Any]] = []
-        quoted: set[str] = set()
+        quoted: dict[str, int] = {}
         for raw in errata:
             if not isinstance(raw, dict):
                 continue
@@ -4083,10 +4085,12 @@ class MissionCorrectionService:
                 # were correct French, so neither is an error to drill.
                 continue
             key = _normalized_repair_text(erratum.get("learner_text"))
-            if key and key in quoted:
-                continue  # the same fragment noted twice, in other words
+            # The same fragment noted twice, in other words, is one note; the same words
+            # written twice in the message are two (#925).
+            if key and quoted.get(key, 0) >= max(1, times_written(submission_text, erratum.get("learner_text"))):
+                continue
             if key:
-                quoted.add(key)
+                quoted[key] = quoted.get(key, 0) + 1
             task_type = str(erratum.get("task_error_type") or "")
             if task_type == "task_compliance" or self._is_vocabulary_erratum(erratum):
                 # These two are authored here, not by the provider: they may
@@ -4487,15 +4491,14 @@ class MissionCorrectionService:
 
         # #250: the model-free pass of the shared corrector contract. The same rules
         # serve the scene reply and the Journal, so a model that fails (or is rejected)
-        # leaves real corrections here, never an "unavailable" card.
-        for edit in contract_edits:
-            if any(
-                edit.span.casefold() in item["learner_text"].casefold()
-                or item["learner_text"].casefold() in edit.span.casefold()
-                for item in errata
-            ):
-                continue
-            errata.append(correction_contract.to_erratum(edit, language=copy_language(language)))
+        # leaves real corrections here, never an "unavailable" card. A contract edit is
+        # left out where a rule above already fixes that place (#925: by place, so the
+        # second «n ai» is not taken for the first).
+        errata = correction_contract.add_unlisted_errata(
+            text,
+            errata,
+            [correction_contract.to_erratum(edit, language=copy_language(language)) for edit in contract_edits],
+        )
         return errata, corrected.strip()
 
     def _merge_deterministic_errata(
@@ -4504,35 +4507,17 @@ class MissionCorrectionService:
         correction: dict[str, Any],
         deterministic_errata: list[dict[str, Any]],
         corrected_answer: str,
+        text: str,
     ) -> dict[str, Any]:
         if not deterministic_errata:
             return correction
         merged = {**correction}
-        existing = list(merged.get("errata") or [])
-        existing_keys = {
-            (
-                str(item.get("learner_text") or "").casefold(),
-                str(item.get("corrected_target") or "").casefold(),
-                str(item.get("task_error_type") or ""),
-            )
-            for item in existing
-        }
-        quoted = [str(item.get("learner_text") or "").casefold() for item in existing]
-        for item in deterministic_errata:
-            key = (
-                str(item.get("learner_text") or "").casefold(),
-                str(item.get("corrected_target") or "").casefold(),
-                str(item.get("task_error_type") or ""),
-            )
-            span = key[0]
-            # #250: the model already quoted this fragment (or a longer one around it):
-            # one card per fragment, not «Mon carte» and «Mon» both.
-            if span and any(span in other or (other and other in span) for other in quoted):
-                continue
-            if key not in existing_keys:
-                existing.append(item)
-                existing_keys.add(key)
-        merged["errata"] = existing
+        # #250: the model already quoted this place (or a longer stretch around it): one
+        # card per fragment, not «Mon carte» and «Mon» both. #925: by place, not words, so
+        # a slip written twice the model quoted once keeps its second fix.
+        merged["errata"] = correction_contract.add_unlisted_errata(
+            text, [item for item in merged.get("errata") or [] if isinstance(item, dict)], deterministic_errata
+        )
         merged["corrected_answer"] = merged.get("corrected_answer") or corrected_answer or ""
         if merged.get("verdict") == "unassessed":
             return merged  # #333: rules add fixes, never a score

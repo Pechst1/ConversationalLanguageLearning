@@ -185,15 +185,12 @@ def _with_rule_fixes(correction: dict[str, Any], text: str, *, language: str | N
     yet» with «an → ans» never named. The rules' fixes are listed as a basic check: the
     answer still counts for nothing (#334), only a reading does."""
 
-    from app.services.correction_contract import deterministic_errata
+    from app.services.correction_contract import add_unlisted_errata, deterministic_errata
 
     errata = [item for item in (correction.get("errata") or []) if isinstance(item, dict)]
-    seen = {(item.get("learner_text"), item.get("corrected_target")) for item in errata}
-    for item in deterministic_errata(text, language=language):
-        key = (item.get("learner_text"), item.get("corrected_target"))
-        if key not in seen:
-            seen.add(key)
-            errata.append(item)
+    # #925: a rule's fix is new unless the same fix is already listed at its place, so a
+    # slip written twice keeps both its fixes.
+    errata = add_unlisted_errata(text, errata, deterministic_errata(text, language=language), same_fix_only=True)
     correction["errata"] = errata
     correction["notes_native"] = notes_native(errata)
     return correction

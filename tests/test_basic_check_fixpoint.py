@@ -26,6 +26,7 @@ import re
 
 import pytest
 
+from app.core.verdict import span_pattern
 from app.services import correction_contract as cc
 
 # ---------------------------------------------------------------------------
@@ -248,3 +249,210 @@ def test_floor_corpora_settle():
         if again or doubled:
             wrong.append(f"{sentence!r} -> {fixed!r} {again}")
     assert not wrong, f"{len(wrong)} printed lines the check would still correct: {wrong}"
+
+
+# ---------------------------------------------------------------------------
+# #925: a slip written twice is listed twice, and fixed twice in the printed line
+# ---------------------------------------------------------------------------
+
+#: #925 (walk 19 Nov, a2-en, Courrier day 1): «n ai» twice.
+COURRIER_925 = (
+    "Salut Marin ! Je n ai pas vendu l appartement. J ai garde la cle dans ma poche toute la nuit. "
+    "Je n ai rien mange, tu connais un bon restaurant ? Peut-etre je reste a Paris, c est fou !"
+)
+#: More lines with one slip written twice, as learners write them.
+TWICE = [
+    COURRIER_925,
+    "J ai faim et j ai soif.",
+    "Je n ai pas la clé, je n ai rien.",
+    "C est bizarre, c est fou, c est Paris.",
+    "Il m a dit que je suis le petit fils, et il m a donne la cle.",
+]
+
+
+def _erratum(span: str, fix: str) -> dict:
+    return {"learner_text": span, "corrected_target": fix, "why_wrong": "", "task_error_type": "orthography"}
+
+
+#: The Courrier row the walk read: its list says «n'ai · l'appartement · J'ai · c'est · n'ai».
+COURRIER_925_ERRATA = [
+    _erratum("n ai", "n'ai"),
+    _erratum("l appartement", "l'appartement"),
+    _erratum("J ai", "J'ai"),
+    _erratum("c est", "c'est"),
+    _erratum("n ai", "n'ai"),
+]
+
+
+def _journal_row(errata: list[dict]) -> dict:
+    return {
+        "checker": "model",
+        "verdict": "needs_revision",
+        "errata": [{"span_fr": e["learner_text"], "corrected_fr": e["corrected_target"]} for e in errata],
+    }
+
+
+#: Each surface's stored row, read by the model or by the rules alone.
+_ROWS = {
+    "courrier-model": lambda errata: (
+        "courrier",
+        {"errata": errata, "verdict": "needs_revision", "correction_debug": {"model": "m"}},
+    ),
+    "courrier-rules": lambda errata: (
+        "courrier",
+        {"errata": errata, "verdict": "unassessed", "correction_debug": {"fallback_used": True, "failure": "no_model"}},
+    ),
+    "forge-model": lambda errata: ("forge", {"errata": errata, "verdict": "partial", "correction_debug": {"model": "m"}}),
+    "forge-rules": lambda errata: ("forge", {"errata": errata, "assessment_status": "unavailable"}),
+    "journal-model": lambda errata: ("journal", _journal_row(errata)),
+}
+
+
+def _printed(row: str, errata: list[dict], line: str) -> str | None:
+    from app.services import verdicts
+
+    surface, payload = _ROWS[row](errata)
+    return getattr(verdicts, f"from_{surface}")(payload, text=line).corrected
+
+
+@pytest.mark.parametrize("row", list(_ROWS))
+def test_courrier_925(row):
+    """#925 done-when: the walk's line, with the errata the walk's row held and with its
+    deterministic errata, prints «n'ai» in both places the list names it."""
+    for errata in (COURRIER_925_ERRATA, cc.deterministic_errata(COURRIER_925, language="en")):
+        printed = _printed(row, errata, COURRIER_925) or ""
+        assert "Je n'ai pas vendu" in printed and "Je n'ai rien mange" in printed, printed
+
+
+def _as_listed(line: str, edits) -> list[dict]:
+    """The edits as a model lists them: the slip's own words, without the words the check
+    puts in front so that a span is found only there. A span is cut back only when every
+    place its words stand in the line is a slip of the same fix (a slip written twice)."""
+
+    bare = []
+    for edit in edits:
+        wrong, right = edit.span.split(" "), edit.replacement.split(" ")
+        while len(wrong) > 1 and len(right) > 1 and wrong[0] == right[0]:
+            wrong, right = wrong[1:], right[1:]
+        bare.append((" ".join(wrong), " ".join(right)))
+    rows = []
+    for edit, (wrong, right) in zip(edits, bare, strict=True):
+        written = len(list(span_pattern(wrong).finditer(line)))
+        listed = sum(1 for pair in bare if pair == (wrong, right))
+        rows.append(_erratum(wrong, right) if written == listed else _erratum(edit.span, edit.replacement))
+    return rows
+
+
+def _twice_lines() -> list[str]:
+    """The lines, among #925's and the walks', where one fix is listed twice."""
+    lines: list[str] = []
+    for line in [*TWICE, *CORPUS, *(param.values[0] for param in EXPECTED)]:
+        pairs = [(row["learner_text"], row["corrected_target"]) for row in _as_listed(line, cc.deterministic_edits(line))]
+        if len(set(pairs)) < len(pairs) and line not in lines:
+            lines.append(line)
+    return lines
+
+
+def test_twice_corpus_is_not_empty():
+    assert len(_twice_lines()) >= 5, _twice_lines()
+
+
+@pytest.mark.parametrize("row", list(_ROWS))
+def test_every_listed_fix_is_printed(row):
+    """#925's guard: for every line with a slip written twice, the printed line is the
+    check's own edits applied to it, whichever surface reads the row and whoever wrote it."""
+    wrong = []
+    for line in _twice_lines():
+        edits = cc.deterministic_edits(line)
+        printed = _printed(row, _as_listed(line, edits), line)
+        if printed != cc.apply_edits(line, edits):
+            wrong.append(f"{line!r} -> {printed!r}")
+    assert not wrong, wrong
+
+
+#: One slip written twice, and the model's list naming it twice or once.
+TWICE_LINE = "Je n ai pas la clé, je n ai rien."
+_N_AI = {"learner_text": "n ai", "corrected_target": "n'ai", "why_wrong": "Apostrophe.", "task_error_type": "orthography", "severity": 1}
+
+
+def _placed(line: str, errata: list[dict]) -> str:
+    """The line with the listed fixes made, each in its own place, as a screen prints it."""
+    from app.core.verdict import apply_edits, locate_edits
+
+    rows = [{"span": e.get("learner_text"), "replacement": e.get("corrected_target")} for e in errata]
+    return apply_edits(line, locate_edits(line, rows))
+
+
+def test_a_note_per_place_is_kept():
+    """#925, where a list is cleaned: the same words noted twice are two notes when the
+    line holds them twice, and one note when it holds them once (#93)."""
+    assert len(cc.grounded_errata(TWICE_LINE, [_N_AI, dict(_N_AI)])) == 2
+    assert len(cc.grounded_errata("Je n ai pas la clé.", [_N_AI, dict(_N_AI)])) == 1
+
+
+def test_courrier_clean_keeps_a_note_per_place():
+    from app.services.missions import MissionCorrectionService
+
+    service = MissionCorrectionService.__new__(MissionCorrectionService)
+    service._normalize_erratum = lambda raw, mission, submission_text=None: dict(raw)
+    kept = service._clean_errata([_N_AI, dict(_N_AI)], mission=None, submission_text=TWICE_LINE, language="en")
+    assert _placed(TWICE_LINE, kept) == "Je n'ai pas la clé, je n'ai rien.", kept
+    once = service._clean_errata([_N_AI, dict(_N_AI)], mission=None, submission_text="Je n ai rien.", language="en")
+    assert len(once) == 1, once
+
+
+def test_merges_add_the_rules_second_place():
+    """#925, where the rules' fixes join the model's: the model named «n ai» once, the
+    rules name both places, and the list ends with both."""
+    import inspect
+
+    from app.services import atelier
+    from app.services.missions import MissionCorrectionService
+
+    merged = cc.merge_deterministic_errata(TWICE_LINE, [_N_AI], language="en")
+    assert _placed(TWICE_LINE, merged) == "Je n'ai pas la clé, je n'ai rien.", merged
+
+    forge = atelier._with_rule_fixes({"errata": [dict(_N_AI)]}, TWICE_LINE, language="en")["errata"]
+    assert _placed(TWICE_LINE, forge) == "Je n'ai pas la clé, je n'ai rien.", forge
+
+    service = MissionCorrectionService.__new__(MissionCorrectionService)
+    rules, _corrected = service._deterministic_errata(TWICE_LINE, language="en")
+    merge = service._merge_deterministic_errata
+    where = {"text": TWICE_LINE} if "text" in inspect.signature(merge).parameters else {}
+    courrier = merge(
+        correction={"errata": [dict(_N_AI)], "verdict": "needs_revision"},
+        deterministic_errata=rules,
+        corrected_answer="",
+        **where,
+    )["errata"]
+    assert _placed(TWICE_LINE, courrier) == "Je n'ai pas la clé, je n'ai rien.", courrier
+
+
+def test_merges_keep_one_card_per_fragment():
+    """#250 still holds by place: a longer quote of the model's around a rule's fragment
+    keeps the fragment off a second card."""
+    from app.services.missions import MissionCorrectionService
+
+    service = MissionCorrectionService.__new__(MissionCorrectionService)
+    line = "Mon carte est jolie."
+    model = {"learner_text": "Mon carte", "corrected_target": "Ma carte", "why_wrong": "carte is feminine.", "task_error_type": "gender_agreement"}
+    rule = {"learner_text": "Mon", "corrected_target": "Ma", "why_wrong": "", "task_error_type": "gender_agreement"}
+    merged = service._merge_deterministic_errata(
+        correction={"errata": [model], "verdict": "needs_revision"}, deterministic_errata=[rule], corrected_answer="", text=line
+    )["errata"]
+    assert [item["learner_text"] for item in merged] == ["Mon carte"]
+
+
+def test_journal_foreground_is_one_of_its_fixes():
+    """The Journal's foreground is the first of its listed fixes, not one more: it does not
+    land on a right «a» further on."""
+    from app.services import verdicts
+
+    line = "Je vais a Paris et il a faim."
+    payload = {
+        "checker": "model",
+        "verdict": "needs_revision",
+        "foreground": {"span_fr": "a", "corrected_fr": "à"},
+        "errata": [{"span_fr": "a", "corrected_fr": "à"}],
+    }
+    assert verdicts.from_journal(payload, text=line).corrected == "Je vais à Paris et il a faim."

@@ -117,12 +117,54 @@ def span_pattern(span: str) -> re.Pattern[str]:
     return re.compile(rf"(?<!\w){body}(?!\w)", re.IGNORECASE)
 
 
+def place_of(text: str, span: object, taken: Iterable[tuple[int, int]] = ()) -> tuple[int, int] | None:
+    """Where ``span`` stands in ``text``: the first place its words stand that overlaps
+    nothing in ``taken``, or ``None`` when there is none.
+
+    A listed fix names its words, not its place (#925). Reading the list in order and
+    giving each row the next free place is what makes «n ai → n'ai» listed twice the slip
+    written twice, and a third «n ai» a row with nowhere to go. Whoever places a row, to
+    print it or to tell a new fix from one already listed, places it this way.
+    """
+
+    words = str(span or "")
+    if not words.strip():
+        return None
+    held = list(taken)
+    for match in span_pattern(words).finditer(text):
+        start, end = match.span()
+        if all(end <= left or start >= right for left, right in held):
+            return start, end
+    return None
+
+
+def times_written(text: str, span: object) -> int:
+    """How many places of ``text`` hold ``span``'s words: how often a fix of them may be listed."""
+
+    words = str(span or "")
+    return sum(1 for _ in span_pattern(words).finditer(text)) if words.strip() else 0
+
+
+def place_spans(text: str, spans: Iterable[object]) -> list[tuple[int, int] | None]:
+    """:func:`place_of` for each span in turn, each taking its place from the ones after it."""
+
+    taken: list[tuple[int, int]] = []
+    places: list[tuple[int, int] | None] = []
+    for span in spans:
+        where = place_of(text, span, taken)
+        if where is not None:
+            taken.append(where)
+        places.append(where)
+    return places
+
+
 def locate_edits(text: str, proposed: Iterable[dict[str, Any]]) -> tuple[Edit, ...]:
     """The proposed changes whose span is really in ``text``, in reading order, none overlapping.
 
     Each row holds ``span`` and ``replacement``, and may hold ``note``, ``by`` and
     ``rule_id``. An edit naming words the learner did not write has nothing to change,
-    so it is left out rather than printed.
+    so it is left out rather than printed. A row naming the same words as one before it
+    takes the next place they stand (:func:`place_of`).
     """
 
     taken: list[tuple[int, int]] = []
@@ -132,22 +174,22 @@ def locate_edits(text: str, proposed: Iterable[dict[str, Any]]) -> tuple[Edit, .
         replacement = str(row.get("replacement") or "")
         if not span.strip() or span.strip() == replacement.strip():
             continue
-        for match in span_pattern(span).finditer(text):
-            start, end = match.span()
-            if all(end <= left or start >= right for left, right in taken):
-                taken.append((start, end))
-                edits.append(
-                    Edit(
-                        span=text[start:end],
-                        start=start,
-                        end=end,
-                        replacement=replacement,
-                        note=str(row.get("note") or ""),
-                        by=str(row.get("by") or "model"),
-                        rule_id=row.get("rule_id") or None,
-                    )
-                )
-                break
+        where = place_of(text, span, taken)
+        if where is None:
+            continue
+        start, end = where
+        taken.append(where)
+        edits.append(
+            Edit(
+                span=text[start:end],
+                start=start,
+                end=end,
+                replacement=replacement,
+                note=str(row.get("note") or ""),
+                by=str(row.get("by") or "model"),
+                rule_id=row.get("rule_id") or None,
+            )
+        )
     return tuple(sorted(edits, key=lambda edit: edit.start))
 
 
@@ -203,5 +245,8 @@ __all__ = [
     "apply_edits",
     "locate_edits",
     "make_verdict",
+    "place_of",
+    "place_spans",
     "span_pattern",
+    "times_written",
 ]

@@ -52,7 +52,7 @@ from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from typing import Any
 
-from app.core.verdict import span_pattern
+from app.core.verdict import place_spans, span_pattern, times_written
 from app.services.answer_acceptance import (
     correction_is_grounded,
     is_real_correction,
@@ -3264,7 +3264,8 @@ def grounded_errata(
     :func:`edit_is_grounded`, each with its notes held to its own corrected form
     (:func:`reconcile_notes`, #369). Authored task/vocabulary notes pass untouched."""
     kept: list[dict[str, Any]] = []
-    seen: set[str] = set()
+    seen: dict[str, int] = {}
+    line = "" if text is None else str(text)
     for item in errata:
         if not isinstance(item, Mapping):
             continue
@@ -3272,13 +3273,15 @@ def grounded_errata(
             kept.append(dict(item))
             continue
         quoted = " ".join(_words_of(item.get("learner_text")))
-        if quoted and quoted in seen:
-            continue  # one note per issue, not two near-duplicates (#93)
+        # One note per issue, not two near-duplicates (#93); but the same words written
+        # twice are two issues, one note each (#925).
+        if quoted and seen.get(quoted, 0) >= max(1, times_written(line, item.get("learner_text"))):
+            continue
         verified = verify_erratum(text, item, strict_span=strict_span)
         if verified is not None:
             kept.append(reconcile_notes(verified, language=language, context=text))
             if quoted:
-                seen.add(quoted)
+                seen[quoted] = seen.get(quoted, 0) + 1
     return kept
 
 
@@ -3323,18 +3326,56 @@ def merge_deterministic_errata(
 ) -> list[dict[str, Any]]:
     """Grounded model errata plus the deterministic ones that do not overlap them."""
     kept = grounded_errata(text, errata, language=language)
-    source = ("" if text is None else str(text)).casefold()
-    taken: list[tuple[int, int]] = []
-    for item in kept:
-        span = str(item.get("learner_text") or "").casefold()
-        at = source.find(span) if span else -1
-        if at >= 0:
-            taken.append((at, at + len(span)))
+    line = "" if text is None else str(text)
+    taken = [where for where in place_spans(line, (item.get("learner_text") for item in kept)) if where]
     for edit in deterministic_edits(text, people=people):
         if any(edit.start < b and a < edit.end for a, b in taken):
             continue
         kept.append(to_erratum(edit, language=language))
     return kept
+
+
+def add_unlisted_errata(
+    text: object,
+    errata: Iterable[Mapping[str, Any]],
+    extra: Iterable[Mapping[str, Any]],
+    *,
+    same_fix_only: bool = False,
+) -> list[dict[str, Any]]:
+    """``errata``, then each row of ``extra`` whose place in ``text`` no row of ``errata`` holds (#925).
+
+    An erratum names its fix by its words; its place is where those words stand that no row
+    before it holds (:func:`app.core.verdict.place_of`). So «n ai → n'ai» listed once by the
+    model and twice by the rules adds the rules' second «n ai», the slip written again; and
+    a longer quote of the model's around a rule's fragment («Mon carte» around «Mon») keeps
+    that fragment off a second card (#250). With ``same_fix_only`` a held place keeps out
+    only a row making the same fix in the same words. A row of ``extra`` the line does not
+    hold is added unless ``errata`` holds the same fix in the same words.
+    """
+
+    def fix(item: Mapping[str, Any]) -> tuple[str, str]:
+        return _norm(item.get("learner_text")).casefold(), _norm(item.get("corrected_target")).casefold()
+
+    line = "" if text is None else str(text)
+    out = [dict(item) for item in errata]
+    held = [
+        (where, fix(item))
+        for item, where in zip(out, place_spans(line, (item.get("learner_text") for item in out)), strict=True)
+        if where
+    ]
+    fixes = {fix(item) for item in out}
+    rows = [dict(item) for item in extra]
+    for item, where in zip(rows, place_spans(line, (item.get("learner_text") for item in rows)), strict=True):
+        if where is None:
+            if fix(item) in fixes:
+                continue
+            fixes.add(fix(item))
+        elif any(
+            where[0] < b and a < where[1] and (not same_fix_only or listed == fix(item)) for (a, b), listed in held
+        ):
+            continue
+        out.append(item)
+    return out
 
 
 def first_valid_edit(
@@ -3793,6 +3834,7 @@ __all__ = [
     "Edit",
     "SentenceGap",
     "Verdict",
+    "add_unlisted_errata",
     "apply_edits",
     "apply_gaps",
     "changes_what_was_said",
