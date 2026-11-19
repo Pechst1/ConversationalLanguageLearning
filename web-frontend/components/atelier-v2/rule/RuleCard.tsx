@@ -414,11 +414,11 @@ export function RuleCard({
           >
             {showTranslation ? copy.hideTranslation : copy.translate}
           </button>
-          {showTranslation && <p className="rc-translation">{translation}</p>}
+          {showTranslation && <p className="rc-translation" lang={say}>{translation}</p>}
         </div>
       )}
 
-      {rule && <p className="rc-rule">{rule}</p>}
+      {rule && <p className="rc-rule" lang={say}>{rule}</p>}
 
       {pattern?.kind === 'rows' && pattern.rows.length > 0 && (
         <div className="rc-pattern" role="group" aria-label={copy.pattern} lang="fr">
@@ -446,7 +446,7 @@ export function RuleCard({
               </div>
             ))}
           </div>
-          {pick(pattern.note, say) && <p className="rc-note">{pick(pattern.note, say)}</p>}
+          {pick(pattern.note, say) && <p className="rc-note" lang={say}>{pick(pattern.note, say)}</p>}
         </div>
       )}
 
@@ -471,7 +471,7 @@ export function RuleCard({
           </button>
           {showWhy && !deep && (
             <p className="rc-more">
-              {more}{' '}
+              <span lang={say}>{more}</span>{' '}
               {conceptId != null && (
                 <Link className="rc-cahier" href={`/grammar?concept=${conceptId}`}>
                   {copy.cahier}
@@ -481,7 +481,7 @@ export function RuleCard({
           )}
           {showWhy && deep && (
             <div className="rc-deep">
-              {more && <p className="rc-more">{more}</p>}
+              {more && <p className="rc-more" lang={say}>{more}</p>}
 
               {steps.length > 0 && (
                 <div className="rc-sec">
@@ -490,7 +490,7 @@ export function RuleCard({
                     {steps.map((step, index) => (
                       <li key={index} className="rc-step">
                         <span className="rc-step__n" aria-hidden="true">{index + 1}</span>
-                        <span className="rc-step__text">{step}</span>
+                        <span className="rc-step__text" lang={say}>{step}</span>
                       </li>
                     ))}
                   </ol>
@@ -520,7 +520,7 @@ export function RuleCard({
                           <span className="rc-ex__fr" lang="fr">
                             <Marked value={item.fr} />
                           </span>
-                          {showExampleTranslations && tr && <span className="rc-ex__tr">{tr}</span>}
+                          {showExampleTranslations && tr && <span className="rc-ex__tr" lang={say}>{tr}</span>}
                         </li>
                       );
                     })}
@@ -539,7 +539,7 @@ export function RuleCard({
                           <div className="rc-contrast" lang="fr">
                             <WrongRight wrong={trap.wrong} right={trap.right} copy={copy} />
                           </div>
-                          {why && <p className="rc-trap__why">{why}</p>}
+                          {why && <p className="rc-trap__why" lang={say}>{why}</p>}
                         </li>
                       );
                     })}
@@ -555,7 +555,7 @@ export function RuleCard({
                       <li key={partner.id}>
                         <Link className="rc-partner" href={partner.href}>
                           <span className="rc-partner__title" lang="fr">{partner.title}</span>
-                          {partner.note && <span className="rc-partner__note">{partner.note}</span>}
+                          {partner.note && <span className="rc-partner__note" lang={say}>{partner.note}</span>}
                         </Link>
                       </li>
                     ))}

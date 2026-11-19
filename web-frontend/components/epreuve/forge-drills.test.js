@@ -286,7 +286,7 @@ test('guard: the rafale recap never lists a sentence without its own result', ()
   });
   // The page hands the recap every row the server marked, and the rule's line.
   assert.match(PAGE, /<ForgeRafaleResult\s+rows=\{burstMarks\}/);
-  assert.match(PAGE, /reasonFor=\{\(row\) => rafaleReason\(ruleCard, row, language\)\}/);
+  assert.match(PAGE, /reasonFor=\{\(row\) => rafaleReason\(ruleCard, row, explainLanguage\)\}/);
   // A burst mark is never dropped on its way from the server.
   const marks = Lib.burstRows({ burst: rows.map((row) => ({ item_id: row.itemId, sentence: row.sentence, answer: row.answer, expected: row.expected, correct: row.correct })) });
   assert.deepEqual(marks.map((mark) => mark.correct), rows.map((row) => row.correct));

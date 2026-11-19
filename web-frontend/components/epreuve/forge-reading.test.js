@@ -109,7 +109,7 @@ test('the miss card: one reason, the rest behind «More», the task as one quiet
   const moment = slice(PAGE, 'export function ExerciseFeedbackMoment(', 'function ConceptRulePanel(');
   // No «Task» card any more: the av2-surface with the task label is gone.
   assert.doesNotMatch(moment, /<p className="av2-label">\{t\.task\}<\/p>/);
-  assert.match(moment, /<EpTaskLine label=\{t\.task\}>\{taskNote\}<\/EpTaskLine>/);
+  assert.match(moment, /<EpTaskLine label=\{t\.task\}>\{explained\(taskNote\)\}<\/EpTaskLine>/);
   // The reason and the repair hint are deduplicated; the first is the card's line.
   assert.match(moment, /const \[reason, \.\.\.rest\] = dedupeNotes\(\[\.\.\.whyText\.split\('\\n'\), hintText\]\)\s*\.filter\(\(note\) => !taskSaid\.has\(note\.trim\(\)\)\)/);
   // With the solution on screen the hint waits behind «More»; while a repair is open it

@@ -427,6 +427,7 @@ export function ForgeRafaleResult({
   coach,
   coachMood,
   reasonFor,
+  reasonLang,
   onNext,
   nextLabel,
 }: {
@@ -439,6 +440,8 @@ export function ForgeRafaleResult({
   coachMood?: PortraitMood;
   /** Why this sentence was missed, in the learner's language (the rule card's own words); never the rule chip's label (#564). */
   reasonFor?: (row: BurstRow) => string | null;
+  /** R4: the language `reasonFor` explains in (the learner's own), marked on its line. */
+  reasonLang?: string;
   onNext: () => void;
   nextLabel: string;
 }) {
@@ -493,7 +496,9 @@ export function ForgeRafaleResult({
                 )}
                 {!row.correct && (
                   <p className="forge-rafale__why">
-                    {[isRightCall(row.expected) ? copy.rafale_why_right : copy.rafale_why_wrong, reasonFor?.(row) || null].filter(Boolean).join(' ')}
+                    {isRightCall(row.expected) ? copy.rafale_why_right : copy.rafale_why_wrong}
+                    {/* R4: the reason explains, in the learner's own language (marked). */}
+                    {reasonFor?.(row) ? <> <span lang={reasonLang}>{reasonFor(row)}</span></> : null}
                   </p>
                 )}
                 {row.correctedFr && (
