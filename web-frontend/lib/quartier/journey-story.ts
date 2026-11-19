@@ -20,6 +20,7 @@ import type { AttemptResult, HelpKind, JourneySnapshot, RespondStep, SceneStep, 
 
 import type { Value } from './memory';
 import { STAGED_DAYS, nextTurn, unbuiltOf } from './story';
+export { episodeLabel } from './story';
 import type {
   Answered,
   Ask,
@@ -160,11 +161,17 @@ export function pageOfStage(x: unknown): StoryPage | null {
   };
 }
 
-/** Today's page, from the journey's scene step: the authored season page, else the scene written today. */
+/**
+ * Today's page, from the journey's scene step: the authored season page, else the scene written today.
+ * P12: its number is the day's edition (`journey.edition_no`), the «Nº n» Home, the reader and the
+ * recap print; the authored page's own number counts the season's pages («Épisode 2» on Nº 8).
+ */
 export function pageOfJourney(journey: JourneySnapshot | null): StoryPage | null {
   const scene = journey?.steps.find((s): s is SceneStep => s.kind === 'scene');
   if (!journey || !scene) return null;
-  return pageOfStage(scene.prompt.stage) ?? pageOfScene(journey, scene);
+  const page = pageOfStage(scene.prompt.stage) ?? pageOfScene(journey, scene);
+  const edition = typeof journey.edition_no === 'number' && journey.edition_no > 0 ? journey.edition_no : null;
+  return page && edition !== null ? { ...page, number: edition } : page;
 }
 
 /** The one question of a scene written today: the talk, which goes on for as long as the engine keeps it open. */

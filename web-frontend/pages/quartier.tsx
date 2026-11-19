@@ -8,8 +8,9 @@
  * puts before the scene (a rule, a few words) and what follows it are the Feuilleton's own steps,
  * played over the quarter. A day left in the middle of its talk is the Feuilleton's to finish.
  *
- * Behind `quartierVisible` in launch-flags.json in a production build; a development build
- * always has it. The street is WebGL, so it never renders on the server.
+ * Behind `quartierVisible` in launch-flags.json in a production build, launched since 17 Nov
+ * (P12: a choice beside the page on Home, not the default); a development build always has it.
+ * The street is WebGL, so it never renders on the server.
  */
 import dynamic from 'next/dynamic';
 import Head from 'next/head';
@@ -25,7 +26,7 @@ import { JOURNEY_RESUME_HREF } from '@/lib/journey-resume';
 import { QUARTIER_VISIBLE } from '@/lib/launch-flags';
 import { levelBand } from '@/lib/language-rule';
 import { quartierNative, readLearnerLanguage, readLearnerLevel, useLearnerLanguage } from '@/lib/learner-language';
-import { JourneyStory, stagedPageOf, todayOf } from '@/lib/quartier/journey-story';
+import { JourneyStory, episodeLabel, stagedPageOf, todayOf } from '@/lib/quartier/journey-story';
 import type { Today } from '@/lib/quartier/journey-story';
 import type { Level, Native } from '@/lib/quartier/stage';
 import { placeCard } from '@/lib/quartier/story';
@@ -181,7 +182,7 @@ function noteOf(
     const s = phase.scenario;
     if (!s) return { title: 'Aujourd’hui', text: copy.nothing };
     return {
-      kicker: c.envelope?.headline?.edition_no ? `Épisode ${c.envelope.headline.edition_no}` : undefined,
+      kicker: episodeLabel(c.envelope?.headline?.edition_no) ?? undefined,
       title: s.title_fr,
       // opening the day writes its scene when none was written ahead: that can take a minute
       text: c.busy ? copy.preparing : s.objective_native,
@@ -203,12 +204,12 @@ function noteOf(
         },
       };
     case 'before':
-      return { kicker: today.page.number ? `Épisode ${today.page.number}` : undefined, title: today.page.title_fr || 'Avant la scène', text: copy.before, action: { label: 'Commencer', run: warmUp } };
+      return { kicker: episodeLabel(today.page.number) ?? undefined, title: today.page.title_fr || 'Avant la scène', text: copy.before, action: { label: 'Commencer', run: warmUp } };
     case 'handoff':
       if (today.why === 'elsewhere') {
         const name = placeCard(today.place, today.page.location_name)?.[copy.lang] ?? null;
         return {
-          kicker: today.page.number ? `Épisode ${today.page.number}` : undefined,
+          kicker: episodeLabel(today.page.number) ?? undefined,
           title: today.page.title_fr || 'Le Feuilleton',
           text: copy.elsewhere(name),
           action: { label: 'Ouvrir le Feuilleton', run: feuilleton },

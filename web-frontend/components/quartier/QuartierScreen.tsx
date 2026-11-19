@@ -43,7 +43,8 @@ import type { RoomSpec } from '@/lib/quartier/room';
 import type { SiteSpec } from '@/lib/quartier/site';
 import { Stage } from '@/lib/quartier/stage';
 import type { AnswerUi, Cue, Director, Handover, Level, Native, PhoneUi, SpeechUi, StageUi, TalkUi } from '@/lib/quartier/stage';
-import { STAGED_DAYS, pageOfCopy } from '@/lib/quartier/story';
+import { STAGED_DAYS, episodeLabel, pageOfCopy } from '@/lib/quartier/story';
+import { GLOSS_NOTE, noteLanguage, readGloss, shownDirection, takeGlossNote, writeGloss } from '@/lib/quartier/gloss';
 import type { HelpStep, Story, StoryPage } from '@/lib/quartier/story';
 import { Visit } from '@/lib/quartier/visit';
 import { doorsAt, placeOf, playedHere, worldState } from '@/lib/quartier/world';
@@ -136,7 +137,8 @@ const WORLD_WAIT_MS = 4000;
 /** The hand-drawn quarter: the quai de Valmy and Le Mistral. */
 const HOME = 'quai_de_valmy';
 
-const COPY = {
+/** The quarter's own words, by the learner's language (exported for the sheets' render tests). */
+export const COPY = {
   en: {
     start: 'Commencer',
     howto: 'Drag to look around. Tap the ground to walk there, or use the stick. Tap a card to go on. You can walk out of a scene, refuse, or talk to anyone when the scene gives you a moment.',
@@ -235,9 +237,9 @@ const COPY = {
 
 type Copy = (typeof COPY)['en'];
 
-/** «Épisode 12», or the quarter's name when the page has no number. */
+/** «Nº 12» (the day's edition, as Home prints it), or the quarter's name when the page has no number. */
 function episodeOf(page: StoryPage | null) {
-  return page?.number ? `Épisode ${page.number}` : 'Le Quartier';
+  return episodeLabel(page?.number) ?? 'Le Quartier';
 }
 
 export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance: firstAmbiance = 'nuit', onExit, showStats = false, startPlace, cast, onReady, hidden = false, details, world }: QuartierScreenProps) {
@@ -250,7 +252,23 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
   const [loading, setLoading] = React.useState<{ share: number; label: string } | null>({ share: 0, label: 'Les encres' });
   const [failed, setFailed] = React.useState<string | null>(null);
   const [ui, setUi] = React.useState<StageUi | null>(null);
-  const [translate, setTranslate] = React.useState(false);
+  // P12: the line in the learner's language under each card, on below B1 until they switch it off
+  // (the page is never rendered on the server, so the device is read at once)
+  const [translate, setTranslate] = React.useState(() => readGloss(level));
+  // the first time, one line beside the chip says what it does
+  const [glossNote, setGlossNote] = React.useState(false);
+  React.useEffect(() => {
+    if (!takeGlossNote()) return;
+    setGlossNote(true);
+    const t = window.setTimeout(() => setGlossNote(false), 9000);
+    return () => window.clearTimeout(t);
+  }, []);
+  const toggleGloss = () => {
+    const on = !translate;
+    setTranslate(on);
+    writeGloss(on);
+    setGlossNote(false);
+  };
   const [soundOn, setSoundOn] = React.useState(true);
   const [ambiance, setAmbiance] = React.useState<AmbianceId>(firstAmbiance);
   const [stats, setStats] = React.useState<Stats | null>(null);
@@ -624,10 +642,15 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
             <button type="button" className="qz-round" aria-label="Le son" aria-pressed={soundOn} onClick={toggleSound}>
               <IconSound on={soundOn} />
             </button>
-            <button type="button" className="qz-round" aria-label="Traduction" aria-pressed={translate} onClick={() => setTranslate(!translate)}>
+            <button type="button" className="qz-round" aria-label="Traduction" aria-pressed={translate} onClick={toggleGloss}>
               <span className="qz-lang">{native.toUpperCase()}</span>
             </button>
           </div>
+          {glossNote ? (
+            <p className="qz-gloss-note" role="note">
+              {GLOSS_NOTE[noteLanguage(native, level)][translate ? 'on' : 'off']}
+            </p>
+          ) : null}
           {phase !== 'title' && phase !== 'roam' ? (
             <div className="qz-progress" aria-hidden>
               <i style={{ width: `${Math.round((ui?.progress ?? 0) * 100)}%` }} />
@@ -666,7 +689,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
           <p className="qz-speaker">
             <i aria-hidden />
             {line.name}
-            {line.direction ? <span className="qz-direction">{line.direction}</span> : null}
+            {shownDirection(line.direction, native) ? <span className="qz-direction">{shownDirection(line.direction, native)}</span> : null}
           </p>
           <p className="qz-line" lang="fr">
             {line.text}
@@ -729,7 +752,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
 
       {ui?.answer ? <AnswerSheet key={ui.answer.id} a={ui.answer} copy={copy} onSend={(t) => st?.answer(t)} onHelp={() => st?.askHelp?.()} /> : null}
 
-      {ui?.talk ? <TalkSheet key={ui.talk.who} t={ui.talk} translate={translate} copy={copy} onSay={(t) => st?.talkSay(t)} onClose={() => st?.endTalk()} /> : null}
+      {ui?.talk ? <TalkSheet key={ui.talk.who} t={ui.talk} translate={translate} native={native} copy={copy} onSay={(t) => st?.talkSay(t)} onClose={() => st?.endTalk()} /> : null}
 
       {phase === 'roam' && !ui?.talk && !ui?.goal && !near ? <div className="qz-hint">{room ? (room.switches.length ? copy.roomHint : copy.litHint) : copy.roamHint}</div> : null}
       {phase === 'roam' && ui?.met ? (
@@ -1040,7 +1063,7 @@ function Write({
  * The answer sheet: the question, an empty field, and help only when asked for, a step at a time
  * (a hint, words to build with, an example), each recorded by the engine before it shows.
  */
-function AnswerSheet({ a, copy, onSend, onHelp }: { a: AnswerUi; copy: Copy; onSend: (text: string) => void; onHelp: () => void }) {
+export function AnswerSheet({ a, copy, onSend, onHelp }: { a: AnswerUi; copy: Copy; onSend: (text: string) => void; onHelp: () => void }) {
   const [text, setText] = React.useState('');
   const hint = a.help.find((h) => h.step === 'hint');
   const words = a.help.find((h) => h.step === 'words');
@@ -1089,7 +1112,7 @@ function AnswerSheet({ a, copy, onSend, onHelp }: { a: AnswerUi; copy: Copy; onS
 }
 
 /** Talking to someone: what they said last, what you said, and your next line. */
-function TalkSheet({ t, translate, copy, onSay, onClose }: { t: TalkUi; translate: boolean; copy: Copy; onSay: (text: string) => void; onClose: () => void }) {
+export function TalkSheet({ t, translate, native, copy, onSay, onClose }: { t: TalkUi; translate: boolean; native: Native; copy: Copy; onSay: (text: string) => void; onClose: () => void }) {
   return (
     <div className="qz-sheet qz-talk" data-char={t.char}>
       <div className="qz-talk-head">
@@ -1119,7 +1142,7 @@ function TalkSheet({ t, translate, copy, onSay, onClose }: { t: TalkUi; translat
         ) : (
           t.lines.map((l, i) => (
             <div key={`${i}-${l.text}`} className="qz-talk-line">
-              {l.direction ? <p className="qz-direction">{l.direction}</p> : null}
+              {shownDirection(l.direction, native) ? <p className="qz-direction">{shownDirection(l.direction, native)}</p> : null}
               <p className="qz-line" lang="fr">
                 {l.text}
               </p>

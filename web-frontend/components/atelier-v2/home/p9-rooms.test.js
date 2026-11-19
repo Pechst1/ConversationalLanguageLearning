@@ -78,6 +78,10 @@ const visibleText = (html) =>
     .replace(/\s+/g, ' ')
     .trim();
 const words = (text) => text.split(' ').filter((token) => /[\p{L}\p{N}]/u.test(token));
+// P12 (PR 888) opened Le Quartier: its two doors are counted on their own (home.test.js).
+// This file's next/link stub writes the chip's attributes in another order, hence the wider match.
+const { withoutQuartier: withoutQuartierDoors } = require('./without-quartier.js');
+const withoutQuartier = (html) => withoutQuartierDoors(html).replace(/<a[^>]*data-chip="quartier"[^>]*>[\s\S]*?<\/a>/g, '');
 
 // ===========================================================================
 // 1. The Journal on Home
@@ -181,8 +185,8 @@ test('1 · a waiting retell is one chip on Home, second after the letter, gone o
     assert.match(html, /data-chip="journal"/, language);
     assert.match(html, /href="\/notebook\?mode=journal"/, language);
     assert.ok(visibleText(html).includes(labels[language]), language);
-    const count = words(visibleText(html)).length;
-    assert.ok(count <= 25, `${language}: ${count} words — ${visibleText(html)}`);
+    const count = words(visibleText(withoutQuartier(html))).length;
+    assert.ok(count <= 25, `${language}: ${count} words — ${visibleText(withoutQuartier(html))}`);
   }
 });
 

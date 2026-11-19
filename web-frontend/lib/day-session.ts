@@ -23,6 +23,7 @@ import type {
   DaySession,
   DaySessionStep,
   DaySessionStepKind,
+  JourneySnapshot,
   PaceName,
   PaceOption,
 } from '@/types/daily-journey';
@@ -364,6 +365,49 @@ export function recapStreak(
   // A séance that moved the stored count: the chain stood at `was` this morning.
   // One that did not (today was already counted): there is no arrow to draw.
   return { was: stored > was ? Math.min(was, now) : now, now };
+}
+
+/** The journey's own steps that are the scene: the page, the talk, the ending. */
+const STORY_STEP_KINDS: ReadonlySet<string> = new Set(['scene', 'respond', 'resolution']);
+
+/**
+ * P12 · whether today's journey has played its scene, its talk and its ending (in the Feuilleton's
+ * pages or in Le Quartier) while the rest of the day (a rule, a few words) is still open.
+ */
+export function journeyScenePlayed(journey: JourneySnapshot | null | undefined): boolean {
+  if (!journey || (journey.status !== 'active' && journey.status !== 'paused')) return false;
+  const story = journey.steps.filter((step) => STORY_STEP_KINDS.has(step.kind));
+  if (!story.some((step) => step.kind === 'scene')) return false;
+  return story.every((step) => step.status === 'completed' || step.status === 'skipped');
+}
+
+/**
+ * P12 · one day, one state. The server's day sequence marks «Szene» done only once the whole
+ * journey has ended (`daily_journey._day_session`: `scene_done` = a terminal journey), so a learner
+ * who played the scene and has the rule still ahead read «Szene — als Nächstes» on Home while
+ * «Heute fortsetzen» opened step 4 of 6. With the journey at hand, a played scene is done and the
+ * next step not yet done is next. Anything else is the server's session, as sent.
+ */
+export function withScenePlayed(session: DaySession | null, journey: JourneySnapshot | null | undefined): DaySession | null {
+  if (!session || session.done || !journeyScenePlayed(journey)) return session;
+  const scene = sessionStep(session, 'scene');
+  if (!scene || scene.state === 'done') return session;
+  let nextSeen = false;
+  const steps = session.steps.map((step) => {
+    if (step.kind === 'finish') return step;
+    const done = step.kind === 'scene' || step.state === 'done';
+    const state: DaySessionStep['state'] = done ? 'done' : nextSeen ? 'todo' : 'next';
+    nextSeen = nextSeen || state === 'next';
+    return { ...step, state };
+  });
+  const next = steps.find((step) => step.state === 'next');
+  return {
+    ...session,
+    steps,
+    next_kind: next?.kind ?? null,
+    minutes_left: steps.filter((step) => step.state !== 'done').reduce((sum, step) => sum + (step.minutes || 0), 0),
+    tally: { ...session.tally, scenes: Math.max(1, Number(session.tally.scenes || 0)) },
+  };
 }
 
 /** The mark's four shapes fill in with the day's four steps. */

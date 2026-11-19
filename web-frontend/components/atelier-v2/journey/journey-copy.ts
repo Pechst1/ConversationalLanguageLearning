@@ -20,6 +20,8 @@ export type JourneyCopyKey =
   | 'today_eyebrow'
   | 'start'
   | 'resume'
+  | 'play_in_quartier'
+  | 'read_as_page'
   | 'preparing_title'
   | 'preparing_body'
   | 'preparing_retry'
@@ -284,6 +286,9 @@ const EN: CopyTable = {
   today_eyebrow: 'Today',
   start: 'Start today',
   resume: 'Continue today',
+  // P12: the scene played in Le Quartier (3D), or read as the page
+  play_in_quartier: 'Play in the Quartier',
+  read_as_page: 'Read as a page',
   preparing_title: 'Getting today ready',
   preparing_body: 'Your scene is being prepared. This usually takes a moment.',
   preparing_retry: 'Check again',
@@ -508,6 +513,8 @@ const DE: CopyTable = {
   today_eyebrow: 'Heute',
   start: 'Heute starten',
   resume: 'Heute fortsetzen',
+  play_in_quartier: 'Im Quartier spielen',
+  read_as_page: 'Als Seite lesen',
   preparing_title: 'Heute wird vorbereitet',
   preparing_body: 'Deine Szene wird gerade vorbereitet. Das dauert meist nur einen Moment.',
   preparing_retry: 'Erneut prüfen',
@@ -732,6 +739,8 @@ const FR: CopyTable = {
   today_eyebrow: 'Aujourd’hui',
   start: 'Commencer',
   resume: 'Reprendre',
+  play_in_quartier: 'Jouer dans le Quartier',
+  read_as_page: 'Lire la page',
   preparing_title: 'Préparation en cours',
   preparing_body: 'Ta scène se prépare. Cela prend généralement un instant.',
   preparing_retry: 'Vérifier à nouveau',

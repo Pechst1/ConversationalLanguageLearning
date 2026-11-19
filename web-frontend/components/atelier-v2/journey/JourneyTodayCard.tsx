@@ -24,6 +24,7 @@
  * Presentation only. Every callback comes from the caller.
  */
 
+import Link from 'next/link';
 import React from 'react';
 
 import {
@@ -52,6 +53,7 @@ import { gentleReturnLabel } from '@/lib/gentle-return';
 import { preparingLine } from '@/lib/journey-reply-reveal';
 
 import { journeyChromeLanguage } from '@/lib/language-rule';
+import { QUARTIER_HREF, quartierCanStage, readSceneWay, writeSceneWay, type SceneWay } from '@/lib/quartier/home-door';
 import { resolveMediaUrl } from '@/lib/media-url';
 
 import { EpisodeVignette, vignettePlace, type VignettePlace } from './EpisodeVignette';
@@ -173,6 +175,7 @@ export function JourneyTodayCard({
           copy={copy}
           busy={busy}
           controlLanguage={chromeLanguage}
+          quartier={quartierCanStage(phase)}
           onOpen={onOpen}
           onStart={() => {
             void actions.start().then(onOpen);
@@ -199,6 +202,7 @@ function JourneyPrimary({
   copy,
   busy,
   controlLanguage,
+  quartier = false,
   onOpen,
   onStart,
   onResume,
@@ -208,40 +212,61 @@ function JourneyPrimary({
   copy: AtelierCopy;
   busy: boolean;
   controlLanguage: DailyJourneyController['controlLanguage'];
+  /**
+   * P12 · Le Quartier can stage today's scene: it is offered beside the page, and the way the
+   * learner took last on this device is the primary one (owner decision 9, proposal (b)).
+   */
+  quartier?: boolean;
   onOpen: () => void;
   onStart: () => void;
   onResume: () => void;
 }) {
+  // read after mount: the server render and the first client render agree on the page
+  const [way, setWay] = React.useState<SceneWay>('page');
+  React.useEffect(() => {
+    if (quartier) setWay(readSceneWay());
+  }, [quartier]);
+  const page = (run: () => void) => () => {
+    if (quartier) writeSceneWay('page');
+    run();
+  };
+  let action: React.ReactElement | null = null;
+  let label: string | null = null;
   switch (phase.kind) {
     case 'offer':
       if (!phase.scenario) return null;
+      label = premiere ? seasonReturnCopy(controlLanguage).premiere_open : copy.start;
       // WP-76: a cold scene takes ~20 s. The button says what is happening in
       // the story («Le Mistral s’anime…»), not «Envoi…».
-      return (
+      action = (
         <Action
-          tone="primary"
+          tone={quartier && way === 'quartier' ? 'secondary' : 'primary'}
           pending={busy}
           pendingLabel={preparingLine(
             phase.scenario.location_name,
             phase.scenario.character_name,
             controlLanguage,
           )}
-          onClick={onStart}
+          onClick={page(onStart)}
+          data-scene-way={quartier ? 'page' : undefined}
         >
-          {premiere ? seasonReturnCopy(controlLanguage).premiere_open : copy.start}
+          {quartier && way === 'quartier' ? copy.read_as_page : label}
         </Action>
       );
+      break;
     case 'session':
     case 'paused':
-      return (
+      action = (
         <Action
-          tone="primary"
+          tone={quartier && way === 'quartier' ? 'secondary' : 'primary'}
           disabled={busy}
-          onClick={phase.kind === 'paused' ? onResume : onOpen}
+          onClick={page(phase.kind === 'paused' ? onResume : onOpen)}
+          data-scene-way={quartier ? 'page' : undefined}
         >
-          {copy.resume}
+          {quartier && way === 'quartier' ? copy.read_as_page : copy.resume}
         </Action>
       );
+      break;
     case 'awaiting_finish':
       return (
         <Action tone="primary" disabled={busy} onClick={onOpen}>
@@ -251,6 +276,31 @@ function JourneyPrimary({
     default:
       return null;
   }
+  if (!quartier) return action;
+  // the other way in: a link to the quarter, quieter unless it is the learner's way
+  const first = way === 'quartier';
+  const door = (
+    <Link
+      href={QUARTIER_HREF}
+      className={`av2-btn ${first ? 'av2-btn--primary' : 'av2-btn--secondary'}`}
+      data-tone={first ? 'primary' : 'secondary'}
+      data-scene-way="quartier"
+      onClick={() => writeSceneWay('quartier')}
+    >
+      <span>{copy.play_in_quartier}</span>
+    </Link>
+  );
+  return first ? (
+    <>
+      {door}
+      {action}
+    </>
+  ) : (
+    <>
+      {action}
+      {door}
+    </>
+  );
 }
 
 function JourneyTodayBody({
