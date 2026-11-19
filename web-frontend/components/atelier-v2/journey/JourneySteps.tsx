@@ -150,6 +150,7 @@ import { getStoryEpisodeForJourney, stepAct } from '@/services/daily-journey';
 import { listenLabel, useStepVoice } from './useStepVoice';
 import { correctionLabelKey } from '@/lib/correction-notes';
 import { solutionWithheld } from '@/lib/solution-gate';
+import { useLearnerLanguage } from '@/lib/learner-language';
 import {
   closesConversation,
   continuesConversation,
@@ -1752,6 +1753,8 @@ export function WithheldCorrection({
   const kind = correction.kind ?? 'edit';
   const picked = kind === 'pick' || kind === 'meaning';
   const notes = correctionNotes(correction);
+  // R4: the notes explain, in the learner's own language (owner, 18 Nov 2026).
+  const noteLang = useLearnerLanguage();
   return (
     <div className="av2-correction" data-kind={kind} data-solution="withheld">
       <p className="av2-label">{picked ? copy.drill_miss_choice : copy.drill_miss_where}</p>
@@ -1766,11 +1769,11 @@ export function WithheldCorrection({
       {notes.length > 0 ? (
         <ul className="av2-correction__notes">
           {notes.map((note, index) => (
-            <li key={index}>{note}</li>
+            <li key={index} lang={noteLang}>{note}</li>
           ))}
         </ul>
       ) : (
-        correction.note_native && <p>{correction.note_native}</p>
+        correction.note_native && <p lang={noteLang}>{correction.note_native}</p>
       )}
       <p className="av2-graded__slip">{copy.drill_solution_later}</p>
     </div>
@@ -1922,6 +1925,8 @@ export function JourneyFeedbackView({
   stepKind?: string | null;
 }) {
   const wide = widenCopy(copy);
+  // R4: a forgiven slip's line explains, in the learner's own language (owner, 18 Nov 2026).
+  const noteLang = useLearnerLanguage();
   // WP-76: the verdict is a sheet pinned to the bottom of the screen. When it
   // lands it is brought into view and focused, so a screen reader starts on it
   // rather than on whatever the learner last touched.
@@ -2094,7 +2099,7 @@ export function JourneyFeedbackView({
             ))}
             {/* QA-CLOSE: a forgiven slip on a hit, named in one line. */}
             {!result.correction && result.slip_note_native && (
-              <p className="av2-graded__slip">{result.slip_note_native}</p>
+              <p className="av2-graded__slip" lang={noteLang}>{result.slip_note_native}</p>
             )}
           </FeedbackBand>
           {/* WP-D2: «Marin vous sourit ↑» — the relationship moved, said once. */}

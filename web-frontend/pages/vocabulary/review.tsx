@@ -13,7 +13,7 @@ import {
   cardTexts,
   shownFrench,
 } from '@/lib/card-word';
-import { useChromeLanguage } from '@/lib/learner-language';
+import { useChromeLanguage, useLearnerLanguage } from '@/lib/learner-language';
 import { handOnAfterWords } from '@/lib/day-plan';
 import { daySessionCopy } from '@/lib/day-session';
 
@@ -491,6 +491,8 @@ export default function VocabularyReviewPage() {
   // words and their examples stay French.
   const language = useChromeLanguage();
   const t = lexiqueCopy(language);
+  // R4: a word's gloss explains, in the learner's own language at every level (marked `lang`).
+  const glossLang = useLearnerLanguage();
   // What this sitting has filed. WP-115b «successive relearning»: a card answered
   // wrong comes back at the end of the session, until it is right once.
   const [deck, setDeck] = useState<DeckProgress>(EMPTY_PROGRESS);
@@ -1211,7 +1213,7 @@ export default function VocabularyReviewPage() {
                         {/* the one Garamond-italic headline on this screen */}
                         <p
                           className="av2-headline lx-card__word review-prompt-term"
-                          lang={promptIsFrench ? 'fr' : undefined}
+                          lang={promptIsFrench ? 'fr' : prompt && prompt === meaning ? glossLang : undefined}
                         >
                           {prompt}
                         </p>
@@ -1235,10 +1237,10 @@ export default function VocabularyReviewPage() {
                             </IconAction>
                           </span>
                         </div>
-                        <p className="lx-card__asked" lang={promptIsFrench ? 'fr' : undefined}>{prompt}</p>
+                        <p className="lx-card__asked" lang={promptIsFrench ? 'fr' : prompt && prompt === meaning ? glossLang : undefined}>{prompt}</p>
                         <p
                           className="av2-headline lx-card__word review-answer-word"
-                          lang={promptIsFrench ? undefined : 'fr'}
+                          lang={promptIsFrench ? ((answer || meaning) === meaning && meaning ? glossLang : undefined) : 'fr'}
                         >
                           {answer || meaning || shownFrench(current)}
                         </p>

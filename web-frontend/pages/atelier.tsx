@@ -166,7 +166,7 @@ import {
   type RecommendedAction,
 } from '@/lib/atelier-next';
 import { learnerGloss } from '@/lib/glosses';
-import { useChromeLanguage } from '@/lib/learner-language';
+import { useChromeLanguage, useLearnerLanguage } from '@/lib/learner-language';
 import { fillForge, forgeCopy, forgeRoleTag } from '@/lib/forge-copy';
 import {
   clampRung,
@@ -214,7 +214,7 @@ import { pulseAppHaptic } from '@/lib/haptics';
 import { epreuveOf } from '@/lib/can-dos';
 import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 import { atelierCopy } from '@/lib/atelier-v2-copy';
-import { journeyChromeLanguage, journeyLevel } from '@/lib/language-rule';
+import { explanationLanguage, journeyChromeLanguage, journeyLevel } from '@/lib/language-rule';
 import { cn } from '@/lib/utils';
 import { resolveMediaUrl } from '@/lib/media-url';
 // WP-119 phase 1 — La Revue on La Une, as data in Home's slots (lib/revue-une.ts).
@@ -3787,6 +3787,8 @@ function SessionView({
 }) {
   const t = epreuveCopy(language);
   const fc = forgeCopy(language);
+  // R4: what the rafale's recap explains is in the learner's own language (owner, 18 Nov 2026).
+  const explainLanguage = explanationLanguage(language, useLearnerLanguage());
   const forgeRule = forge && activeConcept ? forge.rules.find((rule) => rule.concept_id === activeConcept.id) : null;
   const forgeNext = forge?.next && activeConcept && forge.next.concept_id === activeConcept.id ? forge.next : null;
   const forgeTestOut = forge?.mode === 'test_out';
@@ -4020,7 +4022,8 @@ function SessionView({
                       cheer={forgeCheer(currentCorrection, fc)}
                       coach={ruleCoach}
                       coachMood={coachMood(currentCorrection, { correct: burstMarks.every((row) => row.correct) })}
-                      reasonFor={(row) => rafaleReason(ruleCard, row, language)}
+                      reasonFor={(row) => rafaleReason(ruleCard, row, explainLanguage)}
+                      reasonLang={explainLanguage}
                       onNext={feedbackNext}
                       nextLabel={feedbackNextLabel}
                     />
@@ -4277,6 +4280,10 @@ export function ExerciseFeedbackMoment({
   const t = useEpCopy();
   // WP-103 T8: the follow-up's draft, per exercise, so a return finds it as it was left.
   const language = useControlLanguage();
+  // R4: why an answer was wrong, a hint, a correction's tag: explanations, in the learner's
+  // own language at every level (owner, 18 Nov 2026), and marked so (`lang`).
+  const noteLang = useLearnerLanguage();
+  const explained = (text: React.ReactNode) => (text ? <span lang={noteLang}>{text}</span> : text);
   // QA-FORGE: a judgement's key («À corriger») is shown as its label in the learner's language.
   const judgementItem = isLabelCompare && classifyItem
     && (classifyItem.classify_kind === 'judgement' || (!classifyItem.classify_kind && isJudgementLabels(classifyItem.labels)));
@@ -4361,8 +4368,8 @@ export function ExerciseFeedbackMoment({
     const marks = Array.isArray(correction?.marks) ? correction!.marks : [];
     const inPlace = production && !isLabelCompare ? withheldRepairParts(line, marks) : null;
     const repairKey = `${feedbackKey}:0`;
-    const reason = hints.reason ? <p className="ep-why">{hints.reason}</p> : null;
-    const more = hints.more.length ? <EpMore label={t.more}>{hints.more.map((note) => <p key={note}>{note}</p>)}</EpMore> : null;
+    const reason = hints.reason ? <p className="ep-why" lang={noteLang}>{hints.reason}</p> : null;
+    const more = hints.more.length ? <EpMore label={t.more}>{hints.more.map((note) => <p key={note} lang={noteLang}>{note}</p>)}</EpMore> : null;
     return (
       <div className="ep-feedback" data-verdict="wrong" data-solution="withheld" ref={feedbackRef}>
         {inPlace ? (
@@ -4393,7 +4400,7 @@ export function ExerciseFeedbackMoment({
             {more}
           </EpGalley>
         )}
-        {hints.task && <EpTaskLine label={t.task}>{hints.task}</EpTaskLine>}
+        {hints.task && <EpTaskLine label={t.task}>{explained(hints.task)}</EpTaskLine>}
         <EpFoot tone="wrong">
           <EpVerdict tone="no" sub={t.miss_sub} coach={coach} coachMood={mood} attempt={attempt}>{t.verdict_wrong}</EpVerdict>
           {onTryAgain && <EpBar tone="ghost" icon="retry" onClick={onTryAgain}>{production ? t.retry_line : t.retry}</EpBar>}
@@ -4545,15 +4552,17 @@ export function ExerciseFeedbackMoment({
         const [reason, ...rest] = dedupeNotes([...whyText.split('\n'), hintText])
           .filter((note) => !taskSaid.has(note.trim()));
         const repairHint = solutionOnScreen ? '' : rest.join(' ');
+        // A correction's tag explains (R4); the screen's own «Corrected line» is chrome.
+        const tag = (label: string | undefined) => (label && label !== t.corrected_line ? explained(label) : label);
         return (
           <React.Fragment key={`${issue.display_label || 'repair'}-${index}`}>
             <EpGalley
               anchor={ruleShown
-                ? correctionAnchor(issue.display_label, ruleShown) ?? (cardCount > 1 ? fill(t.correction_n, { n: position + 1 }) : undefined)
-                : issue.display_label || fill(t.correction_n, { n: position + 1 })}
-              why={reason || undefined}
-              repair={repairHint || undefined}
-              more={solutionOnScreen && rest.length ? <EpMore label={t.more}>{rest.map((note) => <p key={note}>{note}</p>)}</EpMore> : undefined}
+                ? tag(correctionAnchor(issue.display_label, ruleShown)) ?? (cardCount > 1 ? fill(t.correction_n, { n: position + 1 }) : undefined)
+                : tag(issue.display_label) || fill(t.correction_n, { n: position + 1 })}
+              why={explained(reason) || undefined}
+              repair={explained(repairHint) || undefined}
+              more={solutionOnScreen && rest.length ? <EpMore label={t.more}>{rest.map((note) => <p key={note} lang={noteLang}>{note}</p>)}</EpMore> : undefined}
               // One second-look note per correction sheet, not one per erratum.
               relecture={index === 0 ? relecture : undefined}
             >
@@ -4595,8 +4604,8 @@ export function ExerciseFeedbackMoment({
       })}
       {taskNote && (
         <>
-          <EpTaskLine label={t.task}>{taskNote}</EpTaskLine>
-          {taskMore.length > 0 && <EpMore label={t.more}>{taskMore.map((note) => <p key={note}>{note}</p>)}</EpMore>}
+          <EpTaskLine label={t.task}>{explained(taskNote)}</EpTaskLine>
+          {taskMore.length > 0 && <EpMore label={t.more}>{taskMore.map((note) => <p key={note} lang={noteLang}>{note}</p>)}</EpMore>}
         </>
       )}
       {shownModelAnswer && (
