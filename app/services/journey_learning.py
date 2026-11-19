@@ -1390,11 +1390,15 @@ def _with_grammar_briefs(
 
     if not any(c.target.kind is TargetKind.GRAMMAR for c in candidates):
         return candidates
-    from app.services.chrome_language import user_chrome_language
+    from app.services.chrome_language import user_chrome_language, user_correction_language
     from app.services.concept_life import concept_brief
     from app.services.forge_coaches import card_for_learner, story_state_of
 
     language = user_chrome_language(user)
+    # R4 (walk of 19 Nov): a drill's rule line and a trap's reason explain, so they are in
+    # the mother tongue at every level (owner decision 18 Nov 2026, as the scene's notes);
+    # titles and instructions stay in the chrome. Below B1 the two are the same.
+    explain = user_correction_language(user)
     state = story_state_of(db, user)
     out: list[LearningCandidate] = []
     for candidate in candidates:
@@ -1409,6 +1413,7 @@ def _with_grammar_briefs(
                     concept,
                     control_language=language,
                     stability=(candidate.metadata or {}).get("stability"),
+                    explain_language=explain if explain != language else None,
                 )
                 if concept is not None
                 else None
@@ -2460,15 +2465,17 @@ def evaluate_recall(
     correction = None
     typed = typed_verdict
     if not is_correct:
+        # R4: the notes below explain a miss: the mother tongue at every level (owner
+        # decision 18 Nov 2026); the chrome stays French from B1.
         note = task.hint_native or task.instruction_native
         if task.task_type in {"tiles", "word_bank", "unscramble"} and answer.tile_ids:
-            from app.services.chrome_language import user_chrome_language
+            from app.services.chrome_language import user_correction_language
 
-            note = tile_order_note(task, answer.tile_ids, str(user_chrome_language(user))) or note
+            note = tile_order_note(task, answer.tile_ids, str(user_correction_language(user))) or note
         elif task.task_type in {"choice", "classify", "listen_tap", "who_said"}:
-            from app.services.chrome_language import user_chrome_language
+            from app.services.chrome_language import user_correction_language
 
-            pick = pick_miss_note(task, str(user_chrome_language(user)))
+            pick = pick_miss_note(task, str(user_correction_language(user)))
             if task.task_type == "choice" and task.why_native:
                 # #537: the reason of the trap the learner fell into («mon amie»: the
                 # vowel), not the unit's one-line rule that the other traps share.
@@ -2484,9 +2491,9 @@ def evaluate_recall(
             # EXERCISE-QA: the why a fold can see (an accent that is grammar, an
             # ending, an elision, a gender) beats the item's generic hint.
             from app.services.answer_acceptance import feedback_note
-            from app.services.chrome_language import user_chrome_language
+            from app.services.chrome_language import user_correction_language
 
-            note = feedback_note(typed, str(user_chrome_language(user))) or note
+            note = feedback_note(typed, str(user_correction_language(user))) or note
         expected = task.solution_fr or (task.accepted_answers[0] if task.accepted_answers else None)
         # A part answered wrong is corrected as a part («verts → vertes»); the
         # saved error keeps the whole sentence, so it can be drilled later.
@@ -2575,16 +2582,16 @@ def evaluate_recall(
         # #781: a build right in all but a capital («j'ai … J'ai») is a hit that names
         # the capital and shows the sentence, the way a forgiven accent is named.
         from app.services.answer_acceptance import case_slip_note
-        from app.services.chrome_language import user_chrome_language
+        from app.services.chrome_language import user_correction_language
 
-        slip_note = case_slip_note(learner_text, task.solution_fr, str(user_chrome_language(user)))
+        slip_note = case_slip_note(learner_text, task.solution_fr, str(user_correction_language(user)))
         slip_kind = "case" if slip_note else None
     elif is_correct and typed is not None and typed.correct and (typed.accent_slip or typed.typo):
         # QA-CLOSE (owner decision d): a forgiven slip is named on a hit, one line.
         from app.services.answer_acceptance import feedback_note
-        from app.services.chrome_language import user_chrome_language
+        from app.services.chrome_language import user_correction_language
 
-        slip_note = feedback_note(typed, str(user_chrome_language(user)))
+        slip_note = feedback_note(typed, str(user_correction_language(user)))
         slip_kind = "accent" if typed.accent_slip else "typo"
     elif (
         is_correct
@@ -2599,11 +2606,11 @@ def evaluate_recall(
         # hit; the wrong article is named on it, the way a forgiven accent is, and is
         # never passed in silence.
         from app.services.answer_acceptance import article_slip_fix, article_slip_note
-        from app.services.chrome_language import user_chrome_language
+        from app.services.chrome_language import user_correction_language
 
         fixed = article_slip_fix(typed.expected, learner_text)
         if fixed:
-            slip_note = article_slip_note(typed.note, fixed, str(user_chrome_language(user)))
+            slip_note = article_slip_note(typed.note, fixed, str(user_correction_language(user)))
             slip_kind = "article" if slip_note else None
     return RecallEvaluation(
         outcome=TaskOutcome.MET if is_correct else TaskOutcome.NOT_YET,
