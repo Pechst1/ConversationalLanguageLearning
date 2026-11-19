@@ -709,6 +709,43 @@ export function EpCorrect({ said, struck }: { said: Node; struck?: boolean }) {
   );
 }
 
+/* ---------- the answer, after the check ---------- */
+/* Design review, 19 Nov 2026: a checked line is read where it was written. The field
+   steps aside for the line itself: its wrong words marked while the second chance is
+   open (a tap takes the learner back into the line), the words that were wrong struck
+   once the solution is shown, the whole line green when it was right. Nothing about
+   the answer is drawn a second time under it. */
+export type AnswerSegment = { text: string; marked?: boolean };
+export function EpAnswerLine({
+  segments,
+  tone,
+  onEdit,
+  editHint,
+}: {
+  segments: AnswerSegment[];
+  tone: 'open' | 'shown' | 'right';
+  /** The second chance: a tap on the line opens it again, as the learner wrote it. */
+  onEdit?: () => void;
+  editHint?: Node;
+}) {
+  const line = (
+    <span className="ep-answer__line" lang="fr">
+      {segments.map((segment, index) => (segment.marked
+        ? <mark key={index} className="ep-mark">{segment.text}</mark>
+        : <React.Fragment key={index}>{segment.text}</React.Fragment>))}
+    </span>
+  );
+  if (onEdit) {
+    return (
+      <button type="button" className="ep-answer" data-tone={tone} onClick={onEdit}>
+        {line}
+        {editHint && <span className="ep-answer__hint">{editHint}</span>}
+      </button>
+    );
+  }
+  return <p className="ep-answer" data-tone={tone}>{line}</p>;
+}
+
 /* ---------- typed micro-repair ---------- */
 export function EpRepair({
   target,
@@ -1393,6 +1430,34 @@ export function LEpreuveStyles() {
   resize: vertical;
   outline: 0;
 }
+/* The checked line, in the field's place: the same well, the learner's own words. */
+.av2 .ep-answer {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  min-height: 5.5rem;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-radius: var(--av2-r-card);
+  background: var(--av2-card);
+  color: var(--av2-ink);
+  text-align: left;
+  font: inherit;
+  animation: av2-fade 0.25s;
+}
+.av2 button.ep-answer { box-shadow: 0 var(--av2-press-sm) 0 var(--av2-line-2); cursor: pointer; touch-action: manipulation; }
+.av2 button.ep-answer:active { transform: translateY(var(--av2-press-sm)); box-shadow: none; }
+.av2 .ep-answer__line { font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-option); line-height: 1.4; overflow-wrap: anywhere; }
+.av2 .ep-answer__hint { font: 600 var(--av2-t-meta)/1.3 var(--av2-sans); color: var(--av2-muted); }
+.av2 .ep-answer .ep-mark { color: var(--av2-red-deep); text-decoration: underline dotted 3px var(--av2-red); text-underline-offset: 6px; }
+.av2 .ep-answer[data-tone='shown'] .ep-answer__line { color: var(--av2-ink-2); }
+.av2 .ep-answer[data-tone='shown'] .ep-mark { color: var(--av2-ink-2); text-decoration: line-through 2px var(--av2-red); }
+.av2 .ep-answer[data-tone='right'] .ep-answer__line { color: var(--av2-green); }
+.av2 .ep-output > .ep-answer,
+.av2 .ep-produce-panel > .ep-answer { margin-top: 8px; }
 .av2 .ep-composed-input::placeholder { color: var(--av2-muted); font-style: italic; }
 .av2 .ep-composed-input[readonly] { color: var(--av2-ink-2); }
 .av2 .ep-field__ph { color: var(--av2-muted); }

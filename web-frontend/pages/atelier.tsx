@@ -80,6 +80,7 @@ import {
   EpLineFix,
   EpGalley,
   EpRelecture,
+  EpAnswerLine,
   EpCorrect,
   EpRepair,
   EpPartsRepair,
@@ -3865,6 +3866,15 @@ function SessionView({
   // A typed form shows in its own field; the right one is printed only when it differs.
   const typedAsIs = drill === 'typed' && Boolean(currentFeedback)
     && normalizeClient(currentFeedback?.learner) === normalizeClient(currentFeedback?.target);
+  // A typed line is read, once checked, where it was written (CheckedLine).
+  const answerState: AnswerState = !currentSubmitted || !currentFeedback || currentFeedback.unscored
+    || (isProductionRound && productionPhase(currentCorrection) === 'checking')
+    ? null
+    : currentFeedback.correct ? 'right' : solutionWithheld(currentCorrection) ? 'open' : 'shown';
+  const typedLine = round === 'transform' && drill !== 'spot' && drill !== 'mine'
+    ? String(currentAnswers[String(activeItemId ?? '')] ?? '')
+    : isProductionRound ? String((round === 'produce' ? produceAnswer : currentAnswers.text) || '') : '';
+  const lineEchoed = lineIsEchoed(answerState, typedLine, currentCorrection, isProductionRound);
 
   return (
     <EpShell className="atelier-do-mode" language={language}>
@@ -4043,6 +4053,8 @@ function SessionView({
                     submitted={currentSubmitted}
                     sending={submitting}
                     drill={drill}
+                    answerState={answerState}
+                    onRetry={retryAttempt}
                   />
                   <ActionRow
                     submitting={submitting}
@@ -4064,6 +4076,8 @@ function SessionView({
                     correction={currentCorrection}
                     submitted={currentSubmitted}
                     sending={submitting}
+                    answerState={answerState}
+                    onRetry={retryAttempt}
                   />
                   <ActionRow
                     submitting={submitting}
@@ -4087,6 +4101,8 @@ function SessionView({
                     correction={currentCorrection}
                     submitted={currentSubmitted}
                     sending={submitting}
+                    answerState={answerState}
+                    onRetry={retryAttempt}
                   />
                   <ActionRow
                     submitting={submitting}
@@ -4133,6 +4149,7 @@ function SessionView({
                 picked={round === 'recognize' ? drill !== 'typed' || typedAsIs : round === 'transform' && Boolean(drill)}
                 ruleShown={forge ? activeConceptTitle : null}
                 attempt={attemptIdsByKey[currentKey] ?? null}
+                lineEchoed={lineEchoed}
               />}
           </>)}
         </section>
@@ -4148,6 +4165,59 @@ function SessionView({
       </div>
     </EpShell>
   );
+}
+
+/** What the checked answer is, for the line drawn in the field's place. */
+type AnswerState = 'open' | 'shown' | 'right' | null;
+
+/**
+ * A free line's second chance is taken in place (each marked stretch a small field) when
+ * the marks can be found and the miss is only in the words: a line that did not do what
+ * the task asked is written again whole, since no gap could fix it.
+ */
+function inPlaceParts(correction: Record<string, any> | null, line: string) {
+  const errata: Array<Record<string, any>> = Array.isArray(correction?.errata) ? correction!.errata : [];
+  if (errata.some((item) => item?.task_error_type === 'task_compliance' || item?.task_error_type === 'length_compliance')) return null;
+  return withheldRepairParts(line, Array.isArray(correction?.marks) ? correction!.marks : []);
+}
+
+/**
+ * The learner's typed line once it is checked, where the field was (design review,
+ * 19 Nov 2026). Null while the field itself is on screen: before the check, and for a
+ * line whose second chance is taken in place (ExerciseFeedbackMoment draws that one).
+ */
+function CheckedLine({
+  state,
+  line,
+  correction,
+  production = false,
+  onEdit,
+}: {
+  state: AnswerState;
+  line: string;
+  correction: Record<string, any> | null;
+  production?: boolean;
+  onEdit?: () => void;
+}) {
+  const t = useEpCopy();
+  const text = String(line || '').trim();
+  if (!state || !text) return null;
+  if (state === 'right') return <EpAnswerLine tone="right" segments={[{ text }]} />;
+  if (state === 'open') {
+    const marked = String(correction?.marked_line || text);
+    return <EpAnswerLine tone="open" segments={markedLine(marked, correction?.marks)} onEdit={onEdit} editHint={onEdit ? t.answer_edit : undefined} />;
+  }
+  const parts = repairParts(text, Array.isArray(correction?.errata) ? correction!.errata : []);
+  const segments = parts
+    ? parts.map((part) => ('text' in part ? { text: part.text } : { text: part.wrong, marked: true }))
+    : [{ text }];
+  return <EpAnswerLine tone="shown" segments={segments} />;
+}
+
+/** Is the checked line drawn by the panel (true), or is the field still the answer's place? */
+function lineIsEchoed(state: AnswerState, line: string, correction: Record<string, any> | null, production: boolean) {
+  if (!state || !String(line || '').trim()) return false;
+  return !(state === 'open' && production && inPlaceParts(correction, String(correction?.marked_line || line).trim()));
 }
 
 function ActionRow({
@@ -4208,6 +4278,7 @@ export function ExerciseFeedbackMoment({
   attempt = null,
   onRevealSolution,
   revealing = false,
+  lineEchoed = false,
 }: {
   feedback: InlineFeedbackModel;
   submitted: boolean;
@@ -4242,6 +4313,8 @@ export function ExerciseFeedbackMoment({
   /** Owner 2026-11-13: «Show the solution» spends the second chance. */
   onRevealSolution?: () => void;
   revealing?: boolean;
+  /** The answer was typed in a field, and its panel draws the checked line in the field's place. */
+  lineEchoed?: boolean;
 }) {
   const t = useEpCopy();
   // WP-103 T8: the follow-up's draft, per exercise, so a return finds it as it was left.
@@ -4328,22 +4401,15 @@ export function ExerciseFeedbackMoment({
     const hints = withheldHints(correction);
     const line = String(correction?.marked_line || feedback.learner || '').trim();
     const marks = Array.isArray(correction?.marks) ? correction!.marks : [];
-    const inPlace = production && !isLabelCompare ? withheldRepairParts(line, marks) : null;
+    const inPlace = production && !isLabelCompare ? inPlaceParts(correction, line) : null;
     const repairKey = `${feedbackKey}:0`;
-    // Owner 2026-11-13 («calm, not crowded») and the design review of 19 Nov: the miss says
-    // one thing in one place. The hint is the band's own line, under «Not yet», where the
-    // sticky sheet keeps it in view; it is not a card of its own. A card is drawn only when
-    // it shows something the band cannot: the learner's line with the wrong words marked.
+    // Owner 2026-11-13 («calm, not crowded») and the design review of 19 Nov: the miss is
+    // read in two places and no more. WHERE is the learner's own line, in the field's
+    // place, its wrong words marked (the panel's CheckedLine, or the in-place repair
+    // here). WHY is the band's line under «Not yet», which the sticky sheet keeps in view.
     const more = hints.more.length ? <EpMore label={t.more}>{hints.more.map((note) => <p key={note}>{note}</p>)}</EpMore> : null;
-    const marked = !picked && line ? (
-      <p className="ep-marked" lang="fr">
-        {markedLine(line, marks).map((segment, index) => (segment.marked
-          ? <mark key={index} className="ep-mark">{segment.text}</mark>
-          : <React.Fragment key={index}>{segment.text}</React.Fragment>))}
-      </p>
-    ) : null;
     return (
-      <div className="ep-feedback" data-verdict="wrong" data-solution="withheld" ref={feedbackRef}>
+      <div className="ep-feedback" data-verdict="wrong" data-solution="withheld" data-in-place={inPlace ? 'true' : undefined} ref={feedbackRef}>
         {inPlace ? (
           <EpPartsRepair
             parts={inPlace}
@@ -4358,14 +4424,14 @@ export function ExerciseFeedbackMoment({
           >
             {more}
           </EpPartsRepair>
-        ) : marked ? (
-          <EpGalley anchor={t.miss_where} more={more ?? undefined}>{marked}</EpGalley>
         ) : more}
         {hints.task && hints.task !== hints.reason && <EpTaskLine label={t.task}>{hints.task}</EpTaskLine>}
         <EpFoot tone="wrong">
           <EpVerdict tone="no" sub={hints.reason || t.miss_sub} coach={coach} coachMood={mood} attempt={attempt}>{t.verdict_wrong}</EpVerdict>
-          {onTryAgain && <EpBar tone="ghost" icon="retry" onClick={onTryAgain}>{production ? t.retry_line : t.retry}</EpBar>}
+          {/* A line fixed in place has its own «Check»: writing it again whole is the quiet way. */}
+          {onTryAgain && !inPlace && <EpBar tone="ghost" icon="retry" onClick={onTryAgain}>{production ? t.retry_line : t.retry}</EpBar>}
           <div className="ep-fb-links">
+            {onTryAgain && inPlace && <button type="button" data-action="rewrite" onClick={onTryAgain}>{t.retry_line}</button>}
             {onRevealSolution && (
               <button type="button" data-action="reveal" onClick={onRevealSolution} disabled={revealing} aria-busy={revealing || undefined}>
                 {revealing ? t.showing_solution : t.show_solution}
@@ -4462,7 +4528,10 @@ export function ExerciseFeedbackMoment({
     return (
       <div className="ep-feedback" data-verdict={verdict === 'wrong' ? 'wrong' : 'correct'} ref={feedbackRef}>
         {/* Text diet: a picked answer is already marked right on its card. */}
-        {!picked && <EpCorrect said={display(feedback.target || feedback.learner || t.line_set)} struck />}
+        {/* …and a typed line is green where it was written; only a model line that differs is set under it. */}
+        {!picked && !(lineEchoed && (!feedback.target || normalizeClient(feedback.target) === normalizeClient(feedback.learner))) && (
+          <EpCorrect said={display(feedback.target || feedback.learner || t.line_set)} struck />
+        )}
         {relecture}
         {followUpBlock}
         {/* The design's mint footer: badge + Garamond verdict, then the primary. */}
@@ -4525,7 +4594,8 @@ export function ExerciseFeedbackMoment({
               {isLabelCompare && learner
                 ? <EpLabelFix old={display(learner)} fix={display(target || t.corrected)} />
                 : isRepairableLine(target) || isRepairableLine(learner)
-                  ? <EpLineFix old={learner} fix={target || t.corrected} />
+                  // The learner's own line is above, its wrong words struck: only the right one here.
+                  ? <EpLineFix old={lineEchoed ? '' : learner} fix={target || t.corrected} />
                   : learner ? <EpFix old={learner} fix={target || t.corrected} /> : <EpIns fix={target || t.corrected} />}
             </EpGalley>
             {/* The repair is the second chance: once the solution is on screen it is shown
@@ -4808,6 +4878,8 @@ function TransformPanel({
   submitted,
   sending = false,
   drill = null,
+  answerState = null,
+  onRetry,
 }: {
   payload: Record<string, any>;
   activeItemIndex: number;
@@ -4819,6 +4891,8 @@ function TransformPanel({
   sending?: boolean;
   /** La Forge: «spot» and «mine» are tapped and fixed, not retyped. */
   drill?: ForgeDrill | null;
+  answerState?: AnswerState;
+  onRetry?: () => void;
 }) {
   const items = payload.transform?.items || [];
   const itemIndex = safeDrillItemIndex(activeItemIndex, items);
@@ -4865,13 +4939,17 @@ function TransformPanel({
       <EpPrompt cue={instruction}>
         {item.source}
       </EpPrompt>
-      <textarea
-        className="ep-composed-input"
-        value={answers[item.id] || ''}
-        onChange={(event) => updateAnswer(item.id, event.target.value)}
-        placeholder={t.transform_placeholder}
-        readOnly={submitted || sending}
-      />
+      {lineIsEchoed(answerState, String(answers[item.id] || ''), correction, false) ? (
+        <CheckedLine state={answerState} line={String(answers[item.id] || '')} correction={correction} onEdit={onRetry} />
+      ) : (
+        <textarea
+          className="ep-composed-input"
+          value={answers[item.id] || ''}
+          onChange={(event) => updateAnswer(item.id, event.target.value)}
+          placeholder={t.transform_placeholder}
+          readOnly={submitted || sending}
+        />
+      )}
       {modelAudio}
     </div>
   );
@@ -5127,6 +5205,8 @@ export function OutputLadderPanel({
   correction,
   submitted,
   sending = false,
+  answerState = null,
+  onRetry,
 }: {
   payload: Record<string, any>;
   round: 'sentence' | 'speak' | 'conversation';
@@ -5136,6 +5216,9 @@ export function OutputLadderPanel({
   submitted: boolean;
   /** «Check» is sent and the verdict is not back: the answer is what was sent (#285). */
   sending?: boolean;
+  /** The checked line takes the field's place; a tap on a miss opens the line again. */
+  answerState?: AnswerState;
+  onRetry?: () => void;
 }) {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -5258,16 +5341,23 @@ export function OutputLadderPanel({
           <p>{recordNotice}</p>
         </Notice>
       )}
-      <textarea
-        value={answer}
-        onChange={(event) => updateAnswer(event.target.value)}
-        readOnly={submitted || sending}
-        className="ep-composed-input"
-        placeholder={t[`${round}_placeholder` as const]}
-      />
-      <div className="word-count" data-state={wordRangeState(wordCount(answer), item.min_words, item.max_words)}>
-        {wordRangeText(t, wordCount(answer), item.min_words, item.max_words)}
-      </div>
+      {/* Once checked, the line is read where it was written; the count was for writing it. */}
+      {answerState && answer.trim() ? (
+        lineIsEchoed(answerState, answer, correction, true) && <CheckedLine state={answerState} line={answer} correction={correction} production onEdit={onRetry} />
+      ) : (
+        <>
+          <textarea
+            value={answer}
+            onChange={(event) => updateAnswer(event.target.value)}
+            readOnly={submitted || sending}
+            className="ep-composed-input"
+            placeholder={t[`${round}_placeholder` as const]}
+          />
+          <div className="word-count" data-state={wordRangeState(wordCount(answer), item.min_words, item.max_words)}>
+            {wordRangeText(t, wordCount(answer), item.min_words, item.max_words)}
+          </div>
+        </>
+      )}
       {submitted && (() => {
         const modelText = String(seanceAssessment(correction) === 'correct' && productionPhase(correction) !== 'checking' ? correction?.corrected_answer || item.example_answer || '' : '').trim();
         return modelText ? <EpreuveModelAudio text={modelText} /> : null;
@@ -5292,6 +5382,8 @@ function ProducePanel({
   correction,
   submitted,
   sending = false,
+  answerState = null,
+  onRetry,
 }: {
   concepts: AtelierConcept[];
   exerciseSets: AtelierExerciseSet[];
@@ -5303,6 +5395,8 @@ function ProducePanel({
   submitted: boolean;
   /** «Check» is sent and the verdict is not back: the answer is what was sent (#285). */
   sending?: boolean;
+  answerState?: AnswerState;
+  onRetry?: () => void;
 }) {
   const produce = payload.produce || {};
   const requirements = (produce.requirements || []).map((req: any) => ({
@@ -5335,8 +5429,14 @@ function ProducePanel({
           ))}
         </div>
       )}
-      <textarea className="ep-composed-input" value={answer} onChange={(event) => updateAnswer(event.target.value)} placeholder={t.produce_placeholder} readOnly={submitted || sending} />
-      <div className="word-count" data-state={wordRangeState(wordCount(answer), produce.min_words, produce.max_words)}>{wordRangeText(t, wordCount(answer), produce.min_words, produce.max_words)}</div>
+      {answerState && answer.trim() ? (
+        lineIsEchoed(answerState, answer, correction, true) && <CheckedLine state={answerState} line={answer} correction={correction} production onEdit={onRetry} />
+      ) : (
+        <>
+          <textarea className="ep-composed-input" value={answer} onChange={(event) => updateAnswer(event.target.value)} placeholder={t.produce_placeholder} readOnly={submitted || sending} />
+          <div className="word-count" data-state={wordRangeState(wordCount(answer), produce.min_words, produce.max_words)}>{wordRangeText(t, wordCount(answer), produce.min_words, produce.max_words)}</div>
+        </>
+      )}
     </div>
   );
 }
