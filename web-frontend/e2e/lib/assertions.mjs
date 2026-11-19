@@ -71,6 +71,40 @@ export function englishWords(text) {
 }
 
 /**
+ * A screen's non-French text less what is marked as the learner's own language.
+ *
+ * Owner, 18–19 Nov 2026: from B1 the chrome is French, but an explanation (a rule, a hint,
+ * why an answer was wrong, a correction's tag, a word's gloss) is in the learner's mother
+ * tongue and carries `lang` with it. `marked` is the snapshot's list of outermost marked
+ * non-French elements (`driver.mjs`); only those in `native` are set aside, so unmarked
+ * English, or English marked for another learner, still counts.
+ */
+export function unmarkedText(text, marked, native) {
+  let out = ` ${String(text || '')} `;
+  const own = String(native || '').toLowerCase().split('-')[0];
+  for (const item of marked || []) {
+    if (!own || item?.lang !== own || !item.text) continue;
+    out = out.replace(item.text, ' ');
+  }
+  return out.replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * The B1 French-screen language check: `{ ok, words, around }` for screen `s` of a walker
+ * whose mother tongue is `native`. Three English marker words outside French and outside the
+ * walker's own marked explanations fail it.
+ */
+export function englishOnFrenchScreen(s, native) {
+  const text = unmarkedText(s?.nonFrText, s?.marked, native);
+  const words = englishWords(text);
+  // The text around the first English word, not the page's opening chrome: the
+  // detail has to name the string to fix.
+  const at = words.length >= 3 ? text.toLowerCase().search(new RegExp(`\\b(${words.join('|')})\\b`)) : 0;
+  const around = text.slice(Math.max(0, at - 60), Math.max(0, at - 60) + 240);
+  return { ok: words.length < 3, words, around };
+}
+
+/**
  * Whether screen `s` shows a connection banner (an answer did not reach the server, is on its
  * way, or is kept on this device): an element the app marks `data-connection-banner`
  * (lib/connection-banner.ts) or the session's `.journey-connection` notice. Never a word in the
