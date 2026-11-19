@@ -177,10 +177,12 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     },
     # #380: a miss that changes a word every choice shares (the noun, the pronoun)
     # is not a slip in the day's rule, so it must not recite the rule.
+    # Walk of 19 Nov: the first clause stands alone, because while the solution waits
+    # the clause that names it is dropped (``solution_gate.scrub_hint``).
     "atelier.recognize.other_words": {
-        "en": "The rule is not what differs here: this line asks for “{target}”, not “{learner}”.",
-        "de": "Die Regel ist hier nicht der Unterschied: Die Zeile verlangt „{target}“, nicht „{learner}“.",
-        "fr": "Ce n’est pas la règle qui diffère ici : la ligne demande « {target} », pas « {learner} ».",
+        "en": "Another word of the line differs, not only the rule’s form: this line asks for “{target}”, not “{learner}”.",
+        "de": "Hier weicht ein anderes Wort der Zeile ab, nicht nur die Form der Regel: Die Zeile verlangt „{target}“, nicht „{learner}“.",
+        "fr": "Un autre mot de la ligne diffère, pas seulement la forme de la règle : la ligne demande « {target} », pas « {learner} ».",
     },
     "atelier.recognize.other_words_repair": {
         "en": "Read the English line again and type the words it asks for.",

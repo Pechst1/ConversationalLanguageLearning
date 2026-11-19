@@ -3601,7 +3601,44 @@ def _right_spares(accepted: Iterable[str], answer_tokens: list[str], spares: lis
     return right
 
 
+#: Subjects whose gender neither the English nor the German gloss shows («I», «you», «we»).
+_GENDER_HIDDEN_SUBJECTS = frozenset({"je_f", "tu_f", "nous_f", "vous_f"})
+
+
+def _feminine_of(masculine: str, feminine: str) -> bool:
+    """«parties» is the feminine of «partis», «allée» of «allé»."""
+
+    m, f = masculine.casefold(), feminine.casefold()
+    return f in {m + "e", m + "es", m[:-1] + "es" if m.endswith("s") else m + "es"} and f != m
+
+
+def _gloss_gender_scope(item: BankItem, scope: AnswerScope) -> AnswerScope:
+    """Walk of 19 Nov (B1 day 4): «…we had already left early» was built as «nous étions
+    déjà parties»: the tray held «parties» and no «partis», so a learner who read the
+    gloss's «we» as anyone but a group of women could not build it. When the subject's
+    gender is hidden by the gloss and the key's agreement is feminine, the tray is the
+    masculine twin the key accepts (the generic form); a typed answer still takes both."""
+
+    if not any(str(entry.get("id") or "") in _GENDER_HIDDEN_SUBJECTS for _slot, entry in item.bindings if isinstance(entry, dict)):
+        return scope
+    key = _tokens(scope.sentence)
+    for other in scope.accepted:
+        tokens = _tokens(other)
+        if len(tokens) != len(key) or tokens == key:
+            continue
+        pairs = [(mine, theirs) for mine, theirs in zip(key, tokens, strict=True) if mine != theirs]
+        if pairs and all(_feminine_of(theirs, mine) for mine, theirs in pairs):
+            return replace(scope, sentence=other)
+    return scope
+
+
 def _word_bank_payload(item: BankItem, scope: AnswerScope, lesson_external_id: str | None) -> dict[str, Any] | None:
+    keyed = _gloss_gender_scope(item, scope)
+    if keyed is not scope:
+        # The rule's span follows the key into its masculine twin.
+        twins = dict(zip(_tokens(scope.sentence), _tokens(keyed.sentence), strict=True))
+        item = replace(item, target=" ".join(twins.get(word, word) for word in str(item.target or "").split()))
+        scope = keyed
     answer_tokens = _tokens(scope.sentence)
     if normalize(_join(answer_tokens)) != normalize(scope.sentence):
         return None
@@ -3622,7 +3659,9 @@ def _word_bank_payload(item: BankItem, scope: AnswerScope, lesson_external_id: s
         spares = [spare for spare in spares if normalize(spare) not in right]
         if spares:
             break
-    chips = _scramble([*answer_tokens, *spares[:2]], item.fingerprint)
+    # Walk of 19 Nov: the card says «One word is extra», so the tray holds one spare,
+    # the trap's first wrong word (the rule's own: «avions» of «nous avions déjà parti»).
+    chips = _scramble([*answer_tokens, *spares[:1]], item.fingerprint)
     while chips and chips[0] in {",", ".", ";", ":", "!", "?"}:
         chips = chips[1:] + chips[:1]
     if normalize(_join(chips)) == normalize(scope.sentence) and len(chips) > 2:

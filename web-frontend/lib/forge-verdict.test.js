@@ -175,3 +175,18 @@ test('#333 · no raised level is printed while nobody has read the answer', () =
   assert.equal(V.answeredLevel(null), null);
   assert.equal(V.answeredLevel({ assessment_status: 'checked' }), null);
 });
+
+// Walk of 19 Nov (B1 days 3 and 4): «une lampe» after «Réessayer» was stored as correct,
+// but the miss's model reading (6 s) landed after the retry and painted the old error
+// over it. A poll belongs to the screen only while its attempt is the item's latest.
+test('a late reading of the miss never paints over the retry', () => {
+  const latest = { item: 'miss' };
+  assert.equal(V.pollStillCurrent(latest, 'item', 'miss'), true);
+  latest.item = ''; // «Réessayer»: the retry is being typed
+  assert.equal(V.pollStillCurrent(latest, 'item', 'miss'), false);
+  latest.item = 'retry'; // the retry was sent
+  assert.equal(V.pollStillCurrent(latest, 'item', 'miss'), false);
+  assert.equal(V.pollStillCurrent(latest, 'item', 'retry'), true);
+  assert.equal(V.pollStillCurrent(latest, 'other', 'retry'), false);
+  assert.equal(V.pollStillCurrent({}, 'item', ''), false);
+});
