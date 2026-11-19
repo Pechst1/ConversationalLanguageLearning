@@ -3972,6 +3972,8 @@ def previously_lines(
 
     def line_of(text: Any) -> str:
         line = _one_line(re.sub(r"^j\d+\s*·\s*", "", str(text or "")), PREVIOUSLY_LINE_CHARS)
+        # #917: never the prompts' role word («La carte du learner…»): «tu», or no line.
+        line = story_memory.address_placeholder(line) or ""
         if not line or _folded(line) in seen:
             return ""
         seen.add(_folded(line))

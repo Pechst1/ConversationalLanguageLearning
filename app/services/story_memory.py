@@ -318,8 +318,52 @@ NAME_NOTE = (
 NAME_SCOPE = (
     "The name is for the characters' own lines: everything the page itself says (narration, "
     "visual_direction, alt text, the chapter, the objective, plants, callbacks) still speaks "
-    "to the learner as «tu» and «you», or says «the learner», as if nobody knew it."
+    "to the learner as «tu» and «you», or says «the learner» in English, as if nobody knew it; "
+    "a French line never says «learner» or «player»."
 )
+
+#: #917: the role word of the prompts («the learner», «the player») written into a French
+#: line the learner reads: «La carte du learner trouve sa place parmi les souvenirs
+#: d’Odile.» on a «Précédemment» card. English only; «l'apprenant» is French and stays.
+_ROLE = r"(?:the\s+)?(?:learner|player)s?(?:['’]s)?(?![\w-])"
+_ROLE_WORD = re.compile(rf"(?<![\w-]){_ROLE}", re.IGNORECASE)
+_OF_ROLE = r"(?:du\s+|des\s+|de\s+la\s+|de\s+l['’]\s*|de\s+)"
+#: «La carte du learner» → «Ta carte»: the article says which possessive.
+_OWNED_BY_ROLE = re.compile(
+    rf"(?<![\w-])(le|la|les|l['’])\s*([^\W\d_][\w-]*)\s+{_OF_ROLE}{_ROLE}", re.IGNORECASE
+)
+#: «Romy parle du learner» → «Romy parle de toi».
+_OF_THE_ROLE = re.compile(rf"(?<![\w-]){_OF_ROLE}{_ROLE}", re.IGNORECASE)
+_YOUR = {"le": "ton", "la": "ta", "les": "tes", "l'": "ton"}
+
+
+def role_placeholder(text: Any) -> str | None:
+    """The first role word («learner», «the learner», «player») left in ``text``, or None."""
+
+    match = _ROLE_WORD.search(str(text or ""))
+    return match.group(0) if match else None
+
+
+def address_placeholder(text: Any) -> str | None:
+    """A recap line in the page's own voice, with the role word said as «tu»: ``text``
+    as it is when it has none, the repaired line, or None when the word stays (the
+    line is not printed: «Le learner garde la carte» has no deterministic «tu» form).
+
+    Repairs the two forms a recap writes: «la carte du learner» → «ta carte», and «de»
+    after a verb or a preposition → «de toi» («Romy parle de toi»)."""
+
+    line = str(text or "")
+    if not role_placeholder(line):
+        return line
+
+    def owned(match: re.Match) -> str:
+        article = match.group(1)
+        mine = _YOUR[article.casefold().replace("’", "'")]
+        return f"{mine.capitalize() if article[:1].isupper() else mine} {match.group(2)}"
+
+    line = _OWNED_BY_ROLE.sub(owned, line)
+    line = _OF_THE_ROLE.sub(lambda match: "De toi" if match.group(0)[:1].isupper() else "de toi", line)
+    return None if role_placeholder(line) else line
 
 #: What the ending reports for the memory: the one-call actor (``ACTOR``) and the
 #: story lane (``STORY``) read the same paragraph.
@@ -1034,6 +1078,8 @@ def row_by_id(memory: dict | None, ref: Any) -> dict | None:
 
 __all__ = [
     "MEMORY_KEY",
+    "address_placeholder",
+    "role_placeholder",
     "AnsweredIds",
     "Day",
     "LearnedFacts",
