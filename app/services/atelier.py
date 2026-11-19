@@ -5059,7 +5059,14 @@ class AtelierCorrectionService:
             # (the model's rewrite also changed «agreable» to «agréable») must not
             # read «Line fixed» with that difference still in the line.
             in_place = repair_line_from_parts(source, errata)
-            accepted = [target, in_place if in_place and not sentence_differences(in_place, target) else None]
+            # Walk of 19 Nov: a difference that is no mistake («à Luxembourg» / «au
+            # Luxembourg») does not keep the learner's own fixed line from being right.
+            accepted = [
+                target,
+                in_place
+                if in_place and (not sentence_differences(in_place, target) or is_preference_swap(in_place, target))
+                else None,
+            ]
         else:
             # #503: a keyed round asks for «the corrected line» too. The line is
             # the key's own corrected answer for the item, or the learner's line
@@ -6555,7 +6562,8 @@ class AtelierCorrectionService:
                 return erratum
             if outside_rule:
                 # #380: say what differs in the learner's text, not the rule's headline.
-                why = f"{why} {_copy('atelier.recognize.other_words', language, learner=learner_text, target=target)}"
+                # Walk of 19 Nov: alone, not after «You chose X;» (a typed line was not chosen).
+                why = _copy("atelier.recognize.other_words", language, learner=learner_text, target=target)
             elif normalize_language(language) == "en" and explanation:
                 why = f"{why} {explanation}".strip()
             else:
@@ -6740,9 +6748,19 @@ class AtelierCorrectionService:
                 ),
                 "remember": False,
             }
+        # «„Elle est prête.“.»: the template closes the sentence itself.
+        why = _copy(
+            "atelier.judgement.should_be", language, sentence=sentence.rstrip(". "), corrected=corrected.rstrip(". ")
+        )
+        # Walk of 19 Nov: a judgement has two buttons, so its miss gets no retry and the
+        # right sentence is the other answer anyway. What it lacked was the reason
+        # («„Elle es prête.“ stimmt nicht; richtig ist „Elle est prête.“» and nothing else).
+        named = slip_note(token_diff(sentence, corrected, positions=True), language, corrected)
+        if named and named[0] not in why:
+            why = f"{why} {named[0]}"
         return self._recognize_erratum_payload(
             concept, item, label=label, learner_text=sentence, target=corrected,
-            why=_copy("atelier.judgement.should_be", language, sentence=sentence, corrected=corrected),
+            why=why,
             repair=repair, task_type=self._task_type_for(concept, item),
         )
 

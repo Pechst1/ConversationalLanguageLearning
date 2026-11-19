@@ -13,7 +13,7 @@ import { withinWordRange } from '@/lib/word-range';
 import { dedupeNotes, forgeCorrectionNotes } from '@/lib/correction-notes';
 import { classifyRepair } from '@/lib/forge-followup';
 import { classificationCopy, classificationGoal, isJudgementLabels, judgementLabel, judgementQuestion } from '@/lib/classification-copy';
-import { answeredLevel, itemVerdict, productionPhase, reviewIsPending, settleShownCorrection, type RepairStep } from '@/lib/forge-verdict';
+import { answeredLevel, itemVerdict, pollStillCurrent, productionPhase, reviewIsPending, settleShownCorrection, type RepairStep } from '@/lib/forge-verdict';
 import { canAskAgain, checkState, unreadLine } from '@/lib/verdict';
 import { keepCardAboveSheet } from '@/lib/keep-above-sheet';
 import { drillGoalLine, meaningCueText } from '@/components/atelier-v2/journey/drill-frame';
@@ -787,6 +787,9 @@ export default function AtelierPage() {
     setRememberedHomeKind(readHomeKind());
   }, []);
   const aiPollTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  // Walk of 19 Nov: the attempt each item's screen belongs to. A poll for an older
+  // attempt (the miss before a retry) must not paint over the retry's verdict.
+  const latestAttemptByKey = useRef<Record<string, string>>({});
   const scheduleAiReviewPollingRef = useRef<(attemptId: string, key: string, remaining?: number) => void>(() => {});
 
   const hydrateSession = useCallback((next: AtelierSessionStart, openSession = false) => {
@@ -806,6 +809,7 @@ export default function AtelierPage() {
         restoredSubmitted[key] = true;
         restoredCorrections[key] = correction;
         restoredAttemptIds[key] = attempt.attempt_id;
+        latestAttemptByKey.current[key] = attempt.attempt_id;
         if (['sentence', 'produce', 'speak', 'conversation'].includes(attempt.round)) {
           restoredAnswers[key] = { text: attempt.answer_payload?.text || '' };
         } else {
@@ -1238,6 +1242,7 @@ export default function AtelierPage() {
 
   function applyAttemptResult(key: string, result: AtelierAttemptResult, replaceErrata = false, schedulePending = true) {
     const correction = correctionWithAiReview(result);
+    if (schedulePending || !latestAttemptByKey.current[key]) latestAttemptByKey.current[key] = result.attempt_id;
     setAttemptIdsByKey((prev) => ({ ...prev, [key]: result.attempt_id }));
     // WP-103 T9: a verdict shown is never reversed — a late model reading cannot
     // turn a shown «Right» into corrections.
@@ -1268,7 +1273,16 @@ export default function AtelierPage() {
     }
     aiPollTimers.current[attemptId] = setTimeout(async () => {
       try {
+        if (!pollStillCurrent(latestAttemptByKey.current, key, attemptId)) {
+          delete aiPollTimers.current[attemptId];
+          return;
+        }
         const result = await apiService.getAtelierAttempt(attemptId);
+        // Walk of 19 Nov: a retry sent while this reading was on its way owns the screen now.
+        if (!pollStillCurrent(latestAttemptByKey.current, key, attemptId)) {
+          delete aiPollTimers.current[attemptId];
+          return;
+        }
         const correction = applyAttemptResult(key, result, true, false);
         if (reviewIsPending(correction) && remaining > 1) {
           scheduleAiReviewPolling(attemptId, key, remaining - 1);
@@ -1548,6 +1562,8 @@ export default function AtelierPage() {
   };
 
   const retryCurrentAttempt = () => {
+    // The miss's late model reading must not come back over the retry (walk of 19 Nov).
+    latestAttemptByKey.current[scopedKey] = '';
     setSubmitted((prev) => ({ ...prev, [scopedKey]: false }));
     setResubmitKeys((prev) => ({ ...prev, [scopedKey]: true }));
     setRecentCorrection(null);
@@ -1569,6 +1585,7 @@ export default function AtelierPage() {
   // (a retried miss comes back later). It is asked fresh, as a resubmission;
   // shown graded, its «Continue» re-seated the same item and did nothing.
   const reposeForgeItem = (key: string) => {
+    latestAttemptByKey.current[key] = '';
     setSubmitted((prev) => ({ ...prev, [key]: false }));
     setResubmitKeys((prev) => ({ ...prev, [key]: true }));
     setAnswers((prev) => {
