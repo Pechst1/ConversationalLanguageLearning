@@ -478,6 +478,14 @@ def _sentence_fingerprints(payload: dict[str, Any]) -> set[str]:
     return found
 
 
+def _held_item_ids(payload: dict[str, Any]) -> set[str]:
+    """The id of every item a concept's set already holds, in any round."""
+
+    containers = [_payload_items(payload, round_name, mode) for pools in RUNG_POOLS.values() for round_name, mode in pools]
+    containers.append(_payload_items(payload, "speak", "speak"))
+    return {str(item["id"]) for items in containers for item in items if item.get("id")}
+
+
 class BankItemProvider:
     """The forge's :class:`ItemProvider`: the session's set, topped up from the bank.
 
@@ -880,6 +888,13 @@ class BankItemProvider:
             | _sentence_fingerprints(payload)
             | item_bank._rule_card_sentences(payload, unit_examples(concept))
         )
+        # #771: a build is said to nobody (``item_bank.without_vocative``), so a bank
+        # sentence and its vocative twin («Tu es à la rédaction, Lila ?») are two
+        # fingerprints and ONE item, with one id. Seating the twin put that id in
+        # the set twice: the set then failed its own shape check, the next submit
+        # rebuilt it, and the item on screen was graded as blank against sentences
+        # the learner never saw.
+        held = _held_item_ids(payload)
         requirement = self._requirement(concept, payload)
         bank = item_bank.default_bank()
         seed = f"{self.user.id}:{self.session.id}:{concept_id}:topup:{len(appended)}:{rung}"
@@ -915,6 +930,9 @@ class BankItemProvider:
                     continue
                 if not self._fits_story(concept_id, built):
                     continue
+                if str(built.get("id")) in held:
+                    continue
+                held.add(str(built.get("id")))
                 blocked = blocked | {candidate.fingerprint}
                 made.append((built, candidate))
         if not made:

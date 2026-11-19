@@ -1605,6 +1605,28 @@ def forge_appended_item_ids(payload: Any) -> set[str]:
     return {str(entry.get("id")) for entry in appended or [] if isinstance(entry, dict) and entry.get("id")}
 
 
+def forge_base_item_count(items: list[Any], payload: Any) -> int:
+    """How many of ``items`` the set was built with: its size without La Forge's top-ups.
+
+    Counted per appended entry, not per id (#771): a top-up that carries the id of an
+    item the set was built with (the same sentence, said to nobody) is one top-up, and
+    the item it repeats still counts. Dropping every item of that id read a whole set
+    as one short, and the séance's set was thrown away under the item on screen.
+    """
+
+    forge = (payload or {}).get("forge") if isinstance(payload, dict) else None
+    appended = (forge or {}).get("appended") if isinstance(forge, dict) else None
+    top_ups = Counter(str(entry.get("id")) for entry in appended or [] if isinstance(entry, dict) and entry.get("id"))
+    base = 0
+    for item in items:
+        key = str((item or {}).get("id") or "?") if isinstance(item, dict) else "?"
+        if top_ups[key] > 0:
+            top_ups[key] -= 1
+        else:
+            base += 1
+    return base
+
+
 def _session_exercise_set_ids(session: AtelierSession) -> dict[str, str]:
     quote = session.quote_payload if isinstance(session.quote_payload, dict) else {}
     raw = quote.get("exercise_set_ids") if isinstance(quote, dict) else {}
@@ -3101,10 +3123,9 @@ class AtelierExerciseGenerator:
 
         # WP-S2 x WP-S3: items La Forge appended to this session's set (a
         # bank top-up, each gated on its own) do not change the set's shape.
-        appended = forge_appended_item_ids(payload)
-
         def base_count(items: list[Any]) -> int:
-            return sum(1 for item in items if item_id(item) not in appended)
+            # A set's last items are its top-ups: counted from the end.
+            return forge_base_item_count(list(reversed(items)), payload)
 
         recognize = payload.get("recognize") or {}
         if set(recognize.keys()) != set(ATELIER_RECOGNIZE_MODES):
@@ -6321,7 +6342,8 @@ class AtelierCorrectionService:
         candidate = str(exercise_id or "").split(":")[-1].strip()
         if not candidate:
             return prompt_payload
-        matched = [item for item in items if str((item or {}).get("id") or "") == candidate]
+        # One item is answered: a set that holds its id twice (#771) is graded once.
+        matched = [item for item in items if str((item or {}).get("id") or "") == candidate][:1]
         if not matched and item_ids:
             # La Forge's burst answers several items in one attempt
             # («…:classify:lead+4»): the items its payload names, in that order.
