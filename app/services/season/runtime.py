@@ -425,19 +425,37 @@ def routed_sentence(reply: dict[str, Any], understood: bool, turn: dict[str, Any
     return examples[0] if examples else None
 
 
+#: The most words of an example the hint may give before the learner's first attempt.
+HINT_START_WORDS = 3
+
+
+def hint_start(example: str | None) -> str | None:
+    """The opening of an example reply, never the whole of it: at most
+    :data:`HINT_START_WORDS` words and always fewer than the example has, ending «…».
+    ``None`` for a one-word reply (its start would be the answer)."""
+
+    words = str(example or "").split()
+    if len(words) < 2:
+        return None
+    keep = min(HINT_START_WORDS, max(1, len(words) // 2))
+    return " ".join(words[:keep]).rstrip(",;:") + " …"
+
+
 def hint_for(turn: dict[str, Any] | None, language: str | None) -> str | None:
     """The turn's hint: the *opening* of an example reply to finish, never the whole
     reply — that is the «suggested response», one tap further (EXPERIENCE-REVIEW
     2026-10-04: hint and suggestion were the same sentence, so the hint taught
-    nothing a learner could not copy)."""
+    nothing a learner could not copy).
 
-    example = turn_example(turn)
-    if not example:
+    Round 2 (walk 17 Nov, Le Quartier day 1): an example of three words or fewer was
+    given whole («Zum Beispiel: «Oui, ce soir.»» on the first tap, before any attempt).
+    The hint is asked before the first attempt, so it is a start of at most three words
+    and never a sentence the scene would accept as it is."""
+
+    start = hint_start(turn_example(turn))
+    if not start:
         return None
-    words = example.split()
-    if len(words) >= 4:
-        example = " ".join(words[: max(2, len(words) // 2)]) + " …"
-    return f"{_EXAMPLE_LEAD.get(str(language or ''), _EXAMPLE_LEAD['en'])} «{example}»"[:400]
+    return f"{_EXAMPLE_LEAD.get(str(language or ''), _EXAMPLE_LEAD['en'])} «{start}»"[:400]
 
 
 def authored_draft(today: Today, page: dict[str, Any], turns: list[dict[str, Any]]) -> dict[str, Any]:
@@ -503,7 +521,9 @@ def authored_draft(today: Today, page: dict[str, Any], turns: list[dict[str, Any
         "panels": panels,
         "opening_line_fr": opening_fr[:320],
         "suggested_response_fr": str(example)[:400],
-        "hint_native": (hint_for(first, today.language) or f"{_EXAMPLE_LEAD.get(today.language, _EXAMPLE_LEAD['en'])} «{example}»")[:400],
+        # never the whole example as the hint (it is asked before the first attempt): the
+        # situation instead, in the learner's language
+        "hint_native": (hint_for(first, today.language) or str((first or {}).get("task_native") or "") or premise_native)[:400],
         "translation_native": (opening_native or opening_fr)[:400],
         "capability_key": None,
         "lexicon": _lexicon(page, today.language, text),
@@ -822,6 +842,15 @@ def is_tentpole(story_context: dict[str, Any] | None) -> bool:
 # ---------------------------------------------------------------------------
 # A tentpole turn
 # ---------------------------------------------------------------------------
+
+
+def heard_as_meant(choice: ReplyChoice) -> bool:
+    """Whether the route is what the learner said (a route expressed), not the turn's
+    fallback taken for a reply that said none of them (``clear`` false). Round 2: the
+    classifier's unclear reading kept its default confidence (0.5) and counted as met,
+    so Le Quartier's end card said «Tu as dit que…» of a fallback route."""
+
+    return bool(choice.clear) and choice.confidence >= MATCH_THRESHOLD
 
 
 def card_choice(turn: dict[str, Any], text: str) -> ReplyChoice | None:
@@ -1191,6 +1220,7 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         beats,
         next_turn_id=None if closing else str((turns[next_index] if next_index < len(turns) and next_index != index else turn).get("id")),
         closing=closing,
+        chosen=carded is not None,
     )
     from app.services.season.turns import reaction_lines
 
@@ -1231,7 +1261,7 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         )
     # The story answers every reply; the verdict only says whether the learner's words
     # were understood as one of the scene's replies (never «right» or «wrong» plot).
-    understood = choice.confidence >= MATCH_THRESHOLD
+    understood = heard_as_meant(choice)
     # The page answers what the learner meant; the form is corrected in the margin
     # (never punished in the plot — the bible's rule).
     from app.services.story_lanes import margin_correction, split_margin

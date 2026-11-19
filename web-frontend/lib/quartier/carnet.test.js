@@ -114,3 +114,29 @@ test('an engine day keeps its edition in the quarter’s memory as it begins', (
   assert.match(stage, /private beginDay\(\)[\s\S]{0,400}editionKey\(this\.day\)/);
   assert.doesNotMatch(stage, /this\.memory\.beginDay\(this\.day\);\n\s*this\.routes/, 'every start goes through beginDay()');
 });
+
+test('round 2: a day played as pages files its cards too, under its number (walk 17 Nov, A1 day 3)', () => {
+  // day 1 in 3D (the quarter's memory), day 2 as pages («Personne» reads the notary's letter),
+  // day 3 a written day with no cards. Observed: the carnet listed only day 1's lines.
+  const m = new Memory(false);
+  m.apply('t1a', { kind: 'fact', key: editionKey('t1a'), value: 1 });
+  m.apply('t1a', { kind: 'journal', words: w('Tu as gardé la clé.') });
+  const days = [
+    { date: '2026-11-18', edition_no: 1, title_fr: 'Le mauvais accueil', location_id: 'le_mistral', choices: [{ turn_id: 'a.key', reply_id: 'take', label_fr: 'Je la prends.' }] },
+    { date: '2026-11-19', edition_no: 2, title_fr: 'La lettre', location_id: 'le_mistral', choices: [{ turn_id: 'b.letter', reply_id: 'nobody', label_fr: 'Personne' }] },
+    { date: '2026-11-20', edition_no: 3, title_fr: 'Lila attend devant chez le notaire', location_id: 'rue_de_lancry', choices: [] },
+    { date: '2026-11-27', edition_no: 9, title_fr: 'Là-haut', location_id: 'stairwell', choices: [{ turn_id: 't2.photo', reply_id: 'keep', label_fr: 'Je la garde.' }] },
+  ];
+  const model = carnetOf(m, { cast: [], days, news: false });
+  assert.deepEqual(
+    model.did.map((d) => [d.words.fr, d.label]),
+    [
+      ['Tu as choisi : « Je la garde. »', 'Nº 9'],
+      ['Tu as gardé la lettre pour toi.', 'Nº 2'],
+      ['Tu as gardé la clé.', 'Nº 1'],
+    ],
+    'a page day’s card is listed; a day played in 3D is not listed twice',
+  );
+  const card = model.did[0].words;
+  assert.ok(card.de.startsWith('Du hast gewählt') && card.en.startsWith('You chose'), 'in three languages');
+});

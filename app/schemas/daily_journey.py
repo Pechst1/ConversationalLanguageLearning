@@ -336,6 +336,9 @@ class AttemptStage(JourneyModel):
     #: The question now asked; ``None`` once the conversation is over.
     next_turn_id: str | None = None
     closing: bool = False
+    #: The answer was one of the turn's «Le choix» cards, word for word. Only then is
+    #: the route what the learner said; a free answer the engine routed is its reading.
+    chosen: bool = False
 
 
 class ScenePrompt(JourneyModel):
@@ -1357,6 +1360,18 @@ class HeadlineArc(JourneyModel):
     days_left: int
 
 
+class HeadlineStage(JourneyModel):
+    """P12: where today's planned page plays, known before the day is opened: a tentpole's,
+    or a gap day's once the night has written it (round 3: the prefetched scene's place)."""
+
+    #: The page's key («t1.a»), as the Quartier's stage names it.
+    key: str
+    #: The place the page opens at (a season location id, «le_mistral»).
+    location_id: str | None = None
+    #: Each movement's place, in order; ``None`` where a movement names none.
+    locations: list[str | None] = Field(default_factory=list)
+
+
 class EpisodeHeadline(JourneyModel):
     """WP-109: today's episode as Home and the Feuilleton headline it."""
 
@@ -1380,6 +1395,9 @@ class EpisodeHeadline(JourneyModel):
     #: WP-116: the drawn cast's per-learner looks, e.g. ``{"camille_marchand": "f"}``.
     #: Only choices the learner has made; empty before them.
     cast_variants: dict[str, str] = Field(default_factory=dict)
+    #: P12: where today's page plays, before the day is opened (Home's «Play in the Quartier»);
+    #: ``None`` once the day is opened (the journey's own stage says it), and on a gap day.
+    stage: HeadlineStage | None = None
 
 
 #: The day's steps IN THEIR ORDER (owner, 1 Nov 2026: the scene, then La Forge,

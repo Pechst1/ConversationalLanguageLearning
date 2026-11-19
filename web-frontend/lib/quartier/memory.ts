@@ -25,7 +25,12 @@ export interface Words {
 export type Effect =
   | { kind: 'fact'; key: string; value: Value }
   | { kind: 'regard'; who: CastId; delta: number }
-  | { kind: 'journal'; words: Words; who?: CastId }
+  /**
+   * A line of the carnet. `said`: it restates the learner's words or intent («Tu as dit que…»),
+   * so it is kept only for a card chosen word for word; for a free answer the engine routed here,
+   * `heard` (what the room took it to mean, from the characters' side) stands in, or nothing.
+   */
+  | { kind: 'journal'; words: Words; who?: CastId; said?: boolean; heard?: Words }
   /** something you now know, and who told you (one of the cast, or someone of a place, by name) */
   | { kind: 'learn'; key: string; words: Words; who?: CastId; from?: string }
   /** who holds an object now: `toi`, a cast id, or a place (`zinc`) */

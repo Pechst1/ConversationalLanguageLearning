@@ -19,6 +19,7 @@ import dailyJourneyService, { journeyErrorCode, mutationId } from '@/services/da
 import type { AttemptResult, HelpKind, JourneySnapshot, RespondStep, SceneStep, StoryletChoiceResult } from '@/types/daily-journey';
 
 import type { Value } from './memory';
+import { clearScenePlace, readScenePlace, writeScenePlace } from './scene-place';
 import { STAGED_DAYS, locationOf, nextTurn, unbuiltOf } from './story';
 import { unfinishedAt } from './world';
 export { episodeLabel } from './story';
@@ -314,7 +315,21 @@ export type Today =
   /** the scene goes somewhere the world has not built yet (`place`, a season location): the Feuilleton tells it until the forge has */
   | { kind: 'handoff'; why: 'elsewhere'; place: string; page: StoryPage };
 
-export function todayOf(journey: JourneySnapshot | null): Today {
+/**
+ * Where a page goes that the quarter cannot play it: for a day the director blocks, the first
+ * unfinished place it moves to (P12 place check); for any other, the first place nothing is
+ * built for (`unbuiltOf`). Null when the quarter can play the whole page.
+ */
+export function awayOf(page: StoryPage): string | null {
+  return blockedPage(page) ? unfinishedAt([page.location_id, ...page.movements.map(locationOf)]) : unbuiltOf(page);
+}
+
+/** Whether this device kept the scene's place for the journey's page at this `turn_index` (`scene-place.ts`). */
+export type KeptPlace = (journey: string, page: string, at: number) => boolean;
+
+const keptOnDevice: KeptPlace = (journey, page, at) => readScenePlace(journey, page, at) !== null;
+
+export function todayOf(journey: JourneySnapshot | null, kept: KeptPlace = keptOnDevice): Today {
   if (!journey) return { kind: 'start' };
   if (journey.status === 'preparing') return { kind: 'preparing' };
   if (journey.status === 'completed' || journey.status === 'ended_early') return { kind: 'done' };
@@ -326,7 +341,7 @@ export function todayOf(journey: JourneySnapshot | null): Today {
   if (!step) return { kind: 'practice', page };
   // a scene set where nothing is built yet is not played here in a place it is not: the whole day is the Feuilleton's
   // a day the director blocks plays where it is, unless a place it goes to is unfinished (P12 place check)
-  const away = blockedPage(page) ? unfinishedAt([page.location_id, ...page.movements.map(locationOf)]) : unbuiltOf(page);
+  const away = awayOf(page);
   const elsewhere: Today | null = away ? { kind: 'handoff', why: 'elsewhere', place: away, page } : null;
   // steps before the scene are the Feuilleton's, in its order, played over the quarter
   if (step.ordinal < scene.ordinal) return elsewhere ?? { kind: 'before', page };
@@ -334,7 +349,9 @@ export function todayOf(journey: JourneySnapshot | null): Today {
   const talk = talkOf(journey);
   if (talk && step.id === talk.id && step.status !== 'completed') {
     // a question already answered here was left behind: where the talk stands is the Feuilleton's
-    return talk.prompt.turn_index === 0 ? (elsewhere ?? { kind: 'play', page }) : { kind: 'handoff', why: 'midway' };
+    // round 3: unless this device kept where the scene stood at that answer: it plays on from there
+    const picksUp = talk.prompt.turn_index === 0 || kept(journey.id, page.key, talk.prompt.turn_index);
+    return picksUp ? (elsewhere ?? { kind: 'play', page }) : { kind: 'handoff', why: 'midway' };
   }
   return { kind: 'practice', page };
 }
@@ -419,9 +436,32 @@ export class JourneyStory implements Story {
     this.opts = opts;
     this.service = opts.service ?? dailyJourneyService;
     this.sleep = opts.sleep ?? realSleep;
-    // a talk already past its first question is not one this story can pick up (`todayOf`)
+    // a talk already past its first question is picked up only where this device left it (`todayOf`)
     const talk = talkOf(journey);
-    this.asking = talk && talk.status !== 'completed' && talk.prompt.turn_index === 0 ? nextTurn(page, null, {}) : null;
+    const open = talk && talk.status !== 'completed' ? talk : null;
+    const kept = open && open.prompt.turn_index > 0 ? readScenePlace(journey.id, page.key, open.prompt.turn_index) : null;
+    this.asking = !open ? null : open.prompt.turn_index === 0 ? nextTurn(page, null, {}) : kept ? kept.asking : null;
+  }
+
+  /** The talk's `turn_index` as the engine has it now; null once the talk is over. */
+  private answeredAt(): number | null {
+    const talk = talkOf(this.journey);
+    return talk && talk.status !== 'completed' ? talk.prompt.turn_index : null;
+  }
+
+  /** Where the scene stands, kept on the device with the `turn_index` it stands at (`scene-place.ts`). */
+  keepPlace(place: { from: string; routes: Record<string, string>; asking: string | null }) {
+    const at = this.answeredAt();
+    if (at === null || this.closing) return;
+    writeScenePlace({ journey: this.journey.id, page: this.page.key, at, from: place.from, routes: { ...place.routes }, asking: place.asking });
+  }
+
+  /** The place this device kept for the day as the engine has it now (the same answers given), or null. */
+  keptPlace() {
+    const at = this.answeredAt();
+    const kept = at === null ? null : readScenePlace(this.journey.id, this.page.key, at);
+    if (!kept || !this.page.movements.some((m) => m.id === kept.from)) return null;
+    return { from: kept.from, routes: { ...kept.routes }, asking: kept.asking };
   }
 
   /** The journey as the engine last handed it back. */
@@ -589,6 +629,10 @@ export class JourneyStory implements Story {
         next: str(stage.next_turn_id),
         closing: stage.closing === true,
         mend,
+        // what the engine judged the answer to mean: a route expressed («met»), not the fallback
+        understood: r.task_outcome === 'met',
+        // one of the turn's cards, word for word: the route is what the learner said
+        chosen: stage.chosen === true,
       };
     }
     // a server that does not stage its answers: the room says what the engine said, and the
@@ -646,6 +690,8 @@ export class JourneyStory implements Story {
    * written, which the Feuilleton waits for), and a day with nothing after it is finished. Once.
    */
   close(): Promise<void> {
+    // played to its hook: nothing to pick up next time
+    if (!this.closing) clearScenePlace(this.journey.id);
     this.closing ??= this.serial(async () => {
       for (let i = 0; i < 4 && this.journey.status === 'active'; i++) {
         const step = currentStepOf(this.journey);

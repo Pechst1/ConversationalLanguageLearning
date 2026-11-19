@@ -6099,6 +6099,18 @@ export interface components {
             /** Title Fr */
             title_fr: string;
         };
+        /**
+         * ArchiveChoice
+         * @description P12 round 2: a card the learner chose on a season page («Le choix»).
+         */
+        ArchiveChoice: {
+            /** Label Fr */
+            label_fr?: string | null;
+            /** Reply Id */
+            reply_id: string;
+            /** Turn Id */
+            turn_id: string;
+        };
         /** ArchiveCurrent */
         ArchiveCurrent: {
             /** Chapter */
@@ -6127,6 +6139,8 @@ export interface components {
             can_do_id?: string | null;
             /** Character Id */
             character_id?: string | null;
+            /** Choices */
+            choices?: components["schemas"]["ArchiveChoice"][];
             /** Date */
             date: string;
             /** Edition No */
@@ -6777,6 +6791,11 @@ export interface components {
         AttemptStage: {
             /** Beats */
             beats: components["schemas"]["StagePanel"][];
+            /**
+             * Chosen
+             * @default false
+             */
+            chosen: boolean;
             /**
              * Closing
              * @default false
@@ -8482,6 +8501,7 @@ export interface components {
             reread: boolean;
             /** Season Title Fr */
             season_title_fr: string | null;
+            stage: components["schemas"]["HeadlineStage"] | null;
             /** Teaser Fr */
             teaser_fr: string | null;
             /** Teaser Open Fr */
@@ -9668,6 +9688,19 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+        };
+        /**
+         * HeadlineStage
+         * @description P12: where today's planned page plays, known before the day is opened: a tentpole's,
+         *     or a gap day's once the night has written it (round 3: the prefetched scene's place).
+         */
+        HeadlineStage: {
+            /** Key */
+            key: string;
+            /** Location Id */
+            location_id: string | null;
+            /** Locations */
+            locations: (string | null)[];
         };
         /**
          * HelpKind

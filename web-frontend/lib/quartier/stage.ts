@@ -34,7 +34,7 @@ import { Euler, Matrix4, Quaternion, Vector3 } from 'three';
 import type { Object3D } from 'three';
 
 import { CAST_NAMES } from '../generated/cast';
-import { BARK_PLACES, LEAVE, MOMENT, PEOPLE as TALKERS, REPLY_EFFECTS, STREET_BARKS, TEXT_SUITCASE, heardEffects } from './agency';
+import { BARK_PLACES, LEAVE, MOMENT, PEOPLE as TALKERS, STREET_BARKS, TEXT_SUITCASE, heardEffects, replyEffects } from './agency';
 import type { Hit, Quartier } from './engine';
 import { Memory, editionKey, eligible } from './memory';
 import type { CastId, Effect, Value, Words } from './memory';
@@ -44,7 +44,7 @@ import { STRIDE } from './pace';
 import { PLAN } from './quai';
 import { OfflineStory, STAGED_DAYS, hookOf, locationOf, nextTurn, placeCard, placesOf, roomOf, storyletOf } from './story';
 import { HOME_PLACE, placeBuiltAs } from './world';
-import type { Answered, Ask, Help, HelpStep, Heard, Mend, Story, StoryHook, StoryLine, StoryMovement, StoryPanel, StoryPerson, StoryTurn } from './story';
+import type { Answered, Ask, Help, HelpStep, Heard, Mend, Story, StoryHook, StoryLine, StoryMovement, StoryPage, StoryPanel, StoryPerson, StoryTurn } from './story';
 
 /** The day's id in the quarter's memory (`t1a`, `t1b`; `jour2026-10-30` for a day the engine wrote). */
 export function dayOf(page: { key: string }) {
@@ -168,6 +168,12 @@ export interface StageUi {
   aside: SpeechUi | null;
   /** the moment before the bell: talk to anyone, then go on */
   moment: { text: string; native: string } | null;
+  /**
+   * In the free walk: whether anyone here can be talked to (today's page lists people to talk to).
+   * False: a tap on someone shows their name only, so the hint promises no talk (round 2, walk
+   * 17 Nov, day 3: «touche quelqu’un pour parler» over a day with no talk; ten taps, a name pill).
+   */
+  canTalk?: boolean;
   talk: TalkUi | null;
   /** a line someone says as you pass */
   bark: (SpeechUi & { at: number }) | null;
@@ -403,6 +409,11 @@ class Cancelled extends Error {}
 /* ------------------------------------------------------------------------------------------ */
 /* the director                                                                               */
 /* ------------------------------------------------------------------------------------------ */
+
+/** Whether a page has anyone to talk to in the free walk (its `talk` storylet lists people). */
+export function canTalkOn(page: StoryPage | null | undefined): boolean {
+  return Boolean(page && storyletOf(page, 'talk')?.people.length);
+}
 
 /** The screen with nothing on it (before a title card). */
 export const BLANK: StageUi = {
@@ -768,7 +779,7 @@ export class Stage implements Director {
     this.q.look(null);
     this.q.lens(60);
     this.q.showWay(null);
-    this.show({ ...BLANK, phase: 'roam', progress: 1 });
+    this.show({ ...BLANK, phase: 'roam', progress: 1, canTalk: canTalkOn(this.story.page) });
     // in a room the forge built, whoever was in the scene stays where they stand
     if (!this.home) return;
     this.q.openDoor(false);
@@ -1760,14 +1771,17 @@ export class Stage implements Director {
     const all = this.story.page.movements;
     const i = all.findIndex((m) => m.id === id);
     this.set({ beat: id, progress: Math.max(0, i) / all.length });
+    // round 3: where the scene stands, so that leaving it and coming back plays on from here
+    if (i >= 0 && this.ui.phase !== 'roam' && this.ui.phase !== 'end') this.story.keepPlace?.({ from: id, routes: this.routes, asking: this.asking });
   }
 
   private async play() {
     const gen = ++this.gen;
     this.clearWaits();
     const page = this.story.page;
-    // the page as another place left it: played on from there, the day already begun
-    const resume = this.resume;
+    // the page as another place left it: played on from there, the day already begun; else where
+    // this device left the scene (round 3: a stray tap mid-scene, then back in), else from the top
+    const resume = this.resume ?? this.story.keptPlace?.() ?? null;
     this.resume = null;
     const startAt = resume ? page.movements.findIndex((m) => m.id === resume.from) : 0;
     this.startAt = Math.max(0, startAt);
@@ -1788,6 +1802,7 @@ export class Stage implements Director {
     if (resume) {
       this.routes = { ...resume.routes };
       this.asking = resume.asking;
+      if (this.blocked && this.day === 't1a') this.pickUpA(page.movements[this.startAt]?.id ?? null);
     } else {
       this.beginDay();
       this.routes = {};
@@ -1901,6 +1916,33 @@ export class Stage implements Director {
         return this.bP6(gen, m);
       default:
         return this.beat(gen, m);
+    }
+  }
+
+  /**
+   * Day a picked up where this device left it: past the quai you are inside the door, past the
+   * zinc's close-up you stand at the zinc with the envelope and the key ring on it.
+   */
+  private pickUpA(from: string | null) {
+    const ids = this.story.page.movements.map((m) => m.id);
+    const at = from ? ids.indexOf(from) : -1;
+    const past = (id: string) => ids.indexOf(id) >= 0 && at > ids.indexOf(id);
+    if (past('a.p3')) {
+      this.q.place(MARKS.atZinc, MARKS.zincTop);
+      const env = this.prop('envelope');
+      if (env) {
+        env.position.copy(this.envHome);
+        env.rotation.set(0, 0.25, 0);
+        env.visible = true;
+      }
+      const key = this.prop('key');
+      if (key) {
+        key.position.copy(this.keyHome);
+        key.quaternion.copy(this.keyFlat);
+        key.visible = true;
+      }
+    } else if (past('a.p1')) {
+      this.q.place(MARKS.doorIn, this.faceOf('augustin_de_roncourt'));
     }
   }
 
@@ -2265,6 +2307,9 @@ export class Stage implements Director {
       if (heard.reply !== null || heard.next !== turn.id) {
         if (heard.reply !== null) this.routes[turn.id] = heard.reply;
         this.asking = heard.next;
+        // answered: coming back, the scene plays on after this question, never asks it again
+        const after = this.story.page.movements[this.story.page.movements.findIndex((m) => m.id === turn.id) + 1];
+        if (after) this.story.keepPlace?.({ from: after.id, routes: this.routes, asking: this.asking });
         break;
       }
       // a talk the engine keeps open: what they said back is the next thing you answer
@@ -2325,7 +2370,8 @@ export class Stage implements Director {
   /** What the room does with what you said: the first line back, then the reply the engine read. */
   private async react(gen: number, turn: StoryTurn, heard: Heard) {
     this.set({ beat: heard.reply !== null ? `${turn.id}.${heard.reply}` : heard.goesOn ? `${turn.id}.on` : `${turn.id}.again` });
-    if (heard.reply !== null && this.blocked) this.remember(REPLY_EFFECTS[`${turn.id}.${heard.reply}`]);
+    // «Tu as dit…» only of a card chosen word for word; of a free answer, what the room took it to mean (`replyEffects`)
+    if (heard.reply !== null && this.blocked) this.remember(replyEffects(turn.id, heard.reply, { understood: heard.understood, chosen: heard.chosen }));
     // your line stays while the room takes it in; a correction stays until you have read it
     if (heard.mend) await this.waitTap(gen);
     else await this.wait(gen, 1.2);
