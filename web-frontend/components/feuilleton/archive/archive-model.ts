@@ -415,6 +415,18 @@ export function findArchiveDay(
   return null;
 }
 
+/**
+ * P9 · Home's «Revoir» on a finished day: the day's episode in the archive reader
+ * (translation and tappable words), with `from=home` so the way back is Home.
+ * `null` while the day is not in the archive yet: Home then keeps its end card.
+ */
+export function homeReplayHref(payload: ArchivePayload | null | undefined, journeyId: string | null | undefined): string | null {
+  if (!journeyId) return null;
+  const day = findArchiveDay(payload, { journeyId });
+  if (!day || day.journey_id !== journeyId) return null;
+  return `${archiveDayHref({ date: day.date, journey_id: day.journey_id, scene_id: day.scene_id })}&from=home`;
+}
+
 /** The edition number a margin note's «— Nº N» prints: the note's own, else the cause day's. */
 export function marginNoteEdition(note: ArchiveMarginNote, payload?: ArchivePayload | null): number | null {
   if (typeof note.cause_edition_no === 'number') return note.cause_edition_no;
