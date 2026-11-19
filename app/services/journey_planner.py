@@ -5522,8 +5522,10 @@ def _introduction_items(
         # A «jour d'écoute» poses only what can be taken down by ear.
         if shape_allows_format(shape, task.task_type)
     ]
-    if len(guided) < 2:
-        # A rule with nothing to try is a lecture, not an Essai.
+    if len(guided) < 2 and not rule_taught_once(shape):
+        # A rule with nothing to try is a lecture, not an Essai. R2: with the rule
+        # taught once (:data:`RULE_TAUGHT_ONCE`) the card shows no Essai at all —
+        # La Forge practises it — so the card stands on its own worked example.
         return None, 0, []
     cost = rule_card_seconds(
         card, spt=spt, multiplier=multiplier,
@@ -6056,6 +6058,21 @@ def repeats_card_pair(task: RecallTask, card: dict[str, Any] | None) -> bool:
     return right in shown and wrong in shown
 
 
+#: R2 (round two of the pilot fixes, 18 Nov): a day teaches its rule ONCE — the
+#: rule card with its own worked example, then La Forge as the one place the rule
+#: is practised. The drill around the scene carries no item on today's rule (only
+#: the learner's own mistakes and due reviews; empty when there are none), and the
+#: card no longer needs two guided items to exist. A listening day keeps its own
+#: heard items. ``False`` restores decision 8's one guided item on a thin day.
+RULE_TAUGHT_ONCE = True
+
+
+def rule_taught_once(shape: DayShape) -> bool:
+    """R2: is today's rule card shown alone, without guided items, on this day?"""
+
+    return RULE_TAUGHT_ONCE and RAPPEL_OWN_MISTAKES_ONLY and shape is not DayShape.LISTENING
+
+
 def guided_shown(
     reserved: list[tuple[RecallTask, int]],
     *,
@@ -6065,13 +6082,16 @@ def guided_shown(
 ) -> list[tuple[RecallTask, int]]:
     """Decision 8: the rule's guided items the day shows after its card.
 
-    One, and only when the own mistakes and the due rule left fewer than
+    R2 (:data:`RULE_TAUGHT_ONCE`): none — La Forge practises today's rule. Without
+    it: one, and only when the own mistakes and the due rule left fewer than
     :data:`RAPPEL_GUIDED_BELOW` items and the block has room; never the card's
     own ✗/✓ pair. With :data:`RAPPEL_OWN_MISTAKES_ONLY` off: every reserved item.
     """
 
     if not RAPPEL_OWN_MISTAKES_ONLY:
         return list(reserved)
+    if RULE_TAUGHT_ONCE:
+        return []
     if rappel_items >= RAPPEL_GUIDED_BELOW or rappel_items >= cap:
         return []
     fresh = [(task, cost) for task, cost in reserved if not repeats_card_pair(task, card)]
@@ -6393,10 +6413,13 @@ def _plan_practice_day(
 
     forced_intro = False
 
+    taught_once = rule_taught_once(shape)
+
     def intro_reserve(turn_count: int) -> list[tuple[RecallTask, int]]:
         """The guided items that fit, keeping at least room for the core day."""
 
-        if not intro_card:
+        if not intro_card or taught_once:
+            # R2: the rule taught once — its card, and no guided item after it.
             return []
         if forced_intro:
             # WP-128: a longer rule day — the card and its two first guided items.
@@ -6419,10 +6442,34 @@ def _plan_practice_day(
             kept.pop()
         return kept if len(kept) >= 2 else []
 
+    def intro_on(turn_count: int) -> bool:
+        """Is today's rule card placed at this reply length?
+
+        Before R2 the card came with at least two guided items that fit
+        (:func:`intro_reserve`); with the rule taught once it needs only its own
+        seconds next to the core day.
+        """
+
+        if not intro_card:
+            return False
+        if not taught_once:
+            return bool(intro_reserve(turn_count))
+        if forced_intro:
+            return True
+        cost = respond_seconds(
+            task, turns=turn_count, spt=spt, multiplier=multiplier, band=band, authored=authored,
+            asks_unit=emploi
+        )
+        room = (
+            day_room - (scene_cost + cost + resolution_cost) - intro_card_cost
+            - read_cost - desk_cost
+        )
+        return room >= 0
+
     def attempt(turn_count: int) -> tuple[int, list[PracticeItem]]:
         cost = respond_seconds(
             task, turns=turn_count, spt=spt, multiplier=multiplier, band=band, authored=authored,
-            asks_unit=(emploi if intro_reserve(turn_count) else 0) or reemploi,
+            asks_unit=(emploi if intro_on(turn_count) else 0) or reemploi,
         )
         # WP-S4: the folded forge keeps its room free of quick items; WP-93:
         # so do the «Lecture» and the input floor (only heard items use it).
@@ -6433,7 +6480,7 @@ def _plan_practice_day(
         reserved = intro_reserve(turn_count)
         max_items: int | None = None
         target_items: int | None = None
-        if reserved:
+        if intro_on(turn_count):
             headroom -= intro_card_cost + sum(item_cost for _task, item_cost in reserved)
             max_items = max(0, min(caps.max_recall, caps.max_steps - 5) - len(reserved))
             target_items = max(0, caps.target_items - len(reserved))
@@ -6537,12 +6584,12 @@ def _plan_practice_day(
 
     respond_cost, items = attempt(turns)
     min_turns = scene_exchange_floor(scenario, task, budget_seconds)
-    if intro_card and not intro_reserve(turns) and turns > min_turns:
+    if intro_card and not intro_on(turns) and turns > min_turns:
         # The new unit is worth the reply's second turn. WP-128: and, when the
         # band composes slowly, its third — down to the reply's minimum (one
         # exchange, or «Le choix»'s) — rather than deferring the rule again.
         fewer = next(
-            (count for count in range(turns - 1, min_turns - 1, -1) if intro_reserve(count)),
+            (count for count in range(turns - 1, min_turns - 1, -1) if intro_on(count)),
             None,
         )
         if fewer is not None:
@@ -6552,7 +6599,7 @@ def _plan_practice_day(
             notes.append(
                 f"reply reduced by {dropped_turns} turn(s) so the new rule fits the budget"
             )
-    if intro_card and not intro_reserve(turns):
+    if intro_card and not intro_on(turns):
         # WP-128. Even the reply's minimum leaves the rule no room: a slow band
         # on a short rhythm (A1 on Léger). Deferring would defer it every day —
         # and a reprise that cannot introduce its unit repeats forever — so the
@@ -6565,7 +6612,7 @@ def _plan_practice_day(
         respond_cost, items = attempt(turns)
         items = []
         notes.append("longer day: the new rule does not fit the rhythm; the day is the story and its rule")
-    if reemploi and not intro_reserve(turns):
+    if reemploi and not intro_on(turns):
         # WP-130 B: the reply asks for a «Réemploi» only when it fits the day
         # and costs it at most one item. A slow band composes the unit's
         # sentence in every exchange (WP-128): on an A1/A2 day that is minutes,
@@ -6593,7 +6640,7 @@ def _plan_practice_day(
         and caps.budget_seconds <= RHYTHM_FIVE_MINUTES
         and len(items) + len(intro_reserve(turns)) < caps.target_items
         and turns > min_turns
-        and not (intro_card and not intro_reserve(turns - 1))
+        and not (intro_card and not intro_on(turns - 1))
     ):
         # The reply keeps its repair; it gives up its second turn so the day
         # can hold its quick items — the same trade WP-75 made for day one.
@@ -6613,14 +6660,16 @@ def _plan_practice_day(
         return None
 
     rule = practice_day_shape_rule(shape, budget_seconds)
-    if len(items) < rule.min_recall and not forced_intro:
+    # R2: with the rule taught once, a longer day has no guided items left to be
+    # its recall steps, so its shape is checked like any other day's.
+    if len(items) < rule.min_recall and (not forced_intro or taught_once):
         notes.append(
             f"{shape} day downgraded to {DEFAULT_DAY_SHAPE}: "
             f"{len(items)} recall step(s), {rule.min_recall} required"
         )
         shape = DEFAULT_DAY_SHAPE
         shape_reason = "shape_needs_a_recall_step"
-        if not items:
+        if not items and not forced_intro:
             respond_cost, items = attempt(turns)
     if desk_step is not None:
         # «Le bureau»: the desk takes one ordinary recall's place, so the day
@@ -6645,7 +6694,7 @@ def _plan_practice_day(
         reserved_now = intro_reserve(turns)
         spent = (
             scene_cost + respond_cost + resolution_cost + desk_cost + read_cost
-            + (intro_card_cost + sum(cost for _t, cost in reserved_now) if reserved_now else 0)
+            + (intro_card_cost + sum(cost for _t, cost in reserved_now) if intro_on(turns) else 0)
         )
         while review_step is not None and spent + sum(item.cost for item in items) + review_step.estimated_seconds > day_room:
             dropped = _drop_one_recall(items)
@@ -6721,7 +6770,7 @@ def _plan_practice_day(
         if shape is not DayShape.LISTENING
         else list(reserved)
     )
-    if intro_card and reserved and introduction is not None:
+    if intro_on(turns) and introduction is not None:
         intro_target = grammar_items.grammar_target(introduction)
         intro_steps.append(
             _rule_step(

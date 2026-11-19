@@ -199,7 +199,11 @@ def _due_review_ids(db: Session, user: Any, *, room: int, now: datetime) -> list
         direction=card_direction(user),
         now=now,
     )
-    return [int(card["word_id"]) for card in payload.get("due_words") or [] if card.get("word_id")]
+    due = [int(card["word_id"]) for card in payload.get("due_words") or [] if card.get("word_id")]
+    from app.services.day_review_cap import cap_day_reviews
+
+    # Round 3: at most as many reviews as the day's new words, the oldest due first.
+    return cap_day_reviews(db, user, due)
 
 
 def make_plan(db: Session, user: Any, *, now: datetime) -> dict[str, Any]:

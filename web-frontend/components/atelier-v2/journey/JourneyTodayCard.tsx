@@ -73,7 +73,7 @@ import {
   type SeasonPremiereView,
 } from './season-return-model';
 import { joinMeta, type JourneyPhase } from './journey-state';
-import { coreEstimateLabel, extensionLabel } from './time-estimate';
+import { coreEstimateLabel, dayTotalLabel, extensionLabel } from './time-estimate';
 import { TomorrowChoice } from './TomorrowChoice';
 import type { DailyJourneyController } from './useDailyJourney';
 
@@ -322,12 +322,15 @@ function JourneyTodayBody({
       // the story alone makes) — and the words' own minutes beside it, never
       // folded into it: the drill is optional.
       const timeEstimate = phase.envelope.time_estimate ?? null;
+      // Round 3: with the day's steps, one figure: the sum of the minutes they show.
       const estimate = gentle
         ? null
-        : joinMeta(
+        : dayTotalLabel(phase.envelope.session, timeEstimate, controlLanguage) ||
+          joinMeta(
             coreEstimateLabel(timeEstimate, scenario.estimated_seconds, controlLanguage),
             extensionLabel(timeEstimate, 'words', controlLanguage),
-          ) || null;
+          ) ||
+          null;
       return (
         <Card
           copy={copy}

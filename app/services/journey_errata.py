@@ -296,8 +296,11 @@ def errata_targets_for_user(
 
     ``due_by`` widens "due" from now to that moment, and ranks as of then."""
 
+    from app.services.fault_quality import drillable_errors
+
     records = ErrorMemoryService(db).due_error_records(user, limit=max(limit * 6, 12), due_by=due_by)
-    return rank_errata_targets(records, limit=limit, now=due_by or now)
+    # Round 3: a stored half-finished edit is never a repair to deal.
+    return rank_errata_targets(drillable_errors(db, records), limit=limit, now=due_by or now)
 
 
 def errata_candidates_for_user(

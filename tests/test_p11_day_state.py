@@ -129,6 +129,12 @@ def _rule_first_day(client, db_session, monkeypatch):
     from app.services.grammar_catalog import FrenchCoreGrammarCatalog
 
     monkeypatch.setattr(settings, "ATELIER_JOURNEY_PRACTICE_DAY_ENABLED", True)
+    # R2 (1): a day teaches its rule once (the card, then La Forge), so a fresh
+    # learner's day has no drill item before the scene any more. The skip and the
+    # pause are pinned on the older shape, which a rule-taught-twice day still has.
+    from app.services import journey_planner
+
+    monkeypatch.setattr(journey_planner, "RULE_TAUGHT_ONCE", False)
     FrenchCoreGrammarCatalog(db_session, "v1").ensure_catalog()
     email = f"p11-{uuid.uuid4().hex[:8]}@example.com"
     d = Driver(client, register(client, email), db=db_session)

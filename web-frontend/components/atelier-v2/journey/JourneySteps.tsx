@@ -68,6 +68,7 @@ import { castIdFor, expressionForVerdict } from '@/lib/cast-faces';
 import { feel, markVerdictFelt } from '@/lib/feel';
 import { frenchSpacing } from '@/lib/french-typography';
 import { ruleSceneAnchor, usableCard } from '@/lib/rule-card';
+import { markRuleRead } from '@/lib/rule-read-today';
 import type { FaceMood, PortraitMood } from '@/lib/onboarding-portraits';
 import type {
   AttemptInput,
@@ -137,7 +138,13 @@ import {
 import { ExchangeTokens, RespondThread } from './RespondThread';
 import { drillGoalLine, recallMetLine, slipSegments, type DrillGoal } from './drill-frame';
 import { StoryEpisodeReader } from './StoryEpisodeReader';
-import { finaleOnlyEpisode, journeyStoryPage, storyFinaleStage } from './story-episode-model';
+import {
+  finaleOnlyEpisode,
+  journeyStoryPage,
+  storyFinaleStage,
+  withClosingExchanges,
+  type ClosingExchange,
+} from './story-episode-model';
 import { getStoryEpisodeEntry, loadStoryEpisode, storyEpisodeKey, useStoryEpisodeEntry } from './story-episode-store';
 import { getStoryEpisodeForJourney, stepAct } from '@/services/daily-journey';
 import { listenLabel, useStepVoice } from './useStepVoice';
@@ -1493,7 +1500,11 @@ export function RuleStepView({
         variant="intro"
         review={review}
         conceptId={step.prompt.concept_id}
-        onDone={proceed}
+        onDone={() => {
+          // R2: today's card was read — La Forge from the day opens on its first item.
+          if (!review && !busy) markRuleRead(step.prompt.concept_id);
+          proceed();
+        }}
         sceneAnchor={anchor}
         sceneVoice={anchor ? voice : null}
         sceneListenLabel={anchor ? listenLabel(copy, anchor.name) : undefined}
@@ -1625,7 +1636,30 @@ export function ResolutionStepView({
     () => storyFinaleStage(step.id, step.prompt, speaker),
     [step.id, step.prompt, speaker],
   );
-  const episode = page ?? finaleOnlyEpisode(journey?.id ?? '', step.id);
+  const pageOrFrame = page ?? finaleOnlyEpisode(journey?.id ?? '', step.id);
+  // R2: while the ending is written (it started at the last reply), the exchange
+  // just had is the page's closing panels — read first, the finale after them —
+  // until the finished page, which prints them itself, arrives.
+  const finishedPage = Boolean(entry?.kind === 'episode' && entry.episode.page);
+  const [closingFor, setClosingFor] = useState<string | null>(pending ? step.id : null);
+  useEffect(() => {
+    if (pending) setClosingFor(step.id);
+  }, [pending, step.id]);
+  const thread = useMemo(() => {
+    const respond = (journey?.steps || []).find(
+      (other) => other.kind === 'respond' && stepAct(other) === act,
+    );
+    const raw = (respond?.prompt as { thread?: ClosingExchange[] | null } | undefined)?.thread;
+    return Array.isArray(raw) ? raw : null;
+  }, [journey?.steps, act]);
+  const closing = useMemo(
+    () =>
+      closingFor === step.id && !finishedPage
+        ? withClosingExchanges(pageOrFrame, thread, speaker)
+        : { episode: pageOrFrame, firstClosing: null },
+    [closingFor, step.id, finishedPage, pageOrFrame, thread, speaker],
+  );
+  const episode = closing.episode;
 
   const extra =
     chapterRecap || register ? (
@@ -1675,6 +1709,7 @@ export function ResolutionStepView({
       finale={finale}
       finaleExtra={extra}
       finaleWait={pending ? <StoryWriting speaker={speaker} /> : null}
+      openAt={closing.firstClosing}
       title={journey?.scenario?.title_fr || null}
     />
   );

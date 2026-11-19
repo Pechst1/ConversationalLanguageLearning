@@ -4,15 +4,22 @@
  * 17 Nov walk: while the ending was being written («La suite s’écrit…») the reader
  * drew nothing where «Continuer» sits, with no timeout, and a learner was left on
  * that screen. From the first second the slot says the ending is being written,
- * with the pending indicator; after {@link FINALE_ESCAPE_MS} it is the continue
+ * with the pending indicator; after {@link FINALE_ESCAPE_MS} (8 s) it is the continue
  * button again, with a line that the ending will be there next time. The journey
  * keeps polling meanwhile and the server heals a dead lane with the authored ending.
  *
  * Framework-free, so the node harness pins it.
  */
 
-/** How long the last panel waits for its ending before it lets the learner go on. */
-export const FINALE_ESCAPE_MS = 30_000;
+/**
+ * How long the last panel waits for its ending before it lets the learner go on.
+ *
+ * R2 (18 Nov): 8 s, not 30. Real play waited 15–30 s at A1 and 5–32 s at B1 on
+ * every day; the ending is written from the last reply on, and the learner reads
+ * the exchange's closing panels meanwhile (`withClosingExchanges`), so by the
+ * end of them 8 s is the most anyone stares at «…» before «Continuer».
+ */
+export const FINALE_ESCAPE_MS = 8_000;
 
 /**
  * What the nav slot under the last panel shows.

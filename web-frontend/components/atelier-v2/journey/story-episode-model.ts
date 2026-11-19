@@ -1211,6 +1211,58 @@ export function journeyStoryPage(
   return null;
 }
 
+/** One exchange of the scene's reply, as the respond step's public `thread` carries it. */
+export type ClosingExchange = {
+  learner_fr?: string | null;
+  character_fr?: string | null;
+  character_lines?: Array<{ speaker_id?: string | null; speaker_name?: string | null; text_fr?: string | null }> | null;
+};
+
+/**
+ * R2 · the scene's closing panels while its ending is written.
+ *
+ * Real play (17 Nov): after the last reply the reader jumped to the last panel and
+ * «Wie es weitergeht, wird gerade geschrieben…» held it for 15–30 s. The story
+ * lane starts at the last reply; meanwhile the exchange the learner just had is
+ * the page's closing panels (the finished page prints them too, with their
+ * lines), so the reader opens on them and the finale follows. Each exchange is
+ * one panel on the page's last plate: the learner's line, then the reply's voices.
+ * Nothing when there is no exchange; the page is returned unchanged.
+ */
+export function withClosingExchanges(
+  episode: StoryEpisode,
+  thread: ClosingExchange[] | null | undefined,
+  speaker: { id?: string | null; name?: string | null } | null | undefined,
+): { episode: StoryEpisode; firstClosing: number | null } {
+  const exchanges = (thread || []).filter((exchange) => String(exchange?.learner_fr || '').trim());
+  if (!exchanges.length) return { episode, firstClosing: null };
+  const panels = episode.panels || [];
+  const last = panels[panels.length - 1];
+  const closing: StoryPanel[] = exchanges.map((exchange, i) => {
+    const voices = (exchange.character_lines || []).filter((line) => String(line?.text_fr || '').trim());
+    const replies = voices.length
+      ? voices.map((line) => ({
+          character_id: String(line.speaker_id || speaker?.id || ''),
+          character_name: line.speaker_name || null,
+          text_fr: String(line.text_fr || '').trim(),
+        }))
+      : String(exchange.character_fr || '').trim()
+        ? [{ character_id: String(speaker?.id || ''), character_name: speaker?.name || null, text_fr: String(exchange.character_fr).trim() }]
+        : [];
+    return {
+      id: `closing:${episode.id}:${i}`,
+      index: panels.length + i,
+      narration_fr: '',
+      image_url: last?.image_url ?? null,
+      image_status: last?.image_status ?? 'unavailable',
+      plate_url: last?.plate_url ?? null,
+      alt_native: last?.alt_native ?? null,
+      dialogue: [{ character_id: 'toi', character_name: null, text_fr: String(exchange.learner_fr).trim() }, ...replies],
+    };
+  });
+  return { episode: { ...episode, panels: [...panels, ...closing] }, firstClosing: panels.length };
+}
+
 /** The frame a finale stands in when there is no page before it: no panels, nothing saved. */
 export function finaleOnlyEpisode(journeyId: string, stepId: string): StoryEpisode {
   return {

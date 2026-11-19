@@ -7,7 +7,8 @@ afterwards the solution.» La Forge keeps that rule (``solution_gate``); the dai
 * a miss whose item is asked again («Encore une fois») is served without the corrected
   line and without the right card; it says where and why;
 * the retry, answered, shows the solution;
-* a miss with no retry to come, and a choice between two, show it at once;
+* a choice between two shows it at once; round 3: the last drill of its set comes back
+  once after it (it used to show the solution at once);
 * the retry is answered «with a hint», not «with the solution shown», when the solution
   was in fact kept back; the lapse is booked once, as before.
 """
@@ -132,7 +133,11 @@ def test_a_retry_after_a_withheld_miss_is_answered_with_a_hint(db_session: Sessi
     assert [o["evidence_kind"] for o in first["observations"]] == ["not_yet"]
 
 
-def test_a_miss_with_no_retry_to_come_shows_the_solution_at_once(db_session: Session, enabled: None) -> None:
+def test_the_last_drill_of_its_set_comes_back_once_with_its_solution_kept(db_session: Session, enabled: None) -> None:
+    """Round 3 (walk 2, A1 day 2): «Je fatigué suis», the last drill of the day's run,
+    showed «Je suis fatigué» at once and never came back. It is now asked once more
+    right after its run, its solution kept until then."""
+
     service, user, state = _start(db_session, "p5-no-retry@example.com")
     state = _walk_to_run(service, user, state)
     index = next(i for i, s in enumerate(state.steps) if s.id == state.current_step_id)
@@ -146,7 +151,34 @@ def test_a_miss_with_no_retry_to_come_shows_the_solution_at_once(db_session: Ses
 
     result, state = _answer(service, user, state, last_id, {"mode": "choice", "option_id": "o3"})
 
-    assert len(state.steps) == count, "the last drill of its set queues no retry"
+    assert len(state.steps) == count + 1, "the last drill of its set comes back once"
+    retry = _retry_of(state, end)
+    assert result.correction is not None
+    assert result.correction.solution is not None and result.correction.solution.state == "withheld"
+    assert result.correction.corrected_fr == ""
+    assert "qui, vous" not in _payload_text(result)
+    # The retry is the one chance: its miss shows the solution, and queues nothing more.
+    again, state = _answer(service, user, state, retry.id, {"mode": "choice", "option_id": "o2"})
+    assert len(state.steps) == count + 1
+    assert again.correction is not None and getattr(again.correction, "solution", None) is None
+    assert again.correction.corrected_fr == RIGHT
+
+
+def test_the_last_two_way_drill_of_its_set_shows_the_solution_at_once(db_session: Session, enabled: None) -> None:
+    service, user, state = _start(db_session, "p5-no-retry-two@example.com")
+    state = _walk_to_run(service, user, state)
+    index = next(i for i, s in enumerate(state.steps) if s.id == state.current_step_id)
+    end = _run_end(state.steps, index)
+    while state.current_step_id != state.steps[end].id:
+        current = state.current_step_id
+        _, state = _answer(service, user, state, current, _right_input(db_session, current))
+    last_id = state.steps[end].id
+    _as_choice(db_session, last_id, OPTIONS[:2])
+    count = len(state.steps)
+
+    result, state = _answer(service, user, state, last_id, {"mode": "choice", "option_id": "o2"})
+
+    assert len(state.steps) == count, "a two-way miss names the other card: no retry after its run"
     assert result.correction is not None
     assert getattr(result.correction, "solution", None) is None
     assert result.correction.corrected_fr == RIGHT
