@@ -555,6 +555,17 @@ class RespondLetter(JourneyModel):
     objective_native: str
 
 
+class JourneySolution(JourneyModel):
+    """P5 (owner, 2026-11-13): a drill's solution waits for its retry.
+
+    La Forge's vocabulary (``app/services/solution_gate.py``): ``withheld`` while the
+    item is still to be asked again. The correction then carries the learner's own
+    span and the reason, and ``corrected_fr`` is empty.
+    """
+
+    state: Literal["withheld", "shown"]
+
+
 class MoreCorrection(JourneyModel):
     """P3: one more correction of a scene reply, of other words than the first («A → B»)."""
 
@@ -592,6 +603,9 @@ class JourneyCorrection(JourneyModel):
     #: #624: ``example`` is a model sentence shown after a free sentence missed the
     #: rule. It is not the learner's sentence made right: the screen draws no arrow.
     kind: Literal["edit", "pick", "meaning", "example"] = "edit"
+    #: P5 (additive): ``{"state": "withheld"}`` while the item's retry is still to come.
+    #: Absent (``None``) when the solution is on the payload.
+    solution: JourneySolution | None = None
     #: P3 (additive): from B1 a scene reply's other corrections, shown collapsed under
     #: this one, in the order the tutor ranked them. Empty below B1 and elsewhere.
     more: list[MoreCorrection] = Field(default_factory=list)

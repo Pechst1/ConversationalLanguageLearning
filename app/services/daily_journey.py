@@ -74,6 +74,7 @@ from app.schemas.daily_journey import (
     JourneyRetryRequest,
     JourneyRevisionRequest,
     JourneySnapshot,
+    JourneySolution,
     JourneyTomorrowRequest,
     LegacyResume,
     MoreCorrection,
@@ -152,7 +153,12 @@ from app.services.journey_latency import (
     server_wait_ms_since_last_event,
     take_prefetched_scene,
 )
-from app.services.journey_learning import recall_learner_text, record_daily_practice_streak
+from app.services.journey_learning import (
+    recall_learner_text,
+    record_daily_practice_streak,
+    solution_waits_for_retry,
+    withheld_recall_note,
+)
 from app.services.journey_rhythm import budget_seconds_for, candidate_limit_for
 from app.services.recall_meanings import apply_meaning, native_meanings
 from app.services.revue.policy import revue_day_allowed_for
@@ -315,6 +321,8 @@ _HELP_TO_ASSISTANCE: dict[HelpKind, AssistanceLevel] = {
 _ANSWERABLE_KINDS = (StepKind.RECALL, StepKind.RESPOND)
 #: A retry step's private key: the step whose miss it asks again.
 RETRY_OF_KEY = "retry_of"
+#: P5: the retry's first miss kept its solution back; the retry is answered without it.
+SOLUTION_WITHHELD_KEY = "solution_withheld"
 
 
 def withdraw_retry(db: Session, step: DailyJourneyStep) -> bool:
@@ -5535,10 +5543,14 @@ class DailyJourneyService:
         own_assistance = assistance
         retry = bool(private.get(RETRY_OF_KEY))
         if retry:
-            # The answer was shown after the first miss: a hit now is a repair after
-            # a correction, so supported production at most (`classify_evidence`).
-            # Server-side only; the public `assistance_used` stays the learner's own.
-            assistance = strongest_assistance([assistance, AssistanceLevel.SOLUTION])
+            # The first miss was corrected: a hit now is a repair after a correction,
+            # so supported production at most (`classify_evidence`). P5: a miss that
+            # kept its solution back for this retry gave the reason, not the answer,
+            # so the retry is answered with a hint, not with the solution shown;
+            # either is «assisted» for the schedule. Server-side only; the public
+            # `assistance_used` stays the learner's own.
+            shown = AssistanceLevel.HINT if private.get(SOLUTION_WITHHELD_KEY) else AssistanceLevel.SOLUTION
+            assistance = strongest_assistance([assistance, shown])
         evaluation = self.adapters.learning.evaluate_recall(
             self.db, user=user, task=task, answer=answer, assistance=assistance
         )
@@ -5569,8 +5581,18 @@ class DailyJourneyService:
             "failure_reason": getattr(evaluation, "failure_reason", None),
         }
         step.private_task = stored
+        # P5 (owner, 2026-11-13): no solution before the retry. A miss whose item is
+        # asked again keeps the corrected line and the right card back until then;
+        # it says where and why. No retry, the retry itself, a choice between two
+        # or a solution the learner already asked for: the solution is shown now.
+        withheld = False
         if missed and not retry:
-            self._queue_retry(journey, step)
+            waits = (
+                solution_waits_for_retry(task)
+                and own_assistance is not AssistanceLevel.SOLUTION
+                and evaluation.correction is not None
+            )
+            withheld = self._queue_retry(journey, step, solution_withheld=waits) is not None and waits
         self.db.flush()
         # O-1: l'or in shadow — the ledger only; a failure there never costs the answer.
         gold_ledger.record_journey_recall(
@@ -5592,14 +5614,23 @@ class DailyJourneyService:
             assistance_level=assistance,
             # QA-PRACTICE: a tile answer is checked against the words placed —
             # `answer.text` is empty for it, which used to drop the correction.
-            correction=self._public_correction(evaluation.correction, recall_learner_text(task, answer)),
+            correction=self._public_correction(
+                evaluation.correction,
+                recall_learner_text(task, answer),
+                withheld_note=(
+                    withheld_recall_note(task, evaluation.correction, language=str(user_chrome_language(user)))
+                    if withheld and evaluation.correction is not None
+                    else None
+                ),
+            ),
             character_reply_fr=None,
             next_turn=None,
             pending=False,
             check=VerdictView.of(
                 verdicts.from_recall(
                     outcome=evaluation.outcome,
-                    correction=evaluation.correction,
+                    # P5: a withheld solution proposes no edit either.
+                    correction=None if withheld else evaluation.correction,
                     text=recall_learner_text(task, answer) or "",
                 )
             ),
@@ -5607,7 +5638,9 @@ class DailyJourneyService:
             journey=self.snapshot(journey),
         )
 
-    def _queue_retry(self, journey: DailyJourney, step: DailyJourneyStep) -> DailyJourneyStep | None:
+    def _queue_retry(
+        self, journey: DailyJourney, step: DailyJourneyStep, *, solution_withheld: bool = False
+    ) -> DailyJourneyStep | None:
         """Owner request 2026-10-17: a missed drill comes back once, at the end of
         its set.
 
@@ -5617,6 +5650,8 @@ class DailyJourneyService:
         steps move down one place. A retry is never queued again, and a miss with
         no drill still to come in its run is not: asked straight away, under the
         correction just read, it would be copying, not recall.
+
+        P5: ``solution_withheld`` says the miss kept its solution back for this retry.
         """
 
         ordered = sorted(journey.steps, key=lambda item: item.ordinal)
@@ -5641,7 +5676,11 @@ class DailyJourneyService:
             target_kind=step.target_kind,
             target_id=step.target_id,
             public_prompt={**dict(step.public_prompt or {}), "retry": True},
-            private_task={"recall_task": private["recall_task"], RETRY_OF_KEY: str(step.id)},
+            private_task={
+                "recall_task": private["recall_task"],
+                RETRY_OF_KEY: str(step.id),
+                **({SOLUTION_WITHHELD_KEY: True} if solution_withheld else {}),
+            },
             assistance_used=[],
         )
         journey.steps.append(retry)
@@ -6386,18 +6425,29 @@ class DailyJourneyService:
 
     @staticmethod
     def _public_correction(
-        correction: Correction | None, learner_text: str
+        correction: Correction | None, learner_text: str, *, withheld_note: str | None = None
     ) -> JourneyCorrection | None:
         """At most one foreground correction, and never a fabricated span.
 
         The span is checked against the **normalized** answer: WP-06 builds
         spans from ``normalize_answer_text``, so comparing against a raw string
         would silently drop a correct correction that contains an apostrophe.
+
+        P5: with ``withheld_note`` the solution waits for the retry: the learner's
+        own span and the note (where and why), no corrected line.
         """
 
         normalized = normalize_answer_text(learner_text)
         if correction is None or not correction.is_valid_for(normalized):
             return None
+        if withheld_note is not None:
+            return JourneyCorrection(
+                span_fr=correction.span_fr,
+                corrected_fr="",
+                note_native=withheld_note,
+                kind=correction.kind,
+                solution=JourneySolution(state="withheld"),
+            )
         return JourneyCorrection(
             span_fr=correction.span_fr,
             corrected_fr=correction.corrected_fr,

@@ -59,6 +59,7 @@ import {
   checkAnswerLocally,
   correctOptionLocally,
   promptHasAnswerKey,
+  rightCardMayShow,
   shownVerdict,
   type LocalVerdict,
 } from '@/lib/answer-key';
@@ -141,6 +142,7 @@ import { getStoryEpisodeEntry, loadStoryEpisode, storyEpisodeKey, useStoryEpisod
 import { getStoryEpisodeForJourney, stepAct } from '@/services/daily-journey';
 import { listenLabel, useStepVoice } from './useStepVoice';
 import { correctionLabelKey } from '@/lib/correction-notes';
+import { solutionWithheld } from '@/lib/solution-gate';
 import {
   closesConversation,
   continuesConversation,
@@ -550,6 +552,11 @@ export function RecallStepView({
   const serverVerdict = graded ? feedback.verdict : null;
   const shown = shownVerdict(localHere?.verdict ?? null, serverVerdict);
   const serverSaysRight = serverVerdict === 'correct' || serverVerdict === 'supported';
+  // P5: the right card waits while the item is still to be asked again.
+  const rightCardShows = rightCardMayShow(step.prompt, {
+    graded,
+    correction: graded ? feedback.result.correction : null,
+  });
 
   const options = useMemo<ChoiceOption[]>(
     () =>
@@ -559,6 +566,7 @@ export function RecallStepView({
         else if (
           shown === 'wrong' &&
           !serverSaysRight &&
+          rightCardShows &&
           localHere?.correctOptionId === option.id
         ) {
           // The learner has committed; showing the right card is feedback.
@@ -567,7 +575,7 @@ export function RecallStepView({
         // WP-78: a meaning card is in the learner's language, not French.
         return { id: option.id, textFr: option.text_fr, state, lang: optionLang(option) ?? null };
       }),
-    [step.prompt.options, shown, choice, serverSaysRight, localHere?.correctOptionId],
+    [step.prompt.options, shown, choice, serverSaysRight, rightCardShows, localHere?.correctOptionId],
   );
 
   // WP-66: six formats, three input surfaces. `recallAttempt` owns the mapping
@@ -1694,6 +1702,47 @@ export function stepKeepsAnswer(stepKind: string | null | undefined): boolean {
 }
 
 /**
+ * P5 (owner, 2026-11-13): a drill missed and asked again later. The server kept the
+ * solution back (`correction.solution.state === 'withheld'`, an empty corrected line):
+ * the screen names what the learner gave and why it is off, and says the item comes
+ * back. La Forge reads the same way (`pages/atelier.tsx`, «Ce qui ne va pas»).
+ */
+export function WithheldCorrection({
+  correction,
+  copy,
+}: {
+  correction: NonNullable<AttemptResult['correction']>;
+  copy: Pick<JourneyCopy, 'drill_miss_where' | 'drill_miss_choice' | 'drill_solution_later'>;
+}) {
+  const kind = correction.kind ?? 'edit';
+  const picked = kind === 'pick' || kind === 'meaning';
+  const notes = correctionNotes(correction);
+  return (
+    <div className="av2-correction" data-kind={kind} data-solution="withheld">
+      <p className="av2-label">{picked ? copy.drill_miss_choice : copy.drill_miss_where}</p>
+      {/* A tapped meaning is in the learner's language and already marked on its card. */}
+      {kind !== 'meaning' && correction.span_fr && (
+        <p className="av2-correction__line">
+          <span className="av2-correction__span" lang="fr">
+            {correction.span_fr}
+          </span>
+        </p>
+      )}
+      {notes.length > 0 ? (
+        <ul className="av2-correction__notes">
+          {notes.map((note, index) => (
+            <li key={index}>{note}</li>
+          ))}
+        </ul>
+      ) : (
+        correction.note_native && <p>{correction.note_native}</p>
+      )}
+      <p className="av2-graded__slip">{copy.drill_solution_later}</p>
+    </div>
+  );
+}
+
+/**
  * Package V stage 5: one quiet line under a drill's «not yet» or «partly»: «I think this is
  * right». After it, one line says what came of it (upheld, the reason it was not, unread,
  * or the day's three used). The existing quiet action and notice, nothing new.
@@ -1952,7 +2001,9 @@ export function JourneyFeedbackView({
             tabIndex={-1}
           >
             {unread && <Notice tone="quiet"><p>{copy.check_not_checked}</p></Notice>}
-            {result.correction && (
+            {result.correction && (solutionWithheld(result.correction) ? (
+              <WithheldCorrection correction={result.correction} copy={copy} />
+            ) : (
               <Correction
                 label={copy[correctionLabelKey(result.correction.kind)]}
                 kind={result.correction.kind}
@@ -1962,7 +2013,7 @@ export function JourneyFeedbackView({
                 noteNative={result.correction.note_native}
                 notesNative={correctionNotes(result.correction)}
               />
-            )}
+            ))}
             <Action tone="primary" onClick={onContinue}>
               {wide.action_continue}
             </Action>
@@ -1991,7 +2042,10 @@ export function JourneyFeedbackView({
             // it in, WP-76); the verdict card no longer repeats it.
             face={face}
           >
-            {result.correction && (
+            {result.correction && (solutionWithheld(result.correction) ? (
+              // P5: the item comes back at the end of the set; where and why, not what.
+              <WithheldCorrection correction={result.correction} copy={copy} />
+            ) : (
               <Correction
                 label={copy[correctionLabelKey(result.correction.kind)]}
                 kind={result.correction.kind}
@@ -2002,7 +2056,7 @@ export function JourneyFeedbackView({
                 // WP-103: one line per issue, never the same explanation twice.
                 notesNative={correctionNotes(result.correction)}
               />
-            )}
+            ))}
             {/* QA-CLOSE: a forgiven slip on a hit, named in one line. */}
             {!result.correction && result.slip_note_native && (
               <p className="av2-graded__slip">{result.slip_note_native}</p>

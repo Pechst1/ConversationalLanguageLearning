@@ -10081,6 +10081,7 @@ export interface components {
             note_native: string;
             /** Notes Native */
             notes_native?: string[];
+            solution?: components["schemas"]["JourneySolution"] | null;
             /** Span Fr */
             span_fr: string;
         };
@@ -10280,6 +10281,21 @@ export interface components {
             time_estimate: components["schemas"]["DayTimeEstimate"] | null;
             /** Timezone */
             timezone: string;
+        };
+        /**
+         * JourneySolution
+         * @description P5 (owner, 2026-11-13): a drill's solution waits for its retry.
+         *
+         *     La Forge's vocabulary (``app/services/solution_gate.py``): ``withheld`` while the
+         *     item is still to be asked again. The correction then carries the learner's own
+         *     span and the reason, and ``corrected_fr`` is empty.
+         */
+        JourneySolution: {
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "withheld" | "shown";
         };
         /**
          * JourneyStatus
