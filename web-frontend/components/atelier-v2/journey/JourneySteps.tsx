@@ -2040,7 +2040,8 @@ export function JourneyFeedbackView({
             ref={gradedRef}
             tabIndex={-1}
           >
-            {unread && <Notice tone="quiet"><p>{copy.check_not_checked}</p></Notice>}
+            {/* Check walk 19 Nov: nothing reads this reply again, so its line is final. */}
+            {unread && <Notice tone="quiet"><p>{copy.check_not_read}</p></Notice>}
             {result.correction && (solutionWithheld(result.correction) ? (
               <WithheldCorrection correction={result.correction} copy={copy} />
             ) : (

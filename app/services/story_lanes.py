@@ -1751,6 +1751,13 @@ def split_margin(result: Correction | MarginFailure | None) -> tuple[Correction 
     return result, None
 
 
+#: Check walk 19 Nov (B1, day 2): one provider 500 on the only attempt left «j'ai allé»
+#: unread for good, and nothing reads a scene reply later. A second attempt runs within
+#: the same deadline (``_run_lane`` starts none with under a second left), so a fast
+#: failure or a rejected answer is asked again and a slow one costs no extra wait.
+MARGIN_ATTEMPTS = 2
+
+
 def margin_correction(
     db: Session, *, user, scenario: ScenarioBrief, task: ResponseTask, answer: AttemptAnswer,
     turn_index: int, history=None,
@@ -1768,7 +1775,7 @@ def margin_correction(
             lambda v: validate_tutor(v, payload),
             deadline=time.monotonic() + LANE_REQUEST_TIMEOUT_SECONDS, collected=usage,
             max_tokens=TUTOR_OUTPUT_TOKENS + LANE_REASONING_HEADROOM,
-            window=LANE_REQUEST_TIMEOUT_SECONDS, attempts=1,
+            window=LANE_REQUEST_TIMEOUT_SECONDS, attempts=MARGIN_ATTEMPTS,
         )
         book_lane(db, user, scene=_scene_of(db, scenario), lane="tutor", usage=usage, seconds=None,
                   payload={"turn_index": turn_index, "season": True})

@@ -64,6 +64,7 @@ export type JourneyCopyKey =
   | 'voice_empty'
   | 'empty_answer'
   | 'check_not_checked'
+  | 'check_not_read'
   | 'try_grading_again'
   // Package V stage 5: «I think this is right» under a «not yet» or «partly».
   | 'appeal_line'
@@ -331,6 +332,8 @@ const EN: CopyTable = {
   voice_empty: 'Nothing was recorded. Your turn is still open.',
   empty_answer: 'Write something first.',
   check_not_checked: CHECK_COPY.en.not_checked,
+  // Check walk 19 Nov: a scene reply nobody could read, said once and final: no «yet», no «does not count».
+  check_not_read: 'This reply was not checked.',
   try_grading_again: 'Check again',
   appeal_line: 'I think this is right',
   looks_wrong_line: 'Something here looks wrong',
@@ -557,6 +560,7 @@ const DE: CopyTable = {
   voice_empty: 'Es wurde nichts aufgenommen. Du bist weiterhin dran.',
   empty_answer: 'Schreibe zuerst etwas.',
   check_not_checked: CHECK_COPY.de.not_checked,
+  check_not_read: 'Diese Antwort wurde nicht geprüft.',
   try_grading_again: 'Erneut prüfen',
   appeal_line: 'Ich glaube, das ist richtig',
   looks_wrong_line: 'Hier stimmt etwas nicht',
@@ -783,6 +787,7 @@ const FR: CopyTable = {
   voice_empty: 'Rien n’a été enregistré. C’est toujours ton tour.',
   empty_answer: 'Écris d’abord quelque chose.',
   check_not_checked: CHECK_COPY.fr.not_checked,
+  check_not_read: 'Cette réponse n’a pas été vérifiée.',
   try_grading_again: 'Vérifier à nouveau',
   appeal_line: 'Je pense que c’est juste',
   looks_wrong_line: 'Quelque chose cloche ici',
