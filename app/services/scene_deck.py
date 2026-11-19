@@ -36,8 +36,8 @@ from typing import Any
 SCENE_WORD_KEY = "scene_word"
 
 
-def journey_draft(journey: Any) -> dict[str, Any]:
-    """Today's scene draft (panels, lines, lexicon), or ``{}``."""
+def _scene_brief(journey: Any) -> dict[str, Any]:
+    """Today's scene brief (the step's ``scenario_brief`` that holds the draft), or ``{}``."""
 
     if journey is None:
         return {}
@@ -46,8 +46,23 @@ def journey_draft(journey: Any) -> dict[str, Any]:
         context = brief.get("story_context") if isinstance(brief, dict) else None
         draft = context.get("draft") if isinstance(context, dict) else None
         if isinstance(draft, dict):
-            return draft
+            return brief
     return {}
+
+
+def journey_draft(journey: Any) -> dict[str, Any]:
+    """Today's scene draft (panels, lines, lexicon), or ``{}``."""
+
+    brief = _scene_brief(journey)
+    return brief["story_context"]["draft"] if brief else {}
+
+
+def gloss_language(journey: Any) -> str | None:
+    """The language today's scene lexicon glosses are written in: the scene's control
+    language (the chrome: French from B1), or ``None`` when the brief does not say."""
+
+    language = _scene_brief(journey).get("control_language")
+    return str(language) if language else None
 
 
 def _line_with_meaning(sentence: str, draft: dict[str, Any]) -> tuple[str, str | None]:
@@ -250,14 +265,35 @@ def apply_to_day_deck(db: Any, user: Any, batch: Any, payload: dict[str, Any], *
     )
     from app.services.chrome_language import user_mother_tongue
 
-    return mark_scene_words(
-        payload, scene_ids=candidates - due_reviews, lines=lines, gloss_language=user_mother_tongue(user)
-    )
+    native = user_mother_tongue(user)
+    lines = glosses_in_mother_tongue(lines, written_in=gloss_language(journey), native=native)
+    return mark_scene_words(payload, scene_ids=candidates - due_reviews, lines=lines, gloss_language=native)
+
+
+def glosses_in_mother_tongue(
+    lines: dict[int, dict[str, str | None]], *, written_in: str | None, native: str
+) -> dict[int, dict[str, str | None]]:
+    """``lines`` without the scene's glosses when they are not in the mother tongue.
+
+    R4 (walk of 19 Nov): the scene glosses its words in its control language, French from
+    B1 («la succession — ensemble des démarches légales…»). A gloss explains, so it is in
+    the mother tongue at every level (owner decision 18 Nov 2026): a scene gloss in another
+    language is dropped and the card keeps the dictionary's gloss in the mother tongue.
+    Below B1 the scene's language is the mother tongue (folded) and nothing changes.
+    """
+
+    from app.services.chrome_language import fold_language
+
+    if not written_in or fold_language(written_in) == fold_language(native):
+        return lines
+    return {word_id: {key: value for key, value in line.items() if key != "gloss"} for word_id, line in lines.items()}
 
 
 __all__ = [
     "SCENE_WORD_KEY",
     "apply_to_day_deck",
+    "gloss_language",
+    "glosses_in_mother_tongue",
     "journey_draft",
     "line_holding",
     "mark_scene_words",

@@ -4840,8 +4840,11 @@ class AtelierCorrectionService:
         prompt_payload_override: dict[str, Any] | None = None,
         retest_of: UUID | None = None,
     ) -> AtelierAttempt:
-        from app.services.chrome_language import user_chrome_language
-        self.explanation_language = user_chrome_language(user)
+        # R4 (walk of 19 Nov): why an answer was wrong is explained in the mother tongue
+        # at every level, as the scene's notes and the Courrier's (owner decision 18 Nov
+        # 2026); the chrome around it stays French from B1.
+        from app.services.chrome_language import user_correction_language
+        self.explanation_language = user_correction_language(user)
         self._learner_native = user_mother_tongue(user)
         # WP-103 T8: an A1 learner corrects a sorted sentence with tiles.
         self._learner_band = str(getattr(user, "cefr_estimate", "") or "A1").strip().upper()[:2]
@@ -5475,8 +5478,11 @@ class AtelierCorrectionService:
         if not user or not session:
             return self._mark_ai_review_failed(attempt, "Attempt context unavailable.")
 
-        from app.services.chrome_language import user_chrome_language
-        self.explanation_language = user_chrome_language(user)
+        # R4 (walk of 19 Nov): why an answer was wrong is explained in the mother tongue
+        # at every level, as the scene's notes and the Courrier's (owner decision 18 Nov
+        # 2026); the chrome around it stays French from B1.
+        from app.services.chrome_language import user_correction_language
+        self.explanation_language = user_correction_language(user)
         self._learner_native = user_mother_tongue(user)
         started = time.perf_counter()
         try:
