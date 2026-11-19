@@ -136,7 +136,7 @@ import {
   useTypedText,
 } from './ReplyStage';
 import { ExchangeTokens, RespondThread } from './RespondThread';
-import { drillGoalLine, recallMetLine, slipSegments, type DrillGoal } from './drill-frame';
+import { drillGoalLine, goalSegments, quotedMeaningMarks, recallMetLine, slipSegments, type DrillGoal } from './drill-frame';
 import { StoryEpisodeReader } from './StoryEpisodeReader';
 import {
   finaleOnlyEpisode,
@@ -475,10 +475,17 @@ export function SceneStepView({
  * or, when the server sent none, the scene line the item is cut from.
  */
 export function DrillGoalLine({ goal, copy }: { goal: DrillGoal; copy: Pick<JourneyCopy, 'drill_from_scene'> }) {
+  const learner = useLearnerLanguage();
   if (goal.kind === 'goal') {
+    // R5: the meaning a French goal quotes is the learner's own language, marked.
+    const marks = goal.marks ?? quotedMeaningMarks(goal.text, learner);
     return (
       <p className="av2-goal" data-goal="goal">
-        {goal.text}
+        {marks.length
+          ? goalSegments({ text: goal.text, marks }).map((part, index) =>
+              part.lang ? <span key={index} lang={part.lang}>{part.text}</span> : <React.Fragment key={index}>{part.text}</React.Fragment>,
+            )
+          : goal.text}
       </p>
     );
   }
@@ -1797,19 +1804,22 @@ function AppealLine({
   onAppeal?: () => Promise<void>;
 }) {
   const [asking, setAsking] = useState(false);
+  // R5: a refusal's reason explains, in the learner's own language (the server asks for it).
+  const reasonLang = useLearnerLanguage();
   const appeal = (result as AppealedResult).appeal;
   if (appeal) {
+    const reason = appeal.state === 'refused' && appeal.reason ? appeal.reason : null;
     const line =
       appeal.state === 'upheld'
         ? copy.appeal_upheld
         : appeal.state === 'refused'
-          ? appeal.reason || copy.appeal_refused
+          ? reason || copy.appeal_refused
           : appeal.state === 'limit'
             ? copy.appeal_limit
             : copy.appeal_unread;
     return (
       <div className="av2-graded__appeal" data-appeal={appeal.state}>
-        <Notice tone="quiet"><p>{line}</p></Notice>
+        <Notice tone="quiet"><p lang={reason ? reasonLang : undefined}>{line}</p></Notice>
       </div>
     );
   }

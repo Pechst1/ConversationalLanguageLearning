@@ -191,7 +191,7 @@ def appeal_verdict(
     """
 
     from app.services import verdict_appeal
-    from app.services.chrome_language import user_chrome_language
+    from app.services.chrome_language import user_correction_language
 
     try:
         result = verdict_appeal.appeal(
@@ -199,7 +199,9 @@ def appeal_verdict(
             user=current_user,
             subject_type="journey_step",
             subject_id=step_id,
-            language=str(user_chrome_language(current_user)),
+            # R5 (check walk of 19 Nov): the reason explains, so it is in the mother
+            # tongue at every level; the interface stays French from B1.
+            language=str(user_correction_language(current_user)),
         )
     except verdict_appeal.AppealLimit as exc:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="appeal_daily_limit") from exc

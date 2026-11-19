@@ -348,6 +348,7 @@ function answerKey(round: RoundName, mode: string, conceptId?: number | null, it
 function itemGoal(item: Record<string, any> | null | undefined, cue: unknown) {
   return drillGoalLine({
     goal_native: item?.goal_native,
+    goal_native_marks: item?.goal_native_marks,
     source_fr: item?.source_fr,
     instruction_native: cue,
     prompt_fr: item?.prompt,
@@ -4906,7 +4907,7 @@ function TransformPanel({
   })();
   if (spotted) {
     // The sentence is the exercise: its goal above it, never the sentence twice.
-    const goal = drillGoalLine({ goal_native: item.goal_native }) ?? (instruction ? { kind: 'goal' as const, text: instruction } : null);
+    const goal = drillGoalLine({ goal_native: item.goal_native, goal_native_marks: item.goal_native_marks }) ?? (instruction ? { kind: 'goal' as const, text: instruction } : null);
     return (
       <div className="ep-exercise ep-transform">
         <ForgeGoalLine goal={goal} />
