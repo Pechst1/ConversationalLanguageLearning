@@ -466,7 +466,8 @@ test('a miss with its chance open is read in two places: the line and the band (
   assert.doesNotMatch(PAGE, /miss_choice|miss_where/, 'the cards\' labels are gone');
   // The typed line takes its field's place in every panel that has one.
   assert.equal((PAGE.match(/<CheckedLine state=\{answerState\}/g) || []).length, 3, 'transform, free line and produce draw the checked line');
-  assert.match(PAGE, /\{onTryAgain && !inPlace && <EpBar tone="ghost" icon="retry"/, 'a line fixed in place has one button, its own «Check»');
+  assert.match(PAGE, /\{onTryAgain && !inPlace && <EpBar tone="ghost" icon="retry"/, 'a line fixed in place has one button, the band\'s «Check»');
+  assert.match(withheld, /\{inPlace && \(\s*<EpBar\s+tone="go"/, 'which checks the line fixed in place');
   const ep = fs.readFileSync(path.join(__dirname, 'Epreuve.tsx'), 'utf8');
   assert.match(ep, /export function EpAnswerLine\(/);
   assert.match(ep, /<button type="button" className="ep-answer" data-tone=\{tone\} onClick=\{onEdit\}>/, 'a tap on the marked line opens it again');

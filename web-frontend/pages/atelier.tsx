@@ -4190,19 +4190,22 @@ function CheckedLine({
   state,
   line,
   correction,
-  production = false,
   onEdit,
+  listen = '',
 }: {
   state: AnswerState;
   line: string;
   correction: Record<string, any> | null;
-  production?: boolean;
   onEdit?: () => void;
+  /** The model line to hear. When it is the line the learner wrote, its button sits in the line's corner. */
+  listen?: string;
 }) {
   const t = useEpCopy();
   const text = String(line || '').trim();
   if (!state || !text) return null;
-  if (state === 'right') return <EpAnswerLine tone="right" segments={[{ text }]} />;
+  if (state === 'right') {
+    return <EpAnswerLine tone="right" segments={[{ text }]} foot={heardInPlace(state, text, listen) ? <EpreuveModelAudio text={listen} compact /> : undefined} />;
+  }
   if (state === 'open') {
     const marked = String(correction?.marked_line || text);
     return <EpAnswerLine tone="open" segments={markedLine(marked, correction?.marks)} onEdit={onEdit} editHint={onEdit ? t.answer_edit : undefined} />;
@@ -4212,6 +4215,11 @@ function CheckedLine({
     ? parts.map((part) => ('text' in part ? { text: part.text } : { text: part.wrong, marked: true }))
     : [{ text }];
   return <EpAnswerLine tone="shown" segments={segments} />;
+}
+
+/** A right line that is also the model line is heard from its own corner, not printed again. */
+function heardInPlace(state: AnswerState, line: string, listen: string) {
+  return state === 'right' && Boolean(listen.trim()) && normalizeClient(listen) === normalizeClient(line);
 }
 
 /** Is the checked line drawn by the panel (true), or is the field still the answer's place? */
@@ -4419,8 +4427,6 @@ export function ExerciseFeedbackMoment({
               setPartsTyped((prev) => ({ ...prev, [repairKey]: next }));
               onSetRepairDraft(repairKey, assembleRepair(inPlace, next));
             }}
-            onSubmit={() => onSubmitRepair(0)}
-            submitting={!!repairSubmitting[repairKey]}
           >
             {more}
           </EpPartsRepair>
@@ -4428,10 +4434,20 @@ export function ExerciseFeedbackMoment({
         {hints.task && hints.task !== hints.reason && <EpTaskLine label={t.task}>{hints.task}</EpTaskLine>}
         <EpFoot tone="wrong">
           <EpVerdict tone="no" sub={hints.reason || t.miss_sub} coach={coach} coachMood={mood} attempt={attempt}>{t.verdict_wrong}</EpVerdict>
-          {/* A line fixed in place has its own «Check»: writing it again whole is the quiet way. */}
+          {/* One button either way. A line fixed in place is checked from here; any other is opened again. */}
+          {inPlace && (
+            <EpBar
+              tone="go"
+              icon="check"
+              disabled={Object.keys(partsTyped[repairKey] || {}).length === 0}
+              pending={!!repairSubmitting[repairKey]}
+              onClick={() => onSubmitRepair(0)}
+            >
+              {repairSubmitting[repairKey] ? t.repair_submitting : t.repair_submit}
+            </EpBar>
+          )}
           {onTryAgain && !inPlace && <EpBar tone="ghost" icon="retry" onClick={onTryAgain}>{production ? t.retry_line : t.retry}</EpBar>}
           <div className="ep-fb-links">
-            {onTryAgain && inPlace && <button type="button" data-action="rewrite" onClick={onTryAgain}>{t.retry_line}</button>}
             {onRevealSolution && (
               <button type="button" data-action="reveal" onClick={onRevealSolution} disabled={revealing} aria-busy={revealing || undefined}>
                 {revealing ? t.showing_solution : t.show_solution}
@@ -4905,11 +4921,11 @@ function TransformPanel({
   const sentence = String(item.source_fr || item.source || '');
   // La Forge says a miss's right line once, in its correction; a right answer
   // hears it here.
-  const modelAudio = submitted && !solutionWithheld(correction) && !(drill && correction?.verdict !== 'correct') && (() => {
+  const modelText = submitted && !solutionWithheld(correction) && !(drill && correction?.verdict !== 'correct') && (() => {
     const corrected = correction?.corrected_answer;
     const correctedForItem = corrected && typeof corrected === 'object' ? corrected[item.id] : undefined;
     const modelText = String(correctedForItem || item.expected_answer || answers[item.id] || '').trim();
-    return modelText ? <EpreuveModelAudio text={modelText} /> : null;
+    return modelText;
   })();
   if (spotted) {
     // The sentence is the exercise: its goal above it, never the sentence twice.
@@ -4929,7 +4945,7 @@ function TransformPanel({
           copy={fc}
           fixWords={item.fix_words}
         />
-        {modelAudio}
+        {modelText ? <EpreuveModelAudio text={modelText} /> : null}
       </div>
     );
   }
@@ -4940,7 +4956,7 @@ function TransformPanel({
         {item.source}
       </EpPrompt>
       {lineIsEchoed(answerState, String(answers[item.id] || ''), correction, false) ? (
-        <CheckedLine state={answerState} line={String(answers[item.id] || '')} correction={correction} onEdit={onRetry} />
+        <CheckedLine state={answerState} line={String(answers[item.id] || '')} correction={correction} onEdit={onRetry} listen={modelText || ''} />
       ) : (
         <textarea
           className="ep-composed-input"
@@ -4950,7 +4966,7 @@ function TransformPanel({
           readOnly={submitted || sending}
         />
       )}
-      {modelAudio}
+      {modelText && !heardInPlace(answerState, String(answers[item.id] || ''), modelText) ? <EpreuveModelAudio text={modelText} /> : null}
     </div>
   );
 }
@@ -5133,7 +5149,7 @@ function browserSpeak(text: string, onDone: () => void) {
   if (!speakAskedVoice(utterance)) onDone();
 }
 
-function EpreuveModelAudio({ text }: { text: string }) {
+function EpreuveModelAudio({ text, compact = false }: { text: string; compact?: boolean }) {
   const [playing, setPlaying] = useState(false);
   const value = String(text || '').trim();
   if (!value) return null;
@@ -5153,7 +5169,7 @@ function EpreuveModelAudio({ text }: { text: string }) {
       browserSpeak(value, () => setPlaying(false));
     }
   };
-  return <EpListen fr={value} playing={playing} onPlay={play} />;
+  return <EpListen fr={compact ? undefined : value} playing={playing} onPlay={play} />;
 }
 
 function EpreuveWiringStyles() {
@@ -5303,6 +5319,9 @@ export function OutputLadderPanel({
   const speakerInFigure = Boolean(round === 'conversation' && split && character.name);
   // The prompt's own instruction says what to do: the generic round cue would say it twice.
   const promptCue = split?.instruction ? item.instruction || undefined : item.instruction || instruction;
+  const modelText = submitted
+    ? String(seanceAssessment(correction) === 'correct' && productionPhase(correction) !== 'checking' ? correction?.corrected_answer || item.example_answer || '' : '').trim()
+    : '';
   return (
     <div className={`ep-exercise ep-output ep-output-${round}`} data-prompt={split ? 'scene' : 'line'}>
       {round === 'conversation' && character.name && !speakerInFigure && (
@@ -5343,7 +5362,7 @@ export function OutputLadderPanel({
       )}
       {/* Once checked, the line is read where it was written; the count was for writing it. */}
       {answerState && answer.trim() ? (
-        lineIsEchoed(answerState, answer, correction, true) && <CheckedLine state={answerState} line={answer} correction={correction} production onEdit={onRetry} />
+        lineIsEchoed(answerState, answer, correction, true) && <CheckedLine state={answerState} line={answer} correction={correction} onEdit={onRetry} listen={modelText} />
       ) : (
         <>
           <textarea
@@ -5358,10 +5377,7 @@ export function OutputLadderPanel({
           </div>
         </>
       )}
-      {submitted && (() => {
-        const modelText = String(seanceAssessment(correction) === 'correct' && productionPhase(correction) !== 'checking' ? correction?.corrected_answer || item.example_answer || '' : '').trim();
-        return modelText ? <EpreuveModelAudio text={modelText} /> : null;
-      })()}
+      {modelText && !heardInPlace(answerState, answer, modelText) ? <EpreuveModelAudio text={modelText} /> : null}
       {round === 'conversation' && submitted && worldReply.text && (
         <blockquote className="ep-world-reply">
           <span>{worldReply.character?.name || character.name}</span>
@@ -5430,7 +5446,7 @@ function ProducePanel({
         </div>
       )}
       {answerState && answer.trim() ? (
-        lineIsEchoed(answerState, answer, correction, true) && <CheckedLine state={answerState} line={answer} correction={correction} production onEdit={onRetry} />
+        lineIsEchoed(answerState, answer, correction, true) && <CheckedLine state={answerState} line={answer} correction={correction} onEdit={onRetry} />
       ) : (
         <>
           <textarea className="ep-composed-input" value={answer} onChange={(event) => updateAnswer(event.target.value)} placeholder={t.produce_placeholder} readOnly={submitted || sending} />
