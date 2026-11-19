@@ -2293,7 +2293,10 @@ def test_sentence_submit_is_local_and_the_relecture_lands_async(db_session):
     assert service.should_auto_start_ai_review(landed) is False
 
 
-def test_transform_submit_is_keyed_and_the_relecture_only_explains(db_session):
+def test_transform_submit_is_keyed_and_the_relecture_only_explains(db_session, monkeypatch):
+    # P6: FR_B1_COND_001 (si + présent) has bank templates now; this test grades the
+    # LLM-written set it primes, so the bank stays out of it.
+    monkeypatch.setattr(settings, "ATELIER_ITEM_BANK_ENABLED", False)
     user = _user(db_session)
     concept = _concept(db_session, "FR_B1_COND_001")
     session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id])
@@ -2377,7 +2380,10 @@ def test_recognize_submit_is_instant_and_queues_background_relecture_when_wrong(
     assert AtelierCorrectionService(db_session, llm_service=fake_llm).should_auto_start_ai_review(attempt) is True
 
 
-def test_recognize_submit_with_correct_answer_never_involves_the_model(db_session):
+def test_recognize_submit_with_correct_answer_never_involves_the_model(db_session, monkeypatch):
+    # P6: FR_B1_COND_001 (si + présent) has bank templates now; this test grades the
+    # LLM-written set it primes, so the bank stays out of it.
+    monkeypatch.setattr(settings, "ATELIER_ITEM_BANK_ENABLED", False)
     user = _user(db_session)
     concept = _concept(db_session, "FR_B1_COND_001")
     session = AtelierSession(user_id=user.id, selected_concept_ids=[concept.id])
