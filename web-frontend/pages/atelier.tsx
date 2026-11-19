@@ -4330,8 +4330,18 @@ export function ExerciseFeedbackMoment({
     const marks = Array.isArray(correction?.marks) ? correction!.marks : [];
     const inPlace = production && !isLabelCompare ? withheldRepairParts(line, marks) : null;
     const repairKey = `${feedbackKey}:0`;
-    const reason = hints.reason ? <p className="ep-why">{hints.reason}</p> : null;
+    // Owner 2026-11-13 («calm, not crowded») and the design review of 19 Nov: the miss says
+    // one thing in one place. The hint is the band's own line, under «Not yet», where the
+    // sticky sheet keeps it in view; it is not a card of its own. A card is drawn only when
+    // it shows something the band cannot: the learner's line with the wrong words marked.
     const more = hints.more.length ? <EpMore label={t.more}>{hints.more.map((note) => <p key={note}>{note}</p>)}</EpMore> : null;
+    const marked = !picked && line ? (
+      <p className="ep-marked" lang="fr">
+        {markedLine(line, marks).map((segment, index) => (segment.marked
+          ? <mark key={index} className="ep-mark">{segment.text}</mark>
+          : <React.Fragment key={index}>{segment.text}</React.Fragment>))}
+      </p>
+    ) : null;
     return (
       <div className="ep-feedback" data-verdict="wrong" data-solution="withheld" ref={feedbackRef}>
         {inPlace ? (
@@ -4346,25 +4356,14 @@ export function ExerciseFeedbackMoment({
             onSubmit={() => onSubmitRepair(0)}
             submitting={!!repairSubmitting[repairKey]}
           >
-            {reason}
             {more}
           </EpPartsRepair>
-        ) : (
-          <EpGalley anchor={picked || !line ? t.miss_choice : t.miss_where}>
-            {!picked && line ? (
-              <p className="ep-marked" lang="fr">
-                {markedLine(line, marks).map((segment, index) => (segment.marked
-                  ? <mark key={index} className="ep-mark">{segment.text}</mark>
-                  : <React.Fragment key={index}>{segment.text}</React.Fragment>))}
-              </p>
-            ) : null}
-            {reason}
-            {more}
-          </EpGalley>
-        )}
-        {hints.task && <EpTaskLine label={t.task}>{hints.task}</EpTaskLine>}
+        ) : marked ? (
+          <EpGalley anchor={t.miss_where} more={more ?? undefined}>{marked}</EpGalley>
+        ) : more}
+        {hints.task && hints.task !== hints.reason && <EpTaskLine label={t.task}>{hints.task}</EpTaskLine>}
         <EpFoot tone="wrong">
-          <EpVerdict tone="no" sub={t.miss_sub} coach={coach} coachMood={mood} attempt={attempt}>{t.verdict_wrong}</EpVerdict>
+          <EpVerdict tone="no" sub={hints.reason || t.miss_sub} coach={coach} coachMood={mood} attempt={attempt}>{t.verdict_wrong}</EpVerdict>
           {onTryAgain && <EpBar tone="ghost" icon="retry" onClick={onTryAgain}>{production ? t.retry_line : t.retry}</EpBar>}
           <div className="ep-fb-links">
             {onRevealSolution && (

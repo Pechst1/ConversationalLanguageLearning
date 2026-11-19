@@ -452,3 +452,15 @@ test('a bank cue renders in the learner\'s language when the payload offers it',
   assert.match(PAGE, /localizedCue\(item, 'instruction', cueLanguage\)/);
   assert.match(PAGE, /localizedCue\(produce, 'prompt', cueLanguage\)/);
 });
+
+test('a miss with its chance open says its hint once, in the band (design review, 19 Nov 2026)', () => {
+  // The hint used to sit in a card of its own («Not this answer»), set in the exercise's
+  // Garamond, above a band whose own line said only that the solution comes later.
+  const start = PAGE.indexOf('if (!feedback.correct && solutionWithheld(correction)) {');
+  const withheld = PAGE.slice(start, PAGE.indexOf('// After the chance (or with none)', start));
+  assert.ok(start > 0 && withheld.length > 0, 'the withheld branch is found');
+  assert.match(withheld, /<EpVerdict tone="no" sub=\{hints\.reason \|\| t\.miss_sub\}/, 'the band carries the hint');
+  assert.doesNotMatch(withheld, /className="ep-why"/, 'the hint is not a second block above the band');
+  assert.match(withheld, /\) : marked \? \(\s*<EpGalley anchor=\{t\.miss_where\}/, 'a card is drawn only for the marked line');
+  assert.doesNotMatch(PAGE, /miss_choice/, 'the «Not this answer» card is gone');
+});

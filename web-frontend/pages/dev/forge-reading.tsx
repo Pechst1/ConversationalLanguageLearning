@@ -8,6 +8,7 @@
  *   ?case=item       the item before an answer
  *   ?case=withheld   the miss while the second chance is open (no solution served)
  *   ?case=shown      the miss once the chance is spent (the solution served)
+ *   ?case=choice     the same miss on a picked answer: no card, the hint in the band
  *   ?case=before     the miss as the server sent it before the gate (full correction)
  *
  * and ?lang=de|en|fr. Not in a production build.
@@ -54,13 +55,13 @@ const PAYLOAD = {
 };
 
 type Lang = 'de' | 'en' | 'fr';
-type Case = 'item' | 'withheld' | 'shown' | 'before';
+type Case = 'item' | 'withheld' | 'shown' | 'before' | 'choice';
 
 export default function ForgeReadingFixture() {
   const { query, isReady } = useRouter();
   if (!isReady) return null;
   const lang = (['de', 'en', 'fr'].includes(String(query.lang)) ? String(query.lang) : 'en') as Lang;
-  const shot = (['item', 'withheld', 'shown', 'before'].includes(String(query.case)) ? String(query.case) : 'item') as Case;
+  const shot = (['item', 'withheld', 'shown', 'before', 'choice'].includes(String(query.case)) ? String(query.case) : 'item') as Case;
   return <Fixture lang={lang} shot={shot} />;
 }
 
@@ -68,7 +69,7 @@ function Fixture({ lang, shot }: { lang: Lang; shot: Case }) {
   const [answer, setAnswer] = React.useState(shot === 'item' ? '' : LINE);
   const [drafts, setDrafts] = React.useState<Record<string, string>>({});
   const submitted = shot !== 'item';
-  const correction = submitted ? ((MISSES as Record<string, any>)[lang][shot] as Record<string, any>) : null;
+  const correction = submitted ? ((MISSES as Record<string, any>)[lang][shot === 'choice' ? 'withheld' : shot] as Record<string, any>) : null;
   const feedback = feedbackFromFreeformCorrection(correction, '', LINE, epreuveCopy(lang));
   return (
     <>
@@ -104,7 +105,8 @@ function Fixture({ lang, shot }: { lang: Lang; shot: Case }) {
             nextLabel={epreuveCopy(lang).continue}
             onTryAgain={() => undefined}
             onReport={() => undefined}
-            production
+            production={shot !== 'choice'}
+            picked={shot === 'choice'}
             ruleShown={RULE}
             {...({ onRevealSolution: () => undefined } as Record<string, unknown>)}
           />
