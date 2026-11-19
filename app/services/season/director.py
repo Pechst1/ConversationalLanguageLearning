@@ -37,6 +37,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.services import address
 from app.services.season.clock import Position
+from app.services.season.dates import render as render_dates
+from app.services.season.dates import shift_for
 from app.services.season.flags import holds
 from app.services.season.format import DayBeat, Forbidden, Gap, Season
 
@@ -894,7 +896,9 @@ def gap_brief(
             "plan_fr": str(stated.get("said_fr") or ""),
             **({"with": stated["with"]} if name else {}),
         }
-    return {
+    # Round 4 (walk of 19 Nov, item 9): the opening weeks' dates, moved to this
+    # learner's calendar (``dates``); the brief never carries a token.
+    return render_dates({
         "season": {
             "id": season.id,
             "title_fr": season.title_fr,
@@ -965,7 +969,7 @@ def gap_brief(
             for key, value in flags.items()
             if value not in (None, "", [], False) and not key.startswith(("s1.promise_", "register."))
         },
-    }
+    }, shift_for(state))
 
 
 # ---------------------------------------------------------------------------

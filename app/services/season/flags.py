@@ -22,6 +22,8 @@ import hashlib
 import logging
 from typing import Any
 
+from app.services.season.dates import render as render_dates
+from app.services.season.dates import shift_for
 from app.services.season.format import B1_BANDS, Cond, Season, SetsIf
 
 logger = logging.getLogger(__name__)
@@ -190,7 +192,11 @@ def apply_sets(
 
     state = dict(state or {})
     flags = stored_flags(state)
+    # Round 4: a date the data writes as a token («{date:2026-12-02}», the ticket) is
+    # stored as this learner's date (``dates``), never as the token.
+    shift = shift_for(state)
     for flag_id, value in (sets or {}).items():
+        value = render_dates(value, shift)
         spec = season.flag(flag_id)
         if spec is None:
             logger.warning("season: %s sets unknown flag %s", source, flag_id)
