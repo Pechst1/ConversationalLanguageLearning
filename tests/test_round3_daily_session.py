@@ -122,8 +122,8 @@ def test_the_day_is_done_only_when_all_three_are_and_then_offers_five_more_words
     assert view["steps"][-1]["state"] == "done"
     # Phase 2: the acts the day opened and the story's words it read (story_reading).
     assert view["tally"] == {"scenes": 1, "words": 20, "exercises": 12, "acts": 2, "story_words": 640}
-    # Owner, 2 Nov: one step of today's extras, the same as at the day deck's end.
-    assert (view["more_words"], view["more_minutes"], view["more_href"]) == (5, 2, "/vocabulary/review?more=5")
+    # P7 (pilot, 17 Nov): no «Noch 5 neue Wörter» after the day; Settings holds the offer.
+    assert not {"more_words", "more_minutes", "more_href"} & set(view)
 
 
 def test_the_word_step_names_the_cards_it_will_show_and_the_tally_what_was_done() -> None:
@@ -160,10 +160,12 @@ def test_each_pace_says_what_it_costs_today_and_in_eight_weeks() -> None:
     normal = pace_option(
         PACES["normal"], scene_seconds=480, reviews_due=10, words_left=504, units_left=33, hold_lag_days=27
     )
-    assert (normal["words"], normal["rules_per_week"], normal["exercises"]) == (20, 5, 8)
-    # R2 (7): 8 min scene + 400 s words + 100 s reviews + 384 s grammar (eight items at 48 s).
-    assert normal["minutes_today"] == 23
-    assert normal["reviews_week_8"] == 57
+    # Owner decision 1 (17 Nov): Normal is 15 new words a day (P7); P6: eight items.
+    assert (normal["words"], normal["rules_per_week"], normal["exercises"]) == (15, 5, 8)
+    # R2 (7) at P7's 15 words: 8 min scene + 300 s words + 100 s reviews + 384 s grammar
+    # (eight items at 48 s) = 1264 s, rounded up.
+    assert normal["minutes_today"] == 22
+    assert normal["reviews_week_8"] == 43
     assert normal["minutes_week_8"] > normal["minutes_today"]
     schnell = pace_option(
         PACES["schnell"], scene_seconds=480, reviews_due=10, words_left=504, units_left=33, hold_lag_days=27
@@ -203,7 +205,7 @@ def test_a_new_learner_starts_on_normal_and_the_settings_switch_the_pace(
 ) -> None:
     headers = register(assembled_client, "round3-settings@example.com")
     user = db_session.get(User, learner_id(db_session, "round3-settings@example.com"))
-    assert (user.daily_pace, user.new_words_per_day) == ("normal", 20)
+    assert (user.daily_pace, user.new_words_per_day) == ("normal", 15)
 
     response = assembled_client.patch("/api/v1/users/me/settings", json={"daily_pace": "schnell"}, headers=headers)
     assert response.status_code == 200, response.text
@@ -225,14 +227,14 @@ def test_today_carries_the_session_and_the_tempo_sheet_switches_it(
     assert session["pace"] == "normal"
     assert [step["kind"] for step in session["steps"]] == ["scene", "grammar", "words", "finish"]
     assert session["next_kind"] == "scene"
-    # #143/#396: the day's words, the scene's share of the 20 included: the
+    # #143/#396: the day's words, the scene's share of the 15 included: the
     # scene's words are cards of the deck once it met them, so Home's number does
     # not move when the scene is played. The drill alone leaves that share to the
     # journey until it is planned (WP-L6).
     user = db_session.get(User, learner_id(db_session, "round3-today@example.com"))
     room, _reserved = vocabulary_pace.drill_new_word_room(db_session, user)
-    assert 0 < room < 20
-    assert _step(session, "words")["count"] == 20
+    assert 0 < room < 15
+    assert _step(session, "words")["count"] == 15
     assert _step(session, "grammar")["href"].endswith("&from=day")
 
     sheet = assembled_client.get("/api/v1/daily-journeys/session/pace", headers=headers)
@@ -240,7 +242,7 @@ def test_today_carries_the_session_and_the_tempo_sheet_switches_it(
     body = sheet.json()
     assert body["current"] == "normal"
     assert [option["pace"] for option in body["options"]] == ["ruhig", "normal", "schnell"]
-    assert [option["words"] for option in body["options"]] == [10, 20, 40]
+    assert [option["words"] for option in body["options"]] == [10, 15, 40]
     weeks = [option["goal_weeks"] for option in body["options"]]
     assert weeks[0] > weeks[1] > weeks[2]
 

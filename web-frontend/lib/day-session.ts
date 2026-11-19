@@ -318,20 +318,6 @@ export function sessionNextAction(
   return { kind: step.kind, label, meta, href: step.href };
 }
 
-/** After the day, the one optional extra: «Noch 5 neue Wörter · 2 Min.» (owner, 2 Nov). */
-export function sessionMore(
-  session: DaySession | null | undefined,
-  language: ControlLanguage,
-): { label: string; meta: string; href: string } | null {
-  if (!session || !session.done || !session.more_words) return null;
-  const copy = daySessionCopy(language);
-  return {
-    label: copy.more_words(session.more_words),
-    meta: copy.minutes(session.more_minutes),
-    href: session.more_href,
-  };
-}
-
 /**
  * #396: what Home's day chip (the streak number and its «done» mark) says. The
  * server's streak counts today from the first practice, which the day's words

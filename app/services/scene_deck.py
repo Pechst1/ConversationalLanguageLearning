@@ -164,6 +164,11 @@ def scene_lines(
             continue
         line, translation = _line_with_meaning(sentence, draft) if draft else (sentence, None)
         lines[word_id] = {"sentence_fr": line, "translation": translation}
+        # P7: the sense the word has in this line, when the scene's lexicon gives one
+        # («frais» in «les frais de changement du vol» is a cost, not «fresh; cool»).
+        gloss = " ".join(str((entry or {}).get("gloss_native") or "").split())
+        if gloss:
+            lines[word_id]["gloss"] = gloss
     return lines
 
 
@@ -172,6 +177,7 @@ def mark_scene_words(
     *,
     scene_ids: set[int],
     lines: dict[int, dict[str, str | None]],
+    gloss_language: str | None = None,
 ) -> dict[str, Any]:
     """Flag the payload's scene words; give every card with a scene line that line as example.
 
@@ -179,7 +185,9 @@ def mark_scene_words(
     :mod:`app.services.deck_order`); ``lines`` may hold other cards too (a review
     the scene featured): those quote the scene but stay what they are. A scene
     word without a line (a reserved word the scene's text no longer prints) keeps
-    the catalogue's example.
+    the catalogue's example. A card quoting a line whose word the scene's lexicon
+    glossed (``gloss``, in the learner's language ``gloss_language``) shows that
+    sense, not the dictionary's (P7); otherwise the dictionary gloss stays.
     """
 
     from app.services.drill_batch import PAYLOAD_LISTS
@@ -197,6 +205,8 @@ def mark_scene_words(
                     "example_sentence": line["sentence_fr"],
                     "example_translation": line.get("translation") or None,
                 }
+                if line.get("gloss") and gloss_language:
+                    card = {**card, "translation": line["gloss"], "translation_language": gloss_language}
             cards.append(card)
         payload[name] = cards
     return payload
@@ -238,7 +248,11 @@ def apply_to_day_deck(db: Any, user: Any, batch: Any, payload: dict[str, Any], *
     lines = scene_lines(
         draft=journey_draft(journey), journey_id=journey.id, words=words, progress=progress, candidates=candidates
     )
-    return mark_scene_words(payload, scene_ids=candidates - due_reviews, lines=lines)
+    from app.services.chrome_language import user_mother_tongue
+
+    return mark_scene_words(
+        payload, scene_ids=candidates - due_reviews, lines=lines, gloss_language=user_mother_tongue(user)
+    )
 
 
 __all__ = [
