@@ -508,8 +508,12 @@ def hook_again(line: Any, live: dict | None, *, said: Iterable[str] = ()) -> str
     return "again" if _put_off(previous, said) else "refused"
 
 
-#: A clause break inside a sentence: «… l'appartement ; demain, vous pourrez …».
-_CLAUSE_BREAK = re.compile(r"\s*(?:;|\s[—–]\s)\s*")
+#: A clause break inside a sentence: «… l'appartement ; demain, vous pourrez …». Round 4
+#: (B1 walk of 19 Nov, day 3): a colon before a space is one too — «Parle à Gus demain :
+#: il connaissait une autre facette d'elle, et …» said the learner's plan back in 18
+#: words, no clause was found, and the hook fell to tomorrow's beat (Marin's soup) while
+#: the last panel promised Gus. Not a clock's colon («19:00»).
+_CLAUSE_BREAK = re.compile(r"\s*(?:;|:(?=\s)|\s[—–]\s)\s*")
 
 
 def _tomorrow_clauses(text: Any) -> list[str]:

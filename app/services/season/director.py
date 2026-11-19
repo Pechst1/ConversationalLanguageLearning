@@ -1127,3 +1127,28 @@ def review_verdict(review: StoryReview, *, act: bool = False) -> bool:
         and not review.spoils_next_tentpole
         and (review.moves_on or not act)
     )
+
+
+#: The rubric items :func:`review_verdict` refuses for when they are false.
+VERDICT_ITEMS = (
+    "meaningful_change",
+    "in_character",
+    "honours_choices",
+    "obstacle_faced",
+    "reads_like_people",
+    "one_plain_question",
+    "remembers",
+)
+
+
+def verdict_failures(review: StoryReview, *, act: bool = False) -> list[str]:
+    """Round 4: the items :func:`review_verdict` refused ``review`` for, by name, in rubric
+    order (``spoils_next_tentpole`` when it is true). ``hook`` is never one: it is scored,
+    not refused for."""
+
+    failed = [item for item in VERDICT_ITEMS if not getattr(review, item, True)]
+    if review.spoils_next_tentpole:
+        failed.append("spoils_next_tentpole")
+    if act and not review.moves_on:
+        failed.append("moves_on")
+    return failed
