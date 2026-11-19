@@ -92,7 +92,11 @@ from app.services.book_library import BookLibraryService
 from app.services.cast_registry import display_name, people_addressed, people_named, people_speaking
 from app.services.cast_registry import resolve_id as _resolve_cast_id
 from app.services.cefr_progress import CEFRProgressService, live_level, with_can_do_line
-from app.services.chrome_language import user_chrome_language, user_mother_tongue
+from app.services.chrome_language import (
+    user_chrome_language,
+    user_correction_language,
+    user_mother_tongue,
+)
 from app.services.concept_titles import concept_title, concept_title_fr
 from app.services.error_memory import ErrorMemoryService
 from app.services.forge import TEST_OUT_STATUS, ForgeService, is_forge_session  # WP-S3 La Forge
@@ -1293,11 +1297,16 @@ def _session_response(
             payload, user_chrome_language(user), user_mother_tongue(user)
         )
         if user_chrome_language(user) == "fr":
-            from app.services.grammar_units import french_rule
-            payload["rule_panel"] = {
-                **(payload.get("rule_panel") or {}), "rule": french_rule(selection.concept),
-                "when": None, "pattern": None, "check": None,
-            }
+            # From B1 the panel's chrome is French, but the rule is explained in the
+            # mother tongue (owner decision 18 Nov 2026, as the scene's notes; R4).
+            from app.services.grammar_units import french_rule, native_rule
+            explain = user_correction_language(user)
+            rule = french_rule(selection.concept) if explain == "fr" else native_rule(selection.concept, explain)
+            if rule or explain == "fr":
+                payload["rule_panel"] = {
+                    **(payload.get("rule_panel") or {}), "rule": rule,
+                    "when": None, "pattern": None, "check": None,
+                }
         exercise_sets.append(
             {
                 "id": str(exercise_set.id),
@@ -1759,7 +1768,8 @@ def submit_attempt(
             retest=retest_source is not None,
             rule_check=session.status == TEST_OUT_STATUS or correction.get("graded_by") == "local_test_out",
         ),
-        language=user_chrome_language(current_user),
+        # R4: a withheld solution's hint explains, so it is in the mother tongue.
+        language=user_correction_language(current_user),
     )
     attempt.correction_payload = correction
     db.add(attempt)
