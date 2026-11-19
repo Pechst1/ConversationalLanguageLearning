@@ -157,6 +157,7 @@ export const REPLY_EFFECTS: Record<string, Effect[]> = {
   'b.turn1.b': [said(w('Tu as dit à Camille : pas encore.', 'You told Camille: not yet.', 'Du hast Camille gesagt: noch nicht.'), null, 'camille_marchand')],
   'b.turn1.c': [regard('camille_marchand', 1), said(w('Tu as demandé à Camille : plus simple pour qui ?', 'You asked Camille: simpler for whom?', 'Du hast Camille gefragt: einfacher für wen?'), null, 'camille_marchand')],
   'b.turn1.d': [said(w('Tu as dit à Camille : pas ce soir.', 'You told Camille: not tonight.', 'Du hast Camille gesagt: nicht heute Abend.'), null, 'camille_marchand')],
+  'b.turn1.e': [said(w('Tu as dit à Camille : je ne vends pas.', "You told Camille: I'm not selling.", 'Du hast Camille gesagt: Ich verkaufe nicht.'), null, 'camille_marchand')],
   'b.letter.margaux': [regard('margaux_barman', 1), journal(w('Tu as montré la lettre à Margaux.', 'You showed the letter to Margaux.', 'Du hast Margaux den Brief gezeigt.'), 'margaux_barman')],
   'b.letter.lila': [regard('lila_bonnet', 1), journal(w('Tu as montré la lettre à Lila.', 'You showed the letter to Lila.', 'Du hast Lila den Brief gezeigt.'), 'lila_bonnet')],
   'b.letter.gus': [journal(w('Tu as montré la lettre à Gus. Tout le café connaît le prix.', 'You showed the letter to Gus. The whole café knows the price.', 'Du hast Gus den Brief gezeigt. Das ganze Café kennt den Preis.'), 'augustin_de_roncourt')],

@@ -96,7 +96,7 @@ def test_a_tentpole_day_whose_page_cannot_be_built_is_never_a_reread(
 def test_a_page_authored_for_another_band_is_served_in_the_nearest_band(monkeypatch):
     asked: list[str] = []
 
-    def resolve(season, segment_id, letter, *, flags, band, language, neutral=False):
+    def resolve(season, segment_id, letter, *, flags, band, language, neutral=False, shift=0):
         asked.append(band)
         return {"band": band} if band == "B1" else None
 
