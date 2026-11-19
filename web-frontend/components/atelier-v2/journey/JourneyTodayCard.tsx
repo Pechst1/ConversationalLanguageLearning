@@ -608,9 +608,11 @@ function Card({
           )}
           {eyebrow}
         </p>
-        <h2 className="av2-headline av2-headline--title" lang={lang} {...(banner ? connectionBanner(banner) : {})}>
-          {lang === 'fr' ? frenchSpacing(title) : title}
-        </h2>
+        {title && (
+          <h2 className="av2-headline av2-headline--title" lang={lang} {...(banner ? connectionBanner(banner) : {})}>
+            {lang === 'fr' ? frenchSpacing(title) : title}
+          </h2>
+        )}
         {byline}
         {headline && (
           <HeadlineCast headline={headline} language={controlLanguage} title={title} faces={Boolean(imageUrl) || !scene} />
@@ -627,14 +629,13 @@ function Card({
 }
 
 /**
- * The card's headline. A generated day has no title until it is written, and
- * yesterday's whole «À suivre…» then stood in at headline size (owner,
- * 2026-10-19: far too big). It is cut to its heart, as the teaser line is.
+ * The card's headline. A generated day has no title until it is written; P8 (17 Nov):
+ * then the card has none, and yesterday's «À suivre…» is printed as the hook under it
+ * (`HeadlineCast`), not as the title. Without a headline at all (the engine off), the
+ * offer's own title stands.
  */
 function cardTitle(headline: Headline | null | undefined, fallback: string): string {
-  const title = headlineTitle(headline, fallback);
-  if (title === fallback || String(headline?.title_fr || '').trim()) return title;
-  return teaserHint(title) || title;
+  return headline ? headlineTitle(headline, fallback) : fallback;
 }
 
 /** Where today's scene happens and who is on its page, for the drawn card art. */

@@ -298,6 +298,9 @@ export function colophonDigest(
   const parts = digestParts(digest);
   if (!parts) return null;
   const line = parts.resolution || parts.question;
+  // P8 (A1 walk, day 2): a chapter closed with no resolution printed the season's question
+  // («Ou tu dis au revoir à tout ça ?») where tomorrow's line belongs. A question is never it.
+  if (line.trim().endsWith('?')) return null;
   const said = alreadySaid.map((value) => String(value ?? '').trim()).filter(Boolean);
   return said.some((value) => saysTheSame(value, line)) ? null : line;
 }

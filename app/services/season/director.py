@@ -30,6 +30,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
+import unicodedata
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -400,6 +401,232 @@ def leading_hook(
     return (leading[-1].hook if leading else "") or beat.hook
 
 
+def beats_for(
+    gap: Gap, day: int, state: dict | None, flags: dict[str, Any], *, length: int | None
+) -> tuple[DayBeat | None, DayBeat | None]:
+    """``(beat, plan)`` for gap day ``day``: the beat the day stages (the learner's
+    «Demain» pick while it is still on offer, else the plan's own) and the plan's own.
+    The one resolution ``gap_brief`` and the settle's hook (P8, fourth commit) share:
+    tomorrow's hook is composed from the beat tomorrow's brief will carry."""
+
+    if not gap.days:
+        return None, None
+    done = used_premises(state, gap.id)
+    dropped = dropped_beats(state, gap.id)
+    plan = planned_beat(gap, day, done | dropped, flags, length=length)
+    pick = learner_pick(state, gap.id, day)
+    offered = tomorrow_options(gap, day, done, flags, length=length, dropped=dropped) if pick else []
+    if pick in {option.premise for option in offered}:
+        return planned_beat(gap, day, done | dropped, flags, length=length, prefer=pick), plan
+    return plan, plan
+
+
+def beat_line(gap: Gap, beat: DayBeat, *, met: Any = None) -> str:
+    """The hook's French line for ``beat`` (:func:`beat_hook`), or ``""``."""
+
+    return str((beat_hook(gap, beat, met=met) or {}).get("text_fr") or "")
+
+
+#: People a beat's premise may name who are never on a page (Odile is dead).
+_NOT_ON_A_PAGE = frozenset({"odile_ferrand", "odile"})
+
+
+def _people_in(text: str) -> list[str]:
+    """Cast ids named in a premise's text (English prose), in the order they come."""
+
+    from app.services import cast_registry
+
+    folded = unicodedata.normalize("NFKD", str(text or "").casefold()).encode("ascii", "ignore").decode()
+    found: list[tuple[int, str]] = []
+    for cast_id, tokens in cast_registry.name_tokens().items():
+        if cast_id in _NOT_ON_A_PAGE:
+            continue
+        hits = [m.start() for token in tokens for m in re.finditer(rf"\b{re.escape(token)}\b", folded)]
+        if hits:
+            found.append((min(hits), cast_id))
+    return [cast_id for _, cast_id in sorted(found)]
+
+
+def _described(cast_id: str) -> tuple[str, dict[str, str]]:
+    """A person the learner has not met, as a description («une journaliste
+    québécoise»), in French and in the learner's languages; ``("", {})`` when nobody
+    wrote a role for them."""
+
+    from app.services import cast_registry
+
+    feminine = cast_registry.pronoun_for(cast_id) == "elle"
+    out: dict[str, str] = {}
+    for lang in ("fr", "de", "en"):
+        role = cast_registry.role(cast_id, lang).split(",")[0].strip()
+        if not role:
+            return "", {}
+        first = role.split()[0].casefold()
+        if first in {"un", "une", "le", "la", "l'", "ton", "ta", "son", "sa", "a", "an", "the", "your", "ein", "eine", "dein", "deine", "der", "die"}:
+            out[lang] = role
+        elif lang == "fr":
+            out[lang] = f"{'une' if feminine else 'un'} {role}"
+        elif lang == "de":
+            out[lang] = f"{'eine' if feminine else 'ein'} {role}"
+        else:
+            out[lang] = f"{'an' if role[:1].lower() in 'aeiou' else 'a'} {role}"
+    return out.pop("fr"), out
+
+
+def _who(cast_id: str, met: Any) -> tuple[str, dict[str, str]]:
+    from app.services import cast_registry
+
+    if met is None or met(cast_id):
+        name = cast_registry.display_name(cast_id, cast_id)
+        return name, {"de": name, "en": name}
+    return _described(cast_id)
+
+
+def beat_hook(gap: Gap, beat: DayBeat, *, met: Any = None) -> dict[str, Any] | None:
+    """P8 (fourth commit, fifth commit): the hook a day leaves when ``beat`` is
+    tomorrow's: ``{text_fr, text_native?}``, from the season's own words. The beat's
+    «Demain» label as the learner would pick it («On va cuisiner avec Lila.»); else a
+    whole line built from its premise (``story_teaser.compose_beat_hook``): who is in it
+    and what is about to happen, never the bare title (second walk of 17 Nov: «Le
+    billet», «Romy enquête», «La même chose ?»), and never the name of somebody the
+    learner has not met (``met(cast_id)``; ``None``: everybody counts as met).
+    ``text_native`` only where the season's data has every part of the line in the
+    learner's language. Never the English plan line (``beat.hook``), never a season
+    question."""
+
+    from app.services.story_teaser import compose_beat_hook
+
+    if beat.pick_fr.strip():
+        from app.services.story_tomorrow import hook_for
+
+        line = hook_for(beat.pick_fr)
+        return {"text_fr": line} if line else None
+    premise = next((row for row in gap.premises if row.id == beat.premise), None)
+    if premise is None:
+        return None
+    title = " ".join(premise.title_fr.split())
+    people = _people_in(premise.text)
+    # «Romy enquête»: a person and what they do.
+    first, _, rest = title.partition(" ")
+    subject = next(
+        (cast_id for cast_id in _people_in(first) if rest and rest[:1].islower()),
+        None,
+    )
+    if subject:
+        from app.services import cast_registry
+
+        who, _native = _who(subject, met)
+        pronoun = cast_registry.pronoun_for(subject) or ""
+        return compose_beat_hook(title, who_fr=who, subject_rest=rest, pronoun=pronoun)
+    # The first person of the premise the learner can be told about: by name once met,
+    # else by their role; nobody without either.
+    for lead in people:
+        who, native = _who(lead, met)
+        if who:
+            return compose_beat_hook(title, who_fr=who, who_native=native)
+    return None
+
+
+#: P8 (fourth commit): the ``state`` key of the learner's own plan for the gap's next
+#: day («Demain, je veux parler à Gus de la clé.»): ``{gap, day, said_fr, hook_fr,
+#: with, date, event_id}``, written by the settle, read by ``gap_brief`` on that day.
+PLAN_KEY = "tomorrow_plan"
+
+
+def learner_plan(state: dict | None, gap_id: str, day: int) -> dict | None:
+    """The learner's own plan for this gap day, if their last day stated one."""
+
+    row = (state or {}).get(PLAN_KEY)
+    if isinstance(row, dict) and row.get("gap") == gap_id and row.get("day") == day and row.get("said_fr"):
+        return row
+    return None
+
+
+def _cast_name(season: Season, member_id: str | None) -> str:
+    member = next((row for row in season.cast if row.id == member_id), None) if member_id else None
+    if member is None:
+        return ""
+    nickname = re.search(r"«\s*([^»]+?)\s*»", member.name)
+    return nickname.group(1) if nickname else member.name
+
+
+def _plan_first(beat: dict[str, Any], required: dict[str, Any] | None, plan: dict, name: str) -> None:
+    """P8 (fourth commit): the learner's plan as the start of today's beat. The page
+    opens on it, with the person the learner named, and the question put to the learner
+    is its next step; the beat's own question follows when the scene holds both."""
+
+    said = str(plan.get("said_fr") or "").strip()
+    present = f" {name} is there when the page opens." if name else ""
+    beat["before"] = (
+        f"Yesterday the learner said what they want to do today: «{said}»{present} "
+        f"Then, as planned: {beat.get('before') or ''}"
+    ).strip()
+    if required is not None:
+        asker = name or "The lead"
+        required["turn"] = (
+            f"First, {asker} asks the learner the next step of their own plan («{said}»). "
+            f"Then, when the same scene holds it: {required.get('turn') or ''}"
+        ).strip()
+
+
+#: The ``state`` key of the flags the learner set in their own words (``runtime``).
+_LEARNER_SET_KEY = "learner_set"
+
+
+def learner_decides(premise: Any, state: dict | None, flags: dict[str, Any]) -> list[dict[str, Any]]:
+    """P8 (fourth commit): what today's premise lets the learner decide (``sets``) that
+    they have not decided yet. The brief showed the premise's ``settles`` («the ticket:
+    mercredi 2 décembre») as a fact, and a page of 17 Nov narrated «Au téléphone,
+    l'agent a une place le 2 décembre.» and asked why the learner changed the date
+    before they chose to. Each row: the flag, what it says now, and the story's value
+    when the learner decides nothing (applied after the day, ``runtime._settle_gap``)."""
+
+    if premise is None:
+        return []
+    decided = (state or {}).get(_LEARNER_SET_KEY) or {}
+    return [
+        {
+            "flag": flag,
+            "now": flags.get(flag),
+            "if_the_learner_decides_nothing": premise.settles.get(flag),
+        }
+        for flag in premise.sets
+        if flag not in decided
+    ]
+
+
+#: P8 (fifth commit): how today's beat and premise read while the learner's choice is open.
+OPEN_CHOICE_TURN = (
+    "The learner decides this in their reply: ask what they want to do about {flags}, and "
+    "why. Whatever they answer, the page continues from it; it is never decided before."
+)
+OPEN_CHOICE_AFTER = (
+    "Open until the learner answers: {flags}. If their words decide it: {planned}"
+)
+
+
+def _left_to_the_learner(required: dict[str, Any] | None, beat: dict[str, Any] | None, deciding: list[dict]) -> None:
+    """P8 (fifth commit): the second real-model walk of 17 Nov. Gap 1's ticket day was
+    briefed as «The ticket moves to 2 December» (``change``), «Tell the agent why you are
+    changing the date» (``turn``) and «The ticket says 2 December» (``after``): both pages
+    presupposed the learner's choice («Pourquoi tu changes la date ?», «Mercredi 2
+    décembre. C'est confirmé.») before she made it. While ``learner_decides`` lists a
+    flag, those lines ask instead, and the authored text stays as what happens if the
+    learner's words decide it."""
+
+    flags = ", ".join(
+        f"{row['flag']} (now: {row.get('now') or 'not set'})" for row in deciding if row.get("flag")
+    )
+    if required is not None:
+        planned_turn = str(required.get("turn") or "")
+        required["turn"] = OPEN_CHOICE_TURN.format(flags=flags)
+        if planned_turn:
+            required["turn_if_they_decide"] = planned_turn
+        if required.get("change"):
+            required["change"] = OPEN_CHOICE_AFTER.format(flags=flags, planned=required["change"])
+    if beat is not None and beat.get("after"):
+        beat["after"] = OPEN_CHOICE_AFTER.format(flags=flags, planned=beat["after"])
+
+
 def _waiting(gap: Gap, beat: DayBeat) -> dict[str, str]:
     premise = next((row for row in gap.premises if row.id == beat.premise), None)
     return {"title_fr": premise.title_fr if premise else beat.premise, "before": beat.before}
@@ -594,16 +821,9 @@ def gap_brief(
     # missed twice is left behind (``dropped_beats``); a required one is still owed to
     # the bridge (``recovery.missing_required`` reads ``done`` alone).
     dropped = dropped_beats(state, gap.id)
-    plan = planned_beat(gap, day, done | dropped, flags, length=pos.segment.days) if gap.days else None
     # «Demain»: the beat the learner picked yesterday, while it is still one of today's
     # options (a flag set since may have closed it).
-    pick = learner_pick(state, gap.id, day)
-    offered = tomorrow_options(gap, day, done, flags, length=pos.segment.days, dropped=dropped) if pick else []
-    beat = (
-        planned_beat(gap, day, done | dropped, flags, length=pos.segment.days, prefer=pick)
-        if pick in {option.premise for option in offered}
-        else plan
-    )
+    beat, plan = beats_for(gap, day, state, flags, length=pos.segment.days)
     if gap.days:
         required = beat.premise if beat else None
     else:
@@ -631,6 +851,49 @@ def gap_brief(
     obstacle = open_obstacle(state, gap.id)
     required_row = next((premise for premise in gap.premises if premise.id == required), None)
     rules = season.gap_rules or {}
+    # P8 (fourth commit): what the learner has not decided yet is shown as theirs to
+    # decide, not as the premise's settled value.
+    deciding = learner_decides(required_row, state, flags)
+    open_flags = {row["flag"] for row in deciding}
+    required_out = (
+        {
+            **required_row.model_dump(exclude={"when"}),
+            "settles": {flag: value for flag, value in required_row.settles.items() if flag not in open_flags},
+        }
+        if required_row
+        else None
+    )
+    beat_out = (
+        {
+            **beat.model_dump(exclude={"day", "premise", "pick_fr", "needs", "contract"}),
+            # «Demain» paid check: the «À suivre…» leads into what the plan stages
+            # next, which a pick or a beat left behind may have changed.
+            "hook": leading_hook(gap, beat, done | dropped, flags, day=day, length=pos.segment.days),
+        }
+        if beat
+        else None
+    )
+    # P8 (fifth commit): a beat that needs the learner's choice asks for it; until they
+    # answer, nothing in the brief says it is made.
+    if deciding:
+        _left_to_the_learner(required_out, beat_out, deciding)
+    # «Demain»: the learner chose today's thread yesterday; the plan's own beat waits.
+    picked: dict[str, Any] = (
+        {"by_learner": beat.pick_fr, "waits": _waiting(gap, plan)}
+        if beat and plan and beat.premise != plan.premise
+        else {}
+    )
+    # P8 (fourth commit): the learner's own plan for today («Demain, je veux parler à
+    # Gus de la clé.») enters where a «Demain» pick does, and opens today's beat.
+    stated = learner_plan(state, gap.id, day)
+    if stated and beat_out is not None:
+        name = _cast_name(season, stated.get("with"))
+        _plan_first(beat_out, required_out, stated, name)
+        picked = {
+            **picked,
+            "plan_fr": str(stated.get("said_fr") or ""),
+            **({"with": stated["with"]} if name else {}),
+        }
     return {
         "season": {
             "id": season.id,
@@ -655,23 +918,13 @@ def gap_brief(
             "establish_before_next_tentpole": list(gap.establish),
         },
         "today": {
-            "required_premise": required_row.model_dump(exclude={"when"}) if required_row else None,
+            "required_premise": required_out,
             # The day plan's change for today: the page starts from ``before``, the
             # learner's exchange ends at ``after``.
-            "beat": {
-                **beat.model_dump(exclude={"day", "premise", "pick_fr", "needs", "contract"}),
-                # «Demain» paid check: the «À suivre…» leads into what the plan stages
-                # next, which a pick or a beat left behind may have changed.
-                "hook": leading_hook(gap, beat, done | dropped, flags, day=day, length=pos.segment.days),
-            }
-            if beat
-            else None,
-            # «Demain»: the learner chose today's thread yesterday; the plan's own beat waits.
-            **(
-                {"picked": {"by_learner": beat.pick_fr, "waits": _waiting(gap, plan)}}
-                if beat and plan and beat.premise != plan.premise
-                else {}
-            ),
+            "beat": beat_out,
+            **({"picked": picked} if picked else {}),
+            # P8 (fourth commit): what the learner decides today and has not yet.
+            **({"learner_decides": deciding} if deciding else {}),
             "premises": [premise.model_dump(exclude={"when"}) for premise in premises],
             "small_moments": [moment.model_dump() for moment in moments],
             "gate": required_row.gate if required_row else None,

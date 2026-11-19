@@ -36,9 +36,13 @@ from app.services.cast_registry import display_names
 from app.services.season.clock import SEASON_KEY, Position, played_log, record_played
 from app.services.season.director import (
     TOMORROW_KEY,
+    beat_hook,
+    beats_for,
     dropped_beats,
     gap_brief,
     learner_pick,
+    must_not_rows,
+    pattern_hits,
     tomorrow_options,
     used_premises,
 )
@@ -628,6 +632,53 @@ def season_teaser(
         "kind": "season",
         **({"open_fr": question} if question else {}),
     }
+
+
+def tomorrow_beat(live: dict | None, *, date_iso: str | None, seed: str) -> dict[str, Any] | None:
+    """P8 (fourth commit): the next day's planned beat, once today is settled, as the
+    brief will carry it (``director.beats_for``): ``{gap, day, beat, line_fr}``, where
+    ``line_fr`` is the hook composed from it (``director.beat_hook``), with ``text_native``
+    when the season's data has the line in the learner's languages. None when the
+    next day is not a planned gap day (a tentpole, a gap without a day plan, the end),
+    or when the line would name something the gap must not.
+
+    The season's day plan is deterministic, so the settle knows tomorrow's beat; a hook
+    composed from it is one tomorrow's page can take up (real play of 17 Nov: hooks
+    taken from today's scene or the season's questions were taken up 2 times in 7)."""
+
+    season_id = season_id_for(live)
+    if not season_id or not isinstance((live or {}).get(SEASON_KEY), dict):
+        return None
+    try:
+        season = load_season(season_id)
+        today = date.fromisoformat(str(date_iso)[:10]) if date_iso else None
+        state = dict((live or {}).get(SEASON_KEY) or {})
+        pos = position_for(season, state, today=today + timedelta(days=1) if today else None)
+        gap = season.gaps.get(pos.segment.id) if pos.is_gap and pos.segment is not None else None
+        if gap is None or not gap.days:
+            return None
+        flags = effective_flags(season, state, seed=seed)
+        beat, _plan = beats_for(gap, pos.day_in_segment, state, flags, length=pos.segment.days)
+        if beat is None:
+            return None
+        # P8 (fifth commit): nobody the learner has not met is named in the hook.
+        from app.services import cast_registry
+
+        met_state = {"living_story": dict(live or {})}
+        hook = beat_hook(gap, beat, met=lambda cast_id: cast_registry.has_met(met_state, cast_id)) or {}
+        line = str(hook.get("text_fr") or "")
+        if not line or pattern_hits(must_not_rows(season, gap.id, flags), [line]):
+            return None
+        return {
+            "gap": gap.id,
+            "day": pos.day_in_segment,
+            "beat": beat,
+            "line_fr": line,
+            **({"text_native": hook["text_native"]} if hook.get("text_native") else {}),
+        }
+    except Exception:  # noqa: BLE001 - tomorrow's hook never costs today's ending
+        logger.exception("season: tomorrow's beat is unavailable; the day's hook is chosen as before")
+        return None
 
 
 def tomorrow_choice(live: dict | None, *, user: Any, seed: str, event_id: str, now: Any = None) -> dict[str, Any] | None:
