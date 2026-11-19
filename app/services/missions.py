@@ -58,7 +58,13 @@ from app.services.glosses import (
     word_gloss,
 )
 from app.services.learner_copy import copy_language, learner_text
-from app.services.letter_voice import band_style_line, register_word, voice_problems
+from app.services.letter_voice import (
+    above_band_tenses,
+    band_style_line,
+    register_word,
+    tense_way_out,
+    voice_problems,
+)
 from app.services.llm_service import LLMProviderError, LLMService
 from app.services.news_service import NewsService
 from app.services.pragmatics import address_markers
@@ -7176,6 +7182,29 @@ def who_they_are(db: Session | None, user: Any, mission: Any) -> dict[str, Any]:
     return {**({"who_they_are_to_you": relation} if relation else {}), **({} if found.met else {"you_have_never_met_them": True})}
 
 
+#: Pilot P9: what a second Courrier draft is told after the first asked again what the
+#: learner had just answered — in plain words, beside the finding itself.
+REASK_WAY_OUT = "Do not ask again what was just asked, in any words."
+
+
+def second_draft_hint(
+    problems: list[str],
+    *,
+    tenses: list[str] | tuple[str, ...] = (),
+    codes: list[str] | tuple[str, ...] = (),
+) -> str:
+    """Pilot P9: the first draft's refusal reasons as the second draft's rewrite hint, each
+    with its plain way out — a refused tense: «aller + infinitif» or the present; a question
+    asked again: do not ask it again."""
+
+    parts = [str(problem) for problem in problems if str(problem or "").strip()]
+    if way_out := tense_way_out(tenses):
+        parts.append(way_out)
+    if "reply_reasks_answered_question" in codes:
+        parts.append(REASK_WAY_OUT)
+    return " Rewrite your reply fixing exactly this: " + " ".join(parts)
+
+
 class MissionConversationService:
     """Generate mission chat responses without duplicating the old audio route."""
 
@@ -7350,6 +7379,7 @@ class MissionConversationService:
                     continue
                 _record_mission_llm_cost(self.db, user_id=getattr(user, "id", None), result=result, purpose="character_reply", mission_id=getattr(mission, "id", None))
                 problems = voice_problems([result.content], register=expected, level=level)
+                refused_tenses = above_band_tenses(result.content, level)
                 if not problems and record:
                     problems = self._logistics_problems(result.content, mission=mission, user_text=user_text)
                 # #145: compared with the thread's record. A veto, never an edit: a reply that
@@ -7364,7 +7394,11 @@ class MissionConversationService:
                     soft_found = [finding.code for finding in checked]
                     problems = [finding.hint for finding in checked]
                 logger.info("Courrier reply rejected", attempt=attempt + 1, problems=problems)
-                hint = " Rewrite your reply fixing exactly this: " + " ".join(problems)
+                hint = second_draft_hint(
+                    problems,
+                    tenses=refused_tenses if not checked else (),
+                    codes=[finding.code for finding in checked],
+                )
             if soft_found:
                 self._count_soft_findings(user, soft_found, "vetoed")
             return _unassessed_acknowledgement(mission, register_now=register_now)
