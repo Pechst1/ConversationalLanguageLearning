@@ -78,6 +78,8 @@ export interface SpeechUi {
   text: string;
   native: string | null;
   direction: string | null;
+  /** the same speaker's next lines, on the same card (`speakerRuns`) */
+  more?: Array<{ text: string; native: string | null }>;
 }
 
 export interface AnswerUi {
@@ -415,6 +417,49 @@ export function canTalkOn(page: StoryPage | null | undefined): boolean {
   return Boolean(page && storyletOf(page, 'talk')?.people.length);
 }
 
+/**
+ * The moment before the bell turns you toward someone you can talk to: the nearest of those who can
+ * be talked to now (listed by the day's page, in the room and visible), or nobody. Round 4 (third
+ * walk, 19 Nov, day 1): «Parle à quelqu'un» with the camera facing a wall, nobody in view.
+ */
+export function nearestTalker(feet: { x: number; z: number }, people: Array<{ who: string; pos: { x: number; z: number } }>): string | null {
+  let best: string | null = null;
+  let bestD = Infinity;
+  for (const p of people) {
+    const d = Math.hypot(p.pos.x - feet.x, p.pos.z - feet.z);
+    if (d < bestD) {
+      best = p.who;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+/** The moment's card: it invites talk only when someone can be talked to. */
+export function momentWords(talker: string | null): Words {
+  return talker ? MOMENT.caption : MOMENT.wait;
+}
+
+const ownLine = (l: StoryLine) => l.who !== 'caption' && l.who !== 'toi' && (l.kind ?? 'speech') === 'speech' && Boolean(l.text_fr);
+
+/**
+ * A panel's lines as cards: consecutive lines of the same speaker share one card (at most `max`),
+ * each with its gloss under it, so one tap goes past all of them. A line with a stage direction of
+ * its own starts a new card (the card shows one). Round 4 (third walk): 25 of 45 taps in day 1's
+ * scene were lines to tap through.
+ */
+export function speakerRuns(lines: StoryLine[], max = 3): number[][] {
+  const runs: number[][] = [];
+  lines.forEach((l, i) => {
+    const run = runs[runs.length - 1];
+    const first = run ? lines[run[0]] : null;
+    const joins = Boolean(run && first && run.length < max && ownLine(first) && ownLine(l) && l.who === first.who && (!l.direction || l.direction === first.direction));
+    if (joins && run) run.push(i);
+    else runs.push([i]);
+  });
+  return runs;
+}
+
 /** The screen with nothing on it (before a title card). */
 export const BLANK: StageUi = {
   phase: 'title',
@@ -665,6 +710,16 @@ export class Stage implements Director {
     if (effects.length) this.remember(effects, day);
     // what each says as you come up, as things now stand
     for (const p of a.people ?? []) if (p.hello) this.greetings.set(p.who, p.hello);
+  }
+
+  /** The nearest of those `talkTo` would talk to now (listed by the page, in the room, visible), or nobody. */
+  private nearestTalker(): string | null {
+    if (this.away) return null;
+    const people = (storyletOf(this.story.page, 'talk')?.people ?? []).flatMap((p) => {
+      const f = TALKERS[p.who as CastId] ? this.fig(p.who) : null;
+      return f && f.visible ? [{ who: p.who, pos: f.pos }] : [];
+    });
+    return nearestTalker(this.q.feet, people);
   }
 
   /** Who will talk, as the day's page lists them. */
@@ -1295,7 +1350,7 @@ export class Stage implements Director {
   }
 
   /** One line: the speaker's face and mood, your head turns to them, the card waits for a tap. */
-  private async speak(gen: number, line: StoryLine) {
+  private async speak(gen: number, line: StoryLine, more: StoryLine[] = []) {
     if (line.who === 'caption' || line.kind === 'caption') {
       this.set({ caption: { text: line.text_fr, native: line.text_native ?? null }, speech: null });
       await this.waitTap(gen);
@@ -1305,8 +1360,8 @@ export class Stage implements Director {
     const f = this.fig(line.who);
     const text = line.text_fr;
     if (f) {
-      this.face(line.who, line.mood);
-      f.talk(0.9 + text.length * 0.045);
+      this.face(line.who, (more[more.length - 1] ?? line).mood);
+      f.talk(0.9 + [line, ...more].reduce((s, l) => s + l.text_fr.length, 0) * 0.045);
       this.look(f.face(), 3.4);
     }
     if (TALKERS[line.who as CastId] && !this.memory.state()[`met.${line.who}`]) this.remember({ kind: 'meet', who: line.who as CastId });
@@ -1314,7 +1369,15 @@ export class Stage implements Director {
     if (line.who === 'camille_marchand') this.camilleNamed = true;
     this.set({
       caption: null,
-      speech: { who: line.who, char: who.char, name, text, native: line.text_native ?? null, direction: line.direction ?? null },
+      speech: {
+        who: line.who,
+        char: who.char,
+        name,
+        text,
+        native: line.text_native ?? null,
+        direction: line.direction ?? null,
+        ...(more.length ? { more: more.map((l) => ({ text: l.text_fr, native: l.text_native ?? null })) } : {}),
+      },
     });
     await this.waitTap(gen);
   }
@@ -1323,10 +1386,13 @@ export class Stage implements Director {
 
   private async lines(gen: number, panel: StoryPanel, before?: (line: StoryLine, i: number) => Promise<void> | void) {
     const ls = panel.lines ?? [];
-    for (let i = 0; i < ls.length; i++) {
-      if (before) await before(ls[i], i);
-      this.alive(gen);
-      await this.speak(gen, ls[i]);
+    // the same speaker's lines in a row share one card: one tap goes past them (`speakerRuns`)
+    for (const run of speakerRuns(ls)) {
+      for (const i of run) {
+        if (before) await before(ls[i], i);
+        this.alive(gen);
+      }
+      await this.speak(gen, ls[run[0]], run.slice(1).map((i) => ls[i]));
     }
   }
 
@@ -2488,9 +2554,24 @@ export class Stage implements Director {
 
   /** The moment before the bell: the room is yours to walk, anyone to talk to. */
   private async moment(gen: number) {
-    this.set({ beat: 'a.moment', moment: this.say(MOMENT.caption), speech: null, caption: null });
+    // whom the card can promise: the nearest of those here you can talk to; you turn to them, then
+    // the look is yours again (a drag looks about meanwhile; the director lets go after a moment)
+    const talker = this.nearestTalker();
+    this.set({ beat: 'a.moment', moment: this.say(momentWords(talker)), speech: null, caption: null });
     this.freeze(false);
-    this.look(null);
+    const f = talker ? this.fig(talker) : null;
+    if (f) {
+      this.lookAbove(f.face(), 2.4);
+      const until = performance.now() + 1600;
+      const stop = this.q.onTick(() => {
+        if (gen !== this.gen || !this.momentWait) return stop();
+        if (performance.now() < until) return;
+        stop();
+        if (!this.talking) this.look(null);
+      });
+    } else {
+      this.look(null);
+    }
     await new Promise<void>((resolve) => {
       this.momentWait = { gen, resolve };
     });
