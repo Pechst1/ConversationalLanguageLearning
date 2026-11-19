@@ -1210,8 +1210,17 @@ def build_recall_task(
                 sentence_answers.append(fixed_sentence)
         rule = repair.rule_in(language) if repair else ""
         if rule:
-            rule_native = recall_goal("repair_rule", language, rule=rule)
-            goal = f"{goal} {rule_native}"
+            rule_line = recall_goal("repair_rule", language, rule=rule)
+            goal = f"{goal} {rule_line}"
+            # R5: the goal is interface (the chrome); the same rule closing a miss note
+            # explains, so it is in the mother tongue from B1 (``explain_language``).
+            explain = repair.explain_language if repair and repair.explain_language else None
+            explain_rule = repair.rule_in(explain) if repair and explain else ""
+            rule_native = (
+                recall_goal("repair_rule", explain, rule=explain_rule)
+                if explain and explain_rule
+                else rule_line
+            )
     elif gloss and len(distractors) >= 2:
         task_type = "choice"
     elif _is_phrase(tokens) and gloss:

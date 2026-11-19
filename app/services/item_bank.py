@@ -2926,6 +2926,8 @@ def with_goal(item: dict[str, Any], language: Any = None, native: Any = None) ->
         # learner reads the meaning or nothing, never the instruction.
         out["meaning_cue"] = meaning_cue_text(out["meaning_cue"])
     _with_fallback_task(out, code)
+    # R5: rebuilt below with the goal that quotes them; a stored set's are never kept.
+    out.pop("goal_native_marks", None)
     kind = _goal_kind(out)
     l10n = out.get("goal_l10n") if isinstance(out.get("goal_l10n"), dict) else None
     if kind == "judge":
@@ -2994,6 +2996,17 @@ def with_goal(item: dict[str, Any], language: Any = None, native: Any = None) ->
             if key == "forge.word_bank":
                 goal = f"{goal} Un mot est en trop."
             out["goal_native"] = goal
+            # R5 (CI walk of 19 Nov): the quoted meaning and the line said before it are the
+            # learner's own language inside a French goal; the screen marks them with `lang`,
+            # the French around them stays interface.
+            out["goal_native_marks"] = [
+                *(
+                    [{"text": said_before, "lang": own if (context or {}).get(own) else "en"}]
+                    if said_before and kind == "build"
+                    else []
+                ),
+                {"text": own_meaning, "lang": own if meanings.get(own) else "en"},
+            ]
             if "answer_tokens" in out:
                 # The word bank's one headline cue: the meaning, not the bare ask.
                 out["prompt"] = goal

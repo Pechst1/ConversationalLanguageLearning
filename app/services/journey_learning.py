@@ -1481,6 +1481,9 @@ def _scene_lexicon_candidates(
     from app.services.scene_items import draft_of, lexicon_of, sentence_of
 
     entries = lexicon_of(scenario)
+    # R5: the writer's lexicon glosses in the scene's control language (French from
+    # B1); the season's own entries below are glossed in the mother tongue already.
+    gloss_language: str | None = str(scenario.control_language or "") or None if entries else None
     if not entries:
         # WP-131: a B1+ season tentpole carries no bible lexicon (it is written
         # for A1–A2). Its words are derived from the lines at the learner's own
@@ -1517,7 +1520,12 @@ def _scene_lexicon_candidates(
     try:
         with db.begin_nested():
             words = record_scene_lexicon(
-                db, user=user, entries=entries, sentences=sentences, level=scenario.level_band
+                db,
+                user=user,
+                entries=entries,
+                sentences=sentences,
+                level=scenario.level_band,
+                gloss_language=gloss_language,
             )
     except Exception:  # noqa: BLE001 - the words are a bonus, the day is not
         logger.warning("journey_learning_scene_lexicon_unavailable")
