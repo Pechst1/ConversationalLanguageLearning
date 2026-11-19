@@ -854,7 +854,10 @@ def test_the_learner_s_plan_is_the_hook_and_opens_tomorrow_s_beat(monkeypatch):
     assert today["beat"]["before"].startswith(f"Yesterday the learner said what they want to do today: «{GUS_PLAN}» Gus is there")
     assert today["required_premise"]["turn"].startswith(f"First, Gus asks the learner the next step of their own plan («{GUS_PLAN}»)")
     # The season's own beat is kept, after it.
-    assert "The ticket still says Wednesday 18 November." in today["beat"]["before"]
+    # (Round 4: the date is the learner's own, moved by whole weeks from the bible's.)
+    from app.services.season.dates import render_text, shift_for
+
+    assert render_text("The ticket still says {date:2026-11-18|en}.", shift_for(state)) in today["beat"]["before"]
     # P8 (fifth commit): the ticket is the learner's to decide; the beat's own turn waits
     # for their answer instead of presupposing it.
     assert "The learner decides this in their reply" in today["required_premise"]["turn"]
@@ -878,6 +881,7 @@ def test_an_undecided_learner_choice_is_presented_as_open():
     beside «The ticket moves to 2 December»; the page narrated the new date and asked
     why the learner changed it before they chose to."""
 
+    from app.services.season.dates import render_text, shift_for
     from app.services.season.director import gap_brief
     from app.services.season.epilogue import position_for
     from app.services.season.flags import effective_flags
@@ -889,7 +893,7 @@ def test_an_undecided_learner_choice_is_presented_as_open():
     today = gap_brief(season, pos, flags=effective_flags(season, state, seed="p8"), state=state, seed="p8", band="A1")["today"]
     assert today["required_premise"]["id"] == "le_billet"
     assert today["learner_decides"] == [
-        {"flag": "user.return_ticket", "now": None, "if_the_learner_decides_nothing": "mercredi 2 décembre"}
+        {"flag": "user.return_ticket", "now": None, "if_the_learner_decides_nothing": render_text("{date:2026-12-02}", shift_for(state))}
     ]
     assert "user.return_ticket" not in today["required_premise"]["settles"], "a default is not a fact"
     # Once the learner said it in their own words, it is theirs and no longer open.
