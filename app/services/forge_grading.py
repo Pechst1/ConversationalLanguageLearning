@@ -1215,8 +1215,34 @@ def refine_production_correction(
         # #574: the gaps, the right sentence and the list say the same thing. (An
         # answer the key accepts has nothing to fix: the model's rewrite is style.)
         refined = reconcile_with_sentence(refined, learner_text, language)
+    if str(refined.get("verdict") or "") in {"correct", "accepted"} and not matches_accepted(learner_text, accepted):
+        refined = held_to_the_rules(refined, learner_text, language)
     refined["notes_native"] = notes_native(refined.get("errata"))
     return refined
+
+
+def held_to_the_rules(refined: dict[str, Any], learner_text: Any, language: Any = "en") -> dict[str, Any]:
+    """P4 (walk 17 Nov): a free sentence is «right» only when the model-free rule pass has
+    nothing to correct in it. «le valise» passed as «Richtig»: the model said right, and the
+    rules, which know «valise» is feminine, were never asked. A grammar edit of the rules
+    (an accent or apostrophe slip is left to the item's accent policy) makes the answer
+    partial, with the rules' own fixes as its corrections."""
+
+    from app.services import correction_contract
+
+    line = str(learner_text or "")
+    edits = [edit for edit in correction_contract.deterministic_edits(line) if edit.severity >= 2]
+    if not edits:
+        return refined
+    key = _language(language)
+    return {
+        **refined,
+        "verdict": "partial",
+        "score_0_4": min(max(float(refined.get("score_0_4") or 0), 2.0), 2.5),
+        "errata": [correction_contract.to_erratum(edit, language=key) for edit in edits],
+        "corrected_answer": correction_contract.apply_edits(line, edits),
+        "rules_overrode_right": True,
+    }
 
 
 # ---------------------------------------------------------------------------
