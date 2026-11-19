@@ -244,6 +244,9 @@ def leak_terms(correction: dict[str, Any], learner: Any, context: Any = "") -> t
             if fix:
                 phrases.append(fix)
                 fix_tokens |= _tokens(fix)
+    # Walk of 19 Nov: «Il manque « d' ».» An elided word of one letter says nothing in a
+    # sentence, but quoted alone it is the whole fix.
+    phrases.extend(f"{token}'" for token in sorted(fix_tokens - learner_tokens) if len(token) == 1 and token.isalpha())
     line_tokens: set[str] = set()
     corrected = _text(correction.get("corrected_answer")).strip()
     if corrected and _fold(corrected).strip() != _fold(learner_text).strip():
@@ -277,12 +280,22 @@ def scrub_hint(text: Any, phrases: list[str], tokens: set[str]) -> str:
         return ""
     pieces = _CLAUSE.split(raw)
     kept: list[tuple[str, str]] = []
+    dropped = False
     for index in range(0, len(pieces), 2):
         clause = pieces[index]
         separator = pieces[index + 1] if index + 1 < len(pieces) else ""
         if not clause.strip() or _leaks(clause, phrases, tokens):
+            dropped = dropped or bool(clause.strip())
             continue
-        kept.append((clause.strip(), separator))
+        clause = clause.strip()
+        if dropped and kept and kept[-1][1].strip() in {";", ":"}:
+            # Walk of 19 Nov: «Du hast „Ils a“ gewählt; Die Regel ist hier nicht der
+            # Unterschied.» The clause a «;» or «:» led into is gone, so the sentence
+            # before it ends there and the next one starts as a sentence.
+            kept[-1] = (kept[-1][0], ". ")
+            clause = clause[0].upper() + clause[1:]
+        dropped = False
+        kept.append((clause, separator))
     if not kept:
         return ""
     out = ""
