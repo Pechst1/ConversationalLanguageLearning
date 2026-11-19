@@ -1,22 +1,28 @@
 {
  "surfaces": {
   "scene": {
-   "fingerprint": "4993596d45f46b19",
+   "fingerprint": "00a50431ed29ff98",
    "calls": 112,
-   "verdict": "baseline",
-   "date": "2026-11-14",
-   "base_ref": "7c7de3020"
+   "verdict": "held",
+   "base": 88.6,
+   "head": 91.1,
+   "diff": 2.5,
+   "paired": 28,
+   "date": "2026-11-19",
+   "base_ref": "d1486e6ca",
+   "criteria": "adfd25c6eb00",
+   "judge": "claude-sonnet-5-5"
   },
   "forge": {
-   "fingerprint": "41b26fa8d98d85f9",
+   "fingerprint": "bee1d2add44c9836",
    "calls": 28,
    "verdict": "held",
-   "base": 85.5,
-   "head": 85.8,
-   "diff": 0.4,
+   "base": 84.3,
+   "head": 86.0,
+   "diff": 1.7,
    "paired": 28,
-   "date": "2026-11-16",
-   "base_ref": "68b7eff8b",
+   "date": "2026-11-19",
+   "base_ref": "d1486e6ca",
    "criteria": "adfd25c6eb00",
    "judge": "claude-sonnet-5-5"
   },
@@ -28,11 +34,17 @@
    "base_ref": "7c7de3020"
   },
   "correction": {
-   "fingerprint": "9c779927eb1a8525",
+   "fingerprint": "18fb19db495aef65",
    "calls": 26,
-   "verdict": "baseline",
-   "date": "2026-11-14",
-   "base_ref": "7c7de3020"
+   "verdict": "held",
+   "base": 94.0,
+   "head": 94.0,
+   "diff": 0.0,
+   "paired": 26,
+   "date": "2026-11-19",
+   "base_ref": "d1486e6ca",
+   "criteria": "adfd25c6eb00",
+   "judge": "claude-sonnet-5-5"
   }
  }
 }
