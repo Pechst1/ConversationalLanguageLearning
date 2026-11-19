@@ -6141,6 +6141,10 @@ export interface components {
             journey_id: string;
             /** Learner Lines */
             learner_lines?: string[];
+            /** Location Id */
+            location_id?: string | null;
+            /** Location Name */
+            location_name?: string | null;
             /** Margin Notes */
             margin_notes?: components["schemas"]["MarginNote"][];
             /** Panels */
@@ -10058,6 +10062,7 @@ export interface components {
              * @constant
              */
             contract_version: 1;
+            correction: components["schemas"]["JourneyCorrection"] | null;
             /** Heard */
             heard: string | null;
             /** Learned */

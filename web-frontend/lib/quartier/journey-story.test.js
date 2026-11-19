@@ -680,3 +680,33 @@ test('P12: the episode has one number everywhere, the day’s edition («Nº 8»
   const page = fs.readFileSync(path.join(WEB_ROOT, 'pages/quartier.tsx'), 'utf8');
   for (const src of [screen, page]) assert.doesNotMatch(src, /`Épisode \$\{/, 'every header goes through episodeLabel');
 });
+
+test('P12 stage 4: a line said to someone outside the script comes back corrected, on the card the answers use', async () => {
+  // observed 17 Nov: «Bonjour Lila. Je suis fatigue, j ai faim» to Lila in the free walk, never corrected
+  const reply = (correction) => async (_j, o) => ({
+    contract_version: 1,
+    storylet_id: o.storyletId,
+    beats: [{ kind: 'panel', id: 'talk.lila.ack', lines: [line('lila_bonnet', 'Alors, mange quelque chose.')] }],
+    chips: [],
+    heard: null,
+    learned: [],
+    sets: {},
+    people: [],
+    correction,
+  });
+  const wrong = storyOn(journey({ revision: 4, current: 'talk' }), {
+    choose: reply({ span_fr: 'fatigue', corrected_fr: 'fatigué', note_native: 'Der Akzent fehlt: « fatigué ».', kind: 'edit' }),
+  });
+  const a = await wrong.story.gesture({ storylet: 'talk', to: 'lila_bonnet', text: 'Je suis fatigue' });
+  assert.deepEqual(a.mend, { span: 'fatigue', corrected: 'fatigué', note: 'Der Akzent fehlt: « fatigué ».' });
+  const right = storyOn(journey({ revision: 4, current: 'talk' }), { choose: reply(null) });
+  assert.equal((await right.story.gesture({ storylet: 'talk', to: 'lila_bonnet', text: 'Je suis fatigué.' })).mend, null);
+
+  // the talk sheet draws it with the scripted answer's own markup (`qz-mend`)
+  const fs = require('node:fs');
+  const screen = fs.readFileSync(path.join(WEB_ROOT, 'components/quartier/QuartierScreen.tsx'), 'utf8');
+  const sheet = screen.slice(screen.indexOf('export function TalkSheet'));
+  assert.match(sheet.slice(0, sheet.indexOf('/** A text on your phone')), /t\.mend \?[\s\S]*className="qz-mend"[\s\S]*t\.mend\.note/);
+  const stage = fs.readFileSync(path.join(WEB_ROOT, 'lib/quartier/stage.ts'), 'utf8');
+  assert.match(stage, /mend: a\?\.mend \?\? null/, 'the stage hands the talk sheet the correction');
+});

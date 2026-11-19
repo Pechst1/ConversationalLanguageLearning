@@ -57,6 +57,8 @@ import { SITE_FILES } from '@/lib/quartier/world/sites';
 import { quartierNative, readLearnerLanguage } from '@/lib/learner-language';
 import type { SeasonItemId } from '@/lib/season-items';
 
+import type { CarnetStory } from '@/lib/quartier/carnet-model';
+
 import { Carnet } from './Carnet';
 import { QuartierMap } from './QuartierMap';
 import { QUARTIER_CSS } from './quartier-styles';
@@ -121,6 +123,8 @@ export interface QuartierScreenProps {
    * usual cup on the zinc once Margaux knows their order). Null or a failure lays none.
    */
   world?: () => Promise<LearnerWorld | null>;
+  /** P12: the learner's story for «Ton carnet» (the people met, the days played, the news on or off); none: the quarter's own memory */
+  carnet?: () => Promise<CarnetStory | null>;
 }
 
 const ART: ArtSource = {
@@ -242,7 +246,7 @@ function episodeOf(page: StoryPage | null) {
   return episodeLabel(page?.number) ?? 'Le Quartier';
 }
 
-export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance: firstAmbiance = 'nuit', onExit, showStats = false, startPlace, cast, onReady, hidden = false, details, world }: QuartierScreenProps) {
+export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance: firstAmbiance = 'nuit', onExit, showStats = false, startPlace, cast, onReady, hidden = false, details, world, carnet }: QuartierScreenProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const engine = React.useRef<Quartier | null>(null);
   const stage = React.useRef<Director | null>(null);
@@ -959,7 +963,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
         </div>
       ) : null}
 
-      {panel === 'carnet' ? <Carnet memory={memory} native={native} translate={translate} onClose={() => setPanel(null)} onMap={() => setPanel('map')} /> : null}
+      {panel === 'carnet' ? <Carnet memory={memory} native={native} translate={translate} onClose={() => setPanel(null)} onMap={() => setPanel('map')} story={carnet} /> : null}
       {panel === 'map' ? <QuartierMap native={native} translate={translate} here={place} been={memory.places()} onGo={canTravel ? (id) => travel(id) : undefined} onClose={() => setPanel(null)} /> : null}
 
       {showStats && stats ? (
@@ -1125,9 +1129,16 @@ export function TalkSheet({ t, translate, native, copy, onSay, onClose }: { t: T
         </button>
       </div>
       {t.you ? (
-        <p className="qz-talk-you" lang="fr">
+        <p className="qz-talk-you" lang="fr" data-mend={t.mend ? true : undefined}>
           <b>Toi</b>
           {t.you}
+          {/* the same correction a scripted answer gets: the span, the right form, why */}
+          {t.mend ? (
+            <span className="qz-mend">
+              <s lang="fr">{t.mend.span}</s> <span lang="fr">{t.mend.corrected}</span>
+              {t.mend.note ? <small lang={native}>{t.mend.note}</small> : null}
+            </span>
+          ) : null}
         </p>
       ) : null}
       <div className="qz-talk-lines" aria-live="polite">

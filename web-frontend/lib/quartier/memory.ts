@@ -246,6 +246,9 @@ export class Memory {
   }
 }
 
+/** The fact the quarter keeps for each engine day it played: that day's edition number (`Stage.beginDay`, the carnet's «Nº 8»). */
+export const editionKey = (day: string) => `edition.${day}`;
+
 /** Does the state meet a `when`? A regard nobody moved counts as 0. */
 export function matches(when: When | undefined, state: Record<string, Value>): boolean {
   if (!when) return true;

@@ -328,6 +328,8 @@ export interface Answered {
   sets: Record<string, Value>;
   /** who will talk, with what each says now as you come up; none: as the page has them */
   people?: StoryPerson[] | null;
+  /** what you said to someone, corrected (the rule pass, at most one edit); none when it was right */
+  mend?: Mend | null;
 }
 
 export interface Story {
