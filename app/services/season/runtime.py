@@ -34,6 +34,7 @@ from app.config import settings
 from app.services import address, scene_ledger, scene_record, story_memory
 from app.services.cast_registry import display_names
 from app.services.season.clock import SEASON_KEY, Position, played_log, record_played
+from app.services.season.dates import shift_for
 from app.services.season.director import (
     TOMORROW_KEY,
     beat_hook,
@@ -240,6 +241,7 @@ def page_for(today: Today) -> dict[str, Any] | None:
             band=band,
             language=today.language,
             neutral=today.neutral,
+            shift=shift_for(getattr(today, "state", None), getattr(today, "local_date", None)),
         )
         if page is not None:
             if band != today.band:

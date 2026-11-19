@@ -978,10 +978,13 @@ FIRST_LETTERS: dict[str, dict[str, Any]] = {
         "tone": "light_warm",
         "register": "vous / warm but polite",
         "scene_anchor": "Le soir, un message du café Le Mistral",
-        "opening_message": "Bonsoir ! C'est Margaux, du Mistral. Vous avez oublié votre écharpe sur la table. Vous passez demain ?",
-        "opening_message_tu": "Salut ! C'est Margaux, du Mistral. Tu as oublié ton écharpe sur la table. Tu passes demain ?",
-        "brief": "Margaux a ton écharpe. Réponds et dis quand tu passes.",
-        "brief_tu": "Margaux a ton écharpe. Réponds et dis quand tu passes.",
+        # Round 4 (walk of 19 Nov, item 2): the letter asked nothing and stated a scarf
+        # the learner never had («Tu as oublié ton écharpe»). Margaux asks; the learner
+        # says whether it is theirs.
+        "opening_message": "Bonsoir ! C'est Margaux, du Mistral. Une écharpe est restée sur la table. C'est la vôtre ? Vous passez demain ?",
+        "opening_message_tu": "Salut ! C'est Margaux, du Mistral. Une écharpe est restée sur la table. C'est la tienne ? Tu passes demain ?",
+        "brief": "Margaux a trouvé une écharpe au Mistral. Réponds : c'est la tienne ou pas, et quand tu passes.",
+        "brief_tu": "Margaux a trouvé une écharpe au Mistral. Réponds : c'est la tienne ou pas, et quand tu passes.",
         "success_signal": "Margaux sait quand tu passes.",
         "success_signal_i18n": {
             "fr": "Margaux sait quand tu passes.",
@@ -990,7 +993,9 @@ FIRST_LETTERS: dict[str, dict[str, Any]] = {
         },
         "twist": "Demain, le premier café est pour moi.",
         "ambient_cues": ["une écharpe bleue", "le café Le Mistral", "un petit message"],
-        "quick_replies": ["Merci, Margaux !", "Je passe demain à...", "Oui, c'est mon écharpe."],
+        # No vocative in a sentence the learner sends («Merci, Margaux !», owner rule of
+        # 12 Nov), and no answer chosen for them: yes and no are both offered.
+        "quick_replies": ["Oui, c'est mon écharpe.", "Non, ce n'est pas à moi.", "Je passe demain à..."],
     },
     "B": {
         "domain": "cast_first_letter",

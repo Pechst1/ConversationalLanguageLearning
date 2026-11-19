@@ -54,6 +54,7 @@ from dataclasses import replace as dc_replace
 from typing import Any
 
 from app.services.season.clock import Position, played_log, shortened_gaps
+from app.services.season.dates import shift_for
 from app.services.season.director import used_premises
 from app.services.season.format import Season
 
@@ -316,6 +317,7 @@ def recovery_brief(db, user, decision: Decision, *, now: Any = None):
             flags=today.flags,
             band=today.band,
             language=today.language,
+            shift=shift_for(today.state, today.local_date),
         )
         if page is None:
             return None
