@@ -253,7 +253,7 @@
       "prerequisites": "FR2_A22_PRONOUN_POSITION",
       "contrast_partners": "FR2_A22_IMPERATIVE_PRONOUNS | FR2_B21_DOUBLE_PRONOUNS_COMPOUND",
       "detector": "regex:\\b(?:me|te|se)\\s+(?:le|la|les)\\b(?!\\s+(?:coul|pét|pèt|jou|racont|donn\\w*\\s+à\\s+cœur)\\w*)|\\b(?:me|te|se)\\s+l'(?=\\w)|\\b(?:je|j'|tu|il|elle|on|nous|vous|ils|elles|ne|n')\\s*(?:nous|vous)\\s+(?:(?:le|la|les|en)\\b|l'(?=\\w))|\\b(?:le|la|les)\\s+(?:lui|leur)\\b(?!s)(?!\\s*(?:[.,;!?:]|$|est\\b|sont\\b|aussi\\b|non\\b))|(?<!chez\\s)(?<!avec\\s)(?<!pour\\s)(?<!à\\s)(?<!de\\s)(?<!sans\\s)(?<!que\\s)(?<!et\\s)(?<!est\\s)\\b(?:lui|leur)\\s+en\\b|\\b(?:m'|t')en\\b(?!\\s+(?:vais|va|vas|allons|allez|vont|aller|allais|allait|fiche|fiches|fous|moque|moques))|\\by\\s+en\\b|\\b(?:m'|t')y\\b",
-      "rule_short_en": "The order is fixed: me/te/se/nous/vous, then le/la/les, then lui/leur, then y, then en: je te le donne, je le lui donne.",
+      "rule_short_en": "The order is fixed: me/te/se/nous/vous, le/la/les, lui/leur, y, en: je te le donne, je le lui donne.",
       "rule_short_de": "Die Reihenfolge ist fest: me/te/se/nous/vous, dann le/la/les, dann lui/leur, dann y, dann en: je le lui donne.",
       "rule_short_fr": "L'ordre est fixe : me/te/se/nous/vous, puis le/la/les, puis lui/leur, puis y, puis en : je le lui donne.",
       "review_status": "reviewed"
