@@ -198,3 +198,47 @@ test("Lila's banner in her flat, drying over two chairs: laid once a page left i
   const want = B.signs.reduce((n, s) => n + (s.width * (s.density ?? 150) + 4) * (s.height * (s.density ?? 150) + 4), 0);
   assert.ok(want < 2048 * 2048 * 0.6, `the flat's lettering and the banner's words fit the sign atlas (${(want / (2048 * 2048)).toFixed(2)})`);
 });
+
+test("Odile's burnt frying pan, soaking in her sink with a tea towel over the tap: laid once a page left it in her flat", () => {
+  const pan = details.find(({ spec }) => spec.id === 'poele_odile').spec;
+  assert.equal(pan.in, 'odile_flat');
+  assert.deepEqual(pan.mark, { name_fr: "la poêle brûlée d'Odile", location_id: 'odile_flat' });
+  const laid = (marks) => setBy([pan], { flags: {}, marks }).map((d) => d.spec.id);
+  assert.deepEqual(laid([{ kind: 'thing', name_fr: "La poêle brûlée d'Odile", location_id: 'odile_flat' }]), ['poele_odile']);
+  assert.deepEqual(laid([{ kind: 'thing', name_fr: "la poêle brûlée d'Odile", location_id: 'le_mistral' }]), []);
+  // the flat's own sink, against the kitchen's east wall beside the window: the pan in its basin,
+  // the towel on its tap's arm (`sink`: the basin's inside at local x -w/2 + 0.3, z 0.26, floor
+  // 0.86 m, 0.46 by 0.36; the arm from the wall to z 0.2 at 1.18 m)
+  const room = ROOMS.odile_flat;
+  const sink = room.things.find((t) => t.kind === 'sink');
+  assert.ok(sink, "Odile's kitchen has a sink");
+  const toWorld = ([lx, ly, lz]) => [
+    sink.at[0] + lx * Math.cos(sink.rot) + lz * Math.sin(sink.rot),
+    sink.at[1] + ly,
+    sink.at[2] - lx * Math.sin(sink.rot) + lz * Math.cos(sink.rot),
+  ];
+  const near = (a, b, tol, what) => a.forEach((v, i) => assert.ok(Math.abs(v - b[i]) < tol, `${what}: ${a} is not at ${b.map((n) => n.toFixed(2))}`));
+  const bx = -sink.size[0] / 2 + 0.3;
+  const soak = pan.things.find((t) => t.kind === 'soak');
+  near(soak.at, toWorld([bx, 0.86, 0.26]), 0.02, 'the pan lies on the basin floor');
+  assert.equal(soak.rot, sink.rot, 'its handle toward the room');
+  assert.ok(soak.size[0] <= 0.46 && soak.size[1] <= 0.36, 'the pan is kept inside the basin');
+  const towel = pan.things.find((t) => t.kind === 'towel');
+  near(towel.at, toWorld([bx, 1.18, 0.12]), 0.02, "the towel hangs on the tap's arm");
+  assert.ok(towel.size[0] <= 0.18, "no wider than the tap's arm is long");
+  assert.ok(towel.at[1] - towel.size[1] > sink.at[1] + 0.86, "and clear of the basin's floor");
+  // beside the kitchen's window, in its light, and off the calendar's mark
+  const [wx] = room.walls.find((w) => w.key === 'cuisine.e').a;
+  assert.ok(Math.abs(sink.at[0] - wx) < 0.01, 'its back on the east wall, the window wall');
+  const [, , cz] = room.marks.calendrier;
+  assert.ok(sink.at[2] - sink.size[0] / 2 - 0.02 > cz, 'the calendar can still be read from its mark');
+});
+
+test("the stairwell's view into Odile's kitchen has her flat's things, where her flat has them", () => {
+  const flat = ROOMS.odile_flat;
+  const stair = ROOMS.escalier_mistral;
+  const key = (t) => `${t.kind}@${t.at.map((v) => v.toFixed(2)).join(',')}`;
+  const kitchen = (t) => t.at[2] < -14.9 && t.at[2] > -18.75 && t.at[0] > -31.8 && t.at[0] <= -27.26 && t.at[1] >= 4.5 && t.at[1] < 7.6;
+  const seen = new Set(stair.things.filter(kitchen).map(key));
+  flat.things.filter(kitchen).forEach((t) => assert.ok(seen.has(key(t)), `the stairwell's kitchen has no ${key(t)}`));
+});
