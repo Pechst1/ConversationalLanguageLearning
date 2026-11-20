@@ -27,6 +27,7 @@ import type { RvGloss, RvLanguage, RvSessionView } from '@/lib/revue-types';
 import type { ComptoirCopy } from '../comptoir/comptoir-copy';
 import { ComptoirPicture, ListenChip, RomyLine } from '../comptoir/RvComptoirParts';
 import { fill, type RevueCopy } from '../revue-copy';
+import { RvSouvenirSlot } from '../rdv/RvSouvenir';
 import { RvGallery } from '../RvGallery';
 import { RvGlossText, RvSourceLine, RvTranslate, type RvWordEvent } from '../RvThread';
 import { FIL_FR, FIL_LINES, type FilCopy } from './fil-copy';
@@ -89,6 +90,7 @@ export function RvFilRead(props: FilStepProps) {
           />
           {source && <RvSourceLine source={source} copy={copy} />}
         </section>
+        <RvSouvenirSlot sessionId={session.id} props={props} />
         {/* The story's other pictures after the lead: the text first on a phone's first screen. */}
         <RvGallery pictures={session.stage.pictures} mainUrl={session.stage.plateUrl} copy={copy} />
         {notice}

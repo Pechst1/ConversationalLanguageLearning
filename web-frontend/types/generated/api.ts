@@ -3660,6 +3660,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/revue/carte-de-presse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Carte De Presse
+         * @description «La carte de presse»: the rubriques the learner has filed, how many pieces, since when.
+         */
+        get: operations["read_carte_de_presse_api_v1_revue_carte_de_presse_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/revue/carte/review/{place_id}": {
         parameters: {
             query?: never;
@@ -4042,6 +4062,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/revue/sessions/{session_id}/souvenir": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Souvenir
+         * @description The regulars remember: ONE line for this session from the learner's earlier Papiers, or none.
+         */
+        get: operations["read_souvenir_api_v1_revue_sessions__session_id__souvenir_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/sessions/{session_id}/trois-mots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Trois Mots
+         * @description «Trois mots»: the closed session's round as it stands (``round`` ``None`` before the close).
+         */
+        get: operations["read_trois_mots_api_v1_revue_sessions__session_id__trois_mots_get"];
+        put?: never;
+        /**
+         * Post Trois Mots
+         * @description One act of the round (``match`` all three pairs, then ``gap``); deterministic, no model call.
+         */
+        post: operations["post_trois_mots_api_v1_revue_sessions__session_id__trois_mots_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/revue/sessions/{session_id}/turns": {
         parameters: {
             query?: never;
@@ -4053,6 +4117,26 @@ export interface paths {
         put?: never;
         /** Post Turn */
         post: operations["post_turn_api_v1_revue_sessions__session_id__turns_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/une": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Une
+         * @description «La une de la semaine»: the learner's own printed pieces of an ISO week (default: this one).
+         */
+        get: operations["read_une_api_v1_revue_une_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -12925,6 +13009,27 @@ export interface components {
             /** Options */
             options?: components["schemas"]["RvCaptionOption"][];
         };
+        /** RvCarteDePresse */
+        RvCarteDePresse: {
+            /** Pieces */
+            pieces: number;
+            /** Rubriques */
+            rubriques: components["schemas"]["RvCarteRubrique"][];
+            /** Since */
+            since?: string | null;
+        };
+        /** RvCarteRubrique */
+        RvCarteRubrique: {
+            /** First On */
+            first_on?: string | null;
+            /** Pieces */
+            pieces: number;
+            /**
+             * Rubrique
+             * @enum {string}
+             */
+            rubrique: "opinion" | "fil" | "titre" | "intox" | "photo" | "micro";
+        };
         /** RvClaim */
         RvClaim: {
             /** Attributed To */
@@ -14494,6 +14599,35 @@ export interface components {
             /** Url */
             url: string;
         };
+        /**
+         * RvSouvenir
+         * @description One line in the mouth of a regular: French at the learner's band, with its translations.
+         */
+        RvSouvenir: {
+            /** About Session Id */
+            about_session_id: string;
+            /** De */
+            de: string;
+            /** En */
+            en: string;
+            /**
+             * Fact
+             * @enum {string}
+             */
+            fact: "stance" | "headline" | "intox_score" | "fil" | "count" | "opinion";
+            /** Fr */
+            fr: string;
+            /** Speaker Fr */
+            speaker_fr: string;
+            /** Speaker Id */
+            speaker_id: string;
+            /** Template Id */
+            template_id: string;
+        };
+        /** RvSouvenirResult */
+        RvSouvenirResult: {
+            line?: components["schemas"]["RvSouvenir"] | null;
+        };
         /** RvStage */
         RvStage: {
             /** Cast */
@@ -14797,6 +14931,153 @@ export interface components {
             /** Index */
             index: number;
         };
+        /** RvTmCue */
+        RvTmCue: {
+            /**
+             * Key
+             * @enum {string}
+             */
+            key: "1" | "2" | "3";
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "picture" | "gloss";
+            picture?: components["schemas"]["RvPicture"] | null;
+            /** Text */
+            text?: string | null;
+        };
+        /**
+         * RvTmGap
+         * @description One sentence of the story's own text (its lead or its summary) with the word taken out.
+         */
+        RvTmGap: {
+            /** After Fr */
+            after_fr: string;
+            /** Before Fr */
+            before_fr: string;
+            /** Correct */
+            correct?: boolean | null;
+            miss?: components["schemas"]["RvTmGapMiss"] | null;
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved?: boolean;
+            /** Sentence Fr */
+            sentence_fr?: string | null;
+            /** Solution */
+            solution?: string | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "lead" | "summary";
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+        };
+        /** RvTmGapMiss */
+        RvTmGapMiss: {
+            /** Gloss */
+            gloss: string;
+            /**
+             * Word Key
+             * @enum {string}
+             */
+            word_key: "a" | "b" | "c";
+        };
+        /** RvTmMatch */
+        RvTmMatch: {
+            /** Correct */
+            correct?: boolean | null;
+            /** Misses */
+            misses?: components["schemas"]["RvTmMiss"][];
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved?: boolean;
+            /** Solution */
+            solution?: {
+                [key: string]: string;
+            } | null;
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+        };
+        /** RvTmMiss */
+        RvTmMiss: {
+            /**
+             * Cue Key
+             * @enum {string}
+             */
+            cue_key: "1" | "2" | "3";
+            /**
+             * Word Key
+             * @enum {string}
+             */
+            word_key: "a" | "b" | "c";
+        };
+        /** RvTmWord */
+        RvTmWord: {
+            /** Bare Fr */
+            bare_fr: string;
+            /** Fr */
+            fr: string;
+            /** Gloss */
+            gloss?: string | null;
+            /**
+             * Key
+             * @enum {string}
+             */
+            key: "a" | "b" | "c";
+        };
+        /** RvTroisMots */
+        RvTroisMots: {
+            /** Cues */
+            cues: components["schemas"]["RvTmCue"][];
+            gap?: components["schemas"]["RvTmGap"] | null;
+            /**
+             * Kept Now
+             * @default 0
+             */
+            kept_now?: number;
+            match: components["schemas"]["RvTmMatch"];
+            /** Session Id */
+            session_id: string;
+            /**
+             * Step
+             * @enum {string}
+             */
+            step: "match" | "gap" | "done";
+            /** Words */
+            words: components["schemas"]["RvTmWord"][];
+        };
+        /** RvTroisMotsRequest */
+        RvTroisMotsRequest: {
+            /**
+             * Act
+             * @enum {string}
+             */
+            act: "match" | "gap";
+            /** Pairs */
+            pairs?: {
+                [key: string]: "1" | "2" | "3";
+            } | null;
+            /** Word */
+            word?: ("a" | "b" | "c") | null;
+        };
+        /** RvTroisMotsResult */
+        RvTroisMotsResult: {
+            /** Error */
+            error?: ("pair_all" | "unknown_key" | "out_of_order") | null;
+            round?: components["schemas"]["RvTroisMots"] | null;
+        };
         /** RvTurnRequest */
         RvTurnRequest: {
             /** Client Turn Id */
@@ -14847,6 +15128,62 @@ export interface components {
             seq: number;
             /** Text Fr */
             text_fr: string;
+        };
+        /** RvUneItem */
+        RvUneItem: {
+            /** Corrections Fr */
+            corrections_fr?: string[];
+            /** Filed On */
+            filed_on: string;
+            /** Filed Weekday Fr */
+            filed_weekday_fr: string;
+            picture?: components["schemas"]["RvPicture"] | null;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "headline" | "caption" | "quote" | "vox" | "brief" | "rectificatif";
+            /**
+             * Rubrique
+             * @enum {string}
+             */
+            rubrique: "opinion" | "fil" | "titre" | "intox" | "photo" | "micro";
+            /** Score */
+            score?: number | null;
+            /** Session Id */
+            session_id: string;
+            /** Stance */
+            stance?: ("pour" | "contre" | "nuance") | null;
+            /** Story Title Fr */
+            story_title_fr: string;
+            /** Text Fr */
+            text_fr: string;
+            /** Total */
+            total?: number | null;
+        };
+        /** RvUneSemaine */
+        RvUneSemaine: {
+            /** Dateline Fr */
+            dateline_fr: string;
+            /**
+             * Due Today
+             * @default false
+             */
+            due_today?: boolean;
+            /** Items */
+            items: components["schemas"]["RvUneItem"][];
+            /** Lexique */
+            lexique: string[];
+            /** Pieces */
+            pieces: number;
+            /** Rubriques Filed */
+            rubriques_filed: number;
+            /**
+             * Rubriques Total
+             * @default 6
+             */
+            rubriques_total?: number;
+            week: components["schemas"]["RvWeek"];
         };
         /** RvWeek */
         RvWeek: {
@@ -23741,6 +24078,26 @@ export interface operations {
             };
         };
     };
+    read_carte_de_presse_api_v1_revue_carte_de_presse_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvCarteDePresse"];
+                };
+            };
+        };
+    };
     read_carte_review_api_v1_revue_carte_review__place_id__get: {
         parameters: {
             query?: never;
@@ -24421,6 +24778,103 @@ export interface operations {
             };
         };
     };
+    read_souvenir_api_v1_revue_sessions__session_id__souvenir_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvSouvenirResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_trois_mots_api_v1_revue_sessions__session_id__trois_mots_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvTroisMotsResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_trois_mots_api_v1_revue_sessions__session_id__trois_mots_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RvTroisMotsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvTroisMotsResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     post_turn_api_v1_revue_sessions__session_id__turns_post: {
         parameters: {
             query?: never;
@@ -24443,6 +24897,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RvTurnResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_une_api_v1_revue_une_get: {
+        parameters: {
+            query?: {
+                week?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvUneSemaine"];
                 };
             };
             /** @description Validation Error */

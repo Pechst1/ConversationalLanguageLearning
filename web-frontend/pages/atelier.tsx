@@ -236,6 +236,7 @@ import {
 } from '@/lib/revue-une';
 import { radioHomeChip, useRadioWeek, withRadioChip } from '@/lib/radio-une'; // WP-122 A: «La Radio · 50 s» after the Revue chip
 import { correcteurHomeChip, useCorrecteurWeek, withCorrecteurChip } from '@/lib/correcteur-une'; // WP-122 B: «Le Correcteur» after the Radio chip
+import { uneHomeChip, useUneSemaine, withUneChip } from '@/lib/revue-une-semaine'; // «La une de la semaine», Sundays
 import { journalHomeChip, useJournalWaiting, withJournalChip } from '@/lib/journal-home'; // P9: «Raconter hier» right after the letter
 import { getStoryArchive } from '@/components/feuilleton/archive/archive-api';
 import { homeReplayHref } from '@/components/feuilleton/archive/archive-model';
@@ -3083,6 +3084,7 @@ function TodayView({
     : [];
   const radioWeek = useRadioWeek();
   const correcteurWeek = useCorrecteurWeek();
+  const uneSemaine = useUneSemaine();
   const homeChip = homeDayChip(
     streak,
     Boolean((today as { streak?: { today_done?: boolean } } | null)?.streak?.today_done),
@@ -3092,12 +3094,13 @@ function TodayView({
   // goes in last (the Revue and the Radio also follow the letter). R2 (4): on a
   // finished day Home draws one chip, so there the retell is the first.
   const journalWaiting = useJournalWaiting(Boolean(homeDay));
-  const homeChips: HomeChip[] = withJournalChip<HomeChip>(
+  // «La une de la semaine» (Sundays): after the Correcteur; the journal's retell keeps its place.
+  const homeChips: HomeChip[] = withUneChip<HomeChip>(withJournalChip<HomeChip>(
     withCorrecteurChip<HomeChip>(withRadioChip<HomeChip>(revueHomeChips<HomeChip>(revueEntry, dayChips, revueDayDone && Boolean(revueWeek?.enabled && !revueWeek.offer.filed)), homeDay ? radioHomeChip(radioWeek, chromeLanguage) : null, Boolean(revueEntry.hero)), homeDay ? correcteurHomeChip(correcteurWeek, chromeLanguage) : null, Boolean(revueEntry.hero)),
     homeDay ? journalHomeChip(journalWaiting, chromeLanguage) : null,
     Boolean(revueEntry.hero),
     homeChip.dayDone,
-  );
+  ), homeDay ? uneHomeChip(uneSemaine) : null, Boolean(revueEntry.hero));
   const homeEntries: HomeEntry[] = errorOnlyPage || homeDay
     ? []
     : [

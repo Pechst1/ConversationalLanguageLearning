@@ -18,6 +18,7 @@ import { useLearnerAvatar } from '@/lib/learner-avatar';
 import type { RvComptoirPage as RvComptoirPageData, RvComptoirQuote, RvStance } from '@/lib/revue-types';
 
 import { fill, type RevueCopy } from '../revue-copy';
+import { RvTroisMotsSlot } from '../rdv/RvTroisMots';
 import { RvCloseVignette, RvDispatch } from '../RvClose';
 import { COMPTOIR_FR, type ComptoirCopy } from './comptoir-copy';
 import { SIDE_LABELS_FR, voteTally } from './comptoir-model';
@@ -127,6 +128,7 @@ export function RvComptoirPage({
   return (
     <>
       <div className="rv-body ct-body" data-step="page">
+        <RvTroisMotsSlot sessionId={session.id} chrome={session.plan.uiLanguage} mother={session.plan.glossLanguage} closed={Boolean(closing) && !props.readOnly} />
         {closing && !ended && closing.romyLineFr && <RomyLine line={{ fr: closing.romyLineFr, tr: null }} props={props} />}
         {page ? (
           <ComptoirClipping page={page} ccopy={ccopy} />

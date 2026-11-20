@@ -16,6 +16,7 @@ import type { RvIntoxPage, RvTitrePage } from '@/lib/revue-rubriques-types';
 import { inPaperLabel, type ComptoirCopy } from '../comptoir/comptoir-copy';
 import { RomyLine } from '../comptoir/RvComptoirParts';
 import { fill } from '../revue-copy';
+import { RvTroisMotsSlot } from '../rdv/RvTroisMots';
 import { RvCloseVignette, RvDispatch } from '../RvClose';
 import { INTOX_FR, TITRE_FR } from './rubriques-copy';
 import type { RubriqueStepProps } from './RvRubriqueParts';
@@ -121,6 +122,7 @@ export function RvRubriquePage({
   return (
     <>
       <div className="rv-body ct-body" data-step="page">
+        <RvTroisMotsSlot sessionId={session.id} chrome={session.plan.uiLanguage} mother={session.plan.glossLanguage} closed={Boolean(closing) && !props.readOnly} />
         {closing && !ended && closing.romyLineFr && <RomyLine line={{ fr: closing.romyLineFr, tr: null }} props={props} />}
         {clipping}
         {closing?.vignette && <RvCloseVignette vignette={closing.vignette} week={session.week.label} stamping={!ended} copy={copy} />}

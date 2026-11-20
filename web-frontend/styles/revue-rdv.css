@@ -1,0 +1,60 @@
+/* ===========================================================================
+   «Papier · les rendez-vous» (2026-11-21) · components/revue/rdv/*.
+   Deliberately minimal: layout, tap sizes and states on the `--av2-*` tokens only (light and
+   dark come with them). The Papier's print art direction (claude/papier-belle-edition, the shared
+   «print» components) styles these blocks afterwards; no visual language is invented here.
+   =========================================================================== */
+
+/* «Trois mots» */
+.av2 .tm { display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px solid var(--av2-line); border-radius: 6px; background: var(--av2-card); }
+.av2 .tm__k { margin: 0; font: 700 var(--av2-t-meta)/1.2 var(--av2-sans); letter-spacing: 0.04em; text-transform: uppercase; color: var(--av2-muted); }
+.av2 .tm__task { margin: 0; color: var(--av2-ink); }
+.av2 .tm-words { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.av2 .tm-word { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; }
+.av2 .tm-word__btn { min-height: var(--av2-tap); padding: 6px 12px; border: 1px solid var(--av2-line-2); border-radius: var(--av2-r-pill);
+  background: var(--av2-paper); color: var(--av2-ink); font: 700 var(--av2-t-body-lg)/1.2 var(--av2-serif); text-align: left; }
+.av2 .tm-word__btn:disabled { cursor: default; }
+.av2 .tm-word__cue { min-width: 0; overflow-wrap: anywhere; color: var(--av2-ink); }
+.av2 .tm-word__none { color: var(--av2-muted); }
+.av2 .tm-cues { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.av2 .tm-cue { min-width: var(--av2-tap); min-height: var(--av2-tap); padding: 6px 12px; border: 1px solid var(--av2-line-2); border-radius: 6px;
+  background: var(--av2-paper); color: var(--av2-ink); font: inherit; cursor: pointer; }
+.av2 .tm-cue[aria-pressed='true'] { background: var(--av2-ink); border-color: var(--av2-ink); color: var(--av2-on-ink); }
+.av2 .tm-cue__pic { display: flex; flex-direction: column; gap: 2px; }
+.av2 .tm-cue__pic img { display: block; width: 120px; max-width: 100%; height: auto; border-radius: 4px; }
+.av2 .tm-cue__credit { font-size: var(--av2-t-meta); color: inherit; opacity: 0.8; }
+.av2 .tm-why { padding: 8px 12px; border-left: 3px solid var(--av2-red); background: var(--av2-tint-wrong); color: var(--av2-ink); }
+.av2 .tm-why p { margin: 0; }
+.av2 .tm-verdict { margin: 0; font-weight: 700; color: var(--av2-ink); }
+.av2 .tm-gap { display: flex; flex-direction: column; gap: 8px; }
+.av2 .tm-gap__s { margin: 0; font: var(--av2-t-body-lg)/1.35 var(--av2-serif); color: var(--av2-ink); }
+.av2 .tm-gap__blank { letter-spacing: 0.1em; }
+.av2 .tm-gap__opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.av2 .tm-done { margin: 0; color: var(--av2-muted); }
+
+/* «La une de la semaine» */
+.av2 .une { display: flex; flex-direction: column; gap: 16px; }
+.av2 .une__mast { display: flex; flex-direction: column; gap: 4px; }
+.av2 .une__title { margin: 0; font: 700 var(--av2-t-title, 1.6rem)/1.15 var(--av2-serif); color: var(--av2-ink); }
+.av2 .une__dateline, .av2 .une__count { margin: 0; font-size: var(--av2-t-meta); color: var(--av2-muted); }
+.av2 .une__items { display: flex; flex-direction: column; gap: 16px; }
+.av2 .une-item { display: flex; flex-direction: column; gap: 6px; padding-top: 12px; border-top: 1px solid var(--av2-line); }
+.av2 .une-item__k { margin: 0; font-size: var(--av2-t-meta); color: var(--av2-muted); }
+.av2 .une-item__hl { margin: 0; font-family: var(--av2-serif); color: var(--av2-ink); }
+.av2 .une-item__story, .av2 .une-item__brief, .av2 .une-item__score { margin: 0; color: var(--av2-ink); }
+.av2 .une-item__fig { margin: 0; }
+.av2 .une-item__fig img { display: block; width: 100%; height: auto; }
+.av2 .une-item__credit { color: var(--av2-muted); }
+.av2 .une-item__vox, .av2 .une-item__quote { margin: 0; font-family: var(--av2-serif); }
+.av2 .une-item__vox p, .av2 .une-item__quote p { margin: 0; }
+.av2 .une__lexique ul { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 0; padding: 0; list-style: none; }
+.av2 .une__lexique h2 { margin: 0 0 4px; font-size: var(--av2-t-meta); color: var(--av2-muted); }
+
+/* «La carte de presse» */
+.av2 .rv-carte-presse { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; padding: 12px; border: 1px solid var(--av2-line); border-radius: 6px; }
+.av2 .rv-carte-presse h3 { margin: 0; font-family: var(--av2-serif); color: var(--av2-ink); }
+.av2 .rv-carte-presse__since { margin: 0; font-size: var(--av2-t-meta); color: var(--av2-muted); }
+.av2 .rv-carte-presse__list { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin: 0; }
+.av2 .rv-carte-presse__list div { display: flex; justify-content: space-between; gap: 8px; }
+.av2 .rv-carte-presse__list dt { color: var(--av2-ink); }
+.av2 .rv-carte-presse__list dd { margin: 0; color: var(--av2-muted); }
