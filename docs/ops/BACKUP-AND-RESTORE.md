@@ -43,6 +43,17 @@ scripts/restore_drill.sh atelier-20260922-0900.dump          # restore, check, d
 scripts/restore_drill.sh atelier-20260922-0900.dump --keep   # keep it to inspect
 ```
 
+**Versions.** A dump restores only into a server of the same or a newer major version
+than the one it was dumped from, and only with that target server's `pg_restore` (a newer
+`pg_restore` sends settings an older server rejects — `pg_restore` 17+ sends
+`SET transaction_timeout`, unknown before PostgreSQL 17). The script checks both before it
+creates anything and stops with `version mismatch: …`. `render.yaml` does not pin
+`postgresVersion`, so production runs whatever major Render gave `atelier-db` at creation:
+read it from the dashboard or `SELECT version();`. If that is newer than the local server
+(this Mac has Homebrew `postgresql@15`), install that major
+(`brew install postgresql@<major>`), start it on another port and run the drill with
+`PG_BINDIR=/opt/homebrew/opt/postgresql@<major>/bin PGPORT=<its port>`.
+
 The script creates a new database `wp73_drill_<timestamp>_<pid>`, restores into it,
 prints `alembic current` (must say `(head)` for the release you run) and a row count
 for every table, then drops it. It never writes to a database it did not create.
