@@ -2183,7 +2183,7 @@ class RevueEncounter:
     def week_offer(self, user: Any, week: str | None = None) -> RvOffer:
         week = week or current_period()
         ordered, reason = self.ranked(user, week)
-        cards = [story_card(d, self.db) for d in ordered[:3]]
+        cards = [self._card_for(user, d) for d in ordered[:3]]
         resume = None
         filed = None
         rows = self._sessions(user, week=week)
@@ -2364,14 +2364,37 @@ class RevueEncounter:
         if not assignments.assignments_enabled():
             return takes, None
         material = assignments.Material(dossier=dossier, takes=takes, wire=wire_of(dossier))
-        recent = assignments.recent_modes(self._sessions(user))
-        dealt = assignments.deal(assignments.available(material), recent,
-                                 seed=assignments.seed_for(user.id, dossier.id))
+        dealt = self._dealt(user, material)
         if dealt == "fil":
             return None, material.wire
         if dealt == "comptoir":
             return takes, None
         return None, None
+
+    def _dealt(self, user: Any, material: Any) -> str | None:
+        """The assignment ``user`` is dealt on ``material``'s story (``assignments.deal``)."""
+
+        from app.services.revue import assignments
+
+        recent = assignments.recent_modes(self._sessions(user))
+        return assignments.deal(assignments.available(material), recent,
+                                seed=assignments.seed_for(user.id, material.dossier.id))
+
+    def _card_for(self, user: Any, dossier: EditorialDossier) -> RvStoryCard:
+        """The chooser's card, as the session will play: a story dealt «Le fil» (or the chat)
+        carries no «question du jour» and no regulars, so the card never promises the counter
+        (seen in a browser, 2026-11-20). Switch off: today's card."""
+
+        from app.services.revue import assignments
+        from app.services.revue.fil import wire_of
+
+        card = story_card(dossier, self.db)
+        if not assignments.assignments_enabled() or card.question_fr is None:
+            return card
+        material = assignments.Material(dossier=dossier, takes=dossier.comptoir, wire=wire_of(dossier))
+        if self._dealt(user, material) == "comptoir":
+            return card
+        return card.model_copy(update={"question_fr": None, "cast": None})
 
     def _plan(self, user: Any, dossier: EditorialDossier, *, angle_id: str | None, chosen_by: str) -> SessionPlan:
         from app.services.chrome_language import level_band, user_chrome_language

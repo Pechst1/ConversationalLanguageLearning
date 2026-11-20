@@ -205,6 +205,23 @@ def test_a_story_with_both_is_dealt_the_shape_the_learner_did_not_play_lately(db
     assert caught.value.code == "revue_not_comptoir"
 
 
+def test_the_chooser_card_never_promises_the_counter_to_a_learner_dealt_le_fil(db: Session) -> None:
+    """Seen in a browser (2026-11-20, A2 de): the card said «La question du jour : Le bac sans
+    échec, c'est une bonne idée ?» and «Au comptoir», and the session played «Le fil»."""
+
+    def card(user):
+        offer = Revue(db).week_offer(user, WEEK)
+        return next(c for c in [offer.recommended, *offer.alternatives] if c and c.dossier_id == BAC)
+
+    dealt_fil = make_user(db, played=("comptoir",))
+    assert card(dealt_fil).question_fr is None and card(dealt_fil).cast is None, "no question, no regulars"
+    row = Revue(db).start(dealt_fil, week=WEEK, dossier_id=BAC)
+    assert state_of(row).events[0].payload["mode"] == "fil", "the card and the session agree"
+    dealt_counter = make_user(db, played=("fil", "chat"))
+    assert card(dealt_counter).question_fr, "the counter's card keeps its question"
+    assert state_of(Revue(db).start(dealt_counter, week=WEEK, dossier_id=BAC)).events[0].payload["mode"] == "comptoir"
+
+
 def test_with_the_switch_off_the_session_is_todays_byte_for_byte(db: Session, monkeypatch) -> None:
     monkeypatch.setattr(settings, "REVUE_ASSIGNMENTS_ENABLED", False)
     revue = Revue(db)
