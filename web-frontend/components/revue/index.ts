@@ -11,6 +11,8 @@ export { RvEncounter } from './RvEncounter';
 export type { RvEncounterProps } from './RvEncounter';
 export { RvComptoir, comptoirCopy, COMPTOIR_FR } from './comptoir';
 export type { RvComptoirProps } from './comptoir';
+export { RvFil, filCopy, FIL_FR } from './fil';
+export type { RvFilProps } from './fil';
 export { RvSessionHead, RvColumn } from './RvSessionHead';
 export type { RvSessionHeadProps } from './RvSessionHead';
 export { RvStage, stageCast } from './RvStage';

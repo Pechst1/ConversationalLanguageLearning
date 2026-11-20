@@ -155,6 +155,8 @@ export type RevueCopy = {
   made_caption: string;
   /** «Au comptoir»: the learner's quote in Romy's vox pop. */
   made_opinion: string;
+  /** «Le fil»: the learner's telling of the wire. */
+  made_fil: string;
   /** «Au comptoir» on La Une: the faces' label («Romy, Lila et Gus en parlent déjà»), and the list's last «and». */
   comptoir_faces: string;
   comptoir_and: string;
@@ -349,6 +351,7 @@ const FR: RevueCopy = {
   caption_word_used: 'dans ta légende',
   made_caption: 'Ta légende',
   made_opinion: 'Ton avis',
+  made_fil: 'Ton récit',
   comptoir_faces: '{names} en parlent déjà',
   comptoir_and: 'et',
   vignette_label: 'Ta vignette · {week}',
@@ -524,6 +527,7 @@ const EN: RevueCopy = {
   caption_word_used: 'in your caption',
   made_caption: 'Your caption',
   made_opinion: 'Your opinion',
+  made_fil: 'Your story',
   comptoir_faces: '{names} are already arguing',
   comptoir_and: 'and',
   vignette_label: 'Your vignette · {week}',
@@ -699,6 +703,7 @@ const DE: RevueCopy = {
   caption_word_used: 'in deiner Bildunterschrift',
   made_caption: 'Deine Bildunterschrift',
   made_opinion: 'Deine Meinung',
+  made_fil: 'Deine Erzählung',
   comptoir_faces: '{names} streiten schon',
   comptoir_and: 'und',
   vignette_label: 'Deine Vignette · {week}',

@@ -1,0 +1,3847 @@
+{
+ "a1_read": {
+  "id": "a66dda7f-0a44-4ae3-a044-ecfd50497424",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:07:37.402801+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-bac",
+   "title_fr": "Le bac",
+   "summary_fr": "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "bac_wikipedia",
+     "name": "Wikipédia, « Baccalauréat en France »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+     "published_at": "2026-10-02"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "en",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Le bac, comment ça se passe pour un lycéen",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "partir",
+     "gloss": "partir (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "le baccalauréat",
+     "gloss": "baccalauréat (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "session",
+     "gloss": "session (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'épreuve",
+     "gloss": "épreuve (en)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "salle_examen_bac",
+   "place_fr": "Une salle d'examen dans un lycée en juin",
+   "plate_url": "/assets/serial/locations/ngo_office.webp",
+   "plate_place_id": "ecole",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "fil",
+  "comptoir": null,
+  "fil": {
+   "step": "read",
+   "steps": [
+    "read",
+    "order",
+    "words",
+    "tell",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "Le bac",
+   "read": {
+    "dateline_fr": "Une salle d'examen dans un lycée en juin",
+    "lead": {
+     "fr": "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "bac_wikipedia",
+      "name": "Wikipédia, « Baccalauréat en France »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+      "published_at": "2026-10-02"
+     }
+    ]
+   },
+   "order": null,
+   "words": null,
+   "tell": null
+  }
+ },
+ "a1_order": {
+  "id": "a66dda7f-0a44-4ae3-a044-ecfd50497424",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:07:37.402801+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-bac",
+   "title_fr": "Le bac",
+   "summary_fr": "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "bac_wikipedia",
+     "name": "Wikipédia, « Baccalauréat en France »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+     "published_at": "2026-10-02"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "en",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Le bac, comment ça se passe pour un lycéen",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "partir",
+     "gloss": "partir (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "le baccalauréat",
+     "gloss": "baccalauréat (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "session",
+     "gloss": "session (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'épreuve",
+     "gloss": "épreuve (en)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "salle_examen_bac",
+   "place_fr": "Une salle d'examen dans un lycée en juin",
+   "plate_url": "/assets/serial/locations/ngo_office.webp",
+   "plate_place_id": "ecole",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "fil",
+  "comptoir": null,
+  "fil": {
+   "step": "order",
+   "steps": [
+    "read",
+    "order",
+    "words",
+    "tell",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "Le bac",
+   "read": {
+    "dateline_fr": "Une salle d'examen dans un lycée en juin",
+    "lead": {
+     "fr": "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "bac_wikipedia",
+      "name": "Wikipédia, « Baccalauréat en France »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+      "published_at": "2026-10-02"
+     }
+    ]
+   },
+   "order": {
+    "strips": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "En 2023, 95,7 % des candidats réussissent le bac.",
+       "tr": "In 2023, 95.7% of candidates pass the bac."
+      },
+      "label": {
+       "fr": "la réussite",
+       "tr": "the pass rate"
+      }
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "Le baccalauréat naît en 1808.",
+       "tr": "The baccalauréat is born in 1808."
+      },
+      "label": {
+       "fr": "la création",
+       "tr": "the creation"
+      }
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "En 2027, le Grand oral compte moins.",
+       "tr": "In 2027, the Grand oral counts for less."
+      },
+      "label": {
+       "fr": "le changement",
+       "tr": "the change"
+      }
+     },
+     {
+      "key": "d",
+      "text": {
+       "fr": "Les élèves passent le premier bac en 1809.",
+       "tr": "Pupils sit the first bac in 1809."
+      },
+      "label": {
+       "fr": "le premier examen",
+       "tr": "the first exam"
+      }
+     }
+    ],
+    "tries": 0,
+    "max_tries": 2,
+    "placed": [],
+    "hint": null,
+    "resolved": false,
+    "correct": null,
+    "solution": []
+   },
+   "words": null,
+   "tell": null
+  }
+ },
+ "a1_order_hint": {
+  "id": "a66dda7f-0a44-4ae3-a044-ecfd50497424",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:07:37.402801+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-bac",
+   "title_fr": "Le bac",
+   "summary_fr": "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "bac_wikipedia",
+     "name": "Wikipédia, « Baccalauréat en France »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+     "published_at": "2026-10-02"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "en",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Le bac, comment ça se passe pour un lycéen",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "partir",
+     "gloss": "partir (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "le baccalauréat",
+     "gloss": "baccalauréat (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "session",
+     "gloss": "session (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'épreuve",
+     "gloss": "épreuve (en)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "salle_examen_bac",
+   "place_fr": "Une salle d'examen dans un lycée en juin",
+   "plate_url": "/assets/serial/locations/ngo_office.webp",
+   "plate_place_id": "ecole",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "fil",
+  "comptoir": null,
+  "fil": {
+   "step": "order",
+   "steps": [
+    "read",
+    "order",
+    "words",
+    "tell",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "Le bac",
+   "read": {
+    "dateline_fr": "Une salle d'examen dans un lycée en juin",
+    "lead": {
+     "fr": "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "bac_wikipedia",
+      "name": "Wikipédia, « Baccalauréat en France »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+      "published_at": "2026-10-02"
+     }
+    ]
+   },
+   "order": {
+    "strips": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "En 2023, 95,7 % des candidats réussissent le bac.",
+       "tr": "In 2023, 95.7% of candidates pass the bac."
+      },
+      "label": {
+       "fr": "la réussite",
+       "tr": "the pass rate"
+      }
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "Le baccalauréat naît en 1808.",
+       "tr": "The baccalauréat is born in 1808."
+      },
+      "label": {
+       "fr": "la création",
+       "tr": "the creation"
+      }
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "En 2027, le Grand oral compte moins.",
+       "tr": "In 2027, the Grand oral counts for less."
+      },
+      "label": {
+       "fr": "le changement",
+       "tr": "the change"
+      }
+     },
+     {
+      "key": "d",
+      "text": {
+       "fr": "Les élèves passent le premier bac en 1809.",
+       "tr": "Pupils sit the first bac in 1809."
+      },
+      "label": {
+       "fr": "le premier examen",
+       "tr": "the first exam"
+      }
+     }
+    ],
+    "tries": 1,
+    "max_tries": 2,
+    "placed": [
+     "d",
+     "b",
+     "a",
+     "c"
+    ],
+    "hint": {
+     "key": "d",
+     "after_key": "b"
+    },
+    "resolved": false,
+    "correct": null,
+    "solution": []
+   },
+   "words": null,
+   "tell": null
+  }
+ },
+ "a1_words": {
+  "id": "a66dda7f-0a44-4ae3-a044-ecfd50497424",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:07:37.402801+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-bac",
+   "title_fr": "Le bac",
+   "summary_fr": "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "bac_wikipedia",
+     "name": "Wikipédia, « Baccalauréat en France »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+     "published_at": "2026-10-02"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "en",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Le bac, comment ça se passe pour un lycéen",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "partir",
+     "gloss": "partir (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "le baccalauréat",
+     "gloss": "baccalauréat (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "session",
+     "gloss": "session (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'épreuve",
+     "gloss": "épreuve (en)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "salle_examen_bac",
+   "place_fr": "Une salle d'examen dans un lycée en juin",
+   "plate_url": "/assets/serial/locations/ngo_office.webp",
+   "plate_place_id": "ecole",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "fil",
+  "comptoir": null,
+  "fil": {
+   "step": "words",
+   "steps": [
+    "read",
+    "order",
+    "words",
+    "tell",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "Le bac",
+   "read": {
+    "dateline_fr": "Une salle d'examen dans un lycée en juin",
+    "lead": {
+     "fr": "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "bac_wikipedia",
+      "name": "Wikipédia, « Baccalauréat en France »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+      "published_at": "2026-10-02"
+     }
+    ]
+   },
+   "order": {
+    "strips": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "En 2023, 95,7 % des candidats réussissent le bac.",
+       "tr": "In 2023, 95.7% of candidates pass the bac."
+      },
+      "label": {
+       "fr": "la réussite",
+       "tr": "the pass rate"
+      }
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "Le baccalauréat naît en 1808.",
+       "tr": "The baccalauréat is born in 1808."
+      },
+      "label": {
+       "fr": "la création",
+       "tr": "the creation"
+      }
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "En 2027, le Grand oral compte moins.",
+       "tr": "In 2027, the Grand oral counts for less."
+      },
+      "label": {
+       "fr": "le changement",
+       "tr": "the change"
+      }
+     },
+     {
+      "key": "d",
+      "text": {
+       "fr": "Les élèves passent le premier bac en 1809.",
+       "tr": "Pupils sit the first bac in 1809."
+      },
+      "label": {
+       "fr": "le premier examen",
+       "tr": "the first exam"
+      }
+     }
+    ],
+    "tries": 2,
+    "max_tries": 2,
+    "placed": [
+     "b",
+     "d",
+     "a",
+     "c"
+    ],
+    "hint": null,
+    "resolved": true,
+    "correct": true,
+    "solution": [
+     "b",
+     "d",
+     "a",
+     "c"
+    ]
+   },
+   "words": {
+    "input": "place",
+    "strips": [
+     {
+      "fr": "Le baccalauréat naît en 1808.",
+      "tr": "The baccalauréat is born in 1808."
+     },
+     {
+      "fr": "Les élèves passent le premier bac en 1809.",
+      "tr": "Pupils sit the first bac in 1809."
+     },
+     {
+      "fr": "En 2023, 95,7 % des candidats réussissent le bac.",
+      "tr": "In 2023, 95.7% of candidates pass the bac."
+     },
+     {
+      "fr": "En 2027, le Grand oral compte moins.",
+      "tr": "In 2027, the Grand oral counts for less."
+     }
+    ],
+    "connectors": [
+     {
+      "id": "enfin",
+      "fr": "enfin",
+      "tr": null,
+      "role": null
+     },
+     {
+      "id": "d-abord",
+      "fr": "d'abord",
+      "tr": null,
+      "role": null
+     },
+     {
+      "id": "ensuite",
+      "fr": "ensuite",
+      "tr": null,
+      "role": null
+     },
+     {
+      "id": "puis",
+      "fr": "puis",
+      "tr": null,
+      "role": null
+     }
+    ],
+    "options": [],
+    "tries": 0,
+    "max_tries": 2,
+    "picked": [],
+    "misses": [],
+    "resolved": false,
+    "correct": null,
+    "solution": []
+   },
+   "tell": null
+  }
+ },
+ "a1_words_miss": {
+  "id": "a66dda7f-0a44-4ae3-a044-ecfd50497424",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:07:37.402801+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-bac",
+   "title_fr": "Le bac",
+   "summary_fr": "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "bac_wikipedia",
+     "name": "Wikipédia, « Baccalauréat en France »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+     "published_at": "2026-10-02"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "en",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Le bac, comment ça se passe pour un lycéen",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "partir",
+     "gloss": "partir (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "le baccalauréat",
+     "gloss": "baccalauréat (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "session",
+     "gloss": "session (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'épreuve",
+     "gloss": "épreuve (en)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "salle_examen_bac",
+   "place_fr": "Une salle d'examen dans un lycée en juin",
+   "plate_url": "/assets/serial/locations/ngo_office.webp",
+   "plate_place_id": "ecole",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "fil",
+  "comptoir": null,
+  "fil": {
+   "step": "words",
+   "steps": [
+    "read",
+    "order",
+    "words",
+    "tell",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "Le bac",
+   "read": {
+    "dateline_fr": "Une salle d'examen dans un lycée en juin",
+    "lead": {
+     "fr": "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "bac_wikipedia",
+      "name": "Wikipédia, « Baccalauréat en France »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+      "published_at": "2026-10-02"
+     }
+    ]
+   },
+   "order": {
+    "strips": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "En 2023, 95,7 % des candidats réussissent le bac.",
+       "tr": "In 2023, 95.7% of candidates pass the bac."
+      },
+      "label": {
+       "fr": "la réussite",
+       "tr": "the pass rate"
+      }
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "Le baccalauréat naît en 1808.",
+       "tr": "The baccalauréat is born in 1808."
+      },
+      "label": {
+       "fr": "la création",
+       "tr": "the creation"
+      }
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "En 2027, le Grand oral compte moins.",
+       "tr": "In 2027, the Grand oral counts for less."
+      },
+      "label": {
+       "fr": "le changement",
+       "tr": "the change"
+      }
+     },
+     {
+      "key": "d",
+      "text": {
+       "fr": "Les élèves passent le premier bac en 1809.",
+       "tr": "Pupils sit the first bac in 1809."
+      },
+      "label": {
+       "fr": "le premier examen",
+       "tr": "the first exam"
+      }
+     }
+    ],
+    "tries": 2,
+    "max_tries": 2,
+    "placed": [
+     "b",
+     "d",
+     "a",
+     "c"
+    ],
+    "hint": null,
+    "resolved": true,
+    "correct": true,
+    "solution": [
+     "b",
+     "d",
+     "a",
+     "c"
+    ]
+   },
+   "words": {
+    "input": "place",
+    "strips": [
+     {
+      "fr": "Le baccalauréat naît en 1808.",
+      "tr": "The baccalauréat is born in 1808."
+     },
+     {
+      "fr": "Les élèves passent le premier bac en 1809.",
+      "tr": "Pupils sit the first bac in 1809."
+     },
+     {
+      "fr": "En 2023, 95,7 % des candidats réussissent le bac.",
+      "tr": "In 2023, 95.7% of candidates pass the bac."
+     },
+     {
+      "fr": "En 2027, le Grand oral compte moins.",
+      "tr": "In 2027, the Grand oral counts for less."
+     }
+    ],
+    "connectors": [
+     {
+      "id": "enfin",
+      "fr": "enfin",
+      "tr": null,
+      "role": null
+     },
+     {
+      "id": "d-abord",
+      "fr": "d'abord",
+      "tr": null,
+      "role": null
+     },
+     {
+      "id": "ensuite",
+      "fr": "ensuite",
+      "tr": null,
+      "role": null
+     },
+     {
+      "id": "puis",
+      "fr": "puis",
+      "tr": null,
+      "role": null
+     }
+    ],
+    "options": [],
+    "tries": 1,
+    "max_tries": 2,
+    "picked": [
+     "enfin",
+     "ensuite",
+     "puis",
+     "d-abord"
+    ],
+    "misses": [
+     {
+      "position": 0,
+      "id": "enfin",
+      "fr": "enfin",
+      "tr": "finally",
+      "role": "last",
+      "needs": "first"
+     },
+     {
+      "position": 3,
+      "id": "d-abord",
+      "fr": "d'abord",
+      "tr": "first",
+      "role": "first",
+      "needs": "last"
+     }
+    ],
+    "resolved": false,
+    "correct": null,
+    "solution": []
+   },
+   "tell": null
+  }
+ },
+ "a1_tell": {
+  "id": "a66dda7f-0a44-4ae3-a044-ecfd50497424",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:07:37.402801+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-bac",
+   "title_fr": "Le bac",
+   "summary_fr": "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "bac_wikipedia",
+     "name": "Wikipédia, « Baccalauréat en France »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+     "published_at": "2026-10-02"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "en",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Le bac, comment ça se passe pour un lycéen",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "partir",
+     "gloss": "partir (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "le baccalauréat",
+     "gloss": "baccalauréat (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "session",
+     "gloss": "session (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'épreuve",
+     "gloss": "épreuve (en)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "salle_examen_bac",
+   "place_fr": "Une salle d'examen dans un lycée en juin",
+   "plate_url": "/assets/serial/locations/ngo_office.webp",
+   "plate_place_id": "ecole",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "fil",
+  "comptoir": null,
+  "fil": {
+   "step": "tell",
+   "steps": [
+    "read",
+    "order",
+    "words",
+    "tell",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "Le bac",
+   "read": {
+    "dateline_fr": "Une salle d'examen dans un lycée en juin",
+    "lead": {
+     "fr": "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "bac_wikipedia",
+      "name": "Wikipédia, « Baccalauréat en France »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+      "published_at": "2026-10-02"
+     }
+    ]
+   },
+   "order": {
+    "strips": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "En 2023, 95,7 % des candidats réussissent le bac.",
+       "tr": "In 2023, 95.7% of candidates pass the bac."
+      },
+      "label": {
+       "fr": "la réussite",
+       "tr": "the pass rate"
+      }
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "Le baccalauréat naît en 1808.",
+       "tr": "The baccalauréat is born in 1808."
+      },
+      "label": {
+       "fr": "la création",
+       "tr": "the creation"
+      }
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "En 2027, le Grand oral compte moins.",
+       "tr": "In 2027, the Grand oral counts for less."
+      },
+      "label": {
+       "fr": "le changement",
+       "tr": "the change"
+      }
+     },
+     {
+      "key": "d",
+      "text": {
+       "fr": "Les élèves passent le premier bac en 1809.",
+       "tr": "Pupils sit the first bac in 1809."
+      },
+      "label": {
+       "fr": "le premier examen",
+       "tr": "the first exam"
+      }
+     }
+    ],
+    "tries": 2,
+    "max_tries": 2,
+    "placed": [
+     "b",
+     "d",
+     "a",
+     "c"
+    ],
+    "hint": null,
+    "resolved": true,
+    "correct": true,
+    "solution": [
+     "b",
+     "d",
+     "a",
+     "c"
+    ]
+   },
+   "words": {
+    "input": "place",
+    "strips": [
+     {
+      "fr": "Le baccalauréat naît en 1808.",
+      "tr": "The baccalauréat is born in 1808."
+     },
+     {
+      "fr": "Les élèves passent le premier bac en 1809.",
+      "tr": "Pupils sit the first bac in 1809."
+     },
+     {
+      "fr": "En 2023, 95,7 % des candidats réussissent le bac.",
+      "tr": "In 2023, 95.7% of candidates pass the bac."
+     },
+     {
+      "fr": "En 2027, le Grand oral compte moins.",
+      "tr": "In 2027, the Grand oral counts for less."
+     }
+    ],
+    "connectors": [
+     {
+      "id": "enfin",
+      "fr": "enfin",
+      "tr": "finally",
+      "role": "last"
+     },
+     {
+      "id": "d-abord",
+      "fr": "d'abord",
+      "tr": "first",
+      "role": "first"
+     },
+     {
+      "id": "ensuite",
+      "fr": "ensuite",
+      "tr": "next",
+      "role": "middle"
+     },
+     {
+      "id": "puis",
+      "fr": "puis",
+      "tr": "then",
+      "role": "middle"
+     }
+    ],
+    "options": [],
+    "tries": 2,
+    "max_tries": 2,
+    "picked": [
+     "d-abord",
+     "ensuite",
+     "puis",
+     "enfin"
+    ],
+    "misses": [],
+    "resolved": true,
+    "correct": true,
+    "solution": [
+     "d-abord",
+     "ensuite",
+     "puis",
+     "enfin"
+    ]
+   },
+   "tell": {
+    "input": "tiles",
+    "phrase": {
+     "fr": "D'abord…, ensuite…",
+     "tr": "First…, next…"
+    },
+    "tiles": [
+     {
+      "key": "b",
+      "text": {
+       "fr": "le baccalauréat naît en 1808",
+       "tr": "the baccalauréat is born in 1808"
+      }
+     },
+     {
+      "key": "d",
+      "text": {
+       "fr": "les élèves passent le premier bac en 1809",
+       "tr": "pupils sit the first bac in 1809"
+      }
+     },
+     {
+      "key": "a",
+      "text": {
+       "fr": "le taux de réussite atteint 95,7 %",
+       "tr": "the pass rate reaches 95.7%"
+      }
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "le Grand oral compte moins en 2027",
+       "tr": "the Grand oral counts for less in 2027"
+      }
+     }
+    ],
+    "connectors": [
+     {
+      "id": "d-abord",
+      "fr": "d'abord",
+      "tr": "first",
+      "role": "first"
+     },
+     {
+      "id": "ensuite",
+      "fr": "ensuite",
+      "tr": "next",
+      "role": "middle"
+     },
+     {
+      "id": "puis",
+      "fr": "puis",
+      "tr": "then",
+      "role": "middle"
+     },
+     {
+      "id": "enfin",
+      "fr": "enfin",
+      "tr": "finally",
+      "role": "last"
+     }
+    ],
+    "frames": [],
+    "min_words": 0,
+    "min_connectors": 0,
+    "learner_fr": null,
+    "draft_fr": null,
+    "proof": null,
+    "marks": [],
+    "tries": 0,
+    "max_tries": 2,
+    "printed_fr": null
+   }
+  }
+ },
+ "a1_told": {
+  "id": "a66dda7f-0a44-4ae3-a044-ecfd50497424",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:07:37.402801+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-bac",
+   "title_fr": "Le bac",
+   "summary_fr": "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "bac_wikipedia",
+     "name": "Wikipédia, « Baccalauréat en France »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+     "published_at": "2026-10-02"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "en",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Le bac, comment ça se passe pour un lycéen",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "partir",
+     "gloss": "partir (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "le baccalauréat",
+     "gloss": "baccalauréat (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "session",
+     "gloss": "session (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'épreuve",
+     "gloss": "épreuve (en)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "salle_examen_bac",
+   "place_fr": "Une salle d'examen dans un lycée en juin",
+   "plate_url": "/assets/serial/locations/ngo_office.webp",
+   "plate_place_id": "ecole",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "facts",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 13
+  },
+  "thread": [
+   {
+    "id": "7",
+    "seq": 7,
+    "at": "2026-11-20T20:07:37.467093+00:00",
+    "kind": "mine",
+    "text_fr": "D'abord, le baccalauréat naît en 1808. Enfin, le Grand oral compte moins en 2027.",
+    "mode": "text",
+    "register_note": null
+   }
+  ],
+  "quick_replies": [
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": true,
+  "artifact": null,
+  "closing": null,
+  "mode": "fil",
+  "comptoir": null,
+  "fil": {
+   "step": "page",
+   "steps": [
+    "read",
+    "order",
+    "words",
+    "tell",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "Le bac",
+   "read": {
+    "dateline_fr": "Une salle d'examen dans un lycée en juin",
+    "lead": {
+     "fr": "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "bac_wikipedia",
+      "name": "Wikipédia, « Baccalauréat en France »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+      "published_at": "2026-10-02"
+     }
+    ]
+   },
+   "order": {
+    "strips": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "En 2023, 95,7 % des candidats réussissent le bac.",
+       "tr": "In 2023, 95.7% of candidates pass the bac."
+      },
+      "label": {
+       "fr": "la réussite",
+       "tr": "the pass rate"
+      }
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "Le baccalauréat naît en 1808.",
+       "tr": "The baccalauréat is born in 1808."
+      },
+      "label": {
+       "fr": "la création",
+       "tr": "the creation"
+      }
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "En 2027, le Grand oral compte moins.",
+       "tr": "In 2027, the Grand oral counts for less."
+      },
+      "label": {
+       "fr": "le changement",
+       "tr": "the change"
+      }
+     },
+     {
+      "key": "d",
+      "text": {
+       "fr": "Les élèves passent le premier bac en 1809.",
+       "tr": "Pupils sit the first bac in 1809."
+      },
+      "label": {
+       "fr": "le premier examen",
+       "tr": "the first exam"
+      }
+     }
+    ],
+    "tries": 2,
+    "max_tries": 2,
+    "placed": [
+     "b",
+     "d",
+     "a",
+     "c"
+    ],
+    "hint": null,
+    "resolved": true,
+    "correct": true,
+    "solution": [
+     "b",
+     "d",
+     "a",
+     "c"
+    ]
+   },
+   "words": {
+    "input": "place",
+    "strips": [
+     {
+      "fr": "Le baccalauréat naît en 1808.",
+      "tr": "The baccalauréat is born in 1808."
+     },
+     {
+      "fr": "Les élèves passent le premier bac en 1809.",
+      "tr": "Pupils sit the first bac in 1809."
+     },
+     {
+      "fr": "En 2023, 95,7 % des candidats réussissent le bac.",
+      "tr": "In 2023, 95.7% of candidates pass the bac."
+     },
+     {
+      "fr": "En 2027, le Grand oral compte moins.",
+      "tr": "In 2027, the Grand oral counts for less."
+     }
+    ],
+    "connectors": [
+     {
+      "id": "enfin",
+      "fr": "enfin",
+      "tr": "finally",
+      "role": "last"
+     },
+     {
+      "id": "d-abord",
+      "fr": "d'abord",
+      "tr": "first",
+      "role": "first"
+     },
+     {
+      "id": "ensuite",
+      "fr": "ensuite",
+      "tr": "next",
+      "role": "middle"
+     },
+     {
+      "id": "puis",
+      "fr": "puis",
+      "tr": "then",
+      "role": "middle"
+     }
+    ],
+    "options": [],
+    "tries": 2,
+    "max_tries": 2,
+    "picked": [
+     "d-abord",
+     "ensuite",
+     "puis",
+     "enfin"
+    ],
+    "misses": [],
+    "resolved": true,
+    "correct": true,
+    "solution": [
+     "d-abord",
+     "ensuite",
+     "puis",
+     "enfin"
+    ]
+   },
+   "tell": {
+    "input": "tiles",
+    "phrase": {
+     "fr": "D'abord…, ensuite…",
+     "tr": "First…, next…"
+    },
+    "tiles": [
+     {
+      "key": "b",
+      "text": {
+       "fr": "le baccalauréat naît en 1808",
+       "tr": "the baccalauréat is born in 1808"
+      }
+     },
+     {
+      "key": "d",
+      "text": {
+       "fr": "les élèves passent le premier bac en 1809",
+       "tr": "pupils sit the first bac in 1809"
+      }
+     },
+     {
+      "key": "a",
+      "text": {
+       "fr": "le taux de réussite atteint 95,7 %",
+       "tr": "the pass rate reaches 95.7%"
+      }
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "le Grand oral compte moins en 2027",
+       "tr": "the Grand oral counts for less in 2027"
+      }
+     }
+    ],
+    "connectors": [
+     {
+      "id": "d-abord",
+      "fr": "d'abord",
+      "tr": "first",
+      "role": "first"
+     },
+     {
+      "id": "ensuite",
+      "fr": "ensuite",
+      "tr": "next",
+      "role": "middle"
+     },
+     {
+      "id": "puis",
+      "fr": "puis",
+      "tr": "then",
+      "role": "middle"
+     },
+     {
+      "id": "enfin",
+      "fr": "enfin",
+      "tr": "finally",
+      "role": "last"
+     }
+    ],
+    "frames": [],
+    "min_words": 0,
+    "min_connectors": 0,
+    "learner_fr": "D'abord, le baccalauréat naît en 1808. Enfin, le Grand oral compte moins en 2027.",
+    "draft_fr": "D'abord, le baccalauréat naît en 1808. Enfin, le Grand oral compte moins en 2027.",
+    "proof": "clean",
+    "marks": [],
+    "tries": 0,
+    "max_tries": 2,
+    "printed_fr": "D'abord, le baccalauréat naît en 1808. Enfin, le Grand oral compte moins en 2027."
+   }
+  }
+ },
+ "a1_page": {
+  "id": "a66dda7f-0a44-4ae3-a044-ecfd50497424",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "closed",
+  "started_at": "2026-11-20T20:07:37.402801+00:00",
+  "closed_at": "2026-11-20T20:07:37.506429+00:00",
+  "dossier": {
+   "id": "evergreen-bac",
+   "title_fr": "Le bac",
+   "summary_fr": "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "bac_wikipedia",
+     "name": "Wikipédia, « Baccalauréat en France »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+     "published_at": "2026-10-02"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "en",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Le bac, comment ça se passe pour un lycéen",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "partir",
+     "gloss": "partir (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "le baccalauréat",
+     "gloss": "baccalauréat (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "session",
+     "gloss": "session (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'épreuve",
+     "gloss": "épreuve (en)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "salle_examen_bac",
+   "place_fr": "Une salle d'examen dans un lycée en juin",
+   "plate_url": "/assets/serial/locations/ngo_office.webp",
+   "plate_place_id": "ecole",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "close",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 13
+  },
+  "thread": [
+   {
+    "id": "7",
+    "seq": 7,
+    "at": "2026-11-20T20:07:37.467093+00:00",
+    "kind": "mine",
+    "text_fr": "D'abord, le baccalauréat naît en 1808. Enfin, le Grand oral compte moins en 2027.",
+    "mode": "text",
+    "register_note": null
+   },
+   {
+    "id": "9",
+    "seq": 9,
+    "at": "2026-11-20T20:07:37.477323+00:00",
+    "kind": "made",
+    "made": {
+     "kind": "fil",
+     "text_fr": "D'abord, le baccalauréat naît en 1808. Enfin, le Grand oral compte moins en 2027.",
+     "contribution": [],
+     "learner_fr": ""
+    }
+   },
+   {
+    "id": "10",
+    "seq": 10,
+    "at": "2026-11-20T20:07:37.506335+00:00",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "close",
+    "text_fr": "Merci ! Le fil est remis en ordre, et ton récit est dans le journal.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   }
+  ],
+  "quick_replies": [],
+  "steer_to_make": false,
+  "own_line": true,
+  "artifact": {
+   "kind": "fil",
+   "text_fr": "D'abord, le baccalauréat naît en 1808. Enfin, le Grand oral compte moins en 2027.",
+   "contribution": [],
+   "learner_fr": ""
+  },
+  "closing": {
+   "romy_line_fr": "Merci ! Le fil est remis en ordre, et ton récit est dans le journal.",
+   "dispatch": {
+    "kicker_fr": "Le fil de Romy",
+    "headline_fr": "Le bac",
+    "body_fr": [
+     "Le baccalauréat naît en 1808.",
+     "Les élèves passent le premier bac en 1809.",
+     "En 2023, 95,7 % des candidats réussissent le bac.",
+     "En 2027, le Grand oral compte moins.",
+     "Toi : « D'abord, le baccalauréat naît en 1808. Enfin, le Grand oral compte moins en 2027. »"
+    ],
+    "contribution": [],
+    "byline_fr": "Romy Tremblay · d'après Wikipédia, « Baccalauréat en France »",
+    "sources": [
+     {
+      "id": "bac_wikipedia",
+      "name": "Wikipédia, « Baccalauréat en France »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+      "published_at": "2026-10-02"
+     }
+    ],
+    "picture_url": null,
+    "caption_fr": null,
+    "caption_by_learner": false
+   },
+   "kept": {
+    "words": [
+     {
+      "fr": "partir",
+      "gloss": "partir (en)",
+      "claim_id": "c3",
+      "used": false,
+      "outcome": null
+     },
+     {
+      "fr": "le baccalauréat",
+      "gloss": "baccalauréat (en)",
+      "claim_id": "c1",
+      "used": false,
+      "outcome": null
+     },
+     {
+      "fr": "la première",
+      "gloss": "première (en)",
+      "claim_id": "c1",
+      "used": false,
+      "outcome": null
+     },
+     {
+      "fr": "session",
+      "gloss": "session (en)",
+      "claim_id": "c1",
+      "used": false,
+      "outcome": null
+     },
+     {
+      "fr": "l'épreuve",
+      "gloss": "épreuve (en)",
+      "claim_id": "c2",
+      "used": false,
+      "outcome": null
+     }
+    ],
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "Le baccalauréat a été créé en 1808 ; la première session a eu lieu en 1809.",
+      "quote": "Le baccalauréat est créé en 1808, mais sa première édition n'a lieu qu'en 1809.",
+      "attributed_to": null,
+      "source": {
+       "id": "bac_wikipedia",
+       "name": "Wikipédia, « Baccalauréat en France »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+       "published_at": "2026-10-02"
+      }
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Le taux de réussite est passé de 75,5 % en 1990 à 95,7 % en 2023 ; d'après le ministre de l'Éducation nationale, en 2024, c'est surtout lié à la façon de corriger les épreuves.",
+      "quote": "Le taux de réussite global passe de 75,5 % en 1990 à 95,7 % en 2023, une hausse principalement liée à l’évolution du processus de correction des épreuves d'après une déclaration du ministre de l’Éducation nationale en 2024.",
+      "attributed_to": "le ministre de l'Éducation nationale, dans une déclaration de 2024",
+      "source": {
+       "id": "bac_wikipedia",
+       "name": "Wikipédia, « Baccalauréat en France »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+       "published_at": "2026-10-02"
+      }
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "À partir de la session 2027, le coefficient du Grand oral passe de 10 à 8 pour le bac général.",
+      "quote": "Le coefficient du Grand oral change pour la session 2027 : il passe de 10 à 8 pour le baccalauréat général",
+      "attributed_to": null,
+      "source": {
+       "id": "bac_wikipedia",
+       "name": "Wikipédia, « Baccalauréat en France »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+       "published_at": "2026-10-02"
+      }
+     }
+    ]
+   },
+   "question_kept_fr": null,
+   "vignette": {
+    "id": "e3f4f82f-5747-4fe3-afa4-358f2c31ed6e",
+    "session_id": "a66dda7f-0a44-4ae3-a044-ecfd50497424",
+    "dossier_id": "evergreen-bac",
+    "week": "2026-W25",
+    "place_label_fr": "Une salle d'examen dans un lycée en juin",
+    "ring": "report",
+    "kept_contribution": false,
+    "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"43\" r=\"27\" fill=\"#D8321A\"/><rect x=\"35\" y=\"59\" width=\"30\" height=\"16\" rx=\"3\" fill=\"#2C6A5D\"/><path d=\"M50 25L60 41L40 41Z\" fill=\"#1D3A8A\"/><ellipse cx=\"50\" cy=\"75\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"46\" cy=\"37\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+    "headline_fr": "Le bac",
+    "minted_at": "2026-11-20T20:07:37"
+   },
+   "colophon_fr": "La suite la semaine prochaine.",
+   "comptoir_page": null,
+   "fil_page": {
+    "title_fr": "Le bac",
+    "dateline_fr": "Une salle d'examen dans un lycée en juin",
+    "strips": [
+     {
+      "connector_fr": "D'abord",
+      "text_fr": "Le baccalauréat naît en 1808."
+     },
+     {
+      "connector_fr": "Ensuite",
+      "text_fr": "Les élèves passent le premier bac en 1809."
+     },
+     {
+      "connector_fr": "Puis",
+      "text_fr": "En 2023, 95,7 % des candidats réussissent le bac."
+     },
+     {
+      "connector_fr": "Enfin",
+      "text_fr": "En 2027, le Grand oral compte moins."
+     }
+    ],
+    "mine_fr": "D'abord, le baccalauréat naît en 1808. Enfin, le Grand oral compte moins en 2027.",
+    "proof": "clean",
+    "phrase_fr": "D'abord…, ensuite…",
+    "words": [
+     "partir",
+     "le baccalauréat",
+     "la première",
+     "session",
+     "l'épreuve"
+    ]
+   }
+  },
+  "mode": "fil",
+  "comptoir": null,
+  "fil": {
+   "step": "page",
+   "steps": [
+    "read",
+    "order",
+    "words",
+    "tell",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "Le bac",
+   "read": {
+    "dateline_fr": "Une salle d'examen dans un lycée en juin",
+    "lead": {
+     "fr": "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "bac_wikipedia",
+      "name": "Wikipédia, « Baccalauréat en France »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+      "published_at": "2026-10-02"
+     }
+    ]
+   },
+   "order": {
+    "strips": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "En 2023, 95,7 % des candidats réussissent le bac.",
+       "tr": "In 2023, 95.7% of candidates pass the bac."
+      },
+      "label": {
+       "fr": "la réussite",
+       "tr": "the pass rate"
+      }
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "Le baccalauréat naît en 1808.",
+       "tr": "The baccalauréat is born in 1808."
+      },
+      "label": {
+       "fr": "la création",
+       "tr": "the creation"
+      }
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "En 2027, le Grand oral compte moins.",
+       "tr": "In 2027, the Grand oral counts for less."
+      },
+      "label": {
+       "fr": "le changement",
+       "tr": "the change"
+      }
+     },
+     {
+      "key": "d",
+      "text": {
+       "fr": "Les élèves passent le premier bac en 1809.",
+       "tr": "Pupils sit the first bac in 1809."
+      },
+      "label": {
+       "fr": "le premier examen",
+       "tr": "the first exam"
+      }
+     }
+    ],
+    "tries": 2,
+    "max_tries": 2,
+    "placed": [
+     "b",
+     "d",
+     "a",
+     "c"
+    ],
+    "hint": null,
+    "resolved": true,
+    "correct": true,
+    "solution": [
+     "b",
+     "d",
+     "a",
+     "c"
+    ]
+   },
+   "words": {
+    "input": "place",
+    "strips": [
+     {
+      "fr": "Le baccalauréat naît en 1808.",
+      "tr": "The baccalauréat is born in 1808."
+     },
+     {
+      "fr": "Les élèves passent le premier bac en 1809.",
+      "tr": "Pupils sit the first bac in 1809."
+     },
+     {
+      "fr": "En 2023, 95,7 % des candidats réussissent le bac.",
+      "tr": "In 2023, 95.7% of candidates pass the bac."
+     },
+     {
+      "fr": "En 2027, le Grand oral compte moins.",
+      "tr": "In 2027, the Grand oral counts for less."
+     }
+    ],
+    "connectors": [
+     {
+      "id": "enfin",
+      "fr": "enfin",
+      "tr": "finally",
+      "role": "last"
+     },
+     {
+      "id": "d-abord",
+      "fr": "d'abord",
+      "tr": "first",
+      "role": "first"
+     },
+     {
+      "id": "ensuite",
+      "fr": "ensuite",
+      "tr": "next",
+      "role": "middle"
+     },
+     {
+      "id": "puis",
+      "fr": "puis",
+      "tr": "then",
+      "role": "middle"
+     }
+    ],
+    "options": [],
+    "tries": 2,
+    "max_tries": 2,
+    "picked": [
+     "d-abord",
+     "ensuite",
+     "puis",
+     "enfin"
+    ],
+    "misses": [],
+    "resolved": true,
+    "correct": true,
+    "solution": [
+     "d-abord",
+     "ensuite",
+     "puis",
+     "enfin"
+    ]
+   },
+   "tell": {
+    "input": "tiles",
+    "phrase": {
+     "fr": "D'abord…, ensuite…",
+     "tr": "First…, next…"
+    },
+    "tiles": [
+     {
+      "key": "b",
+      "text": {
+       "fr": "le baccalauréat naît en 1808",
+       "tr": "the baccalauréat is born in 1808"
+      }
+     },
+     {
+      "key": "d",
+      "text": {
+       "fr": "les élèves passent le premier bac en 1809",
+       "tr": "pupils sit the first bac in 1809"
+      }
+     },
+     {
+      "key": "a",
+      "text": {
+       "fr": "le taux de réussite atteint 95,7 %",
+       "tr": "the pass rate reaches 95.7%"
+      }
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "le Grand oral compte moins en 2027",
+       "tr": "the Grand oral counts for less in 2027"
+      }
+     }
+    ],
+    "connectors": [
+     {
+      "id": "d-abord",
+      "fr": "d'abord",
+      "tr": "first",
+      "role": "first"
+     },
+     {
+      "id": "ensuite",
+      "fr": "ensuite",
+      "tr": "next",
+      "role": "middle"
+     },
+     {
+      "id": "puis",
+      "fr": "puis",
+      "tr": "then",
+      "role": "middle"
+     },
+     {
+      "id": "enfin",
+      "fr": "enfin",
+      "tr": "finally",
+      "role": "last"
+     }
+    ],
+    "frames": [],
+    "min_words": 0,
+    "min_connectors": 0,
+    "learner_fr": "D'abord, le baccalauréat naît en 1808. Enfin, le Grand oral compte moins en 2027.",
+    "draft_fr": "D'abord, le baccalauréat naît en 1808. Enfin, le Grand oral compte moins en 2027.",
+    "proof": "clean",
+    "marks": [],
+    "tries": 0,
+    "max_tries": 2,
+    "printed_fr": "D'abord, le baccalauréat naît en 1808. Enfin, le Grand oral compte moins en 2027."
+   }
+  }
+ },
+ "a2_words": {
+  "id": "5f0f9a76-3615-4941-b6e6-a0f8c4e7264f",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:07:37.532282+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-bac",
+   "title_fr": "Le bac",
+   "summary_fr": "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "bac_wikipedia",
+     "name": "Wikipédia, « Baccalauréat en France »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+     "published_at": "2026-10-02"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A2",
+   "ui_language": "de",
+   "gloss_language": "de",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Le bac, comment ça se passe pour un lycéen",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "tap",
+    "translation": "on_request",
+    "reading_target_words": 90,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "partir",
+     "gloss": "partir (de)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "le baccalauréat",
+     "gloss": "baccalauréat (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "session",
+     "gloss": "session (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'épreuve",
+     "gloss": "épreuve (de)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "salle_examen_bac",
+   "place_fr": "Une salle d'examen dans un lycée en juin",
+   "plate_url": "/assets/serial/locations/ngo_office.webp",
+   "plate_place_id": "ecole",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "fil",
+  "comptoir": null,
+  "fil": {
+   "step": "words",
+   "steps": [
+    "read",
+    "order",
+    "words",
+    "tell",
+    "page"
+   ],
+   "band": "a2",
+   "title_fr": "Le bac",
+   "read": {
+    "dateline_fr": "Une salle d'examen dans un lycée en juin",
+    "lead": {
+     "fr": "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "bac_wikipedia",
+      "name": "Wikipédia, « Baccalauréat en France »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+      "published_at": "2026-10-02"
+     }
+    ]
+   },
+   "order": {
+    "strips": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "En 2023, le taux de réussite au bac est de 95,7 %.",
+       "tr": "2023 liegt die Erfolgsquote beim Abitur bei 95,7 %."
+      },
+      "label": {
+       "fr": "la réussite",
+       "tr": "die Erfolgsquote"
+      }
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "En 2027, le coefficient du Grand oral passe de 10 à 8.",
+       "tr": "2027 sinkt die Gewichtung des Grand oral von 10 auf 8."
+      },
+      "label": {
+       "fr": "le changement",
+       "tr": "die Änderung"
+      }
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "Le baccalauréat est créé en 1808.",
+       "tr": "Das Abitur wird 1808 geschaffen."
+      },
+      "label": {
+       "fr": "la création",
+       "tr": "die Gründung"
+      }
+     },
+     {
+      "key": "d",
+      "text": {
+       "fr": "Le premier bac a lieu en 1809.",
+       "tr": "Das erste Abitur findet 1809 statt."
+      },
+      "label": {
+       "fr": "le premier examen",
+       "tr": "die erste Prüfung"
+      }
+     }
+    ],
+    "tries": 1,
+    "max_tries": 2,
+    "placed": [
+     "c",
+     "d",
+     "a",
+     "b"
+    ],
+    "hint": null,
+    "resolved": true,
+    "correct": true,
+    "solution": [
+     "c",
+     "d",
+     "a",
+     "b"
+    ]
+   },
+   "words": {
+    "input": "choose",
+    "strips": [
+     {
+      "fr": "Le baccalauréat est créé en 1808.",
+      "tr": "Das Abitur wird 1808 geschaffen."
+     },
+     {
+      "fr": "Le premier bac a lieu en 1809.",
+      "tr": "Das erste Abitur findet 1809 statt."
+     },
+     {
+      "fr": "En 2023, le taux de réussite au bac est de 95,7 %.",
+      "tr": "2023 liegt die Erfolgsquote beim Abitur bei 95,7 %."
+     },
+     {
+      "fr": "En 2027, le coefficient du Grand oral passe de 10 à 8.",
+      "tr": "2027 sinkt die Gewichtung des Grand oral von 10 auf 8."
+     }
+    ],
+    "connectors": [
+     {
+      "id": "d-abord",
+      "fr": "d'abord",
+      "tr": null,
+      "role": null
+     },
+     {
+      "id": "finalement",
+      "fr": "finalement",
+      "tr": null,
+      "role": null
+     },
+     {
+      "id": "apres",
+      "fr": "après",
+      "tr": null,
+      "role": null
+     },
+     {
+      "id": "puis",
+      "fr": "puis",
+      "tr": null,
+      "role": null
+     },
+     {
+      "id": "enfin",
+      "fr": "enfin",
+      "tr": null,
+      "role": null
+     },
+     {
+      "id": "au-debut",
+      "fr": "au début",
+      "tr": null,
+      "role": null
+     }
+    ],
+    "options": [
+     [
+      "d-abord",
+      "finalement",
+      "apres"
+     ],
+     [
+      "puis",
+      "finalement",
+      "d-abord"
+     ],
+     [
+      "puis",
+      "finalement",
+      "d-abord"
+     ],
+     [
+      "puis",
+      "enfin",
+      "au-debut"
+     ]
+    ],
+    "tries": 0,
+    "max_tries": 2,
+    "picked": [],
+    "misses": [],
+    "resolved": false,
+    "correct": null,
+    "solution": []
+   },
+   "tell": null
+  }
+ },
+ "a2_tell": {
+  "id": "5f0f9a76-3615-4941-b6e6-a0f8c4e7264f",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:07:37.532282+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-bac",
+   "title_fr": "Le bac",
+   "summary_fr": "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "bac_wikipedia",
+     "name": "Wikipédia, « Baccalauréat en France »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+     "published_at": "2026-10-02"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A2",
+   "ui_language": "de",
+   "gloss_language": "de",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Le bac, comment ça se passe pour un lycéen",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "tap",
+    "translation": "on_request",
+    "reading_target_words": 90,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "partir",
+     "gloss": "partir (de)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "le baccalauréat",
+     "gloss": "baccalauréat (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "session",
+     "gloss": "session (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'épreuve",
+     "gloss": "épreuve (de)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "salle_examen_bac",
+   "place_fr": "Une salle d'examen dans un lycée en juin",
+   "plate_url": "/assets/serial/locations/ngo_office.webp",
+   "plate_place_id": "ecole",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "fil",
+  "comptoir": null,
+  "fil": {
+   "step": "tell",
+   "steps": [
+    "read",
+    "order",
+    "words",
+    "tell",
+    "page"
+   ],
+   "band": "a2",
+   "title_fr": "Le bac",
+   "read": {
+    "dateline_fr": "Une salle d'examen dans un lycée en juin",
+    "lead": {
+     "fr": "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "bac_wikipedia",
+      "name": "Wikipédia, « Baccalauréat en France »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+      "published_at": "2026-10-02"
+     }
+    ]
+   },
+   "order": {
+    "strips": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "En 2023, le taux de réussite au bac est de 95,7 %.",
+       "tr": "2023 liegt die Erfolgsquote beim Abitur bei 95,7 %."
+      },
+      "label": {
+       "fr": "la réussite",
+       "tr": "die Erfolgsquote"
+      }
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "En 2027, le coefficient du Grand oral passe de 10 à 8.",
+       "tr": "2027 sinkt die Gewichtung des Grand oral von 10 auf 8."
+      },
+      "label": {
+       "fr": "le changement",
+       "tr": "die Änderung"
+      }
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "Le baccalauréat est créé en 1808.",
+       "tr": "Das Abitur wird 1808 geschaffen."
+      },
+      "label": {
+       "fr": "la création",
+       "tr": "die Gründung"
+      }
+     },
+     {
+      "key": "d",
+      "text": {
+       "fr": "Le premier bac a lieu en 1809.",
+       "tr": "Das erste Abitur findet 1809 statt."
+      },
+      "label": {
+       "fr": "le premier examen",
+       "tr": "die erste Prüfung"
+      }
+     }
+    ],
+    "tries": 1,
+    "max_tries": 2,
+    "placed": [
+     "c",
+     "d",
+     "a",
+     "b"
+    ],
+    "hint": null,
+    "resolved": true,
+    "correct": true,
+    "solution": [
+     "c",
+     "d",
+     "a",
+     "b"
+    ]
+   },
+   "words": {
+    "input": "choose",
+    "strips": [
+     {
+      "fr": "Le baccalauréat est créé en 1808.",
+      "tr": "Das Abitur wird 1808 geschaffen."
+     },
+     {
+      "fr": "Le premier bac a lieu en 1809.",
+      "tr": "Das erste Abitur findet 1809 statt."
+     },
+     {
+      "fr": "En 2023, le taux de réussite au bac est de 95,7 %.",
+      "tr": "2023 liegt die Erfolgsquote beim Abitur bei 95,7 %."
+     },
+     {
+      "fr": "En 2027, le coefficient du Grand oral passe de 10 à 8.",
+      "tr": "2027 sinkt die Gewichtung des Grand oral von 10 auf 8."
+     }
+    ],
+    "connectors": [
+     {
+      "id": "d-abord",
+      "fr": "d'abord",
+      "tr": "zuerst",
+      "role": "first"
+     },
+     {
+      "id": "finalement",
+      "fr": "finalement",
+      "tr": "am Ende",
+      "role": "last"
+     },
+     {
+      "id": "apres",
+      "fr": "après",
+      "tr": "nachher",
+      "role": "middle"
+     },
+     {
+      "id": "puis",
+      "fr": "puis",
+      "tr": "dann",
+      "role": "middle"
+     },
+     {
+      "id": "enfin",
+      "fr": "enfin",
+      "tr": "schließlich",
+      "role": "last"
+     },
+     {
+      "id": "au-debut",
+      "fr": "au début",
+      "tr": "am Anfang",
+      "role": "first"
+     }
+    ],
+    "options": [
+     [
+      "d-abord",
+      "finalement",
+      "apres"
+     ],
+     [
+      "puis",
+      "finalement",
+      "d-abord"
+     ],
+     [
+      "puis",
+      "finalement",
+      "d-abord"
+     ],
+     [
+      "puis",
+      "enfin",
+      "au-debut"
+     ]
+    ],
+    "tries": 1,
+    "max_tries": 2,
+    "picked": [
+     "d-abord",
+     "puis",
+     "puis",
+     "enfin"
+    ],
+    "misses": [],
+    "resolved": true,
+    "correct": true,
+    "solution": [
+     "d-abord",
+     "puis",
+     "puis",
+     "enfin"
+    ]
+   },
+   "tell": {
+    "input": "frames",
+    "phrase": {
+     "fr": "D'abord…, puis…, enfin…",
+     "tr": "Zuerst…, dann…, schließlich…"
+    },
+    "tiles": [],
+    "connectors": [
+     {
+      "id": "d-abord",
+      "fr": "d'abord",
+      "tr": "zuerst",
+      "role": "first"
+     },
+     {
+      "id": "au-debut",
+      "fr": "au début",
+      "tr": "am Anfang",
+      "role": "first"
+     },
+     {
+      "id": "ensuite",
+      "fr": "ensuite",
+      "tr": "danach",
+      "role": "middle"
+     },
+     {
+      "id": "puis",
+      "fr": "puis",
+      "tr": "dann",
+      "role": "middle"
+     },
+     {
+      "id": "apres",
+      "fr": "après",
+      "tr": "nachher",
+      "role": "middle"
+     },
+     {
+      "id": "enfin",
+      "fr": "enfin",
+      "tr": "schließlich",
+      "role": "last"
+     },
+     {
+      "id": "finalement",
+      "fr": "finalement",
+      "tr": "am Ende",
+      "role": "last"
+     }
+    ],
+    "frames": [
+     {
+      "fr": "D'abord, le baccalauréat",
+      "tr": "Zuerst das Abitur"
+     },
+     {
+      "fr": "Enfin, le Grand oral",
+      "tr": "Schließlich das Grand oral"
+     }
+    ],
+    "min_words": 5,
+    "min_connectors": 0,
+    "learner_fr": null,
+    "draft_fr": null,
+    "proof": null,
+    "marks": [],
+    "tries": 0,
+    "max_tries": 2,
+    "printed_fr": null
+   }
+  }
+ },
+ "a2_marked": {
+  "id": "5f0f9a76-3615-4941-b6e6-a0f8c4e7264f",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:07:37.532282+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-bac",
+   "title_fr": "Le bac",
+   "summary_fr": "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "bac_wikipedia",
+     "name": "Wikipédia, « Baccalauréat en France »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+     "published_at": "2026-10-02"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A2",
+   "ui_language": "de",
+   "gloss_language": "de",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Le bac, comment ça se passe pour un lycéen",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "tap",
+    "translation": "on_request",
+    "reading_target_words": 90,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "partir",
+     "gloss": "partir (de)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "le baccalauréat",
+     "gloss": "baccalauréat (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "session",
+     "gloss": "session (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'épreuve",
+     "gloss": "épreuve (de)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "salle_examen_bac",
+   "place_fr": "Une salle d'examen dans un lycée en juin",
+   "plate_url": "/assets/serial/locations/ngo_office.webp",
+   "plate_place_id": "ecole",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "facts",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 13
+  },
+  "thread": [
+   {
+    "id": "5",
+    "seq": 5,
+    "at": "2026-11-20T20:07:37.569469+00:00",
+    "kind": "mine",
+    "text_fr": "D'abord, le baccalauréat est créé en 1808. Enfin, le Grand oral compte moins, il sont contents.",
+    "mode": "text",
+    "register_note": null
+   }
+  ],
+  "quick_replies": [
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": true,
+  "artifact": null,
+  "closing": null,
+  "mode": "fil",
+  "comptoir": null,
+  "fil": {
+   "step": "tell",
+   "steps": [
+    "read",
+    "order",
+    "words",
+    "tell",
+    "page"
+   ],
+   "band": "a2",
+   "title_fr": "Le bac",
+   "read": {
+    "dateline_fr": "Une salle d'examen dans un lycée en juin",
+    "lead": {
+     "fr": "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "bac_wikipedia",
+      "name": "Wikipédia, « Baccalauréat en France »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+      "published_at": "2026-10-02"
+     }
+    ]
+   },
+   "order": {
+    "strips": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "En 2023, le taux de réussite au bac est de 95,7 %.",
+       "tr": "2023 liegt die Erfolgsquote beim Abitur bei 95,7 %."
+      },
+      "label": {
+       "fr": "la réussite",
+       "tr": "die Erfolgsquote"
+      }
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "En 2027, le coefficient du Grand oral passe de 10 à 8.",
+       "tr": "2027 sinkt die Gewichtung des Grand oral von 10 auf 8."
+      },
+      "label": {
+       "fr": "le changement",
+       "tr": "die Änderung"
+      }
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "Le baccalauréat est créé en 1808.",
+       "tr": "Das Abitur wird 1808 geschaffen."
+      },
+      "label": {
+       "fr": "la création",
+       "tr": "die Gründung"
+      }
+     },
+     {
+      "key": "d",
+      "text": {
+       "fr": "Le premier bac a lieu en 1809.",
+       "tr": "Das erste Abitur findet 1809 statt."
+      },
+      "label": {
+       "fr": "le premier examen",
+       "tr": "die erste Prüfung"
+      }
+     }
+    ],
+    "tries": 1,
+    "max_tries": 2,
+    "placed": [
+     "c",
+     "d",
+     "a",
+     "b"
+    ],
+    "hint": null,
+    "resolved": true,
+    "correct": true,
+    "solution": [
+     "c",
+     "d",
+     "a",
+     "b"
+    ]
+   },
+   "words": {
+    "input": "choose",
+    "strips": [
+     {
+      "fr": "Le baccalauréat est créé en 1808.",
+      "tr": "Das Abitur wird 1808 geschaffen."
+     },
+     {
+      "fr": "Le premier bac a lieu en 1809.",
+      "tr": "Das erste Abitur findet 1809 statt."
+     },
+     {
+      "fr": "En 2023, le taux de réussite au bac est de 95,7 %.",
+      "tr": "2023 liegt die Erfolgsquote beim Abitur bei 95,7 %."
+     },
+     {
+      "fr": "En 2027, le coefficient du Grand oral passe de 10 à 8.",
+      "tr": "2027 sinkt die Gewichtung des Grand oral von 10 auf 8."
+     }
+    ],
+    "connectors": [
+     {
+      "id": "d-abord",
+      "fr": "d'abord",
+      "tr": "zuerst",
+      "role": "first"
+     },
+     {
+      "id": "finalement",
+      "fr": "finalement",
+      "tr": "am Ende",
+      "role": "last"
+     },
+     {
+      "id": "apres",
+      "fr": "après",
+      "tr": "nachher",
+      "role": "middle"
+     },
+     {
+      "id": "puis",
+      "fr": "puis",
+      "tr": "dann",
+      "role": "middle"
+     },
+     {
+      "id": "enfin",
+      "fr": "enfin",
+      "tr": "schließlich",
+      "role": "last"
+     },
+     {
+      "id": "au-debut",
+      "fr": "au début",
+      "tr": "am Anfang",
+      "role": "first"
+     }
+    ],
+    "options": [
+     [
+      "d-abord",
+      "finalement",
+      "apres"
+     ],
+     [
+      "puis",
+      "finalement",
+      "d-abord"
+     ],
+     [
+      "puis",
+      "finalement",
+      "d-abord"
+     ],
+     [
+      "puis",
+      "enfin",
+      "au-debut"
+     ]
+    ],
+    "tries": 1,
+    "max_tries": 2,
+    "picked": [
+     "d-abord",
+     "puis",
+     "puis",
+     "enfin"
+    ],
+    "misses": [],
+    "resolved": true,
+    "correct": true,
+    "solution": [
+     "d-abord",
+     "puis",
+     "puis",
+     "enfin"
+    ]
+   },
+   "tell": {
+    "input": "frames",
+    "phrase": {
+     "fr": "D'abord…, puis…, enfin…",
+     "tr": "Zuerst…, dann…, schließlich…"
+    },
+    "tiles": [],
+    "connectors": [
+     {
+      "id": "d-abord",
+      "fr": "d'abord",
+      "tr": "zuerst",
+      "role": "first"
+     },
+     {
+      "id": "au-debut",
+      "fr": "au début",
+      "tr": "am Anfang",
+      "role": "first"
+     },
+     {
+      "id": "ensuite",
+      "fr": "ensuite",
+      "tr": "danach",
+      "role": "middle"
+     },
+     {
+      "id": "puis",
+      "fr": "puis",
+      "tr": "dann",
+      "role": "middle"
+     },
+     {
+      "id": "apres",
+      "fr": "après",
+      "tr": "nachher",
+      "role": "middle"
+     },
+     {
+      "id": "enfin",
+      "fr": "enfin",
+      "tr": "schließlich",
+      "role": "last"
+     },
+     {
+      "id": "finalement",
+      "fr": "finalement",
+      "tr": "am Ende",
+      "role": "last"
+     }
+    ],
+    "frames": [
+     {
+      "fr": "D'abord, le baccalauréat",
+      "tr": "Zuerst das Abitur"
+     },
+     {
+      "fr": "Enfin, le Grand oral",
+      "tr": "Schließlich das Grand oral"
+     }
+    ],
+    "min_words": 5,
+    "min_connectors": 0,
+    "learner_fr": "D'abord, le baccalauréat est créé en 1808. Enfin, le Grand oral compte moins, il sont contents.",
+    "draft_fr": "D'abord, le baccalauréat est créé en 1808. Enfin, le Grand oral compte moins, il sont contents.",
+    "proof": "marked",
+    "marks": [
+     {
+      "span_fr": "il",
+      "start": 78,
+      "kind": "accord"
+     }
+    ],
+    "tries": 0,
+    "max_tries": 2,
+    "printed_fr": null
+   }
+  }
+ },
+ "b1_tell": {
+  "id": "b82257a0-727c-48df-ac82-e958c8e851df",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:07:37.597007+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-bac",
+   "title_fr": "Le bac",
+   "summary_fr": "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "bac_wikipedia",
+     "name": "Wikipédia, « Baccalauréat en France »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+     "published_at": "2026-10-02"
+    }
+   ]
+  },
+  "plan": {
+   "band": "B1",
+   "ui_language": "fr",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Le bac, comment ça se passe pour un lycéen",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "tap",
+    "translation": "none",
+    "reading_target_words": 140,
+    "vocab_target": 7,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "partir",
+     "gloss": "partir (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "le baccalauréat",
+     "gloss": "baccalauréat (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "session",
+     "gloss": "session (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'épreuve",
+     "gloss": "épreuve (en)",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "écrite",
+     "gloss": "écrite (en)",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "philosophie",
+     "gloss": "philosophie (en)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_write",
+    "reader_question",
+    "short_report"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "salle_examen_bac",
+   "place_fr": "Une salle d'examen dans un lycée en juin",
+   "plate_url": "/assets/serial/locations/ngo_office.webp",
+   "plate_place_id": "ecole",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "fil",
+  "comptoir": null,
+  "fil": {
+   "step": "tell",
+   "steps": [
+    "read",
+    "order",
+    "words",
+    "tell",
+    "page"
+   ],
+   "band": "b1",
+   "title_fr": "Le bac",
+   "read": {
+    "dateline_fr": "Une salle d'examen dans un lycée en juin",
+    "lead": {
+     "fr": "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "bac_wikipedia",
+      "name": "Wikipédia, « Baccalauréat en France »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941",
+      "published_at": "2026-10-02"
+     }
+    ]
+   },
+   "order": {
+    "strips": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "En 2023, le taux de réussite au bac atteint 95,7 %, contre 75,5 % en 1990.",
+       "tr": "In 2023, the bac pass rate reaches 95.7%, against 75.5% in 1990."
+      },
+      "label": {
+       "fr": "la réussite",
+       "tr": "the pass rate"
+      }
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "Le baccalauréat, l'examen de la fin du lycée, est créé en 1808.",
+       "tr": "The baccalauréat, the exam at the end of secondary school, is created in 1808."
+      },
+      "label": {
+       "fr": "la création",
+       "tr": "the creation"
+      }
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "À partir de 2027, le coefficient du Grand oral passe de 10 à 8 pour le bac général.",
+       "tr": "From 2027, the weighting of the Grand oral goes from 10 to 8 for the general bac."
+      },
+      "label": {
+       "fr": "le changement",
+       "tr": "the change"
+      }
+     },
+     {
+      "key": "d",
+      "text": {
+       "fr": "En 1809, les premiers candidats passent l'examen du baccalauréat.",
+       "tr": "In 1809, the first candidates sit the baccalauréat exam."
+      },
+      "label": {
+       "fr": "le premier examen",
+       "tr": "the first exam"
+      }
+     }
+    ],
+    "tries": 1,
+    "max_tries": 2,
+    "placed": [
+     "b",
+     "d",
+     "a",
+     "c"
+    ],
+    "hint": null,
+    "resolved": true,
+    "correct": true,
+    "solution": [
+     "b",
+     "d",
+     "a",
+     "c"
+    ]
+   },
+   "words": {
+    "input": "choose",
+    "strips": [
+     {
+      "fr": "Le baccalauréat, l'examen de la fin du lycée, est créé en 1808.",
+      "tr": "The baccalauréat, the exam at the end of secondary school, is created in 1808."
+     },
+     {
+      "fr": "En 1809, les premiers candidats passent l'examen du baccalauréat.",
+      "tr": "In 1809, the first candidates sit the baccalauréat exam."
+     },
+     {
+      "fr": "En 2023, le taux de réussite au bac atteint 95,7 %, contre 75,5 % en 1990.",
+      "tr": "In 2023, the bac pass rate reaches 95.7%, against 75.5% in 1990."
+     },
+     {
+      "fr": "À partir de 2027, le coefficient du Grand oral passe de 10 à 8 pour le bac général.",
+      "tr": "From 2027, the weighting of the Grand oral goes from 10 to 8 for the general bac."
+     }
+    ],
+    "connectors": [
+     {
+      "id": "puis",
+      "fr": "puis",
+      "tr": "then",
+      "role": "middle"
+     },
+     {
+      "id": "au-depart",
+      "fr": "au départ",
+      "tr": "at the outset",
+      "role": "first"
+     },
+     {
+      "id": "pour-finir",
+      "fr": "pour finir",
+      "tr": "to finish",
+      "role": "last"
+     },
+     {
+      "id": "en-fin-de-compte",
+      "fr": "en fin de compte",
+      "tr": "in the end",
+      "role": "last"
+     },
+     {
+      "id": "tout-d-abord",
+      "fr": "tout d'abord",
+      "tr": "first of all",
+      "role": "first"
+     },
+     {
+      "id": "par-la-suite",
+      "fr": "par la suite",
+      "tr": "later on",
+      "role": "middle"
+     },
+     {
+      "id": "ensuite",
+      "fr": "ensuite",
+      "tr": "next",
+      "role": "middle"
+     }
+    ],
+    "options": [
+     [
+      "puis",
+      "au-depart",
+      "pour-finir"
+     ],
+     [
+      "en-fin-de-compte",
+      "tout-d-abord",
+      "puis"
+     ],
+     [
+      "par-la-suite",
+      "pour-finir",
+      "au-depart"
+     ],
+     [
+      "ensuite",
+      "tout-d-abord",
+      "en-fin-de-compte"
+     ]
+    ],
+    "tries": 1,
+    "max_tries": 2,
+    "picked": [
+     "au-depart",
+     "puis",
+     "par-la-suite",
+     "en-fin-de-compte"
+    ],
+    "misses": [],
+    "resolved": true,
+    "correct": true,
+    "solution": [
+     "au-depart",
+     "puis",
+     "par-la-suite",
+     "en-fin-de-compte"
+    ]
+   },
+   "tell": {
+    "input": "free",
+    "phrase": {
+     "fr": "Tout d'abord…, par la suite…, en fin de compte…",
+     "tr": "First of all…, later on…, in the end…"
+    },
+    "tiles": [],
+    "connectors": [
+     {
+      "id": "tout-d-abord",
+      "fr": "tout d'abord",
+      "tr": "first of all",
+      "role": "first"
+     },
+     {
+      "id": "au-depart",
+      "fr": "au départ",
+      "tr": "at the outset",
+      "role": "first"
+     },
+     {
+      "id": "par-la-suite",
+      "fr": "par la suite",
+      "tr": "later on",
+      "role": "middle"
+     },
+     {
+      "id": "ensuite",
+      "fr": "ensuite",
+      "tr": "next",
+      "role": "middle"
+     },
+     {
+      "id": "puis",
+      "fr": "puis",
+      "tr": "then",
+      "role": "middle"
+     },
+     {
+      "id": "en-fin-de-compte",
+      "fr": "en fin de compte",
+      "tr": "in the end",
+      "role": "last"
+     },
+     {
+      "id": "pour-finir",
+      "fr": "pour finir",
+      "tr": "to finish",
+      "role": "last"
+     },
+     {
+      "id": "finalement",
+      "fr": "finalement",
+      "tr": "in the end",
+      "role": "last"
+     }
+    ],
+    "frames": [],
+    "min_words": 12,
+    "min_connectors": 2,
+    "learner_fr": null,
+    "draft_fr": null,
+    "proof": null,
+    "marks": [],
+    "tries": 0,
+    "max_tries": 2,
+    "printed_fr": null
+   }
+  }
+ }
+}

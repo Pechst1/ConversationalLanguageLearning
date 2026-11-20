@@ -10,7 +10,9 @@ period already built is kept; ``refresh=True`` (the admin route) rebuilds it. Of
 Each run gives the kiosk's dossiers without leads (built before them, or an evergreen top-up)
 a try at the lead desk (``leads.ensure_leads``, once per dossier, one small call each), and,
 while ``REVUE_COMPTOIR_ENABLED`` is on, at the takes desk of «Au comptoir»
-(``comptoir.ensure_comptoir``, once per dossier, WP-119), then queues :func:`paint_pictures`:
+(``comptoir.ensure_comptoir``, once per dossier, WP-119), while ``REVUE_ASSIGNMENTS_ENABLED`` is
+on at the wire desk of «Le fil» (``fil.ensure_fil``, after the takes, so a story the comptoir
+skipped is skipped too), then queues :func:`paint_pictures`:
 one picture per story the kiosk is missing (and a plate for each new place), painted once and
 final (``plates.paint_period``), within the service's daily cap. A morning that finds
 everything painted spends nothing; one whose painting failed is caught up the next morning.
@@ -109,6 +111,26 @@ def comptoir_now(*, period: str | None = None, now: datetime | None = None) -> d
         db.close()
 
 
+def fil_now(*, period: str | None = None, now: datetime | None = None) -> dict[str, Any]:
+    """Write the «Le fil» wires ``period``'s kiosk is missing (2026-11-20); off with either switch."""
+
+    from app.services.revue.fil import ensure_fil, fil_enabled
+    from app.services.revue.weekly import period_for
+
+    if not fil_enabled():
+        return {"status": "disabled"}
+    target = period or period_for(now or datetime.now(UTC))
+    db = SessionLocal()
+    try:
+        return {"status": "ok", "period": target, "written": ensure_fil(db, target)}
+    except Exception as exc:  # noqa: BLE001 - the stories carry other assignments; tomorrow retries
+        logger.exception("revue fil failed for {}", target)
+        db.rollback()
+        return {"status": "failed", "period": target, "error": type(exc).__name__}
+    finally:
+        db.close()
+
+
 @celery_app.task(name="app.tasks.revue.paint_pictures")
 def paint_pictures(period: str | None = None, limit: int | None = None) -> dict[str, Any]:
     """§8.4: the period's missing pictures, one image call each, final."""
@@ -143,5 +165,7 @@ def weekly_intake(refresh: bool = False) -> dict[str, Any]:
     report["leads"] = leads_now(period=report.get("period"))
     if getattr(settings, "REVUE_COMPTOIR_ENABLED", False):
         report["comptoir"] = comptoir_now(period=report.get("period"))
+    if getattr(settings, "REVUE_ASSIGNMENTS_ENABLED", False):
+        report["fil"] = fil_now(period=report.get("period"))
     report["pictures"] = _queue_painting(report.get("period"))
     return report

@@ -39,6 +39,7 @@ RING_BY_MAKE: dict[str, Ring] = {
     "tell_margaux": "report",
     "caption": "headline",
     "opinion": "report",  # «Au comptoir»: the learner's quote in Romy's vox pop
+    "fil": "report",  # «Le fil»: the learner's telling of the wire
 }
 
 
