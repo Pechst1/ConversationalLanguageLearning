@@ -12925,6 +12925,16 @@ export interface components {
             /** Options */
             options?: components["schemas"]["RvCaptionOption"][];
         };
+        /**
+         * RvCardAssignment
+         * @description The assignment a story is dealt for this learner («La photo»…): the chooser names it.
+         */
+        RvCardAssignment: {
+            /** Key */
+            key: string;
+            /** Name Fr */
+            name_fr: string;
+        };
         /** RvClaim */
         RvClaim: {
             /** Attributed To */
@@ -15093,6 +15103,7 @@ export interface components {
         };
         /** RvStoryCard */
         RvStoryCard: {
+            assignment?: components["schemas"]["RvCardAssignment"] | null;
             /** Cast */
             cast?: string[] | null;
             /** Dossier Id */

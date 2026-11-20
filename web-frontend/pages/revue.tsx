@@ -16,7 +16,8 @@
                      Céline story leads the week and plays as the counter's debate);
                      ?fil=1 turns «Le fil» on («Le bac» leads and plays the wire);
                      ?titre=1 / ?intox=1: «La Fête de la musique» leads and plays
-                     «Le titre» / «L'intox express»;
+                     «Le titre» / «L'intox express»; ?photo=1 / ?micro=1: «La photo» /
+                     «Le micro» (WIRE §12);
                      ?pourquoi=1 gives Romy's marks their rule; ?photos=1 gives every
                      story a `pictures` list of three (placeholders, no network).
 
@@ -85,6 +86,8 @@ export default function RevuePage() {
           fil: router.query.fil === '1',
           titre: router.query.titre === '1',
           intox: router.query.intox === '1',
+          photo: router.query.photo === '1',
+          micro: router.query.micro === '1',
           pourquoi: router.query.pourquoi === '1',
           photos: router.query.photos === '1',
         });
@@ -228,7 +231,7 @@ export default function RevuePage() {
     // «Le fil» (2026-11-20): the assignment the session was dealt.
     // «Le titre», «L'intox express»: one player for both.
     const mode = state.session.mode;
-    const Player = mode === 'comptoir' ? RvComptoir : mode === 'fil' ? RvFil : mode === 'titre' || mode === 'intox' ? RvRubrique : RvEncounter;
+    const Player = mode === 'comptoir' ? RvComptoir : mode === 'fil' ? RvFil : mode === 'titre' || mode === 'intox' || mode === 'photo' || mode === 'micro' ? RvRubrique : RvEncounter;
     body = (
       <Player
         key={state.session.id}

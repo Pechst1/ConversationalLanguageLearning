@@ -115,7 +115,7 @@ export function RvJourneyPapier({ language, onDone, client: given }: RvJourneyPa
     // «Le fil» (2026-11-20): the assignment the session was dealt.
     // «Le titre», «L'intox express»: one player for both.
     const mode = state.session.mode;
-    const Player = mode === 'comptoir' ? RvComptoir : mode === 'fil' ? RvFil : mode === 'titre' || mode === 'intox' ? RvRubrique : RvEncounter;
+    const Player = mode === 'comptoir' ? RvComptoir : mode === 'fil' ? RvFil : mode === 'titre' || mode === 'intox' || mode === 'photo' || mode === 'micro' ? RvRubrique : RvEncounter;
     body = (
       <Player
         key={state.session.id}

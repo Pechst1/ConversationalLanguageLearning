@@ -566,6 +566,8 @@ export function madeLabel(kind: RvMade['kind'], copy: RevueCopy, mine = true): s
   if (kind === 'fil') return copy.made_fil;
   if (kind === 'titre') return copy.made_titre;
   if (kind === 'intox') return copy.made_intox;
+  if (kind === 'photo') return copy.made_photo;
+  if (kind === 'micro') return copy.made_micro;
   return mine ? copy.made_headline : copy.headline_label;
 }
 

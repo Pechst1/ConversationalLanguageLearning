@@ -34,6 +34,8 @@ export type RevueCopy = {
   filed_kicker: string;
   filed_kicker_short: string;
   romy_proposes: string;
+  /** The chooser names the assignment dealt (2026-11-21): «Ta mission · La photo». */
+  assignment_label: string;
   or_else: string;
   chip_label: string;
   chip_aria: string;
@@ -160,6 +162,8 @@ export type RevueCopy = {
   /** «Le titre»: the learner's own honest headline; «L'intox express»: the statements set right. */
   made_titre: string;
   made_intox: string;
+  made_photo: string;
+  made_micro: string;
   /** «Au comptoir» on La Une: the faces' label («Romy, Lila et Gus en parlent déjà»), and the list's last «and». */
   comptoir_faces: string;
   comptoir_and: string;
@@ -247,6 +251,7 @@ const FR: RevueCopy = {
   filed_kicker: 'Papier bouclé · {week}',
   filed_kicker_short: 'Papier bouclé',
   romy_proposes: 'Ce que Romy te propose',
+  assignment_label: 'Ta mission',
   or_else: 'Ou bien',
   chip_label: 'Le Papier',
   chip_aria: 'Le Papier de Romy, semaine {n}',
@@ -362,6 +367,8 @@ const FR: RevueCopy = {
   made_fil: 'Ton récit',
   made_titre: 'Ton titre',
   made_intox: 'Ton intox démontée',
+  made_photo: 'Ta légende',
+  made_micro: 'Ton interview',
   comptoir_faces: '{names} en parlent déjà',
   comptoir_and: 'et',
   vignette_label: 'Ta vignette · {week}',
@@ -438,6 +445,7 @@ const EN: RevueCopy = {
   filed_kicker: 'Papier filed · {week}',
   filed_kicker_short: 'Papier filed',
   romy_proposes: 'Romy suggests',
+  assignment_label: 'Your assignment',
   or_else: 'Or',
   chip_label: 'Le Papier',
   chip_aria: "Le Papier de Romy, week {n}",
@@ -544,6 +552,8 @@ const EN: RevueCopy = {
   made_fil: 'Your story',
   made_titre: 'Your headline',
   made_intox: 'Your fact check',
+  made_photo: 'Your caption',
+  made_micro: 'Your interview',
   comptoir_faces: '{names} are already arguing',
   comptoir_and: 'and',
   vignette_label: 'Your vignette · {week}',
@@ -620,6 +630,7 @@ const DE: RevueCopy = {
   filed_kicker: 'Papier abgelegt · {week}',
   filed_kicker_short: 'Papier abgelegt',
   romy_proposes: 'Romys Vorschlag',
+  assignment_label: 'Dein Auftrag',
   or_else: 'Oder',
   chip_label: 'Le Papier',
   chip_aria: 'Le Papier de Romy, Woche {n}',
@@ -726,6 +737,8 @@ const DE: RevueCopy = {
   made_fil: 'Deine Erzählung',
   made_titre: 'Deine Schlagzeile',
   made_intox: 'Dein Faktencheck',
+  made_photo: 'Deine Bildunterschrift',
+  made_micro: 'Dein Interview',
   comptoir_faces: '{names} streiten schon',
   comptoir_and: 'und',
   vignette_label: 'Deine Vignette · {week}',

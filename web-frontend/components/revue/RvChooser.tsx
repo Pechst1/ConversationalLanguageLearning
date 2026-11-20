@@ -47,6 +47,11 @@ export function RvChooser({ recommended, alternatives, week, onPick, onAsk, pend
             {comptoir && recommended.questionFr ? recommended.questionFr : recommended.titleFr}
           </h2>
           {comptoir && recommended.cast && <RvComptoirFaces cast={recommended.cast} copy={copy} />}
+          {recommended.assignment && (
+            <p className="rv-une__meta rv-une__assignment" data-assignment={recommended.assignment.key}>
+              {copy.assignment_label} · <strong lang="fr">{recommended.assignment.nameFr}</strong>
+            </p>
+          )}
           <p className="rv-une__meta">
             <span lang="fr">{recommended.placeFr}</span>
             <span className="rv-dot" aria-hidden="true" />

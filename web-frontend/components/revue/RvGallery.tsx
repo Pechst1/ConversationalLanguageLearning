@@ -29,7 +29,9 @@ export type RvGalleryProps = {
   copy: RevueCopy;
 };
 
-function GalleryPicture({ picture, copy }: { picture: RvPicture; copy: RevueCopy }) {
+/** One picture printed as the gallery prints it (its frame, its credit, its links); «La photo»
+ * (2026-11-21) prints its pictures with it too. */
+export function RvGalleryPicture({ picture, copy }: { picture: RvPicture; copy: RevueCopy }) {
   const [failed, setFailed] = useState(false);
   const src = resolveMediaUrl(picture.url) ?? picture.url;
   const caption = (picture.captionFr ?? '').trim();
@@ -84,7 +86,7 @@ export function RvGallery({ pictures, mainUrl, size = 'strip', copy }: RvGallery
       <ul className="rv-gallery__strip">
         {strip.map((picture) => (
           <li key={picture.url} className="rv-gallery__item">
-            <GalleryPicture picture={picture} copy={copy} />
+            <RvGalleryPicture picture={picture} copy={copy} />
           </li>
         ))}
       </ul>

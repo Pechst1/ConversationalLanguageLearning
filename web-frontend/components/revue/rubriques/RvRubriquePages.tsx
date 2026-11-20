@@ -11,12 +11,16 @@
 import React from 'react';
 
 import { Action } from '@/components/atelier-v2/ui';
-import type { RvIntoxPage, RvTitrePage } from '@/lib/revue-rubriques-types';
+import type { RvIntoxPage, RvMicroPage, RvPhotoPage, RvTitrePage } from '@/lib/revue-rubriques-types';
 
 import { inPaperLabel, type ComptoirCopy } from '../comptoir/comptoir-copy';
 import { RomyLine } from '../comptoir/RvComptoirParts';
 import { fill } from '../revue-copy';
 import { RvCloseVignette, RvDispatch } from '../RvClose';
+import { RvGalleryPicture } from '../RvGallery';
+import type { RevueCopy } from '../revue-copy';
+import { MICRO_FR, PHOTO_FR } from './photo-micro-copy';
+import { asRvPicture } from './photo-micro-model';
 import { INTOX_FR, TITRE_FR } from './rubriques-copy';
 import type { RubriqueStepProps } from './RvRubriqueParts';
 
@@ -99,6 +103,64 @@ export function IntoxClipping({ page, ccopy, byline }: { page: RvIntoxPage; ccop
   );
 }
 
+/** «La photo»: the picture printed large, the learner's caption under it, its credit, signed with the sources. */
+export function PhotoClipping({ page, ccopy, copy, tiles = false, byline }: { page: RvPhotoPage; ccopy: ComptoirCopy; copy: RevueCopy; tiles?: boolean; byline?: string | null }) {
+  return (
+    <article className="ct-clip rb-clip" data-ct-anchor="start">
+      <p className="ct-clip__k" lang="fr">
+        {PHOTO_FR.page_kicker}
+        {page.datelineFr ? ` · ${page.datelineFr}` : ''}
+      </p>
+      <h2 className="ct-clip__hl" lang="fr">
+        {page.titleFr}
+      </h2>
+      <div className="rb-clip__pic">
+        <RvGalleryPicture picture={asRvPicture(page.picture)} copy={copy} />
+      </div>
+      <p className="ct-clip__ld rb-clip__cap" lang="fr">
+        {page.captionFr}
+      </p>
+      <p className="ct-quote__by" lang="fr">
+        {bylineOf(byline, PHOTO_FR.byline)} · {inPaperLabel(page.proof ?? 'as_written', tiles)}
+      </p>
+      <Words words={page.words} ccopy={ccopy} />
+    </article>
+  );
+}
+
+/** «Le micro»: the interview as Q&A under the learner's name, each answer's source printed. */
+export function MicroClipping({ page, ccopy, byline }: { page: RvMicroPage; ccopy: ComptoirCopy; byline?: string | null }) {
+  return (
+    <article className="ct-clip rb-clip" data-ct-anchor="start">
+      <p className="ct-clip__k" lang="fr">
+        {MICRO_FR.page_kicker} · {page.witness.nameFr}
+        {page.witness.roleFr ? `, ${page.witness.roleFr}` : ''}
+        {page.datelineFr ? ` · ${page.datelineFr}` : ''}
+      </p>
+      <h2 className="ct-clip__hl" lang="fr">
+        {page.titleFr}
+      </h2>
+      <dl className="rb-qa" lang="fr">
+        {page.lines.map((line, index) => (
+          <div key={index} className="rb-qa__row">
+            <dt className="rb-qa__q">
+              <span className="rb-qa__k">{MICRO_FR.q}</span> {line.questionFr}
+            </dt>
+            <dd className="rb-qa__a">
+              <span className="rb-qa__k">{MICRO_FR.a}</span> {line.answerFr}
+              {line.sourceName && <span className="rb-qa__src"> · d’après {line.sourceName}</span>}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <p className="ct-quote__by" lang="fr">
+        {bylineOf(byline, page.bylineFr)}
+      </p>
+      <Words words={page.words} ccopy={ccopy} />
+    </article>
+  );
+}
+
 export function RvRubriquePage({
   props,
   ended,
@@ -117,6 +179,8 @@ export function RvRubriquePage({
   let clipping: React.ReactNode = null;
   if (closing?.titrePage) clipping = <TitreClipping page={closing.titrePage} ccopy={ccopy} tiles={tiles} byline={closing.dispatch?.bylineFr} />;
   else if (closing?.intoxPage) clipping = <IntoxClipping page={closing.intoxPage} ccopy={ccopy} byline={closing.dispatch?.bylineFr} />;
+  else if (closing?.photoPage) clipping = <PhotoClipping page={closing.photoPage} ccopy={ccopy} copy={copy} tiles={tiles} byline={closing.dispatch?.bylineFr} />;
+  else if (closing?.microPage) clipping = <MicroClipping page={closing.microPage} ccopy={ccopy} byline={closing.dispatch?.bylineFr} />;
   else if (closing) clipping = <RvDispatch {...closing.dispatch} readOnly copy={copy} />;
   return (
     <>

@@ -28,6 +28,14 @@ export function RvAltRows({ stories, onPick, copy }: { stories: RvStoryCard[]; o
               {story.titleFr}
               <span className="rv-alt__m">
                 <span lang="fr">{story.placeFr}</span> · {story.evergreen ? copy.evergreen_topic : copy.topic[story.topic]}
+                {story.assignment && (
+                  <>
+                    {' · '}
+                    <span lang="fr" data-assignment={story.assignment.key}>
+                      {story.assignment.nameFr}
+                    </span>
+                  </>
+                )}
               </span>
             </span>
             <ArrowRightIcon size={18} />

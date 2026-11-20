@@ -132,6 +132,13 @@ class RvStage(RevueModel):
     pictures: list[RvPicture] = Field(default_factory=list)
 
 
+class RvCardAssignment(RevueModel):
+    """The assignment a story is dealt for this learner («La photo»…): the chooser names it."""
+
+    key: str
+    name_fr: str
+
+
 class RvStoryCard(RevueModel):
     dossier_id: str
     title_fr: str
@@ -147,6 +154,16 @@ class RvStoryCard(RevueModel):
     #: (cast ids, in seat order) when the switch is on and the story has takes; else ``None``.
     question_fr: str | None = None
     cast: list[str] | None = None
+    #: «Le Papier · les rubriques» (2026-11-21): the assignment the learner would be dealt
+    #: (``REVUE_ASSIGNMENTS_ENABLED`` on); omitted otherwise, so the card is today's.
+    assignment: RvCardAssignment | None = None
+
+    @model_serializer(mode="wrap")
+    def _omit_absent_assignment(self, handler: Any):  # noqa: ANN202 - no return type: the schema stays the fields
+        data = handler(self)
+        if isinstance(data, dict) and data.get("assignment") is None:
+            data.pop("assignment", None)
+        return data
 
 
 class RvSupport(RevueModel):

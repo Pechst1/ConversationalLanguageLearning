@@ -2471,12 +2471,18 @@ class RevueEncounter:
 
         from app.services.revue import assignments
 
+        from app.schemas.revue import RvCardAssignment
+
         card = story_card(dossier, self.db)
-        if not assignments.assignments_enabled() or card.question_fr is None:
+        if not assignments.assignments_enabled():
             return card
-        if self._dealt(user, self._material(dossier, dossier.comptoir)) == "comptoir":
-            return card
-        return card.model_copy(update={"question_fr": None, "cast": None})
+        dealt = self._dealt(user, self._material(dossier, dossier.comptoir))
+        row = assignments.assignment(dealt) if dealt else None
+        # the chooser names the assignment dealt (2026-11-21), the counter's included
+        named = {"assignment": RvCardAssignment(key=row.key, name_fr=row.name_fr)} if row is not None else {}
+        if dealt == "comptoir" or card.question_fr is None:
+            return card.model_copy(update=named)
+        return card.model_copy(update={"question_fr": None, "cast": None, **named})
 
     def _plan(self, user: Any, dossier: EditorialDossier, *, angle_id: str | None, chosen_by: str) -> SessionPlan:
         from app.services.chrome_language import level_band, user_chrome_language

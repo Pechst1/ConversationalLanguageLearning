@@ -156,7 +156,8 @@ export type RvRubriqueBody =
   | { act: 'build_fix'; value: 'romy' }
   | { act: 'answer'; key: string; value: 'vrai' | 'faux' }
   | { act: 'fix'; key: string; value: string }
-  | ({ act: 'fix'; key: string; text: string } & Mode);
+  | ({ act: 'fix'; key: string; text: string } & Mode)
+  | RvPhotoMicroBody;
 
 function isObject(value: unknown): value is Json {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -376,9 +377,423 @@ export function parseRubriqueError(raw: unknown): RvRubriqueError | null {
 
 export function rubriqueBodyWire(body: RvRubriqueBody): Json {
   const wire: Json = { act: body.act };
-  for (const field of ['key', 'value', 'words', 'parts', 'text', 'mode'] as const) {
+  for (const field of ['key', 'value', 'words', 'parts', 'text', 'keys', 'mode'] as const) {
     const value = (body as Json)[field];
     if (value !== undefined && value !== null) wire[field] = value;
   }
   return wire;
+}
+
+// ---------------------------------------------------------------------------
+// «La photo» and «Le micro» (2026-11-21, WIRE §12): their views, pages and acts.
+// ---------------------------------------------------------------------------
+
+export type RvPhotoStep = 'read' | 'planche' | 'legende' | 'build' | 'page';
+export const RV_PHOTO_STEPS = ['read', 'planche', 'legende', 'build', 'page'] as const;
+export type RvMicroStep = 'read' | 'prepare' | 'interview' | 'notes' | 'review' | 'page';
+export const RV_MICRO_STEPS = ['read', 'prepare', 'interview', 'notes', 'review', 'page'] as const;
+
+/** One picture of the story: its link, its credit (always printed) and licence. */
+export type RvPhotoPicture = {
+  key: string;
+  kind: 'illustration' | 'photo';
+  url: string;
+  creditFr: string;
+  licence: string | null;
+  licenceUrl: string | null;
+  sourceUrl: string | null;
+  width: number | null;
+  height: number | null;
+};
+export type RvPhotoSeen = {
+  words: Array<{ index: number; text: RvComptoirText }>;
+  tries: number;
+  maxTries: number;
+  picked: number[];
+  /** After a miss: tapped things another picture shows (never which are right). */
+  elsewhere: number[];
+  missing: number;
+  resolved: boolean;
+  correct: boolean | null;
+  solution: number[];
+};
+export type RvPhotoPlanche = {
+  headlineFr: string;
+  pictures: RvPhotoPicture[];
+  tries: number;
+  maxTries: number;
+  picked: string[];
+  /** After a miss: what the picked picture shows. */
+  shows: RvComptoirText[];
+  resolved: boolean;
+  correct: boolean | null;
+  solution: string | null;
+  seen: RvPhotoSeen | null;
+};
+export type RvPhotoCaptionRole = 'right' | 'wrong' | 'other';
+export type RvPhotoCaption = { key: string; text: RvComptoirText; role: RvPhotoCaptionRole | null; why: RvComptoirText | null };
+export type RvPhotoFix = {
+  input: 'pick' | 'write';
+  text: RvComptoirText;
+  wrongFr: string;
+  options: string[];
+  tries: number;
+  maxTries: number;
+  attempts: string[];
+  resolved: boolean;
+  correct: boolean | null;
+  rightFr: string | null;
+  fixed: RvComptoirText | null;
+};
+export type RvPhotoLegende = {
+  picture: RvPhotoPicture;
+  captions: RvPhotoCaption[];
+  tries: number;
+  maxTries: number;
+  picked: string[];
+  resolved: boolean;
+  correct: boolean | null;
+  solution: string | null;
+  fix: RvPhotoFix | null;
+};
+export type RvPhotoBuild = {
+  input: 'tiles' | 'frame' | 'free';
+  phrase: RvComptoirText;
+  choices: Array<{ picture: RvPhotoPicture; seen: RvComptoirText[] }>;
+  facts: RvComptoirText[];
+  frame: RvComptoirText | null;
+  maxWords: number;
+  picture: string | null;
+  learnerFr: string | null;
+  draftFr: string | null;
+  proof: RvComptoirProof | null;
+  marks: RvComptoirMark[];
+  tries: number;
+  maxTries: number;
+  printedFr: string | null;
+  notes?: RvComptoirNote[];
+};
+export type RvPhotoView = {
+  step: RvPhotoStep;
+  steps: RvPhotoStep[];
+  band: 'a1' | 'a2' | 'b1';
+  titleFr: string;
+  read: RvRubriqueRead;
+  planche: RvPhotoPlanche | null;
+  legende: RvPhotoLegende | null;
+  build: RvPhotoBuild | null;
+};
+export type RvPhotoPage = {
+  titleFr: string;
+  datelineFr: string;
+  picture: RvPhotoPicture;
+  captionFr: string;
+  proof: RvComptoirProof | null;
+  phraseFr: string;
+  words: string[];
+};
+
+export type RvMicroHole = { key: string; hole: RvComptoirText; filled: boolean };
+export type RvMicroTurn = {
+  questionFr: string;
+  answer: RvComptoirText;
+  kind: 'answer' | 'again' | 'shrug';
+  spent: boolean;
+  holeKey: string | null;
+};
+export type RvMicroInterview = {
+  witness: { id: string; nameFr: string; roleFr: string };
+  input: 'tiles' | 'frame' | 'free';
+  phrase: RvComptoirText;
+  holes: RvMicroHole[];
+  tiles: Array<{ key: string; text: RvComptoirText }>;
+  frames: RvComptoirText[];
+  turns: RvMicroTurn[];
+  spent: number;
+  total: number;
+  /** This turn's first shrug (or repeat) is free. */
+  free: boolean;
+  done: boolean;
+};
+export type RvMicroNote = {
+  key: string;
+  hole: RvComptoirText;
+  answer: RvComptoirText;
+  options: string[];
+  tries: number;
+  maxTries: number;
+  attempts: string[];
+  resolved: boolean;
+  correct: boolean | null;
+  valueFr: string | null;
+};
+export type RvMicroReview = {
+  input: 'tiles' | 'write';
+  questions: string[];
+  hints: Array<{ index: number; code: 'inversion' | 'question_word' }>;
+  draftFr: string | null;
+  proof: RvComptoirProof | null;
+  marks: RvComptoirMark[];
+  tries: number;
+  maxTries: number;
+  printedFr: string | null;
+  notes?: RvComptoirNote[];
+};
+export type RvMicroView = {
+  step: RvMicroStep;
+  steps: RvMicroStep[];
+  band: 'a1' | 'a2' | 'b1';
+  titleFr: string;
+  read: RvRubriqueRead;
+  prepare: { holes: RvMicroHole[]; chosen: string[]; need: number } | null;
+  interview: RvMicroInterview | null;
+  notes: { input: 'pick' | 'write'; items: RvMicroNote[] } | null;
+  review: RvMicroReview | null;
+};
+export type RvMicroPage = {
+  titleFr: string;
+  datelineFr: string;
+  witness: { id: string; nameFr: string; roleFr: string };
+  bylineFr: string;
+  lines: Array<{ questionFr: string; answerFr: string; sourceName: string }>;
+  notes: Array<{ holeFr: string; valueFr: string; right: boolean }>;
+  proof: RvComptoirProof | null;
+  phraseFr: string;
+  words: string[];
+};
+
+/** The acts of «La photo» and «Le micro», on the same route. */
+export type RvPhotoMicroBody =
+  | { act: 'choose'; key: string }
+  | { act: 'seen'; words: number[] }
+  | { act: 'caption'; key: string }
+  | { act: 'caption_fix'; value: string }
+  | ({ act: 'caption_fix'; text: string } & Mode)
+  | { act: 'build'; key: string; parts: number[] }
+  | ({ act: 'build'; key: string; text: string } & Mode)
+  | { act: 'prepare'; keys: string[] }
+  | { act: 'ask'; key: string }
+  | ({ act: 'ask'; text: string } & Mode)
+  | { act: 'note'; key: string; value: string }
+  | { act: 'note'; key: string; text: string }
+  | { act: 'review' }
+  | ({ act: 'review_fix'; text: string } & Mode)
+  | { act: 'review_fix'; value: 'romy' };
+
+function picture(value: unknown): RvPhotoPicture {
+  const row = isObject(value) ? value : {};
+  return {
+    key: str(row.key),
+    kind: row.kind === 'photo' ? 'photo' : 'illustration',
+    url: str(row.url),
+    creditFr: str(row.credit_fr),
+    licence: strOrNull(row.licence),
+    licenceUrl: strOrNull(row.licence_url),
+    sourceUrl: strOrNull(row.source_url),
+    width: typeof row.width === 'number' ? row.width : null,
+    height: typeof row.height === 'number' ? row.height : null,
+  };
+}
+function texts(value: unknown): RvComptoirText[] {
+  return Array.isArray(value) ? value.filter(isObject).map(text) : [];
+}
+function notesOf(value: unknown): { notes?: RvComptoirNote[] } {
+  return Array.isArray(value) && value.length ? { notes: parseComptoirNotes(value) } : {};
+}
+const CAPTION_ROLES = ['right', 'wrong', 'other'] as const;
+
+export function parsePhotoView(raw: Json, parseSource: (row: Json) => RvSource): RvPhotoView {
+  const planche = isObject(raw.planche) ? raw.planche : null;
+  const seen = planche && isObject(planche.seen) ? planche.seen : null;
+  const legende = isObject(raw.legende) ? raw.legende : null;
+  const fix = legende && isObject(legende.fix) ? legende.fix : null;
+  const build = isObject(raw.build) ? raw.build : null;
+  return {
+    step: oneOf(raw.step, RV_PHOTO_STEPS, 'read'),
+    steps: steps(raw.steps, RV_PHOTO_STEPS),
+    band: oneOf(raw.band, BANDS, 'a2'),
+    titleFr: str(raw.title_fr),
+    read: read(raw.read, parseSource),
+    planche: planche
+      ? {
+          headlineFr: str(planche.headline_fr),
+          pictures: list(planche.pictures, picture),
+          tries: num(planche.tries),
+          maxTries: num(planche.max_tries) || 2,
+          picked: strings(planche.picked),
+          shows: texts(planche.shows),
+          resolved: Boolean(planche.resolved),
+          correct: bool(planche.correct),
+          solution: strOrNull(planche.solution),
+          seen: seen
+            ? {
+                words: list(seen.words, (row) => ({ index: num(row.index), text: text(row.text) })),
+                tries: num(seen.tries),
+                maxTries: num(seen.max_tries) || 2,
+                picked: numbers(seen.picked),
+                elsewhere: numbers(seen.elsewhere),
+                missing: num(seen.missing),
+                resolved: Boolean(seen.resolved),
+                correct: bool(seen.correct),
+                solution: numbers(seen.solution),
+              }
+            : null,
+        }
+      : null,
+    legende: legende
+      ? {
+          picture: picture(legende.picture),
+          captions: list(legende.captions, (row) => ({
+            key: str(row.key),
+            text: text(row.text),
+            role: row.role == null ? null : oneOf(row.role, CAPTION_ROLES, 'right'),
+            why: textOrNull(row.why),
+          })),
+          tries: num(legende.tries),
+          maxTries: num(legende.max_tries) || 2,
+          picked: strings(legende.picked),
+          resolved: Boolean(legende.resolved),
+          correct: bool(legende.correct),
+          solution: strOrNull(legende.solution),
+          fix: fix
+            ? {
+                input: fix.input === 'pick' ? 'pick' : 'write',
+                text: text(fix.text),
+                wrongFr: str(fix.wrong_fr),
+                options: strings(fix.options),
+                tries: num(fix.tries),
+                maxTries: num(fix.max_tries) || 2,
+                attempts: strings(fix.attempts),
+                resolved: Boolean(fix.resolved),
+                correct: bool(fix.correct),
+                rightFr: strOrNull(fix.right_fr),
+                fixed: textOrNull(fix.fixed),
+              }
+            : null,
+        }
+      : null,
+    build: build
+      ? {
+          input: oneOf(build.input, ['tiles', 'frame', 'free'] as const, 'free'),
+          phrase: text(build.phrase),
+          choices: list(build.choices, (row) => ({ picture: picture(row.picture), seen: texts(row.seen) })),
+          facts: texts(build.facts),
+          frame: textOrNull(build.frame),
+          maxWords: num(build.max_words) || 20,
+          picture: strOrNull(build.picture),
+          learnerFr: strOrNull(build.learner_fr),
+          draftFr: strOrNull(build.draft_fr),
+          proof: proof(build.proof),
+          marks: marks(build.marks),
+          tries: num(build.tries),
+          maxTries: num(build.max_tries) || 2,
+          printedFr: strOrNull(build.printed_fr),
+          ...notesOf(build.notes),
+        }
+      : null,
+  };
+}
+
+function hole(row: Json): RvMicroHole {
+  return { key: str(row.key), hole: text(row.hole), filled: Boolean(row.filled) };
+}
+function cast(value: unknown) {
+  const row = isObject(value) ? value : {};
+  return { id: str(row.id), nameFr: str(row.name_fr), roleFr: str(row.role_fr) };
+}
+
+export function parseMicroView(raw: Json, parseSource: (row: Json) => RvSource): RvMicroView {
+  const prepare = isObject(raw.prepare) ? raw.prepare : null;
+  const interview = isObject(raw.interview) ? raw.interview : null;
+  const notes = isObject(raw.notes) ? raw.notes : null;
+  const review = isObject(raw.review) ? raw.review : null;
+  return {
+    step: oneOf(raw.step, RV_MICRO_STEPS, 'read'),
+    steps: steps(raw.steps, RV_MICRO_STEPS),
+    band: oneOf(raw.band, BANDS, 'a2'),
+    titleFr: str(raw.title_fr),
+    read: read(raw.read, parseSource),
+    prepare: prepare ? { holes: list(prepare.holes, hole), chosen: strings(prepare.chosen), need: num(prepare.need) || 3 } : null,
+    interview: interview
+      ? {
+          witness: cast(interview.witness),
+          input: oneOf(interview.input, ['tiles', 'frame', 'free'] as const, 'free'),
+          phrase: text(interview.phrase),
+          holes: list(interview.holes, hole),
+          tiles: list(interview.tiles, (row) => ({ key: str(row.key), text: text(row.text) })),
+          frames: texts(interview.frames),
+          turns: list(interview.turns, (row) => ({
+            questionFr: str(row.question_fr),
+            answer: text(row.answer),
+            kind: oneOf(row.kind, ['answer', 'again', 'shrug'] as const, 'shrug'),
+            spent: Boolean(row.spent),
+            holeKey: strOrNull(row.hole_key),
+          })),
+          spent: num(interview.spent),
+          total: num(interview.total) || 3,
+          free: interview.free !== false,
+          done: Boolean(interview.done),
+        }
+      : null,
+    notes: notes
+      ? {
+          input: notes.input === 'pick' ? 'pick' : 'write',
+          items: list(notes.items, (row) => ({
+            key: str(row.key),
+            hole: text(row.hole),
+            answer: text(row.answer),
+            options: strings(row.options),
+            tries: num(row.tries),
+            maxTries: num(row.max_tries) || 2,
+            attempts: strings(row.attempts),
+            resolved: Boolean(row.resolved),
+            correct: bool(row.correct),
+            valueFr: strOrNull(row.value_fr),
+          })),
+        }
+      : null,
+    review: review
+      ? {
+          input: review.input === 'tiles' ? 'tiles' : 'write',
+          questions: strings(review.questions),
+          hints: list(review.hints, (row) => ({
+            index: num(row.index),
+            code: row.code === 'question_word' ? ('question_word' as const) : ('inversion' as const),
+          })),
+          draftFr: strOrNull(review.draft_fr),
+          proof: proof(review.proof),
+          marks: marks(review.marks),
+          tries: num(review.tries),
+          maxTries: num(review.max_tries) || 2,
+          printedFr: strOrNull(review.printed_fr),
+          ...notesOf(review.notes),
+        }
+      : null,
+  };
+}
+
+export function parsePhotoPage(raw: Json): RvPhotoPage {
+  return {
+    titleFr: str(raw.title_fr),
+    datelineFr: str(raw.dateline_fr),
+    picture: picture(raw.picture),
+    captionFr: str(raw.caption_fr),
+    proof: proof(raw.proof),
+    phraseFr: str(raw.phrase_fr),
+    words: strings(raw.words),
+  };
+}
+
+export function parseMicroPage(raw: Json): RvMicroPage {
+  return {
+    titleFr: str(raw.title_fr),
+    datelineFr: str(raw.dateline_fr),
+    witness: cast(raw.witness),
+    bylineFr: str(raw.byline_fr),
+    lines: list(raw.lines, (row) => ({ questionFr: str(row.question_fr), answerFr: str(row.answer_fr), sourceName: str(row.source_name) })),
+    notes: list(raw.notes, (row) => ({ holeFr: str(row.hole_fr), valueFr: str(row.value_fr), right: Boolean(row.right) })),
+    proof: proof(raw.proof),
+    phraseFr: str(raw.phrase_fr),
+    words: strings(raw.words),
+  };
 }

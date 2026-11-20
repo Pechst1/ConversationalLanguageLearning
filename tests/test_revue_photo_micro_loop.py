@@ -536,3 +536,22 @@ def test_the_rubrique_route_plays_la_photo_and_le_micro(api: TestClient, db_sess
         text = json.dumps(body)
         assert '"lead": "photo' not in text and '"role": "wrong"' not in text and "value_fr" not in text
         assert api.post(path, headers=headers, json={"act": "dance"}).status_code == 422
+
+
+def test_the_chooser_names_the_assignment_the_start_deals(db: Session, monkeypatch) -> None:
+    """Fault seen in the browser (evidence README, 2026-11-20): the chooser must name the
+    assignment dealt. The card and the start ask the same dealer over the same material."""
+
+    seed_photos(db)
+    for played in (("titre", "intox"), ("photo", "micro"), ("comptoir", "photo")):
+        user = make_user(db, played=played)
+        offer = Revue(db).week_offer(user, WEEK)
+        card = next(c for c in [offer.recommended, *offer.alternatives] if c and c.dossier_id == FETE)
+        mode = Revue(db).view(Revue(db).start(user, week=WEEK, dossier_id=FETE)).mode
+        assert card.assignment is not None and card.assignment.key == mode, (played, card.assignment, mode)
+        assert card.assignment.name_fr == assignments.assignment(mode).name_fr
+        assert (card.question_fr is not None) == (mode == "comptoir")
+    monkeypatch.setattr(settings, "REVUE_ASSIGNMENTS_ENABLED", False)
+    offer = Revue(db).week_offer(make_user(db), WEEK)
+    card = next(c for c in [offer.recommended, *offer.alternatives] if c and c.dossier_id == FETE)
+    assert card.assignment is None and "assignment" not in card.model_dump(mode="json"), "switch off: today's card"
