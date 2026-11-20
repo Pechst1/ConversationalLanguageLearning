@@ -77,6 +77,13 @@ def switches(monkeypatch) -> None:
     monkeypatch.setattr(settings, "REVUE_ENABLED", True)
     monkeypatch.setattr(settings, "REVUE_COMPTOIR_ENABLED", True)
     monkeypatch.setattr(settings, "REVUE_ASSIGNMENTS_ENABLED", True)
+    # These tests pin the shapes they play; «La photo» and «Le micro» (2026-11-21) have their
+    # own (tests/test_revue_photo_micro_loop.py) and are kept off the deal here.
+    from app.services.revue import micro as _micro
+    from app.services.revue import photo as _photo
+
+    monkeypatch.setattr(_micro, "micro_of", lambda dossier: None)
+    monkeypatch.setattr(_photo, "photo_of", lambda dossier: None)
     comptoir.forget_cache()
 
 

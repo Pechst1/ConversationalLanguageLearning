@@ -159,11 +159,14 @@ def fil_now(*, period: str | None = None, now: datetime | None = None) -> dict[s
 
 
 def rubriques_now(*, period: str | None = None, now: datetime | None = None) -> dict[str, Any]:
-    """Write «Le titre» and «L'intox express» for ``period``'s kiosk (2026-11-20), each desk on
-    its own (one failing leaves the other); off with either switch."""
+    """Write «Le titre», «L'intox express», «La photo» and «Le micro» for ``period``'s kiosk
+    (2026-11-20/21), each desk on its own (one failing leaves the others); off with either switch.
+    The photo desk reads the story's gallery: it runs after the morning's photos (:func:`photos_now`)."""
 
     from app.services.revue.assignments import assignments_enabled
     from app.services.revue.intox import ensure_intox
+    from app.services.revue.micro import ensure_micro
+    from app.services.revue.photo import ensure_photo
     from app.services.revue.titre import ensure_titre
     from app.services.revue.weekly import period_for
 
@@ -171,7 +174,8 @@ def rubriques_now(*, period: str | None = None, now: datetime | None = None) -> 
         return {"status": "disabled"}
     target = period or period_for(now or datetime.now(UTC))
     report: dict[str, Any] = {"status": "ok", "period": target}
-    for key, ensure in (("titre", ensure_titre), ("intox", ensure_intox)):
+    for key, ensure in (("titre", ensure_titre), ("intox", ensure_intox), ("photo", ensure_photo),
+                        ("micro", ensure_micro)):
         db = SessionLocal()
         try:
             report[key] = ensure(db, target)

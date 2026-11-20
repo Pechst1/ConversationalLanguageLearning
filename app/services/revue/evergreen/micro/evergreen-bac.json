@@ -1,0 +1,294 @@
+{
+ "witness": "lila_bonnet",
+ "facts": [
+  {
+   "claim_id": "c1",
+   "ask": "quand",
+   "keywords": [
+    "créé"
+   ],
+   "hole": {
+    "fr": "Quand, la création du bac ?",
+    "en": "When was the bac created?",
+    "de": "Wann wurde das Abitur geschaffen?"
+   },
+   "tile": {
+    "fr": "Quand est-ce que le bac a été créé ?",
+    "en": "When was the bac created?",
+    "de": "Wann wurde das Abitur geschaffen?"
+   },
+   "frame": {
+    "fr": "Quand est-ce que",
+    "en": "When",
+    "de": "Wann"
+   },
+   "answer": {
+    "a1": {
+     "fr": "Le bac a été créé en 1808, mon chou !",
+     "en": "The bac was created in 1808, sweetie!",
+     "de": "Das Abitur wurde 1808 geschaffen, Schätzchen!"
+    },
+    "a2": {
+     "fr": "Mais arrête, c'est évident : le baccalauréat a été créé en 1808.",
+     "en": "Come on, it's obvious: the baccalauréat was created in 1808.",
+     "de": "Ach komm, das ist doch klar: Das Abitur wurde 1808 geschaffen."
+    },
+    "b1": {
+     "fr": "Mais arrête, c'est évident : le baccalauréat a été créé en 1808, et les premières épreuves ont eu lieu en 1809.",
+     "en": "Come on, it's obvious: the baccalauréat was created in 1808, and the first exams took place in 1809.",
+     "de": "Ach komm, das ist doch klar: Das Abitur wurde 1808 geschaffen, und die ersten Prüfungen fanden 1809 statt."
+    }
+   },
+   "value_fr": "en 1808"
+  },
+  {
+   "claim_id": "c2",
+   "ask": "combien",
+   "keywords": [
+    "philosophie",
+    "note finale"
+   ],
+   "hole": {
+    "fr": "Combien pour la philosophie ?",
+    "en": "How much is philosophy worth?",
+    "de": "Wie viel zählt Philosophie?"
+   },
+   "tile": {
+    "fr": "Combien compte l'épreuve de philosophie ?",
+    "en": "How much does the philosophy exam count?",
+    "de": "Wie viel zählt die Philosophieprüfung?"
+   },
+   "frame": {
+    "fr": "Combien compte",
+    "en": "How much does … count",
+    "de": "Wie viel zählt"
+   },
+   "answer": {
+    "a1": {
+     "fr": "La philosophie compte pour 8 % de la note finale.",
+     "en": "Philosophy counts for 8% of the final mark.",
+     "de": "Philosophie zählt 8 % der Endnote."
+    },
+    "a2": {
+     "fr": "L'épreuve de philosophie compte pour 8 % de la note finale, mon chou.",
+     "en": "The philosophy exam counts for 8% of the final mark, sweetie.",
+     "de": "Die Philosophieprüfung zählt 8 % der Endnote, Schätzchen."
+    },
+    "b1": {
+     "fr": "L'épreuve écrite de philosophie, à la fin de la terminale, compte pour 8 % de la note finale. Pas plus !",
+     "en": "The written philosophy exam, at the end of the final year, counts for 8% of the final mark. No more!",
+     "de": "Die schriftliche Philosophieprüfung am Ende der Abschlussklasse zählt 8 % der Endnote. Nicht mehr!"
+    }
+   },
+   "value_fr": "8 %"
+  },
+  {
+   "claim_id": "c3",
+   "ask": "combien",
+   "keywords": [
+    "coefficient",
+    "Grand oral",
+    "2027"
+   ],
+   "hole": {
+    "fr": "Combien pour le Grand oral ?",
+    "en": "How much is the Grand oral worth?",
+    "de": "Wie viel zählt das Grand oral?"
+   },
+   "tile": {
+    "fr": "Combien est-ce que le Grand oral compte en 2027 ?",
+    "en": "How much does the Grand oral count in 2027?",
+    "de": "Wie viel zählt das Grand oral 2027?"
+   },
+   "frame": {
+    "fr": "Combien est-ce que",
+    "en": "How much",
+    "de": "Wie viel"
+   },
+   "answer": {
+    "a1": {
+     "fr": "En 2027, le coefficient passe de 10 à 8.",
+     "en": "In 2027, the weighting goes from 10 to 8.",
+     "de": "2027 sinkt der Koeffizient von 10 auf 8."
+    },
+    "a2": {
+     "fr": "À partir de 2027, le coefficient du Grand oral passe de 10 à 8 pour le bac général.",
+     "en": "From 2027, the weighting of the Grand oral goes from 10 to 8 for the general bac.",
+     "de": "Ab 2027 sinkt der Koeffizient des Grand oral beim allgemeinen Abitur von 10 auf 8."
+    },
+    "b1": {
+     "fr": "Ça change : à partir de 2027, le coefficient du Grand oral passe de 10 à 8 pour le bac général.",
+     "en": "It's changing: from 2027, the weighting of the Grand oral goes from 10 to 8 for the general bac.",
+     "de": "Es ändert sich: Ab 2027 sinkt der Koeffizient des Grand oral beim allgemeinen Abitur von 10 auf 8."
+    }
+   },
+   "value_fr": "de 10 à 8"
+  },
+  {
+   "claim_id": "c4",
+   "ask": "combien",
+   "keywords": [
+    "taux",
+    "réussite",
+    "2023"
+   ],
+   "hole": {
+    "fr": "Combien de réussite en 2023 ?",
+    "en": "How many passed in 2023?",
+    "de": "Wie viele haben 2023 bestanden?"
+   },
+   "tile": {
+    "fr": "Quel est le taux de réussite en 2023 ?",
+    "en": "What is the pass rate in 2023?",
+    "de": "Wie hoch ist die Erfolgsquote 2023?"
+   },
+   "frame": {
+    "fr": "Quel est le taux",
+    "en": "What is the rate",
+    "de": "Wie hoch ist die Quote"
+   },
+   "answer": {
+    "a1": {
+     "fr": "En 2023, le taux de réussite est de 95,7 % !",
+     "en": "In 2023, the pass rate is 95.7%!",
+     "de": "2023 liegt die Erfolgsquote bei 95,7 %!"
+    },
+    "a2": {
+     "fr": "Le taux de réussite est passé de 75,5 % en 1990 à 95,7 % en 2023.",
+     "en": "The pass rate went from 75.5% in 1990 to 95.7% in 2023.",
+     "de": "Die Erfolgsquote ist von 75,5 % im Jahr 1990 auf 95,7 % im Jahr 2023 gestiegen."
+    },
+    "b1": {
+     "fr": "Presque tout le monde réussit : le taux de réussite est passé de 75,5 % en 1990 à 95,7 % en 2023.",
+     "en": "Almost everyone passes: the pass rate went from 75.5% in 1990 to 95.7% in 2023.",
+     "de": "Fast alle bestehen: Die Erfolgsquote ist von 75,5 % im Jahr 1990 auf 95,7 % im Jahr 2023 gestiegen."
+    }
+   },
+   "value_fr": "95,7 %"
+  },
+  {
+   "claim_id": "c4",
+   "ask": "pourquoi",
+   "keywords": [
+    "taux",
+    "corriger",
+    "épreuves"
+   ],
+   "hole": {
+    "fr": "Pourquoi tant de réussite ?",
+    "en": "Why so many passes?",
+    "de": "Warum so viele Erfolge?"
+   },
+   "tile": {
+    "fr": "Pourquoi est-ce que le taux de réussite monte ?",
+    "en": "Why is the pass rate going up?",
+    "de": "Warum steigt die Erfolgsquote?"
+   },
+   "frame": {
+    "fr": "Pourquoi est-ce que",
+    "en": "Why",
+    "de": "Warum"
+   },
+   "answer": {
+    "a1": {
+     "fr": "Selon le ministre, c'est la façon de corriger les épreuves.",
+     "en": "According to the minister, it's the way the exams are marked.",
+     "de": "Laut dem Minister liegt es an der Art, die Prüfungen zu korrigieren."
+    },
+    "a2": {
+     "fr": "D'après le ministre, c'est surtout lié à la façon de corriger les épreuves.",
+     "en": "According to the minister, it's mostly down to the way the exams are marked.",
+     "de": "Laut dem Minister liegt es vor allem an der Art, die Prüfungen zu korrigieren."
+    },
+    "b1": {
+     "fr": "Ah, ça… D'après le ministre de l'Éducation nationale, en 2024, c'est surtout lié à la façon de corriger les épreuves.",
+     "en": "Ah, that… According to the Minister of Education, in 2024, it's mostly down to the way the exams are marked.",
+     "de": "Ach, das… Laut dem Bildungsminister liegt es 2024 vor allem an der Art, die Prüfungen zu korrigieren."
+    }
+   },
+   "value_fr": "la façon de corriger les épreuves"
+  },
+  {
+   "claim_id": "c2",
+   "ask": "quand",
+   "keywords": [
+    "philosophie",
+    "terminale"
+   ],
+   "hole": {
+    "fr": "Quand, la philosophie ?",
+    "en": "When is the philosophy exam?",
+    "de": "Wann ist die Philosophieprüfung?"
+   },
+   "tile": {
+    "fr": "Quand est-ce qu'on passe l'épreuve de philosophie ?",
+    "en": "When do you sit the philosophy exam?",
+    "de": "Wann schreibt man die Philosophieprüfung?"
+   },
+   "frame": {
+    "fr": "Quand est-ce que",
+    "en": "When",
+    "de": "Wann"
+   },
+   "answer": {
+    "a1": {
+     "fr": "À la fin de la terminale, mon chou.",
+     "en": "At the end of the final year, sweetie.",
+     "de": "Am Ende der Abschlussklasse, Schätzchen."
+    },
+    "a2": {
+     "fr": "L'épreuve écrite de philosophie a lieu à la fin de la terminale.",
+     "en": "The written philosophy exam takes place at the end of the final year.",
+     "de": "Die schriftliche Philosophieprüfung findet am Ende der Abschlussklasse statt."
+    },
+    "b1": {
+     "fr": "Mais arrête, c'est évident : l'épreuve écrite de philosophie a lieu à la fin de la terminale.",
+     "en": "Come on, it's obvious: the written philosophy exam takes place at the end of the final year.",
+     "de": "Ach komm, das ist doch klar: Die schriftliche Philosophieprüfung findet am Ende der Abschlussklasse statt."
+    }
+   },
+   "value_fr": "à la fin de la terminale"
+  }
+ ],
+ "shrug": {
+  "a1": {
+   "fr": "Ça, je ne sais pas, mon chou.",
+   "en": "That, I don't know, sweetie.",
+   "de": "Das weiß ich nicht, Schätzchen."
+  },
+  "a2": {
+   "fr": "Bon, ça, je ne sais pas. L'article ne le dit pas.",
+   "en": "Well, that I don't know. The article doesn't say.",
+   "de": "Tja, das weiß ich nicht. Der Artikel sagt es nicht."
+  },
+  "b1": {
+   "fr": "Toi, tu me poses des colles ! Ça, je ne sais pas, et l'article ne le dit pas.",
+   "en": "You and your tricky questions! That I don't know, and the article doesn't say.",
+   "de": "Du stellst mir aber Fangfragen! Das weiß ich nicht, und der Artikel sagt es nicht."
+  }
+ },
+ "phrase": {
+  "a1": {
+   "fr": "Quand… ? · Combien… ?",
+   "en": "When…? · How many…?",
+   "de": "Wann…? · Wie viele…?"
+  },
+  "a2": {
+   "fr": "Pourquoi est-ce que… ?",
+   "en": "Why…?",
+   "de": "Warum…?"
+  },
+  "b1": {
+   "fr": "Est-ce que vous pourriez me dire… ?",
+   "en": "Could you tell me…?",
+   "de": "Könnten Sie mir sagen, …?"
+  },
+  "b2": {
+   "fr": "J'aimerais savoir pourquoi…",
+   "en": "I'd like to know why…",
+   "de": "Ich würde gern wissen, warum …"
+  }
+ },
+ "model": "",
+ "prompt_version": "hand-written"
+}

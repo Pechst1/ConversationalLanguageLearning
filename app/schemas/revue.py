@@ -26,7 +26,7 @@ RoomPhase = Literal["open", "bouclage", "boucle"]
 #: ``caption`` (WP-119 §8.4, «La légende»): the caption under the story's picture.
 #: ``opinion`` («Au comptoir», 2026-10-19): the learner's quote in Romy's vox pop.
 MakeKind = Literal["headline_choice", "headline_write", "reader_question", "short_report", "caption", "opinion", "fil",
-                   "titre", "intox"]
+                   "titre", "intox", "photo", "micro"]
 #: WP-119 §8.4: what the site's plate is — the story's own picture, a painted place, a season plate, a stand-in.
 PlateKind = Literal["story", "painted", "season", "stand_in"]
 FallbackReason = Literal["model_down", "knowledge_refused", "budget", "no_match"]
@@ -797,7 +797,8 @@ class RvFilError(RevueModel):
 
 #: The acts of the generic assignment route (``POST /revue/sessions/{id}/rubrique``):
 #: «Le titre» plays open, pick, trap, build, build_fix; «L'intox express» open, answer, fix.
-RubriqueAct = Literal["open", "pick", "trap", "build", "build_fix", "answer", "fix"]
+RubriqueAct = Literal["open", "pick", "trap", "build", "build_fix", "answer", "fix",
+                     "choose", "seen", "caption", "caption_fix", "prepare", "ask", "note", "review", "review_fix"]
 TitreStep = Literal["read", "three", "trap", "build", "page"]
 TitreRole = Literal["honest", "exaggerated", "off"]
 IntoxStep = Literal["read", "round", "fix", "page"]
@@ -1005,6 +1006,306 @@ class RvIntoxPage(RevueModel):
     words: list[str]
 
 
+# «La photo» and «Le micro» (2026-11-21; WIRE §12)
+# ---------------------------------------------------------------------------
+
+PhotoStep = Literal["read", "planche", "legende", "build", "page"]
+MicroStep = Literal["read", "prepare", "interview", "notes", "review", "page"]
+
+
+class RvPhotoPicture(RevueModel):
+    """One picture of the story as the player shows it (``key`` per session), with its credit
+    and licence printed; never which one goes with the headline before it is found."""
+
+    key: str
+    kind: Literal["illustration", "photo"]
+    url: str
+    credit_fr: str
+    licence: str | None = None
+    licence_url: str | None = None
+    source_url: str | None = None
+    width: int | None = None
+    height: int | None = None
+
+
+class RvPhotoWord(RevueModel):
+    index: int
+    text: RvComptoirText
+
+
+class RvPhotoSeen(RevueModel):
+    """«Qu'est-ce qu'on voit ?»: tap the things THIS picture shows. After a miss, ``elsewhere``
+    (tapped words another picture shows) and ``missing`` (how many are still to find), never
+    which; ``solution`` only once resolved."""
+
+    words: list[RvPhotoWord]
+    tries: int = 0
+    max_tries: int = 2
+    picked: list[int] = Field(default_factory=list)
+    elsewhere: list[int] = Field(default_factory=list)
+    missing: int = 0
+    resolved: bool = False
+    correct: bool | None = None
+    solution: list[int] = Field(default_factory=list)
+
+
+class RvPhotoPlanche(RevueModel):
+    """Step 2: «Laquelle va avec ce titre ?» — pick the picture for the day's headline (two
+    tries; a miss says, in the mother tongue, what the picked picture shows), then ``seen``."""
+
+    headline_fr: str
+    pictures: list[RvPhotoPicture]
+    tries: int = 0
+    max_tries: int = 2
+    picked: list[str] = Field(default_factory=list)
+    #: After a miss: what the last picked picture shows (its things, translated).
+    shows: list[RvComptoirText] = Field(default_factory=list)
+    resolved: bool = False
+    correct: bool | None = None
+    solution: str | None = None
+    seen: RvPhotoSeen | None = None
+
+
+class RvPhotoCaption(RevueModel):
+    """One caption of the lead picture; ``role`` and ``why`` for a wrong one picked, and for
+    all once resolved."""
+
+    key: str
+    text: RvComptoirText
+    role: Literal["right", "wrong", "other"] | None = None
+    why: RvComptoirText | None = None
+
+
+class RvPhotoFix(RevueModel):
+    """«Qu'est-ce qui est faux ?»: A1–A2 pick (``options``), B1+ rewrite. ``right_fr`` and
+    ``fixed`` only once resolved."""
+
+    input: Literal["pick", "write"]
+    text: RvComptoirText
+    wrong_fr: str
+    options: list[str] = Field(default_factory=list)
+    tries: int = 0
+    max_tries: int = 2
+    attempts: list[str] = Field(default_factory=list)
+    resolved: bool = False
+    correct: bool | None = None
+    right_fr: str | None = None
+    fixed: RvComptoirText | None = None
+
+
+class RvPhotoLegende(RevueModel):
+    """Step 3: the lead picture and three captions: find the one with the wrong fact (two
+    tries), then say what is wrong (``fix``)."""
+
+    picture: RvPhotoPicture
+    captions: list[RvPhotoCaption]
+    tries: int = 0
+    max_tries: int = 2
+    picked: list[str] = Field(default_factory=list)
+    resolved: bool = False
+    correct: bool | None = None
+    solution: str | None = None
+    fix: RvPhotoFix | None = None
+
+
+class RvPhotoChoice(RevueModel):
+    """A picture «À toi» can caption, with what it shows (A1 tiles, the word bank from A2)."""
+
+    picture: RvPhotoPicture
+    seen: list[RvComptoirText]
+
+
+class RvPhotoBuild(RevueModel):
+    """Step 4: the learner's caption for a picture of their choice. A1 builds it from a thing
+    seen and a fact (no model call); A2 completes ``frame``; B1+ write two sentences (what
+    the picture shows, then the news). Then Romy's marks, the learner's fix, as «Le titre»."""
+
+    input: Literal["tiles", "frame", "free"]
+    phrase: RvComptoirText
+    choices: list[RvPhotoChoice]
+    facts: list[RvComptoirText] = Field(default_factory=list)
+    frame: RvComptoirText | None = None
+    max_words: int
+    picture: str | None = None
+    learner_fr: str | None = None
+    draft_fr: str | None = None
+    proof: ComptoirProof | None = None
+    marks: list[RvComptoirMark] = Field(default_factory=list)
+    tries: int = 0
+    max_tries: int = 2
+    printed_fr: str | None = None
+    notes: list[RvComptoirNote] = Field(default_factory=list)
+
+    @model_serializer(mode="wrap")
+    def _omit_absent_notes(self, handler: Any):  # noqa: ANN202 - no return type: the schema stays the fields
+        data = handler(self)
+        if isinstance(data, dict) and not data.get("notes"):
+            data.pop("notes", None)
+        return data
+
+
+class RvPhotoView(RevueModel):
+    step: PhotoStep
+    steps: list[PhotoStep]
+    band: Literal["a1", "a2", "b1"]
+    title_fr: str
+    read: RvComptoirRead
+    planche: RvPhotoPlanche | None = None
+    legende: RvPhotoLegende | None = None
+    build: RvPhotoBuild | None = None
+
+
+class RvPhotoPage(RevueModel):
+    """«La page»: the picture printed large with the learner's caption, its credit, signed."""
+
+    title_fr: str
+    dateline_fr: str
+    picture: RvPhotoPicture
+    caption_fr: str
+    proof: ComptoirProof | None = None
+    phrase_fr: str
+    words: list[str]
+
+
+class RvMicroHole(RevueModel):
+    """One of Romy's notes with a hole («Combien ? ___»)."""
+
+    key: str
+    hole: RvComptoirText
+    #: The interview: the witness's answer filled it.
+    filled: bool = False
+
+
+class RvMicroPrepare(RevueModel):
+    """Step 2: what Romy still needs; the learner chooses ``need`` of them to go after."""
+
+    holes: list[RvMicroHole]
+    chosen: list[str] = Field(default_factory=list)
+    need: int = 3
+
+
+class RvMicroTile(RevueModel):
+    key: str
+    text: RvComptoirText
+
+
+class RvMicroTurn(RevueModel):
+    """One question and the witness's line. ``kind``: ``answer`` (a hole filled, ``hole_key``),
+    ``again`` (asked before), ``shrug`` (the story cannot answer). ``spent``: it used a turn.
+    A question's form is never judged here (the slips wait for «Relis tes questions»)."""
+
+    question_fr: str
+    answer: RvComptoirText
+    kind: Literal["answer", "again", "shrug"]
+    spent: bool
+    hole_key: str | None = None
+
+
+class RvMicroInterview(RevueModel):
+    """Step 3: three turns. A1 picks a question tile; A2 completes a frame; B1+ write."""
+
+    witness: RvRubriqueCast
+    input: Literal["tiles", "frame", "free"]
+    phrase: RvComptoirText
+    holes: list[RvMicroHole]
+    tiles: list[RvMicroTile] = Field(default_factory=list)
+    frames: list[RvComptoirText] = Field(default_factory=list)
+    turns: list[RvMicroTurn] = Field(default_factory=list)
+    spent: int = 0
+    total: int = 3
+    #: This turn's first shrug (or repeat) is free.
+    free: bool = True
+    done: bool = False
+
+
+class RvMicroNote(RevueModel):
+    """A hole to fill from the witness's line: A1–A2 pick (``options``), B1+ type."""
+
+    key: str
+    hole: RvComptoirText
+    answer: RvComptoirText
+    options: list[str] = Field(default_factory=list)
+    tries: int = 0
+    max_tries: int = 2
+    attempts: list[str] = Field(default_factory=list)
+    resolved: bool = False
+    correct: bool | None = None
+    value_fr: str | None = None
+
+
+class RvMicroNotes(RevueModel):
+    input: Literal["pick", "write"]
+    items: list[RvMicroNote]
+
+
+class RvMicroHint(RevueModel):
+    """A slip the app saw in a question («inversion», «question_word»): the rule, said in the
+    learner's language, never the corrected question."""
+
+    index: int
+    code: Literal["inversion", "question_word"]
+
+
+class RvMicroReview(RevueModel):
+    """Step 5: the learner's questions with Romy's marks, fix-it-yourself first."""
+
+    input: Literal["tiles", "write"]
+    questions: list[str]
+    hints: list[RvMicroHint] = Field(default_factory=list)
+    draft_fr: str | None = None
+    proof: ComptoirProof | None = None
+    marks: list[RvComptoirMark] = Field(default_factory=list)
+    tries: int = 0
+    max_tries: int = 2
+    printed_fr: str | None = None
+    notes: list[RvComptoirNote] = Field(default_factory=list)
+
+    @model_serializer(mode="wrap")
+    def _omit_absent_notes(self, handler: Any):  # noqa: ANN202 - no return type: the schema stays the fields
+        data = handler(self)
+        if isinstance(data, dict) and not data.get("notes"):
+            data.pop("notes", None)
+        return data
+
+
+class RvMicroView(RevueModel):
+    step: MicroStep
+    steps: list[MicroStep]
+    band: Literal["a1", "a2", "b1"]
+    title_fr: str
+    read: RvComptoirRead
+    prepare: RvMicroPrepare | None = None
+    interview: RvMicroInterview | None = None
+    notes: RvMicroNotes | None = None
+    review: RvMicroReview | None = None
+
+
+class RvMicroPageLine(RevueModel):
+    question_fr: str
+    answer_fr: str
+    source_name: str
+
+
+class RvMicroPageNote(RevueModel):
+    hole_fr: str
+    value_fr: str
+    right: bool
+
+
+class RvMicroPage(RevueModel):
+    """«La page»: the interview as Q&A under the learner's name, the facts' sources printed."""
+
+    title_fr: str
+    dateline_fr: str
+    witness: RvRubriqueCast
+    byline_fr: str
+    lines: list[RvMicroPageLine]
+    notes: list[RvMicroPageNote]
+    proof: ComptoirProof | None = None
+    phrase_fr: str
+    words: list[str]
+
+
 class RvRubriqueRequest(RevueRequest):
     act: RubriqueAct
     #: pick: a headline's key; answer, fix: a statement's key.
@@ -1017,6 +1318,8 @@ class RvRubriqueRequest(RevueRequest):
     parts: list[int] | None = Field(None, max_length=2)
     #: build (A2: the end of the frame; B1+: the headline), build_fix, fix (B1+): the text.
     text: str | None = Field(None, max_length=300)
+    #: «Le micro» prepare: the keys of the holes the learner goes after.
+    keys: list[str] | None = Field(None, max_length=6)
     mode: Literal["text", "voice"] = "text"
 
 
@@ -1044,6 +1347,9 @@ class RvClosing(RevueModel):
     #: «Le titre» and «L'intox express»: «La page» (``None`` otherwise).
     titre_page: RvTitrePage | None = None
     intox_page: RvIntoxPage | None = None
+    #: «La photo» and «Le micro» (2026-11-21): «La page» (``None`` otherwise).
+    photo_page: RvPhotoPage | None = None
+    micro_page: RvMicroPage | None = None
 
 
 class RvSessionView(RevueModel):
@@ -1066,13 +1372,16 @@ class RvSessionView(RevueModel):
     artifact: RvMade | None = None
     closing: RvClosing | None = None
     #: «Au comptoir» (WP-119, 2026-10-19): the mode the session started in, for its whole life.
-    mode: Literal["chat", "comptoir", "fil", "titre", "intox"] = "chat"
+    mode: Literal["chat", "comptoir", "fil", "titre", "intox", "photo", "micro"] = "chat"
     comptoir: RvComptoirView | None = None
     #: «Le fil» (2026-11-20): the player's view, for a session dealt that assignment.
     fil: RvFilView | None = None
     #: «Le titre» and «L'intox express» (2026-11-20): the dealt assignment's view.
     titre: RvTitreView | None = None
     intox: RvIntoxView | None = None
+    #: «La photo» and «Le micro» (2026-11-21): the dealt assignment's view.
+    photo: RvPhotoView | None = None
+    micro: RvMicroView | None = None
 
 
 class RvComptoirResult(RevueModel):

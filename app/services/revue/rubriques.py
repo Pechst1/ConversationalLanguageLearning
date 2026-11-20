@@ -174,6 +174,8 @@ def material_of(dossier: EditorialDossier, key: str, evergreen: Callable[[str], 
 LOOPS: dict[str, str] = {
     "titre": "app.services.revue.titre_loop",
     "intox": "app.services.revue.intox_loop",
+    "photo": "app.services.revue.photo_loop",
+    "micro": "app.services.revue.micro_loop",
 }
 
 

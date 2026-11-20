@@ -12989,6 +12989,8 @@ export interface components {
             fil_page?: components["schemas"]["RvFilPage"] | null;
             intox_page?: components["schemas"]["RvIntoxPage"] | null;
             kept: components["schemas"]["RvKept"];
+            micro_page?: components["schemas"]["RvMicroPage"] | null;
+            photo_page?: components["schemas"]["RvPhotoPage"] | null;
             /** Question Kept Fr */
             question_kept_fr?: string | null;
             /** Romy Line Fr */
@@ -14018,7 +14020,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion" | "fil" | "titre" | "intox";
+            kind: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion" | "fil" | "titre" | "intox" | "photo" | "micro";
             /** Learner Fr */
             learner_fr?: string | null;
             /** Text Fr */
@@ -14048,7 +14050,7 @@ export interface components {
              * Recommended
              * @enum {string}
              */
-            recommended: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion" | "fil" | "titre" | "intox";
+            recommended: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion" | "fil" | "titre" | "intox" | "photo" | "micro";
         };
         /** RvMatchRequest */
         RvMatchRequest: {
@@ -14063,6 +14065,257 @@ export interface components {
             match: string | null;
             /** Romy Line Fr */
             romy_line_fr?: string | null;
+        };
+        /**
+         * RvMicroHint
+         * @description A slip the app saw in a question («inversion», «question_word»): the rule, said in the
+         *     learner's language, never the corrected question.
+         */
+        RvMicroHint: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "inversion" | "question_word";
+            /** Index */
+            index: number;
+        };
+        /**
+         * RvMicroHole
+         * @description One of Romy's notes with a hole («Combien ? ___»).
+         */
+        RvMicroHole: {
+            /**
+             * Filled
+             * @default false
+             */
+            filled?: boolean;
+            hole: components["schemas"]["RvComptoirText"];
+            /** Key */
+            key: string;
+        };
+        /**
+         * RvMicroInterview
+         * @description Step 3: three turns. A1 picks a question tile; A2 completes a frame; B1+ write.
+         */
+        RvMicroInterview: {
+            /**
+             * Done
+             * @default false
+             */
+            done?: boolean;
+            /** Frames */
+            frames?: components["schemas"]["RvComptoirText"][];
+            /**
+             * Free
+             * @default true
+             */
+            free?: boolean;
+            /** Holes */
+            holes: components["schemas"]["RvMicroHole"][];
+            /**
+             * Input
+             * @enum {string}
+             */
+            input: "tiles" | "frame" | "free";
+            phrase: components["schemas"]["RvComptoirText"];
+            /**
+             * Spent
+             * @default 0
+             */
+            spent?: number;
+            /** Tiles */
+            tiles?: components["schemas"]["RvMicroTile"][];
+            /**
+             * Total
+             * @default 3
+             */
+            total?: number;
+            /** Turns */
+            turns?: components["schemas"]["RvMicroTurn"][];
+            witness: components["schemas"]["RvRubriqueCast"];
+        };
+        /**
+         * RvMicroNote
+         * @description A hole to fill from the witness's line: A1–A2 pick (``options``), B1+ type.
+         */
+        RvMicroNote: {
+            answer: components["schemas"]["RvComptoirText"];
+            /** Attempts */
+            attempts?: string[];
+            /** Correct */
+            correct?: boolean | null;
+            hole: components["schemas"]["RvComptoirText"];
+            /** Key */
+            key: string;
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Options */
+            options?: string[];
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved?: boolean;
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+            /** Value Fr */
+            value_fr?: string | null;
+        };
+        /** RvMicroNotes */
+        RvMicroNotes: {
+            /**
+             * Input
+             * @enum {string}
+             */
+            input: "pick" | "write";
+            /** Items */
+            items: components["schemas"]["RvMicroNote"][];
+        };
+        /**
+         * RvMicroPage
+         * @description «La page»: the interview as Q&A under the learner's name, the facts' sources printed.
+         */
+        RvMicroPage: {
+            /** Byline Fr */
+            byline_fr: string;
+            /** Dateline Fr */
+            dateline_fr: string;
+            /** Lines */
+            lines: components["schemas"]["RvMicroPageLine"][];
+            /** Notes */
+            notes: components["schemas"]["RvMicroPageNote"][];
+            /** Phrase Fr */
+            phrase_fr: string;
+            /** Proof */
+            proof?: ("clean" | "marked" | "fixed" | "corrected" | "as_written") | null;
+            /** Title Fr */
+            title_fr: string;
+            witness: components["schemas"]["RvRubriqueCast"];
+            /** Words */
+            words: string[];
+        };
+        /** RvMicroPageLine */
+        RvMicroPageLine: {
+            /** Answer Fr */
+            answer_fr: string;
+            /** Question Fr */
+            question_fr: string;
+            /** Source Name */
+            source_name: string;
+        };
+        /** RvMicroPageNote */
+        RvMicroPageNote: {
+            /** Hole Fr */
+            hole_fr: string;
+            /** Right */
+            right: boolean;
+            /** Value Fr */
+            value_fr: string;
+        };
+        /**
+         * RvMicroPrepare
+         * @description Step 2: what Romy still needs; the learner chooses ``need`` of them to go after.
+         */
+        RvMicroPrepare: {
+            /** Chosen */
+            chosen?: string[];
+            /** Holes */
+            holes: components["schemas"]["RvMicroHole"][];
+            /**
+             * Need
+             * @default 3
+             */
+            need?: number;
+        };
+        /**
+         * RvMicroReview
+         * @description Step 5: the learner's questions with Romy's marks, fix-it-yourself first.
+         */
+        RvMicroReview: {
+            /** Draft Fr */
+            draft_fr?: string | null;
+            /** Hints */
+            hints?: components["schemas"]["RvMicroHint"][];
+            /**
+             * Input
+             * @enum {string}
+             */
+            input: "tiles" | "write";
+            /** Marks */
+            marks?: components["schemas"]["RvComptoirMark"][];
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Notes */
+            notes?: components["schemas"]["RvComptoirNote"][];
+            /** Printed Fr */
+            printed_fr?: string | null;
+            /** Proof */
+            proof?: ("clean" | "marked" | "fixed" | "corrected" | "as_written") | null;
+            /** Questions */
+            questions: string[];
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+        };
+        /** RvMicroTile */
+        RvMicroTile: {
+            /** Key */
+            key: string;
+            text: components["schemas"]["RvComptoirText"];
+        };
+        /**
+         * RvMicroTurn
+         * @description One question and the witness's line. ``kind``: ``answer`` (a hole filled, ``hole_key``),
+         *     ``again`` (asked before), ``shrug`` (the story cannot answer). ``spent``: it used a turn.
+         *     A question's form is never judged here (the slips wait for «Relis tes questions»).
+         */
+        RvMicroTurn: {
+            answer: components["schemas"]["RvComptoirText"];
+            /** Hole Key */
+            hole_key?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "answer" | "again" | "shrug";
+            /** Question Fr */
+            question_fr: string;
+            /** Spent */
+            spent: boolean;
+        };
+        /** RvMicroView */
+        RvMicroView: {
+            /**
+             * Band
+             * @enum {string}
+             */
+            band: "a1" | "a2" | "b1";
+            interview?: components["schemas"]["RvMicroInterview"] | null;
+            notes?: components["schemas"]["RvMicroNotes"] | null;
+            prepare?: components["schemas"]["RvMicroPrepare"] | null;
+            read: components["schemas"]["RvComptoirRead"];
+            review?: components["schemas"]["RvMicroReview"] | null;
+            /**
+             * Step
+             * @enum {string}
+             */
+            step: "read" | "prepare" | "interview" | "notes" | "review" | "page";
+            /** Steps */
+            steps: ("read" | "prepare" | "interview" | "notes" | "review" | "page")[];
+            /** Title Fr */
+            title_fr: string;
         };
         /** RvMineItem */
         RvMineItem: {
@@ -14121,6 +14374,291 @@ export interface components {
             week: components["schemas"]["RvWeek"];
         };
         /**
+         * RvPhotoBuild
+         * @description Step 4: the learner's caption for a picture of their choice. A1 builds it from a thing
+         *     seen and a fact (no model call); A2 completes ``frame``; B1+ write two sentences (what
+         *     the picture shows, then the news). Then Romy's marks, the learner's fix, as «Le titre».
+         */
+        RvPhotoBuild: {
+            /** Choices */
+            choices: components["schemas"]["RvPhotoChoice"][];
+            /** Draft Fr */
+            draft_fr?: string | null;
+            /** Facts */
+            facts?: components["schemas"]["RvComptoirText"][];
+            frame?: components["schemas"]["RvComptoirText"] | null;
+            /**
+             * Input
+             * @enum {string}
+             */
+            input: "tiles" | "frame" | "free";
+            /** Learner Fr */
+            learner_fr?: string | null;
+            /** Marks */
+            marks?: components["schemas"]["RvComptoirMark"][];
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Max Words */
+            max_words: number;
+            /** Notes */
+            notes?: components["schemas"]["RvComptoirNote"][];
+            phrase: components["schemas"]["RvComptoirText"];
+            /** Picture */
+            picture?: string | null;
+            /** Printed Fr */
+            printed_fr?: string | null;
+            /** Proof */
+            proof?: ("clean" | "marked" | "fixed" | "corrected" | "as_written") | null;
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+        };
+        /**
+         * RvPhotoCaption
+         * @description One caption of the lead picture; ``role`` and ``why`` for a wrong one picked, and for
+         *     all once resolved.
+         */
+        RvPhotoCaption: {
+            /** Key */
+            key: string;
+            /** Role */
+            role?: ("right" | "wrong" | "other") | null;
+            text: components["schemas"]["RvComptoirText"];
+            why?: components["schemas"]["RvComptoirText"] | null;
+        };
+        /**
+         * RvPhotoChoice
+         * @description A picture «À toi» can caption, with what it shows (A1 tiles, the word bank from A2).
+         */
+        RvPhotoChoice: {
+            picture: components["schemas"]["RvPhotoPicture"];
+            /** Seen */
+            seen: components["schemas"]["RvComptoirText"][];
+        };
+        /**
+         * RvPhotoFix
+         * @description «Qu'est-ce qui est faux ?»: A1–A2 pick (``options``), B1+ rewrite. ``right_fr`` and
+         *     ``fixed`` only once resolved.
+         */
+        RvPhotoFix: {
+            /** Attempts */
+            attempts?: string[];
+            /** Correct */
+            correct?: boolean | null;
+            fixed?: components["schemas"]["RvComptoirText"] | null;
+            /**
+             * Input
+             * @enum {string}
+             */
+            input: "pick" | "write";
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Options */
+            options?: string[];
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved?: boolean;
+            /** Right Fr */
+            right_fr?: string | null;
+            text: components["schemas"]["RvComptoirText"];
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+            /** Wrong Fr */
+            wrong_fr: string;
+        };
+        /**
+         * RvPhotoLegende
+         * @description Step 3: the lead picture and three captions: find the one with the wrong fact (two
+         *     tries), then say what is wrong (``fix``).
+         */
+        RvPhotoLegende: {
+            /** Captions */
+            captions: components["schemas"]["RvPhotoCaption"][];
+            /** Correct */
+            correct?: boolean | null;
+            fix?: components["schemas"]["RvPhotoFix"] | null;
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Picked */
+            picked?: string[];
+            picture: components["schemas"]["RvPhotoPicture"];
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved?: boolean;
+            /** Solution */
+            solution?: string | null;
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+        };
+        /**
+         * RvPhotoPage
+         * @description «La page»: the picture printed large with the learner's caption, its credit, signed.
+         */
+        RvPhotoPage: {
+            /** Caption Fr */
+            caption_fr: string;
+            /** Dateline Fr */
+            dateline_fr: string;
+            /** Phrase Fr */
+            phrase_fr: string;
+            picture: components["schemas"]["RvPhotoPicture"];
+            /** Proof */
+            proof?: ("clean" | "marked" | "fixed" | "corrected" | "as_written") | null;
+            /** Title Fr */
+            title_fr: string;
+            /** Words */
+            words: string[];
+        };
+        /**
+         * RvPhotoPicture
+         * @description One picture of the story as the player shows it (``key`` per session), with its credit
+         *     and licence printed; never which one goes with the headline before it is found.
+         */
+        RvPhotoPicture: {
+            /** Credit Fr */
+            credit_fr: string;
+            /** Height */
+            height?: number | null;
+            /** Key */
+            key: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "illustration" | "photo";
+            /** Licence */
+            licence?: string | null;
+            /** Licence Url */
+            licence_url?: string | null;
+            /** Source Url */
+            source_url?: string | null;
+            /** Url */
+            url: string;
+            /** Width */
+            width?: number | null;
+        };
+        /**
+         * RvPhotoPlanche
+         * @description Step 2: «Laquelle va avec ce titre ?» — pick the picture for the day's headline (two
+         *     tries; a miss says, in the mother tongue, what the picked picture shows), then ``seen``.
+         */
+        RvPhotoPlanche: {
+            /** Correct */
+            correct?: boolean | null;
+            /** Headline Fr */
+            headline_fr: string;
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Picked */
+            picked?: string[];
+            /** Pictures */
+            pictures: components["schemas"]["RvPhotoPicture"][];
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved?: boolean;
+            seen?: components["schemas"]["RvPhotoSeen"] | null;
+            /** Shows */
+            shows?: components["schemas"]["RvComptoirText"][];
+            /** Solution */
+            solution?: string | null;
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+        };
+        /**
+         * RvPhotoSeen
+         * @description «Qu'est-ce qu'on voit ?»: tap the things THIS picture shows. After a miss, ``elsewhere``
+         *     (tapped words another picture shows) and ``missing`` (how many are still to find), never
+         *     which; ``solution`` only once resolved.
+         */
+        RvPhotoSeen: {
+            /** Correct */
+            correct?: boolean | null;
+            /** Elsewhere */
+            elsewhere?: number[];
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /**
+             * Missing
+             * @default 0
+             */
+            missing?: number;
+            /** Picked */
+            picked?: number[];
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved?: boolean;
+            /** Solution */
+            solution?: number[];
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+            /** Words */
+            words: components["schemas"]["RvPhotoWord"][];
+        };
+        /** RvPhotoView */
+        RvPhotoView: {
+            /**
+             * Band
+             * @enum {string}
+             */
+            band: "a1" | "a2" | "b1";
+            build?: components["schemas"]["RvPhotoBuild"] | null;
+            legende?: components["schemas"]["RvPhotoLegende"] | null;
+            planche?: components["schemas"]["RvPhotoPlanche"] | null;
+            read: components["schemas"]["RvComptoirRead"];
+            /**
+             * Step
+             * @enum {string}
+             */
+            step: "read" | "planche" | "legende" | "build" | "page";
+            /** Steps */
+            steps: ("read" | "planche" | "legende" | "build" | "page")[];
+            /** Title Fr */
+            title_fr: string;
+        };
+        /** RvPhotoWord */
+        RvPhotoWord: {
+            /** Index */
+            index: number;
+            text: components["schemas"]["RvComptoirText"];
+        };
+        /**
          * RvPicture
          * @description «Papier · photos» (2026-11-20): one picture of the story's gallery — a painted
          *     illustration (``Illustration · Le Papier``) or a real photo from Wikimedia Commons, with
@@ -14174,7 +14712,7 @@ export interface components {
              */
             gloss_language: "en" | "de" | "fr";
             /** Make Options */
-            make_options: ("headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion" | "fil" | "titre" | "intox")[];
+            make_options: ("headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion" | "fil" | "titre" | "intox" | "photo" | "micro")[];
             support: components["schemas"]["RvSupport"];
             /**
              * Ui Language
@@ -14344,9 +14882,11 @@ export interface components {
              * Act
              * @enum {string}
              */
-            act: "open" | "pick" | "trap" | "build" | "build_fix" | "answer" | "fix";
+            act: "open" | "pick" | "trap" | "build" | "build_fix" | "answer" | "fix" | "choose" | "seen" | "caption" | "caption_fix" | "prepare" | "ask" | "note" | "review" | "review_fix";
             /** Key */
             key?: string | null;
+            /** Keys */
+            keys?: string[] | null;
             /**
              * Mode
              * @default text
@@ -14387,17 +14927,19 @@ export interface components {
             /** Id */
             id: string;
             intox?: components["schemas"]["RvIntoxView"] | null;
+            micro?: components["schemas"]["RvMicroView"] | null;
             /**
              * Mode
              * @default chat
              * @enum {string}
              */
-            mode?: "chat" | "comptoir" | "fil" | "titre" | "intox";
+            mode?: "chat" | "comptoir" | "fil" | "titre" | "intox" | "photo" | "micro";
             /**
              * Own Line
              * @default false
              */
             own_line?: boolean;
+            photo?: components["schemas"]["RvPhotoView"] | null;
             plan: components["schemas"]["RvPlanView"];
             /** Quick Replies */
             quick_replies: components["schemas"]["RvQuickReply"][];
