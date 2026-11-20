@@ -206,7 +206,11 @@ export type ThingKind =
   | 'leek'
   | 'mug'
   | 'roll'
-  | 'drape';
+  | 'drape'
+  | 'sink'
+  | 'soak'
+  | 'towel'
+  | 'tuque';
 
 export interface RoomThing {
   kind: ThingKind;
@@ -484,6 +488,8 @@ export const ROOM_TONES: Record<string, Hex> = {
   velvet: mix(mix(TONES.oxblood, INKS.vermilion, 0.35), INKS.ink, 0.08),
   /** green marble, polished */
   marble: mix(mix(INKS.green, INKS.ink, 0.42), INKS.paper, 0.12),
+  /** a card folder's cover, school blue */
+  dossier: mix(INKS.cobalt, INKS.paper, 0.18),
 };
 
 const toneOf = (name: string | undefined, fallback: Hex): Hex => (name && ROOM_TONES[name] !== undefined ? ROOM_TONES[name] : fallback);
@@ -1403,13 +1409,20 @@ function thing(B: Build, t: RoomThing, i: number) {
       return;
     }
     case 'folder': {
-      // a closed dossier, buff card with its strap, and on its cover the label: what it is about
-      const buff = zoned(mix(INKS.ochre, INKS.paper, 0.55), z);
+      // a closed dossier, buff card (or `tone`) with its strap, and on its cover the label: what
+      // it is about (no `text`, no label: a folder nobody has named)
+      const buff = zoned(toneOf(t.tone, mix(INKS.ochre, INKS.paper, 0.55)), z);
       const strap = zoned(mix(INKS.ink, INKS.cobalt, 0.2), z);
       D.at(x, y, zz, rot, () => {
         D.box(0, 0.007, 0, 0.33, 0.014, 0.245, buff, { ny: false });
         D.box(0.1, 0.0145, 0, 0.012, 0.002, 0.25, strap);
+        if (t.tone) {
+          // a school folder: its papers' edge showing at the open side, an elastic round two corners
+          D.box(0.002, 0.007, 0.1235, 0.318, 0.009, 0.002, zoned(INKS.card, z));
+          for (const s of [-1, 1]) D.bar(new Vector3(s * 0.128, 0.0148, s * -0.124), new Vector3(s * 0.166, 0.0148, s * -0.086), 0.004, strap);
+        }
       });
+      if (!t.text?.[0]) return;
       const lean = 0.06;
       const n = new Vector3(Math.sin(rot) * Math.sin(lean), Math.cos(lean), Math.cos(rot) * Math.sin(lean));
       const side = new Vector3(Math.cos(rot), 0, -Math.sin(rot));
@@ -2365,6 +2378,143 @@ function thing(B: Build, t: RoomThing, i: number) {
       card(B, key, [x + fz * Math.sin(rot), y + top - drop / 2, zz + fz * Math.cos(rot)], rot, len, drop, z, clothArt(t.text ?? ['']), 420);
       // the chairs under the cloth are not walked through (the offcut and the scissors, flat on the floor, are)
       B.blocks.push(centred(x - 0.185 * Math.sin(rot), zz - 0.185 * Math.cos(rot), rot, len + 0.04, 0.48));
+      return;
+    }
+    case 'sink': {
+      // an old kitchen sink against the wall: a white glazed stoneware basin on a painted
+      // cupboard (two doors), a wooden draining board on local +x, the plug on its chain, a
+      // brass tap out of the wall over the basin with its cross handle (`size` [width]; the
+      // basin's inside: floor 0.86 m, centre at local x -w/2 + 0.3, z 0.26, 0.46 by 0.36; the
+      // tap's arm runs from the wall to z 0.2 at 1.18 m, over the basin's centre)
+      const w = t.size?.[0] ?? 0.9;
+      const d = 0.52;
+      const bx = -w / 2 + 0.3;
+      const paint = zoned(toneOf(t.tone, mix(mix(INKS.green, INKS.paper, 0.72), INKS.card, 0.2)), z, { wet: 0.2 });
+      const seam = zoned(mix(toneOf(t.tone, mix(INKS.green, INKS.paper, 0.72)), INKS.ink, 0.3), z);
+      const glaze = zoned(mix(INKS.card, 0xffffff, 0.3), z, { wet: 0.7 });
+      const inside = zoned(mix(INKS.card, INKS.paper, 0.6), z, { wet: 0.8 });
+      const wood = zoned(mix(TONES.wood, INKS.paper, 0.3), z, { wet: 0.3 });
+      const groove = zoned(mix(TONES.wood, INKS.ink, 0.2), z);
+      const brass = zoned(TONES.brass, z, { wet: 0.7 });
+      const dark = zoned(mix(INKS.ink, INKS.paper, 0.2), z);
+      D.at(x, y, zz, rot, () => {
+        // the cupboard, its doors and their knobs
+        D.box(0, 0.39, d / 2, w, 0.78, d - 0.02, paint, { ny: false });
+        D.box(0, 0.05, d - 0.01, w - 0.04, 0.1, 0.01, seam);
+        D.box(0, 0.44, d - 0.005, 0.008, 0.66, 0.006, seam);
+        for (const u of [-0.06, 0.06]) D.ball(u, 0.62, d + 0.005, 0.016, 0.016, 0.016, brass, 0);
+        // the basin: its floor, four walls, the thick rim
+        D.box(bx, 0.8, d / 2, 0.58, 0.06, d - 0.04, glaze);
+        D.box(bx, 0.862, d / 2, 0.46, 0.004, 0.36, inside);
+        D.box(bx, 0.915, 0.04, 0.58, 0.11, 0.06, glaze);
+        D.box(bx, 0.915, d - 0.04, 0.58, 0.11, 0.06, glaze);
+        for (const sx of [-1, 1]) D.box(bx + sx * 0.26, 0.915, d / 2, 0.06, 0.11, d - 0.04, glaze);
+        // the plug hole and the plug on its chain, hooked on the rim
+        D.cylinder(bx, 0.864, d / 2, 0.022, 0.022, 0.003, 10, dark, { flat: true, caps: true });
+        D.cylinder(bx + 0.12, 0.864, d / 2 + 0.06, 0.02, 0.02, 0.012, 10, dark, { caps: true });
+        D.bar(new Vector3(bx + 0.12, 0.876, d / 2 + 0.06), new Vector3(bx + 0.2, 0.97, d - 0.05), 0.003, brass);
+        // the draining board, its grooves running down to the basin
+        const rx = (w / 2 - 0.02 + (bx + 0.29)) / 2;
+        const rw = w / 2 - 0.02 - (bx + 0.29);
+        if (rw > 0.08) {
+          D.box(rx, 0.8, d / 2, rw, 0.04, d - 0.04, wood);
+          for (let k = 0; k < 5; k++) D.box(rx, 0.821, 0.1 + k * ((d - 0.2) / 4), rw - 0.04, 0.003, 0.012, groove);
+        }
+        // the tap: its arm out of the wall over the basin, the spout, the cross handle
+        D.cylinder(bx, 1.16, 0.0, 0.03, 0.03, 0.04, 10, brass, { caps: true });
+        D.bar(new Vector3(bx, 1.18, 0.0), new Vector3(bx, 1.18, 0.2), 0.022, brass);
+        D.bar(new Vector3(bx, 1.18, 0.2), new Vector3(bx, 1.1, 0.215), 0.018, brass);
+        D.bar(new Vector3(bx, 1.19, 0.07), new Vector3(bx, 1.26, 0.07), 0.01, brass);
+        D.bar(new Vector3(bx - 0.04, 1.26, 0.07), new Vector3(bx + 0.04, 1.26, 0.07), 0.009, brass);
+        D.bar(new Vector3(bx, 1.26, 0.03), new Vector3(bx, 1.26, 0.11), 0.009, brass);
+      });
+      B.blocks.push(footprint(x, zz, rot, w + 0.04, d + 0.04));
+      return;
+    }
+    case 'soak': {
+      // a frying pan left to soak in a sink: the pan on the basin's floor at a slight tilt, its
+      // handle up on the front rim, filled with water gone dark over its burnt bottom, a crust of
+      // black round the inside where it caught, a little foam of washing-up liquid to one side
+      // (`at` the basin's floor at its centre; `size` the basin's inside [across, deep], the pan
+      // kept inside it; the handle toward local +z)
+      const [bw, bd] = t.size ?? [0.46, 0.36];
+      const r = Math.min(0.13, bw / 2 - 0.03, bd / 2 - 0.02);
+      const steel = zoned(mix(INKS.ink, INKS.paper, 0.3), z, { wet: 0.5 });
+      const burnt = zoned(mix(INKS.ink, INKS.ochre, 0.08), z);
+      const crust = zoned(mix(mix(INKS.ink, INKS.ochre, 0.3), INKS.vermilion, 0.06), z);
+      const water = zoned(mix(mix(INKS.ink, INKS.ochre, 0.16), INKS.paper, 0.05), z, { wet: 1 });
+      const handle = zoned(mix(TONES.wood, INKS.ink, 0.45), z, { wet: 0.2 });
+      const foam = zoned(mix(INKS.card, 0xffffff, 0.4), z, { wet: 0.6 });
+      const k = r / 0.13;
+      D.at(x, y, zz, rot, () => {
+        D.push(new Matrix4().makeTranslation(0, 0.004, -0.02).multiply(new Matrix4().makeRotationX(-0.1)));
+        D.lathe(0, 0, 0, [[0.095 * k, 0], [r, 0.045], [r - 0.004, 0.049]], 18, steel);
+        D.lathe(0, 0, 0, [[r - 0.004, 0.049], [0.09 * k, 0.008], [0, 0.008]], 18, burnt);
+        // the black crust thick on the inside wall, above the water
+        D.lathe(0, 0, 0, [[r - 0.007, 0.044], [r - 0.02, 0.03], [r - 0.026, 0.026]], 18, crust);
+        // the water in it, dark over the burnt bottom, and the foam gathered on one side
+        D.cylinder(0, 0.026, 0, r - 0.026, r - 0.026, 0.002, 18, water, { flat: true, caps: true });
+        const bubbles: Array<[number, number, number]> = [[-0.06, -0.04, 0.016], [-0.075, -0.01, 0.012], [-0.045, -0.065, 0.011], [-0.085, -0.045, 0.009], [-0.03, -0.03, 0.008]];
+        bubbles.forEach(([fx, fz, br]) => D.ball(fx * k, 0.029, fz * k, br, br * 0.5, br, foam, 0));
+        // the handle, out of the water and up onto the front rim
+        D.bar(new Vector3(0, 0.04, r - 0.005), new Vector3(0, 0.1, r + 0.17), 0.024, handle);
+        D.bar(new Vector3(0, 0.038, r - 0.012), new Vector3(0, 0.05, r + 0.025), 0.014, steel);
+        D.pop();
+      });
+      return;
+    }
+    case 'towel': {
+      // a tea towel folded in three and hung over a bar to dry (a tap's arm, a rail): linen with a
+      // red stripe near each end, the two halves hanging either side, one longer (`at` the top of
+      // the fold, on the bar; the bar runs along local z; `size` [width along the bar, drop])
+      const [w, drop] = t.size ?? [0.15, 0.26];
+      const linen = zoned(mix(INKS.card, INKS.ochre, 0.06), z);
+      const shade = zoned(mix(mix(INKS.card, INKS.ochre, 0.1), INKS.ink, 0.05), z);
+      const stripe = zoned(mix(INKS.vermilion, INKS.paper, 0.12), z);
+      D.at(x, y, zz, rot, () => {
+        D.box(0, 0.012, 0, 0.034, 0.012, w, linen);
+        for (const [sx, h, p] of [[-1, drop, linen], [1, drop * 0.72, shade]] as Array<[number, number, Paint]>) {
+          D.box(sx * 0.017, 0.006 - h / 2, 0, 0.005, h, w, p);
+          // the stripe, a hand from the hem, on the outer face
+          D.box(sx * 0.0205, 0.006 - h + 0.06, 0, 0.002, 0.018, w + 0.001, stripe);
+          D.box(sx * 0.0205, 0.006 - h + 0.035, 0, 0.002, 0.006, w + 0.001, stripe);
+        }
+      });
+      return;
+    }
+    case 'tuque': {
+      // a knitted wool tuque put down on a table, crown up: the turned-up cuff ribbed in a darker
+      // blue, a cream band knitted round the crown, the crown gone soft and leaning to one side,
+      // a fat cream pompom on top (`size` [r], the cuff's radius; the crown leans toward local +x)
+      const r = t.size?.[0] ?? 0.095;
+      const k = r / 0.095;
+      const wool = zoned(mix(INKS.cobalt, INKS.paper, 0.2), z);
+      const rib = zoned(mix(INKS.cobalt, INKS.ink, 0.32), z);
+      const ridge = zoned(mix(INKS.cobalt, INKS.paper, 0.1), z);
+      const band = zoned(mix(INKS.card, INKS.ochre, 0.08), z);
+      const pom = zoned(mix(INKS.card, INKS.ochre, 0.05), z);
+      D.at(x, y, zz, rot, () => {
+        // off a head the crown slumps: sheared toward +x, its foot still flat on the table
+        D.push(new Matrix4().set(1, 0.42, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1));
+        D.lathe(0, 0, 0, [[0.094 * k, 0], [0.099 * k, 0.008 * k], [0.1 * k, 0.05 * k], [0.094 * k, 0.058 * k], [0, 0.058 * k]], 24, rib);
+        // the rib: knit ridges up the cuff, lighter than the furrows between them
+        for (let n = 0; n < 28; n++) {
+          const a = (n / 28) * Math.PI * 2;
+          D.at(Math.sin(a) * 0.099 * k, 0.029 * k, Math.cos(a) * 0.099 * k, a, () => D.box(0, 0, 0, 0.0075 * k, 0.044 * k, 0.004 * k, ridge));
+        }
+        // the crown: blue, a cream band, blue again up to the top
+        const crown: Array<[number, number]> = [[0.091, 0], [0.091, 0.022], [0.088, 0.04], [0.08, 0.06], [0.064, 0.078], [0.04, 0.09], [0, 0.094]];
+        const at = (i: number): [number, number] => [crown[i][0] * k, crown[i][1] * k];
+        D.lathe(0, 0.056 * k, 0, [at(0), at(1)], 24, wool, { flat: true });
+        D.lathe(0, 0.056 * k, 0, [at(1), [0.0905 * k, 0.034 * k]], 24, band, { flat: true });
+        D.lathe(0, 0.056 * k, 0, [[0.0905 * k, 0.034 * k], at(2), at(3), at(4), at(5), at(6)], 24, wool);
+        // the pompom, a fluff of balls
+        const top = 0.146 * k;
+        D.ball(0, top + 0.03 * k, 0, 0.04 * k, 0.034 * k, 0.04 * k, pom, 2);
+        const puffs: Array<[number, number, number]> = [[0.024, 0.036, 0.012], [-0.022, 0.032, 0.016], [0.008, 0.05, -0.02], [-0.012, 0.02, -0.026], [0.026, 0.02, -0.01], [-0.026, 0.044, -0.004]];
+        puffs.forEach(([px, py, pz]) => D.ball(px * k, top + py * k, pz * k, 0.02 * k, 0.018 * k, 0.02 * k, pom, 0));
+        D.pop();
+      });
       return;
     }
     case 'gaze': {
