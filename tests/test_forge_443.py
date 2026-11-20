@@ -474,3 +474,84 @@ def test_the_days_forge_view_counts_to_the_item_it_ends_on(db_session: Session) 
     assert shown[-1] == (view["answered"], view["answered"]), (
         f"«Finish» after item {view['answered']}, which read «{shown[-1][0]}/{shown[-1][1]}»; all: {shown}"
     )
+
+
+def test_entry_names_the_rule_of_a_day_begun_yesterday(db_session: Session, v2, enabled) -> None:
+    """#947 (live walk 20 Nov): the card taught question words, «Forge today's rule»
+    opened on Avoir. An unfinished journey keeps the day until it is done
+    (``_occupying_journey``), so Home shows a card planned on an earlier date; the
+    entry read the plan only when the journey's date was today's and otherwise asked
+    the picker. The rule of the day on screen is the rule of the journey on screen."""
+
+    user = make_user(db_session, f"forge-947-{uuid.uuid4().hex[:8]}@example.com")
+    service = DailyJourneyService(db_session, build_default_adapters())
+    created, code = service.create_journey(user, create_request())
+    assert code == 201
+
+    upcoming = AtelierScheduler(db_session).next_new_concepts(user, limit=4, language="fr")
+    assert len(upcoming) >= 2
+    days_rule = upcoming[1]
+    row = db_session.get(DailyJourney, uuid.UUID(created.id))
+    row.plan_selection = {
+        **dict(row.plan_selection or {}),
+        "introduction": {"concept_id": days_rule.id, "title_native": days_rule.name},
+    }
+    flag_modified(row, "plan_selection")
+    row.local_date = row.local_date - timedelta(days=1)
+    db_session.commit()
+
+    today = service.get_today(user)
+    assert today.journey is not None and today.journey.id == created.id, "the unfinished day is the day on screen"
+    assert today.forge is not None
+    assert today.forge.concept_id == days_rule.id, "the Forge works on the rule of the day on screen"
+    assert f"concept={days_rule.id}" in today.practice_href
+
+
+def test_entry_names_the_rule_the_rappel_opened_the_day_on(db_session: Session, v2, enabled) -> None:
+    """#947 (live walk 20 Nov): «Before the scene · Question words», a card and two
+    drills, then «Forge today's rule» on Avoir. The day introduced nothing and had no
+    review card; its Rappel reviewed one due rule before the scene. With no RULE step
+    the entry asked the picker, which answered with another rule."""
+
+    user = make_user(db_session, f"forge-947-{uuid.uuid4().hex[:8]}@example.com")
+    service = DailyJourneyService(db_session, build_default_adapters())
+    created, code = service.create_journey(user, create_request())
+    assert code == 201
+
+    upcoming = AtelierScheduler(db_session).next_new_concepts(user, limit=4, language="fr")
+    assert len(upcoming) >= 2
+    rappel_rule = upcoming[1]
+    row = db_session.get(DailyJourney, uuid.UUID(created.id))
+    selection = dict(row.plan_selection or {})
+    selection["introduction"] = None
+    row.plan_selection = selection
+    flag_modified(row, "plan_selection")
+    for step in list(row.steps):
+        if step.kind == "rule":
+            db_session.delete(step)
+    db_session.add(
+        DailyJourneyStep(
+            journey_id=row.id,
+            ordinal=len(row.steps) + 5,
+            kind="recall",
+            status="pending",
+            estimated_seconds=30,
+            target_kind="grammar",
+            target_id=str(rappel_rule.id),
+            public_prompt={
+                "task_type": "choice",
+                "instruction_native": "Choose the question word.",
+                "target": {"kind": "grammar", "id": str(rappel_rule.id), "label_fr": rappel_rule.name},
+                "optional": False,
+                "options": [],
+            },
+            private_task={},
+        )
+    )
+    db_session.commit()
+    db_session.refresh(row)
+
+    today = service.get_today(user)
+    assert today.forge is not None
+    assert today.forge.concept_id == rappel_rule.id, "the Forge works on the rule the day opened on"
+    assert f"concept={rappel_rule.id}" in today.practice_href

@@ -5097,6 +5097,10 @@ class AtelierCorrectionService:
             # itself accepts is right in the correction box too, whatever line the
             # model printed («Elle a chaud ce soir» against a stored «Elle a chaude»).
             accepted += _accepted_answers(attempt.prompt_payload or {})
+            # A line stored before the rules read it whole: what they make of it is right too.
+            from app.services.correction_contract import repair_text
+
+            accepted.append(repair_text(target))
         else:
             # #503: a keyed round asks for «the corrected line» too. The line is
             # the key's own corrected answer for the item, or the learner's line

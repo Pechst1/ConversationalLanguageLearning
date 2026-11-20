@@ -240,7 +240,8 @@ def _planned_rule_id(journey: Any, today: date) -> int | None:
     The plan is the one place that decides the day's rule. A day that introduces
     a rule stores it (``_planned_introduction``); a day whose card only reviews a
     known rule (WP-129) introduces nothing, so the card's own step is the reader.
-    The forge entry Home links to reads it from here instead of asking the forge
+    A day with no card whose Rappel reviews one due rule before the scene (#947)
+    has that rule. The forge entry Home links to reads it from here instead of asking the forge
     picker, which knows nothing of the scene's rule and would put a due erratum's
     rule in the «today's rule» slot.
     """
@@ -256,7 +257,10 @@ def _planned_rule_id(journey: Any, today: date) -> int | None:
             prompt = getattr(step, "public_prompt", None) or {}
             if concept_id := _positive_id(prompt.get("concept_id")):
                 return concept_id
-    return None
+    # #947: no card at all, but the Rappel opened the day on one due rule («Before the
+    # scene · Question words», a card and two drills). That rule is what the learner
+    # was shown as today's, so «Forge today's rule» works on it and not on the picker's.
+    return day_brief.rappel_rule_id(getattr(journey, "steps", None))
 
 
 def _forge_block_completed(db: Session, user_id: Any, step_id: Any) -> bool:
@@ -1323,9 +1327,12 @@ class DailyJourneyService:
             available = self._available_descriptor(user)
 
         # #443: the day's rule is the one the day planned, not a second reading of the picker.
-        planned_rule = _planned_rule_id(journey, today)
+        # #947: the day on screen is ``journey``, and an unfinished one keeps the day past
+        # midnight (``_occupying_journey``). Its card's rule is the day's rule whatever the
+        # calendar says; read against ``today`` the plan was skipped and the picker answered.
+        planned_rule = _planned_rule_id(journey, journey.local_date) if journey is not None else None
         forge_anchor = self._forge_anchor_id(user, planned=planned_rule)
-        if journey is not None and journey.local_date == today:
+        if journey is not None:
             # S1.1 shadow: Home's two choosers against the day brief (flag off: no-op).
             day_brief.shadow(journey, "daily_journey._planned_rule_id", planned_rule, field="rule_concept_id")
             day_brief.shadow(journey, "daily_journey._forge_anchor_id", forge_anchor, field="forge_anchor")

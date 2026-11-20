@@ -50,6 +50,8 @@ ROLE_NONE = "none"
 #: ``daily_journey._planned_rule_id``.
 SOURCE_PLAN_RULE = "plan_rule_step"
 SOURCE_PLAN_REVIEW = "plan_review_step"
+#: #947: no rule card, but the day's Rappel reviews one due rule before the scene.
+SOURCE_PLAN_RAPPEL = "plan_rappel_step"
 SOURCE_NONE = "none"
 SOURCE_LEGACY_INTRODUCTION = "legacy_introduction"
 SOURCE_LEGACY_RULE_STEP = "legacy_rule_step"
@@ -189,6 +191,28 @@ def _rule_steps(steps: Any) -> list[dict[str, Any]]:
     ]
 
 
+def rappel_rule_id(steps: Any) -> int | None:
+    """#947: the one due rule the day's Rappel reviews (its first grammar drill), or ``None``.
+
+    A day that introduces nothing and has no review card can still open on a rule:
+    «Before the scene · Question words», a card and two drills. That is the rule the
+    learner was shown today, so it is the day's rule for everything after it.
+    """
+
+    from app.services.journey_contracts import StepKind, TargetKind
+
+    ordered = sorted(steps or [], key=lambda step: getattr(step, "ordinal", 0) or 0)
+    for step in ordered:
+        if str(getattr(step, "kind", "")) != str(StepKind.RECALL):
+            continue
+        if str(getattr(step, "target_kind", "") or "") != str(TargetKind.GRAMMAR):
+            continue
+        target = str(getattr(step, "target_id", "") or "")
+        if target.isdigit() and int(target) > 0:
+            return int(target)
+    return None
+
+
 def rule_from_steps(steps: Any) -> tuple[BriefRule, tuple[int, ...]]:
     """The day's rule and the page's reviews, read from the planned steps.
 
@@ -204,6 +228,8 @@ def rule_from_steps(steps: Any) -> tuple[BriefRule, tuple[int, ...]]:
             return BriefRule(role=ROLE_INTRODUCE, source=SOURCE_PLAN_RULE, concept_id=concept_id), reviews
     if reviews:
         return BriefRule(role=ROLE_REVIEW, source=SOURCE_PLAN_REVIEW, concept_id=reviews[0]), reviews
+    if rappel := rappel_rule_id(steps):
+        return BriefRule(role=ROLE_REVIEW, source=SOURCE_PLAN_RAPPEL, concept_id=rappel), reviews
     return BriefRule(), reviews
 
 
@@ -347,6 +373,9 @@ def for_day(journey: Any) -> DayBrief | None:
                 role = ROLE_REVIEW if prompt.get("review") else ROLE_INTRODUCE
                 rule = BriefRule(role=role, source=SOURCE_LEGACY_RULE_STEP, concept_id=concept_id)
                 break
+        else:
+            if rappel := rappel_rule_id(getattr(journey, "steps", None)):
+                rule = BriefRule(role=ROLE_REVIEW, source=SOURCE_PLAN_RAPPEL, concept_id=rappel)
     return DayBrief(
         local_date=local_date.isoformat() if local_date is not None else None,
         rule=rule,

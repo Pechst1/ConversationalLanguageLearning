@@ -168,3 +168,16 @@ def test_repeated_short_word() -> None:
     )
     assert checked.corrected == model, checked.corrected
     assert not checked.refused, checked.refused
+
+
+def test_stored_wrong_line_without_a_key(db_session) -> None:
+    """A row stored before the guard, on an item with no accept-list: the retype is
+    judged against what the rules make of the stored line, so «Elle a chaud» is right."""
+    from app.services.atelier import AtelierCorrectionService
+
+    attempt = _attempt(
+        db_session,
+        {"verdict": "partial", "errata": [dict(item) for item in MODEL_ERRATA], "corrected_answer": MODEL_LINE},
+    )
+    right = AtelierCorrectionService(db_session).record_micro_repair(attempt=attempt, text=RIGHT, erratum_index=0)
+    assert right.correction_payload["micro_repairs"]["0"]["status"] == "ok"
