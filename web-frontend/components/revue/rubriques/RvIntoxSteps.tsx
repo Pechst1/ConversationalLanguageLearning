@@ -127,10 +127,11 @@ export function RvIntoxRound(props: IntoxStepProps) {
 function FixItem({ item, props }: { item: NonNullable<IntoxStepProps['view']['fix']>['items'][number]; props: IntoxStepProps }) {
   const { view, rcopy, copy, glossLanguage, pending, readOnly, onAct } = props;
   const fix = view.fix!;
-  const [text, setText] = useState('');
-  useEffect(() => setText(''), [item.tries]);
-  const busy = readOnly || pending !== null;
   const last = item.attempts[item.attempts.length - 1] ?? null;
+  // After a miss the field keeps the learner's sentence to edit (seen at 375 px: it was emptied).
+  const [text, setText] = useState(last ?? '');
+  useEffect(() => setText(item.attempts[item.attempts.length - 1] ?? ''), [item.tries, item.attempts]);
+  const busy = readOnly || pending !== null;
   return (
     <section className="ct-frame rb-fix" data-key={item.key} data-resolved={item.resolved ? '' : undefined} aria-label={rcopy.fix_label}>
       <p className="rb-line__fr" lang="fr">

@@ -83,9 +83,13 @@ export function RvTitreThree(props: TitreStepProps) {
                   <FrLine text={headline.text} props={props} className="fl-strip__fr rb-headline" />
                   {headline.role && <span className="rb-head__role">{rcopy.role[headline.role]}</span>}
                 </div>
+                {headline === lastWrong && (
+                  <p className="ct-why" lang={glossLanguage}>
+                    {xcopy.three_wrong}
+                  </p>
+                )}
                 {headline.why && (tried || three.resolved) && (
-                  <p className="ct-why" lang={glossLanguage === 'fr' ? 'fr' : glossLanguage} data-ct-anchor={headline === lastWrong ? 'nearest' : undefined}>
-                    {headline === lastWrong ? `${xcopy.three_wrong} ` : ''}
+                  <p className="ct-why" lang={headline.why.tr ? glossLanguage : 'fr'} data-ct-anchor={headline === lastWrong ? 'nearest' : undefined}>
                     {headline.why.tr ?? headline.why.fr}
                   </p>
                 )}
@@ -271,7 +275,7 @@ export function RvTitreBuild(props: TitreStepProps) {
         </p>
         {tooMuch && (
           <p className="ct-why" lang={glossLanguage}>
-            {xcopy.errors.says_too_much}
+            {fill(xcopy.errors.says_too_much, { avoid: build.avoidFr })}
           </p>
         )}
       </div>

@@ -1,8 +1,8 @@
 /**
  * «Le titre» and «L'intox express» · «La page» (no model call at the close).
  *
- * «Le titre»: the story under the learner's headline, signed «Romy Tremblay, avec toi», with
- * how the headline reached print. «L'intox express»: the five statements as they should read
+ * «Le titre»: the story under the learner's headline, signed «Romy Tremblay, avec toi · d'après
+ * …» (its sources, from the close's dispatch), with how the headline reached print. «L'intox express»: the five statements as they should read
  * (the false words struck beside them), the learner's score and own right corrections. Then
  * Romy's thanks, the vignette, the colophon, «Classer le Papier» and at most one quiet «Voir
  * dans le Relevé». Opened after the close: the page as filed.
@@ -33,7 +33,12 @@ function Words({ words, ccopy }: { words: string[]; ccopy: ComptoirCopy }) {
   );
 }
 
-export function TitreClipping({ page, ccopy, tiles = false }: { page: RvTitrePage; ccopy: ComptoirCopy; tiles?: boolean }) {
+/** The page's byline with its sources («… · d'après …», the close's dispatch), else Romy's own. */
+function bylineOf(byline: string | null | undefined, fallback: string): string {
+  return byline && byline.trim() ? byline.trim() : fallback;
+}
+
+export function TitreClipping({ page, ccopy, tiles = false, byline }: { page: RvTitrePage; ccopy: ComptoirCopy; tiles?: boolean; byline?: string | null }) {
   return (
     <article className="ct-clip rb-clip" data-ct-anchor="start">
       <p className="ct-clip__k" lang="fr">
@@ -47,14 +52,14 @@ export function TitreClipping({ page, ccopy, tiles = false }: { page: RvTitrePag
         {page.leadFr}
       </p>
       <p className="ct-quote__by" lang="fr">
-        {TITRE_FR.byline} · {inPaperLabel(page.proof ?? 'as_written', tiles)}
+        {bylineOf(byline, TITRE_FR.byline)} · {inPaperLabel(page.proof ?? 'as_written', tiles)}
       </p>
       <Words words={page.words} ccopy={ccopy} />
     </article>
   );
 }
 
-export function IntoxClipping({ page, ccopy }: { page: RvIntoxPage; ccopy: ComptoirCopy }) {
+export function IntoxClipping({ page, ccopy, byline }: { page: RvIntoxPage; ccopy: ComptoirCopy; byline?: string | null }) {
   return (
     <article className="ct-clip rb-clip" data-ct-anchor="start">
       <p className="ct-clip__k" lang="fr">
@@ -84,6 +89,11 @@ export function IntoxClipping({ page, ccopy }: { page: RvIntoxPage; ccopy: Compt
           </li>
         ))}
       </ol>
+      {byline && (
+        <p className="ct-quote__by" lang="fr">
+          {byline}
+        </p>
+      )}
       <Words words={page.words} ccopy={ccopy} />
     </article>
   );
@@ -105,8 +115,8 @@ export function RvRubriquePage({
   const { session, copy, ccopy, readOnly, footRef, notice } = props;
   const closing = session.closing;
   let clipping: React.ReactNode = null;
-  if (closing?.titrePage) clipping = <TitreClipping page={closing.titrePage} ccopy={ccopy} tiles={tiles} />;
-  else if (closing?.intoxPage) clipping = <IntoxClipping page={closing.intoxPage} ccopy={ccopy} />;
+  if (closing?.titrePage) clipping = <TitreClipping page={closing.titrePage} ccopy={ccopy} tiles={tiles} byline={closing.dispatch?.bylineFr} />;
+  else if (closing?.intoxPage) clipping = <IntoxClipping page={closing.intoxPage} ccopy={ccopy} byline={closing.dispatch?.bylineFr} />;
   else if (closing) clipping = <RvDispatch {...closing.dispatch} readOnly copy={copy} />;
   return (
     <>

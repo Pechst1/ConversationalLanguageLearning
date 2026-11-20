@@ -190,7 +190,7 @@ export function RvRubrique({ client, session: initial, language, onExit, onRelev
     <>
       {refusal && (
         <p className="ct-why rb-refusal" role="status" data-ct-anchor="nearest">
-          {errorText(refusalCopy(refusal.code, rcopy, xcopy), refusal)}
+          {errorText(refusalCopy(refusal.code, rcopy, xcopy), refusal, session.titre?.build?.avoidFr ?? '')}
         </p>
       )}
       {failed && (

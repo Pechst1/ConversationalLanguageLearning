@@ -110,7 +110,7 @@ export function refusalCopy(code: string, chrome: RubriqueCopy, reasons: Rubriqu
 }
 
 /** Why an act was not recorded, in the table it is given (`refusalCopy`). */
-export function errorText(copy: RubriqueCopy, error: RvRubriqueError): string {
+export function errorText(copy: RubriqueCopy, error: RvRubriqueError, avoid = ''): string {
   const template = copy.errors[error.code] ?? copy.errors.too_short;
-  return fill(template, { n: String(error.count ?? '') });
+  return fill(template, { n: String(error.count ?? ''), avoid });
 }

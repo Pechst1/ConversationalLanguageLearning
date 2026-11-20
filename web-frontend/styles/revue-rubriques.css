@@ -19,7 +19,7 @@
 
 /* «Le piège»: each word a button */
 .av2 .rb-trap { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
-.av2 .rb-trap__w { min-height: var(--av2-tap); padding: 6px 12px; border: 1px solid var(--av2-line-2); border-radius: var(--av2-r-pill);
+.av2 .rb-trap__w { min-width: var(--av2-tap); min-height: var(--av2-tap); padding: 6px 12px; border: 1px solid var(--av2-line-2); border-radius: var(--av2-r-pill);
   background: var(--av2-paper); color: var(--av2-ink); font: 700 var(--av2-t-body-lg)/1.2 var(--av2-serif); cursor: pointer; }
 .av2 .rb-trap__w[aria-pressed='true'] { background: var(--av2-ink); border-color: var(--av2-ink); color: var(--av2-on-ink); }
 .av2 .rb-trap__w[data-fine] { border-color: var(--av2-green); }

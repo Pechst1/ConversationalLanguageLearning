@@ -163,7 +163,8 @@ test('«Le titre» A1 (en): Gus proposes three, a wrong pick says why with its c
 
   html = screen('titre_a1_three_wrong');
   text = visibleText(html);
-  assert.match(text, /Not this one\. This headline says something the article doesn't: True, but this headline is about the day/);
+  assert.match(text, /Not this one\./);
+  assert.match(text, /True, but this headline is about the day/);
   assert.match(text, /Misses the news/);
   assert.match(text, /21 juin 1982/, 'the claim that settles it');
   assert.match(text, /Try 2 of 2/);
@@ -177,7 +178,7 @@ test('«Le titre» A1 (en): the trap names the true words after a miss, then the
   assert.equal((html.match(/class="rb-trap__w"/g) || []).length, 7);
   html = screen('titre_a1_trap_miss');
   text = visibleText(html);
-  assert.match(text, /The article does say these: fête\./);
+  assert.match(text, /Not these words: “fête”\./);
   assert.doesNotMatch(text, /These are the words that say too much/);
   assert.doesNotMatch(html, /data-wrong/, 'no solution before the retry');
 
@@ -192,7 +193,7 @@ test('«Le titre» A1 (en): the trap names the true words after a miss, then the
   text = visibleText(html);
   assert.match(text, /Le titre de Romy/);
   assert.match(text, /La Fête de la musique est gratuite/);
-  assert.match(text, /Romy Tremblay, avec toi · Dans le journal/);
+  assert.match(text, /Romy Tremblay, avec toi · d'après Ministère de la Culture .* · Dans le journal/);
   assert.ok(footButtons(html) <= 2);
 });
 
@@ -330,12 +331,12 @@ test('from B1 the reasons are in the mother tongue while the chrome stays French
     return visibleText(render(h(RvRubrique, { client: {}, session: types.parseSessionView(raw), onExit: () => {} })));
   };
   let text = b1('titre_a1_three_wrong');
-  assert.match(text, /Not this one\. This headline says something the article doesn't:/);
+  assert.match(text, /Not this one\./);
   assert.doesNotMatch(text, /Pas celui-là/);
   assert.match(text, /Vérifier/, 'the chrome stays French');
   text = b1('titre_a1_trap_miss');
-  assert.match(text, /The article does say these: fête\./);
-  assert.doesNotMatch(text, /l'article les dit/);
+  assert.match(text, /Not these words: “fête”\./);
+  assert.doesNotMatch(text, /Pas ces mots-là/);
   text = b1('titre_a1_trap_miss', (raw) => {
     const trap = raw.titre.trap;
     Object.assign(trap, { resolved: true, correct: true, solution: [4, 5, 6], fine: [], why: { fr: 'Pas tout le monde.', tr: 'Not everyone.' } });
@@ -347,4 +348,55 @@ test('from B1 the reasons are in the mother tongue while the chrome stays French
   for (const code of ['too_short', 'too_long', 'pick_words', 'pick_tiles']) {
     assert.equal(model.refusalCopy(code, rubriqueCopy('fr'), rubriqueCopy('en')), rubriqueCopy('fr'), `${code} is an instruction`);
   }
+});
+
+// Seen in a browser (2026-11-20, 375 × 812, A1 de / A2 de / B1 en): what the words said.
+test('the verdicts and reasons say what they mean', () => {
+  // «Nicht ganz. Das stimmt.» read as «not quite — that's right»: the verdict names the statement.
+  for (const lang of ['fr', 'en', 'de']) {
+    const copy = rubriqueCopy(lang);
+    assert.doesNotMatch(`${copy.verdict_wrong} ${copy.was_true}`, /Das stimmt\.|C'est vrai\.|It's true\./, lang);
+    assert.match(copy.was_true, /Satz|statement|phrase/, lang);
+    assert.match(copy.was_false, /Satz|statement|phrase/, lang);
+    // A wrong pick of the off headline said «says something the article doesn't: True, but…».
+    assert.doesNotMatch(copy.three_wrong, /:$/, `${lang}: the lead-in claims nothing about the headline`);
+    // After a miss on «nuit», «the article does say these: nuit» was false: the article never says «nuit».
+    assert.doesNotMatch(copy.trap_fine, /article/i, lang);
+    // «Take those words out» named none: the refusal names them.
+    assert.match(copy.errors.says_too_much, /\{avoid\}/, lang);
+  }
+  assert.match(model.errorText(rubriqueCopy('de'), { code: 'says_too_much', key: null, count: null }, 'tout le monde'), /„tout le monde“/);
+  let html = screen('intox_a1_round_miss');
+  assert.match(visibleText(html), /Not quite\. The statement is true\./);
+  const raw = JSON.parse(JSON.stringify(SESSIONS.titre_a1_three_wrong));
+  html = render(h(RvRubrique, { client: {}, session: types.parseSessionView(raw), onExit: () => {} }));
+  assert.match(html, /<p class="ct-why"[^>]*>Not this one\.<\/p>/, 'the lead-in is its own line');
+});
+
+// Seen at 375 px: «à» and «le» in «Le piège» were 35 and 37 px wide.
+test('the trap words are at least 44 px both ways', () => {
+  const css = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', '..', '..', 'styles', 'revue-rubriques.css'), 'utf8');
+  const rule = css.match(/\.rb-trap__w \{([^}]*)\}/);
+  assert.ok(rule, 'the rule exists');
+  assert.match(rule[1], /min-width: var\(--av2-tap\);/);
+  assert.match(rule[1], /min-height: var\(--av2-tap\);/);
+});
+
+// Seen in a browser: «La page» reprinted the story's lead with no source.
+test('«La page» names its sources under both assignments', () => {
+  for (const name of ['titre_a1_page', 'intox_a1_page']) {
+    const raw = JSON.parse(JSON.stringify(SESSIONS[name]));
+    raw.closing.dispatch.byline_fr = "Romy Tremblay, avec toi · d'après Ministère de la Culture et Wikipédia";
+    const text = visibleText(render(h(RvRubrique, { client: {}, session: types.parseSessionView(raw), onExit: () => {} })));
+    assert.match(text, /d'après Ministère de la Culture et Wikipédia/, name);
+  }
+});
+
+// Seen at 375 px (B1 en): after a miss the field was empty; the learner retyped the whole sentence.
+test('«Corrige» B1: after a miss the field keeps the learner\'s sentence to edit', () => {
+  const raw = JSON.parse(JSON.stringify(SESSIONS.intox_b1_fix));
+  const item = raw.intox.fix.items[0];
+  Object.assign(item, { tries: 1, attempts: ['La fête a lieu le 14 juin.'], resolved: false });
+  const html = render(h(RvRubrique, { client: {}, session: types.parseSessionView(raw), onExit: () => {} }));
+  assert.match(html, /<textarea[^>]*>La fête a lieu le 14 juin\.<\/textarea>/);
 });
