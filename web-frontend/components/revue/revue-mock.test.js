@@ -434,3 +434,69 @@ test('§8.4 without the story\'s picture: the plate stands in, no «Regarde», n
   const { closing } = await client.close(s.id);
   assert.deepEqual([closing.dispatch.pictureUrl, closing.dispatch.captionFr], [null, null]);
 });
+
+// Papier · together (2026-11-20): the dev mock plays «Le fil», «Le pourquoi» and the photos.
+test('«Le fil» (`fil: true`): «Le bac» plays read → order (a wrong try, a reason) → words → telling (marks, fix) → «La page»', async () => {
+  const client = createMockRevueClient({ persist: false, fil: true, pourquoi: true, photos: true, band: 'A2', language: 'de' });
+  const week = await client.week();
+  assert.equal(week.offer.recommended.dossierId, 'evergreen-bac');
+  let s = await client.start();
+  assert.equal(s.mode, 'fil');
+  assert.equal(s.fil.step, 'read');
+  assert.equal(s.stage.pictures.length, 3, 'a pictures list of three');
+  assert.ok(s.stage.pictures.every((p) => p.url.startsWith('/') || p.url.startsWith('data:')), 'no network');
+  assert.equal(s.stage.pictures.filter((p) => p.kind === 'photo')[0].creditFr, 'Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons');
+
+  s = (await client.fil(s.id, { act: 'open' })).session;
+  assert.equal(s.fil.step, 'order');
+  assert.deepEqual(s.fil.order.solution, [], 'never the order before it is resolved');
+  s = (await client.fil(s.id, { act: 'order', order: ['a', 'b', 'c', 'd'] })).session;
+  assert.ok(s.fil.order.hint && !s.fil.order.resolved, 'a wrong order names one strip');
+  s = (await client.fil(s.id, { act: 'order', order: ['b', 'd', 'a', 'c'] })).session;
+  assert.equal(s.fil.step, 'words');
+  const options = s.fil.words.options;
+  assert.equal(options.length, 4);
+  const wrong = ['finalement', 'puis', 'apres', 'enfin'];
+  s = (await client.fil(s.id, { act: 'words', picks: wrong })).session;
+  assert.ok(s.fil.words.misses.length >= 1 && s.fil.words.misses[0].tr, 'a miss says what the word means');
+  s = (await client.fil(s.id, { act: 'words', picks: ['au-debut', 'puis', 'apres', 'enfin'] })).session;
+  assert.equal(s.fil.step, 'tell');
+  assert.equal(s.fil.tell.input, 'frames');
+  const told = await client.fil(s.id, { act: 'tell', texts: ['est créé en 1808', 'compte moins, il sont tres contents'] });
+  s = told.session;
+  assert.equal(s.fil.tell.proof, 'marked');
+  assert.deepEqual(s.fil.tell.marks.map((m) => m.spanFr), ['il', 'tres']);
+  assert.ok(s.fil.tell.marks.every((m) => m.why), 'each mark carries its rule');
+  assert.doesNotMatch(JSON.stringify(s.fil.tell), /ils sont|très|fix_fr/, 'no solution before the retry');
+  s = (await client.fil(s.id, { act: 'tell_fix', text: s.fil.tell.draftFr.replace('il sont tres', 'ils sont très') })).session;
+  assert.equal(s.fil.tell.proof, 'fixed');
+  assert.equal(s.fil.tell.notes.length, 2);
+  assert.match(s.fil.tell.notes[0].why, /«ils»/);
+  const { closing } = await client.close(s.id);
+  assert.equal(closing.filPage.strips.length, 4);
+  assert.match(closing.filPage.mineFr, /ils sont très contents/);
+});
+
+test('«Le pourquoi» at the counter (`comptoir`, `pourquoi`): the marks carry their rule, the settled opinion its notes', async () => {
+  const client = createMockRevueClient({ persist: false, comptoir: true, pourquoi: true, photos: true, band: 'B1', language: 'en' });
+  let s = await client.start();
+  assert.equal(s.mode, 'comptoir');
+  assert.equal(s.stage.pictures.length, 3);
+  const act = async (body) => (s = (await client.comptoir(s.id, body)).session);
+  await act({ act: 'vote', value: 'pour' });
+  for (const guest of s.comptoir.cast) await act({ act: 'react', guestId: guest.id, value: 'agree' });
+  if (s.comptoir.step === 'intox') {
+    await act({ act: 'intox_who', guestId: s.comptoir.cast[0].id });
+    if (!s.comptoir.intox.resolved) await act({ act: 'intox_who', guestId: s.comptoir.cast[1].id });
+    if (!s.comptoir.intox.resolved) await act({ act: 'intox_who', guestId: s.comptoir.cast[2].id });
+    await act({ act: 'intox_fix', text: "C'est faux, ce n'est pas ce que disent les sources du tout." });
+  }
+  assert.equal(s.comptoir.step, 'opinion');
+  await act({ act: 'opinion', value: 'pour', text: 'Je suis pour, parce que le gens sont content de la revoir a Paris en mai.' });
+  assert.equal(s.comptoir.opinion.proof, 'marked');
+  assert.ok(s.comptoir.opinion.marks.every((m) => m.why), 'each mark carries its rule');
+  assert.doesNotMatch(JSON.stringify(s.comptoir.opinion), /les gens|contents|fix_fr/);
+  await act({ act: 'opinion_fix', text: 'Je suis pour, parce que les gens sont contents de la revoir à Paris en mai.' });
+  assert.equal(s.comptoir.opinion.proof, 'fixed');
+  assert.ok(s.comptoir.opinion.notes.length >= 2 && s.comptoir.opinion.notes.every((n) => n.why && n.ruleId));
+});
