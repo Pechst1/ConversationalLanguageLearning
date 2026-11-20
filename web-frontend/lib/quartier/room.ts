@@ -209,7 +209,8 @@ export type ThingKind =
   | 'drape'
   | 'sink'
   | 'soak'
-  | 'towel';
+  | 'towel'
+  | 'tuque';
 
 export interface RoomThing {
   kind: ThingKind;
@@ -487,6 +488,8 @@ export const ROOM_TONES: Record<string, Hex> = {
   velvet: mix(mix(TONES.oxblood, INKS.vermilion, 0.35), INKS.ink, 0.08),
   /** green marble, polished */
   marble: mix(mix(INKS.green, INKS.ink, 0.42), INKS.paper, 0.12),
+  /** a card folder's cover, school blue */
+  dossier: mix(INKS.cobalt, INKS.paper, 0.18),
 };
 
 const toneOf = (name: string | undefined, fallback: Hex): Hex => (name && ROOM_TONES[name] !== undefined ? ROOM_TONES[name] : fallback);
@@ -1406,13 +1409,20 @@ function thing(B: Build, t: RoomThing, i: number) {
       return;
     }
     case 'folder': {
-      // a closed dossier, buff card with its strap, and on its cover the label: what it is about
-      const buff = zoned(mix(INKS.ochre, INKS.paper, 0.55), z);
+      // a closed dossier, buff card (or `tone`) with its strap, and on its cover the label: what
+      // it is about (no `text`, no label: a folder nobody has named)
+      const buff = zoned(toneOf(t.tone, mix(INKS.ochre, INKS.paper, 0.55)), z);
       const strap = zoned(mix(INKS.ink, INKS.cobalt, 0.2), z);
       D.at(x, y, zz, rot, () => {
         D.box(0, 0.007, 0, 0.33, 0.014, 0.245, buff, { ny: false });
         D.box(0.1, 0.0145, 0, 0.012, 0.002, 0.25, strap);
+        if (t.tone) {
+          // a school folder: its papers' edge showing at the open side, an elastic round two corners
+          D.box(0.002, 0.007, 0.1235, 0.318, 0.009, 0.002, zoned(INKS.card, z));
+          for (const s of [-1, 1]) D.bar(new Vector3(s * 0.128, 0.0148, s * -0.124), new Vector3(s * 0.166, 0.0148, s * -0.086), 0.004, strap);
+        }
       });
+      if (!t.text?.[0]) return;
       const lean = 0.06;
       const n = new Vector3(Math.sin(rot) * Math.sin(lean), Math.cos(lean), Math.cos(rot) * Math.sin(lean));
       const side = new Vector3(Math.cos(rot), 0, -Math.sin(rot));
@@ -2469,6 +2479,41 @@ function thing(B: Build, t: RoomThing, i: number) {
           D.box(sx * 0.0205, 0.006 - h + 0.06, 0, 0.002, 0.018, w + 0.001, stripe);
           D.box(sx * 0.0205, 0.006 - h + 0.035, 0, 0.002, 0.006, w + 0.001, stripe);
         }
+      });
+      return;
+    }
+    case 'tuque': {
+      // a knitted wool tuque put down on a table, crown up: the turned-up cuff ribbed in a darker
+      // blue, a cream band knitted round the crown, the crown gone soft and leaning to one side,
+      // a fat cream pompom on top (`size` [r], the cuff's radius; the crown leans toward local +x)
+      const r = t.size?.[0] ?? 0.095;
+      const k = r / 0.095;
+      const wool = zoned(mix(INKS.cobalt, INKS.paper, 0.2), z);
+      const rib = zoned(mix(INKS.cobalt, INKS.ink, 0.32), z);
+      const ridge = zoned(mix(INKS.cobalt, INKS.paper, 0.1), z);
+      const band = zoned(mix(INKS.card, INKS.ochre, 0.08), z);
+      const pom = zoned(mix(INKS.card, INKS.ochre, 0.05), z);
+      D.at(x, y, zz, rot, () => {
+        // off a head the crown slumps: sheared toward +x, its foot still flat on the table
+        D.push(new Matrix4().set(1, 0.42, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1));
+        D.lathe(0, 0, 0, [[0.094 * k, 0], [0.099 * k, 0.008 * k], [0.1 * k, 0.05 * k], [0.094 * k, 0.058 * k], [0, 0.058 * k]], 24, rib);
+        // the rib: knit ridges up the cuff, lighter than the furrows between them
+        for (let n = 0; n < 28; n++) {
+          const a = (n / 28) * Math.PI * 2;
+          D.at(Math.sin(a) * 0.099 * k, 0.029 * k, Math.cos(a) * 0.099 * k, a, () => D.box(0, 0, 0, 0.0075 * k, 0.044 * k, 0.004 * k, ridge));
+        }
+        // the crown: blue, a cream band, blue again up to the top
+        const crown: Array<[number, number]> = [[0.091, 0], [0.091, 0.022], [0.088, 0.04], [0.08, 0.06], [0.064, 0.078], [0.04, 0.09], [0, 0.094]];
+        const at = (i: number): [number, number] => [crown[i][0] * k, crown[i][1] * k];
+        D.lathe(0, 0.056 * k, 0, [at(0), at(1)], 24, wool, { flat: true });
+        D.lathe(0, 0.056 * k, 0, [at(1), [0.0905 * k, 0.034 * k]], 24, band, { flat: true });
+        D.lathe(0, 0.056 * k, 0, [[0.0905 * k, 0.034 * k], at(2), at(3), at(4), at(5), at(6)], 24, wool);
+        // the pompom, a fluff of balls
+        const top = 0.146 * k;
+        D.ball(0, top + 0.03 * k, 0, 0.04 * k, 0.034 * k, 0.04 * k, pom, 2);
+        const puffs: Array<[number, number, number]> = [[0.024, 0.036, 0.012], [-0.022, 0.032, 0.016], [0.008, 0.05, -0.02], [-0.012, 0.02, -0.026], [0.026, 0.02, -0.01], [-0.026, 0.044, -0.004]];
+        puffs.forEach(([px, py, pz]) => D.ball(px * k, top + py * k, pz * k, 0.02 * k, 0.018 * k, 0.02 * k, pom, 0));
+        D.pop();
       });
       return;
     }

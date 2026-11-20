@@ -16,7 +16,7 @@ require(path.join(WEB_ROOT, 'node_modules/sucrase/register/ts'));
 
 const { CardPress, LacePress, Press, seeded } = require('./geo.ts');
 const { buildDetail, detailThings, flagValue, foldName, setBy } = require('./details.ts');
-const { ROOM } = require('./mistral.ts');
+const { BACK_TABLES, ROOM } = require('./mistral.ts');
 const { buildRoom } = require('./room.ts');
 const { WORLD, mapPlaces } = require('./world.ts');
 
@@ -241,4 +241,32 @@ test("the stairwell's view into Odile's kitchen has her flat's things, where her
   const kitchen = (t) => t.at[2] < -14.9 && t.at[2] > -18.75 && t.at[0] > -31.8 && t.at[0] <= -27.26 && t.at[1] >= 4.5 && t.at[1] < 7.6;
   const seen = new Set(stair.things.filter(kitchen).map(key));
   flat.things.filter(kitchen).forEach((t) => assert.ok(seen.has(key(t)), `the stairwell's kitchen has no ${key(t)}`));
+});
+
+test("Romy's tuque, beside the closed blue folder on the back table: laid once a page left it at Le Mistral", () => {
+  const tuque = details.find(({ spec }) => spec.id === 'tuque_romy').spec;
+  assert.equal(tuque.in, 'quai_de_valmy');
+  assert.deepEqual(tuque.mark, { name_fr: 'La tuque de Romy', location_id: 'le_mistral' });
+  const laid = (marks) => setBy([tuque], { flags: {}, marks }).map((d) => d.spec.id);
+  assert.deepEqual(laid([{ kind: 'thing', name_fr: 'la tuque de Romy', location_id: 'le_mistral' }]), ['tuque_romy']);
+  assert.deepEqual(laid([{ kind: 'thing', name_fr: 'La tuque de Romy', location_id: 'marin_lila_flat' }]), []);
+  const hat = tuque.things.find((t) => t.kind === 'tuque');
+  const folder = tuque.things.find((t) => t.kind === 'folder');
+  assert.ok(hat && folder, 'a tuque and the folder it rests beside');
+  assert.equal(folder.tone, 'dossier', 'the folder is blue');
+  assert.ok(!folder.text?.[0], "closed, nobody's name on it");
+  // both on the left back table's marble, inside its edge, clear of Marin's bowl of soup
+  const tx = BACK_TABLES.xs[0];
+  const r = hat.size[0];
+  // the folder 0.33 by 0.245, turned: the half-extents of its footprint along x and z
+  const fx = (0.33 / 2) * Math.abs(Math.cos(folder.rot)) + (0.245 / 2) * Math.abs(Math.sin(folder.rot));
+  const fz = (0.33 / 2) * Math.abs(Math.sin(folder.rot)) + (0.245 / 2) * Math.abs(Math.cos(folder.rot));
+  for (const [t, hx, hz] of [[hat, r, r], [folder, fx, fz]]) {
+    assert.ok(Math.abs(t.at[1] - BACK_TABLES.top) < 0.005, `the ${t.kind} lies on the table's top`);
+    assert.ok(Math.abs(t.at[0] - tx) + hx < BACK_TABLES.w / 2 && Math.abs(t.at[2] - BACK_TABLES.z) + hz < BACK_TABLES.d / 2, `the ${t.kind} is on the table, not over its edge`);
+    assert.ok(t.at[0] + hx < BACK_TABLES.bowl.x - BACK_TABLES.bowl.r, `the ${t.kind} keeps clear of the bowl`);
+  }
+  // beside each other, not on top of each other
+  assert.ok(Math.abs(hat.at[0] - folder.at[0]) >= r + fx - 0.01, 'the tuque beside the folder, not on it');
+  assert.ok(Math.hypot(hat.at[0] - folder.at[0], hat.at[2] - folder.at[2]) < 0.4, 'and close by it');
 });

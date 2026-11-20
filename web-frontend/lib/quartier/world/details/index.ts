@@ -6,4 +6,5 @@ export const DETAIL_FILES: Record<string, () => Promise<DetailSpec>> = {
   banderole_lila_seche: () => import('./banderole_lila_seche.json').then((m) => (m.default ?? m) as unknown as DetailSpec),
   poele_odile: () => import('./poele_odile.json').then((m) => (m.default ?? m) as unknown as DetailSpec),
   tasse_habituelle: () => import('./tasse_habituelle.json').then((m) => (m.default ?? m) as unknown as DetailSpec),
+  tuque_romy: () => import('./tuque_romy.json').then((m) => (m.default ?? m) as unknown as DetailSpec),
 };
