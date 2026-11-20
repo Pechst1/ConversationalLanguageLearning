@@ -36,7 +36,7 @@ def _model_result() -> dict:
     }
 
 
-def test_the_rules_read_avoir_chaud_as_invariable() -> None:
+def test_avoir_chaud_rule() -> None:
     from app.services.correction_contract import repair_text
 
     assert repair_text("Elle a chaude ce soir.") == "Elle a chaud ce soir."
@@ -53,7 +53,7 @@ def test_the_rules_read_avoir_chaud_as_invariable() -> None:
         assert repair_text(right) == right, right
 
 
-def test_the_printed_correction_is_elle_a_chaud() -> None:
+def test_printed_line() -> None:
     from app.services.atelier import repair_line_from_parts
     from app.services.forge_grading import refine_production_correction
 
@@ -70,7 +70,7 @@ def test_the_printed_correction_is_elle_a_chaud() -> None:
     assert filled is not None and filled.strip(" .") == RIGHT
 
 
-def test_every_surface_reads_the_fixes_as_one_line() -> None:
+def test_one_line_check() -> None:
     """The same flaw on the Courrier, the Journal and the scenes (``verify_correction``):
     the list kept «chaud -> chaude» beside a rule's «chaude -> chaud»."""
     from app.services.correction_contract import verify_correction
@@ -100,7 +100,7 @@ def _attempt(db_session, correction: dict, prompt: dict | None = None):
     return attempt
 
 
-def test_the_right_sentence_is_accepted_in_the_correction_box(db_session) -> None:
+def test_right_retype_ok(db_session) -> None:
     from app.services.atelier import AtelierCorrectionService
     from app.services.forge_grading import refine_production_correction
 
@@ -114,7 +114,7 @@ def test_the_right_sentence_is_accepted_in_the_correction_box(db_session) -> Non
     assert right.correction_payload["micro_repairs"]["0"]["status"] == "ok", "the right sentence was refused"
 
 
-def test_an_accepted_answer_of_the_item_is_right_against_an_old_stored_line(db_session) -> None:
+def test_item_answer_ok(db_session) -> None:
     """#174: a row stored before the guard still holds «Elle a chaude ce soir.». The
     retype is judged against the item's accept-list too, not that one stored string."""
     from app.services.atelier import AtelierCorrectionService
