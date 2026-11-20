@@ -72,6 +72,19 @@ export interface MistralParts {
   chair: Group;
 }
 
+/**
+ * The two marble tables in front of the booth, at the back of the room: their centres along the
+ * booth, their top's size and height, and where Marin's bowl of soup stands on the left one.
+ */
+export const BACK_TABLES = {
+  xs: [-31.9, -29.1],
+  z: ROOM.z0 + 1.0,
+  w: 1.15,
+  d: 0.62,
+  top: ROOM.floor + 0.76,
+  bowl: { x: -31.6, z: ROOM.z0 + 1.05, r: 0.1 },
+};
+
 /** Where the pulled chair stands tucked in, and where Marin leaves it for you. */
 export const CHAIR = {
   tucked: new Vector3(-30.5, ROOM.floor, -17.0),
@@ -340,15 +353,15 @@ export function buildMistral(B: Build, building: BuildingInfo): MistralParts {
     // the booth's end at the zinc side
     D.box(x0 - 0.05, R.floor + 0.7, bz + 0.33, 0.1, 1.4, 0.66, woodDark);
     // two tables in front, marble on iron
-    for (const tx of [-31.9, -29.1]) {
-      D.box(tx, R.floor + 0.74, bz + 1.0, 1.15, 0.04, 0.62, indoor({ color: TONES.marble, wet: 0.4, id: nextId() }));
+    for (const tx of BACK_TABLES.xs) {
+      D.box(tx, BACK_TABLES.top - 0.02, BACK_TABLES.z, BACK_TABLES.w, 0.04, BACK_TABLES.d, indoor({ color: TONES.marble, wet: 0.4, id: nextId() }));
       D.cylinder(tx, R.floor, bz + 1.0, 0.04, 0.04, 0.72, 6, indoor({ color: mix(TONES.iron, INKS.ink, 0.3), id: nextId() }), { flat: true });
       D.box(tx, R.floor + 0.02, bz + 1.0, 0.6, 0.04, 0.4, indoor({ color: mix(TONES.iron, INKS.ink, 0.3), id: nextId() }));
       B.blocks.push([[tx - 0.62, bz + 0.6], [tx + 0.62, bz + 0.6], [tx + 0.62, bz + 1.36], [tx - 0.62, bz + 1.36]]);
     }
     B.blocks.push([[x0 - 0.1, bz], [x1, bz], [x1, bz + 0.68], [x0 - 0.1, bz + 0.68]]);
     // Marin's bowl of soup, a glass, a carafe
-    D.lathe(-31.6, R.floor + 0.76, bz + 1.05, [[0.05, 0], [0.09, 0.05], [0.1, 0.08], [0, 0.08]], 10, indoor({ color: mix(INKS.card, INKS.cobalt, 0.08), id: nextId() }));
+    D.lathe(BACK_TABLES.bowl.x, BACK_TABLES.top, BACK_TABLES.bowl.z, [[0.05, 0], [0.09, 0.05], [BACK_TABLES.bowl.r, 0.08], [0, 0.08]], 10, indoor({ color: mix(INKS.card, INKS.cobalt, 0.08), id: nextId() }));
     D.lathe(-29.3, R.floor + 0.76, bz + 0.95, [[0.035, 0], [0.04, 0.12], [0, 0.12]], 8, indoor({ color: mix(INKS.vermilion, INKS.ink, 0.35), wet: 0.6, id: nextId() }));
     D.lathe(-28.9, R.floor + 0.76, bz + 1.1, [[0.06, 0], [0.07, 0.12], [0.03, 0.22], [0.03, 0.28], [0, 0.28]], 8, indoor({ color: mix(INKS.cobalt, INKS.paper, 0.6), wet: 0.8, id: nextId() }));
   }
