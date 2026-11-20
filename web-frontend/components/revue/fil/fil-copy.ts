@@ -141,7 +141,7 @@ const DE: FilCopy = {
   move_up: 'Nach oben',
   move_down: 'Nach unten',
   order_check: 'Reihenfolge prüfen',
-  order_hint: '{a} kommt nach {b}.',
+  order_hint: 'Erst {b}, dann {a}.',
   order_right: 'Das ist die richtige Reihenfolge.',
   order_shown: 'Hier ist die richtige Reihenfolge.',
   try_n: 'Versuch {n} von {max}',

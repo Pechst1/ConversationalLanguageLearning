@@ -18,6 +18,9 @@
 .av2 .fl-strip__text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .av2 .fl-strip__fr { margin: 0; font-family: var(--av2-serif); font-size: var(--av2-t-body-lg); line-height: 1.3; color: var(--av2-ink); }
 .av2 .fl-strip__moves { display: flex; flex-direction: column; gap: 4px; }
+/* the arrows read as the strip number does (a hairline pill on paper); one that cannot move recedes */
+.av2 .fl-strip__moves .av2-icon-btn { border: 1px solid var(--av2-line-2); background: var(--av2-paper); }
+.av2 .fl-strip__moves .av2-icon-btn:disabled { border-color: transparent; background: transparent; color: var(--av2-line-2); }
 .av2 .fl-strip .ct-why { grid-column: 2 / -1; }
 
 /* the sequence words: a slot on each dispatch (A1), three options (A2+) */

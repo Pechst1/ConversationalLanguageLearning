@@ -65,7 +65,7 @@ test("the order's reason names two strips by their own names, in the chrome lang
   assert.equal(model.orderHintText(filCopy('fr'), strips, hint, 'fr'), 'Le vote vient après « La mairie annonce le projet… ».');
   strips[1].label = { fr: "l'annonce", tr: 'die Ankündigung' };
   strips[0].label = { fr: 'le vote', tr: 'die Abstimmung' };
-  assert.equal(model.orderHintText(filCopy('de'), strips, hint, 'de'), 'Die Abstimmung kommt nach die Ankündigung.');
+  assert.equal(model.orderHintText(filCopy('de'), strips, hint, 'de'), 'Erst die Ankündigung, dann die Abstimmung.');
 });
 
 test('a miss says what the word means and what the strip needs', () => {
@@ -278,4 +278,30 @@ test('B1 (en): the chrome is French from B1; free telling with the sequence word
   assert.match(text, /0 mot\(s\) du fil sur 2/);
   assert.doesNotMatch(text, ENGLISH_CHROME);
   assert.ok(footButtons(html) <= 2);
+});
+
+// Seen in a browser (2026-11-20, A1 de): «Die erste Prüfung kommt nach die Gründung.» —
+// «nach» takes the dative, the labels come in the nominative: the German hint says it in
+// an order that keeps them nominative.
+test('the order hint reads as German with the labels as they come (nominative)', () => {
+  const strips = [
+    { key: 'a', text: { fr: 'Le baccalauréat naît en 1808.', tr: null }, label: { fr: 'la création', tr: 'die Gründung' } },
+    { key: 'b', text: { fr: 'Les élèves passent le premier bac en 1809.', tr: null }, label: { fr: 'le premier examen', tr: 'die erste Prüfung' } },
+  ];
+  const de = model.orderHintText(filCopy('de'), strips, { key: 'b', afterKey: 'a' }, 'de');
+  assert.doesNotMatch(de, /nach die /);
+  assert.equal(de, 'Erst die Gründung, dann die erste Prüfung.');
+  assert.equal(model.orderHintText(filCopy('en'), strips.map((s) => ({ ...s, label: { fr: s.label.fr, tr: s.key === 'a' ? 'the creation' : 'the first exam' } })), { key: 'b', afterKey: 'a' }, 'en'), 'The first exam comes after the creation.');
+  assert.equal(model.orderHintText(filCopy('fr'), strips, { key: 'b', afterKey: 'a' }, 'fr'), 'Le premier examen vient après la création.');
+});
+
+// Seen in a browser (2026-11-20): on the order screen the disabled ↑ of the first strip
+// (and ↓ of the last) wore the design system's filled «disabled» pill while the live
+// arrows had none on the card — the one arrow that does nothing looked the most pressable.
+test('the order arrows: the live ones look like buttons, a dead one recedes', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const css = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'styles', 'revue-fil.css'), 'utf8');
+  assert.match(css, /\.av2 \.fl-strip__moves \.av2-icon-btn \{[^}]*border: 1px solid var\(--av2-line-2\);[^}]*background: var\(--av2-paper\);/);
+  assert.match(css, /\.av2 \.fl-strip__moves \.av2-icon-btn:disabled \{[^}]*background: transparent;/);
 });
