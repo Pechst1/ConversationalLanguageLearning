@@ -4190,7 +4190,7 @@ def held_in_line(
     edits = deterministic_edits(text, people=people) if text.strip() else []
     kept: list[dict[str, Any]] = []
     refused: list[dict[str, Any]] = []
-    for item, where in zip(items, places):
+    for item, where in zip(items, places, strict=True):
         target = str(item.get("corrected_target") or "")
         inside = [edit for edit in edits if where and edit.start < where[1] and where[0] < edit.end]
         if where is None or not inside or not is_about_the_line(item):
