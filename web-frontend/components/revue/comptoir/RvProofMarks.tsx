@@ -90,7 +90,9 @@ export function RvProofMarks({ draftFr, marks, kindLabels, copy, whyLanguage, in
       </p>
       {shown && (
         <p id={panelId} className="ct-why-open" data-kind={shown.mark.kind} aria-live="polite">
-          <b lang="fr">{shown.mark.spanFr}</b> · {kindLabels[shown.mark.kind]}
+          <span className="ct-why-open__k">
+            <b lang="fr">{shown.mark.spanFr}</b> · {kindLabels[shown.mark.kind]}
+          </span>
           <span className="ct-why-open__t" lang={whyLanguage}>
             {shown.mark.why}
           </span>

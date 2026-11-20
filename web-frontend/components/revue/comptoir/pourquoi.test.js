@@ -133,6 +133,13 @@ test('with a why each underlined word is a button and the open why sits under th
   assert.equal((open.match(/aria-expanded="true"/g) || []).length, 2, 'the word and its row');
 });
 
+// Seen in a browser at 375 px (2026-11-20, A2 de): the open why is a column, and its head
+// («le», « · agreement») came apart into two lines, the second starting with its dot.
+test('the open why keeps its head on one line: the word and its kind together, the rule under it', () => {
+  const panel = marks({ marks: MARKS, initialOpen: 0 }).match(/<p id="ct-why" class="ct-why-open"[\s\S]*?<\/p>/)[0];
+  assert.match(panel, /^<p[^>]*><span class="ct-why-open__k"><b lang="fr">le<\/b> · agreement<\/span><span class="ct-why-open__t"/);
+});
+
 test('a mark without a why stays a plain underline beside ones that have one', () => {
   const html = marks({ marks: [MARKS[0], { spanFr: 'content', start: 13, kind: 'accord' }] });
   assert.match(html, /<mark class="ct-mark" data-kind="accord">content<\/mark>/);
