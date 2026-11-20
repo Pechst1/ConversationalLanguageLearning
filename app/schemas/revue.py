@@ -25,7 +25,8 @@ Beat = Literal["arrive", "facts", "pursue", "make", "close"]
 RoomPhase = Literal["open", "bouclage", "boucle"]
 #: ``caption`` (WP-119 §8.4, «La légende»): the caption under the story's picture.
 #: ``opinion`` («Au comptoir», 2026-10-19): the learner's quote in Romy's vox pop.
-MakeKind = Literal["headline_choice", "headline_write", "reader_question", "short_report", "caption", "opinion", "fil"]
+MakeKind = Literal["headline_choice", "headline_write", "reader_question", "short_report", "caption", "opinion", "fil",
+                   "titre", "intox"]
 #: WP-119 §8.4: what the site's plate is — the story's own picture, a painted place, a season plate, a stand-in.
 PlateKind = Literal["story", "painted", "season", "stand_in"]
 FallbackReason = Literal["model_down", "knowledge_refused", "budget", "no_match"]
@@ -721,6 +722,234 @@ class RvFilError(RevueModel):
     count: int | None = None
 
 
+# ---------------------------------------------------------------------------
+# «Le titre» and «L'intox express» (WP-119 «les rubriques», 2026-11-20; WIRE §11)
+# ---------------------------------------------------------------------------
+
+#: The acts of the generic assignment route (``POST /revue/sessions/{id}/rubrique``):
+#: «Le titre» plays open, pick, trap, build, build_fix; «L'intox express» open, answer, fix.
+RubriqueAct = Literal["open", "pick", "trap", "build", "build_fix", "answer", "fix"]
+TitreStep = Literal["read", "three", "trap", "build", "page"]
+TitreRole = Literal["honest", "exaggerated", "off"]
+IntoxStep = Literal["read", "round", "fix", "page"]
+
+
+class RvRubriqueCast(RevueModel):
+    """Who proposes («Le titre»: Gus, who exaggerates by character)."""
+
+    id: str
+    name_fr: str
+    role_fr: str
+
+
+class RvRubriqueQuote(RevueModel):
+    """The outlet's verbatim words (≤ 40), its name, and the words in it that settle the
+    point (``settles_fr``; empty: nothing is lit)."""
+
+    quote_fr: str
+    settles_fr: str = ""
+    source_name: str
+
+
+class RvTitreOption(RevueModel):
+    """One headline. ``role`` once the step is resolved; ``why`` and ``claim`` on a wrong
+    headline the learner picked (and on both wrong ones once resolved)."""
+
+    key: str
+    text: RvComptoirText
+    role: TitreRole | None = None
+    why: RvComptoirText | None = None
+    claim: RvClaim | None = None
+
+
+class RvTitreThree(RevueModel):
+    """Step 2. ``solution`` (the honest headline's key) only once resolved (right, or two tries)."""
+
+    by: RvRubriqueCast
+    headlines: list[RvTitreOption]
+    tries: int = 0
+    max_tries: int = 2
+    picked: list[str] = Field(default_factory=list)
+    resolved: bool = False
+    correct: bool | None = None
+    solution: str | None = None
+
+
+class RvTitreWord(RevueModel):
+    index: int
+    fr: str
+
+
+class RvTitreTrap(RevueModel):
+    """Step 3: tap the word(s) of the exaggerated headline that say too much. ``fine``: what
+    the last wrong try tapped that the claims do say (never the answer); ``solution`` (the
+    words' indices) only once resolved."""
+
+    headline: RvComptoirText
+    words: list[RvTitreWord]
+    tries: int = 0
+    max_tries: int = 2
+    picked: list[int] = Field(default_factory=list)
+    fine: list[int] = Field(default_factory=list)
+    resolved: bool = False
+    correct: bool | None = None
+    solution: list[int] = Field(default_factory=list)
+    why: RvComptoirText | None = None
+    claim: RvClaim | None = None
+
+
+class RvTitreBuild(RevueModel):
+    """Step 4. A1 builds from a ``subjects`` tile and a ``facts`` tile (no model call); A2
+    completes ``frame``; B1+ write freely. Never with ``avoid_fr`` (the words that said too
+    much). From A2 Romy marks, the learner fixes (as «Le fil»)."""
+
+    input: Literal["tiles", "frame", "free"]
+    phrase: RvComptoirText
+    subjects: list[RvComptoirText] = Field(default_factory=list)
+    facts: list[RvComptoirText] = Field(default_factory=list)
+    frame: RvComptoirText | None = None
+    max_words: int
+    avoid_fr: str
+    learner_fr: str | None = None
+    draft_fr: str | None = None
+    proof: ComptoirProof | None = None
+    marks: list[RvComptoirMark] = Field(default_factory=list)
+    tries: int = 0
+    max_tries: int = 2
+    printed_fr: str | None = None
+
+
+class RvTitreView(RevueModel):
+    step: TitreStep
+    steps: list[TitreStep]
+    band: Literal["a1", "a2", "b1"]
+    title_fr: str
+    read: RvComptoirRead
+    three: RvTitreThree | None = None
+    trap: RvTitreTrap | None = None
+    build: RvTitreBuild | None = None
+
+
+class RvTitrePage(RevueModel):
+    """«La page»: the story under the learner's headline, signed."""
+
+    headline_fr: str
+    proof: ComptoirProof | None = None
+    dateline_fr: str
+    lead_fr: str
+    honest_fr: str
+    phrase_fr: str
+    words: list[str]
+
+
+class RvIntoxCard(RevueModel):
+    """One statement. Before it is answered only ``key`` and ``text``; after, the verdict,
+    ``why`` and, on a false statement or a miss, the source ``quote``."""
+
+    key: str
+    text: RvComptoirText
+    answer: Literal["vrai", "faux"] | None = None
+    true: bool | None = None
+    correct: bool | None = None
+    why: RvComptoirText | None = None
+    quote: RvRubriqueQuote | None = None
+    #: A false statement, once answered: the words that are wrong.
+    wrong_fr: str | None = None
+
+
+class RvIntoxRound(RevueModel):
+    """Step 2: five statements one at a time; ``current`` is the one to answer."""
+
+    cards: list[RvIntoxCard]
+    current: str | None = None
+    score: int = 0
+    answered: int = 0
+    total: int = 5
+
+
+class RvIntoxFixItem(RevueModel):
+    """A false statement to make true. A1–A2 pick (``options``: the true value and another
+    of the same kind from the claims, per-session order); B1+ rewrite it. ``right_fr`` and
+    ``fixed`` only once resolved (right, or two tries)."""
+
+    key: str
+    text: RvComptoirText
+    wrong_fr: str
+    options: list[str] = Field(default_factory=list)
+    quote: RvRubriqueQuote
+    tries: int = 0
+    max_tries: int = 2
+    attempts: list[str] = Field(default_factory=list)
+    resolved: bool = False
+    correct: bool | None = None
+    right_fr: str | None = None
+    fixed: RvComptoirText | None = None
+
+
+class RvIntoxFix(RevueModel):
+    input: Literal["pick", "write"]
+    phrase: RvComptoirText
+    items: list[RvIntoxFixItem]
+
+
+class RvIntoxView(RevueModel):
+    step: IntoxStep
+    steps: list[IntoxStep]
+    band: Literal["a1", "a2", "b1"]
+    title_fr: str
+    #: The story stays one tap away during the round: reading practice, not memory.
+    read: RvComptoirRead
+    round: RvIntoxRound | None = None
+    fix: RvIntoxFix | None = None
+
+
+class RvIntoxPageLine(RevueModel):
+    #: The statement as it should read.
+    text_fr: str
+    was_false: bool
+    wrong_fr: str | None = None
+    answered_right: bool
+    #: The learner's own correction (B1+, when it was right), else ``None``.
+    learner_fr: str | None = None
+    fixed_right: bool | None = None
+
+
+class RvIntoxPage(RevueModel):
+    """«La page»: the five statements as they should read, the score, the corrections."""
+
+    title_fr: str
+    dateline_fr: str
+    lines: list[RvIntoxPageLine]
+    score: int
+    total: int
+    fixed: int
+    phrase_fr: str
+    words: list[str]
+
+
+class RvRubriqueRequest(RevueRequest):
+    act: RubriqueAct
+    #: pick: a headline's key; answer, fix: a statement's key.
+    key: str | None = Field(None, max_length=4)
+    #: answer: ``vrai`` | ``faux``; fix (A1–A2): the picked value; build_fix: ``romy``.
+    value: str | None = Field(None, max_length=120)
+    #: trap: the indices of the tapped words.
+    words: list[int] | None = Field(None, max_length=20)
+    #: build at A1: [subject index, fact index].
+    parts: list[int] | None = Field(None, max_length=2)
+    #: build (A2: the end of the frame; B1+: the headline), build_fix, fix (B1+): the text.
+    text: str | None = Field(None, max_length=300)
+    mode: Literal["text", "voice"] = "text"
+
+
+class RvRubriqueError(RevueModel):
+    """Why an act was not recorded, for the copy in the learner's language."""
+
+    code: str
+    key: str | None = None
+    count: int | None = None
+
+
 class RvClosing(RevueModel):
     romy_line_fr: str
     dispatch: RvDispatch
@@ -734,6 +963,9 @@ class RvClosing(RevueModel):
     comptoir_page: RvComptoirPage | None = None
     #: «Le fil»: «La page» (``None`` otherwise).
     fil_page: RvFilPage | None = None
+    #: «Le titre» and «L'intox express»: «La page» (``None`` otherwise).
+    titre_page: RvTitrePage | None = None
+    intox_page: RvIntoxPage | None = None
 
 
 class RvSessionView(RevueModel):
@@ -756,10 +988,13 @@ class RvSessionView(RevueModel):
     artifact: RvMade | None = None
     closing: RvClosing | None = None
     #: «Au comptoir» (WP-119, 2026-10-19): the mode the session started in, for its whole life.
-    mode: Literal["chat", "comptoir", "fil"] = "chat"
+    mode: Literal["chat", "comptoir", "fil", "titre", "intox"] = "chat"
     comptoir: RvComptoirView | None = None
     #: «Le fil» (2026-11-20): the player's view, for a session dealt that assignment.
     fil: RvFilView | None = None
+    #: «Le titre» and «L'intox express» (2026-11-20): the dealt assignment's view.
+    titre: RvTitreView | None = None
+    intox: RvIntoxView | None = None
 
 
 class RvComptoirResult(RevueModel):
@@ -772,6 +1007,13 @@ class RvFilResult(RevueModel):
     session: RvSessionView
     #: Why the act was not recorded (the client says it in the learner's language).
     error: RvFilError | None = None
+
+
+class RvRubriqueResult(RevueModel):
+    """«Le titre», «L'intox express»: the session after one act, and why it was not recorded."""
+
+    session: RvSessionView
+    error: RvRubriqueError | None = None
 
 
 # ---------------------------------------------------------------------------

@@ -2,7 +2,8 @@
 
 The learner is Romy's trainee, and each story is dealt one ASSIGNMENT («rubrique»): «Au
 comptoir» (the vox pop, ``comptoir_loop.py``), «Le fil» (the wire back in order,
-``fil_loop.py``), and later «photo», «micro», «titre», «intox». Never the same shape twice
+``fil_loop.py``), «Le titre» (the honest headline, ``titre_loop.py``), «L'intox express» (five
+statements, true or false, ``intox_loop.py``), and later «photo», «micro». Never the same shape twice
 in three days: a session is dealt an assignment its story can carry that is not the one of the
 learner's last two Papier sessions.
 
@@ -28,7 +29,13 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from app.services.revue.dossier import ComptoirTakes, EditorialDossier, FilWire
+from app.services.revue.dossier import (
+    ComptoirTakes,
+    EditorialDossier,
+    FilWire,
+    IntoxExpress,
+    TitreDesk,
+)
 
 #: The modes a session can be in; ``chat`` is the Papier before the assignments.
 CHAT = "chat"
@@ -39,11 +46,14 @@ RECENT = 2
 @dataclass(frozen=True)
 class Material:
     """What a story offers the assignments: the dossier, the comptoir's takes (``None``
-    while that switch is off or the desk refused), the wire (``None`` without one)."""
+    while that switch is off or the desk refused), the wire, the headlines, the statements
+    (each ``None`` without one)."""
 
     dossier: EditorialDossier
     takes: ComptoirTakes | None = None
     wire: FilWire | None = None
+    titre: TitreDesk | None = None
+    intox: IntoxExpress | None = None
 
 
 @dataclass(frozen=True)
@@ -76,6 +86,18 @@ def assignment(key: str) -> Assignment | None:
 
 register(Assignment("comptoir", "Au comptoir", lambda material: material.takes is not None))
 register(Assignment("fil", "Le fil", lambda material: material.wire is not None))
+register(Assignment("titre", "Le titre", lambda material: material.titre is not None))
+register(Assignment("intox", "L'intox express", lambda material: material.intox is not None))
+
+#: What each assignment snapshots on the dossier (its field), for the dealt one only.
+FIELDS: dict[str, str] = {"comptoir": "comptoir", "fil": "fil", "titre": "titre", "intox": "intox"}
+
+
+def dealt_material(material: Material, key: str) -> Any:
+    """The material the dealt assignment ``key`` plays."""
+
+    return {"comptoir": material.takes, "fil": material.wire, "titre": material.titre,
+            "intox": material.intox}.get(key)
 
 
 def available(material: Material) -> list[str]:

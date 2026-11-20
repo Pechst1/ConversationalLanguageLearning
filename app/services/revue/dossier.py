@@ -451,6 +451,129 @@ class FilWire(_Model):
         return list(self.connectors.get(comptoir_band(band)) or [])  # type: ignore[call-overload]
 
 
+#: «Le titre» (2026-11-20): what each of the three headlines is.
+TitreRole = Literal["honest", "exaggerated", "off"]
+TITRE_ROLES: tuple[str, ...] = ("honest", "exaggerated", "off")
+#: How the exaggerated headline says more than the claims: a wider place, «always / everyone»,
+#: a bigger number, a certainty the story lacks.
+TitreStretch = Literal["place", "always", "number", "certainty"]
+
+
+class BandTexts(_Model):
+    """One line told at each band (B2 reads ``b1``)."""
+
+    a1: ComptoirText
+    a2: ComptoirText
+    b1: ComptoirText
+
+    def for_band(self, band: str) -> ComptoirText:
+        return getattr(self, comptoir_band(band))
+
+
+class TitreHeadline(BandTexts):
+    """One of «Le titre»'s three headlines, at each band. ``claim_id``: the claim it rests on
+    (the honest and the off one) or that settles it (the exaggerated one). ``why`` (the two
+    wrong ones): what it claims that the article does not, in fr, en and de."""
+
+    role: TitreRole
+    claim_id: str = Field(min_length=1)
+    why: ComptoirText | None = None
+
+
+class TitreBuild(_Model):
+    """«À toi»'s material: A1 builds a headline from one ``subjects`` tile and one ``facts``
+    tile (every pair is true: correct by construction); A2 completes ``frame``."""
+
+    subjects: list[ComptoirText] = Field(min_length=2, max_length=3)
+    facts: list[ComptoirText] = Field(min_length=2, max_length=4)
+    frame: ComptoirText
+
+
+class TitreDesk(_Model):
+    """«Le titre» (WP-119 «les rubriques», 2026-11-20): three headlines for the story — one
+    honest, one exaggerated, one off the news — written once per story by the headline desk
+    (``titre.py``), shared by every learner. ``wrong_fr``: the words of the exaggerated one
+    that say too much (in its text at every band, in no claim)."""
+
+    headlines: list[TitreHeadline] = Field(min_length=3, max_length=3)
+    stretch: TitreStretch
+    wrong_fr: str = Field(min_length=1)
+    build: TitreBuild
+    phrase: ComptoirPhrase
+    model: str = ""
+    written_at: datetime | None = None
+    prompt_version: str = ""
+
+    @model_validator(mode="after")
+    def _one_each(self) -> TitreDesk:
+        if sorted(h.role for h in self.headlines) != sorted(TITRE_ROLES):
+            raise ValueError("one honest, one exaggerated, one off headline")
+        for headline in self.headlines:
+            if (headline.role != "honest") != (headline.why is not None):
+                raise ValueError("each wrong headline (and only those) says why")
+        return self
+
+    def headline(self, role: str) -> TitreHeadline:
+        return next(h for h in self.headlines if h.role == role)
+
+
+#: «L'intox express» (2026-11-20): the one element a false statement changes.
+IntoxSwap = Literal["number", "day", "place", "who"]
+
+
+class IntoxStatement(BandTexts):
+    """One of «L'intox express»'s five statements, at each band, tied to ``claim_id``.
+    ``quote_fr`` is that claim's verbatim quote (the outlet's words, ≤ 40 words), with the
+    outlet's name, and ``settles_fr`` the words in it the player lights; ``why`` one line on
+    what settles it. A false one changes ONE element (``swap``): ``wrong_fr`` (in the
+    statement, in no claim) for ``right_fr`` (in its claim); ``distractor_fr`` is another
+    value of the same kind from the claims (the A1–A2 pick), ``fixed`` the statement as it
+    should read."""
+
+    claim_id: str = Field(min_length=1)
+    true: bool
+    why: ComptoirText
+    quote_fr: str = Field(min_length=1)
+    source_name: str = ""
+    settles_fr: str = ""
+    swap: IntoxSwap | None = None
+    wrong_fr: str | None = None
+    right_fr: str | None = None
+    distractor_fr: str | None = None
+    fixed: BandTexts | None = None
+
+    @model_validator(mode="after")
+    def _false_has_its_swap(self) -> IntoxStatement:
+        swapped = (self.swap, self.wrong_fr, self.right_fr, self.distractor_fr, self.fixed)
+        if self.true and any(value is not None for value in swapped):
+            raise ValueError("a true statement swaps nothing")
+        if not self.true and any(value is None for value in swapped):
+            raise ValueError("a false statement says what it swapped and how it reads when true")
+        return self
+
+
+class IntoxExpress(_Model):
+    """«L'intox express» (WP-119 «les rubriques», 2026-11-20): five statements about the story,
+    three true and two false, written once per story by the express desk (``intox.py``),
+    shared by every learner."""
+
+    statements: list[IntoxStatement] = Field(min_length=5, max_length=5)
+    phrase: ComptoirPhrase
+    model: str = ""
+    written_at: datetime | None = None
+    prompt_version: str = ""
+
+    @model_validator(mode="after")
+    def _three_and_two(self) -> IntoxExpress:
+        if sum(1 for s in self.statements if s.true) != 3:
+            raise ValueError("three true statements and two false ones")
+        return self
+
+
+#: The dossier fields the assignments' desks write, left out of every dump while ``None``.
+ASSIGNMENT_FIELDS: tuple[str, ...] = ("fil", "titre", "intox")
+
+
 class TimeScope(_Model):
     """When the story happens (``happening``, an ISO interval) and until when it matters."""
 
@@ -524,12 +647,18 @@ class EditorialDossier(_Model):
     #: left out of every dump while ``None``, so a dossier without a wire stores and snapshots
     #: exactly as before it existed.
     fil: FilWire | None = None
+    #: «Le titre» and «L'intox express» (2026-11-20): as ``fil``, ``None`` until their desk
+    #: (``titre.py``, ``intox.py``) wrote them, and left out of every dump while ``None``.
+    titre: TitreDesk | None = None
+    intox: IntoxExpress | None = None
 
     @model_serializer(mode="wrap")
     def _without_empty_fil(self, handler: Any) -> Any:
         data = handler(self)
-        if isinstance(data, dict) and data.get("fil", ...) is None:
-            data.pop("fil")
+        if isinstance(data, dict):
+            for key in ASSIGNMENT_FIELDS:
+                if data.get(key, ...) is None:
+                    data.pop(key)
         return data
 
     @field_validator("week")

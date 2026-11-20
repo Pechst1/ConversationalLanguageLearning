@@ -844,3 +844,58 @@ in the learner's language): `tell_order`, `tell_same`, `tell_last_first`, `tell_
 
 `{title_fr, dateline_fr, strips: [{connector_fr, text_fr}] ×4, mine_fr, proof, phrase_fr, words}`. The artifact is
 `kind: "fil"` (`text_fr` = printed, `learner_fr` = only what the learner typed).
+
+## 11. «Le titre» and «L'intox express» (2026-11-20)
+
+Behind `REVUE_ASSIGNMENTS_ENABLED`, as §10. Two more assignments register with the dealer: `"titre"` (the story
+has headlines, `EditorialDossier.titre`) and `"intox"` (it has five statements, `EditorialDossier.intox`), both
+written once per story each morning by one desk call each (`titre.py`, `intox.py`, one retry, refused when a check
+fails, skipped where the comptoir skipped), or shipped by hand with an evergreen (`evergreen/titre/`,
+`evergreen/intox/`). Played without a model call except Romy's edit of a written headline.
+
+### 11.1 What changes on the existing shapes
+
+- `RvSessionView.mode`: `+ "titre" | "intox"`; `RvSessionView.titre: RvTitreView | null`, `.intox: RvIntoxView | null`.
+- `RvMade.kind` and the Relevé's made kinds gain `"titre"` and `"intox"`.
+- `RvClosing.titre_page: RvTitrePage | null`, `RvClosing.intox_page: RvIntoxPage | null`.
+- Chat turns and makes: `409 revue_titre_session` / `revue_intox_session`.
+
+### 11.2 `POST /revue/sessions/{id}/rubrique` — one act, either assignment
+
+Body `RvRubriqueRequest {act, key?, value?, words?, parts?, text?, mode?}` → `RvRubriqueResult {session, error:
+{code, key?, count?} | null}`. The route plays the assignment the session was dealt (`rubriques.LOOPS`); a paid
+route; 404 while `REVUE_ENABLED` is off; 409 `revue_not_rubrique` on any other session (a fil session keeps
+`/fil`); 409 `revue_<mode>_out_of_order` with `step`; 422 `revue_<mode>_bad_act`. A repeated act records nothing.
+
+### 11.3 «Le titre»: `RvTitreView`
+
+`step: "read" | "three" | "trap" | "build" | "page"`, `steps`, `band`, `title_fr`, `read`, then:
+
+- `three`: `by` (Gus: he proposes all three, so who says it gives nothing away), `headlines: [{key, text, role?,
+  why?, claim?}]` (keys `a`–`c` per session; `role`, `why` and the settling `claim` only for a wrong headline the
+  learner picked, and for both once resolved), `tries`, `max_tries` (2), `picked`, `resolved`, `correct`,
+  `solution` (the honest key, only once resolved). Act `pick {key}`.
+- `trap`: the exaggerated headline, `words: [{index, fr}]`, `tries`, `picked`, `fine` (tapped words the claims do
+  say, after a miss), `resolved`, `correct`, `solution` (indices, once resolved), `why`, `claim`. Act `trap {words:
+  [indices]}`: right when every tapped word is one of the stored `wrong_fr` and one carries its meaning.
+- `build`: `input: "tiles" | "frame" | "free"`, `phrase`, `subjects`, `facts` (A1), `frame` (A2), `max_words` (12),
+  `avoid_fr`, then as §10.2's `tell` (`learner_fr`, `draft_fr`, `proof`, `marks`, `tries`, `printed_fr`). Acts
+  `build {parts: [subject, fact]}` (A1, no model call) or `build {text}`, then `build_fix {text | value: "romy"}`.
+  `error.code`: `pick_tiles`, `too_short`, `too_long` (`count`), `says_too_much`, `number_not_in_claims`,
+  `nothing_changed`, `pick_words`.
+- `RvTitrePage {headline_fr, proof, dateline_fr, lead_fr, honest_fr, phrase_fr, words}`; artifact `kind: "titre"`.
+
+### 11.4 «L'intox express»: `RvIntoxView`
+
+`step: "read" | "round" | "fix" | "page"`, `steps`, `band`, `title_fr`, `read` (always present: the lead stays one
+tap away), then:
+
+- `round`: `cards: [{key, text, answer?, true?, correct?, why?, quote?, wrong_fr?}]` (keys `a`–`e` per session;
+  everything past `text` only once that card is answered; `quote: {quote_fr, settles_fr, source_name}` on a false
+  card or a miss), `current`, `score`, `answered`, `total`. Act `answer {key: current, value: "vrai" | "faux"}`,
+  one each, in order.
+- `fix`: `input: "pick" | "write"`, `phrase`, `items: [{key, text, wrong_fr, options (A1–A2), quote, tries,
+  max_tries, attempts, resolved, correct, right_fr?, fixed?}]` (`right_fr`/`fixed` only once resolved). Act `fix
+  {key, value}` (A1–A2) or `fix {key, text}` (B1+, graded as the comptoir's correction; `too_short`).
+- `RvIntoxPage {title_fr, dateline_fr, lines: [{text_fr, was_false, wrong_fr, answered_right, learner_fr,
+  fixed_right}], score, total, fixed, phrase_fr, words}`; artifact `kind: "intox"` (`text_fr` «4 sur 5, …»).
