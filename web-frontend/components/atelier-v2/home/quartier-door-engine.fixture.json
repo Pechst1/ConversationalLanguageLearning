@@ -1,0 +1,351 @@
+{
+ "day1": {
+  "learner_level": "A1",
+  "contract_version": 1,
+  "enabled": true,
+  "control_language": "en",
+  "local_date": "2026-03-10",
+  "timezone": "Europe/Paris",
+  "journey": null,
+  "available": {
+   "scenario_key": "story_next",
+   "content_version": "living-story-v2",
+   "title_fr": "Votre prochain chapitre",
+   "objective_key": "story_next",
+   "objective_native": "Continue your story in French.",
+   "level_band": "A1",
+   "character_id": "",
+   "character_name": "",
+   "location_id": "",
+   "location_name": "",
+   "image_url": null,
+   "serial_thread_id": null,
+   "serial_episode_id": null,
+   "estimated_seconds": 480,
+   "special": null,
+   "epreuve": null
+  },
+  "legacy_resume": null,
+  "practice_href": "/atelier?mode=practice",
+  "forge": {
+   "href": "/atelier?mode=forge",
+   "concept_id": null,
+   "budget_seconds": 300,
+   "folded": false,
+   "blocks_today": 0
+  },
+  "because": null,
+  "is_warm": false,
+  "streak": {
+   "days": 0,
+   "today_done": false,
+   "freeze_available": false,
+   "freeze_used_on": null
+  },
+  "missed_days": 0,
+  "absence": null,
+  "season_premiere": null,
+  "interlude": null,
+  "headline": {
+   "edition_no": 1,
+   "reread": false,
+   "title_fr": "Le mauvais accueil",
+   "teaser_fr": null,
+   "teaser_open_fr": null,
+   "season_title_fr": "La clé d'Odile",
+   "arc": null,
+   "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "cast": [
+    {
+     "id": "augustin_de_roncourt",
+     "name": "Augustin « Gus » de Roncourt"
+    },
+    {
+     "id": "marin_leveque",
+     "name": "Marin Lévêque"
+    },
+    {
+     "id": "lila_bonnet",
+     "name": "Lila Bonnet"
+    },
+    {
+     "id": "margaux_barman",
+     "name": "Margaux"
+    }
+   ],
+   "cast_variants": {
+    "camille_marchand": "m"
+   },
+   "stage": {
+    "key": "t1.a",
+    "location_id": "le_mistral",
+    "locations": [
+     "quai_de_valmy",
+     "le_mistral",
+     "le_mistral",
+     "le_mistral",
+     "le_mistral",
+     "le_mistral",
+     null,
+     "le_mistral",
+     null,
+     "le_mistral"
+    ]
+   }
+  },
+  "time_estimate": {
+   "budget_seconds": 600,
+   "core_seconds": 480,
+   "basis": "forecast",
+   "longer_day": false,
+   "extensions": [
+    {
+     "kind": "words",
+     "seconds": 400,
+     "in_day": false
+    },
+    {
+     "kind": "letter",
+     "seconds": 312,
+     "in_day": false
+    },
+    {
+     "kind": "forge",
+     "seconds": 300,
+     "in_day": false
+    }
+   ]
+  },
+  "session": {
+   "pace": "normal",
+   "steps": [
+    {
+     "kind": "scene",
+     "state": "next",
+     "minutes": 8,
+     "href": null,
+     "count": null,
+     "new_left": null,
+     "reviews": null
+    },
+    {
+     "kind": "grammar",
+     "state": "todo",
+     "minutes": 5,
+     "href": "/atelier?mode=forge&budget=300&from=day",
+     "count": 12,
+     "new_left": null,
+     "reviews": null
+    },
+    {
+     "kind": "words",
+     "state": "todo",
+     "minutes": 7,
+     "href": "/vocabulary/review?day=1",
+     "count": 20,
+     "new_left": 20,
+     "reviews": 0
+    },
+    {
+     "kind": "finish",
+     "state": "todo",
+     "minutes": 0,
+     "href": "/fertig",
+     "count": null,
+     "new_left": null,
+     "reviews": null
+    }
+   ],
+   "next_kind": "scene",
+   "minutes_left": 20,
+   "done": false,
+   "tally": {
+    "scenes": 0,
+    "words": 0,
+    "exercises": 0,
+    "acts": 0,
+    "story_words": 0
+   },
+   "more_words": 5,
+   "more_minutes": 2,
+   "more_href": "/vocabulary/review?more=5"
+  }
+ },
+ "day2": {
+  "learner_level": "A1",
+  "contract_version": 1,
+  "enabled": true,
+  "control_language": "en",
+  "local_date": "2026-03-11",
+  "timezone": "Europe/Paris",
+  "journey": null,
+  "available": {
+   "scenario_key": "story_next",
+   "content_version": "living-story-v2",
+   "title_fr": "Votre prochain chapitre",
+   "objective_key": "story_next",
+   "objective_native": "Continue your story in French.",
+   "level_band": "A1",
+   "character_id": "",
+   "character_name": "",
+   "location_id": "",
+   "location_name": "",
+   "image_url": null,
+   "serial_thread_id": null,
+   "serial_episode_id": null,
+   "estimated_seconds": 526,
+   "special": null,
+   "epreuve": null
+  },
+  "legacy_resume": null,
+  "practice_href": "/atelier?mode=practice",
+  "forge": {
+   "href": "/atelier?mode=forge",
+   "concept_id": null,
+   "budget_seconds": 300,
+   "folded": false,
+   "blocks_today": 0
+  },
+  "because": null,
+  "is_warm": false,
+  "streak": {
+   "days": 0,
+   "today_done": false,
+   "freeze_available": false,
+   "freeze_used_on": null
+  },
+  "missed_days": 252,
+  "absence": {
+   "days": 252,
+   "greeting_fr": null,
+   "entre_temps": [],
+   "lapsed_letters": []
+  },
+  "season_premiere": null,
+  "interlude": null,
+  "headline": {
+   "edition_no": 2,
+   "reread": false,
+   "title_fr": "La lettre",
+   "teaser_fr": "Deux clés pour la même porte. À suivre…",
+   "teaser_open_fr": null,
+   "season_title_fr": "La clé d'Odile",
+   "arc": null,
+   "image_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "cast": [
+    {
+     "id": "margaux_barman",
+     "name": "Margaux"
+    },
+    {
+     "id": "camille_marchand",
+     "name": "Camille Marchand"
+    },
+    {
+     "id": "lila_bonnet",
+     "name": "Lila Bonnet"
+    }
+   ],
+   "cast_variants": {
+    "camille_marchand": "m"
+   },
+   "stage": {
+    "key": "t1.b",
+    "location_id": "le_mistral",
+    "locations": [
+     null,
+     "le_mistral",
+     "le_mistral",
+     "le_mistral",
+     "le_mistral",
+     "le_mistral",
+     "le_mistral",
+     null,
+     "stairwell",
+     "odile_flat",
+     "stairwell",
+     "stairwell",
+     "user_apartment"
+    ]
+   }
+  },
+  "time_estimate": {
+   "budget_seconds": 600,
+   "core_seconds": 526,
+   "basis": "forecast",
+   "longer_day": false,
+   "extensions": [
+    {
+     "kind": "words",
+     "seconds": 400,
+     "in_day": false
+    },
+    {
+     "kind": "letter",
+     "seconds": 312,
+     "in_day": false
+    },
+    {
+     "kind": "forge",
+     "seconds": 300,
+     "in_day": false
+    }
+   ]
+  },
+  "session": {
+   "pace": "normal",
+   "steps": [
+    {
+     "kind": "scene",
+     "state": "next",
+     "minutes": 9,
+     "href": null,
+     "count": null,
+     "new_left": null,
+     "reviews": null
+    },
+    {
+     "kind": "grammar",
+     "state": "todo",
+     "minutes": 5,
+     "href": "/atelier?mode=forge&budget=300&from=day",
+     "count": 12,
+     "new_left": null,
+     "reviews": null
+    },
+    {
+     "kind": "words",
+     "state": "todo",
+     "minutes": 7,
+     "href": "/vocabulary/review?day=1",
+     "count": 20,
+     "new_left": 20,
+     "reviews": 0
+    },
+    {
+     "kind": "finish",
+     "state": "todo",
+     "minutes": 0,
+     "href": "/fertig",
+     "count": null,
+     "new_left": null,
+     "reviews": null
+    }
+   ],
+   "next_kind": "scene",
+   "minutes_left": 21,
+   "done": false,
+   "tally": {
+    "scenes": 0,
+    "words": 0,
+    "exercises": 0,
+    "acts": 0,
+    "story_words": 0
+   },
+   "more_words": 5,
+   "more_minutes": 2,
+   "more_href": "/vocabulary/review?more=5"
+  }
+ },
+ "_doc": "GET /api/v1/daily-journeys/today for a fresh A1 learner with the season on (tests/test_r2_quartier_round_two.py's setup, fake provider): day 1 (T1 day a, Le Mistral) and day 2 (T1 day b, up the stairwell) before Start. The offer is the story engine's invitation (location_id \"\"), the headline carries the planned page's stage."
+}

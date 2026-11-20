@@ -300,7 +300,8 @@ test('the intro names the item count, the candidate threshold, the top-down rule
   const html = view({ phase: 'intro', run, bands: [{ sub_band: 'A1.1', words: 180, credited: true, credit_kind: 'inferred' }, ...bands] }, 'fr');
   assert.ok(html.includes('3 mots du niveau A2.1'));
   assert.ok(html.includes('Il faut en reconnaître 3 sur 3'));
-  assert.ok(html.includes('à l’essai'));
+  // P10: the threshold is stated plainly, without «encore à l’essai».
+  assert.ok(!html.includes('à l’essai'));
   assert.ok(html.includes('le niveau le plus haut sous le vôtre'));
   assert.ok(html.includes('Niveaux à vérifier'));
   assert.ok(html.includes('déduit'));

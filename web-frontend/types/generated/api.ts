@@ -5567,6 +5567,8 @@ export interface components {
             greeting_fr: string | null;
             /** Lapsed Letters */
             lapsed_letters: components["schemas"]["LapsedLetter"][];
+            /** Where Left */
+            where_left: string[];
         };
         /**
          * AchievementProgressResponse
@@ -6097,6 +6099,18 @@ export interface components {
             /** Title Fr */
             title_fr: string;
         };
+        /**
+         * ArchiveChoice
+         * @description P12 round 2: a card the learner chose on a season page («Le choix»).
+         */
+        ArchiveChoice: {
+            /** Label Fr */
+            label_fr?: string | null;
+            /** Reply Id */
+            reply_id: string;
+            /** Turn Id */
+            turn_id: string;
+        };
         /** ArchiveCurrent */
         ArchiveCurrent: {
             /** Chapter */
@@ -6125,6 +6139,8 @@ export interface components {
             can_do_id?: string | null;
             /** Character Id */
             character_id?: string | null;
+            /** Choices */
+            choices?: components["schemas"]["ArchiveChoice"][];
             /** Date */
             date: string;
             /** Edition No */
@@ -6139,6 +6155,10 @@ export interface components {
             journey_id: string;
             /** Learner Lines */
             learner_lines?: string[];
+            /** Location Id */
+            location_id?: string | null;
+            /** Location Name */
+            location_name?: string | null;
             /** Margin Notes */
             margin_notes?: components["schemas"]["MarginNote"][];
             /** Panels */
@@ -6154,6 +6174,11 @@ export interface components {
             special?: "epreuve" | null;
             /** Title Fr */
             title_fr: string;
+            /**
+             * Today
+             * @default false
+             */
+            today?: boolean;
         };
         /**
          * ArchivePanel
@@ -6766,6 +6791,11 @@ export interface components {
         AttemptStage: {
             /** Beats */
             beats: components["schemas"]["StagePanel"][];
+            /**
+             * Chosen
+             * @default false
+             */
+            chosen: boolean;
             /**
              * Closing
              * @default false
@@ -8123,12 +8153,6 @@ export interface components {
              * @default 0
              */
             minutes_left: number;
-            /** More Href */
-            more_href: string;
-            /** More Minutes */
-            more_minutes: number;
-            /** More Words */
-            more_words: number;
             /** Next Kind */
             next_kind: ("scene" | "grammar" | "words" | "finish") | null;
             /**
@@ -8477,6 +8501,7 @@ export interface components {
             reread: boolean;
             /** Season Title Fr */
             season_title_fr: string | null;
+            stage: components["schemas"]["HeadlineStage"] | null;
             /** Teaser Fr */
             teaser_fr: string | null;
             /** Teaser Open Fr */
@@ -9665,6 +9690,19 @@ export interface components {
             name: string;
         };
         /**
+         * HeadlineStage
+         * @description P12: where today's planned page plays, known before the day is opened: a tentpole's,
+         *     or a gap day's once the night has written it (round 3: the prefetched scene's place).
+         */
+        HeadlineStage: {
+            /** Key */
+            key: string;
+            /** Location Id */
+            location_id: string | null;
+            /** Locations */
+            locations: (string | null)[];
+        };
+        /**
          * HelpKind
          * @enum {string}
          */
@@ -9989,6 +10027,11 @@ export interface components {
             expected_revision: number;
             /** Mutation Id */
             mutation_id: string;
+            /**
+             * Skip To Scene
+             * @default false
+             */
+            skip_to_scene?: boolean;
         };
         /** JourneyAttemptRequest */
         JourneyAttemptRequest: {
@@ -10052,6 +10095,7 @@ export interface components {
              * @constant
              */
             contract_version: 1;
+            correction: components["schemas"]["JourneyCorrection"] | null;
             /** Heard */
             heard: string | null;
             /** Learned */
@@ -10075,10 +10119,13 @@ export interface components {
              * @enum {string}
              */
             kind?: "edit" | "pick" | "meaning" | "example";
+            /** More */
+            more?: components["schemas"]["MoreCorrection"][];
             /** Note Native */
             note_native: string;
             /** Notes Native */
             notes_native?: string[];
+            solution?: components["schemas"]["JourneySolution"] | null;
             /** Span Fr */
             span_fr: string;
         };
@@ -10278,6 +10325,21 @@ export interface components {
             time_estimate: components["schemas"]["DayTimeEstimate"] | null;
             /** Timezone */
             timezone: string;
+        };
+        /**
+         * JourneySolution
+         * @description P5 (owner, 2026-11-13): a drill's solution waits for its retry.
+         *
+         *     La Forge's vocabulary (``app/services/solution_gate.py``): ``withheld`` while the
+         *     item is still to be asked again. The correction then carries the learner's own
+         *     span and the reason, and ``corrected_fr`` is empty.
+         */
+        JourneySolution: {
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "withheld" | "shown";
         };
         /**
          * JourneyStatus
@@ -11116,6 +11178,20 @@ export interface components {
             user_turn: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * MoreCorrection
+         * @description P3: one more correction of a scene reply, of other words than the first («A → B»).
+         */
+        MoreCorrection: {
+            /** Corrected Fr */
+            corrected_fr: string;
+            /** Note Native */
+            note_native: string;
+            /** Notes Native */
+            notes_native?: string[];
+            /** Span Fr */
+            span_fr: string;
         };
         /**
          * NarrativeChoiceRequest
@@ -16796,6 +16872,11 @@ export interface components {
              * @default false
              */
             is_new?: boolean;
+            /**
+             * Kept Word
+             * @default false
+             */
+            kept_word?: boolean;
             /** Ladder */
             ladder?: string | null;
             /** Language */

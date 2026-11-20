@@ -22,12 +22,41 @@ function foldNote(value: string): string {
     .toLowerCase();
 }
 
-/** A note as its sentences: the corrector's explanation is one or two. */
+const OPENERS: Record<string, string> = { '«': '»', '„': '“', '“': '”' };
+const ENDS = '.!?…';
+
+/**
+ * A note as its sentences: the corrector's explanation is one or two.
+ *
+ * R5 (check walk of 19 Nov, A1, German): a sentence ends at a stop outside every quote,
+ * followed by a space or the end. «„Tu est bavard ?“ stimmt nicht; richtig ist „Tu es
+ * bavard ?“.» used to be cut after each «?», inside the quotes; the pieces were joined
+ * with spaces («„Tu est bavard ? “») and the lone «“.» was dropped as empty, so the
+ * right form lost its closing quote.
+ */
 function noteSentences(note: string): string[] {
-  // No lookbehind: older iOS web views refuse it.
-  return (note.match(/[^.!?…]+(?:[.!?…]+|$)/g) ?? [note])
-    .map((sentence) => sentence.trim())
-    .filter(Boolean);
+  const out: string[] = [];
+  const open: string[] = [];
+  let start = 0;
+  for (let index = 0; index < note.length; index += 1) {
+    const char = note[index];
+    const top = open[open.length - 1];
+    if (top && char === OPENERS[top]) open.pop();
+    else if (char === '"') {
+      if (top === '"') open.pop();
+      else open.push('"');
+    } else if (OPENERS[char]) open.push(char);
+    else if (char === '»' || char === '”') open.pop();
+    if (open.length || !ENDS.includes(char)) continue;
+    let end = index + 1;
+    while (end < note.length && ENDS.includes(note[end])) end += 1;
+    if (end < note.length && !/\s/.test(note[end])) continue;
+    out.push(note.slice(start, end));
+    start = end;
+    index = end - 1;
+  }
+  out.push(note.slice(start));
+  return out.map((sentence) => sentence.trim()).filter(Boolean);
 }
 
 /**

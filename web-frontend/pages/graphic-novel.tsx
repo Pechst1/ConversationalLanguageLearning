@@ -182,7 +182,8 @@ export default function GraphicNovelPage() {
   if (edition) return <GraphicNovelEditionPage />;
   const archiveView: ArchiveView =
     view === 'cast' ? 'cast' : dayQuery.date || dayQuery.journeyId || dayQuery.sceneId ? 'day' : 'archive';
-  return <FeuilletonArchive view={archiveView} dayQuery={dayQuery} />;
+  // P9: Home's «Revoir» opens the finished day here with `&from=home`.
+  return <FeuilletonArchive view={archiveView} dayQuery={dayQuery} fromHome={archiveView === 'day' && query.from === 'home'} />;
 }
 
 function GraphicNovelEditionPage() {

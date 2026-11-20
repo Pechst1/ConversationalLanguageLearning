@@ -566,11 +566,13 @@ def test_provider_off_after_the_epilogue_rereads_its_last_page(
 
 @needs_epilogue
 @needs_hooks
-def test_a_lost_epilogue_day_rereads_the_previous_page_and_the_epilogue_resumes(
+def test_a_lost_epilogue_day_is_never_a_reread_and_the_epilogue_resumes(
     assembled_client, db_session, journey_enabled, clock, season_on, monkeypatch  # noqa: F811
 ):
     """An epilogue page that cannot be served (a broken page, the provider down) is
-    re-read from the last page; the epilogue does not move and resumes the next day."""
+    never re-read in its place (P11: an authored page is never a «Relecture»): the
+    day is the honest «unavailable, retry»; the epilogue does not move and resumes
+    the next day."""
 
     from app.services.season.admin import jump_to_day
 
@@ -580,10 +582,14 @@ def test_a_lost_epilogue_day_rereads_the_previous_page_and_the_epilogue_resumes(
     db_session.commit()
     _day(driver, provider, clock)  # e1.a
     with monkeypatch.context() as broken:
-        broken.setattr(season_runtime, "tentpole_brief", lambda today, context: None)
+        broken.setattr(season_runtime, "tentpole_brief", lambda *args, **kwargs: None)
         _director_fails(provider, broken)
-        journey = _day(driver, provider, clock)
-    assert journey["scenario"]["scenario_key"] == f"{REPRISE_SCENARIO_PREFIX}e1.a"
+        driver.create()
+    assert driver.journey["status"] == "unavailable", driver.journey
+    assert not str((driver.journey.get("scenario") or {}).get("scenario_key") or "").startswith(
+        REPRISE_SCENARIO_PREFIX
+    )
+    clock.advance(days=1)
     _day(driver, provider, clock)
     assert _season_payload(db_session, user.id)[0]["key"] == "e1.b"
 

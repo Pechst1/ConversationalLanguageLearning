@@ -111,6 +111,11 @@ MASSED_WEIGHT_DECAY = 0.5
 #: Séance length bounds (items) and the rhythm's séance budget (seconds).
 MIN_SEANCE_ITEMS = 6
 MAX_SEANCE_ITEMS = 24
+#: P6: a séance for a learner on a stored pace (Ruhig, Normal, Schnell) deals at
+#: most this many items, reprises included: «about five minutes» is eight items,
+#: not twelve. A miss still earns its reprise inside the eight (``reprise_at`` is
+#: clamped to the length), and the séance never grows past it.
+PACE_MAX_SEANCE_ITEMS = 8
 DEFAULT_SECONDS_PER_ITEM = 25.0
 SEANCE_SECONDS_BY_RHYTHM: dict[str, int] = {
     "leger": 240,
@@ -152,13 +157,17 @@ def clamp_rung(rung: int | None) -> int:
     return int(max(Rung.RECOGNISE, min(TOP_RUNG, int(rung or 0))))
 
 
-def seance_length(budget_seconds: float | None, seconds_per_item: float | None) -> int:
-    """Items in a séance: the rhythm's budget over the learner's measured pace."""
+def seance_length(
+    budget_seconds: float | None, seconds_per_item: float | None, *, max_items: int = MAX_SEANCE_ITEMS
+) -> int:
+    """Items in a séance: the rhythm's budget over the learner's measured pace,
+    at most ``max_items`` (:data:`PACE_MAX_SEANCE_ITEMS` on a stored pace)."""
 
     budget = float(budget_seconds or SEANCE_SECONDS_BY_RHYTHM["regulier"])
     pace = float(seconds_per_item or DEFAULT_SECONDS_PER_ITEM)
     pace = max(8.0, pace)
-    return int(max(MIN_SEANCE_ITEMS, min(MAX_SEANCE_ITEMS, round(budget / pace))))
+    ceiling = max(1, min(MAX_SEANCE_ITEMS, int(max_items)))
+    return int(min(ceiling, max(MIN_SEANCE_ITEMS, min(MAX_SEANCE_ITEMS, round(budget / pace)))))
 
 
 # ---------------------------------------------------------------------------
@@ -1088,6 +1097,7 @@ __all__ = [
     "TEST_OUT_RUNGS",
     "TEST_OUT_SHORT_RUNGS",
     "TOP_RUNG",
+    "PACE_MAX_SEANCE_ITEMS",
     "EvidenceDecision",
     "ForgeState",
     "ForgeUnit",
