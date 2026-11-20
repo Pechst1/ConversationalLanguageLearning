@@ -276,20 +276,28 @@ def scrub_hint(text: Any, phrases: list[str], tokens: set[str]) -> str:
     if not raw:
         return ""
     pieces = _CLAUSE.split(raw)
+    # Each kept clause with the separator that came *before* it in the text: a clause
+    # dropped in between leaves the joint that opens the next kept one («; this item
+    # needs “es”. The rule …» keeps «. The rule …», never «; The rule», 17 Nov).
     kept: list[tuple[str, str]] = []
     for index in range(0, len(pieces), 2):
         clause = pieces[index]
-        separator = pieces[index + 1] if index + 1 < len(pieces) else ""
+        before = pieces[index - 1] if index else ""
         if not clause.strip() or _leaks(clause, phrases, tokens):
             continue
-        kept.append((clause.strip(), separator))
+        kept.append((clause.strip(), before))
     if not kept:
         return ""
     out = ""
-    for index, (clause, separator) in enumerate(kept):
+    for index, (clause, before) in enumerate(kept):
+        if index:
+            out = out.rstrip(",;:—–- ")
+            if before.strip():
+                out += before
+            else:
+                # a sentence boundary: the clause before it ended its own sentence
+                out += " " if out[-1:] in ".!?…" else ". "
         out += clause
-        if index < len(kept) - 1:
-            out += separator if separator.strip() else " "
     out = out.strip().rstrip(",;:—–- ")
     if not out:
         return ""
