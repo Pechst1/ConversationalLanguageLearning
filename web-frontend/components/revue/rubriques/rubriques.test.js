@@ -318,3 +318,32 @@ test('«Le titre» and «L’intox express»: «Lire» shows the story’s other
   }
   assert.doesNotMatch(screen('titre_a1_read'), /rv-gallery/, 'no strip without other pictures');
 });
+
+// Follow-up (integration, as «Le fil» 4788a650): from B1 the chrome is French but every
+// explanation is in the mother tongue; below B1 both are the mother tongue.
+test('from B1 the reasons are in the mother tongue while the chrome stays French', () => {
+  const b1 = (name, edit = () => {}) => {
+    const raw = JSON.parse(JSON.stringify(SESSIONS[name]));
+    Object.assign(raw.plan, { ui_language: 'fr', gloss_language: 'en' });
+    edit(raw);
+    return visibleText(render(h(RvRubrique, { client: {}, session: types.parseSessionView(raw), onExit: () => {} })));
+  };
+  let text = b1('titre_a1_three_wrong');
+  assert.match(text, /Not this one\. This headline says something the article doesn't:/);
+  assert.doesNotMatch(text, /Pas celui-là/);
+  assert.match(text, /Vérifier/, 'the chrome stays French');
+  text = b1('titre_a1_trap_miss');
+  assert.match(text, /The article does say these: fête\./);
+  assert.doesNotMatch(text, /l'article les dit/);
+  text = b1('titre_a1_trap_miss', (raw) => {
+    const trap = raw.titre.trap;
+    Object.assign(trap, { resolved: true, correct: true, solution: [4, 5, 6], fine: [], why: { fr: 'Pas tout le monde.', tr: 'Not everyone.' } });
+  });
+  assert.match(text, /Not everyone\./);
+  for (const code of ['says_too_much', 'number_not_in_claims', 'nothing_changed']) {
+    assert.equal(model.refusalCopy(code, rubriqueCopy('fr'), rubriqueCopy('en')), rubriqueCopy('en'), `${code} is a reason`);
+  }
+  for (const code of ['too_short', 'too_long', 'pick_words', 'pick_tiles']) {
+    assert.equal(model.refusalCopy(code, rubriqueCopy('fr'), rubriqueCopy('en')), rubriqueCopy('fr'), `${code} is an instruction`);
+  }
+});

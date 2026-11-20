@@ -47,7 +47,7 @@ function Continue({ props }: { props: TitreStepProps }) {
 // ---------------------------------------------------------------------------
 
 export function RvTitreThree(props: TitreStepProps) {
-  const { session, view, rcopy, glossLanguage, glosses, copy, pending, readOnly, onAct, wordFor, notice, footRef } = props;
+  const { session, view, rcopy, xcopy, glossLanguage, glosses, copy, pending, readOnly, onAct, wordFor, notice, footRef } = props;
   const three = view.three!;
   const [chosen, setChosen] = useState<string | null>(null);
   useEffect(() => setChosen(null), [three.tries]);
@@ -85,7 +85,7 @@ export function RvTitreThree(props: TitreStepProps) {
                 </div>
                 {headline.why && (tried || three.resolved) && (
                   <p className="ct-why" lang={glossLanguage === 'fr' ? 'fr' : glossLanguage} data-ct-anchor={headline === lastWrong ? 'nearest' : undefined}>
-                    {headline === lastWrong ? `${rcopy.three_wrong} ` : ''}
+                    {headline === lastWrong ? `${xcopy.three_wrong} ` : ''}
                     {headline.why.tr ?? headline.why.fr}
                   </p>
                 )}
@@ -126,7 +126,7 @@ export function RvTitreThree(props: TitreStepProps) {
 // ---------------------------------------------------------------------------
 
 export function RvTitreTrap(props: TitreStepProps) {
-  const { session, view, rcopy, glossLanguage, glosses, copy, pending, readOnly, onAct, wordFor, notice, footRef } = props;
+  const { session, view, rcopy, xcopy, glossLanguage, glosses, copy, pending, readOnly, onAct, wordFor, notice, footRef } = props;
   const trap = view.trap!;
   const [picked, setPicked] = useState<number[]>([]);
   useEffect(() => setPicked([]), [trap.tries]);
@@ -155,16 +155,20 @@ export function RvTitreTrap(props: TitreStepProps) {
         </p>
         <RvTranslate textFr={trap.headline.fr} translation={trap.headline.tr} glossLanguage={glossLanguage} copy={copy} />
         {!trap.resolved && trap.fine.length > 0 && (
-          <p className="ct-why" data-ct-anchor="nearest">
-            {fill(rcopy.trap_fine, { words: fineWords(view) })}
+          <p className="ct-why" lang={glossLanguage} data-ct-anchor="nearest">
+            {fill(xcopy.trap_fine, { words: fineWords(view) })}
           </p>
         )}
         {trap.resolved && (
           <>
             <p className="ct-why" data-ct-anchor="nearest">
               {trap.correct ? rcopy.trap_right : rcopy.trap_shown}
-              {trap.why ? ` ${trap.why.tr ?? trap.why.fr}` : ''}
             </p>
+            {trap.why && (
+              <p className="ct-why" lang={trap.why.tr ? glossLanguage : 'fr'}>
+                {trap.why.tr ?? trap.why.fr}
+              </p>
+            )}
             {trap.claim && (
               <RvClaim claim={trap.claim} support={session.plan.support} glosses={glosses} band={session.plan.band} glossLanguage={glossLanguage} copy={copy} onWord={wordFor(null)} />
             )}
@@ -195,7 +199,7 @@ export function RvTitreTrap(props: TitreStepProps) {
 // ---------------------------------------------------------------------------
 
 export function RvTitreBuild(props: TitreStepProps) {
-  const { view, copy, ccopy, rcopy, glossLanguage, pending, readOnly, onAct, onContinue, notice, footRef } = props;
+  const { view, copy, ccopy, rcopy, xcopy, glossLanguage, pending, readOnly, onAct, onContinue, notice, footRef } = props;
   const build = view.build!;
   const [subject, setSubject] = useState<number | null>(null);
   const [fact, setFact] = useState<number | null>(null);
@@ -265,7 +269,11 @@ export function RvTitreBuild(props: TitreStepProps) {
         <p className="ct-foot__hint" aria-live="polite">
           {fill(rcopy.words_count, { n: String(count), max: String(build.maxWords) })}
         </p>
-        {tooMuch && <p className="ct-why">{rcopy.errors.says_too_much}</p>}
+        {tooMuch && (
+          <p className="ct-why" lang={glossLanguage}>
+            {xcopy.errors.says_too_much}
+          </p>
+        )}
       </div>
     );
   }

@@ -100,7 +100,16 @@ export function shownCard(view: Pick<RvIntoxView, 'round'>, seen: string | null)
   return round.cards.find((row) => row.key === round.current) ?? round.cards[round.cards.length - 1] ?? null;
 }
 
-/** Why an act was not recorded, in the chrome language. */
+/** The refusals that explain (a reason, said in the mother tongue as the counter's whys);
+ * the others are instructions (lengths, «tap a word»), said in the chrome language. */
+const REASON_CODES = new Set(['says_too_much', 'number_not_in_claims', 'nothing_changed']);
+
+/** The table a refusal is said from: `reasons` (the mother tongue) for a reason, else `chrome`. */
+export function refusalCopy(code: string, chrome: RubriqueCopy, reasons: RubriqueCopy): RubriqueCopy {
+  return REASON_CODES.has(code) ? reasons : chrome;
+}
+
+/** Why an act was not recorded, in the table it is given (`refusalCopy`). */
 export function errorText(copy: RubriqueCopy, error: RvRubriqueError): string {
   const template = copy.errors[error.code] ?? copy.errors.too_short;
   return fill(template, { n: String(error.count ?? '') });

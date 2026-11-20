@@ -27,6 +27,8 @@ export type RubriqueStepProps = {
   copy: RevueCopy;
   ccopy: ComptoirCopy;
   rcopy: RubriqueCopy;
+  /** The reasons: the mother tongue (the gloss language), while the chrome is French from B1. */
+  xcopy: RubriqueCopy;
   glossLanguage: RvLanguage;
   glosses: RvGloss[];
   voice: LineVoice;

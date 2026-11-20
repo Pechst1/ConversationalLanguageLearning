@@ -28,7 +28,7 @@ import { revueCopy } from '../revue-copy';
 import { knownGloss, sessionGlosses } from '../revue-model';
 import type { RvWordEvent } from '../RvThread';
 import { INTOX_FR, INTOX_STEP_LABELS_FR, rubriqueCopy, TITRE_FR, TITRE_STEP_LABELS_FR } from './rubriques-copy';
-import { clampStep, errorText, nextStep, openingStep, stepOrder } from './rubriques-model';
+import { clampStep, errorText, nextStep, openingStep, refusalCopy, stepOrder } from './rubriques-model';
 import { RvIntoxFix, RvIntoxRound } from './RvIntoxSteps';
 import { RvRubriquePage } from './RvRubriquePages';
 import { RvRubriqueRead, type RubriqueStepProps } from './RvRubriqueParts';
@@ -91,6 +91,9 @@ export function RvRubrique({ client, session: initial, language, onExit, onRelev
   const ccopy = comptoirCopy(chrome);
   const rcopy = rubriqueCopy(chrome);
   const glossLanguage = session.plan.glossLanguage;
+  // The reasons (a wrong headline's lead-in, the trap's true words, a refused headline): the
+  // mother tongue, as the counter's whys, while the chrome is French from B1.
+  const xcopy = rubriqueCopy(glossLanguage);
   const glosses = useMemo(() => sessionGlosses(session), [session]);
 
   const serverStep = view?.step ?? 'read';
@@ -187,7 +190,7 @@ export function RvRubrique({ client, session: initial, language, onExit, onRelev
     <>
       {refusal && (
         <p className="ct-why rb-refusal" role="status" data-ct-anchor="nearest">
-          {errorText(rcopy, refusal)}
+          {errorText(refusalCopy(refusal.code, rcopy, xcopy), refusal)}
         </p>
       )}
       {failed && (
@@ -204,6 +207,7 @@ export function RvRubrique({ client, session: initial, language, onExit, onRelev
     copy,
     ccopy,
     rcopy,
+    xcopy,
     glossLanguage,
     glosses,
     voice,
