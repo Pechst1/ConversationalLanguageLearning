@@ -13052,6 +13052,30 @@ export interface components {
              * @default 0
              */
             start?: number;
+            /** Why */
+            why?: string | null;
+        };
+        /**
+         * RvComptoirNote
+         * @description «Le pourquoi», once the opinion is settled: one of Romy's marks with its rule in full
+         *     (``why``, the learner's mother tongue; it may show the corrected form now), the same
+         *     pattern in today's story (``example_fr``, found by the app, never written by the model)
+         *     and the grammar rule La Forge brings back (``rule_id``, the Correcteur's rule names).
+         */
+        RvComptoirNote: {
+            /** Example Fr */
+            example_fr?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "accord" | "conjugaison" | "genre" | "orthographe" | "mot" | "ordre" | "manque";
+            /** Rule Id */
+            rule_id?: string | null;
+            /** Span Fr */
+            span_fr: string;
+            /** Why */
+            why?: string | null;
         };
         /** RvComptoirOpinion */
         RvComptoirOpinion: {
@@ -13069,6 +13093,8 @@ export interface components {
              * @default 2
              */
             max_tries?: number;
+            /** Notes */
+            notes?: components["schemas"]["RvComptoirNote"][];
             /** Printed Fr */
             printed_fr?: string | null;
             /**

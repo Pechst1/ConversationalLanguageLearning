@@ -145,6 +145,23 @@
 .av2 .ct-mark { padding: 0; background: none; color: inherit; text-decoration: underline wavy var(--av2-red); text-decoration-thickness: 1.5px; text-underline-offset: 4px; }
 .av2 .ct-marks { display: flex; flex-direction: column; gap: 3px; margin: 2px 0 0; padding: 0; list-style: none; }
 .av2 .ct-paper[data-proof="marked"] .ct-paper__k { color: var(--av2-red-deep); }
+/* «Le pourquoi» (2026-11-20): a mark that explains itself is a button; its tap area reaches
+   44 px around the word (::after), so the sentence keeps its line height. One why open. */
+.av2 .ct-mark--why { position: relative; margin: 0; border: 0; font: inherit; line-height: inherit; cursor: pointer; }
+.av2 .ct-mark--why::after { content: ""; position: absolute; inset: -9px -4px; }
+.av2 .ct-mark--why[aria-expanded="true"] { background: color-mix(in srgb, var(--av2-red) 14%, transparent); }
+.av2 .ct-mark--why:focus-visible { outline: 2px solid var(--av2-ink); outline-offset: 2px; }
+.av2 .ct-why__b { display: flex; align-items: center; gap: 4px; width: 100%; min-height: 44px; margin: 0; padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.av2 .ct-why__b[aria-expanded="true"] { color: var(--av2-red-deep); }
+.av2 .ct-why-open { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 8px 10px; border-left: 3px solid var(--av2-red); font-size: var(--av2-t-label); line-height: 1.4; color: var(--av2-ink-2); overflow-wrap: anywhere; }
+.av2 .ct-why-open b { font-family: var(--av2-serif); font-style: italic; font-weight: 600; }
+.av2 .ct-why-open__t,
+.av2 .ct-note__why { font-size: var(--av2-t-body); line-height: 1.4; color: var(--av2-ink); }
+.av2 .ct-notes { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--av2-line-2); }
+.av2 .ct-note { display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
+.av2 .ct-note__ex { font-size: var(--av2-t-label); line-height: 1.4; color: var(--av2-ink-2); }
+.av2 .ct-note__ex q { font-family: var(--av2-serif); font-style: italic; }
+.av2 .ct-note__forge { margin: 0; font-size: var(--av2-t-meta); line-height: 1.4; color: var(--av2-muted); }
 
 /* --- «La page» ------------------------------------------------------------------ */
 .av2 .ct-clip { display: flex; flex-direction: column; gap: 10px; padding: 12px 16px 16px; border-top: 4px double var(--av2-ink); border-radius: 6px; background: var(--av2-card); }

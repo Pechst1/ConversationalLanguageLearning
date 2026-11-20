@@ -117,6 +117,7 @@ ERROR_SOURCE_LABELS = {
     # An unmapped source_type prints raw on the repair card; the daily journey
     # writes errata with source_type="daily_journey" (WP-05).
     "daily_journey": "Daily journey",
+    "revue": "Le Papier",
 }
 
 # Item types the daily journey can express as a typed learning target. A
