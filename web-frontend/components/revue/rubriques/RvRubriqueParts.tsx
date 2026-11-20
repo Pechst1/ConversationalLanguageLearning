@@ -15,6 +15,7 @@ import type { RvComptoirText, RvGloss, RvLanguage, RvSessionView } from '@/lib/r
 import type { ComptoirCopy } from '../comptoir/comptoir-copy';
 import { ComptoirPicture, ListenChip } from '../comptoir/RvComptoirParts';
 import type { RevueCopy } from '../revue-copy';
+import { RvGallery } from '../RvGallery';
 import { RvGlossText, RvSourceLine, RvTranslate, type RvWordEvent } from '../RvThread';
 import type { RubriqueCopy } from './rubriques-copy';
 import { settledSegments } from './rubriques-model';
@@ -109,13 +110,14 @@ export function LeadBlock({ read, props, voiceKey }: { read: RvRubriqueRead; pro
   );
 }
 
-/** «Lire»: the picture, the lead, one press to the assignment. */
+/** «Lire»: the picture, the story's other pictures (RvGallery), the lead, one press to the assignment. */
 export function RvRubriqueRead({ read, press, props }: { read: RvRubriqueRead; press: string; props: RubriqueStepProps }) {
   const { session, pending, readOnly, onContinue, notice, footRef } = props;
   return (
     <>
       <div className="rv-body ct-body" data-step="read">
         <ComptoirPicture url={session.stage.plateUrl} credit={session.stage.plateKind === 'story'} />
+        <RvGallery pictures={session.stage.pictures} mainUrl={session.stage.plateUrl} copy={props.copy} />
         <LeadBlock read={read} props={props} voiceKey={`rb-lead-${session.id}`} />
         {notice}
       </div>

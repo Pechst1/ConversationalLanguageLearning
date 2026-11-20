@@ -293,3 +293,28 @@ test('«Le titre» A2 (de) with «Le pourquoi»: the marks open their rule, the 
   assert.match(html, /class="ct-notes"/);
   assert.match(visibleText(html), /Nomen: «les gens»/);
 });
+
+// Follow-up (integration): «Lire» shows the story's other pictures as the other assignments do.
+test('«Le titre» and «L’intox express»: «Lire» shows the story’s other pictures, each with its credit', () => {
+  for (const name of ['titre_a1_read', 'intox_a1_round']) {
+    const raw = JSON.parse(JSON.stringify(SESSIONS[name]));
+    const mode = raw.mode;
+    raw[mode].step = 'read';
+    const plate = '/media/graphic-novel/revue-stories/evergreen-fete-de-la-musique-0123456789abcdef.webp';
+    raw.stage.plate_url = plate;
+    raw.stage.plate_kind = 'story';
+    raw.stage.pictures = [
+      { kind: 'illustration', url: plate, alt_fr: '', credit_fr: 'Illustration · Le Papier' },
+      {
+        kind: 'photo', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Fete.jpg/1280px-Fete.jpg', alt_fr: 'Une scène', caption_fr: 'Une scène',
+        credit_fr: 'Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons', licence: 'CC BY-SA 4.0',
+        licence_url: 'https://creativecommons.org/licenses/by-sa/4.0', source_url: 'https://commons.wikimedia.org/wiki/File:Fete.jpg',
+      },
+    ];
+    const html = render(h(RvRubrique, { client: {}, session: types.parseSessionView(raw), onExit: () => {} }));
+    assert.match(html, /rv-gallery/, name);
+    assert.equal((html.match(/rv-gallery__item/g) || []).length, 1, `${name}: the plate is not repeated`);
+    assert.match(visibleText(html), /Photo · Camille Exemple · CC BY-SA 4\.0 · Wikimedia Commons/);
+  }
+  assert.doesNotMatch(screen('titre_a1_read'), /rv-gallery/, 'no strip without other pictures');
+});
