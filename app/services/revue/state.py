@@ -28,6 +28,8 @@ Payload conventions the replay reads (other keys are kept and ignored):
   ``build_fix``); replayed by ``titre_loop.Acts``
 - ``intox`` («L'intox express», 2026-11-20): ``act`` (``open`` | ``answer`` | ``fix``);
   replayed by ``intox_loop.Acts``
+- ``trois_mots`` («Trois mots», 2026-11-21, on a closed session): ``act`` (``match`` | ``gap`` |
+  ``kept``); replayed by ``trois_mots.Acts``
 
 No DB code here. See ``docs/implementation/atelier-v2/WP-119-LA-REVUE-DE-ROMY.md``.
 """
@@ -59,6 +61,7 @@ EventKind = Literal[
     "fil",
     "titre",
     "intox",
+    "trois_mots",
 ]
 
 
