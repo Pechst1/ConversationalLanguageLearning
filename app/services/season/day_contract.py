@@ -25,6 +25,7 @@ from app.services.season.format import (
     Season,
     written_levels,
 )
+from app.services.story_memory import address_placeholder
 
 logger = logging.getLogger(__name__)
 
@@ -445,7 +446,9 @@ def previously(live: dict[str, Any], lines: list[str], *, limit: int = 3) -> lis
         last = next((row for row in reversed(ledger.get("after") or []) if isinstance(row, dict)), None)
         if not last or not last.get("text_fr") or last.get("day_index") != int(live.get("day_index") or 0):
             return lines
-        text = str(last["text_fr"])
+        text = address_placeholder(str(last["text_fr"]))  # #917: «tu», never «learner»
+        if not text:
+            return lines
         return ([line for line in lines if _folded(line) != _folded(text)] + [text])[-limit:]
     except Exception:  # noqa: BLE001 - the box never costs the page
         logger.exception("day_contract: «Précédemment» keeps its own lines")
