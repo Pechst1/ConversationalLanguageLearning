@@ -2469,9 +2469,8 @@ class RevueEncounter:
         card never promises the counter (seen in a browser, 2026-11-20). The same material as
         the start (``_material``). Switch off: today's card."""
 
-        from app.services.revue import assignments
-
         from app.schemas.revue import RvCardAssignment
+        from app.services.revue import assignments
 
         card = story_card(dossier, self.db)
         if not assignments.assignments_enabled():
