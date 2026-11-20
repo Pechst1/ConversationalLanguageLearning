@@ -29,8 +29,10 @@ import { fill } from '../revue-copy';
 import { RvComposer } from '../RvComposer';
 import { RvTranslate } from '../RvThread';
 import { COMPTOIR_FR, COMPTOIR_LINES, inPaperLabel } from './comptoir-copy';
-import { SIDE_LABELS_FR, a1Sentence, castName, insertWord, markSegments, wordDiff } from './comptoir-model';
+import { SIDE_LABELS_FR, a1Sentence, castName, insertWord, wordDiff } from './comptoir-model';
 import { ComptoirBubble, MineLine, RomyLine, type ComptoirStepProps } from './RvComptoirParts';
+import { RvProofMarks } from './RvProofMarks';
+import { RvProofNotes } from './RvProofNotes';
 
 const SIDES: RvStance[] = ['pour', 'contre', 'nuance'];
 
@@ -194,24 +196,14 @@ export function RvComptoirOpinion(props: ComptoirStepProps) {
           <p className="ct-paper__k" lang="fr">
             {COMPTOIR_FR.proof_marked}
           </p>
-          <p className="ct-paper__fr" lang="fr">
-            {markSegments(opinion.draftFr, opinion.marks).map((segment, index) =>
-              segment.kind ? (
-                <mark key={index} className="ct-mark" data-kind={segment.kind}>
-                  {segment.text}
-                </mark>
-              ) : (
-                <React.Fragment key={index}>{segment.text}</React.Fragment>
-              ),
-            )}
-          </p>
-          <ul className="ct-marks">
-            {opinion.marks.map((mark, index) => (
-              <li key={index} className="ct-why">
-                <b lang="fr">{mark.spanFr}</b> · {ccopy.mark_kinds[mark.kind]}
-              </li>
-            ))}
-          </ul>
+          <RvProofMarks
+            key={`marks-${opinion.tries}`}
+            draftFr={opinion.draftFr}
+            marks={opinion.marks}
+            kindLabels={ccopy.mark_kinds}
+            copy={ccopy.pourquoi}
+            whyLanguage={glossLanguage}
+          />
         </section>
       </>
     );
@@ -240,6 +232,7 @@ export function RvComptoirOpinion(props: ComptoirStepProps) {
               : printed}
           </p>
           <RvTranslate textFr={printed} glossLanguage={glossLanguage} copy={copy} />
+          <RvProofNotes notes={opinion.notes} kindLabels={ccopy.mark_kinds} copy={ccopy.pourquoi} whyLanguage={glossLanguage} />
         </section>
         {opinion.reply?.line.fr && (
           <ComptoirBubble
