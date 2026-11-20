@@ -20,7 +20,12 @@ tell a story is worth more here than a guard that thinks it can read one. The st
 critic reads the page as a reader does.
 
 Soft, always: :func:`gap` rides the one retry of ``living_story._check_reading_aids``,
-and the draft is served after it either way. A scene that wanders never costs a day.
+and a page is served after it either way. A scene that wanders never costs a day, and
+does not reach the reader as it wandered: what a soft rejection of a scene carries to be
+served is :func:`held_to_scene`, the page with what its own state put outside the scene
+taken out, as far as the engine's panel floor allows (``living_story._servable``, which
+checks the held page's lexicon again). What the floor kept is recorded on the brief
+(``living_story.SCENE_UNITY_KEY``) for the critic and the next night.
 
 A page without this state (an authored tentpole, which is never validated here; a
 draft stored before this; a model that left the fields out) makes no claim and passes.
@@ -154,3 +159,46 @@ def gap(draft: Any) -> str | None:
     """What the page's state contradicts, as the one retry's hint, or ``None``."""
 
     return " ".join(issues(draft)) or None
+
+
+def held_to_scene(draft: Any, *, floor: int) -> Any:
+    """The page as it may be served: a copy with what its own state says left the scene
+    taken out, or ``draft`` itself when nothing did. The one retry is told (:func:`gap`);
+    this is what a soft rejection carries, so the page served when the retry wanders
+    again, or fails, is the scene as far as it can be (#621: the walk's page was served
+    as written).
+
+    ``floor`` is the engine's own panel floor (``living_story.MIN_SCENE_PANELS``): a held
+    page never has fewer panels than a written one may (#740's review: a held page of two
+    panels went out past the guard that refuses one). Like the comparison, it reads no
+    word, and it adds none:
+
+    * a jump with no caption is no jump (nothing says when);
+    * a line by someone the cast does not list is taken out, always (no panel goes);
+    * then, while more than ``floor`` panels remain, a panel left with nothing to read
+      once those lines are gone, and after those a panel at another place outside a
+      jump, in page order. A silent panel the writer drew stays.
+
+    What the floor keeps (the walk's evening at the bar, on a page of four) still says
+    where it is, and :func:`issues` names it on the held page. Extra jumps that each say
+    when are left to the retry: every panel still says where and when it is.
+    """
+
+    if gap(draft) is None:
+        return draft
+    held = draft.model_copy(deep=True)
+    for panel in held.panels:
+        if panel.time_jump and not str(panel.narration_fr or "").strip():
+            panel.time_jump = False
+    emptied: list[int] = []
+    outside = speakers_outside_cast(held)
+    for number in sorted({number for numbers in outside.values() for number in numbers}):
+        panel = held.panels[number - 1]
+        panel.dialogue = [line for line in panel.dialogue if line.character_id not in outside]
+        if not panel.dialogue and not str(panel.narration_fr or "").strip():
+            emptied.append(number)
+    candidates = [*emptied, *(number for number, _place in panels_elsewhere(held) if number not in emptied)]
+    gone = set(candidates[: max(0, len(held.panels) - floor)])
+    if gone:
+        held.panels = [panel for number, panel in enumerate(held.panels, start=1) if number not in gone]
+    return held
