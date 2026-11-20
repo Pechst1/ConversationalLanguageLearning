@@ -409,3 +409,40 @@ test('the page poses each format: typed, dictation, spot and mine, rafale', () =
   assert.match(PAGE, /answer_payload: overrides\?\.burst \? \{ answers: itemAnswers, burst: overrides\.burst \} : \{ answers: itemAnswers \},/);
   assert.match(PAGE, /onSubmitBurst=\{submitForgeBurst\}/);
 });
+
+// The grammar pilot: Le Déclic reaches the typed fill and «Trouve l'erreur», and no other format.
+test('Déclic lands a typed answer and a spot line on the rule, display only', () => {
+  const React = require('react');
+  const { renderToStaticMarkup } = require('react-dom/server');
+  const { DeclicPrompt } = require('./Declic.tsx');
+  const draw = (props) => renderToStaticMarkup(React.createElement(DeclicPrompt, props));
+
+  const spot = { prompt: '___', answer: 'Elle est allée au marché.', choices: ['Elle est allé au marché.'], target: 'Elle est allée au marché.' };
+  assert.match(draw({ ...spot, verdict: 'right' }), /all.{1,2}<span class="dc-mk">e<\/span>/);
+
+  const missed = draw({ prompt: '___', answer: 'Elle a allé au marché.', choices: ['Elle est allé au marché.'], target: 'Elle est allée au marché.', verdict: 'wrong' });
+  assert.match(missed, /<span class="dc-x">a<\/span>/, 'what was written stands first, its fault struck');
+
+  const typed = draw({ prompt: 'Hier, ___ ici.', answer: 'elle est venu', choices: [], target: 'elle est venue', verdict: 'wrong' });
+  assert.match(typed, /<span class="dc-x">/, 'a typed answer has no options, and is compared with the right form');
+
+  // A typed answer that is right is compared with the item's own options, kept but not shown.
+  const typedRight = draw({ prompt: 'Hier, ___ ici.', answer: 'elle est venue', choices: ['elle a venu', 'elle est venu', 'elle est venue'], target: 'elle est venue', verdict: 'right' });
+  assert.match(typedRight, /<span class="dc-mk">e<\/span>/);
+
+  // A spot's corrected line is read against the item's faulty line, never the learner's own slip
+  // (the play-through of 10 November marked «Hier» red where «xx» replaced it).
+  const { ruleDiff, markedParts } = require('../../lib/rule-diff.ts');
+  const right = 'Hier soir, on est entré au Mistral.';
+  assert.deepEqual(markedParts(ruleDiff(right, ['Hier soir, on a entré au Mistral.'])), ['est']);
+  assert.ok(markedParts(ruleDiff(right, ['xx soir, on a entré au Mistral.'])).includes('Hier'), 'what ruleFrom avoids');
+  const declic = fs.readFileSync(path.join(__dirname, 'Declic.tsx'), 'utf8');
+  assert.match(declic, /ruleDiff\(right, ruleFrom \?\?/);
+
+  const page = fs.readFileSync(path.join(WEB_ROOT, 'pages/atelier.tsx'), 'utf8');
+  assert.match(page, /ruleFrom=\{\[sentence\]\}/);
+  const gate = page.match(/function isDeclicDrill[\s\S]*?\n\}/)[0];
+  assert.match(gate, /drill === 'spot'/);
+  assert.match(gate, /drill === 'typed'/);
+  assert.doesNotMatch(gate, /'mine'|'rafale'|'tiles'|'dictation'|'judge'/);
+});

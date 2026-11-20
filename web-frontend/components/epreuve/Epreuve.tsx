@@ -613,19 +613,28 @@ export function EpLineFix({ old, fix }: { old: Node; fix: Node }) {
 }
 /* `repair` is the corrector's concrete next action (repair_hint); it sits
    under the why, quieter than it, with the red triangle = action. */
-export function EpGalley({ anchor, children, why, repair, relecture, more }: { anchor?: Node; children: Node; why?: Node; repair?: Node; relecture?: Node; more?: Node }) {
+export function EpGalley({ anchor, children, why, repair, relecture, more, brief }: {
+  anchor?: Node;
+  children: Node;
+  why?: Node;
+  repair?: Node;
+  relecture?: Node;
+  more?: Node;
+  /** The grammar pilot: one short reason in place of the anchor, the why and the repair hint. */
+  brief?: Node;
+}) {
   return (
     <div className="av2-correction ep-galley">
-      {anchor && <p className="av2-label ep-galley__anchor">{anchor}</p>}
+      {!brief && anchor && <p className="av2-label ep-galley__anchor">{anchor}</p>}
       <div className="ep-gline">{children}</div>
-      {why && <p className="ep-why">{why}</p>}
-      {repair && (
+      {brief ? <p className="ep-why">{brief}</p> : why && <p className="ep-why">{why}</p>}
+      {!brief && repair && (
         <p className="ep-repair-hint">
           <ShapeToken kind="action" size="sm" />
           <span>{repair}</span>
         </p>
       )}
-      {more}
+      {!brief && more}
       {relecture}
     </div>
   );

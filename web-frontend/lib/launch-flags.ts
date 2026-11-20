@@ -34,3 +34,25 @@ export function spokenReplyLaunched(): boolean {
   }
   return Boolean((launchFlags as Record<string, unknown>).spokenReply);
 }
+
+/** This device's override of `grammarPilot` (`on`/`off`), for the owner's phone. */
+export const GRAMMAR_PILOT_STORAGE_KEY = 'atelier.grammarPilot';
+
+/**
+ * The grammar pilot (owner's choice of 9 November 2026): Le Déclic on the Forge's choice, typed and
+ * spot drills, and Le Montage on the rules that have a script (`lib/rule-montage.ts`). A development build has it, so the walk plays it; a production build waits
+ * for `grammarPilot` in `launch-flags.json`, or `atelier.grammarPilot` = `on` on one device. Read at
+ * call time so a device toggle or a test can change it.
+ */
+export function grammarPilotOn(): boolean {
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = window.localStorage?.getItem(GRAMMAR_PILOT_STORAGE_KEY);
+      if (stored === 'on') return true;
+      if (stored === 'off') return false;
+    } catch {
+      /* storage refused: the build default stays */
+    }
+  }
+  return Boolean((launchFlags as Record<string, unknown>).grammarPilot) || process.env.NODE_ENV === 'development';
+}
