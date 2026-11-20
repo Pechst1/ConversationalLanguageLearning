@@ -44,6 +44,12 @@ CRITERIA: dict[str, tuple[Criterion, ...]] = {
         Criterion("served", "check", "The lanes served a reply: no failure, no authored fallback."),
         Criterion("quotes_real", "check", "Every evidence quote of the grade is words the learner actually wrote."),
         Criterion(
+            "rule_first",
+            "check",
+            "When the ground truth names an error to correct first (the day's rule), the first correction "
+            "shown is that one, with its fix. Not applicable when it names none.",
+        ),
+        Criterion(
             "takes_up",
             "judge",
             "The character's reply responds to something specific the learner wrote (a reason, a detail, a "
@@ -181,6 +187,12 @@ CRITERIA: dict[str, tuple[Criterion, ...]] = {
             "spans_real",
             "check",
             "Every corrected fragment is copied from the learner's own sentence.",
+        ),
+        Criterion(
+            "rule_first",
+            "check",
+            "When the ground truth names an error to correct first (the day's rule), the first correction "
+            "shown is that one, with its fix. Not applicable when it names none.",
         ),
         Criterion(
             "errors_caught",

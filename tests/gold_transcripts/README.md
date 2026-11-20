@@ -163,4 +163,6 @@ with the production helper and hands it over as `day_rules.for_turn` would retur
 (`surfaces.item_day_rules`): in the scene's turn payload, and to the corrector in place of
 the database lookup. An item without `day_rules` gets none, as a learner with no rule
 introduced this week does. Its `truth` names the error to correct `first`; take the
-sentence from a walk where the learner broke the day's rule and made another error.
+sentence from a walk where the learner broke the day's rule and made another error. The
+code-decided criterion `rule_first` passes when the first correction shown is that error,
+with its fix (`surfaces.rule_first`); it is not applicable to an item without `first`.

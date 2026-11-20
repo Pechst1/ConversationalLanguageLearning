@@ -757,3 +757,32 @@ def test_no_db_answers_for_turn_as_an_empty_database():
 
     user = SimpleNamespace(id=1)
     assert day_rules.for_turn(S._NoDB(), user, control_language="en") is None
+
+
+def test_rule_first_is_the_first_correction_shown_and_its_fix():
+    """The check behind «the day's rule is corrected first»: the first correction shown
+    takes out the words the named error changes and brings the right ones; any other
+    first correction, or none, fails; an item that names none is not applicable."""
+
+    truth = {"first": "il a déjà quitté → il avait déjà quitté"}
+    assert S.rule_first(truth, None, ("a", "avait"))[0] == "pass"
+    assert S.rule_first(truth, None, ("il a déjà quitté", "il avait déjà quitté"))[0] == "pass"
+    assert S.rule_first(truth, None, ("qu'il ne veut", "qu'il ne veuille"))[0] == "fail"
+    # «quitté → avait quitté» would print «il a avait quitté»: not the named fix.
+    assert S.rule_first(truth, None, ("quitté", "avait quitté"))[0] == "fail"
+    assert S.rule_first(truth, None, None)[0] == "fail"
+    assert S.rule_first(truth, "story_provider_failed", None)[0] == "na"
+    assert S.rule_first({}, None, ("a", "avait"))[0] == "na"
+
+    scene = S.load_items("scene", ["s29-pqp-deja-quitte"])[0]
+    order = {"failure": None, "corrections": [
+        {"span": "qu'il ne veut", "fix": "qu'il ne veuille"}, {"span": "a déjà quitté", "fix": "avait déjà quitté"},
+    ]}
+    assert S.checks("scene", scene, order)["rule_first"][0] == "fail"
+    order["corrections"].reverse()
+    assert S.checks("scene", scene, order)["rule_first"][0] == "pass"
+    letter = S.load_items("correction", ["k27-pqp-mon-grand-mere"])[0]
+    errata = [{"learner_text": "a déjà fait", "corrected_target": "avait déjà fait"},
+              {"learner_text": "mon grand-mère", "corrected_target": "ma grand-mère"}]
+    assert S.checks("correction", letter, {"failure": None, "errata": errata})["rule_first"][0] == "pass"
+    assert S.checks("correction", letter, {"failure": None, "errata": errata[::-1]})["rule_first"][0] == "fail"

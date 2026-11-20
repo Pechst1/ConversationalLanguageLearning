@@ -689,9 +689,12 @@ def checks(surface: str, item: dict, output: dict) -> dict[str, tuple[str, str]]
     if surface == "scene":
         learner = _fold(" ".join([item["learner_text"], *[h.get("learner", "") for h in item.get("history") or []]]))
         invented = [q for q in output.get("evidence_quotes") or [] if _fold(q) not in learner]
+        shown = output.get("corrections") or ([output["correction"]] if output.get("correction") else [])
+        first = shown[0] if shown else None
         return {
             "served": served,
             "quotes_real": ("na", "no grade") if failed else (("fail", f"invented: {invented}") if invented else ("pass", "")),
+            "rule_first": rule_first(truth, failed, first and (first.get("span"), first.get("fix"))),
         }
     if surface in ("courrier", "page"):
         return {"served": served}
@@ -720,8 +723,42 @@ def checks(surface: str, item: dict, output: dict) -> dict[str, tuple[str, str]]
         text = _fold(item["learner_text"])
         outside = [e.get("learner_text") for e in errata if e.get("learner_text") and _fold(e["learner_text"]) not in text]
         spans = ("na", "no corrections") if not errata else (("fail", f"not in the sentence: {outside}") if outside else ("pass", ""))
-        return {"checked": served, "verdict_right": verdict, "spans_real": spans}
+        first = errata[0] if errata else None
+        return {
+            "checked": served, "verdict_right": verdict, "spans_real": spans,
+            "rule_first": rule_first(truth, failed, first and (first.get("learner_text"), first.get("corrected_target"))),
+        }
     raise ValueError(surface)
+
+
+_WORD = re.compile(r"[^\W\d_]+")
+
+
+def _words(text: Any) -> list[str]:
+    return _WORD.findall(_fold(text).replace("'", " "))
+
+
+def rule_first(truth: dict, failed: Any, first: tuple[Any, Any] | None) -> tuple[str, str]:
+    """P3: the first correction shown is the error the truth names ``first`` («A → B»):
+    its span holds the words A changes and its fix the words B brings, so «il a déjà
+    quitté → il avait déjà quitté» is met by «a → avait» as by the whole clause. ``na``
+    when the truth names none or nothing was served."""
+
+    named = truth.get("first")
+    if not named:
+        return ("na", "no error to correct first")
+    if failed:
+        return ("na", "nothing served")
+    if not first or not (first[0] or first[1]):
+        return ("fail", f"no correction shown; {named!r} comes first")
+    wrong, _, right = str(named).partition("→")
+    before, after = _words(wrong), _words(right)
+    gone = [w for w in before if w not in after] or before
+    brought = [w for w in after if w not in before] or after
+    span, fix = set(_words(first[0])), set(_words(first[1]))
+    if all(w in span for w in gone) and all(w in fix for w in brought):
+        return ("pass", "")
+    return ("fail", f"first shown {first[0]!r} → {first[1]!r}; {named!r} comes first")
 
 
 _WS = re.compile(r"\s+")
