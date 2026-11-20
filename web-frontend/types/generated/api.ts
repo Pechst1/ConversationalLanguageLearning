@@ -3974,6 +3974,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/revue/sessions/{session_id}/fil": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Fil
+         * @description «Le fil»: one act of the learner's loop (open, order, words, tell, tell_fix). 409
+         *     ``revue_not_fil`` on another session, 409 ``revue_fil_out_of_order`` (with the current
+         *     ``step``) for an act out of order; an act that repeats one already recorded returns the
+         *     session as it is; ``error`` says why an act the learner can fix was not recorded.
+         */
+        post: operations["post_fil_api_v1_revue_sessions__session_id__fil_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/revue/sessions/{session_id}/make": {
         parameters: {
             query?: never;
@@ -12939,6 +12962,7 @@ export interface components {
             colophon_fr?: "La suite la semaine prochaine." | "La suite demain.";
             comptoir_page?: components["schemas"]["RvComptoirPage"] | null;
             dispatch: components["schemas"]["RvDispatch"];
+            fil_page?: components["schemas"]["RvFilPage"] | null;
             kept: components["schemas"]["RvKept"];
             /** Question Kept Fr */
             question_kept_fr?: string | null;
@@ -13307,6 +13331,20 @@ export interface components {
             /** Words */
             words?: components["schemas"]["RvWordEvidence"][];
         };
+        /**
+         * RvFilConnector
+         * @description A sequence word. ``tr`` (its gloss) and ``role`` only once the words step is resolved.
+         */
+        RvFilConnector: {
+            /** Fr */
+            fr: string;
+            /** Id */
+            id: string;
+            /** Role */
+            role?: ("first" | "middle" | "last") | null;
+            /** Tr */
+            tr?: string | null;
+        };
         /** RvFiled */
         RvFiled: {
             /** Closed At */
@@ -13319,6 +13357,273 @@ export interface components {
             session_id: string;
             /** Title Fr */
             title_fr: string;
+        };
+        /**
+         * RvFilError
+         * @description Why an act was not recorded, for the copy in the learner's language: ``code`` and the
+         *     strips or words it is about.
+         */
+        RvFilError: {
+            /** After Key */
+            after_key?: string | null;
+            /** Code */
+            code: string;
+            /** Count */
+            count?: number | null;
+            /** Key */
+            key?: string | null;
+        };
+        /**
+         * RvFilHint
+         * @description After a wrong order: the first strip out of place (``key``) happens after ``after_key``.
+         */
+        RvFilHint: {
+            /** After Key */
+            after_key: string;
+            /** Key */
+            key: string;
+        };
+        /**
+         * RvFilMiss
+         * @description A sequence word put where it does not fit: what it means and where it goes.
+         */
+        RvFilMiss: {
+            /** Fr */
+            fr: string;
+            /** Id */
+            id: string;
+            /**
+             * Needs
+             * @enum {string}
+             */
+            needs: "first" | "middle" | "last";
+            /** Position */
+            position: number;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "first" | "middle" | "last";
+            /** Tr */
+            tr?: string | null;
+        };
+        /**
+         * RvFilOrder
+         * @description Step 2. ``strips`` in the order they were shown; ``solution`` (the keys in true order)
+         *     only once the order is resolved (right, or two tries used).
+         */
+        RvFilOrder: {
+            /** Correct */
+            correct?: boolean | null;
+            hint?: components["schemas"]["RvFilHint"] | null;
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Placed */
+            placed?: string[];
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved?: boolean;
+            /** Solution */
+            solution?: string[];
+            /** Strips */
+            strips: components["schemas"]["RvFilStrip"][];
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+        };
+        /**
+         * RvFilPage
+         * @description «La page»: the wire printed in order, the learner's telling under their name.
+         */
+        RvFilPage: {
+            /** Dateline Fr */
+            dateline_fr: string;
+            /** Mine Fr */
+            mine_fr: string;
+            /** Phrase Fr */
+            phrase_fr: string;
+            /** Proof */
+            proof?: ("clean" | "marked" | "fixed" | "corrected" | "as_written") | null;
+            /** Strips */
+            strips: components["schemas"]["RvFilPageStrip"][];
+            /** Title Fr */
+            title_fr: string;
+            /** Words */
+            words: string[];
+        };
+        /** RvFilPageStrip */
+        RvFilPageStrip: {
+            /** Connector Fr */
+            connector_fr: string;
+            /** Text Fr */
+            text_fr: string;
+        };
+        /** RvFilRequest */
+        RvFilRequest: {
+            /**
+             * Act
+             * @enum {string}
+             */
+            act: "open" | "order" | "words" | "tell" | "tell_fix";
+            /**
+             * Mode
+             * @default text
+             * @enum {string}
+             */
+            mode?: "text" | "voice";
+            /** Order */
+            order?: string[] | null;
+            /** Parts */
+            parts?: string[] | null;
+            /** Picks */
+            picks?: string[] | null;
+            /** Text */
+            text?: string | null;
+            /** Texts */
+            texts?: string[] | null;
+            /** Value */
+            value?: string | null;
+        };
+        /** RvFilResult */
+        RvFilResult: {
+            error?: components["schemas"]["RvFilError"] | null;
+            session: components["schemas"]["RvSessionView"];
+        };
+        /**
+         * RvFilStrip
+         * @description A dispatch of the wire at the learner's band. ``key`` is the session's own letter for
+         *     it (``a``–``d`` in the order it was shown): it says nothing of the true order.
+         */
+        RvFilStrip: {
+            /** Key */
+            key: string;
+            label?: components["schemas"]["RvComptoirText"] | null;
+            text: components["schemas"]["RvComptoirText"];
+        };
+        /**
+         * RvFilTell
+         * @description Step 4. A1 builds two sentences from a sequence word and an event tile each (no model
+         *     call); A2 completes the two ``frames``; B1+ write freely with ``min_connectors`` of the
+         *     sequence words. From A2 Romy marks, the learner fixes (as at the counter).
+         */
+        RvFilTell: {
+            /** Connectors */
+            connectors?: components["schemas"]["RvFilConnector"][];
+            /** Draft Fr */
+            draft_fr?: string | null;
+            /** Frames */
+            frames?: components["schemas"]["RvComptoirText"][];
+            /**
+             * Input
+             * @enum {string}
+             */
+            input: "tiles" | "frames" | "free";
+            /** Learner Fr */
+            learner_fr?: string | null;
+            /** Marks */
+            marks?: components["schemas"]["RvComptoirMark"][];
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /**
+             * Min Connectors
+             * @default 0
+             */
+            min_connectors?: number;
+            /**
+             * Min Words
+             * @default 0
+             */
+            min_words?: number;
+            phrase: components["schemas"]["RvComptoirText"];
+            /** Printed Fr */
+            printed_fr?: string | null;
+            /** Proof */
+            proof?: ("clean" | "marked" | "fixed" | "corrected" | "as_written") | null;
+            /** Tiles */
+            tiles?: components["schemas"]["RvFilTile"][];
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+        };
+        /** RvFilTile */
+        RvFilTile: {
+            /** Key */
+            key: string;
+            text: components["schemas"]["RvComptoirText"];
+        };
+        /** RvFilView */
+        RvFilView: {
+            /**
+             * Band
+             * @enum {string}
+             */
+            band: "a1" | "a2" | "b1";
+            order?: components["schemas"]["RvFilOrder"] | null;
+            read: components["schemas"]["RvComptoirRead"];
+            /**
+             * Step
+             * @enum {string}
+             */
+            step: "read" | "order" | "words" | "tell" | "page";
+            /** Steps */
+            steps: ("read" | "order" | "words" | "tell" | "page")[];
+            tell?: components["schemas"]["RvFilTell"] | null;
+            /** Title Fr */
+            title_fr: string;
+            words?: components["schemas"]["RvFilWords"] | null;
+        };
+        /**
+         * RvFilWords
+         * @description Step 3. ``place``: A1 puts its four words on the four strips; ``choose``: from A2 each
+         *     strip offers three (``options``), one per role.
+         */
+        RvFilWords: {
+            /** Connectors */
+            connectors: components["schemas"]["RvFilConnector"][];
+            /** Correct */
+            correct?: boolean | null;
+            /**
+             * Input
+             * @enum {string}
+             */
+            input: "place" | "choose";
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Misses */
+            misses?: components["schemas"]["RvFilMiss"][];
+            /** Options */
+            options?: string[][];
+            /** Picked */
+            picked?: string[];
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved?: boolean;
+            /** Solution */
+            solution?: string[];
+            /** Strips */
+            strips: components["schemas"]["RvComptoirText"][];
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
         };
         /** RvGloss */
         RvGloss: {
@@ -13508,7 +13813,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion";
+            kind: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion" | "fil";
             /** Learner Fr */
             learner_fr?: string | null;
             /** Text Fr */
@@ -13538,7 +13843,7 @@ export interface components {
              * Recommended
              * @enum {string}
              */
-            recommended: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion";
+            recommended: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion" | "fil";
         };
         /** RvMatchRequest */
         RvMatchRequest: {
@@ -13630,7 +13935,7 @@ export interface components {
              */
             gloss_language: "en" | "de" | "fr";
             /** Make Options */
-            make_options: ("headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion")[];
+            make_options: ("headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion" | "fil")[];
             support: components["schemas"]["RvSupport"];
             /**
              * Ui Language
@@ -13767,6 +14072,7 @@ export interface components {
             closing?: components["schemas"]["RvClosing"] | null;
             comptoir?: components["schemas"]["RvComptoirView"] | null;
             dossier: components["schemas"]["RvDossierView"];
+            fil?: components["schemas"]["RvFilView"] | null;
             /** Id */
             id: string;
             /**
@@ -13774,7 +14080,7 @@ export interface components {
              * @default chat
              * @enum {string}
              */
-            mode?: "chat" | "comptoir";
+            mode?: "chat" | "comptoir" | "fil";
             /**
              * Own Line
              * @default false
@@ -23478,6 +23784,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RvComptoirResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_fil_api_v1_revue_sessions__session_id__fil_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RvFilRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvFilResult"];
                 };
             };
             /** @description Validation Error */

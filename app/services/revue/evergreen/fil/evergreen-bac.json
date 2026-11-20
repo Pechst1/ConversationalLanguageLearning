@@ -1,0 +1,282 @@
+{
+ "strips": [
+  {
+   "claim_id": "c1",
+   "a1": {
+    "fr": "Le baccalauréat naît en 1808.",
+    "en": "The baccalauréat is born in 1808.",
+    "de": "Das Abitur entsteht 1808."
+   },
+   "a2": {
+    "fr": "Le baccalauréat est créé en 1808.",
+    "en": "The baccalauréat is created in 1808.",
+    "de": "Das Abitur wird 1808 geschaffen."
+   },
+   "b1": {
+    "fr": "Le baccalauréat, l'examen de la fin du lycée, est créé en 1808.",
+    "en": "The baccalauréat, the exam at the end of secondary school, is created in 1808.",
+    "de": "Das Abitur, die Prüfung am Ende des Gymnasiums, wird 1808 geschaffen."
+   },
+   "label": {
+    "fr": "la création",
+    "en": "the creation",
+    "de": "die Gründung"
+   },
+   "tile": {
+    "fr": "le baccalauréat naît en 1808",
+    "en": "the baccalauréat is born in 1808",
+    "de": "das Abitur entsteht 1808"
+   }
+  },
+  {
+   "claim_id": "c1",
+   "a1": {
+    "fr": "Les élèves passent le premier bac en 1809.",
+    "en": "Pupils sit the first bac in 1809.",
+    "de": "Schüler legen 1809 das erste Abitur ab."
+   },
+   "a2": {
+    "fr": "Le premier bac a lieu en 1809.",
+    "en": "The first bac takes place in 1809.",
+    "de": "Das erste Abitur findet 1809 statt."
+   },
+   "b1": {
+    "fr": "En 1809, les premiers candidats passent l'examen du baccalauréat.",
+    "en": "In 1809, the first candidates sit the baccalauréat exam.",
+    "de": "1809 legen die ersten Kandidaten die Abiturprüfung ab."
+   },
+   "label": {
+    "fr": "le premier examen",
+    "en": "the first exam",
+    "de": "die erste Prüfung"
+   },
+   "tile": {
+    "fr": "les élèves passent le premier bac en 1809",
+    "en": "pupils sit the first bac in 1809",
+    "de": "Schüler legen 1809 das erste Abitur ab"
+   }
+  },
+  {
+   "claim_id": "c4",
+   "a1": {
+    "fr": "En 2023, 95,7 % des candidats réussissent le bac.",
+    "en": "In 2023, 95.7% of candidates pass the bac.",
+    "de": "2023 bestehen 95,7 % der Kandidaten das Abitur."
+   },
+   "a2": {
+    "fr": "En 2023, le taux de réussite au bac est de 95,7 %.",
+    "en": "In 2023, the bac pass rate is 95.7%.",
+    "de": "2023 liegt die Erfolgsquote beim Abitur bei 95,7 %."
+   },
+   "b1": {
+    "fr": "En 2023, le taux de réussite au bac atteint 95,7 %, contre 75,5 % en 1990.",
+    "en": "In 2023, the bac pass rate reaches 95.7%, against 75.5% in 1990.",
+    "de": "2023 erreicht die Erfolgsquote beim Abitur 95,7 %, gegenüber 75,5 % im Jahr 1990."
+   },
+   "label": {
+    "fr": "la réussite",
+    "en": "the pass rate",
+    "de": "die Erfolgsquote"
+   },
+   "tile": {
+    "fr": "le taux de réussite atteint 95,7 %",
+    "en": "the pass rate reaches 95.7%",
+    "de": "die Erfolgsquote erreicht 95,7 %"
+   }
+  },
+  {
+   "claim_id": "c3",
+   "a1": {
+    "fr": "En 2027, le Grand oral compte moins.",
+    "en": "In 2027, the Grand oral counts for less.",
+    "de": "2027 zählt das Grand oral weniger."
+   },
+   "a2": {
+    "fr": "En 2027, le coefficient du Grand oral passe de 10 à 8.",
+    "en": "In 2027, the weighting of the Grand oral goes from 10 to 8.",
+    "de": "2027 sinkt die Gewichtung des Grand oral von 10 auf 8."
+   },
+   "b1": {
+    "fr": "À partir de 2027, le coefficient du Grand oral passe de 10 à 8 pour le bac général.",
+    "en": "From 2027, the weighting of the Grand oral goes from 10 to 8 for the general bac.",
+    "de": "Ab 2027 sinkt die Gewichtung des Grand oral im allgemeinen Abitur von 10 auf 8."
+   },
+   "label": {
+    "fr": "le changement",
+    "en": "the change",
+    "de": "die Änderung"
+   },
+   "tile": {
+    "fr": "le Grand oral compte moins en 2027",
+    "en": "the Grand oral counts for less in 2027",
+    "de": "das Grand oral zählt 2027 weniger"
+   }
+  }
+ ],
+ "connectors": {
+  "a1": [
+   {
+    "fr": "d'abord",
+    "en": "first",
+    "de": "zuerst",
+    "role": "first"
+   },
+   {
+    "fr": "ensuite",
+    "en": "next",
+    "de": "danach",
+    "role": "middle"
+   },
+   {
+    "fr": "puis",
+    "en": "then",
+    "de": "dann",
+    "role": "middle"
+   },
+   {
+    "fr": "enfin",
+    "en": "finally",
+    "de": "schließlich",
+    "role": "last"
+   }
+  ],
+  "a2": [
+   {
+    "fr": "d'abord",
+    "en": "first",
+    "de": "zuerst",
+    "role": "first"
+   },
+   {
+    "fr": "au début",
+    "en": "at the start",
+    "de": "am Anfang",
+    "role": "first"
+   },
+   {
+    "fr": "ensuite",
+    "en": "next",
+    "de": "danach",
+    "role": "middle"
+   },
+   {
+    "fr": "puis",
+    "en": "then",
+    "de": "dann",
+    "role": "middle"
+   },
+   {
+    "fr": "après",
+    "en": "after that",
+    "de": "nachher",
+    "role": "middle"
+   },
+   {
+    "fr": "enfin",
+    "en": "finally",
+    "de": "schließlich",
+    "role": "last"
+   },
+   {
+    "fr": "finalement",
+    "en": "in the end",
+    "de": "am Ende",
+    "role": "last"
+   }
+  ],
+  "b1": [
+   {
+    "fr": "tout d'abord",
+    "en": "first of all",
+    "de": "zunächst",
+    "role": "first"
+   },
+   {
+    "fr": "au départ",
+    "en": "at the outset",
+    "de": "anfangs",
+    "role": "first"
+   },
+   {
+    "fr": "par la suite",
+    "en": "later on",
+    "de": "in der Folge",
+    "role": "middle"
+   },
+   {
+    "fr": "ensuite",
+    "en": "next",
+    "de": "danach",
+    "role": "middle"
+   },
+   {
+    "fr": "puis",
+    "en": "then",
+    "de": "dann",
+    "role": "middle"
+   },
+   {
+    "fr": "en fin de compte",
+    "en": "in the end",
+    "de": "letzten Endes",
+    "role": "last"
+   },
+   {
+    "fr": "pour finir",
+    "en": "to finish",
+    "de": "zum Schluss",
+    "role": "last"
+   },
+   {
+    "fr": "finalement",
+    "en": "in the end",
+    "de": "am Ende",
+    "role": "last"
+   }
+  ]
+ },
+ "telling": {
+  "frames": [
+   {
+    "fr": "D'abord, le baccalauréat",
+    "en": "First, the baccalauréat",
+    "de": "Zuerst das Abitur"
+   },
+   {
+    "fr": "Enfin, le Grand oral",
+    "en": "Finally, the Grand oral",
+    "de": "Schließlich das Grand oral"
+   }
+  ],
+  "phrase": {
+   "a1": {
+    "fr": "D'abord…, ensuite…",
+    "en": "First…, next…",
+    "de": "Zuerst…, danach…"
+   },
+   "a2": {
+    "fr": "D'abord…, puis…, enfin…",
+    "en": "First…, then…, finally…",
+    "de": "Zuerst…, dann…, schließlich…"
+   },
+   "b1": {
+    "fr": "Tout d'abord…, par la suite…, en fin de compte…",
+    "en": "First of all…, later on…, in the end…",
+    "de": "Zunächst…, in der Folge…, letzten Endes…"
+   },
+   "b2": {
+    "fr": "Une fois que…, …",
+    "en": "Once…, …",
+    "de": "Sobald…, …"
+   }
+  }
+ },
+ "basis": [
+  "date",
+  "date",
+  "date"
+ ],
+ "model": "authored",
+ "written_at": null,
+ "prompt_version": "fil-wire-v1"
+}
