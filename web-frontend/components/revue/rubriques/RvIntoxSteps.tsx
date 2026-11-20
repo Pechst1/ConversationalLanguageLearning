@@ -18,6 +18,8 @@ import { textAnswerField } from '@/components/atelier-v2/ui/Choice';
 
 import { quoteSegments } from '../comptoir/comptoir-model';
 import { RomyLine } from '../comptoir/RvComptoirParts';
+import { papierCopy } from '../papier/papier-copy';
+import { PpStamp } from '../papier/PapierPrint';
 import { fill } from '../revue-copy';
 import { RvTranslate } from '../RvThread';
 import { INTOX_FR, RUBRIQUE_LINES } from './rubriques-copy';
@@ -43,6 +45,7 @@ function Struck({ textFr, wrongFr }: { textFr: string; wrongFr: string | null })
 
 export function RvIntoxRound(props: IntoxStepProps) {
   const { session, view, copy, rcopy, glossLanguage, pending, readOnly, onAct, onContinue, notice, footRef } = props;
+  const pcopy = papierCopy(props.chrome);
   const round = view.round!;
   // The verdict stays on screen until «Phrase suivante» (a resume opens on the last one).
   const [seen, setSeen] = useState<string | null>(() => lastAnswered(view));
@@ -74,6 +77,15 @@ export function RvIntoxRound(props: IntoxStepProps) {
             <p className="rb-card__n">
               {index + 1} / {round.total}
             </p>
+            {/* «La belle édition»: the verdict lands as an inked stamp — only once answered. */}
+            {card.answer && card.true !== null && (
+              <PpStamp
+                kind={card.true ? 'vrai' : 'intox'}
+                seed={`${session.id}:${card.key}`}
+                label={card.true ? pcopy.stamp_vrai_aria : pcopy.stamp_intox_aria}
+                still={readOnly}
+              />
+            )}
             {card.answer && card.true === false ? (
               <p className="rb-line__fr rb-card__fr" lang="fr">
                 <Struck textFr={card.text.fr} wrongFr={card.wrongFr} />

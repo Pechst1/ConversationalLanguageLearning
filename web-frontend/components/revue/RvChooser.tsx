@@ -12,6 +12,8 @@ import { Action, ArrowRightIcon } from '@/components/atelier-v2/ui';
 import type { RvMatchResult, RvStoryCard, RvWeek } from '@/lib/revue-types';
 
 import { COMPTOIR_FR } from './comptoir/comptoir-copy';
+import { PAPIER_FR } from './papier/papier-copy';
+import { PpOpening } from './papier/PapierPrint';
 import type { RevueCopy } from './revue-copy';
 import { RvStage, stageCast } from './RvStage';
 import { RvComptoirFaces } from './RvUneCard';
@@ -28,13 +30,24 @@ export type RvChooserProps = {
   copy: RevueCopy;
 };
 
+/** Today, as the learner's own day («2026-11-21»). */
+function todayIso(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
 export function RvChooser({ recommended, alternatives, week, onPick, onAsk, pending = false, copy }: RvChooserProps) {
   // «Au comptoir»: the question of the day and the faces lead; the story's title is the subject line.
   const comptoir = Boolean(recommended.questionFr && recommended.cast?.length);
   const press = comptoir ? COMPTOIR_FR.press : copy.join;
+  const today = todayIso();
   return (
     <div className="rv-chooser">
-      <p className="rv-kicker" lang="fr">
+      {/* «La belle édition» (2026-11-21): entering Le Papier opens today's paper — the masthead, its
+          rule, the dateline; the week stays said for screen readers and in the Une's edition line. */}
+      <PpOpening edition={{ dateIso: today, weekIso: week.iso }} section={PAPIER_FR.edition_today} step={week.range} />
+      <p className="av2-sr" lang="fr">
         {`${copy.revue_full} · ${week.label.toLowerCase()} · ${week.range}`}
       </p>
       <article className="rv-une">
@@ -46,6 +59,11 @@ export function RvChooser({ recommended, alternatives, week, onPick, onAsk, pend
           <h2 className="rv-une__title" lang="fr">
             {comptoir && recommended.questionFr ? recommended.questionFr : recommended.titleFr}
           </h2>
+          {recommended.summaryFr && recommended.summaryFr.trim() !== recommended.titleFr.trim() && (
+            <p className="pp-teaser__stand" lang="fr">
+              {recommended.summaryFr}
+            </p>
+          )}
           {comptoir && recommended.cast && <RvComptoirFaces cast={recommended.cast} copy={copy} />}
           <p className="rv-une__meta">
             <span lang="fr">{recommended.placeFr}</span>

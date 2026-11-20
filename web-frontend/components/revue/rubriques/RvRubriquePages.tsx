@@ -17,65 +17,90 @@ import { inPaperLabel, type ComptoirCopy } from '../comptoir/comptoir-copy';
 import { RomyLine } from '../comptoir/RvComptoirParts';
 import { fill } from '../revue-copy';
 import { RvCloseVignette, RvDispatch } from '../RvClose';
+import { papierCopy } from '../papier/papier-copy';
+import { bylineFr, editionOf, pagePicture } from '../papier/papier-model';
+import { PpByline, PpFigure, PpFrontCols, PpFrontPage, PpLead, PpStamp, type PpEdition, type PpPicture } from '../papier/PapierPrint';
+import { PICTURE_CREDIT_FR } from '../RvPicture';
 import { INTOX_FR, TITRE_FR } from './rubriques-copy';
 import type { RubriqueStepProps } from './RvRubriqueParts';
 
-function Words({ words, ccopy }: { words: string[]; ccopy: ComptoirCopy }) {
-  if (!words.length) return null;
-  return (
-    <div className="ct-words" aria-label={ccopy.page_words}>
-      {words.map((word) => (
-        <span key={word} lang="fr">
-          {word}
-        </span>
-      ))}
-    </div>
-  );
-}
-
 /** The page's byline with its sources («… · d'après …», the close's dispatch), else Romy's own. */
+/** The intox page's signature: the learner checked the statements. */
+const INTOX_BYLINE_FR = 'Vérifié par toi';
+
 function bylineOf(byline: string | null | undefined, fallback: string): string {
   return byline && byline.trim() ? byline.trim() : fallback;
 }
 
-export function TitreClipping({ page, ccopy, tiles = false, byline }: { page: RvTitrePage; ccopy: ComptoirCopy; tiles?: boolean; byline?: string | null }) {
+type PageExtras = {
+  /** «La belle édition»: the day and the number the page is printed with, and its picture. */
+  edition?: PpEdition | null;
+  picture?: PpPicture | null;
+  still?: boolean;
+  /** The chrome language (what a screen reader hears of a stamp). */
+  language?: string;
+};
+
+export function TitreClipping({
+  page,
+  ccopy,
+  tiles = false,
+  byline,
+  edition = null,
+  picture = null,
+  still = false,
+}: { page: RvTitrePage; ccopy: ComptoirCopy; tiles?: boolean; byline?: string | null } & PageExtras) {
+  // «La belle édition»: the learner's headline is the page's headline, signed under it in red
+  // small caps; the story runs as its lead with a drop cap, Romy's byline and sources at its foot.
   return (
-    <article className="ct-clip rb-clip" data-ct-anchor="start">
-      <p className="ct-clip__k" lang="fr">
-        {TITRE_FR.page_kicker}
-        {page.datelineFr ? ` · ${page.datelineFr}` : ''}
-      </p>
-      <h2 className="ct-clip__hl" lang="fr">
-        {page.headlineFr}
-      </h2>
-      <p className="ct-clip__ld" lang="fr">
-        {page.leadFr}
-      </p>
-      <p className="ct-quote__by" lang="fr">
+    <PpFrontPage
+      className="rb-clip"
+      edition={edition}
+      kicker={TITRE_FR.page_kicker}
+      deck={picture ? null : page.datelineFr || null}
+      headline={page.headlineFr}
+      still={still}
+    >
+      <PpByline text={bylineFr(page.proof, tiles)} still={still} />
+      {picture && <PpFigure picture={picture} ratio="page" />}
+      <PpFrontCols words={page.words} wordsLabel={ccopy.page_words}>
+        <PpLead text={page.leadFr} />
+      </PpFrontCols>
+      <p className="ct-quote__by pp-front__sources" lang="fr">
         {bylineOf(byline, TITRE_FR.byline)} · {inPaperLabel(page.proof ?? 'as_written', tiles)}
       </p>
-      <Words words={page.words} ccopy={ccopy} />
-    </article>
+    </PpFrontPage>
   );
 }
 
-export function IntoxClipping({ page, ccopy, byline }: { page: RvIntoxPage; ccopy: ComptoirCopy; byline?: string | null }) {
+export function IntoxClipping({ page, ccopy, byline, edition = null, picture = null, still = false, language = 'fr' }: { page: RvIntoxPage; ccopy: ComptoirCopy; byline?: string | null } & PageExtras) {
+  // «La belle édition»: the five statements as the fact-check box prints them, each stamped
+  // «VRAI» or «INTOX», the false words struck beside the true line, the learner's own fixes.
+  const pcopy = papierCopy(language);
   return (
-    <article className="ct-clip rb-clip" data-ct-anchor="start">
-      <p className="ct-clip__k" lang="fr">
-        {INTOX_FR.page_kicker}
-        {page.datelineFr ? ` · ${page.datelineFr}` : ''}
+    <PpFrontPage
+      className="rb-clip"
+      edition={edition}
+      kicker={INTOX_FR.page_kicker}
+      deck={picture ? null : page.datelineFr || null}
+      headline={page.titleFr}
+      still={still}
+    >
+      {picture && <PpFigure picture={picture} ratio="page" />}
+      <p className="pp-front__section" lang="fr">
+        {INTOX_FR.name}
       </p>
-      <h2 className="ct-clip__hl" lang="fr">
-        {page.titleFr}
-      </h2>
-      <p className="rb-score__n" lang="fr">
-        {fill(INTOX_FR.score, { n: String(page.score), total: String(page.total) })}
-      </p>
-      <ol className="fl-wire" lang="fr">
+      <ol className="fl-wire pp-checks" lang="fr">
         {page.lines.map((line, index) => (
           <li key={index} className="fl-wire__row rb-page-line" data-false={line.wasFalse ? '' : undefined} data-right={line.answeredRight ? '' : undefined}>
             <span className="fl-wire__fr">{line.textFr}</span>
+            <PpStamp
+              kind={line.wasFalse ? 'intox' : 'vrai'}
+              seed={`${page.titleFr}:${index}`}
+              label={line.wasFalse ? pcopy.stamp_intox_aria : pcopy.stamp_vrai_aria}
+              size="sm"
+              still
+            />
             {line.wasFalse && line.wrongFr && (
               <span className="rb-page-line__was">
                 {INTOX_FR.was} <s className="ct-strike">{line.wrongFr}</s>
@@ -89,13 +114,19 @@ export function IntoxClipping({ page, ccopy, byline }: { page: RvIntoxPage; ccop
           </li>
         ))}
       </ol>
+      <PpFrontCols words={page.words} wordsLabel={ccopy.page_words}>
+        {/* The learner's part: the statements they settled, set as the page's figure, and signed. */}
+        <p className="rb-score__n pp-front__figure" lang="fr">
+          {fill(INTOX_FR.score, { n: String(page.score), total: String(page.total) })}
+        </p>
+        <PpByline text={INTOX_BYLINE_FR} still={still} />
+      </PpFrontCols>
       {byline && (
-        <p className="ct-quote__by" lang="fr">
+        <p className="ct-quote__by pp-front__sources" lang="fr">
           {byline}
         </p>
       )}
-      <Words words={page.words} ccopy={ccopy} />
-    </article>
+    </PpFrontPage>
   );
 }
 
@@ -115,8 +146,12 @@ export function RvRubriquePage({
   const { session, copy, ccopy, readOnly, footRef, notice } = props;
   const closing = session.closing;
   let clipping: React.ReactNode = null;
-  if (closing?.titrePage) clipping = <TitreClipping page={closing.titrePage} ccopy={ccopy} tiles={tiles} byline={closing.dispatch?.bylineFr} />;
-  else if (closing?.intoxPage) clipping = <IntoxClipping page={closing.intoxPage} ccopy={ccopy} byline={closing.dispatch?.bylineFr} />;
+  const edition = editionOf(session);
+  const scene = closing?.titrePage?.datelineFr || closing?.intoxPage?.datelineFr || null;
+  const picture = pagePicture(session.stage, scene, PICTURE_CREDIT_FR);
+  const extras = { edition, picture, still: ended, language: props.chrome };
+  if (closing?.titrePage) clipping = <TitreClipping page={closing.titrePage} ccopy={ccopy} tiles={tiles} byline={closing.dispatch?.bylineFr} {...extras} />;
+  else if (closing?.intoxPage) clipping = <IntoxClipping page={closing.intoxPage} ccopy={ccopy} byline={closing.dispatch?.bylineFr} {...extras} />;
   else if (closing) clipping = <RvDispatch {...closing.dispatch} readOnly copy={copy} />;
   return (
     <>

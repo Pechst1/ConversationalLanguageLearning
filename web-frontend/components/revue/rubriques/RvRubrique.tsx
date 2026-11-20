@@ -29,6 +29,7 @@ import { knownGloss, sessionGlosses } from '../revue-model';
 import type { RvWordEvent } from '../RvThread';
 import { INTOX_FR, INTOX_STEP_LABELS_FR, rubriqueCopy, TITRE_FR, TITRE_STEP_LABELS_FR } from './rubriques-copy';
 import { bringNewestIntoView, scrollerOf } from '../comptoir/scroll';
+import { PpPlayerSection } from '../papier/PapierPrint';
 import { clampStep, errorText, nextStep, openingStep, refusalCopy, rubriqueProgress, stepOrder } from './rubriques-model';
 import { RvIntoxFix, RvIntoxRound } from './RvIntoxSteps';
 import { RvRubriquePage } from './RvRubriquePages';
@@ -281,8 +282,15 @@ export function RvRubrique({ client, session: initial, language, onExit, onRelev
           copy={copy}
           ccopy={ccopy}
           labels={session.mode === 'titre' ? TITRE_STEP_LABELS_FR : INTOX_STEP_LABELS_FR}
+          opening={shown === 'read'}
         />
       </div>
+      <PpPlayerSection
+        session={session}
+        section={session.mode === 'titre' ? TITRE_FR.name : INTOX_FR.name}
+        step={(session.mode === 'titre' ? TITRE_STEP_LABELS_FR : INTOX_STEP_LABELS_FR)[shown] ?? null}
+        shown={shown}
+      />
       {step}
       <FeuilletonReaderStyles />
       <WordHelpSheet request={word} onClose={() => setWord(null)} language={chrome} note={null} quoteLabel={copy.word_in_text} />

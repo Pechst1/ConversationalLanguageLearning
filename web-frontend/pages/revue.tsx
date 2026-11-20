@@ -33,7 +33,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 
-import { AtelierV2Root, CastPortrait, Skeleton, StateBlock } from '@/components/atelier-v2/ui';
+import { AtelierV2Root, CastPortrait, CrossIcon, IconAction, Skeleton, StateBlock } from '@/components/atelier-v2/ui';
+import { PpBareHead } from '@/components/revue/papier/PapierPrint';
 import { RvChooser, RvComptoir, RvEncounter, RvFil, RvRubrique, RvSessionHead, RvStage, revueCopy } from '@/components/revue';
 import { enterImmersiveSurface } from '@/lib/immersive-surface';
 import { useChromeLanguage } from '@/lib/learner-language';
@@ -244,7 +245,12 @@ export default function RevuePage() {
     body = (
       <>
         <div className="rv-top">
-          <RvSessionHead beat={null} onExit={exit} copy={copy} />
+          {/* «La belle édition»: the chooser opens today's paper; its masthead is printed below the ×. */}
+          <PpBareHead>
+            <IconAction label={copy.exit_label} onClick={exit}>
+              <CrossIcon size={16} />
+            </IconAction>
+          </PpBareHead>
         </div>
         <div className="rv-body">
           <RvChooser

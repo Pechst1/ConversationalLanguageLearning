@@ -26,6 +26,8 @@ import type { RvMade, RvStoryCard, RvWeek } from '@/lib/revue-types';
 import { COMPTOIR_FR } from './comptoir/comptoir-copy';
 import { fill, guestName, type RevueCopy } from './revue-copy';
 import { RvGallery } from './RvGallery';
+import { PAPIER_FR } from './papier/papier-copy';
+import { editionNumber } from './papier/papier-model';
 import { uneCardParts, wordCount } from './revue-model';
 import { RvStage, stageCast } from './RvStage';
 import { ContributedText } from './RvThread';
@@ -97,7 +99,11 @@ export function RvUneCard({ story, week, state, resumeLine = null, filed = null,
   const topic = evergreen ? copy.evergreen_topic : copy.topic[story.topic];
   const press = state === 'resume' ? copy.resume : comptoir ? COMPTOIR_FR.press : copy.join;
   const fixed = state === 'resume' ? [press, resumeLine ?? ''] : [press, copy.other_subject];
-  const parts = uneCardParts({ title, kicker, week: week.label, place: story.placeFr, topic, fixed });
+  // «La belle édition»: the card is today's front-page teaser; its edition line takes the week
+  // label's place in WP-81's budget (dropped the same way when the card is full).
+  const n = editionNumber(week.iso);
+  const edition = n ? `${PAPIER_FR.edition_today} · Nº ${n}` : PAPIER_FR.edition_today;
+  const parts = uneCardParts({ title, kicker, week: edition, place: story.placeFr, topic, fixed });
   return (
     <div className="rv-une-hero" data-revue-card={state}>
       <article className="rv-une">
@@ -107,7 +113,11 @@ export function RvUneCard({ story, week, state, resumeLine = null, filed = null,
             <p className="av2-label av2-label--story" lang={comptoir ? 'fr' : undefined}>
               {kicker}
             </p>
-            {parts.showWeek && <p className="av2-label">{week.label}</p>}
+            {parts.showWeek && (
+              <p className="av2-label pp-teaser__no" lang="fr">
+                {edition}
+              </p>
+            )}
           </div>
           <h2 className="rv-une__title" lang="fr">
             {title}

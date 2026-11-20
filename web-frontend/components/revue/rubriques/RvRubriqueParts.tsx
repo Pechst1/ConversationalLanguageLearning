@@ -18,6 +18,7 @@ import type { RevueCopy } from '../revue-copy';
 import { RvGallery } from '../RvGallery';
 import { RvGlossText, RvSourceLine, RvTranslate, type RvWordEvent } from '../RvThread';
 import type { RubriqueCopy } from './rubriques-copy';
+import { tilt } from '../papier/papier-model';
 import { settledSegments } from './rubriques-model';
 
 /** What each screen is given by `RvRubrique`. */
@@ -44,12 +45,14 @@ export type TitreStepProps = RubriqueStepProps & { view: RvTitreView };
 export type IntoxStepProps = RubriqueStepProps & { view: RvIntoxView };
 
 /** A French line, every word tappable, with «Traduire». */
-export function FrLine({ text, props, className = 'rb-line__fr' }: { text: RvComptoirText; props: RubriqueStepProps; className?: string }) {
+export function FrLine({ text, props, className = 'rb-line__fr', overlay = null }: { text: RvComptoirText; props: RubriqueStepProps; className?: string; overlay?: React.ReactNode }) {
   const { glosses, glossLanguage, copy, wordFor } = props;
   return (
     <div className="rb-line">
       <p className={className} lang="fr">
         <RvGlossText text={text.fr} glosses={glosses} mode="tap" glossLanguage={glossLanguage} onWord={wordFor(null)} />
+        {/* «La belle édition»: a proofreader's mark over the line (the grease-pencil loop, a strike). */}
+        {overlay}
       </p>
       <RvTranslate textFr={text.fr} translation={text.tr} glossLanguage={glossLanguage} copy={copy} />
     </div>
@@ -58,8 +61,10 @@ export function FrLine({ text, props, className = 'rb-line__fr' }: { text: RvCom
 
 /** The outlet's own words, verbatim, the settling ones lit, and who wrote them. */
 export function SourceQuote({ quote }: { quote: RvRubriqueQuote }) {
+  // «La belle édition»: a pasted press cutting, set a hair off true (seeded: always the same way).
+  const style = { '--pp-tilt': `${tilt(quote.quoteFr, 0.8)}deg` } as React.CSSProperties;
   return (
-    <figure className="rb-quote">
+    <figure className="rb-quote" style={style}>
       <blockquote className="rb-quote__fr" lang="fr">
         «&nbsp;
         {settledSegments(quote.quoteFr, quote.settlesFr).map((segment, index) =>

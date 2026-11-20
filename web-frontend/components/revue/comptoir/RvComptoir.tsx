@@ -34,8 +34,9 @@ import type { RvComptoirBody, RvComptoirStep, RvLanguage, RvSessionView } from '
 import { revueCopy } from '../revue-copy';
 import { knownGloss, sessionGlosses } from '../revue-model';
 import type { RvWordEvent } from '../RvThread';
-import { comptoirCopy } from './comptoir-copy';
-import { clampStep, nextStep, openingStep, stepOrder } from './comptoir-model';
+import { PpPlayerSection } from '../papier/PapierPrint';
+import { COMPTOIR_FR, comptoirCopy } from './comptoir-copy';
+import { clampStep, nextStep, openingStep, STEP_LABELS_FR, stepOrder } from './comptoir-model';
 import { bringNewestIntoView, scrollerOf } from './scroll';
 import { RvComptoirHead, RomyRefusal, type ComptoirStepProps } from './RvComptoirParts';
 import { RvComptoirIntox } from './RvComptoirIntox';
@@ -255,8 +256,9 @@ export function RvComptoir({ client, session: initial, language, onExit, onRelev
   return (
     <div className="rv-encounter ct-player" data-step={shown} data-band={view.band} data-ended={ended ? '' : undefined} data-readonly={readOnly ? '' : undefined} ref={bodyRef}>
       <div className="rv-top" ref={headRef}>
-        <RvComptoirHead steps={view.steps} shown={shown} closed={closed} back={ended || readOnly} onExit={onExit} copy={copy} ccopy={ccopy} />
+        <RvComptoirHead steps={view.steps} shown={shown} closed={closed} back={ended || readOnly} onExit={onExit} copy={copy} ccopy={ccopy} opening={shown === 'read'} />
       </div>
+      <PpPlayerSection session={session} section={COMPTOIR_FR.press} step={STEP_LABELS_FR[shown as keyof typeof STEP_LABELS_FR] ?? null} shown={shown} />
       {step}
       <FeuilletonReaderStyles />
       <WordHelpSheet request={word} onClose={() => setWord(null)} language={chrome} note={null} quoteLabel={copy.word_in_text} />

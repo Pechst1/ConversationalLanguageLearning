@@ -15,6 +15,9 @@ import type { FaceMood } from '@/lib/onboarding-portraits';
 
 import { fill, type RevueCopy } from '../revue-copy';
 import { PICTURE_CREDIT_FR } from '../RvPicture';
+import { PAPIER_FR } from '../papier/papier-copy';
+import { folio } from '../papier/papier-model';
+import { PpFolio } from '../papier/PapierPrint';
 import { RvGlossText, RvTranslate, type RvWordEvent } from '../RvThread';
 import { COMPTOIR_LINES, lineIn, type ComptoirCopy, type ComptoirLine } from './comptoir-copy';
 import { STANCE_TAGS_FR, STEP_LABELS_FR, stepDots } from './comptoir-model';
@@ -57,6 +60,7 @@ export function RvComptoirHead({
   copy,
   ccopy,
   labels = STEP_LABELS_FR,
+  opening = false,
 }: {
   /** Another assignment's steps («Le fil») with its own `labels`. */
   steps: readonly string[];
@@ -67,16 +71,25 @@ export function RvComptoirHead({
   copy: RevueCopy;
   ccopy: ComptoirCopy;
   labels?: Record<string, string>;
+  /** «La belle édition»: the screen under it prints the masthead at display size (the head's own steps aside). */
+  opening?: boolean;
 }) {
   const dots = stepDots(steps as RvComptoirStep[], shown as RvComptoirStep, closed);
   const at = Math.max(0, steps.indexOf(shown));
+  const page = folio(steps, shown, closed);
+  // «La belle édition» (2026-11-21): the paper's own head — ×, the masthead, the folio «2 / 5» set
+  // as a page number, and under it the column rule, inked page by page (the progress bar).
   return (
-    <div className="rv-head ct-head">
+    <div className="rv-head ct-head pp-head" data-opening={opening ? '' : undefined}>
       <IconAction label={back ? copy.back_label : copy.exit_label} onClick={onExit}>
         {back ? <ArrowLeftIcon size={18} /> : <CrossIcon size={16} />}
       </IconAction>
+      <p className="pp-head__mast" lang="fr" aria-hidden="true">
+        {PAPIER_FR.masthead}
+      </p>
+      <PpFolio n={page.n} total={page.total} />
       <ol
-        className="rv-head__beats ct-head__dots"
+        className="rv-head__beats ct-head__dots pp-head__rule"
         role="progressbar"
         aria-label={ccopy.steps_label}
         aria-valuemin={1}

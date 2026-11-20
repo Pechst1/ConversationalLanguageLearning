@@ -26,7 +26,8 @@ import { RvComptoirHead } from '../comptoir/RvComptoirParts';
 import { revueCopy } from '../revue-copy';
 import { knownGloss, sessionGlosses } from '../revue-model';
 import type { RvWordEvent } from '../RvThread';
-import { filCopy, FIL_STEP_LABELS_FR } from './fil-copy';
+import { PpPlayerSection } from '../papier/PapierPrint';
+import { FIL_FR, filCopy, FIL_STEP_LABELS_FR } from './fil-copy';
 import { clampStep, errorText, nextStep, openingStep, stepOrder } from './fil-model';
 import { RvFilOrder, RvFilRead, RvFilWords, type FilStepProps } from './RvFilSteps';
 import { RvFilPage } from './RvFilPage';
@@ -223,8 +224,10 @@ export function RvFil({ client, session: initial, language, onExit, onReleve, re
           copy={copy}
           ccopy={ccopy}
           labels={FIL_STEP_LABELS_FR}
+          opening={shown === 'read'}
         />
       </div>
+      <PpPlayerSection session={session} section={FIL_FR.name} step={FIL_STEP_LABELS_FR[shown] ?? null} shown={shown} />
       {step}
       <FeuilletonReaderStyles />
       <WordHelpSheet request={word} onClose={() => setWord(null)} language={chrome} note={null} quoteLabel={copy.word_in_text} />
