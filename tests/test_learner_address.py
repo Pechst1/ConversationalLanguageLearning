@@ -267,7 +267,7 @@ def test_the_courrier_and_the_scene_agree_on_margaux(monkeypatch) -> None:
     assert courrier.learner_register(thread, "margaux_barman") == "tu"
     assert MissionScheduler._serial_register_for_character(thread=thread, character_id="margaux_barman").startswith("tu")
     letter = missions_first_letter(thread)
-    assert "Tu as oublié ton écharpe" in letter["opening_message"]
+    assert "C'est la tienne ?" in letter["opening_message"]
     assert "Réponds" in letter["brief"]
 
 

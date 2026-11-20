@@ -102,7 +102,10 @@ def test_a_missing_accent_comes_back_when_the_word_can_only_be_one_word(text, sp
         pytest.param("Je mange un desert.", "desert", id="désert-or-dessert"),
         pytest.param("Je vais metre la table.", "metre", id="mètre-or-mettre"),
         pytest.param("Elle fait une pate.", "pate", id="pâte-or-pâté"),
-        pytest.param("Je suis fatigue de Berlin.", "fatigue", id="fatigue-is-a-word"),
+        # P12: after «je suis» it is the state, «fatigué» (tests/test_quartier_free_talk_correction.py);
+        # as a noun or a verb it stays a word.
+        pytest.param("La fatigue de Berlin.", "fatigue", id="fatigue-is-a-word"),
+        pytest.param("Ce voyage me fatigue.", "fatigue", id="fatigue-is-a-verb"),
         pytest.param("Tu sais ou est la gare ?", "ou", id="ou-is-a-word"),
         # Package V: «plait» is the 1990 spelling, as right as «plaît» (#333 restored the hat).
         pytest.param("Vient parler avec lui samedi, s il te plait.", "plait", id="plait-is-the-1990-spelling"),

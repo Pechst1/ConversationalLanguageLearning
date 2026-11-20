@@ -170,14 +170,20 @@ def new_plan(
     words_new: int,
     words_reviews: int,
     now: datetime | None = None,
+    pace: Any = None,
 ) -> DayPlan:
-    """The day's plan with every step ``todo``. Pure: sizes come from the caller."""
+    """The day's plan with every step ``todo``. Pure: sizes come from the caller,
+    and the seconds from ``pace`` (R2 (7): ``day_pace.DayPace``, the view's own;
+    ``None``: the calibrated defaults)."""
 
     from app.services.daily_session import words_seconds
+    from app.services.day_pace import DEFAULT_PACE
 
+    pace = pace or DEFAULT_PACE
     day = local_date.isoformat() if isinstance(local_date, date) else str(local_date)
-    grammar_seconds = int(grammar_items) * 25
-    words_secs = words_seconds(words_new, words_reviews)
+    scene_seconds = pace.scene_seconds(scene_seconds)
+    grammar_seconds = pace.forge_seconds(grammar_items)
+    words_secs = words_seconds(words_new, words_reviews, pace)
     by_kind = {
         "scene": PlanStep(step_id(day, "scene"), "scene", None, int(scene_seconds), _minutes(scene_seconds)),
         "grammar": PlanStep(
@@ -379,7 +385,7 @@ def _sizes_for(session: Session, journey: Any, user: Any, *, now: datetime) -> t
     """``(scene_seconds, grammar_items, words_new, words_reviews)`` as the day is planned.
 
     The same inputs ``daily_session.build_session`` prices the steps with: the
-    plan's stored core, the learner's séance budget at 25 s an item, and the day
+    plan's stored core, the learner's séance budget (priced by ``day_pace``), and the day
     deck as it would be dealt now. The deck is read inside a savepoint: a query
     that fails costs the words their size, never the journey its commit.
     """
@@ -389,7 +395,9 @@ def _sizes_for(session: Session, journey: Any, user: Any, *, now: datetime) -> t
     from app.services.forge_picker import forge_budget_seconds
 
     scene_seconds = int(_stored_core_seconds(journey) or DEFAULT_SCENE_SECONDS)
-    grammar_items = forge_items(forge_budget_seconds(user))
+    from app.services.forge import seance_max_items
+
+    grammar_items = forge_items(forge_budget_seconds(user), seance_max_items(user))
     words_new = words_reviews = 0
     try:
         with session.connection().begin_nested():
@@ -420,6 +428,8 @@ def create_for_journey(session: Session, journey: Any, *, now: datetime | None =
     scene_seconds, grammar_items, words_new, words_reviews = _sizes_for(
         session, journey, user, now=datetime.now(UTC)
     )
+    from app.services.day_pace import day_pace
+
     plan = new_plan(
         journey_id=str(journey.id),
         local_date=journey.local_date,
@@ -428,6 +438,7 @@ def create_for_journey(session: Session, journey: Any, *, now: datetime | None =
         words_new=words_new,
         words_reviews=words_reviews,
         now=now,
+        pace=day_pace(session, user),
     )
     try:
         blocks = DailyJourneyService._forge_blocks_on(  # type: ignore[arg-type]

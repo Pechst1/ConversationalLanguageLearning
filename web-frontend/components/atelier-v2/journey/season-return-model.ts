@@ -77,9 +77,18 @@ export type AbsenceView = {
   /** Whose greeting it is — for the face. `null` prints the greeting without one. */
   characterId: string | null;
   characterName: string | null;
+  /**
+   * Pilot P9: up to two lines, in the learner's interface language, of where the
+   * story stood when they left (the last played day's stored end summary, then its
+   * open hook). Empty when the server stored none.
+   */
+  whereLeft: string[];
   lines: EntreTempsLine[];
   letters: LapsedLetter[];
 };
+
+/** Pilot P9: «where things stood» is two lines at most. */
+export const WHERE_LEFT_MAX_LINES = 2;
 
 type AbsenceSource = {
   absence?: unknown;
@@ -106,6 +115,7 @@ export function absenceOf(source: AbsenceSource): AbsenceView | null {
   const absence = raw as Record<string, unknown>;
   const days = Math.max(0, Math.trunc(Number(absence.days) || 0));
   const greetingFr = textOrNull(absence.greeting_fr);
+  const whereLeft = list(absence.where_left).map(text).filter(Boolean).slice(0, WHERE_LEFT_MAX_LINES);
   const lines = list(absence.entre_temps)
     .map((line: any): EntreTempsLine | null => {
       const textFr = text(line?.text_fr);
@@ -129,7 +139,7 @@ export function absenceOf(source: AbsenceSource): AbsenceView | null {
       return { missionId, correspondentName, href: courrierLetterHref(missionId) };
     })
     .filter((letter): letter is LapsedLetter => Boolean(letter));
-  if (!greetingFr && !ordered.length && !letters.length) return null;
+  if (!greetingFr && !whereLeft.length && !ordered.length && !letters.length) return null;
   // Whose face: the absence's own speaker when the server names one, else
   // the day's counterpart (who greets the learner back into the scene).
   const characterId =
@@ -139,7 +149,7 @@ export function absenceOf(source: AbsenceSource): AbsenceView | null {
       characterId,
       textOrNull(absence.character_name) ?? (greetingFr ? textOrNull(source?.scenario?.character_name) : null),
     );
-  return { days, greetingFr, characterId, characterName, lines: ordered, letters };
+  return { days, greetingFr, characterId, characterName, whereLeft, lines: ordered, letters };
 }
 
 // ---------------------------------------------------------------------------

@@ -109,7 +109,7 @@ test('the miss card: one reason, the rest behind «More», the task as one quiet
   const moment = slice(PAGE, 'export function ExerciseFeedbackMoment(', 'function ConceptRulePanel(');
   // No «Task» card any more: the av2-surface with the task label is gone.
   assert.doesNotMatch(moment, /<p className="av2-label">\{t\.task\}<\/p>/);
-  assert.match(moment, /<EpTaskLine label=\{t\.task\}>\{taskNote\}<\/EpTaskLine>/);
+  assert.match(moment, /<EpTaskLine label=\{t\.task\}>\{explained\(taskNote\)\}<\/EpTaskLine>/);
   // The reason and the repair hint are deduplicated; the first is the card's line.
   assert.match(moment, /const \[reason, \.\.\.rest\] = dedupeNotes\(\[\.\.\.whyText\.split\('\\n'\), hintText\]\)\s*\.filter\(\(note\) => !taskSaid\.has\(note\.trim\(\)\)\)/);
   // With the solution on screen the hint waits behind «More»; while a repair is open it
@@ -145,8 +145,9 @@ test('«Show the solution» starts the miss scroll again for the new card', () =
 
 test('after the solution, a whole line is copied (main #779), never offered as a retry', () => {
   const moment = slice(PAGE, 'export function ExerciseFeedbackMoment(', 'function ConceptRulePanel(');
-  assert.match(moment, /const canGoOn = repairsComplete \|\| !copyStep;/);
-  // Owner, 20 Nov 2026: not in La Forge after a tapped or tile answer; a typed line still copies.
+  // R2: a refused free card may also end on its model answer once the solution is shown.
+  // Owner, 20 Nov 2026: no copy in La Forge after a tapped or tile answer; a typed line still copies.
+  assert.match(moment, /const canGoOn = repairsComplete \|\| !copyStep \|\| \(Boolean\(shownModelAnswer\) && endsOnModelAnswer\(correction, issues\)\);/);
   assert.match(PAGE, /copyStep=\{!\(forge && pickedAnswer && !lineEchoed\)\}/);
   assert.match(moment, /\{copyStep && !isLabelCompare && target && isRepairableLine\(target\)/);
   assert.match(moment, /const retry = retryOffered\(correction\) \? onTryAgain : undefined;/);

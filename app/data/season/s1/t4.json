@@ -4,7 +4,7 @@
   "title_fr": "La photographie",
   "intent": "The reversal. The party held to save Le Mistral goes wrong, and it is your discovery that does it: one of your grandmother's Polaroids shows the fire starting in her kitchen. The learner came as the café's ally. By the last panel they are the heir to the problem.\n\nThe page runs from warmth to a single photograph. The learner is not a bystander to the reveal. They are asked to read the evidence (L'enquête), so they are the one who places the fire upstairs. The villain the group needed, Marchand, is taken away from them in the same instant. Margaux says almost nothing, and what she says must land like her usual one perfect sentence, except that this one costs her. There is no shouting. The worst thing Gus does is drop his index cards.",
   "state_in": [
-    "Days 25–26 · Saturday 5 and Sunday 6 December. Day A is the party, up to Margaux's sentence. Day B picks up the same night, at Gus's question. This is the natural «weekend long day» if the product wants a single long read.",
+    "Days 25–26 · {date:2026-12-05|en} and {date:2026-12-06|en}. Day A is the party, up to Margaux's sentence. Day B picks up the same night, at Gus's question. This is the natural «weekend long day» if the product wants a single long read.",
     "The group is holding the party: «Les 25 ans du Mistral». Margaux took over the café in 2001. The party is also a fundraiser, a cagnotte for Margaux's lawyer. Marchand refuses to renew her lease «pour faute»: according to him, the café's old wiring burned his building in 2023. The official report says the fire started in the back room at 1:30 a.m., «origine électrique probable».",
     "«Le mur d'Odile». You agreed to show your grandmother's Polaroids at the party, sixty of them pinned above the booth. Lila copied the handwriting on the back of each one onto a small card. Nobody has read every back: some of the Polaroids are stuck together.",
     "The reader already has the clue from T2: the patch of fresher white above Odile's stove.",
@@ -16,7 +16,7 @@
   "days": [
     {
       "day": "a",
-      "story_date_fr": "samedi 5 décembre",
+      "story_date_fr": "{date:2026-12-05}",
       "title_fr": "La photographie",
       "location_id": "le_mistral",
       "minutes": 8,
@@ -660,7 +660,7 @@
     },
     {
       "day": "b",
-      "story_date_fr": "dimanche 6 décembre",
+      "story_date_fr": "{date:2026-12-06}",
       "title_fr": "Le silence de Margaux",
       "location_id": "le_mistral",
       "minutes": 9,

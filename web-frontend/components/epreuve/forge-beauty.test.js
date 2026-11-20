@@ -243,7 +243,7 @@ test('a correction in the forge does not name the rule the head already names', 
   assert.match(SESSION, /ruleShown=\{forge \? activeConceptTitle : null\}/);
   // Owner 2026-11-13: the reason (rule reference stripped) is the card's one line.
   assert.match(PAGE, /display\(printableWhy\(withoutRuleReference\(issue\.why_wrong \|\| feedback\.why \|\| '', ruleShown\)\)\)/);
-  assert.match(PAGE, /why=\{reason \|\| undefined\}/);
+  assert.match(PAGE, /why=\{explained\(reason\) \|\| undefined\}/);
 });
 
 test('the goal comes before the box the answer goes in', () => {
@@ -460,7 +460,7 @@ test('a miss with its chance open is read in two places: the line and the band (
   const start = PAGE.indexOf('if (!feedback.correct && solutionWithheld(correction)) {');
   const withheld = PAGE.slice(start, PAGE.indexOf('// After the chance (or with none)', start));
   assert.ok(start > 0 && withheld.length > 0, 'the withheld branch is found');
-  assert.match(withheld, /<EpVerdict tone="no" sub=\{hints\.reason \|\| t\.miss_sub\}/, 'the band carries the hint');
+  assert.match(withheld, /<EpVerdict tone="no" sub=\{hints\.reason \? explained\(hints\.reason\) : t\.miss_sub\}/, 'the band carries the hint');
   assert.doesNotMatch(withheld, /className="ep-why"/, 'the hint is not a second block above the band');
   assert.doesNotMatch(withheld, /<EpGalley/, 'no card repeats the line under its field');
   assert.doesNotMatch(PAGE, /miss_choice|miss_where/, 'the cards\' labels are gone');

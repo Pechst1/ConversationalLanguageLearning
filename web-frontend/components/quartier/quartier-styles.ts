@@ -74,6 +74,25 @@ export const QUARTIER_CSS = `
 .qz-round[aria-pressed='false'] { opacity: 0.62; }
 .qz-round svg { width: 18px; height: 18px; }
 .qz-round .qz-lang { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; }
+/* P12: the first time, one line under the language chip says what it does */
+.qz-gloss-note {
+  position: absolute;
+  top: calc(var(--qz-top) + 56px);
+  right: 12px;
+  max-width: min(72%, 300px);
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--qz-card) 92%, transparent);
+  color: var(--qz-ink);
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: right;
+  box-shadow: 0 2px 0 var(--qz-line-2);
+  pointer-events: none;
+  z-index: 10;
+  animation: qz-in 300ms ease both;
+}
 .qz-title {
   flex: 1;
   min-width: 0;

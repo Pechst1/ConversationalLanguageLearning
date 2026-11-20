@@ -118,7 +118,9 @@ function words(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function correctionOf(value: unknown): JourneyCorrection | null {
+type MoreCorrection = NonNullable<JourneyCorrection['more']>[number];
+
+function oneCorrection(value: unknown): MoreCorrection | null {
   if (!value || typeof value !== 'object') return null;
   const raw = value as Record<string, unknown>;
   const span = line(raw.span_fr);
@@ -132,6 +134,17 @@ function correctionOf(value: unknown): JourneyCorrection | null {
     // Kept only when the server sent it (WP-103): older payloads stay as they were.
     ...(notes.length ? { notes_native: notes } : {}),
   };
+}
+
+function correctionOf(value: unknown): JourneyCorrection | null {
+  const first = oneCorrection(value);
+  if (!first) return null;
+  const raw = value as Record<string, unknown>;
+  // P3: from B1 the other corrections of the same reply (kept only when sent).
+  const more = Array.isArray(raw.more)
+    ? raw.more.map(oneCorrection).filter((item): item is MoreCorrection => item !== null)
+    : [];
+  return { ...first, ...(more.length ? { more } : {}) };
 }
 
 function exchangeOf(value: unknown): LocalExchange | null {
@@ -600,9 +613,38 @@ export type PrintedFix = {
   notes: string[];
 };
 
-export function printedFix(correction: JourneyCorrection | null | undefined): PrintedFix | null {
+export function printedFix(
+  correction: JourneyCorrection | MoreCorrection | null | undefined,
+): PrintedFix | null {
   if (!correction) return null;
   const fixed = words(correction.corrected_fr);
   if (!fixed) return null;
   return { fixed, notes: correctionNotes(correction) };
+}
+
+/**
+ * P3 (owner decision 2, proposed): from B1 a reply may earn up to three
+ * corrections. The first is printed as before — its corrected form always
+ * visible, its explanation one tap away — and the others wait collapsed under
+ * it, each with its span, its corrected form and its explanation.
+ */
+export type ThreadFixes = {
+  open: PrintedFix | null;
+  collapsed: Array<PrintedFix & { span: string }>;
+};
+
+/** P3 walk 2: the open-note key of a reply's collapsed corrections (one note open at a time). */
+export function moreNoteKey(bubbleKey: string): string {
+  return `${bubbleKey}:more`;
+}
+
+export function threadFixes(correction: JourneyCorrection | null | undefined): ThreadFixes {
+  const open = printedFix(correction);
+  if (!open || !correction) return { open: null, collapsed: [] };
+  const collapsed = (correction.more ?? []).flatMap((item) => {
+    const fix = printedFix(item);
+    const span = words(item.span_fr);
+    return fix && span ? [{ ...fix, span }] : [];
+  });
+  return { open, collapsed };
 }

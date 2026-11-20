@@ -443,6 +443,7 @@ def test_every_advanced_anchor_is_a_word_of_its_own_levels_lines() -> None:
     from app.services.level_coverage import CLOSED_CLASS_WORDS
     from app.services.lexical_coverage import load_lexicon
     from app.services.scene_items import contains_surface
+    from app.services.season.dates import render_text
     from app.services.season.format import load_season
 
     season = load_season("s1")
@@ -453,7 +454,8 @@ def test_every_advanced_anchor_is_a_word_of_its_own_levels_lines() -> None:
         for day in tentpole.days:
             rows = data["days"][season_lexicon.day_key(tentpole.id, day.day, day.variant)]
             for level in season_lexicon.ADVANCED_LEVELS:
-                texts = [say.text(level.upper()) for say in season_lexicon._says(day)]
+                # A date token reads as the bible's own date (``season.dates``), as the build reads it.
+                texts = [render_text(say.text(level.upper())) for say in season_lexicon._says(day)]
                 learner = season_lexicon._band_level(level)
                 for row in rows[level]:
                     assert contains_surface(row["sentence_fr"], row["surface_fr"])

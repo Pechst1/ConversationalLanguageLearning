@@ -740,7 +740,9 @@ const noSleep = () => Promise.resolve();
   );
   assert.ok(unreadHtml.includes('data-check="not_checked"'));
   assert.ok(unreadHtml.includes('data-state="unscored"'));
-  assert.ok(htmlHas(unreadHtml, EN.check_not_checked));
+  // Check walk 19 Nov: nothing reads it again, so the line is final and quiet.
+  assert.ok(htmlHas(unreadHtml, EN.check_not_read));
+  assert.ok(!htmlHas(unreadHtml, EN.check_not_checked), 'no «not checked yet … does not count yet» that never resolves');
   assert.ok(!htmlHas(unreadHtml, EN.wrong) && !unreadHtml.includes('data-state="story"'));
 
   const reconciledHtml = renderFeedback({
@@ -2479,3 +2481,25 @@ console.log('WP-66 day shapes and recall formats: ok');
 }
 
 console.log('owner 2026-10-18 home card hint and drawing: ok');
+
+// Check walk 19 Nov: a scene reply nobody read ends on a final quiet line, never «not yet».
+(() => {
+  const { LearnerLine } = require('./RespondThread.tsx');
+  for (const language of ['en', 'de', 'fr']) {
+    const copy = journeyCopy(language);
+    const html = renderToStaticMarkup(
+      React.createElement(LearnerLine, {
+        bubble: {
+          kind: 'learner', key: 'r1', turn: 0, pending: false, unchecked: true, correction: null,
+          text: "Hier j'ai allé chez le notaire.",
+        },
+        copy,
+        openNote: null,
+        onToggle: () => {},
+      }),
+    );
+    assert.ok(html.includes('data-check="not_checked"'), 'the walk can still name the state');
+    assert.ok(htmlHas(html, copy.check_not_read), language);
+    assert.ok(!/yet|noch|encore|compte|zählt|count/i.test(copy.check_not_read), `${language}: final, and no «does not count»`);
+  }
+})();

@@ -399,10 +399,10 @@ def test_the_canape_day_lands_its_menu_whatever_the_model_wrote(
     assert ledger["after"][-1]["text_fr"].startswith("Il y a un menu pour samedi.")
     assert scene.recap_payload["resolution_fr"] == prompt["character_line_fr"]
 
-    # The next day's «Précédemment» ends on what the canapé day changed.
+    # The next day's «Précédemment» opens on what the canapé day changed (P8: newest first).
     _play(d, provider, clock, "D'accord.")
     following = _latest_scene(db_session, user.id)
-    assert (following.script_payload or {}).get("previously_fr", [])[-1] == ledger["after"][-1]["text_fr"]
+    assert ledger["after"][-1]["text_fr"] in (following.script_payload or {}).get("previously_fr", [""])[0]
 
 
 @pytest.mark.parametrize("season_on", [False, True], ids=["one-actor", "lanes"], indirect=True)

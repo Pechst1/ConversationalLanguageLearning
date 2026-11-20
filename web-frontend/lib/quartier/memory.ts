@@ -25,7 +25,12 @@ export interface Words {
 export type Effect =
   | { kind: 'fact'; key: string; value: Value }
   | { kind: 'regard'; who: CastId; delta: number }
-  | { kind: 'journal'; words: Words; who?: CastId }
+  /**
+   * A line of the carnet. `said`: it restates the learner's words or intent («Tu as dit que…»),
+   * so it is kept only for a card chosen word for word; for a free answer the engine routed here,
+   * `heard` (what the room took it to mean, from the characters' side) stands in, or nothing.
+   */
+  | { kind: 'journal'; words: Words; who?: CastId; said?: boolean; heard?: Words }
   /** something you now know, and who told you (one of the cast, or someone of a place, by name) */
   | { kind: 'learn'; key: string; words: Words; who?: CastId; from?: string }
   /** who holds an object now: `toi`, a cast id, or a place (`zinc`) */
@@ -245,6 +250,9 @@ export class Memory {
     return s;
   }
 }
+
+/** The fact the quarter keeps for each engine day it played: that day's edition number (`Stage.beginDay`, the carnet's «Nº 8»). */
+export const editionKey = (day: string) => `edition.${day}`;
 
 /** Does the state meet a `when`? A regard nobody moved counts as 0. */
 export function matches(when: When | undefined, state: Record<string, Value>): boolean {
