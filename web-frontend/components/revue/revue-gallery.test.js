@@ -135,6 +135,9 @@ test('the Une card adds a compact strip only when the story has other pictures',
   const html = card({ ...offer.recommended, stage: { ...offer.recommended.stage, pictures } });
   assert.match(html, /class="rv-gallery" data-size="compact"/);
   assert.ok(visibleText(html).includes('Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons'));
+  // Seen at 375 × 812 (2026-11-20): with the strip inside the card the card's one button sat under
+  // the tab bar on Home's first screen. The strip follows the button.
+  assert.ok(html.indexOf('rv-une__press') < html.indexOf('class="rv-gallery"'), 'the press first, the pictures after it');
 });
 
 test('the chat stage shows the strip on arrival', async () => {

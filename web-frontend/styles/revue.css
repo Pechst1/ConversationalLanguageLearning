@@ -377,7 +377,7 @@
 .av2 .rv-gallery__strip { position: relative; display: flex; gap: 12px; margin: 0; padding: 0 0 6px; list-style: none; overflow-x: auto;
   scroll-snap-type: x mandatory; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
 .av2 .rv-gallery__item { flex: 0 0 72%; max-width: 280px; min-width: 0; scroll-snap-align: start; }
-.av2 .rv-gallery[data-size='compact'] { margin: 10px 16px 0; }
+.av2 .rv-gallery[data-size='compact'] { margin: 16px 0 0; }
 .av2 .rv-gallery[data-size='compact'] .rv-gallery__item { flex-basis: 44%; max-width: 180px; }
 .av2 .rv-gallery__pic { display: flex; flex-direction: column; margin: 0; min-width: 0; }
 .av2 .rv-gallery__cap { gap: 4px; padding-top: 6px; }

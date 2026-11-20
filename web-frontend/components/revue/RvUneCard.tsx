@@ -102,7 +102,6 @@ export function RvUneCard({ story, week, state, resumeLine = null, filed = null,
     <div className="rv-une-hero" data-revue-card={state}>
       <article className="rv-une">
         <RvStage plateUrl={story.plateUrl ?? story.stage.plateUrl} size="une" cast={stageCast(story.stage.cast)} still />
-        <RvGallery pictures={story.stage.pictures} mainUrl={story.plateUrl ?? story.stage.plateUrl} size="compact" copy={copy} />
         <div className="rv-une__body">
           <div className="rv-une__folio">
             <p className="av2-label av2-label--story" lang={comptoir ? 'fr' : undefined}>
@@ -135,6 +134,8 @@ export function RvUneCard({ story, week, state, resumeLine = null, filed = null,
           {press}
         </Action>
       </div>
+      {/* After the press: on a phone the card's one button stays on Home's first screen. */}
+      <RvGallery pictures={story.stage.pictures} mainUrl={story.plateUrl ?? story.stage.plateUrl} size="compact" copy={copy} />
     </div>
   );
 }
