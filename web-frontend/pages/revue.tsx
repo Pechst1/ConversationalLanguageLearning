@@ -29,7 +29,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 
 import { AtelierV2Root, CastPortrait, Skeleton, StateBlock } from '@/components/atelier-v2/ui';
-import { RvChooser, RvComptoir, RvEncounter, RvSessionHead, RvStage, revueCopy } from '@/components/revue';
+import { RvChooser, RvComptoir, RvEncounter, RvFil, RvSessionHead, RvStage, revueCopy } from '@/components/revue';
 import { enterImmersiveSurface } from '@/lib/immersive-surface';
 import { useChromeLanguage } from '@/lib/learner-language';
 import { RevueError, revueClient, type RevueClient } from '@/lib/revue-api';
@@ -215,7 +215,8 @@ export default function RevuePage() {
   if (state.kind === 'session' && client) {
     const week = state.session.week.iso;
     // «Au comptoir»: a session started with the switch on plays as the counter's debate.
-    const Player = state.session.mode === 'comptoir' ? RvComptoir : RvEncounter;
+    // «Le fil» (2026-11-20): the assignment the session was dealt.
+    const Player = state.session.mode === 'comptoir' ? RvComptoir : state.session.mode === 'fil' ? RvFil : RvEncounter;
     body = (
       <Player
         key={state.session.id}
