@@ -157,6 +157,9 @@ export type RevueCopy = {
   made_opinion: string;
   /** «Le fil»: the learner's telling of the wire. */
   made_fil: string;
+  /** «Le titre»: the learner's own honest headline; «L'intox express»: the statements set right. */
+  made_titre: string;
+  made_intox: string;
   /** «Au comptoir» on La Une: the faces' label («Romy, Lila et Gus en parlent déjà»), and the list's last «and». */
   comptoir_faces: string;
   comptoir_and: string;
@@ -357,6 +360,8 @@ const FR: RevueCopy = {
   made_caption: 'Ta légende',
   made_opinion: 'Ton avis',
   made_fil: 'Ton récit',
+  made_titre: 'Ton titre',
+  made_intox: 'Ton intox démontée',
   comptoir_faces: '{names} en parlent déjà',
   comptoir_and: 'et',
   vignette_label: 'Ta vignette · {week}',
@@ -537,6 +542,8 @@ const EN: RevueCopy = {
   made_caption: 'Your caption',
   made_opinion: 'Your opinion',
   made_fil: 'Your story',
+  made_titre: 'Your headline',
+  made_intox: 'Your fact check',
   comptoir_faces: '{names} are already arguing',
   comptoir_and: 'and',
   vignette_label: 'Your vignette · {week}',
@@ -717,6 +724,8 @@ const DE: RevueCopy = {
   made_caption: 'Deine Bildunterschrift',
   made_opinion: 'Deine Meinung',
   made_fil: 'Deine Erzählung',
+  made_titre: 'Deine Schlagzeile',
+  made_intox: 'Dein Faktencheck',
   comptoir_faces: '{names} streiten schon',
   comptoir_and: 'und',
   vignette_label: 'Deine Vignette · {week}',

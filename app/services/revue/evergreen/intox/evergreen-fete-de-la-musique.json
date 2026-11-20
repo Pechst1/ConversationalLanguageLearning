@@ -1,0 +1,221 @@
+{
+ "statements": [
+  {
+   "a1": {
+    "fr": "La première fête a lieu en 1982.",
+    "en": "The first festival takes place in 1982.",
+    "de": "Das erste Fest findet 1982 statt."
+   },
+   "a2": {
+    "fr": "La première Fête de la musique a lieu le 21 juin 1982.",
+    "en": "The first Fête de la musique takes place on 21 June 1982.",
+    "de": "Die erste Fête de la musique findet am 21. Juni 1982 statt."
+   },
+   "b1": {
+    "fr": "La première Fête de la musique a eu lieu le 21 juin 1982.",
+    "en": "The first Fête de la musique took place on 21 June 1982.",
+    "de": "Die erste Fête de la musique fand am 21. Juni 1982 statt."
+   },
+   "claim_id": "c1",
+   "true": true,
+   "why": {
+    "fr": "La première fête a bien eu lieu le 21 juin 1982.",
+    "en": "The first festival really did take place on 21 June 1982.",
+    "de": "Das erste Fest fand tatsächlich am 21. Juni 1982 statt."
+   },
+   "quote_fr": "la première Fête de la musique est lancée le 21 juin 1982, jour symbolique du solstice d’été, le plus long de l’année dans l’hémisphère Nord",
+   "source_name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+   "settles_fr": "le 21 juin 1982",
+   "swap": null,
+   "wrong_fr": null,
+   "right_fr": null,
+   "distractor_fr": null,
+   "fixed": null
+  },
+  {
+   "a1": {
+    "fr": "La fête a lieu le 14 juillet.",
+    "en": "The festival takes place on 14 July.",
+    "de": "Das Fest findet am 14. Juli statt."
+   },
+   "a2": {
+    "fr": "La Fête de la musique a lieu le 14 juillet.",
+    "en": "The Fête de la musique takes place on 14 July.",
+    "de": "Die Fête de la musique findet am 14. Juli statt."
+   },
+   "b1": {
+    "fr": "La fête a lieu le 14 juillet, le jour le plus long de l'année.",
+    "en": "The festival takes place on 14 July, the longest day of the year.",
+    "de": "Das Fest findet am 14. Juli statt, dem längsten Tag des Jahres."
+   },
+   "claim_id": "c1",
+   "true": false,
+   "why": {
+    "fr": "La fête a lieu le 21 juin, le jour le plus long, pas le 14 juillet.",
+    "en": "The festival is on 21 June, the longest day, not on 14 July.",
+    "de": "Das Fest ist am 21. Juni, dem längsten Tag, nicht am 14. Juli."
+   },
+   "quote_fr": "la première Fête de la musique est lancée le 21 juin 1982, jour symbolique du solstice d’été, le plus long de l’année dans l’hémisphère Nord",
+   "source_name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+   "settles_fr": "le 21 juin 1982",
+   "swap": "day",
+   "wrong_fr": "le 14 juillet",
+   "right_fr": "le 21 juin",
+   "distractor_fr": "en 1982",
+   "fixed": {
+    "a1": {
+     "fr": "La fête a lieu le 21 juin.",
+     "en": "The festival takes place on 21 June.",
+     "de": "Das Fest findet am 21. Juni statt."
+    },
+    "a2": {
+     "fr": "La Fête de la musique a lieu le 21 juin.",
+     "en": "The Fête de la musique takes place on 21 June.",
+     "de": "Die Fête de la musique findet am 21. Juni statt."
+    },
+    "b1": {
+     "fr": "La fête a lieu le 21 juin, le jour le plus long de l'année.",
+     "en": "The festival takes place on 21 June, the longest day of the year.",
+     "de": "Das Fest findet am 21. Juni statt, dem längsten Tag des Jahres."
+    }
+   }
+  },
+  {
+   "a1": {
+    "fr": "La fête est gratuite.",
+    "en": "The festival is free.",
+    "de": "Das Fest ist kostenlos."
+   },
+   "a2": {
+    "fr": "La fête est gratuite et ouverte à toutes les musiques.",
+    "en": "The festival is free and open to every kind of music.",
+    "de": "Das Fest ist kostenlos und offen für jede Musik."
+   },
+   "b1": {
+    "fr": "La Fête de la musique est gratuite et ouverte à toutes les musiques.",
+    "en": "The Fête de la musique is free and open to every kind of music.",
+    "de": "Die Fête de la musique ist kostenlos und offen für jede Musik."
+   },
+   "claim_id": "c2",
+   "true": true,
+   "why": {
+    "fr": "La fête est bien gratuite, pour toutes les musiques.",
+    "en": "The festival really is free, for every kind of music.",
+    "de": "Das Fest ist wirklich kostenlos, für jede Musik."
+   },
+   "quote_fr": "La Fête sera gratuite, ouverte à toutes les musiques « sans hiérarchie de genres et de pratiques » et à tous les français.",
+   "source_name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+   "settles_fr": "La Fête sera gratuite, ouverte à toutes les musiques",
+   "swap": null,
+   "wrong_fr": null,
+   "right_fr": null,
+   "distractor_fr": null,
+   "fixed": null
+  },
+  {
+   "a1": {
+    "fr": "Selon les voisins, la fête est un succès.",
+    "en": "According to the neighbours, the festival is a success.",
+    "de": "Laut den Nachbarn ist das Fest ein Erfolg."
+   },
+   "a2": {
+    "fr": "Selon les voisins, la première fête est un très grand succès.",
+    "en": "According to the neighbours, the first festival is a very big success.",
+    "de": "Laut den Nachbarn ist das erste Fest ein sehr großer Erfolg."
+   },
+   "b1": {
+    "fr": "Selon les voisins, le succès de la première édition a dépassé toutes les espérances.",
+    "en": "According to the neighbours, the success of the first edition went beyond all hopes.",
+    "de": "Laut den Nachbarn hat der Erfolg der ersten Ausgabe alle Erwartungen übertroffen."
+   },
+   "claim_id": "c4",
+   "true": false,
+   "why": {
+    "fr": "C'est le ministère de la Culture qui parle de succès, pas les voisins.",
+    "en": "It is the Ministry of Culture that speaks of a success, not the neighbours.",
+    "de": "Das Kulturministerium spricht von einem Erfolg, nicht die Nachbarn."
+   },
+   "quote_fr": "Le résultat dépasse toutes les espérances.",
+   "source_name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+   "settles_fr": "Le résultat dépasse toutes les espérances",
+   "swap": "who",
+   "wrong_fr": "les voisins",
+   "right_fr": "le ministère de la Culture",
+   "distractor_fr": "les musiciens",
+   "fixed": {
+    "a1": {
+     "fr": "Selon le ministère de la Culture, la fête est un succès.",
+     "en": "According to the Ministry of Culture, the festival is a success.",
+     "de": "Laut dem Kulturministerium ist das Fest ein Erfolg."
+    },
+    "a2": {
+     "fr": "Selon le ministère de la Culture, la première fête est un très grand succès.",
+     "en": "According to the Ministry of Culture, the first festival is a very big success.",
+     "de": "Laut dem Kulturministerium ist das erste Fest ein sehr großer Erfolg."
+    },
+    "b1": {
+     "fr": "Selon le ministère de la Culture, le succès de la première édition a dépassé toutes les espérances.",
+     "en": "According to the Ministry of Culture, the success of the first edition went beyond all hopes.",
+     "de": "Laut dem Kulturministerium hat der Erfolg der ersten Ausgabe alle Erwartungen übertroffen."
+    }
+   }
+  },
+  {
+   "a1": {
+    "fr": "La fête fait aussi du bruit.",
+    "en": "The festival also makes noise.",
+    "de": "Das Fest macht auch Lärm."
+   },
+   "a2": {
+    "fr": "La fête fait du bruit, et il y a beaucoup de plaintes.",
+    "en": "The festival makes noise, and there are many complaints.",
+    "de": "Das Fest macht Lärm, und es gibt viele Beschwerden."
+   },
+   "b1": {
+    "fr": "La Fête de la musique provoque aussi du bruit et de nombreuses plaintes.",
+    "en": "The Fête de la musique also causes noise and many complaints.",
+    "de": "Die Fête de la musique verursacht auch Lärm und viele Beschwerden."
+   },
+   "claim_id": "c3",
+   "true": true,
+   "why": {
+    "fr": "La fête fait bien du bruit, et il y a de nombreuses plaintes.",
+    "en": "The festival does make noise, and there are many complaints.",
+    "de": "Das Fest macht tatsächlich Lärm, und es gibt viele Beschwerden."
+   },
+   "quote_fr": "La Fête de la musique est source de nuisances sonores avérées et fait l'objet de nombreuses plaintes.",
+   "source_name": "Wikipédia, « Fête de la musique »",
+   "settles_fr": "nuisances sonores avérées et fait l'objet de nombreuses plaintes",
+   "swap": null,
+   "wrong_fr": null,
+   "right_fr": null,
+   "distractor_fr": null,
+   "fixed": null
+  }
+ ],
+ "phrase": {
+  "a1": {
+   "fr": "C'est faux.",
+   "en": "That's false.",
+   "de": "Das stimmt nicht."
+  },
+  "a2": {
+   "fr": "Ce n'est pas…, c'est…",
+   "en": "It isn't…, it's…",
+   "de": "Es ist nicht…, es ist…"
+  },
+  "b1": {
+   "fr": "En réalité, …",
+   "en": "In reality, …",
+   "de": "In Wirklichkeit …"
+  },
+  "b2": {
+   "fr": "Contrairement à ce qu'on dit, …",
+   "en": "Contrary to what people say, …",
+   "de": "Anders als behauptet …"
+  }
+ },
+ "model": "authored",
+ "written_at": null,
+ "prompt_version": "intox-express-v1"
+}

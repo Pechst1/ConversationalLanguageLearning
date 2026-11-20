@@ -14,6 +14,7 @@
  */
 
 import { filBodyWire, parseFilError, type RvFilBody, type RvFilError } from './revue-fil-types';
+import { parseRubriqueError, rubriqueBodyWire, type RvRubriqueBody, type RvRubriqueError } from './revue-rubriques-types';
 import {
   RevueError,
   comptoirBodyWire,
@@ -71,7 +72,19 @@ export type RevueClient = {
   vignettes: () => Promise<RvVignetteView[]>;
   /** «Le fil» (WIRE §10.3): one act; optional so a scripted client without the wire still types. */
   fil?: (id: string, body: RvFilBody) => Promise<RvFilResult>;
+  /** «Le titre», «L'intox express» (WIRE §11.2): one act through the shared route; optional as `fil`. */
+  rubrique?: (id: string, body: RvRubriqueBody) => Promise<RvRubriqueResult>;
 };
+
+/** The shared act route's answer: the session as it now stands, and why an act was not recorded. */
+export type RvRubriqueResult = { session: RvSessionView; error: RvRubriqueError | null };
+
+export function parseRubriqueResult(raw: Record<string, any>): RvRubriqueResult {
+  return {
+    session: parseSessionView(raw && typeof raw.session === 'object' && raw.session ? raw.session : {}),
+    error: parseRubriqueError(raw?.error),
+  };
+}
 
 /** «Le fil»: the act route's answer — the session as it now stands, and why an act was not recorded. */
 export type RvFilResult = { session: RvSessionView; error: RvFilError | null };
@@ -133,6 +146,7 @@ export function createRevueClient(transport: RevueTransport): RevueClient {
     comptoir: (id, body) => post(`${session(id)}/comptoir`, comptoirBodyWire(body), parseComptoirResult),
     vignettes: () => get(`${REVUE_BASE}/vignettes`, parseVignettes),
     fil: (id, body) => post(`${session(id)}/fil`, filBodyWire(body), parseFilResult),
+    rubrique: (id, body) => post(`${session(id)}/rubrique`, rubriqueBodyWire(body), parseRubriqueResult),
   };
 }
 

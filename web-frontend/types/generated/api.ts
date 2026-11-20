@@ -4018,6 +4018,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/revue/sessions/{session_id}/rubrique": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Rubrique
+         * @description «Le titre» (open, pick, trap, build, build_fix) and «L'intox express» (open, answer,
+         *     fix): one act of the assignment the session was dealt. 409 ``revue_not_rubrique`` on
+         *     another session, 409 ``revue_<mode>_out_of_order`` (with the current ``step``) for an act
+         *     out of order; an act that repeats one already recorded returns the session as it is;
+         *     ``error`` says why an act the learner can fix was not recorded.
+         */
+        post: operations["post_rubrique_api_v1_revue_sessions__session_id__rubrique_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/revue/sessions/{session_id}/turns": {
         parameters: {
             query?: never;
@@ -12963,11 +12987,13 @@ export interface components {
             comptoir_page?: components["schemas"]["RvComptoirPage"] | null;
             dispatch: components["schemas"]["RvDispatch"];
             fil_page?: components["schemas"]["RvFilPage"] | null;
+            intox_page?: components["schemas"]["RvIntoxPage"] | null;
             kept: components["schemas"]["RvKept"];
             /** Question Kept Fr */
             question_kept_fr?: string | null;
             /** Romy Line Fr */
             romy_line_fr: string;
+            titre_page?: components["schemas"]["RvTitrePage"] | null;
             vignette?: components["schemas"]["VignetteView"] | null;
         };
         /** RvComptoirCast */
@@ -13791,6 +13817,157 @@ export interface components {
             line?: components["schemas"]["RvLineItem"] | null;
             made?: components["schemas"]["RvMade"] | null;
         };
+        /**
+         * RvIntoxCard
+         * @description One statement. Before it is answered only ``key`` and ``text``; after, the verdict,
+         *     ``why`` and, on a false statement or a miss, the source ``quote``.
+         */
+        RvIntoxCard: {
+            /** Answer */
+            answer?: ("vrai" | "faux") | null;
+            /** Correct */
+            correct?: boolean | null;
+            /** Key */
+            key: string;
+            quote?: components["schemas"]["RvRubriqueQuote"] | null;
+            text: components["schemas"]["RvComptoirText"];
+            /** True */
+            true?: boolean | null;
+            why?: components["schemas"]["RvComptoirText"] | null;
+            /** Wrong Fr */
+            wrong_fr?: string | null;
+        };
+        /** RvIntoxFix */
+        RvIntoxFix: {
+            /**
+             * Input
+             * @enum {string}
+             */
+            input: "pick" | "write";
+            /** Items */
+            items: components["schemas"]["RvIntoxFixItem"][];
+            phrase: components["schemas"]["RvComptoirText"];
+        };
+        /**
+         * RvIntoxFixItem
+         * @description A false statement to make true. A1–A2 pick (``options``: the true value and another
+         *     of the same kind from the claims, per-session order); B1+ rewrite it. ``right_fr`` and
+         *     ``fixed`` only once resolved (right, or two tries).
+         */
+        RvIntoxFixItem: {
+            /** Attempts */
+            attempts?: string[];
+            /** Correct */
+            correct?: boolean | null;
+            fixed?: components["schemas"]["RvComptoirText"] | null;
+            /** Key */
+            key: string;
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Options */
+            options?: string[];
+            quote: components["schemas"]["RvRubriqueQuote"];
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved?: boolean;
+            /** Right Fr */
+            right_fr?: string | null;
+            text: components["schemas"]["RvComptoirText"];
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+            /** Wrong Fr */
+            wrong_fr: string;
+        };
+        /**
+         * RvIntoxPage
+         * @description «La page»: the five statements as they should read, the score, the corrections.
+         */
+        RvIntoxPage: {
+            /** Dateline Fr */
+            dateline_fr: string;
+            /** Fixed */
+            fixed: number;
+            /** Lines */
+            lines: components["schemas"]["RvIntoxPageLine"][];
+            /** Phrase Fr */
+            phrase_fr: string;
+            /** Score */
+            score: number;
+            /** Title Fr */
+            title_fr: string;
+            /** Total */
+            total: number;
+            /** Words */
+            words: string[];
+        };
+        /** RvIntoxPageLine */
+        RvIntoxPageLine: {
+            /** Answered Right */
+            answered_right: boolean;
+            /** Fixed Right */
+            fixed_right?: boolean | null;
+            /** Learner Fr */
+            learner_fr?: string | null;
+            /** Text Fr */
+            text_fr: string;
+            /** Was False */
+            was_false: boolean;
+            /** Wrong Fr */
+            wrong_fr?: string | null;
+        };
+        /**
+         * RvIntoxRound
+         * @description Step 2: five statements one at a time; ``current`` is the one to answer.
+         */
+        RvIntoxRound: {
+            /**
+             * Answered
+             * @default 0
+             */
+            answered?: number;
+            /** Cards */
+            cards: components["schemas"]["RvIntoxCard"][];
+            /** Current */
+            current?: string | null;
+            /**
+             * Score
+             * @default 0
+             */
+            score?: number;
+            /**
+             * Total
+             * @default 5
+             */
+            total?: number;
+        };
+        /** RvIntoxView */
+        RvIntoxView: {
+            /**
+             * Band
+             * @enum {string}
+             */
+            band: "a1" | "a2" | "b1";
+            fix?: components["schemas"]["RvIntoxFix"] | null;
+            read: components["schemas"]["RvComptoirRead"];
+            round?: components["schemas"]["RvIntoxRound"] | null;
+            /**
+             * Step
+             * @enum {string}
+             */
+            step: "read" | "round" | "fix" | "page";
+            /** Steps */
+            steps: ("read" | "round" | "fix" | "page")[];
+            /** Title Fr */
+            title_fr: string;
+        };
         /** RvKept */
         RvKept: {
             /** Claims */
@@ -13841,7 +14018,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion" | "fil";
+            kind: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion" | "fil" | "titre" | "intox";
             /** Learner Fr */
             learner_fr?: string | null;
             /** Text Fr */
@@ -13871,7 +14048,7 @@ export interface components {
              * Recommended
              * @enum {string}
              */
-            recommended: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion" | "fil";
+            recommended: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion" | "fil" | "titre" | "intox";
         };
         /** RvMatchRequest */
         RvMatchRequest: {
@@ -13997,7 +14174,7 @@ export interface components {
              */
             gloss_language: "en" | "de" | "fr";
             /** Make Options */
-            make_options: ("headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion" | "fil")[];
+            make_options: ("headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion" | "fil" | "titre" | "intox")[];
             support: components["schemas"]["RvSupport"];
             /**
              * Ui Language
@@ -14121,6 +14298,78 @@ export interface components {
             /** Used */
             used: number;
         };
+        /**
+         * RvRubriqueCast
+         * @description Who proposes («Le titre»: Gus, who exaggerates by character).
+         */
+        RvRubriqueCast: {
+            /** Id */
+            id: string;
+            /** Name Fr */
+            name_fr: string;
+            /** Role Fr */
+            role_fr: string;
+        };
+        /**
+         * RvRubriqueError
+         * @description Why an act was not recorded, for the copy in the learner's language.
+         */
+        RvRubriqueError: {
+            /** Code */
+            code: string;
+            /** Count */
+            count?: number | null;
+            /** Key */
+            key?: string | null;
+        };
+        /**
+         * RvRubriqueQuote
+         * @description The outlet's verbatim words (≤ 40), its name, and the words in it that settle the
+         *     point (``settles_fr``; empty: nothing is lit).
+         */
+        RvRubriqueQuote: {
+            /** Quote Fr */
+            quote_fr: string;
+            /**
+             * Settles Fr
+             * @default
+             */
+            settles_fr?: string;
+            /** Source Name */
+            source_name: string;
+        };
+        /** RvRubriqueRequest */
+        RvRubriqueRequest: {
+            /**
+             * Act
+             * @enum {string}
+             */
+            act: "open" | "pick" | "trap" | "build" | "build_fix" | "answer" | "fix";
+            /** Key */
+            key?: string | null;
+            /**
+             * Mode
+             * @default text
+             * @enum {string}
+             */
+            mode?: "text" | "voice";
+            /** Parts */
+            parts?: number[] | null;
+            /** Text */
+            text?: string | null;
+            /** Value */
+            value?: string | null;
+            /** Words */
+            words?: number[] | null;
+        };
+        /**
+         * RvRubriqueResult
+         * @description «Le titre», «L'intox express»: the session after one act, and why it was not recorded.
+         */
+        RvRubriqueResult: {
+            error?: components["schemas"]["RvRubriqueError"] | null;
+            session: components["schemas"]["RvSessionView"];
+        };
         /** RvSessionView */
         RvSessionView: {
             artifact?: components["schemas"]["RvMade"] | null;
@@ -14137,12 +14386,13 @@ export interface components {
             fil?: components["schemas"]["RvFilView"] | null;
             /** Id */
             id: string;
+            intox?: components["schemas"]["RvIntoxView"] | null;
             /**
              * Mode
              * @default chat
              * @enum {string}
              */
-            mode?: "chat" | "comptoir" | "fil";
+            mode?: "chat" | "comptoir" | "fil" | "titre" | "intox";
             /**
              * Own Line
              * @default false
@@ -14164,6 +14414,7 @@ export interface components {
             steer_to_make: boolean;
             /** Thread */
             thread: (components["schemas"]["RvNarrationItem"] | components["schemas"]["RvSummaryItem"] | components["schemas"]["RvLineItem"] | components["schemas"]["RvGuestItem"] | components["schemas"]["RvMineItem"] | components["schemas"]["RvClaimsItem"] | components["schemas"]["RvUncertaintyItem"] | components["schemas"]["RvShiftItem"] | components["schemas"]["RvMadeItem"])[];
+            titre?: components["schemas"]["RvTitreView"] | null;
             week: components["schemas"]["RvWeek"];
         };
         /** RvShiftItem */
@@ -14372,6 +14623,177 @@ export interface components {
             translation: "one_tap" | "on_request" | "none";
             /** Vocab Target */
             vocab_target: number;
+        };
+        /**
+         * RvTitreBuild
+         * @description Step 4. A1 builds from a ``subjects`` tile and a ``facts`` tile (no model call); A2
+         *     completes ``frame``; B1+ write freely. Never with ``avoid_fr`` (the words that said too
+         *     much). From A2 Romy marks, the learner fixes (as «Le fil»).
+         */
+        RvTitreBuild: {
+            /** Avoid Fr */
+            avoid_fr: string;
+            /** Draft Fr */
+            draft_fr?: string | null;
+            /** Facts */
+            facts?: components["schemas"]["RvComptoirText"][];
+            frame?: components["schemas"]["RvComptoirText"] | null;
+            /**
+             * Input
+             * @enum {string}
+             */
+            input: "tiles" | "frame" | "free";
+            /** Learner Fr */
+            learner_fr?: string | null;
+            /** Marks */
+            marks?: components["schemas"]["RvComptoirMark"][];
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Max Words */
+            max_words: number;
+            phrase: components["schemas"]["RvComptoirText"];
+            /** Printed Fr */
+            printed_fr?: string | null;
+            /** Proof */
+            proof?: ("clean" | "marked" | "fixed" | "corrected" | "as_written") | null;
+            /** Subjects */
+            subjects?: components["schemas"]["RvComptoirText"][];
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+        };
+        /**
+         * RvTitreOption
+         * @description One headline. ``role`` once the step is resolved; ``why`` and ``claim`` on a wrong
+         *     headline the learner picked (and on both wrong ones once resolved).
+         */
+        RvTitreOption: {
+            claim?: components["schemas"]["RvClaim"] | null;
+            /** Key */
+            key: string;
+            /** Role */
+            role?: ("honest" | "exaggerated" | "off") | null;
+            text: components["schemas"]["RvComptoirText"];
+            why?: components["schemas"]["RvComptoirText"] | null;
+        };
+        /**
+         * RvTitrePage
+         * @description «La page»: the story under the learner's headline, signed.
+         */
+        RvTitrePage: {
+            /** Dateline Fr */
+            dateline_fr: string;
+            /** Headline Fr */
+            headline_fr: string;
+            /** Honest Fr */
+            honest_fr: string;
+            /** Lead Fr */
+            lead_fr: string;
+            /** Phrase Fr */
+            phrase_fr: string;
+            /** Proof */
+            proof?: ("clean" | "marked" | "fixed" | "corrected" | "as_written") | null;
+            /** Words */
+            words: string[];
+        };
+        /**
+         * RvTitreThree
+         * @description Step 2. ``solution`` (the honest headline's key) only once resolved (right, or two tries).
+         */
+        RvTitreThree: {
+            by: components["schemas"]["RvRubriqueCast"];
+            /** Correct */
+            correct?: boolean | null;
+            /** Headlines */
+            headlines: components["schemas"]["RvTitreOption"][];
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Picked */
+            picked?: string[];
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved?: boolean;
+            /** Solution */
+            solution?: string | null;
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+        };
+        /**
+         * RvTitreTrap
+         * @description Step 3: tap the word(s) of the exaggerated headline that say too much. ``fine``: what
+         *     the last wrong try tapped that the claims do say (never the answer); ``solution`` (the
+         *     words' indices) only once resolved.
+         */
+        RvTitreTrap: {
+            claim?: components["schemas"]["RvClaim"] | null;
+            /** Correct */
+            correct?: boolean | null;
+            /** Fine */
+            fine?: number[];
+            headline: components["schemas"]["RvComptoirText"];
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Picked */
+            picked?: number[];
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved?: boolean;
+            /** Solution */
+            solution?: number[];
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+            why?: components["schemas"]["RvComptoirText"] | null;
+            /** Words */
+            words: components["schemas"]["RvTitreWord"][];
+        };
+        /** RvTitreView */
+        RvTitreView: {
+            /**
+             * Band
+             * @enum {string}
+             */
+            band: "a1" | "a2" | "b1";
+            build?: components["schemas"]["RvTitreBuild"] | null;
+            read: components["schemas"]["RvComptoirRead"];
+            /**
+             * Step
+             * @enum {string}
+             */
+            step: "read" | "three" | "trap" | "build" | "page";
+            /** Steps */
+            steps: ("read" | "three" | "trap" | "build" | "page")[];
+            three?: components["schemas"]["RvTitreThree"] | null;
+            /** Title Fr */
+            title_fr: string;
+            trap?: components["schemas"]["RvTitreTrap"] | null;
+        };
+        /** RvTitreWord */
+        RvTitreWord: {
+            /** Fr */
+            fr: string;
+            /** Index */
+            index: number;
         };
         /** RvTurnRequest */
         RvTurnRequest: {
@@ -23949,6 +24371,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RvHeadlinePickResult"] | components["schemas"]["RvQuestionProposeResult"] | components["schemas"]["RvQuestionSendResult"] | components["schemas"]["RvHeadlineWriteResult"] | components["schemas"]["RvShortReportResult"] | components["schemas"]["RvCaptionResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_rubrique_api_v1_revue_sessions__session_id__rubrique_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RvRubriqueRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvRubriqueResult"];
                 };
             };
             /** @description Validation Error */

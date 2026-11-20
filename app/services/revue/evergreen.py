@@ -21,6 +21,8 @@ an evergreen week makes no desk call and the tests and the walk play real French
 evergreens whose claims carry four events in a stated order (most do not: they describe a
 custom, not a sequence). Read on demand (:func:`evergreen_wire`), never attached to the loaded
 dossiers, so nothing an evergreen stores or snapshots changes while the assignments are off.
+«Le titre» and «L'intox express» likewise read ``evergreen/titre/<id>.json`` and
+``evergreen/intox/<id>.json`` (:func:`evergreen_titre`, :func:`evergreen_intox`).
 """
 
 from __future__ import annotations
@@ -29,12 +31,21 @@ from datetime import date
 from functools import lru_cache
 from pathlib import Path
 
-from app.services.revue.dossier import ComptoirTakes, EditorialDossier, FilWire, week_bounds
+from app.services.revue.dossier import (
+    ComptoirTakes,
+    EditorialDossier,
+    FilWire,
+    IntoxExpress,
+    TitreDesk,
+    week_bounds,
+)
 
 EVERGREEN_DIR = Path(__file__).with_name("evergreen")
 SOURCES_DIR = EVERGREEN_DIR / "sources"
 COMPTOIR_DIR = EVERGREEN_DIR / "comptoir"
 FIL_DIR = EVERGREEN_DIR / "fil"
+TITRE_DIR = EVERGREEN_DIR / "titre"
+INTOX_DIR = EVERGREEN_DIR / "intox"
 
 
 @lru_cache(maxsize=1)
@@ -63,6 +74,32 @@ def evergreen_wire(dossier_id: str) -> FilWire | None:
 
     wire = _wires().get(dossier_id)
     return wire.model_copy(deep=True) if wire is not None else None
+
+
+@lru_cache(maxsize=1)
+def _titres() -> dict[str, TitreDesk]:
+    return {path.stem: TitreDesk.model_validate_json(path.read_text(encoding="utf-8"))
+            for path in sorted(TITRE_DIR.glob("*.json"))}
+
+
+def evergreen_titre(dossier_id: str) -> TitreDesk | None:
+    """«Le titre» shipped with the evergreen ``dossier_id`` (a copy), or ``None``."""
+
+    titre = _titres().get(dossier_id)
+    return titre.model_copy(deep=True) if titre is not None else None
+
+
+@lru_cache(maxsize=1)
+def _intoxes() -> dict[str, IntoxExpress]:
+    return {path.stem: IntoxExpress.model_validate_json(path.read_text(encoding="utf-8"))
+            for path in sorted(INTOX_DIR.glob("*.json"))}
+
+
+def evergreen_intox(dossier_id: str) -> IntoxExpress | None:
+    """«L'intox express» shipped with the evergreen ``dossier_id`` (a copy), or ``None``."""
+
+    intox = _intoxes().get(dossier_id)
+    return intox.model_copy(deep=True) if intox is not None else None
 
 
 @lru_cache(maxsize=1)
