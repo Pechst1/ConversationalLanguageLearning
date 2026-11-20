@@ -3866,6 +3866,9 @@ function SessionView({
   // A typed form shows in its own field; the right one is printed only when it differs.
   const typedAsIs = drill === 'typed' && Boolean(currentFeedback)
     && normalizeClient(currentFeedback?.learner) === normalizeClient(currentFeedback?.target);
+  // A right answer already on screen is not set again: a tapped card, a form typed as it
+  // should be, a transform's model line (La Forge).
+  const pickedAnswer = round === 'recognize' ? drill !== 'typed' || typedAsIs : round === 'transform' && Boolean(drill);
   // A typed line is read, once checked, where it was written (CheckedLine).
   const answerState: AnswerState = !currentSubmitted || !currentFeedback || currentFeedback.unscored
     || (isProductionRound && productionPhase(currentCorrection) === 'checking')
@@ -4146,7 +4149,8 @@ function SessionView({
                 classifyItem={classifyItem}
                 // A right answer already on screen is not set again: a tapped card, a
                 // form typed as it should be, a transform's model line (La Forge).
-                picked={round === 'recognize' ? drill !== 'typed' || typedAsIs : round === 'transform' && Boolean(drill)}
+                picked={pickedAnswer}
+                copyStep={!(forge && pickedAnswer && !lineEchoed)}
                 ruleShown={forge ? activeConceptTitle : null}
                 attempt={attemptIdsByKey[currentKey] ?? null}
                 lineEchoed={lineEchoed}
@@ -4287,6 +4291,7 @@ export function ExerciseFeedbackMoment({
   onRevealSolution,
   revealing = false,
   lineEchoed = false,
+  copyStep = true,
 }: {
   feedback: InlineFeedbackModel;
   submitted: boolean;
@@ -4323,6 +4328,13 @@ export function ExerciseFeedbackMoment({
   revealing?: boolean;
   /** The answer was typed in a field, and its panel draws the checked line in the field's place. */
   lineEchoed?: boolean;
+  /**
+   * «Copy the correction» before «Continue». Owner, 20 Nov 2026: not in La Forge after an
+   * answer that was tapped or built from tiles; typing a whole line there is a second
+   * exercise nobody asked for. (La Forge brings a missed item back by its own plan, so the
+   * retest the copy queues is not what repeats it; the classic épreuve keeps the step.)
+   */
+  copyStep?: boolean;
 }) {
   const t = useEpCopy();
   // WP-103 T8: the follow-up's draft, per exercise, so a return finds it as it was left.
@@ -4499,7 +4511,7 @@ export function ExerciseFeedbackMoment({
   // Owner 2026-11-13: with the solution on screen the chance is over: no retry (it would
   // be a copy of the answer above). What is left is main's «Copy the correction» step,
   // which «Continue» waits for (and which queues the retest, #779).
-  const canGoOn = repairsComplete;
+  const canGoOn = repairsComplete || !copyStep;
   const retry = retryOffered(correction) ? onTryAgain : undefined;
   // The in-place repair was the chance: once the solution is on screen it is shown only
   // as it was sent and accepted; a forfeited or refused one becomes a copy of the line.
@@ -4632,7 +4644,7 @@ export function ExerciseFeedbackMoment({
             )}
             {/* «Copy the correction» (main, #779) — only ever under a line already on
                 screen, so it is never the second chance. */}
-            {!isLabelCompare && target && isRepairableLine(target) && !(index === 0 && partsShown) && !lineCopiedAbove && (
+            {copyStep && !isLabelCompare && target && isRepairableLine(target) && !(index === 0 && partsShown) && !lineCopiedAbove && (
               <EpRepair
                 target={target}
                 typed={repair?.typed || repairDrafts[repairKey] || ''}

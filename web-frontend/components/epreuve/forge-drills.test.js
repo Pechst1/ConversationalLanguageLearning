@@ -399,7 +399,7 @@ test('the page poses each format: typed, dictation, spot and mine, rafale', () =
 
   const session = PAGE.slice(PAGE.indexOf('function SessionView('), PAGE.indexOf('function ActionRow('));
   assert.match(session, /\{isNamedDrill\(drill\) && \(drill !== 'rafale' \|\| rafale\) && <ForgeDrillTag drill=\{drill\} copy=\{fc\} \/>\}/);
-  assert.match(session, /picked=\{round === 'recognize' \? drill !== 'typed' \|\| typedAsIs : round === 'transform' && Boolean\(drill\)\}/);
+  assert.match(session, /const pickedAnswer = round === 'recognize' \? drill !== 'typed' \|\| typedAsIs : round === 'transform' && Boolean\(drill\);/);
   assert.match(session, /<ForgeRafale\s+key=\{burstItemKey\(servedBurst\)\}/);
   assert.match(session, /\{round === 'recognize' && !rafale && \(/);
   assert.match(session, /\{!rafale && <ExerciseFeedbackMoment/);

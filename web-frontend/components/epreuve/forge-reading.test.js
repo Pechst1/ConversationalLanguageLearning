@@ -145,7 +145,10 @@ test('«Show the solution» starts the miss scroll again for the new card', () =
 
 test('after the solution, a whole line is copied (main #779), never offered as a retry', () => {
   const moment = slice(PAGE, 'export function ExerciseFeedbackMoment(', 'function ConceptRulePanel(');
-  assert.match(moment, /const canGoOn = repairsComplete;/);
+  assert.match(moment, /const canGoOn = repairsComplete \|\| !copyStep;/);
+  // Owner, 20 Nov 2026: not in La Forge after a tapped or tile answer; a typed line still copies.
+  assert.match(PAGE, /copyStep=\{!\(forge && pickedAnswer && !lineEchoed\)\}/);
+  assert.match(moment, /\{copyStep && !isLabelCompare && target && isRepairableLine\(target\)/);
   assert.match(moment, /const retry = retryOffered\(correction\) \? onTryAgain : undefined;/);
   assert.match(moment, /!\(index === 0 && partsShown\) && !lineCopiedAbove && \(\s*<EpRepair/);
 });

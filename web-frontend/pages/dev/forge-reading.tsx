@@ -11,6 +11,7 @@
  *   ?case=inplace    the same miss with only words wrong: fixed in place, in the field's place
  *   ?case=right      a right line: green where it was written
  *   ?case=choice     the miss on a picked answer: the hint in the band, nothing else
+ *   ?case=tapped     a picked answer once the solution is shown, in La Forge: no copy step
  *   ?case=before     the miss as the server sent it before the gate (full correction)
  *
  * and ?lang=de|en|fr. Not in a production build.
@@ -58,7 +59,7 @@ const PAYLOAD = {
 };
 
 type Lang = 'de' | 'en' | 'fr';
-const CASES = ['item', 'withheld', 'inplace', 'shown', 'right', 'choice', 'before'] as const;
+const CASES = ['item', 'withheld', 'inplace', 'shown', 'right', 'choice', 'tapped', 'before'] as const;
 type Case = (typeof CASES)[number];
 
 const RIGHT_LINE = 'Oui, je peux payer par carte.';
@@ -69,6 +70,7 @@ function correctionFor(lang: Lang, shot: Case): Record<string, any> | null {
   if (shot === 'item') return null;
   if (shot === 'right') return RIGHT;
   if (shot === 'choice') return misses.withheld;
+  if (shot === 'tapped') return misses.shown;
   if (shot === 'inplace') {
     // The same miss with the words wrong and the task done: no task erratum.
     const errata = misses.withheld.errata.filter((item: Record<string, any>) => item.task_error_type !== 'task_compliance');
@@ -94,7 +96,8 @@ function Fixture({ lang, shot }: { lang: Lang; shot: Case }) {
   const submitted = shot !== 'item' && !open;
   const correction = submitted ? correctionFor(lang, shot) : null;
   const feedback = feedbackFromFreeformCorrection(correction, '', line, epreuveCopy(lang));
-  const production = shot !== 'choice';
+  const picked = shot === 'choice' || shot === 'tapped';
+  const production = !picked;
   const answerState = !submitted || !feedback ? null : feedback.correct ? 'right' as const : solutionWithheld(correction) ? 'open' as const : 'shown' as const;
   const retry = () => setOpen(true);
   return (
@@ -115,7 +118,7 @@ function Fixture({ lang, shot }: { lang: Lang; shot: Case }) {
               updateAnswer={setAnswer}
               correction={correction}
               submitted={submitted}
-              answerState={shot === 'choice' ? null : answerState}
+              answerState={picked ? null : answerState}
               onRetry={retry}
             />
           </div>
@@ -134,7 +137,8 @@ function Fixture({ lang, shot }: { lang: Lang; shot: Case }) {
             onTryAgain={retry}
             onReport={() => undefined}
             production={production}
-            picked={shot === 'choice'}
+            picked={picked}
+            copyStep={shot !== 'tapped'}
             lineEchoed={production && Boolean(answerState) && !(shot === 'inplace')}
             ruleShown={RULE}
             onRevealSolution={() => undefined}
