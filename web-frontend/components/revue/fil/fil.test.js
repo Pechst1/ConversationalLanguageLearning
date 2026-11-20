@@ -320,3 +320,22 @@ test('a missed word is explained inside its own dispatch', () => {
   const css = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', '..', '..', 'styles', 'revue-fil.css'), 'utf8');
   assert.match(css, /\.fl-strip:has\(\.fl-slot\) \.ct-why, \.av2 \.fl-strip:has\(\.fl-options\) \.ct-why \{ grid-column: 1 \/ -1; \}/);
 });
+
+// Seen in a browser (2026-11-20, B1 en): «« au départ » veut dire « at the outset » : ce mot
+// ouvre l'histoire…» — from B1 the chrome is French, but an explanation is in the mother
+// tongue (as the counter's whys): the order's reason, a missed word's, a refused telling's.
+test('from B1 the reasons are in the mother tongue while the chrome stays French', () => {
+  const b1 = (name) => {
+    const raw = JSON.parse(JSON.stringify(SESSIONS[name]));
+    Object.assign(raw.plan, { ui_language: 'fr', gloss_language: 'en' });
+    return render(h(RvFil, { client: {}, session: types.parseSessionView(raw), onExit: () => {} }));
+  };
+  let text = visibleText(b1('a1_order_hint'));
+  assert.match(text, /The first exam comes after the creation\./);
+  assert.match(text, /Vérifier l'ordre|Vérifier l’ordre/, 'the chrome stays French');
+  text = visibleText(b1('a1_words_miss'));
+  assert.match(text, /«enfin» means “finally”: it closes the story\./);
+  assert.doesNotMatch(text, /veut dire/);
+  const error = model.errorText(filCopy('en'), { code: 'tell_last_first', key: 'enfin', afterKey: null, count: null }, types.parseSessionView(SESSIONS.a1_tell).fil);
+  assert.match(error, /enfin/);
+});

@@ -73,6 +73,7 @@ export function RvFil({ client, session: initial, language, onExit, onReleve, re
   const ccopy = comptoirCopy(chrome);
   const fcopy = filCopy(chrome);
   const glossLanguage = session.plan.glossLanguage;
+  const xcopy = filCopy(glossLanguage);
   const glosses = useMemo(() => sessionGlosses(session), [session]);
 
   const serverStep = view?.step ?? 'read';
@@ -172,7 +173,7 @@ export function RvFil({ client, session: initial, language, onExit, onReleve, re
     <>
       {refusal && (
         <p className="ct-why fl-refusal" role="status" data-ct-anchor="nearest">
-          {errorText(fcopy, refusal, view)}
+          {errorText(refusal.code.startsWith('tell_') ? xcopy : fcopy, refusal, view)}
         </p>
       )}
       {failed && (
@@ -190,6 +191,7 @@ export function RvFil({ client, session: initial, language, onExit, onReleve, re
     copy,
     ccopy,
     fcopy,
+    xcopy,
     glossLanguage,
     glosses,
     voice,

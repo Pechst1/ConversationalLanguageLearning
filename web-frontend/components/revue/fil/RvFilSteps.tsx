@@ -40,6 +40,9 @@ export type FilStepProps = {
   copy: RevueCopy;
   ccopy: ComptoirCopy;
   fcopy: FilCopy;
+  /** The reasons (the order's, a missed word's, a refused telling's): the mother tongue, as the
+   * counter's whys, while the chrome is French from B1. */
+  xcopy: FilCopy;
   glossLanguage: RvLanguage;
   glosses: RvGloss[];
   voice: LineVoice;
@@ -117,7 +120,7 @@ function StripText({ textFr, tr, props }: { textFr: string; tr: string | null; p
 }
 
 export function RvFilOrder(props: FilStepProps) {
-  const { view, chrome, copy, fcopy, pending, readOnly, onAct, onContinue, notice, footRef } = props;
+  const { view, copy, fcopy, xcopy, glossLanguage, pending, readOnly, onAct, onContinue, notice, footRef } = props;
   const order = view.order!;
   const shownKeys = order.strips.map((strip) => strip.key);
   const start = order.placed.length === 4 ? order.placed : shownKeys;
@@ -181,7 +184,7 @@ export function RvFilOrder(props: FilStepProps) {
         </ol>
         {misplaced && order.hint && (
           <p className="ct-why fl-hint" data-ct-anchor="nearest">
-            {orderHintText(fcopy, order.strips, order.hint, chrome)}
+            {orderHintText(xcopy, order.strips, order.hint, glossLanguage)}
           </p>
         )}
         {order.resolved && (
@@ -216,7 +219,7 @@ export function RvFilOrder(props: FilStepProps) {
 // ---------------------------------------------------------------------------
 
 export function RvFilWords(props: FilStepProps) {
-  const { view, copy, fcopy, glossLanguage, pending, readOnly, onAct, onContinue, notice, footRef } = props;
+  const { view, copy, fcopy, xcopy, glossLanguage, pending, readOnly, onAct, onContinue, notice, footRef } = props;
   const words = view.words!;
   const start = (words.resolved ? words.solution : words.picked).length === 4 ? (words.resolved ? words.solution : words.picked) : [null, null, null, null];
   const [picks, setPicks] = useState<Array<string | null>>(start);
@@ -289,7 +292,7 @@ export function RvFilWords(props: FilStepProps) {
                 <StripText textFr={strip.fr} tr={strip.tr} props={props} />
                 {missAt.has(index) && (
                   <p className="ct-why fl-miss" data-ct-anchor="nearest">
-                    {missText(fcopy, missAt.get(index) as (typeof words.misses)[number])}
+                    {missText(xcopy, missAt.get(index) as (typeof words.misses)[number])}
                   </p>
                 )}
                 {words.resolved && picked?.tr && (
