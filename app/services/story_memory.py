@@ -318,8 +318,90 @@ NAME_NOTE = (
 NAME_SCOPE = (
     "The name is for the characters' own lines: everything the page itself says (narration, "
     "visual_direction, alt text, the chapter, the objective, plants, callbacks) still speaks "
-    "to the learner as «tu» and «you», or says «the learner», as if nobody knew it."
+    "to the learner as «tu» and «you», or says «the learner» in English, as if nobody knew it; "
+    "a French line never says «learner» or «player»."
 )
+
+#: #917: the role word of the prompts («the learner», «the player») written into a French
+#: line the learner reads: «La carte du learner trouve sa place parmi les souvenirs
+#: d’Odile.» on a «Précédemment» card. English only; «l'apprenant» is French and stays.
+_ROLE = r"(?:the\s+)?(?:learner|player)s?(?:['’]s)?(?![\w-])"
+_ROLE_WORD = re.compile(rf"(?<![\w-]){_ROLE}", re.IGNORECASE)
+
+#: The repair is French grammar done without a parser, so it only rewrites where the
+#: reading is certain, and a line it cannot read is dropped, never guessed (attempt 1
+#: turned «Romy se lasse du learner» into «Romy se ta sse», and «Odile les éloigne du
+#: learner» into «Odile tes éloigne»). Only one learner is «toi»: a plural, «the
+#: learner» or «the learner's» is English the line cannot keep.
+_ONE_ROLE = r"(?:learner|player)(?![\w'’-])"
+_OF_ONE = r"(?:du\s+|de\s+la\s+|de\s+l['’]\s*|de\s+)"
+#: Where le/la/les/l' can only be an article, never an object pronoun in front of a
+#: verb: the start of a sentence or a clause mark, or after a preposition that never
+#: takes an infinitive («parmi les souvenirs», but «pour les éloigner»).
+_ARTICLE_ONLY_AFTER = r"dans|sur|sous|avec|chez|parmi|vers|contre|entre|derrière|devant|malgré|selon|pendant|depuis"
+#: «La carte du learner» → «Ta carte»: the article says which possessive. le/la/les
+#: need whitespace before the noun (so «lasse» is not «la» + «sse»), only l' is glued,
+#: and the noun is one word right before «du learner» («la petite carte» is not read).
+_OWNED_BY_ROLE = re.compile(
+    rf"(?P<lead>^\s*|[.!?;:«»—–(“\"]\s*|(?<![\w-])(?:{_ARTICLE_ONLY_AFTER})\s+)"
+    rf"(?P<article>le\s+|la\s+|les\s+|l['’]\s*)(?P<noun>[^\W\d_][\w-]*)\s+{_OF_ONE}{_ONE_ROLE}",
+    re.IGNORECASE,
+)
+_YOUR = {"le": "ton", "la": "ta", "les": "tes", "l'": "ton"}
+#: «Romy parle du learner» → «Romy parle de toi».
+_OF_THE_ROLE = re.compile(rf"(?<![\w-]){_OF_ONE}{_ONE_ROLE}", re.IGNORECASE)
+#: «près du learner» is a place: «près de toi» whatever comes before.
+_PLACE_OF = frozenset(
+    "près loin autour côté face cause propos auprès lieu part hors dessus dessous delà".split()
+)
+#: A determiner or an object pronoun just before «du learner» means «de» may hang on a
+#: noun («les souvenirs du learner») or the verb's object may be read as one («Romy la
+#: cache du learner»): no deterministic «tu» form, the line is dropped.
+_NOUN_OR_CLITIC = frozenset(
+    "le la les un une des du au aux mon ma mes ton ta tes son sa ses notre nos votre vos "
+    "leur leurs ce cet cette ces".split()
+)
+_CLAUSE_MARK = re.compile(r"[,.;:!?«»—–()“\"]")
+
+
+def role_placeholder(text: Any) -> str | None:
+    """The first role word («learner», «the learner», «player») left in ``text``, or None."""
+
+    match = _ROLE_WORD.search(str(text or ""))
+    return match.group(0) if match else None
+
+
+def _of_you(line: str, match: re.Match) -> str:
+    """«de toi» for «du learner» when the words before it read as a verb or a place."""
+
+    words = [word.casefold() for word in _CLAUSE_MARK.split(line[: match.start()])[-1].split()]
+    place = bool(words) and words[-1] in _PLACE_OF
+    if not place and any(word in _NOUN_OR_CLITIC or word.startswith(("l'", "l’")) for word in words[-3:]):
+        return match.group(0)
+    return "De toi" if match.group(0)[:1].isupper() else "de toi"
+
+
+def address_placeholder(text: Any) -> str | None:
+    """A recap line in the page's own voice, with the role word said as «tu»: ``text``
+    as it is when it has none, the repaired line, or None when the word stays (the
+    line is not printed: «Le learner garde la carte» has no deterministic «tu» form).
+
+    Repairs the two forms a recap writes, only where the French is certain:
+    «La carte du learner» → «Ta carte» when the article cannot be a pronoun, and «de»
+    after a verb or a place → «de toi» («Romy parle de toi», «près de toi»)."""
+
+    line = str(text or "")
+    if not role_placeholder(line):
+        return line
+
+    def owned(match: re.Match) -> str:
+        article = match.group("article").strip()
+        mine = _YOUR[article.casefold().replace("’", "'")]
+        return f"{match.group('lead')}{mine.capitalize() if article[:1].isupper() else mine} {match.group('noun')}"
+
+    line = _OWNED_BY_ROLE.sub(owned, line)
+    line = _OF_THE_ROLE.sub(lambda match: _of_you(line, match), line)
+    return None if role_placeholder(line) else line
 
 #: What the ending reports for the memory: the one-call actor (``ACTOR``) and the
 #: story lane (``STORY``) read the same paragraph.
@@ -1034,6 +1116,8 @@ def row_by_id(memory: dict | None, ref: Any) -> dict | None:
 
 __all__ = [
     "MEMORY_KEY",
+    "address_placeholder",
+    "role_placeholder",
     "AnsweredIds",
     "Day",
     "LearnedFacts",

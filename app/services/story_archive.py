@@ -36,6 +36,7 @@ from app.db.models.graphic_novel import GraphicNovelPanel, GraphicNovelScene
 from app.db.models.serial import SerialThread
 from app.services.journey_contracts import scene_act, step_act
 from app.services.sentence_line import drop_cut_tail
+from app.services.story_memory import address_placeholder
 from app.services.story_page import hook_of
 
 logger = logging.getLogger(__name__)
@@ -111,10 +112,12 @@ def margin_notes_of(payload: Any) -> list[dict[str, Any]]:
 
 
 def previously_of(payload: Any) -> list[str]:
-    """``script_payload.previously_fr`` — at most three non-empty lines."""
+    """``script_payload.previously_fr`` — at most three non-empty lines, each in the
+    page's own voice (#917: a stored «La carte du learner…» reads «Ta carte…», and a
+    line the role word cannot leave is not printed)."""
 
     rows = (payload or {}).get("previously_fr") if isinstance(payload, dict) else None
-    lines = [_text(line, 240) for line in rows if isinstance(line, str)] if isinstance(rows, list) else []
+    lines = [address_placeholder(_text(line, 240)) for line in rows if isinstance(line, str)] if isinstance(rows, list) else []
     return [line for line in lines if line][:MAX_PREVIOUSLY]
 
 

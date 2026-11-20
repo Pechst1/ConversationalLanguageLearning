@@ -1,8 +1,8 @@
 # prompt snapshot · page-a1-clean-la-dispute-one-jump · lane page · level A1
-# key: sha256:d11f1a68c0585247807c99ce1e392cf516a3c3ae6e922b1990674bef364148df
+# key: sha256:bab6371cad0d72d709c4942864087bfecef438d9d162c9f1a7ec125c988443c4
 # accept a change: PROMPT_SNAPSHOT_UPDATE=1 python -m pytest tests/test_prompt_regression.py (or scripts/prompt_regression.py --update)
 
-======== call 1 · PagePlan #1 · 5c503328c39b5200 ========
+======== call 1 · PagePlan #1 · 0c017a9cb39002c7 ========
 params: {"disable_retries": true, "max_provider_attempts": 1, "max_tokens": 16000, "prompt_cache_key": "atelier-PagePlan", "reasoning_effort": "medium", "response_format": {"type": "json_object"}, "temperature": 0.55}
 output_schema: PagePlan sha256:f87df9ba8fd5bb48
 -------- system --------
@@ -35,7 +35,7 @@ WHAT MAKES A GOOD DAY
 6. The story remembers the learner. memory holds what they told whom, in their own words,
    and what is settled about them: someone who heard it may build on it («You told me
    your sister lives here»), someone who knows their name uses it, and nobody asks again
-   what memory settles. Their name says nothing about their gender: how the learner is gendered, in any language, follows their address alone. The name is for the characters' own lines: everything the page itself says (narration, visual_direction, alt text, the chapter, the objective, plants, callbacks) still speaks to the learner as «tu» and «you», or says «the learner», as if nobody knew it. When the learner left a
+   what memory settles. Their name says nothing about their gender: how the learner is gendered, in any language, follows their address alone. The name is for the characters' own lines: everything the page itself says (narration, visual_direction, alt text, the chapter, the objective, plants, callbacks) still speaks to the learner as «tu» and «you», or says «the learner» in English, as if nobody knew it; a French line never says «learner» or «player». When the learner left a
    question open (memory.open), today may answer it or come back to it through someone in
    its known_by: set returns_to to its id.
 7. The learner owns their reasons. When today's beat moves something the learner said
@@ -602,7 +602,7 @@ peut écrire ton nom.»
  "previous_rejections": []
 }
 
-======== call 2 · PageText #1 · f7f5eddc02d19dd4 ========
+======== call 2 · PageText #1 · 7600b80a5bcef9d8 ========
 params: {"disable_retries": true, "max_provider_attempts": 1, "max_tokens": 16000, "prompt_cache_key": "atelier-PageText", "reasoning_effort": "low", "response_format": {"type": "json_object"}, "temperature": 0.55}
 output_schema: PageText sha256:b3bc7a5ef89e0700
 -------- system --------
@@ -647,7 +647,7 @@ THE PAGE
   what is settled (facts) and what the learner told them (said, verbatim), each with who
   knows it. Someone who knows the learner's name may use it, and someone who heard a
   line may bring it back in their own words; nobody asks what memory already settles,
-  and nobody knows a row they are not listed on. Their name says nothing about their gender: how the learner is gendered, in any language, follows their address alone. The name is for the characters' own lines: everything the page itself says (narration, visual_direction, alt text, the chapter, the objective, plants, callbacks) still speaks to the learner as «tu» and «you», or says «the learner», as if nobody knew it.
+  and nobody knows a row they are not listed on. Their name says nothing about their gender: how the learner is gendered, in any language, follows their address alone. The name is for the characters' own lines: everything the page itself says (narration, visual_direction, alt text, the chapter, the objective, plants, callbacks) still speaks to the learner as «tu» and «you», or says «the learner» in English, as if nobody knew it; a French line never says «learner» or «player».
   plan.returns_to, when present, is the open question today answers or comes back to:
   the page does.
 - When the plan has a chapter, chapter_title_fr names it and chapter_question_fr asks its
