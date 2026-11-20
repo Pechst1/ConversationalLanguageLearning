@@ -154,3 +154,17 @@ test('every new chrome string exists in fr, de and en', () => {
   }
   assert.notEqual(revueCopy('de').gallery_label, revueCopy('en').gallery_label);
 });
+
+// Seen in a browser at 375 px (2026-11-20, Papier · together): the links' screen-reader
+// words (`.av2-sr`, absolutely placed) escaped the strip's own scroll and widened the whole
+// page to 769 px on a phone; the licence and source links were 16 px tall.
+test('the strip holds its own overflow (the page never widens) and its links are 44 px targets', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const css = fs.readFileSync(path.join(__dirname, '..', '..', 'styles', 'revue.css'), 'utf8');
+  const rule = (selector) => (css.match(new RegExp(`\\.av2 ${selector.replace(/[.]/g, '\\.')} \\{([^}]*)\\}`)) || [])[1] || '';
+  assert.match(rule('.rv-gallery__strip'), /position: relative;/, 'the containing block of the sr-only words');
+  assert.match(rule('.rv-gallery__strip'), /overflow-x: auto;/);
+  assert.match(rule('.rv-gallery__link'), /min-height: var\(--av2-tap\);/);
+  assert.match(rule('.rv-gallery__link'), /display: inline-flex;/);
+});

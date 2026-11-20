@@ -374,7 +374,7 @@
    printed, a photo's licence and source as underlined links. No new colour, font
    or radius: the frame keeps RvPicture's 4px. ------------------------------------ */
 .av2 .rv-gallery { min-width: 0; margin: 12px 0 4px; }
-.av2 .rv-gallery__strip { display: flex; gap: 12px; margin: 0; padding: 0 0 6px; list-style: none; overflow-x: auto;
+.av2 .rv-gallery__strip { position: relative; display: flex; gap: 12px; margin: 0; padding: 0 0 6px; list-style: none; overflow-x: auto;
   scroll-snap-type: x mandatory; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
 .av2 .rv-gallery__item { flex: 0 0 72%; max-width: 280px; min-width: 0; scroll-snap-align: start; }
 .av2 .rv-gallery[data-size='compact'] { margin: 10px 16px 0; }
@@ -383,9 +383,11 @@
 .av2 .rv-gallery__cap { gap: 4px; padding-top: 6px; }
 .av2 .rv-gallery__fr { font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-body); line-height: 1.3; color: var(--av2-ink); }
 .av2 .rv-gallery__credit { align-self: stretch; text-align: right; overflow-wrap: anywhere; }
-.av2 .rv-gallery__links { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 4px 12px; }
-.av2 .rv-gallery__link { font: 700 0.625rem/1.6 var(--av2-sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--av2-ink-2);
-  text-decoration: underline; text-underline-offset: 2px; }
+/* position: relative on the strip keeps the links' sr-only words inside its scroll (else they
+   widened the page on a phone); each link is a full tap target, its text where it was. */
+.av2 .rv-gallery__links { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 0 12px; margin: -12px 0 -14px; }
+.av2 .rv-gallery__link { display: inline-flex; align-items: center; min-height: var(--av2-tap); font: 700 0.625rem/1.6 var(--av2-sans); letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--av2-ink-2); text-decoration: underline; text-underline-offset: 2px; }
 .av2 .rv-gallery__link:focus-visible { outline: 2px solid var(--av2-ink); outline-offset: 2px; }
 
 /* «La légende» (RvCaption): the picture, its words as tiles, then the captions or the field */
