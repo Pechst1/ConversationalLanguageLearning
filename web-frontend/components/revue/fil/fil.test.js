@@ -125,6 +125,30 @@ test('acts go out in snake_case and a refusal comes back with its code', () => {
 // 3. The player
 // ---------------------------------------------------------------------------
 
+// Integration (Papier · together): «Lire» shows the photos gallery as the counter's «Lire».
+test('A1 (en): «Lire» shows the story\'s other pictures under its picture, each with its credit', () => {
+  const raw = JSON.parse(JSON.stringify(SESSIONS.a1_read));
+  const plate = raw.stage.plate_url || '/media/graphic-novel/revue-stories/evergreen-bac-0123456789abcdef.webp';
+  raw.stage.plate_url = plate;
+  raw.stage.plate_kind = 'story';
+  raw.stage.pictures = [
+    { kind: 'illustration', url: plate, alt_fr: '', credit_fr: 'Illustration · Le Papier' },
+    { kind: 'illustration', url: '/media/graphic-novel/revue-stories/evergreen-bac-2-fedcba9876543210.webp', alt_fr: '', credit_fr: 'Illustration · Le Papier' },
+    {
+      kind: 'photo', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Bac.jpg/1280px-Bac.jpg', alt_fr: 'Le lycée', caption_fr: 'Le lycée',
+      credit_fr: 'Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons', licence: 'CC BY-SA 4.0',
+      licence_url: 'https://creativecommons.org/licenses/by-sa/4.0', source_url: 'https://commons.wikimedia.org/wiki/File:Bac.jpg',
+    },
+  ];
+  const html = render(h(RvFil, { client: {}, session: types.parseSessionView(raw), onExit: () => {} }));
+  assert.match(html, /aria-label="Pictures of the story"/);
+  assert.equal((html.match(/rv-gallery__item/g) || []).length, 2, 'the plate is not repeated');
+  assert.ok(html.indexOf('ct-pic') < html.indexOf('rv-gallery') && html.indexOf('rv-gallery') < html.indexOf('rv-lead'), 'under the picture, before the lead');
+  assert.match(visibleText(html), /Photo · Camille Exemple · CC BY-SA 4\.0 · Wikimedia Commons/);
+  const plain = render(h(RvFil, { client: {}, session: session('a1_read'), onExit: () => {} }));
+  assert.doesNotMatch(plain, /rv-gallery/, 'no strip without other pictures');
+});
+
 const GERMAN_CHROME = /\b(Weiter|Wörter prüfen|Reihenfolge prüfen|Übersetzen|Meine Geschichte senden)\b/;
 const ENGLISH_CHROME = /\b(Continue|Check the words|Check the order|Translate|Send my story)\b/;
 

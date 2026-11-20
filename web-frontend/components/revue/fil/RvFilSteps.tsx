@@ -27,6 +27,7 @@ import type { RvGloss, RvLanguage, RvSessionView } from '@/lib/revue-types';
 import type { ComptoirCopy } from '../comptoir/comptoir-copy';
 import { ComptoirPicture, ListenChip, RomyLine } from '../comptoir/RvComptoirParts';
 import { fill, type RevueCopy } from '../revue-copy';
+import { RvGallery } from '../RvGallery';
 import { RvGlossText, RvSourceLine, RvTranslate, type RvWordEvent } from '../RvThread';
 import { FIL_FR, FIL_LINES, type FilCopy } from './fil-copy';
 import { allPicked, missText, move, orderHintText, swap } from './fil-model';
@@ -63,6 +64,7 @@ export function RvFilRead(props: FilStepProps) {
     <>
       <div className="rv-body ct-body" data-step="read">
         <ComptoirPicture url={session.stage.plateUrl} credit={session.stage.plateKind === 'story'} />
+        <RvGallery pictures={session.stage.pictures} mainUrl={session.stage.plateUrl} copy={copy} />
         <section className="rv-lead ct-lead" aria-label={copy.lead_kicker}>
           <p className="rv-lead__k">
             {copy.lead_kicker}
