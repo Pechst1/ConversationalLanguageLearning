@@ -5057,6 +5057,10 @@ class AtelierCorrectionService:
             # read «Line fixed» with that difference still in the line.
             in_place = repair_line_from_parts(source, errata)
             accepted = [target, in_place if in_place and not sentence_differences(in_place, target) else None]
+            # #946 / #174: one accept-list, not one stored string. A sentence the item
+            # itself accepts is right in the correction box too, whatever line the
+            # model printed («Elle a chaud ce soir» against a stored «Elle a chaude»).
+            accepted += _accepted_answers(attempt.prompt_payload or {})
         else:
             # #503: a keyed round asks for «the corrected line» too. The line is
             # the key's own corrected answer for the item, or the learner's line

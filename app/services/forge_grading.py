@@ -1045,6 +1045,17 @@ def reconcile_with_sentence(refined: dict[str, Any], learner_text: Any, language
     if not isinstance(corrected, str) or not corrected.strip() or not line:
         return refined
     errata = [item for item in refined.get("errata") or [] if isinstance(item, dict)]
+    # #946: the fixes and the sentence are read by the rules as one line, as
+    # ``verify_correction`` reads every other surface's. Each fix was checked alone in
+    # the learner's line: «est» -> «a» and «chaud» -> «chaude» both hold in «Elle est
+    # chaud», and the line they make, «Elle a chaude», is wrong French.
+    errata, unsettled = correction_contract.held_in_line(repair_line_from_parts(line, errata) or corrected, errata)
+    settled = correction_contract.repair_text(corrected)
+    if unsettled or settled != corrected or errata != refined.get("errata"):
+        refined = {**refined, "errata": errata, "corrected_answer": settled}
+        if unsettled:
+            refined["dropped_errata"] = [*refined.get("dropped_errata", []), *unsettled]
+        corrected = settled
     asks = [
         item for item in errata
         if item.get("task_error_type") != "task_compliance"
