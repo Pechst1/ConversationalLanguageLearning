@@ -40,6 +40,8 @@ RING_BY_MAKE: dict[str, Ring] = {
     "caption": "headline",
     "opinion": "report",  # «Au comptoir»: the learner's quote in Romy's vox pop
     "fil": "report",  # «Le fil»: the learner's telling of the wire
+    "titre": "headline",  # «Le titre»: the learner's own honest headline
+    "intox": "report",  # «L'intox express»: the five statements set right
 }
 
 

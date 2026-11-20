@@ -13,6 +13,8 @@ export { RvComptoir, comptoirCopy, COMPTOIR_FR } from './comptoir';
 export type { RvComptoirProps } from './comptoir';
 export { RvFil, filCopy, FIL_FR } from './fil';
 export type { RvFilProps } from './fil';
+export { RvRubrique, rubriqueCopy, TITRE_FR, INTOX_FR } from './rubriques';
+export type { RvRubriqueProps } from './rubriques';
 export { RvSessionHead, RvColumn } from './RvSessionHead';
 export type { RvSessionHeadProps } from './RvSessionHead';
 export { RvStage, stageCast } from './RvStage';

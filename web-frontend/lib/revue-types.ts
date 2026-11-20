@@ -20,6 +20,16 @@
  */
 
 import { parseFilPage, parseFilView, type RvFilPage, type RvFilView } from './revue-fil-types';
+import {
+  parseIntoxPage,
+  parseIntoxView,
+  parseTitrePage,
+  parseTitreView,
+  type RvIntoxPage,
+  type RvIntoxView,
+  type RvTitrePage,
+  type RvTitreView,
+} from './revue-rubriques-types';
 
 export type RvSpan = [number, number];
 
@@ -31,8 +41,8 @@ export type RvRoomPhase = 'open' | 'bouclage' | 'boucle';
 export type RvMakeKind = 'headline_choice' | 'headline_write' | 'reader_question' | 'short_report' | 'caption';
 export const RV_MAKE_KINDS = ['headline_choice', 'headline_write', 'reader_question', 'short_report', 'caption'] as const;
 /** What a session files: a make, or `opinion` («Au comptoir»: the learner's quote in Romy's vox pop, never offered as a make). */
-export type RvMadeKind = RvMakeKind | 'opinion' | 'fil';
-export const RV_MADE_KINDS = [...RV_MAKE_KINDS, 'opinion', 'fil'] as const;
+export type RvMadeKind = RvMakeKind | 'opinion' | 'fil' | 'titre' | 'intox';
+export const RV_MADE_KINDS = [...RV_MAKE_KINDS, 'opinion', 'fil', 'titre', 'intox'] as const;
 export type RvLanguage = 'en' | 'de' | 'fr';
 export type RvPurpose = 'understand_change' | 'explain_disagreement' | 'choose_angle' | 'prepare_dispatch';
 /** `look` (§8.4): on arrival, Romy points at the story's picture with the words it shows. */
@@ -239,6 +249,9 @@ export type RvClosing = {
   comptoirPage: RvComptoirPage | null;
   /** «Le fil» (2026-11-20): «La page»; null otherwise. */
   filPage: RvFilPage | null;
+  /** «Le titre», «L'intox express» (2026-11-20): «La page»; null otherwise. */
+  titrePage: RvTitrePage | null;
+  intoxPage: RvIntoxPage | null;
 };
 export type RvSessionView = {
   id: string;
@@ -259,10 +272,13 @@ export type RvSessionView = {
   artifact: RvMade | null;
   closing: RvClosing | null;
   /** «Au comptoir»: fixed at the start for the session's life; `chat` with the switch off. */
-  mode: 'chat' | 'comptoir' | 'fil';
+  mode: 'chat' | 'comptoir' | 'fil' | 'titre' | 'intox';
   comptoir: RvComptoirView | null;
   /** «Le fil» (2026-11-20): the dealt assignment's view; null unless `mode` is `fil`. */
   fil: RvFilView | null;
+  /** «Le titre», «L'intox express» (2026-11-20): null unless `mode` says so. */
+  titre: RvTitreView | null;
+  intox: RvIntoxView | null;
 };
 export type RvWordEvidence = { fr: string; outcome: RvOutcome; capabilityKnown: boolean };
 /** WIRE §6.3 · the Papier rubric (`revue-rubric-v1`). */
@@ -392,6 +408,13 @@ export type RvErrorCode =
   | 'revue_fil_session'
   | 'revue_fil_out_of_order'
   | 'revue_fil_bad_act'
+  | 'revue_not_rubrique'
+  | 'revue_titre_session'
+  | 'revue_titre_out_of_order'
+  | 'revue_titre_bad_act'
+  | 'revue_intox_session'
+  | 'revue_intox_out_of_order'
+  | 'revue_intox_bad_act'
   | 'unauthorized'
   | 'validation'
   | 'rate_limited'
@@ -440,6 +463,13 @@ export function parseRevueError(status: number, data: unknown): RevueError {
       'revue_fil_session',
       'revue_fil_out_of_order',
       'revue_fil_bad_act',
+      'revue_not_rubrique',
+      'revue_titre_session',
+      'revue_titre_out_of_order',
+      'revue_titre_bad_act',
+      'revue_intox_session',
+      'revue_intox_out_of_order',
+      'revue_intox_bad_act',
       'rate_limited',
     ];
     if ((known as string[]).includes(code)) {
@@ -743,6 +773,8 @@ export function parseClosing(raw: Json): RvClosing {
     vignette: isObject(raw.vignette) ? parseVignette(raw.vignette) : null,
     comptoirPage: isObject(raw.comptoir_page) ? parseComptoirPage(raw.comptoir_page) : null,
     filPage: isObject(raw.fil_page) ? parseFilPage(raw.fil_page) : null,
+    titrePage: isObject(raw.titre_page) ? parseTitrePage(raw.titre_page) : null,
+    intoxPage: isObject(raw.intox_page) ? parseIntoxPage(raw.intox_page) : null,
   };
 }
 
@@ -794,9 +826,20 @@ export function parseSessionView(raw: Json): RvSessionView {
     artifact: isObject(raw.artifact) ? parseMade(raw.artifact) : null,
     closing: isObject(raw.closing) ? parseClosing(raw.closing) : null,
     // A comptoir session without its view is drawn as a chat: never a player with nothing to show.
-    mode: raw.mode === 'comptoir' && isObject(raw.comptoir) ? 'comptoir' : raw.mode === 'fil' && isObject(raw.fil) ? 'fil' : 'chat',
+    mode:
+      raw.mode === 'comptoir' && isObject(raw.comptoir)
+        ? 'comptoir'
+        : raw.mode === 'fil' && isObject(raw.fil)
+          ? 'fil'
+          : raw.mode === 'titre' && isObject(raw.titre)
+            ? 'titre'
+            : raw.mode === 'intox' && isObject(raw.intox)
+              ? 'intox'
+              : 'chat',
     comptoir: raw.mode === 'comptoir' && isObject(raw.comptoir) ? parseComptoirView(raw.comptoir) : null,
     fil: raw.mode === 'fil' && isObject(raw.fil) ? parseFilView(raw.fil, parseSource) : null,
+    titre: raw.mode === 'titre' && isObject(raw.titre) ? parseTitreView(raw.titre, parseSource, parseClaim) : null,
+    intox: raw.mode === 'intox' && isObject(raw.intox) ? parseIntoxView(raw.intox, parseSource) : null,
   };
 }
 
