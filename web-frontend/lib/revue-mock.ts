@@ -55,6 +55,9 @@
  * screens (`POST …/comptoir`, the same replay rules as the server) and its close prints
  * «La page». The other stories stay chats.
  *
+ * «Le titre» / «L'intox express» (`titre: true` / `intox: true`; `/revue?mock=1&titre=1` or
+ * `&intox=1`, WIRE §11): «La Fête de la musique» leads and plays that assignment
+ * (`lib/revue-mock-rubriques.ts`), its card without the counter's question.
  * «Le fil» (`fil: true`; `/revue?mock=1&fil=1`, WIRE §10): the recommended story is «Le bac»
  * with its wire (`lib/revue-mock-fil.ts`), a session started on it plays the five screens
  * (`POST …/fil`) and its close prints «La page». With `comptoir` too, Céline stays a counter.
@@ -82,6 +85,21 @@ import {
   type MockComptoirState,
 } from './revue-mock-comptoir';
 import { FIL_CLOSE_LINE, applyFilAct, filClose, filView, newFilState, type FilContext, type MockFilState } from './revue-mock-fil';
+import {
+  INTOX_CLOSE_LINE,
+  TITRE_CLOSE_LINE,
+  applyIntoxAct,
+  applyTitreAct,
+  intoxClose,
+  intoxView,
+  newIntoxState,
+  newTitreState,
+  titreClose,
+  titreView,
+  type MockIntoxState,
+  type MockTitreState,
+  type RubriqueContext,
+} from './revue-mock-rubriques';
 
 type Json = Record<string, any>;
 type Lang = 'en' | 'de' | 'fr';
@@ -673,6 +691,9 @@ type MockSession = {
   comptoir?: MockComptoirState | null;
   /** «Le fil»: the session plays the five screens; the learner's acts so far. */
   fil?: MockFilState | null;
+  /** «Le titre» / «L'intox express» (WIRE §11): the learner's acts so far. */
+  titre?: MockTitreState | null;
+  intox?: MockIntoxState | null;
 };
 
 export type MockOptions = {
@@ -694,6 +715,10 @@ export type MockOptions = {
   comptoir?: boolean;
   /** «Le fil» (WIRE §10): the switch on — «Le bac» leads and plays the five screens (default false). */
   fil?: boolean;
+  /** «Le titre» (WIRE §11, `&titre=1`): «La Fête de la musique» leads and plays «Le titre» (default false). */
+  titre?: boolean;
+  /** «L'intox express» (WIRE §11, `&intox=1`): «La Fête de la musique» leads and plays it (default false; `titre` wins). */
+  intox?: boolean;
   /** «Le pourquoi»: Romy's marks carry their rule, the settled sentence its notes (default false). */
   pourquoi?: boolean;
   /** «Papier · photos»: every stage carries a `pictures` list of three, placeholders (default false). */
@@ -780,6 +805,8 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
   const persist = options.persist ?? typeof window !== 'undefined';
   const pictureOf = (d: MockDossier) => (options.pictures ? d.picture ?? null : null);
   const takesOf = (d: MockDossier) => (options.comptoir ? TAKES[d.id] ?? null : null);
+  /** The assignment «La Fête de la musique» plays in the mock (`titre` wins over `intox`). */
+  const rubriqueMode = (): 'titre' | 'intox' | null => (options.titre ? 'titre' : options.intox ? 'intox' : null);
   let sessions: Record<string, MockSession> = {};
 
   if (persist) {
@@ -864,7 +891,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     evergreen: d !== CELINE,
     stage: stageOf(d),
     // «Au comptoir»: the question of the day and the three regulars, while the switch is on.
-    ...(takesOf(d) ? { question_fr: takesOf(d)?.question.fr, cast: takesOf(d)?.guests.map((g) => g.id) } : {}),
+    ...(takesOf(d) && !(rubriqueMode() && d === FETE) ? { question_fr: takesOf(d)?.question.fr, cast: takesOf(d)?.guests.map((g) => g.id) } : {}),
   });
   const supportOf = (s: MockSession) => {
     const a1 = s.band === 'A1' || s.supportLevel > 0;
@@ -989,6 +1016,28 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     };
   };
 
+  /** «Le titre» / «L'intox express»: what the scripted loops need from the session around it. */
+  const rubriqueContext = (s: MockSession): RubriqueContext => {
+    const d = dossierById(s.dossierId) as MockDossier;
+    const lead = leadOf(s, d);
+    return {
+      band: s.band,
+      language: s.language,
+      closed: Boolean(s.closing),
+      titleFr: d.title_fr,
+      datelineFr: d.place.name_fr,
+      lead: { fr: lead.fr, tr: s.language === 'fr' ? null : ((lead as Json)[s.language] ?? null) },
+      sources: d.sources.map((src) => sourceOf(d, src.id)),
+      claim: (id) => {
+        const c = d.claims.find((row) => row.id === id);
+        return c ? claimWire(d, c) : null;
+      },
+      claimsFr: d.claims.map((c) => c.fr),
+      fail: (status, detail) => httpError(status, detail),
+      pourquoi: Boolean(options.pourquoi),
+    };
+  };
+
   /** «Le fil»: what the scripted loop needs from the session around it. */
   const filContext = (s: MockSession): FilContext => {
     const d = dossierById(s.dossierId) as MockDossier;
@@ -1046,6 +1095,8 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       closing: s.closing,
       ...(s.comptoir ? { mode: 'comptoir', comptoir: comptoirView(s.comptoir, comptoirContext(s)) } : {}),
       ...(s.fil ? { mode: 'fil', fil: filView(s.fil, filContext(s)) } : {}),
+      ...(s.titre ? { mode: 'titre', titre: titreView(s.titre, rubriqueContext(s)) } : {}),
+      ...(s.intox ? { mode: 'intox', intox: intoxView(s.intox, rubriqueContext(s)) } : {}),
     };
   };
 
@@ -1056,9 +1107,15 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     const done = filed();
     return {
       week: WEEK,
-      recommended: cardOf(options.fil ? BAC : options.comptoir ? CELINE : MARCHE),
+      recommended: cardOf(rubriqueMode() ? FETE : options.fil ? BAC : options.comptoir ? CELINE : MARCHE),
       recommended_reason: 'interests',
-      alternatives: options.fil ? [cardOf(options.comptoir ? CELINE : MARCHE), cardOf(FETE)] : options.comptoir ? [cardOf(MARCHE), cardOf(FETE)] : [cardOf(GREVE), cardOf(FETE)],
+      alternatives: rubriqueMode()
+        ? [cardOf(options.fil ? BAC : options.comptoir ? CELINE : MARCHE), cardOf(GREVE)]
+        : options.fil
+          ? [cardOf(options.comptoir ? CELINE : MARCHE), cardOf(FETE)]
+          : options.comptoir
+            ? [cardOf(MARCHE), cardOf(FETE)]
+            : [cardOf(GREVE), cardOf(FETE)],
       evergreen_only: true,
       resume: current
         ? {
@@ -1114,7 +1171,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       if (d) chosenBy = 'learner';
       else miss = true;
     }
-    d = d ?? (options.fil ? BAC : options.comptoir ? CELINE : MARCHE);
+    d = d ?? (rubriqueMode() ? FETE : options.fil ? BAC : options.comptoir ? CELINE : MARCHE);
     const s: MockSession = {
       id: `mock-${Math.random().toString(36).slice(2, 10)}`,
       dossierId: d.id,
@@ -1143,6 +1200,14 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       comptoir: null,
       fil: null,
     };
+    // «Le titre» / «L'intox express» (WIRE §11): «La Fête de la musique» plays the dealt one, with no thread.
+    if (rubriqueMode() && d === FETE && !miss) {
+      if (rubriqueMode() === 'titre') s.titre = newTitreState();
+      else s.intox = newIntoxState();
+      sessions[s.id] = s;
+      save();
+      return viewOf(s);
+    }
     // «Au comptoir» (WIRE §9.1): a story with takes starts at the counter, with no thread.
     if (takesOf(d) && !miss) {
       s.comptoir = newComptoirState();
@@ -1555,6 +1620,56 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     return { session: viewOf(s), error };
   };
 
+  /** WIRE §11.2: one act on «Le titre» or «L'intox express». */
+  const rubriqueAct = (id: string, body: Json) => {
+    const s = sessionOr404(id);
+    if (!s.titre && !s.intox) throw httpError(409, { code: 'revue_not_rubrique' });
+    const error = s.titre ? applyTitreAct(s.titre, body, rubriqueContext(s)) : applyIntoxAct(s.intox as MockIntoxState, body, rubriqueContext(s));
+    save();
+    return { session: viewOf(s), error };
+  };
+
+  /** «La page» of «Le titre» or «L'intox express»: no model call; settled first. */
+  const closeRubrique = (s: MockSession) => {
+    const d = dossierById(s.dossierId) as MockDossier;
+    const ctx = rubriqueContext(s);
+    let own = '';
+    if (s.titre) {
+      const out = titreClose(s.titre, ctx);
+      own = out.own;
+      s.artifact = { kind: 'titre', text_fr: out.printed, contribution: [], learner_fr: own, proof: out.proof };
+      s.closing = { romy_line_fr: TITRE_CLOSE_LINE, dispatch: out.dispatch, titre_page: out.page };
+    } else {
+      const out = intoxClose(s.intox as MockIntoxState, ctx);
+      own = out.own;
+      s.artifact = { kind: 'intox', text_fr: `${out.page.score} sur ${out.page.total}, ${d.title_fr}`, contribution: [], learner_fr: own || null };
+      s.closing = { romy_line_fr: INTOX_CLOSE_LINE, dispatch: out.dispatch, intox_page: out.page };
+    }
+    const kept = vocabularyOf(d).map((v) => ({ ...glossOf(v, s.language), used: own !== '' && fold(own).includes(fold(v.fr)) }));
+    const page = (s.closing.titre_page ?? s.closing.intox_page) as Json;
+    page.words = kept.map((row) => row.fr);
+    Object.assign(s.closing, {
+      kept: { words: kept, claims: d.claims.slice(0, 2).map((c) => claimWire(d, c)) },
+      question_kept_fr: null,
+      colophon_fr: 'La suite la semaine prochaine.',
+    });
+    s.vignette = {
+      id: `vig-${s.id}`,
+      session_id: s.id,
+      dossier_id: d.id,
+      week: WEEK.iso,
+      place_label_fr: d.place.name_fr.split(',')[0],
+      ring: s.titre ? 'headline' : 'report',
+      kept_contribution: Boolean(own),
+      pictogram_svg: PICTOGRAMS[d.topic] ?? PICTOGRAMS.city,
+      headline_fr: d.title_fr,
+      minted_at: stamp(),
+    };
+    s.closing.vignette = s.vignette;
+    s.closedAt = stamp();
+    save();
+  };
+
   /** «La page» of the wire: no model call; the telling settled first. */
   const closeFil = (s: MockSession) => {
     const d = dossierById(s.dossierId) as MockDossier;
@@ -1633,6 +1748,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     const d = dossierById(s.dossierId) as MockDossier;
     if (!s.closing && s.comptoir) closeComptoir(s);
     if (!s.closing && s.fil) closeFil(s);
+    if (!s.closing && (s.titre || s.intox)) closeRubrique(s);
     if (!s.closing) {
       const made = s.artifact;
       const kind = made ? String(made.kind) : 'none';
@@ -1745,12 +1861,16 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
         .sort((a, b) => String(b.minted_at).localeCompare(String(a.minted_at)));
       return { vignettes: minted };
     }
-    const m = path.match(/^\/revue\/sessions\/([^/]+)(?:\/(turns|make|close|comptoir|fil))?$/);
+    const m = path.match(/^\/revue\/sessions\/([^/]+)(?:\/(turns|make|close|comptoir|fil|rubrique))?$/);
     if (m) {
       const id = decodeURIComponent(m[1]);
       if (method === 'GET' && !m[2]) return viewOf(sessionOr404(id));
       if (method === 'POST' && m[2] === 'comptoir' && options.comptoir) return comptoirAct(id, body);
       if (method === 'POST' && m[2] === 'fil' && options.fil) return filAct(id, body);
+      if (method === 'POST' && m[2] === 'rubrique' && rubriqueMode()) return rubriqueAct(id, body);
+      if ((m[2] === 'turns' || m[2] === 'make') && (sessions[id]?.titre || sessions[id]?.intox)) {
+        throw httpError(409, { code: sessions[id]?.titre ? 'revue_titre_session' : 'revue_intox_session' });
+      }
       if ((m[2] === 'turns' || m[2] === 'make') && sessions[id]?.fil) throw httpError(409, { code: 'revue_fil_session' });
       // WIRE §9.1: a comptoir session has no chat turn and no make.
       if ((m[2] === 'turns' || m[2] === 'make') && sessions[id]?.comptoir) throw httpError(409, { code: 'revue_comptoir_session' });

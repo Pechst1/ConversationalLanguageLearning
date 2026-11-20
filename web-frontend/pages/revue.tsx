@@ -15,6 +15,8 @@
                      ?comptoir=1 turns «Au comptoir» on (WP-119-AU-COMPTOIR: the
                      Céline story leads the week and plays as the counter's debate);
                      ?fil=1 turns «Le fil» on («Le bac» leads and plays the wire);
+                     ?titre=1 / ?intox=1: «La Fête de la musique» leads and plays
+                     «Le titre» / «L'intox express»;
                      ?pourquoi=1 gives Romy's marks their rule; ?photos=1 gives every
                      story a `pictures` list of three (placeholders, no network).
 
@@ -81,6 +83,8 @@ export default function RevuePage() {
           pictures: router.query.pictures !== '0',
           comptoir: router.query.comptoir === '1',
           fil: router.query.fil === '1',
+          titre: router.query.titre === '1',
+          intox: router.query.intox === '1',
           pourquoi: router.query.pourquoi === '1',
           photos: router.query.photos === '1',
         });

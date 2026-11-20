@@ -500,3 +500,98 @@ test('«Le pourquoi» at the counter (`comptoir`, `pourquoi`): the marks carry t
   assert.equal(s.comptoir.opinion.proof, 'fixed');
   assert.ok(s.comptoir.opinion.notes.length >= 2 && s.comptoir.opinion.notes.every((n) => n.why && n.ruleId));
 });
+
+// Follow-up (integration): the dev mock gains a session for each of the two new assignments.
+test('«Le titre» (`titre: true`): «La Fête de la musique» plays read → three (a wrong pick) → trap (a miss) → À toi (marks, fix) → «La page»', async () => {
+  const client = createMockRevueClient({ persist: false, titre: true, pourquoi: true, photos: true, band: 'A2', language: 'de' });
+  const week = await client.week();
+  assert.equal(week.offer.recommended.dossierId, 'evergreen-fete-de-la-musique');
+  assert.equal(week.offer.recommended.questionFr, null, 'the card promises no counter');
+  let s = await client.start();
+  assert.equal(s.mode, 'titre');
+  assert.equal(s.titre.step, 'read');
+  assert.equal(s.stage.pictures.length, 3);
+  const act = async (body) => {
+    const result = await client.rubrique(s.id, body);
+    s = result.session;
+    return result.error;
+  };
+  await act({ act: 'open' });
+  assert.equal(s.titre.step, 'three');
+  assert.ok(s.titre.three.headlines.every((h) => h.role === null && h.why === null), 'nothing says which is honest');
+  const exaggerated = (await (async () => {
+    for (const h of s.titre.three.headlines) if (/tout le monde/.test(h.text.fr)) return h.key;
+    return null;
+  })());
+  await act({ act: 'pick', key: exaggerated });
+  const picked = s.titre.three.headlines.find((h) => h.key === exaggerated);
+  assert.equal(picked.role, 'exaggerated');
+  assert.ok(picked.why.tr && picked.claim, 'a wrong pick says why, with its claim');
+  assert.equal(s.titre.three.solution, null, 'never the solution before the retry');
+  const honest = s.titre.three.headlines.find((h) => /gratuite/.test(h.text.fr)).key;
+  await act({ act: 'pick', key: honest });
+  assert.equal(s.titre.step, 'trap');
+  const words = s.titre.trap.words;
+  await act({ act: 'trap', words: [words.findIndex((w) => w.fr === 'fête')] });
+  assert.equal(s.titre.trap.fine.length, 1);
+  assert.deepEqual(s.titre.trap.solution, [], 'never the answer after one miss');
+  await act({ act: 'trap', words: ['tout', 'le', 'monde'].map((w) => words.findIndex((x) => x.fr === w)) });
+  assert.equal(s.titre.step, 'build');
+  assert.equal(s.titre.build.input, 'frame');
+  assert.equal((await act({ act: 'build', text: 'plaît à tout le monde' })).code, 'says_too_much');
+  await act({ act: 'build', text: 'est gratuite et le gens sont content' });
+  assert.equal(s.titre.build.proof, 'marked');
+  assert.ok(s.titre.build.marks.every((m) => m.why), 'each mark carries its rule');
+  assert.doesNotMatch(JSON.stringify(s.titre.build), /les gens|contents|fix_fr/, 'no solution before the retry');
+  await act({ act: 'build_fix', text: 'La Fête de la musique est gratuite et les gens sont contents' });
+  assert.equal(s.titre.build.proof, 'fixed');
+  assert.ok(s.titre.build.notes.length >= 1);
+  const { closing } = await client.close(s.id);
+  assert.equal(closing.titrePage.headlineFr, 'La Fête de la musique est gratuite et les gens sont contents');
+  assert.match(closing.dispatch.bylineFr, /d'après Ministère de la Culture/);
+});
+
+test('«L’intox express» (`intox: true`): five statements one at a time, two corrections, «La page»', async () => {
+  for (const band of ['A1', 'B1']) {
+    const client = createMockRevueClient({ persist: false, intox: true, band, language: 'en' });
+    let s = await client.start();
+    assert.equal(s.mode, 'intox');
+    const act = async (body) => {
+      const result = await client.rubrique(s.id, body);
+      s = result.session;
+      return result.error;
+    };
+    await act({ act: 'open' });
+    assert.equal(s.intox.step, 'round');
+    assert.ok(s.intox.round.cards.every((c) => c.answer === null && c.true === null && c.why === null), 'nothing past the text before an answer');
+    let wrong = 0;
+    while (s.intox.round.current) {
+      const card = s.intox.round.cards.find((c) => c.key === s.intox.round.current);
+      const isFalse = /juillet|voisins/.test(card.text.fr);
+      const value = wrong < 2 ? (isFalse ? 'vrai' : 'faux') : isFalse ? 'faux' : 'vrai';
+      wrong += 1;
+      await act({ act: 'answer', key: card.key, value });
+      const answered = s.intox.round.cards.find((c) => c.key === card.key);
+      assert.ok(answered.why, 'each answer says why');
+      if (!answered.correct || answered.true === false) assert.ok(answered.quote && answered.quote.sourceName, 'a miss or a false one: the quote and its source');
+    }
+    assert.equal(s.intox.round.score, 3);
+    assert.equal(s.intox.step, 'fix');
+    assert.equal(s.intox.fix.items.length, 2);
+    for (const item of s.intox.fix.items) {
+      assert.equal(item.rightFr, null, 'never the right words before the retry');
+      const right = /juillet/.test(item.text.fr) ? 'le 21 juin' : 'le ministère de la Culture';
+      if (band === 'A1') {
+        await act({ act: 'fix', key: item.key, value: item.options.find((o) => o !== right) });
+        assert.equal(s.intox.fix.items.find((row) => row.key === item.key).rightFr, null, 'a miss sends back to the quote');
+        await act({ act: 'fix', key: item.key, value: right });
+      } else {
+        await act({ act: 'fix', key: item.key, text: item.text.fr.replace(item.wrongFr, right) });
+      }
+      assert.ok(s.intox.fix.items.find((row) => row.key === item.key).correct);
+    }
+    const { closing } = await client.close(s.id);
+    assert.equal(closing.intoxPage.score, 3);
+    assert.equal(closing.intoxPage.fixed, 2);
+  }
+});
