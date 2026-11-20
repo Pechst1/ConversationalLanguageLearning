@@ -6,7 +6,7 @@
  * defaulted: a view the client cannot read is drawn as nothing, never as a wrong answer.
  */
 
-import type { RvComptoirMark, RvComptoirMarkKind, RvComptoirProof, RvComptoirText, RvSource } from './revue-types';
+import { parseComptoirNotes, type RvComptoirMark, type RvComptoirMarkKind, type RvComptoirNote, type RvComptoirProof, type RvComptoirText, type RvSource } from './revue-types';
 
 type Json = Record<string, any>;
 
@@ -65,6 +65,8 @@ export type RvFilTell = {
   tries: number;
   maxTries: number;
   printedFr: string | null;
+  /** «Le pourquoi» (`REVUE_POURQUOI_ENABLED`), once settled: the marks explained, as the counter's. */
+  notes?: RvComptoirNote[];
 };
 export type RvFilView = {
   step: RvFilStep;
@@ -189,10 +191,12 @@ export function parseFilView(raw: Json, parseSource: (row: Json) => RvSource): R
             spanFr: str(row.span_fr),
             start: num(row.start),
             kind: oneOf(row.kind, MARK_KINDS, 'mot') as RvComptoirMarkKind,
+            ...(str(row.why).trim() ? { why: str(row.why).trim() } : {}),
           })).filter((mark) => mark.spanFr),
           tries: num(tell.tries),
           maxTries: num(tell.max_tries) || 2,
           printedFr: strOrNull(tell.printed_fr),
+          ...(Array.isArray(tell.notes) && tell.notes.length ? { notes: parseComptoirNotes(tell.notes) } : {}),
         }
       : null,
   };

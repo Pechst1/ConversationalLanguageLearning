@@ -102,6 +102,24 @@ def edit_instructions(context: dict[str, Any] | None) -> str:
     return extended.replace("\n- reply_fr:", f"\n{_WHY_RULES}\n- reply_fr:", 1)
 
 
+FIL_PROMPT_VERSION = "fil-edit-v2"
+_FIL_SCHEMA_V1 = '{"edited_fr": str, "marks": [{"span_fr": str, "kind": str}]}'
+_FIL_SCHEMA_V2 = '{"edited_fr": str, "marks": [{"span_fr": str, "kind": str, "why_hint": str, "why_full": str}]}'
+
+
+def fil_edit_instructions(context: dict[str, Any] | None) -> str:
+    """«Le fil»'s ``fil_edit`` instructions, as :func:`edit_instructions`: today's
+    (``fil-edit-v1``) unless the context carries :data:`EXPLAIN_KEY`, then v2 (the same
+    ``why_hint`` / ``why_full`` rules as the counter's v4)."""
+
+    from app.services.revue.fil_loop import FIL_EDIT_INSTRUCTIONS
+
+    if not (context or {}).get(EXPLAIN_KEY):
+        return FIL_EDIT_INSTRUCTIONS
+    extended = FIL_EDIT_INSTRUCTIONS.replace(_FIL_SCHEMA_V1, _FIL_SCHEMA_V2, 1)
+    return extended.replace("\n- French typography:", f"\n{_WHY_RULES}\n- French typography:", 1)
+
+
 def explain_language(encounter: Any, loaded: Any) -> str:
     """The learner's correction language (mother tongue folded onto en / de / fr), from their
     user row; the plan's gloss language when the row cannot be read."""
@@ -465,6 +483,7 @@ def remember(db: Any, user_id: Any, rounds: list[tuple[str, list[dict[str, Any]]
 
 __all__ = [
     "EXPLAIN_KEY",
+    "FIL_PROMPT_VERSION",
     "POURQUOI_PROMPT_VERSION",
     "SOURCE_TYPE",
     "check_why",
@@ -472,6 +491,7 @@ __all__ = [
     "enabled",
     "explain_language",
     "explain_marks",
+    "fil_edit_instructions",
     "gives_away",
     "hint_of",
     "mark_fixes",

@@ -41,6 +41,7 @@ from loguru import logger
 from app.schemas.revue import (
     RvClosing,
     RvComptoirMark,
+    RvComptoirNote,
     RvComptoirRead,
     RvComptoirText,
     RvDispatch,
@@ -59,7 +60,7 @@ from app.schemas.revue import (
     RvFilWords,
     RvKept,
 )
-from app.services.revue import comptoir, comptoir_loop, voice
+from app.services.revue import comptoir, comptoir_loop, pourquoi, voice
 from app.services.revue.dossier import (
     ComptoirText,
     EditorialDossier,
@@ -526,11 +527,16 @@ def _tell_view(wire: FilWire, band: str, seed: str, language: str, acts: Acts) -
         learner_fr=str(acts.tell.get("learner_fr")) if acts.tell else None,
         draft_fr=proof["draft"] if proof else None,
         proof=proof["proof"] if proof else None,  # type: ignore[arg-type]
-        marks=[RvComptoirMark(span_fr=str(m.get("span_fr")), start=int(m.get("start") or 0), kind=str(m.get("kind")))  # type: ignore[arg-type]
+        marks=[RvComptoirMark(span_fr=str(m.get("span_fr")), start=int(m.get("start") or 0), kind=str(m.get("kind")),  # type: ignore[arg-type]
+                              why=pourquoi.hint_of(m))
                for m in (proof["marks"] if proof else []) if isinstance(m, dict) and m.get("kind") in comptoir_loop.MARK_KINDS],
         tries=proof["tries"] if proof else 0,
         max_tries=FIX_TRIES,
         printed_fr=proof["printed"] if proof else None,
+        # «Le pourquoi», once settled: the counter's notes, from the same rounds of marks.
+        notes=[RvComptoirNote(**note) for note in pourquoi.notes_of(pourquoi.rounds_of(acts.tell, acts.fixes),
+                                                                     proof["proof"])
+               if note["kind"] in comptoir_loop.MARK_KINDS] if proof else [],
     )
 
 
@@ -642,7 +648,7 @@ def _tell(encounter: RevueEncounter, loaded: Loaded, wire: FilWire, *, band: str
     state.append("fil", act="tell", learner_fr=learner, typed_fr=typed, parts=list(body.parts or []),
                  proof=check["proof"], target_fr=check["target"], marks=check["marks"], source=check["source"],
                  cost_usd=check["cost"], refused=check["refused"],
-                 prompt_version=FIL_EDIT_PROMPT_VERSION if kind != "tiles" else None)
+                 prompt_version=edit_prompt_version() if kind != "tiles" else None)
     return None
 
 
@@ -661,6 +667,7 @@ def _tell_fix(encounter: RevueEncounter, loaded: Loaded, wire: FilWire, acts: Ac
         if proof["tries"] < 1:
             raise _out_of_order(step, "tell_fix")
         state.append("fil", act="tell_fix", by="romy", proof="corrected", target_fr=proof["target"])
+        _settle(encounter, loaded, acts, "corrected")
         return None
     text = re.sub(r"\s+", " ", body.text or "").strip()
     if comptoir.word_count(text) < (A2_MIN_WORDS if band == "A2" else FREE_MIN_WORDS):
@@ -675,7 +682,7 @@ def _tell_fix(encounter: RevueEncounter, loaded: Loaded, wire: FilWire, acts: Ac
         row.update(proof="fixed", target_fr=proof["target"])
     else:
         check = _proofread(encounter, loaded, wire, band=band, learner_fr=learner)
-        row.update(cost_usd=check["cost"], refused=check["refused"], prompt_version=FIL_EDIT_PROMPT_VERSION)
+        row.update(cost_usd=check["cost"], refused=check["refused"], prompt_version=edit_prompt_version())
         if check["proof"] == "as_written":
             row.update(proof="as_written", target_fr="")
         elif check["proof"] == "clean":
@@ -685,7 +692,23 @@ def _tell_fix(encounter: RevueEncounter, loaded: Loaded, wire: FilWire, acts: Ac
         else:
             row.update(proof="marked", target_fr=check["target"], marks=check["marks"])
     state.append("fil", act="tell_fix", **row)
+    _settle(encounter, loaded, acts, str(row.get("proof")))
     return None
+
+
+def _settle(encounter: RevueEncounter, loaded: Loaded, acts: Acts, proof: str) -> None:
+    """«Le pourquoi», as at the counter (``comptoir_loop._settle``): once the marks are settled
+    the slips go to the learner's error memory (``acts`` as they were before this fix)."""
+
+    if pourquoi.enabled() and proof in {"fixed", "corrected"}:
+        pourquoi.remember(encounter.db, loaded.row.user_id, pourquoi.rounds_of(acts.tell, acts.fixes), proof,
+                          session_id=str(loaded.row.id), dossier_id=loaded.dossier.id)
+
+
+def edit_prompt_version() -> str:
+    """The ``fil_edit`` prompt in use: v2 with «Le pourquoi» on (``pourquoi.py``), else v1."""
+
+    return pourquoi.FIL_PROMPT_VERSION if pourquoi.enabled() else FIL_EDIT_PROMPT_VERSION
 
 
 # ---------------------------------------------------------------------------
@@ -760,9 +783,13 @@ def _proofread(encounter: RevueEncounter, loaded: Loaded, wire: FilWire, *, band
     edit = getattr(encounter.provider, "fil_edit", None)
     if not callable(edit):
         return out
+    context = edit_context(loaded.dossier, wire, band=band, learner_fr=learner_fr)
+    language = pourquoi.explain_language(encounter, loaded) if pourquoi.enabled() else None
+    if language:
+        context[pourquoi.EXPLAIN_KEY] = language
     before = meter(encounter.provider)
     try:
-        raw = edit(edit_context(loaded.dossier, wire, band=band, learner_fr=learner_fr))
+        raw = edit(context)
     except Exception as exc:  # noqa: BLE001 - the learner's text stands
         logger.bind(session_id=str(loaded.row.id)).warning("revue fil: edit failed ({})", exc)
         raw = None
@@ -773,6 +800,9 @@ def _proofread(encounter: RevueEncounter, loaded: Loaded, wire: FilWire, *, band
     out["refused"] = checked.get("_problems") or None
     if checked.get("edited_fr"):
         marks = comptoir_loop.proof_marks(learner_fr, checked["edited_fr"], checked.get("marks") or [])
+        if language and marks:  # «Le pourquoi»: the counter's checked whys; no regulars' takes here
+            marks = pourquoi.explain_marks(marks, raw.get("marks"), learner_fr=learner_fr, target_fr=checked["edited_fr"],
+                                           dossier=loaded.dossier, takes=None, band=band, language=language)
         out.update(target=checked["edited_fr"], marks=marks, proof="marked" if marks else "clean", source="model")
     return out
 

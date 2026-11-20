@@ -210,6 +210,41 @@ test('A2 (de): three words per strip, the frames, and Romy marks without the ans
   assert.ok(footButtons(html) <= 2);
 });
 
+// Integration (Papier · together): «Raconter» shows the pourquoi as the counter does.
+const HINT_DE = 'Im Französischen richten sich Artikel und Adjektiv in der Zahl nach dem Nomen.';
+function withPourquoi(settled) {
+  const raw = JSON.parse(JSON.stringify(SESSIONS.a2_marked));
+  const tell = raw.fil.tell;
+  if (!settled) {
+    tell.marks = tell.marks.map((mark) => ({ ...mark, why: HINT_DE }));
+    return raw;
+  }
+  const printed = tell.draft_fr.replace('il sont', 'ils sont');
+  Object.assign(tell, { proof: 'fixed', marks: [], tries: 1, draft_fr: printed, printed_fr: printed });
+  tell.notes = [{ span_fr: 'il', kind: 'accord', why: `${HINT_DE.slice(0, -1)}: «ils sont».`, example_fr: 'Les candidats sont nombreux.', rule_id: 'plural_s' }];
+  return raw;
+}
+
+test('A2 (de), Le pourquoi on: the marks open their rule (no answer), the notes once settled', () => {
+  const marked = types.parseSessionView(withPourquoi(false));
+  assert.equal(marked.fil.tell.marks[0].why, HINT_DE, 'the why is parsed');
+  let html = render(h(RvFil, { client: {}, session: marked, onExit: () => {} }));
+  let text = visibleText(html);
+  assert.match(html, /class="ct-mark ct-mark--why"[^>]*>il<\/button>/, 'the mark is a button');
+  assert.match(html, /aria-label="Warum „il“\?"/);
+  assert.doesNotMatch(text, /ils sont/, 'no solution before the retry');
+  assert.ok(footButtons(html) <= 2);
+
+  const settled = types.parseSessionView(withPourquoi(true));
+  assert.equal(settled.fil.tell.notes.length, 1, 'the notes are parsed');
+  html = render(h(RvFil, { client: {}, session: settled, onExit: () => {} }));
+  text = visibleText(html);
+  assert.match(html, /class="ct-notes"/);
+  assert.match(text, /«ils sont»/, 'the full why once settled');
+  assert.match(text, /Im Artikel:/);
+  assert.match(text, /Diese Regel kommt in La Forge wieder\./);
+});
+
 test('B1 (en): the chrome is French from B1; free telling with the sequence words shown and counted', () => {
   const html = screen('b1_tell');
   const text = visibleText(html);

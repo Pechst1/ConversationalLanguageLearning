@@ -373,6 +373,58 @@ def test_a_failing_edit_prints_the_telling_as_written(db: Session) -> None:
     assert tell.proof == "as_written" and tell.printed_fr == text
 
 
+def test_with_le_pourquoi_on_the_tellings_marks_explain_their_rule_as_at_the_counter(db: Session, monkeypatch) -> None:
+    """Integration (Papier · together): «Raconter» uses the pourquoi's explained marks — the
+    hint in the mother tongue before the fix (never the answer), the full why once settled,
+    and the slip kept in the error memory for La Forge."""
+
+    from app.db.models.error import UserError
+    from app.services.revue import pourquoi
+
+    monkeypatch.setattr(settings, "REVUE_POURQUOI_ENABLED", True, raising=False)
+    fake = FakeRevueProvider()
+    revue = Revue(db, fake)
+    user = make_user(db, level="A2.1", native="de", played=("comptoir", "chat"))
+    row = revue.start(user, week=WEEK, dossier_id=BAC)
+    solve_order(revue, row)
+    solve_words(revue, row)
+    result = act(revue, row, act="tell", texts=["est créé en 1808", "compte moins, il sont contents"])
+    edit = [c for c in fake.calls if c[0] == "fil_edit"][-1][1]
+    assert edit["explain_language"] == "de", "the explanation language is passed as data"
+    tell = result.session.fil.tell
+    assert tell.proof == "marked" and [(m.span_fr, m.kind) for m in tell.marks] == [("il", "accord")]
+    assert tell.marks[0].why and "Nomen" in tell.marks[0].why, "the hint, in German"
+    shown = json.dumps(result.session.model_dump(mode="json"), ensure_ascii=False)
+    assert "ils sont" not in shown and "why_full" not in shown and "fix_fr" not in shown, "no solution before a retry"
+    assert not pourquoi.gives_away(tell.marks[0].why, "il", "ils")
+    assert not json.loads(shown)["fil"]["tell"].get("notes"), "the full why waits for the fix"
+    event = next(e for e in state_of(row).events if e.payload.get("act") == "tell")
+    assert event.payload["prompt_version"] == "fil-edit-v2"
+
+    tell = act(revue, row, act="tell_fix", text=tell.draft_fr.replace("il sont", "ils sont")).session.fil.tell
+    assert tell.proof == "fixed"
+    assert [(n.span_fr, n.kind) for n in tell.notes] == [("il", "accord")]
+    assert tell.notes[0].why and "«ils sont»" in tell.notes[0].why, "the full why may show the fix now"
+    kept = list(db.scalars(select(UserError).where(UserError.user_id == user.id)).all())
+    assert len(kept) == 1, "the slip comes back in La Forge"
+
+
+def test_with_le_pourquoi_off_the_telling_is_todays(db: Session, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "REVUE_POURQUOI_ENABLED", False, raising=False)
+    fake = FakeRevueProvider()
+    revue = Revue(db, fake)
+    row = revue.start(make_user(db, level="A2.1", native="de", played=("comptoir", "chat")), week=WEEK, dossier_id=BAC)
+    solve_order(revue, row)
+    solve_words(revue, row)
+    tell = act(revue, row, act="tell", texts=["est créé en 1808", "compte moins, il sont contents"]).session.fil.tell
+    assert "explain_language" not in [c for c in fake.calls if c[0] == "fil_edit"][-1][1]
+    assert tell.marks and all(m.why is None for m in tell.marks)
+    event = next(e for e in state_of(row).events if e.payload.get("act") == "tell")
+    assert event.payload["prompt_version"] == "fil-edit-v1"
+    tell = act(revue, row, act="tell_fix", text=tell.draft_fr.replace("il sont", "ils sont")).session.fil.tell
+    assert tell.proof == "fixed" and not getattr(tell, "notes", None)
+
+
 def test_the_close_waits_for_the_telling(db: Session) -> None:
     revue, row = start_fil(db)
     solve_order(revue, row)

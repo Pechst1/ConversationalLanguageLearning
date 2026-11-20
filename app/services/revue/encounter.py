@@ -1286,9 +1286,12 @@ class OpenAIRevueProvider:
     def fil_edit(self, context: dict[str, Any]) -> dict[str, Any]:
         """«Le fil»: Romy's edit of the learner's two-sentence telling (one call)."""
 
-        from app.services.revue.fil_loop import FIL_EDIT_INSTRUCTIONS, FIL_EDIT_SYSTEM
+        from app.services.revue.fil_loop import FIL_EDIT_SYSTEM
+        from app.services.revue.pourquoi import fil_edit_instructions
 
-        return self.ask_json(FIL_EDIT_INSTRUCTIONS, context, system=FIL_EDIT_SYSTEM, temperature=0.3, label="fil_edit")
+        # Today's instructions unless the context asks for the marks' why («Le pourquoi»).
+        return self.ask_json(fil_edit_instructions(context), context, system=FIL_EDIT_SYSTEM, temperature=0.3,
+                             label="fil_edit")
 
     def guest(self, context: dict[str, Any]) -> dict[str, Any]:
         return self._ask(

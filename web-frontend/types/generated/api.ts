@@ -13570,6 +13570,8 @@ export interface components {
              * @default 0
              */
             min_words?: number;
+            /** Notes */
+            notes?: components["schemas"]["RvComptoirNote"][];
             phrase: components["schemas"]["RvComptoirText"];
             /** Printed Fr */
             printed_fr?: string | null;

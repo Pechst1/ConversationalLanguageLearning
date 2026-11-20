@@ -8,7 +8,9 @@
  *
  * From A2 Romy marks, the learner fixes, as at the counter: the marks sit on the
  * learner's own words with the kind of slip (never the answer), the field holds the
- * sentence to fix, «Corrige-le, Romy» after one try. Once settled, what prints and how
+ * sentence to fix, «Corrige-le, Romy» after one try. With «Le pourquoi» on, the marks are
+ * the counter's (`RvProofMarks`: each opens its rule, never the answer) and the settled
+ * telling carries its notes (`RvProofNotes`). Once settled, what prints and how
  * it got there; then «Voir la page» (the close).
  */
 
@@ -18,8 +20,10 @@ import { Action } from '@/components/atelier-v2/ui';
 import { textAnswerField } from '@/components/atelier-v2/ui/Choice';
 
 import { COMPTOIR_FR, COMPTOIR_LINES, inPaperLabel } from '../comptoir/comptoir-copy';
-import { markSegments, wordDiff } from '../comptoir/comptoir-model';
+import { wordDiff } from '../comptoir/comptoir-model';
 import { MineLine, RomyLine } from '../comptoir/RvComptoirParts';
+import { RvProofMarks } from '../comptoir/RvProofMarks';
+import { RvProofNotes } from '../comptoir/RvProofNotes';
 import { fill } from '../revue-copy';
 import { RvComposer } from '../RvComposer';
 import { RvTranslate } from '../RvThread';
@@ -145,24 +149,15 @@ export function RvFilTell(props: FilStepProps) {
           <p className="ct-paper__k" lang="fr">
             {COMPTOIR_FR.proof_marked}
           </p>
-          <p className="ct-paper__fr" lang="fr">
-            {markSegments(draft, tell.marks).map((segment, index) =>
-              segment.kind ? (
-                <mark key={index} className="ct-mark" data-kind={segment.kind}>
-                  {segment.text}
-                </mark>
-              ) : (
-                <React.Fragment key={index}>{segment.text}</React.Fragment>
-              ),
-            )}
-          </p>
-          <ul className="ct-marks">
-            {tell.marks.map((mark, index) => (
-              <li key={index} className="ct-why">
-                <b lang="fr">{mark.spanFr}</b> · {ccopy.mark_kinds[mark.kind]}
-              </li>
-            ))}
-          </ul>
+          <RvProofMarks
+            key={`marks-${tell.tries}`}
+            draftFr={draft}
+            marks={tell.marks}
+            kindLabels={ccopy.mark_kinds}
+            copy={ccopy.pourquoi}
+            whyLanguage={glossLanguage}
+            idPrefix="fl"
+          />
         </section>
       </>
     );
@@ -188,6 +183,7 @@ export function RvFilTell(props: FilStepProps) {
             : printed}
         </p>
         <RvTranslate textFr={printed} glossLanguage={glossLanguage} copy={copy} />
+        <RvProofNotes notes={tell.notes} kindLabels={ccopy.mark_kinds} copy={ccopy.pourquoi} whyLanguage={glossLanguage} />
       </section>
     );
   }
