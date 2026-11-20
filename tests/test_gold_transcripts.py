@@ -692,3 +692,68 @@ def test_the_day_runs_on_its_own_and_posts_as_the_week_s_day(monkeypatch, capsys
     assert "partial" in cli._not_posted(args("surface", ["scene"]))
     assert "comparison" in cli._not_posted(args("surface", [DAY_SURFACE], "label", "acts-first"))
 
+
+
+# ---------------------------------------------------------------------------
+# The day's rule (P3): a gold item may carry it, and the offline prompt reads it
+# ---------------------------------------------------------------------------
+
+
+def _day_rule_items(surface: str) -> list[dict]:
+    return [item for item in S.load_items(surface) if item.get("day_rules")]
+
+
+@pytest.mark.parametrize("surface", ["scene", "correction"])
+def test_a_gold_item_s_day_rule_reaches_the_offline_prompt(surface):
+    """P3 (#879) has the scene's tutor and the Courrier's corrector correct an error
+    against the day's rule first. The gate renders their prompts with no database: an
+    item that names its day's rule hands the model that rule, as the card states it and
+    as ``day_rules.for_turn`` would return it, and an item that names none hands none."""
+
+    from tests.gold_transcripts.gate import _Recorder
+
+    items = _day_rule_items(surface)
+    assert items, f"{surface}: no item carries a day's rule"
+    for item in items:
+        today = S._units()[item["day_rules"]["today"]]
+        recorder = _Recorder()
+        try:
+            S.SURFACES[surface](item, recorder)
+        except Exception:  # noqa: BLE001, S110 - the recorder refuses every call
+            pass
+        sent = json.dumps([messages for _kind, messages, _kwargs in recorder.calls], ensure_ascii=False)
+        assert recorder.calls, item["id"]
+        assert item["day_rules"]["today"] in sent, f"{item['id']}: the day's rule is not in the prompt"
+        assert today["name_fr"] in sent, item["id"]
+        for unit in item["day_rules"].get("recent") or []:
+            assert unit in sent, f"{item['id']}: the recent rule {unit} is not in the prompt"
+        # Every day's-rule item breaks the rule and makes another error: the truth names the
+        # first correction, and it is one of the errors.
+        truth = item["truth"]
+        assert len(truth["errors"]) >= 2 and truth["first"] in truth["errors"], item["id"]
+    plain = next(item for item in S.load_items(surface) if not item.get("day_rules"))
+    recorder = _Recorder()
+    try:
+        S.SURFACES[surface](plain, recorder)
+    except Exception:  # noqa: BLE001, S110
+        pass
+    sent = json.dumps([messages for _kind, messages, _kwargs in recorder.calls], ensure_ascii=False)
+    assert "FR2_" not in sent, f"{plain['id']}: a rule reached an item that names none"
+
+
+@pytest.mark.parametrize("surface", ["scene", "correction"])
+def test_the_offline_session_reads_no_rule_without_a_warning(surface, caplog):
+    """The stand-in session (``_NoDB``) answers ``day_rules.for_turn`` as an empty
+    database does: no rule, and no «the day's rules are unavailable» line per item."""
+
+    caplog.set_level("WARNING")
+    for item in S.load_items(surface):
+        S.SURFACES[surface](item, FakeModel())
+    assert not [r for r in caplog.records if "day_rules" in r.getMessage()]
+
+
+def test_no_db_answers_for_turn_as_an_empty_database():
+    from app.services import day_rules
+
+    user = SimpleNamespace(id=1)
+    assert day_rules.for_turn(S._NoDB(), user, control_language="en") is None

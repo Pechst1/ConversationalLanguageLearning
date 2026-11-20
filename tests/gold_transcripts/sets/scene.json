@@ -1,6 +1,6 @@
 {
  "surface": "scene",
- "about": "Free scene answers from the live walks (docs/ops/live-walks/<date>.md). Each item is one learner answer to the character's question, laid on the captured A1 story payload of tests/prompt_regression with the character taken from the season's world bible. 'verbatim' quotes the report; 'reconstructed' completes a reply the report only quotes in part, keeping every quoted fragment. 'truth' is what the judge is told: the errors really in the answer, whether it refuses, what is off-script.",
+ "about": "Free scene answers from the live walks (docs/ops/live-walks/<date>.md). Each item is one learner answer to the character's question, laid on the captured A1 story payload of tests/prompt_regression with the character taken from the season's world bible. 'verbatim' quotes the report; 'reconstructed' completes a reply the report only quotes in part, keeping every quoted fragment. 'truth' is what the judge is told: the errors really in the answer, whether it refuses, what is off-script. An item may name 'level' and 'day_rules' ({today: unit id, recent: [unit id, …]}): the day's rule and the week's, handed to the tutor as day_rules.for_turn returns them; its truth names the error to correct 'first'.",
  "items": [
   {
    "id": "s01-reason-restaurant",
@@ -598,6 +598,81 @@
     ],
     "refusal": false,
     "off_script": null
+   }
+  },
+  {
+   "id": "s29-pqp-deja-quitte",
+   "source": "live walk 2026-11-19, B1 day 4, Marin's scene, reply 2 (verbatim; docs/ops/walks/2026-11-17-experience-review/logs/walk2-integration-b1.md on branch claude/experience-review-2026-11-17): the day with three plus-que-parfait errors and no correction",
+   "level": "B1",
+   "character_id": "marin_leveque",
+   "day_rules": {
+    "today": "FR2_B11_PLUS_QUE_PARFAIT",
+    "recent": [
+     "FR2_B12_SUBJ_CONJUNCTIONS",
+     "FR2_B11_DOUBLE_PRONOUNS"
+    ]
+   },
+   "scene": {
+    "title_fr": "Soupe et radiateur en panne",
+    "premise_fr": "Le radiateur est mort. Marin veut savoir comment tu vas, vraiment, dans ce studio froid.",
+    "objective_native": "Tell Marin what you want to say to Gus tomorrow.",
+    "objective_semantics": "Met when the learner says what they will ask or tell Gus.",
+    "opening_line_fr": "Demain, tu veux lui dire quoi ?",
+    "suggested_response_fr": "Je veux lui parler de la clé."
+   },
+   "history": [
+    {
+     "learner": "Je vais mieux, merci. Quand Lila est partie, j'ai déjà mangé un sandwich, alors je ne veux pas de soupe. Je suis fatigué, mais je lui parlerai demain.",
+     "character": "Je comprends, pas de soupe. Ça me rassure que tu ailles mieux, même si la fatigue reste là. Demain, tu veux lui dire quoi ?"
+    }
+   ],
+   "learner_text": "Je veux lui demander pourquoi Odile m'a laissé la clé. Quand je suis arrivée au café hier, il a déjà quitté sa place, et je n'ai pas pu lui parler. J'ai peur qu'il ne veut jamais me répondre.",
+   "truth": {
+    "errors": [
+     "il a déjà quitté → il avait déjà quitté",
+     "qu'il ne veut → qu'il ne veuille"
+    ],
+    "first": "il a déjà quitté → il avait déjà quitté",
+    "refusal": false,
+    "off_script": null,
+    "note": "the day's rule is the plus-que-parfait: its error is corrected first, before the other one; a correction that changes anything else in the sentence, or leaves the plus-que-parfait error, is wrong"
+   }
+  },
+  {
+   "id": "s30-pqp-deja-parti-romy",
+   "source": "live walk 2026-11-18, B1 day 6, Romy's scene, reply 2 (verbatim; docs/ops/walks/2026-11-17-experience-review/logs/walk-integration-b1.md on branch claude/experience-review-2026-11-17)",
+   "level": "B1",
+   "character_id": "romy_tremblay",
+   "day_rules": {
+    "today": "FR2_B11_PLUS_QUE_PARFAIT",
+    "recent": [
+     "FR2_B11_DOUBLE_PRONOUNS"
+    ]
+   },
+   "scene": {
+    "title_fr": "Romy pose des questions au Mistral",
+    "premise_fr": "Au Mistral, Romy veut savoir qui tu es et ce que tu penses de Solvel. La place de Gus est vide.",
+    "objective_native": "Tell Romy what would make you trust her.",
+    "objective_semantics": "Met when the learner says what Romy would have to do or tell them, or refuses.",
+    "opening_line_fr": "Qu'est-ce qui te ferait confiance ?",
+    "suggested_response_fr": "Dis-moi d'abord pour qui tu travailles."
+   },
+   "history": [
+    {
+     "learner": "Je suis Sarah, la petite-fille de mon grand-mère Odile. Je ne veux pas parler de Solvel, parce que je ne sais pas si je peux te faire confiance. Quand je suis arrivée, Camille m'a dit que Solvel a déjà fait une offre, et je lui ai demandé d'attendre.",
+     "character": "Tu as raison de te méfier. Je ne savais pas que Camille t'avait déjà parlé de l'offre ; je respecte ton attente. Qu'est-ce qui te ferait confiance ?"
+    }
+   ],
+   "learner_text": "Rien, sauf si tu réponds d'abord à ma question : pour qui tu travailles ? Je veux que tu me dis aussi si tu as parlé à Gus. Quand je suis arrivée au café ce matin, il est déjà parti, et je ne leur ai rien dit.",
+   "truth": {
+    "errors": [
+     "il est déjà parti → il était déjà parti",
+     "que tu me dis → que tu me dises"
+    ],
+    "first": "il est déjà parti → il était déjà parti",
+    "refusal": false,
+    "off_script": "the learner asks Romy for whom she works and whether she spoke to Gus",
+    "note": "the day's rule is the plus-que-parfait: its error is corrected first, before the other one; a correction that changes anything else in the sentence, or leaves the plus-que-parfait error, is wrong"
    }
   }
  ]
