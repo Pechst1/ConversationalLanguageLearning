@@ -14654,6 +14654,8 @@ export interface components {
             max_tries?: number;
             /** Max Words */
             max_words: number;
+            /** Notes */
+            notes?: components["schemas"]["RvComptoirNote"][];
             phrase: components["schemas"]["RvComptoirText"];
             /** Printed Fr */
             printed_fr?: string | null;

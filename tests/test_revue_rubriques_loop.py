@@ -449,6 +449,57 @@ def test_a2_completes_the_frame_romy_marks_and_the_learner_fixes(db: Session) ->
     assert closing.titre_page.proof == "fixed" and state_of(row).current_artifact["learner_fr"]
 
 
+def test_with_le_pourquoi_on_the_headlines_marks_explain_their_rule_as_in_le_fil(db: Session, monkeypatch) -> None:
+    """Follow-up (integration): «À toi» uses «Le pourquoi»'s explained marks as the counter and
+    «Le fil» do — the hint in the mother tongue before the fix (never the answer), the full
+    why once settled, the slip kept for La Forge."""
+
+    from app.db.models.error import UserError
+    from app.services.revue import pourquoi
+
+    monkeypatch.setattr(settings, "REVUE_POURQUOI_ENABLED", True, raising=False)
+    fake = FakeRevueProvider()
+    revue, row = start(db, "titre", provider=fake, level="A2.1", native="de")
+    solve_three(revue, row)
+    solve_trap(revue, row)
+    result = act(revue, row, act="build", text="est gratuite et le gens sont content")
+    edit = [c for c in fake.calls if c[0] == "titre_edit"][-1][1]
+    assert edit["explain_language"] == "de", "the explanation language is passed as data"
+    build = result.session.titre.build
+    assert build.proof == "marked" and build.marks and all(m.why and "Nomen" in m.why for m in build.marks)
+    shown = json.dumps(result.session.model_dump(mode="json"), ensure_ascii=False)
+    assert "les gens" not in shown and "contents" not in shown, "no solution before a retry"
+    assert "why_full" not in shown and "fix_fr" not in shown
+    assert all(not pourquoi.gives_away(m.why, m.span_fr, "les gens") for m in build.marks)
+    assert not json.loads(shown)["titre"]["build"].get("notes"), "the full why waits for the fix"
+    assert events(row, "titre")[-1]["prompt_version"] == "titre-edit-v2"
+    assert "why_hint" in pourquoi.titre_edit_instructions(edit)
+    assert "why_hint" not in pourquoi.titre_edit_instructions({k: v for k, v in edit.items() if k != "explain_language"})
+
+    build = act(revue, row, act="build_fix",
+                text="La Fête de la musique est gratuite et les gens sont contents").session.titre.build
+    assert build.proof == "fixed"
+    assert {n.kind for n in build.notes} == {"accord"} and all(n.why for n in build.notes)
+    assert any("«les gens»" in n.why for n in build.notes), "the full why may show the fix now"
+    user_id = row.user_id
+    assert db.scalars(select(UserError).where(UserError.user_id == user_id)).all(), "the slip comes back in La Forge"
+
+
+def test_with_le_pourquoi_off_the_headline_is_todays(db: Session, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "REVUE_POURQUOI_ENABLED", False, raising=False)
+    fake = FakeRevueProvider()
+    revue, row = start(db, "titre", provider=fake, level="A2.1", native="de")
+    solve_three(revue, row)
+    solve_trap(revue, row)
+    build = act(revue, row, act="build", text="est gratuite et le gens sont content").session.titre.build
+    assert "explain_language" not in [c for c in fake.calls if c[0] == "titre_edit"][-1][1]
+    assert build.marks and all(m.why is None for m in build.marks)
+    assert events(row, "titre")[-1]["prompt_version"] == "titre-edit-v1"
+    build = act(revue, row, act="build_fix",
+                text="La Fête de la musique est gratuite et les gens sont contents").session.titre.build
+    assert build.proof == "fixed" and not build.notes
+
+
 def test_b1_writes_freely_and_a_failing_edit_prints_it_as_written(db: Session) -> None:
     class Down(FakeRevueProvider):
         def titre_edit(self, context):

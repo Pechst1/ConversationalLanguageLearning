@@ -886,6 +886,15 @@ class RvTitreBuild(RevueModel):
     tries: int = 0
     max_tries: int = 2
     printed_fr: str | None = None
+    #: «Le pourquoi» (``REVUE_POURQUOI_ENABLED``), once settled: the marks explained. Omitted when empty.
+    notes: list[RvComptoirNote] = Field(default_factory=list)
+
+    @model_serializer(mode="wrap")
+    def _omit_absent_notes(self, handler: Any):  # noqa: ANN202 - no return type: the schema stays the fields
+        data = handler(self)
+        if isinstance(data, dict) and not data.get("notes"):
+            data.pop("notes", None)
+        return data
 
 
 class RvTitreView(RevueModel):

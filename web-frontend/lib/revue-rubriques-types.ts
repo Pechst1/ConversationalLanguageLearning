@@ -7,7 +7,7 @@
  * answer. Both play through ONE act route (`POST …/rubrique`).
  */
 
-import type { RvClaim, RvComptoirMark, RvComptoirMarkKind, RvComptoirProof, RvComptoirText, RvSource } from './revue-types';
+import { parseComptoirNotes, type RvClaim, type RvComptoirMark, type RvComptoirMarkKind, type RvComptoirNote, type RvComptoirProof, type RvComptoirText, type RvSource } from './revue-types';
 
 type Json = Record<string, any>;
 
@@ -66,6 +66,8 @@ export type RvTitreBuild = {
   tries: number;
   maxTries: number;
   printedFr: string | null;
+  /** «Le pourquoi», once settled: the marks explained (absent when off or empty). */
+  notes?: RvComptoirNote[];
 };
 export type RvTitreView = {
   step: RvTitreStep;
@@ -206,7 +208,13 @@ function proof(value: unknown): RvComptoirProof | null {
   return value == null ? null : oneOf(value, PROOFS, 'as_written');
 }
 function marks(value: unknown): RvComptoirMark[] {
-  return list(value, (row) => ({ spanFr: str(row.span_fr), start: num(row.start), kind: oneOf(row.kind, MARK_KINDS, 'mot') as RvComptoirMarkKind })).filter(
+  return list(value, (row) => ({
+    spanFr: str(row.span_fr),
+    start: num(row.start),
+    kind: oneOf(row.kind, MARK_KINDS, 'mot') as RvComptoirMarkKind,
+    // «Le pourquoi»: the hint (the rule, never the answer), when the switch is on.
+    ...(str(row.why).trim() ? { why: str(row.why).trim() } : {}),
+  })).filter(
     (mark) => mark.spanFr,
   );
 }
@@ -273,6 +281,7 @@ export function parseTitreView(raw: Json, parseSource: (row: Json) => RvSource, 
           tries: num(build.tries),
           maxTries: num(build.max_tries) || 2,
           printedFr: strOrNull(build.printed_fr),
+          ...(Array.isArray(build.notes) && build.notes.length ? { notes: parseComptoirNotes(build.notes) } : {}),
         }
       : null,
   };

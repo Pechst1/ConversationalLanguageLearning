@@ -11,8 +11,9 @@
  *
  * «À toi»: A1 builds from a subject tile and a fact tile (correct by construction); A2
  * completes the frame; B1+ write freely (≤ 12 words). Never the words that said too much
- * (said before sending). From A2 Romy marks, the learner fixes, as in «Le fil»; then «Voir
- * la page».
+ * (said before sending). From A2 Romy marks, the learner fixes, as in «Le fil» (with «Le
+ * pourquoi» on, each mark opens its rule, never the answer, and the settled headline carries
+ * its notes); then «Voir la page».
  */
 
 import React, { useEffect, useState } from 'react';
@@ -21,8 +22,10 @@ import { Action, ArrowRightIcon, CastPortrait } from '@/components/atelier-v2/ui
 import { textAnswerField } from '@/components/atelier-v2/ui/Choice';
 
 import { COMPTOIR_FR, COMPTOIR_LINES, inPaperLabel } from '../comptoir/comptoir-copy';
-import { markSegments, wordDiff } from '../comptoir/comptoir-model';
+import { wordDiff } from '../comptoir/comptoir-model';
 import { MineLine, RomyLine } from '../comptoir/RvComptoirParts';
+import { RvProofMarks } from '../comptoir/RvProofMarks';
+import { RvProofNotes } from '../comptoir/RvProofNotes';
 import { fill } from '../revue-copy';
 import { RvComposer } from '../RvComposer';
 import { RvClaim, RvTranslate } from '../RvThread';
@@ -278,24 +281,15 @@ export function RvTitreBuild(props: TitreStepProps) {
           <p className="ct-paper__k" lang="fr">
             {COMPTOIR_FR.proof_marked}
           </p>
-          <p className="ct-paper__fr" lang="fr">
-            {markSegments(draft, build.marks).map((segment, index) =>
-              segment.kind ? (
-                <mark key={index} className="ct-mark" data-kind={segment.kind}>
-                  {segment.text}
-                </mark>
-              ) : (
-                <React.Fragment key={index}>{segment.text}</React.Fragment>
-              ),
-            )}
-          </p>
-          <ul className="ct-marks">
-            {build.marks.map((mark, index) => (
-              <li key={index} className="ct-why">
-                <b lang="fr">{mark.spanFr}</b> · {ccopy.mark_kinds[mark.kind]}
-              </li>
-            ))}
-          </ul>
+          <RvProofMarks
+            key={`marks-${build.tries}`}
+            draftFr={draft}
+            marks={build.marks}
+            kindLabels={ccopy.mark_kinds}
+            copy={ccopy.pourquoi}
+            whyLanguage={glossLanguage}
+            idPrefix="rb"
+          />
         </section>
       </>
     );
@@ -321,6 +315,7 @@ export function RvTitreBuild(props: TitreStepProps) {
             : printed}
         </p>
         <RvTranslate textFr={printed} glossLanguage={glossLanguage} copy={copy} />
+        <RvProofNotes notes={build.notes} kindLabels={ccopy.mark_kinds} copy={ccopy.pourquoi} whyLanguage={glossLanguage} />
       </section>
     );
   }

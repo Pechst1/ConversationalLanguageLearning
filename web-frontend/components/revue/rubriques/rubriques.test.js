@@ -268,3 +268,28 @@ test('«L’intox express» B1: the chrome is French, the statements are rewritt
   assert.equal((html.match(/class="ct-opt"/g) || []).length, 0);
   assert.doesNotMatch(text, ENGLISH_CHROME);
 });
+
+// Follow-up (integration): «À toi» uses «Le pourquoi»'s explained marks as the counter and
+// «Le fil» do — each mark a button opening its rule in the mother tongue, never the answer;
+// the settled headline with its notes.
+test('«Le titre» A2 (de) with «Le pourquoi»: the marks open their rule, the settled headline carries its notes', () => {
+  const raw = JSON.parse(JSON.stringify(SESSIONS.titre_a2_marked));
+  const why = 'Im Französischen richten sich Artikel und Adjektiv in der Zahl nach dem Nomen.';
+  raw.titre.build.marks = raw.titre.build.marks.map((mark) => ({ ...mark, why }));
+  let html = render(h(RvRubrique, { client: {}, session: types.parseSessionView(raw), onExit: () => {} }));
+  assert.equal((html.match(/class="ct-mark ct-mark--why"/g) || []).length, 2, 'each mark is a button');
+  assert.doesNotMatch(visibleText(html), /les gens|contents/, 'no solution before the retry');
+
+  const settled = JSON.parse(JSON.stringify(SESSIONS.titre_a2_marked));
+  Object.assign(settled.titre.build, {
+    proof: 'fixed',
+    marks: [],
+    draft_fr: 'La Fête de la musique est gratuite et les gens sont contents',
+    printed_fr: 'La Fête de la musique est gratuite et les gens sont contents',
+    tries: 1,
+    notes: [{ span_fr: 'le', kind: 'accord', why: `${why.slice(0, -1)}: «les gens».`, example_fr: null, rule_id: 'plural_s' }],
+  });
+  html = render(h(RvRubrique, { client: {}, session: types.parseSessionView(settled), onExit: () => {} }));
+  assert.match(html, /class="ct-notes"/);
+  assert.match(visibleText(html), /Nomen: «les gens»/);
+});

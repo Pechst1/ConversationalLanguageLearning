@@ -120,6 +120,21 @@ def fil_edit_instructions(context: dict[str, Any] | None) -> str:
     return extended.replace("\n- French typography:", f"\n{_WHY_RULES}\n- French typography:", 1)
 
 
+TITRE_PROMPT_VERSION = "titre-edit-v2"
+
+
+def titre_edit_instructions(context: dict[str, Any] | None) -> str:
+    """«Le titre»'s ``titre_edit`` instructions, as :func:`fil_edit_instructions`: today's
+    (``titre-edit-v1``) unless the context carries :data:`EXPLAIN_KEY`, then v2."""
+
+    from app.services.revue.titre_loop import TITRE_EDIT_INSTRUCTIONS
+
+    if not (context or {}).get(EXPLAIN_KEY):
+        return TITRE_EDIT_INSTRUCTIONS
+    extended = TITRE_EDIT_INSTRUCTIONS.replace(_FIL_SCHEMA_V1, _FIL_SCHEMA_V2, 1)
+    return extended.replace("\n- French typography:", f"\n{_WHY_RULES}\n- French typography:", 1)
+
+
 def explain_language(encounter: Any, loaded: Any) -> str:
     """The learner's correction language (mother tongue folded onto en / de / fr), from their
     user row; the plan's gloss language when the row cannot be read."""
@@ -497,6 +512,7 @@ __all__ = [
     "FIL_PROMPT_VERSION",
     "POURQUOI_PROMPT_VERSION",
     "SOURCE_TYPE",
+    "TITRE_PROMPT_VERSION",
     "check_why",
     "edit_instructions",
     "enabled",
@@ -513,4 +529,5 @@ __all__ = [
     "rule_for",
     "settled",
     "story_example",
+    "titre_edit_instructions",
 ]

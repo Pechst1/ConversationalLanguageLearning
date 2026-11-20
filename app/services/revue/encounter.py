@@ -1310,9 +1310,11 @@ class OpenAIRevueProvider:
     def titre_edit(self, context: dict[str, Any]) -> dict[str, Any]:
         """«Le titre»: Romy's edit of the learner's headline (one call)."""
 
-        from app.services.revue.titre_loop import TITRE_EDIT_INSTRUCTIONS, TITRE_EDIT_SYSTEM
+        from app.services.revue.pourquoi import titre_edit_instructions
+        from app.services.revue.titre_loop import TITRE_EDIT_SYSTEM
 
-        return self.ask_json(TITRE_EDIT_INSTRUCTIONS, context, system=TITRE_EDIT_SYSTEM, temperature=0.3,
+        # Today's instructions unless the context asks for the marks' why («Le pourquoi»).
+        return self.ask_json(titre_edit_instructions(context), context, system=TITRE_EDIT_SYSTEM, temperature=0.3,
                              label="titre_edit")
 
     def guest(self, context: dict[str, Any]) -> dict[str, Any]:
