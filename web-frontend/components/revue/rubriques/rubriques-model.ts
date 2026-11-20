@@ -5,6 +5,7 @@
  */
 
 import type { RvIntoxView, RvRubriqueError, RvTitreView } from '@/lib/revue-rubriques-types';
+import type { RvSessionView } from '@/lib/revue-types';
 
 import { quoteSegments, type QuoteSegment } from '../comptoir/comptoir-model';
 import { fill } from '../revue-copy';
@@ -113,4 +114,23 @@ export function refusalCopy(code: string, chrome: RubriqueCopy, reasons: Rubriqu
 export function errorText(copy: RubriqueCopy, error: RvRubriqueError, avoid = ''): string {
   const template = copy.errors[error.code] ?? copy.errors.too_short;
   return fill(template, { n: String(error.count ?? ''), avoid });
+}
+
+/** What changed on screen after an act (the player brings the newest part into view when it
+ * moves): the tries, answers and proofs of whichever assignment the session plays. */
+export function rubriqueProgress(session: Pick<RvSessionView, 'titre' | 'intox' | 'closing'>): string {
+  const titre = session.titre;
+  const intox = session.intox;
+  const parts: Array<string | number> = [];
+  if (titre) {
+    parts.push('t', titre.step, titre.three?.tries ?? '-', String(titre.three?.resolved ?? '-'));
+    parts.push(titre.trap?.tries ?? '-', String(titre.trap?.resolved ?? '-'));
+    parts.push(titre.build?.proof ?? '-', titre.build?.tries ?? '-');
+  }
+  if (intox) {
+    parts.push('i', intox.step, intox.round?.answered ?? '-');
+    for (const item of intox.fix?.items ?? []) parts.push(`${item.key}${item.tries}${item.resolved ? 'r' : ''}`);
+  }
+  parts.push(session.closing ? 'c' : '');
+  return parts.join('|');
 }

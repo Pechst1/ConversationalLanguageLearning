@@ -400,3 +400,20 @@ test('«Corrige» B1: after a miss the field keeps the learner\'s sentence to ed
   const html = render(h(RvRubrique, { client: {}, session: types.parseSessionView(raw), onExit: () => {} }));
   assert.match(html, /<textarea[^>]*>La fête a lieu le 14 juin\.<\/textarea>/);
 });
+
+// Seen at 375 × 812 (A1 de, A2 de, B1 en): the player never scrolled — a new screen opened
+// where the last one was (Romy's line cut under the head), and a wrong pick's why or the
+// honest headline's verdict landed under the foot. It now scrolls as the counter does.
+test('every act moves the progress the player scrolls on, and the newest part comes into the band', () => {
+  const keys = ['titre_a1_three', 'titre_a1_three_wrong', 'titre_a1_trap', 'titre_a1_trap_miss', 'titre_a1_build', 'titre_a2_marked',
+    'intox_a1_round', 'intox_a1_round_miss', 'intox_a1_fix', 'intox_a1_fix_miss'].map((name) => model.rubriqueProgress(session(name)));
+  assert.equal(new Set(keys).size, keys.length, 'each state its own key');
+  const scroll = require('../comptoir/scroll.ts');
+  assert.equal(scroll.anchorDelta(900, 1000, 70, 740, 'nearest'), 260, 'a why under the foot comes up');
+  assert.equal(scroll.anchorDelta(200, 300, 70, 740, 'nearest'), 0, 'already in view: no scroll');
+  assert.equal(scroll.anchorDelta(500, 1500, 70, 740, 'nearest'), 430, 'a tall part stops with its top under the head');
+  assert.equal(scroll.anchorDelta(50, 100, 70, 740, 'start'), -20);
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, 'RvRubrique.tsx'), 'utf8');
+  assert.match(src, /bringNewestIntoView\(/, 'the player brings the newest part into view');
+  assert.match(src, /scrollTo\(\{ top: 0 \}\)/, 'a new screen starts at its top');
+});

@@ -28,7 +28,8 @@ import { revueCopy } from '../revue-copy';
 import { knownGloss, sessionGlosses } from '../revue-model';
 import type { RvWordEvent } from '../RvThread';
 import { INTOX_FR, INTOX_STEP_LABELS_FR, rubriqueCopy, TITRE_FR, TITRE_STEP_LABELS_FR } from './rubriques-copy';
-import { clampStep, errorText, nextStep, openingStep, refusalCopy, stepOrder } from './rubriques-model';
+import { bringNewestIntoView, scrollerOf } from '../comptoir/scroll';
+import { clampStep, errorText, nextStep, openingStep, refusalCopy, rubriqueProgress, stepOrder } from './rubriques-model';
 import { RvIntoxFix, RvIntoxRound } from './RvIntoxSteps';
 import { RvRubriquePage } from './RvRubriquePages';
 import { RvRubriqueRead, type RubriqueStepProps } from './RvRubriqueParts';
@@ -75,6 +76,8 @@ export function RvRubrique({ client, session: initial, language, onExit, onRelev
   const [failed, setFailed] = useState(false);
   const [word, setWord] = useState<WordHelpRequest | null>(null);
   const footRef = useRef<HTMLDivElement | null>(null);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const headRef = useRef<HTMLDivElement | null>(null);
   const voice = useLineVoice();
 
   const shownId = useRef(initial.id);
@@ -102,6 +105,25 @@ export function RvRubrique({ client, session: initial, language, onExit, onRelev
     setShown((current) => (closed ? 'page' : clampStep(view, current, closed)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverStep, closed]);
+
+  // As the counter (seen at 375 px, 2026-11-20): a new screen starts at its top; on the same
+  // screen, after an act, the newest part (a verdict, a why, Romy's marks) comes into view.
+  const firstStep = useRef(true);
+  useEffect(() => {
+    if (firstStep.current) {
+      firstStep.current = false;
+      return;
+    }
+    const scroller = scrollerOf(bodyRef.current);
+    if (scroller && typeof scroller.scrollTo === 'function') scroller.scrollTo({ top: 0 });
+  }, [shown]);
+  const progress = rubriqueProgress(session);
+  const lastProgress = useRef(progress);
+  useEffect(() => {
+    if (lastProgress.current === progress) return;
+    lastProgress.current = progress;
+    bringNewestIntoView(bodyRef.current, headRef.current, footRef.current);
+  }, [progress]);
 
   const wordFor = useCallback(
     (speakerId: string | null, speakerName?: string) => (event: RvWordEvent) => {
@@ -247,8 +269,9 @@ export function RvRubrique({ client, session: initial, language, onExit, onRelev
       data-band={view.band}
       data-ended={ended ? '' : undefined}
       data-readonly={readOnly ? '' : undefined}
+      ref={bodyRef}
     >
-      <div className="rv-top">
+      <div className="rv-top" ref={headRef}>
         <RvComptoirHead
           steps={view.steps}
           shown={shown}
