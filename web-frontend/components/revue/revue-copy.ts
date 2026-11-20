@@ -193,6 +193,11 @@ export type RevueCopy = {
   made_headline: string;
   made_question: string;
   contribution: string;
+  /** «Papier · photos»: the gallery's name for screen readers, its source link, a new tab. */
+  gallery_label: string;
+  picture_source: string;
+  picture_licence: string;
+  new_tab: string;
   for_releve: string;
   kept_count: string;
   file_revue: string;
@@ -378,6 +383,10 @@ const FR: RevueCopy = {
   made_headline: 'Ton titre',
   made_question: 'Ta question pour les lecteurs',
   contribution: 'toi',
+  gallery_label: 'Les images du sujet',
+  picture_source: 'Source',
+  picture_licence: 'Licence',
+  new_tab: 'nouvel onglet',
   for_releve: 'Pour ton Relevé',
   kept_count: '{w} mots · {c} faits',
   file_revue: 'Classer le Papier',
@@ -553,6 +562,10 @@ const EN: RevueCopy = {
   made_headline: 'Your headline',
   made_question: 'Your question for the readers',
   contribution: 'you',
+  gallery_label: 'Pictures of the story',
+  picture_source: 'Source',
+  picture_licence: 'Licence',
+  new_tab: 'new tab',
   for_releve: 'For your Relevé',
   kept_count: '{w} words · {c} facts',
   file_revue: 'File Le Papier',
@@ -728,6 +741,10 @@ const DE: RevueCopy = {
   made_headline: 'Deine Schlagzeile',
   made_question: 'Deine Frage für die Leser',
   contribution: 'du',
+  gallery_label: 'Bilder zum Thema',
+  picture_source: 'Quelle',
+  picture_licence: 'Lizenz',
+  new_tab: 'neuer Tab',
   for_releve: 'Für dein Relevé',
   kept_count: '{w} Wörter · {c} Fakten',
   file_revue: 'Le Papier ablegen',

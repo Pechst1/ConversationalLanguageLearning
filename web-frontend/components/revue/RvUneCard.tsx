@@ -25,6 +25,7 @@ import type { RvMade, RvStoryCard, RvWeek } from '@/lib/revue-types';
 
 import { COMPTOIR_FR } from './comptoir/comptoir-copy';
 import { fill, guestName, type RevueCopy } from './revue-copy';
+import { RvGallery } from './RvGallery';
 import { uneCardParts, wordCount } from './revue-model';
 import { RvStage, stageCast } from './RvStage';
 import { ContributedText } from './RvThread';
@@ -101,6 +102,7 @@ export function RvUneCard({ story, week, state, resumeLine = null, filed = null,
     <div className="rv-une-hero" data-revue-card={state}>
       <article className="rv-une">
         <RvStage plateUrl={story.plateUrl ?? story.stage.plateUrl} size="une" cast={stageCast(story.stage.cast)} still />
+        <RvGallery pictures={story.stage.pictures} mainUrl={story.plateUrl ?? story.stage.plateUrl} size="compact" copy={copy} />
         <div className="rv-une__body">
           <div className="rv-une__folio">
             <p className="av2-label av2-label--story" lang={comptoir ? 'fr' : undefined}>
