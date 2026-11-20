@@ -122,6 +122,10 @@ test('«Lire» shows the strip under the story\'s picture only when there is mor
   const html = render(h(RvComptoirRead, readProps(more)));
   assert.match(html, /aria-label="Pictures of the story"/);
   assert.ok(html.indexOf('ct-pic') < html.indexOf('rv-gallery'), 'the first picture as today, the strip after it');
+  // Seen at 375 px (2026-11-20): the picture plus the strip pushed the story's first line to the
+  // bottom of the first screen. The strip now follows the text to read (the lead and the question).
+  assert.ok(html.indexOf('ct-lead') < html.indexOf('class="rv-gallery"'), 'the lead before the strip');
+  assert.ok(html.indexOf('ct-q') < html.indexOf('class="rv-gallery"'), 'the question before the strip');
   assert.equal((html.match(/rv-gallery__item/g) || []).length, 2);
 });
 

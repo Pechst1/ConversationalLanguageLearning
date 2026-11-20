@@ -67,7 +67,6 @@ export function RvFilRead(props: FilStepProps) {
     <>
       <div className="rv-body ct-body" data-step="read">
         <ComptoirPicture url={session.stage.plateUrl} credit={session.stage.plateKind === 'story'} />
-        <RvGallery pictures={session.stage.pictures} mainUrl={session.stage.plateUrl} copy={copy} />
         <section className="rv-lead ct-lead" aria-label={copy.lead_kicker}>
           <p className="rv-lead__k">
             {copy.lead_kicker}
@@ -90,6 +89,8 @@ export function RvFilRead(props: FilStepProps) {
           />
           {source && <RvSourceLine source={source} copy={copy} />}
         </section>
+        {/* The story's other pictures after the lead: the text first on a phone's first screen. */}
+        <RvGallery pictures={session.stage.pictures} mainUrl={session.stage.plateUrl} copy={copy} />
         {notice}
       </div>
       {!readOnly && (

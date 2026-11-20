@@ -315,6 +315,7 @@ test('«Le titre» and «L’intox express»: «Lire» shows the story’s other
     assert.match(html, /rv-gallery/, name);
     assert.equal((html.match(/rv-gallery__item/g) || []).length, 1, `${name}: the plate is not repeated`);
     assert.match(visibleText(html), /Photo · Camille Exemple · CC BY-SA 4\.0 · Wikimedia Commons/);
+    assert.ok(html.indexOf('ct-pic') < html.indexOf('rv-lead') && html.indexOf('rv-lead') < html.indexOf('class="rv-gallery"'), `${name}: the lead before the strip`);
   }
   assert.doesNotMatch(screen('titre_a1_read'), /rv-gallery/, 'no strip without other pictures');
 });

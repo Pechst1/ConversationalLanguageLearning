@@ -143,7 +143,9 @@ test('A1 (en): «Lire» shows the story\'s other pictures under its picture, eac
   const html = render(h(RvFil, { client: {}, session: types.parseSessionView(raw), onExit: () => {} }));
   assert.match(html, /aria-label="Pictures of the story"/);
   assert.equal((html.match(/rv-gallery__item/g) || []).length, 2, 'the plate is not repeated');
-  assert.ok(html.indexOf('ct-pic') < html.indexOf('rv-gallery') && html.indexOf('rv-gallery') < html.indexOf('rv-lead'), 'under the picture, before the lead');
+  // Seen at 375 px (2026-11-20): the strip before the lead pushed its first line to the bottom of
+  // the first screen; the strip now follows the lead.
+  assert.ok(html.indexOf('ct-pic') < html.indexOf('rv-lead') && html.indexOf('rv-lead') < html.indexOf('class="rv-gallery"'), 'the picture, the lead, then the strip');
   assert.match(visibleText(html), /Photo · Camille Exemple · CC BY-SA 4\.0 · Wikimedia Commons/);
   const plain = render(h(RvFil, { client: {}, session: session('a1_read'), onExit: () => {} }));
   assert.doesNotMatch(plain, /rv-gallery/, 'no strip without other pictures');
