@@ -183,7 +183,9 @@ function FixItem({ item, props }: { item: NonNullable<IntoxStepProps['view']['fi
         </p>
       )}
       {item.resolved && (
-        <div className="ct-fb" data-correct={item.correct ? '' : undefined} data-ct-anchor="nearest">
+        <div className="ct-fb rb-fixed" data-correct={item.correct ? '' : undefined} data-ct-anchor="nearest">
+          {/* «La belle édition»: the line made true gets the desk's stamp, once settled. */}
+          <PpStamp kind="vrai" seed={`${item.key}:fixed`} label={papierCopy(props.chrome).stamp_vrai_aria} size="sm" still={readOnly} />
           {item.fixed && (
             <p className="ct-fb__fr" lang="fr">
               {item.fixed.fr}
