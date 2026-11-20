@@ -43,6 +43,9 @@ export type { RvThreadProps, RvLineProps, RvGlossTextProps, RvWordEvent, RvGuest
 export { RvMakePicker, RvHeadlineChoice, RvQuestionDraft, RvHeadlineWrite, RvShortReport, RvCaption, writeFeedback, captionFeedback, captionShown } from './RvMake';
 export type { RvMakePickerOption, RvHeadlineChoiceProps, RvQuestionDraftProps, RvHeadlineWriteProps, RvShortReportProps, RvCaptionProps } from './RvMake';
 export { RvPicture, PICTURE_CREDIT_FR } from './RvPicture';
+export { RvGallery } from './RvGallery';
+export type { RvGalleryProps } from './RvGallery';
+export { galleryStrip, pictureLinks } from './revue-gallery';
 export type { RvPictureProps } from './RvPicture';
 export { RvDispatch, RvKept, RvCloseVignette } from './RvClose';
 export { RvVignette } from './RvVignette';

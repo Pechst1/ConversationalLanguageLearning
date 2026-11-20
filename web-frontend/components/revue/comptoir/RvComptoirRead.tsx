@@ -10,6 +10,7 @@ import React from 'react';
 
 import { Action, ArrowRightIcon } from '@/components/atelier-v2/ui';
 
+import { RvGallery } from '../RvGallery';
 import { RvGlossText, RvSourceLine, RvTranslate } from '../RvThread';
 import { COMPTOIR_FR } from './comptoir-copy';
 import { GUT_VOTES_FR } from './comptoir-model';
@@ -24,6 +25,7 @@ export function RvComptoirRead(props: ComptoirStepProps) {
     <>
       <div className="rv-body ct-body" data-step="read">
         <ComptoirPicture url={session.stage.plateUrl} credit={session.stage.plateKind === 'story'} />
+        <RvGallery pictures={session.stage.pictures} mainUrl={session.stage.plateUrl} copy={copy} />
         <section className="rv-lead ct-lead" aria-label={copy.lead_kicker}>
           <p className="rv-lead__k">
             {copy.lead_kicker}

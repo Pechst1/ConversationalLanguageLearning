@@ -73,6 +73,27 @@ export type RvStage = {
   plateKind: RvPlateKind;
   /** §8.4: in a session, the words the story's picture shows, glossed (they lead the vocabulary). */
   pictureWords: RvGloss[];
+  /**
+   * «Papier · photos» (2026-11-20): the story's pictures in order — its painted picture, its other
+   * painted shots, then its Wikimedia Commons photos. Empty on an older payload and, with the
+   * default switches, the painted picture alone (or nothing).
+   */
+  pictures: RvPicture[];
+};
+/** «Papier · photos»: one picture of the story's gallery, credited (French in every chrome language). */
+export type RvPicture = {
+  kind: 'illustration' | 'photo';
+  url: string;
+  width: number | null;
+  height: number | null;
+  /** The text alternative: the caption when there is one, else '' (decorative). */
+  altFr: string;
+  captionFr: string | null;
+  /** «Photo · {author} · {licence} · Wikimedia Commons» or «Illustration · Le Papier». */
+  creditFr: string;
+  licence: string | null;
+  licenceUrl: string | null;
+  sourceUrl: string | null;
 };
 export type RvStoryCard = {
   dossierId: string;
@@ -517,6 +538,33 @@ export function parseStage(raw: Json): RvStage {
     // §8.4: an older payload (no `plate_kind`) is a season plate with no picture words.
     plateKind: oneOf(raw.plate_kind, PLATE_KINDS, 'season'),
     pictureWords: list(raw.picture_words, parseGloss),
+    pictures: list(raw.pictures, parsePicture).filter((picture) => picture.url !== ''),
+  };
+}
+
+const PICTURE_KINDS = ['illustration', 'photo'] as const;
+
+function numOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+/** «Papier · photos»: a link is only ever an https URL (a licence deed or the Commons file page). */
+function httpsOrNull(value: unknown): string | null {
+  return typeof value === 'string' && value.startsWith('https://') ? value : null;
+}
+
+export function parsePicture(raw: Json): RvPicture {
+  return {
+    kind: oneOf(raw.kind, PICTURE_KINDS, 'illustration'),
+    url: str(raw.url),
+    width: numOrNull(raw.width),
+    height: numOrNull(raw.height),
+    altFr: str(raw.alt_fr),
+    captionFr: strOrNull(raw.caption_fr),
+    creditFr: str(raw.credit_fr),
+    licence: strOrNull(raw.licence),
+    licenceUrl: httpsOrNull(raw.licence_url),
+    sourceUrl: httpsOrNull(raw.source_url),
   };
 }
 
