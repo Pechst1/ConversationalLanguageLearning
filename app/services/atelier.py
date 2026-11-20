@@ -5425,6 +5425,13 @@ class AtelierCorrectionService:
             self.db.commit()
             self.db.refresh(attempt)
             return attempt, False
+        from app.services import solution_gate
+
+        if solution_gate.served_whole_unread(correction, attempt.verdict):
+            # #855: an unread answer nobody could ask again was served with its fixes whole.
+            # Asked again now (a model configured since), its miss shows the solution: the
+            # learner is never asked to repair words they have already been given.
+            correction = solution_gate.reveal(correction, by="unread")
         correction["ai_review"] = {
             **review,
             "status": "pending",

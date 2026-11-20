@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
 import { oncePerLoad } from '@/lib/once-per-load';
 import { correctRunFrom, seanceAssessment, secondCheckChange } from '@/lib/seance-feedback';
-import { withinWordRange } from '@/lib/word-range';
+import { heldByCeiling } from '@/lib/word-range';
 import { dedupeNotes, forgeCorrectionNotes } from '@/lib/correction-notes';
 import { classifyRepair } from '@/lib/forge-followup';
 import { classificationCopy, classificationGoal, isJudgementLabels, judgementLabel, judgementQuestion } from '@/lib/classification-copy';
@@ -75,6 +75,7 @@ import {
   EpBar,
   EpFoot,
   EpFix,
+  EpBasicFixes,
   EpIns,
   EpLabelFix,
   EpLineFix,
@@ -202,7 +203,7 @@ import { bestComboLine, fillMomentum, momentumCopy } from '@/lib/momentum-copy';
 import { eclairHref, eclairPairLabel } from '@/lib/grammar-map';
 import { playComboTone } from '@/lib/sound';
 import { atelierErrorText, type AtelierErrorNotice } from '@/lib/atelier-errors';
-import { epreuveCopy, fill, wordRangeState, wordRangeText, type EpreuveCopy } from '@/components/epreuve/epreuve-copy';
+import { epreuveCopy, fill, wordCeilingText, wordRangeState, wordRangeText, type EpreuveCopy } from '@/components/epreuve/epreuve-copy';
 import { markedLine, retryOffered, solutionState, solutionWithheld, withheldHints, withheldRepairParts } from '@/lib/solution-gate';
 import { promptParts } from '@/lib/prompt-parts';
 import { usableCard } from '@/lib/rule-card';
@@ -564,7 +565,7 @@ function drillAnswerIsReady(
     // server refuses the same lines); a spoken transcript's length is the recogniser's.
     if (round === 'speak') return true;
     const item = payload.output_ladder?.[round]?.items?.[0] || {};
-    return withinWordRange(String(currentAnswers.text || ''), item.max_words);
+    return !heldByCeiling(round, String(currentAnswers.text || ''), item.max_words);
   }
   return false;
 }
@@ -4294,8 +4295,8 @@ export function ExerciseFeedbackMoment({
   }
   const mood = coachMood(correction, { correct: feedback.correct });
   if (feedback.unscored) {
-    // #333: the rules' real fixes stay listed; nothing here is a verdict.
-    const unreadFixes: Array<{ span: string; replacement: string; start: number }> = correction?.check?.edits || [];
+    // #333: the rules' real fixes stay listed; nothing here is a verdict. #855: whole when no
+    // chance can follow (solution_gate.no_chance_follows); a withheld one is not drawn.
     const unreadState = checkState(correction?.check) === 'basic' ? 'basic' : 'not_checked';
     // #724: «Check again» only where asking again can reach a reader; with none, the line
     // says so plainly instead of «not checked yet» over a button that can never work.
@@ -4309,11 +4310,7 @@ export function ExerciseFeedbackMoment({
         >
           {line === 'basic' ? t.check_basic : line === 'unavailable' ? t.check_unavailable : t.unscored}
         </EpRelecture>
-        {unreadFixes.map((edit) => (
-          <p className="av2-fr" lang="fr" key={`${edit.start}-${edit.span}`}>
-            <s>{edit.span}</s> → <strong>{edit.replacement}</strong>
-          </p>
-        ))}
+        <EpBasicFixes edits={correction?.check?.edits} />
         <EpFoot tone="neutral">
           <EpBar tone="ghost" onClick={onNext}>{t.skip_unscored}</EpBar>
         </EpFoot>
@@ -5268,6 +5265,12 @@ export function OutputLadderPanel({
       />
       <div className="word-count" data-state={wordRangeState(wordCount(answer), item.min_words, item.max_words)}>
         {wordRangeText(t, wordCount(answer), item.min_words, item.max_words)}
+        {(() => {
+          // #853: while the ceiling holds Check, the counter says why (never on `produce`
+          // or a spoken line, where no ceiling holds: lib/word-range.ts CEILING_ROUNDS).
+          const over = wordCeilingText(t, round, answer, item.max_words);
+          return over ? <span className="word-count__over" role="status"> · {over}</span> : null;
+        })()}
       </div>
       {submitted && (() => {
         const modelText = String(seanceAssessment(correction) === 'correct' && productionPhase(correction) !== 'checking' ? correction?.corrected_answer || item.example_answer || '' : '').trim();
