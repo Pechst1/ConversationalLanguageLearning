@@ -2393,20 +2393,29 @@ class RevueEncounter:
         the learner's last two Papiers; the others' material is dropped."""
 
         from app.services.revue import assignments
-        from app.services.revue.fil import wire_of
-        from app.services.revue.intox import intox_of
-        from app.services.revue.titre import titre_of
 
         if not assignments.assignments_enabled():
             return takes, None
-        material = assignments.Material(dossier=dossier, takes=takes, wire=wire_of(dossier),
-                                        titre=titre_of(dossier), intox=intox_of(dossier))
+        material = self._material(dossier, takes)
         dealt = self._dealt(user, material)
         if dealt == "comptoir":
             return takes, None
         if dealt is None:
             return None, None
         return None, (dealt, assignments.dealt_material(material, dealt))
+
+    @staticmethod
+    def _material(dossier: EditorialDossier, takes: Any) -> Any:
+        """What ``dossier`` carries for the dealer: the takes, the wire, the headlines, the
+        statements. The start and the chooser's card deal over the same material."""
+
+        from app.services.revue import assignments
+        from app.services.revue.fil import wire_of
+        from app.services.revue.intox import intox_of
+        from app.services.revue.titre import titre_of
+
+        return assignments.Material(dossier=dossier, takes=takes, wire=wire_of(dossier),
+                                    titre=titre_of(dossier), intox=intox_of(dossier))
 
     def _dealt(self, user: Any, material: Any) -> str | None:
         """The assignment ``user`` is dealt on ``material``'s story (``assignments.deal``)."""
@@ -2418,18 +2427,17 @@ class RevueEncounter:
                                 seed=assignments.seed_for(user.id, material.dossier.id))
 
     def _card_for(self, user: Any, dossier: EditorialDossier) -> RvStoryCard:
-        """The chooser's card, as the session will play: a story dealt «Le fil» (or the chat)
-        carries no «question du jour» and no regulars, so the card never promises the counter
-        (seen in a browser, 2026-11-20). Switch off: today's card."""
+        """The chooser's card, as the session will play: a story dealt «Le fil», «Le titre»,
+        «L'intox express» (or the chat) carries no «question du jour» and no regulars, so the
+        card never promises the counter (seen in a browser, 2026-11-20). The same material as
+        the start (``_material``). Switch off: today's card."""
 
         from app.services.revue import assignments
-        from app.services.revue.fil import wire_of
 
         card = story_card(dossier, self.db)
         if not assignments.assignments_enabled() or card.question_fr is None:
             return card
-        material = assignments.Material(dossier=dossier, takes=dossier.comptoir, wire=wire_of(dossier))
-        if self._dealt(user, material) == "comptoir":
+        if self._dealt(user, self._material(dossier, dossier.comptoir)) == "comptoir":
             return card
         return card.model_copy(update={"question_fr": None, "cast": None})
 

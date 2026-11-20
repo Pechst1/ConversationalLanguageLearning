@@ -179,6 +179,24 @@ def test_a_story_with_headlines_and_statements_is_dealt_one_the_learner_did_not_
     assert out_of_order(revue, bac, act="open") == "revue_not_rubrique"
 
 
+def test_the_chooser_card_and_the_session_agree_on_le_titre_and_l_intox(db: Session) -> None:
+    """Follow-up (integration, as «Le fil» 1cf3d1ce): the week's card asks the same dealer, over
+    the same material, as the start. Before, the card dealt over the counter and the wire only,
+    so a learner dealt «Le titre» was promised «Au comptoir» and its question of the day."""
+
+    def card(user):
+        offer = Revue(db).week_offer(user, WEEK)
+        return next(c for c in [offer.recommended, *offer.alternatives] if c and c.dossier_id == FETE)
+
+    for played, mode in ((("comptoir", "intox"), "titre"), (("titre", "comptoir"), "intox")):
+        user = make_user(db, played=played)
+        assert card(user).question_fr is None and card(user).cast is None, f"{mode}: no counter promise"
+        assert Revue(db).view(Revue(db).start(user, week=WEEK, dossier_id=FETE)).mode == mode
+    user = make_user(db, played=("titre", "intox"))
+    assert card(user).question_fr, "the counter's card keeps its question"
+    assert Revue(db).view(Revue(db).start(user, week=WEEK, dossier_id=FETE)).mode == "comptoir"
+
+
 def test_with_the_switch_off_nothing_changes(db: Session, monkeypatch) -> None:
     monkeypatch.setattr(settings, "REVUE_ASSIGNMENTS_ENABLED", False)
     revue = Revue(db)
