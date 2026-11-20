@@ -305,3 +305,18 @@ test('the order arrows: the live ones look like buttons, a dead one recedes', ()
   assert.match(css, /\.av2 \.fl-strip__moves \.av2-icon-btn \{[^}]*border: 1px solid var\(--av2-line-2\);[^}]*background: var\(--av2-paper\);/);
   assert.match(css, /\.av2 \.fl-strip__moves \.av2-icon-btn:disabled \{[^}]*background: transparent;/);
 });
+
+// Seen in a browser at 375 px (2026-11-20, A2 de): a missed word was explained in a list under
+// all four dispatches — «This dispatch needs…» about a card scrolled out of sight. The reason
+// now sits in the dispatch it is about.
+test('a missed word is explained inside its own dispatch', () => {
+  const html = screen('a1_words_miss');
+  const items = html.match(/<li class="fl-strip"[\s\S]*?<\/li>/g) || [];
+  assert.equal(items.length, 4);
+  assert.match(items[0], /data-miss=""/);
+  assert.match(items[0], /class="ct-why fl-miss"[^>]*>«enfin» means “finally”/);
+  assert.match(items[3], /class="ct-why fl-miss"[^>]*>«d&#x27;abord» means|class="ct-why fl-miss"[^>]*>«d'abord» means/);
+  assert.doesNotMatch(items[1], /fl-miss/);
+  const css = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', '..', '..', 'styles', 'revue-fil.css'), 'utf8');
+  assert.match(css, /\.fl-strip:has\(\.fl-slot\) \.ct-why, \.av2 \.fl-strip:has\(\.fl-options\) \.ct-why \{ grid-column: 1 \/ -1; \}/);
+});

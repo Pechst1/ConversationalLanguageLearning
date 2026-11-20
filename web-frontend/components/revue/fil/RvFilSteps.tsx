@@ -287,6 +287,11 @@ export function RvFilWords(props: FilStepProps) {
                   </span>
                 )}
                 <StripText textFr={strip.fr} tr={strip.tr} props={props} />
+                {missAt.has(index) && (
+                  <p className="ct-why fl-miss" data-ct-anchor="nearest">
+                    {missText(fcopy, missAt.get(index) as (typeof words.misses)[number])}
+                  </p>
+                )}
                 {words.resolved && picked?.tr && (
                   <p className="ct-why" lang={glossLanguage}>
                     <b lang="fr">{picked.fr}</b> · {picked.tr}
@@ -305,12 +310,6 @@ export function RvFilWords(props: FilStepProps) {
             ))}
           </div>
         )}
-        {!words.resolved &&
-          words.misses.map((miss) => (
-            <p key={miss.position} className="ct-why fl-miss" data-ct-anchor="nearest">
-              {missText(fcopy, miss)}
-            </p>
-          ))}
         {words.resolved && (
           <p className="ct-why" data-ct-anchor="nearest">
             {words.correct ? fcopy.words_right : fcopy.words_shown}

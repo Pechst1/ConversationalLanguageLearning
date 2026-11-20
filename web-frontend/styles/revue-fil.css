@@ -25,6 +25,7 @@
 
 /* the sequence words: a slot on each dispatch (A1), three options (A2+) */
 .av2 .fl-strip:has(.fl-slot), .av2 .fl-strip:has(.fl-options) { grid-template-columns: minmax(0, 1fr); }
+.av2 .fl-strip:has(.fl-slot) .ct-why, .av2 .fl-strip:has(.fl-options) .ct-why { grid-column: 1 / -1; }
 .av2 .fl-slot { justify-self: start; min-height: var(--av2-tap); min-width: 110px; padding: 6px 14px; border: 1px dashed var(--av2-line-2);
   border-radius: var(--av2-r-pill); background: var(--av2-paper); color: var(--av2-ink); font: 400 var(--av2-t-body-lg)/1.2 var(--av2-serif); text-align: left; cursor: pointer; }
 .av2 .fl-slot[aria-pressed='true'] { border-style: solid; border-color: var(--av2-ink); }
