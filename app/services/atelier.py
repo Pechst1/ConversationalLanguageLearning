@@ -5093,6 +5093,10 @@ class AtelierCorrectionService:
                 if in_place and (not sentence_differences(in_place, target) or is_preference_swap(in_place, target))
                 else None,
             ]
+            # #946 / #174: one accept-list, not one stored string. A sentence the item
+            # itself accepts is right in the correction box too, whatever line the
+            # model printed («Elle a chaud ce soir» against a stored «Elle a chaude»).
+            accepted += _accepted_answers(attempt.prompt_payload or {})
         else:
             # #503: a keyed round asks for «the corrected line» too. The line is
             # the key's own corrected answer for the item, or the learner's line

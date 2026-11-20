@@ -1020,6 +1020,39 @@ def sentence_differences(line: Any, sentence: Any) -> list[tuple[str, int, int, 
     return correction_contract.line_differences(line, sentence)
 
 
+def _fixes_in_line(line: str, errata: list[dict[str, Any]]) -> tuple[str | None, list[tuple[int, int] | None]]:
+    """The learner's line with every listed fix in it, and where each fix's words stand there.
+
+    The places are the ones ``repair_parts`` put the fixes at, so a rule is read at the
+    fix itself and never at the same short word earlier in the line (#946, review of
+    #957: «Il va a Paris et il est froid» must not turn «est» -> «a» into «est» -> «à»).
+    ``None`` for a fix that is not placed; ``(None, …)`` when the line cannot be cut.
+    """
+
+    from app.services.atelier import narrow_repair, repair_parts
+
+    stands: list[tuple[int, int] | None] = [None] * len(errata)
+    parts = repair_parts(line, errata)
+    if parts is None:
+        return None, stands
+    built = ""
+    for part in parts:
+        if "erratum" not in part:
+            built += str(part.get("text") or "")
+            continue
+        index = int(part["erratum"])
+        wrong = str(errata[index].get("learner_text") or "").strip()
+        target = str(errata[index].get("corrected_target") or "").strip()
+        start = len(built) - narrow_repair(wrong, target)[0]
+        stands[index] = (start, start + len(target))
+        built += str(part.get("fix") or "")
+    for index, where in enumerate(stands):
+        target = str(errata[index].get("corrected_target") or "").strip()
+        if where and (where[0] < 0 or built[where[0] : where[1]].casefold() != target.casefold()):
+            stands[index] = None
+    return built, stands
+
+
 def reconcile_with_sentence(refined: dict[str, Any], learner_text: Any, language: Any = "en") -> dict[str, Any]:
     """The corrections cover every difference the shown correct sentence has (#574).
 
@@ -1045,6 +1078,18 @@ def reconcile_with_sentence(refined: dict[str, Any], learner_text: Any, language
     if not isinstance(corrected, str) or not corrected.strip() or not line:
         return refined
     errata = [item for item in refined.get("errata") or [] if isinstance(item, dict)]
+    # #946: the fixes and the sentence are read by the rules as one line, as
+    # ``verify_correction`` reads every other surface's. Each fix was checked alone in
+    # the learner's line: «est» -> «a» and «chaud» -> «chaude» both hold in «Elle est
+    # chaud», and the line they make, «Elle a chaude», is wrong French.
+    repaired, stands = _fixes_in_line(line, errata)
+    errata, unsettled = correction_contract.held_in_line(repaired or corrected, errata, stands)
+    settled = correction_contract.repair_text(corrected)
+    if unsettled or settled != corrected or errata != refined.get("errata"):
+        refined = {**refined, "errata": errata, "corrected_answer": settled}
+        if unsettled:
+            refined["dropped_errata"] = [*refined.get("dropped_errata", []), *unsettled]
+        corrected = settled
     asks = [
         item for item in errata
         if item.get("task_error_type") != "task_compliance"
