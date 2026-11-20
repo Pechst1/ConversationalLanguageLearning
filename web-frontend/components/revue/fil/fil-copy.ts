@@ -26,6 +26,10 @@ export type FilCopy = {
   order_shown: string;
   /** «Try 1 of 2». */
   try_n: string;
+  /** The order already tried, unchanged: the check waits for a move. */
+  order_unchanged: string;
+  /** The words already tried, unchanged. */
+  words_unchanged: string;
   words_task_place: string;
   words_task_choose: string;
   words_check: string;
@@ -61,6 +65,8 @@ const FR: FilCopy = {
   order_right: "C'est le bon ordre.",
   order_shown: "Voici le bon ordre.",
   try_n: 'Essai {n} sur {max}',
+  order_unchanged: 'Déplace d’abord au moins une dépêche.',
+  words_unchanged: 'Change d’abord au moins un mot.',
   words_task_place: 'Mets un mot sur chaque dépêche : touche une dépêche, puis un mot.',
   words_task_choose: 'Choisis le mot qui va avec chaque dépêche.',
   words_check: 'Vérifier les mots',
@@ -103,6 +109,8 @@ const EN: FilCopy = {
   order_right: "That's the right order.",
   order_shown: 'Here is the right order.',
   try_n: 'Try {n} of {max}',
+  order_unchanged: 'Move at least one dispatch first.',
+  words_unchanged: 'Change at least one word first.',
   words_task_place: 'Put a word on each dispatch: tap a dispatch, then a word.',
   words_task_choose: 'Pick the word that fits each dispatch.',
   words_check: 'Check the words',
@@ -145,6 +153,8 @@ const DE: FilCopy = {
   order_right: 'Das ist die richtige Reihenfolge.',
   order_shown: 'Hier ist die richtige Reihenfolge.',
   try_n: 'Versuch {n} von {max}',
+  order_unchanged: 'Verschiebe zuerst mindestens eine Meldung.',
+  words_unchanged: 'Ändere zuerst mindestens ein Wort.',
   words_task_place: 'Setze ein Wort auf jede Meldung: Tippe eine Meldung, dann ein Wort.',
   words_task_choose: 'Wähle das Wort, das zu jeder Meldung passt.',
   words_check: 'Wörter prüfen',

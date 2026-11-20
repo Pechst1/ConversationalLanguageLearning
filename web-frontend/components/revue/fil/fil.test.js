@@ -339,3 +339,20 @@ test('from B1 the reasons are in the mother tongue while the chrome stays French
   const error = model.errorText(filCopy('en'), { code: 'tell_last_first', key: 'enfin', afterKey: null, count: null }, types.parseSessionView(SESSIONS.a1_tell).fil);
   assert.match(error, /enfin/);
 });
+
+// Seen in a browser (2026-11-20, B1 en): after a wrong order, «Vérifier l'ordre» on the same
+// order did nothing at all (the server keeps one try per arrangement): a button that does not
+// answer. It now waits for a change, and says so; the same for the words.
+test('a check on the arrangement already tried waits for a change, and says so', () => {
+  const footOf = (html) => html.slice(html.lastIndexOf('class="rv-foot'));
+  let foot = footOf(screen('a1_order_hint'));
+  assert.match(foot, /<button[^>]*disabled=""[^>]*>[\s\S]*Check the order/);
+  assert.match(visibleText(foot), /Move at least one dispatch first\./);
+  foot = footOf(screen('a1_words_miss'));
+  assert.match(foot, /<button[^>]*disabled=""[^>]*>[\s\S]*Check the words/);
+  assert.match(visibleText(foot), /Change at least one word first\./);
+  for (const language of ['fr', 'de', 'en']) {
+    assert.ok(filCopy(language).order_unchanged && filCopy(language).words_unchanged, language);
+  }
+  assert.doesNotMatch(visibleText(footOf(screen('a1_order'))), /at least one/, 'a first try is not held back');
+});

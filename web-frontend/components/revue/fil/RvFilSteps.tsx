@@ -136,6 +136,8 @@ export function RvFilOrder(props: FilStepProps) {
   const byKey = new Map(order.strips.map((strip) => [strip.key, strip]));
   const busy = readOnly || pending !== null;
   const misplaced = !order.resolved && order.hint ? order.hint.key : null;
+  // The server keeps one try per arrangement: the same order again would answer nothing.
+  const unchanged = order.tries > 0 && arrangement.join('') === placedKey;
 
   const pick = (index: number) => {
     if (busy || order.resolved) return;
@@ -202,8 +204,9 @@ export function RvFilOrder(props: FilStepProps) {
             </Action>
           ) : (
             <>
+              {unchanged && <p className="ct-foot__hint">{fcopy.order_unchanged}</p>}
               <p className="ct-foot__hint">{fill(fcopy.try_n, { n: String(order.tries + 1), max: String(order.maxTries) })}</p>
-              <Action tone="primary" pending={pending === 'order'} pendingLabel={fcopy.order_check} disabled={busy} onClick={() => void onAct({ act: 'order', order: arrangement }, 'order')}>
+              <Action tone="primary" pending={pending === 'order'} pendingLabel={fcopy.order_check} disabled={busy || unchanged} onClick={() => void onAct({ act: 'order', order: arrangement }, 'order')}>
                 {fcopy.order_check}
               </Action>
             </>
@@ -225,6 +228,7 @@ export function RvFilWords(props: FilStepProps) {
   const [picks, setPicks] = useState<Array<string | null>>(start);
   const [slot, setSlot] = useState<number>(0);
   const pickedKey = words.picked.join('|');
+  const wordsUnchanged = !words.resolved && words.tries > 0 && picks.join('|') === pickedKey;
   useEffect(() => {
     if (words.resolved && words.solution.length === 4) setPicks(words.solution);
     else if (words.picked.length === 4) setPicks(words.picked);
@@ -328,12 +332,13 @@ export function RvFilWords(props: FilStepProps) {
             </Action>
           ) : (
             <>
+              {wordsUnchanged && <p className="ct-foot__hint">{fcopy.words_unchanged}</p>}
               <p className="ct-foot__hint">{fill(fcopy.try_n, { n: String(words.tries + 1), max: String(words.maxTries) })}</p>
               <Action
                 tone="primary"
                 pending={pending === 'words'}
                 pendingLabel={fcopy.words_check}
-                disabled={busy || !allPicked(picks)}
+                disabled={busy || !allPicked(picks) || wordsUnchanged}
                 onClick={() => allPicked(picks) && void onAct({ act: 'words', picks }, 'words')}
               >
                 {fcopy.words_check}
