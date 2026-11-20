@@ -885,6 +885,31 @@ class Settings(BaseSettings):
             "ledger per painting (no learner) so the service's daily cap counts it."
         ),
     )
+    REVUE_PICTURES_PER_STORY: int = Field(
+        1,
+        ge=1,
+        le=3,
+        description=(
+            "«Papier · photos» (2026-11-20): how many generated illustrations each story gets. 1 is "
+            "the story's one picture (WP-119 §8.4); 2-3 add other shots of the same story (the place "
+            "wide, the thing close), each painted once and final, priced per picture like the first."
+        ),
+    )
+    REVUE_PHOTOS_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · photos» (2026-11-20): at the morning intake, look up real photos on Wikimedia "
+            "Commons for each story's places and its main object (free licences only, never a "
+            "portrait), and show them in the story's gallery with their credit and licence. Needs "
+            "outbound access to commons.wikimedia.org and upload.wikimedia.org."
+        ),
+    )
+    REVUE_PHOTOS_PER_STORY: int = Field(
+        3,
+        ge=0,
+        le=6,
+        description="«Papier · photos»: the most Commons photos one story keeps (one per subject).",
+    )
     REVUE_ARTICLE_FETCH_ENABLED: bool = Field(
         True,
         description=(

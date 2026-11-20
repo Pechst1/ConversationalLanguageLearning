@@ -14,6 +14,11 @@ while ``REVUE_COMPTOIR_ENABLED`` is on, at the takes desk of «Au comptoir»
 one picture per story the kiosk is missing (and a plate for each new place), painted once and
 final (``plates.paint_period``), within the service's daily cap. A morning that finds
 everything painted spends nothing; one whose painting failed is caught up the next morning.
+
+«Papier · photos» (2026-11-20): while ``REVUE_PHOTOS_ENABLED`` is on, each run also looks up
+real photos on Wikimedia Commons for every kiosk story not searched yet (:func:`photos_now`,
+``photos.ensure_photos``: one search per story, 6 s, one try, failure = no photos), and the
+painter adds a story's other shots when ``REVUE_PICTURES_PER_STORY`` is above 1.
 """
 
 from __future__ import annotations
@@ -109,6 +114,27 @@ def comptoir_now(*, period: str | None = None, now: datetime | None = None) -> d
         db.close()
 
 
+def photos_now(*, period: str | None = None, now: datetime | None = None) -> dict[str, Any]:
+    """«Papier · photos»: look up Commons photos once for every story of ``period``'s kiosk not
+    searched yet (``photos.ensure_photos``); off while ``REVUE_PHOTOS_ENABLED`` is off."""
+
+    from app.services.revue.photos import ensure_photos, photos_enabled
+    from app.services.revue.weekly import period_for
+
+    if not getattr(settings, "REVUE_ENABLED", False) or not photos_enabled():
+        return {"status": "disabled"}
+    target = period or period_for(now or datetime.now(UTC))
+    db = SessionLocal()
+    try:
+        return {"status": "ok", "period": target, "photos": ensure_photos(db, target)}
+    except Exception as exc:  # noqa: BLE001 - a story without photos keeps its pictures; tomorrow retries
+        logger.exception("revue photos failed for {}", target)
+        db.rollback()
+        return {"status": "failed", "period": target, "error": type(exc).__name__}
+    finally:
+        db.close()
+
+
 @celery_app.task(name="app.tasks.revue.paint_pictures")
 def paint_pictures(period: str | None = None, limit: int | None = None) -> dict[str, Any]:
     """§8.4: the period's missing pictures, one image call each, final."""
@@ -143,5 +169,7 @@ def weekly_intake(refresh: bool = False) -> dict[str, Any]:
     report["leads"] = leads_now(period=report.get("period"))
     if getattr(settings, "REVUE_COMPTOIR_ENABLED", False):
         report["comptoir"] = comptoir_now(period=report.get("period"))
+    if getattr(settings, "REVUE_PHOTOS_ENABLED", False):
+        report["photos"] = photos_now(period=report.get("period"))
     report["pictures"] = _queue_painting(report.get("period"))
     return report

@@ -52,6 +52,7 @@ from app.db.models.revue_correcteur import RevueCorrection
 from app.db.models.revue_place import RevuePlace
 from app.db.models.revue_relecture import RevueRelecture
 from app.db.models.revue_session import RevueSession
+from app.db.models.revue_story_media import RevueStoryMedia
 from app.db.models.revue_story_picture import RevueStoryPicture
 from app.db.models.revue_vignette import RevuePictogram, RevueVignette
 from app.db.models.scenario import UserScenarioState
@@ -83,6 +84,7 @@ __all__ = [
     "RevueRelecture",
     "RevueCorrection",
     "RevuePlace",
+    "RevueStoryMedia",
     "RevueStoryPicture",
     "RevuePictogram",
     "RevueVignette",

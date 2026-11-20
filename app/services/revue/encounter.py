@@ -629,7 +629,7 @@ def stage_for(
     *,
     db: Any = None,
 ) -> RvStage:
-    from app.services.revue import plates
+    from app.services.revue import photos, plates
 
     place = next((p for p in dossier.places if plan is None or p.id == plan.stage.place_id), dossier.places[0])
     kind = policy.place_kind(f"{place.id} {place.name_fr} {place.brief}")
@@ -667,6 +667,7 @@ def stage_for(
         plate_switched=bool(second_url) and state is not None and plate_switched(state),
         plate_kind=first.kind,
         picture_words=picture_words(dossier, plan) if first.kind == "story" else [],
+        pictures=photos.gallery_for(db, dossier),
     )
 
 
