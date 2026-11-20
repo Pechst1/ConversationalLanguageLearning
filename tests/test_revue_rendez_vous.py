@@ -42,6 +42,7 @@ from app.services.revue.state import ConversationState
 
 WEEK = "2026-W25"
 FETE = "evergreen-fete-de-la-musique"
+ORIGINAL_AVAILABLE = enc.available_dossiers
 REVUE_TABLES = (Story.__table__, NPC.__table__, NPCMemory.__table__, RevueSession.__table__, RevueDossier.__table__,
                 RevuePictogram.__table__, RevueVignette.__table__, PilotEvent.__table__)
 
@@ -561,3 +562,86 @@ def test_another_learner_cannot_read_a_round_or_a_line(api: TestClient, monkeypa
     sid = api.post("/api/v1/revue/sessions", headers=mine, json={"week": WEEK, "dossier_id": FETE}).json()["id"]
     assert api.get(f"/api/v1/revue/sessions/{sid}/trois-mots", headers=theirs).status_code == 404
     assert api.get(f"/api/v1/revue/sessions/{sid}/souvenir", headers=theirs).status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# 1 · Fresh every day (REVUE_CADENCE=daily)
+# ---------------------------------------------------------------------------
+
+
+def _stock(db: Session, period: str, dossiers) -> None:  # noqa: ANN001
+    from app.services.revue import weekly
+
+    for dossier in dossiers:
+        db.add(RevueDossier(id=f"{period}:{dossier.id}", week=weekly.week_of_period(period), period=period,
+                            topic=dossier.topic, payload=dossier.model_dump(mode="json"), source_hashes={},
+                            checks={}, builder_version="test"))
+    db.commit()
+
+
+def _file(revue: RevueEncounter, user: User, period: str, dossier_id: str | None = None) -> RevueSession:
+    row = revue.start(user, period, dossier_id=dossier_id)
+    row.status, row.closed_at = "closed", datetime.now(UTC)
+    revue.db.commit()
+    return row
+
+
+def test_daily_deals_that_morning_s_story_never_one_played_and_keeps_the_older_ones_behind_the_chip(db: Session, monkeypatch) -> None:
+    from datetime import date
+
+    from app.services.revue.evergreen import load_evergreens
+
+    monkeypatch.setattr(settings, "REVUE_CADENCE", "daily")
+    monkeypatch.setattr(settings, "REVUE_COMPTOIR_ENABLED", False)
+    monkeypatch.setattr(settings, "REVUE_ASSIGNMENTS_ENABLED", False)
+    monkeypatch.setattr(enc, "available_dossiers", ORIGINAL_AVAILABLE)
+    pool = load_evergreens()[:5]
+    day = date(2026, 11, 20)
+    yesterday, today = (day - timedelta(days=1)).isoformat(), day.isoformat()
+    _stock(db, yesterday, pool[:2])
+    _stock(db, today, pool[2:4])
+    user = make_user(db)
+    revue = Revue(db)
+    offer = revue.week_offer(user, today)
+    morning = {pool[2].id, pool[3].id}
+    assert offer.recommended.dossier_id in morning, "that morning's story is dealt"
+    assert {c.dossier_id for c in offer.alternatives} & {pool[0].id, pool[1].id}, "the previous days' behind the chip"
+    first = _file(revue, user, today)
+    assert first.dossier_id in morning
+    with pytest.raises(enc.RevueError) as raised:
+        revue.start(user, today)
+    assert raised.value.code == "revue_week_filed", "one story dealt per day"
+    tomorrow = (day + timedelta(days=1)).isoformat()
+    _stock(db, tomorrow, [pool[4]])
+    offer = revue.week_offer(user, tomorrow)
+    ids = [offer.recommended.dossier_id, *(c.dossier_id for c in offer.alternatives)]
+    assert ids[0] == pool[4].id and first.dossier_id not in ids, "never a story already played"
+    second = _file(revue, user, tomorrow)
+    third_day = (day + timedelta(days=2)).isoformat()
+    offer = revue.week_offer(user, third_day)  # no intake that morning: the week's unplayed stories
+    ids = [c.dossier_id for c in ([offer.recommended] if offer.recommended else []) + list(offer.alternatives)]
+    assert first.dossier_id not in ids and second.dossier_id not in ids
+    with pytest.raises(enc.RevueError) as raised:
+        revue.start(user, third_day, dossier_id=first.dossier_id)
+    assert raised.value.code == "revue_dossier_not_found", "not dealt again, even asked for"
+
+
+def test_weekly_is_today_s_deal(db: Session, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "REVUE_COMPTOIR_ENABLED", False)
+    monkeypatch.setattr(settings, "REVUE_ASSIGNMENTS_ENABLED", False)
+    assert settings.REVUE_CADENCE == "weekly"
+    user = make_user(db)
+    revue = Revue(db)
+    before = revue.week_offer(user, WEEK).model_dump_json()
+    played = _file(revue, user, WEEK)
+    other = make_user(db)
+    assert revue.week_offer(other, WEEK).model_dump_json() == before
+    offer = revue.week_offer(user, WEEK)
+    assert offer.filed.dossier_id == played.dossier_id, "weekly: the filed story stays the week's"
+
+
+def test_a_daily_papier_says_its_day_in_the_releve() -> None:
+    from app.services.revue.releve import _period_label
+
+    assert _period_label("2026-11-20") == "Semaine 47 · le 20 nov."
+    assert _period_label("2026-W47") == "Semaine 47"

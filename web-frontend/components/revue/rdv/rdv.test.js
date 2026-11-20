@@ -245,3 +245,23 @@ test('the mock plays a round from the session\'s own close, and answers 404 whil
   assert.equal(await off.troisMots('s1'), null);
   assert.equal(await off.une(), null);
 });
+
+// ---------------------------------------------------------------------------
+// 1 · daily: Home's chip says the day, never «semaine » with no number
+// ---------------------------------------------------------------------------
+
+test('REVUE_CADENCE=daily: the Papier chip names the day; weekly is as before', () => {
+  const { revueHomeChip } = require('../revue-home.ts');
+  const offer = (iso, range) => ({
+    enabled: true,
+    offer: { week: { iso, label: 'Semaine 47', range }, recommended: { dossierId: 'x' }, alternatives: [{ dossierId: 'y' }], filed: null, resume: null },
+  });
+  for (const language of ['fr', 'en', 'de']) {
+    const daily = revueHomeChip(offer('2026-11-20', 'le 20 nov.'), language);
+    assert.equal(daily.ariaLabel, 'Le Papier de Romy, le 20 nov.');
+    assert.ok(!/semaine\s*$|week\s*$|Woche\s*$/.test(daily.ariaLabel));
+    const filed = revueHomeChip({ ...offer('2026-11-20', 'le 20 nov.'), offer: { ...offer('2026-11-20', 'le 20 nov.').offer, filed: { sessionId: 's' } } }, language);
+    assert.match(filed.ariaLabel, /today|aujourd'hui|heute/);
+  }
+  assert.equal(revueHomeChip(offer('2026-W47', 'du 16 au 22 nov.'), 'fr').ariaLabel, 'Le Papier de Romy, semaine 47');
+});

@@ -2207,6 +2207,16 @@ class RevueEncounter:
                 reason = "topic_least_recent"
             elif interest_a < interest_b:
                 reason = "interests"
+        from app.services.revue.weekly import is_daily_period
+
+        if is_daily_period(week):
+            # «Papier · les rendez-vous»: that morning's stories first, never one already played.
+            from app.services.revue.daily import deal_daily
+
+            dealt = deal_daily(self.db, user, week, ordered)
+            if not dealt or not ordered or dealt[0].id != ordered[0].id:
+                reason = "first"
+            ordered = dealt
         return ordered, reason
 
     def week_offer(self, user: Any, week: str | None = None) -> RvOffer:

@@ -39,6 +39,9 @@ export type RevueCopy = {
   chip_aria: string;
   chip_more: string;
   chip_more_aria: string;
+  /** REVUE_CADENCE=daily: the period is a day («le 20 nov.»). */
+  chip_aria_day: string;
+  chip_more_aria_day: string;
   exit_label: string;
   back_label: string;
   beats_label: string;
@@ -252,6 +255,8 @@ const FR: RevueCopy = {
   chip_aria: 'Le Papier de Romy, semaine {n}',
   chip_more: 'Autre Papier ?',
   chip_more_aria: 'Un autre Papier cette semaine ({n} sujets au kiosque)',
+  chip_aria_day: 'Le Papier de Romy, {day}',
+  chip_more_aria_day: "Un autre Papier aujourd'hui ({n} sujets au kiosque)",
   exit_label: 'Quitter le Papier — Romy garde tes notes',
   back_label: 'Retour à La Une',
   beats_label: 'Le Papier',
@@ -443,6 +448,8 @@ const EN: RevueCopy = {
   chip_aria: "Le Papier de Romy, week {n}",
   chip_more: 'Another Papier?',
   chip_more_aria: 'Another Papier this week ({n} stories at the kiosk)',
+  chip_aria_day: 'Le Papier de Romy, {day}',
+  chip_more_aria_day: 'Another Papier today ({n} stories at the kiosk)',
   exit_label: 'Leave the Papier — Romy keeps your notes',
   back_label: 'Back to La Une',
   beat_names: { arrive: 'Arrive', facts: 'Facts', pursue: 'Follow up', make: 'Make', close: 'Filed' },
@@ -625,6 +632,8 @@ const DE: RevueCopy = {
   chip_aria: 'Le Papier de Romy, Woche {n}',
   chip_more: 'Noch ein Papier?',
   chip_more_aria: 'Noch ein Papier diese Woche ({n} Themen am Kiosk)',
+  chip_aria_day: 'Le Papier de Romy, {day}',
+  chip_more_aria_day: 'Noch ein Papier heute ({n} Themen am Kiosk)',
   exit_label: 'Das Papier verlassen — Romy behält deine Notizen',
   back_label: 'Zurück zu La Une',
   beat_names: { arrive: 'Ankommen', facts: 'Fakten', pursue: 'Nachfragen', make: 'Machen', close: 'Fertig' },

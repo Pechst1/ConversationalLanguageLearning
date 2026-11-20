@@ -25,6 +25,8 @@ export function revueHomeChip(week: RvWeekResult | null | undefined, language: u
   if (!offer.recommended) return null;
   const copy = revueCopy(language);
   const n = weekNumber(offer.week.iso);
+  // REVUE_CADENCE=daily (§12.2): the period is a day, said as the week's range says it («le 20 nov.»).
+  const daily = /^\d{4}-\d{2}-\d{2}$/.test(offer.week.iso);
   if (offer.filed) {
     // WP-119 §12.2: a second Papier in the same week is allowed from the chip, as a quiet offer.
     const others = (offer.alternatives ?? []).length + 1;
@@ -32,7 +34,7 @@ export function revueHomeChip(week: RvWeekResult | null | undefined, language: u
     return {
       id: 'revue',
       label: copy.chip_more,
-      ariaLabel: fill(copy.chip_more_aria, { n: others }),
+      ariaLabel: fill(daily ? copy.chip_more_aria_day : copy.chip_more_aria, { n: others }),
       href: '/revue',
       shape: 'story',
     };
@@ -40,7 +42,7 @@ export function revueHomeChip(week: RvWeekResult | null | undefined, language: u
   return {
     id: 'revue',
     label: fill(copy.chip_label, { n }),
-    ariaLabel: fill(copy.chip_aria, { n }),
+    ariaLabel: daily ? fill(copy.chip_aria_day, { day: offer.week.range }) : fill(copy.chip_aria, { n }),
     href: offer.resume ? `/revue?session=${encodeURIComponent(offer.resume.sessionId)}` : '/revue',
     shape: 'story',
   };
