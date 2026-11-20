@@ -1087,7 +1087,22 @@ export const RV_COMPTOIR_MARK_KINDS = ['accord', 'conjugaison', 'genre', 'orthog
  */
 export type RvComptoirProof = 'clean' | 'marked' | 'fixed' | 'corrected' | 'as_written';
 export const RV_COMPTOIR_PROOFS = ['clean', 'marked', 'fixed', 'corrected', 'as_written'] as const;
-export type RvComptoirMark = { spanFr: string; start: number; kind: RvComptoirMarkKind };
+/**
+ * `why` («Le pourquoi», `REVUE_POURQUOI_ENABLED`): the rule in the learner's mother tongue,
+ * never the corrected form; absent when the server sent none (switch off, or a refused why).
+ */
+export type RvComptoirMark = { spanFr: string; start: number; kind: RvComptoirMarkKind; why?: string };
+/**
+ * «Le pourquoi», once the opinion is settled: a mark with its full rule (`why`, the mother
+ * tongue), the same pattern in today's story (`exampleFr`) and the rule La Forge brings back.
+ */
+export type RvComptoirNote = {
+  spanFr: string;
+  kind: RvComptoirMarkKind;
+  why: string | null;
+  exampleFr: string | null;
+  ruleId: string | null;
+};
 export type RvComptoirComeback = { textFr: string; index: number | null; lastWord: RvComptoirText };
 export type RvComptoirOpinion = {
   stance: RvStance;
@@ -1107,6 +1122,8 @@ export type RvComptoirOpinion = {
   /** A1–A2: the three comeback chips; empty from B1 (one free line). */
   comebacks: RvComptoirText[];
   comeback: RvComptoirComeback | null;
+  /** «Le pourquoi», once settled; absent when the server sent none. */
+  notes?: RvComptoirNote[];
 };
 export type RvComptoirView = {
   step: RvComptoirStep;
@@ -1232,10 +1249,11 @@ export function parseComptoirView(raw: Json): RvComptoirView {
           learnerFr: str(opinion.learner_fr),
           draftFr: str(opinion.draft_fr) || str(opinion.learner_fr),
           proof: oneOf(opinion.proof, RV_COMPTOIR_PROOFS, 'as_written'),
-          marks: list(opinion.marks, (row) => ({
+          marks: list(opinion.marks, (row): RvComptoirMark => ({
             spanFr: str(row.span_fr),
             start: typeof row.start === 'number' ? row.start : 0,
             kind: oneOf(row.kind, RV_COMPTOIR_MARK_KINDS, 'mot'),
+            ...(str(row.why).trim() ? { why: str(row.why).trim() } : {}),
           })).filter((mark) => mark.spanFr),
           tries: num(opinion.tries),
           maxTries: num(opinion.max_tries) || 2,
@@ -1245,9 +1263,21 @@ export function parseComptoirView(raw: Json): RvComptoirView {
           comeback: comeback
             ? { textFr: str(comeback.text_fr), index: typeof comeback.index === 'number' ? comeback.index : null, lastWord: comptoirText(comeback.last_word) }
             : null,
+          ...(Array.isArray(opinion.notes) && opinion.notes.length ? { notes: parseComptoirNotes(opinion.notes) } : {}),
         }
       : null,
   };
+}
+
+/** «Le pourquoi»'s notes: a note without its words is dropped, an unknown kind is «mot». */
+export function parseComptoirNotes(raw: unknown): RvComptoirNote[] {
+  return list(raw, (row) => ({
+    spanFr: str(row.span_fr),
+    kind: oneOf(row.kind, RV_COMPTOIR_MARK_KINDS, 'mot'),
+    why: strOrNull(row.why) || null,
+    exampleFr: strOrNull(row.example_fr) || null,
+    ruleId: strOrNull(row.rule_id) || null,
+  })).filter((note) => note.spanFr && (note.why || note.exampleFr || note.ruleId));
 }
 
 export function parseComptoirPage(raw: Json): RvComptoirPage {

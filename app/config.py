@@ -953,6 +953,16 @@ class Settings(BaseSettings):
             "morning the takes desk writes them. Off: nothing changes (no route, no field, no call)."
         ),
     )
+    REVUE_POURQUOI_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · Le pourquoi» (owner 2026-11-20): each of Romy's marks on «Ton avis» explains "
+            "its rule in the learner's mother tongue (a hint without the answer while they fix it, "
+            "the full rule and the story's own example once settled), and the slip is kept in the "
+            "learner's error memory (source «revue») for La Forge. Off: the comptoir_edit prompt, "
+            "its payload and the screens are exactly as before."
+        ),
+    )
     REVUE_COMPTOIR_MODEL: str = Field(
         "claude-haiku-5-5",
         description=(

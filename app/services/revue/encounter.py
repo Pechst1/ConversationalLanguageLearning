@@ -940,11 +940,14 @@ class FakeRevueProvider:
         learner = re.sub(r"\s+", " ", str(context.get("learner_fr") or "")).strip()
         text = learner
         marks: list[dict[str, str]] = []
+        language = context.get("explain_language")
         for pattern, fixed, kind in _FAKE_EDITS:
             found = re.search(pattern, text)
             if found:
                 if len(marks) < 3:
                     marks.append({"span_fr": found.group(0), "kind": kind})
+                    if language:  # «Le pourquoi»: the rule, in the learner's language, from a small table
+                        marks[-1].update(_fake_whys(kind, str(language), fixed))
                 text = re.sub(pattern, fixed, text)
         text = text[:1].upper() + text[1:]
         if text and not re.search(r"[.!?…]$", text):
@@ -972,6 +975,33 @@ class FakeRevueProvider:
 
 
 #: The fake edit's table: (slip, fix, kind of slip).
+#: «Le pourquoi» (fake provider): the hint (never the answer) and the full why, by kind and language.
+_FAKE_WHYS: dict[str, dict[str, tuple[str, str]]] = {
+    "accord": {
+        "en": ("In French the article and the adjective agree with their noun in number.",
+               "In French the article and the adjective agree with their noun in number: «{fixed}»."),
+        "de": ("Im Französischen richten sich Artikel und Adjektiv in der Zahl nach dem Nomen.",
+               "Im Französischen richten sich Artikel und Adjektiv in der Zahl nach dem Nomen: «{fixed}»."),
+        "fr": ("L'article et l'adjectif s'accordent en nombre avec le nom.",
+               "L'article et l'adjectif s'accordent en nombre avec le nom : «{fixed}»."),
+    },
+    "orthographe": {
+        "en": ("This word takes an accent on its vowel: check the spelling.",
+               "This word takes an accent on its vowel: «{fixed}»."),
+        "de": ("Dieses Wort hat einen Akzent auf dem Vokal: prüf die Schreibung.",
+               "Dieses Wort hat einen Akzent auf dem Vokal: «{fixed}»."),
+        "fr": ("Ce mot prend un accent sur la voyelle : vérifie l'orthographe.",
+               "Ce mot prend un accent sur la voyelle : «{fixed}»."),
+    },
+}
+
+
+def _fake_whys(kind: str, language: str, fixed: str) -> dict[str, str]:
+    table = _FAKE_WHYS.get(kind, {})
+    hint, full = table.get(language) or table.get("en") or ("", "")
+    return {"why_hint": hint, "why_full": full.format(fixed=fixed)} if hint else {}
+
+
 _FAKE_EDITS: tuple[tuple[str, str, str], ...] = (
     (r"\b[Ll]e gens\b", "les gens", "accord"),
     (r"\bsont content\b", "sont contents", "accord"),
@@ -1239,12 +1269,11 @@ class OpenAIRevueProvider:
     def comptoir_edit(self, context: dict[str, Any]) -> dict[str, Any]:
         """«Au comptoir»: Romy's edit of the learner's opinion and a regular's reply (one call)."""
 
-        from app.services.revue.comptoir_loop import (
-            COMPTOIR_EDIT_INSTRUCTIONS,
-            COMPTOIR_EDIT_SYSTEM,
-        )
+        from app.services.revue.comptoir_loop import COMPTOIR_EDIT_SYSTEM
+        from app.services.revue.pourquoi import edit_instructions
 
-        return self.ask_json(COMPTOIR_EDIT_INSTRUCTIONS, context, system=COMPTOIR_EDIT_SYSTEM, temperature=0.5,
+        # Today's instructions unless the context asks for the marks' why («Le pourquoi»).
+        return self.ask_json(edit_instructions(context), context, system=COMPTOIR_EDIT_SYSTEM, temperature=0.5,
                              label="comptoir_edit")
 
     def guest(self, context: dict[str, Any]) -> dict[str, Any]:
