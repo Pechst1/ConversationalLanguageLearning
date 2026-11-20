@@ -202,6 +202,8 @@ class ErrorMemoryService:
         "graphic_novel": "Le roman-photo",
         "vocabulary": "Le lexique",
         "daily_journey": "La séance du jour",
+        # «Papier · Le pourquoi»: a slip Romy marked on the learner's opinion at the counter.
+        "revue": "Le Papier",
     }
 
     REVIEW_MODE_COPY: dict[str, dict[str, str]] = {
