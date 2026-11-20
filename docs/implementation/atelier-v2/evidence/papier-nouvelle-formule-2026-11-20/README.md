@@ -70,3 +70,79 @@ Prefixes: `a1de` German A1, `a2de` German A2, `b1en` English B1. `c` = «Au comp
 The fake providers write the French of the takes, the glosses («baccalauréat (de)»), the kept words («partir») and
 the whys from a small table (the «il sont» why speaks of articles and adjectives): their quality, and real Commons
 results, cannot be judged on this stack.
+
+---
+
+# «Le titre» and «L'intox express» — looked at in a browser (2026-11-20, second pass)
+
+PR 962 (`claude/papier-titre-intox`) merged into this branch, then played the same way: the walk stack above
+(`stack.mjs` + `carte_server.py`, fake providers, throwaway database), driven like `e2e/explore.mjs` on port 7791,
+375 × 812, deviceScaleFactor 2, light theme. The switches set for the walk's API process only:
+`REVUE_ASSIGNMENTS_ENABLED=true REVUE_POURQUOI_ENABLED=true REVUE_PHOTOS_ENABLED=true REVUE_PHOTOS_PER_STORY=3`
+(with `--comptoir`), plus a `SECRET_KEY` for the walk API. Nothing else changed.
+
+## Walk-only seeds
+
+- «La Fête de la musique» (`evergreen-fete-de-la-musique`, the one story with hand-written headlines and statements,
+  a June story) as a `revue_dossiers` row for week 47 (`period` 2026-W47, its evergreen payload with `week` set to
+  2026-W47, builder `walk-seed`), so the kiosk offers it in November; its headlines and statements come from
+  `evergreen/titre/` and `evergreen/intox/` by id. «Le bac» the same way for the retaken `a1de-f1-lire`.
+- Three `revue_story_media` photo rows for each (neutral SVG placeholders as data URIs, Commons-shaped credits).
+- Past Papiers per learner, as the tests' `make_user` (closed `revue_sessions` rows whose first `choice` event carries
+  `mode`): dealt «Le titre» = last two played `comptoir`, `intox`; dealt «L'intox express» = last two `titre`,
+  `comptoir`; dealt the counter = `titre`, `intox`; dealt «Le fil» on «Le bac» = `comptoir`.
+
+## Screens
+
+Prefixes: `t-` «Le titre» (1 Lire · 2 Trois titres · 3 Le piège · 4 À toi · 5 La page), `i-` «L'intox express»
+(1 Lire · 2 Vrai ou faux · 3 Corrige · 4 La page); `a1de` German A1, `a2de` German A2, `b1en` English B1.
+Every screen after the fixes below unless marked.
+
+| file | what |
+|---|---|
+| i-a1de-00-chooser, t-a1de-00-chooser, i-b1en-00-chooser, t-b1en-00-chooser | the card of a story dealt titre / intox: no counter question (follow-up d) |
+| a1de-00-chooser-dealt-comptoir | the same story dealt the counter: its question and regulars |
+| i-*-1-lire, i-a1de-1-lire-strip, t-*-1-lire | Lire: picture, lead, then the photo strip (follow-up b and the Lire fix) |
+| a1de-f1-lire, a1de-f1-lire-strip | «Le fil» Lire retaken: the lead's first line at y = 326 (was ≈ 620), every credit in the strip |
+| a1de-c1-lire-after | the counter's Lire: lead and question before the strip |
+| i-a1de-2-round, -reread | one statement, «Vrai» / «Faux», the lead one tap away |
+| i-*-2-round-miss, -miss-false | two misses: a true one answered «faux», a false one answered «vrai»: verdict, why (mother tongue), lit quote with its source |
+| i-a1de-2-round-right, -false, -last | right answers; the score |
+| i-*-3-fix, -fix-miss, -fix-done | Corrige: struck words, the quote; a wrong pick (A1–A2) / a wrong rewrite (B1) first, then right |
+| i-*-4-page (-full) | La page: the five lines, «On disait», the learner's rewrites (B1), the sources |
+| t-*-2-three, -chosen, -wrong, -right, -shown | three headlines; a wrong pick first (role, why, claim); right (A1, B1) or shown after two (A2) |
+| t-*-3-trap, -tapped, -miss, -right | the trap: a wrong word first («fête», «juin», «nuit»), then «tout le monde» |
+| t-a1de-4-build, -built, -printed | A1 tiles, the built headline, printed |
+| t-a2de-4-build-*, t-b1en-4-build-* | A2 frame / B1 free: the exaggerated element refused before sending (`-too-much`), a headline with two slips (`-typed`, `-marked`), each mark opened (`-why-0`, `-why-1`, follow-up a), one fixed (`-retry`, A2), settled with notes (`-fixed-notes`) |
+| t-*-5-page | La page: the learner's headline over the lead, signed with its sources |
+| mock-t0..t2, mock-i0..i2 | the dev mock: `/revue?mock=1&titre=1&pourquoi=1&photos=1&band=A2&lang=de`, `/revue?mock=1&intox=1&photos=1&band=B1&lang=en` (follow-up e) |
+
+## Faults seen, and their fixes
+
+| seen | fix |
+|---|---|
+| a1de-f1-lire: the picture and the strip put the lead's first line at ≈ 620 of 812 | `00b5ce09` strip after the text on every Lire |
+| «Nicht ganz. Das stimmt.» / «Pas tout à fait. C'est vrai.» read as «not quite — right» | `aa3668c5` «Der Satz ist richtig / falsch» |
+| a wrong pick of the off headline: «sagt etwas, das der Artikel nicht sagt: Stimmt, aber…» (false, two colons) | `aa3668c5` «Nicht diese.» on its own line |
+| after tapping «nuit»: «The article does say these: nuit» — it does not | `aa3668c5` «Not these words: “nuit”.» |
+| «Nimm diese Wörter heraus» named no words | `aa3668c5` names «tout le monde» |
+| «à», «le» in the trap 35 and 37 px wide | `aa3668c5` min-width 44 px |
+| La page reprinted the lead and the statements with no source | `aa3668c5` the byline «d'après …» |
+| B1 Corrige: after a miss the field was emptied | `aa3668c5` keeps the last try |
+| no scroll: Romy's line cut under the head on a new screen; a why or a verdict under the foot | `65bbfb99` the counter's scroll, shared |
+
+The before-fix screenshots of these were overwritten by the retakes; the commits quote what was on screen.
+
+## Judged, not changed
+
+- A false statement's why in the round («Das Fest ist am 21. Juni … nicht am 14. Juli») names the value Corrige asks
+  for; Corrige itself prints the quote with the settling words lit (spec §11.4), so the value is on that screen by
+  design. Left as specified.
+- A1–A2 Corrige offers two options: after one miss the other is the answer («Versuch 2 von 2»). As specified.
+- The A2 word count includes the frame («5 von 12 Wörtern» before typing). Left.
+
+## Not judged here
+
+Fake providers: Romy's marks and whys come from a small table (two kinds, one sentence each), and the kept words
+are the fake's; the quality of model-written headlines, statements, whys and corrections, and real Commons photos,
+cannot be judged on this stack. «Le fil»'s player (RvFil) has no scroll-on-act effect either: read in the code, not walked again.
