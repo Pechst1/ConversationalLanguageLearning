@@ -200,7 +200,8 @@ def _machine_words(text: str) -> bool:
                 or _SNAKE.search(text) or _MACHINE.search(text))
 
 
-def check_why(hint: Any, full: Any, *, span: str, fix: str, learner_fr: str, language: str) -> tuple[dict[str, str], str | None]:
+def check_why(hint: Any, full: Any, *, span: str, fix: str, learner_fr: str, language: str,
+              start: int | None = None) -> tuple[dict[str, str], str | None]:
     """The two whys of one mark, checked: both a sentence in ``language`` of at most
     :data:`WHY_MAX_WORDS` words that states a rule (``correction_contract.note_states_a_rule``),
     quotes only words the learner wrote or the fix writes (``note_quotes_hold``) and names no
@@ -226,7 +227,12 @@ def check_why(hint: Any, full: Any, *, span: str, fix: str, learner_fr: str, lan
         return {}, "why_hint:gives_away"
     if not note_quotes_hold(texts["why_hint"], span, span, learner_fr):
         return {}, "why_hint:quotes"
-    if not note_quotes_hold(texts["why_full"], span, fix, learner_fr):
+    # The full why may quote the fixed stretch: the fix made at the mark's own place (``start``),
+    # not at the first place its words stand («le» in «le marché» before «le gens», 2026-11-20).
+    old, new = span, fix
+    if start is not None and learner_fr[start:start + len(span)] == span:
+        old, new = learner_fr, learner_fr[:start] + fix + learner_fr[start + len(span):]
+    if not note_quotes_hold(texts["why_full"], old, new, learner_fr):
         return {}, "why_full:quotes"
     return texts, None
 
@@ -343,10 +349,12 @@ def explain_marks(marks: Sequence[dict[str, Any]], raw_marks: Any, *, learner_fr
         if not isinstance(row, dict):
             continue
         span = re.sub(r"\s+", " ", str(row.get("span_fr") or "")).strip(" .,!?").lower()
-        at = lowered.find(span) if span else -1
-        if at >= 0:
-            rows.append((at, at + len(span), row))
+        # Every place the model's words stand (a short slip like «le» also stands earlier in the
+        # sentence: matched at its first place only, the mark lost its why — seen 2026-11-20).
+        for found in re.finditer(r"(?<!\w)" + re.escape(span) + r"(?!\w)", lowered) if span else ():
+            rows.append((found.start(), found.end(), row))
     fixes = mark_fixes(learner_fr, target_fr)
+    used: set[int] = set()
     out = []
     for mark in marks:
         mark = dict(mark)
@@ -354,10 +362,13 @@ def explain_marks(marks: Sequence[dict[str, Any]], raw_marks: Any, *, learner_fr
         place = fixes.get(start, {"fix": "", "before": "", "after": ""})
         fix = place["fix"]
         mark["fix_fr"] = fix
-        over = [row for a, b, row in rows if a < end and start < b]
+        over = list({id(row): row for a, b, row in rows if a < end and start < b}.values())
+        if len(over) > 1:  # the same words marked twice by the model: one why each, in order
+            over = [row for row in over if id(row) not in used][:1]
         if len(over) == 1 and fix:
+            used.add(id(over[0]))
             whys, problem = check_why(over[0].get("why_hint"), over[0].get("why_full"), span=str(mark["span_fr"]),
-                                      fix=fix, learner_fr=learner_fr, language=language)
+                                      fix=fix, learner_fr=learner_fr, language=language, start=start)
             mark.update(whys)
             if problem:
                 mark["why_refused"] = problem

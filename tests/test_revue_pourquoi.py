@@ -134,6 +134,19 @@ def test_the_hint_never_carries_the_answer_and_the_full_why_waits_for_the_fix(db
     assert "«les gens»" in notes[0].why and "«sont contents»" in notes[1].why, "the full why may show the fix now"
 
 
+def test_a_short_slip_gets_its_why_even_when_its_words_appear_earlier(db: Session) -> None:
+    """Seen in a browser (2026-11-20, B1 en): «… le baccalauréat … et le gens sont content.» —
+    the model's mark «le» was looked for at its first occurrence (in «le baccalauréat»), so the
+    slip «le gens» lost its why. Each of the model's marks is matched at any of its places."""
+
+    revue, _, row = session(db, FakeRevueProvider(), level="B1.1", native="en")
+    text = "Ça dépend, le marché est bien et pas cher mais le gens sont content le dimanche."
+    view = act(revue, row, act="opinion", value="nuance", text=text).session.comptoir
+    marks = {m.span_fr: m.why for m in view.opinion.marks}
+    assert set(marks) == {"le", "content"}, marks
+    assert all(marks.values()), marks
+
+
 def test_a_failing_check_drops_the_why_and_keeps_the_mark(db: Session) -> None:
     class Leaky(FakeRevueProvider):
         def comptoir_edit(self, context):
@@ -288,3 +301,22 @@ def test_off_is_todays_prompt_and_payload(db: Session, monkeypatch) -> None:
     view = act(revue, row, act="opinion_fix", text="les gens sont contents au supermarché").session.comptoir
     assert "notes" not in json.loads(wire(view))["opinion"]
     assert faults(db, user) == [], "off: nothing is kept"
+
+
+def test_a_model_mark_is_matched_at_any_of_its_places() -> None:
+    """The model's own span «le» also stands in «le marché»: matched at its first place only,
+    it overlapped no proof mark and the slip lost its why (2026-11-20)."""
+
+    from app.services.revue.evergreen import load_evergreens
+
+    dossier = next(d for d in load_evergreens() if d.id == MARCHE)
+    learner = "Ça dépend, le marché est bien mais le gens sont là."
+    target = "Ça dépend, le marché est bien mais les gens sont là."
+    marks = comptoir_loop.proof_marks(learner, target, [{"span_fr": "le", "kind": "accord"}])
+    raw = [{"span_fr": "le", "kind": "accord",
+            "why_hint": "In French the article agrees with its noun in number.",
+            "why_full": "In French the article agrees with its noun in number: «les gens»."}]
+    out = pourquoi.explain_marks(marks, raw, learner_fr=learner, target_fr=target, dossier=dossier, takes=None,
+                                 band="B1", language="en")
+    assert [(m["span_fr"], m["start"]) for m in out] == [("le", learner.index("le gens"))]
+    assert out[0].get("why_hint") and out[0].get("why_full"), out[0].get("why_refused")
