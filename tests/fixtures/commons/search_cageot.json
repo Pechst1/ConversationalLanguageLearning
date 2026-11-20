@@ -1,0 +1,209 @@
+{
+ "batchcomplete": true,
+ "query": {
+  "pages": [
+   {
+    "pageid": 1001,
+    "ns": 6,
+    "title": "File:Cageot de légumes.png",
+    "index": 1,
+    "imageinfo": [
+     {
+      "size": 1,
+      "width": 2400,
+      "height": 1600,
+      "mime": "image/png",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Cageot_de_légumes.png",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Cageot_de_légumes.png",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=1",
+      "extmetadata": {
+       "LicenseShortName": {
+        "value": "CC0",
+        "source": "commons-desc-page"
+       },
+       "License": {
+        "value": "cc0",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "Alex Exemple",
+        "source": "commons-desc-page"
+       },
+       "Categories": {
+        "value": "Vegetable crates",
+        "source": "commons-desc-page"
+       }
+      },
+      "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Cageot_de_légumes.png/1280px-Cageot_de_légumes.png",
+      "thumbwidth": 1280,
+      "thumbheight": 853
+     }
+    ]
+   },
+   {
+    "pageid": 1002,
+    "ns": 6,
+    "title": "File:Cageot petit.jpg",
+    "index": 2,
+    "imageinfo": [
+     {
+      "size": 1,
+      "width": 800,
+      "height": 600,
+      "mime": "image/jpeg",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Cageot_petit.jpg",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Cageot_petit.jpg",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=1",
+      "extmetadata": {
+       "LicenseShortName": {
+        "value": "CC0",
+        "source": "commons-desc-page"
+       },
+       "License": {
+        "value": "cc0",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "Alex Exemple",
+        "source": "commons-desc-page"
+       },
+       "Categories": {
+        "value": "Vegetable crates",
+        "source": "commons-desc-page"
+       }
+      },
+      "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Cageot_petit.jpg/1280px-Cageot_petit.jpg",
+      "thumbwidth": 800,
+      "thumbheight": 600
+     }
+    ]
+   },
+   {
+    "pageid": 1003,
+    "ns": 6,
+    "title": "File:Logo maraîcher.jpg",
+    "index": 3,
+    "imageinfo": [
+     {
+      "size": 1,
+      "width": 2000,
+      "height": 1500,
+      "mime": "image/jpeg",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Logo_maraîcher.jpg",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Logo_maraîcher.jpg",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=1",
+      "extmetadata": {
+       "LicenseShortName": {
+        "value": "Fair use",
+        "source": "commons-desc-page"
+       },
+       "License": {
+        "value": "fair use",
+        "source": "commons-desc-page"
+       },
+       "NonFree": {
+        "value": "true",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "Une Marque",
+        "source": "commons-desc-page"
+       },
+       "Categories": {
+        "value": "Logos",
+        "source": "commons-desc-page"
+       }
+      },
+      "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Logo_maraîcher.jpg/1280px-Logo_maraîcher.jpg",
+      "thumbwidth": 1280,
+      "thumbheight": 960
+     }
+    ]
+   },
+   {
+    "pageid": 1004,
+    "ns": 6,
+    "title": "File:Vieux cageot.jpg",
+    "index": 4,
+    "imageinfo": [
+     {
+      "size": 1,
+      "width": 2000,
+      "height": 1500,
+      "mime": "image/jpeg",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Vieux_cageot.jpg",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Vieux_cageot.jpg",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=1",
+      "extmetadata": {
+       "LicenseShortName": {
+        "value": "Public domain",
+        "source": "commons-desc-page"
+       },
+       "License": {
+        "value": "pd",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "Unknown author",
+        "source": "commons-desc-page"
+       },
+       "Categories": {
+        "value": "Vegetable crates",
+        "source": "commons-desc-page"
+       }
+      },
+      "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Vieux_cageot.jpg/1280px-Vieux_cageot.jpg",
+      "thumbwidth": 1280,
+      "thumbheight": 960
+     }
+    ]
+   },
+   {
+    "pageid": 1005,
+    "ns": 6,
+    "title": "File:Cageot de légumes au marché.jpg",
+    "index": 5,
+    "imageinfo": [
+     {
+      "size": 1,
+      "width": 2048,
+      "height": 2048,
+      "mime": "image/jpeg",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Cageot_de_légumes_au_marché.jpg",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Cageot_de_légumes_au_marché.jpg",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=1",
+      "extmetadata": {
+       "LicenseShortName": {
+        "value": "CC0",
+        "source": "commons-desc-page"
+       },
+       "License": {
+        "value": "cc0",
+        "source": "commons-desc-page"
+       },
+       "LicenseUrl": {
+        "value": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "Alex Exemple",
+        "source": "commons-desc-page"
+       },
+       "Categories": {
+        "value": "Vegetable crates|Markets in France",
+        "source": "commons-desc-page"
+       },
+       "ImageDescription": {
+        "value": "Un cageot de légumes sur un étal.",
+        "source": "commons-desc-page"
+       }
+      },
+      "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Cageot_de_légumes_au_marché.jpg/1280px-Cageot_de_légumes_au_marché.jpg",
+      "thumbwidth": 1280,
+      "thumbheight": 1280
+     }
+    ]
+   }
+  ]
+ }
+}

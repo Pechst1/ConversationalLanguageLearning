@@ -1,0 +1,191 @@
+{
+ "batchcomplete": true,
+ "continue": {
+  "gsroffset": 10,
+  "continue": "gsroffset||"
+ },
+ "query": {
+  "pages": [
+   {
+    "pageid": 1004,
+    "ns": 6,
+    "title": "File:Marché d'Aligre, Paris 12e.jpg",
+    "index": 4,
+    "imageinfo": [
+     {
+      "size": 1,
+      "width": 4000,
+      "height": 3000,
+      "mime": "image/jpeg",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Marché_d'Aligre,_Paris_12e.jpg",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Marché_d'Aligre,_Paris_12e.jpg",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=1",
+      "extmetadata": {
+       "LicenseShortName": {
+        "value": "CC BY-SA 4.0",
+        "source": "commons-desc-page"
+       },
+       "License": {
+        "value": "cc-by-sa-4.0",
+        "source": "commons-desc-page"
+       },
+       "LicenseUrl": {
+        "value": "https://creativecommons.org/licenses/by-sa/4.0",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "<a href=\"//commons.wikimedia.org/wiki/User:Exemple\" title=\"User:Exemple\">Camille Exemple</a>",
+        "source": "commons-desc-page"
+       },
+       "Credit": {
+        "value": "<span class=\"int-own-work\" lang=\"fr\">Travail personnel</span>",
+        "source": "commons-desc-page"
+       },
+       "Categories": {
+        "value": "Marché d'Aligre|Markets in Paris|Place d'Aligre",
+        "source": "commons-desc-page"
+       },
+       "ImageDescription": {
+        "value": "Le marché d'Aligre un matin, place d'Aligre, Paris 12e.",
+        "source": "commons-desc-page"
+       },
+       "ObjectName": {
+        "value": "Marché d'Aligre, Paris 12e",
+        "source": "commons-desc-page"
+       }
+      },
+      "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Marché_d'Aligre,_Paris_12e.jpg/1280px-Marché_d'Aligre,_Paris_12e.jpg",
+      "thumbwidth": 1280,
+      "thumbheight": 960
+     }
+    ]
+   },
+   {
+    "pageid": 1001,
+    "ns": 6,
+    "title": "File:Halle Beauvau vue verticale.jpg",
+    "index": 1,
+    "imageinfo": [
+     {
+      "size": 1,
+      "width": 3000,
+      "height": 4000,
+      "mime": "image/jpeg",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Halle_Beauvau_vue_verticale.jpg",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Halle_Beauvau_vue_verticale.jpg",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=1",
+      "extmetadata": {
+       "LicenseShortName": {
+        "value": "CC BY-SA 4.0",
+        "source": "commons-desc-page"
+       },
+       "License": {
+        "value": "cc-by-sa-4.0",
+        "source": "commons-desc-page"
+       },
+       "LicenseUrl": {
+        "value": "https://creativecommons.org/licenses/by-sa/4.0",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "Camille Exemple",
+        "source": "commons-desc-page"
+       },
+       "Categories": {
+        "value": "Marché Beauvau",
+        "source": "commons-desc-page"
+       }
+      },
+      "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Halle_Beauvau_vue_verticale.jpg/1280px-Halle_Beauvau_vue_verticale.jpg",
+      "thumbwidth": 1280,
+      "thumbheight": 1707
+     }
+    ]
+   },
+   {
+    "pageid": 1002,
+    "ns": 6,
+    "title": "File:Marché d'Aligre étals.jpg",
+    "index": 2,
+    "imageinfo": [
+     {
+      "size": 1,
+      "width": 4000,
+      "height": 2600,
+      "mime": "image/jpeg",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Marché_d'Aligre_étals.jpg",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Marché_d'Aligre_étals.jpg",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=1",
+      "extmetadata": {
+       "LicenseShortName": {
+        "value": "CC BY-NC-SA 2.0",
+        "source": "commons-desc-page"
+       },
+       "License": {
+        "value": "cc-by-nc-sa-2.0",
+        "source": "commons-desc-page"
+       },
+       "LicenseUrl": {
+        "value": "https://creativecommons.org/licenses/by-nc-sa/2.0",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "Flickr Exemple",
+        "source": "commons-desc-page"
+       },
+       "Categories": {
+        "value": "Marché d'Aligre",
+        "source": "commons-desc-page"
+       }
+      },
+      "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Marché_d'Aligre_étals.jpg/1280px-Marché_d'Aligre_étals.jpg",
+      "thumbwidth": 1280,
+      "thumbheight": 832
+     }
+    ]
+   },
+   {
+    "pageid": 1003,
+    "ns": 6,
+    "title": "File:Marchand au marché d'Aligre.jpg",
+    "index": 3,
+    "imageinfo": [
+     {
+      "size": 1,
+      "width": 4000,
+      "height": 3000,
+      "mime": "image/jpeg",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Marchand_au_marché_d'Aligre.jpg",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Marchand_au_marché_d'Aligre.jpg",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=1",
+      "extmetadata": {
+       "LicenseShortName": {
+        "value": "CC BY 2.0",
+        "source": "commons-desc-page"
+       },
+       "License": {
+        "value": "cc-by-2.0",
+        "source": "commons-desc-page"
+       },
+       "LicenseUrl": {
+        "value": "https://creativecommons.org/licenses/by/2.0",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "Dominique Exemple",
+        "source": "commons-desc-page"
+       },
+       "Categories": {
+        "value": "Marché d'Aligre|Portraits of men in Paris|Market vendors",
+        "source": "commons-desc-page"
+       }
+      },
+      "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Marchand_au_marché_d'Aligre.jpg/1280px-Marchand_au_marché_d'Aligre.jpg",
+      "thumbwidth": 1280,
+      "thumbheight": 960
+     }
+    ]
+   }
+  ]
+ }
+}
