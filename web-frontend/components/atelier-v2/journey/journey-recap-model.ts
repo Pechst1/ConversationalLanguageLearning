@@ -31,6 +31,7 @@ import type {
 
 import { sealForEdition, type SealVariant } from '@/components/ui/Seal';
 import { momentumCopy, sealRingsLabel } from '@/lib/momentum-copy';
+import { asks } from '@/lib/sentence-split';
 
 import { formatDuration } from './journey-state';
 import { measuredBesidePlanned } from './time-estimate';
@@ -290,6 +291,7 @@ function saysTheSame(a: string, b: string): boolean {
  * under «La suite demain»; the chapter digest «question → résolution» is the
  * Feuilleton's retrospective. So the card keeps only the resolution half, never a
  * second question that reads as tomorrow's, and nothing the card has already said.
+ * A chapter that closed with no resolution sends its question alone: no line (#827).
  */
 export function colophonDigest(
   digest: string | null | undefined,
@@ -297,7 +299,9 @@ export function colophonDigest(
 ): string | null {
   const parts = digestParts(digest);
   if (!parts) return null;
-  const line = parts.resolution || parts.question;
+  // A line that asks («… ?», «« … ? »») is the chapter's question, not what came of it.
+  const line = parts.resolution || (asks(parts.question) ? '' : parts.question);
+  if (!line) return null;
   const said = alreadySaid.map((value) => String(value ?? '').trim()).filter(Boolean);
   return said.some((value) => saysTheSame(value, line)) ? null : line;
 }

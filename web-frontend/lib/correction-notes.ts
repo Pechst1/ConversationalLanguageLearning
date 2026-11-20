@@ -12,6 +12,8 @@
  * suite.
  */
 
+import { splitSentences } from './sentence-split';
+
 function foldNote(value: string): string {
   return value
     .replace(/[‘’ʼ]/g, "'")
@@ -22,12 +24,13 @@ function foldNote(value: string): string {
     .toLowerCase();
 }
 
-/** A note as its sentences: the corrector's explanation is one or two. */
+/**
+ * A note as its sentences: the corrector's explanation is one or two. Cut by the one
+ * splitter (#896): a «?» inside a quotation the note carries on after ends nothing, so
+ * «„Tu est française, Margaux ?“ stimmt nicht; …» stays whole (#893).
+ */
 function noteSentences(note: string): string[] {
-  // No lookbehind: older iOS web views refuse it.
-  return (note.match(/[^.!?…]+(?:[.!?…]+|$)/g) ?? [note])
-    .map((sentence) => sentence.trim())
-    .filter(Boolean);
+  return splitSentences(note);
 }
 
 /**
