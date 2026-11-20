@@ -15,7 +15,7 @@ import { resolveMediaUrl } from '@/lib/media-url';
 import type { RvLanguage } from '@/lib/revue-types';
 import type { RvUneItem, RvUneSemaine as RvUneSemaineData } from '@/lib/revue-rdv';
 
-import { RDV_FR, fillRdv, rdvCopy, type RdvCopy } from './rdv-copy';
+import { RDV_FR, countLine, fillRdv, rdvCopy, type RdvCopy } from './rdv-copy';
 import { uneCount } from './rdv-model';
 
 function Picture({ item }: { item: RvUneItem }) {
@@ -91,7 +91,7 @@ export function RvUneSemaine({ une, language }: { une: RvUneSemaineData; languag
           {une.datelineFr}
         </p>
         <p className="une__count">
-          {uneCount(copy, une.rubriquesFiled, une.rubriquesTotal)} · {fillRdv(copy.une_pieces, { n: une.pieces })}
+          {uneCount(copy, une.rubriquesFiled, une.rubriquesTotal)} · {countLine(copy, 'une_pieces', une.pieces)}
         </p>
       </header>
       {une.items.length === 0 ? (

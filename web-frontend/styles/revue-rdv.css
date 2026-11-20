@@ -29,6 +29,7 @@
 .av2 .tm-gap { display: flex; flex-direction: column; gap: 8px; }
 .av2 .tm-gap__s { margin: 0; font: var(--av2-t-body-lg)/1.35 var(--av2-serif); color: var(--av2-ink); }
 .av2 .tm-gap__blank { letter-spacing: 0.1em; }
+.av2 .tm-gap__s mark { background: var(--av2-tint-correct); color: var(--av2-ink); }
 .av2 .tm-gap__opts { display: flex; flex-wrap: wrap; gap: 6px; }
 .av2 .tm-done { margin: 0; color: var(--av2-muted); }
 
@@ -54,7 +55,7 @@
 .av2 .rv-carte-presse { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; padding: 12px; border: 1px solid var(--av2-line); border-radius: 6px; }
 .av2 .rv-carte-presse h3 { margin: 0; font-family: var(--av2-serif); color: var(--av2-ink); }
 .av2 .rv-carte-presse__since { margin: 0; font-size: var(--av2-t-meta); color: var(--av2-muted); }
-.av2 .rv-carte-presse__list { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin: 0; }
+.av2 .rv-carte-presse__list { display: flex; flex-direction: column; gap: 4px; margin: 0; }
 .av2 .rv-carte-presse__list div { display: flex; justify-content: space-between; gap: 8px; }
 .av2 .rv-carte-presse__list dt { color: var(--av2-ink); }
 .av2 .rv-carte-presse__list dd { margin: 0; color: var(--av2-muted); }

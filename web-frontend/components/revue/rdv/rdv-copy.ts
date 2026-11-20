@@ -52,7 +52,9 @@ export type RdvCopy = {
   tm_gap_miss: string;
   // «La une de la semaine»
   une_count: string;
+  une_count_one: string;
   une_pieces: string;
+  une_pieces_one: string;
   une_empty: string;
   une_by_you: string;
   une_rectified: string;
@@ -63,8 +65,10 @@ export type RdvCopy = {
   // «La carte de presse»
   carte_since: string;
   carte_pieces: string;
+  carte_pieces_one: string;
   carte_none: string;
   carte_filed: string;
+  carte_filed_one: string;
   carte_not_yet: string;
   // the line of a regular
   souvenir_label: string;
@@ -82,13 +86,15 @@ const EN: RdvCopy = {
   tm_match_shown: 'Here are the three, with their meaning.',
   tm_gap_right: 'Right: that is the story’s own sentence.',
   tm_gap_shown: 'Here is the story’s sentence.',
-  tm_done: 'These three words come back tomorrow, at the top of your words.',
+  tm_done: 'These three words are waiting for you tomorrow, in your words.',
   tm_failed: 'The round could not be loaded. The page is all there below.',
   tm_miss_gloss: '“{word}” does not mean “{cue}”.',
   tm_miss_picture: '“{word}” is not what the picture shows.',
   tm_gap_miss: '“{word}” means “{gloss}”: it does not fit this sentence.',
   une_count: '{n} of {total} sections this week',
+  une_count_one: '1 of {total} sections this week',
   une_pieces: '{n} pieces',
+  une_pieces_one: '1 piece',
   une_empty: 'Nothing filed this week yet. Romy is waiting for your first piece.',
   une_by_you: 'by you',
   une_rectified: 'Your corrections',
@@ -98,8 +104,10 @@ const EN: RdvCopy = {
   une_failed: 'The front page could not be loaded.',
   carte_since: 'Since {date}',
   carte_pieces: '{n} pieces filed',
+  carte_pieces_one: '1 piece filed',
   carte_none: 'No piece filed yet.',
   carte_filed: '{n} filed',
+  carte_filed_one: '1 filed',
   carte_not_yet: 'not yet',
   souvenir_label: 'A regular remembers',
 };
@@ -116,13 +124,15 @@ const DE: RdvCopy = {
   tm_match_shown: 'Hier sind die drei, mit ihrer Bedeutung.',
   tm_gap_right: 'Richtig: Das ist der Satz aus dem Artikel.',
   tm_gap_shown: 'Hier ist der Satz aus dem Artikel.',
-  tm_done: 'Diese drei Wörter kommen morgen wieder, ganz oben bei deinen Wörtern.',
+  tm_done: 'Diese drei Wörter warten morgen bei deinen Wörtern auf dich.',
   tm_failed: 'Die Runde konnte nicht geladen werden. Die Seite steht unten vollständig.',
   tm_miss_gloss: '„{word}“ bedeutet nicht „{cue}“.',
   tm_miss_picture: '„{word}“ ist nicht das, was das Bild zeigt.',
   tm_gap_miss: '„{word}“ bedeutet „{gloss}“: Es passt nicht in diesen Satz.',
   une_count: '{n} von {total} Rubriken diese Woche',
+  une_count_one: '1 von {total} Rubriken diese Woche',
   une_pieces: '{n} Artikel',
+  une_pieces_one: '1 Artikel',
   une_empty: 'Diese Woche ist noch nichts abgelegt. Romy wartet auf deinen ersten Artikel.',
   une_by_you: 'von dir',
   une_rectified: 'Deine Korrekturen',
@@ -132,8 +142,10 @@ const DE: RdvCopy = {
   une_failed: 'Die Titelseite konnte nicht geladen werden.',
   carte_since: 'Seit {date}',
   carte_pieces: '{n} Artikel abgelegt',
+  carte_pieces_one: '1 Artikel abgelegt',
   carte_none: 'Noch kein Artikel abgelegt.',
   carte_filed: '{n} abgelegt',
+  carte_filed_one: '1 abgelegt',
   carte_not_yet: 'noch nicht',
   souvenir_label: 'Ein Stammgast erinnert sich',
 };
@@ -150,13 +162,15 @@ const FR: RdvCopy = {
   tm_match_shown: 'Voici les trois, avec leur sens.',
   tm_gap_right: "Juste : c'est la phrase de l'article.",
   tm_gap_shown: "Voici la phrase de l'article.",
-  tm_done: 'Ces trois mots reviennent demain, en tête de tes mots.',
+  tm_done: "Ces trois mots t'attendent demain, dans tes mots.",
   tm_failed: "La manche n'a pas pu être chargée. La page est là, en dessous.",
   tm_miss_gloss: '« {word} » ne veut pas dire « {cue} ».',
   tm_miss_picture: "« {word} » n'est pas ce que montre l'image.",
   tm_gap_miss: '« {word} » veut dire « {gloss} » : il ne va pas dans cette phrase.',
   une_count: '{n} rubriques sur {total} cette semaine',
+  une_count_one: '1 rubrique sur {total} cette semaine',
   une_pieces: '{n} papiers',
+  une_pieces_one: '1 papier',
   une_empty: "Rien de classé cette semaine. Romy attend ton premier papier.",
   une_by_you: 'par toi',
   une_rectified: 'Tes corrections',
@@ -166,8 +180,10 @@ const FR: RdvCopy = {
   une_failed: "La une n'a pas pu être chargée.",
   carte_since: 'Depuis le {date}',
   carte_pieces: '{n} papiers classés',
+  carte_pieces_one: '1 papier classé',
   carte_none: 'Aucun papier classé pour le moment.',
   carte_filed: '{n} classés',
+  carte_filed_one: '1 classé',
   carte_not_yet: 'pas encore',
   souvenir_label: 'Un habitué se souvient',
 };
@@ -176,6 +192,12 @@ const TABLES: Record<RvLanguage, RdvCopy> = { en: EN, de: DE, fr: FR };
 
 export function rdvCopy(language: RvLanguage | string | null | undefined): RdvCopy {
   return TABLES[(language === 'de' || language === 'fr' ? language : 'en') as RvLanguage];
+}
+
+/** A count line: the `_one` form for 1 (French, English and German agree on that), else the plural. */
+export function countLine(copy: RdvCopy, key: 'une_count' | 'une_pieces' | 'carte_pieces' | 'carte_filed', n: number, vars: Record<string, string | number> = {}): string {
+  const template = n === 1 ? copy[`${key}_one` as keyof RdvCopy] : copy[key];
+  return fillRdv(template as string, { n, ...vars });
 }
 
 /** «{word}» → the value; unknown slots are left as they are. */

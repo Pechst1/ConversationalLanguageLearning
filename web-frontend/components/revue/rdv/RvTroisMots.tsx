@@ -16,15 +16,16 @@
  * direction styles it afterwards.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Action } from '@/components/atelier-v2/ui';
 import { resolveMediaUrl } from '@/lib/media-url';
 import type { RvLanguage } from '@/lib/revue-types';
 import type { RdvClient, RvTmCue, RvTmWordKey, RvTroisMots, RvTroisMotsBody } from '@/lib/revue-rdv';
 
+import { bringIntoView } from '../comptoir/scroll';
 import { RDV_FR, fillRdv, rdvCopy, type RdvCopy } from './rdv-copy';
-import { complete, gapMissLine, missLines, pairCue, shownPairs, unpair, type Pairs } from './rdv-model';
+import { complete, gapMissLine, keepRight, missLines, pairCue, shownPairs, unpair, type Pairs } from './rdv-model';
 import { useRdv } from './RdvContext';
 
 export type RvTroisMotsViewProps = {
@@ -227,7 +228,7 @@ export function RvTroisMots({ client, sessionId, chrome, mother, initial }: RvTr
       try {
         const result = await client.troisMotsAct(sessionId, body);
         if (result.round) setRound(result.round);
-        if (body.act === 'match' && result.round && !result.round.match.resolved) setPairs(body.pairs);
+        if (body.act === 'match' && result.round && !result.round.match.resolved) setPairs(keepRight(body.pairs, result.round));
       } catch {
         // Kept quiet: the learner can try again.
       } finally {
@@ -237,9 +238,22 @@ export function RvTroisMots({ client, sessionId, chrome, mother, initial }: RvTr
     [client, pending, sessionId],
   );
 
+  // The round arrives after «La page» has scrolled to its clipping: bring the round's top under
+  // the sticky head once, so the first block is what the learner sees first.
+  const box = useRef<HTMLDivElement | null>(null);
+  const shown = !hidden && Boolean(round);
+  useEffect(() => {
+    if (!shown || initial !== undefined || !box.current || typeof document === 'undefined') return;
+    bringIntoView(box.current, document.querySelector<HTMLElement>('.rv-top'), document.querySelector<HTMLElement>('.rv-foot'), 'start');
+    // Once, when it first shows.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown]);
+
   if (hidden || !round) return null;
   return (
-    <RvTroisMotsView round={round} pairs={pairs} copy={rdvCopy(chrome)} xcopy={rdvCopy(mother)} pending={pending} onPairs={setPairs} onAct={(body) => void onAct(body)} />
+    <div ref={box} className="tm-slot">
+      <RvTroisMotsView round={round} pairs={pairs} copy={rdvCopy(chrome)} xcopy={rdvCopy(mother)} pending={pending} onPairs={setPairs} onAct={(body) => void onAct(body)} />
+    </div>
   );
 }
 

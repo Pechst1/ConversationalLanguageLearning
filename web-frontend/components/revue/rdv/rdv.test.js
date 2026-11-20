@@ -118,6 +118,7 @@ test('a miss says, in the mother tongue under French chrome, which pairs were wr
   assert.match(text, /Versuch es noch einmal\./);
   assert.ok(r.words.every((w) => w.gloss === null), 'still no gloss: no solution before the retry');
   assert.equal(r.match.solution, null);
+  assert.deepEqual(model.keepRight({ a: '1', b: '2', c: '3' }, r), { c: '3' }, 'the named pairs are freed for the retry');
 });
 
 test('the gap: the story\'s own sentence with a blank, three options, then the miss in the mother tongue, then the sentence whole', () => {
@@ -138,7 +139,7 @@ test('the gap: the story\'s own sentence with a blank, three options, then the m
   text = visibleText(view(done, { chrome: 'de', mother: 'de' }));
   assert.match(text, /Richtig: Das ist der Satz aus dem Artikel\./);
   assert.match(text, /dans les rues , les bars/);
-  assert.match(text, /Diese drei Wörter kommen morgen wieder/);
+  assert.match(text, /Diese drei Wörter warten morgen bei deinen Wörtern auf dich\./);
 });
 
 test('the slot draws nothing without the page\'s client or before the close', () => {
@@ -196,6 +197,7 @@ test('la carte de presse: the six rubriques, pieces, since when — no points, n
   assert.match(text, /Depuis le 15 novembre 2026 · 5 papiers classés/);
   for (const name of ['Au comptoir', 'Le fil', 'Le titre', "L'intox express", 'La photo', 'Le micro']) assert.ok(text.includes(name), name);
   assert.match(text, /Le titre 2 classés/);
+  assert.match(text, /Au comptoir 1 classé(?!s)/, 'singular for one');
   assert.match(text, /La photo pas encore/);
   assert.match(html, /href="\/revue\/une"/);
   assert.ok(!/point|streak|série/i.test(text));

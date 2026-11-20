@@ -11,7 +11,7 @@ import Link from 'next/link';
 import type { RvLanguage } from '@/lib/revue-types';
 import { rdvClient as defaultClient, type RdvClient, type RvCarteDePresse as Card } from '@/lib/revue-rdv';
 
-import { RDV_FR, dayLabel, fillRdv, rdvCopy } from './rdv-copy';
+import { RDV_FR, countLine, dayLabel, fillRdv, rdvCopy } from './rdv-copy';
 
 export const UNE_HREF = '/revue/une';
 
@@ -25,13 +25,13 @@ export function RvCarteDePresseCard({ card, language }: { card: Card; language: 
       <p className="rv-carte-presse__since">
         {card.since ? fillRdv(copy.carte_since, { date: dayLabel(card.since, language) }) : copy.carte_none}
         {' · '}
-        {fillRdv(copy.carte_pieces, { n: card.pieces })}
+        {countLine(copy, 'carte_pieces', card.pieces)}
       </p>
       <dl className="rv-carte-presse__list">
         {card.rubriques.map((row) => (
           <div key={row.rubrique} data-filed={row.pieces > 0 ? '' : undefined}>
             <dt lang="fr">{RDV_FR.rubriques[row.rubrique]}</dt>
-            <dd>{row.pieces > 0 ? fillRdv(copy.carte_filed, { n: row.pieces }) : copy.carte_not_yet}</dd>
+            <dd>{row.pieces > 0 ? countLine(copy, 'carte_filed', row.pieces) : copy.carte_not_yet}</dd>
           </div>
         ))}
       </dl>

@@ -6,7 +6,7 @@
 import type { RvLanguage } from '@/lib/revue-types';
 import { TM_WORD_KEYS, type RvSouvenir, type RvTmCueKey, type RvTmWordKey, type RvTroisMots } from '@/lib/revue-rdv';
 
-import { fillRdv, type RdvCopy } from './rdv-copy';
+import { countLine, fillRdv, type RdvCopy } from './rdv-copy';
 
 export type Pairs = Partial<Record<RvTmWordKey, RvTmCueKey>>;
 
@@ -33,6 +33,15 @@ export function unpair(pairs: Pairs, word: RvTmWordKey): Pairs {
 
 export function complete(pairs: Pairs): pairs is Record<RvTmWordKey, RvTmCueKey> {
   return TM_WORD_KEYS.every((key) => Boolean(pairs[key])) && new Set(TM_WORD_KEYS.map((k) => pairs[k])).size === 3;
+}
+
+/** After a miss: the pairs the miss did not name stay; the named ones are free to try again
+ * (the miss lines already say which words were wrong, never which cue was right). */
+export function keepRight(pairs: Pairs, round: RvTroisMots): Pairs {
+  const wrong = new Set(round.match.misses.map((miss) => miss.wordKey));
+  const next: Pairs = {};
+  for (const key of TM_WORD_KEYS) if (pairs[key] && !wrong.has(key)) next[key] = pairs[key];
+  return next;
 }
 
 /** The pairs the learner sees: before the first check, theirs; after a miss, the last tried; once
@@ -70,5 +79,5 @@ export function souvenirTranslation(line: RvSouvenir, language: RvLanguage): str
 }
 
 export function uneCount(copy: RdvCopy, filed: number, total: number): string {
-  return fillRdv(copy.une_count, { n: filed, total });
+  return countLine(copy, 'une_count', filed, { total });
 }
