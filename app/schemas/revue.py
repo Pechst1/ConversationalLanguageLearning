@@ -25,7 +25,7 @@ Beat = Literal["arrive", "facts", "pursue", "make", "close"]
 RoomPhase = Literal["open", "bouclage", "boucle"]
 #: ``caption`` (WP-119 §8.4, «La légende»): the caption under the story's picture.
 #: ``opinion`` («Au comptoir», 2026-10-19): the learner's quote in Romy's vox pop.
-MakeKind = Literal["headline_choice", "headline_write", "reader_question", "short_report", "caption", "opinion"]
+MakeKind = Literal["headline_choice", "headline_write", "reader_question", "short_report", "caption", "opinion", "fil"]
 #: WP-119 §8.4: what the site's plate is — the story's own picture, a painted place, a season plate, a stand-in.
 PlateKind = Literal["story", "painted", "season", "stand_in"]
 FallbackReason = Literal["model_down", "knowledge_refused", "budget", "no_match"]
@@ -620,6 +620,167 @@ class RvComptoirRequest(RevueRequest):
     index: int | None = Field(None, ge=0, le=9)
 
 
+# ---------------------------------------------------------------------------
+# «Le fil» (WP-119 «les rubriques», owner 2026-11-20; WIRE §10)
+# ---------------------------------------------------------------------------
+
+FilStep = Literal["read", "order", "words", "tell", "page"]
+FilAct = Literal["open", "order", "words", "tell", "tell_fix"]
+FilRole = Literal["first", "middle", "last"]
+
+
+class RvFilStrip(RevueModel):
+    """A dispatch of the wire at the learner's band. ``key`` is the session's own letter for
+    it (``a``–``d`` in the order it was shown): it says nothing of the true order."""
+
+    key: str
+    text: RvComptoirText
+    #: What the order step's reason calls it («l'annonce» · «the announcement»).
+    label: RvComptoirText | None = None
+
+
+class RvFilHint(RevueModel):
+    """After a wrong order: the first strip out of place (``key``) happens after ``after_key``."""
+
+    key: str
+    after_key: str
+
+
+class RvFilOrder(RevueModel):
+    """Step 2. ``strips`` in the order they were shown; ``solution`` (the keys in true order)
+    only once the order is resolved (right, or two tries used)."""
+
+    strips: list[RvFilStrip]
+    tries: int = 0
+    max_tries: int = 2
+    placed: list[str] = Field(default_factory=list)
+    hint: RvFilHint | None = None
+    resolved: bool = False
+    correct: bool | None = None
+    solution: list[str] = Field(default_factory=list)
+
+
+class RvFilConnector(RevueModel):
+    """A sequence word. ``tr`` (its gloss) and ``role`` only once the words step is resolved."""
+
+    id: str
+    fr: str
+    tr: str | None = None
+    role: FilRole | None = None
+
+
+class RvFilMiss(RevueModel):
+    """A sequence word put where it does not fit: what it means and where it goes."""
+
+    position: int
+    id: str
+    fr: str
+    tr: str | None = None
+    role: FilRole
+    #: What the position needs.
+    needs: FilRole
+
+
+class RvFilWords(RevueModel):
+    """Step 3. ``place``: A1 puts its four words on the four strips; ``choose``: from A2 each
+    strip offers three (``options``), one per role."""
+
+    input: Literal["place", "choose"]
+    #: The strips in true order (the order step is resolved).
+    strips: list[RvComptoirText]
+    connectors: list[RvFilConnector]
+    options: list[list[str]] = Field(default_factory=list)
+    tries: int = 0
+    max_tries: int = 2
+    picked: list[str] = Field(default_factory=list)
+    misses: list[RvFilMiss] = Field(default_factory=list)
+    resolved: bool = False
+    correct: bool | None = None
+    solution: list[str] = Field(default_factory=list)
+
+
+class RvFilTile(RevueModel):
+    key: str
+    text: RvComptoirText
+
+
+class RvFilTell(RevueModel):
+    """Step 4. A1 builds two sentences from a sequence word and an event tile each (no model
+    call); A2 completes the two ``frames``; B1+ write freely with ``min_connectors`` of the
+    sequence words. From A2 Romy marks, the learner fixes (as at the counter)."""
+
+    input: Literal["tiles", "frames", "free"]
+    phrase: RvComptoirText
+    tiles: list[RvFilTile] = Field(default_factory=list)
+    connectors: list[RvFilConnector] = Field(default_factory=list)
+    frames: list[RvComptoirText] = Field(default_factory=list)
+    min_words: int = 0
+    min_connectors: int = 0
+    #: Once told: the learner's text, Romy's marks, what prints (as ``RvComptoirOpinion``'s).
+    learner_fr: str | None = None
+    draft_fr: str | None = None
+    proof: ComptoirProof | None = None
+    marks: list[RvComptoirMark] = Field(default_factory=list)
+    tries: int = 0
+    max_tries: int = 2
+    printed_fr: str | None = None
+
+
+class RvFilView(RevueModel):
+    step: FilStep
+    steps: list[FilStep]
+    band: Literal["a1", "a2", "b1"]
+    title_fr: str
+    read: RvComptoirRead
+    order: RvFilOrder | None = None
+    words: RvFilWords | None = None
+    tell: RvFilTell | None = None
+
+
+class RvFilPageStrip(RevueModel):
+    connector_fr: str
+    text_fr: str
+
+
+class RvFilPage(RevueModel):
+    """«La page»: the wire printed in order, the learner's telling under their name."""
+
+    title_fr: str
+    dateline_fr: str
+    strips: list[RvFilPageStrip]
+    mine_fr: str
+    proof: ComptoirProof | None = None
+    phrase_fr: str
+    words: list[str]
+
+
+class RvFilRequest(RevueRequest):
+    act: FilAct
+    #: order: the strips' keys in the learner's order.
+    order: list[str] | None = Field(None, max_length=4)
+    #: words: a sequence word's id per strip, in order.
+    picks: list[str] | None = Field(None, max_length=4)
+    #: tell at A1: [word id, tile key, word id, tile key].
+    parts: list[str] | None = Field(None, max_length=4)
+    #: tell at A2: the end of each of the two frames.
+    texts: list[str] | None = Field(None, max_length=2)
+    #: tell at B1+, tell_fix: the text.
+    text: str | None = Field(None, max_length=800)
+    #: tell_fix: ``"romy"`` (after one try) lets Romy fix what is left.
+    value: str | None = Field(None, max_length=20)
+    mode: Literal["text", "voice"] = "text"
+
+
+class RvFilError(RevueModel):
+    """Why an act was not recorded, for the copy in the learner's language: ``code`` and the
+    strips or words it is about."""
+
+    code: str
+    key: str | None = None
+    after_key: str | None = None
+    count: int | None = None
+
+
 class RvClosing(RevueModel):
     romy_line_fr: str
     dispatch: RvDispatch
@@ -631,6 +792,8 @@ class RvClosing(RevueModel):
     colophon_fr: Literal["La suite la semaine prochaine.", "La suite demain."] = "La suite la semaine prochaine."
     #: «Au comptoir»: «La page» (``None`` for a chat session).
     comptoir_page: RvComptoirPage | None = None
+    #: «Le fil»: «La page» (``None`` otherwise).
+    fil_page: RvFilPage | None = None
 
 
 class RvSessionView(RevueModel):
@@ -653,14 +816,22 @@ class RvSessionView(RevueModel):
     artifact: RvMade | None = None
     closing: RvClosing | None = None
     #: «Au comptoir» (WP-119, 2026-10-19): the mode the session started in, for its whole life.
-    mode: Literal["chat", "comptoir"] = "chat"
+    mode: Literal["chat", "comptoir", "fil"] = "chat"
     comptoir: RvComptoirView | None = None
+    #: «Le fil» (2026-11-20): the player's view, for a session dealt that assignment.
+    fil: RvFilView | None = None
 
 
 class RvComptoirResult(RevueModel):
     session: RvSessionView
     #: A reason the act was not recorded, said on the same screen («Choisis une raison.»).
     error_fr: str | None = None
+
+
+class RvFilResult(RevueModel):
+    session: RvSessionView
+    #: Why the act was not recorded (the client says it in the learner's language).
+    error: RvFilError | None = None
 
 
 # ---------------------------------------------------------------------------

@@ -971,6 +971,16 @@ class Settings(BaseSettings):
             "comparison of 2026-10-19 (claude-haiku-5-5 over gpt-6-luna and claude-sonnet-5-5)."
         ),
     )
+    REVUE_ASSIGNMENTS_ENABLED: bool = Field(
+        False,
+        description=(
+            "WP-119 «Le Papier · les rubriques» (owner 2026-11-20): the learner is Romy's trainee and "
+            "each story is dealt one assignment it can carry («Au comptoir», «Le fil»…), never the "
+            "shape of the learner's last two Papiers. On: a new session starts in the dealt "
+            "assignment, and each morning the wire desk writes «Le fil» (one call per story). Off: "
+            "nothing changes (no new mode, no field, no call)."
+        ),
+    )
     VOCAB_TARGET_RETENTION: float = Field(
         0.87,
         ge=0.7,

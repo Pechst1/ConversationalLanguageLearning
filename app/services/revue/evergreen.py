@@ -16,6 +16,11 @@ Which evergreen fits a week is decided by ``time_scope`` alone: a dossier's stor
 «Au comptoir» (WP-119, 2026-10-19): ``evergreen/comptoir/<id>.json`` holds the takes the desk
 wrote for that evergreen (checked, read by eye, committed), loaded onto its dossier here, so
 an evergreen week makes no desk call and the tests and the walk play real French offline.
+
+«Le fil» (2026-11-20): ``evergreen/fil/<id>.json`` holds a wire written by hand for the
+evergreens whose claims carry four events in a stated order (most do not: they describe a
+custom, not a sequence). Read on demand (:func:`evergreen_wire`), never attached to the loaded
+dossiers, so nothing an evergreen stores or snapshots changes while the assignments are off.
 """
 
 from __future__ import annotations
@@ -24,11 +29,12 @@ from datetime import date
 from functools import lru_cache
 from pathlib import Path
 
-from app.services.revue.dossier import ComptoirTakes, EditorialDossier, week_bounds
+from app.services.revue.dossier import ComptoirTakes, EditorialDossier, FilWire, week_bounds
 
 EVERGREEN_DIR = Path(__file__).with_name("evergreen")
 SOURCES_DIR = EVERGREEN_DIR / "sources"
 COMPTOIR_DIR = EVERGREEN_DIR / "comptoir"
+FIL_DIR = EVERGREEN_DIR / "fil"
 
 
 @lru_cache(maxsize=1)
@@ -44,6 +50,19 @@ def evergreen_takes(dossier_id: str) -> ComptoirTakes | None:
 
     takes = _takes().get(dossier_id)
     return takes.model_copy(deep=True) if takes is not None else None
+
+
+@lru_cache(maxsize=1)
+def _wires() -> dict[str, FilWire]:
+    return {path.stem: FilWire.model_validate_json(path.read_text(encoding="utf-8"))
+            for path in sorted(FIL_DIR.glob("*.json"))}
+
+
+def evergreen_wire(dossier_id: str) -> FilWire | None:
+    """«Le fil» shipped with the evergreen ``dossier_id`` (a copy), or ``None``."""
+
+    wire = _wires().get(dossier_id)
+    return wire.model_copy(deep=True) if wire is not None else None
 
 
 @lru_cache(maxsize=1)

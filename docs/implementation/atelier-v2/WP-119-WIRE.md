@@ -799,3 +799,48 @@ punctuation aside), with the kind of slip, the model's hint winning where it cov
   («tel que tu l'as écrit»), never «relu par Romy». An A1 learner who types instead of the tiles: `as_written`.
 - A1's tiles: `clean` (correct by construction), plain «Dans le journal».
 `POST /close` needs a settled opinion (`409 revue_comptoir_out_of_order` while `marked`).
+
+## 10. «Le fil» and the assignment desk (owner 2026-11-20)
+
+Behind `REVUE_ASSIGNMENTS_ENABLED` (off: nothing below exists for any session). A new session is dealt one
+assignment its story carries (`app/services/revue/assignments.py`): `"comptoir"` (takes, §9) or `"fil"` (a wire),
+never the mode of the learner's last two Papier sessions (else the least recent; the chat when the story carries
+none). The deal is recorded on the first `choice` event (`mode="fil"`) and kept for the session's life.
+
+### 10.1 What changes on the existing shapes
+
+- `RvSessionView.mode`: `"chat" | "comptoir" | "fil"`; `RvSessionView.fil: RvFilView | null` (null unless `"fil"`).
+- `RvMade.kind` and the Relevé's made kinds gain `"fil"` (the learner's telling; never offered as a make).
+- `RvClosing.fil_page: RvFilPage | null`.
+- Chat turns and makes on a fil session: `409 revue_fil_session`.
+
+### 10.2 `RvFilView`
+
+`step: "read" | "order" | "words" | "tell" | "page"`, `steps` (always the five), `band`, `title_fr`, `read`
+(as `RvComptoirRead`), then each step's part from its step on:
+
+- `order`: `strips: [{key, text, label}]` in the order shown (keys `a`–`d`, shuffled per session, never already in
+  order, never a claim id), `tries`, `max_tries` (2), `placed`, `hint: {key, after_key} | null` (after a wrong try:
+  the first strip out of place happens after `after_key`), `resolved`, `correct`, `solution` (keys in true order,
+  only once resolved).
+- `words`: `input: "place"` (A1: four chips on four strips) `| "choose"` (A2+: `options`, three ids per strip, one
+  per role), `strips` (true order), `connectors: [{id, fr, tr, role}]` (`tr`/`role` only once resolved), `tries`,
+  `picked`, `misses: [{position, id, fr, tr, role, needs}]`, `resolved`, `correct`, `solution`.
+- `tell`: `input: "tiles" | "frames" | "free"`, `phrase`, `tiles: [{key, text}]` (A1), `connectors`, `frames` (A2),
+  `min_words`, `min_connectors` (B1+: 2), then once told `learner_fr`, `draft_fr`, `proof`, `marks`, `tries`,
+  `max_tries`, `printed_fr` (as §9.5).
+
+### 10.3 `POST /revue/sessions/{id}/fil` — one act
+
+Body `{act, order?, picks?, parts?, texts?, text?, value?, mode?}` → `RvFilResult {session, error: {code, key?,
+after_key?, count?} | null}`. Acts: `open`; `order {order: [4 keys]}`; `words {picks: [4 ids]}`; `tell` (A1 `parts:
+[word id, tile key, word id, tile key]`, A2 `texts: [2]`, B1+ `text`); `tell_fix {text | value: "romy"}`. A paid
+route. 404 while `REVUE_ENABLED` is off; 409 `revue_not_fil` on another session; 409 `revue_fil_out_of_order` with
+`step`; 422 `revue_fil_bad_act`. A repeated act records nothing. `error.code` (nothing recorded, the client says it
+in the learner's language): `tell_order`, `tell_same`, `tell_last_first`, `tell_starts_middle`, `tell_first_second`,
+`tell_pick_all`, `pick_all`, `too_short` (`count`), `need_connectors` (`count`), `nothing_changed`.
+
+### 10.4 `RvFilPage` («La page», at the close; no model call)
+
+`{title_fr, dateline_fr, strips: [{connector_fr, text_fr}] ×4, mine_fr, proof, phrase_fr, words}`. The artifact is
+`kind: "fil"` (`text_fr` = printed, `learner_fr` = only what the learner typed).

@@ -1,0 +1,43 @@
+/* ===========================================================================
+   «Le fil» (WIRE §10, owner 2026-11-20) · components/revue/fil/*.
+   On the comptoir's pieces (styles/revue-comptoir.css): `.av2` scope, `--av2-*`
+   tokens only (light and dark come with them), the comptoir's radii and taps.
+   =========================================================================== */
+
+/* the dispatches: a numbered strip, its French, the moves */
+.av2 .fl-strips { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.av2 .fl-strip { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 10px 12px;
+  border: 1px solid var(--av2-line); border-left: 3px solid var(--av2-ink); border-radius: 6px; background: var(--av2-card); }
+.av2 .fl-strip[data-selected] { border-color: var(--av2-ink); box-shadow: 0 0 0 1px var(--av2-ink); }
+.av2 .fl-strip[data-misplaced], .av2 .fl-strip[data-miss] { border-left-color: var(--av2-red); }
+.av2 .fl-strip__n { display: grid; place-items: center; min-width: var(--av2-tap); min-height: var(--av2-tap); padding: 0;
+  border: 1px solid var(--av2-line-2); border-radius: var(--av2-r-pill); background: var(--av2-paper); color: var(--av2-ink);
+  font: 700 var(--av2-t-label)/1 var(--av2-sans); cursor: pointer; }
+.av2 .fl-strip__n[aria-pressed='true'] { background: var(--av2-ink); border-color: var(--av2-ink); color: var(--av2-on-ink); }
+.av2 .fl-strip__n:disabled { cursor: default; }
+.av2 .fl-strip__text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.av2 .fl-strip__fr { margin: 0; font-family: var(--av2-serif); font-size: var(--av2-t-body-lg); line-height: 1.3; color: var(--av2-ink); }
+.av2 .fl-strip__moves { display: flex; flex-direction: column; gap: 4px; }
+.av2 .fl-strip .ct-why { grid-column: 2 / -1; }
+
+/* the sequence words: a slot on each dispatch (A1), three options (A2+) */
+.av2 .fl-strip:has(.fl-slot), .av2 .fl-strip:has(.fl-options) { grid-template-columns: minmax(0, 1fr); }
+.av2 .fl-slot { justify-self: start; min-height: var(--av2-tap); min-width: 110px; padding: 6px 14px; border: 1px dashed var(--av2-line-2);
+  border-radius: var(--av2-r-pill); background: var(--av2-paper); color: var(--av2-ink); font: 400 var(--av2-t-body-lg)/1.2 var(--av2-serif); text-align: left; cursor: pointer; }
+.av2 .fl-slot[aria-pressed='true'] { border-style: solid; border-color: var(--av2-ink); }
+.av2 .fl-slot:disabled { cursor: default; }
+.av2 .fl-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.av2 .fl-option { min-height: var(--av2-tap); padding: 6px 14px; border: 1px solid var(--av2-line-2); border-radius: var(--av2-r-pill);
+  background: var(--av2-paper); color: var(--av2-ink); font: 400 var(--av2-t-body-lg)/1.2 var(--av2-serif); cursor: pointer; }
+.av2 .fl-option[aria-checked='true'], .av2 .ct-bank__b[aria-checked='true'], .av2 .ct-bank__b[aria-pressed='true'] {
+  background: var(--av2-ink); border-color: var(--av2-ink); color: var(--av2-on-ink); }
+.av2 .fl-option:disabled { cursor: default; }
+
+/* «Raconter»: two sentences, each a word and a moment */
+.av2 .fl-build { gap: 10px; }
+
+/* «La page»: the wire, each dispatch under its word */
+.av2 .fl-wire { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.av2 .fl-wire__row { display: flex; flex-direction: column; gap: 2px; padding-top: 8px; border-top: 1px solid var(--av2-line); }
+.av2 .fl-wire__word { font-size: var(--av2-t-meta); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--av2-blue); }
+.av2 .fl-wire__fr { font-family: var(--av2-serif); font-size: var(--av2-t-body-lg); line-height: 1.3; color: var(--av2-ink); }

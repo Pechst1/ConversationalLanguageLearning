@@ -22,7 +22,14 @@ import re
 from datetime import date, datetime
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 
 from app.services.revue.policy import TOPICS
 
@@ -385,6 +392,65 @@ class ComptoirTakes(_Model):
         return intox if intox is not None and comptoir_band(band) in intox.bands else None
 
 
+#: «Le fil» (2026-11-20): where a sequence word fits in the story's four events.
+FilRole = Literal["first", "middle", "last"]
+#: The four positions of the wire, in order.
+FIL_ROLES: tuple[str, ...] = ("first", "middle", "middle", "last")
+
+
+class FilStrip(_Model):
+    """One event of «Le fil», told at each band (B2 reads ``b1``), grounded in ``claim_id``.
+    ``label``: what the order step's reason calls it («l'annonce»); ``tile``: the A1
+    retelling's fragment, read after a sequence word («la mairie annonce les travaux»)."""
+
+    claim_id: str = Field(min_length=1)
+    a1: ComptoirText
+    a2: ComptoirText
+    b1: ComptoirText
+    label: ComptoirText | None = None
+    tile: ComptoirText | None = None
+
+    def for_band(self, band: str) -> ComptoirText:
+        return getattr(self, comptoir_band(band))
+
+
+class FilConnector(_Model):
+    """A sequence word («d'abord», «par la suite», «en fin de compte») and where it fits."""
+
+    fr: str = Field(min_length=1)
+    en: str | None = None
+    de: str | None = None
+    role: FilRole
+
+    def translation(self, language: str) -> str | None:
+        return {"en": self.en, "de": self.de}.get(language)
+
+
+class FilTelling(_Model):
+    """The retelling's helpers: the A2 openings of its two sentences (each starts with a
+    sequence word) and the phrase of the day per band (A1's tiles are the strips' own)."""
+
+    frames: list[ComptoirText] = Field(default_factory=list, max_length=2)
+    phrase: ComptoirPhrase
+
+
+class FilWire(_Model):
+    """«Le fil» (WP-119, owner 2026-11-20): the story as four dispatches in true order, written
+    once per story by the wire desk (``fil.py``), shared by every learner. ``basis`` says, per
+    pair of neighbours, why the second follows the first (``date`` or the claims' own words)."""
+
+    strips: list[FilStrip] = Field(min_length=4, max_length=4)
+    connectors: dict[ComptoirBand, list[FilConnector]] = Field(default_factory=dict)
+    telling: FilTelling
+    basis: list[str] = Field(default_factory=list, max_length=3)
+    model: str = ""
+    written_at: datetime | None = None
+    prompt_version: str = ""
+
+    def connectors_for(self, band: str) -> list[FilConnector]:
+        return list(self.connectors.get(comptoir_band(band)) or [])  # type: ignore[call-overload]
+
+
 class TimeScope(_Model):
     """When the story happens (``happening``, an ISO interval) and until when it matters."""
 
@@ -453,6 +519,18 @@ class EditorialDossier(_Model):
     #: until the takes desk (``comptoir.py``) wrote them. Read only while
     #: ``REVUE_COMPTOIR_ENABLED`` is on.
     comptoir: ComptoirTakes | None = None
+    #: «Le fil» (2026-11-20): the story's four events in true order; ``None`` until the wire
+    #: desk (``fil.py``) wrote them. Read only while ``REVUE_ASSIGNMENTS_ENABLED`` is on, and
+    #: left out of every dump while ``None``, so a dossier without a wire stores and snapshots
+    #: exactly as before it existed.
+    fil: FilWire | None = None
+
+    @model_serializer(mode="wrap")
+    def _without_empty_fil(self, handler: Any) -> Any:
+        data = handler(self)
+        if isinstance(data, dict) and data.get("fil", ...) is None:
+            data.pop("fil")
+        return data
 
     @field_validator("week")
     @classmethod

@@ -956,6 +956,13 @@ class FakeRevueProvider:
         return {"edited_fr": text, "marks": marks, "reply_fr": example,
                 "reply_en": context.get("example_reply_en"), "reply_de": context.get("example_reply_de")}
 
+    def fil_edit(self, context: dict[str, Any]) -> dict[str, Any]:
+        """«Le fil»: Romy's correction of the learner's telling, from the same table of slips."""
+
+        out = self.comptoir_edit(context)
+        self.calls[-1] = ("fil_edit", context)
+        return {"edited_fr": out["edited_fr"], "marks": out["marks"]}
+
     def guest(self, context: dict[str, Any]) -> dict[str, Any]:
         """Entry: the guest's reason, ``against`` on a disagreement angle, else ``for``.
         Later: a learner's point («parce que», «mais», «car»…) moves an ``against`` guest;
@@ -1276,6 +1283,13 @@ class OpenAIRevueProvider:
         return self.ask_json(edit_instructions(context), context, system=COMPTOIR_EDIT_SYSTEM, temperature=0.5,
                              label="comptoir_edit")
 
+    def fil_edit(self, context: dict[str, Any]) -> dict[str, Any]:
+        """«Le fil»: Romy's edit of the learner's two-sentence telling (one call)."""
+
+        from app.services.revue.fil_loop import FIL_EDIT_INSTRUCTIONS, FIL_EDIT_SYSTEM
+
+        return self.ask_json(FIL_EDIT_INSTRUCTIONS, context, system=FIL_EDIT_SYSTEM, temperature=0.3, label="fil_edit")
+
     def guest(self, context: dict[str, Any]) -> dict[str, Any]:
         return self._ask(
             "guest",
@@ -1391,10 +1405,11 @@ class RevueError(Exception):
 def _require_chat(loaded: Any) -> None:
     """«Au comptoir»: a comptoir session has no chat turn and no make."""
 
-    from app.services.revue.comptoir_loop import session_mode
+    from app.services.revue.assignments import session_mode
 
-    if session_mode(loaded.state) == "comptoir":
-        raise RevueError(409, "revue_comptoir_session")
+    mode = session_mode(loaded.state)
+    if mode != "chat":
+        raise RevueError(409, f"revue_{mode}_session")
 
 
 def _require_own_line(loaded: Any) -> None:
@@ -1796,7 +1811,12 @@ def _comptoir_fields(loaded: Loaded) -> dict[str, Any]:
     """«Au comptoir»: ``mode`` and the player's view, for a session that started there."""
 
     from app.services.revue import comptoir_loop
+    from app.services.revue.assignments import session_mode
 
+    if session_mode(loaded.state) == "fil" and loaded.dossier.fil is not None:
+        from app.services.revue import fil_loop
+
+        return {"mode": "fil", "fil": fil_loop.fil_view(loaded)}
     if comptoir_loop.session_mode(loaded.state) != "comptoir" or loaded.dossier.comptoir is None:
         return {}
     return {"mode": "comptoir", "comptoir": comptoir_loop.comptoir_view(loaded)}
@@ -2265,18 +2285,27 @@ class RevueEncounter:
 
         spent_before = self._spent()
         takes, desk_cost = self._takes_at_start(dossier, week)
+        takes, wire = self._deal(user, dossier, takes)
         plan = self._plan(user, dossier, angle_id=angle_id, chosen_by=chosen_by)
         state = ConversationState()
-        if takes is not None:
+        if wire is not None:
+            # «Le fil» (2026-11-20): the dealt assignment is fixed here for the session's life.
+            state.append("choice", kind="dossier", dossier_id=dossier.id, chosen_by=chosen_by,
+                         free_request=(free_request or None), mode="fil",
+                         snapshot=dossier.model_copy(update={"fil": wire}).model_dump(mode="json", exclude={"comptoir"}),
+                         cost_usd=round(self._spent() - spent_before + desk_cost, 6),
+                         prompt_version=VOCABULARY_PROMPT_VERSION)
+        elif takes is not None:
             # «Au comptoir» (WP-119, 2026-10-19): the mode is fixed here for the session's life.
             state.append("choice", kind="dossier", dossier_id=dossier.id, chosen_by=chosen_by,
                          free_request=(free_request or None), mode="comptoir",
-                         snapshot=dossier.model_copy(update={"comptoir": takes}).model_dump(mode="json"),
+                         snapshot=dossier.model_copy(update={"comptoir": takes}).model_dump(mode="json", exclude={"fil"}),
                          cost_usd=round(self._spent() - spent_before + desk_cost, 6),
                          prompt_version=VOCABULARY_PROMPT_VERSION)
         else:
             state.append("choice", kind="dossier", dossier_id=dossier.id, chosen_by=chosen_by,
-                         free_request=(free_request or None), snapshot=dossier.model_dump(mode="json", exclude={"comptoir"}),
+                         free_request=(free_request or None),
+                         snapshot=dossier.model_dump(mode="json", exclude={"comptoir", "fil"}),
                          cost_usd=round(self._spent() - spent_before + desk_cost, 6),
                          prompt_version=VOCABULARY_PROMPT_VERSION)
             self._arrive(state, dossier, plan, request_miss=request_miss)
@@ -2319,6 +2348,27 @@ class RevueEncounter:
         except Exception as exc:  # noqa: BLE001 - never lose a start to the desk: a chat
             logger.bind(dossier=dossier.id).warning("revue comptoir: takes at start failed ({}); a chat", exc)
             return None, 0.0
+
+    def _deal(self, user: Any, dossier: EditorialDossier, takes: Any) -> tuple[Any, Any]:
+        """«Le Papier · les rubriques» (2026-11-20): the takes and the wire the new session plays.
+        Off (``REVUE_ASSIGNMENTS_ENABLED``): the takes as before and no wire. On: the dealer
+        (``assignments.deal``) picks one assignment the story carries that is not the shape of
+        the learner's last two Papiers; the other's material is dropped."""
+
+        from app.services.revue import assignments
+        from app.services.revue.fil import wire_of
+
+        if not assignments.assignments_enabled():
+            return takes, None
+        material = assignments.Material(dossier=dossier, takes=takes, wire=wire_of(dossier))
+        recent = assignments.recent_modes(self._sessions(user))
+        dealt = assignments.deal(assignments.available(material), recent,
+                                 seed=assignments.seed_for(user.id, dossier.id))
+        if dealt == "fil":
+            return None, material.wire
+        if dealt == "comptoir":
+            return takes, None
+        return None, None
 
     def _plan(self, user: Any, dossier: EditorialDossier, *, angle_id: str | None, chosen_by: str) -> SessionPlan:
         from app.services.chrome_language import level_band, user_chrome_language
@@ -3615,6 +3665,12 @@ class RevueEncounter:
 
         if comptoir_loop.session_mode(state) == "comptoir":
             return comptoir_loop.close_comptoir(self, loaded)
+        from app.services.revue.assignments import session_mode
+
+        if session_mode(state) == "fil":
+            from app.services.revue import fil_loop
+
+            return fil_loop.close_fil(self, loaded)
         self._settle_evidence(loaded)  # §10e.8: a late critic's words count in the kept words
 
         artifact = state.current_artifact
@@ -3811,6 +3867,9 @@ class RevueEncounter:
         elif kind == "opinion" and artifact:
             content = (f"Semaine {number}, au Mistral : on a parlé de « {dossier.title_fr} » pour mon "
                        f"micro-trottoir. Tu as dit : « {artifact.get('text_fr')} ».")
+        elif kind == "fil" and artifact:
+            content = (f"Semaine {number} : tu as remis le fil de « {dossier.title_fr} » dans l'ordre. "
+                       f"Tu l'as raconté : « {artifact.get('text_fr')} ».")
         else:
             content += " On n'a rien bouclé de plus."
         learner_turns = [e for e in loaded.state.events if e.kind == "turn_learner"]
@@ -3903,6 +3962,27 @@ class RevueEncounter:
         if (loaded.state.events[-1].seq if loaded.state.events else 0) != seq:
             self._save(loaded)
         return RvComptoirResult(session=session_view(loaded), error_fr=error)
+
+    # -- «Le fil» --------------------------------------------------------------------
+
+    def fil(self, row: RevueSession, body: Any) -> Any:
+        """One act of «Le fil» (``fil_loop.apply_act``); the session's view after it, with the
+        reason when the act was not recorded."""
+
+        from app.schemas.revue import RvFilResult
+        from app.services.revue import fil_loop
+        from app.services.revue.assignments import session_mode
+
+        loaded = load(row)
+        if session_mode(loaded.state) != "fil":
+            raise RevueError(409, "revue_not_fil")
+        if row.status != "active" and not loaded.state.closed:
+            raise RevueError(409, "revue_session_closed")
+        seq = loaded.state.events[-1].seq if loaded.state.events else 0
+        error = fil_loop.apply_act(self, loaded, body)
+        if (loaded.state.events[-1].seq if loaded.state.events else 0) != seq:
+            self._save(loaded)
+        return RvFilResult(session=session_view(loaded), error=error)
 
     # -- read ----------------------------------------------------------------------
 
