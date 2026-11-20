@@ -20,7 +20,9 @@ Pure functions, no model calls.
 
 from __future__ import annotations
 
+import json
 import re
+from functools import lru_cache
 
 from app.services.pragmatics import address_markers
 
@@ -137,7 +139,145 @@ def voice_problems(texts: list[str | None], *, register: str | None, level: str 
     tenses = above_band_tenses(joined, level)
     if tenses:
         problems.append(f"Too hard to read: no {', '.join(tenses)}. {band_style_line(level)}")
+    problems.extend(french_problems(joined))
     return problems
+
+
+# ---------------------------------------------------------------------------
+# #747: the French itself. The guards above read the register and the tenses of a
+# character's line and nothing else, so «mais que allons-nous prendre ?» and «d'une
+# sandwich» reached an A1.1 learner who copies what a character writes. Two mistakes a
+# reader can check without a parser: a word that must elide before a vowel, and an
+# article whose gender a known noun contradicts. Both flag only forms that cannot be
+# right; a false hit costs one rewrite of a good line, never the line itself.
+# ---------------------------------------------------------------------------
+
+_VOWEL = "aeiouéèêëàâäîïôöûùüœæ"
+#: Words that take no elision although they start with a vowel («je crois que oui», «le
+#: onze»), and «ou» («la ou le bleu»), a conjunction rather than the next word.
+_NO_ELISION_BEFORE = frozenset({"oui", "ouais", "onze", "onzième", "ouate", "ouistiti", "uhlan", "euh", "ou"})
+#: «que allons» → «qu'allons», «je ai» → «j'ai». Not after a hyphen: «donne-le à Marie».
+_ELISION = re.compile(rf"(?<![\w'’-])((?i:que|je|me|te|se|ne|de|le|la))\s+([{_VOWEL}][\w'’-]*)")
+_SI_IL = re.compile(r"(?<![\w'’-])((?i:si))\s+(ils?)\b")
+_CE_EST = re.compile(r"(?<![\w'’-])((?i:ce))\s+(est|était)\b")
+
+
+def _elided(word: str, following: str) -> str:
+    head = "qu" if word.lower() == "que" else word[0]
+    if word[0].isupper():
+        head = head[0].upper() + head[1:]
+    return f"{head}'{following}"
+
+
+def missing_elisions(text: str | None) -> list[tuple[str, str]]:
+    """``(as written, as it must be written)`` for each word that must elide and does not."""
+
+    raw = str(text or "").replace("’", "'")
+    found: list[tuple[str, str]] = []
+    for match in _ELISION.finditer(raw):
+        word, following = match.group(1), match.group(2)
+        head = re.split(r"[-']", following)[0]
+        if head in _NO_ELISION_BEFORE or (word.lower() == "la" and head == "une"):
+            continue
+        found.append((f"{word} {following}", _elided(word, following)))
+    for pattern in (_SI_IL, _CE_EST):
+        for match in pattern.finditer(raw):
+            found.append((f"{match.group(1)} {match.group(2)}", _elided(match.group(1), match.group(2))))
+    return found
+
+
+#: Nouns of the A1/A2 lists whose other gender is also a word, or which name a person of
+#: either sex: «une livre de pommes», «la tour», «un crème», «une médecin», «une enfant».
+_EITHER_GENDER = frozenset(
+    {
+        "livre", "tour", "poste", "solde", "aide", "mort", "orange", "physique", "crème", "fin", "mode",
+        "manche", "page", "enfant", "médecin", "professeur", "docteur", "chef", "auteur", "écrivain",
+        "ingénieur", "guide", "propriétaire", "membre", "après-midi", "gens", "radio",
+    }
+)
+_ARTICLE_NOUN = re.compile(rf"(?<![\w-])((?i:un|une))\s+([a-zç{_VOWEL}][\w-]*)(?![\w'’-])")
+
+
+@lru_cache(maxsize=1)
+def _band_noun_genders() -> dict[str, str]:
+    """``noun → m/f`` for the A1/A2 nouns of the core lexicon: the words a learner copies."""
+
+    from app.services.lexical_coverage import LEXICON_PATH
+
+    try:
+        lemmas = json.loads(LEXICON_PATH.read_text(encoding="utf-8")).get("lemmas") or {}
+    except (OSError, ValueError):  # pragma: no cover - a missing lexicon checks nothing
+        return {}
+    return {
+        str(lemma): str(entry["gender"])
+        for lemma, entry in lemmas.items()
+        if entry.get("pos") == "noun"
+        and entry.get("gender") in {"m", "f"}
+        and str(entry.get("band") or "") in {"A1", "A2"}
+        and lemma not in _EITHER_GENDER
+    }
+
+
+def wrong_articles(text: str | None) -> list[tuple[str, str]]:
+    """``(as written, as it must be written)`` for «une sandwich», «un salade»."""
+
+    genders = _band_noun_genders()
+    found: list[tuple[str, str]] = []
+    for match in _ARTICLE_NOUN.finditer(str(text or "")):
+        article, noun = match.group(1), match.group(2)
+        wanted = {"m": "un", "f": "une"}.get(genders.get(noun, ""))
+        if wanted and article.lower() != wanted:
+            fixed = wanted.capitalize() if article[0].isupper() else wanted
+            found.append((f"{article} {noun}", f"{fixed} {noun}"))
+    return found
+
+
+def french_problems(text: str | None) -> list[str]:
+    """The rewrite hints for the French of one character's line."""
+
+    problems: list[str] = []
+    elisions = missing_elisions(text)
+    if elisions:
+        pairs = ", ".join(f"«{fixed}», not «{written}»" for written, fixed in elisions)
+        problems.append(f"Elide before a vowel: write {pairs}.")
+    articles = wrong_articles(text)
+    if articles:
+        pairs = ", ".join(f"«{fixed}», not «{written}»" for written, fixed in articles)
+        problems.append(f"Wrong gender: write {pairs}.")
+    return problems
+
+
+# ---------------------------------------------------------------------------
+# #747: the note printed under a letter says where things are; it may not put a thing
+# the letter placed somewhere else («ma serviette est au travail» in Nina's line, «la
+# serviette est restée chez Nina» in the note under it).
+# ---------------------------------------------------------------------------
+
+_DETERMINER = (
+    r"(?:la|le|les|l['’]|un|une|des|mon|ma|mes|ton|ta|tes|son|sa|ses|notre|nos|votre|vos|leur|leurs"
+    r"|ce|cet|cette)"
+)
+_PLACED = re.compile(
+    r"(?<![\w-])(?i:(?:ma|ta|sa|mon|ton|son|la|le|notre|votre|leur)\s+|l['’])"
+    r"(?P<thing>[a-zàâäçéèêëîïôöùûüœ-]{3,})"
+    r"\s+(?i:est|sont|était|reste)(?:\s+(?:encore|toujours|déjà|bien))?(?:\s+rest[ée]e?s?)?"
+    rf"\s+(?i:au|aux|à\s+la|à\s+l['’]|chez|dans|sur|sous)\s*(?:(?i:{_DETERMINER})\s*)?"
+    r"(?P<place>[^\W\d_][\w-]*)"
+)
+
+
+def _places(text: str | None) -> dict[str, set[str]]:
+    places: dict[str, set[str]] = {}
+    for match in _PLACED.finditer(str(text or "")):
+        places.setdefault(match.group("thing").lower(), set()).add(match.group("place").lower())
+    return places
+
+
+def contradicted_things(line: str | None, note: str | None) -> list[str]:
+    """The things ``note`` puts somewhere else than the character's ``line`` does."""
+
+    said = _places(line)
+    return sorted(thing for thing, where in _places(note).items() if thing in said and not where & said[thing])
 
 
 def register_word(value: object) -> str | None:
