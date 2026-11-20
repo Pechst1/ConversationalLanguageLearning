@@ -81,3 +81,5 @@
 .av2 .rb-qa__a { margin: 4px 0 0; font: 400 var(--av2-t-body)/1.4 var(--av2-serif); color: var(--av2-ink-2); }
 .av2 .rb-qa__k { font-weight: 700; color: var(--av2-muted); }
 .av2 .rb-qa__src { font-size: var(--av2-t-meta); color: var(--av2-muted); }
+/* «La photo»'s page: the learner's caption reads as the caption it is */
+.av2 .rb-clip__cap { font-size: var(--av2-t-body-lg); color: var(--av2-ink); }

@@ -33,6 +33,19 @@ import { FrLine, type RubriqueStepProps } from './RvRubriqueParts';
 
 export type PhotoStepProps = RubriqueStepProps & { view: RvPhotoView };
 
+/** The caption with its wrong words struck (as «L'intox express»'s correction). */
+function struck(text: string, wrong: string): React.ReactNode {
+  const at = wrong ? text.toLowerCase().indexOf(wrong.toLowerCase()) : -1;
+  if (at < 0) return text;
+  return (
+    <>
+      {text.slice(0, at)}
+      <s className="ct-strike">{text.slice(at, at + wrong.length)}</s>
+      {text.slice(at + wrong.length)}
+    </>
+  );
+}
+
 function Continue({ props }: { props: PhotoStepProps }) {
   const { copy, pending, onContinue } = props;
   return (
@@ -238,7 +251,7 @@ export function RvPhotoLegende(props: PhotoStepProps) {
           <section className="ct-frame rb-fix" aria-label={pm.fix_label} data-resolved={fix.resolved ? '' : undefined}>
             <RomyLine line={PM_LINES.fix_ask} props={props} past={fix.resolved} />
             <p className="rb-line__fr" lang="fr">
-              {fix.text.fr}
+              {struck(fix.text.fr, fix.wrongFr)}
             </p>
             {!fix.resolved && <p className="ct-hint">{fix.input === 'pick' ? pm.fix_task_pick : pm.fix_task_write}</p>}
             {!fix.resolved && fix.input === 'pick' && (
@@ -291,7 +304,8 @@ export function RvPhotoLegende(props: PhotoStepProps) {
         )}
         {notice}
       </div>
-      {!readOnly && (
+      {/* No empty foot while the correction is answered on the page (seen at 375 px). */}
+      {!readOnly && (!legende.resolved || fix?.resolved) && (
         <div className="rv-foot ct-foot" ref={footRef}>
           {!legende.resolved ? (
             <>

@@ -89,7 +89,8 @@ export function RvMicroPrepare(props: MicroStepProps) {
                 onClick={() => flip(hole.key)}
               >
                 <span className="ct-tile__fr" lang="fr">
-                  {hole.hole.fr} <span aria-hidden="true">___</span>
+                  {`${hole.hole.fr}\u00a0`}
+                  <span aria-hidden="true">___</span>
                 </span>
                 {hole.hole.tr && (
                   <span className="ct-tile__tr" lang={glossLanguage}>
