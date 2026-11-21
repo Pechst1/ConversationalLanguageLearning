@@ -14,8 +14,13 @@ its title (when it is known), yesterday's «À suivre…» and the faces of who 
   tentpole's page, or the teaser's speaker.
 
 Read-only and cheap: one thread read, the journey's scene when there is one, no model.
-Returns ``None`` when the story engine is not the day's story, or once the day's
-episode is over (the finished card has its own recap and teaser).
+Returns ``None`` when the story engine is not the day's story, or once the day is over
+(the journey completed or ended early: the finished card has its own recap and teaser).
+
+#868: whether the episode is over is the day's to say, not the scene row's. Home's card
+reads the journey; the headline used to read the scene's own status as well, so in the
+window after the scene's last exchange and before the day's last step (a resolution, a
+recall, or a day left open overnight) Home showed the day's card with no number.
 """
 
 from __future__ import annotations
@@ -48,8 +53,8 @@ def _ordered(ids: list[str]) -> list[str]:
     return seen[:MAX_CAST]
 
 
-def _scene_cast(db: Session, journey: Any) -> tuple[str | None, list[str], bool, str | None]:
-    """The day's scene: (title, speakers, finished, the first panel's picture)."""
+def _scene_cast(db: Session, journey: Any) -> tuple[str | None, list[str], str | None]:
+    """The day's scene: (title, speakers, the first panel's picture)."""
 
     from sqlalchemy import select
 
@@ -66,7 +71,7 @@ def _scene_cast(db: Session, journey: Any) -> tuple[str | None, list[str], bool,
         .order_by(GraphicNovelScene.created_at.desc())
     ).first()
     if scene is None:
-        return None, [], False, None
+        return None, [], None
     panels = sorted(scene.panels, key=lambda p: p.panel_index)
     speakers = [
         str(line.get("character_id") or "")
@@ -74,7 +79,7 @@ def _scene_cast(db: Session, journey: Any) -> tuple[str | None, list[str], bool,
         for line in (panel.overlay_payload or {}).get("dialogue") or []
     ]
     image = next((panel.image_url for panel in panels if panel.image_url), None)
-    return scene.title or None, _ordered(speakers), scene.status in ("completed", "abandoned"), image
+    return scene.title or None, _ordered(speakers), image
 
 
 def _tentpole(live: dict, user: Any) -> tuple[str | None, list[str], str | None, str | None]:
@@ -214,11 +219,11 @@ def episode_headline(db: Session, user: Any, journey: Any = None, *, local_date:
         edition_no: int | None = None
         reread = False
         if journey is not None:
+            # The day, not its scene, says when the episode is over (#868): while the
+            # journey is open, Home shows its card, and the card carries its number.
             if str(getattr(journey, "status", "")) in ("completed", "ended_early"):
                 return None
-            title, cast, finished, image = _scene_cast(db, journey)
-            if finished:
-                return None
+            title, cast, image = _scene_cast(db, journey)
             from app.services.seals import edition_no_for
             from app.services.season.reprise import is_reprise_journey
 
@@ -262,8 +267,11 @@ def episode_headline(db: Session, user: Any, journey: Any = None, *, local_date:
         # #466: what stays open, whole, for the line Home prints.
         teaser_open_fr = str(teaser.get("open_fr") or "").strip() or None
         written = str(teaser.get("date") or "")
-        if teaser_fr and local_date is not None and written == str(local_date):
-            teaser_fr = teaser_open_fr = None  # written by today's ending: it speaks of tomorrow
+        # The headlined day's own ending wrote it: it speaks of the day after. That day
+        # is the journey's, which can be yesterday's when it is left open (#868).
+        day = getattr(journey, "local_date", None) if journey is not None else local_date
+        if day is not None and written == str(day):
+            teaser_fr = teaser_open_fr = None
         if not cast and teaser_fr and teaser.get("character_id"):
             cast = _ordered([str(teaser["character_id"])])
         if not (title or teaser_fr or thread is not None or season_title):
