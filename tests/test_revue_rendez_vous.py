@@ -65,6 +65,13 @@ def switches(monkeypatch) -> None:
     monkeypatch.setattr(settings, "REVUE_ENABLED", True)
     monkeypatch.setattr(settings, "REVUE_COMPTOIR_ENABLED", True)
     monkeypatch.setattr(settings, "REVUE_ASSIGNMENTS_ENABLED", True)
+    # These tests deal «Le titre» by the history they seed; «La photo» and «Le micro» (merged
+    # 2026-11-21) have their own tests and are kept off the deal here, as in the rubriques' tests.
+    from app.services.revue import micro as _micro
+    from app.services.revue import photo as _photo
+
+    monkeypatch.setattr(_micro, "micro_of", lambda dossier: None)
+    monkeypatch.setattr(_photo, "photo_of", lambda dossier: None)
     comptoir.forget_cache()
 
 
