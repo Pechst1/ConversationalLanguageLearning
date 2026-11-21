@@ -86,8 +86,10 @@ def test_an_off_script_last_answer_closes_the_page_once(
     assert "Et on se quitte comme ça ?" not in str(last.get("character_reply_fr"))
     planned = {event["step"]["prompt"].get("max_turns") for event in answered}
     # Le Quartier phase 1: T1 A plans four exchanges (Gus, the café crème, Margaux's
-    # stairs, the key); a learner the café passes over closes on the third.
-    assert planned == {4}, f"the exchange count does not grow: {planned}"
+    # stairs, the key); a learner the café passes over closes on the third. #776: the
+    # total the page prints is what the scene plays, never more, and it does not move.
+    assert len(planned) == 1, f"the exchange count moves: {planned}"
+    assert max(planned) <= len(answered), f"«of {max(planned)}» on a scene that played {len(answered)}"
 
 
 # ---------------------------------------------------------------------------
