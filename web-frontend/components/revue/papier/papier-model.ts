@@ -143,15 +143,19 @@ export function bylineFr(proof: RvComptoirProof | null | undefined, tiles = fals
   }
 }
 
-/** How a piece reached print, as the byline's tail («relu par Romy»), '' when it went as written. */
-export function proofNoteFr(proof: RvComptoirProof | null | undefined): string {
+/**
+ * How a piece reached print, as the byline's tail, agreed with what it qualifies («relue par
+ * Romy» for a caption, «relus par Romy» for an interview's words); '' when it went as written.
+ * «Corrigé(e)» alone when the learner fixed it: the byline already says «par toi».
+ */
+export function proofNoteFr(proof: RvComptoirProof | null | undefined, agree: '' | 'e' | 's' = ''): string {
   switch (proof) {
     case 'clean':
-      return 'relu par Romy';
+      return `relu${agree} par Romy`;
     case 'fixed':
-      return 'corrigé par toi';
+      return `corrigé${agree}`;
     case 'corrected':
-      return 'corrigé par Romy';
+      return `corrigé${agree} par Romy`;
     default:
       return '';
   }
@@ -159,8 +163,8 @@ export function proofNoteFr(proof: RvComptoirProof | null | undefined): string {
 
 /** «La photo»: the learner's caption under the picture is signed «Légende · par toi» (and how it reached print). */
 export function legendeBylineFr(proof: RvComptoirProof | null | undefined, tiles = false): string {
-  const note = tiles ? '' : proofNoteFr(proof);
-  return ['Légende', 'par toi', note].filter(Boolean).join(' · ');
+  const note = tiles ? '' : proofNoteFr(proof, 'e');
+  return ['Légende · par toi', note].filter(Boolean).join(', ');
 }
 
 /**

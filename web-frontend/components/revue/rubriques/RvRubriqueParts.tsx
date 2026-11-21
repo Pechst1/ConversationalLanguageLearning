@@ -144,7 +144,7 @@ export function RvRubriqueRead({ read, press, props }: { read: RvRubriqueRead; p
       <div className="rv-body ct-body" data-step="read">
         <ComptoirPicture url={session.stage.plateUrl} credit={session.stage.plateKind === 'story'} />
         <LeadBlock read={read} props={props} voiceKey={`rb-lead-${session.id}`} />
-        <RvSouvenirSlot sessionId={session.id} props={props} />
+        <RvSouvenirSlot sessionId={session.id} props={props} chrome={session.plan.uiLanguage} />
         {/* The story's other pictures after the lead: the text first on a phone's first screen. */}
         <RvGallery pictures={session.stage.pictures} mainUrl={session.stage.plateUrl} copy={props.copy} />
         {notice}

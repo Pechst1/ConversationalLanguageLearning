@@ -24,6 +24,7 @@ import type { RvLanguage } from '@/lib/revue-types';
 import type { RdvClient, RvTmCue, RvTmWordKey, RvTroisMots, RvTroisMotsBody } from '@/lib/revue-rdv';
 
 import { bringIntoView } from '../comptoir/scroll';
+import { PpCutting } from '../papier/PapierPrint';
 import { RDV_FR, fillRdv, rdvCopy, type RdvCopy } from './rdv-copy';
 import { complete, gapMissLine, keepRight, missLines, pairCue, shownPairs, unpair, type Pairs } from './rdv-model';
 import { useRdv } from './RdvContext';
@@ -41,14 +42,17 @@ export type RvTroisMotsViewProps = {
   onAct: (body: RvTroisMotsBody) => void;
 };
 
+/** A picture cue: the story's picture in a small press frame, its credit printed under it. */
 function CueBody({ cue, copy }: { cue: RvTmCue; copy: RdvCopy }) {
   if (cue.kind === 'picture' && cue.picture) {
     const src = resolveMediaUrl(cue.picture.url) ?? cue.picture.url;
     return (
-      <span className="tm-cue__pic">
-        {/* eslint-disable-next-line @next/next/no-img-element -- a story picture, already sized */}
-        <img src={src} alt={cue.picture.altFr || copy.tm_picture_cue} loading="lazy" decoding="async" />
-        <span className="tm-cue__credit" lang="fr">
+      <span className="tm-cue__pic pp-tm-pic">
+        <span className="pp-tm-pic__frame">
+          {/* eslint-disable-next-line @next/next/no-img-element -- a story picture, already sized */}
+          <img src={src} alt={cue.picture.altFr || copy.tm_picture_cue} loading="lazy" decoding="async" />
+        </span>
+        <span className="tm-cue__credit pp-tm-pic__credit" lang="fr">
           {cue.picture.creditFr}
         </span>
       </span>
@@ -57,6 +61,12 @@ function CueBody({ cue, copy }: { cue: RvTmCue; copy: RdvCopy }) {
   return <span className="tm-cue__text">{cue.text}</span>;
 }
 
+/**
+ * «Papier · la belle édition»: three words set as a small dictionary — each an entry, its
+ * headword in the serif, its sense set beside it once matched (a blank rule until then, the
+ * cue picture in its press frame when it is one); the cues are the slips to set; the gap
+ * sentence a cutting from the article with the gap as a blank rule.
+ */
 export function RvTroisMotsView({ round, pairs, copy, xcopy, pending, onPairs, onAct }: RvTroisMotsViewProps) {
   const matchOpen = !round.match.resolved;
   const shown = shownPairs(round, pairs);
@@ -65,51 +75,56 @@ export function RvTroisMotsView({ round, pairs, copy, xcopy, pending, onPairs, o
   const gap = round.gap;
   const gapMiss = gapMissLine(round, xcopy);
   return (
-    <section className="tm" aria-labelledby={`tm-${round.sessionId}`} data-tm-step={round.step}>
+    <section className="tm pp-tm" aria-labelledby={`tm-${round.sessionId}`} data-tm-step={round.step}>
       <h2 className="tm__k" id={`tm-${round.sessionId}`} lang="fr">
         {RDV_FR.trois_mots}
       </h2>
 
       {/* 1 · Match */}
       <p className="tm__task">{copy.tm_task_match}</p>
-      <ol className="tm-words">
+      <ol className="tm-words pp-dict">
         {round.words.map((word, index) => {
           const cue = cueOf(word.key);
           return (
-            <li key={word.key} className="tm-word" data-paired={cue ? '' : undefined}>
+            <li key={word.key} className="tm-word pp-entry" data-paired={cue ? '' : undefined} data-cue={cue?.kind}>
+              <span className="pp-entry__n" aria-hidden="true">
+                {index + 1}
+              </span>
               <button
                 type="button"
-                className="tm-word__btn"
+                className="tm-word__btn pp-entry__hw"
                 disabled={!matchOpen || !pairs[word.key] || pending}
                 onClick={() => onPairs(unpair(pairs, word.key))}
                 aria-label={`${fillRdv(copy.tm_word_n, { n: index + 1 })} : ${word.fr}`}
               >
                 <span lang="fr">{word.fr}</span>
               </button>
-              <span className="tm-word__arrow" aria-hidden="true">
-                →
-              </span>
-              <span className="tm-word__cue">
-                {cue ? (cue.kind === 'picture' ? copy.tm_picture_cue : cue.text) : <span className="tm-word__none">{copy.tm_unpaired}</span>}
-                {round.match.resolved && word.gloss && cue?.kind === 'picture' ? ` · ${word.gloss}` : null}
+              <span className="tm-word__cue pp-entry__sense">
+                {cue ? (
+                  cue.kind === 'picture' ? (
+                    <CueBody cue={cue} copy={copy} />
+                  ) : (
+                    <span className="pp-entry__gloss">{cue.text}</span>
+                  )
+                ) : (
+                  <>
+                    <span className="pp-blank" data-wide="" aria-hidden="true" />
+                    <span className="tm-word__none av2-sr">{copy.tm_unpaired}</span>
+                  </>
+                )}
+                {round.match.resolved && word.gloss && cue?.kind === 'picture' ? <span className="pp-entry__gloss"> {word.gloss}</span> : null}
               </span>
             </li>
           );
         })}
       </ol>
       {matchOpen && (
-        <ul className="tm-cues">
+        <ul className="tm-cues pp-slips">
           {round.cues.map((cue) => {
             const used = Object.values(pairs).includes(cue.key);
             return (
-              <li key={cue.key}>
-                <button
-                  type="button"
-                  className="tm-cue"
-                  aria-pressed={used}
-                  disabled={pending}
-                  onClick={() => onPairs(pairCue(pairs, cue.key))}
-                >
+              <li key={cue.key} data-kind={cue.kind}>
+                <button type="button" className="tm-cue pp-slip" aria-pressed={used} disabled={pending} onClick={() => onPairs(pairCue(pairs, cue.key))}>
                   <CueBody cue={cue} copy={copy} />
                 </button>
               </li>
@@ -118,7 +133,7 @@ export function RvTroisMotsView({ round, pairs, copy, xcopy, pending, onPairs, o
         </ul>
       )}
       {misses.length > 0 && (
-        <div className="tm-why" role="status">
+        <div className="tm-why ct-why" role="status">
           {misses.map((line) => (
             <p key={line}>{line}</p>
           ))}
@@ -136,38 +151,40 @@ export function RvTroisMotsView({ round, pairs, copy, xcopy, pending, onPairs, o
         </Action>
       )}
 
-      {/* 2 · The gap */}
+      {/* 2 · The gap: a cutting from the article, the gap a blank rule */}
       {gap && round.match.resolved && (
         <div className="tm-gap">
           <p className="tm__task">{copy.tm_task_gap}</p>
-          <blockquote className="tm-gap__s" lang="fr">
-            {gap.resolved && gap.sentenceFr ? (
-              <>
-                {gap.beforeFr}
-                <mark>{round.words.find((w) => w.key === gap.solution)?.bareFr ?? ''}</mark>
-                {gap.afterFr}
-              </>
-            ) : (
-              <>
-                {gap.beforeFr}
-                <span className="tm-gap__blank" aria-label="…">
-                  ____
-                </span>
-                {gap.afterFr}
-              </>
-            )}
-          </blockquote>
+          <PpCutting seed={`${round.sessionId}:gap`} className="tm-gap__s">
+            <blockquote className="pp-tm-cutting" lang="fr">
+              {gap.resolved && gap.sentenceFr ? (
+                <>
+                  {gap.beforeFr}
+                  <mark className="pp-tm-word">{round.words.find((w) => w.key === gap.solution)?.bareFr ?? ''}</mark>
+                  {gap.afterFr}
+                </>
+              ) : (
+                <>
+                  {gap.beforeFr}
+                  <span className="tm-gap__blank pp-blank" data-wide="" role="img" aria-label="…">
+                    ____
+                  </span>
+                  {gap.afterFr}
+                </>
+              )}
+            </blockquote>
+          </PpCutting>
           {!gap.resolved && (
-            <div className="tm-gap__opts" role="group" aria-label={copy.tm_task_gap}>
+            <div className="tm-gap__opts pp-slips" role="group" aria-label={copy.tm_task_gap}>
               {round.words.map((word) => (
-                <Action key={word.key} tone="quiet" inline lang="fr" disabled={pending} onClick={() => onAct({ act: 'gap', word: word.key })}>
+                <button key={word.key} type="button" className="pp-slip" lang="fr" disabled={pending} onClick={() => onAct({ act: 'gap', word: word.key })}>
                   {word.bareFr}
-                </Action>
+                </button>
               ))}
             </div>
           )}
           {gapMiss && (
-            <div className="tm-why" role="status">
+            <div className="tm-why ct-why" role="status">
               <p>{gapMiss}</p>
               {!gap.resolved && <p>{xcopy.tm_try_again}</p>}
             </div>

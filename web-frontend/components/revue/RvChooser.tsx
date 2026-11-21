@@ -89,9 +89,21 @@ export function RvChooser({ recommended, alternatives, week, onPick, onAsk, pend
       <article className="rv-une">
         <RvStage plateUrl={recommended.plateUrl ?? recommended.stage.plateUrl} size="une" cast={stageCast(recommended.stage.cast)} still />
         <div className="rv-une__body">
-          <p className="av2-label av2-label--story" lang={comptoir ? 'fr' : undefined}>
-            {comptoir ? COMPTOIR_FR.question_kicker : copy.romy_proposes}
-          </p>
+          {/* «La belle édition»: the assignment dealt is the story's rubrique, set as a section head. */}
+          {recommended.assignment && (
+            <p className="rv-une__meta rv-une__assignment pp-assign" data-assignment={recommended.assignment.key}>
+              <strong className="pp-assign__name" lang="fr">
+                {recommended.assignment.nameFr}
+              </strong>
+              <span className="pp-assign__label">{copy.assignment_label}</span>
+            </p>
+          )}
+          {/* With the assignment as the section head, «Romy's pick» would be a second kicker: the question of the day stays. */}
+          {(comptoir || !recommended.assignment) && (
+            <p className="av2-label av2-label--story" lang={comptoir ? 'fr' : undefined}>
+              {comptoir ? COMPTOIR_FR.question_kicker : copy.romy_proposes}
+            </p>
+          )}
           <h2 className="rv-une__title" lang="fr">
             {comptoir && recommended.questionFr ? recommended.questionFr : recommended.titleFr}
           </h2>
@@ -101,11 +113,6 @@ export function RvChooser({ recommended, alternatives, week, onPick, onAsk, pend
             </p>
           )}
           {comptoir && recommended.cast && <RvComptoirFaces cast={recommended.cast} copy={copy} />}
-          {recommended.assignment && (
-            <p className="rv-une__meta rv-une__assignment" data-assignment={recommended.assignment.key}>
-              {copy.assignment_label} · <strong lang="fr">{recommended.assignment.nameFr}</strong>
-            </p>
-          )}
           <p className="rv-une__meta">
             <span lang="fr">{recommended.placeFr}</span>
             <span className="rv-dot" aria-hidden="true" />

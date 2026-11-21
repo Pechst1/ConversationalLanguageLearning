@@ -175,11 +175,14 @@ test('la une: masthead, dateline, one article per printed piece, a titre leading
     const html = render(h(RvUneSemaine, { une, language }));
     const text = visibleText(html);
     assert.match(html, /<header class="une__mast"><h1[^>]*>La une de la semaine<\/h1>/);
-    assert.ok(text.includes('Semaine 47 · '));
+    // «La belle édition»: the masthead, «Édition de la semaine · Nº 47», the week's range beside it.
+    assert.match(text, /Le Papier Édition de la semaine · Nº 47/);
+    assert.ok(text.includes(rdv.parseUne(P.une).datelineFr.replace(/^Semaine 47 · /, '')));
     assert.ok(text.includes(count), language);
     assert.equal((html.match(/<article /g) || []).length, 3);
     assert.match(html, /<article class="une-item" data-role="headline" data-lead=""[^>]*><p class="une-item__k">Le titre · mardi<\/p><h2 class="une-item__hl">Le bac commence lundi<\/h2>/);
-    assert.match(text, /« À mon avis, c'est une très bonne nouvelle pour les musiciens\. » Toi · pour/);
+    // The opinion is lifted as the page's pull quote, signed «Par toi · pour».
+    assert.match(text, /À mon avis, c'est une très bonne nouvelle pour les musiciens\. Par toi · pour/);
     assert.match(text, /4 sur 5/);
     assert.match(html, /<section class="une__lexique"[^>]*><h2 id="une-lexique">Lexique<\/h2><ul><li>la fête<\/li>/);
     assert.ok(!text.includes('comence') && !text.includes('Raw draft'), 'printed text only');
@@ -266,4 +269,45 @@ test('REVUE_CADENCE=daily: the Papier chip names the day; weekly is as before', 
     assert.match(filed.ariaLabel, /today|aujourd'hui|heute/);
   }
   assert.equal(revueHomeChip(offer('2026-W47', 'du 16 au 22 nov.'), 'fr').ariaLabel, 'Le Papier de Romy, semaine 47');
+});
+
+test('la une composes 1 to 6 pieces without a hole: a lead, a pull quote from two pieces beside it, a column, briefs', () => {
+  const pool = [
+    { role: 'headline', id: 1 }, { role: 'vox', id: 2 }, { role: 'brief', id: 3 },
+    { role: 'caption', id: 4 }, { role: 'rectificatif', id: 5 }, { role: 'quote', id: 6 },
+  ];
+  const ids = (list) => list.map((item) => item.id);
+  const at = (n) => model.uneLayout(pool.slice(0, n));
+  assert.deepEqual(model.uneLayout([]), { lead: null, pull: null, column: [], briefs: [] });
+  assert.equal(at(1).lead.id, 1);
+  assert.deepEqual([at(1).pull, ids(at(1).column), ids(at(1).briefs)], [null, [], []]);
+  // two pieces: no pull quote (a quote and a lead alone would not read as a page)
+  assert.deepEqual([at(2).pull, ids(at(2).column)], [null, [2]]);
+  assert.deepEqual([at(3).pull.id, ids(at(3).column)], [2, [3]]);
+  assert.deepEqual([at(4).pull.id, ids(at(4).column), ids(at(4).briefs)], [2, [3, 4], []]);
+  assert.deepEqual([at(5).pull.id, ids(at(5).column), ids(at(5).briefs)], [2, [3, 4, 5], []]);
+  assert.deepEqual([at(6).pull.id, ids(at(6).column), ids(at(6).briefs)], [2, [3, 4], [5, 6]]);
+  for (let n = 1; n <= 6; n += 1) {
+    const layout = at(n);
+    const shown = [layout.lead, layout.pull, ...layout.column, ...layout.briefs].filter(Boolean).length;
+    assert.equal(shown, n, `every piece printed once (${n})`);
+  }
+});
+
+test('la une: a picture always prints its credit; «Par toi» signs the learner\'s pieces', () => {
+  const une = rdv.parseUne(P.une);
+  const withPicture = { ...une, items: une.items.map((item, index) => (index === 0 ? { ...item, picture: { kind: 'photo', url: '/x.jpg', width: 1, height: 1, altFr: '', captionFr: null, creditFr: 'Photo · A. B. · CC BY 4.0', licence: 'CC BY 4.0', licenceUrl: 'https://creativecommons.org/licenses/by/4.0/', sourceUrl: null } } : item)) };
+  const text = visibleText(render(h(RvUneSemaine, { une: withPicture, language: 'de' })));
+  assert.match(text, /Photo · A\. B\. · CC BY 4\.0/);
+  assert.match(text, /Par toi/);
+});
+
+test('la carte de presse prints the learner\'s first name and initial, never an e-mail', () => {
+  const card = rdv.parseCarteDePresse(P.carte);
+  const { cardName } = require('./RvCarteDePresse.tsx');
+  assert.equal(cardName('Léa Martin'), 'Léa');
+  assert.equal(cardName('lea@example.com'), '');
+  const html = render(h(RvCarteDePresseCard, { card, language: 'en', name: 'Léa Martin' }));
+  assert.match(visibleText(html), /Léa Stagiaire · Le Papier/);
+  assert.ok(!/@/.test(visibleText(render(h(RvCarteDePresseCard, { card, language: 'en', name: 'lea@example.com' })))));
 });

@@ -13,14 +13,25 @@ import type { RvLanguage } from '@/lib/revue-types';
 import type { RvSouvenir } from '@/lib/revue-rdv';
 
 import { ComptoirBubble, type ComptoirStepProps } from '../comptoir/RvComptoirParts';
+import { fillRdv, rdvCopy } from './rdv-copy';
 import { souvenirTranslation } from './rdv-model';
 import { useRdv } from './RdvContext';
 
 type BubbleProps = Pick<ComptoirStepProps, 'copy' | 'ccopy' | 'glossLanguage' | 'glosses' | 'voice' | 'wordFor'>;
 
-export function RvSouvenirLine({ line, props, language }: { line: RvSouvenir; props: BubbleProps; language: RvLanguage }) {
+/**
+ * «La belle édition»: the regular's aside — said from the bar, not part of the task: a small
+ * label («Gus se souvient», chrome), their face, the line in the counter's
+ * voice set lighter, off the column's edge, under a dotted rule.
+ */
+export function RvSouvenirLine({ line, props, language, chrome }: { line: RvSouvenir; props: BubbleProps; language: RvLanguage; chrome?: RvLanguage }) {
+  const copy = rdvCopy(chrome ?? language);
+  const label = line.speakerFr ? fillRdv(copy.souvenir_by, { name: line.speakerFr }) : copy.souvenir_label;
   return (
-    <div className="rv-souvenir" data-souvenir={line.templateId}>
+    <aside className="rv-souvenir pp-aside" data-souvenir={line.templateId} aria-label={label}>
+      <p className="pp-aside__k" aria-hidden="true">
+        {label}
+      </p>
       <ComptoirBubble
         castId={line.speakerId}
         name={line.speakerFr}
@@ -34,12 +45,12 @@ export function RvSouvenirLine({ line, props, language }: { line: RvSouvenir; pr
         ccopy={props.ccopy}
         onWord={props.wordFor(line.speakerId, line.speakerFr)}
       />
-    </div>
+    </aside>
   );
 }
 
 /** The slot the players' first screen calls. */
-export function RvSouvenirSlot({ sessionId, props }: { sessionId: string; props: BubbleProps }) {
+export function RvSouvenirSlot({ sessionId, props, chrome }: { sessionId: string; props: BubbleProps; chrome?: RvLanguage }) {
   const rdv = useRdv();
   const [line, setLine] = useState<RvSouvenir | null>(null);
   useEffect(() => {
@@ -58,5 +69,5 @@ export function RvSouvenirSlot({ sessionId, props }: { sessionId: string; props:
     };
   }, [rdv, sessionId]);
   if (!line) return null;
-  return <RvSouvenirLine line={line} props={props} language={props.glossLanguage} />;
+  return <RvSouvenirLine line={line} props={props} language={props.glossLanguage} chrome={chrome} />;
 }

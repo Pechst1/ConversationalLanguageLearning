@@ -81,3 +81,22 @@ export function souvenirTranslation(line: RvSouvenir, language: RvLanguage): str
 export function uneCount(copy: RdvCopy, filed: number, total: number): string {
   return countLine(copy, 'une_count', filed, { total });
 }
+
+/**
+ * «La une de la semaine» composed as a front page («la belle édition», 2026-11-21), for any
+ * count of pieces without a hole: the server's first item leads (a «Le titre» when there is
+ * one); the first opinion or interview among the rest is lifted as the pull quote (when at
+ * least two pieces stand beside the lead, so the page never reads as a quote and a lead
+ * only); then up to two pieces in the ruled column; the rest (5–6 pieces) as briefs.
+ */
+export type UneLayout<T> = { lead: T | null; pull: T | null; column: T[]; briefs: T[] };
+
+export function uneLayout<T extends { role: string }>(items: T[]): UneLayout<T> {
+  if (!items.length) return { lead: null, pull: null, column: [], briefs: [] };
+  const [lead, ...rest] = items;
+  const pullAt = rest.length >= 2 ? rest.findIndex((item) => item.role === 'vox' || item.role === 'quote') : -1;
+  const pull = pullAt >= 0 ? rest[pullAt] : null;
+  const others = rest.filter((_, index) => index !== pullAt);
+  const columnSize = others.length > 3 ? 2 : others.length;
+  return { lead, pull, column: others.slice(0, columnSize), briefs: others.slice(columnSize) };
+}

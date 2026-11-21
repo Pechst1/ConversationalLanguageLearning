@@ -72,6 +72,8 @@ export type RdvCopy = {
   carte_not_yet: string;
   // the line of a regular
   souvenir_label: string;
+  /** The aside's label, with who remembers («Romy se souvient»). */
+  souvenir_by: string;
 };
 
 const EN: RdvCopy = {
@@ -110,6 +112,7 @@ const EN: RdvCopy = {
   carte_filed_one: '1 filed',
   carte_not_yet: 'not yet',
   souvenir_label: 'A regular remembers',
+  souvenir_by: '{name} remembers',
 };
 
 const DE: RdvCopy = {
@@ -148,6 +151,7 @@ const DE: RdvCopy = {
   carte_filed_one: '1 abgelegt',
   carte_not_yet: 'noch nicht',
   souvenir_label: 'Ein Stammgast erinnert sich',
+  souvenir_by: '{name} erinnert sich',
 };
 
 const FR: RdvCopy = {
@@ -186,6 +190,7 @@ const FR: RdvCopy = {
   carte_filed_one: '1 classé',
   carte_not_yet: 'pas encore',
   souvenir_label: 'Un habitué se souvient',
+  souvenir_by: '{name} se souvient',
 };
 
 const TABLES: Record<RvLanguage, RdvCopy> = { en: EN, de: DE, fr: FR };

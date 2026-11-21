@@ -20,6 +20,20 @@ export const PAPIER_FR = {
   lexique: 'Lexique',
   photo_credit_rule: 'Photo',
   in_article: "Dans l'article",
+  // «La photo», «Le micro», the rendez-vous (round 3)
+  contact_sheet: 'Planche contact',
+  legende_by: 'Légende · par toi',
+  shrug: '{name} hausse les épaules.',
+  transcript_q: 'Q.',
+  transcript_a: 'R.',
+  edition_week: 'Édition de la semaine',
+  by_you: 'Par toi',
+  checked_by_you: 'Vérifié par toi',
+  interview_by_you: 'Propos recueillis par toi',
+  stagiaire: 'Stagiaire · Le Papier',
+  carte: 'Carte de presse',
+  trois_mots: 'Trois mots',
+  cutting_from: "Extrait de l'article",
 } as const;
 
 export type PapierCopy = {
@@ -49,6 +63,21 @@ export type PapierCopy = {
   translate_all_hide: string;
   /** The kicker over the learner's own headline on «La page». */
   page_kicker_mine: string;
+  /** «La photo»: the sheet of the story's pictures, for a screen reader. */
+  contact_sheet_aria: string;
+  /** A frame of the sheet, for a screen reader. */
+  frame_aria: string;
+  /** The learner's caption under the print as they write it. */
+  legend_live: string;
+  /** Nothing written yet under the print. */
+  legend_empty: string;
+  /** «Le micro»: Romy's notebook page, for a screen reader. */
+  notebook_aria: string;
+  /** The interview set as a transcript, for a screen reader. */
+  transcript_aria: string;
+  /** A question chosen in the notebook: its number in the interview. */
+  question_n: string;
+  /** «La carte de presse»: a rubrique's stamped box, filed / not yet. */
 };
 
 const FR: PapierCopy = {
@@ -66,6 +95,13 @@ const FR: PapierCopy = {
   translate_all: 'Tout traduire',
   translate_all_hide: 'Masquer les traductions',
   page_kicker_mine: 'Ton titre',
+  contact_sheet_aria: 'Planche contact : les images de l’article',
+  frame_aria: 'Image {n}',
+  legend_live: 'Ta légende',
+  legend_empty: 'Ta légende s’écrit ici.',
+  notebook_aria: 'Le carnet de Romy',
+  transcript_aria: 'L’interview, question par question',
+  question_n: 'Question {n}',
 };
 
 const DE: PapierCopy = {
@@ -83,6 +119,13 @@ const DE: PapierCopy = {
   translate_all: 'Alles übersetzen',
   translate_all_hide: 'Übersetzungen ausblenden',
   page_kicker_mine: 'Dein Titel',
+  contact_sheet_aria: 'Kontaktbogen: die Bilder des Artikels',
+  frame_aria: 'Bild {n}',
+  legend_live: 'Deine Bildunterschrift',
+  legend_empty: 'Hier entsteht deine Bildunterschrift.',
+  notebook_aria: 'Romys Notizbuch',
+  transcript_aria: 'Das Interview, Frage für Frage',
+  question_n: 'Frage {n}',
 };
 
 const EN: PapierCopy = {
@@ -100,6 +143,13 @@ const EN: PapierCopy = {
   translate_all: 'Translate all',
   translate_all_hide: 'Hide translations',
   page_kicker_mine: 'Your headline',
+  contact_sheet_aria: 'Contact sheet: the story’s pictures',
+  frame_aria: 'Frame {n}',
+  legend_live: 'Your caption',
+  legend_empty: 'Your caption appears here.',
+  notebook_aria: 'Romy’s notebook',
+  transcript_aria: 'The interview, question by question',
+  question_n: 'Question {n}',
 };
 
 export const PAPIER_COPY: Record<RvLanguage, PapierCopy> = { fr: FR, de: DE, en: EN };

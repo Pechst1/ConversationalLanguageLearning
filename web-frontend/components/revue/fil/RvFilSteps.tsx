@@ -92,7 +92,7 @@ export function RvFilRead(props: FilStepProps) {
           />
           {source && <RvSourceLine source={source} copy={copy} />}
         </section>
-        <RvSouvenirSlot sessionId={session.id} props={props} />
+        <RvSouvenirSlot sessionId={session.id} props={props} chrome={session.plan.uiLanguage} />
         {/* The story's other pictures after the lead: the text first on a phone's first screen. */}
         <RvGallery pictures={session.stage.pictures} mainUrl={session.stage.plateUrl} copy={copy} />
         {notice}

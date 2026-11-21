@@ -925,6 +925,9 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     ...(takesOf(d) && !(rubriqueMode() && d === FETE) ? { question_fr: takesOf(d)?.question.fr, cast: takesOf(d)?.guests.map((g) => g.id) } : {}),
     // The chooser names the assignment dealt (2026-11-21): the Fête's, when the mock plays one.
     ...(rubriqueMode() && d === FETE ? { assignment: { key: rubriqueMode(), name_fr: ASSIGNMENT_NAMES[rubriqueMode() as string] } } : {}),
+    // «Le fil» and «Au comptoir» are named too (the chooser names all six assignments, 2026-11-21).
+    ...(!rubriqueMode() && options.fil && d === BAC ? { assignment: { key: 'fil', name_fr: ASSIGNMENT_NAMES.fil } } : {}),
+    ...(!rubriqueMode() && !options.fil && options.comptoir && d === CELINE ? { assignment: { key: 'comptoir', name_fr: ASSIGNMENT_NAMES.comptoir } } : {}),
   });
   const supportOf = (s: MockSession) => {
     const a1 = s.band === 'A1' || s.supportLevel > 0;

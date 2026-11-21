@@ -260,3 +260,14 @@ test('the stylesheet: tokens only, every movement ≤ 300 ms and none under redu
   // the stamp is the event: clearly turned
   for (let index = 0; index < 100; index += 1) assert.ok(Math.abs(model.stampTilt(`k${index}`)) >= 2.5 && Math.abs(model.stampTilt(`k${index}`)) <= 4);
 });
+
+test('round 3: how a caption or an interview reached print, agreed in French; never «par toi» twice', () => {
+  const m = require('./papier-model.ts');
+  assert.equal(m.legendeBylineFr('clean'), 'Légende · par toi, relue par Romy');
+  assert.equal(m.legendeBylineFr('fixed'), 'Légende · par toi, corrigée');
+  assert.equal(m.legendeBylineFr('corrected'), 'Légende · par toi, corrigée par Romy');
+  assert.equal(m.legendeBylineFr('clean', true), 'Légende · par toi', 'tiles: nothing to proofread');
+  assert.equal(m.legendeBylineFr('as_written'), 'Légende · par toi');
+  assert.equal(m.proofNoteFr('clean', 's'), 'relus par Romy');
+  assert.equal(m.proofNoteFr(null), '');
+});

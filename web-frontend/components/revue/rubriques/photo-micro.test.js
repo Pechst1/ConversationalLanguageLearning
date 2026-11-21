@@ -248,6 +248,48 @@ test('the chooser names the assignment dealt (a fault the browser showed, 2026-1
   const { RvChooser } = require('../RvChooser.tsx');
   const { revueCopy } = require('../revue-copy.ts');
   const html = render(h(RvChooser, { recommended: week.offer.recommended, alternatives: week.offer.alternatives, week: week.offer.week, onPick: () => {}, onAsk: async () => ({}), copy: revueCopy("de") }));
-  assert.match(visibleText(html), /Dein Auftrag · Le micro/);
+  // «La belle édition»: the assignment is the story's section head, «LE MICRO — Dein Auftrag».
+  assert.match(visibleText(html), /Le micro Dein Auftrag/);
+  assert.match(html, /data-assignment="micro"/);
   assert.equal(types.parseStoryCard({ dossier_id: 'x', title_fr: 'x' }).assignment, null, 'switch off: nothing named');
+});
+
+// ---------------------------------------------------------------------------
+// 5. «La belle édition» (round 3): the photo desk and the reporter's notebook
+// ---------------------------------------------------------------------------
+
+test('the photo desk: a contact sheet, no mark before a pick, no solution before the retry', () => {
+  const planche = screen('photo_a1_de_planche');
+  assert.match(planche, /class="pp-sheet"/);
+  assert.ok(!/pp-loop|pp-strike/.test(planche), 'nothing marked before the learner picks');
+  const miss = screen('photo_a1_de_planche_miss');
+  assert.match(miss, /pp-strike/, 'the refused frame struck');
+  assert.ok(!/pp-loop/.test(miss), 'the right frame not circled after one miss');
+  const seen = screen('photo_a1_de_seen_miss');
+  assert.ok(!/class="rb-seen__w pp-label"[^>]*aria-pressed="true"/.test(seen), 'no label pinned for the learner after a miss');
+  const legende = screen('photo_a1_de_legende_miss');
+  assert.ok(!/pp-wrong|pp-del/.test(legende), 'the wrong fact is struck only once found');
+});
+
+test('La photo · La page: the picture leads, the learner\'s caption under it signed «Légende · par toi», the credit printed', () => {
+  const html = screen('photo_a1_de_page');
+  const at = (needle) => html.indexOf(needle);
+  assert.ok(at('pp-figure') > 0 && at('pp-figure') < at('pp-front__kicker'), 'the picture before the kicker');
+  const text = visibleText(html);
+  assert.match(text, /Sur la photo, on voit une guitare\. La fête est gratuite\. Légende · par toi/);
+  assert.match(text, /Photo · .* · Wikimedia Commons/);
+});
+
+test('Le micro: Romy\'s notebook, a transcript (Q./R.), a pull quote on the page', () => {
+  const prepare = screen('micro_a2_de_prepare');
+  assert.match(prepare, /pp-notebook/);
+  const shrug = screen('micro_a2_de_shrug');
+  assert.match(visibleText(shrug), /Q\. Qui organise la fête \?/);
+  assert.match(visibleText(shrug), /\(Lila hausse les épaules\.\)/);
+  assert.ok(!/ct-mine/.test(shrug), 'no chat bubble for the learner\'s question');
+  const page = screen('micro_a2_de_page');
+  assert.match(page, /class="pp-pull"/);
+  const { pullQuoteOf } = require('./RvRubriquePages.tsx');
+  assert.equal(pullQuoteOf([{ answerFr: 'Court.' }, { answerFr: 'Une réponse plus longue.' }]), 'Une réponse plus longue.');
+  assert.equal(pullQuoteOf([]), null);
 });

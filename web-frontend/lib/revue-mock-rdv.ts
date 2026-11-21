@@ -142,23 +142,42 @@ function build(session: Json): Round | null {
   return { words, answer, cues, gap, matches: [], gaps: [] };
 }
 
-const UNE: Json = {
-  week: { iso: '2026-W47', label: 'Semaine 47', range: 'du 16 au 22 novembre' },
-  dateline_fr: 'Semaine 47 · du 16 au 22 novembre',
-  items: [
-    { session_id: 'mock-1', rubrique: 'titre', role: 'headline', story_title_fr: 'La Fête de la musique', text_fr: 'La Fête de la musique est gratuite',
-      score: null, total: null, corrections_fr: [], stance: null, picture: null, filed_on: '2026-11-17', filed_weekday_fr: 'mardi' },
-    { session_id: 'mock-2', rubrique: 'opinion', role: 'vox', story_title_fr: 'Le marché de Noël', text_fr: "À mon avis, c'est une bonne idée pour le quartier.",
-      score: null, total: null, corrections_fr: [], stance: 'pour', picture: null, filed_on: '2026-11-18', filed_weekday_fr: 'mercredi' },
-    { session_id: 'mock-3', rubrique: 'intox', role: 'rectificatif', story_title_fr: 'La Fête de la musique', text_fr: '4 sur 5, 1 intox corrigée',
-      score: 4, total: 5, corrections_fr: ['La fête a lieu le 21 juin.'], stance: null, picture: null, filed_on: '2026-11-19', filed_weekday_fr: 'jeudi' },
-  ],
-  lexique: ['la fête', 'le marché', 'gratuit', 'le quartier'],
-  rubriques_filed: 3,
-  rubriques_total: 6,
-  pieces: 3,
-  due_today: false,
-};
+/** The week's six pieces (one per rubrique), the order the server composes them in; `items` takes the first n. */
+const UNE_POOL: Json[] = [
+  { session_id: 'mock-1', rubrique: 'titre', role: 'headline', story_title_fr: 'La Fête de la musique', text_fr: 'La Fête de la musique est gratuite pour tous',
+    score: null, total: null, corrections_fr: [], stance: null, filed_on: '2026-11-17', filed_weekday_fr: 'mardi',
+    picture: { kind: 'illustration', url: '/assets/serial/locations/le_mistral-counter.webp', width: 1536, height: 1024, alt_fr: '', caption_fr: null,
+      credit_fr: 'Illustration · Le Papier', licence: null, licence_url: null, source_url: null } },
+  { session_id: 'mock-2', rubrique: 'opinion', role: 'vox', story_title_fr: 'Le marché de Noël', text_fr: "À mon avis, c'est une bonne idée pour le quartier.",
+    score: null, total: null, corrections_fr: [], stance: 'pour', picture: null, filed_on: '2026-11-18', filed_weekday_fr: 'mercredi' },
+  { session_id: 'mock-3', rubrique: 'fil', role: 'brief', story_title_fr: 'Le bac', text_fr: "Le bac est créé en 1808. Le premier bac a lieu en 1809. En 2023, presque tous les candidats réussissent.",
+    score: null, total: null, corrections_fr: [], stance: null, picture: null, filed_on: '2026-11-16', filed_weekday_fr: 'lundi' },
+  { session_id: 'mock-4', rubrique: 'photo', role: 'caption', story_title_fr: "Le marché d'Aligre", text_fr: 'Au premier plan, on voit des fruits. Le marché ouvre six matins sur sept.',
+    score: null, total: null, corrections_fr: [], stance: null, filed_on: '2026-11-20', filed_weekday_fr: 'vendredi',
+    picture: { kind: 'illustration', url: '/assets/serial/locations/marche_canal.webp', width: 1536, height: 1024, alt_fr: '', caption_fr: null,
+      credit_fr: 'Illustration · Le Papier', licence: null, licence_url: null, source_url: null } },
+  { session_id: 'mock-5', rubrique: 'intox', role: 'rectificatif', story_title_fr: 'La Fête de la musique', text_fr: '4 sur 5, 1 intox corrigée',
+    score: 4, total: 5, corrections_fr: ['La fête a lieu le 21 juin.'], stance: null, picture: null, filed_on: '2026-11-19', filed_weekday_fr: 'jeudi' },
+  { session_id: 'mock-6', rubrique: 'micro', role: 'quote', story_title_fr: 'La grève du métro', text_fr: 'Pourquoi est-ce que vous faites grève ? Combien de temps est-ce que ça dure ?',
+    score: null, total: null, corrections_fr: [], stance: null, picture: null, filed_on: '2026-11-21', filed_weekday_fr: 'samedi' },
+];
+const UNE_LEXIQUE = ['la fête', 'gratuit', 'le marché', 'le quartier', 'le bac', 'réussir', 'la grève', 'au premier plan'];
+
+/** «La une de la semaine» of the mock: the first `n` pieces of the week (3 by default). */
+function uneOf(n: number): Json {
+  const items = UNE_POOL.slice(0, Math.max(0, Math.min(UNE_POOL.length, n)));
+  const filed = new Set(items.map((item) => item.rubrique)).size;
+  return {
+    week: { iso: '2026-W47', label: 'Semaine 47', range: 'du 16 au 22 novembre' },
+    dateline_fr: 'Semaine 47 · du 16 au 22 novembre',
+    items,
+    lexique: items.length ? UNE_LEXIQUE.slice(0, Math.min(UNE_LEXIQUE.length, 2 + items.length)) : [],
+    rubriques_filed: filed,
+    rubriques_total: 6,
+    pieces: items.length,
+    due_today: false,
+  };
+}
 
 const CARTE: Json = {
   rubriques: [
@@ -178,7 +197,7 @@ function notFound(): never {
 }
 
 /** The mock transport with the rendez-vous routes; `enabled: false` answers them 404 as the switches off do. */
-export function withRdvMock<T extends RevueTransport>(inner: T, { enabled = true }: { enabled?: boolean } = {}): T {
+export function withRdvMock<T extends RevueTransport>(inner: T, { enabled = true, items = 3 }: { enabled?: boolean; items?: number } = {}): T {
   const rounds: Record<string, Round | null> = {};
   const session = async (id: string): Promise<Json> => (await inner.get(`/revue/sessions/${encodeURIComponent(id)}`)) as Json;
   const roundOf = async (id: string) => {
@@ -192,7 +211,7 @@ export function withRdvMock<T extends RevueTransport>(inner: T, { enabled = true
       const m = match(url);
       if (m || url.startsWith('/revue/une') || url === '/revue/carte-de-presse') {
         if (!enabled) notFound();
-        if (url.startsWith('/revue/une')) return UNE;
+        if (url.startsWith('/revue/une')) return uneOf(items);
         if (url === '/revue/carte-de-presse') return CARTE;
         const id = decodeURIComponent(m![1]);
         if (m![2] === 'souvenir') {

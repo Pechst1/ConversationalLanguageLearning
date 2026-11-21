@@ -18,8 +18,10 @@ import { Action, ArrowRightIcon, CastPortrait } from '@/components/atelier-v2/ui
 import { textAnswerField } from '@/components/atelier-v2/ui/Choice';
 import type { RvMicroView } from '@/lib/revue-rubriques-types';
 
-import { ComptoirBubble, MineLine, RomyLine } from '../comptoir/RvComptoirParts';
+import { ComptoirBubble, ListenChip, RomyLine } from '../comptoir/RvComptoirParts';
+import { PAPIER_FR, papierCopy } from '../papier/papier-copy';
 import { fill } from '../revue-copy';
+import { RvGlossText, RvTranslate } from '../RvThread';
 import { MICRO_FR, photoMicroCopy, PM_LINES } from './photo-micro-copy';
 import { turnNumber } from './photo-micro-model';
 import { ProofBlock, ProofFoot } from './RvProofBlock';
@@ -55,6 +57,36 @@ function Witness({ props, id, name, line }: { props: MicroStepProps; id: string;
   );
 }
 
+/** A blank in Romy's notes, set as a rule (ticked in red once the interview filled it). */
+function Blank({ filled = false }: { filled?: boolean }) {
+  return <span className="pp-blank" data-filled={filled ? '' : undefined} aria-hidden="true" />;
+}
+
+/**
+ * The witness's answer in the transcript: «R.», the words (each tappable), ▶ and «Traduire»;
+ * a shrug set first as a stage direction, in italics, as a transcript prints it.
+ */
+function TranscriptAnswer({ props, id, name, line, shrug = false }: { props: MicroStepProps; id: string; name: string; line: { fr: string; tr: string | null }; shrug?: boolean }) {
+  return (
+    <div className="pp-tr__a ct-say" data-char={id}>
+      <p className="pp-tr__line" lang="fr">
+        <span className="pp-tr__k">{PAPIER_FR.transcript_a}</span>{' '}
+        {shrug && <span className="pp-tr__stage">({fill(PAPIER_FR.shrug, { name })}) </span>}
+        <span className="pp-tr__fr">
+          <RvGlossText text={line.fr} glosses={props.glosses} mode="tap" glossLanguage={props.glossLanguage} onWord={props.wordFor(id, name)} speaker={name} />
+        </span>
+      </p>
+      <RvTranslate
+        textFr={line.fr}
+        translation={line.tr}
+        glossLanguage={props.glossLanguage}
+        copy={props.copy}
+        before={<ListenChip voice={props.voice} voiceKey={`pm-${id}-${line.fr}`} textFr={line.fr} castId={id} copy={props.copy} ccopy={props.ccopy} />}
+      />
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // «Prépare tes questions»
 // ---------------------------------------------------------------------------
@@ -62,6 +94,7 @@ function Witness({ props, id, name, line }: { props: MicroStepProps; id: string;
 export function RvMicroPrepare(props: MicroStepProps) {
   const { view, chrome, glossLanguage, pending, readOnly, onAct, notice, footRef } = props;
   const pm = photoMicroCopy(chrome);
+  const pcopy = papierCopy(chrome);
   const prepare = view.prepare!;
   const settled = prepare.chosen.length >= prepare.need;
   const [picked, setPicked] = useState<string[]>(prepare.chosen);
@@ -74,31 +107,39 @@ export function RvMicroPrepare(props: MicroStepProps) {
       <div className="rv-body ct-body" data-step="prepare">
         <RomyLine line={PM_LINES.prepare_ask} props={props} past={settled} />
         <p className="ct-hint">{pm.prepare_task}</p>
-        <section className="ct-frame rb-notes" aria-label={MICRO_FR.notes}>
-          <p className="ct-frame__k" lang="fr">
+        {/* Romy's notes: a ruled page of her notebook, a margin rule, a blank on each line. */}
+        <section className="ct-frame rb-notes pp-notebook" aria-label={pcopy.notebook_aria}>
+          <p className="ct-frame__k pp-notebook__k" lang="fr">
             {MICRO_FR.notes}
           </p>
-          <div className="ct-tiles" role="group" aria-label={pm.prepare_task}>
-            {prepare.holes.map((hole) => (
-              <button
-                key={hole.key}
-                type="button"
-                className="ct-tile rb-hole"
-                aria-pressed={shown.includes(hole.key)}
-                disabled={busy || settled || (!shown.includes(hole.key) && shown.length >= prepare.need)}
-                onClick={() => flip(hole.key)}
-              >
-                <span className="ct-tile__fr" lang="fr">
-                  {`${hole.hole.fr}\u00a0`}
-                  <span aria-hidden="true">___</span>
-                </span>
-                {hole.hole.tr && (
-                  <span className="ct-tile__tr" lang={glossLanguage}>
-                    {hole.hole.tr}
+          <div className="ct-tiles pp-notebook__lines" role="group" aria-label={pm.prepare_task}>
+            {prepare.holes.map((hole) => {
+              const at = shown.indexOf(hole.key);
+              return (
+                <button
+                  key={hole.key}
+                  type="button"
+                  className="ct-tile rb-hole pp-nb-line"
+                  aria-pressed={at >= 0}
+                  aria-label={at >= 0 ? `${fill(pcopy.question_n, { n: String(at + 1) })} : ${hole.hole.fr}` : undefined}
+                  disabled={busy || settled || (at < 0 && shown.length >= prepare.need)}
+                  onClick={() => flip(hole.key)}
+                >
+                  <span className="pp-nb-line__n" aria-hidden="true">
+                    {at >= 0 ? at + 1 : ''}
                   </span>
-                )}
-              </button>
-            ))}
+                  <span className="ct-tile__fr" lang="fr">
+                    {`${hole.hole.fr}\u00a0`}
+                    <Blank />
+                  </span>
+                  {hole.hole.tr && (
+                    <span className="ct-tile__tr" lang={glossLanguage}>
+                      {hole.hole.tr}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </section>
         {notice}
@@ -128,8 +169,9 @@ export function RvMicroPrepare(props: MicroStepProps) {
 // ---------------------------------------------------------------------------
 
 export function RvMicroInterview(props: MicroStepProps) {
-  const { view, chrome, glossLanguage, copy, pending, readOnly, onAct, notice, footRef } = props;
+  const { view, chrome, glossLanguage, pending, readOnly, onAct, notice, footRef } = props;
   const pm = photoMicroCopy(chrome);
+  const pcopy = papierCopy(chrome);
   const px = photoMicroCopy(glossLanguage);
   const interview = view.interview!;
   const [text, setText] = useState('');
@@ -145,52 +187,58 @@ export function RvMicroInterview(props: MicroStepProps) {
     <>
       <div className="rv-body ct-body" data-step="interview" data-input={interview.input}>
         <RomyLine line={PM_LINES.interview_ask} props={props} past={interview.done} />
-        <p className="ct-hint rb-by">
-          <CastPortrait characterId={witness.id} name={witness.nameFr} size="xs" ring />
-          <span lang="fr">
-            {witness.nameFr}
-            {witness.roleFr ? ` · ${witness.roleFr}` : ''}
-          </span>
-        </p>
-        <section className="ct-frame rb-notes" aria-label={MICRO_FR.notes}>
-          <p className="ct-frame__k" lang="fr">
+        <section className="ct-frame rb-notes pp-notebook" data-compact="" aria-label={pcopy.notebook_aria}>
+          <p className="ct-frame__k pp-notebook__k" lang="fr">
             {MICRO_FR.notes}
           </p>
-          <ul className="rb-notes__list">
+          <ul className="rb-notes__list pp-notebook__lines">
             {interview.holes.map((hole) => (
-              <li key={hole.key} className="rb-notes__hole" data-filled={hole.filled ? '' : undefined} lang="fr">
-                {hole.hole.fr} {hole.filled ? '✓' : '___'}
+              <li key={hole.key} className="rb-notes__hole pp-nb-line" data-filled={hole.filled ? '' : undefined} lang="fr">
+                {`${hole.hole.fr}\u00a0`}
+                <Blank filled={hole.filled} />
               </li>
             ))}
           </ul>
         </section>
-        <ol className="rb-exchange">
-          {interview.turns.map((turn, index) => {
-            const newest = index === interview.turns.length - 1;
-            const hole = holeOf(turn.holeKey);
-            return (
-              <li key={index} className="rb-exchange__turn" data-kind={turn.kind} data-ct-anchor={newest ? 'nearest' : undefined}>
-                <MineLine textFr={turn.questionFr} copy={copy} />
-                <Witness props={props} id={witness.id} name={witness.nameFr} line={turn.answer} />
-                {turn.kind === 'shrug' && (
-                  <p className="ct-why" lang={glossLanguage}>
-                    {turn.spent ? px.shrug_spent : px.shrug_free}
+        {/* The interview as a transcript: the witness's name as the byline, «Q.» and «R.». */}
+        <section className="pp-transcript" aria-label={pcopy.transcript_aria}>
+          <p className="ct-hint rb-by pp-transcript__by">
+            <CastPortrait characterId={witness.id} name={witness.nameFr} size="xs" ring />
+            <span lang="fr">
+              {witness.nameFr}
+              {witness.roleFr ? ` · ${witness.roleFr}` : ''}
+            </span>
+          </p>
+          <ol className="rb-exchange pp-transcript__turns">
+            {interview.turns.map((turn, index) => {
+              const newest = index === interview.turns.length - 1;
+              const hole = holeOf(turn.holeKey);
+              return (
+                <li key={index} className="rb-exchange__turn pp-tr__turn" data-kind={turn.kind} data-ct-anchor={newest ? 'nearest' : undefined}>
+                  <p className="pp-tr__q" lang="fr">
+                    <span className="pp-tr__k">{PAPIER_FR.transcript_q}</span> <span className="pp-tr__mine">{turn.questionFr}</span>
                   </p>
-                )}
-                {turn.kind === 'again' && (
-                  <p className="ct-why" lang={glossLanguage}>
-                    {px.again}
-                  </p>
-                )}
-                {turn.kind === 'answer' && hole && (
-                  <p className="ct-hint" lang="fr">
-                    {fill(pm.hole_filled, { hole: hole.hole.fr })}
-                  </p>
-                )}
-              </li>
-            );
-          })}
-        </ol>
+                  <TranscriptAnswer props={props} id={witness.id} name={witness.nameFr} line={turn.answer} shrug={turn.kind === 'shrug'} />
+                  {turn.kind === 'shrug' && (
+                    <p className="ct-why" lang={glossLanguage}>
+                      {turn.spent ? px.shrug_spent : px.shrug_free}
+                    </p>
+                  )}
+                  {turn.kind === 'again' && (
+                    <p className="ct-why" lang={glossLanguage}>
+                      {px.again}
+                    </p>
+                  )}
+                  {turn.kind === 'answer' && hole && (
+                    <p className="pp-tr__noted">
+                      {fill(pm.hole_filled, { hole: hole.hole.fr })}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        </section>
         {!interview.done && !readOnly && (
           <section className="ct-frame rb-ask" aria-label={pm.ask_label}>
             <p className="ct-frame__k">
@@ -268,20 +316,29 @@ function NoteItem({ item, props }: { item: NonNullable<RvMicroView['notes']>['it
   useEffect(() => setText(item.attempts[item.attempts.length - 1] ?? ''), [item.tries, item.attempts]);
   const busy = readOnly || pending !== null;
   return (
-    <section className="ct-frame rb-fix" data-key={item.key} data-resolved={item.resolved ? '' : undefined} aria-label={item.hole.fr}>
-      <p className="ct-frame__k" lang="fr">
-        {item.hole.fr} {item.resolved ? item.valueFr ?? '' : '___'}
+    <section className="rb-fix pp-nb-entry" data-key={item.key} data-resolved={item.resolved ? '' : undefined} aria-label={item.hole.fr}>
+      {/* The line of Romy's notes, its blank filled in once settled. */}
+      <p className="ct-frame__k pp-nb-line" lang="fr">
+        {`${item.hole.fr}\u00a0`}
+        {item.resolved && item.valueFr ? (
+          <span className="pp-nb-fill" data-correct={item.correct ? '' : undefined}>
+            {item.valueFr}
+          </span>
+        ) : (
+          <Blank />
+        )}
       </p>
-      {witness ? <Witness props={props} id={witness.id} name={witness.nameFr} line={item.answer} /> : <FrLine text={item.answer} props={props} />}
+      {witness ? <TranscriptAnswer props={props} id={witness.id} name={witness.nameFr} line={item.answer} /> : <FrLine text={item.answer} props={props} />}
       {!item.resolved && notes.input === 'pick' && (
-        <div className="ct-opts" role="group" aria-label={pm.notes_task_pick}>
+        <div className="ct-opts pp-nb-opts" role="group" aria-label={pm.notes_task_pick}>
           {item.options.map((option) => (
             <button
               key={option}
               type="button"
-              className="ct-opt"
+              className="ct-opt pp-label"
               lang="fr"
               data-state={item.attempts.includes(option) ? 'no' : undefined}
+              data-wrong={item.attempts.includes(option) ? '' : undefined}
               aria-pressed={item.attempts.includes(option)}
               disabled={busy || item.attempts.includes(option)}
               onClick={() => void onAct({ act: 'note', key: item.key, value: option }, `note-${item.key}`)}
@@ -292,12 +349,12 @@ function NoteItem({ item, props }: { item: NonNullable<RvMicroView['notes']>['it
         </div>
       )}
       {!item.resolved && notes.input === 'write' && (
-        <>
+        <div className="pp-nb-write">
           {textAnswerField({ label: pm.note_label, value: text, rows: 1, disabled: busy, onChange: setText })}
           <Action tone="secondary" pending={pending === `note-${item.key}`} pendingLabel={rcopy.check} disabled={busy || !text.trim()} onClick={() => void onAct({ act: 'note', key: item.key, text }, `note-${item.key}`)}>
             {rcopy.check}
           </Action>
-        </>
+        </div>
       )}
       {!item.resolved && item.tries > 0 && (
         <>
@@ -309,7 +366,7 @@ function NoteItem({ item, props }: { item: NonNullable<RvMicroView['notes']>['it
         </>
       )}
       {item.resolved && (
-        <p className="ct-fb__note" data-correct={item.correct ? '' : undefined} data-ct-anchor="nearest">
+        <p className="ct-fb__note pp-nb-verdict" data-correct={item.correct ? '' : undefined} data-ct-anchor="nearest">
           {item.correct ? pm.note_right : fill(pm.note_shown, { value: item.valueFr ?? '' })}
         </p>
       )}
@@ -320,6 +377,7 @@ function NoteItem({ item, props }: { item: NonNullable<RvMicroView['notes']>['it
 export function RvMicroNotes(props: MicroStepProps) {
   const { view, chrome, readOnly, notice, footRef } = props;
   const pm = photoMicroCopy(chrome);
+  const pcopy = papierCopy(chrome);
   const notes = view.notes!;
   const done = notes.items.every((item) => item.resolved);
   return (
@@ -327,9 +385,15 @@ export function RvMicroNotes(props: MicroStepProps) {
       <div className="rv-body ct-body" data-step="notes" data-input={notes.input}>
         <RomyLine line={PM_LINES.notes_ask} props={props} past={done} />
         <p className="ct-hint">{notes.input === 'pick' ? pm.notes_task_pick : pm.notes_task_write}</p>
-        {notes.items.map((item) => (
-          <NoteItem key={item.key} item={item} props={props} />
-        ))}
+        {/* The same notebook page: each blank filled from what the witness said. */}
+        <section className="ct-frame rb-notes pp-notebook" data-entries="" aria-label={pcopy.notebook_aria}>
+          <p className="ct-frame__k pp-notebook__k" lang="fr">
+            {MICRO_FR.notes}
+          </p>
+          {notes.items.map((item) => (
+            <NoteItem key={item.key} item={item} props={props} />
+          ))}
+        </section>
         {notice}
       </div>
       {!readOnly && done && (
@@ -348,6 +412,7 @@ export function RvMicroNotes(props: MicroStepProps) {
 export function RvMicroReview(props: MicroStepProps) {
   const { view, chrome, glossLanguage, pending, readOnly, onAct, notice, footRef } = props;
   const pm = photoMicroCopy(chrome);
+  const pcopy = papierCopy(chrome);
   const px = photoMicroCopy(glossLanguage);
   const review = view.review!;
   const sent = review.proof !== null;
@@ -359,20 +424,36 @@ export function RvMicroReview(props: MicroStepProps) {
         {!sent && (
           <>
             <p className="ct-hint">{review.input === 'tiles' ? pm.review_tiles : pm.review_task}</p>
-            <ol className="fl-wire rb-questions" lang="fr">
-              {review.questions.map((question, index) => (
-                <li key={index} className="fl-wire__row">
-                  <span className="fl-wire__fr">{question}</span>
-                </li>
-              ))}
-            </ol>
-            {review.hints.length > 0 && (
-              <div className="ct-why" lang={glossLanguage}>
-                {review.hints.map((hint, index) => (
-                  <p key={index}>{fill(hint.code === 'inversion' ? px.hint_inversion : px.hint_question_word, { n: String(hint.index + 1) })}</p>
+            {/* The questions as the notebook holds them; the app's rule hung under the question it is about. */}
+            <section className="ct-frame rb-notes pp-notebook" aria-label={pcopy.notebook_aria}>
+              <ol className="fl-wire rb-questions pp-nb-questions" lang="fr">
+                {review.questions.map((question, index) => (
+                  <li key={index} className="fl-wire__row pp-nb-q">
+                    <span className="pp-nb-line__n" aria-hidden="true">
+                      {PAPIER_FR.transcript_q}
+                      {index + 1}
+                    </span>
+                    <span className="fl-wire__fr">{question}</span>
+                    {review.hints
+                      .filter((hint) => hint.index === index)
+                      .map((hint, at) => (
+                        <span key={at} className="ct-why pp-nb-note" lang={glossLanguage}>
+                          {fill(hint.code === 'inversion' ? px.hint_inversion : px.hint_question_word, { n: String(hint.index + 1) })}
+                        </span>
+                      ))}
+                  </li>
                 ))}
-              </div>
-            )}
+              </ol>
+              {review.hints.some((hint) => hint.index < 0 || hint.index >= review.questions.length) && (
+                <div className="ct-why" lang={glossLanguage}>
+                  {review.hints
+                    .filter((hint) => hint.index < 0 || hint.index >= review.questions.length)
+                    .map((hint, index) => (
+                      <p key={index}>{fill(hint.code === 'inversion' ? px.hint_inversion : px.hint_question_word, { n: String(hint.index + 1) })}</p>
+                    ))}
+                </div>
+              )}
+            </section>
           </>
         )}
         {sent && (

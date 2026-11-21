@@ -350,6 +350,122 @@ export function PpFigure({
   );
 }
 
+/** A photograph's licence and source after its credit, «· CC BY-SA 4.0 · Source» (each a 44 px tap). */
+export function PpLinks({ links, newTab }: { links: Array<{ kind: string; href: string; label: string }>; newTab: string }) {
+  if (!links.length) return null;
+  return (
+    <>
+      {links.map((link) => (
+        <React.Fragment key={link.kind}>
+          <span aria-hidden="true">{' · '}</span>
+          <a className="pp-figure__link" href={link.href} target="_blank" rel="noopener noreferrer" data-link={link.kind}>
+            {link.label}
+            <span className="av2-sr"> ({newTab})</span>
+          </a>
+        </React.Fragment>
+      ))}
+    </>
+  );
+}
+
+/** One frame of a contact sheet: the picture, its credit (and licence links), never without them. */
+export type PpFrame = { key: string; url: string; creditFr: string; links?: React.ReactNode };
+
+/**
+ * «La photo»: the contact sheet — the story's pictures as frames on one sheet, their numbers
+ * in the margin, the credits listed under the sheet by number. A frame is the choice itself (a
+ * radio, 44 px and more); the one picked is circled with the grease pencil (as «Le titre»'s
+ * proofs), a refused one struck through. Nothing is marked before the learner picks.
+ */
+export function PpSheet({
+  frames,
+  seed,
+  label,
+  frameLabel,
+  chosen,
+  tried = [],
+  right = null,
+  disabled,
+  onPick,
+  still = false,
+  pickLabel,
+  refusedLabel,
+}: {
+  frames: PpFrame[];
+  seed: string;
+  label: string;
+  frameLabel: (n: number) => string;
+  chosen: string | null;
+  tried?: string[];
+  right?: string | null;
+  disabled: (key: string) => boolean;
+  onPick: (key: string) => void;
+  still?: boolean;
+  pickLabel?: string;
+  refusedLabel?: string;
+}) {
+  return (
+    <section className="pp-sheet" aria-label={label} data-frames={frames.length}>
+      <ul className="rb-planche pp-sheet__frames" role="radiogroup" aria-label={label}>
+        {frames.map((frame, index) => {
+          const isRight = right === frame.key;
+          const isTried = tried.includes(frame.key) && !isRight;
+          const isChosen = chosen === frame.key;
+          const src = resolveMediaUrl(frame.url) ?? frame.url;
+          return (
+            <li key={frame.key} className="rb-planche__item pp-frame" data-tried={isTried ? '' : undefined} data-right={isRight ? '' : undefined} data-chosen={isChosen ? '' : undefined}>
+              <button
+                type="button"
+                role="radio"
+                className="rb-planche__pick pp-frame__pick"
+                aria-checked={isChosen || isRight}
+                aria-label={frameLabel(index + 1)}
+                disabled={disabled(frame.key)}
+                onClick={() => onPick(frame.key)}
+              >
+                <span className="pp-frame__img">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- a painted print or a Commons thumbnail, already sized */}
+                  <img src={src} alt="" decoding="async" referrerPolicy="no-referrer" />
+                </span>
+                {(isRight || (isChosen && !isTried)) && <PpPencilLoop seed={`${seed}:${frame.key}`} label={pickLabel} still={still || isRight} />}
+                {isTried && <PpStrike label={refusedLabel} />}
+              </button>
+              <span className="pp-frame__n" aria-hidden="true">
+                {index + 1}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      <ol className="pp-sheet__credits" lang="fr">
+        {frames.map((frame, index) => (
+          <li key={frame.key}>
+            <span className="pp-sheet__cn" aria-hidden="true">
+              {index + 1}
+            </span>
+            <span className="rv-picture__credit pp-sheet__credit">{frame.creditFr}</span>
+            {frame.links}
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+/** A blank to fill, set as a rule (a gap in a cutting, a hole in Romy's notes). */
+export function PpBlank({ label = '…', wide = false }: { label?: string; wide?: boolean }) {
+  return <span className="pp-blank" data-wide={wide ? '' : undefined} role="img" aria-label={label} />;
+}
+
+/** The proofreader's «stet» (let it stand) beside a line the learner suspected but which is right. */
+export function PpStet({ label }: { label: string }) {
+  return (
+    <span className="pp-stet" role="img" aria-label={label}>
+      <span aria-hidden="true">stet</span>
+    </span>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // «La page»
 // ---------------------------------------------------------------------------

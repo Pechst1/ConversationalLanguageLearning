@@ -48,7 +48,7 @@ export function RvComptoirRead(props: ComptoirStepProps) {
           />
           {source && <RvSourceLine source={source} copy={copy} />}
         </section>
-        <RvSouvenirSlot sessionId={session.id} props={props} />
+        <RvSouvenirSlot sessionId={session.id} props={props} chrome={session.plan.uiLanguage} />
         <section className="ct-q" aria-label={COMPTOIR_FR.question_kicker}>
           <p className="ct-q__k" lang="fr">
             {COMPTOIR_FR.question_kicker}

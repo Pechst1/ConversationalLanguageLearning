@@ -19,12 +19,16 @@ import React, { useEffect, useState } from 'react';
 
 import { Action, ArrowRightIcon } from '@/components/atelier-v2/ui';
 import { textAnswerField } from '@/components/atelier-v2/ui/Choice';
+import { resolveMediaUrl } from '@/lib/media-url';
 import type { RvPhotoView } from '@/lib/revue-rubriques-types';
 
 import { RomyLine } from '../comptoir/RvComptoirParts';
+import { papierCopy } from '../papier/papier-copy';
+import { PpDeleatur, PpFigure, PpLinks, PpPencilLoop, PpSheet, PpStet, PpStrike, type PpFrame } from '../papier/PapierPrint';
 import { fill } from '../revue-copy';
-import { RvGalleryPicture } from '../RvGallery';
+import { pictureLinks } from '../revue-gallery';
 import { RvTranslate } from '../RvThread';
+import type { RvPhotoPicture } from '@/lib/revue-rubriques-types';
 import { photoMicroCopy, PM_LINES } from './photo-micro-copy';
 import { a1Caption, asRvPicture } from './photo-micro-model';
 import { ProofBlock, ProofFoot } from './RvProofBlock';
@@ -33,16 +37,41 @@ import { FrLine, type RubriqueStepProps } from './RvRubriqueParts';
 
 export type PhotoStepProps = RubriqueStepProps & { view: RvPhotoView };
 
-/** The caption with its wrong words struck (as «L'intox express»'s correction). */
+/** The caption with its wrong fact struck through with the proofreader's delete mark. */
 function struck(text: string, wrong: string): React.ReactNode {
   const at = wrong ? text.toLowerCase().indexOf(wrong.toLowerCase()) : -1;
   if (at < 0) return text;
   return (
     <>
       {text.slice(0, at)}
-      <s className="ct-strike">{text.slice(at, at + wrong.length)}</s>
+      <s className="ct-strike pp-wrong">
+        {text.slice(at, at + wrong.length)}
+        <PpDeleatur />
+      </s>
       {text.slice(at + wrong.length)}
     </>
+  );
+}
+
+/** A picture of the desk as a frame of the contact sheet (its credit and licence links with it). */
+function frameOf(picture: RvPhotoPicture, copy: PhotoStepProps['copy']): PpFrame {
+  return {
+    key: picture.key,
+    url: picture.url,
+    creditFr: picture.creditFr,
+    links: <PpLinks links={pictureLinks(asRvPicture(picture), copy)} newTab={copy.new_tab} />,
+  };
+}
+
+/** A picture printed large in its press frame, its credit and licence under it. */
+function Print({ picture, copy, legend = null }: { picture: RvPhotoPicture; copy: PhotoStepProps['copy']; legend?: React.ReactNode }) {
+  return (
+    <PpFigure
+      picture={{ url: picture.url, creditFr: picture.creditFr }}
+      ratio="wide"
+      legend={legend}
+      links={<PpLinks links={pictureLinks(asRvPicture(picture), copy)} newTab={copy.new_tab} />}
+    />
   );
 }
 
@@ -60,9 +89,10 @@ function Continue({ props }: { props: PhotoStepProps }) {
 // ---------------------------------------------------------------------------
 
 export function RvPhotoPlanche(props: PhotoStepProps) {
-  const { view, chrome, glossLanguage, copy, pending, readOnly, onAct, notice, footRef, rcopy } = props;
+  const { session, view, chrome, glossLanguage, copy, pending, readOnly, onAct, notice, footRef, rcopy } = props;
   const pm = photoMicroCopy(chrome);
   const px = photoMicroCopy(glossLanguage);
+  const pcopy = papierCopy(chrome);
   const planche = view.planche!;
   const seen = planche.seen;
   const [chosen, setChosen] = useState<string | null>(null);
@@ -72,36 +102,48 @@ export function RvPhotoPlanche(props: PhotoStepProps) {
   const busy = readOnly || pending !== null;
   const lit = seen?.resolved ? seen.solution : taps;
   const shows = planche.shows.map((t) => t.tr ?? t.fr).join(', ');
+  const refused = planche.picked.filter((key) => key !== planche.solution);
+  const print = planche.resolved ? planche.pictures.find((picture) => picture.key === planche.solution) ?? null : null;
+  const label = (word: NonNullable<typeof seen>['words'][number], pinned: boolean) => (
+    <button
+      key={word.index}
+      type="button"
+      className="rb-seen__w pp-label"
+      lang="fr"
+      aria-pressed={pinned}
+      data-wrong={!seen!.resolved && seen!.elsewhere.includes(word.index) && taps.length === 0 ? '' : undefined}
+      disabled={busy || seen!.resolved}
+      onClick={() => setTaps((current) => toggle(current, word.index))}
+    >
+      {word.text.fr}
+    </button>
+  );
   return (
     <>
       <div className="rv-body ct-body" data-step="planche">
         <RomyLine line={PM_LINES.planche_ask} props={props} past={planche.resolved} />
-        <p className="ct-frame__k">{pm.planche_headline}</p>
-        <p className="rb-line__fr rb-headline" lang="fr">
-          {planche.headlineFr}
-        </p>
+        {/* The day's headline, pinned over the sheet as the slug the picture must go with. */}
+        <div className="pp-slugline">
+          <p className="pp-slugline__k">{pm.planche_headline}</p>
+          <p className="rb-line__fr rb-headline pp-slugline__hl" lang="fr">
+            {planche.headlineFr}
+          </p>
+        </div>
         {!planche.resolved && <p className="ct-hint">{pm.planche_task}</p>}
-        <ul className="rb-planche" role="radiogroup" aria-label={pm.planche_task}>
-          {planche.pictures.map((picture, index) => {
-            const tried = planche.picked.includes(picture.key) && picture.key !== planche.solution;
-            const right = planche.resolved && picture.key === planche.solution;
-            return (
-              <li key={picture.key} className="rb-planche__item" data-tried={tried ? '' : undefined} data-right={right ? '' : undefined}>
-                <RvGalleryPicture picture={asRvPicture(picture)} copy={copy} />
-                <button
-                  type="button"
-                  role="radio"
-                  className="ct-opt rb-planche__pick"
-                  aria-checked={chosen === picture.key || right}
-                  disabled={busy || planche.resolved || tried}
-                  onClick={() => setChosen(picture.key)}
-                >
-                  {fill(pm.picture_n, { n: String(index + 1) })}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        <PpSheet
+          frames={planche.pictures.map((picture) => frameOf(picture, copy))}
+          seed={session.id}
+          label={pcopy.contact_sheet_aria}
+          frameLabel={(n) => fill(pm.picture_n, { n: String(n) })}
+          chosen={planche.resolved ? null : chosen}
+          tried={refused}
+          right={planche.resolved ? planche.solution : null}
+          disabled={(key) => busy || planche.resolved || refused.includes(key)}
+          onPick={setChosen}
+          still={readOnly}
+          pickLabel={planche.resolved ? pcopy.kept : pcopy.your_pick}
+          refusedLabel={pcopy.refused}
+        />
         {!planche.resolved && planche.tries > 0 && (
           <div className="ct-why" lang={glossLanguage} data-ct-anchor="nearest">
             <p>{px.planche_wrong}</p>
@@ -114,24 +156,23 @@ export function RvPhotoPlanche(props: PhotoStepProps) {
           </p>
         )}
         {seen && (
-          <section className="ct-frame" aria-label={pm.seen_task}>
+          <section className="pp-pinboard" aria-label={pm.seen_task}>
             <RomyLine line={PM_LINES.seen_ask} props={props} past={seen.resolved} />
             {!seen.resolved && <p className="ct-hint">{pm.seen_task}</p>}
-            <p className="rb-trap" role="group" aria-label={pm.seen_task}>
-              {seen.words.map((word) => (
-                <button
-                  key={word.index}
-                  type="button"
-                  className="rb-trap__w rb-seen__w"
-                  lang="fr"
-                  aria-pressed={lit.includes(word.index)}
-                  data-wrong={!seen.resolved && seen.elsewhere.includes(word.index) && taps.length === 0 ? '' : undefined}
-                  disabled={busy || seen.resolved}
-                  onClick={() => setTaps((current) => toggle(current, word.index))}
-                >
-                  {word.text.fr}
-                </button>
-              ))}
+            {/* «Qu'est-ce qu'on voit ?»: small caption labels, pinned on the print when tapped. */}
+            <div className="pp-print" data-ct-anchor={seen.tries > 0 || seen.resolved ? undefined : 'nearest'}>
+              {print && (
+                <div className="pp-print__frame">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- the picture just chosen, already sized */}
+                  <img src={resolveMediaUrl(print.url) ?? print.url} alt="" decoding="async" referrerPolicy="no-referrer" />
+                </div>
+              )}
+              <p className="pp-pins" role="group" aria-label={pm.seen_task} data-empty={lit.length ? undefined : ''}>
+                {seen.words.filter((word) => lit.includes(word.index)).map((word) => label(word, true))}
+              </p>
+            </div>
+            <p className="pp-labels" role="group" aria-label={pm.seen_task}>
+              {seen.words.filter((word) => !lit.includes(word.index)).map((word) => label(word, false))}
             </p>
             {!seen.resolved && seen.tries > 0 && (
               <div className="ct-why" lang={glossLanguage} data-ct-anchor="nearest">
@@ -187,8 +228,9 @@ export function RvPhotoPlanche(props: PhotoStepProps) {
 // ---------------------------------------------------------------------------
 
 export function RvPhotoLegende(props: PhotoStepProps) {
-  const { view, chrome, glossLanguage, copy, pending, readOnly, onAct, notice, footRef, rcopy } = props;
+  const { session, view, chrome, glossLanguage, copy, pending, readOnly, onAct, notice, footRef, rcopy } = props;
   const pm = photoMicroCopy(chrome);
+  const pcopy = papierCopy(chrome);
   const px = photoMicroCopy(glossLanguage);
   const legende = view.legende!;
   const fix = legende.fix;
@@ -203,45 +245,72 @@ export function RvPhotoLegende(props: PhotoStepProps) {
     <>
       <div className="rv-body ct-body" data-step="legende">
         <RomyLine line={PM_LINES.legende_ask} props={props} past={legende.resolved} />
-        <div className="rb-planche__solo">
-          <RvGalleryPicture picture={asRvPicture(legende.picture)} copy={copy} />
+        {/* The print, then its three captions set as caption proofs under it. */}
+        <div className="pp-captioned">
+          <Print picture={legende.picture} copy={copy} />
+          {!legende.resolved && <p className="ct-hint">{pm.legende_task}</p>}
+          <ol className="fl-strips rb-heads pp-captions" role="radiogroup" aria-label={pm.legende_task}>
+            {legende.captions.map((caption) => {
+              const tried = legende.picked.includes(caption.key) && caption.key !== legende.solution;
+              const wrong = legende.resolved && caption.key === legende.solution;
+              const picked = chosen === caption.key && !tried;
+              return (
+                <li key={caption.key} className="fl-strip rb-head pp-caption" data-tried={tried ? '' : undefined} data-honest={wrong ? '' : undefined} data-role={caption.role ?? undefined}>
+                  <button
+                    type="button"
+                    role="radio"
+                    className="fl-strip__n"
+                    aria-checked={chosen === caption.key || wrong}
+                    aria-label={caption.text.fr}
+                    disabled={busy || legende.resolved || tried}
+                    onClick={() => setChosen(caption.key)}
+                  >
+                    {caption.key.toUpperCase()}
+                  </button>
+                  <div className="fl-strip__text">
+                    {wrong && fix ? (
+                      // Found: the wrong fact struck with the proofreader's delete mark, the loop kept round it.
+                      <div className="rb-line">
+                        <p className="fl-strip__fr" lang="fr">
+                          {struck(caption.text.fr, fix.wrongFr)}
+                          <PpPencilLoop seed={`${session.id}:${caption.key}`} label={pcopy.your_pick} still />
+                        </p>
+                      </div>
+                    ) : (
+                      <FrLine
+                        text={caption.text}
+                        props={props}
+                        className="fl-strip__fr"
+                        inSet
+                        overlay={
+                          picked || wrong ? (
+                            <PpPencilLoop seed={`${session.id}:${caption.key}`} label={pcopy.your_pick} still={readOnly} />
+                          ) : tried && caption.role === 'right' ? (
+                            // Suspected, but it stands: the proofreader's «stet».
+                            <PpStet label={pcopy.stet} />
+                          ) : tried ? (
+                            <PpStrike label={pcopy.refused} />
+                          ) : null
+                        }
+                      />
+                    )}
+                    {caption.role && <span className="rb-head__role">{pm.role[caption.role]}</span>}
+                  </div>
+                  {caption.key === lastPicked && (
+                    <p className="ct-why" lang={glossLanguage} data-ct-anchor="nearest">
+                      {caption.role === 'right' ? px.legende_right_picked : caption.why ? caption.why.tr ?? caption.why.fr : ''}
+                    </p>
+                  )}
+                  {legende.resolved && caption.why && caption.role !== 'right' && (
+                    <p className="ct-why" lang={caption.why.tr ? glossLanguage : 'fr'}>
+                      {caption.why.tr ?? caption.why.fr}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
         </div>
-        {!legende.resolved && <p className="ct-hint">{pm.legende_task}</p>}
-        <ol className="fl-strips rb-heads" role="radiogroup" aria-label={pm.legende_task}>
-          {legende.captions.map((caption) => {
-            const tried = legende.picked.includes(caption.key) && caption.key !== legende.solution;
-            const wrong = legende.resolved && caption.key === legende.solution;
-            return (
-              <li key={caption.key} className="fl-strip rb-head" data-tried={tried ? '' : undefined} data-honest={wrong ? '' : undefined}>
-                <button
-                  type="button"
-                  role="radio"
-                  className="fl-strip__n"
-                  aria-checked={chosen === caption.key || wrong}
-                  aria-label={caption.text.fr}
-                  disabled={busy || legende.resolved || tried}
-                  onClick={() => setChosen(caption.key)}
-                >
-                  {caption.key.toUpperCase()}
-                </button>
-                <div className="fl-strip__text">
-                  <FrLine text={caption.text} props={props} className="fl-strip__fr" />
-                  {caption.role && <span className="rb-head__role">{pm.role[caption.role]}</span>}
-                </div>
-                {caption.key === lastPicked && (
-                  <p className="ct-why" lang={glossLanguage} data-ct-anchor="nearest">
-                    {caption.role === 'right' ? px.legende_right_picked : caption.why ? caption.why.tr ?? caption.why.fr : ''}
-                  </p>
-                )}
-                {legende.resolved && caption.why && caption.role !== 'right' && (
-                  <p className="ct-why" lang={caption.why.tr ? glossLanguage : 'fr'}>
-                    {caption.why.tr ?? caption.why.fr}
-                  </p>
-                )}
-              </li>
-            );
-          })}
-        </ol>
         {legende.resolved && (
           <p className="ct-why" data-ct-anchor={fix && fix.tries === 0 ? 'nearest' : undefined}>
             {legende.correct ? pm.legende_found : pm.legende_shown}
@@ -250,7 +319,7 @@ export function RvPhotoLegende(props: PhotoStepProps) {
         {fix && (
           <section className="ct-frame rb-fix" aria-label={pm.fix_label} data-resolved={fix.resolved ? '' : undefined}>
             <RomyLine line={PM_LINES.fix_ask} props={props} past={fix.resolved} />
-            <p className="rb-line__fr" lang="fr">
+            <p className="rb-line__fr pp-caption-proof" lang="fr">
               {struck(fix.text.fr, fix.wrongFr)}
             </p>
             {!fix.resolved && <p className="ct-hint">{fix.input === 'pick' ? pm.fix_task_pick : pm.fix_task_write}</p>}
@@ -328,8 +397,9 @@ export function RvPhotoLegende(props: PhotoStepProps) {
 // ---------------------------------------------------------------------------
 
 export function RvPhotoBuild(props: PhotoStepProps) {
-  const { view, chrome, glossLanguage, copy, ccopy, pending, readOnly, onAct, notice, footRef } = props;
+  const { session, view, chrome, glossLanguage, copy, ccopy, pending, readOnly, onAct, notice, footRef } = props;
   const pm = photoMicroCopy(chrome);
+  const pcopy = papierCopy(chrome);
   const build = view.build!;
   const [key, setKey] = useState<string | null>(build.picture ?? (build.choices.length === 1 ? build.choices[0].picture.key : null));
   const [seenIndex, setSeenIndex] = useState<number | null>(null);
@@ -345,17 +415,36 @@ export function RvPhotoBuild(props: PhotoStepProps) {
   let send: () => void = () => undefined;
   if (!told) {
     const pictures = (
-      <ul className="rb-planche" role="radiogroup" aria-label={pm.build_task_pick}>
-        {build.choices.map((row, index) => (
-          <li key={row.picture.key} className="rb-planche__item" data-right={row.picture.key === key ? '' : undefined}>
-            <RvGalleryPicture picture={asRvPicture(row.picture)} copy={copy} />
-            <button type="button" role="radio" className="ct-opt rb-planche__pick" aria-checked={row.picture.key === key} disabled={busy} onClick={() => setKey(row.picture.key)}>
-              {fill(pm.picture_n, { n: String(index + 1) })}
-            </button>
-          </li>
-        ))}
-      </ul>
+      <PpSheet
+        frames={build.choices.map((row) => frameOf(row.picture, copy))}
+        seed={`${session.id}:build`}
+        label={pm.build_task_pick}
+        frameLabel={(n) => fill(pm.picture_n, { n: String(n) })}
+        chosen={key}
+        disabled={() => busy}
+        onPick={setKey}
+        still={readOnly}
+        pickLabel={pcopy.your_pick}
+      />
     );
+    // The learner's caption, set under the print as they write it.
+    const live = (caption: string) =>
+      choice && (
+        <Print
+          picture={choice.picture}
+          copy={copy}
+          legend={
+            <span className="pp-legend" data-live="" aria-live="polite">
+              <span className="pp-legend__k" lang={chrome}>
+                {pcopy.legend_live}
+              </span>
+              <span className="pp-legend__fr" lang="fr" data-empty={caption.trim() ? undefined : ''}>
+                {caption.trim() || pcopy.legend_empty}
+              </span>
+            </span>
+          }
+        />
+      );
     const bank = choice && (
       <div className="ct-tiles" role={build.input === 'tiles' ? 'radiogroup' : undefined} aria-label={pm.build_seen_label}>
         {choice.seen.map((tile, index) =>
@@ -390,11 +479,12 @@ export function RvPhotoBuild(props: PhotoStepProps) {
       ready = Boolean(key) && seenIndex !== null && fact !== null;
       send = () => key && void onAct({ act: 'build', key, parts: [seenIndex as number, fact as number] }, 'build');
       composer = (
-        <section className="ct-frame rb-build" aria-label={pm.build_label}>
+        <section className="rb-build pp-desk" aria-label={pm.build_label}>
           <p className="ct-hint">{pm.build_task_pick}</p>
           {pictures}
           {choice && (
             <>
+              {live(built)}
               <p className="ct-frame__k">{pm.build_seen_label}</p>
               {bank}
               <p className="ct-frame__k">{pm.build_fact_label}</p>
@@ -415,9 +505,6 @@ export function RvPhotoBuild(props: PhotoStepProps) {
               <p className="ct-frame__k">
                 {ccopy.phrase_label} · <span lang="fr">{build.phrase.fr}</span>
               </p>
-              <p className="ct-frame__fr" lang="fr" aria-live="polite" data-built={built ? '' : undefined}>
-                {built || '…'}
-              </p>
             </>
           )}
         </section>
@@ -427,11 +514,12 @@ export function RvPhotoBuild(props: PhotoStepProps) {
       ready = Boolean(key) && count >= 3 && count <= build.maxWords;
       send = () => key && void onAct({ act: 'build', key, text }, 'build');
       composer = (
-        <section className="ct-frame rb-build" data-input={build.input} aria-label={pm.build_label}>
+        <section className="rb-build pp-desk" data-input={build.input} aria-label={pm.build_label}>
           <p className="ct-hint">{pm.build_task_pick}</p>
           {pictures}
           {choice && (
             <>
+              {live(text)}
               <p className="ct-frame__k">{pm.build_seen_label}</p>
               {bank}
               <p className="ct-frame__k">
@@ -455,11 +543,7 @@ export function RvPhotoBuild(props: PhotoStepProps) {
       <div className="rv-body ct-body" data-step="build" data-input={build.input}>
         <RomyLine line={PM_LINES.build_ask} props={props} past={told} />
         {composer}
-        {told && printedPicture && (
-          <div className="rb-planche__solo">
-            <RvGalleryPicture picture={asRvPicture(printedPicture)} copy={copy} />
-          </div>
-        )}
+        {told && printedPicture && <Print picture={printedPicture} copy={copy} />}
         {told && (
           <ProofBlock
             props={props}

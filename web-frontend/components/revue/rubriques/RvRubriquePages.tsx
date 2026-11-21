@@ -20,7 +20,7 @@ import { RvTroisMotsSlot } from '../rdv/RvTroisMots';
 import { RvCloseVignette, RvDispatch } from '../RvClose';
 import { papierCopy } from '../papier/papier-copy';
 import { bylineFr, editionOf, legendeBylineFr, pagePicture, proofNoteFr } from '../papier/papier-model';
-import { PpByline, PpFigure, PpFrontCols, PpFrontPage, PpLead, PpStamp, type PpEdition, type PpPicture } from '../papier/PapierPrint';
+import { PpByline, PpFigure, PpFrontCols, PpFrontPage, PpLead, PpLinks, PpStamp, type PpEdition, type PpPicture } from '../papier/PapierPrint';
 import { PICTURE_CREDIT_FR } from '../RvPicture';
 import { pictureLinks } from '../revue-gallery';
 import type { RevueCopy } from '../revue-copy';
@@ -172,7 +172,7 @@ export function PhotoClipping({
               <PpByline text={legendeBylineFr(page.proof, tiles)} still={still} />
             </span>
           }
-          links={<PictureLinks links={links} newTab={copy.new_tab} />}
+          links={<PpLinks links={links} newTab={copy.new_tab} />}
         />
       }
     >
@@ -184,24 +184,6 @@ export function PhotoClipping({
       <Sources text={bylineOf(byline, PHOTO_FR.byline)} />
       <PpFrontCols words={page.words} wordsLabel={ccopy.page_words} />
     </PpFrontPage>
-  );
-}
-
-/** A photograph's licence and source, after its credit (each a 44 px tap). */
-function PictureLinks({ links, newTab }: { links: Array<{ kind: string; href: string; label: string }>; newTab: string }) {
-  if (!links.length) return null;
-  return (
-    <>
-      {links.map((link) => (
-        <React.Fragment key={link.kind}>
-          {' · '}
-          <a className="pp-figure__link" href={link.href} target="_blank" rel="noopener noreferrer" data-link={link.kind}>
-            {link.label}
-            <span className="av2-sr"> ({newTab})</span>
-          </a>
-        </React.Fragment>
-      ))}
-    </>
   );
 }
 
@@ -219,27 +201,34 @@ export function MicroClipping({
 }: { page: RvMicroPage; ccopy: ComptoirCopy; byline?: string | null } & PageExtras) {
   const witness = [page.witness.nameFr, page.witness.roleFr].filter(Boolean).join(', ');
   const pull = pullQuoteOf(page.lines);
-  const rows = page.lines.map((line, index) => (
-    <div key={index} className="rb-qa__row">
-      <dt className="rb-qa__q">
-        <span className="rb-qa__k">{MICRO_FR.q}</span> {line.questionFr}
-      </dt>
-      <dd className="rb-qa__a">
-        <span className="rb-qa__k">{MICRO_FR.a}</span> {line.answerFr}
-      </dd>
-    </div>
-  ));
+  // Each answer's source, printed once (where it first answers), as a footnote to the answer.
+  const named = new Set<string>();
+  const rows = page.lines.map((line, index) => {
+    const source = line.sourceName && !named.has(line.sourceName) ? line.sourceName : '';
+    if (source) named.add(source);
+    return (
+      <div key={index} className="rb-qa__row">
+        <dt className="rb-qa__q">
+          <span className="rb-qa__k">{MICRO_FR.q}</span> {line.questionFr}
+        </dt>
+        <dd className="rb-qa__a">
+          <span className="rb-qa__k">{MICRO_FR.a}</span> {line.answerFr}
+          {source && <span className="rb-qa__src"> d’après {source}</span>}
+        </dd>
+      </div>
+    );
+  });
   // The pull quote after the first exchange (before the Q&A when there is only one).
   const at = rows.length > 1 ? 1 : 0;
   const quote = pull ? (
-    <div key="pull" className="pp-pull" role="presentation">
-      <p className="pp-pull__fr" lang="fr">
+    <figure className="pp-pull">
+      <blockquote className="pp-pull__fr" lang="fr">
         {pull}
-      </p>
-      <p className="pp-pull__by" lang="fr">
+      </blockquote>
+      <figcaption className="pp-pull__by" lang="fr">
         {page.witness.nameFr}
-      </p>
-    </div>
+      </figcaption>
+    </figure>
   ) : null;
   return (
     <PpFrontPage className="rb-clip pp-micro-page" edition={edition} kicker={`${MICRO_FR.page_kicker} · ${page.witness.nameFr}`} headline={page.titleFr} deck={witness || null} still={still}>
@@ -248,13 +237,17 @@ export function MicroClipping({
           {page.datelineFr}
         </p>
       )}
+      {at > 0 && (
+        <dl className="rb-qa pp-qa" lang="fr">
+          {rows.slice(0, at)}
+        </dl>
+      )}
+      {quote}
       <dl className="rb-qa pp-qa" lang="fr">
-        {rows.slice(0, at)}
-        {quote}
         {rows.slice(at)}
       </dl>
-      <PpByline text={[page.bylineFr, proofNoteFr(page.proof)].filter(Boolean).join(' · ')} still={still} />
-      <Sources text={sourcesOf(byline, page.lines)} />
+      <PpByline text={[page.bylineFr, proofNoteFr(page.proof, 's')].filter(Boolean).join(', ')} still={still} />
+      <Sources text={otherSources(byline, page.bylineFr, named)} />
       <PpFrontCols words={page.words} wordsLabel={ccopy.page_words} />
     </PpFrontPage>
   );
@@ -267,11 +260,13 @@ export function pullQuoteOf(lines: Array<{ answerFr: string }>): string | null {
   return best || null;
 }
 
-/** The dispatch's credit and sources, then any answer's source it does not already name. */
-function sourcesOf(byline: string | null | undefined, lines: Array<{ sourceName: string }>): string {
-  const head = bylineOf(byline, '');
-  const missing = Array.from(new Set(lines.map((line) => line.sourceName).filter((name) => name && !head.includes(name))));
-  return [head, ...missing.map((name) => `d’après ${name}`)].filter(Boolean).join(' · ');
+/** The dispatch's credit and sources the page has not printed yet (its byline, the answers' sources). */
+function otherSources(byline: string | null | undefined, printed: string, named: Set<string>): string {
+  return (byline ?? '')
+    .split(/\s+·\s+/)
+    .map((part) => part.trim())
+    .filter((part) => part && part !== printed.trim() && !Array.from(named).some((name) => part.includes(name)))
+    .join(' · ');
 }
 
 export function RvRubriquePage({

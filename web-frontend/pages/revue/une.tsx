@@ -8,7 +8,9 @@
 
    Query:
      ?week=2026-W47  that ISO week (else this one)
-     ?mock=1         DEV ONLY: the canned page of lib/revue-mock-rdv.ts; ?lang=de|en|fr.
+     ?mock=1         DEV ONLY: the canned page of lib/revue-mock-rdv.ts; ?lang=de|en|fr;
+                     ?items=0..6 the week's pieces (3 by default); ?carte=1 shows the
+                     Relevé's «Carte de presse» above the page (to look at it).
 
    The switch off (REVUE_UNE_ENABLED, or the Papier itself): the page says so and goes back. */
 
@@ -18,8 +20,9 @@ import { useRouter } from 'next/router';
 
 import { ArrowLeftIcon, AtelierV2Root, IconAction, Skeleton, StateBlock } from '@/components/atelier-v2/ui';
 import { RDV_FR, RvUneSemaine, rdvCopy } from '@/components/revue/rdv';
+import { RvCarteDePresseCard } from '@/components/revue/rdv/RvCarteDePresse';
 import { useChromeLanguage } from '@/lib/learner-language';
-import { createRdvClient, rdvClient, type RdvClient, type RvUneSemaine as UneData } from '@/lib/revue-rdv';
+import { createRdvClient, rdvClient, type RdvClient, type RvCarteDePresse as CarteData, type RvUneSemaine as UneData } from '@/lib/revue-rdv';
 import type { RvLanguage } from '@/lib/revue-types';
 
 type PageState = { kind: 'loading' } | { kind: 'off' } | { kind: 'error' } | { kind: 'une'; une: UneData };
@@ -40,13 +43,16 @@ export default function UnePage() {
   const copy = rdvCopy(language);
   const [client, setClient] = useState<RdvClient | null>(null);
   const [state, setState] = useState<PageState>({ kind: 'loading' });
+  // DEV ONLY (?mock=1&carte=1): the Relevé's press card shown above the page, to look at it.
+  const [carte, setCarte] = useState<CarteData | null>(null);
 
   useEffect(() => {
     if (!router.isReady) return;
     let alive = true;
     if (process.env.NODE_ENV !== 'production' && mock) {
       void Promise.all([import('@/lib/revue-mock'), import('@/lib/revue-mock-rdv')]).then(([{ createMockRevueTransport }, { withRdvMock }]) => {
-        if (alive) setClient(createRdvClient(withRdvMock(createMockRevueTransport({ language, latency: 250 }))));
+        const items = Number(queryString(router.query.items) ?? 3);
+        if (alive) setClient(createRdvClient(withRdvMock(createMockRevueTransport({ language, latency: 250 }), { items: Number.isFinite(items) ? items : 3 })));
       });
     } else {
       setClient(rdvClient());
@@ -76,6 +82,13 @@ export default function UnePage() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (!client || !mock || router.query.carte !== '1') return;
+    void client.carteDePresse().then(setCarte).catch(() => undefined);
+    // Once per client.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client]);
+
   const exit = useCallback(() => void router.push(BACK), [router]);
 
   let body: React.ReactNode;
@@ -101,7 +114,10 @@ export default function UnePage() {
             <ArrowLeftIcon size={18} />
           </IconAction>
         </div>
-        <div className="rv-body">{body}</div>
+        <div className="rv-body">
+          {carte && <RvCarteDePresseCard card={carte} language={language} name="Mock" />}
+          {body}
+        </div>
       </AtelierV2Root>
     </>
   );
