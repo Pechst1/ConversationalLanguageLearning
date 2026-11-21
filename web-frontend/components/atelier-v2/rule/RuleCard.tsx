@@ -41,6 +41,8 @@ import {
   type RuleCardShape,
   type RuleSceneAnchor,
 } from '@/lib/rule-card';
+import { explanationLanguage } from '@/lib/language-rule';
+import { useLearnerLanguage } from '@/lib/learner-language';
 import type { ControlLanguage } from '@/types/daily-journey';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 import { playAskedVoice } from '@/lib/audio-session';
@@ -181,7 +183,14 @@ function WrongRight({
 
 export type RuleCardProps = {
   card: RuleCardData;
+  /** The chrome: the card's headings and buttons (French from B1). */
   language: ControlLanguage;
+  /**
+   * R4: the language the card *explains* in (the rule, its notes, the translations):
+   * the learner's own at every level. Defaults to the chrome below B1 and to the
+   * learner's language from B1 (`explanationLanguage`).
+   */
+  explainLanguage?: ControlLanguage;
   variant?: 'intro' | 'inline';
   conceptId?: number | string | null;
   /** intro only: the one primary action, «Essayer». */
@@ -290,6 +299,7 @@ function SceneAnchor({
 export function RuleCard({
   card,
   language,
+  explainLanguage,
   variant = 'intro',
   conceptId,
   onDone,
@@ -302,14 +312,17 @@ export function RuleCard({
   review = false,
 }: RuleCardProps) {
   const copy = RULE_CARD_COPY[language] ?? RULE_CARD_COPY.en;
+  // R4: the chrome is `language`; what the card explains is in the learner's own language.
+  const learnerLanguage = useLearnerLanguage();
+  const say = explainLanguage ?? explanationLanguage(language, learnerLanguage);
   const [showTranslation, setShowTranslation] = useState(false);
   const [showWhy, setShowWhy] = useState(defaultOpen);
   const [showExampleTranslations, setShowExampleTranslations] = useState(false);
   const exampleText = plainText(card.example.fr);
   const speech = useSpeech(exampleText);
-  const translation = pick(card.example.tr, language);
-  const rule = pick(card.rule, language);
-  const more = pick(card.more, language);
+  const translation = pick(card.example.tr, say);
+  const rule = pick(card.rule, say);
+  const more = pick(card.more, say);
   const speakerId = card.speaker || coach?.id || null;
   // The cast registry's name (#147); a coach outside the drawn cast keeps their own.
   const speakerName = card.speaker
@@ -321,12 +334,12 @@ export function RuleCard({
   const speakerMood: PortraitMood = coach && speakerId === coach.id ? coachMood : 'neutral';
   const pattern = card.pattern;
   // F-1: the v2+ depth, each part optional.
-  const deep = cardHasDepth(card, language);
-  const steps = howSteps(card, language);
+  const deep = cardHasDepth(card, say);
+  const steps = howSteps(card, say);
   const examples = cardExamples(card);
   const traps = cardTraps(card);
-  const partners = cardPartners(card, language);
-  const examplesTranslated = examples.some((item) => pick(item.tr, language));
+  const partners = cardPartners(card, say);
+  const examplesTranslated = examples.some((item) => pick(item.tr, say));
   const tones = markupTones([
     sceneAnchor?.fr,
     card.example.fr,
@@ -401,11 +414,11 @@ export function RuleCard({
           >
             {showTranslation ? copy.hideTranslation : copy.translate}
           </button>
-          {showTranslation && <p className="rc-translation">{translation}</p>}
+          {showTranslation && <p className="rc-translation" lang={say}>{translation}</p>}
         </div>
       )}
 
-      {rule && <p className="rc-rule">{rule}</p>}
+      {rule && <p className="rc-rule" lang={say}>{rule}</p>}
 
       {pattern?.kind === 'rows' && pattern.rows.length > 0 && (
         <div className="rc-pattern" role="group" aria-label={copy.pattern} lang="fr">
@@ -433,7 +446,7 @@ export function RuleCard({
               </div>
             ))}
           </div>
-          {pick(pattern.note, language) && <p className="rc-note">{pick(pattern.note, language)}</p>}
+          {pick(pattern.note, say) && <p className="rc-note" lang={say}>{pick(pattern.note, say)}</p>}
         </div>
       )}
 
@@ -458,7 +471,7 @@ export function RuleCard({
           </button>
           {showWhy && !deep && (
             <p className="rc-more">
-              {more}{' '}
+              <span lang={say}>{more}</span>{' '}
               {conceptId != null && (
                 <Link className="rc-cahier" href={`/grammar?concept=${conceptId}`}>
                   {copy.cahier}
@@ -468,7 +481,7 @@ export function RuleCard({
           )}
           {showWhy && deep && (
             <div className="rc-deep">
-              {more && <p className="rc-more">{more}</p>}
+              {more && <p className="rc-more" lang={say}>{more}</p>}
 
               {steps.length > 0 && (
                 <div className="rc-sec">
@@ -477,7 +490,7 @@ export function RuleCard({
                     {steps.map((step, index) => (
                       <li key={index} className="rc-step">
                         <span className="rc-step__n" aria-hidden="true">{index + 1}</span>
-                        <span className="rc-step__text">{step}</span>
+                        <span className="rc-step__text" lang={say}>{step}</span>
                       </li>
                     ))}
                   </ol>
@@ -501,13 +514,13 @@ export function RuleCard({
                   </div>
                   <ul className="rc-examples">
                     {examples.map((item, index) => {
-                      const tr = pick(item.tr, language);
+                      const tr = pick(item.tr, say);
                       return (
                         <li key={index} className="rc-ex">
                           <span className="rc-ex__fr" lang="fr">
                             <Marked value={item.fr} />
                           </span>
-                          {showExampleTranslations && tr && <span className="rc-ex__tr">{tr}</span>}
+                          {showExampleTranslations && tr && <span className="rc-ex__tr" lang={say}>{tr}</span>}
                         </li>
                       );
                     })}
@@ -520,13 +533,13 @@ export function RuleCard({
                   <p className="rc-sec__t">{copy.traps}</p>
                   <ul className="rc-traps">
                     {traps.map((trap, index) => {
-                      const why = pick(trap.why, language);
+                      const why = pick(trap.why, say);
                       return (
                         <li key={index} className="rc-trap">
                           <div className="rc-contrast" lang="fr">
                             <WrongRight wrong={trap.wrong} right={trap.right} copy={copy} />
                           </div>
-                          {why && <p className="rc-trap__why">{why}</p>}
+                          {why && <p className="rc-trap__why" lang={say}>{why}</p>}
                         </li>
                       );
                     })}
@@ -542,7 +555,7 @@ export function RuleCard({
                       <li key={partner.id}>
                         <Link className="rc-partner" href={partner.href}>
                           <span className="rc-partner__title" lang="fr">{partner.title}</span>
-                          {partner.note && <span className="rc-partner__note">{partner.note}</span>}
+                          {partner.note && <span className="rc-partner__note" lang={say}>{partner.note}</span>}
                         </Link>
                       </li>
                     ))}

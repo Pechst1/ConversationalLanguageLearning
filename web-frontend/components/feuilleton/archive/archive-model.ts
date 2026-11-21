@@ -30,6 +30,13 @@ export type ArchiveMarginNote = {
   panel_id?: string | null;
 };
 
+/** P12 round 2: a card the learner chose on a season page. */
+export interface ArchiveChoice {
+  turn_id: string;
+  reply_id: string;
+  label_fr: string | null;
+}
+
 export type ArchiveDay = {
   /** YYYY-MM-DD, learner-local. */
   date: string;
@@ -49,6 +56,11 @@ export type ArchiveDay = {
   special: 'epreuve' | null;
   /** The day's speaker, when the server names one. */
   character_id: string | null;
+  /** P12: where the day is set (the scenario's place), for Le Quartier's carnet; an older server sends none. */
+  location_id?: string | null;
+  location_name?: string | null;
+  /** P12 round 2: the cards chosen on a season page played as a page («Le choix»), in play order; an older server sends none. */
+  choices?: ArchiveChoice[];
   /** The authored first day, or an authored fallback day. */
   authored: boolean;
   /** An authored day's own page (engine days are read through `scene_id`). */
@@ -144,6 +156,11 @@ function normalizeDay(raw: any): ArchiveDay | null {
     can_do_id: textOrNull(raw?.can_do_id),
     special: raw?.special === 'epreuve' ? 'epreuve' : null,
     character_id: textOrNull(raw?.character_id),
+    location_id: textOrNull(raw?.location_id),
+    location_name: textOrNull(raw?.location_name),
+    choices: list(raw?.choices)
+      .map((c: { turn_id?: unknown; reply_id?: unknown; label_fr?: unknown } | null) => ({ turn_id: text(c?.turn_id), reply_id: text(c?.reply_id), label_fr: textOrNull(c?.label_fr) }))
+      .filter((c) => c.turn_id && c.reply_id),
     authored: Boolean(raw?.authored),
     panels: normalizePanels(raw?.panels),
     // An older server sends no act: every day it files is a day of one act.
@@ -413,6 +430,18 @@ export function findArchiveDay(
     }
   }
   return null;
+}
+
+/**
+ * P9 · Home's «Revoir» on a finished day: the day's episode in the archive reader
+ * (translation and tappable words), with `from=home` so the way back is Home.
+ * `null` while the day is not in the archive yet: Home then keeps its end card.
+ */
+export function homeReplayHref(payload: ArchivePayload | null | undefined, journeyId: string | null | undefined): string | null {
+  if (!journeyId) return null;
+  const day = findArchiveDay(payload, { journeyId });
+  if (!day || day.journey_id !== journeyId) return null;
+  return `${archiveDayHref({ date: day.date, journey_id: day.journey_id, scene_id: day.scene_id })}&from=home`;
 }
 
 /** The edition number a margin note's «— Nº N» prints: the note's own, else the cause day's. */

@@ -203,7 +203,8 @@ def test_every_meaning_unit_serves_a_german_meaning_with_no_english(unit: str) -
             # #296: a build of an exchange quotes its answer and says the lines before
             # it ahead of the quote, so every German sentence is there, not in one run.
             # 12 Nov 2026: a build or write rung quotes the sentence said to nobody.
-            german = (ib.without_vocative(item) or item).de if rung in {"word_bank", "transform", "production"} else item.de
+            # R2 (walk 17 Nov): fill and pair are said to nobody too.
+            german = (ib.without_vocative(item) or item).de if rung in {"fill", "word_bank", "transform", "pair", "production"} else item.de
             parts = [part for part in re.split(r"(?<=[.!?…])\s+", german.strip()) if part]
             assert all(part in cue for part in parts), (rung, cue)
         # French learners keep the gloss-free cue: no English, no German.

@@ -137,8 +137,9 @@ def test_unit_yields_200_distinct_valid_items_per_rung(unit: str) -> None:
 
     # 12 Nov 2026: the rungs the learner builds or writes are said to nobody, so a frame's
     # vocative twin adds no new build: a small unit («Nous mangeons / Je paie …», about
-    # 190 sentences) has that many builds, still a month of three a day.
-    floor = {rung: MIN_BUILDS if rung in {"word_bank", "transform", "production"} else MIN_ITEMS for rung in ib.RUNG_TYPES}
+    # 190 sentences) has that many builds, still a month of three a day. R2 (walk of
+    # 17 Nov): the fills, sorts and pairs are said to nobody too, so the same floor holds.
+    floor = dict.fromkeys(ib.RUNG_TYPES, MIN_BUILDS)
     short = {rung: distinct(rung) for rung in ib.RUNG_TYPES if distinct(rung) < floor[rung]}
     assert not short, f"{unit}: fewer distinct valid items than {floor} for {short}"
 
@@ -309,7 +310,8 @@ def test_v2_catalogue_concepts_are_served_by_their_own_templates(db_session, mon
 
 
 def test_concepts_without_templates_keep_the_old_path(db_session, monkeypatch) -> None:
-    concept = _v1(db_session, "FR_B1_COND_001")
+    # P6: FR_B1_COND_001 (si + présent) has templates now; the gérondif has none yet.
+    concept = _v1(db_session, "FR_B1_VERB_002")
     user = _user(db_session)
     session = _session(db_session, user, [concept])
     assert item_bank_exercise_set(db_session, user=user, session=session, concept=concept) is None

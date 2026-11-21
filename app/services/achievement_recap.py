@@ -371,7 +371,9 @@ def _measure_up(db: Session, user: User) -> None:
     The engine's own rule (``CEFRProgressService.recompute``), without its
     commit: the finish transaction owns that. Only an upward, measured move is
     written as a new level — a downward move keeps its own smoothing at the
-    engine's other recompute points. WP-L7: a day that leaves the level where it
+    engine's other recompute points, and the engine itself never stores a
+    level below the declared / placed floor (P2: its ``measured_below_floor``),
+    so this guard only adds the day's own no-downgrade. WP-L7: a day that leaves the level where it
     was still refreshes the stored payload (coverage, the épreuve's state, the
     forecast) and the band's checkpoint row, so «A1.1 · 60 %» and
     ``checkpoint_ready`` follow the day that moved them.

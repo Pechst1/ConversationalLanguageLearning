@@ -48,6 +48,8 @@ const FR = {
   today_open: 'Lire l’épisode du jour',
   // ---- one day, reread
   back_archive: 'Retour aux archives',
+  // P9: «Revoir» on Home opens the day here, and the way back is Home (W14: never named «La Une» here).
+  back_home: 'Retour à aujourd’hui',
   reply_label: 'La réplique de l’abonné·e',
   reply_none: 'Ce jour-là, tu n’as rien répondu.',
   ending_label: 'Le dénouement',
@@ -112,6 +114,8 @@ const EN: ArchiveCopy = {
   today_kicker: 'Today',
   today_open: 'Read today’s episode',
   back_archive: 'Back to the archive',
+  // P9: «Revoir» on Home opens the day here, and the way back is Home (W14: never named «La Une» here).
+  back_home: 'Back to today',
   reply_label: 'Your reply',
   reply_none: 'You did not reply that day.',
   ending_label: 'How it ended',
@@ -169,6 +173,8 @@ const DE: ArchiveCopy = {
   today_kicker: 'Heute',
   today_open: 'Die Folge von heute lesen',
   back_archive: 'Zurück zum Archiv',
+  // P9: «Revoir» on Home opens the day here, and the way back is Home (W14: never named «La Une» here).
+  back_home: 'Zurück zu heute',
   reply_label: 'Deine Antwort',
   reply_none: 'An diesem Tag hast du nichts geantwortet.',
   ending_label: 'Wie es ausging',

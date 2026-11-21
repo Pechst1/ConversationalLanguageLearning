@@ -25,6 +25,7 @@ from difflib import SequenceMatcher
 from functools import lru_cache
 from typing import Any
 
+from app.core.verdict import span_pattern
 from app.services.chrome_language import fold_language, mother_tongue
 from app.services.journey_contracts import normalize_answer_text
 from app.services.learner_copy import learner_text as _copy
@@ -172,6 +173,26 @@ def describe_diff(ops: list[dict[str, str]], language: Any) -> str:
         if len(sentences) == 2:
             break
     return " ".join(sentences)
+
+
+def accent_miss_note(ops: list[dict[str, str]], language: Any) -> str | None:
+    """The line for a refused answer that differs from its key by accents alone.
+
+    #696: «Ils ont envoye» for «Ils ont envoyé» is one missing accent, and that
+    accent is the participle's -é. :func:`describe_diff` skips accent operations
+    (they ride beside another difference), so an accent-only miss said nothing of
+    its own. It names the word, as a refused accent in a free answer does (#297):
+    «Here the accent changes the word: «envoyé», not «envoye».»"""
+
+    if not ops or any(op.get("kind") != "accent" for op in ops):
+        return None
+    from app.services.answer_acceptance import Verdict, feedback_note
+
+    first = ops[0]
+    return feedback_note(
+        Verdict(correct=False, note="accent", learner_word=first.get("learner"), expected_word=first.get("target")),
+        language,
+    )
 
 
 #: Object pronouns by function: a direct object (COD) has no «à», an indirect one (COI) has.
@@ -1025,6 +1046,18 @@ def reconcile_with_sentence(refined: dict[str, Any], learner_text: Any, language
     if not isinstance(corrected, str) or not corrected.strip() or not line:
         return refined
     errata = [item for item in refined.get("errata") or [] if isinstance(item, dict)]
+    # #946: the fixes and the sentence are read by the rules as one line, as
+    # ``verify_correction`` reads every other surface's. Each fix was checked alone in
+    # the learner's line: «est» -> «a» and «chaud» -> «chaude» both hold in «Elle est
+    # chaud», and the line they make, «Elle a chaude», is wrong French. Each fix is read
+    # where it was placed, never at the first place its words appear (verify of #957).
+    errata, unsettled = correction_contract.held_in_line(*_placed_fixes(line, corrected, errata))
+    settled = correction_contract.repair_text(corrected)
+    if unsettled or settled != corrected or errata != refined.get("errata"):
+        refined = {**refined, "errata": errata, "corrected_answer": settled}
+        if unsettled:
+            refined["dropped_errata"] = [*refined.get("dropped_errata", []), *unsettled]
+        corrected = settled
     asks = [
         item for item in errata
         if item.get("task_error_type") != "task_compliance"
@@ -1061,6 +1094,31 @@ def reconcile_with_sentence(refined: dict[str, Any], learner_text: Any, language
         kept = [item for item in errata if not _asks_for_a_retype(item.get("corrected_target"))]
         return {**refined, "errata": [whole, *kept]}
     return {**refined, "errata": merged}
+
+
+def _placed_fixes(
+    line: str, corrected: str, errata: list[dict[str, Any]]
+) -> tuple[str, list[tuple[dict[str, Any], tuple[int, int] | None]]]:
+    """``(line, placed)`` for :func:`correction_contract.held_in_line`: the learner's line
+    with the fixes in the gaps the learner fills, and where each fix stands there (#946).
+
+    A line the gaps cannot hold is retyped whole against the model's sentence; a fix is
+    then read only where its words stand once in it. Where they stand twice («Il va a
+    Paris et il a froid») no place is guessed and the fix is kept as listed.
+    """
+
+    from app.services.atelier import repair_line_with_spans
+
+    repaired = repair_line_with_spans(line, errata)
+    if repaired is not None:
+        text, spans = repaired
+        return text, [(item, spans.get(index)) for index, item in enumerate(errata)]
+    placed: list[tuple[dict[str, Any], tuple[int, int] | None]] = []
+    for item in errata:
+        target = str(item.get("corrected_target") or "").strip()
+        found = list(span_pattern(target).finditer(corrected)) if target else []
+        placed.append((item, found[0].span() if len(found) == 1 else None))
+    return corrected, placed
 
 
 def _derived_gap(wrong: str, fix: str, language_key: str) -> dict[str, Any]:
@@ -1195,8 +1253,34 @@ def refine_production_correction(
         # #574: the gaps, the right sentence and the list say the same thing. (An
         # answer the key accepts has nothing to fix: the model's rewrite is style.)
         refined = reconcile_with_sentence(refined, learner_text, language)
+    if str(refined.get("verdict") or "") in {"correct", "accepted"} and not matches_accepted(learner_text, accepted):
+        refined = held_to_the_rules(refined, learner_text, language)
     refined["notes_native"] = notes_native(refined.get("errata"))
     return refined
+
+
+def held_to_the_rules(refined: dict[str, Any], learner_text: Any, language: Any = "en") -> dict[str, Any]:
+    """P4 (walk 17 Nov): a free sentence is «right» only when the model-free rule pass has
+    nothing to correct in it. «le valise» passed as «Richtig»: the model said right, and the
+    rules, which know «valise» is feminine, were never asked. A grammar edit of the rules
+    (an accent or apostrophe slip is left to the item's accent policy) makes the answer
+    partial, with the rules' own fixes as its corrections."""
+
+    from app.services import correction_contract
+
+    line = str(learner_text or "")
+    edits = [edit for edit in correction_contract.deterministic_edits(line) if edit.severity >= 2]
+    if not edits:
+        return refined
+    key = _language(language)
+    return {
+        **refined,
+        "verdict": "partial",
+        "score_0_4": min(max(float(refined.get("score_0_4") or 0), 2.0), 2.5),
+        "errata": [correction_contract.to_erratum(edit, language=key) for edit in edits],
+        "corrected_answer": correction_contract.apply_edits(line, edits),
+        "rules_overrode_right": True,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1217,7 +1301,12 @@ def _scrambled(values: list[str], key: str) -> list[str]:
 
 
 def classify_follow_up(
-    item: dict[str, Any], learner_answer: Any, *, band: Any = None, language: Any = None
+    item: dict[str, Any],
+    learner_answer: Any,
+    *,
+    band: Any = None,
+    language: Any = None,
+    chrome: Any = None,
 ) -> dict[str, Any] | None:
     """What a judgement item adds once it is answered (WP-103 T8).
 
@@ -1256,6 +1345,20 @@ def classify_follow_up(
         "goal_native": goal.get(code) or goal["en"],
         "accepted_fr": list(dict.fromkeys(accepted)),
     }
+    # R5 (CI walk «en + B1», 19 Nov): the goal is interface, so it is in the chrome
+    # (French from B1), and quotes the meaning in the learner's own language, marked;
+    # «It should say: "…"» on a French screen was the explanation language's template.
+    chrome_code = _language(chrome) if chrome else code
+    if chrome_code != code:
+        if chrome_code == "fr" and meaning:
+            from app.services.item_bank import _GOALS_FR_NATIVE_MEANING
+
+            own = str((key.get("meaning_l10n") or {}).get(code) or "").strip()
+            quoted, quoted_lang = (own, code) if own else (meaning, "en")
+            follow_up["goal_native"] = _GOALS_FR_NATIVE_MEANING["repair"].format(meaning=quoted)
+            follow_up["goal_native_marks"] = [{"text": quoted, "lang": quoted_lang}]
+        else:
+            follow_up["goal_native"] = goal.get(chrome_code) or goal["en"]
     if str(band or "").strip().upper()[:2] in TILE_BANDS:
         words = sentence_tokens(corrected)
         spare = [
@@ -1276,6 +1379,7 @@ __all__ = [
     "TO_CORRECT_LABEL",
     "reconcile_with_sentence",
     "sentence_differences",
+    "accent_miss_note",
     "classify_follow_up",
     "FREE_PRODUCTION_ROUNDS",
     "FRENCH_LOANWORDS",

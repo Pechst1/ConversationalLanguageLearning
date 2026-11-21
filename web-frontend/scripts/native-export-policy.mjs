@@ -128,7 +128,8 @@ export function nativeBuildManifest(env = process.env, prefixes = excludedRouteP
 /**
  * Le Quartier's page is in an export only when the build had it on (pages/quartier.tsx is
  * notFound otherwise). Read from the export, not the environment: `next build` also takes
- * NEXT_PUBLIC_QUARTIER_VISIBLE from a .env file this script never reads.
+ * NEXT_PUBLIC_QUARTIER_VISIBLE from a .env file this script never reads. P12 (owner, 17 Nov):
+ * launch-flags.json has it on, so a release must carry the page.
  */
 function exportsQuartier(dir) {
   return existsSync(path.join(dir, 'quartier', 'index.html')) || existsSync(path.join(dir, 'quartier.html'));
@@ -139,6 +140,8 @@ export function writeNativeBuildManifest(dir, env = process.env, prefixes = excl
     ...nativeBuildManifest(env, prefixes),
     // Le Quartier turned on for this build only (the owner's phone), not by launch-flags.json
     quartierOverride: exportsQuartier(dir) && !readLaunchFlags().quartierVisible,
+    // P12: Le Quartier launched by launch-flags.json, and the export has no page for it
+    quartierMissing: Boolean(readLaunchFlags().quartierVisible) && !exportsQuartier(dir),
   };
   writeFileSync(path.join(dir, NATIVE_BUILD_MANIFEST), `${JSON.stringify(manifest, null, 2)}\n`);
   return manifest;
@@ -175,6 +178,9 @@ export function releaseProblems(settings) {
   }
   if (settings.quartierOverride) {
     problems.push('Le Quartier is in the bundle by NEXT_PUBLIC_QUARTIER_VISIBLE (the shell or a .env file): a prototype for the owner\'s phone; a release ships it only by launch-flags.json.');
+  }
+  if (settings.quartierMissing) {
+    problems.push('Le Quartier is launched (quartierVisible in launch-flags.json) but the export has no /quartier page.');
   }
   return problems;
 }
