@@ -25,6 +25,7 @@ from app.services.season.format import (
     Season,
     written_levels,
 )
+from app.services.story_memory import address_placeholder
 
 logger = logging.getLogger(__name__)
 
@@ -445,7 +446,9 @@ def previously(live: dict[str, Any], lines: list[str], *, limit: int = 3) -> lis
         last = next((row for row in reversed(ledger.get("after") or []) if isinstance(row, dict)), None)
         if not last or not last.get("text_fr") or last.get("day_index") != int(live.get("day_index") or 0):
             return lines
-        text = str(last["text_fr"])
+        text = address_placeholder(str(last["text_fr"]))  # #917: «tu», never «learner»
+        if not text:
+            return lines
         return ([line for line in lines if _folded(line) != _folded(text)] + [text])[-limit:]
     except Exception:  # noqa: BLE001 - the box never costs the page
         logger.exception("day_contract: «Précédemment» keeps its own lines")
@@ -669,6 +672,7 @@ def stand_in_draft(
     title = (premise.title_fr if premise else "") or beat.premise
     keeps = bool(chapter) and not (chapter.get("resolved") or chapter.get("exhausted"))
     lean = {"de": "Zum Beispiel:", "fr": "Par exemple :"}.get(lang, "For example:")
+    from app.services.season.runtime import hint_start as _hint_start
     return {
         "title_fr": title[:100],
         "premise_fr": " ".join(text for text, _native in captions[:2])[:600],
@@ -698,7 +702,8 @@ def stand_in_draft(
         ],
         "opening_line_fr": asks,
         "suggested_response_fr": reply,
-        "hint_native": f"{lean} «{reply}»",
+        # the start of the reply, never the whole of it: the hint is asked before any attempt
+        "hint_native": f"{lean} «{start}»" if (start := _hint_start(reply)) else task[:400],
         "translation_native": asks_native,
         "capability_key": None,
         "season_checklist": {

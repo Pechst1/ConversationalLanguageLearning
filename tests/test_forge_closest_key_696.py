@@ -61,7 +61,7 @@ def test_fill_nearest_key(sent_a_message: dict) -> None:
     assert result["corrected_answer"][sent_a_message["id"]] == "Ils ont envoyé"
     why = erratum["why_wrong"]
     assert "Elles" not in why, why
-    assert "the rule is not what differs" not in why.lower(), why
+    assert "another word of the line differs" not in why.lower(), why
     assert "read the english line again" not in erratum["repair_hint"].lower(), erratum["repair_hint"]
     assert "«envoyé», not «envoye»" in why, why
 

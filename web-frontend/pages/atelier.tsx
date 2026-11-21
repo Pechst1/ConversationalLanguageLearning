@@ -13,10 +13,10 @@ import { heldByCeiling } from '@/lib/word-range';
 import { dedupeNotes, forgeCorrectionNotes } from '@/lib/correction-notes';
 import { classifyRepair } from '@/lib/forge-followup';
 import { classificationCopy, classificationGoal, isJudgementLabels, judgementLabel, judgementQuestion } from '@/lib/classification-copy';
-import { answeredLevel, itemVerdict, productionPhase, reviewIsPending, settleShownCorrection, type RepairStep } from '@/lib/forge-verdict';
+import { answeredLevel, itemVerdict, pollStillCurrent, productionPhase, reviewIsPending, settleShownCorrection, type RepairStep } from '@/lib/forge-verdict';
 import { canAskAgain, checkState, unreadLine } from '@/lib/verdict';
 import { keepCardAboveSheet } from '@/lib/keep-above-sheet';
-import { drillGoalLine } from '@/components/atelier-v2/journey/drill-frame';
+import { drillGoalLine, goalMarks, meaningCueText } from '@/components/atelier-v2/journey/drill-frame';
 import {
   FOLLOW_UP_EMPTY,
   ForgeCorrectedLine,
@@ -141,9 +141,9 @@ import {
   homeDayChip,
   recapStreak,
   sessionMarkState,
-  sessionMore,
   sessionNextAction,
   sessionRows,
+  withScenePlayed,
 } from '@/lib/day-session';
 import { dayIsDone, handOnAfterGrammar, ruleCheckExitFromDay, ruleCheckIsFromDay, ruleCheckPath } from '@/lib/day-plan';
 import { todayInterlude } from '@/components/atelier-v2/journey/season-return-model';
@@ -167,7 +167,7 @@ import {
   type RecommendedAction,
 } from '@/lib/atelier-next';
 import { learnerGloss } from '@/lib/glosses';
-import { useChromeLanguage } from '@/lib/learner-language';
+import { useChromeLanguage, useLearnerLanguage } from '@/lib/learner-language';
 import { fillForge, forgeCopy, forgeRoleTag } from '@/lib/forge-copy';
 import {
   clampRung,
@@ -204,9 +204,10 @@ import { eclairHref, eclairPairLabel } from '@/lib/grammar-map';
 import { playComboTone } from '@/lib/sound';
 import { atelierErrorText, type AtelierErrorNotice } from '@/lib/atelier-errors';
 import { epreuveCopy, fill, wordCeilingText, wordRangeState, wordRangeText, type EpreuveCopy } from '@/components/epreuve/epreuve-copy';
-import { markedLine, retryOffered, solutionState, solutionWithheld, withheldHints, withheldRepairParts } from '@/lib/solution-gate';
+import { endsOnModelAnswer, markedLine, modelAnswer, retryOffered, solutionState, solutionWithheld, withheldHints, withheldRepairParts } from '@/lib/solution-gate';
 import { promptParts } from '@/lib/prompt-parts';
 import { usableCard } from '@/lib/rule-card';
+import { ruleReadToday } from '@/lib/rule-read-today';
 import { RuleCard } from '@/components/atelier-v2/rule/RuleCard';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
 import { coachFor, coachMood, type ForgeCoach } from '@/lib/forge-coach';
@@ -214,7 +215,7 @@ import { pulseAppHaptic } from '@/lib/haptics';
 import { epreuveOf } from '@/lib/can-dos';
 import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 import { atelierCopy } from '@/lib/atelier-v2-copy';
-import { journeyChromeLanguage, journeyLevel } from '@/lib/language-rule';
+import { explanationLanguage, journeyChromeLanguage, journeyLevel } from '@/lib/language-rule';
 import { cn } from '@/lib/utils';
 import { resolveMediaUrl } from '@/lib/media-url';
 // WP-119 phase 1 — La Revue on La Une, as data in Home's slots (lib/revue-une.ts).
@@ -236,6 +237,9 @@ import {
 } from '@/lib/revue-une';
 import { radioHomeChip, useRadioWeek, withRadioChip } from '@/lib/radio-une'; // WP-122 A: «La Radio · 50 s» after the Revue chip
 import { correcteurHomeChip, useCorrecteurWeek, withCorrecteurChip } from '@/lib/correcteur-une'; // WP-122 B: «Le Correcteur» after the Radio chip
+import { journalHomeChip, useJournalWaiting, withJournalChip } from '@/lib/journal-home'; // P9: «Raconter hier» right after the letter
+import { getStoryArchive } from '@/components/feuilleton/archive/archive-api';
+import { homeReplayHref } from '@/components/feuilleton/archive/archive-model';
 import { FirstDayRoute } from '@/components/onboarding/FirstDayRoute';
 import { IncomingCall } from '@/components/appels/IncomingCall';
 import { FirstStepSticker } from '@/components/onboarding/FirstStepSticker';
@@ -338,13 +342,6 @@ function answerKey(round: RoundName, mode: string, conceptId?: number | null, it
   return itemId ? `${base}:${itemId}` : base;
 }
 
-// The word-bank meaning cue often arrives as "Express: I was reading…". The task
-// is already stated once at the top of the screen, so each subtask shows only the
-// bare English sentence to translate.
-function stripExpressPrefix(value: unknown): string {
-  return String(value || '').replace(/^\s*express\s*:\s*/i, '').trim();
-}
-
 /**
  * WP-103 T3. What a Forge item asks for — `goal_native`, else the scene line it
  * is cut from (`source_fr`) — unless the screen already says it.
@@ -352,6 +349,7 @@ function stripExpressPrefix(value: unknown): string {
 function itemGoal(item: Record<string, any> | null | undefined, cue: unknown) {
   return drillGoalLine({
     goal_native: item?.goal_native,
+    goal_native_marks: item?.goal_native_marks,
     source_fr: item?.source_fr,
     instruction_native: cue,
     prompt_fr: item?.prompt,
@@ -791,6 +789,9 @@ export default function AtelierPage() {
     setRememberedHomeKind(readHomeKind());
   }, []);
   const aiPollTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  // Walk of 19 Nov: the attempt each item's screen belongs to. A poll for an older
+  // attempt (the miss before a retry) must not paint over the retry's verdict.
+  const latestAttemptByKey = useRef<Record<string, string>>({});
   const scheduleAiReviewPollingRef = useRef<(attemptId: string, key: string, remaining?: number) => void>(() => {});
 
   const hydrateSession = useCallback((next: AtelierSessionStart, openSession = false) => {
@@ -810,6 +811,7 @@ export default function AtelierPage() {
         restoredSubmitted[key] = true;
         restoredCorrections[key] = correction;
         restoredAttemptIds[key] = attempt.attempt_id;
+        latestAttemptByKey.current[key] = attempt.attempt_id;
         if (['sentence', 'produce', 'speak', 'conversation'].includes(attempt.round)) {
           restoredAnswers[key] = { text: attempt.answer_payload?.text || '' };
         } else {
@@ -1242,6 +1244,7 @@ export default function AtelierPage() {
 
   function applyAttemptResult(key: string, result: AtelierAttemptResult, replaceErrata = false, schedulePending = true) {
     const correction = correctionWithAiReview(result);
+    if (schedulePending || !latestAttemptByKey.current[key]) latestAttemptByKey.current[key] = result.attempt_id;
     setAttemptIdsByKey((prev) => ({ ...prev, [key]: result.attempt_id }));
     // WP-103 T9: a verdict shown is never reversed — a late model reading cannot
     // turn a shown «Right» into corrections.
@@ -1272,7 +1275,16 @@ export default function AtelierPage() {
     }
     aiPollTimers.current[attemptId] = setTimeout(async () => {
       try {
+        if (!pollStillCurrent(latestAttemptByKey.current, key, attemptId)) {
+          delete aiPollTimers.current[attemptId];
+          return;
+        }
         const result = await apiService.getAtelierAttempt(attemptId);
+        // Walk of 19 Nov: a retry sent while this reading was on its way owns the screen now.
+        if (!pollStillCurrent(latestAttemptByKey.current, key, attemptId)) {
+          delete aiPollTimers.current[attemptId];
+          return;
+        }
         const correction = applyAttemptResult(key, result, true, false);
         if (reviewIsPending(correction) && remaining > 1) {
           scheduleAiReviewPolling(attemptId, key, remaining - 1);
@@ -1552,6 +1564,8 @@ export default function AtelierPage() {
   };
 
   const retryCurrentAttempt = () => {
+    // The miss's late model reading must not come back over the retry (walk of 19 Nov).
+    latestAttemptByKey.current[scopedKey] = '';
     setSubmitted((prev) => ({ ...prev, [scopedKey]: false }));
     setResubmitKeys((prev) => ({ ...prev, [scopedKey]: true }));
     setRecentCorrection(null);
@@ -1573,6 +1587,7 @@ export default function AtelierPage() {
   // (a retried miss comes back later). It is asked fresh, as a resubmission;
   // shown graded, its «Continue» re-seated the same item and did nothing.
   const reposeForgeItem = (key: string) => {
+    latestAttemptByKey.current[key] = '';
     setSubmitted((prev) => ({ ...prev, [key]: false }));
     setResubmitKeys((prev) => ({ ...prev, [key]: true }));
     setAnswers((prev) => {
@@ -2246,6 +2261,17 @@ export default function AtelierPage() {
                     <JourneyTodayCard
                       controller={journey}
                       onOpen={() => setView('journey')}
+                      // P9: «Revoir» on a finished day replays its episode in the
+                      // archive reader (back to Home from there); a day not filed
+                      // in the archive yet keeps the end card.
+                      onReview={() => {
+                        const journeyId = journey.journey?.id ?? null;
+                        void getStoryArchive().then((archive) => {
+                          const href = homeReplayHref(archive, journeyId);
+                          if (href) void router.push(href);
+                          else setView('journey');
+                        });
+                      }}
                       restOfDayOpen={restOfDayOpen}
                       onOpenLegacy={(href) => {
                         // The old Atelier session is resumed on its own terms: the
@@ -2333,6 +2359,7 @@ export default function AtelierPage() {
             )}
           <SessionView
             session={session}
+            forgeFromJourney={forgeFromDay || Boolean(forgeStepId)}
             activeConceptIndex={activeConceptIndex}
             activeItemIndex={activeItemIndexSafe}
             activeItemCount={Math.max(activeItems.length, 1)}
@@ -2910,7 +2937,10 @@ function TodayView({
    * after the scene opens the next step. Words and La Forge are then part of
    * the day, so no chip offers them beside it.
    */
-  const daySession = journeyDay ? (dayEnvelope as TodayEnvelope | null)?.session ?? null : null;
+  const serverSession = journeyDay ? (dayEnvelope as TodayEnvelope | null)?.session ?? null : null;
+  // P12: a scene played (as pages or in Le Quartier) is done on the tracker while the journey's
+  // own steps go on; the button stays the journey card's «Continue today» meanwhile.
+  const daySession = withScenePlayed(serverSession, dayJourney);
   const homeDay = daySession ? sessionMarkState(daySession, chromeLanguage) : journeyDay;
   const [tempoOpen, setTempoOpen] = useState(false);
   /**
@@ -3054,7 +3084,21 @@ function TodayView({
     : [];
   const radioWeek = useRadioWeek();
   const correcteurWeek = useCorrecteurWeek();
-  const homeChips: HomeChip[] = withCorrecteurChip<HomeChip>(withRadioChip<HomeChip>(revueHomeChips<HomeChip>(revueEntry, dayChips, revueDayDone && Boolean(revueWeek?.enabled && !revueWeek.offer.filed)), homeDay ? radioHomeChip(radioWeek, chromeLanguage) : null, Boolean(revueEntry.hero)), homeDay ? correcteurHomeChip(correcteurWeek, chromeLanguage) : null, Boolean(revueEntry.hero));
+  const homeChip = homeDayChip(
+    streak,
+    Boolean((today as { streak?: { today_done?: boolean } } | null)?.streak?.today_done),
+    daySession,
+  );
+  // P9: the journal's retell, when one is waiting — second after the letter, so it
+  // goes in last (the Revue and the Radio also follow the letter). R2 (4): on a
+  // finished day Home draws one chip, so there the retell is the first.
+  const journalWaiting = useJournalWaiting(Boolean(homeDay));
+  const homeChips: HomeChip[] = withJournalChip<HomeChip>(
+    withCorrecteurChip<HomeChip>(withRadioChip<HomeChip>(revueHomeChips<HomeChip>(revueEntry, dayChips, revueDayDone && Boolean(revueWeek?.enabled && !revueWeek.offer.filed)), homeDay ? radioHomeChip(radioWeek, chromeLanguage) : null, Boolean(revueEntry.hero)), homeDay ? correcteurHomeChip(correcteurWeek, chromeLanguage) : null, Boolean(revueEntry.hero)),
+    homeDay ? journalHomeChip(journalWaiting, chromeLanguage) : null,
+    Boolean(revueEntry.hero),
+    homeChip.dayDone,
+  );
   const homeEntries: HomeEntry[] = errorOnlyPage || homeDay
     ? []
     : [
@@ -3148,17 +3192,14 @@ function TodayView({
       ];
 
   const sessionCopy = daySessionCopy(chromeLanguage);
-  const homeChip = homeDayChip(
-    streak,
-    Boolean((today as { streak?: { today_done?: boolean } } | null)?.streak?.today_done),
-    daySession,
-  );
-  const sessionNext = sessionNextAction(daySession, chromeLanguage);
-  const sessionExtra = sessionMore(daySession, chromeLanguage);
-  const homeHero = daySession && (sessionNext || sessionExtra) ? (
+  // P12: the button follows the server's session (the journey card's «Continue today» while
+  // the journey's own steps go on); the tracker reads daySession.
+  const sessionNext = sessionNextAction(serverSession, chromeLanguage);
+  // P7: no «Noch 5 neue Wörter» on Home after the day; Settings holds the offer.
+  const homeHero = daySession && sessionNext ? (
     <>
       {revueHero ?? journeyCard}
-      <DaySessionNext next={sessionNext} more={sessionExtra} onNavigate={(href) => { void router.push(href); }} />
+      <DaySessionNext next={sessionNext} onNavigate={(href) => { void router.push(href); }} />
       {revueNews}
     </>
   ) : revueNews ? (
@@ -3664,6 +3705,7 @@ function epMotifPrimsFrom(concept: AtelierConcept | null, roundOrdinal: number):
 
 function SessionView({
   session,
+  forgeFromJourney = false,
   activeConceptIndex,
   activeItemIndex,
   activeItemCount,
@@ -3712,6 +3754,8 @@ function SessionView({
   activeConceptIndex: number;
   activeItemIndex: number;
   activeItemCount: number;
+  /** R2: the Forge was opened from the day (its grammar step or a folded step). */
+  forgeFromJourney?: boolean;
   round: RoundName;
   mode: RecognizeMode;
   activeSet: Record<string, any> | null;
@@ -3762,6 +3806,8 @@ function SessionView({
 }) {
   const t = epreuveCopy(language);
   const fc = forgeCopy(language);
+  // R4: what the rafale's recap explains is in the learner's own language (owner, 18 Nov 2026).
+  const explainLanguage = explanationLanguage(language, useLearnerLanguage());
   const forgeRule = forge && activeConcept ? forge.rules.find((rule) => rule.concept_id === activeConcept.id) : null;
   const forgeNext = forge?.next && activeConcept && forge.next.concept_id === activeConcept.id ? forge.next : null;
   const forgeTestOut = forge?.mode === 'test_out';
@@ -3783,7 +3829,12 @@ function SessionView({
       && !hasConceptRecognizeSubmission(submitted, activeConcept.id),
   );
   const rulePreference = ruleOpenByConcept[conceptRuleKey];
-  const ruleExpanded = firstConceptDrill ? rulePreference !== false : rulePreference === true;
+  // R2: a Forge opened from the day whose rule card the learner read today starts
+  // on its first item; «La règle» still opens the card. The day teaches it once.
+  const cardReadToday = Boolean(forgeFromJourney && activeConcept && ruleReadToday(activeConcept.id));
+  const ruleExpanded = firstConceptDrill
+    ? (cardReadToday ? rulePreference === true : rulePreference !== false)
+    : rulePreference === true;
   const isFinalConversation = forge
     ? Boolean(forge.finished && forge.mode === 'seance')
     : !isRetest && round === 'conversation' && activeConceptIndex >= session.concepts.length - 1;
@@ -3990,7 +4041,8 @@ function SessionView({
                       cheer={forgeCheer(currentCorrection, fc)}
                       coach={ruleCoach}
                       coachMood={coachMood(currentCorrection, { correct: burstMarks.every((row) => row.correct) })}
-                      reasonFor={(row) => rafaleReason(ruleCard, row, language)}
+                      reasonFor={(row) => rafaleReason(ruleCard, row, explainLanguage)}
+                      reasonLang={explainLanguage}
                       onNext={feedbackNext}
                       nextLabel={feedbackNextLabel}
                     />
@@ -4247,6 +4299,10 @@ export function ExerciseFeedbackMoment({
   const t = useEpCopy();
   // WP-103 T8: the follow-up's draft, per exercise, so a return finds it as it was left.
   const language = useControlLanguage();
+  // R4: why an answer was wrong, a hint, a correction's tag: explanations, in the learner's
+  // own language at every level (owner, 18 Nov 2026), and marked so (`lang`).
+  const noteLang = useLearnerLanguage();
+  const explained = (text: React.ReactNode) => (text ? <span lang={noteLang}>{text}</span> : text);
   // QA-FORGE: a judgement's key («À corriger») is shown as its label in the learner's language.
   const judgementItem = isLabelCompare && classifyItem
     && (classifyItem.classify_kind === 'judgement' || (!classifyItem.classify_kind && isJudgementLabels(classifyItem.labels)));
@@ -4327,8 +4383,8 @@ export function ExerciseFeedbackMoment({
     const marks = Array.isArray(correction?.marks) ? correction!.marks : [];
     const inPlace = production && !isLabelCompare ? withheldRepairParts(line, marks) : null;
     const repairKey = `${feedbackKey}:0`;
-    const reason = hints.reason ? <p className="ep-why">{hints.reason}</p> : null;
-    const more = hints.more.length ? <EpMore label={t.more}>{hints.more.map((note) => <p key={note}>{note}</p>)}</EpMore> : null;
+    const reason = hints.reason ? <p className="ep-why" lang={noteLang}>{hints.reason}</p> : null;
+    const more = hints.more.length ? <EpMore label={t.more}>{hints.more.map((note) => <p key={note} lang={noteLang}>{note}</p>)}</EpMore> : null;
     return (
       <div className="ep-feedback" data-verdict="wrong" data-solution="withheld" ref={feedbackRef}>
         {inPlace ? (
@@ -4359,7 +4415,7 @@ export function ExerciseFeedbackMoment({
             {more}
           </EpGalley>
         )}
-        {hints.task && <EpTaskLine label={t.task}>{hints.task}</EpTaskLine>}
+        {hints.task && <EpTaskLine label={t.task}>{explained(hints.task)}</EpTaskLine>}
         <EpFoot tone="wrong">
           <EpVerdict tone="no" sub={t.miss_sub} coach={coach} coachMood={mood} attempt={attempt}>{t.verdict_wrong}</EpVerdict>
           {onTryAgain && <EpBar tone="ghost" icon="retry" onClick={onTryAgain}>{production ? t.retry_line : t.retry}</EpBar>}
@@ -4415,7 +4471,10 @@ export function ExerciseFeedbackMoment({
   // Owner 2026-11-13: with the solution on screen the chance is over: no retry (it would
   // be a copy of the answer above). What is left is main's «Copy the correction» step,
   // which «Continue» waits for (and which queues the retest, #779).
-  const canGoOn = repairsComplete;
+  // R2 (walk of 17 Nov): a free card refused twice shows one acceptable answer and ends
+  // as seen; a task note has no line to copy, so «Skip» was the only way out.
+  const shownModelAnswer = production ? modelAnswer(correction) : '';
+  const canGoOn = repairsComplete || (Boolean(shownModelAnswer) && endsOnModelAnswer(correction, issues));
   const retry = retryOffered(correction) ? onTryAgain : undefined;
   // The in-place repair was the chance: once the solution is on screen it is shown only
   // as it was sent and accepted; a forfeited or refused one becomes a copy of the line.
@@ -4508,15 +4567,17 @@ export function ExerciseFeedbackMoment({
         const [reason, ...rest] = dedupeNotes([...whyText.split('\n'), hintText])
           .filter((note) => !taskSaid.has(note.trim()));
         const repairHint = solutionOnScreen ? '' : rest.join(' ');
+        // A correction's tag explains (R4); the screen's own «Corrected line» is chrome.
+        const tag = (label: string | undefined) => (label && label !== t.corrected_line ? explained(label) : label);
         return (
           <React.Fragment key={`${issue.display_label || 'repair'}-${index}`}>
             <EpGalley
               anchor={ruleShown
-                ? correctionAnchor(issue.display_label, ruleShown) ?? (cardCount > 1 ? fill(t.correction_n, { n: position + 1 }) : undefined)
-                : issue.display_label || fill(t.correction_n, { n: position + 1 })}
-              why={reason || undefined}
-              repair={repairHint || undefined}
-              more={solutionOnScreen && rest.length ? <EpMore label={t.more}>{rest.map((note) => <p key={note}>{note}</p>)}</EpMore> : undefined}
+                ? tag(correctionAnchor(issue.display_label, ruleShown)) ?? (cardCount > 1 ? fill(t.correction_n, { n: position + 1 }) : undefined)
+                : tag(issue.display_label) || fill(t.correction_n, { n: position + 1 })}
+              why={explained(reason) || undefined}
+              repair={explained(repairHint) || undefined}
+              more={solutionOnScreen && rest.length ? <EpMore label={t.more}>{rest.map((note) => <p key={note} lang={noteLang}>{note}</p>)}</EpMore> : undefined}
               // One second-look note per correction sheet, not one per erratum.
               relecture={index === 0 ? relecture : undefined}
             >
@@ -4558,9 +4619,14 @@ export function ExerciseFeedbackMoment({
       })}
       {taskNote && (
         <>
-          <EpTaskLine label={t.task}>{taskNote}</EpTaskLine>
-          {taskMore.length > 0 && <EpMore label={t.more}>{taskMore.map((note) => <p key={note}>{note}</p>)}</EpMore>}
+          <EpTaskLine label={t.task}>{explained(taskNote)}</EpTaskLine>
+          {taskMore.length > 0 && <EpMore label={t.more}>{taskMore.map((note) => <p key={note} lang={noteLang}>{note}</p>)}</EpMore>}
         </>
+      )}
+      {shownModelAnswer && (
+        <EpGalley anchor={t.model_answer}>
+          <p className="ep-model-answer" lang="fr">{display(shownModelAnswer)}</p>
+        </EpGalley>
       )}
       {followUpBlock}
       {vocabularyGaps.length > 0 && (
@@ -4681,8 +4747,12 @@ function RecognizePanel({
   const fc = forgeCopy(cueLanguage);
   // Owner, 2026-10-18: what to do comes first, then the box the answer goes in.
   // A word bank's cue and goal say the same thing: one line, above the box.
-  const buildCue = stripExpressPrefix(item.meaning_cue) || String(item.prompt || '');
+  // P10: an empty or instruction-like cue is never quoted; the task line stands alone.
+  const buildCue = meaningCueText(item.meaning_cue) || String(item.prompt || '');
   const buildGoal = itemGoal(item, '') ?? (buildCue ? { kind: 'goal' as const, text: buildCue } : null);
+  // R5: a word bank's goal is its prompt too, so the cue keeps the goal's marks.
+  const buildMarks = goalMarks(item.goal_native_marks);
+  if (buildGoal && buildMarks && !('marks' in buildGoal && buildGoal.marks)) Object.assign(buildGoal, { marks: buildMarks });
   // «Dictée»: the sentence is heard, so its meaning waits for the answer.
   const dictation = mode === 'word_bank' && drill === 'dictation';
   return (
@@ -4837,7 +4907,7 @@ function TransformPanel({
   })();
   if (spotted) {
     // The sentence is the exercise: its goal above it, never the sentence twice.
-    const goal = drillGoalLine({ goal_native: item.goal_native }) ?? (instruction ? { kind: 'goal' as const, text: instruction } : null);
+    const goal = drillGoalLine({ goal_native: item.goal_native, goal_native_marks: item.goal_native_marks }) ?? (instruction ? { kind: 'goal' as const, text: instruction } : null);
     return (
       <div className="ep-exercise ep-transform">
         <ForgeGoalLine goal={goal} />

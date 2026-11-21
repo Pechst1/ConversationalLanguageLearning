@@ -18,6 +18,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.services.cast_registry import display_names
+from app.services.season.dates import render as render_dates
 from app.services.season.flags import holds
 from app.services.season.format import (
     B1_BANDS,
@@ -288,8 +289,10 @@ def resolve_day(
     band: str,
     language: str,
     neutral: bool = False,
+    shift: int = 0,
 ) -> dict[str, Any] | None:
-    """The page of one tentpole day for this learner, as plain JSON (or ``None``)."""
+    """The page of one tentpole day for this learner, as plain JSON (or ``None``).
+    ``shift``: the learner's calendar shift (``dates.shift_for``); the bible's dates at 0."""
 
     tentpole = season.tentpoles.get(tentpole_id)
     if tentpole is None:
@@ -302,7 +305,9 @@ def resolve_day(
     movements: list[dict[str, Any]] = []
     for movement in day.movements:
         movements.extend(_movement(movement, tentpole, ctx))
-    return {
+    # Round 4 (walk of 19 Nov, item 9): the opening weeks' dates are tokens, rendered
+    # here for this learner; nothing leaves this function with a token in it.
+    return render_dates({
         "season_id": season.id,
         "tentpole": tentpole.id,
         "number": tentpole.number,
@@ -320,7 +325,7 @@ def resolve_day(
         "movements": movements,
         "lexicon": [row.model_dump() for row in day.lexicon],
         "can_do_native": day.can_do.get(language) or day.can_do.get("en"),
-    }
+    }, shift)
 
 
 # ---------------------------------------------------------------------------

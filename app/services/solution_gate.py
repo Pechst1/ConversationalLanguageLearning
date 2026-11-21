@@ -34,7 +34,6 @@ from __future__ import annotations
 import copy
 import re
 import unicodedata
-from collections.abc import Iterable
 from typing import Any
 
 STATE_KEY = "solution"
@@ -194,10 +193,20 @@ def reveal(correction: dict[str, Any], *, by: str) -> dict[str, Any]:
     return updated
 
 
-def _option_counts(prompt_payload: Any, answered: Iterable[str]) -> list[int]:
-    """How many options each answered item offered (choices, labels), where it has them."""
+#: La Forge drills (``forge_drills``) that pose a fill without its options: the
+#: learner types the form. The item keeps its ``choices`` for the classic way, so
+#: the number of options it stores says nothing about what the learner saw.
+TYPED_DRILLS = frozenset({"typed"})
 
-    wanted = {str(item) for item in answered}
+
+def _option_counts(prompt_payload: Any, answers: Any) -> list[int]:
+    """How many options each answered item offered, where the learner picked one of them.
+
+    An answer that is none of the item's options was typed, not picked (a typed fill
+    keeps the options it is posed without): it counts no options.
+    """
+
+    wanted = {str(key): value for key, value in answers.items()} if isinstance(answers, dict) else {}
     counts: list[int] = []
 
     def walk(node: Any) -> None:
@@ -207,16 +216,63 @@ def _option_counts(prompt_payload: Any, answered: Iterable[str]) -> list[int]:
             return
         if not isinstance(node, dict):
             return
-        if str(node.get("id") or "") in wanted:
+        item_id = str(node.get("id") or "")
+        if item_id in wanted:
             options = node.get("choices") or node.get("labels") or node.get("options")
             if isinstance(options, list) and options:
-                counts.append(len(options))
+                given = _fold(_text(wanted[item_id])).strip()
+                if any(_fold(_text(option)).strip() == given for option in options):
+                    counts.append(len(options))
         for value in node.values():
             if isinstance(value, (dict, list)):
                 walk(value)
 
     walk(prompt_payload)
     return counts
+
+
+def typed_answer(prompt_payload: Any, answer_payload: Any, drill: str | None = None) -> bool:
+    """Was this recognise answer typed rather than picked among options?
+
+    Walk of 19 Nov: La Forge's «Tape la forme» is a fill posed without its options
+    (``drill == "typed"``), and an answer that is none of the item's options was
+    typed whatever the drill.
+    """
+
+    if drill in TYPED_DRILLS:
+        return True
+    answers = (answer_payload or {}).get("answers") if isinstance(answer_payload, dict) else None
+    if not isinstance(answers, dict) or not answers:
+        return False
+    if not _has_options(prompt_payload, answers):
+        return True
+    return not _option_counts(prompt_payload, answers)
+
+
+def _has_options(prompt_payload: Any, answers: dict[str, Any]) -> bool:
+    found = False
+
+    def walk(node: Any) -> None:
+        nonlocal found
+        if found:
+            return
+        if isinstance(node, list):
+            for child in node:
+                walk(child)
+            return
+        if not isinstance(node, dict):
+            return
+        if str(node.get("id") or "") in answers:
+            options = node.get("choices") or node.get("labels") or node.get("options")
+            if isinstance(options, list) and options:
+                found = True
+                return
+        for value in node.values():
+            if isinstance(value, (dict, list)):
+                walk(value)
+
+    walk(prompt_payload)
+    return found
 
 
 def second_chance_for(
@@ -228,25 +284,30 @@ def second_chance_for(
     first_submission: bool,
     retest: bool,
     rule_check: bool,
+    drill: str | None = None,
 ) -> bool:
     """Does a miss on this answer get a second chance on the same screen?
 
     No for a resubmission (the retry IS the chance; a re-posed item is asked
     again later and its miss is final), a re-test, a rule check (an exam: one
     go per item) and La Forge's burst («rafale», four judgements in one go,
-    shown together). No for a choice between two (the miss names the other
-    one). Everything else does: a choice among three or more, a word bank, a
-    typed form, a transform, a free line.
+    shown together). No for a choice between two the learner picked from (the
+    miss names the other one). Everything else does: a choice among three or
+    more, a word bank, a typed form, a transform, a free line.
+
+    Walk of 19 Nov: a typed fill (``drill`` «typed») keeps the two options of its
+    classic form in the stored item; the learner never saw them, so the miss
+    named nothing and still gets its retry. Only an answer picked among two
+    options is exempt.
     """
 
     if not first_submission or retest or rule_check:
         return False
     if "+" in str(exercise_id or "").split(":")[-1]:
         return False
-    if round_name == "recognize":
+    if round_name == "recognize" and drill not in TYPED_DRILLS:
         answers = (answer_payload or {}).get("answers") if isinstance(answer_payload, dict) else None
-        ids = list(answers.keys()) if isinstance(answers, dict) else []
-        counts = _option_counts(prompt_payload, ids)
+        counts = _option_counts(prompt_payload, answers)
         if counts and min(counts) <= 2:
             return False
     return True
@@ -287,6 +348,9 @@ def leak_terms(correction: dict[str, Any], learner: Any, context: Any = "") -> t
             if fix:
                 phrases.append(fix)
                 fix_tokens |= _tokens(fix)
+    # Walk of 19 Nov: «Il manque « d' ».» An elided word of one letter says nothing in a
+    # sentence, but quoted alone it is the whole fix.
+    phrases.extend(f"{token}'" for token in sorted(fix_tokens - learner_tokens) if len(token) == 1 and token.isalpha())
     line_tokens: set[str] = set()
     corrected = _text(correction.get("corrected_answer")).strip()
     if corrected and _fold(corrected).strip() != _fold(learner_text).strip():
@@ -320,12 +384,22 @@ def scrub_hint(text: Any, phrases: list[str], tokens: set[str]) -> str:
         return ""
     pieces = _CLAUSE.split(raw)
     kept: list[tuple[str, str]] = []
+    dropped = False
     for index in range(0, len(pieces), 2):
         clause = pieces[index]
         separator = pieces[index + 1] if index + 1 < len(pieces) else ""
         if not clause.strip() or _leaks(clause, phrases, tokens):
+            dropped = dropped or bool(clause.strip())
             continue
-        kept.append((clause.strip(), separator))
+        clause = clause.strip()
+        if dropped and kept and kept[-1][1].strip() in {";", ":"}:
+            # Walk of 19 Nov: «Du hast „Ils a“ gewählt; Die Regel ist hier nicht der
+            # Unterschied.» The clause a «;» or «:» led into is gone, so the sentence
+            # before it ends there and the next one starts as a sentence.
+            kept[-1] = (kept[-1][0], ". ")
+            clause = clause[0].upper() + clause[1:]
+        dropped = False
+        kept.append((clause, separator))
     if not kept:
         return ""
     out = ""
@@ -454,6 +528,14 @@ def learner_view(
             hint = scrub_hint(source, phrases, tokens)
             if hint:
                 break
+        if not hint and task and str(erratum.get("display_label") or "").strip() and not _leaks(
+            str(erratum.get("display_label")), phrases, tokens
+        ):
+            # R2 (walk of 17 Nov): «Relis la consigne : qu'est-ce qu'elle te demande
+            # d'utiliser ?» said nothing; what is missing is the card's rule, by name and in words.
+            from app.services.learner_copy import learner_text
+
+            hint = learner_text("forge.second_chance.task_rule_hint", language, rule=str(erratum.get("display_label")).strip())
         if not hint:
             key = "forge.second_chance.task_hint" if task else "forge.second_chance.hint" if mark else "forge.second_chance.choice_hint"
             hint = _fallback(key, language)
@@ -539,6 +621,7 @@ __all__ = [
     "ITEM_ANSWER_KEYS",
     "SHOWN",
     "STATE_KEY",
+    "TYPED_DRILLS",
     "WITHHELD",
     "is_withheld",
     "leak_terms",
@@ -550,5 +633,6 @@ __all__ = [
     "second_chance_for",
     "withhold_check",
     "task_text",
+    "typed_answer",
     "withhold_item",
 ]

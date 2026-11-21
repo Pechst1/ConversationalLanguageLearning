@@ -277,6 +277,7 @@ def build(season_id: str = "s1") -> dict[str, Any]:
     """The season's lexicon file content (deterministic)."""
 
     from app.services.lexical_coverage import load_lexicon
+    from app.services.season.dates import render_text
     from app.services.season.format import load_season
 
     season = load_season(season_id)
@@ -290,7 +291,8 @@ def build(season_id: str = "s1") -> dict[str, Any]:
             by_level: dict[str, list[dict[str, Any]]] = {}
             for level in ALL_LEVELS:
                 band = level.upper()
-                texts = [say.text(band) for say in says]
+                # A date token reads as the bible's own date (``season.dates``).
+                texts = [render_text(say.text(band)) for say in says]
                 # Only words at or below the level: the drill must not reach above
                 # the learner's band because the story happens to print a word.
                 season_words[level] |= {

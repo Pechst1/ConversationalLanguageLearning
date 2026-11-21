@@ -61,3 +61,20 @@ test('one reason first, the task as one quiet line, never the same sentence twic
   assert.deepEqual(hints.more, []);
   assert.equal(hints.task, 'Deine Antwort verwendet nicht das geforderte Modalverb mit Infinitiv.');
 });
+
+// R2 (walk of 17 Nov 2026, B1 day 5 «La piscine ?», day 2 «Ta sœur cherche le rapport ?»):
+// a free card refused for its task alone had no line to copy, so «Passer» was the only way
+// out and «Voir la solution» showed the same note again. Once the solution is on screen the
+// server sends one acceptable answer; the card shows it and can end as seen.
+test('a refused free card ends on its model answer once the solution is on screen', () => {
+  const task = { learner_text: 'Oui, je la leur propose pour samedi soir.', corrected_target: '', why_wrong: 'x', task_error_type: 'task_compliance' };
+  const shown = { solution: { state: 'shown', revealed_by: 'reveal' }, verdict: 'partial', errata: [task], model_answer: 'Oui, je la leur propose.' };
+  assert.equal(G.modelAnswer(shown), 'Oui, je la leur propose.');
+  assert.equal(G.endsOnModelAnswer(shown, shown.errata), true);
+  // While the chance is open nothing right is drawn, even if a payload carried it.
+  assert.equal(G.modelAnswer({ ...shown, solution: { state: 'withheld' } }), '');
+  // A line with a real fix still waits for its copy.
+  const fix = { learner_text: 'je lui le donne', corrected_target: 'je le lui donne', task_error_type: 'pronoun_order' };
+  assert.equal(G.endsOnModelAnswer(shown, [fix, task]), false);
+  assert.equal(G.modelAnswer({ solution: { state: 'shown' }, errata: [task] }), '');
+});

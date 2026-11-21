@@ -27,7 +27,7 @@ def test_serial_archive_cast_and_replay_pages_are_wired() -> None:
     assert "router.replace('/graphic-novel?view=cast')" in cast_route
     assert "getStoryArchive" in archive
     assert "apiService.setSerialAvatar" in cast
-    assert "stay_pov: 'Rester en POV'" in copy
+    assert "stay_pov: 'Rester à la première personne'" in copy
     assert "{t.stay_pov}" in cast
     assert "apiService.getGraphicNovelScene" in replay
     assert "apiService.getMission" in replay

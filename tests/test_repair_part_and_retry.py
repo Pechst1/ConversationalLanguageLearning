@@ -359,13 +359,18 @@ def test_a_retry_answered_right_counts_as_supported(db_session: Session, enabled
 
     assert result.task_outcome is TaskOutcome.MET
     stored = db_session.get(DailyJourneyStep, uuid.UUID(retry_id)).private_task["result"]
-    assert stored["assistance_level"] == str(AssistanceLevel.SOLUTION)
+    # P5: a miss that kept its solution back for the retry gave the reason, not the answer.
+    withheld = db_session.get(DailyJourneyStep, uuid.UUID(retry_id)).private_task.get("solution_withheld")
+    assert stored["assistance_level"] == str(AssistanceLevel.HINT if withheld else AssistanceLevel.SOLUTION)
     assert all(o["evidence_kind"] != "produced_independent" for o in stored["observations"])
     # The public record of help stays the learner's own.
     assert next(s for s in state.steps if s.id == retry_id).assistance_used == []
 
 
-def test_missing_the_last_drill_of_a_set_queues_no_retry(db_session: Session, enabled: None) -> None:
+def test_missing_the_last_drill_of_a_set_queues_it_once_after_the_set(db_session: Session, enabled: None) -> None:
+    """Round 3 (walk 2, A1 day 2): the last drill used to queue no retry and show its
+    solution at once; with the solution kept back it comes back once after its set."""
+
     service, user, state = _start(db_session, "retry-last@example.com")
     state = _walk_to_run(service, user, state)
     index = next(i for i, s in enumerate(state.steps) if s.id == state.current_step_id)
@@ -377,7 +382,8 @@ def test_missing_the_last_drill_of_a_set_queues_no_retry(db_session: Session, en
 
     _, state = _answer(service, user, state, state.steps[end].id, _wrong_input(db_session, state.steps[end].id))
 
-    assert len(state.steps) == count
+    assert len(state.steps) == count + 1
+    assert state.steps[end + 1].prompt.retry is True
 
 
 def test_a_day_with_a_retry_still_finishes(db_session: Session, enabled: None) -> None:

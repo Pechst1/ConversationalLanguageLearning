@@ -142,6 +142,8 @@ export type EpreuveCopy = {
   miss_sub: string;
   show_solution: string;
   showing_solution: string;
+  /** R2 (walk of 17 Nov): the free card's model answer, once the solution is on screen. */
+  model_answer: string;
   more: string;
   repair_parts_no: string;
   // listen + record
@@ -331,6 +333,7 @@ const FR: EpreuveCopy = {
   miss_choice: 'Pas cette réponse',
   miss_sub: 'Cherche d’abord toi-même ; la solution vient après.',
   show_solution: 'Voir la solution',
+  model_answer: 'Une réponse possible',
   showing_solution: 'Un instant…',
   more: 'Plus',
   repair_parts_gap: 'À corriger :',
@@ -516,6 +519,7 @@ const EN: EpreuveCopy = {
   miss_choice: 'Not this answer',
   miss_sub: 'Find it yourself first; the solution comes after.',
   show_solution: 'Show the solution',
+  model_answer: 'One possible answer',
   showing_solution: 'One moment…',
   more: 'More',
   repair_parts_gap: 'To fix:',
@@ -701,6 +705,7 @@ const DE: EpreuveCopy = {
   miss_choice: 'Nicht diese Antwort',
   miss_sub: 'Finde es zuerst selbst; die Lösung kommt danach.',
   show_solution: 'Lösung zeigen',
+  model_answer: 'Eine mögliche Antwort',
   showing_solution: 'Einen Moment…',
   more: 'Mehr',
   repair_parts_gap: 'Zu korrigieren:',
