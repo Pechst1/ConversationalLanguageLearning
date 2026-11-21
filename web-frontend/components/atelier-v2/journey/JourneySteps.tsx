@@ -59,6 +59,7 @@ import {
   checkAnswerLocally,
   correctOptionLocally,
   promptHasAnswerKey,
+  rightCardMayShow,
   shownVerdict,
   type LocalVerdict,
 } from '@/lib/answer-key';
@@ -67,6 +68,7 @@ import { castIdFor, expressionForVerdict } from '@/lib/cast-faces';
 import { feel, markVerdictFelt } from '@/lib/feel';
 import { frenchSpacing } from '@/lib/french-typography';
 import { ruleSceneAnchor, usableCard } from '@/lib/rule-card';
+import { markRuleRead } from '@/lib/rule-read-today';
 import type { FaceMood, PortraitMood } from '@/lib/onboarding-portraits';
 import type {
   AttemptInput,
@@ -134,13 +136,21 @@ import {
   useTypedText,
 } from './ReplyStage';
 import { ExchangeTokens, RespondThread } from './RespondThread';
-import { drillGoalLine, recallMetLine, slipSegments, type DrillGoal } from './drill-frame';
+import { drillGoalLine, goalSegments, quotedMeaningMarks, recallMetLine, slipSegments, type DrillGoal } from './drill-frame';
 import { StoryEpisodeReader } from './StoryEpisodeReader';
-import { finaleOnlyEpisode, journeyStoryPage, storyFinaleStage } from './story-episode-model';
+import {
+  finaleOnlyEpisode,
+  journeyStoryPage,
+  storyFinaleStage,
+  withClosingExchanges,
+  type ClosingExchange,
+} from './story-episode-model';
 import { getStoryEpisodeEntry, loadStoryEpisode, storyEpisodeKey, useStoryEpisodeEntry } from './story-episode-store';
 import { getStoryEpisodeForJourney, stepAct } from '@/services/daily-journey';
 import { listenLabel, useStepVoice } from './useStepVoice';
 import { correctionLabelKey } from '@/lib/correction-notes';
+import { solutionWithheld } from '@/lib/solution-gate';
+import { useLearnerLanguage } from '@/lib/learner-language';
 import {
   closesConversation,
   continuesConversation,
@@ -465,10 +475,17 @@ export function SceneStepView({
  * or, when the server sent none, the scene line the item is cut from.
  */
 export function DrillGoalLine({ goal, copy }: { goal: DrillGoal; copy: Pick<JourneyCopy, 'drill_from_scene'> }) {
+  const learner = useLearnerLanguage();
   if (goal.kind === 'goal') {
+    // R5: the meaning a French goal quotes is the learner's own language, marked.
+    const marks = goal.marks ?? quotedMeaningMarks(goal.text, learner);
     return (
       <p className="av2-goal" data-goal="goal">
-        {goal.text}
+        {marks.length
+          ? goalSegments({ text: goal.text, marks }).map((part, index) =>
+              part.lang ? <span key={index} lang={part.lang}>{part.text}</span> : <React.Fragment key={index}>{part.text}</React.Fragment>,
+            )
+          : goal.text}
       </p>
     );
   }
@@ -550,6 +567,11 @@ export function RecallStepView({
   const serverVerdict = graded ? feedback.verdict : null;
   const shown = shownVerdict(localHere?.verdict ?? null, serverVerdict);
   const serverSaysRight = serverVerdict === 'correct' || serverVerdict === 'supported';
+  // P5: the right card waits while the item is still to be asked again.
+  const rightCardShows = rightCardMayShow(step.prompt, {
+    graded,
+    correction: graded ? feedback.result.correction : null,
+  });
 
   const options = useMemo<ChoiceOption[]>(
     () =>
@@ -559,6 +581,7 @@ export function RecallStepView({
         else if (
           shown === 'wrong' &&
           !serverSaysRight &&
+          rightCardShows &&
           localHere?.correctOptionId === option.id
         ) {
           // The learner has committed; showing the right card is feedback.
@@ -567,7 +590,7 @@ export function RecallStepView({
         // WP-78: a meaning card is in the learner's language, not French.
         return { id: option.id, textFr: option.text_fr, state, lang: optionLang(option) ?? null };
       }),
-    [step.prompt.options, shown, choice, serverSaysRight, localHere?.correctOptionId],
+    [step.prompt.options, shown, choice, serverSaysRight, rightCardShows, localHere?.correctOptionId],
   );
 
   // WP-66: six formats, three input surfaces. `recallAttempt` owns the mapping
@@ -1485,7 +1508,11 @@ export function RuleStepView({
         variant="intro"
         review={review}
         conceptId={step.prompt.concept_id}
-        onDone={proceed}
+        onDone={() => {
+          // R2: today's card was read — La Forge from the day opens on its first item.
+          if (!review && !busy) markRuleRead(step.prompt.concept_id);
+          proceed();
+        }}
         sceneAnchor={anchor}
         sceneVoice={anchor ? voice : null}
         sceneListenLabel={anchor ? listenLabel(copy, anchor.name) : undefined}
@@ -1617,7 +1644,30 @@ export function ResolutionStepView({
     () => storyFinaleStage(step.id, step.prompt, speaker),
     [step.id, step.prompt, speaker],
   );
-  const episode = page ?? finaleOnlyEpisode(journey?.id ?? '', step.id);
+  const pageOrFrame = page ?? finaleOnlyEpisode(journey?.id ?? '', step.id);
+  // R2: while the ending is written (it started at the last reply), the exchange
+  // just had is the page's closing panels — read first, the finale after them —
+  // until the finished page, which prints them itself, arrives.
+  const finishedPage = Boolean(entry?.kind === 'episode' && entry.episode.page);
+  const [closingFor, setClosingFor] = useState<string | null>(pending ? step.id : null);
+  useEffect(() => {
+    if (pending) setClosingFor(step.id);
+  }, [pending, step.id]);
+  const thread = useMemo(() => {
+    const respond = (journey?.steps || []).find(
+      (other) => other.kind === 'respond' && stepAct(other) === act,
+    );
+    const raw = (respond?.prompt as { thread?: ClosingExchange[] | null } | undefined)?.thread;
+    return Array.isArray(raw) ? raw : null;
+  }, [journey?.steps, act]);
+  const closing = useMemo(
+    () =>
+      closingFor === step.id && !finishedPage
+        ? withClosingExchanges(pageOrFrame, thread, speaker)
+        : { episode: pageOrFrame, firstClosing: null },
+    [closingFor, step.id, finishedPage, pageOrFrame, thread, speaker],
+  );
+  const episode = closing.episode;
 
   const extra =
     chapterRecap || register ? (
@@ -1667,6 +1717,7 @@ export function ResolutionStepView({
       finale={finale}
       finaleExtra={extra}
       finaleWait={pending ? <StoryWriting speaker={speaker} /> : null}
+      openAt={closing.firstClosing}
       title={journey?.scenario?.title_fr || null}
     />
   );
@@ -1694,6 +1745,49 @@ export function stepKeepsAnswer(stepKind: string | null | undefined): boolean {
 }
 
 /**
+ * P5 (owner, 2026-11-13): a drill missed and asked again later. The server kept the
+ * solution back (`correction.solution.state === 'withheld'`, an empty corrected line):
+ * the screen names what the learner gave and why it is off, and says the item comes
+ * back. La Forge reads the same way (`pages/atelier.tsx`, «Ce qui ne va pas»).
+ */
+export function WithheldCorrection({
+  correction,
+  copy,
+}: {
+  correction: NonNullable<AttemptResult['correction']>;
+  copy: Pick<JourneyCopy, 'drill_miss_where' | 'drill_miss_choice' | 'drill_solution_later'>;
+}) {
+  const kind = correction.kind ?? 'edit';
+  const picked = kind === 'pick' || kind === 'meaning';
+  const notes = correctionNotes(correction);
+  // R4: the notes explain, in the learner's own language (owner, 18 Nov 2026).
+  const noteLang = useLearnerLanguage();
+  return (
+    <div className="av2-correction" data-kind={kind} data-solution="withheld">
+      <p className="av2-label">{picked ? copy.drill_miss_choice : copy.drill_miss_where}</p>
+      {/* A tapped meaning is in the learner's language and already marked on its card. */}
+      {kind !== 'meaning' && correction.span_fr && (
+        <p className="av2-correction__line">
+          <span className="av2-correction__span" lang="fr">
+            {correction.span_fr}
+          </span>
+        </p>
+      )}
+      {notes.length > 0 ? (
+        <ul className="av2-correction__notes">
+          {notes.map((note, index) => (
+            <li key={index} lang={noteLang}>{note}</li>
+          ))}
+        </ul>
+      ) : (
+        correction.note_native && <p lang={noteLang}>{correction.note_native}</p>
+      )}
+      <p className="av2-graded__slip">{copy.drill_solution_later}</p>
+    </div>
+  );
+}
+
+/**
  * Package V stage 5: one quiet line under a drill's «not yet» or «partly»: «I think this is
  * right». After it, one line says what came of it (upheld, the reason it was not, unread,
  * or the day's three used). The existing quiet action and notice, nothing new.
@@ -1710,19 +1804,22 @@ function AppealLine({
   onAppeal?: () => Promise<void>;
 }) {
   const [asking, setAsking] = useState(false);
+  // R5: a refusal's reason explains, in the learner's own language (the server asks for it).
+  const reasonLang = useLearnerLanguage();
   const appeal = (result as AppealedResult).appeal;
   if (appeal) {
+    const reason = appeal.state === 'refused' && appeal.reason ? appeal.reason : null;
     const line =
       appeal.state === 'upheld'
         ? copy.appeal_upheld
         : appeal.state === 'refused'
-          ? appeal.reason || copy.appeal_refused
+          ? reason || copy.appeal_refused
           : appeal.state === 'limit'
             ? copy.appeal_limit
             : copy.appeal_unread;
     return (
       <div className="av2-graded__appeal" data-appeal={appeal.state}>
-        <Notice tone="quiet"><p>{line}</p></Notice>
+        <Notice tone="quiet"><p lang={reason ? reasonLang : undefined}>{line}</p></Notice>
       </div>
     );
   }
@@ -1744,6 +1841,71 @@ function AppealLine({
   );
 }
 
+/**
+ * Beta: «Something here looks wrong», one quiet tap under every verdict. It sends what the
+ * screen showed (the verdict, the correction, the slip note) as a `looks_wrong` report, which
+ * the morning triage turns into a finding. No form: the screen is the evidence.
+ */
+export function LooksWrongLine({
+  copy,
+  onReport,
+  resetKey,
+}: {
+  copy: JourneyCopy;
+  onReport: () => Promise<boolean>;
+  resetKey: unknown;
+}) {
+  const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
+  useEffect(() => {
+    setState('idle');
+  }, [resetKey]);
+  if (state === 'sent') {
+    return (
+      <div className="av2-graded__looks-wrong" data-looks-wrong="sent">
+        <Notice tone="quiet"><p>{copy.looks_wrong_sent}</p></Notice>
+      </div>
+    );
+  }
+  return (
+    <div className="av2-graded__looks-wrong" data-looks-wrong={state}>
+      <Action
+        tone="quiet"
+        inline
+        disabled={state === 'sending'}
+        onClick={() => {
+          setState('sending');
+          void onReport()
+            .then((ok) => setState(ok ? 'sent' : 'failed'))
+            .catch(() => setState('failed'));
+        }}
+      >
+        {copy.looks_wrong_line}
+      </Action>
+      {state === 'failed' && <p className="av2-graded__slip">{copy.looks_wrong_failed}</p>}
+    </div>
+  );
+}
+
+/** What a «looks wrong» report carries from a graded verdict: what the screen showed. */
+export function looksWrongContext(result: AttemptResult, stepKind: string | null): Record<string, unknown> {
+  const correction = result.correction
+    ? {
+        kind: result.correction.kind,
+        span_fr: result.correction.span_fr ?? null,
+        corrected_fr: result.correction.corrected_fr ?? null,
+        notes_native: correctionNotes(result.correction),
+      }
+    : null;
+  return {
+    surface: 'journey',
+    step_kind: stepKind,
+    outcome: result.check?.outcome ?? null,
+    assistance_level: result.assistance_level ?? null,
+    correction,
+    slip_note_native: result.slip_note_native ?? null,
+  };
+}
+
 export function JourneyFeedbackView({
   feedback,
   copy,
@@ -1754,6 +1916,7 @@ export function JourneyFeedbackView({
   stepKind = null,
   faceShown = false,
   onAppeal,
+  onLooksWrong,
 }: {
   feedback: JourneyFeedback;
   copy: JourneyCopy;
@@ -1762,6 +1925,8 @@ export function JourneyFeedbackView({
   onDismiss: () => void;
   /** Package V stage 5: «I think this is right» (a drill's «not yet» or «partly» only). */
   onAppeal?: () => Promise<void>;
+  /** Beta: «Something here looks wrong» sends what the verdict showed. Resolves true when stored. */
+  onLooksWrong?: (shown: Record<string, unknown>) => Promise<boolean>;
   /** WP-77: whose face reacts to the verdict. */
   speaker?: JourneySpeaker | null;
   /** La troupe vivante: the one who asked already reacts on the step, so the band carries no second face. */
@@ -1770,6 +1935,8 @@ export function JourneyFeedbackView({
   stepKind?: string | null;
 }) {
   const wide = widenCopy(copy);
+  // R4: a forgiven slip's line explains, in the learner's own language (owner, 18 Nov 2026).
+  const noteLang = useLearnerLanguage();
   // WP-76: the verdict is a sheet pinned to the bottom of the screen. When it
   // lands it is brought into view and focused, so a screen reader starts on it
   // rather than on whatever the learner last touched.
@@ -1883,8 +2050,11 @@ export function JourneyFeedbackView({
             ref={gradedRef}
             tabIndex={-1}
           >
-            {unread && <Notice tone="quiet"><p>{copy.check_not_checked}</p></Notice>}
-            {result.correction && (
+            {/* Check walk 19 Nov: nothing reads this reply again, so its line is final. */}
+            {unread && <Notice tone="quiet"><p>{copy.check_not_read}</p></Notice>}
+            {result.correction && (solutionWithheld(result.correction) ? (
+              <WithheldCorrection correction={result.correction} copy={copy} />
+            ) : (
               <Correction
                 label={copy[correctionLabelKey(result.correction.kind)]}
                 kind={result.correction.kind}
@@ -1894,7 +2064,7 @@ export function JourneyFeedbackView({
                 noteNative={result.correction.note_native}
                 notesNative={correctionNotes(result.correction)}
               />
-            )}
+            ))}
             <Action tone="primary" onClick={onContinue}>
               {wide.action_continue}
             </Action>
@@ -1923,7 +2093,10 @@ export function JourneyFeedbackView({
             // it in, WP-76); the verdict card no longer repeats it.
             face={face}
           >
-            {result.correction && (
+            {result.correction && (solutionWithheld(result.correction) ? (
+              // P5: the item comes back at the end of the set; where and why, not what.
+              <WithheldCorrection correction={result.correction} copy={copy} />
+            ) : (
               <Correction
                 label={copy[correctionLabelKey(result.correction.kind)]}
                 kind={result.correction.kind}
@@ -1934,15 +2107,22 @@ export function JourneyFeedbackView({
                 // WP-103: one line per issue, never the same explanation twice.
                 notesNative={correctionNotes(result.correction)}
               />
-            )}
+            ))}
             {/* QA-CLOSE: a forgiven slip on a hit, named in one line. */}
             {!result.correction && result.slip_note_native && (
-              <p className="av2-graded__slip">{result.slip_note_native}</p>
+              <p className="av2-graded__slip" lang={noteLang}>{result.slip_note_native}</p>
             )}
           </FeedbackBand>
           {/* WP-D2: «Marin vous sourit ↑» — the relationship moved, said once. */}
           {verdict === 'correct' && speaker && <CharacterSmiles speaker={speaker} />}
           <AppealLine result={result} stepKind={stepKind} copy={copy} onAppeal={onAppeal} />
+          {onLooksWrong && (
+            <LooksWrongLine
+              copy={copy}
+              resetKey={result}
+              onReport={() => onLooksWrong(looksWrongContext(result, stepKind))}
+            />
+          )}
 
           <Action tone="primary" onClick={onContinue}>
             {wide.action_continue}

@@ -190,6 +190,36 @@ def test_free_routes_on_a_paid_router_are_not_counted(abuser_client: TestClient,
         assert abuser_client.get("/api/v1/audio-session/scenarios", headers=headers).status_code == 200
 
 
+def test_copying_a_correction_is_not_a_paid_request(abuser_client: TestClient, db_session: Session, monkeypatch) -> None:
+    """#770: La Forge's «Copy the correction» is judged by string comparison and pays no
+    provider. Counted as paid, a learner's copies used up the minute the next Check needed,
+    and main's walk read «429 POST /atelier/attempts/…/repair ×77» on a stalled day."""
+
+    monkeypatch.setattr(settings, "RATE_LIMIT_PAID_MAX_REQUESTS", 1)
+    _user, headers = _learner(db_session)
+    repair = f"/api/v1/atelier/attempts/{uuid.uuid4()}/repair"
+    statuses = [
+        abuser_client.post(repair, json={"text": "Je suis content.", "erratum_index": 0}, headers=headers).status_code
+        for _ in range(3)
+    ]
+    assert 429 not in statuses, f"a copied correction was refused as a paid request: {statuses}"
+
+
+def test_a_rate_limited_write_did_nothing_so_the_client_may_send_it_again(
+    abuser_client: TestClient, db_session: Session, monkeypatch
+) -> None:
+    """#847: the client sends a ``rate_limited`` refusal again after Retry-After, for any
+    method (services/api.ts). That is safe only because the guard refuses before the route
+    runs: the refused request stored nothing."""
+
+    monkeypatch.setattr(settings, "RATE_LIMIT_PAID_MAX_REQUESTS", 1)
+    user, headers = _learner(db_session)
+    limiter.hit(f"paid:{user.id}", limit=1, window_seconds=60)  # the minute is used up
+    response = abuser_client.post("/api/v1/daily-journeys", json={}, headers=headers)
+    _assert_429(response, "rate_limited")
+    assert db_session.scalar(select(func.count(DailyJourney.id)).where(DailyJourney.user_id == user.id)) == 0
+
+
 def test_speech_is_now_on_the_ledger(abuser_client: TestClient, db_session: Session) -> None:
     user, headers = _learner(db_session)
     assert abuser_client.post("/api/v1/audio/speak", json={"text": "Bonjour à tous"}, headers=headers).status_code == 200

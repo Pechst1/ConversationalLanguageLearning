@@ -25,13 +25,22 @@ colour is a preview the server can overrule.
 Only formats graded by identity get a key. A written answer is graded by
 folding and synonyms on the server, and a local hash of it would disagree with
 the real checker far too often to be worth showing.
+
+#174 / #781: a tile build is right when it spells one of the item's right
+sentences, not when it repeats the one id order that was stored. Two tiles that
+differ only by case («J'ai» and «j'ai»), or that are the same word twice («le»),
+are interchangeable. The grader reads :func:`tiles_spell_an_answer` (the text the
+build spells, no list to run out of); the device key holds every id order that
+spells it (:func:`accepted_tile_orders`), or no key at all when there are too many
+to list, so the colour on the device can never contradict the server.
 """
 
 from __future__ import annotations
 
 import hashlib
 import hmac
-from collections.abc import Iterable
+import re
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from app.services.journey_contracts import normalize_answer_text
@@ -91,6 +100,115 @@ def answer_material(task_type: str, *, option_id: Any = None, tile_ids: Iterable
     return None
 
 
+#: Sentence punctuation is a token of its own: «faim !» and «faim» + «!» spell the same.
+_TILE_PUNCTUATION = re.compile(r"\s*([.,;:!?…])\s*")
+_FINAL_PUNCTUATION = frozenset(".!?…")
+#: The most id orders a device key lists. An item with more right orders (many
+#: repeated words) gets no key: the device waits for the server, never guesses.
+MAX_KEY_ORDERS = 64
+
+
+def _tile_tokens(text: Any) -> list[str]:
+    """What a tile or a sentence says, word by word: case and apostrophes folded,
+    punctuation kept (a «!» moved into the middle is not the same sentence)."""
+
+    folded = normalize_answer_text(str(text or "")).casefold()
+    return _TILE_PUNCTUATION.sub(r" \1 ", folded).split()
+
+
+def _field(task: Any, name: str) -> Any:
+    return task.get(name) if isinstance(task, Mapping) else getattr(task, name, None)
+
+
+def _tile_build(task: Any) -> tuple[list[str], dict[str, list[str]], list[list[str]]] | None:
+    """The stored order, each of its tiles' tokens, and the token sequences that are
+    right: the stored order's own, and each accepted sentence (read with the stored
+    final punctuation when it is given without one, the «!» being a tile of the build).
+    ``None`` when a tile of the order has no text to read (ids are all there is)."""
+
+    order = [str(tile) for tile in (_field(task, "correct_tile_order") or [])]
+    if not order:
+        return None
+    texts = {
+        str(option.get("id")): option.get("text_fr")
+        for option in (_field(task, "options") or [])
+        if isinstance(option, Mapping)
+    }
+    tokens = {tile: _tile_tokens(texts.get(tile)) for tile in order}
+    if any(not tokens[tile] for tile in order):
+        return None
+    stored = [token for tile in order for token in tokens[tile]]
+    tail: list[str] = []
+    while len(tail) < len(stored) and stored[-1 - len(tail)] in _FINAL_PUNCTUATION:
+        tail.insert(0, stored[-1 - len(tail)])
+    targets = [stored]
+    for sentence in [*(_field(task, "accepted_answers") or []), _field(task, "solution_fr")]:
+        said = _tile_tokens(sentence)
+        while said and said[-1] in _FINAL_PUNCTUATION:
+            said.pop()
+        said += tail
+        if said and said not in targets:
+            targets.append(said)
+    return order, tokens, targets
+
+
+def tiles_spell_an_answer(task: Any, tile_ids: Iterable[Any]) -> bool:
+    """Is this build right (#174, #781)? It uses the answer's own tiles, each once (a
+    word bank's spare chips stay spare), and spells one of the item's right
+    sentences, case and apostrophes folded. Read off the text, so two «le» tiles or
+    «J'ai» / «j'ai» swapped are the same build."""
+
+    submitted = [str(tile) for tile in tile_ids]
+    order = [str(tile) for tile in (_field(task, "correct_tile_order") or [])]
+    if not submitted or sorted(submitted) != sorted(order):
+        return False
+    if submitted == order:
+        return True
+    build = _tile_build(task)
+    if build is None:
+        return False
+    _order, tokens, targets = build
+    return [token for tile in submitted for token in tokens[tile]] in targets
+
+
+def accepted_tile_orders(task: Any, *, limit: int = MAX_KEY_ORDERS) -> list[list[str]] | None:
+    """Every id order :func:`tiles_spell_an_answer` takes, stored order first, or
+    ``None`` when there are more than ``limit`` (the device key is then left out:
+    a key missing a right order would colour a right build red, #781).
+
+    ``task`` is a ``RecallTask`` or its stored JSON."""
+
+    order = [str(tile) for tile in (_field(task, "correct_tile_order") or [])]
+    if not order:
+        return []
+    build = _tile_build(task)
+    if build is None:
+        return [order]
+    _order, tokens, targets = build
+    out: list[list[str]] = [order]
+    overflow = False
+
+    def spell(target: list[str], at: int, left: list[str], placed: list[str]) -> None:
+        nonlocal overflow
+        if overflow:
+            return
+        if not left:
+            if at == len(target) and placed not in out:
+                out.append(list(placed))
+                overflow = len(out) > limit
+            return
+        for index, tile in enumerate(left):
+            if tile in left[:index] or target[at : at + len(tokens[tile])] != tokens[tile]:
+                continue
+            placed.append(tile)
+            spell(target, at + len(tokens[tile]), left[:index] + left[index + 1 :], placed)
+            placed.pop()
+
+    for target in targets:
+        spell(target, 0, order, [])
+    return None if overflow else out
+
+
 def _pairs(order: Any) -> list[list[str]]:
     """``[fr, native, fr, native, …]`` read as pairs; ``[]`` when malformed."""
 
@@ -119,8 +237,18 @@ def answer_key_for(
     if task_type in PICK_FORMATS:
         material = answer_material(task_type, option_id=recall_task.get("correct_option_id"))
     elif task_type in ORDER_FORMATS:
-        order = recall_task.get("correct_tile_order")
-        material = answer_material(task_type, tile_ids=order if isinstance(order, list) else ())
+        # #781: every order the grader takes (``tiles_spell_an_answer``), or no key.
+        orders = accepted_tile_orders(recall_task)
+        materials = [answer_material(task_type, tile_ids=order) for order in orders or []]
+        if not materials or not all(materials):
+            return None
+        salt = answer_key_salt(str(step_id), secret=secret)
+        return {
+            "version": ANSWER_KEY_VERSION,
+            "salt": salt,
+            # Sorted, so the first digest does not name the stored order.
+            "digests": sorted(answer_digest(salt, str(item)) for item in materials),
+        }
     elif task_type in PAIR_FORMATS:
         pairs = _pairs(recall_task.get("correct_tile_order"))
         materials = [answer_material(task_type, tile_ids=pair) for pair in pairs]

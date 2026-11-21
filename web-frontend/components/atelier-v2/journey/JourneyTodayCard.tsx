@@ -24,6 +24,7 @@
  * Presentation only. Every callback comes from the caller.
  */
 
+import Link from 'next/link';
 import React from 'react';
 
 import {
@@ -52,6 +53,7 @@ import { gentleReturnLabel } from '@/lib/gentle-return';
 import { preparingLine } from '@/lib/journey-reply-reveal';
 
 import { journeyChromeLanguage } from '@/lib/language-rule';
+import { QUARTIER_HREF, quartierCanStage, readSceneWay, writeSceneWay, type SceneWay } from '@/lib/quartier/home-door';
 import { resolveMediaUrl } from '@/lib/media-url';
 
 import { EpisodeVignette, vignettePlace, type VignettePlace } from './EpisodeVignette';
@@ -73,7 +75,7 @@ import {
   type SeasonPremiereView,
 } from './season-return-model';
 import { joinMeta, type JourneyPhase } from './journey-state';
-import { coreEstimateLabel, extensionLabel } from './time-estimate';
+import { coreEstimateLabel, dayTotalLabel, extensionLabel } from './time-estimate';
 import { TomorrowChoice } from './TomorrowChoice';
 import type { DailyJourneyController } from './useDailyJourney';
 
@@ -81,6 +83,11 @@ export type JourneyTodayCardProps = {
   controller: DailyJourneyController;
   /** Open the connected session shell. */
   onOpen: () => void;
+  /**
+   * P9: «Revoir» on a finished day. Home hands in the replay (the day's episode in
+   * the archive reader); without it, «Revoir» opens the session shell's end card.
+   */
+  onReview?: () => void;
   /**
    * Kept for callers; unused since WP-81 removed the legacy-session card from
    * Home.
@@ -96,6 +103,7 @@ export type JourneyTodayCardProps = {
 export function JourneyTodayCard({
   controller,
   onOpen,
+  onReview,
   restOfDayOpen = false,
 }: JourneyTodayCardProps) {
   // WP-82: the card is one chrome language — the learner's up to A2, French
@@ -140,7 +148,7 @@ export function JourneyTodayCard({
           copy={copy}
           statusCopy={statusCopy}
           busy={busy}
-          onOpen={onOpen}
+          onOpen={phase.kind === 'finished' && onReview ? onReview : onOpen}
           onStart={() => {
             void actions.start().then(onOpen);
           }}
@@ -167,6 +175,7 @@ export function JourneyTodayCard({
           copy={copy}
           busy={busy}
           controlLanguage={chromeLanguage}
+          quartier={quartierCanStage(phase)}
           onOpen={onOpen}
           onStart={() => {
             void actions.start().then(onOpen);
@@ -193,6 +202,7 @@ function JourneyPrimary({
   copy,
   busy,
   controlLanguage,
+  quartier = false,
   onOpen,
   onStart,
   onResume,
@@ -202,40 +212,61 @@ function JourneyPrimary({
   copy: AtelierCopy;
   busy: boolean;
   controlLanguage: DailyJourneyController['controlLanguage'];
+  /**
+   * P12 · Le Quartier can stage today's scene: it is offered beside the page, and the way the
+   * learner took last on this device is the primary one (owner decision 9, proposal (b)).
+   */
+  quartier?: boolean;
   onOpen: () => void;
   onStart: () => void;
   onResume: () => void;
 }) {
+  // read after mount: the server render and the first client render agree on the page
+  const [way, setWay] = React.useState<SceneWay>('page');
+  React.useEffect(() => {
+    if (quartier) setWay(readSceneWay());
+  }, [quartier]);
+  const page = (run: () => void) => () => {
+    if (quartier) writeSceneWay('page');
+    run();
+  };
+  let action: React.ReactElement | null = null;
+  let label: string | null = null;
   switch (phase.kind) {
     case 'offer':
       if (!phase.scenario) return null;
+      label = premiere ? seasonReturnCopy(controlLanguage).premiere_open : copy.start;
       // WP-76: a cold scene takes ~20 s. The button says what is happening in
       // the story («Le Mistral s’anime…»), not «Envoi…».
-      return (
+      action = (
         <Action
-          tone="primary"
+          tone={quartier && way === 'quartier' ? 'secondary' : 'primary'}
           pending={busy}
           pendingLabel={preparingLine(
             phase.scenario.location_name,
             phase.scenario.character_name,
             controlLanguage,
           )}
-          onClick={onStart}
+          onClick={page(onStart)}
+          data-scene-way={quartier ? 'page' : undefined}
         >
-          {premiere ? seasonReturnCopy(controlLanguage).premiere_open : copy.start}
+          {quartier && way === 'quartier' ? copy.read_as_page : label}
         </Action>
       );
+      break;
     case 'session':
     case 'paused':
-      return (
+      action = (
         <Action
-          tone="primary"
+          tone={quartier && way === 'quartier' ? 'secondary' : 'primary'}
           disabled={busy}
-          onClick={phase.kind === 'paused' ? onResume : onOpen}
+          onClick={page(phase.kind === 'paused' ? onResume : onOpen)}
+          data-scene-way={quartier ? 'page' : undefined}
         >
-          {copy.resume}
+          {quartier && way === 'quartier' ? copy.read_as_page : copy.resume}
         </Action>
       );
+      break;
     case 'awaiting_finish':
       return (
         <Action tone="primary" disabled={busy} onClick={onOpen}>
@@ -245,6 +276,31 @@ function JourneyPrimary({
     default:
       return null;
   }
+  if (!quartier) return action;
+  // the other way in: a link to the quarter, quieter unless it is the learner's way
+  const first = way === 'quartier';
+  const door = (
+    <Link
+      href={QUARTIER_HREF}
+      className={`av2-btn ${first ? 'av2-btn--primary' : 'av2-btn--secondary'}`}
+      data-tone={first ? 'primary' : 'secondary'}
+      data-scene-way="quartier"
+      onClick={() => writeSceneWay('quartier')}
+    >
+      <span>{copy.play_in_quartier}</span>
+    </Link>
+  );
+  return first ? (
+    <>
+      {door}
+      {action}
+    </>
+  ) : (
+    <>
+      {action}
+      {door}
+    </>
+  );
 }
 
 function JourneyTodayBody({
@@ -322,12 +378,15 @@ function JourneyTodayBody({
       // the story alone makes) — and the words' own minutes beside it, never
       // folded into it: the drill is optional.
       const timeEstimate = phase.envelope.time_estimate ?? null;
+      // Round 3: with the day's steps, one figure: the sum of the minutes they show.
       const estimate = gentle
         ? null
-        : joinMeta(
+        : dayTotalLabel(phase.envelope.session, timeEstimate, controlLanguage) ||
+          joinMeta(
             coreEstimateLabel(timeEstimate, scenario.estimated_seconds, controlLanguage),
             extensionLabel(timeEstimate, 'words', controlLanguage),
-          ) || null;
+          ) ||
+          null;
       return (
         <Card
           copy={copy}
@@ -608,9 +667,11 @@ function Card({
           )}
           {eyebrow}
         </p>
-        <h2 className="av2-headline av2-headline--title" lang={lang} {...(banner ? connectionBanner(banner) : {})}>
-          {lang === 'fr' ? frenchSpacing(title) : title}
-        </h2>
+        {title && (
+          <h2 className="av2-headline av2-headline--title" lang={lang} {...(banner ? connectionBanner(banner) : {})}>
+            {lang === 'fr' ? frenchSpacing(title) : title}
+          </h2>
+        )}
         {byline}
         {headline && (
           <HeadlineCast headline={headline} language={controlLanguage} title={title} faces={Boolean(imageUrl) || !scene} />
@@ -627,14 +688,13 @@ function Card({
 }
 
 /**
- * The card's headline. A generated day has no title until it is written, and
- * yesterday's whole «À suivre…» then stood in at headline size (owner,
- * 2026-10-19: far too big). It is cut to its heart, as the teaser line is.
+ * The card's headline. A generated day has no title until it is written; P8 (17 Nov):
+ * then the card has none, and yesterday's «À suivre…» is printed as the hook under it
+ * (`HeadlineCast`), not as the title. Without a headline at all (the engine off), the
+ * offer's own title stands.
  */
 function cardTitle(headline: Headline | null | undefined, fallback: string): string {
-  const title = headlineTitle(headline, fallback);
-  if (title === fallback || String(headline?.title_fr || '').trim()) return title;
-  return teaserHint(title) || title;
+  return headline ? headlineTitle(headline, fallback) : fallback;
 }
 
 /** Where today's scene happens and who is on its page, for the drawn card art. */

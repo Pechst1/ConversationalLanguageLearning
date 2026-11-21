@@ -48,7 +48,8 @@ def test_one_extra_card_left_the_button_the_deck_and_the_goal_line_say_one(
     assert offer["can_add_more"] is True
     assert offer["more"]["words"] == 3 + 1, f"the goal line credits {offer['more']['words']} words a day"
 
-    # Home's and Fertig's «Noch N neue Wörter» is the same number, not the step's name.
+    # P7 (pilot, 17 Nov): Home and Fertig no longer offer it (Settings does, from this
+    # same `step`); the finished day carries no «Noch N neue Wörter».
     from app.services.daily_session import build_session
 
     db_session.expire_all()
@@ -57,7 +58,7 @@ def test_one_extra_card_left_the_button_the_deck_and_the_goal_line_say_one(
         forge_href="/forge", forge_blocks_today=1,
     )
     assert done["done"] is True
-    assert (done["more_words"], done["more_href"]) == (1, "/vocabulary/review?more=1")
+    assert "more_words" not in done and "more_href" not in done
 
     granted = client.post("/api/v1/vocabulary/new-words/more", headers=headers)
     assert granted.status_code == 200, granted.text

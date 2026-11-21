@@ -100,6 +100,8 @@ def test_three_walked_days_are_three_planches_with_the_learners_own_lines(
         assert day["edition_no"] is not None
     engine_days = [day for day in days if not day["authored"]]
     assert engine_days and all(day["scene_id"] for day in engine_days)
+    # P12: each day carries its place, for Le Quartier's carnet
+    assert all(day["location_id"] and day["location_name"] for day in days), [(d["location_id"], d["location_name"]) for d in days]
 
     # Newest chapter first; days oldest first inside a chapter; the authored day
     # opens the life as its prologue.

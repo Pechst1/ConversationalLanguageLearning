@@ -66,6 +66,8 @@ class WalkClient(httpx.Client):
         self.email = email
         self.password = password
         self.headers_ = {"Authorization": ""}
+        #: When the last request left (``time.monotonic``): the hand-over waits from it.
+        self.last_request_at: float | None = None
         self.sign_in()
 
     def sign_in(self) -> None:
@@ -97,6 +99,7 @@ class WalkClient(httpx.Client):
                 self._wait_out(method, url, response)
                 token_fresh = False
                 continue
+            self.last_request_at = time.monotonic()
             return response
 
     @staticmethod
@@ -111,6 +114,24 @@ class WalkClient(httpx.Client):
             flush=True,
         )
         time.sleep(min(wait, 60) + 0.5)
+
+    def leave_budget_free(self, window_seconds: float, *, clock=time.monotonic, sleep=time.sleep) -> float:
+        """Wait until the learner's paid-request window holds none of this script's requests.
+
+        The browser walk takes the learner over on the next day. Five days played here in
+        about 22 s spend most of the minute's paid budget (RATE_LIMIT_PAID_MAX_REQUESTS per
+        RATE_LIMIT_PAID_WINDOW_SECONDS), and the browser's first answers were refused
+        with 429 (season shard b, day 6). A window that ended after the last request holds
+        none of them, fixed or sliding. A real learner never plays five days in 22 s.
+        Returns the seconds waited.
+        """
+
+        if self.last_request_at is None:
+            return 0.0
+        wait = max(0.0, float(window_seconds) - (clock() - self.last_request_at)) + 1.0
+        print(f"[fast-forward] leaving the paid budget free: waiting {wait:.0f}s", file=sys.stderr, flush=True)
+        sleep(wait)
+        return wait
 
 
 def _days(spec: str) -> list[int]:
@@ -201,6 +222,9 @@ def main(argv: list[str] | None = None) -> int:
                 file=sys.stderr,
                 flush=True,
             )
+        from app.config import settings
+
+        client.leave_budget_free(settings.RATE_LIMIT_PAID_WINDOW_SECONDS)
     finally:
         db.close()
         engine.dispose()

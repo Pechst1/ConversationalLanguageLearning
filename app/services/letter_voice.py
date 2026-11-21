@@ -101,6 +101,24 @@ _BAND_STYLE = {
 }
 
 
+#: Pilot P9: the plain way out of each tense refusal, for the draft that follows it. It
+#: names the French to write instead, never the reader's level.
+_TENSE_WAY_OUT = {
+    "futur simple": (
+        "For what is going to happen, write «aller + infinitif» («je vais passer», «on va voir») "
+        "or the present («demain, je passe»)."
+    ),
+    "subjonctif": "Instead of a subjunctive, write the present or an infinitive («il faut venir», «pour venir»).",
+    "plus-que-parfait": "For what happened before, write the passé composé.",
+}
+
+
+def tense_way_out(tenses: list[str] | tuple[str, ...]) -> str:
+    """Pilot P9: how to say it without the refused tenses, in plain words; ``""`` for none."""
+
+    return " ".join(_TENSE_WAY_OUT[tense] for tense in tenses if tense in _TENSE_WAY_OUT)
+
+
 def above_band_tenses(text: str | None, level: str | None) -> list[str]:
     """The tenses in ``text`` the learner's band has not met; empty from B1 up."""
 

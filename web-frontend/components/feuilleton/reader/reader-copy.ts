@@ -44,6 +44,10 @@ export type ReaderCopy = {
   complete: string;
   completing: string;
   episode_end: string;
+  /** P11: under the last panel while its ending is being written (ReplyStage's own line). */
+  ending_writing: string;
+  /** P11: after 30 s of that wait, above «Continuer»: the ending comes on the next visit. */
+  ending_later: string;
   to_follow: string;
   plate_alt: string;
   page_alt: string;
@@ -145,6 +149,8 @@ const FR: ChromeCopy = {
   complete: 'Terminer l’épisode',
   completing: 'Classement…',
   episode_end: 'Fin de l’épisode',
+  ending_writing: 'La suite s’écrit…',
+  ending_later: 'La fin sera là la prochaine fois.',
   to_follow: 'À suivre',
   plate_alt: 'Planche : {title}',
   page_alt: 'La page illustrée de cette édition',
@@ -217,6 +223,8 @@ const EN: ChromeCopy = {
   complete: 'Finish the episode',
   completing: 'Filing…',
   episode_end: 'End of the episode',
+  ending_writing: 'What happens next is being written…',
+  ending_later: 'The ending will be there next time.',
   to_follow: 'To be continued',
   plate_alt: 'Panel: {title}',
   page_alt: 'This edition’s illustrated page',
@@ -289,6 +297,8 @@ const DE: ChromeCopy = {
   complete: 'Folge beenden',
   completing: 'Wird abgelegt…',
   episode_end: 'Ende der Folge',
+  ending_writing: 'Wie es weitergeht, wird gerade geschrieben…',
+  ending_later: 'Das Ende ist beim nächsten Mal da.',
   to_follow: 'Fortsetzung folgt',
   plate_alt: 'Bild: {title}',
   page_alt: 'Die illustrierte Seite dieser Ausgabe',
