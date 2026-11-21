@@ -842,6 +842,61 @@ def test_home_headlines_todays_episode(assembled_client, db_session, journey_ena
     assert bare["edition_no"] == 3 and bare["teaser_fr"] is None and bare["title_fr"] is None
 
 
+def _play_until_the_scene_is_over(d, db, provider) -> None:
+    """Play the day step by step until the day's scene is completed, and stop there:
+    the journey is still active, with a step of its own left (the walk's day 6, which
+    a 429 on its last recall left at that point)."""
+
+    provider.turn = TurnScript(reply_fr="D'accord.", resolution_fr="La journée se termine.", callback_fr="Vous avez parlé.")
+    user_id = _user_id_of(db, d.journey)
+    for _ in range(40):
+        scene = _latest_scene(db, user_id)
+        if scene is not None:
+            db.refresh(scene)
+            if scene.status == "completed":
+                break
+        step = d.current()
+        assert step is not None, "the day ran out of steps before its scene was over"
+        if step["kind"] in ("scene", "resolution", "rule", "desk", "forge", "read"):
+            d.advance()
+            continue
+        if step["kind"] == "recall":
+            d.attempt(d.recall_answer(step, correct=True))
+        else:
+            body = d.attempt({"mode": "text", "text": "Oui, je reste une semaine."}).json()
+            if body.get("next_turn"):
+                continue
+        if d.journey.get("current_step_id") == step["id"]:
+            d.advance()
+    assert d.journey["status"] == "active" and d.current() is not None, "the day must still be open"
+
+
+def test_open_day_keeps_its_number(assembled_client, db_session, journey_enabled, clock, season_on):
+    """#868 (walk-main-57-season-b, day 7): the day's scene was over, its day was not
+    (a step left; the day before had stopped on a 429). Home still shows the episode's
+    card for that open day, so it carries the episode's number: the headline follows
+    the day, not the scene's own row."""
+
+    provider = season_on
+    d = support.Driver(assembled_client, support.register(assembled_client, f"s1o-{uuid.uuid4()}@example.com", cefr="A2.1"), db=db_session)
+    d.create()
+    _play_until_the_scene_is_over(d, db_session, provider)
+    headline = d.today()["headline"]
+    assert headline is not None and headline["edition_no"] == 1, (
+        f"the open day's card has no episode number: headline {headline!r}"
+    )
+    # The next morning the unfinished day still occupies Home: still its number.
+    clock.advance(days=1)
+    assert d.today()["journey"]["id"] == d.id
+    later = d.today()["headline"]
+    assert later is not None and later["edition_no"] == 1, (
+        f"yesterday's open day lost its episode number on Home: headline {later!r}"
+    )
+    assert later["teaser_fr"] is None and later.get("teaser_open_fr") is None, (
+        "the open day's own ending speaks of the day after it, not under its own title"
+    )
+
+
 def test_a_season_page_corrects_the_form_in_the_margin(assembled_client, db_session, journey_enabled, clock, season_on):
     """Owner test 2026-09-30: «Odile est mon grand-mere» passed uncorrected. The page
     still answers what the learner meant; the tutor corrects the form in the margin,
