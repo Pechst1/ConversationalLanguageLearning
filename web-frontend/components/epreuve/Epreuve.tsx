@@ -571,6 +571,25 @@ export function EpFix({ old, fix }: { old: Node; fix: Node }) {
     </span>
   );
 }
+/* #855: the rules' fixes on an unread answer («Basic check only»), one per line, both sides.
+   An unread answer nobody can check again has no second chance, so the server sends each
+   fix whole (app/services/solution_gate.py `no_chance_follows`); while a re-check can still
+   open the chance the right side is withheld, and a fix without its right side is not a fix
+   to show: never «J ai →» pointing at nothing. */
+export type EpBasicFix = { span?: string | null; replacement?: string | null; start?: number | null };
+export function EpBasicFixes({ edits }: { edits?: EpBasicFix[] | null }) {
+  const shown = (edits || []).filter((edit) => String(edit?.span || '').trim() && String(edit?.replacement || '').trim());
+  if (!shown.length) return null;
+  return (
+    <>
+      {shown.map((edit) => (
+        <p className="av2-fr ep-basic-fix" lang="fr" key={`${edit.start ?? ''}-${edit.span}`}>
+          <s>{edit.span}</s> <span aria-hidden="true">→</span> <strong>{edit.replacement}</strong>
+        </p>
+      ))}
+    </>
+  );
+}
 export function EpIns({ fix }: { fix: Node }) {
   const t = useEpCopy();
   return (
