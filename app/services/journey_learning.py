@@ -2054,10 +2054,12 @@ _ORDER_NOTES: dict[str, dict[str, str]] = {
         "de": "Ab „{word}“ stimmt die Reihenfolge nicht.",
         "fr": "À partir de « {word} », l'ordre ne va plus.",
     },
+    # #967: «It does not start with “café”» answered «café un», which does start with it.
+    # The note says where the word does not belong, never what the learner's line is not.
     "first": {
-        "en": "It does not start with “{word}”.",
-        "de": "Der Satz beginnt nicht mit „{word}“.",
-        "fr": "La phrase ne commence pas par « {word} ».",
+        "en": "“{word}” does not go at the start.",
+        "de": "„{word}“ gehört nicht an den Anfang.",
+        "fr": "« {word} » ne va pas au début.",
     },
     "missing": {
         "en": "Some words are missing.",
@@ -2070,6 +2072,81 @@ _ORDER_NOTES: dict[str, dict[str, str]] = {
         "fr": "Certains mots étaient en trop.",
     },
 }
+
+
+#: #967 / #146: what a missed build of a noun with its article is told, read from the
+#: item's own concept (an article before its noun; on a repair, the gender the slip broke)
+#: rather than from where the two orders first differ.
+_ARTICLE_NOTES: dict[str, dict[str, str]] = {
+    "article_first": {
+        "en": "The article comes before its noun: “{article}”, then “{noun}”.",
+        "de": "Der Artikel steht vor seinem Nomen: erst „{article}“, dann „{noun}“.",
+        "fr": "L'article vient avant son nom : d'abord « {article} », puis « {noun} ».",
+    },
+    "gender": {
+        "en": "“{noun}” is {gender}, so “{right}”, not “{wrong}”.",
+        "de": "„{noun}“ ist {gender}, also „{right}“, nicht „{wrong}“.",
+        "fr": "« {noun} » est {gender}, donc « {right} », pas « {wrong} ».",
+    },
+}
+_GENDER_WORDS: dict[str, dict[str, str]] = {
+    "en": {"m": "masculine", "f": "feminine"},
+    "de": {"m": "maskulin", "f": "feminin"},
+    "fr": {"m": "masculin", "f": "féminin"},
+}
+
+
+def _bare_word(text: str) -> str:
+    return fold_for_comparison(re.sub(r"[^\w'’-]+", " ", str(text or ""))).strip()
+
+
+def article_build_note(task: RecallTask, tile_ids: Sequence[str], language: str) -> str | None:
+    """#967: why a missed build of «article + noun» is wrong, from the item's concept.
+
+    Two reasons, each said only when it holds for the learner's own line:
+
+    - the key puts a gendered article right before its noun and the learner placed that
+      noun before it («café un» for «un café»): the article comes first;
+    - the item repairs the learner's own slip and the slip gave that noun the other
+      article («une café»): the noun's gender names the right one.
+
+    ``None`` when the key has no such article, so the order note speaks instead.
+    """
+
+    from app.services.answer_acceptance import _gender_of
+
+    key = _tile_texts(task, [str(tile) for tile in task.correct_tile_order])
+    submitted = [_bare_word(text) for text in _tile_texts(task, tile_ids)]
+    table = lambda key_: _ARTICLE_NOTES[key_].get(language) or _ARTICLE_NOTES[key_]["en"]  # noqa: E731
+    genders = _GENDER_WORDS.get(language) or _GENDER_WORDS["en"]
+    source = [_bare_word(word) for word in str(task.source_fr or task.prompt_fr or "").split()]
+    notes: list[str] = []
+    for index in range(len(key) - 1):
+        article, noun = key[index].strip(), key[index + 1].strip(" ,.;:!?…")
+        gender = _GENDERED_ARTICLES.get(_bare_word(article))
+        if gender is None or not noun:
+            continue
+        folded_article, folded_noun = _bare_word(article), _bare_word(noun)
+        slip = next(
+            (
+                source[at - 1]
+                for at in range(1, len(source))
+                if source[at] == folded_noun and _GENDERED_ARTICLES.get(source[at - 1]) not in (None, gender)
+            ),
+            None,
+        )
+        if _gender_of(folded_noun) != gender and slip is None:
+            # «Je le vois»: an object pronoun, not an article, or a noun of the other gender.
+            continue
+        if folded_article in submitted and folded_noun in submitted:
+            if submitted.index(folded_noun) < submitted.index(folded_article):
+                notes.append(table("article_first").format(article=article, noun=noun))
+        if slip is not None:
+            # The repair's own slip: the same noun with the other gender's article.
+            notes.append(table("gender").format(noun=noun, gender=genders[gender], right=article, wrong=slip))
+        if notes:
+            break
+    return " ".join(notes) or None
 
 
 def _tile_texts(task: RecallTask, tile_ids: Sequence[str]) -> list[str]:
@@ -2479,7 +2556,14 @@ def evaluate_recall(
         if task.task_type in {"tiles", "word_bank", "unscramble"} and answer.tile_ids:
             from app.services.chrome_language import user_correction_language
 
-            note = tile_order_note(task, answer.tile_ids, str(user_correction_language(user))) or note
+            language = str(user_correction_language(user))
+            # #967 / #146: the item's own concept first (an article before its noun, the
+            # gender a repaired slip broke); where the order goes off only without one.
+            note = (
+                article_build_note(task, answer.tile_ids, language)
+                or tile_order_note(task, answer.tile_ids, language)
+                or note
+            )
         elif task.task_type in {"choice", "classify", "listen_tap", "who_said"}:
             from app.services.chrome_language import user_correction_language
 
