@@ -282,6 +282,8 @@ def _accent_strict_word(learner_word: str, target_word: str) -> bool:
 
     if learner_word in ACCENT_HOMOGRAPHS or target_word in ACCENT_HOMOGRAPHS:
         return True
+    if _feminine_grave(learner_word, target_word):
+        return True
     lemmas = known_lemmas()
     for word in (target_word, learner_word):
         for ending in ("ées", "és", "ée", "é"):
@@ -293,6 +295,41 @@ def _accent_strict_word(learner_word: str, target_word: str) -> bool:
                     return False
                 return True
     return False
+
+
+def _feminine_grave(learner_word: str, target_word: str) -> bool:
+    """Walk 14 (B1 day 14): «secrete» passed for «secrète» as a spelling slip.
+
+    The grave accent of a feminine «-ète» / «-ère» (secret → secrète, complet → complète,
+    cher → chère, premier → première) is the agreement itself: written without it, the
+    word has the feminine e and not the feminine form. Strict when the target ends so,
+    the learner wrote the same letters without that one accent, and the masculine is a
+    lexicon word («secret»; for «-ère» an adjective, so «mere» for «mère» stays a slip).
+    """
+
+    for grave, plain, masculine in (("ète", "ete", "et"), ("ère", "ere", "er")):
+        for plural in ("", "s"):
+            ending, slipped = grave + plural, plain + plural
+            if not (target_word.endswith(ending) and learner_word.endswith(slipped)):
+                continue
+            stem = target_word[: -len(ending)]
+            if learner_word[: -len(slipped)] != stem or not stem:
+                continue
+            entry = _lexicon_entry(stem + masculine)
+            if entry is None:
+                return False
+            return grave == "ète" or entry.get("pos") == "adjective"
+    return False
+
+
+@lru_cache(maxsize=4096)
+def _lexicon_entry(word: str) -> dict[str, Any] | None:
+    try:
+        from app.services.lexical_coverage import load_lexicon
+
+        return load_lexicon().lemmas.get(word)
+    except Exception:  # pragma: no cover - the lexicon is optional context
+        return None
 
 
 @lru_cache(maxsize=1)
@@ -314,6 +351,10 @@ def _strip_article(text: str) -> tuple[str | None, str]:
     return match.group(1), text[match.end():].strip()
 
 
+#: The little words that drop their vowel before a vowel: «qu'» is «que».
+_ELIDED_PARTICLES = {"j": "je", "m": "me", "t": "te", "s": "se", "l": "le", "n": "ne", "d": "de", "c": "ce", "qu": "que"}
+
+
 def _elision_slip(learner_tokens: list[str], target_tokens: list[str]) -> bool:
     """«je aime» for «j'aime», «le arbre» for «l'arbre»."""
 
@@ -322,7 +363,7 @@ def _elision_slip(learner_tokens: list[str], target_tokens: list[str]) -> bool:
         if "'" in token:
             head, _, tail = token.partition("'")
             if tail and len(head) <= 4:
-                full = {"j": "je", "m": "me", "t": "te", "s": "se", "l": "le", "n": "ne", "d": "de", "c": "ce", "qu": "que"}.get(head)
+                full = _ELIDED_PARTICLES.get(head)
                 if full:
                     expanded.append(full)
                     expanded.append(tail)
@@ -339,6 +380,39 @@ def _elision_slip(learner_tokens: list[str], target_tokens: list[str]) -> bool:
         swapped = ["le" if (word == "la" and other == "le") else word for word, other in zip(learner, target, strict=True)]
         return swapped == target
     return False
+
+
+def elision_slip_words(learner: object, target: object) -> tuple[str, str, str] | None:
+    """#774: the elision a sentence missed, as ``(particle, elided, written)``.
+
+    «Est-ce que il pleut ?» for «Est-ce qu'il pleut ?» is ``("que", "qu'il", "que il")``:
+    the words that tell the learner what changed, where :func:`_elision_slip` only says
+    that something did. The rest of the sentence must be the same (accents aside), and
+    only one elision may be missed. ``None`` otherwise.
+    """
+
+    said, right = fold_typography(learner).split(), fold_typography(target).split()
+    found: tuple[str, str, str] | None = None
+    i = 0
+    for token in right:
+        if i < len(said) and strip_accents(said[i]) == strip_accents(token):
+            i += 1
+            continue
+        head, apostrophe, tail = token.partition("'")
+        full = _ELIDED_PARTICLES.get(head) if apostrophe and tail else None
+        pair = said[i : i + 2]
+        if (
+            found is not None
+            or full is None
+            or len(pair) != 2
+            or strip_accents(pair[1]) != strip_accents(tail)
+            # «la arbre» for «l'arbre»: the particle may be either gender's article.
+            or pair[0] not in ({full, "la"} if head == "l" else {full})
+        ):
+            return None
+        found = (pair[0], token, " ".join(pair))
+        i += 2
+    return found if i == len(said) else None
 
 
 def _compare(
@@ -1540,6 +1614,12 @@ NOTE_COPY: dict[str, dict[str, str]] = {
         "en": "Same word, different form: «{expected_word}», not «{learner_word}».",
         "de": "Richtiges Wort, falsche Form: «{expected_word}», nicht «{learner_word}».",
         "fr": "Bon mot, autre forme : « {expected_word} », pas « {learner_word} ».",
+    },
+    # #774: the elision one ✗/✓ pair is about, in its own words.
+    "elision_pair": {
+        "en": "Before a vowel, «{particle}» drops its vowel: «{elided}», not «{written}».",
+        "de": "Vor einem Vokal verliert «{particle}» seinen Vokal: «{elided}», nicht «{written}».",
+        "fr": "Devant une voyelle, « {particle} » perd sa voyelle : « {elided} », pas « {written} ».",
     },
     "elision": {
         "en": "Before a vowel the little word loses its e: j'aime, l'ami.",

@@ -137,6 +137,8 @@ export const SNAPSHOT_FN = ({ typeable, wordBankTile }) => {
     whoSaid: q('.av2-who-said__card').length,
     tiles: q('.av2-tiles__bank button.av2-tile, .av2-tiles__bank .av2-tile:not(.av2-tile--mould)').length,
     tappableTiles: q(wordBankTile).length,
+    // An exercise of La Forge is on screen (its drill, or «Correct the sentence» under a verdict).
+    forgeExercise: q('.ep-exercise').length > 0,
     tilesBox: q('.av2-tiles').length,
     textarea: q('textarea, input[type=text], input:not([type])').length,
     dictation: q('.av2-dictation, [data-step=dictation]').length,
@@ -171,6 +173,11 @@ export const SNAPSHOT_FN = ({ typeable, wordBankTile }) => {
     // left: the walk's `nextStep` reads `data-fertig` to tell the day's end from a stop).
     homeDone: location.pathname.startsWith('/fertig') || (/^\/atelier/.test(location.pathname) && /Done for today|Fini pour aujourd|Journée bouclée|Fertig für heute|Für heute (fertig|geschafft|erledigt)/i.test((document.querySelector('main') || document.body).innerText || '')),
     forgeStep: q('[data-step=forge]').length,
+    // #954: a La Forge item's head, whether it is a rule check's (its épreuve eyebrow), and
+    // the rule check's result line («3 von 3 richtig, …»), for `rule-check-tally-matches-its-items`.
+    forgeHead: q('.forge-head').length,
+    testOut: q('.forge-head__eyebrow').length > 0,
+    forgeResult: (q('.forge-result__sub')[0] || {}).innerText || '',
     // A request the screen says is in flight (Action's `pending`: disabled,
     // aria-busy, «La scène se prépare…»): waiting, not stuck.
     pending: document.querySelector('[data-pending="true"], [aria-busy="true"]') !== null,

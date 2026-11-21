@@ -210,15 +210,34 @@ _ELISIONS: dict[str, str] = {
 _GENDER_SWAPS = frozenset(
     {("le", "la"), ("la", "le"), ("un", "une"), ("une", "un"), ("mon", "ma"), ("ma", "mon"),
      ("ton", "ta"), ("ta", "ton"), ("son", "sa"), ("sa", "son"), ("ce", "cette"), ("cette", "ce"),
-     ("cet", "cette"), ("cette", "cet"), ("au", "a la"), ("du", "de la")}
+     ("cet", "cette"), ("cette", "cet"), ("au", "a la"), ("du", "de la"),
+     # #852: «quel» agrees with its noun like an article («quel heure» → «quelle heure»).
+     ("quel", "quelle"), ("quelle", "quel"), ("quels", "quelles"), ("quelles", "quels")}
 )
 _NUMBER_SWAPS = frozenset(
     {("le", "les"), ("la", "les"), ("les", "le"), ("les", "la"), ("un", "des"), ("une", "des"),
      ("des", "un"), ("des", "une"), ("mon", "mes"), ("ma", "mes"), ("mes", "mon"), ("mes", "ma"),
-     ("ce", "ces"), ("cette", "ces"), ("ces", "ce"), ("ces", "cette")}
+     ("ce", "ces"), ("cette", "ces"), ("ces", "ce"), ("ces", "cette"),
+     ("quel", "quels"), ("quels", "quel"), ("quelle", "quelles"), ("quelles", "quelle")}
 )
-_FEMININE_DETERMINERS = frozenset({"la", "une", "ma", "ta", "sa", "cette"})
-_PLURAL_DETERMINERS = frozenset({"les", "des", "mes", "tes", "ses", "ces"})
+_FEMININE_DETERMINERS = frozenset({"la", "une", "ma", "ta", "sa", "cette", "quelle", "quelles"})
+_PLURAL_DETERMINERS = frozenset({"les", "des", "mes", "tes", "ses", "ces", "quels", "quelles"})
+#: «quel» and its forms: an interrogative that agrees, not an article (#852).
+_QUEL = frozenset({"quel", "quelle", "quels", "quelles"})
+#: What each question word asks about (#852): «Quand» for «Où» asks about the time
+#: where the question asks about the place. Worded in the learner's language
+#: (``forge.slip.question_word.asks.<key>``). The same words also link a relative
+#: clause («le jour où», «l'homme qui»), where they ask nothing: only
+#: :func:`asks_a_question` decides that they are question words in a given line.
+_QUESTION_WORDS: dict[str, str] = {
+    "où": "place", "quand": "time", "comment": "manner", "combien": "amount",
+    "pourquoi": "reason", "qui": "person",
+}
+#: Words that may stand before a question word at the head of a question
+#: («À qui», «D'où», «Depuis quand», «Pour qui», «Jusqu'où»), accents folded.
+_QUESTION_PREPOSITIONS = frozenset(
+    {"a", "de", "d'", "depuis", "pour", "par", "avec", "chez", "jusqu'", "jusque", "vers", "et", "mais"}
+)
 _SUBJECTS = frozenset({"je", "j'", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles"})
 
 
@@ -270,6 +289,40 @@ def _before(sentence: Any, word: str, at: Any = None) -> str | None:
     return words[index - 1] if index else None
 
 
+def _question_word(word: str) -> str | None:
+    """What ``word`` asks about when it is a question word («quand» → ``time``), or
+    ``None``. Accents count: «ou» (or) is no question word."""
+
+    return _QUESTION_WORDS.get(fold_typography(word or "").casefold().strip(" ?"))
+
+
+def asks_a_question(line: Any, word: str) -> bool:
+    """Is ``word`` a question word *in* ``line``, not a relative pronoun?
+
+    #852: «Quand» for «Où» is told as another question («Quand» asks when, this
+    question asks where) only where ``word`` asks: it heads a question («Où est le
+    carton ?», «D'où viens-tu ?»), opens «est-ce que» («Où est-ce que Gus
+    travaille»), or ends one («Tu travailles où ?»). After a noun it links a relative
+    clause («le jour où», «C'est le restaurant où Lila dîne.», «l'homme qui parle»),
+    and there it asks nothing: the unit's own rule says why (attempt 1 of #852 told
+    «this question asks “where”» in «Le relatif où»). A word that stands twice in the
+    line is read nowhere, as :func:`_place` does.
+    """
+
+    raw = " ".join(str(line or "").split())
+    words = tokens(raw)
+    index = _place(raw, fold_typography(word))
+    if index is None:
+        return False
+    after = words[index + 1] if index + 1 < len(words) else ""
+    if after == "est-ce" or after.startswith("est-ce-"):
+        return True
+    if not raw.rstrip(" »\"”").endswith("?"):
+        return False
+    heads = all(strip_accents(before) in _QUESTION_PREPOSITIONS for before in words[:index])
+    return heads or index == len(words) - 1
+
+
 def slip_kind(learner: str, target: str) -> str | None:
     """What kind of slip one word for another is: ``gender``, ``number``, ``elision``,
     ``person`` (another form of the same verb), or ``None``. The one classifier the
@@ -311,13 +364,17 @@ def _same_tense(lemma: str, learner: str, target: str) -> bool:
     return False
 
 
-def slip_category(ops: list[dict[str, str]], sentence: Any = None) -> dict[str, str] | None:
+def slip_category(ops: list[dict[str, str]], sentence: Any = None, line: Any = None) -> dict[str, str] | None:
     """The one slip a diff makes, by category, or ``None`` when it is not one we name.
 
     #449 (and #146): La Forge explained a miss with the day's rule card, so «lui» for
     «le» was answered with the order of two pronouns. What the learner got wrong
     decides the note; the rule card is only the fallback for a miss with no category.
     Only a lone difference is named: with two, nothing says which one was meant.
+
+    ``line`` is the whole right line when ``sentence`` is only what fills its gap
+    («Où» in «___ est-ce que Gus travaille ?»): whether a question word asks is read
+    from the line it stands in, never from the word alone (#852).
     """
 
     slips = [op for op in ops if op.get("kind") != "accent"]
@@ -333,10 +390,24 @@ def slip_category(ops: list[dict[str, str]], sentence: Any = None) -> dict[str, 
         return {"category": "elision", "learner": learner, "target": target}
     if sentence is None:
         return None
+    shown_learner, shown_target = slips[0].get("learner") or "", slips[0].get("target") or ""
+    if (
+        _question_word(shown_learner)
+        and _question_word(shown_target)
+        and asks_a_question(line or sentence, shown_target)
+    ):
+        # #852: «Quand» for «Où» asks about another thing; the rule's general line
+        # («question words ask for information») says nothing about which.
+        return {
+            "category": "question_word",
+            "learner": shown_learner,
+            "target": shown_target,
+            "learner_asks": _question_word(shown_learner) or "",
+            "target_asks": _question_word(shown_target) or "",
+        }
     # #596: given the right sentence, an article that differs only in gender or number is
     # about the noun after it («le clé»: «clé» is feminine), and a verb form of the wrong
     # person about its subject, not the day's rule card.
-    shown_learner, shown_target = slips[0].get("learner") or "", slips[0].get("target") or ""
     kind = slip_kind(shown_learner, shown_target)
     at = slips[0].get("at")
     if kind in {"gender", "number"}:
@@ -364,13 +435,16 @@ def slip_category(ops: list[dict[str, str]], sentence: Any = None) -> dict[str, 
     return None
 
 
-def slip_note(ops: list[dict[str, str]], language: Any, target: Any = None) -> tuple[str, str] | None:
+def slip_note(
+    ops: list[dict[str, str]], language: Any, target: Any = None, line: Any = None
+) -> tuple[str, str] | None:
     """``(why, repair)`` for the slip's category, in the learner's language.
 
     ``target`` is the right sentence, when the item has one: the noun after a wrong
-    article and the subject before a wrong verb form are read from it."""
+    article and the subject before a wrong verb form are read from it; ``line`` is the
+    whole line when ``target`` only fills its gap (:func:`slip_category`)."""
 
-    slip = slip_category(ops, target)
+    slip = slip_category(ops, target, line)
     if slip is None:
         return None
     fields = {key: value for key, value in slip.items() if key != "category"}
@@ -378,9 +452,21 @@ def slip_note(ops: list[dict[str, str]], language: Any, target: Any = None) -> t
         gender = _copy(f"forge.slip.gender.{slip['gender']}", language)
         plural = strip_accents(slip["target"]) in _PLURAL_DETERMINERS
         count = _copy(f"forge.slip.count.{'p' if plural else 's'}", language)
+        # «quel» is no article: it agrees with its noun, and the repair says so.
+        repair = "quel" if strip_accents(slip["target"]).casefold() in _QUEL else slip["category"]
         return (
             _copy(f"forge.slip.{slip['category']}.why", language, gender_word=gender, count=count, **fields),
-            _copy(f"forge.slip.{slip['category']}.repair", language, **fields),
+            _copy(f"forge.slip.{repair}.repair", language, **fields),
+        )
+    if slip["category"] == "question_word":
+        fields = {
+            **fields,
+            "learner_asks": _copy(f"forge.slip.question_word.asks.{slip['learner_asks']}", language),
+            "target_asks": _copy(f"forge.slip.question_word.asks.{slip['target_asks']}", language),
+        }
+        return (
+            _copy("forge.slip.question_word.why", language, **fields),
+            _copy("forge.slip.question_word.repair", language, **fields),
         )
     if slip["category"] in {"person", "person_subject"}:
         return (
@@ -542,6 +628,19 @@ def free_use_acceptable(concept: Any, text: str, accepted: Any = None) -> dict[s
         bad, good = windows
         if _contains(words, bad) and not _contains(words, good):
             return {"acceptable": False, "wrong": " ".join(bad), "right": " ".join(good)}
+    # Walk 14 (A1 day 7): «Où est le image ?» passed the article rule check. The unit's
+    # trap is «le école», a window, so «le image» was not it; the model-free rule pass
+    # names the missing elision. A grammar edit of the rules (severity 2: not a lone
+    # accent or apostrophe, left to the item's accent policy) refuses the sentence,
+    # as :func:`held_to_the_rules` does for a model's «right».
+    from app.services import correction_contract
+
+    try:
+        edits = [edit for edit in correction_contract.deterministic_edits(text) if edit.severity >= 2]
+    except Exception:  # pragma: no cover - the rules are a check, never a crash
+        edits = []
+    if edits:
+        return {"acceptable": False, "wrong": edits[0].span, "right": edits[0].replacement}
     return {"acceptable": True, "wrong": None, "right": None}
 
 
@@ -1433,6 +1532,7 @@ __all__ = [
     "same_answer",
     "similarity",
     "slip_category",
+    "asks_a_question",
     "slip_kind",
     "slip_note",
     "strip_accents",

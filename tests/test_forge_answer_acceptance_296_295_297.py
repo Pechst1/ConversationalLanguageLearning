@@ -156,7 +156,7 @@ def test_every_they_and_you_item_lists_the_other_person_or_names_its_own():
         words = {word for sentence in item.accepted for word in re.findall(r"[\wÀ-ÿ]+", sentence.casefold())}
         if sibling in words:
             listed += 1
-        elif re.search(r"\((?:informal|formal or plural|m\.|f\.)\)", item.en):
+        elif re.search(r"\((?:informal|formal or plural|m\.|f\.|plural|a woman|a man)\)", item.en):  # #926: «you (plural)», «you (a woman)»
             named += 1
         else:
             missing.append((item.sentence, item.en, sibling))
