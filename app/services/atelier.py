@@ -858,6 +858,17 @@ def repair_line_from_parts(learner: str, errata: list[dict[str, Any]] | None) ->
 _PARENTHETICAL = re.compile(r"\s*\([^()]*\)")
 
 
+def _without_asides(text: str) -> str:
+    """A gap item's prompt without what stands in brackets, which is never the line:
+    the bank's gloss after the French, which can hold its own («(You (informal) are
+    ill.)», so innermost first), or a cue beside the gap («(descendre)»)."""
+
+    removed = 1
+    while removed:
+        text, removed = _PARENTHETICAL.subn("", text)
+    return text
+
+
 def repair_line_with_spans(
     learner: str, errata: list[dict[str, Any]] | None
 ) -> tuple[str, dict[int, tuple[int, int]]] | None:
@@ -5018,17 +5029,12 @@ class AtelierCorrectionService:
 
         A gap's key and the learner's text are only what stands in the gap («tu as
         écrit»), while «Copy the correction» asks for the corrected line. The line
-        is the item's prompt («L'été dernier, ___ un article.») without what stands
-        in brackets: the bank's gloss after the French, which can hold its own
-        («(You (informal) are ill.)», so innermost first), or a cue beside the gap
-        («(descendre)»). ``None`` when the item prints no gap.
+        is the item's prompt («L'été dernier, ___ un article.») without its
+        bracketed asides (:func:`_without_asides`). ``None`` when the item prints
+        no gap.
         """
 
-        prompt = str(cls._keyed_repair_item(attempt, erratum).get("prompt") or "")
-        removed = 1
-        while removed:
-            prompt, removed = _PARENTHETICAL.subn("", prompt)
-        prompt = " ".join(prompt.split())
+        prompt = " ".join(_without_asides(str(cls._keyed_repair_item(attempt, erratum).get("prompt") or "")).split())
         return prompt if BLANK_RE.search(prompt) else None
 
     @staticmethod
@@ -8864,10 +8870,10 @@ class AtelierSRSService:
             if attempt.round == "transform":
                 key = str(item.get("expected_answer") or "")
             elif attempt.mode == "fill":
-                blank = str(item.get("prompt") or "")
+                blank = _without_asides(str(item.get("prompt") or ""))
                 answer = (learner if right and learner else "") or str(item.get("correct_answer") or "")
                 if BLANK_RE.search(blank) and answer:
-                    key = re.sub(r"\s*\([^)]*\)\s*$", "", fill_blank(blank, answer))
+                    key = fill_blank(blank, answer)
             elif attempt.mode == "word_bank":
                 key = (learner if right and len(learner.split()) >= 2 else "") or str(item.get("correct_answer") or "")
             elif item.get("classify_kind") == "minimal_pair":
