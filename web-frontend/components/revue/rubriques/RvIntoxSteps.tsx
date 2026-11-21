@@ -91,7 +91,7 @@ export function RvIntoxRound(props: IntoxStepProps) {
                 <Struck textFr={card.text.fr} wrongFr={card.wrongFr} />
               </p>
             ) : (
-              <FrLine text={card.text} props={props} className="rb-line__fr rb-card__fr" />
+              <FrLine text={card.text} props={props} className="rb-line__fr rb-card__fr" inSet />
             )}
             {card.answer && (
               <div className="ct-fb rb-verdict" data-correct={card.correct ? '' : undefined} data-ct-anchor="nearest">

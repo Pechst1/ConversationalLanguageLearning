@@ -65,11 +65,17 @@ export function seedOf(text: string): number {
  * The tilt of a stamp or a pasted cutting, in degrees: seeded by what it is stamped on, so the
  * same slip always lands the same way, between −max and +max and never flat (|tilt| ≥ 1).
  */
-export function tilt(seed: string, max = 4): number {
+export function tilt(seed: string, max = 4, min = 1): number {
   const unit = (seedOf(seed) % 1000) / 999; // 0..1
   const raw = -max + unit * 2 * max;
-  const away = Math.abs(raw) < 1 ? (raw < 0 ? -1 : 1) : raw;
+  const floor = Math.min(min, max);
+  const away = Math.abs(raw) < floor ? (raw < 0 ? -floor : floor) : raw;
   return Math.round(away * 10) / 10;
+}
+
+/** A stamp's tilt: clearly rotated (2.5° to 4°, either way), the same for the same slip. */
+export function stampTilt(seed: string): number {
+  return tilt(seed, 4, 2.5);
 }
 
 /**
@@ -96,19 +102,29 @@ export function wavePath(seed: string, chars: number): { d: string; width: numbe
 }
 
 /**
- * The grease-pencil loop around a chosen headline: an ellipse drawn by hand — it starts a
- * little past the left, goes round once and overshoots its start — in a 100 × 40 box,
- * stretched to the proof (`preserveAspectRatio="none"`, `vector-effect: non-scaling-stroke`).
+ * The grease-pencil loop round a chosen headline: a rounded rectangle drawn by hand round the
+ * text block, in a 100 × 40 box stretched over the block and its padding. Its corners are
+ * round enough that the text's own corners stay inside, so it never crosses a letter; it starts
+ * on the top edge and overshoots its start a little, as a pencil does.
  */
 export function pencilLoop(seed: string): string {
-  const jitter = (n: number) => ((seedOf(`${seed}:${n}`) % 100) / 100 - 0.5) * 2; // −1..1
-  const a = 3 + jitter(1);
-  const b = 2 + jitter(2);
+  const j = (n: number) => ((seedOf(`${seed}:${n}`) % 100) / 100 - 0.5) * 1.2; // −0.6..0.6
+  const f = (n: number) => n.toFixed(1);
+  const top = 1.2 + j(1);
+  const bottom = 38.8 + j(2);
+  const left = 0.8 + Math.abs(j(3));
+  const right = 99.2 - Math.abs(j(4));
   return [
-    `M${(12 + jitter(3)).toFixed(1)} ${(6 + b).toFixed(1)}`,
-    `C${(40).toFixed(1)} ${(1 + jitter(4)).toFixed(1)} ${(92 + a).toFixed(1)} ${(1 + jitter(5)).toFixed(1)} ${(97 + jitter(6)).toFixed(1)} ${(18 + jitter(7)).toFixed(1)}`,
-    `C${(99).toFixed(1)} ${(33 + jitter(8)).toFixed(1)} ${(56).toFixed(1)} ${(39 + jitter(9)).toFixed(1)} ${(22).toFixed(1)} ${(37 + jitter(10)).toFixed(1)}`,
-    `C${(1 + jitter(11)).toFixed(1)} ${(35).toFixed(1)} ${(0.5).toFixed(1)} ${(14 + jitter(12)).toFixed(1)} ${(20 + a).toFixed(1)} ${(4 + jitter(13)).toFixed(1)}`,
+    `M${f(44 + j(5) * 3)} ${f(top)}`,
+    `L${f(right - 7)} ${f(top)}`,
+    `Q${f(right)} ${f(top)} ${f(right)} ${f(top + 12)}`,
+    `L${f(right + j(6) * 0.5)} ${f(bottom - 12)}`,
+    `Q${f(right)} ${f(bottom)} ${f(right - 7)} ${f(bottom)}`,
+    `L${f(left + 7)} ${f(bottom + j(7) * 0.5)}`,
+    `Q${f(left)} ${f(bottom)} ${f(left)} ${f(bottom - 12)}`,
+    `L${f(left + j(8) * 0.5)} ${f(top + 12)}`,
+    `Q${f(left)} ${f(top)} ${f(left + 7)} ${f(top)}`,
+    `L${f(51 + j(5) * 3)} ${f(top - 0.3)}`,
   ].join(' ');
 }
 
@@ -133,9 +149,11 @@ export function bylineFr(proof: RvComptoirProof | null | undefined, tiles = fals
  */
 export function dropCap(text: string): { cap: string; rest: string } | null {
   const trimmed = (text || '').trim();
+  const isLetter = (c: string) => Boolean(c) && c.toLowerCase() !== c.toUpperCase();
   const first = trimmed.charAt(0);
-  // A letter has a case (Latin, accented): the cap is that letter, the rest follows it.
-  if (!first || first.toLowerCase() === first.toUpperCase()) return null;
+  // A cap only when the next character is a letter too: «D'abord», «L'été» or «À 8 h» would
+  // strand an apostrophe or a space beside the cap, so those leads are set without one.
+  if (!isLetter(first) || !isLetter(trimmed.charAt(1))) return null;
   return { cap: first, rest: trimmed.slice(1) };
 }
 
@@ -177,8 +195,14 @@ export function pagePicture(
   sceneFr: string | null | undefined,
   defaultCredit: string,
 ): { url: string; captionFr: string | null; creditFr: string } | null {
-  if (!stage || !stage.plateUrl || stage.plateKind !== 'story') return null;
-  const own = (stage.pictures ?? []).find((picture) => picture.url === stage.plateUrl) ?? null;
-  const caption = (own?.captionFr ?? '').trim() || (sceneFr ?? '').trim() || null;
-  return { url: stage.plateUrl, captionFr: caption, creditFr: own?.creditFr || defaultCredit };
+  if (!stage) return null;
+  const pictures = stage.pictures ?? [];
+  // The story's lead picture: its own painted plate, else the first of its pictures (a photo);
+  // a season plate is the place's, not the story's.
+  const own = stage.plateUrl && stage.plateKind === 'story' ? (pictures.find((picture) => picture.url === stage.plateUrl) ?? null) : null;
+  const lead = own ?? pictures[0] ?? null;
+  const url = own ? (stage.plateUrl as string) : lead?.url ?? (stage.plateKind === 'story' ? stage.plateUrl : null);
+  if (!url) return null;
+  const caption = (lead?.captionFr ?? '').trim() || (sceneFr ?? '').trim() || null;
+  return { url, captionFr: caption, creditFr: lead?.creditFr || defaultCredit };
 }

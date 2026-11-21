@@ -191,9 +191,10 @@ test('«Le titre» A1 (en): the trap names the true words after a miss, then the
 
   html = screen('titre_a1_page');
   text = visibleText(html);
-  assert.match(text, /Le titre de Romy/);
+  // «La belle édition»: the kicker says the headline is the learner's; the sources are a short list.
+  assert.match(text, /Your headline/);
   assert.match(text, /La Fête de la musique est gratuite/);
-  assert.match(text, /Romy Tremblay, avec toi · d'après Ministère de la Culture .* · Dans le journal/);
+  assert.match(text, /Romy Tremblay, avec toi d'après Ministère de la Culture/);
   assert.ok(footButtons(html) <= 2);
 });
 

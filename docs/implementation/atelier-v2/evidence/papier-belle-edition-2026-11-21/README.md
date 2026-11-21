@@ -69,11 +69,46 @@ deviceScaleFactor 2, every screen in the light and the dark theme (`-dark`). The
 - A tilt on the counter's notes: legibility first; only stamps and cuttings are off true.
 - The scene line in the page kicker («LE FIL DE ROMY · UNE SALLE D'EXAMEN…»): too long in capitals; it is the deck.
 
+## Round 2 (art direction, 21 Nov) — what changed
+
+All `-after` files were retaken after these changes (light and dark); `-before` files are unchanged.
+
+1. **Head air.** `HEAD_AIR` = 12 px in the players' scroll (`comptoir/scroll.ts`), `scroll-padding-top` on the page,
+   «Le fil» now opens each screen at its top as the others do, and La page no longer anchors itself (it opens the
+   screen; Romy's thanks follow it). Guarded in the browser check: every screen as it opens is at scroll 0 with its
+   first line ≥ head + 12 px, and every anchored part after an act ≥ head + 12 px — no violation in the last runs.
+2. **Translations quiet.** One «Tout traduire / Alles übersetzen / Translate all» text control in the section head for
+   sets (the wire's strips, the three proofs, the statements); per-item and Romy's «Anhören / Übersetzen» are text
+   links. Every one keeps a 44 px tap area (::after).
+3. **No long tracked capitals.** Credits, cutting footers and La page's sources are the small sans in sentence case,
+   the sources a short list.
+4. **One masthead on La page.** The head shows × and the folio only.
+5. **The picture on La page**, in a press frame under the standfirst, with caption and credit: the story's own plate,
+   else its first picture; with none, the scene line becomes the deck (no hole).
+6. **«Ton titre / Dein Titel / Your headline»** over the learner's headline (`papierCopy.page_kicker_mine`). The dev
+   mock now marks the headline's agreement slips («gratuit», «musicien»), so it prints corrected text.
+7. **La page on a phone:** one column, no hyphenation, `text-wrap: pretty`; the Lexique a ruled full-width box with
+   two columns of words; the side-by-side layout from 600 px. No drop cap when the second character is not a letter.
+8. **The vignette** after a ruled break, with bottom scroll padding.
+9. **The tape:** slug and text, a folio numeral in the margin (still the 44 px swap control), one move row (grip, ↑, ↓,
+   each 44 px), ≈ 84 px for a one-line dispatch; feed holes painted (paper dot, ring) so they show in both themes.
+10. **Selection** is a lift and an ink hairline; the pink is only for a strip the check named.
+11. **Loop** hugs the text block (`width: fit-content`, rounded corners that keep the letters inside); **strike** is one
+    clean corner-to-corner slash across the refused proof.
+12. **Stamp** about twice the size, over the slip's top-right corner, tilt 2.5–4°; «INTOX» uses the deep red on light
+    and the bright red on dark, as strong as «VRAI».
+13. **Chooser:** the other stories are teasers of the same edition (topic kicker, headline, standfirst, plate).
+14. **Home's Une card:** `mock-une-*` (dev mock `?mock=1&une=1`, the card as La Une prints it, its real word budget):
+    «Édition du jour · Nº 40» now outranks the topic line, «Nº 40» alone when a long question leaves no room.
+
+`walk-*` were retaken on the walk stack after round 2 (A1 de: counter, wire; A2 de: counter, intox; B1 en: titre,
+wire). Their La page sources were captured just before the sentence-case fix of the sources list (the mock pages
+show it).
+
 ## Not done / not seen
 
-- Home's Une hero only shows on the planner's Revue day; on a first-day walk learner the route trick of 20 Nov did not
-  bring it, so no new Home screenshot. The card's change (the edition line «Édition du jour · Nº 47» in the week
-  label's place in WP-81's budget, the square teaser, the small-caps kicker) is covered by `revue-render` and
-  `p9-rooms` tests only.
+- Home itself on the Revue day was not reached on the walk stack (a first-day learner never gets the Revue day); the
+  card is shown through the dev mock instead (`mock-une-*`).
+- The walk's FAKE proofreader passed «Fête est gratuit pour les musicien amateurs» as clean, so `walk-b1en-t-5-page`
+  prints it under «relu par Romy»: the page says what the server's proof state says; the real proofreader is the fix.
 - No dossier carries a dispatch time: the slug is the strip's letter.
-- B1's «Corrige» stamp and the comptoir B1 walk after the intox were not retaken on the stack (the walker stopped there).

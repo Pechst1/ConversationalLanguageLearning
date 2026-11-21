@@ -9,6 +9,7 @@
 import React from 'react';
 
 import { Action, ArrowRightIcon } from '@/components/atelier-v2/ui';
+import { resolveMediaUrl } from '@/lib/media-url';
 import type { RvMatchResult, RvStoryCard, RvWeek } from '@/lib/revue-types';
 
 import { COMPTOIR_FR } from './comptoir/comptoir-copy';
@@ -17,7 +18,7 @@ import { PpOpening } from './papier/PapierPrint';
 import type { RevueCopy } from './revue-copy';
 import { RvStage, stageCast } from './RvStage';
 import { RvComptoirFaces } from './RvUneCard';
-import { RvAltRows, RvAsk } from './RvSubjectSheet';
+import { RvAsk } from './RvSubjectSheet';
 
 export type RvChooserProps = {
   recommended: RvStoryCard;
@@ -35,6 +36,41 @@ function todayIso(): string {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+/**
+ * «La belle édition»: the other stories of the edition, set as teasers like the lead, smaller —
+ * the kicker (the topic), the headline, one line of standfirst, the picture at the right.
+ */
+function PpAltTeasers({ stories, onPick, copy }: { stories: RvStoryCard[]; onPick: (dossierId: string) => void; copy: RevueCopy }) {
+  if (!stories.length) return null;
+  return (
+    <ul className="pp-alts">
+      {stories.map((story) => {
+        const plate = story.plateUrl ?? story.stage.plateUrl;
+        const src = plate ? resolveMediaUrl(plate) ?? plate : null;
+        return (
+          <li key={story.dossierId}>
+            <button type="button" className="pp-alt rv-alt" data-dossier={story.dossierId} onClick={() => onPick(story.dossierId)}>
+              <span>
+                <span className="pp-alt__kicker">{story.evergreen ? copy.evergreen_topic : copy.topic[story.topic]}</span>
+                <span className="pp-alt__hl" lang="fr">
+                  {story.titleFr}
+                </span>
+                <span className="pp-alt__stand" lang="fr">
+                  {story.summaryFr || story.placeFr}
+                </span>
+              </span>
+              <span className="pp-alt__pic" aria-hidden="true">
+                {/* eslint-disable-next-line @next/next/no-img-element -- a painted plate, already sized */}
+                {src && <img src={src} alt="" loading="lazy" decoding="async" />}
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
 }
 
 export function RvChooser({ recommended, alternatives, week, onPick, onAsk, pending = false, copy }: RvChooserProps) {
@@ -84,8 +120,8 @@ export function RvChooser({ recommended, alternatives, week, onPick, onAsk, pend
           </div>
         </div>
       </article>
-      {alternatives.length > 0 && <p className="av2-label">{copy.or_else}</p>}
-      <RvAltRows stories={alternatives} onPick={(id) => onPick(id)} copy={copy} />
+      {alternatives.length > 0 && <p className="pp-alts__k">{copy.or_else}</p>}
+      <PpAltTeasers stories={alternatives} onPick={(id) => onPick(id)} copy={copy} />
       <RvAsk onAsk={onAsk} onPick={(id) => onPick(id)} copy={copy} />
     </div>
   );

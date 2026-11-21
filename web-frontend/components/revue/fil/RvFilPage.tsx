@@ -48,8 +48,8 @@ export function FilClipping({
       headline={page.titleFr}
       still={still}
     >
-      {picture && <PpFigure picture={picture} ratio="page" />}
       <PpMine textFr={page.mineFr} byline={bylineFr(page.proof, tiles)} still={still} lead />
+      {picture && <PpFigure picture={picture} ratio="page" />}
       <PpFrontCols words={page.words} wordsLabel={ccopy.page_words}>
         <p className="pp-front__section" lang="fr">
           {FIL_FR.name}
@@ -74,7 +74,6 @@ export function RvFilPage({ props, ended, onExit, onReleve }: { props: FilStepPr
   return (
     <>
       <div className="rv-body ct-body" data-step="page">
-        {closing && !ended && closing.romyLineFr && <RomyLine line={{ fr: closing.romyLineFr, tr: null }} props={props} />}
         {page ? (
           <FilClipping
             page={page}
@@ -87,6 +86,8 @@ export function RvFilPage({ props, ended, onExit, onReleve }: { props: FilStepPr
         ) : (
           closing && <RvDispatch {...closing.dispatch} readOnly copy={copy} />
         )}
+        {/* «La belle édition»: the front page opens the screen; Romy's thanks follow it. */}
+        {closing && !ended && closing.romyLineFr && <RomyLine line={{ fr: closing.romyLineFr, tr: null }} props={props} />}
         {closing?.vignette && <RvCloseVignette vignette={closing.vignette} week={session.week.label} stamping={!ended} copy={copy} />}
         {closing && (
           <p className="rv-colophon" lang="fr">

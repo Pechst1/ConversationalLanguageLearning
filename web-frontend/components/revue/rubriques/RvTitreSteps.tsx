@@ -87,6 +87,7 @@ export function RvTitreThree(props: TitreStepProps) {
                     text={headline.text}
                     props={props}
                     className="fl-strip__fr rb-headline"
+                    inSet
                     overlay={
                       // The learner's grease pencil round the proof they pick (and round the honest one
                       // once the loop has settled it); a refused proof is struck. Never before the loop says so.

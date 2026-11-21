@@ -13,7 +13,7 @@ import React from 'react';
 import { Action } from '@/components/atelier-v2/ui';
 import type { RvIntoxPage, RvTitrePage } from '@/lib/revue-rubriques-types';
 
-import { inPaperLabel, type ComptoirCopy } from '../comptoir/comptoir-copy';
+import type { ComptoirCopy } from '../comptoir/comptoir-copy';
 import { RomyLine } from '../comptoir/RvComptoirParts';
 import { fill } from '../revue-copy';
 import { RvCloseVignette, RvDispatch } from '../RvClose';
@@ -49,27 +49,35 @@ export function TitreClipping({
   edition = null,
   picture = null,
   still = false,
+  language = 'fr',
 }: { page: RvTitrePage; ccopy: ComptoirCopy; tiles?: boolean; byline?: string | null } & PageExtras) {
-  // «La belle édition»: the learner's headline is the page's headline, signed under it in red
-  // small caps; the story runs as its lead with a drop cap, Romy's byline and sources at its foot.
+  // «La belle édition»: the learner's headline is the page's headline — the kicker says it is
+  // theirs — signed under it in red small caps by how it reached print; the story runs as its
+  // standfirst with a drop cap, then its picture, then Romy's credit and sources as a short list.
   return (
-    <PpFrontPage
-      className="rb-clip"
-      edition={edition}
-      kicker={TITRE_FR.page_kicker}
-      deck={picture ? null : page.datelineFr || null}
-      headline={page.headlineFr}
-      still={still}
-    >
+    <PpFrontPage className="rb-clip" edition={edition} kicker={papierCopy(language).page_kicker_mine} headline={page.headlineFr} deck={picture ? null : page.datelineFr || null} still={still}>
       <PpByline text={bylineFr(page.proof, tiles)} still={still} />
+      <PpLead text={page.leadFr} />
       {picture && <PpFigure picture={picture} ratio="page" />}
-      <PpFrontCols words={page.words} wordsLabel={ccopy.page_words}>
-        <PpLead text={page.leadFr} />
-      </PpFrontCols>
-      <p className="ct-quote__by pp-front__sources" lang="fr">
-        {bylineOf(byline, TITRE_FR.byline)} · {inPaperLabel(page.proof ?? 'as_written', tiles)}
-      </p>
+      <Sources text={bylineOf(byline, TITRE_FR.byline)} />
+      <PpFrontCols words={page.words} wordsLabel={ccopy.page_words} />
     </PpFrontPage>
+  );
+}
+
+/** Romy's credit and the sources, one per line, in the small sans (never a block of capitals). */
+function Sources({ text }: { text: string | null | undefined }) {
+  const parts = (text ?? '')
+    .split(/\s+·\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (!parts.length) return null;
+  return (
+    <ul className="ct-quote__by pp-front__sources" lang="fr">
+      {parts.map((part, index) => (
+        <li key={index}>{part}</li>
+      ))}
+    </ul>
   );
 }
 
@@ -121,11 +129,7 @@ export function IntoxClipping({ page, ccopy, byline, edition = null, picture = n
         </p>
         <PpByline text={INTOX_BYLINE_FR} still={still} />
       </PpFrontCols>
-      {byline && (
-        <p className="ct-quote__by pp-front__sources" lang="fr">
-          {byline}
-        </p>
-      )}
+      <Sources text={byline} />
     </PpFrontPage>
   );
 }
@@ -156,8 +160,9 @@ export function RvRubriquePage({
   return (
     <>
       <div className="rv-body ct-body" data-step="page">
-        {closing && !ended && closing.romyLineFr && <RomyLine line={{ fr: closing.romyLineFr, tr: null }} props={props} />}
         {clipping}
+        {/* «La belle édition»: the front page opens the screen; Romy's thanks follow it. */}
+        {closing && !ended && closing.romyLineFr && <RomyLine line={{ fr: closing.romyLineFr, tr: null }} props={props} />}
         {closing?.vignette && <RvCloseVignette vignette={closing.vignette} week={session.week.label} stamping={!ended} copy={copy} />}
         {closing && (
           <p className="rv-colophon" lang="fr">

@@ -19,6 +19,7 @@ import { RvGallery } from '../RvGallery';
 import { RvGlossText, RvSourceLine, RvTranslate, type RvWordEvent } from '../RvThread';
 import type { RubriqueCopy } from './rubriques-copy';
 import { tilt } from '../papier/papier-model';
+import { PpItemTranslation } from '../papier/PapierPrint';
 import { settledSegments } from './rubriques-model';
 
 /** What each screen is given by `RvRubrique`. */
@@ -45,7 +46,20 @@ export type TitreStepProps = RubriqueStepProps & { view: RvTitreView };
 export type IntoxStepProps = RubriqueStepProps & { view: RvIntoxView };
 
 /** A French line, every word tappable, with «Traduire». */
-export function FrLine({ text, props, className = 'rb-line__fr', overlay = null }: { text: RvComptoirText; props: RubriqueStepProps; className?: string; overlay?: React.ReactNode }) {
+export function FrLine({
+  text,
+  props,
+  className = 'rb-line__fr',
+  overlay = null,
+  inSet = false,
+}: {
+  text: RvComptoirText;
+  props: RubriqueStepProps;
+  className?: string;
+  overlay?: React.ReactNode;
+  /** One of a set (the proofs, the statements): its translation comes with the set's one toggle. */
+  inSet?: boolean;
+}) {
   const { glosses, glossLanguage, copy, wordFor } = props;
   return (
     <div className="rb-line">
@@ -54,7 +68,11 @@ export function FrLine({ text, props, className = 'rb-line__fr', overlay = null 
         {/* «La belle édition»: a proofreader's mark over the line (the grease-pencil loop, a strike). */}
         {overlay}
       </p>
-      <RvTranslate textFr={text.fr} translation={text.tr} glossLanguage={glossLanguage} copy={copy} />
+      {inSet ? (
+        <PpItemTranslation textFr={text.fr} translation={text.tr} language={glossLanguage} />
+      ) : (
+        <RvTranslate textFr={text.fr} translation={text.tr} glossLanguage={glossLanguage} copy={copy} />
+      )}
     </div>
   );
 }

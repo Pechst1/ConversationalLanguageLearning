@@ -154,7 +154,6 @@ export function RvComptoirPage({
   return (
     <>
       <div className="rv-body ct-body" data-step="page">
-        {closing && !ended && closing.romyLineFr && <RomyLine line={{ fr: closing.romyLineFr, tr: null }} props={props} />}
         {page ? (
           <ComptoirClipping
             page={page}
@@ -166,6 +165,8 @@ export function RvComptoirPage({
         ) : (
           closing && <RvDispatch {...closing.dispatch} readOnly copy={copy as RevueCopy} />
         )}
+        {/* «La belle édition»: the front page opens the screen; Romy's thanks follow it. */}
+        {closing && !ended && closing.romyLineFr && <RomyLine line={{ fr: closing.romyLineFr, tr: null }} props={props} />}
         {closing?.vignette && <RvCloseVignette vignette={closing.vignette} week={session.week.label} stamping={!ended} copy={copy} />}
         {closing && (
           <p className="rv-colophon" lang="fr">

@@ -44,6 +44,11 @@ export type PapierCopy = {
   tape_joined: string;
   /** Romy's margin note on a slip, for a screen reader. */
   margin_note: string;
+  /** The set's one translation toggle (strips, proofs, statements). */
+  translate_all: string;
+  translate_all_hide: string;
+  /** The kicker over the learner's own headline on «La page». */
+  page_kicker_mine: string;
 };
 
 const FR: PapierCopy = {
@@ -58,6 +63,9 @@ const FR: PapierCopy = {
   lifted: 'Dépêche {n} soulevée : touche une autre dépêche pour les échanger.',
   tape_joined: 'Les dépêches forment un seul fil.',
   margin_note: 'Note de Romy',
+  translate_all: 'Tout traduire',
+  translate_all_hide: 'Masquer les traductions',
+  page_kicker_mine: 'Ton titre',
 };
 
 const DE: PapierCopy = {
@@ -72,6 +80,9 @@ const DE: PapierCopy = {
   lifted: 'Meldung {n} angehoben: Tippe eine andere Meldung, um sie zu tauschen.',
   tape_joined: 'Die Meldungen ergeben einen Faden.',
   margin_note: 'Romys Randnotiz',
+  translate_all: 'Alles übersetzen',
+  translate_all_hide: 'Übersetzungen ausblenden',
+  page_kicker_mine: 'Dein Titel',
 };
 
 const EN: PapierCopy = {
@@ -86,6 +97,9 @@ const EN: PapierCopy = {
   lifted: 'Dispatch {n} picked up: tap another dispatch to swap them.',
   tape_joined: 'The dispatches make one wire.',
   margin_note: "Romy's margin note",
+  translate_all: 'Translate all',
+  translate_all_hide: 'Hide translations',
+  page_kicker_mine: 'Your headline',
 };
 
 export const PAPIER_COPY: Record<RvLanguage, PapierCopy> = { fr: FR, de: DE, en: EN };

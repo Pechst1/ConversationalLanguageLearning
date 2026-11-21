@@ -37,11 +37,15 @@ export function anchorDelta(top: number, bottom: number, bandTop: number, bandBo
 }
 
 /** Brings `node` into the band between the sticky head and the sticky foot. */
+/** The air kept between the sticky head's rule and the first line brought into view. */
+export const HEAD_AIR = 12;
+
 export function bringIntoView(node: HTMLElement, head: HTMLElement | null, foot: HTMLElement | null, block: 'start' | 'nearest') {
   const scroller = scrollerOf(node);
   if (!scroller) return;
   const rect = node.getBoundingClientRect();
-  const top = (head?.getBoundingClientRect().bottom ?? 0) + 8;
+  // 12 px of air under the head's rule (2026-11-21): an anchor never sits against it.
+  const top = (head?.getBoundingClientRect().bottom ?? 0) + HEAD_AIR;
   const bottom = (foot?.getBoundingClientRect().top ?? window.innerHeight) - 12;
   const delta = anchorDelta(rect.top, rect.bottom, top, bottom, block);
   if (!delta) return;

@@ -74,7 +74,9 @@ test('a stamp lands the same way every time, tilted between −4° and 4°, neve
 
 test('the grease-pencil loop and the wavy rule are drawn by hand, the same for the same seed', () => {
   const loop = model.pencilLoop('s1:b');
-  assert.match(loop, /^M[\d.]+ [\d.]+ C/);
+  assert.match(loop, /^M[\d.]+ [\d.]+ L/);
+  // It hugs the block: no point inside the text's own box (x 5…95, y 6…34 of the 100 × 40 frame).
+  for (const [, x, y] of loop.matchAll(/([\d.]+) ([\d.]+)/g)) assert.ok(Number(x) < 8 || Number(x) > 92 || Number(y) < 3 || Number(y) > 37, `${x} ${y}`);
   assert.equal(model.pencilLoop('s1:b'), loop);
   assert.notEqual(model.pencilLoop('s1:c'), loop);
   const wave = model.wavePath('content', 7);
@@ -86,7 +88,9 @@ test('the grease-pencil loop and the wavy rule are drawn by hand, the same for t
 
 test('the drop cap takes the first letter; the byline says how the piece reached print', () => {
   assert.deepEqual(model.dropCap('Le 21 juin, des musiciens'), { cap: 'L', rest: 'e 21 juin, des musiciens' });
-  assert.deepEqual(model.dropCap('  À partir de 2027'), { cap: 'À', rest: ' partir de 2027' });
+  assert.deepEqual(model.dropCap('Élèves et parents'), { cap: 'É', rest: 'lèves et parents' });
+  assert.equal(model.dropCap('  À partir de 2027'), null, 'a one-letter word would strand a space');
+  assert.equal(model.dropCap("D'abord, le bac"), null, 'an apostrophe never strands beside the cap');
   assert.equal(model.dropCap('« Oui »'), null, 'a quote keeps its guillemet');
   assert.equal(model.dropCap('2027 : le bac'), null);
   assert.equal(model.dropCap(''), null);
@@ -111,7 +115,9 @@ test('the page prints the story’s own picture with its credit, never a season 
     pictures: [{ url: '/media/p.png', captionFr: null, creditFr: 'Illustration · Le Papier' }],
   };
   assert.deepEqual(model.pagePicture(stage, 'Une salle d’examen', 'X'), { url: '/media/p.png', captionFr: 'Une salle d’examen', creditFr: 'Illustration · Le Papier' });
-  assert.equal(model.pagePicture({ ...stage, plateKind: 'season' }, 'x', 'X'), null);
+  // A season plate is the place's: the story's own first picture leads instead, else nothing.
+  assert.equal(model.pagePicture({ ...stage, plateKind: 'season', pictures: [{ url: '/m/photo.jpg', captionFr: 'Le kiosque', creditFr: 'Photo · A · CC BY' }] }, 'x', 'X').url, '/m/photo.jpg');
+  assert.equal(model.pagePicture({ ...stage, plateKind: 'season', pictures: [] }, 'x', 'X'), null);
   assert.equal(model.pagePicture({ ...stage, pictures: [] }, null, 'Illustration · Le Papier').creditFr, 'Illustration · Le Papier');
 });
 
@@ -162,7 +168,8 @@ test('the front page: masthead, dateline, kicker, headline, the signed piece, th
       h(print.PpFrontCols, { words: ['le bac', 'la session'], wordsLabel: 'Les mots gardés' }, h('p', null, 'Le fil')),
     ),
   );
-  assert.match(html, /^<article class="ct-clip" data-pp-front="" data-ct-anchor="start">/);
+  // It opens the screen at its top (Romy's thanks follow it): no anchor scrolls it under the head.
+  assert.match(html, /^<article class="ct-clip" data-pp-front="">/);
   const text = visibleText(html);
   assert.ok(text.startsWith('Le Papier Paris · vendredi 20 novembre · Nº 47 Le fil de Romy Le bac Une salle d’examen'), text);
   assert.match(html, /<span class="pp-cap" aria-hidden="true">T<\/span><span class="av2-sr">T<\/span>out d’abord/, 'a drop cap, read whole');
@@ -185,7 +192,11 @@ test('the head: the masthead, the folio and the progress bar the players had', (
   assert.match(html, /<p class="pp-head__mast" lang="fr" aria-hidden="true">Le Papier<\/p>/);
   assert.match(html, /class="pp-folio" aria-hidden="true"><span class="pp-folio__n">2<\/span>/);
   assert.match(html, /role="progressbar"[^>]*aria-valuenow="2"/);
-  assert.match(html, /<header class="pp-section"><p class="pp-section__line" lang="fr"><span class="pp-section__name">Le titre<\/span><span class="pp-section__step">Trois titres<\/span>/);
+  assert.match(html, /<header class="pp-section"><div class="pp-section__row"><p class="pp-section__line" lang="fr"><span class="pp-section__name">Le titre<\/span><span class="pp-section__step">Trois titres<\/span><\/p><button type="button" class="pp-link pp-translate-all" aria-pressed="false">Translate all<\/button>/);
+  // One quiet translation for the set: no «Translate» button on any of the three proofs.
+  const proofs = html.slice(html.indexOf('rb-heads'), html.indexOf('</ol>', html.indexOf('rb-heads')));
+  // (a refused proof's cutting, «Fait», keeps its own quiet link)
+  assert.equal((proofs.match(/class="rv-line__tools"/g) || []).length, (proofs.match(/class="rv-claim"/g) || []).length);
 });
 
 test('no stamp before the answer, no loop before a pick: the marks wait for the loop', () => {
@@ -238,5 +249,14 @@ test('the stylesheet: tokens only, every movement ≤ 300 ms and none under redu
   for (const selector of ['.pp-loop path', '.pp-stamp', '.pp-byline', '.ct-clip[data-pp-front]', '.pp-del path']) assert.ok(reduced.includes(selector), selector);
   // the floors kept: the trap's words and the players' small tools
   assert.match(body, /\.rb-trap__w \{[^}]*min-width: var\(--av2-tap\);[^}]*min-height: 52px;/);
-  assert.match(body, /\.ct-player \.rv-chip::after \{ content: ''; position: absolute; inset: -5px 0; \}/);
+  assert.match(body, /\.ct-player \.rv-chip::after \{ inset: -8px -6px; \}/);
+  assert.match(body, /\.pp-link::after \{ content: ''; position: absolute; inset: -14px -8px; \}/);
+  // long lines are never tracked capitals: the page's sources, the credits, the cutting's footer
+  assert.match(body, /\.ct-clip\[data-pp-front\] \.pp-front__sources \{[^}]*text-transform: none; letter-spacing: 0;/);
+  assert.match(body, /\.pp-figure__credit, \.av2 \.rv-gallery__credit, \.av2 \.ct-pic__credit, \.av2 \.rb-quote__by, \.av2 \.pp-cutting__src, \.av2 \.pp-front__sources \{\s*text-transform: none;/);
+  // the head's air: anchors and the browser's own scrolling stop below it
+  assert.match(body, /html:has\(\.av2\.rv-page\) \{ scroll-padding-top: 96px;/);
+  assert.equal(require('../comptoir/scroll.ts').HEAD_AIR, 12);
+  // the stamp is the event: clearly turned
+  for (let index = 0; index < 100; index += 1) assert.ok(Math.abs(model.stampTilt(`k${index}`)) >= 2.5 && Math.abs(model.stampTilt(`k${index}`)) <= 4);
 });

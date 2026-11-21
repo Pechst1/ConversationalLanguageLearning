@@ -30,7 +30,7 @@ import { fill, type RevueCopy } from '../revue-copy';
 import { RvGallery } from '../RvGallery';
 import { RvGlossText, RvSourceLine, RvTranslate, type RvWordEvent } from '../RvThread';
 import { PAPIER_FR, papierCopy } from '../papier/papier-copy';
-import { useFlip } from '../papier/PapierPrint';
+import { PpItemTranslation, useFlip } from '../papier/PapierPrint';
 import { FIL_FR, FIL_LINES, type FilCopy } from './fil-copy';
 import { allPicked, missText, move, orderHintText, swap } from './fil-model';
 
@@ -111,7 +111,7 @@ export function RvFilRead(props: FilStepProps) {
 // ---------------------------------------------------------------------------
 
 function StripText({ textFr, tr, props, slug }: { textFr: string; tr: string | null; props: FilStepProps; slug?: string }) {
-  const { glosses, glossLanguage, copy, wordFor } = props;
+  const { glosses, glossLanguage, wordFor } = props;
   return (
     <div className="fl-strip__text">
       {/* «La belle édition»: the agency's slug line — the dispatch's own letter (the payload has no time). */}
@@ -123,7 +123,8 @@ function StripText({ textFr, tr, props, slug }: { textFr: string; tr: string | n
       <p className="fl-strip__fr" lang="fr">
         <RvGlossText text={textFr} glosses={glosses} mode="tap" glossLanguage={glossLanguage} onWord={wordFor(null)} />
       </p>
-      <RvTranslate textFr={textFr} translation={tr} glossLanguage={glossLanguage} copy={copy} />
+      {/* One «Tout traduire» for the four dispatches, in the section head (no button per strip). */}
+      <PpItemTranslation textFr={textFr} translation={tr} language={glossLanguage} />
     </div>
   );
 }
@@ -185,6 +186,15 @@ export function RvFilOrder(props: FilStepProps) {
                 <StripText textFr={strip.text.fr} tr={strip.text.tr} props={props} slug={key.toUpperCase()} />
                 {!order.resolved && (
                   <span className="fl-strip__moves">
+                    {/* The grip says the strip moves; the arrows move it (no drag). */}
+                    <svg className="pp-grip" width="8" height="14" viewBox="0 0 8 14" aria-hidden="true" focusable="false">
+                      <circle cx="2" cy="2" r="1.2" />
+                      <circle cx="6" cy="2" r="1.2" />
+                      <circle cx="2" cy="7" r="1.2" />
+                      <circle cx="6" cy="7" r="1.2" />
+                      <circle cx="2" cy="12" r="1.2" />
+                      <circle cx="6" cy="12" r="1.2" />
+                    </svg>
                     <IconAction label={fcopy.move_up} disabled={busy || index === 0} onClick={() => setArrangement((current) => move(current, index, -1))}>
                       <span aria-hidden="true">↑</span>
                     </IconAction>

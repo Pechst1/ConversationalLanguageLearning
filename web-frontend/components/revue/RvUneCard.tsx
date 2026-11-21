@@ -102,8 +102,22 @@ export function RvUneCard({ story, week, state, resumeLine = null, filed = null,
   // «La belle édition»: the card is today's front-page teaser; its edition line takes the week
   // label's place in WP-81's budget (dropped the same way when the card is full).
   const n = editionNumber(week.iso);
-  const edition = n ? `${PAPIER_FR.edition_today} · Nº ${n}` : PAPIER_FR.edition_today;
-  const parts = uneCardParts({ title, kicker, week: edition, place: story.placeFr, topic, fixed });
+  const full = n ? `${PAPIER_FR.edition_today} · Nº ${n}` : PAPIER_FR.edition_today;
+  let edition = full;
+  let parts = uneCardParts({ title, kicker, week: full, place: story.placeFr, topic, fixed });
+  if (!parts.showWeek) {
+    // «Édition du jour» outranks the topic line: the card is today's front-page teaser.
+    const noTopic = uneCardParts({ title, kicker, week: full, place: story.placeFr, topic: '', fixed });
+    if (noTopic.showWeek) parts = { ...noTopic, showTopic: false };
+  }
+  if (!parts.showWeek && n) {
+    // A long question: the edition keeps its number («Nº 47») rather than leave the card.
+    const short = uneCardParts({ title, kicker, week: `Nº ${n}`, place: story.placeFr, topic, fixed });
+    if (short.showWeek) {
+      edition = `Nº ${n}`;
+      parts = short;
+    }
+  }
   return (
     <div className="rv-une-hero" data-revue-card={state}>
       <article className="rv-une">

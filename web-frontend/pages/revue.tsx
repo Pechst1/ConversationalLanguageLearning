@@ -17,6 +17,7 @@
                      ?fil=1 turns «Le fil» on («Le bac» leads and plays the wire);
                      ?titre=1 / ?intox=1: «La Fête de la musique» leads and plays
                      «Le titre» / «L'intox express»;
+                     ?une=1 shows Home's Une card instead of the chooser;
                      ?pourquoi=1 gives Romy's marks their rule; ?photos=1 gives every
                      story a `pictures` list of three (placeholders, no network).
 
@@ -35,7 +36,8 @@ import { useRouter } from 'next/router';
 
 import { AtelierV2Root, CastPortrait, CrossIcon, IconAction, Skeleton, StateBlock } from '@/components/atelier-v2/ui';
 import { PpBareHead } from '@/components/revue/papier/PapierPrint';
-import { RvChooser, RvComptoir, RvEncounter, RvFil, RvRubrique, RvSessionHead, RvStage, revueCopy } from '@/components/revue';
+import { RvChooser, RvComptoir, RvEncounter, RvFil, RvRubrique, RvSessionHead, RvStage, RvUneCard, revueCopy } from '@/components/revue';
+import { revueUneState } from '@/components/revue/revue-home';
 import { enterImmersiveSurface } from '@/lib/immersive-surface';
 import { useChromeLanguage } from '@/lib/learner-language';
 import { RevueError, revueClient, type RevueClient } from '@/lib/revue-api';
@@ -240,6 +242,21 @@ export default function RevuePage() {
         readOnly={readOnly}
         onReleve={() => void router.push(`/notebook?mode=releve#revue-${week}`)}
       />
+    );
+  } else if (mock && router.query.une === '1' && state.kind === 'choose' && state.offer.recommended) {
+    // DEV ONLY (`?mock=1&une=1`): Home's Une card as La Une prints it on the Revue day, to be seen
+    // without the planner's day (the card itself, its data and its word budget, are Home's own).
+    body = (
+      <div className="rv-body" data-revue-une-mock="">
+        <RvUneCard
+          story={state.offer.recommended}
+          week={state.offer.week}
+          state={revueUneState(state.offer) ?? 'offer'}
+          onOpen={() => void pick(null)}
+          onOtherSubject={() => undefined}
+          copy={copy}
+        />
+      </div>
     );
   } else if (state.kind === 'choose' && state.offer.recommended && client) {
     body = (

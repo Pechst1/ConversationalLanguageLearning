@@ -23,12 +23,13 @@
  * `.rb-head`, `.rb-card`, `.ct-paper`), so the markup the players' tests read stays as it was.
  */
 
-import React, { useEffect, useLayoutEffect, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { resolveMediaUrl } from '@/lib/media-url';
 
-import { PAPIER_FR } from './papier-copy';
-import { datelineParts, dropCap, editionOf, pencilLoop, tilt } from './papier-model';
+import { knownTranslation, translateOnce } from '../revue-translate';
+import { PAPIER_FR, papierCopy } from './papier-copy';
+import { datelineParts, dropCap, editionOf, pencilLoop, stampTilt, tilt } from './papier-model';
 
 const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
@@ -63,7 +64,7 @@ export function PpDateline({ edition, className = '' }: { edition: PpEdition; cl
 }
 
 /** The masthead at display size, its rule and the dateline: the first screen opens the paper. */
-export function PpOpening({ edition, section, step }: { edition: PpEdition; section: string; step?: string | null }) {
+export function PpOpening({ edition, section, step, tools = null }: { edition: PpEdition; section: string; step?: string | null; tools?: React.ReactNode }) {
   const mastRef = useRef<HTMLParagraphElement | null>(null);
   // Once the masthead at display size has scrolled under the head, the head prints its own.
   useEffect(() => {
@@ -90,27 +91,97 @@ export function PpOpening({ edition, section, step }: { edition: PpEdition; sect
         {PAPIER_FR.masthead}
       </p>
       <PpDateline edition={edition} className="pp-opening__date" />
-      <PpSectionLine section={section} step={step} />
+      <PpSectionLine section={section} step={step} tools={tools} />
     </header>
   );
 }
 
-function PpSectionLine({ section, step }: { section: string; step?: string | null }) {
+function PpSectionLine({ section, step, tools = null }: { section: string; step?: string | null; tools?: React.ReactNode }) {
   return (
-    <p className="pp-section__line" lang="fr">
-      <span className="pp-section__name">{section}</span>
-      {step && <span className="pp-section__step">{step}</span>}
-    </p>
+    <div className="pp-section__row">
+      <p className="pp-section__line" lang="fr">
+        <span className="pp-section__name">{section}</span>
+        {step && <span className="pp-section__step">{step}</span>}
+      </p>
+      {tools}
+    </div>
   );
 }
 
 /** The assignment as a section head; on its opening screen, the masthead and dateline above it. */
-export function PpSection({ edition, section, step, opening = false }: { edition: PpEdition; section: string; step?: string | null; opening?: boolean }) {
-  if (opening) return <PpOpening edition={edition} section={section} step={step} />;
+export function PpSection({
+  edition,
+  section,
+  step,
+  opening = false,
+  tools = null,
+}: {
+  edition: PpEdition;
+  section: string;
+  step?: string | null;
+  opening?: boolean;
+  /** The screen's one quiet tool (the set's «Tout traduire»), at the right of the section head. */
+  tools?: React.ReactNode;
+}) {
+  if (opening) return <PpOpening edition={edition} section={section} step={step} tools={tools} />;
   return (
     <header className="pp-section">
-      <PpSectionLine section={section} step={step} />
+      <PpSectionLine section={section} step={step} tools={tools} />
     </header>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// One quiet translation for a set
+// ---------------------------------------------------------------------------
+
+type TranslateSet = { all: boolean; toggle: () => void };
+const TranslateSetContext = createContext<TranslateSet | null>(null);
+
+/**
+ * A screen whose items are a set (the wire's strips, the three proofs, the statements): one
+ * «Tout traduire» in its section head shows every item's translation at once, instead of a
+ * button on each. Wrap the section head and the screen; `key` it by the screen shown.
+ */
+export function PpTranslateSet({ children }: { children: React.ReactNode }) {
+  const [all, setAll] = useState(false);
+  return <TranslateSetContext.Provider value={{ all, toggle: () => setAll((value) => !value) }}>{children}</TranslateSetContext.Provider>;
+}
+
+/** The set's one toggle: a quiet text control (44 px tall), in the chrome language. */
+export function PpTranslateToggle({ language }: { language: string }) {
+  const set = useContext(TranslateSetContext);
+  if (!set) return null;
+  const copy = papierCopy(language);
+  return (
+    <button type="button" className="pp-link pp-translate-all" aria-pressed={set.all} onClick={set.toggle}>
+      {set.all ? copy.translate_all_hide : copy.translate_all}
+    </button>
+  );
+}
+
+/** An item of a set: its translation, shown while the set's toggle is on (fetched once if the payload has none). */
+export function PpItemTranslation({ textFr, translation = null, language }: { textFr: string; translation?: string | null; language: string }) {
+  const set = useContext(TranslateSetContext);
+  const on = Boolean(set?.all);
+  const supplied = (translation || '').trim() || knownTranslation(textFr, language);
+  const [fetched, setFetched] = useState('');
+  useEffect(() => {
+    if (!on || supplied || fetched || !textFr.trim()) return undefined;
+    let alive = true;
+    translateOnce(textFr, language)
+      .then((text) => alive && setFetched(text))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [on, supplied, fetched, textFr, language]);
+  const text = supplied || fetched;
+  if (!on || !text) return null;
+  return (
+    <p className="rv-translation pp-tr" lang={language}>
+      {text}
+    </p>
   );
 }
 
@@ -160,7 +231,7 @@ export type PpStampProps = {
 };
 
 export function PpStamp({ kind, seed, label, still = false, size = 'md' }: PpStampProps) {
-  const style = { '--pp-tilt': `${tilt(seed)}deg` } as React.CSSProperties;
+  const style = { '--pp-tilt': `${stampTilt(seed)}deg` } as React.CSSProperties;
   return (
     <span className="pp-stamp" data-ink={kind} data-still={still ? '' : undefined} data-size={size} style={style} role="img" aria-label={label}>
       <span className="pp-stamp__ink" lang="fr" aria-hidden="true">
@@ -204,7 +275,7 @@ export function PpStrike({ label }: { label?: string }) {
       aria-hidden={label ? undefined : true}
       focusable="false"
     >
-      <path d="M3 86 C 30 74, 66 38, 97 12" pathLength={1} />
+      <path d="M1 98 L99 2" pathLength={1} />
     </svg>
   );
 }
@@ -334,7 +405,7 @@ export type PpFrontPageProps = {
  */
 export function PpFrontPage({ edition, kicker, headline, deck = null, children, still = false, className = '' }: PpFrontPageProps) {
   return (
-    <article className={`ct-clip ${className}`.trim()} data-pp-front="" data-still={still ? '' : undefined} data-ct-anchor="start">
+    <article className={`ct-clip ${className}`.trim()} data-pp-front="" data-still={still ? '' : undefined}>
       <header className="pp-front__mast">
         <p className="pp-front__title" lang="fr">
           {PAPIER_FR.masthead}
@@ -446,17 +517,25 @@ export function PpPlayerSection({
   section,
   step,
   shown,
+  set = false,
+  language,
 }: {
   session: { startedAt?: string | null; closedAt?: string | null; week?: { iso: string } | null };
   section: string;
   step: string | null;
   shown: string;
+  /** The screen's items are a set: its section head carries the one «Tout traduire». */
+  set?: boolean;
+  /** The chrome language (the toggle's words). */
+  language?: string;
 }) {
   const edition = editionOf(session);
   return (
     <>
       <PpInkDefs />
-      {shown !== 'page' && <PpSection edition={edition} section={section} step={step} opening={shown === 'read'} />}
+      {shown !== 'page' && (
+        <PpSection edition={edition} section={section} step={step} opening={shown === 'read'} tools={set ? <PpTranslateToggle language={language ?? 'en'} /> : null} />
+      )}
     </>
   );
 }
