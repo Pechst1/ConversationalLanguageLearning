@@ -715,9 +715,7 @@
    "hash": "3fac0da1c731c7f3",
    "kind": "fix_the_mistake",
    "key": "Si je finis tôt, je t'appellerai.",
-   "accepted": [
-    "Si je finis tôt, je vais t'appeler."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Si je finis tôt, je t'appeler.",
@@ -738,6 +736,13 @@
      "form": "Si je finis tôt, je t'appelerai.",
      "why_en": "The spelling of the verb stem is wrong.",
      "why_de": "Die Schreibung des Verbstamms ist falsch."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Si je finis tôt, je vais t'appeler.",
+     "refused_by": "prefilter",
+     "why": "another verb"
     }
    ]
   },
@@ -942,7 +947,10 @@
    "kind": "fix_the_mistake",
    "key": "Demain, nous aurons plus de temps.",
    "accepted": [
-    "Demain, on aura plus de temps."
+    {
+     "form": "Demain, on aura plus de temps.",
+     "class": "on_nous"
+    }
    ],
    "wrong": [
     {

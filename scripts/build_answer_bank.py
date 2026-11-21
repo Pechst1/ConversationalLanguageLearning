@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Write the answer bank (#174): every answer a teacher accepts, and the wrong ones that stay wrong.
 
-Offline, run by a person, never by CI. Four steps, each resumable from the work directory:
+Offline, run by a person, never by CI. Six steps, each resumable from the work directory:
 
-    python scripts/build_answer_bank.py export  --work W [--source repair_pairs ...]
-    python scripts/build_answer_bank.py propose --work W [--pilot 2] [--wait]
-    python scripts/build_answer_bank.py judge   --work W [--pilot 2] [--wait]
-    python scripts/build_answer_bank.py write   --work W
+    python scripts/build_answer_bank.py export    --work W [--source repair_pairs ...]
+    python scripts/build_answer_bank.py propose   --work W [--pilot 2] [--wait]
+    python scripts/build_answer_bank.py judge     --work W [--pilot 2] [--wait]
+    python scripts/build_answer_bank.py prefilter --work W
+    python scripts/build_answer_bank.py verify    --work W [--pilot 2] [--wait]
+    python scripts/build_answer_bank.py write     --work W
 
 ``export`` lists the authored items (:func:`app.services.answer_bank.authored_items`).
 ``propose`` asks Claude Sonnet 5.5, a dozen items per request through the Message Batches
@@ -17,6 +19,16 @@ the proposed wrong answers shuffled and unlabelled, and marks each right or wron
 keeps a variant only when both calls accept it, a wrong form only when both refuse it, and
 records an item whose own key the judge refuses as ``key_rejected`` (a finding to read, the
 key is never changed).
+
+A variant both calls accept is still only a candidate (#174, second round: the two calls
+were too generous). ``prefilter`` refuses, without a model, every candidate whose subject,
+finite tense or mood, polarity, verbs or content words differ from the key's
+(:func:`app.services.answer_bank_check.prefilter`, the repo's spaCy pipeline). ``verify``
+sends each remaining candidate alone to a third, strict call that sees the prompt (and the
+wrong sentence), the key and that one candidate, and must name the allowed difference class
+(:data:`app.services.answer_bank_check.VARIANT_CLASSES`) or refuse. ``write`` stores each
+surviving variant as ``{"form", "class"}`` and every refused one under ``refused_variants``
+with the reason; only classed variants are used at answer time.
 
 Spend is read from every response's ``usage`` and priced at the batch rate. Before each
 submission the worst case (every request using its whole ``max_tokens``) must fit under the
@@ -82,6 +94,38 @@ Kinds:
 - cloze_word: the learner sees a line with one blank and a hint (meaning and dictionary form) and must write the word that fills the blank. Right means: the hinted word, in a form that makes the whole line correct French (capital letters never matter). A synonym or a form that does not fit the line is wrong.
 
 Capitals, final punctuation, apostrophe style and spaces never matter. Judge every answer on its own, against the prompt, not against the other answers. For each answer return accept (true or false) and, when false, a short reason."""
+
+
+def _verify_system() -> str:
+    sys.path.insert(0, str(ROOT))
+    from app.services.answer_bank_check import VARIANT_CLASSES
+
+    classes = "\n".join(f"- {name}: {text}" for name, text in VARIANT_CLASSES.items())
+    return f"""You are a strict examiner of French as a foreign language. A French course (CEFR A1 to C1) grades a learner's typed answer against a stored key. Besides the key it may accept a small number of VARIANTS: other ways to write exactly the key's answer. A variant is never another answer, even a correct, natural or better one.
+
+You see one item: the kind of exercise, the CEFR level, what the learner is shown or told (for fix_the_mistake the wrong_sentence the learner must correct, and the grammar_point), the key, and ONE candidate variant.
+
+A variant may differ from the key ONLY by one or more of these classes, and by nothing else:
+{classes}
+
+Everything else must be identical to the key: the subject (person, number, and the noun or pronoun itself), the tense, the mood, the polarity (a negation, including an expletive «ne» the key has), the voice, and the lexical content (every verb, noun, adjective, adverb, preposition and conjunction; no word added, dropped or replaced by a synonym; no reordering beyond a question form). A gender or tu/vous swap is allowed only when the prompt the learner sees leaves it open: if the shown sentence, the hint or the meaning fixes it, the swap is another answer. For fix_the_mistake the candidate must be the shown wrong sentence with its error fixed and nothing else changed, the same as the key; a correct sentence that is not the shown one corrected is refused. For recall and cloze items the candidate must be the same word in an accepted spelling or a form the prompt leaves open.
+
+Answer with the class that explains EVERY difference between the candidate and the key (the main one when several apply), or "refuse" when any difference falls outside the classes, when the candidate is not correct standard French, or when you are not sure. Give a one-line reason naming the difference."""
+
+
+VERIFY_MAX_TOKENS = 3000
+
+
+def _schema_verify() -> dict[str, Any]:
+    sys.path.insert(0, str(ROOT))
+    from app.services.answer_bank_check import VARIANT_CLASSES
+
+    return {
+        "type": "object",
+        "properties": {"class": {"type": "string", "enum": [*VARIANT_CLASSES, "refuse"]}, "reason": {"type": "string"}},
+        "required": ["class", "reason"],
+        "additionalProperties": False,
+    }
 
 
 def _schema_propose() -> dict[str, Any]:
@@ -198,26 +242,26 @@ def _item_text(item: dict[str, Any], *, with_key: bool) -> dict[str, Any]:
     return shown
 
 
-def _params(system: str, user: str, schema: dict[str, Any]) -> dict[str, Any]:
+def _params(system: str, user: str, schema: dict[str, Any], *, max_tokens: int = MAX_TOKENS) -> dict[str, Any]:
     return {
         "model": MODEL,
-        "max_tokens": MAX_TOKENS,
+        "max_tokens": max_tokens,
         "system": [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
         "messages": [{"role": "user", "content": user}],
         "output_config": {"effort": "medium", "format": {"type": "json_schema", "schema": schema}},
     }
 
 
-def _worst_case(n_requests: int) -> float:
-    per_request = (6000 * PRICE["input"] + MAX_TOKENS * PRICE["output"]) / 1_000_000
+def _worst_case(n_requests: int, *, max_tokens: int = MAX_TOKENS) -> float:
+    per_request = (6000 * PRICE["input"] + max_tokens * PRICE["output"]) / 1_000_000
     return n_requests * per_request * BATCH_DISCOUNT
 
 
-def _fits(work: Path, groups: list[list[dict[str, Any]]], budget: float) -> list[list[dict[str, Any]]]:
+def _fits(work: Path, groups: list[Any], budget: float, *, max_tokens: int = MAX_TOKENS) -> list[Any]:
     spent = _spend(work)["usd"]
     allowed = []
     for group in groups:
-        if spent + _worst_case(len(allowed) + 1) > budget:
+        if spent + _worst_case(len(allowed) + 1, max_tokens=max_tokens) > budget:
             break
         allowed.append(group)
     if len(allowed) < len(groups):
@@ -401,10 +445,105 @@ def _fold(value: str) -> str:
     return fold_typography(value)
 
 
+def _verdict_of(verdicts: dict[str, Any], form: str) -> dict[str, Any] | None:
+    for shown, verdict in verdicts.items():
+        if _fold(shown) == _fold(form):
+            return verdict
+    return None
+
+
+def _two_call_variants(item: dict[str, Any], proposal: dict[str, Any], verdicts: dict[str, Any]) -> list[str]:
+    """The variants both the proposer and the blind judge accept: candidates for ``verify``."""
+
+    key_fold = _fold(item["key"])
+    accepted: list[str] = []
+    for form in proposal.get("accepted") or []:
+        folded = _fold(form)
+        verdict = _verdict_of(verdicts, form)
+        if folded and folded != key_fold and verdict and verdict["accept"] and folded not in {_fold(f) for f in accepted}:
+            accepted.append(str(form).strip())
+    return accepted
+
+
+def _candidates_by_item(work: Path) -> list[tuple[dict[str, Any], str]]:
+    items = {_uid(item): item for item in _read_jsonl(work / "items.jsonl")}
+    proposals = {row["uid"]: row for row in _read_jsonl(work / "proposals.jsonl")}
+    judgements = {row["uid"]: row for row in _read_jsonl(work / "judgements.jsonl")}
+    return [
+        (item, form)
+        for uid, item in items.items()
+        if uid in proposals and uid in judgements
+        for form in _two_call_variants(item, proposals[uid], judgements[uid]["verdicts"])
+    ]
+
+
+def prefilter(work: Path) -> None:
+    """Refuse, without a model, the candidates the parse shows to be another answer."""
+
+    sys.path.insert(0, str(ROOT))
+    from app.services.answer_bank_check import prefilter as check
+
+    rows = []
+    for item, form in _candidates_by_item(work):
+        rows.append({"uid": _uid(item), "form": form, "prefilter": check(item, form)})
+    (work / "prefilter.jsonl").write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows))
+    passed = sum(1 for row in rows if row["prefilter"] is None)
+    print(f"prefilter: {len(rows)} candidates, {passed} passed to verify, {len(rows) - passed} refused")
+
+
+def verify(work: Path, *, pilot: int, wait: bool, budget: float) -> None:
+    """The third, strict call: one candidate per request; name the class or refuse."""
+
+    items = {_uid(item): item for item in _read_jsonl(work / "items.jsonl")}
+    done = {(row["uid"], row["form"]) for row in _read_jsonl(work / "verifications.jsonl")}
+    todo = [row for row in _read_jsonl(work / "prefilter.jsonl") if row["prefilter"] is None and (row["uid"], row["form"]) not in done]
+    todo = todo[: pilot or None]
+    todo = _fits(work, todo, budget, max_tokens=VERIFY_MAX_TOKENS)
+    if not todo:
+        print("verify: nothing to do")
+        return
+    system, schema = _verify_system(), _schema_verify()
+    requests, by_cid = {}, {}
+    for n, row in enumerate(todo):
+        item = items[row["uid"]]
+        shown = {"kind": item["kind"], "cefr": item["cefr"], "prompt": item["prompt"], "key": item["key"], "candidate": row["form"]}
+        cid = f"v{n:04d}-{len(done)}"
+        requests[cid] = _params(system, json.dumps(shown, ensure_ascii=False, indent=1), schema, max_tokens=VERIFY_MAX_TOKENS)
+        by_cid[cid] = row
+    results = _run(work, "verify", requests, pilot=bool(pilot), wait=wait)
+    stored = [
+        {"uid": by_cid[cid]["uid"], "form": by_cid[cid]["form"], "class": parsed.get("class"), "reason": parsed.get("reason") or ""}
+        for cid, parsed in results.items()
+    ]
+    _append_jsonl(work / "verifications.jsonl", stored)
+    print(f"verify: stored {len(stored)}, spend ${_spend(work)['usd']:.4f}")
+
+
+def _checked(work: Path) -> dict[tuple[str, str], dict[str, str]]:
+    """(uid, form) -> {"class"} for a survivor or {"refused_by", "why"} for a refused candidate."""
+
+    sys.path.insert(0, str(ROOT))
+    from app.services.answer_bank_check import VARIANT_CLASSES
+
+    out: dict[tuple[str, str], dict[str, str]] = {}
+    for row in _read_jsonl(work / "prefilter.jsonl"):
+        if row["prefilter"] is not None:
+            out[(row["uid"], row["form"])] = {"refused_by": "prefilter", "why": row["prefilter"]}
+    for row in _read_jsonl(work / "verifications.jsonl"):
+        if (row["uid"], row["form"]) in out:
+            continue  # the prefilter's refusal stands (it was tightened after this call)
+        if row["class"] in VARIANT_CLASSES:
+            out[(row["uid"], row["form"])] = {"class": row["class"], "why": row["reason"]}
+        else:
+            out[(row["uid"], row["form"])] = {"refused_by": "strict judge", "why": row["reason"]}
+    return out
+
+
 def write(work: Path) -> None:
     items = {_uid(item): item for item in _read_jsonl(work / "items.jsonl")}
     proposals = {row["uid"]: row for row in _read_jsonl(work / "proposals.jsonl")}
     judgements = {row["uid"]: row for row in _read_jsonl(work / "judgements.jsonl")}
+    checked = _checked(work)
     spend = _spend(work)
     banks: dict[str, dict[str, Any]] = {}
     for uid, item in items.items():
@@ -412,25 +551,23 @@ def write(work: Path) -> None:
             continue
         proposal, verdicts = proposals[uid], judgements[uid]["verdicts"]
         key_fold = _fold(item["key"])
-
-        def verdict_of(form: str, verdicts: dict[str, Any] = verdicts) -> dict[str, Any] | None:
-            for shown, verdict in verdicts.items():
-                if _fold(shown) == _fold(form):
-                    return verdict
-            return None
-
-        key_verdict = verdict_of(item["key"]) or {"accept": False, "reason": "not judged"}
-        accepted: list[str] = []
-        for form in proposal.get("accepted") or []:
-            folded = _fold(form)
-            verdict = verdict_of(form)
-            if folded and folded != key_fold and verdict and verdict["accept"] and folded not in {_fold(f) for f in accepted}:
-                accepted.append(str(form).strip())
-        accepted_folds = {key_fold, *(_fold(f) for f in accepted)}
+        key_verdict = _verdict_of(verdicts, item["key"]) or {"accept": False, "reason": "not judged"}
+        candidates = _two_call_variants(item, proposal, verdicts)
+        accepted: list[dict[str, str]] = []
+        refused: list[dict[str, str]] = []
+        for form in candidates:
+            check = checked.get((uid, form)) or {"refused_by": "unchecked", "why": "not checked by verify"}
+            if "class" in check:
+                accepted.append({"form": form, "class": check["class"]})
+            else:
+                refused.append({"form": form, "refused_by": check["refused_by"], "why": check["why"]})
+        # A refused candidate is still a right answer by both earlier calls: it is never
+        # listed as wrong, it just falls back to the judges' own rules.
+        accepted_folds = {key_fold, *(_fold(f) for f in candidates)}
         wrong: list[dict[str, str]] = []
         for row in proposal.get("wrong") or []:
             folded = _fold(row["form"])
-            verdict = verdict_of(row["form"])
+            verdict = _verdict_of(verdicts, row["form"])
             reasons_given = str(row.get("why_en") or "").strip() and str(row.get("why_de") or "").strip()
             if folded and folded not in accepted_folds and verdict and not verdict["accept"] and reasons_given:
                 if folded not in {_fold(w["form"]) for w in wrong}:
@@ -442,6 +579,8 @@ def write(work: Path) -> None:
             "accepted": accepted,
             "wrong": wrong,
         }
+        if refused:
+            entry["refused_variants"] = refused
         if not key_verdict["accept"]:
             entry["key_rejected"] = True
             entry["key_judge_reason"] = key_verdict["reason"]
@@ -473,7 +612,7 @@ def write(work: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("step", choices=["export", "propose", "judge", "write"])
+    parser.add_argument("step", choices=["export", "propose", "judge", "prefilter", "verify", "write"])
     parser.add_argument("--work", type=Path, required=True)
     parser.add_argument("--source", action="append", default=[])
     parser.add_argument("--pilot", type=int, default=0, help="only this many groups, synchronously")
@@ -487,6 +626,10 @@ def main() -> None:
         propose(args.work, pilot=args.pilot, wait=args.wait, budget=args.budget)
     elif args.step == "judge":
         judge(args.work, pilot=args.pilot, wait=args.wait, budget=args.budget)
+    elif args.step == "prefilter":
+        prefilter(args.work)
+    elif args.step == "verify":
+        verify(args.work, pilot=args.pilot, wait=args.wait, budget=args.budget)
     else:
         write(args.work)
 

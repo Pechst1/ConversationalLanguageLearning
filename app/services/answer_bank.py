@@ -8,7 +8,12 @@ answers that must stay wrong, each with a one-line reason.
 
 It was written offline by ``scripts/build_answer_bank.py``: one model call proposes, a
 second, independent call judges every proposed form blind; only forms both accept are
-listed, only forms both refuse stay wrong. Nothing calls a model at answer time.
+listed, only forms both refuse stay wrong. A listed variant must then pass the
+deterministic :func:`answer_bank_check.prefilter` and a third, strict call that names the
+allowed difference class (:data:`answer_bank_check.VARIANT_CLASSES`: spelling, open tu/vous
+or gender, on/nous, question form, elision, punctuation); subject, tense, mood, polarity and
+lexical content stay the key's. Only a variant stored with its class is used. Nothing calls
+a model at answer time.
 
 The bank lives in ``app/data/answer_bank/<source>.json``, one file per authored source,
 keyed by the stable item id :func:`authored_items` gives. Each entry stores the hash of
@@ -43,6 +48,7 @@ __all__ = [
     "BankHit",
     "authored_items",
     "bank_verdict",
+    "classed_variants",
     "enabled",
     "entries",
     "item_hash",
@@ -395,6 +401,22 @@ def strip_accents(value: str) -> str:
     return strip(value)
 
 
+def classed_variants(entry: Mapping[str, Any]) -> list[str]:
+    """The entry's variants that name an allowed difference class (#174, second round).
+
+    A variant is stored as ``{"form", "class"}``; one without a class from
+    :data:`answer_bank_check.VARIANT_CLASSES` (a bare string, or a refused one) is never used.
+    """
+
+    from app.services.answer_bank_check import VARIANT_CLASSES
+
+    out = []
+    for variant in entry.get("accepted") or []:
+        if isinstance(variant, Mapping) and variant.get("class") in VARIANT_CLASSES and variant.get("form"):
+            out.append(str(variant["form"]))
+    return out
+
+
 @lru_cache(maxsize=1)
 def _index() -> dict[str, _Merged]:
     """Folded key -> merged entry. A key whose own item the judge refused is not indexed."""
@@ -411,7 +433,7 @@ def _index() -> dict[str, _Merged]:
         merged = _Merged(key=str(rows[0].get("key")), kinds={str(row.get("kind") or "") for row in rows})
         sets = []
         for row in rows:
-            sets.append({_fold(form): str(form) for form in [row.get("key"), *(row.get("accepted") or [])] if _fold(form)})
+            sets.append({_fold(form): str(form) for form in [row.get("key"), *classed_variants(row)] if _fold(form)})
         common = set(sets[0])
         for other in sets[1:]:
             common &= set(other)

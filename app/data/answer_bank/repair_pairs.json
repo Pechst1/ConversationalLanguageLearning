@@ -240,9 +240,7 @@
    "hash": "a3d50e3e0cd2d701",
    "kind": "fix_the_mistake",
    "key": "J'ai 20 ans.",
-   "accepted": [
-    "J’ai vingt ans."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je suis 20 ans.",
@@ -263,6 +261,13 @@
      "form": "Je suis 20.",
      "why_en": "The verb is still wrong and the word for years is missing.",
      "why_de": "Das Verb ist immer noch falsch und das Wort für Jahre fehlt."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "J’ai vingt ans.",
+     "refused_by": "prefilter",
+     "why": "another verb"
     }
    ]
   },
@@ -462,8 +467,14 @@
    "kind": "fix_the_mistake",
    "key": "Vous habitez près de la gare ?",
    "accepted": [
-    "Habitez-vous près de la gare ?",
-    "Est-ce que vous habitez près de la gare ?"
+    {
+     "form": "Habitez-vous près de la gare ?",
+     "class": "question_form"
+    },
+    {
+     "form": "Est-ce que vous habitez près de la gare ?",
+     "class": "question_form"
+    }
    ],
    "wrong": [
     {
@@ -492,9 +503,7 @@
    "hash": "c083de70f3c3f698",
    "kind": "fix_the_mistake",
    "key": "Ils parlent.",
-   "accepted": [
-    "Elles parlent."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Ils parlont.",
@@ -515,6 +524,13 @@
      "form": "Ils parlons.",
      "why_en": "This ending belongs to nous.",
      "why_de": "Diese Endung gehört zu nous."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Elles parlent.",
+     "refused_by": "prefilter",
+     "why": "the subject changed from «ils» to «elles»"
     }
    ]
   },
@@ -619,9 +635,7 @@
    "hash": "bd5e18271d823ccd",
    "kind": "fix_the_mistake",
    "key": "Ils sont à Lyon.",
-   "accepted": [
-    "Elles sont à Lyon."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Ils est à Lyon.",
@@ -643,15 +657,20 @@
      "why_en": "The preposition lacks its accent.",
      "why_de": "Der Präposition fehlt der Akzent."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Elles sont à Lyon.",
+     "refused_by": "prefilter",
+     "why": "the subject changed from «ils» to «elles»"
+    }
    ]
   },
   "FR2_A11_ETRE#f08d7090b9": {
    "hash": "fb9c1e30a5a6fffc",
    "kind": "fix_the_mistake",
    "key": "Je suis français.",
-   "accepted": [
-    "Je suis française."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je es français.",
@@ -673,15 +692,20 @@
      "why_en": "The word for French lacks its cedilla.",
      "why_de": "Dem Wort für französisch fehlt die Cedille."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je suis française.",
+     "refused_by": "strict judge",
+     "why": "The shown sentence 'Je es français.' has the masculine 'français', so the gender is fixed by the prompt. Changing it to 'française' alters the shown sentence beyond correcting the error, so it is another answer, not an open_gender variant."
+    }
    ]
   },
   "FR2_A11_ETRE#f7d3026a8b": {
    "hash": "548d598fb282115a",
    "kind": "fix_the_mistake",
    "key": "Ils sont à Paris.",
-   "accepted": [
-    "Elles sont à Paris."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Ils est à Paris.",
@@ -703,15 +727,20 @@
      "why_en": "The subject is singular while the verb is plural.",
      "why_de": "Das Subjekt ist Singular, das Verb Plural."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Elles sont à Paris.",
+     "refused_by": "prefilter",
+     "why": "the subject changed from «ils» to «elles»"
+    }
    ]
   },
   "FR2_A11_FAIRE_PRENDRE#2df074819d": {
    "hash": "8566bd234e594423",
    "kind": "fix_the_mistake",
    "key": "Ils prennent le bus.",
-   "accepted": [
-    "Elles prennent le bus."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Ils prendent le bus.",
@@ -733,15 +762,20 @@
      "why_en": "This ending belongs to nous.",
      "why_de": "Diese Endung gehört zu nous."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Elles prennent le bus.",
+     "refused_by": "prefilter",
+     "why": "the subject changed from «ils» to «elles»"
+    }
    ]
   },
   "FR2_A11_FAIRE_PRENDRE#725383f466": {
    "hash": "ce93598d945dd1b0",
    "kind": "fix_the_mistake",
    "key": "Ils prennent le métro.",
-   "accepted": [
-    "Elles prennent le métro."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Ils prendent le métro.",
@@ -762,6 +796,13 @@
      "form": "Ils prenez le métro.",
      "why_en": "This ending belongs to vous.",
      "why_de": "Diese Endung gehört zu vous."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Elles prennent le métro.",
+     "refused_by": "prefilter",
+     "why": "the subject changed from «ils» to «elles»"
     }
    ]
   },
@@ -1022,7 +1063,10 @@
    "kind": "fix_the_mistake",
    "key": "Vous désirez ? Un café, s'il vous plaît.",
    "accepted": [
-    "Vous désirez ? Un café, s'il vous plait."
+    {
+     "form": "Vous désirez ? Un café, s'il vous plait.",
+     "class": "spelling"
+    }
    ],
    "wrong": [
     {
@@ -1051,10 +1095,7 @@
    "hash": "4c7798b9c83bcffb",
    "kind": "fix_the_mistake",
    "key": "Je voudrais un café, s'il vous plaît.",
-   "accepted": [
-    "Je voudrais un café.",
-    "Je voudrais un café, s'il te plaît."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je veux un café.",
@@ -1075,6 +1116,18 @@
      "form": "Je voudrais un café, s'il vous plait",
      "why_en": "Wrong form of the verb is not the issue here, but the verb stem is missing a letter.",
      "why_de": "Der Verbstamm ist hier nicht korrekt geschrieben."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je voudrais un café.",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
+    },
+    {
+     "form": "Je voudrais un café, s'il te plaît.",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
     }
    ]
   },
@@ -1375,15 +1428,24 @@
    "hash": "596e58291ce3ab26",
    "kind": "fix_the_mistake",
    "key": "2,50 €",
-   "accepted": [
-    "2,50 euros",
-    "2 euros 50"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "€ 2,50",
      "why_en": "In French the currency sign comes after the number.",
      "why_de": "Im Französischen steht das Währungszeichen nach der Zahl."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "2,50 euros",
+     "refused_by": "strict judge",
+     "why": "The candidate replaces the symbol € with the word 'euros', which is a different written form and not one of the allowed classes; the fix should only change the decimal point to a comma."
+    },
+    {
+     "form": "2 euros 50",
+     "refused_by": "strict judge",
+     "why": "The candidate rewrites the price as '2 euros 50' with the word 'euros' and no decimal comma, instead of correcting only the decimal point to a comma as in the key; this changes the form and is not a listed variant class."
     }
    ]
   },
@@ -1530,9 +1592,7 @@
    "hash": "3cd26d764d43a158",
    "kind": "fix_the_mistake",
    "key": "On est prêts.",
-   "accepted": [
-    "On est prêt."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "On sont prêts.",
@@ -1548,6 +1608,13 @@
      "form": "On et prêts.",
      "why_en": "This confuses the verb with the word for 'and'.",
      "why_de": "Hier wird das Verb mit dem Wort für 'und' verwechselt."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "On est prêt.",
+     "refused_by": "strict judge",
+     "why": "The candidate changes the adjective from plural 'prêts' to singular 'prêt'. The shown sentence 'On sont prêts' does not leave number or gender open, and the grammar point is about 'on'. This is a different answer, not an accepted variant class."
     }
    ]
   },
@@ -1952,10 +2019,7 @@
    "hash": "bd3aba432872763a",
    "kind": "fix_the_mistake",
    "key": "Est-ce que vous avez du pain ?",
-   "accepted": [
-    "Avez-vous du pain ?",
-    "Vous avez du pain ?"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Est-ce que vous avez-vous du pain ?",
@@ -1971,6 +2035,18 @@
      "form": "Est-ce que vous avez de pain ?",
      "why_en": "The partitive article is wrong here; the question does not need 'de' alone.",
      "why_de": "Der Teilungsartikel ist falsch; hier steht nicht nur 'de'."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Avez-vous du pain ?",
+     "refused_by": "strict judge",
+     "why": "The item practises question forms (yes/no questions with est-ce que), so the question_form class does not apply; the inversion also changes the shown sentence beyond fixing its error."
+    },
+    {
+     "form": "Vous avez du pain ?",
+     "refused_by": "strict judge",
+     "why": "The item practises the question form (grammar_point: yes/no questions with intonation and est-ce que), so the question_form class does not apply; dropping 'Est-ce que' is not allowed here."
     }
    ]
   },
@@ -2043,9 +2119,18 @@
    "kind": "fix_the_mistake",
    "key": "Comment tu t'appelles ?",
    "accepted": [
-    "Comment t'appelles-tu ?",
-    "Tu t'appelles comment ?",
-    "Comment est-ce que tu t'appelles ?"
+    {
+     "form": "Comment t'appelles-tu ?",
+     "class": "question_form"
+    },
+    {
+     "form": "Tu t'appelles comment ?",
+     "class": "question_form"
+    },
+    {
+     "form": "Comment est-ce que tu t'appelles ?",
+     "class": "question_form"
+    }
    ],
    "wrong": [
     {
@@ -2069,15 +2154,7 @@
    "hash": "6708d582a62bb8c3",
    "kind": "fix_the_mistake",
    "key": "Tu viens d'où ?",
-   "accepted": [
-    "D'où viens-tu ?",
-    "D'où tu viens ?",
-    "D'où est-ce que tu viens ?",
-    "Vous venez d'où ?",
-    "D'où venez-vous ?",
-    "D'où vous venez ?",
-    "D'où est-ce que vous venez ?"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Où tu viens de ?",
@@ -2094,15 +2171,50 @@
      "why_en": "The preposition is missing.",
      "why_de": "Die Präposition fehlt."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "D'où viens-tu ?",
+     "refused_by": "strict judge",
+     "why": "The candidate reorders the question with inversion (D'où viens-tu ?), but this item practises question words, so changing the question form is not allowed; it also is not the shown wrong sentence with only its error fixed."
+    },
+    {
+     "form": "D'où tu viens ?",
+     "refused_by": "strict judge",
+     "why": "The candidate reorders the sentence (wh-word first) instead of keeping the key's structure; the item practises question words, so changing the question form is not allowed, and the shown sentence's error (missing d'/de placement) is corrected differently from the key."
+    },
+    {
+     "form": "D'où est-ce que tu viens ?",
+     "refused_by": "strict judge",
+     "why": "The item practises question words and question formation; the wrong sentence 'Où tu viens de ?' must be corrected minimally, and the candidate reorders it into a different est-ce que structure with fronted 'D'où', which is beyond the shown sentence's correction and the grammar point is the question form itself."
+    },
+    {
+     "form": "Vous venez d'où ?",
+     "refused_by": "prefilter",
+     "why": "the shown sentence already says «tu»"
+    },
+    {
+     "form": "D'où venez-vous ?",
+     "refused_by": "prefilter",
+     "why": "the shown sentence already says «tu»"
+    },
+    {
+     "form": "D'où vous venez ?",
+     "refused_by": "prefilter",
+     "why": "the shown sentence already says «tu»"
+    },
+    {
+     "form": "D'où est-ce que vous venez ?",
+     "refused_by": "prefilter",
+     "why": "the shown sentence already says «tu»"
+    }
    ]
   },
   "FR2_A11_QUESTION_WORDS#ed939d329d": {
    "hash": "a05430ec97b1650b",
    "kind": "fix_the_mistake",
    "key": "Combien de sucres ?",
-   "accepted": [
-    "Combien de sucre ?"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Combien des sucres ?",
@@ -2118,6 +2230,13 @@
      "form": "Combien sucres ?",
      "why_en": "The preposition is missing between 'combien' and the noun.",
      "why_de": "Die Präposition zwischen 'combien' und dem Nomen fehlt."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Combien de sucre ?",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ]
   },
@@ -2194,10 +2313,7 @@
    "hash": "f1c13f448710c4ec",
    "kind": "fix_the_mistake",
    "key": "Il est médecin. / C'est un médecin.",
-   "accepted": [
-    "Il est médecin.",
-    "C'est un médecin."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Il est un médecin.",
@@ -2215,6 +2331,18 @@
      "why_de": "Der Artikel steht weiterhin nach dem falschen Subjekt."
     }
    ],
+   "refused_variants": [
+    {
+     "form": "Il est médecin.",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
+    },
+    {
+     "form": "C'est un médecin.",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
+    }
+   ],
    "key_rejected": true,
    "key_judge_reason": "Gives two answers instead of one.",
    "key_proposer_problem": "Key contains two alternatives separated by ' / '; it should be a single answer (the second is in accepted)."
@@ -2223,9 +2351,7 @@
    "hash": "4e3cc3a4febdae7b",
    "kind": "fix_the_mistake",
    "key": "Il est médecin.",
-   "accepted": [
-    "C'est un médecin."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Il est un médecin.",
@@ -2242,6 +2368,13 @@
      "why_en": "Without an article, this subject is not used for a profession.",
      "why_de": "Ohne Artikel wird dieses Subjekt bei Berufen nicht verwendet."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "C'est un médecin.",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
+    }
    ]
   },
   "FR2_A12_CEST_IL_EST#e2cbde8609": {
@@ -2249,8 +2382,10 @@
    "kind": "fix_the_mistake",
    "key": "Elle est professeur.",
    "accepted": [
-    "Il est professeur.",
-    "Elle est professeure."
+    {
+     "form": "Elle est professeure.",
+     "class": "spelling"
+    }
    ],
    "wrong": [
     {
@@ -2267,6 +2402,13 @@
      "form": "Elle c'est professeur.",
      "why_en": "Two subjects are combined in one clause.",
      "why_de": "Zwei Subjekte werden in einem Satz kombiniert."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Il est professeur.",
+     "refused_by": "prefilter",
+     "why": "the subject changed from «elle» to «il»"
     }
    ]
   },
@@ -2389,9 +2531,7 @@
    "hash": "9c832db7ab1803e6",
    "kind": "fix_the_mistake",
    "key": "le premier janvier",
-   "accepted": [
-    "le 1er janvier"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "le un janvier",
@@ -2408,15 +2548,20 @@
      "why_en": "An extra linking word is added.",
      "why_de": "Ein überflüssiges Verbindungswort wird hinzugefügt."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "le 1er janvier",
+     "refused_by": "strict judge",
+     "why": "Writing 'le 1er janvier' instead of 'le premier janvier' is a change of written form (digits versus a spelled-out word), which is not a spelling variant, punctuation, or any other permitted class, so it is refused."
+    }
    ]
   },
   "FR2_A12_DAYS_DATES#8bc8ae7faf": {
    "hash": "425f8fa4fb03c842",
    "kind": "fix_the_mistake",
    "key": "en mai",
-   "accepted": [
-    "au mois de mai"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "dans mai",
@@ -2433,15 +2578,20 @@
      "why_en": "Wrong preposition for months.",
      "why_de": "Falsche Präposition für Monate."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "au mois de mai",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    }
    ]
   },
   "FR2_A12_DAYS_DATES#ee11f76aad": {
    "hash": "6c4c7daebcc634c3",
    "kind": "fix_the_mistake",
    "key": "le trois mai",
-   "accepted": [
-    "le 3 mai"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "le trois de mai",
@@ -2457,6 +2607,13 @@
      "form": "trois mai",
      "why_en": "The article before the date is missing.",
      "why_de": "Der Artikel vor dem Datum fehlt."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "le 3 mai",
+     "refused_by": "strict judge",
+     "why": "The candidate writes the numeral as a digit (3) instead of the word 'trois'; this is not one of the allowed variant classes (not a spelling, punctuation or other permitted difference), so it is a different form from the key."
     }
    ]
   },
@@ -2872,11 +3029,7 @@
    "hash": "e9ddfc89832fb7d5",
    "kind": "fix_the_mistake",
    "key": "Sois patient !",
-   "accepted": [
-    "Soyez patient !",
-    "Soyez patiente !",
-    "Sois patiente !"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Es patient !",
@@ -2893,15 +3046,30 @@
      "why_en": "The ending of this form is wrong for the imperative.",
      "why_de": "Die Endung dieser Form ist für den Imperativ falsch."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Soyez patient !",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "Soyez patiente !",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "Sois patiente !",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    }
    ]
   },
   "FR2_A12_IMPERATIVE#4585c6403f": {
    "hash": "804e7854780d0919",
    "kind": "fix_the_mistake",
    "key": "N'aie pas peur !",
-   "accepted": [
-    "N'ayez pas peur !"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "N'as pas peur !",
@@ -2917,6 +3085,13 @@
      "form": "Aie pas peur !",
      "why_en": "The negation is incomplete.",
      "why_de": "Die Verneinung ist unvollständig."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "N'ayez pas peur !",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
     }
    ],
    "key_rejected": true,
@@ -2954,9 +3129,7 @@
    "hash": "51ea8ebbdaedd82a",
    "kind": "fix_the_mistake",
    "key": "Parle plus fort !",
-   "accepted": [
-    "Parlez plus fort !"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Parles plus fort !",
@@ -2972,6 +3145,13 @@
      "form": "Parlé plus fort !",
      "why_en": "A participle is not an imperative.",
      "why_de": "Ein Partizip ist kein Imperativ."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Parlez plus fort !",
+     "refused_by": "prefilter",
+     "why": "another verb"
     }
    ]
   },
@@ -3731,9 +3911,7 @@
    "hash": "9dd57ce82b476150",
    "kind": "fix_the_mistake",
    "key": "Comme c'est beau !",
-   "accepted": [
-    "Que c'est beau !"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Comment c'est beau !",
@@ -3749,6 +3927,13 @@
      "form": "Quel c'est beau !",
      "why_en": "'Quel' needs a noun and cannot be used before 'c'est'.",
      "why_de": "'Quel' braucht ein Nomen und steht nicht vor 'c'est'."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Que c'est beau !",
+     "refused_by": "prefilter",
+     "why": "another linking word or preposition"
     }
    ]
   },
@@ -3899,9 +4084,7 @@
    "hash": "f9b699e4d27f35f7",
    "kind": "fix_the_mistake",
    "key": "une heure et demie",
-   "accepted": [
-    "Il est une heure et demie."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "une heure et demi",
@@ -3918,15 +4101,20 @@
      "why_en": "Wrong article: 'heure' is feminine.",
      "why_de": "Falscher Artikel: 'heure' ist weiblich."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Il est une heure et demie.",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
+    }
    ]
   },
   "FR2_A12_TIME#639bc8ae67": {
    "hash": "649cae5d09f55378",
    "kind": "fix_the_mistake",
    "key": "14 h 30 : deux heures et demie",
-   "accepted": [
-    "14 h 30 : il est deux heures et demie"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "14 h 30 : trois heures et demie",
@@ -3942,6 +4130,13 @@
      "form": "14 h 30 : deux heure et demie",
      "why_en": "Number agreement: the time noun is plural after two.",
      "why_de": "Zahlübereinstimmung: Das Nomen der Uhrzeit steht nach zwei im Plural."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "14 h 30 : il est deux heures et demie",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
     }
    ]
   },
@@ -3995,9 +4190,7 @@
    "hash": "2d5b59cc57f58516",
    "kind": "fix_the_mistake",
    "key": "Comme il pleut, je reste.",
-   "accepted": [
-    "Puisqu'il pleut, je reste."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Car il pleut, je reste.",
@@ -4014,16 +4207,20 @@
      "why_en": "'Alors' introduces a consequence, so cause and effect are reversed.",
      "why_de": "'Alors' leitet eine Folge ein, Ursache und Folge sind vertauscht."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Puisqu'il pleut, je reste.",
+     "refused_by": "prefilter",
+     "why": "another linking word or preposition"
+    }
    ]
   },
   "FR2_A21_CAUSE_CONSEQUENCE#bd6fe88e56": {
    "hash": "fccc9a187d49b665",
    "kind": "fix_the_mistake",
    "key": "Je reste à la maison parce qu'il pleut.",
-   "accepted": [
-    "Je reste à la maison car il pleut.",
-    "Comme il pleut, je reste à la maison."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je reste à la maison comme il pleut.",
@@ -4044,6 +4241,18 @@
      "form": "Je reste à la maison alors il pleut.",
      "why_en": "This connector gives a consequence, not a reason.",
      "why_de": "Dieses Bindewort nennt eine Folge, keinen Grund."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je reste à la maison car il pleut.",
+     "refused_by": "prefilter",
+     "why": "another linking word or preposition"
+    },
+    {
+     "form": "Comme il pleut, je reste à la maison.",
+     "refused_by": "prefilter",
+     "why": "another linking word or preposition"
     }
    ]
   },
@@ -4326,9 +4535,7 @@
    "hash": "8483ecb0f5a8c4b8",
    "kind": "fix_the_mistake",
    "key": "J'en ai acheté deux.",
-   "accepted": [
-    "J'en ai acheté 2."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "J'ai en acheté deux.",
@@ -4350,15 +4557,20 @@
      "why_en": "After avoir the verb needs a participle, not an infinitive.",
      "why_de": "Nach avoir braucht das Verb ein Partizip, keinen Infinitiv."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "J'en ai acheté 2.",
+     "refused_by": "strict judge",
+     "why": "The candidate writes the numeral as the digit '2' instead of the word 'deux'. That is not a recognised spelling variant, punctuation or any other permitted class, so it counts as a different form from the key."
+    }
    ]
   },
   "FR2_A21_EN_QUANTITY#27974b4b13": {
    "hash": "de12810dd66b86f2",
    "kind": "fix_the_mistake",
    "key": "Des pommes ? J'en prends trois.",
-   "accepted": [
-    "Des pommes ? J'en prends 3."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Des pommes ? Je prends en trois.",
@@ -4379,6 +4591,13 @@
      "form": "Des pommes ? Je les prends trois.",
      "why_en": "The pronoun les cannot express the quantity here; the pronoun for quantities is needed.",
      "why_de": "Das Pronomen les drückt hier die Menge nicht aus; man braucht das Pronomen für Mengen."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Des pommes ? J'en prends 3.",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ]
   },
@@ -4524,9 +4743,7 @@
    "hash": "391ef2598cd1c3cd",
    "kind": "fix_the_mistake",
    "key": "Où allez-vous ?",
-   "accepted": [
-    "Où est-ce que vous allez ?"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Où est-ce que allez-vous ?",
@@ -4547,6 +4764,13 @@
      "form": "Où allez vous ?",
      "why_en": "The hyphen is missing in the inversion.",
      "why_de": "Der Bindestrich bei der Inversion fehlt."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Où est-ce que vous allez ?",
+     "refused_by": "strict judge",
+     "why": "The item practises inverted questions (grammar_point), so the question_form class does not apply; the candidate also rewrites the shown sentence rather than just fixing its error."
     }
    ]
   },
@@ -4913,9 +5137,7 @@
    "hash": "cdf786599fba5175",
    "kind": "fix_the_mistake",
    "key": "Je suis allé au cinéma.",
-   "accepted": [
-    "Je suis allée au cinéma."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "J'ai allé au cinéma.",
@@ -4936,6 +5158,13 @@
      "form": "Je suis allés au cinéma.",
      "why_en": "One person is speaking, so no plural ending.",
      "why_de": "Es spricht eine Person, also keine Pluralendung."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je suis allée au cinéma.",
+     "refused_by": "strict judge",
+     "why": "The shown sentence \"J'ai allé au cinéma.\" has no cue to the speaker's gender, but this is a fix_the_mistake item whose grammar point includes agreement, so the agreement is part of what is practised and the key fixes the masculine allé; the feminine allée is another answer."
     }
    ]
   },
@@ -5055,9 +5284,7 @@
    "hash": "7487604443bd8af1",
    "kind": "fix_the_mistake",
    "key": "Je ne me suis pas levé.",
-   "accepted": [
-    "Je ne me suis pas levée."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je me ne suis pas levé.",
@@ -5078,6 +5305,13 @@
      "form": "Je me suis pas levé.",
      "why_en": "The first part of the negation is missing.",
      "why_de": "Der erste Teil der Verneinung fehlt."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je ne me suis pas levée.",
+     "refused_by": "strict judge",
+     "why": "The shown wrong sentence has masculine 'levé', which fixes the gender; changing it to 'levée' alters the learner's sentence beyond fixing the error, so it is another answer, not an open_gender variant."
     }
    ]
   },
@@ -5114,7 +5348,10 @@
    "kind": "fix_the_mistake",
    "key": "Je me suis levé à sept heures.",
    "accepted": [
-    "Je me suis levée à sept heures."
+    {
+     "form": "Je me suis levée à sept heures.",
+     "class": "open_gender"
+    }
    ],
    "wrong": [
     {
@@ -5199,12 +5436,7 @@
    "hash": "1c72bf901fa1c6c6",
    "kind": "fix_the_mistake",
    "key": "Je voudrais un café, s'il vous plaît.",
-   "accepted": [
-    "Je voudrais un café.",
-    "J'aimerais un café, s'il vous plaît.",
-    "J'aimerais un café.",
-    "Je voudrais un café, s'il te plaît."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je veux un café.",
@@ -5221,16 +5453,35 @@
      "why_en": "Spelling: this is the future, not the conditional.",
      "why_de": "Schreibung: das ist das Futur, nicht der Konditional."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je voudrais un café.",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
+    },
+    {
+     "form": "J'aimerais un café, s'il vous plaît.",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
+    },
+    {
+     "form": "J'aimerais un café.",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
+    },
+    {
+     "form": "Je voudrais un café, s'il te plaît.",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
+    }
    ]
   },
   "FR2_A21_POLITE_CONDITIONAL#fe45a50467": {
    "hash": "7e3636f32dbf29c0",
    "kind": "fix_the_mistake",
    "key": "Vous pourriez m'aider ?",
-   "accepted": [
-    "Pourriez-vous m'aider ?",
-    "Est-ce que vous pourriez m'aider ?"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Vous pourriez m'aidez ?",
@@ -5251,6 +5502,18 @@
      "form": "Vous pourriez aider ?",
      "why_en": "The object pronoun is missing.",
      "why_de": "Das Objektpronomen fehlt."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Pourriez-vous m'aider ?",
+     "refused_by": "strict judge",
+     "why": "The grammar point practises pourriez-vous, so the question form is part of the item. The candidate also changes the shown sentence's word order beyond fixing the error (aidez -> aider), so it is not the shown sentence corrected."
+    },
+    {
+     "form": "Est-ce que vous pourriez m'aider ?",
+     "refused_by": "strict judge",
+     "why": "The item practises politeness forms including pourriez-vous, so the question form is part of the grammar point; adding est-ce que changes the shown sentence beyond the single error fix."
     }
    ]
   },
@@ -5796,9 +6059,7 @@
    "hash": "87e7bf4cc430183a",
    "kind": "fix_the_mistake",
    "key": "Tu devrais voir un médecin, tu as l'air malade.",
-   "accepted": [
-    "Vous devriez voir un médecin, vous avez l'air malade."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Tu devras voir un médecin, tu as l'air malade.",
@@ -5814,6 +6075,13 @@
      "form": "Tu devrait voir un médecin, tu as l'air malade.",
      "why_en": "The ending does not match tu.",
      "why_de": "Die Endung passt nicht zu tu."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Vous devriez voir un médecin, vous avez l'air malade.",
+     "refused_by": "prefilter",
+     "why": "the shown sentence already says «tu»"
     }
    ]
   },
@@ -5867,9 +6135,7 @@
    "hash": "24d9acb4edce4766",
    "kind": "fix_the_mistake",
    "key": "Les chaussures ? Je préfère celles-là.",
-   "accepted": [
-    "Les chaussures ? Je préfère celles-ci."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Les chaussures ? Je préfère ceux-là.",
@@ -5885,6 +6151,13 @@
      "form": "Les chaussures ? Je préfère celles.",
      "why_en": "This pronoun needs -ci or -là or a complement.",
      "why_de": "Dieses Pronomen braucht -ci oder -là oder eine Ergänzung."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Les chaussures ? Je préfère celles-ci.",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ]
   },
@@ -5915,9 +6188,7 @@
    "hash": "cd0a3646a0fa6221",
    "kind": "fix_the_mistake",
    "key": "Je prends celle-ci.",
-   "accepted": [
-    "Je prends celle-là."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je prends celle.",
@@ -5933,6 +6204,13 @@
      "form": "Je prends celles-ci.",
      "why_en": "The pronoun is plural but the sentence needs the singular.",
      "why_de": "Das Pronomen ist Plural, es braucht aber den Singular."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je prends celle-là.",
+     "refused_by": "prefilter",
+     "why": "another content word"
     }
    ]
   },
@@ -6216,9 +6494,7 @@
    "hash": "8e7ec1511a29e204",
    "kind": "fix_the_mistake",
    "key": "Quand je suis arrivé, il pleuvait.",
-   "accepted": [
-    "Quand je suis arrivée, il pleuvait."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Quand je suis arrivé, il a plu.",
@@ -6234,6 +6510,13 @@
      "form": "Quand je suis arrivé, il plevait.",
      "why_en": "The imperfect stem of this verb is misspelled.",
      "why_de": "Der Imparfait-Stamm dieses Verbs ist falsch geschrieben."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Quand je suis arrivée, il pleuvait.",
+     "refused_by": "strict judge",
+     "why": "The shown sentence already fixes the gender with the masculine «arrivé», so changing it to «arrivée» is another answer, not an open_gender variant; the fix must change only the error."
     }
    ]
   },
@@ -6544,9 +6827,7 @@
    "hash": "acdb6b141219512d",
    "kind": "fix_the_mistake",
    "key": "Le jour où je suis arrivé, il pleuvait.",
-   "accepted": [
-    "Le jour où je suis arrivée, il pleuvait."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Le jour quand je suis arrivé, il pleuvait.",
@@ -6567,6 +6848,13 @@
      "form": "Le jour dont je suis arrivé, il pleuvait.",
      "why_en": "This relative pronoun replaces a phrase with de and does not fit here.",
      "why_de": "Dieses Relativpronomen ersetzt eine Gruppe mit de und passt hier nicht."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Le jour où je suis arrivée, il pleuvait.",
+     "refused_by": "strict judge",
+     "why": "The shown wrong sentence already has the masculine 'arrivé' and the speaker's gender is not left open; fix_the_mistake must change only the error (quand -> où), so the swap to 'arrivée' is another change."
     }
    ]
   },
@@ -6886,9 +7174,7 @@
    "hash": "ffc9ba8cab059690",
    "kind": "fix_the_mistake",
    "key": "À cause de la pluie, le match est annulé.",
-   "accepted": [
-    "Le match est annulé à cause de la pluie."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Grâce à la pluie, le match est annulé.",
@@ -6904,6 +7190,13 @@
      "form": "Parce que la pluie, le match est annulé.",
      "why_en": "This conjunction needs a verb clause, not a noun.",
      "why_de": "Diese Konjunktion braucht einen Nebensatz mit Verb, kein Nomen."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Le match est annulé à cause de la pluie.",
+     "refused_by": "strict judge",
+     "why": "The candidate moves the cause phrase to the end of the sentence, a reordering that is not one of the allowed classes; it is not just the shown sentence with its error fixed and nothing else changed."
     }
    ]
   },
@@ -7136,10 +7429,7 @@
    "hash": "c7255cd6f9a232d3",
    "kind": "fix_the_mistake",
    "key": "Ton français va de mieux en mieux.",
-   "accepted": [
-    "Ton français est de mieux en mieux.",
-    "Ton français devient de mieux en mieux."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Ton français est de plus en plus bien.",
@@ -7155,6 +7445,18 @@
      "form": "Ton français est de plus en plus mieux.",
      "why_en": "Do not stack plus and the irregular comparative.",
      "why_de": "Plus und die unregelmäßige Steigerungsform dürfen nicht kombiniert werden."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Ton français est de mieux en mieux.",
+     "refused_by": "prefilter",
+     "why": "another verb"
+    },
+    {
+     "form": "Ton français devient de mieux en mieux.",
+     "refused_by": "prefilter",
+     "why": "another verb"
     }
    ],
    "key_proposer_problem": "The key changes the verb to 'va', which is more than the fix needed; 'est de mieux en mieux' is a minimal fix. Still correct French, though."
@@ -7434,7 +7736,10 @@
    "kind": "fix_the_mistake",
    "key": "Il pleuvait, je suis sorti et j'ai vu que j'avais oublié mon parapluie.",
    "accepted": [
-    "Il pleuvait, je suis sortie et j'ai vu que j'avais oublié mon parapluie."
+    {
+     "form": "Il pleuvait, je suis sortie et j'ai vu que j'avais oublié mon parapluie.",
+     "class": "open_gender"
+    }
    ],
    "wrong": [
     {
@@ -7463,9 +7768,7 @@
    "hash": "67a63fb16fd61e97",
    "kind": "fix_the_mistake",
    "key": "Quand il m'a appelé, il avait raté son train juste avant.",
-   "accepted": [
-    "Quand il m'a appelée, il avait raté son train juste avant."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Quand il m'a appelé, il a raté son train juste avant.",
@@ -7482,17 +7785,20 @@
      "why_en": "The tenses are swapped: the call is the later event.",
      "why_de": "Die Zeitformen sind vertauscht: Der Anruf ist das spätere Ereignis."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Quand il m'a appelée, il avait raté son train juste avant.",
+     "refused_by": "strict judge",
+     "why": "The shown sentence has 'appelé' (masculine), so the gender of the speaker is fixed by the learner's sentence; changing to 'appelée' alters the shown text beyond fixing the error, so it is not an open_gender case."
+    }
    ]
   },
   "FR2_B11_NARRATION#9804bb8581": {
    "hash": "58605bc7418560ab",
    "kind": "fix_the_mistake",
    "key": "Je suis arrivé à l'hôtel, mais la réception avait déjà fermé.",
-   "accepted": [
-    "Je suis arrivé à l'hôtel, mais la réception avait fermé.",
-    "Je suis arrivée à l'hôtel, mais la réception avait déjà fermé.",
-    "Je suis arrivée à l'hôtel, mais la réception avait fermé."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je suis arrivé à l'hôtel, mais la réception a fermé.",
@@ -7513,6 +7819,23 @@
      "form": "Je suis arrivé à l'hôtel, mais la réception avait déjà fermée.",
      "why_en": "The past participle after avoir does not agree here.",
      "why_de": "Das Partizip nach avoir wird hier nicht angeglichen."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je suis arrivé à l'hôtel, mais la réception avait fermé.",
+     "refused_by": "prefilter",
+     "why": "another verb"
+    },
+    {
+     "form": "Je suis arrivée à l'hôtel, mais la réception avait déjà fermé.",
+     "refused_by": "strict judge",
+     "why": "The shown sentence already has the masculine 'arrivé', so the speaker's gender is fixed; changing it to 'arrivée' is another answer, not an open gender swap."
+    },
+    {
+     "form": "Je suis arrivée à l'hôtel, mais la réception avait fermé.",
+     "refused_by": "prefilter",
+     "why": "another verb"
     }
    ]
   },
@@ -7879,9 +8202,7 @@
    "hash": "0e1cd7268b65f179",
    "kind": "fix_the_mistake",
    "key": "Nous étions arrivés en retard.",
-   "accepted": [
-    "Nous étions arrivées en retard."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Nous avions arrivé en retard.",
@@ -7903,15 +8224,20 @@
      "why_en": "Agreement was added but the auxiliary is still wrong.",
      "why_de": "Die Angleichung wurde ergänzt, aber das Hilfsverb ist noch falsch."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Nous étions arrivées en retard.",
+     "refused_by": "strict judge",
+     "why": "The shown sentence uses 'Nous', which does not fix gender, but the fix_the_mistake task requires the shown sentence corrected; the feminine 'arrivées' presumes an all-female group the prompt does not indicate, so it is a different answer. Refuse."
+    }
    ]
   },
   "FR2_B11_PLUS_QUE_PARFAIT#eaa45243c5": {
    "hash": "63e51a0ca9783441",
    "kind": "fix_the_mistake",
    "key": "Quand je suis arrivé, le train était déjà parti.",
-   "accepted": [
-    "Quand je suis arrivée, le train était déjà parti."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Quand je suis arrivé, le train est déjà parti.",
@@ -7932,6 +8258,13 @@
      "form": "Quand je suis arrivé, le train partait déjà.",
      "why_en": "The imperfect does not show the action was already completed.",
      "why_de": "Das Imparfait zeigt nicht, dass die Handlung schon abgeschlossen war."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Quand je suis arrivée, le train était déjà parti.",
+     "refused_by": "strict judge",
+     "why": "The shown wrong sentence has 'arrivé' (masculine), so the gender is fixed by the prompt; changing it to 'arrivée' alters something the learner was not asked to correct, so open_gender does not apply."
     }
    ]
   },
@@ -8191,9 +8524,7 @@
    "hash": "d4b4d08a1bce0c2c",
    "kind": "fix_the_mistake",
    "key": "Si tu viens, on ira au cinéma.",
-   "accepted": [
-    "Si tu viens, nous irons au cinéma."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Si tu viendras, on ira au cinéma.",
@@ -8214,6 +8545,13 @@
      "form": "Si tu venais, on ira au cinéma.",
      "why_en": "The imperfect after si does not fit a real condition with a future result.",
      "why_de": "Das Imparfait nach si passt nicht zu einer realen Bedingung mit Futur."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Si tu viens, nous irons au cinéma.",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
     }
    ]
   },
@@ -8361,9 +8699,7 @@
    "hash": "08ca52301a2ab80c",
    "kind": "fix_the_mistake",
    "key": "Quand j'arriverai à Lyon demain, je t'appellerai.",
-   "accepted": [
-    "Quand j'arriverai demain à Lyon, je t'appellerai."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Quand j'arrive à Lyon demain, je t'appellerai.",
@@ -8385,15 +8721,20 @@
      "why_en": "The main clause was changed to the wrong tense.",
      "why_de": "Der Hauptsatz steht in der falschen Zeit."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Quand j'arriverai demain à Lyon, je t'appellerai.",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
+    }
    ]
   },
   "FR2_B11_TEMPORAL_FUTURE#be8eb371f3": {
    "hash": "7884d152ed4c97b6",
    "kind": "fix_the_mistake",
    "key": "Dès que tu seras prête, on partira.",
-   "accepted": [
-    "Dès que tu seras prête, nous partirons."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Dès que tu es prête, on partira.",
@@ -8414,6 +8755,13 @@
      "form": "Dès que tu étais prête, on partira.",
      "why_en": "The imperfect does not express a future event.",
      "why_de": "Das Imparfait drückt kein künftiges Ereignis aus."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Dès que tu seras prête, nous partirons.",
+     "refused_by": "strict judge",
+     "why": "The candidate changes 'on partira' to 'nous partirons', but the item practises the future after 'dès que' and the shown sentence already has 'on'. For fix_the_mistake only the error may be fixed, so the on/nous swap is not allowed here."
     }
    ]
   },
@@ -8669,11 +9017,7 @@
    "hash": "1b5bf900de203c2d",
    "kind": "fix_the_mistake",
    "key": "Je suis arrivé hier.",
-   "accepted": [
-    "Je suis arrivée hier.",
-    "Hier, je suis arrivé.",
-    "Hier, je suis arrivée."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je suis hier arrivé.",
@@ -8689,6 +9033,23 @@
      "form": "Je ai arrivé hier.",
      "why_en": "Wrong auxiliary; arriver takes another one.",
      "why_de": "Falsches Hilfsverb; arriver verlangt ein anderes."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je suis arrivée hier.",
+     "refused_by": "strict judge",
+     "why": "The shown wrong sentence has the masculine 'arrivé', so the gender is fixed by the prompt; changing it to 'arrivée' is another answer, not an open_gender variant."
+    },
+    {
+     "form": "Hier, je suis arrivé.",
+     "refused_by": "strict judge",
+     "why": "The candidate moves 'hier' to the front of the sentence, which is a reordering beyond the allowed classes. The item practises adverb position, and the correction must be the shown sentence with only the error fixed, as in the key. The comma is not a mere punctuation variant here."
+    },
+    {
+     "form": "Hier, je suis arrivée.",
+     "refused_by": "strict judge",
+     "why": "The candidate moves 'hier' to the front, which is a reordering beyond the allowed classes and not the shown sentence with only its error fixed. It also changes arrivé to arrivée, but the prompt does not fix the subject's gender, so that change alone would not matter. The reordering is what makes this another answer."
     }
    ]
   },
@@ -8788,9 +9149,7 @@
    "hash": "6cc50f48b96e4218",
    "kind": "fix_the_mistake",
    "key": "C'est pour ça que je suis venu.",
-   "accepted": [
-    "C'est pour ça que je suis venue."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "C'est pour ça je suis venu.",
@@ -8806,6 +9165,13 @@
      "form": "C'est pourquoi que je suis venu.",
      "why_en": "This changes the expression and adds a wrong word.",
      "why_de": "Das ändert den Ausdruck und fügt ein falsches Wort hinzu."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "C'est pour ça que je suis venue.",
+     "refused_by": "strict judge",
+     "why": "The shown sentence uses masculine 'venu', so the gender is fixed by the prompt; changing it to 'venue' is a different answer and not just the fix of the missing 'que'."
     }
    ]
   },
@@ -8859,10 +9225,7 @@
    "hash": "98e18cdaf56351bc",
    "kind": "fix_the_mistake",
    "key": "En arrivant à la gare, j'ai vu que le train était parti.",
-   "accepted": [
-    "En arrivant à la gare, j'ai constaté que le train était parti.",
-    "En arrivant à la gare, j'ai vu le train partir."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "En arrivant à la gare, le train est parti.",
@@ -8878,6 +9241,18 @@
      "form": "En arrivé à la gare, j'ai vu que le train était parti.",
      "why_en": "The gerund form is wrong.",
      "why_de": "Die Gérondif-Form ist falsch."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "En arrivant à la gare, j'ai constaté que le train était parti.",
+     "refused_by": "prefilter",
+     "why": "another verb"
+    },
+    {
+     "form": "En arrivant à la gare, j'ai vu le train partir.",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
     }
    ]
   },
@@ -8932,8 +9307,10 @@
    "kind": "fix_the_mistake",
    "key": "Deux robes… laquelle tu préfères ?",
    "accepted": [
-    "Deux robes… laquelle préfères-tu ?",
-    "Deux robes… laquelle est-ce que tu préfères ?"
+    {
+     "form": "Deux robes… laquelle préfères-tu ?",
+     "class": "question_form"
+    }
    ],
    "wrong": [
     {
@@ -8950,6 +9327,13 @@
      "form": "Deux robes… quelle tu préfères ?",
      "why_en": "Quelle needs a noun; here a pronoun is needed.",
      "why_de": "Quelle braucht ein Nomen; hier ist ein Pronomen nötig."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Deux robes… laquelle est-ce que tu préfères ?",
+     "refused_by": "strict judge",
+     "why": "The item practises lequel/laquelle in a question, so the question form is part of what is being tested, which excludes question_form. The candidate also adds «est-ce que», which is not a fix of the shown sentence alone."
     }
    ]
   },
@@ -8981,10 +9365,14 @@
    "kind": "fix_the_mistake",
    "key": "Quel film tu veux voir ?",
    "accepted": [
-    "Quel film veux-tu voir ?",
-    "Quel film est-ce que tu veux voir ?",
-    "Quel film voulez-vous voir ?",
-    "Quel film vous voulez voir ?"
+    {
+     "form": "Quel film veux-tu voir ?",
+     "class": "question_form"
+    },
+    {
+     "form": "Quel film est-ce que tu veux voir ?",
+     "class": "question_form"
+    }
    ],
    "wrong": [
     {
@@ -9001,6 +9389,18 @@
      "form": "Quels film tu veux voir ?",
      "why_en": "The word is plural but film is singular.",
      "why_de": "Das Wort ist Plural, film aber Singular."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Quel film voulez-vous voir ?",
+     "refused_by": "prefilter",
+     "why": "the shown sentence already says «tu»"
+    },
+    {
+     "form": "Quel film vous voulez voir ?",
+     "refused_by": "prefilter",
+     "why": "the shown sentence already says «tu»"
     }
    ]
   },
@@ -9206,9 +9606,7 @@
    "hash": "234ed9a3660515b3",
    "kind": "fix_the_mistake",
    "key": "le deux mai",
-   "accepted": [
-    "le 2 mai"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "le deuxième mai",
@@ -9224,6 +9622,13 @@
      "form": "le deuxe mai",
      "why_en": "This is not a correct number form.",
      "why_de": "Das ist keine richtige Zahlform."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "le 2 mai",
+     "refused_by": "strict judge",
+     "why": "Writing the date as digits (\"2\") instead of the word \"deux\" is not a recognised spelling, elision or punctuation variant; it changes the form of the answer in an item that practises ordinals and number words, so it is outside the allowed classes."
     }
    ],
    "key_rejected": true,
@@ -9317,14 +9722,19 @@
    "hash": "97bd1890588f780a",
    "kind": "fix_the_mistake",
    "key": "Hier, je suis allé au cinéma.",
-   "accepted": [
-    "Hier, j'ai été au cinéma."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Hier, je fus au cinéma.",
      "why_en": "This is the sentence unchanged; the passé simple does not belong in a spoken-style 'yesterday' sentence.",
      "why_de": "Das ist der unveränderte Satz; das Passé simple passt nicht in einen gesprochenen Satz mit 'gestern'."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Hier, j'ai été au cinéma.",
+     "refused_by": "prefilter",
+     "why": "another verb"
     }
    ],
    "key_rejected": true,
@@ -9381,10 +9791,7 @@
    "hash": "deba649b3bfa82cf",
    "kind": "fix_the_mistake",
    "key": "On m'a demandé de venir.",
-   "accepted": [
-    "Quelqu'un m'a demandé de venir.",
-    "Il m'a été demandé de venir."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "J'ai été demandé de venir.",
@@ -9400,6 +9807,18 @@
      "form": "On m'a demander de venir.",
      "why_en": "After the auxiliary avoir you need a participle, not an infinitive.",
      "why_de": "Nach dem Hilfsverb avoir braucht man ein Partizip, keinen Infinitiv."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Quelqu'un m'a demandé de venir.",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
+    },
+    {
+     "form": "Il m'a été demandé de venir.",
+     "refused_by": "prefilter",
+     "why": "the subject changed from «on» to «il»"
     }
    ]
   },
@@ -9459,9 +9878,7 @@
    "hash": "353768777c421fb1",
    "kind": "fix_the_mistake",
    "key": "la personne avec qui je travaille",
-   "accepted": [
-    "la personne avec laquelle je travaille"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "la personne avec que je travaille",
@@ -9482,6 +9899,13 @@
      "form": "la personne avec lequel je travaille",
      "why_en": "The pronoun must agree in gender with the noun.",
      "why_de": "Das Pronomen muss im Genus zum Nomen passen."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "la personne avec laquelle je travaille",
+     "refused_by": "strict judge",
+     "why": "Replacing the relative pronoun «qui» with «laquelle» is a lexical change outside the allowed classes, even though it is correct French; the item practises this exact choice of pronoun."
     }
    ]
   },
@@ -9540,9 +9964,7 @@
    "hash": "a5ee5732148583ed",
    "kind": "fix_the_mistake",
    "key": "Il m'a dit de venir.",
-   "accepted": [
-    "Il m'a dit que je viendrais."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Il m'a dit que je viens.",
@@ -9558,6 +9980,13 @@
      "form": "Il m'a dit venir.",
      "why_en": "The linking word is missing before the infinitive.",
      "why_de": "Das Verbindungswort vor dem Infinitiv fehlt."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Il m'a dit que je viendrais.",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
     }
    ],
    "key_rejected": true,
@@ -9865,9 +10294,7 @@
    "hash": "80ee6ce7e698de6e",
    "kind": "fix_the_mistake",
    "key": "Si tu es fatigué, tu n'es pas obligé de venir.",
-   "accepted": [
-    "Si tu es fatigué, il ne faut pas que tu viennes."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Si tu es fatigué, il ne faut pas que tu viens.",
@@ -9883,6 +10310,13 @@
      "form": "Si tu es fatigué, il faut que tu ne viennes pas.",
      "why_en": "This is a different meaning: the negation moves and the idea of being excused is lost.",
      "why_de": "Das ist eine andere Bedeutung: Die Verneinung verschiebt sich und der Gedanke der Entlastung geht verloren."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Si tu es fatigué, il ne faut pas que tu viennes.",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
     }
    ],
    "key_rejected": true,
@@ -9977,9 +10411,7 @@
    "hash": "df24983f148b62bc",
    "kind": "fix_the_mistake",
    "key": "J'espère que tu viendras.",
-   "accepted": [
-    "J'espère que tu viens."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "J'espère que tu viennes.",
@@ -10001,15 +10433,20 @@
      "why_en": "The verb ending does not agree with tu.",
      "why_de": "Die Verbendung passt nicht zu tu."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "J'espère que tu viens.",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
+    }
    ]
   },
   "FR2_B12_TIME_CLAUSES#7e3acb8faf": {
    "hash": "b59af7f2bfe58912",
    "kind": "fix_the_mistake",
    "key": "Attends jusqu'à ce qu'il revienne.",
-   "accepted": [
-    "Attends jusqu'à ce qu'il soit revenu."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Attends jusqu'à il revient.",
@@ -10030,6 +10467,13 @@
      "form": "Attends jusqu'que il revienne.",
      "why_en": "The conjunction is built incorrectly; jusqu'à needs a complement before que.",
      "why_de": "Die Konjunktion ist falsch gebildet; jusqu'à braucht vor que ein Element."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Attends jusqu'à ce qu'il soit revenu.",
+     "refused_by": "strict judge",
+     "why": "The candidate replaces the key's present subjunctive 'revienne' with the perfect subjunctive 'soit revenu', which changes the tense and meaning and is not an allowed variant class."
     }
    ]
   },
@@ -10177,9 +10621,7 @@
    "hash": "1c2aa1e6ec578049",
    "kind": "fix_the_mistake",
    "key": "Faute de temps, on n'a pas visité le musée.",
-   "accepted": [
-    "Faute de temps, nous n'avons pas visité le musée."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Faute du temps, on n'a pas visité le musée.",
@@ -10200,6 +10642,13 @@
      "form": "Par faute de temps, on n'a pas visité le musée.",
      "why_en": "This is not the fixed expression; the extra preposition does not belong.",
      "why_de": "Das ist nicht der feste Ausdruck; die zusätzliche Präposition gehört nicht dazu."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Faute de temps, nous n'avons pas visité le musée.",
+     "refused_by": "strict judge",
+     "why": "The shown sentence already uses 'on', so the on/nous swap is not open here. The item practises 'faute de', but the candidate changes the subject from 'on' to 'nous' and the verb from 'a' to 'avons', which is more than the correction of the shown sentence."
     }
    ]
   },
@@ -10319,10 +10768,7 @@
    "hash": "6ae5266c015d4bcf",
    "kind": "fix_the_mistake",
    "key": "Elle fait comme si elle ne me voyait pas.",
-   "accepted": [
-    "Elle fait comme si elle ne m'avait pas vu.",
-    "Elle fait comme si elle ne m'avait pas vue."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Elle fait comme si elle ne me voit pas.",
@@ -10343,6 +10789,18 @@
      "form": "Elle fait comme si elle me voyait pas.",
      "why_en": "The negation is incomplete.",
      "why_de": "Die Verneinung ist unvollständig."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Elle fait comme si elle ne m'avait pas vu.",
+     "refused_by": "strict judge",
+     "why": "The candidate changes the tense from imparfait (voyait) to plus-que-parfait (m'avait pas vu), which is a different answer from the key and not an allowed variant class."
+    },
+    {
+     "form": "Elle fait comme si elle ne m'avait pas vue.",
+     "refused_by": "prefilter",
+     "why": "another verb"
     }
    ]
   },
@@ -10378,13 +10836,7 @@
    "hash": "0812ad6d407b3b9b",
    "kind": "fix_the_mistake",
    "key": "Il pleut, mais on sort quand même.",
-   "accepted": [
-    "Il pleut, mais on sort tout de même.",
-    "Il pleut, mais nous sortons quand même.",
-    "Il pleut, mais nous sortons tout de même.",
-    "Il pleut, mais on sort pourtant.",
-    "Il pleut, mais on sort malgré tout."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Il pleut, mais on sort malgré.",
@@ -10406,17 +10858,40 @@
      "why_en": "The adverb expression is incomplete.",
      "why_de": "Der adverbiale Ausdruck ist unvollständig."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Il pleut, mais on sort tout de même.",
+     "refused_by": "prefilter",
+     "why": "another linking word or preposition"
+    },
+    {
+     "form": "Il pleut, mais nous sortons quand même.",
+     "refused_by": "prefilter",
+     "why": "another linking word or preposition"
+    },
+    {
+     "form": "Il pleut, mais nous sortons tout de même.",
+     "refused_by": "prefilter",
+     "why": "another linking word or preposition"
+    },
+    {
+     "form": "Il pleut, mais on sort pourtant.",
+     "refused_by": "prefilter",
+     "why": "another linking word or preposition"
+    },
+    {
+     "form": "Il pleut, mais on sort malgré tout.",
+     "refused_by": "prefilter",
+     "why": "another linking word or preposition"
+    }
    ]
   },
   "FR2_B21_CONCESSION#e75b60fec4": {
    "hash": "c413ede7f1e9fed4",
    "kind": "fix_the_mistake",
    "key": "Malgré la pluie, on sort.",
-   "accepted": [
-    "Malgré la pluie, nous sortons.",
-    "Bien qu'il pleuve, on sort.",
-    "Bien qu'il pleuve, nous sortons."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Malgré qu'il pleut, on sort.",
@@ -10438,15 +10913,30 @@
      "why_en": "'Malgré' is followed directly by the noun with no 'de'.",
      "why_de": "'Malgré' steht direkt vor dem Nomen ohne 'de'."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Malgré la pluie, nous sortons.",
+     "refused_by": "prefilter",
+     "why": "another verb"
+    },
+    {
+     "form": "Bien qu'il pleuve, on sort.",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
+    },
+    {
+     "form": "Bien qu'il pleuve, nous sortons.",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
+    }
    ]
   },
   "FR2_B21_CONCESSION_SUBJ#4a367e6b5a": {
    "hash": "fc8acf87a690388e",
    "kind": "fix_the_mistake",
    "key": "Quoiqu'elle soit fatiguée, elle travaille.",
-   "accepted": [
-    "Bien qu'elle soit fatiguée, elle travaille."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Quoi qu'elle soit fatiguée, elle travaille.",
@@ -10468,15 +10958,20 @@
      "why_en": "This conjunction needs the subjunctive.",
      "why_de": "Diese Konjunktion verlangt den Subjonctif."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Bien qu'elle soit fatiguée, elle travaille.",
+     "refused_by": "prefilter",
+     "why": "another linking word or preposition"
+    }
    ]
   },
   "FR2_B21_CONCESSION_SUBJ#78efea5186": {
    "hash": "a3df35cded743943",
    "kind": "fix_the_mistake",
    "key": "Bien qu'il soit malade, il travaille.",
-   "accepted": [
-    "Quoiqu'il soit malade, il travaille."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Bien qu'il est malade, il travaille.",
@@ -10498,15 +10993,20 @@
      "why_en": "The subjunctive form does not agree with the subject.",
      "why_de": "Die Subjonctif-Form passt nicht zum Subjekt."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Quoiqu'il soit malade, il travaille.",
+     "refused_by": "prefilter",
+     "why": "another linking word or preposition"
+    }
    ]
   },
   "FR2_B21_CONCESSION_SUBJ#8ffc6e52f0": {
    "hash": "b6198d826c6a9032",
    "kind": "fix_the_mistake",
    "key": "Même s'il est tard, je viens.",
-   "accepted": [
-    "Bien qu'il soit tard, je viens."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Même s'il soit tard, je viens.",
@@ -10528,15 +11028,20 @@
      "why_en": "The conjunction is not formed correctly.",
      "why_de": "Die Konjunktion ist nicht richtig gebildet."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Bien qu'il soit tard, je viens.",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
+    }
    ]
   },
   "FR2_B21_CONDITIONAL_PAST#6824e7f916": {
    "hash": "0c666a8851761cd8",
    "kind": "fix_the_mistake",
    "key": "Sans la grève, je serais parti à l'heure.",
-   "accepted": [
-    "Sans la grève, je serais partie à l'heure."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Sans la grève, j'aurais parti à l'heure.",
@@ -10557,6 +11062,13 @@
      "form": "Sans la grève, je partirais à l'heure.",
      "why_en": "This is a present conditional; the past is needed.",
      "why_de": "Das ist ein Conditionnel présent; die Vergangenheit ist nötig."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Sans la grève, je serais partie à l'heure.",
+     "refused_by": "prefilter",
+     "why": "another verb"
     }
    ]
   },
@@ -10620,9 +11132,7 @@
    "hash": "b91ffb048e8d0a16",
    "kind": "fix_the_mistake",
    "key": "On sort, à moins qu'il ne pleuve.",
-   "accepted": [
-    "On sort, à moins qu'il pleuve."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "On sort, à moins qu'il ne pleuve pas.",
@@ -10638,6 +11148,13 @@
      "form": "On sort, à moins qu'il pleuve pas.",
      "why_en": "This keeps a negation word and drops 'ne'; the sentence should be affirmative in meaning.",
      "why_de": "Hier bleibt ein Verneinungswort stehen und 'ne' fehlt; der Satz soll bejaht sein."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "On sort, à moins qu'il pleuve.",
+     "refused_by": "prefilter",
+     "why": "the polarity changed (a negation was added or removed)"
     }
    ]
   },
@@ -10676,9 +11193,7 @@
    "hash": "ec71f19130169bf6",
    "kind": "fix_the_mistake",
    "key": "On sort, à moins qu'il ne pleuve.",
-   "accepted": [
-    "On sort, à moins qu'il pleuve."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "On sort, à moins qu'il pleut.",
@@ -10700,15 +11215,20 @@
      "why_en": "The future tense cannot follow this conjunction; a subjunctive is needed.",
      "why_de": "Das Futur ist nach dieser Konjunktion nicht möglich; es braucht den Subjonctif."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "On sort, à moins qu'il pleuve.",
+     "refused_by": "prefilter",
+     "why": "the polarity changed (a negation was added or removed)"
+    }
    ]
   },
   "FR2_B21_CONSEQUENCE_ADVANCED#19255b9e36": {
    "hash": "edd2c0118bfe6e44",
    "kind": "fix_the_mistake",
    "key": "J'ai tant de travail que je ne sors plus.",
-   "accepted": [
-    "J'ai tellement de travail que je ne sors plus."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "J'ai si de travail que je ne sors plus.",
@@ -10729,6 +11249,13 @@
      "form": "J'ai si beaucoup de travail que je ne sors plus.",
      "why_en": "This adverb cannot be combined with 'beaucoup'.",
      "why_de": "Dieses Adverb lässt sich nicht mit 'beaucoup' verbinden."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "J'ai tellement de travail que je ne sors plus.",
+     "refused_by": "prefilter",
+     "why": "another verb"
     }
    ]
   },
@@ -10759,9 +11286,7 @@
    "hash": "c5953f8b4430b82c",
    "kind": "fix_the_mistake",
    "key": "Il était tellement fatigué qu'il est parti.",
-   "accepted": [
-    "Il était tellement fatigué qu'il était parti."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Il était tellement fatigué qu'il soit parti.",
@@ -10783,15 +11308,20 @@
      "why_en": "The participle is spelled wrongly.",
      "why_de": "Das Partizip ist falsch geschrieben."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Il était tellement fatigué qu'il était parti.",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
+    }
    ]
   },
   "FR2_B21_DOUBLE_PRONOUNS_COMPOUND#0b7e3f4cc3": {
    "hash": "89aab5c2ff4d53dd",
    "kind": "fix_the_mistake",
    "key": "Je le lui ai donné.",
-   "accepted": [
-    "Je la lui ai donnée."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je lui l'ai donné.",
@@ -10812,6 +11342,13 @@
      "form": "Je le lui donné.",
      "why_en": "The auxiliary verb is missing.",
      "why_de": "Das Hilfsverb fehlt."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je la lui ai donnée.",
+     "refused_by": "prefilter",
+     "why": "another content word"
     }
    ]
   },
@@ -10847,9 +11384,7 @@
    "hash": "8b7e1de58056489c",
    "kind": "fix_the_mistake",
    "key": "Donne-le-moi.",
-   "accepted": [
-    "Donne-la-moi."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Donne-moi-le.",
@@ -10871,15 +11406,20 @@
      "why_en": "This is not an imperative: the pronouns must follow the verb.",
      "why_de": "Das ist kein Imperativ: Die Pronomen müssen dem Verb folgen."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Donne-la-moi.",
+     "refused_by": "prefilter",
+     "why": "another word"
+    }
    ]
   },
   "FR2_B21_FUTUR_ANTERIEUR#9f44483d71": {
    "hash": "9444b21889542891",
    "kind": "fix_the_mistake",
    "key": "Quand j'aurai fini, je t'appellerai.",
-   "accepted": [
-    "Quand j'aurai fini, je vous appellerai."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Quand j'ai fini, je t'appellerai.",
@@ -10901,15 +11441,20 @@
      "why_en": "Wrong auxiliary: finir here takes avoir.",
      "why_de": "Falsches Hilfsverb: finir bildet es hier mit avoir."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Quand j'aurai fini, je vous appellerai.",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
+    }
    ]
   },
   "FR2_B21_FUTUR_ANTERIEUR#a52dfd5c56": {
    "hash": "eea31b803ad19554",
    "kind": "fix_the_mistake",
    "key": "Dès que tu seras arrivé, envoie-moi un message.",
-   "accepted": [
-    "Dès que tu seras arrivée, envoie-moi un message."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Dès que tu auras arrivé, envoie-moi un message.",
@@ -10930,6 +11475,13 @@
      "form": "Dès que tu seras arrivés, envoie-moi un message.",
      "why_en": "The participle agrees with a singular subject, so the plural ending is wrong.",
      "why_de": "Das Partizip richtet sich nach einem Singular-Subjekt, die Pluralendung ist falsch."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Dès que tu seras arrivée, envoie-moi un message.",
+     "refused_by": "prefilter",
+     "why": "another content word"
     }
    ]
   },
@@ -10960,9 +11512,7 @@
    "hash": "ca1f7d0b9e3cc69f",
    "kind": "fix_the_mistake",
    "key": "Il me semble qu'il a tort.",
-   "accepted": [
-    "Il me semble qu'il avait tort."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Il me semble qu'il ait tort.",
@@ -10978,6 +11528,13 @@
      "form": "Il me semble qu'il à tort.",
      "why_en": "The accent turns the verb into a preposition.",
      "why_de": "Der Akzent macht aus dem Verb eine Präposition."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Il me semble qu'il avait tort.",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
     }
    ]
   },
@@ -11008,9 +11565,7 @@
    "hash": "493e619197818190",
    "kind": "fix_the_mistake",
    "key": "J'espère que tu seras là.",
-   "accepted": [
-    "J'espère que tu es là."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "J'espère que tu sois là.",
@@ -11022,15 +11577,20 @@
      "why_en": "The conditional is not used after espérer que in this way.",
      "why_de": "Das Konditional steht hier nach espérer que nicht."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "J'espère que tu es là.",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    }
    ]
   },
   "FR2_B21_INFINITIF_PASSE#5d92bd4d5d": {
    "hash": "f528a63824d1c5e4",
    "kind": "fix_the_mistake",
    "key": "Après être arrivée, elle m'a appelé.",
-   "accepted": [
-    "Après être arrivé, elle m'a appelé."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Après avoir arrivé, elle m'a appelé.",
@@ -11042,6 +11602,13 @@
      "why_en": "A simple infinitive does not show the earlier action.",
      "why_de": "Der einfache Infinitiv zeigt die Vorzeitigkeit nicht."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Après être arrivé, elle m'a appelé.",
+     "refused_by": "strict judge",
+     "why": "The shown sentence has the subject 'elle', so the past participle must agree as 'arrivée'; the candidate 'arrivé' leaves it masculine, which is incorrect. The prompt fixes the gender, so open_gender does not apply."
+    }
    ]
   },
   "FR2_B21_INFINITIF_PASSE#6ee92a96da": {
@@ -11049,7 +11616,10 @@
    "kind": "fix_the_mistake",
    "key": "Merci de m'avoir aidé hier.",
    "accepted": [
-    "Merci de m'avoir aidée hier."
+    {
+     "form": "Merci de m'avoir aidée hier.",
+     "class": "open_gender"
+    }
    ],
    "wrong": [
     {
@@ -11078,10 +11648,7 @@
    "hash": "5e03a475e1b2bdaa",
    "kind": "fix_the_mistake",
    "key": "Après avoir mangé, on est sortis.",
-   "accepted": [
-    "Après avoir mangé, on est sorti.",
-    "Après avoir mangé, on est sorties."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Après manger, on est sortis.",
@@ -11098,15 +11665,25 @@
      "why_en": "Wrong auxiliary for manger.",
      "why_de": "Falsches Hilfsverb für manger."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Après avoir mangé, on est sorti.",
+     "refused_by": "strict judge",
+     "why": "The candidate changes the agreement of 'sortis' to 'sorti' (singular), which is not one of the allowed classes. The shown sentence has 'sortis', so the plural agreement is fixed and the change is not an error correction. The key keeps it unchanged."
+    },
+    {
+     "form": "Après avoir mangé, on est sorties.",
+     "refused_by": "strict judge",
+     "why": "The candidate changes 'sortis' to 'sorties', a feminine plural agreement. The shown sentence uses 'on' with no cue about who is meant, so the gender is open in principle. But this is a fix_the_mistake item, where the candidate must be the shown sentence with only its error fixed, and the key keeps 'sortis'. Changing the agreement is a change beyond the fix, so it is not an accepted variant."
+    }
    ]
   },
   "FR2_B21_PARTICIPE_PRESENT#6d416c45c1": {
    "hash": "42e935b1e9c648b3",
    "kind": "fix_the_mistake",
    "key": "Étant arrivé en retard, il s'est excusé.",
-   "accepted": [
-    "Arrivé en retard, il s'est excusé."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Ayant arrivé en retard, il s'est excusé.",
@@ -11123,15 +11700,20 @@
      "why_en": "The participle must agree with a masculine subject.",
      "why_de": "Das Partizip muss zum männlichen Subjekt passen."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Arrivé en retard, il s'est excusé.",
+     "refused_by": "strict judge",
+     "why": "The candidate drops the auxiliary participle «Étant», so it is no longer the shown sentence with only its error fixed; this is a lexical deletion, not a spelling, punctuation or other permitted variation."
+    }
    ]
   },
   "FR2_B21_PARTICIPE_PRESENT#9ae6866a25": {
    "hash": "95eadb435d00c602",
    "kind": "fix_the_mistake",
    "key": "Les personnes souhaitant s'inscrire doivent écrire.",
-   "accepted": [
-    "Les personnes qui souhaitent s'inscrire doivent écrire."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Les personnes souhaitantes s'inscrire doivent écrire.",
@@ -11148,15 +11730,20 @@
      "why_en": "This is a finite verb form, so the sentence has two main verbs.",
      "why_de": "Das ist eine finite Form, der Satz hat zwei Hauptverben."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Les personnes qui souhaitent s'inscrire doivent écrire.",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
+    }
    ]
   },
   "FR2_B21_PARTICIPE_PRESENT#b069e05321": {
    "hash": "6d24a7937cfd888c",
    "kind": "fix_the_mistake",
    "key": "Étant fatiguée, elle a annulé la réunion.",
-   "accepted": [
-    "Étant fatiguée, la directrice a annulé la réunion."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Étant fatiguée, la réunion a été annulée.",
@@ -11173,15 +11760,20 @@
      "why_en": "The participle does not agree here, since the object follows.",
      "why_de": "Das Partizip wird nicht angeglichen, da das Objekt folgt."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Étant fatiguée, la directrice a annulé la réunion.",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
+    }
    ]
   },
   "FR2_B21_PASSIVE_TENSES#45e9753b71": {
    "hash": "beecaaffd5263556",
    "kind": "fix_the_mistake",
    "key": "Le colis sera livré demain.",
-   "accepted": [
-    "Le colis va être livré demain."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Le colis devient livré demain.",
@@ -11202,6 +11794,13 @@
      "form": "Le colis serait livré demain.",
      "why_en": "The conditional changes the meaning.",
      "why_de": "Das Konditional verändert die Bedeutung."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Le colis va être livré demain.",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
     }
    ]
   },
@@ -11375,10 +11974,7 @@
    "hash": "1598a9797aec8f23",
    "kind": "fix_the_mistake",
    "key": "On m'a volé mon vélo.",
-   "accepted": [
-    "On a volé mon vélo.",
-    "Mon vélo a été volé."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Mon vélo a volé.",
@@ -11389,6 +11985,18 @@
      "form": "Mon vélo s'est volé.",
      "why_en": "A pronominal form does not work with this verb and meaning.",
      "why_de": "Eine pronominale Form passt bei diesem Verb und dieser Bedeutung nicht."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "On a volé mon vélo.",
+     "refused_by": "strict judge",
+     "why": "The candidate drops the pronoun «m'» (indirect object) from the key, which is a lexical change outside the allowed classes; it is also not the shown wrong sentence merely corrected."
+    },
+    {
+     "form": "Mon vélo a été volé.",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
     }
    ]
   },
@@ -11846,9 +12454,7 @@
    "hash": "60704aaaeb8f571f",
    "kind": "fix_the_mistake",
    "key": "Je suis content que tu sois là.",
-   "accepted": [
-    "Je suis contente que tu sois là."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je suis content que tu es là.",
@@ -11869,6 +12475,13 @@
      "form": "Je suis content que tu étais là.",
      "why_en": "The imperfect indicative is not used after an expression of emotion.",
      "why_de": "Das Imparfait steht nach einem Gefühlsausdruck nicht."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je suis contente que tu sois là.",
+     "refused_by": "prefilter",
+     "why": "another content word"
     }
    ]
   },
@@ -12070,9 +12683,7 @@
    "hash": "74d491234fce32ba",
    "kind": "fix_the_mistake",
    "key": "Après qu'il est parti, on a rangé.",
-   "accepted": [
-    "Après qu'il fut parti, on a rangé."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Après qu'il soit parti, on a rangé.",
@@ -12088,6 +12699,13 @@
      "form": "Après qu'il part, on a rangé.",
      "why_en": "The action is completed, so a compound tense is needed.",
      "why_de": "Die Handlung ist abgeschlossen, also braucht man eine zusammengesetzte Zeit."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Après qu'il fut parti, on a rangé.",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
     }
    ]
   },
@@ -12118,10 +12736,7 @@
    "hash": "6af91e87d121fc72",
    "kind": "fix_the_mistake",
    "key": "Le loyer est bas. De plus, le quartier est calme.",
-   "accepted": [
-    "Le loyer est bas. En outre, le quartier est calme.",
-    "Le loyer est bas. Par ailleurs, le quartier est calme."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Le loyer est bas. En revanche, le quartier est calme.",
@@ -12137,6 +12752,18 @@
      "form": "Le loyer est bas. En somme, le quartier est calme.",
      "why_en": "This connector introduces a conclusion, not an added argument.",
      "why_de": "Dieser Konnektor leitet ein Fazit ein, kein zusätzliches Argument."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Le loyer est bas. En outre, le quartier est calme.",
+     "refused_by": "prefilter",
+     "why": "another linking word or preposition"
+    },
+    {
+     "form": "Le loyer est bas. Par ailleurs, le quartier est calme.",
+     "refused_by": "prefilter",
+     "why": "another linking word or preposition"
     }
    ]
   },
@@ -12167,9 +12794,7 @@
    "hash": "8f28e82f2a672e81",
    "kind": "fix_the_mistake",
    "key": "D'une part, c'est cher ; d'autre part, c'est utile.",
-   "accepted": [
-    "D'un côté, c'est cher ; de l'autre, c'est utile."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "D'un côté, c'est cher ; d'une autre part, c'est utile.",
@@ -12185,6 +12810,13 @@
      "form": "D'une part, c'est cher ; d'autre côté, c'est utile.",
      "why_en": "The second connector mixes two expressions and is not correct.",
      "why_de": "Der zweite Konnektor vermischt zwei Ausdrücke und ist nicht korrekt."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "D'un côté, c'est cher ; de l'autre, c'est utile.",
+     "refused_by": "prefilter",
+     "why": "another content word"
     }
    ]
   },
@@ -12772,9 +13404,7 @@
    "hash": "543a4692b9fdb231",
    "kind": "fix_the_mistake",
    "key": "Je te l'avais dit !",
-   "accepted": [
-    "Je te l'ai dit !"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je t'ai dit !",
@@ -12791,15 +13421,20 @@
      "why_en": "This changes the tense and still lacks the second pronoun.",
      "why_de": "Das ändert die Zeitform und es fehlt weiterhin das zweite Pronomen."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je te l'ai dit !",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
+    }
    ]
   },
   "FR2_B22_NEUTRAL_LE#c530ec33ea": {
    "hash": "765c3a09be6cae27",
    "kind": "fix_the_mistake",
    "key": "Tu es sûre ? – Oui, j'en suis sûre.",
-   "accepted": [
-    "Tu es sûre ? – Oui, je suis sûre."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Tu es sûre ? – Oui, je le suis sûre.",
@@ -12815,6 +13450,13 @@
      "form": "Tu es sûre ? – Oui, je en suis sûre.",
      "why_en": "The pronoun needs elision before a vowel.",
      "why_de": "Das Pronomen muss vor einem Vokal elidiert werden."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Tu es sûre ? – Oui, je suis sûre.",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ],
    "key_rejected": true,
@@ -12867,9 +13509,7 @@
    "hash": "cd4bdf3e7f6e864c",
    "kind": "fix_the_mistake",
    "key": "Je crains qu'il ne pleuve demain.",
-   "accepted": [
-    "Je crains qu'il pleuve demain."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je crains qu'il ne pleuve pas demain.",
@@ -12886,15 +13526,20 @@
      "why_en": "Negation without ne is not standard here and still changes the meaning.",
      "why_de": "Verneinung ohne ne ist hier nicht standardsprachlich und ändert die Bedeutung."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je crains qu'il pleuve demain.",
+     "refused_by": "prefilter",
+     "why": "the polarity changed (a negation was added or removed)"
+    }
    ]
   },
   "FR2_B22_NE_EXPLETIF#ef2773b66c": {
    "hash": "465a394df73f44c8",
    "kind": "fix_the_mistake",
    "key": "J'ai peur qu'il ne vienne.",
-   "accepted": [
-    "J'ai peur qu'il vienne."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "J'ai peur qu'il ne vient.",
@@ -12910,6 +13555,13 @@
      "form": "J'ai peur qu'il ne vienne pas.",
      "why_en": "Adding pas changes the meaning to the opposite.",
      "why_de": "Mit pas ändert sich die Bedeutung ins Gegenteil."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "J'ai peur qu'il vienne.",
+     "refused_by": "prefilter",
+     "why": "the polarity changed (a negation was added or removed)"
     }
    ]
   },
@@ -13258,10 +13910,7 @@
    "hash": "24415ccac339058c",
    "kind": "fix_the_mistake",
    "key": "Elle a dit qu'elle était venue la veille.",
-   "accepted": [
-    "Elle a dit qu'elle était venue le jour précédent.",
-    "Elle a dit qu'elle était venue le jour d'avant."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Elle a dit qu'elle était venue le jour avant.",
@@ -13283,16 +13932,25 @@
      "why_en": "The tense is not shifted.",
      "why_de": "Die Zeit ist nicht angepasst."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Elle a dit qu'elle était venue le jour précédent.",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "Elle a dit qu'elle était venue le jour d'avant.",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    }
    ]
   },
   "FR2_B22_REPORTED_SEQUENCE#ba420dd2cf": {
    "hash": "57aad53a76e552f1",
    "kind": "fix_the_mistake",
    "key": "Il y a un mois, il m'a dit qu'il viendrait le lendemain.",
-   "accepted": [
-    "Il y a un mois, il m'a dit qu'il viendrait le jour suivant.",
-    "Il y a un mois, il m'a dit qu'il viendrait ce jour-là."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Il y a un mois, il m'a dit qu'il viendrait demain.",
@@ -13313,6 +13971,18 @@
      "form": "Il y a un mois, il m'a dit qu'il viendra le lendemain.",
      "why_en": "The future should shift in the past context.",
      "why_de": "Das Futur muss im Vergangenheitskontext angepasst werden."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Il y a un mois, il m'a dit qu'il viendrait le jour suivant.",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "Il y a un mois, il m'a dit qu'il viendrait ce jour-là.",
+     "refused_by": "prefilter",
+     "why": "another content word"
     }
    ]
   },
@@ -13783,9 +14453,7 @@
    "hash": "09ead1e164239fe6",
    "kind": "fix_the_mistake",
    "key": "Marie a parlé à sa sœur ; cette dernière était inquiète.",
-   "accepted": [
-    "Marie a parlé à sa sœur ; celle-ci était inquiète."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Marie a parlé à sa sœur ; elle était inquiète.",
@@ -13801,6 +14469,13 @@
      "form": "Marie a parlé à sa sœur ; celui-ci était inquiète.",
      "why_en": "The demonstrative has the wrong gender.",
      "why_de": "Das Demonstrativ hat das falsche Genus."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Marie a parlé à sa sœur ; celle-ci était inquiète.",
+     "refused_by": "prefilter",
+     "why": "another content word"
     }
    ]
   },
@@ -13921,9 +14596,7 @@
    "hash": "5061ffec5c53f3f9",
    "kind": "fix_the_mistake",
    "key": "Je rentre, d'autant plus qu'il est tard.",
-   "accepted": [
-    "D'autant plus qu'il est tard, je rentre."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "D'autant plus qu'il soit tard, je rentre.",
@@ -13941,15 +14614,20 @@
      "why_de": "Das ersetzt den Ausdruck durch einen anderen und ist selbst fehlerhaft."
     }
    ],
+   "refused_variants": [
+    {
+     "form": "D'autant plus qu'il est tard, je rentre.",
+     "refused_by": "strict judge",
+     "why": "The candidate keeps the wrong sentence's order and fixes the mood (soit -> est), while the key reorders the clauses; this reordering is not a permitted class. Also, 'D'autant plus qu'il est tard, je rentre' with the clause fronted is not standard, since d'autant plus que normally follows the main clause."
+    }
+   ],
    "key_proposer_problem": "The key moves the clause after the main clause, which rewrites the sentence beyond the mistake; the fix should keep the original word order: D'autant plus qu'il est tard, je rentre."
   },
   "FR2_C11_CAUSE_NUANCED#2a6a8d372d": {
    "hash": "bf2a501d51392d1b",
    "kind": "fix_the_mistake",
    "key": "Je rentre, d'autant plus qu'il est tard.",
-   "accepted": [
-    "Je rentre, d'autant plus qu'il fait tard."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je rentre, d'autant plus qu'il soit tard.",
@@ -13965,6 +14643,13 @@
      "form": "Je rentre, d'autant que il est tard.",
      "why_en": "The expression is altered and the elision is missing.",
      "why_de": "Der Ausdruck ist verändert und die Elision fehlt."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je rentre, d'autant plus qu'il fait tard.",
+     "refused_by": "prefilter",
+     "why": "another verb"
     }
    ]
   },
@@ -14088,7 +14773,10 @@
    "kind": "fix_the_mistake",
    "key": "C'est en lisant qu'on apprend.",
    "accepted": [
-    "C'est en lisant que l'on apprend."
+    {
+     "form": "C'est en lisant que l'on apprend.",
+     "class": "elision"
+    }
    ],
    "wrong": [
     {
@@ -14355,9 +15043,7 @@
    "hash": "eec26ad5c711bf48",
    "kind": "fix_the_mistake",
    "key": "Dans ce film, il s'agit d'une famille.",
-   "accepted": [
-    "Il s'agit d'une famille dans ce film."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Ce film s'agit d'une famille.",
@@ -14378,6 +15064,13 @@
      "form": "Dans ce film, il s'agit de une famille.",
      "why_en": "de must be contracted with the article.",
      "why_de": "de muss mit dem Artikel verschmolzen werden."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Il s'agit d'une famille dans ce film.",
+     "refused_by": "strict judge",
+     "why": "The candidate moves «dans ce film» to the end of the sentence, which is a reordering beyond any allowed class (it is not a question form, spelling, elision or punctuation difference), so it is a different answer from the key."
     }
    ],
    "key_proposer_problem": "Key writes 'il s'agit d'une famille' correctly with the added 'Dans ce film', but it is fine; however 'Dans ce film, il s'agit d'une famille' adds words, acceptable as correction."
@@ -14618,9 +15311,7 @@
    "hash": "4ccb8ee64597a60f",
    "kind": "fix_the_mistake",
    "key": "Loin de résoudre le problème, sa décision l'a aggravé.",
-   "accepted": [
-    "Loin de résoudre le problème, sa décision a aggravé la situation."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Loin de résoudre le problème, la situation s'est aggravée avec sa décision.",
@@ -14633,6 +15324,13 @@
      "why_de": "Der Subjektwechsel bleibt bestehen."
     }
    ],
+   "refused_variants": [
+    {
+     "form": "Loin de résoudre le problème, sa décision a aggravé la situation.",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    }
+   ],
    "key_rejected": true,
    "key_judge_reason": "'l'a aggravé' uses a masculine pronoun, which would refer to 'le problème'; the meaning is different (it should be 'la situation').",
    "key_proposer_problem": "The key's 'l'a aggravé' is ambiguous: 'l'' likely refers to 'le problème' but a rewrite beyond the mistake; it is acceptable but the key restructures the sentence more than needed."
@@ -14641,9 +15339,7 @@
    "hash": "a3d5709f4031fae3",
    "kind": "fix_the_mistake",
    "key": "Je les ai vus partir.",
-   "accepted": [
-    "Je les ai vues partir."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "J'ai vu les partir.",
@@ -14659,6 +15355,13 @@
      "form": "J'ai les vus partir.",
      "why_en": "The pronoun must come before the auxiliary.",
      "why_de": "Das Pronomen muss vor dem Hilfsverb stehen."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je les ai vues partir.",
+     "refused_by": "prefilter",
+     "why": "another verb"
     }
    ]
   },
@@ -14685,7 +15388,10 @@
    "kind": "fix_the_mistake",
    "key": "Je l'ai entendu chanter.",
    "accepted": [
-    "Je l'ai entendue chanter."
+    {
+     "form": "Je l'ai entendue chanter.",
+     "class": "open_gender"
+    }
    ],
    "wrong": [
     {
@@ -14822,9 +15528,7 @@
    "hash": "b7b49953c064870d",
    "kind": "fix_the_mistake",
    "key": "Il pleuvait ; il est pourtant sorti.",
-   "accepted": [
-    "Il pleuvait ; il est sorti sans pour autant."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Il pleuvait ; il est pour autant sorti.",
@@ -14840,6 +15544,13 @@
      "form": "Il pleuvait ; il est donc sorti.",
      "why_en": "This changes the meaning: it expresses a consequence, not a contrast.",
      "why_de": "Das ändert die Bedeutung: Es drückt eine Folge aus, keinen Gegensatz."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Il pleuvait ; il est sorti sans pour autant.",
+     "refused_by": "prefilter",
+     "why": "another verb"
     }
    ],
    "key_rejected": true,
@@ -15434,10 +16145,7 @@
    "hash": "b73dc0e3cbef50e8",
    "kind": "fix_the_mistake",
    "key": "Il est parti sous prétexte qu'il était malade.",
-   "accepted": [
-    "Il est parti sous prétexte qu'il est malade.",
-    "Il est parti sous prétexte qu'il avait été malade."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Il est parti sous prétexte qu'il soit malade.",
@@ -15448,6 +16156,18 @@
      "form": "Il est parti non qu'il était malade.",
      "why_en": "This changes the connector; and 'non que' would need the subjunctive anyway.",
      "why_de": "Das ändert die Konjunktion; und 'non que' verlangt ohnehin den Subjonctif."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Il est parti sous prétexte qu'il est malade.",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
+    },
+    {
+     "form": "Il est parti sous prétexte qu'il avait été malade.",
+     "refused_by": "strict judge",
+     "why": "The candidate changes the tense from imparfait (était) to plus-que-parfait (avait été), which changes the meaning and is not one of the allowed variant classes."
     }
    ]
   },
@@ -15529,13 +16249,7 @@
    "hash": "cbcf991590798c7a",
    "kind": "fix_the_mistake",
    "key": "Une fois arrivé à l'hôtel, j'ai trouvé la chambre prête.",
-   "accepted": [
-    "Une fois arrivés à l'hôtel, nous avons trouvé la chambre prête.",
-    "Une fois arrivée à l'hôtel, j'ai trouvé la chambre prête.",
-    "Une fois arrivés à l'hôtel, nous avons trouvé la chambre déjà prête.",
-    "Une fois arrivé à l'hôtel, j'ai trouvé la chambre déjà prête.",
-    "Une fois arrivée à l'hôtel, j'ai trouvé la chambre déjà prête."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Une fois arrivé à l'hôtel, la chambre était déjà prête.",
@@ -15551,6 +16265,33 @@
      "form": "Une fois arrivée à l'hôtel, la chambre était déjà prête.",
      "why_en": "Changing the agreement does not fix the subject mismatch.",
      "why_de": "Die Angleichung ändert nichts am falschen Bezug des Subjekts."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Une fois arrivés à l'hôtel, nous avons trouvé la chambre prête.",
+     "refused_by": "prefilter",
+     "why": "the subject changed from «je» to «nous»"
+    },
+    {
+     "form": "Une fois arrivée à l'hôtel, j'ai trouvé la chambre prête.",
+     "refused_by": "prefilter",
+     "why": "another verb"
+    },
+    {
+     "form": "Une fois arrivés à l'hôtel, nous avons trouvé la chambre déjà prête.",
+     "refused_by": "prefilter",
+     "why": "the subject changed from «je» to «nous»"
+    },
+    {
+     "form": "Une fois arrivé à l'hôtel, j'ai trouvé la chambre déjà prête.",
+     "refused_by": "strict judge",
+     "why": "The candidate adds the adverb «déjà», which the key does not have. This is an added word, not one of the allowed variant classes."
+    },
+    {
+     "form": "Une fois arrivée à l'hôtel, j'ai trouvé la chambre déjà prête.",
+     "refused_by": "prefilter",
+     "why": "another verb"
     }
    ]
   },
@@ -15609,10 +16350,7 @@
    "hash": "82159719728e5900",
    "kind": "fix_the_mistake",
    "key": "Le ministre a baissé les impôts ; ce faisant, il a creusé le déficit.",
-   "accepted": [
-    "Le ministre a baissé les impôts ; ce faisant, il a fait augmenter le déficit.",
-    "Le ministre a baissé les impôts ; ce faisant, il a aggravé le déficit."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Le ministre a baissé les impôts ; ce faisant, le déficit a augmenté.",
@@ -15628,6 +16366,18 @@
      "form": "Le ministre a baissé les impôts ; en faisant ce, il a creusé le déficit.",
      "why_en": "This is not a correct form of the expression.",
      "why_de": "Das ist keine korrekte Form des Ausdrucks."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Le ministre a baissé les impôts ; ce faisant, il a fait augmenter le déficit.",
+     "refused_by": "prefilter",
+     "why": "another verb"
+    },
+    {
+     "form": "Le ministre a baissé les impôts ; ce faisant, il a aggravé le déficit.",
+     "refused_by": "prefilter",
+     "why": "another verb"
     }
    ]
   },
@@ -15658,9 +16408,7 @@
    "hash": "6908f454b1879fb0",
    "kind": "fix_the_mistake",
    "key": "À défaut de pouvoir venir, j'enverrai mes notes.",
-   "accepted": [
-    "A défaut de pouvoir venir, j'enverrai mes notes."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "À défaut à pouvoir venir, j'enverrai mes notes.",
@@ -15682,15 +16430,20 @@
      "why_en": "No article is used before the infinitive.",
      "why_de": "Vor dem Infinitiv steht kein Artikel."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "A défaut de pouvoir venir, j'enverrai mes notes.",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    }
    ]
   },
   "FR2_C12_ELLIPSIS_SI_BESOIN#928d97134d": {
    "hash": "9b2d0ebf3a4050be",
    "kind": "fix_the_mistake",
    "key": "Si besoin, appelez-moi.",
-   "accepted": [
-    "Si besoin est, appelez-moi."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Si c'est besoin, appelez-moi.",
@@ -15706,6 +16459,13 @@
      "form": "Si de besoin, appelez-moi.",
      "why_en": "There is no preposition in this expression.",
      "why_de": "In diesem Ausdruck steht keine Präposition."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Si besoin est, appelez-moi.",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
     }
    ]
   },
@@ -15781,7 +16541,10 @@
    "kind": "fix_the_mistake",
    "key": "Dût-il échouer, il essaiera.",
    "accepted": [
-    "Dût-il échouer, il essayera."
+    {
+     "form": "Dût-il échouer, il essayera.",
+     "class": "spelling"
+    }
    ],
    "wrong": [
     {
@@ -16052,9 +16815,7 @@
    "hash": "f9042e4af2677f89",
    "kind": "fix_the_mistake",
    "key": "Hausse des prix en janvier.",
-   "accepted": [
-    "Une hausse des prix en janvier."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Une hausse de les prix en janvier.",
@@ -16070,6 +16831,13 @@
      "form": "Une hausse du prix en janvier.",
      "why_en": "The contraction is wrong here: the noun must stay plural.",
      "why_de": "Die Kontraktion ist hier falsch: das Nomen muss im Plural bleiben."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Une hausse des prix en janvier.",
+     "refused_by": "strict judge",
+     "why": "The candidate keeps the article «Une» that the key drops (key: «Hausse des prix en janvier.»); this changes the lexical content and is not a spelling, punctuation or other allowed variation, even though the sentence is correct French."
     }
    ],
    "key_rejected": true,
@@ -16304,11 +17072,7 @@
    "hash": "fdcb97edaefdab35",
    "kind": "fix_the_mistake",
    "key": "J'ai travaillé trois ans dans une agence de communication.",
-   "accepted": [
-    "J'ai travaillé trois ans dans une entreprise de communication.",
-    "J'ai travaillé trois ans dans une société de communication.",
-    "J'ai travaillé pendant trois ans dans une agence de communication."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "J'ai bossé trois ans dans une boîte de com.",
@@ -16325,16 +17089,30 @@
      "why_en": "The verb is fixed but the noun is still colloquial.",
      "why_de": "Das Verb ist korrigiert, aber das Nomen ist noch umgangssprachlich."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "J'ai travaillé trois ans dans une entreprise de communication.",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "J'ai travaillé trois ans dans une société de communication.",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "J'ai travaillé pendant trois ans dans une agence de communication.",
+     "refused_by": "prefilter",
+     "why": "another linking word or preposition"
+    }
    ]
   },
   "FR2_C12_REGISTER_LEXICON#ba8764c227": {
    "hash": "f36eb7cd3a8c6e37",
    "kind": "fix_the_mistake",
    "key": "Votre véhicule est mal stationné.",
-   "accepted": [
-    "Votre voiture est mal garée.",
-    "Votre voiture est mal stationnée."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Votre bagnole est mal garée.",
@@ -16350,6 +17128,18 @@
      "form": "Votre caisse est mal garée.",
      "why_en": "Another slang word for car, still too informal for a formal letter.",
      "why_de": "Ein weiteres Slangwort für Auto, für einen formellen Brief zu locker."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Votre voiture est mal garée.",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "Votre voiture est mal stationnée.",
+     "refused_by": "prefilter",
+     "why": "another verb"
     }
    ]
   },
@@ -16385,9 +17175,7 @@
    "hash": "ff16fbee3539505c",
    "kind": "fix_the_mistake",
    "key": "Il n'est pas possible de modifier la date.",
-   "accepted": [
-    "Ce n'est pas possible de modifier la date."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "C'est pas possible de modifier la date.",
@@ -16403,6 +17191,13 @@
      "form": "Il n'est possible pas de modifier la date.",
      "why_en": "Pas is misplaced after the adjective.",
      "why_de": "Pas steht falsch hinter dem Adjektiv."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Ce n'est pas possible de modifier la date.",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
     }
    ]
   },
@@ -16492,10 +17287,7 @@
    "hash": "5997b892df387d04",
    "kind": "fix_the_mistake",
    "key": "Que fais-tu ?",
-   "accepted": [
-    "Qu'est-ce que tu fais ?",
-    "Tu fais quoi ?"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Quoi fais-tu ?",
@@ -16512,16 +17304,25 @@
      "why_en": "The verb ending does not match tu.",
      "why_de": "Die Verbendung passt nicht zu tu."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Qu'est-ce que tu fais ?",
+     "refused_by": "strict judge",
+     "why": "The item practises question forms (registers) and the key is the inversion 'Que fais-tu ?'; 'Qu'est-ce que tu fais ?' changes the question form, which is not allowed here, and it is also not just the wrong sentence with its error fixed."
+    },
+    {
+     "form": "Tu fais quoi ?",
+     "refused_by": "prefilter",
+     "why": "another word"
+    }
    ]
   },
   "FR2_C12_REGISTER_QUESTIONS#ad59f69d33": {
    "hash": "4d844af6bf9950ae",
    "kind": "fix_the_mistake",
    "key": "Tu fais quoi ?",
-   "accepted": [
-    "Qu'est-ce que tu fais ?",
-    "Que fais-tu ?"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Tu fais que ?",
@@ -16538,17 +17339,25 @@
      "why_en": "Quoi cannot start this question.",
      "why_de": "Quoi kann diese Frage nicht einleiten."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Qu'est-ce que tu fais ?",
+     "refused_by": "prefilter",
+     "why": "another word"
+    },
+    {
+     "form": "Que fais-tu ?",
+     "refused_by": "prefilter",
+     "why": "another word"
+    }
    ]
   },
   "FR2_C12_REGISTER_QUESTIONS#c518da392a": {
    "hash": "d4678ddb5565bf11",
    "kind": "fix_the_mistake",
    "key": "Où vas-tu ?",
-   "accepted": [
-    "Où est-ce que tu vas ?",
-    "Tu vas où ?",
-    "Où tu vas ?"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Où tu vas-tu ?",
@@ -16564,6 +17373,23 @@
      "form": "Où va-tu ?",
      "why_en": "The verb form does not match tu.",
      "why_de": "Die Verbform passt nicht zu tu."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Où est-ce que tu vas ?",
+     "refused_by": "strict judge",
+     "why": "The grammar point practises question forms across registers, so question_form cannot apply; the item targets the question form itself, and the key fixes the inversion 'Où vas-tu ?'. The candidate changes the construction rather than just fixing the shown error."
+    },
+    {
+     "form": "Tu vas où ?",
+     "refused_by": "strict judge",
+     "why": "The item practises the question form itself (questions across registers), so question_form cannot be used as a variant; the shown sentence also must be corrected with only its error fixed, and \"Tu vas où ?\" reorders and rewrites it rather than fixing it as the key does."
+    },
+    {
+     "form": "Où tu vas ?",
+     "refused_by": "strict judge",
+     "why": "The item practises question forms across registers, so question_form cannot apply; the candidate «Où tu vas ?» is also not the shown sentence with its error fixed, but a different register of the question."
     }
    ]
   },
@@ -16709,9 +17535,7 @@
    "hash": "5cca1c269e169171",
    "kind": "fix_the_mistake",
    "key": "Si elle n'est pas venue, c'est parce qu'elle était malade.",
-   "accepted": [
-    "Si elle n'est pas venue, c'est qu'elle était malade."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Si elle n'est pas venue, c'est car elle était malade.",
@@ -16727,6 +17551,13 @@
      "form": "Si elle n'est pas venue, c'est pourquoi elle était malade.",
      "why_en": "Pourquoi does not introduce the cause here.",
      "why_de": "Pourquoi leitet hier nicht den Grund ein."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Si elle n'est pas venue, c'est qu'elle était malade.",
+     "refused_by": "prefilter",
+     "why": "another verb"
     }
    ]
   },
@@ -17189,9 +18020,7 @@
    "hash": "c22ec623eb28649b",
    "kind": "fix_the_mistake",
    "key": "J'aime le café.",
-   "accepted": [
-    "J'aime les cafés."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "J'aime café.",
@@ -17212,6 +18041,13 @@
      "form": "J'aime l'café.",
      "why_en": "The article is elided although the noun begins with a consonant.",
      "why_de": "Der Artikel wird elidiert, obwohl das Wort mit Konsonant beginnt."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "J'aime les cafés.",
+     "refused_by": "strict judge",
+     "why": "The candidate changes 'le café' to the plural 'les cafés', which changes the number of the noun and the article. This is another answer, not an accepted variant of the key."
     }
    ]
   },
@@ -18236,9 +19072,7 @@
    "hash": "75722d14213f249b",
    "kind": "fix_the_mistake",
    "key": "On va au café.",
-   "accepted": [
-    "Nous allons au café."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Nous va au café.",
@@ -18255,15 +19089,20 @@
      "why_en": "This verb form belongs to a different subject.",
      "why_de": "Diese Verbform gehört zu einem anderen Subjekt."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Nous allons au café.",
+     "refused_by": "strict judge",
+     "why": "The item practises subject pronouns and on, so the on/nous swap is not allowed here. The shown sentence uses 'Nous', and the candidate keeps it and changes the verb, while the key replaces the pronoun with 'on'."
+    }
    ]
   },
   "FR_A1_PRON_001#f08d7090b9": {
    "hash": "6527891326302a2f",
    "kind": "fix_the_mistake",
    "key": "Je suis français.",
-   "accepted": [
-    "Je suis française."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je es français.",
@@ -18279,6 +19118,13 @@
      "form": "J'est français.",
      "why_en": "Wrong verb form; it goes with il/elle, not je.",
      "why_de": "Falsche Verbform; sie gehört zu il/elle, nicht zu je."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je suis française.",
+     "refused_by": "strict judge",
+     "why": "The shown wrong sentence uses 'français' (masculine), so the gender is fixed by the prompt; changing it to 'française' is another answer, not an open_gender variant."
     }
    ]
   },
@@ -18309,10 +19155,7 @@
    "hash": "ef4f28c165965f43",
    "kind": "fix_the_mistake",
    "key": "Est-ce que Marie habite ici ?",
-   "accepted": [
-    "Marie habite-t-elle ici ?",
-    "Marie habite ici ?"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Habite Marie ici ?",
@@ -18328,6 +19171,18 @@
      "form": "Habite-t-il Marie ici ?",
      "why_en": "The pronoun must not be placed before the noun subject.",
      "why_de": "Das Pronomen darf nicht vor dem Nomen-Subjekt stehen."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Marie habite-t-elle ici ?",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
+    },
+    {
+     "form": "Marie habite ici ?",
+     "refused_by": "strict judge",
+     "why": "The grammar point is basic questions, so the item practises the question form itself and question_form variants are not allowed; the candidate also reorders the shown sentence into intonation form rather than correcting it with est-ce que."
     }
    ]
   },
@@ -18381,11 +19236,7 @@
    "hash": "47d4deb9f4877c5f",
    "kind": "fix_the_mistake",
    "key": "Où allez-vous ?",
-   "accepted": [
-    "Où est-ce que vous allez ?",
-    "Où vous allez ?",
-    "Vous allez où ?"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Où est-ce que allez-vous ?",
@@ -18402,6 +19253,23 @@
      "why_en": "The subject pronoun is doubled.",
      "why_de": "Das Subjektpronomen steht doppelt."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Où est-ce que vous allez ?",
+     "refused_by": "strict judge",
+     "why": "The item practises question forms (Basic questions), so question_form is not allowed. The candidate also restructures the shown sentence instead of only fixing its error, which makes it a different answer from the key."
+    },
+    {
+     "form": "Où vous allez ?",
+     "refused_by": "strict judge",
+     "why": "The shown wrong sentence mixes est-ce que with inversion. The key fixes it by keeping inversion (Où allez-vous ?). The candidate 'Où vous allez ?' is a different, informal question form, and the item practises question forms, so question_form does not apply."
+    },
+    {
+     "form": "Vous allez où ?",
+     "refused_by": "strict judge",
+     "why": "The shown wrong sentence is a question with inversion plus est-ce que; the key corrects it by dropping est-ce que. The candidate rewrites it as intonation with the wh-word moved to the end, changing the word order beyond a minimal fix. The item also practises question form, so question_form variants do not apply."
+    }
    ]
   },
   "FR_A1_SYN_001#550f94322d": {
@@ -18409,9 +19277,18 @@
    "kind": "fix_the_mistake",
    "key": "Comment tu t'appelles ?",
    "accepted": [
-    "Comment est-ce que tu t'appelles ?",
-    "Comment t'appelles-tu ?",
-    "Tu t'appelles comment ?"
+    {
+     "form": "Comment est-ce que tu t'appelles ?",
+     "class": "question_form"
+    },
+    {
+     "form": "Comment t'appelles-tu ?",
+     "class": "question_form"
+    },
+    {
+     "form": "Tu t'appelles comment ?",
+     "class": "question_form"
+    }
    ],
    "wrong": [
     {
@@ -18481,11 +19358,7 @@
    "hash": "e9d220eab3915a5f",
    "kind": "fix_the_mistake",
    "key": "Tu viens d'où ?",
-   "accepted": [
-    "D'où viens-tu ?",
-    "D'où tu viens ?",
-    "D'où est-ce que tu viens ?"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Où tu viens de ?",
@@ -18501,6 +19374,23 @@
      "form": "Tu viens de où ?",
      "why_en": "The preposition and the question word must be contracted.",
      "why_de": "Präposition und Fragewort müssen zusammengezogen werden."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "D'où viens-tu ?",
+     "refused_by": "strict judge",
+     "why": "The item practises basic question forms (grammar_point: Basic questions), so the question_form class does not apply, and the candidate is not the shown wrong sentence corrected with nothing else changed: it reorders it into inversion."
+    },
+    {
+     "form": "D'où tu viens ?",
+     "refused_by": "strict judge",
+     "why": "The shown wrong sentence is 'Où tu viens de ?'; the key 'Tu viens d'où ?' and the candidate 'D'où tu viens ?' are different word orders, and the item practises basic questions, so the question-form class does not apply; the candidate also moves the wh-word rather than just fixing the error, so it is not the key's answer."
+    },
+    {
+     "form": "D'où est-ce que tu viens ?",
+     "refused_by": "strict judge",
+     "why": "The item practises basic question formation, so question_form does not apply. The candidate also reorders the sentence, moving d'où to the front and adding est-ce que, instead of just fixing the shown wrong sentence as the key does."
     }
    ]
   },
@@ -18531,9 +19421,7 @@
    "hash": "50e2fdce750d2b7d",
    "kind": "fix_the_mistake",
    "key": "Combien de sucres ?",
-   "accepted": [
-    "Combien de sucre ?"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Combien des sucres ?",
@@ -18549,6 +19437,13 @@
      "form": "Combien sucres ?",
      "why_en": "A small word is missing between 'combien' and the noun.",
      "why_de": "Zwischen 'combien' und dem Nomen fehlt ein kleines Wort."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Combien de sucre ?",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ]
   },
@@ -18653,9 +19548,7 @@
    "hash": "52823d50c7b16e37",
    "kind": "fix_the_mistake",
    "key": "J'ai 20 ans.",
-   "accepted": [
-    "J'ai vingt ans."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je suis 20 ans.",
@@ -18676,6 +19569,13 @@
      "form": "Je suis 20 ans vieux.",
      "why_en": "This is an English-style structure, not French.",
      "why_de": "Das ist eine englische Struktur, nicht französisch."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "J'ai vingt ans.",
+     "refused_by": "strict judge",
+     "why": "The candidate writes the number 20 as the word 'vingt', which is a different form from the key and is not a spelling, person, gender, on/nous, question, elision or punctuation variant."
     }
    ]
   },
@@ -18706,9 +19606,7 @@
    "hash": "2169f9d3241ca365",
    "kind": "fix_the_mistake",
    "key": "Ils prennent le bus.",
-   "accepted": [
-    "Elles prennent le bus."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Ils prendent le bus.",
@@ -18729,6 +19627,13 @@
      "form": "Ils prenez le bus.",
      "why_en": "The ending belongs to vous, not ils.",
      "why_de": "Die Endung gehört zu vous, nicht zu ils."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Elles prennent le bus.",
+     "refused_by": "prefilter",
+     "why": "the subject changed from «ils» to «elles»"
     }
    ]
   },
@@ -18764,9 +19669,7 @@
    "hash": "f1f90af7f62575c1",
    "kind": "fix_the_mistake",
    "key": "Ils vont à Paris.",
-   "accepted": [
-    "Elles vont à Paris."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Ils allent à Paris.",
@@ -18787,6 +19690,13 @@
      "form": "Ils allons à Paris.",
      "why_en": "This ending goes with nous.",
      "why_de": "Diese Endung gehört zu nous."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Elles vont à Paris.",
+     "refused_by": "prefilter",
+     "why": "the subject changed from «ils» to «elles»"
     }
    ]
   },
@@ -18873,9 +19783,7 @@
    "hash": "f8767f0924dc4fd1",
    "kind": "fix_the_mistake",
    "key": "Je peux venir demain.",
-   "accepted": [
-    "Demain, je peux venir."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je peux demain venir.",
@@ -18891,6 +19799,13 @@
      "form": "Je peut venir demain.",
      "why_en": "The verb ending does not match je.",
      "why_de": "Die Verbendung passt nicht zu je."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Demain, je peux venir.",
+     "refused_by": "prefilter",
+     "why": "another content word"
     }
    ]
   },
@@ -18950,8 +19865,10 @@
    "kind": "fix_the_mistake",
    "key": "Vous êtes Madame Martin ?",
    "accepted": [
-    "Êtes-vous Madame Martin ?",
-    "Est-ce que vous êtes Madame Martin ?"
+    {
+     "form": "Est-ce que vous êtes Madame Martin ?",
+     "class": "question_form"
+    }
    ],
    "wrong": [
     {
@@ -18968,6 +19885,13 @@
      "form": "Vous est Madame Martin ?",
      "why_en": "The verb form does not match vous.",
      "why_de": "Die Verbform passt nicht zu vous."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Êtes-vous Madame Martin ?",
+     "refused_by": "strict judge",
+     "why": "The candidate turns the question into inversion (question_form), but the shown wrong sentence already fixes the tu/vous correction to 'Vous êtes'. The item practises the present tense of être, and a fix_the_mistake answer must be the shown sentence with only its error fixed; restructuring it to inversion goes beyond that, so it is refused."
     }
    ],
    "key_proposer_problem": "The wrong sentence 'Tu es Madame Martin ?' is already correct grammar (tu/vous is a register choice); the item is ambiguous and 'Tu es Madame Martin ?' would be a valid answer."
@@ -19050,9 +19974,7 @@
    "hash": "1c05b5b5771dacb8",
    "kind": "fix_the_mistake",
    "key": "Ils veulent partir.",
-   "accepted": [
-    "Elles veulent partir."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Ils veulont partir.",
@@ -19073,6 +19995,13 @@
      "form": "Ils voulent partir.",
      "why_en": "The stem of this verb changes in the ils form.",
      "why_de": "Der Stamm dieses Verbs ändert sich in der ils-Form."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Elles veulent partir.",
+     "refused_by": "prefilter",
+     "why": "the subject changed from «ils» to «elles»"
     }
    ]
   },
@@ -19131,9 +20060,7 @@
    "hash": "ba066467e853b841",
    "kind": "fix_the_mistake",
    "key": "Ils peuvent venir.",
-   "accepted": [
-    "Elles peuvent venir."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Ils peuvent viennent.",
@@ -19154,6 +20081,13 @@
      "form": "Ils peut venir.",
      "why_en": "The first verb is singular but the subject is plural.",
      "why_de": "Das erste Verb steht im Singular, das Subjekt aber im Plural."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Elles peuvent venir.",
+     "refused_by": "prefilter",
+     "why": "the subject changed from «ils» to «elles»"
     }
    ]
   },
@@ -19240,9 +20174,7 @@
    "hash": "bda2bc33e8e571e8",
    "kind": "fix_the_mistake",
    "key": "Je suis français.",
-   "accepted": [
-    "Je suis française."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je es français.",
@@ -19263,6 +20195,13 @@
      "form": "Tu es français.",
      "why_en": "The subject was changed, which alters the meaning.",
      "why_de": "Das Subjekt wurde geändert, das ändert die Bedeutung."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je suis française.",
+     "refused_by": "strict judge",
+     "why": "The shown sentence has masculine 'français', so the gender is fixed. Changing it to 'française' alters the learner's sentence beyond fixing the error, so it is another answer, not an open_gender variant."
     }
    ]
   },
@@ -19295,9 +20234,7 @@
    "hash": "40435f63859dd44a",
    "kind": "fix_the_mistake",
    "key": "Ils sont à Paris.",
-   "accepted": [
-    "Elles sont à Paris."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Ils est à Paris.",
@@ -19318,6 +20255,13 @@
      "form": "Ils ont à Paris.",
      "why_en": "This is the verb for having, not being.",
      "why_de": "Das ist das Verb für haben, nicht für sein."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Elles sont à Paris.",
+     "refused_by": "prefilter",
+     "why": "the subject changed from «ils» to «elles»"
     }
    ]
   },
@@ -20345,11 +21289,7 @@
    "hash": "89f64925a2257331",
    "kind": "fix_the_mistake",
    "key": "C'est le bar où on s'est vus.",
-   "accepted": [
-    "C'est le bar où on s'est vu.",
-    "C'est le bar où on s'est vues.",
-    "C'est le bar où on s'est vu(e)s."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "C'est le bar ou on s'est vus.",
@@ -20370,6 +21310,23 @@
      "form": "C'est le bar à on s'est vus.",
      "why_en": "This is a wrong preposition and the accent makes another word.",
      "why_de": "Das ist eine falsche Präposition und der Akzent ergibt ein anderes Wort."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "C'est le bar où on s'est vu.",
+     "refused_by": "strict judge",
+     "why": "The candidate changes the past participle agreement (vus -> vu), which is a different grammatical choice, not an allowed variant class; the key keeps the plural agreement with on meaning 'we', and the item practises the relative pronoun où, so the candidate is not the shown sentence corrected the same way as the key."
+    },
+    {
+     "form": "C'est le bar où on s'est vues.",
+     "refused_by": "prefilter",
+     "why": "another verb"
+    },
+    {
+     "form": "C'est le bar où on s'est vu(e)s.",
+     "refused_by": "prefilter",
+     "why": "another verb"
     }
    ]
   },
@@ -20758,9 +21715,7 @@
    "hash": "383fbf0043c1d829",
    "kind": "fix_the_mistake",
    "key": "Je ne me suis pas levé.",
-   "accepted": [
-    "Je ne me suis pas levée."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je me ne suis pas levé.",
@@ -20776,6 +21731,13 @@
      "form": "Je ne me suis levé pas.",
      "why_en": "Pas belongs right after the auxiliary.",
      "why_de": "Pas steht direkt nach dem Hilfsverb."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je ne me suis pas levée.",
+     "refused_by": "strict judge",
+     "why": "The shown sentence uses the masculine 'levé', so the speaker's gender is fixed; the candidate's 'levée' changes the gender, which is another answer rather than a fix of the error."
     }
    ]
   },
@@ -20812,9 +21774,7 @@
    "hash": "1630d9e45708701d",
    "kind": "fix_the_mistake",
    "key": "Je suis allé au cinéma.",
-   "accepted": [
-    "Je suis allée au cinéma."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "J'ai allé au cinéma.",
@@ -20830,6 +21790,13 @@
      "form": "Je suis aller au cinéma.",
      "why_en": "After the auxiliary you need a participle, not the infinitive.",
      "why_de": "Nach dem Hilfsverb braucht man das Partizip, nicht den Infinitiv."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je suis allée au cinéma.",
+     "refused_by": "strict judge",
+     "why": "The shown wrong sentence \"J'ai allé\" has no gender cue, but the key's masculine \"allé\" is only one possible reading. Still, for fix_the_mistake the candidate must be the shown sentence with its error fixed and nothing else changed, so the added feminine agreement is a change the item does not open; it is safest to refuse."
     }
    ]
   },
@@ -20883,9 +21850,7 @@
    "hash": "63efd7f495ae2183",
    "kind": "fix_the_mistake",
    "key": "Je me suis levé à sept heures.",
-   "accepted": [
-    "Je me suis levée à sept heures."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je m'ai levé à sept heures.",
@@ -20906,6 +21871,13 @@
      "form": "Je me suis levés à sept heures.",
      "why_en": "The subject is singular, so no plural -s.",
      "why_de": "Das Subjekt ist Singular, also kein Plural-s."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je me suis levée à sept heures.",
+     "refused_by": "strict judge",
+     "why": "The shown sentence uses the masculine 'levé', which fixes the speaker's gender, so changing it to 'levée' is another answer, not an open_gender variant."
     }
    ]
   },
@@ -20987,9 +21959,7 @@
    "hash": "ae752ff117eec491",
    "kind": "fix_the_mistake",
    "key": "Quand j'étais enfant, je jouais dehors tous les jours.",
-   "accepted": [
-    "Quand j'étais enfant, je jouais dehors chaque jour."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Quand j'étais enfant, j'ai joué dehors tous les jours.",
@@ -21005,6 +21975,13 @@
      "form": "Quand j'étais enfant, je jouait dehors tous les jours.",
      "why_en": "The ending does not fit the subject je.",
      "why_de": "Die Endung passt nicht zu je."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Quand j'étais enfant, je jouais dehors chaque jour.",
+     "refused_by": "prefilter",
+     "why": "another content word"
     }
    ]
   },
@@ -21109,9 +22086,7 @@
    "hash": "597155c0d3e5ee72",
    "kind": "fix_the_mistake",
    "key": "Je ne me suis pas levé.",
-   "accepted": [
-    "Je ne me suis pas levée."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je me ne suis pas levé.",
@@ -21132,6 +22107,13 @@
      "form": "Je me suis pas levé.",
      "why_en": "The first part of the negation is missing.",
      "why_de": "Der erste Teil der Verneinung fehlt."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je ne me suis pas levée.",
+     "refused_by": "strict judge",
+     "why": "The shown sentence uses the masculine 'levé', so the gender is fixed by the prompt; changing it to 'levée' is another answer, not an open_gender variant."
     }
    ]
   },
@@ -21223,9 +22205,7 @@
    "hash": "bdee26f692a93fb6",
    "kind": "fix_the_mistake",
    "key": "Je me suis levé à sept heures.",
-   "accepted": [
-    "Je me suis levée à sept heures."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je m'ai levé à sept heures.",
@@ -21246,6 +22226,13 @@
      "form": "Je me lève à sept heures.",
      "why_en": "This is the present tense, but the sentence needs a compound past tense.",
      "why_de": "Das ist Präsens, aber der Satz braucht eine zusammengesetzte Vergangenheitsform."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je me suis levée à sept heures.",
+     "refused_by": "strict judge",
+     "why": "The shown wrong sentence uses \"levé\" (masculine), so the gender is fixed by the prompt; changing it to \"levée\" is a different answer, not an open_gender variant."
     }
    ]
   },
@@ -21309,12 +22296,7 @@
    "hash": "1b2f3e5eef083a70",
    "kind": "fix_the_mistake",
    "key": "Sois patient !",
-   "accepted": [
-    "Soyez patient !",
-    "Soyez patients !",
-    "Soyez patiente !",
-    "Sois patiente !"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Es patient !",
@@ -21330,6 +22312,28 @@
      "form": "Soit patient !",
      "why_en": "This is the subjunctive/third person spelling, not the imperative.",
      "why_de": "Das ist die Konjunktiv-/3.-Person-Schreibung, nicht der Imperativ."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Soyez patient !",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "Soyez patients !",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "Soyez patiente !",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "Sois patiente !",
+     "refused_by": "prefilter",
+     "why": "another content word"
     }
    ]
   },
@@ -21365,9 +22369,7 @@
    "hash": "9c06880d2a27530b",
    "kind": "fix_the_mistake",
    "key": "N'aie pas peur !",
-   "accepted": [
-    "N'ayez pas peur !"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "N'as pas peur !",
@@ -21378,6 +22380,13 @@
      "form": "N'ai pas peur !",
      "why_en": "This form is the first person present, not the imperative.",
      "why_de": "Diese Form ist die 1. Person Präsens, nicht der Imperativ."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "N'ayez pas peur !",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
     }
    ],
    "key_rejected": true,
@@ -21576,9 +22585,7 @@
    "hash": "6c2cc94751bc9c38",
    "kind": "fix_the_mistake",
    "key": "Je suis allé au cinéma.",
-   "accepted": [
-    "Je suis allée au cinéma."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "J'ai allé au cinéma.",
@@ -21594,6 +22601,13 @@
      "form": "Je suis aller au cinéma.",
      "why_en": "After the auxiliary you need the participle, not the infinitive.",
      "why_de": "Nach dem Hilfsverb braucht man das Partizip, nicht den Infinitiv."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je suis allée au cinéma.",
+     "refused_by": "strict judge",
+     "why": "The shown sentence \"J'ai allé au cinéma.\" has a masculine-neutral \"J'\" with no cue to the speaker's gender, but this is a fix_the_mistake item where the learner must only correct the error; the open_gender class applies only when the prompt leaves gender open, and here the grammar point is past participle agreement, which the item practises, so the feminine agreement is a different answer from the key."
     }
    ]
   },
@@ -22382,9 +23396,7 @@
    "hash": "519c90d73f6619ad",
    "kind": "fix_the_mistake",
    "key": "Il m'a dit de venir.",
-   "accepted": [
-    "Il m'a dit que je venais."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Il m'a dit que je viens.",
@@ -22400,6 +23412,13 @@
      "form": "Il m'a dit venir.",
      "why_en": "The infinitive needs a linking preposition.",
      "why_de": "Der Infinitiv braucht eine verbindende Präposition."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Il m'a dit que je venais.",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
     }
    ],
    "key_rejected": true,
@@ -22600,9 +23619,7 @@
    "hash": "bce842f67c2d5642",
    "kind": "fix_the_mistake",
    "key": "Quand je suis arrivé, il pleuvait.",
-   "accepted": [
-    "Quand je suis arrivée, il pleuvait."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Quand je suis arrivé, il a plu.",
@@ -22624,6 +23641,13 @@
      "why_en": "Conditional is not a past tense of description.",
      "why_de": "Das Konditional ist keine Vergangenheitszeit der Beschreibung."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Quand je suis arrivée, il pleuvait.",
+     "refused_by": "strict judge",
+     "why": "The shown wrong sentence already has 'arrivé' (masculine), which fixes the gender; changing it to 'arrivée' alters something the learner was not asked to correct, so it is another answer."
+    }
    ]
   },
   "FR_B1_TENSE_001#3a070049e7": {
@@ -22631,7 +23655,10 @@
    "kind": "fix_the_mistake",
    "key": "Il pleuvait, je suis sorti et j'ai vu que j'avais oublié mon parapluie.",
    "accepted": [
-    "Il pleuvait, je suis sortie et j'ai vu que j'avais oublié mon parapluie."
+    {
+     "form": "Il pleuvait, je suis sortie et j'ai vu que j'avais oublié mon parapluie.",
+     "class": "open_gender"
+    }
    ],
    "wrong": [
     {
@@ -22655,9 +23682,7 @@
    "hash": "604591348fd44a1f",
    "kind": "fix_the_mistake",
    "key": "Quand il m'a appelé, il avait raté son train juste avant.",
-   "accepted": [
-    "Quand il m'a appelé, il avait juste avant raté son train."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Quand il m'a appelé, il a raté son train juste avant.",
@@ -22668,6 +23693,13 @@
      "form": "Quand il m'a appelé, il ratait son train juste avant.",
      "why_en": "The imperfect does not show a completed earlier event.",
      "why_de": "Das Imparfait zeigt kein abgeschlossenes früheres Ereignis."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Quand il m'a appelé, il avait juste avant raté son train.",
+     "refused_by": "prefilter",
+     "why": "another verb"
     }
    ]
   },
@@ -22854,9 +23886,7 @@
    "hash": "e91fbcc19f6c10a5",
    "kind": "fix_the_mistake",
    "key": "Je veux partir.",
-   "accepted": [
-    "Je veux que tu partes."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je veux que je parte.",
@@ -22877,6 +23907,13 @@
      "form": "Je veux part.",
      "why_en": "The infinitive form is wrong.",
      "why_de": "Die Infinitivform ist falsch."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je veux que tu partes.",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
     }
    ]
   },
@@ -22907,9 +23944,7 @@
    "hash": "66f5bb6e6b239aee",
    "kind": "fix_the_mistake",
    "key": "Je veux que tu viennes.",
-   "accepted": [
-    "Je veux que vous veniez."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je veux toi venir.",
@@ -22931,15 +23966,20 @@
      "why_en": "An infinitive cannot follow 'que'.",
      "why_de": "Nach 'que' steht kein Infinitiv."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je veux que vous veniez.",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
+    }
    ]
   },
   "FR_B1_VERB_001#53c34df322": {
    "hash": "bdd33f0df0e8e5dd",
    "kind": "fix_the_mistake",
    "key": "J'espère que tu viendras.",
-   "accepted": [
-    "J'espère que tu viens."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "J'espère que tu viennes.",
@@ -22955,6 +23995,13 @@
      "form": "J'espère que tu viennes demain.",
      "why_en": "Still subjunctive; adding a word does not fix it.",
      "why_de": "Immer noch Subjonctif; ein zusätzliches Wort behebt das nicht."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "J'espère que tu viens.",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
     }
    ]
   },
@@ -23547,9 +24594,7 @@
    "hash": "106e919ed37ba552",
    "kind": "fix_the_mistake",
    "key": "Il pleut, mais on sort quand même.",
-   "accepted": [
-    "Il pleut, mais on sort tout de même."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Il pleut, mais on sort malgré.",
@@ -23561,15 +24606,20 @@
      "why_en": "Pourtant is never followed by que.",
      "why_de": "Nach pourtant steht nie que."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Il pleut, mais on sort tout de même.",
+     "refused_by": "prefilter",
+     "why": "another linking word or preposition"
+    }
    ]
   },
   "FR_B2_CONN_001#775ac22df0": {
    "hash": "7c1c150998af92d4",
    "kind": "fix_the_mistake",
    "key": "Il travaille beaucoup, pourtant il gagne peu.",
-   "accepted": [
-    "Il travaille beaucoup et pourtant il gagne peu."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Il travaille beaucoup, pourtant qu'il gagne peu.",
@@ -23580,6 +24630,13 @@
      "form": "Il travaille beaucoup, pourtant gagne-t-il peu que.",
      "why_en": "The extra word is still there and the order is changed.",
      "why_de": "Das überflüssige Wort bleibt und die Wortstellung ist geändert."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Il travaille beaucoup et pourtant il gagne peu.",
+     "refused_by": "prefilter",
+     "why": "another linking word or preposition"
     }
    ]
   },
@@ -23681,14 +24738,19 @@
    "hash": "ec822f28c757cc8c",
    "kind": "fix_the_mistake",
    "key": "Il pleut à Paris, alors qu'il fait beau à Nice.",
-   "accepted": [
-    "Il pleut à Paris, tandis qu'il fait beau à Nice."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Il pleut à Paris. Alors il fait beau à Nice.",
      "why_en": "The connector changes meaning to a consequence.",
      "why_de": "Der Konnektor drückt nun eine Folge aus."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Il pleut à Paris, tandis qu'il fait beau à Nice.",
+     "refused_by": "strict judge",
+     "why": "The candidate replaces the conjunction «alors que» with «tandis que», a lexical change (synonym), which is not an allowed variant class; the shown sentence's «Alors qu'» should be kept and only the punctuation fixed."
     }
    ],
    "key_rejected": true,
@@ -23894,9 +24956,7 @@
    "hash": "3091ba35580d04e1",
    "kind": "fix_the_mistake",
    "key": "la personne avec qui je travaille",
-   "accepted": [
-    "la personne avec laquelle je travaille"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "la personne avec que je travaille",
@@ -23912,6 +24972,13 @@
      "form": "la personne que je travaille avec",
      "why_en": "This word order is not standard written French; the preposition goes before the pronoun.",
      "why_de": "Diese Wortstellung ist nicht standardsprachlich; die Präposition steht vor dem Pronomen."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "la personne avec laquelle je travaille",
+     "refused_by": "strict judge",
+     "why": "Candidate replaces the relative pronoun 'qui' with 'laquelle', a lexical change that is not a spelling, person, gender, or other allowed variant; the item practises relative pronouns itself."
     }
    ]
   },
@@ -23998,9 +25065,7 @@
    "hash": "e1375bf4324eb0e1",
    "kind": "fix_the_mistake",
    "key": "Je veux que tu viennes.",
-   "accepted": [
-    "Je veux que vous veniez."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je veux toi venir.",
@@ -24026,6 +25091,13 @@
      "form": "Je veux que tu vienne.",
      "why_en": "Wrong ending for tu in the subjunctive.",
      "why_de": "Falsche Endung für tu im Subjonctif."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je veux que vous veniez.",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
     }
    ]
   },
@@ -24061,10 +25133,7 @@
    "hash": "397b044565574d93",
    "kind": "fix_the_mistake",
    "key": "J'espère que tu viendras.",
-   "accepted": [
-    "J'espère que vous viendrez.",
-    "J'espère que tu viens."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "J'espère que tu viennes.",
@@ -24085,6 +25154,18 @@
      "form": "J'espère tu viendras.",
      "why_en": "The conjunction is missing.",
      "why_de": "Die Konjunktion fehlt."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "J'espère que vous viendrez.",
+     "refused_by": "prefilter",
+     "why": "the shown sentence already says «tu»"
+    },
+    {
+     "form": "J'espère que tu viens.",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
     }
    ]
   },
@@ -24236,9 +25317,7 @@
    "hash": "7e2f07f1ec5df6b4",
    "kind": "fix_the_mistake",
    "key": "Il me semble qu'il a tort.",
-   "accepted": [
-    "Il me semble qu'il avait tort."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Il me semble qu'il ait tort.",
@@ -24249,6 +25328,13 @@
      "form": "Il me semble qu'il aie tort.",
      "why_en": "Wrong mood and a misspelled form.",
      "why_de": "Falscher Modus und falsch geschriebene Form."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Il me semble qu'il avait tort.",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
     }
    ]
   },
@@ -24315,9 +25401,7 @@
    "hash": "4fe92beb5b4abc15",
    "kind": "fix_the_mistake",
    "key": "Ce livre se lit facilement.",
-   "accepted": [
-    "Ce livre est facilement lu par tout le monde."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Ce livre se lit facilement par tout le monde.",
@@ -24333,6 +25417,13 @@
      "form": "Ce livre est lit facilement.",
      "why_en": "Wrong form after être: a participle is needed.",
      "why_de": "Nach être steht das Partizip, nicht diese Form."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Ce livre est facilement lu par tout le monde.",
+     "refused_by": "prefilter",
+     "why": "another verb"
     }
    ],
    "key_rejected": true,
@@ -24449,9 +25540,7 @@
    "hash": "6e5830879a638a56",
    "kind": "fix_the_mistake",
    "key": "On m'a volé mon vélo.",
-   "accepted": [
-    "Mon vélo a été volé."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Mon vélo a volé.",
@@ -24462,6 +25551,13 @@
      "form": "Mon vélo a été volée.",
      "why_en": "The participle wrongly agrees with a masculine subject.",
      "why_de": "Das Partizip wird fälschlich feminin angeglichen, obwohl das Subjekt maskulin ist."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Mon vélo a été volé.",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
     }
    ],
    "key_rejected": true,
@@ -24615,7 +25711,10 @@
    "kind": "fix_the_mistake",
    "key": "Nous étions arrivés en retard.",
    "accepted": [
-    "Nous étions arrivées en retard."
+    {
+     "form": "Nous étions arrivées en retard.",
+     "class": "open_gender"
+    }
    ],
    "wrong": [
     {
@@ -24644,9 +25743,7 @@
    "hash": "bc35f11eea590080",
    "kind": "fix_the_mistake",
    "key": "Quand je suis arrivé, le train était déjà parti.",
-   "accepted": [
-    "Quand je suis arrivée, le train était déjà parti."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Quand je suis arrivé, le train est déjà parti.",
@@ -24668,15 +25765,20 @@
      "why_en": "The imperfect does not show the action was completed before.",
      "why_de": "Das Imparfait zeigt nicht, dass die Handlung schon abgeschlossen war."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Quand je suis arrivée, le train était déjà parti.",
+     "refused_by": "strict judge",
+     "why": "The shown wrong sentence already has 'arrivé' (masculine), so the gender is fixed by the prompt; changing it to 'arrivée' alters something other than the error being fixed."
+    }
    ]
   },
   "FR_B2_TENSE_002#9f44483d71": {
    "hash": "bd1fe135c67796cc",
    "kind": "fix_the_mistake",
    "key": "Quand j'aurai fini, je t'appellerai.",
-   "accepted": [
-    "Quand j'aurai terminé, je t'appellerai."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Quand j'ai fini, je t'appellerai.",
@@ -24697,6 +25799,13 @@
      "form": "Quand j'aurai finir, je t'appellerai.",
      "why_en": "A participle is needed, not an infinitive.",
      "why_de": "Es braucht ein Partizip, keinen Infinitiv."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Quand j'aurai terminé, je t'appellerai.",
+     "refused_by": "prefilter",
+     "why": "another verb"
     }
    ]
   },
@@ -24928,11 +26037,7 @@
    "hash": "243c74cc462f412c",
    "kind": "fix_the_mistake",
    "key": "Le loyer est bas. De plus, le quartier est calme.",
-   "accepted": [
-    "Le loyer est bas. En outre, le quartier est calme.",
-    "Le loyer est bas. De surcroît, le quartier est calme.",
-    "Le loyer est bas. Par ailleurs, le quartier est calme."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Le loyer est bas. En revanche, le quartier est calme.",
@@ -24953,6 +26058,23 @@
      "form": "Le loyer est bas. Donc, le quartier est calme.",
      "why_en": "This implies a consequence that makes no sense.",
      "why_de": "Das impliziert eine Folge, die keinen Sinn ergibt."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Le loyer est bas. En outre, le quartier est calme.",
+     "refused_by": "prefilter",
+     "why": "another linking word or preposition"
+    },
+    {
+     "form": "Le loyer est bas. De surcroît, le quartier est calme.",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "Le loyer est bas. Par ailleurs, le quartier est calme.",
+     "refused_by": "prefilter",
+     "why": "another linking word or preposition"
     }
    ]
   },
@@ -24983,10 +26105,7 @@
    "hash": "ea990588c2075f56",
    "kind": "fix_the_mistake",
    "key": "D'une part, c'est cher ; d'autre part, c'est utile.",
-   "accepted": [
-    "D'une part, c'est cher ; de l'autre, c'est utile.",
-    "D'un côté, c'est cher ; de l'autre, c'est utile."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "D'un côté, c'est cher ; d'une autre part, c'est utile.",
@@ -25002,6 +26121,18 @@
      "form": "D'une part, c'est cher ; d'autre côté, c'est utile.",
      "why_en": "Wrong fixed expression for the second half.",
      "why_de": "Falsche feste Wendung für die zweite Hälfte."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "D'une part, c'est cher ; de l'autre, c'est utile.",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "D'un côté, c'est cher ; de l'autre, c'est utile.",
+     "refused_by": "prefilter",
+     "why": "another content word"
     }
    ]
   },
@@ -25162,10 +26293,7 @@
    "hash": "e0455af5026b5b28",
    "kind": "fix_the_mistake",
    "key": "Ce livre se lit facilement.",
-   "accepted": [
-    "Ce livre est facilement lu par tout le monde.",
-    "Ce livre est lu facilement par tout le monde."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Ce livre se lit facilement par tout le monde.",
@@ -25183,6 +26311,18 @@
      "why_de": "Die Verbform passt nicht zum Subjekt."
     }
    ],
+   "refused_variants": [
+    {
+     "form": "Ce livre est facilement lu par tout le monde.",
+     "refused_by": "prefilter",
+     "why": "another verb"
+    },
+    {
+     "form": "Ce livre est lu facilement par tout le monde.",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
+    }
+   ],
    "key_rejected": true,
    "key_judge_reason": "Drops 'par tout le monde'."
   },
@@ -25190,9 +26330,7 @@
    "hash": "7bb82fec0605154b",
    "kind": "fix_the_mistake",
    "key": "Le colis sera livré demain.",
-   "accepted": [
-    "Le colis va être livré demain."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Le colis devient livré demain.",
@@ -25208,6 +26346,13 @@
      "form": "Le colis a été livré demain.",
      "why_en": "The past tense clashes with 'demain'.",
      "why_de": "Die Vergangenheit passt nicht zu 'demain'."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Le colis va être livré demain.",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
     }
    ]
   },
@@ -25238,10 +26383,7 @@
    "hash": "8d9d3d37b30ca156",
    "kind": "fix_the_mistake",
    "key": "On m'a volé mon vélo.",
-   "accepted": [
-    "Mon vélo a été volé.",
-    "Mon vélo m'a été volé."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Mon vélo a volé.",
@@ -25262,6 +26404,18 @@
      "form": "Mon vélo a été volée.",
      "why_en": "The participle must agree with a masculine subject.",
      "why_de": "Das Partizip muss zu einem maskulinen Subjekt passen."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Mon vélo a été volé.",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
+    },
+    {
+     "form": "Mon vélo m'a été volé.",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
     }
    ],
    "key_rejected": true,
@@ -25322,10 +26476,7 @@
    "hash": "7ae643fb5540bcc3",
    "kind": "fix_the_mistake",
    "key": "Elle m'a dit qu'elle avait perdu ses clés la veille.",
-   "accepted": [
-    "Elle m'a dit qu'elle avait perdu ses clés le jour précédent.",
-    "Elle m'a dit qu'elle avait perdu ses clés le jour d'avant."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Elle m'a dit qu'elle a perdu ses clés la veille.",
@@ -25347,16 +26498,25 @@
      "why_en": "The future perfect does not fit a past reporting verb.",
      "why_de": "Das Futur antérieur passt nicht zu einem Verb der Vergangenheit im Hauptsatz."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Elle m'a dit qu'elle avait perdu ses clés le jour précédent.",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "Elle m'a dit qu'elle avait perdu ses clés le jour d'avant.",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    }
    ]
   },
   "FR_C1_TENSE_001#7f61e71dc9": {
    "hash": "e9c6f82bbfdaefe8",
    "kind": "fix_the_mistake",
    "key": "Elle a dit qu'elle était venue la veille.",
-   "accepted": [
-    "Elle a dit qu'elle était venue le jour précédent.",
-    "Elle a dit qu'elle était venue le jour d'avant."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Elle a dit qu'elle était venue le jour avant.",
@@ -25378,16 +26538,25 @@
      "why_en": "This means the day after, not the day before.",
      "why_de": "Das bedeutet den Folgetag, nicht den Vortag."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Elle a dit qu'elle était venue le jour précédent.",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "Elle a dit qu'elle était venue le jour d'avant.",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    }
    ]
   },
   "FR_C1_TENSE_001#ba420dd2cf": {
    "hash": "fa2158055987aba3",
    "kind": "fix_the_mistake",
    "key": "Il y a un mois, il m'a dit qu'il viendrait le lendemain.",
-   "accepted": [
-    "Il y a un mois, il m'a dit qu'il viendrait le jour suivant.",
-    "Il y a un mois, il m'a dit qu'il viendrait le jour d'après."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Il y a un mois, il m'a dit qu'il viendrait demain.",
@@ -25408,6 +26577,18 @@
      "form": "Il y a un mois, il m'a dit qu'il viendra le lendemain.",
      "why_en": "The verb tense does not follow the past main verb.",
      "why_de": "Die Zeitform folgt nicht dem Hauptverb in der Vergangenheit."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Il y a un mois, il m'a dit qu'il viendrait le jour suivant.",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "Il y a un mois, il m'a dit qu'il viendrait le jour d'après.",
+     "refused_by": "prefilter",
+     "why": "another content word"
     }
    ]
   },

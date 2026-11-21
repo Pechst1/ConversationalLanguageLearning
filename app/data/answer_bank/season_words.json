@@ -127,9 +127,7 @@
    "hash": "d950cb87491ca5ff",
    "kind": "cloze_word",
    "key": "accrochait",
-   "accepted": [
-    "accrochions"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "accroche",
@@ -150,6 +148,13 @@
      "form": "accroché",
      "why_en": "A participle alone cannot be the verb here.",
      "why_de": "Ein Partizip allein kann hier nicht das Verb sein."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "accrochions",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ]
   },
@@ -496,9 +501,7 @@
    "hash": "79557ee53344ec38",
    "kind": "cloze_word",
    "key": "Arrête",
-   "accepted": [
-    "Arrêtez"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Arreter",
@@ -514,6 +517,13 @@
      "form": "Arrêtes",
      "why_en": "The tu imperative of -er verbs drops the final s.",
      "why_de": "Beim Imperativ (tu) der -er-Verben entfällt das End-s."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Arrêtez",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ]
   },
@@ -654,9 +664,7 @@
    "hash": "9d603b1a4c26a984",
    "kind": "cloze_word",
    "key": "au-dessus",
-   "accepted": [
-    "au dessus"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "dessus",
@@ -672,6 +680,13 @@
      "form": "en-dessus",
      "why_en": "The wrong preposition is used.",
      "why_de": "Es wird die falsche Präposition verwendet."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "au dessus",
+     "refused_by": "prefilter",
+     "why": "another content word"
     }
    ]
   },
@@ -712,9 +727,7 @@
    "hash": "fd26c96b80bcedf9",
    "kind": "cloze_word",
    "key": "Avance",
-   "accepted": [
-    "Avancez"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Avancer",
@@ -730,6 +743,13 @@
      "form": "Avancé",
      "why_en": "A participle does not work as a command.",
      "why_de": "Ein Partizip funktioniert nicht als Befehl."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Avancez",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ]
   },
@@ -1615,7 +1635,10 @@
    "kind": "cloze_word",
    "key": "clé",
    "accepted": [
-    "clef"
+    {
+     "form": "clef",
+     "class": "spelling"
+    }
    ],
    "wrong": [
     {
@@ -1923,7 +1946,10 @@
    "kind": "cloze_word",
    "key": "connaît",
    "accepted": [
-    "connait"
+    {
+     "form": "connait",
+     "class": "spelling"
+    }
    ],
    "wrong": [
     {
@@ -2668,9 +2694,7 @@
    "hash": "d5d6c5efc004df77",
    "kind": "cloze_word",
    "key": "Divin",
-   "accepted": [
-    "Divine"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Dieu",
@@ -2686,6 +2710,13 @@
      "form": "Devin",
      "why_en": "Spelling mistake: this is another word.",
      "why_de": "Rechtschreibfehler: das ist ein anderes Wort."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Divine",
+     "refused_by": "strict judge",
+     "why": "Divine is the feminine form of the adjective; the blank line shows no noun or gender cue and the hint gives only the dictionary form (divin), so the gender is not left open and this is a different answer, not a recognised spelling variant."
     }
    ]
   },
@@ -3340,9 +3371,7 @@
    "hash": "eefb094f1f97cffc",
    "kind": "cloze_word",
    "key": "envolé",
-   "accepted": [
-    "envolée"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "envoler",
@@ -3363,6 +3392,13 @@
      "form": "envollé",
      "why_en": "The spelling is wrong; the stem has only one l.",
      "why_de": "Falsche Schreibweise; der Stamm hat nur ein l."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "envolée",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ],
    "key_rejected": true,
@@ -3515,9 +3551,7 @@
    "hash": "bd91743c94bf3615",
    "kind": "cloze_word",
    "key": "exposée",
-   "accepted": [
-    "exposé"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "exposer",
@@ -3533,6 +3567,13 @@
      "form": "exposés",
      "why_en": "Plural, and it does not agree with Margaux.",
      "why_de": "Plural und passt nicht zu Margaux."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "exposé",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ]
   },
@@ -3634,9 +3675,7 @@
    "hash": "3fc5725c5ad37877",
    "kind": "cloze_word",
    "key": "fatiguée",
-   "accepted": [
-    "fatigué"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "fatiguer",
@@ -3652,6 +3691,13 @@
      "form": "fatigue",
      "why_en": "Missing the participle ending; this is a noun or present form.",
      "why_de": "Es fehlt die Partizipendung; das ist ein Substantiv oder eine Präsensform."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "fatigué",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ]
   },
@@ -3930,7 +3976,10 @@
    "kind": "cloze_word",
    "key": "figurez-vous",
    "accepted": [
-    "figurez vous"
+    {
+     "form": "figurez vous",
+     "class": "punctuation"
+    }
    ],
    "wrong": [
     {
@@ -4743,20 +4792,30 @@
    "hash": "2c575eb6bb329f39",
    "kind": "cloze_word",
    "key": "ignorais",
-   "accepted": [
-    "ignorait"
-   ],
+   "accepted": [],
    "wrong": [],
+   "refused_variants": [
+    {
+     "form": "ignorait",
+     "refused_by": "prefilter",
+     "why": "another word"
+    }
+   ],
    "key_proposer_problem": "The line_with_blank is empty, so the person and tense of the key cannot be checked; 'ignorais' and 'ignorait' are both possible."
   },
   "imaginer#9da3fb9863": {
    "hash": "63e2b608d3a55cea",
    "kind": "cloze_word",
    "key": "imagine",
-   "accepted": [
-    "imagines"
-   ],
+   "accepted": [],
    "wrong": [],
+   "refused_variants": [
+    {
+     "form": "imagines",
+     "refused_by": "strict judge",
+     "why": "'imagines' is a different verb form (2nd person singular) from the key 'imagine'; the prompt gives no cue that leaves person open, so this is another answer, not a spelling variant."
+    }
+   ],
    "key_proposer_problem": "The line_with_blank is empty, so the person (imagine, imagines, imaginez, etc.) cannot be verified."
   },
   "immeuble#310e93f5ac": {
@@ -4829,7 +4888,10 @@
    "kind": "cloze_word",
    "key": "impuissante",
    "accepted": [
-    "impuissant"
+    {
+     "form": "impuissant",
+     "class": "open_gender"
+    }
    ],
    "wrong": [
     {
@@ -4922,9 +4984,7 @@
    "hash": "8ff403e36d9764a8",
    "kind": "cloze_word",
    "key": "inculpé",
-   "accepted": [
-    "inculpée"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "inculpés",
@@ -4940,6 +5000,13 @@
      "form": "coupable",
      "why_en": "A different word; the target word is needed.",
      "why_de": "Ein anderes Wort; das Zielwort wird verlangt."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "inculpée",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ]
   },
@@ -4993,11 +5060,7 @@
    "hash": "d13b3da8c7003c93",
    "kind": "cloze_word",
    "key": "inhabituel",
-   "accepted": [
-    "inhabituelle",
-    "inhabituels",
-    "inhabituelles"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "habituel",
@@ -5015,15 +5078,30 @@
      "why_de": "Das ist ein anderes Wort (Synonym), nicht das gesuchte."
     }
    ],
+   "refused_variants": [
+    {
+     "form": "inhabituelle",
+     "refused_by": "prefilter",
+     "why": "another word"
+    },
+    {
+     "form": "inhabituels",
+     "refused_by": "strict judge",
+     "why": "The candidate 'inhabituels' is a plural form, while the key is the singular dictionary form 'inhabituel'; this is a number change, not an accepted spelling variant or any open class."
+    },
+    {
+     "form": "inhabituelles",
+     "refused_by": "prefilter",
+     "why": "another word"
+    }
+   ],
    "key_proposer_problem": "The prompt has no line with a blank, so the form needed cannot be determined."
   },
   "instant#e8ce7cf4a9": {
    "hash": "7410fa3ca0f48766",
    "kind": "cloze_word",
    "key": "instant",
-   "accepted": [
-    "instants"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "instante",
@@ -5041,15 +5119,20 @@
      "why_de": "Das Wort ist unvollständig; ein Endbuchstabe fehlt."
     }
    ],
+   "refused_variants": [
+    {
+     "form": "instants",
+     "refused_by": "strict judge",
+     "why": "'instants' is plural while the key 'instant' is singular; a number change is not a spelling variant or any other permitted class."
+    }
+   ],
    "key_proposer_problem": "The prompt has no line with a blank, so the expected form is unclear."
   },
   "intention#a0aef9bbc1": {
    "hash": "9ba4a89d748cca2d",
    "kind": "cloze_word",
    "key": "intention",
-   "accepted": [
-    "intentions"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "intension",
@@ -5067,15 +5150,20 @@
      "why_de": "Das ist ein Adjektiv, nicht das Nomen."
     }
    ],
+   "refused_variants": [
+    {
+     "form": "intentions",
+     "refused_by": "strict judge",
+     "why": "The candidate is the plural 'intentions', while the key is the singular 'intention'; a number change is not an accepted variant class."
+    }
+   ],
    "key_proposer_problem": "The prompt has no line with a blank, so the expected form is unclear."
   },
   "intérieur#16f03a3d8a": {
    "hash": "fec5a867e83b4a7e",
    "kind": "cloze_word",
    "key": "intérieur",
-   "accepted": [
-    "intérieurs"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "interieur",
@@ -5086,6 +5174,13 @@
      "form": "intérieure",
      "why_en": "This is the feminine adjective form, but the noun is masculine.",
      "why_de": "Das ist die weibliche Adjektivform; das Nomen ist männlich."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "intérieurs",
+     "refused_by": "strict judge",
+     "why": "The candidate 'intérieurs' is a plural, while the key is the singular 'intérieur'. A change of number is not a spelling variant and falls outside every allowed class."
     }
    ],
    "key_proposer_problem": "The prompt has no line with a blank, so the expected form is unclear; plural listed in accepted conflicts with wrong list."
@@ -5168,9 +5263,7 @@
    "hash": "c7af8100024c2ace",
    "kind": "cloze_word",
    "key": "invité",
-   "accepted": [
-    "invitée"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "inviter",
@@ -5181,6 +5274,13 @@
      "form": "invitation",
      "why_en": "This is a different noun and does not fit the verb construction.",
      "why_de": "Das ist ein anderes Nomen und passt nicht zur Verbkonstruktion."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "invitée",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ],
    "key_proposer_problem": "The hint says 'guest' (noun), but the line 'On m'a ___.' needs the past participle 'invité' (invited); the hint and line mismatch."
@@ -5376,10 +5476,7 @@
    "hash": "1507d7fd1d7acdb1",
    "kind": "cloze_word",
    "key": "lasse",
-   "accepted": [
-    "lassé",
-    "lassée"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "lasser",
@@ -5395,6 +5492,18 @@
      "form": "lassant",
      "why_en": "This is a present participle with a different meaning (tiring).",
      "why_de": "Das ist ein Partizip Präsens mit anderer Bedeutung."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "lassé",
+     "refused_by": "strict judge",
+     "why": "The key 'lasse' (present of lasser) differs from 'lassé' (past participle, 'Je suis lassé' = I am tired); this is a different form and not a spelling, gender or other permitted variant."
+    },
+    {
+     "form": "lassée",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ],
    "key_rejected": true,
@@ -5482,9 +5591,7 @@
    "hash": "5096b78c7ca3c7dd",
    "kind": "cloze_word",
    "key": "lue",
-   "accepted": [
-    "lu"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "lire",
@@ -5505,6 +5612,13 @@
      "form": "lisé",
      "why_en": "This is not a French word; the verb is irregular.",
      "why_de": "Das ist kein französisches Wort; das Verb ist unregelmäßig."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "lu",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ]
   },
@@ -6349,9 +6463,7 @@
    "hash": "35254d8f426e39cf",
    "kind": "cloze_word",
    "key": "Mystérieux",
-   "accepted": [
-    "Mystérieuse"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Mysterieux",
@@ -6367,6 +6479,13 @@
      "form": "Mystérieusement",
      "why_en": "This is an adverb; an adjective is needed.",
      "why_de": "Das ist ein Adverb; gefragt ist ein Adjektiv."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Mystérieuse",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ]
   },
@@ -6654,11 +6773,7 @@
    "hash": "acb695b417ba1150",
    "kind": "cloze_word",
    "key": "Nuance",
-   "accepted": [
-    "Nuancez",
-    "Nuances",
-    "Nuançons"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Nuancer",
@@ -6669,6 +6784,23 @@
      "form": "Nuancé",
      "why_en": "Participle does not fit as a standalone sentence here.",
      "why_de": "Partizip passt hier nicht als eigener Satz."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Nuancez",
+     "refused_by": "prefilter",
+     "why": "another word"
+    },
+    {
+     "form": "Nuances",
+     "refused_by": "strict judge",
+     "why": "'Nuances' is a different verb form (tu imperative, 2nd person singular) versus the key 'Nuance' (3rd person or imperative tu); the prompt does not fix the person, and it is not a spelling, gender, or other permitted variant, so it is another answer."
+    },
+    {
+     "form": "Nuançons",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ],
    "key_proposer_problem": "The line is just a blank and the key 'Nuance' is an imperative of nuancer, written without the final s. The prompt is too ambiguous: tu, vous and nous forms are all possible."
@@ -6902,9 +7034,7 @@
    "hash": "669e556ee68fb53a",
    "kind": "cloze_word",
    "key": "Parfait",
-   "accepted": [
-    "Parfaite"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Parfaitement",
@@ -6915,6 +7045,13 @@
      "form": "Parfais",
      "why_en": "Misspelled; the word does not end like this.",
      "why_de": "Falsch geschrieben; das Wort endet nicht so."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Parfaite",
+     "refused_by": "strict judge",
+     "why": "The shown line is just a blank with no subject, so nothing leaves the gender open; the hint and dictionary form are the masculine 'parfait', so the feminine 'Parfaite' is a different form, not an accepted variant."
     }
    ]
   },
@@ -7099,10 +7236,15 @@
    "hash": "daf7fcbb0de4fa92",
    "kind": "cloze_word",
    "key": "Parti",
-   "accepted": [
-    "Partis"
-   ],
-   "wrong": []
+   "accepted": [],
+   "wrong": [],
+   "refused_variants": [
+    {
+     "form": "Partis",
+     "refused_by": "strict judge",
+     "why": "Partis (masculine plural) differs from Parti (masculine singular) in number, and the prompt does not fix the subject, so this is another answer rather than a spelling, gender or other permitted variant."
+    }
+   ]
   },
   "passage#9a620a4f2b": {
    "hash": "c345e4b063024662",
@@ -7572,9 +7714,7 @@
    "hash": "6f581b68cbb66459",
    "kind": "cloze_word",
    "key": "placée",
-   "accepted": [
-    "placé"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "placer",
@@ -7590,6 +7730,13 @@
      "form": "placais",
      "why_en": "This is a conjugated verb form, not a participle.",
      "why_de": "Das ist eine konjugierte Verbform, kein Partizip."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "placé",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ]
   },
@@ -8816,9 +8963,7 @@
    "hash": "7c5951965e3ba944",
    "kind": "cloze_word",
    "key": "Rallie",
-   "accepted": [
-    "Ralliez"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Ralliée",
@@ -8829,6 +8974,13 @@
      "form": "Rallies",
      "why_en": "The -s ending does not fit a tu imperative of an -er verb.",
      "why_de": "Das -s passt nicht zum Imperativ von -er-Verben bei tu."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Ralliez",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ]
   },
@@ -10179,10 +10331,7 @@
    "hash": "893bd9a454171dea",
    "kind": "cloze_word",
    "key": "Signe",
-   "accepted": [
-    "Signez",
-    "Signons"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Signé",
@@ -10193,6 +10342,18 @@
      "form": "Signes",
      "why_en": "The final -s is wrong for the tu imperative of an -er verb.",
      "why_de": "Das -s ist beim Imperativ (tu) der -er-Verben falsch."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Signez",
+     "refused_by": "prefilter",
+     "why": "another word"
+    },
+    {
+     "form": "Signons",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ]
   },
@@ -10363,9 +10524,7 @@
    "hash": "57932dae3da26ffe",
    "kind": "cloze_word",
    "key": "souhaiterait",
-   "accepted": [
-    "souhaite"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "souhaiter",
@@ -10381,6 +10540,13 @@
      "form": "souhaité",
      "why_en": "A participle cannot stand alone as the main verb.",
      "why_de": "Ein Partizip kann nicht allein als Hauptverb stehen."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "souhaite",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ]
   },
@@ -10698,9 +10864,7 @@
    "hash": "f34acc44c1f0b4db",
    "kind": "cloze_word",
    "key": "Tiens",
-   "accepted": [
-    "Tenez"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Tien",
@@ -10716,6 +10880,13 @@
      "form": "Tiennes",
      "why_en": "Not a verb form; this looks like a possessive.",
      "why_de": "Keine Verbform; das sieht wie ein Possessivum aus."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Tenez",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ]
   },
@@ -10910,9 +11081,7 @@
    "hash": "5dbf4dd776095eba",
    "kind": "cloze_word",
    "key": "trouvé",
-   "accepted": [
-    "trouvée"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "trouver",
@@ -10928,6 +11097,13 @@
      "form": "trouvés",
      "why_en": "Plural agreement does not fit the singular visage.",
      "why_de": "Die Pluralform passt nicht zum Singular visage."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "trouvée",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ],
    "key_rejected": true,
@@ -10983,16 +11159,29 @@
    "hash": "98e56652cf6feca5",
    "kind": "cloze_word",
    "key": "Vendu",
-   "accepted": [
-    "Vendue",
-    "Vendus",
-    "Vendues"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Vend",
      "why_en": "This is a present-tense form, not a participle meaning 'sold'.",
      "why_de": "Das ist eine Präsensform, kein Partizip im Sinne von 'verkauft'."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Vendue",
+     "refused_by": "strict judge",
+     "why": "The shown line is just '___.' with no subject, so nothing leaves the gender open; the past participle 'vendue' is feminine agreement with no cue in the prompt, so it is a different answer from 'Vendu'."
+    },
+    {
+     "form": "Vendus",
+     "refused_by": "strict judge",
+     "why": "Vendus is the masculine plural participle, while the key Vendu is singular; the prompt line is just a blank with no cue, so the number differs from the key and open_gender does not cover a number change."
+    },
+    {
+     "form": "Vendues",
+     "refused_by": "strict judge",
+     "why": "Vendues is feminine plural while the key Vendu is masculine singular; the prompt (\"___.\" with only the hint 'to sell') gives no subject, and a change of number is not an allowed variant class, so this is another answer."
     }
    ]
   },
@@ -11197,9 +11386,7 @@
    "hash": "a28c5faf04ae0bfc",
    "kind": "cloze_word",
    "key": "vieille",
-   "accepted": [
-    "vieux"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "vieil",
@@ -11215,6 +11402,13 @@
      "form": "vielle",
      "why_en": "The spelling is wrong; check the letters.",
      "why_de": "Die Schreibung ist falsch; prüfe die Buchstaben."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "vieux",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ]
   },
@@ -11309,9 +11503,7 @@
    "hash": "169382282efc2b15",
    "kind": "cloze_word",
    "key": "voudrait",
-   "accepted": [
-    "veut"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "voudrais",
@@ -11327,6 +11519,13 @@
      "form": "veux",
      "why_en": "This form goes with 'je' or 'tu', not with a third person.",
      "why_de": "Diese Form gehört zu 'je' oder 'tu', nicht zur dritten Person."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "veut",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ]
   },
@@ -11408,9 +11607,7 @@
    "hash": "64d92ebc44947507",
    "kind": "cloze_word",
    "key": "voudrais",
-   "accepted": [
-    "veux"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "voudrait",
@@ -11426,6 +11623,13 @@
      "form": "voulu",
      "why_en": "A past participle cannot be used alone here.",
      "why_de": "Ein Partizip Perfekt kann hier nicht allein stehen."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "veux",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ]
   },
@@ -11568,7 +11772,10 @@
    "kind": "cloze_word",
    "key": "âgé",
    "accepted": [
-    "âgée"
+    {
+     "form": "âgée",
+     "class": "open_gender"
+    }
    ],
    "wrong": [
     {
@@ -11777,9 +11984,7 @@
    "hash": "535779b09aa01754",
    "kind": "cloze_word",
    "key": "éteint",
-   "accepted": [
-    "éteinte"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "éteindre",
@@ -11800,6 +12005,13 @@
      "form": "éteinds",
      "why_en": "This is a present tense form, not a participle.",
      "why_de": "Das ist eine Präsensform, kein Partizip."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "éteinte",
+     "refused_by": "strict judge",
+     "why": "The candidate «éteinte» is the feminine past participle, agreeing with a feminine direct object «l'» (la). The shown sentence «Je l'ai ___.» leaves the object's gender open, but this is agreement of the object pronoun, not the subject's gender, and the prompt does not fix it with an English 'I/you/we' cue; the swap changes the referent (l' = la), so it is a different answer, not an allowed variant."
     }
    ]
   },

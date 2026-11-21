@@ -26,7 +26,11 @@ BANK = {
                 "hash": "h",
                 "kind": "fix_the_mistake",
                 "key": "Romy et moi, on envoie une lettre.",
-                "accepted": ["Romy et moi, nous envoyons une lettre.", "Romy et moi envoyons une lettre."],
+                "accepted": [
+                    {"form": "Romy et moi, nous envoyons une lettre.", "class": "on_nous"},
+                    # A bare string has no class: never used (#174, second round).
+                    "Romy et moi envoyons une lettre.",
+                ],
                 "wrong": [
                     {
                         "form": "Romy et moi, on envoyons une lettre.",
@@ -49,7 +53,7 @@ BANK = {
                 "hash": "h",
                 "kind": "fix_the_mistake",
                 "key": "Tu es arrivée à la gare samedi dernier.",
-                "accepted": ["Tu es arrivé à la gare samedi dernier."],
+                "accepted": [{"form": "Tu es arrivé à la gare samedi dernier.", "class": "open_gender"}],
                 "wrong": [
                     {
                         "form": "Tu as arrivé à la gare samedi dernier.",
@@ -74,7 +78,8 @@ BANK = {
                 "hash": "h",
                 "kind": "fix_the_mistake",
                 "key": "Je reste parce qu'il pleut.",
-                "accepted": ["Parce qu'il pleut, je reste."],
+                # Another word order is not a class: refused, so never used.
+                "accepted": [{"form": "Parce qu'il pleut, je reste.", "class": "refuse"}],
                 "wrong": [],
             },
             "REJECTED#k": {
@@ -89,7 +94,7 @@ BANK = {
     },
     "season_words": {
         "entries": {
-            "clé#w": {"hash": "h", "kind": "cloze_word", "key": "clé", "accepted": ["clef"], "wrong": [
+            "clé#w": {"hash": "h", "kind": "cloze_word", "key": "clé", "accepted": [{"form": "clef", "class": "spelling"}], "wrong": [
                 {"form": "clés", "why_en": "One key, not several.", "why_de": "Ein Schlüssel, nicht mehrere."},
             ]},
         }
@@ -144,9 +149,13 @@ def test_966_the_word_card_takes_clef_with_or_without_its_article(bank):
 # --- #606: «nous» for «X et moi, on …» ---------------------------------------------------
 
 
-@pytest.mark.parametrize("answer", ["Romy et moi, nous envoyons une lettre.", "Romy et moi envoyons une lettre"])
-def test_606_nous_is_right_where_the_bank_lists_it(bank, answer):
-    assert judge(answer, ["Romy et moi, on envoie une lettre."], typo=False).correct
+def test_606_nous_is_right_where_the_bank_lists_it(bank):
+    assert judge("Romy et moi, nous envoyons une lettre.", ["Romy et moi, on envoie une lettre."], typo=False).correct
+
+
+def test_a_variant_without_an_allowed_class_is_never_used(bank):
+    assert not judge("Romy et moi envoyons une lettre.", ["Romy et moi, on envoie une lettre."], typo=False).correct
+    assert not judge("Parce qu'il pleut, je reste.", ["Je reste parce qu'il pleut."], typo=False).correct
 
 
 def test_606_on_with_the_nous_ending_stays_wrong_with_its_reason(bank):
@@ -210,7 +219,7 @@ def test_flag_off_the_bank_says_nothing(bank_off):
     assert judge("Romy et moi, on envoyons une lettre.", ["Romy et moi, on envoie une lettre."]).note != "bank"
 
 
-# --- an order drill takes a reviewed word order, with the same tiles -----------------
+# --- an order drill never takes another word order the bank did not class ------------
 
 
 def _tiles() -> dict:
@@ -222,11 +231,11 @@ def _tiles() -> dict:
     }
 
 
-def test_order_drill_takes_the_banked_order(bank):
+def test_order_drill_refuses_an_unclassed_order(bank):
     from app.services.journey_answer_key import tiles_spell_an_answer
 
-    assert tiles_spell_an_answer(_tiles(), ["t2", "t3", "t4", "t0", "t1", "t5"])
-    assert not tiles_spell_an_answer(_tiles(), ["t1", "t0", "t2", "t3", "t4", "t5"])
+    assert tiles_spell_an_answer(_tiles(), ["t0", "t1", "t2", "t3", "t4", "t5"])
+    assert not tiles_spell_an_answer(_tiles(), ["t2", "t3", "t4", "t0", "t1", "t5"])
 
 
 def test_order_drill_flag_off_keeps_the_stored_order(bank_off):
@@ -269,7 +278,13 @@ def test_stored_bank_is_well_formed():
         bank = answer_bank.load_bank(source)
         for item_id, entry in (bank.get("entries") or {}).items():
             assert entry["key"] and entry["hash"], item_id
-            accepted = {answer_bank._fold(form) for form in [entry["key"], *entry["accepted"]]}
+            from app.services.answer_bank_check import VARIANT_CLASSES
+
+            for variant in entry["accepted"]:
+                assert variant["form"].strip() and variant["class"] in VARIANT_CLASSES, (source, item_id, variant)
+            for refused in entry.get("refused_variants") or []:
+                assert refused["form"].strip() and refused["why"].strip(), (source, item_id, refused)
+            accepted = {answer_bank._fold(form) for form in [entry["key"], *answer_bank.classed_variants(entry)]}
             for wrong in entry["wrong"]:
                 assert answer_bank._fold(wrong["form"]) not in accepted, (source, item_id, wrong)
                 assert wrong["why_en"].strip() and wrong["why_de"].strip(), (source, item_id)
@@ -292,10 +307,24 @@ def test_stored_966_clef_is_a_reviewed_spelling_of_cle(stored):
 
 
 def test_stored_variant_is_right_and_off_is_mains(stored, monkeypatch):
-    key = ["Comme il pleut, je reste."]
-    assert judge("Puisqu'il pleut, je reste.", key, typo=False).correct
+    key = ["Vous habitez près de la gare ?"]
+    assert judge("Habitez-vous près de la gare ?", key, typo=False).correct
     monkeypatch.setattr(settings, "ANSWER_BANK_ENABLED", False)
-    assert not judge("Puisqu'il pleut, je reste.", key, typo=False).correct
+    assert not judge("Habitez-vous près de la gare ?", key, typo=False).correct
+
+
+@pytest.mark.parametrize(
+    ("key", "answer"),
+    [
+        ("Il me semble qu'il a tort.", "Il me semble qu'il avait tort."),  # tense
+        ("Elle est professeur.", "Il est professeur."),  # subject
+        ("Il y a un mois, il m'a dit qu'il viendrait le lendemain.", "Il y a un mois, il m'a dit qu'il viendrait ce jour-là."),
+        ("Ils prennent le bus.", "Elles prennent le bus."),  # subject
+        ("Comme il pleut, je reste.", "Puisqu'il pleut, je reste."),  # another conjunction
+    ],
+)
+def test_stored_bank_never_takes_another_answer_for_a_variant(stored, key, answer):
+    assert not judge(answer, [key], typo=False).correct
 
 
 def test_stored_723_class_the_rules_own_trap_is_no_typo(stored, monkeypatch):
@@ -305,3 +334,46 @@ def test_stored_723_class_the_rules_own_trap_is_no_typo(stored, monkeypatch):
     assert "prennent" not in (feedback_note(verdict, "en") or "")
     monkeypatch.setattr(settings, "ANSWER_BANK_ENABLED", False)
     assert judge("Ils prendent le bus.", key, typo=True).correct  # main forgave the rule's own trap as a typo
+
+
+# --- the deterministic pre-filter (#174, second round) --------------------------------
+
+
+def _fix(key: str, wrong: str) -> dict:
+    return {"key": key, "kind": "fix_the_mistake", "prompt": {"wrong_sentence": wrong}}
+
+
+@pytest.mark.parametrize(
+    ("key", "wrong", "variant"),
+    [
+        ("Il me semble qu'il a tort.", "Il me semble qu'il ait tort.", "Il me semble qu'il avait tort."),
+        ("Elle est professeur.", "C'est professeur.", "Il est professeur."),
+        (
+            "Il y a un mois, il m'a dit qu'il viendrait le lendemain.",
+            "Il y a un mois, il m'a dit qu'il viendrait demain.",
+            "Il y a un mois, il m'a dit qu'il viendrait ce jour-là.",
+        ),
+        ("Ils prennent le bus.", "Ils prendent le bus.", "Elles prennent le bus."),
+        ("Comme il pleut, je reste.", "Comme il pleut, je resterais.", "Puisqu'il pleut, je reste."),
+        ("Je ne mange pas.", "Je ne mange.", "Je mange."),
+    ],
+)
+def test_prefilter_refuses_another_answer(key, wrong, variant):
+    from app.services.answer_bank_check import prefilter
+
+    assert prefilter(_fix(key, wrong), variant)
+
+
+@pytest.mark.parametrize(
+    ("key", "wrong", "variant"),
+    [
+        ("Vous habitez près de la gare ?", "Vous habiter près de la gare ?", "Habitez-vous près de la gare ?"),
+        ("Elle est professeur.", "C'est professeur.", "Elle est professeure."),
+        ("Ma clé est dans mon sac.", "Mon clé est dans mon sac.", "Ma clef est dans mon sac."),
+        ("Romy et moi, on va au cinéma.", "Romy et moi, on allons au cinéma.", "Romy et moi, nous allons au cinéma."),
+    ],
+)
+def test_prefilter_lets_an_allowed_difference_through(key, wrong, variant):
+    from app.services.answer_bank_check import prefilter
+
+    assert prefilter(_fix(key, wrong), variant) is None

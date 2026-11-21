@@ -295,9 +295,7 @@
    "hash": "4adf7d42d96e748e",
    "kind": "recall_phrase",
    "key": "vers dix heures",
-   "accepted": [
-    "vers 10 heures"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "vers dix heure",
@@ -318,6 +316,13 @@
      "form": "en dix heures",
      "why_en": "Wrong preposition for a time of day.",
      "why_de": "Falsche Präposition für eine Uhrzeit."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "vers 10 heures",
+     "refused_by": "strict judge",
+     "why": "The candidate writes the time as digits (10 heures) instead of the word 'dix'. That is not one of the allowed classes (spelling, person, gender, on/nous, question form, elision, punctuation), so it is another form of the answer and not a recognised spelling variant."
     }
    ]
   },
@@ -493,10 +498,7 @@
    "hash": "4b64cc024e989744",
    "kind": "recall_phrase",
    "key": "vers dix heures",
-   "accepted": [
-    "vers 10 heures",
-    "vers 10h"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "à dix heures",
@@ -517,6 +519,18 @@
      "form": "envers dix heures",
      "why_en": "This is a different word and does not express approximate time.",
      "why_de": "Das ist ein anderes Wort und drückt keine ungefähre Zeit aus."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "vers 10 heures",
+     "refused_by": "strict judge",
+     "why": "Writing the number as digits (10) instead of the word 'dix' is not a recognised spelling variant of the same word and falls outside the allowed classes; not sure it is accepted, so refuse."
+    },
+    {
+     "form": "vers 10h",
+     "refused_by": "prefilter",
+     "why": "another content word"
     }
    ]
   },
@@ -552,10 +566,7 @@
    "hash": "ff8c0b66f64e75f6",
    "kind": "recall_phrase",
    "key": "Si tu es libre dimanche, on se retrouvera à dix heures devant le marché.",
-   "accepted": [
-    "Si tu es libre dimanche, on se retrouvera à 10 heures devant le marché.",
-    "Si tu es libre dimanche, nous nous retrouverons à dix heures devant le marché."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Si tu seras libre dimanche, on se retrouvera à dix heures devant le marché.",
@@ -576,6 +587,18 @@
      "form": "Si tu es libre dimanche, on se retrouvera à dix heures devant le marche.",
      "why_en": "The accent is missing on the last word.",
      "why_de": "Beim letzten Wort fehlt der Akzent."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Si tu es libre dimanche, on se retrouvera à 10 heures devant le marché.",
+     "refused_by": "strict judge",
+     "why": "The candidate writes the time as digits (10 heures) instead of the word (dix heures). Digit versus spelled-out numeral is not one of the allowed classes (spelling covers recognised second spellings of a word, not numerals), so it counts as a different form and is refused."
+    },
+    {
+     "form": "Si tu es libre dimanche, nous nous retrouverons à dix heures devant le marché.",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
     }
    ]
   },
@@ -611,9 +634,7 @@
    "hash": "46a67bb05d737c2d",
    "kind": "recall_phrase",
    "key": "désolé",
-   "accepted": [
-    "désolée"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "désole",
@@ -629,6 +650,13 @@
      "form": "pardon",
      "why_en": "This is a different word, not the one practised here.",
      "why_de": "Das ist ein anderes Wort, nicht das hier geübte."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "désolée",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ]
   },
@@ -687,9 +715,7 @@
    "hash": "9ab36d71e3fae5fa",
    "kind": "recall_phrase",
    "key": "bloqué",
-   "accepted": [
-    "bloquée"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "bloque",
@@ -710,6 +736,13 @@
      "form": "bloqe",
      "why_en": "The spelling is wrong.",
      "why_de": "Die Schreibung ist falsch."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "bloquée",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ]
   },
@@ -745,9 +778,7 @@
    "hash": "65f8e273608d756f",
    "kind": "recall_phrase",
    "key": "dans dix minutes",
-   "accepted": [
-    "dans 10 minutes"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "en dix minutes",
@@ -764,15 +795,20 @@
      "why_en": "This refers to the past, not the future.",
      "why_de": "Das bezieht sich auf die Vergangenheit."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "dans 10 minutes",
+     "refused_by": "strict judge",
+     "why": "Writing the number as digits (10) instead of the word 'dix' is not one of the allowed classes (not a recognised spelling variant, elision or punctuation), so it is refused."
+    }
    ]
   },
   "explain_delay:A2#1d21fabd75": {
    "hash": "ceaed19317397783",
    "kind": "recall_phrase",
    "key": "désolé",
-   "accepted": [
-    "désolée"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "désole",
@@ -788,6 +824,13 @@
      "form": "pardon",
      "why_en": "This is a different word, not the one practised here.",
      "why_de": "Das ist ein anderes Wort."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "désolée",
+     "refused_by": "prefilter",
+     "why": "another word"
     }
    ]
   },
@@ -841,9 +884,7 @@
    "hash": "e79becf1fe776059",
    "kind": "recall_phrase",
    "key": "dans vingt minutes",
-   "accepted": [
-    "dans 20 minutes"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "en vingt minutes",
@@ -860,16 +901,20 @@
      "why_en": "This refers to the past.",
      "why_de": "Das bezieht sich auf die Vergangenheit."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "dans 20 minutes",
+     "refused_by": "strict judge",
+     "why": "Writing the number as digits (20) instead of the word «vingt» is not one of the allowed classes (spelling, punctuation, etc.), so it is not an accepted variant."
+    }
    ]
   },
   "explain_delay:A2#dbe59bcdfc": {
    "hash": "54fbb2316ade6ecd",
    "kind": "recall_phrase",
    "key": "dix-neuf heures trente",
-   "accepted": [
-    "19 h 30",
-    "19h30"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "dix-neuf heure trente",
@@ -880,6 +925,18 @@
      "form": "dix-neuf heures trois",
      "why_en": "The minutes number is wrong.",
      "why_de": "Die Minutenzahl ist falsch."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "19 h 30",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "19h30",
+     "refused_by": "prefilter",
+     "why": "another content word"
     }
    ]
   },
@@ -910,10 +967,7 @@
    "hash": "d95675911f15893a",
    "kind": "recall_phrase",
    "key": "Je serai en retard : le métro est bloqué. S'il repart, j'arriverai à dix-neuf heures trente ; sinon, je viendrai à pied.",
-   "accepted": [
-    "Je vais être en retard : le métro est bloqué. S'il repart, j'arriverai à dix-neuf heures trente ; sinon, je viendrai à pied.",
-    "Je serai en retard : le métro est bloqué. S'il repart, j'arriverai à 19 h 30 ; sinon, je viendrai à pied."
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "Je suis en retard : le métro est bloqué. S'il repartira, j'arriverai à dix-neuf heures trente.",
@@ -930,17 +984,25 @@
      "why_en": "The new arrival time and the alternative are missing.",
      "why_de": "Die neue Ankunftszeit und die Alternative fehlen."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "Je vais être en retard : le métro est bloqué. S'il repart, j'arriverai à dix-neuf heures trente ; sinon, je viendrai à pied.",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
+    },
+    {
+     "form": "Je serai en retard : le métro est bloqué. S'il repart, j'arriverai à 19 h 30 ; sinon, je viendrai à pied.",
+     "refused_by": "prefilter",
+     "why": "the tense or mood changed"
+    }
    ]
   },
   "explain_delay:B1#1d21fabd75": {
    "hash": "72edbaae6d1b2f97",
    "kind": "recall_phrase",
    "key": "désolé",
-   "accepted": [
-    "désolée",
-    "je suis désolé",
-    "je suis désolée"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "désole",
@@ -956,6 +1018,23 @@
      "form": "pardon",
      "why_en": "This is a different word, not the one for being sorry.",
      "why_de": "Das ist ein anderes Wort, nicht das für bedauern."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "désolée",
+     "refused_by": "prefilter",
+     "why": "another word"
+    },
+    {
+     "form": "je suis désolé",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
+    },
+    {
+     "form": "je suis désolée",
+     "refused_by": "prefilter",
+     "why": "the subject changed"
     }
    ]
   },
@@ -1009,9 +1088,7 @@
    "hash": "a81b748cf9eeb371",
    "kind": "recall_phrase",
    "key": "dans vingt minutes",
-   "accepted": [
-    "dans 20 minutes"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "en vingt minutes",
@@ -1032,6 +1109,13 @@
      "form": "pour vingt minutes",
      "why_en": "This preposition does not express arriving after a delay from now.",
      "why_de": "Diese Präposition drückt nicht aus, dass man nach einer Wartezeit ab jetzt ankommt."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "dans 20 minutes",
+     "refused_by": "strict judge",
+     "why": "The candidate writes the number as digits (20) instead of the word 'vingt'. This is not a recognised second spelling, elision or punctuation variant, so it falls outside the allowed classes."
     }
    ]
   },
@@ -1240,9 +1324,7 @@
    "hash": "4555e276ea64fd5d",
    "kind": "recall_phrase",
    "key": "en terrasse",
-   "accepted": [
-    "à la terrasse"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "en terasse",
@@ -1264,20 +1346,20 @@
      "why_en": "This means inside, but the key is about outdoor seating.",
      "why_de": "Das bedeutet drinnen, gemeint ist aber ein Platz draußen."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "à la terrasse",
+     "refused_by": "prefilter",
+     "why": "another linking word or preposition"
+    }
    ]
   },
   "order_at_cafe:A1#27dc61f8a9": {
    "hash": "0b51174565259f50",
    "kind": "recall_phrase",
    "key": "un thé",
-   "accepted": [
-    "un thé nature",
-    "un thé noir",
-    "un thé vert",
-    "un thé au lait",
-    "un thé au citron",
-    "une tasse de thé"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "une thé",
@@ -1294,21 +1376,45 @@
      "why_en": "The noun has an extra letter at the end.",
      "why_de": "Das Nomen hat einen überflüssigen Buchstaben am Ende."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "un thé nature",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "un thé noir",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "un thé vert",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "un thé au lait",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "un thé au citron",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "une tasse de thé",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    }
    ]
   },
   "order_at_cafe:A1#2a5ec4ab9b": {
    "hash": "17b090db1e81f791",
    "kind": "recall_phrase",
    "key": "un café",
-   "accepted": [
-    "une tasse de café",
-    "un café noir",
-    "un expresso",
-    "un espresso",
-    "un café crème",
-    "un cappuccino",
-    "un café allongé"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "une café",
@@ -1324,6 +1430,43 @@
      "form": "le café",
      "why_en": "A definite article sounds odd when ordering one drink.",
      "why_de": "Ein bestimmter Artikel klingt beim Bestellen eines Getränks seltsam."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "une tasse de café",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "un café noir",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "un expresso",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "un espresso",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "un café crème",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "un cappuccino",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "un café allongé",
+     "refused_by": "prefilter",
+     "why": "another content word"
     }
    ]
   },
@@ -1356,10 +1499,7 @@
    "hash": "0401de091fa5eec1",
    "kind": "recall_phrase",
    "key": "un chocolat chaud",
-   "accepted": [
-    "un chocolat",
-    "une tasse de chocolat chaud"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "une chocolat chaud",
@@ -1381,6 +1521,18 @@
      "why_en": "The adjective is in the wrong position.",
      "why_de": "Das Adjektiv steht an der falschen Stelle."
     }
+   ],
+   "refused_variants": [
+    {
+     "form": "un chocolat",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    },
+    {
+     "form": "une tasse de chocolat chaud",
+     "refused_by": "prefilter",
+     "why": "another content word"
+    }
    ]
   },
   "order_at_cafe:A1#727b3034ae": {
@@ -1388,7 +1540,10 @@
    "kind": "recall_phrase",
    "key": "s'il vous plaît",
    "accepted": [
-    "s'il vous plait"
+    {
+     "form": "s'il vous plait",
+     "class": "spelling"
+    }
    ],
    "wrong": [
     {
@@ -1412,10 +1567,7 @@
    "hash": "a37c3bc63534fa2d",
    "kind": "recall_phrase",
    "key": "je voudrais",
-   "accepted": [
-    "je voudrais bien",
-    "je souhaiterais"
-   ],
+   "accepted": [],
    "wrong": [
     {
      "form": "je veux",
@@ -1426,6 +1578,18 @@
      "form": "je voudrai",
      "why_en": "This ending is the future tense, not the polite conditional.",
      "why_de": "Diese Endung ist Futur, nicht der höfliche Konditional."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "je voudrais bien",
+     "refused_by": "strict judge",
+     "why": "The candidate adds the word \"bien\", which is extra lexical content not in the key and is not covered by any allowed class."
+    },
+    {
+     "form": "je souhaiterais",
+     "refused_by": "prefilter",
+     "why": "another verb"
     }
    ]
   },
@@ -1518,7 +1682,10 @@
    "kind": "recall_phrase",
    "key": "s'il vous plaît",
    "accepted": [
-    "s'il vous plait"
+    {
+     "form": "s'il vous plait",
+     "class": "spelling"
+    }
    ],
    "wrong": [
     {
