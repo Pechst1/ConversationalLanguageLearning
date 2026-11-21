@@ -226,6 +226,14 @@ def step_lines(db: Session, journey: DailyJourney, step: DailyJourneyStep) -> li
         private = step.private_task if isinstance(step.private_task, dict) else {}
         for turn in private.get("turns") or []:
             if isinstance(turn, dict):
+                # #664: a past line is said by whoever said it (the exchange keeps the
+                # line it answered and each speaker of its reply), never by the person
+                # the open question is put to now.
+                asked = turn.get("asked") if isinstance(turn.get("asked"), dict) else {}
+                _add(lines, asked.get("speaker_id") or speaker, asked.get("text_fr"))
+                for row in turn.get("lines") or []:
+                    if isinstance(row, dict):
+                        _add(lines, row.get("speaker_id") or speaker, row.get("text_fr"))
                 _add(lines, speaker, turn.get("character"))
         if str(step.status) == "completed":
             # WP-158: the closed reply's recap offers one line to hear and

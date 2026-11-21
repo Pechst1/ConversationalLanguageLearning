@@ -45,7 +45,8 @@ import type { JourneyFeedback } from './journey-state';
 import { speakerOf } from './journey-faces';
 import { drawnCastIdFor } from '@/lib/cast-faces';
 
-function sameVoice(a: string, b: string): boolean {
+/** The same person, whichever spelling of them a payload carried. */
+export function sameVoice(a: string, b: string): boolean {
   return (drawnCastIdFor(a) || a) === (drawnCastIdFor(b) || b);
 }
 
@@ -69,26 +70,26 @@ export function drawsEachVoice(
 // Local copy of the thread (servers that predate WP-89 send no `thread`)
 // ---------------------------------------------------------------------------
 
+/** Who says a line of the thread. */
+export type LineSpeaker = { id: string | null; name: string };
+
 /** One exchange as the client keeps it: which turn, and the line it answered. */
-export type PromptSpeaker = { id: string | null; name: string };
+/** Main's name for a line's speaker (walk, 9 Nov); the same shape as `LineSpeaker`. */
+export type PromptSpeaker = LineSpeaker;
 
-function promptSpeakerOf(value: unknown): PromptSpeaker | null {
-  if (!value || typeof value !== 'object') return null;
-  const raw = value as Record<string, unknown>;
-  const name = line(raw.name);
-  return name ? { id: typeof raw.id === 'string' ? raw.id : null, name } : null;
-}
-
-export type LocalExchange = Omit<ThreadExchange, 'character_lines' | 'unchecked'> & {
+export type LocalExchange = Omit<ThreadExchange, 'character_lines' | 'prompt_line' | 'unchecked'> & {
   unchecked?: boolean;
   /** Every speaker of a many-voiced reply (optional: older servers send none). */
   character_lines?: SpokenLine[];
   turn: number;
   /** The character's line this answer replied to, when the client saw it. */
   prompt_fr: string | null;
-  /** Who said that line. A scene changes speaker between exchanges, and the step's character
-   * is whoever asks now: Gus's opening under Margaux's face once she takes over (walk, 9 Nov). */
-  prompt_speaker?: PromptSpeaker | null;
+  /**
+   * #664: who said `prompt_fr`, captured at the tap. The prompt's character is
+   * the person the open question is put to and moves on with it (#594); a past
+   * line keeps the speaker it was said by.
+   */
+  prompt_speaker?: LineSpeaker | null;
 };
 
 export type LocalThread = { exchanges: LocalExchange[] };
@@ -136,6 +137,19 @@ function oneCorrection(value: unknown): MoreCorrection | null {
   };
 }
 
+/** A speaker as kept or sent: a name to print, the cast id when there is one. */
+function lineSpeaker(value: unknown): LineSpeaker | null {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Record<string, unknown>;
+  const id = typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : null;
+  const name = line(raw.name);
+  return id || name ? speakerOf(id, name) : null;
+}
+
+function sameSpeaker(a: LineSpeaker | null | undefined, b: LineSpeaker | null | undefined): boolean {
+  return (a?.id ?? null) === (b?.id ?? null) && (a?.name ?? '') === (b?.name ?? '');
+}
+
 function correctionOf(value: unknown): JourneyCorrection | null {
   const first = oneCorrection(value);
   if (!first) return null;
@@ -155,16 +169,17 @@ function exchangeOf(value: unknown): LocalExchange | null {
   const learner = line(raw.learner_fr);
   if (!learner) return null;
   const lines = spokenLines(raw.character_lines);
-  const promptSpeaker = promptSpeakerOf(raw.prompt_speaker);
+  const prompt = line(raw.prompt_fr) || null;
+  const asker = prompt ? lineSpeaker(raw.prompt_speaker) : null;
   return {
     turn,
-    prompt_fr: line(raw.prompt_fr) || null,
-    ...(promptSpeaker ? { prompt_speaker: promptSpeaker } : {}),
+    prompt_fr: prompt,
     learner_fr: learner,
     character_fr: line(raw.character_fr),
     correction: correctionOf(raw.correction),
     ...(raw.unchecked === true ? { unchecked: true } : {}),
     ...(lines.length ? { character_lines: lines } : {}),
+    ...(asker ? { prompt_speaker: asker } : {}),
   };
 }
 
@@ -215,22 +230,39 @@ export function recordExchange(thread: LocalThread, exchange: LocalExchange): Lo
     current.learner_fr === clean.learner_fr &&
     current.character_fr === clean.character_fr &&
     current.prompt_fr === (clean.prompt_fr ?? current.prompt_fr) &&
+    sameSpeaker(current.prompt_speaker, clean.prompt_speaker ?? current.prompt_speaker) &&
     JSON.stringify(current.correction) === JSON.stringify(clean.correction) &&
     Boolean(current.unchecked) === Boolean(clean.unchecked)
   ) {
     return thread;
   }
-  const speaker = clean.prompt_speaker ?? current?.prompt_speaker ?? null;
-  const merged = {
+  const keepsPrompt = !clean.prompt_fr;
+  const merged: LocalExchange = {
     ...clean,
     prompt_fr: clean.prompt_fr ?? current?.prompt_fr ?? null,
-    ...(speaker ? { prompt_speaker: speaker } : {}),
   };
+  const asker = keepsPrompt ? current?.prompt_speaker : clean.prompt_speaker;
+  if (asker) merged.prompt_speaker = asker;
   return { exchanges: sorted([...thread.exchanges.filter((item) => item.turn !== clean.turn), merged]) };
 }
 
+/**
+ * #664: who says the open question — the prompt's character, read at the tap.
+ * That field is the person the open question is put to; once the turn is answered
+ * it names the next addressee, so the line keeps this instead.
+ */
+export function openLineSpeaker(prompt: RespondPrompt): LineSpeaker | null {
+  return lineSpeaker({ id: prompt.character_id, name: prompt.character_name });
+}
+
 /** What the learner sent, captured at the tap (the snapshot moves on after). */
-export type SentTurn = { turn: number; text: string; prompt_fr: string | null; prompt_speaker?: PromptSpeaker | null };
+export type SentTurn = {
+  turn: number;
+  text: string;
+  prompt_fr: string | null;
+  /** #664: who said `prompt_fr` — the prompt's character while that line is the open one. */
+  prompt_speaker?: LineSpeaker | null;
+};
 
 /**
  * The exchange a scored result settles, ready to keep. `null` when there is
@@ -270,8 +302,13 @@ export type CharacterBubble = {
   key: string;
   turn: number;
   text: string;
-  /** Who says it, when a reply has several speakers; else the step's character. */
-  speaker?: { id: string | null; name: string } | null;
+  /**
+   * Who says it. Absent only for the open question and the reply that became it:
+   * those are said by the person the prompt names, the header. A past line always
+   * carries its own speaker when it is known (#664): the prompt's character moves
+   * on to the next addressee, the line stays with whoever said it.
+   */
+  speaker?: LineSpeaker | null;
   /** The character's reply to turn `turn` (rather than the line that opened it). */
   reply: boolean;
   /** The last character line: the one said beside the md face, as the headline. */
@@ -304,11 +341,12 @@ export type ThreadBubble = CharacterBubble | LearnerBubble | CaptionBubble;
 export type InFlightExchange = {
   turn: number;
   prompt_fr: string | null;
-  prompt_speaker?: PromptSpeaker | null;
   learner_fr: string;
   character_fr: string | null;
   correction: JourneyCorrection | null;
   character_lines?: SpokenLine[] | null;
+  /** #664: who said `prompt_fr`, captured at the tap. */
+  prompt_speaker?: LineSpeaker | null;
 };
 
 /** Same line, whatever the spacing or the apostrophe the keyboard picked. */
@@ -325,7 +363,8 @@ export function sameLine(a: string | null | undefined, b: string | null | undefi
 
 type Slot = {
   prompt_fr: string | null;
-  prompt_speaker?: PromptSpeaker | null;
+  /** Who said `prompt_fr`; `null` when no copy of the exchange kept it. */
+  asker: LineSpeaker | null;
   learner_fr: string;
   character_fr: string;
   correction: JourneyCorrection | null;
@@ -351,8 +390,15 @@ export function threadBubbles(input: {
   (Array.isArray(prompt.thread) ? prompt.thread : []).forEach((exchange, index) => {
     const learner = words(exchange?.learner_fr);
     if (!learner) return;
+    // #664: the line this exchange answered, with whoever said it.
+    const asked = (exchange as { prompt_line?: SpokenLine | null }).prompt_line;
+    const askedText = words(asked?.text_fr);
     slots.set(index, {
-      prompt_fr: null,
+      prompt_fr: askedText || null,
+      asker:
+        askedText && (asked?.speaker_id || asked?.speaker_name)
+          ? speakerOf(asked.speaker_id, asked.speaker_name ?? '')
+          : null,
       learner_fr: learner,
       character_fr: words(exchange.character_fr),
       correction: correctionOf(exchange.correction),
@@ -362,12 +408,23 @@ export function threadBubbles(input: {
     });
   });
 
+  /** A copy that saw the line the exchange answered fills what the others lack. */
+  const fillAsked = (held: Slot, promptFr: string | null, asker: LineSpeaker | null | undefined) => {
+    if (!promptFr) return;
+    if (!held.prompt_fr) {
+      held.prompt_fr = promptFr;
+      held.asker = asker ?? null;
+    } else if (!held.asker && asker && sameLine(held.prompt_fr, promptFr)) {
+      held.asker = asker;
+    }
+  };
+
   (input.local?.exchanges ?? []).forEach((exchange) => {
     const held = slots.get(exchange.turn);
     if (!held) {
       slots.set(exchange.turn, {
         prompt_fr: exchange.prompt_fr,
-        prompt_speaker: exchange.prompt_speaker ?? null,
+        asker: exchange.prompt_fr ? lineSpeaker(exchange.prompt_speaker) : null,
         learner_fr: exchange.learner_fr,
         character_fr: exchange.character_fr,
         correction: exchange.correction,
@@ -375,9 +432,8 @@ export function threadBubbles(input: {
         pending: false,
         lines: spokenLines((exchange as { character_lines?: unknown }).character_lines),
       });
-    } else if (!held.prompt_fr && exchange.prompt_fr) {
-      held.prompt_fr = exchange.prompt_fr;
-      held.prompt_speaker = exchange.prompt_speaker ?? null;
+    } else {
+      fillAsked(held, exchange.prompt_fr, lineSpeaker(exchange.prompt_speaker));
     }
   });
 
@@ -389,7 +445,7 @@ export function threadBubbles(input: {
       const reply = words(flight.character_fr);
       slots.set(flight.turn, {
         prompt_fr: flight.prompt_fr,
-        prompt_speaker: flight.prompt_speaker ?? null,
+        asker: flight.prompt_fr ? lineSpeaker(flight.prompt_speaker) : null,
         learner_fr: flightLearner,
         character_fr: reply,
         correction: correctionOf(flight.correction),
@@ -397,15 +453,14 @@ export function threadBubbles(input: {
         pending: !reply,
         lines: spokenLines(flight.character_lines),
       });
-    } else if (!held.prompt_fr && flight.prompt_fr) {
-      held.prompt_fr = flight.prompt_fr;
-      held.prompt_speaker = flight.prompt_speaker ?? null;
+    } else {
+      fillAsked(held, flight.prompt_fr, lineSpeaker(flight.prompt_speaker));
     }
   }
 
   const bubbles: ThreadBubble[] = [];
   let lastCharacter: string | null = null;
-  const say = (text: string | null | undefined, turn: number, reply: boolean, speaker?: PromptSpeaker | null) => {
+  const say = (text: string | null | undefined, turn: number, reply: boolean, speaker: LineSpeaker | null) => {
     const clean = words(text);
     if (!clean) return;
     // A reply that IS the next line is said once.
@@ -425,7 +480,9 @@ export function threadBubbles(input: {
   const turns = Array.from(slots.keys()).sort((a, b) => a - b);
   turns.forEach((turn) => {
     const slot = slots.get(turn) as Slot;
-    say(slot.prompt_fr ?? (turn === prompt.turn_index ? prompt.character_line_fr : null), turn, false, slot.prompt_speaker);
+    // #664: the line keeps the speaker it was asked by; only the open question,
+    // with nobody kept for it, is the header's.
+    say(slot.prompt_fr ?? (turn === prompt.turn_index ? prompt.character_line_fr : null), turn, false, slot.asker);
     bubbles.push({
       kind: 'learner',
       key: `l${turn}`,
@@ -458,11 +515,13 @@ export function threadBubbles(input: {
       // The next line may repeat the joined reply: said once.
       lastCharacter = words(slot.character_fr) || slot.lines[slot.lines.length - 1].text_fr;
     } else {
-      say(slot.character_fr, turn, true);
+      // A one-voiced reply is the next exchange's line: said by whoever asked that
+      // one (the header, when the next exchange is the open one).
+      say(slot.character_fr, turn, true, slots.get(turn + 1)?.asker ?? null);
     }
   });
 
-  if (!slots.has(prompt.turn_index)) say(prompt.character_line_fr, prompt.turn_index, false);
+  if (!slots.has(prompt.turn_index)) say(prompt.character_line_fr, prompt.turn_index, false, null);
 
   for (let index = bubbles.length - 1; index >= 0; index -= 1) {
     const bubble = bubbles[index];
