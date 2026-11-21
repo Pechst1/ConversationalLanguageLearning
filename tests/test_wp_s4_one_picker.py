@@ -365,9 +365,10 @@ def test_soutenu_and_intensif_fold_the_forge_into_the_scene_movement(db_session:
     kinds = [step.kind for step in plan.steps]
     assert kinds.count(StepKind.FORGE) == 1, plan.rationale
     forge_at = kinds.index(StepKind.FORGE)
-    assert kinds.index(StepKind.RULE) < forge_at < kinds.index(StepKind.RESPOND), "after the guided items"
+    assert kinds.index(StepKind.RULE) < forge_at < kinds.index(StepKind.RESPOND), "after the rule card"
+    # R2 (rule taught once): no guided item on today's rule — La Forge practises it.
     guided_after_rule = kinds[kinds.index(StepKind.RULE) + 1 : forge_at]
-    assert guided_after_rule and set(guided_after_rule) == {StepKind.RECALL}
+    assert guided_after_rule == []
     step = plan.steps[forge_at]
     assert planner.FORGE_MIN_SECONDS <= step.estimated_seconds <= forge_picker.FORGE_SECONDS[rhythm]
     assert plan.estimated_active_seconds <= budget, "the fold fits the day's budget"

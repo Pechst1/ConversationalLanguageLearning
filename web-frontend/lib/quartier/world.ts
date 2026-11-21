@@ -59,6 +59,12 @@ export interface WorldPlace {
   sees?: string[];
   /** the door you walk in by, from a place you can walk (in the quarter's coordinates, x east, z south) */
   entrance?: WorldEntrance;
+  /**
+   * P12: built, but it fails the place check (`place-check.test.js`), and why. An unfinished place
+   * stages nothing: a day set there is the Feuilleton's page until the forge has finished it (owner
+   * rule of 13 Nov: a place is finished, or it is not served).
+   */
+  unfinished?: string;
 }
 
 /** A door between a street you walk and a built place: you stand at `outside`, tap, and are `inside`. */
@@ -160,9 +166,18 @@ export function placeBuiltAs(built: { room?: string; site?: string }, world: Wor
   return p?.id ?? built.room ?? built.site ?? null;
 }
 
-/** Built: the hand-drawn quarter, or a place the forge has written a room or a site for. */
+/** Built: the hand-drawn quarter, or a place the forge has written a room or a site for, and finished (no `unfinished`). */
 export function isBuilt(p: WorldPlace): boolean {
+  if (p.unfinished) return false;
   return p.kind === 'home' || Boolean(p.room) || Boolean(p.site);
+}
+
+/** The first place a page moves to that is built but unfinished, or null (a day the director blocks checks this; `unbuiltOf` the rest). */
+export function unfinishedAt(locations: Array<string | null | undefined>, world: World = WORLD): string | null {
+  for (const location of locations) {
+    if (location && world.places.some((p) => p.unfinished && ((p.stages ?? []).includes(location) || p.id === location))) return location;
+  }
+  return null;
 }
 
 /**

@@ -640,6 +640,7 @@ def record_scene_lexicon(
     level: str | None = None,
     journey_id: UUID | None = None,
     now: datetime | None = None,
+    gloss_language: str | None = None,
 ) -> list[SceneWord]:
     """Match a scene's lexicon to the catalogue, learner-safely (the WP-74 rule).
 
@@ -653,6 +654,13 @@ def record_scene_lexicon(
       printed and the gloss in the learner's language. Idempotent per
       (learner, word, sentence). No progress row: a word enters the Lexique once
       it is practised, through the ordinary evidence path.
+    * R5 (check walk of 19 Nov): ``gloss_language`` is the language the entries'
+      ``gloss_native`` is written in (the scene's control language, French from B1).
+      When it is not the mother tongue the scene's gloss is never stored or shown: a
+      gloss explains, so it is in the mother tongue at every level. The word takes the
+      dictionary's gloss in the mother tongue (the catalogue row's, else the authored
+      lists'); a word with none is not recorded («tremper — être mouillé
+      complètement par la pluie» was stored as the English gloss of a new row).
 
     Flushes, never commits.
     """
@@ -660,6 +668,10 @@ def record_scene_lexicon(
     now = now or datetime.now(UTC)
     language = (getattr(user, "target_language", None) or "fr").strip() or "fr"
     native = user_mother_tongue(user)
+    from app.services.chrome_language import fold_language
+    from app.services.lexical_coverage import fold as fold_lemma
+
+    foreign_gloss = bool(gloss_language) and fold_language(gloss_language) != fold_language(native)
     words: list[SceneWord] = []
     session: LearningSession | None = None
     for entry in entries:
@@ -670,6 +682,12 @@ def record_scene_lexicon(
         if not lemma or not gloss:
             continue
         word = _catalogue_row(db, language=language, lemma=lemma)
+        if foreign_gloss:
+            column = _GLOSS_COLUMN.get(native)
+            gloss = _clean(getattr(word, column, None) if word is not None and column else None, MAX_TERM_CHARS * 2)
+            gloss = gloss or _clean((_authored_gloss_index().get(fold_lemma(lemma)) or {}).get(native), MAX_TERM_CHARS * 2)
+            if not gloss:
+                continue
         created = word is None
         if word is None:
             word = VocabularyWord(

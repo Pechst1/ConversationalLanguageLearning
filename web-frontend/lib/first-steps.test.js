@@ -90,8 +90,7 @@ test('the copy is complete in German, English and French, and German says du', (
     for (const key of keys) {
       assert.ok(copy.stickers[key].title && copy.stickers[key].body, `${language}.${key}`);
     }
-    for (const shape of ['story', 'reward', 'action', 'done']) assert.ok(copy.walkthrough.shapes[shape]);
-    assert.equal(copy.walkthrough.progress_points.length, 3);
+    assert.ok(copy.walkthrough.welcome_title && copy.walkthrough.day_title && copy.walkthrough.day_body);
     assert.ok(copy.route.next_forge && copy.route.next_words);
   }
   const german = JSON.stringify(steps.firstStepsCopy('de'));

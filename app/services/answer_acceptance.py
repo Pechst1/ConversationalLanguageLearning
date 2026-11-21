@@ -469,6 +469,7 @@ def _judge_candidates(
     learner: str, candidates: list[str], *, accents: AccentPolicy, typo: bool, article_optional: bool
 ) -> Verdict:
     best: Verdict | None = None
+    best_distance = 0
     for candidate in candidates:
         target = fold_typography(candidate)
         if not target:
@@ -507,9 +508,23 @@ def _judge_candidates(
                 learner_word=verdict.learner_word,
                 expected_word=verdict.expected_word,
             )
-            if best is None or _rank(verdict) > _rank(best):
-                best = verdict
+            distance = _word_distance(learner, target)
+            if best is None or _rank(verdict) > _rank(best) or (_rank(verdict) == _rank(best) and distance < best_distance):
+                best, best_distance = verdict, distance
     return best or Verdict(correct=False, expected=candidates[0])
+
+
+def _word_distance(learner: str, target: str) -> int:
+    """How many words the learner would change to reach ``target`` (walk of 19 Nov).
+
+    Two misses of one rank are measured against the nearer answer: «Ils a» against
+    «Ils ont», not the key «Elles ont», which also blamed the right «Ils»."""
+
+    from difflib import SequenceMatcher
+
+    left, right = strip_accents(learner).casefold().split(), strip_accents(target).casefold().split()
+    same = sum(block.size for block in SequenceMatcher(a=left, b=right, autojunk=False).get_matching_blocks())
+    return max(len(left), len(right)) - same
 
 
 # ---------------------------------------------------------------------------
@@ -1567,11 +1582,29 @@ EQUIVALENT_WORD_SWAPS: frozenset[frozenset[str]] = frozenset(
 
 _SWAP_WORDS = re.compile(r"[\w']+")
 
+#: Walk of 19 Nov: a place that is a city and a country (or a province) of one name.
+#: «à Luxembourg» is the city, «au Luxembourg» the country; «in Luxemburg» says either,
+#: so neither line may be «corrected» into the other.
+CITY_AND_COUNTRY = frozenset({"luxembourg", "québec", "quebec", "panama", "guatemala", "koweït", "koweit"})
+
+
+def _city_or_country(a: list[str], b: list[str]) -> bool:
+    """The two lines differ only in «à» / «au» before a :data:`CITY_AND_COUNTRY` name."""
+
+    changed = [index for index, (x, y) in enumerate(zip(a, b, strict=True)) if x != y]
+    if len(changed) != 1:
+        return False
+    index = changed[0]
+    if {a[index], b[index]} != {"à", "au"} or index + 1 >= len(a):
+        return False
+    return a[index + 1] in CITY_AND_COUNTRY
+
 
 def is_preference_swap(learner: object, corrected: object) -> bool:
     """A "correction" that changes nothing wrong: a yes/no question moved to another
-    register («Vous êtes disponible ?» → «Êtes-vous disponible ?»), or one word
-    swapped for its correct equivalent (:data:`EQUIVALENT_WORD_SWAPS`)."""
+    register («Vous êtes disponible ?» → «Êtes-vous disponible ?»), one word
+    swapped for its correct equivalent (:data:`EQUIVALENT_WORD_SWAPS`), or «à» and
+    «au» before a city that is also a country (:data:`CITY_AND_COUNTRY`)."""
 
     left = fold_typography(learner).strip(" ?!.")
     right = fold_typography(corrected).strip(" ?!.")
@@ -1583,6 +1616,8 @@ def is_preference_swap(learner: object, corrected: object) -> bool:
     b = _SWAP_WORDS.findall(right.casefold())
     if len(a) != len(b):
         return False
+    if _city_or_country(a, b):
+        return True
     changed = [frozenset({x, y}) for x, y in zip(a, b, strict=True) if x != y]
     return len(changed) == 1 and changed[0] in EQUIVALENT_WORD_SWAPS
 

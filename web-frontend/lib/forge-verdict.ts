@@ -92,6 +92,16 @@ export function settleShownCorrection(
   };
 }
 
+/**
+ * Walk of 19 Nov: whether a background reading of `attemptId` may still change the
+ * screen of `key`. Only while that attempt is the item's latest one: the late reading of
+ * a miss arriving after the learner's retry painted the old error over the retry's
+ * «Right», so a correct retry read as wrong until it was sent a second time.
+ */
+export function pollStillCurrent(latest: Record<string, string>, key: string, attemptId: string): boolean {
+  return Boolean(attemptId) && latest[key] === attemptId;
+}
+
 /** Where the repair step of an item stands. `none`: the item has no repair. */
 export type RepairStep = 'none' | 'open' | 'right' | 'revealed';
 

@@ -71,27 +71,19 @@ export function DaySessionPlan({
 
 export function DaySessionNext({
   next,
-  more,
   onNavigate,
 }: {
   next: { label: string; meta: string; href: string; kind: string } | null;
-  more: { label: string; meta: string; href: string } | null;
   onNavigate: (href: string) => void;
 }) {
-  if (!next && !more) return null;
+  // P7 (pilot, 17 Nov): the day's next step only; «Noch 5 neue Wörter» lives in Settings.
+  if (!next) return null;
   return (
-    <div className="av2-session-next" data-session-next={next?.kind ?? 'more'}>
-      {next ? (
-        <Action tone="primary" onClick={() => onNavigate(next.href)} iconAfter={<ArrowRightIcon size={18} />}>
-          {next.label}
-          {next.meta ? <span className="av2-btn__meta">· {next.meta}</span> : null}
-        </Action>
-      ) : more ? (
-        <Action tone="secondary" onClick={() => onNavigate(more.href)} data-more-words="">
-          {more.label}
-          <span className="av2-btn__meta">· {more.meta}</span>
-        </Action>
-      ) : null}
+    <div className="av2-session-next" data-session-next={next.kind}>
+      <Action tone="primary" onClick={() => onNavigate(next.href)} iconAfter={<ArrowRightIcon size={18} />}>
+        {next.label}
+        {next.meta ? <span className="av2-btn__meta">· {next.meta}</span> : null}
+      </Action>
     </div>
   );
 }

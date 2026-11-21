@@ -652,6 +652,7 @@ def concept_brief(
     *,
     control_language: str,
     stability: float | None = None,
+    explain_language: str | None = None,
 ) -> dict[str, Any]:
     """The planner's JSON-safe view of one unit (:func:`grammar_units.unit_brief`)."""
 
@@ -662,6 +663,7 @@ def concept_brief(
         control_language=control_language,
         localizations=_localizations(db, concept.id),
         stability=stability,
+        explain_language=explain_language,
     )
 
 

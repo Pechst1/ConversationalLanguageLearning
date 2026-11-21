@@ -1564,6 +1564,12 @@ class Correction:
     #: about the learner's grammar, so the checks that prove a model's fix against
     #: the learner's sentence (subject kept, cited form present) do not apply to it.
     rule_written: bool = False
+    #: P3 (owner decision 2, proposed): from B1 a scene reply may carry up to two more
+    #: corrections of other words, shown collapsed under this one. They live on the
+    #: foreground correction, so whatever replaces or withholds it (a stored fault's
+    #: note, a prompt that must not hand over the answer) takes them along. Each has
+    #: an empty ``more``. Empty for every other surface and below B1.
+    more: tuple[Correction, ...] = ()
 
     def is_valid_for(self, learner_text: str) -> bool:
         """Reject no-op corrections and spans the learner never wrote."""

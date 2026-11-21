@@ -178,7 +178,8 @@ PARIS_0830 = datetime(2026, 10, 1, 6, 30, tzinfo=UTC)
 
 
 def test_the_morning_depeche_is_the_teaser_in_the_mood_portrait_deep_linked(db_session, sent, art_set) -> None:
-    user = _learner(db_session)
+    # Pilot P9: from B1 the hook goes out as written (below B1 only with its gloss).
+    user = _learner(db_session, band="B1")
     _journey(db_session, user, date(2026, 9, 30))
     _thread(
         db_session,
@@ -193,7 +194,8 @@ def test_the_morning_depeche_is_the_teaser_in_the_mood_portrait_deep_linked(db_s
     tasks.send_morning_editions(now=PARIS_0830.isoformat())
 
     [push] = _mine(sent, user)
-    assert push["title"] == "Romy"
+    # Pilot P9: the hook names Romy in the third person — it is the serial's line, not hers.
+    assert push["title"] == copy.SERIAL_PUSH_TITLE
     assert push["message"] == "Romy a trouvé la lettre. Elle t’attend."
     data = push["data"]
     assert data["route"] == "/atelier?start=today"
@@ -204,7 +206,7 @@ def test_the_morning_depeche_is_the_teaser_in_the_mood_portrait_deep_linked(db_s
 
 
 def test_a_teaser_is_never_pushed_twice_inside_fourteen_days(db_session, sent) -> None:
-    user = _learner(db_session)
+    user = _learner(db_session, band="B1")
     _journey(db_session, user, date(2026, 9, 30))
     teaser = "Marin cache quelque chose dans la cave."
     _thread(db_session, user, live={"next_teaser": {"text_fr": teaser, "character_id": "marin_leveque"}})
@@ -219,7 +221,7 @@ def test_a_teaser_is_never_pushed_twice_inside_fourteen_days(db_session, sent) -
     # The story wrote nothing new overnight: the authored line, not the same news.
     assert second["message"] != teaser and second["data"]["teaser_source"] == "authored"
     # …in the voice of the learner's latest scene (Romy), WP-80's fallback.
-    assert second["message"] == copy.MORNING_LINES["romy_tremblay"]["A"]
+    assert second["message"] == copy.MORNING_LINES["romy_tremblay"]["B"]
     # Two weeks on, the line is allowed again.
     assert third["message"] == teaser
 

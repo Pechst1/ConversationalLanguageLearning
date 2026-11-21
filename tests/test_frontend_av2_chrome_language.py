@@ -56,6 +56,9 @@ SCANNED_PAGES = (
     WEB / "pages" / "notebook.tsx",
     WEB / "pages" / "graphic-novel.tsx",
     WEB / "pages" / "placement.tsx",
+    # P10: the gear's word and Home's placement chip read the interface language.
+    WEB / "components" / "layout" / "EditorialMasthead.tsx",
+    WEB / "components" / "onboarding" / "PlacementOfferChip.tsx",
 )
 
 #: English words that are not also French words. A hit on any of them in a

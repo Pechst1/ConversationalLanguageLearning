@@ -38,10 +38,34 @@ export function fold(text) {
     .trim();
 }
 
+// app/services/season/dates.py: a date token reads as the bible's own date when a line is
+// keyed (French forms only: the keyed lines are French). Served, it is the learner's date.
+const DATE_TOKEN = /\{date:(\d{4})-(\d{2})-(\d{2})(?:\|([a-z-]+))?\}/g;
+const FR_DAYS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+const FR_MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const FR_ABBR = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+export function bibleText(text) {
+  return String(text || '').replace(DATE_TOKEN, (_all, y, m, d, fmt = 'fr') => {
+    const day = new Date(Date.UTC(Number(y), Number(m) - 1, Number(d)));
+    const number = day.getUTCDate() === 1 ? '1er' : String(day.getUTCDate());
+    if (fmt === 'fr-abbr') return `${number} ${FR_ABBR[day.getUTCMonth()]}`;
+    const dm = `${number} ${FR_MONTHS[day.getUTCMonth()]}`;
+    if (fmt === 'fr-dm') return dm;
+    const weekday = FR_DAYS[day.getUTCDay()];
+    return `${fmt === 'fr-cap' ? weekday[0].toUpperCase() + weekday.slice(1) : weekday} ${dm}`;
+  });
+}
+
 // app/services/season/levels.py `level_key`: the line's A2 text and its B1 text, if any.
 export function levelKey(a2, b1 = null) {
-  return createHash('sha256').update(`${String(a2).trim()}␟${String(b1 || '').trim()}`, 'utf8').digest('hex').slice(0, 12);
+  return createHash('sha256')
+    .update(`${bibleText(a2).trim()}␟${bibleText(b1 || '').trim()}`, 'utf8')
+    .digest('hex')
+    .slice(0, 12);
 }
+
+// A dated line is told by what follows its last date: the date itself is the learner's.
+const afterDates = (text) => String(text).split(/\{date[^}]*\}/).pop();
 
 function* says(node) {
   if (Array.isArray(node)) {
@@ -68,7 +92,7 @@ export function pageLines(page, dir = SEASON_DIR) {
   if (!say) throw new Error(`${page.key}: no line «${page.line}» in ${page.file}`);
   const variants = readLevels(dir)[levelKey(say.a2, say.b1)] || {};
   const wordings = [say.a2, say.b1, ...LEVELS.map((level) => variants[level])].filter((text) => typeof text === 'string' && text.trim());
-  return [...new Set(wordings.map(fold))];
+  return [...new Set(wordings.map((text) => fold(afterDates(text))))];
 }
 
 // The days on which the walk read the page, in any wording.

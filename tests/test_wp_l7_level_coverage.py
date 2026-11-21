@@ -443,12 +443,15 @@ def test_a_prior_the_evidence_confirms_stands_and_is_credited(db_session):
     assert (row.status, row.source) == ("credited", "prior_confirmed")
 
 
-def test_a_prior_the_evidence_contradicts_falls_as_before(db_session):
+def test_a_prior_the_evidence_contradicts_holds_and_records_the_measurement(db_session):
+    """P2 (pilot 2026-11-17): a declared level is never lowered automatically;
+    the lower measurement is kept for the ops view (was: «falls as before»)."""
     user = _user(db_session, declared="B1")
     _attempts(db_session, user, score=1.0)
     payload = CEFRProgressService(db_session).recompute(user, source="test")
-    assert payload["estimate"] == "A1.1"
-    assert payload["estimate_source"] == "measured"
+    assert payload["estimate"] == "B1.1"
+    assert payload["estimate_source"] == "declared"
+    assert payload["measured_below_floor"]["level"] == "A1.1"
 
 
 # ---------------------------------------------------------------------------

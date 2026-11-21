@@ -71,12 +71,23 @@ export type ArchiveDayQuery = {
 
 const ARCHIVE_HREF = '/graphic-novel';
 const CAST_HREF = '/graphic-novel?view=cast';
+/** P9: a day opened from Home's «Revoir» (`&from=home`) goes back to Home. */
+const HOME_HREF = '/atelier';
 
 /* ====================================================================== */
 /*  The page: loads, then draws one of the three views.                   */
 /* ====================================================================== */
 
-export function FeuilletonArchive({ view, dayQuery }: { view: ArchiveView; dayQuery?: ArchiveDayQuery | null }) {
+export function FeuilletonArchive({
+  view,
+  dayQuery,
+  fromHome = false,
+}: {
+  view: ArchiveView;
+  dayQuery?: ArchiveDayQuery | null;
+  /** P9: opened from Home's «Revoir»; every way out of the day leads back to Home. */
+  fromHome?: boolean;
+}) {
   const language = useChromeLanguage();
   const t = archiveCopy(language);
   const router = useRouter();
@@ -203,13 +214,14 @@ export function FeuilletonArchive({ view, dayQuery }: { view: ArchiveView; dayQu
               day={day}
               archive={archive}
               language={language}
+              fromHome={fromHome}
               onExit={() => {
-                void router.push(ARCHIVE_HREF);
+                void router.push(fromHome ? HOME_HREF : ARCHIVE_HREF);
               }}
             />
           ) : (
             <div className="fa-day">
-              <BackLink language={language} />
+              <BackLink language={language} fromHome={fromHome} />
               <div className="fr-empty" role="status">
                 <h1 className="av2-headline av2-headline--title">{t.day_missing}</h1>
               </div>
@@ -287,11 +299,11 @@ function FailedBlock({ title, body, retry, onRetry }: { title: string; body: str
   );
 }
 
-function BackLink({ language }: { language: ControlLanguage | null }) {
+function BackLink({ language, fromHome = false }: { language: ControlLanguage | null; fromHome?: boolean }) {
   const t = archiveCopy(language);
   return (
-    <Link className="fa-back" href={ARCHIVE_HREF}>
-      <ArrowLeftIcon size={16} /> {t.back_archive}
+    <Link className="fa-back" href={fromHome ? HOME_HREF : ARCHIVE_HREF}>
+      <ArrowLeftIcon size={16} /> {fromHome ? t.back_home : t.back_archive}
     </Link>
   );
 }
@@ -551,11 +563,14 @@ export function ArchiveDayPage({
   language = null,
   onExit,
   episode: givenEpisode,
+  fromHome = false,
 }: {
   day: ArchiveDay;
   archive?: ArchivePayload | null;
   language?: ControlLanguage | null;
   onExit?: () => void;
+  /** P9: opened from Home's «Revoir»: the way back and the page's last press lead Home. */
+  fromHome?: boolean;
   /** The gallery hands the page in; the app reads it (`scene_id`) or has it (authored panels). */
   episode?: StoryEpisode | null;
 }) {
@@ -586,8 +601,8 @@ export function ArchiveDayPage({
   const t = archiveCopy(language);
   // The singleton, not the hook: the day page also renders outside a mounted router.
   const toArchive = useCallback(() => {
-    void Router.push(ARCHIVE_HREF);
-  }, []);
+    void Router.push(fromHome ? HOME_HREF : ARCHIVE_HREF);
+  }, [fromHome]);
   const toReply = useCallback(() => {
     const node = replyRef.current;
     if (!node) return;
@@ -603,7 +618,7 @@ export function ArchiveDayPage({
       data-archive-day={day.date || day.scene_id || ''}
       data-authored={episode && episode === authored ? 'true' : undefined}
     >
-      <BackLink language={language} />
+      <BackLink language={language} fromHome={fromHome} />
       {state === 'loading' ? (
         <LoadingBlock label={t.archive_loading} />
       ) : episode ? (
@@ -615,7 +630,7 @@ export function ArchiveDayPage({
             eyebrow={plancheKicker(day, language) || null}
             onExit={onExit ?? null}
             onContinue={isPage ? toArchive : toReply}
-            continueLabel={isPage ? t.back_archive : t.to_reply}
+            continueLabel={isPage ? (fromHome ? t.back_home : t.back_archive) : t.to_reply}
             language={language}
             savePosition={false}
             marginNotes={day.margin_notes}

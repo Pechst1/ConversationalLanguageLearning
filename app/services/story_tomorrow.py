@@ -110,6 +110,8 @@ def pick(
         "ref": f"tomorrow:{choice['gap']}.{choice['day']}:{premise_id}",
         # Unvoiced, like a tentpole's «À suivre…»: nobody in the story says it.
         "kind": "season",
+        # P8 (fourth commit): the learner's «Demain» pick (``story_teaser.hook_source``).
+        "source": "pick",
         "source_event_id": event_id,
     }
     state[engine.STATE_KEY] = picked
