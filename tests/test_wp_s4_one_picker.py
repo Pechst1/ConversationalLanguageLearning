@@ -104,6 +104,10 @@ def _forge(db: Session, user: User, now: datetime, *, free_use: bool = True) -> 
     plan = forge_picker.forge_plan(db, user, now)
     for unit in plan.units:
         progress = GrammarService(db).get_or_create_progress(user_id=user.id, concept_id=unit.concept_id)
+        # A séance answer sets the rule's rung (``ForgeService._write_evidence``):
+        # La Forge has worked it, so it is taught (#895: what the intake counts).
+        if progress.forge_rung is None:
+            progress.forge_rung = 1
         fmt = EvidenceFormat.PRODUCE if unit.role == "today" and free_use else EvidenceFormat.RECOGNISE
         apply_grammar_evidence(progress, Evidence(fmt, correct=True), now=now, score=8.0)
         db.add(progress)
