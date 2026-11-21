@@ -2064,12 +2064,19 @@ _ORDER_NOTES: dict[str, dict[str, str]] = {
         "de": "Es fehlen Wörter.",
         "fr": "Il manque des mots.",
     },
+    "left_out": {
+        "en": "You left out {words}.",
+        "de": "Es fehlt: {words}.",
+        "fr": "Il manque {words}.",
+    },
     "extra": {
         "en": "Some words were extra.",
         "de": "Manche Wörter waren zu viel.",
         "fr": "Certains mots étaient en trop.",
     },
 }
+#: #821: how a tile's words are quoted inside a note, per learner language.
+_NOTE_QUOTES: dict[str, tuple[str, str]] = {"en": ("“", "”"), "de": ("„", "“"), "fr": ("« ", " »")}
 
 
 def _tile_texts(task: RecallTask, tile_ids: Sequence[str]) -> list[str]:
@@ -2099,7 +2106,13 @@ def recall_learner_text(task: RecallTask, answer: AttemptAnswer) -> str:
 
 
 def tile_order_note(task: RecallTask, tile_ids: Sequence[str], language: str) -> str | None:
-    """Where a rebuilt sentence went wrong, in the learner's language."""
+    """Where a rebuilt sentence went wrong, in the learner's language.
+
+    #821: the tiles the learner placed are checked against the key *without the
+    tiles they left out*, so a missing tile is named as missing and never shifts
+    every word after it into «From “un” on, the order is off». A real slip in the
+    order is still named at its first misplaced word.
+    """
 
     expected = [str(tile) for tile in task.correct_tile_order]
     submitted = [str(tile) for tile in tile_ids]
@@ -2108,15 +2121,21 @@ def tile_order_note(task: RecallTask, tile_ids: Sequence[str], language: str) ->
         return None
     if any(tile not in expected for tile in submitted):
         return table("extra")
-    if len(submitted) < len(expected) and submitted == expected[: len(submitted)]:
-        return table("missing")
-    index = next((i for i, (got, want) in enumerate(zip(submitted, expected, strict=False)) if got != want), None)
-    if index is None:
-        return table("missing")
-    word = (_tile_texts(task, [submitted[index]]) or [""])[0]
-    if not word:
-        return None
-    return table("first" if index == 0 else "from").format(word=word)
+    placed = set(submitted)
+    left_out = [tile for tile in expected if tile not in placed]
+    # The order the learner's own tiles should have had.
+    key = [tile for tile in expected if tile in placed]
+    notes: list[str] = []
+    index = next((i for i, (got, want) in enumerate(zip(submitted, key, strict=False)) if got != want), None)
+    if index is not None:
+        word = (_tile_texts(task, [submitted[index]]) or [""])[0]
+        if word:
+            notes.append(table("first" if index == 0 else "from").format(word=word))
+    if left_out:
+        opening, closing = _NOTE_QUOTES.get(language, _NOTE_QUOTES["en"])
+        words = ", ".join(f"{opening}{text}{closing}" for text in _tile_texts(task, left_out))
+        notes.append(table("left_out").format(words=words) if words else table("missing"))
+    return " ".join(notes) or None
 
 
 #: #146 / #86 / #167: what a wrong tap is told. A picked answer has no span of French
@@ -2270,6 +2289,21 @@ def _is_free_sentence(task: RecallTask) -> bool:
     )
 
 
+def _rules_find_a_slip(text: str | None) -> bool:
+    """Walk 14 (B1 day 14): «Marin a quatre-vingts-dix ans …» used the numbers unit, so its
+    detector called it met. Using the unit is not using it rightly: a grammar edit of the
+    model-free rule pass (severity 2; a lone accent or apostrophe is left to the accent
+    policy) keeps the sentence from being met, as ``forge_grading.held_to_the_rules`` does
+    for La Forge."""
+
+    from app.services import correction_contract
+
+    try:
+        return any(edit.severity >= 2 for edit in correction_contract.deterministic_edits(str(text or "")))
+    except Exception:  # noqa: BLE001 - the rules are a check, never a crash
+        return False
+
+
 def _free_sentence_uses_unit(db: Session | None, task: RecallTask, text: str | None) -> bool:
     """WP-129: does the learner's free sentence use the unit (its regex detector)?"""
 
@@ -2394,7 +2428,7 @@ def evaluate_recall(
 
         typed_verdict = judge(answer.text, _accepted_answers(task), accents=accents)
         is_correct = (
-            _free_sentence_uses_unit(db, task, answer.text)
+            (_free_sentence_uses_unit(db, task, answer.text) and not _rules_find_a_slip(answer.text))
             or bool(typed_verdict is not None and typed_verdict.correct)
             or _memo_settles_recall(db, task, answer.text)
         )

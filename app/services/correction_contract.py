@@ -1026,6 +1026,14 @@ _RULE_TEXT: dict[str, dict[str, dict[str, str]]] = {
             "fr": "« {noun} » est féminin, l’adjectif aussi : « {right} » et non « {wrong} ».",
         },
     },
+    "FR_AVOIR_STATE_NOUN": {
+        "label": {"en": "Agreement", "de": "Angleichung", "fr": "Accord"},
+        "note": {
+            "en": "In « avoir {right} », « {right} » is a noun and never agrees: « {right} », not « {wrong} ».",
+            "de": "In « avoir {right} » ist « {right} » ein Nomen und wird nie angeglichen: « {right} », nicht « {wrong} ».",
+            "fr": "Dans « avoir {right} », « {right} » est un nom et ne s’accorde jamais : « {right} » et non « {wrong} ».",
+        },
+    },
     "FR_ALLER_INF": {
         "label": {"en": "Verb form", "de": "Verbform", "fr": "Forme du verbe"},
         "note": {
@@ -1210,6 +1218,22 @@ _RULE_TEXT: dict[str, dict[str, dict[str, str]]] = {
             "fr": "Le pluriel de « {noun} » est « {right} ».",
         },
     },
+    "FR_NUMBER_S": {
+        "label": {"en": "Numbers", "de": "Zahlen", "fr": "Nombres"},
+        "note": {
+            "en": "« {word} » keeps its s only at the end of the number: « {right} » here.",
+            "de": "« {word} » behält sein s nur am Ende der Zahl: hier « {right} ».",
+            "fr": "« {word} » ne prend un s qu’en fin de nombre : ici « {right} ».",
+        },
+    },
+    "FR_ADJ_PLURAL": {
+        "label": {"en": "Agreement", "de": "Angleichung", "fr": "Accord"},
+        "note": {
+            "en": "After « {subject} » the adjective is plural: « {right} », not « {wrong} ».",
+            "de": "Nach « {subject} » steht das Adjektiv im Plural: « {right} », nicht « {wrong} ».",
+            "fr": "Après « {subject} », l’adjectif est au pluriel : « {right} » et non « {wrong} ».",
+        },
+    },
 }
 #: Owner 2026-11-13: each rule's note without the right form. It is what the
 #: learner reads before a second chance (app/services/solution_gate.py): where
@@ -1234,6 +1258,11 @@ _RULE_HINT: dict[str, dict[str, str]] = {
         "en": "« {noun} » is feminine: the adjective has to follow it.",
         "de": "« {noun} » ist feminin: Das Adjektiv muss sich anpassen.",
         "fr": "« {noun} » est féminin : l’adjectif doit suivre.",
+    },
+    "FR_AVOIR_STATE_NOUN": {
+        "en": "With avoir, hot and cold are nouns: does this word agree?",
+        "de": "Mit avoir sind warm und kalt Nomen: Wird dieses Wort angeglichen?",
+        "fr": "Avec avoir, chaud et froid sont des noms : ce mot s’accorde-t-il ?",
     },
     "FR_ALLER_INF": {
         "en": "After aller (near future) the next verb keeps one fixed form: which?",
@@ -1345,6 +1374,16 @@ _RULE_HINT: dict[str, dict[str, str]] = {
         "de": "« {noun} » hat einen eigenen Plural: welchen?",
         "fr": "« {noun} » a un pluriel particulier : lequel ?",
     },
+    "FR_NUMBER_S": {
+        "en": "Another number follows « {word} »: does it keep its s?",
+        "de": "Auf « {word} » folgt noch eine Zahl: Behält es sein s?",
+        "fr": "Un autre nombre suit « {word} » : garde-t-il son s ?",
+    },
+    "FR_ADJ_PLURAL": {
+        "en": "The subject « {subject} » is plural: does the adjective follow it?",
+        "de": "Das Subjekt « {subject} » steht im Plural: Folgt ihm das Adjektiv?",
+        "fr": "Le sujet « {subject} » est au pluriel : l’adjectif le suit-il ?",
+    },
 }
 _GENDER_WORD = {
     "m": {"en": "masculine", "de": "maskulin", "fr": "masculin"},
@@ -1378,6 +1417,9 @@ def _edit(rule_id: str, text: str, start: int, end: int, replacement: str, **fie
         "FR_MON_VOWEL": "gender_agreement",
         "FR_PARTICIPLE_AGREE": "gender_agreement",
         "FR_ADJ_AGREE": "gender_agreement",
+        "FR_ADJ_PLURAL": "number_agreement",
+        "FR_NUMBER_S": "orthography",
+        "FR_AVOIR_STATE_NOUN": "gender_agreement",
         "FR_PLURAL_NOUN": "number_agreement",
         "FR_PLURAL_FORM": "number_agreement",
         "FR_A_GRAVE": "orthography",
@@ -2850,6 +2892,104 @@ def repair_text(text: object, *, people: Mapping[str, str] | None = None) -> str
     return apply_edits(source, deterministic_edits(source, people=people))
 
 
+#: Plural subject pronouns and the form of être each takes.
+_PLURAL_ETRE = {"nous": "sommes", "ils": "sont", "elles": "sont"}
+#: A degree word that may stand between être and its adjective («ils sont très calme»).
+_DEGREE_WORDS = frozenset({"très", "trop", "si", "vraiment", "tellement", "assez", "aussi", "toujours", "encore"})
+#: Adjectives that stay as they are in the plural, or whose plural is not certain: colours
+#: named after a thing («marron», «orange», «cerise»), loans and frozen forms.
+_INVARIABLE_ADJECTIVES = frozenset(
+    "marron orange crème turquoise kaki bordeaux noisette cerise chocolat prune citron olive "
+    "émeraude saumon ocre paille moutarde framboise ivoire corail sable champagne lavande "
+    "menthe pêche abricot auburn indigo caramel pistache carmin cognac grenat lilas "
+    "standard chic super cool sympa extra pile demi nu bon".split()
+)
+#: Endings whose plural is the ending plus «s», with no exception in the lexicon's adjectives.
+_PLAIN_S_ENDINGS = ("e", "é", "t", "d", "i", "u")
+#: What may follow an adjective that ends its phrase. Anything else («bleu marine», «vert
+#: clair», «bon marché», «rose bonbon») may make a compound that stays invariable: silence.
+_PHRASE_END_WORDS = frozenset(
+    "et mais ou de d avec pour à au aux dans en ici là maintenant ensemble quand parce car "
+    "comme sur chez depuis aussi toujours demain hier ce cette ces le la les l ton ta tes "
+    "mon ma mes son sa ses notre nos votre vos leur leurs".split()
+)
+
+
+def _adjective_plural(word: str) -> str | None:
+    """The plural of a lexicon adjective in its base form, only where it is certain.
+
+    Only the endings that take a plain «s» (:data:`_PLAIN_S_ENDINGS`; «-eu» and «-au» are
+    out: «bleus» but «hébreux»), never a word of :data:`_INVARIABLE_ADJECTIVES`. «-al»,
+    «-eau», a word already in s/x/z and every other ending: ``None``.
+    """
+
+    if word in _INVARIABLE_ADJECTIVES or word.endswith(("eu", "au")):
+        return None
+    if not word.endswith(_PLAIN_S_ENDINGS):
+        return None
+    return word + "s"
+
+
+def _predicate_adjective_plural(source: str, tokens: list[Tok], index: int) -> Edit | None:
+    """Walk 14 (A1 day 13): «Nous sommes drôle.» was right for the model and for the rules.
+
+    «nous sommes» / «ils sont» / «elles sont», then (after one degree word at most) an
+    adjective the lexicon lists in its base form, still singular, that ends its phrase:
+    the adjective takes the plural. Silent whenever the plural is not certain (an
+    invariable colour, a compound colour, «bon marché», an ending with exceptions). The
+    learner's gender is never read, so after «nous» and «elles» only an adjective that is
+    the same in both genders (ending in «-e»: «drôle», «calme», «libre») is changed;
+    after «ils» the masculine plural is right.
+    """
+
+    tok = tokens[index]
+    if index == 0 or tok.low not in {"sommes", "sont"}:
+        return None
+    subject = tokens[index - 1]
+    if _PLURAL_ETRE.get(subject.low) != tok.low or not _joined(source, subject, tok):
+        return None
+    if index >= 2 and _joined(source, tokens[index - 2], subject) and tokens[index - 2].low not in {"et", "mais", "ou", "donc", "alors", "quand", "si", "que", "qu", "parce"}:
+        return None  # «… nous sommes» after another word: not plainly the subject
+    at = index + 1
+    if at < len(tokens) and tokens[at].low in _DEGREE_WORDS and _joined(source, tok, tokens[at]):
+        at += 1
+    if at >= len(tokens) or not _joined(source, tokens[at - 1], tokens[at]):
+        return None
+    adjective = tokens[at]
+    after = tokens[at + 1] if at + 1 < len(tokens) else None
+    if after is not None and _joined(source, adjective, after) and after.low not in _PHRASE_END_WORDS:
+        return None
+    if "'" in source[adjective.start : adjective.end] or "-" in source[adjective.start : adjective.end]:
+        return None
+    entry = _lemma(adjective.low)
+    if not entry or entry.get("pos") != "adjective" or entry.get("numeral"):
+        return None
+    if subject.low != "ils" and not adjective.low.endswith("e"):
+        return None
+    plural = _adjective_plural(adjective.low)
+    if plural is None:
+        return None
+    original = source[adjective.start : adjective.end]
+    right = _case(original, plural) if original[:1].isupper() else plural
+    return _edit("FR_ADJ_PLURAL", source, adjective.start, adjective.end, right,
+                 subject=subject.low, right=right, wrong=original)
+
+
+_NUMBER_FOLLOWERS = (
+    r"deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|treize|quatorze|quinze|seize|"
+    r"vingt|trente|quarante|cinquante|soixante|mille"
+)
+#: «quatre-vingts» and «deux cents» keep their s only at the end of the number:
+#: «quatre-vingt-dix», «deux cent trois», «quatre-vingt mille», but «quatre-vingts
+#: millions» (million is a noun). «un»/«une» follow only with a hyphen («quatre-vingt-un»):
+#: with a space they may be an article.
+_NUMBER_PLURAL_S = re.compile(
+    rf"(?<![\w-])(?:quatre-(?P<vingts>vingts)|(?:deux|trois|quatre|cinq|six|sept|huit|neuf)[ -](?P<cents>cents))"
+    rf"(?=(?:[ -](?:{_NUMBER_FOLLOWERS})|-(?:un|une))(?!\w))",
+    re.IGNORECASE,
+)
+
+
 def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
     """One pass of the rules over ``source``, before any edit is settled."""
 
@@ -2865,6 +3005,12 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
         if any(edit.start < other.end and other.start < edit.end for other in found):
             return
         found.append(edit)
+
+    # --- walk 14: «quatre-vingts-dix», «deux cents trois»: the s only ends a number ---
+    for match in _NUMBER_PLURAL_S.finditer(source):
+        group = "vingts" if match.group("vingts") else "cents"
+        word = source[match.start() : match.end(group)]
+        add(_edit("FR_NUMBER_S", source, match.start(), match.end(group), word[:-1], word=word, right=word[:-1]))
 
     for i, tok in enumerate(tokens):
         nxt = tokens[i + 1] if i + 1 < len(tokens) else None
@@ -2896,6 +3042,12 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
                     add(_edit("FR_PERSON_AUX", source, tok.start, tok.end,
                               _case(source[tok.start:tok.end], right), subject=pronoun.casefold(), right=right))
                 continue
+
+        # --- walk 14: a predicate adjective after a plural subject («Nous sommes drôle») ---
+        plural_adjective = _predicate_adjective_plural(source, tokens, i)
+        if plural_adjective is not None:
+            add(plural_adjective)
+            continue
 
         # --- être-verbs conjugated with avoir; agreement after être ------------------
         if joined_next and nxt is not None:
@@ -3143,6 +3295,7 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
     _phrase_edits(source, tokens, add)
     _tense_edits(source, tokens, cast, add)
     _known_slip_edit(source, add)
+    _avoir_state_edits(source, tokens, add)
     found.sort(key=lambda e: e.start)
     return found
 
@@ -3174,6 +3327,63 @@ def _known_slip_edit(text: str, add) -> None:
             severity=2,
         )
     )
+
+
+#: #946: «avoir chaud / froid» names a state with a noun, which never agrees: «elle a
+#: chaud», never «elle a chaude». Each fix of «Elle est chaud» reads well alone («est»
+#: -> «a»; «chaud» -> «chaude» after «elle est»); together they printed wrong French.
+_AVOIR_STATE_NOUNS = {
+    "chaude": "chaud", "chauds": "chaud", "chaudes": "chaud",
+    "froide": "froid", "froids": "froid", "froides": "froid",
+}
+#: Finite avoir in any tense a learner writes it in, beyond ``_AVOIR_FORMS``.
+_AVOIR_STATE_VERBS = _AVOIR_FORMS | frozenset(
+    {
+        "aurai", "auras", "aura", "aurons", "aurez", "auront",
+        "aurais", "aurait", "aurions", "auriez", "auraient",
+        "aie", "aies", "ait", "ayons", "ayez", "aient",
+    }
+)
+#: Words that may stand between avoir and the noun: «elle a eu très froid», «tu n'as pas chaud».
+_AVOIR_STATE_BETWEEN = frozenset(
+    {"eu", "très", "trop", "si", "tellement", "vraiment", "assez", "pas", "plus", "jamais",
+     "toujours", "souvent", "encore", "déjà", "aussi", "bien"}
+)
+#: «l'avoir chaude» (a narrow escape) is the one French use of the agreed form: an
+#: object pronoun before avoir is never read.
+_AVOIR_STATE_OBJECTS = frozenset({"l", "la", "le", "les"})
+
+
+def _avoir_state_edits(source: str, tokens: list[Tok], add) -> None:
+    """«Elle a chaude» -> «Elle a chaud» after a subject pronoun, or after the infinitive.
+
+    Closed evidence only: the six agreed forms, a form of avoir right before them (up
+    to two adverbs or «eu» between), and a subject pronoun before avoir («ne» aside).
+    «Elle est chaude», «elle a les mains froides» and «on l'a eue chaude» are left."""
+
+    for i, tok in enumerate(tokens):
+        right = _AVOIR_STATE_NOUNS.get(tok.low)
+        if right is None:
+            continue
+        j = i - 1
+        while j >= 0 and i - j <= 2 and tokens[j].low in _AVOIR_STATE_BETWEEN and _same_clause(source, tokens[j], tok):
+            j -= 1
+        if j < 0 or not _same_clause(source, tokens[j], tok):
+            continue
+        verb = tokens[j].low
+        before = tokens[j - 1] if j > 0 else None
+        if before is not None and before.low in {"n", "ne"} and _same_clause(source, before, tok):
+            before = tokens[j - 2] if j > 1 else None
+        if verb == "avoir":
+            if before is not None and before.low in _AVOIR_STATE_OBJECTS:
+                continue
+        elif verb in _AVOIR_STATE_VERBS:
+            if before is None or before.low not in _SUBJECT_PRONOUN_WORDS or not _same_clause(source, before, tok):
+                continue
+        else:
+            continue
+        written = source[tok.start : tok.end]
+        add(_edit("FR_AVOIR_STATE_NOUN", source, tok.start, tok.end, _case(written, right), right=right))
 
 
 def _first_sentence_end(text: str, tokens: list[Tok]) -> int:
@@ -3976,40 +4186,63 @@ def verify_correction(
     """
 
     line = "" if text is None else str(text)
-    kept: list[dict[str, Any]] = []
     refused: list[dict[str, Any]] = []
-    fixes: list[tuple[int, int, str]] = []
-    for raw in errata:
-        item = dict(raw)
-        if not is_about_the_line(item):
-            kept.append(item)
-            continue
-        verified = verify_erratum(line, item, strict_span=False)
-        reason = "not_verified" if verified is None else changes_what_was_said(
-            verified.get("learner_text"),
-            verified.get("corrected_target"),
-            listed=True,
-            question=in_a_question(line, verified.get("learner_text")),
-        )
-        if reason or verified is None:
-            refused.append(
-                {"learner_text": item.get("learner_text"), "corrected_target": item.get("corrected_target"), "reason": reason}
+
+    def place(
+        items: Iterable[Mapping[str, Any]],
+    ) -> tuple[list[dict[str, Any]], str, list[tuple[int, int]], list[tuple[int, int] | None]]:
+        """``(kept, base, fixed, at)``: the verified fixes, the line with them in it, where
+        the fixes stand, and where each kept erratum's ``corrected_target`` stands (#946)."""
+        kept_: list[dict[str, Any]] = []
+        fixes: list[tuple[int, int, str]] = []
+        owner: dict[tuple[int, int], int] = {}
+        for raw in items:
+            item = dict(raw)
+            if not is_about_the_line(item):
+                kept_.append(item)
+                continue
+            verified = verify_erratum(line, item, strict_span=False)
+            reason = "not_verified" if verified is None else changes_what_was_said(
+                verified.get("learner_text"),
+                verified.get("corrected_target"),
+                listed=True,
+                question=in_a_question(line, verified.get("learner_text")),
             )
-            continue
-        span, fix = str(verified.get("learner_text") or ""), str(verified.get("corrected_target") or "")
-        where = _place_fix(line, span, fix, fixes, sentence)
-        if where:
-            fixes.append((where[0], where[1], fix))
-            placed = _only_there(line, _line_words(line), SentenceGap(where[0], line[where[0] : where[1]], fix))
-            verified = {**verified, "learner_text": placed.wrong, "corrected_target": placed.fix}
-        kept.append(verified)
-    base = line
-    fixed: list[tuple[int, int]] = []
-    shift = 0
-    for start, end, fix in sorted(fixes):
-        base = base[: start + shift] + fix + base[end + shift :]
-        fixed.append((start + shift, start + shift + len(fix)))
-        shift += len(fix) - (end - start)
+            if reason or verified is None:
+                refused.append(
+                    {"learner_text": item.get("learner_text"), "corrected_target": item.get("corrected_target"), "reason": reason}
+                )
+                continue
+            span, fix = str(verified.get("learner_text") or ""), str(verified.get("corrected_target") or "")
+            where = _place_fix(line, span, fix, fixes, sentence)
+            if where:
+                fixes.append((where[0], where[1], fix))
+                owner[where] = len(kept_)
+                placed = _only_there(line, _line_words(line), SentenceGap(where[0], line[where[0] : where[1]], fix))
+                verified = {**verified, "learner_text": placed.wrong, "corrected_target": placed.fix}
+            kept_.append(verified)
+        base_ = line
+        fixed_: list[tuple[int, int]] = []
+        at: list[tuple[int, int] | None] = [None] * len(kept_)
+        shift = 0
+        for start, end, fix in sorted(fixes):
+            base_ = base_[: start + shift] + fix + base_[end + shift :]
+            fixed_.append((start + shift, start + shift + len(fix)))
+            # The listed target may carry the words before the fix (``_only_there``).
+            index = owner[(start, end)]
+            widened = len(str(kept_[index].get("corrected_target") or "")) - len(fix)
+            at[index] = (start + shift - max(widened, 0), start + shift + len(fix))
+            shift += len(fix) - (end - start)
+        return kept_, base_, fixed_, at
+
+    kept, base, fixed, at = place(errata)
+    # #946: each fix settled alone; the line they make together is read once more, each
+    # fix where it was placed. «est» -> «a» and «chaud» -> «chaude» both hold in «Elle est
+    # chaud»; «Elle a chaude» does not.
+    held, unsettled = held_in_line(base, list(zip(kept, at, strict=True)), people=people)
+    if unsettled or held != kept:
+        refused.extend(unsettled)
+        kept, base, fixed, _at = place(held)
 
     def derive(source: str, target: str, *, by_rules: bool) -> str:
         nonlocal fixed
@@ -4057,10 +4290,89 @@ def verify_correction(
     return CheckedCorrection(corrected=built, errata=kept, refused=refused)
 
 
+def _changed_part(edit: Edit) -> Edit:
+    """``edit`` cut to the characters it changes. A rule quotes words around its change
+    («livre à le» -> «livre au»); a fix on «livre» is not touched by it."""
+
+    span, replacement = edit.span, edit.replacement
+    lead = 0
+    while lead < min(len(span), len(replacement)) and span[lead] == replacement[lead]:
+        lead += 1
+    trail = 0
+    while trail < min(len(span), len(replacement)) - lead and span[-1 - trail] == replacement[-1 - trail]:
+        trail += 1
+    return replace(
+        edit,
+        span=span[lead : len(span) - trail],
+        replacement=replacement[lead : len(replacement) - trail],
+        start=edit.start + lead,
+        end=edit.end - trail,
+    )
+
+
+def _touches(edit: Edit, start: int, end: int) -> bool:
+    if edit.start == edit.end:  # an insertion touches a fix only from inside it
+        return start < edit.start < end
+    return edit.start < end and start < edit.end
+
+
+def held_in_line(
+    line: object,
+    placed: Iterable[tuple[Mapping[str, Any], tuple[int, int] | None]],
+    *,
+    people: Mapping[str, str] | None = None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """``(kept, refused)``: each listed fix read by the rules in the whole line the fixes make (#946).
+
+    :func:`verify_erratum` settles one fix in the learner's sentence. Two fixes can each
+    settle alone and still make wrong French together: «Elle est chaud» took «est» ->
+    «a» (right) and «chaud» -> «chaude» (right after «est»), and the line printed was
+    «Elle a chaude». ``line`` is the line with every fix in it, and ``placed`` pairs each
+    erratum with the span its ``corrected_target`` was put at in ``line`` (``None`` when
+    it was not put in the line). A fix is read there and nowhere else: «est» -> «a» in
+    «Il va a Paris et il a froid» stands at «il a froid», and the rule's «a» -> «à» at
+    «va a Paris» is not about it (verify of #957). A fix the rules change where it
+    stands shows their form («a chaude» -> «a chaud», notes requoted); a fix they turn
+    back into the learner's own words was the mistake and is refused, as is one whose
+    rule change reaches past it. A fix the rules leave alone, or one not placed, is kept
+    as it is.
+    """
+
+    text = "" if line is None else str(line)
+    edits = [_changed_part(edit) for edit in deterministic_edits(text, people=people)] if text.strip() else []
+    kept: list[dict[str, Any]] = []
+    refused: list[dict[str, Any]] = []
+    for raw, span in placed:
+        item = dict(raw)
+        target = str(item.get("corrected_target") or "")
+        if not edits or span is None or not is_about_the_line(item):
+            kept.append(item)
+            continue
+        start, end = span
+        if _norm(text[start:end]).casefold() != _norm(target).casefold():
+            kept.append(item)  # the line does not hold this fix where it says: nothing to read
+            continue
+        inside = [edit for edit in edits if _touches(edit, start, end)]
+        if not inside:
+            kept.append(item)
+            continue
+        if any(edit.start < start or edit.end > end for edit in inside):
+            refused.append({"learner_text": item.get("learner_text"), "corrected_target": target, "reason": "does_not_settle"})
+            continue
+        shifted = [replace(edit, start=edit.start - start, end=edit.end - start) for edit in inside]
+        settled = apply_edits(text[start:end], shifted)
+        if _norm(settled).casefold() == _norm(item.get("learner_text")).casefold():
+            refused.append({"learner_text": item.get("learner_text"), "corrected_target": target, "reason": "does_not_settle"})
+            continue
+        kept.append(_with_replacement(item, settled))
+    return kept, refused
+
+
 __all__ = [
     "CheckedCorrection",
     "Edit",
     "SentenceGap",
+    "held_in_line",
     "Verdict",
     "apply_edits",
     "apply_gaps",

@@ -327,7 +327,11 @@ the steps above with these differences.
      `at` the top of the fold, `size` [width, drop]) and `tuque` (a knitted wool hat put down
      crown up, ribbed cuff, cream band, pompom, the crown leaning toward local +x: `at` its foot,
      `size` [the cuff's radius]); a `folder` with a `tone` (`dossier`, school blue) shows its
-     papers' edge and two corner elastics, and with no `text` it has no label;
+     papers' edge and two corner elastics, and with no `text` it has no label; `recommande` (a
+     recorded letter opened flat on a counter, its envelope with the green-and-white slip
+     sticking out under it: `text` [letterhead, greeting, the body's lines…, signature], the
+     sheet's head toward local -z) and `carte` (a plain blue bank card, chip and name, no bank:
+     `text[0]` the name);
      a room's cards share one sign atlas (2048 px square): keep what they ask under about 0.6 of
      it, or the last ones print blank; in a
      street, `intercom` (a plate on the wall by a door, `text` its names from the top floor down,
@@ -415,7 +419,9 @@ One a run, in this order:
   chairs in her flat (`banderole_lila_seche`), and Odile's burnt frying pan soaking in her sink
   (`poele_odile`; the kitchen gained the sink for good, in the stairwell's view of it too), and
   Romy's blue tuque beside a closed blue folder on the left back table (`tuque_romy`; the
-  table's place and Marin's bowl are `BACK_TABLES` in `mistral.ts`).
+  table's place and Marin's bowl are `BACK_TABLES` in `mistral.ts`), and Odile's blue bank card
+  beside Margaux's lease letter on the zinc (`carte_odile`; the zinc's edges and height are
+  `ZINC` in `mistral.ts`).
 - **The plan's ladder** (`docs/story/season-1/09-entre-les-episodes.md` and the episodes): the
   learner's usual cup on the zinc after «La même chose ?» (done), then the next line of the
   ladder that leaves a thing in Le Mistral (the party's garlands…). It waits on the season flag

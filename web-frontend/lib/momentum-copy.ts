@@ -53,6 +53,8 @@ export type MomentumCopy = {
   stages: Record<MapStage, string>;
   test_out_token: string;
   test_out_token_sub: string;
+  /** The seal's accessible name before its caption («Seal Nº 47 · 22 Sept»). */
+  seal_name: string;
   seal_rings_one: string;
   seal_rings_many: string;
 };
@@ -104,6 +106,7 @@ const EN: MomentumCopy = {
   },
   test_out_token: 'A rare token for this rule',
   test_out_token_sub: 'You tested it out. It joins your collection.',
+  seal_name: 'Seal',
   seal_rings_one: 'One ring: a rule held today',
   seal_rings_many: '{n} rings: rules held today',
 };
@@ -155,6 +158,7 @@ const DE: MomentumCopy = {
   },
   test_out_token: 'Ein seltenes Zeichen für diese Regel',
   test_out_token_sub: 'Du hast sie direkt bestanden. Es kommt in deine Sammlung.',
+  seal_name: 'Siegel',
   seal_rings_one: 'Ein Ring: eine Regel heute gefestigt',
   seal_rings_many: '{n} Ringe: Regeln heute gefestigt',
 };
@@ -206,6 +210,7 @@ const FR: MomentumCopy = {
   },
   test_out_token: 'Un jeton rare pour cette règle',
   test_out_token_sub: 'Épreuve réussie. Il rejoint ta collection.',
+  seal_name: 'Sceau',
   seal_rings_one: 'Un anneau : une règle tenue aujourd’hui',
   seal_rings_many: '{n} anneaux : des règles tenues aujourd’hui',
 };

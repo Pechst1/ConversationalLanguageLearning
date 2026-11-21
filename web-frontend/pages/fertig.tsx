@@ -73,7 +73,7 @@ export default function FertigPage() {
   const home = () => void router.push('/atelier');
   // O-2: le tirage du jour, where the switch shows l'or.
   const gold = useGold();
-  const tirage = gold.visible && session?.done ? tirageLine(gold.view) : null;
+  const tirage = gold.visible && session?.done ? tirageLine(gold.view, language) : null;
 
   // #727: the screen speaks the envelope's language (`control_language`: French from B1).
   // Until the day is read the page does not know it, and the profile hook's first answer
@@ -119,6 +119,7 @@ export default function FertigPage() {
                 variant={seal.variant}
                 no={seal.no}
                 date={seal.date ?? ''}
+                label={seal.label}
                 rings={seal.rings}
                 ringsLabel={seal.ringsLabel}
                 gold={tirage ? rimFraction(gold.view) : null}
