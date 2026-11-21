@@ -495,10 +495,12 @@ def opening_band(user: User | None, evidence: dict[str, Any] | None = None) -> s
 # WP-75 / WP-126 — when the placement is offered
 # ---------------------------------------------------------------------------
 
-#: WP-126 (2026-10-04, owner decision 2): the placement is offered right after the
-#: learner's first completed ending, not after three days. Day one is served at the
-#: learner's own declaration; the placement then corrects it from day two on.
-PLACEMENT_OFFER_MIN_DAYS = 1
+#: WP-126 (2026-10-04, owner decision 2) offered the placement right after the
+#: learner's first completed ending. P9 (walk of 17 Nov): «Check your level» on Home
+#: from day two was one more room before the learner had found the first ones; it
+#: now waits for the eighth completed day. Until then the days are served at the
+#: learner's own declaration, and Réglages («Refaire le point») is always open.
+PLACEMENT_OFFER_MIN_DAYS = 8
 #: How many of the learner's latest completed days the evidence reads.
 JOURNEY_EVIDENCE_WINDOW = 5
 #: WP-126: distinct completed days, within that window, on which the learner met

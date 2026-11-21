@@ -74,3 +74,26 @@ test('Réglages: only a faster choice speaks', () => {
   // A number of its own has no figure of the server's: no number is printed.
   assert.equal(mw.settingsGoalLine('de', 27, pace), 'Mehr Wörter am Tag bringen dich schneller ans Ziel.');
 });
+
+// P7 (pilot, 17 Nov; review finding 4): «Avec 25 mots par jour… plus tôt» and
+// «Encore 5 nouveaux mots» appeared after every deck and on the end screen, endlessly.
+// The end screen, the deck's end and Home render neither; Settings keeps the offer.
+test('P7: no banner and no «Encore 5» on Fertig, the deck end or Home; Settings keeps it', () => {
+  const fs = require('node:fs');
+  const read = (file) => fs.readFileSync(path.join(WEB_ROOT, file), 'utf8');
+  for (const file of [
+    'pages/fertig.tsx',
+    'pages/vocabulary/review.tsx',
+    'pages/atelier.tsx',
+    'components/atelier-v2/home/DaySession.tsx',
+  ]) {
+    const source = read(file);
+    assert.doesNotMatch(source, /extraWordsOffer|ExtraWordsOffer|sessionMore|goalLine|addExtraNewWords|getNewWordsPace/, file);
+    assert.doesNotMatch(source, /data-more-words|data-extra-words|data-goal-line/, file);
+  }
+  const settings = read('pages/settings.tsx');
+  assert.match(settings, /extraWordsOffer\(newWordsPace, copyLanguage\)/);
+  assert.match(settings, /api\.addExtraNewWords\(\)/);
+  assert.match(settings, /\/vocabulary\/review\?more=\$\{step\}/);
+  for (const language of ['de', 'fr', 'en']) assert.ok(mw.moreWordsCopy(language).today_more, language);
+});
