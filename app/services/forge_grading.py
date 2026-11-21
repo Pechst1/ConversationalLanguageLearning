@@ -1215,8 +1215,34 @@ def refine_production_correction(
         # #574: the gaps, the right sentence and the list say the same thing. (An
         # answer the key accepts has nothing to fix: the model's rewrite is style.)
         refined = reconcile_with_sentence(refined, learner_text, language)
+    if str(refined.get("verdict") or "") in {"correct", "accepted"} and not matches_accepted(learner_text, accepted):
+        refined = held_to_the_rules(refined, learner_text, language)
     refined["notes_native"] = notes_native(refined.get("errata"))
     return refined
+
+
+def held_to_the_rules(refined: dict[str, Any], learner_text: Any, language: Any = "en") -> dict[str, Any]:
+    """P4 (walk 17 Nov): a free sentence is «right» only when the model-free rule pass has
+    nothing to correct in it. «le valise» passed as «Richtig»: the model said right, and the
+    rules, which know «valise» is feminine, were never asked. A grammar edit of the rules
+    (an accent or apostrophe slip is left to the item's accent policy) makes the answer
+    partial, with the rules' own fixes as its corrections."""
+
+    from app.services import correction_contract
+
+    line = str(learner_text or "")
+    edits = [edit for edit in correction_contract.deterministic_edits(line) if edit.severity >= 2]
+    if not edits:
+        return refined
+    key = _language(language)
+    return {
+        **refined,
+        "verdict": "partial",
+        "score_0_4": min(max(float(refined.get("score_0_4") or 0), 2.0), 2.5),
+        "errata": [correction_contract.to_erratum(edit, language=key) for edit in edits],
+        "corrected_answer": correction_contract.apply_edits(line, edits),
+        "rules_overrode_right": True,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1237,7 +1263,12 @@ def _scrambled(values: list[str], key: str) -> list[str]:
 
 
 def classify_follow_up(
-    item: dict[str, Any], learner_answer: Any, *, band: Any = None, language: Any = None
+    item: dict[str, Any],
+    learner_answer: Any,
+    *,
+    band: Any = None,
+    language: Any = None,
+    chrome: Any = None,
 ) -> dict[str, Any] | None:
     """What a judgement item adds once it is answered (WP-103 T8).
 
@@ -1276,6 +1307,20 @@ def classify_follow_up(
         "goal_native": goal.get(code) or goal["en"],
         "accepted_fr": list(dict.fromkeys(accepted)),
     }
+    # R5 (CI walk «en + B1», 19 Nov): the goal is interface, so it is in the chrome
+    # (French from B1), and quotes the meaning in the learner's own language, marked;
+    # «It should say: "…"» on a French screen was the explanation language's template.
+    chrome_code = _language(chrome) if chrome else code
+    if chrome_code != code:
+        if chrome_code == "fr" and meaning:
+            from app.services.item_bank import _GOALS_FR_NATIVE_MEANING
+
+            own = str((key.get("meaning_l10n") or {}).get(code) or "").strip()
+            quoted, quoted_lang = (own, code) if own else (meaning, "en")
+            follow_up["goal_native"] = _GOALS_FR_NATIVE_MEANING["repair"].format(meaning=quoted)
+            follow_up["goal_native_marks"] = [{"text": quoted, "lang": quoted_lang}]
+        else:
+            follow_up["goal_native"] = goal.get(chrome_code) or goal["en"]
     if str(band or "").strip().upper()[:2] in TILE_BANDS:
         words = sentence_tokens(corrected)
         spare = [

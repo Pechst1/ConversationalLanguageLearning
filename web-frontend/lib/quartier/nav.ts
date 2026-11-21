@@ -130,6 +130,39 @@ export class Nav {
     return this.walkable(x, z) && this.walkable(x + r, z) && this.walkable(x - r, z) && this.walkable(x, z + r) && this.walkable(x, z - r);
   }
 
+  /**
+   * Where the eye of a walker standing at (x, z) sits so that it keeps `r` from anything blocked:
+   * pushed straight away from the nearest blocked ground in each of eight directions, never by
+   * more than `r`, and never onto blocked ground. The feet stay where they are.
+   *
+   * Round 2 (walk 17 Nov, day 3, shots a1-d3-q-walk2/3): a walker may stand 0.22 m from a wall
+   * (`standable`), the camera is the eye with a near plane of 0.1 m, so at a wall with the head
+   * turned to it the screen was the wall's panelling for seconds.
+   */
+  eyeAt(x: number, z: number, r = 0.35): [number, number] {
+    if (!this.walkable(x, z)) return [x, z];
+    let px = 0;
+    let pz = 0;
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      const dx = Math.cos(a);
+      const dz = Math.sin(a);
+      for (let t = 0.05; t <= r + 1e-9; t += 0.05) {
+        if (!this.walkable(x + dx * t, z + dz * t)) {
+          px -= dx * (r - t + 0.05);
+          pz -= dz * (r - t + 0.05);
+          break;
+        }
+      }
+    }
+    const d = Math.hypot(px, pz);
+    if (d > r) {
+      px *= r / d;
+      pz *= r / d;
+    }
+    return this.walkable(x + px, z + pz) ? [x + px, z + pz] : [x, z];
+  }
+
   /** Move by (dx, dz), sliding along walls; returns the new position. */
   slide(x: number, z: number, dx: number, dz: number, r = 0.22): [number, number] {
     if (this.standable(x + dx, z + dz, r) && this.stepOk(x, z, x + dx, z + dz)) return [x + dx, z + dz];

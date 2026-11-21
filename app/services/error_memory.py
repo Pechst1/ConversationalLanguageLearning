@@ -73,6 +73,23 @@ def _normalize_review_answer(value: Any) -> str:
     return re.sub(r"[^a-z0-9]+", " ", _normalize(value)).strip()
 
 
+_INFINITIVE_ENDING = re.compile(r"(?:er|ir|re|oir)$")
+
+
+def _de_before_infinitive(changed: set[str], before: list[str], after: list[str]) -> bool:
+    """Walk of 19 Nov: «je pense de monter» → «je pense monter» changes only «de», but
+    that «de» is the preposition before an infinitive, not an article. Filed under
+    «Un, une, des», the replay was headed by a rule it does not break."""
+
+    if not changed <= {"de", "d"}:
+        return False
+    for words in (before, after):
+        for index, word in enumerate(words[:-1]):
+            if word in changed and _INFINITIVE_ENDING.search(words[index + 1]):
+                return True
+    return False
+
+
 #: Words whose swap, insertion or removal is a determiner choice (WP-L1): a
 #: correction that changes only these is about articles and determiners.
 _DETERMINER_TOKENS = frozenset(
@@ -267,7 +284,14 @@ class ErrorMemoryService:
         updates: list[dict[str, Any]] = []
         correction = attempt.correction_payload or {}
         items = [item for item in (attempt.prompt_payload or {}).get("items") or [] if isinstance(item, dict)]
+        from app.services.fault_quality import attempt_fault_is_own
+
         for index, erratum in enumerate(correction.get("errata") or []):
+            if isinstance(erratum, dict) and not attempt_fault_is_own(attempt, erratum):
+                # Round 3: a half-finished edit («je les les donne»), a word the item
+                # planted and the learner left, or a judgement is not the learner's
+                # French: the verdict says it, the drill never deals it.
+                continue
             if not erratum.get("context_fr"):
                 # #278: the item the slip was made in gives the sentence it sat in.
                 item = next((entry for entry in items if entry.get("id") and entry.get("id") == erratum.get("item_id")), None)
@@ -979,7 +1003,7 @@ class ErrorMemoryService:
         before = _normalize_review_answer(learner_text).split()
         after = _normalize_review_answer(corrected_text).split()
         changed = set(before) ^ set(after)
-        if changed and changed <= _DETERMINER_TOKENS:
+        if changed and changed <= _DETERMINER_TOKENS and not _de_before_infinitive(changed, before, after):
             marker = f"determiner {marker}"
         return self._infer_grammar_concept_id(code=marker, category="grammar")
 

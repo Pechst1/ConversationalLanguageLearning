@@ -269,12 +269,14 @@ def test_nobody_is_offered_placement_at_sign_up(client: TestClient, db_session: 
 def test_after_the_first_ending_a_learner_who_declared_some_french_is_offered_placement(
     client: TestClient, db_session: Session
 ) -> None:
-    # WP-126: the offer follows the first completed ending (it was day three).
+    # WP-126 offered it after the first completed ending; P9: after the eighth day.
     address = email()
     headers = register(client, address, starting_point="some")
     user = user_by_email(db_session, address)
     assert client.get("/api/v1/placement/offer", headers=headers).json()["offer"] is False
     _completed_days(db_session, user, 1)
+    assert client.get("/api/v1/placement/offer", headers=headers).json()["offer"] is False
+    _completed_days(db_session, user, 7)
     assert client.get("/api/v1/placement/offer", headers=headers).json()["offer"] is True
 
 
@@ -290,8 +292,10 @@ def test_a_new_learner_is_offered_placement_only_when_their_days_say_so(
     struggling = user_by_email(db_session, struggling_email)
     strong = user_by_email(db_session, strong_email)
     above = user_by_email(db_session, above_email)
-    _completed_days(db_session, struggling, 4, met_unaided=False)
-    _completed_days(db_session, strong, 4, met_unaided=True)
+    _completed_days(db_session, struggling, 8, met_unaided=False)
+    _completed_days(db_session, strong, 8, met_unaided=True)
+    # P9: eight days before any offer; the last three were served above A1.
+    _completed_days(db_session, above, 5, met_unaided=True)
     _completed_days(db_session, above, 3, band="A2", met_unaided=True)
 
     assert placement_offer(db_session, struggling) is False
@@ -307,7 +311,7 @@ def test_a_taken_or_declined_placement_is_never_offered_again(
     address = email()
     register(client, address, starting_point="comfortable")
     user = user_by_email(db_session, address)
-    _completed_days(db_session, user, 3)
+    _completed_days(db_session, user, 8)
     assert placement_offer(db_session, user) is True
     PlacementService(db_session).skip(user)
     assert placement_offer(db_session, user) is False

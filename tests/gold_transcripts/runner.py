@@ -59,9 +59,13 @@ WRITER_SURFACES = ("page", DAY_SURFACE)
 #: cost 0.22), 0.68 at the dearest. ``plan`` prices a day of acts with it, and the spend
 #: bounds in render.yaml are checked against the writer they name
 #: (tests/test_story_acts_budget.py). Measure a writer on the day surface before it writes
-#: at night.
+#: at night. Sonnet (the writer from 17 Nov 2026, owner decision): a page 0.33, the dearest
+#: of the writer comparison of 17 Nov (about 0.19, 0.26–0.33 with the critic in play); its
+#: acts are not measured yet and are held at Opus's, an upper bound (Sonnet's tokens cost
+#: half Opus's, ``llm_service``).
 NIGHT_WRITER_USD: dict[str, dict[str, float]] = {
     "claude-opus-5-5": {"page": 0.37, "act": 0.35, "act_dearest": 0.68},
+    "claude-sonnet-5-5": {"page": 0.33, "act": 0.35, "act_dearest": 0.68},
 }
 
 

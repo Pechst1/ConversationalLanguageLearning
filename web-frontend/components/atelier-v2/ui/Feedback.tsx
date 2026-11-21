@@ -19,6 +19,7 @@ import { castDisplayName, faceSrcFor } from '@/lib/cast-faces';
 import { useArtSet } from '@/lib/art-set';
 import { CastFace, drawnFaceId } from '@/components/cast/CastFace';
 import { resolveMediaUrl } from '@/lib/media-url';
+import { useLearnerLanguage } from '@/lib/learner-language';
 import type { FaceMood } from '@/lib/onboarding-portraits';
 
 import { CheckIcon, PendingIcon, RepairIcon, ShapeToken, type ShapeKind } from './Shapes';
@@ -105,6 +106,9 @@ export function Correction({
   label, spanFr, correctedFr, noteNative, notesNative, kind = 'edit', pickNotItLabel,
 }: CorrectionProps) {
   const notes = (notesNative ?? []).filter((note) => typeof note === 'string' && note.trim());
+  // R4: a correction's note explains, in the learner's own language at every level
+  // (owner, 18 Nov 2026); it says so, for screen readers and the B1 walk's language check.
+  const noteLang = useLearnerLanguage();
   return (
     <div className="av2-correction" data-kind={kind}>
       <p className="av2-label">{label}</p>
@@ -144,11 +148,11 @@ export function Correction({
       {notes.length > 0 ? (
         <ul className="av2-correction__notes">
           {notes.map((note, index) => (
-            <li key={index}>{note}</li>
+            <li key={index} lang={noteLang}>{note}</li>
           ))}
         </ul>
       ) : (
-        noteNative && <p style={{ margin: '6px 0 0' }}>{noteNative}</p>
+        noteNative && <p style={{ margin: '6px 0 0' }} lang={noteLang}>{noteNative}</p>
       )}
     </div>
   );

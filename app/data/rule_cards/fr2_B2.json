@@ -50,7 +50,7 @@
         "right": "Je suis content que tu [sois] là."
       },
       "more": {
-        "en": "The fact can be completely real: the subjonctif here does not mean doubt, it marks that the clause is seen through a feeling. English and German keep the normal verb (I'm glad you are here, ich freue mich, dass du da bist), which is why this one feels strange at first. If the feeling and the action belong to the same person, French drops que and uses de + infinitive.",
+        "en": "The fact can be completely real: the subjonctif here does not mean doubt, it marks that the clause is seen through a feeling. English keeps the normal verb (I'm glad you are here), which is why this one feels strange at first. If the feeling and the action belong to the same person, French drops que and uses de + infinitive.",
         "de": "Die Tatsache kann völlig real sein: Der Subjonctif bedeutet hier keinen Zweifel, er zeigt, dass der Satz durch ein Gefühl gesehen wird. Im Deutschen bleibt der Indikativ (ich freue mich, dass du da bist), deshalb wirkt das am Anfang ungewohnt. Gehören Gefühl und Handlung zur selben Person, fällt que weg: de + Infinitiv.",
         "fr": "Le fait peut être tout à fait réel : ici, le subjonctif n'exprime pas le doute, il montre que la proposition est vue à travers un sentiment. Si le sentiment et l'action concernent la même personne, on supprime que et on emploie de + infinitif : je suis content de venir."
       },
@@ -880,7 +880,7 @@
         "right": "J'[aurais dû] venir hier."
       },
       "more": {
-        "en": "This is the tense of regrets and missed chances. With devoir and pouvoir it gives should have and could have, which German builds with two infinitives (hätte kommen sollen); French uses one form: j'aurais dû venir. Watch the spelling: j'aurais (would have) and j'aurai (will have) sound almost the same.",
+        "en": "This is the tense of regrets and missed chances. With devoir and pouvoir it gives should have and could have in one form: j'aurais dû venir, j'aurais pu venir. Watch the spelling: j'aurais (would have) and j'aurai (will have) sound almost the same.",
         "de": "Das ist die Zeit des Bedauerns und der verpassten Chancen. Mit devoir und pouvoir entsteht hätte … sollen / hätte … können; das Deutsche braucht zwei Infinitive (hätte kommen sollen), das Französische eine Form: j'aurais dû venir. Achte auf die Schreibung: j'aurais (hätte) und j'aurai (werde haben) klingen fast gleich.",
         "fr": "C'est le temps du regret et des occasions manquées. Avec devoir et pouvoir, on exprime le reproche : j'aurais dû venir, tu aurais pu appeler. Attention à l'orthographe : j'aurais (conditionnel) et j'aurai (futur) se prononcent presque pareil."
       },
@@ -1133,7 +1133,7 @@
         "right": "Il parle [comme s']il [était] le chef."
       },
       "more": {
-        "en": "Comme si is si used for comparing, so it follows si's rule: no conditionnel. Use the imparfait for something imagined at the same time, the plus-que-parfait for something imagined earlier, whatever the tense of the main verb. German als ob takes the Konjunktiv II (als ob er der Chef wäre) and English often says as if he would; in French it is simply comme s'il était.",
+        "en": "Comme si is si used for comparing, so it follows si's rule: no conditionnel. Use the imparfait for something imagined at the same time, the plus-que-parfait for something imagined earlier, whatever the tense of the main verb. English often says as if he would; in French it is simply comme s'il était.",
         "de": "Comme si ist ein si zum Vergleichen, also gilt seine Regel: kein Conditionnel. Imparfait für etwas gleichzeitig Vorgestelltes, Plus-que-parfait für etwas Früheres, egal in welcher Zeit der Hauptsatz steht. Das deutsche als ob verlangt den Konjunktiv II (als ob er der Chef wäre); im Französischen heißt es einfach comme s'il était.",
         "fr": "Comme si, c'est un si de comparaison : même règle, pas de conditionnel. Imparfait pour une situation imaginée au même moment, plus-que-parfait pour une situation imaginée antérieure, quel que soit le temps de la principale. Seul, « Comme si… ! » exprime l'ironie."
       },
@@ -1274,7 +1274,7 @@
         "right": "Quand j'[aurai fini], je t'appellerai."
       },
       "more": {
-        "en": "After quand, dès que, lorsque and une fois que, French is strict about time: if the main clause is in the future, the time clause is too. When one step must be finished first, it takes the futur antérieur, where English and German use a present perfect (when I've finished, wenn ich fertig bin). It can also make a guess about the past: il aura oublié = he must have forgotten.",
+        "en": "After quand, dès que, lorsque and une fois que, French is strict about time: if the main clause is in the future, the time clause is too. When one step must be finished first, it takes the futur antérieur, where English uses a present perfect (when I've finished). It can also make a guess about the past: il aura oublié = he must have forgotten.",
         "de": "Nach quand, dès que, lorsque und une fois que ist das Französische streng: Steht der Hauptsatz in der Zukunft, steht auch der Zeitsatz in der Zukunft. Ist ein Schritt vorher abgeschlossen, nimmt er das Futur antérieur, wo das Deutsche das Präsens oder Perfekt nimmt (wenn ich fertig bin). Es kann auch eine Vermutung ausdrücken: il aura oublié = er wird es vergessen haben.",
         "fr": "Après quand, dès que, lorsque et une fois que, le français est strict : si la principale est au futur, la subordonnée aussi. L'étape terminée en premier se met au futur antérieur. Il peut aussi exprimer une supposition sur le passé : il aura oublié."
       },
@@ -1423,7 +1423,7 @@
         "right": "La réunion [a été] annulé[e]."
       },
       "more": {
-        "en": "Take any active sentence, find the tense of its verb, and put être in that tense: on a vendu la maison → la maison a été vendue. German builds the passive with werden, so German speakers sometimes reach for devenir; French always uses être. Par introduces the doer of an action; de is used for a state or a feeling: couvert de neige, aimé de tous.",
+        "en": "Take any active sentence, find the tense of its verb, and put être in that tense: on a vendu la maison → la maison a été vendue. The passive is always built with être, never with devenir. Par introduces the doer of an action; de is used for a state or a feeling: couvert de neige, aimé de tous.",
         "de": "Nimm einen Aktivsatz, bestimme die Zeit des Verbs und setz être in diese Zeit: on a vendu la maison → la maison a été vendue. Das deutsche Passiv mit werden verleitet zu devenir; Französisch nimmt immer être (wird geliefert = sera livré oder est livré). Par nennt den Handelnden, de steht bei Zustand oder Gefühl: couvert de neige, aimé de tous.",
         "fr": "Prends une phrase active, repère le temps du verbe et mets être à ce temps : on a vendu la maison → la maison a été vendue. Par introduit l'auteur d'une action ; de s'emploie pour un état ou un sentiment : couvert de neige, aimé de tous."
       },
@@ -1685,8 +1685,8 @@
         "right": "Je [fais réparer] ma voiture."
       },
       "more": {
-        "en": "English puts the object in the middle (have the car repaired); French keeps the two verbs side by side: faire réparer la voiture. Pronouns go before faire, never before the infinitive. German lassen means both make and let; French splits them: faire for having something done, laisser for letting. And fait + infinitive never agrees: la voiture que j'ai fait réparer.",
-        "de": "Im Englischen steht das Objekt in der Mitte; im Französischen stehen beide Verben nebeneinander: faire réparer la voiture. Pronomen stehen vor faire, nie vor dem Infinitiv. Deutsches lassen heißt „veranlassen“ und „erlauben“; das Französische trennt: faire für veranlassen (ich lasse das Auto reparieren = je fais réparer), laisser für erlauben. Und fait + Infinitiv wird nie angeglichen.",
+        "en": "English puts the object in the middle (have the car repaired); French keeps the two verbs side by side: faire réparer la voiture. Pronouns go before faire, never before the infinitive. Faire is for having something done, laisser for letting. And fait + infinitive never agrees: la voiture que j'ai fait réparer.",
+        "de": "Im Französischen stehen beide Verben nebeneinander: faire réparer la voiture. Pronomen stehen vor faire, nie vor dem Infinitiv. Deutsches lassen heißt „veranlassen“ und „erlauben“; das Französische trennt: faire für veranlassen (ich lasse das Auto reparieren = je fais réparer), laisser für erlauben. Und fait + Infinitiv wird nie angeglichen.",
         "fr": "Les deux verbes restent côte à côte : faire réparer la voiture. Les pronoms se placent devant faire, jamais devant l'infinitif. Faire signifie qu'on provoque l'action, laisser qu'on l'autorise. Et fait suivi d'un infinitif ne s'accorde jamais : la voiture que j'ai fait réparer."
       },
       "how": {
@@ -1816,7 +1816,7 @@
         "right": "Elle s'est [fait] voler son sac."
       },
       "more": {
-        "en": "Se faire + infinitive is the natural way to say that something was done to you, good or bad: se faire voler, se faire arrêter, se faire couper les cheveux. A literal passive (j'ai été volé) sounds stiff. German lassen covers both «have done» and «let»; French uses se faire for the first and laisser only for the second. Fait stays invariable here, even with a feminine subject.",
+        "en": "Se faire + infinitive is the natural way to say that something was done to you, good or bad: se faire voler, se faire arrêter, se faire couper les cheveux. A literal passive (j'ai été volé) sounds stiff. French uses se faire for «have something done» and laisser only for «let». Fait stays invariable here, even with a feminine subject.",
         "de": "Se faire + Infinitiv ist der natürliche Weg zu sagen, dass einem etwas angetan oder gemacht wurde: se faire voler (bestohlen werden), se faire couper les cheveux (sich die Haare schneiden lassen). Das deutsche lassen deckt beides ab; das Französische nimmt se faire für „machen lassen“ und laisser nur für „zulassen“. Fait bleibt hier unverändert, auch bei einem weiblichen Subjekt.",
         "fr": "Se faire + infinitif est la façon naturelle de dire qu'on a subi une action ou qu'on l'a fait faire pour soi : se faire voler, se faire couper les cheveux. Un passif littéral (j'ai été volé) sonne raide. Laisser signifie seulement permettre. Fait reste invariable, même avec un sujet féminin."
       },
@@ -1870,7 +1870,7 @@
           "right": "Je [me suis fait couper] les cheveux.",
           "why": {
             "en": "English «I had my hair cut» is se faire + infinitive in French.",
-            "de": "Englisches „I had my hair cut“ heißt se faire + Infinitiv.",
+            "de": "„Ich lasse mir die Haare schneiden“ heißt se faire + Infinitiv.",
             "fr": "« Avoir les cheveux coupés » se dit se faire couper les cheveux."
           }
         },
@@ -2075,7 +2075,7 @@
         "right": "Je [le lui] ai donné."
       },
       "more": {
-        "en": "The order is fixed: me / te / se / nous / vous, then le / la / les, then lui / leur, then y, then en. So it is le before lui, the opposite of German (ich habe es ihm gegeben). In the affirmative imperative the direct object comes first and moi / toi replace me / te (donne-le-moi), except before en (donnez-m'en). A le / la / les placed before avoir makes the participle agree.",
+        "en": "The order is fixed: me / te / se / nous / vous, then le / la / les, then lui / leur, then y, then en. So it is le before lui: je le lui ai donné. In the affirmative imperative the direct object comes first and moi / toi replace me / te (donne-le-moi), except before en (donnez-m'en). A le / la / les placed before avoir makes the participle agree.",
         "de": "Die Reihenfolge ist fest: me / te / se / nous / vous, dann le / la / les, dann lui / leur, dann y, dann en. Also le vor lui, umgekehrt als im Deutschen (ich habe es ihm gegeben → je le lui ai donné). Im bejahten Imperativ kommt das direkte Objekt zuerst und moi / toi ersetzen me / te (donne-le-moi), außer vor en (donnez-m'en). Steht le / la / les vor avoir, wird das Partizip angeglichen.",
         "fr": "L'ordre est fixe : me / te / se / nous / vous, puis le / la / les, puis lui / leur, puis y, puis en. À l'impératif affirmatif, le COD vient d'abord et moi / toi remplacent me / te (donne-le-moi), sauf devant en (donnez-m'en). Un le / la / les placé avant avoir entraîne l'accord du participe."
       },
@@ -2206,8 +2206,8 @@
         "right": "C'est [ce à quoi] je pense."
       },
       "more": {
-        "en": "The preposition comes from the verb (penser à, compter sur, s'attendre à), and in French it moves to the front of the relative clause, never to the end as in English (what I'm thinking about). German uses wo- words (woran, worauf, wogegen): they map well onto à quoi, sur quoi, contre quoi. For a person or a named thing, use qui or lequel instead; with de, use ce dont.",
-        "de": "Die Präposition kommt vom Verb (penser à, compter sur, s'attendre à) und rückt im Französischen an den Anfang des Relativsatzes, nie ans Ende wie im Englischen. Die deutschen wo-Wörter passen gut: woran = à quoi, worauf = sur quoi, wogegen = contre quoi. Für Personen oder benannte Dinge nimmt man qui oder lequel; mit de steht ce dont.",
+        "en": "The preposition comes from the verb (penser à, compter sur, s'attendre à), and in French it moves to the front of the relative clause, never to the end as in English (what I'm thinking about): à quoi, sur quoi, contre quoi. For a person or a named thing, use qui or lequel instead; with de, use ce dont.",
+        "de": "Die Präposition kommt vom Verb (penser à, compter sur, s'attendre à) und rückt im Französischen an den Anfang des Relativsatzes. Die deutschen wo-Wörter passen gut: woran = à quoi, worauf = sur quoi, wogegen = contre quoi. Für Personen oder benannte Dinge nimmt man qui oder lequel; mit de steht ce dont.",
         "fr": "La préposition vient du verbe (penser à, compter sur, s'attendre à) et se place en tête de la relative. Pour une personne ou une chose précise, on emploie qui ou lequel ; avec de, on emploie ce dont."
       },
       "how": {
@@ -2337,7 +2337,7 @@
         "right": "[Malgré la pluie], on sort."
       },
       "more": {
-        "en": "Pick the tool by what follows. A noun: malgré (malgré le bruit). A whole clause: même si + indicative, or bien que + subjonctif. A new sentence: cependant, toutefois or néanmoins, which sound written; in speech, mais and pourtant. German trotzdem and English anyway at the end of a sentence are quand même, not malgré.",
+        "en": "Pick the tool by what follows. A noun: malgré (malgré le bruit). A whole clause: même si + indicative, or bien que + subjonctif. A new sentence: cependant, toutefois or néanmoins, which sound written; in speech, mais and pourtant. English anyway at the end of a sentence is quand même, not malgré.",
         "de": "Wähle das Mittel nach dem, was folgt. Ein Nomen: malgré (malgré le bruit). Ein ganzer Satz: même si + Indikativ oder bien que + Subjonctif. Ein neuer Satz: cependant, toutefois oder néanmoins, eher schriftlich; mündlich mais und pourtant. Das deutsche trotzdem am Satzende ist quand même, nicht malgré.",
         "fr": "On choisit l'outil selon ce qui suit. Un nom : malgré (malgré le bruit). Une proposition : même si + indicatif, ou bien que + subjonctif. Une nouvelle phrase : cependant, toutefois ou néanmoins, plutôt écrits ; à l'oral, mais et pourtant, ou quand même en fin de phrase."
       },
@@ -2531,7 +2531,7 @@
           "right": "[Depuis] 2019, j'habite à Lyon.",
           "why": {
             "en": "Since for time is depuis.",
-            "de": "Englisches „since“ für Zeit heißt depuis.",
+            "de": "„Seit“ für Zeit heißt depuis.",
             "fr": "Pour le temps, on dit depuis."
           }
         }
@@ -2599,7 +2599,7 @@
         "right": "J'ai [tellement de] travail."
       },
       "more": {
-        "en": "Si and tellement go before an adjective or adverb (si long, tellement vite); before a noun use tellement de or tant de, with no article (tant de monde); with a verb, put tellement or tant after it (il a tant plu). The result after que is a fact, so it stays in the indicative. English so much and German so viel are just tellement de; beaucoup is already inside.",
+        "en": "Si and tellement go before an adjective or adverb (si long, tellement vite); before a noun use tellement de or tant de, with no article (tant de monde); with a verb, put tellement or tant after it (il a tant plu). The result after que is a fact, so it stays in the indicative. English so much is just tellement de; beaucoup is already inside.",
         "de": "Si und tellement stehen vor Adjektiv oder Adverb (si long, tellement vite); vor einem Nomen tellement de oder tant de ohne Artikel (tant de monde); bei einem Verb tellement oder tant danach (il a tant plu). Die Folge nach que ist eine Tatsache, also Indikativ. Deutsches „so viel“ ist einfach tellement de; beaucoup steckt schon darin.",
         "fr": "Si et tellement précèdent un adjectif ou un adverbe (si long, tellement vite) ; devant un nom, tellement de ou tant de sans article ; avec un verbe, tellement ou tant après le verbe (il a tant plu). La conséquence après que est un fait : indicatif."
       },
@@ -2863,7 +2863,7 @@
         "right": "Après [être] arrivée, elle m'a appelé."
       },
       "more": {
-        "en": "The past infinitive shows that one action was finished before the other, with the same subject. Après always needs it: après avoir dîné, never après dîner in careful French. It also follows merci de, désolé de, regretter de and sans when the action is past. English uses -ing (after eating, thanks for helping) and German a nachdem-clause; French uses avoir / être + participle.",
+        "en": "The past infinitive shows that one action was finished before the other, with the same subject. Après always needs it: après avoir dîné, never après dîner in careful French. It also follows merci de, désolé de, regretter de and sans when the action is past. English uses -ing (after eating, thanks for helping); French uses avoir / être + participle.",
         "de": "Der Infinitiv Perfekt zeigt, dass eine Handlung vor der anderen abgeschlossen war, bei gleichem Subjekt. Après verlangt ihn immer: après avoir dîné (nachdem wir gegessen hatten). Er steht auch nach merci de, désolé de, regretter de und sans bei Vergangenem: merci de m'avoir aidé (danke, dass du mir geholfen hast).",
         "fr": "L'infinitif passé montre qu'une action est terminée avant l'autre, avec le même sujet. Après l'exige toujours : après avoir dîné. On le trouve aussi après merci de, désolé de, regretter de, et sans pour une action passée : merci de m'avoir aidé."
       },
@@ -3375,7 +3375,7 @@
         "right": "Le ministre [aurait démissionné] hier."
       },
       "more": {
-        "en": "This conditionnel is not a hypothesis: it is a report you do not vouch for, like reportedly or allegedly. German says er soll geflohen sein or uses the Konjunktiv I; French never uses devoir for this, because il doit avoir démissionné means he must have resigned. A past event takes the conditionnel passé. Selon moi gives your own opinion and keeps the indicative.",
+        "en": "This conditionnel is not a hypothesis: it is a report you do not vouch for, like reportedly or allegedly. French never uses devoir for this, because il doit avoir démissionné means he must have resigned. A past event takes the conditionnel passé. Selon moi gives your own opinion and keeps the indicative.",
         "de": "Dieser Conditionnel ist keine Hypothese, sondern eine Meldung ohne Gewähr, wie „soll“ oder der Konjunktiv I im Deutschen (er soll geflohen sein, er sei geflohen). Französisch nimmt dafür nie devoir: il doit avoir démissionné heißt „er muss zurückgetreten sein“. Ein vergangenes Ereignis steht im Conditionnel passé. Selon moi gibt die eigene Meinung wieder, mit Indikativ.",
         "fr": "Ce conditionnel n'exprime pas une hypothèse mais une information non vérifiée. Un fait passé se met au conditionnel passé. Selon moi introduit une opinion personnelle, à l'indicatif."
       },
@@ -3438,7 +3438,7 @@
           "right": "Le suspect [serait] en fuite.",
           "why": {
             "en": "English «is said to» is just the conditionnel.",
-            "de": "Englisches „is said to“ ist einfach der Conditionnel.",
+            "de": "„Er soll … sein“ ist hier einfach der Conditionnel.",
             "fr": "« Il est dit être » n'existe pas : conditionnel."
           }
         }
@@ -4166,7 +4166,7 @@
         "right": "Ce film, je [l']ai adoré."
       },
       "more": {
-        "en": "Dislocation names the topic, then says something about it. It is everywhere in conversation, and it is the French answer to English stress or German word order (den Film fand ich super). The noun cannot simply move: it needs a pronoun that fits the verb. Le / la / les for a direct object, lui / leur after à + person, en after de, y after à + place or thing.",
+        "en": "Dislocation names the topic, then says something about it. It is everywhere in conversation, and it is the French answer to English stress (I loved that film). The noun cannot simply move: it needs a pronoun that fits the verb. Le / la / les for a direct object, lui / leur after à + person, en after de, y after à + place or thing.",
         "de": "Die Dislokation nennt zuerst das Thema und sagt dann etwas darüber. Im Gespräch ist sie überall, sie entspricht der deutschen Voranstellung (den Film fand ich super). Aber das Nomen kann nicht einfach wandern: Es braucht ein Pronomen, das zum Verb passt. Le / la / les für das direkte Objekt, lui / leur nach à + Person, en nach de, y nach à + Ort oder Sache.",
         "fr": "La dislocation nomme d'abord le thème, puis dit quelque chose de lui. Elle est partout à l'oral. Le nom ne peut pas simplement se déplacer : il faut un pronom adapté au verbe. Le / la / les pour un COD, lui / leur après à + personne, en après de, y après à + lieu ou chose."
       },
@@ -4297,7 +4297,7 @@
         "right": "[Ce dont] j'ai besoin, c'est de dormir."
       },
       "more": {
-        "en": "This frame builds a little suspense: you announce the topic, then deliver the point after c'est. The opener depends on the verb: ce qui when it is the subject (ce qui me plaît), ce que when it is the object (ce que j'aime), ce dont after a de-verb (avoir besoin de, parler de). German Was mir gefällt, ist die Ruhe has no extra word; French adds c'est after the comma.",
+        "en": "This frame builds a little suspense: you announce the topic, then deliver the point after c'est. The opener depends on the verb: ce qui when it is the subject (ce qui me plaît), ce que when it is the object (ce que j'aime), ce dont after a de-verb (avoir besoin de, parler de). English What I like is the quiet has no extra word; French adds c'est after the comma.",
         "de": "Dieser Rahmen baut Spannung auf: Man kündigt das Thema an und liefert die Pointe nach c'est. Der Anfang hängt vom Verb ab: ce qui als Subjekt (ce qui me plaît), ce que als Objekt (ce que j'aime), ce dont nach einem Verb mit de (avoir besoin de). Im Deutschen heißt es „Was mir gefällt, ist die Ruhe“; das Französische setzt nach dem Komma c'est.",
         "fr": "Ce cadre crée un léger suspense : on annonce le thème, puis on livre l'essentiel après c'est. Le pronom dépend du verbe : ce qui sujet, ce que COD, ce dont après un verbe en de (avoir besoin de, parler de)."
       },
@@ -4428,7 +4428,7 @@
         "right": "Marie [vient-elle] ce soir ?"
       },
       "more": {
-        "en": "French only inverts a pronoun, never a noun. So with a noun subject, the noun stays first and a pronoun is added after the verb: Marie vient-elle ? That is the opposite of English and German (Is Marie coming? / Kommt Marie?). The -t- only fills the gap between two vowels (a-t-il, va-t-on). In compound tenses only the auxiliary moves: as-tu fini ?",
+        "en": "French only inverts a pronoun, never a noun. So with a noun subject, the noun stays first and a pronoun is added after the verb: Marie vient-elle ? That is the opposite of English (Is Marie coming?). The -t- only fills the gap between two vowels (a-t-il, va-t-on). In compound tenses only the auxiliary moves: as-tu fini ?",
         "de": "Französisch invertiert nur Pronomen, nie Nomen. Mit einem Nomen als Subjekt bleibt das Nomen vorn und ein Pronomen kommt nach dem Verb: Marie vient-elle ? Anders als im Deutschen (Kommt Marie?). Das -t- füllt nur die Lücke zwischen zwei Vokalen (a-t-il, va-t-on). In zusammengesetzten Zeiten wandert nur das Hilfsverb: as-tu fini ?",
         "fr": "Le français n'inverse qu'un pronom, jamais un nom. Avec un nom sujet, le nom reste en tête et un pronom suit le verbe : Marie vient-elle ? Le -t- comble seulement l'écart entre deux voyelles (a-t-il, va-t-on). Aux temps composés, seul l'auxiliaire s'inverse."
       },
@@ -4559,7 +4559,7 @@
         "right": "[Peut-être viendra-t-il] demain."
       },
       "more": {
-        "en": "A small group of adverbs at the start of a clause pulls the verb in front of the subject pronoun: peut-être, sans doute, à peine, ainsi, and aussi when it means therefore. Peut-être que avoids it and is what you hear in speech. After a quotation, the tag always inverts, even with a noun: répondit Marie. German also inverts after a fronted adverb, but French only does it with this group.",
+        "en": "A small group of adverbs at the start of a clause pulls the verb in front of the subject pronoun: peut-être, sans doute, à peine, ainsi, and aussi when it means therefore. Peut-être que avoids it and is what you hear in speech. After a quotation, the tag always inverts, even with a noun: répondit Marie. Other fronted adverbs leave the order alone: ensuite, il est parti.",
         "de": "Eine kleine Gruppe von Adverbien am Satzanfang zieht das Verb vor das Subjektpronomen: peut-être, sans doute, à peine, ainsi und aussi im Sinn von „daher“. Peut-être que vermeidet die Inversion und ist mündlich üblich. Nach einem Zitat wird der Redebegleitsatz immer invertiert, auch mit Nomen: répondit Marie. Im Deutschen wird nach jedem vorangestellten Adverb invertiert, im Französischen nur nach dieser Gruppe.",
         "fr": "Quelques adverbes en tête de proposition entraînent l'inversion : peut-être, sans doute, à peine, ainsi, et aussi au sens de donc. Peut-être que l'évite et s'emploie à l'oral. Après une citation, l'incise s'inverse toujours, même avec un nom : répondit Marie."
       },
@@ -4941,8 +4941,8 @@
         "right": "Le train part [dans] dix minutes."
       },
       "more": {
-        "en": "English in two days and German in zwei Tagen can mean both «it took two days» and «two days from now». French separates them: en deux jours is the time needed, dans deux jours is a point counted from now. In a past story, «two days later» is deux jours plus tard, never dans deux jours.",
-        "de": "Englisch „in two days“ und deutsch „in zwei Tagen“ können beides heißen: „es dauerte zwei Tage“ und „ab jetzt in zwei Tagen“. Das Französische trennt: en deux jours ist die benötigte Zeit, dans deux jours ein Zeitpunkt ab jetzt. In einer vergangenen Geschichte heißt „zwei Tage später“ deux jours plus tard.",
+        "en": "English in two days can mean both «it took two days» and «two days from now». French separates them: en deux jours is the time needed, dans deux jours is a point counted from now. In a past story, «two days later» is deux jours plus tard, never dans deux jours.",
+        "de": "Deutsch „in zwei Tagen“ kann beides heißen: „es dauerte zwei Tage“ und „ab jetzt in zwei Tagen“. Das Französische trennt: en deux jours ist die benötigte Zeit, dans deux jours ein Zeitpunkt ab jetzt. In einer vergangenen Geschichte heißt „zwei Tage später“ deux jours plus tard.",
         "fr": "En deux jours désigne le temps nécessaire ; dans deux jours, un moment compté à partir de maintenant. Dans un récit passé, on dit deux jours plus tard."
       },
       "how": {
@@ -5836,8 +5836,8 @@
         "right": "Tu es fatiguée ? – Oui, je [le] suis."
       },
       "more": {
-        "en": "English often leaves the idea out (I know, I told you, yes I am); German uses es (ich weiß es, ich bin es). French needs le with savoir, dire, croire, penser, être and devenir. This le never changes: fatiguée, je le suis, not je la suis. Because it stands for an idea, not a noun, the participle does not agree: je te l'avais dit. With a de-verb, use en: j'en suis sûr.",
-        "de": "Englisch lässt die Idee oft weg; das Deutsche sagt es (ich weiß es, ich bin es). Französisch braucht le bei savoir, dire, croire, penser, être und devenir. Dieses le ändert sich nie: fatiguée, je le suis, nicht je la suis. Weil es für eine Idee steht, wird das Partizip nicht angeglichen: je te l'avais dit. Bei einem Verb mit de nimmt man en: j'en suis sûr.",
+        "en": "English often leaves the idea out (I know, I told you, yes I am). French needs le with savoir, dire, croire, penser, être and devenir. This le never changes: fatiguée, je le suis, not je la suis. Because it stands for an idea, not a noun, the participle does not agree: je te l'avais dit. With a de-verb, use en: j'en suis sûr.",
+        "de": "Das Deutsche sagt hier es (ich weiß es, ich bin es). Französisch braucht le bei savoir, dire, croire, penser, être und devenir. Dieses le ändert sich nie: fatiguée, je le suis, nicht je la suis. Weil es für eine Idee steht, wird das Partizip nicht angeglichen: je te l'avais dit. Bei einem Verb mit de nimmt man en: j'en suis sûr.",
         "fr": "Le français reprend l'idée par le avec savoir, dire, croire, penser, être, devenir. Ce le est invariable : fatiguée, je le suis. Comme il remplace une idée, le participe ne s'accorde pas : je te l'avais dit. Avec un verbe en de, on emploie en : j'en suis sûr."
       },
       "how": {

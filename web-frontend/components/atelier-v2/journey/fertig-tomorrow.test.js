@@ -144,9 +144,6 @@ function envelopeOf(language, recap) {
       minutes_left: 0,
       done: true,
       tally: { scenes: 1, words: 13, exercises: 15 },
-      more_words: 10,
-      more_minutes: 4,
-      more_href: '/vocabulary/review?more=10',
     },
   };
 }
@@ -287,4 +284,19 @@ test('#727 once the day is read, the Done screen speaks the envelope’s languag
   const text = textOf(fertig(envelopeOf('fr', recapOf())));
   assert.ok(text.includes('Fini pour aujourd’hui'), text.slice(0, 160));
   assert.ok(!/Done for today|Back to La Une/.test(text), text.slice(0, 160));
+});
+
+// P8 (check 2 of 17 Nov): «La suite demain / M / Que feras-tu de l’appartement ?» on Home and
+// «Done»: Maître Vasseur has no face, and his initial stood alone beside the hook.
+test('P8 a speaker with no face draws no stray initial beside the hook', () => {
+  const vasseur = { text_fr: 'Que feras-tu de l’appartement ?', open_fr: 'Que feras-tu de l’appartement ?', character_id: 'maitre_vasseur', character_name: 'Maître Vasseur', source: 'engine' };
+  const recap = recapOf({ teaser: vasseur, next_teaser_fr: vasseur.text_fr });
+  for (const html of [homeCard(envelopeOf('fr', recap)), fertig(envelopeOf('fr', recap))]) {
+    const tomorrow = html.match(/<p[^>]*data-tomorrow=""[^>]*>[\s\S]*?<\/p>/)?.[0] ?? '';
+    assert.ok(tomorrow.includes('Que feras-tu'), tomorrow);
+    assert.doesNotMatch(tomorrow, /ob-portrait/, 'no face disc for a speaker with no face');
+  }
+  const marin = { ...vasseur, character_id: 'marin_leveque', character_name: 'Marin' };
+  const html = homeCard(envelopeOf('fr', recapOf({ teaser: marin, next_teaser_fr: marin.text_fr })));
+  assert.match(html.match(/<p[^>]*data-tomorrow=""[^>]*>[\s\S]*?<\/p>/)?.[0] ?? '', /ob-portrait/, 'Marin keeps his face');
 });

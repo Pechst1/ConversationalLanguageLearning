@@ -493,7 +493,9 @@ def test_without_a_placement_the_declaration_still_stands(db_session):
     assert payload["placement"] is None
 
 
-def test_measurement_overtakes_the_placement_once_the_attempts_exist(db_session):
+def test_a_measurement_below_the_placement_is_recorded_not_applied(db_session):
+    """P2 (pilot 2026-11-17): a settled placement is the floor for good; only
+    another placement moves the learner below it."""
     user = _user(db_session, declared="A1")
     _run(db_session, user, _FakeLLM([4.0] * MAX_TURNS))
     placed = CEFRProgressService(db_session).recompute(user, source="test")
@@ -531,16 +533,14 @@ def test_measurement_overtakes_the_placement_once_the_attempts_exist(db_session)
     db_session.commit()
 
     measured = CEFRProgressService(db_session).recompute(user, source="test")
-    assert measured["estimate_source"] == "measured"
-    # The prior no longer holds the estimate up: what remains above the raw
-    # threshold walk is the existing down-step smoothing (three consecutive
-    # weaker recomputes before a level falls), not the placement.
     assert measured["computed_estimate"] == "A1.1"
+    # Past the down-step smoothing too, the placement holds the stored level.
     for _ in range(3):
         measured = CEFRProgressService(db_session).recompute(user, source="test")
-    assert measured["estimate"] == "A1.1"
-    assert measured["estimate_source"] == "measured"
-    # The placement is still reported — it happened, and the learner can see it.
+    assert measured["estimate"] == placed["estimate"]
+    assert measured["estimate_source"] == "placement"
+    assert measured["measured_below_floor"]["level"] == "A1.1"
+    assert measured["measured_below_floor"]["floor_source"] == "placement"
     assert measured["placement"]["level"] == placed["estimate"]
 
 

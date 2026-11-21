@@ -90,22 +90,39 @@ def _stable(value: Any) -> Any:
     return f"{kind.__module__}.{kind.__qualname__}"
 
 
+#: How a call is delivered, not what the model is asked: how long to wait for it and how
+#: often the provider retries it. A longer timeout or one more provider attempt changes no
+#: answer the model gives, so it is not hashed (the paired gate would compare the same
+#: answers). Everything else a call carries is.
+TRANSPORT_KWARGS = frozenset({"request_timeout", "disable_retries", "max_provider_attempts"})
+
+
 def surface_calls(surface: str) -> list[dict]:
     """Every first-attempt call ``surface`` makes on its gold inputs, under the
-    production profile (the caller applies it)."""
+    production profile (the caller applies it).
+
+    The recorder refuses every call, so a surface that asks again after a failed call
+    would record the same call twice: an identical repeat within one item is a retry,
+    not a new question, and is left out."""
 
     recorder = _Recorder()
     default = R.Meter(inner=None, cap_usd=0.0)
+    calls: list[dict] = []
     for item in S.load_items(surface):
+        start = len(recorder.calls)
         try:
             S.SURFACES[surface](item, recorder)
         except Exception:  # noqa: BLE001, S110 - a refused call may surface as anything
             pass
-    calls = []
-    for kind, messages, kwargs in recorder.calls:
-        # A call without ``model`` goes to the settings' default: a change there is a model change too.
-        kwargs.setdefault("model", default._default_model(kind))
-        calls.append({"kind": kind, "messages": messages, "kwargs": kwargs})
+        previous = None
+        for kind, messages, kwargs in recorder.calls[start:]:
+            # A call without ``model`` goes to the settings' default: a change there is a model change too.
+            kwargs.setdefault("model", default._default_model(kind))
+            call = {"kind": kind, "messages": messages, "kwargs": {k: v for k, v in kwargs.items() if k not in TRANSPORT_KWARGS}}
+            if call == previous:
+                continue
+            calls.append(call)
+            previous = call
     return calls
 
 

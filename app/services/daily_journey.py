@@ -74,8 +74,10 @@ from app.schemas.daily_journey import (
     JourneyRetryRequest,
     JourneyRevisionRequest,
     JourneySnapshot,
+    JourneySolution,
     JourneyTomorrowRequest,
     LegacyResume,
+    MoreCorrection,
     NextFocus,
     NextTurn,
     PaceOptions,
@@ -139,6 +141,7 @@ from app.services.journey_day_shapes import (
     choose_day_shape,
     choose_desk,
     letter_offer_for,
+    played_day_from_story,
 )
 from app.services.journey_errata import errata_targets_for_user
 from app.services.journey_events import MIN_MEASURED_PACE_DAYS, measured_pace
@@ -151,7 +154,12 @@ from app.services.journey_latency import (
     server_wait_ms_since_last_event,
     take_prefetched_scene,
 )
-from app.services.journey_learning import recall_learner_text, record_daily_practice_streak
+from app.services.journey_learning import (
+    recall_learner_text,
+    record_daily_practice_streak,
+    solution_waits_for_retry,
+    withheld_recall_note,
+)
 from app.services.journey_rhythm import budget_seconds_for, candidate_limit_for
 from app.services.recall_meanings import apply_meaning, native_meanings
 from app.services.revue.policy import revue_day_allowed_for
@@ -314,6 +322,8 @@ _HELP_TO_ASSISTANCE: dict[HelpKind, AssistanceLevel] = {
 _ANSWERABLE_KINDS = (StepKind.RECALL, StepKind.RESPOND)
 #: A retry step's private key: the step whose miss it asks again.
 RETRY_OF_KEY = "retry_of"
+#: P5: the retry's first miss kept its solution back; the retry is answered without it.
+SOLUTION_WITHHELD_KEY = "solution_withheld"
 
 
 def withdraw_retry(db: Session, step: DailyJourneyStep) -> bool:
@@ -985,6 +995,40 @@ def _is_opening_day(journey: DailyJourney | None) -> bool:
     return journey is not None and _stored_cast_intro(journey) is not None
 
 
+def scene_played(journey: DailyJourney | None) -> bool:
+    """P11: the day's scene is played — its ending (every act's resolution step) was
+    acknowledged — whatever of the day is still open (a drill, the words).
+
+    An ended journey says nothing here: «day done» is its status, read on its own."""
+
+    if journey is None or str(journey.status) not in {
+        str(JourneyStatus.ACTIVE),
+        str(JourneyStatus.PAUSED),
+    }:
+        return False
+    endings = [step for step in journey.steps or [] if StepKind(step.kind) is StepKind.RESOLUTION]
+    if not endings:
+        return False
+    statuses = {StepStatus(step.status) for step in endings}
+    return StepStatus.COMPLETED in statuses and statuses <= {StepStatus.COMPLETED, StepStatus.SKIPPED}
+
+
+def _first_scene(journey: DailyJourney) -> DailyJourneyStep | None:
+    scenes = [step for step in journey.steps or [] if StepKind(step.kind) is StepKind.SCENE]
+    return min(scenes, key=lambda step: step.ordinal) if scenes else None
+
+
+def _unplayed_scene_after(journey: DailyJourney, step: DailyJourneyStep) -> DailyJourneyStep | None:
+    """P11: the day's first scene when ``step`` comes before it and it is not opened yet."""
+
+    scene = _first_scene(journey)
+    if scene is None or step.ordinal >= scene.ordinal:
+        return None
+    if StepStatus(scene.status) is not StepStatus.PENDING:
+        return None
+    return scene
+
+
 def _journey_input_mode(journey: DailyJourney) -> InputMode:
     """The mode a journey was created in: voice when its reply offered voice."""
 
@@ -1438,9 +1482,12 @@ class DailyJourneyService:
         from app.services.daily_session import build_session
 
         todays = journey if journey is not None and journey.local_date == today else None
-        scene_done = todays is not None and todays.status in {
+        day_ended = todays is not None and todays.status in {
             status.value for status in TERMINAL_JOURNEY_STATUSES
         }
+        # P11: the scene is played once its ending was acknowledged, whatever of the
+        # day is still open (a drill, the words). «Day done» stays the ended journey.
+        scene_done = day_ended or (todays is not None and scene_played(todays))
         scene_seconds: int | None = None
         if snapshot is not None and snapshot.time_estimate is not None:
             scene_seconds = int(snapshot.time_estimate.core_seconds)
@@ -1453,10 +1500,12 @@ class DailyJourneyService:
                 user,
                 journey=todays,
                 scene_done=scene_done,
+                day_ended=day_ended,
                 scene_seconds=scene_seconds,
                 reviews_due=due_words,
                 forge_href=f"{forge_href}&from=day",
                 forge_blocks_today=forge.blocks_today,
+                forge_concept_id=forge.concept_id,
             )
         )
 
@@ -1944,7 +1993,10 @@ class DailyJourneyService:
             user,
             scope="advance",
             mutation_id=payload.mutation_id,
-            digest=_digest({"current_step_id": payload.current_step_id}),
+            digest=_digest(
+                {"current_step_id": payload.current_step_id}
+                | ({"skip_to_scene": True} if payload.skip_to_scene else {})
+            ),
             journey=journey,
             expected_revision=payload.expected_revision,
         )
@@ -1959,7 +2011,28 @@ class DailyJourneyService:
                 self._parse_uuid(payload.current_step_id),
                 require_active=False,
             )
-            if (
+            if payload.skip_to_scene:
+                scene = _unplayed_scene_after(journey, step)
+                if scene is None:
+                    raise journey_error(
+                        http_status.HTTP_409_CONFLICT,
+                        JourneyErrorCode.STEP_NOT_ACTIVE,
+                        "There is no scene ahead to skip to.",
+                        current_revision=journey.revision,
+                        refresh_href=refresh_href_for(journey.id),
+                    )
+                self._claim_revision(journey, payload.expected_revision)
+                # Skipped, not done: no ``completed_at``, no rule read, no attempt and
+                # so no lapse; a drill's item stays due for a later day.
+                for earlier in journey.steps:
+                    if earlier.ordinal < scene.ordinal and StepStatus(earlier.status) in (
+                        StepStatus.PENDING,
+                        StepStatus.ACTIVE,
+                    ):
+                        earlier.status = str(StepStatus.SKIPPED)
+                self._activate_next_step(journey, after_ordinal=scene.ordinal - 1)
+                self.db.flush()
+            elif (
                 StepKind(step.kind) in _ANSWERABLE_KINDS
                 and StepStatus(step.status) is not StepStatus.COMPLETED
             ):
@@ -1978,20 +2051,24 @@ class DailyJourneyService:
                     current_revision=journey.revision,
                     refresh_href=refresh_href_for(journey.id),
                 )
-            self._claim_revision(journey, payload.expected_revision)
-            if StepStatus(step.status) not in (StepStatus.COMPLETED, StepStatus.SKIPPED):
-                step.status = str(StepStatus.COMPLETED)
-                step.completed_at = _utcnow()
-                if StepKind(step.kind) is StepKind.RULE:
-                    self._mark_rule_read(user, step)
-            self._activate_next_step(journey, after_ordinal=step.ordinal)
-            self.db.flush()
+            if not payload.skip_to_scene:
+                self._claim_revision(journey, payload.expected_revision)
+                if StepStatus(step.status) not in (StepStatus.COMPLETED, StepStatus.SKIPPED):
+                    step.status = str(StepStatus.COMPLETED)
+                    step.completed_at = _utcnow()
+                    if StepKind(step.kind) is StepKind.RULE:
+                        self._mark_rule_read(user, step)
+                self._activate_next_step(journey, after_ordinal=step.ordinal)
+                self.db.flush()
         except HTTPException as exc:
             self._record_error(receipt, exc)
             raise
 
         snapshot = self.snapshot(journey)
         self._commit_mutation(receipt, journey, http_status.HTTP_200_OK, snapshot)
+        if payload.skip_to_scene:
+            # Skipped steps were not completed: no step boundary for WP-11.
+            return snapshot
         self._emit(
             JourneyEventName.STEP_COMPLETED,
             user,
@@ -2529,6 +2606,23 @@ class DailyJourneyService:
                     current_revision=journey.revision,
                     refresh_href=refresh_href_for(journey.id),
                 )
+            current_step = next(
+                (step for step in journey.steps if step.id == journey.current_step_id), None
+            )
+            if (
+                payload.finish_kind == "early"
+                and current_step is not None
+                and _unplayed_scene_after(journey, current_step) is not None
+            ):
+                # P11: «Arrêter ici» before the day's scene pauses the day; it does not
+                # end it with the scene unplayed. Nothing is skipped, nothing counted.
+                self._claim_revision(journey, payload.expected_revision)
+                journey.status = str(JourneyStatus.PAUSED)
+                self.db.flush()
+                paused = self.snapshot(journey)
+                self._commit_mutation(receipt, journey, http_status.HTTP_200_OK, paused)
+                self._emit(JourneyEventName.PAUSED, user, journey, {"finish_kind": "early"})
+                return paused
             if payload.finish_kind == "complete":
                 unresolved = [
                     step
@@ -4575,6 +4669,17 @@ class DailyJourneyService:
             recovered = self._serve_season_recovery(user, journey, input_mode, failure, decision)
             if recovered is None:
                 return None
+        from app.services.season.recovery import AUTHORED_DAY_LOST
+
+        if decision is not None and decision.reason == AUTHORED_DAY_LOST:
+            # P11: a tentpole or epilogue page is never served as a re-read. Its own
+            # page could not be built either: the honest «unavailable, retry» day.
+            logger.error(
+                "daily_journey: authored season day %s lost (%s); never a re-read",
+                decision.position.key if decision.position else "?",
+                failure.reason,
+            )
+            return failure
         brief = run_best_effort(
             self.db,
             "daily_journey: season reprise",
@@ -4906,6 +5011,8 @@ class DailyJourneyService:
             # WP-91: Soutenu/Intensif hear every third day first.
             budget_seconds=int(journey.budget_seconds or 0) or None,
             errata_count=int(errata_count),
+            # P9 decision 7: no listening day before the 8th played day.
+            played_day=played_day_from_story(brief.story_context),
             # The WP-64 seam, wired: the letter the Courrier is already showing
             # this learner, read inside this transaction. `None` — no letter
             # waiting, or no provider — makes «jour de lettre» ineligible
@@ -5534,10 +5641,14 @@ class DailyJourneyService:
         own_assistance = assistance
         retry = bool(private.get(RETRY_OF_KEY))
         if retry:
-            # The answer was shown after the first miss: a hit now is a repair after
-            # a correction, so supported production at most (`classify_evidence`).
-            # Server-side only; the public `assistance_used` stays the learner's own.
-            assistance = strongest_assistance([assistance, AssistanceLevel.SOLUTION])
+            # The first miss was corrected: a hit now is a repair after a correction,
+            # so supported production at most (`classify_evidence`). P5: a miss that
+            # kept its solution back for this retry gave the reason, not the answer,
+            # so the retry is answered with a hint, not with the solution shown;
+            # either is «assisted» for the schedule. Server-side only; the public
+            # `assistance_used` stays the learner's own.
+            shown = AssistanceLevel.HINT if private.get(SOLUTION_WITHHELD_KEY) else AssistanceLevel.SOLUTION
+            assistance = strongest_assistance([assistance, shown])
         evaluation = self.adapters.learning.evaluate_recall(
             self.db, user=user, task=task, answer=answer, assistance=assistance
         )
@@ -5568,8 +5679,18 @@ class DailyJourneyService:
             "failure_reason": getattr(evaluation, "failure_reason", None),
         }
         step.private_task = stored
+        # P5 (owner, 2026-11-13): no solution before the retry. A miss whose item is
+        # asked again keeps the corrected line and the right card back until then;
+        # it says where and why. No retry, the retry itself, a choice between two
+        # or a solution the learner already asked for: the solution is shown now.
+        withheld = False
         if missed and not retry:
-            self._queue_retry(journey, step)
+            waits = (
+                solution_waits_for_retry(task)
+                and own_assistance is not AssistanceLevel.SOLUTION
+                and evaluation.correction is not None
+            )
+            withheld = self._queue_retry(journey, step, solution_withheld=waits) is not None and waits
         self.db.flush()
         # O-1: l'or in shadow — the ledger only; a failure there never costs the answer.
         gold_ledger.record_journey_recall(
@@ -5591,14 +5712,23 @@ class DailyJourneyService:
             assistance_level=assistance,
             # QA-PRACTICE: a tile answer is checked against the words placed —
             # `answer.text` is empty for it, which used to drop the correction.
-            correction=self._public_correction(evaluation.correction, recall_learner_text(task, answer)),
+            correction=self._public_correction(
+                evaluation.correction,
+                recall_learner_text(task, answer),
+                withheld_note=(
+                    withheld_recall_note(task, evaluation.correction, language=str(user_chrome_language(user)))
+                    if withheld and evaluation.correction is not None
+                    else None
+                ),
+            ),
             character_reply_fr=None,
             next_turn=None,
             pending=False,
             check=VerdictView.of(
                 verdicts.from_recall(
                     outcome=evaluation.outcome,
-                    correction=evaluation.correction,
+                    # P5: a withheld solution proposes no edit either.
+                    correction=None if withheld else evaluation.correction,
                     text=recall_learner_text(task, answer) or "",
                 )
             ),
@@ -5606,7 +5736,9 @@ class DailyJourneyService:
             journey=self.snapshot(journey),
         )
 
-    def _queue_retry(self, journey: DailyJourney, step: DailyJourneyStep) -> DailyJourneyStep | None:
+    def _queue_retry(
+        self, journey: DailyJourney, step: DailyJourneyStep, *, solution_withheld: bool = False
+    ) -> DailyJourneyStep | None:
         """Owner request 2026-10-17: a missed drill comes back once, at the end of
         its set.
 
@@ -5616,13 +5748,24 @@ class DailyJourneyService:
         steps move down one place. A retry is never queued again, and a miss with
         no drill still to come in its run is not: asked straight away, under the
         correction just read, it would be copying, not recall.
+
+        P5: ``solution_withheld`` says the miss kept its solution back for this retry.
+
+        Round 3 (walk 2, A1 day 2, «Je fatigué suis»): the last drill of its run —
+        there the last step of the journey — queued no retry, so its solution came
+        at once. A miss whose solution waits is now asked again right after its
+        run even when no drill follows it: the solution was not read, so the
+        retry is recall, not copying. A miss whose solution is shown (a choice
+        between two, a solution asked for) still queues none there.
         """
 
         ordered = sorted(journey.steps, key=lambda item: item.ordinal)
         start = end = ordered.index(step)
         while end + 1 < len(ordered) and StepKind(ordered[end + 1].kind) is StepKind.RECALL:
             end += 1
-        if not any(StepStatus(item.status) is StepStatus.PENDING for item in ordered[start + 1 : end + 1]):
+        if not solution_withheld and not any(
+            StepStatus(item.status) is StepStatus.PENDING for item in ordered[start + 1 : end + 1]
+        ):
             return None
         ordinal = ordered[end].ordinal + 1
         # One row at a time, last first: (journey_id, ordinal) is unique.
@@ -5640,7 +5783,11 @@ class DailyJourneyService:
             target_kind=step.target_kind,
             target_id=step.target_id,
             public_prompt={**dict(step.public_prompt or {}), "retry": True},
-            private_task={"recall_task": private["recall_task"], RETRY_OF_KEY: str(step.id)},
+            private_task={
+                "recall_task": private["recall_task"],
+                RETRY_OF_KEY: str(step.id),
+                **({SOLUTION_WITHHELD_KEY: True} if solution_withheld else {}),
+            },
             assistance_used=[],
         )
         journey.steps.append(retry)
@@ -6385,24 +6532,40 @@ class DailyJourneyService:
 
     @staticmethod
     def _public_correction(
-        correction: Correction | None, learner_text: str
+        correction: Correction | None, learner_text: str, *, withheld_note: str | None = None
     ) -> JourneyCorrection | None:
         """At most one foreground correction, and never a fabricated span.
 
         The span is checked against the **normalized** answer: WP-06 builds
         spans from ``normalize_answer_text``, so comparing against a raw string
         would silently drop a correct correction that contains an apostrophe.
+
+        P5: with ``withheld_note`` the solution waits for the retry: the learner's
+        own span and the note (where and why), no corrected line.
         """
 
-        if correction is None or not correction.is_valid_for(
-            normalize_answer_text(learner_text)
-        ):
+        normalized = normalize_answer_text(learner_text)
+        if correction is None or not correction.is_valid_for(normalized):
             return None
+        if withheld_note is not None:
+            return JourneyCorrection(
+                span_fr=correction.span_fr,
+                corrected_fr="",
+                note_native=withheld_note,
+                kind=correction.kind,
+                solution=JourneySolution(state="withheld"),
+            )
         return JourneyCorrection(
             span_fr=correction.span_fr,
             corrected_fr=correction.corrected_fr,
             note_native=correction.note_native,
             kind=correction.kind,
+            # P3: from B1, a scene reply's other corrections, collapsed under this one.
+            more=[
+                MoreCorrection(span_fr=item.span_fr, corrected_fr=item.corrected_fr, note_native=item.note_native)
+                for item in getattr(correction, "more", ()) or ()
+                if item.note_native and item.is_valid_for(normalized)
+            ],
         )
 
     def _reply_source(self, evaluation: Any) -> str:

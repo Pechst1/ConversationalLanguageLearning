@@ -123,6 +123,9 @@ export type AtelierCopyKey =
   | 'home_practice_aria'
   | 'home_words_many'
   | 'home_letter_aria'
+  | 'home_journal'
+  | 'home_journal_aria'
+  | 'home_journal_older'
   | 'home_review_one'
   | 'home_review_many'
   | 'home_phrase'
@@ -209,6 +212,9 @@ const EN: Table = {
   home_level_aria: 'Your level: {band}, {percent} % of the way through',
   home_letter: 'New letter',
   home_letter_aria: 'A letter is waiting',
+  home_journal: 'Retell yesterday',
+  home_journal_aria: 'Retell the last scene from memory, in French',
+  home_journal_older: 'Retell the scene',
   home_words_one: '1 word',
   home_practice: 'More practice',
   home_practice_aria: 'More practice on today’s rules',
@@ -298,6 +304,9 @@ const DE: Table = {
   home_level_aria: 'Dein Niveau: {band}, zu {percent} % geschafft',
   home_letter: 'Neuer Brief',
   home_letter_aria: 'Ein Brief wartet auf dich',
+  home_journal: 'Gestern erzählen',
+  home_journal_aria: 'Erzähl die letzte Szene aus dem Gedächtnis, auf Französisch',
+  home_journal_older: 'Szene erzählen',
   home_words_one: '1 Wort',
   home_practice: 'Mehr üben',
   home_practice_aria: 'Mehr üben mit den Regeln von heute',
@@ -387,6 +396,9 @@ const FR: Table = {
   home_level_aria: 'Ton niveau : {band}, parcouru à {percent} %',
   home_letter: 'Nouvelle lettre',
   home_letter_aria: 'Une lettre t’attend',
+  home_journal: 'Raconter hier',
+  home_journal_aria: 'Raconte la dernière scène de mémoire, en français',
+  home_journal_older: 'Raconter la scène',
   home_words_one: '1 mot',
   home_practice: 'Plus de pratique',
   home_practice_aria: 'Plus de pratique sur les règles du jour',

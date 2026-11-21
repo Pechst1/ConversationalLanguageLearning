@@ -73,6 +73,12 @@ export interface MistralParts {
 }
 
 /**
+ * The zinc: its front face toward the room, its two ends (north by the booth, south by the door),
+ * and the height of its top; the top runs back 0.8 m from the front, its rolled edge 0.1 m proud.
+ */
+export const ZINC = { front: -34.8, north: -17.4, south: -11.5, top: ROOM.floor + 1.1, back: -35.6 };
+
+/**
  * The two marble tables in front of the booth, at the back of the room: their centres along the
  * booth, their top's size and height, and where Marin's bowl of soup stands on the left one.
  */
@@ -235,9 +241,9 @@ export function buildMistral(B: Build, building: BuildingInfo): MistralParts {
   B.walk.push({ shape: rectIn(cham, 1.42, 2.82, -0.9, 0.45), y: R.floor });
 
   /* ---- the zinc ------------------------------------------------------------------------- */
-  const zx = -34.8; // the zinc's front face
-  const zN = -17.4;
-  const zS = -11.5;
+  const zx = ZINC.front; // the zinc's front face
+  const zN = ZINC.north;
+  const zS = ZINC.south;
   const wood: Paint = indoor({ color: mix(INKS.green, INKS.ink, 0.3), id: nextId() });
   const woodDark: Paint = indoor({ color: mix(INKS.green, INKS.ink, 0.48), id: wood.id });
   const zinc: Paint = indoor({ color: TONES.pewter, wet: 1, id: nextId() });

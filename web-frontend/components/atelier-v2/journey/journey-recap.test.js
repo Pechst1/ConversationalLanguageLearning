@@ -452,6 +452,8 @@ test('#237: «Fin du chapitre» never prints a second question, and the day summ
   assert.equal(model.colophonDigest(digest, ['Autre chose.']), callback);
   assert.equal(model.colophonDigest('La clé est retrouvée.', []), 'La clé est retrouvée.');
   assert.equal(model.colophonDigest(null, []), null);
+  // P8 (A1 walk, day 2): a chapter closed with no resolution printed the season's question.
+  assert.equal(model.colophonDigest('Ou tu dis au revoir à tout ça ?', []), null);
 
   const html = render(
     day({

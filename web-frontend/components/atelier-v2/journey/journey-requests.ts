@@ -385,3 +385,44 @@ export function stageAttemptFeedback(
     apply,
   );
 }
+
+// ---------------------------------------------------------------------------
+// P11 · «Erneut versuchen» re-sends what failed, not the last answer
+// ---------------------------------------------------------------------------
+
+/** The last journey mutation that failed with a retryable error. */
+export type FailedMutation =
+  | { kind: 'attempt' }
+  | { kind: 'advance'; journeyId: string; stepId: string; skipToScene: boolean }
+  | { kind: 'finish'; finishKind: 'complete' | 'early' };
+
+export type RetryPlan =
+  | { kind: 'attempt' }
+  | { kind: 'advance'; skipToScene: boolean }
+  | { kind: 'finish'; finishKind: 'complete' | 'early' }
+  | { kind: 'clear' };
+
+/**
+ * What the error card's «Erneut versuchen» does (17 Nov walk, a1-part3: offline
+ * at the scene's last panel, «Weiter» failed; back online, «Erneut versuchen»
+ * re-sent the LAST ANSWER — the warm-up item before the scene. Its stored receipt
+ * replayed the journey as it stood then, the screen jumped back to «Vor der Szene ·
+ * Schritt 3 von 6», and the scene's panels restarted at 1/5).
+ *
+ * A failed advance is retried as the same advance, from the same step, while the
+ * journey still stands on that step (same step and revision: the same intent, so
+ * the same mutation id). A failed finish is the same finish. Only a failed answer
+ * re-sends the answer. Anything else clears the card: the screen is the journey's.
+ */
+export function retryPlan(
+  failed: FailedMutation | null,
+  hasLastAnswer: boolean,
+  journey: { id: string; current_step_id?: string | null } | null,
+): RetryPlan {
+  if (failed?.kind === 'advance') {
+    const sameStep = Boolean(journey && journey.id === failed.journeyId && journey.current_step_id === failed.stepId);
+    return sameStep ? { kind: 'advance', skipToScene: failed.skipToScene } : { kind: 'clear' };
+  }
+  if (failed?.kind === 'finish') return { kind: 'finish', finishKind: failed.finishKind };
+  return hasLastAnswer ? { kind: 'attempt' } : { kind: 'clear' };
+}
