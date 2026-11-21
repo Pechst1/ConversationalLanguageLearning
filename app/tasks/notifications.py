@@ -320,6 +320,11 @@ def send_streak_reminders(now: str | None = None) -> dict[str, int]:
     At the learner's local 19:00, once per local day, in a character's voice.
     The streak is read through `app.services.streak` — checked on the date, so
     a learner whose chain already broke is not told it is at risk.
+
+    ``STORY_REMEMBERED_HOOK``: on an evening whose day is not played and whose last
+    played day ended on a remembered hook, that hook goes out instead (one push, never
+    beside the streak line), whatever the streak's length, gated on ``practice_reminders``
+    and ``DAILY_PUSH_CAP`` and sent once per hook (``_remembered_hook_push``).
     """
     from app.services.notification_service import NotificationService
     from app.services.serial_notifications import streak_at_risk_push
@@ -329,8 +334,13 @@ def send_streak_reminders(now: str | None = None) -> dict[str, int]:
     db = SessionLocal()
     eligible = delivered = 0
     try:
+        from app.services import remembered_hook
+
         for user in _push_users(db):
-            if not getattr(user, "streak_notifications", True):
+            streak_on = bool(getattr(user, "streak_notifications", True))
+            # STORY_REMEMBERED_HOOK: the remembered hook's push is a story push, gated on
+            # practice reminders, not on the streak setting.
+            if not streak_on and not remembered_hook.enabled():
                 continue
             local = _local_now(user, moment)
             if not _in_window(_minute_of(local), STREAK_REMINDER_MINUTE):
@@ -342,12 +352,15 @@ def send_streak_reminders(now: str | None = None) -> dict[str, int]:
                     continue
                 state = settle_streak(db, user, today=today)
                 db.commit()
-                if state.days < 2 or _day_done(db, user, today, state.today_done):
+                if _day_done(db, user, today, state.today_done):
+                    continue
+                # STORY_REMEMBERED_HOOK: yesterday's remembered hook, from the character
+                # concerned, in place of the streak line (never both), once per hook, and
+                # also on a streak shorter than two days (the evening of day 2).
+                hook_push = _remembered_hook_push(db, user, today)
+                if hook_push is None and (state.days < 2 or not streak_on):
                     continue
                 eligible += 1
-                # STORY_REMEMBERED_HOOK: yesterday's remembered hook, from the character
-                # concerned, in place of the streak line (never both), once per hook.
-                hook_push = _remembered_hook_push(db, user, today)
                 push = hook_push or streak_at_risk_push(db, user, days=state.days)
                 count = NotificationService(db).send_notification(
                     user.id, push.message, push.title,

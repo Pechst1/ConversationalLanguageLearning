@@ -7,13 +7,15 @@ or, worse, quoted the learner's own reply back as a promise, errors and all.
 With the flag on, the day's one hook (``living_story._hook_after_day``) is read against
 the scene's record. When the learner gave a clear yes or no to something a character put
 to them (a proposal, «d'accord ?», or an invitation, «Tu viens ?», «On partage ?»), the
-hook says that decision and leaves its consequence open, in the serial's voice:
+hook says that decision, naming what it was about when the character's own question can
+be quoted as theirs, and leaves its consequence open, in the serial's voice:
 
-    «Tu as dit non à Lila. Est-ce qu'elle va accepter ça ?»
+    «Lila a demandé : « On partage ? » Tu as dit non. Est-ce qu'elle va accepter ça ?»
+    «Tu as dit non à Lila. Est-ce qu'elle va accepter ça ?»  (a longer question)
 
 Built here, deterministically, from authored templates per decision and level band; no
-model call. The line never quotes the learner (only the character's name and the
-decision kind come from the scene), never says «oui» once the learner said «non» (a
+model call. The line never quotes the learner (only the character's name, their short
+question and the decision kind come from the scene), never says «oui» once the learner said «non» (a
 mixed day falls back), and is checked once more before it is kept (:func:`problem`).
 Everything else, and any failure, keeps the authored hook unchanged.
 
@@ -40,8 +42,15 @@ logger = logging.getLogger(__name__)
 REMEMBERED_KEY = "remembered"
 #: ``story_teaser.HOOK_SOURCES``: a hook said from the learner's decision.
 SOURCE = "remembered"
-#: The one line every surface prints is at most this long (``story_teaser.HOOK_LINE_WORDS``).
-MAX_WORDS = 14
+#: The line without the character's question is at most this long. It is filed after
+#: ``story_teaser.one_hook`` (whose cap is 14 words, cut at a sentence), so it is never cut.
+MAX_WORDS = 16
+#: The line that quotes the character's question runs longer: still two sentences, at
+#: most this many words and characters (four short lines at phone width on Done/Home).
+MAX_QUOTED_WORDS = 24
+MAX_QUOTED_CHARS = 130
+#: A character's question is quoted only up to this many words.
+QUOTED_QUESTION_WORDS = 7
 #: A run of this many words shared with a learner reply is a quote, and refused. The line
 #: is built from templates and a name, so this only ever costs a coincidence (the learner
 #: wrote «je dis non à Lila»): the authored hook then stands.
@@ -53,148 +62,240 @@ def enabled() -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Templates: per decision, per level band, a few variants. {name}: the character's
-# spoken name. {who}: «elle» / «il», or the name again when the learner picks the
-# person's gender. Every French line is short, at A1 below B1 (present, near future,
-# passé composé of «dire»), and opens on what the learner did, never on their words.
+# Templates. A line is two sentences: what the learner decided, then what it leaves
+# open. The first names the thing decided when the character's own question is short
+# and clean enough to quote as theirs (:func:`quotable`):
+#
+#     «Lila a demandé : « On partage ? » Tu as dit non.»
+#
+# and otherwise says the decision with the person's name («Tu as dit non à Lila.»).
+# The character's question is on the record and was shown to the learner in the scene;
+# the learner's words never are. The second sentence is one of at least four
+# consequences per decision and level band, seeded per learner and day, never one a
+# recent hook said. {who}: «elle» / «il», or the name again when the learner picks the
+# person's gender. Below B1: present, near future, passé composé, no inversion.
 # ---------------------------------------------------------------------------
 
-_TEMPLATES: dict[str, dict[str, list[dict[str, Any]]]] = {
+_DECIDED = {
+    "plain": {
+        "refused": {
+            "fr": "Tu as dit non à {name}.",
+            "en": "You said no to {name}.",
+            "de": "Du hast {name} Nein gesagt.",
+        },
+        "agreed": {
+            "fr": "Tu as dit oui à {name}.",
+            "en": "You said yes to {name}.",
+            "de": "Du hast {name} Ja gesagt.",
+        },
+    },
+    "quoted": {
+        "refused": {
+            "fr": "{name} a demandé : « {asked} » Tu as dit non.",
+            "en": "{name} asked: “{asked}” You said no.",
+            "de": "{name} hat gefragt: „{asked}“ Du hast Nein gesagt.",
+        },
+        "agreed": {
+            "fr": "{name} a demandé : « {asked} » Tu as dit oui.",
+            "en": "{name} asked: “{asked}” You said yes.",
+            "de": "{name} hat gefragt: „{asked}“ Du hast Ja gesagt.",
+        },
+    },
+}
+
+_CONSEQUENCES: dict[str, dict[str, list[dict[str, str]]]] = {
     "refused": {
         "A": [
             {
-                "fr": "Tu as dit non à {name}. Est-ce que {who} va accepter ça ?",
-                "native": {
-                    "en": "You said no to {name}. Will {who_en} accept that?",
-                    "de": "Du hast {name} Nein gesagt. Wird {who_de} das akzeptieren?",
-                },
-                "push": {
-                    "tu": "Tu m'as dit non. J'y pense encore.",
-                    "vous": "Vous m'avez dit non. J'y pense encore.",
-                },
-                "push_native": {
-                    "en": "You said no to me. I'm still thinking about it.",
-                    "de": "Du hast Nein gesagt. Ich denke noch daran.",
-                },
+                "fr": "Est-ce que {who} va accepter ça ?",
+                "en": "Will {who_en} accept that?",
+                "de": "Wird {who_de} das akzeptieren?",
             },
             {
-                "fr": "Tu as dit non à {name}. Demain, est-ce que {who} demande encore ?",
-                "native": {
-                    "en": "You said no to {name}. Tomorrow, will {who_en} ask again?",
-                    "de": "Du hast {name} Nein gesagt. Fragt {who_de} morgen noch einmal?",
-                },
-                "push": {
-                    "tu": "Tu m'as dit non. Demain, je demande encore ?",
-                    "vous": "Vous m'avez dit non. Demain, je demande encore ?",
-                },
-                "push_native": {
-                    "en": "You said no to me. Shall I ask again tomorrow?",
-                    "de": "Du hast Nein gesagt. Frage ich morgen noch einmal?",
-                },
+                "fr": "Demain, est-ce que {who} demande encore ?",
+                "en": "Tomorrow, will {who_en} ask again?",
+                "de": "Fragt {who_de} morgen noch einmal?",
+            },
+            {
+                "fr": "Et maintenant, {who} fait quoi ?",
+                "en": "And now, what will {who_en} do?",
+                "de": "Und was macht {who_de} jetzt?",
+            },
+            {
+                "fr": "Est-ce que {who} a un autre plan ?",
+                "en": "Does {who_en} have another plan?",
+                "de": "Hat {who_de} einen anderen Plan?",
+            },
+            {
+                "fr": "Demain, on voit la suite.",
+                "en": "Tomorrow we'll see what happens next.",
+                "de": "Morgen sehen wir, wie es weitergeht.",
             },
         ],
         "B": [
             {
-                "fr": "Tu as dit non à {name}. Reste à savoir comment {who} va le prendre.",
-                "native": {
-                    "en": "You said no to {name}. It remains to be seen how {who_en} will take it.",
-                    "de": "Du hast {name} Nein gesagt. Bleibt die Frage, wie {who_de} das aufnimmt.",
-                },
-                "push": {
-                    "tu": "Tu m'as dit non. J'y repense ce soir… on en reparle demain ?",
-                    "vous": "Vous m'avez dit non. J'y repense ce soir… on en reparle demain ?",
-                },
-                "push_native": {
-                    "en": "You said no to me. I'm thinking it over tonight… shall we talk tomorrow?",
-                    "de": "Du hast Nein gesagt. Ich denke heute Abend darüber nach… reden wir morgen?",
-                },
+                "fr": "Reste à savoir comment {who} va le prendre.",
+                "en": "It remains to be seen how {who_en} will take it.",
+                "de": "Bleibt die Frage, wie {who_de} das aufnimmt.",
             },
             {
-                "fr": "Tu as dit non à {name}. Est-ce que {who} va insister, ou laisser tomber ?",
-                "native": {
-                    "en": "You said no to {name}. Will {who_en} insist, or let it go?",
-                    "de": "Du hast {name} Nein gesagt. Bleibt {who_de} dran, oder lässt es fallen?",
-                },
-                "push": {
-                    "tu": "Ton non, je l'ai bien entendu. Mais je n'ai pas dit mon dernier mot.",
-                    "vous": "Votre non, je l'ai bien entendu. Mais je n'ai pas dit mon dernier mot.",
-                },
-                "push_native": {
-                    "en": "I heard your no. But I haven't said my last word.",
-                    "de": "Dein Nein habe ich gehört. Aber das letzte Wort ist noch nicht gesprochen.",
-                },
+                "fr": "Est-ce que {who} va insister, ou laisser tomber ?",
+                "en": "Will {who_en} insist, or let it go?",
+                "de": "Bleibt {who_de} dran, oder lässt es fallen?",
+            },
+            {
+                "fr": "Le dernier mot n'est sans doute pas encore dit.",
+                "en": "That is probably not the last word.",
+                "de": "Das letzte Wort ist wohl noch nicht gesprochen.",
+            },
+            {
+                "fr": "Ce refus va-t-il changer quelque chose entre vous ?",
+                "en": "Will that refusal change something between you?",
+                "de": "Ändert diese Absage etwas zwischen euch?",
+            },
+            {
+                "fr": "Reste à voir ce que {who} fera de ce non.",
+                "en": "It remains to be seen what {who_en} will make of that no.",
+                "de": "Bleibt abzuwarten, was {who_de} aus diesem Nein macht.",
             },
         ],
     },
     "agreed": {
         "A": [
             {
-                "fr": "Tu as dit oui à {name}. Et demain, qu'est-ce qui va changer ?",
-                "native": {
-                    "en": "You said yes to {name}. And tomorrow, what will change?",
-                    "de": "Du hast {name} Ja gesagt. Und was ändert sich morgen?",
-                },
-                "push": {
-                    "tu": "Tu m'as dit oui. Merci ! On se voit demain ?",
-                    "vous": "Vous m'avez dit oui. Merci ! On se voit demain ?",
-                },
-                "push_native": {
-                    "en": "You said yes to me. Thank you! See you tomorrow?",
-                    "de": "Du hast Ja gesagt. Danke! Sehen wir uns morgen?",
-                },
+                "fr": "Et demain, qu'est-ce qui va changer ?",
+                "en": "And tomorrow, what will change?",
+                "de": "Und was ändert sich morgen?",
             },
             {
-                "fr": "Tu as dit oui à {name}. Est-ce que tout va bien se passer ?",
-                "native": {
-                    "en": "You said yes to {name}. Will everything go well?",
-                    "de": "Du hast {name} Ja gesagt. Geht alles gut?",
-                },
-                "push": {
-                    "tu": "Tu m'as dit oui. Ça me fait plaisir. À demain ?",
-                    "vous": "Vous m'avez dit oui. Ça me fait plaisir. À demain ?",
-                },
-                "push_native": {
-                    "en": "You said yes to me. That makes me happy. See you tomorrow?",
-                    "de": "Du hast Ja gesagt. Das freut mich. Bis morgen?",
-                },
+                "fr": "Est-ce que tout va bien se passer ?",
+                "en": "Will everything go well?",
+                "de": "Geht alles gut?",
+            },
+            {
+                "fr": "Demain, on voit la suite.",
+                "en": "Tomorrow we'll see what happens next.",
+                "de": "Morgen sehen wir, wie es weitergeht.",
+            },
+            {
+                "fr": "Maintenant, {who} compte sur toi.",
+                "en": "Now {who_en} is counting on you.",
+                "de": "Jetzt zählt {who_de} auf dich.",
+            },
+            {
+                "fr": "Mais est-ce que c'est facile ?",
+                "en": "But is it easy?",
+                "de": "Aber ist das einfach?",
             },
         ],
         "B": [
             {
-                "fr": "Tu as dit oui à {name}. Que va changer ce oui ?",
-                "native": {
-                    "en": "You said yes to {name}. What will that yes change?",
-                    "de": "Du hast {name} Ja gesagt. Was wird dieses Ja verändern?",
-                },
-                "push": {
-                    "tu": "Tu m'as dit oui. Je compte sur toi demain.",
-                    "vous": "Vous m'avez dit oui. Je compte sur vous demain.",
-                },
-                "push_native": {
-                    "en": "You said yes to me. I'm counting on you tomorrow.",
-                    "de": "Du hast Ja gesagt. Ich zähle morgen auf dich.",
-                },
+                "fr": "Que va changer ce oui ?",
+                "en": "What will that yes change?",
+                "de": "Was wird dieses Ja verändern?",
             },
             {
-                "fr": "Tu as dit oui à {name}. Demain, on verra si c'était une bonne idée.",
-                "native": {
-                    "en": "You said yes to {name}. Tomorrow we'll see if it was a good idea.",
-                    "de": "Du hast {name} Ja gesagt. Morgen sehen wir, ob das eine gute Idee war.",
-                },
-                "push": {
-                    "tu": "Tu m'as dit oui. Demain, on voit si j'avais raison de demander.",
-                    "vous": "Vous m'avez dit oui. Demain, on voit si j'avais raison de demander.",
-                },
-                "push_native": {
-                    "en": "You said yes to me. Tomorrow we'll see if I was right to ask.",
-                    "de": "Du hast Ja gesagt. Morgen sehen wir, ob es richtig war zu fragen.",
-                },
+                "fr": "Demain, on verra si c'était une bonne idée.",
+                "en": "Tomorrow we'll see if it was a good idea.",
+                "de": "Morgen sehen wir, ob das eine gute Idee war.",
+            },
+            {
+                "fr": "Reste à voir ce que ce oui va coûter.",
+                "en": "It remains to be seen what that yes will cost.",
+                "de": "Bleibt abzuwarten, was dieses Ja kostet.",
+            },
+            {
+                "fr": "Maintenant, {who} compte sur toi.",
+                "en": "Now {who_en} is counting on you.",
+                "de": "Jetzt zählt {who_de} auf dich.",
+            },
+            {
+                "fr": "Savais-tu vraiment à quoi tu disais oui ?",
+                "en": "Did you really know what you were saying yes to?",
+                "de": "Wusstest du wirklich, wozu du Ja gesagt hast?",
             },
         ],
     },
 }
-#: «Précédemment» on the next day: the decision, said once, in the past.
-_RECALLED = {"refused": "Tu as dit non à {name}.", "agreed": "Tu as dit oui à {name}."}
+
+#: The evening push, in the character's own voice: their question when it is quotable,
+#: what the learner answered them, and one of these tails (by register).
+_PUSH_HEAD = {
+    "refused": {
+        "tu": "Tu m'as dit non.",
+        "vous": "Vous m'avez dit non.",
+        "en": "You said no to me.",
+        "de": "Du hast Nein gesagt.",
+    },
+    "agreed": {
+        "tu": "Tu m'as dit oui.",
+        "vous": "Vous m'avez dit oui.",
+        "en": "You said yes to me.",
+        "de": "Du hast Ja gesagt.",
+    },
+}
+_PUSH_TAILS: dict[str, dict[str, list[dict[str, str]]]] = {
+    "refused": {
+        "A": [
+            {
+                "tu": "J'y pense encore.",
+                "vous": "J'y pense encore.",
+                "en": "I'm still thinking about it.",
+                "de": "Ich denke noch daran.",
+            },
+            {
+                "tu": "Demain, je demande encore ?",
+                "vous": "Demain, je demande encore ?",
+                "en": "Shall I ask again tomorrow?",
+                "de": "Frage ich morgen noch einmal?",
+            },
+        ],
+        "B": [
+            {
+                "tu": "J'y repense ce soir… on en reparle demain ?",
+                "vous": "J'y repense ce soir… on en reparle demain ?",
+                "en": "I'm thinking it over tonight… shall we talk tomorrow?",
+                "de": "Ich denke heute Abend darüber nach… reden wir morgen?",
+            },
+            {
+                "tu": "Mais je n'ai pas dit mon dernier mot.",
+                "vous": "Mais je n'ai pas dit mon dernier mot.",
+                "en": "But I haven't said my last word.",
+                "de": "Aber das letzte Wort ist noch nicht gesprochen.",
+            },
+        ],
+    },
+    "agreed": {
+        "A": [
+            {
+                "tu": "Merci ! On se voit demain ?",
+                "vous": "Merci ! On se voit demain ?",
+                "en": "Thank you! See you tomorrow?",
+                "de": "Danke! Sehen wir uns morgen?",
+            },
+            {
+                "tu": "Ça me fait plaisir. À demain ?",
+                "vous": "Ça me fait plaisir. À demain ?",
+                "en": "That makes me happy. See you tomorrow?",
+                "de": "Das freut mich. Bis morgen?",
+            },
+        ],
+        "B": [
+            {
+                "tu": "Je compte sur toi demain.",
+                "vous": "Je compte sur vous demain.",
+                "en": "I'm counting on you tomorrow.",
+                "de": "Ich zähle morgen auf dich.",
+            },
+            {
+                "tu": "Demain, on voit si j'avais raison de demander.",
+                "vous": "Demain, on voit si j'avais raison de demander.",
+                "en": "Tomorrow we'll see if I was right to ask.",
+                "de": "Morgen sehen wir, ob es richtig war zu fragen.",
+            },
+        ],
+    },
+}
 _PRONOUNS = {"f": ("elle", "she", "sie"), "m": ("il", "he", "er")}
 
 
@@ -245,8 +346,9 @@ def puts_a_choice(line: Any) -> bool:
 def decision(
     opening_line_fr: Any, exchanges: Iterable[Any], ledger: Any = None
 ) -> dict[str, Any] | None:
-    """``{"kind": "refused" | "agreed", "at": index}``: the learner's decision in a scene,
-    or ``None`` when the record holds none.
+    """``{"kind": "refused" | "agreed", "at": index, "asked_fr"}``: the learner's decision
+    in a scene, with the character's question it answered, or ``None`` when the record
+    holds none.
 
     ``exchanges`` are the stored turns (``{"learner", "character", "heard"?}``); a turn's
     reading is the record's (``ledger["turns"]``) where it has one, else
@@ -271,7 +373,13 @@ def decision(
                 or scene_ledger.read_turn(learner, heard=row.get("heard"))["intent"]
             )
             if intent in ("yes", "no") and puts_a_choice(on_the_table):
-                found.append({"kind": "refused" if intent == "no" else "agreed", "at": index})
+                found.append(
+                    {
+                        "kind": "refused" if intent == "no" else "agreed",
+                        "at": index,
+                        "asked_fr": scene_ledger.character_question(on_the_table),
+                    }
+                )
         character = str(row.get("character") or "")
         if character.strip():
             on_the_table = character
@@ -296,31 +404,63 @@ def _words(text: str) -> list[str]:
     return [word for word in re.split(r"\s+", text.strip()) if re.search(r"\w", word)]
 
 
-def problem(line: Any, *, said: Iterable[str] = ()) -> str | None:
+def _runs(text: str, size: int) -> set[str]:
+    words = _folded(text).split()
+    return {" ".join(words[i : i + size]) for i in range(max(0, len(words) - size + 1))}
+
+
+def quotable(asked: Any, *, said: Iterable[str] = ()) -> str | None:
+    """The character's question as it may be quoted, or ``None``: one sentence ending
+    in «?», at most :data:`QUOTED_QUESTION_WORDS` words, no guillemets or slots of its
+    own, opening on a capital, and sharing no three words with what the learner wrote
+    (a character echoing the learner is not quoted, #620)."""
+
+    text = " ".join(str(asked or "").split()).strip()
+    if not text or not text.endswith("?") or not text[:1].isupper():
+        return None
+    if any(mark in text for mark in '«»"“”{}') or "learner" in text.casefold():
+        return None
+    if len(_words(text)) > QUOTED_QUESTION_WORDS or len(text) > 60:
+        return None
+    if re.search(r"[.!?…]", text[:-1]):
+        return None
+    for reply in said:
+        if _runs(text, 3) & _runs(reply, 3):
+            return None
+    return text
+
+
+def problem(line: Any, *, said: Iterable[str] = (), quoted: str | None = None) -> str | None:
     """Why a composed line may not be shown, or ``None``: empty, a slot left unfilled,
-    guillemets (they hold only learner words, and this line holds none), longer than
-    :data:`MAX_WORDS`, not ending as a sentence, or sharing a run of :data:`QUOTE_RUN`
-    words with something the learner wrote (#620, #949: their raw text is never shown)."""
+    guillemets around anything but the character's recorded question (``quoted``), too
+    long (:data:`MAX_WORDS`; :data:`MAX_QUOTED_WORDS` / :data:`MAX_QUOTED_CHARS` with the
+    question), not ending as a sentence, or, outside the character's question, sharing a
+    run of :data:`QUOTE_RUN` words with something the learner wrote (#620, #949: the
+    learner's raw text is never shown)."""
 
     text = " ".join(str(line or "").split())
     if not text:
         return "empty"
     if "{" in text or "}" in text:
         return "slot"
-    if any(mark in text for mark in '«»"“”'):
+    rest = text
+    if quoted:
+        span = f"« {quoted} »"
+        if text.count(span) != 1:
+            return "quote"
+        rest = text.replace(span, " ")
+    if any(mark in rest for mark in '«»"“”'):
         return "quote"
-    if len(_words(text)) > MAX_WORDS:
+    if quoted:
+        if len(_words(text)) > MAX_QUOTED_WORDS or len(text) > MAX_QUOTED_CHARS:
+            return "too_long"
+    elif len(_words(text)) > MAX_WORDS:
         return "too_long"
     if not text.endswith(("?", ".", "…", "!")):
         return "unfinished"
-    own = _folded(text).split()
-    runs = {" ".join(own[i : i + QUOTE_RUN]) for i in range(max(0, len(own) - QUOTE_RUN + 1))}
+    runs = _runs(rest, QUOTE_RUN)
     for reply in said:
-        words = _folded(reply).split()
-        if any(
-            " ".join(words[i : i + QUOTE_RUN]) in runs
-            for i in range(max(0, len(words) - QUOTE_RUN + 1))
-        ):
+        if _runs(reply, QUOTE_RUN) & runs:
             return "learner_quote"
     return None
 
@@ -331,6 +471,26 @@ def _who(character_id: str | None, name: str) -> tuple[str, str, str]:
     found = cast_registry.member(character_id) if character_id else None
     pronouns = _PRONOUNS.get(getattr(found, "gender", "x") or "x")
     return pronouns if pronouns else (name, name, name)
+
+
+def _die(seed: str, *parts: Any) -> int:
+    return int(hashlib.sha256(":".join([seed, *map(str, parts)]).encode()).hexdigest(), 16)
+
+
+def _consequence(
+    kind: str, group: str, slots: dict[str, str], *, seed: str, date: Any, used: list[str]
+) -> dict[str, str]:
+    """The seeded consequence, unless a recent hook said it (two «non» to Lila in a week
+    end on two different questions)."""
+
+    rows = _CONSEQUENCES[kind][group]
+    start = _die(seed, "remembered", date, kind) % len(rows)
+    said_lately = [_folded(line) for line in used]
+    for step in range(len(rows)):
+        row = rows[(start + step) % len(rows)]
+        if not any(_folded(_elide(row["fr"].format(**slots))) in line for line in said_lately):
+            return row
+    return rows[start]
 
 
 def compose(
@@ -345,32 +505,48 @@ def compose(
     authored: dict | None = None,
     used: Iterable[str] = (),
 ) -> dict[str, Any] | None:
-    """The hook row for a decision, or ``None`` when no clean line can be said."""
+    """The hook row for a decision, or ``None`` when no clean line can be said. The
+    line quotes the character's question when it can (:func:`quotable`), else names the
+    character; either way it never holds a word of the learner's."""
 
     name = " ".join(str(name or "").split())
     kind = str(found.get("kind") or "")
-    if not name or kind not in _TEMPLATES:
+    if not name or kind not in _CONSEQUENCES:
         return None
+    said = list(said)
     group = band_group(band)
-    variants = _TEMPLATES[kind][group]
-    pick = int(hashlib.sha256(f"{seed}:remembered:{date}:{kind}".encode()).hexdigest(), 16) % len(
-        variants
-    )
     who, who_en, who_de = _who(character_id, name)
-    slots = {"name": name, "who": who, "who_en": who_en, "who_de": who_de}
-    # The seeded variant, unless a recent hook said it already (two «non» to Lila in a
-    # week are two different lines).
-    used_lines = {_folded(text) for text in used}
-    order = [variants[(pick + step) % len(variants)] for step in range(len(variants))]
-    template = next(
-        (row for row in order if _folded(_elide(row["fr"].format(**slots))) not in used_lines),
-        order[0],
-    )
-    line = _elide(template["fr"].format(**slots))
-    if (issue := problem(line, said=said)) is not None:
-        logger.info("remembered_hook: line refused (%s); the authored hook stands", issue)
+    asked = quotable(found.get("asked_fr"), said=said)
+    slots = {"name": name, "who": who, "who_en": who_en, "who_de": who_de, "asked": asked or ""}
+    consequence = _consequence(kind, group, slots, seed=seed, date=date, used=list(used))
+    line = recalled = ""
+    for form in ("quoted", "plain") if asked else ("plain",):
+        decided = _DECIDED[form][kind]
+        recalled = decided["fr"].format(**slots)
+        line = _elide(f"{recalled} {consequence['fr'].format(**slots)}")
+        quoted = asked if form == "quoted" else None
+        if (issue := problem(line, said=said, quoted=quoted)) is None:
+            break
+        logger.info("remembered_hook: %s line refused (%s)", form, issue)
+    else:
         return None
-    native = {lang: text.format(**slots) for lang, text in template["native"].items()}
+    quoted_form = asked is not None and f"« {asked} »" in line
+    if not quoted_form:
+        slots["asked"] = ""
+    form = "quoted" if quoted_form else "plain"
+    native = {
+        lang: f"{_DECIDED[form][kind][lang].format(**slots)} {consequence[lang].format(**slots)}"
+        for lang in ("en", "de")
+    }
+    tail = _PUSH_TAILS[kind][group][
+        _die(seed, "remembered-push", date, kind) % len(_PUSH_TAILS[kind][group])
+    ]
+    head = _PUSH_HEAD[kind]
+    lead_fr = f"« {asked} » " if quoted_form else ""
+    lead_native = {
+        "en": f"“{asked}” " if quoted_form else "",
+        "de": f"„{asked}“ " if quoted_form else "",
+    }
     return {
         "text_fr": line,
         "open_fr": line,
@@ -384,10 +560,17 @@ def compose(
             "decision": kind,
             "at": found.get("at"),
             "band": group,
-            "recalled_fr": _RECALLED[kind].format(name=name),
+            # The character's own question, as quoted (None when it could not be).
+            "asked_fr": asked if quoted_form else None,
+            "recalled_fr": recalled,
             "native": native,
-            "push_fr": dict(template["push"]),
-            "push_native": dict(template["push_native"]),
+            "push_fr": {
+                register: f"{lead_fr}{head[register]} {tail[register]}"
+                for register in ("tu", "vous")
+            },
+            "push_native": {
+                lang: f"{lead_native[lang]}{head[lang]} {tail[lang]}" for lang in ("en", "de")
+            },
             # The hook this line stands in for: the pick, the contract or the beat that
             # still steers tomorrow's page.
             "authored": {key: (authored or {}).get(key) for key in ("text_fr", "ref", "source")}
@@ -500,5 +683,6 @@ __all__ = [
     "previously",
     "problem",
     "puts_a_choice",
+    "quotable",
     "remember",
 ]

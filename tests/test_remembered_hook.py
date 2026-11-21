@@ -103,6 +103,7 @@ def test_the_record_s_reading_of_a_turn_wins_over_the_words() -> None:
     assert remembered_hook.decision("On partage ?", exchanges, ledger) == {
         "kind": "refused",
         "at": 0,
+        "asked_fr": "On partage ?",
     }
 
 
@@ -246,7 +247,8 @@ def test_a_no_decision_day_keeps_the_authored_hook(monkeypatch, on) -> None:
 
 def test_a_non_is_remembered_as_the_day_s_one_hook(monkeypatch, on) -> None:
     teaser, rows = _settle(monkeypatch, PIZZA_NON)
-    assert teaser["text_fr"].startswith("Tu as dit non à Lila.")
+    # The character's short question is quoted as hers; the learner's words never are.
+    assert teaser["text_fr"].startswith("Lila a demandé : « On partage ? » Tu as dit non.")
     assert teaser["text_fr"] == teaser["open_fr"] == rows[-1]["text_fr"]
     assert rows[-1]["source"] == "remembered"
     assert teaser["character_id"] == "lila_bonnet"
@@ -290,11 +292,12 @@ def test_tomorrow_s_page_and_precedemment_open_on_the_decision(monkeypatch, on) 
     }
     hook = engine.yesterday_hook(live)
     assert hook["text_fr"] == teaser["text_fr"]
-    assert hook["learner_decided_fr"] == "Tu as dit non à Lila."
+    assert hook["learner_decided_fr"] == "Lila a demandé : « On partage ? » Tu as dit non."
     lines = engine._remembered_previously(
         live, ["La pizza de Lila : elle mange seule.", "Une autre ligne.", "Trois."]
     )
-    assert lines[0] == "Tu as dit non à Lila." and len(lines) == engine.PREVIOUSLY_LINES
+    assert lines[0] == "Lila a demandé : « On partage ? » Tu as dit non."
+    assert len(lines) == engine.PREVIOUSLY_LINES
     monkeypatch.setattr(settings, "STORY_REMEMBERED_HOOK", False)
     assert "learner_decided_fr" not in engine.yesterday_hook(live)
     assert engine._remembered_previously(live, ["a"]) == ["a"]
@@ -347,7 +350,14 @@ def sent(db_session, monkeypatch: pytest.MonkeyPatch) -> list[dict]:
 PARIS_1900 = datetime(2026, 11, 21, 18, 0, tzinfo=UTC)
 
 
-def _learner(db_session, *, band: str = "A1", practice: bool = True) -> User:
+def _learner(
+    db_session,
+    *,
+    band: str = "A1",
+    practice: bool = True,
+    streak: int = 3,
+    asked: str | None = None,
+) -> User:
     user = User(
         id=uuid.uuid4(),
         email=f"remembered-{uuid.uuid4().hex[:10]}@example.com",
@@ -362,9 +372,9 @@ def _learner(db_session, *, band: str = "A1", practice: bool = True) -> User:
         practice_reminders=practice,
         streak_notifications=True,
     )
-    user.grammar_streak_days = 3
+    user.grammar_streak_days = streak
     user.grammar_last_review_date = date(2026, 11, 20)
-    user.current_streak = 3
+    user.current_streak = streak
     db_session.add(user)
     db_session.add(
         PushSubscription(
@@ -375,7 +385,7 @@ def _learner(db_session, *, band: str = "A1", practice: bool = True) -> User:
         )
     )
     row = remembered_hook.compose(
-        {"kind": "refused", "at": 0},
+        {"kind": "refused", "at": 0, "asked_fr": asked},
         character_id="lila_bonnet",
         name="Lila",
         band=band,
@@ -434,3 +444,104 @@ def test_without_the_flag_or_with_reminders_off_the_streak_line_stands(
     tasks.send_streak_reminders(now=PARIS_1900.isoformat())
     [push] = _mine(sent, user)
     assert push["data"]["kind"] == "streak_reminder" and "3 jours de suite" in push["message"]
+
+
+def test_a_learner_with_a_one_day_streak_gets_the_hook_on_the_evening_of_day_two(
+    db_session, sent, on
+) -> None:
+    user = _learner(db_session, streak=1, asked="On partage ?")
+    tasks.send_streak_reminders(now=PARIS_1900.isoformat())
+    [push] = _mine(sent, user)
+    assert push["data"]["kind"] == "remembered_hook"
+    assert push["message"].split("\n")[0].startswith("« On partage ? » Vous m'avez dit non.")
+
+
+def test_without_a_hook_a_one_day_streak_gets_nothing(db_session, sent, monkeypatch, on) -> None:
+    user = _learner(db_session, streak=1, practice=False)
+    tasks.send_streak_reminders(now=PARIS_1900.isoformat())
+    assert _mine(sent, user) == []
+
+
+# -- 6. what was decided: the character's question, quoted as theirs ---------------------
+
+
+@pytest.mark.parametrize("band", ["A1", "B1", "C1"])
+@pytest.mark.parametrize("kind", ["refused", "agreed"])
+@pytest.mark.parametrize("seed", ["a", "b", "c", "d", "e"])
+def test_a_short_question_is_quoted_as_the_character_s(band, kind, seed) -> None:
+    row = remembered_hook.compose(
+        {"kind": kind, "asked_fr": "Tu viens au marché avec moi ?"},
+        character_id="lila_bonnet",
+        name="Lila",
+        band=band,
+        seed=seed,
+        date="d",
+    )
+    line = row["text_fr"]
+    said = "non" if kind == "refused" else "oui"
+    assert line.startswith(f"Lila a demandé : « Tu viens au marché avec moi ? » Tu as dit {said}.")
+    assert remembered_hook.problem(line, quoted="Tu viens au marché avec moi ?") is None
+    assert len(line) <= remembered_hook.MAX_QUOTED_CHARS
+    assert (
+        row["remembered"]["recalled_fr"]
+        == f"Lila a demandé : « Tu viens au marché avec moi ? » Tu as dit {said}."
+    )
+    assert row["remembered"]["push_fr"]["tu"].startswith(
+        "« Tu viens au marché avec moi ? » Tu m'as dit"
+    )
+    assert row["remembered"]["native"]["de"].startswith(
+        "Lila hat gefragt: „Tu viens au marché avec moi ?“"
+    )
+
+
+@pytest.mark.parametrize(
+    ("asked", "said"),
+    [
+        ("Tu viens au marché avec moi samedi matin ?", []),  # eight words
+        ("On partage ? Ou tu manges seul ?", []),  # two sentences
+        ("Tu aimes le poisson, Napoléon ?", ["Oui. Et toi, tu aimes le poisson ?"]),  # echo
+        (None, []),
+    ],
+    ids=["long", "two-sentences", "echo", "none"],
+)
+def test_a_question_that_cannot_be_quoted_falls_back_to_the_name(asked, said) -> None:
+    row = remembered_hook.compose(
+        {"kind": "refused", "asked_fr": asked},
+        character_id="lila_bonnet",
+        name="Lila",
+        band="A1",
+        seed="s",
+        date="d",
+        said=said,
+    )
+    assert row["text_fr"].startswith("Tu as dit non à Lila.") and "«" not in row["text_fr"]
+    assert row["remembered"]["asked_fr"] is None
+
+
+def test_guillemets_hold_only_the_character_s_recorded_question() -> None:
+    line = "Lila a demandé : « On partage ? » Tu as dit non. Demain, on voit la suite."
+    assert remembered_hook.problem(line, quoted="On partage ?") is None
+    assert remembered_hook.problem(line) == "quote"
+    assert remembered_hook.problem(line, quoted="Tu restes ?") == "quote"
+    learner = "Lila a demandé : « Je ne partage pas la pizza ? » Tu as dit non."
+    assert remembered_hook.problem(learner, quoted="On partage ?") == "quote"
+
+
+def test_every_cell_has_four_consequences_and_a_week_of_non_never_repeats() -> None:
+    for kind, groups in remembered_hook._CONSEQUENCES.items():
+        for group, rows in groups.items():
+            assert len(rows) >= 4, (kind, group)
+    for band in ("A1", "B1"):
+        used: list[str] = []
+        for day in range(1, 5):
+            row = remembered_hook.compose(
+                {"kind": "refused", "asked_fr": "On partage ?"},
+                character_id="lila_bonnet",
+                name="Lila",
+                band=band,
+                seed="week",
+                date=f"2026-11-{day:02d}",
+                used=used,
+            )
+            assert row["text_fr"] not in used, (band, day, used)
+            used.append(row["text_fr"])

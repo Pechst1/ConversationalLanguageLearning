@@ -12218,7 +12218,9 @@ def _hook_after_day(
 
     def remembered(teaser: dict | None) -> dict | None:
         # STORY_REMEMBERED_HOOK: the learner's decision in this scene, said and left open;
-        # off, or with no decision in the record, the hook as it was chosen above.
+        # off, or with no decision in the record, the hook as it was chosen above. After
+        # ``one_hook``: a line that quotes the character's question is two sentences,
+        # already capped by ``remembered_hook.problem``, and is filed whole.
         from app.services import remembered_hook
 
         if not remembered_hook.enabled():
@@ -12249,7 +12251,7 @@ def _hook_after_day(
         ) or story_teaser_main.next_teaser(
             live, world_after, character_id=brief.character_id, register=register, date=date, seed=seed, name=name
         )
-        teaser = one_hook(remembered(teaser))
+        teaser = remembered(one_hook(teaser))
         teasers = story_teaser_main.teasers_after(live, teaser)
     else:
         # #466: what the reader carries into tomorrow: the writer's question, else the
@@ -12277,7 +12279,7 @@ def _hook_after_day(
             clean=_clean_learner_lines(journey, act=act),
             question=question or still_open(question_left_open(ledger)),
         )
-        teaser = one_hook(remembered(teaser))
+        teaser = remembered(one_hook(teaser))
         teasers = teasers_after(live, teaser)
     return teaser, teasers
 
