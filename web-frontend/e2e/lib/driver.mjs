@@ -171,6 +171,11 @@ export const SNAPSHOT_FN = ({ typeable, wordBankTile }) => {
     // left: the walk's `nextStep` reads `data-fertig` to tell the day's end from a stop).
     homeDone: location.pathname.startsWith('/fertig') || (/^\/atelier/.test(location.pathname) && /Done for today|Fini pour aujourd|Journée bouclée|Fertig für heute|Für heute (fertig|geschafft|erledigt)/i.test((document.querySelector('main') || document.body).innerText || '')),
     forgeStep: q('[data-step=forge]').length,
+    // #954: a La Forge item's head, whether it is a rule check's (its épreuve eyebrow), and
+    // the rule check's result line («3 von 3 richtig, …»), for `rule-check-tally-matches-its-items`.
+    forgeHead: q('.forge-head').length,
+    testOut: q('.forge-head__eyebrow').length > 0,
+    forgeResult: (q('.forge-result__sub')[0] || {}).innerText || '',
     // A request the screen says is in flight (Action's `pending`: disabled,
     // aria-busy, «La scène se prépare…»): waiting, not stuck.
     pending: document.querySelector('[data-pending="true"], [aria-busy="true"]') !== null,

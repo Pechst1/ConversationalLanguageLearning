@@ -236,7 +236,11 @@ def test_the_weekly_quota_follows_the_rhythm_and_is_spread_out(db_session: Sessi
     db_session.add(concept)
     db_session.flush()
     assert concept_life.introduction_due(db_session, user, now=DAY0)
-    concept_life.mark_introduced(db_session, user=user, concept_id=concept.id, now=DAY0)
+    # The Règle is read: a completed rule step, then ``mark_introduced`` (#895:
+    # the intake counts only taught rules, never a bare ``introduced_at``).
+    from tests.test_taught_rule_698 import read_rule_card
+
+    read_rule_card(db_session, user, concept.id, at=DAY0)
     # Régulier (2026-10-03): four a week, never two on one day.
     assert not concept_life.introduction_due(db_session, user, now=DAY0 + timedelta(hours=6))
     assert concept_life.introduction_due(db_session, user, now=DAY0 + timedelta(days=1))

@@ -749,6 +749,8 @@ class RuleCardPattern(_RuleCardModel):
 class RuleCardContrast(_RuleCardModel):
     wrong: str
     right: str
+    #: #774: why the lead pair is wrong, as a trap says it (read by the recall's miss note).
+    why: dict[str, str] | None = None
 
 
 class RuleCardTrap(_RuleCardModel):

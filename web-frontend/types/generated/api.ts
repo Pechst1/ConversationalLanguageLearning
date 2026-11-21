@@ -12611,6 +12611,10 @@ export interface components {
         RuleCardContrast: {
             /** Right */
             right: string;
+            /** Why */
+            why?: {
+                [key: string]: string;
+            } | null;
             /** Wrong */
             wrong: string;
         };
