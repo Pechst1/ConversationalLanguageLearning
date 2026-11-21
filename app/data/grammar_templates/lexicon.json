@@ -17610,6 +17610,3574 @@
     "en": "If it were possible",
     "tags": []
    }
+  ],
+  "dp_obj": [
+   {
+    "id": "dp_rapport",
+    "fr": "le rapport",
+    "cap": "Le rapport",
+    "pro": "le",
+    "v1": "envoie",
+    "inf": "envoyer",
+    "pp": "envoyé",
+    "en": "the report",
+    "en_cap": "The report",
+    "en_to": "send it to",
+    "en_pp_to": "sent it to",
+    "tags": [
+     "m",
+     "vowel",
+     "find"
+    ],
+    "kinds": [
+     "work",
+     "family"
+    ],
+    "pro_el": "l'"
+   },
+   {
+    "id": "dp_cles",
+    "fr": "les clés",
+    "cap": "Les clés",
+    "pro": "les",
+    "v1": "rends",
+    "inf": "rendre",
+    "pp": "rendu",
+    "en": "the keys",
+    "en_cap": "The keys",
+    "en_to": "give them back to",
+    "en_pp_to": "given them back to",
+    "tags": [
+     "pl"
+    ],
+    "kinds": [
+     "family",
+     "neighbour",
+     "landlord",
+     "friend"
+    ],
+    "pro_el": "les "
+   },
+   {
+    "id": "dp_recette",
+    "fr": "la recette",
+    "cap": "La recette",
+    "pro": "la",
+    "v1": "envoie",
+    "inf": "envoyer",
+    "pp": "envoyée",
+    "en": "the recipe",
+    "en_cap": "The recipe",
+    "en_to": "send it to",
+    "en_pp_to": "sent it to",
+    "tags": [
+     "f",
+     "vowel"
+    ],
+    "kinds": [
+     "family",
+     "neighbour",
+     "friend"
+    ],
+    "pro_el": "l'"
+   },
+   {
+    "id": "dp_photos",
+    "fr": "les photos",
+    "cap": "Les photos",
+    "pro": "les",
+    "v1": "montre",
+    "inf": "montrer",
+    "pp": "montrées",
+    "en": "the photos",
+    "en_cap": "The photos",
+    "en_to": "show them to",
+    "en_pp_to": "shown them to",
+    "tags": [
+     "pl",
+     "share"
+    ],
+    "kinds": [
+     "family",
+     "neighbour",
+     "landlord",
+     "friend",
+     "work"
+    ],
+    "pro_el": "les "
+   },
+   {
+    "id": "dp_livre",
+    "fr": "le livre",
+    "cap": "Le livre",
+    "pro": "le",
+    "v1": "prête",
+    "inf": "prêter",
+    "pp": "prêté",
+    "en": "the book",
+    "en_cap": "The book",
+    "en_to": "lend it to",
+    "en_pp_to": "lent it to",
+    "tags": [
+     "m",
+     "share",
+     "find"
+    ],
+    "kinds": [
+     "family",
+     "neighbour",
+     "friend",
+     "work"
+    ],
+    "pro_el": "l'"
+   },
+   {
+    "id": "dp_facture",
+    "fr": "la facture",
+    "cap": "La facture",
+    "pro": "la",
+    "v1": "envoie",
+    "inf": "envoyer",
+    "pp": "envoyée",
+    "en": "the bill",
+    "en_cap": "The bill",
+    "en_to": "send it to",
+    "en_pp_to": "sent it to",
+    "tags": [
+     "f",
+     "vowel"
+    ],
+    "kinds": [
+     "landlord",
+     "work"
+    ],
+    "pro_el": "l'"
+   },
+   {
+    "id": "dp_parapluie",
+    "fr": "le parapluie",
+    "cap": "Le parapluie",
+    "pro": "le",
+    "v1": "rapporte",
+    "inf": "rapporter",
+    "pp": "rapporté",
+    "en": "the umbrella",
+    "en_cap": "The umbrella",
+    "en_to": "bring it back to",
+    "en_pp_to": "brought it back to",
+    "tags": [
+     "m",
+     "find"
+    ],
+    "kinds": [
+     "family",
+     "neighbour",
+     "friend",
+     "work"
+    ],
+    "pro_el": "l'"
+   },
+   {
+    "id": "dp_billets",
+    "fr": "les billets",
+    "cap": "Les billets",
+    "pro": "les",
+    "v1": "donne",
+    "inf": "donner",
+    "pp": "donnés",
+    "en": "the tickets",
+    "en_cap": "The tickets",
+    "en_to": "give them to",
+    "en_pp_to": "given them to",
+    "tags": [
+     "pl",
+     "share"
+    ],
+    "kinds": [
+     "family",
+     "friend"
+    ],
+    "pro_el": "les "
+   },
+   {
+    "id": "dp_gateau",
+    "fr": "le gâteau",
+    "cap": "Le gâteau",
+    "pro": "le",
+    "v1": "apporte",
+    "inf": "apporter",
+    "pp": "apporté",
+    "en": "the cake",
+    "en_cap": "The cake",
+    "en_to": "bring it to",
+    "en_pp_to": "brought it to",
+    "tags": [
+     "m",
+     "vowel"
+    ],
+    "kinds": [
+     "family",
+     "neighbour",
+     "friend",
+     "work"
+    ],
+    "pro_el": "l'"
+   },
+   {
+    "id": "dp_code",
+    "fr": "le code du wifi",
+    "cap": "Le code du wifi",
+    "pro": "le",
+    "v1": "donne",
+    "inf": "donner",
+    "pp": "donné",
+    "en": "the wifi code",
+    "en_cap": "The wifi code",
+    "en_to": "give it to",
+    "en_pp_to": "given it to",
+    "tags": [
+     "m",
+     "share",
+     "find"
+    ],
+    "kinds": [
+     "family",
+     "friend",
+     "neighbour"
+    ],
+    "pro_el": "l'"
+   },
+   {
+    "id": "dp_voiture",
+    "fr": "la voiture",
+    "cap": "La voiture",
+    "pro": "la",
+    "v1": "prête",
+    "inf": "prêter",
+    "pp": "prêtée",
+    "en": "the car",
+    "en_cap": "The car",
+    "en_to": "lend it to",
+    "en_pp_to": "lent it to",
+    "tags": [
+     "f",
+     "share"
+    ],
+    "kinds": [
+     "family",
+     "friend"
+    ],
+    "pro_el": "l'"
+   },
+   {
+    "id": "dp_lien",
+    "fr": "le lien",
+    "cap": "Le lien",
+    "pro": "le",
+    "v1": "envoie",
+    "inf": "envoyer",
+    "pp": "envoyé",
+    "en": "the link",
+    "en_cap": "The link",
+    "en_to": "send it to",
+    "en_pp_to": "sent it to",
+    "tags": [
+     "m",
+     "vowel",
+     "find"
+    ],
+    "kinds": [
+     "work",
+     "family",
+     "friend"
+    ],
+    "pro_el": "l'"
+   },
+   {
+    "id": "dp_numero",
+    "fr": "le numéro du plombier",
+    "cap": "Le numéro du plombier",
+    "pro": "le",
+    "v1": "donne",
+    "inf": "donner",
+    "pp": "donné",
+    "en": "the plumber's number",
+    "en_cap": "The plumber's number",
+    "en_to": "give it to",
+    "en_pp_to": "given it to",
+    "tags": [
+     "m",
+     "share",
+     "find"
+    ],
+    "kinds": [
+     "neighbour",
+     "landlord",
+     "family"
+    ],
+    "pro_el": "l'"
+   },
+   {
+    "id": "dp_adresse",
+    "fr": "l'adresse",
+    "cap": "L'adresse",
+    "pro": "la",
+    "v1": "envoie",
+    "inf": "envoyer",
+    "pp": "envoyée",
+    "en": "the address",
+    "en_cap": "The address",
+    "en_to": "send it to",
+    "en_pp_to": "sent it to",
+    "tags": [
+     "f",
+     "vowel"
+    ],
+    "kinds": [
+     "family",
+     "friend",
+     "work"
+    ],
+    "pro_el": "l'"
+   }
+  ],
+  "dp_who": [
+   {
+    "id": "dw_soeur",
+    "fr": "ta sœur",
+    "cap": "Ta sœur",
+    "lui": "lui",
+    "g": "f",
+    "attend": "attend",
+    "cherche": "cherche",
+    "na_plus": "n'a plus",
+    "sait_rien": "ne sait encore rien",
+    "en": "your sister",
+    "en_cap": "Your sister",
+    "en_obj": "her",
+    "en_is": "Is",
+    "en_has": "has",
+    "en_knows": "doesn't know anything yet",
+    "tags": [
+     "family",
+     "sg"
+    ]
+   },
+   {
+    "id": "dw_frere",
+    "fr": "ton frère",
+    "cap": "Ton frère",
+    "lui": "lui",
+    "g": "m",
+    "attend": "attend",
+    "cherche": "cherche",
+    "na_plus": "n'a plus",
+    "sait_rien": "ne sait encore rien",
+    "en": "your brother",
+    "en_cap": "Your brother",
+    "en_obj": "him",
+    "en_is": "Is",
+    "en_has": "has",
+    "en_knows": "doesn't know anything yet",
+    "tags": [
+     "family",
+     "sg"
+    ]
+   },
+   {
+    "id": "dw_parents",
+    "fr": "tes parents",
+    "cap": "Tes parents",
+    "lui": "leur",
+    "g": "m",
+    "attend": "attendent",
+    "cherche": "cherchent",
+    "na_plus": "n'ont plus",
+    "sait_rien": "ne savent encore rien",
+    "en": "your parents",
+    "en_cap": "Your parents",
+    "en_obj": "them",
+    "en_is": "Are",
+    "en_has": "have",
+    "en_knows": "don't know anything yet",
+    "tags": [
+     "family",
+     "pl"
+    ]
+   },
+   {
+    "id": "dw_voisine",
+    "fr": "la voisine",
+    "cap": "La voisine",
+    "lui": "lui",
+    "g": "f",
+    "attend": "attend",
+    "cherche": "cherche",
+    "na_plus": "n'a plus",
+    "sait_rien": "ne sait encore rien",
+    "en": "the neighbour",
+    "en_cap": "The neighbour",
+    "en_obj": "her",
+    "en_is": "Is",
+    "en_has": "has",
+    "en_knows": "doesn't know anything yet",
+    "tags": [
+     "neighbour",
+     "sg"
+    ]
+   },
+   {
+    "id": "dw_voisins",
+    "fr": "les voisins",
+    "cap": "Les voisins",
+    "lui": "leur",
+    "g": "m",
+    "attend": "attendent",
+    "cherche": "cherchent",
+    "na_plus": "n'ont plus",
+    "sait_rien": "ne savent encore rien",
+    "en": "the neighbours",
+    "en_cap": "The neighbours",
+    "en_obj": "them",
+    "en_is": "Are",
+    "en_has": "have",
+    "en_knows": "don't know anything yet",
+    "tags": [
+     "neighbour",
+     "pl"
+    ]
+   },
+   {
+    "id": "dw_collegue",
+    "fr": "ton collègue",
+    "cap": "Ton collègue",
+    "lui": "lui",
+    "g": "m",
+    "attend": "attend",
+    "cherche": "cherche",
+    "na_plus": "n'a plus",
+    "sait_rien": "ne sait encore rien",
+    "en": "your colleague",
+    "en_cap": "Your colleague",
+    "en_obj": "him",
+    "en_is": "Is",
+    "en_has": "has",
+    "en_knows": "doesn't know anything yet",
+    "tags": [
+     "work",
+     "sg"
+    ]
+   },
+   {
+    "id": "dw_proprio",
+    "fr": "le propriétaire",
+    "cap": "Le propriétaire",
+    "lui": "lui",
+    "g": "m",
+    "attend": "attend",
+    "cherche": "cherche",
+    "na_plus": "n'a plus",
+    "sait_rien": "ne sait encore rien",
+    "en": "the landlord",
+    "en_cap": "The landlord",
+    "en_obj": "him",
+    "en_is": "Is",
+    "en_has": "has",
+    "en_knows": "doesn't know anything yet",
+    "tags": [
+     "landlord",
+     "sg"
+    ]
+   },
+   {
+    "id": "dw_copine",
+    "fr": "ta copine",
+    "cap": "Ta copine",
+    "lui": "lui",
+    "g": "f",
+    "attend": "attend",
+    "cherche": "cherche",
+    "na_plus": "n'a plus",
+    "sait_rien": "ne sait encore rien",
+    "en": "your friend",
+    "en_cap": "Your friend",
+    "en_obj": "her",
+    "en_is": "Is",
+    "en_has": "has",
+    "en_knows": "doesn't know anything yet",
+    "tags": [
+     "friend",
+     "sg"
+    ]
+   },
+   {
+    "id": "dw_amis",
+    "fr": "tes amis",
+    "cap": "Tes amis",
+    "lui": "leur",
+    "g": "m",
+    "attend": "attendent",
+    "cherche": "cherchent",
+    "na_plus": "n'ont plus",
+    "sait_rien": "ne savent encore rien",
+    "en": "your friends",
+    "en_cap": "Your friends",
+    "en_obj": "them",
+    "en_is": "Are",
+    "en_has": "have",
+    "en_knows": "don't know anything yet",
+    "tags": [
+     "friend",
+     "pl"
+    ]
+   }
+  ],
+  "dp_when": [
+   {
+    "id": "dt_soir",
+    "fr": "ce soir",
+    "en": "tonight",
+    "tags": []
+   },
+   {
+    "id": "dt_demain",
+    "fr": "demain matin",
+    "en": "tomorrow morning",
+    "tags": []
+   },
+   {
+    "id": "dt_aprem",
+    "fr": "cet après-midi",
+    "en": "this afternoon",
+    "tags": []
+   },
+   {
+    "id": "dt_midi",
+    "fr": "avant midi",
+    "en": "before noon",
+    "tags": []
+   },
+   {
+    "id": "dt_travail",
+    "fr": "après le travail",
+    "en": "after work",
+    "tags": []
+   },
+   {
+    "id": "dt_samedi",
+    "fr": "samedi",
+    "en": "on Saturday",
+    "tags": []
+   }
+  ],
+  "dp_today": [
+   {
+    "id": "dd_auj",
+    "fr": "aujourd'hui",
+    "en": "today",
+    "tags": []
+   },
+   {
+    "id": "dd_soir",
+    "fr": "ce soir",
+    "en": "tonight",
+    "tags": []
+   },
+   {
+    "id": "dd_semaine",
+    "fr": "cette semaine",
+    "en": "this week",
+    "tags": []
+   },
+   {
+    "id": "dd_maint",
+    "fr": "maintenant",
+    "en": "right now",
+    "tags": []
+   }
+  ],
+  "dp_topic": [
+   {
+    "id": "tp_concert",
+    "fr": "le concert",
+    "cap": "Le concert",
+    "en": "the concert",
+    "en_cap": "The concert",
+    "tags": []
+   },
+   {
+    "id": "tp_fete",
+    "fr": "la fête des voisins",
+    "cap": "La fête des voisins",
+    "en": "the street party",
+    "en_cap": "The street party",
+    "tags": []
+   },
+   {
+    "id": "tp_bar",
+    "fr": "le nouveau bar",
+    "cap": "Le nouveau bar",
+    "en": "the new bar",
+    "en_cap": "The new bar",
+    "tags": []
+   },
+   {
+    "id": "tp_expo",
+    "fr": "l'expo",
+    "cap": "L'expo",
+    "en": "the exhibition",
+    "en_cap": "The exhibition",
+    "tags": []
+   },
+   {
+    "id": "tp_travaux",
+    "fr": "les travaux",
+    "cap": "Les travaux",
+    "en": "the building work",
+    "en_cap": "The building work",
+    "tags": []
+   },
+   {
+    "id": "tp_reunion",
+    "fr": "la réunion",
+    "cap": "La réunion",
+    "en": "the meeting",
+    "en_cap": "The meeting",
+    "tags": []
+   },
+   {
+    "id": "tp_videgrenier",
+    "fr": "le vide-grenier",
+    "cap": "Le vide-grenier",
+    "en": "the flea market",
+    "en_cap": "The flea market",
+    "tags": []
+   },
+   {
+    "id": "tp_greve",
+    "fr": "la grève",
+    "cap": "La grève",
+    "en": "the strike",
+    "en_cap": "The strike",
+    "tags": []
+   }
+  ],
+  "dp_teller": [
+   {
+    "id": "tl_soeur",
+    "fr": "Ma sœur",
+    "low": "ta sœur",
+    "en": "My sister",
+    "en_low": "your sister",
+    "tags": []
+   },
+   {
+    "id": "tl_frere",
+    "fr": "Mon frère",
+    "low": "ton frère",
+    "en": "My brother",
+    "en_low": "your brother",
+    "tags": []
+   },
+   {
+    "id": "tl_collegue",
+    "fr": "Mon collègue",
+    "low": "ton collègue",
+    "en": "My colleague",
+    "en_low": "your colleague",
+    "tags": []
+   },
+   {
+    "id": "tl_voisine",
+    "fr": "La voisine",
+    "low": "la voisine",
+    "en": "The neighbour",
+    "en_low": "the neighbour",
+    "tags": []
+   },
+   {
+    "id": "tl_coloc",
+    "fr": "Ma colocataire",
+    "low": "ta colocataire",
+    "en": "My flatmate",
+    "en_low": "your flatmate",
+    "tags": []
+   },
+   {
+    "id": "tl_proprio",
+    "fr": "Le propriétaire",
+    "low": "le propriétaire",
+    "en": "The landlord",
+    "en_low": "the landlord",
+    "tags": []
+   }
+  ],
+  "dp_past": [
+   {
+    "id": "dpt_hier",
+    "fr": "hier",
+    "en": "yesterday",
+    "tags": []
+   },
+   {
+    "id": "dpt_matin",
+    "fr": "ce matin",
+    "en": "this morning",
+    "tags": []
+   },
+   {
+    "id": "dpt_semaine",
+    "fr": "la semaine dernière",
+    "en": "last week",
+    "tags": []
+   },
+   {
+    "id": "dpt_soir",
+    "fr": "hier soir",
+    "en": "last night",
+    "tags": []
+   },
+   {
+    "id": "dpt_lundi",
+    "fr": "lundi",
+    "en": "on Monday",
+    "tags": []
+   }
+  ],
+  "dp_food": [
+   {
+    "id": "df_sel",
+    "fr": "sel",
+    "de_fr": "de sel",
+    "en": "salt",
+    "tags": []
+   },
+   {
+    "id": "df_sucre",
+    "fr": "sucre",
+    "de_fr": "de sucre",
+    "en": "sugar",
+    "tags": []
+   },
+   {
+    "id": "df_cafe",
+    "fr": "café",
+    "de_fr": "de café",
+    "en": "coffee",
+    "tags": []
+   },
+   {
+    "id": "df_lait",
+    "fr": "lait",
+    "de_fr": "de lait",
+    "en": "milk",
+    "tags": []
+   },
+   {
+    "id": "df_oeufs",
+    "fr": "œufs",
+    "de_fr": "d'œufs",
+    "en": "eggs",
+    "tags": []
+   },
+   {
+    "id": "df_farine",
+    "fr": "farine",
+    "de_fr": "de farine",
+    "en": "flour",
+    "tags": []
+   },
+   {
+    "id": "df_pain",
+    "fr": "pain",
+    "de_fr": "de pain",
+    "en": "bread",
+    "tags": []
+   },
+   {
+    "id": "df_bougies",
+    "fr": "bougies",
+    "de_fr": "de bougies",
+    "en": "candles",
+    "tags": []
+   }
+  ],
+  "dp_place": [
+   {
+    "id": "dpl_cafe",
+    "cap": "Le café du coin",
+    "fr": "le café du coin",
+    "en_cap": "The café on the corner",
+    "en": "the café on the corner",
+    "tags": []
+   },
+   {
+    "id": "dpl_gare",
+    "cap": "La gare",
+    "fr": "la gare",
+    "en_cap": "The station",
+    "en": "the station",
+    "tags": []
+   },
+   {
+    "id": "dpl_marche",
+    "cap": "Le marché",
+    "fr": "le marché",
+    "en_cap": "The market",
+    "en": "the market",
+    "tags": []
+   },
+   {
+    "id": "dpl_biblio",
+    "cap": "La bibliothèque",
+    "fr": "la bibliothèque",
+    "en_cap": "The library",
+    "en": "the library",
+    "tags": []
+   },
+   {
+    "id": "dpl_parc",
+    "cap": "Le parc",
+    "fr": "le parc",
+    "en_cap": "The park",
+    "en": "the park",
+    "tags": []
+   },
+   {
+    "id": "dpl_cinema",
+    "cap": "Le cinéma",
+    "fr": "le cinéma",
+    "en_cap": "The cinema",
+    "en": "the cinema",
+    "tags": []
+   },
+   {
+    "id": "dpl_piscine",
+    "cap": "La piscine",
+    "fr": "la piscine",
+    "en_cap": "The pool",
+    "en": "the pool",
+    "tags": []
+   }
+  ],
+  "dp_hour": [
+   {
+    "id": "dh_huit",
+    "fr": "à huit heures",
+    "en": "at eight",
+    "tags": []
+   },
+   {
+    "id": "dh_midi",
+    "fr": "à midi",
+    "en": "at noon",
+    "tags": []
+   },
+   {
+    "id": "dh_heure",
+    "fr": "dans une heure",
+    "en": "in an hour",
+    "tags": []
+   },
+   {
+    "id": "dh_dixhuit",
+    "fr": "à dix-huit heures",
+    "en": "at six",
+    "tags": []
+   },
+   {
+    "id": "dh_travail",
+    "fr": "après le travail",
+    "en": "after work",
+    "tags": []
+   }
+  ],
+  "dont_thing": [
+   {
+    "id": "dx_resto",
+    "fr": "le restaurant",
+    "en": "the restaurant",
+    "tags": []
+   },
+   {
+    "id": "dx_collegue",
+    "fr": "le collègue",
+    "en": "the colleague",
+    "tags": [
+     "person"
+    ]
+   },
+   {
+    "id": "dx_boulangerie",
+    "fr": "la boulangerie",
+    "en": "the bakery",
+    "tags": []
+   },
+   {
+    "id": "dx_film",
+    "fr": "le film",
+    "en": "the film",
+    "tags": []
+   },
+   {
+    "id": "dx_appart",
+    "fr": "l'appartement",
+    "en": "the flat",
+    "tags": []
+   },
+   {
+    "id": "dx_serie",
+    "fr": "la série",
+    "en": "the series",
+    "tags": []
+   },
+   {
+    "id": "dx_livre",
+    "fr": "le livre",
+    "en": "the book",
+    "tags": []
+   },
+   {
+    "id": "dx_bar",
+    "fr": "le bar",
+    "en": "the bar",
+    "tags": []
+   },
+   {
+    "id": "dx_expo",
+    "fr": "l'expo",
+    "en": "the exhibition",
+    "tags": []
+   },
+   {
+    "id": "dx_voisine",
+    "fr": "la voisine",
+    "en": "the neighbour",
+    "tags": [
+     "person"
+    ]
+   },
+   {
+    "id": "dx_plombier",
+    "fr": "le plombier",
+    "en": "the plumber",
+    "tags": [
+     "person"
+    ]
+   },
+   {
+    "id": "dx_appli",
+    "fr": "l'appli",
+    "en": "the app",
+    "tags": []
+   },
+   {
+    "id": "dx_marche",
+    "fr": "le marché",
+    "en": "the market",
+    "tags": []
+   },
+   {
+    "id": "dx_piscine",
+    "fr": "la piscine",
+    "en": "the swimming pool",
+    "tags": []
+   },
+   {
+    "id": "dx_yoga",
+    "fr": "le prof de yoga",
+    "en": "the yoga teacher",
+    "tags": [
+     "person"
+    ]
+   },
+   {
+    "id": "dx_brocante",
+    "fr": "la brocante",
+    "en": "the flea market",
+    "tags": []
+   },
+   {
+    "id": "dx_podcast",
+    "fr": "le podcast",
+    "en": "the podcast",
+    "tags": []
+   },
+   {
+    "id": "dx_recette",
+    "fr": "la recette",
+    "en": "the recipe",
+    "tags": []
+   }
+  ],
+  "dont_teller": [
+   {
+    "id": "dtl_soeur",
+    "fr": "ma sœur",
+    "en": "my sister",
+    "tags": []
+   },
+   {
+    "id": "dtl_frere",
+    "fr": "mon frère",
+    "en": "my brother",
+    "tags": []
+   },
+   {
+    "id": "dtl_collegue",
+    "fr": "ma collègue",
+    "en": "my colleague",
+    "tags": []
+   },
+   {
+    "id": "dtl_coloc",
+    "fr": "mon colocataire",
+    "en": "my flatmate",
+    "tags": []
+   },
+   {
+    "id": "dtl_ami",
+    "fr": "un ami",
+    "en": "a friend",
+    "tags": []
+   }
+  ],
+  "dont_need": [
+   {
+    "id": "dn_ordi",
+    "fr": "l'ordinateur",
+    "cap": "L'ordinateur",
+    "cost": "coûte",
+    "en": "the computer",
+    "en_cap": "The computer",
+    "en_is": "is",
+    "tags": []
+   },
+   {
+    "id": "dn_velo",
+    "fr": "le vélo",
+    "cap": "Le vélo",
+    "cost": "coûte",
+    "en": "the bike",
+    "en_cap": "The bike",
+    "en_is": "is",
+    "tags": []
+   },
+   {
+    "id": "dn_valise",
+    "fr": "la valise",
+    "cap": "La valise",
+    "cost": "coûte",
+    "en": "the suitcase",
+    "en_cap": "The suitcase",
+    "en_is": "is",
+    "tags": []
+   },
+   {
+    "id": "dn_chaussures",
+    "fr": "les chaussures",
+    "cap": "Les chaussures",
+    "cost": "coûtent",
+    "en": "the shoes",
+    "en_cap": "The shoes",
+    "en_is": "are",
+    "tags": []
+   },
+   {
+    "id": "dn_canape",
+    "fr": "le canapé",
+    "cap": "Le canapé",
+    "cost": "coûte",
+    "en": "the sofa",
+    "en_cap": "The sofa",
+    "en_is": "is",
+    "tags": []
+   },
+   {
+    "id": "dn_sac",
+    "fr": "le sac à dos",
+    "cap": "Le sac à dos",
+    "cost": "coûte",
+    "en": "the backpack",
+    "en_cap": "The backpack",
+    "en_is": "is",
+    "tags": []
+   },
+   {
+    "id": "dn_lampe",
+    "fr": "la lampe",
+    "cap": "La lampe",
+    "cost": "coûte",
+    "en": "the lamp",
+    "en_cap": "The lamp",
+    "en_is": "is",
+    "tags": []
+   },
+   {
+    "id": "dn_bureau",
+    "fr": "le bureau",
+    "cap": "Le bureau",
+    "cost": "coûte",
+    "en": "the desk",
+    "en_cap": "The desk",
+    "en_is": "is",
+    "tags": []
+   },
+   {
+    "id": "dn_rideaux",
+    "fr": "les rideaux",
+    "cap": "Les rideaux",
+    "cost": "coûtent",
+    "en": "the curtains",
+    "en_cap": "The curtains",
+    "en_is": "are",
+    "tags": []
+   },
+   {
+    "id": "dn_cafe",
+    "fr": "la machine à café",
+    "cap": "La machine à café",
+    "cost": "coûte",
+    "en": "the coffee machine",
+    "en_cap": "The coffee machine",
+    "en_is": "is",
+    "tags": []
+   },
+   {
+    "id": "dn_matelas",
+    "fr": "le matelas",
+    "cap": "Le matelas",
+    "cost": "coûte",
+    "en": "the mattress",
+    "en_cap": "The mattress",
+    "en_is": "is",
+    "tags": []
+   },
+   {
+    "id": "dn_manteau",
+    "fr": "le manteau",
+    "cap": "Le manteau",
+    "cost": "coûte",
+    "en": "the coat",
+    "en_cap": "The coat",
+    "en_is": "is",
+    "tags": []
+   },
+   {
+    "id": "dn_perceuse",
+    "fr": "la perceuse",
+    "cap": "La perceuse",
+    "cost": "coûte",
+    "en": "the drill",
+    "en_cap": "The drill",
+    "en_is": "is",
+    "tags": []
+   },
+   {
+    "id": "dn_rideaux",
+    "fr": "les rideaux",
+    "cap": "Les rideaux",
+    "cost": "coûtent",
+    "en": "the curtains",
+    "en_cap": "The curtains",
+    "en_is": "are",
+    "tags": []
+   }
+  ],
+  "dont_friend": [
+   {
+    "id": "df_amie",
+    "fr": "une amie",
+    "en": "a friend",
+    "tags": []
+   },
+   {
+    "id": "df_collegue_m",
+    "fr": "un collègue",
+    "en": "a colleague",
+    "tags": []
+   },
+   {
+    "id": "df_voisine",
+    "fr": "une voisine",
+    "en": "a neighbour",
+    "tags": []
+   },
+   {
+    "id": "df_cousin",
+    "fr": "un cousin",
+    "en": "a cousin",
+    "tags": []
+   },
+   {
+    "id": "df_collegue_f",
+    "fr": "une collègue",
+    "en": "a colleague",
+    "tags": []
+   },
+   {
+    "id": "df_ami",
+    "fr": "un ami",
+    "en": "a friend",
+    "tags": []
+   }
+  ],
+  "dont_whose": [
+   {
+    "id": "dw_chef",
+    "def": "le frère",
+    "poss": "son frère",
+    "pred": "est chef",
+    "en": "brother is a chef",
+    "tags": []
+   },
+   {
+    "id": "dw_cello",
+    "def": "la fille",
+    "poss": "sa fille",
+    "pred": "joue du violoncelle",
+    "en": "daughter plays the cello",
+    "tags": []
+   },
+   {
+    "id": "dw_montreal",
+    "def": "le fils",
+    "poss": "son fils",
+    "pred": "habite à Montréal",
+    "en": "son lives in Montreal",
+    "tags": []
+   },
+   {
+    "id": "dw_mairie",
+    "def": "la sœur",
+    "poss": "sa sœur",
+    "pred": "travaille à la mairie",
+    "en": "sister works at the town hall",
+    "tags": []
+   },
+   {
+    "id": "dw_librairie",
+    "def": "le père",
+    "poss": "son père",
+    "pred": "tient une librairie",
+    "en": "father runs a bookshop",
+    "tags": []
+   },
+   {
+    "id": "dw_chien",
+    "def": "le chien",
+    "poss": "son chien",
+    "pred": "a peur des pigeons",
+    "en": "dog is afraid of pigeons",
+    "tags": []
+   },
+   {
+    "id": "dw_seine",
+    "def": "l'appartement",
+    "poss": "son appartement",
+    "pred": "donne sur la Seine",
+    "en": "flat looks out over the Seine",
+    "tags": []
+   }
+  ],
+  "dont_envie": [
+   {
+    "id": "de_weekend",
+    "fr": "le week-end",
+    "en": "the weekend",
+    "tags": []
+   },
+   {
+    "id": "de_soiree",
+    "fr": "la soirée",
+    "en": "the evening",
+    "tags": []
+   },
+   {
+    "id": "de_repas",
+    "fr": "le repas",
+    "en": "the meal",
+    "tags": []
+   },
+   {
+    "id": "de_balade",
+    "fr": "la balade",
+    "en": "the walk",
+    "tags": []
+   },
+   {
+    "id": "de_cafe",
+    "fr": "le café",
+    "en": "the coffee",
+    "tags": []
+   },
+   {
+    "id": "de_musique",
+    "fr": "la musique",
+    "en": "the music",
+    "tags": []
+   },
+   {
+    "id": "de_dessert",
+    "fr": "le dessert",
+    "en": "the dessert",
+    "tags": []
+   }
+  ],
+  "dont_memory": [
+   {
+    "id": "dm_plage",
+    "fr": "la plage",
+    "en": "the beach",
+    "tags": []
+   },
+   {
+    "id": "dm_hotel",
+    "fr": "le petit hôtel",
+    "en": "the little hotel",
+    "tags": []
+   },
+   {
+    "id": "dm_marche",
+    "fr": "le marché de Noël",
+    "en": "the Christmas market",
+    "tags": []
+   },
+   {
+    "id": "dm_chanson",
+    "fr": "la chanson",
+    "en": "the song",
+    "tags": []
+   },
+   {
+    "id": "dm_creperie",
+    "fr": "la petite crêperie",
+    "en": "the little crêpe place",
+    "tags": []
+   },
+   {
+    "id": "dm_musee",
+    "fr": "le musée",
+    "en": "the museum",
+    "tags": []
+   },
+   {
+    "id": "dm_canal",
+    "fr": "le pique-nique au bord du canal",
+    "en": "the picnic by the canal",
+    "tags": []
+   },
+   {
+    "id": "dm_prof",
+    "fr": "le prof de maths",
+    "en": "the maths teacher",
+    "tags": []
+   }
+  ],
+  "dont_dream": [
+   {
+    "id": "dr_appart",
+    "fr": "l'appartement",
+    "en": "the flat",
+    "tags": []
+   },
+   {
+    "id": "dr_voyage",
+    "fr": "le voyage",
+    "en": "the trip",
+    "tags": []
+   },
+   {
+    "id": "dr_cuisine",
+    "fr": "la cuisine",
+    "en": "the kitchen",
+    "tags": []
+   },
+   {
+    "id": "dr_velo",
+    "fr": "le vélo",
+    "en": "the bike",
+    "tags": []
+   },
+   {
+    "id": "dr_balcon",
+    "fr": "le balcon",
+    "en": "the balcony",
+    "tags": []
+   },
+   {
+    "id": "dr_job",
+    "fr": "le travail",
+    "en": "the job",
+    "tags": []
+   },
+   {
+    "id": "dr_jardin",
+    "fr": "le jardin",
+    "en": "the garden",
+    "tags": []
+   }
+  ],
+  "dont_talk": [
+   {
+    "id": "dk_bar",
+    "cap": "Le bar",
+    "pred": "a fermé l'année dernière",
+    "en_cap": "The bar",
+    "en_pred": "closed last year",
+    "tags": []
+   },
+   {
+    "id": "dk_collegue",
+    "cap": "Le collègue",
+    "pred": "ne travaille plus ici",
+    "en_cap": "The colleague",
+    "en_pred": "doesn't work here any more",
+    "tags": []
+   },
+   {
+    "id": "dk_boulangerie",
+    "cap": "La boulangerie",
+    "pred": "est fermée le lundi",
+    "en_cap": "The bakery",
+    "en_pred": "is closed on Mondays",
+    "tags": []
+   },
+   {
+    "id": "dk_film",
+    "cap": "Le film",
+    "pred": "passe encore au cinéma du quartier",
+    "en_cap": "The film",
+    "en_pred": "is still on at the local cinema",
+    "tags": []
+   },
+   {
+    "id": "dk_appli",
+    "cap": "L'appli",
+    "pred": "ne marche plus",
+    "en_cap": "The app",
+    "en_pred": "doesn't work any more",
+    "tags": []
+   },
+   {
+    "id": "dk_voisine",
+    "cap": "La voisine",
+    "pred": "a déménagé en septembre",
+    "en_cap": "The neighbour",
+    "en_pred": "moved out in September",
+    "tags": []
+   },
+   {
+    "id": "dk_livre",
+    "cap": "Le livre",
+    "pred": "est à la bibliothèque",
+    "en_cap": "The book",
+    "en_pred": "is at the library",
+    "tags": []
+   }
+  ],
+  "si1_when": [
+   {
+    "id": "sw_demain",
+    "fr": "demain",
+    "en": "tomorrow",
+    "tags": []
+   },
+   {
+    "id": "sw_samedi",
+    "fr": "samedi",
+    "en": "on Saturday",
+    "tags": []
+   },
+   {
+    "id": "sw_weekend",
+    "fr": "ce week-end",
+    "en": "this weekend",
+    "tags": []
+   },
+   {
+    "id": "sw_dimanche",
+    "fr": "dimanche",
+    "en": "on Sunday",
+    "tags": []
+   },
+   {
+    "id": "sw_aprem",
+    "fr": "cet après-midi",
+    "en": "this afternoon",
+    "tags": []
+   }
+  ],
+  "si1_out": [
+   {
+    "id": "so_parc",
+    "fr": "on ira au parc",
+    "cap": "On ira au parc",
+    "en": "we'll go to the park",
+    "en_cap": "We'll go to the park",
+    "tags": []
+   },
+   {
+    "id": "so_dehors",
+    "fr": "on mangera dehors",
+    "cap": "On mangera dehors",
+    "en": "we'll eat outside",
+    "en_cap": "We'll eat outside",
+    "tags": []
+   },
+   {
+    "id": "so_canal",
+    "fr": "on fera un pique-nique au bord du canal",
+    "cap": "On fera un pique-nique au bord du canal",
+    "en": "we'll have a picnic by the canal",
+    "en_cap": "We'll have a picnic by the canal",
+    "tags": []
+   },
+   {
+    "id": "so_velos",
+    "fr": "on prendra les vélos",
+    "cap": "On prendra les vélos",
+    "en": "we'll take the bikes",
+    "en_cap": "We'll take the bikes",
+    "tags": []
+   },
+   {
+    "id": "so_courir",
+    "fr": "on ira courir",
+    "cap": "On ira courir",
+    "en": "we'll go for a run",
+    "en_cap": "We'll go for a run",
+    "tags": []
+   },
+   {
+    "id": "so_quais",
+    "fr": "on se promènera sur les quais",
+    "cap": "On se promènera sur les quais",
+    "en": "we'll take a walk along the river",
+    "en_cap": "We'll take a walk along the river",
+    "tags": []
+   },
+   {
+    "id": "so_terrasse",
+    "fr": "on boira un verre en terrasse",
+    "cap": "On boira un verre en terrasse",
+    "en": "we'll have a drink on a terrace",
+    "en_cap": "We'll have a drink on a terrace",
+    "tags": []
+   }
+  ],
+  "si1_in": [
+   {
+    "id": "si_maison",
+    "fr": "on restera à la maison",
+    "cap": "On restera à la maison",
+    "en": "we'll stay at home",
+    "en_cap": "We'll stay at home",
+    "tags": []
+   },
+   {
+    "id": "si_cinema",
+    "fr": "on ira au cinéma",
+    "cap": "On ira au cinéma",
+    "en": "we'll go to the cinema",
+    "en_cap": "We'll go to the cinema",
+    "tags": []
+   },
+   {
+    "id": "si_film",
+    "fr": "on regardera un film",
+    "cap": "On regardera un film",
+    "en": "we'll watch a film",
+    "en_cap": "We'll watch a film",
+    "tags": []
+   },
+   {
+    "id": "si_musee",
+    "fr": "on ira au musée",
+    "cap": "On ira au musée",
+    "en": "we'll go to the museum",
+    "en_cap": "We'll go to the museum",
+    "tags": []
+   },
+   {
+    "id": "si_cartes",
+    "fr": "on jouera aux cartes",
+    "cap": "On jouera aux cartes",
+    "en": "we'll play cards",
+    "en_cap": "We'll play cards",
+    "tags": []
+   },
+   {
+    "id": "si_taxi",
+    "fr": "on prendra un taxi",
+    "cap": "On prendra un taxi",
+    "en": "we'll take a taxi",
+    "en_cap": "We'll take a taxi",
+    "tags": []
+   },
+   {
+    "id": "si_soupe",
+    "fr": "on fera une soupe",
+    "cap": "On fera une soupe",
+    "en": "we'll make soup",
+    "en_cap": "We'll make soup",
+    "tags": []
+   }
+  ],
+  "si1_tu": [
+   {
+    "id": "st_soir",
+    "fr": "ce soir",
+    "en": "tonight",
+    "tags": []
+   },
+   {
+    "id": "st_demain",
+    "fr": "demain",
+    "en": "tomorrow",
+    "tags": []
+   },
+   {
+    "id": "st_aprem",
+    "fr": "cet après-midi",
+    "en": "this afternoon",
+    "tags": []
+   },
+   {
+    "id": "st_semaine",
+    "fr": "cette semaine",
+    "en": "this week",
+    "tags": []
+   },
+   {
+    "id": "st_samedi",
+    "fr": "samedi",
+    "en": "on Saturday",
+    "tags": []
+   }
+  ],
+  "si1_ask": [
+   {
+    "id": "sa_bureau",
+    "fr": "passe me voir au bureau",
+    "en": "drop by the office",
+    "tags": []
+   },
+   {
+    "id": "sa_appelle",
+    "fr": "appelle-moi",
+    "en": "give me a call",
+    "tags": []
+   },
+   {
+    "id": "sa_diner",
+    "fr": "viens dîner à la maison",
+    "en": "come over for dinner",
+    "tags": []
+   },
+   {
+    "id": "sa_boulangerie",
+    "fr": "passe à la boulangerie pour moi",
+    "en": "stop at the bakery for me",
+    "tags": []
+   },
+   {
+    "id": "sa_cartons",
+    "fr": "aide-moi avec les cartons",
+    "en": "help me with the boxes",
+    "tags": []
+   },
+   {
+    "id": "sa_cv",
+    "fr": "relis mon CV",
+    "en": "read over my CV",
+    "tags": []
+   },
+   {
+    "id": "sa_plantes",
+    "fr": "arrose mes plantes",
+    "en": "water my plants",
+    "tags": []
+   }
+  ],
+  "si1_she": [
+   {
+    "id": "se_faim",
+    "pres": "a faim",
+    "fut": "aura faim",
+    "cons_f": "elle mangera avec nous",
+    "cons_m": "il mangera avec nous",
+    "en_f": "If she's hungry, she'll eat with us",
+    "en_m": "If he's hungry, he'll eat with us",
+    "tags": []
+   },
+   {
+    "id": "se_retard",
+    "pres": "arrive en retard",
+    "fut": "arrivera en retard",
+    "cons_f": "on commencera sans elle",
+    "cons_m": "on commencera sans lui",
+    "en_f": "If she's late, we'll start without her",
+    "en_m": "If he's late, we'll start without him",
+    "tags": []
+   },
+   {
+    "id": "se_appelle",
+    "pres": "appelle",
+    "fut": "appellera",
+    "cons_f": "dis-lui que je suis au marché",
+    "cons_m": "dis-lui que je suis au marché",
+    "en_f": "If she calls, tell her I'm at the market",
+    "en_m": "If he calls, tell him I'm at the market",
+    "tags": []
+   },
+   {
+    "id": "se_aide",
+    "pres": "a besoin d'aide",
+    "fut": "aura besoin d'aide",
+    "cons_f": "je resterai un peu plus longtemps",
+    "cons_m": "je resterai un peu plus longtemps",
+    "en_f": "If she needs help, I'll stay a little longer",
+    "en_m": "If he needs help, I'll stay a little longer",
+    "tags": []
+   },
+   {
+    "id": "se_film",
+    "pres": "aime le film",
+    "fut": "aimera le film",
+    "cons_f": "on ira voir la suite ensemble",
+    "cons_m": "on ira voir la suite ensemble",
+    "en_f": "If she likes the film, we'll go and see the sequel together",
+    "en_m": "If he likes the film, we'll go and see the sequel together",
+    "tags": []
+   },
+   {
+    "id": "se_poste",
+    "pres": "accepte le poste",
+    "fut": "acceptera le poste",
+    "cons_f": "elle déménagera à Lyon",
+    "cons_m": "il déménagera à Lyon",
+    "en_f": "If she takes the job, she'll move to Lyon",
+    "en_m": "If he takes the job, he'll move to Lyon",
+    "tags": []
+   },
+   {
+    "id": "se_cles",
+    "pres": "oublie ses clés",
+    "fut": "oubliera ses clés",
+    "cons_f": "elle prendra les miennes",
+    "cons_m": "il prendra les miennes",
+    "en_f": "If she forgets her keys, she'll take mine",
+    "en_m": "If he forgets his keys, he'll take mine",
+    "tags": []
+   },
+   {
+    "id": "se_train",
+    "pres": "rate son train",
+    "fut": "ratera son train",
+    "cons_f": "elle dormira chez nous",
+    "cons_m": "il dormira chez nous",
+    "en_f": "If she misses her train, she'll sleep at our place",
+    "en_m": "If he misses his train, he'll sleep at our place",
+    "tags": []
+   }
+  ],
+  "si1_promise": [
+   {
+    "id": "sp_appel",
+    "fr": "Je t'appellerai",
+    "en": "I'll call you",
+    "tags": []
+   },
+   {
+    "id": "sp_ecrire",
+    "fr": "Je t'écrirai",
+    "en": "I'll text you",
+    "tags": []
+   },
+   {
+    "id": "sp_previens",
+    "fr": "Je te préviendrai",
+    "en": "I'll let you know",
+    "tags": []
+   }
+  ],
+  "si1_event": [
+   {
+    "id": "sv_train",
+    "pres": "si le train a du retard",
+    "fut": "si le train aura du retard",
+    "cond": "si le train aurait du retard",
+    "en": "the train is late",
+    "tags": []
+   },
+   {
+    "id": "sv_magasin",
+    "pres": "si le magasin est fermé",
+    "fut": "si le magasin sera fermé",
+    "cond": "si le magasin serait fermé",
+    "en": "the shop is closed",
+    "tags": []
+   },
+   {
+    "id": "sv_reunion",
+    "pres": "si la réunion finit tôt",
+    "fut": "si la réunion finira tôt",
+    "cond": "si la réunion finirait tôt",
+    "en": "the meeting finishes early",
+    "tags": []
+   },
+   {
+    "id": "sv_colis",
+    "pres": "si le colis arrive aujourd'hui",
+    "fut": "si le colis arrivera aujourd'hui",
+    "cond": "si le colis arriverait aujourd'hui",
+    "en": "the parcel arrives today",
+    "tags": []
+   },
+   {
+    "id": "sv_probleme",
+    "pres": "s'il y a un problème",
+    "fut": "s'il y aura un problème",
+    "cond": "s'il y aurait un problème",
+    "en": "there's a problem",
+    "tags": []
+   },
+   {
+    "id": "sv_plombier",
+    "pres": "si le plombier ne peut pas venir",
+    "fut": "si le plombier ne pourra pas venir",
+    "cond": "si le plombier ne pourrait pas venir",
+    "en": "the plumber can't come",
+    "tags": []
+   },
+   {
+    "id": "sv_proprio",
+    "pres": "si le propriétaire répond",
+    "fut": "si le propriétaire répondra",
+    "cond": "si le propriétaire répondrait",
+    "en": "the landlord answers",
+    "tags": []
+   },
+   {
+    "id": "sv_places",
+    "pres": "s'il reste des places",
+    "fut": "s'il restera des places",
+    "cond": "s'il resterait des places",
+    "en": "there are still seats left",
+    "tags": []
+   }
+  ],
+  "si1_on": [
+   {
+    "id": "sn_part",
+    "pres": "part maintenant",
+    "fut": "partira maintenant",
+    "cond": "partirait maintenant",
+    "cons": "on arrivera à l'heure",
+    "en": "If we leave now, we'll get there on time",
+    "tags": []
+   },
+   {
+    "id": "sn_metro",
+    "pres": "prend le métro",
+    "fut": "prendra le métro",
+    "cond": "prendrait le métro",
+    "cons": "on ira plus vite",
+    "en": "If we take the metro, we'll be quicker",
+    "tags": []
+   },
+   {
+    "id": "sn_reserve",
+    "pres": "réserve aujourd'hui",
+    "fut": "réservera aujourd'hui",
+    "cond": "réserverait aujourd'hui",
+    "cons": "on aura une bonne table",
+    "en": "If we book today, we'll get a good table",
+    "tags": []
+   },
+   {
+    "id": "sn_billets",
+    "pres": "achète les billets ce soir",
+    "fut": "achètera les billets ce soir",
+    "cond": "achèterait les billets ce soir",
+    "cons": "on paiera moins cher",
+    "en": "If we buy the tickets tonight, we'll pay less",
+    "tags": []
+   },
+   {
+    "id": "sn_vite",
+    "pres": "se dépêche",
+    "fut": "se dépêchera",
+    "cond": "se dépêcherait",
+    "cons": "on verra le début du film",
+    "en": "If we hurry, we'll see the start of the film",
+    "tags": []
+   },
+   {
+    "id": "sn_rue",
+    "pres": "prend la petite rue",
+    "fut": "prendra la petite rue",
+    "cond": "prendrait la petite rue",
+    "cons": "on évitera les bouchons",
+    "en": "If we take the side street, we'll avoid the traffic jams",
+    "tags": []
+   },
+   {
+    "id": "sn_gardien",
+    "pres": "demande au gardien",
+    "fut": "demandera au gardien",
+    "cond": "demanderait au gardien",
+    "cons": "on saura où est le colis",
+    "en": "If we ask the caretaker, we'll know where the parcel is",
+    "tags": []
+   }
+  ],
+  "si1_office": [
+   {
+    "id": "so_docs",
+    "obj": "tous les documents",
+    "cons": "déposer le dossier aujourd'hui",
+    "en": "all the documents",
+    "en_cons": "submit the file today",
+    "tags": []
+   },
+   {
+    "id": "so_question",
+    "obj": "une question",
+    "cons": "écrire au service client",
+    "en": "a question",
+    "en_cons": "write to customer service",
+    "tags": []
+   },
+   {
+    "id": "so_justif",
+    "obj": "un justificatif de domicile",
+    "cons": "ouvrir le compte tout de suite",
+    "en": "proof of address",
+    "en_cons": "open the account straight away",
+    "tags": []
+   },
+   {
+    "id": "so_numero",
+    "obj": "votre numéro de dossier",
+    "cons": "suivre la demande en ligne",
+    "en": "your file number",
+    "en_cons": "follow the application online",
+    "tags": []
+   },
+   {
+    "id": "so_etudiant",
+    "obj": "une carte d'étudiant",
+    "cons": "payer le tarif réduit",
+    "en": "a student card",
+    "en_cons": "pay the reduced rate",
+    "tags": []
+   },
+   {
+    "id": "so_rdv",
+    "obj": "un rendez-vous",
+    "cons": "passer directement au guichet",
+    "en": "an appointment",
+    "en_cons": "go straight to the counter",
+    "tags": []
+   },
+   {
+    "id": "so_recu",
+    "obj": "besoin d'un reçu",
+    "cons": "le demander à la caisse",
+    "en": "need a receipt",
+    "en_cons": "ask for one at the till",
+    "tags": [
+     "need"
+    ]
+   }
+  ],
+  "si1_offer": [
+   {
+    "id": "sf_prendre",
+    "fr": "Je passerai te prendre à huit heures",
+    "en": "I'll pick you up at eight",
+    "tags": []
+   },
+   {
+    "id": "sf_pizzas",
+    "fr": "On commandera des pizzas",
+    "en": "We'll order pizza",
+    "tags": []
+   },
+   {
+    "id": "sf_velo",
+    "fr": "Je te prêterai mon vélo",
+    "en": "I'll lend you my bike",
+    "tags": []
+   },
+   {
+    "id": "sf_cartons",
+    "fr": "Je t'aiderai à porter les cartons",
+    "en": "I'll help you carry the boxes",
+    "tags": []
+   },
+   {
+    "id": "sf_cinema",
+    "fr": "On ira au cinéma ce soir",
+    "en": "We'll go to the cinema tonight",
+    "tags": []
+   },
+   {
+    "id": "sf_quartier",
+    "fr": "Je te montrerai le quartier demain",
+    "en": "I'll show you the neighbourhood tomorrow",
+    "tags": []
+   },
+   {
+    "id": "sf_gare",
+    "fr": "Je t'accompagnerai à la gare",
+    "en": "I'll go to the station with you",
+    "tags": []
+   }
+  ],
+  "nar_open": [
+   {
+    "id": "no_autre",
+    "fr": "L'autre jour,",
+    "en": "The other day",
+    "tags": []
+   },
+   {
+    "id": "no_fois",
+    "fr": "Une fois,",
+    "en": "Once",
+    "tags": []
+   },
+   {
+    "id": "no_derniere",
+    "fr": "La dernière fois,",
+    "en": "Last time",
+    "tags": []
+   }
+  ],
+  "nar_story": [
+   {
+    "id": "ns_hotel",
+    "set": "il était presque minuit",
+    "set_pc": "il a été presque minuit",
+    "set_pqp": "il avait été presque minuit",
+    "ev": "nous sommes arrivés à l'hôtel",
+    "link": "mais",
+    "er": "la réception avait déjà fermé",
+    "er_pc": "la réception a déjà fermé",
+    "en_set": "it was almost midnight",
+    "en_ev": "we got to the hotel",
+    "en_link": "but",
+    "en_er": "reception had already closed",
+    "tags": []
+   },
+   {
+    "id": "ns_bus",
+    "set": "il était déjà tard",
+    "set_pc": "il a déjà été tard",
+    "set_pqp": "il avait déjà été tard",
+    "ev": "j'ai quitté le bureau",
+    "link": "et",
+    "er": "le dernier bus était déjà passé",
+    "er_pc": "le dernier bus est déjà passé",
+    "en_set": "it was already late",
+    "en_ev": "I left the office",
+    "en_link": "and",
+    "en_er": "the last bus had already gone",
+    "tags": []
+   },
+   {
+    "id": "ns_film",
+    "set": "il était huit heures et quart",
+    "set_pc": "il a été huit heures et quart",
+    "set_pqp": "il avait été huit heures et quart",
+    "ev": "j'ai trouvé une place dans la salle",
+    "link": "mais",
+    "er": "le film avait déjà commencé",
+    "er_pc": "le film a déjà commencé",
+    "en_set": "it was a quarter past eight",
+    "en_ev": "I found a seat in the cinema",
+    "en_link": "but",
+    "en_er": "the film had already started",
+    "tags": []
+   },
+   {
+    "id": "ns_mairie",
+    "set": "c'était l'heure du déjeuner",
+    "set_pc": "ça a été l'heure du déjeuner",
+    "set_pqp": "ça avait été l'heure du déjeuner",
+    "ev": "j'ai appelé la mairie",
+    "link": "mais",
+    "er": "tous les bureaux avaient déjà fermé",
+    "er_pc": "tous les bureaux ont déjà fermé",
+    "en_set": "it was lunchtime",
+    "en_ev": "I called the town hall",
+    "en_link": "but",
+    "en_er": "all the offices had already closed",
+    "tags": []
+   },
+   {
+    "id": "ns_baguette",
+    "set": "c'était dimanche",
+    "set_pc": "ça a été dimanche",
+    "set_pqp": "ça avait été dimanche",
+    "ev": "j'ai voulu acheter du pain",
+    "link": "mais",
+    "er": "la boulangerie avait déjà vendu sa dernière baguette",
+    "er_pc": "la boulangerie a déjà vendu sa dernière baguette",
+    "en_set": "it was Sunday",
+    "en_ev": "I wanted to buy bread",
+    "en_link": "but",
+    "en_er": "the bakery had already sold its last baguette",
+    "tags": []
+   },
+   {
+    "id": "ns_musique",
+    "set": "il faisait nuit",
+    "set_pc": "il a fait nuit",
+    "set_pqp": "il avait fait nuit",
+    "ev": "nous sommes rentrés à la maison",
+    "link": "et",
+    "er": "les voisins avaient déjà mis la musique très fort",
+    "er_pc": "les voisins ont déjà mis la musique très fort",
+    "en_set": "it was dark",
+    "en_ev": "we got home",
+    "en_link": "and",
+    "en_er": "the neighbours had already put their music on very loud",
+    "tags": []
+   },
+   {
+    "id": "ns_menage",
+    "set": "il était midi",
+    "set_pc": "il a été midi",
+    "set_pqp": "il avait été midi",
+    "ev": "j'ai enfin ouvert les yeux",
+    "link": "et",
+    "er": "mon colocataire avait déjà fait le ménage",
+    "er_pc": "mon colocataire a déjà fait le ménage",
+    "en_set": "it was midday",
+    "en_ev": "I finally opened my eyes",
+    "en_link": "and",
+    "en_er": "my flatmate had already done the cleaning",
+    "tags": []
+   },
+   {
+    "id": "ns_resto",
+    "set": "il était sept heures et demie",
+    "set_pc": "il a été sept heures et demie",
+    "set_pqp": "il avait été sept heures et demie",
+    "ev": "j'ai rejoint mes amis au restaurant",
+    "link": "mais",
+    "er": "ils avaient déjà commandé",
+    "er_pc": "ils ont déjà commandé",
+    "en_set": "it was half past seven",
+    "en_ev": "I joined my friends at the restaurant",
+    "en_link": "but",
+    "en_er": "they had already ordered",
+    "tags": []
+   },
+   {
+    "id": "ns_taxi",
+    "set": "il était six heures du matin",
+    "set_pc": "il a été six heures du matin",
+    "set_pqp": "il avait été six heures du matin",
+    "ev": "le taxi est arrivé",
+    "link": "mais",
+    "er": "j'avais déjà fini ma valise",
+    "er_pc": "j'ai déjà fini ma valise",
+    "en_set": "it was six in the morning",
+    "en_ev": "the taxi arrived",
+    "en_link": "but",
+    "en_er": "I had already finished packing",
+    "tags": []
+   },
+   {
+    "id": "ns_mails",
+    "set": "il était presque dix heures",
+    "set_pc": "il a été presque dix heures",
+    "set_pqp": "il avait été presque dix heures",
+    "ev": "j'ai ouvert mes mails",
+    "link": "et",
+    "er": "le propriétaire avait déjà répondu",
+    "er_pc": "le propriétaire a déjà répondu",
+    "en_set": "it was almost ten",
+    "en_ev": "I opened my e-mails",
+    "en_link": "and",
+    "en_er": "the landlord had already replied",
+    "tags": []
+   },
+   {
+    "id": "ns_gare",
+    "set": "c'était l'heure de pointe",
+    "set_pc": "ça a été l'heure de pointe",
+    "set_pqp": "ça avait été l'heure de pointe",
+    "ev": "nous sommes arrivés à la gare",
+    "link": "mais",
+    "er": "notre train était déjà parti",
+    "er_pc": "notre train est déjà parti",
+    "en_set": "it was rush hour",
+    "en_ev": "we got to the station",
+    "en_link": "but",
+    "en_er": "our train had already left",
+    "tags": []
+   },
+   {
+    "id": "ns_appel",
+    "set": "il était onze heures du soir",
+    "set_pc": "il a été onze heures du soir",
+    "set_pqp": "il avait été onze heures du soir",
+    "ev": "ma sœur a appelé",
+    "link": "mais",
+    "er": "j'avais déjà coupé mon téléphone",
+    "er_pc": "j'ai déjà coupé mon téléphone",
+    "en_set": "it was eleven at night",
+    "en_ev": "my sister called",
+    "en_link": "but",
+    "en_er": "I had already switched off my phone",
+    "tags": []
+   },
+   {
+    "id": "ns_boulangerie",
+    "set": "il était huit heures du soir",
+    "set_pc": "il a été huit heures du soir",
+    "set_pqp": "il avait été huit heures du soir",
+    "ev": "je suis passé à la boulangerie",
+    "link": "mais",
+    "er": "ils avaient déjà vendu tout le pain",
+    "er_pc": "ils ont déjà vendu tout le pain",
+    "en_set": "it was eight in the evening",
+    "en_ev": "I stopped by the bakery",
+    "en_link": "but",
+    "en_er": "they had already sold all the bread",
+    "tags": []
+   },
+   {
+    "id": "ns_reunion",
+    "set": "il était neuf heures et quart",
+    "set_pc": "il a été neuf heures et quart",
+    "set_pqp": "il avait été neuf heures et quart",
+    "ev": "je suis entré dans la salle",
+    "link": "mais",
+    "er": "la réunion avait déjà commencé",
+    "er_pc": "la réunion a déjà commencé",
+    "en_set": "it was a quarter past nine",
+    "en_ev": "I walked into the room",
+    "en_link": "but",
+    "en_er": "the meeting had already started",
+    "tags": []
+   },
+   {
+    "id": "ns_jour",
+    "set": "il faisait déjà jour",
+    "set_pc": "il a déjà fait jour",
+    "set_pqp": "il avait déjà fait jour",
+    "ev": "nous sommes rentrés de la fête",
+    "link": "et",
+    "er": "les oiseaux avaient déjà commencé à chanter",
+    "er_pc": "les oiseaux ont déjà commencé à chanter",
+    "en_set": "it was already light",
+    "en_ev": "we got back from the party",
+    "en_link": "and",
+    "en_er": "the birds had already started singing",
+    "tags": []
+   },
+   {
+    "id": "ns_poste",
+    "set": "il était midi moins cinq",
+    "set_pc": "il a été midi moins cinq",
+    "set_pqp": "il avait été midi moins cinq",
+    "ev": "je suis arrivé à la poste",
+    "link": "mais",
+    "er": "le guichet avait déjà fermé",
+    "er_pc": "le guichet a déjà fermé",
+    "en_set": "it was five to twelve",
+    "en_ev": "I got to the post office",
+    "en_link": "but",
+    "en_er": "the counter had already closed",
+    "tags": []
+   }
+  ],
+  "nar_lead": [
+   {
+    "id": "nl_autre",
+    "fr": "L'autre jour",
+    "en": "The other day",
+    "tags": []
+   },
+   {
+    "id": "nl_derniere",
+    "fr": "La dernière fois",
+    "en": "Last time",
+    "tags": []
+   }
+  ],
+  "nar_dur": [
+   {
+    "id": "nd_vingt",
+    "fr": "vingt minutes",
+    "en": "for twenty minutes",
+    "kinds": [
+     "short"
+    ],
+    "tags": []
+   },
+   {
+    "id": "nd_heure",
+    "fr": "une heure",
+    "en": "for an hour",
+    "kinds": [
+     "short",
+     "long"
+    ],
+    "tags": []
+   },
+   {
+    "id": "nd_deux",
+    "fr": "deux heures",
+    "en": "for two hours",
+    "kinds": [
+     "long"
+    ],
+    "tags": []
+   },
+   {
+    "id": "nd_aprem",
+    "fr": "tout l'après-midi",
+    "en": "all afternoon",
+    "kinds": [
+     "long"
+    ],
+    "tags": []
+   }
+  ],
+  "nar_while": [
+   {
+    "id": "nw_bus",
+    "pc": "j'ai attendu le bus",
+    "imp": "j'attendais le bus",
+    "why": "parce qu'il y avait eu un accident sur la ligne",
+    "en": "I waited for the bus",
+    "en_why": "because there had been an accident on the line",
+    "tags": [
+     "short"
+    ]
+   },
+   {
+    "id": "nw_cles",
+    "pc": "j'ai cherché mes clés",
+    "imp": "je cherchais mes clés",
+    "why": "parce que je les avais laissées dans une autre veste",
+    "en": "I looked for my keys",
+    "en_why": "because I had left them in another jacket",
+    "tags": [
+     "short"
+    ]
+   },
+   {
+    "id": "nw_poste",
+    "pc": "j'ai fait la queue à la poste",
+    "imp": "je faisais la queue à la poste",
+    "why": "parce que la machine à tickets était tombée en panne",
+    "en": "I queued at the post office",
+    "en_why": "because the ticket machine had broken down",
+    "tags": [
+     "short"
+    ]
+   },
+   {
+    "id": "nw_plombier",
+    "pc": "j'ai attendu le plombier",
+    "imp": "j'attendais le plombier",
+    "why": "parce qu'il s'était trompé d'adresse",
+    "en": "I waited for the plumber",
+    "en_why": "because he had gone to the wrong address",
+    "tags": [
+     "long"
+    ]
+   },
+   {
+    "id": "nw_marche",
+    "pc": "j'ai marché",
+    "imp": "je marchais",
+    "why": "parce que j'avais raté le dernier métro",
+    "en": "I walked",
+    "en_why": "because I had missed the last metro",
+    "tags": [
+     "short",
+     "long"
+    ]
+   },
+   {
+    "id": "nw_range",
+    "pc": "j'ai rangé l'appartement",
+    "imp": "je rangeais l'appartement",
+    "why": "parce que mes parents avaient annoncé leur visite",
+    "en": "I tidied the flat",
+    "en_why": "because my parents had said they were coming",
+    "tags": [
+     "long"
+    ]
+   },
+   {
+    "id": "nw_revise",
+    "pc": "j'ai révisé",
+    "imp": "je révisais",
+    "why": "parce que j'avais raté le premier examen",
+    "en": "I revised",
+    "en_why": "because I had failed the first exam",
+    "tags": [
+     "long"
+    ]
+   },
+   {
+    "id": "nw_voisine",
+    "pc": "j'ai parlé avec la voisine",
+    "imp": "je parlais avec la voisine",
+    "why": "parce qu'elle avait trouvé mon chat dans l'escalier",
+    "en": "I talked with the neighbour",
+    "en_why": "because she had found my cat on the stairs",
+    "tags": [
+     "short"
+    ]
+   }
+  ],
+  "nar_scene": [
+   {
+    "id": "nc_vide",
+    "trig": "Quand j'ai ouvert la porte",
+    "st": "l'appartement était vide",
+    "st_pc": "l'appartement a été vide",
+    "why": "mes colocataires étaient déjà partis en vacances",
+    "en": "When I opened the door, the flat was empty: my flatmates had already gone on holiday",
+    "tags": []
+   },
+   {
+    "id": "nc_neige",
+    "trig": "Quand j'ai regardé par la fenêtre",
+    "st": "la rue était toute blanche",
+    "st_pc": "la rue a été toute blanche",
+    "why": "il avait neigé toute la nuit",
+    "en": "When I looked out of the window, the street was all white: it had snowed all night",
+    "tags": []
+   },
+   {
+    "id": "nc_soupe",
+    "trig": "Quand j'ai goûté la soupe",
+    "st": "elle était froide",
+    "st_pc": "elle a été froide",
+    "why": "personne ne l'avait réchauffée",
+    "en": "When I tasted the soup, it was cold: nobody had heated it up",
+    "tags": []
+   },
+   {
+    "id": "nc_frigo",
+    "trig": "Quand j'ai ouvert le frigo",
+    "st": "il était vide",
+    "st_pc": "il a été vide",
+    "why": "mon colocataire avait tout mangé",
+    "en": "When I opened the fridge, it was empty: my flatmate had eaten everything",
+    "tags": []
+   },
+   {
+    "id": "nc_chat",
+    "trig": "Quand j'ai croisé la voisine",
+    "st": "elle avait l'air inquiète",
+    "st_pc": "elle a eu l'air inquiète",
+    "why": "elle avait perdu son chat",
+    "en": "When I ran into the neighbour, she looked worried: she had lost her cat",
+    "tags": []
+   },
+   {
+    "id": "nc_clair",
+    "trig": "Quand j'ai lu la lettre",
+    "st": "tout était clair",
+    "st_pc": "tout a été clair",
+    "why": "le propriétaire avait vendu l'immeuble",
+    "en": "When I read the letter, everything was clear: the landlord had sold the building",
+    "tags": []
+   },
+   {
+    "id": "nc_tables",
+    "trig": "Quand nous sommes arrivés au restaurant",
+    "st": "il n'y avait plus de tables",
+    "st_pc": "il n'y a plus eu de tables",
+    "why": "un groupe avait réservé toute la salle",
+    "en": "When we got to the restaurant, there were no tables left: a group had booked the whole room",
+    "tags": []
+   },
+   {
+    "id": "nc_bureau",
+    "trig": "Quand j'ai appelé ma sœur",
+    "st": "elle était encore au bureau",
+    "st_pc": "elle a été encore au bureau",
+    "why": "son train avait été annulé",
+    "en": "When I called my sister, she was still at the office: her train had been cancelled",
+    "tags": []
+   }
+  ],
+  "nar_forgot": [
+   {
+    "id": "nf_prefecture",
+    "set": "Il y avait une longue queue à la préfecture",
+    "thing": "mon passeport",
+    "en": "There was a long queue at the préfecture, and then I saw I had forgotten my passport",
+    "tags": []
+   },
+   {
+    "id": "nf_serveur",
+    "set": "Le serveur attendait avec l'addition",
+    "thing": "mon portefeuille",
+    "en": "The waiter was waiting with the bill, and then I saw I had forgotten my wallet",
+    "tags": []
+   },
+   {
+    "id": "nf_train",
+    "set": "Le train partait dans cinq minutes",
+    "thing": "mon billet",
+    "en": "The train was leaving in five minutes, and then I saw I had forgotten my ticket",
+    "tags": []
+   },
+   {
+    "id": "nf_table",
+    "set": "Tout le monde était déjà à table",
+    "thing": "le dessert",
+    "en": "Everyone was already at the table, and then I saw I had forgotten the dessert",
+    "tags": []
+   },
+   {
+    "id": "nf_pluie",
+    "set": "Il pleuvait très fort",
+    "thing": "mon parapluie",
+    "en": "It was raining very hard, and then I saw I had forgotten my umbrella",
+    "tags": []
+   },
+   {
+    "id": "nf_porte",
+    "set": "Le propriétaire attendait devant la porte",
+    "thing": "les clés de l'appartement",
+    "en": "The landlord was waiting at the door, and then I saw I had forgotten the keys to the flat",
+    "tags": []
+   },
+   {
+    "id": "nf_banque",
+    "set": "La conseillère de la banque attendait mes papiers",
+    "thing": "mon justificatif de domicile",
+    "en": "The bank adviser was waiting for my papers, and then I saw I had forgotten my proof of address",
+    "tags": []
+   }
+  ],
+  "pi_avant": [
+   {
+    "imp": "ferme toutes les fenêtres",
+    "en_imp": "close all the windows",
+    "id": "pa_partir",
+    "inf": "partir",
+    "de_inf": "de partir",
+    "conj": "je pars",
+    "main": "je ferme toutes les fenêtres",
+    "main_cap": "Je ferme toutes les fenêtres",
+    "en_ing": "leaving",
+    "en_main": "I close all the windows",
+    "en_main_cap": "I close all the windows",
+    "tags": []
+   },
+   {
+    "imp": "vérifie que tu as tes clés",
+    "en_imp": "check that you have your keys",
+    "id": "pa_sortir",
+    "inf": "sortir",
+    "de_inf": "de sortir",
+    "conj": "je sors",
+    "main": "je vérifie que j'ai mes clés",
+    "main_cap": "Je vérifie que j'ai mes clés",
+    "en_ing": "going out",
+    "en_main": "I check that I've got my keys",
+    "en_main_cap": "I check that I've got my keys",
+    "tags": []
+   },
+   {
+    "imp": "lave-toi les mains",
+    "en_imp": "wash your hands",
+    "id": "pa_manger",
+    "inf": "manger",
+    "de_inf": "de manger",
+    "conj": "je mange",
+    "main": "je me lave les mains",
+    "main_cap": "Je me lave les mains",
+    "en_ing": "eating",
+    "en_main": "I wash my hands",
+    "en_main_cap": "I wash my hands",
+    "tags": []
+   },
+   {
+    "imp": "éteins ton téléphone",
+    "en_imp": "switch off your phone",
+    "id": "pa_dormir",
+    "inf": "dormir",
+    "de_inf": "de dormir",
+    "conj": "je dors",
+    "main": "je lis un peu",
+    "main_cap": "Je lis un peu",
+    "en_ing": "going to sleep",
+    "en_main": "I read for a bit",
+    "en_main_cap": "I read for a bit",
+    "tags": []
+   },
+   {
+    "imp": "relis tout",
+    "en_imp": "read everything again",
+    "id": "pa_bail",
+    "inf": "signer le bail",
+    "de_inf": "de signer le bail",
+    "conj": "je signe le bail",
+    "main": "je relis tout",
+    "main_cap": "Je relis tout",
+    "en_ing": "signing the lease",
+    "en_main": "I read everything again",
+    "en_main_cap": "I read everything again",
+    "tags": []
+   },
+   {
+    "imp": "compare les prix",
+    "en_imp": "compare prices",
+    "id": "pa_velo",
+    "inf": "acheter un vélo",
+    "de_inf": "d'acheter un vélo",
+    "conj": "j'achète un vélo",
+    "main": "je compare les prix",
+    "main_cap": "Je compare les prix",
+    "en_ing": "buying a bike",
+    "en_main": "I compare prices",
+    "en_main_cap": "I compare prices",
+    "tags": []
+   },
+   {
+    "imp": "lis les avis en ligne",
+    "en_imp": "read the reviews online",
+    "id": "pa_plombier",
+    "inf": "appeler le plombier",
+    "de_inf": "d'appeler le plombier",
+    "conj": "j'appelle le plombier",
+    "main": "je lis les avis en ligne",
+    "main_cap": "Je lis les avis en ligne",
+    "en_ing": "calling the plumber",
+    "en_main": "I read the reviews online",
+    "en_main_cap": "I read the reviews online",
+    "tags": []
+   },
+   {
+    "imp": "laisse tes clés à la voisine",
+    "en_imp": "leave your keys with the neighbour",
+    "id": "pa_vacances",
+    "inf": "partir en vacances",
+    "de_inf": "de partir en vacances",
+    "conj": "je pars en vacances",
+    "main": "je laisse mes clés à la voisine",
+    "main_cap": "Je laisse mes clés à la voisine",
+    "en_ing": "going on holiday",
+    "en_main": "I leave my keys with the neighbour",
+    "en_main_cap": "I leave my keys with the neighbour",
+    "tags": []
+   },
+   {
+    "imp": "fais une liste",
+    "en_imp": "make a list",
+    "id": "pa_courses",
+    "inf": "faire les courses",
+    "de_inf": "de faire les courses",
+    "conj": "je fais les courses",
+    "main": "je fais une liste",
+    "main_cap": "Je fais une liste",
+    "en_ing": "doing the shopping",
+    "en_main": "I make a list",
+    "en_main_cap": "I make a list",
+    "tags": []
+   },
+   {
+    "imp": "réfléchis un peu",
+    "en_imp": "think it over a little",
+    "id": "pa_repondre",
+    "inf": "répondre",
+    "de_inf": "de répondre",
+    "conj": "je réponds",
+    "main": "je réfléchis un peu",
+    "main_cap": "Je réfléchis un peu",
+    "en_ing": "answering",
+    "en_main": "I think it over a little",
+    "en_main_cap": "I think it over a little",
+    "tags": []
+   },
+   {
+    "imp": "prends un café",
+    "en_imp": "have a coffee",
+    "id": "pa_travail",
+    "inf": "commencer le travail",
+    "de_inf": "de commencer le travail",
+    "conj": "je commence le travail",
+    "main": "je prends un café",
+    "main_cap": "Je prends un café",
+    "en_ing": "starting work",
+    "en_main": "I have a coffee",
+    "en_main_cap": "I have a coffee",
+    "tags": []
+   },
+   {
+    "imp": "relis le texte",
+    "en_imp": "read the text again",
+    "id": "pa_mail",
+    "inf": "envoyer le mail",
+    "de_inf": "d'envoyer le mail",
+    "conj": "j'envoie le mail",
+    "main": "je relis le texte",
+    "main_cap": "Je relis le texte",
+    "en_ing": "sending the e-mail",
+    "en_main": "I read the text again",
+    "en_main_cap": "I read the text again",
+    "tags": []
+   },
+   {
+    "imp": "relis ton CV",
+    "en_imp": "read your CV again",
+    "id": "pa_entretien",
+    "inf": "aller à un entretien",
+    "de_inf": "d'aller à un entretien",
+    "conj": "je vais à un entretien",
+    "main": "je relis mon CV",
+    "main_cap": "Je relis mon CV",
+    "en_ing": "going to an interview",
+    "en_main": "I read my CV again",
+    "en_main_cap": "I read my CV again",
+    "tags": []
+   },
+   {
+    "imp": "passe à la boulangerie",
+    "en_imp": "stop by the bakery",
+    "id": "pa_rentrer",
+    "inf": "rentrer",
+    "de_inf": "de rentrer",
+    "conj": "je rentre",
+    "main": "je passe à la boulangerie",
+    "main_cap": "Je passe à la boulangerie",
+    "en_ing": "going home",
+    "en_main": "I stop by the bakery",
+    "en_main_cap": "I stop by the bakery",
+    "tags": []
+   },
+   {
+    "imp": "range la cuisine",
+    "en_imp": "tidy the kitchen",
+    "id": "pa_cuisiner",
+    "inf": "cuisiner",
+    "de_inf": "de cuisiner",
+    "conj": "je cuisine",
+    "main": "je range la cuisine",
+    "main_cap": "Je range la cuisine",
+    "en_ing": "cooking",
+    "en_main": "I tidy the kitchen",
+    "en_main_cap": "I tidy the kitchen",
+    "tags": []
+   },
+   {
+    "imp": "achète une bouteille d'eau",
+    "en_imp": "buy a bottle of water",
+    "id": "pa_train",
+    "inf": "prendre le train",
+    "de_inf": "de prendre le train",
+    "conj": "je prends le train",
+    "main": "j'achète une bouteille d'eau",
+    "main_cap": "J'achète une bouteille d'eau",
+    "en_ing": "taking the train",
+    "en_main": "I buy a bottle of water",
+    "en_main_cap": "I buy a bottle of water",
+    "tags": []
+   }
+  ],
+  "pi_sans": [
+   {
+    "id": "ps_aurevoir",
+    "main": "Il est parti",
+    "inf": "dire au revoir",
+    "part": "disant au revoir",
+    "end": ".",
+    "en": "He left without saying goodbye.",
+    "tags": []
+   },
+   {
+    "id": "ps_contrat",
+    "main": "Elle a signé le contrat",
+    "inf": "le lire",
+    "part": "le lisant",
+    "end": ".",
+    "en": "She signed the contract without reading it.",
+    "tags": []
+   },
+   {
+    "id": "ps_prix",
+    "main": "J'ai payé",
+    "inf": "regarder le prix",
+    "part": "regardant le prix",
+    "end": ".",
+    "en": "I paid without looking at the price.",
+    "tags": []
+   },
+   {
+    "id": "ps_frapper",
+    "main": "Le voisin est entré",
+    "inf": "frapper",
+    "part": "frappant",
+    "end": ".",
+    "en": "The neighbour came in without knocking.",
+    "tags": []
+   },
+   {
+    "id": "ps_demander",
+    "main": "Mon colocataire a pris ma voiture",
+    "inf": "demander",
+    "part": "demandant",
+    "end": ".",
+    "en": "My flatmate took my car without asking.",
+    "tags": []
+   },
+   {
+    "id": "ps_reflechir",
+    "main": "Il a répondu",
+    "inf": "réfléchir",
+    "part": "réfléchissant",
+    "end": ".",
+    "en": "He answered without thinking.",
+    "tags": []
+   },
+   {
+    "id": "ps_rue",
+    "main": "Elle a traversé la rue",
+    "inf": "regarder",
+    "part": "regardant",
+    "end": ".",
+    "en": "She crossed the street without looking.",
+    "tags": []
+   },
+   {
+    "id": "ps_date",
+    "main": "J'ai acheté le billet",
+    "inf": "vérifier la date",
+    "part": "vérifiant la date",
+    "end": ".",
+    "en": "I bought the ticket without checking the date.",
+    "tags": []
+   },
+   {
+    "id": "ps_cles",
+    "main": "Tu as fermé la porte",
+    "inf": "prendre tes clés",
+    "part": "prenant tes clés",
+    "end": "?",
+    "en": "You shut the door without taking your keys?",
+    "tags": []
+   },
+   {
+    "id": "ps_concert",
+    "main": "Les organisateurs ont annulé le concert",
+    "inf": "prévenir le public",
+    "part": "prévenant le public",
+    "end": ".",
+    "en": "The organisers cancelled the concert without telling the audience.",
+    "tags": []
+   }
+  ],
+  "pi_cannot": [
+   {
+    "id": "pc_collegues",
+    "v": "partir",
+    "inf": "dire au revoir à mes collègues",
+    "part": "disant au revoir à mes collègues",
+    "en": "I can't leave without saying goodbye to my colleagues.",
+    "tags": []
+   },
+   {
+    "id": "pc_contrat",
+    "v": "signer",
+    "inf": "lire le contrat",
+    "part": "lisant le contrat",
+    "en": "I can't sign without reading the contract.",
+    "tags": []
+   },
+   {
+    "id": "pc_visiter",
+    "v": "louer cet appartement",
+    "inf": "le visiter",
+    "part": "le visitant",
+    "en": "I can't rent this flat without seeing it.",
+    "tags": []
+   },
+   {
+    "id": "pc_soeur",
+    "v": "répondre",
+    "inf": "en parler à ma sœur",
+    "part": "en parlant à ma sœur",
+    "en": "I can't answer without talking to my sister about it.",
+    "tags": []
+   },
+   {
+    "id": "pc_carte",
+    "v": "commander",
+    "inf": "regarder la carte",
+    "part": "regardant la carte",
+    "en": "I can't order without looking at the menu.",
+    "tags": []
+   },
+   {
+    "id": "pc_lire",
+    "v": "dormir",
+    "inf": "lire un peu",
+    "part": "lisant un peu",
+    "en": "I can't sleep without reading for a bit.",
+    "tags": []
+   },
+   {
+    "id": "pc_cafe",
+    "v": "travailler",
+    "inf": "boire un café",
+    "part": "buvant un café",
+    "en": "I can't work without having a coffee.",
+    "tags": []
+   }
+  ],
+  "pi_pour": [
+   {
+    "id": "pp_japon",
+    "main": "J'économise",
+    "inf": "partir au Japon",
+    "en": "I'm saving up to go to Japan.",
+    "tags": [],
+    "de_inf": "de partir au Japon"
+   },
+   {
+    "id": "pp_courir",
+    "main": "Je me lève tôt",
+    "inf": "aller courir",
+    "en": "I get up early to go running.",
+    "tags": [],
+    "de_inf": "d'aller courir"
+   },
+   {
+    "id": "pp_metro",
+    "main": "Je prends le métro",
+    "inf": "aller plus vite",
+    "en": "I take the metro to get there faster.",
+    "tags": [],
+    "de_inf": "d'aller plus vite"
+   },
+   {
+    "id": "pp_paris",
+    "main": "J'apprends le français",
+    "inf": "travailler à Paris",
+    "en": "I'm learning French to work in Paris.",
+    "tags": [],
+    "de_inf": "de travailler à Paris"
+   },
+   {
+    "id": "pp_service",
+    "main": "Je t'appelle",
+    "inf": "te demander un service",
+    "en": "I'm calling to ask you a favour.",
+    "tags": [],
+    "de_inf": "de te demander un service"
+   },
+   {
+    "id": "pp_banque",
+    "main": "Je passe à la banque",
+    "inf": "ouvrir un compte",
+    "en": "I'm stopping by the bank to open an account.",
+    "tags": [],
+    "de_inf": "d'ouvrir un compte"
+   },
+   {
+    "id": "pp_coloc",
+    "main": "Je cherche un colocataire",
+    "inf": "payer moins de loyer",
+    "en": "I'm looking for a flatmate to pay less rent.",
+    "tags": [],
+    "de_inf": "de payer moins de loyer"
+   },
+   {
+    "id": "pp_passeport",
+    "main": "Je vais à la mairie",
+    "inf": "renouveler mon passeport",
+    "en": "I'm going to the town hall to renew my passport.",
+    "tags": [],
+    "de_inf": "de renouveler mon passeport"
+   },
+   {
+    "id": "pp_loyer",
+    "main": "Je travaille le samedi",
+    "inf": "payer mon loyer",
+    "en": "I work on Saturdays to pay my rent.",
+    "tags": [],
+    "de_inf": "de payer mon loyer"
+   },
+   {
+    "id": "pp_journal",
+    "main": "Je descends au kiosque",
+    "inf": "acheter le journal",
+    "en": "I'm going down to the kiosk to buy the paper.",
+    "tags": [],
+    "de_inf": "d'acheter le journal"
+   }
+  ],
+  "pi_afin": [
+   {
+    "id": "pf_dossier",
+    "main": "Merci de nous envoyer le formulaire",
+    "inf": "finaliser votre dossier",
+    "de_inf": "de finaliser votre dossier",
+    "en": "Please send us the form so that we can finalise your file.",
+    "tags": []
+   },
+   {
+    "id": "pf_avance",
+    "main": "Veuillez arriver dix minutes en avance",
+    "inf": "remplir le formulaire d'inscription",
+    "de_inf": "de remplir le formulaire d'inscription",
+    "en": "Please arrive ten minutes early in order to fill in the registration form.",
+    "tags": []
+   },
+   {
+    "id": "pf_rdv",
+    "main": "Nous vous appelons",
+    "inf": "confirmer votre rendez-vous",
+    "de_inf": "de confirmer votre rendez-vous",
+    "en": "We are calling you in order to confirm your appointment.",
+    "tags": []
+   },
+   {
+    "id": "pf_parking",
+    "main": "Gardez votre ticket",
+    "inf": "pouvoir sortir du parking",
+    "de_inf": "de pouvoir sortir du parking",
+    "en": "Keep your ticket in order to be able to leave the car park.",
+    "tags": []
+   },
+   {
+    "id": "pf_colis",
+    "main": "Présentez une pièce d'identité",
+    "inf": "retirer votre colis",
+    "de_inf": "de retirer votre colis",
+    "en": "Show an ID in order to collect your parcel.",
+    "tags": []
+   },
+   {
+    "id": "pf_rib",
+    "main": "Nous avons besoin de votre RIB",
+    "inf": "effectuer le remboursement",
+    "de_inf": "d'effectuer le remboursement",
+    "en": "We need your bank details in order to make the refund.",
+    "tags": []
+   },
+   {
+    "id": "pf_attente",
+    "main": "Prenez rendez-vous en ligne",
+    "inf": "éviter l'attente",
+    "de_inf": "d'éviter l'attente",
+    "en": "Book an appointment online in order to avoid the wait.",
+    "tags": []
+   },
+   {
+    "id": "pf_code",
+    "main": "Merci de garder votre téléphone allumé",
+    "inf": "recevoir le code de confirmation",
+    "de_inf": "de recevoir le code de confirmation",
+    "en": "Please keep your phone switched on in order to receive the confirmation code.",
+    "tags": []
+   }
+  ],
+  "pi_ask": [
+   {
+    "id": "pq_message",
+    "main": "Tu m'envoies un message",
+    "inf": "partir",
+    "de_inf": "de partir",
+    "conj": "tu pars",
+    "en": "Will you text me before you leave?",
+    "tags": []
+   },
+   {
+    "id": "pq_appeler",
+    "main": "Tu peux m'appeler",
+    "inf": "venir",
+    "de_inf": "de venir",
+    "conj": "tu viens",
+    "en": "Can you call me before you come?",
+    "tags": []
+   },
+   {
+    "id": "pq_adresse",
+    "main": "Tu as vérifié l'adresse",
+    "inf": "réserver",
+    "de_inf": "de réserver",
+    "conj": "tu réserves",
+    "en": "Did you check the address before booking?",
+    "tags": []
+   },
+   {
+    "id": "pq_manger",
+    "main": "Tu veux manger quelque chose",
+    "inf": "sortir",
+    "de_inf": "de sortir",
+    "conj": "tu sors",
+    "en": "Do you want something to eat before you go out?",
+    "tags": []
+   },
+   {
+    "id": "pq_contrat",
+    "main": "Tu as lu le contrat",
+    "inf": "signer",
+    "de_inf": "de signer",
+    "conj": "tu signes",
+    "en": "Did you read the contract before signing?",
+    "tags": []
+   },
+   {
+    "id": "pq_four",
+    "main": "Tu as éteint le four",
+    "inf": "partir",
+    "de_inf": "de partir",
+    "conj": "tu pars",
+    "en": "Did you turn the oven off before leaving?",
+    "tags": []
+   },
+   {
+    "id": "pq_poubelles",
+    "main": "Tu peux sortir les poubelles",
+    "inf": "aller au travail",
+    "de_inf": "d'aller au travail",
+    "conj": "tu vas au travail",
+    "en": "Can you take the bins out before you go to work?",
+    "tags": []
+   }
+  ],
+  "pi_too": [
+   {
+    "id": "pt_tard",
+    "main": "Il est trop tard",
+    "inf": "réserver une table",
+    "en": "It's too late to book a table.",
+    "tags": [],
+    "de_inf": "de réserver une table"
+   },
+   {
+    "id": "pt_froid",
+    "main": "Il fait trop froid",
+    "inf": "manger dehors",
+    "en": "It's too cold to eat outside.",
+    "tags": [],
+    "de_inf": "de manger dehors"
+   },
+   {
+    "id": "pt_loin",
+    "main": "C'est trop loin",
+    "inf": "y aller à pied",
+    "en": "It's too far to walk there.",
+    "tags": [],
+    "de_inf": "d'y aller à pied"
+   },
+   {
+    "id": "pt_tot",
+    "main": "Il est trop tôt",
+    "inf": "appeler la mairie",
+    "en": "It's too early to call the town hall.",
+    "tags": [],
+    "de_inf": "d'appeler la mairie"
+   },
+   {
+    "id": "pt_studio",
+    "main": "Le studio est trop petit",
+    "inf": "inviter dix personnes",
+    "en": "The studio is too small to invite ten people.",
+    "tags": [],
+    "de_inf": "d'inviter dix personnes"
+   },
+   {
+    "id": "pt_pluie",
+    "main": "Il pleut trop",
+    "inf": "sortir à vélo",
+    "en": "It's raining too hard to go out on the bike.",
+    "tags": [],
+    "de_inf": "de sortir à vélo"
+   },
+   {
+    "id": "pt_cher",
+    "main": "C'est trop cher",
+    "inf": "prendre un taxi",
+    "en": "It's too expensive to take a taxi.",
+    "tags": [],
+    "de_inf": "de prendre un taxi"
+   },
+   {
+    "id": "pt_bruit",
+    "main": "Il y a trop de bruit",
+    "inf": "travailler ici",
+    "en": "It's too noisy to work here.",
+    "tags": [],
+    "de_inf": "de travailler ici"
+   }
+  ],
+  "pi_reach": [
+   {
+    "id": "pr_ecris",
+    "fr": "Je t'écris",
+    "en": "I'm writing",
+    "tags": []
+   },
+   {
+    "id": "pr_appelle",
+    "fr": "Je t'appelle",
+    "en": "I'm calling",
+    "tags": []
+   },
+   {
+    "id": "pr_passe",
+    "fr": "Je passe chez toi",
+    "en": "I'm coming round",
+    "tags": []
+   },
+   {
+    "id": "pr_message",
+    "fr": "Je t'envoie un message",
+    "en": "I'm sending you a message",
+    "tags": []
+   },
+   {
+    "id": "pr_mot",
+    "fr": "Je te laisse un mot",
+    "en": "I'm leaving you a note",
+    "tags": []
+   }
+  ],
+  "pi_why": [
+   {
+    "id": "pw_merci",
+    "inf": "te remercier",
+    "en": "to thank you",
+    "tags": [],
+    "de_inf": "de te remercier"
+   },
+   {
+    "id": "pw_service",
+    "inf": "te demander un service",
+    "en": "to ask you a favour",
+    "tags": [],
+    "de_inf": "de te demander un service"
+   },
+   {
+    "id": "pw_inviter",
+    "inf": "t'inviter samedi",
+    "en": "to invite you on Saturday",
+    "tags": [],
+    "de_inf": "de t'inviter samedi"
+   },
+   {
+    "id": "pw_nouvelles",
+    "inf": "te donner des nouvelles",
+    "en": "to give you some news",
+    "tags": [],
+    "de_inf": "de te donner des nouvelles"
+   },
+   {
+    "id": "pw_anniv",
+    "inf": "te souhaiter un bon anniversaire",
+    "en": "to wish you a happy birthday",
+    "tags": [],
+    "de_inf": "de te souhaiter un bon anniversaire"
+   },
+   {
+    "id": "pw_probleme",
+    "inf": "t'expliquer le problème",
+    "en": "to explain the problem",
+    "tags": [],
+    "de_inf": "de t'expliquer le problème"
+   },
+   {
+    "id": "pw_cine",
+    "inf": "te proposer d'aller au cinéma",
+    "en": "to suggest going to the cinema",
+    "tags": [],
+    "de_inf": "de te proposer d'aller au cinéma"
+   },
+   {
+    "id": "pw_conseil",
+    "inf": "te demander conseil",
+    "en": "to ask your advice",
+    "tags": [],
+    "de_inf": "de te demander conseil"
+   },
+   {
+    "id": "pw_adresse",
+    "inf": "te demander l'adresse",
+    "en": "to ask you for the address",
+    "tags": [],
+    "de_inf": "de te demander l'adresse"
+   },
+   {
+    "id": "pw_excuse",
+    "inf": "m'excuser pour hier",
+    "en": "to apologise for yesterday",
+    "tags": [],
+    "de_inf": "de m'excuser pour hier"
+   }
+  ],
+  "pi_who": [
+   {
+    "id": "pwh_coloc",
+    "fr": "Mon colocataire",
+    "en": "My flatmate",
+    "tags": []
+   },
+   {
+    "id": "pwh_soeur",
+    "fr": "Ma sœur",
+    "en": "My sister",
+    "tags": []
+   },
+   {
+    "id": "pwh_frere",
+    "fr": "Mon frère",
+    "en": "My brother",
+    "tags": []
+   },
+   {
+    "id": "pwh_cousine",
+    "fr": "Ma cousine",
+    "en": "My cousin",
+    "tags": []
+   }
+  ],
+  "pi_took": [
+   {
+    "id": "pk_velo",
+    "fr": "a pris mon vélo",
+    "en": "took my bike",
+    "tags": []
+   },
+   {
+    "id": "pk_yaourt",
+    "fr": "a mangé mon yaourt",
+    "en": "ate my yoghurt",
+    "tags": []
+   },
+   {
+    "id": "pk_ordi",
+    "fr": "a utilisé mon ordinateur",
+    "en": "used my computer",
+    "tags": []
+   },
+   {
+    "id": "pk_chargeur",
+    "fr": "a emprunté mon chargeur",
+    "en": "borrowed my charger",
+    "tags": []
+   },
+   {
+    "id": "pk_courrier",
+    "fr": "a ouvert mon courrier",
+    "en": "opened my post",
+    "tags": []
+   },
+   {
+    "id": "pk_fromage",
+    "fr": "a fini mon fromage",
+    "en": "finished my cheese",
+    "tags": []
+   },
+   {
+    "id": "pk_ecouteurs",
+    "fr": "a pris mes écouteurs",
+    "en": "took my headphones",
+    "tags": []
+   },
+   {
+    "id": "pk_affaires",
+    "fr": "a rangé mes affaires",
+    "en": "tidied away my things",
+    "tags": []
+   },
+   {
+    "id": "pk_pull",
+    "fr": "a mis mon pull",
+    "en": "wore my jumper",
+    "tags": []
+   }
+  ],
+  "nar_state": [
+   {
+    "id": "nst_creve",
+    "fr": "J'étais crevé",
+    "en": "I was exhausted",
+    "tags": [
+     "tired"
+    ]
+   },
+   {
+    "id": "nst_retard",
+    "fr": "J'étais en retard au travail",
+    "en": "I was late for work",
+    "tags": [
+     "late"
+    ]
+   },
+   {
+    "id": "nst_faim",
+    "fr": "J'avais une faim de loup au réveil",
+    "en": "I woke up starving",
+    "tags": [
+     "hungry"
+    ]
+   },
+   {
+    "id": "nst_humeur",
+    "fr": "J'étais de mauvaise humeur",
+    "en": "I was in a bad mood",
+    "tags": [
+     "tired",
+     "late",
+     "hungry"
+    ]
+   },
+   {
+    "id": "nst_concentrer",
+    "fr": "Je n'arrivais pas à me concentrer au bureau",
+    "en": "I couldn't concentrate at the office",
+    "tags": [
+     "tired"
+    ]
+   }
+  ],
+  "nar_cause": [
+   {
+    "id": "nca_bebe",
+    "pqp": "j'avais gardé le bébé de ma sœur",
+    "pc": "j'ai gardé le bébé de ma sœur",
+    "imp": "je gardais le bébé de ma sœur",
+    "en": "the night before I had looked after my sister's baby",
+    "kinds": [
+     "tired"
+    ],
+    "tags": []
+   },
+   {
+    "id": "nca_soiree",
+    "pqp": "j'étais rentré très tard d'une soirée",
+    "pc": "je suis rentré très tard d'une soirée",
+    "imp": "je rentrais très tard d'une soirée",
+    "en": "the night before I had got home very late from a party",
+    "kinds": [
+     "tired"
+    ],
+    "tags": []
+   },
+   {
+    "id": "nca_reviser",
+    "pqp": "j'avais révisé jusqu'à minuit",
+    "pc": "j'ai révisé jusqu'à minuit",
+    "imp": "je révisais jusqu'à minuit",
+    "en": "the night before I had studied until midnight",
+    "kinds": [
+     "tired"
+    ],
+    "tags": []
+   },
+   {
+    "id": "nca_couche",
+    "pqp": "je m'étais couché très tard",
+    "pc": "je me suis couché très tard",
+    "imp": "je me couchais très tard",
+    "en": "the night before I had gone to bed very late",
+    "kinds": [
+     "tired",
+     "late"
+    ],
+    "tags": []
+   },
+   {
+    "id": "nca_reveil",
+    "pqp": "j'avais oublié de mettre mon réveil",
+    "pc": "j'ai oublié de mettre mon réveil",
+    "imp": "j'oubliais de mettre mon réveil",
+    "en": "the night before I had forgotten to set my alarm",
+    "kinds": [
+     "late"
+    ],
+    "tags": []
+   },
+   {
+    "id": "nca_courses",
+    "pqp": "j'avais oublié de faire les courses",
+    "pc": "j'ai oublié de faire les courses",
+    "imp": "j'oubliais de faire les courses",
+    "en": "the day before I had forgotten to do the shopping",
+    "kinds": [
+     "hungry"
+    ],
+    "tags": []
+   },
+   {
+    "id": "nca_couru",
+    "pqp": "j'avais couru dix kilomètres",
+    "pc": "j'ai couru dix kilomètres",
+    "imp": "je courais dix kilomètres",
+    "en": "the day before I had run ten kilometres",
+    "kinds": [
+     "hungry",
+     "tired"
+    ],
+    "tags": []
+   },
+   {
+    "id": "nca_bureau",
+    "pqp": "j'avais travaillé tard au bureau",
+    "pc": "j'ai travaillé tard au bureau",
+    "imp": "je travaillais tard au bureau",
+    "en": "the night before I had worked late at the office",
+    "kinds": [
+     "tired"
+    ],
+    "tags": []
+   },
+   {
+    "id": "nca_cartons",
+    "pqp": "j'avais porté tous mes cartons au cinquième étage",
+    "pc": "j'ai porté tous mes cartons au cinquième étage",
+    "imp": "je portais tous mes cartons au cinquième étage",
+    "en": "the day before I had carried all my boxes up to the fifth floor",
+    "kinds": [
+     "tired",
+     "hungry"
+    ],
+    "tags": []
+   },
+   {
+    "id": "nca_batterie",
+    "pqp": "j'avais oublié de recharger mon téléphone",
+    "pc": "j'ai oublié de recharger mon téléphone",
+    "imp": "j'oubliais de recharger mon téléphone",
+    "en": "the night before I had forgotten to charge my phone",
+    "kinds": [
+     "late"
+    ],
+    "tags": []
+   },
+   {
+    "id": "nca_diner",
+    "pqp": "j'avais sauté le dîner",
+    "pc": "j'ai sauté le dîner",
+    "imp": "je sautais le dîner",
+    "en": "the night before I had skipped dinner",
+    "kinds": [
+     "hungry"
+    ],
+    "tags": []
+   }
   ]
  }
 }

@@ -192,6 +192,73 @@ def lapsed_letters(db: Session, user_id: Any, *, since: date, now: datetime | No
     return rows
 
 
+#: Pilot P9: at most this many lines say where the story stood when the learner left.
+WHERE_LEFT_MAX = 2
+
+
+def _last_completed_journey(db: Session, user_id: Any, *, before: date) -> DailyJourney | None:
+    from app.services.journey_contracts import TERMINAL_JOURNEY_STATUSES
+
+    return db.scalar(
+        select(DailyJourney)
+        .where(
+            DailyJourney.user_id == user_id,
+            DailyJourney.local_date < before,
+            DailyJourney.status.in_(tuple(str(value) for value in TERMINAL_JOURNEY_STATUSES)),
+        )
+        .order_by(DailyJourney.local_date.desc(), DailyJourney.created_at.desc())
+        .limit(1)
+    )
+
+
+def _stored_summary(db: Session, journey: DailyJourney) -> str:
+    """The end card's own summary of that day (the last resolution step's
+    ``summary_native``), or ``""``."""
+
+    from app.db.models.daily_journey import DailyJourneyStep
+
+    prompts = db.scalars(
+        select(DailyJourneyStep.public_prompt)
+        .where(DailyJourneyStep.journey_id == journey.id, DailyJourneyStep.kind == "resolution")
+        .order_by(DailyJourneyStep.ordinal.desc())
+    ).all()
+    for prompt in prompts:
+        text = _text((prompt or {}).get("summary_native") if isinstance(prompt, dict) else None)
+        if text:
+            return text
+    return ""
+
+
+def where_left(db: Session, user: User | None, *, user_id: Any, before: date) -> list[str]:
+    """Pilot P9: up to two lines, in the learner's interface language, of where the story
+    stood when they left — the last played day's stored end summary, then the hook it left
+    open. Stored text only, no model call. No stored summary: no lines at all.
+
+    The hook is French; it is printed only where the interface is French (from B1), or
+    when the story stored a rendering of it in the learner's language (``open_native`` /
+    ``text_native``). A beginner is never handed an untranslated French hook here.
+    """
+
+    from app.services.chrome_language import user_chrome_language
+
+    journey = _last_completed_journey(db, user_id, before=before)
+    if journey is None:
+        return []
+    summary = _stored_summary(db, journey)
+    if not summary:
+        return []
+    lines = [summary]
+    recap = journey.recap_snapshot if isinstance(journey.recap_snapshot, dict) else {}
+    teaser = recap.get("teaser") if isinstance(recap.get("teaser"), dict) else {}
+    if user_chrome_language(user) == "fr":
+        hook = _text(teaser.get("open_fr") or teaser.get("text_fr") or recap.get("teaser_fr"))
+    else:
+        hook = _text(teaser.get("open_native") or teaser.get("text_native"))
+    if hook and hook != summary:
+        lines.append(hook)
+    return lines[:WHERE_LEFT_MAX]
+
+
 def _scene_payload(db: Session, journey: DailyJourney | None) -> dict[str, Any]:
     if journey is None:
         return {}
@@ -214,7 +281,8 @@ def absence_view(
     journey: DailyJourney | None = None,
     now: datetime | None = None,
 ) -> dict[str, Any] | None:
-    """``{days, greeting_fr, entre_temps, lapsed_letters}`` from two missed days, else ``None``."""
+    """``{days, greeting_fr, where_left, entre_temps, lapsed_letters}`` from two missed
+    days, else ``None``."""
 
     if int(missed_days or 0) < ABSENCE_MIN_MISSED_DAYS:
         return None
@@ -230,6 +298,7 @@ def absence_view(
     return {
         "days": int(missed_days),
         "greeting_fr": greeting or None,
+        "where_left": where_left(db, user, user_id=user_id, before=local_date),
         "entre_temps": entre_temps(_live_state(db, user_id), since),
         "lapsed_letters": lapsed_letters(db, user_id, since=since, now=now),
     }
@@ -334,4 +403,5 @@ __all__ = [
     "lapsed_letters",
     "season_premiere_view",
     "story_frame_fields",
+    "where_left",
 ]

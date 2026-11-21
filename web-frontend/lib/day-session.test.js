@@ -38,9 +38,6 @@ function session(states, overrides = {}) {
     minutes_left: 21,
     done: finish === 'done',
     tally: { scenes: 1, words: 20, exercises: 12 },
-    more_words: 5,
-    more_minutes: 2,
-    more_href: '/vocabulary/review?more=5',
     ...overrides,
   };
 }
@@ -85,27 +82,22 @@ test('the journey card starts the scene; after it the one button names the next 
   assert.equal(ds.sessionNextAction(session(['done', 'done', 'done', 'done']), 'de'), null);
 });
 
-test('only a finished day offers five more words', () => {
-  assert.equal(ds.sessionMore(session(['done', 'next', 'todo', 'todo']), 'de'), null);
-  assert.deepEqual(ds.sessionMore(session(['done', 'done', 'done', 'done']), 'de'), {
-    label: 'Noch 5 neue Wörter',
-    meta: '2 Min.',
-    href: '/vocabulary/review?more=5',
-  });
+test('P7: a finished day offers no more words (Settings holds the offer)', () => {
+  assert.equal(ds.sessionMore, undefined);
+  assert.equal(ds.sessionNextAction(session(['done', 'done', 'done', 'done']), 'de'), null);
 });
 
 // #783: «Noch 1 neue Wörter» on the words end screen. Every count in the day's
 // copy says one word in the singular, in the three chrome languages.
 test('one more word is one word, not «1 neue Wörter» (#783)', () => {
-  const finished = (n) => session(['done', 'done', 'done', 'done'], { more_words: n, more_href: `/vocabulary/review?more=${n}` });
   const expected = {
     de: ['Noch 1 neues Wort', 'Noch 5 neue Wörter'],
     fr: ['Encore 1 nouveau mot', 'Encore 5 nouveaux mots'],
     en: ['1 more new word', '5 more new words'],
   };
   for (const [language, [one, five]] of Object.entries(expected)) {
-    assert.equal(ds.sessionMore(finished(1), language).label, one, language);
-    assert.equal(ds.sessionMore(finished(5), language).label, five, language);
+    assert.equal(ds.daySessionCopy(language).more_words(1), one, language);
+    assert.equal(ds.daySessionCopy(language).more_words(5), five, language);
   }
 });
 
@@ -151,13 +143,14 @@ test('the mark’s four shapes are the four steps', () => {
 test('the Tempo sheet says what each pace holds, costs and reaches', () => {
   const options = [
     { pace: 'ruhig', words: 10, rules_per_week: 3, exercises: 12, minutes_today: 18, minutes_week_8: 21, reviews_week_8: 28, goal_weeks: 15.1 },
-    { pace: 'normal', words: 20, rules_per_week: 5, exercises: 12, minutes_today: 23, minutes_week_8: 28, reviews_week_8: 57, goal_weeks: 10.5 },
+    // Owner decision 1 (P7): Normal is 15 words; R2 (7) prices them (daily_session.pace_option).
+    { pace: 'normal', words: 15, rules_per_week: 5, exercises: 8, minutes_today: 22, minutes_week_8: 27, reviews_week_8: 43, goal_weeks: 10.5 },
     { pace: 'schnell', words: 40, rules_per_week: 8, exercises: 17, minutes_today: 35, minutes_week_8: 43, reviews_week_8: 114, goal_weeks: 8.1 },
   ];
   const rows = ds.paceRows(options, 'A1.2', 'de');
   assert.deepEqual(rows.map((row) => row.name), ['Ruhig', 'Normal', 'Schnell']);
-  assert.equal(rows[1].detail, '20 Wörter · 5 Regeln pro Woche');
-  assert.equal(rows[1].minutes, '≈ 23 Min.');
+  assert.equal(rows[1].detail, '15 Wörter · 5 Regeln pro Woche');
+  assert.equal(rows[1].minutes, '≈ 22 Min.');
   assert.equal(rows[0].goal, 'A1 in ≈ 3½ Monaten');
   assert.equal(rows[1].goal, 'A1 in ≈ 11 Wochen');
   assert.equal(rows[2].goal, 'A1 in ≈ 8 Wochen');
@@ -240,4 +233,75 @@ test('Phase 2 · under the tally, the story’s words read, in the learner’s o
   // A day that read none of the story, or an older server, prints no line.
   assert.equal(ds.storyReadLine({ scenes: 0, words: 20, exercises: 12, acts: 0, story_words: 0 }, 'de'), null);
   assert.equal(ds.storyReadLine({ scenes: 1, words: 20, exercises: 12 }, 'de'), null);
+});
+
+// P12 · one day, one state. Observed 17 Nov: the scene played in Le Quartier, «Continuer» went on
+// to the rule as step 4 of 6, and Home's tracker still said «Szene — als Nächstes · 11 Min.»: the
+// server marks the scene done only once the whole journey has ended.
+function journeyAt(current, { status = 'active', storyStatus = 'completed' } = {}) {
+  const steps = [
+    { id: 's', kind: 'scene', ordinal: 0 },
+    { id: 'r', kind: 'respond', ordinal: 1 },
+    { id: 'e', kind: 'resolution', ordinal: 2 },
+    { id: 'g', kind: 'rule', ordinal: 3 },
+    { id: 'w', kind: 'recall', ordinal: 4 },
+  ];
+  const at = steps.findIndex((s) => s.id === current);
+  return {
+    id: 'j',
+    status,
+    current_step_id: current,
+    steps: steps.map((s, i) => ({ ...s, status: i < at ? (i < 3 ? storyStatus : 'completed') : i === at ? 'active' : 'pending' })),
+  };
+}
+
+test('P12: a scene played (in the quarter or as pages) is done on Home while the day goes on', () => {
+  const server = session(['next', 'todo', 'todo', 'todo'], { tally: { scenes: 0, words: 0, exercises: 0 } });
+  const after = ds.withScenePlayed(server, journeyAt('g'));
+  assert.deepEqual(after.steps.map((s) => s.state), ['done', 'next', 'todo', 'todo']);
+  assert.equal(after.next_kind, 'grammar');
+  assert.equal(after.minutes_left, 13, 'the scene’s minutes are spent');
+  assert.equal(after.tally.scenes, 1);
+  assert.equal(after.done, false);
+  assert.deepEqual(ds.sessionRows(after, 'de').map((r) => [r.label, r.state, r.meta]), [
+    ['Szene', 'done', ''],
+    ['Grammatik', 'next', '5 Min.'],
+    ['32 Wörter', 'todo', '20 neu · 12 zum Wiederholen · 8 Min.'],
+    ['Fertig', 'todo', ''],
+  ]);
+  assert.equal(ds.sessionMarkState(after, 'de').done, 1);
+  // the server's session is left as it came (Home's button reads it)
+  assert.deepEqual(server.steps.map((s) => s.state), ['next', 'todo', 'todo', 'todo']);
+  // a step already done stays done; the next one not done is next
+  const grammarDone = ds.withScenePlayed(session(['next', 'done', 'todo', 'todo']), journeyAt('w'));
+  assert.deepEqual(grammarDone.steps.map((s) => s.state), ['done', 'done', 'next', 'todo']);
+  assert.equal(grammarDone.next_kind, 'words');
+  // paused after the scene: the same
+  assert.equal(ds.withScenePlayed(server, journeyAt('g', { status: 'paused' })).steps[0].state, 'done');
+});
+
+test('P12: a scene not yet played, or a day the server already settled, is the server’s session', () => {
+  const server = session(['next', 'todo', 'todo', 'todo']);
+  for (const [what, journey] of [
+    ['no journey', null],
+    ['the scene ahead', journeyAt('s')],
+    ['the talk open', journeyAt('r')],
+    ['the ending open', journeyAt('e')],
+    ['a finished day (the server decides)', journeyAt('w', { status: 'completed' })],
+  ]) {
+    assert.equal(ds.withScenePlayed(server, journey), server, what);
+  }
+  assert.equal(ds.journeyScenePlayed(journeyAt('g')), true);
+  assert.equal(ds.journeyScenePlayed(journeyAt('g', { storyStatus: 'skipped' })), true);
+  assert.equal(ds.journeyScenePlayed({ ...journeyAt('g'), steps: journeyAt('g').steps.filter((s) => s.kind !== 'scene') }), false, 'a day without a scene');
+  const settled = session(['done', 'next', 'todo', 'todo']);
+  assert.equal(ds.withScenePlayed(settled, journeyAt('g')), settled);
+  assert.equal(ds.withScenePlayed(null, journeyAt('g')), null);
+});
+
+test('P12: Home’s tracker reads the played scene through withScenePlayed', () => {
+  const src = require('node:fs').readFileSync(path.join(WEB_ROOT, 'pages/atelier.tsx'), 'utf8');
+  assert.match(src, /const daySession = withScenePlayed\(serverSession, dayJourney\);/);
+  // the one button stays the journey card's while the journey is open: no second press
+  assert.match(src, /sessionNextAction\(serverSession, chromeLanguage\)/);
 });

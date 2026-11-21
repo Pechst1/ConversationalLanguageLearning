@@ -55,6 +55,8 @@ SEEN_MARKED_WRONG = [
     "Je suis froid avec elle.",
     "Je suis chaud pour ça.",
     "Je suis fatigué, mais je suis content.",
+    # Walk 2 (18 Nov, B1 day 5): a plan in the future, changed to «je lui ai dit» by a model.
+    "Alors je lui dirai que Camille m'a déjà proposé de l'argent.",
     "Les loyers sont aussi plus chers chez moi.",
     "Tu es disponible jeudi ?",
     "Je suis au Mistral avec Marin et nous buvons du café.",

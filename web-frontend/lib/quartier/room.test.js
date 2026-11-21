@@ -213,7 +213,18 @@ test('what you can tap says what it is in three languages, and you can walk up t
   });
 });
 
-test('every room is the stage of a place of the season, so a page set there finds it (world.json «stages»)', () => {
+/** P12: the routing a room has once finished; a room marked `unfinished` (`place-check.test.js`) stages nothing meanwhile. */
+function asFinished(fn) {
+  const marked = WORLD.places.filter((p) => p.unfinished).map((p) => [p, p.unfinished]);
+  marked.forEach(([p]) => delete p.unfinished);
+  try {
+    return fn();
+  } finally {
+    marked.forEach(([p, why]) => (p.unfinished = why));
+  }
+}
+
+test('every room is the stage of a place of the season, so a page set there finds it (world.json «stages»)', () => asFinished(() => {
   const { stageOf } = require('./world.ts');
   const { roomOf } = require('./story.ts');
   const season = fs.readFileSync(path.join(WEB_ROOT, '..', 'app/services/season/world.py'), 'utf8');
@@ -237,6 +248,11 @@ test('every room is the stage of a place of the season, so a page set there find
   assert.equal(stageOf('marin_lila_flat')?.room, 'chez_marin_lila');
   assert.equal(stageOf('marchand_office')?.room, 'gerance_marchand');
   assert.equal(stageOf('gare_de_lest'), null);
+}));
+
+test('P12: a room marked unfinished stages nothing until the forge has finished it', () => {
+  const { stageOf } = require('./world.ts');
+  for (const p of WORLD.places.filter((x) => x.unfinished)) for (const loc of p.stages ?? []) assert.notEqual(stageOf(loc)?.id, p.id, loc);
 });
 
 test('Marin and Lila’s flat (T5, B without the key): the crate in the hallway, the card under the sardine, the canvas half wrapped', () => {

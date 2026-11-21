@@ -138,7 +138,7 @@ export async function checkAnswerLocally(
 /**
  * After a wrong pick: which option the key says was right, if any. Only for a
  * single pick — the learner has already committed, so showing the right card
- * is feedback, not a hint.
+ * is feedback, not a hint. Whether it may be drawn yet is `rightCardMayShow`.
  */
 export async function correctOptionLocally(
   prompt: Pick<RecallPrompt, 'task_type' | 'answer_key' | 'options'>,
@@ -163,4 +163,22 @@ export function shownVerdict(
 ): LocalVerdict | null {
   if (server) return server === 'wrong' ? 'wrong' : 'correct';
   return local;
+}
+
+/**
+ * P5 (owner, 2026-11-13): «no solution before the retry». May the right card of a
+ * missed pick be drawn now?
+ *
+ * The server keeps the solution back while the item is still to be asked again
+ * (`correction.solution.state === 'withheld'`, app/services/daily_journey.py). Before
+ * it has answered, the device draws the right card only where no retry can follow
+ * the miss: the retry itself, or a choice between two (the miss names the other
+ * one). Everything else waits for the server's word.
+ */
+export function rightCardMayShow(
+  prompt: { retry?: boolean | null; options?: ReadonlyArray<unknown> | null },
+  server: { graded: boolean; correction?: { solution?: { state?: string | null } | null } | null },
+): boolean {
+  if (server.graded) return server.correction?.solution?.state !== 'withheld';
+  return Boolean(prompt.retry) || (prompt.options?.length ?? 0) <= 2;
 }

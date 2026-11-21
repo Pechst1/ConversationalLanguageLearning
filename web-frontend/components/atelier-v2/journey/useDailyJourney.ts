@@ -32,6 +32,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { finaleWaitOver } from '@/components/feuilleton/reader/finale-wait';
 
 import dailyJourneyService, {
   getStoryEpisodeForJourney,
@@ -73,9 +74,12 @@ import {
   phaseFromEnvelope,
   phaseFromJourney,
   resolutionAwaitsStory,
+  sessionStopControl,
   STORY_POLL_LIMIT,
   STORY_POLL_MS,
   storyPollTarget,
+  continueAfterStoryWait,
+  polledSnapshotIsCurrent,
   feedbackAfterAppeal,
   type AppealOutcome,
   type JourneyFeedback,
@@ -86,11 +90,13 @@ import {
   createMutationKeyring,
   createRequestGate,
   planFailure,
+  retryPlan,
   runMutation,
   runWithWaitHint,
   stageAttemptFeedback,
   WAIT_HINT_DELAY_MS,
   WARM_WAIT_HINT_DELAY_MS,
+  type FailedMutation,
   type MutationOutcome,
 } from './journey-requests';
 import { loadStoryEpisode, storyEpisodeKey, useStoryEpisodeEntry } from './story-episode-store';
@@ -116,13 +122,22 @@ export type DailyJourneyActions = {
   requestHelp: (helpKind: HelpKind) => Promise<void>;
   /** Submit an answer. A blank text/voice answer is refused before it is sent. */
   submitAnswer: (input: AttemptInput) => Promise<void>;
-  /** Resubmit the identical body with the identical mutation id. */
+  /**
+   * «Erneut versuchen»: re-send what failed with the identical mutation id — the
+   * answer, or (P11) the advance from the same step, or the finish.
+   */
   retryLastAnswer: () => Promise<void>;
   /** The single forward action: next turn, next step, or finish. */
   continueJourney: () => Promise<void>;
   pause: () => Promise<void>;
   resume: () => Promise<void>;
   finish: (kind: 'complete' | 'early') => Promise<void>;
+  /**
+   * P11 «Passer à la scène»: from a step before the day's unplayed scene, one
+   * `advance` with `skip_to_scene` skips what is left before it (a rule card
+   * unread, a drill item with no lapse) and opens the scene. Never ends the day.
+   */
+  skipToScene: () => Promise<void>;
   /** «Demain»: pick the thread tomorrow follows, from the finished recap's choice. */
   pickTomorrow: (premiseId: string) => Promise<void>;
   /** Dismiss a feedback card without moving on. */
@@ -299,6 +314,8 @@ export function useDailyJourney(
   const keyringRef = useRef(createMutationKeyring());
   /** In-flight promises by intent: a double tap awaits the first request. */
   const gateRef = useRef(createRequestGate());
+  // P11: what «Erneut versuchen» re-sends — the last mutation that failed.
+  const lastFailedRef = useRef<FailedMutation | null>(null);
   const lastAttemptRef = useRef<{
     journeyId: string;
     stepId: string;
@@ -501,11 +518,29 @@ export function useDailyJourney(
       storyPollsRef.current += 1;
       void dailyJourneyService
         .get(storyTarget)
-        .then((next) => applySnapshot(next))
+        .then((next) => {
+          // P11: the poll runs behind the learner now; never undo a tap it raced.
+          if (polledSnapshotIsCurrent(next, journeyRef.current)) applySnapshot(next);
+        })
         .catch(() => undefined);
     }, STORY_POLL_MS);
     return () => clearTimeout(timer);
   }, [storyTarget, journey, applySnapshot]);
+
+  // P11: when the current ending began to be awaited, so «Continuer» can pass it
+  // after FINALE_ESCAPE_MS (the reader shows the button again by then).
+  const storyWaitRef = useRef<{ stepId: string; since: number } | null>(null);
+  const awaitedStepId = (() => {
+    const step = currentStepOf(journey);
+    return resolutionAwaitsStory(step) ? step?.id ?? null : null;
+  })();
+  useEffect(() => {
+    if (!awaitedStepId) {
+      storyWaitRef.current = null;
+    } else if (storyWaitRef.current?.stepId !== awaitedStepId) {
+      storyWaitRef.current = { stepId: awaitedStepId, since: Date.now() };
+    }
+  }, [awaitedStepId]);
 
   // WP-93: «Coulisses» is written in the background. While the current READ
   // step says `writing`, re-read the journey gently (a safe GET) until it is
@@ -774,6 +809,7 @@ export function useDailyJourney(
               mutationId: id,
             }),
           );
+          lastFailedRef.current = result.ok ? null : { kind: 'attempt' };
           if (result.ok) {
             const attempt = result.value;
             // Read before the snapshot moves on: the kind of the step answered.
@@ -822,17 +858,6 @@ export function useDailyJourney(
     },
     [journey, performAttempt],
   );
-
-  const retryLastAnswer = useCallback(async () => {
-    const last = lastAttemptRef.current;
-    if (!last) {
-      // After a reload there is no answer to resend: the failure was the recovery's
-      // advance. Clearing the error lets it run again (review on #65).
-      if (mountedRef.current) setFeedback({ kind: 'idle' });
-      return;
-    }
-    await performAttempt(last.journeyId, last.stepId, last.expectedRevision, last.input);
-  }, [performAttempt]);
 
   /**
    * Finish what the previous run of the app started (WP-10).
@@ -893,6 +918,7 @@ export function useDailyJourney(
               mutationId: id,
             }),
           );
+          lastFailedRef.current = result.ok ? null : { kind: 'finish', finishKind: kind };
           if (result.ok) {
             applySnapshot(result.value);
             if (mountedRef.current) setFeedback({ kind: 'idle' });
@@ -922,22 +948,30 @@ export function useDailyJourney(
     [finishSnapshot],
   );
 
-  const advance = useCallback(async (): Promise<JourneySnapshot | null> => {
+  const advance = useCallback(async (options: { skipToScene?: boolean } = {}): Promise<JourneySnapshot | null> => {
     const target = journeyRef.current;
     const step = currentStepOf(target);
     if (!target || !step) return null;
-    const intent = `advance:${target.id}:${step.id}:${target.revision}`;
+    const skipToScene = Boolean(options.skipToScene);
+    const intent = `advance:${target.id}:${step.id}:${target.revision}${skipToScene ? ':skip' : ''}`;
     let advanced: JourneySnapshot | null = null;
     await once(intent, async () => {
       setBusy(true);
       try {
-        const result = await unwrap(intent, { kind: 'advance', stepId: step.id }, (id) =>
+        const meta = skipToScene
+          ? { kind: 'advance' as const, stepId: step.id, body: { skip_to_scene: true } }
+          : { kind: 'advance' as const, stepId: step.id };
+        const result = await unwrap(intent, meta, (id) =>
           dailyJourneyService.advance(target.id, {
             expectedRevision: target.revision,
             currentStepId: step.id,
             mutationId: id,
+            skipToScene,
           }),
         );
+        lastFailedRef.current = result.ok
+          ? null
+          : { kind: 'advance', journeyId: target.id, stepId: step.id, skipToScene };
         if (result.ok) {
           advanced = result.value;
           applySnapshot(result.value);
@@ -972,13 +1006,48 @@ export function useDailyJourney(
       setHelp(null);
       return;
     }
-    // WP-87: an ending still being written is not skipped past.
-    if (resolutionAwaitsStory(currentStepOf(journeyRef.current))) return;
+    // WP-87: an ending still being written is not skipped past — P11: until the
+    // learner waited FINALE_ESCAPE_MS for it; the ending is there next time.
+    const current = currentStepOf(journeyRef.current);
+    const wait = storyWaitRef.current;
+    const waitOver = Boolean(wait && wait.stepId === current?.id && finaleWaitOver(wait.since, Date.now()));
+    if (!continueAfterStoryWait(journeyRef.current, current, waitOver)) return;
     const advanced = await advance();
     if (advanced && journeyAwaitsFinish(advanced)) {
       await finishSnapshot(advanced, 'complete');
     }
   }, [advance, feedback, finishSnapshot]);
+
+  const skipToScene = useCallback(async () => {
+    revealRef.current.cancel();
+    if (sessionStopControl(journeyRef.current, currentStepOf(journeyRef.current)) !== 'skip') return;
+    await advance({ skipToScene: true });
+  }, [advance]);
+
+  const retryLastAnswer = useCallback(async () => {
+    const plan = retryPlan(lastFailedRef.current, Boolean(lastAttemptRef.current), journeyRef.current);
+    switch (plan.kind) {
+      case 'advance':
+        // P11: the same advance, from the same step and panel — never the last answer.
+        if (mountedRef.current) setFeedback({ kind: 'idle' });
+        if (plan.skipToScene) await skipToScene();
+        else await continueJourney();
+        return;
+      case 'finish':
+        if (mountedRef.current) setFeedback({ kind: 'idle' });
+        await finish(plan.finishKind);
+        return;
+      case 'attempt': {
+        const last = lastAttemptRef.current;
+        if (last) await performAttempt(last.journeyId, last.stepId, last.expectedRevision, last.input);
+        return;
+      }
+      default:
+        // After a reload there is no answer to resend: the failure was the recovery's
+        // advance. Clearing the error lets it run again (review on #65).
+        if (mountedRef.current) setFeedback({ kind: 'idle' });
+    }
+  }, [continueJourney, finish, performAttempt, skipToScene]);
 
   // A current step the server already completed, with no verdict on screen: the
   // learner answered and then reloaded, closed the app, or answered on another
@@ -1124,6 +1193,7 @@ export function useDailyJourney(
       pause,
       resume,
       finish,
+      skipToScene,
       pickTomorrow,
       clearFeedback,
       appeal,
@@ -1139,6 +1209,7 @@ export function useDailyJourney(
       pause,
       resume,
       finish,
+      skipToScene,
       pickTomorrow,
       clearFeedback,
       appeal,

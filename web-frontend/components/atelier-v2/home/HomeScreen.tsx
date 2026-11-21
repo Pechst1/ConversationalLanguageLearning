@@ -299,6 +299,17 @@ export function HomeScreen({
   const oneThing = Boolean(day);
   const chipRoom = dayDone ? 1 : 2;
   const shownChips = (chips || []).slice(0, chipRoom);
+  // Le Quartier, the 3D Paris, launched (P12): its door is a quiet chip for roaming, in the day's
+  // chip row when there is one (never one of the day's two), else in a row of its own. Today's
+  // scene itself is offered in the quarter on the day's card (JourneyTodayCard).
+  const quartierChip = QUARTIER_VISIBLE ? (
+    <Link className="av2-chip" data-chip="quartier" href="/quartier" aria-label={QUARTIER_DOOR[language] ?? QUARTIER_DOOR.fr}>
+      <ShapeToken kind="story" size="sm" />
+      <span>Le Quartier</span>
+      <span className="av2-chip__meta">3D</span>
+    </Link>
+  ) : null;
+  const quartierInRow = oneThing && shownChips.length > 0;
   const streakWord = streak === 1 ? copy.home_streak_first : copy.home_streak_days;
   const [quickOpen, setQuickOpen] = React.useState(false);
   const quickLabel = settingsCopy(resolveSettingsLanguage(language)).quick_open;
@@ -460,20 +471,11 @@ export function HomeScreen({
             );
           })}
           {shownChips.length < chipRoom && <MurChip />}
+          {quartierChip}
         </div>
       )}
 
-      {/* Le Quartier: the door to the 3D Paris, only in a build that has it (the owner's phone
-          build, `NEXT_PUBLIC_QUARTIER_VISIBLE`). The public app never draws it, so WP-81 holds. */}
-      {QUARTIER_VISIBLE && (
-        <div className="av2-home__section av2-home__chips">
-          <Link className="av2-chip" data-chip="quartier" href="/quartier" aria-label={QUARTIER_DOOR[language] ?? QUARTIER_DOOR.fr}>
-            <ShapeToken kind="story" size="sm" />
-            <span>Le Quartier</span>
-            <span className="av2-chip__meta">3D</span>
-          </Link>
-        </div>
-      )}
+      {quartierChip && !quartierInRow ? <div className="av2-home__section av2-home__chips">{quartierChip}</div> : null}
 
       {!day && tiles.length > 0 && (
         <div className="av2-home__tiles">

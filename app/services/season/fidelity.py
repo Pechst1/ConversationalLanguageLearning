@@ -142,7 +142,10 @@ def _strings(value) -> list[str]:
 def season_text(path: Path) -> str:
     """Every French string a season file carries, folded, as one searchable blob."""
 
-    data = json.loads(path.read_text(encoding="utf-8"))
+    from app.services.season.dates import render
+
+    # A date token (``dates``) carries the bible's own date at shift 0.
+    data = render(json.loads(path.read_text(encoding="utf-8")))
     return "\n".join(fold(text) for text in _strings(data))
 
 

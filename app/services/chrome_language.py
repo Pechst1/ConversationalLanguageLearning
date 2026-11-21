@@ -8,6 +8,8 @@ into a language. Two questions, two functions, never merged:
 * **The mother tongue** — ``user_mother_tongue(user)``: the learner's own
   language as a bare code (it may be ``es`` or ``it``), level-blind. Glosses,
   correction explanations and prompt lines that name the learner's language.
+  ``user_correction_language(user)`` is it folded onto en / de / fr, for app-written
+  correction notes.
 
 ``fold_language`` (any code → en / de / fr, unknown → en) and
 ``mother_tongue`` (any code → bare lowercase code, empty → en) are the two
@@ -108,6 +110,13 @@ def user_mother_tongue(user: Any) -> str:
     return mother_tongue(getattr(user, "native_language", None) if user is not None else None)
 
 
+def user_correction_language(user: Any) -> ControlLanguage:
+    """The language a correction is explained in: the mother tongue, folded onto en / de /
+    fr, at every level (owner decision 18 Nov 2026: the scene as the Courrier). The
+    interface stays ``user_chrome_language`` — French from B1."""
+    return fold_language(user_mother_tongue(user))
+
+
 def user_mother_tongue_raw(user: Any) -> str | None:
     """The stored value as typed, for prompt lines that quote it («unknown» when unset)."""
     value = getattr(user, "native_language", None) if user is not None else None
@@ -134,6 +143,7 @@ __all__ = [
     "mother_tongue",
     "pick",
     "user_chrome_language",
+    "user_correction_language",
     "user_mother_tongue",
     "user_mother_tongue_raw",
 ]
