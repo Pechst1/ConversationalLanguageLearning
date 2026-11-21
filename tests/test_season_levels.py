@@ -57,7 +57,7 @@ def test_a_bands_own_examples_come_first_and_the_bibles_still_route():
 def test_written_levels_and_page_shape_cover_a1_to_c1():
     assert written_levels("C1.2")[0] == "c1"
     assert written_levels(None) == ("a1", "a2")
-    assert level_shape("A1.1")["panels"] == "3-4"
+    assert level_shape("A1.1")["panels"] == "4-5"  # owner 2026-11-16: one panel more
     assert level_shape("C2")["band"] == "C1"
     assert level_shape("zz")["band"] == "A2"
 

@@ -19,6 +19,7 @@
  * duration now reads as the steps the learner did.
  */
 
+import { frenchOrNothing } from '@/lib/line-language';
 import React from 'react';
 
 import { Action, Chip, ShapeToken, Surface } from '@/components/atelier-v2/ui';
@@ -331,7 +332,7 @@ export function JourneyRecap({
               )}
               <ChapterColophon
                 digest={colophonDigest(chapterClosed.digest_fr, [
-                  recap?.story_outcome?.callback_fr,
+                  frenchOrNothing(recap?.story_outcome?.callback_fr),
                   view?.face?.lineFr,
                   view?.teaser?.text_fr,
                 ])}

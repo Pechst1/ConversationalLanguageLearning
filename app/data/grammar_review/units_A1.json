@@ -348,7 +348,7 @@
       "sub_band": "A1.1",
       "prerequisites": "FR2_A11_QUESTIONS",
       "contrast_partners": "",
-      "detector": "regex:\\b(?:où|quand|comment|combien|pourquoi|qui|quoi|qu'est-ce qu(?:e|')|quel(?:le)?s?)\\b[^.!]*\\?|\\bqu'est-ce qu(?:e|')",
+      "detector": "regex:\\b(?:où|quand|comment|combien|pourquoi|quoi|qu'est-ce qu(?:e|i|')|quel(?:le)?s?)\\b[^.!]*\\?|(?:^|[.!?…,;:«(—–]\\s*|\\b(?:à|de|avec|pour|chez|par|sans|sur|contre|vers|c'est)\\s+)qui\\b[^.!]*\\?|\\bqui\\s*\\?|\\bqu'est-ce qu(?:e|i|')",
       "rule_short_en": "Question words ask for information: où (where), quand (when), comment (how), combien (how much), quel (which).",
       "rule_short_de": "Fragewörter fragen nach Informationen: où (wo), quand (wann), comment (wie), combien (wie viel), quel (welcher).",
       "rule_short_fr": "Les mots interrogatifs demandent une information : où, quand, comment, combien, pourquoi, quel.",

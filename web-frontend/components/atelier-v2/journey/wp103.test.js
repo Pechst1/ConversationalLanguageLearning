@@ -522,7 +522,7 @@ test('T6 · the closing verdict lists the turn’s corrections, one line per iss
     ),
   );
   assert.ok(band.includes('un grand poster'));
-  assert.equal((band.match(/<li>/g) || []).length, 2, 'the repeated note is said once');
+  assert.equal((band.match(/<li[ >]/g) || []).length, 2, 'the repeated note is said once');
   assert.ok(band.includes('Adjective position.') && band.includes('«poster» is masculine.'));
   assert.ok(!band.includes('old single note'), 'notes_native replaces the single note');
 });

@@ -912,7 +912,11 @@ class UnifiedSRSService:
             .limit(30)
             .all()
         )
-        
+        # Round 3: a stored half-finished edit is never a repair to deal.
+        from app.services.fault_quality import drillable_errors
+
+        errors = drillable_errors(self.db, errors)
+
         for error in errors:
             due_since = self._due_since_days(error.next_review_date, now)
             

@@ -1,5 +1,12 @@
 """Owner decision (12 Nov 2026): a sentence the learner builds or writes is said to nobody.
 
+R2 (walk of 17 Nov 2026): the same holds for a sentence the learner completes, picks or
+judges — «Tu ___ prêt, Marin ?», «La rue est ___, Margaux.», «Il part en Lille demain,
+Romy.» were all served on the walk. One predicate (:func:`addresses_someone`) and one
+strip, applied where every La Forge format is served and graded
+(:func:`unaddressed_served`); the bank's own rungs take the name out as they build
+(``item_bank.without_vocative``). The story's own dialogue keeps its names.
+
 «Wir können bei Lila bleiben, Marin.» asked the learner to decide where «Marin» goes in
 the French, which is no part of the rule being practised and only confuses. So in the
 grammar part of the day — La Forge, the recall drills, any rule drill — an item the
@@ -194,8 +201,116 @@ def unaddressed_item(item: Any) -> Any:
     return out
 
 
+def addresses_someone(sentence: Any) -> bool:
+    """R2 (owner rule of 12 Nov, walk of 17 Nov): the one predicate — does this French
+    sentence address someone by name («Je suis prêt, Margaux.», «Margaux, tu viens ?»)?
+    A name that is part of the sentence («chez Lila») is no address."""
+
+    return bool(addressed_names(sentence))
+
+
+_JUDGEMENT_LABELS = frozenset({"correct", "à corriger"})
+
+
+def _is_judgement(item: dict[str, Any]) -> bool:
+    if item.get("classify_kind"):
+        return item.get("classify_kind") == "judgement"
+    labels = [str(label).strip().casefold() for label in item.get("labels") or [] if isinstance(label, str)]
+    return bool(labels) and sorted(labels) == sorted(_JUDGEMENT_LABELS)
+
+
+def is_recognition(item: Any) -> bool:
+    """R2 (walk of 17 Nov): a payload item whose French sentence the learner completes,
+    picks or judges — a fill («Tu ___ prêt ?»), a minimal pair («Which sentence says …»),
+    a ✓/✗ judgement (a burst's four included). Their sentences are said to nobody too:
+    «Tu ___ prêt, Marin ?» asked the learner to read a name that is no part of the rule."""
+
+    if not isinstance(item, dict) or is_build_or_write(item):
+        return False
+    if isinstance(item.get("choices"), list) and isinstance(item.get("prompt"), str) and "___" in item["prompt"]:
+        return True
+    return isinstance(item.get("labels"), list) and isinstance(item.get("prompt"), str)
+
+
+def _without(text: Any, names: list[str]) -> Any:
+    return strip_vocative(text, names) if isinstance(text, str) else text
+
+
+def _recognition_names(item: dict[str, Any]) -> list[str]:
+    texts: list[Any] = []
+    prompt = item.get("prompt")
+    if isinstance(item.get("choices"), list) and isinstance(prompt, str):
+        answer = str(item.get("correct_answer") or "")
+        texts.append(prompt.replace("___", answer or "x"))
+    elif _is_judgement(item):
+        texts.extend([prompt, item.get("source_fr"), item.get("judgement_fix_fr")])
+        key = item.get("follow_up_key")
+        if isinstance(key, dict):
+            texts.extend([key.get("corrected_fr"), *(key.get("accepted_fr") or [])])
+    else:
+        texts.extend(label for label in item.get("labels") or [] if isinstance(label, str))
+    names: list[str] = []
+    for text in texts:
+        if isinstance(text, str):
+            names.extend(name for name in addressed_names(text) if name not in names)
+    return names
+
+
+def unaddressed_recognition(item: Any) -> Any:
+    """A fill, a pair or a judgement said to nobody (``item`` itself when it names nobody),
+    or ``None`` when what is left is no sentence: the French, its key and every line in the
+    learner's language that quotes it lose the same address, so what is served and what is
+    graded stay one sentence."""
+
+    if not is_recognition(item):
+        return item
+    names = _recognition_names(item)
+    if not names:
+        return item
+    out: dict[str, Any] = {}
+    for key, value in item.items():
+        if key == "labels" and isinstance(value, list):
+            out[key] = value if _is_judgement(item) else [_without(label, names) for label in value]
+        elif key in {"correct_label", "correct_answer"}:
+            out[key] = value if (_is_judgement(item) or isinstance(item.get("choices"), list)) else _without(value, names)
+        elif key == "accepted_answers" and isinstance(value, list):
+            out[key] = value if (_is_judgement(item) or isinstance(item.get("choices"), list)) else [_without(answer, names) for answer in value]
+        elif key == "follow_up_key" and isinstance(value, dict):
+            out[key] = {
+                **value,
+                "corrected_fr": _without(value.get("corrected_fr"), names),
+                "accepted_fr": list(dict.fromkeys(_without(answer, names) for answer in value.get("accepted_fr") or [])),
+                **({"meaning": _without(value["meaning"], names)} if isinstance(value.get("meaning"), str) else {}),
+            }
+        elif key in {"prompt", "source_fr", "judgement_fix_fr"}:
+            out[key] = _without(value, names)
+        elif key in _KEEP or key in {"choices", "label_l10n"}:
+            out[key] = value
+        else:
+            out[key] = _strip_native(value, names)
+    sentences = (
+        [str(out.get("prompt") or "").replace("___", str(out.get("correct_answer") or "x"))]
+        if isinstance(out.get("choices"), list)
+        else [out.get("prompt")] if _is_judgement(out) else list(out.get("labels") or [])
+    )
+    if any(not isinstance(text, str) or _letter_words(text) < MIN_WORDS - 1 or addresses_someone(text) for text in sentences):
+        return None
+    if isinstance(out.get("choices"), list) and "___" not in str(out.get("prompt") or ""):
+        return None
+    return out
+
+
+def unaddressed_served(item: Any) -> Any:
+    """Every format the learner builds, writes, completes, picks or judges, said to nobody
+    (:func:`unaddressed_item` / :func:`unaddressed_recognition`); ``None`` when it cannot be."""
+
+    if is_recognition(item):
+        return unaddressed_recognition(item)
+    return unaddressed_item(item)
+
+
 def unaddressed_payload(node: Any) -> Any:
-    """:func:`unaddressed_item` over a set payload, a round's prompt payload or one item.
+    """:func:`unaddressed_served` over a set payload, a round's prompt payload or one item.
     An item that cannot be said to nobody stays as it was: a stored item is served and
     graded alike, and :func:`app.services.answer_acceptance.widened_answers` takes its
     answer without the name as well."""
@@ -204,8 +319,8 @@ def unaddressed_payload(node: Any) -> Any:
         return [unaddressed_payload(child) for child in node]
     if not isinstance(node, dict):
         return node
-    if is_build_or_write(node):
-        stripped = unaddressed_item(node)
+    if is_build_or_write(node) or is_recognition(node):
+        stripped = unaddressed_served(node)
         node = stripped if stripped is not None else node
     return {key: (value if key in _KEEP else unaddressed_payload(value)) for key, value in node.items()}
 
@@ -218,7 +333,11 @@ def unaddressed_generated(payload: dict[str, Any]) -> dict[str, Any]:
         if isinstance(node, dict):
             out = {key: (value if key in _KEEP else prune(value)) for key, value in node.items()}
             if isinstance(out.get("items"), list):
-                kept = [item for item in out["items"] if not is_build_or_write(item) or unaddressed_item(item) is not None]
+                kept = [
+                    item
+                    for item in out["items"]
+                    if not (is_build_or_write(item) or is_recognition(item)) or unaddressed_served(item) is not None
+                ]
                 if kept and len(kept) < len(out["items"]):
                     out["items"] = kept
             return out

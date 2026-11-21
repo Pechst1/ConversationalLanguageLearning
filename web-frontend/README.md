@@ -101,14 +101,12 @@ For the native static bundle, set `NEXT_PUBLIC_API_BASE_URL` (or `NEXT_PUBLIC_AP
 simulator/device-reachable FastAPI `/api/v1` URL. A physical iPhone cannot use Mac-local
 `localhost`; use a LAN-reachable or hosted HTTPS API URL.
 
-Le Quartier, the 3D Paris, is off in the public app (`quartierVisible` in `launch-flags.json`).
-To put it on the owner's phone, build with `NEXT_PUBLIC_QUARTIER_VISIBLE=true`: the bundle then
-has `/quartier` and a «Le Quartier · 3D» chip on Home. A release build (`verify-native-bundle.mjs
---release`) refuses that switch, from the shell or from a `.env` file.
-
-```bash
-NEXT_PUBLIC_QUARTIER_VISIBLE=true npm run cap:sync:ios
-```
+Le Quartier, the 3D Paris, is launched (`quartierVisible: true` in `launch-flags.json`, owner,
+17 Nov): every build has `/quartier`, a «Le Quartier · 3D» chip on Home, and on the days it can
+stage today's scene a second action «Play in the Quartier» beside the day's start. A release build
+(`verify-native-bundle.mjs --release`) refuses an export without the page while the flag is on. With
+the flag switched off, `NEXT_PUBLIC_QUARTIER_VISIBLE=true` opens it on one build only (the owner's
+phone), and a release refuses that switch, from the shell or from a `.env` file.
 
 ## Project Structure
 
