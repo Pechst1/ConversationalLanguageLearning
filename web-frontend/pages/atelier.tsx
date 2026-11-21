@@ -4605,6 +4605,7 @@ export function ExerciseFeedbackMoment({
                     why={whyWithoutEcho(reason || '', learner, target)}
                     hint={repairHint || null}
                     label={RULE_CARD_COPY[language]?.why ?? RULE_CARD_COPY.en.why}
+                    lang={noteLang}
                   />
                 )
                 : undefined}

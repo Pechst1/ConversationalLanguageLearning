@@ -9,6 +9,8 @@
  * than marking a guess. Display only: nothing here decides whether an answer is right.
  */
 
+import { splitSentences } from './sentence-split';
+
 export type DiffSegment = { text: string; mark: boolean };
 /** One word and the white space that follows it; joined back they are the text, unchanged. */
 export type DiffWord = { segments: DiffSegment[]; space: string };
@@ -157,13 +159,15 @@ export function whyWithoutEcho(why: unknown, learner: unknown, target: unknown):
   const chosen = wordsOf(clean(learner));
   const needed = wordsOf(clean(target));
   if (!text || !chosen.length || !needed.length) return text;
-  const sentences = text.match(/[^.!?…]+[.!?…]*\s*/g) ?? [text];
+  // #896: sentences are cut by the one shared splitter, the server's mirror.
+  const sentences = splitSentences(text);
+  if (!sentences.length) return text;
   return sentences
     .filter((sentence) => {
       const words = wordsOf(sentence);
       return !(containsRun(words, chosen) && containsRun(words, needed));
     })
-    .join('')
+    .join(' ')
     .trim();
 }
 

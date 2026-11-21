@@ -136,12 +136,18 @@ export function DeclicPrompt({
  * The reason under a miss: what the sentence does not already say. The longer hint opens from
  * «Why?», so the first view stays one short block above the copy step.
  */
-export function DeclicWhy({ why, hint, label }: { why: string; hint?: string | null; label: string }) {
+export function DeclicWhy({ why, hint, label, lang }: {
+  why: string;
+  hint?: string | null;
+  label: string;
+  /** The language the reason is written in: from B1 the screen is French and this text is not. */
+  lang?: string;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <span className="dc-why">
-      {why && <span>{why}</span>}
-      {hint && open && <span className="dc-why__hint">{hint}</span>}
+      {why && <span lang={lang}>{why}</span>}
+      {hint && open && <span className="dc-why__hint" lang={lang}>{hint}</span>}
       {hint && !open && (
         <button type="button" className="dc-why__open" onClick={() => setOpen(true)}>{label}</button>
       )}
