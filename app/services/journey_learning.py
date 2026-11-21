@@ -2233,6 +2233,113 @@ def pick_miss_note(task: RecallTask, language: str) -> str | None:
     return table("answer").format(answer=answer)
 
 
+#: #894 / #146: a missed «which sentence uses today's rule?» is told from the item's own
+#: concept: where the key carries the rule («In „C'est“ steckt „est“ (être).») and why
+#: the chosen sentence does not («„allez“ kommt von aller, nicht von être.»).
+_RULE_PICK_NOTES: dict[str, dict[str, str]] = {
+    "form_in": {
+        "en": "In “{span}” there is “{form}” ({lemma}).",
+        "de": "In „{span}“ steckt „{form}“ ({lemma}).",
+        "fr": "Dans « {span} », il y a « {form} » ({lemma}).",
+    },
+    "form": {
+        "en": "“{form}” ({lemma}) carries the rule.",
+        "de": "„{form}“ ({lemma}) trägt die Regel.",
+        "fr": "« {form} » ({lemma}) porte la règle.",
+    },
+    "span": {
+        "en": "The rule is in “{span}”.",
+        "de": "Die Regel steckt in „{span}“.",
+        "fr": "La règle est dans « {span} ».",
+    },
+    "other_verb": {
+        "en": "“{form}” comes from {lemma}, not {key}.",
+        "de": "„{form}“ kommt von {lemma}, nicht von {key}.",
+        "fr": "« {form} » vient du verbe {lemma}, pas du verbe {key}.",
+    },
+    "no_verb": {
+        "en": "The sentence you picked has no form of {key}.",
+        "de": "Der gewählte Satz hat keine Form von {key}.",
+        "fr": "La phrase choisie n'a aucune forme du verbe {key}.",
+    },
+}
+
+
+def _verb_forms(text: str) -> list[tuple[str, str]]:
+    """``(form as written, infinitive)`` for each verb of ``text`` the lexicon knows.
+
+    «C'est» gives ``("est", "être")``, «Allons-y» ``("Allons", "aller")``; the conjugated
+    forms come before an infinitive («Vous allez vendre»: «allez» first), since the form
+    is what the eye stops on.
+    """
+
+    from app.services.lexical_coverage import load_lexicon, tokenize
+    from app.services.season_lexicon import lemma_of
+
+    lexicon = load_lexicon()
+    conjugated: list[tuple[str, str]] = []
+    infinitives: list[tuple[str, str]] = []
+    for token in tokenize(text):
+        lemma = lemma_of(token.key, capitalised=token.surface[:1].isupper())
+        if not lemma or (lexicon.lemmas.get(lemma) or {}).get("pos") != "verb":
+            continue
+        parts = [part for part in re.split(r"[’'ʼ-]", token.surface) if part]
+        key = fold_for_comparison(token.key)
+        form = next((part for part in parts if fold_for_comparison(part) == key), parts[0] if parts else token.surface)
+        (infinitives if fold_for_comparison(form) == fold_for_comparison(lemma) else conjugated).append((form, lemma))
+    return conjugated + infinitives
+
+
+def rule_pick_note(db: Session | None, task: RecallTask, selected: str | None, language: str) -> str | None:
+    """#894: why a «which sentence uses the rule?» pick was a miss, or ``None``.
+
+    The key's rule-carrying words as the rule card marks them
+    (:func:`grammar_items.rule_span`), with the verb form inside them and its infinitive
+    («„est“ in „C'est“: être»). Then the chosen sentence's verb, set against the rule's
+    only when that holds: the title names the key's verb, and names none of the chosen
+    sentence's verbs («Prenez» under «Faire und prendre» is the rule too, so it is never
+    said not to be).
+    """
+
+    from app.services import grammar_items
+
+    key = (_option_text(task, task.correct_option_id) or "").strip()
+    brief = _unit_detector_brief(db, task) if key else None
+    bounds = grammar_items.rule_span(brief, key) if brief else None
+    if bounds is None:
+        return None
+    table = lambda name: _RULE_PICK_NOTES[name].get(language) or _RULE_PICK_NOTES[name]["en"]  # noqa: E731
+    span = grammar_items.fold_apostrophes(key)[bounds[0] : bounds[1]].strip()
+    verbs = _verb_forms(span)
+    if not verbs:
+        return table("span").format(span=span)
+    form, lemma = verbs[0]
+    note = (
+        table("form").format(form=form, lemma=lemma)
+        if fold_for_comparison(form) == fold_for_comparison(span)
+        else table("form_in").format(span=span, form=form, lemma=lemma)
+    )
+    chosen = (_option_text(task, selected) or "").strip()
+    titles = [str(title) for title in brief.get("titles") or [] if title]
+    # The verbs the rule names: in its titles («Faire und prendre», «Pouvoir, vouloir,
+    # devoir + Infinitiv») and its pattern («je suis / tu es / …»).
+    named = {other for text in [*titles, *(brief.get("pattern_forms") or [])] for _, other in _verb_forms(str(text))}
+    titled = lemma in named or any(re.search(rf"\b{re.escape(lemma)}\b", title, re.IGNORECASE) for title in titles)
+    if not chosen or not titled:
+        # «„pleut“ is not regarder» would be a lie for a rule about every -er verb: the
+        # chosen sentence is set against the rule's verb only when its title names it.
+        return note
+    others = _verb_forms(chosen)
+    if any(other == lemma or other in named for _, other in others):
+        # A verb the rule names, in a form its detector does not key: nothing to say
+        # against it.
+        return note
+    if others:
+        other_form, other_lemma = others[0]
+        return f"{note} {table('other_verb').format(form=other_form, lemma=other_lemma, key=lemma)}"
+    return f"{note} {table('no_verb').format(key=lemma)}"
+
+
 #: P5: the formats answered by a tap among the item's own options.
 PICK_FORMATS = frozenset({"choice", "classify", "listen_tap", "who_said"})
 
@@ -2347,23 +2454,33 @@ def _is_free_sentence(task: RecallTask) -> bool:
     )
 
 
-def _free_sentence_uses_unit(db: Session | None, task: RecallTask, text: str | None) -> bool:
-    """WP-129: does the learner's free sentence use the unit (its regex detector)?"""
+def _unit_detector_brief(db: Session | None, task: RecallTask) -> dict[str, Any] | None:
+    """The item's grammar unit as :func:`grammar_items.rule_span` reads it, or ``None``."""
 
-    from app.services import grammar_items, grammar_units
+    from app.services import grammar_units
 
     concept = None
     try:
         concept = db.get(GrammarConcept, int(task.target.id)) if db is not None else None
-    except Exception:  # noqa: BLE001 - an unreadable unit grades nothing as met
-        logger.warning("journey_free_sentence_unit_unavailable")
+    except Exception:  # noqa: BLE001 - an unreadable unit is no unit
+        logger.warning("journey_grammar_unit_unavailable")
     if concept is None:
-        return False
-    brief = {
+        return None
+    return {
         "detectors": grammar_units.regex_patterns(grammar_units.unit_detectors(concept)),
         "noun_phrase": grammar_units.is_noun_phrase_unit(concept),
+        "titles": list(grammar_units.localized_titles(concept).values()),
+        "pattern_forms": list(grammar_units.pattern_forms(concept)),
     }
-    return grammar_items.free_sentence_uses_unit(brief, text)
+
+
+def _free_sentence_uses_unit(db: Session | None, task: RecallTask, text: str | None) -> bool:
+    """WP-129: does the learner's free sentence use the unit (its regex detector)?"""
+
+    from app.services import grammar_items
+
+    brief = _unit_detector_brief(db, task)
+    return brief is not None and grammar_items.free_sentence_uses_unit(brief, text)
 
 
 def _free_sentence_copies_shown(db: Session | None, task: RecallTask, text: str | None) -> bool:
@@ -2572,6 +2689,15 @@ def evaluate_recall(
                 # #537: the reason of the trap the learner fell into («mon amie»: the
                 # vowel), not the unit's one-line rule that the other traps share.
                 pick = task.why_native
+            elif (
+                task.task_type == "choice"
+                and task.options_kind == "sentences"
+                and task.target.kind == TargetKind.GRAMMAR
+                and (why := rule_pick_note(db, task, selected, str(user_correction_language(user))))
+            ):
+                # #894: where the key carries the rule («„est“ in „C'est“») and why the
+                # chosen sentence does not («„allez“: aller»), not the rule's summary.
+                pick = why
             elif task.task_type in {"choice", "who_said"} and task.hint_native and task.target.kind == TargetKind.GRAMMAR:
                 # #86: a unit's one-line rule is the reason a grammar choice was
                 # wrong. «The right answer is X» only stands in when there is none.
