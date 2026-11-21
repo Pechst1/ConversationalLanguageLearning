@@ -47,7 +47,6 @@ export function RvCarteDePresseCard({ card, language, name = '' }: { card: Card;
   const first = cardName(name);
   return (
     <section className="rv-carte-presse pp-carte" aria-labelledby="rv-carte-presse" data-carte-presse="">
-      <PpInkDefs />
       <div className="pp-carte__head">
         <h3 id="rv-carte-presse" className="pp-carte__title" lang="fr">
           {RDV_FR.carte}
@@ -96,6 +95,7 @@ export function RvCarteDePresseCard({ card, language, name = '' }: { card: Card;
           );
         })}
       </dl>
+      <PpInkDefs />
       <Link href={UNE_HREF} className="nb-rv__door pp-carte__door" data-une-door="">
         {copy.une_door}
       </Link>

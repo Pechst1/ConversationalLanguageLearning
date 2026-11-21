@@ -1,3 +1,32 @@
+# Screenshots kept in this folder (19, pruned 21 Nov 2026)
+
+The passes below were documented with many more screenshots; on 21 Nov 2026 the folder was pruned to the plain look
+of each family, as the «before» of the belle édition (`../papier-belle-edition-2026-11-21/`), re-encoded (≤ 750 px,
+128 colours). The file names in the passes' tables below that are not in this list are in the branch's history
+(`83da2863`).
+
+- `a1de-c2-takes.png`
+- `a1de-f2-ordre.png`
+- `a1de-f5-page.png`
+- `a2de-00-chooser.png`
+- `a2de-c4-avis-why-1.png`
+- `a2de-c5-page.png`
+- `a2de-f4-raconter-marked.png`
+- `b1en-home-une.png`
+- `i-a1de-2-round.png`
+- `i-a1de-3-fix.png`
+- `m-a2de-3-interview.png`
+- `m-a2de-6-page.png`
+- `p-a1de-2-planche.png`
+- `p-a1de-5-page.png`
+- `r-b1en-fil-1-lire-souvenir.png`
+- `r-b1en-fil-tm-5-gap.png`
+- `r-b1en-releve-carte-de-presse.png`
+- `r-b1en-une.png`
+- `t-a2de-2-three.png`
+
+---
+
 # «Le Papier» nouvelle formule — looked at in a browser (2026-11-20)
 
 Branch `claude/papier-integration` (PRs 959 photos, 960 pourquoi, 961 assignments + «Le fil» merged, plus the

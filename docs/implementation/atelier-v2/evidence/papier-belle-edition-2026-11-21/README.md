@@ -174,11 +174,11 @@ Screenshots are 256-colour PNGs (Pillow median cut, dithered) to keep the folder
 
 ### The three I am least happy with
 
-1. `photo-b1en-3-legende-found.png` — the strike across «the other picture»'s caption is the titre's corner-to-corner
-   slash over a three-line caption: correct, but heavy; and the deleatur inside the loop crowds «juillet».
-2. `micro-a2de-6-page.png` — the pull quote is the witness's longest answer: on the fake desk all of Lila's answers
+1. `photo-b1en-3-legende-found.png` — (round 4: the slash replaced by a line-by-line strike, the deleatur given
+   room) the found caption's loop still sits close to its last word.
+2. `micro-a2de-6-page-2.png` — the pull quote is the witness's longest answer: on the fake desk all of Lila's answers
    start «Mais arrête, c'est évident :», so the lifted line is her tic, not her best line.
-3. `mots-a1de-photo-open.png` — the dictionary is right, the cues are not: the fake vocabulary's glosses
+3. `mots-a1de-photo-checked.png` — the dictionary is right, the cues are not: the fake vocabulary's glosses
    («Lärm», «musique (de)») make the entries thin; a picture cue (the press frame) was never seen in a browser.
 
 ## Faults the browser showed (and their fixes)
@@ -216,3 +216,67 @@ pieces and the closed one, the press card on the Relevé with the session's name
   no line on their first screens. Writing them is copy and backend work, not in this pass.
 - The real proofreader, real glosses, real Commons photographs and a picture cue in Trois mots were not seen.
 - Home's Sunday chip to the une was not reached.
+
+# Round 4 (21 Nov, after the coordinator's critique)
+
+- **The loop encloses its frame.** The pencil loop and the strike were shrunk by a global `svg { max-width: 100% }`:
+  they are drawn from their own box again (padding included). `photo-sheet-4-frames` shows a sheet of four (frames
+  cloned in the DOM: the mock's desk has two); 2 and 3 frames were looked at in the same pass, light and dark.
+- **No deck repeats its headline.** `standfirstFor` (folded: case, accents) in `PpFrontPage`, `uneStandfirst` on la
+  une: «La Fête de la musique» no longer stands under «La Fête de la musique est gratuite pour tous» (`une-de-6`).
+- **Captions are struck by line.** A refused caption is struck line by line, the found one only on its wrong words
+  (the deleatur with room after the word); the corner-to-corner slash stays the mark of one- and two-line headlines.
+- **Memory lines for La photo and Le micro** (`souvenir-a1de-photo`, `souvenir-a2de-micro`, from the dev mock; the
+  server's templates are in `souvenirs/lines.json`, tested).
+- **Evidence pruned** to what a reviewer needs, re-encoded (≤ 750 px wide, 128 colours): earlier takes are in the
+  branch's history (`83da2863`).
+
+## Screenshots in this folder (47)
+
+- `carte-de-dark.png`
+- `carte-de.png`
+- `chooser-a2de-photo.png`
+- `micro-a2de-2-prepare-chosen-dark.png`
+- `micro-a2de-2-prepare-chosen.png`
+- `micro-a2de-3-interview-shrug.png`
+- `micro-a2de-4-notes-done.png`
+- `micro-a2de-6-page-2.png`
+- `micro-b1en-5-review-why.png`
+- `mock-a2de-chooser-after-dark.png`
+- `mock-a2de-chooser-after.png`
+- `mock-a2de-comptoir-page-after.png`
+- `mock-a2de-fil-ordre-lifted-after.png`
+- `mock-a2de-fil-page-after.png`
+- `mock-a2de-pourquoi-why-after.png`
+- `mock-a2de-titre-page-after.png`
+- `mock-a2de-titre-three-after-dark.png`
+- `mock-a2de-titre-three-after.png`
+- `mock-a2de-titre-three-before.png`
+- `mock-b1en-intox-page-after.png`
+- `mock-b1en-intox-round-after-dark.png`
+- `mock-b1en-intox-round-after.png`
+- `mock-une-b1en-une.png`
+- `mots-a1de-photo-checked-dark.png`
+- `mots-a1de-photo-checked.png`
+- `mots-b1en-micro-gap.png`
+- `photo-a1de-2-planche-chosen-dark.png`
+- `photo-a1de-2-planche-chosen.png`
+- `photo-a1de-2-planche-miss.png`
+- `photo-a1de-2-seen-right.png`
+- `photo-a2de-4-build-typed.png`
+- `photo-b1en-3-legende-found-dark.png`
+- `photo-b1en-3-legende-found.png`
+- `photo-b1en-5-page-dark.png`
+- `photo-b1en-5-page.png`
+- `photo-sheet-4-frames.png`
+- `souvenir-a1de-photo.png`
+- `souvenir-a1de-titre.png`
+- `souvenir-a2de-micro.png`
+- `une-de-1.png`
+- `une-de-6-2.png`
+- `une-de-6-dark.png`
+- `une-de-6.png`
+- `une-en-3.png`
+- `walk-r3-a1de-m-6-page-2.png`
+- `walk-r3-a1de-m-carte.png`
+- `walk-r3-b1en-p-5-page.png`
