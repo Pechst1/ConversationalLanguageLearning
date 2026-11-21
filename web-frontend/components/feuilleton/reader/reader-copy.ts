@@ -12,6 +12,7 @@
  * is what the reader printed before it had one.
  */
 
+import { CHECK_COPY } from '../../../lib/verdict';
 import type { ControlLanguage } from '@/types/daily-journey';
 
 export type ReaderCopy = {
@@ -43,6 +44,10 @@ export type ReaderCopy = {
   complete: string;
   completing: string;
   episode_end: string;
+  /** P11: under the last panel while its ending is being written (ReplyStage's own line). */
+  ending_writing: string;
+  /** P11: after 30 s of that wait, above «Continuer»: the ending comes on the next visit. */
+  ending_later: string;
   to_follow: string;
   plate_alt: string;
   page_alt: string;
@@ -60,6 +65,8 @@ export type ReaderCopy = {
   verdict_branch: string;
   verdict_ok: string;
   verdict_retry: string;
+  check_not_checked: string;
+  check_basic: string;
   options_label: string;
   answer_label: string;
   answer_placeholder: string;
@@ -142,6 +149,8 @@ const FR: ChromeCopy = {
   complete: 'Terminer l’épisode',
   completing: 'Classement…',
   episode_end: 'Fin de l’épisode',
+  ending_writing: 'La suite s’écrit…',
+  ending_later: 'La fin sera là la prochaine fois.',
   to_follow: 'À suivre',
   plate_alt: 'Planche : {title}',
   page_alt: 'La page illustrée de cette édition',
@@ -152,6 +161,8 @@ const FR: ChromeCopy = {
   verdict_branch: 'Choix pris en compte',
   verdict_ok: 'Acceptée',
   verdict_retry: 'Reprise classée',
+  check_not_checked: CHECK_COPY.fr.not_checked,
+  check_basic: CHECK_COPY.fr.basic,
   options_label: 'Répliques possibles',
   answer_label: 'Ta réponse',
   answer_placeholder: 'Écris une phrase courte.',
@@ -212,6 +223,8 @@ const EN: ChromeCopy = {
   complete: 'Finish the episode',
   completing: 'Filing…',
   episode_end: 'End of the episode',
+  ending_writing: 'What happens next is being written…',
+  ending_later: 'The ending will be there next time.',
   to_follow: 'To be continued',
   plate_alt: 'Panel: {title}',
   page_alt: 'This edition’s illustrated page',
@@ -222,6 +235,8 @@ const EN: ChromeCopy = {
   verdict_branch: 'Choice noted',
   verdict_ok: 'Accepted',
   verdict_retry: 'Saved for another try',
+  check_not_checked: CHECK_COPY.en.not_checked,
+  check_basic: CHECK_COPY.en.basic,
   options_label: 'Possible replies',
   answer_label: 'Your answer',
   answer_placeholder: 'Write a short sentence.',
@@ -282,6 +297,8 @@ const DE: ChromeCopy = {
   complete: 'Folge beenden',
   completing: 'Wird abgelegt…',
   episode_end: 'Ende der Folge',
+  ending_writing: 'Wie es weitergeht, wird gerade geschrieben…',
+  ending_later: 'Das Ende ist beim nächsten Mal da.',
   to_follow: 'Fortsetzung folgt',
   plate_alt: 'Bild: {title}',
   page_alt: 'Die illustrierte Seite dieser Ausgabe',
@@ -292,6 +309,8 @@ const DE: ChromeCopy = {
   verdict_branch: 'Wahl übernommen',
   verdict_ok: 'Angenommen',
   verdict_retry: 'Für später vorgemerkt',
+  check_not_checked: CHECK_COPY.de.not_checked,
+  check_basic: CHECK_COPY.de.basic,
   options_label: 'Mögliche Antworten',
   answer_label: 'Deine Antwort',
   answer_placeholder: 'Schreib einen kurzen Satz.',

@@ -65,6 +65,8 @@ const STEP: Record<RoomSpec['flights'][number]['dir'], [number, number]> = { 'x+
 
 /** From `p` along `dir`, up to `max` metres, as far as the floor carries you (no wall, no drop). */
 function stepBack(p: Vector3, dir: Vector3, max: number) {
+  // a deep thing (a fridge, an armoire) stands over its own front: start where its block ends
+  for (let k = 0; k < 10 && !q.nav.walkable(p.x, p.z); k++) p = new Vector3(p.x + dir.x * 0.1, p.y, p.z + dir.z * 0.1);
   let at = new Vector3(p.x, 0, p.z);
   let y = q.nav.heightAt(p.x, p.z);
   for (let d = 0.1; d <= max + 1e-6; d += 0.1) {
@@ -93,11 +95,17 @@ function roomViews(r: RoomBuilt): View[] {
       out.push({ name: key, pos: p, look: new Vector3(next.x, next.y + 1.5, next.z) });
     }
   });
-  // what the room's things say (the letterboxes' names), read from a step away
+  // what the room's things say (the letterboxes' names), read from a step away; what you look up
+  // at in a street (a window), from across it
   s.things.forEach((t, i) => {
-    if (!t.text?.length || (t.zone ?? 'room') !== 'room') return;
+    if ((t.zone ?? 'room') === 'sealed') return;
     const at = new Vector3(t.at[0], t.at[1], t.at[2]);
     const facing = new Vector3(Math.sin(t.rot ?? 0), 0, Math.cos(t.rot ?? 0));
+    if (t.kind === 'gaze') {
+      out.push({ name: `${t.kind}-${i}`, pos: stepBack(new Vector3(t.at[0], 0, t.at[2]).addScaledVector(facing, 0.3), facing, 8), look: at });
+      return;
+    }
+    if (!t.text?.length) return;
     // a phone's screen is read the way a hand brings it up: the lens closes on it
     out.push({ name: `${t.kind}-${i}`, pos: stepBack(at.clone().addScaledVector(facing, 0.45), facing, 0.8), look: at, fov: t.kind === 'phone' ? 18 : undefined });
   });

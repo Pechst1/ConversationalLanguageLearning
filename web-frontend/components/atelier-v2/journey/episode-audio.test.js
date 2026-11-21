@@ -150,7 +150,7 @@ test('the spoken lines keep panel order and skip what has nothing to say', () =>
   );
   assert.equal(lines[0].characterId, model.NARRATOR_ID);
   assert.equal(lines[0].who, '', 'narration has no speaker name');
-  assert.equal(lines[2].who, 'Monsieur Marchand');
+  assert.equal(lines[2].who, 'M. Marchand');
 });
 
 test('the clip key format is the one the backend writes', () => {
@@ -173,7 +173,7 @@ test('the two guesses are deterministic, French, and name the counterpart', () =
     first.map((guess) => guess.id),
     ['accord', 'resistance'],
   );
-  assert.ok(first[0].fr.startsWith('Monsieur Marchand'), first[0].fr);
+  assert.ok(first[0].fr.startsWith('M. Marchand'), first[0].fr);
   assert.ok(first[1].fr.includes('refuse'));
 });
 
@@ -600,4 +600,74 @@ test('no copy string in any language mentions pronunciation or accent', () => {
       }
     }
   }
+});
+
+// ---------------------------------------------------------------------------
+// Pilot P9 — an explicit «off» outranks a dealt listening day, and a dealt day
+// says what it is
+// ---------------------------------------------------------------------------
+
+test('P9 · a stored «off» keeps a dealt listening day on the text; an untouched setting keeps the deal', () => {
+  const store = new Map();
+  const original = global.window;
+  global.window = {
+    localStorage: {
+      getItem: (key) => (store.has(key) ? store.get(key) : null),
+      setItem: (key, value) => store.set(key, String(value)),
+    },
+  };
+  try {
+    const placement = () =>
+      model.listenFirstPlacement({
+        audioAvailable: true,
+        preferred: model.readListenFirst(),
+        dealt: true,
+        switchedOff: model.listenFirstSwitchedOff(),
+      });
+    assert.equal(placement(), 'cycle', 'never touched: the dealt day opens on the cycle');
+    store.set(model.LISTEN_FIRST_KEY, '0');
+    assert.equal(model.listenFirstSwitchedOff(), true);
+    assert.equal(placement(), 'before_first_panel', 'switched off: the text, with the offer above it');
+    store.set(model.LISTEN_FIRST_KEY, '1');
+    assert.equal(placement(), 'cycle', 'switched on: the cycle');
+  } finally {
+    global.window = original;
+  }
+});
+
+test('P9 · the first stage of a dealt listening day says so, in the learner’s language', () => {
+  const { EpisodeRadioView } = require('./StoryEpisodeReader.tsx');
+  const state = model.radioInitialFor(agreeing);
+  for (const language of ['en', 'de', 'fr']) {
+    const props = {
+      episode: agreeing,
+      copy: journeyCopy(language),
+      audio: STILL_AUDIO,
+      state,
+      text: model.RADIO_TEXT_INITIAL,
+      verification: model.verifyEpisodeGuess(agreeing, state.guess),
+      onContinue() {},
+      onReadInstead() {},
+      dispatch() {},
+      dispatchText() {},
+    };
+    assert.equal(state.stage, 'predire');
+    const line = journeyCopy(language).listen_first_day;
+    const dealt = renderToStaticMarkup(React.createElement(EpisodeRadioView, { ...props, dealtDay: true }));
+    assert.ok(dealt.includes('data-state="listen-first-day"') && dealt.includes(line), language);
+    const chosen = renderToStaticMarkup(React.createElement(EpisodeRadioView, props));
+    assert.ok(!chosen.includes('data-state="listen-first-day"'), `${language}: a chosen cycle is not a dealt day`);
+  }
+  assert.match(journeyCopy('fr').listen_first_day, /^Aujourd’hui, on écoute d’abord/);
+});
+
+test('P9 · the scene step hands the stored «off» to the placement and the deal to the cycle', () => {
+  const source = require('node:fs').readFileSync(path.join(__dirname, 'StoryEpisodeStep.tsx'), 'utf8');
+  assert.ok(source.includes('setSwitchedOff(listenFirstSwitchedOff())'), 'the stored «off» is read');
+  assert.ok(/listenFirstPlacement\(\{[^}]*switchedOff,/s.test(source), 'and the placement receives it');
+  assert.ok(source.includes('dealtDay={Boolean(step.prompt.listen_first)}'), 'the cycle knows it was dealt');
+  assert.ok(
+    source.includes('if (enabled || listenFirst) writeListenFirst(enabled)'),
+    'leaving a dealt cycle the learner never chose stores no «off»',
+  );
 });

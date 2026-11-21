@@ -72,10 +72,71 @@ function walkRepairStatus(typed: string): 'ok' | 'no' {
   return [WALK_FIXED, ownFixed].some((line) => line && typed.trim() && gapIsFixed(typed, line)) ? 'ok' : 'no';
 }
 
+// #779: the main walk's word-bank miss (fr day 4), its erratum come back twice. It drew
+// «Correction 1» and «Correction 2», each with its own field, and the second «Compare»
+// behind the verdict sheet.
+const REPEATED_ERRATUM = {
+  display_label: 'Je suis, tu es : les pronoms et être',
+  learner_text: 'suis la rédaction à Je es.',
+  corrected_target: 'Je suis à la rédaction.',
+  why_wrong: '',
+  repair_hint: '✗ Je es français. → ✓ Je suis français.',
+  task_error_type: 'word_order',
+};
+const REPEATED_FEEDBACK = {
+  correct: false,
+  learner: REPEATED_ERRATUM.learner_text,
+  target: REPEATED_ERRATUM.corrected_target,
+  repair: REPEATED_ERRATUM.repair_hint,
+  issues: [REPEATED_ERRATUM, { ...REPEATED_ERRATUM }],
+};
+
 export default function MissLayoutFixture() {
   const { query, isReady } = useRouter();
   if (!isReady) return null;
+  if (query.case === '779') return <RepeatedErratumFixture />;
   return query.case === '381' ? <RepairedLineFixture /> : <MissFixture />;
+}
+
+function RepeatedErratumFixture() {
+  const [drafts, setDrafts] = React.useState<Record<string, string>>({});
+  return (
+    <>
+      <Head>
+        <title>Repeated correction</title>
+      </Head>
+      <EpShell className="atelier-do-mode" language="fr">
+        <LEpreuveStyles />
+        <ForgeStyles />
+        <ForgeDrillStyles />
+        <section className="ep-sheet">
+          {/* The word bank stands above the miss on the real screen. */}
+          <div data-fixture="above" style={{ minHeight: 330 }} aria-hidden="true" />
+          <div className="ep-frame">
+            <div className="ep-exercise" data-fixture="miss">
+              <EpPrompt cue="Construis la phrase : « I am at the newsroom. »">{REPEATED_ERRATUM.learner_text}</EpPrompt>
+            </div>
+          </div>
+          <ExerciseFeedbackMoment
+            feedback={REPEATED_FEEDBACK}
+            submitted
+            rule="Je suis, tu es : les pronoms et être"
+            correction={{ corrected_answer: { item: REPEATED_ERRATUM.corrected_target }, errata: REPEATED_FEEDBACK.issues }}
+            repairDrafts={drafts}
+            onSetRepairDraft={(key, value) => setDrafts((prev) => ({ ...prev, [key]: value }))}
+            onSubmitRepair={() => undefined}
+            repairSubmitting={{}}
+            feedbackKey="fixture:779"
+            onNext={() => undefined}
+            nextLabel="Continuer"
+            onTryAgain={() => undefined}
+            onReport={() => undefined}
+            ruleShown="Je suis, tu es : les pronoms et être"
+          />
+        </section>
+      </EpShell>
+    </>
+  );
 }
 
 function RepairedLineFixture() {

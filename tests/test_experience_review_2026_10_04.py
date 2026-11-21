@@ -201,7 +201,8 @@ def test_a_season_hint_is_the_opening_of_the_example_not_the_whole_reply() -> No
     assert hint.startswith("Zum Beispiel:")
     assert "Une semaine" not in hint and hint.endswith("…»")
     short = {"replies": [{"examples": ["Les photos."], "clumsy": False}]}
-    assert hint_for(short, "de") == "Zum Beispiel: «Les photos.»"
+    # round 2: a short reply is never given whole either (it would be the answer)
+    assert hint_for(short, "de") == "Zum Beispiel: «Les …»"
 
 
 # ---------------------------------------------------------------------------

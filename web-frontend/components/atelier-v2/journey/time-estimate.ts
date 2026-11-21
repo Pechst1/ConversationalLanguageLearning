@@ -70,6 +70,26 @@ export function coreEstimateLabel(
   return minutes;
 }
 
+/**
+ * Round 3 (walk 2, 17 Nov 2026): the day card's one figure is the sum of the
+ * step minutes Home prints under it (`session.minutes_left`, the server's sum of
+ * the steps still to do). The card used to print the scene's core and «+ Wörter»
+ * beside it, leaving La Forge's minutes out. `null` without a day session: the
+ * caller keeps the core and the words' extension.
+ */
+export function dayTotalLabel(
+  session: { minutes_left?: number | null } | null | undefined,
+  estimate: DayTimeEstimate | null | undefined,
+  language: ControlLanguage,
+): string | null {
+  const total = Number(session?.minutes_left ?? 0);
+  if (!(total > 0)) return null;
+  const minutes = formatPlannedDuration(total * 60, language);
+  if (!minutes) return null;
+  if (estimate?.longer_day) return fill(copyFor(language).longer_day, { minutes });
+  return minutes;
+}
+
 /** One extension's own minutes, or `null` when the server sent none for it. */
 export function extensionSeconds(
   estimate: DayTimeEstimate | null | undefined,

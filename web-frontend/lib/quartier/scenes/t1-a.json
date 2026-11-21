@@ -5,7 +5,7 @@
   "episode_title_fr": "Le mauvais accueil",
   "day": "a",
   "title_fr": "Le mauvais accueil",
-  "story_date_fr": "mercredi 11 novembre",
+  "story_date_fr": "{date:2026-11-11}",
   "location_id": "le_mistral",
   "minutes": 6,
   "can_do": {
@@ -83,11 +83,11 @@
         {
           "who": "caption",
           "say": {
-            "a2": "Paris. Le 11 novembre. Il pleut. Tu as une valise, une lettre et une clé.",
-            "b1": "Paris, un 11 novembre sous la pluie. Une valise, une lettre du notaire, et une clé qui n'est pas encore à toi.",
+            "a2": "Paris. Le {date:2026-11-11|fr-dm}. Il pleut. Tu as une valise, une lettre et une clé.",
+            "b1": "Paris, un {date:2026-11-11|fr-dm} sous la pluie. Une valise, une lettre du notaire, et une clé qui n'est pas encore à toi.",
             "native": {
-              "en": "Paris. 11 November. It's raining. You have a suitcase, a letter and a key.",
-              "de": "Paris. Der 11. November. Es regnet. Du hast einen Koffer, einen Brief und einen Schlüssel."
+              "en": "Paris. {date:2026-11-11|en-dm}. It's raining. You have a suitcase, a letter and a key.",
+              "de": "Paris. Der {date:2026-11-11|de-dm}. Es regnet. Du hast einen Koffer, einen Brief und einen Schlüssel."
             }
           }
         }
@@ -617,6 +617,19 @@
               "in_frame": [
                 "margaux_barman",
                 "toi"
+              ],
+              "lines": [
+                {
+                  "who": "caption",
+                  "in_thread": true,
+                  "say": {
+                    "a2": "Margaux pousse la tasse jusqu'au tabouret d'Odile.",
+                    "native": {
+                      "en": "Margaux pushes the cup over to Odile's stool.",
+                      "de": "Margaux schiebt die Tasse zu Odiles Hocker hinüber."
+                    }
+                  }
+                }
               ],
               "silence": true
             }

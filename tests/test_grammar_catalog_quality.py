@@ -18,7 +18,7 @@ from app.services.grammar_catalog import detector_matches, parse_detector
 from app.services.rule_cards import rule_card_for
 
 ROOT = Path(__file__).resolve().parents[1]
-TSV = ROOT / "templates" / "french_core_grammar_v2.tsv"
+TSV = ROOT / "app" / "data" / "grammar_catalog" / "french_core_grammar_v2.tsv"
 SUB_BANDS = ("A1.1", "A1.2", "A2.1", "A2.2", "B1.1", "B1.2", "B2.1", "B2.2", "C1.1", "C1.2")
 
 
@@ -71,6 +71,22 @@ def test_xray_marks_occur_in_the_xray_sentence(row):
             found = sentence.find(piece, position)
             assert found >= 0, f"{token!r} not in {row['xray_sentence']!r}"
             position = found + len(piece)
+
+
+@pytest.mark.parametrize("row", REVIEWED, ids=lambda row: row["external_id"])
+def test_xray_marks_have_a_german_and_a_french_twin_on_the_same_tokens(row):
+    """#730: a mark is learner-facing text; ``_de`` / ``_fr`` name the same tokens in the same order."""
+
+    def tokens(value: str) -> list[str]:
+        return [item.split("=>", 1)[0].strip() for item in _split(value, "||")]
+
+    english = tokens(row["xray_marks"])
+    for locale in ("de", "fr"):
+        localized = _split(row[f"xray_marks_{locale}"], "||")
+        assert tokens(row[f"xray_marks_{locale}"]) == english, locale
+        for item in localized:
+            parts = [part.strip() for part in item.split("=>", 2)]
+            assert len(parts) == 3 and all(parts), (locale, item)
 
 
 def test_every_reference_resolves():

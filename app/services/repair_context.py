@@ -14,6 +14,8 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+from app.services.chrome_language import mother_tongue
+
 #: A gap in a printed sentence: «Nous ____ contents.» or «Nous … contents.»
 _BLANK = re.compile(r"_{2,}|…|\.{3}")
 
@@ -91,11 +93,14 @@ class RepairContext:
     rule: str | None = None
     #: The rule's title per chrome language (#522); ``rule`` is the fallback.
     rule_titles: tuple[tuple[str, str], ...] = ()
+    #: R5: the language the miss note's rule line explains in, when it is not the
+    #: chrome (the mother tongue from B1); ``None`` below B1.
+    explain_language: str | None = None
 
     def rule_in(self, language: object) -> str:
         """The rule's title in ``language`` (the language the goal line around it is in)."""
 
-        wanted = str(language or "en")[:2].lower()
+        wanted = mother_tongue(language)
         return _clean(dict(self.rule_titles).get(wanted)) or _clean(self.rule)
 
 
@@ -113,4 +118,5 @@ def repair_context_of(metadata: dict[str, Any] | None) -> RepairContext | None:
     rule = _clean(data.get("erratum_rule")) or (rule_titles[0][1] if rule_titles else None) or None
     if not (sentence or rule):
         return None
-    return RepairContext(sentence=sentence, rule=rule, rule_titles=rule_titles)
+    explain = _clean(data.get("erratum_explain_language")) or None
+    return RepairContext(sentence=sentence, rule=rule, rule_titles=rule_titles, explain_language=explain)

@@ -49,6 +49,7 @@ from tests.test_journey_end_to_end import (
     register,
 )
 from tests.test_journey_planner import _brief
+from tests.test_taught_rule_698 import read_rule_card
 
 ROOT = Path(__file__).resolve().parents[1]
 DAY0 = datetime(2026, 9, 1, 9, 0, tzinfo=UTC)
@@ -116,7 +117,7 @@ def _journey_intake(db: Session, user: User, now: datetime) -> int | None:
     brief = concept_life.introduction_for_today(db, user, now=now, control_language="en")
     if brief is None:
         return None
-    concept_life.mark_introduced(db, user=user, concept_id=int(brief["concept_id"]), now=now)
+    read_rule_card(db, user, int(brief["concept_id"]), at=now)
     db.flush()
     return int(brief["concept_id"])
 
@@ -169,7 +170,7 @@ def test_the_anchor_order(db_session: Session, v2) -> None:
     assert [unit.role for unit in plan.units] == ["today"], "no padding from teaching order"
 
     # Once the Règle is read, it is the rule introduced today.
-    concept_life.mark_introduced(db_session, user=user, concept_id=brief["concept_id"], now=DAY0)
+    read_rule_card(db_session, user, brief["concept_id"], at=DAY0)
     plan = forge_picker.forge_plan(db_session, user, DAY0 + timedelta(hours=1))
     assert (plan.anchor.concept_id, plan.reason) == (brief["concept_id"], forge_picker.REASON_INTRODUCED_TODAY)
     assert plan.new_concept_id is None
@@ -360,9 +361,10 @@ def test_soutenu_and_intensif_fold_the_forge_into_the_scene_movement(db_session:
     kinds = [step.kind for step in plan.steps]
     assert kinds.count(StepKind.FORGE) == 1, plan.rationale
     forge_at = kinds.index(StepKind.FORGE)
-    assert kinds.index(StepKind.RULE) < forge_at < kinds.index(StepKind.RESPOND), "after the guided items"
+    assert kinds.index(StepKind.RULE) < forge_at < kinds.index(StepKind.RESPOND), "after the rule card"
+    # R2 (rule taught once): no guided item on today's rule — La Forge practises it.
     guided_after_rule = kinds[kinds.index(StepKind.RULE) + 1 : forge_at]
-    assert guided_after_rule and set(guided_after_rule) == {StepKind.RECALL}
+    assert guided_after_rule == []
     step = plan.steps[forge_at]
     assert planner.FORGE_MIN_SECONDS <= step.estimated_seconds <= forge_picker.FORGE_SECONDS[rhythm]
     assert plan.estimated_active_seconds <= budget, "the fold fits the day's budget"

@@ -6,7 +6,7 @@
   "state_in": [
     "From gap 2: Marin has seen the notebook page «Le Mistral à nous» and built a spreadsheet.",
     "From gap 2: Gus has heard about Solvel's offer. If s1.price_public, he knows the figure to the euro.",
-    "From gap 2: the group is planning «Les 25 ans du Mistral» for Saturday 5 December. Margaux says «pas de fête» twice a day.",
+    "From gap 2: the group is planning «Les 25 ans du Mistral» for {date:2026-12-05|en}. Margaux says «pas de fête» twice a day.",
     "From gap 2: Lila is painting upstairs in the mornings (if s1.lila_has_key).",
     "Flags read: s1.gus_photo, s1.calendar_contradiction, s1.letter_trusted_to, s1.lila_path."
   ],
@@ -14,7 +14,7 @@
   "days": [
     {
       "day": "a",
-      "story_date_fr": "jeudi 26 novembre",
+      "story_date_fr": "{date:2026-11-26}",
       "title_fr": "Deux promesses",
       "location_id": "mairie",
       "minutes": 8,
@@ -396,7 +396,7 @@
     },
     {
       "day": "b",
-      "story_date_fr": "vendredi 27 novembre",
+      "story_date_fr": "{date:2026-11-27}",
       "title_fr": "Pour elle",
       "location_id": "ngo_office",
       "minutes": 9,
@@ -1053,6 +1053,7 @@
       ]
     }
   ],
+  "opens_with": {"register.augustin_de_roncourt": "tu"},
   "state_out": {"mistral.wall_agreed": true, "marin.first_share": "4000", "register.augustin_de_roncourt": "tu"},
   "for_next_gap": [
     "The camp bed in Marchand's office has been seen once, from the landing. Nobody asks about it yet.",

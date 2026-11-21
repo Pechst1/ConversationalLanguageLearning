@@ -6,10 +6,20 @@ implementation and are not part of this batch.
 
 ## Release contract
 
-CI calls the browser walk for the same commit as its backend, PostgreSQL,
-frontend, generated-types and Docker checks. All checks must pass before its
-publish job can call `publish-image.yml`. There is no independent publish trigger.
-Published images include `sha-<full 40-character commit>` tags.
+An image is published only for a commit whose every check passed, the browser
+walks included, and only by a job that waits for them all: for a tag, CI's publish
+job (the walks run in that CI run); for a commit on main, the publish job of
+`walk-main.yml`, which plays the walks once the commit's CI run has passed (on main
+CI skips them, so Render's deploy waits only for the fast checks). There is no
+independent publish trigger. Published images include `sha-<full 40-character
+commit>` tags.
+
+`walk-main.yml` also carries the deploy gate. Each of its runs puts its checks on
+main's newest commit, and Render counts a skipped check as passed, so a run fired by
+a cancelled or red CI run would otherwise mark a commit whose own CI has not started
+as ready to deploy (this happened on 16 Nov 2026). The job «Deploy gate · CI passed
+on this commit» is never skipped: it stays in progress until the newest commit's own
+CI run has finished and fails if that run did not pass.
 
 For production Compose, put production credentials in `.env.prod`, then use:
 

@@ -60,7 +60,9 @@ def test_a_gap_for_their_notebooks_takes_cahiers_as_well_as_carnets(db_session):
 def test_a_build_of_her_cameras_takes_appareils_as_well_as_appareils_photo(db_session):
     built = ib.word_bank_item(_item("She looks for her cameras, Gus."), lesson_external_id=UNIT)
     assert built is not None
-    for sentence in ("Elle cherche ses appareils photo, Gus.", "Elle cherche ses appareils, Gus."):
+    # The build is said to nobody (owner, 12 Nov 2026): the tray has no «Gus» to place.
+    assert "Gus" not in " ".join(str(part) for part in built.values())
+    for sentence in ("Elle cherche ses appareils photo.", "Elle cherche ses appareils."):
         words = sentence.replace(",", " ,").replace(".", " .").split()
         correction = _correct(db_session, "word_bank", built, words)
         assert correction["verdict"] == "correct", (sentence, correction)

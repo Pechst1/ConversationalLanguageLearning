@@ -73,3 +73,21 @@ test('the answered follow-up renders its result where the question was', () => {
   assert.match(html, /role="status"/);
   assert.match(html, /One week later/);
 });
+
+test('#775: the week-later answer shows its basic check and first fix, never only «Answer saved.»', () => {
+  const t = cahierCopy('en').journal;
+  const html = renderToStaticMarkup(
+    React.createElement(journal.FollowupResult, {
+      followup: answered({
+        text: 'Avec Camille, nous avons mangé une tarte et elle a parlé de sa travail.',
+        checked_by: 'rules',
+        corrections: [{ learner_text: 'sa', corrected_target: 'son', why_wrong: '« travail » is masculine.' }],
+      }),
+      t,
+    }),
+  );
+  assert.match(html, /son/);
+  assert.match(html, /travail/);
+  assert.match(html, /data-check="basic"/);
+  assert.ok(html.includes(t.correction_basic.replace(/'/g, '&#x27;')) || html.includes(t.correction_basic));
+});

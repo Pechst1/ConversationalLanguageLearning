@@ -145,7 +145,9 @@ def test_regulier_plans_an_eight_to_ten_minute_day_at_the_prior_pace(audio: bool
     # WP-93: ~12 items. #378 (owner decision 2026-10-30) replaces WP-129's
     # two-exchange core: the scene is three exchanges on every rhythm.
     assert planner.recall_count(plan) <= 12
-    assert plan.steps[respond_at].public_prompt["max_turns"] == 3
+    # Owner 2026-11-16 («story first»): A2 takes one exchange more when plain items
+    # can make room inside the ten minutes; with the page's audio priced, they cannot.
+    assert plan.steps[respond_at].public_prompt["max_turns"] == (3 if audio else 4)
 
 
 @pytest.mark.parametrize("budget", [1200, 1800])

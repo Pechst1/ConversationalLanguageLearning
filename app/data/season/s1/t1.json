@@ -12,7 +12,7 @@
   "days": [
     {
       "day": "a",
-      "story_date_fr": "mercredi 11 novembre",
+      "story_date_fr": "{date:2026-11-11}",
       "title_fr": "Le mauvais accueil",
       "location_id": "le_mistral",
       "minutes": 6,
@@ -38,9 +38,9 @@
           "diegetic": ["MISTRAL"],
           "lines": [
             {"who": "caption", "say": {
-              "a2": "Paris. Le 11 novembre. Il pleut. Tu as une valise, une lettre et une clé.",
-              "b1": "Paris, un 11 novembre sous la pluie. Une valise, une lettre du notaire, et une clé qui n'est pas encore à toi.",
-              "native": {"en": "Paris. 11 November. It's raining. You have a suitcase, a letter and a key.", "de": "Paris. Der 11. November. Es regnet. Du hast einen Koffer, einen Brief und einen Schlüssel."}
+              "a2": "Paris. Le {date:2026-11-11|fr-dm}. Il pleut. Tu as une valise, une lettre et une clé.",
+              "b1": "Paris, un {date:2026-11-11|fr-dm} sous la pluie. Une valise, une lettre du notaire, et une clé qui n'est pas encore à toi.",
+              "native": {"en": "Paris. {date:2026-11-11|en-dm}. It's raining. You have a suitcase, a letter and a key.", "de": "Paris. Der {date:2026-11-11|de-dm}. Es regnet. Du hast einen Koffer, einen Brief und einen Schlüssel."}
             }}
           ],
           "note": "Far background, rue de Lancry: «L.» at his easel. Never mentioned."
@@ -214,7 +214,7 @@
               ]}
             ]},
             {"id": "declined", "label": {"a2": "Non merci.", "native": {"en": "No, thank you.", "de": "Nein, danke."}}, "means": "The learner says no, politely: no thank you, not tonight, later.", "examples": ["Non, merci. Pas ce soir.", "Plus tard, merci."], "sets": {"s1.cafe_creme": "declined"}, "beats": [
-              {"kind": "panel", "id": "a.cafe.declined.r1", "visual": "Margaux slides the cup along the zinc to the empty stool at the end, Odile's, and leaves it there. Nobody touches it.", "location_id": "le_mistral", "in_frame": ["margaux_barman", "toi"], "silence": true}
+              {"kind": "panel", "id": "a.cafe.declined.r1", "visual": "Margaux slides the cup along the zinc to the empty stool at the end, Odile's, and leaves it there. Nobody touches it.", "location_id": "le_mistral", "in_frame": ["margaux_barman", "toi"], "lines": [{"who": "caption", "in_thread": true, "say": {"a2": "Margaux pousse la tasse jusqu'au tabouret d'Odile.", "native": {"en": "Margaux pushes the cup over to Odile's stool.", "de": "Margaux schiebt die Tasse zu Odiles Hocker hinüber."}}}], "silence": true}
             ]},
             {"id": "refused", "label": {"a2": "Je n'ai rien commandé.", "native": {"en": "I didn't order anything.", "de": "Ich habe nichts bestellt."}}, "means": "The learner turns the coffee down curtly: they did not order it, they do not want it.", "examples": ["Je n'en veux pas.", "Ce n'est pas pour moi."], "sets": {"s1.cafe_creme": "refused"}, "beats": [
               {"kind": "panel", "id": "a.cafe.refused.r1", "visual": "Margaux takes the cup back without a word. Gus shrugs.", "location_id": "le_mistral", "in_frame": ["margaux_barman", "augustin_de_roncourt"], "lines": [
@@ -344,7 +344,7 @@
     },
     {
       "day": "b",
-      "story_date_fr": "jeudi 12 novembre",
+      "story_date_fr": "{date:2026-11-12}",
       "title_fr": "La lettre",
       "location_id": "le_mistral",
       "minutes": 7,
@@ -468,8 +468,8 @@
             "de": "Sag Camille, was du vorhast, und ob «einfacher für alle» dein Anliegen ist.",
             "fr": "Dis à Camille ce que tu comptes faire, et si «plus simple pour tout le monde», c'est ton problème."
           },
-          "listens_for": "What the learner plans (sell and go home, not sure yet, not tonight) and whether they push back on «simple for everyone».",
-          "fallback": "b",
+          "listens_for": "What the learner plans (sell and go home, not sure yet, not selling, not tonight) and whether they push back on «simple for everyone».",
+          "fallback": "e",
           "replies": [
             {"id": "a", "label": "Yes, selling", "means": "The learner will sell and go home.", "examples": ["Oui. Je vends et je rentre."], "sets": {"user.heading": "leave"}, "beats": [
               {"kind": "panel", "id": "b.turn1.a.r1", "visual": "Camille, with a glance at the silent booth.", "location_id": "le_mistral", "in_frame": ["camille_marchand"], "lines": [
@@ -491,6 +491,11 @@
               {"kind": "panel", "id": "b.turn1.d.r1", "visual": "Camille puts the helmet back on.", "location_id": "le_mistral", "in_frame": ["camille_marchand"], "lines": [
                 {"who": "camille_marchand", "say": {"a2": "D'accord. Pas ce soir.", "native": {"en": "All right. Not tonight.", "de": "Einverstanden. Nicht heute Abend."}}},
                 {"who": "camille_marchand", "direction": "puts the helmet back on", "say": {"a2": "Jeudi prochain, je viens avec Solvel. Pour voir l'appartement.", "native": {"en": "Next Thursday, I'll come with Solvel. To see the flat.", "de": "Nächsten Donnerstag komme ich mit Solvel. Um die Wohnung anzusehen."}}}
+              ]}
+            ]},
+            {"id": "e", "label": "Not selling", "means": "The learner says no: they will not sell (a refusal, not a «not yet»).", "examples": ["Non. Je ne vends pas."], "beats": [
+              {"kind": "panel", "id": "b.turn1.e.r1", "lines": [
+                {"who": "camille_marchand", "say": {"a2": "Mon grand-père, lui, n'aime pas attendre.", "b1": "Mon grand-père, lui, n'aime pas qu'on le fasse attendre.", "native": {"en": "My grandfather, for one, doesn't like waiting.", "de": "Mein Großvater jedenfalls wartet nicht gern."}}}
               ]}
             ]}
           ],
@@ -673,10 +678,10 @@
           "panel": {
             "kind": "panel",
             "id": "b.last",
-            "visual": "Toi's rented studio. The radiator is cold, and Toi sits on the bed in the coat. On the phone screen: «Retour : mercredi 18 novembre». The key ring lies next to the phone, the cicada face up.",
+            "visual": "Toi's rented studio. The radiator is cold, and Toi sits on the bed in the coat. On the phone screen: «Retour : {date:2026-11-18}». The key ring lies next to the phone, the cicada face up.",
             "location_id": "user_apartment",
             "in_frame": ["toi"],
-            "diegetic": ["Retour : mercredi 18 novembre"],
+            "diegetic": ["Retour : {date:2026-11-18}"],
             "lines": [
               {"who": "caption", "say": {
                 "a2": "Ton billet de retour est pour mercredi. Le même jour que Lila. À suivre…",
@@ -691,7 +696,7 @@
   ],
   "state_out": {
     "camille.met": true,
-    "user.return_ticket": "mercredi 18 novembre",
+    "user.return_ticket": "{date:2026-11-18}",
     "user.has_met_group": true,
     "user.first_entry": "door_closed"
   },

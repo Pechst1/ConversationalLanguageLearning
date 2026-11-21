@@ -16,7 +16,8 @@
  *   Keepsake, teaser, level-up — the server's, verbatim.
  */
 
-import { castIdFor, expressionForMood } from '@/lib/cast-faces';
+import { frenchOrNothing } from '@/lib/line-language';
+import { castDisplayName, castIdFor, expressionForMood } from '@/lib/cast-faces';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 import type {
   ControlLanguage,
@@ -150,8 +151,9 @@ function faceOf(recap: JourneyRecap, journey: JourneySnapshot, language: Control
   const chrome = recapChrome(language);
   const mood = recap.mood ?? null;
   const characterId = mood?.character_id || journey.scenario?.character_id || '';
-  const name = mood?.character_name || journey.scenario?.character_name || '';
-  if (!name || !castIdFor(characterId, name)) return null;
+  const sentName = mood?.character_name || journey.scenario?.character_name || '';
+  if (!sentName || !castIdFor(characterId, sentName)) return null;
+  const name = castDisplayName(characterId, sentName) ?? sentName;
   const shift = mood?.shift ?? null;
   const expression: PortraitMood =
     shift === 'warmer'
@@ -175,7 +177,8 @@ function faceOf(recap: JourneyRecap, journey: JourneySnapshot, language: Control
     expression,
     moodLine,
     moodDirection: shift === 'warmer' ? 'up' : shift === 'colder' ? 'down' : null,
-    lineFr: recap.story_outcome?.callback_fr?.trim() || null,
+    // round 3: the French line, only when it is French («Tu hast gesagt, dass dir kalt ist …» is left out)
+    lineFr: frenchOrNothing(recap.story_outcome?.callback_fr) || null,
   };
 }
 
@@ -297,6 +300,9 @@ export function colophonDigest(
   const parts = digestParts(digest);
   if (!parts) return null;
   const line = parts.resolution || parts.question;
+  // P8 (A1 walk, day 2): a chapter closed with no resolution printed the season's question
+  // («Ou tu dis au revoir à tout ça ?») where tomorrow's line belongs. A question is never it.
+  if (line.trim().endsWith('?')) return null;
   const said = alreadySaid.map((value) => String(value ?? '').trim()).filter(Boolean);
   return said.some((value) => saysTheSame(value, line)) ? null : line;
 }

@@ -38,6 +38,17 @@ test('«Compare» behind or below the verdict sheet is named', () => {
   assert.equal(half['miss-action-above-the-sheet'].ok, false, 'partly behind it');
 });
 
+// #665 (walk 29, season-en A2.1 day 8): «Compare» 497–553 under a sheet from 551, 2 px.
+// Fully above means fully: one pixel under is a miss. And the finding says whether the
+// page's own miss scroll was done when it was read, so a reading taken on the way shows.
+test('#665 · «Compare» 2 px under the sheet is named, with the page\'s scroll state', () => {
+  const edge = byName({ ...MISS, compare: [{ left: 36, right: 151, top: 497, bottom: 553 }], scroll: 'settled' });
+  assert.equal(edge['miss-action-above-the-sheet'].ok, false);
+  assert.match(edge['miss-action-above-the-sheet'].detail, /starts at 551 \(screen 812, page scroll settled\)/);
+  const flush = byName({ ...MISS, compare: [{ left: 36, right: 151, top: 495, bottom: 551 }] });
+  assert.equal(flush['miss-action-above-the-sheet'].ok, true, 'ending where the sheet starts is above it');
+});
+
 test('the field must hold the words the instruction names', () => {
   assert.equal(namedWrongWords('Replace «à le» with «au» here.'), 'à le');
   assert.equal(namedWrongWords('Ersetze « à le » durch « au ».'), 'à le');

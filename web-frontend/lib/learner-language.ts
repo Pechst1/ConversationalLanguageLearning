@@ -135,5 +135,14 @@ export function useChromeLanguage(level?: unknown): ControlLanguage {
   return chromeLanguage(profile.language, levelBand(level) ? level : profile.level);
 }
 
+/**
+ * S3 — Le Quartier carries translations in English and German only: the learner's
+ * own language folded onto those two (French and anything else read English, as
+ * the screen did before). Read from the profile, never from the device.
+ */
+export function quartierNative(language: ControlLanguage): 'en' | 'de' {
+  return language === 'de' ? 'de' : 'en';
+}
+
 export default useLearnerLanguage;
 

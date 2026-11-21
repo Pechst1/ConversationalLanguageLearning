@@ -39,6 +39,7 @@ from app.config import settings
 from app.core import gold as core
 from app.db.models.gold import GoldBalance, GoldLedgerEntry
 from app.db.savepoint import best_effort, run_best_effort
+from app.services import verdict_ledger, verdicts
 
 _log = logging.getLogger(__name__)
 
@@ -55,6 +56,8 @@ SOURCE_JOURNEY_TARGET = "journey_target"
 SOURCE_JOURNEY_REPLY = "journey_reply"
 SOURCE_FORGE_ITEM = "forge_item"
 SOURCE_LETTER = "letter"
+#: Package V: gold a verdict record pays when it settles (verdict_ledger.supersede).
+SOURCE_VERDICT = "verdict"
 SOURCE_MILESTONE = "milestone"
 SOURCE_WORD_CARD = "word_card"
 
@@ -257,6 +260,14 @@ def _open_day(db: Session, user: Any, *, when: datetime, now: datetime) -> _Day:
     )
 
 
+def _flush(db: Session, rows: list[Any]) -> None:
+    """Flush ``rows`` now, unless a flush is already running (the verdict ledger voids a
+    payment from ``before_flush``; what it changes there goes out with that flush)."""
+
+    if not getattr(db, "_flushing", False):
+        db.flush(rows)
+
+
 def _bump_balance(db: Session, *, user_id: Any, earned: int, now: datetime) -> None:
     """The livret follows every settled change (a cache; :func:`recompute_balance` rebuilds it)."""
 
@@ -269,7 +280,7 @@ def _bump_balance(db: Session, *, user_id: Any, earned: int, now: datetime) -> N
     row.balance = int(row.balance or 0) + int(earned)
     row.earned_total = int(row.earned_total or 0) + int(earned)
     row.updated_at = now
-    db.flush([row])
+    _flush(db, [row])
 
 
 def recompute_balance(db: Session, *, user_id: Any, now: datetime | None = None) -> GoldBalance:
@@ -291,7 +302,7 @@ def recompute_balance(db: Session, *, user_id: Any, now: datetime | None = None)
     row.earned_total = earned
     row.spent_total = spent
     row.updated_at = now
-    db.flush([row])
+    _flush(db, [row])
     return row
 
 
@@ -392,7 +403,7 @@ def _void(db: Session, entry: GoldLedgerEntry, *, reason: str, now: datetime) ->
     entry.voided_at = now
     entry.void_reason = reason
     db.add(entry)
-    db.flush([entry])
+    _flush(db, [entry])
 
 
 def _target_json(kind: Any, target_id: Any) -> dict[str, str]:
@@ -670,6 +681,8 @@ def _record_journey_reply(
     outcome = _outcome_of(evaluation.outcome)
     if outcome not in core.PAYING_OUTCOMES or getattr(evaluation, "pending", False):
         return
+    if getattr(evaluation, "check_failure", None):
+        return  # R6 / #333: the authored ending keeps the day going; nobody read the reply
     if getattr(evaluation, "needs_repair", False) and not getattr(evaluation, "turn_consumed", True):
         # A turn that cost no exchange (the greeting nudge) pays nothing either.
         return
@@ -1271,6 +1284,47 @@ def record_rule_held(db: Session, *, user: Any, now: datetime | None = None) -> 
 # ---------------------------------------------------------------------------
 
 
+def pay_verdict(
+    db: Session,
+    *,
+    user: Any,
+    source_key: str,
+    category: core.Category = core.Category.FREE,
+    outcome: str = core.OUTCOME_MET,
+    evidence: dict[str, Any] | None = None,
+    source_kind: str = SOURCE_VERDICT,
+    now: datetime | None = None,
+) -> GoldLedgerEntry | None:
+    """Package V: the gold a verdict record is due, minted once under ``source_key``.
+
+    The ledger names the key (one per chain of records and payment), so a record that is
+    superseded and settled again finds its entry and mints nothing. ``None`` when the
+    ledger is off, the table says nothing, or the key was already paid.
+    """
+
+    if not ledger_on():
+        return None
+    now = _now(now)
+    day = _open_day(db, user, when=now, now=now)
+    return _mint_and_write(
+        db,
+        user_id=user.id,
+        day=day,
+        observation=core.GoldObservation(category=category, outcome=outcome, assistance="none"),
+        source_kind=source_kind,
+        source_key=source_key,
+        target=None,
+        evidence={"category": str(category), "outcome": outcome, **(evidence or {})},
+        now=now,
+    )
+
+
+def void_verdict_payment(db: Session, *, entry: GoldLedgerEntry, reason: str, now: datetime | None = None) -> None:
+    """Package V: a superseding record that no longer counts takes its chain's gold back."""
+
+    _void(db, entry, reason=reason, now=_now(now))
+
+
 def record_letter(db: Session, *, user: Any, mission: Any, attempts: Sequence[Any], now: datetime | None = None) -> None:
     """A completed Courrier letter, judged on its first written attempt (R7). Never raises.
 
@@ -1301,6 +1355,46 @@ def record_letter(db: Session, *, user: Any, mission: Any, attempts: Sequence[An
         outcome = {"accepted": core.OUTCOME_MET, "partial": core.OUTCOME_PARTIAL}.get(verdict)
         if outcome is None:
             return  # needs_revision, unassessed (R6), needs_review
+        stored = getattr(first, "correction_payload", None)
+        # Package V: a letter stored before the stack is paid as main paid it (stage 1); one
+        # with a ledger record is paid as its record says (stage 2).
+        if stored and not verdict_ledger.counting(db, [first]).counts(
+            first, read=lambda _row: verdicts.from_courrier(stored, verdict=verdict)
+        ):
+            return  # R6 / #333: a stored «partial» that only the rules ever looked at
+        key = f"gold:letter:{mission.id}"
+        evidence = {
+            "category": str(core.Category.LETTER),
+            "outcome": outcome,
+            "verdict": verdict,
+            "assistance": "none",
+            "mission_id": str(mission.id),
+            "attempt_id": str(first.id),
+            "attempts": len(written),
+            "mode": str(getattr(first, "mode", "") or ""),
+        }
+        # Package V stage 3: a letter whose first attempt has a ledger record is paid through
+        # that record's chain, so a later record that stops counting takes it back
+        # (``void_verdict_payment``) and settling again pays nothing twice.
+        # A row from before the stack that keeps what it counted for is paid as main paid it.
+        record = verdict_ledger.live_record(db, "courrier_attempt", first.id) if verdict_ledger.recording(db) else None
+        if record is not None and record.counts:
+            verdict_ledger.pay(
+                db,
+                record,
+                lambda source_key: pay_verdict(
+                    db,
+                    user=user,
+                    source_key=source_key,
+                    category=core.Category.LETTER,
+                    outcome=outcome,
+                    evidence=evidence,
+                    source_kind=SOURCE_LETTER,
+                    now=now,
+                ),
+                key=key,
+            )
+            return
         day = _open_day(db, user, when=now, now=now)
         _mint_and_write(
             db,
@@ -1308,18 +1402,9 @@ def record_letter(db: Session, *, user: Any, mission: Any, attempts: Sequence[An
             day=day,
             observation=core.GoldObservation(category=core.Category.LETTER, outcome=outcome, assistance="none"),
             source_kind=SOURCE_LETTER,
-            source_key=f"gold:letter:{mission.id}",
+            source_key=key,
             target=None,
-            evidence={
-                "category": str(core.Category.LETTER),
-                "outcome": outcome,
-                "verdict": verdict,
-                "assistance": "none",
-                "mission_id": str(mission.id),
-                "attempt_id": str(first.id),
-                "attempts": len(written),
-                "mode": str(getattr(first, "mode", "") or ""),
-            },
+            evidence=evidence,
             now=now,
         )
 

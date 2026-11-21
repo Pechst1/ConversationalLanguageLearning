@@ -226,7 +226,9 @@ def test_the_writers_contract_is_checked_not_trusted(pilot) -> None:
         "effects": [
             {**KEY_PROPOSAL["effects"][0], "allowed_conditions": ["mornings_only", "forever"]},
             {**KEY_PROPOSAL["effects"][1], "actions": ["teleport"]},
-            {**KEY_PROPOSAL["effects"][1], "id": "Not A Slug"},
+            # S5: «Not-A-Slug» is normalised to ``not_a_slug``; an id no normalising
+            # turns into the pattern (it must start with a letter) is still dropped.
+            {**KEY_PROPOSAL["effects"][1], "id": "4 ever"},
         ],
     }
     checked = agency.generated_contract("s1", "g2", None, wrong)

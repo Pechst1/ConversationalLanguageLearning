@@ -418,6 +418,15 @@ def check_feedback(transcript: dict[str, Any]) -> list[str]:
         prompt = event["step"].get("prompt") or {}
         task_type = prompt.get("task_type")
         correction = result.get("correction") or {}
+        withheld = (correction.get("solution") or {}).get("state") == "withheld"
+        if withheld:
+            # Owner rule of 13 Nov: no solution before the retry. A miss whose retry
+            # is queued names where it went wrong, never the answer; the retry shows it.
+            if str(correction.get("corrected_fr") or "").strip():
+                problems.append(f"{_label(transcript, index, event)}: a withheld miss still names the answer")
+            elif not (correction.get("notes_native") or correction.get("note_native")):
+                problems.append(f"{_label(transcript, index, event)}: a withheld miss without a why")
+            continue
         if task_type in REVEALED_BY_KEY:
             if not prompt.get("answer_key"):
                 problems.append(f"{_label(transcript, index, event)}: a missed pick with no key to reveal the answer")
@@ -731,7 +740,7 @@ def _unit_titles() -> dict[str, int]:
 
     import csv
 
-    path = ROOT / "templates/french_core_grammar_v2.tsv"
+    path = ROOT / "app/data/grammar_catalog/french_core_grammar_v2.tsv"
     titles: dict[str, int] = {}
     if not path.exists():
         return titles

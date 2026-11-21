@@ -9,6 +9,7 @@ from app.db.models.user import User
 from app.schemas.progress import CarnetResponse
 from app.services.can_do import carnet_payload
 from app.services.cefr_progress import CEFRProgressService
+from app.services.chrome_language import user_mother_tongue
 
 router = APIRouter(prefix="/can-dos", tags=["progress"])
 
@@ -27,6 +28,6 @@ def get_carnet(
             db,
             current_user.id,
             current_band=str(level.get("estimate") or "A1.1"),
-            native_language=getattr(current_user, "native_language", None),
+            native_language=user_mother_tongue(current_user),
         )
     )

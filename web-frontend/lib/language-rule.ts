@@ -39,6 +39,17 @@ export function chromeLanguage(control: unknown, level?: unknown): ControlLangua
   return frenchChrome(level) ? 'fr' : normalizeControlLanguage(control);
 }
 
+/**
+ * R4 (owner decision 18 Nov 2026, walk of 19 Nov) — the language an *explanation* is
+ * written in: a rule, a hint, why an answer was wrong. It is the learner's own language
+ * at every level, as the scene's notes and the Courrier's are, while the chrome around
+ * it is French from B1. Below B1 the chrome already is the learner's language, so this
+ * is the chrome itself there (nothing changes); from B1 it is `learner`.
+ */
+export function explanationLanguage(chrome: ControlLanguage, learner: unknown): ControlLanguage {
+  return chrome === 'fr' ? normalizeControlLanguage(learner) : chrome;
+}
+
 type JourneyLike = {
   controlLanguage?: unknown;
   journey?: { learner_level?: string | null; scenario?: { level_band?: string | null } | null } | null;

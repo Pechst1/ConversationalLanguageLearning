@@ -28,6 +28,14 @@ class ArchivePanel(_Model):
     image_url: str | None = None
 
 
+class ArchiveChoice(_Model):
+    """P12 round 2: a card the learner chose on a season page («Le choix»)."""
+
+    turn_id: str
+    reply_id: str
+    label_fr: str | None = None
+
+
 class ArchiveDay(_Model):
     """One planche: a day the learner lived, engine-written or authored."""
 
@@ -39,10 +47,17 @@ class ArchiveDay(_Model):
     edition_no: int | None = None
     #: #314: the day re-read an earlier page; the story did not move on.
     reread: bool = False
+    #: P11: the learner's today — filed once its ending was read, the day still open.
+    today: bool = False
     image_url: str | None = None
     character_id: str | None = None
+    #: P12: where the day is set (the scenario's place), for Le Quartier's carnet.
+    location_id: str | None = None
+    location_name: str | None = None
     #: «La réplique de l'abonné·e» — the learner's own lines, oldest first.
     learner_lines: list[str] = Field(default_factory=list)
+    #: P12 round 2: the cards chosen on a season page, in play order (Le Quartier's carnet).
+    choices: list[ArchiveChoice] = Field(default_factory=list)
     ending_fr: str | None = None
     #: The day's one «À suivre…» line (``script_payload.next_teaser_fr``), as filed.
     hook_fr: str | None = None
@@ -95,6 +110,7 @@ class StoryArchive(_Model):
 
 __all__ = [
     "ArchiveChapter",
+    "ArchiveChoice",
     "ArchiveCurrent",
     "ArchiveDay",
     "ArchivePanel",

@@ -255,6 +255,8 @@ class UserRead(UserBase):
     last_activity_date: date | None
     serial_onboarding_seen: bool = False
     address_preference: AddressPreference = "neutral"
+    # S4 stage 3: the new address of a change that waits for its code.
+    pending_email: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -373,6 +375,7 @@ class UserSettingsRead(BaseModel):
     role: str
     is_active: bool
     is_verified: bool
+    pending_email: str | None = None
     updated_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)

@@ -25,6 +25,16 @@ from enum import StrEnum
 from typing import Any, Literal, NamedTuple
 from uuid import UUID
 
+# S3: the control language and its folding live in ``chrome_language``; these
+# names stay importable from here for the modules (and open branches) that use them.
+from app.services.chrome_language import (  # noqa: F401
+    FALLBACK_CONTROL_LANGUAGE,
+    SUPPORTED_CONTROL_LANGUAGES,
+    ControlLanguage,
+    mother_tongue,
+)
+from app.services.chrome_language import fold_language as normalize_control_language  # noqa: F401
+
 CONTRACT_VERSION = 1
 #: WP-66. The *plan* contract, versioned separately from the wire contract.
 #: Version 2 adds :class:`DayShape` and the three Séance recall formats. Both
@@ -45,6 +55,15 @@ MAX_RESPOND_TURNS = 4
 #: The planner never cuts a generated scene below it; an authored page keeps its own
 #: count (``ResponseTask.min_turns``).
 MIN_SCENE_EXCHANGES = 3
+#: Owner 2026-11-16 («zu kurz, nicht fesselnd»): at A1 and A2 a generated scene asks
+#: one exchange more than its rhythm gives B1 — four on Régulier, five on Soutenu and
+#: Intensif, four in each act of a day of several acts — while the day's time holds
+#: it: the planner gives it back before it makes a longer day or gives up an act
+#: (``journey_planner.low_band_extra_exchanges``). Léger keeps its five minutes.
+LOW_BAND_EXTRA_EXCHANGES = 1
+#: The most exchanges any planned reply has: :data:`MAX_RESPOND_TURNS` and the low
+#: bands' one more. An authored brief still declares at most ``MAX_RESPOND_TURNS``.
+MAX_PLANNED_RESPOND_TURNS = MAX_RESPOND_TURNS + LOW_BAND_EXTRA_EXCHANGES
 #: Léger keeps its five minutes (WP-75, WP-78): three exchanges are 6.5 to 9
 #: minutes at A1 to B1 and leave no drill, so the rhythm plans what fits, down to
 #: one. The scene still never closes under the character's open question
@@ -313,20 +332,6 @@ def rhythm_caps(budget_seconds: int | None) -> RhythmCaps:
 #: ``plan_selection["first_day"]["kind"]``. Additive: no wire shape changes
 #: except the optional ``JourneySnapshot.cast_intro`` it feeds.
 FIRST_DAY_KIND = "first_day"
-
-ControlLanguage = Literal["en", "de", "fr"]
-SUPPORTED_CONTROL_LANGUAGES: tuple[ControlLanguage, ...] = ("en", "de", "fr")
-FALLBACK_CONTROL_LANGUAGE: ControlLanguage = "en"
-
-
-def normalize_control_language(value: str | None) -> ControlLanguage:
-    """Map a learner's stored native language onto a supported control language."""
-
-    candidate = (value or "").strip().lower().replace("_", "-").split("-")[0]
-    if candidate in SUPPORTED_CONTROL_LANGUAGES:
-        return candidate  # type: ignore[return-value]
-    return FALLBACK_CONTROL_LANGUAGE
-
 
 class JourneyStatus(StrEnum):
     PREPARING = "preparing"
@@ -924,7 +929,7 @@ def recall_goal(kind: str, language: Any, **fields: Any) -> str:
     """One goal line (WP-103 T3) in the learner's chrome language."""
 
     table = RECALL_GOALS[kind]
-    template = table.get(str(language or "en")[:2]) or table["en"]
+    template = table.get(mother_tongue(language)) or table["en"]
     return template.format(**{key: str(value or "").strip() for key, value in fields.items()})
 
 
@@ -1545,7 +1550,11 @@ class Correction:
     #: ``meaning`` (#167): a wrong meaning tapped for a French word; ``corrected_fr``
     #: is the word and the note says what it means. ``span_fr`` is the tapped
     #: meaning, in the learner's language: never shown as French made right.
-    kind: Literal["edit", "pick", "meaning"] = "edit"
+    #: ``example`` (#624): a free sentence has no single right answer, so
+    #: ``corrected_fr`` is a model sentence that uses the rule, not the learner's
+    #: sentence made right. It is shown on its own, labelled as an example (no
+    #: strike-through, no arrow) and never filed as an error to repair.
+    kind: Literal["edit", "pick", "meaning", "example"] = "edit"
     #: #278: the sentence the wrong span sat in (the learner's own answer, or the
     #: item's gap filled with it), so the saved error can be drilled later as that
     #: sentence with the slip marked, not as a bare word. ``None`` when unknown.
@@ -1555,6 +1564,12 @@ class Correction:
     #: about the learner's grammar, so the checks that prove a model's fix against
     #: the learner's sentence (subject kept, cited form present) do not apply to it.
     rule_written: bool = False
+    #: P3 (owner decision 2, proposed): from B1 a scene reply may carry up to two more
+    #: corrections of other words, shown collapsed under this one. They live on the
+    #: foreground correction, so whatever replaces or withholds it (a stored fault's
+    #: note, a prompt that must not hand over the answer) takes them along. Each has
+    #: an empty ``more``. Empty for every other surface and below B1.
+    more: tuple[Correction, ...] = ()
 
     def is_valid_for(self, learner_text: str) -> bool:
         """Reject no-op corrections and spans the learner never wrote."""
@@ -1606,12 +1621,19 @@ class ResponseEvaluation:
     correction: Correction | None = None
     consequence: StoryOutcomeProposal | None = None
     needs_repair: bool = False
+    #: #518: this reply stands in for one no model could write (``scene_exit``). Not the same
+    #: as ``reply_source:authored``, which an ordinary authored conversation day also carries.
+    stock_exit: bool = False
     #: #378: the scene stays open because the character's reply asks the learner
     #: something, past the planned exchanges (``SCENE_QUESTION_GRACE`` at most).
     question_open: bool = False
     turn_consumed: bool = True
     pending: bool = False
     failure_reason: str | None = None
+    #: #333: why the model that should have read this reply did not. ``failure_reason``
+    #: says where the reply line came from, and an authored line alone does not mean a
+    #: failure: the scripted scenes are graded by their own signals.
+    check_failure: str | None = None
     #: WP-36 §8.4 telemetry: what the self-repair policy decided about this turn
     #: (``recurrence``, ``repair_succeeded``, ``repair_failed``,
     #: ``repair_not_attempted``, ``already_prompted``, ``last_turn``,
