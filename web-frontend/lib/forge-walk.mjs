@@ -1,47 +1,9 @@
-// What the browser walk (e2e/lib/learner-walk.mjs) knows about La Forge, kept out of the
-// walk so the unit tests can run it and scripts/loop/red_green.py can prove it:
-//
-// - the selectors with which the walk answers each La Forge step, checked against the
-//   components that render them by components/epreuve/forge-word-bank-walk.test.js;
-// - the decision whether a visit to La Forge that stopped changing has ended or is stuck.
+// What the browser walk (e2e/lib/learner-walk.mjs) decides about a visit to La Forge, kept
+// out of the walk so the unit tests can run it and scripts/loop/red_green.py can prove it:
+// whether a visit that stopped changing has ended or is stuck. (The selectors with which
+// the walk answers each La Forge step stay in e2e/lib/driver.mjs, as on main.)
 //
 // Plain ES module with no imports: the walk runs under bare node.
-
-/**
- * La Forge «Copy the correction»: after a miss on a whole line the way on is the corrected
- * line, retyped, then «Compare» (components/epreuve/Epreuve.tsx EpRepair); «Continue»
- * waits for it. The correction to copy is the line printed in the card above (EpLineFix).
- */
-export const FORGE_REPAIR = {
-  open: '.ep-repair:not([data-status="ok"])',
-  field: 'input.ep-repair__input:not([disabled])',
-  submit: 'button.ep-repair__submit:not([disabled])',
-  correction: '.ep-galley .ep-linefix__new',
-};
-
-/**
- * La Forge «Trouve l'erreur» / «Ta phrase» (components/epreuve/ForgeDrills.tsx ForgeSpot):
- * the sentence's words are buttons; a tapped word opens in a field that holds it,
- * selected, and what is typed replaces it.
- */
-export const FORGE_SPOT = {
-  word: 'button.forge-spot__word:not([disabled])',
-  edited: 'button.forge-spot__word[data-edited="true"]',
-  field: 'input.forge-spot__input',
-};
-
-/**
- * La Forge «Correct the sentence» (components/epreuve/ForgeFollowUp.tsx): after a right
- * «Needs fixing» the learner corrects the sentence, with tiles (A1) or in a field, and
- * checks it with the follow-up's own button; the verdict sheet and its «Continue» wait
- * for it.
- */
-export const FORGE_FOLLOW = {
-  open: '.ep-follow[data-outcome="open"]',
-  quote: '.ep-follow__quote',
-  field: 'textarea.ep-follow__input',
-  check: '.ep-follow__actions button.ep-bar:not([disabled])',
-};
 
 /** Quarter-seconds of an unchanged screen after which a visit to La Forge counts as over (10 s). */
 export const FORGE_VISIT_QUIET = 40;

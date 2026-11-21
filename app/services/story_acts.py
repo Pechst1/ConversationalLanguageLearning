@@ -77,15 +77,35 @@ _ONE_ACT_DAYS = frozenset(
 )
 
 
-def acts_enabled_for(user: User) -> bool:
-    """The switch, its cohort and everything the prefetch itself requires."""
+def _listed(raw: str | None, user: User) -> bool:
+    """``user`` is named (by id or email, any case) in the comma-separated ``raw``."""
 
-    if not settings.ATELIER_STORY_ACTS:
+    allowed = {entry.strip().lower() for entry in str(raw or "").split(",") if entry.strip()}
+    if not allowed:
+        return False
+    names = {str(getattr(user, "id", "") or "").lower(), str(getattr(user, "email", "") or "").strip().lower()}
+    return bool(allowed & (names - {""}))
+
+
+def acts_enabled_for(user: User) -> bool:
+    """Whether this learner's days have acts after the first: the one answer the night
+    (``queue_story_acts``, ``write_act``), the morning (``take_acts``, and from it the
+    plan and the app's payload) and the learner's caps (``spend_guard``) all read.
+
+    On for an account named in ``ATELIER_STORY_ACTS_ACCOUNTS`` (owner 2026-11-16: his
+    own account first, with the switch still off for everyone else), or with the switch
+    ``ATELIER_STORY_ACTS`` on for its cohort, as before — and in either case only for a
+    learner the prefetch itself writes for."""
+
+    listed = _listed(settings.ATELIER_STORY_ACTS_ACCOUNTS, user)
+    if not listed and not settings.ATELIER_STORY_ACTS:
         return False
     from app.services.journey_latency import prefetch_enabled_for
 
     if not prefetch_enabled_for(user):
         return False
+    if listed:
+        return True
     raw = (settings.ATELIER_STORY_ACTS_COHORT or "").strip()
     if raw == "*":
         return True
@@ -93,8 +113,7 @@ def acts_enabled_for(user: User) -> bool:
         # As ATELIER_DAILY_JOURNEY_COHORT: an empty list is everyone in development and
         # nobody in production, where blanking it must never mean «every learner».
         return settings.APP_ENV.strip().lower() != "production"
-    allowed = {entry.strip().lower() for entry in raw.split(",") if entry.strip()}
-    return bool(allowed & {str(user.id).lower(), (user.email or "").strip().lower()})
+    return _listed(raw, user)
 
 
 def planned_roles(db: Session, user: User) -> tuple[ActRole, ...]:

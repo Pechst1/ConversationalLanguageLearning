@@ -400,10 +400,12 @@ class VocabularyRecommendationItem(BaseModel):
     rescue_cue: dict[str, Any] | None = None
     recommendation_reason: dict[str, Any] | None = None
     episodic_anchor: dict[str, Any] | None = None
-    #: The day deck holds the word because of today's scene (owner rules, 1 and 2 Nov):
-    #: it takes one of the scene's share of the new-word slots (``deck_order.py``), and
-    #: its example is the scene line (with its translation).
+    #: The day deck holds the word because of today's scene (owner rule, 1 Nov; P7):
+    #: every scene word is dealt (``deck_order.py``), its example is the scene line
+    #: (with its translation) and its gloss the sense the scene's lexicon gives it.
     scene_word: bool = False
+    #: P7: a word the learner kept from the story and was not asked yet: it opens the deck.
+    kept_word: bool = False
 
 
 class VocabularyRecommendationSummary(BaseModel):

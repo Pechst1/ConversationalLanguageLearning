@@ -1,0 +1,228 @@
+{
+  "id": "toit_mistral",
+  "kind": "room",
+  "round": 3,
+  "in": "quai_de_valmy",
+  "quarter": true,
+  "canon": {
+    "doc": "docs/story/season-1/10-lieux-et-images.md",
+    "place": "The roof (gap 3)",
+    "scenes": [
+      "Gap 3 · «Sur le toit» (g3.toit.p1 to p4)"
+    ]
+  },
+  "ambiance": "nuit",
+  "title": {
+    "fr": "Le toit",
+    "en": "The roof",
+    "de": "Das Dach"
+  },
+  "can_do": {
+    "fr": "Regarder le canal d'en haut, la lucarne ouverte, les cheminées.",
+    "en": "Look at the canal from above, the open skylight, the chimneys.",
+    "de": "Den Kanal von oben ansehen, die offene Dachluke, die Schornsteine."
+  },
+  "arrive": {
+    "fr": "Sur le toit, la nuit. En bas, le canal.",
+    "en": "On the roof, at night. Below, the canal.",
+    "de": "Auf dem Dach, nachts. Unten der Kanal."
+  },
+  "start": {
+    "pos": [
+      -29.5,
+      -19.0
+    ],
+    "look": [
+      -6.0,
+      3.0,
+      -40.0
+    ]
+  },
+  "spaces": [],
+  "floors": [
+    {
+      "key": "terrasson",
+      "shape": [
+        [
+          -28.7,
+          -9.704
+        ],
+        [
+          -28.7,
+          -28.5
+        ],
+        [
+          -53.0,
+          -28.5
+        ],
+        [
+          -53.0,
+          -7.7
+        ],
+        [
+          -30.704,
+          -7.7
+        ]
+      ],
+      "y": 23.49,
+      "finish": "zinc",
+      "zone": "out"
+    }
+  ],
+  "walls": [],
+  "flights": [],
+  "rails": [],
+  "doors": [],
+  "windows": [],
+  "lights": [],
+  "switches": [],
+  "timers": {},
+  "things": [
+    {
+      "kind": "skylight",
+      "at": [
+        -31.2,
+        23.49,
+        -20.4
+      ],
+      "rot": 1.5708,
+      "zone": "out",
+      "size": [
+        0.7,
+        0.9
+      ],
+      "look": {
+        "fr": "La lucarne du cinquième, ouverte. En bas, la lumière de l'escalier.",
+        "en": "The fifth-floor skylight, open. Below, the light of the stairs.",
+        "de": "Die Dachluke im fünften Stock, offen. Unten das Licht vom Treppenhaus."
+      },
+      "did": {
+        "fr": "Tu as regardé la lucarne.",
+        "en": "You looked at the skylight.",
+        "de": "Du hast dir die Dachluke angesehen."
+      }
+    },
+    {
+      "kind": "edge",
+      "at": [
+        -28.72,
+        23.49,
+        -19.1
+      ],
+      "rot": 1.5708,
+      "zone": "out",
+      "size": [
+        18.8,
+        0
+      ],
+      "look": {
+        "fr": "En bas, le canal : la passerelle allumée, une péniche, les arbres du quai.",
+        "en": "Below, the canal: the lit footbridge, a barge, the trees along the quai.",
+        "de": "Unten der Kanal: die beleuchtete Brücke, ein Lastkahn, die Bäume am Quai."
+      },
+      "did": {
+        "fr": "Tu as regardé le canal d'en haut.",
+        "en": "You looked at the canal from above.",
+        "de": "Du hast dir den Kanal von oben angesehen."
+      }
+    },
+    {
+      "kind": "edge",
+      "at": [
+        -29.702,
+        23.49,
+        -8.702
+      ],
+      "rot": -2.3562,
+      "zone": "out",
+      "size": [
+        2.833,
+        0
+      ]
+    },
+    {
+      "kind": "edge",
+      "at": [
+        -41.852,
+        23.49,
+        -7.72
+      ],
+      "rot": 0,
+      "zone": "out",
+      "size": [
+        22.3,
+        0
+      ]
+    },
+    {
+      "kind": "chimney",
+      "at": [
+        -36.5,
+        23.49,
+        -14.5
+      ],
+      "rot": 0,
+      "zone": "out",
+      "size": [
+        1.6,
+        1.7
+      ],
+      "look": {
+        "fr": "Des cheminées partout, et leurs pots de terre.",
+        "en": "Chimneys everywhere, and their clay pots.",
+        "de": "Überall Schornsteine mit ihren Tonaufsätzen."
+      },
+      "did": {
+        "fr": "Tu as regardé les cheminées.",
+        "en": "You looked at the chimneys.",
+        "de": "Du hast dir die Schornsteine angesehen."
+      }
+    },
+    {
+      "kind": "chimney",
+      "at": [
+        -40.0,
+        23.49,
+        -28.1
+      ],
+      "rot": 0,
+      "zone": "out",
+      "size": [
+        2.2,
+        1.6
+      ]
+    },
+    {
+      "kind": "chimney",
+      "at": [
+        -47.0,
+        23.49,
+        -18.0
+      ],
+      "rot": 1.5708,
+      "zone": "out",
+      "size": [
+        1.8,
+        1.4
+      ]
+    }
+  ],
+  "courts": [],
+  "marks": {
+    "lila": [
+      -30.3,
+      23.49,
+      -19.5
+    ],
+    "toi": [
+      -29.3,
+      23.49,
+      -15.6
+    ],
+    "marchand": [
+      -36.0,
+      23.49,
+      -22.5
+    ]
+  }
+}

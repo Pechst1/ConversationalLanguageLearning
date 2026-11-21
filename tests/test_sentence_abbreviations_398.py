@@ -100,8 +100,17 @@ def test_the_rule_drill_never_offers_a_sentence_cut_at_a_title(db_session: Sessi
     assert "Sur le toit, la lampe de M." not in texts
 
 
-def test_no_choice_option_of_a_generated_day_ends_in_a_one_letter_abbreviation(db_session: Session) -> None:
-    """The done-when, over a whole planned day: a scene with «M. Marchand» in it, and today's rule."""
+def test_no_choice_option_of_a_generated_day_ends_in_a_one_letter_abbreviation(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The done-when, over a whole planned day: a scene with «M. Marchand» in it, and today's rule.
+
+    R2 (1) teaches the day's rule once (card, then La Forge), so the plan poses no guided
+    choice around the scene; the check reads the guided items the planner still builds
+    when that switch is off.
+    """
+
+    monkeypatch.setattr(planner, "RULE_TAUGHT_ONCE", False)
 
     scenario = replace(
         _brief(),

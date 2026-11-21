@@ -107,6 +107,9 @@ export type SettingsCopyKey =
   | 'row_rehearsal_hint'
   | 'row_dossier'
   | 'row_dossier_hint'
+  | 'row_help'
+  | 'row_help_hint'
+  | 'action_help'
   | 'row_feedback'
   | 'row_feedback_hint'
   | 'action_feedback'
@@ -258,6 +261,19 @@ export type SettingsCopyKey =
   | 'email_incomplete'
   | 'email_changed'
   | 'email_failed'
+  // S4 stage 3: a verified address
+  | 'row_verify'
+  | 'verify_hint'
+  | 'verify_why'
+  | 'verify_pending_hint'
+  | 'field_code'
+  | 'action_verify'
+  | 'action_resend'
+  | 'verify_done'
+  | 'verify_failed'
+  | 'verify_resent'
+  | 'email_pending'
+  | 'email_needs_verified'
   | 'export_ready'
   | 'export_failed'
   // Device notifications
@@ -332,6 +348,9 @@ const EN: SettingsCopy = {
   row_rehearsal_hint: 'Rehearse a real errand once.',
   row_dossier: 'Your dossier',
   row_dossier_hint: 'What we know, and why.',
+  row_help: 'Help',
+  row_help_hint: 'Questions, a problem, the contact address.',
+  action_help: 'Open help',
   row_feedback: 'Report a problem',
   row_feedback_hint: 'Tell us about this screen.',
   action_feedback: 'Write',
@@ -481,6 +500,18 @@ const EN: SettingsCopy = {
   email_incomplete: 'Enter the new address and your current password.',
   email_changed: 'Address changed. Sign in again.',
   email_failed: 'The address could not be changed.',
+  row_verify: 'Confirm your address',
+  verify_hint: 'We sent a six-digit code to {email}. Type it here.',
+  verify_why: 'Until then you can play, but not reset your password by mail or change your address.',
+  verify_pending_hint: 'Your new address {email} takes effect once you type the code we sent there.',
+  field_code: 'Code from the email',
+  action_verify: 'Confirm',
+  action_resend: 'Send a new code',
+  verify_done: 'Address confirmed.',
+  verify_failed: 'That code did not work. Check it, or ask for a new one.',
+  verify_resent: 'A new code is on its way.',
+  email_pending: 'Check your new inbox: the change waits for the code.',
+  email_needs_verified: 'Confirm your current address first.',
   export_ready: 'Archive ready.',
   export_failed: 'The archive could not be prepared.',
 
@@ -555,6 +586,9 @@ const DE: SettingsCopy = {
   row_rehearsal_hint: 'Einen echten Termin einmal proben.',
   row_dossier: 'Dein Dossier',
   row_dossier_hint: 'Was wir wissen, und warum.',
+  row_help: 'Hilfe',
+  row_help_hint: 'Fragen, ein Problem, die Kontaktadresse.',
+  action_help: 'Hilfe öffnen',
   row_feedback: 'Ein Problem melden',
   row_feedback_hint: 'Sag uns deine Meinung.',
   action_feedback: 'Schreiben',
@@ -704,6 +738,18 @@ const DE: SettingsCopy = {
   email_incomplete: 'Gib die neue Adresse und dein aktuelles Passwort ein.',
   email_changed: 'Adresse geändert. Melde dich neu an.',
   email_failed: 'Die Adresse konnte nicht geändert werden.',
+  row_verify: 'Adresse bestätigen',
+  verify_hint: 'Wir haben einen sechsstelligen Code an {email} geschickt. Gib ihn hier ein.',
+  verify_why: 'Bis dahin kannst du spielen, aber dein Passwort nicht per E-Mail zurücksetzen und deine Adresse nicht ändern.',
+  verify_pending_hint: 'Deine neue Adresse {email} gilt, sobald du den Code eingibst, den wir dorthin geschickt haben.',
+  field_code: 'Code aus der E-Mail',
+  action_verify: 'Bestätigen',
+  action_resend: 'Neuen Code senden',
+  verify_done: 'Adresse bestätigt.',
+  verify_failed: 'Der Code hat nicht gepasst. Prüf ihn oder fordere einen neuen an.',
+  verify_resent: 'Ein neuer Code ist unterwegs.',
+  email_pending: 'Schau in dein neues Postfach: Die Änderung wartet auf den Code.',
+  email_needs_verified: 'Bestätige zuerst deine aktuelle Adresse.',
   export_ready: 'Archiv bereit.',
   export_failed: 'Das Archiv konnte nicht vorbereitet werden.',
 
@@ -782,6 +828,9 @@ const FR: SettingsCopy = {
   row_rehearsal_hint: 'Répéter une vraie démarche.',
   row_dossier: 'Ton dossier',
   row_dossier_hint: 'Ce que nous savons, et pourquoi.',
+  row_help: 'Aide',
+  row_help_hint: 'Des questions, un problème, l’adresse de contact.',
+  action_help: 'Ouvrir l’aide',
   row_feedback: 'Signaler un problème',
   row_feedback_hint: 'Dis-nous ce que tu penses.',
   action_feedback: 'Écrire',
@@ -931,6 +980,18 @@ const FR: SettingsCopy = {
   email_incomplete: 'Saisis la nouvelle adresse et ton mot de passe actuel.',
   email_changed: 'Adresse modifiée. Reconnecte-toi.',
   email_failed: 'L’adresse n’a pas pu être modifiée.',
+  row_verify: 'Confirme ton adresse',
+  verify_hint: 'Nous avons envoyé un code à six chiffres à {email}. Saisis-le ici.',
+  verify_why: 'D’ici là, tu peux jouer, mais pas réinitialiser ton mot de passe par e-mail ni changer d’adresse.',
+  verify_pending_hint: 'Ta nouvelle adresse {email} s’applique dès que tu saisis le code envoyé là-bas.',
+  field_code: 'Code reçu par e-mail',
+  action_verify: 'Confirmer',
+  action_resend: 'Envoyer un nouveau code',
+  verify_done: 'Adresse confirmée.',
+  verify_failed: 'Ce code n’a pas marché. Vérifie-le ou demande-en un nouveau.',
+  verify_resent: 'Un nouveau code est en route.',
+  email_pending: 'Regarde ta nouvelle boîte : le changement attend le code.',
+  email_needs_verified: 'Confirme d’abord ton adresse actuelle.',
   export_ready: 'Archive prête.',
   export_failed: 'L’archive n’a pas pu être préparée.',
 

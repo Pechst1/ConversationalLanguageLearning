@@ -179,3 +179,11 @@ test('C-11 · the home masthead carries no level line at all (owner, 2026-10-18)
   }));
   assert.doesNotMatch(html, /av2-home__level|A1\.1 · /);
 });
+
+test('a byline prints the cast’s name, and anyone else’s as sent', () => {
+  const { Byline } = require('../ui/Feedback.tsx');
+  const label = (props) => renderToStaticMarkup(React.createElement(Byline, props)).match(/av2-label">([^<]*)/)[1];
+  assert.equal(label({ name: 'Augustin « Gus » de Roncourt', characterId: 'augustin_de_roncourt' }), 'Gus');
+  assert.equal(label({ name: 'Marin Lévêque' }), 'Marin');
+  assert.equal(label({ name: 'La voisine' }), 'La voisine');
+});

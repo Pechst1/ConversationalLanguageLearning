@@ -123,6 +123,25 @@ def test_the_exchange_the_conversation_closes_on_reads_the_tail_not_the_next_que
     assert three - two > 150
 
 
+def test_one_more_exchange_on_the_last_question_reads_the_page_once() -> None:
+    """#378: a page that asks once listens to one more reply, and a ``repeat_once``
+    reply is asked again. Either way the page's answer and tail are read once, on the
+    close. Before this the plan dropped the tail from a day that still reads it."""
+
+    task = engine_brief().response_task
+    page = [planner.AuthoredExchange("reply", 5, going_on=10, closing=110)]
+    silent = [planner.AuthoredExchange("reply", 5, going_on=0, closing=0)]
+    kwargs = {"spt": 0.75, "multiplier": 1.0, "band": "A1"}
+
+    def reading(turns: int) -> int:
+        return planner.respond_seconds(task, turns=turns, authored=page, **kwargs) - (
+            planner.respond_seconds(task, turns=turns, authored=silent, **kwargs)
+        )
+
+    assert reading(1) > 100
+    assert reading(2) == pytest.approx(reading(1), abs=2)
+
+
 def test_a_bare_kind_and_words_pair_keeps_the_old_twelve_word_answer() -> None:
     task = engine_brief().response_task
     kwargs = {"turns": 2, "spt": 0.75, "multiplier": 1.0, "band": "A1"}
@@ -188,12 +207,15 @@ def test_every_tentpole_fits_or_is_flagged(band: str, key: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("band", ["A1", "A2"])
-def test_a_generated_a1_a2_regulier_day_keeps_its_three_exchange_core(band: str) -> None:
+@pytest.mark.parametrize(("band", "extra"), [("A1", 0), ("A2", 1)])
+def test_a_generated_a1_a2_regulier_day_keeps_its_three_exchange_core(band: str, extra: int) -> None:
+    # Owner 2026-11-16 («story first»): A2 makes room for one exchange more with
+    # plain items; A1's reply alone leaves no room for it on Régulier.
     scenario = engine_brief(level_band=band)
     assert planner.authored_turns(scenario) == []
     plan = _plan(scenario)
-    assert _step(plan, StepKind.RESPOND).public_prompt["max_turns"] == MIN_SCENE_EXCHANGES
+    assert _step(plan, StepKind.RESPOND).public_prompt["max_turns"] == MIN_SCENE_EXCHANGES + extra
+    assert plan.estimated_active_seconds <= 600
     assert not plan.longer_day
     assert sum(1 for step in plan.steps if step.kind is StepKind.RECALL) >= 3
 

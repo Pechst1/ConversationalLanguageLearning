@@ -26,6 +26,9 @@ const result = await build({
   legalComments: 'none',
   tsconfig: path.join(web, 'tsconfig.json'),
   define: { 'process.env.NODE_ENV': '"production"' },
+  // the app's API client (the learner's language, since the one resolver) reads its settings
+  // from process.env, which a page on its own has none of: it falls back to its defaults
+  banner: { js: 'var process=globalThis.process||{env:{}};' },
   logLevel: 'warning',
 });
 const js = result.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');

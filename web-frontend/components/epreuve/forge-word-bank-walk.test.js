@@ -149,7 +149,7 @@ test('no Forge page draws a word bank of its own', () => {
 });
 
 test('the walk copies a Forge correction by the classes the repair renders', async () => {
-  const { FORGE_REPAIR } = await forgeWalk();
+  const { FORGE_REPAIR } = await walkDriver();
   const fix = 'Tu as peur ce soir, Marin ?';
   const html = renderToStaticMarkup(
     h(
@@ -188,23 +188,25 @@ test('the walk copies a Forge correction by the classes the repair renders', asy
 });
 
 test('the walk answers «Trouve l’erreur» by the classes ForgeSpot renders', async () => {
-  const { FORGE_SPOT } = await forgeWalk();
-  assert.ok(FORGE_SPOT, 'the walk defines how it answers «Trouve l’erreur» (lib/forge-walk.mjs FORGE_SPOT)');
+  // Main's 7-day walk stood 10 s on La Forge's «Trouve l'erreur» (B1 day 3, 11/12) and
+  // never reached the recap: the walk had no hand for ForgeSpot.
+  const { FORGE_SPOT } = await walkDriver();
+  assert.ok(FORGE_SPOT, 'the walk defines how it answers «Trouve l’erreur» (e2e/lib/driver.mjs FORGE_SPOT)');
   const Drills = require('./ForgeDrills.tsx');
   const { forgeCopy } = require('@/lib/forge-copy.ts');
   const copy = forgeCopy('fr');
   const render = (edits) =>
     renderToStaticMarkup(
-      h(Ep.EpShell, { language: 'fr' }, h(Drills.ForgeSpot, { sentence: 'Elle n’a pas une idée.', edits, onEdits: () => undefined, copy })),
+      h(Ep.EpShell, { language: 'fr' }, h(Drills.ForgeSpot, { sentence: 'Il est parti sans disant au revoir.', edits, onEdits: () => undefined, copy })),
     );
 
   const wordTag = /^(\w+)\./.exec(FORGE_SPOT.word)[1];
   const [wordCls] = classesOf(FORGE_SPOT.word);
   const fresh = tagsWithClass(render({}), wordTag, wordCls);
-  assert.ok(fresh.length >= 4, `the walk taps a word by «${FORGE_SPOT.word}»`);
+  assert.ok(fresh.length >= 6, `the walk taps a word by «${FORGE_SPOT.word}»`);
   assert.ok(fresh.every((attrs) => !/\sdisabled=/.test(attrs)), 'the words of an open item can be tapped');
 
-  const edited = tagsWithClass(render({ 3: 'd’' }), wordTag, classesOf(FORGE_SPOT.edited)[0]).filter((attrs) =>
+  const edited = tagsWithClass(render({ 4: 'dire' }), wordTag, classesOf(FORGE_SPOT.edited)[0]).filter((attrs) =>
     /data-edited="true"/.test(attrs),
   );
   assert.equal(edited.length, 1, `the walk reads a word it already changed by «${FORGE_SPOT.edited}»`);
@@ -219,12 +221,39 @@ test('the walk answers «Trouve l’erreur» by the classes ForgeSpot renders', 
   );
 });
 
+
+test('the walk leaves a Forge sheet with no «Continue» by what the page renders', async () => {
+  // An answer saved but not checked offers only «Skip without a check»; a wrong «Ta
+  // phrase» offers «Try the line again» and «Skip this exercise». The walk stood 10 s on
+  // both (local season and B1 walks played to the end of the day, 11 Nov 2026).
+  const { FORGE_SHEET } = await walkDriver();
+  assert.ok(FORGE_SHEET, 'the walk defines how it leaves a Forge sheet (e2e/lib/driver.mjs FORGE_SHEET)');
+  const page = fs.readFileSync(path.join(WEB_ROOT, 'pages/atelier.tsx'), 'utf8');
+  assert.match(page, /className="ep-feedback" data-verdict="unscored"/, 'the unchecked sheet is marked data-verdict="unscored"');
+  assert.match(page, /<EpBar tone="ghost" onClick=\{onNext\}>\{t\.skip_unscored\}<\/EpBar>/, 'the unchecked sheet goes on with an EpBar');
+  assert.match(page, /<div className="ep-fb-links">/, 'the sheet\'s quiet links are .ep-fb-links');
+  assert.match(page, /\{\(needsNewAnswer \|\| !retry\) && !canGoOn && <button type="button" onClick=\{onNext\}>\{t\.skip\}<\/button>\}/, 'the skip is a link button');
+  // Owner 2026-11-13: a miss with its second chance open has no «Continue» and no solution;
+  // the walk takes «Show the solution» (driver FORGE_SHEET.reveal), which the page renders so.
+  assert.match(page, /className="ep-feedback" data-verdict="wrong" data-solution="withheld"/, 'the withheld sheet is marked data-solution="withheld"');
+  assert.match(page, /<button type="button" data-action="reveal" onClick=\{onRevealSolution\}/, '«Show the solution» is a link button with data-action="reveal"');
+  assert.match(FORGE_SHEET.reveal, /data-action="reveal"/);
+  const walk = fs.readFileSync(path.join(WEB_ROOT, 'e2e/lib/learner-walk.mjs'), 'utf8');
+  assert.match(walk, /page\.locator\(FORGE_SHEET\.reveal\)/, 'the walk takes «Show the solution» before it skips');
+  const bar = fs.readFileSync(path.join(__dirname, 'Epreuve.tsx'), 'utf8');
+  assert.match(bar, /'av2-btn ep-bar ' \+ \(tone === 'ghost' \? 'av2-btn--secondary' : 'av2-btn--primary'\)/, 'EpBar is button.ep-bar, primary unless ghost');
+  const copy = fs.readFileSync(path.join(__dirname, 'epreuve-copy.ts'), 'utf8');
+  const skips = [...copy.matchAll(/^\s+skip: '([^']+)',$/gm)].map((m) => m[1]);
+  assert.equal(skips.length, 3, `epreuve-copy.ts has the skip label in three languages: ${skips}`);
+  for (const label of skips) assert.match(label, FORGE_SHEET.skip, `the walk finds «${label}»`);
+});
+
 test('the walk corrects a judged sentence by the classes ForgeFollowUp renders', async () => {
   // After a right «Needs fixing» the sheet's «Continue» waits for «Correct the sentence»
   // (pages/atelier.tsx `followGate`): a Forge visit that cannot check it stands still.
   const { WORD_BANK_TILE } = await walkDriver();
-  const { FORGE_FOLLOW } = await forgeWalk();
-  assert.ok(FORGE_FOLLOW, 'the walk defines how it answers «Correct the sentence» (lib/forge-walk.mjs FORGE_FOLLOW)');
+  const { FORGE_FOLLOW } = await walkDriver();
+  assert.ok(FORGE_FOLLOW, 'the walk defines how it answers «Correct the sentence» (e2e/lib/driver.mjs FORGE_FOLLOW)');
   const { ForgeFollowUp, FOLLOW_UP_EMPTY } = require('./ForgeFollowUp.tsx');
   const spec = {
     kind: 'correct_it',
@@ -287,6 +316,8 @@ function stillScreen(over) {
     goal: [], bodyLg: [], headline: [], stepLabel: '', dataStep: [], graded: [], connection: [], dataStates: [],
     reader: [], thread: 0, recap: 0, castIntro: 0, homeDone: false, forgeStep: 0, pending: false, epFeedback: [],
     frTexts: [], threadCue: '', fieldEnabled: false, layout: {}, theme: 'light', scrollW: 375, innerW: 375,
+    // Fields main's snapshot gained since (#333 data-check, connection banners, the scene's lines).
+    dataCheck: [], connectionBanners: [], scene: [], stepId: null, marked: [],
     ...over,
   };
 }

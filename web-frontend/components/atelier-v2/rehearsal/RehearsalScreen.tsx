@@ -33,6 +33,7 @@ import React from 'react';
 
 import { Action, ArrowRightIcon, Notice, ScreenFoot, Skeleton, StepProgress, Surface, textAnswerField } from '@/components/atelier-v2/ui';
 import { useChromeLanguage } from '@/lib/learner-language';
+import { checkState, isUnread } from '@/lib/verdict';
 import type { RehearsalEnvelope, RehearsalView } from '@/services/api';
 import type { ControlLanguage } from '@/types/daily-journey';
 
@@ -518,7 +519,9 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
           <p className="rp-lead" lang="fr">
             {debrief.free_line}
           </p>
-          {debrief.correction_available ? (
+          {!debrief.check || isUnread(checkState(debrief.check)) ? (
+            <p className="rp-fine" role="status" data-check="not_checked">{copy.uncorrected}</p>
+          ) : (
             <>
               {debrief.corrected_fr && debrief.corrected_fr !== debrief.free_line && (
                 <p className="rp-lead" lang="fr">
@@ -531,8 +534,6 @@ export function RehearsalScreen(props: RehearsalScreenProps) {
                 </p>
               )}
             </>
-          ) : (
-            <p className="rp-fine">{copy.uncorrected}</p>
           )}
         </Surface>
       )}

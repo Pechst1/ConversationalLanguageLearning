@@ -18,8 +18,10 @@ This module is the deterministic guard next to the existing ones
 text, no model call, each returning :class:`Problem` rows (empty: the item
 agrees with itself). It is used where the parts meet:
 
-* ``register_problems`` / ``situation_problems`` when the serial cast is put on
-  a prompt (``_with_serial_conversation``) and when a generated set is
+* ``speaker_problems`` (#780: a line someone says, in the badge's register on
+  every line the learner reads) when the serial cast is put on an item
+  (``_with_serial_conversation``);
+* ``register_problems`` / ``situation_problems`` when a generated set is
   validated (``AtelierExerciseGenerator._payload_validation_errors``);
 * ``reaction_problems`` on the character's reaction
   (``MissionConversationService.respond_for_atelier``).
@@ -98,6 +100,32 @@ def register_problems(prompt: object, register: object) -> list[Problem]:
     if found is None or found == badge:
         return []
     return [Problem("register", f"badge {badge}, text {found}: {french_of(prompt)}")]
+
+
+#: A character's own line: «…», "…", “…”. It keeps the character's register.
+_QUOTED = re.compile(r"«[^»]*»|\"[^\"]*\"|“[^”]*”")
+
+
+def address_problems(prompt: object, address: object = None) -> list[Problem]:
+    """ROOT CAUSE #575: the app's own words to the learner use the one setting's register.
+
+    The situation of a Forge item is written by a model, and the item before it may have
+    said «tu» while this one says «Votre sœur vous demande … Répondez …». The setting is
+    :data:`app.services.address.LEARNER_ADDRESS` («tu» in French): whatever is not inside
+    a character's own «…» line must not address the learner in the other register.
+    """
+
+    if address is None:
+        from app.services.address import learner_address
+
+        address = learner_address("fr")
+    setting = str(address or "").strip().lower()
+    unquoted = _QUOTED.sub(" ", french_of(prompt))
+    other = {"tu": _VOUS, "vous": _TU}.get(setting)
+    if other is None or not other.search(unquoted):
+        return []
+    said = "vous" if setting == "tu" else "tu"
+    return [Problem("address", f"setting {setting}, text says {said}: {unquoted.strip()}")]
 
 
 # --------------------------------------------------------------------------- #
@@ -185,6 +213,7 @@ _ADVICE = {
     "role_label": "has an English role label speaking inside the scene",
     "doubled_ask": "gives the ask twice",
     "register": "addresses the learner in another register than the speaker's badge",
+    "address": "says vous to the learner, but the app says tu (only a character's own line, inside « », may say vous)",
 }
 
 
@@ -200,10 +229,106 @@ def situation_problems(prompt: object) -> list[Problem]:
     return [*role_problems(prompt), *price_basis_problems(prompt), *label_problems(prompt)]
 
 
+def scenario_problems(prompt: object) -> list[Problem]:
+    """What a *model-written* scenario can get wrong: its situation, and how it addresses the learner.
+
+    The generated sets are checked with this, never with the badge: the cast puts its badge
+    on a prompt later (:func:`item_problems`), and a character who says «vous» does it in « ».
+    """
+
+    return [*situation_problems(prompt), *address_problems(prompt)]
+
+
 def item_problems(prompt: object, *, register: object = None) -> list[Problem]:
     """A prompt against the speaker it is put under (``register``: the badge's)."""
 
     return [*register_problems(prompt, register), *situation_problems(prompt)]
+
+
+# --------------------------------------------------------------------------- #
+# A speaker: someone says a line, and every line agrees with their register
+# --------------------------------------------------------------------------- #
+
+
+def bare_ask(prompt: object) -> bool:
+    """«Say in French: "He is at the post office."»: a sentence to say, and no line said.
+
+    Owner decision (12 Nov 2026): a sentence the learner writes is said to nobody. With
+    the ask and its gloss out, nothing is left that anyone says to the learner.
+    """
+
+    text = _plain(prompt)
+    return bool(_ASK.search(text)) and not french_of(text)
+
+
+#: The line the learner says, quoted in their own language's cue («„Kommst du auch?“»).
+_QUOTED_NATIVE = re.compile(r"„([^“”\"]*)[“”\"]|\"([^\"]*)\"|“([^”]*)”")
+_FRENCH_LINE = re.compile(r"«[^»]*»")
+#: German: the learner's line says du to the person (tu), or Sie mid-sentence (vous).
+_DE_TU = re.compile(r"\b(?:du|dich|dir|dein|deine|deinen|deinem|deiner|deines)\b", re.IGNORECASE)
+_DE_SIE = re.compile(r"\b(?:Sie|Ihnen|Ihr|Ihre|Ihren|Ihrem|Ihrer|Ihres)\b")
+
+
+def native_register(line: object) -> str | None:
+    """«tu», «vous», «mixed» or ``None`` for a German line the learner says.
+
+    English «you» says neither. A capital «Sie» that opens the sentence may be «they»
+    («Sie (alle) sind groß.»), so only a «Sie» inside the sentence counts as vous.
+    """
+
+    text = _plain(line).strip()
+    tu = bool(_DE_TU.search(text))
+    vous = any(match.start() > 0 and text[: match.start()].rstrip()[-1:] not in ".!?:;„“\"«(" for match in _DE_SIE.finditer(text))
+    if tu and vous:
+        return "mixed"
+    return "tu" if tu else "vous" if vous else None
+
+
+def _native_lines(item: dict) -> list[str]:
+    """What the learner says, in the languages they read it in: the cue's quoted line
+    and the meaning of the answer. The cue's own words («Antworte …») are the app's."""
+
+    lines: list[str] = []
+    for field in ("prompt_l10n", "goal_l10n"):
+        table = item.get(field)
+        for language, text in (table.items() if isinstance(table, dict) else ()):
+            if language == "fr" or not isinstance(text, str):
+                continue
+            # A character's French line «…» is checked as French (``item_problems``).
+            native = _FRENCH_LINE.sub(" ", _plain(text))
+            lines.extend("".join(group) for group in _QUOTED_NATIVE.findall(native))
+    meanings = item.get("meaning_l10n")
+    if isinstance(meanings, dict):
+        lines.extend(text for language, text in meanings.items() if language != "fr" and isinstance(text, str))
+    return lines
+
+
+def speaker_problems(item: object, *, register: object = None) -> list[Problem]:
+    """ROOT CAUSE #147 (#780): may this item go out under a speaker with ``register``?
+
+    The badge is chosen by the cast, the task by the item. A speaker fits only when the
+    item has a line someone says (not a bare «Say in French: …»), and every line agrees
+    with the badge: the French prompt, the learner's line in their own language's cue,
+    and the model answer (a reply to a «vous» speaker does not say «tu» to them).
+    """
+
+    if not isinstance(item, dict):
+        return []
+    prompt = item.get("prompt")
+    if bare_ask(prompt):
+        return [Problem("no_line", f"nobody says a line, the learner says a sentence: {_plain(prompt)}")]
+    found = item_problems(prompt, register=register)
+    badge = str(register or "").strip().lower()
+    if badge in {"tu", "vous"}:
+        for line in _native_lines(item):
+            said = native_register(line)
+            if said is not None and said != badge:
+                found.append(Problem("register", f"badge {badge}, the learner's line says {said}: {line}"))
+        answer = item.get("example_answer")
+        said = prompt_register(answer)
+        if said is not None and said != badge:
+            found.append(Problem("register", f"badge {badge}, the model answer says {said}: {answer}"))
+    return found
 
 
 # --------------------------------------------------------------------------- #
@@ -285,6 +410,7 @@ def reaction_problems(
 
 __all__ = [
     "Problem",
+    "address_problems",
     "advice",
     "cast_names",
     "french_of",
@@ -295,5 +421,6 @@ __all__ = [
     "reaction_problems",
     "register_problems",
     "role_problems",
+    "scenario_problems",
     "situation_problems",
 ]

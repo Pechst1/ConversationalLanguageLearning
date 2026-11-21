@@ -36,7 +36,14 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db.models.daily_journey import DailyJourney, DailyJourneyStep
 from app.db.models.pilot_event import PilotEvent
-from app.services.learner_facts import contradicts, latest_clash
+from app.services.learner_facts import (
+    content_of,
+    contradicts,
+    latest_clash,
+    looks_misspelled,
+    reads_as_sentence,
+)
+from app.services.scene_ledger import read_turn
 from app.services.transcription_cost import (
     TRANSCRIPTION_EVENT_TYPE,
     estimate_audio_seconds,
@@ -245,6 +252,96 @@ def _last_route(private: dict[str, Any]) -> dict[str, Any] | None:
 def repeat_line_for(step: DailyJourneyStep, correction: Any = None) -> str | None:
     """The one useful line the recap offers to repeat, once the reply is closed.
 
+    The line the current question was written to elicit, while it goes along with what
+    the learner said (:func:`_turn_it_goes_against`); otherwise what the learner said,
+    as a correct sentence (:func:`_own_line`); otherwise none, and the card hides. So it
+    is never a line they would refuse, a sentence with their mistakes in it, or a fragment
+    (#379, #535, #556, #558). ``None`` while the flag is off.
+    """
+
+    from app.services import scene_record
+
+    if not scene_record.enabled():
+        return _main_repeat_line_for(step, correction)
+    if not spoken_reply_enabled():
+        return None
+    private = step.private_task if isinstance(step.private_task, dict) else {}
+    task = private.get("response_task") if isinstance(private.get("response_task"), dict) else {}
+    turns = _learner_turns(private)
+    routed = _last_route(private)
+    # An authored page routes the learner's answer. What they meant is the route's own
+    # sentence; the question's scripted example is one of the *other* answers as often as
+    # not («Donner une clé à Lila» after «Pas encore»), so a routed turn never falls back to it.
+    written = (routed or {}).get("say_fr") if routed is not None else task.get("suggested_response_fr")
+    line = str(written or "").strip()
+    if line:
+        # The page's lines are written whole, and some are whole without a verb («Merci pour
+        # tout.»), so they need only be long enough to practise. A generated one is held to
+        # the sentence rule like any other text.
+        if len(line.split()) >= 3 if routed is not None else reads_as_sentence(line):
+            against = _turn_it_goes_against([said for said, _ in turns], line)
+            if against is None:
+                return line
+            return _own_line(turns, correction, first=against)
+        return _own_line(turns, correction, first=len(turns) - 1)
+    if routed is not None and routed.get("tap"):
+        # #535: a clue's tap target is not a sentence (the neon's label, the pan). The recap
+        # offers what the learner wrote, but only as the corrected sentence they were shown,
+        # and only when it keeps their facts. Their uncorrected words are never offered as a
+        # model (#445); a route the page did not understand carries no ``tap``.
+        if turns:
+            said, stored = turns[-1]
+            return _corrected_sentence(said, correction or stored)
+        return None
+    return _corrected_sentence(turns[-1][0] if turns else "", correction)
+
+
+def _turn_it_goes_against(said: list[str], line: str) -> int | None:
+    """The turn a line written beforehand goes against, or ``None`` when it may stand.
+
+    Written before the learner spoke, it may state another date or reason (#379), say yes
+    to what they refused (#556, 9 Nov: «Oui, on partage.»), or be about something they
+    never brought up (7 Nov: «Ça va, merci. Un peu triste.» after «je vais bien»,
+    «fatigué»). A reply with nothing in it («Oui.») has nothing to go against."""
+
+    if not said:
+        return None
+    # The facts' own rule: the latest turn that states a fact decides, so a learner who
+    # corrected themselves keeps the corrected fact.
+    clash = latest_clash(said, line)
+    if clash is not None:
+        return clash
+    last = len(said) - 1
+    answers = {read_turn(said[last]).get("intent"), read_turn(line).get("intent")}
+    if answers == {"yes", "no"}:
+        return last
+    spoken = [content_of(turn) for turn in said]
+    if any(spoken) and not any(content_of(line) & words for words in spoken):
+        return last
+    return None
+
+
+def _own_line(turns: list[tuple[str, Any]], correction: Any, *, first: int) -> str | None:
+    """What the learner said on the turn that counts, as a correct sentence; failing that,
+    on their latest turn that gives one. It never goes against what they said since."""
+
+    said = [text for text, _ in turns]
+    order = [first, *[index for index in reversed(range(len(turns))) if index != first]]
+    for index in order:
+        if not 0 <= index < len(turns):
+            continue
+        text, stored = turns[index]
+        # The correction handed in is the last turn's; the one the learner was shown is kept
+        # with the turn, so the recap and its audio door read the same sentence.
+        own = _own_sentence(text, (correction if index == len(turns) - 1 else None) or stored)
+        if own and latest_clash(said, own) is None:
+            return own
+    return None
+
+
+def _main_repeat_line_for(step: DailyJourneyStep, correction: Any = None) -> str | None:
+    """``repeat_line_for`` as main had it, while ``STORY_SCENE_RECORD`` is off.
+
     The line the current question was written to elicit (the task's
     ``suggested_response_fr``, kept private until now because it would have been
     the answer); failing that, the corrected form of the learner's own sentence
@@ -283,7 +380,7 @@ def repeat_line_for(step: DailyJourneyStep, correction: Any = None) -> str | Non
             # shown is kept with the turn, so both read the same sentence. The
             # correction handed in is the last turn's.
             last = clash == len(turns) - 1
-            return _own_sentence(said, (correction if last else None) or stored)
+            return _main_own_sentence(said, (correction if last else None) or stored)
     corrected = str(getattr(correction, "corrected_fr", "") or "").strip()
     return corrected if len(corrected.split()) >= 3 else None
 
@@ -301,7 +398,34 @@ def _learner_turns(private: dict[str, Any]) -> list[tuple[str, Any]]:
     return turns
 
 
+def _corrected_sentence(said: str, correction: Any) -> str | None:
+    """The correction the learner was shown, when it is a sentence that keeps their facts.
+    A correction can be partial (8 Nov: only «lappartement» was fixed), so it is read too."""
+
+    corrected = str(getattr(correction, "corrected_fr", "") or "").strip()
+    if not reads_as_sentence(corrected) or looks_misspelled(corrected) or contradicts(said, corrected):
+        return None
+    return _as_line(corrected)
+
+
 def _own_sentence(said: str, correction: Any) -> str | None:
+    """The learner's sentence: the correction they were shown, or their own words when none
+    was needed. Words the margin corrected hold a mistake, so they are never offered, not
+    even when the correction itself cannot be (#445, #558)."""
+
+    if str(getattr(correction, "corrected_fr", "") or "").strip():
+        return _corrected_sentence(said, correction)
+    return _as_line(said) if reads_as_sentence(said) and not looks_misspelled(said) else None
+
+
+def _as_line(text: str) -> str:
+    """Written as a line: «je vais bien» is shown as «Je vais bien.»"""
+
+    line = text[:1].upper() + text[1:]
+    return line if line[-1:] in ".!?…»\"" else f"{line}."
+
+
+def _main_own_sentence(said: str, correction: Any) -> str | None:
     """The learner's sentence, corrected when the correction is a sentence that keeps their facts."""
 
     corrected = str(getattr(correction, "corrected_fr", "") or "").strip()

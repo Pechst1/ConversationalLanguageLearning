@@ -563,3 +563,23 @@ test('WP-137: a silent panel carries a caption in the learner’s language and a
   const spoken = renderPlanche({ index: 0 });
   assert.ok(!/data-pan=/.test(spoken) && !/fr-caption--silent/.test(spoken), 'a panel with words stays as it was');
 });
+
+test('#333: an answer nobody read says so and never wears a verdict', () => {
+  for (const [check, state] of [
+    [{ outcome: 'not_checked', call: 'failed', edits: [] }, 'not_checked'],
+    [{ outcome: 'not_checked', call: 'failed', edits: [{ span: 'tres', replacement: 'très' }] }, 'basic'],
+  ]) {
+    const scene = sceneWithEveryTaskAnswered(capturedScene);
+    scene.attempts = scene.attempts.map((attempt, index) =>
+      index === 0 ? attempt : { ...attempt, correction: { verdict: 'unassessed', why: '', check } },
+    );
+    const stages = buildReaderStages(scene);
+    const pages = stages.map((_, index) => render(scene, { index, furthest: stages.length - 1, filed: true }).markup);
+    assert.ok(pages.some((page) => page.includes(`data-check="${state}"`)), `a walk can name ${state}`);
+    for (const page of pages) {
+      assert.ok(!page.includes('Reprise classée'), 'an unread answer is not «to redo»');
+      assert.ok(!/fr-feedback is-wrong/.test(page), 'and it is not marked wrong');
+      if (page.includes('data-check=')) assert.ok(!page.includes('Acceptée'), 'and it is not accepted');
+    }
+  }
+});

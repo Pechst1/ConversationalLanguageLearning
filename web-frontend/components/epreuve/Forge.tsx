@@ -86,6 +86,7 @@ function useFirstExplain(enabled: boolean): [boolean, (open: boolean) => void] {
 export function ForgeHead({
   copy,
   title,
+  titleLang = 'fr',
   rung,
   eyebrow,
   tag = null,
@@ -97,6 +98,8 @@ export function ForgeHead({
 }: {
   copy: ForgeCopy;
   title: Node;
+  /** The language `title` is in (#561: the learner's chrome language, French when only the French title exists). */
+  titleLang?: string;
   rung: number;
   /** What a right and a wrong answer do to the level (`forge.level_rule`): the legend states it. */
   levelRule?: LevelRule;
@@ -126,7 +129,7 @@ export function ForgeHead({
       <div className="forge-head__row">
         <div className="forge-head__text">
           {tag ? <p className="forge-head__tag" data-testid="forge-review-tag">{tag}</p> : null}
-          <p className="forge-head__rule" lang="fr">{title}</p>
+          <p className="forge-head__rule" lang={titleLang}>{title}</p>
           {eyebrow ? (
             <p className="forge-head__eyebrow">{eyebrow}</p>
           ) : (
@@ -196,7 +199,7 @@ export function ForgeRecapRules({
       {rows.map((row) => (
         <li className="forge-recap__rule" key={row.conceptId}>
           <div className="forge-recap__head">
-            <p className="forge-recap__title" lang="fr">{row.title}</p>
+            <p className="forge-recap__title" lang={row.titleLang}>{row.title}</p>
             <p className="forge-recap__level">
               <ForgeLevel rung={row.rung} size="sm" />
               <span>{row.level}</span>
@@ -230,12 +233,14 @@ export function ForgeBestRun({ line }: { line: string | null }) {
 export function ForgeTestOutOffer({
   copy,
   title,
+  titleLang = 'fr',
   items,
   pending = false,
   onStart,
 }: {
   copy: ForgeCopy;
   title: Node;
+  titleLang?: string;
   items: number;
   pending?: boolean;
   onStart: () => void;
@@ -245,7 +250,7 @@ export function ForgeTestOutOffer({
       <span className="forge-offer__mark" aria-hidden="true" />
       <div className="forge-offer__text">
         <p className="forge-offer__title">{copy.offer_title}</p>
-        <p className="forge-offer__rule" lang="fr">{title}</p>
+        <p className="forge-offer__rule" lang={titleLang}>{title}</p>
         <p className="forge-offer__sub">{fillForge(copy.offer_sub, { n: items })}</p>
         <button
           type="button"

@@ -267,6 +267,10 @@ def test_a_forge_pr_stays_in_the_quartier() -> None:
     assert loop_queue.blockers_for(stages) == []
     season = {**ok, "files": ok["files"] + [{"path": "app/data/season/s1/t3.json"}]}
     assert any("outside claude/forge-*" in b for b in loop_queue.blockers_for(season))
+    # the rules a place keeps (on foot, on the map) are the owner's: a forge PR that changes their
+    # test waits for the owner instead of merging itself
+    rules = {**ok, "files": ok["files"] + [{"path": "web-frontend/lib/quartier/world-rules.test.js"}]}
+    assert any("the owner's rules" in b for b in loop_queue.blockers_for(rules))
 
 
 def test_a_routine_pr_still_needs_green_checks_and_no_draft() -> None:

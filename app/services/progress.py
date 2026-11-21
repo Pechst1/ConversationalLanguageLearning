@@ -14,6 +14,7 @@ from app.db.models.progress import ReviewLog, UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.schemas.anki import AnkiCardUpdate
+from app.services.chrome_language import user_mother_tongue
 from app.services.glosses import gloss_payload
 from app.services.lexicon_grammar import word_grammar, word_number
 from app.services.srs import FSRSScheduler, ReviewOutcome, SchedulerState
@@ -617,7 +618,7 @@ class ProgressService:
                         progress=progress,
                         bucket="due",
                         now=now,
-                        native_language=user.native_language,
+                        native_language=user_mother_tongue(user),
                         level=getattr(user, "proficiency_level", None),
                     )
                 )
@@ -715,7 +716,7 @@ class ProgressService:
                 progress=None,
                 bucket="new",
                 now=now,
-                native_language=user.native_language,
+                native_language=user_mother_tongue(user),
                 level=getattr(user, "proficiency_level", None),
             )
             for word in new_words
@@ -848,7 +849,7 @@ class ProgressService:
             progress=progress,
             bucket=bucket,
             now=now,
-            native_language=user.native_language,
+            native_language=user_mother_tongue(user),
             level=getattr(user, "proficiency_level", None),
         )
 
@@ -1019,7 +1020,7 @@ class ProgressService:
             learner = (
                 {}
                 if bucket == "fragile"
-                else {"native_language": user.native_language, "level": getattr(user, "proficiency_level", None)}
+                else {"native_language": user_mother_tongue(user), "level": getattr(user, "proficiency_level", None)}
             )
             serialized = self._serialize_vocabulary_recommendation(
                 word=word,

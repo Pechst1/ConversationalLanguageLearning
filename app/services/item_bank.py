@@ -52,6 +52,7 @@ from pathlib import Path
 from typing import Any
 
 from app.services import item_semantics as semantics
+from app.services.chrome_language import mother_tongue
 from app.services.item_bank_de import GermanFilters, RenderError, g_person, german_violations
 from app.services.item_bank_de import merge_overlay as merge_german
 
@@ -240,12 +241,28 @@ def contains_phrase(haystack: str, needle: str) -> bool:
     return re.search(rf"(?:^|[\s']){re.escape(pin)}(?:$|[\s'])", hay) is not None
 
 
+#: A fill item's blank: two or more underscores, however a set wrote it («___», «____»,
+#: «t'_____»). #448 / #146: three places each hard-coded one length, so the end sheet
+#: replaced «___» in a «____» line and printed «Tu peux_ me le prêter demain ?».
+BLANK_RE = re.compile(r"_{2,}")
+
+
+def fill_blank(prompt: Any, answer: Any, *, count: int = 1) -> str:
+    """``prompt`` with its blank filled by ``answer``, whatever length the blank is."""
+
+    return BLANK_RE.sub(lambda _match: str(answer), str(prompt or ""), count=count)
+
+
 # --------------------------------------------------------------------------- #
 # Morphology
 # --------------------------------------------------------------------------- #
 
 PERSON_KEYS = ("1s", "2s", "3s", "1p", "2p", "3p")
 _IMPARFAIT = ("ais", "ais", "ait", "ions", "iez", "aient")
+_SUBJONCTIF = ("e", "es", "e", "ions", "iez", "ent")
+_IRREGULAR_SUBJONCTIF = frozenset(
+    {"être", "avoir", "aller", "faire", "pouvoir", "savoir", "vouloir", "valoir", "falloir", "pleuvoir"}
+)
 _FUTUR = ("ai", "as", "a", "ons", "ez", "ont")
 _REFLEXIVE = ("me", "te", "se", "nous", "vous", "se")
 _TRAP_PERSONS = {0: (1, 2), 1: (2, 0), 2: (1, 5), 3: (4, 2), 4: (3, 2), 5: (2, 3)}
@@ -300,6 +317,25 @@ class Morph:
     def conditionnel(self, verb: str | dict[str, Any], person: int) -> str:
         return self.future_stem(verb) + _IMPARFAIT[person]
 
+    def subjonctif(self, verb: str | dict[str, Any], person: int) -> str:
+        """P6 (2026-11-18): the regular present subjunctive — the ils stem + e/es/e/ent,
+        and the imparfait's nous/vous forms (que nous prenions). A verb with an
+        irregular subjunctive (être, avoir, aller, faire, pouvoir, savoir, vouloir…)
+        has no form unless its entry lists a ``subj`` table, so no frame can render
+        a wrong one."""
+
+        entry = self.verb(verb)
+        if entry.get("subj"):
+            return entry["subj"][person]
+        if entry["inf"] in _IRREGULAR_SUBJONCTIF:
+            raise KeyError(f"{entry['inf']} has an irregular subjunctive")
+        if person in (3, 4):
+            return self.imparfait(entry, person)
+        stem = self.present(entry, 5)
+        if not stem.endswith("ent"):
+            raise KeyError(f"{entry['inf']}: no ils stem")
+        return stem[:-3] + _SUBJONCTIF[person]
+
     def participle(self, verb: str | dict[str, Any], gender: str = "m", plural: bool = False, agree: bool | None = None) -> str:
         entry = self.verb(verb)
         pp = entry["pp"]
@@ -325,6 +361,8 @@ class Morph:
             return self.futur(verb, person)
         if tense == "conditionnel":
             return self.conditionnel(verb, person)
+        if tense == "subjonctif":
+            return self.subjonctif(verb, person)
         raise KeyError(tense)
 
 
@@ -1521,6 +1559,37 @@ _FILTER_ALIASES = {"def": "def_", "en": "en_"}
 #: person itself.
 _UNDERSPECIFIED_SUBJECTS = frozenset({"I", "we", "you", "they"})
 #: A «we» gloss that also names «our» / «us»: only «nous … notre» is that sentence.
+# #536: an English gloss that names a person's sex («invite her», «his friend»).
+_GENDERED_ENGLISH = re.compile(r"\b(?:he|him|his|himself|she|her|hers|herself)\b", re.IGNORECASE)
+_MASCULINE_DETERMINERS = frozenset({"le", "un", "ce", "cet", "du", "au", "mon", "ton", "son"})
+_FEMININE_DETERMINERS = frozenset({"la", "une", "cette", "ma", "ta", "sa"})
+_EUPHONIC_POSSESSIVES = frozenset({"mon", "ton", "son"})
+
+
+def _agrees_with_noun(sentence: str, noun: dict[str, Any]) -> bool:
+    """Whether the determiner before ``noun`` in ``sentence`` has the noun's gender.
+
+    One word may sit between them (an adjective); «mon / ton / son» stand before a
+    feminine noun only when it starts with a vowel and nothing sits between them."""
+
+    gender = noun.get("g")
+    forms = {str(noun[key]).lower() for key in ("fr", "pl") if isinstance(noun.get(key), str)}
+    words = re.findall(r"[\w'’-]+", sentence.lower().replace("’", "'"))
+    for index, word in enumerate(words):
+        if word not in forms:
+            continue
+        for gap, before in enumerate(reversed(words[max(0, index - 2): index])):
+            if before in _MASCULINE_DETERMINERS and gender == "f":
+                if before in _EUPHONIC_POSSESSIVES and gap == 0 and re.match(r"[aeiouyhâêéèîôû]", word):
+                    break
+                return False
+            if before in _FEMININE_DETERMINERS and gender == "m":
+                return False
+            if before in _MASCULINE_DETERMINERS | _FEMININE_DETERMINERS:
+                break
+    return True
+
+
 _OUR_US = re.compile(r"\b(?:our|ours|ourselves|us)\b", re.IGNORECASE)
 
 #: What else in a frame's own text would name the same person as a subject slot
@@ -2034,6 +2103,48 @@ class ItemBank:
                 except (RenderError, KeyError, IndexError):
                     continue
                 sentences.append(rendered.sentence)
+            sentences.extend(self._gloss_twin_sentences(frame, bindings, slot, entry))
+        return sentences
+
+    def _gloss_twin_sentences(
+        self, frame: _Frame, bindings: dict[str, dict[str, Any]], slot: str, entry: dict[str, Any]
+    ) -> list[str]:
+        """#536: the sentence again with each other person noun the English glosses the
+        same: English «my cousin» is «mon cousin» and «ma cousine», «a friend» is «un
+        ami» and «une amie». The gloss names no gender, so the key may not either; the
+        frame redoes the agreement.
+
+        Only for a frame with no German meaning. German names the sex where English does
+        not («meine Cousine»), and one key serves every language, so a twin here would
+        mark «mon cousin» right for a German learner. An English learner on such a frame
+        keeps the one stored form until the key can follow the learner's language."""
+
+        if entry.get("kind") != "person" or "pron" in (entry.get("tags") or []) or not entry.get("en"):
+            return []
+        if _GENDERED_ENGLISH.search(self._render_text(frame.en, bindings, english=True)):
+            # «invite her», «I help him»: the English names the person's sex, so the key
+            # may not take the other one (the twin is built from the noun alone).
+            return []
+        if self.render_german(frame, bindings) is not None:
+            return []
+        sentences: list[str] = []
+        for twin in self.lex.pool("noun"):
+            if (
+                twin.get("kind") != "person"
+                or twin.get("en") != entry.get("en")
+                or twin.get("fr") == entry.get("fr")
+                or twin.get("id") == entry.get("id")
+            ):
+                continue
+            try:
+                rendered = self.render(frame, {**bindings, slot: twin}, alternatives=False)
+            except (RenderError, KeyError, IndexError):
+                continue
+            if not _agrees_with_noun(rendered.sentence, twin):
+                # The frame redid the noun but not a word it hard-codes beside it
+                # («mon vieille amie»): that is a wrong sentence, never a right one.
+                continue
+            sentences.append(rendered.sentence)
         return sentences
 
     def _person_variants(self, frame: _Frame, bindings: dict[str, dict[str, Any]], sentence: str) -> list[str]:
@@ -2126,7 +2237,13 @@ class ItemBank:
         scene = finish_english(self._render_text(frame.scene, bindings, english=True)) if frame.scene else ""
         accepted = [finish_sentence(tidy_french(self._render_text(alt, bindings))) for alt in frame.accepted]
         if alternatives:
-            accepted.extend(self._alternative_sentences(frame, bindings))
+            # A right answer is never one the screen shows as wrong (a ✗ sentence).
+            wrong = {normalize(sentence) for sentence in wrong_sentences}
+            accepted.extend(
+                alternative
+                for alternative in self._alternative_sentences(frame, bindings)
+                if normalize(alternative) not in wrong
+            )
         lemmas = tuple(
             str(entry.get("lemma") or entry.get("fr") or "").lower()
             for entry in bindings.values()
@@ -2222,8 +2339,8 @@ class ItemBank:
                     stats[f"rejected:{clash.kind}"] += 1
                 misses += 1
                 continue
-            key = item.fingerprint
-            if key in seen or (detector is not None and not detector(item.sentence)):
+            keys = self._variety_keys(item)
+            if keys & seen or (detector is not None and not detector(item.sentence)):
                 misses += 1
                 continue
             variants = self._person_variants(frame, bindings, item.sentence)
@@ -2233,8 +2350,31 @@ class ItemBank:
             if named != item.en:
                 item = replace(item, en=named)
             misses = 0
-            seen.add(key)
+            seen |= keys
             yield item
+
+    def _variety_keys(self, item: BankItem) -> frozenset[str]:
+        """P6: the fingerprints a sentence stands for in the variety guarantee — its own
+        and its vocative twins' («On peut rester chez Lila.», «…, Marin.»). A build rung
+        says the sentence to nobody (:func:`without_vocative`), so a twin served two days
+        after its plain sentence had the learner build the same sentence twice."""
+
+        voiced = any(slot == "VOC" for slot, _ in item.bindings)
+        bare = without_vocative(item) if voiced else item
+        if bare is None:
+            return frozenset({item.fingerprint})
+        sentence = bare.sentence.rstrip()
+        keys = {item.fingerprint, bare.fingerprint}
+        question = sentence.find("?")
+        for entry in self.lex.pool("cast"):
+            name = str(entry.get("fr") or "")
+            if not name:
+                continue
+            if 0 < question < len(sentence) - 1:
+                keys.add(fingerprint(f"{sentence[:question].rstrip()}, {name} {sentence[question:]}"))
+            else:
+                keys.add(fingerprint(f"{sentence[:-1].rstrip()}, {name}{sentence[-1:]}"))
+        return frozenset(keys)
 
     def generate(
         self,
@@ -2349,10 +2489,28 @@ def item_unit_rule(item: dict[str, Any] | None, language: Any = "en") -> str | N
     unit = item_unit(item)
     if not unit:
         return None
-    code = str(language or "en").strip().lower()[:2]
+    code = mother_tongue(language)
     rules = (unit_row(unit).get("syllabus") or {}).get("rule_short") or {}
     rule = rules.get(code) if isinstance(rules, dict) else None
     return str(rule).strip() if rule else None
+
+
+def item_miss_reason(item: dict[str, Any] | None, language: Any = "en") -> str | None:
+    """#537: why a missed bank item was wrong: the reason of its own trap, else its unit's rule.
+
+    A repair item carries the ✗ sentence it shows (``source``) and the ✓ one (``expected_answer``);
+    when the unit's rule card has a trap for that slip («ma → mon» before a vowel), its reason
+    explains the slip. The unit's one-line rule is shared by all of the unit's traps and can
+    point the other way («follow the thing owned, not the owner» under «ma affiche»).
+    """
+
+    unit = item_unit(item)
+    if not unit or not isinstance(item, dict):
+        return None
+    from app.services.grammar_units import trap_why
+
+    own = trap_why(unit, str(item.get("source") or ""), str(item.get("expected_answer") or ""), str(language))
+    return own or item_unit_rule(item, language)
 
 
 def unit_band(unit: str) -> str:
@@ -2392,8 +2550,8 @@ _INSTRUCTIONS = {
     "forge.transform": "Fix the one mistake.",
     "forge.sentence": "Write the sentence in French.",
     "forge.speak": "Say it in French.",
-    "forge.conversation": "Reply in French, with today's rule.",
-    "forge.scene": "Answer in French, with the rule of the day.",
+    "forge.conversation": "Write it in French, with this rule.",
+    "forge.scene": "Answer in French, with this rule.",
     "forge.mine": MINE_INSTRUCTION_L10N["en"],
 }
 
@@ -2417,13 +2575,13 @@ _CUES: dict[str, dict[str, str]] = {
     },
     "say": {
         "en": '{scene} Say in French: "{meaning}"',
-        "de": "{scene} Schreib einen eigenen kurzen Satz auf Französisch, mit der Regel von heute.",
-        "fr": "{scene} Écris une courte phrase à toi en français, avec la règle du jour.",
+        "de": "{scene} Schreib einen eigenen kurzen Satz auf Französisch, mit dieser Regel.",
+        "fr": "{scene} Écris une courte phrase à toi en français, avec cette règle.",
     },
     "message": {
         "en": '{scene} In two or three French sentences: "{meaning}", and why.',
-        "de": "{scene} Zwei, drei Sätze auf Französisch, mit der Regel von heute und einem Grund.",
-        "fr": "{scene} Deux ou trois phrases en français, avec la règle du jour et une raison.",
+        "de": "{scene} Zwei, drei Sätze auf Französisch, mit dieser Regel und einem Grund.",
+        "fr": "{scene} Deux ou trois phrases en français, avec cette règle et une raison.",
     },
 }
 
@@ -2463,17 +2621,28 @@ INSTRUCTIONS_L10N: dict[str, dict[str, str]] = {
         "de": "Sag es auf Französisch.",
         "fr": "Dis-le en français.",
     },
+    # #780: a plain «Say in French: …» on the free-use rung has nothing to reply to, and
+    # the same stored item is posed on today's rule and on a review: «this rule», never
+    # «today's».
     "forge.conversation": {
-        "en": "Reply in French, with today's rule.",
-        "de": "Antworte auf Französisch, mit der Regel von heute.",
-        "fr": "Réponds en français, avec la règle du jour.",
+        "en": "Write it in French, with this rule.",
+        "de": "Schreib es auf Französisch, mit dieser Regel.",
+        "fr": "Écris-le en français, avec cette règle.",
     },
     "forge.scene": {
-        "en": "Answer in French, with the rule of the day.",
-        "de": "Antworte auf Französisch, mit der Regel von heute.",
-        "fr": "Réponds en français, avec la règle du jour.",
+        "en": "Answer in French, with this rule.",
+        "de": "Antworte auf Französisch, mit dieser Regel.",
+        "fr": "Réponds en français, avec cette règle.",
     },
     "forge.mine": MINE_INSTRUCTION_L10N,
+}
+
+#: #780: the English a stored item may still carry for a key whose cue changed. The cue
+#: was «today's rule», but an exercise set is stored once per rule and posed on today's
+#: rule, on a review and as a contrast alike, so no cue may name the day's role.
+_RETIRED_INSTRUCTIONS: dict[str, frozenset[str]] = {
+    "forge.conversation": frozenset({"Reply in French, with today's rule."}),
+    "forge.scene": frozenset({"Answer in French, with the rule of the day."}),
 }
 
 #: #300: a repair with more than one wrong word says how many to fix.
@@ -2544,18 +2713,18 @@ _GOALS: dict[str, dict[str, str]] = {
     },
     "say": {
         "en": 'Say in French: "{meaning}"',
-        "de": "Schreib einen eigenen kurzen Satz auf Französisch, mit der Regel von heute.",
-        "fr": "Écris une courte phrase à toi en français, avec la règle du jour.",
+        "de": "Schreib einen eigenen kurzen Satz auf Französisch, mit dieser Regel.",
+        "fr": "Écris une courte phrase à toi en français, avec cette règle.",
     },
     "reply": {
         "en": 'Reply in French: "{meaning}"',
-        "de": "Antworte auf Französisch, mit der Regel von heute.",
-        "fr": "Réponds en français, avec la règle du jour.",
+        "de": "Antworte auf Französisch, mit dieser Regel.",
+        "fr": "Réponds en français, avec cette règle.",
     },
     "message": {
         "en": 'A short message in French: "{meaning}"',
-        "de": "Schreib eine kurze Nachricht auf Französisch, mit der Regel von heute.",
-        "fr": "Écris un court message en français, avec la règle du jour.",
+        "de": "Schreib eine kurze Nachricht auf Französisch, mit dieser Regel.",
+        "fr": "Écris un court message en français, avec cette règle.",
     },
     "judge": {
         "en": "Is this sentence correct?",
@@ -2698,6 +2867,27 @@ def _goal_kind(item: dict[str, Any]) -> str | None:
     return None
 
 
+#: P10: what a word bank's ``meaning_cue`` must never be — the generator's own ask
+#: («Express a complete sentence in French using pronoun choice; use every target chip
+#: once.»), which a B1 learner read quoted as the sentence to build.
+_INSTRUCTION_CUE = re.compile(
+    r"^\s*express\s+(a|an|the)\b|\btarget chips?\b|\bcomplete sentence in french\b"
+    r"|^\s*build the (full )?french sentence\b|\bthe target grammar\b",
+    re.IGNORECASE,
+)
+
+
+def meaning_cue_text(value: Any) -> str:
+    """A word bank's meaning cue as a learner may read it: the sentence's meaning with
+    no «Express:» prefix, or ``""`` when the cue is an instruction, not a meaning (P10).
+    An empty cue means the card states its task line alone."""
+
+    text = re.sub(r"^\s*express\s*:\s*", "", str(value or ""), flags=re.IGNORECASE).strip()
+    if not text or _INSTRUCTION_CUE.search(text):
+        return ""
+    return text
+
+
 def _without_gloss(prompt: Any, meaning: Any) -> Any:
     """«Je reste ___ (I stay …)» → «Je reste ___»: the bank's English gloss off a French prompt."""
 
@@ -2726,11 +2916,18 @@ def with_goal(item: dict[str, Any], language: Any = None, native: Any = None) ->
     if not isinstance(item, dict):
         return item
     out = dict(item)
-    code = str(language or "en").strip().lower()[:2]
+    code = mother_tongue(language)
     if code not in {"en", "de", "fr"}:
         code = "en"
-    own = str(native or "").strip().lower()[:2]
+    # No native language given: no meaning cue (the French-only goal), not English.
+    own = mother_tongue(native) if str(native or "").strip() else ""
+    if "meaning_cue" in out:
+        # P10: a set stored before carries «Express: …» or the generator's ask; the
+        # learner reads the meaning or nothing, never the instruction.
+        out["meaning_cue"] = meaning_cue_text(out["meaning_cue"])
     _with_fallback_task(out, code)
+    # R5: rebuilt below with the goal that quotes them; a stored set's are never kept.
+    out.pop("goal_native_marks", None)
     kind = _goal_kind(out)
     l10n = out.get("goal_l10n") if isinstance(out.get("goal_l10n"), dict) else None
     if kind == "judge":
@@ -2755,6 +2952,10 @@ def with_goal(item: dict[str, Any], language: Any = None, native: Any = None) ->
     if out.get("source") and not out.get("source_fr") and ("expected_answer" in out) and kind != "rewrite":
         out["source_fr"] = out["source"]
     key = out.get("instruction_key")
+    if isinstance(key, str) and out.get("instruction") in _RETIRED_INSTRUCTIONS.get(key, ()):
+        # #780: a set stored before reads the current cue (no «today's» on a review).
+        out["instruction"] = INSTRUCTIONS_L10N[key]["en"]
+        out.pop("instruction_l10n", None)
     if isinstance(key, str) and key in INSTRUCTIONS_L10N:
         table = dict(out.get("instruction_l10n") or {}) if isinstance(out.get("instruction_l10n"), dict) else {}
         out["instruction_l10n"] = {**INSTRUCTIONS_L10N[key], **{k: v for k, v in table.items() if k == "en"}}
@@ -2776,7 +2977,7 @@ def with_goal(item: dict[str, Any], language: Any = None, native: Any = None) ->
         # The bank's meaning cues and stored sets' cues are English; FORGE-DE:
         # a German meaning, when the item carries one, takes their place.
         context = out.get("context_l10n") if isinstance(out.get("context_l10n"), dict) else None
-        if kind in {"build", "repair", "fill", "pick"}:
+        if kind in {"build", "repair", "fill", "pick", "rewrite"}:
             out["goal_native"] = goal_l10n(kind, None, native_meaning or None, context).get(code)
         if "answer_tokens" in out:
             out["meaning_cue"] = native_meaning or None
@@ -2795,6 +2996,17 @@ def with_goal(item: dict[str, Any], language: Any = None, native: Any = None) ->
             if key == "forge.word_bank":
                 goal = f"{goal} Un mot est en trop."
             out["goal_native"] = goal
+            # R5 (CI walk of 19 Nov): the quoted meaning and the line said before it are the
+            # learner's own language inside a French goal; the screen marks them with `lang`,
+            # the French around them stays interface.
+            out["goal_native_marks"] = [
+                *(
+                    [{"text": said_before, "lang": own if (context or {}).get(own) else "en"}]
+                    if said_before and kind == "build"
+                    else []
+                ),
+                {"text": own_meaning, "lang": own if meanings.get(own) else "en"},
+            ]
             if "answer_tokens" in out:
                 # The word bank's one headline cue: the meaning, not the bare ask.
                 out["prompt"] = goal
@@ -2916,6 +3128,19 @@ def public_item(item: Any, language: Any = None, native: Any = None) -> Any:
 
     if not isinstance(item, dict):
         return item
+    from app.services.no_address import unaddressed_served
+
+    # 12 Nov 2026: a build or write item is said to nobody — an item stored before is
+    # served without its name too (and graded the same way: ``AtelierCorrectionService``).
+    # R2 (walk of 17 Nov): so is a fill, a pair and a judgement.
+    item = unaddressed_served(item) or item
+    if item.get("min_words") is not None and isinstance(item.get("example_answer"), str):
+        # R2 (walk of 17 Nov): a free card's floor never exceeds its own model answer.
+        from app.services.free_card_contract import word_floor
+
+        floor = word_floor(item.get("min_words"), [item["example_answer"], *(item.get("accepted_answers") or [])])
+        if floor is not None and floor != item.get("min_words"):
+            item = {**item, "min_words": floor}
     out = with_goal(without_frames(item), language, native)
     for key in _PRIVATE_ITEM_KEYS:
         out.pop(key, None)
@@ -2942,7 +3167,7 @@ def _served_paragraph_task(node: dict[str, Any], language: Any) -> dict[str, Any
     item's (#196): read in the learner's language when it is a fallback task, with no
     English column left for a German or French learner."""
 
-    code = str(language or "en").strip().lower()[:2]
+    code = mother_tongue(language)
     if code not in {"en", "de", "fr"}:
         code = "en"
     out = dict(node)
@@ -3116,8 +3341,13 @@ def target_answers(item: BankItem) -> list[str]:
 
 
 def fill_item(item: BankItem, *, lesson_external_id: str | None = None) -> dict[str, Any] | None:
+    # R2 (walk of 17 Nov): the sentence to complete is said to nobody («Tu ___ prêt ?»).
+    bare = without_vocative(item)
+    if bare is None:
+        return None
+    item = bare
     prompt = f"{item.prefix}___{item.suffix}".strip()
-    if contains_phrase(prompt.replace("___", " "), item.target):
+    if contains_phrase(fill_blank(prompt, " ", count=0), item.target):
         return None
     if item.gloss:
         prompt = f"{prompt} ({item.en})"
@@ -3141,6 +3371,11 @@ def fill_item(item: BankItem, *, lesson_external_id: str | None = None) -> dict[
 
 
 def classify_item(item: BankItem, *, show_correct: bool, lesson_external_id: str | None = None) -> dict[str, Any] | None:
+    # R2 (walk of 17 Nov): the sentence to judge is said to nobody («Il part à Lille demain.»).
+    bare = without_vocative(item)
+    if bare is None:
+        return None
+    item = bare
     prompt = item.sentence if show_correct else item.wrong_sentences[0]
     if item.gloss:
         prompt = f"{prompt} ({item.en})"
@@ -3203,6 +3438,15 @@ def judgement_item(item_id: str, sentence: str, *, fix: str | None = None) -> di
     the sentence is wrong (a sentence sorted «À corriger» is then corrected, like every
     judgement: :func:`classify_item`). For a unit the bank has no sentences for (#196)."""
 
+    from app.services.answer_acceptance import addressed_names, strip_vocative
+
+    # R2 (walk of 17 Nov): the sentence to judge, and its fix, are said to nobody.
+    names = [*addressed_names(sentence), *(addressed_names(fix) if fix else [])]
+    if names:
+        sentence = strip_vocative(sentence, names)
+        fix = strip_vocative(fix, names) if fix else fix
+        if addressed_names(sentence) or len(re.findall(r"[^\W\d_]+", sentence)) < MIN_WORDS_WITHOUT_ADDRESS:
+            return None
     label = "À corriger" if fix else "Correct"
     payload: dict[str, Any] = {
         "id": item_id,
@@ -3222,8 +3466,13 @@ def judgement_item(item_id: str, sentence: str, *, fix: str | None = None) -> di
 
 
 def pair_item(item: BankItem, *, lesson_external_id: str | None = None) -> dict[str, Any] | None:
-    """The minimal pair («discriminate»), as a classify variant: which one says …?"""
+    """The minimal pair («discriminate»), as a classify variant: which one says …?
+    Both sentences are said to nobody (R2, walk of 17 Nov)."""
 
+    bare = without_vocative(item)
+    if bare is None:
+        return None
+    item = bare
     wrong = item.wrong_sentences[0]
     if normalize(wrong) == normalize(item.sentence):
         return None
@@ -3260,6 +3509,67 @@ def _join(tokens: list[str]) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+#: Fewest words a build or write item keeps once its address is taken out
+#: («Merci, madame.» → «Merci.» is no sentence to build).
+MIN_WORDS_WITHOUT_ADDRESS = 3
+_TARGET_MARK = "\x02"
+
+
+def without_vocative(item: BankItem) -> BankItem | None:
+    """Owner decision (12 Nov 2026): ``item`` said to nobody, for a rung where the learner
+    builds or writes the sentence (tiles, «Say in French», a repair, the paragraph).
+
+    The frame's vocative twin (:func:`_with_vocative`, «On peut rester chez Lila, Marin.»)
+    and a frame that opens on a name both make the learner decide where a name goes,
+    which is not the rule. The French, its accepted answers, its ✗ sentences and its
+    English and German meanings lose the same address («Wir können bei Lila bleiben.» /
+    «On peut rester chez Lila.»), so the tray, the key and the quote stay one sentence.
+    R2 (walk of 17 Nov): the recognition rungs (fill, sort, pair) are said to nobody as
+    well — every Forge format goes through here. ``None`` when what is left is too
+    short to be a sentence or the target cannot be found in it again; the item is then
+    not posed as a build."""
+
+    from app.services.answer_acceptance import addressed_names, strip_vocative
+
+    names = addressed_names(item.sentence)
+    if not names:
+        return item
+    voc = dict(item.bindings).get("VOC") or {}
+    spoken = [*names, *(str(voc.get(key) or "") for key in ("fr", "en", "deu") if voc.get(key))]
+
+    marked = strip_vocative(f"{item.prefix}{_TARGET_MARK}{item.suffix}", spoken)
+    if marked.count(_TARGET_MARK) != 1:
+        return None
+    prefix, _, suffix = marked.partition(_TARGET_MARK)
+    target = item.target
+    traps = item.traps
+    if not prefix.strip() or re.search(r"[.?!…]\s*$", prefix):
+        target = capitalize_first(target)
+        traps = tuple(capitalize_first(trap) for trap in traps)
+    sentence = f"{prefix}{target}{suffix}"
+    if len(re.findall(r"[^\W\d_]+", sentence)) < MIN_WORDS_WITHOUT_ADDRESS or addressed_names(sentence):
+        return None
+    accepted = tuple(dict.fromkeys([sentence, *(strip_vocative(answer, spoken) for answer in item.accepted)]))
+    if any(addressed_names(answer) for answer in accepted):
+        return None
+    wrong = tuple(finish_sentence(f"{prefix}{trap}{suffix}") for trap in traps)
+    de = strip_vocative(item.de, spoken) if item.de else item.de
+    if de and de.startswith("Sie ") and not de.startswith("Sie (alle)"):
+        de = disambiguate_plural_sie(de, {slot: entry for slot, entry in item.bindings if slot != "VOC"})
+    return replace(
+        item,
+        sentence=sentence,
+        target=target,
+        traps=traps,
+        wrong_sentences=wrong,
+        prefix=prefix,
+        suffix=suffix,
+        en=strip_vocative(item.en, spoken),
+        accepted=accepted,
+        de=de,
+    )
+
+
 def word_bank_item(item: BankItem, *, lesson_external_id: str | None = None) -> dict[str, Any] | None:
     """A tile build of ``item``.
 
@@ -3268,8 +3578,13 @@ def word_bank_item(item: BankItem, *, lesson_external_id: str | None = None) -> 
     (:func:`answer_scope`). When the answer sentence alone is too short to be a
     build («Quelle journée !»), or the two languages' sentences cannot be matched,
     the whole exchange is the build and the quote holds all of it: the target is
-    never longer than what the prompt quotes."""
+    never longer than what the prompt quotes. The build is said to nobody
+    (:func:`without_vocative`)."""
 
+    bare = without_vocative(item)
+    if bare is None:
+        return None
+    item = bare
     scope = answer_scope(item)
     if scope is not None and scope.context:
         built = _word_bank_payload(item, scope, lesson_external_id)
@@ -3299,7 +3614,44 @@ def _right_spares(accepted: Iterable[str], answer_tokens: list[str], spares: lis
     return right
 
 
+#: Subjects whose gender neither the English nor the German gloss shows («I», «you», «we»).
+_GENDER_HIDDEN_SUBJECTS = frozenset({"je_f", "tu_f", "nous_f", "vous_f"})
+
+
+def _feminine_of(masculine: str, feminine: str) -> bool:
+    """«parties» is the feminine of «partis», «allée» of «allé»."""
+
+    m, f = masculine.casefold(), feminine.casefold()
+    return f in {m + "e", m + "es", m[:-1] + "es" if m.endswith("s") else m + "es"} and f != m
+
+
+def _gloss_gender_scope(item: BankItem, scope: AnswerScope) -> AnswerScope:
+    """Walk of 19 Nov (B1 day 4): «…we had already left early» was built as «nous étions
+    déjà parties»: the tray held «parties» and no «partis», so a learner who read the
+    gloss's «we» as anyone but a group of women could not build it. When the subject's
+    gender is hidden by the gloss and the key's agreement is feminine, the tray is the
+    masculine twin the key accepts (the generic form); a typed answer still takes both."""
+
+    if not any(str(entry.get("id") or "") in _GENDER_HIDDEN_SUBJECTS for _slot, entry in item.bindings if isinstance(entry, dict)):
+        return scope
+    key = _tokens(scope.sentence)
+    for other in scope.accepted:
+        tokens = _tokens(other)
+        if len(tokens) != len(key) or tokens == key:
+            continue
+        pairs = [(mine, theirs) for mine, theirs in zip(key, tokens, strict=True) if mine != theirs]
+        if pairs and all(_feminine_of(theirs, mine) for mine, theirs in pairs):
+            return replace(scope, sentence=other)
+    return scope
+
+
 def _word_bank_payload(item: BankItem, scope: AnswerScope, lesson_external_id: str | None) -> dict[str, Any] | None:
+    keyed = _gloss_gender_scope(item, scope)
+    if keyed is not scope:
+        # The rule's span follows the key into its masculine twin.
+        twins = dict(zip(_tokens(scope.sentence), _tokens(keyed.sentence), strict=True))
+        item = replace(item, target=" ".join(twins.get(word, word) for word in str(item.target or "").split()))
+        scope = keyed
     answer_tokens = _tokens(scope.sentence)
     if normalize(_join(answer_tokens)) != normalize(scope.sentence):
         return None
@@ -3320,7 +3672,9 @@ def _word_bank_payload(item: BankItem, scope: AnswerScope, lesson_external_id: s
         spares = [spare for spare in spares if normalize(spare) not in right]
         if spares:
             break
-    chips = _scramble([*answer_tokens, *spares[:2]], item.fingerprint)
+    # Walk of 19 Nov: the card says «One word is extra», so the tray holds one spare,
+    # the trap's first wrong word (the rule's own: «avions» of «nous avions déjà parti»).
+    chips = _scramble([*answer_tokens, *spares[:1]], item.fingerprint)
     while chips and chips[0] in {",", ".", ";", ":", "!", "?"}:
         chips = chips[1:] + chips[:1]
     if normalize(_join(chips)) == normalize(scope.sentence) and len(chips) > 2:
@@ -3345,6 +3699,11 @@ def _word_bank_payload(item: BankItem, scope: AnswerScope, lesson_external_id: s
 
 
 def transform_item(item: BankItem) -> dict[str, Any] | None:
+    # The learner writes the repaired sentence: it is said to nobody (12 Nov 2026).
+    bare = without_vocative(item)
+    if bare is None:
+        return None
+    item = bare
     # The ✗ sentence to repair: never one that still contains the whole
     # answer (a trap that only adds a word, «Vous venez …» for «Venez …»).
     choice = next(
@@ -3411,12 +3770,21 @@ def output_item(
     scene (WP-S5) when the item carries its own question for the coach to ask;
     an item that does not (#176) is the plain task, with no character line."""
 
+    # «Say in French: …» is written or said by the learner: to nobody (12 Nov 2026).
+    bare = without_vocative(item)
+    if bare is None:
+        return None
+    item = bare
     if round_name == "conversation" and coach:
         scene = scene_item(item, coach=coach, requirement=requirement)
         if scene is not None:
             return scene
     kind = {"sentence": "short_sentence", "speak": "spoken_response", "conversation": "conversation_turn"}[round_name]
-    words = len(item.sentence.split())
+    # R2 (walk of 17 Nov): the floor fits the card's shortest right answer. «Marin demande
+    # ton âge. J'ai trente ans.» asked «Ich bin 30 Jahre alt.» against «5–24 words»; the
+    # quoted reply alone (:func:`answer_scope`) is three.
+    scope = answer_scope(item)
+    words = min(len(answer.split()) for answer in (item.sentence, *(item.accepted or ()), *((scope.sentence,) if scope else ())))
     return {
         "id": _item_id(item.unit, item, round_name),
         "type": kind,
@@ -3451,6 +3819,8 @@ def scene_item(item: BankItem, *, coach: dict[str, Any], requirement: dict[str, 
         return None
     coach_line, reply = scene["lines"][0], scene["reply"]
     words = len(reply.split())
+    # R2: the floor fits the card's shortest right answer, never more.
+    from app.services.free_card_contract import word_floor
     return {
         "id": _item_id(item.unit, item, "scene"),
         "type": "conversation_turn",
@@ -3470,7 +3840,7 @@ def scene_item(item: BankItem, *, coach: dict[str, Any], requirement: dict[str, 
         **_goal("reply", scene["reply_en"], scene.get("reply_de")),
         "example_answer": reply,
         "requirements": [dict(requirement)],
-        "min_words": max(2, min(words - 2, 5)),
+        "min_words": word_floor(max(2, min(words - 2, 5)), [reply]),
         "max_words": max(24, words + 12),
         **_answer_key(item),
         "accepted_answers": [reply],
@@ -3478,7 +3848,12 @@ def scene_item(item: BankItem, *, coach: dict[str, Any], requirement: dict[str, 
 
 
 def produce_block(item: BankItem, model: BankItem, *, requirement: dict[str, Any]) -> dict[str, Any]:
-    """The session paragraph: a model line to vary, and a situation that needs the rule."""
+    """The session paragraph: a model line to vary, and a situation that needs the rule.
+    Both are said to nobody (:func:`without_vocative`); the caller passes items that keep
+    a sentence once their address is out."""
+
+    item = without_vocative(item) or item
+    model = without_vocative(model) or model
 
     return {
         "source_fragment": model.sentence,
@@ -3516,7 +3891,7 @@ def spoils(rung: str, payload_item: dict[str, Any]) -> bool:
     """Does the item's prompt show its own answer? (the no-spoil rule)."""
 
     if rung == "fill":
-        return contains_phrase(str(payload_item["prompt"]).replace("___", " "), payload_item["correct_answer"])
+        return contains_phrase(fill_blank(payload_item["prompt"], " ", count=0), payload_item["correct_answer"])
     if rung in {"classify", "pair"}:
         return contains_phrase(str(payload_item["prompt"]), payload_item["correct_label"]) and rung == "pair"
     if rung == "word_bank":
@@ -3644,6 +4019,9 @@ def build_bank_set(
             show = (int(items[0].fingerprint[:2], 16) + index) % 2 == 0
             sorts.append(take(lambda item, show=show: classify_item(item, show_correct=show, lesson_external_id=lesson)))
         repairs.append(take(transform_item))
+    # The output rungs and the paragraph are written: only items that stay a sentence
+    # once said to nobody (:func:`without_vocative`).
+    queue = [candidate for candidate in queue if without_vocative(candidate) is not None]
     if any(entry is None for entry in (*fills, *builds, *sorts, *repairs)) or len(queue) < 5:
         return None
     # WP-S5: the free-use rung is a two-line scene with the rule's coach —

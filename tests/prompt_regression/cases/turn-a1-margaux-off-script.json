@@ -1,0 +1,126 @@
+{
+ "id": "turn-a1-margaux-off-script",
+ "lane": "turn",
+ "level": "A1",
+ "source": "The walk of 4 Nov 2026 (#518), «Une lettre pour Margaux». The learner's text is exact; the opening line is written for the case, since the walk records only her reply to it. This reply got the stock «Attends, on m'appelle» in the walk.",
+ "input": {
+  "payload": {
+   "story": {
+    "control_language": "en",
+    "level": "A1",
+    "level_register": "no coarse or vulgar vocabulary",
+    "learner": {
+     "address": "neutral",
+     "grammatical_gender_note": "Do not gender the learner: no gendered adjective, participle or endearment about them, no gendered pronoun for them, and never an inclusive-dot form such as trempé·e. Use natural neutral phrasing in EVERY field, including the chapter title and question, narration, dialogue and suggested response. For example: 'Tu as pris la pluie', 'Tu veux entrer ?', 'Ça te plaît', 'Tu peux venir ?'. Do not solve gender agreement by joining masculine and feminine endings.",
+     "register_note": "Address the learner as «tu» (ton/ta/tes; e.g. «Tu as …») in every sentence that is not a character's own line. Never «vous, votre, vos» for the learner."
+    },
+    "world": {
+     "cast": [
+      {
+       "id": "margaux_barman",
+       "name": "Margaux",
+       "role": "Owner-bartender of Le Mistral since 2001, in her late fifties. The oracle.",
+       "personality": "Uses the fewest words in the cast. When she says two sentences in a row, something is wrong. Dries a glass that is already dry. «J'ai rien entendu» after hearing everything. Bans people from her zinc («Pas sur mon zinc.»). Pours a café crème nobody ordered for Odile's stool.",
+       "wants": "To keep her promise to Odile, and the café, and never to ask anyone for help.",
+       "speech_pattern": "A2: «La même chose ?» «J'ai rien entendu.» «Bois.» B1: «Ça finira bien, ou ça finira. Bois.»",
+       "contradiction": "Protects everyone and lets nobody protect her.",
+       "secret": "The night of the fire (14 March 2023) and her promise to Odile — revealed in T4 only. On generated days before T4: silences and deflections (looking at the ceiling, reacting too fast to smoke), never the cause.",
+       "flaw": "One sentence too few, always.",
+       "dynamic_with_user": "Sees Odile in the learner. Afraid of what they will find.",
+       "register_with_user": "tu, at once — as she did with Odile",
+       "gender": "f"
+      }
+     ]
+    },
+    "story_so_far": [],
+    "commitments": [],
+    "moods": {},
+    "relationships": {
+     "margaux_barman": {
+      "register": "tu",
+      "closeness": 1
+     }
+    },
+    "secrets": {}
+   },
+   "scene": {
+    "character_id": "margaux_barman",
+    "title_fr": "Une lettre pour Margaux",
+    "premise_fr": "Tu es au Mistral avec Margaux. Une lettre est sur le comptoir. La fête de samedi est annulée.",
+    "location_id": "le_mistral",
+    "objective_native": "Answer Margaux about the letter.",
+    "objective_semantics": "Margaux asks if the learner has seen the letter. Met when the learner says yes or no, or asks about it.",
+    "opening_line_fr": "Tu as vu la lettre ? Elle est sur le comptoir.",
+    "suggested_response_fr": "Oui, je l'ai vue.",
+    "panels": []
+   },
+   "rubric": "Grade only what the task asks; any honest answer counts.",
+   "history": [],
+   "learner_text": "Mon voisin a un dinosaure dans le jardin. Il mange la lettre !",
+   "turns_left": 1,
+   "targets": [],
+   "assistance": "none",
+   "turn_plan": {
+    "closing_turn": false,
+    "clarify_form_fr": null,
+    "noticed_word": null,
+    "keep_talking": true
+   }
+  }
+ },
+ "answers": {
+  "TutorVerdict": [
+   {
+    "origin": "live 2026-11-09 gpt-6-luna",
+    "prompt_digest": "sha256:9537308aff7c69cb278398066f075411ca93fec2e2e8f18c3762a0f1ed6cd3ed",
+    "content": {
+     "outcome": "not_yet",
+     "evidence_quotes": [],
+     "correction_span_fr": null,
+     "correction_fr": null,
+     "correction_note_native": null,
+     "demonstrated_target_ids": []
+    }
+   }
+  ],
+  "VoiceReply": [
+   {
+    "origin": "live 2026-11-09 gpt-6-luna",
+    "prompt_digest": "sha256:deab154d706d50d6fb2f308cb859f85e61b8a40bbf9751d6d5fb25cf472aface",
+    "content": {
+     "reply_fr": "Un dinosaure ? Bon. La lettre est perdue, alors. Il est à toi, ce dinosaure ?",
+     "understood_intent": "L'apprenant raconte que son voisin a un dinosaure qui mange la lettre.",
+     "needs_clarification": false,
+     "feeling_shift": "steady",
+     "acts": [
+      {
+       "action": "states",
+       "subject": "La lettre est perdue",
+       "conditions": [],
+       "evidence_quotes": [
+        "Il mange la lettre !"
+       ]
+      },
+      {
+       "action": "asks",
+       "subject": "Le dinosaure appartient au voisin",
+       "conditions": [],
+       "evidence_quotes": [
+        "Mon voisin a un dinosaure"
+       ]
+      }
+     ],
+     "learner_intent": "other",
+     "learned": []
+    }
+   }
+  ]
+ },
+ "expect": {
+  "failure": null,
+  "tutor_refusals": [],
+  "voice_refusals": [],
+  "outcome": "not_yet",
+  "reply_fr": "Un dinosaure ? Bon. La lettre est perdue, alors. Il est à toi, ce dinosaure ?"
+ }
+}

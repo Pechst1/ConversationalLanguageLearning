@@ -12,6 +12,9 @@ from app.core.security import verify_password
 from app.db.models.user import User
 from app.main import create_app
 
+# S4 stage 3: a reset by mail needs a verified address; these accounts have one.
+pytestmark = pytest.mark.usefixtures("verified_signups")
+
 
 def test_user_registration_success(client: TestClient) -> None:
     payload = {

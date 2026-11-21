@@ -87,16 +87,16 @@ def test_seller_asks(db_session) -> None:
 
 def test_price_basis(db_session) -> None:
     errors = _errors_with_conversation_prompt(
-        db_session, "À la librairie, vous achetez les deux livres, affichés à 21 euros. Dites le prix au vendeur."
+        db_session, "À la librairie, tu achètes les deux livres, affichés à 21 euros. Dis le prix au vendeur."
     )
     assert any("per item or in total" in error for error in errors), errors
 
 
 def test_fine_prices(db_session) -> None:
     for prompt in (
-        "À la librairie, les deux livres coûtent 21 euros en tout. Demandez au vendeur si vous pouvez payer par carte.",
-        "À la librairie, vous demandez : « Combien coûtent les deux livres ? » Le vendeur répond : 21 euros au total.",
-        "Une cliente vous demande si le livre est à 21 euros. Répondez que oui.",
+        "À la librairie, les deux livres coûtent 21 euros en tout. Demande au vendeur si tu peux payer par carte.",
+        "À la librairie, tu demandes : « Combien coûtent les deux livres ? » Le vendeur répond : 21 euros au total.",
+        "Une cliente te demande si le livre est à 21 euros. Réponds que oui.",
     ):
         assert _errors_with_conversation_prompt(db_session, prompt) == [], prompt
 

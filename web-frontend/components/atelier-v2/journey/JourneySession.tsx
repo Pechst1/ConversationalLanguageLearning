@@ -45,10 +45,12 @@ import {
   StepProgress,
   type StepSegment,
 } from '@/components/atelier-v2/ui';
+import { connectionBanner, type ConnectionBannerKind } from '@/lib/connection-banner';
 import { atelierCopy, stepOfLabel, type AtelierCopy } from '@/lib/atelier-v2-copy';
 import { useImmersiveSurface } from '@/lib/immersive-surface';
 import { journeyChromeLanguage } from '@/lib/language-rule';
 import Router from 'next/router';
+import apiService from '@/services/api';
 import { handOnAfterScene } from '@/lib/day-plan';
 import { daySessionCopy } from '@/lib/day-session';
 import type { ConnectionView } from '@/lib/journey-recovery';
@@ -58,6 +60,7 @@ import { dayMarkState, STEP_SHAPE } from './day-mark';
 import { journeyCopy } from './journey-copy';
 import {
   journeyHeaderCaption,
+  sessionStopControl,
   type JourneyPhase,
 } from './journey-state';
 import {
@@ -200,6 +203,8 @@ export function JourneySession({
   };
   const journey = controller.journey;
   const recovery = controller.recovery;
+  // P11: before the day's unplayed scene the control skips to it; it never ends the day.
+  const stopControl = sessionStopControl(journey, step);
   // WP-76/77: a haptic (and a sound, when on) per state; the face on screen.
   useJourneyFeel(phase.kind, step?.id ?? null, feedback);
   const speaker = journeySpeaker(journey, step);
@@ -318,8 +323,8 @@ export function JourneySession({
   }, [chapterKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* GENTLE-ONBOARDING: the learner's first day (the one that meets the cast)
-     opens on the walkthrough — the app, the shapes, the progress row, the
-     day's route — before the cast intro. Once per device. The day's route
+     opens on the walkthrough — the app and the day's route (P9: two cards) —
+     before the cast intro. Once per device. The day's route
      (story → La Forge → words) is remembered under the journey's date. */
   const firstDay = castIntro.length > 0;
   const localDate = journey?.local_date ?? null;
@@ -442,7 +447,9 @@ export function JourneySession({
             /* One separator between two real parts. The story engine ships an
                empty `location_name`, which used to render a dangling "·"
                (WP-20 D-7). */
-            <p className="av2-label" data-header={headerLine ? 'step' : undefined}>
+            /* data-step-id: which step of the journey this is, so the browser walk files a
+               verdict under its own item (e2e/lib/verdict-timeline.mjs). */
+            <p className="av2-label" data-header={headerLine ? 'step' : undefined} data-step-id={step?.id || undefined}>
               {specialKicker && (
                 <>
                   <span className="av2-special__kicker" lang="fr" data-special-kicker="">
@@ -530,7 +537,7 @@ export function JourneySession({
               {/* GENTLE-ONBOARDING: the first time a kind of step appears,
                   one sticker above it says what it is. Never over the cast. */}
               {!showCastIntro && (
-                <FirstStepSticker key={step.kind} stepKey={stickerFor(step.kind)} language={chromeLanguage} />
+                <FirstStepSticker key={stickerFor(step) ?? step.kind} stepKey={stickerFor(step)} language={chromeLanguage} />
               )}
               {step.kind === 'scene' && !showCastIntro && (
                 // Story-engine panels when the engine published them for this
@@ -648,6 +655,8 @@ export function JourneySession({
                   onContinue={actions.continueJourney}
                   onRetry={actions.retryLastAnswer}
                   onDismiss={actions.clearFeedback}
+                  onAppeal={step ? () => actions.appeal(step.id) : undefined}
+                  onLooksWrong={step ? (shown) => reportLooksWrong(journey?.id ?? null, step.id, shown) : undefined}
                   speaker={step?.kind === 'recall' && asker ? asker : speaker}
                   stepKind={step?.kind ?? null}
                   faceShown={step?.kind === 'recall' && Boolean(asker)}
@@ -659,15 +668,18 @@ export function JourneySession({
                   immersive reader, which owns its whole screen. */}
               {/* WP-103 T7: once the conversation is closed, «Continuer» is the
                   only action on the screen. */}
+              {/* P9/P11: before an unplayed scene, the control never ends the
+                  day — on any pre-scene step (rule, drill, forge) it skips to
+                  the scene with `skip_to_scene` (sessionStopControl). */}
               {!immersive && !showCastIntro && step.kind !== 'respond' && (
                 <div className="av2-session__secondary">
                   <Action
                     tone="quiet"
                     inline
                     disabled={busy}
-                    onClick={() => void actions.finish('early')}
+                    onClick={() => void (stopControl === 'skip' ? actions.skipToScene() : actions.finish('early'))}
                   >
-                    {copy.finish_early}
+                    {stopControl === 'skip' ? copy.skip_to_scene : copy.finish_early}
                   </Action>
                 </div>
               )}
@@ -695,7 +707,7 @@ function preludeStorage(): Storage | null {
 // Connection state — stated plainly, never dressed as a result
 // ---------------------------------------------------------------------------
 
-const CONNECTION_COPY: Record<ConnectionView['state'], keyof AtelierCopy | null> = {
+const CONNECTION_COPY: Record<ConnectionView['state'], (ConnectionBannerKind & keyof AtelierCopy) | null> = {
   live: null,
   syncing: 'syncing',
   offline_cached: 'offline_cached',
@@ -724,7 +736,7 @@ export function ConnectionNotice({
   if (!key && !connection.stale) return null;
 
   return (
-    <div className="journey-connection" data-state={connection.state}>
+    <div className="journey-connection" data-state={connection.state} {...connectionBanner(key ?? 'stale')}>
       <Notice tone="quiet" shape="story">
         <p>
           {key ? copy[key] : null}
@@ -772,7 +784,7 @@ function JourneyPhaseView({
         <StateBlock
           tone="error"
           title={copy.error_title}
-          body={copy.transport_error}
+          body={<span {...connectionBanner('transport_error')}>{copy.transport_error}</span>}
           action={{ label: copy.retry, onSelect: () => void actions.refresh() }}
         />
       );
@@ -934,3 +946,26 @@ export function JourneyRecapView({
 }
 
 export default JourneySession;
+
+/**
+ * Beta: the «Something here looks wrong» tap under a verdict. Stores what the screen showed as a
+ * `looks_wrong` report (private to the operator, never in the public repository), which the
+ * morning triage turns into a finding. Resolves true once stored.
+ */
+export async function reportLooksWrong(
+  journeyId: string | null,
+  stepId: string,
+  shown: Record<string, unknown>,
+): Promise<boolean> {
+  try {
+    await apiService.submitFeedbackReport({
+      category: 'looks_wrong',
+      route: typeof window !== 'undefined' ? window.location.pathname : '/atelier',
+      screen: 'journey',
+      context_payload: { ...shown, journey_id: journeyId, step_id: stepId },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}

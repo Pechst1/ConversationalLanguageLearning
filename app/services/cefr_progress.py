@@ -10,8 +10,10 @@ could not be reached past A2.1 with the catalogue; their performance half
 survives as :data:`PERFORMANCE_GATES`, which only decides whether a placement or
 declaration still stands once in-app evidence exists.
 
-Kept from before: the placement / declaration prior is the floor until
-:data:`DECLARED_LEVEL_EVIDENCE_ATTEMPTS`; the down-step smoothing; and nobody's
+Kept from before: the placement / declaration prior is the floor (P2, pilot
+2026-11-17: for good — a measurement below it is recorded as
+``measured_below_floor`` and only a placement moves a learner down); the
+down-step smoothing; and nobody's
 shown level drops on release day (the level shown before this rule is credited
 once, as ``release_floor``). WP-L8's forecast is
 :mod:`app.services.level_forecast`.
@@ -35,6 +37,8 @@ from app.db.models.graphic_novel import GraphicNovelAttempt
 from app.db.models.mission import RealWorldMissionAttempt
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
+from app.services import verdict_ledger, verdicts
+from app.services.chrome_language import user_mother_tongue
 from app.services.journey_rhythm import rhythm_of
 
 logger = logging.getLogger(__name__)
@@ -125,6 +129,9 @@ DECLARED_LEVEL_FLOOR: dict[str, str] = {
 # what the learner said about themselves. Below this the app has simply not seen
 # enough of them to argue.
 DECLARED_LEVEL_EVIDENCE_ATTEMPTS = 40
+#: The ``recompute`` source of a finished placement (``endpoints/placement.py``):
+#: the only one allowed to move a learner below their floor.
+PLACEMENT_SOURCE = "placement"
 
 
 def declared_level_floor(user: User) -> str | None:
@@ -191,8 +198,14 @@ class CEFRProgressService:
         computed_level = self._computed_level(
             rows=rows, release_floor=release_floor, confirmed_prior=confirmed_prior
         )
-        measured_level = self._smooth_level(user=user, computed_level=computed_level)
-        estimate_level, estimate_source = self._estimate_with_declaration(
+        # P2: a placement the learner just finished is a deliberate test and
+        # moves the level either way at once; the down-step smoothing (which
+        # would hold the previous level) is for the in-app evidence only.
+        if source == PLACEMENT_SOURCE:
+            measured_level = computed_level
+        else:
+            measured_level = self._smooth_level(user=user, computed_level=computed_level)
+        estimate_level, estimate_source, below_floor = self._estimate_with_declaration(
             user=user,
             signals=signals,
             measured_level=measured_level,
@@ -227,6 +240,7 @@ class CEFRProgressService:
             placement=placement,
             level_state=level_state,
             release_floor=release_floor,
+            measured_below_floor=below_floor,
             now=now,
         )
         if persist:
@@ -372,14 +386,37 @@ class CEFRProgressService:
         )
 
     def _recent_scores(self, *, user: User, start: datetime) -> list[float]:
+        """Scores of checked attempts only (#333). An attempt nobody read says nothing about
+        the learner: it may neither raise the average that gates a level nor drag it down."""
+
         scores: list[float] = []
-        for model in (AtelierAttempt, RealWorldMissionAttempt, GraphicNovelAttempt):
+        # Package V: a row stored before the verdict stack keeps what it counted for
+        # (stage 1); a row with a ledger record counts as its record says (stage 2), so
+        # neither a deploy nor a judge change moves a level.
+        for model, subject_type, read in (
+            (AtelierAttempt, "forge_attempt", lambda row: verdicts.from_forge(row.correction_payload, verdict=row.verdict)),
+            (
+                RealWorldMissionAttempt,
+                "courrier_attempt",
+                lambda row: verdicts.from_courrier(row.correction_payload, verdict=row.verdict),
+            ),
+            (
+                GraphicNovelAttempt,
+                "feuilleton_attempt",
+                lambda row: verdicts.from_feuilleton(row.correction_payload, verdict=row.verdict),
+            ),
+        ):
             rows = (
-                self.db.query(model.score_0_4)
+                self.db.query(model.id, model.score_0_4, model.correction_payload, model.verdict, model.created_at)
                 .filter(model.user_id == user.id, model.created_at >= start)
                 .all()
             )
-            scores.extend(float(row[0] or 0.0) for row in rows)
+            ledger = verdict_ledger.counting(self.db, rows, subject_type=subject_type)
+            scores.extend(
+                float(row.score_0_4 or 0.0)
+                for row in rows
+                if ledger.counts(row, subject_type=subject_type, read=read)
+            )
         return scores
 
     def _active_days(self, *, user: User, start: datetime) -> list[str]:
@@ -558,28 +595,35 @@ class CEFRProgressService:
         signals: CEFRSignals,
         measured_level: str,
         placement: dict[str, Any] | None = None,
-    ) -> tuple[str, str]:
+    ) -> tuple[str, str, dict[str, Any] | None]:
         """Reconcile what the learner said, what a placement measured, and what
-        the app has actually seen.
+        the app has actually seen. Returns the level, its source, and — when the
+        measurement fell below the floor — that measurement (else ``None``).
 
         A self-declared B1 who has just signed up has covered nothing *in this
         app*, so the evidence alone puts them at A1.1 and the front page would
         tell them they are a beginner. That is not an estimate, it is an
         artefact of an empty database.
 
-        Until there is enough in-app work to argue with (DECLARED_LEVEL_EVIDENCE_
-        ATTEMPTS), a **prior** is the floor. After that the measurement wins
-        outright, including downwards -- a prior is a starting point, not a
-        permanent claim (WP-L7: :meth:`_confirmed_prior` is how much of it the
-        evidence keeps).
+        The **prior** is the floor of the stored level. WP-25 gives it a better
+        source than the learner's own guess: the order is placement, then
+        declaration, then nothing: a placement is five minutes of graded French,
+        a declaration is a dropdown. The placement service already refused to
+        hand over anything it could not stand behind (no level, too little
+        confidence), so a prior that arrives here is one worth using, and its
+        source is named "placement" so no surface can present it as either a
+        self-declaration or a measurement of in-app work.
 
-        WP-25 gives that prior a better source than the learner's own guess. The
-        order is placement, then declaration, then nothing: a placement is five
-        minutes of graded French, a declaration is a dropdown. The placement
-        service already refused to hand over anything it could not stand behind
-        (no level, too little confidence), so a prior that arrives here is one
-        worth using, and its source is named "placement" so no surface can
-        present it as either a self-declaration or a measurement of in-app work.
+        P2 (pilot 2026-11-17): the floor holds for good, not only until
+        :data:`DECLARED_LEVEL_EVIDENCE_ATTEMPTS`. The measured level is one band
+        above the highest closed épreuve, so a declared B1 who closed none was
+        measured A1.1 at her 40th answer and silently stored there — chrome
+        language, Forge level and scene length all changed with no word. A
+        measurement below the floor is now returned as ``measured_below_floor``
+        (for the ops view) and changes nothing the learner sees. Only a
+        placement moves a learner down: it *is* the floor once it stands (see
+        ``recompute``'s ``PLACEMENT_SOURCE``). Upward, the measurement wins as
+        before.
         """
         prior_level = None
         prior_source = "declared"
@@ -588,18 +632,32 @@ class CEFRProgressService:
             prior_source = "placement"
         else:
             prior_level = declared_level_floor(user)
-        if not prior_level:
-            return measured_level, "measured"
+        if not prior_level or prior_level not in CEFR_LEVELS:
+            return measured_level, "measured", None
+        if level_index(measured_level) < level_index(prior_level):
+            below = None
+            if signals.recent_attempt_count >= DECLARED_LEVEL_EVIDENCE_ATTEMPTS:
+                # Enough work that the old rule would have stored this level.
+                below = {
+                    "level": measured_level,
+                    "floor": prior_level,
+                    "floor_source": prior_source,
+                    "attempts": signals.recent_attempt_count,
+                    "errors": signals.recent_error_count,
+                    "error_rate": signals.recent_error_rate,
+                    "average_score": signals.recent_average_score,
+                }
+            return prior_level, prior_source, below
         if signals.recent_attempt_count >= DECLARED_LEVEL_EVIDENCE_ATTEMPTS:
-            return measured_level, "measured"
+            return measured_level, "measured", None
         # ``>=`` and not ``>``: below the evidence threshold a measurement equal
         # to the prior has not *confirmed* anything -- a day-one A1.1 learner
         # with zero attempts is still self-declared, and every surface that
         # says "mesuré" or "vérifié" on that basis lies (found on the
         # 2026-09-11 QA walk).
         if level_index(prior_level) >= level_index(measured_level):
-            return prior_level, prior_source
-        return measured_level, "measured"
+            return prior_level, prior_source, None
+        return measured_level, "measured", None
 
     def _smooth_level(self, *, user: User, computed_level: str) -> str:
         previous = str(getattr(user, "cefr_estimate", None) or "A1.1")
@@ -641,6 +699,7 @@ class CEFRProgressService:
         level_state: dict[str, Any],
         release_floor: str | None = None,
         placement: dict[str, Any] | None = None,
+        measured_below_floor: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         coverage = level_state.get("coverage")
         coverage_dict = coverage.as_dict() if coverage is not None else None
@@ -669,6 +728,11 @@ class CEFRProgressService:
             "coverage": coverage_dict,
             "checkpoint": level_state.get("checkpoint"),
             "release_floor": release_floor,
+            # P2: the in-app measurement when it fell below the declared /
+            # placed floor ({level, floor, floor_source, attempts, errors,
+            # error_rate, average_score}); ``None`` otherwise. Ops-only: no
+            # learner surface reads it, and it moves nothing.
+            "measured_below_floor": measured_below_floor,
             "breakdown": self._breakdown(
                 signals=signals,
                 coverage=coverage_dict,
@@ -734,7 +798,7 @@ def with_can_do_line(db: Session, user: User, payload: dict[str, Any]) -> dict[s
     band = str(payload.get("estimate") or getattr(user, "cefr_estimate", None) or "A1.1")
     try:
         line = next_can_do_summary(
-            db, user.id, band=band, native_language=getattr(user, "native_language", None)
+            db, user.id, band=band, native_language=user_mother_tongue(user)
         )
     except Exception:  # pragma: no cover - a level line must never 500 an endpoint
         logger.exception("cefr_progress: can-do line could not be computed")
@@ -853,6 +917,7 @@ __all__ = [
     "DECLARED_LEVEL_FLOOR",
     "LEGACY_PROGRESS_VERSIONS",
     "PERFORMANCE_GATES",
+    "PLACEMENT_SOURCE",
     "CEFRProgressService",
     "declared_level_floor",
     "placement_prior",

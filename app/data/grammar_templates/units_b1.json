@@ -44,5 +44,87 @@
    {"id": "des-que", "fr": "Dès [[{S|after_sv:que:V:futur} // {S|after_sv:que:V} // {S|after_sv:que:V:conditionnel}]] {O}, {S|sv:envoyer:futur} un message à {C}.", "en": "As soon as {S.en} {S|en_vc:V:O}, {S|en_sv:envoyer:futur} a message to {C}.", "de": "Sobald {S|g_cl:V:O:o=sub}, {S|g_cl:envoyer:C:t=futur:o=inv:post=eine Nachricht}.", "weight": 3},
    {"id": "appelle-moi", "fr": "Appelle-moi quand [[{Y|sv:V:futur} // {Y|sv:V} // {Y|sv:V:conditionnel}]] {O}.", "en": "Call me when you {Y|en_vc:V:O}.", "de": "Ruf mich an, wenn {Y|g_cl:V:O:o=sub}.", "slots": {"Y": "pron:2s"}, "weight": 2}
   ]
+ },
+ "FR2_B11_DOUBLE_PRONOUNS": {
+  "frames": [
+   {"id": "dp-waiting", "fr": "{W.cap} {W.attend} {O.fr} ? Oui, [[je {O.pro} {W.lui} {O.v1} // je {W.lui} {O.pro} {O.v1}]] {T}.", "en": "{W.en_is} {W.en} waiting for {O.en}? Yes, I'll {O.en_to} {W.en_obj} {T.en}.", "de": "{W.deu_wartet} {W.deu} auf {O.deu}? Ja, ich {O.deu_v1} {O.deu_pro} {W.deu_dat} {T.deu} {O.deu_part}.", "slots": {"W": "dp_who", "O": "dp_obj@W", "T": "dp_when"}, "weight": 3},
+   {"id": "dp-lend-me", "fr": "Tu as encore {O.fr} ? Tu peux [[me {O.pro} {O.inf} // {O.pro} me {O.inf}]] {T} ?", "en": "Do you still have {O.en}? Can you {O.en_to} me {T.en}?", "de": "Hast du {O.deu} noch? Kannst du {O.deu_pro} mir {T.deu} {O.deu_inf}?", "slots": {"O": "dp_obj:!vowel", "T": "dp_when"}, "weight": 2},
+   {"id": "dp-told-me", "fr": "{N.cap} ? [[{P.fr} m'en a parlé // {P.fr} me en a parlé // {P.fr} en m'a parlé]] {D}.", "en": "{N.en_cap}? {P.en} told me about it {D.en}.", "de": "{N.deu_cap}? {P.deu} hat mir {D.deu} davon erzählt.", "slots": {"N": "dp_topic", "P": "dp_teller", "D": "dp_past"}, "weight": 3},
+   {"id": "dp-told-you", "fr": "{N.cap} ? [[{P.low} t'en a parlé // {P.low} te en a parlé // {P.low} en t'a parlé]] ?", "en": "{N.en_cap}? Did {P.en_low} tell you about it?", "de": "{N.deu_cap}? Hat {P.deu_low} dir davon erzählt?", "slots": {"N": "dp_topic", "P": "dp_teller"}, "weight": 2},
+   {"id": "dp-some", "fr": "{W.cap} {W.na_plus} {F.de_fr} ? [[Je {W.lui} en apporte // J'en {W.lui} apporte]] {T}.", "en": "{W.en_cap} {W.en_has} run out of {F.en}? I'll bring {W.en_obj} some {T.en}.", "de": "{W.deu_hat} {W.deu} {F.deu_kein} mehr? Ich bringe {W.deu_dat} {T.deu} {F.deu_welch}.", "slots": {"W": "dp_who:!work,!landlord", "F": "dp_food", "T": "dp_when"}, "weight": 2},
+   {"id": "dp-already", "fr": "{W.cap} {W.cherche} {O.fr} ? [[Je {O.pro} {W.lui} ai déjà {O.pp} // Je {W.lui} {O.pro_el}ai déjà {O.pp}]].", "en": "{W.en_is} {W.en} looking for {O.en}? I've already {O.en_pp_to} {W.en_obj}.", "de": "{W.deu_sucht} {W.deu} {O.deu}? Ich habe {O.deu_pro} {W.deu_dat} schon {O.deu_pp}.", "slots": {"W": "dp_who", "O": "dp_obj:m,find@W"}, "weight": 2},
+   {"id": "dp-not-today", "fr": "{O.cap} ? Non, je ne peux pas [[te {O.pro} {O.inf} // {O.pro} te {O.inf}]] {T}.", "en": "{O.en_cap}? No, I can't {O.en_to} you {T.en}.", "de": "{O.deu_cap}? Nein, ich kann {O.deu_pro} dir {T.deu} nicht {O.deu_inf}.", "slots": {"O": "dp_obj:share,!vowel", "T": "dp_today"}, "weight": 2},
+   {"id": "dp-tell-them", "fr": "{N.cap} ? {W.cap} {W.sait_rien}. On [[{W.lui} en parle // en {W.lui} parle]] {T} ?", "en": "{N.en_cap}? {W.en_cap} {W.en_knows}. Shall we tell {W.en_obj} about it {T.en}?", "de": "{N.deu_cap}? {W.deu_cap} {W.deu_weiss} noch nichts. Sollen wir {W.deu_dat} {T.deu} davon erzählen?", "slots": {"N": "dp_topic", "W": "dp_who", "T": "dp_when"}, "weight": 2},
+   {"id": "dp-there", "fr": "{L.cap} ? D'accord, [[je t'y retrouve // j'y te retrouve // je te y retrouve]] {H}.", "en": "{L.en_cap}? OK, I'll meet you there {H.en}.", "de": "{L.deu_cap}? Gut, ich treffe dich {H.deu} dort.", "slots": {"L": "dp_place", "H": "dp_hour"}, "weight": 2}
+  ]
+ },
+ "FR2_B11_DONT": {
+  "frames": [
+   {"id": "dont-told-you", "fr": "C'est {X.fr} [[dont je t'ai parlé // que je t'ai parlé // dont je t'en ai parlé]].", "en": "That's {X.en} I told you about.", "de": "Das ist {X.deu}, {X.deu_von} ich dir erzählt habe.", "slots": {"X": "dont_thing"}, "weight": 2},
+   {"id": "dont-told-me", "fr": "C'est {X.fr} [[dont {P.fr} m'a parlé // que {P.fr} m'a parlé // dont {P.fr} m'en a parlé]].", "en": "That's {X.en} {P.en} told me about.", "de": "Das ist {X.deu}, {X.deu_von} mir {P.deu} erzählt hat.", "slots": {"X": "dont_thing", "P": "dont_teller"}, "weight": 3},
+   {"id": "dont-need", "fr": "{N.cap} [[dont j'ai besoin // que j'ai besoin // dont j'en ai besoin]] {N.cost} trop cher.", "en": "{N.en_cap} I need {N.en_is} too expensive.", "de": "{N.deu_cap}, {N.deu_rel} ich brauche, {N.deu_ist} zu teuer.", "slots": {"N": "dont_need"}, "weight": 2},
+   {"id": "dont-found", "fr": "Tu as trouvé {N.fr} [[dont tu avais besoin // que tu avais besoin // dont tu en avais besoin]] ?", "en": "Did you find {N.en} you needed?", "de": "Hast du {N.deu_acc} gefunden, {N.deu_rel} du gebraucht hast?", "slots": {"N": "dont_need"}, "weight": 2},
+   {"id": "dont-whose", "fr": "J'ai {H.fr} [[dont {R.def} // dont {R.poss} // que {R.def}]] {R.pred}.", "en": "I have {H.en} whose {R.en}.", "de": "Ich habe {H.deu}, {H.deu_rel} {R.deu}.", "slots": {"H": "dont_friend", "R": "dont_whose"}, "weight": 3},
+   {"id": "dont-envie", "fr": "C'est exactement {E.fr} [[dont j'avais envie // que j'avais envie // dont j'en avais envie]].", "en": "That's exactly {E.en} I felt like.", "de": "Das ist genau {E.deu}, {E.deu_auf} ich Lust hatte.", "slots": {"E": "dont_envie"}, "weight": 1},
+   {"id": "dont-souvenir", "fr": "C'est {M.fr} [[dont je me souviens // que je me souviens // dont je m'en souviens]] le mieux.", "en": "That's {M.en} I remember best.", "de": "Das ist {M.deu}, {M.deu_an} ich mich am besten erinnere.", "slots": {"M": "dont_memory"}, "weight": 1},
+   {"id": "dont-name", "fr": "Comment s'appelle {X.fr} [[dont tu m'as parlé // que tu m'as parlé // dont tu m'en as parlé]] ?", "en": "What's the name of {X.en} you told me about?", "de": "Wie heißt {X.deu}, {X.deu_von} du mir erzählt hast?", "slots": {"X": "dont_thing"}, "weight": 2},
+   {"id": "dont-dream", "fr": "C'est {D.fr} [[dont je rêve // que je rêve // dont j'en rêve]] depuis des années.", "en": "That's {D.en} I've been dreaming of for years.", "de": "Das ist {D.deu}, {D.deu_von} ich seit Jahren träume.", "slots": {"D": "dont_dream"}, "weight": 1},
+   {"id": "dont-talking", "fr": "{K.cap} [[dont tu parles // que tu parles // dont tu en parles]] {K.pred}.", "en": "{K.en_cap} you are talking about {K.en_pred}.", "de": "{K.deu_cap}, {K.deu_von} du sprichst, {K.deu_pred}.", "slots": {"K": "dont_talk"}, "weight": 1}
+  ]
+ },
+ "FR2_B11_SI_TYPE1": {
+  "frames": [
+   {"id": "si1-beau", "fr": "[[S'il fait beau // S'il fera beau // S'il ferait beau]] {T}, {A.fr}.", "en": "If the weather's nice {T.en}, {A.en}.", "de": "Wenn {T.deu} schönes Wetter ist, {A.deu_inv}.", "slots": {"T": "si1_when", "A": "si1_out"}, "weight": 2},
+   {"id": "si1-beau-flip", "fr": "{A.cap} [[s'il fait beau // s'il fera beau // s'il ferait beau]] {T}.", "en": "{A.en_cap} if the weather's nice {T.en}.", "de": "{A.deu_main}, wenn {T.deu} schönes Wetter ist.", "slots": {"T": "si1_when", "A": "si1_out"}, "weight": 1},
+   {"id": "si1-pluie", "fr": "[[S'il pleut // S'il pleuvra // S'il pleuvrait]] {T}, {B.fr}.", "en": "If it rains {T.en}, {B.en}.", "de": "Wenn es {T.deu} regnet, {B.deu_inv}.", "slots": {"T": "si1_when", "B": "si1_in"}, "weight": 2},
+   {"id": "si1-pluie-flip", "fr": "{B.cap} [[s'il pleut // s'il pleuvra // s'il pleuvrait]] {T}.", "en": "{B.en_cap} if it rains {T.en}.", "de": "{B.deu_main}, wenn es {T.deu} regnet.", "slots": {"T": "si1_when", "B": "si1_in"}, "weight": 1},
+   {"id": "si1-temps", "fr": "[[Si tu as // Si tu auras // Si tu aurais]] le temps {T}, {I.fr}.", "en": "If you are free {T.en}, {I.en}.", "de": "{I|cap:deu}, wenn du {T.deu} Zeit hast.", "slots": {"T": "si1_tu", "I": "si1_ask"}, "weight": 2},
+   {"id": "si1-elle", "fr": "[[Si elle {E.pres} // S'elle {E.pres} // Si elle {E.fut}]], {E.cons_f}.", "en": "{E.en_f}.", "de": "{E.deu_f}.", "slots": {"E": "si1_she"}, "weight": 1},
+   {"id": "si1-il", "fr": "[[S'il {E.pres} // Si il {E.pres} // S'il {E.fut}]], {E.cons_m}.", "en": "{E.en_m}.", "de": "{E.deu_m}.", "slots": {"E": "si1_she"}, "weight": 1},
+   {"id": "si1-promise", "fr": "{J.fr} [[{G.pres} // {G.fut} // {G.cond}]].", "en": "{J.en} if {G.en}.", "de": "{J.deu}, wenn {G.deu}.", "slots": {"J": "si1_promise", "G": "si1_event"}, "weight": 3},
+   {"id": "si1-on", "fr": "[[Si on {F.pres} // Si on {F.fut} // Si on {F.cond}]], {F.cons}.", "en": "{F.en}.", "de": "{F.deu}.", "slots": {"F": "si1_on"}, "weight": 1},
+   {"id": "si1-guichet", "fr": "[[Si vous avez // Si vous aurez // Si vous auriez]] {D.obj}, vous pourrez {D.cons}.", "en": "If you have {D.en}, you will be able to {D.en_cons}.", "de": "Wenn Sie {D.deu} haben, können Sie {D.deu_cons}.", "slots": {"D": "si1_office:!need"}, "weight": 1},
+   {"id": "si1-veux", "fr": "{K.fr} [[si tu veux // si tu voudras // si tu voudrais]].", "en": "{K.en} if you like.", "de": "{K.deu}, wenn du willst.", "slots": {"K": "si1_offer"}, "weight": 1}
+  ]
+ },
+ "FR2_B11_NARRATION": {
+  "frames": [
+   {"id": "nar-setting", "fr": "{O.fr} [[{S.set} // {S.set_pc} // {S.set_pqp}]] quand {S.ev}, {S.link} {S.er}.", "en": "{O.en} {S.en_set} when {S.en_ev}, {S.en_link} {S.en_er}.", "de": "{O.deu} {S.deu_set_inv}, als {S.deu_ev}, {S.deu_link} {S.deu_er}.", "slots": {"O": "nar_open", "S": "nar_story"}, "weight": 2},
+   {"id": "nar-before", "fr": "{O.fr} {S.set} quand {S.ev}, {S.link} [[{S.er} // {S.er_pc}]].", "en": "{O.en} {S.en_set} when {S.en_ev}, {S.en_link} {S.en_er}.", "de": "{O.deu} {S.deu_set_inv}, als {S.deu_ev}, {S.deu_link} {S.deu_er}.", "slots": {"O": "nar_open", "S": "nar_story"}, "weight": 2},
+   {"id": "nar-quand-setting", "fr": "Quand {S.ev}, [[{S.set} // {S.set_pc} // {S.set_pqp}]] et {S.er}.", "en": "When {S.en_ev}, {S.en_set} and {S.en_er}.", "de": "Als {S.deu_ev}, {S.deu_set_inv}, und {S.deu_er}.", "slots": {"S": "nar_story"}, "weight": 1},
+   {"id": "nar-duration", "fr": "{L.fr}, [[{D.pc} // {D.imp}]] pendant {U.fr} {D.why}.", "en": "{L.en} {D.en} {U.en} {D.en_why}.", "de": "{L.deu} {D.deu_aux} ich {U.deu} {D.deu_pp}, {D.deu_why}.", "slots": {"L": "nar_lead", "D": "nar_while", "U": "nar_dur@D"}, "weight": 2},
+   {"id": "nar-cause", "fr": "{S.fr} parce que la veille, [[{C.pqp} // {C.pc} // {C.imp}]].", "en": "{S.en} because {C.en}.", "de": "{S.deu}, weil ich {C.deu}.", "slots": {"S": "nar_state", "C": "nar_cause@S"}, "weight": 2},
+   {"id": "nar-cause-colon", "fr": "{S.fr} : la veille, [[{C.pqp} // {C.pc} // {C.imp}]].", "en": "{S.en}: {C.en}.", "de": "{S.deu}, weil ich {C.deu}.", "slots": {"S": "nar_state", "C": "nar_cause@S"}, "weight": 2},
+   {"id": "nar-scene", "fr": "{C.trig}, [[{C.st} // {C.st_pc}]] : {C.why}.", "en": "{C.en}.", "de": "{C.deu}.", "slots": {"C": "nar_scene"}, "weight": 1},
+   {"id": "nar-forgot", "fr": "{F.set}, et là, j'ai vu que [[j'avais oublié // j'oubliais // j'ai oublié]] {F.thing}.", "en": "{F.en}.", "de": "{F.deu}.", "slots": {"F": "nar_forgot"}, "weight": 1}
+  ]
+ },
+ "FR2_B12_SUBJ_FORM": {
+  "slots": {"V": "verb:=partir|finir|prendre|venir|lire|écrire|dormir|sortir|attendre|répondre|mettre|choisir|boire|dire|vendre|appeler|acheter|réserver|préparer|envoyer|rentrer|descendre|ouvrir|manger|parler", "O": "comp:!adv_pre,!Gus au Mistral,!Margaux,!Marin,!Romy devant le Mistral,!au Mistral,!avec Gus,!avec Lila,!avec Lila au Mistral,!avec Margaux,!avec Romy,!bonjour à Margaux,!chez Lila,!chez Marin,!du Mistral,!l'article de Romy,!le carnet de Gus,!le carton de Romy,!le métro avec Romy,!un café au Mistral,!un gâteau pour Lila,!un message à Romy,!un tableau de Lila,!un verre avec Gus,!une photo de Lila,!une table au Mistral,!à Romy@V"},
+  "frames": [
+   {"id": "subj-faut", "fr": "Il faut [[{S|after_sv:que:V:subjonctif} // {S|after_sv:que:V}]] {O}.", "en": "{S|en_svc:V:O:must}.", "de": "{S|g_cl:V:O:t=must}.", "slots": {"S": "pron"}, "weight": 3},
+   {"id": "subj-faut-pas", "fr": "Il ne faut pas [[{S|after_sv:que:V:subjonctif} // {S|after_sv:que:V}]] {O}.", "en": "{S.en} must not {S|en_vc:V:O:base}.", "de": "{S|g_cl:V:O:t=may:neg=nicht}.", "slots": {"S": "pron:2s|3s", "V": "verb:=partir|sortir|boire|vendre|attendre|prendre|dire"}, "weight": 1},
+   {"id": "subj-voudrais", "fr": "Je voudrais [[{S|after_sv:que:V:subjonctif} // {S|after_sv:que:V}]] {O}.", "en": "I'd like {S|en_obj} to {S|en_vc:V:O:base}.", "de": "Ich möchte, dass {S|g_cl:V:O:o=sub}.", "slots": {"S": "pron:!1s,!1p,!on"}, "weight": 2},
+   {"id": "subj-tu-veux", "fr": "Tu veux [[{J|after_sv:que:V:subjonctif} // {J|after_sv:que:V}]] {O} ?", "en": "Do you want me to {J|en_vc:V:O:base}?", "de": "Soll ich {J|g_cl:V:O:o=inf}?", "slots": {"J": "pron:=je_m"}, "weight": 2},
+   {"id": "subj-mieux", "fr": "Il vaut mieux [[{S|after_sv:que:V:subjonctif} // {S|after_sv:que:V}]] {O}.", "en": "It's better for {S|en_obj} to {S|en_vc:V:O:base}.", "de": "Es ist besser, wenn {S|g_cl:V:O:o=sub}.", "slots": {"S": "pron:!on"}, "weight": 2},
+   {"id": "subj-important", "fr": "C'est important [[{S|after_sv:que:V:subjonctif} // {S|after_sv:que:V}]] {O}.", "en": "It's important for {S|en_obj} to {S|en_vc:V:O:base}.", "de": "Es ist wichtig, dass {S|g_cl:V:O:o=sub}.", "slots": {"S": "pron:!on"}, "weight": 2},
+   {"id": "subj-faudrait", "fr": "Il faudrait [[{S|after_sv:que:V:subjonctif} // {S|after_sv:que:V}]] {O}.", "en": "{S|en_svc:V:O:should}.", "de": "{S|g_cl:V:O:t=should}.", "slots": {"S": "pron:1p"}, "weight": 2},
+   {"id": "subj-proprio", "fr": "Le propriétaire veut [[{S|after_sv:que:V:subjonctif} // {S|after_sv:que:V}]] {O}.", "en": "The landlord wants {S|en_obj} to {S|en_vc:V:O:base}.", "de": "Der Vermieter will, dass {S|g_cl:V:O:o=sub}.", "slots": {"S": "pron:!3s,!3p,!on", "V": "verb:=répondre|appeler|envoyer|attendre|finir|partir|choisir|descendre"}, "weight": 1}
+  ]
+ },
+ "FR2_B11_PREP_INFINITIVE": {
+  "frames": [
+   {"id": "pi-avant-first", "fr": "[[Avant {P.de_inf} // Avant {P.inf} // Avant {P.conj}]], {P.main}.", "en": "Before {P.en_ing}, {P.en_main}.", "de": "Bevor {P.deu_sub}, {P.deu_inv}.", "slots": {"P": "pi_avant"}, "weight": 2},
+   {"id": "pi-avant-last", "fr": "{P.main_cap} [[avant {P.de_inf} // avant {P.inf} // avant {P.conj}]].", "en": "{P.en_main_cap} before {P.en_ing}.", "de": "{P.deu_main}, bevor {P.deu_sub}.", "slots": {"P": "pi_avant"}, "weight": 2},
+   {"id": "pi-sans", "fr": "{S.main} [[sans {S.inf} // sans {S.part}]] {S.end}", "en": "{S.en}", "de": "{S.deu}", "slots": {"S": "pi_sans"}, "weight": 2},
+   {"id": "pi-cannot", "fr": "Je ne peux pas {C.v} [[sans {C.inf} // sans {C.part}]].", "en": "{C.en}", "de": "{C.deu}", "slots": {"C": "pi_cannot"}, "weight": 1},
+   {"id": "pi-pour", "fr": "{P.main} [[pour {P.inf} // pour à {P.inf} // pour {P.de_inf}]].", "en": "{P.en}", "de": "{P.deu}", "slots": {"P": "pi_pour"}, "weight": 2},
+   {"id": "pi-afin", "fr": "{F.main} [[afin {F.de_inf} // afin {F.inf} // afin à {F.inf}]].", "en": "{F.en}", "de": "{F.deu}", "slots": {"F": "pi_afin"}, "weight": 1},
+   {"id": "pi-ask", "fr": "{Q.main} [[avant {Q.de_inf} // avant {Q.inf} // avant {Q.conj}]] ?", "en": "{Q.en}", "de": "{Q.deu}", "slots": {"Q": "pi_ask"}, "weight": 1},
+   {"id": "pi-avant-imp", "fr": "{P|cap:imp} [[avant {P.de_inf} // avant {P.inf} // avant {P.conj}]].", "en": "{P|cap:en_imp} before {P.en_ing}.", "de": "{P|cap:deu_imp}, bevor {P.deu_sub_tu}.", "slots": {"P": "pi_avant"}, "weight": 2},
+   {"id": "pi-pour-reach", "fr": "{R.fr} [[pour {W.inf} // pour {W.de_inf} // à {W.inf}]].", "en": "{R.en} {W.en}.", "de": "{R.deu}, {W.deu}.", "slots": {"R": "pi_reach", "W": "pi_why"}, "weight": 2},
+   {"id": "pi-sans-ask", "fr": "{H.fr} {K.fr} [[sans demander // sans demandant // sans de demander]].", "en": "{H.en} {K.en} without asking.", "de": "{H.deu} {K.deu}, ohne zu fragen.", "slots": {"H": "pi_who", "K": "pi_took"}, "weight": 2},
+   {"id": "pi-too", "fr": "{T.main} [[pour {T.inf} // à {T.inf} // pour {T.de_inf}]].", "en": "{T.en}", "de": "{T.deu}", "slots": {"T": "pi_too"}, "weight": 1}
+  ]
  }
 }

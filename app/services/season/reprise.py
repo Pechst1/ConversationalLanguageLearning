@@ -42,6 +42,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
+from app.services import address
 from app.services.cast_registry import display_names
 from app.services.season.clock import SEASON_KEY, played_log
 from app.services.season.page import choice_cards, project, resolve_day
@@ -166,7 +167,10 @@ def _stored_page(db, user, thread, key: str) -> tuple[dict[str, Any], list[dict[
     return None
 
 
-def _resolve(season, row: dict[str, Any], *, flags: dict, band: str, language: str, local_date) -> dict[str, Any] | None:
+def _resolve(
+    season, row: dict[str, Any], *, flags: dict, band: str, language: str, local_date, state: dict | None = None
+) -> dict[str, Any] | None:
+    from app.services.season.dates import shift_for
     from app.services.season.runtime import off_calendar
 
     letter = "a" if int(row.get("day_in_segment") or 1) == 1 else "b"
@@ -180,6 +184,7 @@ def _resolve(season, row: dict[str, Any], *, flags: dict, band: str, language: s
         band=band,
         language=language,
         neutral=off_calendar(holiday, local_date),
+        shift=shift_for(state, local_date),
     )
 
 
@@ -215,11 +220,11 @@ def last_page(db, user, *, now: Any = None) -> LastPage | None:
             return LastPage(page, routing, row, "stored", season.id, state)
         # The learner's level moved since: the same day, at their band — only when
         # the bible picks the same variant (the branch they actually played).
-        again = _resolve(season, row, flags=flags, band=band, language=language, local_date=local)
+        again = _resolve(season, row, flags=flags, band=band, language=language, local_date=local, state=state)
         if again is not None and again.get("variant") == page.get("variant"):
             return LastPage(again, routing, row, "stored_relevelled", season.id, state)
         return LastPage(page, routing, row, "stored", season.id, state)
-    page = _resolve(season, row, flags=flags, band=band, language=language, local_date=local)
+    page = _resolve(season, row, flags=flags, band=band, language=language, local_date=local, state=state)
     if page is None:
         return None
     return LastPage(page, [], row, "bible", season.id, state)
@@ -409,6 +414,7 @@ def reprise_brief(db, user, *, input_mode: Any = None, now: Any = None, reason: 
         "tail": page_tail(page),
         "panel_images": panel_images(page, scene_panels),
         "seed": str(user.id),
+        "registers": address.season_registers(season, flags),
         "units": list(tentpole_annotation(season.id, pos.key).get("units") or []),
     }
     brief = ScenarioBrief(

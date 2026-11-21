@@ -429,6 +429,7 @@ def answer(
         flags = condition_flags(season_flags, routes, state)
         talked = _answer_talk(db, user, person, ctx, flags, state, today, scene_id=scene_id, said=said, band=band, use_model=use_model)
         result.update(talked)
+        result["correction"] = talk_correction(said, language=language)
     else:
         raise GestureRefused(f"no gesture {storylet_id!r} today")
 
@@ -452,6 +453,24 @@ def answer(
         },
     ][-MAX_LOG:]
     return result, state
+
+
+def talk_correction(said: str, *, language: str | None) -> dict[str, str] | None:
+    """P12 stage 4: a line said to someone outside the scene's script is corrected like an
+    answer, by the model-free rule pass only (no model call): at most one edit, its note in the
+    learner's language. ``None`` when the rules are silent, the line is not French, or there is
+    no line (the hello). The shape is the journey's foreground correction (``span_fr``,
+    ``corrected_fr``, ``note_native``), so the tutor lane can take this over later."""
+
+    from app.services.correction_contract import first_valid_edit
+    from app.services.season.turns import reply_is_not_french
+
+    if not said.strip() or reply_is_not_french(said):
+        return None
+    span, corrected, note = first_valid_edit(said, None, None, language=language)
+    if not span or not corrected or span == corrected or not note:
+        return None
+    return {"span_fr": span, "corrected_fr": corrected, "note_native": note}
 
 
 def _fresh(state: dict[str, Any] | None) -> dict[str, Any]:

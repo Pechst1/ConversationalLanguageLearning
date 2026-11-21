@@ -10,6 +10,7 @@
  * `app/services/revue/pictogram.py`.
  */
 
+import { CAST } from '@/lib/generated/cast';
 import type {
   CartePin,
   CarteReview,
@@ -210,12 +211,12 @@ export const CARTE_MOCK_REVIEW: CarteReview = {
   words: [
     {
       progressId: 'mock-p1', wordId: 1, word: 'la récolte', gloss: 'die Ernte', sentenceFr: ALIGRE_SENTENCES.recolte,
-      speakerId: 'margaux_barman', speakerName: 'Margaux', lineFr: 'Mon primeur dit que la récolte a été mauvaise, alors tout monte.',
+      speakerId: 'margaux_barman', speakerName: CAST.margaux_barman.name, lineFr: 'Mon primeur dit que la récolte a été mauvaise, alors tout monte.',
       sessionId: 'mock-aligre', week: '2026-W40',
     },
     {
       progressId: 'mock-p2', wordId: 2, word: 'un étal', gloss: 'ein Marktstand', sentenceFr: ALIGRE_SENTENCES.etal,
-      speakerId: 'romy_tremblay', speakerName: 'Romy Tremblay', lineFr: 'Regarde : chaque étal affiche ses prix à la craie.',
+      speakerId: 'romy_tremblay', speakerName: CAST.romy_tremblay.fullName, lineFr: 'Regarde : chaque étal affiche ses prix à la craie.',
       sessionId: 'mock-aligre', week: '2026-W40',
     },
   ],

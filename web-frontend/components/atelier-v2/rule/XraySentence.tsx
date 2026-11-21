@@ -5,7 +5,9 @@
  * (red, blue, yellow, green, in the catalogue's order). A discontinuous mark
  * («ne … que») underlines each of its pieces; overlapping marks stack their
  * lines. Tapping or hovering a span — or its key below — selects that mark:
- * its line thickens and its role and note are read out under the sentence.
+ * its line thickens and its role and note are read out under the sentence,
+ * in the learner's language; a language the marks have no text in gets no
+ * box (#730), never the English one.
  *
  * The sentence stays plain text for a screen reader; the keys are the
  * accessible controls (buttons with aria-pressed, the note in a live region).
@@ -18,9 +20,8 @@ import {
   RULE_CARD_COPY,
   locateXray,
   pickXrayMark,
-  usableXray,
+  xrayIn,
   xrayPieces,
-  xrayRoleLabel,
   xraySegments,
   xrayTone,
   type XrayPayload,
@@ -48,16 +49,18 @@ function underline(marks: number[], selected: number | null): React.CSSPropertie
 
 export function XraySentence({ xray, language, titled = true }: XraySentenceProps) {
   const copy = RULE_CARD_COPY[language] ?? RULE_CARD_COPY.en;
-  const sentence = xray?.sentence ?? '';
-  const marks = useMemo(() => (Array.isArray(xray?.marks) ? xray!.marks : []), [xray]);
+  // #730: the marks' role and note in the learner's language, or no box at all.
+  const view = useMemo(() => xrayIn(xray, language), [xray, language]);
+  const sentence = view?.sentence ?? '';
+  const marks = useMemo(() => view?.marks ?? [], [view]);
   const located = useMemo(() => locateXray(sentence, marks), [sentence, marks]);
   const segments = useMemo(() => xraySegments(sentence, marks), [sentence, marks]);
   const firstDrawn = located.findIndex((ranges) => ranges.length > 0);
   const [selected, setSelected] = useState<number | null>(firstDrawn >= 0 ? firstDrawn : null);
 
-  if (!usableXray(xray)) return null;
+  if (!view) return null;
   const active = selected != null ? marks[selected] : null;
-  const role = xrayRoleLabel(active?.role);
+  const role = String(active?.role || '').trim();
   const note = String(active?.explanation || '').trim();
 
   return (

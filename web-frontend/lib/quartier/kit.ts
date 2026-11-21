@@ -214,6 +214,8 @@ export interface BuildingInfo {
   footprint: Shape2;
   /** world centre of each window, by `run:storey:bay` */
   windows: Map<string, { center: Vector3; normal: Vector3; width: number; height: number }>;
+  /** the chimney stacks on its roof, as footprints (a room on the roof walks round them) */
+  stacks?: Shape2[];
 }
 
 /** The house paints of the quarter's walls: stone, cream, and the faint tints of rendered plaster. */
@@ -334,12 +336,19 @@ export function building(B0: Build, spec: BuildingSpec): BuildingInfo {
 
   // chimney stacks on the party walls, with their pots
   const stacks = Math.max(2, Math.round(f0.len / 9));
+  const stackPrints: Shape2[] = [];
   for (let s = 0; s < stacks; s++) {
     const u = s === 0 ? 0.55 : s === stacks - 1 ? f0.len - 0.55 : (f0.len * s) / (stacks - 1);
     const wDepth = -(depth * R.range(0.35, 0.6));
     const [x, z] = worldOf(f0, u, wDepth);
     const h = R.range(1.2, 2.2);
     const long = R.range(1.6, 2.6);
+    // its footprint: 0.75 along the façade, `long` back from it
+    const ax = f0.t.x * 0.4;
+    const az = f0.t.z * 0.4;
+    const bx = -f0.t.z * (long / 2 + 0.05);
+    const bz = f0.t.x * (long / 2 + 0.05);
+    stackPrints.push([[x - ax - bx, z - az - bz], [x + ax - bx, z + az - bz], [x + ax + bx, z + az + bz], [x - ax + bx, z - az + bz]]);
     B.dry.at(x, ridge, z, Math.atan2(-f0.t.z, f0.t.x), () => {
       B.dry.block(0, -0.4, 0, 0.75, h + 0.4, long, { color: TONES.chimney, id: nextId() });
       B.dry.block(0, h, 0, 0.86, 0.12, long + 0.1, { color: mix(TONES.chimney, INKS.paper, 0.3), id: nextId() });
@@ -354,7 +363,7 @@ export function building(B0: Build, spec: BuildingSpec): BuildingInfo {
     });
   }
 
-  return { cornice, ridge, footprint, windows };
+  return { cornice, ridge, footprint, windows, stacks: stackPrints };
 }
 
 interface FacadeCtx {

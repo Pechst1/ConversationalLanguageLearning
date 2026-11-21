@@ -46,8 +46,11 @@ def test_serial_episode_canonical_and_query_routes_are_captured_under_one_shell(
     assert "route: '/serial/episode/0'" in capture
     assert "route: '/serial/episode?index=0'" in capture
     assert "name: 'serial-episode-query-detail'" in capture
-    assert "'/serial/episode'" in shell
-    assert "OWN_SHELL_ROUTES" in shell
+    places = read_web("lib/places.ts")
+    # S4 stage 1: the routes that draw their own shell are the register's `ownShell`.
+    assert "route: '/serial/episode'," in places
+    assert "route: '/serial/episode/[index]'," in places
+    assert "OWN_SHELL_ROUTES = new Set(placesInBuild().filter((place) => place.ownShell)" in shell
 
 
 def test_polish_fixes_keep_confusing_surfaces_hidden() -> None:

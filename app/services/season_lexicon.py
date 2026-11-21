@@ -43,6 +43,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from app.services.chrome_language import user_mother_tongue
+
 LEXICON_FILE = "lexicon.json"
 FORMAT_VERSION = 1
 #: The levels a tentpole page has its own variant for, from B1 (below B1 the
@@ -275,6 +277,7 @@ def build(season_id: str = "s1") -> dict[str, Any]:
     """The season's lexicon file content (deterministic)."""
 
     from app.services.lexical_coverage import load_lexicon
+    from app.services.season.dates import render_text
     from app.services.season.format import load_season
 
     season = load_season(season_id)
@@ -288,7 +291,8 @@ def build(season_id: str = "s1") -> dict[str, Any]:
             by_level: dict[str, list[dict[str, Any]]] = {}
             for level in ALL_LEVELS:
                 band = level.upper()
-                texts = [say.text(band) for say in says]
+                # A date token reads as the bible's own date (``season.dates``).
+                texts = [render_text(say.text(band)) for say in says]
                 # Only words at or below the level: the drill must not reach above
                 # the learner's band because the story happens to print a word.
                 season_words[level] |= {
@@ -438,7 +442,7 @@ def scene_entries(
     ]
     if not printed:
         return []
-    native = str(getattr(user, "native_language", None) or "en").lower()[:2]
+    native = user_mother_tongue(user)
     foundational = [anchor for anchor, _ref in printed if anchor.get("role") == "foundational"]
     due: set[str] = set()
     if foundational:

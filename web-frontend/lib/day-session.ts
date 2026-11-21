@@ -23,9 +23,19 @@ import type {
   DaySession,
   DaySessionStep,
   DaySessionStepKind,
+  JourneySnapshot,
   PaceName,
   PaceOption,
 } from '@/types/daily-journey';
+
+/**
+ * #783: a count names one thing in the singular («Noch 1 neues Wort», not «Noch
+ * 1 neue Wörter»). Every copy line below that takes a count picks its noun here,
+ * so a new counted line cannot be written with the plural alone.
+ */
+function counted(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
 
 type Copy = {
   scene: string;
@@ -72,17 +82,17 @@ type Copy = {
 const DE: Copy = {
   scene: 'Szene',
   papier: 'Le Papier',
-  words: (n) => `${n} Wörter`,
+  words: (n) => counted(n, 'Wort', 'Wörter'),
   words_split: (fresh, due) => `${fresh} neu · ${due} zum Wiederholen`,
   grammar: 'Grammatik',
   finish: 'Fertig',
   minutes: (n) => `${n} Min.`,
   start: 'Los geht’s',
-  next_words: (n) => `Weiter: ${n} Wörter`,
+  next_words: (n) => `Weiter: ${counted(n, 'Wort', 'Wörter')}`,
   next_grammar: 'Weiter: Grammatik',
   next_finish: 'Fertig für heute',
   done_today: 'Heute erledigt',
-  more_words: (n) => `Noch ${n} neue Wörter`,
+  more_words: (n) => `Noch ${counted(n, 'neues Wort', 'neue Wörter')}`,
   tempo: (pace) => `Tempo: ${pace}`,
   pace: { ruhig: 'Ruhig', normal: 'Normal', schnell: 'Schnell' },
   sheet_title: 'Dein Tempo',
@@ -92,7 +102,7 @@ const DE: Copy = {
     `Wörter kommen zur Wiederholung zurück. Nach 8 Wochen dauert ein Tag etwa ${low} bis ${high} Min. länger.`,
   sheet_apply: 'Übernehmen',
   sheet_close: 'Schließen',
-  weeks: (n) => `≈ ${n} Wochen`,
+  weeks: (n) => `≈ ${counted(n, 'Woche', 'Wochen')}`,
   months: (n) => `≈ ${n} Monaten`,
   finish_title: 'Fertig für heute',
   tally_scene: 'Szene',
@@ -112,17 +122,17 @@ const DE: Copy = {
 const FR: Copy = {
   scene: 'Scène',
   papier: 'Le Papier',
-  words: (n) => `${n} mots`,
-  words_split: (fresh, due) => `${fresh} nouveaux · ${due} à revoir`,
+  words: (n) => counted(n, 'mot', 'mots'),
+  words_split: (fresh, due) => `${counted(fresh, 'nouveau', 'nouveaux')} · ${due} à revoir`,
   grammar: 'Grammaire',
   finish: 'Fin',
   minutes: (n) => `${n} min`,
   start: 'C’est parti',
-  next_words: (n) => `Suite : ${n} mots`,
+  next_words: (n) => `Suite : ${counted(n, 'mot', 'mots')}`,
   next_grammar: 'Suite : grammaire',
   next_finish: 'Fini pour aujourd’hui',
   done_today: 'Fait aujourd’hui',
-  more_words: (n) => `Encore ${n} nouveaux mots`,
+  more_words: (n) => `Encore ${counted(n, 'nouveau mot', 'nouveaux mots')}`,
   tempo: (pace) => `Rythme : ${pace}`,
   pace: { ruhig: 'Calme', normal: 'Normal', schnell: 'Rapide' },
   sheet_title: 'Ton rythme',
@@ -132,7 +142,7 @@ const FR: Copy = {
     `Les mots reviennent en révision. Dans 8 semaines, une journée prend environ ${low} à ${high} min de plus.`,
   sheet_apply: 'Valider',
   sheet_close: 'Fermer',
-  weeks: (n) => `≈ ${n} semaines`,
+  weeks: (n) => `≈ ${counted(n, 'semaine', 'semaines')}`,
   months: (n) => `≈ ${n} mois`,
   finish_title: 'Fini pour aujourd’hui',
   tally_scene: 'Scène',
@@ -152,17 +162,17 @@ const FR: Copy = {
 const EN: Copy = {
   scene: 'Scene',
   papier: 'Le Papier',
-  words: (n) => `${n} words`,
+  words: (n) => counted(n, 'word', 'words'),
   words_split: (fresh, due) => `${fresh} new · ${due} to review`,
   grammar: 'Grammar',
   finish: 'Done',
   minutes: (n) => `${n} min`,
   start: 'Let’s go',
-  next_words: (n) => `Next: ${n} words`,
+  next_words: (n) => `Next: ${counted(n, 'word', 'words')}`,
   next_grammar: 'Next: grammar',
   next_finish: 'Done for today',
   done_today: 'Done today',
-  more_words: (n) => `${n} more new words`,
+  more_words: (n) => counted(n, 'more new word', 'more new words'),
   tempo: (pace) => `Pace: ${pace}`,
   pace: { ruhig: 'Easy', normal: 'Normal', schnell: 'Fast' },
   sheet_title: 'Your pace',
@@ -172,7 +182,7 @@ const EN: Copy = {
     `Words come back for review. In 8 weeks a day takes about ${low} to ${high} min longer.`,
   sheet_apply: 'Use this pace',
   sheet_close: 'Close',
-  weeks: (n) => `≈ ${n} weeks`,
+  weeks: (n) => `≈ ${counted(n, 'week', 'weeks')}`,
   months: (n) => `≈ ${n} months`,
   finish_title: 'Done for today',
   tally_scene: 'Scene',
@@ -309,20 +319,6 @@ export function sessionNextAction(
   return { kind: step.kind, label, meta, href: step.href };
 }
 
-/** After the day, the one optional extra: «Noch 5 neue Wörter · 2 Min.» (owner, 2 Nov). */
-export function sessionMore(
-  session: DaySession | null | undefined,
-  language: ControlLanguage,
-): { label: string; meta: string; href: string } | null {
-  if (!session || !session.done || !session.more_words) return null;
-  const copy = daySessionCopy(language);
-  return {
-    label: copy.more_words(session.more_words),
-    meta: copy.minutes(session.more_minutes),
-    href: session.more_href,
-  };
-}
-
 /**
  * #396: what Home's day chip (the streak number and its «done» mark) says. The
  * server's streak counts today from the first practice, which the day's words
@@ -342,6 +338,76 @@ export function homeDayChip(
   // The server counted today for the practice so far: take it back until the day is done.
   const streak = practiceDone && !dayDone ? Math.max(0, count - 1) : count;
   return { streak, dayDone };
+}
+
+/**
+ * #559: the streak a séance's recap prints is the streak Home prints. The server
+ * counts today as soon as a séance is finished (`streak_after` includes it), and
+ * Home holds that day back until the day is done (:func:`homeDayChip`), so the
+ * recap went through the same function: «25 → 26» on the end sheet next to a
+ * «25» chip was two numbers for one fact. `was` is where the chain stood this
+ * morning; `now` is Home's number at this moment, so the arrow shows only when
+ * the day itself has moved the chain.
+ */
+export function recapStreak(
+  before: unknown,
+  after: unknown,
+  session: DaySession | null | undefined,
+): { was: number; now: number } {
+  const count = (value: unknown) => {
+    const n = Number(value);
+    return Number.isFinite(n) && n > 0 ? Math.round(n) : 0;
+  };
+  const was = count(before);
+  const stored = count(after);
+  // The séance is finished, so the server has counted today: Home's own rule decides what shows.
+  const now = homeDayChip(stored, true, session).streak;
+  // A séance that moved the stored count: the chain stood at `was` this morning.
+  // One that did not (today was already counted): there is no arrow to draw.
+  return { was: stored > was ? Math.min(was, now) : now, now };
+}
+
+/** The journey's own steps that are the scene: the page, the talk, the ending. */
+const STORY_STEP_KINDS: ReadonlySet<string> = new Set(['scene', 'respond', 'resolution']);
+
+/**
+ * P12 · whether today's journey has played its scene, its talk and its ending (in the Feuilleton's
+ * pages or in Le Quartier) while the rest of the day (a rule, a few words) is still open.
+ */
+export function journeyScenePlayed(journey: JourneySnapshot | null | undefined): boolean {
+  if (!journey || (journey.status !== 'active' && journey.status !== 'paused')) return false;
+  const story = journey.steps.filter((step) => STORY_STEP_KINDS.has(step.kind));
+  if (!story.some((step) => step.kind === 'scene')) return false;
+  return story.every((step) => step.status === 'completed' || step.status === 'skipped');
+}
+
+/**
+ * P12 · one day, one state. The server's day sequence marks «Szene» done only once the whole
+ * journey has ended (`daily_journey._day_session`: `scene_done` = a terminal journey), so a learner
+ * who played the scene and has the rule still ahead read «Szene — als Nächstes» on Home while
+ * «Heute fortsetzen» opened step 4 of 6. With the journey at hand, a played scene is done and the
+ * next step not yet done is next. Anything else is the server's session, as sent.
+ */
+export function withScenePlayed(session: DaySession | null, journey: JourneySnapshot | null | undefined): DaySession | null {
+  if (!session || session.done || !journeyScenePlayed(journey)) return session;
+  const scene = sessionStep(session, 'scene');
+  if (!scene || scene.state === 'done') return session;
+  let nextSeen = false;
+  const steps = session.steps.map((step) => {
+    if (step.kind === 'finish') return step;
+    const done = step.kind === 'scene' || step.state === 'done';
+    const state: DaySessionStep['state'] = done ? 'done' : nextSeen ? 'todo' : 'next';
+    nextSeen = nextSeen || state === 'next';
+    return { ...step, state };
+  });
+  const next = steps.find((step) => step.state === 'next');
+  return {
+    ...session,
+    steps,
+    next_kind: next?.kind ?? null,
+    minutes_left: steps.filter((step) => step.state !== 'done').reduce((sum, step) => sum + (step.minutes || 0), 0),
+    tally: { ...session.tally, scenes: Math.max(1, Number(session.tally.scenes || 0)) },
+  };
 }
 
 /** The mark's four shapes fill in with the day's four steps. */

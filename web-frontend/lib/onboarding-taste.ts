@@ -10,6 +10,7 @@
  * three-option choice or a four-tile bank — and pure, so it is unit-tested.
  */
 
+import { CAST_NAMES } from './generated/cast';
 import type { OnboardingLanguage } from './onboarding-locale';
 
 export type TasteMood = 'neutral' | 'happy' | 'cross';
@@ -44,6 +45,11 @@ export type TasteTilesItem = {
   tiles: TasteOption[];
   /** Tile ids, in order. */
   answer: string[];
+  /**
+   * P9: other tile orders that are just as right (the coffee order takes «merci»
+   * as well as «s’il vous plaît»). Each has the answer's length.
+   */
+  alternatives?: string[][];
   reply: TasteLine;
 };
 
@@ -55,10 +61,16 @@ export type TasteItem = TasteChoiceItem | TasteTilesItem;
  * Anyone the teaser names (speaker or closing line) must be in `CAST_INTRO_NAMES`
  * so the first face never turns into a stranger.
  */
-export const TASTE_SPEAKER = { characterId: 'margaux_barman', speaker: 'Margaux' } as const;
+export const TASTE_SPEAKER = { characterId: 'margaux_barman', speaker: CAST_NAMES.margaux_barman } as const;
 
 /** The people the season's cast intro (app/data/season/s1/intro.json) shows after sign-up. */
-export const CAST_INTRO_NAMES = ['Margaux', 'Gus', 'Marin', 'Lila', 'Camille'] as const;
+export const CAST_INTRO_NAMES = [
+  CAST_NAMES.margaux_barman,
+  CAST_NAMES.augustin_de_roncourt,
+  CAST_NAMES.marin_leveque,
+  CAST_NAMES.lila_bonnet,
+  CAST_NAMES.camille_marchand,
+];
 
 export const TASTE_ITEMS: TasteItem[] = [
   {
@@ -118,6 +130,8 @@ export const TASTE_ITEMS: TasteItem[] = [
       { id: 'bonsoir', fr: 'Bonsoir' },
     ],
     answer: ['cafe', 'svp'],
+    // P9 (walk of 17 Nov): «Un café, merci» is a polite order too.
+    alternatives: [['cafe', 'merci']],
     reply: {
       ...TASTE_SPEAKER,
       fr: 'Parfait ! Un café, tout de suite !',
@@ -141,12 +155,16 @@ export function gradeChoice(item: TasteChoiceItem, optionId: string | null): Tas
 /**
  * Tiles are graded the moment the learner has placed as many tiles as the
  * answer holds — no «check» tap. Fewer is still pending; the right tiles in
- * the wrong order are wrong.
+ * the wrong order are wrong. The answer and each of its `alternatives` count.
  */
 export function gradeTiles(item: TasteTilesItem, placed: readonly string[]): TasteVerdict {
   if (placed.length < item.answer.length) return 'pending';
-  if (placed.length !== item.answer.length) return 'wrong';
-  return item.answer.every((id, index) => placed[index] === id) ? 'correct' : 'wrong';
+  const accepted = [item.answer, ...(item.alternatives ?? [])];
+  return accepted.some(
+    (answer) => answer.length === placed.length && answer.every((id, index) => placed[index] === id),
+  )
+    ? 'correct'
+    : 'wrong';
 }
 
 /** The portrait follows the verdict (WP-D2: the map lives in `lib/cast-faces`). */

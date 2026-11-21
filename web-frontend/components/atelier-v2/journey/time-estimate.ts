@@ -13,7 +13,7 @@
  */
 
 import type { ControlLanguage, TodayEnvelope } from '@/types/daily-journey';
-import { formatDuration } from './journey-state';
+import { formatPlannedDuration } from './journey-state';
 
 export type DayTimeEstimate = NonNullable<TodayEnvelope['time_estimate']>;
 export type TimeExtensionKind = DayTimeEstimate['extensions'][number]['kind'];
@@ -64,7 +64,27 @@ export function coreEstimateLabel(
   language: ControlLanguage,
 ): string | null {
   const seconds = estimate ? estimate.core_seconds : fallbackSeconds;
-  const minutes = formatDuration(seconds, language);
+  const minutes = formatPlannedDuration(seconds, language);
+  if (!minutes) return null;
+  if (estimate?.longer_day) return fill(copyFor(language).longer_day, { minutes });
+  return minutes;
+}
+
+/**
+ * Round 3 (walk 2, 17 Nov 2026): the day card's one figure is the sum of the
+ * step minutes Home prints under it (`session.minutes_left`, the server's sum of
+ * the steps still to do). The card used to print the scene's core and «+ Wörter»
+ * beside it, leaving La Forge's minutes out. `null` without a day session: the
+ * caller keeps the core and the words' extension.
+ */
+export function dayTotalLabel(
+  session: { minutes_left?: number | null } | null | undefined,
+  estimate: DayTimeEstimate | null | undefined,
+  language: ControlLanguage,
+): string | null {
+  const total = Number(session?.minutes_left ?? 0);
+  if (!(total > 0)) return null;
+  const minutes = formatPlannedDuration(total * 60, language);
   if (!minutes) return null;
   if (estimate?.longer_day) return fill(copyFor(language).longer_day, { minutes });
   return minutes;
@@ -87,7 +107,7 @@ export function extensionLabel(
   kind: TimeExtensionKind,
   language: ControlLanguage,
 ): string | null {
-  const minutes = formatDuration(extensionSeconds(estimate, kind), language);
+  const minutes = formatPlannedDuration(extensionSeconds(estimate, kind), language);
   if (!minutes) return null;
   const copy = copyFor(language);
   return fill(copy.extension, { kind: copy.kinds[kind], minutes });
@@ -99,7 +119,7 @@ export function extensionMinutes(
   kind: TimeExtensionKind,
   language: ControlLanguage,
 ): string | null {
-  const minutes = formatDuration(extensionSeconds(estimate, kind), language);
+  const minutes = formatPlannedDuration(extensionSeconds(estimate, kind), language);
   return minutes ? `≈ ${minutes}` : null;
 }
 
@@ -109,7 +129,7 @@ export function measuredBesidePlanned(
   plannedSeconds: number | null | undefined,
   language: ControlLanguage,
 ): string {
-  const planned = formatDuration(plannedSeconds, language);
+  const planned = formatPlannedDuration(plannedSeconds, language);
   if (!planned || planned === measured) return measured;
   return `${measured} · ${fill(copyFor(language).planned, { minutes: planned })}`;
 }

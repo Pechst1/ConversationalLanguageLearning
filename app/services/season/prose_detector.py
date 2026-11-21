@@ -345,8 +345,9 @@ _WAITING_ENDING = _rule(
     r"\battendant\s+que\s+(?:tu|vous)\b",
 )
 
-#: leaves_without_answer — the authored fallback ending (``living_story.fallback_turn``):
-#: the character leaves before answering. Not «Elle hésite avant de répondre.»
+#: leaves_without_answer — the old authored fallback ending, which stored rows still hold
+#: and a writer can imitate: the character leaves before answering. Not «Elle hésite avant de
+#: répondre.»
 _LEAVES = _rule(
     r"\b(?:doi(?:t|s|vent)\s+partir|(?:a|ont)\s+dû\s+partir|part|partent|s'en\s+va|s'en\s+vont|"
     r"est\s+partie?|sont\s+parti(?:e)?s|appelée?s?\s+ailleurs)\s+avant\s+de\s+répondre\b"
@@ -401,12 +402,13 @@ def _places(page: Mapping[str, Any]) -> tuple[list[tuple[str, str]], list[tuple[
     return keep, [(where, text) for where, text in speech if text.strip()]
 
 
-def page_hits(draft: Any, *, level: str, signature_phrases: Iterable[str] = ()) -> list[Hit]:
+def page_hits(draft: Any, *, level: str, signature_phrases: Iterable[str] = (), task_grace: int = 0) -> list[Hit]:
     """Every machine line on a page the director wrote (``SceneDraft`` or its dict).
 
     Blocking: a page with a hit is written again with :func:`feedback`. ``level`` is the
     learner's band («B1» or «B1.1»); ``signature_phrases`` are the cast's own refrains
-    («J'ai rien entendu.»), which may come back on one page."""
+    («J'ai rien entendu.»), which may come back on one page. ``task_grace``: the words a
+    planned page's task may run over ``TASK_MAX_WORDS`` (P11, ``story_split``)."""
 
     page = _as_page(draft)
     narration, speech = _places(page)
@@ -451,7 +453,7 @@ def page_hits(draft: Any, *, level: str, signature_phrases: Iterable[str] = ()) 
         if key in said:
             hits.append(Hit("repeated_line", where, text.strip(), True))
         said.add(key)
-    if task and task_words(task) > TASK_MAX_WORDS:
+    if task and task_words(task) > TASK_MAX_WORDS + task_grace:
         hits.append(Hit("long_task", "task", task, True))
     return hits
 

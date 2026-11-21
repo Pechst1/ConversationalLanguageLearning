@@ -11,12 +11,14 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from app.services.concept_titles import concept_title
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
 @lru_cache(maxsize=1)
 def curriculum() -> dict[str, dict[str, Any]]:
-    with (ROOT / 'templates/french_core_grammar_v1.tsv').open(encoding='utf-8') as source:
+    with (ROOT / 'app/data/grammar_catalog/french_core_grammar_v1.tsv').open(encoding='utf-8') as source:
         lessons = {row['external_id']: dict(row) for row in csv.DictReader(source, delimiter='\t')}
     for line in (ROOT / 'app/data/seance_challenges.txt').read_text(encoding='utf-8').splitlines():
         external_id, marked, scene = line.split('|')
@@ -56,7 +58,8 @@ def lesson_panel(concept: Any) -> dict[str, Any] | None:
     if not lesson:
         return None
     return {
-        'title': concept.name,
+        # #522: the one title accessor; the exercise payload localizes it again on the way out.
+        'title': concept_title(concept, 'fr'),
         'rule': lesson['core_rule'],
         'when': lesson['when_to_use'],
         'pattern': lesson['pattern'],

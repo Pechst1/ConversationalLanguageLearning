@@ -46,6 +46,7 @@ from app.db.models.progress import UserVocabularyProgress
 from app.db.models.session import LearningSession, WordInteraction
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
+from app.services.chrome_language import user_mother_tongue
 from app.services.glosses import gloss_map, normalize_language, resolve_gloss
 
 KEPT_INTERACTION_TYPE = "kept_from_story"
@@ -225,7 +226,7 @@ def keep_word(
         # The example *is* the point: a kept word comes back in its sentence.
         raise KeepRefused("no_sentence")
     language = (getattr(user, "target_language", None) or "fr").strip() or "fr"
-    native = normalize_language(getattr(user, "native_language", None))
+    native = user_mother_tongue(user)
     # WP-138: the same row the word-help sheet looked up (``/vocabulary/lookup``),
     # so the meaning the learner read is the meaning that is kept.
     word = catalogue_row_for(db, term=term, language=language, native=native)
@@ -639,6 +640,7 @@ def record_scene_lexicon(
     level: str | None = None,
     journey_id: UUID | None = None,
     now: datetime | None = None,
+    gloss_language: str | None = None,
 ) -> list[SceneWord]:
     """Match a scene's lexicon to the catalogue, learner-safely (the WP-74 rule).
 
@@ -652,13 +654,24 @@ def record_scene_lexicon(
       printed and the gloss in the learner's language. Idempotent per
       (learner, word, sentence). No progress row: a word enters the Lexique once
       it is practised, through the ordinary evidence path.
+    * R5 (check walk of 19 Nov): ``gloss_language`` is the language the entries'
+      ``gloss_native`` is written in (the scene's control language, French from B1).
+      When it is not the mother tongue the scene's gloss is never stored or shown: a
+      gloss explains, so it is in the mother tongue at every level. The word takes the
+      dictionary's gloss in the mother tongue (the catalogue row's, else the authored
+      lists'); a word with none is not recorded («tremper — être mouillé
+      complètement par la pluie» was stored as the English gloss of a new row).
 
     Flushes, never commits.
     """
 
     now = now or datetime.now(UTC)
     language = (getattr(user, "target_language", None) or "fr").strip() or "fr"
-    native = normalize_language(getattr(user, "native_language", None))
+    native = user_mother_tongue(user)
+    from app.services.chrome_language import fold_language
+    from app.services.lexical_coverage import fold as fold_lemma
+
+    foreign_gloss = bool(gloss_language) and fold_language(gloss_language) != fold_language(native)
     words: list[SceneWord] = []
     session: LearningSession | None = None
     for entry in entries:
@@ -669,6 +682,12 @@ def record_scene_lexicon(
         if not lemma or not gloss:
             continue
         word = _catalogue_row(db, language=language, lemma=lemma)
+        if foreign_gloss:
+            column = _GLOSS_COLUMN.get(native)
+            gloss = _clean(getattr(word, column, None) if word is not None and column else None, MAX_TERM_CHARS * 2)
+            gloss = gloss or _clean((_authored_gloss_index().get(fold_lemma(lemma)) or {}).get(native), MAX_TERM_CHARS * 2)
+            if not gloss:
+                continue
         created = word is None
         if word is None:
             word = VocabularyWord(
@@ -877,7 +896,7 @@ def keep_revue_word(
     if not term or not session_id:
         return None
     language = (getattr(user, "target_language", None) or "fr").strip() or "fr"
-    native = normalize_language(getattr(user, "native_language", None))
+    native = user_mother_tongue(user)
     word = _revue_catalogue_row(db, language=language, term=term)
     if word is None:
         if not gloss:

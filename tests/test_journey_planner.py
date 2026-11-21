@@ -834,6 +834,8 @@ def test_the_planner_imports_no_ladder_and_no_scheduler() -> None:
         "typing",
         "app.services.journey_content",
         "app.services.journey_contracts",
+        # S3: the one language resolver — pure string functions, no I/O.
+        "app.services.chrome_language",
         # WP-24: types only. `journey_errata` reaches the ORM, so the planner
         # may name it in an annotation and must not import it at runtime — the
         # next assertion is what actually holds that line.
@@ -871,6 +873,13 @@ def test_the_planner_imports_no_ladder_and_no_scheduler() -> None:
         # #398: where a sentence ends («M.» and «J.» end none) — the one cut every
         # French text shares, pure string functions, no ORM and no scheduler.
         "app.services.sentence_line",
+        # 12 Nov 2026: a build or write item said to nobody — string functions over
+        # the task (`answer_acceptance.strip_vocative`), no ORM and no scheduler.
+        "app.services.no_address",
+        # #805: the one accept-list (`answer_acceptance.widened_answers`) — string
+        # functions and a cached JSON read, no ORM and no scheduler — so a repair is
+        # never posed over a line that already says the key another right way.
+        "app.services.answer_acceptance",
     }, imported
     assert _typing_only_imports(PLANNER_SOURCE) >= {
         "app.services.journey_errata"

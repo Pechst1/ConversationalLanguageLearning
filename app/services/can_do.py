@@ -24,6 +24,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.models.cefr import UserCanDoStamp
+from app.services.chrome_language import mother_tongue
 from app.services.level_checkpoint import _can_dos
 from app.services.level_coverage import SUB_BANDS
 
@@ -74,12 +75,12 @@ def can_do_by_id(can_do_id: str | None) -> dict[str, Any] | None:
 
 
 def native_title(item: dict[str, Any], native_language: str | None) -> str:
-    key = _NATIVE_TITLE_KEYS.get((native_language or "en").split("-")[0].lower(), "title_en")
+    key = _NATIVE_TITLE_KEYS.get(mother_tongue(native_language), "title_en")
     return str(item.get(key) or item.get("title_en") or item.get("title_fr") or "")
 
 
 def band_title_native(band: str, native_language: str | None) -> str:
-    lang = (native_language or "en").split("-")[0].lower()
+    lang = mother_tongue(native_language)
     if lang == "de":
         return f"Niveau {band}"
     if lang == "fr":

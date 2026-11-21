@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, false
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -35,6 +35,9 @@ class UserFeedbackReport(Base):
     viewport = mapped_column(JSONB().with_variant(JSON(), "sqlite"), default=dict, nullable=False)
     user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
     context_payload = mapped_column(JSONB().with_variant(JSON(), "sqlite"), default=dict, nullable=False)
+    # S4 stage 4: the learner asked to be answered (at the account's address).
+    # Stored only; nothing sends a reply yet.
+    wants_reply: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     user: Mapped[User] = relationship("User")

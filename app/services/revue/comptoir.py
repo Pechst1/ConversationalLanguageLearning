@@ -39,6 +39,7 @@ from typing import Any
 
 from loguru import logger
 
+from app.services.cast_registry import display_name
 from app.services.revue import policy, voice
 from app.services.revue.dossier import (
     COMPTOIR_STANCES,
@@ -70,14 +71,8 @@ ROLE_FR: dict[str, str] = {
     "marin_leveque": "ONG",
     "landlord_marchand": "propriétaire",
 }
-NAME_FR: dict[str, str] = {
-    ROMY_ID: "Romy",
-    GUS_ID: "Gus",
-    MARGAUX_ID: "Margaux",
-    "lila_bonnet": "Lila",
-    "marin_leveque": "Marin",
-    "landlord_marchand": "M. Marchand",
-}
+#: The same people, as every other surface names them (#147).
+NAME_FR: dict[str, str] = {cast_id: display_name(cast_id, cast_id) for cast_id in ROLE_FR}
 
 TAKE_MAX_WORDS: dict[str, int] = {"a1": 16, "a2": 28, "b1": 45}
 QUESTION_MAX_WORDS = 9

@@ -54,6 +54,7 @@ from app.db.models.progress import UserVocabularyProgress
 from app.db.models.session import LearningSession, SessionLearningMoment
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
+from app.services.chrome_language import user_mother_tongue
 from app.services.concept_titles import concept_title
 from app.services.correction_contract import contraction_reason
 from app.services.error_memory import ErrorMemoryService
@@ -294,6 +295,29 @@ def fold_for_comparison(value: str | None) -> str:
     return " ".join(text.split())
 
 
+def fold_for_written_comparison(value: str | None) -> str:
+    """The no-op fold for a *written* text (#754): case, smart quotes, spacing and
+    punctuation fold away, the letters and their marks stay.
+
+    :func:`fold_for_comparison` was built for speech, where an accent or an apostrophe
+    is the transcriber's spelling, not the learner's: it reads «j étais» and «j'étais»,
+    «cle» and «clé» as the same answer. A learner who typed the text wrote those
+    marks themselves, so a fix that only restores one is a fix of their French.
+    """
+
+    text = normalize_answer_text(value).casefold()
+    text = re.sub(r"[^\w\s'-]+", " ", text)
+    text = re.sub(r"\s*'\s*", "'", text)
+    return " ".join(text.split())
+
+
+def _same_answer(a: str | None, b: str | None, *, written: bool) -> bool:
+    """Whether a "correction" from ``a`` to ``b`` changes nothing the learner did."""
+
+    fold = fold_for_written_comparison if written else fold_for_comparison
+    return fold(a) == fold(b)
+
+
 def _tokens(value: str | None) -> list[str]:
     return [token for token in fold_for_comparison(value).split() if token]
 
@@ -345,6 +369,7 @@ def answer_matches(
     *,
     accents: str = "lenient",
     within_reply: bool = False,
+    article_optional: bool = False,
 ) -> bool:
     """Is this a reasonable rendering of one of the accepted answers?
 
@@ -353,6 +378,11 @@ def answer_matches(
     grammar (a/à, ou/où, a final «-é»), one typo is forgiven unless it makes
     another form («parle/parles», «du/de» never pass). A word or short phrase
     also counts when the answer holds it as a run of words.
+
+    #579: ``article_optional`` is part of the question, so a caller that also
+    reads the verdict's note must pass the same options to both; two calls with
+    different options decided one answer twice («une letre» a miss with a
+    «Right — small typo» note).
     """
 
     from app.services.answer_acceptance import judge
@@ -365,7 +395,7 @@ def answer_matches(
         target = fold_for_comparison(candidate)
         if not target:
             continue
-        if judge(answer, [candidate], accents=accents).correct:
+        if judge(answer, [candidate], accents=accents, article_optional=article_optional).correct:
             return True
         target_tokens = target.split()
         # A recall answer may frame the key in a few words; a free reply
@@ -374,8 +404,44 @@ def answer_matches(
         short_enough = within_reply or len(answer_tokens) <= len(target_tokens) + max(
             CONTAINED_ANSWER_PADDING, len(target_tokens)
         )
-        if short_enough and _contains_run(answer_tokens, target_tokens):
-            if judge(" ".join(_original_run(answer, len(target_tokens), target_tokens)), [candidate], accents=accents).correct:
+        if (
+            short_enough
+            and _contains_run(answer_tokens, target_tokens)
+            # #174 (owner, 2 Nov): when the article is not part of the question, a
+            # wrong one stays a hit and is named on it (``article_slip_note``).
+            and (article_optional or not _wrong_article_before(answer_tokens, target_tokens))
+        ):
+            run = " ".join(_original_run(answer, len(target_tokens), target_tokens))
+            if judge(run, [candidate], accents=accents, article_optional=article_optional).correct:
+                return True
+    return False
+
+
+#: The articles that give the noun after them a gender («le valise»).
+_GENDERED_ARTICLES = {"le": "m", "un": "m", "la": "f", "une": "f"}
+
+
+def _wrong_article_before(answer_tokens: list[str], target_tokens: list[str]) -> bool:
+    """P4 (walk 17 Nov): «le valise» held the key «valise» as a run of words and was
+    «Richtig». The prompt «der Koffer» names the article, so it is part of the question:
+    a bare noun found in the answer does not count when the article right in front of it
+    gives it the other gender. Only when the article is asked (``article_optional`` is
+    false); otherwise #174 holds: the hit stands and the right article is named. A noun right with both genders («la livre»)
+    stays right."""
+
+    from app.services.answer_acceptance import _gender_of
+    from app.services.correction_contract import _TWO_GENDER_NOUNS
+
+    if len(target_tokens) != 1 or target_tokens[0] in _GENDERED_ARTICLES:
+        return False
+    noun = target_tokens[0]
+    gender = _gender_of(noun)
+    if gender is None or noun in {fold_for_comparison(word) for word in _TWO_GENDER_NOUNS}:
+        return False
+    for index in range(1, len(answer_tokens)):
+        if answer_tokens[index] == noun:
+            given = _GENDERED_ARTICLES.get(answer_tokens[index - 1])
+            if given is not None and given != gender:
                 return True
     return False
 
@@ -843,7 +909,7 @@ def select_learning_candidates(
             db, user=user, selected=selected, now=now, budget_seconds=budget_seconds
         )
     selected = _one_target_per_word(selected)
-    if scenario.control_language == "fr" and user.native_language != "fr":
+    if scenario.control_language == "fr" and user_mother_tongue(user) != "fr":
         # The catalogue's stored translation is English/German. French tasks
         # use the scene's sentence instead of posing that foreign gloss.
         selected = [replace(candidate, target=replace(candidate.target, label_native=None))
@@ -1324,10 +1390,16 @@ def _with_grammar_briefs(
 
     if not any(c.target.kind is TargetKind.GRAMMAR for c in candidates):
         return candidates
-    from app.services.chrome_language import user_chrome_language
+    from app.services.chrome_language import user_chrome_language, user_correction_language
     from app.services.concept_life import concept_brief
+    from app.services.forge_coaches import card_for_learner, story_state_of
 
     language = user_chrome_language(user)
+    # R4 (walk of 19 Nov): a drill's rule line and a trap's reason explain, so they are in
+    # the mother tongue at every level (owner decision 18 Nov 2026, as the scene's notes);
+    # titles and instructions stay in the chrome. Below B1 the two are the same.
+    explain = user_correction_language(user)
+    state = story_state_of(db, user)
     out: list[LearningCandidate] = []
     for candidate in candidates:
         if candidate.target.kind is not TargetKind.GRAMMAR:
@@ -1341,6 +1413,7 @@ def _with_grammar_briefs(
                     concept,
                     control_language=language,
                     stability=(candidate.metadata or {}).get("stability"),
+                    explain_language=explain if explain != language else None,
                 )
                 if concept is not None
                 else None
@@ -1355,7 +1428,12 @@ def _with_grammar_briefs(
         brief = _with_held_opportunity_brief(
             brief, (candidate.metadata or {}).get("held_opportunity")
         )
-        brief = _with_coach_scene(brief, language=str(language), level=level)
+        brief = _with_coach_scene(brief, language=str(language), level=level, state=state)
+        # #147: a drill's face follows the card's speaker: someone this learner has met.
+        brief = {
+            **brief,
+            "rule_card": card_for_learner(brief.get("rule_card"), external_id=brief.get("external_id"), state=state),
+        }
         if concept is not None:
             # WP-129: the catalogue's partner units, for the B1+ contrast items.
             from app.services.grammar_catalog import concept_syllabus
@@ -1403,6 +1481,9 @@ def _scene_lexicon_candidates(
     from app.services.scene_items import draft_of, lexicon_of, sentence_of
 
     entries = lexicon_of(scenario)
+    # R5: the writer's lexicon glosses in the scene's control language (French from
+    # B1); the season's own entries below are glossed in the mother tongue already.
+    gloss_language: str | None = str(scenario.control_language or "") or None if entries else None
     if not entries:
         # WP-131: a B1+ season tentpole carries no bible lexicon (it is written
         # for A1–A2). Its words are derived from the lines at the learner's own
@@ -1439,7 +1520,12 @@ def _scene_lexicon_candidates(
     try:
         with db.begin_nested():
             words = record_scene_lexicon(
-                db, user=user, entries=entries, sentences=sentences, level=scenario.level_band
+                db,
+                user=user,
+                entries=entries,
+                sentences=sentences,
+                level=scenario.level_band,
+                gloss_language=gloss_language,
             )
     except Exception:  # noqa: BLE001 - the words are a bonus, the day is not
         logger.warning("journey_learning_scene_lexicon_unavailable")
@@ -1520,7 +1606,7 @@ def _fragile_words(
     for word, _progress in rows:
         if str(word.id) in exclude:
             continue
-        gloss = word_gloss(word, user.native_language)
+        gloss = word_gloss(word, user_mother_tongue(user))
         target = TargetRef(
             kind=TargetKind.VOCABULARY,
             id=str(word.id),
@@ -1580,7 +1666,7 @@ def _partner_words(db: Session, *, user: User, exclude: set[str]) -> list[Learni
     for word in rows:
         if str(word.id) in exclude:
             continue
-        gloss = word_gloss(word, user.native_language)
+        gloss = word_gloss(word, user_mother_tongue(user))
         if not gloss:
             continue
         partners.append(
@@ -1664,7 +1750,7 @@ def _kept_extra_candidates(
             kind=TargetKind.VOCABULARY,
             id=str(word_id),
             label_fr=str(word.word),
-            label_native=word_gloss(word, user.native_language) or row.gloss or None,
+            label_native=word_gloss(word, user_mother_tongue(user)) or row.gloss or None,
         )
         extras.append(
             LearningCandidate(
@@ -1758,7 +1844,7 @@ def _new_vocabulary_anchor(
             kind=TargetKind.VOCABULARY,
             id=str(word.id),
             label_fr=word.word,
-            label_native=word_gloss(word, user.native_language) or None,
+            label_native=word_gloss(word, user_mother_tongue(user)) or None,
         )
         return LearningCandidate(
             target=target,
@@ -2070,6 +2156,68 @@ def pick_miss_note(task: RecallTask, language: str) -> str | None:
     return table("answer").format(answer=answer)
 
 
+#: P5: the formats answered by a tap among the item's own options.
+PICK_FORMATS = frozenset({"choice", "classify", "listen_tap", "who_said"})
+
+
+def solution_waits_for_retry(task: RecallTask) -> bool:
+    """P5 (owner, 2026-11-13): may this drill's miss keep its solution for the retry?
+
+    La Forge's rule (``solution_gate.second_chance_for``) read for the daily drill: a
+    choice between two (two cards, two labels, two tiles) is exempt, since the miss
+    names the other one. Everything else waits, when a retry is queued at all.
+    """
+
+    if task.task_type in PICK_FORMATS:
+        return len(task.options) > 2
+    if task.task_type in TILE_ORDER_FORMATS:
+        return len(task.options) > 2
+    return True
+
+
+def withheld_recall_note(task: RecallTask, correction: Correction, *, language: str) -> str:
+    """P5: where and why a drill was missed, without the answer.
+
+    The correction's own note (the rule, the trap, «from "X" on, the order is off»)
+    with every clause that names the answer dropped by La Forge's scrub
+    (``solution_gate.scrub_hint``); La Forge's own fallback line when nothing is left.
+    """
+
+    from app.services import solution_gate
+
+    learner = correction.span_fr or ""
+    answers = [correction.corrected_fr, task.solution_fr, *task.accepted_answers]
+    if task.correct_option_id:
+        answers.append(_option_text(task, task.correct_option_id))
+    phrases: list[str] = []
+    tokens: set[str] = set()
+    for answer in answers:
+        answer = str(answer or "").strip()
+        if not answer:
+            continue
+        found, leaked = solution_gate.leak_terms(
+            {"corrected_answer": answer, "errata": [{"learner_text": learner, "corrected_target": answer}]},
+            learner,
+        )
+        phrases.extend(found)
+        tokens |= leaked
+    if task.task_type in TILE_ORDER_FORMATS:
+        # A build is made of the answer's own words: naming one of them says where the
+        # order goes wrong, not what it is. Only the whole sentence gives it away.
+        tokens = set()
+    note = solution_gate.scrub_hint(correction.note_native, phrases, tokens)
+    if note:
+        return note
+    key = (
+        "forge.second_chance.choice_hint"
+        if task.task_type in PICK_FORMATS
+        else "forge.second_chance.task_hint"
+    )
+    from app.services.learner_copy import learner_text
+
+    return learner_text(key, language)
+
+
 def _selected_option_id(task: RecallTask, answer: AttemptAnswer) -> str | None:
     if answer.option_id:
         return answer.option_id
@@ -2167,6 +2315,21 @@ def _free_sentence_copies_shown(db: Session | None, task: RecallTask, text: str 
     return any(folded == grammar_items._fold(grammar_items.plain(item)) for item in shown if item)
 
 
+def _memo_settles_recall(db: Session, task: RecallTask, text: str | None) -> bool:
+    """Package V stage 4: a drill answer outside the key that a confirmed memo holds right.
+
+    Asked only after the key missed, and before anything else reads the miss. A drill
+    memo is written by an upheld appeal (stage 5); until then there are none.
+    """
+
+    if not text or not str(text).strip():
+        return False
+    from app.services import answer_memo, judge
+
+    ruling = judge.consult(answer_memo.recall_task(task), text, memos=answer_memo.Memos(db))
+    return bool(ruling is not None and ruling.memo is not None and ruling.verdict.outcome.value == "right")
+
+
 def evaluate_recall(
     db: Session,
     *,
@@ -2230,22 +2393,34 @@ def evaluate_recall(
         from app.services.answer_acceptance import judge
 
         typed_verdict = judge(answer.text, _accepted_answers(task), accents=accents)
-        is_correct = _free_sentence_uses_unit(db, task, answer.text) or bool(
-            typed_verdict is not None and typed_verdict.correct
+        is_correct = (
+            _free_sentence_uses_unit(db, task, answer.text)
+            or bool(typed_verdict is not None and typed_verdict.correct)
+            or _memo_settles_recall(db, task, answer.text)
         )
         if not (typed_verdict is not None and typed_verdict.correct):
             typed_verdict = None
         learner_text = answer.text
         opportunity = "open_production"
     elif task.task_type in {"tiles", "word_bank", "unscramble"}:
-        expected = [str(tile) for tile in task.correct_tile_order]
+        # #174 / #781: right is a build that spells a right sentence (case and
+        # apostrophes folded), never the one id order that was stored: «J'ai» and
+        # «j'ai», or two «le», swapped are the same sentence. The device key reads
+        # the same rule (``journey_answer_key.accepted_tile_orders``).
+        from app.services.journey_answer_key import tiles_spell_an_answer
+
         submitted = [str(tile) for tile in answer.tile_ids]
-        is_correct = bool(expected) and submitted == expected
+        is_correct = tiles_spell_an_answer(task, submitted)
         # The words placed, not their ids: the correction shows this span.
         learner_text = recall_learner_text(task, answer) if submitted else answer.text
         opportunity = "tiles"
     else:
-        is_correct = answer_matches(answer.text, _accepted_answers(task), accents=accents)
+        # #579: the verdict and the note come from one contract with one set of
+        # options; `typed_verdict` below uses the same `article_optional`.
+        recall_article_optional = article_optional(task.target)
+        is_correct = answer_matches(
+            answer.text, _accepted_answers(task), accents=accents, article_optional=recall_article_optional
+        )
         learner_text = answer.text
         opportunity = "open_production"
         from app.services.answer_acceptance import judge, judge_repair
@@ -2259,14 +2434,16 @@ def evaluate_recall(
                 answer.text,
                 repair_source,
                 _accepted_answers(task),
-                article_optional=article_optional(task.target),
+                article_optional=recall_article_optional,
                 accents=accents,
             )
             is_correct = is_correct or typed_verdict.correct
         else:
             typed_verdict = judge(
-                answer.text, _accepted_answers(task), article_optional=article_optional(task.target), accents=accents
+                answer.text, _accepted_answers(task), article_optional=recall_article_optional, accents=accents
             )
+        if not is_correct and _memo_settles_recall(db, task, answer.text):
+            is_correct = True
 
     observation = classify_observation(
         target=task.target,
@@ -2296,16 +2473,22 @@ def evaluate_recall(
     correction = None
     typed = typed_verdict
     if not is_correct:
+        # R4: the notes below explain a miss: the mother tongue at every level (owner
+        # decision 18 Nov 2026); the chrome stays French from B1.
         note = task.hint_native or task.instruction_native
         if task.task_type in {"tiles", "word_bank", "unscramble"} and answer.tile_ids:
-            from app.services.chrome_language import user_chrome_language
+            from app.services.chrome_language import user_correction_language
 
-            note = tile_order_note(task, answer.tile_ids, str(user_chrome_language(user))) or note
+            note = tile_order_note(task, answer.tile_ids, str(user_correction_language(user))) or note
         elif task.task_type in {"choice", "classify", "listen_tap", "who_said"}:
-            from app.services.chrome_language import user_chrome_language
+            from app.services.chrome_language import user_correction_language
 
-            pick = pick_miss_note(task, str(user_chrome_language(user)))
-            if task.task_type in {"choice", "who_said"} and task.hint_native and task.target.kind == TargetKind.GRAMMAR:
+            pick = pick_miss_note(task, str(user_correction_language(user)))
+            if task.task_type == "choice" and task.why_native:
+                # #537: the reason of the trap the learner fell into («mon amie»: the
+                # vowel), not the unit's one-line rule that the other traps share.
+                pick = task.why_native
+            elif task.task_type in {"choice", "who_said"} and task.hint_native and task.target.kind == TargetKind.GRAMMAR:
                 # #86: a unit's one-line rule is the reason a grammar choice was
                 # wrong. «The right answer is X» only stands in when there is none.
                 # A vocabulary choice's hint is the first-letter clue, not a reason:
@@ -2316,9 +2499,9 @@ def evaluate_recall(
             # EXERCISE-QA: the why a fold can see (an accent that is grammar, an
             # ending, an elision, a gender) beats the item's generic hint.
             from app.services.answer_acceptance import feedback_note
-            from app.services.chrome_language import user_chrome_language
+            from app.services.chrome_language import user_correction_language
 
-            note = feedback_note(typed, str(user_chrome_language(user))) or note
+            note = feedback_note(typed, str(user_correction_language(user))) or note
         expected = task.solution_fr or (task.accepted_answers[0] if task.accepted_answers else None)
         # A part answered wrong is corrected as a part («verts → vertes»); the
         # saved error keeps the whole sentence, so it can be drilled later.
@@ -2338,7 +2521,13 @@ def evaluate_recall(
         if task.rule_native:
             # #278: a missed repair ends on the rule it was about, whatever else it says.
             note = f"{note} {task.rule_native}".strip() if note else task.rule_native
-        correction = build_correction(learner_text=learner_text, corrected_fr=shown, note_native=note)
+        # #624: a free sentence has no right answer to be corrected into: the model
+        # sentence is only ever shown as an example (below), never as an edit.
+        correction = (
+            None
+            if _is_free_sentence(task)
+            else build_correction(learner_text=learner_text, corrected_fr=shown, note_native=note)
+        )
         if correction is None and typed is not None and typed.note == "accent" and learner_text and shown:
             # EXERCISE-QA: refused for an accent that is grammar («Il à mangé»):
             # the folds see no difference, the learner must still see the answer.
@@ -2348,6 +2537,20 @@ def evaluate_recall(
                 note_native=note or "",
             )
             correction = candidate if candidate.is_valid_for(normalize_answer_text(learner_text)) else None
+        if (
+            correction is None
+            and task.task_type in TILE_ORDER_FORMATS
+            and learner_text
+            and expected
+            and normalize_answer_text(learner_text) != normalize_answer_text(expected)
+        ):
+            # #781: a missed build the folds cannot tell from the answer (a capital, a
+            # «!» moved) is still a miss, and is never served without the right sentence.
+            correction = Correction(
+                span_fr=normalize_answer_text(learner_text),
+                corrected_fr=normalize_answer_text(expected),
+                note_native=note or "",
+            )
         if correction is not None and part_answer and expected:
             correction = replace(correction, saved_span_fr=typed.read_as, saved_corrected_fr=expected)
         if correction is not None and task.task_type == "choice" and task.options_kind == "sentences":
@@ -2360,10 +2563,13 @@ def evaluate_recall(
         if correction is None and _is_free_sentence(task) and learner_text and expected:
             # WP-129: a free sentence that did not use the unit is not a slip in
             # one span: the learner sees a model sentence that does, whole.
+            # #624: not «your sentence → this»: another sentence that uses the rule,
+            # labelled so on the screen and never filed as an error to repair.
             candidate = Correction(
                 span_fr=normalize_answer_text(learner_text),
                 corrected_fr=normalize_answer_text(expected),
                 note_native=note or "",
+                kind="example",
             )
             correction = candidate if candidate.is_valid_for(normalize_answer_text(learner_text)) else None
     if correction is not None and correction.saved_span_fr is None:
@@ -2380,12 +2586,20 @@ def evaluate_recall(
             correction = replace(correction, context_fr=context)
     slip_note = None
     slip_kind = None
-    if is_correct and typed is not None and typed.correct and (typed.accent_slip or typed.typo):
+    if is_correct and task.task_type in TILE_ORDER_FORMATS and learner_text:
+        # #781: a build right in all but a capital («j'ai … J'ai») is a hit that names
+        # the capital and shows the sentence, the way a forgiven accent is named.
+        from app.services.answer_acceptance import case_slip_note
+        from app.services.chrome_language import user_correction_language
+
+        slip_note = case_slip_note(learner_text, task.solution_fr, str(user_correction_language(user)))
+        slip_kind = "case" if slip_note else None
+    elif is_correct and typed is not None and typed.correct and (typed.accent_slip or typed.typo):
         # QA-CLOSE (owner decision d): a forgiven slip is named on a hit, one line.
         from app.services.answer_acceptance import feedback_note
-        from app.services.chrome_language import user_chrome_language
+        from app.services.chrome_language import user_correction_language
 
-        slip_note = feedback_note(typed, str(user_chrome_language(user)))
+        slip_note = feedback_note(typed, str(user_correction_language(user)))
         slip_kind = "accent" if typed.accent_slip else "typo"
     elif (
         is_correct
@@ -2400,11 +2614,11 @@ def evaluate_recall(
         # hit; the wrong article is named on it, the way a forgiven accent is, and is
         # never passed in silence.
         from app.services.answer_acceptance import article_slip_fix, article_slip_note
-        from app.services.chrome_language import user_chrome_language
+        from app.services.chrome_language import user_correction_language
 
         fixed = article_slip_fix(typed.expected, learner_text)
         if fixed:
-            slip_note = article_slip_note(typed.note, fixed, str(user_chrome_language(user)))
+            slip_note = article_slip_note(typed.note, fixed, str(user_correction_language(user)))
             slip_kind = "article" if slip_note else None
     return RecallEvaluation(
         outcome=TaskOutcome.MET if is_correct else TaskOutcome.NOT_YET,
@@ -2557,20 +2771,21 @@ def evaluate_dictation(
 # --------------------------------------------------------------------------
 
 def build_correction(
-    *, learner_text: str | None, corrected_fr: str | None, note_native: str | None
+    *, learner_text: str | None, corrected_fr: str | None, note_native: str | None, written: bool = False
 ) -> Correction | None:
     """A validated correction, or ``None``.
 
     Rejects the no-op (span equals correction, or they differ only by folding,
     which is where ASR punctuation and smart quotes end up) and any span the
-    learner did not write.
+    learner did not write. ``written``: the learner typed the text, so a restored
+    accent or apostrophe is a fix (:func:`fold_for_written_comparison`).
     """
 
     span = normalize_answer_text(learner_text)
     corrected = normalize_answer_text(corrected_fr)
     if not span or not corrected:
         return None
-    if fold_for_comparison(span) == fold_for_comparison(corrected):
+    if _same_answer(span, corrected, written=written):
         return None
     candidate = Correction(
         span_fr=span,
@@ -2659,13 +2874,14 @@ def _introduced_agreements(learner_text: str | None, texts: Sequence[str | None]
 
 
 def validate_correction(
-    correction: Correction | None, learner_text: str | None, *, address: str | None = None
+    correction: Correction | None, learner_text: str | None, *, address: str | None = None, written: bool = False
 ) -> bool:
     """True when a proposed correction may be shown and may inform memory.
 
     ``address`` is the learner's ``address_preference``: a learner who chose
     «masculine» or «feminine» may be corrected into an agreement of that gender
-    only; anyone else into none."""
+    only; anyone else into none. ``written``: the learner typed the text (the
+    Journal), so restoring an accent or an apostrophe is a real fix (#754)."""
 
     if correction is None:
         return False
@@ -2681,8 +2897,9 @@ def validate_correction(
     if any(gender != address for _word, gender in introduced):
         return False
     # A "correction" that only re-punctuates or re-accents the learner's own
-    # words is a stylistic preference, not an error worth a punishment event.
-    if fold_for_comparison(correction.span_fr) == fold_for_comparison(correction.corrected_fr):
+    # words is a stylistic preference, not an error worth a punishment event —
+    # in speech. In a typed text the accent and the apostrophe are the learner's.
+    if _same_answer(correction.span_fr, correction.corrected_fr, written=written):
         return False
     if correction.kind != "edit" or correction.rule_written:
         # ``pick`` and ``meaning`` quote a different sentence or the learner's
@@ -2726,6 +2943,7 @@ def select_foreground_correction(
     learner_text: str | None,
     candidates: Sequence[Correction],
     targets: Sequence[TargetRef] = (),
+    written: bool = False,
 ) -> tuple[Correction | None, list[Correction]]:
     """At most one foreground correction, plus the conservative remainder.
 
@@ -2737,7 +2955,7 @@ def select_foreground_correction(
     """
 
     address = getattr(user, "address_preference", None)
-    validated = [c for c in candidates if validate_correction(c, learner_text, address=address)]
+    validated = [c for c in candidates if validate_correction(c, learner_text, address=address, written=written)]
     if not validated:
         return None, []
     validated.sort(key=lambda c: correction_relevance(c, targets), reverse=True)
@@ -3648,6 +3866,10 @@ def apply_learning_evidence(
     # not yet retrieved, not French to repair: it came back two days later as
     # «Schreib richtig, was du gesagt hast: euh je ne sais pas». A miss of a practice
     # item opens a repair only when it was an attempt at the answer.
+    if correction is not None and correction.kind == "example":
+        # #624: a model sentence is not the learner's French made right: drilled later
+        # it would ask them to rewrite their sentence into another one.
+        rebuilt = True
     if correction is not None and learner_text and not rebuilt and any(
         getattr(observation, "task_format", None) not in (None, "reply")
         for observation in evaluation.observations
@@ -3724,6 +3946,16 @@ def apply_learning_evidence(
                 "span_fr": correction.span_fr,
                 "corrected_fr": correction.corrected_fr,
                 "note_native": correction.note_native,
+                # P3: the other corrections shown under it (from B1), kept with the
+                # moment; one erratum per turn stays the rule (the foreground's).
+                **(
+                    {"more": [
+                        {"span_fr": c.span_fr, "corrected_fr": c.corrected_fr, "note_native": c.note_native}
+                        for c in correction.more
+                    ]}
+                    if getattr(correction, "more", ())
+                    else {}
+                ),
                 "erratum": erratum,
                 "concept_credit": concept_credit,
                 "suppressed_reason": None if erratum else "one_punishment_event_per_turn",
@@ -4107,7 +4339,12 @@ _PLAIN_REUSE_CHROMES = frozenset({"en", "de"})
 
 
 def coach_scene_review_task(
-    brief: dict[str, Any], *, language: str, day_key: str, level: str | None = None
+    brief: dict[str, Any],
+    *,
+    language: str,
+    day_key: str,
+    level: str | None = None,
+    state: dict[str, Any] | None = None,
 ) -> RecallTask | None:
     """A strong unit's Rappel: the rule's coach says a line, the learner replies.
 
@@ -4127,6 +4364,9 @@ def coach_scene_review_task(
     WP-130 B: with the learner's ``level``, a scene whose answer holds a word
     more than one band above it is passed over (the scene now carries the
     free-use opportunity whenever the reply cannot: it is posed far more often).
+
+    #147: with the learner's thread ``state``, the coach is someone they have met and no
+    sentence names anyone they have not (8 Nov, a drill on day 1: «Romy and I send a letter»).
     """
 
     from app.services import forge_coaches, grammar_items, item_bank
@@ -4135,13 +4375,19 @@ def coach_scene_review_task(
     if not external_id or brief.get("concept_id") is None:
         return None
     units = item_bank.units_for_external_id(external_id)
-    coach = forge_coaches.coach_for_concept(external_id)
+    from app.services import scene_record
+
+    # #147: the coach is someone this learner has met (``STORY_SCENE_RECORD``).
+    coach = forge_coaches.coach_for_concept(external_id, state=state if scene_record.enabled() else None)
     if not units or not coach:
         return None
     unit = units[0]
     candidates = item_bank.default_bank().generate(
         # A scene needs an item that carries its own question (#176): look further.
-        unit, 24, seed=f"rappel-scene|{external_id}|{day_key}", detector=item_bank.unit_detector(unit)
+        unit,
+        24,
+        seed=f"rappel-scene|{external_id}|{day_key}",
+        detector=forge_coaches.only_met(item_bank.unit_detector(unit), state),
     )
     def fits_level(texts: list[str]) -> bool:
         if not level:
@@ -4269,7 +4515,7 @@ def spaced_item_pending(db: Session, *, user: User, brief: dict[str, Any]) -> di
 
 
 def _with_coach_scene(
-    brief: dict[str, Any], *, language: str, level: str | None = None
+    brief: dict[str, Any], *, language: str, level: str | None = None, state: dict[str, Any] | None = None
 ) -> dict[str, Any]:
     """WP-94: a strong unit's brief carries its coach mini-scene for the planner.
 
@@ -4283,7 +4529,7 @@ def _with_coach_scene(
         return brief
     try:
         task = coach_scene_review_task(
-            brief, language=language, day_key=datetime.now(UTC).date().isoformat(), level=level
+            brief, language=language, day_key=datetime.now(UTC).date().isoformat(), level=level, state=state
         )
     except Exception:  # pragma: no cover - a Rappel item is never worth the day
         logger.exception("journey_coach_scene_unavailable")
