@@ -1,0 +1,182 @@
+{
+  "about": "#896: the one sentence splitter. app/services/sentence_line.py `sentences` and web-frontend/lib/sentence-split.ts `splitSentences` must return exactly these sentences for each text (tests/test_sentence_split_896.py, web-frontend/lib/sentence-split.test.js).",
+  "cases": [
+    {
+      "why": "#893, walk 18 Nov: La Forge's judge miss in German (atelier.judgement.should_be). The quote's «?» ends nothing: the sentence carries on after the quotation.",
+      "text": "„Tu est française, Margaux ?“ stimmt nicht; richtig ist „Tu es française, Margaux ?“.",
+      "sentences": [
+        "„Tu est française, Margaux ?“ stimmt nicht; richtig ist „Tu es française, Margaux ?“."
+      ]
+    },
+    {
+      "why": "#893: the same line in English.",
+      "text": "“Tu est française, Margaux ?” is not right; it should be “Tu es française, Margaux ?”.",
+      "sentences": [
+        "“Tu est française, Margaux ?” is not right; it should be “Tu es française, Margaux ?”."
+      ]
+    },
+    {
+      "why": "#893: the same line in French, with French spacing inside the guillemets.",
+      "text": "« Tu est française, Margaux ? » n’est pas correcte ; il faut « Tu es française, Margaux ? ».",
+      "sentences": [
+        "« Tu est française, Margaux ? » n’est pas correcte ; il faut « Tu es française, Margaux ? »."
+      ]
+    },
+    {
+      "why": "A quotation with two sentences inside it, carried on after: one sentence.",
+      "text": "„Il pleut. Tu viens ?“ stimmt nicht; richtig ist „Il pleut. Kommst du ?“. Achte auf die Inversion.",
+      "sentences": [
+        "„Il pleut. Tu viens ?“ stimmt nicht; richtig ist „Il pleut. Kommst du ?“.",
+        "Achte auf die Inversion."
+      ]
+    },
+    {
+      "why": "#849: a hesitation that runs on in small letters is one question.",
+      "text": "Comment on dit, déjà… le groupe qui tient le café ensemble ?",
+      "sentences": [
+        "Comment on dit, déjà… le groupe qui tient le café ensemble ?"
+      ]
+    },
+    {
+      "why": "#827: the A1 season question (app/data/season/s1/levels_a.json). The chain of alternatives is one question.",
+      "text": "Ta grand-mère te donne son appartement. Il est sur un café. Dans ce café, il y a l'histoire d'un feu. Alors, qu'est-ce que tu fais ? Tu prends l'appartement pour toi ? Pour toi et les autres ? Ou tu dis au revoir à tout ça ?",
+      "sentences": [
+        "Ta grand-mère te donne son appartement.",
+        "Il est sur un café.",
+        "Dans ce café, il y a l'histoire d'un feu.",
+        "Alors, qu'est-ce que tu fais ?",
+        "Tu prends l'appartement pour toi ? Pour toi et les autres ? Ou tu dis au revoir à tout ça ?"
+      ]
+    },
+    {
+      "why": "#827: the A1 season question in German.",
+      "text": "Also, was machst du? Nimmst du die Wohnung für dich? Für dich und die anderen? Oder sagst du zu all dem Auf Wiedersehen?",
+      "sentences": [
+        "Also, was machst du?",
+        "Nimmst du die Wohnung für dich? Für dich und die anderen? Oder sagst du zu all dem Auf Wiedersehen?"
+      ]
+    },
+    {
+      "why": "#827 review: a whole question after a statement stays a question of its own, even when it opens on «Mais».",
+      "text": "Odile ferme le café à minuit, comme chaque soir. Mais qui a gardé la deuxième clé ?",
+      "sentences": [
+        "Odile ferme le café à minuit, comme chaque soir.",
+        "Mais qui a gardé la deuxième clé ?"
+      ]
+    },
+    {
+      "why": "A statement after a question that opens on «Et» is a sentence of its own.",
+      "text": "Tu viens ? Et moi, je reste ici.",
+      "sentences": [
+        "Tu viens ?",
+        "Et moi, je reste ici."
+      ]
+    },
+    {
+      "why": "#398: a title's or an initial's full stop ends no sentence.",
+      "text": "Sur le toit, la lampe de M. Marchand brille. Il ne dort pas. Mme. Odile ne pleure pas.",
+      "sentences": [
+        "Sur le toit, la lampe de M. Marchand brille.",
+        "Il ne dort pas.",
+        "Mme. Odile ne pleure pas."
+      ]
+    },
+    {
+      "why": "Dialogue: a quotation followed by a new sentence ends there, and the sentences inside it are cut as usual.",
+      "text": "« Bonjour. Tu es la petite-fille de Jeanne ? » Odile sourit.",
+      "sentences": [
+        "« Bonjour.",
+        "Tu es la petite-fille de Jeanne ? »",
+        "Odile sourit."
+      ]
+    },
+    {
+      "why": "Dialogue: an incise carries the quotation on.",
+      "text": "« Tu viens ? » demande Odile. Marin se tait.",
+      "sentences": [
+        "« Tu viens ? » demande Odile.",
+        "Marin se tait."
+      ]
+    },
+    {
+      "why": "A note that quotes a word and goes on in a new sentence (WP-103 notes).",
+      "text": "Use «ta»: «place» is feminine. «ta» agrees with «place».",
+      "sentences": [
+        "Use «ta»: «place» is feminine.",
+        "«ta» agrees with «place»."
+      ]
+    },
+    {
+      "why": "A dash opens a line of dialogue.",
+      "text": "Elle est grande. — Non, dit-il.",
+      "sentences": [
+        "Elle est grande.",
+        "— Non, dit-il."
+      ]
+    },
+    {
+      "why": "#900 review: a follow-up question that opens on «Et» is a question of its own (arrange_meeting.json, A1 dictation).",
+      "text": "Alors, quel jour ? Et on se retrouve où ?",
+      "sentences": [
+        "Alors, quel jour ?",
+        "Et on se retrouve où ?"
+      ]
+    },
+    {
+      "why": "#900 review: the A2 café line (order_at_cafe.json) stays two questions.",
+      "text": "Alors, je vous sers quoi ? Et vous voulez autre chose avec ?",
+      "sentences": [
+        "Alors, je vous sers quoi ?",
+        "Et vous voulez autre chose avec ?"
+      ]
+    },
+    {
+      "why": "#900 review: a question that opens on «Pour» with no «Ou …?» after it stays its own.",
+      "text": "Vous souhaitez modifier votre réservation ? Pour quel motif, je vous prie ?",
+      "sentences": [
+        "Vous souhaitez modifier votre réservation ?",
+        "Pour quel motif, je vous prie ?"
+      ]
+    },
+    {
+      "why": "#900 review: «Mais qui … ? Et pourquoi ?» after a statement: three sentences.",
+      "text": "Elle ouvre la porte. Mais qui a gardé la clé ? Et pourquoi ?",
+      "sentences": [
+        "Elle ouvre la porte.",
+        "Mais qui a gardé la clé ?",
+        "Et pourquoi ?"
+      ]
+    },
+    {
+      "why": "#900 review: a note that asks twice, in English, is two sentences.",
+      "text": "Why «es»? And why not «est»?",
+      "sentences": [
+        "Why «es»?",
+        "And why not «est»?"
+      ]
+    },
+    {
+      "why": "A chain of two alternatives is one question.",
+      "text": "Pour tout le monde, vraiment ? Ou pour vous ?",
+      "sentences": [
+        "Pour tout le monde, vraiment ? Ou pour vous ?"
+      ]
+    },
+    {
+      "why": "Several alternatives in a row close one chain.",
+      "text": "Il pleut. Tu restes ? Ou tu pars ? Ou tu attends Odile ?",
+      "sentences": [
+        "Il pleut.",
+        "Tu restes ? Ou tu pars ? Ou tu attends Odile ?"
+      ]
+    },
+    {
+      "why": "#900 review note, decided on purpose: a quotation its sentence carries on after (here an incise) is one piece of that sentence, as in a note that quotes two sentences. Scene dialogue is stored per speaker without guillemets, so this shape is narration.",
+      "text": "« Bonjour, je suis Odile. Tu veux un café ? » demande-t-elle. Marin se tait.",
+      "sentences": [
+        "« Bonjour, je suis Odile. Tu veux un café ? » demande-t-elle.",
+        "Marin se tait."
+      ]
+    }
+  ]
+}
