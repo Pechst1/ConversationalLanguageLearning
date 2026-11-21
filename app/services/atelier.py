@@ -7897,7 +7897,11 @@ class AtelierCorrectionService:
 
         from app.services.free_card_contract import quoted_meanings
 
-        language = mother_tongue(self.explanation_language)
+        # Walk of 21 Nov: what the screen asked is decided by the language the screen was
+        # in (the chrome, French from B1), never by the language the reason is written in.
+        # Since R4 that is the mother tongue: an English learner at B1 read the French
+        # «Écris une courte phrase à toi…» and was graded against the English meaning.
+        language = mother_tongue(getattr(self, "_learner_chrome", None) or self.explanation_language)
         if language == "en" or item.get("type") not in {"short_sentence", "spoken_response", "conversation_turn"}:
             return item
         meanings = [
