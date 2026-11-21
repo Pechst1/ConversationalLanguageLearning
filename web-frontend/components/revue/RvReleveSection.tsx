@@ -28,9 +28,11 @@ import { carteClient as defaultCarteClient, type CarteClient } from '@/lib/carte
 import { correcteurClient as defaultCorrecteurClient, type CorrecteurClient } from '@/lib/correcteur-api';
 import { correcteurHref, correcteurWaiting } from '@/lib/correcteur-une';
 import { releveAnchor, revueReleveClient, type ReleveClient, type RvReleveEntryData } from '@/lib/revue-releve';
+import type { RvLanguage } from '@/lib/revue-types';
 
 import { count, releveCopy } from './releve-copy';
 import { revueCopy } from './revue-copy';
+import { RvCarteDePresse } from './rdv/RvCarteDePresse';
 import { RvReleveEntry } from './RvReleveEntry';
 
 export const RELEVE_SECTION_ID = 'revue';
@@ -181,6 +183,8 @@ export function RvReleveSection({
           {correcteurCopy(language).releve_row}
         </Link>
       )}
+      {/* «Papier · les rendez-vous»: the press card and its door onto «La une de la semaine» (REVUE_UNE_ENABLED). */}
+      <RvCarteDePresse language={(language === 'de' || language === 'en' || language === 'fr' ? language : 'fr') as RvLanguage} />
       {entries.map((entry) => (
         <RvReleveEntry
           key={entry.sessionId}

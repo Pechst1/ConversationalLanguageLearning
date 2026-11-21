@@ -32,6 +32,8 @@ Payload conventions the replay reads (other keys are kept and ignored):
   ``caption_fix`` | ``build`` | ``build_fix``); replayed by ``photo_loop.Acts``
 - ``micro`` («Le micro», 2026-11-21): ``act`` (``open`` | ``prepare`` | ``ask`` | ``note`` |
   ``review`` | ``review_fix``); replayed by ``micro_loop.Acts``
+- ``trois_mots`` («Trois mots», 2026-11-21, on a closed session): ``act`` (``match`` | ``gap`` |
+  ``kept``); replayed by ``trois_mots.Acts``
 
 No DB code here. See ``docs/implementation/atelier-v2/WP-119-LA-REVUE-DE-ROMY.md``.
 """
@@ -65,6 +67,7 @@ EventKind = Literal[
     "intox",
     "photo",
     "micro",
+    "trois_mots",
 ]
 
 

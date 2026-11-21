@@ -21,6 +21,7 @@ import { editionOf, pagePicture } from '../papier/papier-model';
 import { PpByline, PpFigure, PpFrontCols, PpFrontPage, PpLead, type PpEdition, type PpPicture } from '../papier/PapierPrint';
 import { fill, type RevueCopy } from '../revue-copy';
 import { PICTURE_CREDIT_FR } from '../RvPicture';
+import { RvTroisMotsSlot } from '../rdv/RvTroisMots';
 import { RvCloseVignette, RvDispatch } from '../RvClose';
 import { COMPTOIR_FR, type ComptoirCopy } from './comptoir-copy';
 import { SIDE_LABELS_FR, voteTally } from './comptoir-model';
@@ -154,6 +155,7 @@ export function RvComptoirPage({
   return (
     <>
       <div className="rv-body ct-body" data-step="page">
+        <RvTroisMotsSlot sessionId={session.id} chrome={session.plan.uiLanguage} mother={session.plan.glossLanguage} closed={Boolean(closing) && !props.readOnly} />
         {page ? (
           <ComptoirClipping
             page={page}

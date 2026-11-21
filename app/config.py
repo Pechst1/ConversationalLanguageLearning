@@ -981,6 +981,33 @@ class Settings(BaseSettings):
             "nothing changes (no new mode, no field, no call)."
         ),
     )
+    REVUE_MEMORY_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · les rendez-vous» (owner 2026-11-21): the regulars remember. Each session gets ONE "
+            "authored line (app/services/revue/souvenirs/lines.json) in the mouth of a regular, filled only "
+            "from what the learner did in earlier Papiers (their side at the counter, their printed "
+            "headline, their intox score, a weekday, a count); never twice the same line in a row; no model "
+            "call. Off: GET /revue/sessions/{id}/souvenir is a 404 and nothing else changes."
+        ),
+    )
+    REVUE_TROIS_MOTS_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · les rendez-vous»: «Trois mots», a 30-second round on three words of the story as "
+            "the first block of «La page» (match each to its picture or gloss, then one gap sentence from "
+            "the story's own lead or summary; two tries; deterministic). Words the close did not keep are "
+            "kept through the same path, once. Off: /revue/sessions/{id}/trois-mots is a 404."
+        ),
+    )
+    REVUE_UNE_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · les rendez-vous»: «La une de la semaine» (a front page composed only from the "
+            "learner's own printed pieces of the week, /revue/une) and «La carte de presse» on the "
+            "Relevé. Pure reads, no model call. Off: both routes are a 404."
+        ),
+    )
     VOCAB_TARGET_RETENTION: float = Field(
         0.87,
         ge=0.7,

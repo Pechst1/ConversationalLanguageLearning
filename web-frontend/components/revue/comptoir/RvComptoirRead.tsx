@@ -10,6 +10,7 @@ import React from 'react';
 
 import { Action, ArrowRightIcon } from '@/components/atelier-v2/ui';
 
+import { RvSouvenirSlot } from '../rdv/RvSouvenir';
 import { RvGallery } from '../RvGallery';
 import { RvGlossText, RvSourceLine, RvTranslate } from '../RvThread';
 import { COMPTOIR_FR } from './comptoir-copy';
@@ -47,6 +48,7 @@ export function RvComptoirRead(props: ComptoirStepProps) {
           />
           {source && <RvSourceLine source={source} copy={copy} />}
         </section>
+        <RvSouvenirSlot sessionId={session.id} props={props} />
         <section className="ct-q" aria-label={COMPTOIR_FR.question_kicker}>
           <p className="ct-q__k" lang="fr">
             {COMPTOIR_FR.question_kicker}

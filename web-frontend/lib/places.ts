@@ -263,6 +263,16 @@ export const PLACES: Place[] = [
     entries: [file('web-frontend/components/revue/revue-home.ts')],
   },
   {
+    route: '/revue/une',
+    name: same('La une de la semaine'),
+    kind: 'step',
+    parent: '/revue',
+    ownShell: true,
+    access: 'signed_in',
+    gate: server('REVUE_UNE_ENABLED'),
+    entries: [file('web-frontend/lib/revue-une-semaine.ts'), file('web-frontend/components/revue/rdv/RvCarteDePresse.tsx')],
+  },
+  {
     route: '/radio',
     name: same('La Radio'),
     kind: 'step',

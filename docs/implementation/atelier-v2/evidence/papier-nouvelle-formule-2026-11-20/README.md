@@ -198,3 +198,57 @@ German A2, `b1en` English B1 (the mock keeps the `lang` chrome at B1; the server
 The mock's edit is the comptoir mock's small table (it marks «tres», not the missing inversion, so the A2 page prints
 «Pourquoi elle est gratuite ?» as written) and its sources are the story's; the pictures are neutral placeholders.
 No prompt has run on a real model and no real Commons photo was seen.
+
+# «Papier · les rendez-vous» — looked at in a browser (2026-11-21, third pass)
+
+Branch `claude/papier-rendez-vous`. The walk stack as above (`e2e/lib/stack.mjs` + `carte_server.py`, FAKE Revue,
+story and pictogram providers, throwaway database, dropped at the end), Chromium through Playwright, 375 × 812,
+deviceScaleFactor 2, light theme, the Paris clock (Saturday 21 Nov 2026, 00:30). The switches set for the walk's API
+process only: `REVUE_ASSIGNMENTS_ENABLED REVUE_POURQUOI_ENABLED REVUE_MEMORY_ENABLED REVUE_TROIS_MOTS_ENABLED
+REVUE_UNE_ENABLED` (with `--comptoir`). No default, `render.yaml` or gate was changed. The driving scripts were walk-only
+and are not committed.
+
+## Walk-only seeds
+
+- «La Fête de la musique», «Le bac» and «Le marché du dimanche» (evergreens) as `revue_dossiers` rows for week 47.
+- Past Papiers per learner as closed `revue_sessions` rows (`choice` with its `mode`, an `artifact` as the loops write
+  it — printed `text_fr`, `proof`, `stance`, `score` — and a `closed` closing with the counter's sides or the intox
+  page), 1–4 days before the walk: what the regulars remember comes only from these rows.
+- The sessions were played through the act routes up to «La page» (the solutions read from the deterministic keys),
+  then «La page» was opened in the browser and the close pressed there, as a learner would.
+- The third learner was re-registered until the dealt line was Gus's (the line is chosen per session by a hash: the
+  first five drew Romy's «titre» and «habitués» lines).
+
+## Screens
+
+| file | what |
+|---|---|
+| r-a1de-titre-1-lire, -souvenir | «Le titre», A1 de: Romy remembers the intox two days before («Jeudi, à l'intox, tu as trouvé 4 sur 5. Aujourd'hui, un titre.») |
+| r-b1en-fil-1-lire-souvenir | «Le fil», B1 en: Romy counts the learner's pieces («4 papiers à ton actif : les dépêches t'attendent.») |
+| r-b1en-comptoir-1-lire-gus | «Au comptoir», B1 en: Gus, who sat on the other side on Tuesday («Mardi, tu m'as tenu tête au comptoir. Voyons si tu recommences.») |
+| r-a1de-titre-4-before-page, -5-page | the round arrives as the first block of «La page», its top under the head (after fix, see below) |
+| r-a1de-titre-tm-1-open … -tm-8-done | «Trois mots» A1, German reasons: cues (fake glosses), a wrong try (two pairs named, the right one kept), the second try wrong too: the solution with the meanings; no gap (this lead holds none of the three) |
+| r-b1en-fil-tm-1-open … -tm-8-done | «Trois mots» B1, French chrome, English reasons: a miss, then right; the gap from the lead («En juin, les lycéens passent le ____, le « bac ».»), a wrong pick explained («“partir” means …»), then right, the sentence whole |
+| r-b1en-une, r-de-une, r-fr-une | «La une de la semaine» from the learner's own printed pieces (a «titre» leads, then the longest text; the vox-pop line with the side taken; the intox score and the right correction; «Lexique»; the count line in en/de/fr) |
+| r-b1en-releve-carte-de-presse | «Carte de presse» on the Relevé: six rubriques, pieces, since when, the door onto la une |
+
+## Faults seen, and their fixes
+
+- **The round was off screen on arrival**: «La page» scrolls to its clipping before the round has loaded, so the
+  round came in above and the learner landed in its middle (kicker and task hidden). Fix: the round brings its own
+  top under the sticky head once, when it first shows.
+- **After a miss every cue looked chosen** (all three pressed, nothing to re-pair). Fix: the pairs the miss named are
+  freed for the retry, the others stay (the miss lines already say which words were wrong, never the right cue).
+- **«1 classés», «1 papiers»** on the press card and the une. Fix: singular forms in fr/en/de (`countLine`).
+- **The press card's two columns wrapped every name** («Au / comptoir», «1 / classés») at 375 px. Fix: one column.
+- **The gap's answer was marked in the browser's yellow.** Fix: the av2 `--av2-tint-correct` token.
+- «Trois mots» claimed the words come back «at the top» of the learner's words: kept cards are due now, not
+  ordered first. Reworded: «These three words are waiting for you tomorrow, in your words.»
+
+## Not judged here
+
+The fake vocabulary («la musique», «plaintes») and its glosses («musique (de)») stand in for the model's: the round's
+choice of words, its cues and the gap's hit rate on real dossiers cannot be judged on this stack (with the fake
+vocabulary only «Le bac» and «Le marché» leads hold a target word). No story picture names a word on this stack, so
+the picture cue was not seen in a browser (unit-tested). Home's Sunday chip was not seen (the walk ran on a Saturday;
+unit-tested).

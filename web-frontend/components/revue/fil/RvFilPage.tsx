@@ -13,6 +13,7 @@ import type { RvFilPage as RvFilPageData } from '@/lib/revue-fil-types';
 
 import type { ComptoirCopy } from '../comptoir/comptoir-copy';
 import { RomyLine } from '../comptoir/RvComptoirParts';
+import { RvTroisMotsSlot } from '../rdv/RvTroisMots';
 import { RvCloseVignette, RvDispatch } from '../RvClose';
 import { bylineFr, editionOf, pagePicture } from '../papier/papier-model';
 import { PpFigure, PpFrontCols, PpFrontPage, PpMine, type PpEdition, type PpPicture } from '../papier/PapierPrint';
@@ -74,6 +75,7 @@ export function RvFilPage({ props, ended, onExit, onReleve }: { props: FilStepPr
   return (
     <>
       <div className="rv-body ct-body" data-step="page">
+        <RvTroisMotsSlot sessionId={session.id} chrome={session.plan.uiLanguage} mother={session.plan.glossLanguage} closed={Boolean(closing) && !props.readOnly} />
         {page ? (
           <FilClipping
             page={page}

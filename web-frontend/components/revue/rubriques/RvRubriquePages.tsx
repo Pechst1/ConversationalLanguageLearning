@@ -16,6 +16,7 @@ import type { RvIntoxPage, RvMicroPage, RvPhotoPage, RvTitrePage } from '@/lib/r
 import type { ComptoirCopy } from '../comptoir/comptoir-copy';
 import { RomyLine } from '../comptoir/RvComptoirParts';
 import { fill } from '../revue-copy';
+import { RvTroisMotsSlot } from '../rdv/RvTroisMots';
 import { RvCloseVignette, RvDispatch } from '../RvClose';
 import { papierCopy } from '../papier/papier-copy';
 import { bylineFr, editionOf, legendeBylineFr, pagePicture, proofNoteFr } from '../papier/papier-model';
@@ -302,6 +303,7 @@ export function RvRubriquePage({
   return (
     <>
       <div className="rv-body ct-body" data-step="page">
+        <RvTroisMotsSlot sessionId={session.id} chrome={session.plan.uiLanguage} mother={session.plan.glossLanguage} closed={Boolean(closing) && !props.readOnly} />
         {clipping}
         {/* «La belle édition»: the front page opens the screen; Romy's thanks follow it. */}
         {closing && !ended && closing.romyLineFr && <RomyLine line={{ fr: closing.romyLineFr, tr: null }} props={props} />}

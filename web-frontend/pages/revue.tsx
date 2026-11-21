@@ -11,6 +11,7 @@
      ?mock=1         DEV ONLY (never in a production build): the scripted server of
                      lib/revue-mock.ts instead of the API. ?lang=de|en|fr and
                      ?band=A1|A2|B1 shape the mock learner; ?reset=1 forgets it;
+                     ?rdv=1 answers «Papier · les rendez-vous» (lib/revue-mock-rdv.ts);
                      ?pictures=0 plays the story without its own picture (§8.4);
                      ?comptoir=1 turns «Au comptoir» on (WP-119-AU-COMPTOIR: the
                      Céline story leads the week and plays as the counter's debate);
@@ -39,9 +40,11 @@ import { AtelierV2Root, CastPortrait, CrossIcon, IconAction, Skeleton, StateBloc
 import { PpBareHead } from '@/components/revue/papier/PapierPrint';
 import { RvChooser, RvComptoir, RvEncounter, RvFil, RvRubrique, RvSessionHead, RvStage, RvUneCard, revueCopy } from '@/components/revue';
 import { revueUneState } from '@/components/revue/revue-home';
+import { RdvProvider } from '@/components/revue/rdv';
 import { enterImmersiveSurface } from '@/lib/immersive-surface';
 import { useChromeLanguage } from '@/lib/learner-language';
-import { RevueError, revueClient, type RevueClient } from '@/lib/revue-api';
+import { RevueError, createRevueClient, revueClient, type RevueClient } from '@/lib/revue-api';
+import { createRdvClient, rdvClient, type RdvClient } from '@/lib/revue-rdv';
 import type { RvLanguage, RvOffer, RvSessionView } from '@/lib/revue-types';
 
 type PageState =
@@ -67,6 +70,8 @@ export default function RevuePage() {
   const copy = revueCopy(language);
   const readOnly = router.query.readonly === '1' && Boolean(queryString(router.query.session));
   const [client, setClient] = useState<RevueClient | null>(null);
+  // «Papier · les rendez-vous»: the regulars' line and «Trois mots», for the players' slots.
+  const [rdv, setRdv] = useState<RdvClient | null>(null);
   const [state, setState] = useState<PageState>({ kind: 'loading' });
   const [slow, setSlow] = useState(false);
 
@@ -78,9 +83,9 @@ export default function RevuePage() {
     // The literal NODE_ENV test lets the production build drop the mock chunk entirely.
     if (process.env.NODE_ENV !== 'production' && mock) {
       const band = queryString(router.query.band);
-      void import('@/lib/revue-mock').then(({ createMockRevueClient }) => {
+      void Promise.all([import('@/lib/revue-mock'), import('@/lib/revue-mock-rdv')]).then(([{ createMockRevueTransport }, { withRdvMock }]) => {
         if (!alive) return;
-        const next = createMockRevueClient({
+        const transport = withRdvMock(createMockRevueTransport({
           language,
           band: band === 'A1' || band === 'B1' || band === 'B2' ? band : 'A2',
           latency: 450,
@@ -93,12 +98,15 @@ export default function RevuePage() {
           micro: router.query.micro === '1',
           pourquoi: router.query.pourquoi === '1',
           photos: router.query.photos === '1',
-        });
+        }), { enabled: router.query.rdv === '1' });
+        const next = { ...createRevueClient(transport), reset: transport.reset };
         if (router.query.reset === '1') next.reset();
         setClient(next);
+        setRdv(createRdvClient(transport));
       });
     } else {
       setClient(revueClient());
+      setRdv(rdvClient());
     }
     return () => {
       alive = false;
@@ -334,7 +342,7 @@ export default function RevuePage() {
         <title>La Revue de Romy</title>
       </Head>
       <AtelierV2Root as="main" language={language} className="rv-page" aria-label="La Revue de Romy" data-revue-mock={mock ? '' : undefined}>
-        {body}
+        <RdvProvider client={rdv}>{body}</RdvProvider>
         {mock && <p className="rv-mock">{copy.mock_badge}</p>}
       </AtelierV2Root>
     </>
