@@ -19,6 +19,7 @@ from __future__ import annotations
 import difflib
 import re
 import unicodedata
+from dataclasses import dataclass
 from typing import Final
 
 #: The answer for a change that only touches accents, apostrophes or spaces outside
@@ -168,13 +169,29 @@ def _passe_compose_unit(after: list[str], written: list[int]) -> str | None:
     return None
 
 
+_SOFT_C_ENDINGS = ("çons", "çais", "çait", "çaient", "çant", "ça", "ças", "çâmes", "çâtes")
+_SPOKEN_ENDINGS = ("ons", "ez", "ions", "iez", "ais", "ait", "aient")
+
+
 def _stem_change_verb(before: list[str], after: list[str], removed: list[int], written: list[int]) -> bool:
-    """«j'achete → j'achète», «je la leve → je la lève»: a grave accent written into the
-    stem of a verb (a subject before it). «les eleves», «la regle», «est seche» are a
-    noun or an adjective: no subject stands before them."""
+    """The spelling an -er verb's stem takes, in a verb (a subject before it):
+
+    - a grave accent written before a silent ending: «j'achete → j'achète», «je la leve
+      → je la lève»;
+    - «ç» before «a» or «o»: «nous commencons → nous commençons»;
+    - the grave accent taken away before a spoken ending: «nous achètons → nous
+      achetons».
+
+    «les eleves», «la regle», «est seche» are a noun or an adjective: no subject stands
+    before them."""
+    took_grave_away = any("è" in before[index] for index in removed)
     for index in written:
         word = after[index]
-        if "è" in word and _after_subject(after, index):
+        if not _after_subject(after, index):
+            continue
+        if "è" in word or word.endswith(_SOFT_C_ENDINGS):
+            return True
+        if took_grave_away and "è" not in word and word.endswith(_SPOKEN_ENDINGS):
             return True
     return False
 
@@ -182,6 +199,168 @@ def _stem_change_verb(before: list[str], after: list[str], removed: list[int], w
 #: The forms a lent rule owns when the change is only an accent: the surface's rule is
 #: kept for a slip in its own form, and only then.
 _ACCENT_FORMS = {ER_SPELLING_UNIT: _stem_change_verb}
+
+
+@dataclass(frozen=True)
+class LentForm:
+    """The lent unit's own form, as the catalogue writes it (review of #978).
+
+    ``patterns`` are the unit's regex detectors (the ones La Forge and «Rayons X» read);
+    ``traps`` its ✗/✓ pairs (``main_traps`` and the rule card's). A change that only
+    touches accents, apostrophes, spaces or capitals keeps the lent rule when it is the
+    rule's form:
+
+    - the change is one of the unit's own traps, or the one word a trap swaps:
+      «nous achètons → nous achetons», «la votre → la vôtre», «Lundi 3 Mars → lundi 3
+      mars»;
+    - or the detector recognises the rule's form on the changed characters of the
+      corrected sentence *and not* on the same characters of the learner's: the change
+      made the form («le bar ou on → le bar où on», «qu'il fut → qu'il fût», «nous
+      commencons → nous commençons»). A word the detector reads either way is only
+      inside the rule's span, not its form: «un cafe → un café» under «Un, une, des»,
+      «mon frere → mon frère» under the possessives.
+
+    An apostrophe written into a space or a gap is elision, never a rule's form here
+    («c est → c'est»), unless a trap of the unit lists it. «cafe → café» or «a → à» in a
+    passé composé letter touch no such form and stay no rule's.
+    """
+
+    patterns: tuple[str, ...] = ()
+    traps: tuple[tuple[str, str], ...] = ()
+
+    def owns(self, learner_text: object, corrected_text: object, context: object = None) -> bool:
+        return self._is_trap(learner_text, corrected_text) or self._detector_on_change(
+            learner_text, corrected_text, context
+        )
+
+    def _is_trap(self, learner_text: object, corrected_text: object) -> bool:
+        for fold in (False, True):
+            pair = (_cased_words(learner_text, fold), _cased_words(corrected_text, fold))
+            swap = _one_word_swap(*pair) if fold else None
+            for wrong, right in self.traps:
+                trap = (_cased_words(wrong, fold), _cased_words(right, fold))
+                if _replaces_in(trap, pair) or (swap is not None and _one_word_swap(*trap) == swap):
+                    return True
+        return False
+
+    def _detector_on_change(self, learner_text: object, corrected_text: object, context: object) -> bool:
+        if not self.patterns:
+            return False
+        from app.services.grammar_units import detector_spans
+
+        before, after = _in_context(learner_text, corrected_text, context)
+        changes = [change for change in _changes(before, after) if not _elision_only(before, after, change)]
+        if not changes:
+            return False
+        patterns = list(self.patterns)
+        corrected_spans = detector_spans(patterns, after)
+        learner_spans = detector_spans(patterns, before)
+        for i1, i2, j1, j2 in changes:
+            if not _tells_words_apart(_touched_words(before, i1, i2), _touched_words(after, j1, j2)):
+                continue  # «hotel → hôtel»: an accent on a word with no accent-free twin
+            if not any(_touches(span, j1, j2) for span in corrected_spans):
+                continue  # the change is outside every use of the rule's form
+            if any(_touches(span, i1, i2) for span in learner_spans):
+                continue  # the learner's word was read as the form already: «un cafe»
+            if len(detector_spans(patterns, _without_changed_words(after, j1, j2))) >= len(corrected_spans):
+                continue  # the form holds without the word: «suis très content», «très» is optional
+            return True
+        return False
+
+
+def _cased_words(text: object, fold: bool) -> list[str]:
+    found = _WORD.findall(unicodedata.normalize("NFC", str(text or "")))
+    return [word.casefold() for word in found] if fold else found
+
+
+def _replaces_in(trap: tuple[list[str], list[str]], pair: tuple[list[str], list[str]]) -> bool:
+    """``pair`` is the trap, or the part of the trap's sentence the trap changes: the
+    learner's words sit in the ✗ side where the corrected words sit in the ✓ side, and
+    the rest of the two sides is the same («Lundi 3 Mars» → «lundi 3 mars» in «Le
+    rendez-vous est Lundi 3 Mars.»)."""
+    (wrong, right), (before, after) = trap, pair
+    if not before or not after or before == after:
+        return False
+    for at in range(len(wrong) - len(before) + 1):
+        if (
+            wrong[at : at + len(before)] == before
+            and right[at : at + len(after)] == after
+            and wrong[:at] == right[:at]
+            and wrong[at + len(before) :] == right[at + len(after) :]
+        ):
+            return True
+    return False
+
+
+def _one_word_swap(before: list[str], after: list[str]) -> tuple[str, str] | None:
+    """The one word a pair changes («la votre» → «la vôtre»: votre → vôtre), else ``None``."""
+    if len(before) != len(after):
+        return None
+    swaps = [(old, new) for old, new in zip(before, after, strict=True) if old != new]
+    return swaps[0] if len(swaps) == 1 else None
+
+
+def _in_context(learner_text: object, corrected_text: object, context: object) -> tuple[str, str]:
+    """The learner's sentence and the same sentence corrected: a pair often quotes only
+    «ou on», and the noun before it («le bar») is what makes it the relative «où»."""
+    learner = unicodedata.normalize("NFC", str(learner_text or ""))
+    corrected = unicodedata.normalize("NFC", str(corrected_text or ""))
+    sentence = unicodedata.normalize("NFC", str(context or ""))
+    if sentence and learner and len(sentence.lower()) == len(sentence):
+        at = sentence.lower().find(learner.lower())
+        if at >= 0:
+            return sentence, sentence[:at] + corrected + sentence[at + len(learner) :]
+    return learner, corrected
+
+
+def _changes(before: str, after: str) -> list[tuple[int, int, int, int]]:
+    """Each place ``after`` differs from ``before``: ``(i1, i2)`` in ``before`` and
+    ``(j1, j2)`` in ``after`` (an empty range where a character was only added or taken
+    away). Case counts: a capital is a change."""
+    matcher = difflib.SequenceMatcher(a=before, b=after, autojunk=False)
+    return [(i1, i2, j1, j2) for tag, i1, i2, j1, j2 in matcher.get_opcodes() if tag != "equal"]
+
+
+_APOSTROPHES = frozenset("'’ʼ`´")
+
+
+def _elision_only(before: str, after: str, change: tuple[int, int, int, int]) -> bool:
+    i1, i2, j1, j2 = change
+    written, removed = after[j1:j2], before[i1:i2]
+    return bool(written) and set(written) <= _APOSTROPHES and set(removed) <= _APOSTROPHES | {" "}
+
+
+def _touched_words(text: str, first: int, last: int) -> str:
+    return " ".join(word.group(0) for word in _WORD.finditer(text) if _touches((word.start(), word.end()), first, last))
+
+
+def _tells_words_apart(learner_words: str, corrected_words: str) -> bool:
+    """A change of accent alone is a rule's form only when the accent tells two French
+    words apart (ou/où, votre/vôtre, fut/fût); a capital or a space always may be
+    («Lundi → lundi», «Quelque → Quel que»). «hotel → hôtel», «cafe → café» are spelling,
+    even inside the rule's span («l'hôtel où», «un café»)."""
+    from app.services.answer_acceptance import ACCENT_HOMOGRAPHS
+
+    learner, corrected = learner_words.casefold(), corrected_words.casefold()
+    if learner == corrected or _letters(learner) != _letters(corrected) or " " in learner + corrected:
+        return True  # a capital, or a space/word boundary moved
+    return learner in ACCENT_HOMOGRAPHS or corrected in ACCENT_HOMOGRAPHS
+
+
+def _without_changed_words(text: str, first: int, last: int) -> str:
+    """``text`` with the words the change touched taken out."""
+    kept, at = [], 0
+    for word in _WORD.finditer(text):
+        if _touches((word.start(), word.end()), first, last):
+            kept.append(text[at : word.start()])
+            at = word.end()
+    kept.append(text[at:])
+    return "".join(kept)
+
+
+def _touches(span: tuple[int, int], first: int, last: int) -> bool:
+    start, end = span
+    return start <= first <= end if first == last else first < end and start < last
 
 
 def _lead_in(span: list[str], context: object) -> list[str]:
@@ -197,15 +376,22 @@ def _lead_in(span: list[str], context: object) -> list[str]:
 
 
 def unit_for_change(
-    learner_text: object, corrected_text: object, *, lent_unit: str | None = None, context: object = None
+    learner_text: object,
+    corrected_text: object,
+    *,
+    lent_unit: str | None = None,
+    context: object = None,
+    lent_form: LentForm | None = None,
 ) -> str | None:
     """The unit the change itself names (an external id), :data:`NO_RULE`, or ``None``.
 
     ``lent_unit`` is the external id of the rule the surface would file the slip under
     (the letter's, the step's, the séance's). It is kept only where the change is its
-    form: a passé composé unit for a participle or an auxiliary, «-er verbs that change
-    spelling» for an accent in a verb's stem. ``context`` is the learner's text the
-    pair was cut from, read for the words in front of the slip.
+    form: a passé composé unit for a participle or an auxiliary, and for an accent, an
+    apostrophe, a space or a capital, the form ``lent_form`` (the unit's detectors and
+    traps) recognises on the changed characters, or a stem-change accent for «-er verbs
+    that change spelling». ``context`` is the learner's text the pair was cut from,
+    read for the words in front of the slip.
     """
 
     before, after = _words(learner_text), _words(corrected_text)
@@ -227,6 +413,8 @@ def unit_for_change(
     if accent_only:
         own_form = _ACCENT_FORMS.get(lent_unit or "")
         if own_form is not None and own_form(before, after, removed, written):
+            return lent_unit
+        if lent_unit and lent_form is not None and lent_form.owns(learner_text, corrected_text, context):
             return lent_unit
         return NO_RULE
     return None

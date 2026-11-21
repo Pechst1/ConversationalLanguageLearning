@@ -33,6 +33,12 @@ _UNITS = {
     "ER_SPELLING": ("FR2_A12_ER_SPELLING", "-er verbs that change spelling", "Verbs", "present_er_spelling_change", 295),
     "PC_AVOIR": ("FR2_A21_PC_AVOIR", "Passé composé with avoir, regular and irregular participles", "Tenses", "passe_compose_avoir", 350),
     "PC_ETRE": ("FR2_A21_PC_ETRE", "Passé composé with être, and agreement", "Tenses", "passe_compose_etre", 360),
+    "RELATIVE_OU": ("FR2_A22_RELATIVE_OU", "Où: the place and the time", "Relatives", "relative_ou", 420),
+    "CONNECTORS": ("FR2_A12_CONNECTORS", "Et, mais, ou, parce que", "Connectors", "connectors", 260),
+    "POSSESSIVE_PRONOUNS": ("FR2_B11_POSSESSIVE_PRONOUNS", "Le mien, le tien", "Pronouns", "possessive_pronouns", 520),
+    "QUEL_QUE_SOIT": ("FR2_C11_QUEL_QUE_SOIT", "Quel que soit", "Subjunctive", "quel_que_soit", 820),
+    "SUBJ_IMPARFAIT": ("FR2_C12_SUBJ_IMPARFAIT", "The imperfect subjunctive", "Subjunctive", "subj_imparfait", 880),
+    "DAYS_DATES": ("FR2_A12_DAYS_DATES", "Days and dates", "Time", "days_dates", 240),
 }
 
 #: The issue's pairs: (learner span, corrected span, the sentence it sat in, the rule it is filed under).
@@ -80,7 +86,7 @@ def _stored(db_session, user: User) -> list[UserError]:
     return db_session.query(UserError).filter(UserError.user_id == user.id).all()
 
 
-def _through_scene(db_session, user, units, span, fixed, context):
+def _through_scene(db_session, user, units, span, fixed, context, lent="PC_AVOIR"):
     from app.services.journey_contracts import Correction, InputMode
     from app.services.journey_learning import (
         _record_correction_erratum,
@@ -92,7 +98,7 @@ def _through_scene(db_session, user, units, span, fixed, context):
         db_session, user=user, session=session,
         correction=Correction(span_fr=span, corrected_fr=fixed, note_native="", context_fr=context),
         modality=InputMode.TEXT, source_key="scene-973", foreground=True,
-        concept_id_hint=units["PC_AVOIR"].id,
+        concept_id_hint=units[lent].id,
     )
 
 
@@ -100,13 +106,13 @@ def _letters(text: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFD", text.casefold()) if c.isalpha())
 
 
-def _through_courrier(db_session, user, units, span, fixed, context):
+def _through_courrier(db_session, user, units, span, fixed, context, lent="PC_AVOIR"):
     from app.services.missions import MissionCorrectionService
     from tests.test_missions import _ExplodingMissionLLM, _mission_for_correction
 
     mission = _mission_for_correction()
     mission.user_id = user.id
-    mission.selected_concept_ids = [units["PC_AVOIR"].id]  # the letter's rule
+    mission.selected_concept_ids = [units[lent].id]  # the letter's rule
     service = MissionCorrectionService(db_session, llm_service=_ExplodingMissionLLM())
     # The basic check files an accent or apostrophe fix as spelling, with no rule id.
     accent_only = _letters(span) == _letters(fixed)
@@ -127,17 +133,17 @@ def _through_courrier(db_session, user, units, span, fixed, context):
     )
 
 
-def _through_forge(db_session, user, units, span, fixed, context):
+def _through_forge(db_session, user, units, span, fixed, context, lent="PC_AVOIR"):
     session = AtelierSession(user_id=user.id, selected_concept_ids=[], status="active", quote_payload={}, recap_payload={})
     db_session.add(session)
     db_session.flush()
     attempt = AtelierAttempt(
         atelier_session_id=session.id,
         user_id=user.id,
-        concept_id=units["PC_AVOIR"].id,  # the séance's rule
+        concept_id=units[lent].id,  # the séance's rule
         round="production",
         mode="free",
-        exercise_id="FR2_A21_PC_AVOIR:production:free-973",
+        exercise_id=f"{units[lent].external_id}:production:free-973",
         prompt_payload={"mode": "free", "items": [{"id": "free-973", "type": "free", "prompt": "Raconte ta soirée."}]},
         answer_payload={"answers": {"free-973": context}},
         correction_payload={
@@ -347,3 +353,120 @@ def test_recall_697(db_session):
     assert progress.notes == "[daily_journey] seen"
     assert progress.last_review.replace(tzinfo=UTC) == reviewed_at
     assert progress.next_review.replace(tzinfo=UTC) == due_at
+
+
+# ---------------------------------------------------------------------------
+# Review of #978: an accent in the lent rule's own form keeps the rule
+# ---------------------------------------------------------------------------
+
+#: (lent rule, learner span, corrected span, the sentence it sat in). Each is the lent
+#: unit's own listed trap, or the verifier's exact scene input: the change is the form,
+#: so the slip stays the lent rule's. On #978 each was filed under no rule.
+OWN_FORM_PAIRS = [
+    ("RELATIVE_OU", "le bar ou on", "le bar où on", "C'est le bar ou on s'est vus."),
+    ("ER_SPELLING", "nous commencons", "nous commençons", "Demain nous commencons à huit heures."),
+    ("ER_SPELLING", "nous achètons", "nous achetons", "Le samedi, nous achètons du pain."),
+    ("CONNECTORS", "du thé où du café", "du thé ou du café", "Tu veux du thé où du café ?"),
+    ("POSSESSIVE_PRONOUNS", "la votre", "la vôtre", "C'est notre voiture, pas la votre."),
+    ("QUEL_QUE_SOIT", "Quelque soit", "Quel que soit", "Quelque soit le prix, je l'achète."),
+    ("SUBJ_IMPARFAIT", "qu'il fut", "qu'il fût", "Il fallait qu'il fut là."),
+]
+
+#: A capital alone: the decision keeps the dates rule, but no record path stores a
+#: capital-only correction at all (``is_real_correction``, as on main).
+CAPITAL_PAIRS = [
+    ("DAYS_DATES", "Lundi 3 Mars", "lundi 3 mars", "Le rendez-vous est Lundi 3 Mars."),
+]
+
+#: The other side: an accent that is not the lent rule's form is no rule's, even when
+#: the word sits inside the rule's span («un cafe» under «Un, une, des»).
+NOT_OWN_FORM_PAIRS = [
+    ("PC_AVOIR", "cafe", "café", "Hier j'ai bu un cafe au bar."),
+    ("PC_AVOIR", "a", "à", "Je vais a Paris demain."),
+    ("PC_AVOIR", "est a", "est à", "Peut-être c est a Gus ?"),
+    ("UN_UNE", "cafe", "café", "Je prends un cafe au bar."),
+    ("POSSESSIVES", "frere", "frère", "Je vais visiter l appartement avec mon frere."),
+    ("CONNECTORS", "cafe", "café", "Tu veux du thé ou du cafe ?"),
+    ("DAYS_DATES", "cafe", "café", "Lundi 3 mars, un cafe au bar."),
+    ("RELATIVE_OU", "hotel", "hôtel", "C'est l'hotel où on dort."),
+]
+
+
+@pytest.mark.parametrize("path", sorted(_PATHS))
+def test_own_form_both_sides(db_session, path):
+    """Each record path keeps the lent rule for its own form, and only for it."""
+    units = _units(db_session)
+    wrong: list[str] = []
+    for pairs, keep in ((OWN_FORM_PAIRS, True), (NOT_OWN_FORM_PAIRS, False)):
+        for lent, span, fixed, context in pairs:
+            user = _user(db_session)
+            _PATHS[path](db_session, user, units, span, fixed, context, lent=lent)
+            db_session.flush()
+            filed = {row.concept_id for row in _stored(db_session, user)}
+            # A spelling slip a path does not store at all (La Forge forgives «hotel»)
+            # is filed under no rule too.
+            right = filed == {units[lent].id} if keep else filed <= {None}
+            if not right:
+                wrong.append(f"lent {lent}: «{span} → {fixed}» filed under {filed}, keep the lent rule: {keep}")
+    assert not wrong, f"{path}:\n" + "\n".join(wrong)
+
+
+def test_unit_for_change_own_form():
+    """The decision alone: a lent unit's own accent form keeps it (from its detectors
+    and traps); the same accent under another unit, or another accent, is no rule."""
+    from types import SimpleNamespace
+
+    from app.services import slip_concept
+    from app.services.error_memory import _lent_form
+
+    def decide(unit: str, span: str, fixed: str, context: str | None = None) -> str | None:
+        form = _lent_form(SimpleNamespace(external_id=unit, id=1, main_traps=""))
+        return slip_concept.unit_for_change(span, fixed, lent_unit=unit, context=context, lent_form=form)
+
+    for lent, span, fixed, context in OWN_FORM_PAIRS + CAPITAL_PAIRS:
+        unit = _UNITS[lent][0]
+        assert decide(unit, span, fixed, context) == unit, (lent, span)
+        assert decide(unit, span, fixed) == unit, (lent, span, "without the sentence")
+    for lent, span, fixed, context in NOT_OWN_FORM_PAIRS:
+        assert decide(_UNITS[lent][0], span, fixed, context) == slip_concept.NO_RULE, (lent, span)
+    # An optional word inside the rule's span is not its form; an apostrophe is elision.
+    assert decide("FR2_A11_ADJ_AGREEMENT", "tres", "très", "Je suis tres content.") == slip_concept.NO_RULE
+    assert decide("FR2_A12_CEST_IL_EST", "c est", "c'est", "Peut-être c est a Gus ?") == slip_concept.NO_RULE
+    # The verifier's other listed traps: each unit's accent-only trap keeps its unit.
+    assert decide("FR2_A12_ER_SPELLING", "j'achete", "j'achète") == "FR2_A12_ER_SPELLING"
+
+
+# ---------------------------------------------------------------------------
+# The Journal records through the same decision (it lends no rule)
+# ---------------------------------------------------------------------------
+
+
+def test_journal_slips_filed_by_change(db_session):
+    """A Journal entry lends no rule, so its slips were all filed under none on main.
+    Now the change decides: a possessive swap is the possessives', a participle the
+    passé composé's, an accent no rule's."""
+    from types import SimpleNamespace
+
+    from app.services.journal import JournalService
+
+    units = _units(db_session)
+    user = _user(db_session)
+    entry = SimpleNamespace(id=uuid4(), journey_id=None)
+    JournalService(db_session)._record_errata(
+        user,
+        entry,
+        {
+            "errata": [
+                {"span_fr": "sa amie", "corrected_fr": "son amie", "note_native": "x"},
+                {"span_fr": "ai mange", "corrected_fr": "ai mangé", "note_native": "x"},
+                {"span_fr": "cafe", "corrected_fr": "café", "note_native": "x"},
+            ]
+        },
+    )
+    db_session.flush()
+    filed = {row.original_text: row.concept_id for row in _stored(db_session, user)}
+    assert filed == {
+        "sa amie": units["POSSESSIVES"].id,
+        "ai mange": units["PC_AVOIR"].id,
+        "cafe": None,
+    }, filed

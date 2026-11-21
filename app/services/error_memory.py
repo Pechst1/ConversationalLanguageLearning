@@ -130,6 +130,42 @@ _LEGACY_STATES = {
 MASTERY_REQUIRED_REPAIRS = 3
 
 
+def _lent_form(concept: GrammarConcept) -> slip_concept.LentForm | None:
+    """#973 (review of #978): the lent unit's own form, read from its catalogue detectors
+    and ✗/✓ traps, so an accent that *is* the rule («le bar ou → où», «nous commencons →
+    commençons») keeps it, and one that is not («cafe → café») does not."""
+
+    try:
+        from app.services.grammar_units import (
+            _TRAP_PAIR,
+            _split,
+            _v2_rows_for,
+            contrast_pairs,
+            regex_patterns,
+            unit_detectors,
+        )
+
+        patterns = tuple(regex_patterns(unit_detectors(concept)))
+        pairs = [
+            (str(pair.get("wrong") or ""), str(pair.get("right") or ""))
+            for pair in contrast_pairs(concept)
+            if pair.get("wrong") and pair.get("right")
+        ]
+        # ``contrast_pairs`` drops a trap that only changes a capital («Lundi 3 Mars →
+        # lundi 3 mars»); here that capital is the rule's form, so read the raw traps too.
+        sources = [str(getattr(concept, "main_traps", "") or "")]
+        sources.extend(str(row.get("main_traps") or "") for row in _v2_rows_for(concept))
+        for source in sources:
+            for trap in _split(source):
+                match = _TRAP_PAIR.match(trap)
+                if match:
+                    pairs.append((match.group("wrong").strip(), match.group("right").strip()))
+        traps = tuple(dict.fromkeys(pairs))
+    except Exception:  # noqa: BLE001 - an unreadable catalogue row must not stop a slip being saved
+        return None
+    return slip_concept.LentForm(patterns=patterns, traps=traps)
+
+
 def erratum_repair_evidence(*, rating: int, repaired: bool) -> Evidence:
     """A typed repair card: rewrite your own wrong line into the right one.
 
@@ -1025,10 +1061,15 @@ class ErrorMemoryService:
         if elision is not None:
             return elision
         lent_unit = None
+        lent_form = None
         if lent_concept_id:
             lent = self.db.get(GrammarConcept, lent_concept_id)
             lent_unit = str(lent.external_id) if lent is not None and lent.external_id else None
-        unit = slip_concept.unit_for_change(learner_text, corrected_text, lent_unit=lent_unit, context=context)
+            if lent_unit:
+                lent_form = _lent_form(lent)
+        unit = slip_concept.unit_for_change(
+            learner_text, corrected_text, lent_unit=lent_unit, context=context, lent_form=lent_form
+        )
         if unit == slip_concept.NO_RULE:
             return None
         if unit is not None:
