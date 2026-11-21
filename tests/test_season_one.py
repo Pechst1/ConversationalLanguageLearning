@@ -885,16 +885,13 @@ def test_open_day_keeps_its_number(assembled_client, db_session, journey_enabled
     assert headline is not None and headline["edition_no"] == 1, (
         f"the open day's card has no episode number: headline {headline!r}"
     )
-    # The next morning the unfinished day still occupies Home: still its number.
-    clock.advance(days=1)
-    assert d.today()["journey"]["id"] == d.id
-    later = d.today()["headline"]
-    assert later is not None and later["edition_no"] == 1, (
-        f"yesterday's open day lost its episode number on Home: headline {later!r}"
-    )
-    assert later["teaser_fr"] is None and later.get("teaser_open_fr") is None, (
+    assert headline["teaser_fr"] is None and headline.get("teaser_open_fr") is None, (
         "the open day's own ending speaks of the day after it, not under its own title"
     )
+    # #675: the next morning the untouched day has closed overnight, so it no longer
+    # holds Home under yesterday's number; today's episode is offered instead.
+    clock.advance(days=1)
+    assert d.today()["journey"] is None, "yesterday's untouched day must close overnight (#675)"
 
 
 def test_a_season_page_corrects_the_form_in_the_margin(assembled_client, db_session, journey_enabled, clock, season_on):
