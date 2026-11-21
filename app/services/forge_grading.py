@@ -25,6 +25,7 @@ from difflib import SequenceMatcher
 from functools import lru_cache
 from typing import Any
 
+from app.core.verdict import span_pattern
 from app.services.chrome_language import fold_language, mother_tongue
 from app.services.journey_contracts import normalize_answer_text
 from app.services.learner_copy import learner_text as _copy
@@ -1045,6 +1046,18 @@ def reconcile_with_sentence(refined: dict[str, Any], learner_text: Any, language
     if not isinstance(corrected, str) or not corrected.strip() or not line:
         return refined
     errata = [item for item in refined.get("errata") or [] if isinstance(item, dict)]
+    # #946: the fixes and the sentence are read by the rules as one line, as
+    # ``verify_correction`` reads every other surface's. Each fix was checked alone in
+    # the learner's line: «est» -> «a» and «chaud» -> «chaude» both hold in «Elle est
+    # chaud», and the line they make, «Elle a chaude», is wrong French. Each fix is read
+    # where it was placed, never at the first place its words appear (verify of #957).
+    errata, unsettled = correction_contract.held_in_line(*_placed_fixes(line, corrected, errata))
+    settled = correction_contract.repair_text(corrected)
+    if unsettled or settled != corrected or errata != refined.get("errata"):
+        refined = {**refined, "errata": errata, "corrected_answer": settled}
+        if unsettled:
+            refined["dropped_errata"] = [*refined.get("dropped_errata", []), *unsettled]
+        corrected = settled
     asks = [
         item for item in errata
         if item.get("task_error_type") != "task_compliance"
@@ -1081,6 +1094,31 @@ def reconcile_with_sentence(refined: dict[str, Any], learner_text: Any, language
         kept = [item for item in errata if not _asks_for_a_retype(item.get("corrected_target"))]
         return {**refined, "errata": [whole, *kept]}
     return {**refined, "errata": merged}
+
+
+def _placed_fixes(
+    line: str, corrected: str, errata: list[dict[str, Any]]
+) -> tuple[str, list[tuple[dict[str, Any], tuple[int, int] | None]]]:
+    """``(line, placed)`` for :func:`correction_contract.held_in_line`: the learner's line
+    with the fixes in the gaps the learner fills, and where each fix stands there (#946).
+
+    A line the gaps cannot hold is retyped whole against the model's sentence; a fix is
+    then read only where its words stand once in it. Where they stand twice («Il va a
+    Paris et il a froid») no place is guessed and the fix is kept as listed.
+    """
+
+    from app.services.atelier import repair_line_with_spans
+
+    repaired = repair_line_with_spans(line, errata)
+    if repaired is not None:
+        text, spans = repaired
+        return text, [(item, spans.get(index)) for index, item in enumerate(errata)]
+    placed: list[tuple[dict[str, Any], tuple[int, int] | None]] = []
+    for item in errata:
+        target = str(item.get("corrected_target") or "").strip()
+        found = list(span_pattern(target).finditer(corrected)) if target else []
+        placed.append((item, found[0].span() if len(found) == 1 else None))
+    return corrected, placed
 
 
 def _derived_gap(wrong: str, fix: str, language_key: str) -> dict[str, Any]:
