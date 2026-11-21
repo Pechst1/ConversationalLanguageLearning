@@ -56,7 +56,7 @@ def test_tu_letter(db_session, monkeypatch) -> None:
     monkeypatch.setattr(settings, "ATELIER_SEASON_SCRIPT", "s1")
     letter = _margaux_letter(db_session)
     opening = letter["opening_message"]
-    assert "Tu as oublié ton écharpe" in opening, f"Margaux says tu in the scene; her first letter reads: {opening}"
+    assert "C'est la tienne ? Tu passes demain ?" in opening, f"Margaux says tu in the scene; her first letter reads: {opening}"
     assert opening.startswith("Salut ! C'est Margaux")
 
 

@@ -121,6 +121,11 @@ export type StoryEpisodeReaderProps = {
   finaleExtra?: React.ReactNode;
   /** In the finale while the ending is being written: the speaker's face. */
   finaleWait?: React.ReactNode;
+  /**
+   * R2: where a finale page opens instead of on the finale itself — the first of
+   * the closing panels the learner reads while the ending is being written.
+   */
+  openAt?: number | null;
   /** The headline, when the caller knows better than the episode (the scenario's). */
   title?: string | null;
   /** WP-93: the kicker, when the caller knows better («Relecture · la page d'hier»). */
@@ -157,6 +162,7 @@ export function StoryEpisodeReader({
   finale = null,
   finaleExtra = null,
   finaleWait = null,
+  openAt = null,
   title = null,
   eyebrow = null,
   marginNotes = null,
@@ -183,7 +189,9 @@ export function StoryEpisodeReader({
   // The finale opens on itself: the ending is what the learner came back for.
   // A page re-read (WP-93) opens on its first panel, whatever was saved yesterday.
   const start = finale
-    ? Math.max(0, stages.length - 1)
+    ? openAt !== null && openAt >= 0 && openAt < stages.length
+      ? openAt
+      : Math.max(0, stages.length - 1)
     : reread
       ? 0
       : storyStartIndex(episode, stages.length);
@@ -350,6 +358,7 @@ export function EpisodeRadio({
   onContinue,
   onReadInstead,
   onPrediction,
+  dealtDay = false,
 }: {
   episode: StoryEpisode;
   copy: JourneyCopy;
@@ -360,6 +369,8 @@ export function EpisodeRadio({
   onReadInstead: () => void;
   /** Record the prediction check. Never awaited: measurement must not block. */
   onPrediction?: (guess: EpisodeGuessId, verification: EpisodeVerification) => void;
+  /** Pilot P9: the planner dealt today as a listening day; the first stage says so. */
+  dealtDay?: boolean;
 }) {
   const [state, dispatch] = useReducer(radioReduce, episode, radioInitialFor);
   // WP-103 T2: the text, hidden until asked for — at every stage.
@@ -407,6 +418,7 @@ export function EpisodeRadio({
       onReadInstead={onReadInstead}
       dispatch={dispatch}
       dispatchText={dispatchText}
+      dealtDay={dealtDay}
     />
   );
 }
@@ -428,6 +440,7 @@ export function EpisodeRadioView({
   onReadInstead,
   dispatch,
   dispatchText,
+  dealtDay = false,
 }: {
   episode: StoryEpisode;
   copy: JourneyCopy;
@@ -440,6 +453,8 @@ export function EpisodeRadioView({
   onReadInstead: () => void;
   dispatch: (event: RadioEvent) => void;
   dispatchText: (event: RadioTextEvent) => void;
+  /** Pilot P9: today is a dealt listening day — said once, on the first stage. */
+  dealtDay?: boolean;
 }) {
   const guesses = useMemo(() => buildEpisodeGuesses(episode), [episode]);
   const lines = useMemo(() => episodeListenLines(episode), [episode]);
@@ -562,6 +577,12 @@ export function EpisodeRadioView({
 
       {state.stage === 'predire' && (
         <>
+          {/* Pilot P9: a dealt listening day says what it is before the first ask. */}
+          {dealtDay && (
+            <p className="av2-label" data-state="listen-first-day">
+              {copy.listen_first_day}
+            </p>
+          )}
           <p className="av2-body av2-body--lg">
             {copy.radio_predire_body}
           </p>

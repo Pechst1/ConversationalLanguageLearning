@@ -232,7 +232,9 @@ jobs:
     name: PostgreSQL · migrations + row locks
     # SQLite serialises every writer, so the row-lock paths (the story writer's
     # FOR UPDATE, the journey finish race, the drain) only mean something here.
-    runs-on: ubuntu-latest
+    # Pinned image: on 18 Nov 2026 ubuntu-latest became 26.04, whose client tools
+    # (18) write `SET transaction_timeout`, which the 15 server below rejects.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     services:
       postgres:
@@ -284,6 +286,22 @@ jobs:
           # that copy, not this one.
           pip install -c constraints.txt -e .[dev]
           python -m spacy download fr_core_news_sm
+
+      - name: PostgreSQL client tools of the server's major version
+        # The restore drill (tests/test_production_recovery_pg.py) dumps and restores
+        # with pg_dump/pg_restore from PATH and refuses a client whose major differs
+        # from the server's. Keep this number equal to the service image above.
+        run: |
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-15
+          echo /usr/lib/postgresql/15/bin >> "$GITHUB_PATH"
+
+      - name: Show PostgreSQL versions
+        run: |
+          pg_dump --version
+          pg_restore --version
+          psql "$PG_URL" -XAtc 'select version()'
 
       - name: Verify Alembic migrations
         # Also the step that gives the database its schema for everything below.

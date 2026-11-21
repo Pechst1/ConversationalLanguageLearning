@@ -127,6 +127,49 @@ def test_a_model_change_in_render_yaml_moves_the_fingerprint(monkeypatch, correc
     assert G.fingerprints(["correction"])["correction"]["fingerprint"] != correction_fingerprint["fingerprint"]
 
 
+def _fake_surface(monkeypatch, ask):
+    """One gold item whose surface makes the calls ``ask`` makes, then gives up."""
+
+    monkeypatch.setitem(G.S.SURFACES, "fake", ask)
+    monkeypatch.setattr(G.S, "load_items", lambda surface: [{"id": "i00"}])
+
+
+def _ask(timeout=2.0, temperature=0.7, retry=False):
+    from app.services.llm_service import LLMProviderError
+
+    def surface(item, client):
+        for attempt in range(2 if retry else 1):
+            try:
+                return client.generate_chat_completion(
+                    messages=[{"role": "user", "content": "Bonjour"}],
+                    system_prompt="Tu es Gus.",
+                    temperature=temperature,
+                    model="gpt-4o-mini",
+                    request_timeout=timeout,
+                )
+            except LLMProviderError:
+                if attempt or not retry:
+                    raise
+    return surface
+
+
+def test_a_longer_timeout_or_a_retry_of_the_same_call_does_not_move_the_fingerprint(monkeypatch):
+    # PR 871 gave the Courrier 15 s instead of 2 s and PR 872 asks once more after a
+    # failed call: the model is asked exactly the same thing, so nothing is re-gated.
+    _fake_surface(monkeypatch, _ask())
+    before = G.fingerprints(["fake"])["fake"]
+    _fake_surface(monkeypatch, _ask(timeout=15.0, retry=True))
+    assert G.fingerprints(["fake"])["fake"] == before
+    assert before["calls"] == 1
+
+
+def test_what_the_call_asks_still_moves_the_fingerprint(monkeypatch):
+    _fake_surface(monkeypatch, _ask())
+    before = G.fingerprints(["fake"])["fake"]["fingerprint"]
+    _fake_surface(monkeypatch, _ask(temperature=0.2))
+    assert G.fingerprints(["fake"])["fake"]["fingerprint"] != before
+
+
 def test_render_says_blocked_and_lists_the_items_that_moved():
     ids = _ids(20)
     rows = {"scene": G.compare(_run("scene", dict.fromkeys(ids, 1.0)),

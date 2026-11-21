@@ -657,11 +657,11 @@ def test_the_explicit_correction_copy_is_complete_in_three_languages():
 
 @pytest.mark.parametrize(
     ("level", "expected"),
-    [("A2.1", "That was the one you were just asked about"), ("B1.1", "on venait de te demander")],
+    [("A2.1", "That was the one you were just asked about"), ("B1.1", "That was the one you were just asked about")],
 )
-def test_the_explicit_note_follows_the_chrome_language(level, expected):
-    """WP-82: the learner's language up to A2, French from B1 (the walk read the
-    English note on a French B1 screen)."""
+def test_the_explicit_note_is_in_the_mother_tongue(level, expected):
+    """Owner decision 18 Nov 2026 (it was WP-82's chrome language, French from B1): a
+    correction is explained in the mother tongue at every level, as in the Courrier."""
 
     from types import SimpleNamespace
 

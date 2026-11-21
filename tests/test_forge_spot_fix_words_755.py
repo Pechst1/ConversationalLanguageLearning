@@ -62,7 +62,9 @@ def test_spot_counts_words(db_session, monkeypatch) -> None:
     finally:
         FrenchCoreGrammarCatalog(db_session, "v1").ensure_catalog()
     sources = {str(item.get("source_fr") or item.get("source")) for item in posed}
-    assert {"Je lui le donne.", "Je leur les donne.", "Il me en a parlé."} <= sources, sources
+    # P6: the séance draws from the unit's templates now, not the fixed fallback set;
+    # its ✗ sentences are the same two-word swaps («Je lui le donne» → «Je le lui donne»).
+    assert any(drills.fix_words(item.get("source_fr") or item.get("source"), item.get("expected_answer")) > 1 for item in posed), sources
     for item in posed:
         source = item.get("source_fr") or item.get("source")
         words = drills.fix_words(source, item.get("expected_answer"))

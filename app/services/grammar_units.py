@@ -415,8 +415,13 @@ def unit_brief(
     control_language: str,
     localizations: dict[str, str] | None = None,
     stability: float | None = None,
+    explain_language: str | None = None,
 ) -> dict[str, Any]:
-    """Everything the planner needs to pose this unit, JSON-safe."""
+    """Everything the planner needs to pose this unit, JSON-safe.
+
+    ``explain_language`` is the language the unit's rule is explained in (the mother
+    tongue at every level, R4); titles and instructions stay in ``control_language``.
+    """
 
     titles = localized_titles(concept, localizations)
     detectors = unit_detectors(concept)
@@ -435,10 +440,11 @@ def unit_brief(
         "title_fr": titles.get("fr") or titles.get("en") or "",
         "title_native": titles.get(control_language) or titles.get("en") or "",
         "rule_short_native": (
-            str(rule_short.get(control_language) or "").strip() or None
+            str(rule_short.get(explain_language or control_language) or "").strip() or None
             if isinstance(rule_short, dict)
             else None
         ),
+        **({"explain_language": explain_language} if explain_language else {}),
         "rule_card": card,
         "examples": examples(concept),
         "contrast_pairs": pairs,

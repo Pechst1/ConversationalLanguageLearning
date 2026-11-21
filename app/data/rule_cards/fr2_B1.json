@@ -405,7 +405,7 @@
         "right": "[Si tu viens], on ira au cinéma."
       },
       "more": {
-        "en": "English does the same (if you come, we'll go), so the main risk comes from translating 'will' too literally. German speakers rarely slip here. Watch the spelling: si becomes s' only before il and ils, never before elle or on.",
+        "en": "English does the same (if you come, we'll go), so the main risk comes from translating 'will' too literally. Watch the spelling: si becomes s' only before il and ils, never before elle or on.",
         "de": "Im Deutschen ist es ähnlich (wenn du kommst, gehen wir): Nach wenn steht kein „werden“. Achte auf die Schreibung: si wird nur vor il und ils zu s', nie vor elle oder on.",
         "fr": "Le si de condition réelle ne supporte ni le futur ni le conditionnel. Attention à l'élision : s'il, s'ils, mais si elle, si on."
       },
@@ -515,7 +515,7 @@
         "right": "[Si j'avais] plus d'argent, j'achèterais une maison."
       },
       "more": {
-        "en": "The imparfait here is not about the past: it marks distance from reality, now or later. English 'if I would' and German 'wenn ich hätte / würde' both pull the conditional into the si-clause; French keeps it out. Think of si and -rais as a pair that never sits together.",
+        "en": "The imparfait here is not about the past: it marks distance from reality, now or later. English 'if I would' pulls the conditional into the si-clause; French keeps it out. Think of si and -rais as a pair that never sits together.",
         "de": "Das Imparfait spricht hier nicht von der Vergangenheit: Es zeigt Abstand zur Wirklichkeit, jetzt oder später. „Wenn ich hätte“ oder „wenn ich würde“ verführt dazu, den Conditionnel in den si-Satz zu setzen; das Französische hält ihn draußen. Merke: si und -rais stehen nie zusammen.",
         "fr": "L'imparfait ne parle pas ici du passé : il marque la distance avec la réalité, maintenant ou plus tard. Retiens que si et -rais ne vont jamais ensemble."
       },
@@ -625,8 +625,8 @@
         "right": "[Quand] j'[arriverai] à Lyon demain, je t'appellerai."
       },
       "more": {
-        "en": "English and German use the present after when / wenn (when I arrive, wenn ich ankomme). French is logical: the arriving is in the future, so it takes the future. For habits, quand keeps the present: quand il pleut, je prends le bus.",
-        "de": "Englisch und Deutsch nehmen nach when / wenn das Präsens (wenn ich ankomme). Das Französische ist logisch: Das Ankommen liegt in der Zukunft, also Futur. Bei Gewohnheiten bleibt das Präsens: quand il pleut, je prends le bus.",
+        "en": "English uses the present after when (when I arrive). French is logical: the arriving is in the future, so it takes the future. For habits, quand keeps the present: quand il pleut, je prends le bus.",
+        "de": "Deutsch nimmt nach wenn das Präsens (wenn ich ankomme). Das Französische ist logisch: Das Ankommen liegt in der Zukunft, also Futur. Bei Gewohnheiten bleibt das Präsens: quand il pleut, je prends le bus.",
         "fr": "Le français est logique : si l'action est à venir, elle se met au futur, même après quand. Pour une habitude, on garde le présent : quand il pleut, je prends le bus."
       },
       "how": {
@@ -735,7 +735,7 @@
         "right": "Mon travail ? J'[y] pense souvent."
       },
       "more": {
-        "en": "The choice comes from the verb's preposition, so learn verbs with it: penser à, s'habituer à, tenir à; parler de, avoir besoin de, se souvenir de. English 'about it' and German darüber / daran / davon hide that difference, so check the French verb, not your translation. For people, keep à/de + a stressed pronoun: je pense à lui, je parle d'elle.",
+        "en": "The choice comes from the verb's preposition, so learn verbs with it: penser à, s'habituer à, tenir à; parler de, avoir besoin de, se souvenir de. English 'about it' hides that difference, so check the French verb, not your translation. For people, keep à/de + a stressed pronoun: je pense à lui, je parle d'elle.",
         "de": "Die Wahl hängt an der Präposition des Verbs, also lern die Verben mit ihr: penser à, s'habituer à, tenir à; parler de, avoir besoin de, se souvenir de. Deutsch daran, darüber, davon hilft hier nicht: Prüf das französische Verb. Für Personen bleibt à/de + betontes Pronomen: je pense à lui, je parle d'elle.",
         "fr": "Le choix dépend de la préposition du verbe : penser à, s'habituer à, tenir à ; parler de, avoir besoin de, se souvenir de. Pour une personne, on garde à/de + pronom tonique : je pense à lui, je parle d'elle."
       },
@@ -960,7 +960,7 @@
         "right": "C'est le livre [dont] je parle."
       },
       "more": {
-        "en": "Dont is one word for English 'of which / whose / about which' and German 'von dem / dessen / deren'. It works because the verb wants de: parler de, avoir besoin de, être fier de, rêver de. For possession the noun keeps its article after dont: la femme dont le fils travaille ici.",
+        "en": "Dont is one word for English 'of which / whose / about which'. It works because the verb wants de: parler de, avoir besoin de, être fier de, rêver de. For possession the noun keeps its article after dont: la femme dont le fils travaille ici.",
         "de": "Dont ist ein Wort für deutsch „von dem / über den / dessen / deren“. Es funktioniert, weil das Verb de verlangt: parler de, avoir besoin de, être fier de, rêver de. Beim Besitz behält das Nomen nach dont seinen Artikel: la femme dont le fils travaille ici.",
         "fr": "Dont remplace un complément introduit par de : parler de, avoir besoin de, être fier de, rêver de. Pour la possession, le nom garde son article : la femme dont le fils travaille ici."
       },
@@ -1107,7 +1107,7 @@
           "wrong": "Dis-moi quoi tu veux.",
           "right": "Dis-moi [ce que] tu veux.",
           "why": {
-            "en": "English 'what' and German 'was' become ce que inside a sentence; quoi only before an infinitive (je ne sais pas quoi dire).",
+            "en": "English 'what' becomes ce que inside a sentence; quoi only before an infinitive (je ne sais pas quoi dire).",
             "de": "„Was“ wird mitten im Satz zu ce que; quoi nur vor einem Infinitiv (je ne sais pas quoi dire).",
             "fr": "Dans une phrase, on dit ce que ; quoi seulement devant un infinitif (je ne sais pas quoi dire)."
           }
@@ -1448,7 +1448,7 @@
           "wrong": "Il n'y a aucuns problèmes.",
           "right": "Il [n]'y a [aucun] problème.",
           "why": {
-            "en": "Aucun is singular, unlike English 'no problems' or German 'keine Probleme'.",
+            "en": "Aucun is singular, unlike English 'no problems'.",
             "de": "Aucun steht im Singular, anders als „keine Probleme“.",
             "fr": "Aucun s'emploie au singulier."
           }
@@ -1841,7 +1841,7 @@
         "right": "[Avant de partir], je ferme la fenêtre."
       },
       "more": {
-        "en": "English says 'without saying, before leaving'; German 'ohne zu sagen, bevor ich gehe'. French uses the bare infinitive. Avant needs de before a verb (avant de partir) but not before a noun (avant le départ). Afin de is a more formal pour. This works when the subject is the same; with two subjects you need pour que + subjonctif.",
+        "en": "English says 'without saying, before leaving' with an -ing form. French uses the bare infinitive: sans dire, avant de partir. Avant needs de before a verb (avant de partir) but not before a noun (avant le départ). Afin de is a more formal pour. This works when the subject is the same; with two subjects you need pour que + subjonctif.",
         "de": "Deutsch sagt „um zu“, „ohne zu“, „bevor ich gehe“; Französisch nimmt einfach den Infinitiv. Avant braucht vor einem Verb de (avant de partir), vor einem Nomen nicht (avant le départ). Afin de ist ein förmlicheres pour. Das gilt bei gleichem Subjekt; bei zwei Subjekten braucht man pour que + Subjonctif.",
         "fr": "Avant demande de devant un infinitif (avant de partir) mais pas devant un nom (avant le départ). Afin de est un pour plus soutenu. Ces tournures supposent le même sujet ; sinon, pour que + subjonctif."
       },
@@ -1887,7 +1887,7 @@
           "wrong": "Je travaille pour à gagner ma vie.",
           "right": "Je travaille [pour gagner] ma vie.",
           "why": {
-            "en": "Pour takes the infinitive directly, with no à (German 'um zu' has no French 'à').",
+            "en": "Pour takes the infinitive directly, with no à in between (English 'to earn' is just pour gagner).",
             "de": "Pour steht direkt vor dem Infinitiv, ohne à („um zu“ hat hier kein à).",
             "fr": "Pour se construit directement avec l'infinitif, sans à."
           }
@@ -1997,7 +1997,7 @@
           "wrong": "Il a arrêté fumer.",
           "right": "Il a arrêté [de] fumer.",
           "why": {
-            "en": "Arrêter needs de, like German 'aufhören zu'.",
+            "en": "Arrêter needs de before the infinitive, where English 'stop smoking' has nothing.",
             "de": "Arrêter braucht de, wie „aufhören zu“.",
             "fr": "Arrêter se construit avec de."
           }
@@ -2278,7 +2278,7 @@
         "right": "[Plus] je travaille, [plus] je suis fatigué."
       },
       "more": {
-        "en": "English 'the more…, the more…' and German 'je mehr…, desto…' tempt you to add an article or a second word; French just repeats plus or moins at the start of each half, separated by a comma. Before a noun add de (de plus en plus de touristes), and bien and bon become mieux and meilleur here too: de mieux en mieux.",
+        "en": "English 'the more…, the more…' tempts you to add an article or a second word; French just repeats plus or moins at the start of each half, separated by a comma. Before a noun add de (de plus en plus de touristes), and bien and bon become mieux and meilleur here too: de mieux en mieux.",
         "de": "„Je mehr…, desto…“ verführt dazu, ein zweites Wort oder einen Artikel einzubauen; das Französische wiederholt einfach plus oder moins am Anfang beider Hälften, mit Komma. Vor einem Nomen kommt de (de plus en plus de touristes), und bien und bon werden auch hier zu mieux und meilleur: de mieux en mieux.",
         "fr": "Le français répète simplement plus ou moins en tête de chaque partie, séparées par une virgule, sans article. Devant un nom : de plus en plus de. Bien et bon deviennent mieux et meilleur : de mieux en mieux."
       },
@@ -2743,7 +2743,7 @@
         "right": "Je veux [partir]."
       },
       "more": {
-        "en": "English 'I want you to come' and German 'ich will, dass du kommst' both mark the second person; French needs a full que-clause with the subjonctif: je veux que tu viennes. It works the same with préférer, aimer (bien), souhaiter, exiger, demander. Espérer is the exception: j'espère que tu viendras (indicative).",
+        "en": "English says 'I want you to come' with an infinitive; French needs a full que-clause with the subjonctif: je veux que tu viennes. It works the same with préférer, aimer (bien), souhaiter, exiger, demander. Espérer is the exception: j'espère que tu viendras (indicative).",
         "de": "„Ich will, dass du kommst“: Französisch braucht ebenfalls einen que-Satz, aber mit Subjonctif: je veux que tu viennes. Genauso bei préférer, aimer (bien), souhaiter, exiger, demander. Espérer ist die Ausnahme: j'espère que tu viendras (Indikativ).",
         "fr": "Avec deux sujets différents, la volonté s'exprime avec que + subjonctif : je veux que tu viennes. Même chose avec préférer, aimer, souhaiter, exiger. Exception : espérer que + indicatif."
       },
@@ -3202,7 +3202,7 @@
         "right": "[En sortant] du bureau, j'ai vu Paul."
       },
       "more": {
-        "en": "The gérondif answers 'when?' (en arrivant), 'how?' (en marchant), or 'by doing what?' (on apprend en voyageant). Its subject is always the subject of the main verb: en arrivant, j'ai vu Paul means I arrived. English 'while / by -ing' and German 'beim / indem' map to it, but English '-ing' after 'without' or 'before' does not (sans parler, avant de partir).",
+        "en": "The gérondif answers 'when?' (en arrivant), 'how?' (en marchant), or 'by doing what?' (on apprend en voyageant). Its subject is always the subject of the main verb: en arrivant, j'ai vu Paul means I arrived. English 'while / by -ing' maps to it, but English '-ing' after 'without' or 'before' does not (sans parler, avant de partir).",
         "de": "Der Gérondif antwortet auf „wann?“ (en arrivant), „wie?“ (en marchant) oder „wodurch?“ (on apprend en voyageant). Sein Subjekt ist immer das des Hauptverbs: en arrivant, j'ai vu Paul heißt, ich bin angekommen. Deutsch „beim“ und „indem“ entsprechen ihm.",
         "fr": "Le gérondif répond à quand ? (en arrivant), comment ? (en marchant) ou par quel moyen ? (on apprend en voyageant). Son sujet est toujours celui du verbe principal."
       },
@@ -3432,7 +3432,7 @@
         "right": "Le projet [sur lequel] je travaille."
       },
       "more": {
-        "en": "English can leave the preposition at the end ('the project I work on'); French never does: the preposition moves to the front, with the relative. German does the same (das Projekt, an dem ich arbeite), so German speakers find this natural. À and de contract with lequel; for a simple de, dont is usually better (le livre dont je parle).",
+        "en": "English can leave the preposition at the end ('the project I work on'); French never does: the preposition moves to the front, with the relative (le projet sur lequel je travaille). À and de contract with lequel; for a simple de, dont is usually better (le livre dont je parle).",
         "de": "Wie im Deutschen (das Projekt, an dem ich arbeite) steht die Präposition vorne, mit dem Relativpronomen. À und de verschmelzen mit lequel (auquel, duquel); bei einfachem de nimmt man meist dont (le livre dont je parle).",
         "fr": "La préposition se place toujours devant le relatif, jamais en fin de phrase. À et de se contractent avec lequel ; pour un simple de, on préfère dont."
       },
@@ -3547,7 +3547,7 @@
         "right": "Elle m'a dit qu'elle [viendrait]."
       },
       "more": {
-        "en": "You report from later, so everything moves one step into the past. Imparfait, conditionnel and plus-que-parfait are already 'back' and stay. Pronouns shift to your point of view: « je suis prête » → elle a dit qu'elle était prête. German uses the Konjunktiv here (er sei krank); French uses these indicative tenses instead.",
+        "en": "You report from later, so everything moves one step into the past. Imparfait, conditionnel and plus-que-parfait are already 'back' and stay. Pronouns shift to your point of view: « je suis prête » → elle a dit qu'elle était prête.",
         "de": "Du berichtest von später aus, also rückt alles eine Stufe in die Vergangenheit. Imparfait, Conditionnel und Plus-que-parfait sind schon „hinten“ und bleiben. Die Pronomen wechseln in deine Sicht: « je suis prête » → elle a dit qu'elle était prête. Wo das Deutsche den Konjunktiv nimmt (er sei krank), nimmt das Französische diese Zeiten.",
         "fr": "On rapporte depuis un moment postérieur : tout recule d'un cran. Imparfait, conditionnel et plus-que-parfait ne changent pas. Les pronoms s'adaptent au point de vue de celui qui rapporte."
       },
@@ -4106,7 +4106,7 @@
         "right": "[C'est] moi [qui] ai raison."
       },
       "more": {
-        "en": "English and German can stress a word with the voice (I'm paying); French prefers to build a frame around it. After c'est use stressed pronouns (moi, toi, lui, eux), and the verb after qui agrees with that pronoun: c'est moi qui suis, c'est nous qui avons. Any preposition stays with the stressed part: c'est à toi que je parle.",
+        "en": "English can stress a word with the voice (I'm paying); French prefers to build a frame around it. After c'est use stressed pronouns (moi, toi, lui, eux), and the verb after qui agrees with that pronoun: c'est moi qui suis, c'est nous qui avons. Any preposition stays with the stressed part: c'est à toi que je parle.",
         "de": "Im Deutschen betont man ein Wort oft mit der Stimme (ICH zahle); das Französische baut lieber einen Rahmen. Nach c'est stehen betonte Pronomen (moi, toi, lui, eux), und das Verb nach qui richtet sich nach diesem Pronomen: c'est moi qui suis, c'est nous qui avons. Eine Präposition bleibt beim hervorgehobenen Teil: c'est à toi que je parle.",
         "fr": "Le français construit un cadre autour de l'élément mis en relief. Après c'est, pronoms toniques ; le verbe après qui s'accorde avec ce pronom : c'est moi qui suis. La préposition reste dans la partie mise en relief."
       },
@@ -4263,7 +4263,7 @@
           "wrong": "le deuxième mai",
           "right": "le [deux] mai",
           "why": {
-            "en": "Dates use plain numbers, unlike English 'the second of May' and German 'der zweite Mai'; only the first is premier.",
+            "en": "Dates use plain numbers, unlike English 'the second of May'; only the first is premier.",
             "de": "Daten mit normaler Zahl, anders als „der zweite Mai“; nur der Erste ist premier.",
             "fr": "Les dates s'écrivent avec le cardinal, sauf le premier."
           }

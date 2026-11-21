@@ -11,8 +11,8 @@
     },
     "fe7801938253": {
       "a1": "Il pleut. Tu as une valise, une lettre, une clé.",
-      "b2": "Paris, un 11 novembre sous la pluie. Une valise, la lettre du notaire, et une clé qui n'est pas encore tout à fait à toi.",
-      "c1": "Paris, 11 novembre, il tombe des cordes. Une valise, un courrier de notaire et une clé qui n'est pas encore la tienne.",
+      "b2": "Paris, un {date:2026-11-11|fr-dm} sous la pluie. Une valise, la lettre du notaire, et une clé qui n'est pas encore tout à fait à toi.",
+      "c1": "Paris, {date:2026-11-11|fr-dm}, il tombe des cordes. Une valise, un courrier de notaire et une clé qui n'est pas encore la tienne.",
       "a1_native": {
         "en": "It's raining. You have a suitcase, a letter, a key.",
         "de": "Es regnet. Du hast einen Koffer, einen Brief, einen Schlüssel."
@@ -421,6 +421,15 @@
       "a1_native": {
         "en": "\"Not yet\"? My grandfather doesn't like waiting.",
         "de": "\"Noch nicht\"? Mein Großvater wartet nicht gern."
+      }
+    },
+    "52a3a57a0a0a": {
+      "a1": "Mon grand-père n'aime pas attendre.",
+      "b2": "Mon grand-père, lui, n'aime pas qu'on le fasse attendre.",
+      "c1": "Mon grand-père, lui, supporte mal qu'on le fasse attendre.",
+      "a1_native": {
+        "en": "My grandfather doesn't like waiting.",
+        "de": "Mein Großvater wartet nicht gern."
       }
     },
     "9e7bfe195ad0": {
@@ -2336,6 +2345,20 @@
       "c1": [
         "Rien n'est décidé pour l'instant.",
         "Je ne me suis pas encore fait d'avis."
+      ]
+    },
+    "t1:b.turn1:e": {
+      "a1": [
+        "Non. Je ne vends pas.",
+        "Je ne vends pas."
+      ],
+      "b2": [
+        "Non, je ne vends pas.",
+        "Vendre ? Non, ce n'est pas mon projet."
+      ],
+      "c1": [
+        "Non, je n'ai pas l'intention de vendre.",
+        "Vendre ? Il n'en est pas question."
       ]
     },
     "t1:b.turn1:c": {

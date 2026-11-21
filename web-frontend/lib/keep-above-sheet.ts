@@ -114,10 +114,12 @@ export function keepCardAboveSheet(
   const card = chosen ?? (Array.from(feedback.children).find((el) => !el.classList.contains('ep-foot')) as HTMLElement | undefined);
   if (!sheet || !card) return nothing;
   const header = document.querySelector<HTMLElement>('.ep-top');
-  /** The last repair or galley, looked up live: one can mount after the verdict. */
+  /** The last repair or galley, looked up live: one can mount after the verdict.
+      Owner 2026-11-13: the task's one quiet line under the cards counts too — the
+      sticky sheet never covers what it refers to. */
   const lastRepair = (): HTMLElement | null => {
     if (!clearLast) return null;
-    const repairs = feedback.querySelectorAll<HTMLElement>('.ep-repair, .ep-galley');
+    const repairs = feedback.querySelectorAll<HTMLElement>('.ep-repair, .ep-galley, .ep-task-line');
     return repairs.length ? repairs[repairs.length - 1] : null;
   };
   let live = true;

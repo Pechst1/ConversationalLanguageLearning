@@ -121,7 +121,10 @@ python scripts/gold_transcripts.py gate --max-usd 1.5    # paid: main against th
   changes the hash, whatever file it was made in. A refactor that sends exactly the same
   calls does not. Editing a set's inputs changes it too, since the inputs are in the
   messages. It covers each item's first-attempt calls (a retry after a failure is not
-  rendered), which on these surfaces are all of their model calls. About five seconds.
+  rendered; a surface that asks the identical call again counts it once), which on these
+  surfaces are all of their model calls. How a call is delivered is not hashed: its
+  timeout and the provider's retry settings (`gate.TRANSPORT_KWARGS`) change no answer.
+  About five seconds.
 - **What `gate` does.** It runs the stale surfaces (or `--surface`, `--all`) twice at
   once, on the merge-base with `--base` (default `origin/main`) in a temporary worktree and
   on this checkout, both with this checkout's `sets/` and `criteria.py`, so the same

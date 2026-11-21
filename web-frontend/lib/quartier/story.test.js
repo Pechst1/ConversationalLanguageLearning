@@ -79,17 +79,20 @@ test('a question is asked only when the replies before it allow it', () => {
 
 test('the copy resolves to a page the way the server resolves one: one level, one language', () => {
   assert.ok(STAGED_DAYS.includes('t1.a'));
-  const en = pageOfCopy(T1A_COPY, { level: 'a2', native: 'en' });
-  const de = pageOfCopy(T1A_COPY, { level: 'a2', native: 'de' });
-  const b1 = pageOfCopy(T1A_COPY, { level: 'b1', native: 'de' });
+  // At the bible's own start the copy's date tokens read as the bible wrote them.
+  const start = new Date(2026, 10, 11);
+  const bible = (text) => require('./season-dates.ts').renderText(text, 0);
+  const en = pageOfCopy(T1A_COPY, { level: 'a2', native: 'en', start });
+  const de = pageOfCopy(T1A_COPY, { level: 'a2', native: 'de', start });
+  const b1 = pageOfCopy(T1A_COPY, { level: 'b1', native: 'de', start });
   assert.equal(en.key, 't1.a');
   assert.equal(en.number, T1A_COPY.number);
   assert.equal(en.can_do_native, T1A_COPY.can_do.en);
   assert.equal(de.can_do_native, T1A_COPY.can_do.de);
   assert.deepEqual(en.movements.map((m) => m.id), T1A_COPY.movements.map((m) => m.id));
   const first = (p) => p.movements[0].lines[0];
-  assert.equal(first(en).text_fr, T1A_COPY.movements[0].lines[0].say.a2);
-  assert.equal(first(de).text_native, T1A_COPY.movements[0].lines[0].say.native.de);
+  assert.equal(first(en).text_fr, bible(T1A_COPY.movements[0].lines[0].say.a2));
+  assert.equal(first(de).text_native, bible(T1A_COPY.movements[0].lines[0].say.native.de));
   assert.equal(first(b1).text_native, null, 'no translations past A2');
   for (const id of ['walk_out', 'margaux_text', 'talk']) assert.ok(storyletOf(en, id), id);
   for (const p of storyletOf(en, 'talk').people) assert.ok(p.hello && p.hello.text_fr, `${p.who} says nothing as you come up`);

@@ -1,0 +1,41 @@
+{
+  "_about": "Walk 17 Nov (walk2-integration-a1), day 1 played in Le Quartier: the respond step private_task.turns as stored (database atelier_walk_1795000081154_911480, journey 5651ca8f, read-only). task_outcome: the engine heard the route as meant (heard.meant present, runtime._heard) -> met, else partially_met. chosen: none of the answers was a card label.",
+  "turns": [
+    {
+      "learner": "Je suis Jonas. Je venir pour la apartement.",
+      "turn": "a.turn1",
+      "reply": "b",
+      "say_fr": "Je viens vendre l'appartement.",
+      "meant": "The learner says they came to sell, or that the flat is theirs now, without first saying they are family.",
+      "learned": [
+        {
+          "key": "name",
+          "quote": "Je suis Jonas."
+        },
+        {
+          "key": "why_here",
+          "quote": "Je venir pour la apartement."
+        }
+      ],
+      "task_outcome": "met"
+    },
+    {
+      "learner": "Non. Je veux manger une pizza.",
+      "turn": "a.turn2",
+      "reply": "dont_know",
+      "say_fr": null,
+      "meant": null,
+      "learned": [],
+      "task_outcome": "partially_met"
+    },
+    {
+      "learner": "Je prend la clé.",
+      "turn": "a.key",
+      "reply": "take",
+      "say_fr": "Je la prends.",
+      "meant": "The learner takes the key back, or keeps it.",
+      "learned": [],
+      "task_outcome": "met"
+    }
+  ]
+}
