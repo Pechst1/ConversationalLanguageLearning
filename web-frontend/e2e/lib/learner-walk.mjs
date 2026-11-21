@@ -4,6 +4,7 @@
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { FORGE_FOLLOW, FORGE_REPAIR, FORGE_SHEET, FORGE_SPOT, LEXIQUE_DECK, snapshot, sleep, TYPEABLE_FIELD, WORD_BANK_TILE } from './driver.mjs';
+import { forgeVisitEnd } from '../../lib/forge-walk.mjs';
 import { missLayoutChecks, readingIsSteady } from './miss-layout.mjs';
 import { reversed, trackKey, trackVerdicts } from './verdict-timeline.mjs';
 import { HAND_ON } from './day-plan.mjs';
@@ -698,7 +699,20 @@ export class LearnerWalk {
         await this.shoot('stuck');
         break;
       }
-      if (entry && sameFor > 40) break; // the loop ended by itself (no recap to reach)
+      if (entry) {
+        // The loop ended by itself (no recap to reach) — but not on an exercise it could
+        // not get past. A La Forge visit used to stop here silently in front of a «Build»
+        // word bank, and the next day's journey met the same item and failed there.
+        // lib/forge-walk.mjs decides which end it is (and is unit-tested).
+        const end = forgeVisitEnd(s, sameFor);
+        if (end) {
+          if (end.stalled) {
+            this.findings.check('a-way-forward', false, end.detail, this.where({ kind, entry }));
+            await this.shoot('stuck');
+          }
+          break;
+        }
+      }
       // The 30 s cap must not undercut the server wait above.
       if (sameFor > (s.pending ? 180 : 120)) {
         this.findings.check('a-way-forward', false, `no change for ${(sameFor * 0.25).toFixed(0)}s on «${s.text.slice(0, 140)}»${this.refusalNote()}`, this.where({ kind }));

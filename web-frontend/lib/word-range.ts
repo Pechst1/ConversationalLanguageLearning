@@ -16,3 +16,16 @@ export function withinWordRange(text: string, maxWords?: unknown): boolean {
   const max = Number(maxWords) || 0;
   return !(max > 0 && wordsOf(text) > max);
 }
+
+/**
+ * #853: the rounds whose typed line is held under its item's ceiling: «Check» waits for
+ * it (canSubmit) and the server refuses it (`_RANGED_ROUNDS` in app/services/atelier.py).
+ * A spoken transcript's length is the recogniser's; the paragraph (`produce`) has a
+ * floor only. Only where the ceiling holds does the screen say so.
+ */
+export const CEILING_ROUNDS: readonly string[] = ['sentence', 'conversation'];
+
+/** True when this round's line is above its ceiling, so «Check» waits for it. */
+export function heldByCeiling(round: string, text: string, maxWords?: unknown): boolean {
+  return CEILING_ROUNDS.includes(round) && !withinWordRange(text, maxWords);
+}
