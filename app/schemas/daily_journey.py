@@ -449,7 +449,7 @@ class RecallPrompt(JourneyModel):
     # This serializer drops audio_url on silent formats, leaving all other defaults.
     model_config = ConfigDict(
         json_schema_extra=lambda schema: _drop_required(
-            schema, "audio_url", "met", "retry", "slip_fr", "speaker"
+            schema, "audio_url", "met", "retry", "slip_fr", "speaker", "role"
         ),
     )
     #: WP-66 brought three Séance formats into the daily loop. Additive: the
@@ -520,6 +520,10 @@ class RecallPrompt(JourneyModel):
     #: without it, it keeps the rule's coach or the day's character. Omitted on an
     #: item that is not cut from a character's line, and on «Qui a dit ça ?».
     speaker: RecallSpeaker | None = None
+    #: #975 (additive): why a drill whose target is not the day's rule is in the day —
+    #: ``mistake`` (the learner's own slip) or ``review`` (the one due rule). The device
+    #: labels it a review, never «today's rule». Omitted on every other drill.
+    role: Literal["mistake", "review"] | None = None
 
     @model_serializer(mode="wrap")
     def _omit_absent_audio(self, handler: Any):
@@ -539,6 +543,8 @@ class RecallPrompt(JourneyModel):
             data.pop("retry", None)
         if isinstance(data, dict) and data.get("speaker") is None:
             data.pop("speaker", None)
+        if isinstance(data, dict) and data.get("role") is None:
+            data.pop("role", None)
         return data
 
 

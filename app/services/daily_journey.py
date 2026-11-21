@@ -539,6 +539,8 @@ def _recall_task_to_json(task: RecallTask) -> dict[str, Any]:
         **({"why_native": task.why_native} if task.why_native else {}),
         # #155: only when set, so every other stored task reads as before.
         **({"speaker_id": task.speaker_id} if task.speaker_id else {}),
+        # #975: only when set, so every other stored task reads as before.
+        **({"role": task.role} if task.role else {}),
     }
 
 
@@ -565,6 +567,7 @@ def _recall_task_from_json(payload: dict[str, Any]) -> RecallTask:
         rule_native=payload.get("rule_native") or None,
         why_native=payload.get("why_native") or None,
         speaker_id=payload.get("speaker_id") or None,
+        role=payload.get("role") if payload.get("role") in ("mistake", "review") else None,
     )
 
 

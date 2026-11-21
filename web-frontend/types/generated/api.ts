@@ -11980,6 +11980,8 @@ export interface components {
             prompt_fr: string | null;
             /** Retry */
             retry?: boolean | null;
+            /** Role */
+            role?: ("mistake" | "review") | null;
             /** Slip Fr */
             slip_fr?: string | null;
             /** Source Fr */

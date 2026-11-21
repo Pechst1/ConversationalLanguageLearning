@@ -5901,6 +5901,8 @@ def _recall_step(ordinal: int, item: PracticeItem, scenario: ScenarioBrief | Non
         **({"slip_fr": recall.slip_fr} if recall.slip_fr else {}),
         **recall_met(item.entry.candidate),
         **recall_speaker_prompt(recall, scenario),
+        # #975: a review (an own mistake, the due rule) says so; the day's rule says nothing.
+        **({"role": recall.role} if recall.role else {}),
     }
     if recall.task_type in LISTENING_RECALL_FORMATS:
         # WP-91: with a clip the phrase (or the dictated line) is heard first.
@@ -6120,6 +6122,7 @@ def fill_rappel_items(
     multiplier: float,
     caps: RhythmCaps,
     avoid_sentences: set[str] | frozenset[str] = frozenset(),
+    day_rule_id: str | None = None,
 ) -> list[PracticeItem]:
     """Decision 8: the learner's own due mistakes, then one due rule, at most :func:`rappel_cap`.
 
@@ -6128,6 +6131,10 @@ def fill_rappel_items(
     queue offered (:func:`grammar_items.review_item`, or the coach's scene for a
     strong one). Before the scene, except on a page read first (an authored
     page): then after the ending, like every other item of that day.
+
+    #975: each item carries its role (``RecallTask.role``): an own mistake is
+    ``"mistake"``, the due rule ``"review"`` unless it is the day's rule
+    (``day_rule_id``), so the device never labels a slip's rule «today's rule».
     """
 
     story_first = shape is DayShape.LISTENING or _authored_page(scenario)
@@ -6162,7 +6169,7 @@ def fill_rappel_items(
         cost = quick_recall_seconds(task, spt=spt, multiplier=multiplier)
         if cost > headroom:
             continue
-        place(entry, task, cost)
+        place(entry, replace(task, role="mistake"), cost)
 
     day_key = "|".join(dice.seed_parts) if dice is not None else ""
     for entry in entries:
@@ -6191,9 +6198,20 @@ def fill_rappel_items(
         cost = grammar_item_seconds(task, spt=spt, multiplier=multiplier)
         if cost > headroom:
             continue
-        place(entry, task, cost)
+        today = day_rule_id is not None and str(entry.target.id) == str(day_rule_id)
+        place(entry, task if today else replace(task, role="review"), cost)
         break  # one due rule
     return items
+
+
+def day_rule_target(introduction: dict[str, Any] | None, forge: dict[str, Any] | None) -> str | None:
+    """#975: the day's rule, as a grammar target id: the rule the day introduces, else
+    the folded forge's (the same source as :func:`_forge_step`)."""
+
+    for source in (introduction, forge):
+        if isinstance(source, dict) and source.get("concept_id") not in (None, ""):
+            return str(source["concept_id"])
+    return None
 
 
 def _plan_practice_day(
@@ -6523,6 +6541,7 @@ def _plan_practice_day(
                 multiplier=multiplier,
                 caps=caps,
                 avoid_sentences=avoid,
+                day_rule_id=day_rule_target(introduction, forge),
             )
         filled = fill_practice_items(
             scenario=scenario,

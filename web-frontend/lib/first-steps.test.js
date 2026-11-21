@@ -187,3 +187,42 @@ test('#469 a drill’s sticker is named by its place in the day order, not by it
     assert.notEqual(steps.stickerFor(ruleDrill), steps.stickerFor(wordDrill), 'one sticker per place, so one does not hide the other');
   }
 });
+
+test('#975 a drill not on the day’s rule is labelled a review, never «today’s rule»', () => {
+  const { drillHeaderLabel } = require('../components/atelier-v2/journey/drill-frame.ts');
+  const { journeyCopy } = require('../components/atelier-v2/journey/journey-copy.ts');
+  // The walk of 21 Nov, day 2: the day's rule is concept 40 (passé composé with être);
+  // the drill is on concept 4 («Un, une, des»), the rule a slip had been filed under.
+  const dueRule = {
+    kind: 'recall',
+    prompt: {
+      role: 'review',
+      target: { kind: 'grammar', id: '4', label_fr: 'Un, une, des', label_native: 'Un, une, des' },
+      options: [],
+    },
+  };
+  const ownSlip = { kind: 'recall', prompt: { role: 'mistake', target: { kind: 'error', id: 'e-cafe', label_fr: 'café' }, options: [] } };
+  const dayRule = { kind: 'recall', prompt: { target: { kind: 'grammar', id: '40', label_fr: 'Passé composé' }, options: [] } };
+  const today = /today|heute|aujourd|du jour/i;
+  const labels = {
+    en: { review: 'A rule to review', mistakes: 'From your mistakes' },
+    de: { review: 'Eine Regel zum Wiederholen', mistakes: 'Aus deinen Fehlern' },
+    fr: { review: 'Une règle à revoir', mistakes: 'Tes erreurs' },
+  };
+
+  assert.equal(steps.stickerFor(dueRule), 'review');
+  assert.equal(steps.stickerFor(ownSlip), 'mistakes');
+  assert.equal(steps.stickerFor(dayRule), 'practice', 'the day’s own rule keeps its sticker');
+  for (const language of ['en', 'de', 'fr']) {
+    const copy = steps.firstStepsCopy(language);
+    for (const [step, key] of [[dueRule, 'review'], [ownSlip, 'mistakes']]) {
+      const sticker = copy.stickers[steps.stickerFor(step)];
+      assert.equal(sticker.title, labels[language][key], `${language}: ${sticker.title}`);
+      assert.doesNotMatch(`${sticker.title} ${sticker.body}`, today, `${language}: «${sticker.body}»`);
+      const header = drillHeaderLabel(step, language, journeyCopy(language));
+      assert.ok(header.startsWith(labels[language][key]), `${language}: header «${header}»`);
+      assert.doesNotMatch(header, today, `${language}: header «${header}»`);
+    }
+    assert.match(drillHeaderLabel(dueRule, language, journeyCopy(language)), /Un, une, des/, 'the rule is still named');
+  }
+});
