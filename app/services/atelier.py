@@ -5066,6 +5066,13 @@ class AtelierCorrectionService:
             (entry for entry in items if isinstance(entry, dict) and entry.get("id") and entry.get("id") == erratum.get("item_id")),
             None,
         )
+        return AtelierCorrectionService._gap_line(item)
+
+    @staticmethod
+    def _gap_line(item: dict[str, Any] | None) -> str | None:
+        """The printed line of a gap item, its gap kept and its bracketed gloss dropped
+        («___ est-ce que Gus travaille ?»), or ``None`` when the item prints no gap."""
+
         prompt = " ".join(str((item or {}).get("prompt") or "").split())
         if not BLANK_RE.search(prompt):
             return None
@@ -5536,6 +5543,13 @@ class AtelierCorrectionService:
             self.db.commit()
             self.db.refresh(attempt)
             return attempt, False
+        from app.services import solution_gate
+
+        if solution_gate.served_whole_unread(correction, attempt.verdict):
+            # #855: an unread answer nobody could ask again was served with its fixes whole.
+            # Asked again now (a model configured since), its miss shows the solution: the
+            # learner is never asked to repair words they have already been given.
+            correction = solution_gate.reveal(correction, by="unread")
         correction["ai_review"] = {
             **review,
             "status": "pending",
@@ -6626,9 +6640,12 @@ class AtelierCorrectionService:
         accent_line = accent_miss_note(ops, self.explanation_language) if mode == "fill" else None
         if slip:
             # #449: the slip's own category explains the miss, not the day's rule card.
+            # #828: after what the learner gave, said once; the slip names the right form.
+            answered = self._answered(mode, item, learner_text)
             return self._recognize_erratum_payload(
                 concept, item, label=self._label_for(concept, item), learner_text=learner_text, target=target,
-                why=slip[0], repair=slip[1], task_type=self._task_type_for(concept, item),
+                why=" ".join(part for part in (answered, slip[0]) if part), repair=slip[1],
+                task_type=self._task_type_for(concept, item),
             )
         if concept and item.get("lesson_external_id") == concept.external_id:
             # WP-56: the immediate line is in the learner's language. The item's
@@ -6641,16 +6658,7 @@ class AtelierCorrectionService:
             # both again in the why doubled a long line's height, and at 375×812 the
             # card and «Copy the correction» no longer fitted above the verdict sheet
             # (walk of 5 Nov). A pick's why still names the two words.
-            why = (
-                ""
-                if mode == "word_bank"
-                else _copy(
-                    "atelier.recognize.wrote_requires" if self._typed_fill(mode, item, learner_text) else "atelier.recognize.chose_requires",
-                    language,
-                    learner=learner_text,
-                    target=target,
-                )
-            )
+            why = self._answered(mode, item, learner_text, target)
             if accent_line:
                 why = f"{why} {accent_line}".strip()
             explanation = str(item.get("explanation") or self._why_for(concept, item) or "").strip()
@@ -6658,16 +6666,23 @@ class AtelierCorrectionService:
             # #596: a slip the classifier can name (an article's gender or number, a verb
             # form of another person) is explained as that slip, with the rule only cited.
             ops = token_diff(learner_text, target, positions=True)
-            named = None if outside_rule else slip_note(ops, language, target)
+            # #852: a gap's key is only the word that fills it; whether a question word
+            # asks («Où est-ce que …») or links a relative («le jour où») is read from
+            # the line it stands in.
+            gap_line = self._gap_line(item) if mode == "fill" else None
+            line = fill_blank(gap_line, target) if gap_line else None
+            named = None if outside_rule else slip_note(ops, language, target, line)
             if named:
                 title = _concept_title_for(concept, language)
                 # A verb form is the rule's own matter, so the rule is cited; an article's
                 # gender or number is the noun's, whatever the day's rule is.
-                category = (slip_category(ops, target) or {}).get("category", "")
+                category = (slip_category(ops, target, line) or {}).get("category", "")
                 cite = _copy("atelier.recognize.rule_reference", language, title=title) if category.startswith("person") else ""
+                # #828: the slip names the right form, so the line before it does not.
+                answered = self._answered(mode, item, learner_text)
                 erratum = self._recognize_erratum_payload(
                     concept, item, label=title, learner_text=learner_text, target=target,
-                    why=" ".join(part for part in (why, named[0], cite) if part),
+                    why=" ".join(part for part in (answered, named[0], cite) if part),
                     repair=named[1],
                     task_type=self._task_type_for(concept, item),
                 )
@@ -6764,6 +6779,20 @@ class AtelierCorrectionService:
             if text and text not in generic and solution_gate.scrub_hint(text, phrases, tokens):
                 erratum["hint"] = text
                 return
+
+    def _answered(self, mode: str, item: dict[str, Any], learner_text: str, target: str = "") -> str:
+        """What the learner gave, in the verb of how the item was posed (#828, #542):
+        «You wrote “est”» under a typed gap, «You chose “est”» under options; with
+        ``target`` the form the item needed too. A built line (``word_bank``) is printed
+        whole on the card, so nothing is said about it here. Typed or picked is main's
+        ``_typed_fill`` (the drill the endpoint passes in)."""
+
+        if mode == "word_bank":
+            return ""
+        verb = "wrote" if self._typed_fill(mode, item, learner_text) else "chose"
+        if target:
+            return _copy(f"atelier.recognize.{verb}_requires", self.explanation_language, learner=learner_text, target=target)
+        return _copy(f"atelier.recognize.{verb}", self.explanation_language, learner=learner_text)
 
     def _fill_erratum(
         self,
@@ -7897,7 +7926,11 @@ class AtelierCorrectionService:
 
         from app.services.free_card_contract import quoted_meanings
 
-        language = mother_tongue(self.explanation_language)
+        # Walk of 21 Nov: what the screen asked is decided by the language the screen was
+        # in (the chrome, French from B1), never by the language the reason is written in.
+        # Since R4 that is the mother tongue: an English learner at B1 read the French
+        # «Écris une courte phrase à toi…» and was graded against the English meaning.
+        language = mother_tongue(getattr(self, "_learner_chrome", None) or self.explanation_language)
         if language == "en" or item.get("type") not in {"short_sentence", "spoken_response", "conversation_turn"}:
             return item
         meanings = [

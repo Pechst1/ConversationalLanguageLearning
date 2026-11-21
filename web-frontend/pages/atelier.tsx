@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
 import { oncePerLoad } from '@/lib/once-per-load';
 import { correctRunFrom, seanceAssessment, secondCheckChange } from '@/lib/seance-feedback';
-import { withinWordRange } from '@/lib/word-range';
+import { heldByCeiling } from '@/lib/word-range';
 import { dedupeNotes, forgeCorrectionNotes } from '@/lib/correction-notes';
 import { classifyRepair } from '@/lib/forge-followup';
 import { classificationCopy, classificationGoal, isJudgementLabels, judgementLabel, judgementQuestion } from '@/lib/classification-copy';
@@ -75,6 +75,7 @@ import {
   EpBar,
   EpFoot,
   EpFix,
+  EpBasicFixes,
   EpIns,
   EpLabelFix,
   EpLineFix,
@@ -203,7 +204,7 @@ import { bestComboLine, fillMomentum, momentumCopy } from '@/lib/momentum-copy';
 import { eclairHref, eclairPairLabel } from '@/lib/grammar-map';
 import { playComboTone } from '@/lib/sound';
 import { atelierErrorText, type AtelierErrorNotice } from '@/lib/atelier-errors';
-import { epreuveCopy, fill, wordRangeState, wordRangeText, type EpreuveCopy } from '@/components/epreuve/epreuve-copy';
+import { epreuveCopy, fill, wordCeilingText, wordRangeState, wordRangeText, type EpreuveCopy } from '@/components/epreuve/epreuve-copy';
 import { endsOnModelAnswer, markedLine, modelAnswer, retryOffered, solutionState, solutionWithheld, withheldHints, withheldRepairParts } from '@/lib/solution-gate';
 import { promptParts } from '@/lib/prompt-parts';
 import { usableCard } from '@/lib/rule-card';
@@ -216,6 +217,7 @@ import { epreuveOf } from '@/lib/can-dos';
 import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
 import { atelierCopy } from '@/lib/atelier-v2-copy';
 import { explanationLanguage, journeyChromeLanguage, journeyLevel } from '@/lib/language-rule';
+import { chromeDate } from '@/lib/chrome-locale';
 import { cn } from '@/lib/utils';
 import { resolveMediaUrl } from '@/lib/media-url';
 // WP-119 phase 1 — La Revue on La Une, as data in Home's slots (lib/revue-une.ts).
@@ -563,7 +565,7 @@ function drillAnswerIsReady(
     // server refuses the same lines); a spoken transcript's length is the recogniser's.
     if (round === 'speak') return true;
     const item = payload.output_ladder?.[round]?.items?.[0] || {};
-    return withinWordRange(String(currentAnswers.text || ''), item.max_words);
+    return !heldByCeiling(round, String(currentAnswers.text || ''), item.max_words);
   }
   return false;
 }
@@ -3213,7 +3215,7 @@ function TodayView({
     <>
     <HomeScreen
       hero={homeHero}
-      dateLabel={formatAtelierEditionDate(new Date(), homeDay ? chromeLanguage : 'fr')}
+      dateLabel={chromeDate(new Date(), homeDay ? chromeLanguage : 'fr', 'heading') ?? ''}
       editionLabel={editionLabel}
       special={specialEdition}
       streak={homeChip.streak}
@@ -3485,26 +3487,6 @@ function parcoursTopicShort(value: string) {
   if (lower.includes('si ') || lower.includes('condition')) return 'si + présent';
   if (lower.includes('négation') || lower.includes('negation')) return 'la négation';
   return normalized.length > 26 ? `${normalized.slice(0, 23).trim()}…` : normalized;
-}
-
-// WP-82: the date line is chrome — it reads in Home's chrome language.
-const DATE_LOCALES: Record<ControlLanguage, string> = { en: 'en-GB', de: 'de-DE', fr: 'fr-FR' };
-
-function formatAtelierEditionDate(date = new Date(), language: ControlLanguage = 'fr') {
-  const formatted = new Intl.DateTimeFormat(DATE_LOCALES[language] || 'fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    // «Mercredi 23 sept.» — the short month keeps the headline on one line.
-    month: 'short',
-  }).format(date);
-  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
-}
-
-function formatAtelierDatestamp(date = new Date()) {
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = String(date.getFullYear()).slice(-2);
-  return `Classée · ${day} · ${month} · ${year}`;
 }
 
 function atelierEditionStreak(today: AtelierToday | null, activeSession: AtelierSessionStart | null) {
@@ -4443,8 +4425,8 @@ export function ExerciseFeedbackMoment({
   }
   const mood = coachMood(correction, { correct: feedback.correct });
   if (feedback.unscored) {
-    // #333: the rules' real fixes stay listed; nothing here is a verdict.
-    const unreadFixes: Array<{ span: string; replacement: string; start: number }> = correction?.check?.edits || [];
+    // #333: the rules' real fixes stay listed; nothing here is a verdict. #855: whole when no
+    // chance can follow (solution_gate.no_chance_follows); a withheld one is not drawn.
     const unreadState = checkState(correction?.check) === 'basic' ? 'basic' : 'not_checked';
     // #724: «Check again» only where asking again can reach a reader; with none, the line
     // says so plainly instead of «not checked yet» over a button that can never work.
@@ -4458,11 +4440,7 @@ export function ExerciseFeedbackMoment({
         >
           {line === 'basic' ? t.check_basic : line === 'unavailable' ? t.check_unavailable : t.unscored}
         </EpRelecture>
-        {unreadFixes.map((edit) => (
-          <p className="av2-fr" lang="fr" key={`${edit.start}-${edit.span}`}>
-            <s>{edit.span}</s> → <strong>{edit.replacement}</strong>
-          </p>
-        ))}
+        <EpBasicFixes edits={correction?.check?.edits} />
         <EpFoot tone="neutral">
           <EpBar tone="ghost" onClick={onNext}>{t.skip_unscored}</EpBar>
         </EpFoot>
@@ -5467,6 +5445,12 @@ export function OutputLadderPanel({
           />
           <div className="word-count" data-state={wordRangeState(wordCount(answer), item.min_words, item.max_words)}>
             {wordRangeText(t, wordCount(answer), item.min_words, item.max_words)}
+            {(() => {
+              // #853: while the ceiling holds Check, the counter says why (never on `produce`
+              // or a spoken line, where no ceiling holds: lib/word-range.ts CEILING_ROUNDS).
+              const over = wordCeilingText(t, round, answer, item.max_words);
+              return over ? <span className="word-count__over" role="status"> · {over}</span> : null;
+            })()}
           </div>
         </>
       )}
@@ -5633,7 +5617,8 @@ function RecapModal({
               ? t.recap_early
               : t.recap_done}
         />
-        <EpRecapHead date={formatAtelierDatestamp().replace('Classée · ', '')} />
+        {/* #694: the séance's day in the chrome language («Wednesday 11 Nov»), not a bare «11 · 11 · 26». */}
+        <EpRecapHead date={chromeDate(new Date(), language, 'heading')} />
         <div className="ep-recap-body">
           {forgeRows.length ? (
             // One Garamond line (the headline above); each rule: its level,

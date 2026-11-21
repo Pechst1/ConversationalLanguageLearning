@@ -691,11 +691,19 @@ class BankItemProvider:
             return due, -int(row.occurrences or 1)
 
         seen: set[str] = set()
+        origins: set[str] = set()
         for row in sorted(rows, key=urgency):
             source_payload = ((row.error_metadata or {}).get("source_payload") or {}) if isinstance(
                 row.error_metadata, dict
             ) else {}
             if str(row.source_type or "") == "atelier" and str(source_payload.get("round") or "") == "recognize":
+                continue
+            if not _mine_on_schedule(row, now):
+                continue
+            origin = str(row.source_attempt_id or row.message_id or "")
+            if origin and origin in origins:
+                # Walk 14: two mistakes of one line are one «Ta phrase», not the same
+                # sentence twice (the line already shows the other one repaired).
                 continue
             source, expected = _mine_sentence(self.db, row)
             if not drills.mine_fits(source, expected):
@@ -704,6 +712,8 @@ class BankItemProvider:
             if key in seen:
                 continue
             seen.add(key)
+            if origin:
+                origins.add(origin)
             found.append({"error_id": str(row.id), "source": source, "expected": expected})
             if len(found) >= self.MINE_MAX_ERRORS:
                 break
@@ -1037,6 +1047,28 @@ def _payload_container(payload: dict[str, Any], round_name: str, mode: str) -> d
 # ---------------------------------------------------------------------------
 
 
+#: Walk 14: a saved mistake reviewed this recently is not posed again the same day.
+MINE_REST = timedelta(hours=12)
+
+
+def _mine_on_schedule(row: Any, now: datetime) -> bool:
+    """May this saved mistake be posed now? (walk 14, A1 days 11–14 and B1 days 8–11)
+
+    Not when it was reviewed in the last hours (the warm-up or an earlier séance today
+    already asked it), and not when the learner got it right last time and its own
+    «next review» date is still ahead: the end card promised that date.
+    """
+
+    last = _aware(getattr(row, "last_review_date", None))
+    if last is not None and now - last < MINE_REST:
+        return False
+    due = _aware(getattr(row, "next_review_date", None))
+    right_last = _aware(getattr(row, "last_correct_date", None))
+    if due is not None and due > now and last is not None and right_last is not None and right_last >= last:
+        return False
+    return True
+
+
 def _mine_item_id(error_id: Any) -> str:
     return f"mine-{str(error_id).replace('-', '')[:12]}"
 
@@ -1097,12 +1129,52 @@ def _mine_sentence(db: Session, error: Any) -> tuple[str, str]:
         match = pattern.search(sentence)
         if match is None:
             continue
-        line = sentence.strip()
-        fixed = (sentence[: match.start()] + corrected + sentence[match.end():]).strip()
+        head, tail = sentence[: match.start()], sentence[match.end():]
+        # Walk 14 (A1 days 11–14): «Lila a un valise dans le chambre.» held two saved
+        # mistakes. Posed for «le chambre», the key kept «un valise», so fixing both was
+        # refused, the wrong key was taught, and the item failed back into the queue every
+        # day. The line's other saved mistakes are repaired in the line *and* the key: the
+        # learner meets their own line with this one slip, and the key is right French.
+        for wrong, right in _sibling_fixes(db, error):
+            head, tail = _repair_once(head, wrong, right), _repair_once(tail, wrong, right)
+        line = (head + str(match.group(0)) + tail).strip()
+        fixed = (head + corrected + tail).strip()
         if drills.mine_fits(line, fixed):
             return line, fixed
         break
     return learner, corrected
+
+
+def _repair_once(text: str, wrong: str, right: str) -> str:
+    pattern = re.compile(rf"(?<![\w']){re.escape(wrong)}(?![\w'])", re.IGNORECASE)
+    return pattern.sub(lambda _m: right, text, count=1)
+
+
+def _sibling_fixes(db: Session, error: Any) -> list[tuple[str, str]]:
+    """The other saved mistakes of the same answer (``(wrong, right)``), the learner's own only."""
+
+    from app.db.models.error import UserError
+    from app.services.fault_quality import learner_own_fault
+
+    attempt_id = getattr(error, "source_attempt_id", None)
+    message_id = getattr(error, "message_id", None)
+    if attempt_id is None and message_id is None:
+        return []
+    try:
+        query = db.query(UserError).filter(UserError.user_id == error.user_id, UserError.id != error.id)
+        query = query.filter(
+            UserError.source_attempt_id == attempt_id if attempt_id is not None else UserError.message_id == message_id
+        )
+        rows = query.all()
+    except Exception:  # pragma: no cover - a context is a nicety
+        return []
+    out: list[tuple[str, str]] = []
+    for row in rows:
+        wrong = re.sub(r"\s+", " ", str(row.original_text or "")).strip()
+        right = re.sub(r"\s+", " ", str(row.correction or "")).strip()
+        if wrong and right and wrong != right and learner_own_fault(wrong=wrong, correct=right):
+            out.append((wrong, right))
+    return out
 
 
 #: The goal of «Ta phrase», in the three chrome languages: its instruction.

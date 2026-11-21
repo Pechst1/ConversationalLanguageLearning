@@ -78,29 +78,42 @@ class WalkClient(httpx.Client):
         self.headers_["Authorization"] = f"Bearer {response.json()['access_token']}"
 
     def request(self, method: str, url: Any, **kwargs: Any) -> httpx.Response:  # type: ignore[override]
-        response = super().request(method, url, **kwargs)
-        if response.status_code == 401 and "headers" in kwargs:
-            self.sign_in()
-            kwargs["headers"] = {**(kwargs["headers"] or {}), **self.headers_}
+        # Every answer is read by the same rules, whatever came before it (#802): a wait
+        # for the rate limit can outlive the one-minute token, so the 401 after a 429 is
+        # as curable as the first one. A token is renewed at most once per wait, and the
+        # rate limit is waited out at most three times, so a lasting refusal comes back.
+        token_fresh = False
+        waits = 0
+        while True:
             response = super().request(method, url, **kwargs)
-        # The API's rate limit runs on the wall clock, and an API day is played in a few
-        # seconds where the browser takes minutes: wait as long as it asks, as a learner would.
-        for _ in range(3):
-            if response.status_code != 429:
-                break
-            try:
-                wait = float((response.json().get("detail") or {}).get("retry_after_seconds") or 5)
-            except (ValueError, AttributeError):
-                wait = 5.0
-            print(
-                f"[fast-forward] rate limited on {method} {url}: waiting {wait:.0f}s",
-                file=sys.stderr,
-                flush=True,
-            )
-            time.sleep(min(wait, 60) + 0.5)
-            response = super().request(method, url, **kwargs)
-        self.last_request_at = time.monotonic()
-        return response
+            if response.status_code == 401 and "headers" in kwargs and not token_fresh:
+                self.sign_in()
+                token_fresh = True
+                kwargs["headers"] = {**(kwargs["headers"] or {}), **self.headers_}
+                continue
+            # The API's rate limit runs on the wall clock, and an API day is played in a
+            # few seconds where the browser takes minutes: wait as long as it asks, as a
+            # learner would.
+            if response.status_code == 429 and waits < 3:
+                waits += 1
+                self._wait_out(method, url, response)
+                token_fresh = False
+                continue
+            self.last_request_at = time.monotonic()
+            return response
+
+    @staticmethod
+    def _wait_out(method: str, url: Any, response: httpx.Response) -> None:
+        try:
+            wait = float((response.json().get("detail") or {}).get("retry_after_seconds") or 5)
+        except (ValueError, AttributeError):
+            wait = 5.0
+        print(
+            f"[fast-forward] rate limited on {method} {url}: waiting {wait:.0f}s",
+            file=sys.stderr,
+            flush=True,
+        )
+        time.sleep(min(wait, 60) + 0.5)
 
     def leave_budget_free(self, window_seconds: float, *, clock=time.monotonic, sleep=time.sleep) -> float:
         """Wait until the learner's paid-request window holds none of this script's requests.

@@ -13,7 +13,7 @@ const {
   entriesByDay,
   previousWeek,
   isoWeekOf,
-  GOLD_REMEMBERED_FR,
+  goldCopy,
 } = require('./gold-model.ts');
 const { isGoldAnswerRequest } = require('./gold-events.ts');
 
@@ -55,28 +55,36 @@ test('the rim gilds toward the mark and stops there', () => {
   assert.equal(rimFraction(null), 0);
 });
 
-test('le tirage du jour says the day and the week', () => {
-  assert.equal(tirageLine(view()), 'Or +12 · 12 / 20 vers la journée pleine');
+test('le tirage du jour says the day and the week, and what its numbers count (#694)', () => {
+  assert.equal(tirageLine(view(), 'fr'), 'Or +12 aujourd’hui · 12 / 20 feuilles vers la journée pleine');
+  assert.equal(tirageLine(view(), 'en'), 'Gold +12 today · 12 of 20 leaves toward a full day');
+  assert.equal(tirageLine(view(), 'de'), 'Blattgold +12 heute · 12 von 20 Blatt bis zum vollen Tag');
   assert.equal(
-    tirageLine(view({ settled: 48, earn_settled: 38, pleine: true }, { journees_pleines: 4 })),
-    'Or +48 · Journée pleine (4 / 5)',
+    tirageLine(view({ settled: 48, earn_settled: 38, pleine: true }, { journees_pleines: 4 }), 'fr'),
+    'Or +48 aujourd’hui · Journée pleine (4 / 5 cette semaine)',
   );
-  assert.equal(tirageLine({ visible: false }), null);
+  assert.equal(
+    tirageLine(view({ settled: 48, earn_settled: 38, pleine: true }, { journees_pleines: 4 }), 'en'),
+    'Gold +48 today · Full day (4 of 5 this week)',
+  );
+  assert.equal(tirageLine({ visible: false }, 'en'), null);
 });
 
 test('the pill notes the plafond and gold still à l’épreuve', () => {
-  assert.equal(todayNote(view()), null);
-  assert.equal(todayNote(view({ pending: 5 })), '5 à l’épreuve');
-  assert.equal(todayNote(view({ plafond: 'half' })), 'Plafond : demi-tarif');
-  assert.equal(todayNote(view({ plafond: 'closed' })), 'Plafond du jour atteint');
+  assert.equal(todayNote(view(), 'fr'), null);
+  assert.equal(todayNote(view({ pending: 5 }), 'fr'), '5 à l’épreuve');
+  assert.equal(todayNote(view({ plafond: 'half' }), 'fr'), 'Plafond : demi-tarif');
+  assert.equal(todayNote(view({ plafond: 'closed' }), 'fr'), 'Plafond du jour atteint');
+  assert.equal(todayNote(view({ pending: 5 }), 'en'), '5 still being checked');
 });
 
 test('«D’où vient ton or» names the word and the reason, and why a leaf was pulped', () => {
   assert.equal(entryLine(entry({ subject: 'la clé', reason_fr: 'Rappel écrit · rappel différé ×2' })),
     '«\u202fla clé\u202f» · Rappel écrit · rappel différé ×2');
-  assert.equal(voidLine(entry()), null);
-  assert.equal(voidLine(entry({ state: 'void', void_reason: 'not_yet' })), 'pas encore');
-  assert.equal(voidLine(entry({ state: 'void', void_reason: 'injection' })), 'pilonné');
+  assert.equal(voidLine(entry(), 'fr'), null);
+  assert.equal(voidLine(entry({ state: 'void', void_reason: 'not_yet' }), 'fr'), 'pas encore');
+  assert.equal(voidLine(entry({ state: 'void', void_reason: 'injection' }), 'fr'), 'pilonné');
+  assert.equal(voidLine(entry({ state: 'void', void_reason: 'not_yet' }), 'de'), 'noch nicht');
   const days = entriesByDay([entry({ id: 'a' }), entry({ id: 'b' }), entry({ id: 'c', local_date: '2026-11-02' })]);
   assert.deepEqual(days.map((d) => [d.day, d.entries.length]), [['2026-11-03', 2], ['2026-11-02', 1]]);
 });
@@ -101,5 +109,5 @@ test('only an answer route reads the ledger again', () => {
 });
 
 test('the ×2 line is the spec’s', () => {
-  assert.equal(GOLD_REMEMBERED_FR, 'Tu t’en souvenais.');
+  assert.equal(goldCopy('fr').remembered, 'Tu t’en souvenais.');
 });

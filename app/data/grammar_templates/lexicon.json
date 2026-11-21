@@ -6405,8 +6405,8 @@
      ]
     },
     {
-     "fr": "pour Lyon",
-     "en": "for Lyon"
+     "fr": "pour Marseille",
+     "en": "for Marseille"
     },
     {
      "fr": "demain matin",
@@ -8454,6 +8454,7 @@
     },
     {
      "fr": "en Italie",
+     "rule": "FR2_A11_PLACES",
      "en": "in Italy"
     },
     {
@@ -9454,8 +9455,8 @@
      "en": "at night"
     },
     {
-     "fr": "jusqu'à Lyon",
-     "en": "to Lyon"
+     "fr": "jusqu'à Marseille",
+     "en": "to Marseille"
     },
     {
      "fr": "Romy à la rédaction",
@@ -9650,7 +9651,8 @@
     "en": "Paris",
     "tags": [
      "city"
-    ]
+    ],
+    "story": true
    },
    {
     "in": "à Lyon",
@@ -9663,7 +9665,8 @@
     "en": "Lyon",
     "tags": [
      "city"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "à Marseille",
@@ -9676,7 +9679,8 @@
     "en": "Marseille",
     "tags": [
      "city"
-    ]
+    ],
+    "story": true
    },
    {
     "in": "à Bordeaux",
@@ -9689,7 +9693,8 @@
     "en": "Bordeaux",
     "tags": [
      "city"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "à Lille",
@@ -9702,7 +9707,8 @@
     "en": "Lille",
     "tags": [
      "city"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "à Nice",
@@ -9715,7 +9721,8 @@
     "en": "Nice",
     "tags": [
      "city"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "à Nantes",
@@ -9728,7 +9735,8 @@
     "en": "Nantes",
     "tags": [
      "city"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "à Toulouse",
@@ -9741,7 +9749,8 @@
     "en": "Toulouse",
     "tags": [
      "city"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "à Berlin",
@@ -9754,7 +9763,8 @@
     "en": "Berlin",
     "tags": [
      "city"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "à Londres",
@@ -9767,7 +9777,8 @@
     "en": "London",
     "tags": [
      "city"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "à Rome",
@@ -9780,7 +9791,8 @@
     "en": "Rome",
     "tags": [
      "city"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "à Madrid",
@@ -9793,7 +9805,8 @@
     "en": "Madrid",
     "tags": [
      "city"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "à Bruxelles",
@@ -9806,7 +9819,8 @@
     "en": "Brussels",
     "tags": [
      "city"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "à Genève",
@@ -9819,7 +9833,8 @@
     "en": "Geneva",
     "tags": [
      "city"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "à Montréal",
@@ -9832,7 +9847,8 @@
     "en": "Montreal",
     "tags": [
      "city"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "à Munich",
@@ -9845,7 +9861,8 @@
     "en": "Munich",
     "tags": [
      "city"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "à Vienne",
@@ -9858,7 +9875,8 @@
     "en": "Vienna",
     "tags": [
      "city"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en France",
@@ -9871,7 +9889,8 @@
     "en": "France",
     "tags": [
      "fem"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Allemagne",
@@ -9884,7 +9903,8 @@
     "en": "Germany",
     "tags": [
      "fem"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Espagne",
@@ -9897,7 +9917,8 @@
     "en": "Spain",
     "tags": [
      "fem"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Italie",
@@ -9910,7 +9931,8 @@
     "en": "Italy",
     "tags": [
      "fem"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Angleterre",
@@ -9923,7 +9945,8 @@
     "en": "England",
     "tags": [
      "fem"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Suisse",
@@ -9936,7 +9959,8 @@
     "en": "Switzerland",
     "tags": [
      "fem"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Belgique",
@@ -9949,7 +9973,8 @@
     "en": "Belgium",
     "tags": [
      "fem"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Chine",
@@ -9962,7 +9987,8 @@
     "en": "China",
     "tags": [
      "fem"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Grèce",
@@ -9975,7 +10001,8 @@
     "en": "Greece",
     "tags": [
      "fem"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Autriche",
@@ -9988,7 +10015,8 @@
     "en": "Austria",
     "tags": [
      "fem"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Irlande",
@@ -10001,7 +10029,8 @@
     "en": "Ireland",
     "tags": [
      "fem"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Inde",
@@ -10014,7 +10043,8 @@
     "en": "India",
     "tags": [
      "fem"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Iran",
@@ -10027,7 +10057,8 @@
     "en": "Iran",
     "tags": [
      "masc_vowel"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "en Israël",
@@ -10040,7 +10071,8 @@
     "en": "Israel",
     "tags": [
      "masc_vowel"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "au Canada",
@@ -10053,7 +10085,8 @@
     "en": "Canada",
     "tags": [
      "masc"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "au Japon",
@@ -10066,7 +10099,8 @@
     "en": "Japan",
     "tags": [
      "masc"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "au Portugal",
@@ -10079,7 +10113,8 @@
     "en": "Portugal",
     "tags": [
      "masc"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "au Maroc",
@@ -10092,7 +10127,8 @@
     "en": "Morocco",
     "tags": [
      "masc"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "au Brésil",
@@ -10105,7 +10141,8 @@
     "en": "Brazil",
     "tags": [
      "masc"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "au Mexique",
@@ -10118,7 +10155,8 @@
     "en": "Mexico",
     "tags": [
      "masc"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "au Québec",
@@ -10131,7 +10169,8 @@
     "en": "Quebec",
     "tags": [
      "masc"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "au Luxembourg",
@@ -10144,7 +10183,8 @@
     "en": "Luxembourg",
     "tags": [
      "masc"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "au Danemark",
@@ -10157,7 +10197,8 @@
     "en": "Denmark",
     "tags": [
      "masc"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "au Sénégal",
@@ -10170,7 +10211,8 @@
     "en": "Senegal",
     "tags": [
      "masc"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "au Liban",
@@ -10183,7 +10225,8 @@
     "en": "Lebanon",
     "tags": [
      "masc"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "aux États-Unis",
@@ -10196,7 +10239,8 @@
     "en": "the United States",
     "tags": [
      "plural"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    },
    {
     "in": "aux Pays-Bas",
@@ -10209,7 +10253,8 @@
     "en": "the Netherlands",
     "tags": [
      "plural"
-    ]
+    ],
+    "rule": "FR2_A11_PLACES"
    }
   ],
   "activity": [
@@ -16267,6 +16312,7 @@
      },
      {
       "fr": "en Italie",
+      "rule": "FR2_A11_PLACES",
       "en": "in Italy"
      },
      {
@@ -16419,8 +16465,8 @@
       "en": "flowers for Lila"
      },
      {
-      "fr": "un billet pour Lyon",
-      "en": "a ticket for Lyon"
+      "fr": "un billet pour Marseille",
+      "en": "a ticket for Marseille"
      },
      {
       "fr": "le journal",
@@ -16601,8 +16647,8 @@
       "en": "flowers for Lila"
      },
      {
-      "fr": "un billet pour Lyon",
-      "en": "a ticket for Lyon"
+      "fr": "un billet pour Marseille",
+      "en": "a ticket for Marseille"
      },
      {
       "fr": "le journal",
@@ -16808,8 +16854,8 @@
       "en": "flowers for Lila"
      },
      {
-      "fr": "un billet pour Lyon",
-      "en": "a ticket for Lyon"
+      "fr": "un billet pour Marseille",
+      "en": "a ticket for Marseille"
      },
      {
       "fr": "le journal",
