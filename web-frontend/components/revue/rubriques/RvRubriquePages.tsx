@@ -11,16 +11,20 @@
 import React from 'react';
 
 import { Action } from '@/components/atelier-v2/ui';
-import type { RvIntoxPage, RvTitrePage } from '@/lib/revue-rubriques-types';
+import type { RvIntoxPage, RvMicroPage, RvPhotoPage, RvTitrePage } from '@/lib/revue-rubriques-types';
 
 import type { ComptoirCopy } from '../comptoir/comptoir-copy';
 import { RomyLine } from '../comptoir/RvComptoirParts';
 import { fill } from '../revue-copy';
 import { RvCloseVignette, RvDispatch } from '../RvClose';
 import { papierCopy } from '../papier/papier-copy';
-import { bylineFr, editionOf, pagePicture } from '../papier/papier-model';
+import { bylineFr, editionOf, legendeBylineFr, pagePicture, proofNoteFr } from '../papier/papier-model';
 import { PpByline, PpFigure, PpFrontCols, PpFrontPage, PpLead, PpStamp, type PpEdition, type PpPicture } from '../papier/PapierPrint';
 import { PICTURE_CREDIT_FR } from '../RvPicture';
+import { pictureLinks } from '../revue-gallery';
+import type { RevueCopy } from '../revue-copy';
+import { MICRO_FR, PHOTO_FR } from './photo-micro-copy';
+import { asRvPicture } from './photo-micro-model';
 import { INTOX_FR, TITRE_FR } from './rubriques-copy';
 import type { RubriqueStepProps } from './RvRubriqueParts';
 
@@ -134,6 +138,141 @@ export function IntoxClipping({ page, ccopy, byline, edition = null, picture = n
   );
 }
 
+/**
+ * «La photo» · La page: the picture leads the front page, printed large in its press frame;
+ * under it the learner's caption, set as the paper's legend and signed «Légende · par toi»
+ * (how it reached print), the credit and licence always with the picture; Romy's sources, the
+ * Lexique.
+ */
+export function PhotoClipping({
+  page,
+  ccopy,
+  copy,
+  tiles = false,
+  byline,
+  edition = null,
+  still = false,
+}: { page: RvPhotoPage; ccopy: ComptoirCopy; copy: RevueCopy; tiles?: boolean; byline?: string | null } & PageExtras) {
+  const links = pictureLinks(asRvPicture(page.picture), copy);
+  return (
+    <PpFrontPage
+      className="rb-clip pp-photo-page"
+      edition={edition}
+      kicker={PHOTO_FR.page_kicker}
+      headline={page.titleFr}
+      still={still}
+      top={
+        <PpFigure
+          picture={{ url: page.picture.url, creditFr: page.picture.creditFr }}
+          ratio="page"
+          legend={
+            <span className="pp-legend">
+              <span className="pp-legend__fr">{page.captionFr}</span>
+              <PpByline text={legendeBylineFr(page.proof, tiles)} still={still} />
+            </span>
+          }
+          links={<PictureLinks links={links} newTab={copy.new_tab} />}
+        />
+      }
+    >
+      {page.datelineFr && (
+        <p className="pp-front__deck" lang="fr">
+          {page.datelineFr}
+        </p>
+      )}
+      <Sources text={bylineOf(byline, PHOTO_FR.byline)} />
+      <PpFrontCols words={page.words} wordsLabel={ccopy.page_words} />
+    </PpFrontPage>
+  );
+}
+
+/** A photograph's licence and source, after its credit (each a 44 px tap). */
+function PictureLinks({ links, newTab }: { links: Array<{ kind: string; href: string; label: string }>; newTab: string }) {
+  if (!links.length) return null;
+  return (
+    <>
+      {links.map((link) => (
+        <React.Fragment key={link.kind}>
+          {' · '}
+          <a className="pp-figure__link" href={link.href} target="_blank" rel="noopener noreferrer" data-link={link.kind}>
+            {link.label}
+            <span className="av2-sr"> ({newTab})</span>
+          </a>
+        </React.Fragment>
+      ))}
+    </>
+  );
+}
+
+/**
+ * «Le micro» · La page: the interview printed as a Q&A under the headline — the learner's
+ * questions set bold, the witness's answers as the text — one answer lifted as the pull quote,
+ * «Propos recueillis par …» stamped last, each answer's source in the sources list.
+ */
+export function MicroClipping({
+  page,
+  ccopy,
+  byline,
+  edition = null,
+  still = false,
+}: { page: RvMicroPage; ccopy: ComptoirCopy; byline?: string | null } & PageExtras) {
+  const witness = [page.witness.nameFr, page.witness.roleFr].filter(Boolean).join(', ');
+  const pull = pullQuoteOf(page.lines);
+  const rows = page.lines.map((line, index) => (
+    <div key={index} className="rb-qa__row">
+      <dt className="rb-qa__q">
+        <span className="rb-qa__k">{MICRO_FR.q}</span> {line.questionFr}
+      </dt>
+      <dd className="rb-qa__a">
+        <span className="rb-qa__k">{MICRO_FR.a}</span> {line.answerFr}
+      </dd>
+    </div>
+  ));
+  // The pull quote after the first exchange (before the Q&A when there is only one).
+  const at = rows.length > 1 ? 1 : 0;
+  const quote = pull ? (
+    <div key="pull" className="pp-pull" role="presentation">
+      <p className="pp-pull__fr" lang="fr">
+        {pull}
+      </p>
+      <p className="pp-pull__by" lang="fr">
+        {page.witness.nameFr}
+      </p>
+    </div>
+  ) : null;
+  return (
+    <PpFrontPage className="rb-clip pp-micro-page" edition={edition} kicker={`${MICRO_FR.page_kicker} · ${page.witness.nameFr}`} headline={page.titleFr} deck={witness || null} still={still}>
+      {page.datelineFr && (
+        <p className="pp-front__scene" lang="fr">
+          {page.datelineFr}
+        </p>
+      )}
+      <dl className="rb-qa pp-qa" lang="fr">
+        {rows.slice(0, at)}
+        {quote}
+        {rows.slice(at)}
+      </dl>
+      <PpByline text={[page.bylineFr, proofNoteFr(page.proof)].filter(Boolean).join(' · ')} still={still} />
+      <Sources text={sourcesOf(byline, page.lines)} />
+      <PpFrontCols words={page.words} wordsLabel={ccopy.page_words} />
+    </PpFrontPage>
+  );
+}
+
+/** The pull quote: the witness's longest answer of the interview (null with none). */
+export function pullQuoteOf(lines: Array<{ answerFr: string }>): string | null {
+  let best = '';
+  for (const line of lines) if (line.answerFr.trim().length > best.length) best = line.answerFr.trim();
+  return best || null;
+}
+
+/** The dispatch's credit and sources, then any answer's source it does not already name. */
+function sourcesOf(byline: string | null | undefined, lines: Array<{ sourceName: string }>): string {
+  const head = bylineOf(byline, '');
+  const missing = Array.from(new Set(lines.map((line) => line.sourceName).filter((name) => name && !head.includes(name))));
+  return [head, ...missing.map((name) => `d’après ${name}`)].filter(Boolean).join(' · ');
+}
+
 export function RvRubriquePage({
   props,
   ended,
@@ -156,6 +295,9 @@ export function RvRubriquePage({
   const extras = { edition, picture, still: ended, language: props.chrome };
   if (closing?.titrePage) clipping = <TitreClipping page={closing.titrePage} ccopy={ccopy} tiles={tiles} byline={closing.dispatch?.bylineFr} {...extras} />;
   else if (closing?.intoxPage) clipping = <IntoxClipping page={closing.intoxPage} ccopy={ccopy} byline={closing.dispatch?.bylineFr} {...extras} />;
+  else if (closing?.photoPage)
+    clipping = <PhotoClipping page={closing.photoPage} ccopy={ccopy} copy={copy} tiles={tiles} byline={closing.dispatch?.bylineFr} edition={edition} still={ended} language={props.chrome} />;
+  else if (closing?.microPage) clipping = <MicroClipping page={closing.microPage} ccopy={ccopy} byline={closing.dispatch?.bylineFr} edition={edition} still={ended} language={props.chrome} />;
   else if (closing) clipping = <RvDispatch {...closing.dispatch} readOnly copy={copy} />;
   return (
     <>

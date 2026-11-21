@@ -310,8 +310,24 @@ export function PpCutting({ seed, source, children, className = '' }: { seed: st
 
 export type PpPicture = { url: string; captionFr?: string | null; creditFr: string };
 
-/** A press photograph: the frame (never cropping its credit), the italic caption, the credit under a rule. */
-export function PpFigure({ picture, ratio = 'wide' }: { picture: PpPicture; ratio?: 'wide' | 'page' }) {
+/**
+ * A press photograph: the frame (never cropping its credit), the italic caption, the credit under a rule.
+ * `legend` replaces the paper's caption with the learner's own (La photo's page); `links` print
+ * after the credit (a photograph's licence and source).
+ */
+export function PpFigure({
+  picture,
+  ratio = 'wide',
+  legend = null,
+  links = null,
+  alt = '',
+}: {
+  picture: PpPicture;
+  ratio?: 'wide' | 'page' | 'natural';
+  legend?: React.ReactNode;
+  links?: React.ReactNode;
+  alt?: string;
+}) {
   const [failed, setFailed] = React.useState(false);
   const src = resolveMediaUrl(picture.url) ?? picture.url;
   const caption = (picture.captionFr ?? '').trim();
@@ -320,12 +336,15 @@ export function PpFigure({ picture, ratio = 'wide' }: { picture: PpPicture; rati
       <div className="pp-figure__frame">
         {!failed && (
           // eslint-disable-next-line @next/next/no-img-element -- a painted print or a Commons thumbnail, already sized
-          <img className="pp-figure__img" src={src} alt="" decoding="async" referrerPolicy="no-referrer" onError={() => setFailed(true)} />
+          <img className="pp-figure__img" src={src} alt={alt} decoding="async" referrerPolicy="no-referrer" onError={() => setFailed(true)} />
         )}
       </div>
       <figcaption className="pp-figure__cap" lang="fr">
-        {caption && <span className="pp-figure__fr">{caption}</span>}
-        <span className="pp-figure__credit">{picture.creditFr}</span>
+        {legend ?? (caption && <span className="pp-figure__fr">{caption}</span>)}
+        <span className="pp-figure__credit">
+          {picture.creditFr}
+          {links}
+        </span>
       </figcaption>
     </figure>
   );
@@ -396,6 +415,8 @@ export type PpFrontPageProps = {
   /** A filed page opened again: no movement. */
   still?: boolean;
   className?: string;
+  /** What leads the page above its kicker and headline (La photo: the picture). */
+  top?: React.ReactNode;
 };
 
 /**
@@ -403,7 +424,7 @@ export type PpFrontPageProps = {
  * kicker and the headline at display size, then the article. It arrives with one movement (it
  * slides up and settles; the byline is stamped last); under reduced motion it is simply there.
  */
-export function PpFrontPage({ edition, kicker, headline, deck = null, children, still = false, className = '' }: PpFrontPageProps) {
+export function PpFrontPage({ edition, kicker, headline, deck = null, children, still = false, className = '', top = null }: PpFrontPageProps) {
   return (
     <article className={`ct-clip ${className}`.trim()} data-pp-front="" data-still={still ? '' : undefined}>
       <header className="pp-front__mast">
@@ -412,6 +433,7 @@ export function PpFrontPage({ edition, kicker, headline, deck = null, children, 
         </p>
         {edition && <PpDateline edition={edition} className="pp-front__date" />}
       </header>
+      {top}
       <p className="ct-clip__k pp-front__kicker" lang="fr">
         {kicker}
       </p>

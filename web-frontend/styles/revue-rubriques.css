@@ -52,3 +52,34 @@
 
 /* «La page» */
 .av2 .rb-page-line__was, .av2 .rb-page-line__mine { font-size: var(--av2-t-meta); color: var(--av2-ink-2); }
+
+/* ===========================================================================
+   «La photo» and «Le micro» (WIRE §12, 2026-11-21): the same pieces, a few layouts.
+   =========================================================================== */
+
+/* «La planche»: the story's pictures side by side, each printed with its credit, a button under it */
+.av2 .rb-planche { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+.av2 .rb-planche__item { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 0 0 2px; border-bottom: 3px solid transparent; }
+.av2 .rb-planche__item[data-right] { border-bottom-color: var(--av2-green); }
+.av2 .rb-planche__item[data-tried] { border-bottom-color: var(--av2-red); }
+.av2 .rb-planche__item .rv-gallery__pic { margin: 0; }
+.av2 .rb-planche__pick { width: 100%; min-height: var(--av2-tap); justify-content: center; }
+.av2 .rb-planche__pick[aria-checked='true'] { background: var(--av2-ink); border-color: var(--av2-ink); color: var(--av2-on-ink); }
+.av2 .rb-planche__solo .rv-gallery__pic, .av2 .rb-clip__pic .rv-gallery__pic { margin: 0; }
+
+/* «Le micro»: Romy's notes with their holes, the exchange */
+.av2 .rb-hole[aria-pressed='true'] { border: 2px solid var(--av2-ink); padding: 7px 13px; }
+.av2 .rb-notes__list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.av2 .rb-notes__hole { font-family: var(--av2-serif); font-size: var(--av2-t-body); color: var(--av2-ink-2); }
+.av2 .rb-notes__hole[data-filled] { color: var(--av2-ink); font-weight: 600; }
+.av2 .rb-exchange { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.av2 .rb-exchange__turn { display: flex; flex-direction: column; gap: 6px; }
+
+/* «La page»: the interview as Q&A */
+.av2 .rb-qa { display: flex; flex-direction: column; gap: 12px; margin: 0; }
+.av2 .rb-qa__q { margin: 0; font: 700 var(--av2-t-body)/1.35 var(--av2-serif); color: var(--av2-ink); }
+.av2 .rb-qa__a { margin: 4px 0 0; font: 400 var(--av2-t-body)/1.4 var(--av2-serif); color: var(--av2-ink-2); }
+.av2 .rb-qa__k { font-weight: 700; color: var(--av2-muted); }
+.av2 .rb-qa__src { font-size: var(--av2-t-meta); color: var(--av2-muted); }
+/* «La photo»'s page: the learner's caption reads as the caption it is */
+.av2 .rb-clip__cap { font-size: var(--av2-t-body-lg); color: var(--av2-ink); }

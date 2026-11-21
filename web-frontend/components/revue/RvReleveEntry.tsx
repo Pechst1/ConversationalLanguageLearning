@@ -46,6 +46,8 @@ export function madeKindLabel(kind: RvReleveMadeKind, copy: RevueCopy, releve: R
   if (kind === 'fil') return copy.made_fil;
   if (kind === 'titre') return copy.made_titre;
   if (kind === 'intox') return copy.made_intox;
+  if (kind === 'photo') return copy.made_photo;
+  if (kind === 'micro') return copy.made_micro;
   return copy.made_headline;
 }
 

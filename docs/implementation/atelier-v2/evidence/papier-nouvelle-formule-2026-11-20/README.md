@@ -146,3 +146,55 @@ The before-fix screenshots of these were overwritten by the retakes; the commits
 Fake providers: Romy's marks and whys come from a small table (two kinds, one sentence each), and the kept words
 are the fake's; the quality of model-written headlines, statements, whys and corrections, and real Commons photos,
 cannot be judged on this stack. «Le fil»'s player (RvFil) has no scroll-on-act effect either: read in the code, not walked again.
+
+---
+
+# «La photo» and «Le micro» — looked at in a browser (2026-11-21, third pass)
+
+Branch `claude/papier-photo-micro`. Played with `web-frontend/e2e/papier-photo-micro-shots.mjs`: the walk's throwaway
+stack (`stack.mjs` + `carte_server.py`, fake providers, throwaway database, no network) for a signed-in learner, then
+the dev mock's sessions — `/revue?mock=1&photo=1` and `/revue?mock=1&micro=1` with `band=A1|A2|B1` and `lang=de|en`
+(`&pourquoi=1` at A2) — at 375 × 812, deviceScaleFactor 2, light theme. Nothing else changed. The script prints, per
+screen, the buttons under 44 px, a horizontal scroll and whether the newest part sits under the foot.
+
+## Screens
+
+Prefixes: `p-` «La photo» (1 Lire · 2 La planche · 3 La légende · 4 À toi · 5 La page), `m-` «Le micro» (1 Lire ·
+2 Prépare tes questions · 3 L'interview · 4 Tes notes · 5 Relis tes questions · 6 La page); `a1de` German A1, `a2de`
+German A2, `b1en` English B1 (the mock keeps the `lang` chrome at B1; the server's is French from B1).
+
+| file | what |
+|---|---|
+| p-*-00-chooser, m-*-00-chooser | the chooser names the assignment dealt: «Dein Auftrag · La photo» |
+| p-a1de-2-planche, -miss | two pictures side by side, each with its credit and licence links; a wrong pick: «Nicht dieses. Auf diesem Bild sieht man: Paris.» (no answer) |
+| p-a1de-2-seen, -seen-miss, -seen-right | «Qu'est-ce qu'on voit ?»: «Paris» tapped: «Das ist auf einem anderen Bild … Es fehlen noch 1.», then right |
+| p-a1de-3-legende, -legende-miss | three captions; the «other» one picked: its why in German; nothing else revealed |
+| p-a1de-3-fix, -fix-miss, -fix-done | the wrong words struck, a pick, one miss, then right |
+| p-a1de-4-build, -built, -printed | A1 tiles: a picture, a thing seen, a fact; printed with no model call |
+| p-a2de-4-build*, p-b1en-4-build* | A2 frame / B1 two sentences; the B1 refusal («Two sentences…») in view; Romy's marks, a mark opened, fixed |
+| p-b1en-3-fix* | B1 rewrite: «…le 14 juillet» refused, then right |
+| p-*-5-page | La page: the picture large, the learner's caption, the credit, «Romy Tremblay, avec toi · d'après …» |
+| m-a1de-2-prepare, -chosen | Romy's notes with their holes; three chosen |
+| m-a1de-3-interview* | A1: question tiles, the witness (Lila) answers in her bubble, a hole ticked |
+| m-a2de-3-interview-shrug | a question the story cannot answer: the shrug, «Keine Antwort: Diese Frage zählt nicht» |
+| m-a2de-3-interview-slip | «Pourquoi elle est gratuite ?» answered, nothing said about its form |
+| m-*-4-notes* | the holes filled from the witness's lines (pick A1–A2, typed B1; a miss first) |
+| m-a2de-5-review | the questions and the app's rules for the two slips in German, never the corrected question |
+| m-b1en-5-review-marked, -fixed | Romy's mark on «tres», fixed by the learner |
+| m-*-6-page | La page: Q. / R. with each answer's source, «Propos recueillis par toi» |
+
+## Faults seen, and their fixes
+
+| seen | fix |
+|---|---|
+| La légende's correction: an empty foot bar under the options | `ac9ea815` no foot while the correction is answered on the page |
+| the false caption printed plain in the correction | `ac9ea815` its wrong words struck (as the intox) |
+| «Combien ça coûte ?___» (the hole glued to the «?») | `ac9ea815` a non-breaking space |
+| La page: the learner's caption small and grey under the credit | `ac9ea815` body size, ink |
+| B1 À toi: «Two sentences…» refused under the foot, below the field | this pass: a refusal is brought into view as a verdict is |
+
+## Not judged here
+
+The mock's edit is the comptoir mock's small table (it marks «tres», not the missing inversion, so the A2 page prints
+«Pourquoi elle est gratuite ?» as written) and its sources are the story's; the pictures are neutral placeholders.
+No prompt has run on a real model and no real Commons photo was seen.

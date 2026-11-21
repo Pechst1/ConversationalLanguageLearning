@@ -570,8 +570,147 @@ class IntoxExpress(_Model):
         return self
 
 
+#: «La photo» (2026-11-21): what each of the three captions of the lead picture is.
+PhotoCaptionRole = Literal["right", "wrong", "other"]
+PHOTO_CAPTION_ROLES: tuple[str, ...] = ("right", "wrong", "other")
+
+
+class PhotoPicture(_Model):
+    """One picture of the story as «La photo»'s desk read it. ``ref``: its kind and position in
+    the story's gallery (``illustration-1`` is the painted story picture, ``photo-2`` the
+    second Commons photo); ``basis_fr``: what the desk was given about it (a Commons photo's
+    stored subject and caption, an illustration's French brief), the only ground of ``seen``.
+    ``seen``: concrete things the picture shows (a noun with its article), fr + en + de.
+    The gallery fields (``url``…``height``) are filled when a session is dealt, from the
+    story's gallery at that moment (``photo.bind``), never by a model."""
+
+    ref: str = Field(min_length=1, max_length=40)
+    kind: Literal["illustration", "photo"]
+    basis_fr: str = Field(min_length=1, max_length=600)
+    seen: list[ComptoirText] = Field(min_length=1, max_length=6)
+    url: str | None = None
+    credit_fr: str | None = None
+    licence: str | None = None
+    licence_url: str | None = None
+    source_url: str | None = None
+    width: int | None = None
+    height: int | None = None
+
+
+class PhotoCaption(BandTexts):
+    """One of the three captions of the lead picture, at each band. ``right`` says what the
+    picture shows and the news; ``wrong`` changes ONE fact (``wrong_fr`` for ``right_fr``, as
+    the intox: in no claim, ``right_fr`` in ``claim_id``; ``distractor_fr`` another value of
+    the same kind, the A1–A2 pick; ``fixed`` the caption as it should read); ``other``
+    describes another picture of the story (``picture``: its ref). ``why`` (wrong, other): in
+    fr, en and de, what is wrong with it."""
+
+    role: PhotoCaptionRole
+    claim_id: str = Field(min_length=1)
+    picture: str | None = None
+    why: ComptoirText | None = None
+    wrong_fr: str | None = None
+    right_fr: str | None = None
+    distractor_fr: str | None = None
+    fixed: BandTexts | None = None
+
+    @model_validator(mode="after")
+    def _role_fields(self) -> PhotoCaption:
+        swapped = (self.wrong_fr, self.right_fr, self.distractor_fr, self.fixed)
+        if self.role == "wrong" and any(value is None for value in swapped):
+            raise ValueError("the wrong caption says what it swapped and how it reads when true")
+        if self.role != "wrong" and any(value is not None for value in swapped):
+            raise ValueError("only the wrong caption swaps a fact")
+        if (self.role == "other") != (self.picture is not None):
+            raise ValueError("the other caption (and only it) names the picture it describes")
+        if (self.role != "right") != (self.why is not None):
+            raise ValueError("each wrong caption (and only those) says why")
+        return self
+
+
+class PhotoBuild(_Model):
+    """«À toi»'s material: A1 builds «{phrase} {a thing seen}.» then one of ``facts`` (every
+    pair true: correct by construction); A2 completes ``frame``."""
+
+    facts: list[ComptoirText] = Field(min_length=2, max_length=4)
+    frame: ComptoirText
+
+
+class PhotoDesk(_Model):
+    """«La photo» (2026-11-21): the photo desk's work for one story, written once per story
+    (``photo.py``) from the story's pictures, shared by every learner: what each picture
+    shows, which goes with the headline (``lead``), three captions for it and the caption
+    builder. Dealt only on a story with at least two pictures whose gallery still matches."""
+
+    pictures: list[PhotoPicture] = Field(min_length=2, max_length=4)
+    lead: str = Field(min_length=1)
+    captions: list[PhotoCaption] = Field(min_length=3, max_length=3)
+    build: PhotoBuild
+    phrase: ComptoirPhrase
+    model: str = ""
+    written_at: datetime | None = None
+    prompt_version: str = ""
+
+    @model_validator(mode="after")
+    def _consistent(self) -> PhotoDesk:
+        refs = [p.ref for p in self.pictures]
+        if len(set(refs)) != len(refs) or self.lead not in refs:
+            raise ValueError("pictures have distinct refs and the lead is one of them")
+        if sorted(c.role for c in self.captions) != sorted(PHOTO_CAPTION_ROLES):
+            raise ValueError("one right, one wrong, one other caption")
+        other = self.caption("other")
+        if other.picture not in refs or other.picture == self.lead:
+            raise ValueError("the other caption describes another picture of the story")
+        return self
+
+    def picture(self, ref: str) -> PhotoPicture:
+        return next(p for p in self.pictures if p.ref == ref)
+
+    def caption(self, role: str) -> PhotoCaption:
+        return next(c for c in self.captions if c.role == role)
+
+
+#: «Le micro» (2026-11-21): the question word that unlocks a fact.
+MicroAsk = Literal["qui", "quoi", "ou", "quand", "combien", "pourquoi", "comment"]
+MICRO_ASKS: tuple[str, ...] = ("qui", "quoi", "ou", "quand", "combien", "pourquoi", "comment")
+
+
+class MicroFact(_Model):
+    """One thing the witness can tell, grounded in ``claim_id``: the question word that
+    unlocks it (``ask``), the words of the claim a question about it uses (``keywords``),
+    Romy's note («Combien ? ___»: ``hole``), the A1 question tile (``tile``, correct by
+    construction), the A2 opening (``frame``), the witness's answer at each band (it states
+    the fact and nothing the claim lacks) and the value that fills the hole (``value_fr``: in
+    the claim and in the answer at every band)."""
+
+    claim_id: str = Field(min_length=1)
+    ask: MicroAsk
+    keywords: list[str] = Field(min_length=1, max_length=6)
+    hole: ComptoirText
+    tile: ComptoirText
+    frame: ComptoirText
+    answer: BandTexts
+    value_fr: str = Field(min_length=1)
+
+
+class MicroDesk(_Model):
+    """«Le micro» (2026-11-21): the interview's material for one story, written once per
+    story (``micro.py``), shared by every learner. ``witness``: the regular who was there
+    (the comptoir's topic guest, ``comptoir.comptoir_guests``), in character; ``facts``: five
+    or six things they can tell; ``shrug``: their line for a question the story cannot
+    answer, at each band."""
+
+    witness: str = Field(min_length=1)
+    facts: list[MicroFact] = Field(min_length=5, max_length=6)
+    shrug: BandTexts
+    phrase: ComptoirPhrase
+    model: str = ""
+    written_at: datetime | None = None
+    prompt_version: str = ""
+
+
 #: The dossier fields the assignments' desks write, left out of every dump while ``None``.
-ASSIGNMENT_FIELDS: tuple[str, ...] = ("fil", "titre", "intox")
+ASSIGNMENT_FIELDS: tuple[str, ...] = ("fil", "titre", "intox", "photo", "micro")
 
 
 class TimeScope(_Model):
@@ -651,6 +790,10 @@ class EditorialDossier(_Model):
     #: (``titre.py``, ``intox.py``) wrote them, and left out of every dump while ``None``.
     titre: TitreDesk | None = None
     intox: IntoxExpress | None = None
+    #: «La photo» and «Le micro» (2026-11-21): as ``fil``, ``None`` until their desk
+    #: (``photo.py``, ``micro.py``) wrote them, and left out of every dump while ``None``.
+    photo: PhotoDesk | None = None
+    micro: MicroDesk | None = None
 
     @model_serializer(mode="wrap")
     def _without_empty_fil(self, handler: Any) -> Any:

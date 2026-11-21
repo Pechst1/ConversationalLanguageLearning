@@ -899,3 +899,35 @@ tap away), then:
   {key, value}` (A1–A2) or `fix {key, text}` (B1+, graded as the comptoir's correction; `too_short`).
 - `RvIntoxPage {title_fr, dateline_fr, lines: [{text_fr, was_false, wrong_fr, answered_right, learner_fr,
   fixed_right}], score, total, fixed, phrase_fr, words}`; artifact `kind: "intox"` (`text_fr` «4 sur 5, …»).
+
+## 12. «La photo» and «Le micro» (2026-11-21)
+
+Behind `REVUE_ASSIGNMENTS_ENABLED`, as §10–11. Two more assignments register with the dealer (six in all):
+`"photo"` (`EditorialDossier.photo`, a `PhotoDesk`, dealt only while the story's gallery still holds its two or more
+pictures with the basis the desk read, `photo.bind`) and `"micro"` (`EditorialDossier.micro`, a `MicroDesk`). One desk
+call per story each morning (`photo.py`, `micro.py`, one retry, refused when a check fails, skipped where the comptoir
+skipped; the photo desk waits, without a call, for two pictures); hand-written for `evergreen-bac` and
+`evergreen-fete-de-la-musique` (`evergreen/photo/`, `evergreen/micro/`).
+
+- `RvStoryCard.assignment: {key, name_fr}` (omitted with the switch off): the chooser names the assignment dealt.
+- `RvSessionView.mode: + "photo" | "micro"`, `.photo: RvPhotoView | null`, `.micro: RvMicroView | null`;
+  `RvClosing.photo_page`, `.micro_page`; `RvMade.kind` + `"photo"`, `"micro"`; 409 `revue_photo_session` /
+  `revue_micro_session` on chat turns.
+- Acts on `POST …/rubrique` (`RvRubriqueRequest` gains `keys`): «La photo» `open`, `choose {key}`, `seen {words}`,
+  `caption {key}`, `caption_fix {value | text}`, `build {key, parts | text}`, `build_fix {text | value: "romy"}`;
+  «Le micro» `open`, `prepare {keys: [3]}`, `ask {text | key}`, `note {key, value | text}`, `review`,
+  `review_fix {text | value: "romy"}`. 409 `revue_<mode>_out_of_order`, 422 `revue_<mode>_bad_act`; a repeat records
+  nothing. `error.code` adds `pick_three`, `not_a_question`, `keep_questions`, `two_sentences`,
+  `name_what_you_see`, `say_the_news`, `wrong_fact`, `pick_picture`.
+- `RvPhotoView {step: read|planche|legende|build|page, planche {pictures, tries, picked, shows, resolved, correct,
+  solution, seen {words, picked, elsewhere, missing, resolved, correct, solution}}, legende {picture, captions [{key,
+  text, role?, why?}], …, fix}, build {input, phrase, choices, facts, frame, …proof}}`. Nothing says which picture or
+  caption it is before it is earned.
+- `RvMicroView {step: read|prepare|interview|notes|review|page, prepare {holes, chosen, need}, interview {witness,
+  input, phrase, holes, tiles, frames, turns [{question_fr, answer, kind: answer|again|shrug, spent, hole_key}], spent,
+  total, free, done}, notes {input, items}, review {input, questions, hints [{index, code}], …proof}}`. No answer line
+  before it is asked; no slip before «Relis tes questions». Only an ambiguous question asks the model
+  (`provider.micro_match`), which picks a stored candidate's key or «none».
+- `RvPhotoPage {title_fr, dateline_fr, picture, caption_fr, proof, phrase_fr, words}`, `RvMicroPage {title_fr,
+  dateline_fr, witness, byline_fr, lines [{question_fr, answer_fr, source_name}], notes, proof, phrase_fr, words}`;
+  no model call at the close; the witness remembers (`knowledge.remember`).

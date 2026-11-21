@@ -14,3 +14,10 @@ export type { RubriqueStepProps, TitreStepProps, IntoxStepProps } from './RvRubr
 export { rubriqueCopy, TITRE_FR, INTOX_FR, TITRE_STEP_LABELS_FR, INTOX_STEP_LABELS_FR, RUBRIQUE_LINES } from './rubriques-copy';
 export type { RubriqueCopy } from './rubriques-copy';
 export * from './rubriques-model';
+// «La photo» and «Le micro» (WIRE §12, 2026-11-21): the same player, their screens.
+export { RvPhotoPlanche, RvPhotoLegende, RvPhotoBuild } from './RvPhotoSteps';
+export { RvMicroPrepare, RvMicroInterview, RvMicroNotes, RvMicroReview } from './RvMicroSteps';
+export { PhotoClipping, MicroClipping } from './RvRubriquePages';
+export { ProofBlock, ProofFoot } from './RvProofBlock';
+export { photoMicroCopy, PHOTO_FR, MICRO_FR, PHOTO_STEP_LABELS_FR, MICRO_STEP_LABELS_FR, PM_LINES } from './photo-micro-copy';
+export * from './photo-micro-model';

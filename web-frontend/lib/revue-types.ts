@@ -23,10 +23,18 @@ import { parseFilPage, parseFilView, type RvFilPage, type RvFilView } from './re
 import {
   parseIntoxPage,
   parseIntoxView,
+  parseMicroPage,
+  parseMicroView,
+  parsePhotoPage,
+  parsePhotoView,
   parseTitrePage,
   parseTitreView,
   type RvIntoxPage,
   type RvIntoxView,
+  type RvMicroPage,
+  type RvMicroView,
+  type RvPhotoPage,
+  type RvPhotoView,
   type RvTitrePage,
   type RvTitreView,
 } from './revue-rubriques-types';
@@ -41,8 +49,8 @@ export type RvRoomPhase = 'open' | 'bouclage' | 'boucle';
 export type RvMakeKind = 'headline_choice' | 'headline_write' | 'reader_question' | 'short_report' | 'caption';
 export const RV_MAKE_KINDS = ['headline_choice', 'headline_write', 'reader_question', 'short_report', 'caption'] as const;
 /** What a session files: a make, or `opinion` («Au comptoir»: the learner's quote in Romy's vox pop, never offered as a make). */
-export type RvMadeKind = RvMakeKind | 'opinion' | 'fil' | 'titre' | 'intox';
-export const RV_MADE_KINDS = [...RV_MAKE_KINDS, 'opinion', 'fil', 'titre', 'intox'] as const;
+export type RvMadeKind = RvMakeKind | 'opinion' | 'fil' | 'titre' | 'intox' | 'photo' | 'micro';
+export const RV_MADE_KINDS = [...RV_MAKE_KINDS, 'opinion', 'fil', 'titre', 'intox', 'photo', 'micro'] as const;
 export type RvLanguage = 'en' | 'de' | 'fr';
 export type RvPurpose = 'understand_change' | 'explain_disagreement' | 'choose_angle' | 'prepare_dispatch';
 /** `look` (§8.4): on arrival, Romy points at the story's picture with the words it shows. */
@@ -121,6 +129,8 @@ export type RvStoryCard = {
   /** «Au comptoir»: the question of the day and the three regulars (seat order); null with the switch off. */
   questionFr: string | null;
   cast: string[] | null;
+  /** The assignment this learner would be dealt («La photo»…), named by the chooser; null with the switch off. */
+  assignment: { key: string; nameFr: string } | null;
 };
 export type RvSupport = {
   glosses: 'shown' | 'tap' | 'none';
@@ -273,6 +283,8 @@ export type RvClosing = {
   /** «Le titre», «L'intox express» (2026-11-20): «La page»; null otherwise. */
   titrePage: RvTitrePage | null;
   intoxPage: RvIntoxPage | null;
+  photoPage: RvPhotoPage | null;
+  microPage: RvMicroPage | null;
 };
 export type RvSessionView = {
   id: string;
@@ -293,13 +305,16 @@ export type RvSessionView = {
   artifact: RvMade | null;
   closing: RvClosing | null;
   /** «Au comptoir»: fixed at the start for the session's life; `chat` with the switch off. */
-  mode: 'chat' | 'comptoir' | 'fil' | 'titre' | 'intox';
+  mode: 'chat' | 'comptoir' | 'fil' | 'titre' | 'intox' | 'photo' | 'micro';
   comptoir: RvComptoirView | null;
   /** «Le fil» (2026-11-20): the dealt assignment's view; null unless `mode` is `fil`. */
   fil: RvFilView | null;
   /** «Le titre», «L'intox express» (2026-11-20): null unless `mode` says so. */
   titre: RvTitreView | null;
   intox: RvIntoxView | null;
+  /** «La photo», «Le micro» (2026-11-21): null unless `mode` says so. */
+  photo: RvPhotoView | null;
+  micro: RvMicroView | null;
 };
 export type RvWordEvidence = { fr: string; outcome: RvOutcome; capabilityKnown: boolean };
 /** WIRE §6.3 · the Papier rubric (`revue-rubric-v1`). */
@@ -436,6 +451,12 @@ export type RvErrorCode =
   | 'revue_intox_session'
   | 'revue_intox_out_of_order'
   | 'revue_intox_bad_act'
+  | 'revue_photo_session'
+  | 'revue_photo_out_of_order'
+  | 'revue_photo_bad_act'
+  | 'revue_micro_session'
+  | 'revue_micro_out_of_order'
+  | 'revue_micro_bad_act'
   | 'unauthorized'
   | 'validation'
   | 'rate_limited'
@@ -491,6 +512,12 @@ export function parseRevueError(status: number, data: unknown): RevueError {
       'revue_intox_session',
       'revue_intox_out_of_order',
       'revue_intox_bad_act',
+      'revue_photo_session',
+      'revue_photo_out_of_order',
+      'revue_photo_bad_act',
+      'revue_micro_session',
+      'revue_micro_out_of_order',
+      'revue_micro_bad_act',
       'rate_limited',
     ];
     if ((known as string[]).includes(code)) {
@@ -627,6 +654,7 @@ export function parseStoryCard(raw: Json): RvStoryCard {
     stage: parseStage(isObject(raw.stage) ? raw.stage : {}),
     questionFr: strOrNull(raw.question_fr) || null,
     cast: Array.isArray(raw.cast) ? raw.cast.filter((id: unknown): id is string => typeof id === 'string') : null,
+    assignment: isObject(raw.assignment) && raw.assignment.name_fr ? { key: str(raw.assignment.key), nameFr: str(raw.assignment.name_fr) } : null,
   };
 }
 
@@ -823,6 +851,8 @@ export function parseClosing(raw: Json): RvClosing {
     filPage: isObject(raw.fil_page) ? parseFilPage(raw.fil_page) : null,
     titrePage: isObject(raw.titre_page) ? parseTitrePage(raw.titre_page) : null,
     intoxPage: isObject(raw.intox_page) ? parseIntoxPage(raw.intox_page) : null,
+    photoPage: isObject(raw.photo_page) ? parsePhotoPage(raw.photo_page) : null,
+    microPage: isObject(raw.micro_page) ? parseMicroPage(raw.micro_page) : null,
   };
 }
 
@@ -883,11 +913,17 @@ export function parseSessionView(raw: Json): RvSessionView {
             ? 'titre'
             : raw.mode === 'intox' && isObject(raw.intox)
               ? 'intox'
-              : 'chat',
+              : raw.mode === 'photo' && isObject(raw.photo)
+                ? 'photo'
+                : raw.mode === 'micro' && isObject(raw.micro)
+                  ? 'micro'
+                  : 'chat',
     comptoir: raw.mode === 'comptoir' && isObject(raw.comptoir) ? parseComptoirView(raw.comptoir) : null,
     fil: raw.mode === 'fil' && isObject(raw.fil) ? parseFilView(raw.fil, parseSource) : null,
     titre: raw.mode === 'titre' && isObject(raw.titre) ? parseTitreView(raw.titre, parseSource, parseClaim) : null,
     intox: raw.mode === 'intox' && isObject(raw.intox) ? parseIntoxView(raw.intox, parseSource) : null,
+    photo: raw.mode === 'photo' && isObject(raw.photo) ? parsePhotoView(raw.photo, parseSource) : null,
+    micro: raw.mode === 'micro' && isObject(raw.micro) ? parseMicroView(raw.micro, parseSource) : null,
   };
 }
 

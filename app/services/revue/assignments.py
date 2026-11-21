@@ -3,7 +3,8 @@
 The learner is Romy's trainee, and each story is dealt one ASSIGNMENT («rubrique»): «Au
 comptoir» (the vox pop, ``comptoir_loop.py``), «Le fil» (the wire back in order,
 ``fil_loop.py``), «Le titre» (the honest headline, ``titre_loop.py``), «L'intox express» (five
-statements, true or false, ``intox_loop.py``), and later «photo», «micro». Never the same shape twice
+statements, true or false, ``intox_loop.py``), «La photo» (the photo desk, ``photo_loop.py``: only on a
+story with at least two pictures) and «Le micro» (the interview, ``micro_loop.py``). Never the same shape twice
 in three days: a session is dealt an assignment its story can carry that is not the one of the
 learner's last two Papier sessions.
 
@@ -34,6 +35,8 @@ from app.services.revue.dossier import (
     EditorialDossier,
     FilWire,
     IntoxExpress,
+    MicroDesk,
+    PhotoDesk,
     TitreDesk,
 )
 
@@ -54,6 +57,11 @@ class Material:
     wire: FilWire | None = None
     titre: TitreDesk | None = None
     intox: IntoxExpress | None = None
+    #: «La photo» and «Le micro» (2026-11-21); ``pictures``: the story's gallery as the photo
+    #: desk reads it (``photo.story_pictures``), each a dict with its ``ref`` and ``basis_fr``.
+    photo: PhotoDesk | None = None
+    micro: MicroDesk | None = None
+    pictures: tuple[dict[str, Any], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -89,15 +97,31 @@ register(Assignment("fil", "Le fil", lambda material: material.wire is not None)
 register(Assignment("titre", "Le titre", lambda material: material.titre is not None))
 register(Assignment("intox", "L'intox express", lambda material: material.intox is not None))
 
+
+def _photo_carries(material: Material) -> bool:
+    from app.services.revue.photo import bind  # noqa: PLC0415 - photo reads the gallery
+
+    return material.photo is not None and bind(material.photo, list(material.pictures)) is not None
+
+
+register(Assignment("photo", "La photo", _photo_carries))
+register(Assignment("micro", "Le micro", lambda material: material.micro is not None))
+
 #: What each assignment snapshots on the dossier (its field), for the dealt one only.
-FIELDS: dict[str, str] = {"comptoir": "comptoir", "fil": "fil", "titre": "titre", "intox": "intox"}
+FIELDS: dict[str, str] = {"comptoir": "comptoir", "fil": "fil", "titre": "titre", "intox": "intox", "photo": "photo",
+                          "micro": "micro"}
 
 
 def dealt_material(material: Material, key: str) -> Any:
-    """The material the dealt assignment ``key`` plays."""
+    """The material the dealt assignment ``key`` plays («La photo»: bound to the gallery as it
+    stands, its pictures' links and credits filled)."""
 
+    if key == "photo":
+        from app.services.revue.photo import bind  # noqa: PLC0415
+
+        return bind(material.photo, list(material.pictures)) if material.photo is not None else None
     return {"comptoir": material.takes, "fil": material.wire, "titre": material.titre,
-            "intox": material.intox}.get(key)
+            "intox": material.intox, "micro": material.micro}.get(key)
 
 
 def available(material: Material) -> list[str]:

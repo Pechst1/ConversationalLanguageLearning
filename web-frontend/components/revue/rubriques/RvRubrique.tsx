@@ -35,6 +35,10 @@ import { RvIntoxFix, RvIntoxRound } from './RvIntoxSteps';
 import { RvRubriquePage } from './RvRubriquePages';
 import { RvRubriqueRead, type RubriqueStepProps } from './RvRubriqueParts';
 import { RvTitreBuild, RvTitreThree, RvTitreTrap } from './RvTitreSteps';
+import { MICRO_FR, MICRO_STEP_LABELS_FR, PHOTO_FR, PHOTO_STEP_LABELS_FR, photoMicroCopy } from './photo-micro-copy';
+import { photoMicroProgress, pmErrorText } from './photo-micro-model';
+import { RvMicroInterview, RvMicroNotes, RvMicroPrepare, RvMicroReview } from './RvMicroSteps';
+import { RvPhotoBuild, RvPhotoLegende, RvPhotoPlanche } from './RvPhotoSteps';
 
 export type RvRubriqueProps = {
   client: RevueClient;
@@ -57,13 +61,25 @@ function stale(error: unknown): boolean {
     error instanceof RevueError &&
     (error.code === 'revue_titre_out_of_order' ||
       error.code === 'revue_intox_out_of_order' ||
+      error.code === 'revue_photo_out_of_order' ||
+      error.code === 'revue_micro_out_of_order' ||
       error.code === 'revue_session_closed' ||
       error.code === 'revue_not_rubrique')
   );
 }
 
 function viewOf(session: RvSessionView) {
-  return session.mode === 'titre' ? session.titre : session.mode === 'intox' ? session.intox : null;
+  if (session.mode === 'titre') return session.titre;
+  if (session.mode === 'intox') return session.intox;
+  if (session.mode === 'photo') return session.photo;
+  if (session.mode === 'micro') return session.micro;
+  return null;
+}
+
+/** The modes this player plays (WIRE §11–12). */
+export const RUBRIQUE_MODES = ['titre', 'intox', 'photo', 'micro'] as const;
+export function isRubriqueMode(mode: string): boolean {
+  return (RUBRIQUE_MODES as readonly string[]).includes(mode);
 }
 
 export function RvRubrique({ client, session: initial, language, onExit, onReleve, readOnly = false }: RvRubriqueProps) {
@@ -118,13 +134,18 @@ export function RvRubrique({ client, session: initial, language, onExit, onRelev
     const scroller = scrollerOf(bodyRef.current);
     if (scroller && typeof scroller.scrollTo === 'function') scroller.scrollTo({ top: 0 });
   }, [shown]);
-  const progress = rubriqueProgress(session);
+  const progress = `${rubriqueProgress(session)}#${photoMicroProgress(session)}`;
   const lastProgress = useRef(progress);
   useEffect(() => {
     if (lastProgress.current === progress) return;
     lastProgress.current = progress;
     bringNewestIntoView(bodyRef.current, headRef.current, footRef.current);
   }, [progress]);
+  // A refusal is said on the same screen: it comes into view too (seen at 375 px, 2026-11-21:
+  // «Two sentences…» stayed under the foot, below the field).
+  useEffect(() => {
+    if (refusal) bringNewestIntoView(bodyRef.current, headRef.current, footRef.current);
+  }, [refusal]);
 
   const wordFor = useCallback(
     (speakerId: string | null, speakerName?: string) => (event: RvWordEvent) => {
@@ -207,13 +228,16 @@ export function RvRubrique({ client, session: initial, language, onExit, onRelev
     setShown(next);
   }, [closePapier, closed, onAct, pending, shown, view]);
 
-  if (!view || (session.mode !== 'titre' && session.mode !== 'intox')) return null;
+  if (!view || !isRubriqueMode(session.mode)) return null;
+  const pmMode = session.mode === 'photo' || session.mode === 'micro';
 
   const notice = (
     <>
       {refusal && (
         <p className="ct-why rb-refusal" role="status" data-ct-anchor="nearest">
-          {errorText(refusalCopy(refusal.code, rcopy, xcopy), refusal, session.titre?.build?.avoidFr ?? '')}
+          {pmMode
+            ? pmErrorText(refusal, photoMicroCopy(chrome), photoMicroCopy(glossLanguage))
+            : errorText(refusalCopy(refusal.code, rcopy, xcopy), refusal, session.titre?.build?.avoidFr ?? '')}
         </p>
       )}
       {failed && (
@@ -245,7 +269,7 @@ export function RvRubrique({ client, session: initial, language, onExit, onRelev
 
   let step: React.ReactNode;
   if (shown === 'page' && closed) {
-    const tiles = session.titre?.build?.input === 'tiles';
+    const tiles = (session.titre?.build?.input ?? session.photo?.build?.input) === 'tiles';
     step = <RvRubriquePage props={props} ended={ended || readOnly} tiles={tiles} onExit={onExit} onReleve={onReleve} />;
   } else if (session.mode === 'titre' && session.titre) {
     const titre = session.titre;
@@ -254,6 +278,21 @@ export function RvRubrique({ client, session: initial, language, onExit, onRelev
     else if (shown === 'trap' && titre.trap) step = <RvTitreTrap {...tprops} />;
     else if ((shown === 'build' || shown === 'page') && titre.build) step = <RvTitreBuild {...tprops} />;
     else step = <RvRubriqueRead read={titre.read} press={TITRE_FR.press} props={props} />;
+  } else if (session.mode === 'photo' && session.photo) {
+    const photo = session.photo;
+    const pprops = { ...props, view: photo };
+    if (shown === 'planche' && photo.planche) step = <RvPhotoPlanche {...pprops} />;
+    else if (shown === 'legende' && photo.legende) step = <RvPhotoLegende {...pprops} />;
+    else if ((shown === 'build' || shown === 'page') && photo.build) step = <RvPhotoBuild {...pprops} />;
+    else step = <RvRubriqueRead read={photo.read} press={PHOTO_FR.press} props={props} />;
+  } else if (session.mode === 'micro' && session.micro) {
+    const micro = session.micro;
+    const mprops = { ...props, view: micro };
+    if (shown === 'prepare' && micro.prepare) step = <RvMicroPrepare {...mprops} />;
+    else if (shown === 'interview' && micro.interview) step = <RvMicroInterview {...mprops} />;
+    else if (shown === 'notes' && micro.notes) step = <RvMicroNotes {...mprops} />;
+    else if ((shown === 'review' || shown === 'page') && micro.review) step = <RvMicroReview {...mprops} />;
+    else step = <RvRubriqueRead read={micro.read} press={MICRO_FR.press} props={props} />;
   } else if (session.intox) {
     const intox = session.intox;
     const iprops = { ...props, view: intox };
@@ -261,6 +300,23 @@ export function RvRubrique({ client, session: initial, language, onExit, onRelev
     else if ((shown === 'fix' || shown === 'page') && intox.fix) step = <RvIntoxFix {...iprops} />;
     else step = <RvRubriqueRead read={intox.read} press={INTOX_FR.press} props={props} />;
   }
+
+  const stepLabels =
+    session.mode === 'titre'
+      ? TITRE_STEP_LABELS_FR
+      : session.mode === 'photo'
+        ? PHOTO_STEP_LABELS_FR
+        : session.mode === 'micro'
+          ? MICRO_STEP_LABELS_FR
+          : INTOX_STEP_LABELS_FR;
+  const sectionName =
+    session.mode === 'titre'
+      ? TITRE_FR.name
+      : session.mode === 'photo'
+        ? PHOTO_FR.name
+        : session.mode === 'micro'
+          ? MICRO_FR.name
+          : INTOX_FR.name;
 
   return (
     <div
@@ -281,17 +337,17 @@ export function RvRubrique({ client, session: initial, language, onExit, onRelev
           onExit={onExit}
           copy={copy}
           ccopy={ccopy}
-          labels={session.mode === 'titre' ? TITRE_STEP_LABELS_FR : INTOX_STEP_LABELS_FR}
+          labels={stepLabels}
           opening={shown === 'read'}
         />
       </div>
       <PpTranslateSet key={shown}>
         <PpPlayerSection
           session={session}
-          section={session.mode === 'titre' ? TITRE_FR.name : INTOX_FR.name}
-          step={(session.mode === 'titre' ? TITRE_STEP_LABELS_FR : INTOX_STEP_LABELS_FR)[shown] ?? null}
+          section={sectionName}
+          step={stepLabels[shown] ?? null}
           shown={shown}
-          set={shown === 'three' || shown === 'round'}
+          set={shown === 'three' || shown === 'round' || shown === 'legende'}
           language={glossLanguage}
         />
         {step}

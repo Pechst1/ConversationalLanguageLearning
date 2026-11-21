@@ -1,0 +1,172 @@
+{
+ "pictures": [
+  {
+   "ref": "photo-1",
+   "kind": "photo",
+   "basis_fr": "Paris · Paris",
+   "seen": [
+    {
+     "fr": "Paris",
+     "en": "Paris",
+     "de": "Paris"
+    }
+   ]
+  },
+  {
+   "ref": "photo-2",
+   "kind": "photo",
+   "basis_fr": "copie d'examen et un stylo",
+   "seen": [
+    {
+     "fr": "une copie d'examen",
+     "en": "an exam paper",
+     "de": "eine Prüfungsarbeit"
+    },
+    {
+     "fr": "un stylo",
+     "en": "a pen",
+     "de": "ein Stift"
+    }
+   ]
+  }
+ ],
+ "lead": "photo-2",
+ "captions": [
+  {
+   "role": "right",
+   "claim_id": "c2",
+   "a1": {
+    "fr": "Un stylo et une copie : l'épreuve de philosophie.",
+    "en": "A pen and a paper: the philosophy exam.",
+    "de": "Ein Stift und eine Arbeit: die Philosophieprüfung."
+   },
+   "a2": {
+    "fr": "Une copie d'examen : la philosophie compte pour 8 % de la note.",
+    "en": "An exam paper: philosophy counts for 8% of the mark.",
+    "de": "Eine Prüfungsarbeit: Philosophie zählt 8 % der Note."
+   },
+   "b1": {
+    "fr": "Une copie d'examen et un stylo : la philosophie compte pour 8 % de la note finale.",
+    "en": "An exam paper and a pen: philosophy counts for 8% of the final mark.",
+    "de": "Eine Prüfungsarbeit und ein Stift: Philosophie zählt 8 % der Endnote."
+   }
+  },
+  {
+   "role": "wrong",
+   "claim_id": "c1",
+   "wrong_fr": "1908",
+   "right_fr": "1808",
+   "distractor_fr": "1809",
+   "a1": {
+    "fr": "Un stylo et une copie : le bac date de 1908.",
+    "en": "A pen and a paper: the bac dates from 1908.",
+    "de": "Ein Stift und eine Arbeit: Das Abitur gibt es seit 1908."
+   },
+   "a2": {
+    "fr": "Une copie d'examen : le baccalauréat a été créé en 1908.",
+    "en": "An exam paper: the baccalauréat was created in 1908.",
+    "de": "Eine Prüfungsarbeit: Das Abitur wurde 1908 geschaffen."
+   },
+   "b1": {
+    "fr": "Une copie d'examen et un stylo : le baccalauréat a été créé en 1908.",
+    "en": "An exam paper and a pen: the baccalauréat was created in 1908.",
+    "de": "Eine Prüfungsarbeit und ein Stift: Das Abitur wurde 1908 geschaffen."
+   },
+   "fixed": {
+    "a1": {
+     "fr": "Un stylo et une copie : le bac date de 1808.",
+     "en": "A pen and a paper: the bac dates from 1808.",
+     "de": "Ein Stift und eine Arbeit: Das Abitur gibt es seit 1808."
+    },
+    "a2": {
+     "fr": "Une copie d'examen : le baccalauréat a été créé en 1808.",
+     "en": "An exam paper: the baccalauréat was created in 1808.",
+     "de": "Eine Prüfungsarbeit: Das Abitur wurde 1808 geschaffen."
+    },
+    "b1": {
+     "fr": "Une copie d'examen et un stylo : le baccalauréat a été créé en 1808.",
+     "en": "An exam paper and a pen: the baccalauréat was created in 1808.",
+     "de": "Eine Prüfungsarbeit und ein Stift: Das Abitur wurde 1808 geschaffen."
+    }
+   },
+   "why": {
+    "fr": "Le bac a été créé en 1808, pas en 1908.",
+    "en": "The bac was created in 1808, not in 1908.",
+    "de": "Das Abitur wurde 1808 geschaffen, nicht 1908."
+   }
+  },
+  {
+   "role": "other",
+   "claim_id": "c4",
+   "picture": "photo-1",
+   "a1": {
+    "fr": "Paris, un jour de bac.",
+    "en": "Paris, on a bac day.",
+    "de": "Paris an einem Abiturtag."
+   },
+   "a2": {
+    "fr": "Paris : presque tous les candidats réussissent le bac.",
+    "en": "Paris: almost all candidates pass the bac.",
+    "de": "Paris: Fast alle Kandidaten bestehen das Abitur."
+   },
+   "b1": {
+    "fr": "Paris : en 2023, le taux de réussite au bac est de 95,7 %.",
+    "en": "Paris: in 2023, the bac pass rate is 95.7%.",
+    "de": "Paris: 2023 liegt die Erfolgsquote beim Abitur bei 95,7 %."
+   },
+   "why": {
+    "fr": "Cette légende parle de l'autre photo, Paris. Ici, on voit une copie et un stylo.",
+    "en": "This caption is about the other photo, Paris. Here you see an exam paper and a pen.",
+    "de": "Diese Bildunterschrift gehört zum anderen Foto, Paris. Hier sieht man eine Prüfungsarbeit und einen Stift."
+   }
+  }
+ ],
+ "build": {
+  "facts": [
+   {
+    "fr": "La philosophie compte pour 8 % de la note.",
+    "en": "Philosophy counts for 8% of the mark.",
+    "de": "Philosophie zählt 8 % der Note."
+   },
+   {
+    "fr": "Le bac a été créé en 1808.",
+    "en": "The bac was created in 1808.",
+    "de": "Das Abitur wurde 1808 geschaffen."
+   },
+   {
+    "fr": "Le Grand oral compte moins à partir de 2027.",
+    "en": "The Grand oral counts for less from 2027.",
+    "de": "Das Grand oral zählt ab 2027 weniger."
+   }
+  ],
+  "frame": {
+   "fr": "Au premier plan, on voit",
+   "en": "In the foreground, you can see",
+   "de": "Im Vordergrund sieht man"
+  }
+ },
+ "phrase": {
+  "a1": {
+   "fr": "Sur la photo, on voit…",
+   "en": "In the photo, you can see…",
+   "de": "Auf dem Foto sieht man…"
+  },
+  "a2": {
+   "fr": "Au premier plan, …",
+   "en": "In the foreground, …",
+   "de": "Im Vordergrund …"
+  },
+  "b1": {
+   "fr": "À l'arrière-plan, …",
+   "en": "In the background, …",
+   "de": "Im Hintergrund …"
+  },
+  "b2": {
+   "fr": "On aperçoit…",
+   "en": "You can make out…",
+   "de": "Man erkennt…"
+  }
+ },
+ "model": "",
+ "prompt_version": "hand-written"
+}

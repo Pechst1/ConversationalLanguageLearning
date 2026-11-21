@@ -73,6 +73,13 @@ def switches(monkeypatch) -> None:
     monkeypatch.setattr(settings, "REVUE_ENABLED", True)
     monkeypatch.setattr(settings, "REVUE_COMPTOIR_ENABLED", True)
     monkeypatch.setattr(settings, "REVUE_ASSIGNMENTS_ENABLED", True)
+    # These tests pin the shapes they play; «La photo» and «Le micro» (2026-11-21) have their
+    # own (tests/test_revue_photo_micro_loop.py) and are kept off the deal here.
+    from app.services.revue import micro as _micro
+    from app.services.revue import photo as _photo
+
+    monkeypatch.setattr(_micro, "micro_of", lambda dossier: None)
+    monkeypatch.setattr(_photo, "photo_of", lambda dossier: None)
     comptoir.forget_cache()
 
 
@@ -171,12 +178,13 @@ def test_the_dealer_is_deterministic_per_learner_and_story() -> None:
 
 
 def test_a_new_assignment_registers_without_touching_the_dealer() -> None:
+    # «photo» is a real assignment since 2026-11-21: a made-up key, so the registry is left as it was
     try:
-        assignments.register(assignments.Assignment("photo", "La photo", lambda m: m.dossier.visual is not None))
-        assert "photo" in assignments.registered()
-        assert assignments.deal(["comptoir", "fil", "photo"], ["comptoir", "fil"], seed="s") == "photo"
+        assignments.register(assignments.Assignment("essai", "L'essai", lambda m: m.dossier.visual is not None))
+        assert "essai" in assignments.registered()
+        assert assignments.deal(["comptoir", "fil", "essai"], ["comptoir", "fil"], seed="s") == "essai"
     finally:
-        assignments._REGISTRY.pop("photo", None)  # noqa: SLF001
+        assignments._REGISTRY.pop("essai", None)  # noqa: SLF001
 
 
 def test_a_story_with_both_is_dealt_the_shape_the_learner_did_not_play_lately(db: Session) -> None:

@@ -143,6 +143,26 @@ export function bylineFr(proof: RvComptoirProof | null | undefined, tiles = fals
   }
 }
 
+/** How a piece reached print, as the byline's tail («relu par Romy»), '' when it went as written. */
+export function proofNoteFr(proof: RvComptoirProof | null | undefined): string {
+  switch (proof) {
+    case 'clean':
+      return 'relu par Romy';
+    case 'fixed':
+      return 'corrigé par toi';
+    case 'corrected':
+      return 'corrigé par Romy';
+    default:
+      return '';
+  }
+}
+
+/** «La photo»: the learner's caption under the picture is signed «Légende · par toi» (and how it reached print). */
+export function legendeBylineFr(proof: RvComptoirProof | null | undefined, tiles = false): string {
+  const note = tiles ? '' : proofNoteFr(proof);
+  return ['Légende', 'par toi', note].filter(Boolean).join(' · ');
+}
+
 /**
  * The drop cap of a lead: its first letter (after an opening guillemet or quote, which stays
  * with the rest), and the rest. No cap for a lead that does not open on a letter.

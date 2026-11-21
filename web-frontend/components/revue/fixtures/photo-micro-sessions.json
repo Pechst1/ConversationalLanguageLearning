@@ -1,0 +1,6414 @@
+{
+ "photo_a1_de_planche": {
+  "id": "b8abd022-d3de-4822-b8d0-59779a435944",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T23:33:37.226466+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "de",
+   "gloss_language": "de",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (de)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (de)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": [],
+   "pictures": [
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "Paris",
+     "caption_fr": "Paris",
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg"
+    },
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "",
+     "caption_fr": null,
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg"
+    }
+   ]
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "photo",
+  "comptoir": null,
+  "fil": null,
+  "titre": null,
+  "intox": null,
+  "photo": {
+   "step": "planche",
+   "steps": [
+    "read",
+    "planche",
+    "legende",
+    "build",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "planche": {
+    "headline_fr": "La Fête de la musique",
+    "pictures": [
+     {
+      "key": "a",
+      "kind": "photo",
+      "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+      "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+      "licence": "CC BY-SA 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg",
+      "width": 1280,
+      "height": 853
+     },
+     {
+      "key": "b",
+      "kind": "photo",
+      "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+      "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+      "licence": "CC BY-SA 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg",
+      "width": 1280,
+      "height": 853
+     }
+    ],
+    "tries": 0,
+    "max_tries": 2,
+    "picked": [],
+    "shows": [],
+    "resolved": false,
+    "correct": null,
+    "solution": null,
+    "seen": null
+   },
+   "legende": null,
+   "build": null
+  },
+  "micro": null
+ },
+ "photo_a1_de_planche_miss": {
+  "id": "b8abd022-d3de-4822-b8d0-59779a435944",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T23:33:37.226466+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "de",
+   "gloss_language": "de",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (de)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (de)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": [],
+   "pictures": [
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "Paris",
+     "caption_fr": "Paris",
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg"
+    },
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "",
+     "caption_fr": null,
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg"
+    }
+   ]
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "photo",
+  "comptoir": null,
+  "fil": null,
+  "titre": null,
+  "intox": null,
+  "photo": {
+   "step": "planche",
+   "steps": [
+    "read",
+    "planche",
+    "legende",
+    "build",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "planche": {
+    "headline_fr": "La Fête de la musique",
+    "pictures": [
+     {
+      "key": "a",
+      "kind": "photo",
+      "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+      "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+      "licence": "CC BY-SA 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg",
+      "width": 1280,
+      "height": 853
+     },
+     {
+      "key": "b",
+      "kind": "photo",
+      "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+      "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+      "licence": "CC BY-SA 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg",
+      "width": 1280,
+      "height": 853
+     }
+    ],
+    "tries": 1,
+    "max_tries": 2,
+    "picked": [
+     "a"
+    ],
+    "shows": [
+     {
+      "fr": "Paris",
+      "tr": "Paris"
+     }
+    ],
+    "resolved": false,
+    "correct": null,
+    "solution": null,
+    "seen": null
+   },
+   "legende": null,
+   "build": null
+  },
+  "micro": null
+ },
+ "photo_a1_de_seen_miss": {
+  "id": "b8abd022-d3de-4822-b8d0-59779a435944",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T23:33:37.226466+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "de",
+   "gloss_language": "de",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (de)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (de)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": [],
+   "pictures": [
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "Paris",
+     "caption_fr": "Paris",
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg"
+    },
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "",
+     "caption_fr": null,
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg"
+    }
+   ]
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "photo",
+  "comptoir": null,
+  "fil": null,
+  "titre": null,
+  "intox": null,
+  "photo": {
+   "step": "planche",
+   "steps": [
+    "read",
+    "planche",
+    "legende",
+    "build",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "planche": {
+    "headline_fr": "La Fête de la musique",
+    "pictures": [
+     {
+      "key": "a",
+      "kind": "photo",
+      "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+      "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+      "licence": "CC BY-SA 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg",
+      "width": 1280,
+      "height": 853
+     },
+     {
+      "key": "b",
+      "kind": "photo",
+      "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+      "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+      "licence": "CC BY-SA 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg",
+      "width": 1280,
+      "height": 853
+     }
+    ],
+    "tries": 2,
+    "max_tries": 2,
+    "picked": [
+     "a",
+     "b"
+    ],
+    "shows": [],
+    "resolved": true,
+    "correct": true,
+    "solution": "b",
+    "seen": {
+     "words": [
+      {
+       "index": 0,
+       "text": {
+        "fr": "Paris",
+        "tr": "Paris"
+       }
+      },
+      {
+       "index": 1,
+       "text": {
+        "fr": "une guitare acoustique",
+        "tr": "eine Akustikgitarre"
+       }
+      },
+      {
+       "index": 2,
+       "text": {
+        "fr": "une guitare",
+        "tr": "eine Gitarre"
+       }
+      }
+     ],
+     "tries": 1,
+     "max_tries": 2,
+     "picked": [
+      0,
+      2
+     ],
+     "elsewhere": [
+      0
+     ],
+     "missing": 1,
+     "resolved": false,
+     "correct": null,
+     "solution": []
+    }
+   },
+   "legende": null,
+   "build": null
+  },
+  "micro": null
+ },
+ "photo_a1_de_legende": {
+  "id": "b8abd022-d3de-4822-b8d0-59779a435944",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T23:33:37.226466+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "de",
+   "gloss_language": "de",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (de)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (de)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": [],
+   "pictures": [
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "Paris",
+     "caption_fr": "Paris",
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg"
+    },
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "",
+     "caption_fr": null,
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg"
+    }
+   ]
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "photo",
+  "comptoir": null,
+  "fil": null,
+  "titre": null,
+  "intox": null,
+  "photo": {
+   "step": "legende",
+   "steps": [
+    "read",
+    "planche",
+    "legende",
+    "build",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "planche": {
+    "headline_fr": "La Fête de la musique",
+    "pictures": [
+     {
+      "key": "a",
+      "kind": "photo",
+      "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+      "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+      "licence": "CC BY-SA 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg",
+      "width": 1280,
+      "height": 853
+     },
+     {
+      "key": "b",
+      "kind": "photo",
+      "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+      "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+      "licence": "CC BY-SA 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg",
+      "width": 1280,
+      "height": 853
+     }
+    ],
+    "tries": 2,
+    "max_tries": 2,
+    "picked": [
+     "a",
+     "b"
+    ],
+    "shows": [],
+    "resolved": true,
+    "correct": true,
+    "solution": "b",
+    "seen": {
+     "words": [
+      {
+       "index": 0,
+       "text": {
+        "fr": "Paris",
+        "tr": "Paris"
+       }
+      },
+      {
+       "index": 1,
+       "text": {
+        "fr": "une guitare acoustique",
+        "tr": "eine Akustikgitarre"
+       }
+      },
+      {
+       "index": 2,
+       "text": {
+        "fr": "une guitare",
+        "tr": "eine Gitarre"
+       }
+      }
+     ],
+     "tries": 2,
+     "max_tries": 2,
+     "picked": [
+      1,
+      2
+     ],
+     "elsewhere": [],
+     "missing": 0,
+     "resolved": true,
+     "correct": true,
+     "solution": [
+      1,
+      2
+     ]
+    }
+   },
+   "legende": {
+    "picture": {
+     "key": "b",
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg",
+     "width": 1280,
+     "height": 853
+    },
+    "captions": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "Paris et la Fête de la musique.",
+       "tr": "Paris und die Fête de la musique."
+      },
+      "role": null,
+      "why": null
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "Une guitare : la fête est gratuite.",
+       "tr": "Eine Gitarre: Das Fest ist kostenlos."
+      },
+      "role": null,
+      "why": null
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "Une guitare : la fête a lieu le 14 juillet.",
+       "tr": "Eine Gitarre: Das Fest ist am 14. Juli."
+      },
+      "role": null,
+      "why": null
+     }
+    ],
+    "tries": 0,
+    "max_tries": 2,
+    "picked": [],
+    "resolved": false,
+    "correct": null,
+    "solution": null,
+    "fix": null
+   },
+   "build": null
+  },
+  "micro": null
+ },
+ "photo_a1_de_legende_miss": {
+  "id": "b8abd022-d3de-4822-b8d0-59779a435944",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T23:33:37.226466+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "de",
+   "gloss_language": "de",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (de)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (de)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": [],
+   "pictures": [
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "Paris",
+     "caption_fr": "Paris",
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg"
+    },
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "",
+     "caption_fr": null,
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg"
+    }
+   ]
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "photo",
+  "comptoir": null,
+  "fil": null,
+  "titre": null,
+  "intox": null,
+  "photo": {
+   "step": "legende",
+   "steps": [
+    "read",
+    "planche",
+    "legende",
+    "build",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "planche": {
+    "headline_fr": "La Fête de la musique",
+    "pictures": [
+     {
+      "key": "a",
+      "kind": "photo",
+      "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+      "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+      "licence": "CC BY-SA 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg",
+      "width": 1280,
+      "height": 853
+     },
+     {
+      "key": "b",
+      "kind": "photo",
+      "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+      "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+      "licence": "CC BY-SA 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg",
+      "width": 1280,
+      "height": 853
+     }
+    ],
+    "tries": 2,
+    "max_tries": 2,
+    "picked": [
+     "a",
+     "b"
+    ],
+    "shows": [],
+    "resolved": true,
+    "correct": true,
+    "solution": "b",
+    "seen": {
+     "words": [
+      {
+       "index": 0,
+       "text": {
+        "fr": "Paris",
+        "tr": "Paris"
+       }
+      },
+      {
+       "index": 1,
+       "text": {
+        "fr": "une guitare acoustique",
+        "tr": "eine Akustikgitarre"
+       }
+      },
+      {
+       "index": 2,
+       "text": {
+        "fr": "une guitare",
+        "tr": "eine Gitarre"
+       }
+      }
+     ],
+     "tries": 2,
+     "max_tries": 2,
+     "picked": [
+      1,
+      2
+     ],
+     "elsewhere": [],
+     "missing": 0,
+     "resolved": true,
+     "correct": true,
+     "solution": [
+      1,
+      2
+     ]
+    }
+   },
+   "legende": {
+    "picture": {
+     "key": "b",
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg",
+     "width": 1280,
+     "height": 853
+    },
+    "captions": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "Paris et la Fête de la musique.",
+       "tr": "Paris und die Fête de la musique."
+      },
+      "role": null,
+      "why": null
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "Une guitare : la fête est gratuite.",
+       "tr": "Eine Gitarre: Das Fest ist kostenlos."
+      },
+      "role": "right",
+      "why": null
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "Une guitare : la fête a lieu le 14 juillet.",
+       "tr": "Eine Gitarre: Das Fest ist am 14. Juli."
+      },
+      "role": null,
+      "why": null
+     }
+    ],
+    "tries": 1,
+    "max_tries": 2,
+    "picked": [
+     "b"
+    ],
+    "resolved": false,
+    "correct": null,
+    "solution": null,
+    "fix": null
+   },
+   "build": null
+  },
+  "micro": null
+ },
+ "photo_a1_de_build": {
+  "id": "b8abd022-d3de-4822-b8d0-59779a435944",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T23:33:37.226466+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "de",
+   "gloss_language": "de",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (de)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (de)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": [],
+   "pictures": [
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "Paris",
+     "caption_fr": "Paris",
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg"
+    },
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "",
+     "caption_fr": null,
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg"
+    }
+   ]
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "photo",
+  "comptoir": null,
+  "fil": null,
+  "titre": null,
+  "intox": null,
+  "photo": {
+   "step": "build",
+   "steps": [
+    "read",
+    "planche",
+    "legende",
+    "build",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "planche": {
+    "headline_fr": "La Fête de la musique",
+    "pictures": [
+     {
+      "key": "a",
+      "kind": "photo",
+      "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+      "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+      "licence": "CC BY-SA 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg",
+      "width": 1280,
+      "height": 853
+     },
+     {
+      "key": "b",
+      "kind": "photo",
+      "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+      "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+      "licence": "CC BY-SA 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg",
+      "width": 1280,
+      "height": 853
+     }
+    ],
+    "tries": 2,
+    "max_tries": 2,
+    "picked": [
+     "a",
+     "b"
+    ],
+    "shows": [],
+    "resolved": true,
+    "correct": true,
+    "solution": "b",
+    "seen": {
+     "words": [
+      {
+       "index": 0,
+       "text": {
+        "fr": "Paris",
+        "tr": "Paris"
+       }
+      },
+      {
+       "index": 1,
+       "text": {
+        "fr": "une guitare acoustique",
+        "tr": "eine Akustikgitarre"
+       }
+      },
+      {
+       "index": 2,
+       "text": {
+        "fr": "une guitare",
+        "tr": "eine Gitarre"
+       }
+      }
+     ],
+     "tries": 2,
+     "max_tries": 2,
+     "picked": [
+      1,
+      2
+     ],
+     "elsewhere": [],
+     "missing": 0,
+     "resolved": true,
+     "correct": true,
+     "solution": [
+      1,
+      2
+     ]
+    }
+   },
+   "legende": {
+    "picture": {
+     "key": "b",
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg",
+     "width": 1280,
+     "height": 853
+    },
+    "captions": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "Paris et la Fête de la musique.",
+       "tr": "Paris und die Fête de la musique."
+      },
+      "role": "other",
+      "why": {
+       "fr": "Cette légende parle de l'autre photo, Paris. Ici, on voit une guitare.",
+       "tr": "Diese Bildunterschrift gehört zum anderen Foto, Paris. Hier sieht man eine Gitarre."
+      }
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "Une guitare : la fête est gratuite.",
+       "tr": "Eine Gitarre: Das Fest ist kostenlos."
+      },
+      "role": "right",
+      "why": null
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "Une guitare : la fête a lieu le 14 juillet.",
+       "tr": "Eine Gitarre: Das Fest ist am 14. Juli."
+      },
+      "role": "wrong",
+      "why": {
+       "fr": "La fête a lieu le 21 juin, pas le 14 juillet.",
+       "tr": "Das Fest ist am 21. Juni, nicht am 14. Juli."
+      }
+     }
+    ],
+    "tries": 2,
+    "max_tries": 2,
+    "picked": [
+     "b",
+     "c"
+    ],
+    "resolved": true,
+    "correct": true,
+    "solution": "c",
+    "fix": {
+     "input": "pick",
+     "text": {
+      "fr": "Une guitare : la fête a lieu le 14 juillet.",
+      "tr": "Eine Gitarre: Das Fest ist am 14. Juli."
+     },
+     "wrong_fr": "le 14 juillet",
+     "options": [
+      "en 1982",
+      "le 21 juin"
+     ],
+     "tries": 1,
+     "max_tries": 2,
+     "attempts": [
+      "le 21 juin"
+     ],
+     "resolved": true,
+     "correct": true,
+     "right_fr": "le 21 juin",
+     "fixed": {
+      "fr": "Une guitare : la fête a lieu le 21 juin.",
+      "tr": "Eine Gitarre: Das Fest ist am 21. Juni."
+     }
+    }
+   },
+   "build": {
+    "input": "tiles",
+    "phrase": {
+     "fr": "Sur la photo, on voit…",
+     "tr": "Auf dem Foto sieht man…"
+    },
+    "choices": [
+     {
+      "picture": {
+       "key": "a",
+       "kind": "photo",
+       "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+       "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+       "licence": "CC BY-SA 4.0",
+       "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+       "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg",
+       "width": 1280,
+       "height": 853
+      },
+      "seen": [
+       {
+        "fr": "Paris",
+        "tr": "Paris"
+       }
+      ]
+     },
+     {
+      "picture": {
+       "key": "b",
+       "kind": "photo",
+       "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+       "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+       "licence": "CC BY-SA 4.0",
+       "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+       "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg",
+       "width": 1280,
+       "height": 853
+      },
+      "seen": [
+       {
+        "fr": "une guitare",
+        "tr": "eine Gitarre"
+       },
+       {
+        "fr": "une guitare acoustique",
+        "tr": "eine Akustikgitarre"
+       }
+      ]
+     }
+    ],
+    "facts": [
+     {
+      "fr": "La fête est gratuite.",
+      "tr": "Das Fest ist kostenlos."
+     },
+     {
+      "fr": "La fête est ouverte à toutes les musiques.",
+      "tr": "Das Fest ist offen für alle Musikrichtungen."
+     },
+     {
+      "fr": "La première fête date du 21 juin 1982.",
+      "tr": "Das erste Fest war am 21. Juni 1982."
+     }
+    ],
+    "frame": null,
+    "max_words": 20,
+    "picture": null,
+    "learner_fr": null,
+    "draft_fr": null,
+    "proof": null,
+    "marks": [],
+    "tries": 0,
+    "max_tries": 2,
+    "printed_fr": null
+   }
+  },
+  "micro": null
+ },
+ "photo_a1_de_built": {
+  "id": "b8abd022-d3de-4822-b8d0-59779a435944",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T23:33:37.226466+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "de",
+   "gloss_language": "de",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (de)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (de)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": [],
+   "pictures": [
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "Paris",
+     "caption_fr": "Paris",
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg"
+    },
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "",
+     "caption_fr": null,
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg"
+    }
+   ]
+  },
+  "beat": "facts",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 13
+  },
+  "thread": [
+   {
+    "id": "10",
+    "seq": 10,
+    "at": "2026-11-20T23:33:37.317294+00:00",
+    "kind": "mine",
+    "text_fr": "Sur la photo, on voit une guitare. La fête est gratuite.",
+    "mode": "text",
+    "register_note": null
+   }
+  ],
+  "quick_replies": [
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": true,
+  "artifact": null,
+  "closing": null,
+  "mode": "photo",
+  "comptoir": null,
+  "fil": null,
+  "titre": null,
+  "intox": null,
+  "photo": {
+   "step": "page",
+   "steps": [
+    "read",
+    "planche",
+    "legende",
+    "build",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "planche": {
+    "headline_fr": "La Fête de la musique",
+    "pictures": [
+     {
+      "key": "a",
+      "kind": "photo",
+      "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+      "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+      "licence": "CC BY-SA 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg",
+      "width": 1280,
+      "height": 853
+     },
+     {
+      "key": "b",
+      "kind": "photo",
+      "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+      "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+      "licence": "CC BY-SA 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg",
+      "width": 1280,
+      "height": 853
+     }
+    ],
+    "tries": 2,
+    "max_tries": 2,
+    "picked": [
+     "a",
+     "b"
+    ],
+    "shows": [],
+    "resolved": true,
+    "correct": true,
+    "solution": "b",
+    "seen": {
+     "words": [
+      {
+       "index": 0,
+       "text": {
+        "fr": "Paris",
+        "tr": "Paris"
+       }
+      },
+      {
+       "index": 1,
+       "text": {
+        "fr": "une guitare acoustique",
+        "tr": "eine Akustikgitarre"
+       }
+      },
+      {
+       "index": 2,
+       "text": {
+        "fr": "une guitare",
+        "tr": "eine Gitarre"
+       }
+      }
+     ],
+     "tries": 2,
+     "max_tries": 2,
+     "picked": [
+      1,
+      2
+     ],
+     "elsewhere": [],
+     "missing": 0,
+     "resolved": true,
+     "correct": true,
+     "solution": [
+      1,
+      2
+     ]
+    }
+   },
+   "legende": {
+    "picture": {
+     "key": "b",
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg",
+     "width": 1280,
+     "height": 853
+    },
+    "captions": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "Paris et la Fête de la musique.",
+       "tr": "Paris und die Fête de la musique."
+      },
+      "role": "other",
+      "why": {
+       "fr": "Cette légende parle de l'autre photo, Paris. Ici, on voit une guitare.",
+       "tr": "Diese Bildunterschrift gehört zum anderen Foto, Paris. Hier sieht man eine Gitarre."
+      }
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "Une guitare : la fête est gratuite.",
+       "tr": "Eine Gitarre: Das Fest ist kostenlos."
+      },
+      "role": "right",
+      "why": null
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "Une guitare : la fête a lieu le 14 juillet.",
+       "tr": "Eine Gitarre: Das Fest ist am 14. Juli."
+      },
+      "role": "wrong",
+      "why": {
+       "fr": "La fête a lieu le 21 juin, pas le 14 juillet.",
+       "tr": "Das Fest ist am 21. Juni, nicht am 14. Juli."
+      }
+     }
+    ],
+    "tries": 2,
+    "max_tries": 2,
+    "picked": [
+     "b",
+     "c"
+    ],
+    "resolved": true,
+    "correct": true,
+    "solution": "c",
+    "fix": {
+     "input": "pick",
+     "text": {
+      "fr": "Une guitare : la fête a lieu le 14 juillet.",
+      "tr": "Eine Gitarre: Das Fest ist am 14. Juli."
+     },
+     "wrong_fr": "le 14 juillet",
+     "options": [
+      "en 1982",
+      "le 21 juin"
+     ],
+     "tries": 1,
+     "max_tries": 2,
+     "attempts": [
+      "le 21 juin"
+     ],
+     "resolved": true,
+     "correct": true,
+     "right_fr": "le 21 juin",
+     "fixed": {
+      "fr": "Une guitare : la fête a lieu le 21 juin.",
+      "tr": "Eine Gitarre: Das Fest ist am 21. Juni."
+     }
+    }
+   },
+   "build": {
+    "input": "tiles",
+    "phrase": {
+     "fr": "Sur la photo, on voit…",
+     "tr": "Auf dem Foto sieht man…"
+    },
+    "choices": [
+     {
+      "picture": {
+       "key": "a",
+       "kind": "photo",
+       "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+       "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+       "licence": "CC BY-SA 4.0",
+       "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+       "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg",
+       "width": 1280,
+       "height": 853
+      },
+      "seen": [
+       {
+        "fr": "Paris",
+        "tr": "Paris"
+       }
+      ]
+     },
+     {
+      "picture": {
+       "key": "b",
+       "kind": "photo",
+       "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+       "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+       "licence": "CC BY-SA 4.0",
+       "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+       "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg",
+       "width": 1280,
+       "height": 853
+      },
+      "seen": [
+       {
+        "fr": "une guitare",
+        "tr": "eine Gitarre"
+       },
+       {
+        "fr": "une guitare acoustique",
+        "tr": "eine Akustikgitarre"
+       }
+      ]
+     }
+    ],
+    "facts": [
+     {
+      "fr": "La fête est gratuite.",
+      "tr": "Das Fest ist kostenlos."
+     },
+     {
+      "fr": "La fête est ouverte à toutes les musiques.",
+      "tr": "Das Fest ist offen für alle Musikrichtungen."
+     },
+     {
+      "fr": "La première fête date du 21 juin 1982.",
+      "tr": "Das erste Fest war am 21. Juni 1982."
+     }
+    ],
+    "frame": null,
+    "max_words": 20,
+    "picture": "b",
+    "learner_fr": "Sur la photo, on voit une guitare. La fête est gratuite.",
+    "draft_fr": "Sur la photo, on voit une guitare. La fête est gratuite.",
+    "proof": "clean",
+    "marks": [],
+    "tries": 0,
+    "max_tries": 2,
+    "printed_fr": "Sur la photo, on voit une guitare. La fête est gratuite."
+   }
+  },
+  "micro": null
+ },
+ "photo_a1_de_page": {
+  "id": "b8abd022-d3de-4822-b8d0-59779a435944",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "closed",
+  "started_at": "2026-11-20T23:33:37.226466+00:00",
+  "closed_at": "2026-11-20T23:33:37.369464+00:00",
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "de",
+   "gloss_language": "de",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (de)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (de)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": [],
+   "pictures": [
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "Paris",
+     "caption_fr": "Paris",
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg"
+    },
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "",
+     "caption_fr": null,
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg"
+    }
+   ]
+  },
+  "beat": "close",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 13
+  },
+  "thread": [
+   {
+    "id": "10",
+    "seq": 10,
+    "at": "2026-11-20T23:33:37.317294+00:00",
+    "kind": "mine",
+    "text_fr": "Sur la photo, on voit une guitare. La fête est gratuite.",
+    "mode": "text",
+    "register_note": null
+   },
+   {
+    "id": "12",
+    "seq": 12,
+    "at": "2026-11-20T23:33:37.327609+00:00",
+    "kind": "made",
+    "made": {
+     "kind": "photo",
+     "text_fr": "Sur la photo, on voit une guitare. La fête est gratuite.",
+     "contribution": [],
+     "learner_fr": ""
+    }
+   },
+   {
+    "id": "13",
+    "seq": 13,
+    "at": "2026-11-20T23:33:37.369360+00:00",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "close",
+    "text_fr": "Belle légende ! Ta photo est dans le journal.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   }
+  ],
+  "quick_replies": [],
+  "steer_to_make": false,
+  "own_line": true,
+  "artifact": {
+   "kind": "photo",
+   "text_fr": "Sur la photo, on voit une guitare. La fête est gratuite.",
+   "contribution": [],
+   "learner_fr": ""
+  },
+  "closing": {
+   "romy_line_fr": "Belle légende ! Ta photo est dans le journal.",
+   "dispatch": {
+    "kicker_fr": "La photo de Romy",
+    "headline_fr": "La Fête de la musique",
+    "body_fr": [
+     "Sur la photo, on voit une guitare. La fête est gratuite.",
+     "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons"
+    ],
+    "contribution": [],
+    "byline_fr": "Romy Tremblay, avec toi · d'après Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ],
+    "picture_url": null,
+    "caption_fr": null,
+    "caption_by_learner": false
+   },
+   "kept": {
+    "words": [
+     {
+      "fr": "la musique",
+      "gloss": "musique (de)",
+      "claim_id": "c1",
+      "used": false,
+      "outcome": null
+     },
+     {
+      "fr": "la première",
+      "gloss": "première (de)",
+      "claim_id": "c1",
+      "used": false,
+      "outcome": null
+     },
+     {
+      "fr": "l'année",
+      "gloss": "année (de)",
+      "claim_id": "c1",
+      "used": false,
+      "outcome": null
+     },
+     {
+      "fr": "gratuite",
+      "gloss": "gratuite (de)",
+      "claim_id": "c2",
+      "used": false,
+      "outcome": null
+     }
+    ],
+    "claims": [
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "La fête est gratuite et ouverte à toutes les musiques.",
+      "quote": "La Fête sera gratuite, ouverte à toutes les musiques « sans hiérarchie de genres et de pratiques » et à tous les français.",
+      "attributed_to": null,
+      "source": {
+       "id": "fetemusique_culture",
+       "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+       "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+       "published_at": "2025-02-03"
+      }
+     },
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "La première Fête de la musique a eu lieu le 21 juin 1982, le jour le plus long de l'année.",
+      "quote": "la première Fête de la musique est lancée le 21 juin 1982, jour symbolique du solstice d’été, le plus long de l’année dans l’hémisphère Nord",
+      "attributed_to": null,
+      "source": {
+       "id": "fetemusique_culture",
+       "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+       "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+       "published_at": "2025-02-03"
+      }
+     }
+    ]
+   },
+   "question_kept_fr": null,
+   "vignette": {
+    "id": "8fc24f02-1a86-4f33-be66-264c815ac49e",
+    "session_id": "b8abd022-d3de-4822-b8d0-59779a435944",
+    "dossier_id": "evergreen-fete-de-la-musique",
+    "week": "2026-W25",
+    "place_label_fr": "Une petite place parisienne le soir du 21 juin",
+    "ring": "headline",
+    "kept_contribution": false,
+    "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"46\" r=\"21\" fill=\"#F3C318\"/><rect x=\"34\" y=\"62\" width=\"32\" height=\"15\" rx=\"3\" fill=\"#F3C318\"/><path d=\"M50 28L60 44L40 44Z\" fill=\"#2C6A5D\"/><ellipse cx=\"50\" cy=\"76\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"46\" cy=\"40\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+    "headline_fr": "La Fête de la musique",
+    "minted_at": "2026-11-20T23:33:37"
+   },
+   "colophon_fr": "La suite la semaine prochaine.",
+   "comptoir_page": null,
+   "fil_page": null,
+   "titre_page": null,
+   "intox_page": null,
+   "photo_page": {
+    "title_fr": "La Fête de la musique",
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "picture": {
+     "key": "b",
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg",
+     "width": 1280,
+     "height": 853
+    },
+    "caption_fr": "Sur la photo, on voit une guitare. La fête est gratuite.",
+    "proof": "clean",
+    "phrase_fr": "Sur la photo, on voit…",
+    "words": [
+     "la musique",
+     "la première",
+     "l'année",
+     "gratuite"
+    ]
+   },
+   "micro_page": null
+  },
+  "mode": "photo",
+  "comptoir": null,
+  "fil": null,
+  "titre": null,
+  "intox": null,
+  "photo": {
+   "step": "page",
+   "steps": [
+    "read",
+    "planche",
+    "legende",
+    "build",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "planche": {
+    "headline_fr": "La Fête de la musique",
+    "pictures": [
+     {
+      "key": "a",
+      "kind": "photo",
+      "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+      "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+      "licence": "CC BY-SA 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg",
+      "width": 1280,
+      "height": 853
+     },
+     {
+      "key": "b",
+      "kind": "photo",
+      "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+      "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+      "licence": "CC BY-SA 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg",
+      "width": 1280,
+      "height": 853
+     }
+    ],
+    "tries": 2,
+    "max_tries": 2,
+    "picked": [
+     "a",
+     "b"
+    ],
+    "shows": [],
+    "resolved": true,
+    "correct": true,
+    "solution": "b",
+    "seen": {
+     "words": [
+      {
+       "index": 0,
+       "text": {
+        "fr": "Paris",
+        "tr": "Paris"
+       }
+      },
+      {
+       "index": 1,
+       "text": {
+        "fr": "une guitare acoustique",
+        "tr": "eine Akustikgitarre"
+       }
+      },
+      {
+       "index": 2,
+       "text": {
+        "fr": "une guitare",
+        "tr": "eine Gitarre"
+       }
+      }
+     ],
+     "tries": 2,
+     "max_tries": 2,
+     "picked": [
+      1,
+      2
+     ],
+     "elsewhere": [],
+     "missing": 0,
+     "resolved": true,
+     "correct": true,
+     "solution": [
+      1,
+      2
+     ]
+    }
+   },
+   "legende": {
+    "picture": {
+     "key": "b",
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg",
+     "width": 1280,
+     "height": 853
+    },
+    "captions": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "Paris et la Fête de la musique.",
+       "tr": "Paris und die Fête de la musique."
+      },
+      "role": "other",
+      "why": {
+       "fr": "Cette légende parle de l'autre photo, Paris. Ici, on voit une guitare.",
+       "tr": "Diese Bildunterschrift gehört zum anderen Foto, Paris. Hier sieht man eine Gitarre."
+      }
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "Une guitare : la fête est gratuite.",
+       "tr": "Eine Gitarre: Das Fest ist kostenlos."
+      },
+      "role": "right",
+      "why": null
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "Une guitare : la fête a lieu le 14 juillet.",
+       "tr": "Eine Gitarre: Das Fest ist am 14. Juli."
+      },
+      "role": "wrong",
+      "why": {
+       "fr": "La fête a lieu le 21 juin, pas le 14 juillet.",
+       "tr": "Das Fest ist am 21. Juni, nicht am 14. Juli."
+      }
+     }
+    ],
+    "tries": 2,
+    "max_tries": 2,
+    "picked": [
+     "b",
+     "c"
+    ],
+    "resolved": true,
+    "correct": true,
+    "solution": "c",
+    "fix": {
+     "input": "pick",
+     "text": {
+      "fr": "Une guitare : la fête a lieu le 14 juillet.",
+      "tr": "Eine Gitarre: Das Fest ist am 14. Juli."
+     },
+     "wrong_fr": "le 14 juillet",
+     "options": [
+      "en 1982",
+      "le 21 juin"
+     ],
+     "tries": 1,
+     "max_tries": 2,
+     "attempts": [
+      "le 21 juin"
+     ],
+     "resolved": true,
+     "correct": true,
+     "right_fr": "le 21 juin",
+     "fixed": {
+      "fr": "Une guitare : la fête a lieu le 21 juin.",
+      "tr": "Eine Gitarre: Das Fest ist am 21. Juni."
+     }
+    }
+   },
+   "build": {
+    "input": "tiles",
+    "phrase": {
+     "fr": "Sur la photo, on voit…",
+     "tr": "Auf dem Foto sieht man…"
+    },
+    "choices": [
+     {
+      "picture": {
+       "key": "a",
+       "kind": "photo",
+       "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+       "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+       "licence": "CC BY-SA 4.0",
+       "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+       "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg",
+       "width": 1280,
+       "height": 853
+      },
+      "seen": [
+       {
+        "fr": "Paris",
+        "tr": "Paris"
+       }
+      ]
+     },
+     {
+      "picture": {
+       "key": "b",
+       "kind": "photo",
+       "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+       "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+       "licence": "CC BY-SA 4.0",
+       "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+       "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg",
+       "width": 1280,
+       "height": 853
+      },
+      "seen": [
+       {
+        "fr": "une guitare",
+        "tr": "eine Gitarre"
+       },
+       {
+        "fr": "une guitare acoustique",
+        "tr": "eine Akustikgitarre"
+       }
+      ]
+     }
+    ],
+    "facts": [
+     {
+      "fr": "La fête est gratuite.",
+      "tr": "Das Fest ist kostenlos."
+     },
+     {
+      "fr": "La fête est ouverte à toutes les musiques.",
+      "tr": "Das Fest ist offen für alle Musikrichtungen."
+     },
+     {
+      "fr": "La première fête date du 21 juin 1982.",
+      "tr": "Das erste Fest war am 21. Juni 1982."
+     }
+    ],
+    "frame": null,
+    "max_words": 20,
+    "picture": "b",
+    "learner_fr": "Sur la photo, on voit une guitare. La fête est gratuite.",
+    "draft_fr": "Sur la photo, on voit une guitare. La fête est gratuite.",
+    "proof": "clean",
+    "marks": [],
+    "tries": 0,
+    "max_tries": 2,
+    "printed_fr": "Sur la photo, on voit une guitare. La fête est gratuite."
+   }
+  },
+  "micro": null
+ },
+ "photo_b1_en_marked": {
+  "id": "1ebbf808-f08f-4d49-89f5-42ede7f157d5",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T23:33:37.406453+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "B1",
+   "ui_language": "fr",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "tap",
+    "translation": "none",
+    "reading_target_words": 140,
+    "vocab_target": 7,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (en)",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "ouverte",
+     "gloss": "ouverte (en)",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "provoque",
+     "gloss": "provoque (en)",
+     "claim_id": "c3"
+    }
+   ],
+   "make_options": [
+    "headline_write",
+    "reader_question",
+    "short_report"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": [],
+   "pictures": [
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "Paris",
+     "caption_fr": "Paris",
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg"
+    },
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "",
+     "caption_fr": null,
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg"
+    }
+   ]
+  },
+  "beat": "pursue",
+  "room": {
+   "used": 1,
+   "phase": "open",
+   "remaining_turns": 12
+  },
+  "thread": [
+   {
+    "id": "6",
+    "seq": 6,
+    "at": "2026-11-20T23:33:37.442439+00:00",
+    "kind": "mine",
+    "text_fr": "La première fête a eu lieu le 21 juin 1982.",
+    "mode": "text",
+    "register_note": null
+   },
+   {
+    "id": "8",
+    "seq": 8,
+    "at": "2026-11-20T23:33:37.449335+00:00",
+    "kind": "mine",
+    "text_fr": "On voit une guitare acoustique, tres belle. La fête est gratuite.",
+    "mode": "text",
+    "register_note": null
+   }
+  ],
+  "quick_replies": [
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": true,
+  "artifact": null,
+  "closing": null,
+  "mode": "photo",
+  "comptoir": null,
+  "fil": null,
+  "titre": null,
+  "intox": null,
+  "photo": {
+   "step": "build",
+   "steps": [
+    "read",
+    "planche",
+    "legende",
+    "build",
+    "page"
+   ],
+   "band": "b1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "planche": {
+    "headline_fr": "La Fête de la musique",
+    "pictures": [
+     {
+      "key": "a",
+      "kind": "photo",
+      "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+      "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+      "licence": "CC BY-SA 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg",
+      "width": 1280,
+      "height": 853
+     },
+     {
+      "key": "b",
+      "kind": "photo",
+      "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+      "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+      "licence": "CC BY-SA 4.0",
+      "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg",
+      "width": 1280,
+      "height": 853
+     }
+    ],
+    "tries": 1,
+    "max_tries": 2,
+    "picked": [
+     "b"
+    ],
+    "shows": [],
+    "resolved": true,
+    "correct": true,
+    "solution": "b",
+    "seen": {
+     "words": [
+      {
+       "index": 0,
+       "text": {
+        "fr": "Paris",
+        "tr": "Paris"
+       }
+      },
+      {
+       "index": 1,
+       "text": {
+        "fr": "une guitare acoustique",
+        "tr": "an acoustic guitar"
+       }
+      },
+      {
+       "index": 2,
+       "text": {
+        "fr": "une guitare",
+        "tr": "a guitar"
+       }
+      }
+     ],
+     "tries": 1,
+     "max_tries": 2,
+     "picked": [
+      1,
+      2
+     ],
+     "elsewhere": [],
+     "missing": 0,
+     "resolved": true,
+     "correct": true,
+     "solution": [
+      1,
+      2
+     ]
+    }
+   },
+   "legende": {
+    "picture": {
+     "key": "b",
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg",
+     "width": 1280,
+     "height": 853
+    },
+    "captions": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "Une guitare acoustique : la fête est gratuite et ouverte à toutes les musiques.",
+       "tr": "An acoustic guitar: the festival is free and open to all kinds of music."
+      },
+      "role": "right",
+      "why": null
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "Une guitare acoustique : la première fête a eu lieu le 14 juillet 1982.",
+       "tr": "An acoustic guitar: the first festival took place on 14 July 1982."
+      },
+      "role": "wrong",
+      "why": {
+       "fr": "La fête a lieu le 21 juin, pas le 14 juillet.",
+       "tr": "The festival is on 21 June, not on 14 July."
+      }
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "Paris : dans la ville aussi, la fête est gratuite et ouverte à toutes les musiques.",
+       "tr": "Paris: in the city too, the festival is free and open to all kinds of music."
+      },
+      "role": "other",
+      "why": {
+       "fr": "Cette légende parle de l'autre photo, Paris. Ici, on voit une guitare.",
+       "tr": "This caption is about the other photo, Paris. Here you see a guitar."
+      }
+     }
+    ],
+    "tries": 1,
+    "max_tries": 2,
+    "picked": [
+     "b"
+    ],
+    "resolved": true,
+    "correct": true,
+    "solution": "b",
+    "fix": {
+     "input": "write",
+     "text": {
+      "fr": "Une guitare acoustique : la première fête a eu lieu le 14 juillet 1982.",
+      "tr": "An acoustic guitar: the first festival took place on 14 July 1982."
+     },
+     "wrong_fr": "le 14 juillet",
+     "options": [],
+     "tries": 1,
+     "max_tries": 2,
+     "attempts": [
+      "La première fête a eu lieu le 21 juin 1982."
+     ],
+     "resolved": true,
+     "correct": true,
+     "right_fr": "le 21 juin",
+     "fixed": {
+      "fr": "Une guitare acoustique : la première fête a eu lieu le 21 juin 1982.",
+      "tr": "An acoustic guitar: the first festival took place on 21 June 1982."
+     }
+    }
+   },
+   "build": {
+    "input": "free",
+    "phrase": {
+     "fr": "À l'arrière-plan, …",
+     "tr": "In the background, …"
+    },
+    "choices": [
+     {
+      "picture": {
+       "key": "a",
+       "kind": "photo",
+       "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+       "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+       "licence": "CC BY-SA 4.0",
+       "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+       "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg",
+       "width": 1280,
+       "height": 853
+      },
+      "seen": [
+       {
+        "fr": "Paris",
+        "tr": "Paris"
+       }
+      ]
+     },
+     {
+      "picture": {
+       "key": "b",
+       "kind": "photo",
+       "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+       "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+       "licence": "CC BY-SA 4.0",
+       "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+       "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg",
+       "width": 1280,
+       "height": 853
+      },
+      "seen": [
+       {
+        "fr": "une guitare",
+        "tr": "a guitar"
+       },
+       {
+        "fr": "une guitare acoustique",
+        "tr": "an acoustic guitar"
+       }
+      ]
+     }
+    ],
+    "facts": [],
+    "frame": null,
+    "max_words": 30,
+    "picture": "b",
+    "learner_fr": "On voit une guitare acoustique, tres belle. La fête est gratuite.",
+    "draft_fr": "On voit une guitare acoustique, tres belle. La fête est gratuite.",
+    "proof": "marked",
+    "marks": [
+     {
+      "span_fr": "tres",
+      "start": 32,
+      "kind": "orthographe"
+     }
+    ],
+    "tries": 0,
+    "max_tries": 2,
+    "printed_fr": null
+   }
+  },
+  "micro": null
+ },
+ "micro_a2_de_prepare": {
+  "id": "511466e4-c4ea-448f-be4c-82708731a6a6",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T23:33:37.474437+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A2",
+   "ui_language": "de",
+   "gloss_language": "de",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "tap",
+    "translation": "on_request",
+    "reading_target_words": 90,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (de)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (de)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": [],
+   "pictures": [
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "Paris",
+     "caption_fr": "Paris",
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg"
+    },
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "",
+     "caption_fr": null,
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg"
+    }
+   ]
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "micro",
+  "comptoir": null,
+  "fil": null,
+  "titre": null,
+  "intox": null,
+  "photo": null,
+  "micro": {
+   "step": "prepare",
+   "steps": [
+    "read",
+    "prepare",
+    "interview",
+    "notes",
+    "review",
+    "page"
+   ],
+   "band": "a2",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "prepare": {
+    "holes": [
+     {
+      "key": "a",
+      "hole": {
+       "fr": "Pourquoi le 21 juin ?",
+       "tr": "Warum der 21. Juni?"
+      },
+      "filled": false
+     },
+     {
+      "key": "b",
+      "hole": {
+       "fr": "Quand, la première fête ?",
+       "tr": "Wann war das erste Fest?"
+      },
+      "filled": false
+     },
+     {
+      "key": "c",
+      "hole": {
+       "fr": "Quelles musiques ?",
+       "tr": "Welche Musik?"
+      },
+      "filled": false
+     },
+     {
+      "key": "d",
+      "hole": {
+       "fr": "Combien ça coûte ?",
+       "tr": "Wie viel kostet es?"
+      },
+      "filled": false
+     },
+     {
+      "key": "e",
+      "hole": {
+       "fr": "Pourquoi des plaintes ?",
+       "tr": "Warum die Beschwerden?"
+      },
+      "filled": false
+     },
+     {
+      "key": "f",
+      "hole": {
+       "fr": "Comment, la première édition ?",
+       "tr": "Wie war die erste Ausgabe?"
+      },
+      "filled": false
+     }
+    ],
+    "chosen": [],
+    "need": 3
+   },
+   "interview": null,
+   "notes": null,
+   "review": null
+  }
+ },
+ "micro_a2_de_interview": {
+  "id": "511466e4-c4ea-448f-be4c-82708731a6a6",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T23:33:37.474437+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A2",
+   "ui_language": "de",
+   "gloss_language": "de",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "tap",
+    "translation": "on_request",
+    "reading_target_words": 90,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (de)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (de)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": [],
+   "pictures": [
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "Paris",
+     "caption_fr": "Paris",
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg"
+    },
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "",
+     "caption_fr": null,
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg"
+    }
+   ]
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "micro",
+  "comptoir": null,
+  "fil": null,
+  "titre": null,
+  "intox": null,
+  "photo": null,
+  "micro": {
+   "step": "interview",
+   "steps": [
+    "read",
+    "prepare",
+    "interview",
+    "notes",
+    "review",
+    "page"
+   ],
+   "band": "a2",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "prepare": {
+    "holes": [
+     {
+      "key": "a",
+      "hole": {
+       "fr": "Pourquoi le 21 juin ?",
+       "tr": "Warum der 21. Juni?"
+      },
+      "filled": false
+     },
+     {
+      "key": "b",
+      "hole": {
+       "fr": "Quand, la première fête ?",
+       "tr": "Wann war das erste Fest?"
+      },
+      "filled": false
+     },
+     {
+      "key": "c",
+      "hole": {
+       "fr": "Quelles musiques ?",
+       "tr": "Welche Musik?"
+      },
+      "filled": false
+     },
+     {
+      "key": "d",
+      "hole": {
+       "fr": "Combien ça coûte ?",
+       "tr": "Wie viel kostet es?"
+      },
+      "filled": false
+     },
+     {
+      "key": "e",
+      "hole": {
+       "fr": "Pourquoi des plaintes ?",
+       "tr": "Warum die Beschwerden?"
+      },
+      "filled": false
+     },
+     {
+      "key": "f",
+      "hole": {
+       "fr": "Comment, la première édition ?",
+       "tr": "Wie war die erste Ausgabe?"
+      },
+      "filled": false
+     }
+    ],
+    "chosen": [
+     "b",
+     "d",
+     "c"
+    ],
+    "need": 3
+   },
+   "interview": {
+    "witness": {
+     "id": "lila_bonnet",
+     "name_fr": "Lila",
+     "role_fr": "prof"
+    },
+    "input": "frame",
+    "phrase": {
+     "fr": "Pourquoi est-ce que… ?",
+     "tr": "Warum…?"
+    },
+    "holes": [
+     {
+      "key": "b",
+      "hole": {
+       "fr": "Quand, la première fête ?",
+       "tr": "Wann war das erste Fest?"
+      },
+      "filled": false
+     },
+     {
+      "key": "d",
+      "hole": {
+       "fr": "Combien ça coûte ?",
+       "tr": "Wie viel kostet es?"
+      },
+      "filled": false
+     },
+     {
+      "key": "c",
+      "hole": {
+       "fr": "Quelles musiques ?",
+       "tr": "Welche Musik?"
+      },
+      "filled": false
+     }
+    ],
+    "tiles": [],
+    "frames": [
+     {
+      "fr": "Quand est-ce que",
+      "tr": "Wann"
+     },
+     {
+      "fr": "Combien coûte",
+      "tr": "Wie viel kostet"
+     },
+     {
+      "fr": "Quelles musiques est-ce que",
+      "tr": "Welche Musik"
+     }
+    ],
+    "turns": [],
+    "spent": 0,
+    "total": 3,
+    "free": true,
+    "done": false
+   },
+   "notes": null,
+   "review": null
+  }
+ },
+ "micro_a2_de_shrug": {
+  "id": "511466e4-c4ea-448f-be4c-82708731a6a6",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T23:33:37.474437+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A2",
+   "ui_language": "de",
+   "gloss_language": "de",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "tap",
+    "translation": "on_request",
+    "reading_target_words": 90,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (de)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (de)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": [],
+   "pictures": [
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "Paris",
+     "caption_fr": "Paris",
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg"
+    },
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "",
+     "caption_fr": null,
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg"
+    }
+   ]
+  },
+  "beat": "facts",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 13
+  },
+  "thread": [
+   {
+    "id": "4",
+    "seq": 4,
+    "at": "2026-11-20T23:33:37.501463+00:00",
+    "kind": "mine",
+    "text_fr": "Qui organise la fête ?",
+    "mode": "text",
+    "register_note": null
+   }
+  ],
+  "quick_replies": [
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": true,
+  "artifact": null,
+  "closing": null,
+  "mode": "micro",
+  "comptoir": null,
+  "fil": null,
+  "titre": null,
+  "intox": null,
+  "photo": null,
+  "micro": {
+   "step": "interview",
+   "steps": [
+    "read",
+    "prepare",
+    "interview",
+    "notes",
+    "review",
+    "page"
+   ],
+   "band": "a2",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "prepare": {
+    "holes": [
+     {
+      "key": "a",
+      "hole": {
+       "fr": "Pourquoi le 21 juin ?",
+       "tr": "Warum der 21. Juni?"
+      },
+      "filled": false
+     },
+     {
+      "key": "b",
+      "hole": {
+       "fr": "Quand, la première fête ?",
+       "tr": "Wann war das erste Fest?"
+      },
+      "filled": false
+     },
+     {
+      "key": "c",
+      "hole": {
+       "fr": "Quelles musiques ?",
+       "tr": "Welche Musik?"
+      },
+      "filled": false
+     },
+     {
+      "key": "d",
+      "hole": {
+       "fr": "Combien ça coûte ?",
+       "tr": "Wie viel kostet es?"
+      },
+      "filled": false
+     },
+     {
+      "key": "e",
+      "hole": {
+       "fr": "Pourquoi des plaintes ?",
+       "tr": "Warum die Beschwerden?"
+      },
+      "filled": false
+     },
+     {
+      "key": "f",
+      "hole": {
+       "fr": "Comment, la première édition ?",
+       "tr": "Wie war die erste Ausgabe?"
+      },
+      "filled": false
+     }
+    ],
+    "chosen": [
+     "b",
+     "d",
+     "c"
+    ],
+    "need": 3
+   },
+   "interview": {
+    "witness": {
+     "id": "lila_bonnet",
+     "name_fr": "Lila",
+     "role_fr": "prof"
+    },
+    "input": "frame",
+    "phrase": {
+     "fr": "Pourquoi est-ce que… ?",
+     "tr": "Warum…?"
+    },
+    "holes": [
+     {
+      "key": "b",
+      "hole": {
+       "fr": "Quand, la première fête ?",
+       "tr": "Wann war das erste Fest?"
+      },
+      "filled": false
+     },
+     {
+      "key": "d",
+      "hole": {
+       "fr": "Combien ça coûte ?",
+       "tr": "Wie viel kostet es?"
+      },
+      "filled": false
+     },
+     {
+      "key": "c",
+      "hole": {
+       "fr": "Quelles musiques ?",
+       "tr": "Welche Musik?"
+      },
+      "filled": false
+     }
+    ],
+    "tiles": [],
+    "frames": [
+     {
+      "fr": "Quand est-ce que",
+      "tr": "Wann"
+     },
+     {
+      "fr": "Combien coûte",
+      "tr": "Wie viel kostet"
+     },
+     {
+      "fr": "Quelles musiques est-ce que",
+      "tr": "Welche Musik"
+     }
+    ],
+    "turns": [
+     {
+      "question_fr": "Qui organise la fête ?",
+      "answer": {
+       "fr": "Bon, ça, je ne sais pas. L'article ne le dit pas.",
+       "tr": "Tja, das weiß ich nicht. Der Artikel sagt es nicht."
+      },
+      "kind": "shrug",
+      "spent": false,
+      "hole_key": null
+     }
+    ],
+    "spent": 0,
+    "total": 3,
+    "free": false,
+    "done": false
+   },
+   "notes": null,
+   "review": null
+  }
+ },
+ "micro_a2_de_notes": {
+  "id": "511466e4-c4ea-448f-be4c-82708731a6a6",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T23:33:37.474437+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A2",
+   "ui_language": "de",
+   "gloss_language": "de",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "tap",
+    "translation": "on_request",
+    "reading_target_words": 90,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (de)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (de)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": [],
+   "pictures": [
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "Paris",
+     "caption_fr": "Paris",
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg"
+    },
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "",
+     "caption_fr": null,
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg"
+    }
+   ]
+  },
+  "beat": "pursue",
+  "room": {
+   "used": 2,
+   "phase": "open",
+   "remaining_turns": 10
+  },
+  "thread": [
+   {
+    "id": "4",
+    "seq": 4,
+    "at": "2026-11-20T23:33:37.501463+00:00",
+    "kind": "mine",
+    "text_fr": "Qui organise la fête ?",
+    "mode": "text",
+    "register_note": null
+   },
+   {
+    "id": "6",
+    "seq": 6,
+    "at": "2026-11-20T23:33:37.511578+00:00",
+    "kind": "mine",
+    "text_fr": "Pourquoi elle est gratuite ?",
+    "mode": "text",
+    "register_note": null
+   },
+   {
+    "id": "8",
+    "seq": 8,
+    "at": "2026-11-20T23:33:37.517561+00:00",
+    "kind": "mine",
+    "text_fr": "Quand est-ce que la première fête a eu lieu ?",
+    "mode": "text",
+    "register_note": null
+   },
+   {
+    "id": "10",
+    "seq": 10,
+    "at": "2026-11-20T23:33:37.523546+00:00",
+    "kind": "mine",
+    "text_fr": "Quelles musiques est-ce qu'on peut écouter ?",
+    "mode": "text",
+    "register_note": null
+   }
+  ],
+  "quick_replies": [
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": true,
+  "artifact": null,
+  "closing": null,
+  "mode": "micro",
+  "comptoir": null,
+  "fil": null,
+  "titre": null,
+  "intox": null,
+  "photo": null,
+  "micro": {
+   "step": "notes",
+   "steps": [
+    "read",
+    "prepare",
+    "interview",
+    "notes",
+    "review",
+    "page"
+   ],
+   "band": "a2",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "prepare": {
+    "holes": [
+     {
+      "key": "a",
+      "hole": {
+       "fr": "Pourquoi le 21 juin ?",
+       "tr": "Warum der 21. Juni?"
+      },
+      "filled": false
+     },
+     {
+      "key": "b",
+      "hole": {
+       "fr": "Quand, la première fête ?",
+       "tr": "Wann war das erste Fest?"
+      },
+      "filled": true
+     },
+     {
+      "key": "c",
+      "hole": {
+       "fr": "Quelles musiques ?",
+       "tr": "Welche Musik?"
+      },
+      "filled": true
+     },
+     {
+      "key": "d",
+      "hole": {
+       "fr": "Combien ça coûte ?",
+       "tr": "Wie viel kostet es?"
+      },
+      "filled": true
+     },
+     {
+      "key": "e",
+      "hole": {
+       "fr": "Pourquoi des plaintes ?",
+       "tr": "Warum die Beschwerden?"
+      },
+      "filled": false
+     },
+     {
+      "key": "f",
+      "hole": {
+       "fr": "Comment, la première édition ?",
+       "tr": "Wie war die erste Ausgabe?"
+      },
+      "filled": false
+     }
+    ],
+    "chosen": [
+     "b",
+     "d",
+     "c"
+    ],
+    "need": 3
+   },
+   "interview": {
+    "witness": {
+     "id": "lila_bonnet",
+     "name_fr": "Lila",
+     "role_fr": "prof"
+    },
+    "input": "frame",
+    "phrase": {
+     "fr": "Pourquoi est-ce que… ?",
+     "tr": "Warum…?"
+    },
+    "holes": [
+     {
+      "key": "b",
+      "hole": {
+       "fr": "Quand, la première fête ?",
+       "tr": "Wann war das erste Fest?"
+      },
+      "filled": true
+     },
+     {
+      "key": "d",
+      "hole": {
+       "fr": "Combien ça coûte ?",
+       "tr": "Wie viel kostet es?"
+      },
+      "filled": true
+     },
+     {
+      "key": "c",
+      "hole": {
+       "fr": "Quelles musiques ?",
+       "tr": "Welche Musik?"
+      },
+      "filled": true
+     }
+    ],
+    "tiles": [],
+    "frames": [
+     {
+      "fr": "Quand est-ce que",
+      "tr": "Wann"
+     },
+     {
+      "fr": "Combien coûte",
+      "tr": "Wie viel kostet"
+     },
+     {
+      "fr": "Quelles musiques est-ce que",
+      "tr": "Welche Musik"
+     }
+    ],
+    "turns": [
+     {
+      "question_fr": "Qui organise la fête ?",
+      "answer": {
+       "fr": "Bon, ça, je ne sais pas. L'article ne le dit pas.",
+       "tr": "Tja, das weiß ich nicht. Der Artikel sagt es nicht."
+      },
+      "kind": "shrug",
+      "spent": false,
+      "hole_key": null
+     },
+     {
+      "question_fr": "Pourquoi elle est gratuite ?",
+      "answer": {
+       "fr": "Rien, mon chou ! La fête est gratuite, on ne paie pas pour écouter.",
+       "tr": "Nichts, Schätzchen! Das Fest ist kostenlos, man zahlt nicht fürs Zuhören."
+      },
+      "kind": "answer",
+      "spent": true,
+      "hole_key": "d"
+     },
+     {
+      "question_fr": "Quand est-ce que la première fête a eu lieu ?",
+      "answer": {
+       "fr": "Mais arrête, c'est évident : la première Fête de la musique, c'est le 21 juin 1982.",
+       "tr": "Ach komm, das ist doch klar: Die erste Fête de la musique war am 21. Juni 1982."
+      },
+      "kind": "answer",
+      "spent": true,
+      "hole_key": "b"
+     },
+     {
+      "question_fr": "Quelles musiques est-ce qu'on peut écouter ?",
+      "answer": {
+       "fr": "Mais arrête, c'est évident : la fête est ouverte à toutes les musiques, sans exception.",
+       "tr": "Ach komm, das ist doch klar: Das Fest ist offen für alle Musikrichtungen, ohne Ausnahme."
+      },
+      "kind": "answer",
+      "spent": true,
+      "hole_key": "c"
+     }
+    ],
+    "spent": 3,
+    "total": 3,
+    "free": true,
+    "done": true
+   },
+   "notes": {
+    "input": "pick",
+    "items": [
+     {
+      "key": "d",
+      "hole": {
+       "fr": "Combien ça coûte ?",
+       "tr": "Wie viel kostet es?"
+      },
+      "answer": {
+       "fr": "Rien, mon chou ! La fête est gratuite, on ne paie pas pour écouter.",
+       "tr": "Nichts, Schätzchen! Das Fest ist kostenlos, man zahlt nicht fürs Zuhören."
+      },
+      "options": [
+       "gratuite",
+       "le 21 juin 1982",
+       "toutes les musiques"
+      ],
+      "tries": 0,
+      "max_tries": 2,
+      "attempts": [],
+      "resolved": false,
+      "correct": null,
+      "value_fr": null
+     },
+     {
+      "key": "b",
+      "hole": {
+       "fr": "Quand, la première fête ?",
+       "tr": "Wann war das erste Fest?"
+      },
+      "answer": {
+       "fr": "Mais arrête, c'est évident : la première Fête de la musique, c'est le 21 juin 1982.",
+       "tr": "Ach komm, das ist doch klar: Die erste Fête de la musique war am 21. Juni 1982."
+      },
+      "options": [
+       "gratuite",
+       "le 21 juin 1982",
+       "le jour le plus long de l'année"
+      ],
+      "tries": 0,
+      "max_tries": 2,
+      "attempts": [],
+      "resolved": false,
+      "correct": null,
+      "value_fr": null
+     },
+     {
+      "key": "c",
+      "hole": {
+       "fr": "Quelles musiques ?",
+       "tr": "Welche Musik?"
+      },
+      "answer": {
+       "fr": "Mais arrête, c'est évident : la fête est ouverte à toutes les musiques, sans exception.",
+       "tr": "Ach komm, das ist doch klar: Das Fest ist offen für alle Musikrichtungen, ohne Ausnahme."
+      },
+      "options": [
+       "gratuite",
+       "toutes les musiques",
+       "le 21 juin 1982"
+      ],
+      "tries": 0,
+      "max_tries": 2,
+      "attempts": [],
+      "resolved": false,
+      "correct": null,
+      "value_fr": null
+     }
+    ]
+   },
+   "review": null
+  }
+ },
+ "micro_a2_de_review": {
+  "id": "511466e4-c4ea-448f-be4c-82708731a6a6",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T23:33:37.474437+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A2",
+   "ui_language": "de",
+   "gloss_language": "de",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "tap",
+    "translation": "on_request",
+    "reading_target_words": 90,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (de)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (de)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": [],
+   "pictures": [
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "Paris",
+     "caption_fr": "Paris",
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg"
+    },
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "",
+     "caption_fr": null,
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg"
+    }
+   ]
+  },
+  "beat": "pursue",
+  "room": {
+   "used": 2,
+   "phase": "open",
+   "remaining_turns": 10
+  },
+  "thread": [
+   {
+    "id": "4",
+    "seq": 4,
+    "at": "2026-11-20T23:33:37.501463+00:00",
+    "kind": "mine",
+    "text_fr": "Qui organise la fête ?",
+    "mode": "text",
+    "register_note": null
+   },
+   {
+    "id": "6",
+    "seq": 6,
+    "at": "2026-11-20T23:33:37.511578+00:00",
+    "kind": "mine",
+    "text_fr": "Pourquoi elle est gratuite ?",
+    "mode": "text",
+    "register_note": null
+   },
+   {
+    "id": "8",
+    "seq": 8,
+    "at": "2026-11-20T23:33:37.517561+00:00",
+    "kind": "mine",
+    "text_fr": "Quand est-ce que la première fête a eu lieu ?",
+    "mode": "text",
+    "register_note": null
+   },
+   {
+    "id": "10",
+    "seq": 10,
+    "at": "2026-11-20T23:33:37.523546+00:00",
+    "kind": "mine",
+    "text_fr": "Quelles musiques est-ce qu'on peut écouter ?",
+    "mode": "text",
+    "register_note": null
+   }
+  ],
+  "quick_replies": [
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": true,
+  "artifact": null,
+  "closing": null,
+  "mode": "micro",
+  "comptoir": null,
+  "fil": null,
+  "titre": null,
+  "intox": null,
+  "photo": null,
+  "micro": {
+   "step": "review",
+   "steps": [
+    "read",
+    "prepare",
+    "interview",
+    "notes",
+    "review",
+    "page"
+   ],
+   "band": "a2",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "prepare": {
+    "holes": [
+     {
+      "key": "a",
+      "hole": {
+       "fr": "Pourquoi le 21 juin ?",
+       "tr": "Warum der 21. Juni?"
+      },
+      "filled": false
+     },
+     {
+      "key": "b",
+      "hole": {
+       "fr": "Quand, la première fête ?",
+       "tr": "Wann war das erste Fest?"
+      },
+      "filled": true
+     },
+     {
+      "key": "c",
+      "hole": {
+       "fr": "Quelles musiques ?",
+       "tr": "Welche Musik?"
+      },
+      "filled": true
+     },
+     {
+      "key": "d",
+      "hole": {
+       "fr": "Combien ça coûte ?",
+       "tr": "Wie viel kostet es?"
+      },
+      "filled": true
+     },
+     {
+      "key": "e",
+      "hole": {
+       "fr": "Pourquoi des plaintes ?",
+       "tr": "Warum die Beschwerden?"
+      },
+      "filled": false
+     },
+     {
+      "key": "f",
+      "hole": {
+       "fr": "Comment, la première édition ?",
+       "tr": "Wie war die erste Ausgabe?"
+      },
+      "filled": false
+     }
+    ],
+    "chosen": [
+     "b",
+     "d",
+     "c"
+    ],
+    "need": 3
+   },
+   "interview": {
+    "witness": {
+     "id": "lila_bonnet",
+     "name_fr": "Lila",
+     "role_fr": "prof"
+    },
+    "input": "frame",
+    "phrase": {
+     "fr": "Pourquoi est-ce que… ?",
+     "tr": "Warum…?"
+    },
+    "holes": [
+     {
+      "key": "b",
+      "hole": {
+       "fr": "Quand, la première fête ?",
+       "tr": "Wann war das erste Fest?"
+      },
+      "filled": true
+     },
+     {
+      "key": "d",
+      "hole": {
+       "fr": "Combien ça coûte ?",
+       "tr": "Wie viel kostet es?"
+      },
+      "filled": true
+     },
+     {
+      "key": "c",
+      "hole": {
+       "fr": "Quelles musiques ?",
+       "tr": "Welche Musik?"
+      },
+      "filled": true
+     }
+    ],
+    "tiles": [],
+    "frames": [
+     {
+      "fr": "Quand est-ce que",
+      "tr": "Wann"
+     },
+     {
+      "fr": "Combien coûte",
+      "tr": "Wie viel kostet"
+     },
+     {
+      "fr": "Quelles musiques est-ce que",
+      "tr": "Welche Musik"
+     }
+    ],
+    "turns": [
+     {
+      "question_fr": "Qui organise la fête ?",
+      "answer": {
+       "fr": "Bon, ça, je ne sais pas. L'article ne le dit pas.",
+       "tr": "Tja, das weiß ich nicht. Der Artikel sagt es nicht."
+      },
+      "kind": "shrug",
+      "spent": false,
+      "hole_key": null
+     },
+     {
+      "question_fr": "Pourquoi elle est gratuite ?",
+      "answer": {
+       "fr": "Rien, mon chou ! La fête est gratuite, on ne paie pas pour écouter.",
+       "tr": "Nichts, Schätzchen! Das Fest ist kostenlos, man zahlt nicht fürs Zuhören."
+      },
+      "kind": "answer",
+      "spent": true,
+      "hole_key": "d"
+     },
+     {
+      "question_fr": "Quand est-ce que la première fête a eu lieu ?",
+      "answer": {
+       "fr": "Mais arrête, c'est évident : la première Fête de la musique, c'est le 21 juin 1982.",
+       "tr": "Ach komm, das ist doch klar: Die erste Fête de la musique war am 21. Juni 1982."
+      },
+      "kind": "answer",
+      "spent": true,
+      "hole_key": "b"
+     },
+     {
+      "question_fr": "Quelles musiques est-ce qu'on peut écouter ?",
+      "answer": {
+       "fr": "Mais arrête, c'est évident : la fête est ouverte à toutes les musiques, sans exception.",
+       "tr": "Ach komm, das ist doch klar: Das Fest ist offen für alle Musikrichtungen, ohne Ausnahme."
+      },
+      "kind": "answer",
+      "spent": true,
+      "hole_key": "c"
+     }
+    ],
+    "spent": 3,
+    "total": 3,
+    "free": true,
+    "done": true
+   },
+   "notes": {
+    "input": "pick",
+    "items": [
+     {
+      "key": "d",
+      "hole": {
+       "fr": "Combien ça coûte ?",
+       "tr": "Wie viel kostet es?"
+      },
+      "answer": {
+       "fr": "Rien, mon chou ! La fête est gratuite, on ne paie pas pour écouter.",
+       "tr": "Nichts, Schätzchen! Das Fest ist kostenlos, man zahlt nicht fürs Zuhören."
+      },
+      "options": [
+       "gratuite",
+       "le 21 juin 1982",
+       "toutes les musiques"
+      ],
+      "tries": 1,
+      "max_tries": 2,
+      "attempts": [
+       "gratuite"
+      ],
+      "resolved": true,
+      "correct": true,
+      "value_fr": "gratuite"
+     },
+     {
+      "key": "b",
+      "hole": {
+       "fr": "Quand, la première fête ?",
+       "tr": "Wann war das erste Fest?"
+      },
+      "answer": {
+       "fr": "Mais arrête, c'est évident : la première Fête de la musique, c'est le 21 juin 1982.",
+       "tr": "Ach komm, das ist doch klar: Die erste Fête de la musique war am 21. Juni 1982."
+      },
+      "options": [
+       "gratuite",
+       "le 21 juin 1982",
+       "le jour le plus long de l'année"
+      ],
+      "tries": 1,
+      "max_tries": 2,
+      "attempts": [
+       "le 21 juin 1982"
+      ],
+      "resolved": true,
+      "correct": true,
+      "value_fr": "le 21 juin 1982"
+     },
+     {
+      "key": "c",
+      "hole": {
+       "fr": "Quelles musiques ?",
+       "tr": "Welche Musik?"
+      },
+      "answer": {
+       "fr": "Mais arrête, c'est évident : la fête est ouverte à toutes les musiques, sans exception.",
+       "tr": "Ach komm, das ist doch klar: Das Fest ist offen für alle Musikrichtungen, ohne Ausnahme."
+      },
+      "options": [
+       "gratuite",
+       "toutes les musiques",
+       "le 21 juin 1982"
+      ],
+      "tries": 1,
+      "max_tries": 2,
+      "attempts": [
+       "toutes les musiques"
+      ],
+      "resolved": true,
+      "correct": true,
+      "value_fr": "toutes les musiques"
+     }
+    ]
+   },
+   "review": {
+    "input": "write",
+    "questions": [
+     "Pourquoi elle est gratuite ?",
+     "Quand est-ce que la première fête a eu lieu ?",
+     "Quelles musiques est-ce qu'on peut écouter ?"
+    ],
+    "hints": [
+     {
+      "index": 0,
+      "code": "inversion"
+     },
+     {
+      "index": 0,
+      "code": "question_word"
+     }
+    ],
+    "draft_fr": null,
+    "proof": null,
+    "marks": [],
+    "tries": 0,
+    "max_tries": 2,
+    "printed_fr": null
+   }
+  }
+ },
+ "micro_a2_de_page": {
+  "id": "511466e4-c4ea-448f-be4c-82708731a6a6",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "closed",
+  "started_at": "2026-11-20T23:33:37.474437+00:00",
+  "closed_at": "2026-11-20T23:33:37.586564+00:00",
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A2",
+   "ui_language": "de",
+   "gloss_language": "de",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "tap",
+    "translation": "on_request",
+    "reading_target_words": 90,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (de)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (de)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": [],
+   "pictures": [
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "Paris",
+     "caption_fr": "Paris",
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg"
+    },
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "",
+     "caption_fr": null,
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg"
+    }
+   ]
+  },
+  "beat": "close",
+  "room": {
+   "used": 2,
+   "phase": "open",
+   "remaining_turns": 10
+  },
+  "thread": [
+   {
+    "id": "4",
+    "seq": 4,
+    "at": "2026-11-20T23:33:37.501463+00:00",
+    "kind": "mine",
+    "text_fr": "Qui organise la fête ?",
+    "mode": "text",
+    "register_note": null
+   },
+   {
+    "id": "6",
+    "seq": 6,
+    "at": "2026-11-20T23:33:37.511578+00:00",
+    "kind": "mine",
+    "text_fr": "Pourquoi elle est gratuite ?",
+    "mode": "text",
+    "register_note": null
+   },
+   {
+    "id": "8",
+    "seq": 8,
+    "at": "2026-11-20T23:33:37.517561+00:00",
+    "kind": "mine",
+    "text_fr": "Quand est-ce que la première fête a eu lieu ?",
+    "mode": "text",
+    "register_note": null
+   },
+   {
+    "id": "10",
+    "seq": 10,
+    "at": "2026-11-20T23:33:37.523546+00:00",
+    "kind": "mine",
+    "text_fr": "Quelles musiques est-ce qu'on peut écouter ?",
+    "mode": "text",
+    "register_note": null
+   },
+   {
+    "id": "16",
+    "seq": 16,
+    "at": "2026-11-20T23:33:37.569636+00:00",
+    "kind": "made",
+    "made": {
+     "kind": "micro",
+     "text_fr": "Pourquoi elle est gratuite ? Quand est-ce que la première fête a eu lieu ? Quelles musiques est-ce qu'on peut écouter ?",
+     "contribution": [
+      [
+       0,
+       26
+      ],
+      [
+       29,
+       72
+      ],
+      [
+       75,
+       117
+      ]
+     ],
+     "learner_fr": "Pourquoi elle est gratuite ? Quand est-ce que la première fête a eu lieu ? Quelles musiques est-ce qu'on peut écouter ?"
+    }
+   },
+   {
+    "id": "17",
+    "seq": 17,
+    "at": "2026-11-20T23:33:37.586475+00:00",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "close",
+    "text_fr": "Super interview ! Tes questions et ses réponses sont dans le journal.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   }
+  ],
+  "quick_replies": [],
+  "steer_to_make": false,
+  "own_line": true,
+  "artifact": {
+   "kind": "micro",
+   "text_fr": "Pourquoi elle est gratuite ? Quand est-ce que la première fête a eu lieu ? Quelles musiques est-ce qu'on peut écouter ?",
+   "contribution": [
+    [
+     0,
+     26
+    ],
+    [
+     29,
+     72
+    ],
+    [
+     75,
+     117
+    ]
+   ],
+   "learner_fr": "Pourquoi elle est gratuite ? Quand est-ce que la première fête a eu lieu ? Quelles musiques est-ce qu'on peut écouter ?"
+  },
+  "closing": {
+   "romy_line_fr": "Super interview ! Tes questions et ses réponses sont dans le journal.",
+   "dispatch": {
+    "kicker_fr": "L'interview · Lila",
+    "headline_fr": "La Fête de la musique",
+    "body_fr": [
+     "Pourquoi elle est gratuite ? — Rien, mon chou ! La fête est gratuite, on ne paie pas pour écouter.",
+     "Quand est-ce que la première fête a eu lieu ? — Mais arrête, c'est évident : la première Fête de la musique, c'est le 21 juin 1982.",
+     "Quelles musiques est-ce qu'on peut écouter ? — Mais arrête, c'est évident : la fête est ouverte à toutes les musiques, sans exception."
+    ],
+    "contribution": [],
+    "byline_fr": "Propos recueillis par toi · d'après Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ],
+    "picture_url": null,
+    "caption_fr": null,
+    "caption_by_learner": false
+   },
+   "kept": {
+    "words": [
+     {
+      "fr": "la musique",
+      "gloss": "musique (de)",
+      "claim_id": "c1",
+      "used": true,
+      "outcome": null
+     },
+     {
+      "fr": "la première",
+      "gloss": "première (de)",
+      "claim_id": "c1",
+      "used": true,
+      "outcome": null
+     },
+     {
+      "fr": "gratuite",
+      "gloss": "gratuite (de)",
+      "claim_id": "c2",
+      "used": true,
+      "outcome": null
+     },
+     {
+      "fr": "l'année",
+      "gloss": "année (de)",
+      "claim_id": "c1",
+      "used": false,
+      "outcome": null
+     }
+    ],
+    "claims": [
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "La fête est gratuite et ouverte à toutes les musiques.",
+      "quote": "La Fête sera gratuite, ouverte à toutes les musiques « sans hiérarchie de genres et de pratiques » et à tous les français.",
+      "attributed_to": null,
+      "source": {
+       "id": "fetemusique_culture",
+       "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+       "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+       "published_at": "2025-02-03"
+      }
+     },
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "La première Fête de la musique a eu lieu le 21 juin 1982, le jour le plus long de l'année.",
+      "quote": "la première Fête de la musique est lancée le 21 juin 1982, jour symbolique du solstice d’été, le plus long de l’année dans l’hémisphère Nord",
+      "attributed_to": null,
+      "source": {
+       "id": "fetemusique_culture",
+       "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+       "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+       "published_at": "2025-02-03"
+      }
+     }
+    ]
+   },
+   "question_kept_fr": null,
+   "vignette": {
+    "id": "e7921704-c9e8-467b-bdc7-11b2b7fbda4b",
+    "session_id": "511466e4-c4ea-448f-be4c-82708731a6a6",
+    "dossier_id": "evergreen-fete-de-la-musique",
+    "week": "2026-W25",
+    "place_label_fr": "Une petite place parisienne le soir du 21 juin",
+    "ring": "question",
+    "kept_contribution": true,
+    "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"46\" r=\"21\" fill=\"#F3C318\"/><rect x=\"34\" y=\"62\" width=\"32\" height=\"15\" rx=\"3\" fill=\"#F3C318\"/><path d=\"M50 28L60 44L40 44Z\" fill=\"#2C6A5D\"/><ellipse cx=\"50\" cy=\"76\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"46\" cy=\"40\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+    "headline_fr": "La Fête de la musique",
+    "minted_at": "2026-11-20T23:33:37"
+   },
+   "colophon_fr": "La suite la semaine prochaine.",
+   "comptoir_page": null,
+   "fil_page": null,
+   "titre_page": null,
+   "intox_page": null,
+   "photo_page": null,
+   "micro_page": {
+    "title_fr": "La Fête de la musique",
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "witness": {
+     "id": "lila_bonnet",
+     "name_fr": "Lila",
+     "role_fr": "prof"
+    },
+    "byline_fr": "Propos recueillis par toi",
+    "lines": [
+     {
+      "question_fr": "Pourquoi elle est gratuite ?",
+      "answer_fr": "Rien, mon chou ! La fête est gratuite, on ne paie pas pour écouter.",
+      "source_name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)"
+     },
+     {
+      "question_fr": "Quand est-ce que la première fête a eu lieu ?",
+      "answer_fr": "Mais arrête, c'est évident : la première Fête de la musique, c'est le 21 juin 1982.",
+      "source_name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)"
+     },
+     {
+      "question_fr": "Quelles musiques est-ce qu'on peut écouter ?",
+      "answer_fr": "Mais arrête, c'est évident : la fête est ouverte à toutes les musiques, sans exception.",
+      "source_name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)"
+     }
+    ],
+    "notes": [
+     {
+      "hole_fr": "Combien ça coûte ?",
+      "value_fr": "gratuite",
+      "right": true
+     },
+     {
+      "hole_fr": "Quand, la première fête ?",
+      "value_fr": "le 21 juin 1982",
+      "right": true
+     },
+     {
+      "hole_fr": "Quelles musiques ?",
+      "value_fr": "toutes les musiques",
+      "right": true
+     }
+    ],
+    "proof": "clean",
+    "phrase_fr": "Pourquoi est-ce que… ?",
+    "words": [
+     "la musique",
+     "la première",
+     "gratuite",
+     "l'année"
+    ]
+   }
+  },
+  "mode": "micro",
+  "comptoir": null,
+  "fil": null,
+  "titre": null,
+  "intox": null,
+  "photo": null,
+  "micro": {
+   "step": "page",
+   "steps": [
+    "read",
+    "prepare",
+    "interview",
+    "notes",
+    "review",
+    "page"
+   ],
+   "band": "a2",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "prepare": {
+    "holes": [
+     {
+      "key": "a",
+      "hole": {
+       "fr": "Pourquoi le 21 juin ?",
+       "tr": "Warum der 21. Juni?"
+      },
+      "filled": false
+     },
+     {
+      "key": "b",
+      "hole": {
+       "fr": "Quand, la première fête ?",
+       "tr": "Wann war das erste Fest?"
+      },
+      "filled": true
+     },
+     {
+      "key": "c",
+      "hole": {
+       "fr": "Quelles musiques ?",
+       "tr": "Welche Musik?"
+      },
+      "filled": true
+     },
+     {
+      "key": "d",
+      "hole": {
+       "fr": "Combien ça coûte ?",
+       "tr": "Wie viel kostet es?"
+      },
+      "filled": true
+     },
+     {
+      "key": "e",
+      "hole": {
+       "fr": "Pourquoi des plaintes ?",
+       "tr": "Warum die Beschwerden?"
+      },
+      "filled": false
+     },
+     {
+      "key": "f",
+      "hole": {
+       "fr": "Comment, la première édition ?",
+       "tr": "Wie war die erste Ausgabe?"
+      },
+      "filled": false
+     }
+    ],
+    "chosen": [
+     "b",
+     "d",
+     "c"
+    ],
+    "need": 3
+   },
+   "interview": {
+    "witness": {
+     "id": "lila_bonnet",
+     "name_fr": "Lila",
+     "role_fr": "prof"
+    },
+    "input": "frame",
+    "phrase": {
+     "fr": "Pourquoi est-ce que… ?",
+     "tr": "Warum…?"
+    },
+    "holes": [
+     {
+      "key": "b",
+      "hole": {
+       "fr": "Quand, la première fête ?",
+       "tr": "Wann war das erste Fest?"
+      },
+      "filled": true
+     },
+     {
+      "key": "d",
+      "hole": {
+       "fr": "Combien ça coûte ?",
+       "tr": "Wie viel kostet es?"
+      },
+      "filled": true
+     },
+     {
+      "key": "c",
+      "hole": {
+       "fr": "Quelles musiques ?",
+       "tr": "Welche Musik?"
+      },
+      "filled": true
+     }
+    ],
+    "tiles": [],
+    "frames": [
+     {
+      "fr": "Quand est-ce que",
+      "tr": "Wann"
+     },
+     {
+      "fr": "Combien coûte",
+      "tr": "Wie viel kostet"
+     },
+     {
+      "fr": "Quelles musiques est-ce que",
+      "tr": "Welche Musik"
+     }
+    ],
+    "turns": [
+     {
+      "question_fr": "Qui organise la fête ?",
+      "answer": {
+       "fr": "Bon, ça, je ne sais pas. L'article ne le dit pas.",
+       "tr": "Tja, das weiß ich nicht. Der Artikel sagt es nicht."
+      },
+      "kind": "shrug",
+      "spent": false,
+      "hole_key": null
+     },
+     {
+      "question_fr": "Pourquoi elle est gratuite ?",
+      "answer": {
+       "fr": "Rien, mon chou ! La fête est gratuite, on ne paie pas pour écouter.",
+       "tr": "Nichts, Schätzchen! Das Fest ist kostenlos, man zahlt nicht fürs Zuhören."
+      },
+      "kind": "answer",
+      "spent": true,
+      "hole_key": "d"
+     },
+     {
+      "question_fr": "Quand est-ce que la première fête a eu lieu ?",
+      "answer": {
+       "fr": "Mais arrête, c'est évident : la première Fête de la musique, c'est le 21 juin 1982.",
+       "tr": "Ach komm, das ist doch klar: Die erste Fête de la musique war am 21. Juni 1982."
+      },
+      "kind": "answer",
+      "spent": true,
+      "hole_key": "b"
+     },
+     {
+      "question_fr": "Quelles musiques est-ce qu'on peut écouter ?",
+      "answer": {
+       "fr": "Mais arrête, c'est évident : la fête est ouverte à toutes les musiques, sans exception.",
+       "tr": "Ach komm, das ist doch klar: Das Fest ist offen für alle Musikrichtungen, ohne Ausnahme."
+      },
+      "kind": "answer",
+      "spent": true,
+      "hole_key": "c"
+     }
+    ],
+    "spent": 3,
+    "total": 3,
+    "free": true,
+    "done": true
+   },
+   "notes": {
+    "input": "pick",
+    "items": [
+     {
+      "key": "d",
+      "hole": {
+       "fr": "Combien ça coûte ?",
+       "tr": "Wie viel kostet es?"
+      },
+      "answer": {
+       "fr": "Rien, mon chou ! La fête est gratuite, on ne paie pas pour écouter.",
+       "tr": "Nichts, Schätzchen! Das Fest ist kostenlos, man zahlt nicht fürs Zuhören."
+      },
+      "options": [
+       "gratuite",
+       "le 21 juin 1982",
+       "toutes les musiques"
+      ],
+      "tries": 1,
+      "max_tries": 2,
+      "attempts": [
+       "gratuite"
+      ],
+      "resolved": true,
+      "correct": true,
+      "value_fr": "gratuite"
+     },
+     {
+      "key": "b",
+      "hole": {
+       "fr": "Quand, la première fête ?",
+       "tr": "Wann war das erste Fest?"
+      },
+      "answer": {
+       "fr": "Mais arrête, c'est évident : la première Fête de la musique, c'est le 21 juin 1982.",
+       "tr": "Ach komm, das ist doch klar: Die erste Fête de la musique war am 21. Juni 1982."
+      },
+      "options": [
+       "gratuite",
+       "le 21 juin 1982",
+       "le jour le plus long de l'année"
+      ],
+      "tries": 1,
+      "max_tries": 2,
+      "attempts": [
+       "le 21 juin 1982"
+      ],
+      "resolved": true,
+      "correct": true,
+      "value_fr": "le 21 juin 1982"
+     },
+     {
+      "key": "c",
+      "hole": {
+       "fr": "Quelles musiques ?",
+       "tr": "Welche Musik?"
+      },
+      "answer": {
+       "fr": "Mais arrête, c'est évident : la fête est ouverte à toutes les musiques, sans exception.",
+       "tr": "Ach komm, das ist doch klar: Das Fest ist offen für alle Musikrichtungen, ohne Ausnahme."
+      },
+      "options": [
+       "gratuite",
+       "toutes les musiques",
+       "le 21 juin 1982"
+      ],
+      "tries": 1,
+      "max_tries": 2,
+      "attempts": [
+       "toutes les musiques"
+      ],
+      "resolved": true,
+      "correct": true,
+      "value_fr": "toutes les musiques"
+     }
+    ]
+   },
+   "review": {
+    "input": "write",
+    "questions": [
+     "Pourquoi elle est gratuite ?",
+     "Quand est-ce que la première fête a eu lieu ?",
+     "Quelles musiques est-ce qu'on peut écouter ?"
+    ],
+    "hints": [
+     {
+      "index": 0,
+      "code": "inversion"
+     },
+     {
+      "index": 0,
+      "code": "question_word"
+     }
+    ],
+    "draft_fr": "Pourquoi elle est gratuite ? Quand est-ce que la première fête a eu lieu ? Quelles musiques est-ce qu'on peut écouter ?",
+    "proof": "clean",
+    "marks": [],
+    "tries": 0,
+    "max_tries": 2,
+    "printed_fr": "Pourquoi elle est gratuite ? Quand est-ce que la première fête a eu lieu ? Quelles musiques est-ce qu'on peut écouter ?"
+   }
+  }
+ },
+ "micro_a1_de_interview": {
+  "id": "1a549d07-4d4c-41ff-a427-f174b4b58f89",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T23:33:37.618139+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "de",
+   "gloss_language": "de",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (de)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (de)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": [],
+   "pictures": [
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "Paris",
+     "caption_fr": "Paris",
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg"
+    },
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "",
+     "caption_fr": null,
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg"
+    }
+   ]
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "micro",
+  "comptoir": null,
+  "fil": null,
+  "titre": null,
+  "intox": null,
+  "photo": null,
+  "micro": {
+   "step": "interview",
+   "steps": [
+    "read",
+    "prepare",
+    "interview",
+    "notes",
+    "review",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "prepare": {
+    "holes": [
+     {
+      "key": "a",
+      "hole": {
+       "fr": "Comment, la première édition ?",
+       "tr": "Wie war die erste Ausgabe?"
+      },
+      "filled": true
+     },
+     {
+      "key": "b",
+      "hole": {
+       "fr": "Pourquoi des plaintes ?",
+       "tr": "Warum die Beschwerden?"
+      },
+      "filled": false
+     },
+     {
+      "key": "c",
+      "hole": {
+       "fr": "Pourquoi le 21 juin ?",
+       "tr": "Warum der 21. Juni?"
+      },
+      "filled": false
+     },
+     {
+      "key": "d",
+      "hole": {
+       "fr": "Quand, la première fête ?",
+       "tr": "Wann war das erste Fest?"
+      },
+      "filled": false
+     },
+     {
+      "key": "e",
+      "hole": {
+       "fr": "Combien ça coûte ?",
+       "tr": "Wie viel kostet es?"
+      },
+      "filled": false
+     },
+     {
+      "key": "f",
+      "hole": {
+       "fr": "Quelles musiques ?",
+       "tr": "Welche Musik?"
+      },
+      "filled": false
+     }
+    ],
+    "chosen": [
+     "a",
+     "b",
+     "c"
+    ],
+    "need": 3
+   },
+   "interview": {
+    "witness": {
+     "id": "lila_bonnet",
+     "name_fr": "Lila",
+     "role_fr": "prof"
+    },
+    "input": "tiles",
+    "phrase": {
+     "fr": "Quand… ? · Combien… ?",
+     "tr": "Wann…? · Wie viele…?"
+    },
+    "holes": [
+     {
+      "key": "a",
+      "hole": {
+       "fr": "Comment, la première édition ?",
+       "tr": "Wie war die erste Ausgabe?"
+      },
+      "filled": true
+     },
+     {
+      "key": "b",
+      "hole": {
+       "fr": "Pourquoi des plaintes ?",
+       "tr": "Warum die Beschwerden?"
+      },
+      "filled": false
+     },
+     {
+      "key": "c",
+      "hole": {
+       "fr": "Pourquoi le 21 juin ?",
+       "tr": "Warum der 21. Juni?"
+      },
+      "filled": false
+     }
+    ],
+    "tiles": [
+     {
+      "key": "b",
+      "text": {
+       "fr": "Pourquoi est-ce qu'il y a des plaintes ?",
+       "tr": "Warum gibt es Beschwerden?"
+      }
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "Pourquoi est-ce que la fête a lieu le 21 juin ?",
+       "tr": "Warum findet das Fest am 21. Juni statt?"
+      }
+     }
+    ],
+    "frames": [],
+    "turns": [
+     {
+      "question_fr": "Comment est-ce que la première édition s'est passée ?",
+      "answer": {
+       "fr": "Un grand succès ! Au-delà de toutes les espérances.",
+       "tr": "Ein großer Erfolg! Über alle Erwartungen hinaus."
+      },
+      "kind": "answer",
+      "spent": true,
+      "hole_key": "a"
+     }
+    ],
+    "spent": 1,
+    "total": 3,
+    "free": true,
+    "done": false
+   },
+   "notes": null,
+   "review": null
+  }
+ },
+ "micro_b1_en_marked": {
+  "id": "9bfdad2e-b14d-4014-8df1-67a94149a798",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T23:33:37.661665+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "B1",
+   "ui_language": "fr",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "tap",
+    "translation": "none",
+    "reading_target_words": 140,
+    "vocab_target": 7,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (en)",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "ouverte",
+     "gloss": "ouverte (en)",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "provoque",
+     "gloss": "provoque (en)",
+     "claim_id": "c3"
+    }
+   ],
+   "make_options": [
+    "headline_write",
+    "reader_question",
+    "short_report"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": [],
+   "pictures": [
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-1.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "Paris",
+     "caption_fr": "Paris",
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex1.jpg"
+    },
+    {
+     "kind": "photo",
+     "url": "https://upload.wikimedia.org/example/evergreen-fete-de-la-musique-2.jpg",
+     "width": 1280,
+     "height": 853,
+     "alt_fr": "",
+     "caption_fr": null,
+     "credit_fr": "Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons",
+     "licence": "CC BY-SA 4.0",
+     "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+     "source_url": "https://commons.wikimedia.org/wiki/File:Ex2.jpg"
+    }
+   ]
+  },
+  "beat": "pursue",
+  "room": {
+   "used": 1,
+   "phase": "open",
+   "remaining_turns": 11
+  },
+  "thread": [
+   {
+    "id": "4",
+    "seq": 4,
+    "at": "2026-11-20T23:33:37.680004+00:00",
+    "kind": "mine",
+    "text_fr": "Quand est-ce que la première fête, tres attendue, a eu lieu ?",
+    "mode": "text",
+    "register_note": null
+   },
+   {
+    "id": "6",
+    "seq": 6,
+    "at": "2026-11-20T23:33:37.685636+00:00",
+    "kind": "mine",
+    "text_fr": "Combien coûte la fête ?",
+    "mode": "text",
+    "register_note": null
+   },
+   {
+    "id": "8",
+    "seq": 8,
+    "at": "2026-11-20T23:33:37.691607+00:00",
+    "kind": "mine",
+    "text_fr": "Quelles musiques est-ce qu'on peut écouter ?",
+    "mode": "text",
+    "register_note": null
+   }
+  ],
+  "quick_replies": [
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": true,
+  "artifact": null,
+  "closing": null,
+  "mode": "micro",
+  "comptoir": null,
+  "fil": null,
+  "titre": null,
+  "intox": null,
+  "photo": null,
+  "micro": {
+   "step": "review",
+   "steps": [
+    "read",
+    "prepare",
+    "interview",
+    "notes",
+    "review",
+    "page"
+   ],
+   "band": "b1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "prepare": {
+    "holes": [
+     {
+      "key": "a",
+      "hole": {
+       "fr": "Quand, la première fête ?",
+       "tr": "When was the first festival?"
+      },
+      "filled": true
+     },
+     {
+      "key": "b",
+      "hole": {
+       "fr": "Quelles musiques ?",
+       "tr": "Which music?"
+      },
+      "filled": true
+     },
+     {
+      "key": "c",
+      "hole": {
+       "fr": "Pourquoi des plaintes ?",
+       "tr": "Why the complaints?"
+      },
+      "filled": false
+     },
+     {
+      "key": "d",
+      "hole": {
+       "fr": "Combien ça coûte ?",
+       "tr": "How much does it cost?"
+      },
+      "filled": true
+     },
+     {
+      "key": "e",
+      "hole": {
+       "fr": "Comment, la première édition ?",
+       "tr": "How did the first edition go?"
+      },
+      "filled": false
+     },
+     {
+      "key": "f",
+      "hole": {
+       "fr": "Pourquoi le 21 juin ?",
+       "tr": "Why 21 June?"
+      },
+      "filled": false
+     }
+    ],
+    "chosen": [
+     "a",
+     "d",
+     "b"
+    ],
+    "need": 3
+   },
+   "interview": {
+    "witness": {
+     "id": "lila_bonnet",
+     "name_fr": "Lila",
+     "role_fr": "prof"
+    },
+    "input": "free",
+    "phrase": {
+     "fr": "Est-ce que vous pourriez me dire… ?",
+     "tr": "Could you tell me…?"
+    },
+    "holes": [
+     {
+      "key": "a",
+      "hole": {
+       "fr": "Quand, la première fête ?",
+       "tr": "When was the first festival?"
+      },
+      "filled": true
+     },
+     {
+      "key": "d",
+      "hole": {
+       "fr": "Combien ça coûte ?",
+       "tr": "How much does it cost?"
+      },
+      "filled": true
+     },
+     {
+      "key": "b",
+      "hole": {
+       "fr": "Quelles musiques ?",
+       "tr": "Which music?"
+      },
+      "filled": true
+     }
+    ],
+    "tiles": [],
+    "frames": [],
+    "turns": [
+     {
+      "question_fr": "Quand est-ce que la première fête, tres attendue, a eu lieu ?",
+      "answer": {
+       "fr": "Mais arrête, c'est évident : la première Fête de la musique a eu lieu le 21 juin 1982, le jour le plus long de l'année.",
+       "tr": "Come on, it's obvious: the first Fête de la musique took place on 21 June 1982, the longest day of the year."
+      },
+      "kind": "answer",
+      "spent": true,
+      "hole_key": "a"
+     },
+     {
+      "question_fr": "Combien coûte la fête ?",
+      "answer": {
+       "fr": "Rien du tout, mon chou : la fête est gratuite. Tu écoutes ce que tu veux sans payer.",
+       "tr": "Nothing at all, sweetie: the festival is free. You listen to whatever you like without paying."
+      },
+      "kind": "answer",
+      "spent": true,
+      "hole_key": "d"
+     },
+     {
+      "question_fr": "Quelles musiques est-ce qu'on peut écouter ?",
+      "answer": {
+       "fr": "Toutes les musiques ! La fête est ouverte à toutes les musiques, et en plus, elle est gratuite.",
+       "tr": "All kinds of music! The festival is open to all kinds of music, and on top of that it's free."
+      },
+      "kind": "answer",
+      "spent": true,
+      "hole_key": "b"
+     }
+    ],
+    "spent": 3,
+    "total": 3,
+    "free": true,
+    "done": true
+   },
+   "notes": {
+    "input": "write",
+    "items": [
+     {
+      "key": "a",
+      "hole": {
+       "fr": "Quand, la première fête ?",
+       "tr": "When was the first festival?"
+      },
+      "answer": {
+       "fr": "Mais arrête, c'est évident : la première Fête de la musique a eu lieu le 21 juin 1982, le jour le plus long de l'année.",
+       "tr": "Come on, it's obvious: the first Fête de la musique took place on 21 June 1982, the longest day of the year."
+      },
+      "options": [],
+      "tries": 1,
+      "max_tries": 2,
+      "attempts": [
+       "le 21 juin 1982"
+      ],
+      "resolved": true,
+      "correct": true,
+      "value_fr": "le 21 juin 1982"
+     },
+     {
+      "key": "d",
+      "hole": {
+       "fr": "Combien ça coûte ?",
+       "tr": "How much does it cost?"
+      },
+      "answer": {
+       "fr": "Rien du tout, mon chou : la fête est gratuite. Tu écoutes ce que tu veux sans payer.",
+       "tr": "Nothing at all, sweetie: the festival is free. You listen to whatever you like without paying."
+      },
+      "options": [],
+      "tries": 1,
+      "max_tries": 2,
+      "attempts": [
+       "gratuite"
+      ],
+      "resolved": true,
+      "correct": true,
+      "value_fr": "gratuite"
+     },
+     {
+      "key": "b",
+      "hole": {
+       "fr": "Quelles musiques ?",
+       "tr": "Which music?"
+      },
+      "answer": {
+       "fr": "Toutes les musiques ! La fête est ouverte à toutes les musiques, et en plus, elle est gratuite.",
+       "tr": "All kinds of music! The festival is open to all kinds of music, and on top of that it's free."
+      },
+      "options": [],
+      "tries": 1,
+      "max_tries": 2,
+      "attempts": [
+       "toutes les musiques"
+      ],
+      "resolved": true,
+      "correct": true,
+      "value_fr": "toutes les musiques"
+     }
+    ]
+   },
+   "review": {
+    "input": "write",
+    "questions": [
+     "Quand est-ce que la première fête, tres attendue, a eu lieu ?",
+     "Combien coûte la fête ?",
+     "Quelles musiques est-ce qu'on peut écouter ?"
+    ],
+    "hints": [],
+    "draft_fr": "Quand est-ce que la première fête, tres attendue, a eu lieu ? Combien coûte la fête ? Quelles musiques est-ce qu'on peut écouter ?",
+    "proof": "marked",
+    "marks": [
+     {
+      "span_fr": "tres",
+      "start": 35,
+      "kind": "orthographe"
+     }
+    ],
+    "tries": 0,
+    "max_tries": 2,
+    "printed_fr": null
+   }
+  }
+ }
+}

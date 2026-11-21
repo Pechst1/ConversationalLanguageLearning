@@ -100,6 +100,20 @@ import {
   type MockTitreState,
   type RubriqueContext,
 } from './revue-mock-rubriques';
+import {
+  MICRO_CLOSE_LINE,
+  PHOTO_CLOSE_LINE,
+  applyMicroAct,
+  applyPhotoAct,
+  microClose,
+  microView,
+  newMicroState,
+  newPhotoState,
+  photoClose,
+  photoView,
+  type MockMicroState,
+  type MockPhotoState,
+} from './revue-mock-photo-micro';
 
 type Json = Record<string, any>;
 type Lang = 'en' | 'de' | 'fr';
@@ -694,6 +708,9 @@ type MockSession = {
   /** «Le titre» / «L'intox express» (WIRE §11): the learner's acts so far. */
   titre?: MockTitreState | null;
   intox?: MockIntoxState | null;
+  /** «La photo» / «Le micro» (WIRE §12): the learner's acts so far. */
+  photo?: MockPhotoState | null;
+  micro?: MockMicroState | null;
 };
 
 export type MockOptions = {
@@ -719,6 +736,10 @@ export type MockOptions = {
   titre?: boolean;
   /** «L'intox express» (WIRE §11, `&intox=1`): «La Fête de la musique» leads and plays it (default false; `titre` wins). */
   intox?: boolean;
+  /** «La photo» (WIRE §12, `&photo=1`): «La Fête de la musique» leads and plays «La photo» (default false). */
+  photo?: boolean;
+  /** «Le micro» (WIRE §12, `&micro=1`): «La Fête de la musique» leads and plays «Le micro» (default false). */
+  micro?: boolean;
   /** «Le pourquoi»: Romy's marks carry their rule, the settled sentence its notes (default false). */
   pourquoi?: boolean;
   /** «Papier · photos»: every stage carries a `pictures` list of three, placeholders (default false). */
@@ -726,6 +747,15 @@ export type MockOptions = {
 };
 
 const STORAGE_KEY = 'revue-mock-v1';
+/** The assignments' French names (assignments.py). */
+const ASSIGNMENT_NAMES: Record<string, string> = {
+  comptoir: 'Au comptoir',
+  fil: 'Le fil',
+  titre: 'Le titre',
+  intox: "L'intox express",
+  photo: 'La photo',
+  micro: 'Le micro',
+};
 
 function fold(text: string): string {
   return text
@@ -806,7 +836,8 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
   const pictureOf = (d: MockDossier) => (options.pictures ? d.picture ?? null : null);
   const takesOf = (d: MockDossier) => (options.comptoir ? TAKES[d.id] ?? null : null);
   /** The assignment «La Fête de la musique» plays in the mock (`titre` wins over `intox`). */
-  const rubriqueMode = (): 'titre' | 'intox' | null => (options.titre ? 'titre' : options.intox ? 'intox' : null);
+  const rubriqueMode = (): 'titre' | 'intox' | 'photo' | 'micro' | null =>
+    options.titre ? 'titre' : options.intox ? 'intox' : options.photo ? 'photo' : options.micro ? 'micro' : null;
   let sessions: Record<string, MockSession> = {};
 
   if (persist) {
@@ -892,6 +923,8 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     stage: stageOf(d),
     // «Au comptoir»: the question of the day and the three regulars, while the switch is on.
     ...(takesOf(d) && !(rubriqueMode() && d === FETE) ? { question_fr: takesOf(d)?.question.fr, cast: takesOf(d)?.guests.map((g) => g.id) } : {}),
+    // The chooser names the assignment dealt (2026-11-21): the Fête's, when the mock plays one.
+    ...(rubriqueMode() && d === FETE ? { assignment: { key: rubriqueMode(), name_fr: ASSIGNMENT_NAMES[rubriqueMode() as string] } } : {}),
   });
   const supportOf = (s: MockSession) => {
     const a1 = s.band === 'A1' || s.supportLevel > 0;
@@ -1097,6 +1130,8 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       ...(s.fil ? { mode: 'fil', fil: filView(s.fil, filContext(s)) } : {}),
       ...(s.titre ? { mode: 'titre', titre: titreView(s.titre, rubriqueContext(s)) } : {}),
       ...(s.intox ? { mode: 'intox', intox: intoxView(s.intox, rubriqueContext(s)) } : {}),
+      ...(s.photo ? { mode: 'photo', photo: photoView(s.photo, rubriqueContext(s)) } : {}),
+      ...(s.micro ? { mode: 'micro', micro: microView(s.micro, rubriqueContext(s)) } : {}),
     };
   };
 
@@ -1203,6 +1238,8 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     // «Le titre» / «L'intox express» (WIRE §11): «La Fête de la musique» plays the dealt one, with no thread.
     if (rubriqueMode() && d === FETE && !miss) {
       if (rubriqueMode() === 'titre') s.titre = newTitreState();
+      else if (rubriqueMode() === 'photo') s.photo = newPhotoState();
+      else if (rubriqueMode() === 'micro') s.micro = newMicroState();
       else s.intox = newIntoxState();
       sessions[s.id] = s;
       save();
@@ -1623,8 +1660,15 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
   /** WIRE §11.2: one act on «Le titre» or «L'intox express». */
   const rubriqueAct = (id: string, body: Json) => {
     const s = sessionOr404(id);
-    if (!s.titre && !s.intox) throw httpError(409, { code: 'revue_not_rubrique' });
-    const error = s.titre ? applyTitreAct(s.titre, body, rubriqueContext(s)) : applyIntoxAct(s.intox as MockIntoxState, body, rubriqueContext(s));
+    if (!s.titre && !s.intox && !s.photo && !s.micro) throw httpError(409, { code: 'revue_not_rubrique' });
+    const ctx = rubriqueContext(s);
+    const error = s.titre
+      ? applyTitreAct(s.titre, body, ctx)
+      : s.photo
+        ? applyPhotoAct(s.photo, body, ctx)
+        : s.micro
+          ? applyMicroAct(s.micro, body, ctx)
+          : applyIntoxAct(s.intox as MockIntoxState, body, ctx);
     save();
     return { session: viewOf(s), error };
   };
@@ -1639,6 +1683,16 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       own = out.own;
       s.artifact = { kind: 'titre', text_fr: out.printed, contribution: [], learner_fr: own, proof: out.proof };
       s.closing = { romy_line_fr: TITRE_CLOSE_LINE, dispatch: out.dispatch, titre_page: out.page };
+    } else if (s.photo) {
+      const out = photoClose(s.photo, ctx);
+      own = out.own;
+      s.artifact = { kind: 'photo', text_fr: out.printed, contribution: [], learner_fr: own, proof: out.proof };
+      s.closing = { romy_line_fr: PHOTO_CLOSE_LINE, dispatch: out.dispatch, photo_page: out.page };
+    } else if (s.micro) {
+      const out = microClose(s.micro, ctx);
+      own = out.own;
+      s.artifact = { kind: 'micro', text_fr: out.page.lines.map((line: Json) => line.question_fr).join(' '), contribution: [], learner_fr: own, proof: out.proof };
+      s.closing = { romy_line_fr: MICRO_CLOSE_LINE, dispatch: out.dispatch, micro_page: out.page };
     } else {
       const out = intoxClose(s.intox as MockIntoxState, ctx);
       own = out.own;
@@ -1646,7 +1700,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       s.closing = { romy_line_fr: INTOX_CLOSE_LINE, dispatch: out.dispatch, intox_page: out.page };
     }
     const kept = vocabularyOf(d).map((v) => ({ ...glossOf(v, s.language), used: own !== '' && fold(own).includes(fold(v.fr)) }));
-    const page = (s.closing.titre_page ?? s.closing.intox_page) as Json;
+    const page = (s.closing.titre_page ?? s.closing.intox_page ?? s.closing.photo_page ?? s.closing.micro_page) as Json;
     page.words = kept.map((row) => row.fr);
     Object.assign(s.closing, {
       kept: { words: kept, claims: d.claims.slice(0, 2).map((c) => claimWire(d, c)) },
@@ -1659,7 +1713,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       dossier_id: d.id,
       week: WEEK.iso,
       place_label_fr: d.place.name_fr.split(',')[0],
-      ring: s.titre ? 'headline' : 'report',
+      ring: s.titre || s.photo ? 'headline' : s.micro ? 'question' : 'report',
       kept_contribution: Boolean(own),
       pictogram_svg: PICTOGRAMS[d.topic] ?? PICTOGRAMS.city,
       headline_fr: d.title_fr,
@@ -1748,7 +1802,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     const d = dossierById(s.dossierId) as MockDossier;
     if (!s.closing && s.comptoir) closeComptoir(s);
     if (!s.closing && s.fil) closeFil(s);
-    if (!s.closing && (s.titre || s.intox)) closeRubrique(s);
+    if (!s.closing && (s.titre || s.intox || s.photo || s.micro)) closeRubrique(s);
     if (!s.closing) {
       const made = s.artifact;
       const kind = made ? String(made.kind) : 'none';

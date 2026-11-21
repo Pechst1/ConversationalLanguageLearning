@@ -977,6 +977,25 @@ class FakeRevueProvider:
         self.calls[-1] = ("titre_edit", context)
         return {"edited_fr": str(out["edited_fr"]).rstrip(" ."), "marks": out["marks"]}
 
+    def rubrique_edit(self, context: dict[str, Any]) -> dict[str, Any]:
+        """«La photo», «Le micro»: Romy's correction of a caption or of the interview's questions,
+        from the same table of slips (a question keeps its « ?»)."""
+
+        out = self.comptoir_edit(context)
+        self.calls[-1] = ("rubrique_edit", context)
+        return {"edited_fr": out["edited_fr"], "marks": out["marks"]}
+
+    def micro_match(self, context: dict[str, Any]) -> dict[str, Any]:
+        """«Le micro»: which stored fact an ambiguous question asks for. Scripted
+        (``micro_script``), else the first candidate."""
+
+        self.calls.append(("micro_match", context))
+        script = getattr(self, "micro_script", None)
+        if script:
+            return dict(script.pop(0))
+        candidates = context.get("candidates") or []
+        return {"fact": candidates[0]["key"] if candidates else "none"}
+
     def guest(self, context: dict[str, Any]) -> dict[str, Any]:
         """Entry: the guest's reason, ``against`` on a disagreement angle, else ``for``.
         Later: a learner's point («parce que», «mais», «car»…) moves an ``against`` guest;
@@ -1316,6 +1335,21 @@ class OpenAIRevueProvider:
         # Today's instructions unless the context asks for the marks' why («Le pourquoi»).
         return self.ask_json(titre_edit_instructions(context), context, system=TITRE_EDIT_SYSTEM, temperature=0.3,
                              label="titre_edit")
+
+    def rubrique_edit(self, context: dict[str, Any]) -> dict[str, Any]:
+        """«La photo», «Le micro»: Romy's edit of the learner's caption or questions (one call)."""
+
+        from app.services.revue.rubrique_proof import EDIT_SYSTEM, edit_instructions
+
+        return self.ask_json(edit_instructions(context), context, system=EDIT_SYSTEM, temperature=0.3,
+                             label=f"{context.get('kind') or 'rubrique'}_edit")
+
+    def micro_match(self, context: dict[str, Any]) -> dict[str, Any]:
+        """«Le micro»: which of the candidate facts an ambiguous question asks for (one call)."""
+
+        from app.services.revue.micro_loop import MATCH_INSTRUCTIONS, MATCH_SYSTEM
+
+        return self.ask_json(MATCH_INSTRUCTIONS, context, system=MATCH_SYSTEM, temperature=0.0, label="micro_match")
 
     def guest(self, context: dict[str, Any]) -> dict[str, Any]:
         return self._ask(
@@ -1845,7 +1879,7 @@ def _comptoir_fields(loaded: Loaded) -> dict[str, Any]:
         from app.services.revue import fil_loop
 
         return {"mode": "fil", "fil": fil_loop.fil_view(loaded)}
-    if mode in {"titre", "intox"} and getattr(loaded.dossier, mode) is not None:
+    if mode in {"titre", "intox", "photo", "micro"} and getattr(loaded.dossier, mode) is not None:
         from app.services.revue import rubriques
 
         return {"mode": mode, mode: rubriques.loop(mode).view(loaded)}  # type: ignore[union-attr]
@@ -2404,18 +2438,21 @@ class RevueEncounter:
             return None, None
         return None, (dealt, assignments.dealt_material(material, dealt))
 
-    @staticmethod
-    def _material(dossier: EditorialDossier, takes: Any) -> Any:
+    def _material(self, dossier: EditorialDossier, takes: Any) -> Any:
         """What ``dossier`` carries for the dealer: the takes, the wire, the headlines, the
         statements. The start and the chooser's card deal over the same material."""
 
         from app.services.revue import assignments
         from app.services.revue.fil import wire_of
         from app.services.revue.intox import intox_of
+        from app.services.revue.micro import micro_of
+        from app.services.revue.photo import photo_of, story_pictures
         from app.services.revue.titre import titre_of
 
         return assignments.Material(dossier=dossier, takes=takes, wire=wire_of(dossier),
-                                    titre=titre_of(dossier), intox=intox_of(dossier))
+                                    titre=titre_of(dossier), intox=intox_of(dossier),
+                                    photo=photo_of(dossier), micro=micro_of(dossier),
+                                    pictures=tuple(story_pictures(self.db, dossier)))
 
     def _dealt(self, user: Any, material: Any) -> str | None:
         """The assignment ``user`` is dealt on ``material``'s story (``assignments.deal``)."""
@@ -2432,14 +2469,19 @@ class RevueEncounter:
         card never promises the counter (seen in a browser, 2026-11-20). The same material as
         the start (``_material``). Switch off: today's card."""
 
+        from app.schemas.revue import RvCardAssignment
         from app.services.revue import assignments
 
         card = story_card(dossier, self.db)
-        if not assignments.assignments_enabled() or card.question_fr is None:
+        if not assignments.assignments_enabled():
             return card
-        if self._dealt(user, self._material(dossier, dossier.comptoir)) == "comptoir":
-            return card
-        return card.model_copy(update={"question_fr": None, "cast": None})
+        dealt = self._dealt(user, self._material(dossier, dossier.comptoir))
+        row = assignments.assignment(dealt) if dealt else None
+        # the chooser names the assignment dealt (2026-11-21), the counter's included
+        named = {"assignment": RvCardAssignment(key=row.key, name_fr=row.name_fr)} if row is not None else {}
+        if dealt == "comptoir" or card.question_fr is None:
+            return card.model_copy(update=named)
+        return card.model_copy(update={"question_fr": None, "cast": None, **named})
 
     def _plan(self, user: Any, dossier: EditorialDossier, *, angle_id: str | None, chosen_by: str) -> SessionPlan:
         from app.services.chrome_language import level_band, user_chrome_language
@@ -3742,7 +3784,7 @@ class RevueEncounter:
             from app.services.revue import fil_loop
 
             return fil_loop.close_fil(self, loaded)
-        if session_mode(state) in {"titre", "intox"}:
+        if session_mode(state) in {"titre", "intox", "photo", "micro"}:
             from app.services.revue import rubriques
 
             return rubriques.loop(session_mode(state)).close(self, loaded)  # type: ignore[union-attr]
@@ -3951,6 +3993,12 @@ class RevueEncounter:
         elif kind == "intox" and artifact:
             content = (f"Semaine {number} : tu as démonté l'intox sur « {dossier.title_fr} » "
                        f"({artifact.get('text_fr')}).")
+        elif kind == "photo" and artifact:
+            content = (f"Semaine {number} : tu as écrit la légende d'une photo pour « {dossier.title_fr} » : "
+                       f"« {artifact.get('text_fr')} ».")
+        elif kind == "micro" and artifact:
+            content = (f"Semaine {number} : tu as mené une interview pour « {dossier.title_fr} ». "
+                       f"Tes questions : « {artifact.get('text_fr')} ».")
         else:
             content += " On n'a rien bouclé de plus."
         learner_turns = [e for e in loaded.state.events if e.kind == "turn_learner"]
