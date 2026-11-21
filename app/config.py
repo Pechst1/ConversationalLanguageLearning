@@ -794,6 +794,17 @@ class Settings(BaseSettings):
             "runs on what they read. Off: every learner's page is written for them."
         ),
     )
+    DAY_BRIEF_ENABLED: bool = Field(
+        False,
+        description=(
+            "S1.1 «one day brief», shadow stage: when a day is planned, its rule, page "
+            "review, Forge anchor, test-out candidate, word-plan pointer and the scene's "
+            "grammar pick are stored once in plan_selection['brief'] (app/services/"
+            "day_brief.py), and every surface that still picks today's rule on its own "
+            "logs a 'day_brief_disagreement' warning when its answer differs. Nothing "
+            "reads the brief yet. Off: nothing is built, stored or compared."
+        ),
+    )
     ATELIER_SEASON_WRITER_ENABLED: bool = Field(
         False,
         description=(
@@ -1075,6 +1086,16 @@ class Settings(BaseSettings):
             "Comma-separated user ids or emails the night writes acts for, or '*' for "
             "every prefetched learner. Empty: everyone in development, nobody in "
             "production (the same rule as ATELIER_DAILY_JOURNEY_COHORT)."
+        ),
+    )
+    ATELIER_STORY_ACTS_ACCOUNTS: str = Field(
+        "",
+        description=(
+            "Owner 2026-11-16: comma-separated user ids or emails (case-insensitive) the "
+            "night writes acts for even while ATELIER_STORY_ACTS is off — the owner tries "
+            "«Le soir» on his own account before any tester sees it. Names accounts only: "
+            "'*' names nobody here (the global switch and its cohort are for everyone). "
+            "Empty: nobody. Set in the dashboard on the API and the worker (sync: false)."
         ),
     )
     ATELIER_STORY_ACTS_DAILY_SPEND_CAP_USD: float = Field(

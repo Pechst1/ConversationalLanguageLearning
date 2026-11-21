@@ -186,7 +186,7 @@ test('no line agrees an adjective with you, and Camille is never gendered', () =
     .filter((e) => e.kind === 'journal' || e.kind === 'learn')
     .map((e) => e.words.fr);
   aboutYou.push(...A.WHILE_AWAY.map((b) => b.say.fr), ...A.NOTES.map((b) => b.say.fr), ...A.STREET_BARKS.map((b) => b.say.fr));
-  aboutYou.push(A.MOMENT.caption.fr, A.LEAVE.asked.say.fr, A.LEAVE.resume.say.fr, A.TEXT_SUITCASE.say.fr);
+  aboutYou.push(A.MOMENT.caption.fr, A.MOMENT.wait.fr, A.LEAVE.asked.say.fr, A.LEAVE.resume.say.fr, A.TEXT_SUITCASE.say.fr);
   for (const who of CAST) for (let r = -3; r <= 3; r++) aboutYou.push(A.regardWords(who, r).fr);
   // what follows «tu es», «t'es», «te voilà»… must not be a word that takes your gender
   const toiIs = /\b(?:tu es|tu étais|tu seras|t'es|tu sembles|tu as l'air|tu restes|tu deviens|te voilà|te revoilà)\s+(?:(?:si|très|trop|bien|pas|plus|encore|déjà|vraiment)\s+)*([a-zàâçéèêëîïôûùüÿœ'-]+)/gi;

@@ -141,7 +141,9 @@ def test_the_character_asks_the_days_question_again_not_a_new_one(
     again = beat.contract.turns[0].ask_again_fr
     replies = _replies(d, season_on, ["Il pleut.", "Le deux."])
     # The fake reply lane says «D'accord.» to everything.
-    assert replies == [again, "D'accord.", "D'accord."]
+    # Owner 2026-11-16 («story first»): this A1 Régulier day has no practice to give way
+    # and fits its 600 s with the low bands' exchange more — four replies.
+    assert replies == [again, "D'accord.", "D'accord.", "D'accord."]
 
 
 @LANES
@@ -151,7 +153,9 @@ def test_off_the_reply_lanes_own_reply_stands(
     _misses_first(season_on, monkeypatch)
     d, _user = _learner(assembled_client, db_session, gap_id="g3", premise="les_canapes")
     replies = _replies(d, season_on, ["Il pleut.", "Le deux."])
-    assert replies == ["D'accord.", "D'accord.", "D'accord."]
+    # Owner 2026-11-16 («story first»): this A1 Régulier day has no practice to give way
+    # and fits its 600 s with the low bands' exchange more — four replies.
+    assert replies == ["D'accord."] * 4
 
 
 # --- the scene record decides «answered» (STORY_SCENE_RECORD) ---------------------------
@@ -246,7 +250,9 @@ def test_a_no_is_never_met_with_the_days_question_again(
     _misses_first(season_on, monkeypatch)
     d, _user = _learner(assembled_client, db_session, gap_id="g3", premise="les_canapes")
     replies = _replies(d, season_on, ["Non, je ne veux pas.", "Le deux."])
-    assert replies == ["D'accord.", "D'accord.", "D'accord."]
+    # Owner 2026-11-16 («story first»): this A1 Régulier day has no practice to give way
+    # and fits its 600 s with the low bands' exchange more — four replies.
+    assert replies == ["D'accord."] * 4
 
 
 @LANES
