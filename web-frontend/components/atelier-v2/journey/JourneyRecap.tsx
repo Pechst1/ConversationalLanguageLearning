@@ -248,7 +248,9 @@ export function JourneyRecap({
           ))}
         </dl>
       )}
-      {view?.freezeNote && <p className="av2-label">{view.freezeNote}</p>}
+      {/* #950: the streak's news and the week's throttle are the day's end, with the facts;
+          a hand-on after the scene says neither (Home, which hands on too, says neither). */}
+      {view?.freezeNote && !handOn && <p className="av2-label">{view.freezeNote}</p>}
       {/* WP-L8: once a week at the Seal — a measured estimate, never a promise. */}
       {seal && view?.forecast && (
         <p className="av2-label" data-forecast-line="">
@@ -256,7 +258,7 @@ export function JourneyRecap({
         </p>
       )}
       {/* WP-L6 §2.2: new intake is halved until the reviews catch up. */}
-      {view?.consolidating && (
+      {view?.consolidating && !handOn && (
         <p className="av2-label" data-consolidating="">
           {view.consolidating}
         </p>
