@@ -80,29 +80,85 @@ def failure_class(reason: Any) -> Failure:
     return Failure.PROVIDER_ERROR
 
 
-def _errata_as_proposed(errata: Iterable[Any], *, by: str) -> list[dict[str, Any]]:
-    """Stored corrections as proposed edits: an erratum's fields, or the Journal's card fields."""
+def _errata_as_proposed(errata: Iterable[Any], *, by: str, text: str | None = None) -> list[dict[str, Any]]:
+    """Stored corrections as proposed edits: an erratum's fields, or the Journal's card fields.
+
+    #925: a fix listed twice is the same slip written twice («Je n ai pas… Je n ai
+    rien…») or the same note given twice (#93). A repeat is kept, and placed at the
+    next place its words stand, only when the basic check would make that same fix
+    there too: the printed line holds every listed fix, and a duplicate note never
+    changes a right word further on («Je vais a Paris et il a faim»).
+    """
 
     rows: list[dict[str, Any]] = []
-    seen: set[tuple[Any, Any]] = set()
+    seen: dict[tuple[Any, Any], int] = {}
     for item in errata or []:
         if not isinstance(item, dict) or not is_about_the_line(item):
             continue
         span = item.get("learner_text") or item.get("span_fr")
         replacement = item.get("corrected_target") or item.get("corrected_fr")
+        at: int | None = None
         if (span, replacement) in seen:
-            continue
-        seen.add((span, replacement))
-        rows.append(
-            {
-                "span": span,
-                "replacement": replacement,
-                "note": item.get("why_wrong") or item.get("note_native") or "",
-                "by": by,
-                "rule_id": item.get("rule_id") or None,
-            }
-        )
+            repeats = seen[(span, replacement)]
+            places = _same_slip_elsewhere(text, span, replacement) if text else []
+            if repeats > len(places):
+                continue
+            at = places[repeats - 1]
+            seen[(span, replacement)] = repeats + 1
+        else:
+            seen[(span, replacement)] = 1
+        row = {
+            "span": span,
+            "replacement": replacement,
+            "note": item.get("why_wrong") or item.get("note_native") or "",
+            "by": by,
+            "rule_id": item.get("rule_id") or None,
+        }
+        if at is not None:
+            row["at"] = at
+        rows.append(row)
     return rows
+
+
+def _changed(span: str, replacement: str) -> tuple[int, str, str]:
+    """``(offset, wrong, right)``: the characters a fix changes, without the words it quotes
+    around them («nuit. Je n ai» -> «nuit. Je n'ai» changes « » at 10 into «'»)."""
+
+    lead = 0
+    while lead < min(len(span), len(replacement)) and span[lead] == replacement[lead]:
+        lead += 1
+    trail = 0
+    while trail < min(len(span), len(replacement)) - lead and span[-1 - trail] == replacement[-1 - trail]:
+        trail += 1
+    return lead, span[lead : len(span) - trail], replacement[lead : len(replacement) - trail]
+
+
+def _same_slip_elsewhere(text: str, span: Any, replacement: Any) -> list[int]:
+    """#925: where else in ``text`` (after the first place) ``span`` stands as the same slip.
+
+    A place counts only when the basic check (``deterministic_edits``) makes the same change
+    at the same characters there: words written twice are not a slip written twice.
+    """
+
+    from app.core.verdict import span_pattern
+    from app.services.correction_contract import deterministic_edits
+
+    span, replacement = str(span or ""), str(replacement or "")
+    if not span.strip() or span.strip() == replacement.strip():
+        return []
+    matches = list(span_pattern(span).finditer(text))
+    if len(matches) < 2:
+        return []
+    offset, wrong, right = _changed(span, replacement)
+    checked = set()
+    for edit in deterministic_edits(text):
+        lead, edit_wrong, edit_right = _changed(edit.span, edit.replacement)
+        checked.add((edit.start + lead, edit_wrong.casefold(), edit_right.casefold()))
+    return [
+        match.start()
+        for match in matches[1:]
+        if (match.start() + offset, wrong.casefold(), right.casefold()) in checked
+    ]
 
 
 def _correction_as_proposed(correction: Correction | None, *, by: str) -> list[dict[str, Any]]:
@@ -210,7 +266,7 @@ def read_forge(correction: dict[str, Any] | None, *, text: str = "", verdict: st
             # #724: «Run again» only where asking again can reach a model.
             retryable=failed and failure is not Failure.NO_MODEL,
             text=text,
-            proposed=_errata_as_proposed(errata, by="rules"),
+            proposed=_errata_as_proposed(errata, by="rules", text=text),
         )
     if by_key:
         return _read(outcome=Outcome.RIGHT, checked_by=CheckedBy.KEY, call=Call.NOT_CALLED)
@@ -220,7 +276,7 @@ def read_forge(correction: dict[str, Any] | None, *, text: str = "", verdict: st
         checked_by=CheckedBy.MODEL if by_model else CheckedBy.KEY,
         call=Call.OK if by_model else Call.NOT_CALLED,
         text=text,
-        proposed=_errata_as_proposed(errata, by="model" if by_model else "key"),
+        proposed=_errata_as_proposed(errata, by="model" if by_model else "key", text=text),
     )
 
 
@@ -244,7 +300,7 @@ def read_courrier(correction: dict[str, Any] | None, *, verdict: str | None = No
             checked_by=CheckedBy.MODEL,
             call=Call.OK,
             text=text,
-            proposed=_errata_as_proposed(errata, by="model"),
+            proposed=_errata_as_proposed(errata, by="model", text=text),
         )
     reason = debug.get("failure")
     call = {"empty": Call.EMPTY, "no_model": Call.NOT_CALLED}.get(str(reason), Call.FAILED)
@@ -255,7 +311,7 @@ def read_courrier(correction: dict[str, Any] | None, *, verdict: str | None = No
         failure=failure_class(reason),
         retryable=call is not Call.NOT_CALLED,
         text=text,
-        proposed=_errata_as_proposed(errata, by="rules"),
+        proposed=_errata_as_proposed(errata, by="rules", text=text),
     )
 
 
@@ -274,7 +330,7 @@ def read_feuilleton(correction: dict[str, Any] | None, *, verdict: str | None = 
             call=call,
             failure=failure_class(reason) if reason else None,
             text=text,
-            proposed=_errata_as_proposed(payload.get("errata") or [], by="rules"),
+            proposed=_errata_as_proposed(payload.get("errata") or [], by="rules", text=text),
         )
     by_model = bool(debug.get("model"))
     return _read(
@@ -282,7 +338,7 @@ def read_feuilleton(correction: dict[str, Any] | None, *, verdict: str | None = 
         checked_by=CheckedBy.MODEL if by_model else CheckedBy.KEY,
         call=Call.OK if by_model else Call.NOT_CALLED,
         text=text,
-        proposed=_errata_as_proposed(payload.get("errata") or [], by="model" if by_model else "key"),
+        proposed=_errata_as_proposed(payload.get("errata") or [], by="model" if by_model else "key", text=text),
     )
 
 
@@ -331,7 +387,7 @@ def read_rehearsal(debrief: dict[str, Any] | None) -> Read:
             failure=failure,
             retryable=failure is not Failure.NO_MODEL,
         )
-    fixes = _errata_as_proposed(payload.get("fixes") or [], by="model")
+    fixes = _errata_as_proposed(payload.get("fixes") or [], by="model", text=text)
     return _read(
         outcome=Outcome.RIGHT if payload.get("already_correct") and not fixes else Outcome.NOT_YET,
         checked_by=CheckedBy.MODEL,
@@ -379,7 +435,7 @@ def read_journal(correction: dict[str, Any] | None, *, text: str = "") -> Read:
             checked_by=CheckedBy.MODEL,
             call=Call.OK,
             text=text,
-            proposed=_errata_as_proposed(errata, by="model"),
+            proposed=_errata_as_proposed(errata, by="model", text=text),
         )
     failure = failure_class(payload.get("failure_reason"))
     return _read(
@@ -390,7 +446,7 @@ def read_journal(correction: dict[str, Any] | None, *, text: str = "") -> Read:
         failure=failure,
         retryable=bool(payload.get("retryable")) and failure is not Failure.NO_MODEL,
         text=text,
-        proposed=_errata_as_proposed(errata, by="rules"),
+        proposed=_errata_as_proposed(errata, by="rules", text=text),
     )
 
 

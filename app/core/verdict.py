@@ -122,7 +122,8 @@ def locate_edits(text: str, proposed: Iterable[dict[str, Any]]) -> tuple[Edit, .
 
     Each row holds ``span`` and ``replacement``, and may hold ``note``, ``by`` and
     ``rule_id``. An edit naming words the learner did not write has nothing to change,
-    so it is left out rather than printed.
+    so it is left out rather than printed. A row with ``at`` (#925: the same slip written
+    a second time) is placed only where its words start at that offset.
     """
 
     taken: list[tuple[int, int]] = []
@@ -132,8 +133,11 @@ def locate_edits(text: str, proposed: Iterable[dict[str, Any]]) -> tuple[Edit, .
         replacement = str(row.get("replacement") or "")
         if not span.strip() or span.strip() == replacement.strip():
             continue
+        at = row.get("at")
         for match in span_pattern(span).finditer(text):
             start, end = match.span()
+            if isinstance(at, int) and start != at:
+                continue
             if all(end <= left or start >= right for left, right in taken):
                 taken.append((start, end))
                 edits.append(
