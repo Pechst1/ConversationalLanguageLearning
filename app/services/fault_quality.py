@@ -90,6 +90,36 @@ def well_formed(text: Any) -> bool:
     return not any(_BAD_ELISION.match(word) for word in words)
 
 
+def fix_stands_in(line: Any, wrong: Any, correct: Any) -> bool:
+    """The correction is French in the line the learner will be shown.
+
+    Walk 14 (21 Nov 2026, B1 days 3–13): a letter's correction «il faut que je vends
+    → je vende» was stored as the bare pair «je vends» → «je vende». Out of the clause
+    that asks for the subjunctive, the «fix» turns right French («je vends», I sell)
+    into wrong French, and La Forge and the warm-up taught it three times; the
+    learner's answer to that card then became a second fault («je avais vendu» →
+    «je vende»). A fix that turns a verb into a form the lexicon's conjugation
+    tables (:func:`tense_change.changed_tenses`) read as a subjunctive and nothing
+    else, with no «que» in front of it in ``line``, is not French: the fault is
+    dropped, not posed. A fix between two indicative tenses («a déjà réservé» →
+    «avait déjà réservé») stays: both are French, the line only lacks its context.
+    """
+
+    from app.services.tense_change import SUBJONCTIF, changed_tenses
+
+    try:
+        changes = changed_tenses(wrong, correct)
+    except Exception:  # noqa: BLE001 - a table that cannot be read proves nothing
+        return True
+    if not any(becomes == frozenset({SUBJONCTIF}) for _was, becomes in changes):
+        return True
+    text = unicodedata.normalize("NFC", str(line or wrong or "")).replace("’", "'")
+    fixed = text.replace(str(wrong or ""), str(correct or ""), 1) if str(wrong or "") in text else str(correct or "")
+    words = tokens(fixed.replace("'", "' "))
+    verb_at = max((i for i, word in enumerate(words) if word in set(tokens(correct)) - set(tokens(wrong))), default=len(words))
+    return any(word in ("que", "qu'", "qu") for word in words[:verb_at])
+
+
 def planted_item(item: dict[str, Any] | None) -> tuple[str, str] | None:
     """``(source, expected)`` of a find-the-error / rewrite item, else ``None``."""
 
@@ -146,6 +176,8 @@ def learner_own_fault(
     if not tokens(wrong) or not well_formed(correct):
         return False
     if doubled_word(wrong):
+        return False
+    if not fix_stands_in(submitted if submitted is not None and is_word_run(wrong, submitted) else wrong, wrong, correct):
         return False
     if submitted is not None:
         if not is_word_run(wrong, submitted):
@@ -220,6 +252,7 @@ __all__ = [
     "attempt_fault_is_own",
     "doubled_word",
     "drillable_errors",
+    "fix_stands_in",
     "is_word_run",
     "keeps_planted_error",
     "learner_own_fault",
