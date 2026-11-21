@@ -897,6 +897,21 @@ def repair_line_from_parts(learner: str, errata: list[dict[str, Any]] | None) ->
     return "".join(str(part.get("text", part.get("fix")) or "") for part in parts)
 
 
+#: One bracketed aside with no bracket inside it, and the space before it.
+_PARENTHETICAL = re.compile(r"\s*\([^()]*\)")
+
+
+def _without_asides(text: str) -> str:
+    """A gap item's prompt without what stands in brackets, which is never the line:
+    the bank's gloss after the French, which can hold its own («(You (informal) are
+    ill.)», so innermost first), or a cue beside the gap («(descendre)»)."""
+
+    removed = 1
+    while removed:
+        text, removed = _PARENTHETICAL.subn("", text)
+    return text
+
+
 def repair_line_with_spans(
     learner: str, errata: list[dict[str, Any]] | None
 ) -> tuple[str, dict[int, tuple[int, int]]] | None:
@@ -5051,34 +5066,27 @@ class AtelierCorrectionService:
         self.db.refresh(attempt)
         return attempt
 
-    @staticmethod
-    def _keyed_gap_line(attempt: AtelierAttempt, erratum: dict[str, Any]) -> str | None:
+    @classmethod
+    def _keyed_gap_line(cls, attempt: AtelierAttempt, erratum: dict[str, Any]) -> str | None:
         """#808: the printed line of the gap item a keyed erratum belongs to, or ``None``.
 
         A gap's key and the learner's text are only what stands in the gap («tu as
         écrit»), while «Copy the correction» asks for the corrected line. The line
-        is the item's prompt («L'été dernier, ___ un article.»), without a bracketed
-        gloss after the French; ``None`` when the item prints no gap.
+        is the item's prompt («L'été dernier, ___ un article.») without its
+        bracketed asides (:func:`_without_asides`). ``None`` when the item prints
+        no gap.
         """
 
-        items = (attempt.prompt_payload or {}).get("items") or []
-        item = next(
-            (entry for entry in items if isinstance(entry, dict) and entry.get("id") and entry.get("id") == erratum.get("item_id")),
-            None,
-        )
-        return AtelierCorrectionService._gap_line(item)
+        return cls._gap_line(cls._keyed_repair_item(attempt, erratum))
 
     @staticmethod
     def _gap_line(item: dict[str, Any] | None) -> str | None:
-        """The printed line of a gap item, its gap kept and its bracketed gloss dropped
-        («___ est-ce que Gus travaille ?»), or ``None`` when the item prints no gap."""
+        """The printed line of a gap item, its gap kept and its bracketed asides dropped
+        (:func:`_without_asides`; «___ est-ce que Gus travaille ?»), or ``None`` when the
+        item prints no gap."""
 
-        prompt = " ".join(str((item or {}).get("prompt") or "").split())
-        if not BLANK_RE.search(prompt):
-            return None
-        last_blank = list(BLANK_RE.finditer(prompt))[-1].end()
-        gloss = re.search(r"\s*\([^()]*\)\s*$", prompt[last_blank:])
-        return prompt[: last_blank + gloss.start()].strip() if gloss else prompt
+        prompt = " ".join(_without_asides(str((item or {}).get("prompt") or "")).split())
+        return prompt if BLANK_RE.search(prompt) else None
 
     @staticmethod
     def _in_gap_line(gap_line: str, text: str) -> str:
@@ -5101,6 +5109,16 @@ class AtelierCorrectionService:
             return _join_french_tokens(value) if isinstance(value, list) else str(value or "")
         text = payload.get("text")
         return text if isinstance(text, str) else ""
+
+    @staticmethod
+    def _keyed_repair_item(attempt: AtelierAttempt, erratum: dict[str, Any]) -> dict[str, Any]:
+        """The item a keyed erratum belongs to. The relecture's errata can lose their id,
+        and an attempt on one item does not need it."""
+
+        items = (attempt.prompt_payload or {}).get("items")
+        items = [item for item in items if isinstance(item, dict)] if isinstance(items, list) else []
+        named = next((item for item in items if item.get("id") and item.get("id") == erratum.get("item_id")), None)
+        return named or (items[0] if len(items) == 1 else {})
 
     @staticmethod
     def _repair_is_right(typed: str, source: str, accepted: list[str | None]) -> bool:
@@ -8932,10 +8950,10 @@ class AtelierSRSService:
             if attempt.round == "transform":
                 key = str(item.get("expected_answer") or "")
             elif attempt.mode == "fill":
-                blank = str(item.get("prompt") or "")
+                blank = _without_asides(str(item.get("prompt") or ""))
                 answer = (learner if right and learner else "") or str(item.get("correct_answer") or "")
                 if BLANK_RE.search(blank) and answer:
-                    key = re.sub(r"\s*\([^)]*\)\s*$", "", fill_blank(blank, answer))
+                    key = fill_blank(blank, answer)
             elif attempt.mode == "word_bank":
                 key = (learner if right and len(learner.split()) >= 2 else "") or str(item.get("correct_answer") or "")
             elif item.get("classify_kind") == "minimal_pair":

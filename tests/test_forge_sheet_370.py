@@ -13,6 +13,9 @@ item of that rule.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from types import SimpleNamespace
+
+import pytest
 
 from app.core import forge as core
 from app.core.forge import ForgeState, ForgeUnit, Role
@@ -167,4 +170,32 @@ def test_level_after_last_item(db_session):
     assert rule["rung"] == int(core.Rung.PRODUCE), (
         f"the sheet says level {rule['rung'] + 1} for a rule whose last item was a miss at level "
         f"{int(core.Rung.PRODUCE) + 1}"
+    )
+
+
+@pytest.mark.parametrize(
+    ("prompt", "verdict", "answer"),
+    [
+        ("Tu ___ malade ? Tu devrais rester au lit. (You (informal) are ill? You should stay in bed.)", "correct", "es"),
+        ("Tu ___ malade ? Tu devrais rester au lit. (You (informal) are ill? You should stay in bed.)", "incorrect", "est"),
+        ("Tu ___ (être) malade ? Tu devrais rester au lit.", "correct", "es"),
+    ],
+    ids=["nested-gloss-kept", "nested-gloss-missed", "cue-beside-gap"],
+)
+def test_a_gap_line_prints_no_english_and_no_cue(prompt, verdict, answer):
+    """A bank gloss can hold its own brackets («(You (informal) …)»): the sheet's
+    line is the French alone, as the repair field reads it, kept or missed."""
+
+    item = {"id": "f", "prompt": prompt, "choices": ["es", "est"], "correct_answer": "es"}
+    attempt = SimpleNamespace(
+        correction_payload={"assessment_status": "checked"},
+        verdict=verdict,
+        prompt_payload={"items": [item]},
+        answer_payload={"answers": {"f": answer}},
+        round="recognize",
+        mode="fill",
+    )
+    assert AtelierSRSService._forge_proof_line(attempt) == (
+        "Tu es malade ? Tu devrais rester au lit.",
+        verdict != "correct",
     )
