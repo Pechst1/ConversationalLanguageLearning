@@ -168,7 +168,8 @@ _PATHS = {"scene": _through_scene, "courrier": _through_courrier, "forge": _thro
 
 
 @pytest.mark.parametrize("path", sorted(_PATHS))
-def test_every_record_path_files_the_slip_under_what_the_correction_changed(db_session, path):
+def test_guard(db_session, path):
+    """Every record path files the slip under what the correction changed."""
     units = _units(db_session)
     wrong: list[str] = []
     for span, fixed, context, keys in GUARD_PAIRS:
@@ -196,7 +197,8 @@ WALK_REPLY = (
 )
 
 
-def test_a_possessive_swap_is_the_possessives_rule_and_an_article_swap_stays_the_articles(db_session):
+def test_possessive_swap(db_session):
+    """A possessive swap is the possessives rule; an article swap stays the articles."""
     units = _units(db_session)
     memory = ErrorMemoryService(db_session)
     note = "Before a vowel, «sa» becomes «son»."
@@ -207,7 +209,8 @@ def test_a_possessive_swap_is_the_possessives_rule_and_an_article_swap_stays_the
     assert memory.infer_concept_id_for_correction(learner_text="ce", corrected_text="cette", note="") == units["DEMONSTRATIVES"].id
 
 
-def test_the_walks_scene_reply_files_sa_son_under_the_possessives(db_session):
+def test_walk_reply_974(db_session):
+    """The walk's scene reply files «sa → son» under the possessives."""
     from app.services.journey_contracts import Correction, InputMode
     from app.services.journey_learning import (
         _record_correction_erratum,
@@ -231,7 +234,8 @@ def test_the_walks_scene_reply_files_sa_son_under_the_possessives(db_session):
 # ---------------------------------------------------------------------------
 
 
-def test_a_rule_keeps_the_accent_that_is_its_own_form(db_session):
+def test_own_form_kept(db_session):
+    """A lent rule keeps the accent that is its own form."""
     units = _units(db_session)
     memory = ErrorMemoryService(db_session)
     er_spelling = units["ER_SPELLING"].id
@@ -255,7 +259,8 @@ def test_a_rule_keeps_the_accent_that_is_its_own_form(db_session):
     assert {row.concept_id for row in _stored(db_session, user)} == {er_spelling}
 
 
-def test_an_accent_outside_the_lent_rule_carries_no_rule(db_session):
+def test_accent_no_rule(db_session):
+    """An accent outside the lent rule carries no rule."""
     units = _units(db_session)
     memory = ErrorMemoryService(db_session)
     for span, fixed in (
@@ -281,7 +286,8 @@ def test_an_accent_outside_the_lent_rule_carries_no_rule(db_session):
 # ---------------------------------------------------------------------------
 
 
-def test_a_letters_accent_slip_reaches_recall_with_no_rule_and_moves_no_rules_schedule(db_session):
+def test_recall_697(db_session):
+    """A letter's accent slip reaches recall with no rule and moves no rule's schedule."""
     import json
     from datetime import UTC, datetime, timedelta
 
