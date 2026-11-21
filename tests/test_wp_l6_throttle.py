@@ -234,7 +234,10 @@ def test_leger_throttled_introduces_one_unit_a_week(db_session: Session, monkeyp
     db_session.add(concept)
     db_session.flush()
     db_session.add(
-        UserGrammarProgress(user_id=user.id, concept_id=concept.id, introduced_at=NOW - timedelta(days=4))
+        # Taught four days ago: La Forge worked it (#895: a slip-only stamp spends no slot).
+        UserGrammarProgress(
+            user_id=user.id, concept_id=concept.id, introduced_at=NOW - timedelta(days=4), forge_rung=1
+        )
     )
     db_session.flush()
     monkeypatch.setattr(vocabulary_pace, "intake_throttle_factor", lambda *a, **k: 1.0)

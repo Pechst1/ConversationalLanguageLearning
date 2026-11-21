@@ -1627,21 +1627,93 @@ def with_person_variants(item: BankItem, variants: Iterable[str]) -> BankItem:
     accepted it would contradict the screen. The key and the distractors are
     derived from one list, so no distractor can fall in the key."""
 
-    wrong = {normalize(sentence) for sentence in item.wrong_sentences}
-    spans = {normalize(trap) for trap in item.traps}
-    kept = [
-        variant
-        for variant in dict.fromkeys(variants)
-        if normalize(variant) not in wrong
-        and not (
-            variant.startswith(item.prefix)
-            and variant.endswith(item.suffix)
-            and normalize(variant[len(item.prefix): len(variant) - len(item.suffix)]) in spans
-        )
-    ]
+    kept = [variant for variant in dict.fromkeys(variants) if not shown_wrong(item, variant)]
     if not kept:
         return item
     return replace(item, accepted=tuple(dict.fromkeys([*item.accepted, *kept])))
+
+
+def shown_wrong(item: BankItem, sentence: str) -> bool:
+    """Whether ``sentence`` is one the item shows as wrong: a ✗ sentence, or the
+    item's frame with one of its traps in the gap."""
+
+    if normalize(sentence) in {normalize(wrong) for wrong in item.wrong_sentences}:
+        return True
+    if not (sentence.startswith(item.prefix) and sentence.endswith(item.suffix)):
+        return False
+    span = normalize(sentence[len(item.prefix): len(sentence) - len(item.suffix)])
+    return span in {normalize(trap) for trap in item.traps}
+
+
+#: #926: how the English names the one person an «I» / «you» / «we» stands for, by
+#: the subject's number and what has to be told apart («g» gender, «n» number).
+_SUBJECT_LABELS_EN: dict[tuple[str, frozenset[str]], dict[str, str]] = {
+    ("s", frozenset({"g", "n"})): {"f": "a woman", "m": "a man"},
+    ("s", frozenset({"n"})): {"f": "one person", "m": "one person"},
+    ("p", frozenset({"g"})): {"f": "f.", "m": "m."},
+    ("p", frozenset({"n"})): {"f": "plural", "m": "plural"},
+    ("p", frozenset({"g", "n"})): {"f": "plural, f.", "m": "plural, m."},
+}
+#: German writes «du» / «ihr» apart, so only a gender has to be named there.
+_SUBJECT_GENDER_DE = {"f": "weiblich", "m": "männlich"}
+_GERMAN_SUBJECT = {"je": "ich", "tu": "du", "nous": "wir", "on": "wir", "vous": "ihr"}
+
+
+def _label_pronoun(text: str, pronoun: str, label: str, *, case_sensitive: bool = False) -> str | None:
+    """``text`` with ``label`` after its first ``pronoun`` («You (a woman) arrived»),
+    or ``None`` when the text does not say that pronoun."""
+
+    pattern = rf"\b{re.escape(pronoun)}\b(?!['’])"
+    flags = 0 if case_sensitive else re.IGNORECASE
+    match = re.search(pattern, text, flags)
+    if match is None:
+        return None
+    if re.match(r"\s*\(", text[match.end():]):
+        return text
+    return f"{text[: match.end()]} ({label}){text[match.end():]}"
+
+
+def name_the_subject(
+    item: BankItem,
+    subject: dict[str, Any],
+    variants: Iterable[tuple[str, dict[str, Any]]],
+) -> tuple[BankItem, list[str]] | None:
+    """#926: ``item`` whose prompt names its own subject where another person the
+    English allows is shown as wrong, and the variants that name still allows.
+
+    English «I», «you», «we» say no gender (and «you» no number), but an agreement
+    trap is chosen by form: «Tu es arrivé» is the ✗ next to «Tu es arrivée», and
+    right for a man. The key cannot list it (:func:`with_person_variants`), so the
+    prompt must rule it out: «You (a woman) arrived at the station». The German
+    («du», «ihr») already says the number; it is told the gender. ``None`` when the
+    prompt cannot say it (no such pronoun in the English): the item is not served."""
+
+    variants = list(variants)
+    features: set[str] = set()
+    for sentence, other in variants:
+        if not shown_wrong(item, sentence):
+            continue
+        if other.get("n") != subject.get("n"):
+            features.add("n")
+        elif other.get("g") != subject.get("g"):
+            features.add("g")
+    if not features:
+        return item, [sentence for sentence, _ in variants]
+    number, gender = str(subject.get("n") or "s"), "f" if subject.get("g") == "f" else "m"
+    if "g" in features and number == "s":
+        features.add("n")  # «a woman» is also one
+    label = _SUBJECT_LABELS_EN.get((number, frozenset(features)), {}).get(gender)
+    english = str(subject.get("en") or "")
+    named = _label_pronoun(item.en, english, label, case_sensitive=english == "I") if label else None
+    if named is None:
+        return None
+    german = item.de
+    if german and "g" in features:
+        # A German line that cannot say it is dropped: never a wrong German meaning.
+        pronoun = _GERMAN_SUBJECT.get(str(subject.get("fr")))
+        german = _label_pronoun(german, pronoun, _SUBJECT_GENDER_DE[gender]) if pronoun else None
+    kept = [sentence for sentence, other in variants if all(other.get(key) == subject.get(key) for key in features)]
+    return replace(item, en=named, de=german), kept
 
 
 def name_the_person(english: str, sentence: str, accepted: Iterable[str]) -> str:
@@ -1658,6 +1730,9 @@ def name_the_person(english: str, sentence: str, accepted: Iterable[str]) -> str
     for french, other, pattern, label in _PERSON_NAMES:
         if french not in written or other in listed or other in written:
             continue
+        first = re.search(pattern, english, re.IGNORECASE)
+        if first and re.match(r"\s*\(", english[first.end():]):
+            return english  # #926: already named («You (a woman) arrived»)
         named, count = re.subn(pattern, label, english, count=1, flags=re.IGNORECASE)
         if count:
             first = re.search(pattern, english, re.IGNORECASE)
@@ -2147,8 +2222,11 @@ class ItemBank:
             sentences.append(rendered.sentence)
         return sentences
 
-    def _person_variants(self, frame: _Frame, bindings: dict[str, dict[str, Any]], sentence: str) -> list[str]:
-        """#295: ``sentence`` again with each other person the English allows.
+    def _person_variants(
+        self, frame: _Frame, bindings: dict[str, dict[str, Any]], sentence: str
+    ) -> list[tuple[str, dict[str, Any], dict[str, Any]]]:
+        """#295: ``sentence`` again with each other person the English allows, as
+        ``(sentence, the item's subject, the other person)``.
 
         English «they» is «ils» or «elles», «you» is «tu» or «vous», «we» is «nous»
         or «on» (and, with an agreeing adjective or participle, a man or a woman):
@@ -2161,9 +2239,10 @@ class ItemBank:
         Only a slot the sentence really writes as its subject is varied, and only
         in a frame that does not also hard-code that person in its own text (the
         «Tu {TU|v:V} …» of a question): such a swap would make a wrong sentence
-        that the key then accepts."""
+        that the key then accepts. #926: «you» is also a polite «vous» to one
+        person («Vous êtes arrivé»)."""
 
-        sentences: list[str] = []
+        sentences: list[tuple[str, dict[str, Any], dict[str, Any]]] = []
         written = _words(sentence)
         literal = re.sub(r"\[\[.*?\]\]|\{.*?\}", " ", frame.fr)
         for slot, entry in bindings.items():
@@ -2180,6 +2259,7 @@ class ItemBank:
             candidates = [other for other in self.lex.pool("pron") if other.get("en") == english]
             # «On est malades» (agreeing with «we») is as right as «On est malade».
             candidates += [{**other, "n": "p"} for other in candidates if other.get("fr") == "on"]
+            candidates += [{**other, "n": "s"} for other in candidates if other.get("fr") == "vous"]
             for other in candidates:
                 if other.get("id") == entry.get("id") and other.get("n") == entry.get("n"):
                     continue
@@ -2190,8 +2270,28 @@ class ItemBank:
                 now = _words(rendered.sentence)
                 if other.get("fr") != french and (french in now or other.get("fr") not in now):
                     continue
-                sentences.append(rendered.sentence)
+                sentences.append((rendered.sentence, entry, other))
         return sentences
+
+    def _settle_person(self, frame: _Frame, bindings: dict[str, dict[str, Any]], item: BankItem) -> BankItem | None:
+        """#295 / #926: ``item`` whose key lists every person its prompt allows, and
+        whose prompt names its own person where another one is shown as wrong;
+        ``None`` when the prompt cannot say which (the item is not served)."""
+
+        by_subject: dict[int, tuple[dict[str, Any], list[tuple[str, dict[str, Any]]]]] = {}
+        for sentence, subject, other in self._person_variants(frame, bindings, item.sentence):
+            by_subject.setdefault(id(subject), (subject, []))[1].append((sentence, other))
+        allowed: list[str] = []
+        for subject, pairs in by_subject.values():
+            settled = name_the_subject(item, subject, pairs)
+            if settled is None:
+                return None
+            item, kept = settled
+            allowed.extend(kept)
+        if allowed:
+            item = with_person_variants(item, allowed)
+        named = name_the_person(item.en, item.sentence, item.accepted)
+        return replace(item, en=named) if named != item.en else item
 
     def render(self, frame: _Frame, bindings: dict[str, dict[str, Any]], *, alternatives: bool = True) -> BankItem:
         target_match = _TARGET_RE.search(frame.fr)
@@ -2343,12 +2443,12 @@ class ItemBank:
             if keys & seen or (detector is not None and not detector(item.sentence)):
                 misses += 1
                 continue
-            variants = self._person_variants(frame, bindings, item.sentence)
-            if variants:
-                item = with_person_variants(item, variants)
-            named = name_the_person(item.en, item.sentence, item.accepted)
-            if named != item.en:
-                item = replace(item, en=named)
+            settled = self._settle_person(frame, bindings, item)
+            if settled is None:
+                stats["rejected:person"] += 1
+                misses += 1
+                continue
+            item = settled
             misses = 0
             seen |= keys
             yield item
