@@ -43,6 +43,7 @@
       "name": { "fr": "L'escalier du Mistral", "en": "The stairs above Le Mistral", "de": "Das Treppenhaus über dem Mistral" },
       "lat": 48.87298,
       "lon": 2.36372,
+      "unfinished": "P12 place check (17 Nov walk, «Là-haut»): the camera's first target [-29.3, 1.5, -19.4] is behind the vestibule's west wall, under the landing: the scene opens on a blank wall over the floor. Give start.look a point over the vestibule or the foot of the flight, then take this mark off.",
       "status": "locked",
       "kind": "season",
       "stages": ["stairwell"],

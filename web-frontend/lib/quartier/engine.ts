@@ -1090,7 +1090,9 @@ export class Quartier {
       this.camera.far = far;
       this.camera.updateProjectionMatrix();
     }
-    this.camera.position.set(this.feet.x, this.eyeY, this.feet.z);
+    // the eye keeps a hand's breadth from the walls (`Nav.eyeAt`): never inside the panelling
+    const [eyeX, eyeZ] = this.nav.eyeAt(this.feet.x, this.feet.z);
+    this.camera.position.set(eyeX, this.eyeY, eyeZ);
     this.camera.rotation.set(this.pitch, this.yaw, 0);
     this.camera.updateMatrixWorld();
     if (this.sky) this.sky.position.copy(this.camera.position);

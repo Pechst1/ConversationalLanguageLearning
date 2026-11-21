@@ -20,6 +20,8 @@ export type JourneyCopyKey =
   | 'today_eyebrow'
   | 'start'
   | 'resume'
+  | 'play_in_quartier'
+  | 'read_as_page'
   | 'preparing_title'
   | 'preparing_body'
   | 'preparing_retry'
@@ -62,6 +64,7 @@ export type JourneyCopyKey =
   | 'voice_empty'
   | 'empty_answer'
   | 'check_not_checked'
+  | 'check_not_read'
   | 'try_grading_again'
   // Package V stage 5: «I think this is right» under a «not yet» or «partly».
   | 'appeal_line'
@@ -102,6 +105,7 @@ export type JourneyCopyKey =
   | 'time_left'
   | 'time_unknown'
   | 'finish_early'
+  | 'skip_to_scene'
   | 'pause'
   | 'paused_title'
   | 'paused_body'
@@ -240,6 +244,10 @@ export type JourneyCopyKey =
   | 'drill_recall'
   | 'drill_warmup'
   | 'drill_retry'
+  // P5 (owner, 2026-11-13): a miss asked again later says where and why, not what.
+  | 'drill_miss_where'
+  | 'drill_miss_choice'
+  | 'drill_solution_later'
   | 'drill_rule'
   | 'drill_forge'
   | 'drill_from_scene'
@@ -252,6 +260,9 @@ export type JourneyCopyKey =
   // verdict's list of what the conversation corrected.
   | 'thread_fix_sr'
   | 'thread_note_close'
+  // P3: from B1, the reply's other corrections, collapsed under the first.
+  | 'thread_more_one'
+  | 'thread_more_many'
   | 'conversation_fixes'
   // WP-103 T2: «Afficher le texte» at every stage of the listening cycle, and
   // the question the learner is listening for.
@@ -276,6 +287,9 @@ const EN: CopyTable = {
   today_eyebrow: 'Today',
   start: 'Start today',
   resume: 'Continue today',
+  // P12: the scene played in Le Quartier (3D), or read as the page
+  play_in_quartier: 'Play in the Quartier',
+  read_as_page: 'Read as a page',
   preparing_title: 'Getting today ready',
   preparing_body: 'Your scene is being prepared. This usually takes a moment.',
   preparing_retry: 'Check again',
@@ -318,6 +332,8 @@ const EN: CopyTable = {
   voice_empty: 'Nothing was recorded. Your turn is still open.',
   empty_answer: 'Write something first.',
   check_not_checked: CHECK_COPY.en.not_checked,
+  // Check walk 19 Nov: a scene reply nobody could read, said once and final: no «yet», no «does not count».
+  check_not_read: 'This reply was not checked.',
   try_grading_again: 'Check again',
   appeal_line: 'I think this is right',
   looks_wrong_line: 'Something here looks wrong',
@@ -351,6 +367,7 @@ const EN: CopyTable = {
   time_left: 'left',
   time_unknown: 'Time not measured',
   finish_early: 'Stop here',
+  skip_to_scene: 'Skip to the scene',
   pause: 'Pause',
   paused_title: 'Paused',
   paused_body: 'Everything you finished is saved. Pick up where you left off.',
@@ -439,7 +456,7 @@ const EN: CopyTable = {
   word_bank_spare_chips: 'Not every word belongs in the answer.',
   transform_source_label: 'The sentence to rewrite',
   classify_label: 'Choose one',
-  listen_first_day: 'Listen first — the text comes after.',
+  listen_first_day: 'Today we listen first — the text comes after.',
   chapter_recap_label: 'Where the chapter leaves things',
   register_label: 'How you addressed them',
   letter_from: 'Letter from {name}',
@@ -466,6 +483,9 @@ const EN: CopyTable = {
   drill_recall: 'Recall',
   drill_warmup: 'Before the scene',
   drill_retry: 'Once more',
+  drill_miss_where: 'What is off',
+  drill_miss_choice: 'Not this answer',
+  drill_solution_later: 'This one comes back at the end of the set. Find it yourself first; the solution comes after.',
   drill_rule: 'Rule',
   drill_forge: 'La Forge',
   drill_from_scene: 'From the scene',
@@ -474,6 +494,8 @@ const EN: CopyTable = {
   exchange_last: 'Last exchange',
   thread_fix_sr: 'Corrected form:',
   thread_note_close: 'Hide the explanation',
+  thread_more_one: '1 more correction',
+  thread_more_many: '{n} more corrections',
   conversation_fixes: 'What was corrected',
   radio_text_show: 'Show the text',
   radio_text_hide: 'Hide the text',
@@ -494,6 +516,8 @@ const DE: CopyTable = {
   today_eyebrow: 'Heute',
   start: 'Heute starten',
   resume: 'Heute fortsetzen',
+  play_in_quartier: 'Im Quartier spielen',
+  read_as_page: 'Als Seite lesen',
   preparing_title: 'Heute wird vorbereitet',
   preparing_body: 'Deine Szene wird gerade vorbereitet. Das dauert meist nur einen Moment.',
   preparing_retry: 'Erneut prüfen',
@@ -536,6 +560,7 @@ const DE: CopyTable = {
   voice_empty: 'Es wurde nichts aufgenommen. Du bist weiterhin dran.',
   empty_answer: 'Schreibe zuerst etwas.',
   check_not_checked: CHECK_COPY.de.not_checked,
+  check_not_read: 'Diese Antwort wurde nicht geprüft.',
   try_grading_again: 'Erneut prüfen',
   appeal_line: 'Ich glaube, das ist richtig',
   looks_wrong_line: 'Hier stimmt etwas nicht',
@@ -569,6 +594,7 @@ const DE: CopyTable = {
   time_left: 'übrig',
   time_unknown: 'Zeit nicht gemessen',
   finish_early: 'Hier aufhören',
+  skip_to_scene: 'Weiter zur Szene',
   pause: 'Pause',
   paused_title: 'Pausiert',
   paused_body: 'Alles Erledigte ist gespeichert. Mach dort weiter, wo du aufgehört hast.',
@@ -657,7 +683,7 @@ const DE: CopyTable = {
   word_bank_spare_chips: 'Nicht jedes Wort gehört in die Antwort.',
   transform_source_label: 'Der Satz, den du umschreibst',
   classify_label: 'Wähle eins',
-  listen_first_day: 'Erst hören — den Text gibt es danach.',
+  listen_first_day: 'Heute hörst du zuerst — den Text gibt es danach.',
   chapter_recap_label: 'Wo das Kapitel endet',
   register_label: 'Wie du sie angesprochen hast',
   letter_from: 'Brief von {name}',
@@ -684,6 +710,9 @@ const DE: CopyTable = {
   drill_recall: 'Wiederholung',
   drill_warmup: 'Vor der Szene',
   drill_retry: 'Noch einmal',
+  drill_miss_where: 'Was nicht stimmt',
+  drill_miss_choice: 'Nicht diese Antwort',
+  drill_solution_later: 'Diese Aufgabe kommt am Ende der Reihe noch einmal. Finde es zuerst selbst; die Lösung kommt danach.',
   drill_rule: 'Regel',
   drill_forge: 'La Forge',
   drill_from_scene: 'Aus der Szene',
@@ -692,6 +721,8 @@ const DE: CopyTable = {
   exchange_last: 'Letzter Austausch',
   thread_fix_sr: 'Korrigierte Form:',
   thread_note_close: 'Erklärung verbergen',
+  thread_more_one: '1 weitere Korrektur',
+  thread_more_many: '{n} weitere Korrekturen',
   conversation_fixes: 'Was korrigiert wurde',
   radio_text_show: 'Text anzeigen',
   radio_text_hide: 'Text verbergen',
@@ -712,6 +743,8 @@ const FR: CopyTable = {
   today_eyebrow: 'Aujourd’hui',
   start: 'Commencer',
   resume: 'Reprendre',
+  play_in_quartier: 'Jouer dans le Quartier',
+  read_as_page: 'Lire la page',
   preparing_title: 'Préparation en cours',
   preparing_body: 'Ta scène se prépare. Cela prend généralement un instant.',
   preparing_retry: 'Vérifier à nouveau',
@@ -754,6 +787,7 @@ const FR: CopyTable = {
   voice_empty: 'Rien n’a été enregistré. C’est toujours ton tour.',
   empty_answer: 'Écris d’abord quelque chose.',
   check_not_checked: CHECK_COPY.fr.not_checked,
+  check_not_read: 'Cette réponse n’a pas été vérifiée.',
   try_grading_again: 'Vérifier à nouveau',
   appeal_line: 'Je pense que c’est juste',
   looks_wrong_line: 'Quelque chose cloche ici',
@@ -787,6 +821,7 @@ const FR: CopyTable = {
   time_left: 'restant',
   time_unknown: 'Durée non mesurée',
   finish_early: 'Arrêter ici',
+  skip_to_scene: 'Passer à la scène',
   pause: 'Pause',
   paused_title: 'En pause',
   paused_body: 'Tout ce qui est terminé est enregistré. Reprends où tu en étais.',
@@ -875,7 +910,7 @@ const FR: CopyTable = {
   word_bank_spare_chips: 'Tous les mots ne servent pas.',
   transform_source_label: 'La phrase à réécrire',
   classify_label: 'Choisis',
-  listen_first_day: 'On écoute d’abord — le texte vient après.',
+  listen_first_day: 'Aujourd’hui, on écoute d’abord — le texte vient après.',
   chapter_recap_label: 'Où en est le chapitre',
   register_label: 'Tu ou vous',
   letter_from: 'Lettre de {name}',
@@ -902,6 +937,9 @@ const FR: CopyTable = {
   drill_recall: 'Rappel',
   drill_warmup: 'Avant la scène',
   drill_retry: 'Encore une fois',
+  drill_miss_where: 'Ce qui ne va pas',
+  drill_miss_choice: 'Pas cette réponse',
+  drill_solution_later: 'Cette question revient à la fin de la série. Cherche d’abord toi-même ; la solution vient après.',
   drill_rule: 'Règle',
   drill_forge: 'La Forge',
   drill_from_scene: 'Dans la scène',
@@ -910,6 +948,8 @@ const FR: CopyTable = {
   exchange_last: 'Dernier échange',
   thread_fix_sr: 'Forme corrigée :',
   thread_note_close: 'Masquer l’explication',
+  thread_more_one: '1 autre correction',
+  thread_more_many: '{n} autres corrections',
   conversation_fixes: 'Ce qui a été corrigé',
   radio_text_show: 'Afficher le texte',
   radio_text_hide: 'Masquer le texte',

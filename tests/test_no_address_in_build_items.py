@@ -5,7 +5,8 @@ French — needless difficulty, not the rule. So no build or write item (tiles, 
 «Sag auf Französisch: …», a repair, «Write what you said», a free sentence with a model
 answer) carries a name or form of address set off by a comma, in its prompt, its tiles,
 its model answer or its accepted answers. A name inside the sentence («chez Lila») stays;
-the story's dialogue and the recognise / choose items keep theirs.
+the story's dialogue keeps its names. (R2, walk of 17 Nov: the recognise / choose items of
+La Forge lose theirs too — ``test_r2_forge_cards_are_solvable``.)
 
 This supersedes #384 for build/write items: the German prompt no longer moves the name
 first, because there is no name; a plural «Sie» opens as «Sie (alle)» again (#126).
@@ -168,8 +169,9 @@ def bank_items() -> list[ib.BankItem]:
     return items
 
 
-def test_the_bank_still_addresses_people_where_the_learner_only_recognises(bank_items) -> None:
-    """The twins are kept: a fill or a sort may name who it is said to."""
+def test_the_bank_still_draws_its_vocative_twins(bank_items) -> None:
+    """The twins are kept in the bank (story weight, variety keys); since R2 (walk of 17 Nov)
+    every rung takes the name out as it poses them (``test_r2_forge_cards_are_solvable``)."""
 
     assert any(addressed_names(item.sentence) for item in bank_items)
 
@@ -250,10 +252,13 @@ def test_a_build_with_no_sentence_left_is_not_posed() -> None:
     assert unaddressed_payload({"items": [{"id": "x", "example_answer": "Merci, madame."}]})["items"][0]["example_answer"] == "Merci, madame."
 
 
-def test_recognise_items_keep_their_name() -> None:
+def test_recognise_items_are_said_to_nobody_too() -> None:
+    """R2 (walk of 17 Nov 2026): «Tu ___ prêt, Marin ?» — a fill, a pick and a judgement
+    lose their address as well (``no_address.unaddressed_served``)."""
+
     fill = {"id": "x", "prompt": "On ___ rester chez Lila, Marin.", "choices": ["peut", "peux"], "correct_answer": "peut"}
-    assert unaddressed_item(fill) == fill
-    assert ib.public_item(dict(fill), "en")["prompt"] == fill["prompt"]
+    assert unaddressed_item(fill) == fill  # not a build: the build strip leaves it
+    assert ib.public_item(dict(fill), "en")["prompt"] == "On ___ rester chez Lila."
 
 
 # --------------------------------------------------------------------------- #

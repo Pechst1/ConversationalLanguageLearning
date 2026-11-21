@@ -60,6 +60,7 @@ import { dayMarkState, STEP_SHAPE } from './day-mark';
 import { journeyCopy } from './journey-copy';
 import {
   journeyHeaderCaption,
+  sessionStopControl,
   type JourneyPhase,
 } from './journey-state';
 import {
@@ -202,6 +203,8 @@ export function JourneySession({
   };
   const journey = controller.journey;
   const recovery = controller.recovery;
+  // P11: before the day's unplayed scene the control skips to it; it never ends the day.
+  const stopControl = sessionStopControl(journey, step);
   // WP-76/77: a haptic (and a sound, when on) per state; the face on screen.
   useJourneyFeel(phase.kind, step?.id ?? null, feedback);
   const speaker = journeySpeaker(journey, step);
@@ -320,8 +323,8 @@ export function JourneySession({
   }, [chapterKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* GENTLE-ONBOARDING: the learner's first day (the one that meets the cast)
-     opens on the walkthrough — the app, the shapes, the progress row, the
-     day's route — before the cast intro. Once per device. The day's route
+     opens on the walkthrough — the app and the day's route (P9: two cards) —
+     before the cast intro. Once per device. The day's route
      (story → La Forge → words) is remembered under the journey's date. */
   const firstDay = castIntro.length > 0;
   const localDate = journey?.local_date ?? null;
@@ -665,15 +668,18 @@ export function JourneySession({
                   immersive reader, which owns its whole screen. */}
               {/* WP-103 T7: once the conversation is closed, «Continuer» is the
                   only action on the screen. */}
+              {/* P9/P11: before an unplayed scene, the control never ends the
+                  day — on any pre-scene step (rule, drill, forge) it skips to
+                  the scene with `skip_to_scene` (sessionStopControl). */}
               {!immersive && !showCastIntro && step.kind !== 'respond' && (
                 <div className="av2-session__secondary">
                   <Action
                     tone="quiet"
                     inline
                     disabled={busy}
-                    onClick={() => void actions.finish('early')}
+                    onClick={() => void (stopControl === 'skip' ? actions.skipToScene() : actions.finish('early'))}
                   >
-                    {copy.finish_early}
+                    {stopControl === 'skip' ? copy.skip_to_scene : copy.finish_early}
                   </Action>
                 </div>
               )}
