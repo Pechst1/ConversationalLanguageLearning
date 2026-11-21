@@ -112,9 +112,9 @@ def test_a_wrong_unscramble_is_corrected_with_the_sentence_and_where_it_went_wro
     assert correction.corrected_fr == "L'appartement d'Odile, pour Solvel ? C'est vrai ?"
     # The words the learner placed, never tile ids.
     assert "tile_" not in correction.span_fr and correction.span_fr.startswith("d'Odile,")
-    assert correction.note_native == (
-        "Der Satz beginnt nicht mit „d'Odile,“."
-    )
+    # #967: where the word does not belong, never «the sentence does not start with» the
+    # word the learner's line does start with.
+    assert correction.note_native == "„d'Odile,“ gehört nicht an den Anfang."
     # And it survives the public filter the attempt response goes through.
     shown = DailyJourneyService._public_correction(
         correction, journey_learning.recall_learner_text(task, answer)

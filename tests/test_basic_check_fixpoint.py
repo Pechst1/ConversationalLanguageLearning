@@ -248,3 +248,111 @@ def test_floor_corpora_settle():
         if again or doubled:
             wrong.append(f"{sentence!r} -> {fixed!r} {again}")
     assert not wrong, f"{len(wrong)} printed lines the check would still correct: {wrong}"
+
+
+# ---------------------------------------------------------------------------
+# #925: a slip written twice is fixed twice in the printed line
+# ---------------------------------------------------------------------------
+
+#: #925 (walk 19 Nov, a2-en, Courrier day 1): «n'ai» listed twice, printed once.
+COURRIER_925 = (
+    "Salut Marin ! Je n ai pas vendu l appartement. J ai garde la cle dans ma poche toute la nuit. "
+    "Je n ai rien mange, tu connais un bon restaurant ? Peut-etre je reste a Paris, c est fou !"
+)
+#: #925, seen again 21 Nov (a2-en, Courrier day 1 to Margaux): the second «j ai» left.
+COURRIER_925_AGAIN = (
+    "Salut Margaux ! Je n ai pas d echarpe, je suis anglais, j ai toujours froid mais j ai oublie "
+    "mon echarpe a Manchester."
+)
+
+
+def _stored_basic_check(line: str) -> list[dict]:
+    """The errata the Courrier stores for ``line`` with no model: its rules, then the line
+    rebuilt from them (``MissionCorrectionService.correct_submission``'s basic path)."""
+    from app.services.missions import MissionCorrectionService
+
+    service = MissionCorrectionService.__new__(MissionCorrectionService)
+    errata, sentence = service._deterministic_errata(line, language="en")
+    return cc.verify_correction(line, sentence, errata, language="en").errata
+
+
+def _printed_lines(line: str, errata: list[dict]) -> dict[str, str]:
+    """What Courrier, La Forge and the Journal print for ``line`` and its errata, read
+    as the model's check and as the rules' (no model)."""
+    from app.services import verdicts
+
+    journal_rows = [
+        {"span_fr": item.get("learner_text"), "corrected_fr": item.get("corrected_target"), "note_native": "x"}
+        for item in errata
+    ]
+    verdict_list = {
+        "courrier/model": verdicts.from_courrier(
+            {"errata": errata, "verdict": "needs_revision", "correction_debug": {"model": "m"}}, text=line
+        ),
+        "courrier/rules": verdicts.from_courrier(
+            {"errata": errata, "verdict": "needs_revision", "correction_debug": {"fallback_used": True}}, text=line
+        ),
+        "forge/model": verdicts.from_forge(
+            {"errata": errata, "verdict": "wrong", "assessment_status": "checked", "correction_debug": {"model": "m"}},
+            text=line,
+        ),
+        "forge/rules": verdicts.from_forge(
+            {"errata": errata, "verdict": "wrong", "assessment_status": "unavailable"}, text=line
+        ),
+        "journal/model": verdicts.from_journal({"checker": "model", "errata": journal_rows}, text=line),
+        "journal/rules": verdicts.from_journal({"checker": "rules", "errata": journal_rows}, text=line),
+    }
+    return {name: verdict.corrected or line for name, verdict in verdict_list.items()}
+
+
+@pytest.mark.parametrize("line", [COURRIER_925, COURRIER_925_AGAIN], ids=["925", "925b"])
+def test_slip_written_twice_is_fixed_twice(line):
+    """#925 done-when: the walk's line, through each surface with its basic-check errata,
+    prints every listed fix."""
+    errata = _stored_basic_check(line)
+    listed = [item["learner_text"] for item in errata]
+    assert len(listed) > len(set(listed)), listed  # the slip is listed twice, as on the walk
+    for surface, printed in _printed_lines(line, errata).items():
+        assert printed == cc.repair_text(line), (surface, printed)
+    printed = _printed_lines(COURRIER_925, _stored_basic_check(COURRIER_925))["courrier/model"]
+    assert "Je n'ai pas" in printed and "Je n'ai rien" in printed, printed
+
+
+def _change_of(span: str, replacement: str) -> tuple[str, str]:
+    """The characters a fix changes, without the words it quotes around them."""
+    lead = 0
+    while lead < min(len(span), len(replacement)) and span[lead] == replacement[lead]:
+        lead += 1
+    trail = 0
+    while trail < min(len(span), len(replacement)) - lead and span[-1 - trail] == replacement[-1 - trail]:
+        trail += 1
+    return span[lead : len(span) - trail], replacement[lead : len(replacement) - trail]
+
+
+def _slip_written_twice(line: str) -> bool:
+    changes = [_change_of(edit.span, edit.replacement) for edit in cc.deterministic_edits(line)]
+    return len(changes) != len(set(changes))
+
+
+_TWICE = [line for line in [*CORPUS, COURRIER_925, COURRIER_925_AGAIN] if _slip_written_twice(line)]
+
+
+@pytest.mark.parametrize("line", _TWICE, ids=[f"t{number}" for number in range(1, len(_TWICE) + 1)])
+def test_every_listed_fix_is_printed(line):
+    """#925 property: a corpus line with a slip written twice prints exactly the basic
+    check's edits applied to it, on every surface."""
+    assert len(_TWICE) >= 5, _TWICE
+    right = cc.apply_edits(line, cc.deterministic_edits(line))
+    errata = _stored_basic_check(line)
+    for surface, printed in _printed_lines(line, errata).items():
+        assert printed == right, (surface, printed)
+
+
+def test_a_note_given_twice_changes_no_right_word():
+    """#931's failed review (#93): the same fix listed twice takes a second place only
+    when that place is a slip too. «il a faim» keeps its «a»."""
+    line = "Je vais a Paris et il a faim."
+    note = {"learner_text": "a", "corrected_target": "à", "why_wrong": "Preposition à.", "task_error_type": "orthography"}
+    for surface, printed in _printed_lines(line, [note, dict(note)]).items():
+        assert printed == "Je vais à Paris et il a faim.", (surface, printed)
+    assert len(cc.grounded_errata(line, [note, dict(note)], language="en")) == 1

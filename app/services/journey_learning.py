@@ -2054,10 +2054,12 @@ _ORDER_NOTES: dict[str, dict[str, str]] = {
         "de": "Ab „{word}“ stimmt die Reihenfolge nicht.",
         "fr": "À partir de « {word} », l'ordre ne va plus.",
     },
+    # #967: «It does not start with “café”» answered «café un», which does start with it.
+    # The note says where the word does not belong, never what the learner's line is not.
     "first": {
-        "en": "It does not start with “{word}”.",
-        "de": "Der Satz beginnt nicht mit „{word}“.",
-        "fr": "La phrase ne commence pas par « {word} ».",
+        "en": "“{word}” does not go at the start.",
+        "de": "„{word}“ gehört nicht an den Anfang.",
+        "fr": "« {word} » ne va pas au début.",
     },
     "missing": {
         "en": "Some words are missing.",
@@ -2070,6 +2072,81 @@ _ORDER_NOTES: dict[str, dict[str, str]] = {
         "fr": "Certains mots étaient en trop.",
     },
 }
+
+
+#: #967 / #146: what a missed build of a noun with its article is told, read from the
+#: item's own concept (an article before its noun; on a repair, the gender the slip broke)
+#: rather than from where the two orders first differ.
+_ARTICLE_NOTES: dict[str, dict[str, str]] = {
+    "article_first": {
+        "en": "The article comes before its noun: “{article}”, then “{noun}”.",
+        "de": "Der Artikel steht vor seinem Nomen: erst „{article}“, dann „{noun}“.",
+        "fr": "L'article vient avant son nom : d'abord « {article} », puis « {noun} ».",
+    },
+    "gender": {
+        "en": "“{noun}” is {gender}, so “{right}”, not “{wrong}”.",
+        "de": "„{noun}“ ist {gender}, also „{right}“, nicht „{wrong}“.",
+        "fr": "« {noun} » est {gender}, donc « {right} », pas « {wrong} ».",
+    },
+}
+_GENDER_WORDS: dict[str, dict[str, str]] = {
+    "en": {"m": "masculine", "f": "feminine"},
+    "de": {"m": "maskulin", "f": "feminin"},
+    "fr": {"m": "masculin", "f": "féminin"},
+}
+
+
+def _bare_word(text: str) -> str:
+    return fold_for_comparison(re.sub(r"[^\w'’-]+", " ", str(text or ""))).strip()
+
+
+def article_build_note(task: RecallTask, tile_ids: Sequence[str], language: str) -> str | None:
+    """#967: why a missed build of «article + noun» is wrong, from the item's concept.
+
+    Two reasons, each said only when it holds for the learner's own line:
+
+    - the key puts a gendered article right before its noun and the learner placed that
+      noun before it («café un» for «un café»): the article comes first;
+    - the item repairs the learner's own slip and the slip gave that noun the other
+      article («une café»): the noun's gender names the right one.
+
+    ``None`` when the key has no such article, so the order note speaks instead.
+    """
+
+    from app.services.answer_acceptance import _gender_of
+
+    key = _tile_texts(task, [str(tile) for tile in task.correct_tile_order])
+    submitted = [_bare_word(text) for text in _tile_texts(task, tile_ids)]
+    table = lambda key_: _ARTICLE_NOTES[key_].get(language) or _ARTICLE_NOTES[key_]["en"]  # noqa: E731
+    genders = _GENDER_WORDS.get(language) or _GENDER_WORDS["en"]
+    source = [_bare_word(word) for word in str(task.source_fr or task.prompt_fr or "").split()]
+    notes: list[str] = []
+    for index in range(len(key) - 1):
+        article, noun = key[index].strip(), key[index + 1].strip(" ,.;:!?…")
+        gender = _GENDERED_ARTICLES.get(_bare_word(article))
+        if gender is None or not noun:
+            continue
+        folded_article, folded_noun = _bare_word(article), _bare_word(noun)
+        slip = next(
+            (
+                source[at - 1]
+                for at in range(1, len(source))
+                if source[at] == folded_noun and _GENDERED_ARTICLES.get(source[at - 1]) not in (None, gender)
+            ),
+            None,
+        )
+        if _gender_of(folded_noun) != gender and slip is None:
+            # «Je le vois»: an object pronoun, not an article, or a noun of the other gender.
+            continue
+        if folded_article in submitted and folded_noun in submitted:
+            if submitted.index(folded_noun) < submitted.index(folded_article):
+                notes.append(table("article_first").format(article=article, noun=noun))
+        if slip is not None:
+            # The repair's own slip: the same noun with the other gender's article.
+            notes.append(table("gender").format(noun=noun, gender=genders[gender], right=article, wrong=slip))
+        if notes:
+            break
+    return " ".join(notes) or None
 
 
 def _tile_texts(task: RecallTask, tile_ids: Sequence[str]) -> list[str]:
@@ -2154,6 +2231,113 @@ def pick_miss_note(task: RecallTask, language: str) -> str | None:
     if task.task_type == "classify" and item:
         return table("label").format(item=(task.solution_fr or item).strip(), answer=answer)
     return table("answer").format(answer=answer)
+
+
+#: #894 / #146: a missed «which sentence uses today's rule?» is told from the item's own
+#: concept: where the key carries the rule («In „C'est“ steckt „est“ (être).») and why
+#: the chosen sentence does not («„allez“ kommt von aller, nicht von être.»).
+_RULE_PICK_NOTES: dict[str, dict[str, str]] = {
+    "form_in": {
+        "en": "In “{span}” there is “{form}” ({lemma}).",
+        "de": "In „{span}“ steckt „{form}“ ({lemma}).",
+        "fr": "Dans « {span} », il y a « {form} » ({lemma}).",
+    },
+    "form": {
+        "en": "“{form}” ({lemma}) carries the rule.",
+        "de": "„{form}“ ({lemma}) trägt die Regel.",
+        "fr": "« {form} » ({lemma}) porte la règle.",
+    },
+    "span": {
+        "en": "The rule is in “{span}”.",
+        "de": "Die Regel steckt in „{span}“.",
+        "fr": "La règle est dans « {span} ».",
+    },
+    "other_verb": {
+        "en": "“{form}” comes from {lemma}, not {key}.",
+        "de": "„{form}“ kommt von {lemma}, nicht von {key}.",
+        "fr": "« {form} » vient du verbe {lemma}, pas du verbe {key}.",
+    },
+    "no_verb": {
+        "en": "The sentence you picked has no form of {key}.",
+        "de": "Der gewählte Satz hat keine Form von {key}.",
+        "fr": "La phrase choisie n'a aucune forme du verbe {key}.",
+    },
+}
+
+
+def _verb_forms(text: str) -> list[tuple[str, str]]:
+    """``(form as written, infinitive)`` for each verb of ``text`` the lexicon knows.
+
+    «C'est» gives ``("est", "être")``, «Allons-y» ``("Allons", "aller")``; the conjugated
+    forms come before an infinitive («Vous allez vendre»: «allez» first), since the form
+    is what the eye stops on.
+    """
+
+    from app.services.lexical_coverage import load_lexicon, tokenize
+    from app.services.season_lexicon import lemma_of
+
+    lexicon = load_lexicon()
+    conjugated: list[tuple[str, str]] = []
+    infinitives: list[tuple[str, str]] = []
+    for token in tokenize(text):
+        lemma = lemma_of(token.key, capitalised=token.surface[:1].isupper())
+        if not lemma or (lexicon.lemmas.get(lemma) or {}).get("pos") != "verb":
+            continue
+        parts = [part for part in re.split(r"[’'ʼ-]", token.surface) if part]
+        key = fold_for_comparison(token.key)
+        form = next((part for part in parts if fold_for_comparison(part) == key), parts[0] if parts else token.surface)
+        (infinitives if fold_for_comparison(form) == fold_for_comparison(lemma) else conjugated).append((form, lemma))
+    return conjugated + infinitives
+
+
+def rule_pick_note(db: Session | None, task: RecallTask, selected: str | None, language: str) -> str | None:
+    """#894: why a «which sentence uses the rule?» pick was a miss, or ``None``.
+
+    The key's rule-carrying words as the rule card marks them
+    (:func:`grammar_items.rule_span`), with the verb form inside them and its infinitive
+    («„est“ in „C'est“: être»). Then the chosen sentence's verb, set against the rule's
+    only when that holds: the title names the key's verb, and names none of the chosen
+    sentence's verbs («Prenez» under «Faire und prendre» is the rule too, so it is never
+    said not to be).
+    """
+
+    from app.services import grammar_items
+
+    key = (_option_text(task, task.correct_option_id) or "").strip()
+    brief = _unit_detector_brief(db, task) if key else None
+    bounds = grammar_items.rule_span(brief, key) if brief else None
+    if bounds is None:
+        return None
+    table = lambda name: _RULE_PICK_NOTES[name].get(language) or _RULE_PICK_NOTES[name]["en"]  # noqa: E731
+    span = grammar_items.fold_apostrophes(key)[bounds[0] : bounds[1]].strip()
+    verbs = _verb_forms(span)
+    if not verbs:
+        return table("span").format(span=span)
+    form, lemma = verbs[0]
+    note = (
+        table("form").format(form=form, lemma=lemma)
+        if fold_for_comparison(form) == fold_for_comparison(span)
+        else table("form_in").format(span=span, form=form, lemma=lemma)
+    )
+    chosen = (_option_text(task, selected) or "").strip()
+    titles = [str(title) for title in brief.get("titles") or [] if title]
+    # The verbs the rule names: in its titles («Faire und prendre», «Pouvoir, vouloir,
+    # devoir + Infinitiv») and its pattern («je suis / tu es / …»).
+    named = {other for text in [*titles, *(brief.get("pattern_forms") or [])] for _, other in _verb_forms(str(text))}
+    titled = lemma in named or any(re.search(rf"\b{re.escape(lemma)}\b", title, re.IGNORECASE) for title in titles)
+    if not chosen or not titled:
+        # «„pleut“ is not regarder» would be a lie for a rule about every -er verb: the
+        # chosen sentence is set against the rule's verb only when its title names it.
+        return note
+    others = _verb_forms(chosen)
+    if any(other == lemma or other in named for _, other in others):
+        # A verb the rule names, in a form its detector does not key: nothing to say
+        # against it.
+        return note
+    if others:
+        other_form, other_lemma = others[0]
+        return f"{note} {table('other_verb').format(form=other_form, lemma=other_lemma, key=lemma)}"
+    return f"{note} {table('no_verb').format(key=lemma)}"
 
 
 #: P5: the formats answered by a tap among the item's own options.
@@ -2270,23 +2454,33 @@ def _is_free_sentence(task: RecallTask) -> bool:
     )
 
 
-def _free_sentence_uses_unit(db: Session | None, task: RecallTask, text: str | None) -> bool:
-    """WP-129: does the learner's free sentence use the unit (its regex detector)?"""
+def _unit_detector_brief(db: Session | None, task: RecallTask) -> dict[str, Any] | None:
+    """The item's grammar unit as :func:`grammar_items.rule_span` reads it, or ``None``."""
 
-    from app.services import grammar_items, grammar_units
+    from app.services import grammar_units
 
     concept = None
     try:
         concept = db.get(GrammarConcept, int(task.target.id)) if db is not None else None
-    except Exception:  # noqa: BLE001 - an unreadable unit grades nothing as met
-        logger.warning("journey_free_sentence_unit_unavailable")
+    except Exception:  # noqa: BLE001 - an unreadable unit is no unit
+        logger.warning("journey_grammar_unit_unavailable")
     if concept is None:
-        return False
-    brief = {
+        return None
+    return {
         "detectors": grammar_units.regex_patterns(grammar_units.unit_detectors(concept)),
         "noun_phrase": grammar_units.is_noun_phrase_unit(concept),
+        "titles": list(grammar_units.localized_titles(concept).values()),
+        "pattern_forms": list(grammar_units.pattern_forms(concept)),
     }
-    return grammar_items.free_sentence_uses_unit(brief, text)
+
+
+def _free_sentence_uses_unit(db: Session | None, task: RecallTask, text: str | None) -> bool:
+    """WP-129: does the learner's free sentence use the unit (its regex detector)?"""
+
+    from app.services import grammar_items
+
+    brief = _unit_detector_brief(db, task)
+    return brief is not None and grammar_items.free_sentence_uses_unit(brief, text)
 
 
 def _free_sentence_copies_shown(db: Session | None, task: RecallTask, text: str | None) -> bool:
@@ -2479,7 +2673,14 @@ def evaluate_recall(
         if task.task_type in {"tiles", "word_bank", "unscramble"} and answer.tile_ids:
             from app.services.chrome_language import user_correction_language
 
-            note = tile_order_note(task, answer.tile_ids, str(user_correction_language(user))) or note
+            language = str(user_correction_language(user))
+            # #967 / #146: the item's own concept first (an article before its noun, the
+            # gender a repaired slip broke); where the order goes off only without one.
+            note = (
+                article_build_note(task, answer.tile_ids, language)
+                or tile_order_note(task, answer.tile_ids, language)
+                or note
+            )
         elif task.task_type in {"choice", "classify", "listen_tap", "who_said"}:
             from app.services.chrome_language import user_correction_language
 
@@ -2488,6 +2689,15 @@ def evaluate_recall(
                 # #537: the reason of the trap the learner fell into («mon amie»: the
                 # vowel), not the unit's one-line rule that the other traps share.
                 pick = task.why_native
+            elif (
+                task.task_type == "choice"
+                and task.options_kind == "sentences"
+                and task.target.kind == TargetKind.GRAMMAR
+                and (why := rule_pick_note(db, task, selected, str(user_correction_language(user))))
+            ):
+                # #894: where the key carries the rule («„est“ in „C'est“») and why the
+                # chosen sentence does not («„allez“: aller»), not the rule's summary.
+                pick = why
             elif task.task_type in {"choice", "who_said"} and task.hint_native and task.target.kind == TargetKind.GRAMMAR:
                 # #86: a unit's one-line rule is the reason a grammar choice was
                 # wrong. «The right answer is X» only stands in when there is none.
