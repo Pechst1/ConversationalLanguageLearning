@@ -8,6 +8,7 @@ import { missLayoutChecks, readingIsSteady } from './miss-layout.mjs';
 import { reversed, trackKey, trackVerdicts } from './verdict-timeline.mjs';
 import { HAND_ON } from './day-plan.mjs';
 import { bannersOn, englishOnFrenchScreen, serverBanner } from './assertions.mjs';
+import { newTestOutTally, readTestOut } from './test-out-tally.mjs';
 
 /**
  * A word a character says, in either reader: the list's caption cards, or the
@@ -72,6 +73,8 @@ export class LearnerWalk {
     this.timelines = new Map();
     this.played = new Set();
     this.handOns = 0;
+    /** #954: the verdicts a rule check's items showed, for its result to agree with. */
+    this.testOutTally = newTestOutTally();
   }
 
   where(extra = {}) {
@@ -198,7 +201,12 @@ export class LearnerWalk {
   trackVerdicts(s, kind) {
     // One verdict per question: a conversation is one question for its whole length;
     // any other item is identified by the text it showed before it was answered.
-    return trackVerdicts(this, s, kind);
+    const timeline = trackVerdicts(this, s, kind);
+    // #954: a rule check's result counts the verdicts its items showed: an item shown «Noch
+    // nicht» is not one of «3 von 3 richtig».
+    const tally = readTestOut(this.testOutTally, s, trackKey(this, s, kind));
+    if (tally) this.findings.check('rule-check-tally-matches-its-items', tally.ok, tally.detail, this.where({ kind }));
+    return timeline;
   }
 
   finishTimelines() {
