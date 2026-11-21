@@ -140,6 +140,11 @@ export function RvRubrique({ client, session: initial, language, onExit, onRelev
     lastProgress.current = progress;
     bringNewestIntoView(bodyRef.current, headRef.current, footRef.current);
   }, [progress]);
+  // A refusal is said on the same screen: it comes into view too (seen at 375 px, 2026-11-21:
+  // «Two sentences…» stayed under the foot, below the field).
+  useEffect(() => {
+    if (refusal) bringNewestIntoView(bodyRef.current, headRef.current, footRef.current);
+  }, [refusal]);
 
   const wordFor = useCallback(
     (speakerId: string | null, speakerName?: string) => (event: RvWordEvent) => {
