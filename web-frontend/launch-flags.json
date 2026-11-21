@@ -3,5 +3,5 @@
   "artSet": "drawn",
   "spokenReply": true,
   "quartierVisible": true,
-  "grammarPilot": false
+  "grammarPilot": true
 }
