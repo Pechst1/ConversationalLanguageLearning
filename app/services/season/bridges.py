@@ -41,6 +41,7 @@ from typing import Annotated, Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.services.cast_registry import display_names
+from app.services.season.dates import render_text
 from app.services.season.format import (
     LANGUAGES,
     SEASON_ROOT,
@@ -211,7 +212,8 @@ def validate_bridges(season: Season, bridges: list[Bridge], *, locations: set[st
             for fact in moment.fixed:
                 if fact.flag not in allowed or fact.flag not in premise.sets:
                     problems.append(f"{here}: fixed fact {fact.flag} is not a flag this moment may set")
-                if fact.because not in gap.establish:
+                # A date token (``dates``) reads the same on both sides at the bible's dates.
+                if render_text(fact.because) not in {render_text(line) for line in gap.establish}:
                     problems.append(f"{here}: fixed fact {fact.flag} does not quote the gap's establish line")
             asked = _turns_and_solves(moment)
             if not asked:
@@ -304,10 +306,13 @@ def bridge_page(
     flags: dict[str, Any],
     band: str,
     language: str,
+    shift: int = 0,
 ) -> dict[str, Any] | None:
     """The bridge as a resolved page (the shape of ``page.resolve_day``): the
-    missing moments' blocks in order, then the hook. ``None`` when nothing is owed."""
+    missing moments' blocks in order, then the hook. ``None`` when nothing is owed.
+    ``shift``: the learner's calendar shift (``dates``); the bible's dates at 0."""
 
+    from app.services.season.dates import render as render_dates
     from app.services.season.page import _Ctx, _movement
 
     blocks = moments_for(bridge, missing)
@@ -338,7 +343,7 @@ def bridge_page(
         )
     movements.extend(_movement(bridge.hook, holder, ctx))
     gap = season.gaps[bridge.gap]
-    return {
+    return render_dates({
         "season_id": season.id,
         "tentpole": None,
         "bridge": bridge.gap,
@@ -358,7 +363,7 @@ def bridge_page(
         "movements": movements,
         "lexicon": [row.model_dump() for row in bridge.lexicon],
         "can_do_native": bridge.can_do.get(language) or bridge.can_do.get("en"),
-    }
+    }, shift)
 
 
 __all__ = [

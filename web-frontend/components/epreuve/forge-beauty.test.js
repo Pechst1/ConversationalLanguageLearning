@@ -243,7 +243,7 @@ test('a correction in the forge does not name the rule the head already names', 
   assert.match(SESSION, /ruleShown=\{forge \? activeConceptTitle : null\}/);
   // Owner 2026-11-13: the reason (rule reference stripped) is the card's one line.
   assert.match(PAGE, /display\(printableWhy\(withoutRuleReference\(issue\.why_wrong \|\| feedback\.why \|\| '', ruleShown\)\)\)/);
-  assert.match(PAGE, /why=\{reason \|\| undefined\}/);
+  assert.match(PAGE, /why=\{explained\(reason\) \|\| undefined\}/);
 });
 
 test('the goal comes before the box the answer goes in', () => {

@@ -97,20 +97,20 @@ def test_a_miss_outside_the_rule_says_what_differs_not_the_rule(post_office: dic
     [erratum] = result["errata"]
     why = erratum["why_wrong"]
     assert "la gare" in why and "la poste" in why
-    assert "the rule is not what differs" in why.lower()
+    assert "another word of the line differs" in why.lower()
     explanation = str(post_office.get("explanation") or "")
     assert not explanation or explanation not in why
 
 
 def test_a_miss_inside_the_rule_still_cites_the_rule(post_office: dict) -> None:
     [erratum] = _grade(LE_LA, post_office, "le poste")["errata"]
-    assert "the rule is not what differs" not in erratum["why_wrong"].lower()
+    assert "another word of the line differs" not in erratum["why_wrong"].lower()
 
 
 def test_a_wrong_pronoun_miss_names_the_pronoun_not_the_ending_rule(prefer_on: dict) -> None:
     [erratum] = _grade(ER, prefer_on, "Vous préférez")["errata"]
     assert "Vous préférez" in erratum["why_wrong"]
-    assert "the rule is not what differs" in erratum["why_wrong"].lower()
+    assert "another word of the line differs" in erratum["why_wrong"].lower()
 
 
 def test_every_we_item_lists_nous_and_on() -> None:

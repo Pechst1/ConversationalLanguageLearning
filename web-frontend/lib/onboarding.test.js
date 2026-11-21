@@ -61,7 +61,10 @@ test('tiles grade the moment the sentence is complete, in order', () => {
   assert.equal(gradeTiles(tiles, ['cafe']), 'pending');
   assert.equal(gradeTiles(tiles, ['cafe', 'svp']), 'correct');
   assert.equal(gradeTiles(tiles, ['svp', 'cafe']), 'wrong');
-  assert.equal(gradeTiles(tiles, ['cafe', 'merci']), 'wrong');
+  // P9: «Un café, merci» is an accepted alternative; the order still counts.
+  assert.equal(gradeTiles(tiles, ['cafe', 'merci']), 'correct');
+  assert.equal(gradeTiles(tiles, ['merci', 'cafe']), 'wrong');
+  assert.equal(gradeTiles(tiles, ['cafe', 'bonsoir']), 'wrong');
   assert.equal(gradeTiles(tiles, ['cafe', 'svp', 'merci']), 'wrong');
   assert.equal(tilesSentence(tiles, ['cafe', 'svp']), 'Un café, s’il vous plaît');
 });

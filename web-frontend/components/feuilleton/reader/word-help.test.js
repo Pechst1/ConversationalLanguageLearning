@@ -34,18 +34,20 @@ global.React = React;
 
 const { resolveWordHelp, shownLemma } = require('./word-help.ts');
 const { WordHelpSheet } = require('./WordHelpSheet.tsx');
+const { canKeep } = require('../../../lib/kept-words.ts');
 
 const SENTENCE = 'Elles suivent des règles : un préavis, une déclaration des grévistes.';
 
 /** A fake API that records what was asked, in order. */
-function fakeApi({ entry = null, context = null, translation = '', contextFails = false, translateFails = false } = {}) {
+function fakeApi({ entry = null, entries = null, context = null, translation = '', contextFails = false, translateFails = false } = {}) {
   const asked = [];
   return {
     asked,
     lookupVocabulary: async (term) => {
       asked.push(['lookup', term]);
-      if (!entry) throw Object.assign(new Error('404'), { response: { status: 404 } });
-      return entry;
+      const found = entries ? entries[term] : entry;
+      if (!found) throw Object.assign(new Error('404'), { response: { status: 404 } });
+      return found;
     },
     glossInContext: async (word, sentence) => {
       asked.push(['gloss', word, sentence]);
@@ -79,7 +81,11 @@ test('a catalogue miss reads the word in its sentence: its meaning, its lemma, t
   const answer = await resolveWordHelp({ term: 'grévistes', surface: 'grévistes', sentence: SENTENCE }, api);
   assert.deepEqual(answer.gloss, { kind: 'context', text: 'die Streikenden', lemma: 'gréviste', language: 'de' });
   assert.equal(answer.sentenceEn, 'Eine Erklärung der Streikenden.');
-  assert.deepEqual(api.asked, [['lookup', 'grévistes'], ['gloss', 'grévistes', SENTENCE]], 'the line is never translated on its own');
+  assert.deepEqual(
+    api.asked,
+    [['lookup', 'grévistes'], ['gloss', 'grévistes', SENTENCE], ['lookup', 'gréviste']],
+    'the line is never translated on its own; the dictionary form is looked up once',
+  );
   // A line that came with its translation keeps it.
   const supplied = await resolveWordHelp({ term: 'grévistes', surface: 'grévistes', sentence: SENTENCE, sentenceEn: 'Supplied.' }, fakeApi({ context: { lemma: 'gréviste', gloss: 'strikers', language: 'en', translation: 'Other.' } }));
   assert.equal(supplied.sentenceEn, 'Supplied.');
@@ -87,6 +93,34 @@ test('a catalogue miss reads the word in its sentence: its meaning, its lemma, t
   assert.equal(shownLemma('Grévistes', 'grévistes'), null);
   assert.equal(shownLemma('revenir', 'reviennent'), 'revenir');
   assert.equal(shownLemma('', 'reviennent'), null);
+});
+
+test('R2 (6): a form the catalogue misses whose dictionary form has a meaning is keepable, as that form', async () => {
+  // The A1 walk (2026-11-17): no word-help sheet offered «Behalten». A printed form the
+  // catalogue has no row for answered with the sentence reading, which is never keepable,
+  // even when its dictionary form has a German meaning.
+  const line = 'Vous vendez, Camille ?';
+  const api = fakeApi({
+    entries: { vendre: { translation: 'verkaufen', translation_language: 'de' } },
+    context: { lemma: 'vendre', gloss: 'verkaufen Sie', language: 'de', translation: 'Verkaufen Sie, Camille?' },
+  });
+  const answer = await resolveWordHelp({ term: 'vendez', surface: 'vendez', sentence: line }, api);
+  assert.deepEqual(answer.gloss, { kind: 'gloss', text: 'verkaufen', language: 'de', term: 'vendre', lemma: 'vendre' });
+  assert.equal(answer.sentenceEn, 'Verkaufen Sie, Camille?');
+  assert.equal(canKeep(answer.gloss.kind, line, answer.gloss.language, 'de'), true, '«Behalten» is offered');
+  // A name has no dictionary entry: still the sentence reading, still nothing to keep.
+  const name = await resolveWordHelp(
+    { term: 'camille', surface: 'Camille', sentence: line },
+    fakeApi({ context: { lemma: 'Camille', gloss: 'Camille (Name)', language: 'de', translation: 'Verkaufen Sie, Camille?' } }),
+  );
+  assert.equal(name.gloss.kind, 'context');
+  assert.equal(canKeep(name.gloss.kind, line, null, 'de'), false);
+  // A dictionary form whose only meaning is in another language is shown, not offered.
+  const english = await resolveWordHelp(
+    { term: 'vendez', surface: 'vendez', sentence: line },
+    fakeApi({ entries: { vendre: { translation: 'to sell', translation_language: 'en' } }, context: { lemma: 'vendre', gloss: 'verkaufen', language: 'de', translation: '' } }),
+  );
+  assert.equal(canKeep(english.gloss.kind, line, english.gloss.language, 'de'), false);
 });
 
 test('the sentence reading fails: today\'s fallback (the supplied line, else the translated line, else nothing)', async () => {

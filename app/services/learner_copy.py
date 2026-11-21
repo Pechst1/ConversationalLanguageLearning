@@ -133,13 +133,8 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Du hast „{learner}“ gewählt; hier ist „{target}“ nötig.",
         "fr": "Tu as choisi « {learner} » ; il faut « {target} » ici.",
     },
-    # #828: a typed answer is written, not chosen; with a named slip after it, the
-    # line says only what was given (the slip names the right form).
-    "atelier.recognize.wrote_requires": {
-        "en": "You wrote “{learner}”; this item needs “{target}”.",
-        "de": "Du hast „{learner}“ geschrieben; hier ist „{target}“ nötig.",
-        "fr": "Tu as écrit « {learner} » ; il faut « {target} » ici.",
-    },
+    # #828: with a named slip after it, the line says only what was given (the slip
+    # names the right form); typed or picked as main's ``_typed_fill`` reads it.
     "atelier.recognize.chose": {
         "en": "You chose “{learner}”.",
         "de": "Du hast „{learner}“ gewählt.",
@@ -150,15 +145,21 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Du hast „{learner}“ geschrieben.",
         "fr": "Tu as écrit « {learner} ».",
     },
-    "atelier.recognize.blank_needs_typed": {
-        "en": "You wrote “{learner}”, but this blank needs “{target}”.",
-        "de": "Du hast „{learner}“ geschrieben, aber in diese Lücke gehört „{target}“.",
-        "fr": "Tu as écrit « {learner} », mais ce blanc demande « {target} ».",
-    },
     "atelier.recognize.blank_needs": {
         "en": "You chose “{learner}”, but this blank needs “{target}”.",
         "de": "Du hast „{learner}“ gewählt, aber in diese Lücke gehört „{target}“.",
         "fr": "Tu as choisi « {learner} », mais ce blanc demande « {target} ».",
+    },
+    # Walk of 19 Nov: a typed fill (La Forge's «Tape la forme») was written, not chosen.
+    "atelier.recognize.wrote_requires": {
+        "en": "You wrote “{learner}”; this item needs “{target}”.",
+        "de": "Du hast „{learner}“ geschrieben; hier ist „{target}“ nötig.",
+        "fr": "Tu as écrit « {learner} » ; il faut « {target} » ici.",
+    },
+    "atelier.recognize.wrote_blank_needs": {
+        "en": "You wrote “{learner}”, but this blank needs “{target}”.",
+        "de": "Du hast „{learner}“ geschrieben, aber in diese Lücke gehört „{target}“.",
+        "fr": "Tu as écrit « {learner} », mais ce blanc demande « {target} ».",
     },
     "atelier.recognize.classified_as": {
         "en": "You classified “{prompt}” as “{learner}”, but the target label is “{target}”.",
@@ -199,10 +200,12 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     },
     # #380: a miss that changes a word every choice shares (the noun, the pronoun)
     # is not a slip in the day's rule, so it must not recite the rule.
+    # Walk of 19 Nov: the first clause stands alone, because while the solution waits
+    # the clause that names it is dropped (``solution_gate.scrub_hint``).
     "atelier.recognize.other_words": {
-        "en": "The rule is not what differs here: this line asks for “{target}”, not “{learner}”.",
-        "de": "Die Regel ist hier nicht der Unterschied: Die Zeile verlangt „{target}“, nicht „{learner}“.",
-        "fr": "Ce n’est pas la règle qui diffère ici : la ligne demande « {target} », pas « {learner} ».",
+        "en": "Another word of the line differs, not only the rule’s form: this line asks for “{target}”, not “{learner}”.",
+        "de": "Hier weicht ein anderes Wort der Zeile ab, nicht nur die Form der Regel: Die Zeile verlangt „{target}“, nicht „{learner}“.",
+        "fr": "Un autre mot de la ligne diffère, pas seulement la forme de la règle : la ligne demande « {target} », pas « {learner} ».",
     },
     "atelier.recognize.other_words_repair": {
         "en": "Read the English line again and type the words it asks for.",
@@ -599,6 +602,13 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "en": "Read the task again: what is it asking you to use?",
         "de": "Lies die Aufgabe noch einmal: Was sollst du verwenden?",
         "fr": "Relis la consigne : qu’est-ce qu’elle te demande d’utiliser ?",
+    },
+    # R2 (walk of 17 Nov): a free card's task note, said in plain words — what is missing
+    # is the card's rule; what the sentence says is the learner's to choose.
+    "forge.second_chance.task_rule_hint": {
+        "en": "Your sentence does not show this card's rule yet ({rule}). What it says is up to you.",
+        "de": "In deinem Satz fehlt noch die Regel dieser Karte ({rule}). Was er sagt, entscheidest du.",
+        "fr": "Ta phrase ne montre pas encore la règle de cette carte ({rule}). Ce qu’elle dit, c’est toi qui choisis.",
     },
     "forge.second_chance.choice_hint": {
         "en": "Not this one. Look at the rule again and choose once more.",

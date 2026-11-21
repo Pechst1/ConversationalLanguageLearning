@@ -680,6 +680,10 @@ class BankItemProvider:
         except Exception as exc:  # pragma: no cover - a read never blocks a séance
             logger.warning("La Forge could not read the learner's mistakes", error=str(exc))
             rows = []
+        # Round 3: «Ta phrase» never replays a half-finished edit as the learner's line.
+        from app.services.fault_quality import drillable_errors
+
+        rows = drillable_errors(self.db, rows)
         far = now + timedelta(days=3650)
 
         def urgency(row: Any) -> tuple[datetime, int]:
@@ -888,6 +892,17 @@ class BankItemProvider:
         check = accept or drills.item_fits
         order = units[len(appended) % len(units):] + units[: len(appended) % len(units)]
         made: list[tuple[dict[str, Any], Any]] = []
+        round_name, mode = drills.DRILL_POOL[drill] if drill else RUNG_POOLS[Rung(rung)][0]
+        # An item's id names its sentence said to nobody (``item_bank.without_vocative``),
+        # while ``blocked`` holds the bank's own fingerprints, the name included: «Ils ont
+        # faim ce soir, Lila.» passes a set that holds «…, Marin.» and is seated under the
+        # same id. Two items of one id break the set's shape (``base_count`` in
+        # ``_payload_validation_errors``), the séance's next read builds a new set without
+        # them, and the item on screen is graded against sentences the learner never saw:
+        # «You left this item blank», and its «Copy the correction» is never accepted
+        # (the 30 s «Build» stalls of the browser walks, 17-18 Nov). An id the set holds
+        # is taken.
+        taken = {str(item.get("id")) for item in _payload_items(payload, round_name, mode) if item.get("id")}
         for unit in order:
             if len(made) >= count:
                 break
@@ -913,14 +928,16 @@ class BankItemProvider:
                 )
                 if built is None or (drill is not None and not check(drill, built)):
                     continue
+                if str(built.get("id")) in taken:
+                    continue
                 if not self._fits_story(concept_id, built):
                     continue
                 blocked = blocked | {candidate.fingerprint}
+                taken.add(str(built.get("id")))
                 made.append((built, candidate))
         if not made:
             return []
 
-        round_name, mode = drills.DRILL_POOL[drill] if drill else RUNG_POOLS[Rung(rung)][0]
         indexes = self._seat_many(concept, round_name=round_name, mode=mode, rows=made, rung=int(rung))
         return [
             ForgeItem(
@@ -1323,6 +1340,30 @@ def seconds_per_item(db: Session, user: User) -> float:
     return float(measured or core.DEFAULT_SECONDS_PER_ITEM)
 
 
+def seance_max_items(user: User) -> int:
+    """P6: a learner on a stored pace gets at most :data:`core.PACE_MAX_SEANCE_ITEMS` items."""
+
+    from app.services.daily_session import stored_pace
+
+    return core.PACE_MAX_SEANCE_ITEMS if stored_pace(user) is not None else core.MAX_SEANCE_ITEMS
+
+
+def day_seance_max_items(db: Session, user: User, concept_id: int | None) -> int:
+    """R2: the day's séance on ``concept_id`` — a short review when the rule is learned.
+
+    A rule the learner holds (its épreuve passed) or has at rest comes back as the
+    day's rule only when nothing else qualifies or its review is due: then at most
+    :data:`forge_picker.SHORT_REVIEW_ITEMS` items. Home's quote reads the same number.
+    """
+
+    from app.services.forge_picker import SHORT_REVIEW_ITEMS, short_review_anchor
+
+    cap = seance_max_items(user)
+    if short_review_anchor(db, user, concept_id):
+        return min(cap, SHORT_REVIEW_ITEMS)
+    return cap
+
+
 def seance_budget_seconds(user: User) -> int:
     from app.services.journey_rhythm import rhythm_of
 
@@ -1390,7 +1431,15 @@ class ForgeService:
                 for u in units
             ]
         budget = plan.get("budget_seconds") if isinstance(plan.get("budget_seconds"), (int, float)) else None
-        length = core.seance_length(budget or seance_budget_seconds(user), seconds_per_item(self.db, user))
+        max_items = seance_max_items(user)
+        from app.services.forge_picker import DAY_ORIGINS
+
+        if not keep_concepts and plan.get("origin") in DAY_ORIGINS and units:
+            # R2: the day's grammar step on a learned rule is a short review.
+            max_items = day_seance_max_items(self.db, user, units[0].concept_id)
+        length = core.seance_length(
+            budget or seance_budget_seconds(user), seconds_per_item(self.db, user), max_items=max_items
+        )
         share = plan.get("review_share")
         state = ForgeState.seance(
             units,
@@ -2197,36 +2246,7 @@ def _pool_mode(attempt: AtelierAttempt) -> str:
 
 
 def _exercise_key(attempt: AtelierAttempt) -> str:
-    return exercise_key_for(attempt.concept_id, attempt.round, attempt.mode, attempt.exercise_id)
-
-
-def exercise_key_for(concept_id: Any, round_name: Any, mode: Any, exercise_id: Any) -> str:
-    return f"ex:{concept_id}:{round_name}:{mode}:{exercise_id}"
-
-
-def posed_drill(
-    session: AtelierSession, *, concept_id: Any, round_name: str, mode: str, exercise_id: str
-) -> str:
-    """How the forge posed the item an answer is for (``forge_drills.DRILL_*``), or ``""``.
-
-    #828 (child of #542): the miss note said «You chose» under a typed gap because the
-    grader picked its words by its own path (the recognize round's), not by how the
-    item was posed. The forge is the one that knows: the item it serves now
-    (``state.pending``), or, for «Try the line again» on an answered item, that
-    answer's history entry (#699). Read before the answer is observed.
-    """
-
-    state = forge_state_of(session)
-    if state is None or concept_id is None:
-        return ""
-    key = exercise_key_for(concept_id, round_name, mode, exercise_id)
-    answered = next((entry for entry in reversed(state.history) if entry.get("exercise_key") == key), None)
-    if answered is not None:
-        return str(answered.get("drill") or "")
-    pending = state.pending or {}
-    if str(pending.get("concept_id")) == str(concept_id) and str(pending.get("round")) == str(round_name):
-        return str(pending.get("drill") or "")
-    return ""
+    return f"ex:{attempt.concept_id}:{attempt.round}:{attempt.mode}:{attempt.exercise_id}"
 
 
 def _attempt_item_id(attempt: AtelierAttempt) -> str:

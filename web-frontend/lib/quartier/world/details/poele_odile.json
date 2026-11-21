@@ -1,0 +1,20 @@
+{
+  "id": "poele_odile",
+  "version": 1,
+  "kind": "detail",
+  "in": "odile_flat",
+  "title": { "fr": "La poêle brûlée d'Odile", "en": "Odile's burnt frying pan", "de": "Odiles angebrannte Pfanne" },
+  "moment": "a page of the learner's own story left «la poêle brûlée d'Odile» in Odile's flat: her old frying pan, blackened inside, left to soak in the sink under the window with a tea towel hung over the tap",
+  "mark": { "name_fr": "la poêle brûlée d'Odile", "location_id": "odile_flat" },
+  "things": [
+    { "kind": "soak", "at": [-27.52, 5.46, -15.55], "rot": -1.5708, "size": [0.46, 0.36] },
+    { "kind": "towel", "at": [-27.38, 5.78, -15.55], "rot": -1.5708, "size": [0.16, 0.3] }
+  ],
+  "provenance": {
+    "canon": "docs/story/season-1/10-lieux-et-images.md",
+    "scenes": [
+      "the story order «la poêle brûlée d'Odile» at odile_flat (1 life): «Odile's old frying pan, blackened inside, left to soak in the sink under the window with a tea towel hung over the tap.»",
+      "Odile's flat (10-lieux-et-images.md): «a room that waited, not a room that rotted»; the kitchen with its gas stove, the window on the canal"
+    ]
+  }
+}
