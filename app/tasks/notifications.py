@@ -43,6 +43,10 @@ DAILY_PUSH_CAP = 3
 #: Les appels: a call still ringing at this local time is pushed, once a day.
 APPEL_PUSH_EVENT = "appel_push_sent"
 APPEL_PUSH_MINUTE = 19 * 60 + 30
+#: «Le bilan»: one push a week, on the learner's local Monday at this time, about the
+#: week that just closed (only when that week had a played day).
+BILAN_PUSH_EVENT = "bilan_push_sent"
+BILAN_PUSH_MINUTE = 11 * 60
 #: Every scheduled push the cap counts (each one keyed on the local date).
 SCHEDULED_PUSH_EVENTS = (
     MORNING_EVENT,
@@ -51,6 +55,7 @@ SCHEDULED_PUSH_EVENTS = (
     "rehearsal_reminder_sent",
     COURRIER_PUSH_EVENT,
     APPEL_PUSH_EVENT,
+    BILAN_PUSH_EVENT,
 )
 FRENCH_MONTHS = (
     "janvier", "février", "mars", "avril", "mai", "juin",
@@ -633,6 +638,84 @@ def send_appel_pushes(now: str | None = None) -> dict[str, int]:
             except Exception:
                 db.rollback()
                 logger.exception("Failed to send a call push", user_id=str(user.id))
+        return {"eligible_users": eligible, "notifications_sent": delivered}
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# «Le bilan» — the week that just closed
+# ---------------------------------------------------------------------------
+
+
+def bilan_push_copy(days_played: int) -> tuple[str, str]:
+    """The app speaking («tu», no emoji), true on a thin week: no praise, no guilt."""
+
+    if days_played <= 1:
+        return "Le bilan", "Un jour joué la semaine dernière. Ton bilan t’attend."
+    return "Le bilan", f"{days_played} jours joués la semaine dernière. Ton bilan est prêt."
+
+
+def _send_bilan_push(db, user: User, today: date, now: datetime) -> int:
+    """One learner's weekly push for ``today`` (a local Monday), or nothing."""
+
+    from app.services import bilan
+    from app.services.notification_service import NotificationService
+
+    if today.weekday() != 0:
+        return 0
+    week = bilan.last_closed_week(user, now)
+    key = f"bilan:{today.isoformat()}"
+    if _already_sent(db, user, BILAN_PUSH_EVENT, key):
+        return 0
+    if pushes_sent_on(db, user, today) >= DAILY_PUSH_CAP:
+        return 0
+    played = bilan.days_played(db, user, week)
+    if played <= 0:
+        return 0
+    title, message = bilan_push_copy(played)
+    data = {
+        "route": f"/bilan?week={week.start.isoformat()}",
+        "kind": "bilan_weekly",
+        "notification_id": key,
+    }
+    count = NotificationService(db).send_notification(user.id, message, title, data=data)
+    if not count:
+        return 0
+    _record_sent(
+        db, user, BILAN_PUSH_EVENT, key,
+        {"title": title, "message": message, "week_start": week.start.isoformat(),
+         "days_played": played, "deliveries": count},
+    )
+    return count
+
+
+@celery_app.task(name="app.tasks.notifications.send_bilan_pushes")
+def send_bilan_pushes(now: str | None = None) -> dict[str, int]:
+    """«Le bilan»: on each learner's local Monday at :data:`BILAN_PUSH_MINUTE`, one push
+    about the week that closed. Nothing while ``BILAN_ENABLED`` is off; respects the
+    ``practice_reminders`` opt-out and :data:`DAILY_PUSH_CAP`."""
+
+    from app.services import bilan
+
+    if not bilan.bilan_enabled():
+        return {"eligible_users": 0, "notifications_sent": 0}
+    moment = _utc_now(now)
+    db = SessionLocal()
+    eligible = delivered = 0
+    try:
+        for user in _push_users(db):
+            if not getattr(user, "practice_reminders", True):
+                continue
+            local = _local_now(user, moment)
+            if local.weekday() != 0 or not _in_window(_minute_of(local), BILAN_PUSH_MINUTE):
+                continue
+            eligible += 1
+            try:
+                delivered += _send_bilan_push(db, user, local.date(), moment)
+            except Exception:
+                db.rollback()
+                logger.exception("Failed to send the weekly bilan push", user_id=str(user.id))
         return {"eligible_users": eligible, "notifications_sent": delivered}
     finally:
         db.close()

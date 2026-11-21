@@ -12,6 +12,7 @@ from app.api.v1.endpoints import (
     audio_session,
     auth,
     avatar,
+    bilan,
     can_dos,
     daily_journey,
     dossier,
@@ -107,6 +108,8 @@ api_router.include_router(revue_carte.router)
 api_router.include_router(revue_relecture.router)
 # WP-122 B: Le Correcteur (its own flag, REVUE_CORRECTEUR_ENABLED; 404 before auth while off).
 api_router.include_router(revue_correcteur.router)
+# «Le bilan» (BILAN_ENABLED; 404 before auth while off; a read, no paid guard).
+api_router.include_router(bilan.router)
 # WP-122 A: La Radio (404 unless REVUE_ENABLED and REVUE_RADIO_ENABLED; no paid guard: not a PAID_ROUTE).
 api_router.include_router(revue_radio.router)
 api_router.include_router(revue_admin.router)

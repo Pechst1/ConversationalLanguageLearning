@@ -47,6 +47,8 @@ import '@/styles/correcteur.css';
 import '@/styles/radio.css';
 // Les appels (pages/appel.tsx, components/appels), scoped under `.av2`.
 import '@/styles/appels.css';
+// «Le bilan» (pages/bilan.tsx, components/bilan), scoped under `.av2`.
+import '@/styles/bilan.css';
 
 /**
  * The silent crash reporter (WP-73), shared by the window listeners and the

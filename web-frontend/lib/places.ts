@@ -283,6 +283,21 @@ export const PLACES: Place[] = [
     entries: [file('web-frontend/lib/correcteur-une.ts')],
   },
   {
+    route: '/bilan',
+    name: same('Le bilan'),
+    kind: 'child',
+    parent: '/notebook',
+    section: 'notebook',
+    ownShell: true,
+    access: 'signed_in',
+    gate: server('BILAN_ENABLED'),
+    entries: [
+      file('web-frontend/components/bilan/BilanReleveSection.tsx', 'bilanHref'),
+      file('web-frontend/components/bilan/BilanHomeCard.tsx', 'bilanHref'),
+      file('app/tasks/notifications.py', '/bilan?week='),
+    ],
+  },
+  {
     route: '/appel',
     name: { en: 'The call', de: 'Der Anruf', fr: 'L’appel' },
     kind: 'step',

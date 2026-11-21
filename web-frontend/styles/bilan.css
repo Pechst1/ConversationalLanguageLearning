@@ -1,0 +1,129 @@
+/* ===========================================================================
+   «Le bilan» (components/bilan/*, pages/bilan.tsx).
+   Calm and typographic: one Garamond headline, hairlines between sections, the
+   learner's sentences in Garamond italic, Instrument Sans for the chrome. The days are
+   Bauhaus squares (ink when played, a hairline when not). Scoped under `.av2`;
+   `--av2-*` tokens only — no new font, no new colour; both themes come from the tokens.
+   =========================================================================== */
+
+/* --- the page ------------------------------------------------------------ */
+.av2.bl-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--av2-paper);
+  width: 100%;
+  max-width: var(--phone-shell-max, 460px);
+  margin: 0 auto;
+}
+.av2 .bl-top {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) var(--av2-gutter) 8px;
+  background: var(--av2-paper);
+}
+.av2 .bl-top__name { margin: 0; font-family: var(--av2-serif); font-style: italic; font-weight: 600; font-size: var(--av2-t-rule); color: var(--av2-ink); }
+.av2 .bl-body { flex: 1 1 auto; padding: 6px var(--av2-gutter) calc(env(safe-area-inset-bottom, 0px) + 24px); min-width: 0; }
+.av2 .bl-loading { display: flex; flex-direction: column; gap: 14px; padding-top: 12px; }
+
+/* --- the week -------------------------------------------------------------- */
+.av2 .bl { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.av2 .bl-head { display: flex; flex-direction: column; gap: 10px; }
+.av2 .bl-head__kicker { text-transform: none; letter-spacing: 0; }
+.av2 .bl-head__title { text-wrap: balance; }
+.av2 .bl-head__body { max-width: 34ch; }
+
+/* --- the days: the streak's saucers + seven squares ----------------------- */
+.av2 .bl-days {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--av2-line);
+  border-bottom: 1px solid var(--av2-line);
+}
+.av2 .bl-days__pile { display: inline-flex; align-items: flex-end; gap: 4px; min-width: 52px; color: var(--av2-muted); }
+.av2 .bl-days__pile .av2-saucers { display: block; flex: none; }
+.av2 .bl-days__n { font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-title); line-height: 1; color: var(--av2-ink); }
+.av2 .bl-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; flex: 1 1 auto; margin: 0; padding: 0; list-style: none; }
+.av2 .bl-week__day { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.av2 .bl-week__mark { width: 18px; height: 18px; border-radius: 3px; border: 1.5px solid var(--av2-line); background: transparent; }
+.av2 .bl-week__day[data-played] .bl-week__mark { border-color: var(--av2-ink); background: var(--av2-ink); }
+.av2 .bl-week__day[data-future] .bl-week__mark { border-style: dashed; }
+.av2 .bl-week__initial { font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
+.av2 .bl-week__day[data-played] .bl-week__initial { color: var(--av2-ink); }
+
+/* --- sections -------------------------------------------------------------- */
+.av2 .bl-sec { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.av2 .bl-sec + .bl-sec { padding-top: 18px; border-top: 1px solid var(--av2-line); }
+.av2 .bl-sec__title { margin: 0; font-family: var(--av2-serif); font-style: italic; font-weight: 500; font-size: var(--av2-t-title); line-height: 1.1; color: var(--av2-ink); }
+.av2 .bl-sec__note { color: var(--av2-muted); }
+.av2 .bl-sec__line { color: var(--av2-ink-2); }
+
+/* the sentences: each one on its own, playable */
+.av2 .bl-lines { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.av2 .bl-line { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding-left: 14px; border-left: 3px solid var(--av2-red); }
+.av2 .bl-line__fr { margin: 0; font-size: var(--av2-t-option); color: var(--av2-ink); }
+.av2 .bl-listen {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--av2-card);
+  color: var(--av2-ink-2);
+  font: inherit;
+  font-size: var(--av2-t-label);
+  font-weight: 600;
+  cursor: pointer;
+}
+.av2 .bl-listen:focus-visible { outline: 2px solid var(--av2-focus); outline-offset: 2px; }
+.av2 .bl-listen[aria-pressed='true'] { background: var(--av2-ink); color: var(--av2-on-ink); }
+.av2 .bl-listen__play { width: 0; height: 0; border-left: 7px solid currentColor; border-top: 4.5px solid transparent; border-bottom: 4.5px solid transparent; }
+.av2 .bl-listen__play[data-speaking] { border: 0; width: 7px; height: 7px; border-radius: 1px; background: currentColor; }
+
+/* words: the French and its gloss, on one line each */
+.av2 .bl-words { display: flex; flex-direction: column; gap: 0; margin: 0; padding: 0; list-style: none; }
+.av2 .bl-word { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--av2-line); }
+.av2 .bl-word:last-child { border-bottom: 0; }
+.av2 .bl-word__fr { font-size: var(--av2-t-rule); color: var(--av2-ink); }
+.av2 .bl-word__gloss { font-size: var(--av2-t-label); color: var(--av2-muted); text-align: right; overflow-wrap: anywhere; }
+
+/* rules: the name, and the move in the Cahier's words */
+.av2 .bl-rules { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.av2 .bl-rule { display: flex; flex-direction: column; gap: 2px; }
+.av2 .bl-rule__title { font-size: var(--av2-t-body); font-weight: 600; color: var(--av2-ink); }
+.av2 .bl-rule__move { font-size: var(--av2-t-label); color: var(--av2-muted); }
+
+/* the story */
+.av2 .bl-story__group { display: flex; flex-direction: column; gap: 4px; }
+.av2 .bl-story__list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.av2 .bl-story__item { margin: 0; font-size: var(--av2-t-rule); color: var(--av2-ink); }
+.av2 .bl-story__next { padding: 12px 14px; border-radius: var(--av2-r-card); background: var(--av2-card); }
+
+/* the foot: one press, quiet week links */
+.av2 .bl-foot { display: flex; flex-direction: column; gap: 14px; padding-top: 8px; }
+.av2 .bl-nav { display: flex; justify-content: space-between; gap: 12px; }
+.av2 .bl-nav__link { display: inline-flex; align-items: center; gap: 6px; min-height: var(--av2-tap); color: var(--av2-ink-2); font-size: var(--av2-t-label); font-weight: 600; text-decoration: none; }
+.av2 .bl-nav__link:focus-visible { outline: 2px solid var(--av2-focus); outline-offset: 2px; border-radius: 6px; }
+
+/* --- Home's card and the Relevé's rows ------------------------------------ */
+.av2 .bl-card { display: flex; flex-direction: column; gap: 6px; }
+.av2 .bl-card__title { color: var(--av2-ink); }
+.av2 .bl-card__meta { color: var(--av2-muted); }
+.av2 .bl-card__actions { display: flex; align-items: center; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
+.av2 .bl-card__open { flex: 1 1 180px; background: var(--av2-paper); }
+.av2 .bl-card__dismiss { min-height: var(--av2-tap); padding: 0 6px; border: 0; background: transparent; color: var(--av2-muted); font: inherit; font-size: var(--av2-t-label); font-weight: 600; cursor: pointer; }
+.av2 .bl-card__dismiss:focus-visible { outline: 2px solid var(--av2-focus); outline-offset: 2px; border-radius: 6px; }
+.av2 .bl-releve { display: flex; flex-direction: column; gap: 6px; padding: 8px; }
+.av2 .bl-releve__row { background: transparent; }
+.av2 .bl-releve__meta { display: block; color: var(--av2-muted); }
+.av2 .bl-story__episode { display: flex; flex-direction: column; gap: 2px; }
+.av2 .bl-story__choices { font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-body); color: var(--av2-ink-2); }

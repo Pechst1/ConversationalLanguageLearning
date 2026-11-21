@@ -107,6 +107,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.notifications.send_appel_pushes",
         "schedule": crontab(minute="*/15"),
     },
+    # «Le bilan»: Monday 11:00 in the learner's own zone (no-op while BILAN_ENABLED is off).
+    "send-bilan-pushes": {
+        "task": "app.tasks.notifications.send_bilan_pushes",
+        "schedule": crontab(minute="*/15"),
+    },
     "sync-anki-cards-daily": {
         "task": "app.tasks.anki_sync.sync_anki_cards_for_all_users",
         "schedule": crontab(hour=4, minute=0),  # 4 AM daily

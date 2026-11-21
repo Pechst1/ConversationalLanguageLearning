@@ -52,6 +52,7 @@ import {
 } from '@/components/atelier-v2/ui';
 import { CanDoGallerySections } from '@/components/atelier-v2/__fixtures__/CanDoGallery';
 import { ArchiveGallerySections } from '@/components/feuilleton/archive/__fixtures__/ArchiveGallery';
+import { BilanGalleryScreen, isBilanGalleryState } from '@/components/bilan/BilanGallery';
 import { SeasonReturnGallerySections } from '@/components/atelier-v2/__fixtures__/SeasonReturnGallery';
 import { TestFeedbackGallerySections } from '@/components/atelier-v2/__fixtures__/TestFeedbackGallery';
 import { RuleCardGallerySections } from '@/components/atelier-v2/__fixtures__/RuleCardGallery';
@@ -289,6 +290,20 @@ export default function AtelierV2Gallery() {
   // WP-90: one story-reader state, full-screen, for the frames below.
   const router = useRouter();
   const readerState = router.query.reader;
+  // «Le bilan»: one week, full-screen (?bilan=full|thin|empty|card&lang=…&theme=…).
+  const bilanState = router.query.bilan;
+  if (isBilanGalleryState(bilanState)) {
+    const bilanLang = normalizeControlLanguage(router.query.lang ?? 'en');
+    return (
+      <>
+        <Head>
+          <title>{`Le bilan · ${bilanState} (dev)`}</title>
+          <meta name="robots" content="noindex" />
+        </Head>
+        <BilanGalleryScreen state={bilanState} language={bilanLang} theme={router.query.theme === 'dark' ? 'dark' : 'light'} />
+      </>
+    );
+  }
   if (isReaderGalleryState(readerState)) {
     return (
       <>
