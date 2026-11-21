@@ -45,10 +45,14 @@ export const KNOWN_FAILURES = [
     id: 'no-english-on-french-b1',
     issue: 196,
     why: 'a La Forge item under French chrome quotes its sentence in English («Complète la phrase : « Last night… »»)',
-    // Only the quoted sentence of a «… la phrase : « … »» item, and only when that quote is English.
+    // Only the quoted sentence of a NATIVE-MEANING goal (item_bank._GOALS_FR_NATIVE_MEANING:
+    // «… la phrase : « … »», «La phrase veut dire : « … »», «Quelle phrase veut dire « … » ?»),
+    // and only when that quote is English.
+    // Two marker words are enough: «… arrived at the flea market, I had already booked…» has only
+    // «at» and «the» among them, and a French sentence has neither.
     when: (detail) => {
-      const quote = detail.match(/la phrase\s*:\s*«\s*([^»]+)»/);
-      return Boolean(quote) && englishWords(quote[1]).length >= 3;
+      const quote = detail.match(/(?:la phrase|phrase veut dire)\s*:?\s*«\s*([^»]+)»/);
+      return Boolean(quote) && englishWords(quote[1]).length >= 2;
     },
   },
 ];

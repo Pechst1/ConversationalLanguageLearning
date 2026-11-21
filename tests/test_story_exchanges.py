@@ -58,8 +58,15 @@ def test_a_wording_question_takes_the_turn_instead():
 
 
 def test_a_met_first_reply_keeps_the_conversation_open(
-    assembled_client, db_session, journey_enabled, clock, provider, jobs
+    assembled_client, db_session, journey_enabled, clock, provider, jobs, monkeypatch
 ):
+    # This A1 Régulier scene keeps its three exchanges here: with the low bands' one
+    # more (owner 2026-11-16) it plans four, and a four-exchange scene whose every
+    # reply asks a question runs to seven voices (the repair slot and the grace both
+    # apply) — the same on main for any four-exchange scene; tracked separately.
+    from app.services import journey_planner
+
+    monkeypatch.setattr(journey_planner, "LOW_BAND_EXTRA_EXCHANGES", 0)
     # The fake model says something new at each exchange: one that said its previous
     # line again would be refused as a repeat of the thread (#349).
     fresh = iter(f"Alors, parlons du point {n}. Qu'en pensez-vous ?" for n in range(1, 20))

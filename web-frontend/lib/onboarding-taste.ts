@@ -45,6 +45,11 @@ export type TasteTilesItem = {
   tiles: TasteOption[];
   /** Tile ids, in order. */
   answer: string[];
+  /**
+   * P9: other tile orders that are just as right (the coffee order takes «merci»
+   * as well as «s’il vous plaît»). Each has the answer's length.
+   */
+  alternatives?: string[][];
   reply: TasteLine;
 };
 
@@ -125,6 +130,8 @@ export const TASTE_ITEMS: TasteItem[] = [
       { id: 'bonsoir', fr: 'Bonsoir' },
     ],
     answer: ['cafe', 'svp'],
+    // P9 (walk of 17 Nov): «Un café, merci» is a polite order too.
+    alternatives: [['cafe', 'merci']],
     reply: {
       ...TASTE_SPEAKER,
       fr: 'Parfait ! Un café, tout de suite !',
@@ -148,12 +155,16 @@ export function gradeChoice(item: TasteChoiceItem, optionId: string | null): Tas
 /**
  * Tiles are graded the moment the learner has placed as many tiles as the
  * answer holds — no «check» tap. Fewer is still pending; the right tiles in
- * the wrong order are wrong.
+ * the wrong order are wrong. The answer and each of its `alternatives` count.
  */
 export function gradeTiles(item: TasteTilesItem, placed: readonly string[]): TasteVerdict {
   if (placed.length < item.answer.length) return 'pending';
-  if (placed.length !== item.answer.length) return 'wrong';
-  return item.answer.every((id, index) => placed[index] === id) ? 'correct' : 'wrong';
+  const accepted = [item.answer, ...(item.alternatives ?? [])];
+  return accepted.some(
+    (answer) => answer.length === placed.length && answer.every((id, index) => placed[index] === id),
+  )
+    ? 'correct'
+    : 'wrong';
 }
 
 /** The portrait follows the verdict (WP-D2: the map lives in `lib/cast-faces`). */

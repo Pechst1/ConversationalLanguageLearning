@@ -378,3 +378,30 @@ def test_a_slower_learner_gets_a_shorter_plan_not_a_timer() -> None:
         for key in ("deadline", "time_limit", "timeout", "seconds_left"):
             assert key not in wire
     assert planner.graded_interactions(slow) <= planner.graded_interactions(prior)
+
+
+@pytest.mark.parametrize("band", ["A1", "A2"])
+def test_story_first_keeps_the_day_s_rule_with_the_exchange_more_or_gives_the_exchange_back(band, a_rule) -> None:
+    """Owner 2026-11-16 («story first»): the low bands' exchange more never costs the
+    day its rule; practice gives way, and the exchange goes back only when even that
+    cannot keep the rule."""
+
+    from app.services.journey_contracts import LOW_BAND_EXTRA_EXCHANGES
+
+    plain = planner._plan_journey_once(
+        scenario=engine_brief(level_band=band), candidates=_queue(), budget_seconds=600, practice=True,
+        dice=DICE, day_shape=DayShape.STANDARD, introduction=a_rule, story_extra=False,
+    )
+    plan = _day(band, 600, introduction=a_rule)
+    plan.validate()
+    assert plan.budget_seconds == 600
+    assert plan.longer_day or plan.estimated_active_seconds <= 600
+    kinds = [step.kind for step in plan.steps]
+    assert (StepKind.RULE in kinds) == (StepKind.RULE in [step.kind for step in plain.steps])
+    turns = next(s for s in plan.steps if s.kind is StepKind.RESPOND).public_prompt["max_turns"]
+    plain_turns = next(s for s in plain.steps if s.kind is StepKind.RESPOND).public_prompt["max_turns"]
+    assert turns in (plain_turns, plain_turns + LOW_BAND_EXTRA_EXCHANGES), plan.rationale
+    if plain.longer_day:
+        # A day already longer than its rhythm never takes the exchange more.
+        assert turns == plain_turns, plan.rationale
+

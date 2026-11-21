@@ -1,7 +1,7 @@
 {
  "version": 1,
  "season_id": "s1",
- "source": "2e8496684153",
+ "source": "328a3d3a48cb",
  "note": "Derived by scripts/build_season_lexicon.py from the tentpoles and level files; never edited by hand.",
  "days": {
   "e1.a@garder": {
@@ -19378,6 +19378,7 @@
    "suite",
    "suivre",
    "sujet",
+   "supporter",
    "supposer",
    "surprise",
    "surtout",

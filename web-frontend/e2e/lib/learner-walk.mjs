@@ -7,7 +7,7 @@ import { FORGE_FOLLOW, FORGE_REPAIR, FORGE_SHEET, FORGE_SPOT, LEXIQUE_DECK, snap
 import { missLayoutChecks, readingIsSteady } from './miss-layout.mjs';
 import { reversed, trackKey, trackVerdicts } from './verdict-timeline.mjs';
 import { HAND_ON } from './day-plan.mjs';
-import { bannersOn, englishWords, serverBanner } from './assertions.mjs';
+import { bannersOn, englishOnFrenchScreen, serverBanner } from './assertions.mjs';
 
 /**
  * A word a character says, in either reader: the list's caption cards, or the
@@ -139,6 +139,12 @@ export class LearnerWalk {
       if (st >= 500 && r.url().includes('/api/')) {
         this.findings.check('no-server-error', false, `${st} ${r.request().method()} ${new URL(r.url()).pathname}`, this.where());
       }
+      if (st >= 400 && st < 500 && r.url().includes('/api/') && r.request().method() !== 'GET') {
+        // #770/#771: a stalled item showed only «The correction could not be sent.»; what the
+        // server answered stayed in the CI artifact. The stuck findings now name it.
+        const said = `${st} ${r.request().method()} ${new URL(r.url()).pathname}`;
+        r.text().then((body) => { this.noteRefusal(said, body); }, () => { this.noteRefusal(said, ''); });
+      }
     });
     return page;
   }
@@ -155,12 +161,13 @@ export class LearnerWalk {
       // follows the learner's native language (lib/settings-copy.ts). Every other
       // screen keeps the check.
       if (kind !== 'settings') {
-        const eng = englishWords(s.nonFrText);
-        // The text around the first English word, not the page's opening chrome: the
-        // detail has to name the string to fix.
-        const at = eng.length >= 3 ? s.nonFrText.toLowerCase().search(new RegExp(`\\b(${eng.join('|')})\\b`)) : 0;
-        const around = s.nonFrText.slice(Math.max(0, at - 60), Math.max(0, at - 60) + 240);
-        this.findings.check('no-english-on-french-b1', eng.length < 3, `English chrome on a French screen: ${eng.slice(0, 8).join(', ')} — «${around}»`, w);
+        // Owner, 18–19 Nov 2026: from B1 the chrome is French, but explanations (a rule, a
+        // hint, why an answer was wrong, a correction's tag, a word's gloss) are in the
+        // learner's mother tongue, marked `lang` on the element that holds only them. Text
+        // marked as this walker's own language (`this.lang`) is set aside; unmarked English,
+        // or English marked for another learner, still fails (assertions.englishOnFrenchScreen).
+        const { ok, words, around } = englishOnFrenchScreen(s, this.lang);
+        this.findings.check('no-english-on-french-b1', ok, `English chrome on a French screen: ${words.slice(0, 8).join(', ')} — «${around}»`, w);
       }
       const englishLabels = /present condition|future result|imperative result|background\/habit|bounded event|article changes/i;
       this.findings.check('b1-classification-labels-are-french', !englishLabels.test(s.text), 'Classification labels and corrections must be French, including inside lang="fr".', w);
@@ -171,7 +178,7 @@ export class LearnerWalk {
     const w = this.where({ kind });
     // Drill goal line (WP-103 T3): a learner must be told what to produce.
     if (['tiles', 'choice', 'match', 'dictation', 'field', 'read'].includes(kind) && !s.thread) {
-      const goalText = [...s.goal, ...s.bodyLg, ...s.headline].join(' ').trim();
+      const goalText = [...s.goal, ...s.bodyLg, ...s.headline, ...(s.scene || [])].join(' ').trim();
       this.findings.check('drill-shows-a-goal', goalText.length >= 8, `no goal/instruction on a ${kind} drill: «${s.text.slice(0, 100)}»`, w);
       if (kind === 'tiles') this.findings.check('tiles-drill-goal-line', s.goal.length > 0, `word bank without a [data-goal] line: «${s.text.slice(0, 100)}»`, w);
     }
@@ -414,6 +421,15 @@ export class LearnerWalk {
       return true;
     }
     if (await page.locator(FORGE_SHEET.primary).count()) return false;
+    // Owner 2026-11-13: a miss with its second chance open holds its solution back; the walk
+    // takes «Show the solution», and the sheet then offers «Continue» — or, for a whole
+    // line, «Copy the correction» first (#779), which the walk's copy step then fills.
+    const reveal = page.locator(FORGE_SHEET.reveal).first();
+    if (await reveal.count()) {
+      await reveal.click({ timeout: 3000 }).catch(() => {});
+      await page.locator(`${FORGE_SHEET.primary}, ${FORGE_REPAIR.open}`).first().waitFor({ timeout: 10000 }).catch(() => {});
+      return true;
+    }
     const skip = page.locator(FORGE_SHEET.links).filter({ hasText: FORGE_SHEET.skip }).first();
     if (!(await skip.count())) return false;
     await skip.click({ timeout: 3000 }).catch(() => {});
@@ -670,14 +686,14 @@ export class LearnerWalk {
       // waiting on the server (a cold scene is budgeted at ~20 s, WP-76; several
       // learners generating at once on one walk server take longer): 45 s then.
       if (!acted && sameFor > (s.pending ? 180 : 40) && !entry) {
-        this.findings.check('a-way-forward', false, `stuck for ${(sameFor * 0.25).toFixed(0)}s on «${s.text.slice(0, 140)}»`, this.where({ kind }));
+        this.findings.check('a-way-forward', false, `stuck for ${(sameFor * 0.25).toFixed(0)}s on «${s.text.slice(0, 140)}»${this.refusalNote()}`, this.where({ kind }));
         await this.shoot('stuck');
         break;
       }
       if (entry && sameFor > 40) break; // the loop ended by itself (no recap to reach)
       // The 30 s cap must not undercut the server wait above.
       if (sameFor > (s.pending ? 180 : 120)) {
-        this.findings.check('a-way-forward', false, `no change for ${(sameFor * 0.25).toFixed(0)}s on «${s.text.slice(0, 140)}»`, this.where({ kind }));
+        this.findings.check('a-way-forward', false, `no change for ${(sameFor * 0.25).toFixed(0)}s on «${s.text.slice(0, 140)}»${this.refusalNote()}`, this.where({ kind }));
         await this.shoot('stuck');
         break;
       }
@@ -687,9 +703,25 @@ export class LearnerWalk {
   }
 
   /** A new day: the plan it is held to, the steps played, and how it ended. */
+  /** A write the server refused this day (4xx), counted: the stuck findings say it. */
+  noteRefusal(said, body) {
+    this.refusals = this.refusals || new Map();
+    const seen = this.refusals.get(said) || { count: 0, body: '' };
+    this.refusals.set(said, { count: seen.count + 1, body: String(body || '').replace(/\s+/g, ' ').slice(0, 140) });
+  }
+
+  /** « · refused: 409 POST /api/v1/… ×3 («…»)» for the most repeated refusal of the day, or ''. */
+  refusalNote() {
+    const rows = [...(this.refusals || new Map()).entries()].sort((a, b) => b[1].count - a[1].count);
+    if (!rows.length) return '';
+    const [said, { count, body }] = rows[0];
+    return ` · refused: ${said} ×${count}${body ? ` («${body}»)` : ''}`;
+  }
+
   beginDay(day) {
     this.day = day;
     this.seq = 0;
+    this.refusals = new Map();
     this.planAtStart = null;
     this.lastSession = null;
     this.played = new Set();
@@ -723,6 +755,11 @@ export class LearnerWalk {
       await handOn().first().click({ timeout: 3000 }).catch(() => {});
       await sleep(800);
       return 'next';
+    }
+    // Fertig prints nothing until the day is read (`data-fertig="pending"`, #727): read
+    // whether the day is done once it has answered, not off the empty first paint.
+    if ((s.url || '').startsWith('/fertig')) {
+      await page.locator('[data-fertig]:not([data-fertig="pending"])').first().waitFor({ timeout: 15000 }).catch(() => {});
     }
     if ((s.url || '').startsWith('/fertig') && (await page.locator('[data-fertig="done"]').count())) {
       this.played.add('finish');

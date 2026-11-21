@@ -155,8 +155,9 @@ def test_declared_level_never_lowers_a_measured_estimate(db_session):
     assert payload["estimate_source"] == "measured"
 
 
-def test_measurement_overrides_the_declaration_once_evidence_exists(db_session):
-    """After enough real attempts the app is entitled to disagree, downwards."""
+def test_measurement_below_the_declaration_is_recorded_not_applied(db_session):
+    """P2 (pilot 2026-11-17): after enough real attempts the app may disagree,
+    but only in the payload: a declared level is never lowered automatically."""
     from app.db.models.atelier import AtelierAttempt, AtelierSession
 
     user = _user(db_session, email="cefr-evidence@example.com", proficiency_level="B1")
@@ -182,9 +183,11 @@ def test_measurement_overrides_the_declaration_once_evidence_exists(db_session):
 
     payload = CEFRProgressService(db_session).recompute(user, source="test")
 
-    assert payload["estimate_source"] == "measured"
-    assert payload["estimate"] == "A1.1"
-    assert payload["breakdown"]["status"] == "measured"
+    assert payload["estimate_source"] == "declared"
+    assert payload["estimate"] == "B1.1"
+    assert payload["measured_below_floor"]["level"] == "A1.1"
+    assert payload["measured_below_floor"]["attempts"] == DECLARED_LEVEL_EVIDENCE_ATTEMPTS + 2
+    assert payload["breakdown"]["status"] == "unverified"
 
 
 def test_unknown_declaration_is_ignored(db_session):

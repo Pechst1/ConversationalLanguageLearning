@@ -245,8 +245,9 @@ test('release verification refuses local, placeholder, http and sandbox builds',
   const root = mkdtempSync(path.join(os.tmpdir(), 'wp72-bundle-'));
   fakeExport(root);
   pruneNativeExport(root);
-  // with Le Quartier off, `next build` still leaves an empty quartier/ (notFound writes no page)
+  // P12: Le Quartier is launched, so the release export carries its page
   mkdirSync(path.join(root, 'quartier'));
+  writeFileSync(path.join(root, 'quartier', 'index.html'), 'x');
   const production = {
     NEXT_PUBLIC_API_BASE_URL: 'https://atelier.onrender.com/api/v1',
     NEXT_PUBLIC_WS_URL: 'wss://atelier.onrender.com',
@@ -266,8 +267,16 @@ test('release verification refuses local, placeholder, http and sandbox builds',
   writeFileSync(path.join(phone, 'quartier', 'index.html'), 'x');
   writeNativeBuildManifest(phone, production);
   assert.deepEqual(verifyNativeBundle(phone), []);
-  const launched = JSON.parse(read('launch-flags.json')).quartierVisible === true;
-  assert.equal(/QUARTIER_VISIBLE/.test(verifyNativeBundle(phone, { release: true }).join('\n')), !launched);
+  // P12 (owner, 17 Nov): the door is open in launch-flags.json, so a release ships Le Quartier
+  assert.equal(JSON.parse(read('launch-flags.json')).quartierVisible, true, 'Le Quartier is launched');
+  assert.deepEqual(verifyNativeBundle(phone, { release: true }), []);
+  // and a release export without its page is refused (notFound would have left an empty quartier/)
+  const without = mkdtempSync(path.join(os.tmpdir(), 'wp72-no-quartier-'));
+  fakeExport(without);
+  pruneNativeExport(without);
+  mkdirSync(path.join(without, 'quartier'));
+  writeNativeBuildManifest(without, production);
+  assert.match(verifyNativeBundle(without, { release: true }).join('\n'), /no \/quartier page/);
 
   writeNativeBuildManifest(root, { ...production, NEXT_PUBLIC_APNS_ENVIRONMENT: 'sandbox' });
   assert.match(verifyNativeBundle(root, { release: true }).join('\n'), /not "production"/);

@@ -1,8 +1,8 @@
 # prompt snapshot · story-a1-margaux-off-script · lane story · level A1
-# key: sha256:b584a7269a94fd4f26b67d88107c8cfd07d7c850138c6f1223dbd64d140b4adb
+# key: sha256:d661468c5ec7a911e111c0a9be7861fb97a1f8e04d64a510a29db9440ba12403
 # accept a change: PROMPT_SNAPSHOT_UPDATE=1 python -m pytest tests/test_prompt_regression.py (or scripts/prompt_regression.py --update)
 
-======== call 1 · StoryTurn #1 · 0478233a2528e880 ========
+======== call 1 · StoryTurn #1 · 6f3fbcae031f3b5d ========
 params: {"disable_retries": true, "max_provider_attempts": 1, "max_tokens": 1600, "prompt_cache_key": "atelier-StoryTurn", "reasoning_effort": "low", "response_format": {"type": "json_object"}, "temperature": 0.2}
 output_schema: StoryTurn sha256:f060bf4d380f13ad
 -------- system --------
@@ -50,7 +50,12 @@ story.season_turn.gate is set, is what the learner expressed toward Lila (romanc
 friendship or none) — read from meaning, never accuracy.
 story.season_turn.must_not lists what the season keeps for later: never name it, hint at most.
 The ending credits the learner only with what their own words say or accepted; a plan or a
-proposal a character made stays the character's. It never says the learner agreed or
+proposal a character made stays the character's. resolution_fr, summary_native and
+callback_fr never say the learner will leave, stay, sell, keep, sign or change their date
+(«tu pars», «tu vas vendre», «tu restes») unless the learner's own words in this scene say
+it without «peut-être» or «je ne sais pas»; a fact of the season stays a fact («ton billet
+de retour est pour mercredi»), never the learner's intention, and what they left open stays
+open («tu n'as pas encore décidé pour ton billet»). It never says the learner agreed or
 changed their mind when their words did not: when the season moves something the learner
 wanted kept (a ticket they meant to use), the character gives the world's reason for it,
 and the learner's reason stays the one they gave.

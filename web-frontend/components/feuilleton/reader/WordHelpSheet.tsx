@@ -170,7 +170,8 @@ export function WordHelpSheet({
     setKeep({ kind: 'saving' });
     try {
       const kept = await apiService.keepWord({
-        term: request.term,
+        // R2 (6): a form the catalogue missed is kept as its dictionary form.
+        term: (gloss.kind === 'gloss' && gloss.term) || request.term,
         sentence: request.sentence,
         surface: request.surface,
         journey_id: request.journeyId ?? null,
@@ -183,7 +184,7 @@ export function WordHelpSheet({
       const refusal = keepRefusal(error, language);
       setKeep({ kind: 'refused', message: refusal.message, retryable: refusal.retryable });
     }
-  }, [language, request]);
+  }, [gloss, language, request]);
 
   if (!request) return null;
   // Known at once (no «Recherche…» frame before it); «Garder» keeps it like a catalogue meaning.
@@ -231,7 +232,7 @@ export function WordHelpSheet({
             {shown.kind === 'sentence' && t.help_sentence_only}
             {shown.kind === 'none' && t.no_translation}
           </p>
-          {shown.kind === 'context' && shown.lemma && (
+          {(shown.kind === 'context' || shown.kind === 'gloss') && shown.lemma && (
             <p className="fr-gloss-lemma">
               {t.help_lemma} <span lang="fr">{shown.lemma}</span>
             </p>

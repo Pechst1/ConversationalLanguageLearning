@@ -24,6 +24,8 @@ export type ForgeFollowUp = {
   sourceFr: string;
   /** «Correct the sentence.» — in the learner's language, when the server said it. */
   goalNative: string | null;
+  /** R5: the stretches of a French goal in the learner's own language (`goal_native_marks`). */
+  goalMarks?: Array<{ text: string; lang: string }>;
   /** The right sentence: revealed by «Passer» and by a wrong try. */
   correctedFr: string | null;
   /** Tiles (a shuffled bank, spares included) — a field otherwise. */
@@ -87,12 +89,21 @@ export function classifyRepair(
       kind: 'correct_it',
       sourceFr,
       goalNative: text(spec.goal_native) || null,
+      ...(goalMarksOf(spec.goal_native_marks) ? { goalMarks: goalMarksOf(spec.goal_native_marks) } : {}),
       correctedFr,
       options: options.length >= 2 ? options : null,
       accepted,
     },
     correctedFr,
   };
+}
+
+function goalMarksOf(value: unknown): Array<{ text: string; lang: string }> | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const marks = value
+    .map((mark) => ({ text: text(mark?.text) || '', lang: text(mark?.lang) || '' }))
+    .filter((mark) => mark.text && mark.lang);
+  return marks.length ? marks : undefined;
 }
 
 /** Case, quotes, the space after an elision and the final stop do not matter; accents do. */

@@ -43,6 +43,11 @@ test('#718: a reload that serves the batch plus refills is known; one that drops
 test('#196: an English sentence quoted by a French drill is known; English chrome is not', () => {
   const id = 'no-english-on-french-b1';
   assert.equal(knownFailure(id, 'English chrome on a French screen: at, the, you — «ègleComplète la phrase : « Last night, when Margaux arrived at the flea market, you had already closed Le Mistral. »Vérifier»', {})?.issue, 196);
+  assert.equal(knownFailure(id, 'English chrome on a French screen: at, the, as — «a formeComplète la phrase : « Last night, when Lila arrived at the flea market, I had already booked a table at Le Mistral. »Ce qui ne va pasTu as choisi « Je voudrais un café. »»', {})?.issue, 196);
+  // The pick card's goal quotes the same meaning (walk on PR 880, en-B1.1 day 3).
+  assert.equal(knownFailure(id, 'English chrome on a French screen: you, that, your — «u jour5/10TerminerNiveau 2La règleQuelle phrase veut dire « You saw that you had forgotten your bag. » ?Vérifier»', {})?.issue, 196);
+  assert.equal(knownFailure(id, 'English chrome on a French screen: you, that, your — «La phrase veut dire : « You saw that you had forgotten your bag. »»', {})?.issue, 196);
+  assert.equal(knownFailure(id, 'English chrome: — «Quelle phrase veut dire « Tu as vu que tu avais oublié ton sac. » ?»', {}), null);
   assert.equal(knownFailure(id, 'English chrome on a French screen: to, the, answer — «Tap to turnShow the answer»', {}), null);
   assert.equal(knownFailure(id, 'English chrome: — «Complète la phrase : « Hier, Margaux est arrivée au marché. »»', {}), null);
 });
