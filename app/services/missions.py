@@ -4622,8 +4622,16 @@ class MissionCorrectionService:
             concept_id = concept.id if concept else None
         if not concept_id and external_id and str(external_id).startswith("FR_ORTHO_"):
             concept_id = None
-        elif not concept_id and (mission.selected_concept_ids or []):
-            concept_id = int((mission.selected_concept_ids or [0])[0] or 0) or None
+        elif not concept_id:
+            # #697/#973: the letter's rule is lent, not imposed. «cafe → café» is no
+            # rule's slip, «sa amie → son amie» the possessives': the change decides.
+            lent = int((mission.selected_concept_ids or [0])[0] or 0) or None
+            concept_id = ErrorMemoryService(self.db).concept_for_slip(
+                erratum.get("learner_text"),
+                erratum.get("corrected_target"),
+                lent_concept_id=lent,
+                context=submission_text,
+            )
         return self._normalized(erratum, concept_id)
 
     @staticmethod
