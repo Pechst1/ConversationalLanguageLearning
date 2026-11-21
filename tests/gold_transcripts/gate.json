@@ -1,15 +1,15 @@
 {
  "surfaces": {
   "scene": {
-   "fingerprint": "00a50431ed29ff98",
+   "fingerprint": "ace898152fdd2654",
    "calls": 112,
    "verdict": "held",
-   "base": 88.6,
-   "head": 91.1,
-   "diff": 2.5,
+   "base": 89.7,
+   "head": 90.3,
+   "diff": 0.6,
    "paired": 28,
-   "date": "2026-11-19",
-   "base_ref": "d1486e6ca",
+   "date": "2026-11-21",
+   "base_ref": "ca1eb2f0d",
    "criteria": "adfd25c6eb00",
    "judge": "claude-sonnet-5-5"
   },
