@@ -260,6 +260,14 @@ def _open_day(db: Session, user: Any, *, when: datetime, now: datetime) -> _Day:
     )
 
 
+def _flush(db: Session, rows: list[Any]) -> None:
+    """Flush ``rows`` now, unless a flush is already running (the verdict ledger voids a
+    payment from ``before_flush``; what it changes there goes out with that flush)."""
+
+    if not getattr(db, "_flushing", False):
+        db.flush(rows)
+
+
 def _bump_balance(db: Session, *, user_id: Any, earned: int, now: datetime) -> None:
     """The livret follows every settled change (a cache; :func:`recompute_balance` rebuilds it)."""
 
@@ -272,7 +280,7 @@ def _bump_balance(db: Session, *, user_id: Any, earned: int, now: datetime) -> N
     row.balance = int(row.balance or 0) + int(earned)
     row.earned_total = int(row.earned_total or 0) + int(earned)
     row.updated_at = now
-    db.flush([row])
+    _flush(db, [row])
 
 
 def recompute_balance(db: Session, *, user_id: Any, now: datetime | None = None) -> GoldBalance:
@@ -294,7 +302,7 @@ def recompute_balance(db: Session, *, user_id: Any, now: datetime | None = None)
     row.earned_total = earned
     row.spent_total = spent
     row.updated_at = now
-    db.flush([row])
+    _flush(db, [row])
     return row
 
 
@@ -395,7 +403,7 @@ def _void(db: Session, entry: GoldLedgerEntry, *, reason: str, now: datetime) ->
     entry.voided_at = now
     entry.void_reason = reason
     db.add(entry)
-    db.flush([entry])
+    _flush(db, [entry])
 
 
 def _target_json(kind: Any, target_id: Any) -> dict[str, str]:
@@ -1284,6 +1292,7 @@ def pay_verdict(
     category: core.Category = core.Category.FREE,
     outcome: str = core.OUTCOME_MET,
     evidence: dict[str, Any] | None = None,
+    source_kind: str = SOURCE_VERDICT,
     now: datetime | None = None,
 ) -> GoldLedgerEntry | None:
     """Package V: the gold a verdict record is due, minted once under ``source_key``.
@@ -1302,7 +1311,7 @@ def pay_verdict(
         user_id=user.id,
         day=day,
         observation=core.GoldObservation(category=category, outcome=outcome, assistance="none"),
-        source_kind=SOURCE_VERDICT,
+        source_kind=source_kind,
         source_key=source_key,
         target=None,
         evidence={"category": str(category), "outcome": outcome, **(evidence or {})},
@@ -1353,6 +1362,39 @@ def record_letter(db: Session, *, user: Any, mission: Any, attempts: Sequence[An
             first, read=lambda _row: verdicts.from_courrier(stored, verdict=verdict)
         ):
             return  # R6 / #333: a stored «partial» that only the rules ever looked at
+        key = f"gold:letter:{mission.id}"
+        evidence = {
+            "category": str(core.Category.LETTER),
+            "outcome": outcome,
+            "verdict": verdict,
+            "assistance": "none",
+            "mission_id": str(mission.id),
+            "attempt_id": str(first.id),
+            "attempts": len(written),
+            "mode": str(getattr(first, "mode", "") or ""),
+        }
+        # Package V stage 3: a letter whose first attempt has a ledger record is paid through
+        # that record's chain, so a later record that stops counting takes it back
+        # (``void_verdict_payment``) and settling again pays nothing twice.
+        # A row from before the stack that keeps what it counted for is paid as main paid it.
+        record = verdict_ledger.live_record(db, "courrier_attempt", first.id) if verdict_ledger.recording(db) else None
+        if record is not None and record.counts:
+            verdict_ledger.pay(
+                db,
+                record,
+                lambda source_key: pay_verdict(
+                    db,
+                    user=user,
+                    source_key=source_key,
+                    category=core.Category.LETTER,
+                    outcome=outcome,
+                    evidence=evidence,
+                    source_kind=SOURCE_LETTER,
+                    now=now,
+                ),
+                key=key,
+            )
+            return
         day = _open_day(db, user, when=now, now=now)
         _mint_and_write(
             db,
@@ -1360,18 +1402,9 @@ def record_letter(db: Session, *, user: Any, mission: Any, attempts: Sequence[An
             day=day,
             observation=core.GoldObservation(category=core.Category.LETTER, outcome=outcome, assistance="none"),
             source_kind=SOURCE_LETTER,
-            source_key=f"gold:letter:{mission.id}",
+            source_key=key,
             target=None,
-            evidence={
-                "category": str(core.Category.LETTER),
-                "outcome": outcome,
-                "verdict": verdict,
-                "assistance": "none",
-                "mission_id": str(mission.id),
-                "attempt_id": str(first.id),
-                "attempts": len(written),
-                "mode": str(getattr(first, "mode", "") or ""),
-            },
+            evidence=evidence,
             now=now,
         )
 

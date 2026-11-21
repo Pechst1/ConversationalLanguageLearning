@@ -13,10 +13,9 @@ import {
   cardTexts,
   shownFrench,
 } from '@/lib/card-word';
-import { useChromeLanguage } from '@/lib/learner-language';
+import { useChromeLanguage, useLearnerLanguage } from '@/lib/learner-language';
 import { handOnAfterWords } from '@/lib/day-plan';
 import { daySessionCopy } from '@/lib/day-session';
-import { extraWordsOffer } from '@/lib/more-words';
 
 import { GoldPill } from '@/components/gold/GoldPill';
 import MotsDuJour from '@/components/lexique/MotsDuJour';
@@ -72,7 +71,6 @@ import {
 } from '@/components/atelier-v2/ui';
 import apiService, {
   DailyWordSlate,
-  NewWordsPace,
   VocabularyBiography,
   VocabularyDueContext,
   VocabularyRecommendationItem,
@@ -93,6 +91,16 @@ import { deviceStore, localDateToday, markRouteStage, onFirstDay, routeDone, typ
 import { markWordsDoneToday } from '@/lib/continue-learning';
 import { cardExample, cardFaces, type MarkedExample } from '@/lib/card-example';
 import { playAskedVoice, speakAskedVoice } from '@/lib/audio-session';
+import {
+  deckConnection,
+  enqueueGrade,
+  flushGradeQueue,
+  gradeLostToNetwork,
+  readGradeQueue,
+} from '@/lib/grade-queue';
+import { atelierCopy, type AtelierCopy } from '@/lib/atelier-v2-copy';
+import { journeyCopy } from '@/components/atelier-v2/journey/journey-copy';
+import { ConnectionNotice } from '@/components/atelier-v2/journey/JourneySession';
 
 /* "Le Lexique" — the review session, on the Claude design system (Atelier V2).
  *
@@ -203,10 +211,10 @@ const encoreQueueParams = {
 /**
  * Round 3 (owner, 2026-10-14): the words are the day's second step. `?day=1`
  * is the day's deck — all of today's new words at the learner's pace (Normal
- * 20, Schnell 40) and the reviews due, in bounded decks one after the other
+ * 15, Schnell 40) and the reviews due, in bounded decks one after the other
  * until the dose is met, then «Weiter: Grammatik». `?more=5` is «Noch 5 neue
- * Wörter» after the day: new words past the pace, the learner's own choice.
- * Owner, 2 Nov: the tap raises today's cap on the server first
+ * Wörter»: new words past the pace, the learner's own choice, offered in
+ * Settings only (P7). The tap there raises today's cap on the server first
  * (`POST /vocabulary/new-words/more`); the deck only deals what the cap holds.
  */
 const DAY_DECK_NEW_WORDS = 50;
@@ -228,31 +236,6 @@ function dayMoreParams(n: number) {
 function extraWordsParams(n: number) {
   const words = Math.max(1, Math.min(20, Math.floor(n)));
   return { ...moreWordsParams(SESSION_NEW_WORDS), limit: words + 30, new_limit: words };
-}
-
-// Owner request, 2 Nov: «Noch 5 neue Wörter» at the end of the day's deck (and of
-// each continuation), with one line on how much sooner that pace reaches the goal.
-function ExtraWordsOffer({
-  pace,
-  language,
-  pending,
-  onSelect,
-}: {
-  pace: NewWordsPace | null;
-  language: ReturnType<typeof useChromeLanguage>;
-  pending: boolean;
-  onSelect: () => void;
-}) {
-  const offer = extraWordsOffer(pace, language);
-  if (!offer) return null;
-  return (
-    <div className="lx-done__quiet" data-extra-words="">
-      <p className="av2-body" data-goal-line="">{offer.line}</p>
-      <Action tone="quiet" inline pending={pending} pendingLabel={offer.label} onClick={onSelect}>
-        {offer.label}
-      </Action>
-    </div>
-  );
 }
 
 function daySessionMode(): { kind: 'day' } | { kind: 'more'; words: number } | null {
@@ -508,6 +491,8 @@ export default function VocabularyReviewPage() {
   // words and their examples stay French.
   const language = useChromeLanguage();
   const t = lexiqueCopy(language);
+  // R4: a word's gloss explains, in the learner's own language at every level (marked `lang`).
+  const glossLang = useLearnerLanguage();
   // What this sitting has filed. WP-115b «successive relearning»: a card answered
   // wrong comes back at the end of the session, until it is right once.
   const [deck, setDeck] = useState<DeckProgress>(EMPTY_PROGRESS);
@@ -580,6 +565,48 @@ export default function VocabularyReviewPage() {
     }
   }, []);
 
+  // P11: grades the network lost, held on the device and sent on reconnect or next open.
+  const [queuedGrades, setQueuedGrades] = useState(0);
+  const [online, setOnline] = useState(true);
+  const [sendingGrades, setSendingGrades] = useState(false);
+  const sendingGradesRef = useRef(false);
+  const sendQueuedGrades = useCallback(async () => {
+    if (sendingGradesRef.current) return;
+    if (!readGradeQueue().length) {
+      setQueuedGrades(0);
+      return;
+    }
+    sendingGradesRef.current = true;
+    setSendingGrades(true);
+    try {
+      const result = await flushGradeQueue((grade) =>
+        apiService.submitAnkiReview({ word_id: grade.word_id, rating: grade.rating, format: grade.format }),
+      );
+      setQueuedGrades(result.left);
+    } finally {
+      sendingGradesRef.current = false;
+      setSendingGrades(false);
+    }
+  }, []);
+  useEffect(() => {
+    const read = () => setOnline(typeof navigator === 'undefined' || navigator.onLine !== false);
+    const reconnected = () => {
+      read();
+      void sendQueuedGrades();
+    };
+    read();
+    window.addEventListener('online', reconnected);
+    window.addEventListener('offline', read);
+    return () => {
+      window.removeEventListener('online', reconnected);
+      window.removeEventListener('offline', read);
+    };
+  }, [sendQueuedGrades]);
+  const connectionCopy = useMemo<AtelierCopy>(
+    () => ({ ...atelierCopy(language), ...journeyCopy(language) }),
+    [language],
+  );
+
   useEffect(() => {
     const cached = readReviewContextCache<VocabularyDueContext, DailyWordSlate>();
     if (cached) {
@@ -591,8 +618,9 @@ export default function VocabularyReviewPage() {
     }
     const stored = Number(window.localStorage.getItem(REVIEW_WORD_KEY) || 0);
     if (stored) setResumeWordId(stored);
-    void loadQueue(undefined, 'revalidate');
-  }, [loadQueue]);
+    // P11: the grades held from last time go first, so the fresh deck counts them.
+    void sendQueuedGrades().finally(() => loadQueue(undefined, 'revalidate'));
+  }, [loadQueue, sendQueuedGrades]);
 
   // "Les mots du jour" ride to the front of the deck: the day's slate words
   // are the retrieval half of the read → retrieve → produce loop.
@@ -675,40 +703,8 @@ export default function VocabularyReviewPage() {
       .catch(() => setDayFallback(true));
   }, [deckEmpty, daySession, dayLeft, dayMarked, language, loadQueue]);
 
-  // Owner request, 2 Nov: «Noch 5 neue Wörter» once the day's deck is through (and
-  // after each continuation): the server raises today's cap, then the deck deals
-  // the five. The offer carries the server's line on how much sooner that pace
-  // covers the goal's words.
-  const [newWordsPace, setNewWordsPace] = useState<NewWordsPace | null>(null);
-  const [addingWords, setAddingWords] = useState(false);
-  const offersExtra = deckEmpty && (daySession?.kind === 'day' ? Boolean(dayNext) : daySession?.kind === 'more');
-  useEffect(() => {
-    if (!offersExtra) return;
-    let live = true;
-    apiService
-      .getNewWordsPace()
-      .then((body) => live && setNewWordsPace(body))
-      .catch(() => live && setNewWordsPace(null));
-    return () => {
-      live = false;
-    };
-  }, [offersExtra]);
-  const addExtraWords = useCallback(async () => {
-    setAddingWords(true);
-    try {
-      // The deck deals the step the button promised; the answer's `step`
-      // is the next tap's (0 once the pool is empty).
-      const promised = newWordsPace?.step || 0;
-      const body = await apiService.addExtraNewWords();
-      setNewWordsPace(body);
-      await loadQueue(promised || body.step);
-    } catch (error) {
-      console.error(error);
-      toast.error(t.deck_unavailable);
-    } finally {
-      setAddingWords(false);
-    }
-  }, [loadQueue, newWordsPace, t]);
+  // P7 (pilot, 17 Nov): the deck's end offers no «Encore 5 nouveaux mots» and no
+  // «N mots par jour … plus tôt»; Settings, where the pace is chosen, holds the offer.
 
   const moreWords = useMemo(() => {
     const left = Number(context?.new_words_left_today || 0);
@@ -827,6 +823,12 @@ export default function VocabularyReviewPage() {
         emitCameo({ type: 'answer', correct: !wrong });
       })
       .catch((error) => {
+        // P11: a grade the network lost is kept on the device and stays filed (the
+        // counter moves on); it is sent on reconnect or on the next open.
+        if (gradeLostToNetwork(error)) {
+          setQueuedGrades(enqueueGrade({ word_id: item.word_id, rating, format: 'flashcard' }).length);
+          return;
+        }
         console.error(error);
         toast.error(t.review_failed);
         setDeck((prev) => reviewNotSaved(prev, item.word_id));
@@ -1087,6 +1089,10 @@ export default function VocabularyReviewPage() {
           </header>
 
           <div className="av2-screen__body lx-review__body">
+            <ConnectionNotice
+              connection={deckConnection({ online, queued: queuedGrades, syncing: sendingGrades })}
+              copy={connectionCopy}
+            />
             {cachedContextAt && (
               <Notice tone="quiet" shape="story">
                 <p>{t.cached_notice}</p>
@@ -1114,6 +1120,13 @@ export default function VocabularyReviewPage() {
               />
             )}
 
+            {!loading && !loadError && !current && daySession?.kind === 'day' && !dayNext && !dayFallback && (
+              // The day's deck is through and the page is asking for what comes next (the next
+              // dose, or the day's next step). Until the answer it says so: an empty page with
+              // only the count, «33/33», offered nothing to tap (main's walk, run 43073091897).
+              <StateBlock tone="loading" title={dayLeft > 0 ? t.opening_deck : daySessionCopy(language).words_done} />
+            )}
+
             {!loading && !loadError && !current && dayNext && (
               // Round 3: the day's words are done; the day goes on.
               <Surface as="section" shape="hero" className="lx-done" data-day-next="">
@@ -1124,12 +1137,6 @@ export default function VocabularyReviewPage() {
                     {dayNext.label}
                     {dayNext.meta ? <span className="av2-btn__meta">· {dayNext.meta}</span> : null}
                   </Action>
-                  <ExtraWordsOffer
-                    pace={newWordsPace}
-                    language={language}
-                    pending={addingWords}
-                    onSelect={() => void addExtraWords()}
-                  />
                 </div>
               </Surface>
             )}
@@ -1143,15 +1150,6 @@ export default function VocabularyReviewPage() {
                 onReturn={returnToAtelier}
                 returning={returning}
                 more={moreWords}
-              />
-            )}
-
-            {!loading && !loadError && !current && daySession?.kind === 'more' && (
-              <ExtraWordsOffer
-                pace={newWordsPace}
-                language={language}
-                pending={addingWords}
-                onSelect={() => void addExtraWords()}
               />
             )}
 
@@ -1195,10 +1193,15 @@ export default function VocabularyReviewPage() {
                     onPointerUp={onCardPointerEnd}
                     onPointerCancel={onCardPointerEnd}
                   >
+                    {/* Issue 851: the card is a control (a tap turns it back), so its text is
+                        its own: the stamps (and the hint line below) draw «Encore» /
+                        «Je sais» from an attribute through CSS. As text they made the
+                        card the first thing named «I know it», and a tap that found the
+                        grade by its words turned the card back instead of filing it. */}
                     {revealed && (
                       <>
-                        <span className="lx-stamp lx-stamp--again" aria-hidden="true">{t.deck_again}</span>
-                        <span className="lx-stamp lx-stamp--know" aria-hidden="true">{t.deck_know}</span>
+                        <span className="lx-stamp lx-stamp--again" data-stamp={t.deck_again} aria-hidden="true" />
+                        <span className="lx-stamp lx-stamp--know" data-stamp={t.deck_know} aria-hidden="true" />
                       </>
                     )}
 
@@ -1210,7 +1213,7 @@ export default function VocabularyReviewPage() {
                         {/* the one Garamond-italic headline on this screen */}
                         <p
                           className="av2-headline lx-card__word review-prompt-term"
-                          lang={promptIsFrench ? 'fr' : undefined}
+                          lang={promptIsFrench ? 'fr' : prompt && prompt === meaning ? glossLang : undefined}
                         >
                           {prompt}
                         </p>
@@ -1234,10 +1237,10 @@ export default function VocabularyReviewPage() {
                             </IconAction>
                           </span>
                         </div>
-                        <p className="lx-card__asked" lang={promptIsFrench ? 'fr' : undefined}>{prompt}</p>
+                        <p className="lx-card__asked" lang={promptIsFrench ? 'fr' : prompt && prompt === meaning ? glossLang : undefined}>{prompt}</p>
                         <p
                           className="av2-headline lx-card__word review-answer-word"
-                          lang={promptIsFrench ? undefined : 'fr'}
+                          lang={promptIsFrench ? ((answer || meaning) === meaning && meaning ? glossLang : undefined) : 'fr'}
                         >
                           {answer || meaning || shownFrench(current)}
                         </p>
@@ -1258,7 +1261,7 @@ export default function VocabularyReviewPage() {
                       {revealed && !faces.backExample && currentSlateEntry?.anchor && (
                         <p className="av2-fr lx-card__example lx-card__anchor review-context-anchor">{currentSlateEntry.anchor}</p>
                       )}
-                      <p className="lx-card__cta" aria-hidden="true">{revealed ? t.swipe_hint : t.flip_front}</p>
+                      <p className="lx-card__cta" data-cta={revealed ? t.swipe_hint : t.flip_front} aria-hidden="true" />
                     </div>
                   </div>
                 </div>
@@ -1427,6 +1430,8 @@ export default function VocabularyReviewPage() {
           pointer-events: none;
           opacity: 0;
         }
+        /* The stamp's word is drawn, not written: the card's text stays its own (issue 851). */
+        .av2 .lx-stamp::after { content: attr(data-stamp); }
         .av2 .lx-stamp--know {
           left: 20px;
           color: var(--av2-green-deep);
@@ -1517,6 +1522,8 @@ export default function VocabularyReviewPage() {
           font-weight: 600;
           opacity: 0.55;
         }
+        /* «← Again · swipe · I know it →» is drawn too: the card names no grade (issue 851). */
+        .av2 .lx-card__cta::after { content: attr(data-cta); }
         .av2 .lx-cast { gap: 6px; min-width: 0; }
         .av2 .lx-cast .av2-label { color: inherit; opacity: 0.85; }
         .av2 .lx-cast__portrait--drawn { display: inline-block; overflow: hidden; background: var(--av2-card); }

@@ -211,7 +211,8 @@ def _live(**commitment):
 
 def test_a_promise_is_quoted_in_the_learners_own_words():
     live = _live(text_fr="Je serai chez moi après quatorze heures.", source_quote="Je rentre après deux heures.")
-    candidates = engine.teaser_candidates(live, {})
+    # #445: quoted when this scene's reply needed no correction (``clean``).
+    candidates = engine.teaser_candidates(live, {}, clean=["Je rentre après deux heures."])
     promise = next(row for row in candidates if row["kind"] == "commitment")
     assert promise["text_fr"] == "Je rentre après deux heures."
     text = engine.compose_teaser(promise, character_id="lila_bonnet", register="tu")

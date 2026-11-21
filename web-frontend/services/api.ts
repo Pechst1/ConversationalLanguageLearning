@@ -22,6 +22,7 @@ import { recoverNativeAccessToken } from '@/lib/native-auth';
 import { isNativePlatform } from '@/lib/native-platform';
 import type {
   AdvanceBody,
+  AppealView,
   AttemptBody,
   AttemptResult,
   CapabilityProgress,
@@ -314,8 +315,8 @@ export interface JournalCorrection {
   assessment_truncated: boolean;
   verdict?: string | null;
   corrected_answer: string;
-  /** Set only when nothing was checked: 'timeout' | 'model_error' | 'no_check_target'.
-   *  'no_check_target' cannot be retried. */
+  /** Set only when nothing was checked: 'timeout' | 'model_error' | 'no_check_target' | 'no_model'.
+   *  'no_check_target' and 'no_model' cannot be retried (#754). */
   failure_reason?: string | null;
   /** 'model' | 'deterministic'. A deterministic check is the model-free pass of the shared corrector
    *  (#250): it marks real mistakes but cannot say a text is right, so a clean result says it was
@@ -370,6 +371,10 @@ export interface JournalFollowup {
   /** How much of the scene the answer named; set once answered (#337). */
   facts_total?: number | null;
   facts_matched?: number | null;
+  /** The rules' fixes for the answer (#775); null before it is answered. */
+  corrections?: Array<{ learner_text?: string | null; corrected_target?: string | null; why_wrong?: string | null }> | null;
+  /** 'rules': only the basic check ran on the answer. */
+  checked_by?: string | null;
 }
 
 export interface JournalEnvelope {
@@ -1984,7 +1989,9 @@ export type FeedbackCategory =
   | 'layout'
   | 'slow_loading'
   | 'suggestion'
-  | 'other';
+  | 'other'
+  // Beta: the one tap under a verdict («Something here looks wrong»).
+  | 'looks_wrong';
 
 export interface FeedbackReportPayload {
   category: FeedbackCategory;
@@ -2019,6 +2026,13 @@ type SilentRequestConfig = AxiosRequestConfig & {
   _retryAuth?: boolean;
   _retry429?: boolean;
 };
+
+/**
+ * The longest `rate_limited` wait the client sits out before sending again: the API's
+ * per-learner window (RATE_LIMIT_PAID_WINDOW_SECONDS, 60 s). A fixed window refuses a
+ * burst until it ends, so the wait can be most of a minute (main's walk: 38 s).
+ */
+const RATE_LIMIT_REPLAY_MAX_SECONDS = 60;
 
 function isUnauthorized(error: any): boolean {
   return error?.response?.status === 401;
@@ -2153,11 +2167,17 @@ class ApiService {
         }
 
         // WP-70: a 429 is never an auth problem — no refresh, no sign-out.
+        // #847: a `rate_limited` refusal is raised before the route runs, so nothing of the
+        // request happened (app/core/rate_limit.py) and it is sent again as it was, once,
+        // after the server's Retry-After, whatever its method. Only a GET was: a refused
+        // answer (a journey step, a La Forge check) reached the screen as «could not be
+        // sent», and a «Before the scene» choice was left with no way forward. The screen
+        // keeps its pending state meanwhile. Other 429 codes (the day's spend cap, «Check
+        // again» per day) wait until tomorrow and are said, not waited for.
         if (error.response?.status === 429) {
           const code = detail?.code;
           const waitSeconds = retryAfterSeconds(error);
-          const method = String(requestConfig?.method || 'get').toLowerCase();
-          if (code === 'rate_limited' && method === 'get' && requestConfig && !requestConfig._retry429 && waitSeconds <= 10) {
+          if (code === 'rate_limited' && requestConfig && !requestConfig._retry429 && waitSeconds <= RATE_LIMIT_REPLAY_MAX_SECONDS) {
             requestConfig._retry429 = true;
             await new Promise((resolve) => setTimeout(resolve, waitSeconds * 1000));
             return this.api.request(requestConfig);
@@ -2839,6 +2859,11 @@ class ApiService {
     return this.atelierPost<AtelierAttemptResult>(`/atelier/attempts/${attemptId}/repair`, data);
   }
 
+  /** Owner 2026-11-13: «Show the solution» spends the second chance; the correction comes whole. */
+  async revealAtelierAttempt(attemptId: string) {
+    return this.atelierPost<AtelierAttemptResult>(`/atelier/attempts/${attemptId}/reveal`, {});
+  }
+
   async requestAtelierAttemptAiReview(attemptId: string) {
     return this.atelierPost<AtelierAttemptResult>(`/atelier/attempts/${attemptId}/ai-review`, {});
   }
@@ -3404,6 +3429,15 @@ class ApiService {
     const result = await this.journeyPost<AttemptResult>(
       `/daily-journeys/${encodeURIComponent(journeyId)}/steps/${encodeURIComponent(stepId)}/attempts`,
       body,
+    );
+    return result.data;
+  }
+
+  /** Package V stage 5: «I think this is right». The stronger model re-judges the drill. */
+  async appealDailyJourneyVerdict(journeyId: string, stepId: string): Promise<AppealView> {
+    const result = await this.journeyPost<AppealView>(
+      `/daily-journeys/${encodeURIComponent(journeyId)}/steps/${encodeURIComponent(stepId)}/appeal`,
+      {},
     );
     return result.data;
   }

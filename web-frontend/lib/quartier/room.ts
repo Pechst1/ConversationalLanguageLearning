@@ -19,7 +19,7 @@ import { Matrix4, Vector3 } from 'three';
 
 import { KERB, WALLS, bench, building, chair, frameOf, planeTree, quayLamp } from './kit';
 import type { Build, Frame, Shop } from './kit';
-import { LACE, PATTERN, Press, nextId } from './geo';
+import { LACE, PATTERN, Press, nextId, seeded } from './geo';
 import type { Paint, PatternId } from './geo';
 import type { Words } from './memory';
 import { AMBIANCES, INKS, TONES, css, mix, rgb } from './palette';
@@ -33,7 +33,7 @@ type XYZ = [number, number, number];
 /** The room itself, what is seen but not entered yet, and what is outside. */
 export type Zone = 'room' | 'sealed' | 'out';
 
-export type FloorFinish = 'cabochons' | 'boards' | 'tomettes' | 'cobbles' | 'stone' | 'zinc';
+export type FloorFinish = 'cabochons' | 'boards' | 'parquet' | 'tomettes' | 'cobbles' | 'stone' | 'zinc';
 export type WallFinish = 'wainscot' | 'plaster' | 'stone';
 
 export interface RoomFloor {
@@ -44,6 +44,8 @@ export interface RoomFloor {
   zone?: Zone;
   /** seen, not walked */
   walk?: boolean;
+  /** false: the quarter already lays this ground (a street of the quai): walked, not drawn again */
+  drawn?: boolean;
 }
 
 export interface RoomFlight {
@@ -115,8 +117,9 @@ export interface RoomWindow {
 
 export interface RoomLight {
   key: string;
-  /** a globe on its cord (Le Mistral's), a glass bowl on a wall bracket, a round lamp flat on the wall */
-  kind: 'globe' | 'sconce' | 'hublot';
+  /** a globe on its cord (Le Mistral's), a glass bowl on a wall bracket, a round lamp flat on the wall,
+   * a desk lamp (`at` its shade's mouth, `facing` the way it leans, its foot behind) */
+  kind: 'globe' | 'sconce' | 'hublot' | 'desk';
   /** where it hangs; its pool is laid on the floor under it */
   at: XYZ;
   /** lamps on one circuit go on and off together (the minuterie) */
@@ -180,7 +183,36 @@ export type ThingKind =
   | 'plan'
   | 'fridge'
   | 'crate'
-  | 'canvas';
+  | 'canvas'
+  | 'intercom'
+  | 'gaze'
+  | 'keyboard'
+  | 'cabinet'
+  | 'desk'
+  | 'campbed'
+  | 'frame'
+  | 'banner'
+  | 'mantel'
+  | 'candelabra'
+  | 'lowtable'
+  | 'letter'
+  | 'rug'
+  | 'poster'
+  | 'map'
+  | 'projection'
+  | 'projector'
+  | 'plant'
+  | 'fern'
+  | 'leek'
+  | 'mug'
+  | 'roll'
+  | 'drape'
+  | 'sink'
+  | 'soak'
+  | 'towel'
+  | 'tuque'
+  | 'recommande'
+  | 'carte';
 
 export interface RoomThing {
   kind: ThingKind;
@@ -289,7 +321,29 @@ export interface RoomSpec {
   quarter?: boolean;
   /** where the stage stands you and the cast */
   marks: Record<string, XYZ>;
+  /**
+   * The ways through the room the walking grid cannot hold: the climb past a storey (the grid is
+   * one sheet, so no landing lies over another), a door into the flat. You stand at one end and
+   * tap to be at the other; `door` swings that leaf as you go, and `until: 'story'` keeps it shut
+   * until the learner's story has played here (`playedHere` in `world.ts`).
+   */
+  passages?: RoomPassage[];
   provenance: { canon: string; place: string; scenes: string[]; brief_round?: number };
+}
+
+export interface RoomPassage {
+  key: string;
+  a: XZ;
+  b: XZ;
+  look_a?: XYZ;
+  look_b?: XYZ;
+  /** what the button says at `a` (going to `b`), and at `b` */
+  to_b: Words;
+  to_a: Words;
+  door?: string;
+  until?: 'story';
+  /** said when it is shut */
+  shut?: Words;
 }
 
 export interface RoomBuilt {
@@ -430,6 +484,14 @@ export const ROOM_TONES: Record<string, Hex> = {
   dust: mix(mix(INKS.paper, INKS.cobalt, 0.1), INKS.card, 0.25),
   /** a made bed's counterpane, white cotton gone cream */
   counterpane: mix(INKS.card, INKS.ochre, 0.1),
+  /** a showman's walls, painted bottle green to look old money */
+  bottle: mix(mix(INKS.green, INKS.ink, 0.3), INKS.paper, 0.08),
+  /** a club armchair's velvet, a deep red */
+  velvet: mix(mix(TONES.oxblood, INKS.vermilion, 0.35), INKS.ink, 0.08),
+  /** green marble, polished */
+  marble: mix(mix(INKS.green, INKS.ink, 0.42), INKS.paper, 0.12),
+  /** a card folder's cover, school blue */
+  dossier: mix(INKS.cobalt, INKS.paper, 0.18),
 };
 
 const toneOf = (name: string | undefined, fallback: Hex): Hex => (name && ROOM_TONES[name] !== undefined ? ROOM_TONES[name] : fallback);
@@ -447,6 +509,8 @@ const FLOORS: Record<FloorFinish, { color: Hex; pattern: PatternId }> = {
   /** a hall's pale stone with its small black squares */
   cabochons: { color: mix(INKS.card, INKS.ochre, 0.1), pattern: PATTERN.tiles },
   boards: { color: mix(TONES.wood, INKS.ochre, 0.3), pattern: PATTERN.planks },
+  /** an old office's parquet, waxed dark and gone cold */
+  parquet: { color: mix(mix(TONES.wood, INKS.ink, 0.38), INKS.cobalt, 0.08), pattern: PATTERN.planks },
   /** a kitchen's red tiles */
   tomettes: { color: mix(mix(INKS.vermilion, INKS.ochre, 0.5), INKS.paper, 0.3), pattern: PATTERN.tiles },
   cobbles: { color: mix(TONES.stoneGround, INKS.cobalt, 0.08), pattern: PATTERN.cobbles },
@@ -923,6 +987,22 @@ function lampOf(B: Build, L: RoomLight, floor: number): { lit: Press; dark: Pres
   }
   const [fx, fz] = L.facing ?? [0, 1];
   const rot = Math.atan2(fx, fz);
+  if (L.kind === 'desk') {
+    // a desk lamp: its round foot on the desk behind, the arm up and over, a green shade tipped
+    // down at the papers, the bulb's glow in its mouth
+    const shade = zoned(mix(INKS.green, INKS.ink, 0.3), 'room', { wet: 0.5 });
+    B.dry.at(at.x, at.y, at.z, rot, () => {
+      B.dry.cylinder(0, -0.42, -0.24, 0.085, 0.095, 0.025, 14, brass, { flat: true, caps: true });
+      B.dry.bar(new Vector3(0, -0.4, -0.24), new Vector3(0, 0.06, -0.18), 0.012, brass);
+      B.dry.bar(new Vector3(0, 0.06, -0.18), new Vector3(0, 0.07, -0.03), 0.012, brass);
+      B.dry.lathe(0, -0.02, 0, [[0.12, 0], [0.1, 0.05], [0.05, 0.11], [0.015, 0.13], [0, 0.13]], 14, shade);
+    });
+    for (const [P, g] of [[lit, glassLit], [dark, glassDark]] as Array<[Press, Paint]>) {
+      P.at(at.x, at.y, at.z, rot, () => P.ball(0, 0.0, 0, 0.045, 0.03, 0.045, g, 1, { smooth: true }));
+    }
+    B.lamps.push({ pos: new Vector3(at.x, at.y - floor, at.z), color: rgb(mix(INKS.sunflower, INKS.card, 0.15)), power: L.power, range: L.range, glint: false, indoor: true });
+    return { lit, dark };
+  }
   if (L.kind === 'sconce') {
     // a brass arm off the wall, a tulip of glass on it
     B.dry.at(at.x, at.y, at.z, rot, () => {
@@ -1331,13 +1411,20 @@ function thing(B: Build, t: RoomThing, i: number) {
       return;
     }
     case 'folder': {
-      // a closed dossier, buff card with its strap, and on its cover the label: what it is about
-      const buff = zoned(mix(INKS.ochre, INKS.paper, 0.55), z);
+      // a closed dossier, buff card (or `tone`) with its strap, and on its cover the label: what
+      // it is about (no `text`, no label: a folder nobody has named)
+      const buff = zoned(toneOf(t.tone, mix(INKS.ochre, INKS.paper, 0.55)), z);
       const strap = zoned(mix(INKS.ink, INKS.cobalt, 0.2), z);
       D.at(x, y, zz, rot, () => {
         D.box(0, 0.007, 0, 0.33, 0.014, 0.245, buff, { ny: false });
         D.box(0.1, 0.0145, 0, 0.012, 0.002, 0.25, strap);
+        if (t.tone) {
+          // a school folder: its papers' edge showing at the open side, an elastic round two corners
+          D.box(0.002, 0.007, 0.1235, 0.318, 0.009, 0.002, zoned(INKS.card, z));
+          for (const s of [-1, 1]) D.bar(new Vector3(s * 0.128, 0.0148, s * -0.124), new Vector3(s * 0.166, 0.0148, s * -0.086), 0.004, strap);
+        }
       });
+      if (!t.text?.[0]) return;
       const lean = 0.06;
       const n = new Vector3(Math.sin(rot) * Math.sin(lean), Math.cos(lean), Math.cos(rot) * Math.sin(lean));
       const side = new Vector3(Math.cos(rot), 0, -Math.sin(rot));
@@ -1740,7 +1827,13 @@ function thing(B: Build, t: RoomThing, i: number) {
     }
     case 'canvas': {
       // a canvas leaning on the wall with its face to it: the stretcher's back, the linen
-      // nailed round it, and bubble wrap taped over its lower half (`size` its width and height)
+      // nailed round it, and bubble wrap taped over its lower half (`size` its width and height).
+      // With `text`, a small oil in its gilt frame turned to the wall, no wrap: what is written
+      // on its back, a line each (the first in ink, the rest in pencil)
+      if (t.text?.length) {
+        framedBack(B, t, i, key);
+        return;
+      }
       const [w, h] = t.size ?? [1.1, 0.85];
       const linen = zoned(mix(INKS.card, INKS.ochre, 0.18), z);
       const wood = zoned(mix(TONES.wood, INKS.paper, 0.25), z);
@@ -1767,6 +1860,698 @@ function thing(B: Build, t: RoomThing, i: number) {
       // and the roll of tape, left on the floor beside it
       D.at(x, y, zz, rot, () => D.cylinder(w / 2 + 0.32, 0.0, 0.32, 0.06, 0.06, 0.05, 12, tape, { flat: true, caps: true }));
       B.blocks.push(footprint(x, zz, rot, w + 0.4, 0.5));
+      return;
+    }
+    case 'keyboard': {
+      // a key board on the wall: a plank with rows of brass hooks, on most a key and its paper tag,
+      // here and there a hook empty (`size` the board's width and height; `at` its centre)
+      const [w, h] = t.size ?? [1.2, 0.9];
+      const plank = zoned(mix(TONES.wood, INKS.ink, 0.2), z);
+      const brass = zoned(TONES.brass, z, { wet: 0.6 });
+      const steel = zoned(mix(INKS.paper, INKS.ink, 0.4), z, { wet: 0.6 });
+      const tag = zoned(mix(INKS.card, INKS.ochre, 0.12), z);
+      const ink = zoned(mix(INKS.ink, INKS.paper, 0.2), z);
+      const R = { v: 4271 + i * 31 };
+      const rand = () => {
+        R.v = (R.v * 16807) % 2147483647;
+        return R.v / 2147483647;
+      };
+      const rows = Math.max(1, Math.floor((h - 0.08) / 0.115));
+      const cols = Math.max(1, Math.floor((w - 0.06) / 0.07));
+      D.at(x, y, zz, rot, () => {
+        D.box(0, 0, 0.012, w, h, 0.024, plank);
+        // the rows' painted numbers, a strip of card along the top of each row
+        for (let r = 0; r < rows; r++) {
+          const ry = h / 2 - 0.06 - r * ((h - 0.08) / rows);
+          D.box(0, ry + 0.025, 0.026, w - 0.05, 0.016, 0.003, tag);
+          for (let k = 0; k < cols; k++) {
+            const kx = -w / 2 + 0.05 + k * ((w - 0.08) / cols);
+            D.box(kx, ry + 0.025, 0.028, 0.012, 0.006, 0.002, ink);
+            D.box(kx, ry, 0.035, 0.008, 0.008, 0.024, brass);
+            if (rand() < 0.16) continue;
+            const tilt = (rand() - 0.5) * 0.06;
+            D.box(kx + tilt, ry - 0.035, 0.044, 0.014, 0.05, 0.004, rand() < 0.3 ? brass : steel);
+            D.box(kx + tilt * 1.6, ry - 0.08, 0.046, 0.028, 0.034, 0.002, tag);
+          }
+        }
+      });
+      return;
+    }
+    case 'cabinet': {
+      // a grey metal filing cabinet against the wall: four drawers, their pulls and label holders
+      // (`size` its width and height)
+      const [w, h] = t.size ?? [0.47, 1.32];
+      const d = 0.62;
+      const grey = zoned(mix(mix(INKS.paper, INKS.ink, 0.38), INKS.cobalt, 0.06), z, { wet: 0.3 });
+      const seam = zoned(mix(INKS.ink, INKS.cobalt, 0.15), z);
+      const chrome = zoned(mix(INKS.paper, INKS.ink, 0.15), z, { wet: 0.8 });
+      const label = zoned(INKS.card, z);
+      const drawers = 4;
+      D.at(x, y, zz, rot, () => {
+        D.box(0, h / 2, d / 2, w, h, d, grey, { ny: false });
+        for (let k = 0; k < drawers; k++) {
+          const dy = 0.04 + (k + 0.5) * ((h - 0.08) / drawers);
+          D.box(0, dy - (h - 0.08) / drawers / 2, d + 0.002, w - 0.02, 0.008, 0.004, seam);
+          D.box(0, dy + 0.06, d + 0.006, 0.09, 0.045, 0.006, chrome);
+          D.box(0, dy + 0.06, d + 0.01, 0.07, 0.03, 0.002, label);
+          D.box(0, dy - 0.02, d + 0.02, 0.12, 0.022, 0.03, chrome);
+        }
+      });
+      B.blocks.push(footprint(x, zz, rot, w + 0.04, d + 0.06));
+      return;
+    }
+    case 'desk': {
+      // an old office desk: its top with a green blotter, a pedestal of drawers on the sitter's
+      // side (behind, -z), files stacked at one end (`size` its width and its depth)
+      const [w, dd] = t.size ?? [1.4, 0.75];
+      const wood = zoned(mix(TONES.wood, INKS.ink, 0.25), z, { wet: 0.2 });
+      const dark = zoned(mix(TONES.wood, INKS.ink, 0.5), z);
+      const blotter = zoned(mix(INKS.green, INKS.ink, 0.35), z);
+      const buff = [mix(INKS.ochre, INKS.paper, 0.55), mix(INKS.cobalt, INKS.paper, 0.6), mix(INKS.vermilion, INKS.paper, 0.6), mix(INKS.paper, INKS.ink, 0.25)].map((c) => zoned(c, z));
+      const brass = zoned(TONES.brass, z, { wet: 0.6 });
+      const top = 0.76;
+      D.at(x, y, zz, rot, () => {
+        D.box(0, top - 0.02, 0, w, 0.04, dd, wood);
+        // the modesty panel at the front, the pedestal of drawers at the right, a leg at the left
+        D.box(0, top - 0.3, dd / 2 - 0.03, w - 0.1, 0.5, 0.025, wood);
+        D.box(w / 2 - 0.22, (top - 0.04) / 2, 0, 0.4, top - 0.04, dd - 0.06, wood, { ny: false });
+        for (let k = 0; k < 3; k++) {
+          const ky = 0.12 + k * 0.22;
+          D.box(w / 2 - 0.22, ky + 0.1, -dd / 2 + 0.02, 0.36, 0.19, 0.012, dark);
+          D.box(w / 2 - 0.22, ky + 0.12, -dd / 2 + 0.002, 0.08, 0.014, 0.02, brass);
+        }
+        D.box(-w / 2 + 0.05, (top - 0.04) / 2, 0, 0.05, top - 0.04, dd - 0.06, wood, { ny: false });
+        // the blotter, and the files at the left end in a slanting stack
+        D.box(0.05, top + 0.003, -0.02, 0.62, 0.006, 0.42, blotter);
+        for (let k = 0; k < 7; k++) D.box(-w / 2 + 0.24 + (k % 3) * 0.006, top + 0.012 + k * 0.022, 0.02 - (k % 2) * 0.015, 0.33, 0.02, 0.24, buff[k % buff.length]);
+      });
+      B.blocks.push(centred(x, zz, rot, w + 0.04, dd + 0.04));
+      return;
+    }
+    case 'campbed': {
+      // a camp bed made with hospital corners: its folding frame low on the floor, the grey
+      // blanket pulled tight and tucked square, the sheet turned down over it at the head, a
+      // pillow (`size` its length and width, along local x)
+      const [len, wid] = t.size ?? [1.9, 0.7];
+      const frame = zoned(mix(INKS.paper, INKS.ink, 0.45), z, { wet: 0.5 });
+      const blanket = zoned(ROOM_TONES.blanket, z);
+      const sheet = zoned(INKS.card, z);
+      const crease = zoned(mix(ROOM_TONES.blanket, INKS.ink, 0.3), z);
+      const ht = 0.4;
+      D.at(x, y, zz, rot, () => {
+        // the X legs at each end and the middle, the side rails
+        for (const lx of [-len / 2 + 0.06, 0, len / 2 - 0.06]) {
+          for (const s of [-1, 1]) D.bar(new Vector3(lx, 0, s * (wid / 2 - 0.04)), new Vector3(lx, ht - 0.06, -s * (wid / 2 - 0.04)), 0.012, frame);
+        }
+        for (const s of [-1, 1]) D.bar(new Vector3(-len / 2, ht - 0.05, s * (wid / 2)), new Vector3(len / 2, ht - 0.05, s * (wid / 2)), 0.015, frame);
+        // the blanket, square at its corners, tucked down the sides
+        D.box(0, ht - 0.01, 0, len - 0.02, 0.05, wid + 0.02, blanket);
+        for (const s of [-1, 1]) D.box(0, ht - 0.09, s * (wid / 2 + 0.012), len - 0.02, 0.12, 0.006, blanket);
+        for (const s of [-1, 1]) D.box(s * (len / 2 - 0.01), ht - 0.09, 0, 0.006, 0.12, wid + 0.03, blanket);
+        // the hospital corners' fold, a diagonal crease at each corner
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) D.bar(new Vector3(sx * (len / 2 - 0.0), ht - 0.15, sz * (wid / 2 + 0.016)), new Vector3(sx * (len / 2 - 0.12), ht - 0.03, sz * (wid / 2 + 0.016)), 0.004, crease);
+        // the sheet turned down at the head, and the pillow squared on it
+        D.box(-len / 2 + 0.42, ht + 0.018, 0, 0.16, 0.012, wid + 0.022, sheet);
+        D.box(-len / 2 + 0.2, ht + 0.06, 0, 0.3, 0.08, wid - 0.12, sheet);
+      });
+      B.blocks.push(centred(x, zz, rot, len + 0.06, wid + 0.08));
+      return;
+    }
+    case 'frame': {
+      // a small photo frame standing on a desk, on its strut: with `text`, a Polaroid of two old
+      // people laughing on a bench by a lake, its caption on the white border in a hand; without,
+      // an old portrait gone sepia (`size` the frame's width and height)
+      const [w, h] = t.size ?? [0.13, 0.16];
+      const wood = zoned(mix(TONES.wood, INKS.ink, 0.35), z, { wet: 0.3 });
+      D.at(x, y, zz, rot, () => {
+        D.box(0, h / 2, 0, w, h, 0.012, wood);
+        D.bar(new Vector3(0, h * 0.7, -0.006), new Vector3(0, 0, -0.07), 0.004, wood);
+      });
+      const c = Math.cos(rot);
+      const s = Math.sin(rot);
+      card(B, key, [x + 0.004 * s, y + h / 2, zz + 0.004 * c], rot, w - 0.02, h - 0.02, z, t.text?.length ? polaroidArt(t.text[0]) : portraitArt(), 3200);
+      return;
+    }
+    case 'intercom': {
+      // an old building's intercom beside its door: a brushed plate on the wall, the grille of the
+      // speaker at the top, then a row a flat (a name on a card, its push-button), `text` the names
+      // from the top floor down (`at` the plate's centre on the wall)
+      const names = t.text ?? [];
+      const rows = Math.max(1, Math.ceil(names.length / 2));
+      const w = 0.2;
+      const h = 0.12 + rows * 0.045;
+      const steel = zoned(mix(mix(INKS.paper, INKS.ink, 0.3), INKS.ochre, 0.08), z, { wet: 0.6 });
+      D.at(x, y, zz, rot, () => D.box(0, 0, 0.008, w + 0.02, h + 0.02, 0.016, steel));
+      const c = Math.cos(rot);
+      const sn = Math.sin(rot);
+      card(B, key, [x + 0.005 * sn, y, zz + 0.005 * c], rot, w, h, z, intercomArt(names, rows), 2400);
+      return;
+    }
+    case 'banner': {
+      // a banner on the wall, hung from a gilt pole by its cord: cloth to a point at the foot,
+      // its border and its arms painted on (a crown over a chevron between three stars), a
+      // tassel at the point (`at` the cloth's centre, `size` its width and height)
+      const [w, h] = t.size ?? [0.9, 1.5];
+      const gilt = zoned(TONES.brass, z, { wet: 0.7 });
+      D.at(x, y, zz, rot, () => {
+        D.bar(new Vector3(-w / 2 - 0.1, h / 2 + 0.03, 0.035), new Vector3(w / 2 + 0.1, h / 2 + 0.03, 0.035), 0.018, gilt);
+        for (const sx of [-1, 1]) D.ball(sx * (w / 2 + 0.12), h / 2 + 0.03, 0.035, 0.03, 0.03, 0.03, gilt, 0);
+        // the cord, up to its hook
+        D.bar(new Vector3(-w / 2 - 0.05, h / 2 + 0.03, 0.03), new Vector3(0, h / 2 + 0.32, 0.008), 0.005, gilt);
+        D.bar(new Vector3(w / 2 + 0.05, h / 2 + 0.03, 0.03), new Vector3(0, h / 2 + 0.32, 0.008), 0.005, gilt);
+        D.ball(0, h / 2 + 0.32, 0.008, 0.014, 0.014, 0.01, gilt, 0);
+        // the tassel under the point
+        D.cylinder(0, -h / 2 - 0.1, 0.035, 0.03, 0.012, 0.1, 8, gilt, { caps: true });
+      });
+      card(B, key, [x + 0.025 * Math.sin(rot), y, zz + 0.025 * Math.cos(rot)], rot, w, h, z, bannerArt(), 700);
+      return;
+    }
+    case 'mantel': {
+      // a marble chimneypiece against the wall: the jambs, the frieze, the shelf, the hearth slab,
+      // the black firebox and its logs (no fire), and over it a tall mirror in a gilt frame (`size`
+      // [width, the mirror's height]; `tone` the marble)
+      const [w, mh] = t.size ?? [1.5, 1.3];
+      const hgt = 1.12;
+      const dep = 0.36;
+      const marble = zoned(toneOf(t.tone, ROOM_TONES.marble), z, { wet: 0.75 });
+      const vein = zoned(mix(toneOf(t.tone, ROOM_TONES.marble), INKS.paper, 0.35), z, { wet: 0.75 });
+      const black = zoned(mix(INKS.ink, INKS.paper, 0.06), z);
+      const log = zoned(mix(mix(TONES.wood, INKS.ochre, 0.25), INKS.paper, 0.1), z);
+      const gilt = zoned(TONES.brass, z, { wet: 0.8 });
+      const glass = zoned(mix(mix(INKS.paper, INKS.cobalt, 0.2), INKS.ink, 0.42), z, { wet: 1 });
+      D.at(x, y, zz, rot, () => {
+        for (const sx of [-1, 1]) D.box(sx * (w / 2 - 0.11), (hgt - 0.06) / 2, dep / 2, 0.22, hgt - 0.06, dep - 0.04, marble, { ny: false });
+        D.box(0, hgt - 0.17, dep / 2, w - 0.22, 0.2, dep - 0.06, marble);
+        D.box(0, hgt - 0.17, dep - 0.025, w * 0.3, 0.06, 0.012, vein);
+        D.box(0, hgt - 0.03, dep / 2 + 0.02, w + 0.1, 0.06, dep + 0.06, marble);
+        D.box(0, (hgt - 0.27) / 2, 0.08, w - 0.44, hgt - 0.27, 0.16, black, { ny: false });
+        D.box(0, 0.02, dep / 2 + 0.14, w + 0.12, 0.04, dep + 0.28, marble);
+        // the logs laid in the grate, cold
+        D.bar(new Vector3(-0.24, 0.1, 0.2), new Vector3(0.24, 0.1, 0.22), 0.05, log);
+        D.bar(new Vector3(-0.22, 0.1, 0.32), new Vector3(0.23, 0.1, 0.3), 0.048, log);
+        D.bar(new Vector3(-0.18, 0.19, 0.26), new Vector3(0.2, 0.19, 0.25), 0.045, log);
+        // the mirror: its gilt frame, the glass, a crest of scrolls on top
+        const my = hgt + 0.06 + mh / 2;
+        D.box(0, my, 0.025, w - 0.12, mh, 0.05, gilt);
+        D.box(0, my, 0.052, w - 0.3, mh - 0.18, 0.006, glass);
+        D.ball(0, my + mh / 2 + 0.05, 0.03, 0.16, 0.09, 0.03, gilt, 0);
+        for (const sx of [-1, 1]) D.ball(sx * 0.17, my + mh / 2 + 0.01, 0.03, 0.08, 0.05, 0.025, gilt, 0);
+      });
+      B.blocks.push(footprint(x, zz, rot, w + 0.12, dep + 0.3));
+      return;
+    }
+    case 'candelabra': {
+      // a gilt candelabrum: its foot, the stem, two arms curving up from a knot, three candles,
+      // and the flames, lit (`at` its foot on the shelf or the table)
+      const gilt = zoned(TONES.brass, z, { wet: 0.8 });
+      const wax = zoned(mix(INKS.card, INKS.ochre, 0.12), z);
+      const flame: Paint = { color: mix(INKS.sunflower, INKS.card, 0.35), glow: 1, id: nextId(), indoor: true };
+      D.at(x, y, zz, rot, () => {
+        D.cylinder(0, 0, 0, 0.07, 0.05, 0.025, 12, gilt, { caps: true });
+        D.cylinder(0, 0.025, 0, 0.018, 0.014, 0.3, 8, gilt);
+        D.ball(0, 0.2, 0, 0.03, 0.03, 0.03, gilt, 0);
+        for (const sx of [-1, 1]) {
+          D.bar(new Vector3(0, 0.2, 0), new Vector3(sx * 0.11, 0.24, 0), 0.008, gilt);
+          D.bar(new Vector3(sx * 0.11, 0.24, 0), new Vector3(sx * 0.13, 0.3, 0), 0.008, gilt);
+        }
+        for (const cx of [-0.13, 0, 0.13]) {
+          const cy = cx === 0 ? 0.325 : 0.3;
+          D.cylinder(cx, cy, 0, 0.03, 0.022, 0.02, 10, gilt, { caps: true });
+          D.cylinder(cx, cy + 0.02, 0, 0.012, 0.012, 0.14, 8, wax, { caps: true });
+          D.ball(cx, cy + 0.185, 0, 0.008, 0.02, 0.008, flame, 0);
+        }
+      });
+      return;
+    }
+    case 'lowtable': {
+      // a low table: a glass top on a brass frame, a cut-glass decanter of something amber and two
+      // tumblers on it (`size` [width, depth])
+      const [w, d] = t.size ?? [1.1, 0.6];
+      const th = 0.42;
+      const brass = zoned(TONES.brass, z, { wet: 0.7 });
+      const crystal = zoned(mix(mix(INKS.card, INKS.cobalt, 0.08), INKS.paper, 0.2), z, { wet: 1 });
+      const whisky = zoned(mix(mix(INKS.ochre, INKS.sunflower, 0.3), INKS.vermilion, 0.12), z, { wet: 1 });
+      D.at(x, y, zz, rot, () => {
+        for (const [lx, lz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as Array<[number, number]>) D.box(lx * (w / 2 - 0.03), th / 2, lz * (d / 2 - 0.03), 0.025, th, 0.025, brass, { ny: false });
+        for (const lz of [-1, 1]) D.box(0, th - 0.012, lz * (d / 2 - 0.03), w - 0.04, 0.02, 0.02, brass);
+        for (const lx of [-1, 1]) D.box(lx * (w / 2 - 0.03), th - 0.012, 0, 0.02, 0.02, d - 0.04, brass);
+        // the decanter: its body, the shoulder, the neck, the stopper
+        D.cylinder(w * 0.18, th + 0.006, -0.04, 0.055, 0.055, 0.1, 10, whisky, { caps: true });
+        D.cylinder(w * 0.18, th + 0.106, -0.04, 0.058, 0.03, 0.06, 10, crystal, { caps: true });
+        D.cylinder(w * 0.18, th + 0.166, -0.04, 0.016, 0.016, 0.05, 8, crystal, { caps: true });
+        D.ball(w * 0.18, th + 0.235, -0.04, 0.028, 0.028, 0.028, crystal, 0);
+        for (const [gx, gz] of [[w * 0.3, 0.08], [w * 0.05, 0.1]] as Array<[number, number]>) {
+          D.cylinder(gx, th + 0.006, gz, 0.032, 0.035, 0.03, 10, whisky, { caps: true });
+          D.cylinder(gx, th + 0.036, gz, 0.035, 0.036, 0.05, 10, crystal, { caps: true });
+        }
+      });
+      // the glass top, see-through
+      const c = Math.cos(rot);
+      const sn = Math.sin(rot);
+      const corner = (px: number, pz: number): number[] => [x + px * c + pz * sn, y + th + 0.004, zz - px * sn + pz * c];
+      B.glass.quadXYZ([...corner(-w / 2, d / 2), ...corner(w / 2, d / 2), ...corner(w / 2, -d / 2), ...corner(-w / 2, -d / 2)], { color: TONES.glass, id: 61 }, 61);
+      B.blocks.push(centred(x, zz, rot, w + 0.04, d + 0.04));
+      return;
+    }
+    case 'letter': {
+      // an envelope lying on a table, face up: `text[0]` the name in a round hand, `text[1]` the
+      // town on the postmark, the stamp in its corner (`at` the table's top under it)
+      const paper = zoned(mix(INKS.card, INKS.ochre, 0.08), z);
+      D.at(x, y, zz, rot, () => D.box(0, 0.002, 0, 0.2, 0.004, 0.11, paper, { ny: false }));
+      const lean = 0.03;
+      const n = new Vector3(Math.sin(rot) * Math.sin(lean), Math.cos(lean), Math.cos(rot) * Math.sin(lean));
+      B.signs.push({ key, center: new Vector3(x, y + 0.0045, zz), normal: n, width: 0.19, height: 0.1, density: 3000, draw: envelopeArt(t.text ?? []), indoor: (z ?? 'room') === 'room' });
+      return;
+    }
+    case 'recommande': {
+      // a recorded letter, opened and laid flat: the sheet unfolded (its two creases), and under
+      // it, sticking out, its envelope with the green-and-white «recommandé» slip (`text[0]` the
+      // sender's letterhead, `text[1]` the greeting, then the body's lines, the last one the
+      // signature; `at` the counter's top under it; the sheet's head toward local -z)
+      const paper = zoned(mix(INKS.card, 0xffffff, 0.3), z);
+      const env = zoned(mix(INKS.card, INKS.ochre, 0.05), z);
+      const up = (r: number) => new Vector3(Math.sin(r) * Math.sin(0.03), Math.cos(0.03), Math.cos(r) * Math.sin(0.03));
+      const local = (lx: number, ly: number, lz: number) => new Vector3(x + lx * Math.cos(rot) + lz * Math.sin(rot), y + ly, zz - lx * Math.sin(rot) + lz * Math.cos(rot));
+      const indoorSign = (z ?? 'room') === 'room';
+      D.at(x, y, zz, rot, () => {
+        D.at(-0.04, 0, -0.19, 0.3, () => D.box(0, 0.002, 0, 0.22, 0.004, 0.11, env, { ny: false }));
+        D.box(0, 0.0055, 0, 0.21, 0.003, 0.297, paper, { ny: false });
+      });
+      const er = rot + 0.3;
+      const ec = local(-0.04, 0, -0.19);
+      B.signs.push({ key: `${key}:env`, center: new Vector3(ec.x, y + 0.0045, ec.z), normal: up(er), width: 0.21, height: 0.1, density: 2600, draw: slipArt(), indoor: indoorSign });
+      B.signs.push({ key, center: local(0, 0.0075, 0), normal: up(rot), width: 0.2, height: 0.287, density: 2400, draw: recordedArt(t.text ?? []), indoor: indoorSign });
+      return;
+    }
+    case 'carte': {
+      // a bank card left lying on a counter: plain blue, its gold chip, the name in raised
+      // capitals, no bank's name on it (`text[0]` the name; `at` the counter's top under it)
+      const blue = zoned(mix(INKS.cobalt, INKS.paper, 0.1), z, { wet: 0.4 });
+      D.at(x, y, zz, rot, () => D.box(0, 0.0005, 0, 0.0856, 0.001, 0.054, blue, { ny: false }));
+      const lean = 0.03;
+      const n = new Vector3(Math.sin(rot) * Math.sin(lean), Math.cos(lean), Math.cos(rot) * Math.sin(lean));
+      B.signs.push({ key, center: new Vector3(x, y + 0.0013, zz), normal: n, width: 0.0846, height: 0.053, density: 6000, draw: bankCardArt(t.text?.[0] ?? ''), indoor: (z ?? 'room') === 'room' });
+      return;
+    }
+    case 'rug': {
+      // a rug on the floor: a red field, a dark border with its stripes, a medallion in the
+      // middle, the fringe at both ends (`size` [width, depth])
+      const [w, d] = t.size ?? [2.4, 1.7];
+      const pile = zoned(mix(TONES.oxblood, INKS.ink, 0.2), z);
+      const fringe = zoned(mix(INKS.card, INKS.ochre, 0.2), z);
+      D.at(x, y, zz, rot, () => {
+        D.box(0, 0.004, 0, w, 0.008, d, pile, { ny: false });
+        for (const sx of [-1, 1]) D.box(sx * (w / 2 + 0.03), 0.002, 0, 0.06, 0.004, d - 0.04, fringe, { ny: false });
+      });
+      const lean = 0.02;
+      const n = new Vector3(Math.sin(rot) * Math.sin(lean), Math.cos(lean), Math.cos(rot) * Math.sin(lean));
+      B.signs.push({ key, center: new Vector3(x, y + 0.0095, zz), normal: n, width: w, height: d, density: 260, draw: rugArt(), indoor: (z ?? 'room') === 'room' });
+      return;
+    }
+    case 'poster': {
+      // a poster taped to the wall, its slogan in big capitals, a line a `text` entry; each one
+      // its own colour, sea green, poster red or paper by turn (`size` its width and height)
+      const [w, h] = t.size ?? [0.6, 0.85];
+      card(B, key, [x, y, zz], rot, w, h, z, posterArt(t.text ?? [], i % 3), 520);
+      const tape = zoned(mix(INKS.card, INKS.ochre, 0.12), z);
+      D.at(x, y, zz, rot, () => {
+        for (const [px, py] of [[-1, 1], [1, 1], [-1, -1], [1, -1]] as Array<[number, number]>) D.box((px * (w - 0.03)) / 2, (py * (h - 0.03)) / 2, 0.016, 0.07, 0.025, 0.002, tape);
+      });
+      return;
+    }
+    case 'map': {
+      // a map of the city's waterways pinned up: the Seine across the foot, the canal Saint-Martin
+      // up from it to the basin, the canals de l'Ourcq and Saint-Denis out of the basin, red pins
+      // along them (`text`: its title, then the names, Seine, canal, basin, Ourcq, Saint-Denis)
+      const [w, h] = t.size ?? [0.9, 0.65];
+      card(B, key, [x, y, zz], rot, w, h, z, waterwaysArt(t.text ?? []), 640);
+      const pin = zoned(INKS.vermilion, z);
+      D.at(x, y, zz, rot, () => {
+        for (const [px, py] of [[-1, 1], [1, 1], [-1, -1], [1, -1]] as Array<[number, number]>) D.ball((px * (w - 0.04)) / 2, (py * (h - 0.04)) / 2, 0.02, 0.009, 0.009, 0.009, pin, 0);
+      });
+      return;
+    }
+    case 'projection': {
+      // a spreadsheet thrown on a white wall by a projector: the light's square a little bright
+      // on the paint, the title in capitals, then a row a `text` entry («label | value»)
+      const [w, h] = t.size ?? [1.9, 1.2];
+      card(B, key, [x, y, zz], rot, w, h, z, sheetArt(t.text ?? []), 480);
+      return;
+    }
+    case 'projector': {
+      // a small projector on a desk, its lens on local +z and lit, its cable off the back
+      const body = zoned(mix(INKS.paper, INKS.ink, 0.2), z, { wet: 0.3 });
+      const dark = zoned(mix(INKS.ink, INKS.cobalt, 0.2), z);
+      const lens: Paint = { color: mix(INKS.card, INKS.sunflower, 0.25), glow: 1, id: nextId(), indoor: true };
+      D.at(x, y, zz, rot, () => {
+        D.box(0, 0.045, 0, 0.26, 0.08, 0.2, body, { ny: false });
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) D.box(sx * 0.1, 0.003, sz * 0.07, 0.025, 0.006, 0.025, dark);
+        D.cylinder(0.06, 0.012, 0.1, 0.034, 0.034, 0.02, 12, dark, { caps: true });
+        D.box(-0.06, 0.087, -0.03, 0.08, 0.004, 0.06, dark);
+        D.bar(new Vector3(0, 0.04, -0.1), new Vector3(0.05, 0.003, -0.4), 0.012, dark);
+      });
+      // the lens, a disc of light facing the wall
+      const c = Math.cos(rot);
+      const sn = Math.sin(rot);
+      B.dry.at(x + 0.06 * c + 0.112 * sn, y + 0.045, zz - 0.06 * sn + 0.112 * c, rot, () => B.dry.ball(0, 0, 0, 0.028, 0.028, 0.006, lens, 1, { smooth: true }));
+      return;
+    }
+    case 'plant': {
+      // a pot plant in need of water: a clay pot, a few long leaves still green and the
+      // outer ones gone yellow and brown, all drooping over the rim (`size` [the pot's height,
+      // the leaves' reach])
+      const [ph, reach] = t.size ?? [0.22, 0.35];
+      const clay = zoned(mix(TONES.pot, INKS.paper, 0.15), z);
+      const earth = zoned(mix(INKS.ochre, INKS.ink, 0.65), z);
+      const greens = [mix(INKS.green, INKS.sunflower, 0.25), mix(INKS.green, INKS.ochre, 0.45), mix(INKS.ochre, INKS.paper, 0.2), mix(INKS.ochre, INKS.ink, 0.4)].map((cc) => zoned(cc, z));
+      const r = ph * 0.55;
+      D.at(x, y, zz, rot, () => {
+        D.cylinder(0, 0, 0, r * 0.75, r, ph, 12, clay, { caps: true });
+        D.cylinder(0, ph - 0.01, 0, r * 0.95, r * 0.95, 0.012, 12, earth, { caps: true });
+      });
+      const leaves = 7;
+      for (let k = 0; k < leaves; k++) {
+        const a = rot + (k / leaves) * Math.PI * 2 + (k % 2) * 0.3;
+        const tired = k % 3 === 0 ? 3 : k % 2 === 0 ? 2 : k < 3 ? 0 : 1;
+        const out = reach * (0.55 + 0.45 * ((k * 37) % 10) / 10);
+        const droop = tired >= 2 ? 0.75 : 0.35;
+        D.at(x, y + ph, zz, a, () => {
+          const mid = new Vector3(0, 0.08 + out * 0.25, out * 0.45);
+          const tip = new Vector3(0, 0.08 + out * 0.25 - out * droop, out * 0.85);
+          D.bar(new Vector3(0, 0, 0.01), mid, 0.008, greens[Math.min(1, tired)]);
+          D.ball(0, (mid.y + tip.y) / 2 + 0.01, (mid.z + tip.z) / 2, 0.035, 0.014, out * 0.28, greens[tired], 1);
+        });
+      }
+      return;
+    }
+    case 'fern': {
+      // a fern in a pot on a stand, alive and green, its fronds arching out; a spray bottle of
+      // water beside it on the stand (`size` [the stand's height, the fronds' reach])
+      const [sh, reach] = t.size ?? [0.7, 0.45];
+      const wood = zoned(mix(TONES.wood, INKS.ink, 0.2), z);
+      const clay = zoned(mix(TONES.pot, INKS.paper, 0.1), z);
+      const frond = zoned(mix(INKS.green, INKS.sunflower, 0.32), z);
+      const deep = zoned(mix(INKS.green, INKS.ink, 0.12), z);
+      const bottle = zoned(mix(INKS.cobalt, INKS.card, 0.55), z, { wet: 0.5 });
+      const nozzle = zoned(mix(INKS.ink, INKS.paper, 0.2), z);
+      D.at(x, y, zz, rot, () => {
+        D.cylinder(0, sh - 0.03, 0, 0.24, 0.24, 0.03, 16, wood, { caps: true });
+        for (let k = 0; k < 3; k++) {
+          const a = (k / 3) * Math.PI * 2;
+          D.bar(new Vector3(Math.sin(a) * 0.17, 0, Math.cos(a) * 0.17), new Vector3(Math.sin(a) * 0.13, sh - 0.03, Math.cos(a) * 0.13), 0.025, wood);
+        }
+        D.cylinder(0, sh, 0, 0.1, 0.13, 0.17, 12, clay, { caps: true });
+        // the spray bottle at the stand's edge
+        D.cylinder(0.17, sh, 0.05, 0.03, 0.03, 0.15, 10, bottle, { caps: true });
+        D.box(0.17, sh + 0.17, 0.05, 0.03, 0.04, 0.05, nozzle);
+        D.box(0.17, sh + 0.14, 0.072, 0.012, 0.04, 0.012, nozzle);
+      });
+      const fronds = 11;
+      for (let k = 0; k < fronds; k++) {
+        const a = rot + (k / fronds) * Math.PI * 2 + (k % 2) * 0.2;
+        const out = reach * (0.75 + 0.25 * (((k * 53) % 10) / 10));
+        const paint = k % 3 === 0 ? deep : frond;
+        D.at(x, y + sh + 0.16, zz, a, () => {
+          const p0 = new Vector3(0, 0, 0.02);
+          const p1 = new Vector3(0, 0.16, out * 0.45);
+          const p2 = new Vector3(0, 0.1, out * 0.85);
+          const p3 = new Vector3(0, -0.06, out);
+          D.bar(p0, p1, 0.006, paint);
+          D.bar(p1, p2, 0.006, paint);
+          D.bar(p2, p3, 0.005, paint);
+          // the leaflets, a flat blade along each stretch
+          D.ball(0, (p0.y + p1.y) / 2, (p0.z + p1.z) / 2, 0.028, 0.006, out * 0.24, paint, 1);
+          D.ball(0, (p1.y + p2.y) / 2, (p1.z + p2.z) / 2, 0.024, 0.006, out * 0.22, paint, 1);
+          D.ball(0, (p2.y + p3.y) / 2, (p2.z + p3.z) / 2, 0.016, 0.006, out * 0.1, paint, 1);
+        });
+      }
+      return;
+    }
+    case 'leek': {
+      // a leek from the market lying on a desk, along local x: the white shaft, the roots, the
+      // dark green leaves fanned at its end
+      const white = zoned(mix(INKS.card, INKS.green, 0.06), z);
+      const pale = zoned(mix(INKS.green, INKS.card, 0.55), z);
+      const leaf = zoned(mix(INKS.green, INKS.ink, 0.08), z);
+      const root = zoned(mix(INKS.ochre, INKS.paper, 0.45), z);
+      D.at(x, y, zz, rot, () => {
+        D.bar(new Vector3(-0.2, 0.018, 0), new Vector3(0.04, 0.018, 0), 0.034, white);
+        D.bar(new Vector3(0.04, 0.019, 0), new Vector3(0.12, 0.02, 0), 0.032, pale);
+        for (let k = 0; k < 4; k++) D.bar(new Vector3(-0.2, 0.016, (k - 1.5) * 0.008), new Vector3(-0.24, 0.006 + (k % 2) * 0.01, (k - 1.5) * 0.02), 0.004, root);
+        for (const [dz, dy, len] of [[-0.05, 0.01, 0.3], [0.0, 0.03, 0.34], [0.05, 0.012, 0.28], [0.02, 0.022, 0.25]] as Array<[number, number, number]>) {
+          D.bar(new Vector3(0.12, 0.02, 0), new Vector3(0.12 + len, dy, dz), 0.028, leaf);
+        }
+      });
+      return;
+    }
+    case 'mug': {
+      // a mug, none of them matching: its colour by its place in the room's list, its handle on
+      // local +x, a brown line of coffee inside
+      const colours = [mix(INKS.vermilion, INKS.paper, 0.2), mix(INKS.cobalt, INKS.paper, 0.35), mix(INKS.sunflower, INKS.paper, 0.15), mix(INKS.green, INKS.paper, 0.3), INKS.card];
+      const glaze = zoned(colours[i % colours.length], z, { wet: 0.4 });
+      const coffee = zoned(mix(INKS.ochre, INKS.ink, 0.62), z);
+      D.at(x, y, zz, rot, () => {
+        D.cylinder(0, 0, 0, 0.042, 0.045, 0.095, 14, glaze, { caps: true });
+        D.cylinder(0, 0.07, 0, 0.039, 0.039, 0.02, 14, coffee, { caps: true });
+        D.bar(new Vector3(0.042, 0.075, 0), new Vector3(0.07, 0.065, 0), 0.012, glaze);
+        D.bar(new Vector3(0.07, 0.065, 0), new Vector3(0.07, 0.03, 0), 0.012, glaze);
+        D.bar(new Vector3(0.07, 0.03, 0), new Vector3(0.042, 0.022, 0), 0.012, glaze);
+      });
+      return;
+    }
+    case 'roll': {
+      // a long paper banner rolled up and tied with string, standing on its end and leaning on
+      // whatever is at local +z: the paper's cream, the paint showing at the roll's ends and along
+      // the edge of its last turn, two ties of twine with their knots (`size` [length, radius])
+      const [len, r] = t.size ?? [1.3, 0.055];
+      // about 19° off the vertical, the top resting on what it leans on
+      const lean = 0.33;
+      const paper = zoned(mix(INKS.card, INKS.ochre, 0.1), z);
+      const inner = zoned(mix(INKS.card, INKS.ochre, 0.22), z);
+      const core = zoned(mix(INKS.ochre, INKS.ink, 0.55), z);
+      const paints = [mix(INKS.vermilion, INKS.paper, 0.1), mix(INKS.cobalt, INKS.paper, 0.15), mix(INKS.sunflower, INKS.ochre, 0.2)].map((c) => zoned(c, z));
+      const twine = zoned(mix(INKS.ochre, INKS.paper, 0.4), z);
+      D.at(x, y, zz, rot, () => {
+        D.push(new Matrix4().makeRotationX(lean));
+        D.cylinder(0, 0, 0, r, r, len, 16, paper, { caps: true });
+        // the ends: the turns of paper round the core, a ring of paint in them
+        for (const ey of [-0.002, len - 0.002]) {
+          D.cylinder(0, ey, 0, r * 0.82, r * 0.82, 0.006, 16, inner, { caps: true });
+          D.cylinder(0, ey - 0.001, 0, r * 0.62, r * 0.62, 0.009, 16, paints[0], { caps: true });
+          D.cylinder(0, ey - 0.002, 0, r * 0.48, r * 0.48, 0.012, 16, inner, { caps: true });
+          D.cylinder(0, ey - 0.003, 0, r * 0.22, r * 0.22, 0.015, 10, core, { caps: true });
+        }
+        // the last turn's edge down the roll, the paint just showing under it
+        D.box(r * 0.72, len / 2, r * 0.72, 0.006, len - 0.02, 0.022, paper);
+        for (let k = 0; k < 7; k++) D.box(r * 0.76, 0.12 + k * ((len - 0.24) / 6), r * 0.62, 0.004, 0.07 + (k % 3) * 0.03, 0.012, paints[k % paints.length]);
+        // two ties of twine, a knot and its ends
+        for (const ty of [len * 0.27, len * 0.73]) {
+          D.cylinder(0, ty, 0, r + 0.004, r + 0.004, 0.008, 16, twine);
+          D.ball(0, ty + 0.004, r + 0.008, 0.011, 0.009, 0.009, twine, 0);
+          D.bar(new Vector3(0, ty, r + 0.012), new Vector3(0.012, ty - 0.06, r + 0.02), 0.004, twine);
+          D.bar(new Vector3(0, ty, r + 0.012), new Vector3(-0.01, ty - 0.05, r + 0.024), 0.004, twine);
+        }
+        D.pop();
+      });
+      return;
+    }
+    case 'drape': {
+      // a cloth banner pegged to dry over the backs of two chairs pulled out side by side: its
+      // painted face hangs on local +z, a hem's width folded over the top rails to the back and
+      // pegged there; the end on local -x hemmed, the one on +x freshly cut (frayed), the offcut
+      // and the scissors on the floor beside it (`at` the middle of the span on the floor, under
+      // the rails; `size` [length, drop]; `text` the words painted on)
+      const [len, drop] = t.size ?? [1.76, 0.56];
+      const half = len / 2;
+      // just over the chairs' top rails (`chair`: 0.925 m), each 0.42 m long, at ±(half - 0.21)
+      const top = 0.937;
+      const back = zoned(mix(INKS.card, INKS.ochre, 0.14), z);
+      const fold = zoned(mix(INKS.card, INKS.ochre, 0.1), z);
+      const offcut = zoned(mix(INKS.card, INKS.ochre, 0.08), z);
+      const red = zoned(mix(INKS.vermilion, INKS.paper, 0.08), z);
+      const steel = zoned(mix(INKS.paper, INKS.ink, 0.35), z, { wet: 0.7 });
+      const grip = zoned(mix(INKS.vermilion, INKS.ink, 0.2), z);
+      const peg = zoned(mix(TONES.wood, INKS.paper, 0.35), z);
+      D.at(x, y, zz, rot, () => {
+        // the cloth's back behind the painted face (the card), the hem over the rails, the flap behind
+        D.box(0, top - drop / 2, 0.019, len, drop, 0.004, back, { pz: false });
+        D.box(0, top + 0.001, 0, len, 0.008, 0.046, fold);
+        D.box(0, top - 0.05, -0.022, len, 0.1, 0.005, fold);
+        // two wooden pegs on each chair's back
+        for (const cx of [-(half - 0.21), half - 0.21]) {
+          for (const dx of [-0.12, 0.12]) {
+            D.box(cx + dx, top - 0.035, -0.03, 0.016, 0.09, 0.012, peg);
+            D.box(cx + dx, top - 0.035, -0.043, 0.016, 0.09, 0.012, peg);
+          }
+        }
+        // the cut end's threads, loose
+        for (let k = 0; k < 9; k++) {
+          const v = top - 0.04 - k * ((drop - 0.08) / 8);
+          D.bar(new Vector3(half, v, 0.022), new Vector3(half + 0.016 + (k % 3) * 0.007, v - 0.02 - (k % 2) * 0.012, 0.024), 0.0025, fold);
+        }
+        // the offcut on the floor, crumpled in three folds, a stroke of paint across it
+        D.push(new Matrix4().makeTranslation(half + 0.2, 0, 0.32).multiply(new Matrix4().makeRotationY(0.35)));
+        D.box(0, 0.003, -0.12, 0.26, 0.004, 0.2, offcut, { ny: false });
+        D.push(new Matrix4().makeTranslation(0, 0.012, 0.02).multiply(new Matrix4().makeRotationX(0.14)));
+        D.box(0, 0, 0, 0.25, 0.004, 0.14, offcut, { ny: false });
+        D.pop();
+        D.box(0.01, 0.006, 0.15, 0.24, 0.004, 0.14, offcut, { ny: false });
+        D.box(-0.04, 0.0095, -0.1, 0.04, 0.0015, 0.16, red, { ny: false });
+        D.pop();
+        // the scissors, open
+        D.push(new Matrix4().makeTranslation(half + 0.06, 0.008, 0.62).multiply(new Matrix4().makeRotationY(-0.7)));
+        D.bar(new Vector3(0, 0, 0), new Vector3(0.16, 0, 0.012), 0.01, steel);
+        D.bar(new Vector3(0, 0.002, 0.012), new Vector3(0.16, 0.002, -0.004), 0.01, steel);
+        for (const sz of [-0.032, 0.044]) D.cylinder(-0.045, 0, sz, 0.026, 0.026, 0.01, 10, grip, { caps: true });
+        D.pop();
+      });
+      // the painted face: the card is the cloth itself, its folds, hem and cut drawn on
+      const fz = 0.009;
+      card(B, key, [x + fz * Math.sin(rot), y + top - drop / 2, zz + fz * Math.cos(rot)], rot, len, drop, z, clothArt(t.text ?? ['']), 420);
+      // the chairs under the cloth are not walked through (the offcut and the scissors, flat on the floor, are)
+      B.blocks.push(centred(x - 0.185 * Math.sin(rot), zz - 0.185 * Math.cos(rot), rot, len + 0.04, 0.48));
+      return;
+    }
+    case 'sink': {
+      // an old kitchen sink against the wall: a white glazed stoneware basin on a painted
+      // cupboard (two doors), a wooden draining board on local +x, the plug on its chain, a
+      // brass tap out of the wall over the basin with its cross handle (`size` [width]; the
+      // basin's inside: floor 0.86 m, centre at local x -w/2 + 0.3, z 0.26, 0.46 by 0.36; the
+      // tap's arm runs from the wall to z 0.2 at 1.18 m, over the basin's centre)
+      const w = t.size?.[0] ?? 0.9;
+      const d = 0.52;
+      const bx = -w / 2 + 0.3;
+      const paint = zoned(toneOf(t.tone, mix(mix(INKS.green, INKS.paper, 0.72), INKS.card, 0.2)), z, { wet: 0.2 });
+      const seam = zoned(mix(toneOf(t.tone, mix(INKS.green, INKS.paper, 0.72)), INKS.ink, 0.3), z);
+      const glaze = zoned(mix(INKS.card, 0xffffff, 0.3), z, { wet: 0.7 });
+      const inside = zoned(mix(INKS.card, INKS.paper, 0.6), z, { wet: 0.8 });
+      const wood = zoned(mix(TONES.wood, INKS.paper, 0.3), z, { wet: 0.3 });
+      const groove = zoned(mix(TONES.wood, INKS.ink, 0.2), z);
+      const brass = zoned(TONES.brass, z, { wet: 0.7 });
+      const dark = zoned(mix(INKS.ink, INKS.paper, 0.2), z);
+      D.at(x, y, zz, rot, () => {
+        // the cupboard, its doors and their knobs
+        D.box(0, 0.39, d / 2, w, 0.78, d - 0.02, paint, { ny: false });
+        D.box(0, 0.05, d - 0.01, w - 0.04, 0.1, 0.01, seam);
+        D.box(0, 0.44, d - 0.005, 0.008, 0.66, 0.006, seam);
+        for (const u of [-0.06, 0.06]) D.ball(u, 0.62, d + 0.005, 0.016, 0.016, 0.016, brass, 0);
+        // the basin: its floor, four walls, the thick rim
+        D.box(bx, 0.8, d / 2, 0.58, 0.06, d - 0.04, glaze);
+        D.box(bx, 0.862, d / 2, 0.46, 0.004, 0.36, inside);
+        D.box(bx, 0.915, 0.04, 0.58, 0.11, 0.06, glaze);
+        D.box(bx, 0.915, d - 0.04, 0.58, 0.11, 0.06, glaze);
+        for (const sx of [-1, 1]) D.box(bx + sx * 0.26, 0.915, d / 2, 0.06, 0.11, d - 0.04, glaze);
+        // the plug hole and the plug on its chain, hooked on the rim
+        D.cylinder(bx, 0.864, d / 2, 0.022, 0.022, 0.003, 10, dark, { flat: true, caps: true });
+        D.cylinder(bx + 0.12, 0.864, d / 2 + 0.06, 0.02, 0.02, 0.012, 10, dark, { caps: true });
+        D.bar(new Vector3(bx + 0.12, 0.876, d / 2 + 0.06), new Vector3(bx + 0.2, 0.97, d - 0.05), 0.003, brass);
+        // the draining board, its grooves running down to the basin
+        const rx = (w / 2 - 0.02 + (bx + 0.29)) / 2;
+        const rw = w / 2 - 0.02 - (bx + 0.29);
+        if (rw > 0.08) {
+          D.box(rx, 0.8, d / 2, rw, 0.04, d - 0.04, wood);
+          for (let k = 0; k < 5; k++) D.box(rx, 0.821, 0.1 + k * ((d - 0.2) / 4), rw - 0.04, 0.003, 0.012, groove);
+        }
+        // the tap: its arm out of the wall over the basin, the spout, the cross handle
+        D.cylinder(bx, 1.16, 0.0, 0.03, 0.03, 0.04, 10, brass, { caps: true });
+        D.bar(new Vector3(bx, 1.18, 0.0), new Vector3(bx, 1.18, 0.2), 0.022, brass);
+        D.bar(new Vector3(bx, 1.18, 0.2), new Vector3(bx, 1.1, 0.215), 0.018, brass);
+        D.bar(new Vector3(bx, 1.19, 0.07), new Vector3(bx, 1.26, 0.07), 0.01, brass);
+        D.bar(new Vector3(bx - 0.04, 1.26, 0.07), new Vector3(bx + 0.04, 1.26, 0.07), 0.009, brass);
+        D.bar(new Vector3(bx, 1.26, 0.03), new Vector3(bx, 1.26, 0.11), 0.009, brass);
+      });
+      B.blocks.push(footprint(x, zz, rot, w + 0.04, d + 0.04));
+      return;
+    }
+    case 'soak': {
+      // a frying pan left to soak in a sink: the pan on the basin's floor at a slight tilt, its
+      // handle up on the front rim, filled with water gone dark over its burnt bottom, a crust of
+      // black round the inside where it caught, a little foam of washing-up liquid to one side
+      // (`at` the basin's floor at its centre; `size` the basin's inside [across, deep], the pan
+      // kept inside it; the handle toward local +z)
+      const [bw, bd] = t.size ?? [0.46, 0.36];
+      const r = Math.min(0.13, bw / 2 - 0.03, bd / 2 - 0.02);
+      const steel = zoned(mix(INKS.ink, INKS.paper, 0.3), z, { wet: 0.5 });
+      const burnt = zoned(mix(INKS.ink, INKS.ochre, 0.08), z);
+      const crust = zoned(mix(mix(INKS.ink, INKS.ochre, 0.3), INKS.vermilion, 0.06), z);
+      const water = zoned(mix(mix(INKS.ink, INKS.ochre, 0.16), INKS.paper, 0.05), z, { wet: 1 });
+      const handle = zoned(mix(TONES.wood, INKS.ink, 0.45), z, { wet: 0.2 });
+      const foam = zoned(mix(INKS.card, 0xffffff, 0.4), z, { wet: 0.6 });
+      const k = r / 0.13;
+      D.at(x, y, zz, rot, () => {
+        D.push(new Matrix4().makeTranslation(0, 0.004, -0.02).multiply(new Matrix4().makeRotationX(-0.1)));
+        D.lathe(0, 0, 0, [[0.095 * k, 0], [r, 0.045], [r - 0.004, 0.049]], 18, steel);
+        D.lathe(0, 0, 0, [[r - 0.004, 0.049], [0.09 * k, 0.008], [0, 0.008]], 18, burnt);
+        // the black crust thick on the inside wall, above the water
+        D.lathe(0, 0, 0, [[r - 0.007, 0.044], [r - 0.02, 0.03], [r - 0.026, 0.026]], 18, crust);
+        // the water in it, dark over the burnt bottom, and the foam gathered on one side
+        D.cylinder(0, 0.026, 0, r - 0.026, r - 0.026, 0.002, 18, water, { flat: true, caps: true });
+        const bubbles: Array<[number, number, number]> = [[-0.06, -0.04, 0.016], [-0.075, -0.01, 0.012], [-0.045, -0.065, 0.011], [-0.085, -0.045, 0.009], [-0.03, -0.03, 0.008]];
+        bubbles.forEach(([fx, fz, br]) => D.ball(fx * k, 0.029, fz * k, br, br * 0.5, br, foam, 0));
+        // the handle, out of the water and up onto the front rim
+        D.bar(new Vector3(0, 0.04, r - 0.005), new Vector3(0, 0.1, r + 0.17), 0.024, handle);
+        D.bar(new Vector3(0, 0.038, r - 0.012), new Vector3(0, 0.05, r + 0.025), 0.014, steel);
+        D.pop();
+      });
+      return;
+    }
+    case 'towel': {
+      // a tea towel folded in three and hung over a bar to dry (a tap's arm, a rail): linen with a
+      // red stripe near each end, the two halves hanging either side, one longer (`at` the top of
+      // the fold, on the bar; the bar runs along local z; `size` [width along the bar, drop])
+      const [w, drop] = t.size ?? [0.15, 0.26];
+      const linen = zoned(mix(INKS.card, INKS.ochre, 0.06), z);
+      const shade = zoned(mix(mix(INKS.card, INKS.ochre, 0.1), INKS.ink, 0.05), z);
+      const stripe = zoned(mix(INKS.vermilion, INKS.paper, 0.12), z);
+      D.at(x, y, zz, rot, () => {
+        D.box(0, 0.012, 0, 0.034, 0.012, w, linen);
+        for (const [sx, h, p] of [[-1, drop, linen], [1, drop * 0.72, shade]] as Array<[number, number, Paint]>) {
+          D.box(sx * 0.017, 0.006 - h / 2, 0, 0.005, h, w, p);
+          // the stripe, a hand from the hem, on the outer face
+          D.box(sx * 0.0205, 0.006 - h + 0.06, 0, 0.002, 0.018, w + 0.001, stripe);
+          D.box(sx * 0.0205, 0.006 - h + 0.035, 0, 0.002, 0.006, w + 0.001, stripe);
+        }
+      });
+      return;
+    }
+    case 'tuque': {
+      // a knitted wool tuque put down on a table, crown up: the turned-up cuff ribbed in a darker
+      // blue, a cream band knitted round the crown, the crown gone soft and leaning to one side,
+      // a fat cream pompom on top (`size` [r], the cuff's radius; the crown leans toward local +x)
+      const r = t.size?.[0] ?? 0.095;
+      const k = r / 0.095;
+      const wool = zoned(mix(INKS.cobalt, INKS.paper, 0.2), z);
+      const rib = zoned(mix(INKS.cobalt, INKS.ink, 0.32), z);
+      const ridge = zoned(mix(INKS.cobalt, INKS.paper, 0.1), z);
+      const band = zoned(mix(INKS.card, INKS.ochre, 0.08), z);
+      const pom = zoned(mix(INKS.card, INKS.ochre, 0.05), z);
+      D.at(x, y, zz, rot, () => {
+        // off a head the crown slumps: sheared toward +x, its foot still flat on the table
+        D.push(new Matrix4().set(1, 0.42, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1));
+        D.lathe(0, 0, 0, [[0.094 * k, 0], [0.099 * k, 0.008 * k], [0.1 * k, 0.05 * k], [0.094 * k, 0.058 * k], [0, 0.058 * k]], 24, rib);
+        // the rib: knit ridges up the cuff, lighter than the furrows between them
+        for (let n = 0; n < 28; n++) {
+          const a = (n / 28) * Math.PI * 2;
+          D.at(Math.sin(a) * 0.099 * k, 0.029 * k, Math.cos(a) * 0.099 * k, a, () => D.box(0, 0, 0, 0.0075 * k, 0.044 * k, 0.004 * k, ridge));
+        }
+        // the crown: blue, a cream band, blue again up to the top
+        const crown: Array<[number, number]> = [[0.091, 0], [0.091, 0.022], [0.088, 0.04], [0.08, 0.06], [0.064, 0.078], [0.04, 0.09], [0, 0.094]];
+        const at = (i: number): [number, number] => [crown[i][0] * k, crown[i][1] * k];
+        D.lathe(0, 0.056 * k, 0, [at(0), at(1)], 24, wool, { flat: true });
+        D.lathe(0, 0.056 * k, 0, [at(1), [0.0905 * k, 0.034 * k]], 24, band, { flat: true });
+        D.lathe(0, 0.056 * k, 0, [[0.0905 * k, 0.034 * k], at(2), at(3), at(4), at(5), at(6)], 24, wool);
+        // the pompom, a fluff of balls
+        const top = 0.146 * k;
+        D.ball(0, top + 0.03 * k, 0, 0.04 * k, 0.034 * k, 0.04 * k, pom, 2);
+        const puffs: Array<[number, number, number]> = [[0.024, 0.036, 0.012], [-0.022, 0.032, 0.016], [0.008, 0.05, -0.02], [-0.012, 0.02, -0.026], [0.026, 0.02, -0.01], [-0.026, 0.044, -0.004]];
+        puffs.forEach(([px, py, pz]) => D.ball(px * k, top + py * k, pz * k, 0.02 * k, 0.018 * k, 0.02 * k, pom, 0));
+        D.pop();
+      });
+      return;
+    }
+    case 'gaze': {
+      // nothing to draw: a point you look at from where you can stand (a window up the street),
+      // so the story can be tapped where the quarter already draws it
       return;
     }
     case 'armoire': {
@@ -1889,6 +2674,235 @@ function planArt(text: string[]) {
     room.forEach((t, k) => {
       const [px, py, max] = spots[k] ?? [0.42, 0.3, 0.6];
       label(t, xa + (xb - xa) * px, y0 + (y1 - y0) * py, (xb - xa) * max, h * 0.055);
+    });
+  };
+}
+
+/** A poster: a coloured sheet (sea green, poster red, paper), a slogan in white or ink capitals, a line each. */
+/** A banner's words painted by hand: capitals in red, each a little off its line, a cobalt shadow, the paint run under a few. */
+function clothArt(lines: string[]) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    const rand = seeded(2512).next;
+    ctx.fillStyle = css(mix(INKS.card, INKS.ochre, 0.08));
+    ctx.fillRect(0, 0, w, h);
+    // the folds of a cloth hung up wet: soft darker bands down it
+    for (let k = 0; k < 9; k++) {
+      const fx = w * (0.06 + k * 0.11 + (rand() - 0.5) * 0.04);
+      const fw = w * (0.02 + rand() * 0.03);
+      const g = ctx.createLinearGradient(fx - fw, 0, fx + fw, 0);
+      g.addColorStop(0, 'rgba(120, 90, 40, 0)');
+      g.addColorStop(0.5, `rgba(120, 90, 40, ${0.08 + rand() * 0.07})`);
+      g.addColorStop(1, 'rgba(120, 90, 40, 0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(fx - fw, 0, fw * 2, h);
+    }
+    // the hem along the top and down the far end, its stitches
+    ctx.fillStyle = 'rgba(120, 90, 40, 0.16)';
+    ctx.fillRect(0, 0, w, h * 0.07);
+    ctx.fillRect(0, 0, w * 0.018, h);
+    ctx.strokeStyle = 'rgba(80, 60, 30, 0.45)';
+    ctx.lineWidth = Math.max(1, h * 0.006);
+    ctx.setLineDash([h * 0.025, h * 0.02]);
+    ctx.beginPath();
+    ctx.moveTo(w * 0.012, h * 0.06);
+    ctx.lineTo(w, h * 0.06);
+    ctx.moveTo(w * 0.014, h * 0.06);
+    ctx.lineTo(w * 0.014, h);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // the cut end: no hem, the weave loose along it
+    ctx.strokeStyle = 'rgba(120, 90, 40, 0.5)';
+    ctx.lineWidth = Math.max(1, h * 0.004);
+    for (let k = 0; k < 40; k++) {
+      const fy = (k / 40) * h + rand() * 3;
+      ctx.beginPath();
+      ctx.moveTo(w - 1, fy);
+      ctx.lineTo(w - w * (0.004 + rand() * 0.01), fy + rand() * 4);
+      ctx.stroke();
+    }
+    const n = Math.max(1, lines.length);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    lines.forEach((line, row) => {
+      // the painter ran out of room at the cut: the left margin wider than the right
+      const left = w * 0.06;
+      const right = w * 0.015;
+      let s = Math.round(((h * 0.93) / n) * 0.5);
+      ctx.font = SANS(s, 800);
+      const fit = () => Array.from(line).reduce((sum, ch) => sum + ctx.measureText(ch).width * 1.08, 0);
+      while (s > 6 && fit() > w - left - right) ctx.font = SANS(--s, 800);
+      let px = w - right - fit();
+      const cy = h * 0.07 + (h * 0.93 * (row + 0.5)) / n;
+      Array.from(line).forEach((ch) => {
+        const cw = ctx.measureText(ch).width * 1.08;
+        const dy = (rand() - 0.5) * s * 0.12;
+        const turn = (rand() - 0.5) * 0.09;
+        ctx.save();
+        ctx.translate(px + cw / 2, cy + dy);
+        ctx.rotate(turn);
+        ctx.fillStyle = css(mix(INKS.cobalt, INKS.paper, 0.2));
+        ctx.fillText(ch, s * 0.05, s * 0.05);
+        ctx.fillStyle = css(mix(INKS.vermilion, INKS.paper, 0.06));
+        ctx.fillText(ch, 0, 0);
+        ctx.restore();
+        // a run of paint under some letters, still wet
+        if (ch.trim() && rand() < 0.28) {
+          ctx.fillStyle = css(mix(INKS.vermilion, INKS.paper, 0.15));
+          const rx = px + cw * (0.3 + rand() * 0.4);
+          const rl = s * (0.15 + rand() * 0.3);
+          ctx.fillRect(rx, cy + dy + s * 0.36, Math.max(2, s * 0.05), rl);
+          ctx.beginPath();
+          ctx.arc(rx + Math.max(2, s * 0.05) / 2, cy + dy + s * 0.36 + rl, Math.max(2, s * 0.045), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        px += cw;
+      });
+    });
+  };
+}
+
+function posterArt(lines: string[], variant: number) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    const grounds = [mix(INKS.green, INKS.paper, 0.12), mix(INKS.vermilion, INKS.paper, 0.08), mix(INKS.card, INKS.ochre, 0.06)];
+    const inks = [INKS.card, INKS.card, mix(INKS.green, INKS.ink, 0.3)];
+    ctx.fillStyle = css(grounds[variant]);
+    ctx.fillRect(0, 0, w, h);
+    // a band and a wave at the foot: water
+    ctx.strokeStyle = css(mix(inks[variant], grounds[variant], 0.35));
+    ctx.lineWidth = Math.max(2, h * 0.012);
+    for (let k = 0; k < 3; k++) {
+      ctx.beginPath();
+      const y0 = h * (0.8 + k * 0.05);
+      for (let px = 0; px <= w; px += w / 24) ctx.lineTo(px, y0 + Math.sin((px / w) * Math.PI * 4 + k) * h * 0.012);
+      ctx.stroke();
+    }
+    ctx.fillStyle = css(inks[variant]);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const n = Math.max(1, lines.length);
+    lines.forEach((line, k) => {
+      let s = Math.round(h * (0.62 / n) * 0.62);
+      ctx.font = SANS(s, 800);
+      while (s > 6 && ctx.measureText(line).width > w * 0.86) ctx.font = SANS(--s, 800);
+      ctx.fillText(line, w / 2, h * 0.1 + (h * 0.62 * (k + 0.5)) / n);
+    });
+  };
+}
+
+/** A map of the waterways, drawn plain: the Seine, the canal up to its basin, the two canals out of it, red pins. */
+function waterwaysArt(text: string[]) {
+  const [title = '', seine = '', canal = '', basin = '', ourcq = '', denis = ''] = text;
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(INKS.card, INKS.ochre, 0.07));
+    ctx.fillRect(0, 0, w, h);
+    const water = css(mix(INKS.cobalt, INKS.paper, 0.35));
+    const ink = css(mix(INKS.ink, INKS.paper, 0.2));
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    // the Seine, a wide curve across the foot
+    ctx.strokeStyle = water;
+    ctx.lineWidth = h * 0.06;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.02, h * 0.7);
+    ctx.bezierCurveTo(w * 0.3, h * 0.95, w * 0.6, h * 0.8, w * 0.98, h * 0.93);
+    ctx.stroke();
+    // the canal Saint-Martin up from it to the basin, then the Ourcq east and Saint-Denis north
+    ctx.lineWidth = h * 0.022;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.52, h * 0.86);
+    ctx.lineTo(w * 0.5, h * 0.62);
+    ctx.lineTo(w * 0.44, h * 0.42);
+    ctx.lineTo(w * 0.5, h * 0.33);
+    ctx.stroke();
+    ctx.lineWidth = h * 0.045;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.5, h * 0.33);
+    ctx.lineTo(w * 0.58, h * 0.27);
+    ctx.stroke();
+    ctx.lineWidth = h * 0.02;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.58, h * 0.27);
+    ctx.lineTo(w * 0.97, h * 0.2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(w * 0.56, h * 0.27);
+    ctx.lineTo(w * 0.6, h * 0.04);
+    ctx.stroke();
+    // the pins
+    ctx.fillStyle = css(INKS.vermilion);
+    for (const [px, py] of [[0.5, 0.7], [0.47, 0.5], [0.54, 0.3], [0.8, 0.23], [0.59, 0.12]] as Array<[number, number]>) {
+      ctx.beginPath();
+      ctx.arc(w * px, h * py, h * 0.018, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = ink;
+    ctx.textBaseline = 'middle';
+    const label = (t: string, px: number, py: number, size: number, align: CanvasTextAlign = 'left') => {
+      ctx.textAlign = align;
+      ctx.font = SERIF(Math.round(h * size), 600);
+      ctx.fillText(t, w * px, h * py);
+    };
+    label(title, 0.04, 0.08, 0.075);
+    label(seine, 0.1, 0.94, 0.05);
+    label(canal, 0.53, 0.56, 0.045);
+    label(basin, 0.62, 0.34, 0.042);
+    label(ourcq, 0.95, 0.13, 0.042, 'right');
+    label(denis, 0.63, 0.06, 0.042);
+  };
+}
+
+/** A spreadsheet thrown on the wall: the light's square, a title row, then «label | value» rows in a grid. */
+function sheetArt(text: string[]) {
+  const [title = '', ...rows] = text;
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(INKS.card, INKS.cobalt, 0.04));
+    ctx.fillRect(0, 0, w, h);
+    // the light falls off a little at the corners
+    const g = ctx.createRadialGradient(w / 2, h / 2, h * 0.2, w / 2, h / 2, w * 0.62);
+    g.addColorStop(0, 'rgba(255,250,235,0)');
+    g.addColorStop(1, 'rgba(120,120,140,0.22)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    const m = w * 0.05;
+    // the title band
+    ctx.fillStyle = css(mix(INKS.green, INKS.paper, 0.1));
+    ctx.fillRect(m, m, w - 2 * m, h * 0.17);
+    ctx.fillStyle = css(INKS.card);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    let s = Math.round(h * 0.1);
+    ctx.font = SANS(s, 800);
+    while (s > 6 && ctx.measureText(title).width > w * 0.84) ctx.font = SANS(--s, 800);
+    ctx.fillText(title, w / 2, m + h * 0.085);
+    // the grid
+    const top = m + h * 0.21;
+    const n = Math.max(1, rows.length);
+    const rh = (h - top - m) / n;
+    const split = w * 0.58;
+    ctx.strokeStyle = css(mix(INKS.ink, INKS.paper, 0.6));
+    ctx.lineWidth = Math.max(1, h * 0.004);
+    for (let k = 0; k <= n; k++) {
+      ctx.beginPath();
+      ctx.moveTo(m, top + k * rh);
+      ctx.lineTo(w - m, top + k * rh);
+      ctx.stroke();
+    }
+    for (const gx of [m, split, w - m]) {
+      ctx.beginPath();
+      ctx.moveTo(gx, top);
+      ctx.lineTo(gx, top + n * rh);
+      ctx.stroke();
+    }
+    rows.forEach((row, k) => {
+      const [label, value = ''] = row.split('|').map((v) => v.trim());
+      const cy = top + (k + 0.5) * rh;
+      const last = k === rows.length - 1;
+      ctx.fillStyle = css(last ? mix(INKS.vermilion, INKS.ink, 0.15) : mix(INKS.ink, INKS.cobalt, 0.2));
+      ctx.font = SANS(Math.round(rh * 0.42), last ? 800 : 600);
+      ctx.textAlign = 'left';
+      ctx.fillText(label, m + w * 0.025, cy);
+      ctx.textAlign = 'right';
+      ctx.fillText(value, w - m - w * 0.025, cy);
     });
   };
 }
@@ -2045,7 +3059,473 @@ function stencilArt(lines: string[]) {
   };
 }
 
+/**
+ * A small oil in its gilt frame, leaning on the wall with its face to it: the frame's back in
+ * raw wood and the gilt showing at its edge, the stretcher with its keys, the linen, and on the
+ * linen what is written there (`text`, a line each: the first in ink, the rest in pencil).
+ */
+function framedBack(B: Build, t: RoomThing, i: number, key: string) {
+  const D = B.dry;
+  const z = t.zone;
+  const rot = t.rot ?? 0;
+  const [x, y, zz] = t.at;
+  const [w, h] = t.size ?? [0.6, 0.5];
+  const fw = 0.075;
+  const linen = zoned(mix(INKS.card, INKS.ochre, 0.22), z);
+  const wood = zoned(mix(TONES.wood, INKS.paper, 0.22), z);
+  const back = zoned(mix(TONES.wood, INKS.ink, 0.2), z);
+  const gilt = zoned(TONES.brass, z, { wet: 0.8 });
+  const out = 0.13;
+  const tilt = Math.asin(Math.min(0.5, out / h));
+  D.at(x, y, zz, rot, () => {
+    D.push(new Matrix4().makeTranslation(0, 0, out + 0.02).multiply(new Matrix4().makeRotationX(-tilt)));
+    // the frame: its back in wood, the gilt moulding round its outer edge
+    D.box(0, fw / 2, -0.02, w, fw, 0.04, back);
+    D.box(0, h - fw / 2, -0.02, w, fw, 0.04, back);
+    for (const sx of [-1, 1]) D.box(sx * (w / 2 - fw / 2), h / 2, -0.02, fw, h - 2 * fw, 0.04, back);
+    D.box(0, 0.006, -0.03, w + 0.02, 0.012, 0.06, gilt);
+    D.box(0, h - 0.006, -0.03, w + 0.02, 0.012, 0.06, gilt);
+    for (const sx of [-1, 1]) D.box(sx * (w / 2 + 0.004), h / 2, -0.03, 0.012, h, 0.06, gilt);
+    // the linen's back, and the stretcher bars over it
+    D.box(0, h / 2, 0.002, w - 2 * fw + 0.03, h - 2 * fw + 0.03, 0.004, linen);
+    const iw = w - 2 * fw;
+    const ih = h - 2 * fw;
+    D.box(0, fw + 0.015, 0.012, iw, 0.03, 0.02, wood);
+    D.box(0, h - fw - 0.015, 0.012, iw, 0.03, 0.02, wood);
+    for (const sx of [-1, 1]) D.box(sx * (iw / 2 - 0.015), h / 2, 0.012, 0.03, ih - 0.06, 0.02, wood);
+    D.pop();
+  });
+  // what is written on the linen, between the bars
+  const c = Math.cos(rot);
+  const sn = Math.sin(rot);
+  const yc = h / 2;
+  const zc = 0.0045;
+  const ly = yc * Math.cos(tilt) + zc * Math.sin(tilt);
+  const lz = -yc * Math.sin(tilt) + zc * Math.cos(tilt) + out + 0.02;
+  const n = new Vector3(sn * Math.cos(tilt), Math.sin(tilt), c * Math.cos(tilt));
+  B.signs.push({ key, center: new Vector3(x + lz * sn, y + ly, zz + lz * c), normal: n, width: w - 2 * fw - 0.07, height: h - 2 * fw - 0.07, density: 2600, draw: inscriptionArt(t.text ?? []), indoor: (z ?? 'room') === 'room' });
+  B.blocks.push(footprint(x, zz, rot, w + 0.1, out + 0.1));
+  void i;
+}
+
+/** Lines written on the back of a canvas: the first in ink, firm; the rest in pencil, shaky. */
+function inscriptionArt(lines: string[]) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(INKS.card, INKS.ochre, 0.22));
+    ctx.fillRect(0, 0, w, h);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    lines.forEach((line, k) => {
+      const ink = k === 0;
+      ctx.save();
+      ctx.translate(w / 2, h * (lines.length === 1 ? 0.5 : 0.3 + (0.42 * k) / Math.max(1, lines.length - 1)));
+      ctx.rotate(ink ? -0.02 : 0.035);
+      ctx.fillStyle = css(ink ? mix(INKS.ink, INKS.cobalt, 0.35) : mix(INKS.ink, INKS.paper, 0.38));
+      let sz = Math.round(h * (ink ? 0.16 : 0.13));
+      ctx.font = SERIF(sz, ink ? 600 : 400);
+      while (sz > 6 && ctx.measureText(line).width > w * 0.92) ctx.font = SERIF(--sz, ink ? 600 : 400);
+      if (ink) ctx.fillText(line, 0, 0);
+      else {
+        // a recent hand, not steady: each letter a little off its line
+        const wd = ctx.measureText(line).width;
+        let u = -wd / 2;
+        ctx.textAlign = 'left';
+        Array.from(line).forEach((ch, j) => {
+          ctx.fillText(ch, u, Math.sin(j * 1.7) * sz * 0.06);
+          u += ctx.measureText(ch).width;
+        });
+      }
+      ctx.restore();
+    });
+  };
+}
+
+/** A rug seen from above: a red field, a dark border with its stripes, a medallion, small motifs. */
+function rugArt() {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    const red = css(mix(mix(TONES.oxblood, INKS.vermilion, 0.3), INKS.ink, 0.06));
+    const dark = css(mix(INKS.ink, INKS.cobalt, 0.25));
+    const gold = css(mix(INKS.ochre, INKS.paper, 0.25));
+    ctx.fillStyle = dark;
+    ctx.fillRect(0, 0, w, h);
+    const b = Math.min(w, h) * 0.12;
+    ctx.strokeStyle = gold;
+    ctx.lineWidth = Math.max(1, b * 0.08);
+    ctx.strokeRect(b * 0.3, b * 0.3, w - b * 0.6, h - b * 0.6);
+    ctx.strokeRect(b * 0.75, b * 0.75, w - b * 1.5, h - b * 1.5);
+    ctx.fillStyle = red;
+    ctx.fillRect(b, b, w - 2 * b, h - 2 * b);
+    // small motifs in the border
+    ctx.fillStyle = css(mix(TONES.oxblood, INKS.vermilion, 0.2));
+    for (let u = b; u < w - b; u += b * 0.9) {
+      for (const v of [b * 0.52, h - b * 0.52]) {
+        ctx.beginPath();
+        ctx.arc(u, v, b * 0.12, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    // the medallion, and the corners
+    const lozenge = (cx: number, cy: number, rx: number, ry: number, c: string) => {
+      ctx.fillStyle = c;
+      ctx.beginPath();
+      ctx.moveTo(cx - rx, cy);
+      ctx.lineTo(cx, cy - ry);
+      ctx.lineTo(cx + rx, cy);
+      ctx.lineTo(cx, cy + ry);
+      ctx.closePath();
+      ctx.fill();
+    };
+    lozenge(w / 2, h / 2, w * 0.2, h * 0.28, dark);
+    lozenge(w / 2, h / 2, w * 0.15, h * 0.21, gold);
+    lozenge(w / 2, h / 2, w * 0.08, h * 0.12, red);
+    for (const [cx, cy] of [[b, b], [w - b, b], [b, h - b], [w - b, h - b]]) lozenge(cx, cy, w * 0.09, h * 0.12, dark);
+  };
+}
+
+/** A five-pointed star, filled. */
+function star(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
+  ctx.beginPath();
+  for (let k = 0; k < 10; k++) {
+    const a = -Math.PI / 2 + (k * Math.PI) / 5;
+    const rr = k % 2 ? r * 0.42 : r;
+    ctx.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+/** A banner's cloth: red to a point, a gold border, and its arms: a crown, a chevron, three stars. */
+function bannerArt() {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.clearRect(0, 0, w, h);
+    const shape = (m: number) => {
+      ctx.beginPath();
+      ctx.moveTo(m, m);
+      ctx.lineTo(w - m, m);
+      ctx.lineTo(w - m, h * 0.76);
+      ctx.lineTo(w / 2, h - m * 1.8);
+      ctx.lineTo(m, h * 0.76);
+      ctx.closePath();
+    };
+    ctx.fillStyle = css(mix(mix(TONES.oxblood, INKS.vermilion, 0.4), INKS.paper, 0.04));
+    shape(0);
+    ctx.fill();
+    const gold = css(mix(INKS.sunflower, INKS.ochre, 0.4));
+    ctx.strokeStyle = gold;
+    ctx.lineWidth = Math.max(2, w * 0.022);
+    shape(w * 0.06);
+    ctx.stroke();
+    ctx.fillStyle = gold;
+    // the crown
+    const cx = w / 2;
+    const cy = h * 0.19;
+    const cw = w * 0.38;
+    const ch = h * 0.085;
+    ctx.beginPath();
+    ctx.moveTo(cx - cw / 2, cy + ch / 2);
+    ctx.lineTo(cx - cw / 2, cy - ch / 2);
+    ctx.lineTo(cx - cw / 4, cy);
+    ctx.lineTo(cx, cy - ch * 0.85);
+    ctx.lineTo(cx + cw / 4, cy);
+    ctx.lineTo(cx + cw / 2, cy - ch / 2);
+    ctx.lineTo(cx + cw / 2, cy + ch / 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillRect(cx - cw / 2, cy + ch / 2 + h * 0.006, cw, ch * 0.3);
+    // the chevron
+    const vy = h * 0.47;
+    const tk = h * 0.055;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.14, vy + h * 0.13);
+    ctx.lineTo(w / 2, vy - h * 0.05);
+    ctx.lineTo(w * 0.86, vy + h * 0.13);
+    ctx.lineTo(w * 0.86, vy + h * 0.13 + tk);
+    ctx.lineTo(w / 2, vy - h * 0.05 + tk);
+    ctx.lineTo(w * 0.14, vy + h * 0.13 + tk);
+    ctx.closePath();
+    ctx.fill();
+    star(ctx, w * 0.27, h * 0.36, w * 0.075);
+    star(ctx, w * 0.73, h * 0.36, w * 0.075);
+    star(ctx, w / 2, h * 0.7, w * 0.085);
+  };
+}
+
+/** An envelope's face: a name in a round hand, a stamp, and the postmark's ring with its town. */
+function envelopeArt(lines: string[]) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(INKS.card, INKS.ochre, 0.08));
+    ctx.fillRect(0, 0, w, h);
+    // the stamp, top right
+    const sw = w * 0.13;
+    const sh = h * 0.3;
+    ctx.fillStyle = css(mix(INKS.vermilion, INKS.paper, 0.15));
+    ctx.fillRect(w - sw - w * 0.04, h * 0.08, sw, sh);
+    ctx.fillStyle = css(INKS.card);
+    ctx.fillRect(w - sw - w * 0.04 + sw * 0.25, h * 0.08 + sh * 0.2, sw * 0.5, sh * 0.5);
+    // the postmark across it: a ring with the town, and the wavy lines
+    const pc = css(mix(INKS.ink, INKS.paper, 0.3));
+    ctx.strokeStyle = pc;
+    ctx.lineWidth = Math.max(1, h * 0.012);
+    const px = w - sw - w * 0.12;
+    const py = h * 0.24;
+    const pr = h * 0.17;
+    ctx.beginPath();
+    ctx.arc(px, py, pr, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = pc;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    let ps = Math.round(h * 0.075);
+    ctx.font = SANS(ps, 700);
+    const town = lines[1] ?? '';
+    while (ps > 5 && ctx.measureText(town).width > pr * 1.8) ctx.font = SANS(--ps, 700);
+    ctx.fillText(town, px, py);
+    for (let k = 0; k < 3; k++) {
+      ctx.beginPath();
+      for (let u = 0; u <= 1; u += 0.05) ctx.lineTo(px + pr * 1.1 + u * w * 0.2, py - h * 0.06 + k * h * 0.06 + Math.sin(u * 12) * h * 0.012);
+      ctx.stroke();
+    }
+    // the name, in a round hand
+    ctx.fillStyle = css(mix(INKS.cobalt, INKS.ink, 0.4));
+    let sz = Math.round(h * 0.2);
+    ctx.font = SERIF(sz, 500);
+    const name = lines[0] ?? '';
+    while (sz > 6 && ctx.measureText(name).width > w * 0.6) ctx.font = SERIF(--sz, 500);
+    ctx.fillText(name, w * 0.45, h * 0.62);
+  };
+}
+
+/** A recorded letter's envelope: the address window, and the green-and-white «recommandé» slip. */
+function slipArt() {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(INKS.card, INKS.ochre, 0.05));
+    ctx.fillRect(0, 0, w, h);
+    // the window, the address behind it in grey lines
+    ctx.strokeStyle = css(mix(INKS.ink, INKS.paper, 0.6));
+    ctx.lineWidth = Math.max(1, h * 0.012);
+    ctx.strokeRect(w * 0.46, h * 0.5, w * 0.46, h * 0.36);
+    ctx.fillStyle = css(mix(INKS.ink, INKS.paper, 0.55));
+    for (let k = 0; k < 3; k++) ctx.fillRect(w * 0.5, h * (0.58 + k * 0.09), w * (0.3 - k * 0.04), h * 0.035);
+    // the slip, top left: a green band, white below with its number's bars
+    const sx = w * 0.05;
+    const sy = h * 0.1;
+    const sw = w * 0.36;
+    const sh = h * 0.42;
+    ctx.fillStyle = css(INKS.card);
+    ctx.fillRect(sx, sy, sw, sh);
+    ctx.fillStyle = css(mix(INKS.green, INKS.paper, 0.1));
+    ctx.fillRect(sx, sy, sw, sh * 0.38);
+    ctx.fillStyle = css(INKS.card);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    let s = Math.round(sh * 0.24);
+    ctx.font = SANS(s, 700);
+    while (s > 5 && ctx.measureText('RECOMMANDÉ AR').width > sw * 0.9) ctx.font = SANS(--s, 700);
+    ctx.fillText('RECOMMANDÉ AR', sx + sw * 0.05, sy + sh * 0.2);
+    ctx.fillStyle = css(INKS.ink);
+    for (let k = 0; k < 26; k++) if ((k * 7) % 5 !== 1) ctx.fillRect(sx + sw * (0.06 + k * 0.034), sy + sh * 0.5, sw * 0.018, sh * 0.32);
+  };
+}
+
+/** The recorded letter itself: its letterhead, the greeting, the body, the signature, two creases. */
+function recordedArt(lines: string[]) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(INKS.card, 0xffffff, 0.3));
+    ctx.fillRect(0, 0, w, h);
+    // the creases where it was folded in three
+    ctx.fillStyle = css(mix(INKS.card, INKS.ink, 0.08));
+    for (const f of [1 / 3, 2 / 3]) ctx.fillRect(0, h * f - h * 0.003, w, h * 0.006);
+    const pad = w * 0.1;
+    const ink = css(mix(INKS.ink, INKS.cobalt, 0.15));
+    ctx.fillStyle = ink;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = SANS(Math.round(h * 0.034), 700);
+    ctx.fillText(lines[0] ?? '', pad, h * 0.09);
+    ctx.fillRect(pad, h * 0.105, w - 2 * pad, h * 0.003);
+    // the recipient's address, right, in grey lines
+    ctx.fillStyle = css(mix(INKS.ink, INKS.paper, 0.55));
+    for (let k = 0; k < 3; k++) ctx.fillRect(w * 0.56, h * (0.16 + k * 0.03), w * (0.3 - k * 0.05), h * 0.012);
+    ctx.fillStyle = ink;
+    ctx.font = SANS(Math.round(h * 0.04), 700);
+    ctx.fillText('Objet : fin du bail', pad, h * 0.3);
+    const body = lines.slice(1, -1);
+    const sign = lines.length > 2 ? lines[lines.length - 1] : '';
+    let size = Math.round(h * 0.042);
+    const wrap = () => {
+      ctx.font = SERIF(size, 500);
+      const rows: string[] = [];
+      for (const p of body) {
+        let row = '';
+        for (const word of p.split(' ')) {
+          const next = row ? `${row} ${word}` : word;
+          if (row && ctx.measureText(next).width > w - 2 * pad) {
+            rows.push(row);
+            row = word;
+          } else row = next;
+        }
+        rows.push(row);
+      }
+      return rows;
+    };
+    let rows = wrap();
+    while (size > 6 && rows.length * size * 1.5 > h * 0.4) {
+      size -= 1;
+      rows = wrap();
+    }
+    rows.forEach((r, k) => ctx.fillText(r, pad, h * 0.38 + k * size * 1.5));
+    // grey lines for the rest of the page, then the signature
+    ctx.fillStyle = css(mix(INKS.ink, INKS.paper, 0.6));
+    const y0 = h * 0.38 + rows.length * size * 1.5;
+    for (let k = 0; k < 4; k++) ctx.fillRect(pad, y0 + k * h * 0.035, (w - 2 * pad) * (k === 3 ? 0.5 : 0.95), h * 0.01);
+    ctx.fillStyle = ink;
+    ctx.font = SERIF(Math.round(h * 0.04), 500);
+    ctx.textAlign = 'right';
+    ctx.fillText(sign, w - pad, h * 0.86);
+  };
+}
+
+/** A plain blue bank card: the gold chip, the name in raised capitals, no bank on it. */
+function bankCardArt(name: string) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(INKS.cobalt, INKS.paper, 0.1));
+    ctx.fillRect(0, 0, w, h);
+    // a lighter sweep across it
+    ctx.fillStyle = css(mix(INKS.cobalt, INKS.paper, 0.22));
+    ctx.beginPath();
+    ctx.moveTo(w * 0.45, 0);
+    ctx.lineTo(w, 0);
+    ctx.lineTo(w, h * 0.55);
+    ctx.closePath();
+    ctx.fill();
+    // the chip, its contacts
+    ctx.fillStyle = css(mix(TONES.brass, INKS.paper, 0.2));
+    ctx.fillRect(w * 0.1, h * 0.34, w * 0.15, h * 0.2);
+    ctx.fillStyle = css(mix(TONES.brass, INKS.ink, 0.3));
+    ctx.fillRect(w * 0.175, h * 0.34, w * 0.006, h * 0.2);
+    for (const f of [0.41, 0.47]) ctx.fillRect(w * 0.1, h * f, w * 0.15, h * 0.012);
+    // the number in four groups (no digits to read), and the name, raised and silvered
+    ctx.fillStyle = css(mix(INKS.card, INKS.cobalt, 0.15));
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.font = SANS(Math.round(h * 0.11), 600);
+    ctx.fillText('•••• •••• •••• ••••', w * 0.1, h * 0.68);
+    let s = Math.round(h * 0.1);
+    ctx.font = SANS(s, 600);
+    while (s > 5 && ctx.measureText(name).width > w * 0.8) ctx.font = SANS(--s, 600);
+    ctx.fillText(name, w * 0.1, h * 0.85);
+  };
+}
+
+/**
+ * A Polaroid: a lake under trees, a bench, two old people laughing on it (small, from where an
+ * arm held the camera; no faces to read), and on the white border below, its caption in a hand.
+ */
+function polaroidArt(caption: string) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(INKS.card);
+    ctx.fillRect(0, 0, w, h);
+    const m = w * 0.07;
+    const ph = h * 0.72;
+    // the picture: sky, trees, the lake, the bank
+    ctx.fillStyle = css(mix(INKS.cobalt, INKS.paper, 0.6));
+    ctx.fillRect(m, m, w - 2 * m, ph - m);
+    ctx.fillStyle = css(mix(INKS.green, INKS.ink, 0.15));
+    ctx.fillRect(m, m + (ph - m) * 0.22, w - 2 * m, (ph - m) * 0.2);
+    ctx.fillStyle = css(mix(INKS.cobalt, INKS.paper, 0.35));
+    ctx.fillRect(m, m + (ph - m) * 0.42, w - 2 * m, (ph - m) * 0.2);
+    ctx.fillStyle = css(mix(INKS.ochre, INKS.paper, 0.45));
+    ctx.fillRect(m, m + (ph - m) * 0.62, w - 2 * m, (ph - m) * 0.38);
+    // the bench, and the two of them on it, leaning into each other
+    const by = m + (ph - m) * 0.78;
+    ctx.fillStyle = css(mix(TONES.wood, INKS.ink, 0.3));
+    ctx.fillRect(w * 0.22, by, w * 0.56, h * 0.025);
+    ctx.fillRect(w * 0.22, by - h * 0.08, w * 0.56, h * 0.02);
+    const person = (cx: number, coat: number, lean: number) => {
+      ctx.fillStyle = css(coat);
+      ctx.beginPath();
+      ctx.ellipse(cx + lean, by - h * 0.05, w * 0.075, h * 0.07, lean * 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = css(mix(INKS.paper, INKS.ink, 0.35));
+      ctx.beginPath();
+      ctx.arc(cx + lean * 2, by - h * 0.135, w * 0.04, 0, Math.PI * 2);
+      ctx.fill();
+    };
+    person(w * 0.4, mix(INKS.green, INKS.sunflower, 0.15), w * 0.02);
+    person(w * 0.6, mix(INKS.ink, INKS.cobalt, 0.3), -w * 0.02);
+    // the caption, in her hand
+    ctx.fillStyle = css(mix(INKS.cobalt, INKS.ink, 0.35));
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    let sz = Math.round(h * 0.075);
+    ctx.font = SERIF(sz, 500);
+    while (sz > 5 && ctx.measureText(caption).width > w * 0.9) ctx.font = SERIF(--sz, 500);
+    ctx.fillText(caption, w / 2, ph + (h - ph) / 2);
+  };
+}
+
+/** An old studio portrait gone sepia: a woman's head and shoulders in an oval, no features drawn. */
+function portraitArt() {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(INKS.ochre, INKS.paper, 0.7));
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = css(mix(INKS.ochre, INKS.ink, 0.25));
+    ctx.beginPath();
+    ctx.ellipse(w / 2, h / 2, w * 0.4, h * 0.42, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = css(mix(INKS.ochre, INKS.paper, 0.4));
+    ctx.beginPath();
+    ctx.ellipse(w / 2, h * 0.42, w * 0.14, h * 0.13, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(w / 2, h * 0.82, w * 0.3, h * 0.2, 0, Math.PI, 0);
+    ctx.fill();
+  };
+}
+
 /** A letterbox's card: a name typed on a slip. */
+/** An intercom's face: the speaker's grille, then two columns of name cards and their buttons. */
+function intercomArt(names: string[], rows: number) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(mix(INKS.paper, INKS.ink, 0.22), INKS.ochre, 0.08));
+    ctx.fillRect(0, 0, w, h);
+    const top = h * (0.12 / (0.12 + rows * 0.045));
+    // the grille: rows of small holes
+    ctx.fillStyle = css(mix(INKS.ink, INKS.paper, 0.15));
+    for (let gy = top * 0.25; gy < top * 0.8; gy += top * 0.14) {
+      for (let gx = w * 0.32; gx < w * 0.68; gx += w * 0.045) {
+        ctx.beginPath();
+        ctx.arc(gx, gy, Math.max(1, w * 0.008), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    const rh = (h - top) / rows;
+    const cw = w / 2;
+    names.forEach((name, i) => {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const x0 = col * cw + cw * 0.06;
+      const y0 = top + row * rh + rh * 0.14;
+      const lw = cw * 0.66;
+      const lh = rh * 0.72;
+      ctx.fillStyle = css(INKS.card);
+      ctx.fillRect(x0, y0, lw, lh);
+      ctx.fillStyle = css(INKS.ink);
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      let s = Math.round(lh * 0.62);
+      ctx.font = SANS(s, 500);
+      while (s > 5 && ctx.measureText(name).width > lw * 0.9) ctx.font = SANS(--s, 500);
+      ctx.fillText(name, x0 + lw * 0.05, y0 + lh * 0.54);
+      // the button
+      ctx.fillStyle = css(mix(INKS.paper, INKS.ink, 0.5));
+      ctx.beginPath();
+      ctx.arc(x0 + lw + cw * 0.14, y0 + lh / 2, lh * 0.32, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  };
+}
+
 function labelArt(text: string) {
   return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
     ctx.fillStyle = css(INKS.card);
@@ -2491,7 +3971,7 @@ export function buildRoom(B: Build, spec: RoomSpec): RoomBuilt {
     const paint = zoned(finish.color, fl.zone, { pattern: finish.pattern });
     // a landing over the stairwell shows the thickness of its floor
     const thick = fl.y > 1 ? 0.32 : 0.2;
-    B.dry.prism(fl.shape, fl.y - thick, fl.y, paint, { sides: fl.y > 1, bottom: fl.y > 1 });
+    if (fl.drawn !== false) B.dry.prism(fl.shape, fl.y - thick, fl.y, paint, { sides: fl.y > 1, bottom: fl.y > 1 });
     if (walked(fl)) B.walk.push({ shape: fl.shape, y: fl.y });
   });
   spec.ceilings.forEach((c) => {

@@ -1,13 +1,14 @@
 {
   "id": "chez_marin_lila",
   "kind": "room",
-  "round": 3,
+  "round": 4,
   "in": "quai_de_valmy",
   "canon": {
     "doc": "docs/story/season-1/10-lieux-et-images.md",
     "place": "Marin and Lila's flat",
     "scenes": [
-      "T5 · «Tu le découvres», B without the key: P2 to P9"
+      "T5 · «Tu le découvres», B without the key: P2 to P9",
+      "T5 A · R1 («at the foot of her building»), R2 («From the street, you watch the third-floor window light up»)"
     ]
   },
   "ambiance": "nuit",
@@ -38,6 +39,86 @@
     ]
   },
   "spaces": [
+    {
+      "key": "vestibule",
+      "rect": [
+        -28.6,
+        15.7,
+        -27.26,
+        18.45
+      ],
+      "floor": 0.16,
+      "ceiling": 4.25,
+      "finish": "cabochons",
+      "walls": {
+        "finish": "wainscot",
+        "tone": "celadon",
+        "dado": "faux"
+      },
+      "open": {
+        "w": [
+          {
+            "u": [
+              1.5,
+              2.75
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "couloir",
+      "rect": [
+        -37.2,
+        15.7,
+        -28.6,
+        16.95
+      ],
+      "floor": 0.16,
+      "finish": "cabochons",
+      "walls": null
+    },
+    {
+      "key": "pied",
+      "rect": [
+        -38.7,
+        15.7,
+        -37.2,
+        18.45
+      ],
+      "floor": 0.16,
+      "finish": "cabochons",
+      "walls": null
+    },
+    {
+      "key": "palier",
+      "rect": [
+        -30.45,
+        17.1,
+        -28.6,
+        18.45
+      ],
+      "floor": 4.6,
+      "finish": "boards",
+      "walls": null
+    },
+    {
+      "key": "palier3",
+      "rect": [
+        -36.6,
+        9.7,
+        -35.25,
+        15.5
+      ],
+      "floor": 11.2,
+      "ceiling": 14.0,
+      "finish": "boards",
+      "walls": {
+        "finish": "wainscot",
+        "tone": "celadon",
+        "dado": "faux"
+      }
+    },
     {
       "key": "entree",
       "rect": [
@@ -120,10 +201,218 @@
       "finish": "boards"
     }
   ],
-  "walls": [],
-  "flights": [],
-  "rails": [],
+  "walls": [
+    {
+      "key": "cage.n",
+      "a": [
+        -38.7,
+        15.7
+      ],
+      "b": [
+        -28.6,
+        15.7
+      ],
+      "base": 0.16,
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux"
+    },
+    {
+      "key": "cage.e1",
+      "a": [
+        -28.6,
+        15.7
+      ],
+      "b": [
+        -28.6,
+        16.95
+      ],
+      "base": 0.16,
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux"
+    },
+    {
+      "key": "cage.e2",
+      "a": [
+        -28.6,
+        16.95
+      ],
+      "b": [
+        -28.6,
+        18.45
+      ],
+      "base": 4.6,
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux"
+    },
+    {
+      "key": "cage.s1",
+      "a": [
+        -28.6,
+        18.45
+      ],
+      "b": [
+        -30.45,
+        18.45
+      ],
+      "base": 4.6,
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux"
+    },
+    {
+      "key": "cage.s2",
+      "a": [
+        -30.45,
+        18.45
+      ],
+      "b": [
+        -37.2,
+        18.45
+      ],
+      "base": [
+        4.6,
+        0.16
+      ],
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux"
+    },
+    {
+      "key": "cage.s3",
+      "a": [
+        -37.2,
+        18.45
+      ],
+      "b": [
+        -38.7,
+        18.45
+      ],
+      "base": 0.16,
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux"
+    },
+    {
+      "key": "cage.w",
+      "a": [
+        -38.7,
+        18.45
+      ],
+      "b": [
+        -38.7,
+        15.7
+      ],
+      "base": 0.16,
+      "top": 8.4,
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux"
+    },
+    {
+      "key": "cloison.1",
+      "a": [
+        -28.6,
+        16.97
+      ],
+      "b": [
+        -30.45,
+        16.97
+      ],
+      "base": 0.16,
+      "top": 4.28,
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux",
+      "plain": true
+    },
+    {
+      "key": "cloison.2",
+      "a": [
+        -30.45,
+        16.97
+      ],
+      "b": [
+        -37.2,
+        16.97
+      ],
+      "base": 0.16,
+      "top": [
+        4.3,
+        0.18
+      ],
+      "finish": "wainscot",
+      "tone": "celadon",
+      "dado": "faux",
+      "plain": true
+    }
+  ],
+  "flights": [
+    {
+      "key": "volee",
+      "from": [
+        -37.2,
+        17.775
+      ],
+      "dir": "x+",
+      "width": 1.35,
+      "y0": 0.16,
+      "y1": 4.6,
+      "risers": 26,
+      "tread": 0.27,
+      "rail": "left"
+    }
+  ],
+  "rails": [
+    {
+      "a": [
+        -30.45,
+        4.6,
+        17.06
+      ],
+      "b": [
+        -28.6,
+        4.6,
+        17.06
+      ]
+    }
+  ],
   "doors": [
+    {
+      "key": "porte_rue",
+      "wall": "vestibule.e",
+      "u": [
+        0.1,
+        2.65
+      ],
+      "height": 3.2,
+      "hinge": "both",
+      "swing": "in",
+      "tone": "porch",
+      "opens": "never"
+    },
+    {
+      "key": "porte_premier",
+      "wall": "cage.s1",
+      "u": [
+        0.5,
+        1.4
+      ],
+      "height": 2.2,
+      "hinge": "right",
+      "swing": "out",
+      "tone": "brown",
+      "opens": "never",
+      "mat": true
+    },
     {
       "key": "porte_palier",
       "wall": "entree.w",
@@ -171,6 +460,60 @@
   ],
   "lights": [
     {
+      "key": "globe_vestibule",
+      "kind": "globe",
+      "at": [
+        -27.93,
+        3.6,
+        17.05
+      ],
+      "ceiling": 4.25,
+      "power": 0.9,
+      "range": 4.6
+    },
+    {
+      "key": "applique_pied",
+      "kind": "sconce",
+      "at": [
+        -38.44,
+        2.4,
+        17.05
+      ],
+      "facing": [
+        1,
+        0
+      ],
+      "power": 0.85,
+      "range": 5.2
+    },
+    {
+      "key": "hublot_premier",
+      "kind": "hublot",
+      "at": [
+        -28.835,
+        6.9,
+        17.75
+      ],
+      "facing": [
+        -1,
+        0
+      ],
+      "power": 0.85,
+      "range": 4.6
+    },
+    {
+      "key": "globe_palier3",
+      "kind": "globe",
+      "at": [
+        -35.92,
+        13.7,
+        12.6
+      ],
+      "ceiling": 14.0,
+      "power": 0.7,
+      "range": 4.2
+    },
+    {
       "key": "globe_sejour",
       "kind": "globe",
       "at": [
@@ -198,6 +541,34 @@
   "switches": [],
   "timers": {},
   "things": [
+    {
+      "kind": "letterboxes",
+      "at": [
+        -27.93,
+        1.45,
+        15.7
+      ],
+      "rot": 0,
+      "tone": "brown",
+      "text": [
+        "1er",
+        "2e",
+        "3e · Lévêque · Bonnet",
+        "4e",
+        "5e",
+        "6e"
+      ],
+      "look": {
+        "fr": "Les boîtes aux lettres. Au troisième : Lévêque, Bonnet. Marin et Lila.",
+        "en": "The letterboxes. Third floor: Lévêque, Bonnet. Marin and Lila.",
+        "de": "Die Briefkästen. Dritter Stock: Lévêque, Bonnet. Marin und Lila."
+      },
+      "did": {
+        "fr": "Tu as lu les boîtes aux lettres : Marin et Lila, au troisième.",
+        "en": "You read the letterboxes: Marin and Lila, on the third floor.",
+        "de": "Du hast die Briefkästen gelesen: Marin und Lila, im dritten Stock."
+      }
+    },
     {
       "kind": "crate",
       "at": [
@@ -384,6 +755,31 @@
     }
   ],
   "marks": {
+    "streetDoor": [
+      -27.6,
+      0.16,
+      17.05
+    ],
+    "hall": [
+      -28.0,
+      0.16,
+      16.35
+    ],
+    "foot": [
+      -37.9,
+      0.16,
+      17.45
+    ],
+    "premier": [
+      -29.5,
+      4.6,
+      17.75
+    ],
+    "palier3": [
+      -35.92,
+      11.2,
+      14.9
+    ],
     "porte": [
       -34.45,
       11.2,
@@ -409,5 +805,124 @@
       11.2,
       9.25
     ]
-  }
+  },
+  "ceilings": [
+    {
+      "shape": [
+        [
+          -38.7,
+          15.7
+        ],
+        [
+          -28.6,
+          15.7
+        ],
+        [
+          -28.6,
+          18.45
+        ],
+        [
+          -38.7,
+          18.45
+        ]
+      ],
+      "y": 8.4
+    }
+  ],
+  "holes": [
+    {
+      "wall": "cage.e1",
+      "u": [
+        0.0,
+        1.25
+      ],
+      "y": [
+        0.15,
+        4.25
+      ]
+    },
+    {
+      "wall": "palier3.e",
+      "u": [
+        0.35,
+        1.25
+      ],
+      "y": [
+        11.2,
+        13.4
+      ],
+      "framed": true
+    }
+  ],
+  "passages": [
+    {
+      "key": "escalier",
+      "a": [
+        -29.5,
+        17.75
+      ],
+      "b": [
+        -35.92,
+        14.9
+      ],
+      "look_a": [
+        -37.0,
+        2.2,
+        17.775
+      ],
+      "look_b": [
+        -35.92,
+        12.6,
+        10.5
+      ],
+      "to_b": {
+        "fr": "Monter au troisième",
+        "en": "Go up to the third floor",
+        "de": "In den dritten Stock gehen"
+      },
+      "to_a": {
+        "fr": "Redescendre au premier",
+        "en": "Go back down to the first floor",
+        "de": "In den ersten Stock hinuntergehen"
+      }
+    },
+    {
+      "key": "porte",
+      "a": [
+        -35.92,
+        10.5
+      ],
+      "b": [
+        -34.45,
+        10.5
+      ],
+      "door": "porte_palier",
+      "until": "story",
+      "look_a": [
+        -35.92,
+        12.4,
+        14.0
+      ],
+      "look_b": [
+        -33.75,
+        11.8,
+        9.4
+      ],
+      "to_b": {
+        "fr": "Entrer chez Marin et Lila",
+        "en": "Go into Marin and Lila's flat",
+        "de": "In die Wohnung von Marin und Lila gehen"
+      },
+      "to_a": {
+        "fr": "Sortir sur le palier",
+        "en": "Go out onto the landing",
+        "de": "Auf den Treppenabsatz gehen"
+      },
+      "shut": {
+        "fr": "Tu sonnes. Personne ne répond, pas encore.",
+        "en": "You ring. Nobody answers, not yet.",
+        "de": "Du klingelst. Niemand macht auf, noch nicht."
+      }
+    }
+  ]
 }

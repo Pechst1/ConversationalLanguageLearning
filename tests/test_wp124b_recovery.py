@@ -159,7 +159,9 @@ def test_off_a_gap_and_after_the_finale_a_lost_day_is_a_reprise_and_moves_nothin
     season = _season()
     on_tentpole = _played(G1_DAY1 + 4)  # g1 played to its end: T2 A is next
     assert _pos(on_tentpole).key == "t2.a"
-    assert decide(season, on_tentpole, _pos(on_tentpole), failures_before=9).kind == "reprise"
+    # P11: an authored day is never re-read; it is served as written (its own page).
+    authored = decide(season, on_tentpole, _pos(on_tentpole), failures_before=9)
+    assert (authored.kind, authored.reason, authored.position.key) == ("tentpole", "authored_day_lost", "t2.a")
     finished = _played(season.total_days)
     pos = _pos(finished)
     assert pos.finished

@@ -6,7 +6,9 @@ import { AlertTriangle, ArrowLeft, CircleDollarSign, ShieldCheck } from 'lucide-
 
 import { AtelierV2Root, StateBlock } from '@/components/atelier-v2/ui';
 import { CohortSection, type PilotCohorts } from '@/components/pilot/CohortSection';
+import { LearnerReportsSection } from '@/components/pilot/LearnerReportsSection';
 import { ForgeMetricsSection } from '@/components/pilot/ForgeMetricsSection';
+import { MemoSection } from '@/components/pilot/MemoSection';
 import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { useChromeLanguage } from '@/lib/learner-language';
 import type { PilotForge } from '@/lib/forge-metrics';
@@ -279,7 +281,9 @@ function PilotOperationsReport() {
 
               <JourneySection ledger={journey} loadError={journeyError} />
               <CohortSection report={cohorts} loadError={cohortsError} />
+              <LearnerReportsSection />
               <ForgeMetricsSection report={forge} loadError={forgeError} />
+              <MemoSection />
             </>
           )}
         </div>

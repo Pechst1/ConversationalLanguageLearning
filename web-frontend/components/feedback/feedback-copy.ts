@@ -46,6 +46,7 @@ export const FEEDBACK_COPY: Record<ControlLanguage, FeedbackCopy> = {
       slow_loading: 'Slow/loading',
       suggestion: 'Suggestion',
       other: 'Other',
+      looks_wrong: 'Looks wrong',
     },
   },
   de: {
@@ -69,6 +70,7 @@ export const FEEDBACK_COPY: Record<ControlLanguage, FeedbackCopy> = {
       slow_loading: 'Langsam/Laden',
       suggestion: 'Vorschlag',
       other: 'Anderes',
+      looks_wrong: 'Sieht falsch aus',
     },
   },
   fr: {
@@ -92,6 +94,7 @@ export const FEEDBACK_COPY: Record<ControlLanguage, FeedbackCopy> = {
       slow_loading: 'Lenteur/chargement',
       suggestion: 'Suggestion',
       other: 'Autre',
+      looks_wrong: 'Ça cloche',
     },
   },
 };

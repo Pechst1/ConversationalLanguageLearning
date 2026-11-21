@@ -18,14 +18,14 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, object_session
 
 from app.api.deps import get_current_user, get_db
 from app.core.rate_limit import enforce_recheck_limit
 from app.db.models.journal import JournalEntry
 from app.db.models.user import User
 from app.schemas.verdict import VerdictView
-from app.services import verdicts
+from app.services import verdict_settle, verdicts
 from app.services.journal import (
     ENTRY_MAX_CHARS,
     FOLLOWUP_MAX_CHARS,
@@ -113,6 +113,10 @@ class JournalFollowupView(BaseModel):
     #: until answered.
     facts_total: int | None = None
     facts_matched: int | None = None
+    #: The rules' fixes for the answer (#775): ``None`` before it is answered, or for an
+    #: answer saved before the check existed. ``checked_by`` is ``rules``: a basic check.
+    corrections: list[dict] | None = None
+    checked_by: str | None = None
 
 
 class JournalEnvelope(BaseModel):
@@ -178,7 +182,10 @@ def _entry_view(entry: JournalEntry, today: date) -> JournalEntryView:
                     for key, value in dict(entry.correction or {}).items()
                     if key in JournalCorrectionView.model_fields and key != "check"
                 },
-                check=VerdictView.of(verdicts.from_journal(entry.correction, text=entry.entry_text or "")),
+                check=VerdictView.of(
+                    verdicts.from_journal(entry.correction, text=entry.entry_text or ""),
+                    checked_since=verdict_settle.checked_since(object_session(entry), "journal_entry", entry.id),
+                ),
             )
             if written
             else None
@@ -203,6 +210,18 @@ def _followup_view(entry: JournalEntry) -> JournalFollowupView:
         signal=entry.followup_signal,
         facts_total=int(recall.get("facts_total") or 0) if answered else None,
         facts_matched=len(recall.get("matched") or []) if answered else None,
+        corrections=[
+            {
+                "learner_text": item.get("learner_text"),
+                "corrected_target": item.get("corrected_target"),
+                "why_wrong": item.get("why_wrong"),
+            }
+            for item in recall.get("errata") or []
+            if isinstance(item, dict)
+        ]
+        if answered and recall.get("checked_by")
+        else None,
+        checked_by=recall.get("checked_by") if answered else None,
     )
 
 
@@ -310,7 +329,9 @@ def retry_correction(
     """
     enforce_recheck_limit(current_user)
     entry = _load(db, current_user, entry_id)
-    entry = JournalService(db).retry_correction(current_user, entry)
+    # Package V stage 3: the settlement job, inline and on the learner's own limit.
+    verdict_settle.ask(db, user=current_user, row=entry, subject_type="journal_entry")
+    db.refresh(entry)
     return _envelope(db, current_user, entry)
 
 

@@ -20,13 +20,22 @@ concurrency:
 
 jobs:
   browser-walk:
+    # A pull request (and a tag) plays the walk here, as one of its checks. A push to
+    # main does not: Render deploys a commit when every check on it has passed, and the
+    # walks (26-43 min) held each deploy for about 55 minutes while the other checks were
+    # done in 8. On main the job is skipped (Render counts a skipped check as passed), and
+    # .github/workflows/walk-main.yml plays the same four walks once this run is
+    # finished, filing a walk-finding issue when one fails.
     name: Browser release checks
+    if: github.event_name != 'push' || github.ref != 'refs/heads/main'
     uses: ./.github/workflows/walk.yml
 
   publish:
     name: Publish verified image
     needs: [generated-types, backend, learner-walk, postgres, frontend, docker, browser-walk]
-    if: github.event_name == 'push'
+    # A tag's image, after every check of its run, the walks included. A commit on main
+    # is published by walk-main.yml once its walks have passed too: here they are skipped.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: read
       packages: write
@@ -52,6 +61,9 @@ jobs:
         working-directory: web-frontend
       - name: Reject stale generated types
         run: npm run types:check
+        working-directory: web-frontend
+      - name: Reject a stale generated cast
+        run: npm run cast:check
         working-directory: web-frontend
 
   backend:
@@ -115,6 +127,13 @@ jobs:
       - name: Check Python with Ruff
         if: matrix.shard == 1
         run: ruff check .
+
+      - name: Gold gate (prompts and models of the gold surfaces)
+        # Free and offline: renders every model call the four weekly gold surfaces make
+        # and compares it with tests/gold_transcripts/gate.json. A change there must pass
+        # `python scripts/gold_transcripts.py gate` (paid, outside CI) first.
+        if: matrix.shard == 1
+        run: python scripts/gold_transcripts.py check
 
       - name: Run backend tests
         # `-n auto --dist loadfile`: every xdist worker is its own process with its
@@ -213,7 +232,9 @@ jobs:
     name: PostgreSQL · migrations + row locks
     # SQLite serialises every writer, so the row-lock paths (the story writer's
     # FOR UPDATE, the journey finish race, the drain) only mean something here.
-    runs-on: ubuntu-latest
+    # Pinned image: on 18 Nov 2026 ubuntu-latest became 26.04, whose client tools
+    # (18) write `SET transaction_timeout`, which the 15 server below rejects.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     services:
       postgres:
@@ -265,6 +286,22 @@ jobs:
           # that copy, not this one.
           pip install -c constraints.txt -e .[dev]
           python -m spacy download fr_core_news_sm
+
+      - name: PostgreSQL client tools of the server's major version
+        # The restore drill (tests/test_production_recovery_pg.py) dumps and restores
+        # with pg_dump/pg_restore from PATH and refuses a client whose major differs
+        # from the server's. Keep this number equal to the service image above.
+        run: |
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-15
+          echo /usr/lib/postgresql/15/bin >> "$GITHUB_PATH"
+
+      - name: Show PostgreSQL versions
+        run: |
+          pg_dump --version
+          pg_restore --version
+          psql "$PG_URL" -XAtc 'select version()'
 
       - name: Verify Alembic migrations
         # Also the step that gives the database its schema for everything below.

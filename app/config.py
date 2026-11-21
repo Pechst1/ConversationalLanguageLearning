@@ -127,6 +127,58 @@ class Settings(BaseSettings):
             "re-checked. Off, nothing is recorded and rows count by re-reading, as in stage 1."
         ),
     )
+    VERDICT_SETTLE_ENABLED: bool = Field(
+        True,
+        description=(
+            "Package V stage 3: an answer saved unread is queued and checked again later by "
+            "app.tasks.verdict_settle. Off, it waits for the learner's «Check again» as before."
+        ),
+    )
+    VERDICT_SETTLE_FORGE: bool = Field(
+        False,
+        description=(
+            "Stage R1: a La Forge free sentence whose second check failed (refused call, timeout, "
+            "invalid output) is queued and checked again by app.tasks.verdict_settle. Off, nothing "
+            "of La Forge's is queued or settled; «Check again» stays the only way out."
+        ),
+    )
+    VERDICT_SETTLE_MAX_ATTEMPTS: int = Field(
+        5, ge=1, description="Package V stage 3: background attempts per unread answer before the job gives up."
+    )
+    VERDICT_SETTLE_DAILY_BUDGET: int = Field(
+        20, ge=0, description="Package V stage 3: background check attempts per learner and UTC day (owner decision 5)."
+    )
+    VERDICT_SETTLE_BACKOFF_MINUTES: str = Field(
+        "5,30,120,480,1440",
+        description="Package V stage 3: minutes before attempt 1, 2, … (the last value repeats).",
+    )
+    ANSWER_MEMO_ENABLED: bool = Field(
+        True,
+        description=(
+            "Package V stage 4: a model verdict on a keyed item (drill, Forge, placement) is remembered; "
+            "once a second independent check confirms it, the same answer is settled without a model call."
+        ),
+    )
+    VERDICT_APPEAL_ENABLED: bool = Field(
+        True,
+        description=(
+            "Package V stage 5: under a «not yet» or «partly» drill verdict, the learner can say "
+            "«I think this is right»; a stronger model re-judges it (owner decision 4: on)."
+        ),
+    )
+    VERDICT_APPEAL_DAILY_LIMIT: int = Field(
+        3, ge=0, description="Package V stage 5: appeals per learner and UTC day (owner decision 4)."
+    )
+    VERDICT_APPEAL_MODEL: str | None = Field(
+        None,
+        description="Package V stage 5: the stronger model that re-judges an appeal. Unset: STORY_CRITIC_MODEL, then OPENAI_MODEL.",
+    )
+    VERDICT_APPEAL_REASONING_EFFORT: str | None = Field(
+        "medium", description="Package V stage 5: reasoning effort for the appeal model."
+    )
+    ANSWER_MEMO_CONFIRM_DELAY_SECONDS: int = Field(
+        30, ge=0, description="Package V stage 4: seconds before the second check of a new memo runs."
+    )
     VERDICT_LEGACY_ROWS: str = Field(
         "as_counted",
         description=(
@@ -691,6 +743,19 @@ class Settings(BaseSettings):
             "writes everything. Live pages keep the one call either way."
         ),
     )
+    STORY_SCENE_RECORD: bool = Field(
+        False,
+        description=(
+            "Story truth (#145, #147): a scene keeps a record of what each learner turn did "
+            "(answered, said no, asked, went off the subject), the reply lanes are written "
+            "from it, and a reply that asks an answered question again or quotes words the "
+            "learner never wrote is vetoed: re-rolled once, then the authored line. The "
+            "day's question is asked again only by the day contract (STORY_CONTRACT_REASK), "
+            "which reads «answered» from this record. Also: one cast (address and relations "
+            "live on the person), one scene per page, tomorrow's open question. Off: main's "
+            "behaviour before the stack."
+        ),
+    )
     STORY_DAY_CONTRACT: bool = Field(
         False,
         description=(
@@ -727,6 +792,17 @@ class Settings(BaseSettings):
             "kept in a pool (story_pool_pages) and served to every learner whose day gives "
             "the writer the same input; their own words fill its slots and every guard "
             "runs on what they read. Off: every learner's page is written for them."
+        ),
+    )
+    DAY_BRIEF_ENABLED: bool = Field(
+        False,
+        description=(
+            "S1.1 «one day brief», shadow stage: when a day is planned, its rule, page "
+            "review, Forge anchor, test-out candidate, word-plan pointer and the scene's "
+            "grammar pick are stored once in plan_selection['brief'] (app/services/"
+            "day_brief.py), and every surface that still picks today's rule on its own "
+            "logs a 'day_brief_disagreement' warning when its answer differs. Nothing "
+            "reads the brief yet. Off: nothing is built, stored or compared."
         ),
     )
     ATELIER_SEASON_WRITER_ENABLED: bool = Field(
@@ -1012,6 +1088,16 @@ class Settings(BaseSettings):
             "production (the same rule as ATELIER_DAILY_JOURNEY_COHORT)."
         ),
     )
+    ATELIER_STORY_ACTS_ACCOUNTS: str = Field(
+        "",
+        description=(
+            "Owner 2026-11-16: comma-separated user ids or emails (case-insensitive) the "
+            "night writes acts for even while ATELIER_STORY_ACTS is off — the owner tries "
+            "«Le soir» on his own account before any tester sees it. Names accounts only: "
+            "'*' names nobody here (the global switch and its cohort are for everyone). "
+            "Empty: nobody. Set in the dashboard on the API and the worker (sync: false)."
+        ),
+    )
     ATELIER_STORY_ACTS_DAILY_SPEND_CAP_USD: float = Field(
         0.0,
         ge=0,
@@ -1044,6 +1130,19 @@ class Settings(BaseSettings):
             "so this is a hard cost bound, not a nudge: at the cap the learner is told "
             "in French how long until the next one. 0 switches the feature off — the "
             "page then explains why rather than 500-ing."
+        ),
+    )
+
+    # ---- S2.1: one stored day plan (shadow) ---------------------------------
+    DAY_PLAN_STORED: bool = Field(
+        False,
+        description=(
+            "S2.1: store the day's plan (scene, grammar, words) on the journey row when the "
+            "day is planned, write each step's status from the events that already happen "
+            "(journey started/paused/finished, a Forge séance finished, words done), and on "
+            "every read of the day's session compare it with today's recomputed view, logging "
+            "`day_plan_shadow_mismatch`. The API keeps serving the recomputed view. Off: nothing "
+            "is stored or compared."
         ),
     )
 

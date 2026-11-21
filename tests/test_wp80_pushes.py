@@ -185,7 +185,8 @@ def test_silent_once_today_s_scene_is_done(db_session, sent) -> None:
 
 
 def test_the_engine_s_teaser_wins_when_the_story_wrote_one(db_session, sent, art_set) -> None:
-    user = _learner(db_session, tz="Pacific/Auckland")
+    # Pilot P9: from B1 the hook goes out as written (below B1 only with its gloss).
+    user = _learner(db_session, tz="Pacific/Auckland", band="B1")
     db_session.add(
         SerialThread(
             id=uuid.uuid4(),

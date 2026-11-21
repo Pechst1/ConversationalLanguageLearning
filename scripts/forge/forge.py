@@ -59,6 +59,26 @@ STAGES = os.path.join(SEASONS, "s1", "stages.json")
 # Paris inside the périphérique, give or take: what the world map can show
 PARIS_BOX = (2.224, 48.815, 2.47, 48.902)
 
+#: Two pins on the map stand at least this far apart (metres): «Ton quartier» on a phone puts a
+#: pin's tap circle at 138 m round it at its closest zoom, so two nearer than 277 m overlap. A place
+#: nearer to a pin is inside it (``in``) and has no pin. The same constant as
+#: ``MAP_PIN_MIN_METRES`` in ``web-frontend/lib/quartier/world.ts`` (``world-rules.test.js``).
+MAP_PIN_MIN_METRES = 300
+
+#: The built places not walked into yet when the rule «on foot» came (13 Nov 2026), and why. The
+#: list only shrinks: a place given its door leaves it, and a new place comes with its door
+#: (``world-rules.test.js`` keeps the same list).
+WAITS_FOR_A_WAY = {
+    "escalier_mistral": "its door with the «1» opens once in T1 R2: on foot it would play the scene out of turn",
+    "user_apartment": "the sixth floor: Le Mistral's stairs stop at the first",
+    "notaire": "the boulevard by the mairie is not built",
+    "odile_flat": "behind the door the story opens in T2",
+    "toit_mistral": "through the fifth floor's skylight: the stairs stop at the first",
+    "arriere_salle": "through Le Mistral's back door, which the café's plan does not open yet",
+    "gerance_marchand": "the second floor over Le Mistral: the stairs stop at the first",
+    "rue_de_lancry": "the quai already lays this street; its room is the story's staging of it",
+}
+
 LAYERS = {
     # name: (theme, type, columns)
     "buildings": ("buildings", "building", ["id", "geometry", "bbox", "names", "class", "subtype", "height", "num_floors", "roof_shape", "roof_color", "facade_color", "facade_material", "is_underground", "has_parts"]),
@@ -594,6 +614,54 @@ def register_problems(place: dict) -> list[str]:
     return problems
 
 
+def metres_between(a: dict, b: dict) -> float:
+    """The distance on the ground between two places of the world (equirectangular, as world.ts)."""
+    rad = math.pi / 180
+    x = (b["lon"] - a["lon"]) * rad * math.cos((a["lat"] + b["lat"]) / 2 * rad)
+    y = (b["lat"] - a["lat"]) * rad
+    return math.hypot(x, y) * 6371000
+
+
+def rule_problems(place: dict, places: list[dict] | None = None) -> list[str]:
+    """The two rules every place keeps (owner, 13 Nov 2026).
+
+    On foot: a built place inside a pin has an ``entrance``, a door on ground you walk in the
+    place it is entered from (the quai), with its words in three languages; whether the door's
+    ground is walkable and leads everywhere the story stands is held by
+    ``web-frontend/lib/quartier/world-rules.test.js``, which builds the walking grids.
+    On the map: a pin stands ``MAP_PIN_MIN_METRES`` or more from every other pin; a place nearer
+    to a pin is inside it (``in``)."""
+    places = places if places is not None else world()["places"]
+    pid = place["id"]
+    pins = [p for p in places if not p.get("in") and p["id"] != pid]
+    out: list[str] = []
+    if place.get("in"):
+        host = next((p for p in pins if p["id"] == place["in"]), None)
+        if host is None:
+            out.append(f"{pid}: inside {place['in']}, which is not a pin on the map")
+        elif metres_between(place, host) >= MAP_PIN_MIN_METRES:
+            out.append(f"{pid}: {metres_between(place, host):.0f} m from {place['in']}: far enough for a pin of its own (drop «in»)")
+        built = place.get("room") or place.get("site")
+        e = place.get("entrance")
+        if built and not e and pid not in WAITS_FOR_A_WAY:
+            out.append(f"{pid}: no «entrance»: a place the story uses is walked into from the quarter (a flat by its building's door and stairwell, a shop by its door)")
+        if e:
+            if not any(p["id"] == e.get("from") for p in places):
+                out.append(f"{pid}: entered from {e.get('from')}, which is not a place of the world")
+            for k in ("door", "outside", "inside"):
+                if not (isinstance(e.get(k), list) and len(e[k]) == 2):
+                    out.append(f"{pid}: the entrance's «{k}» is a point [x, z]")
+            for k in ("enter", "leave"):
+                if not all((e.get(k) or {}).get(lang) for lang in ("fr", "en", "de")):
+                    out.append(f"{pid}: the entrance's «{k}» in three languages")
+    else:
+        for q in pins:
+            d = metres_between(place, q)
+            if d < MAP_PIN_MIN_METRES:
+                out.append(f"{pid}: {d:.0f} m from the pin {q['id']}: inside it («in»: {q['id']}), not a pin of its own")
+    return out
+
+
 def cmd_season_queue(args) -> None:
     frontier = args.frontier
     asked: dict[str, int] = {}
@@ -747,6 +815,8 @@ def cmd_check(args) -> None:
         import draft
 
         problems = draft.check(load_json(os.path.join(SITES, f"{args.id}.json")))
+    if any(p["id"] == args.id for p in world()["places"]):
+        problems += rule_problems(place_of(args.id))
     for p in problems:
         print(f"  ✗ {p}")
     if problems:
@@ -779,7 +849,7 @@ def cmd_publish(args) -> None:
     import draft
 
     site = load_json(os.path.join(SITES, f"{args.id}.json"))
-    problems = draft.check(site)
+    problems = draft.check(site) + rule_problems(place_of(args.id))
     if problems:
         raise SystemExit("not publishing, the site fails its checks:\n  " + "\n  ".join(problems))
     w = world()

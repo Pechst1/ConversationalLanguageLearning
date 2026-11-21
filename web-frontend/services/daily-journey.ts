@@ -15,6 +15,7 @@ import {
   recallClipId,
 } from '@/components/atelier-v2/journey/line-audio';
 import type {
+  AppealView,
   AdvanceBody,
   AttemptBody,
   AttemptInput,
@@ -226,14 +227,21 @@ export const dailyJourneyService = {
     return apiService.submitDailyJourneyAttempt(journeyId, stepId, body);
   },
 
+  /** Package V stage 5: «I think this is right» for a drill's «not yet» or «partly». */
+  appeal(journeyId: string, stepId: string): Promise<AppealView> {
+    return apiService.appealDailyJourneyVerdict(journeyId, stepId);
+  },
+
   advance(
     journeyId: string,
-    options: { expectedRevision: number; currentStepId: string; mutationId?: string },
+    options: { expectedRevision: number; currentStepId: string; mutationId?: string; skipToScene?: boolean },
   ): Promise<JourneySnapshot> {
     const body: AdvanceBody = {
       mutation_id: options.mutationId ?? mutationId(),
       expected_revision: options.expectedRevision,
       current_step_id: options.currentStepId,
+      // P11 «Passer à la scène»: skip what is left before the scene, never «read» it.
+      ...(options.skipToScene ? { skip_to_scene: true } : {}),
     };
     return apiService.advanceDailyJourney(journeyId, body);
   },

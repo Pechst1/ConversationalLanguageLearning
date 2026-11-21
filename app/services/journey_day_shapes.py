@@ -275,6 +275,11 @@ class DayShapeInputs:
     revue_dealt_this_week: bool = False
     #: WP-111 / WP-119. Today's story day is a season tentpole (served as written).
     tentpole: bool = False
+    #: Pilot P9 (decision 7). Which of the learner's played days today is, 1-based,
+    #: today included (:func:`played_day_from_story` reads it from the season's
+    #: played log). Before :data:`LISTEN_FIRST_MIN_PLAYED_DAY` no listening day is
+    #: dealt. ``None`` — a caller that does not know — keeps the older cadence.
+    played_day: int | None = None
 
     @property
     def seed_parts(self) -> tuple[str, ...]:
@@ -304,6 +309,35 @@ class DayShapeDecision:
 #: «Écouter d'abord» — a listening day — when the deployment can speak.
 LISTEN_FIRST_MIN_BUDGET_SECONDS = 1200
 LISTEN_FIRST_EVERY_DAYS = 3
+#: Pilot P9 (decision 7): no listening day before the learner's 8th played day. A
+#: beginner met an audio-only scene with the text hidden on day 3, unannounced.
+LISTEN_FIRST_MIN_PLAYED_DAY = 8
+
+
+def played_day_from_story(story_context: Any) -> int | None:
+    """Which played day today is, from the season position the brief carries
+    (``story_context["season"]["position"]["season_day"]``: the season's played log
+    + 1). ``None`` when the brief plays no season or the value is unreadable."""
+
+    from app.services.season.runtime import SEASON_CONTEXT_KEY
+
+    if not isinstance(story_context, dict):
+        return None
+    season = story_context.get(SEASON_CONTEXT_KEY)
+    position = season.get("position") if isinstance(season, dict) else None
+    raw = position.get("season_day") if isinstance(position, dict) else None
+    try:
+        day = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return day if day >= 1 else None
+
+
+def before_listening_week(inputs: DayShapeInputs) -> bool:
+    """Decision 7: a learner's first week reads before it is asked to listen blind —
+    neither the cadence nor the dice deal a listening day before the 8th played day."""
+
+    return inputs.played_day is not None and inputs.played_day < LISTEN_FIRST_MIN_PLAYED_DAY
 
 
 def is_listen_first_day(inputs: DayShapeInputs) -> bool:
@@ -317,6 +351,8 @@ def is_listen_first_day(inputs: DayShapeInputs) -> bool:
     if not inputs.audio_available:
         return False
     if int(inputs.budget_seconds or 0) < LISTEN_FIRST_MIN_BUDGET_SECONDS:
+        return False
+    if before_listening_week(inputs):
         return False
     phase = roll(
         DAY_SHAPE_DICE_VERSION, str(inputs.user_id), "listen-first-phase",
@@ -355,7 +391,7 @@ def eligible_shapes(inputs: DayShapeInputs) -> tuple[DayShape, ...]:
     """
 
     shapes = [DayShape.STANDARD]
-    if inputs.audio_available:
+    if inputs.audio_available and not before_listening_week(inputs):
         shapes.append(DayShape.LISTENING)
     if inputs.errata_count >= 1:
         shapes.append(DayShape.REPRISE)
@@ -614,6 +650,9 @@ __all__ = [
     "due_desks",
     "eligible_shapes",
     "is_listen_first_day",
+    "LISTEN_FIRST_MIN_PLAYED_DAY",
+    "before_listening_week",
+    "played_day_from_story",
     "is_revue_day",
     "REVUE_WEEKDAYS",
     "revue_weekday",

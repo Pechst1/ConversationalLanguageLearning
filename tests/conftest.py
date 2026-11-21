@@ -22,6 +22,10 @@ os.environ.setdefault("ATELIER_LLM_ENABLED", "false")
 # tests/test_wp87_* switch the three-lane turn on (the production default).
 os.environ.setdefault("ATELIER_STORY_TURN_LANES_ENABLED", "false")
 os.environ.setdefault("GRAPHIC_NOVEL_IMAGE_GENERATION_ENABLED", "false")
+# The story-truth stack (#145/#147/#621) runs as production runs it (render.yaml); its
+# tests were written against it. tests/test_scene_record_flag_off.py switches it off and
+# checks that a learner then gets exactly what main served.
+os.environ.setdefault("STORY_SCENE_RECORD", "true")
 os.environ.setdefault("ATELIER_PANEL_ART_ENABLED", "false")
 # WP-75: a learner's first day is authored (the café, the cast, two quick
 # recall items). The suite's existing journey tests are about the day the
@@ -66,6 +70,7 @@ from app.db.models import (
 )
 from app.db.models.achievement import Achievement, UserAchievement
 from app.db.models.analytics import AnalyticsSnapshot
+from app.db.models.answer_memo import AnswerMemo
 from app.db.models.atelier import (
     AtelierAttempt,
     AtelierCollectible,
@@ -118,8 +123,10 @@ from app.db.models.session import (
 from app.db.models.spend_reservation import SpendReservation
 from app.db.models.story_pool import StoryPoolPage
 from app.db.models.streak_day import StreakDay
+from app.db.models.verdict_appeal import VerdictAppeal
 from app.db.models.verdict_cutover import VerdictCutover
 from app.db.models.verdict_record import VerdictRecord
+from app.db.models.verdict_settlement import VerdictSettlement
 from app.db.models.vocabulary import UserDailyWordSlate, VocabularyDrillBatch
 from app.main import create_app
 from app.utils.cache import cache_backend
@@ -243,6 +250,9 @@ def db_engine():
             SpendReservation.__table__,
             VerdictCutover.__table__,
             VerdictRecord.__table__,
+            VerdictSettlement.__table__,
+            AnswerMemo.__table__,
+            VerdictAppeal.__table__,
             PlacementSession.__table__,
             Rehearsal.__table__,
             VocabularyWord.__table__,
@@ -321,6 +331,9 @@ def db_engine():
                 Rehearsal.__table__,
                 SpendReservation.__table__,
                 VerdictRecord.__table__,
+                VerdictSettlement.__table__,
+                AnswerMemo.__table__,
+                VerdictAppeal.__table__,
                 VerdictCutover.__table__,
                 PilotEvent.__table__,
                 UserErrorConcept.__table__,
@@ -405,6 +418,28 @@ def db_session(db_engine) -> Generator[Session, None, None]:
 #: modules pin the practice day and run it on, as production does. A module-
 #: scoped fixture (the 126-day harness) sees the production default either way.
 PRACTICE_DAY_MODULE_PREFIXES = ("test_wp78_", "test_long_horizon_evidence", "test_wp_l4_", "test_wp_s4_", "test_forge_integration")
+
+
+#: P6 (decision 8): the practice day's drill around the scene is the learner's own
+#: mistakes and one due rule (``journey_planner.RAPPEL_OWN_MISTAKES_ONLY``). These
+#: modules pin the WP-78 fill it replaced (word drills, scene-line items, the WP-86
+#: floor, WP-129's mixed units), which still runs on a listening day and with the
+#: switch off; ``tests/test_p6_drill_own_mistakes.py`` holds the day as it is now.
+WP78_FILL_MODULE_PREFIXES = (
+    "test_wp78_", "test_wp86_", "test_wp91_", "test_wp93_", "test_wp107_", "test_wp128_",
+    "test_wp129_", "test_wp130b_", "test_wp_l4_", "test_wp_l9_", "test_wpl6_", "test_revue_desk_steps",
+    "test_longer_low_band", "test_story_acts_plan", "test_tentpole_pricing", "test_season_orientation",
+)
+
+
+@pytest.fixture(autouse=True)
+def wp78_fill_in_its_own_suites(request, monkeypatch) -> None:
+    from app.services import journey_planner
+
+    module = getattr(request, "module", None)
+    name = str(getattr(module, "__name__", "")).rsplit(".", 1)[-1]
+    if name.startswith(WP78_FILL_MODULE_PREFIXES):
+        monkeypatch.setattr(journey_planner, "RAPPEL_OWN_MISTAKES_ONLY", False)
 
 
 @pytest.fixture(autouse=True)

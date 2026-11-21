@@ -20,7 +20,8 @@ import { CheckIcon, RepairIcon, useControlLanguage } from '@/components/atelier-
 import { EpBar, EpFoot, EpIco, EpOpt, EpOpts, EpPrompt, EpVerdict } from '@/components/epreuve/Epreuve';
 import { playAskedVoice, speakAskedVoice } from '@/lib/audio-session';
 import { judgementLabel } from '@/lib/classification-copy';
-import { fillForge, spotHint, type ForgeCopy } from '@/lib/forge-copy';
+import { keepCardAboveSheet } from '@/lib/keep-above-sheet';
+import { fillForge, forgeCopy, spotHint, type ForgeCopy } from '@/lib/forge-copy';
 import {
   ACCENTS,
   burstSeconds,
@@ -426,6 +427,7 @@ export function ForgeRafaleResult({
   coach,
   coachMood,
   reasonFor,
+  reasonLang,
   onNext,
   nextLabel,
 }: {
@@ -438,16 +440,39 @@ export function ForgeRafaleResult({
   coachMood?: PortraitMood;
   /** Why this sentence was missed, in the learner's language (the rule card's own words); never the rule chip's label (#564). */
   reasonFor?: (row: BurstRow) => string | null;
+  /** R4: the language `reasonFor` explains in (the learner's own), marked on its line. */
+  reasonLang?: string;
   onNext: () => void;
   nextLabel: string;
 }) {
   const language = useControlLanguage();
+  const whyCopy = reasonLang ? forgeCopy(reasonLang) : copy;
   const right = rows.filter((row) => row.correct).length;
   const perfect = rows.length > 0 && right === rows.length;
+  // The first missed row (the call made, the right one, why) is scrolled above the sticky
+  // sheet as it appears, as every La Forge miss is (#239): a miss in the fourth row would
+  // otherwise sit under «Continuer» on a phone. One owner for that scroll: keepCardAboveSheet.
+  const feedbackRef = React.useRef<HTMLDivElement | null>(null);
+  const firstMiss = rows.findIndex((row) => !row.correct);
+  React.useEffect(() => {
+    if (firstMiss < 0) return undefined;
+    let release = () => {};
+    let frame = window.requestAnimationFrame(() => {
+      frame = window.requestAnimationFrame(() => {
+        const box = feedbackRef.current;
+        const card = box?.querySelector<HTMLElement>('.forge-rafale__rows > li[data-correct="false"]') ?? null;
+        if (card) release = keepCardAboveSheet(box, { card, clearLast: false });
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      release();
+    };
+  }, [firstMiss]);
   const seconds = burstSeconds(ms, language);
   const sub = [seconds ? fillForge(copy.rafale_time, { s: seconds }) : null, cheer || null].filter(Boolean).join(' · ');
   return (
-    <div className="ep-feedback forge-rafale-result" data-verdict={perfect ? 'correct' : 'wrong'}>
+    <div ref={feedbackRef} className="ep-feedback forge-rafale-result" data-verdict={perfect ? 'correct' : 'wrong'}>
       <ul className="forge-rafale__rows">
         {rows.map((row) => {
           const item = items.find((entry) => String(entry.id) === row.itemId);
@@ -471,8 +496,11 @@ export function ForgeRafaleResult({
                   </p>
                 )}
                 {!row.correct && (
-                  <p className="forge-rafale__why">
-                    {[isRightCall(row.expected) ? copy.rafale_why_right : copy.rafale_why_wrong, reasonFor?.(row) || null].filter(Boolean).join(' ')}
+                  // R5 (check walk of 19 Nov): the lead-in is part of the explanation, so the
+                  // whole line is in the learner's own language and marked, never French + English.
+                  <p className="forge-rafale__why" lang={reasonLang}>
+                    {isRightCall(row.expected) ? whyCopy.rafale_why_right : whyCopy.rafale_why_wrong}
+                    {reasonFor?.(row) ? <> {reasonFor(row)}</> : null}
                   </p>
                 )}
                 {row.correctedFr && (

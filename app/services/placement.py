@@ -44,7 +44,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db.models.placement import PlacementSession
 from app.db.models.user import User
-from app.services import verdicts
+from app.services import answer_memo, judge, verdicts
 from app.services.atelier_correction_cost import bound_learner_answer
 from app.services.cefr_progress import CEFR_LEVELS, declared_level_floor, level_index
 from app.services.journey_contracts import normalize_control_language
@@ -429,6 +429,30 @@ _GRADING_SYSTEM_PROMPT = (
 )
 
 
+#: Package V stage 4: the memo's second check. Another examiner and another prompt, so a
+#: memo is confirmed only when two independent readings agree on the band of the answer.
+CONFIRM_RESPONSE_FORMAT: dict[str, Any] = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "placement_second_reading",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {"score_0_4": {"type": "number"}},
+            "required": ["score_0_4"],
+        },
+    },
+}
+
+CONFIRM_SYSTEM_PROMPT = (
+    "You are a second, independent examiner. Another examiner has already scored this short "
+    "French response; you do not see that score. Rate only how well the response does what the "
+    "prompt asks, at the prompt's own CEFR band, from 0 (does not attempt it, or not French) to 4 "
+    "(does all of it, accurately). Count grammar, agreement and spelling; accept every correct "
+    "French phrasing, and spelling variants of the 1990 reform. Answer JSON: {\"score_0_4\": number}."
+)
+
 # ---------------------------------------------------------------------------
 # The adaptive ladder
 # ---------------------------------------------------------------------------
@@ -471,10 +495,12 @@ def opening_band(user: User | None, evidence: dict[str, Any] | None = None) -> s
 # WP-75 / WP-126 — when the placement is offered
 # ---------------------------------------------------------------------------
 
-#: WP-126 (2026-10-04, owner decision 2): the placement is offered right after the
-#: learner's first completed ending, not after three days. Day one is served at the
-#: learner's own declaration; the placement then corrects it from day two on.
-PLACEMENT_OFFER_MIN_DAYS = 1
+#: WP-126 (2026-10-04, owner decision 2) offered the placement right after the
+#: learner's first completed ending. P9 (walk of 17 Nov): «Check your level» on Home
+#: from day two was one more room before the learner had found the first ones; it
+#: now waits for the eighth completed day. Until then the days are served at the
+#: learner's own declaration, and Réglages («Refaire le point») is always open.
+PLACEMENT_OFFER_MIN_DAYS = 8
 #: How many of the learner's latest completed days the evidence reads.
 JOURNEY_EVIDENCE_WINDOW = 5
 #: WP-126: distinct completed days, within that window, on which the learner met
@@ -1122,6 +1148,21 @@ class PlacementService:
         """
         if not answer.strip():
             return None
+        # Package V stage 4: the judge asks the memo before the model. The same answer to
+        # the same prompt, already read twice and agreed on, costs no call.
+        memo_task = answer_memo.placement_task(prompt, language)
+        ruling = judge.consult(memo_task, answer, memos=answer_memo.Memos(self.db))
+        if ruling is not None and ruling.memo is not None:
+            stored = dict((ruling.memo.payload or {}).get("grading") or {})
+            if stored:
+                answer_memo.note_use(
+                    self.db,
+                    ruling.memo.id,
+                    subject_type="placement_turn",
+                    subject_id=f"{session.id}:{turn_index}",
+                    user_id=session.user_id,
+                )
+                return {**stored, "memo_id": str(ruling.memo.id), "graded_at": datetime.now(UTC).isoformat()}
         llm = self._get_llm_service()
         if llm is None:
             return None
@@ -1163,7 +1204,7 @@ class PlacementService:
             band=prompt.band,
         )
         try:
-            return normalize_grading(
+            grading = normalize_grading(
                 json.loads(result.content), model=result.model, language=language
             )
         except (json.JSONDecodeError, ValueError, TypeError) as exc:
@@ -1175,6 +1216,17 @@ class PlacementService:
                 user_id=session.user_id,
             )
             return None
+        if not grading.get("off_task"):
+            answer_memo.remember(
+                self.db,
+                task=memo_task,
+                answer=answer,
+                outcome=answer_memo.placement_outcome(grading.get("score_0_4")),
+                payload={"grading": grading, "prompt_id": prompt.prompt_id, "answer": answer},
+                backing={"subject_type": "placement_turn", "subject_id": f"{session.id}:{turn_index}", "model": result.model},
+                label=f"{prompt.band} · {prompt.prompt_fr}",
+            )
+        return grading
 
 
 # ---------------------------------------------------------------------------

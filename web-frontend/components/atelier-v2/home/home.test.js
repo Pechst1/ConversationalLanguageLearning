@@ -64,6 +64,7 @@ const visibleText = (html) =>
     .replace(/\s+/g, ' ')
     .trim();
 const words = (text) => text.split(' ').filter((token) => /[\p{L}\p{N}]/u.test(token));
+const { QUARTIER_CHIP, QUARTIER_WAY, withoutQuartier } = require('./without-quartier.js');
 
 function controllerFor(envelope, language) {
   return {
@@ -112,21 +113,28 @@ function home(language, props = {}) {
 
 test('Home does one thing: ≤ 5 elements and ≤ 25 words, in every learner language', () => {
   for (const language of ['en', 'de', 'fr']) {
-    const html = home(language);
+    const full = home(language);
+    const html = withoutQuartier(full);
     const sections = (html.match(/class="av2-home__mast"|class="av2-home__section[ "]/g) || []).length;
     assert.ok(sections <= 5, `${language}: ${sections} elements`);
     const count = words(visibleText(html)).length;
     if (process.env.HOME_WORDS) console.log(language, sections, count, visibleText(html));
     assert.ok(count <= 25, `${language}: ${count} words — ${visibleText(html)}`);
+    // P12: Le Quartier's two doors add no element of their own here, and a few words
+    const doors = [...(full.match(QUARTIER_CHIP) || []), ...(full.match(QUARTIER_WAY) || [])];
+    assert.equal(doors.length, 2, `${language}: the chip and the second way into the scene`);
+    assert.equal((full.match(/class="av2-home__mast"|class="av2-home__section[ "]/g) || []).length, sections, `${language}: no element of their own`);
+    assert.ok(words(visibleText(doors.join(' '))).length <= 7, `${language}: ${visibleText(doors.join(' '))}`);
     // Exactly one red press: the day's.
-    assert.equal((html.match(/av2-btn--primary/g) || []).length, 1, `${language}: one primary`);
+    assert.equal((full.match(/av2-btn--primary/g) || []).length, 1, `${language}: one primary`);
   }
 });
 
-test('the public build draws no door to Le Quartier', () => {
+test('P12: the public build has Le Quartier: one chip to roam, and the scene offered in it beside the page', () => {
   for (const language of ['en', 'de', 'fr']) {
-    assert.doesNotMatch(home(language), /href="\/quartier"/, language);
-    assert.doesNotMatch(home(language, { day: undefined }), /href="\/quartier"/, language);
+    assert.equal((home(language).match(/data-chip="quartier"/g) || []).length, 1, language);
+    assert.equal((home(language).match(/data-scene-way="quartier"/g) || []).length, 1, language);
+    assert.equal((home(language, { day: undefined }).match(/data-chip="quartier"/g) || []).length, 1, language);
   }
 });
 
@@ -204,16 +212,16 @@ test('at most two chips, one once the day is done, and never a press', () => {
       { id: 'c', label: 'Three', href: '/c' },
     ],
   });
-  assert.equal((three.match(/data-chip=/g) || []).length, 2);
+  assert.equal((withoutQuartier(three).match(/data-chip=/g) || []).length, 2);
   assert.doesNotMatch(visibleText(three), /Three/);
   const done = home('en', { dayDone: true });
-  assert.equal((done.match(/data-chip=/g) || []).length, 1, 'after the day: one next suggestion');
+  assert.equal((withoutQuartier(done).match(/data-chip=/g) || []).length, 1, 'after the day: one next suggestion');
   assert.match(visibleText(done), /New letter/);
   const button = home('en', { chips: [{ id: 'x', label: 'Open', href: '/x', onSelect: () => {} }] });
   assert.match(button, /<button type="button" class="av2-chip" data-chip="x"/);
   assert.equal((button.match(/av2-btn--primary/g) || []).length, 1, 'still only the day’s press');
   // No chips: no row at all.
-  assert.doesNotMatch(home('en', { chips: [] }), /av2-home__chips/);
+  assert.doesNotMatch(withoutQuartier(home('en', { chips: [] })), /av2-home__chips/);
 });
 
 test('one language per element: the streak, the plan and the chips follow the chrome language', () => {
@@ -259,7 +267,7 @@ test('the flag-off Home is unchanged: French, the kicker, the rows and the colop
   assert.match(text, /Ton dossier/);
   assert.match(text, /Demain/);
   assert.match(html, /aria-label="4 jours de suite · tes sceaux"/);
-  assert.doesNotMatch(html, /av2-home__chips/);
+  assert.doesNotMatch(withoutQuartier(html), /av2-home__chips/);
 });
 
 // WP-119 · Le Papier on La Une, as data in the existing slots (no HomeScreen change):
@@ -271,7 +279,7 @@ const { revueHomeChip, revueUneState } = require('@/components/revue/revue-home.
 // The drawn rigs use the automatic JSX runtime's global React.
 global.React = React;
 /** The prose of Home, as the first test counts it (the level figure is a figure, not prose). */
-const prose = (html) => visibleText(html.replace(/<span aria-hidden="true" data-level-figure="">[\s\S]*?<\/span>/g, ' '));
+const prose = (html) => visibleText(withoutQuartier(html).replace(/<span aria-hidden="true" data-level-figure="">[\s\S]*?<\/span>/g, ' '));
 const REVUE = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, 'components/revue/fixtures/mock-wire.json'), 'utf8'));
 
 function revueHero(language, offer, extra = {}) {
@@ -333,7 +341,7 @@ test('WP-119: on other days the Revue is one quiet chip beside the letter, gone 
         { id: 'lexique', label: '3 words', href: '/vocabulary/review' },
       ],
     });
-    assert.equal((html.match(/data-chip=/g) || []).length, 2, 'letter first, then the Revue');
+    assert.equal((withoutQuartier(html).match(/data-chip=/g) || []).length, 2, 'letter first, then the Revue');
     assert.match(html, /data-chip="revue"/);
     assert.match(visibleText(html), /New letter Le Papier|Neuer Brief Le Papier|Nouvelle lettre Le Papier|Le Papier/);
     assert.match(html, /aria-label="[^"]*(semaine|week|Woche) 40"/, 'the week is in the label, not the 25 words');
@@ -356,9 +364,9 @@ test('WP-119: on other days the Revue is one quiet chip beside the letter, gone 
   assert.match(resume.href, /^\/revue\?session=/);
 });
 
-// Owner, 2026-10-19: a generated day has no title yet, and yesterday's whole
-// «À suivre…» stood in at headline size. The headline is its heart, once.
-test('an untitled day headlines the teaser’s heart, not the whole teaser', () => {
+// Owner, 2026-10-19: yesterday's whole «À suivre…» stood in at headline size. P8 (17 Nov):
+// a day not yet written has no title at all; the hook is printed once, as the hook.
+test('an untitled day has no invented title; the hook is printed once, under «À suivre»', () => {
   const base = fixture('first_day');
   const envelope = {
     ...base,
@@ -374,8 +382,8 @@ test('an untitled day headlines the teaser’s heart, not the whole teaser', () 
     },
   };
   const html = renderToStaticMarkup(h(JourneyTodayCard, { controller: controllerFor(envelope, 'fr'), onOpen: () => {} }));
-  const title = decode((html.match(/<h2 class="av2-headline av2-headline--title"[^>]*>([\s\S]*?)<\/h2>/) || [])[1] || '');
-  assert.equal(title, 'Lila et Berlin');
+  assert.doesNotMatch(html, /av2-headline--title/, 'no title before the page exists');
+  assert.match(html, /data-headline-teaser=""/);
   assert.doesNotMatch(visibleText(html), /caches quelque chose/);
   assert.equal((visibleText(html).match(/Lila et Berlin/g) || []).length, 1);
 });

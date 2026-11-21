@@ -201,12 +201,14 @@ def read_forge(correction: dict[str, Any] | None, *, text: str = "", verdict: st
         return _read(outcome=Outcome.NOT_CHECKED, checked_by=CheckedBy.NONE, call=Call.PENDING)
     if status == "unavailable" or word == "needs_review":
         failed = review.get("status") == "failed"
+        failure = failure_class(review.get("error")) if failed else None
         return _read(
             outcome=Outcome.NOT_CHECKED,
             checked_by=CheckedBy.NONE,
             call=Call.FAILED if failed else Call.NOT_CALLED,
-            failure=failure_class(review.get("error")) if failed else None,
-            retryable=failed,
+            failure=failure,
+            # #724: «Run again» only where asking again can reach a model.
+            retryable=failed and failure is not Failure.NO_MODEL,
             text=text,
             proposed=_errata_as_proposed(errata, by="rules"),
         )
@@ -351,6 +353,9 @@ def read_placement(grading: dict[str, Any] | None, *, failure: str | None = None
         )
     score = float(grading.get("score_0_4") or 0)
     outcome = Outcome.RIGHT if score >= 3 else Outcome.PARTLY if score >= 2 else Outcome.NOT_YET
+    if grading.get("memo_id"):
+        # Package V stage 4: a confirmed memo settled it, like a key: no call was made.
+        return _read(outcome=outcome, checked_by=CheckedBy.KEY, call=Call.NOT_CALLED)
     return _read(outcome=outcome, checked_by=CheckedBy.MODEL, call=Call.OK)
 
 
@@ -376,12 +381,14 @@ def read_journal(correction: dict[str, Any] | None, *, text: str = "") -> Read:
             text=text,
             proposed=_errata_as_proposed(errata, by="model"),
         )
+    failure = failure_class(payload.get("failure_reason"))
     return _read(
         outcome=Outcome.NOT_CHECKED,
         checked_by=CheckedBy.NONE,
-        call=Call.FAILED,
-        failure=failure_class(payload.get("failure_reason")),
-        retryable=bool(payload.get("retryable")),
+        # #754: with no model there was no call to fail, and nothing to ask again (#724).
+        call=Call.NOT_CALLED if failure is Failure.NO_MODEL else Call.FAILED,
+        failure=failure,
+        retryable=bool(payload.get("retryable")) and failure is not Failure.NO_MODEL,
         text=text,
         proposed=_errata_as_proposed(errata, by="rules"),
     )

@@ -4,6 +4,7 @@ Named ``check`` because several responses already use ``verdict`` for a stored w
 """
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -32,10 +33,23 @@ class VerdictView(BaseModel):
     corrected: str | None = None
     #: Whether this may move a level, mint gold or mint a token.
     counts: bool
+    #: Package V stage 3: when an answer saved unread was checked since (by the settlement
+    #: job or «Ask again»). The screen says so the next time it is opened.
+    checked_since: datetime | None = None
 
     @classmethod
-    def of(cls, verdict: Verdict) -> VerdictView:
-        return cls.model_validate(verdict.to_dict())
+    def of(cls, verdict: Verdict, *, checked_since: datetime | None = None) -> VerdictView:
+        return cls.model_validate({**verdict.to_dict(), "checked_since": checked_since})
 
 
-__all__ = ["VerdictEditView", "VerdictView"]
+class AppealView(BaseModel):
+    """Package V stage 5: what «I think this is right» came back with."""
+
+    state: Literal["upheld", "refused", "unread"]
+    check: VerdictView
+    #: One sentence in the learner's language: why it is right, or the one thing that is not.
+    reason: str | None = None
+    remaining_today: int
+
+
+__all__ = ["AppealView", "VerdictEditView", "VerdictView"]

@@ -18,6 +18,7 @@
 import React, { useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
+import { CAST } from '@/lib/generated/cast';
 
 import {
   Action,
@@ -586,7 +587,7 @@ export default function AtelierV2Gallery() {
               <p className="av2-label">Outlined — locked or nothing yet</p>
             </Surface>
             <div className="av2-help__actions">
-              {['Marin', 'Lila', 'Gus', 'Romy', 'Margaux', 'Monsieur Marchand', 'Inconnu'].map(
+              {[CAST.marin_leveque.name, CAST.lila_bonnet.name, CAST.augustin_de_roncourt.name, CAST.romy_tremblay.name, CAST.margaux_barman.name, CAST.landlord_marchand.spokenName, 'Inconnu'].map(
                 (name) => (
                   <Portrait key={name} name={name} />
                 ),

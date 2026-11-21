@@ -13,29 +13,29 @@
  *   * `expressionForMood` / `expressionForVerdict` — the living story's mood
  *     (−2 … +2, or the engine's words) and a graded answer → neutral, happy or
  *     cross.
+ *   * `castDisplayName` — the one name the learner reads for a person (#147).
+ *
+ * Who the cast is comes from the server's registry (`app/services/cast_registry.py`), through
+ * the generated `lib/generated/cast.ts`. Nothing here spells a person's name.
  */
 
+import { CAST, CAST_NAMES, type CastPersonId } from './generated/cast';
 import { CAST_WITH_PORTRAITS, portraitSrc, type FaceMood, type PortraitMood } from './onboarding-portraits';
 
 export type CastId = (typeof CAST_WITH_PORTRAITS)[number];
 
-/** Tokens that name one cast member, after accent folding and lowercasing. */
-const NAME_TOKENS: Array<[CastId, string[]]> = [
-  ['romy_tremblay', ['romy', 'romane', 'tremblay']],
-  ['marin_leveque', ['marin', 'leveque']],
-  ['lila_bonnet', ['lila', 'bonnet']],
-  ['augustin_de_roncourt', ['gus', 'augustin', 'roncourt']],
-  ['margaux_barman', ['margaux']],
-  ['landlord_marchand', ['marchand', 'landlord', 'proprietaire']],
-];
-
 const IDS = new Set<string>(CAST_WITH_PORTRAITS);
+const EVERYONE = Object.keys(CAST) as CastPersonId[];
+const WITHOUT_PORTRAIT = EVERYONE.filter((id) => !IDS.has(id));
+
+/** Tokens that name one cast member, after accent folding and lowercasing. */
+const NAME_TOKENS = CAST_WITH_PORTRAITS.map((id): [CastId, string[]] => [id, CAST[id].tokens]);
 
 /**
  * WP-111: season-1 people who have no portrait yet. «Camille Marchand» shares a
  * surname with the landlord and must never borrow his face; they get an initial.
  */
-const NO_PORTRAIT_TOKENS = new Set(['camille', 'odile', 'bastien', 'diallo', 'vasseur']);
+const NO_PORTRAIT_TOKENS = new Set(WITHOUT_PORTRAIT.flatMap((id) => CAST[id].tokens));
 
 function fold(value: unknown): string {
   return String(value ?? '')
@@ -143,23 +143,38 @@ export function faceSrcFor(seeds: unknown[], mood: FaceMood = 'neutral'): string
  * and Odile have rigs; the learner never has a face. Returns the rig id, or `null`
  * for anyone outside the drawn cast (minor characters keep their initial).
  */
-const DRAWN_ONLY: Array<[string, string[]]> = [
-  ['camille_marchand', ['camille']],
-  ['odile_ferrand', ['odile']],
-];
+const DRAWN_ONLY = WITHOUT_PORTRAIT.filter((id) => CAST[id].hasDrawnFace);
 
 export function drawnCastIdFor(...seeds: unknown[]): string | null {
   for (const seed of seeds) {
     const raw = fold(seed).trim();
     if (!raw) continue;
     const asId = raw.replace(/[\s-]+/g, '_');
-    if (asId === 'camille_marchand' || asId === 'odile_ferrand') return asId;
+    if ((DRAWN_ONLY as string[]).includes(asId)) return asId;
     const tokens = new Set(raw.split(/[^a-z0-9]+/).filter(Boolean));
-    for (const [id, names] of DRAWN_ONLY) {
-      if (names.some((name) => tokens.has(name))) return id;
+    for (const id of DRAWN_ONLY) {
+      if (CAST[id].tokens.some((name) => tokens.has(name))) return id;
     }
     const painted = castIdFor(seed);
     if (painted) return painted;
   }
   return null;
+}
+
+/**
+ * The one name the learner reads for a person of the cast, or `null` for anyone outside it (a
+ * clerk, a generated character). Every surface that prints a speaker's name goes through this
+ * (#155, #217, #473): the opening line, each later line of a many-voiced reply, the listen
+ * button, the rule card. A registry id always answers, face or no face; a payload's world-bible
+ * name («Augustin « Gus » de Roncourt») is read through the tokens of the drawn cast first, so
+ * «Camille Marchand» stays Camille, then of the minor cast («Mme Diallo» is never «Mme»).
+ */
+export function castDisplayName(id: string | null | undefined, name?: string | null): string | null {
+  const key = String(id ?? '').trim();
+  if (Object.prototype.hasOwnProperty.call(CAST_NAMES, key)) return CAST_NAMES[key as CastPersonId];
+  const castId = drawnCastIdFor(id, name);
+  if (castId) return CAST_NAMES[castId as CastPersonId] ?? null;
+  const words = new Set([id, name].flatMap((seed) => fold(seed).split(/[^a-z0-9]+/)));
+  const minor = EVERYONE.find((person) => CAST[person].tokens.some((token) => words.has(token)));
+  return minor ? CAST_NAMES[minor] : null;
 }

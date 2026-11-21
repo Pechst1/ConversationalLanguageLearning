@@ -35,6 +35,60 @@ export const FORGE_REPAIR = {
   correction: '.ep-galley .ep-linefix__new',
 };
 
+/**
+ * La Forge «Trouve l'erreur» / «Ta phrase» (components/epreuve/ForgeDrills.tsx ForgeSpot):
+ * the sentence's words are buttons; a tapped word opens in a field that holds it, and
+ * what is typed replaces it. Checked against the component by
+ * components/epreuve/forge-word-bank-walk.test.js.
+ */
+export const FORGE_SPOT = {
+  word: 'button.forge-spot__word:not([disabled])',
+  edited: 'button.forge-spot__word[data-edited="true"]',
+  field: 'input.forge-spot__input',
+};
+
+/**
+ * La Forge «Correct the sentence» (components/epreuve/ForgeFollowUp.tsx): after a right
+ * «Needs fixing» the learner corrects the sentence, with tiles or in a field, and checks
+ * it with the follow-up's own button; the verdict sheet's «Continue» waits for it.
+ */
+export const FORGE_FOLLOW = {
+  open: '.ep-follow[data-outcome="open"]',
+  quote: '.ep-follow__quote',
+  field: 'textarea.ep-follow__input',
+  check: '.ep-follow__actions button.ep-bar:not([disabled])',
+};
+
+/**
+ * La Forge's verdict sheet (pages/atelier.tsx) when it has no «Continue»: an answer
+ * saved but not checked («Skip without a check», `data-verdict="unscored"`), or a line
+ * to rewrite that the walk cannot fix («Skip this exercise», under «Try the line
+ * again»). The skip labels are epreuve-copy.ts's `skip`, in the three languages.
+ */
+export const FORGE_SHEET = {
+  unscored: '.ep-feedback[data-verdict="unscored"] button.ep-bar:not([disabled])',
+  primary: '.ep-feedback button.ep-bar.av2-btn--primary:not([disabled])',
+  links: '.ep-feedback .ep-fb-links button',
+  skip: /^\s*(Skip this exercise|Passer cet exercice|Übung überspringen)\s*$/,
+  /**
+   * Owner 2026-11-13: a miss with a second chance shows no solution and no «Continue»
+   * (`data-solution="withheld"`); «Show the solution» spends the chance and brings both.
+   */
+  withheld: '.ep-feedback[data-solution="withheld"]',
+  reveal: '.ep-feedback .ep-fb-links button[data-action="reveal"]:not([disabled])',
+};
+
+/**
+ * Le Lexique's review deck (pages/vocabulary/review.tsx), where the day's words step
+ * lands: a card is turned («Show the answer», `.lx-turn`), then filed with «Again» or
+ * «I know it». Checked against the page by e2e/lib/lexique-deck-walk.test.mjs.
+ */
+export const LEXIQUE_DECK = {
+  turn: 'button.lx-turn:not([disabled])',
+  again: 'button.lx-rate--again:not([disabled])',
+  know: 'button.lx-rate--know:not([disabled])',
+};
+
 /** What :data:`SNAPSHOT_FN` reads the page with (Playwright hands a page function one argument). */
 export const SNAPSHOT_ARGS = { typeable: TYPEABLE_FIELD, wordBankTile: WORD_BANK_TILE };
 
@@ -58,10 +112,26 @@ export const SNAPSHOT_FN = ({ typeable, wordBankTile }) => {
     return (clone.innerText || '').replace(/\s+/g, ' ').trim();
   };
   const main = document.querySelector('main') || document.body;
+  // R4 (owner, 18–19 Nov 2026): an explanation is in the learner's mother tongue from B1 and
+  // is marked with its `lang`. Each outermost marked non-French element (and its text, as
+  // `nonFrText` reads it) is listed, so the walk can set aside only the walker's own language.
+  const marked = [...main.querySelectorAll('[lang]')]
+    .filter((el) => {
+      const code = (el.getAttribute('lang') || '').toLowerCase().split('-')[0];
+      if (!code || code === 'fr') return false;
+      const outer = el.parentElement && el.parentElement.closest('[lang]');
+      return !(outer && main.contains(outer));
+    })
+    .map((el) => ({
+      lang: (el.getAttribute('lang') || '').toLowerCase().split('-')[0],
+      text: frOnly(el),
+    }))
+    .filter((item) => item.text);
   return {
     url: location.pathname + location.search,
     text: (main.innerText || '').replace(/\s+/g, ' ').trim(),
     nonFrText: frOnly(main),
+    marked,
     buttons,
     choices: q('.av2-choice').length,
     whoSaid: q('.av2-who-said__card').length,
@@ -73,13 +143,21 @@ export const SNAPSHOT_FN = ({ typeable, wordBankTile }) => {
     match: q('.av2-match__card').length,
     goal: q('[data-goal]').map((n) => n.innerText.trim()),
     bodyLg: q('.av2-body--lg').map((n) => n.innerText.trim()),
+    // Owner 2026-11-13: a scene prompt says its situation and instruction as quiet sans
+    // prose (components/epreuve/Epreuve.tsx EpScenePrompt), not as a headline and cue.
+    scene: q('.ep-prompt--scene .ep-situation, .ep-prompt--scene .ep-instruction, .ep-prompt--scene .ep-cue').map((n) => n.innerText.trim()),
     headline: q('.av2-headline').map((n) => n.innerText.trim()),
     stepLabel: (q('.av2-label')[0] || {}).innerText || '',
+    // The journey step on screen (JourneySession's header), for the verdict timeline.
+    stepId: (document.querySelector('[data-step-id]') || { getAttribute: () => null }).getAttribute('data-step-id'),
     dataStep: q('[data-step]').map((n) => n.getAttribute('data-step')),
     graded: q('.av2-graded').map((n) => ({ state: n.getAttribute('data-state'), text: n.innerText.trim() })),
     // #333: every line that says nobody read an answer carries its state.
     dataCheck: q('[data-check]').map((n) => n.getAttribute('data-check')),
     connection: q('.journey-connection').map((n) => n.getAttribute('data-state')),
+    // #794: every sentence the app says about the connection carries this marker
+    // (lib/connection-banner.ts). The walk reads it, never the screen's prose.
+    connectionBanners: q('[data-connection-banner]').map((n) => n.getAttribute('data-connection-banner')),
     dataStates: q('[data-state]').map((n) => n.getAttribute('data-state')),
     reader: q('.fr-next').map((n) => {
       const r = n.getBoundingClientRect();
@@ -88,8 +166,10 @@ export const SNAPSHOT_FN = ({ typeable, wordBankTile }) => {
     thread: q('.av2-step--thread').length,
     recap: document.querySelectorAll('.journey-recap, .av2-reward').length,
     castIntro: q('.cast-intro__member').length,
-    // Home once the day is done («Done for today» / «Fini pour aujourd'hui» / «Für heute»).
-    homeDone: location.pathname.startsWith('/atelier') && /Done for today|Fini pour aujourd|Journée bouclée|Für heute (fertig|geschafft|erledigt)/i.test((document.querySelector('main') || document.body).innerText || ''),
+    // Home once the day is done («Done for today» / «Fini pour aujourd'hui» / «Für heute»),
+    // and /fertig in every language (its title is «Fertig für heute» even while a step is
+    // left: the walk's `nextStep` reads `data-fertig` to tell the day's end from a stop).
+    homeDone: location.pathname.startsWith('/fertig') || (/^\/atelier/.test(location.pathname) && /Done for today|Fini pour aujourd|Journée bouclée|Fertig für heute|Für heute (fertig|geschafft|erledigt)/i.test((document.querySelector('main') || document.body).innerText || '')),
     forgeStep: q('[data-step=forge]').length,
     // A request the screen says is in flight (Action's `pending`: disabled,
     // aria-busy, «La scène se prépare…»): waiting, not stuck.

@@ -9,7 +9,8 @@ fixed stages, the first that settles winning:
 1. **normalise** the learner's text (``answer_acceptance.fold_typography``);
 2. **key**: the task's accepted answers and listed variants (``answer_acceptance.judge``),
    or the surface's own key reading (a drill, an authored scene, a Forge accept-list);
-3. **memo**: a confirmed answer for this item (package V stage 4; nothing yet);
+3. **memo**: a confirmed answer to this keyed item (:mod:`app.services.answer_memo`),
+   asked through ``memos`` before any model call (:func:`consult`);
 4. **rules**: add edits, never a verdict;
 5. **model**: its reading, with every edit located in the learner's own words;
 6. **variant gate**: no edit turns one accepted spelling into another
@@ -19,8 +20,11 @@ fixed stages, the first that settles winning:
 the corrector model ids. A ledger record (:mod:`app.services.verdict_ledger`) stores it,
 so a replay can tell which judge decided what.
 
-Pure: no database. The model call itself stays in each surface's corrector; what it
-answered reaches the judge as the reading's ``by=model`` evidence.
+Pure but for the memo: ``memos`` is the one door to the database, and only when a caller
+passes it. The model call itself stays in each surface's corrector, which asks
+:func:`consult` first: when the key or a confirmed memo settles the answer, the corrector
+makes no call. What a model answered reaches the judge as the reading's ``by=model``
+evidence.
 """
 
 from __future__ import annotations
@@ -30,11 +34,11 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from app.core.verdict import Call, CheckedBy, Failure, Outcome, Verdict, make_verdict
 
-__all__ = ["STAGES", "Reading", "Task", "judge", "judge_version", "settled_by"]
+__all__ = ["STAGES", "MemoLookup", "Reading", "Ruling", "Task", "consult", "judge", "judge_version", "settled_by"]
 
 #: The stages, in the order they run. A record names the one that settled it.
 STAGES = ("normalise", "key", "memo", "rules", "model", "variant_gate")
@@ -48,6 +52,7 @@ _RULE_FILES = (
     "services/correction_contract.py",
     "services/spelling_variants.py",
     "services/answer_acceptance.py",
+    "services/answer_memo.py",
 )
 #: The models whose answers the readers turn into evidence.
 _MODEL_SETTINGS = (
@@ -135,8 +140,36 @@ def _by_key(task: Task, normalised: str) -> bool:
     return bool(accept(normalised, task.accepted).correct)
 
 
-def _memo(task: Task, normalised: str) -> Reading | None:  # noqa: ARG001 - package V stage 4
-    return None
+class MemoLookup(Protocol):
+    """What the memo stage asks: the confirmed memo for this item and answer, if any."""
+
+    def lookup(self, task: Task, normalised: str) -> Any: ...
+
+
+@dataclass(frozen=True, slots=True)
+class Ruling:
+    """What settled an answer before any model call: the ``key`` or a ``memo``."""
+
+    verdict: Verdict
+    stage: str
+    memo: Any = None
+
+
+def _memo_reading(memo: Any) -> Reading:
+    """A confirmed memo reads like the key: settled, no call, its verified edits kept."""
+
+    return Reading(
+        outcome=Outcome(memo.outcome),
+        by=CheckedBy.KEY,
+        call=Call.NOT_CALLED,
+        proposed=tuple(dict(row, by="key") for row in (memo.edits or [])),
+    )
+
+
+def _memo(task: Task, normalised: str, memos: MemoLookup | None) -> Any:
+    if memos is None or not task.item or not normalised:
+        return None
+    return memos.lookup(task, normalised)
 
 
 def _gated(proposed: Iterable[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
@@ -147,24 +180,55 @@ def _gated(proposed: Iterable[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
     return [row for row in proposed if not is_variant_edit(row.get("span"), row.get("replacement"))]
 
 
-def settled_by(task: Task, answer: object, reading: Reading | None) -> str:
+def settled_by(task: Task, answer: object, reading: Reading | None, *, memos: MemoLookup | None = None) -> str:
     """The stage that settles this answer, or ``none`` when nothing does."""
 
     normalised = _normalise(answer)
     if _by_key(task, normalised) or (reading is not None and reading.by is CheckedBy.KEY):
         return "key"
-    if _memo(task, normalised) is not None:
+    if _memo(task, normalised, memos) is not None:
         return "memo"
     if reading is not None and reading.by is CheckedBy.MODEL and reading.call is Call.OK:
         return "model"
     return "none"
 
 
-def judge(task: Task, answer: object, *, reading: Reading | None = None, user: Any = None) -> Verdict:  # noqa: ARG001
+def consult(task: Task, answer: object, *, memos: MemoLookup | None = None) -> Ruling | None:
+    """Stages 1 to 3 alone: what settles ``answer`` before any model is asked.
+
+    A corrector calls this first. ``None`` means the model is needed; a ruling means it
+    is not, and ``ruling.memo`` holds what the surface stores for a memo's answer.
+    """
+
+    text = "" if answer is None else str(answer)
+    normalised = _normalise(text)
+    if _by_key(task, normalised):
+        return Ruling(make_verdict(outcome=Outcome.RIGHT, checked_by=CheckedBy.KEY, call=Call.NOT_CALLED), "key")
+    memo = _memo(task, normalised, memos)
+    if memo is None:
+        return None
+    reading = _memo_reading(memo)
+    verdict = make_verdict(
+        outcome=reading.outcome,
+        checked_by=reading.by,
+        call=reading.call,
+        text=text,
+        proposed=_gated(reading.proposed),
+    )
+    return Ruling(verdict, "memo", memo)
+
+
+def judge(
+    task: Task,
+    answer: object,
+    *,
+    reading: Reading | None = None,
+    user: Any = None,  # noqa: ARG001 - the appeal (stage 5) is per learner
+    memos: MemoLookup | None = None,
+) -> Verdict:
     """The verdict on ``answer`` for ``task``, from the surface's ``reading``.
 
-    ``user`` is accepted for the judge's later stages (the memo is per item, the appeal
-    per learner); nothing here reads it yet.
+    ``memos`` lets stage 3 read the confirmed memos (:mod:`app.services.answer_memo`).
     """
 
     text = "" if answer is None else str(answer)
@@ -174,9 +238,9 @@ def judge(task: Task, answer: object, *, reading: Reading | None = None, user: A
     # Stage 2: the key settles, and only the key's own fixes are shown with it.
     if _by_key(task, normalised):
         return make_verdict(outcome=Outcome.RIGHT, checked_by=CheckedBy.KEY, call=Call.NOT_CALLED)
-    memo = _memo(task, normalised)  # stage 3
+    memo = _memo(task, normalised, memos)  # stage 3
     if memo is not None:
-        reading = memo
+        reading = _memo_reading(memo)
 
     # Stages 4 and 5: rule edits and model edits are evidence; make_verdict keeps only those
     # whose words are in the learner's text, and only a key or an answered call settles.

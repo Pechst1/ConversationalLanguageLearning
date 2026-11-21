@@ -466,3 +466,29 @@ def test_cue_days_ago_counted_on_read(
     assert state["status"] == "offered"
     assert state["entry"]["id"] == str(created.id)
     assert state["entry"]["cue"]["days_ago"] == 3
+
+
+def test_the_week_later_answer_is_checked_like_any_french_the_learner_writes(
+    journal_client, db_session, fake_checker
+):
+    """#775: «… elle a parlé de sa travail.» came back «Answer saved.» and nothing else."""
+    email = _email()
+    headers = login(journal_client, email)
+    _seed_scene(db_session, email, days_ago=journal_module.FOLLOWUP_OFFSET_DAYS)
+    entry_id = journal_client.get("/api/v1/journal/state", headers=headers).json()["entry"]["id"]
+    journal_client.post(
+        f"/api/v1/journal/{entry_id}/write",
+        headers=headers,
+        json={"text": "J’ai promis de rapporter le livre mardi à Romy."},
+    )
+    state = journal_client.get("/api/v1/journal/state", headers=headers).json()
+    answered = journal_client.post(
+        f"/api/v1/journal/{state['followup']['entry_id']}/followup",
+        headers=headers,
+        json={"text": "Avec Camille, nous avons mangé une tarte et elle a parlé de sa travail."},
+    ).json()["followup"]
+    assert answered["checked_by"] == "rules", "only the basic check ran, and the answer says so"
+    fixes = {(c["learner_text"], c["corrected_target"]) for c in answered["corrections"]}
+    assert ("sa", "son") in fixes, answered["corrections"]
+    for correction in answered["corrections"]:
+        assert correction["learner_text"] in "Avec Camille, nous avons mangé une tarte et elle a parlé de sa travail."

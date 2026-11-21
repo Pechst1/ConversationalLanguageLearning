@@ -240,6 +240,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/analytics/pilot-memos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Pilot Memos
+         * @description Package V stage 4: the memo's candidates and confirmed answers, newest first.
+         */
+        get: operations["read_pilot_memos_api_v1_analytics_pilot_memos_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/pilot-memos/{memo_id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke Pilot Memo
+         * @description Package V stage 4: end a memo; every answer it settled is superseded and its gold voided.
+         */
+        post: operations["revoke_pilot_memo_api_v1_analytics_pilot_memos__memo_id__revoke_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/analytics/pilot-ops": {
         parameters: {
             query?: never;
@@ -634,6 +674,26 @@ export interface paths {
         put?: never;
         /** Repair Attempt */
         post: operations["repair_attempt_api_v1_atelier_attempts__attempt_id__repair_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/atelier/attempts/{attempt_id}/reveal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reveal Attempt Solution
+         * @description Owner 2026-11-13: «Show the solution» spends the second chance; the correction comes whole.
+         */
+        post: operations["reveal_attempt_solution_api_v1_atelier_attempts__attempt_id__reveal_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1534,6 +1594,28 @@ export interface paths {
          * @description Bounded recovery for a preparing/unavailable journey, reusing its id.
          */
         post: operations["retry_api_v1_daily_journeys__journey_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/daily-journeys/{journey_id}/steps/{step_id}/appeal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Appeal Verdict
+         * @description Package V stage 5: «I think this is right». The stronger model re-judges the drill.
+         *
+         *     404: not this learner's drill, or nothing to appeal. 429: the day's appeals are used.
+         */
+        post: operations["appeal_verdict_api_v1_daily_journeys__journey_id__steps__step_id__appeal_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5485,6 +5567,8 @@ export interface components {
             greeting_fr: string | null;
             /** Lapsed Letters */
             lapsed_letters: components["schemas"]["LapsedLetter"][];
+            /** Where Left */
+            where_left: string[];
         };
         /**
          * AchievementProgressResponse
@@ -5973,6 +6057,22 @@ export interface components {
             /** Xp Reward */
             xp_reward: number;
         };
+        /**
+         * AppealView
+         * @description Package V stage 5: what «I think this is right» came back with.
+         */
+        AppealView: {
+            check: components["schemas"]["VerdictView"];
+            /** Reason */
+            reason?: string | null;
+            /** Remaining Today */
+            remaining_today: number;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "upheld" | "refused" | "unread";
+        };
         /** ArchiveChapter */
         ArchiveChapter: {
             /**
@@ -5998,6 +6098,18 @@ export interface components {
             prologue?: boolean;
             /** Title Fr */
             title_fr: string;
+        };
+        /**
+         * ArchiveChoice
+         * @description P12 round 2: a card the learner chose on a season page («Le choix»).
+         */
+        ArchiveChoice: {
+            /** Label Fr */
+            label_fr?: string | null;
+            /** Reply Id */
+            reply_id: string;
+            /** Turn Id */
+            turn_id: string;
         };
         /** ArchiveCurrent */
         ArchiveCurrent: {
@@ -6027,6 +6139,8 @@ export interface components {
             can_do_id?: string | null;
             /** Character Id */
             character_id?: string | null;
+            /** Choices */
+            choices?: components["schemas"]["ArchiveChoice"][];
             /** Date */
             date: string;
             /** Edition No */
@@ -6041,6 +6155,10 @@ export interface components {
             journey_id: string;
             /** Learner Lines */
             learner_lines?: string[];
+            /** Location Id */
+            location_id?: string | null;
+            /** Location Name */
+            location_name?: string | null;
             /** Margin Notes */
             margin_notes?: components["schemas"]["MarginNote"][];
             /** Panels */
@@ -6056,6 +6174,11 @@ export interface components {
             special?: "epreuve" | null;
             /** Title Fr */
             title_fr: string;
+            /**
+             * Today
+             * @default false
+             */
+            today?: boolean;
         };
         /**
          * ArchivePanel
@@ -6668,6 +6791,11 @@ export interface components {
         AttemptStage: {
             /** Beats */
             beats: components["schemas"]["StagePanel"][];
+            /**
+             * Chosen
+             * @default false
+             */
+            chosen: boolean;
             /**
              * Closing
              * @default false
@@ -8025,12 +8153,6 @@ export interface components {
              * @default 0
              */
             minutes_left: number;
-            /** More Href */
-            more_href: string;
-            /** More Minutes */
-            more_minutes: number;
-            /** More Words */
-            more_words: number;
             /** Next Kind */
             next_kind: ("scene" | "grammar" | "words" | "finish") | null;
             /**
@@ -8379,8 +8501,11 @@ export interface components {
             reread: boolean;
             /** Season Title Fr */
             season_title_fr: string | null;
+            stage: components["schemas"]["HeadlineStage"] | null;
             /** Teaser Fr */
             teaser_fr: string | null;
+            /** Teaser Open Fr */
+            teaser_open_fr: string | null;
             /** Title Fr */
             title_fr: string | null;
         };
@@ -8576,7 +8701,7 @@ export interface components {
              * Category
              * @enum {string}
              */
-            category: "bug" | "broken_link" | "content" | "layout" | "slow_loading" | "suggestion" | "other";
+            category: "bug" | "broken_link" | "content" | "layout" | "slow_loading" | "suggestion" | "other" | "looks_wrong";
             /** Context Payload */
             context_payload?: {
                 [key: string]: unknown;
@@ -9565,6 +9690,19 @@ export interface components {
             name: string;
         };
         /**
+         * HeadlineStage
+         * @description P12: where today's planned page plays, known before the day is opened: a tentpole's,
+         *     or a gap day's once the night has written it (round 3: the prefetched scene's place).
+         */
+        HeadlineStage: {
+            /** Key */
+            key: string;
+            /** Location Id */
+            location_id: string | null;
+            /** Locations */
+            locations: (string | null)[];
+        };
+        /**
          * HelpKind
          * @enum {string}
          */
@@ -9846,6 +9984,12 @@ export interface components {
              * @default false
              */
             answered?: boolean;
+            /** Checked By */
+            checked_by?: string | null;
+            /** Corrections */
+            corrections?: {
+                [key: string]: unknown;
+            }[] | null;
             /** Due On */
             due_on: string;
             /** Entry Id */
@@ -9883,6 +10027,11 @@ export interface components {
             expected_revision: number;
             /** Mutation Id */
             mutation_id: string;
+            /**
+             * Skip To Scene
+             * @default false
+             */
+            skip_to_scene?: boolean;
         };
         /** JourneyAttemptRequest */
         JourneyAttemptRequest: {
@@ -9946,6 +10095,7 @@ export interface components {
              * @constant
              */
             contract_version: 1;
+            correction: components["schemas"]["JourneyCorrection"] | null;
             /** Heard */
             heard: string | null;
             /** Learned */
@@ -9969,10 +10119,13 @@ export interface components {
              * @enum {string}
              */
             kind?: "edit" | "pick" | "meaning" | "example";
+            /** More */
+            more?: components["schemas"]["MoreCorrection"][];
             /** Note Native */
             note_native: string;
             /** Notes Native */
             notes_native?: string[];
+            solution?: components["schemas"]["JourneySolution"] | null;
             /** Span Fr */
             span_fr: string;
         };
@@ -10172,6 +10325,21 @@ export interface components {
             time_estimate: components["schemas"]["DayTimeEstimate"] | null;
             /** Timezone */
             timezone: string;
+        };
+        /**
+         * JourneySolution
+         * @description P5 (owner, 2026-11-13): a drill's solution waits for its retry.
+         *
+         *     La Forge's vocabulary (``app/services/solution_gate.py``): ``withheld`` while the
+         *     item is still to be asked again. The correction then carries the learner's own
+         *     span and the reason, and ``corrected_fr`` is empty.
+         */
+        JourneySolution: {
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "withheld" | "shown";
         };
         /**
          * JourneyStatus
@@ -10761,6 +10929,14 @@ export interface components {
             /** Tested Out Concept Ids */
             tested_out_concept_ids: number[];
         };
+        /** MemoRevoke */
+        MemoRevoke: {
+            /**
+             * Reason
+             * @default
+             */
+            reason?: string;
+        };
         /**
          * MetricPoint
          * @description Time series datapoint.
@@ -11002,6 +11178,20 @@ export interface components {
             user_turn: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * MoreCorrection
+         * @description P3: one more correction of a scene reply, of other words than the first («A → B»).
+         */
+        MoreCorrection: {
+            /** Corrected Fr */
+            corrected_fr: string;
+            /** Note Native */
+            note_native: string;
+            /** Notes Native */
+            notes_native?: string[];
+            /** Span Fr */
+            span_fr: string;
         };
         /**
          * NarrativeChoiceRequest
@@ -11960,6 +12150,8 @@ export interface components {
             character_id: string | null;
             /** Character Name */
             character_name: string | null;
+            /** Open Fr */
+            open_fr: string | null;
             /**
              * Source
              * @enum {string}
@@ -16233,6 +16425,8 @@ export interface components {
              * @enum {string}
              */
             checked_by: "key" | "model" | "rules" | "none";
+            /** Checked Since */
+            checked_since?: string | null;
             /** Corrected */
             corrected?: string | null;
             /** Counts */
@@ -16678,6 +16872,11 @@ export interface components {
              * @default false
              */
             is_new?: boolean;
+            /**
+             * Kept Word
+             * @default false
+             */
+            kept_word?: boolean;
             /** Ladder */
             ladder?: string | null;
             /** Language */
@@ -17397,6 +17596,76 @@ export interface operations {
             };
         };
     };
+    read_pilot_memos_api_v1_analytics_pilot_memos_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_pilot_memo_api_v1_analytics_pilot_memos__memo_id__revoke_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                memo_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemoRevoke"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_pilot_operations_api_v1_analytics_pilot_ops_get: {
         parameters: {
             query?: {
@@ -17971,6 +18240,37 @@ export interface operations {
                 "application/json": components["schemas"]["AtelierAttemptRepairRequest"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AtelierAttemptResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reveal_attempt_solution_api_v1_atelier_attempts__attempt_id__reveal_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attempt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -19429,6 +19729,38 @@ export interface operations {
             };
         };
     };
+    appeal_verdict_api_v1_daily_journeys__journey_id__steps__step_id__appeal_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                journey_id: string;
+                step_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppealView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     submit_attempt_api_v1_daily_journeys__journey_id__steps__step_id__attempts_post: {
         parameters: {
             query?: never;
@@ -19817,7 +20149,7 @@ export interface operations {
     list_feedback_reports_api_v1_feedback_reports_get: {
         parameters: {
             query?: {
-                category?: ("bug" | "broken_link" | "content" | "layout" | "slow_loading" | "suggestion" | "other") | null;
+                category?: ("bug" | "broken_link" | "content" | "layout" | "slow_loading" | "suggestion" | "other" | "looks_wrong") | null;
                 limit?: number;
                 offset?: number;
                 route?: string | null;

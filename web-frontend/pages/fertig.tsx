@@ -1,13 +1,12 @@
 /* Round 3 (owner, 2026-10-14) — «Fertig für heute».
 
    The day's last step, after the scene, the grammar and the words: the seal,
-   one headline, what the day held (1 Szene · 20 Wörter · 12 Übungen; «2 Akte» on a
+   one headline, what the day held (1 Szene · 15 Wörter · 12 Übungen; «2 Akte» on a
    day of acts, and under it the story's words read, Phase 2's number), tomorrow's
    open question (the line Home prints, `TomorrowLine`), and the troupe's curtain
-   call over it. One ink button back to La Une. Only now the
-   quiet «Noch 5 neue Wörter»: continuing past the day's dose is the learner's choice.
-   Owner, 2 Nov: the tap raises today's cap on the server, then opens the five;
-   one line under it says how much sooner that pace covers the goal's words.
+   call over it. One ink button back to La Une. P7 (pilot, 17 Nov): no «Noch 5
+   neue Wörter» and no «N words a day … sooner» line here any more (they came
+   after every deck, endlessly); more words a day are offered in Settings.
 
    Reached before the day is done (an old link, a tap from the plan), it says
    which step comes next and opens it instead. */
@@ -16,7 +15,7 @@ import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 
-import { Action, AtelierV2Root, ShapeToken } from '@/components/atelier-v2/ui';
+import { Action, AtelierV2Root, ShapeToken, Skeleton } from '@/components/atelier-v2/ui';
 import { rewardView } from '@/components/atelier-v2/journey/journey-recap-model';
 import { PushOptIn } from '@/components/atelier-v2/journey/PushOptIn';
 import { tomorrowLine } from '@/components/atelier-v2/journey/season-return-model';
@@ -28,10 +27,8 @@ import { useGold } from '@/lib/gold';
 import { rimFraction, tirageLine } from '@/lib/gold-model';
 import { emitCameo } from '@/lib/cameo';
 import { castIdFor } from '@/lib/cast-faces';
-import { daySessionCopy, sessionMore, sessionNextAction, storyReadLine, tallyStory } from '@/lib/day-session';
+import { daySessionCopy, sessionNextAction, storyReadLine, tallyStory } from '@/lib/day-session';
 import { useChromeLanguage } from '@/lib/learner-language';
-import { extraWordsOffer } from '@/lib/more-words';
-import apiService, { type NewWordsPace } from '@/services/api';
 import { dailyJourneyService } from '@/services/daily-journey';
 import type { TodayEnvelope } from '@/types/daily-journey';
 
@@ -47,8 +44,6 @@ export default function FertigPage() {
   const fallbackLanguage = useChromeLanguage();
   const [envelope, setEnvelope] = useState<TodayEnvelope | null>(null);
   const [failed, setFailed] = useState(false);
-  const [pace, setPace] = useState<NewWordsPace | null>(null);
-  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -68,32 +63,8 @@ export default function FertigPage() {
   const view = journey ? rewardView(journey, journey.recap ?? null, language) : null;
   const seal = session?.done && journey?.status === 'completed' ? view?.seal ?? null : null;
   const next = sessionNextAction(session, language);
-  const offer = extraWordsOffer(pace, language);
-  // The offer stands unless the server says today's extras are spent.
-  const more = pace && !offer ? null : sessionMore(session, language);
-  const dayDone = Boolean(session?.done);
-  useEffect(() => {
-    if (!dayDone) return;
-    let live = true;
-    apiService
-      .getNewWordsPace()
-      .then((body) => live && setPace(body))
-      .catch(() => live && setPace(null));
-    return () => {
-      live = false;
-    };
-  }, [dayDone]);
-  const addWords = async () => {
-    if (!more) return;
-    setAdding(true);
-    try {
-      await apiService.addExtraNewWords();
-      await router.push(more.href);
-    } catch (error) {
-      console.error(error);
-      setAdding(false);
-    }
-  };
+  // P7 (pilot, 17 Nov): no «N words a day … sooner» banner and no «Encore 5 nouveaux
+  // mots» after the day; more words a day are chosen in Settings, where the pace is.
   // The same line Home's finished card prints; an early stop or a recap with no teaser has none.
   const tomorrow = session?.done ? tomorrowLine(journey?.recap) : null;
   // Phase 2 «Folge in Akten»: «2 Akte» on a day of acts, and the story's words read.
@@ -103,6 +74,32 @@ export default function FertigPage() {
   // O-2: le tirage du jour, where the switch shows l'or.
   const gold = useGold();
   const tirage = gold.visible && session?.done ? tirageLine(gold.view, language) : null;
+
+  // #727: the screen speaks the envelope's language (`control_language`: French from B1).
+  // Until the day is read the page does not know it, and the profile hook's first answer
+  // is its hydration-safe `en`; printing the chrome then put «Done for today · Back to
+  // La Une» on a B1 learner's French screen. So no words until the envelope answers; if
+  // the day cannot be read at all, the learner's chrome language (`useChromeLanguage`) stands.
+  if (!envelope && !failed) {
+    return (
+      <>
+        <Head>
+          <title>L’Atelier</title>
+        </Head>
+        <AtelierV2Root as="main" language={language} className="av2-fertig">
+          <div className="av2-fertig__body" data-fertig="pending" aria-busy="true">
+            <div className="av2-finish">
+              <Skeleton height={120} radius={60} />
+              <Skeleton height={40} />
+            </div>
+            <Skeleton height={88} />
+            <div className="av2-fertig__spacer" />
+            <Skeleton height={56} />
+          </div>
+        </AtelierV2Root>
+      </>
+    );
+  }
 
   return (
     <>
@@ -178,28 +175,9 @@ export default function FertigPage() {
               {next.meta ? <span className="av2-btn__meta">· {next.meta}</span> : null}
             </Action>
           ) : (
-            <Action tone="done" onClick={home} disabled={!envelope && !failed}>
+            <Action tone="done" onClick={home}>
               {copy.back_home}
             </Action>
-          )}
-          {more && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-              {offer && (
-                <p className="av2-body" data-goal-line="" style={{ textAlign: 'center', margin: 0 }}>
-                  {offer.line}
-                </p>
-              )}
-              <button
-                type="button"
-                className="av2-btn av2-btn--quiet av2-btn--inline"
-                onClick={() => void addWords()}
-                disabled={adding}
-                aria-busy={adding || undefined}
-                data-more-words=""
-              >
-                {more.label}
-              </button>
-            </div>
           )}
         </div>
       </AtelierV2Root>

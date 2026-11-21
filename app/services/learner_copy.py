@@ -138,6 +138,17 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Du hast „{learner}“ gewählt, aber in diese Lücke gehört „{target}“.",
         "fr": "Tu as choisi « {learner} », mais ce blanc demande « {target} ».",
     },
+    # Walk of 19 Nov: a typed fill (La Forge's «Tape la forme») was written, not chosen.
+    "atelier.recognize.wrote_requires": {
+        "en": "You wrote “{learner}”; this item needs “{target}”.",
+        "de": "Du hast „{learner}“ geschrieben; hier ist „{target}“ nötig.",
+        "fr": "Tu as écrit « {learner} » ; il faut « {target} » ici.",
+    },
+    "atelier.recognize.wrote_blank_needs": {
+        "en": "You wrote “{learner}”, but this blank needs “{target}”.",
+        "de": "Du hast „{learner}“ geschrieben, aber in diese Lücke gehört „{target}“.",
+        "fr": "Tu as écrit « {learner} », mais ce blanc demande « {target} ».",
+    },
     "atelier.recognize.classified_as": {
         "en": "You classified “{prompt}” as “{learner}”, but the target label is “{target}”.",
         "de": "Du hast „{prompt}“ als „{learner}“ eingeordnet; richtig wäre „{target}“.",
@@ -177,10 +188,12 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     },
     # #380: a miss that changes a word every choice shares (the noun, the pronoun)
     # is not a slip in the day's rule, so it must not recite the rule.
+    # Walk of 19 Nov: the first clause stands alone, because while the solution waits
+    # the clause that names it is dropped (``solution_gate.scrub_hint``).
     "atelier.recognize.other_words": {
-        "en": "The rule is not what differs here: this line asks for “{target}”, not “{learner}”.",
-        "de": "Die Regel ist hier nicht der Unterschied: Die Zeile verlangt „{target}“, nicht „{learner}“.",
-        "fr": "Ce n’est pas la règle qui diffère ici : la ligne demande « {target} », pas « {learner} ».",
+        "en": "Another word of the line differs, not only the rule’s form: this line asks for “{target}”, not “{learner}”.",
+        "de": "Hier weicht ein anderes Wort der Zeile ab, nicht nur die Form der Regel: Die Zeile verlangt „{target}“, nicht „{learner}“.",
+        "fr": "Un autre mot de la ligne diffère, pas seulement la forme de la règle : la ligne demande « {target} », pas « {learner} ».",
     },
     "atelier.recognize.other_words_repair": {
         "en": "Read the English line again and type the words it asks for.",
@@ -565,6 +578,30 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Schick die Umformung ab, wenn du sie geprüft haben willst; ausgelassene Zeilen werden nicht als Grammatik-Erratum eingeplant.",
         "fr": "Envoie la réécriture quand tu veux qu’elle soit relue ; une ligne laissée de côté n’est pas consignée comme erratum de grammaire.",
     },
+    # -- Owner 2026-11-13: the hint shown before a second chance -------------
+    # It says where and why, never the right form (app/services/solution_gate.py).
+    "forge.second_chance.hint": {
+        "en": "Look again at the marked words: what does the rule ask for here?",
+        "de": "Sieh dir die markierten Wörter noch einmal an: Was verlangt die Regel hier?",
+        "fr": "Regarde encore les mots marqués : que demande la règle ici ?",
+    },
+    "forge.second_chance.task_hint": {
+        "en": "Read the task again: what is it asking you to use?",
+        "de": "Lies die Aufgabe noch einmal: Was sollst du verwenden?",
+        "fr": "Relis la consigne : qu’est-ce qu’elle te demande d’utiliser ?",
+    },
+    # R2 (walk of 17 Nov): a free card's task note, said in plain words — what is missing
+    # is the card's rule; what the sentence says is the learner's to choose.
+    "forge.second_chance.task_rule_hint": {
+        "en": "Your sentence does not show this card's rule yet ({rule}). What it says is up to you.",
+        "de": "In deinem Satz fehlt noch die Regel dieser Karte ({rule}). Was er sagt, entscheidest du.",
+        "fr": "Ta phrase ne montre pas encore la règle de cette carte ({rule}). Ce qu’elle dit, c’est toi qui choisis.",
+    },
+    "forge.second_chance.choice_hint": {
+        "en": "Not this one. Look at the rule again and choose once more.",
+        "de": "Nicht diese. Sieh dir die Regel noch einmal an und wähle neu.",
+        "fr": "Pas celle-ci. Relis la règle et choisis à nouveau.",
+    },
     # -- WP-S1 (La Forge): the local token diff names what is wrong -----------
     "forge.diff.ending": {
         "en": "The ending is off: you wrote «{learner}», the form here is «{target}».",
@@ -598,6 +635,45 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "en": "No «à» before the noun: le/la/les (direct object). With «à»: lui/leur (indirect object).",
         "de": "Kein «à» vor dem Nomen: le/la/les (direktes Objekt). Mit «à»: lui/leur (indirektes Objekt).",
         "fr": "Pas de « à » devant le nom : le/la/les (COD). Avec « à » : lui/leur (COI).",
+    },
+    "forge.slip.count.p": {"en": "plural", "de": "Mehrzahl", "fr": "pluriel"},
+    "forge.slip.count.s": {"en": "singular", "de": "Einzahl", "fr": "singulier"},
+    "forge.slip.gender.f": {"en": "feminine", "de": "weiblich", "fr": "féminin"},
+    "forge.slip.gender.m": {"en": "masculine", "de": "männlich", "fr": "masculin"},
+    "forge.slip.gender.why": {
+        "en": "«{noun}» is {gender_word} in French: «{target} {noun}», not «{learner} {noun}».",
+        "de": "«{noun}» ist im Französischen {gender_word}: «{target} {noun}», nicht «{learner} {noun}».",
+        "fr": "« {noun} » est {gender_word} : « {target} {noun} », pas « {learner} {noun} ».",
+    },
+    "forge.slip.gender.repair": {
+        "en": "Learn the noun with its article: «{target} {noun}».",
+        "de": "Lern das Nomen mit seinem Artikel: «{target} {noun}».",
+        "fr": "Apprends le nom avec son article : « {target} {noun} ».",
+    },
+    "forge.slip.number.why": {
+        "en": "«{noun}» here is {count}: «{target} {noun}», not «{learner}».",
+        "de": "«{noun}» steht hier in der {count}: «{target} {noun}», nicht «{learner}».",
+        "fr": "Ici, « {noun} » est au {count} : « {target} {noun} », pas « {learner} ».",
+    },
+    "forge.slip.number.repair": {
+        "en": "The article shows how many: «{target} {noun}».",
+        "de": "Der Artikel zeigt, wie viele: «{target} {noun}».",
+        "fr": "L’article dit combien : « {target} {noun} ».",
+    },
+    "forge.slip.person_subject.why": {
+        "en": "With «{subject}», «{lemma}» is «{target}», not «{learner}».",
+        "de": "Mit «{subject}» heißt «{lemma}» «{target}», nicht «{learner}».",
+        "fr": "Avec « {subject} », « {lemma} » se conjugue « {target} », pas « {learner} ».",
+    },
+    "forge.slip.person.why": {
+        "en": "The form of «{lemma}» needed here is «{target}», not «{learner}».",
+        "de": "Hier braucht es die Form «{target}» von «{lemma}», nicht «{learner}».",
+        "fr": "Ici, la forme de « {lemma} » est « {target} », pas « {learner} ».",
+    },
+    "forge.slip.person.repair": {
+        "en": "Look at who does it, then pick the form of «{lemma}» for that person.",
+        "de": "Schau, wer es tut, und nimm die Form von «{lemma}» für diese Person.",
+        "fr": "Regarde qui fait l’action, puis prends la forme de « {lemma} » pour cette personne.",
     },
     "forge.slip.elision.why": {
         "en": "Before a vowel or a silent h, «{learner}» drops its vowel and takes an apostrophe: «{target}». That is the spelling, not another verb.",
@@ -1179,15 +1255,15 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "fr": "Dis-le en français.",
     },
     "forge.conversation": {
-        "en": "Reply in French, with today's rule.",
-        "de": "Beantworte die Nachricht auf Französisch, mit der Regel von heute.",
-        "fr": "Réponds au message en français, avec la règle du jour.",
+        "en": "Write it in French, with this rule.",
+        "de": "Schreib es auf Französisch, mit dieser Regel.",
+        "fr": "Écris-le en français, avec cette règle.",
     },
     # WP-S5: the free-use rung as a two-line scene with the rule's coach.
     "forge.scene": {
-        "en": "Answer in French, with the rule of the day.",
-        "de": "Antworte auf Französisch, mit der Regel von heute.",
-        "fr": "Réponds en français, avec la règle du jour.",
+        "en": "Answer in French, with this rule.",
+        "de": "Antworte auf Französisch, mit dieser Regel.",
+        "fr": "Réponds en français, avec cette règle.",
     },
     "atelier.fallback.output_instruction": {
         "en": "Use the target grammar visibly in your answer.",
@@ -1478,6 +1554,9 @@ _ENGLISH_INDEX.update(
         "Correct the sentence: fix the part that breaks today's rule. Keep the rest.": "forge.transform",
         "Say it aloud in French, then check the transcript.": "forge.speak",
         "Answer the message in French, with the rule of the day.": "forge.conversation",
+        # #780: the same stored item is posed on a review too; «today's» left the cue.
+        "Reply in French, with today's rule.": "forge.conversation",
+        "Answer in French, with the rule of the day.": "forge.scene",
     }
 )
 

@@ -1,0 +1,120 @@
+{
+  "id": "turn-a2-camille-keeps-position",
+  "lane": "turn",
+  "level": "A2",
+  "source": "Live walk 2026-11-08 (#591, root cause #145): Camille proposed «L'appartement paie d'abord mon grand-père. Vous êtes d'accord, non ?», the learner answered «Non, je ne suis pas daccord. Pourquoi le appartement paie grand-pere dabord ?» and Camille said «Je ne suis pas d'accord non plus. Mais pourquoi cette question ?». The voice lane refuses that reply (it joins the refusal of her own proposal and skips the question) and serves the retry, which keeps her position and answers.",
+  "input": {
+    "payload": {
+      "story": {
+        "control_language": "en",
+        "level": "A2",
+        "level_register": "no coarse or vulgar vocabulary",
+        "learner": {
+          "address": "neutral",
+          "grammatical_gender_note": "Do not gender the learner: no gendered adjective, participle or endearment about them, no gendered pronoun for them, and never an inclusive-dot form such as trempé·e. Use natural neutral phrasing in EVERY field, including the chapter title and question, narration, dialogue and suggested response. For example: 'Tu as pris la pluie', 'Tu veux entrer ?', 'Ça te plaît', 'Tu peux venir ?'. Do not solve gender agreement by joining masculine and feminine endings.",
+          "register_note": "Address the learner as «vous» in every sentence that is not a character's own line."
+        },
+        "world": {
+          "cast": [
+            {
+              "id": "camille",
+              "name": "Camille",
+              "role": "Heir to the family flat, in a dispute over the family debts.",
+              "personality": "Proud, quick, protective of her grandfather.",
+              "wants": "Her grandfather paid before anyone else.",
+              "speech_pattern": "Short sentences, a challenge at the end.",
+              "contradiction": "Wants peace and keeps picking fights.",
+              "secret": "She signed a paper she did not read.",
+              "flaw": "Cannot say sorry.",
+              "dynamic_with_user": "Wary ally.",
+              "register_with_user": "vous",
+              "gender": "f"
+            }
+          ]
+        },
+        "story_so_far": [],
+        "commitments": [],
+        "moods": {
+          "camille": {}
+        },
+        "relationships": {
+          "camille": {
+            "register": "vous",
+            "closeness": 1
+          }
+        },
+        "secrets": {
+          "camille": "hidden"
+        }
+      },
+      "scene": {
+        "character_id": "camille",
+        "title_fr": "La dette",
+        "premise_fr": "Camille et vous êtes chez Maître Vasseur. Les papiers de la famille sont sur la table.",
+        "location_id": "vasseur_office",
+        "objective_native": "Say whether you agree that the flat pays Grandfather first.",
+        "objective_semantics": "Camille asks if the learner agrees the flat pays her grandfather first. Met when the learner agrees or refuses.",
+        "opening_line_fr": "L'appartement paie d'abord mon grand-père. Vous êtes d'accord, non ?",
+        "suggested_response_fr": "Oui, il passe d'abord.",
+        "panels": []
+      },
+      "rubric": "Grade only what the task asks; any honest answer counts.",
+      "history": [],
+      "learner_text": "Non, je ne suis pas daccord. Pourquoi le appartement paie grand-pere dabord ?",
+      "turns_left": 1,
+      "targets": [],
+      "assistance": "none",
+      "turn_plan": {
+        "closing_turn": false,
+        "clarify_form_fr": null,
+        "noticed_word": null,
+        "keep_talking": true,
+        "learner_asked": "Pourquoi le appartement paie grand-pere dabord ?"
+      }
+    }
+  },
+  "answers": {
+    "TutorVerdict": [
+      {
+        "origin": "hand-written from the walk",
+        "prompt_digest": "sha256:ba80b02dc6b5991e32efd2136242b79f003d892aa9d377e8e59b5c2e86070a37",
+        "content": {
+          "outcome": "met",
+          "evidence_quotes": [
+            "Non, je ne suis pas daccord"
+          ],
+          "demonstrated_target_ids": []
+        }
+      }
+    ],
+    "VoiceReply": [
+      {
+        "origin": "live walk 2026-11-08, verbatim",
+        "prompt_digest": "sha256:c017e1fb3e913943b16b8cf554d68c7195a2049af6aa6fd493ce19c88ebad28a",
+        "content": {
+          "reply_fr": "Je ne suis pas d'accord non plus. Mais pourquoi cette question ?",
+          "understood_intent": "The learner refuses and asks why the flat pays first.",
+          "needs_clarification": false
+        }
+      },
+      {
+        "origin": "hand-written retry",
+        "prompt_digest": "sha256:c7870f3bb309833db6cb1b325ac9e2a5ce701025ad554d906e5e55e987574018",
+        "content": {
+          "reply_fr": "Parce qu'il m'a élevée. Sa dette passe avant la nôtre.",
+          "understood_intent": "The learner refuses and asks why the flat pays first.",
+          "needs_clarification": false
+        }
+      }
+    ]
+  },
+  "expect": {
+    "failure": null,
+    "tutor_refusals": [],
+    "voice_refusals": [
+      "reply_contradicts_position"
+    ],
+    "outcome": "met",
+    "reply_fr": "Parce qu'il m'a élevée. Sa dette passe avant la nôtre."
+  }
+}
