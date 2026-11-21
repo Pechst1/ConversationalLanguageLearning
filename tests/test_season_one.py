@@ -885,15 +885,12 @@ def test_open_day_keeps_its_number(assembled_client, db_session, journey_enabled
     assert headline is not None and headline["edition_no"] == 1, (
         f"the open day's card has no episode number: headline {headline!r}"
     )
-    # The next morning the unfinished day still occupies Home: still its number.
+    # The next morning the untouched day has closed on its own (owner, 10 Nov, #675: an
+    # unfinished day never holds back the next episode), so it no longer occupies Home.
     clock.advance(days=1)
-    assert d.today()["journey"]["id"] == d.id
-    later = d.today()["headline"]
-    assert later is not None and later["edition_no"] == 1, (
-        f"yesterday's open day lost its episode number on Home: headline {later!r}"
-    )
-    assert later["teaser_fr"] is None and later.get("teaser_open_fr") is None, (
-        "the open day's own ending speaks of the day after it, not under its own title"
+    occupying = d.today()["journey"]
+    assert occupying is None or occupying["id"] != d.id, (
+        "yesterday's untouched day still occupies Home the next morning"
     )
 
 
