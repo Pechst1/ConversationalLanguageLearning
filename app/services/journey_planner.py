@@ -114,7 +114,8 @@ from app.services.scene_items import (
     scene_lines,
     with_meaning,
 )
-from app.services.sentence_line import continues_sentence, ends_sentence, stops_at_title
+from app.services.sentence_line import sentences as split_sentences
+from app.services.sentence_line import stops_at_title
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     # WP-24. Imported for types alone: `journey_errata` reaches the ORM, and the
@@ -1891,23 +1892,12 @@ def scene_sentences(*texts: str | None) -> list[str]:
             sentences.append(sentence)
 
     for text in texts:
-        current: list[str] = []
-        ended = False
-        for raw in " ".join(str(text or "").split()).split(" "):
+        # #896: cut by the one splitter every surface shares, so «Comment on dit, déjà… le
+        # groupe qui tient le café ensemble ?» is one question (#849) here as everywhere.
+        for whole in split_sentences(text):
             # Quotation marks are layout, not words: a tile reading «»
             # would be a puzzle about typography.
-            word = raw.strip(_QUOTE_MARKS)
-            if not word:
-                continue
-            # #849: a stop is a sentence's end only when the next word opens a new one.
-            # «Comment on dit, déjà… le groupe qui tient le café ensemble ?» is one
-            # question; cut after «déjà…», its tail lost the question word it asks with.
-            if ended and not continues_sentence(word):
-                keep(current)
-                current = []
-            current.append(word)
-            ended = ends_sentence(word)
-        keep(current)
+            keep([word for word in (raw.strip(_QUOTE_MARKS) for raw in whole.split(" ")) if word])
     return sentences
 
 
@@ -3061,7 +3051,7 @@ def later_act_steps(
             estimated_seconds=item.respond_seconds,
             public_prompt={
                 "turn_index": 0,
-                "max_turns": item.turns,
+                "max_turns": task.shown_turns(item.turns),
                 "repair_allowed": bool(task.repair_allowed),
                 "character_id": task.character_id,
                 "character_name": display_name(task.character_id, task.character_name),
@@ -4064,7 +4054,7 @@ def _plan_journey_once(
             estimated_seconds=respond_cost,
             public_prompt={
                 "turn_index": 0,
-                "max_turns": turns,
+                "max_turns": task.shown_turns(turns),
                 "repair_allowed": bool(task.repair_allowed),
                 "character_id": task.character_id,
                 "character_name": display_name(task.character_id, task.character_name),
@@ -6881,7 +6871,7 @@ def _plan_practice_day(
             estimated_seconds=respond_cost,
             public_prompt={
                 "turn_index": 0,
-                "max_turns": turns,
+                "max_turns": task.shown_turns(turns),
                 "repair_allowed": bool(task.repair_allowed),
                 "character_id": task.character_id,
                 "character_name": display_name(task.character_id, task.character_name),

@@ -1788,3 +1788,78 @@ def test_an_objective_record_never_reaches_candidate_selection(db_session):
     )
     candidate = _candidate_for(candidates, word)
     assert candidate.metadata["evidence_history"] == EVIDENCE_HISTORY_NONE
+
+
+# --------------------------------------------------------------------------
+# #821: a rebuild's note says what the learner's tiles did, not where they
+# stopped lining up position by position with the key
+# --------------------------------------------------------------------------
+
+_CROISSANT_TILES = ["Pour", "vous :", "un", "croissant,", "une", "tarte", "et", "des", "macarons."]
+
+
+def _croissant_rebuild() -> RecallTask:
+    options = [{"id": f"t{index}", "text_fr": text} for index, text in enumerate(_CROISSANT_TILES)]
+    return _recall_task(
+        TargetRef(kind=TargetKind.GRAMMAR, id="un-une-des", label_fr="Un, une, des"),
+        task_type="tiles",
+        instruction_native="Build the sentence.",
+        prompt_fr=None,
+        options=options,
+        accepted_answers=[],
+        correct_tile_order=[option["id"] for option in options],
+        solution_fr="Pour vous : un croissant, une tarte et des macarons.",
+        hint_native=None,
+    )
+
+
+def _tiles_for(task: RecallTask, *texts: str) -> list[str]:
+    by_text = {option["text_fr"]: option["id"] for option in task.options}
+    return [by_text[text] for text in texts]
+
+
+def test_rebuild_names_a_left_out_tile():
+    """#821: «Pour un croissant, une tarte et des macarons.» was told «From “un” on,
+    the order is off» — every placed word was in order; «vous :» was missing."""
+
+    from types import SimpleNamespace
+
+    task = _croissant_rebuild()
+    placed = _tiles_for(task, "Pour", "un", "croissant,", "une", "tarte", "et", "des", "macarons.")
+    learner = SimpleNamespace(native_language="en", cefr_estimate="A1.1", proficiency_level="A1")
+    evaluation = evaluate_recall(
+        None,
+        user=learner,
+        task=task,
+        answer=AttemptAnswer(mode=InputMode.TEXT, text="", tile_ids=placed),
+        assistance=AssistanceLevel.NONE,
+    )
+
+    assert evaluation.outcome is TaskOutcome.NOT_YET
+    note = evaluation.correction.note_native if evaluation.correction else ""
+    assert "order is off" not in note, note
+    assert "vous :" in note, note
+
+    from app.services.journey_learning import tile_order_note
+
+    for language, order_words in (("en", "order"), ("de", "Reihenfolge"), ("fr", "l'ordre")):
+        localized = tile_order_note(task, placed, language) or ""
+        assert "vous :" in localized, (language, localized)
+        assert order_words not in localized, (language, localized)
+
+
+def test_rebuild_names_first_misplaced_word():
+    from app.services.journey_learning import tile_order_note
+
+    task = _croissant_rebuild()
+    swapped = _tiles_for(task, "Pour", "vous :", "un", "une", "croissant,", "tarte", "et", "des", "macarons.")
+    assert tile_order_note(task, swapped, "en") == "From “une” on, the order is off."
+    # A tile left out before the swap shifts nothing: the slip is still at «une»,
+    # and the missing tile is named too.
+    both = _tiles_for(task, "Pour", "un", "une", "croissant,", "tarte", "et", "des", "macarons.")
+    note = tile_order_note(task, both, "en") or ""
+    assert note.startswith("From “une” on, the order is off."), note
+    assert "vous :" in note, note
+    # Only the end left out: what is missing is named.
+    ending = _tiles_for(task, "Pour", "vous :", "un", "croissant,", "une", "tarte", "et", "des")
+    assert "macarons." in (tile_order_note(task, ending, "en") or "")

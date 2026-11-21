@@ -4523,6 +4523,10 @@ export function ExerciseFeedbackMoment({
       <div className="ep-feedback" data-verdict={verdict === 'wrong' ? 'wrong' : 'correct'} ref={feedbackRef}>
         {/* Text diet: a picked answer is already marked right on its card. */}
         {!picked && <EpCorrect said={display(feedback.target || feedback.learner || t.line_set)} struck />}
+        {/* #954: a hit whose accent was forgiven names it, in one line (the rule check). */}
+        {typeof correction?.slip_note_native === 'string' && correction.slip_note_native.trim() && (
+          <p className="ep-why" lang={noteLang}>{correction.slip_note_native}</p>
+        )}
         {relecture}
         {followUpBlock}
         {/* The design's mint footer: badge + Garamond verdict, then the primary. */}
@@ -5033,14 +5037,20 @@ export function feedbackFromFreeformCorrection(correction: Record<string, any> |
   const cleanRewrite = correctionTargetText(correction?.corrected_answer);
   const rewriteDiffers = !!cleanRewrite && normalizeClient(cleanRewrite) !== normalizeClient(learner);
   // Owner 2026-11-13: no model answer stands in for a solution that is withheld.
-  const shownTarget = solutionWithheld(correction)
-    ? ''
-    : rewriteDiffers ? cleanRewrite : (errata[0]?.corrected_target || cleanRewrite || fallbackTarget);
   // WP-103 T9/T10: one explanation per distinct issue, never the same one three times.
   const whyLines = forgeCorrectionNotes(correction);
   const assessment = seanceAssessment(correction);
   const correct = assessment === 'correct';
-  const taskOnly = !rewriteDiffers && (errata.length === 0 || errata.every((item) => item.task_error_type === 'task_compliance'));
+  // #954: on a miss the learner's own line, sent back unchanged, is not a correction of it.
+  const shownTarget = solutionWithheld(correction)
+    ? ''
+    : rewriteDiffers ? cleanRewrite : (errata[0]?.corrected_target || (correct ? cleanRewrite : '') || fallbackTarget);
+  // #954 (child of #333): a task note is what the correction says: a task erratum, or the
+  // rule the task asked for missing from the line. A correction that says nothing (no
+  // erratum, no rewrite, nothing missing) is no reason that «the task is not met».
+  const taskErrata = errata.filter((item) => item.task_error_type === 'task_compliance');
+  const ruleMissing = Array.isArray(correction?.missing_targets) && correction.missing_targets.length > 0;
+  const taskOnly = !rewriteDiffers && taskErrata.length === errata.length && (taskErrata.length > 0 || ruleMissing);
   // One clean before/after for the whole line, with each error explained in the
   // note — instead of one messy before/after per erratum.
   // Owner 2026-11-13: the card counts the corrections it shows. A task note is said in
@@ -5053,7 +5063,7 @@ export function feedbackFromFreeformCorrection(correction: Record<string, any> |
       : ((lineErrata.length === 1 ? lineErrata[0]?.display_label : '') || t.corrected_line),
     learner_text: learner,
     corrected_target: taskOnly ? '' : (rewriteDiffers ? shownTarget : (errata[0]?.corrected_target || '')),
-    why_wrong: whyLines.join('\n') || t.task_default_why,
+    why_wrong: whyLines.join('\n') || (taskOnly ? t.task_default_why : ''),
     task_error_type: taskOnly ? 'task_compliance' : undefined,
   } as AtelierErratum];
   if (!correct && !taskOnly) {
