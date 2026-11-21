@@ -287,6 +287,10 @@ test('la une composes 1 to 6 pieces without a hole: a lead, a pull quote from tw
   assert.deepEqual([at(4).pull.id, ids(at(4).column), ids(at(4).briefs)], [2, [3, 4], []]);
   assert.deepEqual([at(5).pull.id, ids(at(5).column), ids(at(5).briefs)], [2, [3, 4, 5], []]);
   assert.deepEqual([at(6).pull.id, ids(at(6).column), ids(at(6).briefs)], [2, [3, 4], [5, 6]]);
+  // A standfirst never repeats the headline it stands under (case and accents folded).
+  assert.equal(model.uneStandfirst({ role: 'headline', textFr: 'La Fête de la musique est gratuite', storyTitleFr: 'La fete de la Musique' }), null);
+  assert.equal(model.uneStandfirst({ role: 'headline', textFr: 'Le bac reste difficile', storyTitleFr: 'Le marché du dimanche' }), 'Le marché du dimanche');
+  assert.equal(model.uneStandfirst({ role: 'vox', textFr: 'x', storyTitleFr: 'y' }), null);
   for (let n = 1; n <= 6; n += 1) {
     const layout = at(n);
     const shown = [layout.lead, layout.pull, ...layout.column, ...layout.briefs].filter(Boolean).length;

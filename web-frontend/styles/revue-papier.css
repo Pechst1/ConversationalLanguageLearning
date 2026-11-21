@@ -921,3 +921,12 @@ html:has(.av2.rv-page) { scroll-padding-top: 96px; scroll-padding-bottom: 140px;
 .av2 .pp-tm-cutting .pp-blank { border-bottom-color: var(--av2-ink); }
 .av2 .pp-nowrap, .av2 .ct-frame__k .pp-nowrap { font: inherit; letter-spacing: inherit; color: inherit; text-transform: none; }
 .av2 .ct-frame__k .pp-holed { font: inherit; color: inherit; }
+
+/* round 4 · the loop and the strike are drawn from their box (padding included), never shrunk by the
+   global `svg { max-width: 100% }`: the loop encloses the whole frame, the strike crosses it corner to corner */
+.av2 .pp-loop, .av2 .pp-strike, .av2 .pp-del { max-width: none; }
+/* round 4 · a caption runs to three lines: a refused one is struck line by line, the found one only on its wrong
+   words; the deleatur's loop gets the room after the word (the block slash stays the headlines' mark) */
+.av2 .pp-captions .rb-head[data-tried]:not([data-role='right']) .fl-strip__fr { text-decoration: line-through; text-decoration-color: var(--av2-red); text-decoration-thickness: 1.5px; color: var(--av2-ink-2); }
+.av2 .pp-wrong { margin-right: 0.55em; }
+.av2 .pp-wrong .pp-del { left: 0; right: auto; width: calc(100% + 0.55em); }

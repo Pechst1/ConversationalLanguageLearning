@@ -22,7 +22,7 @@ import { PpByline, PpDateline, PpFigure, PpLead, PpLinks } from '../papier/Papie
 import { revueCopy } from '../revue-copy';
 import { pictureLinks } from '../revue-gallery';
 import { RDV_FR, countLine, fillRdv, rdvCopy, type RdvCopy } from './rdv-copy';
-import { uneCount, uneLayout } from './rdv-model';
+import { uneCount, uneLayout, uneStandfirst } from './rdv-model';
 
 /** How the learner's piece is signed, by what it is (French, as printed). */
 function bylineOf(item: RvUneItem): string {
@@ -63,8 +63,10 @@ function Picture({ item, language, lead }: { item: RvUneItem; language: RvLangua
 /** The piece's body: the learner's printed words, set by what they are. */
 function Body({ item, lead, copy }: { item: RvUneItem; lead: boolean; copy: RdvCopy }) {
   switch (item.role) {
-    case 'headline':
-      return <p className="une-item__story">{item.storyTitleFr}</p>;
+    case 'headline': {
+      const standfirst = uneStandfirst(item);
+      return standfirst ? <p className="une-item__story">{standfirst}</p> : null;
+    }
     case 'vox':
       return (
         <blockquote className="une-item__vox">

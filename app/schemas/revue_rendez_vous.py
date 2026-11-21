@@ -46,7 +46,7 @@ class RvSouvenir(RevueModel):
     #: The stored fact the line rests on (``session_id`` of the earlier Papier and what it holds),
     #: so the claim can be audited: the app never says something the learner did not do.
     about_session_id: str
-    fact: Literal["stance", "headline", "intox_score", "fil", "count", "opinion"]
+    fact: Literal["stance", "headline", "intox_score", "fil", "count", "opinion", "photo", "micro"]
 
 
 class RvSouvenirResult(RevueModel):

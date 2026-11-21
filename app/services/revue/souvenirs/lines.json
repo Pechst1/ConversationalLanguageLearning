@@ -565,6 +565,258 @@
    "fr": "{n} papiers à ton actif : les dépêches t'attendent.",
    "en": "{n} papers to your name: the dispatches are waiting for you.",
    "de": "{n} Artikel auf deinem Konto: Die Agenturmeldungen warten auf dich."
+  },
+  {
+   "id": "photo.legende_imprimee.a1",
+   "mode": "photo",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "photo",
+   "quote": true,
+   "fr": "{Quand}, ta légende était dans le journal : « {legende} ». Une autre ?",
+   "en": "{Quand}, your caption was in the paper: « {legende} ». Another one?",
+   "de": "{Quand} war deine Bildunterschrift in der Zeitung: « {legende} ». Noch eine?"
+  },
+  {
+   "id": "photo.legende_imprimee.a2",
+   "mode": "photo",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "photo",
+   "quote": true,
+   "fr": "{Quand}, j'ai imprimé ta légende : « {legende} ». On regarde une autre photo ?",
+   "en": "{Quand}, I printed your caption: « {legende} ». Shall we look at another photo?",
+   "de": "{Quand} habe ich deine Bildunterschrift gedruckt: « {legende} ». Schauen wir uns ein anderes Foto an?"
+  },
+  {
+   "id": "photo.legende_imprimee.b1",
+   "mode": "photo",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "photo",
+   "quote": true,
+   "fr": "{Quand}, ta légende est partie à l'impression : « {legende} ». Même exigence aujourd'hui ?",
+   "en": "{Quand}, your caption went to print: « {legende} ». The same care today?",
+   "de": "{Quand} ist deine Bildunterschrift in Druck gegangen: « {legende} ». Heute genauso sorgfältig?"
+  },
+  {
+   "id": "photo.legende.a1",
+   "mode": "photo",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "photo",
+   "fr": "{Quand}, tu as écrit une légende. Aujourd'hui, encore une photo.",
+   "en": "{Quand}, you wrote a caption. Today, another photo.",
+   "de": "{Quand} hast du eine Bildunterschrift geschrieben. Heute wieder ein Foto."
+  },
+  {
+   "id": "photo.legende.a2",
+   "mode": "photo",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "photo",
+   "fr": "{Quand}, ta légende est partie dans le journal. Regarde bien cette photo aussi.",
+   "en": "{Quand}, your caption went into the paper. Look closely at this photo too.",
+   "de": "{Quand} ist deine Bildunterschrift in die Zeitung gekommen. Schau dir auch dieses Foto genau an."
+  },
+  {
+   "id": "photo.legende.b1",
+   "mode": "photo",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "photo",
+   "fr": "{Quand}, ta légende est passée par ma relecture avant l'impression. Aujourd'hui, une autre photo.",
+   "en": "{Quand}, your caption went through my proofreading before print. Today, another photo.",
+   "de": "{Quand} ist deine Bildunterschrift vor dem Druck durch mein Korrekturlesen gegangen. Heute ein anderes Foto."
+  },
+  {
+   "id": "photo.apres_micro.a1",
+   "mode": "photo",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "micro",
+   "fr": "{Quand}, tu as interviewé {temoin}. Aujourd'hui, une photo.",
+   "en": "{Quand}, you interviewed {temoin}. Today, a photo.",
+   "de": "{Quand} hast du {temoin} interviewt. Heute ein Foto."
+  },
+  {
+   "id": "photo.apres_micro.a2",
+   "mode": "photo",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "micro",
+   "fr": "{Quand}, tu as posé tes questions à {temoin}. Aujourd'hui, on travaille sur une photo.",
+   "en": "{Quand}, you put your questions to {temoin}. Today we work on a photo.",
+   "de": "{Quand} hast du {temoin} deine Fragen gestellt. Heute arbeiten wir an einem Foto."
+  },
+  {
+   "id": "photo.apres_micro.b1",
+   "mode": "photo",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "micro",
+   "fr": "{Quand}, tu as interviewé {temoin}. Aujourd'hui, pas de micro : une photo et sa légende.",
+   "en": "{Quand}, you interviewed {temoin}. Today, no microphone: a photo and its caption.",
+   "de": "{Quand} hast du {temoin} interviewt. Heute kein Mikrofon: ein Foto und seine Bildunterschrift."
+  },
+  {
+   "id": "photo.habitues.a1",
+   "mode": "photo",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "count",
+   "min_count": 3,
+   "fr": "Déjà {n} papiers avec moi. Choisis bien ta photo.",
+   "en": "Already {n} papers with me. Choose your photo well.",
+   "de": "Schon {n} Artikel mit mir. Wähl dein Foto gut aus."
+  },
+  {
+   "id": "photo.habitues.a2",
+   "mode": "photo",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "count",
+   "min_count": 3,
+   "fr": "Tu as déjà {n} papiers dans le journal. Aujourd'hui, c'est la photo.",
+   "en": "You already have {n} papers in the paper. Today it's the photo.",
+   "de": "Du hast schon {n} Artikel in der Zeitung. Heute ist das Foto dran."
+  },
+  {
+   "id": "photo.habitues.b1",
+   "mode": "photo",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "count",
+   "min_count": 3,
+   "fr": "{n} papiers à ton actif : tu sais lire une page. Maintenant, lis une image.",
+   "en": "{n} papers to your name: you can read a page. Now read a picture.",
+   "de": "{n} Artikel auf deinem Konto: Du kannst eine Seite lesen. Jetzt lies ein Bild."
+  },
+  {
+   "id": "micro.temoin.a1",
+   "mode": "micro",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "micro",
+   "fr": "{Quand}, tu as interviewé {temoin}. Aujourd'hui, encore une interview.",
+   "en": "{Quand}, you interviewed {temoin}. Today, another interview.",
+   "de": "{Quand} hast du {temoin} interviewt. Heute wieder ein Interview."
+  },
+  {
+   "id": "micro.temoin.a2",
+   "mode": "micro",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "micro",
+   "fr": "{Quand}, {temoin} a répondu à tes questions. Prépare bien les nouvelles.",
+   "en": "{Quand}, {temoin} answered your questions. Prepare the new ones well.",
+   "de": "{Quand} hat {temoin} deine Fragen beantwortet. Bereite die neuen gut vor."
+  },
+  {
+   "id": "micro.temoin.b1",
+   "mode": "micro",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "micro",
+   "fr": "{Quand}, tu as tendu le micro à {temoin}. Aujourd'hui, même méthode : de bonnes questions.",
+   "en": "{Quand}, you held the microphone out to {temoin}. Today, the same method: good questions.",
+   "de": "{Quand} hast du {temoin} das Mikrofon hingehalten. Heute dieselbe Methode: gute Fragen."
+  },
+  {
+   "id": "micro.faits.a1",
+   "mode": "micro",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "micro",
+   "min_facts": 2,
+   "fr": "{Quand}, tes questions ont trouvé {faits} réponses. On recommence ?",
+   "en": "{Quand}, your questions found {faits} answers. Shall we go again?",
+   "de": "{Quand} haben deine Fragen {faits} Antworten gefunden. Noch einmal?"
+  },
+  {
+   "id": "micro.faits.a2",
+   "mode": "micro",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "micro",
+   "min_facts": 2,
+   "fr": "{Quand}, {faits} de tes questions ont trouvé une réponse. Vise aussi bien aujourd'hui.",
+   "en": "{Quand}, {faits} of your questions found an answer. Aim as well today.",
+   "de": "{Quand} haben {faits} deiner Fragen eine Antwort gefunden. Ziel heute genauso gut."
+  },
+  {
+   "id": "micro.faits.b1",
+   "mode": "micro",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "micro",
+   "min_facts": 2,
+   "fr": "{Quand}, {faits} questions, {faits} réponses pour mes notes. On garde le rythme ?",
+   "en": "{Quand}, {faits} questions, {faits} answers for my notes. Shall we keep the pace?",
+   "de": "{Quand} gab es {faits} Fragen und {faits} Antworten für meine Notizen. Halten wir das Tempo?"
+  },
+  {
+   "id": "micro.apres_photo.a1",
+   "mode": "micro",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "photo",
+   "fr": "{Quand}, ta légende était dans le journal. Aujourd'hui, prends le micro.",
+   "en": "{Quand}, your caption was in the paper. Today, take the microphone.",
+   "de": "{Quand} war deine Bildunterschrift in der Zeitung. Heute nimmst du das Mikrofon."
+  },
+  {
+   "id": "micro.apres_photo.a2",
+   "mode": "micro",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "photo",
+   "fr": "{Quand}, tu as écrit une légende pour le journal. Aujourd'hui, tu poses les questions.",
+   "en": "{Quand}, you wrote a caption for the paper. Today, you ask the questions.",
+   "de": "{Quand} hast du eine Bildunterschrift für die Zeitung geschrieben. Heute stellst du die Fragen."
+  },
+  {
+   "id": "micro.apres_photo.b1",
+   "mode": "micro",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "photo",
+   "fr": "{Quand}, tu as légendé une photo. Aujourd'hui, c'est une voix qu'il faut écouter.",
+   "en": "{Quand}, you captioned a photo. Today, it's a voice you have to listen to.",
+   "de": "{Quand} hast du ein Foto beschriftet. Heute musst du einer Stimme zuhören."
+  },
+  {
+   "id": "micro.habitues.a1",
+   "mode": "micro",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "count",
+   "min_count": 3,
+   "fr": "Déjà {n} papiers avec moi. Aujourd'hui, une interview.",
+   "en": "Already {n} papers with me. Today, an interview.",
+   "de": "Schon {n} Artikel mit mir. Heute ein Interview."
+  },
+  {
+   "id": "micro.habitues.a2",
+   "mode": "micro",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "count",
+   "min_count": 3,
+   "fr": "Tu as déjà {n} papiers dans le journal. Aujourd'hui, tu interviewes quelqu'un.",
+   "en": "You already have {n} papers in the paper. Today you interview someone.",
+   "de": "Du hast schon {n} Artikel in der Zeitung. Heute interviewst du jemanden."
+  },
+  {
+   "id": "micro.habitues.b1",
+   "mode": "micro",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "count",
+   "min_count": 3,
+   "fr": "{n} papiers à ton actif. Aujourd'hui, le journal a besoin d'un témoin : à toi de le faire parler.",
+   "en": "{n} papers to your name. Today the paper needs a witness: get them talking.",
+   "de": "{n} Artikel auf deinem Konto. Heute braucht die Zeitung einen Zeugen: Bring ihn zum Reden."
   }
  ]
 }

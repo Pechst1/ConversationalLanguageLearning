@@ -12,7 +12,7 @@ import { castDisplayName } from './cast-faces';
 import type { RevueTransport } from './revue-api';
 
 type Json = Record<string, any>;
-type Mode = 'comptoir' | 'fil' | 'titre' | 'intox' | 'chat';
+type Mode = 'comptoir' | 'fil' | 'titre' | 'intox' | 'photo' | 'micro' | 'chat';
 
 const KEYS = ['a', 'b', 'c'] as const;
 const CUES = ['1', '2', '3'] as const;
@@ -68,6 +68,24 @@ const LINES: Record<Mode, Json> = {
     en: 'Yesterday, you told the wire. Another one?',
     de: 'Gestern hast du die Meldungen erzählt. Noch einmal?',
     fact: 'fil',
+  },
+  photo: {
+    template_id: 'mock.photo.apres_micro',
+    speaker_id: 'romy_tremblay',
+    speaker_fr: castDisplayName('romy_tremblay'),
+    fr: 'Jeudi, tu as interviewé Lila. Aujourd’hui, une photo.',
+    en: 'On Thursday, you interviewed Lila. Today, a photo.',
+    de: 'Am Donnerstag hast du Lila interviewt. Heute ein Foto.',
+    fact: 'micro',
+  },
+  micro: {
+    template_id: 'mock.micro.apres_photo',
+    speaker_id: 'romy_tremblay',
+    speaker_fr: castDisplayName('romy_tremblay'),
+    fr: 'Hier, ta légende était dans le journal. Aujourd’hui, prends le micro.',
+    en: 'Yesterday, your caption was in the paper. Today, take the microphone.',
+    de: 'Gestern war deine Bildunterschrift in der Zeitung. Heute nimmst du das Mikrofon.',
+    fact: 'photo',
   },
   chat: {},
 };

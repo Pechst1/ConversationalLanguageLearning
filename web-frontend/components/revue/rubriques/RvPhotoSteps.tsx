@@ -24,7 +24,7 @@ import type { RvPhotoView } from '@/lib/revue-rubriques-types';
 
 import { RomyLine } from '../comptoir/RvComptoirParts';
 import { papierCopy } from '../papier/papier-copy';
-import { PpDeleatur, PpFigure, PpLinks, PpPencilLoop, PpSheet, PpStet, PpStrike, type PpFrame } from '../papier/PapierPrint';
+import { PpDeleatur, PpFigure, PpLinks, PpPencilLoop, PpSheet, PpStet, type PpFrame } from '../papier/PapierPrint';
 import { fill } from '../revue-copy';
 import { pictureLinks } from '../revue-gallery';
 import { RvTranslate } from '../RvThread';
@@ -288,9 +288,9 @@ export function RvPhotoLegende(props: PhotoStepProps) {
                           ) : tried && caption.role === 'right' ? (
                             // Suspected, but it stands: the proofreader's «stet».
                             <PpStet label={pcopy.stet} />
-                          ) : tried ? (
-                            <PpStrike label={pcopy.refused} />
                           ) : null
+                          // A refused caption (it belongs to the other picture) is struck line by line in
+                          // the CSS: a caption runs to three lines, the block slash is for headlines.
                         }
                       />
                     )}

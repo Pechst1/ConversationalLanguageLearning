@@ -371,6 +371,45 @@ def test_every_line_says_only_what_the_learner_did(db: Session) -> None:
                 assert line.en and line.de and "{" not in line.fr + line.en + line.de
 
 
+def test_la_photo_and_le_micro_have_a_line_when_there_is_memory_and_none_without(db: Session) -> None:
+    for mode in ("photo", "micro"):
+        for band in ("A1", "A2", "B1"):
+            user = make_user(db)
+            row = _row(db, user, mode=mode, days_ago=0, band=band)
+            assert souvenirs.line_for(db, row) is None, "no memory, no line"
+            db.delete(row)
+            db.commit()
+            _row(db, user, mode="photo", days_ago=3, artifact={"kind": "photo", "text_fr": "On voit une guitare. La fête est gratuite.",
+                                                                 "proof": "clean", "picture": "photo-2"})
+            _row(db, user, mode="micro", days_ago=2, artifact={"kind": "micro", "text_fr": "Combien ? Quand ?", "proof": "clean",
+                                                                 "witness": "lila_bonnet"},
+                 closing={"micro_page": {"lines": [{"question_fr": "Combien ?"}, {"question_fr": "Quand ?"}]}})
+            seen = set()
+            for _ in range(8):
+                row = _row(db, user, mode=mode, days_ago=0, band=band)
+                line = souvenirs.line_for(db, row)
+                db.delete(row)
+                db.commit()
+                assert line is not None and line.template_id.startswith(f"{mode}.") and line.template_id.endswith(band.lower())
+                text = line.fr + line.en + line.de
+                assert "{" not in text
+                if line.fact == "micro":
+                    assert "Lila" in line.fr or " 2 " in line.fr, "the witness interviewed, or the facts the questions earned"
+                if line.fact == "photo" and "«" in line.fr:
+                    assert "On voit une guitare. La fête est gratuite" in line.fr
+                assert "photo-2" not in text and "image 2" not in line.fr.lower(), "the picture chosen is never recalled"
+                seen.add(line.template_id)
+            assert seen
+
+
+def test_a_caption_printed_unchecked_and_an_interview_without_a_witness_are_not_spoken_of(db: Session) -> None:
+    user = make_user(db)
+    _row(db, user, mode="photo", days_ago=2, artifact={"kind": "photo", "text_fr": "Une guitare", "proof": "as_written"})
+    _row(db, user, mode="micro", days_ago=1, artifact={"kind": "micro", "text_fr": "Combien ?", "proof": "clean"})
+    memory = souvenirs.souvenirs_from([souvenirs.filed_of(r) for r in souvenirs.history(db, user.id) if souvenirs.filed_of(r)])
+    assert memory.photo is None and memory.micro is None
+
+
 def test_a_headline_printed_unchecked_and_a_low_score_are_not_spoken_of(db: Session) -> None:
     user = make_user(db)
     _row(db, user, mode="titre", days_ago=2, artifact={"kind": "titre", "text_fr": "Tout le monde adore", "proof": "as_written"})
@@ -405,13 +444,13 @@ def test_the_same_line_never_twice_in_a_row(db: Session) -> None:
 
 def test_the_templates_are_authored_for_every_assignment_and_band() -> None:
     table = souvenirs.lines()["templates"]
-    for kind in ("opinion", "fil", "titre", "intox"):
+    for kind in ("opinion", "fil", "titre", "intox", "photo", "micro"):
         for band in ("a1", "a2", "b1"):
             rows = [t for t in table if t["mode"] == kind and t["band"] == band]
             assert 4 <= len(rows) <= 6, (kind, band)
             for t in rows:
                 assert t["fr"] and t["en"] and t["de"]
-                for slot in ("{Quand}", "{titre}", "{score}", "{total}", "{n}"):
+                for slot in ("{Quand}", "{titre}", "{score}", "{total}", "{n}", "{legende}", "{temoin}", "{faits}"):
                     assert (slot in t["fr"]) == (slot in t["en"]) == (slot in t["de"]), (t["id"], slot)
                 for text in (t["fr"], t["en"], t["de"]):
                     assert "{Quand}" not in text or text.startswith("{Quand}"), "sentence-initial"

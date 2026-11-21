@@ -230,3 +230,25 @@ export function pagePicture(
   const caption = (lead?.captionFr ?? '').trim() || (sceneFr ?? '').trim() || null;
   return { url, captionFr: caption, creditFr: lead?.creditFr || defaultCredit };
 }
+
+/** A line folded for comparison: lower case, no accents, letters and digits only. */
+export function foldLine(text: string | null | undefined): string {
+  return (text ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/**
+ * A standfirst worth printing under a headline: none when it says nothing the headline does
+ * not (contained in it, case and accents folded) — a front page never repeats its headline.
+ */
+export function standfirstFor(headline: string | null | undefined, line: string | null | undefined): string | null {
+  const text = (line ?? '').trim();
+  if (!text) return null;
+  const folded = foldLine(text);
+  if (!folded || foldLine(headline).includes(folded)) return null;
+  return text;
+}

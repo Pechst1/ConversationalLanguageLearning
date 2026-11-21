@@ -6,6 +6,8 @@
 import type { RvLanguage } from '@/lib/revue-types';
 import { TM_WORD_KEYS, type RvSouvenir, type RvTmCueKey, type RvTmWordKey, type RvTroisMots } from '@/lib/revue-rdv';
 
+
+import { standfirstFor } from '../papier/papier-model';
 import { countLine, fillRdv, type RdvCopy } from './rdv-copy';
 
 export type Pairs = Partial<Record<RvTmWordKey, RvTmCueKey>>;
@@ -99,4 +101,10 @@ export function uneLayout<T extends { role: string }>(items: T[]): UneLayout<T> 
   const others = rest.filter((_, index) => index !== pullAt);
   const columnSize = others.length > 3 ? 2 : others.length;
   return { lead, pull, column: others.slice(0, columnSize), briefs: others.slice(columnSize) };
+}
+
+/** The line under a piece's headline on the une: the story's title only when the learner's headline does not already say it. */
+export function uneStandfirst(item: { role: string; textFr: string; storyTitleFr: string }): string | null {
+  if (item.role !== 'headline') return null;
+  return standfirstFor(item.textFr, item.storyTitleFr);
 }

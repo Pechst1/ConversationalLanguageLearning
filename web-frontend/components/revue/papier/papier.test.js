@@ -271,3 +271,12 @@ test('round 3: how a caption or an interview reached print, agreed in French; ne
   assert.equal(m.proofNoteFr('clean', 's'), 'relus par Romy');
   assert.equal(m.proofNoteFr(null), '');
 });
+
+test('round 4: a front page never prints a deck its headline already says', () => {
+  const m = require('./papier-model.ts');
+  assert.equal(m.standfirstFor('La Fête de la musique est gratuite', 'la fete de la MUSIQUE'), null);
+  assert.equal(m.standfirstFor('Une fête gratuite', 'Une petite place parisienne le soir du 21 juin'), 'Une petite place parisienne le soir du 21 juin');
+  assert.equal(m.standfirstFor('x', ''), null);
+  const html = render(h(print.PpFrontPage, { kicker: 'K', headline: 'Le bac, enfin', deck: 'Le bac' }));
+  assert.ok(!/pp-front__deck/.test(html));
+});

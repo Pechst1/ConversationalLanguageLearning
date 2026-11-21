@@ -46,7 +46,7 @@ HISTORY = 60
 #: The facts older than this are not spoken of.
 MAX_AGE_DAYS = 30
 #: The session's assignment → the templates' ``mode`` (the artifact it files).
-MODE_TEMPLATES = {"comptoir": "opinion", "fil": "fil", "titre": "titre", "intox": "intox"}
+MODE_TEMPLATES = {"comptoir": "opinion", "fil": "fil", "titre": "titre", "intox": "intox", "photo": "photo", "micro": "micro"}
 FR_DAYS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
 EN_DAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 DE_DAYS = ("Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag")
@@ -80,6 +80,9 @@ class Filed:
     sides: tuple[tuple[str, str], ...] = ()
     score: int | None = None
     total: int | None = None
+    #: «Le micro»: the witness interviewed and how many of the learner's questions earned a fact.
+    witness: str | None = None
+    facts: int | None = None
 
 
 @dataclass
@@ -91,6 +94,9 @@ class Souvenirs:
     headline: Filed | None = None
     intox: Filed | None = None
     fil: Filed | None = None
+    #: «La photo»: the latest caption printed after Romy's check; «Le micro»: the latest interview.
+    photo: Filed | None = None
+    micro: Filed | None = None
     sessions: list[Filed] = field(default_factory=list)
 
     @property
@@ -135,6 +141,12 @@ def filed_of(row: Any) -> Filed | None:
     def _int(value: Any) -> int | None:
         return value if isinstance(value, int) and not isinstance(value, bool) else None
 
+    witness = facts = None
+    if artifact.get("kind") == "micro":
+        witness = str(artifact["witness"]) if artifact.get("witness") else None
+        micro_page = closing.get("micro_page") if isinstance(closing.get("micro_page"), dict) else {}
+        lines_ = micro_page.get("lines")
+        facts = len(lines_) if isinstance(lines_, list) else None
     total = None
     if artifact.get("kind") == "intox":
         intox_page = closing.get("intox_page") if isinstance(closing.get("intox_page"), dict) else {}
@@ -149,6 +161,8 @@ def filed_of(row: Any) -> Filed | None:
         sides=sides,
         score=_int(artifact.get("score")),
         total=total,
+        witness=witness,
+        facts=facts,
     )
 
 
@@ -166,6 +180,10 @@ def souvenirs_from(filed: list[Filed]) -> Souvenirs:
             out.intox = item
         elif item.kind == "fil" and out.fil is None:
             out.fil = item
+        elif item.kind == "photo" and item.proof in QUOTABLE_PROOFS and item.printed_fr and out.photo is None:
+            out.photo = item
+        elif item.kind == "micro" and item.witness and out.micro is None:
+            out.micro = item
     return out
 
 
@@ -228,7 +246,8 @@ def _speakers(template: dict[str, Any], memory: Souvenirs, present: list[str]) -
 
 def _fact_for(template: dict[str, Any], memory: Souvenirs) -> Filed | None:
     fact = template["fact"]
-    item = {"stance": memory.stance, "headline": memory.headline, "intox_score": memory.intox, "fil": memory.fil}.get(fact)
+    item = {"stance": memory.stance, "headline": memory.headline, "intox_score": memory.intox, "fil": memory.fil,
+            "photo": memory.photo, "micro": memory.micro}.get(fact)
     if fact == "count":
         return memory.sessions[0] if memory.count >= int(template.get("min_count", 1)) else None
     if item is None:
@@ -236,6 +255,8 @@ def _fact_for(template: dict[str, Any], memory: Souvenirs) -> Filed | None:
     if template.get("stance") and item.stance != template["stance"]:
         return None
     if fact == "intox_score" and (item.score or 0) < int(template.get("min_score", 0)):
+        return None
+    if fact == "micro" and (item.facts or 0) < int(template.get("min_facts", 0)):
         return None
     if template.get("quote") and (item.proof not in QUOTABLE_PROOFS or len(item.printed_fr.split()) > QUOTE_MAX_WORDS):
         return None
@@ -280,6 +301,17 @@ def eligible(mode: str, band: str, memory: Souvenirs, present: list[str], now: d
             slots["total"] = dict.fromkeys(("fr", "en", "de"), str(fact.total or 5))
         if "{n}" in texts:
             slots["n"] = dict.fromkeys(("fr", "en", "de"), str(memory.count))
+        if "{legende}" in texts:
+            slots["legende"] = dict.fromkeys(("fr", "en", "de"), fact.printed_fr.strip().rstrip("."))
+        if "{temoin}" in texts:
+            from app.services.revue import comptoir  # noqa: PLC0415
+
+            name = comptoir.NAME_FR.get(fact.witness or "", "")
+            if not name:
+                continue
+            slots["temoin"] = dict.fromkeys(("fr", "en", "de"), name)
+        if "{faits}" in texts:
+            slots["faits"] = dict.fromkeys(("fr", "en", "de"), str(fact.facts))
         out.append(Choice(template=template, speaker_id=speakers[0], fact=fact, slots=slots))
     return out
 

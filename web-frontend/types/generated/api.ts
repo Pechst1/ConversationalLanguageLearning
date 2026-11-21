@@ -15166,7 +15166,7 @@ export interface components {
              * Fact
              * @enum {string}
              */
-            fact: "stance" | "headline" | "intox_score" | "fil" | "count" | "opinion";
+            fact: "stance" | "headline" | "intox_score" | "fil" | "count" | "opinion" | "photo" | "micro";
             /** Fr */
             fr: string;
             /** Speaker Fr */

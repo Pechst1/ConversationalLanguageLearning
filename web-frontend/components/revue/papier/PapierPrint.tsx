@@ -29,7 +29,7 @@ import { resolveMediaUrl } from '@/lib/media-url';
 
 import { knownTranslation, translateOnce } from '../revue-translate';
 import { PAPIER_FR, papierCopy } from './papier-copy';
-import { datelineParts, dropCap, editionOf, pencilLoop, stampTilt, tilt } from './papier-model';
+import { datelineParts, dropCap, editionOf, pencilLoop, stampTilt, standfirstFor, tilt } from './papier-model';
 
 const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
@@ -556,7 +556,8 @@ export function PpFrontPage({ edition, kicker, headline, deck = null, children, 
       <h2 className="ct-clip__hl pp-front__hl" lang="fr">
         {headline}
       </h2>
-      {deck && (
+      {/* Never a deck that repeats the headline's own words. */}
+      {(typeof headline === 'string' ? standfirstFor(headline, deck) : deck) && (
         <p className="pp-front__deck" lang="fr">
           {deck}
         </p>
