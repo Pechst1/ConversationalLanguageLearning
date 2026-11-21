@@ -212,6 +212,9 @@ class Verdict:
     expected_word: str | None = None
     read_as: str | None = None
     expected_part: str | None = None
+    #: #174 answer bank: the stored one-line reason a listed wrong answer stays wrong,
+    #: as ``(("en", …), ("de", …))``; only with ``note="bank"``.
+    bank_why: tuple[tuple[str, str], ...] | None = None
 
 
 def _damerau_one(left: str, right: str) -> int | None:
@@ -451,9 +454,15 @@ def judge(
     candidates = [str(item) for item in [*accepted, *alternatives] if item and str(item).strip()]
     if not learner or not candidates:
         return Verdict(correct=False, expected=candidates[0] if candidates else None)
+    banked = _bank_verdict(answer, candidates, article_optional=article_optional)
+    if banked is not None:
+        return banked
     verdict = _judge_candidates(learner, candidates, accents=accents, typo=typo, article_optional=article_optional)
     if verdict.correct:
         return verdict
+    spelled = _spelling_variant_verdict(learner, candidates)
+    if spelled is not None:
+        return spelled
     # #174: the same sentence with a noun's other right word («un appart», «le bureau
     # de poste») is right too. Tried only after a miss, so a miss still names the
     # item's own answer.
@@ -463,6 +472,63 @@ def judge(
         if widened.correct:
             return widened
     return verdict
+
+
+def _bank_verdict(answer: object, candidates: list[str], *, article_optional: bool) -> Verdict | None:
+    """#174: the answer bank's word, before any fold-and-compare (``ANSWER_BANK_ENABLED``).
+
+    A reviewed variant of the key is right; a reviewed wrong answer is wrong with its stored
+    reason, even where the lenient comparison below would have let it through (#723's class).
+    """
+
+    from app.services import answer_bank
+
+    hit = answer_bank.bank_verdict(answer, candidates, article_optional=article_optional)
+    if hit is None:
+        return None
+    if hit.correct:
+        return Verdict(correct=True, exact=True, expected=hit.form)
+    return Verdict(
+        correct=False,
+        note="bank",
+        expected=hit.expected,
+        learner_word=fold_typography(answer),
+        bank_why=tuple(sorted((hit.why or {}).items())) or None,
+    )
+
+
+def _spelling_variant_verdict(learner: str, candidates: list[str]) -> Verdict | None:
+    """#966: «clef» where the key says «clé» is the same word in an accepted spelling.
+
+    Only with the answer bank's flag on; the line must differ from a key only by words
+    :func:`spelling_variants.is_variant_edit` calls one word in two accepted spellings.
+    """
+
+    from app.services import answer_bank
+    from app.services.spelling_variants import same_word_variant
+
+    if not answer_bank.enabled():
+        return None
+    said = learner.split()
+    for candidate in candidates:
+        target = fold_typography(candidate).split()
+        if not target or len(target) != len(said) or said == target:
+            continue
+        # Word by word, so a number's hyphens («dix huit» for «dix-huit») stay the item's call.
+        if all(got == want or _same_spelled_word(got, want, same_word_variant) for got, want in zip(said, target, strict=True)):
+            return Verdict(correct=True, exact=True, expected=candidate)
+    return None
+
+
+def _same_spelled_word(got: str, want: str, same_word_variant: Any) -> bool:
+    """One word in two accepted spellings, an elided particle («d'ognon» / «d'oignon») included."""
+
+    if "'" in got and "'" in want:
+        head_got, _, got = got.partition("'")
+        head_want, _, want = want.partition("'")
+        if head_got != head_want:
+            return False
+    return bool(got) and bool(want) and same_word_variant(got, want)
 
 
 def _judge_candidates(
@@ -1555,6 +1621,8 @@ def feedback_note(verdict: Verdict, language: str | None) -> str | None:
 
     if verdict.note is None:
         return None
+    if verdict.note == "bank":
+        return _bank_note(verdict, language)
     key = verdict.note
     if verdict.correct and key in {"accent", "typo"}:
         key = f"{key}_ok"
@@ -1569,6 +1637,22 @@ def feedback_note(verdict: Verdict, language: str | None) -> str | None:
         expected_word=verdict.expected_word or verdict.expected or "",
         learner_word=verdict.learner_word or "",
     )
+
+
+def _bank_note(verdict: Verdict, language: str | None) -> str | None:
+    """The answer bank's stored reason, in the learner's language, never showing the answer."""
+
+    from app.services.answer_bank import BankHit, why_for_learner
+
+    if verdict.correct or not verdict.bank_why:
+        return None
+    hit = BankHit(
+        correct=False,
+        expected=verdict.expected or "",
+        form=verdict.learner_word or "",
+        why=dict(verdict.bank_why),
+    )
+    return why_for_learner(hit, [verdict.expected or ""], mother_tongue(language))
 
 
 #: Agency walk run 3 (2026-10-12): «mais sans mon nom» was "corrected" to «mais pas

@@ -142,8 +142,17 @@ def _tile_build(task: Any) -> tuple[list[str], dict[str, list[str]], list[list[s
     while len(tail) < len(stored) and stored[-1 - len(tail)] in _FINAL_PUNCTUATION:
         tail.insert(0, stored[-1 - len(tail)])
     targets = [stored]
-    for sentence in [*(_field(task, "accepted_answers") or []), _field(task, "solution_fr")]:
+    from app.services.answer_bank import variants_of
+
+    keys = [*(_field(task, "accepted_answers") or []), _field(task, "solution_fr")]
+    # #174: the answer bank's reviewed word orders («Puisqu'il pleut, je reste.») are right
+    # builds too, with the same tiles (only with ANSWER_BANK_ENABLED).
+    banked = variants_of(keys)
+    for sentence in [*keys, *banked]:
         said = _tile_tokens(sentence)
+        if sentence in banked and "," not in stored:
+            # A reviewed order may need a comma the stored build has no tile for.
+            said = [word for word in said if word != ","]
         while said and said[-1] in _FINAL_PUNCTUATION:
             said.pop()
         said += tail

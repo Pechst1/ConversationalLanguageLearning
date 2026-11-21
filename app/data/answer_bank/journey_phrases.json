@@ -1,0 +1,1814 @@
+{
+ "_about": "Answer bank (#174), written by scripts/build_answer_bank.py. Do not edit by hand: regenerate.",
+ "source": "journey_phrases",
+ "model": "claude-sonnet-5-5",
+ "generated": "2026-11-21",
+ "items": 72,
+ "covered": 72,
+ "entries": {
+  "arrange_meeting:A1#19a8459b67": {
+   "hash": "8962a9c0f47cba3f",
+   "key": "dimanche",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "dimanch",
+     "why_en": "The day name is misspelled.",
+     "why_de": "Der Wochentag ist falsch geschrieben."
+    },
+    {
+     "form": "le dimanche",
+     "why_en": "With the article it means every Sunday, not one single day.",
+     "why_de": "Mit Artikel heißt es jeden Sonntag, nicht ein einzelner Tag."
+    },
+    {
+     "form": "en dimanche",
+     "why_en": "French does not use 'en' before a day of the week.",
+     "why_de": "Vor dem Wochentag steht im Französischen kein 'en'."
+    }
+   ],
+   "key_rejected": true,
+   "key_judge_reason": "Gives a day only; no place."
+  },
+  "arrange_meeting:A1#3bfb8e4334": {
+   "hash": "019439092033ce04",
+   "key": "le matin",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "la matin",
+     "why_en": "Wrong gender of the article.",
+     "why_de": "Falsches Geschlecht beim Artikel."
+    },
+    {
+     "form": "le mâtin",
+     "why_en": "Wrong accent: this makes a different word.",
+     "why_de": "Falscher Akzent: Das ergibt ein anderes Wort."
+    },
+    {
+     "form": "matin",
+     "why_en": "The article is missing.",
+     "why_de": "Der Artikel fehlt."
+    },
+    {
+     "form": "au matin",
+     "why_en": "This is not the usual way to say 'in the morning'.",
+     "why_de": "So sagt man nicht üblicherweise 'am Morgen'."
+    }
+   ]
+  },
+  "arrange_meeting:A1#43beadc243": {
+   "hash": "3d64e2816607b4bf",
+   "key": "au marché",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "à marché",
+     "why_en": "The article is missing or not contracted.",
+     "why_de": "Der Artikel fehlt oder ist nicht zusammengezogen."
+    },
+    {
+     "form": "à le marché",
+     "why_en": "The preposition and article must be contracted.",
+     "why_de": "Präposition und Artikel müssen zusammengezogen werden."
+    },
+    {
+     "form": "dans le marché",
+     "why_en": "Wrong preposition for meeting at a place.",
+     "why_de": "Falsche Präposition für einen Treffpunkt."
+    },
+    {
+     "form": "au marche",
+     "why_en": "The accent is missing in the noun.",
+     "why_de": "Im Nomen fehlt der Akzent."
+    }
+   ]
+  },
+  "arrange_meeting:A1#6e4f8414f1": {
+   "hash": "c2e4123a51b6fdcd",
+   "key": "samedi",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "le samedi",
+     "why_en": "With the article this means every Saturday, not one given day.",
+     "why_de": "Mit Artikel bedeutet es jeden Samstag, nicht einen bestimmten Tag."
+    }
+   ],
+   "key_rejected": true,
+   "key_judge_reason": "Il manque un lieu : un jour et un lieu sont demandés.",
+   "key_proposer_problem": "The prompt asks for one day AND one place to meet; the key gives only a day, so it is incomplete (e.g. 'Samedi au marché')."
+  },
+  "arrange_meeting:A1#9883b0dd03": {
+   "hash": "8c980aaeaa42438a",
+   "key": "d'accord",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "de accord",
+     "why_en": "The preposition must be elided before a vowel.",
+     "why_de": "Die Präposition muss vor dem Vokal elidiert werden."
+    },
+    {
+     "form": "d'acord",
+     "why_en": "The noun is misspelled.",
+     "why_de": "Das Nomen ist falsch geschrieben."
+    },
+    {
+     "form": "dacord",
+     "why_en": "The apostrophe is missing, so it is not the right expression.",
+     "why_de": "Der Apostroph fehlt; so ist es nicht der richtige Ausdruck."
+    },
+    {
+     "form": "ok d'accord",
+     "why_en": "Extra word added; give only the phrase asked.",
+     "why_de": "Ein Wort zu viel; nur die gesuchte Wendung angeben."
+    }
+   ]
+  },
+  "arrange_meeting:A1#be53a50855": {
+   "hash": "7466a9a820fd560b",
+   "key": "on se voit",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "on se vois",
+     "why_en": "The verb ending does not match 'on'.",
+     "why_de": "Die Verbendung passt nicht zu 'on'."
+    },
+    {
+     "form": "on voit",
+     "why_en": "The reflexive pronoun is missing.",
+     "why_de": "Das Reflexivpronomen fehlt."
+    },
+    {
+     "form": "on te voit",
+     "why_en": "Wrong pronoun: it must be reflexive.",
+     "why_de": "Falsches Pronomen: Es muss reflexiv sein."
+    },
+    {
+     "form": "on se voir",
+     "why_en": "The verb must be conjugated, not an infinitive.",
+     "why_de": "Das Verb muss konjugiert sein, nicht im Infinitiv."
+    }
+   ],
+   "key_rejected": true,
+   "key_judge_reason": "Wrong verb form; it should be 'voit'."
+  },
+  "arrange_meeting:A1#edf2894965": {
+   "hash": "fda6945ad3f8b384",
+   "key": "au Mistral",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "à le Mistral",
+     "why_en": "The preposition and article must be contracted.",
+     "why_de": "Präposition und Artikel müssen zusammengezogen werden."
+    },
+    {
+     "form": "à Mistral",
+     "why_en": "The article is missing.",
+     "why_de": "Der Artikel fehlt."
+    },
+    {
+     "form": "du Mistral",
+     "why_en": "Wrong preposition: it means 'from', not 'at'.",
+     "why_de": "Falsche Präposition: sie bedeutet 'von', nicht 'bei'."
+    }
+   ]
+  },
+  "arrange_meeting:A2#0a0d065c47": {
+   "hash": "aeb1b524eefe6542",
+   "key": "on se retrouve",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "on se retrouves",
+     "why_en": "The verb ending does not match 'on'.",
+     "why_de": "Die Verbendung passt nicht zu 'on'."
+    },
+    {
+     "form": "on retrouve",
+     "why_en": "The reflexive pronoun is missing.",
+     "why_de": "Das Reflexivpronomen fehlt."
+    },
+    {
+     "form": "on se retrouver",
+     "why_en": "The verb must be conjugated.",
+     "why_de": "Das Verb muss konjugiert sein."
+    },
+    {
+     "form": "on te retrouve",
+     "why_en": "Wrong pronoun: it must be reflexive.",
+     "why_de": "Falsches Pronomen: Es muss reflexiv sein."
+    }
+   ]
+  },
+  "arrange_meeting:A2#207a9d4c5f": {
+   "hash": "ac3b77a3a2306898",
+   "key": "plutôt",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "plutot",
+     "why_en": "The accent is missing on the first vowel.",
+     "why_de": "Der Akzent auf dem ersten Vokal fehlt."
+    },
+    {
+     "form": "plus tôt",
+     "why_en": "This is two words and means something different (earlier).",
+     "why_de": "Das sind zwei Wörter mit anderer Bedeutung (früher)."
+    },
+    {
+     "form": "plus tard",
+     "why_en": "This means 'later', not the word for 'rather'.",
+     "why_de": "Das heißt 'später', nicht 'eher/lieber'."
+    }
+   ]
+  },
+  "arrange_meeting:A2#43beadc243": {
+   "hash": "3b15a4585ac039ec",
+   "key": "au marché",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "à marché",
+     "why_en": "The article is missing.",
+     "why_de": "Der Artikel fehlt."
+    },
+    {
+     "form": "à le marché",
+     "why_en": "The preposition and article must be contracted.",
+     "why_de": "Präposition und Artikel müssen zusammengezogen werden."
+    },
+    {
+     "form": "dans le marché",
+     "why_en": "Wrong preposition for a meeting place.",
+     "why_de": "Falsche Präposition für einen Treffpunkt."
+    },
+    {
+     "form": "au marche",
+     "why_en": "The accent is missing.",
+     "why_de": "Der Akzent fehlt."
+    }
+   ]
+  },
+  "arrange_meeting:A2#596b0b9b30": {
+   "hash": "e1e360fb9ead989d",
+   "key": "samedi matin",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "le samedi matin",
+     "why_en": "With the article it means every Saturday morning.",
+     "why_de": "Mit Artikel heißt es jeden Samstagmorgen."
+    },
+    {
+     "form": "samedi le matin",
+     "why_en": "Unnatural word order and extra article.",
+     "why_de": "Unnatürliche Wortstellung mit überflüssigem Artikel."
+    },
+    {
+     "form": "samedi mâtin",
+     "why_en": "Wrong accent: this makes a different word.",
+     "why_de": "Falscher Akzent: Das ergibt ein anderes Wort."
+    },
+    {
+     "form": "en samedi matin",
+     "why_en": "French does not use 'en' before the day.",
+     "why_de": "Vor dem Wochentag steht kein 'en'."
+    }
+   ]
+  },
+  "arrange_meeting:A2#90160753f3": {
+   "hash": "4adf7d42d96e748e",
+   "key": "vers dix heures",
+   "accepted": [
+    "vers 10 heures"
+   ],
+   "wrong": [
+    {
+     "form": "vers dix heure",
+     "why_en": "'heures' must be plural.",
+     "why_de": "'heures' muss im Plural stehen."
+    },
+    {
+     "form": "vers à dix heures",
+     "why_en": "Two prepositions combined; use only one.",
+     "why_de": "Zwei Präpositionen kombiniert; nur eine verwenden."
+    },
+    {
+     "form": "vers dix h",
+     "why_en": "Write the full word for the time unit.",
+     "why_de": "Die Zeiteinheit ausschreiben."
+    },
+    {
+     "form": "en dix heures",
+     "why_en": "Wrong preposition for a time of day.",
+     "why_de": "Falsche Präposition für eine Uhrzeit."
+    }
+   ]
+  },
+  "arrange_meeting:A2#9cf6af06a1": {
+   "hash": "a7af0371c1ec195f",
+   "key": "ça te va",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "ca te va",
+     "why_en": "The cedilla is missing on the first word.",
+     "why_de": "Beim ersten Wort fehlt die Cedille."
+    },
+    {
+     "form": "ça me va",
+     "why_en": "Wrong pronoun: you are asking Lila, not yourself.",
+     "why_de": "Falsches Pronomen: Du fragst Lila, nicht dich selbst."
+    },
+    {
+     "form": "ça te vas",
+     "why_en": "The verb ending is wrong.",
+     "why_de": "Die Verbendung ist falsch."
+    },
+    {
+     "form": "ça va",
+     "why_en": "The pronoun 'te' is missing, so the meaning changes.",
+     "why_de": "Das Pronomen fehlt, dadurch ändert sich die Bedeutung."
+    }
+   ]
+  },
+  "arrange_meeting:A2#be53a50855": {
+   "hash": "64ba1416c2633477",
+   "key": "on se voit",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "on se vois",
+     "why_en": "The verb ending does not match 'on'.",
+     "why_de": "Die Verbendung passt nicht zu 'on'."
+    },
+    {
+     "form": "on voit",
+     "why_en": "The reflexive pronoun is missing.",
+     "why_de": "Das Reflexivpronomen fehlt."
+    },
+    {
+     "form": "on te voit",
+     "why_en": "Wrong pronoun: it must be reflexive.",
+     "why_de": "Falsches Pronomen: Es muss reflexiv sein."
+    },
+    {
+     "form": "on se voir",
+     "why_en": "The verb must be conjugated.",
+     "why_de": "Das Verb muss konjugiert sein."
+    }
+   ]
+  },
+  "arrange_meeting:B1#0a0d065c47": {
+   "hash": "985d3d42beb2829c",
+   "key": "on se retrouve",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "on se retrouves",
+     "why_en": "The verb ending does not agree with 'on'.",
+     "why_de": "Die Verbendung passt nicht zu 'on'."
+    },
+    {
+     "form": "on retrouve",
+     "why_en": "The reflexive pronoun is missing.",
+     "why_de": "Das Reflexivpronomen fehlt."
+    },
+    {
+     "form": "on ce retrouve",
+     "why_en": "The pronoun is spelled wrongly.",
+     "why_de": "Das Pronomen ist falsch geschrieben."
+    },
+    {
+     "form": "on se trouve",
+     "why_en": "This is a different verb and does not mean meeting up.",
+     "why_de": "Das ist ein anderes Verb und bedeutet nicht 'sich treffen'."
+    },
+    {
+     "form": "on se voit",
+     "why_en": "This is a different verb from the one practised here.",
+     "why_de": "Das ist ein anderes Verb als das geübte."
+    }
+   ]
+  },
+  "arrange_meeting:B1#207a9d4c5f": {
+   "hash": "d44c3a85378f2e30",
+   "key": "plutôt",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "plutot",
+     "why_en": "The accent is missing on the first vowel.",
+     "why_de": "Der Akzent auf dem ersten Vokal fehlt."
+    },
+    {
+     "form": "plus tôt",
+     "why_en": "This is two words and means something different.",
+     "why_de": "Das sind zwei Wörter mit anderer Bedeutung."
+    },
+    {
+     "form": "plus tard",
+     "why_en": "This means 'later', not 'rather'.",
+     "why_de": "Das heißt 'später', nicht 'eher'."
+    }
+   ]
+  },
+  "arrange_meeting:B1#43beadc243": {
+   "hash": "ab28fea25ff417b3",
+   "key": "au marché",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "à le marché",
+     "why_en": "The preposition and article must contract.",
+     "why_de": "Präposition und Artikel müssen verschmelzen."
+    },
+    {
+     "form": "au marche",
+     "why_en": "The accent is missing on the noun.",
+     "why_de": "Der Akzent beim Nomen fehlt."
+    },
+    {
+     "form": "aux marché",
+     "why_en": "The article is plural but the noun is singular.",
+     "why_de": "Der Artikel steht im Plural, das Nomen im Singular."
+    },
+    {
+     "form": "dans le marché",
+     "why_en": "This preposition is not the usual one for meeting at the market.",
+     "why_de": "Diese Präposition ist für ein Treffen auf dem Markt nicht üblich."
+    }
+   ]
+  },
+  "arrange_meeting:B1#596b0b9b30": {
+   "hash": "fdd30711e586a96e",
+   "key": "samedi matin",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "le samedi matin",
+     "why_en": "With the article this means every Saturday morning, not one specific one.",
+     "why_de": "Mit Artikel bedeutet es jeden Samstagmorgen, nicht einen bestimmten."
+    },
+    {
+     "form": "samedi soir",
+     "why_en": "This is the wrong part of the day.",
+     "why_de": "Das ist die falsche Tageszeit."
+    },
+    {
+     "form": "samedi matins",
+     "why_en": "Matin is not made plural here.",
+     "why_de": "Matin steht hier nicht im Plural."
+    },
+    {
+     "form": "sammedi matin",
+     "why_en": "The day of the week is misspelled.",
+     "why_de": "Der Wochentag ist falsch geschrieben."
+    }
+   ]
+  },
+  "arrange_meeting:B1#90160753f3": {
+   "hash": "4b64cc024e989744",
+   "key": "vers dix heures",
+   "accepted": [
+    "vers 10 heures",
+    "vers 10h"
+   ],
+   "wrong": [
+    {
+     "form": "à dix heures",
+     "why_en": "This gives an exact time; the phrase should say approximately.",
+     "why_de": "Das nennt eine genaue Zeit; gesucht ist eine ungefähre."
+    },
+    {
+     "form": "vers dix heure",
+     "why_en": "Heures must be plural here.",
+     "why_de": "Heures muss hier im Plural stehen."
+    },
+    {
+     "form": "vers de dix heures",
+     "why_en": "No extra preposition 'de' is needed.",
+     "why_de": "Ein zusätzliches 'de' ist nicht nötig."
+    },
+    {
+     "form": "envers dix heures",
+     "why_en": "This is a different word and does not express approximate time.",
+     "why_de": "Das ist ein anderes Wort und drückt keine ungefähre Zeit aus."
+    }
+   ]
+  },
+  "arrange_meeting:B1#9cf6af06a1": {
+   "hash": "03d5ec1505ef7f57",
+   "key": "ça te va",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "ça vous va",
+     "why_en": "This uses the formal pronoun, but the register is informal.",
+     "why_de": "Das ist die Höflichkeitsform, verlangt ist aber du."
+    },
+    {
+     "form": "ca te va",
+     "why_en": "The cedilla is missing.",
+     "why_de": "Die Cedille fehlt."
+    },
+    {
+     "form": "ça te vas",
+     "why_en": "The verb ending is wrong.",
+     "why_de": "Die Verbendung ist falsch."
+    },
+    {
+     "form": "ça va",
+     "why_en": "The pronoun 'te' is missing, which changes the meaning.",
+     "why_de": "Das Pronomen fehlt, was die Bedeutung ändert."
+    }
+   ]
+  },
+  "arrange_meeting:B1#9d0e692d7d": {
+   "hash": "ff8c0b66f64e75f6",
+   "key": "Si tu es libre dimanche, on se retrouvera à dix heures devant le marché.",
+   "accepted": [
+    "Si tu es libre dimanche, on se retrouvera à 10 heures devant le marché.",
+    "Si tu es libre dimanche, nous nous retrouverons à dix heures devant le marché."
+   ],
+   "wrong": [
+    {
+     "form": "Si tu seras libre dimanche, on se retrouvera à dix heures devant le marché.",
+     "why_en": "After 'si' the future tense is not used.",
+     "why_de": "Nach 'si' steht kein Futur."
+    },
+    {
+     "form": "Si tu es libre dimanche, on se retrouvera à dix heure devant le marché.",
+     "why_en": "Heures must be plural.",
+     "why_de": "Heures muss im Plural stehen."
+    },
+    {
+     "form": "Si tu est libre dimanche, on se retrouvera à dix heures devant le marché.",
+     "why_en": "The verb être is wrongly conjugated for 'tu'.",
+     "why_de": "Das Verb être ist für 'tu' falsch konjugiert."
+    },
+    {
+     "form": "Si tu es libre dimanche, on se retrouvera à dix heures devant le marche.",
+     "why_en": "The accent is missing on the last word.",
+     "why_de": "Beim letzten Wort fehlt der Akzent."
+    }
+   ]
+  },
+  "arrange_meeting:B1#be53a50855": {
+   "hash": "51a55cbb62515973",
+   "key": "on se voit",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "on se vois",
+     "why_en": "The verb ending does not agree with 'on'.",
+     "why_de": "Die Verbendung passt nicht zu 'on'."
+    },
+    {
+     "form": "on ce voit",
+     "why_en": "The pronoun is spelled wrongly (ce instead of the reflexive one).",
+     "why_de": "Das Pronomen ist falsch geschrieben (ce statt Reflexivpronomen)."
+    },
+    {
+     "form": "on voit",
+     "why_en": "The reflexive pronoun is missing.",
+     "why_de": "Das Reflexivpronomen fehlt."
+    },
+    {
+     "form": "on se retrouve",
+     "why_en": "This is a different verb; the item asks for the 'see' verb.",
+     "why_de": "Das ist ein anderes Verb; gefragt ist das Verb 'sehen'."
+    }
+   ]
+  },
+  "explain_delay:A1#1d21fabd75": {
+   "hash": "46a67bb05d737c2d",
+   "key": "désolé",
+   "accepted": [
+    "désolée"
+   ],
+   "wrong": [
+    {
+     "form": "désole",
+     "why_en": "The word is missing its accent, so it is not the participle.",
+     "why_de": "Dem Wort fehlt der Akzent, so ist es nicht das Partizip."
+    },
+    {
+     "form": "desolé",
+     "why_en": "The first vowel should not be written without its accent pattern; check the spelling.",
+     "why_de": "Die Schreibweise stimmt nicht; prüfe die Akzente."
+    },
+    {
+     "form": "pardon",
+     "why_en": "This is a different word, not the one practised here.",
+     "why_de": "Das ist ein anderes Wort, nicht das hier geübte."
+    }
+   ]
+  },
+  "explain_delay:A1#3a70127ece": {
+   "hash": "b157241b7bb0ca1e",
+   "key": "j'arrive",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "je arrive",
+     "why_en": "Before a vowel sound the pronoun must be elided.",
+     "why_de": "Vor einem Vokal muss das Pronomen elidiert werden."
+    },
+    {
+     "form": "j'arrivé",
+     "why_en": "The verb ending is wrong for the present tense.",
+     "why_de": "Die Verbendung ist für das Präsens falsch."
+    },
+    {
+     "form": "je suis arrivé",
+     "why_en": "This says you have already arrived, not that you are coming.",
+     "why_de": "Das sagt, dass du schon angekommen bist."
+    }
+   ]
+  },
+  "explain_delay:A1#949e743ffb": {
+   "hash": "d069dbdf453a70ec",
+   "key": "je suis en retard",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "je suis retard",
+     "why_en": "A preposition is missing before the noun.",
+     "why_de": "Vor dem Nomen fehlt eine Präposition."
+    },
+    {
+     "form": "je suis en retards",
+     "why_en": "Retard stays singular here.",
+     "why_de": "Retard bleibt hier im Singular."
+    },
+    {
+     "form": "j'ai en retard",
+     "why_en": "Wrong auxiliary/verb: the state is expressed with être.",
+     "why_de": "Falsches Verb: Der Zustand wird mit être ausgedrückt."
+    },
+    {
+     "form": "je suis tard",
+     "why_en": "Tard is not used this way to say you are late.",
+     "why_de": "Tard wird so nicht verwendet, um Verspätung auszudrücken."
+    }
+   ]
+  },
+  "explain_delay:A1#a70700b690": {
+   "hash": "9ab36d71e3fae5fa",
+   "key": "bloqué",
+   "accepted": [
+    "bloquée"
+   ],
+   "wrong": [
+    {
+     "form": "bloque",
+     "why_en": "This is a verb form, not the participle used as adjective.",
+     "why_de": "Das ist eine Verbform, nicht das Partizip als Adjektiv."
+    },
+    {
+     "form": "bloquer",
+     "why_en": "The infinitive is used instead of the participle.",
+     "why_de": "Es steht der Infinitiv statt des Partizips."
+    },
+    {
+     "form": "blocké",
+     "why_en": "The spelling is wrong; it is not an English-style word.",
+     "why_de": "Die Schreibung ist falsch, es ist kein englisch geprägtes Wort."
+    },
+    {
+     "form": "bloqe",
+     "why_en": "The spelling is wrong.",
+     "why_de": "Die Schreibung ist falsch."
+    }
+   ]
+  },
+  "explain_delay:A1#c02eae25b5": {
+   "hash": "38eab030199df856",
+   "key": "le métro",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "la métro",
+     "why_en": "The gender of the article is wrong.",
+     "why_de": "Das Geschlecht des Artikels ist falsch."
+    },
+    {
+     "form": "le metro",
+     "why_en": "The accent on the noun is missing.",
+     "why_de": "Der Akzent beim Nomen fehlt."
+    },
+    {
+     "form": "les métro",
+     "why_en": "Singular is needed, not plural.",
+     "why_de": "Es braucht den Singular, nicht den Plural."
+    },
+    {
+     "form": "métro",
+     "why_en": "The article is missing.",
+     "why_de": "Der Artikel fehlt."
+    }
+   ]
+  },
+  "explain_delay:A1#c4edd10d34": {
+   "hash": "65f8e273608d756f",
+   "key": "dans dix minutes",
+   "accepted": [
+    "dans 10 minutes"
+   ],
+   "wrong": [
+    {
+     "form": "en dix minutes",
+     "why_en": "This preposition does not express a point in the future here.",
+     "why_de": "Diese Präposition drückt hier keinen zukünftigen Zeitpunkt aus."
+    },
+    {
+     "form": "dans dix minute",
+     "why_en": "The noun needs the plural ending.",
+     "why_de": "Das Nomen braucht die Pluralendung."
+    },
+    {
+     "form": "il y a dix minutes",
+     "why_en": "This refers to the past, not the future.",
+     "why_de": "Das bezieht sich auf die Vergangenheit."
+    }
+   ]
+  },
+  "explain_delay:A2#1d21fabd75": {
+   "hash": "ceaed19317397783",
+   "key": "désolé",
+   "accepted": [
+    "désolée"
+   ],
+   "wrong": [
+    {
+     "form": "désole",
+     "why_en": "The word is missing its accent.",
+     "why_de": "Dem Wort fehlt der Akzent."
+    },
+    {
+     "form": "desolé",
+     "why_en": "The accents are wrong; check the spelling.",
+     "why_de": "Die Akzente stimmen nicht."
+    },
+    {
+     "form": "pardon",
+     "why_en": "This is a different word, not the one practised here.",
+     "why_de": "Das ist ein anderes Wort."
+    }
+   ]
+  },
+  "explain_delay:A2#758b61d1ac": {
+   "hash": "8763122508e16739",
+   "key": "le métro est bloqué",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "le métro est bloquée",
+     "why_en": "The participle must agree with a masculine noun.",
+     "why_de": "Das Partizip muss zum maskulinen Nomen passen."
+    },
+    {
+     "form": "la métro est bloqué",
+     "why_en": "The article has the wrong gender.",
+     "why_de": "Der Artikel hat das falsche Genus."
+    },
+    {
+     "form": "le métro a bloqué",
+     "why_en": "This changes the meaning: a state is needed, not an action.",
+     "why_de": "Das ändert die Bedeutung: Ein Zustand ist gemeint."
+    }
+   ]
+  },
+  "explain_delay:A2#82b36840fc": {
+   "hash": "e8601119174dc62c",
+   "key": "je vais être en retard",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "je vais être à retard",
+     "why_en": "Wrong preposition for being late.",
+     "why_de": "Falsche Präposition für Verspätung."
+    },
+    {
+     "form": "je suis en retard",
+     "why_en": "This is the present state, not the near future.",
+     "why_de": "Das ist der Zustand jetzt, nicht das nahe Futur."
+    },
+    {
+     "form": "je vais être retard",
+     "why_en": "A preposition is missing before the noun.",
+     "why_de": "Vor dem Nomen fehlt eine Präposition."
+    }
+   ]
+  },
+  "explain_delay:A2#8e9e9968b6": {
+   "hash": "e79becf1fe776059",
+   "key": "dans vingt minutes",
+   "accepted": [
+    "dans 20 minutes"
+   ],
+   "wrong": [
+    {
+     "form": "en vingt minutes",
+     "why_en": "This preposition does not mark a future point here.",
+     "why_de": "Diese Präposition markiert hier keinen zukünftigen Zeitpunkt."
+    },
+    {
+     "form": "dans vingt minute",
+     "why_en": "The noun needs the plural ending.",
+     "why_de": "Das Nomen braucht die Pluralendung."
+    },
+    {
+     "form": "il y a vingt minutes",
+     "why_en": "This refers to the past.",
+     "why_de": "Das bezieht sich auf die Vergangenheit."
+    }
+   ]
+  },
+  "explain_delay:A2#dbe59bcdfc": {
+   "hash": "54fbb2316ade6ecd",
+   "key": "dix-neuf heures trente",
+   "accepted": [
+    "19 h 30",
+    "19h30"
+   ],
+   "wrong": [
+    {
+     "form": "dix-neuf heure trente",
+     "why_en": "Hours needs a plural ending.",
+     "why_de": "Heures braucht die Pluralendung."
+    },
+    {
+     "form": "dix-neuf heures trois",
+     "why_en": "The minutes number is wrong.",
+     "why_de": "Die Minutenzahl ist falsch."
+    }
+   ]
+  },
+  "explain_delay:A2#e3dac9750c": {
+   "hash": "b130a6285a5f88b3",
+   "key": "j'arrive vers",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "j'arrive à",
+     "why_en": "This preposition does not mean approximately at a time.",
+     "why_de": "Diese Präposition bedeutet nicht ungefähr um eine Uhrzeit."
+    },
+    {
+     "form": "je arrive vers",
+     "why_en": "The pronoun must be elided before the vowel.",
+     "why_de": "Das Pronomen muss vor dem Vokal elidiert werden."
+    },
+    {
+     "form": "j'arrive dans",
+     "why_en": "This preposition gives a delay, not a clock time.",
+     "why_de": "Diese Präposition gibt eine Zeitspanne an, keine Uhrzeit."
+    }
+   ]
+  },
+  "explain_delay:B1#02ce108676": {
+   "hash": "d95675911f15893a",
+   "key": "Je serai en retard : le métro est bloqué. S'il repart, j'arriverai à dix-neuf heures trente ; sinon, je viendrai à pied.",
+   "accepted": [
+    "Je vais être en retard : le métro est bloqué. S'il repart, j'arriverai à dix-neuf heures trente ; sinon, je viendrai à pied.",
+    "Je serai en retard : le métro est bloqué. S'il repart, j'arriverai à 19 h 30 ; sinon, je viendrai à pied."
+   ],
+   "wrong": [
+    {
+     "form": "Je suis en retard : le métro est bloqué. S'il repartira, j'arriverai à dix-neuf heures trente.",
+     "why_en": "After si, the future tense is not used for a condition.",
+     "why_de": "Nach si steht für eine Bedingung kein Futur."
+    },
+    {
+     "form": "Je serai en retard : le métro est bloqué. Si il repart, j'arriverai à dix-neuf heures trente.",
+     "why_en": "Si and il must be contracted here.",
+     "why_de": "Si und il müssen hier zusammengezogen werden."
+    },
+    {
+     "form": "Je serai en retard parce que le métro est bloqué.",
+     "why_en": "The new arrival time and the alternative are missing.",
+     "why_de": "Die neue Ankunftszeit und die Alternative fehlen."
+    }
+   ]
+  },
+  "explain_delay:B1#1d21fabd75": {
+   "hash": "72edbaae6d1b2f97",
+   "key": "désolé",
+   "accepted": [
+    "désolée",
+    "je suis désolé",
+    "je suis désolée"
+   ],
+   "wrong": [
+    {
+     "form": "désole",
+     "why_en": "The accent is missing, so the word is not spelled correctly.",
+     "why_de": "Es fehlt der Akzent, daher ist die Schreibung falsch."
+    },
+    {
+     "form": "desolé",
+     "why_en": "The first accent-less e is spelled wrongly; check the spelling.",
+     "why_de": "Das e am Anfang ist falsch geschrieben; prüfe die Schreibung."
+    },
+    {
+     "form": "pardon",
+     "why_en": "This is a different word, not the one for being sorry.",
+     "why_de": "Das ist ein anderes Wort, nicht das für bedauern."
+    }
+   ]
+  },
+  "explain_delay:B1#758b61d1ac": {
+   "hash": "6fed358e3895ab34",
+   "key": "le métro est bloqué",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "le métro est bloquée",
+     "why_en": "The participle must agree with a masculine noun.",
+     "why_de": "Das Partizip muss zum maskulinen Nomen passen."
+    },
+    {
+     "form": "la métro est bloqué",
+     "why_en": "The article has the wrong gender.",
+     "why_de": "Der Artikel hat das falsche Genus."
+    },
+    {
+     "form": "le métro a bloqué",
+     "why_en": "This changes the meaning: a state is needed.",
+     "why_de": "Das ändert die Bedeutung: Ein Zustand ist gemeint."
+    }
+   ]
+  },
+  "explain_delay:B1#82b36840fc": {
+   "hash": "f6d79d71a8f8c6e7",
+   "key": "je vais être en retard",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "je vais être à retard",
+     "why_en": "Wrong preposition for being late.",
+     "why_de": "Falsche Präposition für Verspätung."
+    },
+    {
+     "form": "je suis en retard",
+     "why_en": "This is the present state, not the near future.",
+     "why_de": "Das ist der Zustand jetzt, nicht das nahe Futur."
+    },
+    {
+     "form": "je vais être retard",
+     "why_en": "A preposition is missing.",
+     "why_de": "Eine Präposition fehlt."
+    }
+   ]
+  },
+  "explain_delay:B1#8e9e9968b6": {
+   "hash": "a81b748cf9eeb371",
+   "key": "dans vingt minutes",
+   "accepted": [
+    "dans 20 minutes"
+   ],
+   "wrong": [
+    {
+     "form": "en vingt minutes",
+     "why_en": "This preposition means within a duration, not after a wait from now.",
+     "why_de": "Diese Präposition bedeutet innerhalb einer Dauer, nicht nach einer Wartezeit ab jetzt."
+    },
+    {
+     "form": "dans vingt minute",
+     "why_en": "The noun needs a plural ending after twenty.",
+     "why_de": "Das Nomen braucht nach zwanzig die Pluralendung."
+    },
+    {
+     "form": "il y a vingt minutes",
+     "why_en": "This refers to the past, but you are talking about the future.",
+     "why_de": "Das bezieht sich auf die Vergangenheit, du sprichst aber von der Zukunft."
+    },
+    {
+     "form": "pour vingt minutes",
+     "why_en": "This preposition does not express arriving after a delay from now.",
+     "why_de": "Diese Präposition drückt nicht aus, dass man nach einer Wartezeit ab jetzt ankommt."
+    }
+   ]
+  },
+  "explain_delay:B1#dbe59bcdfc": {
+   "hash": "ca661cdd34b56aee",
+   "key": "dix-neuf heures trente",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "dix-neuf heures trente minutes",
+     "why_en": "Clock times do not add the word for minutes in French.",
+     "why_de": "Bei Uhrzeiten sagt man im Französischen nicht das Wort für Minuten dazu."
+    },
+    {
+     "form": "dix-neuf heure trente",
+     "why_en": "The word for hours needs a plural ending after nineteen.",
+     "why_de": "Das Wort für Stunden braucht nach neunzehn die Pluralendung."
+    },
+    {
+     "form": "neuf heures trente",
+     "why_en": "This is the wrong hour: it gives nine, not nineteen.",
+     "why_de": "Das ist die falsche Stunde: neun statt neunzehn."
+    }
+   ],
+   "key_rejected": true,
+   "key_judge_reason": "Gives only a time; the lateness and reason are missing."
+  },
+  "explain_delay:B1#e3dac9750c": {
+   "hash": "f6a9d679f7c0cc28",
+   "key": "j'arrive vers",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "j'arrive à",
+     "why_en": "This preposition does not mean approximately at a time.",
+     "why_de": "Diese Präposition bedeutet nicht ungefähr."
+    },
+    {
+     "form": "je arrive vers",
+     "why_en": "The pronoun must be elided before the vowel.",
+     "why_de": "Das Pronomen muss elidiert werden."
+    },
+    {
+     "form": "j'arrive dans",
+     "why_en": "This preposition gives a delay, not a clock time.",
+     "why_de": "Diese Präposition gibt eine Zeitspanne an."
+    }
+   ]
+  },
+  "first_day:A1#56524d5828": {
+   "hash": "b2ebf6929db342ba",
+   "key": "à emporter",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "a emporter",
+     "why_en": "Missing accent: this is a different word.",
+     "why_de": "Akzent fehlt: das ist ein anderes Wort."
+    },
+    {
+     "form": "à emporté",
+     "why_en": "After the preposition you need the infinitive.",
+     "why_de": "Nach der Präposition braucht man den Infinitiv."
+    },
+    {
+     "form": "emporter",
+     "why_en": "The preposition is missing.",
+     "why_de": "Die Präposition fehlt."
+    }
+   ]
+  },
+  "first_day:A1#bed9c13675": {
+   "hash": "5a1e0082f7019b9d",
+   "key": "au comptoir",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "à comptoir",
+     "why_en": "The preposition must contract with the article.",
+     "why_de": "Die Präposition muss mit dem Artikel verschmelzen."
+    },
+    {
+     "form": "à le comptoir",
+     "why_en": "à and le must be contracted.",
+     "why_de": "à und le müssen verschmolzen werden."
+    },
+    {
+     "form": "au comptoire",
+     "why_en": "The noun is misspelled.",
+     "why_de": "Das Nomen ist falsch geschrieben."
+    }
+   ]
+  },
+  "first_day:A2#9d116026d4": {
+   "hash": "64399d5c026d11af",
+   "key": "un verre d'eau",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "un verre de l'eau",
+     "why_en": "After a quantity, de is used without the article.",
+     "why_de": "Nach einer Mengenangabe steht de ohne Artikel."
+    },
+    {
+     "form": "une verre d'eau",
+     "why_en": "Wrong gender for verre.",
+     "why_de": "Falsches Genus bei verre."
+    },
+    {
+     "form": "un verre eau",
+     "why_en": "The linking word de is missing.",
+     "why_de": "Das Bindewort de fehlt."
+    },
+    {
+     "form": "un vere d'eau",
+     "why_en": "Verre is misspelled.",
+     "why_de": "Verre ist falsch geschrieben."
+    }
+   ]
+  },
+  "first_day:A2#bed9c13675": {
+   "hash": "f0b7c460f6f970ec",
+   "key": "au comptoir",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "à comptoir",
+     "why_en": "The preposition must contract with the article.",
+     "why_de": "Die Präposition muss mit dem Artikel verschmelzen."
+    },
+    {
+     "form": "à le comptoir",
+     "why_en": "à and le must be contracted.",
+     "why_de": "à und le müssen verschmolzen werden."
+    },
+    {
+     "form": "à la comptoir",
+     "why_en": "Comptoir is masculine.",
+     "why_de": "Comptoir ist maskulin."
+    }
+   ]
+  },
+  "first_day:B1#a0ebbd8c60": {
+   "hash": "f8cc985d57725a63",
+   "key": "s'apprêter à",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "s'apprêter de",
+     "why_en": "Wrong preposition after this verb.",
+     "why_de": "Falsche Präposition nach diesem Verb."
+    },
+    {
+     "form": "apprêter à",
+     "why_en": "The reflexive pronoun is missing.",
+     "why_de": "Das Reflexivpronomen fehlt."
+    },
+    {
+     "form": "être sur le point de",
+     "why_en": "This is a different expression; the word practised is a verb.",
+     "why_de": "Das ist ein anderer Ausdruck; geübt wird ein Verb."
+    },
+    {
+     "form": "s'apprendre à",
+     "why_en": "Different verb with a different meaning.",
+     "why_de": "Anderes Verb mit anderer Bedeutung."
+    }
+   ]
+  },
+  "first_day:B1#a6b3bbd898": {
+   "hash": "8291dd2dc3ec9898",
+   "key": "emporter",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "emmener",
+     "why_en": "This means to take someone along, not to take away an object.",
+     "why_de": "Das bedeutet jemanden mitnehmen, nicht etwas wegtragen."
+    },
+    {
+     "form": "apporter",
+     "why_en": "This means to bring, the opposite direction.",
+     "why_de": "Das bedeutet bringen, die Gegenrichtung."
+    },
+    {
+     "form": "emporte",
+     "why_en": "A conjugated form instead of the infinitive.",
+     "why_de": "Eine konjugierte Form statt des Infinitivs."
+    },
+    {
+     "form": "emporté",
+     "why_en": "This is a participle, not the infinitive.",
+     "why_de": "Das ist ein Partizip, nicht der Infinitiv."
+    }
+   ]
+  },
+  "order_at_cafe:A1#24c8d5f9a1": {
+   "hash": "4555e276ea64fd5d",
+   "key": "en terrasse",
+   "accepted": [
+    "à la terrasse"
+   ],
+   "wrong": [
+    {
+     "form": "en terasse",
+     "why_en": "The noun is misspelled; a letter is missing.",
+     "why_de": "Das Nomen ist falsch geschrieben; ein Buchstabe fehlt."
+    },
+    {
+     "form": "à terrasse",
+     "why_en": "This preposition needs an article here, or a different preposition.",
+     "why_de": "Diese Präposition braucht hier einen Artikel oder eine andere Präposition."
+    },
+    {
+     "form": "en la terrasse",
+     "why_en": "This preposition cannot be followed by an article here.",
+     "why_de": "Diese Präposition kann hier nicht mit Artikel stehen."
+    },
+    {
+     "form": "à l'intérieur",
+     "why_en": "This means inside, but the key is about outdoor seating.",
+     "why_de": "Das bedeutet drinnen, gemeint ist aber ein Platz draußen."
+    }
+   ]
+  },
+  "order_at_cafe:A1#27dc61f8a9": {
+   "hash": "0b51174565259f50",
+   "key": "un thé",
+   "accepted": [
+    "un thé nature",
+    "un thé noir",
+    "un thé vert",
+    "un thé au lait",
+    "un thé au citron",
+    "une tasse de thé"
+   ],
+   "wrong": [
+    {
+     "form": "une thé",
+     "why_en": "The article has the wrong gender for this noun.",
+     "why_de": "Der Artikel hat das falsche Genus für dieses Nomen."
+    },
+    {
+     "form": "un the",
+     "why_en": "The accent is missing in the noun.",
+     "why_de": "Im Nomen fehlt der Akzent."
+    },
+    {
+     "form": "un thée",
+     "why_en": "The noun has an extra letter at the end.",
+     "why_de": "Das Nomen hat einen überflüssigen Buchstaben am Ende."
+    }
+   ]
+  },
+  "order_at_cafe:A1#2a5ec4ab9b": {
+   "hash": "17b090db1e81f791",
+   "key": "un café",
+   "accepted": [
+    "une tasse de café",
+    "un café noir",
+    "un expresso",
+    "un espresso",
+    "un café crème",
+    "un cappuccino",
+    "un café allongé"
+   ],
+   "wrong": [
+    {
+     "form": "une café",
+     "why_en": "The article has the wrong gender for this noun.",
+     "why_de": "Der Artikel hat das falsche Genus für dieses Nomen."
+    },
+    {
+     "form": "un cafe",
+     "why_en": "The accent is missing in the noun.",
+     "why_de": "Im Nomen fehlt der Akzent."
+    },
+    {
+     "form": "le café",
+     "why_en": "A definite article sounds odd when ordering one drink.",
+     "why_de": "Ein bestimmter Artikel klingt beim Bestellen eines Getränks seltsam."
+    }
+   ]
+  },
+  "order_at_cafe:A1#56524d5828": {
+   "hash": "d3b2de41efe6a870",
+   "key": "à emporter",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "a emporter",
+     "why_en": "The first word needs an accent to be the preposition.",
+     "why_de": "Das erste Wort braucht einen Akzent, um die Präposition zu sein."
+    },
+    {
+     "form": "à porter",
+     "why_en": "This is a different verb, not the one for taking away.",
+     "why_de": "Das ist ein anderes Verb, nicht das für Mitnehmen."
+    },
+    {
+     "form": "à emporté",
+     "why_en": "The verb must stay in the infinitive.",
+     "why_de": "Das Verb muss im Infinitiv bleiben."
+    }
+   ],
+   "key_rejected": true,
+   "key_judge_reason": "Takeaway is not a seating place."
+  },
+  "order_at_cafe:A1#6d21ceb96d": {
+   "hash": "0401de091fa5eec1",
+   "key": "un chocolat chaud",
+   "accepted": [
+    "un chocolat",
+    "une tasse de chocolat chaud"
+   ],
+   "wrong": [
+    {
+     "form": "une chocolat chaud",
+     "why_en": "The article has the wrong gender for this noun.",
+     "why_de": "Der Artikel hat das falsche Genus für dieses Nomen."
+    },
+    {
+     "form": "un chocolat chaude",
+     "why_en": "The adjective must agree with a masculine noun.",
+     "why_de": "Das Adjektiv muss zu einem maskulinen Nomen passen."
+    },
+    {
+     "form": "un chocolat froid",
+     "why_en": "The prompt asks for a hot drink, but this one is cold.",
+     "why_de": "Verlangt ist ein heißes Getränk, dieses ist aber kalt."
+    },
+    {
+     "form": "un chaud chocolat",
+     "why_en": "The adjective is in the wrong position.",
+     "why_de": "Das Adjektiv steht an der falschen Stelle."
+    }
+   ]
+  },
+  "order_at_cafe:A1#727b3034ae": {
+   "hash": "3648ff2bf44c540e",
+   "key": "s'il vous plaît",
+   "accepted": [
+    "s'il vous plait"
+   ],
+   "wrong": [
+    {
+     "form": "s'il te plaît",
+     "why_en": "This is the informal form, but the register is vous.",
+     "why_de": "Das ist die informelle Form, verlangt ist aber das Siezen."
+    },
+    {
+     "form": "merci",
+     "why_en": "This means thank you, not please.",
+     "why_de": "Das bedeutet danke, nicht bitte."
+    },
+    {
+     "form": "s'il vous plaie",
+     "why_en": "The last word is misspelled.",
+     "why_de": "Das letzte Wort ist falsch geschrieben."
+    }
+   ]
+  },
+  "order_at_cafe:A1#a34b11de46": {
+   "hash": "a37c3bc63534fa2d",
+   "key": "je voudrais",
+   "accepted": [
+    "je voudrais bien",
+    "je souhaiterais"
+   ],
+   "wrong": [
+    {
+     "form": "je veux",
+     "why_en": "This is correct grammar but too blunt for a polite order.",
+     "why_de": "Das ist grammatisch richtig, aber zu direkt für eine höfliche Bestellung."
+    },
+    {
+     "form": "je voudrai",
+     "why_en": "This ending is the future tense, not the polite conditional.",
+     "why_de": "Diese Endung ist Futur, nicht der höfliche Konditional."
+    }
+   ]
+  },
+  "order_at_cafe:A1#bed9c13675": {
+   "hash": "5e124455bee0578b",
+   "key": "au comptoir",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "à le comptoir",
+     "why_en": "The preposition and article must be contracted.",
+     "why_de": "Präposition und Artikel müssen zusammengezogen werden."
+    },
+    {
+     "form": "à la comptoir",
+     "why_en": "The article has the wrong gender for this noun.",
+     "why_de": "Der Artikel hat das falsche Genus für dieses Nomen."
+    },
+    {
+     "form": "en comptoir",
+     "why_en": "The wrong preposition is used with this noun.",
+     "why_de": "Mit diesem Nomen steht die falsche Präposition."
+    },
+    {
+     "form": "au comptoire",
+     "why_en": "The noun is misspelled.",
+     "why_de": "Das Nomen ist falsch geschrieben."
+    }
+   ]
+  },
+  "order_at_cafe:A2#24c8d5f9a1": {
+   "hash": "d5f4911cf9595021",
+   "key": "en terrasse",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "en la terrasse",
+     "why_en": "En does not combine with an article here.",
+     "why_de": "En wird hier nicht mit Artikel verwendet."
+    },
+    {
+     "form": "au terrasse",
+     "why_en": "Terrasse is feminine, so this contraction is wrong.",
+     "why_de": "Terrasse ist feminin, die Verschmelzung ist falsch."
+    },
+    {
+     "form": "en terasse",
+     "why_en": "Spelling error: terrasse has a double letter.",
+     "why_de": "Rechtschreibfehler: Doppelkonsonant fehlt."
+    },
+    {
+     "form": "dehors",
+     "why_en": "A different word for outside, not the set phrase.",
+     "why_de": "Ein anderes Wort, nicht die feste Wendung."
+    }
+   ]
+  },
+  "order_at_cafe:A2#56524d5828": {
+   "hash": "93a536244c7ed549",
+   "key": "à emporter",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "a emporter",
+     "why_en": "The preposition needs its accent.",
+     "why_de": "Die Präposition braucht den Akzent."
+    },
+    {
+     "form": "à emporte",
+     "why_en": "Wrong form of the verb; an infinitive is needed.",
+     "why_de": "Falsche Verbform; ein Infinitiv ist nötig."
+    },
+    {
+     "form": "à prendre",
+     "why_en": "Wrong verb; it does not give the set phrase.",
+     "why_de": "Falsches Verb; ergibt nicht die feste Wendung."
+    },
+    {
+     "form": "sur place",
+     "why_en": "This means the opposite: eating in.",
+     "why_de": "Das bedeutet das Gegenteil: vor Ort essen."
+    }
+   ]
+  },
+  "order_at_cafe:A2#727b3034ae": {
+   "hash": "5fc02bbf3b6c8e3c",
+   "key": "s'il vous plaît",
+   "accepted": [
+    "s'il vous plait"
+   ],
+   "wrong": [
+    {
+     "form": "s'il te plaît",
+     "why_en": "This is the informal form, but the scene needs vous.",
+     "why_de": "Das ist die informelle Form, die Szene verlangt vous."
+    },
+    {
+     "form": "s'il vous plaisent",
+     "why_en": "Wrong verb ending.",
+     "why_de": "Falsche Verbendung."
+    },
+    {
+     "form": "si il vous plaît",
+     "why_en": "Si must be elided with il.",
+     "why_de": "Si muss mit il elidiert werden."
+    },
+    {
+     "form": "merci",
+     "why_en": "This is a different word meaning thanks, not a request marker.",
+     "why_de": "Das heißt Danke, nicht Bitte."
+    }
+   ]
+  },
+  "order_at_cafe:A2#8b64682e00": {
+   "hash": "b2a56bfacfe06c7d",
+   "key": "l'addition",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "la addition",
+     "why_en": "The article must be elided before a vowel.",
+     "why_de": "Der Artikel muss vor Vokal elidiert werden."
+    },
+    {
+     "form": "le addition",
+     "why_en": "Addition is feminine.",
+     "why_de": "Addition ist feminin."
+    },
+    {
+     "form": "la facture",
+     "why_en": "This is a different word, the bill for goods or services, not the café term.",
+     "why_de": "Das ist ein anderes Wort, nicht der Café-Ausdruck."
+    },
+    {
+     "form": "l'addiction",
+     "why_en": "A near-word with a different meaning.",
+     "why_de": "Ein ähnliches Wort mit anderer Bedeutung."
+    }
+   ]
+  },
+  "order_at_cafe:A2#9d116026d4": {
+   "hash": "818cfe4b34bce195",
+   "key": "un verre d'eau",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "un verre de eau",
+     "why_en": "Before a vowel, de must be elided.",
+     "why_de": "Vor Vokal muss de elidiert werden."
+    },
+    {
+     "form": "un verre d'eaux",
+     "why_en": "Eau is not pluralised here; one glass is requested.",
+     "why_de": "Eau steht hier nicht im Plural."
+    },
+    {
+     "form": "une verre d'eau",
+     "why_en": "Verre is masculine.",
+     "why_de": "Verre ist maskulin."
+    },
+    {
+     "form": "un verre eau",
+     "why_en": "The preposition linking glass and water is missing.",
+     "why_de": "Die verbindende Präposition fehlt."
+    }
+   ]
+  },
+  "order_at_cafe:A2#a34b11de46": {
+   "hash": "9bdf06f0fc0e6045",
+   "key": "je voudrais",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "je veux",
+     "why_en": "Too blunt and impolite for ordering from a waiter; you need the polite conditional.",
+     "why_de": "Zu direkt und unhöflich für eine Bestellung beim Kellner; man braucht die höfliche Konditionalform."
+    },
+    {
+     "form": "je voudrai",
+     "why_en": "This is the future spelling, not the polite conditional ending.",
+     "why_de": "Das ist die Futur-Schreibung, nicht die höfliche Konditionalendung."
+    },
+    {
+     "form": "je voulais",
+     "why_en": "The imperfect is not the polite request form.",
+     "why_de": "Das Imparfait ist nicht die höfliche Bitteform."
+    },
+    {
+     "form": "je voudrais s'il",
+     "why_en": "The phrase is incomplete and does not match the target expression.",
+     "why_de": "Der Ausdruck ist unvollständig und passt nicht zum Zielausdruck."
+    }
+   ]
+  },
+  "order_at_cafe:A2#bed9c13675": {
+   "hash": "0b8ecaa05329e514",
+   "key": "au comptoir",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "à le comptoir",
+     "why_en": "à and le must contract.",
+     "why_de": "à und le müssen verschmelzen."
+    },
+    {
+     "form": "en comptoir",
+     "why_en": "Wrong preposition for this place.",
+     "why_de": "Falsche Präposition."
+    },
+    {
+     "form": "à la comptoir",
+     "why_en": "Comptoir is masculine.",
+     "why_de": "Comptoir ist maskulin."
+    },
+    {
+     "form": "au comptoire",
+     "why_en": "Spelling error in the noun.",
+     "why_de": "Rechtschreibfehler im Nomen."
+    }
+   ]
+  },
+  "order_at_cafe:A2#e40e1fd737": {
+   "hash": "f32364816355403b",
+   "key": "est-ce que je peux avoir",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "est-ce que je peut avoir",
+     "why_en": "Wrong verb ending for je.",
+     "why_de": "Falsche Verbendung bei je."
+    },
+    {
+     "form": "est-ce que je peux avez",
+     "why_en": "The second verb must be an infinitive.",
+     "why_de": "Das zweite Verb muss im Infinitiv stehen."
+    },
+    {
+     "form": "est-ce que je puis avoir",
+     "why_en": "Wrong form of pouvoir with est-ce que; it is too archaic and does not match.",
+     "why_de": "Falsche, zu altertümliche Form von pouvoir mit est-ce que."
+    }
+   ]
+  },
+  "order_at_cafe:B1#24c8d5f9a1": {
+   "hash": "699390b1eeb36bba",
+   "key": "en terrasse",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "à terrasse",
+     "why_en": "Wrong preposition for this fixed expression.",
+     "why_de": "Falsche Präposition für diesen festen Ausdruck."
+    },
+    {
+     "form": "en la terrasse",
+     "why_en": "The preposition en is used without an article here.",
+     "why_de": "Nach en steht hier kein Artikel."
+    },
+    {
+     "form": "au terrasse",
+     "why_en": "Terrasse is feminine, so this contraction is wrong.",
+     "why_de": "Terrasse ist feminin, daher ist diese Verschmelzung falsch."
+    }
+   ]
+  },
+  "order_at_cafe:B1#56524d5828": {
+   "hash": "fca28f44e0b5d161",
+   "key": "à emporter",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "a emporter",
+     "why_en": "The preposition needs an accent, otherwise it is the verb avoir.",
+     "why_de": "Die Präposition braucht einen Akzent, sonst ist es das Verb avoir."
+    },
+    {
+     "form": "à emporte",
+     "why_en": "The verb must be in the infinitive.",
+     "why_de": "Das Verb muss im Infinitiv stehen."
+    },
+    {
+     "form": "à prendre",
+     "why_en": "Wrong verb for take-away.",
+     "why_de": "Falsches Verb für zum Mitnehmen."
+    }
+   ]
+  },
+  "order_at_cafe:B1#727b3034ae": {
+   "hash": "26d0b9040a5c124d",
+   "key": "s'il vous plaît",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "s'il te plaît",
+     "why_en": "This is the informal tu form, but the scene asks for vous.",
+     "why_de": "Das ist die informelle Du-Form, aber die Szene verlangt vous."
+    },
+    {
+     "form": "merci",
+     "why_en": "This means thank you, not please.",
+     "why_de": "Das bedeutet danke, nicht bitte."
+    }
+   ],
+   "key_rejected": true,
+   "key_judge_reason": "Too generic; does not order a hot drink, choose a seat and ask for an extra."
+  },
+  "order_at_cafe:B1#8b64682e00": {
+   "hash": "bd33c9ec7fed9ebc",
+   "key": "l'addition",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "la addition",
+     "why_en": "The article must be elided before a vowel.",
+     "why_de": "Der Artikel muss vor Vokal elidiert werden."
+    },
+    {
+     "form": "le addition",
+     "why_en": "Addition is feminine.",
+     "why_de": "Addition ist feminin."
+    },
+    {
+     "form": "l'addiction",
+     "why_en": "A near-word with a different meaning.",
+     "why_de": "Ein ähnliches Wort mit anderer Bedeutung."
+    }
+   ]
+  },
+  "order_at_cafe:B1#9d116026d4": {
+   "hash": "ff31d933622a47bd",
+   "key": "un verre d'eau",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "un verre de eau",
+     "why_en": "Before a vowel, de must be elided.",
+     "why_de": "Vor Vokal muss de elidiert werden."
+    },
+    {
+     "form": "une verre d'eau",
+     "why_en": "Verre is masculine.",
+     "why_de": "Verre ist maskulin."
+    },
+    {
+     "form": "un verre eau",
+     "why_en": "The preposition linking glass and water is missing.",
+     "why_de": "Die verbindende Präposition fehlt."
+    }
+   ]
+  },
+  "order_at_cafe:B1#a34b11de46": {
+   "hash": "4b255f31ebfafb12",
+   "key": "je voudrais",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "je veux",
+     "why_en": "Too blunt and impolite for ordering from a waiter; you need the polite conditional.",
+     "why_de": "Zu direkt und unhöflich für eine Bestellung beim Kellner; man braucht die höfliche Konditionalform."
+    },
+    {
+     "form": "je voudrai",
+     "why_en": "This is the future spelling, not the polite conditional ending.",
+     "why_de": "Das ist die Futur-Schreibung, nicht die höfliche Konditionalendung."
+    },
+    {
+     "form": "je voulais",
+     "why_en": "The imperfect is not the polite request form.",
+     "why_de": "Das Imparfait ist nicht die höfliche Bitteform."
+    }
+   ]
+  },
+  "order_at_cafe:B1#bed9c13675": {
+   "hash": "c9a1eb0751420818",
+   "key": "au comptoir",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "à comptoir",
+     "why_en": "The preposition must contract with the masculine article.",
+     "why_de": "Die Präposition muss mit dem maskulinen Artikel verschmelzen."
+    },
+    {
+     "form": "en comptoir",
+     "why_en": "Wrong preposition for being at a counter.",
+     "why_de": "Falsche Präposition für den Tresen."
+    },
+    {
+     "form": "à la comptoir",
+     "why_en": "Comptoir is masculine and the article should be contracted.",
+     "why_de": "Comptoir ist maskulin, und der Artikel muss verschmolzen sein."
+    }
+   ]
+  },
+  "order_at_cafe:B1#c3ed6147fe": {
+   "hash": "eaf8f82ed6f0f123",
+   "key": "Si je reste au comptoir, je prendrai un thé et un verre d'eau, s'il vous plaît.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Si je reste au comptoir, je prends un thé et un verre d'eau, s'il vous plaît.",
+     "why_en": "After si with the present, the expected main verb is not this tense for this sentence.",
+     "why_de": "Der Hauptsatz steht hier nicht in der erwarteten Zeitform."
+    },
+    {
+     "form": "Si je resterai au comptoir, je prendrai un thé, s'il vous plaît.",
+     "why_en": "The future does not follow si in this kind of clause.",
+     "why_de": "Nach si steht in diesem Satztyp kein Futur."
+    },
+    {
+     "form": "Si je reste au comptoir, je prendrai un thé et un verre de l'eau, s'il te plaît.",
+     "why_en": "Wrong article after the quantity and wrong register.",
+     "why_de": "Falscher Artikel nach der Mengenangabe und falsches Register."
+    }
+   ]
+  },
+  "order_at_cafe:B1#e40e1fd737": {
+   "hash": "faf9175571c1185e",
+   "key": "est-ce que je peux avoir",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "est-ce que je peut avoir",
+     "why_en": "Wrong verb ending for je.",
+     "why_de": "Falsche Verbendung bei je."
+    },
+    {
+     "form": "est-ce que je peux avez",
+     "why_en": "The second verb must be an infinitive.",
+     "why_de": "Das zweite Verb muss im Infinitiv stehen."
+    },
+    {
+     "form": "je veux avoir",
+     "why_en": "Too blunt and not a question.",
+     "why_de": "Zu direkt und keine Frage."
+    }
+   ]
+  }
+ }
+}
