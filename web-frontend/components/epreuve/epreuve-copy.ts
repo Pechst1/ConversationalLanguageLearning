@@ -93,6 +93,8 @@ export type EpreuveCopy = {
   correction_n: string;
   corrections_n: string;
   task: string;
+  /** #954: a task note's reason when it brings none. A reason, never a promise of a retry:
+   *  «try again» is said by the retry button, where there is one. */
   task_default_why: string;
   unscored: string;
   check_basic: string;
@@ -290,7 +292,7 @@ const FR: EpreuveCopy = {
   correction_n: 'Correction {n}',
   corrections_n: '{n} corrections',
   task: 'La consigne',
-  task_default_why: 'La réponse ne suit pas encore la consigne. Relis-la et réessaie.',
+  task_default_why: 'La réponse ne suit pas encore la consigne : relis-la.',
   unscored: CHECK_COPY.fr.not_checked,
   check_basic: CHECK_COPY.fr.basic,
   check_unavailable: CHECK_COPY.fr.unavailable,
@@ -474,7 +476,7 @@ const EN: EpreuveCopy = {
   correction_n: 'Correction {n}',
   corrections_n: '{n} corrections',
   task: 'The task',
-  task_default_why: 'The answer does not follow the task yet. Read it again and retry.',
+  task_default_why: 'The answer does not follow the task yet: read it again.',
   unscored: CHECK_COPY.en.not_checked,
   check_basic: CHECK_COPY.en.basic,
   check_unavailable: CHECK_COPY.en.unavailable,
@@ -658,7 +660,7 @@ const DE: EpreuveCopy = {
   correction_n: 'Korrektur {n}',
   corrections_n: '{n} Korrekturen',
   task: 'Die Aufgabe',
-  task_default_why: 'Die Antwort erfüllt die Aufgabe noch nicht. Lies sie noch einmal und versuch es erneut.',
+  task_default_why: 'Die Antwort erfüllt die Aufgabe noch nicht: Lies sie noch einmal.',
   unscored: CHECK_COPY.de.not_checked,
   check_basic: CHECK_COPY.de.basic,
   check_unavailable: CHECK_COPY.de.unavailable,

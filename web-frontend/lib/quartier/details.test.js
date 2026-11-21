@@ -16,7 +16,7 @@ require(path.join(WEB_ROOT, 'node_modules/sucrase/register/ts'));
 
 const { CardPress, LacePress, Press, seeded } = require('./geo.ts');
 const { buildDetail, detailThings, flagValue, foldName, setBy } = require('./details.ts');
-const { BACK_TABLES, ROOM } = require('./mistral.ts');
+const { BACK_TABLES, MARKS, ROOM, ZINC } = require('./mistral.ts');
 const { buildRoom } = require('./room.ts');
 const { WORLD, mapPlaces } = require('./world.ts');
 
@@ -269,4 +269,31 @@ test("Romy's tuque, beside the closed blue folder on the back table: laid once a
   // beside each other, not on top of each other
   assert.ok(Math.abs(hat.at[0] - folder.at[0]) >= r + fx - 0.01, 'the tuque beside the folder, not on it');
   assert.ok(Math.hypot(hat.at[0] - folder.at[0], hat.at[2] - folder.at[2]) < 0.4, 'and close by it');
+});
+
+test("Odile's bank card, beside Margaux's lease letter on the zinc: laid once a page left it at Le Mistral", () => {
+  const spec = details.find(({ spec }) => spec.id === 'carte_odile').spec;
+  assert.equal(spec.in, 'quai_de_valmy');
+  assert.deepEqual(spec.mark, { name_fr: 'La carte bleue d’Odile', location_id: 'le_mistral' });
+  const laid = (marks) => setBy([spec], { flags: {}, marks }).map((d) => d.spec.id);
+  assert.deepEqual(laid([{ kind: 'thing', name_fr: 'La carte bleue d’Odile', location_id: 'le_mistral' }]), ['carte_odile']);
+  assert.deepEqual(laid([{ kind: 'thing', name_fr: 'La carte bleue d’Odile', location_id: 'odile_flat' }]), []);
+  const card = spec.things.find((t) => t.kind === 'carte');
+  const letter = spec.things.find((t) => t.kind === 'recommande');
+  assert.ok(card && letter, 'a card and the letter it lies beside');
+  assert.ok(card.text[0].includes('ODILE'), 'her name on the card');
+  // the lease letter is Margaux's from Marchand's office: «le bail expire le 31 mars»
+  assert.ok(letter.text.join(' ').includes('le bail expire le 31 mars'), 'the lease ends on 31 March');
+  assert.ok(letter.text[0].includes('MARCHAND'), "on the gérance's letterhead");
+  // both on the zinc's top, within it, between where the key lies and Odile's stool
+  const cup = details.find(({ spec: d }) => d.id === 'tasse_habituelle').spec.things[0];
+  for (const [t, reach] of [[card, 0.05], [letter, 0.2]]) {
+    assert.ok(Math.abs(t.at[1] - ZINC.top) < 0.005, `the ${t.kind} lies on the zinc's top`);
+    assert.ok(t.at[0] - reach > ZINC.back && t.at[0] + reach < ZINC.front, `the ${t.kind} is on the zinc, not over its edge`);
+    assert.ok(t.at[2] + reach < MARKS.atZinc.z - 0.2 && t.at[2] + reach < cup.at[2] - 0.2, `the ${t.kind} keeps clear of the key and your cup`);
+    assert.ok(t.at[2] - reach > MARKS.odileStool.z + 0.3, `the ${t.kind} short of Odile's place`);
+  }
+  // beside the letter, not on it
+  const gap = Math.abs(card.at[2] - letter.at[2]);
+  assert.ok(gap > 0.105 + 0.045 && gap < 0.45, 'the card beside the letter, close by');
 });

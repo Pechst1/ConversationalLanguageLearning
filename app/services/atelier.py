@@ -234,6 +234,49 @@ def _test_out_local_grade(
         "checked": True,
         "graded_by": "local_test_out",
     }
+
+
+#: #954: what a right verdict carries — nothing listed against it. The forge counts
+#: ``verdict``; the screen reads the verdict through these lists as well
+#: (web-frontend/lib/seance-feedback.ts, ``seanceAssessment``). A local grade that says
+#: «right» empties them with it, or the item says «not yet» to an answer the tally counts.
+RIGHT_LEAVES_NOTHING_LISTED: dict[str, list[Any]] = {"errata": [], "missing_targets": [], "lexical_gaps": []}
+
+
+def _settle_right(correction: dict[str, Any]) -> dict[str, Any]:
+    """A correction a local grade found right: its verdict and its lists say one thing."""
+
+    correction.update({"verdict": "correct", "score_0_4": 4.0, **{key: [] for key in RIGHT_LEAVES_NOTHING_LISTED}})
+    return correction
+
+
+def _forgiven_accent(text: str, keys: list[str], unit: Any, language: str | None) -> dict[str, Any]:
+    """#954: a free sentence the rule check found right that differs from the task's key
+    by an accent alone.
+
+    The rule check grades the rule; the accent is not what it tests, so it does not
+    turn the hit into a miss. It is not passed in silence either: the hit shows the
+    sentence with its accent and names it in one line, the way a keyed answer's forgiven
+    accent is (QA-CLOSE, owner decision d) — also where the accent changes the word
+    («fatigues» is a verb form). ``{}`` when the sentence is the key or more than an
+    accent away from it.
+    """
+
+    from dataclasses import replace
+
+    from app.services.answer_acceptance import feedback_note, judge
+
+    if not keys:
+        return {}
+    verdict = judge(text, keys, accents=accent_policy(unit=unit))
+    expected = str(verdict.expected or "").strip()
+    if verdict.exact or not verdict.accent_slip or not expected:
+        return {}
+    return {
+        "corrected_answer": expected,
+        "accent_notes": [{"learner_text": text, "corrected_target": expected}],
+        "slip_note_native": feedback_note(replace(verdict, correct=True), language),
+    }
 ATELIER_QUALITY_MIN_REPORTS = 3
 ATELIER_QUALITY_MIN_ATTEMPTS = 8
 ATELIER_QUALITY_MAX_WRONG_RATE = 0.65
@@ -852,6 +895,34 @@ def repair_line_from_parts(learner: str, errata: list[dict[str, Any]] | None) ->
     if parts is None:
         return None
     return "".join(str(part.get("text", part.get("fix")) or "") for part in parts)
+
+
+def repair_line_with_spans(
+    learner: str, errata: list[dict[str, Any]] | None
+) -> tuple[str, dict[int, tuple[int, int]]] | None:
+    """:func:`repair_line_from_parts`'s line, and where each erratum's whole
+    ``corrected_target`` stands in it, by erratum index (#946).
+
+    The fix of a gap is narrowed (:func:`narrow_repair`); the span reaches over the
+    words the erratum shares with the line on either side, so it holds the whole target.
+    """
+
+    parts = repair_parts(learner, errata)
+    if parts is None:
+        return None
+    line, spans = "", {}
+    for part in parts:
+        if "fix" not in part:
+            line += str(part.get("text") or "")
+            continue
+        index = int(part["erratum"])
+        erratum = (errata or [])[index]
+        wrong = str(erratum.get("learner_text") or "").strip()
+        skip, length, _fix = narrow_repair(wrong, str(erratum.get("corrected_target") or "").strip())
+        fix = str(part.get("fix") or "")
+        spans[index] = (len(line) - skip, len(line) + len(fix) + len(wrong) - skip - length)
+        line += fix
+    return line, spans
 
 
 def _normalize(value: Any) -> str:
@@ -5093,6 +5164,10 @@ class AtelierCorrectionService:
                 if in_place and (not sentence_differences(in_place, target) or is_preference_swap(in_place, target))
                 else None,
             ]
+            # #946 / #174: one accept-list, not one stored string. A sentence the item
+            # itself accepts is right in the correction box too, whatever line the
+            # model printed («Elle a chaud ce soir» against a stored «Elle a chaude»).
+            accepted += _accepted_answers(attempt.prompt_payload or {})
         else:
             # #503: a keyed round asks for «the corrected line» too. The line is
             # the key's own corrected answer for the item, or the learner's line
@@ -6100,7 +6175,10 @@ class AtelierCorrectionService:
                 correction.update(test_out_grade)
                 correction["local_check"] = local_check
                 if test_out_grade["verdict"] == "correct":
-                    correction["errata"] = []
+                    _settle_right(correction)
+                    correction.update(
+                        _forgiven_accent(text, _accepted_answers(prompt_payload), local_concept, self.explanation_language)
+                    )
                 elif acceptable and acceptable.get("wrong"):
                     correction["local_check"] = {**local_check, "trap": {"wrong": acceptable["wrong"], "right": acceptable["right"]}}
             elif local_check is not None and text.strip() and (
@@ -6114,7 +6192,7 @@ class AtelierCorrectionService:
                 # for an accepted answer; anything else is «checking» («Je relis…»).
                 correction["local_status"] = local_check["local_status"]
                 if local_check["local_status"] == LOCAL_RIGHT:
-                    correction.update({"verdict": "correct", "score_0_4": 4.0, "errata": [], "missing_targets": []})
+                    _settle_right(correction)
                 # With no model to read it, the key's «Right» is the whole check.
                 correction["assessment_status"] = (
                     "provisional"
