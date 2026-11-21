@@ -1,6 +1,7 @@
 """Notification helpers for serial editions and the V2 daily journey."""
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
@@ -464,6 +465,8 @@ def engine_teaser(db: Session, user: User) -> dict[str, str] | None:
             "character_name": str(teaser.get("character_name") or ""),
             # WP-99: the story writes ``date`` with the teaser; kept for the push.
             "date": str(teaser.get("date") or ""),
+            # Pilot P9: the hook in the learner's language, when the story stored one.
+            "text_native": _compact(teaser.get("text_native") or teaser.get("summary_native"), 10_000),
         }
     journey = _latest_journey(db, user)
     recap = dict(getattr(journey, "recap_snapshot", None) or {}) if journey else {}
@@ -476,8 +479,71 @@ def engine_teaser(db: Session, user: User) -> dict[str, str] | None:
             "character_id": str(scenario.get("character_id") or ""),
             "character_name": str(scenario.get("character_name") or ""),
             "date": journey.local_date.isoformat() if getattr(journey, "local_date", None) else "",
+            "text_native": _compact(recap.get("teaser_native"), 10_000),
         }
     return None
+
+
+#: Pilot P9: the push title when the hook is not a line its character says.
+SERIAL_PUSH_TITLE = "L’Atelier"
+
+
+def serial_title(db: Session, user: User) -> str:
+    """The serial's name for a push title: the learner's season («La clé d'Odile»),
+    else the app's own name. Read-only; any failure is the app's name."""
+
+    try:
+        from app.services.season.format import load_season
+        from app.services.season.runtime import season_id_for
+
+        thread = _active_thread(db, user)
+        live = (getattr(thread, "state", None) or {}).get("living_story") if thread else None
+        season_id = season_id_for(live if isinstance(live, dict) else {})
+        title = str(getattr(load_season(str(season_id)), "title_fr", "") or "").strip() if season_id else ""
+    except Exception:  # noqa: BLE001 - a title never costs the push
+        title = ""
+    return title or SERIAL_PUSH_TITLE
+
+
+def _name_words(name: str) -> set[str]:
+    import unicodedata
+
+    folded = unicodedata.normalize("NFKC", name).casefold()
+    return {word for word in re.split(r"[^\w]+", folded) if len(word) >= 3}
+
+
+def hook_is_said_by(text: str, character_id: Any, name: str) -> bool:
+    """Pilot P9: is this hook a line its character could say?
+
+    No when no character is named for it (the page's own «À suivre…», a narrator's
+    question) and no when it names that character in the third person — «Comment Marin
+    peut-il t'aider ?» is a question *about* Marin, not Marin speaking.
+    """
+
+    import unicodedata
+
+    if not str(character_id or "").strip():
+        return False
+    names = set(_name_words(name))
+    key = portrait_character(character_id)
+    if key:
+        names |= _name_words(CHARACTER_NAMES.get(key, ""))
+        names |= _name_words(key.split("_", 1)[0])
+    words = set(re.split(r"[^\w]+", unicodedata.normalize("NFKC", str(text or "")).casefold()))
+    return not (names & words)
+
+
+def _glossed(text_fr: str, native: str, limit: int) -> str | None:
+    """``text_fr`` with its gloss on a second line, within ``limit``; ``None`` when no
+    gloss is stored or the two lines cannot both be kept whole enough to read."""
+
+    native = " ".join(str(native or "").split()).strip()
+    if not native:
+        return None
+    room = limit - len(text_fr) - 1
+    if room < min(len(native), 24):
+        return None
+    return f"{text_fr}\n{_compact(native, room)}"
 
 
 #: WP-99 «Dépêches»: the ledger event every sent morning push is written under
@@ -514,7 +580,12 @@ def recent_push_lines(db: Session, user: User, *, today: date, days: int = TEASE
             PilotEvent.entity_id.in_(window),
         )
     ).all()
-    return {_teaser_key((payload or {}).get("message")) for payload in rows if (payload or {}).get("message")}
+    # Pilot P9: a glossed push holds the French line first; the gloss is not the line.
+    return {
+        _teaser_key(str((payload or {}).get("message")).split("\n", 1)[0])
+        for payload in rows
+        if (payload or {}).get("message")
+    }
 
 
 def _journey_today(db: Session, user: User, today: date, statuses: tuple[str, ...]) -> DailyJourney | None:
@@ -567,23 +638,33 @@ def daily_journey_morning_push(
         # WP-99: the story has not written a new line since the last push that
         # used this one; saying it again is not a dépêche, it is a nag.
         teaser = None
+    authored_for: tuple[str, str] | None = None
     if teaser is not None:
         key = portrait_character(teaser["character_id"])
         fallback_id, fallback_name = _speaker(db, user)
         character_id = key or fallback_id
         name = teaser["character_name"] or CHARACTER_NAMES.get(character_id) or fallback_name
-        mood = character_mood(db, user, character_id)
-        return CharacterPush(
-            title=name,
-            message=teaser["text_fr"],
-            character_id=character_id,
-            image=portrait_path(character_id, mood),
-            source="engine",
-            mood=mood,
-            register=character_register(db, user, character_id),
-            teaser_date=teaser.get("date") or None,
-        )
-    character_id, name = _speaker(db, user)
+        message: str | None = teaser["text_fr"]
+        if group == "A":
+            # Pilot P9: below B1 the hook goes out only with its gloss on a second line;
+            # without a stored one, that character's own authored A-level line instead.
+            message = _glossed(teaser["text_fr"], teaser.get("text_native") or "", engine_teaser_chars())
+        if message is not None:
+            mood = character_mood(db, user, character_id)
+            said = hook_is_said_by(teaser["text_fr"], teaser["character_id"], name)
+            return CharacterPush(
+                # Pilot P9: a hook about the character, or nobody's, is the serial's line.
+                title=name if said else serial_title(db, user),
+                message=message,
+                character_id=character_id,
+                image=portrait_path(character_id, mood),
+                source="engine",
+                mood=mood,
+                register=character_register(db, user, character_id),
+                teaser_date=teaser.get("date") or None,
+            )
+        authored_for = (character_id, name)
+    character_id, name = authored_for or _speaker(db, user)
     register = character_register(db, user, character_id)
     if resumable is not None:
         message = RESUME_LINES[group]
@@ -771,6 +852,9 @@ def rehearsal_reminder_copy(
 
 __all__ = [
     "DAILY_JOURNEY_MORNING_TITLE",
+    "SERIAL_PUSH_TITLE",
+    "hook_is_said_by",
+    "serial_title",
     "JOURNEY_DEEP_LINK",
     "REHEARSAL_READY_TITLE",
     "APPEL_LINES",

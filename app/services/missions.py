@@ -59,9 +59,11 @@ from app.services.glosses import (
 )
 from app.services.learner_copy import copy_language, learner_text
 from app.services.letter_voice import (
+    above_band_tenses,
     band_style_line,
     contradicted_things,
     register_word,
+    tense_way_out,
     voice_problems,
 )
 from app.services.llm_service import LLMProviderError, LLMService
@@ -977,10 +979,13 @@ FIRST_LETTERS: dict[str, dict[str, Any]] = {
         "tone": "light_warm",
         "register": "vous / warm but polite",
         "scene_anchor": "Le soir, un message du café Le Mistral",
-        "opening_message": "Bonsoir ! C'est Margaux, du Mistral. Vous avez oublié votre écharpe sur la table. Vous passez demain ?",
-        "opening_message_tu": "Salut ! C'est Margaux, du Mistral. Tu as oublié ton écharpe sur la table. Tu passes demain ?",
-        "brief": "Margaux a ton écharpe. Réponds et dis quand tu passes.",
-        "brief_tu": "Margaux a ton écharpe. Réponds et dis quand tu passes.",
+        # Round 4 (walk of 19 Nov, item 2): the letter asked nothing and stated a scarf
+        # the learner never had («Tu as oublié ton écharpe»). Margaux asks; the learner
+        # says whether it is theirs.
+        "opening_message": "Bonsoir ! C'est Margaux, du Mistral. Une écharpe est restée sur la table. C'est la vôtre ? Vous passez demain ?",
+        "opening_message_tu": "Salut ! C'est Margaux, du Mistral. Une écharpe est restée sur la table. C'est la tienne ? Tu passes demain ?",
+        "brief": "Margaux a trouvé une écharpe au Mistral. Réponds : c'est la tienne ou pas, et quand tu passes.",
+        "brief_tu": "Margaux a trouvé une écharpe au Mistral. Réponds : c'est la tienne ou pas, et quand tu passes.",
         "success_signal": "Margaux sait quand tu passes.",
         "success_signal_i18n": {
             "fr": "Margaux sait quand tu passes.",
@@ -989,7 +994,9 @@ FIRST_LETTERS: dict[str, dict[str, Any]] = {
         },
         "twist": "Demain, le premier café est pour moi.",
         "ambient_cues": ["une écharpe bleue", "le café Le Mistral", "un petit message"],
-        "quick_replies": ["Merci, Margaux !", "Je passe demain à...", "Oui, c'est mon écharpe."],
+        # No vocative in a sentence the learner sends («Merci, Margaux !», owner rule of
+        # 12 Nov), and no answer chosen for them: yes and no are both offered.
+        "quick_replies": ["Oui, c'est mon écharpe.", "Non, ce n'est pas à moi.", "Je passe demain à..."],
     },
     "B": {
         "domain": "cast_first_letter",
@@ -4273,6 +4280,21 @@ class MissionCorrectionService:
         )
         return persisted
 
+    def _taught_rules(self, user: User) -> dict[str, Any] | None:
+        """The day's rule and the week's, as the scene's tutor reads them (P3); never raises."""
+
+        from app.services import day_rules
+
+        if self.db is None:  # the gold gate's offline fingerprint builds the prompt without a session
+            return None
+        try:
+            return day_rules.for_model(
+                day_rules.for_turn(self.db, user, control_language=user_mother_tongue(user))
+            )
+        except Exception:  # pragma: no cover - a hint, never a letter
+            logger.exception("missions: the day's rules are unavailable")
+            return None
+
     def _llm_correction(self, *, user: User, mission: RealWorldMission, text: str, mode: str) -> dict[str, Any] | None:
         self._correction_failure = None
         if not self.llm:
@@ -4291,10 +4313,15 @@ class MissionCorrectionService:
             "learner_text": text,
             "learner_level": user.proficiency_level or "A2",
             "explanation_language": gloss_language,
+            # P3 walk 2 (B1, days 3–6): the plus-que-parfait the learner was taught that week
+            # passed four letters in a row. The rules the scene's tutor is told, here too.
+            **({"rules": rules} if (rules := self._taught_rules(user)) else {}),
         }
         system = (
             "You are a concise French correction engine for one chat reply in a real-world mission. "
             "Find AT MOST the 3 most important real mistakes (grammar, agreement, gender, wrong word, spelling, conjugation). "
+            "rules, when present, is what this learner is being taught (rules.today, rules.recent): a real mistake "
+            "against one of them is among the ones you list, first. "
             "For each mistake: set learner_text to the EXACT short wrong fragment the person wrote, copied character for character "
             f"from their message and AT MOST {MISSION_FRAGMENT_MAX_WORDS} words; set corrected_target to ONLY the corrected "
             f"fragment — at most {MISSION_FRAGMENT_MAX_WORDS} words, NEVER a whole sentence and NEVER a full-message rewrite. "
@@ -6663,7 +6690,12 @@ class MissionScheduler:
             conversation_service = MissionConversationService(self.db)
             state_delta = conversation_service.resolve_outcome(mission=mission, attempts=attempts, turns=mission.turns or [])
             hook = conversation_service.resolve_hook(mission=mission, state_delta=state_delta)
-            reply_text = self._serial_reply_text(mission=mission, state_delta=state_delta, turns=mission.turns or [])
+            reply_text = self._serial_reply_text(
+                mission=mission,
+                state_delta=state_delta,
+                turns=mission.turns or [],
+                register_now=live_register(self.db, user, mission),
+            )
             if state_delta or hook or reply_text:
                 outcome = {
                     "reply_text": reply_text,
@@ -6804,6 +6836,7 @@ class MissionScheduler:
         mission: RealWorldMission,
         state_delta: dict[str, Any],
         turns: list[RealWorldMissionTurn],
+        register_now: str | None = None,
     ) -> str:
         latest_assistant = [
             turn.text for turn in sorted(turns or [], key=lambda item: item.turn_index) if turn.role == "assistant" and turn.text
@@ -6815,6 +6848,9 @@ class MissionScheduler:
             return "Bien reçu. J'envoie un plombier demain matin entre 8 h et 10 h. Bonne installation."
         if isinstance(updates, dict) and updates.get("marchand_trust") == "cold":
             return "On ne se connaît pas. Reformulez correctement, s'il vous plaît."
+        if cast_correspondent(mission):
+            # Pilot P0: a person of the story never closes on the help-desk line.
+            return _unassessed_acknowledgement(mission, register_now=register_now)
         return "Je peux vous aider, mais il me manque un détail concret. Reformulez et dites-moi exactement ce qu'il faut faire."
 
 
@@ -6832,6 +6868,16 @@ def _learner_level_code(db: Session, user: Any) -> str | None:
     code = str(level or "").strip().upper()[:2]
     return code if code in {"A1", "A2", "B1", "B2", "C1", "C2"} else None
 
+def cast_correspondent(mission: Any) -> str | None:
+    """The registry id of the letter's correspondent when they are in the story's cast
+    (Margaux, Gus, the landlord), ``None`` for a contact outside it (a clerk, the mairie)."""
+
+    correspondent = courrier.correspondent_of(mission)
+    raw = str(correspondent.get("id") or "")
+    name = str(correspondent.get("name") or "")
+    return cast_registry.resolve_id(raw) or (cast_registry.people_named(name) or [None])[0]
+
+
 def live_register(db: Session | None, user: Any, mission: Any) -> str | None:
     """How the letter's correspondent addresses the learner *today*, when they are in the
     cast: «tu» or «vous» from the one resolver the scene reads (#147 / #350).
@@ -6841,10 +6887,7 @@ def live_register(db: Session | None, user: Any, mission: Any) -> str | None:
     «tu». ``None`` for a contact outside the cast (a clerk, a shop): its letter decides.
     """
 
-    correspondent = courrier.correspondent_of(mission)
-    raw = str(correspondent.get("id") or "")
-    name = str(correspondent.get("name") or "")
-    cast_id = cast_registry.resolve_id(raw) or (cast_registry.people_named(name) or [None])[0]
+    cast_id = cast_correspondent(mission)
     user_id = getattr(user, "id", None) or getattr(mission, "user_id", None)
     if not cast_id or db is None or user_id is None:
         return None
@@ -6901,6 +6944,17 @@ def _unassessed_acknowledgement(mission: Any, *, register_now: str | None = None
         or " toi" in opening
     )
     return STOCK_ACKNOWLEDGEMENT_TU if tu else STOCK_ACKNOWLEDGEMENT_VOUS
+
+
+def held_reply(mission: Any, db: Session | None = None) -> str:
+    """What the thread shows under a learner message nobody answered (pilot P0, walk 17 Nov).
+
+    The acknowledgement is not the correspondent's turn (#397/#333: stored, it closed the
+    letter as answered), but a thread that only said «not answered yet» read as silent
+    while the reply had merely been vetoed. The learner reads it, in today's register."""
+
+    session = db if db is not None else object_session(mission)
+    return _unassessed_acknowledgement(mission, register_now=live_register(session, None, mission))
 
 
 #: The line nobody wrote. It is what the Courrier says when no character reply could be
@@ -7162,6 +7216,29 @@ def who_they_are(db: Session | None, user: Any, mission: Any) -> dict[str, Any]:
     return {**({"who_they_are_to_you": relation} if relation else {}), **({} if found.met else {"you_have_never_met_them": True})}
 
 
+#: Pilot P9: what a second Courrier draft is told after the first asked again what the
+#: learner had just answered — in plain words, beside the finding itself.
+REASK_WAY_OUT = "Do not ask again what was just asked, in any words."
+
+
+def second_draft_hint(
+    problems: list[str],
+    *,
+    tenses: list[str] | tuple[str, ...] = (),
+    codes: list[str] | tuple[str, ...] = (),
+) -> str:
+    """Pilot P9: the first draft's refusal reasons as the second draft's rewrite hint, each
+    with its plain way out — a refused tense: «aller + infinitif» or the present; a question
+    asked again: do not ask it again."""
+
+    parts = [str(problem) for problem in problems if str(problem or "").strip()]
+    if way_out := tense_way_out(tenses):
+        parts.append(way_out)
+    if "reply_reasks_answered_question" in codes:
+        parts.append(REASK_WAY_OUT)
+    return " Rewrite your reply fixing exactly this: " + " ".join(parts)
+
+
 class MissionConversationService:
     """Generate mission chat responses without duplicating the old audio route."""
 
@@ -7185,7 +7262,12 @@ class MissionConversationService:
         latest_progress = self._latest_objective_progress(mission)
         preliminary_branch = self.branch_state(mission=mission, user_text=user_text, assistant_text="")
         if not self.llm:
-            return self._fallback_response(mission, branch=preliminary_branch, objective_progress=latest_progress)
+            return self._fallback_response(
+                mission,
+                branch=preliminary_branch,
+                objective_progress=latest_progress,
+                register_now=live_register(self.db, user, mission),
+            )
         messenger = (mission.prompt_payload or {}).get("messenger") or {}
         contact_name = _compact_text(messenger.get("contact_name"), max_length=80) or "the other person in the scene"
         contact_role = _compact_text(messenger.get("contact_role"), max_length=120)
@@ -7312,16 +7394,26 @@ class MissionConversationService:
                 )
 
             for attempt in range(2):
-                result = self.llm.generate_chat_completion(
-                    messages=messages,
-                    system_prompt=system + hint,
-                    temperature=0.7,
-                    max_tokens=220,
-                    model=settings.OPENAI_MISSION_FAST_MODEL,
-                    request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
-                )
+                try:
+                    result = self.llm.generate_chat_completion(
+                        messages=messages,
+                        system_prompt=system + hint,
+                        temperature=0.7,
+                        max_tokens=220,
+                        model=settings.OPENAI_MISSION_FAST_MODEL,
+                        request_timeout=settings.MISSION_CHAT_TIMEOUT_SECONDS,
+                    )
+                except MODEL_CALL_FAILED as exc:
+                    # Pilot P0: a timeout used to end the reply on the first call (the
+                    # provider's own retries share the one deadline it spent). It takes the
+                    # loop's second call instead; a second failure falls back below.
+                    if attempt:
+                        raise
+                    logger.info("Courrier reply call failed, asking once more", error=str(exc)[:200])
+                    continue
                 _record_mission_llm_cost(self.db, user_id=getattr(user, "id", None), result=result, purpose="character_reply", mission_id=getattr(mission, "id", None))
                 problems = voice_problems([result.content], register=expected, level=level)
+                refused_tenses = above_band_tenses(result.content, level)
                 if not problems and record:
                     problems = self._logistics_problems(result.content, mission=mission, user_text=user_text)
                 # #145: compared with the thread's record. A veto, never an edit: a reply that
@@ -7336,7 +7428,11 @@ class MissionConversationService:
                     soft_found = [finding.code for finding in checked]
                     problems = [finding.hint for finding in checked]
                 logger.info("Courrier reply rejected", attempt=attempt + 1, problems=problems)
-                hint = " Rewrite your reply fixing exactly this: " + " ".join(problems)
+                hint = second_draft_hint(
+                    problems,
+                    tenses=refused_tenses if not checked else (),
+                    codes=[finding.code for finding in checked],
+                )
             if soft_found:
                 self._count_soft_findings(user, soft_found, "vetoed")
             return _unassessed_acknowledgement(mission, register_now=register_now)
@@ -7347,7 +7443,9 @@ class MissionConversationService:
                 # came back wanting. Never the vetoed reply, never the letter again.
                 self._count_soft_findings(user, soft_found, "vetoed")
                 return _unassessed_acknowledgement(mission, register_now=register_now)
-            return self._fallback_response(mission, branch=preliminary_branch, objective_progress=latest_progress)
+            return self._fallback_response(
+                mission, branch=preliminary_branch, objective_progress=latest_progress, register_now=register_now
+            )
 
     @staticmethod
     def _against_the_record(reply: str, ledger: dict[str, Any], exchanges: list[dict[str, str]], user_text: str) -> list[Any]:
@@ -7537,7 +7635,14 @@ class MissionConversationService:
         *,
         branch: dict[str, Any] | None = None,
         objective_progress: list[dict[str, Any]] | None = None,
+        register_now: str | None = None,
     ) -> str:
+        # Pilot P0 (review 17 Nov, finding 7): a person of the story whose reply could not
+        # be written answers with the authored acknowledgement in their own register,
+        # never a help-desk line («Je peux vous aider, mais il me manque…») in «vous» to a
+        # learner they tutoie. Contacts outside the cast (the mairie) keep the lines below.
+        if cast_correspondent(mission):
+            return _unassessed_acknowledgement(mission, register_now=register_now)
         user_turns = [turn for turn in (mission.turns or []) if turn.role == "user"]
         branch_state = (branch or {}).get("state")
         all_met = bool(objective_progress) and all(bool(item.get("met")) for item in objective_progress)
@@ -8383,6 +8488,7 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
             for attempt in sorted(mission.attempts or [], key=lambda item: item.created_at)
         ]
         unanswered_ids = {id(turn) for turn in unanswered_user_turns(mission.turns)}
+        held = held_reply(mission) if unanswered_ids else ""
         payload["turns"] = [
             {
                 "id": str(turn.id),
@@ -8398,7 +8504,7 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
                     else {}
                 ),
                 # #590: every learner message nobody answered says so on the thread itself.
-                **({"reply_state": "pending"} if id(turn) in unanswered_ids else {}),
+                **({"reply_state": "pending", "held_reply": held} if id(turn) in unanswered_ids else {}),
                 **stamp_fields(turn.created_at, zone),
             }
             for turn in sorted(mission.turns or [], key=lambda item: item.turn_index)

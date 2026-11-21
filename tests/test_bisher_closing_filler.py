@@ -110,6 +110,9 @@ _CARRIERS = {
     ("app/services/story_lanes.py", "french = [turn.resolution_fr, turn.callback_fr]"),
     ("app/services/story_lanes.py", "callback_fr=authored.callback_fr,"),
     ("app/services/story_lanes.py", "callback_fr=turn.callback_fr or None,"),
+    # P8 (fifth commit): the ending's guard reads it and takes out a decision the learner never made
+    ("app/services/story_lanes.py", '"callback_fr": turn.callback_fr,'),
+    ("app/services/story_lanes.py", "turn.callback_fr = learner_intent.without_unsaid(turn.callback_fr, said, put_to)"),
     ("app/services/living_story.py", "callback_fr=turn.callback_fr or None,"),
     ("app/services/living_story.py", "callback_fr=turn.callback_fr,"),
     # serial.py drops a closing line before it is stored as a shared callback

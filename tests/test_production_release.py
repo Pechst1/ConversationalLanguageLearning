@@ -24,6 +24,11 @@ def test_publishing_is_only_callable_after_all_release_checks():
     assert main.get("on", main.get(True)) == {"workflow_run": {"workflows": ["CI"], "types": ["completed"], "branches": ["main"]}}
     assert "github.event.workflow_run.conclusion == 'success'" in main["jobs"]["walk"]["if"]
     assert main["jobs"]["walk"]["uses"] == "./.github/workflows/walk.yml"
+    # This run's checks land on main's newest commit, and Render counts a skipped check
+    # as passed: the gate is never skipped and passes only when that commit's CI passed.
+    gate = main["jobs"]["gate"]
+    assert "if" not in gate and "needs" not in gate
+    assert "github.event.workflow_run.head_sha == github.sha" in main["jobs"]["walk"]["if"]
     main_publish = main["jobs"]["publish"]
     assert main_publish["needs"] == "walk"
     assert main_publish["if"] == "needs.walk.result == 'success'"

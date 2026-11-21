@@ -1,0 +1,20 @@
+{
+  "id": "tuque_romy",
+  "version": 1,
+  "kind": "detail",
+  "in": "quai_de_valmy",
+  "title": { "fr": "La tuque de Romy", "en": "Romy's tuque", "de": "Romys Mütze" },
+  "moment": "a page of the learner's own story left «La tuque de Romy» at Le Mistral: a blue knitted tuque resting beside the closed blue folder on the back table",
+  "mark": { "name_fr": "La tuque de Romy", "location_id": "le_mistral" },
+  "things": [
+    { "kind": "folder", "at": [-32.04, 0.92, -17.77], "rot": 1.69, "tone": "dossier" },
+    { "kind": "tuque", "at": [-32.3, 0.92, -17.7], "rot": 0.3, "size": [0.095] }
+  ],
+  "provenance": {
+    "canon": "docs/story/season-1/10-lieux-et-images.md",
+    "scenes": [
+      "the story order «La tuque de Romy» at le_mistral (1 life): «A blue knitted tuque rests beside the closed blue folder on the back table.»",
+      "T6 B P3: «Romy comes in with her camera bag and a tuque» (06-lautre-cote.md); Marin's «dossier bleu», day 30 of the plan between episodes (09-entre-les-episodes.md)"
+    ]
+  }
+}

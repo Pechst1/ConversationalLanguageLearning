@@ -309,8 +309,8 @@ def _run_page(case: Case) -> tuple[dict, Any]:
     observed: dict[str, Any] = {"plan_refusals": [], "draw": "ok"}
     real_issue = story_split.plan_issue
 
-    def plan_issue(plan, ctx):
-        issue = real_issue(plan, ctx)
+    def plan_issue(plan, ctx, **kwargs):
+        issue = real_issue(plan, ctx, **kwargs)
         if issue:
             observed["plan_refusals"].append(issue)
         return issue

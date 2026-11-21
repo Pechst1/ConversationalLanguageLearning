@@ -31,6 +31,23 @@ test('the walks still run on main, after CI, on the commit CI checked', () => {
   assert.match(yml, /pattern: walk-main-\$\{\{ github\.run_number \}\}-\*/);
 });
 
+test('a skipped walk never lets main deploy before its own CI has passed', () => {
+  const yml = workflow('walk-main.yml');
+  const gate = yml.slice(yml.indexOf('  gate:'), yml.indexOf('  walk:'));
+  // Never skipped: a skipped check counts as passed for Render, and this run's checks
+  // land on main's newest commit whichever CI run fired it.
+  assert.doesNotMatch(gate, /^\s+if:/m);
+  assert.doesNotMatch(gate, /needs:/);
+  assert.match(gate, /TIP: \$\{\{ github\.sha \}\}/);
+  assert.match(gate, /gh run list --workflow ci\.yml --commit "\$TIP" --event push/);
+  assert.match(gate, /"completed success"\) .*exit 0/);
+  assert.match(gate, /completed\*\) .*exit 1/);
+  assert.match(gate, /actions: read/);
+  // The walk itself only plays the commit its checks land on.
+  const walk = yml.slice(yml.indexOf('  walk:'), yml.indexOf('  publish:'));
+  assert.match(walk, /github\.event\.workflow_run\.head_sha == github\.sha/);
+});
+
 test('a failed walk on main is one issue per check, with its lines and the run', () => {
   const reports = [
     { shard: 'walk-main-9-season-a', report: { failures: [{ id: 'a-way-forward', detail: 'stuck for 10s on «Lexique»', where: { day: 3 } }] } },

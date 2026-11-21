@@ -93,9 +93,6 @@ test('#470 · the day card and the plan row print the words step with the same m
     minutes_left: planMinutes,
     done: false,
     tally: { scenes: 0, words: 0, exercises: 0 },
-    more_words: 5,
-    more_minutes: 2,
-    more_href: '/vocabulary/review?more=5',
   };
   for (const language of ['de', 'en', 'fr']) {
     const card = extensionLabel(estimate, 'words', language).match(/(\d+)\s*(?:Min\.|min)/);

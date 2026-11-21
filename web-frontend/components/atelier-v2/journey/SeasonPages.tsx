@@ -117,6 +117,18 @@ export function EntreTemps({
         </figure>
       )}
 
+      {/* Pilot P9: where the story stood when the learner left, in their interface
+          language — stored text only, and nothing at all when none was stored. */}
+      {absence.whereLeft.length > 0 && (
+        <div className="av2-stack" data-where-left="">
+          {absence.whereLeft.map((line, index) => (
+            <p className="av2-body" lang={language} key={`where-left-${index}`}>
+              {line}
+            </p>
+          ))}
+        </div>
+      )}
+
       {absence.lines.length > 0 && (
         <ol className="sr-lines" aria-label={t.absence_lines_aria} data-entre-temps="">
           {absence.lines.map((line, index) => {

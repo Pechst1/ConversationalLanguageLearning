@@ -145,7 +145,7 @@ async function playDayInner(l, day) {
   findings.check('day-reaches-the-recap', kinds.includes('recap') || kinds.includes('home-done'), `day ${day} never reached the recap; kinds: ${kinds.join(' > ')}`, walk.where());
   // The day is played to its end: every step its plan listed, then /fertig or the last recap.
   const verdict = dayPlanVerdict({ plan: walk.planAtStart, last: walk.lastSession, played: walk.played, dayEnd: walk.dayEnd });
-  findings.check('day-plays-its-plan', verdict.ok, `day ${day}: ${verdict.detail}`, walk.where());
+  findings.check('day-plays-its-plan', verdict.ok, `day ${day}: ${verdict.detail}${verdict.ok ? '' : walk.refusalNote()}`, walk.where());
   console.log(`[walk] ${label} day ${day}: ${verdict.ok ? 'played its plan' : verdict.detail}`);
   await walk.visit('/atelier', 'home-after');
   if (day >= 2 && day % 2 === 0) await walk.playJourney({ entry: '/atelier?mode=forge', maxSeconds: 60, label: 'forge-' });

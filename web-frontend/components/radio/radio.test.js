@@ -276,7 +276,8 @@ const REPO_ROOT = path.resolve(WEB_ROOT, '..');
 const DAY = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'tests/fixtures/daily_journey_v1/public/first_day.json'), 'utf8')).response;
 const REVUE = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, 'components/revue/fixtures/mock-wire.json'), 'utf8'));
 const wordCount = (text) => text.split(' ').filter((token) => /[\p{L}\p{N}]/u.test(token)).length;
-const prose = (html) => visibleText(html.replace(/<span aria-hidden="true" data-level-figure="">[\s\S]*?<\/span>/g, ' '));
+const { withoutQuartier } = require('../atelier-v2/home/without-quartier.js'); // P12: the counts are the day's, without Le Quartier's doors
+const prose = (html) => visibleText(withoutQuartier(html).replace(/<span aria-hidden="true" data-level-figure="">[\s\S]*?<\/span>/g, ' '));
 
 function home(language, chips, extra = {}) {
   const envelope = { ...DAY, control_language: language };
@@ -326,7 +327,7 @@ test('La Une: letter + Papier + Radio → the letter and the Papier (the Radio w
     for (const [base, shown] of cases) {
       const chips = withRadioChip(base, radio);
       const html = home(language, chips);
-      const drawn = [...html.matchAll(/data-chip="([^"]+)"/g)].map((m) => m[1]);
+      const drawn = [...withoutQuartier(html).matchAll(/data-chip="([^"]+)"/g)].map((m) => m[1]);
       assert.deepEqual(drawn, shown, `${language}: ${base.map((c) => c.id).join('+')}`);
       const count = wordCount(prose(html));
       assert.ok(count <= 25, `${language}: ${count} words — ${prose(html)}`);
@@ -334,7 +335,7 @@ test('La Une: letter + Papier + Radio → the letter and the Papier (the Radio w
     }
     // After the day: one chip, the first in precedence.
     const done = home(language, withRadioChip([words], radio), { dayDone: true });
-    assert.ok((done.match(/data-chip=/g) || []).length <= 1);
+    assert.ok((withoutQuartier(done).match(/data-chip=/g) || []).length <= 1);
   }
 });
 

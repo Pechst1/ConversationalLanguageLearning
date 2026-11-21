@@ -179,11 +179,16 @@ def test_a_legacy_three_option_payload_is_read_as_before(client, db_session):
 
 
 @pytest.mark.parametrize("point", ["some", "comfortable", "confident", "advanced"])
-def test_the_offer_follows_the_first_completed_ending_for_non_beginners(client, db_session, point):
+def test_the_offer_follows_the_eighth_completed_day_for_non_beginners(client, db_session, point):
+    # P9: it followed the first ending (WP-126); it now waits for the eighth day.
+    assert placement_module.PLACEMENT_OFFER_MIN_DAYS == 8
     address = _email()
     headers = register(client, address, starting_point=point)
     before = client.get("/api/v1/placement/offer", headers=headers).json()
     assert before == {"offer": False, "resume": False, "reason": "too_early"}
+    completed_days(db_session, user_of(db_session, address), 7, met_unaided=False)
+    seventh = client.get("/api/v1/placement/offer", headers=headers).json()
+    assert seventh == {"offer": False, "resume": False, "reason": "too_early"}
     completed_days(db_session, user_of(db_session, address), 1, met_unaided=False)
     after = client.get("/api/v1/placement/offer", headers=headers).json()
     assert after == {"offer": True, "resume": False, "reason": "declared"}
@@ -193,8 +198,9 @@ def test_own_band_a1_success_never_triggers_an_unsolicited_offer(client, db_sess
     address = _email()
     register(client, address, starting_point="new")
     user = user_of(db_session, address)
-    # A whole window of perfect, unaided A1 days, several replies a day.
-    completed_days(db_session, user, 5, band="A1", met_unaided=True, replies=3)
+    # A whole window of perfect, unaided A1 days, several replies a day (P9: and
+    # past the eighth day, so «too early» is not what keeps the offer away).
+    completed_days(db_session, user, 8, band="A1", met_unaided=True, replies=3)
     evidence = journey_placement_evidence(db_session, user)
     assert evidence["met_unaided"] == 0 and evidence["above_band"] is False
     assert placement_offer_state(db_session, user) == {"offer": False, "resume": False, "reason": "beginner"}
@@ -204,6 +210,8 @@ def test_above_band_evidence_needs_distinct_days(client, db_session):
     address = _email()
     register(client, address, starting_point="new")
     user = user_of(db_session, address)
+    # P9: the offer waits for the eighth day; five own-band days come first.
+    completed_days(db_session, user, 5, band="A1", met_unaided=True)
     # Many above-band replies on two days are still two days.
     completed_days(db_session, user, 2, band="A2", met_unaided=True, replies=4)
     evidence = journey_placement_evidence(db_session, user)
@@ -229,7 +237,7 @@ def test_a_declined_offer_does_not_come_back_on_later_days(client, db_session):
     address = _email()
     headers = register(client, address, starting_point="confident")
     user = user_of(db_session, address)
-    completed_days(db_session, user, 1)
+    completed_days(db_session, user, placement_module.PLACEMENT_OFFER_MIN_DAYS)
     assert client.get("/api/v1/placement/offer", headers=headers).json()["offer"] is True
     assert client.post("/api/v1/placement/skip", headers=headers).json()["status"] == "skipped"
     for _day in range(5):
@@ -271,7 +279,7 @@ def test_an_unassessed_placement_is_not_re_offered_every_morning(client, db_sess
     address = _email()
     register(client, address, starting_point="comfortable")
     user = user_of(db_session, address)
-    completed_days(db_session, user, 1)
+    completed_days(db_session, user, placement_module.PLACEMENT_OFFER_MIN_DAYS)
     db_session.add(PlacementSession(user_id=user.id, status="unassessed", turns=[], estimate={}))
     db_session.commit()
     completed_days(db_session, user, 1)

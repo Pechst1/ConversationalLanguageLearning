@@ -1030,7 +1030,7 @@
         "right": "Je [n']ai [pas] [de] voiture."
       },
       "more": {
-        "en": "Le, la, les stay after pas (je n'aime pas le café), and after être the article stays too (ce n'est pas un problème). Pas de works like German kein: je n'ai pas de voiture. In everyday speech people often drop ne (je sais pas); write it anyway.",
+        "en": "Le, la, les stay after pas (je n'aime pas le café), and after être the article stays too (ce n'est pas un problème). Pas de works like English 'no' or 'not any': je n'ai pas de voiture (I have no car). In everyday speech people often drop ne (je sais pas); write it anyway.",
         "de": "Le, la, les bleiben nach pas (je n'aime pas le café), und nach être bleibt der Artikel auch (ce n'est pas un problème). Pas de entspricht „kein“: je n'ai pas de voiture. Im Alltag fällt ne oft weg (je sais pas); schreib es trotzdem.",
         "fr": "Le, la, les ne changent pas (je n'aime pas le café), et après être l'article reste (ce n'est pas un problème). À l'oral, on oublie souvent ne (je sais pas) ; à l'écrit, on le garde."
       },
@@ -2282,7 +2282,7 @@
           "wrong": "Je voudrais pain.",
           "right": "Je voudrais [du] pain.",
           "why": {
-            "en": "French needs an article where English and German have none.",
+            "en": "French needs an article where English has none.",
             "de": "Wo im Deutschen nichts steht, braucht das Französische einen Artikel.",
             "fr": "Le nom ne reste pas seul : du pain."
           }
