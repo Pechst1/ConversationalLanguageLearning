@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 from app.services import grammar_items, pragmatics
 from app.services.cast_registry import display_name
 from app.services.cast_voices import NARRATOR_ID, line_audio_url, voice_for_character
+from app.services.chrome_language import localized, mother_tongue
 from app.services.journey_content import (
     SPOILER_SIMILARITY,
     line_spoils_reply,
@@ -52,11 +53,14 @@ from app.services.journey_contracts import (
     INPUT_FLOOR_SHARE,
     LEGER_SCENE_EXCHANGES,
     LISTENING_RECALL_FORMATS,
+    LOW_BAND_EXTRA_EXCHANGES,
+    MAX_PLANNED_RESPOND_TURNS,
     MAX_PLANNED_STEPS,
     MAX_RECALL_STEPS,
     MAX_RESPOND_TURNS,
     MIN_SCENE_EXCHANGES,
     READ_MIN_BUDGET_SECONDS,
+    RHYTHM_BUDGETS,
     ActBrief,
     ActRole,
     ControlLanguage,
@@ -92,6 +96,7 @@ from app.services.journey_day_shapes import (
     rotate_recall_formats,
     shape_allows_format,
 )
+from app.services.no_address import unaddressed_task
 from app.services.repair_context import (
     RepairContext,
     clean_text,
@@ -109,7 +114,7 @@ from app.services.scene_items import (
     scene_lines,
     with_meaning,
 )
-from app.services.sentence_line import ends_sentence, stops_at_title
+from app.services.sentence_line import continues_sentence, ends_sentence, stops_at_title
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     # WP-24. Imported for types alone: `journey_errata` reaches the ORM, and the
@@ -415,7 +420,7 @@ _WORD_COUNT: dict[str, tuple[str, str]] = {
 def word_count_phrase(count: int, control_language: Any) -> str:
     """«1 Wort» / «3 Wörter», «1 word» / «3 words», «1 mot» / «3 mots»."""
 
-    one, many = _WORD_COUNT.get(str(control_language or "en")[:2], _WORD_COUNT["en"])
+    one, many = _WORD_COUNT.get(mother_tongue(control_language), _WORD_COUNT["en"])
     return (one if int(count) == 1 else many).format(count=int(count))
 
 # -- WP-66: the three Séance formats, posed in the journey -------------------
@@ -502,8 +507,8 @@ _GENDER_ARTICLES: dict[str, str] = {
 }
 
 
-def _localized(table: dict[str, str], control_language: ControlLanguage) -> str:
-    return table.get(str(control_language), table["en"])
+# S3: one ``{en, de, fr}`` picker for the whole server (chrome_language.localized).
+_localized = localized
 
 
 # --------------------------------------------------------------------------
@@ -1105,6 +1110,19 @@ def _repairs_the_wording(learner: str, answer: str) -> bool:
     return 2 * common / (len(left) + len(right)) >= 0.35
 
 
+def _says_the_key(learner: str, key: str) -> bool:
+    """Is the learner's line already one of the key's right wordings?
+
+    #174 / #805: «right» is the shared accept-list (``widened_answers``: «le bureau de
+    poste» for «la poste», «un appart» for «un appartement»), never the one stored key,
+    so an erratum filed against a synonym is not posed as a line to correct."""
+
+    from app.services.answer_acceptance import widened_answers
+
+    said = _fold(learner)
+    return any(_fold(answer) == said for answer in widened_answers([key]))
+
+
 def build_recall_task(
     *,
     target: TargetRef,
@@ -1157,7 +1175,9 @@ def build_recall_task(
     sentence_answers: list[str] = []
     if target.kind is TargetKind.ERROR:
         learner = " ".join(str(learner_text or "").split())
-        if not learner or _fold(learner) == _fold(label_fr):
+        if not learner or _says_the_key(learner, label_fr):
+            # #805: «Write this correctly» over «le bureau de poste» for «la poste»:
+            # a line that is already a right way to say the key is no error.
             return None
         if _fold(label_fr) in _JUDGEMENT_BUTTONS or _fold(learner) in _JUDGEMENT_BUTTONS:
             # Issue #104: errata filed before the fix carry a judgement item's
@@ -1190,8 +1210,17 @@ def build_recall_task(
                 sentence_answers.append(fixed_sentence)
         rule = repair.rule_in(language) if repair else ""
         if rule:
-            rule_native = recall_goal("repair_rule", language, rule=rule)
-            goal = f"{goal} {rule_native}"
+            rule_line = recall_goal("repair_rule", language, rule=rule)
+            goal = f"{goal} {rule_line}"
+            # R5: the goal is interface (the chrome); the same rule closing a miss note
+            # explains, so it is in the mother tongue from B1 (``explain_language``).
+            explain = repair.explain_language if repair and repair.explain_language else None
+            explain_rule = repair.rule_in(explain) if repair and explain else ""
+            rule_native = (
+                recall_goal("repair_rule", explain, rule=explain_rule)
+                if explain and explain_rule
+                else rule_line
+            )
     elif gloss and len(distractors) >= 2:
         task_type = "choice"
     elif _is_phrase(tokens) and gloss:
@@ -1575,18 +1604,20 @@ def _gloss_partners(
 
     # QA-PRACTICE: compared without articles — «appartement» beside «un
     # appartement» (or «Wohnung» beside «eine Wohnung») made two right answers.
+    # #804: compared meaning by meaning — «one» beside «a, an (f.); one» made two
+    # right answers, the whole glosses being different strings.
     taken_fr = {_bare(target.label_fr)}
-    taken_gloss = {_bare(_glossed(target))}
+    taken_gloss = set(gloss_senses(_glossed(target)))
     partners: list[TargetRef] = []
     ranked = sorted(pool, key=lambda item: _digest(target.id, "partner", target_identity(item)))
     for item in ranked:
         gloss = _glossed(item)
         if gloss is None or target_identity(item) == target_identity(target):
             continue
-        if _bare(item.label_fr) in taken_fr or _bare(gloss) in taken_gloss:
+        if _bare(item.label_fr) in taken_fr or gloss_senses(gloss) & taken_gloss:
             continue
         taken_fr.add(_bare(item.label_fr))
-        taken_gloss.add(_bare(gloss))
+        taken_gloss |= gloss_senses(gloss)
         partners.append(item)
         if len(partners) == count:
             break
@@ -1642,6 +1673,19 @@ def _part_of_speech(label_fr: str | None) -> str | None:
     return "noun" if article else None
 
 
+def gloss_senses(gloss: str | None) -> frozenset[str]:
+    """Every meaning a gloss gives, bare and folded: «a, an (f.); one» is {«a», «an»,
+    «one»}, «the post office» is {«post office»}.
+
+    #174 / #804: a wrong card is wrong only when none of its meanings is one of the
+    key's. Comparing whole glosses let «one» stand beside «a, an (f.); one»."""
+
+    text = re.sub(r"\([^)]*\)", " ", str(gloss or ""))
+    senses = {_bare(part) for part in re.split(r"[;,/]", text)}
+    senses.add(_bare(" ".join(text.split())))
+    return frozenset(sense for sense in senses if sense)
+
+
 def _meaning_words(text: str | None) -> set[str]:
     return {word for word in re.findall(r"\w+", _bare(text)) if len(word) >= 4}
 
@@ -1671,18 +1715,18 @@ def core_decoys(
     if gloss is None or pos is None:
         return []
     taken_fr = {_bare(target.label_fr)}
-    taken_gloss = {_bare(gloss)}
+    taken_gloss = set(gloss_senses(gloss))
     target_words = _meaning_words(gloss)
     chosen: list[tuple[TargetRef, str | None]] = []
     ranked = sorted(core_words(key, pos), key=lambda row: _digest(target.id, "decoy", row[0]))
     for lemma, gender, glosses in ranked:
         meaning = _first_meaning(dict(glosses).get(language))
-        if not meaning or _bare(lemma) in taken_fr or _bare(meaning) in taken_gloss:
+        if not meaning or _bare(lemma) in taken_fr or gloss_senses(meaning) & taken_gloss:
             continue
         if _meaning_words(meaning) & target_words:
             continue
         taken_fr.add(_bare(lemma))
-        taken_gloss.add(_bare(meaning))
+        taken_gloss |= gloss_senses(meaning)
         chosen.append(
             (
                 TargetRef(
@@ -1839,26 +1883,31 @@ def scene_sentences(*texts: str | None) -> list[str]:
 
     sentences: list[str] = []
     seen: set[str] = set()
+
+    def keep(words: list[str]) -> None:
+        sentence = " ".join(words)
+        if sentence and _fold(sentence) not in seen and not stops_at_title(sentence):
+            seen.add(_fold(sentence))
+            sentences.append(sentence)
+
     for text in texts:
         current: list[str] = []
+        ended = False
         for raw in " ".join(str(text or "").split()).split(" "):
             # Quotation marks are layout, not words: a tile reading «»
             # would be a puzzle about typography.
             word = raw.strip(_QUOTE_MARKS)
             if not word:
                 continue
-            current.append(word)
-            if ends_sentence(word):
-                sentence = " ".join(current)
+            # #849: a stop is a sentence's end only when the next word opens a new one.
+            # «Comment on dit, déjà… le groupe qui tient le café ensemble ?» is one
+            # question; cut after «déjà…», its tail lost the question word it asks with.
+            if ended and not continues_sentence(word):
+                keep(current)
                 current = []
-                if _fold(sentence) not in seen and not stops_at_title(sentence):
-                    seen.add(_fold(sentence))
-                    sentences.append(sentence)
-        if current:
-            sentence = " ".join(current)
-            if _fold(sentence) not in seen and not stops_at_title(sentence):
-                seen.add(_fold(sentence))
-                sentences.append(sentence)
+            current.append(word)
+            ended = ends_sentence(word)
+        keep(current)
     return sentences
 
 
@@ -2441,6 +2490,11 @@ class AuthoredExchange(NamedTuple):
     task_words: int = 0
 
 
+#: ``season.turns.REPLY_KINDS``, repeated here: the planner imports nothing from the
+#: season runtime (``test_the_planner_imports_no_ladder_and_no_scheduler``).
+_REPLY_KINDS: tuple[str, ...] = ("speech", "all", "sms")
+
+
 def _spoken_words(panels: Any) -> int:
     """Words of the spoken lines of ``panels`` — what ``season.turns.reaction_lines``
     shows in the conversation (captions and silent panels stay on the page)."""
@@ -2450,7 +2504,7 @@ def _spoken_words(panels: Any) -> int:
         if not isinstance(panel, dict):
             continue
         for line in panel.get("lines") or []:
-            if isinstance(line, dict) and line.get("kind") in ("speech", "all"):
+            if isinstance(line, dict) and line.get("kind") in _REPLY_KINDS:
                 total += _tokens(str(line.get("text_fr") or ""))
     return total
 
@@ -2467,7 +2521,9 @@ def scene_exchange_floor(
     :data:`MIN_SCENE_EXCHANGES` from Régulier up, and of
     :data:`LEGER_SCENE_EXCHANGES` on Léger: the live walk of 30 Oct was cut to one
     reply to fit a new rule, and the character's question then closed the scene.
-    A longer day is said before the learner starts, never a hidden cut.
+    A longer day is said before the learner starts, never a hidden cut. (The low
+    bands' exchange more, :func:`low_band_extra_exchanges`, is above the floor: the
+    day gives it back before it gets longer.)
     """
 
     authored_min = max(1, int(getattr(task, "min_turns", 0) or 0))
@@ -2475,6 +2531,21 @@ def scene_exchange_floor(
         return authored_min
     floor = LEGER_SCENE_EXCHANGES if budget_seconds <= RHYTHM_FIVE_MINUTES else MIN_SCENE_EXCHANGES
     return max(authored_min, min(floor, MAX_RESPOND_TURNS))
+
+
+def low_band_extra_exchanges(scenario: ScenarioBrief, task: ResponseTask, budget_seconds: int) -> int:
+    """Owner 2026-11-16 («zu kurz, nicht fesselnd»): the exchanges an A1 or A2
+    generated scene asks for on top of its rhythm's count, from Régulier up
+    (:data:`LOW_BAND_EXTRA_EXCHANGES`). An authored page keeps its own count and
+    Léger its five minutes. The planner gives this exchange back, down to
+    :func:`scene_exchange_floor`, before the story makes a longer day, and an act
+    keeps it only when the day still plays as many acts with it."""
+
+    if budget_seconds <= RHYTHM_FIVE_MINUTES or _band_key(scenario.level_band) not in LOW_BANDS:
+        return 0
+    if not draft_of(scenario) or authored_turns(scenario) or scenario.is_authored_fallback:
+        return 0
+    return LOW_BAND_EXTRA_EXCHANGES
 
 
 def authored_turns(scenario: ScenarioBrief) -> list[AuthoredExchange]:
@@ -2596,19 +2667,31 @@ def respond_seconds(
             # planned ``max_turns``), the rest of the page.
             prose = spt * page_reading_factor(band)
             floor = REPLY_WORDS_FLOOR[_band_key(band) or "B1"]
+            from app.services import scene_record
+
+            record = scene_record.enabled()
             costs = []
             for index in range(turns):
+                closes = index == turns - 1
                 if index >= len(authored):
-                    # A reply asked again (``repeat_once``): one more exchange.
-                    costs.append(default_turn)
+                    # One more exchange on the page's last question: a reply asked
+                    # again (``repeat_once``), or a page that asks only once and
+                    # listens to one more (#378, ``season.runtime.asks_only_once``).
+                    # The conversation closes here, so the page's answer and tail
+                    # are read here.
+                    closing = AuthoredExchange(*authored[-1]).closing if record and closes and authored else 0
+                    costs.append(default_turn + closing * prose)
                     continue
                 # A bare ``(kind, words)`` (pre-tentpole callers) reads the old
                 # twelve-word answer.
                 turn = AuthoredExchange(*authored[index])
-                read = turn.closing if index == turns - 1 else turn.going_on
-                said = read * prose + (
-                    0 if index == turns - 1 else turn.task_words * NATIVE_SECONDS_PER_TOKEN
-                )
+                if closes:
+                    read = turn.closing
+                else:
+                    # When one more exchange follows the page's last question, the
+                    # page's answer waits for it: it is read once, on the close.
+                    read = 0 if record and index == len(authored) - 1 else turn.going_on
+                said = read * prose + (0 if closes else turn.task_words * NATIVE_SECONDS_PER_TOKEN)
                 if turn.kind == "card":
                     costs.append(card(turn.words) + said)
                 else:
@@ -2753,21 +2836,26 @@ class PricedAct:
         return self.scene_seconds + self.respond_seconds + self.resolution_seconds
 
 
-def act_turns(scenario: ScenarioBrief, task: ResponseTask, budget_seconds: int) -> int:
+def act_turns(scenario: ScenarioBrief, task: ResponseTask, budget_seconds: int, *, plain: bool = False) -> int:
     """The exchanges an act's reply plans on a day of several acts: the scene's
     floor (#378: three from Régulier up, an authored page's own count), never
-    more — on such a day a longer rhythm buys another act, not a fourth exchange."""
+    more — on such a day a longer rhythm buys another act, not a fourth exchange.
+    At A1 and A2 one more (:func:`low_band_extra_exchanges`) unless ``plain``:
+    the day falls back to the plain count when the extra exchange would cost it
+    an act."""
 
     ceiling = max(
         1,
         min(int(task.max_turns or MAX_RESPOND_TURNS), MAX_RESPOND_TURNS, rhythm_caps(budget_seconds).max_turns),
     )
-    return max(scene_exchange_floor(scenario, task, budget_seconds), min(MIN_SCENE_EXCHANGES, ceiling))
+    turns = max(scene_exchange_floor(scenario, task, budget_seconds), min(MIN_SCENE_EXCHANGES, ceiling))
+    extra = 0 if plain else low_band_extra_exchanges(scenario, task, budget_seconds)
+    return min(turns + extra, MAX_PLANNED_RESPOND_TURNS) if extra else turns
 
 
 def price_act(
     act: ActBrief, *, budget_seconds: int, spt: float, multiplier: float, audio: bool,
-    band: str | None,
+    band: str | None, plain: bool = False,
 ) -> PricedAct:
     """An act's scene, reply and ending, each priced as the day's first is: the
     page by what is on it, the reply by its exchanges at the band (at
@@ -2777,7 +2865,7 @@ def price_act(
     scenario = act.scenario
     outcome_key = _require_plannable(scenario)
     task = guard_opening_line(scenario.response_task)
-    turns = act_turns(scenario, task, budget_seconds)
+    turns = act_turns(scenario, task, budget_seconds, plain=plain)
     return PricedAct(
         act=act,
         task=task,
@@ -2916,19 +3004,24 @@ def acts_to_write(
     spt = profile.effective_seconds_per_token(key)
     multiplier = profile.effective_step_multiplier()
 
-    def priced(role: ActRole) -> PricedAct:
+    def priced(role: ActRole, plain: bool) -> PricedAct:
         return price_act(
             ActBrief(role=role, scenario=nominal_act_brief(key, role)),
             budget_seconds=budget_seconds, spt=spt, multiplier=multiplier, audio=False, band=key,
+            plain=plain,
         )
 
-    first = priced(ActRole.FIL).seconds
-    kept = fit_acts(
-        first,
-        [priced(role) for role in ACT_ROLE_ORDER if role is not ActRole.FIL],
-        budget_seconds=budget_seconds,
-        spare=NIGHT_ACT_SPARE,
-    )
+    def kept_acts(plain: bool) -> list[PricedAct]:
+        return fit_acts(
+            priced(ActRole.FIL, plain).seconds,
+            [priced(role, plain) for role in ACT_ROLE_ORDER if role is not ActRole.FIL],
+            budget_seconds=budget_seconds,
+            spare=NIGHT_ACT_SPARE,
+        )
+
+    # The low bands' exchange more never costs the day an act (owner 2026-11-16): the
+    # night writes the acts the morning plays with or without it (``plan_journey``).
+    kept = max(kept_acts(False), kept_acts(True), key=len)
     return (ActRole.FIL, *(ActRole(str(item.act.role)) for item in kept))
 
 
@@ -3151,6 +3244,52 @@ def _first_day_recall(
     )
 
 
+#: Owner 2026-11-16 («story first»): the fewest practice items an A1/A2 day keeps
+#: when its reply takes the low bands' exchange more — WP-129's floor for an A1/A2
+#: Régulier day («the items give way first», at least three). A day that had fewer
+#: keeps what it had.
+STORY_FIRST_MIN_ITEMS = 3
+
+
+def _first_reply_turns(plan: PlannedJourney) -> int:
+    for step in plan.steps:
+        if step.kind is StepKind.RESPOND:
+            return int((step.public_prompt or {}).get("max_turns") or 0)
+    return 0
+
+
+def _warmups(plan: PlannedJourney) -> int:
+    """The Rappel: the recall items before the scene."""
+
+    count = 0
+    for step in plan.steps:
+        if step.kind is StepKind.SCENE:
+            break
+        count += step.kind is StepKind.RECALL
+    return count
+
+
+def _keeps_the_day(plan: PlannedJourney, plain: PlannedJourney, *, wanted: int) -> bool:
+    """Owner 2026-11-16 («story first»): ``plan`` has the low bands' exchange more and
+    paid for it with plain practice items only — inside the day's budget, never a
+    longer day, every other step of ``plain`` (the rule, a desk, the forge, the
+    «Lecture» …) still there, at least :data:`STORY_FIRST_MIN_ITEMS` items, and a
+    Rappel still longer than Léger's where the plain day's was."""
+
+    if plan.longer_day or _first_reply_turns(plan) < wanted:
+        return False
+    if plan.estimated_active_seconds > plan.budget_seconds:
+        return False
+    kept = {StepKind.RECALL, StepKind.RESPOND}
+    for kind in {step.kind for step in plain.steps} - kept:
+        if sum(step.kind is kind for step in plan.steps) < sum(step.kind is kind for step in plain.steps):
+            return False
+    if recall_count(plan) < min(STORY_FIRST_MIN_ITEMS, recall_count(plain)):
+        return False
+    leger = rhythm_caps(RHYTHM_BUDGETS[0]).max_warmups
+    return _warmups(plan) >= min(_warmups(plain), leger + 1)
+
+
 def plan_journey(
     *,
     scenario: ScenarioBrief,
@@ -3174,7 +3313,130 @@ def plan_journey(
     page_review: list[dict[str, Any]] | None = None,
     acts: list[ActBrief] | None = None,
 ) -> PlannedJourney:
-    """Build today's immutable plan.
+    """Build today's immutable plan (:func:`_plan_journey_once`), story first.
+
+    Owner 2026-11-16 («story first»): an A1 or A2 generated scene asks one exchange
+    more (:func:`low_band_extra_exchanges`), and plain practice items give way for it
+    — but only items: the day keeps its budget, its rule, its desk and every other
+    step, :data:`STORY_FIRST_MIN_ITEMS` items and a Rappel longer than Léger's
+    (:func:`_keeps_the_day`). When the exchange cannot be had for items alone, the
+    day is planned without it. A day with acts is left to the acts' own rule (the
+    exchange never costs an act); Léger and B1 up never ask for it.
+    """
+
+    kwargs = {
+        "scenario": scenario, "candidates": candidates, "budget_seconds": budget_seconds, "pace": pace,
+        "input_mode": input_mode, "errata_targets": errata_targets, "day_shape": day_shape,
+        "shape_reason": shape_reason, "dice": dice, "letter": letter, "chapter_recap_fr": chapter_recap_fr,
+        "audio_available": audio_available, "first_day": first_day, "practice": practice,
+        "introduction": introduction, "forge": forge, "reading": reading, "desk": desk,
+        "page_review": page_review, "acts": acts,
+    }
+    plan = _plan_journey_once(**kwargs)
+    extra = low_band_extra_exchanges(scenario, scenario.response_task, budget_seconds)
+    if not extra or acts or plan.acts:
+        return plan
+    plain = _plan_journey_once(**kwargs, story_extra=False)
+    wanted = _first_reply_turns(plain) + extra
+    if _keeps_the_day(plan, plain, wanted=wanted):
+        return plan
+    # The planner's own fit trims the Rappel first; story first trims plain items.
+    grafted = _story_first(plan, plain, wanted=wanted)
+    if grafted is not None and _keeps_the_day(grafted, plain, wanted=wanted):
+        return grafted
+    return plain
+
+
+def _story_first(extra_plan: PlannedJourney, plain: PlannedJourney, *, wanted: int) -> PlannedJourney | None:
+    """Owner 2026-11-16 («story first»): ``plain`` with ``extra_plan``'s longer reply,
+    paid for by plain vocabulary items — the last after the ending first, down to
+    three builds, then the Rappel's down to one more than Léger's — never below
+    :data:`STORY_FIRST_MIN_ITEMS`.
+    ``None`` when the reply differs in more than its exchanges or it cannot fit."""
+
+    longer = next((step for step in extra_plan.steps if step.kind is StepKind.RESPOND), None)
+    reply = next((step for step in plain.steps if step.kind is StepKind.RESPOND), None)
+    if longer is None or reply is None or extra_plan.longer_day or plain.longer_day:
+        return None
+    if _first_reply_turns(extra_plan) < wanted:
+        return None
+    if {**(longer.public_prompt or {}), "max_turns": None} != {**(reply.public_prompt or {}), "max_turns": None}:
+        return None
+    steps = [replace(longer, ordinal=step.ordinal) if step is reply else step for step in plain.steps]
+    budget = plain.budget_seconds
+    total = sum(int(step.estimated_seconds) for step in steps)
+    floor_items = min(STORY_FIRST_MIN_ITEMS, recall_count(plain))
+    keep_warm = min(_warmups(plain), rhythm_caps(RHYTHM_BUDGETS[0]).max_warmups + 1)
+    scene_at = next(index for index, step in enumerate(steps) if step.kind is StepKind.SCENE)
+    after, before = steps[scene_at:], steps[:scene_at]
+    # WP-109: the builds after the ending stay (three, or what the plain day had).
+    keep_builds = min(STORY_FIRST_MIN_ITEMS, sum(step.kind is StepKind.RECALL for step in after))
+    dropped: list[PlannedStep] = []
+    for step in [*reversed(after), *reversed(before)]:
+        if total <= budget:
+            break
+        items = sum(item.kind is StepKind.RECALL for item in steps) - len(dropped)
+        if items <= floor_items:
+            break
+        if step.kind is not StepKind.RECALL or step.target is None:
+            continue
+        if not target_identity(step.target).startswith("vocabulary:"):
+            continue
+        side, keep = (before, keep_warm) if any(step is s for s in before) else (after, keep_builds)
+        if sum(s.kind is StepKind.RECALL for s in side if not any(s is gone for gone in dropped)) <= keep:
+            continue
+        dropped.append(step)
+        total -= int(step.estimated_seconds)
+    if total > budget:
+        return None
+    kept = [step for step in steps if not any(step is gone for gone in dropped)]
+    kept = [replace(step, ordinal=index) for index, step in enumerate(kept)]
+    still = {target_identity(step.target) for step in kept if step.target is not None}
+    still |= {f"{t.get('kind')}:{t.get('id')}" for t in (longer.public_prompt or {}).get("targets") or []}
+    gone = [
+        identity
+        for identity in dict.fromkeys(target_identity(step.target) for step in dropped)
+        if identity not in still
+    ]
+    note = f"story first: {wanted} exchanges; {len(dropped)} practice item(s) gave way"
+    grafted = replace(
+        plain,
+        steps=kept,
+        estimated_active_seconds=sum(int(step.estimated_seconds) for step in kept),
+        selected_target_ids=[identity for identity in plain.selected_target_ids if identity not in gone],
+        omitted_candidate_ids=[*plain.omitted_candidate_ids, *gone],
+        rationale=f"{plain.rationale}; {note}" if plain.rationale else note,
+    )
+    grafted.validate()
+    return grafted
+
+
+def _plan_journey_once(
+    *,
+    scenario: ScenarioBrief,
+    candidates: list[LearningCandidate],
+    budget_seconds: int = DEFAULT_BUDGET_SECONDS,
+    pace: PacingProfile | None = None,
+    input_mode: InputMode = InputMode.TEXT,
+    errata_targets: list[ErrataTarget] | None = None,
+    day_shape: DayShape | str | None = None,
+    shape_reason: str = "",
+    dice: DayShapeInputs | None = None,
+    letter: LetterOffer | None = None,
+    chapter_recap_fr: str | None = None,
+    audio_available: bool = False,
+    first_day: bool = False,
+    practice: bool = False,
+    introduction: dict[str, Any] | None = None,
+    forge: dict[str, Any] | None = None,
+    reading: dict[str, Any] | list[dict[str, Any]] | None = None,
+    desk: dict[str, Any] | None = None,
+    page_review: list[dict[str, Any]] | None = None,
+    acts: list[ActBrief] | None = None,
+    story_extra: bool = True,
+) -> PlannedJourney:
+    """Build today's immutable plan once (``story_extra=False``: without the low
+    bands' exchange more, the plain day :func:`plan_journey` compares against).
 
     ``acts`` (Phase 2 «Folge in Akten») are the acts the night wrote after the
     day's first («À côté», «Le soir»). On a practice day of a rhythm that plays
@@ -3361,13 +3623,19 @@ def plan_journey(
     # WP-113: an authored day's «Le choix» is never cut by the rhythm; #378: a
     # generated scene is never cut below MIN_SCENE_EXCHANGES.
     turns = max(turns, floor)
+    # Owner 2026-11-16: an A1 or A2 generated scene asks one exchange more; the fit
+    # below gives it back, down to the floor, before the story makes a longer day.
+    extra = low_band_extra_exchanges(scenario, task, budget_seconds) if story_extra else 0
+    if extra:
+        turns = min(turns + extra, MAX_PLANNED_RESPOND_TURNS)
     optional_turns = 0
     if practice and not first_day and band in LOW_BANDS and rhythm_caps(budget_seconds).budget_seconds <= 600:
         # WP-129 (owner decision): fewer reply exchanges, more practice items —
         # on Léger and Régulier, where the reply filled the day. Soutenu and
         # Intensif keep their four: a longer rhythm buys story and input
-        # (WP-93), and their days had room for items already.
-        core_turns = max(LOW_BAND_CORE_REPLY_TURNS, floor)
+        # (WP-93), and their days had room for items already. The low bands'
+        # exchange more (owner 2026-11-16) is part of the core.
+        core_turns = max(LOW_BAND_CORE_REPLY_TURNS, floor) + extra
         if turns > core_turns:
             optional_turns = turns - core_turns
             turns = core_turns
@@ -3437,6 +3705,8 @@ def plan_journey(
     # nothing below changes.
     kept_acts: list[PricedAct] = []
     act_turn_count, act_scene_cost = turns, scene_cost
+    #: The same acts with the plain exchanges, tried before one act fewer.
+    plain_acts: tuple[list[PricedAct], int] | None = None
     if acts:
         playable = (
             practice
@@ -3449,30 +3719,48 @@ def plan_journey(
         if not playable:
             notes.append(f"acts set aside: this {shape} day plays one act")
         else:
-            priced_acts: list[PricedAct] = []
-            for act in acts:
-                try:
-                    priced_acts.append(
-                        price_act(
-                            act, budget_seconds=budget_seconds, spt=spt, multiplier=multiplier,
-                            audio=False, band=band,
-                        )
-                    )
-                except PlanUnavailable as exc:
-                    notes.append(f"act «{act.role}» set aside: {exc.reason}")
-            act_turn_count = act_turns(scenario, task, budget_seconds)
             act_scene_cost = scene_seconds(
                 scenario, spt=spt, multiplier=multiplier, audio=False, band=band
             )
-            first_act_seconds = (
-                act_scene_cost
-                + respond_seconds(
-                    task, turns=act_turn_count, spt=spt, multiplier=multiplier, band=band,
-                    authored=authored,
+
+            def acts_fitting(plain: bool) -> tuple[list[PricedAct], int, list[PricedAct]]:
+                """Every act priced, the first act's exchanges and the acts that fit —
+                with the low bands' exchange more, or ``plain`` without it."""
+
+                priced: list[PricedAct] = []
+                for act in acts:
+                    try:
+                        priced.append(
+                            price_act(
+                                act, budget_seconds=budget_seconds, spt=spt, multiplier=multiplier,
+                                audio=False, band=band, plain=plain,
+                            )
+                        )
+                    except PlanUnavailable as exc:
+                        if not plain:
+                            notes.append(f"act «{act.role}» set aside: {exc.reason}")
+                count = act_turns(scenario, task, budget_seconds, plain=plain)
+                first_seconds = (
+                    act_scene_cost
+                    + respond_seconds(
+                        task, turns=count, spt=spt, multiplier=multiplier, band=band, authored=authored,
+                    )
+                    + resolution_cost
                 )
-                + resolution_cost
-            )
-            kept_acts = fit_acts(first_act_seconds, priced_acts, budget_seconds=budget_seconds)
+                return priced, count, fit_acts(first_seconds, priced, budget_seconds=budget_seconds)
+
+            priced_acts, act_turn_count, kept_acts = acts_fitting(False)
+            if act_turn_count != act_turns(scenario, task, budget_seconds, plain=True) or any(
+                item.turns != act_turns(item.act.scenario, item.task, budget_seconds, plain=True)
+                for item in priced_acts
+            ):
+                # Owner 2026-11-16: the low bands' exchange more never costs the day an act.
+                plain_priced, plain_count, plain_kept = acts_fitting(True)
+                if len(plain_kept) > len(kept_acts):
+                    notes.append("acts keep their plain exchanges: one more would cost the day an act")
+                    priced_acts, act_turn_count, kept_acts = plain_priced, plain_count, plain_kept
+                elif plain_kept:
+                    plain_acts = (plain_kept, plain_count)
             for item in priced_acts:
                 if all(item is not kept for kept in kept_acts):
                     notes.append(
@@ -3482,15 +3770,19 @@ def plan_journey(
     if practice and not first_day and practice_day_shape_rule(shape, budget_seconds).max_recall > 0:
         # Phase 2: the acts that fit, then one act fewer at a time — «À côté»
         # first — while they would cost the day its rule; last, the one-act day.
-        tries = [list(kept_acts)]
+        # With the low bands' exchange more, the same acts without it come first.
+        tries: list[tuple[list[PricedAct], int]] = [(list(kept_acts), act_turn_count)]
+        if plain_acts is not None and kept_acts:
+            tries.append((list(plain_acts[0]), plain_acts[1]))
         for role in ACT_DROP_ORDER:
-            fewer = [item for item in tries[-1] if item.act.role != role]
-            if len(fewer) < len(tries[-1]):
-                tries.append(fewer)
-        if tries[-1]:
-            tries.append([])
+            last, count = tries[-1]
+            fewer = [item for item in last if item.act.role != role]
+            if len(fewer) < len(last):
+                tries.append((fewer, count))
+        if tries[-1][0]:
+            tries.append(([], act_turn_count))
         practice_plan = None
-        for later in tries:
+        for later, later_turns in tries:
             practice_plan = _plan_practice_day(
                 scenario=scenario,
                 task=task,
@@ -3507,7 +3799,7 @@ def plan_journey(
                 audio_available=audio_available,
                 input_mode=input_mode,
                 budget_seconds=budget_seconds,
-                turns=act_turn_count if later else turns,
+                turns=later_turns if later else turns,
                 spt=spt,
                 multiplier=multiplier,
                 scene_cost=act_scene_cost if later else scene_cost,
@@ -3606,6 +3898,9 @@ def plan_journey(
                     learner_text=learner_wording,
                     repair=repair,
                 )
+            # 12 Nov 2026: a sentence the learner builds or writes is said to nobody;
+            # one that is no sentence without its address is not posed.
+            recall = unaddressed_task(recall) if recall is not None else None
             if recall is None:
                 used_targets.append(entry)
                 notes.append(f"{identity}: no recall form could be posed without revealing it")
@@ -3721,6 +4016,8 @@ def plan_journey(
     for entry, recall, cost, skipped in recalls:
         # #155: who says the line the item is cut from, as on a practice day.
         recall = replace(recall, speaker_id=recall_speaker(recall, scenario))
+        # 12 Nov 2026: said to nobody (the planner already left out what cannot be).
+        recall = unaddressed_task(recall) or recall
         recall_steps.append(
             PlannedStep(
                 ordinal=0,
@@ -4027,7 +4324,15 @@ _GAP_GOALS = {
 }
 
 
-def practice_task(
+def practice_task(task_type: str, **kwargs: Any) -> RecallTask | None:
+    """One quick item in one named format (:func:`_practice_task`), said to nobody when
+    the learner builds or writes it; ``None`` when that leaves no sentence (12 Nov 2026)."""
+
+    task = _practice_task(task_type, **kwargs)
+    return unaddressed_task(task) if task is not None else None
+
+
+def _practice_task(
     task_type: str,
     *,
     target: TargetRef,
@@ -5226,8 +5531,10 @@ def _introduction_items(
         # A «jour d'écoute» poses only what can be taken down by ear.
         if shape_allows_format(shape, task.task_type)
     ]
-    if len(guided) < 2:
-        # A rule with nothing to try is a lecture, not an Essai.
+    if len(guided) < 2 and not rule_taught_once(shape):
+        # A rule with nothing to try is a lecture, not an Essai. R2: with the rule
+        # taught once (:data:`RULE_TAUGHT_ONCE`) the card shows no Essai at all —
+        # La Forge practises it — so the card stands on its own worked example.
         return None, 0, []
     cost = rule_card_seconds(
         card, spt=spt, multiplier=multiplier,
@@ -5577,6 +5884,9 @@ def _recall_step(ordinal: int, item: PracticeItem, scenario: ScenarioBrief | Non
     speaker_id = recall.speaker_id or (recall_speaker(recall, scenario) if scenario is not None else None)
     if speaker_id != recall.speaker_id:
         recall = replace(recall, speaker_id=speaker_id)
+    # 12 Nov 2026: a sentence the learner builds or writes is said to nobody, whichever
+    # builder posed it (:func:`practice_task` already leaves out what cannot be).
+    recall = unaddressed_task(recall) or recall
     prompt: dict[str, Any] = {
         "task_type": recall.task_type,
         "instruction_native": recall.instruction_native,
@@ -5702,6 +6012,188 @@ def _drop_one_recall(items: list[PracticeItem]) -> list[PracticeItem] | None:
     )
     drop = ranked[-1]
     return [item for index, item in enumerate(items) if index != drop]
+
+
+# ---------------------------------------------------------------------------
+# P6 stage 2 · decision 8 (proposal) — the «Rappel» around the scene keeps only
+# the learner's own past mistakes and one due rule
+# ---------------------------------------------------------------------------
+
+#: Decision 8 (the owner's to reverse): the drill block around the scene deals the
+#: learner's own due mistakes, then one due rule, then — only when that left fewer
+#: than :data:`RAPPEL_GUIDED_BELOW` items — one guided item on today's rule. No
+#: dictation or cloze of the scene's own lines: the scene is read, not drilled. A
+#: listening day keeps its own listening items. ``False`` restores the WP-78 fill.
+RAPPEL_OWN_MISTAKES_ONLY = True
+#: The block's items at the ten-minute rhythm; the other rhythms in proportion,
+#: never above half of the rhythm's recall cap (:func:`rappel_cap`).
+RAPPEL_ITEMS_AT_TEN_MINUTES = 4
+RAPPEL_TEN_MINUTES = 600
+#: Below this many own-mistake and rule items the day adds one guided item.
+RAPPEL_GUIDED_BELOW = 2
+
+
+def rappel_cap(caps: RhythmCaps) -> int:
+    """Decision 8: the most items the drill block deals at this rhythm (2 · 4 · 8 · 12)."""
+
+    scaled = round(RAPPEL_ITEMS_AT_TEN_MINUTES * caps.budget_seconds / RAPPEL_TEN_MINUTES)
+    return max(1, min(scaled, caps.max_recall // 2))
+
+
+def repeats_card_pair(task: RecallTask, card: dict[str, Any] | None) -> bool:
+    """Does ``task`` print the rule card's own ✗/✓ example, seen seconds earlier?
+
+    Both halves of the card's contrast on the item (the two options of a
+    «Was ist richtig?», or the wrong line to repair and its answer): nothing to
+    think about, the card just showed it (review finding 3).
+    """
+
+    contrast = (card or {}).get("contrast") if isinstance(card, dict) else None
+    if not isinstance(contrast, dict):
+        return False
+    right = _fold(grammar_items.plain(str(contrast.get("right") or "")))
+    wrong = _fold(grammar_items.plain(str(contrast.get("wrong") or "")))
+    if not right or not wrong:
+        return False
+    shown = {
+        _fold(grammar_items.plain(str(text or "")))
+        for text in (
+            task.prompt_fr,
+            task.source_fr,
+            task.solution_fr,
+            *(option.get("text_fr") for option in task.options or []),
+        )
+    }
+    return right in shown and wrong in shown
+
+
+#: R2 (round two of the pilot fixes, 18 Nov): a day teaches its rule ONCE — the
+#: rule card with its own worked example, then La Forge as the one place the rule
+#: is practised. The drill around the scene carries no item on today's rule (only
+#: the learner's own mistakes and due reviews; empty when there are none), and the
+#: card no longer needs two guided items to exist. A listening day keeps its own
+#: heard items. ``False`` restores decision 8's one guided item on a thin day.
+RULE_TAUGHT_ONCE = True
+
+
+def rule_taught_once(shape: DayShape) -> bool:
+    """R2: is today's rule card shown alone, without guided items, on this day?"""
+
+    return RULE_TAUGHT_ONCE and RAPPEL_OWN_MISTAKES_ONLY and shape is not DayShape.LISTENING
+
+
+def guided_shown(
+    reserved: list[tuple[RecallTask, int]],
+    *,
+    card: dict[str, Any] | None,
+    rappel_items: int,
+    cap: int,
+) -> list[tuple[RecallTask, int]]:
+    """Decision 8: the rule's guided items the day shows after its card.
+
+    R2 (:data:`RULE_TAUGHT_ONCE`): none — La Forge practises today's rule. Without
+    it: one, and only when the own mistakes and the due rule left fewer than
+    :data:`RAPPEL_GUIDED_BELOW` items and the block has room; never the card's
+    own ✗/✓ pair. With :data:`RAPPEL_OWN_MISTAKES_ONLY` off: every reserved item.
+    """
+
+    if not RAPPEL_OWN_MISTAKES_ONLY:
+        return list(reserved)
+    if RULE_TAUGHT_ONCE:
+        return []
+    if rappel_items >= RAPPEL_GUIDED_BELOW or rappel_items >= cap:
+        return []
+    fresh = [(task, cost) for task, cost in reserved if not repeats_card_pair(task, card)]
+    return fresh[:1]
+
+
+def fill_rappel_items(
+    *,
+    scenario: ScenarioBrief,
+    shape: DayShape,
+    entries: list[SelectedTarget],
+    affordances: list[str],
+    safe_sentences: list[str],
+    dice: DayShapeInputs | None,
+    headroom: int,
+    spt: float,
+    multiplier: float,
+    caps: RhythmCaps,
+    avoid_sentences: set[str] | frozenset[str] = frozenset(),
+) -> list[PracticeItem]:
+    """Decision 8: the learner's own due mistakes, then one due rule, at most :func:`rappel_cap`.
+
+    The mistakes are the day's errata (``TargetKind.ERROR``: a repair of the
+    learner's own wording); the rule is the first due grammar unit the Rappel
+    queue offered (:func:`grammar_items.review_item`, or the coach's scene for a
+    strong one). Before the scene, except on a page read first (an authored
+    page): then after the ending, like every other item of that day.
+    """
+
+    story_first = shape is DayShape.LISTENING or _authored_page(scenario)
+    slot = "post" if story_first else "warmup"
+    cap = rappel_cap(caps)
+    items: list[PracticeItem] = []
+
+    def place(entry: SelectedTarget, task: RecallTask, cost: int) -> None:
+        nonlocal headroom
+        items.append(PracticeItem(slot=slot, position=len(items), entry=entry, task=task, cost=cost))
+        headroom -= cost
+
+    for entry in entries:
+        if len(items) >= cap:
+            break
+        if entry.target.kind is not TargetKind.ERROR:
+            continue
+        metadata = entry.candidate.metadata or {}
+        task = build_recall_task(
+            target=entry.target,
+            scenario=scenario,
+            affordances=affordances,
+            optional=False,
+            learner_text=metadata.get("erratum_learner") or metadata.get("original_text"),
+            repair=repair_context_of(metadata),
+        )
+        task = unaddressed_task(task) if task is not None else None
+        if task is None or not shape_allows_format(shape, task.task_type):
+            continue
+        if overlaps_the_day(task, [item.task for item in items], avoid_sentences):
+            continue
+        cost = quick_recall_seconds(task, spt=spt, multiplier=multiplier)
+        if cost > headroom:
+            continue
+        place(entry, task, cost)
+
+    day_key = "|".join(dice.seed_parts) if dice is not None else ""
+    for entry in entries:
+        if len(items) >= cap:
+            break
+        brief = (entry.candidate.metadata or {}).get("grammar_brief")
+        if entry.target.kind is not TargetKind.GRAMMAR or not isinstance(brief, dict):
+            continue
+        held = set(avoid_sentences)
+        for item in items:
+            held |= grammar_items.item_sentences(item.task)
+        task = grammar_items.review_item(
+            {**brief, "level": scenario.level_band},
+            sentences=list(safe_sentences),
+            language=scenario.control_language,
+            day_key=day_key,
+            meanings=line_meanings(scenario),
+            avoid=held,
+        )
+        if task is None and grammar_items.review_band(brief.get("stability")) == "high":
+            task = _coach_scene_task(brief)
+        if task is None or not shape_allows_format(shape, task.task_type):
+            continue
+        if overlaps_the_day(task, [item.task for item in items], avoid_sentences):
+            continue
+        cost = grammar_item_seconds(task, spt=spt, multiplier=multiplier)
+        if cost > headroom:
+            continue
+        place(entry, task, cost)
+        break  # one due rule
+    return items
 
 
 def _plan_practice_day(
@@ -5930,10 +6422,13 @@ def _plan_practice_day(
 
     forced_intro = False
 
+    taught_once = rule_taught_once(shape)
+
     def intro_reserve(turn_count: int) -> list[tuple[RecallTask, int]]:
         """The guided items that fit, keeping at least room for the core day."""
 
-        if not intro_card:
+        if not intro_card or taught_once:
+            # R2: the rule taught once — its card, and no guided item after it.
             return []
         if forced_intro:
             # WP-128: a longer rule day — the card and its two first guided items.
@@ -5956,10 +6451,34 @@ def _plan_practice_day(
             kept.pop()
         return kept if len(kept) >= 2 else []
 
+    def intro_on(turn_count: int) -> bool:
+        """Is today's rule card placed at this reply length?
+
+        Before R2 the card came with at least two guided items that fit
+        (:func:`intro_reserve`); with the rule taught once it needs only its own
+        seconds next to the core day.
+        """
+
+        if not intro_card:
+            return False
+        if not taught_once:
+            return bool(intro_reserve(turn_count))
+        if forced_intro:
+            return True
+        cost = respond_seconds(
+            task, turns=turn_count, spt=spt, multiplier=multiplier, band=band, authored=authored,
+            asks_unit=emploi
+        )
+        room = (
+            day_room - (scene_cost + cost + resolution_cost) - intro_card_cost
+            - read_cost - desk_cost
+        )
+        return room >= 0
+
     def attempt(turn_count: int) -> tuple[int, list[PracticeItem]]:
         cost = respond_seconds(
             task, turns=turn_count, spt=spt, multiplier=multiplier, band=band, authored=authored,
-            asks_unit=(emploi if intro_reserve(turn_count) else 0) or reemploi,
+            asks_unit=(emploi if intro_on(turn_count) else 0) or reemploi,
         )
         # WP-S4: the folded forge keeps its room free of quick items; WP-93:
         # so do the «Lecture» and the input floor (only heard items use it).
@@ -5970,7 +6489,7 @@ def _plan_practice_day(
         reserved = intro_reserve(turn_count)
         max_items: int | None = None
         target_items: int | None = None
-        if reserved:
+        if intro_on(turn_count):
             headroom -= intro_card_cost + sum(item_cost for _task, item_cost in reserved)
             max_items = max(0, min(caps.max_recall, caps.max_steps - 5) - len(reserved))
             target_items = max(0, caps.target_items - len(reserved))
@@ -5988,6 +6507,23 @@ def _plan_practice_day(
             target = ADVANCED_ITEM_TARGET.get(caps.budget_seconds, 5) - len(reserved)
             leave = max(0, target // 2)
             word_cap = leave if max_items is None else min(max_items, leave)
+        if RAPPEL_OWN_MISTAKES_ONLY and shape is not DayShape.LISTENING:
+            # Decision 8 (P6): the learner's own due mistakes and one due rule; no
+            # scene-line dictation or cloze, no word drills, no B1 mixed-unit fill.
+            # The guided item on today's rule is chosen with the steps (``guided_shown``).
+            return cost, fill_rappel_items(
+                scenario=scenario,
+                shape=shape,
+                entries=entries,
+                affordances=affordances,
+                safe_sentences=safe_sentences,
+                dice=dice,
+                headroom=max(0, drills),
+                spt=spt,
+                multiplier=multiplier,
+                caps=caps,
+                avoid_sentences=avoid,
+            )
         filled = fill_practice_items(
             scenario=scenario,
             shape=shape,
@@ -6057,12 +6593,12 @@ def _plan_practice_day(
 
     respond_cost, items = attempt(turns)
     min_turns = scene_exchange_floor(scenario, task, budget_seconds)
-    if intro_card and not intro_reserve(turns) and turns > min_turns:
+    if intro_card and not intro_on(turns) and turns > min_turns:
         # The new unit is worth the reply's second turn. WP-128: and, when the
         # band composes slowly, its third — down to the reply's minimum (one
         # exchange, or «Le choix»'s) — rather than deferring the rule again.
         fewer = next(
-            (count for count in range(turns - 1, min_turns - 1, -1) if intro_reserve(count)),
+            (count for count in range(turns - 1, min_turns - 1, -1) if intro_on(count)),
             None,
         )
         if fewer is not None:
@@ -6072,7 +6608,7 @@ def _plan_practice_day(
             notes.append(
                 f"reply reduced by {dropped_turns} turn(s) so the new rule fits the budget"
             )
-    if intro_card and not intro_reserve(turns):
+    if intro_card and not intro_on(turns):
         # WP-128. Even the reply's minimum leaves the rule no room: a slow band
         # on a short rhythm (A1 on Léger). Deferring would defer it every day —
         # and a reprise that cannot introduce its unit repeats forever — so the
@@ -6085,7 +6621,7 @@ def _plan_practice_day(
         respond_cost, items = attempt(turns)
         items = []
         notes.append("longer day: the new rule does not fit the rhythm; the day is the story and its rule")
-    if reemploi and not intro_reserve(turns):
+    if reemploi and not intro_on(turns):
         # WP-130 B: the reply asks for a «Réemploi» only when it fits the day
         # and costs it at most one item. A slow band composes the unit's
         # sentence in every exchange (WP-128): on an A1/A2 day that is minutes,
@@ -6113,7 +6649,7 @@ def _plan_practice_day(
         and caps.budget_seconds <= RHYTHM_FIVE_MINUTES
         and len(items) + len(intro_reserve(turns)) < caps.target_items
         and turns > min_turns
-        and not (intro_card and not intro_reserve(turns - 1))
+        and not (intro_card and not intro_on(turns - 1))
     ):
         # The reply keeps its repair; it gives up its second turn so the day
         # can hold its quick items — the same trade WP-75 made for day one.
@@ -6133,14 +6669,16 @@ def _plan_practice_day(
         return None
 
     rule = practice_day_shape_rule(shape, budget_seconds)
-    if len(items) < rule.min_recall and not forced_intro:
+    # R2: with the rule taught once, a longer day has no guided items left to be
+    # its recall steps, so its shape is checked like any other day's.
+    if len(items) < rule.min_recall and (not forced_intro or taught_once):
         notes.append(
             f"{shape} day downgraded to {DEFAULT_DAY_SHAPE}: "
             f"{len(items)} recall step(s), {rule.min_recall} required"
         )
         shape = DEFAULT_DAY_SHAPE
         shape_reason = "shape_needs_a_recall_step"
-        if not items:
+        if not items and not forced_intro:
             respond_cost, items = attempt(turns)
     if desk_step is not None:
         # «Le bureau»: the desk takes one ordinary recall's place, so the day
@@ -6165,7 +6703,7 @@ def _plan_practice_day(
         reserved_now = intro_reserve(turns)
         spent = (
             scene_cost + respond_cost + resolution_cost + desk_cost + read_cost
-            + (intro_card_cost + sum(cost for _t, cost in reserved_now) if reserved_now else 0)
+            + (intro_card_cost + sum(cost for _t, cost in reserved_now) if intro_on(turns) else 0)
         )
         while review_step is not None and spent + sum(item.cost for item in items) + review_step.estimated_seconds > day_room:
             dropped = _drop_one_recall(items)
@@ -6235,7 +6773,13 @@ def _plan_practice_day(
     intro_after_ending = _authored_page(scenario)
     intro_steps: list[PlannedStep] = []
     reserved = intro_reserve(turns)
-    if intro_card and reserved and introduction is not None:
+    # Decision 8 (P6): the card stays; its guided items are what the block leaves room for.
+    shown = (
+        guided_shown(reserved, card=intro_card, rappel_items=len(items), cap=rappel_cap(caps))
+        if shape is not DayShape.LISTENING
+        else list(reserved)
+    )
+    if intro_on(turns) and introduction is not None:
         intro_target = grammar_items.grammar_target(introduction)
         intro_steps.append(
             _rule_step(
@@ -6256,7 +6800,7 @@ def _plan_practice_day(
             fit=1.0,
             demonstrated=False,
         )
-        for position, (guided, guided_cost) in enumerate(reserved):
+        for position, (guided, guided_cost) in enumerate(shown):
             intro_steps.append(
                 _recall_step(
                     0,
@@ -6270,7 +6814,7 @@ def _plan_practice_day(
         used_targets.append(intro_entry)
         notes.append(
             f"introduction: {intro_target.kind}:{intro_target.id}, rule card + "
-            + ", ".join(guided.task_type for guided, _cost in reserved)
+            + (", ".join(guided.task_type for guided, _cost in shown) or "no guided item")
             + (" (after the ending)" if intro_after_ending else " (before the scene)")
         )
     elif introduction is not None:
@@ -6438,7 +6982,7 @@ def _plan_practice_day(
             *items,
             *(
                 PracticeItem(slot="mid", position=-1, entry=intro_entry, task=guided, cost=guided_cost)
-                for guided, guided_cost in reserved
+                for guided, guided_cost in shown
             ),
         ]
     rationale = _rationale(
@@ -6484,8 +7028,10 @@ def graded_interactions(plan: PlannedJourney) -> int:
 #: rounded down (``tests/test_wp_l9_rhythm_harness.py`` pins that the prior never
 #: promises more than the harness plans). The preview says these minutes, not
 #: the rhythm's: a day promised at twenty minutes that plans eighteen is the
-#: false time promise of the July audit.
-EXPECTED_DAY_SHARE: dict[int, float] = {300: 0.95, 600: 0.8, 1200: 0.85, 1800: 0.85}
+#: false time promise of the July audit. P6 (decision 8): a learner with nothing
+#: due plans no Rappel at all, so the floor is that day's (Léger 248 s, Régulier
+#: 475 s, Soutenu 1063 s, Intensif 1355 s on the harness; ``tests/test_p6_drill_own_mistakes.py``).
+EXPECTED_DAY_SHARE: dict[int, float] = {300: 0.8, 600: 0.75, 1200: 0.85, 1800: 0.75}
 #: How many of the learner's latest planned days at the same budget the preview
 #: reads (their median wins over the prior).
 EXPECTED_DAY_SAMPLE = 7

@@ -18,6 +18,7 @@ from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import UserConjugationProgress, VerbConjugation, VocabularyWord
+from app.services.chrome_language import user_mother_tongue
 from app.services.conjugation import CEFR_ORDER, CORE_TENSES, DISPLAY_TENSES
 from app.services.glosses import gloss_map, word_gloss
 
@@ -772,7 +773,7 @@ class VocabularyCoverageService:
                     word,
                     progress,
                     "recently_nailed" if is_vocab_nailed(progress, now=now) else "due",
-                    user.native_language,
+                    user_mother_tongue(user),
                 ))
             seen.add(word.id)
             if len(selected) >= limit:

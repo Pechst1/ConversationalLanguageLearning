@@ -57,7 +57,7 @@ export function TodayEpisode({
   const t = archiveCopy(language);
   const title = headlineTitle(headline);
   const teaser = headlineTeaser(headline, title);
-  const kicker = [t.today_kicker, headlineKicker(headline)].filter(Boolean).join(' · ');
+  const kicker = [t.today_kicker, headlineKicker(headline, language)].filter(Boolean).join(' · ');
   return (
     <section className="fa-today" data-today-episode="" aria-label={t.today_kicker}>
       <p className="av2-label av2-label--story">{kicker}</p>

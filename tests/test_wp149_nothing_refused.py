@@ -590,7 +590,7 @@ def test_the_digest_splits_served_overrides_by_class_and_counts_corrections(db_s
     assert format_story_correctness_line(db_session, stamp.date(), str(user_id)) == (
         "Story correctness (WP-149): 2 critic override(s) served [storytelling 1 (50 %), unclassified 1 (50 %)] · "
         "1 correctness refusal(s), never served · 1 «met» lowered by the met-gate before release · "
-        "1 after-release grading correction(s) of 2 after-release issue(s)"
+        "1 after-release grading correction(s) of 2 after-release issue(s) · 0 soft reply finding(s)"
     )
     assert format_story_correctness_line(db_session, stamp.date(), str(uuid4())) == "Story correctness (WP-149): none"
 

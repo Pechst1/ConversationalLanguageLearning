@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -25,6 +26,7 @@ from app.schemas import (
 )
 from app.schemas.analytics import ErrorSummary
 from app.services.analytics import AnalyticsService
+from app.services.cohorts import build_cohorts
 from app.services.pilot_events import PilotEventService
 from app.services.serial_costs import SerialGenerationCostService
 
@@ -36,6 +38,8 @@ class ClientErrorRequest(BaseModel):
     stack: str | None = Field(default=None, max_length=12000)
     route: str | None = Field(default=None, max_length=500)
     source: str = Field(default="web", max_length=40)
+    # S4 stage 2: the id the error screen shows, so a learner's «Référence» finds this report.
+    event_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{6,32}$")
 
 
 def _require_admin(user: User) -> None:
@@ -162,6 +166,7 @@ class AnonymousClientErrorRequest(BaseModel):
     route: str | None = Field(default=None, max_length=200)
     source: str = Field(default="web", max_length=20)
     release: str | None = Field(default=None, max_length=80)
+    event_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{6,32}$")
 
     @field_validator("source")
     @classmethod
@@ -224,6 +229,19 @@ def record_anonymous_client_error(
 # --- WP-73 pre-sign-in crash intake (end) ----------------------------------
 
 
+@router.get("/pilot-cohorts")
+def read_pilot_cohorts(
+    *,
+    weeks: int = Query(default=8, ge=1, le=52),
+    include_synthetic: bool = Query(default=False),
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> dict:
+    """S6: return on day 1, 3, 7 and 14 per sign-up week, from the ledger."""
+    _require_admin(current_user)
+    return build_cohorts(db, weeks=weeks, include_synthetic=include_synthetic)
+
+
 @router.get("/pilot-daily")
 def read_pilot_daily(
     *,
@@ -267,6 +285,44 @@ def read_pilot_gold(
     from app.services.gold_report import build_gold_report
 
     return build_gold_report(db, days=days)
+
+
+class MemoRevoke(BaseModel):
+    reason: str = Field(default="", max_length=400)
+
+
+@router.get("/pilot-memos")
+def read_pilot_memos(
+    *,
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> dict:
+    """Package V stage 4: the memo's candidates and confirmed answers, newest first."""
+
+    _require_admin(current_user)
+    from app.services import answer_memo
+
+    return answer_memo.listing(db, limit=limit)
+
+
+@router.post("/pilot-memos/{memo_id}/revoke")
+def revoke_pilot_memo(
+    memo_id: uuid.UUID,
+    payload: MemoRevoke,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> dict:
+    """Package V stage 4: end a memo; every answer it settled is superseded and its gold voided."""
+
+    _require_admin(current_user)
+    from app.services import answer_memo
+
+    result = answer_memo.revoke(db, memo_id, reason=payload.reason or f"revoked by {current_user.id}")
+    if result["state"] == "missing":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Memo not found")
+    db.commit()
+    return result
 
 
 @router.get("/pilot-ops")

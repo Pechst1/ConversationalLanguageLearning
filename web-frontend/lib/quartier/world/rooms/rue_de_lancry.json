@@ -1,0 +1,110 @@
+{
+  "id": "rue_de_lancry",
+  "version": 1,
+  "kind": "room",
+  "in": "quai_de_valmy",
+  "ambiance": "nuit",
+  "title": {
+    "fr": "La rue de Lancry",
+    "en": "The rue de Lancry",
+    "de": "Die Rue de Lancry"
+  },
+  "can_do": {
+    "fr": "Trouver la porte verte, lire l'interphone, lever les yeux vers la fenêtre du troisième.",
+    "en": "Find the green door, read the intercom, look up at the third-floor window.",
+    "de": "Die grüne Tür finden, die Sprechanlage lesen, zum Fenster im dritten Stock hochschauen."
+  },
+  "arrive": {
+    "fr": "Rue de Lancry, à deux cents mètres du Mistral. Une porte verte, et au troisième, une fenêtre allumée.",
+    "en": "The rue de Lancry, two hundred metres from Le Mistral. A green door, and on the third floor, a lit window.",
+    "de": "Die Rue de Lancry, zweihundert Meter vom Mistral. Eine grüne Tür, und im dritten Stock ein erleuchtetes Fenster."
+  },
+  "start": {
+    "pos": [-53.0, -3.0],
+    "look": [-64.5, 5.5, 6.0]
+  },
+  "floors": [
+    {
+      "key": "chaussee",
+      "shape": [
+        [-86.0, -4.2],
+        [-46.0, -4.2],
+        [-46.0, 4.2],
+        [-86.0, 4.2]
+      ],
+      "y": 0.0,
+      "finish": "cobbles",
+      "zone": "out",
+      "drawn": false
+    },
+    {
+      "key": "trottoir_sud",
+      "shape": [
+        [-86.0, 4.2],
+        [-46.0, 4.2],
+        [-46.0, 6.0],
+        [-86.0, 6.0]
+      ],
+      "y": 0.14,
+      "finish": "stone",
+      "zone": "out",
+      "drawn": false
+    },
+    {
+      "key": "trottoir_nord",
+      "shape": [
+        [-86.0, -6.0],
+        [-46.0, -6.0],
+        [-46.0, -4.2],
+        [-86.0, -4.2]
+      ],
+      "y": 0.14,
+      "finish": "stone",
+      "zone": "out",
+      "drawn": false
+    }
+  ],
+  "flights": [],
+  "walls": [],
+  "ceilings": [],
+  "doors": [],
+  "windows": [],
+  "holes": [],
+  "rails": [],
+  "lights": [],
+  "switches": [],
+  "timers": {},
+  "things": [
+    {
+      "kind": "intercom",
+      "at": [-62.75, 1.44, 6.0],
+      "rot": 3.141592653589793,
+      "zone": "out",
+      "text": ["Martin", "Roux", "Bernard", "Simon", "Girard", "Petit", "Durand", "Michel", "Moreau", "Garcia", "Fournier", "Mercier"],
+      "look": { "fr": "Une lourde porte verte. À l'interphone, douze noms. Aucun ne commence par L.", "en": "A heavy green door. On the intercom, twelve names. None of them begins with L.", "de": "Eine schwere grüne Tür. An der Sprechanlage zwölf Namen. Keiner fängt mit L an." },
+      "did": { "fr": "Tu as lu les douze noms de l'interphone.", "en": "You read the twelve names on the intercom.", "de": "Du hast die zwölf Namen an der Sprechanlage gelesen." }
+    },
+    {
+      "kind": "gaze",
+      "at": [-66.875, 10.31, 5.9],
+      "rot": 3.141592653589793,
+      "zone": "out",
+      "look": { "fr": "Au troisième, une fenêtre allumée, les rideaux à moitié ouverts. Derrière, un chevalet.", "en": "On the third floor, a lit window, the curtains half open. Behind it, an easel.", "de": "Im dritten Stock ein erleuchtetes Fenster, die Vorhänge halb offen. Dahinter eine Staffelei." },
+      "did": { "fr": "Tu as levé les yeux vers la fenêtre du troisième.", "en": "You looked up at the third-floor window.", "de": "Du hast zum Fenster im dritten Stock hochgeschaut." }
+    }
+  ],
+  "courts": [],
+  "quarter": true,
+  "marks": {
+    "fenetre": [-66.9, 0.0, 1.0],
+    "porte": [-61.4, 0.14, 5.2],
+    "interphone": [-62.75, 0.14, 5.3],
+    "coin": [-50.0, 0.0, 0.0]
+  },
+  "provenance": {
+    "canon": "docs/story/season-1/10-lieux-et-images.md",
+    "place": "Rue de Lancry · season-2 seed",
+    "scenes": ["T8 · À suivre… (1): the lit window at dusk", "E2 · Day A · garder: ep2.a.g.p1 to the hook"],
+    "brief_round": 3
+  }
+}

@@ -12,6 +12,7 @@ from app.db.models.error import UserError
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
 from app.services.auto_context_service import SessionContext  # [NEW]
+from app.services.chrome_language import user_mother_tongue_raw
 from app.services.llm_service import LLMResult
 from app.services.progress import ProgressService, QueueItem
 
@@ -376,7 +377,7 @@ class ConversationGenerator:
 
         lines: list[str] = [
             f"Learner proficiency level: {learner_level}",
-            f"Learner native language: {user.native_language or 'unknown'}",
+            f"Learner native language: {user_mother_tongue_raw(user) or 'unknown'}",
         ]
 
         if due_errors:

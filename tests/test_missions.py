@@ -517,8 +517,10 @@ def test_custom_mission_e2e_create_turn_complete_and_queue(client: TestClient, d
     assert recap["vocabulary_credit"]["produced_correct"] >= 1
     # WP-74: missions no longer invent catalogue rows from the learner's text.
     assert recap["saved_to_srs"]["saved_count"] == 0
-    assert recap["minted_collectibles"][0]["kind"] == "logo_token"
-    assert recap["minted_collectibles"][0]["source_kind"] == "mission"
+    # #590: the one turn above was never answered, so the letter is finished without a token
+    # (the answered case is held in tests/test_courrier_unanswered.py).
+    assert recap["measured"]["reply_pending"] is True
+    assert recap["minted_collectibles"] == []
 
 
 def test_mission_submit_and_turns_are_persisted(client: TestClient, db_session, monkeypatch):
@@ -557,7 +559,9 @@ def test_mission_submit_and_turns_are_persisted(client: TestClient, db_session, 
     # WP-74: no grader in tests -> a non-empty answer is "unassessed", never "accepted".
     assert submit.json()["correction"]["verdict"] in {"unassessed", "partial", "needs_revision"}
     assert "the learner" not in str(submit.json()["correction"]).lower()
+    assert (submit.json()["check"]["outcome"], submit.json()["check"]["counts"]) == ("not_checked", False)
     assert turn.status_code == 200
+    assert (turn.json()["check"]["outcome"], turn.json()["check"]["counts"]) == ("not_checked", False)
     assert turn.json()["user_turn"]["role"] == "user"
     # #397: with no model nobody can answer; the stock line is not stored as the character's turn.
     assert turn.json()["assistant_turn"] == {}
@@ -799,7 +803,9 @@ def test_mission_near_realtime_correction_uses_local_rules_without_llm(db_sessio
         near_realtime=True,
     )
 
-    assert correction["verdict"] == "needs_revision"
+    # #333 / D4: rules add fixes, never a verdict or a score.
+    assert correction["verdict"] == "unassessed"
+    assert not correction["score_0_4"]
     assert correction["corrected_answer"] == "Vous avez un problème?"
     assert correction["correction_debug"]["prompt_version"] == "mission-correction-fast-v1"
     assert correction["correction_debug"]["near_realtime"] is True
@@ -1697,7 +1703,8 @@ def test_a_courrier_reply_with_the_corrector_down_still_gets_the_real_correction
     assert ("sonné", "sonner") in pairs
     assert ("vend", "vends") in pairs
     assert all(item["learner_text"] in text for item in correction["errata"])
-    assert correction["verdict"] != "unassessed"
+    # #333 / D4: the fixes are real and listed; nobody graded the reply.
+    assert correction["verdict"] == "unassessed"
     assert correction["corrected_answer"] != text
 
 

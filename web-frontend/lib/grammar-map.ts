@@ -15,7 +15,7 @@
 
 import type { RuleCardData } from './rule-card';
 import { ruleShape, type RuleShape } from './forge-progress';
-import type { MapStage } from './momentum-copy';
+import { fillMomentum, type MapStage } from './momentum-copy';
 
 export const MAP_STAGES: MapStage[] = ['ghost', 'introduced', 'proficient', 'held'];
 
@@ -41,18 +41,40 @@ export type GrammarMapRule = {
   coach?: { id: string; name?: string | null } | null;
 };
 
+/** What a payload carries to name a rule: the map, the Cahier's notebook rows, Éclair's pairs. */
+export type RuleTitleSource = {
+  title_fr?: string | null;
+  /** `concept_title(concept, chrome language)`, the rule card's title (#561). */
+  title_native?: string | null;
+  display_title?: string | null;
+  name?: string | null;
+};
+
 /**
  * What the Cahier calls a rule: the title in the learner's chrome language, the same
  * one the rule card shows (#561); the French title only when the server sent none.
  * `lang` is the language the text is in, for the element's `lang` attribute.
+ *
+ * The one reader of a rule's title on the Cahier's and Éclair's screens: the guard in
+ * components/cahiers/cahier-rule-title.test.js fails on a component that reads
+ * `title_fr` itself.
  */
-export function ruleTitle(
-  rule: { title_fr: string; title_native?: string | null },
+export function ruleTitle(rule: RuleTitleSource, language: string): { text: string; lang: string } {
+  const french = String(rule.title_fr || '').trim();
+  const native = String(rule.title_native || '').trim();
+  if (native) return { text: native, lang: native === french ? 'fr' : language };
+  if (french) return { text: french, lang: 'fr' };
+  return { text: String(rule.display_title || rule.name || '').trim(), lang: language };
+}
+
+/** Éclair's «{a} or {b}», each rule named by `ruleTitle`; `lang` is shared when both titles are. */
+export function eclairPairLabel(
+  rules: ReadonlyArray<RuleTitleSource | null | undefined> | null | undefined,
+  template: string,
   language: string,
 ): { text: string; lang: string } {
-  const native = String(rule.title_native || '').trim();
-  if (!native) return { text: rule.title_fr, lang: 'fr' };
-  return { text: native, lang: native === rule.title_fr ? 'fr' : language };
+  const [a, b] = [rules?.[0], rules?.[1]].map((rule) => (rule ? ruleTitle(rule, language) : { text: '', lang: language }));
+  return { text: fillMomentum(template, { a: a.text, b: b.text }), lang: a.lang === b.lang ? a.lang : language };
 }
 
 export type GrammarMapBand = { band: string; rules: GrammarMapRule[] };
@@ -60,7 +82,7 @@ export type GrammarMapBand = { band: string; rules: GrammarMapRule[] };
 export type EclairPair = {
   pair: string;
   concept_ids: [number, number] | number[];
-  rules: Array<{ concept_id: number; title_fr: string; category?: string | null; subskill?: string | null; name?: string | null }>;
+  rules: Array<{ concept_id: number; title_fr: string; title_native?: string | null; category?: string | null; subskill?: string | null; name?: string | null }>;
   best: number;
   plays: number;
 };

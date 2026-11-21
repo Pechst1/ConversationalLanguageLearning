@@ -464,7 +464,7 @@
         "right": "Je [me suis] levé à sept heures."
       },
       "more": {
-        "en": "It works like aller: same auxiliary, same agreement. German says ich habe mich…, with haben, so watch out: French always uses être here. The negation goes around pronoun + être: je ne me suis pas levé.",
+        "en": "It works like aller: same auxiliary, same agreement. Never reach for avoir: French always uses être here. The negation goes around pronoun + être: je ne me suis pas levé.",
         "de": "Es funktioniert wie bei aller: gleiches Hilfsverb, gleiche Angleichung. Im Deutschen heißt es „ich habe mich…“, mit haben; im Französischen steht hier immer être. Die Verneinung steht um Pronomen + être: je ne me suis pas levé.",
         "fr": "Ça marche comme aller : même auxiliaire, même accord. La négation entoure le pronom et être : je ne me suis pas levé."
       },
@@ -4325,10 +4325,10 @@
           }
         },
         {
-          "fr": "Je te présente mon [nouvel] ami, Karim.",
+          "fr": "Je te présente Karim, mon [nouvel] ami.",
           "tr": {
-            "en": "This is my new friend, Karim.",
-            "de": "Das ist mein neuer Freund Karim."
+            "en": "This is Karim, my new friend.",
+            "de": "Das ist Karim, mein neuer Freund."
           }
         },
         {

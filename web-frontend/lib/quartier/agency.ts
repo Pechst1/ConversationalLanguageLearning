@@ -15,6 +15,7 @@
  * speaks; Margaux deflects anything near the fire; «L.» is never named.
  */
 import { matches } from './memory';
+import { CAST, CAST_NAMES } from '../generated/cast';
 import type { CastId, Effect, Storylet, Value, Words } from './memory';
 
 /* ------------------------------------------------------------------------------------------ */
@@ -47,6 +48,12 @@ const w = (fr: string, en: string, de: string): Words => ({ fr, en, de });
 const regard = (who: CastId, delta: number): Effect => ({ kind: 'regard', who, delta });
 const fact = (key: string, value: Value): Effect => ({ kind: 'fact', key, value });
 const journal = (words: Words, who?: CastId): Effect => ({ kind: 'journal', words, who });
+/**
+ * A line that restates what the learner said or meant («Tu as dit que…»). True of a card chosen
+ * word for word; of a free answer the engine routed here it is only the route's summary, so the
+ * carnet says `heard` instead (what happened in the room, from the characters' side), or nothing.
+ */
+const said = (words: Words, heard: Words | null, who?: CastId): Effect => ({ kind: 'journal', words, who, said: true, ...(heard ? { heard } : {}) });
 
 /** The effects of each reply of the day, by `turn.reply`. */
 export const REPLY_EFFECTS: Record<string, Effect[]> = {
@@ -55,13 +62,19 @@ export const REPLY_EFFECTS: Record<string, Effect[]> = {
     regard('margaux_barman', 1),
     regard('marin_leveque', 1),
     regard('lila_bonnet', 1),
-    journal(w("Tu as dit qui tu es : la famille d'Odile.", "You said who you are: Odile's family.", 'Du hast gesagt, wer du bist: Odiles Familie.')),
+    said(
+      w("Tu as dit qui tu es : la famille d'Odile.", "You said who you are: Odile's family.", 'Du hast gesagt, wer du bist: Odiles Familie.'),
+      w("Gus a compris : tu es de la famille d'Odile.", "Gus took it that you're Odile's family.", 'Gus hat verstanden: Du gehörst zu Odiles Familie.'),
+    ),
   ],
   'a.turn1.b': [
     fact('t1.told', 'selling'),
     regard('augustin_de_roncourt', -1),
     regard('marin_leveque', -1),
-    journal(w('Tu as dit que tu viens pour vendre.', "You said you've come to sell.", 'Du hast gesagt, dass du zum Verkaufen gekommen bist.')),
+    said(
+      w('Tu as dit que tu viens pour vendre.', "You said you've come to sell.", 'Du hast gesagt, dass du zum Verkaufen gekommen bist.'),
+      w("Gus a compris : tu viens pour l'appartement.", "Gus took it that you've come about the flat.", 'Gus hat verstanden: Du kommst wegen der Wohnung.'),
+    ),
   ],
   'a.turn1.c': [
     fact('t1.told', 'family'),
@@ -69,33 +82,40 @@ export const REPLY_EFFECTS: Record<string, Effect[]> = {
     regard('lila_bonnet', 1),
     regard('margaux_barman', 1),
     regard('marin_leveque', 1),
-    journal(w('Tu as montré la clé à la cigale. Lila a compris.', 'You showed the key ring with the cicada. Lila understood.', 'Du hast den Schlüsselbund mit der Zikade gezeigt. Lila hat verstanden.')),
+    said(
+      w('Tu as montré la clé à la cigale. Lila a compris.', 'You showed the key ring with the cicada. Lila understood.', 'Du hast den Schlüsselbund mit der Zikade gezeigt. Lila hat verstanden.'),
+      w("Lila a compris : la clé était à Odile.", "Lila understood: the key was Odile's.", 'Lila hat verstanden: Der Schlüssel gehörte Odile.'),
+    ),
   ],
   'a.turn1.d': [
     fact('t1.told', 'question'),
     regard('augustin_de_roncourt', 1),
     regard('lila_bonnet', 1),
-    journal(w('Tu as retourné la question à Gus. Ça lui a plu.', 'You turned the question back on Gus. He liked it.', 'Du hast Gus die Frage zurückgegeben. Das hat ihm gefallen.'), 'augustin_de_roncourt'),
+    said(w('Tu as retourné la question à Gus. Ça lui a plu.', 'You turned the question back on Gus. He liked it.', 'Du hast Gus die Frage zurückgegeben. Das hat ihm gefallen.'), null, 'augustin_de_roncourt'),
   ],
   'a.turn2.tonight': [
     fact('t1.going_up', 'tonight'),
-    journal(w('Tu voulais monter ce soir. Margaux a dit : pas ce soir.', 'You wanted to go up tonight. Margaux said: not tonight.', 'Du wolltest heute Abend hochgehen. Margaux hat gesagt: nicht heute Abend.'), 'margaux_barman'),
+    said(
+      w('Tu voulais monter ce soir. Margaux a dit : pas ce soir.', 'You wanted to go up tonight. Margaux said: not tonight.', 'Du wolltest heute Abend hochgehen. Margaux hat gesagt: nicht heute Abend.'),
+      w('Margaux a dit : pas ce soir.', 'Margaux said: not tonight.', 'Margaux hat gesagt: nicht heute Abend.'),
+      'margaux_barman',
+    ),
   ],
   'a.turn2.dont_know': [
     fact('t1.going_up', 'not_yet'),
     regard('margaux_barman', 1),
-    journal(w('Tu ne sais pas encore si tu vas monter. Margaux trouve ça bien.', "You don't know yet whether you'll go up. Margaux thinks that's good.", 'Du weißt noch nicht, ob du hochgehst. Margaux findet das gut.'), 'margaux_barman'),
+    said(w('Tu ne sais pas encore si tu vas monter. Margaux trouve ça bien.', "You don't know yet whether you'll go up. Margaux thinks that's good.", 'Du weißt noch nicht, ob du hochgehst. Margaux findet das gut.'), null, 'margaux_barman'),
   ],
   'a.turn2.sell_and_leave': [
     fact('t1.going_up', 'never'),
     fact('t1.plans', 'sell_and_leave'),
     regard('marin_leveque', -1),
-    journal(w('Tu as dit : je vends et je pars dans une semaine.', "You said: I'm selling and leaving in a week.", 'Du hast gesagt: Ich verkaufe und fahre in einer Woche.')),
+    said(w('Tu as dit : je vends et je pars dans une semaine.', "You said: I'm selling and leaving in a week.", 'Du hast gesagt: Ich verkaufe und fahre in einer Woche.'), null),
   ],
   'a.turn2.clumsy': [
     fact('t1.going_up', 'tomorrow'),
     regard('margaux_barman', 2),
-    journal(w('Tu as dit que tu as un peu peur. Margaux aussi.', "You said you're a little afraid. So is Margaux.", 'Du hast gesagt, dass du ein bisschen Angst hast. Margaux auch.'), 'margaux_barman'),
+    said(w('Tu as dit que tu as un peu peur. Margaux aussi.', "You said you're a little afraid. So is Margaux.", 'Du hast gesagt, dass du ein bisschen Angst hast. Margaux auch.'), null, 'margaux_barman'),
   ],
   'a.cafe.drink': [
     fact('t1.cafe', 'drank'),
@@ -105,13 +125,21 @@ export const REPLY_EFFECTS: Record<string, Effect[]> = {
   ],
   'a.cafe.declined': [
     fact('t1.cafe', 'declined'),
-    journal(w("Tu as dit non merci. Margaux a poussé la tasse vers le tabouret d'Odile.", "You said no thank you. Margaux pushed the cup toward Odile's stool.", 'Du hast nein danke gesagt. Margaux hat die Tasse zu Odiles Hocker geschoben.'), 'margaux_barman'),
+    said(
+      w("Tu as dit non merci. Margaux a poussé la tasse vers le tabouret d'Odile.", "You said no thank you. Margaux pushed the cup toward Odile's stool.", 'Du hast nein danke gesagt. Margaux hat die Tasse zu Odiles Hocker geschoben.'),
+      w("Margaux a poussé la tasse vers le tabouret d'Odile.", "Margaux pushed the cup toward Odile's stool.", 'Margaux hat die Tasse zu Odiles Hocker geschoben.'),
+      'margaux_barman',
+    ),
   ],
   'a.cafe.refused': [
     fact('t1.cafe', 'refused'),
     regard('margaux_barman', -2),
     regard('augustin_de_roncourt', -1),
-    journal(w('Tu as refusé le café sèchement. Margaux a repris la tasse.', 'You turned the coffee down curtly. Margaux took the cup back.', 'Du hast den Kaffee schroff abgelehnt. Margaux hat die Tasse zurückgenommen.'), 'margaux_barman'),
+    said(
+      w('Tu as refusé le café sèchement. Margaux a repris la tasse.', 'You turned the coffee down curtly. Margaux took the cup back.', 'Du hast den Kaffee schroff abgelehnt. Margaux hat die Tasse zurückgenommen.'),
+      w('Margaux a repris la tasse.', 'Margaux took the cup back.', 'Margaux hat die Tasse zurückgenommen.'),
+      'margaux_barman',
+    ),
   ],
   'a.key.take': [
     { kind: 'item', id: 'cle_cigale', holder: 'toi' },
@@ -125,10 +153,11 @@ export const REPLY_EFFECTS: Record<string, Effect[]> = {
     journal(w('Tu as laissé la clé à Margaux, derrière la caisse.', 'You left the key with Margaux, behind the till.', 'Du hast den Schlüssel bei Margaux gelassen, hinter der Kasse.'), 'margaux_barman'),
   ],
   // T1 day b, «La lettre»
-  'b.turn1.a': [journal(w('Tu as dit à Camille : je vends et je rentre.', "You told Camille: I'm selling and going home.", 'Du hast Camille gesagt: Ich verkaufe und fahre nach Hause.'), 'camille_marchand')],
-  'b.turn1.b': [journal(w('Tu as dit à Camille : pas encore.', 'You told Camille: not yet.', 'Du hast Camille gesagt: noch nicht.'), 'camille_marchand')],
-  'b.turn1.c': [regard('camille_marchand', 1), journal(w('Tu as demandé à Camille : plus simple pour qui ?', 'You asked Camille: simpler for whom?', 'Du hast Camille gefragt: einfacher für wen?'), 'camille_marchand')],
-  'b.turn1.d': [journal(w('Tu as dit à Camille : pas ce soir.', 'You told Camille: not tonight.', 'Du hast Camille gesagt: nicht heute Abend.'), 'camille_marchand')],
+  'b.turn1.a': [said(w('Tu as dit à Camille : je vends et je rentre.', "You told Camille: I'm selling and going home.", 'Du hast Camille gesagt: Ich verkaufe und fahre nach Hause.'), null, 'camille_marchand')],
+  'b.turn1.b': [said(w('Tu as dit à Camille : pas encore.', 'You told Camille: not yet.', 'Du hast Camille gesagt: noch nicht.'), null, 'camille_marchand')],
+  'b.turn1.c': [regard('camille_marchand', 1), said(w('Tu as demandé à Camille : plus simple pour qui ?', 'You asked Camille: simpler for whom?', 'Du hast Camille gefragt: einfacher für wen?'), null, 'camille_marchand')],
+  'b.turn1.d': [said(w('Tu as dit à Camille : pas ce soir.', 'You told Camille: not tonight.', 'Du hast Camille gesagt: nicht heute Abend.'), null, 'camille_marchand')],
+  'b.turn1.e': [said(w('Tu as dit à Camille : je ne vends pas.', "You told Camille: I'm not selling.", 'Du hast Camille gesagt: Ich verkaufe nicht.'), null, 'camille_marchand')],
   'b.letter.margaux': [regard('margaux_barman', 1), journal(w('Tu as montré la lettre à Margaux.', 'You showed the letter to Margaux.', 'Du hast Margaux den Brief gezeigt.'), 'margaux_barman')],
   'b.letter.lila': [regard('lila_bonnet', 1), journal(w('Tu as montré la lettre à Lila.', 'You showed the letter to Lila.', 'Du hast Lila den Brief gezeigt.'), 'lila_bonnet')],
   'b.letter.gus': [journal(w('Tu as montré la lettre à Gus. Tout le café connaît le prix.', 'You showed the letter to Gus. The whole café knows the price.', 'Du hast Gus den Brief gezeigt. Das ganze Café kennt den Preis.'), 'augustin_de_roncourt')],
@@ -184,6 +213,11 @@ export const TEXT_SUITCASE: PhoneText = {
 
 export const MOMENT = {
   caption: w("Tu as un moment. Parle à quelqu'un, ou attends.", 'You have a moment. Talk to someone, or wait.', 'Du hast einen Moment. Sprich mit jemandem, oder warte.'),
+  /**
+   * The same moment with nobody here who can be talked to: it invites no talk. Round 4 (third walk,
+   * 19 Nov, day 1): «Parle à quelqu'un» over a camera that faced a wall, nobody in view.
+   */
+  wait: w('Tu as un moment. Regarde autour de toi, puis continue.', 'You have a moment. Look around, then go on.', 'Du hast einen Moment. Schau dich um, dann geh weiter.'),
   go: 'Continuer',
 };
 
@@ -216,10 +250,13 @@ export interface Person {
 
 const learn = (key: string, words: Words, who: CastId): Effect => ({ kind: 'learn', key, words, who });
 
+/** How the learner opens with a person: the registry's word (#147), not this file's. */
+const addressOf = (id: CastId): 'tu' | 'vous' => CAST[id].address ?? 'vous';
+
 export const PEOPLE: Record<CastId, Person> = {
   margaux_barman: {
     id: 'margaux_barman',
-    register: 'tu',
+    register: addressOf('margaux_barman'),
     hello: [
       { id: 'margaux.key', when: { 'item.cle_cigale': 'margaux_barman' }, salience: 3, say: w('Elle est derrière la caisse.', "It's behind the till.", 'Er liegt hinter der Kasse.') },
       { id: 'margaux.cold', when: { 't1.cafe': 'refused' }, salience: 2, mood: 'cold', say: w('Oui ?', 'Yes?', 'Ja?') },
@@ -267,7 +304,7 @@ export const PEOPLE: Record<CastId, Person> = {
   },
   augustin_de_roncourt: {
     id: 'augustin_de_roncourt',
-    register: 'vous',
+    register: addressOf('augustin_de_roncourt'),
     hello: [
       { id: 'gus.selling', when: { 't1.told': 'selling' }, salience: 3, mood: 'cold', say: w('Ah. La personne qui vend.', "Ah. The person who's selling.", 'Ah. Die Person, die verkauft.') },
       { id: 'gus.rude', when: { 't1.cafe': 'refused' }, salience: 2, say: w('Le café crème. Quelle histoire.', 'The café crème. What a business.', 'Der Café Crème. Was für eine Geschichte.') },
@@ -326,7 +363,7 @@ export const PEOPLE: Record<CastId, Person> = {
   },
   marin_leveque: {
     id: 'marin_leveque',
-    register: 'tu',
+    register: addressOf('marin_leveque'),
     hello: [
       { id: 'marin.fed', when: { 'marin.fed': true }, salience: 3, say: w('Il reste de la soupe, hein.', "There's soup left, you know.", 'Es ist noch Suppe da.') },
       { id: 'marin.family', when: { 't1.told': 'family' }, salience: 2, mood: 'happy', say: w('Ma grand-mère disait toujours : « La pluie apporte la famille. »', 'My grandmother always said: “Rain brings family.”', 'Meine Großmutter sagte immer: „Regen bringt die Familie.“') },
@@ -373,7 +410,7 @@ export const PEOPLE: Record<CastId, Person> = {
   },
   lila_bonnet: {
     id: 'lila_bonnet',
-    register: 'tu',
+    register: addressOf('lila_bonnet'),
     hello: [
       { id: 'lila.family', when: { 't1.told': 'family' }, salience: 2, mood: 'happy', say: w("Salut, l'héritage !", "Hi there, l'héritage!", "Hallo, l'héritage!") },
       { id: 'lila.selling', when: { 't1.told': 'selling' }, salience: 2, mood: 'malice', say: w('Sept sur vingt, ta soirée.', 'Seven out of twenty, your evening.', 'Sieben von zwanzig, dein Abend.') },
@@ -436,7 +473,7 @@ export const PEOPLE: Record<CastId, Person> = {
   },
   camille_marchand: {
     id: 'camille_marchand',
-    register: 'vous',
+    register: addressOf('camille_marchand'),
     hello: [{ id: 'camille.hello', say: w('Bonsoir.', 'Good evening.', 'Guten Abend.') }],
     intents: [
       {
@@ -525,6 +562,36 @@ export function helloOf(who: CastId, state: Record<string, Value>): Hello {
  * What the quarter keeps when the engine heard one of `who`'s lines in free talk: the regard and
  * the carnet's line. The engine sends what was learned and the flags itself.
  */
+/** How the engine took an answer: a route it heard as meant (`understood`), from a card chosen word for word (`chosen`). */
+export interface HeardAs {
+  understood?: boolean;
+  chosen?: boolean;
+}
+
+/**
+ * What a reply the engine routed changes (`REPLY_EFFECTS`). The route's facts, regard and objects
+ * follow the engine either way. Its carnet lines:
+ * - a card chosen word for word (`true`, or `{ chosen }`): all of them, «Tu as dit…» included;
+ * - a free answer the engine heard as this route (`{ understood }`): the lines of what happened
+ *   («Tu as gardé la clé.»); a line that restates what the learner said (`said`) gives way to what
+ *   the room took it to mean (`heard`, «Gus a compris : tu viens pour l'appartement.») or is left out;
+ * - the turn's fallback, or anything not known: no line at all.
+ * Round 2 (walk 17 Nov): «Tu as dit que tu viens pour vendre» of a fallback route. Round 3 (second
+ * walk): the same line again, of «Je suis Jonas. Je venir pour la apartement.» which the engine did
+ * route to b (`heard.meant` «came to sell, or the flat is theirs»): the route's summary, not the
+ * learner's words.
+ */
+export function replyEffects(turnId: string, replyId: string, heard: boolean | HeardAs | undefined): Effect[] {
+  const effects = REPLY_EFFECTS[`${turnId}.${replyId}`] ?? [];
+  const as: HeardAs = typeof heard === 'boolean' ? { understood: heard, chosen: heard } : heard ?? {};
+  if (as.chosen) return effects;
+  if (!as.understood) return effects.filter((e) => e.kind !== 'journal');
+  return effects.flatMap((e): Effect[] => {
+    if (e.kind !== 'journal' || !e.said) return [e];
+    return e.heard ? [{ kind: 'journal', words: e.heard, who: e.who }] : [];
+  });
+}
+
 export function heardEffects(who: CastId, heard: string | null): Effect[] {
   const intent = heard ? PEOPLE[who]?.intents.find((i) => i.id === heard) : undefined;
   return (intent?.effects ?? []).filter((e) => e.kind === 'regard' || e.kind === 'journal');
@@ -583,13 +650,8 @@ export const WHILE_AWAY: Bark[] = [
 /* the carnet's words                                                                         */
 /* ------------------------------------------------------------------------------------------ */
 
-export const NAMES: Record<CastId, string> = {
-  augustin_de_roncourt: 'Gus',
-  marin_leveque: 'Marin',
-  lila_bonnet: 'Lila',
-  margaux_barman: 'Margaux',
-  camille_marchand: 'Camille',
-};
+/** The cast's names, from the server's registry (#147). */
+export const NAMES: Record<CastId, string> = CAST_NAMES;
 
 /** How someone sees you, in a sentence that names them and never agrees with you. */
 export function regardWords(who: CastId, r: number): Words {

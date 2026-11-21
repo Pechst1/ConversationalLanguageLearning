@@ -3,7 +3,7 @@
 // owner's ports (3000, 8000, 8010, 8011) or databases: ports are picked free, the
 // database name is atelier_walk_<timestamp>, and everything is torn down at the end.
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, createWriteStream, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, createWriteStream, readFileSync, rmSync } from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -35,7 +35,7 @@ export async function freePort() {
   throw new Error('no free port found');
 }
 
-function python() {
+export function python() {
   if (process.env.WALK_PYTHON) return process.env.WALK_PYTHON;
   const venv = path.join(REPO_ROOT, 'venv/bin/python');
   return existsSync(venv) ? venv : 'python';
@@ -77,15 +77,72 @@ async function waitFor(url, { timeoutMs = 120000, ok = (r) => r.status < 500 } =
   throw new Error(`timed out waiting for ${url}: ${last}`);
 }
 
+/** The pages the walk opens (its web.log's «Compiling …» lines), compiled before it plays. */
+export const WARM_ROUTES = [
+  '/atelier',
+  '/missions',
+  '/graphic-novel',
+  '/vocabulary',
+  '/vocabulary/review',
+  '/fertig',
+  '/settings',
+  '/audio-session',
+  '/auth/signin',
+  '/walk-warm-not-found',
+];
+
+/**
+ * Production's story flags, read from `render.yaml`: every `STORY_*` key with its value.
+ * The walk server runs with them, so CI plays the story as production serves it (the scene
+ * record, the day contract and its re-ask, the stand-in page, the shared pages). Both
+ * services carry the same values; a manifest where they differ is refused, since the walk
+ * could match only one of them. `stack.test.mjs` fails when a key is not passed on.
+ */
+export function productionStoryFlags(text = readFileSync(path.join(REPO_ROOT, 'render.yaml'), 'utf8')) {
+  const flags = {};
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i += 1) {
+    const key = lines[i].match(/^\s*-\s*key:\s*(STORY_[A-Z0-9_]+)\s*$/);
+    if (!key) continue;
+    const value = (lines[i + 1] || '').match(/^\s*value:\s*(?:"([^"]*)"|'([^']*)'|(\S+))\s*$/);
+    if (!value) throw new Error(`render.yaml: ${key[1]} has no literal value on the next line`);
+    const v = value[1] ?? value[2] ?? value[3];
+    if (key[1] in flags && flags[key[1]] !== v) {
+      throw new Error(`render.yaml: ${key[1]} is «${flags[key[1]]}» on one service and «${v}» on another`);
+    }
+    flags[key[1]] = v;
+  }
+  return flags;
+}
+
+/** The walk API's environment: the caller's, the throwaway database, then production's story flags. */
+export function walkApiEnv({ dbUrl, tokenMinutes = 1, comptoir = false, web, base = process.env, storyFlags = productionStoryFlags() }) {
+  return {
+    ...base,
+    DATABASE_URL: dbUrl,
+    ACCESS_TOKEN_EXPIRE_MINUTES: String(tokenMinutes),
+    ...(comptoir ? { REVUE_COMPTOIR_ENABLED: 'true' } : {}),
+    BACKEND_CORS_ORIGINS: JSON.stringify([web, web.replace('localhost', '127.0.0.1')]),
+    // Last: a shell that set one of these differently does not walk another story.
+    ...storyFlags,
+  };
+}
+
 export async function startStack({ logDir, secret, live = false, tokenMinutes = 1, revue = false, comptoir = false }) {
   if (live) throw new Error('--live is not wired up in this harness: it would make paid model calls.');
   mkdirSync(logDir, { recursive: true });
-  const dbName = `atelier_walk_${Date.now()}`;
+  // Two walks started in the same millisecond (two shards side by side) took one name,
+  // and the loser's teardown dropped the winner's database: a random tail, and a stack
+  // drops only a database it created.
+  const dbName = `atelier_walk_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
+  let created = false;
   const { admin, app: dbUrl } = pgUrls(dbName);
   const apiPort = await freePort();
   const webPort = await freePort();
   const children = [];
-  const stack = { dbName, apiPort, webPort, children };
+  // dbUrl: the season walk's fast-forward (scripts/walk_fast_forward.py) reads the learner's
+  // season state from the same throwaway database.
+  const stack = { dbName, dbUrl, apiPort, webPort, children };
   // Test data only, on the walk's own throwaway database (the name is checked below).
   stack.sql = (statement) => pgAdmin(dbUrl, statement);
 
@@ -98,7 +155,7 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
     }
     await sleep(800);
     try {
-      pgAdmin(admin, `DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
+      if (created) pgAdmin(admin, `DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
     } catch (e) {
       console.error(`[walk] could not drop ${dbName}: ${e.message}`);
     }
@@ -109,6 +166,7 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
   try {
     if (!dbName.startsWith('atelier_walk_')) throw new Error('refusing an unexpected database name');
     pgAdmin(admin, `CREATE DATABASE ${dbName}`);
+    created = true;
     const t0 = Date.now();
     // `heads`: parallel work packages branch the migration graph until a merge revision
     // lands; the throwaway database takes every branch (WALK_ALEMBIC_TARGET overrides).
@@ -138,13 +196,7 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
     const server = revue || comptoir ? 'web-frontend/e2e/lib/carte_server.py' : 'scripts/dev_walk_server.py';
     const api = spawn(python(), [server, '--port', String(apiPort)], {
       cwd: REPO_ROOT,
-      env: {
-        ...process.env,
-        DATABASE_URL: dbUrl,
-        ACCESS_TOKEN_EXPIRE_MINUTES: String(tokenMinutes),
-        ...(comptoir ? { REVUE_COMPTOIR_ENABLED: 'true' } : {}),
-        BACKEND_CORS_ORIGINS: JSON.stringify([web, `http://127.0.0.1:${webPort}`]),
-      },
+      env: walkApiEnv({ dbUrl, tokenMinutes, comptoir, web }),
       detached: true,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -173,6 +225,14 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
     next.stderr.pipe(webLog);
     children.push(next);
     await waitFor(`${web}/api/auth/csrf`, { timeoutMs: 120000, ok: (r) => r.ok });
+    // The dev server compiles a page the first time it is asked for, and a request in
+    // flight while it writes its manifests can fail: main's 7-day walk (run 43027305551,
+    // A1 day 2) got a 500 on GET /api/auth/session («SyntaxError: Unexpected end of JSON
+    // input») while /vocabulary/review compiled for the first time. Every page the walk
+    // opens is compiled here, before any learner plays, so no walk request meets a compile.
+    for (const route of WARM_ROUTES) {
+      await fetch(`${web}${route}`, { redirect: 'manual', signal: AbortSignal.timeout(120000) }).catch(() => {});
+    }
 
     stack.web = web;
     stack.api = `http://127.0.0.1:${apiPort}/api/v1`;

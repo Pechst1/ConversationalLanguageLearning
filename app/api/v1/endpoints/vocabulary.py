@@ -33,11 +33,12 @@ from app.schemas.vocabulary import (
     VocabularyListResponse,
     VocabularyWordRead,
 )
+from app.services.chrome_language import user_mother_tongue
 from app.services.conjugation import ConjugationService
 from app.services.core_lexicon import CORE_DECK
 from app.services.daily_session import DAY_DECK_LIMIT, DAY_DECK_NEW_WORDS
 from app.services.daily_words import DailyWordSlateService
-from app.services.glosses import gloss_payload, normalize_language
+from app.services.glosses import gloss_payload
 from app.services.progress import ProgressService
 from app.services.vocabulary import VocabularyNotFoundError, VocabularyService
 from app.services.vocabulary_coverage import VocabularyCoverageService
@@ -226,7 +227,7 @@ def optional_viewer(
 
 
 def _viewer_language(viewer: User | None) -> str:
-    return normalize_language(getattr(viewer, "native_language", None))
+    return user_mother_tongue(viewer)
 
 
 def _word_payload(word: Any, viewer_language: str) -> dict[str, Any]:
@@ -814,13 +815,12 @@ def _drill_deck(
         if new_room is not None:
             # The room counts only the words already met; the batch's new cards
             # still unanswered take their share of it too, or a reload of the
-            # continuation dealt past the day's cap.
-            waiting = sum(
-                1
-                for item in drill_batch.remaining_items(db, user, list(batch.items or []), reserved_new=reserved_new)
-                if item.get("list") == "new_words"
-            )
-            new_limit = max(0, min(new_limit, new_room - waiting))
+            # continuation dealt past the day's cap. #563: the same room the
+            # «Noch N neue Wörter» offer counts with (vocabulary_pace.next_extra_step).
+            from app.services.vocabulary_pace import more_deck_room
+
+            room = more_deck_room(db, user, room=new_room, batch=batch, reserved=reserved_new)
+            new_limit = min(new_limit, room)
             context_kwargs = {**context_kwargs, "new_limit": new_limit}
     payload = service.get_vocabulary_due_context(**{**context_kwargs, "exclude_new_word_ids": exclude, "now": now})
     served_new = len(payload.get("new_words") or [])
@@ -896,11 +896,13 @@ def _planned_day_deck(
     extras = drill_batch.remaining_items(db, user, day_words.extra_items(batch), reserved_new=reserved_new)
     db.commit()
     payload = service.vocabulary_due_context_from_batch(user=user, items=remaining + extras, now=now)
-    # Today's scene words are flagged (the scene's share of the new-word slots,
-    # app/services/deck_order.py) and every card the scene printed quotes its line.
+    # Today's scene words are flagged (all of them, app/services/deck_order.py) and
+    # every card the scene printed quotes its line, with the sense it has there.
     from app.services.scene_deck import apply_to_day_deck
 
     payload = apply_to_day_deck(db, user, batch, payload, now=now)
+    # P7: the words the learner kept open the deck (app/services/deck_order.py).
+    payload = day_words.mark_kept_cards(batch, payload)
     # The day deck holds the day's whole dose: no continuation inside it.
     payload["new_words_left_today"] = 0
     return payload
@@ -1358,7 +1360,7 @@ def keep_vocabulary_word(
         # the French chrome line and the learner's own-language line.
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=keep_refusal(exc.reason, getattr(current_user, "native_language", None)),
+            detail=keep_refusal(exc.reason, user_mother_tongue(current_user)),
         ) from exc
     db.commit()
     return kept.as_public()

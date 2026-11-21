@@ -3,9 +3,9 @@
  *
  * Three pieces, all pure (no React) so the node tests read them directly:
  *
- *  1. **The walkthrough** — four cards before the very first scene: what the
- *     app is, what the four shapes mean, how to read the progress row at the
- *     top, and what the first day holds. Once per device.
+ *  1. **The walkthrough** — two cards before the very first scene: what the
+ *     app is and what the first day holds (P9: the shapes and the progress row
+ *     teach themselves on the day). Once per device.
  *  2. **The first day's route** — the story first, then La Forge (grammar),
  *     then the words (Lexique). The server keeps the first day to the story
  *     (`_plan_and_bind`, `opening`), and the two others follow it here, in
@@ -18,7 +18,7 @@
  * harmless, and nothing here can block a step when storage is unreachable.
  */
 
-import { ROUTE_STAGE_OF, WORK_STEPS, type RouteStage } from '@/lib/day-order';
+import { ROUTE_STAGE_OF, WORK_STEPS, dayStepOf, type DayWorkKind, type RouteStage } from '@/lib/day-order';
 import type { ControlLanguage } from '@/types/daily-journey';
 import type { ShapeKind } from '@/components/atelier-v2/ui/Shapes';
 
@@ -30,6 +30,7 @@ export type FirstStepKey =
   | 'scene'
   | 'rule'
   | 'recall'
+  | 'practice'
   | 'respond'
   | 'resolution'
   | 'read'
@@ -42,6 +43,7 @@ export const FIRST_STEP_SHAPE: Record<FirstStepKey, ShapeKind> = {
   rule: 'story',
   read: 'story',
   recall: 'reward',
+  practice: 'action',
   desk: 'reward',
   forge: 'reward',
   words: 'reward',
@@ -62,12 +64,6 @@ type FirstStepsCopy = {
     skip: string;
     welcome_title: string;
     welcome_body: string;
-    shapes_title: string;
-    shapes_body: string;
-    shapes: Record<'story' | 'reward' | 'action' | 'done', string>;
-    progress_title: string;
-    progress_body: string;
-    progress_points: string[];
     day_title: string;
     day_body: string;
   };
@@ -101,6 +97,10 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
         title: 'Die Wörter',
         body: 'Kurze Wortübungen. Bei Fehlern siehst du die Lösung.',
       },
+      practice: {
+        title: 'Die Regel im Einsatz',
+        body: 'Kurze Übungen zur Regel von heute. Bei Fehlern siehst du die Lösung.',
+      },
       respond: {
         title: 'Deine Antwort',
         body: 'Antworte auf Französisch, schriftlich oder laut. Die Geschichte reagiert.',
@@ -133,21 +133,6 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       skip: 'Überspringen',
       welcome_title: 'Willkommen im Atelier',
       welcome_body: 'Jeden Tag eine Folge in Paris. Du antwortest auf Französisch, und die Geschichte ändert sich.',
-      shapes_title: 'Die vier Formen',
-      shapes_body: 'Jeder Teil des Tages hat eine Form.',
-      shapes: {
-        story: 'Blauer Kreis: die Szene. Lesen und hören.',
-        reward: 'Gelbes Quadrat: die Wörter. Kurze Übungen.',
-        action: 'Rotes Dreieck: deine Antwort. Du schreibst oder sprichst.',
-        done: 'Schwarzes Quadrat: das Ende. Der Tag ist geschafft.',
-      },
-      progress_title: 'Wo du gerade bist',
-      progress_body: 'Oben auf jeder Seite siehst du, wo du bist.',
-      progress_points: [
-        'Eine Form pro Schritt. Augen zeigen, wo du bist.',
-        'Fertig ist farbig, Kommendes grau.',
-        'Rechts oben: dein Tag füllt sich.',
-      ],
       day_title: 'Dein erster Tag',
       day_body: 'Szene, dann Grammatik, dann deine Wörter. Gelbe Zettel erklären Neues.',
     },
@@ -178,6 +163,10 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       recall: {
         title: 'The words',
         body: 'Quick word drills. A miss shows the answer.',
+      },
+      practice: {
+        title: 'The rule in use',
+        body: 'Quick drills on today’s rule. A miss shows the answer.',
       },
       respond: {
         title: 'Your reply',
@@ -211,21 +200,6 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       skip: 'Skip',
       welcome_title: 'Welcome to the Atelier',
       welcome_body: 'One episode a day, set in Paris. You answer in French, and the story changes.',
-      shapes_title: 'The four shapes',
-      shapes_body: 'Each part of the day has a shape.',
-      shapes: {
-        story: 'Blue circle: the scene. Read and listen.',
-        reward: 'Yellow square: the words. Quick exercises.',
-        action: 'Red triangle: your reply. You write or speak.',
-        done: 'Black square: the ending. The day is done.',
-      },
-      progress_title: 'Where you are',
-      progress_body: 'The top of each page shows where you are.',
-      progress_points: [
-        'One shape per step. Eyes mark where you are.',
-        'Done is colour, ahead is grey.',
-        'Top right: your day fills in.',
-      ],
       day_title: 'Your first day',
       day_body: 'Scene, then grammar, then your words. Yellow notes explain new things.',
     },
@@ -255,7 +229,11 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       },
       recall: {
         title: 'Les mots',
-        body: 'De courts exercices. Une erreur montre la réponse.',
+        body: 'De courts exercices sur les mots. Une erreur montre la réponse.',
+      },
+      practice: {
+        title: 'La règle en action',
+        body: 'De courts exercices sur la règle du jour. Une erreur montre la réponse.',
       },
       respond: {
         title: 'Ta réponse',
@@ -289,21 +267,6 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       skip: 'Passer',
       welcome_title: 'Bienvenue à l’Atelier',
       welcome_body: 'Un épisode par jour, à Paris. Tu réponds en français, et l’histoire change.',
-      shapes_title: 'Les quatre formes',
-      shapes_body: 'Chaque partie de la journée a sa forme.',
-      shapes: {
-        story: 'Cercle bleu : la scène. Lire et écouter.',
-        reward: 'Carré jaune : les mots. De courts exercices.',
-        action: 'Triangle rouge : ta réponse, écrite ou dite.',
-        done: 'Carré noir : la fin. La journée est bouclée.',
-      },
-      progress_title: 'Où tu en es',
-      progress_body: 'En haut de chaque page, tu vois où tu en es.',
-      progress_points: [
-        'Une forme par étape. Les yeux marquent l’étape en cours.',
-        'Fait en couleur, à venir en gris.',
-        'En haut à droite : ta journée se remplit.',
-      ],
       day_title: 'Ton premier jour',
       day_body: 'La scène, puis la grammaire, puis tes mots. Les notes jaunes expliquent le nouveau.',
     },
@@ -400,18 +363,35 @@ export function rememberWalkthrough(store: KeyValueStore | null): void {
   write(store, WALKTHROUGH_KEY, '1');
 }
 
-/** The sticker a step kind shows, or `null` for a kind with nothing to explain. */
-export function stickerFor(kind: string | null | undefined): FirstStepKey | null {
-  switch (kind) {
+/**
+ * The sticker for a drill is the one of the day step it belongs to (#469): `recall` is the words
+ * only when its target is a word. The type holds one entry per step of the day, so a step added
+ * to `lib/day-order.ts` has to say here what its drill is called.
+ */
+const DRILL_STICKER: Record<DayWorkKind, FirstStepKey> = {
+  scene: 'scene',
+  grammar: 'practice',
+  words: 'recall',
+};
+
+type StickerStep = Parameters<typeof dayStepOf>[0];
+
+/** The sticker a step shows, or `null` for a kind with nothing to explain. */
+export function stickerFor(step: StickerStep | string): FirstStepKey | null {
+  const given = typeof step === 'string' ? { kind: step } : step;
+  switch (given?.kind) {
     case 'scene':
     case 'rule':
-    case 'recall':
     case 'respond':
     case 'resolution':
     case 'read':
     case 'desk':
     case 'forge':
-      return kind;
+      return given.kind;
+    case 'recall': {
+      const stage = dayStepOf(given);
+      return stage ? DRILL_STICKER[stage] : null;
+    }
     default:
       return null;
   }

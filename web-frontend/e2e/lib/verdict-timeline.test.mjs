@@ -1,0 +1,70 @@
+// node --test e2e/lib/verdict-timeline.test.mjs
+//
+// `one-verdict-never-reversed` keys a verdict to the item it answers. The frames below are
+// main's season walk of 10 Nov 2026 (season-en, day 2, d2-35 … d2-37): a miss on 12/13, its
+// sheet still leaving while 13/13 was on screen, then 13/13 answered with help.
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+
+import { itemCounter, reversed, trackVerdicts } from './verdict-timeline.mjs';
+
+const walk = () => ({ day: 2, questionSig: '', questionCounter: null, stepCaptions: [], timelines: new Map() });
+const frame = (text, states = []) => ({ text, graded: states.map((state) => ({ state, text: '' })), epFeedback: [] });
+
+const Q12 = 'Step 11 of 11 12/13 Recall · Step 11 of 11 Once more offre Masculine or feminine? masculine feminine Check';
+const Q13 = 'Step 11 of 11 13/13 Recall · Step 11 of 11 Once more une offre What does it mean? jewel Thursday offer Check';
+
+function play(frames) {
+  const w = walk();
+  for (const f of frames) trackVerdicts(w, f, 'choice');
+  return [...w.timelines.values()].map(reversed);
+}
+
+test('the item counter is read off the screen', () => {
+  assert.equal(itemCounter(Q12), '12/13');
+  assert.equal(itemCounter('Step 2 of 11 Le Mistral'), null);
+});
+
+test('a miss leaving the screen is not the next item’s verdict', () => {
+  const timelines = play([
+    frame(Q12),
+    frame(`${Q12} Not yet`, ['wrong']),
+    frame(`${Q13} Not yet`, ['wrong']), // the sheet of 12/13 still sliding out
+    frame(`${Q13} Correct, with help`, ['supported']), // answered without a bare frame between
+  ]);
+  assert.ok(timelines.every((t) => !t.flips), JSON.stringify(timelines));
+  assert.deepEqual(timelines.map((t) => t.distinct), [['wrong'], ['supported']]);
+});
+
+test('a verdict that really changes on one item is still caught', () => {
+  const [timeline] = play([frame(Q12), frame(`${Q12} Not yet`, ['wrong']), frame(`${Q12} Correct`, ['correct'])]);
+  assert.equal(timeline.flips, true);
+});
+
+test('an upheld appeal may turn a verdict once, to right; nothing else may', () => {
+  assert.equal(reversed({ states: ['wrong', 'correct'], appeal: 'upheld' }).flips, false);
+  assert.equal(reversed({ states: ['wrong', 'supported'], appeal: 'upheld' }).flips, false);
+  assert.equal(reversed({ states: ['wrong', 'correct'] }).flips, true, 'no appeal: a reversal');
+  assert.equal(reversed({ states: ['wrong', 'correct'], appeal: 'refused' }).flips, true);
+  assert.equal(reversed({ states: ['wrong', 'correct', 'wrong'], appeal: 'upheld' }).flips, true);
+});
+
+test('a missed item asked again is not the item answered before it (journey steps, no counter)', () => {
+  // Main's fr walk, 11 Nov 2026 (run 43027305551, A1 day 1, d1-23 … d1-25): «Laquelle est
+  // juste ?» right at «Étape 6 sur 6», then «Encore une fois» under the same caption, met
+  // while the old sheet was still leaving, then missed.
+  const RAPPEL = 'Étape 6 sur 6 Rappel · Étape 6 sur 6 Rappel · Je suis, tu es : les pronoms et être Laquelle est juste ? Ils sont à Lyon. Ils est à Lyon. Vérifier Indice';
+  const ENCORE = 'Étape 6 sur 6 Rappel · Étape 6 sur 6 Encore une fois · Je suis, tu es : les pronoms et être Dans quelle phrase trouvez-vous la règle du jour ?';
+  const at = (stepId, text, states = []) => ({ ...frame(text, states), stepId });
+  const timelines = play([
+    at('s6', RAPPEL),
+    at('s6', `${RAPPEL} Correct`, ['correct']),
+    at('s7', `${ENCORE} Correct`, ['correct']), // the right answer's sheet still leaving
+    at('s7', `${ENCORE} Pas encore`, ['wrong']),
+  ]);
+  assert.ok(timelines.every((t) => !t.flips), JSON.stringify(timelines));
+  assert.deepEqual(timelines.map((t) => t.distinct), [['correct'], ['wrong']]);
+  // The same step changing its verdict is still a reversal.
+  const [same] = play([at('s6', RAPPEL), at('s6', `${RAPPEL} Correct`, ['correct']), at('s6', `${RAPPEL} Pas encore`, ['wrong'])]);
+  assert.equal(same.flips, true);
+});

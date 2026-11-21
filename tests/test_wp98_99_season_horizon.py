@@ -324,7 +324,16 @@ def test_the_writer_drafts_season_four_from_this_life_or_names_the_interlude(
     thread = SimpleNamespace(id="thread-w", world_bible=_world_for(3))
     live = _material_live(3)
 
-    rolled = engine.roll_over_season(None, thread, live, day=300, today="2027-01-10")
+    # S5: the season ends with no model call; the writer runs after the request
+    # (the writer job), and what it wrote is installed from the stored state.
+    assert engine.roll_over_season(None, thread, live, day=300, today="2027-01-10") is False
+    assert fake.calls == [], "the rollover never calls the writer"
+    assert live["rollover"]["state"] == "pending"
+    drafted = season_writer.draft_next_season(live=live, world=thread.world_bible, next_season=4)
+    assert (drafted is not None) is written
+    if drafted is not None:
+        live["rollover"] = {**live["rollover"], "state": "written", "season_file": drafted}
+    rolled = engine.roll_over_season(None, thread, live, day=301, today="2027-01-11")
     assert rolled is written
     if written:
         assert fake.calls == ["SeasonDraft", "SeasonReview"], "one director call, one critic call"
@@ -378,7 +387,9 @@ def test_a_teaser_names_a_real_open_row_and_is_not_repeated_within_fourteen_days
         live["teasers"] = engine.teasers_after(live, teaser)
     assert seen, "open rows exist, so teasers are written"
     # The witness of a promise raises it first.
-    assert seen[0]["ref"] == "e3:commitment:0" and seen[0]["text_fr"].startswith("Dis, j'y repense")
+    # #822: the hook is printed in nobody's bubble, so Marin's «j'y repense» is not said.
+    assert seen[0]["ref"] == "e3:commitment:0" and "repense" not in seen[0]["text_fr"]
+    assert seen[0]["text_fr"].startswith(("Tu n'as pas oublié", "Tu as promis")), seen[0]["text_fr"]
 
     # Nothing open → nothing written; an invented line or an unknown id never passes.
     bare = {"threads": {key: {"state": "closed"} for key in [f"s3:{n}" for n in range(5)]}}

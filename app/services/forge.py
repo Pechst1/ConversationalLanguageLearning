@@ -55,9 +55,16 @@ from app.db.models.grammar import GrammarConcept, UserGrammarProgress
 from app.db.models.user import User
 from app.services import forge_drills as drills
 from app.services import gold_ledger
-from app.services.chrome_language import user_chrome_language
+from app.services.chrome_language import user_chrome_language, user_mother_tongue
 from app.services.concept_titles import concept_title
-from app.services.forge_coaches import coach_for_concept, coach_mood, recast_scene, story_state_of
+from app.services.forge_coaches import (
+    coach_for_concept,
+    coach_mood,
+    names_unmet,
+    only_met,
+    recast_scene,
+    story_state_of,
+)
 from app.services.item_bank import MINE_INSTRUCTION_L10N
 
 FORGE_KEY = "forge"
@@ -203,6 +210,17 @@ class ForgeItem:
         return out
 
 
+def _posed(item: ForgeItem, drill: str | None) -> ForgeItem:
+    """``item`` as the drill chosen for it (its own, when the provider set one).
+
+    #755: what the drill's card says (how many words a spot fixes) is read from
+    the item here, where the drill is chosen, not left to whichever builder made it.
+    """
+
+    chosen = item.drill or drill
+    return replace(item, drill=chosen, payload=drills.posed_item(chosen, item.payload or {}))
+
+
 #: ``accept(drill, item)``: may this item be posed as this drill?
 DrillCheck = Callable[[str | None, dict[str, Any]], bool]
 
@@ -227,7 +245,7 @@ def _public_item(payload: dict[str, Any], user: User | None) -> dict[str, Any]:
 
     from app.services.item_bank import public_item
 
-    return public_item(payload, user_chrome_language(user), getattr(user, "native_language", None))
+    return public_item(payload, user_chrome_language(user), user_mother_tongue(user))
 
 
 #: A quoted meaning: an opening quote, then words (``Complete: "…"``, „…“, « … »).
@@ -283,6 +301,8 @@ class PayloadItemProvider:
 
     def __init__(self, payloads: dict[int, dict[str, Any]]) -> None:
         self.payloads = payloads
+        #: (concept id, item) -> may this learner be posed it? #147: BankItemProvider's gate.
+        self.keep: Callable[[int, dict[str, Any]], bool] | None = None
 
     @classmethod
     def for_session(cls, db: Session, *, user: User, session: AtelierSession) -> PayloadItemProvider:
@@ -324,6 +344,8 @@ class PayloadItemProvider:
                 item_id = str(item.get("id") or f"{round_name}-{index}")
                 fingerprint = fingerprint_for(concept_id, round_name, mode, item_id)
                 if fingerprint in exclude or not check(drill, item):
+                    continue
+                if self.keep is not None and not self.keep(int(concept_id), item):
                     continue
                 yield ForgeItem(
                     concept_id=int(concept_id),
@@ -506,7 +528,10 @@ class BankItemProvider:
         self.sets = sets
         self.concepts = concepts
         self.payloads = PayloadItemProvider({cid: dict(item.payload or {}) for cid, item in sets.items()})
+        self.payloads.keep = self._fits_story
         self._story: frozenset[str] | None = None
+        self._story_state: dict[str, Any] | None = None
+        self._story_state_read = False
         self._mine: dict[int, list[dict[str, Any]]] = {}
 
     @property
@@ -518,6 +543,31 @@ class BankItemProvider:
 
             self._story = story_focus(self.db, self.user)
         return self._story
+
+    @property
+    def story_state(self) -> dict[str, Any] | None:
+        """#147: the thread state that says who this learner has met (read once)."""
+
+        if not self._story_state_read:
+            self._story_state = story_state_of(self.db, self.user)
+            self._story_state_read = True
+        return self._story_state
+
+    def _fits_story(self, concept_id: int, item: dict[str, Any]) -> bool:
+        """#147: nothing posed names someone this learner has not met.
+
+        Read as the item will be served: a shared scene is said by this learner's coach
+        first, so a scene the coach takes over is not refused for its old speaker.
+        """
+
+        from app.services import scene_record
+
+        state = self.story_state
+        if state is None or not scene_record.enabled():
+            return True
+        concept = self.concepts.get(int(concept_id))
+        coach = coach_for_concept(concept.external_id, state=state) if concept is not None else None
+        return not names_unmet(recast_scene(item, coach), state)
 
     @classmethod
     def for_session(cls, db: Session, *, user: User, session: AtelierSession) -> BankItemProvider:
@@ -630,6 +680,10 @@ class BankItemProvider:
         except Exception as exc:  # pragma: no cover - a read never blocks a séance
             logger.warning("La Forge could not read the learner's mistakes", error=str(exc))
             rows = []
+        # Round 3: «Ta phrase» never replays a half-finished edit as the learner's line.
+        from app.services.fault_quality import drillable_errors
+
+        rows = drillable_errors(self.db, rows)
         far = now + timedelta(days=3650)
 
         def urgency(row: Any) -> tuple[datetime, int]:
@@ -838,6 +892,17 @@ class BankItemProvider:
         check = accept or drills.item_fits
         order = units[len(appended) % len(units):] + units[: len(appended) % len(units)]
         made: list[tuple[dict[str, Any], Any]] = []
+        round_name, mode = drills.DRILL_POOL[drill] if drill else RUNG_POOLS[Rung(rung)][0]
+        # An item's id names its sentence said to nobody (``item_bank.without_vocative``),
+        # while ``blocked`` holds the bank's own fingerprints, the name included: «Ils ont
+        # faim ce soir, Lila.» passes a set that holds «…, Marin.» and is seated under the
+        # same id. Two items of one id break the set's shape (``base_count`` in
+        # ``_payload_validation_errors``), the séance's next read builds a new set without
+        # them, and the item on screen is graded against sentences the learner never saw:
+        # «You left this item blank», and its «Copy the correction» is never accepted
+        # (the 30 s «Build» stalls of the browser walks, 17-18 Nov). An id the set holds
+        # is taken.
+        taken = {str(item.get("id")) for item in _payload_items(payload, round_name, mode) if item.get("id")}
         for unit in order:
             if len(made) >= count:
                 break
@@ -845,7 +910,7 @@ class BankItemProvider:
                 unit,
                 random.Random(f"{seed}:{unit}"),  # noqa: S311 - reproducible variety, not security
                 exclude=blocked,
-                detector=item_bank.unit_detector(unit),
+                detector=only_met(item_bank.unit_detector(unit), self.story_state),
                 story=self.story,
             )
             for tries, candidate in enumerate(stream):
@@ -863,12 +928,16 @@ class BankItemProvider:
                 )
                 if built is None or (drill is not None and not check(drill, built)):
                     continue
+                if str(built.get("id")) in taken:
+                    continue
+                if not self._fits_story(concept_id, built):
+                    continue
                 blocked = blocked | {candidate.fingerprint}
+                taken.add(str(built.get("id")))
                 made.append((built, candidate))
         if not made:
             return []
 
-        round_name, mode = drills.DRILL_POOL[drill] if drill else RUNG_POOLS[Rung(rung)][0]
         indexes = self._seat_many(concept, round_name=round_name, mode=mode, rows=made, rung=int(rung))
         return [
             ForgeItem(
@@ -1271,6 +1340,30 @@ def seconds_per_item(db: Session, user: User) -> float:
     return float(measured or core.DEFAULT_SECONDS_PER_ITEM)
 
 
+def seance_max_items(user: User) -> int:
+    """P6: a learner on a stored pace gets at most :data:`core.PACE_MAX_SEANCE_ITEMS` items."""
+
+    from app.services.daily_session import stored_pace
+
+    return core.PACE_MAX_SEANCE_ITEMS if stored_pace(user) is not None else core.MAX_SEANCE_ITEMS
+
+
+def day_seance_max_items(db: Session, user: User, concept_id: int | None) -> int:
+    """R2: the day's séance on ``concept_id`` — a short review when the rule is learned.
+
+    A rule the learner holds (its épreuve passed) or has at rest comes back as the
+    day's rule only when nothing else qualifies or its review is due: then at most
+    :data:`forge_picker.SHORT_REVIEW_ITEMS` items. Home's quote reads the same number.
+    """
+
+    from app.services.forge_picker import SHORT_REVIEW_ITEMS, short_review_anchor
+
+    cap = seance_max_items(user)
+    if short_review_anchor(db, user, concept_id):
+        return min(cap, SHORT_REVIEW_ITEMS)
+    return cap
+
+
 def seance_budget_seconds(user: User) -> int:
     from app.services.journey_rhythm import rhythm_of
 
@@ -1338,7 +1431,15 @@ class ForgeService:
                 for u in units
             ]
         budget = plan.get("budget_seconds") if isinstance(plan.get("budget_seconds"), (int, float)) else None
-        length = core.seance_length(budget or seance_budget_seconds(user), seconds_per_item(self.db, user))
+        max_items = seance_max_items(user)
+        from app.services.forge_picker import DAY_ORIGINS
+
+        if not keep_concepts and plan.get("origin") in DAY_ORIGINS and units:
+            # R2: the day's grammar step on a learned rule is a short review.
+            max_items = day_seance_max_items(self.db, user, units[0].concept_id)
+        length = core.seance_length(
+            budget or seance_budget_seconds(user), seconds_per_item(self.db, user), max_items=max_items
+        )
         share = plan.get("review_share")
         state = ForgeState.seance(
             units,
@@ -1526,11 +1627,11 @@ class ForgeService:
                     concept_id=slot.concept_id, rung=slot.rung, exclude=exclude, drill=drill, accept=accept
                 )
                 if item is not None:
-                    return item if item.drill else replace(item, drill=drill)
+                    return _posed(item, drill)
         item = provider.item_for(concept_id=slot.concept_id, rung=slot.rung, exclude=exclude)
         if item is None:
             return None
-        return item if item.drill else replace(item, drill=drills.drill_of_item(item.rung, item.payload, item.round))
+        return _posed(item, drills.drill_of_item(item.rung, item.payload, item.round))
 
     def next_item(self, *, user: User, session: AtelierSession) -> dict[str, Any] | None:
         """The item the learner is on (pending) or the next one; stored as pending."""
@@ -1554,7 +1655,7 @@ class ForgeService:
                     **slot.to_dict(),
                     **item.to_dict(),
                     "position": slot.position,
-                    "length": state.length,
+                    "length": state.shown_length,
                     "role": slot.role,
                     "reprise": slot.reprise,
                     # The item itself: a bank top-up is not in the exercise
@@ -1575,11 +1676,13 @@ class ForgeService:
                 self.db.add(session)
                 self.db.commit()
                 return dict(pending)
-            # Nothing left for this rule: it retires from the séance.
+            # Nothing left for this rule: it retires from the séance, and is dry:
+            # it does not come back to fill the minimum either (#443).
             track = state.track(slot.concept_id)
             if track is None:  # pragma: no cover - slots come from tracks
                 break
             track.topped = True
+            track.dry = True
         state.finished = True
         state.pending = None
         _store_state(session, state)
@@ -1595,10 +1698,14 @@ class ForgeService:
             return {}
         upcoming = self.next_item(user=user, session=session)
         state = forge_state_of(session) or state
+        if upcoming is not None:
+            # #443: one length on every screen, re-read as the séance runs (a rule
+            # topped out since this item was stored shortens it).
+            upcoming = {**upcoming, "length": state.shown_length}
         combo, best_combo = core.combo_runs(state.history)
         return {
             "mode": state.mode,
-            "length": state.length,
+            "length": state.shown_length,
             "answered": state.position,
             "counted": state.counted_items,
             "finished": state.finished,
@@ -1617,6 +1724,7 @@ class ForgeService:
                     "concept_id": track.concept_id,
                     "role": track.role,
                     "rung": track.rung,
+                    "shown_rung": state.level_read(track.concept_id),
                     "rung_name": core.rung_name(track.rung),
                     "served": track.served,
                     "topped": track.topped,
@@ -1648,7 +1756,9 @@ class ForgeService:
             return self.view(user=user, session=session)
         exercise_key = _exercise_key(attempt)
         if exercise_key in state.served_fingerprints:
-            return self.view(user=user, session=session)  # a resubmission: the first answer counted
+            # A resubmission («Try the line again»): the first answer counted.
+            self._note_resubmission(state=state, attempt=attempt, exercise_key=exercise_key)
+            return self.view(user=user, session=session)
         fingerprint = fingerprint_for(
             int(attempt.concept_id), str(attempt.round), _pool_mode(attempt), _attempt_item_id(attempt)
         )
@@ -1737,6 +1847,30 @@ class ForgeService:
         self.db.commit()
         self.db.refresh(session)
         return self.view(user=user, session=session)
+
+    def _note_resubmission(self, *, state: ForgeState, attempt: AtelierAttempt, exercise_key: str) -> None:
+        """#699: a retried item keeps the way it was posed.
+
+        The page reads how an answered item was posed from its answer's record
+        (``correction.forge.drill``); the forge has moved on by then. A retry is
+        not counted again, but its answer is the one the page shows: without the
+        record a typed gap came back drawn the classic way, its choice cards
+        (one a wrong form) printed under «Well done!». Only how it was posed is
+        copied: no count, no climb, no run, which belong to the first answer.
+        """
+
+        first = next(
+            (entry for entry in reversed(state.history) if entry.get("exercise_key") == exercise_key), None
+        )
+        drill = str((first or {}).get("drill") or "")
+        if not drill:
+            return
+        correction = dict(attempt.correction_payload or {})
+        correction["forge"] = {"drill": drill, "counted": False, "resubmission": True}
+        attempt.correction_payload = correction
+        flag_modified(attempt, "correction_payload")
+        self.db.add(attempt)
+        self.db.commit()
 
     def amend_attempt(
         self, *, user: User, session: AtelierSession, attempt: AtelierAttempt, commit: bool = True
@@ -1973,8 +2107,35 @@ def offer_test_out(
     as a pilot event, which is what paces the next one.
     """
 
-    from app.db.models.pilot_event import PilotEvent
     from app.services.pilot_events import PilotEventService
+
+    now = _aware(now) or datetime.now(UTC)
+    offer = test_out_candidate(db, user=user, concept_ids=concept_ids, now=now)
+    if offer is not None:
+        PilotEventService(db).record(
+            TEST_OUT_OFFER_EVENT,
+            user_id=user.id,
+            entity_type="grammar_concept",
+            entity_id=offer["concept_id"],
+            payload=offer,
+            occurred_at=now,
+        )
+        # S1.1 shadow: an offer made on a rule the day brief did not name (flag off: no-op).
+        from app.services import day_brief
+
+        day_brief.shadow_today(
+            db, user, "forge.offer_test_out", offer["concept_id"], field="test_out_concept_id", now=now
+        )
+    return offer
+
+
+def test_out_candidate(
+    db: Session, *, user: User, concept_ids: Iterable[int], now: datetime | None = None
+) -> dict[str, Any] | None:
+    """The rule :func:`offer_test_out` would offer now, or ``None``. Read-only:
+    records nothing, so the day brief can ask it when the day is planned."""
+
+    from app.db.models.pilot_event import PilotEvent
 
     wanted = list(dict.fromkeys(int(cid) for cid in concept_ids))
     if not wanted:
@@ -2019,16 +2180,7 @@ def offer_test_out(
     if not candidates:
         return None
     rung, _stability, concept_id = max(candidates)
-    offer = {"concept_id": concept_id, "rung": rung, "short": True, "items": len(core.TEST_OUT_SHORT_RUNGS)}
-    PilotEventService(db).record(
-        TEST_OUT_OFFER_EVENT,
-        user_id=user.id,
-        entity_type="grammar_concept",
-        entity_id=concept_id,
-        payload=offer,
-        occurred_at=now,
-    )
-    return offer
+    return {"concept_id": concept_id, "rung": rung, "short": True, "items": len(core.TEST_OUT_SHORT_RUNGS)}
 
 
 def forge_features() -> dict[str, bool]:

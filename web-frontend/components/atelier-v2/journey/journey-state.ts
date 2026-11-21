@@ -199,6 +199,28 @@ export function currentStepOf(journey: JourneySnapshot | null): PublicStep | nul
   return journey.steps.find((step) => step.id === journey.current_step_id) ?? null;
 }
 
+/**
+ * P11 · what the session's quiet third-tier control does on this step.
+ *
+ * - `'end'`: «Arrêter ici», the day ends early (the scene or anything after it).
+ * - `'skip'`: any step BEFORE the day's unplayed scene (the rule card, its drill,
+ *   La Forge). In both real-model checks of 17 Nov, «Arrêter ici» on the day's
+ *   first card ended the whole day, scene included. There the control reads
+ *   «Passer à la scène»: one `POST …/advance` with `skip_to_scene` skips every
+ *   step left before the scene (a card unread, a drill item with no lapse) and
+ *   opens it. A stop there would only pause the day (the server's own rule).
+ */
+export type SessionStopControl = 'end' | 'skip';
+
+export function sessionStopControl(journey: JourneySnapshot | null, step: PublicStep | null): SessionStopControl {
+  if (!journey || !step) return 'end';
+  const scene = journey.steps
+    .filter((entry) => entry.kind === 'scene')
+    .sort((a, b) => a.ordinal - b.ordinal)[0];
+  if (!scene || scene.status !== 'pending') return 'end';
+  return step.ordinal < scene.ordinal ? 'skip' : 'end';
+}
+
 /** The journey the shell should render, whatever produced it. */
 export function journeyOfPhase(phase: JourneyPhase): JourneySnapshot | null {
   switch (phase.kind) {
@@ -370,17 +392,57 @@ export function replySourceOf(result: AttemptResult | null | undefined): ReplyPr
   return 'unknown';
 }
 
+/**
+ * Package V stage 5: what «I think this is right» came back with, kept on the graded result
+ * so the sheet says it once. `limit`: the day's three are used; `unread`: nobody could read it.
+ */
+export type AppealOutcome = {
+  state: 'upheld' | 'refused' | 'unread' | 'limit';
+  reason: string | null;
+};
+
+export type AppealedResult = AttemptResult & { appeal?: AppealOutcome };
+
+/** Whether a graded drill shows the appeal line: a «not yet» or «partly» the key or a model decided. */
+export function appealOffered(result: AttemptResult | null | undefined, stepKind: string | null | undefined): boolean {
+  if (stepKind !== 'recall' || !result) return false;
+  if ((result as AppealedResult).appeal) return false;
+  const outcome = result.check?.outcome;
+  return outcome === 'not_yet' || outcome === 'partly';
+}
+
+/**
+ * The sheet after an appeal: upheld turns the verdict, anything else keeps it and says why.
+ *
+ * #729: upheld settles the whole item, not only its band. The miss's reveal («The rule is in
+ * this sentence: … · Not this one: <the pick>») belongs to the miss: under «Correct» it says
+ * the opposite of the band, so it goes with the verdict it explained. (The server takes the
+ * item out of the set's «Once more» in the same ruling.)
+ */
+export function feedbackAfterAppeal(
+  feedback: JourneyFeedback,
+  appeal: AppealOutcome,
+  check: AttemptResult['check'] | null,
+): JourneyFeedback {
+  if (feedback.kind !== 'graded') return feedback;
+  const result: AppealedResult = { ...feedback.result, appeal };
+  if (appeal.state === 'upheld' && check) {
+    return feedbackFromAttempt({ ...result, check, task_outcome: 'met', correction: null } as AttemptResult);
+  }
+  return { ...feedback, result };
+}
+
 export function feedbackFromAttempt(result: AttemptResult): JourneyFeedback {
   if (result.pending || result.task_outcome === 'unscored') {
     return {
       kind: 'unscored',
-      message: 'still_grading',
+      message: 'check_not_checked',
       result,
     };
   }
   const verdict = attemptVerdict(result.task_outcome, result.assistance_level);
   if (verdict === 'unscored') {
-    return { kind: 'unscored', message: 'still_grading', result };
+    return { kind: 'unscored', message: 'check_not_checked', result };
   }
   return { kind: 'graded', verdict, result, replySource: replySourceOf(result) };
 }
@@ -729,8 +791,39 @@ export function resolutionAwaitsStory(step: PublicStep | null | undefined): bool
   return Boolean(step && step.kind === 'resolution' && step.prompt.story_pending === true);
 }
 
-/** The id of the journey to poll, or `null` when nothing is being written. */
+/**
+ * The id of the journey to poll, or `null` when nothing is being written.
+ *
+ * P11: any resolution of the day still being written, not only the current step:
+ * after the learner went on past a late ending (`continueAfterStoryWait`) the
+ * journey is still re-read in the background, so the ending lands on its page.
+ */
 export function storyPollTarget(journey: JourneySnapshot | null | undefined): string | null {
-  if (!journey || (journey.status !== 'active' && journey.status !== 'paused')) return null;
-  return resolutionAwaitsStory(currentStepOf(journey)) ? journey.id : null;
+  if (!journey || journey.status === 'preparing' || journey.status === 'unavailable') return null;
+  return journey.steps.some(resolutionAwaitsStory) ? journey.id : null;
+}
+
+/**
+ * P11: may «Continuer» pass a resolution whose ending is still being written?
+ *
+ * Only once the learner waited {@link FINALE_ESCAPE_MS}-long (`waitOver`), and only
+ * when no later act follows: the server holds a later act until this ending settled
+ * (`_ending_still_written_before_an_act`), so there the day keeps waiting.
+ */
+export function continueAfterStoryWait(
+  journey: JourneySnapshot | null | undefined,
+  step: PublicStep | null | undefined,
+  waitOver: boolean,
+): boolean {
+  if (!resolutionAwaitsStory(step)) return true;
+  if (!waitOver || !journey || !step) return false;
+  return !journey.steps.some((other) => other.kind === 'resolution' && other.ordinal > step.ordinal);
+}
+
+/** P11: a polled snapshot never replaces a newer one the learner's own tap brought. */
+export function polledSnapshotIsCurrent(
+  polled: Pick<JourneySnapshot, 'id' | 'revision'>,
+  current: Pick<JourneySnapshot, 'id' | 'revision'> | null | undefined,
+): boolean {
+  return !current || current.id !== polled.id || polled.revision >= current.revision;
 }

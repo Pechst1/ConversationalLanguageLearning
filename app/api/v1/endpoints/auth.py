@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
+from app.api.deps import get_current_user, get_db
 from app.config import settings
 from app.core.security import InvalidTokenError
+from app.db.models.user import User
 from app.schemas import (
     LogoutRequest,
     PasswordResetConfirm,
@@ -23,6 +25,7 @@ from app.services.auth import (
     EmailAlreadyExistsError,
     InvalidCredentialsError,
     InvalidPasswordResetTokenError,
+    InvalidVerificationCodeError,
     RegistrationClosedError,
     handle_email_exists,
     handle_invalid_credentials,
@@ -46,7 +49,59 @@ def register_user(payload: UserCreate, db: Session = Depends(get_db)) -> UserRea
         handle_email_exists(exc)
     except RegistrationClosedError as exc:
         handle_registration_closed(exc)
+    # S4 stage 3: the new address gets its verification code. The account plays
+    # at once; a reset by mail and an email change wait for the code.
+    delivery = service.send_email_verification(user)
+    db.commit()
+    if delivery is not None:
+        from app.services.mail_outbox import deliver_mail
+
+        deliver_mail(db, delivery.id)
+    db.refresh(user)
     return user
+
+
+class EmailVerificationCode(BaseModel):
+    code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+@router.post("/verify-email", response_model=UserRead)
+def verify_email(
+    payload: EmailVerificationCode,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> UserRead:
+    """Spend the emailed code: the address is verified, or a pending change takes effect.
+
+    A completed change ends every session (the address is the sign-in name).
+    """
+
+    try:
+        return AuthService(db).verify_email_code(current_user, payload.code)
+    except InvalidVerificationCodeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "verification_code_invalid", "message": str(exc)},
+        ) from exc
+    except EmailAlreadyExistsError as exc:
+        handle_email_exists(exc)
+
+
+@router.post("/verify-email/resend", status_code=status.HTTP_202_ACCEPTED)
+def resend_verification_email(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, bool]:
+    """Send a fresh code to the address waiting to be verified (once a minute at most)."""
+
+    service = AuthService(db)
+    delivery = service.send_email_verification(current_user, respect_cooldown=True)
+    db.commit()
+    if delivery is not None:
+        from app.services.mail_outbox import deliver_mail
+
+        deliver_mail(db, delivery.id)
+    return {"sent": delivery is not None}
 
 
 @router.post("/login", response_model=Token)

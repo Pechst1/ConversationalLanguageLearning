@@ -1,0 +1,31 @@
+{
+ "id": "courrier-a1-anais-follows-the-choice",
+ "lane": "courrier",
+ "level": "A1",
+ "source": "The walk of 6 Nov 2026 (#538): letter two of the shop, the learner settles the letter's own question. The learner's text is the walk's; the reply is written by hand, because no real model has answered this prompt.",
+ "input": {
+  "letter": {
+   "title": "Ta taille est arrivée",
+   "brief": "La boutique a ta taille. Choisis : par la poste ou à la boutique.",
+   "messenger": {
+    "contact_name": "Boutique Anaïs",
+    "register": "tu / warm informal",
+    "target_register": "tu / registre familier",
+    "opening_message": "Ta taille est là. Tu préfères la poste ou la boutique ? Il en reste une jusqu'à ce soir."
+   }
+  },
+  "turns": [],
+  "learner_text": "Non, pas la poste. Je viens à la boutique à midi, avec ma assiette. Ce mois, je suis très occupé."
+ },
+ "answers": {
+  "CourrierReply": [
+   {
+    "content": "D'accord, on t'attend à la boutique à midi. Ta taille reste pour toi.",
+    "prompt_digest": "sha256:9caa744b5937fd92f48397028eac034ddec84c712684232e517b868e2f5a82f8"
+   }
+  ]
+ },
+ "expect": {
+  "reply": "D'accord, on t'attend à la boutique à midi. Ta taille reste pour toi."
+ }
+}

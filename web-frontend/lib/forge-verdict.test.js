@@ -146,12 +146,10 @@ test('one correction block: notes are deduplicated whichever way they arrive', (
 // repair. Feedback is built from the part the learner got wrong.
 // ---------------------------------------------------------------------------
 
-test('#213 · a wrong repair after a right judgement is not «Well done!»', () => {
-  assert.equal(typeof V.itemVerdict, 'function', 'the verdict is derived from the judgement AND the repair step');
+test('#553 · a right judgement stays right, whatever the repair then does', () => {
   const verdict = (judgedRight, repair) => V.itemVerdict({ judgedRight, repair });
-  // The guard: right judgement, repair shown instead of done -> not right.
-  assert.equal(verdict(true, 'revealed'), 'wrong');
-  // Right judgement, right repair -> right.
+  // The server counts the judgement alone: a missed or skipped repair changes nothing.
+  assert.equal(verdict(true, 'revealed'), 'right');
   assert.equal(verdict(true, 'right'), 'right');
   // The repair is still to do: no verdict yet (and so none to reverse later).
   assert.equal(verdict(true, 'open'), 'open');
@@ -162,9 +160,33 @@ test('#213 · a wrong repair after a right judgement is not «Well done!»', () 
 });
 
 test('#213 · a verdict is never shown and then reversed across the repair steps', () => {
-  assert.equal(typeof V.itemVerdict, 'function');
   const shown = ['open', 'revealed']
     .map((repair) => V.itemVerdict({ judgedRight: true, repair }))
     .filter((verdict) => verdict !== 'open');
-  assert.deepEqual(shown, ['wrong'], 'one verdict, shown once the repair has settled');
+  assert.deepEqual(shown, ['right'], 'one verdict, shown once the repair has settled');
+});
+
+test('#333 · no raised level is printed while nobody has read the answer', () => {
+  const forge = { new_rung: 5, level_before: 4 };
+  const reading = { forge, assessment_status: 'provisional', ai_review: { status: 'pending' } };
+  assert.equal(V.answeredLevel(reading), 4, 'the provisional step only picks the next item');
+  assert.equal(V.answeredLevel({ forge, assessment_status: 'checked' }), 5);
+  assert.equal(V.answeredLevel({ forge: { new_rung: 5 }, assessment_status: 'provisional', local_status: 'right' }), 5, 'a real match is final');
+  assert.equal(V.answeredLevel(null), null);
+  assert.equal(V.answeredLevel({ assessment_status: 'checked' }), null);
+});
+
+// Walk of 19 Nov (B1 days 3 and 4): «une lampe» after «Réessayer» was stored as correct,
+// but the miss's model reading (6 s) landed after the retry and painted the old error
+// over it. A poll belongs to the screen only while its attempt is the item's latest.
+test('a late reading of the miss never paints over the retry', () => {
+  const latest = { item: 'miss' };
+  assert.equal(V.pollStillCurrent(latest, 'item', 'miss'), true);
+  latest.item = ''; // «Réessayer»: the retry is being typed
+  assert.equal(V.pollStillCurrent(latest, 'item', 'miss'), false);
+  latest.item = 'retry'; // the retry was sent
+  assert.equal(V.pollStillCurrent(latest, 'item', 'miss'), false);
+  assert.equal(V.pollStillCurrent(latest, 'item', 'retry'), true);
+  assert.equal(V.pollStillCurrent(latest, 'other', 'retry'), false);
+  assert.equal(V.pollStillCurrent({}, 'item', ''), false);
 });

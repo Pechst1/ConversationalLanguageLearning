@@ -7,6 +7,7 @@
  * scene titles and the learner's own sentences are French content.
  */
 
+import { CHECK_COPY } from './verdict';
 import type { ControlLanguage } from '@/types/daily-journey';
 
 import { normalizeControlLanguage } from './atelier-v2-copy';
@@ -47,6 +48,7 @@ export type StudioCopy = {
   reused_many: string;
   with_errors: string;
   no_errors: string;
+  check_not_checked: string;
   stat_duration: string;
   stat_turns: string;
   stat_produced: string;
@@ -115,6 +117,7 @@ const FR: StudioCopy = {
   reused_many: '{n} mots du jour réemployés',
   with_errors: 'malgré {n} faute(s) de forme',
   no_errors: 'sans faute de forme',
+  check_not_checked: CHECK_COPY.fr.not_checked,
   stat_duration: 'Durée',
   stat_turns: 'Tours',
   stat_produced: 'Mots produits',
@@ -183,6 +186,7 @@ const EN: StudioCopy = {
   reused_many: '{n} words of the day reused',
   with_errors: 'despite {n} form mistake(s)',
   no_errors: 'no form mistakes',
+  check_not_checked: CHECK_COPY.en.not_checked,
   stat_duration: 'Duration',
   stat_turns: 'Turns',
   stat_produced: 'Words said',
@@ -251,6 +255,7 @@ const DE: StudioCopy = {
   reused_many: '{n} Wörter des Tages benutzt',
   with_errors: 'trotz {n} Formfehler(n)',
   no_errors: 'ohne Formfehler',
+  check_not_checked: CHECK_COPY.de.not_checked,
   stat_duration: 'Dauer',
   stat_turns: 'Beiträge',
   stat_produced: 'Gesagte Wörter',

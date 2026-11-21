@@ -17,7 +17,8 @@ import useSWR from 'swr';
 import toast from 'react-hot-toast';
 
 import { Action, CastPortrait, Surface } from '@/components/atelier-v2/ui';
-import { RuleCard, RULE_CARD_SPEAKERS } from '@/components/atelier-v2/rule/RuleCard';
+import { RuleCard } from '@/components/atelier-v2/rule/RuleCard';
+import { castDisplayName } from '@/lib/cast-faces';
 import { forgeCopy } from '@/lib/forge-copy';
 import type { RuleShape } from '@/lib/forge-progress';
 import {
@@ -33,6 +34,7 @@ import {
   mapRuleShape,
   mapStageOf,
   MAP_STAGES,
+  eclairPairLabel,
   ruleTitle,
   type GrammarMapPayload,
   type GrammarMapRule,
@@ -80,7 +82,7 @@ function stageLine(copy: MomentumCopy, rule: GrammarMapRule): string {
 function coachOf(rule: GrammarMapRule): { id: string; name: string | null } | null {
   if (rule.coach?.id) return { id: rule.coach.id, name: rule.coach.name ?? null };
   const speaker = rule.rule_card?.speaker ? String(rule.rule_card.speaker) : '';
-  return speaker ? { id: speaker, name: RULE_CARD_SPEAKERS[speaker] ?? null } : null;
+  return speaker ? { id: speaker, name: castDisplayName(speaker, null) } : null;
 }
 
 function MapRuleSheet({
@@ -238,8 +240,8 @@ export function GrammarMapView({
             {pairs.slice(0, 3).map((pair) => (
               <li key={pair.pair}>
                 <Link className="gm-eclair__pair" href={eclairHref(pair.pair)}>
-                  <span className="gm-eclair__names" lang="fr">
-                    {fillMomentum(copy.eclair_pair_label, { a: pair.rules[0]?.title_fr || '', b: pair.rules[1]?.title_fr || '' })}
+                  <span className="gm-eclair__names" lang={eclairPairLabel(pair.rules, copy.eclair_pair_label, language).lang}>
+                    {eclairPairLabel(pair.rules, copy.eclair_pair_label, language).text}
                   </span>
                   <span className="gm-eclair__best">
                     {pair.plays > 0 ? fillMomentum(copy.eclair_best, { n: pair.best }) : copy.eclair_best_none}

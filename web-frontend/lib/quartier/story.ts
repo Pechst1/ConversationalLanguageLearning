@@ -16,6 +16,7 @@
 import { LEAVE, NAMES, PEOPLE as TALKERS, TEXT_SUITCASE, chipsFor, fold, helloOf, registerOf, respond } from './agency';
 import type { CastId, Value, Words } from './memory';
 import scene from './scenes/t1-a.json';
+import { renderDates, shiftDays } from './season-dates';
 import { HOME_PLACE, playsIn, stageOf } from './world';
 
 /* ------------------------------------------------------------------------------------------ */
@@ -131,6 +132,11 @@ export interface StoryPage {
  * Feuilleton's to tell (`unbuiltOf`).
  */
 export const STAGED_DAYS = ['t1.a', 't1.b'];
+
+/** P12 · «Nº 8»: the episode as Home numbers it (`headlineKicker`); null without a number. */
+export function episodeLabel(number: number | null | undefined): string | null {
+  return typeof number === 'number' && number > 0 ? `Nº ${number}` : null;
+}
 
 /** Le Mistral itself: no card names it. */
 const AT_MISTRAL = new Set(['le_mistral', 'mistral_back_room']);
@@ -296,6 +302,18 @@ export interface Heard {
   mend: Mend | null;
   /** the talk goes on (a scene written today): the question stays open, asked anew, not again */
   goesOn?: boolean;
+  /**
+   * The reply is what the learner said: a card they chose, or a route their words expressed (the
+   * engine's task outcome «met»). False: the turn's fallback, which says nothing they meant, so
+   * the end card and the carnet say nothing of it (round 2: «Tu as dit que tu viens pour vendre»).
+   */
+  understood?: boolean;
+  /**
+   * The answer was one of the turn's cards, word for word (the engine's `stage.chosen`; here, an
+   * example typed as written). Only then does the carnet say «Tu as dit…» of the route
+   * (`replyEffects`); of a free answer it says what the room took it to mean.
+   */
+  chosen?: boolean;
 }
 
 /** A gesture, as the engine takes it. */
@@ -323,6 +341,8 @@ export interface Answered {
   sets: Record<string, Value>;
   /** who will talk, with what each says now as you come up; none: as the page has them */
   people?: StoryPerson[] | null;
+  /** what you said to someone, corrected (the rule pass, at most one edit); none when it was right */
+  mend?: Mend | null;
 }
 
 export interface Story {
@@ -339,6 +359,13 @@ export interface Story {
   gesture(g: Gesture): Promise<Answered | null>;
   /** The scene has played to its hook: what the engine needs before the rest of the day. */
   close(): Promise<void>;
+  /**
+   * Where the scene stands, kept so that leaving it and coming back plays on from there (an
+   * engine's day; the quarter's own copy starts again). `from`: the movement it plays on from.
+   */
+  keepPlace?(place: { from: string; routes: Record<string, string>; asking: string | null }): void;
+  /** The place kept for the day as the engine has it now, or null: the scene starts from the top. */
+  keptPlace?(): { from: string; routes: Record<string, string>; asking: string | null } | null;
 }
 
 /* ------------------------------------------------------------------------------------------ */
@@ -425,9 +452,16 @@ export const T1A_COPY = scene as unknown as Copy;
 export interface CopyOptions {
   level?: 'a2' | 'b1';
   native?: 'en' | 'de';
+  /** the learner's first season day, for the copy's date tokens (`season-dates.ts`); today when unknown */
+  start?: Date;
 }
 
-type Resolved = Required<CopyOptions>;
+type Resolved = Required<Omit<CopyOptions, 'start'>>;
+
+/** The copy with its date tokens rendered for the learner's start, as the engine renders a page. */
+function datedCopy(copy: Copy, start?: Date): Copy {
+  return renderDates(copy, shiftDays(start ?? new Date()));
+}
 
 function lineOf(l: CopyLine, o: Resolved): StoryLine {
   return {
@@ -510,8 +544,9 @@ function storyletsOf(o: Resolved): Storylet[] {
 }
 
 /** The copy resolved the way the server resolves a page: one level, one language. */
-export function pageOfCopy(copy: Copy = T1A_COPY, opts: CopyOptions = {}): StoryPage {
+export function pageOfCopy(raw: Copy = T1A_COPY, opts: CopyOptions = {}): StoryPage {
   const o: Resolved = { level: opts.level ?? 'a2', native: opts.native ?? 'en' };
+  const copy = datedCopy(raw, opts.start);
   return {
     season_id: 's1',
     segment: copy.episode,
@@ -590,10 +625,10 @@ export class OfflineStory implements Story {
   private talking: { who: CastId; used: string[]; slipped: boolean; turns: number } | null = null;
 
   constructor(opts: CopyOptions & { state?: () => Record<string, Value> } = {}, copy: Copy = T1A_COPY) {
-    this.copy = copy;
+    this.copy = datedCopy(copy, opts.start);
     this.o = { level: opts.level ?? 'a2', native: opts.native ?? 'en' };
     this.state = opts.state ?? (() => ({}));
-    this.page = pageOfCopy(copy, this.o);
+    this.page = pageOfCopy(this.copy, this.o);
   }
 
   private turn(turnId: string): Question | null {
@@ -615,7 +650,8 @@ export class OfflineStory implements Story {
     const q = this.turn(turnId);
     if (!q) return { turn: turnId, reply: null, beats: [], next: null, closing: true, mend: null };
     const typed = fold(text).replace(/[.!?…\s]+$/, '');
-    const reply = q.answers.find((r) => r.examples.some((e) => fold(e).replace(/[.!?…\s]+$/, '') === typed)) ?? (q.fallback ? this.fallback(q) : null);
+    const said = q.answers.find((r) => r.examples.some((e) => fold(e).replace(/[.!?…\s]+$/, '') === typed)) ?? null;
+    const reply = said ?? (q.fallback ? this.fallback(q) : null);
     if (!reply) {
       // a choice the quarter could not read: asked again, as the engine asks
       const prompt = q.panel.lines?.[0];
@@ -631,6 +667,8 @@ export class OfflineStory implements Story {
       next,
       closing: next === null,
       mend: null,
+      understood: said !== null,
+      chosen: said !== null,
     };
   }
 

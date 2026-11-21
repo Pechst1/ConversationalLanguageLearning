@@ -1,0 +1,125 @@
+{
+ "id": "turn-a2-camille-learner-asks",
+ "lane": "turn",
+ "level": "A2",
+ "source": "Same scene as #591, for the #145 done-when: the real model's next line after a «non», an off-script reply and a question. The learner only asks.",
+ "input": {
+  "payload": {
+   "story": {
+    "control_language": "en",
+    "level": "A2",
+    "level_register": "no coarse or vulgar vocabulary",
+    "learner": {
+     "address": "neutral",
+     "grammatical_gender_note": "Do not gender the learner: no gendered adjective, participle or endearment about them, no gendered pronoun for them, and never an inclusive-dot form such as trempé·e. Use natural neutral phrasing in EVERY field, including the chapter title and question, narration, dialogue and suggested response. For example: 'Tu as pris la pluie', 'Tu veux entrer ?', 'Ça te plaît', 'Tu peux venir ?'. Do not solve gender agreement by joining masculine and feminine endings.",
+     "register_note": "Address the learner as «vous» in every sentence that is not a character's own line."
+    },
+    "world": {
+     "cast": [
+      {
+       "id": "camille",
+       "name": "Camille",
+       "role": "Heir to the family flat, in a dispute over the family debts.",
+       "personality": "Proud, quick, protective of her grandfather.",
+       "wants": "Her grandfather paid before anyone else.",
+       "speech_pattern": "Short sentences, a challenge at the end.",
+       "contradiction": "Wants peace and keeps picking fights.",
+       "secret": "She signed a paper she did not read.",
+       "flaw": "Cannot say sorry.",
+       "dynamic_with_user": "Wary ally.",
+       "register_with_user": "vous",
+       "gender": "f"
+      }
+     ]
+    },
+    "story_so_far": [],
+    "commitments": [],
+    "moods": {
+     "camille": {}
+    },
+    "relationships": {
+     "camille": {
+      "register": "vous",
+      "closeness": 1
+     }
+    },
+    "secrets": {
+     "camille": "hidden"
+    }
+   },
+   "scene": {
+    "character_id": "camille",
+    "title_fr": "La dette",
+    "premise_fr": "Camille et vous êtes chez Maître Vasseur. Les papiers de la famille sont sur la table.",
+    "location_id": "vasseur_office",
+    "objective_native": "Say whether you agree that the flat pays Grandfather first.",
+    "objective_semantics": "Camille asks if the learner agrees the flat pays her grandfather first. Met when the learner agrees or refuses.",
+    "opening_line_fr": "L'appartement paie d'abord mon grand-père. Vous êtes d'accord, non ?",
+    "suggested_response_fr": "Oui, il passe d'abord.",
+    "panels": []
+   },
+   "rubric": "Grade only what the task asks; any honest answer counts.",
+   "history": [],
+   "learner_text": "Pourquoi il paie d'abord ?",
+   "turns_left": 1,
+   "targets": [],
+   "assistance": "none",
+   "turn_plan": {
+    "closing_turn": false,
+    "clarify_form_fr": null,
+    "noticed_word": null,
+    "keep_talking": true
+   }
+  }
+ },
+ "answers": {
+  "TutorVerdict": [
+   {
+    "origin": "live 2026-11-09 gpt-6-luna",
+    "prompt_digest": "sha256:d29fa56fbdb3d37b5b716167e5cf3dab49b67cb80051fdc0d2deda57ed5b7ed9",
+    "content": {
+     "outcome": "not_yet",
+     "evidence_quotes": [],
+     "correction_span_fr": "Pourquoi il paie d'abord ?",
+     "correction_fr": "Pourquoi paie-t-il d'abord ?",
+     "correction_note_native": "For a formal question, use inversion; this asks why, rather than saying whether you agree.",
+     "demonstrated_target_ids": []
+    }
+   }
+  ],
+  "VoiceReply": [
+   {
+    "origin": "live 2026-11-09 gpt-6-luna",
+    "prompt_digest": "sha256:21ef612270892100a5e599e0e3a5d84b9ce2ea4d04dfbc9a4fea7dae314fd124",
+    "content": {
+     "reply_fr": "Parce qu’il a payé pour cet appartement pendant des années. Il mérite de passer avant les autres, vous ne trouvez pas ?",
+     "understood_intent": "L'apprenant demande pourquoi le grand-père est payé en premier.",
+     "needs_clarification": false,
+     "feeling_shift": "steady",
+     "acts": [
+      {
+       "action": "justifie",
+       "subject": "le grand-père payé en premier",
+       "conditions": [
+        "il a payé pour l’appartement pendant des années"
+       ],
+       "evidence_quotes": [
+        "Pourquoi il paie d'abord ?"
+       ],
+       "clarity": "clear"
+      }
+     ],
+     "learner_intent": "question",
+     "learned": []
+    }
+   }
+  ]
+ },
+ "expect": {
+  "failure": null,
+  "tutor_refusals": [],
+  "voice_refusals": [],
+  "outcome": "not_yet",
+  "reply_fr": "Parce qu’il a payé pour cet appartement pendant des années. Il mérite de passer avant les autres, vous ne trouvez pas ?"
+ }
+}

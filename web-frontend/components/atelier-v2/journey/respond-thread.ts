@@ -39,6 +39,7 @@ function spokenLines(value: unknown): SpokenLine[] {
 }
 
 import { correctionNotes, dedupeNotes } from '@/lib/correction-notes';
+import { checkState, isUnread } from '@/lib/verdict';
 
 import type { JourneyFeedback } from './journey-state';
 import { speakerOf } from './journey-faces';
@@ -73,7 +74,11 @@ export function drawsEachVoice(
 export type LineSpeaker = { id: string | null; name: string };
 
 /** One exchange as the client keeps it: which turn, and the line it answered. */
-export type LocalExchange = Omit<ThreadExchange, 'character_lines' | 'prompt_line'> & {
+/** Main's name for a line's speaker (walk, 9 Nov); the same shape as `LineSpeaker`. */
+export type PromptSpeaker = LineSpeaker;
+
+export type LocalExchange = Omit<ThreadExchange, 'character_lines' | 'prompt_line' | 'unchecked'> & {
+  unchecked?: boolean;
   /** Every speaker of a many-voiced reply (optional: older servers send none). */
   character_lines?: SpokenLine[];
   turn: number;
@@ -114,7 +119,9 @@ function words(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function correctionOf(value: unknown): JourneyCorrection | null {
+type MoreCorrection = NonNullable<JourneyCorrection['more']>[number];
+
+function oneCorrection(value: unknown): MoreCorrection | null {
   if (!value || typeof value !== 'object') return null;
   const raw = value as Record<string, unknown>;
   const span = line(raw.span_fr);
@@ -143,6 +150,17 @@ function sameSpeaker(a: LineSpeaker | null | undefined, b: LineSpeaker | null | 
   return (a?.id ?? null) === (b?.id ?? null) && (a?.name ?? '') === (b?.name ?? '');
 }
 
+function correctionOf(value: unknown): JourneyCorrection | null {
+  const first = oneCorrection(value);
+  if (!first) return null;
+  const raw = value as Record<string, unknown>;
+  // P3: from B1 the other corrections of the same reply (kept only when sent).
+  const more = Array.isArray(raw.more)
+    ? raw.more.map(oneCorrection).filter((item): item is MoreCorrection => item !== null)
+    : [];
+  return { ...first, ...(more.length ? { more } : {}) };
+}
+
 function exchangeOf(value: unknown): LocalExchange | null {
   if (!value || typeof value !== 'object') return null;
   const raw = value as Record<string, unknown>;
@@ -159,6 +177,7 @@ function exchangeOf(value: unknown): LocalExchange | null {
     learner_fr: learner,
     character_fr: line(raw.character_fr),
     correction: correctionOf(raw.correction),
+    ...(raw.unchecked === true ? { unchecked: true } : {}),
     ...(lines.length ? { character_lines: lines } : {}),
     ...(asker ? { prompt_speaker: asker } : {}),
   };
@@ -212,7 +231,8 @@ export function recordExchange(thread: LocalThread, exchange: LocalExchange): Lo
     current.character_fr === clean.character_fr &&
     current.prompt_fr === (clean.prompt_fr ?? current.prompt_fr) &&
     sameSpeaker(current.prompt_speaker, clean.prompt_speaker ?? current.prompt_speaker) &&
-    JSON.stringify(current.correction) === JSON.stringify(clean.correction)
+    JSON.stringify(current.correction) === JSON.stringify(clean.correction) &&
+    Boolean(current.unchecked) === Boolean(clean.unchecked)
   ) {
     return thread;
   }
@@ -267,6 +287,8 @@ export function exchangeFromResult(input: {
     learner_fr: sent?.text ?? input.fallbackText ?? '',
     character_fr: result.character_reply_fr ?? '',
     correction: result.correction ?? null,
+    // #333: nobody read this reply; its bubble says so.
+    unchecked: isUnread(checkState(result.check)),
     character_lines: result.character_lines ?? [],
   });
 }
@@ -299,11 +321,21 @@ export type LearnerBubble = {
   turn: number;
   text: string;
   correction: JourneyCorrection | null;
+  /** #333: nobody read this reply, so it counted for nothing. */
+  unchecked: boolean;
   /** Sent, and the reply is not back yet. */
   pending: boolean;
 };
 
-export type ThreadBubble = CharacterBubble | LearnerBubble;
+/** The page moves on (#558): a new time or place, a message. Nobody says it. */
+export type CaptionBubble = {
+  kind: 'caption';
+  key: string;
+  turn: number;
+  text: string;
+};
+
+export type ThreadBubble = CharacterBubble | LearnerBubble | CaptionBubble;
 
 /** The exchange on the wire or just answered, before it is kept. */
 export type InFlightExchange = {
@@ -336,6 +368,7 @@ type Slot = {
   learner_fr: string;
   character_fr: string;
   correction: JourneyCorrection | null;
+  unchecked: boolean;
   pending: boolean;
   lines: SpokenLine[];
 };
@@ -369,6 +402,7 @@ export function threadBubbles(input: {
       learner_fr: learner,
       character_fr: words(exchange.character_fr),
       correction: correctionOf(exchange.correction),
+      unchecked: exchange.unchecked === true,
       pending: false,
       lines: spokenLines((exchange as { character_lines?: unknown }).character_lines),
     });
@@ -394,6 +428,7 @@ export function threadBubbles(input: {
         learner_fr: exchange.learner_fr,
         character_fr: exchange.character_fr,
         correction: exchange.correction,
+        unchecked: exchange.unchecked === true,
         pending: false,
         lines: spokenLines((exchange as { character_lines?: unknown }).character_lines),
       });
@@ -414,6 +449,7 @@ export function threadBubbles(input: {
         learner_fr: flightLearner,
         character_fr: reply,
         correction: correctionOf(flight.correction),
+        unchecked: false,
         pending: !reply,
         lines: spokenLines(flight.character_lines),
       });
@@ -453,12 +489,17 @@ export function threadBubbles(input: {
       turn,
       text: slot.learner_fr,
       correction: slot.correction,
+      unchecked: slot.unchecked,
       pending: slot.pending,
     });
     lastCharacter = null;
     if (drawsEachVoice(slot.lines, prompt.character_id)) {
       // A many-voiced reply: every speaker is their own bubble, with their face.
       slot.lines.forEach((spoken, index) => {
+        if (spoken.speaker_id === 'caption') {
+          bubbles.push({ kind: 'caption', key: `c${turn}r${index}`, turn, text: spoken.text_fr });
+          return;
+        }
         bubbles.push({
           kind: 'character',
           key: `c${turn}r${index}`,
@@ -506,15 +547,17 @@ export type ExchangeProgress = {
 };
 
 /**
- * `closed` is true once the closing turn is answered. A server that plays more
- * turns than it planned (a «relance») grows the sequence rather than overflowing it.
+ * `closed` is true once the closing turn is answered. The total is the one the
+ * scene started with and never grows (#467: «Exchange 3 of 3», then «4 of 4»
+ * promised a longer scene than the learner began). A turn the server plays past
+ * the plan (the answer to an open question, a nudge that used no exchange) is
+ * shown as the last exchange again: the last token stays the active one.
  */
 export function exchangeProgress(prompt: RespondPrompt, closed: boolean): ExchangeProgress {
   const index = Math.max(0, Math.floor(Number(prompt.turn_index) || 0));
-  const planned = Math.max(1, Math.floor(Number(prompt.max_turns) || 1));
-  const total = Math.max(planned, index + 1);
-  const played = Math.min(total, index + (closed ? 1 : 0));
-  const position = Math.min(total, closed ? played : played + 1);
+  const total = Math.max(1, Math.floor(Number(prompt.max_turns) || 1));
+  const played = closed ? Math.min(total, index + 1) : Math.min(index, total - 1);
+  const position = closed ? played : played + 1;
   return { total, played, position };
 }
 
@@ -629,9 +672,38 @@ export type PrintedFix = {
   notes: string[];
 };
 
-export function printedFix(correction: JourneyCorrection | null | undefined): PrintedFix | null {
+export function printedFix(
+  correction: JourneyCorrection | MoreCorrection | null | undefined,
+): PrintedFix | null {
   if (!correction) return null;
   const fixed = words(correction.corrected_fr);
   if (!fixed) return null;
   return { fixed, notes: correctionNotes(correction) };
+}
+
+/**
+ * P3 (owner decision 2, proposed): from B1 a reply may earn up to three
+ * corrections. The first is printed as before — its corrected form always
+ * visible, its explanation one tap away — and the others wait collapsed under
+ * it, each with its span, its corrected form and its explanation.
+ */
+export type ThreadFixes = {
+  open: PrintedFix | null;
+  collapsed: Array<PrintedFix & { span: string }>;
+};
+
+/** P3 walk 2: the open-note key of a reply's collapsed corrections (one note open at a time). */
+export function moreNoteKey(bubbleKey: string): string {
+  return `${bubbleKey}:more`;
+}
+
+export function threadFixes(correction: JourneyCorrection | null | undefined): ThreadFixes {
+  const open = printedFix(correction);
+  if (!open || !correction) return { open: null, collapsed: [] };
+  const collapsed = (correction.more ?? []).flatMap((item) => {
+    const fix = printedFix(item);
+    const span = words(item.span_fr);
+    return fix && span ? [{ ...fix, span }] : [];
+  });
+  return { open, collapsed };
 }

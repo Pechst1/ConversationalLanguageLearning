@@ -192,7 +192,14 @@ def test_the_pick_is_tomorrows_day_and_the_one_hook_every_surface_reads(journey_
     hook = "On va cuisiner avec Lila."
     assert body["revision"] == revision + 1
     assert body["recap"]["tomorrow"]["picked"] == "le_diner_rate"
-    assert body["recap"]["teaser"] == {"text_fr": hook, "character_id": None, "character_name": None, "source": "engine"}
+    # A pick has no open row behind it: the learner chose this line, so «Tomorrow» prints it as it is.
+    assert body["recap"]["teaser"] == {
+        "text_fr": hook,
+        "open_fr": None,
+        "character_id": None,
+        "character_name": None,
+        "source": "engine",
+    }
     assert body["recap"]["teaser_fr"] == hook
 
     live = _season_state(db_session, user)

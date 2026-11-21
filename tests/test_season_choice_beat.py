@@ -83,11 +83,22 @@ def _choose(label):
     return scenario, turns, index, history, evaluation
 
 
-@pytest.mark.parametrize("label", ["Lui faire un double", "Pas encore"])
-def test_the_line_to_say_aloud_is_the_card_the_learner_tapped(offline, label):
-    _scenario_, turns, index, history, evaluation = _choose(label)
+def test_the_line_to_say_aloud_is_the_card_the_learner_tapped(offline):
+    _scenario_, turns, index, history, evaluation = _choose("Lui faire un double")
     line = spoken_reply.repeat_line_for(_the_step_after(history, turns[index]))
-    assert line == label, f"tapped «{label}», the recap offers «{line}» to say aloud"
+    assert line == "Lui faire un double", f"the recap offers «{line}» to say aloud"
+
+
+def test_a_card_too_short_to_practise_is_never_swapped_for_the_other_card(offline):
+    """#264 for the other card, #558 for the length: two words are not a line to practise.
+    The learner's earlier sentence stands in, or the card hides; the other button's label,
+    a choice they turned down, never does."""
+
+    _scenario_, turns, index, history, evaluation = _choose("Pas encore")
+    line = spoken_reply.repeat_line_for(_the_step_after(history, turns[index]))
+    assert line != "Pas encore"
+    labels = [str(reply["examples"][0]) for reply in turns[index]["replies"]]
+    assert line not in labels, f"tapped «Pas encore», the recap offers «{line}» to say aloud"
 
 
 def test_a_reaction_spoken_by_the_turns_addressee_names_no_one_in_the_line(offline):
@@ -119,5 +130,23 @@ def test_a_free_reply_the_page_heard_is_said_as_the_route_it_took(monkeypatch, o
     _record(history, text, evaluation)
     # The conversation closes on this turn; the step still holds the question's example.
     line = spoken_reply.repeat_line_for(_the_step_after(history, turn))
-    assert line == other["examples"][0], (line, other["examples"][0])
     assert line != turn_example(turn)
+    # #556: the route's own sentence shares nothing with what they wrote, and it would be
+    # words they never said, so their own sentence is the line.
+    assert line == text, (line, other["examples"][0])
+
+
+def test_a_free_reply_about_the_route_says_the_routes_sentence(monkeypatch, offline):
+    """The route's sentence stays the line when it is about what the learner wrote."""
+
+    season = load_season("s1")
+    page = resolve_day(season, "t1", "a", flags=effective_flags(season, {}, seed="x"), band="A1", language="de")
+    scenario = _scenario(page)
+    turn = projected_turns(page)[0]
+    other = next(reply for reply in turn["replies"] if reply["examples"][0] != turn_example(turn))
+    monkeypatch.setattr(runtime, "classify", lambda db, user, **kwargs: ReplyChoice(reply_id=other["id"], confidence=1.0, clear=True))
+    scenario.character_id = turn["to"]
+    history: list[dict] = []
+    text = "Je pense vendre l'appartement et partir."
+    _record(history, text, _say(scenario, text, history, 0))
+    assert spoken_reply.repeat_line_for(_the_step_after(history, turn)) == other["examples"][0]

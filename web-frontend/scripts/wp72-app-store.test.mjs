@@ -127,10 +127,14 @@ test('one name: Capacitor config and web manifest', () => {
 });
 
 test('legal pages are public, in the app, and in sync with the API text', () => {
+  // S4 stage 1: RouteAuthGate's public list is the register's (lib/places.ts).
   const gate = read('components', 'auth', 'RouteAuthGate.tsx');
-  const publicBlock = gate.slice(gate.indexOf('PUBLIC_PATHNAMES'), gate.indexOf('GUEST_ONLY_PATHNAMES'));
-  assert.ok(publicBlock.includes("'/privacy'"));
-  assert.ok(publicBlock.includes("'/terms'"));
+  assert.ok(gate.includes('new Set(publicRoutes())'));
+  const places = read('lib', 'places.ts');
+  for (const route of ['/privacy', '/terms']) {
+    const row = places.slice(places.indexOf(`route: '${route}',`));
+    assert.match(row.slice(0, row.indexOf('entries:')), /access: 'public',/, route);
+  }
   assert.ok(existsSync(path.join(webRoot, 'pages', 'privacy.tsx')));
   assert.ok(existsSync(path.join(webRoot, 'pages', 'terms.tsx')));
   assert.equal(
@@ -202,7 +206,10 @@ test('native export: dev/QA pages and the flag-off Bibliothèque are pruned, not
   const root = mkdtempSync(path.join(os.tmpdir(), 'wp72-export-'));
   fakeExport(root);
   const prefixes = excludedRoutePrefixes({ storyFeatureVisible: false });
-  assert.deepEqual(prefixes, ['/mobile-visual-qa', '/atelier-v2-gallery', '/dev', '/bibliotheque']);
+  // S4 stage 1 added the three gallery pages the register of places found missing.
+  assert.deepEqual(prefixes, [
+    '/mobile-visual-qa', '/atelier-v2-gallery', '/dev', '/cameo-gallery', '/personnage-gallery', '/troupe-vivante', '/bibliotheque',
+  ]);
   const removed = pruneNativeExport(root, prefixes);
   assert.equal(removed.length, 10, removed.join('\n'));
   assert.deepEqual(findExcludedPaths(root, prefixes), []);
@@ -227,7 +234,7 @@ test('native export: dev/QA pages and the flag-off Bibliothèque are pruned, not
 });
 
 test('the real launch flags exclude every WP-72 route', () => {
-  for (const route of ['/mobile-visual-qa', '/atelier-v2-gallery', '/dev/styleguide']) {
+  for (const route of ['/mobile-visual-qa', '/atelier-v2-gallery', '/dev/styleguide', '/cameo-gallery', '/personnage-gallery', '/troupe-vivante']) {
     assert.ok(isExcludedRoute(route), route);
   }
   const flags = JSON.parse(read('launch-flags.json'));
@@ -238,8 +245,9 @@ test('release verification refuses local, placeholder, http and sandbox builds',
   const root = mkdtempSync(path.join(os.tmpdir(), 'wp72-bundle-'));
   fakeExport(root);
   pruneNativeExport(root);
-  // with Le Quartier off, `next build` still leaves an empty quartier/ (notFound writes no page)
+  // P12: Le Quartier is launched, so the release export carries its page
   mkdirSync(path.join(root, 'quartier'));
+  writeFileSync(path.join(root, 'quartier', 'index.html'), 'x');
   const production = {
     NEXT_PUBLIC_API_BASE_URL: 'https://atelier.onrender.com/api/v1',
     NEXT_PUBLIC_WS_URL: 'wss://atelier.onrender.com',
@@ -259,8 +267,16 @@ test('release verification refuses local, placeholder, http and sandbox builds',
   writeFileSync(path.join(phone, 'quartier', 'index.html'), 'x');
   writeNativeBuildManifest(phone, production);
   assert.deepEqual(verifyNativeBundle(phone), []);
-  const launched = JSON.parse(read('launch-flags.json')).quartierVisible === true;
-  assert.equal(/QUARTIER_VISIBLE/.test(verifyNativeBundle(phone, { release: true }).join('\n')), !launched);
+  // P12 (owner, 17 Nov): the door is open in launch-flags.json, so a release ships Le Quartier
+  assert.equal(JSON.parse(read('launch-flags.json')).quartierVisible, true, 'Le Quartier is launched');
+  assert.deepEqual(verifyNativeBundle(phone, { release: true }), []);
+  // and a release export without its page is refused (notFound would have left an empty quartier/)
+  const without = mkdtempSync(path.join(os.tmpdir(), 'wp72-no-quartier-'));
+  fakeExport(without);
+  pruneNativeExport(without);
+  mkdirSync(path.join(without, 'quartier'));
+  writeNativeBuildManifest(without, production);
+  assert.match(verifyNativeBundle(without, { release: true }).join('\n'), /no \/quartier page/);
 
   writeNativeBuildManifest(root, { ...production, NEXT_PUBLIC_APNS_ENVIRONMENT: 'sandbox' });
   assert.match(verifyNativeBundle(root, { release: true }).join('\n'), /not "production"/);

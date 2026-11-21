@@ -58,6 +58,8 @@ from app.schemas.atelier import (
     AtelierWorkshopComposeRequest,
     AtelierWorkshopComposeResponse,
 )
+from app.schemas.verdict import VerdictView
+from app.services import solution_gate, verdicts
 from app.services.address import character_register
 from app.services.atelier import (
     ATELIER_GENERATOR_VERSION,
@@ -87,14 +89,24 @@ from app.services.atelier import (
 from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService, AtelierWorkshopShortfall
 from app.services.book_library import BookLibraryService
-from app.services.cast_registry import display_name, people_addressed, people_named
+from app.services.cast_registry import display_name, people_addressed, people_named, people_speaking
 from app.services.cast_registry import resolve_id as _resolve_cast_id
 from app.services.cefr_progress import CEFRProgressService, live_level, with_can_do_line
-from app.services.chrome_language import user_chrome_language
+from app.services.chrome_language import (
+    user_chrome_language,
+    user_correction_language,
+    user_mother_tongue,
+)
 from app.services.concept_titles import concept_title, concept_title_fr
 from app.services.error_memory import ErrorMemoryService
-from app.services.forge import ForgeService, is_forge_session  # WP-S3 La Forge
-from app.services.forge_item_validator import item_problems  # #267: an item agrees with its badge
+from app.services.forge import (  # WP-S3 La Forge
+    TEST_OUT_STATUS,
+    ForgeService,
+    forge_state_of,
+    is_forge_session,
+)
+from app.services.forge_coaches import story_state_of
+from app.services.forge_item_validator import speaker_problems  # #267/#780: agrees with its badge
 from app.services.forge_metrics import record_forge_abandoned, sweep_stale_forge_seances  # WP-S8
 from app.services.forge_picker import forge_plan  # WP-S4 one picker
 from app.services.glosses import DEFAULT_GLOSS_LANGUAGE, normalize_language
@@ -315,7 +327,17 @@ def _with_serial_conversation(
     words = f"{items[0].get('prompt') or ''} {items[0].get('example_answer') or ''}"
     named, addressed = people_named(words), people_addressed(words)
     met = context.get("met") or {}
-    if addressed:
+    speaking = people_speaking(words)
+    if speaking:
+        # #147 (14 Nov): «Gus : « Tu es où ? »» went out under Lila. A line the item puts
+        # in someone's mouth is that person's: their badge when the learner has met them,
+        # no badge when not.
+        speaker = met.get(speaking[0])
+        if speaker is None:
+            return payload
+        if str(speaker.get("id")) != str(character.get("id")):
+            character = _cast_badge(speaker, state=context.get("state") or {})
+    elif addressed:
         addressee = met.get(addressed[0])
         if addressee is None:
             return payload
@@ -332,7 +354,10 @@ def _with_serial_conversation(
     # model, and nothing checked that they agree («Lila · tu» over «Répondez …»).
     # A prompt that disagrees with its badge is served as a plain situation, with
     # no speaker, so no portrait and no reaction is put in a mouth that cannot say it.
-    if item_problems(items[0].get("prompt"), register=register):
+    # #780: and a bare «Say in French: "Du bist 39 Jahre alt."» has no line anyone says, so
+    # no speaker; the register is read on every line the learner reads or says (the cue in
+    # their language, the model answer), not only on a French prompt that may be empty.
+    if speaker_problems(items[0], register=register):
         return payload
     items[0].update(
         {
@@ -578,11 +603,13 @@ def _concept_read(
     asset_service: AtelierAssetService | None = None,
     fr_localizations: dict[int, GrammarConceptLocalization] | None = None,
     language: str | None = None,
+    state: dict[str, Any] | None = None,
 ) -> AtelierConceptRead:
     data = serialize_concept(
         selection.concept,
         fr_localization=(fr_localizations or {}).get(selection.concept.id),
         language=language,
+        state=state,
     )
     data["role"] = selection.role
     data["mastery"] = selection.progress.score if selection.progress else 0
@@ -621,8 +648,14 @@ def _attempt_response(
     minted_collectibles: list[dict[str, Any]] | None = None,
     forge: dict[str, Any] | None = None,
 ) -> AtelierAttemptResponse:
-    correction = attempt.correction_payload or {}
+    stored = attempt.correction_payload or {}
+    # Owner 2026-11-13: before the second chance is spent the learner sees where and why,
+    # never the solution (app/services/solution_gate.py).
+    correction = _learner_correction(attempt)
     ai_review = correction.get("ai_review") if isinstance(correction, dict) else {}
+    check = verdicts.from_forge(
+        stored, text=str((attempt.answer_payload or {}).get("text") or ""), verdict=attempt.verdict
+    ).to_dict()
     return AtelierAttemptResponse(
         attempt_id=attempt.id,
         verdict=attempt.verdict,
@@ -632,7 +665,25 @@ def _attempt_response(
         ai_review=ai_review if isinstance(ai_review, dict) else {},
         minted_collectibles=minted_collectibles or [],
         forge=forge or {},
+        check=VerdictView.model_validate(solution_gate.withhold_check(check, stored, attempt.verdict)),
     )
+
+
+def _learner_correction(attempt: AtelierAttempt) -> dict[str, Any]:
+    """The correction as the learner may see it now: without its solution while a second chance is open."""
+
+    from app.services.free_card_contract import with_model_answer
+
+    stored = attempt.correction_payload or {}
+    view = solution_gate.learner_view(
+        stored,
+        verdict=attempt.verdict,
+        answer_payload=attempt.answer_payload or {},
+        context=solution_gate.task_text(attempt.prompt_payload or {}),
+    )
+    # R2 (walk of 17 Nov): a free card refused twice ends in its solution — one acceptable
+    # model answer — never in «Passer» as the only way out.
+    return with_model_answer(view, round_name=attempt.round, prompt_payload=attempt.prompt_payload or {})
 
 
 ADAPTIVE_LOCK_CLEAN_RECOGNIZE_ITEMS = 3
@@ -1098,8 +1149,14 @@ def _submitted_map(
 
 
 def _attempt_read(attempt: AtelierAttempt) -> dict[str, Any]:
-    correction = attempt.correction_payload or {}
+    stored = attempt.correction_payload or {}
+    withheld = solution_gate.is_withheld(stored, attempt.verdict)
+    # Owner 2026-11-13: a reload in the middle of a second chance shows it as it was.
+    correction = _learner_correction(attempt)
     submitted_keys = _submitted_keys_for_attempt(attempt)
+    check = verdicts.from_forge(
+        stored, text=str((attempt.answer_payload or {}).get("text") or ""), verdict=attempt.verdict
+    ).to_dict()
     return {
         "attempt_id": str(attempt.id),
         "session_id": str(attempt.atelier_session_id),
@@ -1107,12 +1164,13 @@ def _attempt_read(attempt: AtelierAttempt) -> dict[str, Any]:
         "round": attempt.round,
         "mode": attempt.mode,
         "exercise_id": attempt.exercise_id,
-        "prompt_payload": attempt.prompt_payload or {},
+        "prompt_payload": solution_gate.withhold_item(attempt.prompt_payload or {}) if withheld else (attempt.prompt_payload or {}),
         "answer_payload": attempt.answer_payload or {},
         "correction": correction,
         "ai_review": correction.get("ai_review") if isinstance(correction, dict) else {},
         "verdict": attempt.verdict,
         "score_0_4": attempt.score_0_4,
+        "check": solution_gate.withhold_check(check, stored, attempt.verdict),
         "submitted_key": _submitted_key(attempt),
         "submitted_keys": submitted_keys,
         "created_at": attempt.created_at.isoformat() if attempt.created_at else None,
@@ -1241,14 +1299,19 @@ def _session_response(
         # WP-103: every item's goal in the learner's language, no retired frame, no
         # server-only key (the classify follow-up's).
         payload = public_payload(
-            payload, user_chrome_language(user), getattr(user, "native_language", None)
+            payload, user_chrome_language(user), user_mother_tongue(user)
         )
         if user_chrome_language(user) == "fr":
-            from app.services.grammar_units import french_rule
-            payload["rule_panel"] = {
-                **(payload.get("rule_panel") or {}), "rule": french_rule(selection.concept),
-                "when": None, "pattern": None, "check": None,
-            }
+            # From B1 the panel's chrome is French, but the rule is explained in the
+            # mother tongue (owner decision 18 Nov 2026, as the scene's notes; R4).
+            from app.services.grammar_units import french_rule, native_rule
+            explain = user_correction_language(user)
+            rule = french_rule(selection.concept) if explain == "fr" else native_rule(selection.concept, explain)
+            if rule or explain == "fr":
+                payload["rule_panel"] = {
+                    **(payload.get("rule_panel") or {}), "rule": rule,
+                    "when": None, "pattern": None, "check": None,
+                }
         exercise_sets.append(
             {
                 "id": str(exercise_set.id),
@@ -1259,11 +1322,14 @@ def _session_response(
             }
         )
     attempts = _session_attempts(db, session)
+    story_state = story_state_of(db, user)
     return AtelierSessionStartResponse(
         session_id=session.id,
         status=session.status,
         concepts=[
-            _concept_read(selection, due_by_concept, asset_service, fr_localizations, user_chrome_language(user))
+            _concept_read(
+                selection, due_by_concept, asset_service, fr_localizations, user_chrome_language(user), story_state
+            )
             for selection in selections
         ],
         quote=session.quote_payload or scheduler.quote_for_today(),
@@ -1340,9 +1406,17 @@ async def get_today(
     # level as it stands now, so Home's goal line and Fortschritt agree.
     cefr = with_can_do_line(db, current_user, live_level(db, current_user))
     fr_localizations = fr_localizations_by_concept_id(db, (selection.concept.id for selection in selections))
+    story_state = story_state_of(db, current_user)
     return AtelierTodayResponse(
         concepts=[
-            _concept_read(selection, due_by_concept, asset_service, fr_localizations, user_chrome_language(current_user))
+            _concept_read(
+                selection,
+                due_by_concept,
+                asset_service,
+                fr_localizations,
+                user_chrome_language(current_user),
+                story_state,
+            )
             for selection in selections
         ],
         quote=scheduler.quote_for_today(),
@@ -1561,6 +1635,27 @@ def get_session(
     return _session_response(db, current_user, session)
 
 
+def _posed_drill(session: AtelierSession, answer_payload: Any, existing: AtelierAttempt | None) -> str | None:
+    """How La Forge posed the item this answer is for («typed», «choice», …), if it did.
+
+    Walk of 19 Nov: a typed fill keeps the options of its classic form in the stored
+    item, so the item alone cannot tell a typed answer from a picked one. The forge's
+    pending item says how it was posed; a retry («Réessayer») reads it from the first
+    answer's record, since the forge has moved on by then.
+    """
+
+    if existing is not None:
+        drill = ((existing.correction_payload or {}).get("forge") or {}).get("drill")
+        if drill:
+            return str(drill)
+    state = forge_state_of(session)
+    pending = (state.pending if state else None) or {}
+    answers = (answer_payload or {}).get("answers") if isinstance(answer_payload, dict) else None
+    if not pending.get("drill") or not isinstance(answers, dict):
+        return None
+    return str(pending["drill"]) if str(pending.get("item_id") or "") in {str(key) for key in answers} else None
+
+
 @router.post("/sessions/{session_id}/attempts", response_model=AtelierAttemptResponse)
 def submit_attempt(
     session_id: UUID,
@@ -1647,6 +1742,7 @@ def submit_attempt(
         answer_payload["confidence"] = payload.confidence
     correction_service = AtelierCorrectionService(db)
     first_submission = existing is None
+    posed_drill = _posed_drill(session, answer_payload, existing) if is_forge_session(session) else None
     try:
         attempt = correction_service.submit_attempt(
             session=session,
@@ -1658,6 +1754,7 @@ def submit_attempt(
             answer_payload=answer_payload,
             prompt_payload_override=prompt_payload_override,
             retest_of=retest_source.id if retest_source else None,
+            posed_drill=posed_drill,
         )
     except AnswerLengthError as exc:
         # #574: the item states a word range; a line outside it is not an answer to it.
@@ -1686,6 +1783,23 @@ def submit_attempt(
     correction = dict(attempt.correction_payload or {})
     second_check_pending = AtelierCorrectionService.ai_review_from_correction(correction).get("status") == "pending"
     correction["latency"] = {**dict(correction.get("latency") or {}), "local_ms": local_ms}
+    # Owner 2026-11-13: a miss followed by a second chance keeps its solution until the
+    # chance is spent (a repair sent, «Show the solution»); the retry itself has none.
+    correction = solution_gate.mark(
+        correction,
+        chance=solution_gate.second_chance_for(
+            round_name=payload.round,
+            exercise_id=payload.exercise_id,
+            prompt_payload=attempt.prompt_payload or {},
+            answer_payload=answer_payload,
+            first_submission=first_submission,
+            retest=retest_source is not None,
+            rule_check=session.status == TEST_OUT_STATUS or correction.get("graded_by") == "local_test_out",
+            drill=posed_drill,
+        ),
+        # R4: a withheld solution's hint explains, so it is in the mother tongue.
+        language=user_correction_language(current_user),
+    )
     attempt.correction_payload = correction
     db.add(attempt)
     PilotEventService(db).record(
@@ -1739,6 +1853,23 @@ def repair_attempt(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     return _attempt_response(updated)
+
+
+@router.post("/attempts/{attempt_id}/reveal", response_model=AtelierAttemptResponse)
+def reveal_attempt_solution(
+    attempt_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_atelier_user),
+) -> AtelierAttemptResponse:
+    """Owner 2026-11-13: «Show the solution» spends the second chance; the correction comes whole."""
+
+    attempt = _attempt_or_404(db, attempt_id, current_user)
+    attempt.correction_payload = solution_gate.reveal(dict(attempt.correction_payload or {}), by="reveal")
+    flag_modified(attempt, "correction_payload")
+    db.add(attempt)
+    db.commit()
+    db.refresh(attempt)
+    return _attempt_response(attempt)
 
 
 @router.post("/exercises/report", response_model=AtelierExerciseReportResponse, status_code=status.HTTP_201_CREATED)
@@ -1951,7 +2082,7 @@ def _learner_help_language(user: User) -> tuple[str, str]:
 
     from app.services.glosses import EXPLANATION_LANGUAGE_NAMES
 
-    language = normalize_language(getattr(user, "native_language", None))
+    language = user_mother_tongue(user)
     if language == "fr" or language not in EXPLANATION_LANGUAGE_NAMES:
         language = "en"
     return language, EXPLANATION_LANGUAGE_NAMES[language]

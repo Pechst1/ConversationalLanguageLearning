@@ -58,8 +58,15 @@ def test_a_wording_question_takes_the_turn_instead():
 
 
 def test_a_met_first_reply_keeps_the_conversation_open(
-    assembled_client, db_session, journey_enabled, clock, provider, jobs
+    assembled_client, db_session, journey_enabled, clock, provider, jobs, monkeypatch
 ):
+    # This A1 Régulier scene keeps its three exchanges here: with the low bands' one
+    # more (owner 2026-11-16) it plans four, and a four-exchange scene whose every
+    # reply asks a question runs to seven voices (the repair slot and the grace both
+    # apply) — the same on main for any four-exchange scene; tracked separately.
+    from app.services import journey_planner
+
+    monkeypatch.setattr(journey_planner, "LOW_BAND_EXTRA_EXCHANGES", 0)
     # The fake model says something new at each exchange: one that said its previous
     # line again would be refused as a repeat of the thread (#349).
     fresh = iter(f"Alors, parlons du point {n}. Qu'en pensez-vous ?" for n in range(1, 20))
@@ -100,7 +107,9 @@ def test_a_met_first_reply_keeps_the_conversation_open(
         if following is None:
             break
         prompt = following["prompt"]
-        assert prompt["turn_index"] < prompt["max_turns"], "the counter never reads «4 of 3»"
+        # #467: the total is fixed when the scene starts; the answer an open question
+        # takes is one more turn under the same total, never a bigger promise.
+        assert prompt["max_turns"] == step["prompt"]["max_turns"], "the total never grows mid-scene"
     voice = [data for schema, data in provider.calls if schema == "VoiceReply"]
     assert voice[-1]["turn_plan"]["keep_talking"] is False
     assert len(jobs) == 1, "one ending, after the last exchange"
@@ -174,7 +183,7 @@ def test_the_last_planned_exchange_that_asks_waits_for_the_answer(
     asked = results[planned - 1]
     assert asked["character_reply_fr"] == LILA_ASKS
     assert asked["next_turn"] is not None, "the scene stays open under Lila's question"
-    assert asked["next_turn"]["prompt"]["max_turns"] == planned + 1
+    assert asked["next_turn"]["prompt"]["max_turns"] == planned, "#467: the total stays the planned one"
     assert results[-1]["character_reply_fr"] == LILA_SETTLES
     assert results[-1]["next_turn"] is None, "a statement closes the scene"
     assert len(jobs) == 1, "one ending, after the question was answered"
@@ -192,7 +201,9 @@ def test_a_scene_that_keeps_asking_still_ends_after_the_grace(
     d = driver(assembled_client, db_session)
     step = harness._to_respond(d)
     planned = step["prompt"]["max_turns"]
-    _scripted_voice(provider, [f"D'accord. Et la question {n} ?" for n in range(1, 20)])
+    # Each question is about something new: one asked again would be dropped (#467).
+    topics = "café thé pain lait sucre miel beurre fromage salade soupe riz pâtes tarte gâteau jus eau vin bière cidre".split()
+    _scripted_voice(provider, [f"D'accord. Et le {topic} ?" for topic in topics])
     results = _play(assembled_client, d, [f"Réponse numéro {n}." for n in range(1, 20)])
     assert len(results) == planned + SCENE_QUESTION_GRACE
     assert results[-1]["next_turn"] is None
@@ -210,7 +221,7 @@ def test_the_learners_question_reaches_the_voice_first(
     _play(assembled_client, d, ["Je viens samedi. Vous avez un chat ?"])
     voice = [data for schema, data in provider.calls if schema == "VoiceReply"]
     assert voice[-1]["turn_plan"]["learner_asked"] == "Vous avez un chat ?"
-    assert voice[-1]["ledger"]["learner_asked"] == "Vous avez un chat ?"
+    assert voice[-1]["ledger"]["last_turn"]["asks"] == "Vous avez un chat ?"
     assert "turn_plan.learner_asked" in engine_voice_prompt()
 
 

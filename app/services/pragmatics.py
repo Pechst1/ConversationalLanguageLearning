@@ -56,6 +56,7 @@ from uuid import UUID
 from loguru import logger
 
 from app.config import settings
+from app.services.chrome_language import mother_tongue
 from app.services.journey_contracts import normalize_answer_text
 
 PRAGMATICS_POLICY_VERSION = "journey-pragmatics-v1"
@@ -560,7 +561,7 @@ class CounterpartRegister:
     reason_native: dict[str, str] = field(default_factory=dict)
 
     def reason(self, language: str | None) -> str:
-        code = str(language or "en").lower()[:2]
+        code = mother_tongue(language)
         return self.reason_native.get(code) or self.reason_native.get("en") or ""
 
 

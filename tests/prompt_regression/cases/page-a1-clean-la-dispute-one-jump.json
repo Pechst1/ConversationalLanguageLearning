@@ -1,0 +1,188 @@
+{
+ "id": "page-a1-clean-la-dispute-one-jump",
+ "lane": "page",
+ "level": "A1",
+ "source": "The same day as page-a1-walk-four-moments told as one scene: one bench, one person, and the one deliberate jump la_dispute needs, in the walk's own caption «Le lendemain matin. Le même banc.». Hand-written. It must pass: a time jump with a caption is the writer's to use.",
+ "input": {
+  "context": "s1-g4.3-a1.json",
+  "patch": {
+   "chapter_shape": {
+    "shape": "ensemble",
+    "beats": [
+     "setup",
+     "complication",
+     "turn",
+     "resolution"
+    ],
+    "note": ""
+   },
+   "recent_situations": [
+    {
+     "title_fr": "Camille et la dette",
+     "location_id": "notaire",
+     "character_id": "camille_marchand",
+     "objective_native": "Tell Camille you do not agree.",
+     "premise_fr": "Chez Maître Vasseur. Camille attend. Elle veut que tu signes.",
+     "causal_reason": "The flat's debt is a frightening word. → The learner knows the debt can take the flat and no more.",
+     "novelty_key": "chez-le-notaire",
+     "chapter_title_fr": "Camille et la dette"
+    }
+   ]
+  }
+ },
+ "answers": {
+  "PagePlan": [
+   {
+    "origin": "hand-written",
+    "prompt_digest": "sha256:5c503328c39b52002454a19559754920ac923979c7399d960ff303261fbd5250",
+    "content": {
+     "premise_id": "la_dispute",
+     "location_id": "quai_de_valmy",
+     "cast": [
+      "lila_bonnet"
+     ],
+     "lead_id": "lila_bonnet",
+     "beats": [
+      "On the bench by the canal, Lila and the learner have quarrelled about the photo and the insurer.",
+      "Lila walks off without a word.",
+      "The next morning, the same bench: Lila comes back with a pizza.",
+      "She sits down and opens the box between them."
+     ],
+     "change": {
+      "before": "The learner and Lila have never fought.",
+      "after": "They have fought, and they are still here."
+     },
+     "question": "Will you share it with me?",
+     "task": "Lila brings pizza and asks if you'll share it.",
+     "replies": [
+      {
+       "gist": "yes, we share",
+       "intent": "yes",
+       "then": "they eat on the bench"
+      },
+      {
+       "gist": "no",
+       "intent": "no",
+       "then": "Lila keeps the pizza"
+      }
+     ],
+     "hook": "At the zinc, Gus says «vous».",
+     "chapter": {
+      "question": "Are the learner and Lila still friends after the quarrel?",
+      "developments": [
+       "Lila apologises.",
+       "The learner apologises.",
+       "Neither does, and they share a pizza anyway."
+      ]
+     },
+     "threads": [
+      "Romance/friendship gate 3, the argument and the hesitant apology, belongs here."
+     ],
+     "small_moment_id": "vous_de_gus",
+     "complication": null,
+     "callback_id": null,
+     "learner_agency": null,
+     "novelty_key": "lila-pizza-banc",
+     "problem_key": "dispute_secrets"
+    }
+   }
+  ],
+  "PageText": [
+   {
+    "origin": "hand-written",
+    "prompt_digest": "sha256:2bf873222da441ff1342ec264df80710b4580bc83463a3222bcda5777cbef9e2",
+    "content": {
+     "title_fr": "Lila revient avec une pizza",
+     "premise_fr": "Lila revient sur le quai avec une pizza.",
+     "opening_line_fr": "On partage ?",
+     "suggested_response_fr": "Oui, on partage.",
+     "hook_fr": "Au zinc, Gus dit « vous ».",
+     "chapter_title_fr": "La dispute",
+     "chapter_question_fr": "Lila et toi, encore amis après la dispute ?",
+     "panels": [
+      {
+       "location_id": "quai_de_valmy",
+       "time_jump": false,
+       "visual_direction": "Evening, a bench by the canal. Lila stands, arms crossed; Toi sits with their back to us.",
+       "narration_fr": "Le soir. Un banc, le canal.",
+       "dialogue": [
+        {
+         "character_id": "lila_bonnet",
+         "text_fr": "Oui, la photo au mur, c'est mon idée.",
+         "mood": "cross"
+        },
+        {
+         "character_id": "lila_bonnet",
+         "text_fr": "Un secret, c'est pire que l'assurance.",
+         "mood": "cross"
+        }
+       ]
+      },
+      {
+       "location_id": "quai_de_valmy",
+       "time_jump": false,
+       "visual_direction": "Wide: Lila walks away along the quai, the bench empty beside Toi. No dialogue.",
+       "narration_fr": "Lila part. Elle ne dit rien.",
+       "dialogue": []
+      },
+      {
+       "location_id": "quai_de_valmy",
+       "time_jump": true,
+       "visual_direction": "Morning light, the same bench. Lila comes along the quai with a pizza box.",
+       "narration_fr": "Le lendemain matin. Le même banc.",
+       "dialogue": [
+        {
+         "character_id": "lila_bonnet",
+         "text_fr": "Une pizza. Le matin. Oui, je sais.",
+         "mood": "happy"
+        }
+       ]
+      },
+      {
+       "location_id": "quai_de_valmy",
+       "time_jump": false,
+       "visual_direction": "Close on the box, open on the bench between Lila and Toi. One slice is missing.",
+       "narration_fr": "",
+       "dialogue": []
+      }
+     ]
+    }
+   }
+  ],
+  "PageAids": [
+   {
+    "origin": "hand-written",
+    "prompt_digest": "sha256:b6dc7ade4e06e96849c63756da31e254d7365450442b200f508bbe85455075fa",
+    "content": {
+     "setup_native": "Lila comes back to the quai with a pizza.",
+     "translation_native": "Shall we share?",
+     "hint_native": "Lila wants to know if you will share the pizza.",
+     "alt_native": [
+      "Lila on the quai in the evening, arms crossed.",
+      "Lila walks away along the quai.",
+      "Lila comes back to the bench with a pizza box.",
+      "An open pizza box on the bench."
+     ],
+     "lines_native": [
+      [
+       "Yes, the photo on the wall was my idea.",
+       "A secret is worse than the insurance."
+      ],
+      [],
+      [
+       "A pizza. In the morning. Yes, I know."
+      ],
+      []
+     ],
+     "lexicon": [],
+     "can_do_id": null
+    }
+   }
+  ]
+ },
+ "expect": {
+  "draw": "ok",
+  "scene_guard": "pass",
+  "premise_id": "la_dispute"
+ }
+}

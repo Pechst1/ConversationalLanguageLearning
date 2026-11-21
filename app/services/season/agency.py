@@ -195,15 +195,17 @@ def generated_contract(season_id: str, gap: str, premise: str | None, raw: Any) 
         return None
     try:
         speaker = str(raw.get("speaker") or "").strip()
+        # S5: ids are normalised before they are checked («keep-name» → ``keep_name``),
+        # as the season writer's are; the pattern itself is stated in AGENCY_RULES.
         subjects = {
-            str(k).strip(): " ".join(str(v).split())[:200]
+            _slugged(k): " ".join(str(v).split())[:200]
             for k, v in dict(raw.get("subjects") or {}).items()
-            if _SLUG.match(str(k).strip()) and str(v).strip()
+            if _SLUG.match(_slugged(k)) and str(v).strip()
         }
         conditions = {
-            str(k).strip(): " ".join(str(v).split())[:200]
+            _slugged(k): " ".join(str(v).split())[:200]
             for k, v in dict(raw.get("conditions") or {}).items()
-            if _SLUG.match(str(k).strip()) and str(v).strip()
+            if _SLUG.match(_slugged(k)) and str(v).strip()
         }
         if speaker not in _cast_ids(season_id) or not subjects or len(subjects) > MAX_SUBJECTS:
             return None
@@ -212,10 +214,10 @@ def generated_contract(season_id: str, gap: str, premise: str | None, raw: Any) 
         effects: list[EffectSpec] = []
         outcomes: dict[str, str] = {}
         for row in list(raw.get("effects") or [])[:MAX_EFFECTS]:
-            effect_id = str(row.get("id") or "").strip()
+            effect_id = _slugged(row.get("id") or "")
             actions = [a for a in row.get("actions") or [] if a in ACTIONS]
-            subject = str(row.get("subject") or "").strip()
-            allowed = [c for c in row.get("allowed_conditions") or [] if c in conditions]
+            subject = _slugged(row.get("subject") or "")
+            allowed = [slug for c in row.get("allowed_conditions") or [] if (slug := _slugged(c)) in conditions]
             outcome = " ".join(str(row.get("outcome_en") or "").split())[:200]
             if not _SLUG.match(effect_id) or effect_id in outcomes or not actions or subject not in subjects or not outcome:
                 continue
@@ -561,6 +563,9 @@ AGENCY_RULES = {
     "max_subjects": MAX_SUBJECTS,
     "max_conditions": MAX_CONDITIONS,
     "max_effects": MAX_EFFECTS,
+    # S5: the pattern ``generated_contract`` enforces, stated where the ids are written.
+    "id_pattern": _SLUG.pattern,
+    "ids": "every snake_case_id (subjects, conditions, effects) matches id_pattern: a lowercase letter, then letters, digits or underscores, no hyphen",
     "shape": {
         "speaker": "cast id of the character the learner answers",
         "subjects": {"snake_case_id": "what the decision is about, one English sentence"},

@@ -279,6 +279,37 @@ def test_one_cost_row_per_lane(assembled_client, db_session, journey_enabled, cl
     assert all(row.cost_usd > 0 for row in rows)
 
 
+@pytest.mark.parametrize("lane", ["TutorVerdict", "VoiceReply"])
+def test_a_reply_no_lane_read_keeps_its_ending_and_counts_for_nothing(
+    assembled_client, db_session, journey_enabled, clock, provider, inline, monkeypatch, lane
+):
+    """#333 / D5: the authored ending keeps the day going. It is not a grade and it pays nothing."""
+
+    from app.db.models.gold import GoldLedgerEntry
+
+    monkeypatch.setattr(settings, "ATELIER_GOLD_MODE", "shadow")
+    d = driver(assembled_client, db_session)
+    step = _to_respond(d)
+    provider.fail = {lane}
+    db_session.query(GoldLedgerEntry).filter(GoldLedgerEntry.user_id == d.user_id).delete()
+    db_session.flush()
+
+    result = _respond(assembled_client, d, step)[2].json()
+
+    assert result["reply_source"] == "authored"
+    assert result["character_reply_fr"], "the day keeps going on the authored ending"
+    check = result["check"]
+    assert (check["outcome"], check["counts"]) == ("not_checked", False)
+    assert check["call"] == "failed" and check["failure"]
+    db_session.flush()
+    assert not db_session.scalars(
+        select(GoldLedgerEntry).where(GoldLedgerEntry.user_id == d.user_id, GoldLedgerEntry.source_kind == "journey_reply")
+    ).all()
+    assert db_session.scalars(
+        select(PilotEvent).where(PilotEvent.event_type == "verdict_check_failed", PilotEvent.user_id == d.user_id)
+    ).first()
+
+
 def test_a_failed_story_lane_gets_the_authored_ending_around_the_shown_reply(
     assembled_client, db_session, journey_enabled, clock, provider, inline
 ):
@@ -292,7 +323,9 @@ def test_a_failed_story_lane_gets_the_authored_ending_around_the_shown_reply(
     shown = _resolution(d.journey)["prompt"]
     assert shown["story_pending"] is False
     # R2-5: the reply was shown, so the ending never says the character left before answering.
-    assert "doit partir" in shown["character_line_fr"]
+    # #518: nobody leaves at all. The authored ending is the character's own closing words.
+    assert "On en reparle" in shown["character_line_fr"]
+    assert "partir" not in shown["character_line_fr"]
     assert "avant de répondre" not in shown["character_line_fr"]
     thread = engine._active_thread(db_session, SimpleNamespace(id=d.user_id))
     live = thread.state["living_story"]
@@ -310,10 +343,11 @@ def test_a_failed_story_lane_gets_the_authored_ending_around_the_shown_reply(
         select(PilotEvent).where(PilotEvent.event_type == "journey_story_lane_settled",
                                  PilotEvent.user_id == d.user_id)
     ).one()
-    # Story plan, Phase 1 «Maßstab»: the authored ending the learner read is the one counted
-    # («La conversation reprendra là où elle s'est arrêtée.»).
+    # Story plan, Phase 1 «Maßstab»: the old authored ending counted as a machine ending
+    # («La conversation reprendra là où elle s'est arrêtée.»). #518: the new one does not, and
+    # a fallback is counted by its status.
     assert settled.payload["status"] == "fallback"
-    assert settled.payload["prose_hits"] == {"deferred_ending": 1}
+    assert "prose_hits" not in settled.payload
     # Measured run 2026-10-16: a fallback keeps what was refused, privately.
     assert settled.payload.get("hint")
     from app.db.models.daily_journey import DailyJourneyStep
@@ -413,7 +447,7 @@ def test_a_dead_lane_is_healed_by_the_polling_read_without_a_paid_call(
     calls = len(provider.calls)
     healed = assembled_client.get(url, headers=d.headers).json()
     prompt = _resolution(healed)["prompt"]
-    assert prompt["story_pending"] is False and "doit partir" in prompt["character_line_fr"]
+    assert prompt["story_pending"] is False and "On en reparle" in prompt["character_line_fr"]
     assert len(provider.calls) == calls, "GET never pays"
     # The worker that wakes up late finds the lane settled and changes nothing.
     assert lanes.run_story_job(jobs[0]) == "skipped"
@@ -427,7 +461,7 @@ def test_finishing_before_the_lane_settles_it_with_the_authored_ending(
     _respond(assembled_client, d, step)
     assert d.finish("early").status_code == 200
     assert d.journey["status"] == "ended_early"
-    assert "doit partir" in _resolution(d.journey)["prompt"]["character_line_fr"]
+    assert "On en reparle" in _resolution(d.journey)["prompt"]["character_line_fr"]
     assert lanes.run_story_job(jobs[0]) == "skipped"
 
 

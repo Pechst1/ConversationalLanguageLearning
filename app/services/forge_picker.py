@@ -12,8 +12,9 @@ journey and the séance can never disagree about what today is:
 
   1. the rule the learner explicitly asked for (``preferred_concept_id``: the
      Cahier fiche, a practice link) — always seated, always first;
-  2. the rule introduced today (``introduced_at`` today, WP-L4's Règle read or
-     its first evidence), not yet held;
+  2. the rule introduced today (``introduced_at`` today), not yet held, that
+     the learner was taught (its Règle read, or La Forge worked it: #698, a
+     scene slip this morning stamps ``introduced_at`` too and is not a lesson);
   3. a rule a due erratum points at (repair first: the learner's own
      mistake is the most urgent thing to forge);
   4. today's new rule from the rhythm quota (:func:`concept_life.introduction_due`
@@ -21,11 +22,13 @@ journey and the séance can never disagree about what today is:
      — the same pick :func:`concept_life.introduction_for_today` makes for the
      journey), when nothing was introduced today;
   5. the weakest rule in progress (introduced, not held; lowest stability,
-     then score);
+     then score) that is not *resting* (:func:`resting_concept_ids`: at the top
+     rung with a clean last séance — P6, a rule that is learned leaves);
   6. the most urgent due rule (a scheduled rule the learner never formally
-     met, e.g. from an older surface);
-  7. a held rule kept warm (earliest next review), so the forge is never empty
-     for a learner who holds everything and has no quota left.
+     met, e.g. from an older surface, or a resting rule whose review is due);
+  7. a resting rule (earliest next review), then a held rule kept warm
+     (earliest next review), so the forge is never empty for a learner who
+     holds everything and has no quota left.
 
 * **due** — grammar rules the one review queue (WP-L3
   ``UnifiedSRSService.plan_review_items``) says are due, including rules a due
@@ -78,6 +81,8 @@ from typing import Any, Literal
 from sqlalchemy.orm import Session
 
 from app.db.models.grammar import GrammarConcept, UserGrammarProgress
+from app.services.chrome_language import user_mother_tongue
+from app.services.concept_life import rule_was_taught
 
 ForgeRole = Literal["today", "due", "contrast"]
 ROLE_TODAY: ForgeRole = "today"
@@ -263,25 +268,6 @@ def _introduced(progress: UserGrammarProgress) -> bool:
     return progress.introduced_at is not None or int(progress.reps or 0) > 0
 
 
-def rule_was_taught(progress: UserGrammarProgress | None) -> bool:
-    """Did the learner go through this rule's own teaching? (#169)
-
-    Taught means La Forge has worked it (``forge_rung`` is set the first time
-    the forge writes evidence for it), its épreuve was passed, or it is held.
-    ``introduced_at`` alone is not enough: the first evidence on *any* surface
-    stamps it, so a scene that showed «un, une, des», a recall card or an
-    erratum (even a false correction, #318) "introduces" a rule nobody taught.
-    """
-
-    if progress is None:
-        return False
-    return (
-        progress.forge_rung is not None
-        or progress.tested_out_at is not None
-        or progress.held_at is not None
-    )
-
-
 def _scheduled_due(progress: UserGrammarProgress, *, now: datetime) -> bool:
     """Its schedule says it is due now (or it was due this morning and the
     Rappel reviewed it today: the forge still climbs it, WP-S8)."""
@@ -317,6 +303,122 @@ def _second_new_rule_due(db: Session, user: Any, *, now: datetime) -> bool:
     return quota > concept_life.INTAKE_WINDOW_DAYS and concept_life.introduction_due(db, user, now=now)
 
 
+#: P6: the séances a resting check reads back, newest first.
+RESTING_SESSIONS_READ = 30
+
+
+def _last_seance_misses(db: Session, user: Any, concept_ids: set[int]) -> dict[int, bool]:
+    """``{concept_id: had a checked miss}`` from each rule's latest forge séance that answered it.
+
+    A rule no séance in the last :data:`RESTING_SESSIONS_READ` answered is absent.
+    """
+
+    from app.db.models.atelier import AtelierSession
+    from app.services.forge import forge_state_of
+
+    found: dict[int, bool] = {}
+    if not concept_ids:
+        return found
+    try:
+        sessions = (
+            db.query(AtelierSession)
+            .filter(AtelierSession.user_id == user.id)
+            .order_by(AtelierSession.started_at.desc())
+            .limit(RESTING_SESSIONS_READ)
+            .all()
+        )
+    except Exception:  # pragma: no cover - a read never blocks a plan
+        return found
+    for session in sessions:
+        state = forge_state_of(session)
+        if state is None or state.mode != "seance":
+            continue
+        answered: dict[int, bool] = {}
+        for entry in state.history:
+            try:
+                concept_id = int(entry.get("concept_id"))
+            except (TypeError, ValueError):
+                continue
+            if concept_id not in concept_ids or concept_id in found or not entry.get("checked"):
+                continue
+            missed = entry.get("outcome") == "incorrect"
+            answered[concept_id] = answered.get(concept_id, False) or missed
+        found.update(answered)
+        if len(found) == len(concept_ids):
+            break
+    return found
+
+
+def resting_concept_ids(
+    db: Session, user: Any, rows: list[tuple[UserGrammarProgress, GrammarConcept]]
+) -> set[int]:
+    """P6: rules in progress that have nothing left to prove in La Forge for now.
+
+    At the top rung (``forge_rung`` at free use, «Level 6») and not held, with no
+    checked miss in the latest séance that answered them. Such a rule is not the
+    day's anchor again while another rule qualifies: it comes back as a review
+    when its schedule says it is due (:func:`day_review_eligible`), or as the
+    anchor only when nothing else is left. A miss in its last séance keeps it in.
+    """
+
+    from app.core.forge import TOP_RUNG
+
+    top = {
+        concept.id
+        for progress, concept in rows
+        if progress.held_at is None and progress.forge_rung is not None and int(progress.forge_rung) >= int(TOP_RUNG)
+    }
+    if not top:
+        return set()
+    misses = _last_seance_misses(db, user, top)
+    return {concept_id for concept_id in top if not misses.get(concept_id, False)}
+
+
+#: R2: a day whose rule is already learned (held, or resting at the top rung)
+#: forges a short review of it, at most this many items, not a full séance.
+SHORT_REVIEW_ITEMS = 4
+
+
+def retired_until_due(progress: UserGrammarProgress | None, *, now: datetime) -> bool:
+    """R2: a held rule (épreuve passed, or held by evidence) whose own review is not due.
+
+    Such a rule is not the day's anchor — not for a due slip on it, not as a «due»
+    rule because a slip on it is due — until its spaced review comes round.
+    """
+
+    if progress is None or progress.held_at is None:
+        return False
+    due_at = _aware(progress.next_review)
+    return due_at is None or due_at > now
+
+
+def short_review_anchor(db: Session, user: Any, concept_id: int | None) -> bool:
+    """R2: is today's rule one the learner already holds or has at rest?
+
+    Then the day's grammar step is a short review (:data:`SHORT_REVIEW_ITEMS`):
+    the rule came back because nothing else qualified, or for its spaced review.
+    """
+
+    if concept_id is None:
+        return False
+    try:
+        progress = (
+            db.query(UserGrammarProgress)
+            .filter(UserGrammarProgress.user_id == user.id, UserGrammarProgress.concept_id == int(concept_id))
+            .one_or_none()
+        )
+    except Exception:  # pragma: no cover - a read never blocks a plan
+        return False
+    if progress is None or not _introduced(progress):
+        return False
+    if progress.held_at is not None:
+        return True
+    concept = db.get(GrammarConcept, int(concept_id))
+    if concept is None:
+        return False
+    return int(concept_id) in resting_concept_ids(db, user, [(progress, concept)])
+
+
 def _anchor(
     db: Session,
     user: Any,
@@ -340,15 +442,18 @@ def _anchor(
             return concept.id, REASON_PREFERRED, progress is None or not _introduced(progress)
 
     today = now.date()
+    stamped_today = [
+        (stamp, concept.id)
+        for progress, concept in rows
+        if (stamp := _aware(progress.introduced_at)) is not None
+        and stamp.date() == today
+        and stamp <= now
+        and progress.held_at is None
+    ]
+    # #698: «introduced» is the card, not the first evidence on any surface.
+    taught = concept_life.taught_concept_ids(db, user.id) if stamped_today else set()
     introduced_today = sorted(
-        (
-            (stamp, concept.id)
-            for progress, concept in rows
-            if (stamp := _aware(progress.introduced_at)) is not None
-            and stamp.date() == today
-            and stamp <= now
-            and progress.held_at is None
-        ),
+        ((stamp, concept_id) for stamp, concept_id in stamped_today if concept_id in taught),
         reverse=True,
     )
     if introduced_today and not _second_new_rule_due(db, user, now=now):
@@ -356,9 +461,13 @@ def _anchor(
 
     for concept_id in errata_ids:
         concept = db.get(GrammarConcept, concept_id)
-        if _usable(concept, language):
-            progress = by_id.get(concept_id)
-            return concept_id, REASON_DUE_ERRATUM, progress is None or not _introduced(progress)
+        progress = by_id.get(concept_id)
+        if not _usable(concept, language) or retired_until_due(progress, now=now):
+            # R2: a held rule (its épreuve passed) is not the day's rule again
+            # because an old slip on it is due: the slip is reviewed around the
+            # scene; the rule waits for its own spaced review.
+            continue
+        return concept_id, REASON_DUE_ERRATUM, progress is None or not _introduced(progress)
 
     if concept_life.introduction_due(db, user, now=now):
         from app.services.atelier import AtelierScheduler
@@ -367,28 +476,31 @@ def _anchor(
         if picked:
             return picked[0].id, REASON_NEW_FROM_QUOTA, True
 
+    resting = resting_concept_ids(db, user, rows)
     in_progress = [
         (float(progress.stability or 0.0), float(progress.score or 0.0), concept.difficulty_order or 0, concept.id)
         for progress, concept in rows
-        if _introduced(progress) and progress.held_at is None
+        if _introduced(progress) and progress.held_at is None and concept.id not in resting
     ]
     if in_progress:
         return min(in_progress)[3], REASON_WEAKEST_IN_PROGRESS, False
 
     for concept_id in due_ids:
+        if retired_until_due(by_id.get(concept_id), now=now):
+            continue
         if _usable(db.get(GrammarConcept, concept_id), language):
             return concept_id, REASON_MOST_DUE, False
 
-    held = sorted(
-        (
-            _aware(progress.next_review) or now,
-            concept.id,
-        )
+    # P6: nothing else qualifies. R2: the day's grammar step is then a short review
+    # (:data:`SHORT_REVIEW_ITEMS`, :func:`short_review_anchor`) of the nearest-due
+    # rule, resting or held, never an empty step and never a full séance.
+    keep_warm = sorted(
+        (_aware(progress.next_review) or now, concept.id)
         for progress, concept in rows
-        if progress.held_at is not None
+        if (concept.id in resting and _introduced(progress)) or progress.held_at is not None
     )
-    if held:
-        return held[0][1], REASON_KEEP_WARM, False
+    if keep_warm:
+        return keep_warm[0][1], REASON_KEEP_WARM, False
     return None, REASON_EMPTY, False
 
 
@@ -612,6 +724,14 @@ def forge_plan(
                 continue
             units.append(ForgeUnit(concept_id, ROLE_DUE, why))
             seen.add(concept_id)
+        # S1.1 shadow: the day's Forge start against the day brief (flag off: no-op).
+        from app.services import day_brief
+
+        day_brief.shadow_today(db, user, "forge_picker._anchor", anchor_id, field="forge_anchor", now=now)
+        day_brief.shadow_today(
+            db, user, "forge_picker.day_reviews",
+            [unit.concept_id for unit in units if unit.role == ROLE_DUE], field="forge_review_ids", now=now,
+        )
         return ForgePlan(
             units=tuple(units),
             budget_seconds=budget,
@@ -712,7 +832,7 @@ def forge_anchor_brief(
     concept = db.get(GrammarConcept, concept_id) if concept_id is not None else None
     if concept is None:
         return None
-    language = normalize_control_language(getattr(user, "native_language", None))
+    language = normalize_control_language(user_mother_tongue(user))
     from app.services.concept_titles import concept_title
 
     try:
@@ -751,6 +871,10 @@ __all__ = [
     "forge_is_folded",
     "story_review_concept_id",
     "forge_plan",
+    "resting_concept_ids",
+    "retired_until_due",
+    "short_review_anchor",
+    "SHORT_REVIEW_ITEMS",
     "unit_caps",
     "weak_spot_id",
 ]

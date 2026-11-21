@@ -21,12 +21,25 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from app.services.story_memory import address_placeholder
+
 _TO_BE_CONTINUED = re.compile(r"\bà\s+suivre\b", re.IGNORECASE)
 _EXIT_STUB = re.compile(
     r"^(?:\S+\s+){1,5}?(?:a répondu,?\s+puis\s+)?(?:a|doit)\s+(?:dû\s+)?partir"
     r"(?:\s+avant\s+de\s+répondre)?\s*[.…]*$",
     re.IGNORECASE,
 )
+
+
+#: The character's half of the stock exit, as stored on the days it played. Nothing writes
+#: it or ``_EXIT_STUB`` any more (#518): both stay for the rows that hold them, and a new
+#: authored ending is marked on the turn (``authored_ending``), not recognised by its words.
+_EXIT_REPLY = re.compile(r"\bon m['’]appelle\b", re.IGNORECASE)
+
+
+def is_stock_exit_reply(text: Any) -> bool:
+    """Whether a stored reply is the stock «Attends, on m'appelle», not something the scene said."""
+    return bool(_EXIT_REPLY.search(str(text or "")))
 
 
 def is_closing_filler(text: Any) -> bool:
@@ -41,16 +54,33 @@ def scene_fact(*candidates: Any, fallback: Any = "") -> str:
     """The first candidate that states something that happened, else ``fallback``.
 
     Candidates are tried in order («the callback, else the resolution»); a closing
-    caption or an exit stub is skipped, never returned. ``fallback`` is what the
+    caption or an exit stub is skipped, never returned; so is a line that keeps the
+    prompts' role word («Le learner garde la carte»), and «la carte du learner» is
+    filed as «ta carte» (#917). ``fallback`` is what the
     scene itself established (its title), and is returned as it is: it is the
     caller's own line, not a hook.
     """
 
     for candidate in candidates:
-        line = " ".join(str(candidate or "").split())
+        line = address_placeholder(" ".join(str(candidate or "").split())) or ""
         if line and not is_closing_filler(line):
             return line
     return " ".join(str(fallback or "").split())
 
 
-__all__ = ["is_closing_filler", "scene_fact"]
+def what_happened(turn: Any, fallback: Any = "") -> str:
+    """What this turn adds to the story's record: its fact, else ``fallback``.
+
+    #518: an authored ending is what the character says to close, in the first person
+    («Ce que tu m'as dit, je le garde.»), when no model wrote what happened. It is printed
+    in their bubble and never filed as an event.
+    """
+
+    from app.services import scene_record
+
+    if getattr(turn, "authored_ending", False) and scene_record.enabled():
+        return " ".join(str(fallback or "").split())
+    return scene_fact(turn.callback_fr, turn.resolution_fr, fallback=fallback)
+
+
+__all__ = ["is_closing_filler", "is_stock_exit_reply", "scene_fact", "what_happened"]

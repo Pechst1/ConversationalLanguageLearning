@@ -131,12 +131,18 @@ def effective_new_word_cap(
     return dose + extra_new_words_today(db, user, now=now) if extras else dose
 
 
-def extra_words_available(db: Session, user: Any, *, limit: int, now: datetime | None = None) -> int:
-    """How many new words the word drill could still deal today, up to ``limit``.
+def extra_words_available(
+    db: Session, user: Any, *, limit: int, now: datetime | None = None, extra: int = 0
+) -> int:
+    """How many new words the «more» deck (``drill=more``) would deal now, up to ``limit``.
 
-    Asks the deck's own reader (``ProgressService.get_vocabulary_recommendations``)
-    with the deck's own exclusions, so the number is the pool the extra deck will
-    draw from, never a second opinion about it.
+    The dealer's own two reads, in its order: its room (:func:`drill_new_word_room`
+    less the batch's new cards still to answer, :func:`more_deck_room`), then the
+    pool (``ProgressService.get_vocabulary_recommendations`` with the deck's own
+    exclusions). ``extra``: as if today's cap were that much higher, i.e. after
+    the next «Noch 5 neue Wörter» tap. So the number is what the extra deck will
+    deal, never a second opinion about it (#563: the pool alone said five while
+    the room let the deck deal one).
     """
 
     from app.services import drill_batch
@@ -145,9 +151,12 @@ def extra_words_available(db: Session, user: Any, *, limit: int, now: datetime |
     if limit <= 0 or not getattr(user, "id", None):
         return 0
     now = now or datetime.now(UTC)
-    _room, reserved = drill_new_word_room(db, user, now=now)
-    exclude = set(reserved)
+    room, reserved = drill_new_word_room(db, user, now=now, extra=extra)
     batch = drill_batch.load_batch(db, user, local_today(user, now))
+    limit = min(limit, more_deck_room(db, user, room=room, batch=batch, reserved=reserved))
+    if limit <= 0:
+        return 0
+    exclude = set(reserved)
     if batch is not None:
         exclude |= {int(item["word_id"]) for item in batch.items or [] if item.get("list") == "new_words"}
     stored = getattr(user, "default_vocab_direction", None)
@@ -164,6 +173,25 @@ def extra_words_available(db: Session, user: Any, *, limit: int, now: datetime |
     return sum(1 for item in recommendations["items"] if item.get("bucket") == "new")
 
 
+def more_deck_room(db: Session, user: Any, *, room: int, batch: Any, reserved: set[int]) -> int:
+    """The new words the «more» deck may still deal: the drill's ``room`` less the
+    batch's new cards still unanswered (the room counts only the words already
+    met; a reload of the continuation must not deal past the day's cap). The
+    dealer (``GET /vocabulary/due-context?drill=more``) and the offer's count
+    (:func:`extra_words_available`) both take it."""
+
+    from app.services import drill_batch
+
+    if batch is None:
+        return max(0, int(room))
+    waiting = sum(
+        1
+        for item in drill_batch.remaining_items(db, user, list(batch.items or []), reserved_new=reserved)
+        if item.get("list") == "new_words"
+    )
+    return max(0, int(room) - waiting)
+
+
 def next_extra_step(db: Session, user: Any, *, now: datetime | None = None) -> int:
     """#563: the new words the next «Noch 5 neue Wörter» tap really brings.
 
@@ -171,11 +199,14 @@ def next_extra_step(db: Session, user: Any, *, now: datetime | None = None) -> i
     (:data:`MAX_EXTRA_NEW_WORDS`), less what the pool cannot supply. The one
     number of the extras: the button's label, the grant (the cap, so the deck's
     room) and the goal line's «Mit N Wörtern am Tag» all read it, so the offer
-    cannot promise five and deal one. ``0``: nothing to offer.
+    cannot promise five and deal one. It is counted by the dealer's own reads
+    (:func:`extra_words_available` with the step granted): the room the cap
+    leaves the drill, then the pool. ``0``: nothing to offer.
     """
 
     step = min(EXTRA_WORDS_STEP, MAX_EXTRA_NEW_WORDS - extra_new_words_today(db, user, now=now))
-    return extra_words_available(db, user, limit=step, now=now) if step > 0 else 0
+    # The dealer's room once this step is granted, then its pool: what the deck deals.
+    return extra_words_available(db, user, limit=step, now=now, extra=step) if step > 0 else 0
 
 
 def grant_extra_new_words(db: Session, user: Any, *, now: datetime | None = None) -> int:
@@ -336,23 +367,40 @@ def journey_new_word_room(db: Session, user: Any, *, now: datetime | None = None
 
 
 def drill_new_word_room(
-    db: Session, user: Any, *, now: datetime | None = None
+    db: Session, user: Any, *, now: datetime | None = None, extra: int = 0
 ) -> tuple[int, set[int]]:
     """``(room, excluded_word_ids)`` for the word drill.
 
     The drill gets what the quota leaves after today's introductions and the
-    journey's share — its reservation once planned, its rhythm's share before.
+    journey's share — its reservation once planned, its rhythm's share before,
+    unless the day deck already dealt that share (#563, :func:`_share_released`).
     ``excluded_word_ids`` are the journey's reserved words: never offered as
-    new by the drill.
+    new by the drill. ``extra``: the room if today's cap were that much higher
+    (the next «Noch 5 neue Wörter» tap, :func:`next_extra_step`).
     """
 
+    now = now or datetime.now(UTC)
     factor = intake_throttle_factor(db, user, now=now)
-    quota = effective_new_word_cap(db, user, now=now, factor=factor)
+    quota = effective_new_word_cap(db, user, now=now, factor=factor) + max(0, int(extra))
     introduced = introduced_today(db, user, now=now)
     planned, reserved = journey_reservation(db, user, now=now)
     taken = len(introduced | reserved)
-    pending = 0 if planned else min(quota, journey_word_share(user, factor))
+    held = not planned and not _share_released(db, user, now=now)
+    pending = min(quota, journey_word_share(user, factor)) if held else 0
     return max(0, quota - taken - pending), reserved - introduced
+
+
+def _share_released(db: Session, user: Any, *, now: datetime) -> bool:
+    """Did today's day deck take the journey's share? A deck dealt before the
+    journey was planned releases it (``day_words.deal_items`` marks the plan
+    ``released``): those slots became the deck's words, so the drill keeps
+    nothing free for them any more. Before #563 the drill still held the share
+    back, and the room after «Noch 5 neue Wörter» was one card (5 less 4)."""
+
+    from app.services import day_words, drill_batch
+
+    plan = day_words.read_plan(drill_batch.load_batch(db, user, local_today(user, now)))
+    return bool(plan and plan.get("released"))
 
 
 def review_load_estimate(new_words_per_day: int) -> dict[str, int]:
@@ -444,6 +492,7 @@ __all__ = [
     "journey_new_word_room",
     "journey_reservation",
     "journey_word_share",
+    "more_deck_room",
     "new_words_left_today",
     "next_extra_step",
     "planned_new_words",

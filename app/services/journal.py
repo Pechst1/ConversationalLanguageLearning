@@ -28,9 +28,10 @@ Five properties, each with a test:
   "unavailable"``. The learner's text is kept, no erratum is invented, no
   vocabulary is credited, and the screen says so in French.
 * **The story is read, never written.** Scene facts come from the journey's own
-  public snapshot fields and from :func:`app.services.living_story.story_context`,
-  which is a pure read. Nothing here touches serial state, ``private_task``, or
-  the living-story thread.
+  public snapshot fields, from what the scene showed on screen
+  (:func:`app.services.scene_ledger.on_screen`) and from
+  :func:`app.services.living_story.story_context`, which is a pure read. Nothing here
+  touches serial state, ``private_task``, or the living-story thread.
 
 Spacing follows the same evidence: +1 day for the entry, +7 days for a one-line
 follow-up whose answer is the ``used_again_later`` signal — the only number that
@@ -54,19 +55,21 @@ from app.db.models.journal import JournalEntry
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
-from app.services import correction_contract
+from app.services import correction_contract, scene_ledger, scene_record, verdicts
 from app.services.atelier import AtelierCorrectionService
 from app.services.atelier_correction_cost import bound_learner_answer
-from app.services.closing_filler import is_closing_filler, scene_fact
+from app.services.chrome_language import user_mother_tongue
+from app.services.closing_filler import is_closing_filler, is_stock_exit_reply, scene_fact
 from app.services.daily_journey import local_date_for
 from app.services.error_memory import ErrorMemoryService
-from app.services.glosses import normalize_language
 from app.services.journey_contracts import Correction, JourneyStatus, StepKind
 from app.services.journey_learning import (
     build_correction,
     fold_for_comparison,
     select_foreground_correction,
+    validate_correction,
 )
+from app.services.learner_facts import looks_misspelled, reads_as_sentence
 from app.services.pilot_events import PilotEventService
 from app.services.progress import vocabulary_due_filter
 from app.services.vocabulary_credit import VocabularyCreditService
@@ -243,16 +246,58 @@ class SceneFact:
 # an event of the scene) is decided once, in ``closing_filler``; the Journal reads it.
 
 
+#: The scene's own lines a retell is held to, at most, so a long scene is not scored out of ten.
+_SAID_FACTS = 2
+_SCENE_LINES = 2
+
+
+def _said_in_scene(journey: DailyJourney) -> list[tuple[str, str, str]]:
+    """What was said on screen: ``(key, kind, text)``, the learner's facts first.
+
+    #622: ``callback_fr`` is the hook, the line that opens tomorrow, and on the 9 Nov walk
+    it said «L'appartement est un souvenir de ta grand-mère» on a day at the notary's.
+    What the scene kept is in its record, read through ``scene_ledger.on_screen``.
+    """
+
+    said: list[tuple[str, str, str]] = []
+    lines: list[tuple[str, str, str]] = []
+    for step in sorted(journey.steps or [], key=lambda item: item.ordinal):
+        shown = scene_ledger.on_screen(step)
+        for fact in shown["established"]:
+            at = fact.get("at")
+            turn = shown["turns"][at] if isinstance(at, int) and 0 <= at < len(shown["turns"]) else {}
+            line = _their_sentence(fact.get("quote"), turn)
+            if line:
+                said.append((f"said:{fact.get('key') or at}", "said", line))
+        for index, turn in enumerate(shown["turns"]):
+            if turn["stock_exit"] or is_stock_exit_reply(turn["character"]):
+                continue
+            statement = " ".join(
+                sentence for sentence in scene_ledger.sentences(turn["character"]) if not sentence.endswith("?")
+            )
+            if statement and not is_closing_filler(statement):
+                lines.append((f"scene:{step.ordinal}:{index}", "scene", statement))
+    return said[-_SAID_FACTS:] + lines[-_SCENE_LINES:]
+
+
+def _their_sentence(quote: Any, turn: dict[str, Any]) -> str:
+    """The learner's own words for a fact, when they read as written: the quote if the reply
+    needed no correction, else the corrected reply. A fact's ``fact_fr`` is a note for the
+    writers («L'apprenant a faim»), never something to show them."""
+
+    line = str(turn.get("corrected_fr") or quote or "").strip()
+    return line if reads_as_sentence(line) and not looks_misspelled(line) else ""
+
+
 def scene_facts_for(
     journey: DailyJourney, *, story_context: dict[str, Any] | None = None
 ) -> list[SceneFact]:
-    """What this scene established, from public read paths only.
+    """What this scene established.
 
-    Three sources, in the order they matter to a recap: the commitments the
-    story remembers from this episode, how the evening actually ended, and the
-    scene's own objective. ``private_task`` is never read — the rubric and the
-    accepted answers are evaluator material and a journal that scored against
-    them would be grading the learner's memory of a hidden document.
+    What was said in it comes first, then what the story remembers from this episode.
+    How the evening ended is the hook's field, so it counts only when the scene left no
+    record of its own (a day from before the record). The situation the scene set up is
+    the last resort.
     """
     scenario = dict(journey.scenario_snapshot or {})
     recap = dict(journey.recap_snapshot or {})
@@ -267,9 +312,15 @@ def scene_facts_for(
 
     facts: list[SceneFact] = []
 
+    for key, kind, line in _said_in_scene(journey) if scene_record.enabled() else []:
+        text_fr = french_only(line)
+        cues = tuple(content_cues(text_fr, given=given))
+        if cues and all(fact.text_fr != text_fr for fact in facts):
+            facts.append(SceneFact(key=key, kind=kind, text_fr=text_fr, cues=cues))
+
     outcome = recap.get("story_outcome") or {}
     callback = french_only(outcome.get("callback_fr"))
-    if callback and not is_closing_filler(callback):
+    if (not facts or not scene_record.enabled()) and callback and not is_closing_filler(callback):
         facts.append(
             SceneFact(
                 key="outcome",
@@ -617,6 +668,10 @@ class _JournalCorrector(AtelierCorrectionService):
 # ---------------------------------------------------------------------------
 
 
+#: Failure reasons asking again can never change (#754): no model, nothing to anchor on.
+_NOT_RETRYABLE = frozenset({"no_model", "no_check_target"})
+
+
 def _utcnow() -> datetime:
     return datetime.now(UTC)
 
@@ -881,7 +936,8 @@ class JournalService:
             correction = self._deterministic_correction(
                 user, written, truncated=truncated, reason=reason
             )
-        entry.assessment_status = "checked"
+        # #333: the row says who read it. Rules that ran after a failed call are not a check.
+        entry.assessment_status = "checked" if by_model else "unavailable"
         entry.status = "written"
         entry.errata_ids = self._record_errata(user, entry, correction)
         if by_model:
@@ -896,12 +952,15 @@ class JournalService:
             **correction,
             "paid_calls": previous_calls + int(getattr(corrector, "paid_calls", 0)),
         }
+        verdicts.note_failure(
+            self.db, surface="journal", verdict=verdicts.from_journal(entry.correction, text=written), user_id=user.id
+        )
 
     def _deterministic_correction(
         self, user: User, text: str, *, truncated: bool, reason: str
     ) -> dict[str, Any]:
         """The correction when no model verdict exists: the shared model-free pass."""
-        language = normalize_language(user.native_language)
+        language = user_mother_tongue(user)
         edits = correction_contract.deterministic_edits(text)
         shaped = self._shape_correction(
             user,
@@ -919,18 +978,21 @@ class JournalService:
             **shaped,
             "checker": "deterministic",
             "failure_reason": reason,
-            "retryable": reason != "no_check_target",
+            "retryable": reason not in _NOT_RETRYABLE,
         }
 
     def _failure_reason(self, user: User, entry: JournalEntry, corrector: Any) -> str:
-        """Why the check did not happen: ``no_check_target`` | ``timeout`` | ``model_error``.
+        """Why the check did not happen: ``no_model`` | ``no_check_target`` | ``timeout`` | ``model_error``.
 
-        ``no_check_target`` is the one a retry cannot fix (the scene taught no
-        grammar to anchor on), so the client offers no button for it.
+        ``no_model`` (no checker is configured, #754 / #724) and ``no_check_target``
+        (the scene taught no grammar to anchor on) are the two a retry cannot fix, so
+        the client offers no button for them.
         """
         reason = getattr(corrector, "_llm_failure_reason", None)
         if reason in {"timeout", "model_error"}:
             return reason
+        if getattr(corrector, "has_no_model", False):
+            return "no_model"
         if getattr(corrector, "paid_calls", 0) == 0 and self.concepts_for(user, entry) is None:
             return "no_check_target"
         return "model_error"
@@ -950,6 +1012,14 @@ class JournalService:
             return entry
 
         recall = score_content_recall(written, list(entry.scene_facts or []))
+        # #775: the answer is the learner's own French, so it gets the rules' check like
+        # every other free sentence; it was saved with no check at all («sa travail»).
+        # Rules only: no paid call, so it counts for nothing and the screen says so.
+        recall = {
+            **recall,
+            "errata": correction_contract.deterministic_errata(written, language=user_mother_tongue(user)),
+            "checked_by": "rules",
+        }
         signal = (
             "used_again_later"
             if recall.get("status") == "scored" and (recall.get("score") or 0) > 0
@@ -1019,7 +1089,7 @@ class JournalService:
             entry_id=entry.id,
             llm_service=self._llm_service,
         )
-        corrector.explanation_language = normalize_language(user.native_language)
+        corrector.explanation_language = user_mother_tongue(user)
         corrector._answer_truncated = bool(truncated)
         prompt_payload = {
             "round": "produce",
@@ -1069,28 +1139,36 @@ class JournalService:
             # #250: the model's edits must be about this text, and the model-free pass
             # adds the mistakes it did not list.
             errata = correction_contract.merge_deterministic_errata(
-                text, errata, language=normalize_language(user.native_language)
+                text, errata, language=user_mother_tongue(user)
             )
-        keep = [
-            item
-            for item in errata
-            if str(item.get("task_error_type") or "")
-            not in {"task_compliance", "length_compliance"}
-        ]
+        # #133: the line is built from the fixes, so it holds nothing the card doesn't list.
+        checked = correction_contract.verify_correction(
+            text, correction.get("corrected_answer"), errata, language=user_mother_tongue(user)
+        )
+        # #754: the card's one correction, its list and the Relevé read one validated
+        # list: what the shared validator refuses (a gender the learner never gave, a
+        # right sentence re-ordered) is in none of them, and what it passes is in all.
+        # The text is typed, so a restored accent or apostrophe is a fix (``written``).
+        address = getattr(user, "address_preference", None)
+        keep: list[dict[str, Any]] = []
         candidates: list[Correction] = []
         by_span: dict[str, dict[str, Any]] = {}
-        for item in keep:
+        for item in checked.errata:
+            if str(item.get("task_error_type") or "") in {"task_compliance", "length_compliance"}:
+                continue
             built = build_correction(
                 learner_text=item.get("learner_text"),
                 corrected_fr=item.get("corrected_target"),
                 note_native=item.get("why_wrong"),
+                written=True,
             )
-            if built is None:
+            if not validate_correction(built, text, address=address, written=True):
                 continue
+            keep.append(item)
             candidates.append(built)
             by_span.setdefault(built.span_fr, item)
         foreground, _background = select_foreground_correction(
-            user=user, learner_text=text, candidates=candidates
+            user=user, learner_text=text, candidates=candidates, written=True
         )
 
         def view(item: dict[str, Any]) -> dict[str, Any]:
@@ -1118,8 +1196,7 @@ class JournalService:
             "assessment_truncated": bool(truncated or correction.get("assessment_truncated")),
             "verdict": correction.get("verdict"),
             "score_0_4": correction.get("score_0_4"),
-            # #318: the corrected text goes through the same rules as the learner's
-            "corrected_answer": correction_contract.repair_text(correction.get("corrected_answer") or ""),
+            "corrected_answer": checked.corrected,
             "explanation_language": correction.get("explanation_language"),
             "model": (correction.get("correction_debug") or {}).get("model"),
             "foreground": foreground_view,

@@ -12,7 +12,7 @@ const { test } = require('node:test');
 const WEB_ROOT = path.resolve(__dirname, '..', '..');
 require(path.join(WEB_ROOT, 'node_modules/sucrase/register/ts'));
 
-const { GUESTS, OUTSIDE, STAGED, SILENT_BEATS, personOf } = require('./stage.ts');
+const { GUESTS, OUTSIDE, STAGED, SILENT_BEATS, personOf, withoutCaptions } = require('./stage.ts');
 const { T1A_COPY: T1A } = require('./story.ts');
 
 test('the copy of the day in the frontend is the season file, word for word', () => {
@@ -43,6 +43,14 @@ test('every silent beat of a reply is acted out', () => {
       assert.ok(acted, `${beat.id} is silent and nothing acts it`);
     }
   }
+});
+
+test('the slide of the cup is acted, so its caption is left to the reply thread', () => {
+  const caption = { who: 'caption', kind: 'caption', text_fr: "Margaux pousse la tasse jusqu'au tabouret d'Odile." };
+  const said = { who: 'margaux_barman', kind: 'speech', text_fr: 'Bien.' };
+  const beat = { kind: 'panel', id: 'a.cafe.declined.r1', silence: true, lines: [caption, said] };
+  assert.deepEqual(withoutCaptions(beat).lines, [said]);
+  assert.deepEqual(beat.lines, [caption, said]);
 });
 
 test('the café crème and the key are acted from the reply the engine read', () => {
@@ -91,7 +99,19 @@ test('every walk the scene asks for has a way through the streets', () => {
   assert.ok(Math.abs(nav.heightAt(MARKS.atZinc.x, MARKS.atZinc.z) - MARKS.atZinc.y) < 0.05);
 });
 
-test('day b: the director has blocking for every movement, in order, and the stairwell is a room of the season', () => {
+/** P12: the routing a room has once finished; a room marked `unfinished` (`place-check.test.js`) stages nothing meanwhile. */
+function asFinished(fn) {
+  const { WORLD } = require('./world.ts');
+  const marked = WORLD.places.filter((p) => p.unfinished).map((p) => [p, p.unfinished]);
+  marked.forEach(([p]) => delete p.unfinished);
+  try {
+    return fn();
+  } finally {
+    marked.forEach(([p, why]) => (p.unfinished = why));
+  }
+}
+
+test('day b: the director has blocking for every movement, in order, and the stairwell is a room of the season', () => asFinished(() => {
   const season = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, '..', 'app/data/season/s1/t1.json'), 'utf8'));
   const day = season.days.find((d) => d.day === 'b');
   const ids = day.movements.map((m) => m.id);
@@ -116,9 +136,9 @@ test('day b: the director has blocking for every movement, in order, and the sta
       assert.ok(Object.values(SILENT_BEATS).some((re) => re.test(beat.id)), `${beat.id} is silent and nothing acts it`);
     }
   }
-});
+}));
 
-test('a day without blocking plays in the places the world has built for it, and a card names the place', () => {
+test('a day without blocking plays in the places the world has built for it, and a card names the place', () => asFinished(() => {
   const { PLACE_NAMES, placeCard, placesOf, unbuiltOf } = require('./story.ts');
   const page = (movements, location_id = null) => ({ key: 'x.y', location_id, movements });
   const at = (id, location_id) => ({ kind: 'panel', id, location_id, lines: [] });
@@ -135,9 +155,14 @@ test('a day without blocking plays in the places the world has built for it, and
   assert.deepEqual(placesOf(page([at('p1', null), { kind: 'hook', id: 'h', panel: at('h.p', null) }])), ['quai_de_valmy', 'quai_de_valmy']);
   assert.equal(unbuiltOf(page([at('p1', null)])), null);
   // somewhere nothing is built for yet: no place plays it, and the page says where
-  assert.deepEqual(placesOf(page([at('p1', 'mistral_back_room'), at('p2', null), at('p3', 'le_mistral')])), [null, null, 'quai_de_valmy']);
-  assert.equal(unbuiltOf(page([at('p1', 'le_mistral'), at('p2', 'mistral_back_room')])), 'mistral_back_room');
-  assert.equal(unbuiltOf(page([at('p1', null)], 'marin_lila_flat')), 'marin_lila_flat');
+  assert.deepEqual(placesOf(page([at('p1', 'gare_de_lest'), at('p2', null), at('p3', 'le_mistral')])), [null, null, 'quai_de_valmy']);
+  assert.equal(unbuiltOf(page([at('p1', 'le_mistral'), at('p2', 'gare_de_lest')])), 'gare_de_lest');
+  assert.equal(unbuiltOf(page([at('p1', null)], 'brocante')), 'brocante');
+  // Gus's loft plays in the «château» the forge built on the quai
+  assert.deepEqual(placesOf(page([at('p1', null)], 'gus_loft')), ['chateau_gus']);
+  assert.equal(unbuiltOf(page([at('p1', null)], 'gus_loft')), null);
+  // Marin's NGO office plays in the office the forge built on the quai's first floor
+  assert.deepEqual(placesOf(page([at('p1', null)], 'ngo_office')), ['bureau_ong']);
   assert.equal(unbuiltOf(page([at('p1', 'somewhere_new')])), 'somewhere_new');
   // the season's own pages: T2 climbs the stairwell into Odile's flat; the roof (g3) plays on the roof the forge built
   // (the season file's own movements: a solve the server poses as a question has no place of its own)
@@ -156,6 +181,10 @@ test('a day without blocking plays in the places the world has built for it, and
   const g3page = { location_id: g3.location_id, movements: staged(g3.moments.flatMap((m) => m.movements)) };
   assert.equal(unbuiltOf(g3page), null);
   assert.ok(placesOf(g3page).includes('toit_mistral'), 'the pages of the roof play on the roof');
+  // T5 B: the portrait is shown in the back room the forge built, and its R2 goes up to Marin and Lila's flat
+  const t5b = season('t5.json', 'b');
+  assert.ok(placesOf(t5b).includes('arriere_salle'), 'the portrait plays in the back room');
+  assert.ok(placesOf(t5b).includes('chez_marin_lila'), 'the door Marin opens is his flat’s');
   // the card
   assert.equal(placeCard('le_mistral'), null);
   assert.equal(placeCard('mistral_back_room'), null);
@@ -172,7 +201,7 @@ test('a day without blocking plays in the places the world has built for it, and
     assert.ok(PLACE_NAMES[id], `${id} has no name for the card`);
     assert.equal(PLACE_NAMES[id].fr.replace(/’/g, "'"), name, `${id}: the card's name is not the season's`);
   }
-});
+}));
 
 test('in a room the forge built, the moment’s people stand in front of you on your floor, apart', () => {
   const { Vector3 } = require('three');
@@ -223,4 +252,65 @@ test('the bridges’ people who are not regulars come on as guests with a body (
     assert.ok(personOf(who), `${who} has no name on the cards`);
     assert.ok(regulars.includes(who) || GUESTS[who] > 1.4, `${who} has a body and never comes on`);
   }
+});
+
+/* ---- round 4 (third walk, 19 Nov): the free moment, and lines to tap through ---------------- */
+
+const { nearestTalker, momentWords, speakerRuns } = require('./stage.ts');
+const { MOMENT } = require('./agency.ts');
+
+test('the free moment turns you toward the nearest character who can be talked to', () => {
+  const feet = { x: -31, z: -15.5 };
+  const people = [
+    { who: 'augustin_de_roncourt', pos: { x: -27, z: -15.5 } },
+    { who: 'margaux_barman', pos: { x: -32, z: -16.5 } },
+    { who: 'lila_bonnet', pos: { x: -34, z: -12 } },
+  ];
+  assert.equal(nearestTalker(feet, people), 'margaux_barman');
+  assert.equal(nearestTalker(feet, people.slice(0, 1)), 'augustin_de_roncourt');
+  assert.equal(momentWords('margaux_barman'), MOMENT.caption);
+});
+
+test('with nobody to talk to, the free moment does not invite talking', () => {
+  assert.equal(nearestTalker({ x: 0, z: 0 }, []), null);
+  const card = momentWords(null);
+  assert.notEqual(card, MOMENT.caption);
+  for (const lang of ['fr', 'en', 'de']) {
+    assert.ok(card[lang], lang);
+    assert.doesNotMatch(card[lang], /parle|talk|sprich|quelqu|someone|jemand/i, `${lang}: «${card[lang]}»`);
+  }
+});
+
+test("one speaker's consecutive lines share one card, at most three, each line kept", () => {
+  const l = (who, text_fr, extra = {}) => ({ who, text_fr, text_native: `${text_fr} (gloss)`, ...extra });
+  const lines = [
+    l('margaux_barman', 'Pas ce soir.'),
+    l('margaux_barman', 'La clé ?'),
+    l('caption', 'La pluie.'),
+    l('augustin_de_roncourt', 'Un.'),
+    l('augustin_de_roncourt', 'Deux.'),
+    l('augustin_de_roncourt', 'Trois.'),
+    l('augustin_de_roncourt', 'Quatre.'),
+    l('augustin_de_roncourt', 'Cinq.', { direction: 'bowing' }),
+    l('toi', 'Oui.'),
+    l('toi', 'Non.'),
+    l('lila_bonnet', 'Salut.'),
+  ];
+  assert.deepEqual(speakerRuns(lines), [[0, 1], [2], [3, 4, 5], [6], [7], [8], [9], [10]]);
+  assert.deepEqual(speakerRuns(lines).flat(), lines.map((_, i) => i));
+});
+
+test("day a's scene asks fewer taps for its lines than it has lines", () => {
+  const panels = [];
+  const walk = (o) => {
+    if (Array.isArray(o)) o.forEach(walk);
+    else if (o && typeof o === 'object') {
+      if (Array.isArray(o.lines) && o.lines.every((x) => x && typeof x.text_fr === 'string')) panels.push(o.lines);
+      Object.values(o).forEach(walk);
+    }
+  };
+  walk(require('./story.ts').pageOfCopy().movements);
+  const lines = panels.reduce((n, ls) => n + ls.length, 0);
+  const cards = panels.reduce((n, ls) => n + speakerRuns(ls).length, 0);
+  assert.ok(lines > 10 && cards < lines, `${cards} cards for ${lines} lines`);
 });

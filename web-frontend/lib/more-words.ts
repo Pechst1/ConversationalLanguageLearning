@@ -28,6 +28,8 @@ type Copy = {
   one_day: string;
   /** Réglages: the number input next to the steps. */
   own_number: string;
+  /** Réglages: the row of today's «Noch 5 neue Wörter» (P7: offered only here). */
+  today_more: string;
 };
 
 const DE: Copy = {
@@ -37,6 +39,7 @@ const DE: Copy = {
   days: (n) => `${n} Tage`,
   one_day: 'einen Tag',
   own_number: 'Eigene Zahl',
+  today_more: 'Heute noch mehr Wörter',
 };
 
 const FR: Copy = {
@@ -46,6 +49,7 @@ const FR: Copy = {
   days: (n) => `${n} jours`,
   one_day: 'un jour',
   own_number: 'Ton nombre',
+  today_more: 'Encore des mots aujourd’hui',
 };
 
 const EN: Copy = {
@@ -55,6 +59,7 @@ const EN: Copy = {
   days: (n) => `${n} days`,
   one_day: 'a day',
   own_number: 'Your own number',
+  today_more: 'More words today',
 };
 
 const TABLE: Record<ControlLanguage, Copy> = { de: DE, fr: FR, en: EN };
@@ -107,7 +112,10 @@ export type NewWordsOffer = {
   more: GoalStep;
 };
 
-/** The «Noch 5» offer: its label and its line, or `null` once the day's extras are spent. */
+/**
+ * The «Noch 5» offer: its label and its line, or `null` once the day's extras are
+ * spent. P7 (pilot, 17 Nov): shown in Réglages only, never after a deck or the day.
+ */
 export function extraWordsOffer(
   pace: NewWordsOffer | null | undefined,
   language: ControlLanguage | null | undefined,

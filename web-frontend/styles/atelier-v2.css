@@ -3415,6 +3415,13 @@
   min-width: 0;
 }
 .av2 .av2-thread__line { min-width: 0; }
+/* The page moves on: a new time or place, a message. Nobody says it. */
+.av2 .av2-thread__cut {
+  color: var(--av2-muted);
+  font-family: var(--av2-serif);
+  font-style: italic;
+  text-align: center;
+}
 /* In a conversation the latest line is still the one headline, a size down so
    the column reads as talk rather than as a title card. */
 .av2 .av2-step--thread .av2-speech__bubble:not([data-long]) > .av2-headline {
@@ -3450,6 +3457,7 @@
   color: var(--av2-ink);
 }
 .av2 .av2-thread__mine[data-pending] { color: var(--av2-ink-2); }
+.av2 .av2-thread__check { margin: 4px 0 0 auto; max-width: 80%; text-align: right; font-size: var(--av2-t-meta); color: var(--av2-muted); }
 
 /* WP-103 T6. The slip in the learner's line is only marked (a red dotted
    underline, nothing to tap); under the line the corrected form is always
@@ -3513,6 +3521,31 @@
 .av2 .av2-thread__note .av2-correction { margin: 0; padding: 0; background: none; }
 /* In the conversation's margin note the fix stays a margin note, not a headline. */
 .av2 .av2-thread__note .av2-correction__line { font-size: var(--av2-t-body-lg); }
+/* P3: from B1 a reply's other corrections wait collapsed under the first. */
+.av2 .av2-thread__more {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: 100%;
+}
+.av2 .av2-thread__morebtn {
+  min-height: var(--av2-tap);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px 0 0;
+  border: 0;
+  background: none;
+  color: var(--av2-muted);
+  font: inherit;
+  font-size: var(--av2-t-meta);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.av2 .av2-thread__morebtn:focus-visible { outline: 2px solid var(--av2-focus); outline-offset: 2px; border-radius: 4px; }
+.av2 .av2-thread__morelist { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; max-width: 100%; }
+.av2 .av2-thread__more s { text-decoration-color: var(--av2-red); }
 
 /* WP-103 T3. What a drill asks for, right under its instruction: the goal in
    the learner's language (sans, ink, a card of its own), or the scene line the
