@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.db.models.daily_journey import DailyJourney
 from app.db.models.serial import SerialEpisode
 from app.db.models.user import User
-from app.services import cast_registry
+from app.services import cast_registry, chrome_language
 from app.services.achievement_recap import engine_teaser_chars
 from app.services.address import character_register as resolve_character_register
 
@@ -753,7 +753,7 @@ def remembered_hook_push(db: Session, user: User, *, today: date) -> CharacterPu
         return None
     register = character_register(db, user, character_id)
     message = remembered_hook.glossed_push(
-        block, register=register, language=getattr(user, "native_language", "en"), band=getattr(user, "cefr_estimate", None)
+        block, register=register, language=chrome_language.user_mother_tongue(user), band=getattr(user, "cefr_estimate", None)
     )
     if not message:
         return None

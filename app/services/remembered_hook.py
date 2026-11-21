@@ -664,7 +664,9 @@ def glossed_push(block: dict[str, Any], *, register: str, language: Any, band: A
     line = str(lines.get("tu" if register == "tu" else "vous") or "")
     if not line:
         return None
-    lang = str(language or "en")[:2]
+    from app.services import chrome_language
+
+    lang = chrome_language.mother_tongue(language)
     if band_group(band) == "B" or lang == "fr":
         return line
     native = str((block.get("push_native") or {}).get(lang) or "")
