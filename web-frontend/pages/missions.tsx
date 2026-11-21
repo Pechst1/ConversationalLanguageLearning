@@ -65,6 +65,7 @@ import {
   submitLabel,
   type MissionFormat,
 } from '@/components/courrier/mission-format';
+import { ribbonWords } from '@/components/courrier/ribbon-words';
 // The conversation's own order (turn counter) and the composer that reads it (#397, review on #411).
 import {
   compactText,
@@ -235,35 +236,6 @@ function missionFrame(mission: RealWorldMission | null, messenger: MissionMessen
   );
   const askLang: string = localized ? chromeLang : 'fr';
   return { frame, ask, askLang };
-}
-
-// The word ribbon ("à placer :") — the target word itself, marked "used" once it
-// surfaces in one of the learner's own turns.
-function ribbonWords(mission: RealWorldMission | null): { t: string; used?: boolean; recall?: string }[] {
-  const direct = Array.isArray(mission?.target_vocabulary) ? mission?.target_vocabulary || [] : [];
-  const prompt = Array.isArray(mission?.prompt_payload?.target_vocabulary)
-    ? mission?.prompt_payload?.target_vocabulary || []
-    : [];
-  const said = missionTurns(mission)
-    .filter((turn) => turn.role === 'user')
-    .map((turn) => String(turn.text || '').toLowerCase())
-    .join(' ');
-  // WP-115d: the week's letter asks for due words by their meaning — the reply is
-  // where the learner recalls the French, which the ribbon shows once it is used.
-  const recall = Boolean(mission?.prompt_payload?.recall_ribbon);
-  const seen = new Set<string>();
-  const result: { t: string; used?: boolean; recall?: string }[] = [];
-  (direct.length ? direct : prompt).forEach((item: Record<string, any>) => {
-    const word = String(item.word || '').trim();
-    const key = word.toLowerCase();
-    if (!word || seen.has(key) || result.length >= 3) return;
-    seen.add(key);
-    const head = key.replace(/^(?:le|la|les|un|une|l['’])\s*/, '');
-    const used = key.length > 1 && (said.includes(key) || (head.length > 2 && said.includes(head)));
-    const meaning = String(item.translation || '').trim();
-    result.push({ t: word, used, ...(recall && meaning ? { recall: meaning } : {}) });
-  });
-  return result;
 }
 
 function missionFormatPayload(mission: RealWorldMission | null): Record<string, any> {

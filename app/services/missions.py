@@ -8537,9 +8537,34 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
             }
             for turn in sorted(mission.turns or [], key=lambda item: item.turn_index)
         ]
+        # #928: the ribbon's «used» is the server's one record of it, written when each
+        # reply was checked (lemma- and accent-aware: «vendu» is vendre, «cle» is clé).
+        payload["used_target_word_ids"] = used_target_word_ids(mission)
         if scene_record.enabled():
             payload["prompt_payload"] = _prompt_payload_for_thread(mission, payload["prompt_payload"])
     return payload
+
+
+def used_target_word_ids(mission: RealWorldMission) -> list[int]:
+    """#928: the target words the learner's replies used, from their stored checks.
+
+    Each check records a used target as a ``produced_correct`` vocabulary event
+    (``_apply_vocabulary_feedback``, matched by ``target_occurs_in``: inflected
+    forms and missing accents count). This reads that record from the learner's
+    turns and attempts; it never matches the text again."""
+
+    rows = [
+        *(turn for turn in (mission.turns or []) if turn.role == "user"),
+        *(mission.attempts or []),
+    ]
+    used: list[Any] = []
+    for row in rows:
+        correction = row.correction_payload if isinstance(row.correction_payload, dict) else {}
+        for key in ("vocabulary_events", "vocabulary_links"):
+            for event in correction.get(key) or []:
+                if isinstance(event, dict) and str(event.get("event_type") or "") == "produced_correct":
+                    used.append(event.get("word_id"))
+    return _dedupe_ints(used)
 
 
 def _prompt_payload_for_thread(mission: RealWorldMission, prompt_payload: dict[str, Any]) -> dict[str, Any]:
