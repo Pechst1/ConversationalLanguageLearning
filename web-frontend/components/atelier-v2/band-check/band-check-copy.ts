@@ -85,7 +85,7 @@ const FR: BandCheckCopy = {
   intro_lead:
     '{n} mots du niveau {band}. Pour chacun, choisis le sens — ou « Je ne sais pas ». Environ deux minutes.',
   intro_fine:
-    'Il faut en reconnaître {needed} sur {n} pour valider le niveau — un seuil encore à l’essai. Ses mots ne reviendront que pour une vérification légère.',
+    'Il faut en reconnaître {needed} sur {n} pour valider le niveau. Ses mots ne reviendront que pour une vérification légère.',
   intro_top_down:
     'On commence par le niveau le plus haut sous le vôtre. Validé, il compte pour les niveaux d’en dessous ; sinon, on descend d’un niveau. Deux vérifications au plus par visite.',
   bands_label: 'Niveaux à vérifier',
@@ -146,7 +146,7 @@ const EN: BandCheckCopy = {
   intro_lead:
     '{n} words from level {band}. For each one, pick the meaning — or “I don’t know”. About two minutes.',
   intro_fine:
-    'You need {needed} of {n} to confirm the level — a threshold still on trial. Its words then come back only for a light check.',
+    'You need {needed} of {n} to confirm the level. Its words then come back only for a light check.',
   intro_top_down:
     'We start with the highest level below yours. If it is confirmed, the levels below count too; if not, we go down one level. Two checks at most per visit.',
   bands_label: 'Levels to check',
@@ -207,7 +207,7 @@ const DE: BandCheckCopy = {
   intro_lead:
     '{n} Wörter aus Niveau {band}. Wähle bei jedem die Bedeutung — oder „Weiß ich nicht“. Etwa zwei Minuten.',
   intro_fine:
-    'Du brauchst {needed} von {n}, um das Niveau zu bestätigen — eine Schwelle, die noch erprobt wird. Seine Wörter kommen dann nur noch zu einer kurzen Kontrolle zurück.',
+    'Du brauchst {needed} von {n}, um das Niveau zu bestätigen. Seine Wörter kommen dann nur noch zu einer kurzen Kontrolle zurück.',
   intro_top_down:
     'Wir beginnen mit dem höchsten Niveau unter deinem. Ist es bestätigt, zählen die Niveaus darunter mit; sonst gehen wir ein Niveau tiefer. Höchstens zwei Checks pro Besuch.',
   bands_label: 'Niveaus zum Prüfen',

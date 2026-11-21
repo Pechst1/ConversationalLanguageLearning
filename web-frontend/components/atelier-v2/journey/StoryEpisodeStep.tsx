@@ -47,6 +47,7 @@ import {
   actTitleCard,
   authoredPageEpisode,
   listenFirstPlacement,
+  listenFirstSwitchedOff,
   readListenFirst,
   writeListenFirst,
   type EpisodeGuessId,
@@ -105,9 +106,12 @@ export function StoryEpisodeStep({
   // condition to someone who never asked for it is how a good idea gets
   // measured as a bad one.
   const [listenFirst, setListenFirst] = useState(false);
+  // Pilot P9: an explicit «off» in Settings outranks a dealt listening day.
+  const [switchedOff, setSwitchedOff] = useState(false);
   const [declinedStep, setDeclinedStep] = useState<string | null>(null);
   useEffect(() => {
     setListenFirst(readListenFirst());
+    setSwitchedOff(listenFirstSwitchedOff());
   }, []);
 
   // WP-96 «Précédemment»: the chronicle's last lines before the first panel,
@@ -157,6 +161,7 @@ export function StoryEpisodeStep({
     preferred: listenFirst,
     dealt: Boolean(step.prompt.listen_first),
     declined: declinedStep === step.id,
+    switchedOff,
   });
   const audio = useEpisodeAudio({
     sceneId,
@@ -177,11 +182,15 @@ export function StoryEpisodeStep({
   // listening day must not stay switched off for every later scene by one tap.
   const chooseMode = useCallback(
     (enabled: boolean) => {
+      // Pilot P9: a stored «off» now outranks every later dealt day, so leaving a
+      // dealt cycle the learner never chose stores nothing; only a chosen
+      // «Écouter d'abord» is switched off by its own exit.
+      if (enabled || listenFirst) writeListenFirst(enabled);
       setListenFirst(enabled);
-      writeListenFirst(enabled);
+      if (enabled) setSwitchedOff(false);
       setDeclinedStep(enabled ? null : step.id);
     },
-    [step.id],
+    [step.id, listenFirst],
   );
 
   const recordPrediction = useCallback(
@@ -230,6 +239,7 @@ export function StoryEpisodeStep({
           onContinue={onContinue}
           onReadInstead={() => chooseMode(false)}
           onPrediction={recordPrediction}
+          dealtDay={Boolean(step.prompt.listen_first)}
         />
       );
     }

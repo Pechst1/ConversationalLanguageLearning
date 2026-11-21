@@ -96,7 +96,9 @@ def test_a_turn_makes_the_same_calls_with_the_record(
     d, _user = _learner(assembled_client, db_session, gap_id="g3", premise="les_canapes")
     results = _day(d, season_on, ["Le rouge.", "Oui, je le garde.", "Merci."])
     turns = _per_turn(schemas)
-    assert len(turns) == len(results) == 3
+    # Owner 2026-11-16 («story first»): this A1 Régulier day has no practice to give
+    # way and fits its 600 s with the low bands' exchange more — four turns.
+    assert len(turns) == len(results) == 4
     assert all(turn == Counter({"TutorVerdict": 1, "VoiceReply": 1}) for turn in turns), turns
     # Once a day, off the learner's wait: the ending and its critic.
     assert Counter(schemas)["StoryTurn"] == 1 and Counter(schemas)["TurnReview"] == 1

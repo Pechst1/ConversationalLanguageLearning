@@ -179,13 +179,13 @@
    "c1": "Passe-moi ça ! Alors : une grand-mère, un appartement, et une consommation de croissants franchement préoccupante."
   },
   "db5678613e71": {
-   "a1": "Bien. Mercredi 2 décembre.",
+   "a1": "Bien. {date:2026-12-02|fr-cap}.",
    "a1_native": {
-    "en": "Good. Wednesday 2 December.",
-    "de": "Gut. Mittwoch, 2. Dezember."
+    "en": "Good. {date:2026-12-02|en}.",
+    "de": "Gut. {date:2026-12-02|de}."
    },
-   "b2": "Parfait. Ce sera donc mercredi 2 décembre.",
-   "c1": "Entendu. Je vous mets sur le mercredi 2 décembre."
+   "b2": "Parfait. Ce sera donc {date:2026-12-02}.",
+   "c1": "Entendu. Je vous mets sur le {date:2026-12-02}."
   },
   "b2f24a60ef9b": {
    "a1": "Le billet change. Toi aussi, un peu.",

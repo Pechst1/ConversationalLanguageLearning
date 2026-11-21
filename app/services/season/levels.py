@@ -31,9 +31,13 @@ VARIANT_FIELDS = ("a1", "b1", "b2", "c1")
 
 
 def level_key(a2: str, b1: str | None = None) -> str:
-    """Fingerprint of a line's canonical text (A2, and B1 where the bible wrote one)."""
+    """Fingerprint of a line's canonical text (A2, and B1 where the bible wrote one).
+    A date token counts as the bible's own date (``dates``), so moving a date into a
+    token keeps the line's variants."""
 
-    source = f"{a2.strip()}␟{(b1 or '').strip()}"
+    from app.services.season.dates import render_text
+
+    source = f"{render_text(a2).strip()}␟{render_text(b1 or '').strip()}"
     return hashlib.sha256(source.encode("utf-8")).hexdigest()[:12]
 
 

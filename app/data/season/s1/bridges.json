@@ -8,7 +8,7 @@
   {
    "gap": "g1",
    "title_fr": "La première semaine",
-   "story_date_fr": "13–17 nov.",
+   "story_date_fr": "{date:2026-11-13|fr-abbr} – {date:2026-11-17|fr-abbr}",
    "location_id": "le_mistral",
    "minutes": 6,
    "can_do": {
@@ -427,8 +427,8 @@
      "fixed": [
       {
        "flag": "user.return_ticket",
-       "value": "mercredi 2 décembre",
-       "because": "The return ticket has moved to 2 December (user.return_ticket)."
+       "value": "{date:2026-12-02}",
+       "because": "The return ticket has moved to {date:2026-12-02|en-dm} (user.return_ticket)."
       }
      ],
      "movements": [
@@ -611,10 +611,10 @@
           {
            "who": "clerk",
            "say": {
-            "a2": "Très bien. Mercredi 2 décembre, alors.",
+            "a2": "Très bien. {date:2026-12-02|fr-cap}, alors.",
             "native": {
-             "en": "Very well. Wednesday 2 December, then.",
-             "de": "Sehr gut. Also Mittwoch, der 2. Dezember."
+             "en": "Very well. {date:2026-12-02|en}, then.",
+             "de": "Sehr gut. Also {date:2026-12-02|de}."
             }
            }
           },
@@ -668,7 +668,7 @@
   {
    "gap": "g2",
    "title_fr": "L'appartement s'ouvre",
-   "story_date_fr": "20–25 nov.",
+   "story_date_fr": "{date:2026-11-20|fr-abbr} – {date:2026-11-25|fr-abbr}",
    "location_id": "odile_flat",
    "minutes": 5,
    "can_do": {
@@ -934,7 +934,7 @@
   {
    "gap": "g3",
    "title_fr": "Avant la fête",
-   "story_date_fr": "28 nov. – 4 déc.",
+   "story_date_fr": "{date:2026-11-28|fr-abbr} – {date:2026-12-04|fr-abbr}",
    "location_id": "toit",
    "minutes": 5,
    "can_do": {
@@ -1183,7 +1183,7 @@
   {
    "gap": "g4",
    "title_fr": "Le quartier sait",
-   "story_date_fr": "7–12 déc.",
+   "story_date_fr": "{date:2026-12-07|fr-abbr} – {date:2026-12-12|fr-abbr}",
    "location_id": "quai_de_valmy",
    "minutes": 5,
    "can_do": {

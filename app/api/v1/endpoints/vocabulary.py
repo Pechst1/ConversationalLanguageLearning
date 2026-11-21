@@ -896,11 +896,13 @@ def _planned_day_deck(
     extras = drill_batch.remaining_items(db, user, day_words.extra_items(batch), reserved_new=reserved_new)
     db.commit()
     payload = service.vocabulary_due_context_from_batch(user=user, items=remaining + extras, now=now)
-    # Today's scene words are flagged (the scene's share of the new-word slots,
-    # app/services/deck_order.py) and every card the scene printed quotes its line.
+    # Today's scene words are flagged (all of them, app/services/deck_order.py) and
+    # every card the scene printed quotes its line, with the sense it has there.
     from app.services.scene_deck import apply_to_day_deck
 
     payload = apply_to_day_deck(db, user, batch, payload, now=now)
+    # P7: the words the learner kept open the deck (app/services/deck_order.py).
+    payload = day_words.mark_kept_cards(batch, payload)
     # The day deck holds the day's whole dose: no continuation inside it.
     payload["new_words_left_today"] = 0
     return payload

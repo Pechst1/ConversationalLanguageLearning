@@ -234,12 +234,14 @@ export const dailyJourneyService = {
 
   advance(
     journeyId: string,
-    options: { expectedRevision: number; currentStepId: string; mutationId?: string },
+    options: { expectedRevision: number; currentStepId: string; mutationId?: string; skipToScene?: boolean },
   ): Promise<JourneySnapshot> {
     const body: AdvanceBody = {
       mutation_id: options.mutationId ?? mutationId(),
       expected_revision: options.expectedRevision,
       current_step_id: options.currentStepId,
+      // P11 «Passer à la scène»: skip what is left before the scene, never «read» it.
+      ...(options.skipToScene ? { skip_to_scene: true } : {}),
     };
     return apiService.advanceDailyJourney(journeyId, body);
   },
