@@ -243,7 +243,8 @@ test('a mood line only when the ledger moved today; the face still reacts', () =
 });
 
 test('a «jour de relâche» is said in the learner language', () => {
-  const html = render(day({}, { streak: { days: 8, today_done: true, freeze_available: false, freeze_used_on: '2026-09-20' } }));
+  // The fixture's day is 2026-09-05: the freeze covered the day before (#950).
+  const html = render(day({}, { streak: { days: 8, today_done: true, freeze_available: false, freeze_used_on: '2026-09-04' } }));
   assert.match(textOf(html), /A day off kept your streak\./);
 });
 

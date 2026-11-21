@@ -1646,6 +1646,8 @@ export interface RealWorldMission {
   recommendation_reason?: { text: string; text_by_language?: Partial<Record<string, string>>; signals: Record<string, any> };
   attempts?: Array<Record<string, any>>;
   turns?: Array<Record<string, any>>;
+  /** #928: the target words the learner's checked replies used (server record, lemma- and accent-aware). */
+  used_target_word_ids?: number[];
   created_at?: string | null;
   started_at?: string | null;
   completed_at?: string | null;

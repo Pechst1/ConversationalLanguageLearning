@@ -5299,8 +5299,11 @@ export function OutputLadderPanel({
           {item.scene && character.id && (
             <CastPortrait characterId={String(character.id)} name={String(character.name)} size="xs" ring />
           )}
-          <span>{character.name}</span>
-          <em lang="fr">{String(character.register || 'vous')}</em>
+          {/* #951: one label, the register inside it, never a word on its own. */}
+          <span>
+            {character.name}
+            <em lang="fr">{` · ${String(character.register || 'vous')}`}</em>
+          </span>
         </div>
       )}
       <EpScenePrompt

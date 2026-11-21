@@ -198,6 +198,20 @@ export function heldToday(journey: JourneySnapshot): number {
   return Array.isArray(ids) ? new Set(ids.map(Number).filter(Number.isFinite)).size : 0;
 }
 
+/**
+ * #950: «A day off kept your streak» is news on the one day it is true: the day
+ * after the day the freeze covered. `streak.freeze_used_on` is the last day a
+ * freeze ever covered and stays on the learner for weeks, so reading it as a flag
+ * printed the line on every played day after it.
+ */
+export function freezeKeptToday(journey: Pick<JourneySnapshot, 'local_date' | 'streak'>): boolean {
+  const covered = String(journey.streak?.freeze_used_on || '');
+  const today = String(journey.local_date || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(covered) || !/^\d{4}-\d{2}-\d{2}$/.test(today)) return false;
+  const dayMs = 24 * 60 * 60 * 1000;
+  return Date.parse(`${today}T00:00:00Z`) - Date.parse(`${covered}T00:00:00Z`) === dayMs;
+}
+
 export function rewardView(
   journey: JourneySnapshot,
   recap: JourneyRecap | null,
@@ -224,7 +238,7 @@ export function rewardView(
     });
   }
 
-  const freezeUsed = Boolean(journey.streak?.freeze_used_on) && streakDays > 0;
+  const freezeUsed = freezeKeptToday(journey) && streakDays > 0;
   const firstPractice = (recap.practiced_targets || []).find((item) => item.practice_href);
   // WP-99: the engine's guarded `next_teaser_fr` first, then the structured teaser.
   const teaser = recapTeaserOf(recap);
