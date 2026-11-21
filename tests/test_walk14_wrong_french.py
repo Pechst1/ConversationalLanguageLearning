@@ -137,3 +137,69 @@ def test_secrete_is_not_secrete_with_its_agreement() -> None:
     # A spelling accent elsewhere stays forgiven.
     assert judge("Il est tres grand.", ["Il est très grand."]).correct
     assert judge("ma mere", ["ma mère"]).correct
+
+
+# ---------------------------------------------------------------------------
+# C. A right answer refused: A1 day 2, the rule check of «être»
+# ---------------------------------------------------------------------------
+
+
+def test_je_suis_avec_lila_au_marche_is_right_on_the_rule_check_item(db_session, monkeypatch) -> None:
+    """The walk's item: «Sag auf Französisch: „Ich bin mit Lila auf dem Markt.“». The local
+    grade said right, the fallback's ``missing_targets`` stayed on the correction and the
+    screen read it as «Die Aufgabe … erfüllt die Aufgabe noch nicht» (#954, fixed by #979,
+    which the walk's build did not have)."""
+
+    from app.config import settings
+    from app.db.models.grammar import GrammarConcept
+    from app.services.atelier import AtelierCorrectionService
+    from app.services.forge import ForgeService
+    from app.services.grammar_catalog import FrenchCoreGrammarCatalog
+    from tests.test_atelier import _user
+    from tests.test_forge_integration import _right
+    from tests.test_rule_check_one_verdict_954 import client_says_right
+
+    learner = "Je suis avec Lila au marché."
+    monkeypatch.setattr(settings, "ATELIER_CORRECTION_LLM_ENABLED", False)
+    monkeypatch.setattr(settings, "ATELIER_GRAMMAR_CATALOG_VERSION", "v2")
+    monkeypatch.setattr(AtelierCorrectionService, "_can_schedule_ai_review", lambda self: False)
+    FrenchCoreGrammarCatalog(db_session, "v2").ensure_catalog()
+    try:
+        concept = db_session.query(GrammarConcept).filter(GrammarConcept.external_id == "FR2_A11_ETRE").one()
+        user = _user(db_session)
+        user.native_language = "de"
+        db_session.commit()
+        forge = ForgeService(db_session)
+        session = forge.start_test_out(user=user, concept_id=concept.id, short=True)
+        service = AtelierCorrectionService(db_session)
+        free_correction = None
+        while (nxt := forge.next_item(user=user, session=session)) is not None:
+            free = nxt["round"] not in {"recognize", "transform"}
+            exercise_id = f"forge:{concept.id}:{nxt['round']}:{nxt['item_id']}"
+            override = None
+            if free:
+                override = service._prompt_payload(concept, nxt["round"], nxt["mode"], exercise_id, user=user, session=session)
+                override["items"][0] = {
+                    **override["items"][0],
+                    "prompt": 'Say in French: "I am at the market with Lila."',
+                    "goal_l10n": {"de": "Sag auf Französisch: „Ich bin mit Lila auf dem Markt.“"},
+                    "example_answer": "Je suis au marché avec Lila.",
+                    "accepted_answers": ["Je suis au marché avec Lila.", "Je suis avec Lila au marché."],
+                }
+            attempt = service.submit_attempt(
+                session=session,
+                user=user,
+                concept=concept,
+                round_name=nxt["round"],
+                mode="rewrite" if nxt["round"] == "transform" else nxt["mode"],
+                exercise_id=exercise_id,
+                answer_payload={"text": learner} if free else _right(nxt["item"], nxt["round"], nxt["mode"]),
+                prompt_payload_override=override,
+            )
+            if free:
+                free_correction = attempt.correction_payload
+            forge.observe_attempt(user=user, session=session, attempt=attempt)
+    finally:
+        FrenchCoreGrammarCatalog(db_session, "v1").ensure_catalog()
+    assert free_correction is not None
+    assert client_says_right(free_correction), free_correction.get("missing_targets")
