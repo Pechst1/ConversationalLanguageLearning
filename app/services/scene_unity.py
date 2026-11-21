@@ -23,7 +23,7 @@ Soft, always: :func:`gap` rides the one retry of ``living_story._check_reading_a
 and a page is served after it either way. A scene that wanders never costs a day, and
 does not reach the reader as it wandered: what a soft rejection of a scene carries to be
 served is :func:`held_to_scene`, the page with what its own state put outside the scene
-taken out, as far as the engine's panel floor allows (``living_story._servable``, which
+taken out, as far as the engine's panel floor allows (``living_story._servable_page``, which
 checks the held page's lexicon again). What the floor kept is recorded on the brief
 (``living_story.SCENE_UNITY_KEY``) for the critic and the next night.
 

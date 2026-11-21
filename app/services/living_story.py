@@ -8588,7 +8588,7 @@ def _validate_scene(draft: SceneDraft, context: dict):
     _validate_lexicon(draft, context)
     # Last, on the draft every hard guard has accepted: a soft rejection carries a
     # scene that is servable as it stands. Whichever soft check refuses, the page it
-    # carries is made servable here, in one place (#621: ``_servable``), so a new soft
+    # carries is made servable here, in one place (#621: ``_servable_page``), so a new soft
     # check or a new order cannot carry a page out that left its scene.
     try:
         _check_scene_title(draft, context)
@@ -8598,7 +8598,7 @@ def _validate_scene(draft: SceneDraft, context: dict):
         _check_story_words(draft, context)
         _check_learner_words(draft, context)
     except SoftRejection as exc:
-        exc.proposal = _servable(exc.proposal if exc.proposal is not None else draft, context)
+        exc.proposal = _servable_page(exc.proposal if exc.proposal is not None else draft, context)
         raise
 
 
@@ -8617,7 +8617,7 @@ def _unity_compared(context: dict) -> bool:
     return scene_record.enabled() and not context.get(EPREUVE_KEY)
 
 
-def _servable(draft: SceneDraft, context: dict) -> SceneDraft:
+def _servable_page(draft: SceneDraft, context: dict) -> SceneDraft:
     """The page a soft rejection of a scene carries to be served if the retry wanders
     again or fails: ``draft`` held to its scene (:func:`scene_unity.held_to_scene`).
 
@@ -8751,7 +8751,7 @@ def _check_reading_aids(draft: SceneDraft, context: dict) -> None:
     # Story plan, Phase 1 «Maßstab»: lines a reader hears as a machine ride it too.
     prose = prose_gap(draft, context)
     # #621: a page whose own state says it left its scene (``scene_unity``) rides it too,
-    # and the page it is served as is held to its scene (``_validate_scene``: ``_servable``).
+    # and the page it is served as is held to its scene (``_validate_scene``: ``_servable_page``).
     unity = scene_unity.gap(draft) if _unity_compared(context) else None
     if not untranslated and not undescribed and not grammar and not special and not moment and not prose and not unity:
         return
