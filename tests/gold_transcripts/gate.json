@@ -27,11 +27,17 @@
    "judge": "claude-sonnet-5-5"
   },
   "courrier": {
-   "fingerprint": "28e784775d7a0959",
+   "fingerprint": "3b77ac9b457d2fb6",
    "calls": 24,
-   "verdict": "baseline",
-   "date": "2026-11-14",
-   "base_ref": "7c7de3020"
+   "verdict": "held",
+   "base": 76.5,
+   "head": 74.9,
+   "diff": -1.6,
+   "paired": 24,
+   "date": "2026-11-21",
+   "base_ref": "ca1eb2f0d",
+   "criteria": "adfd25c6eb00",
+   "judge": "claude-sonnet-5-5"
   },
   "correction": {
    "fingerprint": "18fb19db495aef65",
