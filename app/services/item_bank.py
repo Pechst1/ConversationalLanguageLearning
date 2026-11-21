@@ -1868,6 +1868,32 @@ def _unit_level(unit: str) -> str:
     return match.group(1) if match else "C2"
 
 
+@lru_cache(maxsize=256)
+def _teaching_order(unit: str) -> float:
+    """Where a unit comes in the v2 syllabus (``difficulty_order``); unknown → last."""
+
+    order = (_v2_rows().get(unit) or {}).get("difficulty_order")
+    return float(order) if order is not None else float("inf")
+
+
+def _taught_for(entry: dict[str, Any], unit: str) -> bool:
+    """Whether an item of ``unit`` may use ``entry``: nothing in its form is taught later.
+
+    QA-FORGE: an entry marked above the unit's band (``"band": "B1"``, «le
+    bureau de l'ONG») stays out of an A1 unit. #829: an entry whose form needs
+    a rule of its own (``"rule": "FR2_A11_PLACES"`` — «en Iran», «au Canada»,
+    «à Munich») stays out of every unit taught before that rule, so être
+    (order 10) never asks for a place preposition the learner meets at order
+    130. The season's own places (Paris, Marseille) carry ``"story"`` instead
+    of a rule: before PLACES they are the only places a ``geo`` slot can bind.
+    """
+
+    if _band_rank(entry.get("band")) > _band_rank(_unit_level(unit)):
+        return False
+    rule = entry.get("rule")
+    return not rule or rule == unit or _teaching_order(str(rule)) <= _teaching_order(unit)
+
+
 def _literal_text(fr: str) -> str:
     """A frame's own words: slots and the target removed."""
 
@@ -1998,9 +2024,9 @@ class ItemBank:
             if slot not in frame.fr and slot not in frame.en and not any(slot in value for value in frame.slots.values() if value != spec):
                 continue
             entries = self._candidates(spec, bindings)
-            # QA-FORGE: an entry marked above the unit's band (``"band": "B1"``,
-            # «le bureau de l'ONG») stays out of an A1 unit.
-            entries = [entry for entry in entries if _band_rank(entry.get("band")) <= _band_rank(_unit_level(frame.unit))]
+            # QA-FORGE / #829: nothing above the unit's band, nothing whose form
+            # needs a rule taught after this one (:func:`_taught_for`).
+            entries = [entry for entry in entries if _taught_for(entry, frame.unit)]
             if slot in needs_comps:
                 entries = [entry for entry in entries if entry.get("comps")]
             pool_key = spec.split("@")[0].split(":")[0]
