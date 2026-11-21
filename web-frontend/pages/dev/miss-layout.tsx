@@ -131,6 +131,8 @@ function RepeatedErratumFixture() {
             nextLabel="Continuer"
             onTryAgain={() => undefined}
             onReport={() => undefined}
+            // A word bank's answer is its tiles, on screen above: as in the session, it is «picked».
+            picked
             ruleShown="Je suis, tu es : les pronoms et être"
           />
         </section>

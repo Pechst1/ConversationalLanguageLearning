@@ -452,3 +452,23 @@ test('a bank cue renders in the learner\'s language when the payload offers it',
   assert.match(PAGE, /localizedCue\(item, 'instruction', cueLanguage\)/);
   assert.match(PAGE, /localizedCue\(produce, 'prompt', cueLanguage\)/);
 });
+
+test('a miss with its chance open is read in two places: the line and the band (design review, 19 Nov 2026)', () => {
+  // The hint used to sit in a card of its own («Not this answer»), set in the exercise's
+  // Garamond, above a band whose own line said only that the solution comes later; a typed
+  // line was on screen twice, in its read-only field and again in a card under it.
+  const start = PAGE.indexOf('if (!feedback.correct && solutionWithheld(correction)) {');
+  const withheld = PAGE.slice(start, PAGE.indexOf('// After the chance (or with none)', start));
+  assert.ok(start > 0 && withheld.length > 0, 'the withheld branch is found');
+  assert.match(withheld, /<EpVerdict tone="no" sub=\{hints\.reason \? explained\(hints\.reason\) : t\.miss_sub\}/, 'the band carries the hint');
+  assert.doesNotMatch(withheld, /className="ep-why"/, 'the hint is not a second block above the band');
+  assert.doesNotMatch(withheld, /<EpGalley/, 'no card repeats the line under its field');
+  assert.doesNotMatch(PAGE, /miss_choice|miss_where/, 'the cards\' labels are gone');
+  // The typed line takes its field's place in every panel that has one.
+  assert.equal((PAGE.match(/<CheckedLine state=\{answerState\}/g) || []).length, 3, 'transform, free line and produce draw the checked line');
+  assert.match(PAGE, /\{onTryAgain && !inPlace && <EpBar tone="ghost" icon="retry"/, 'a line fixed in place has one button, the band\'s «Check»');
+  assert.match(withheld, /\{inPlace && \(\s*<EpBar\s+tone="go"/, 'which checks the line fixed in place');
+  const ep = fs.readFileSync(path.join(__dirname, 'Epreuve.tsx'), 'utf8');
+  assert.match(ep, /export function EpAnswerLine\(/);
+  assert.match(ep, /<button type="button" className="ep-answer" data-tone=\{tone\} onClick=\{onEdit\}>/, 'a tap on the marked line opens it again');
+});
