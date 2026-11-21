@@ -254,7 +254,7 @@ def test_396_a_scene_word_already_due_is_counted_once(
     promised = _words_step(_session(db_session, user))
     cards = _cards(_deck(client, headers, DAY))
     assert cards.count(supply[0]) == 1
-    assert promised["count"] == len(cards) == 20, f"Home said {promised['count']}, the review opens at 0/{len(cards)}"
+    assert promised["count"] == len(cards) == 15, f"Home said {promised['count']}, the review opens at 0/{len(cards)}"
 
 
 def test_396_a_card_the_lexique_left_keeps_its_place_in_the_count(
@@ -285,4 +285,4 @@ def test_396_a_card_the_lexique_left_keeps_its_place_in_the_count(
     promised = _words_step(_session(db_session, user))
     cards = _cards(_deck(client, headers, DAY))
     assert fragile in cards
-    assert promised["count"] == len(cards) == 21, f"Home said {promised['count']}, the review opens at 0/{len(cards)}"
+    assert promised["count"] == len(cards) == 16, f"Home said {promised['count']}, the review opens at 0/{len(cards)}"

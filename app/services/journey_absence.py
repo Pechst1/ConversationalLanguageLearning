@@ -192,6 +192,73 @@ def lapsed_letters(db: Session, user_id: Any, *, since: date, now: datetime | No
     return rows
 
 
+#: Pilot P9: at most this many lines say where the story stood when the learner left.
+WHERE_LEFT_MAX = 2
+
+
+def _last_completed_journey(db: Session, user_id: Any, *, before: date) -> DailyJourney | None:
+    from app.services.journey_contracts import TERMINAL_JOURNEY_STATUSES
+
+    return db.scalar(
+        select(DailyJourney)
+        .where(
+            DailyJourney.user_id == user_id,
+            DailyJourney.local_date < before,
+            DailyJourney.status.in_(tuple(str(value) for value in TERMINAL_JOURNEY_STATUSES)),
+        )
+        .order_by(DailyJourney.local_date.desc(), DailyJourney.created_at.desc())
+        .limit(1)
+    )
+
+
+def _stored_summary(db: Session, journey: DailyJourney) -> str:
+    """The end card's own summary of that day (the last resolution step's
+    ``summary_native``), or ``""``."""
+
+    from app.db.models.daily_journey import DailyJourneyStep
+
+    prompts = db.scalars(
+        select(DailyJourneyStep.public_prompt)
+        .where(DailyJourneyStep.journey_id == journey.id, DailyJourneyStep.kind == "resolution")
+        .order_by(DailyJourneyStep.ordinal.desc())
+    ).all()
+    for prompt in prompts:
+        text = _text((prompt or {}).get("summary_native") if isinstance(prompt, dict) else None)
+        if text:
+            return text
+    return ""
+
+
+def where_left(db: Session, user: User | None, *, user_id: Any, before: date) -> list[str]:
+    """Pilot P9: up to two lines, in the learner's interface language, of where the story
+    stood when they left — the last played day's stored end summary, then the hook it left
+    open. Stored text only, no model call. No stored summary: no lines at all.
+
+    The hook is French; it is printed only where the interface is French (from B1), or
+    when the story stored a rendering of it in the learner's language (``open_native`` /
+    ``text_native``). A beginner is never handed an untranslated French hook here.
+    """
+
+    from app.services.chrome_language import user_chrome_language
+
+    journey = _last_completed_journey(db, user_id, before=before)
+    if journey is None:
+        return []
+    summary = _stored_summary(db, journey)
+    if not summary:
+        return []
+    lines = [summary]
+    recap = journey.recap_snapshot if isinstance(journey.recap_snapshot, dict) else {}
+    teaser = recap.get("teaser") if isinstance(recap.get("teaser"), dict) else {}
+    if user_chrome_language(user) == "fr":
+        hook = _text(teaser.get("open_fr") or teaser.get("text_fr") or recap.get("teaser_fr"))
+    else:
+        hook = _text(teaser.get("open_native") or teaser.get("text_native"))
+    if hook and hook != summary:
+        lines.append(hook)
+    return lines[:WHERE_LEFT_MAX]
+
+
 def _scene_payload(db: Session, journey: DailyJourney | None) -> dict[str, Any]:
     if journey is None:
         return {}
@@ -214,7 +281,8 @@ def absence_view(
     journey: DailyJourney | None = None,
     now: datetime | None = None,
 ) -> dict[str, Any] | None:
-    """``{days, greeting_fr, entre_temps, lapsed_letters}`` from two missed days, else ``None``."""
+    """``{days, greeting_fr, where_left, entre_temps, lapsed_letters}`` from two missed
+    days, else ``None``."""
 
     if int(missed_days or 0) < ABSENCE_MIN_MISSED_DAYS:
         return None
@@ -230,15 +298,13 @@ def absence_view(
     return {
         "days": int(missed_days),
         "greeting_fr": greeting or None,
+        "where_left": where_left(db, user, user_id=user_id, before=local_date),
         "entre_temps": entre_temps(_live_state(db, user_id), since),
         "lapsed_letters": lapsed_letters(db, user_id, since=since, now=now),
     }
 
 
-def season_premiere_view(db: Session, journey: DailyJourney | None) -> dict[str, Any] | None:
-    """``{number, title_fr, logline_fr}`` when today's scene opens a season."""
-
-    premiere = _scene_payload(db, journey).get("season_premiere")
+def _premiere_row(premiere: Any) -> dict[str, Any] | None:
     if not isinstance(premiere, dict):
         return None
     try:
@@ -251,10 +317,43 @@ def season_premiere_view(db: Session, journey: DailyJourney | None) -> dict[str,
     return {"number": number, "title_fr": title, "logline_fr": _text(premiere.get("logline_fr")) or None}
 
 
-def interlude_view(db: Session, user_id: Any) -> dict[str, Any] | None:
-    """``{returns_on, reason_fr}`` while the story is between seasons, else ``None``."""
+def season_premiere_view(
+    db: Session, journey: DailyJourney | None, *, user_id: Any = None
+) -> dict[str, Any] | None:
+    """``{number, title_fr, logline_fr}`` when today's scene opens a season, or (S5)
+    while the stored rollover says a season began and its first scene is still owed —
+    Home shows the new season from the morning it begins, not from its first page."""
 
-    interlude = _live_state(db, user_id).get("interlude")
+    row = _premiere_row(_scene_payload(db, journey).get("season_premiere"))
+    if row is not None or user_id is None:
+        return row
+    from app.services.season_rollover import state_of
+
+    live = _live_state(db, user_id)
+    rollover = state_of(live)
+    premiere = live.get("season_premiere")
+    if not rollover.get("installed_on") or not isinstance(premiere, dict) or not premiere.get("pending"):
+        return None
+    return _premiere_row(premiere)
+
+
+def interlude_view(db: Session, user_id: Any) -> dict[str, Any] | None:
+    """``{returns_on, reason_fr}`` while the story is between seasons, else ``None``.
+
+    S5: read from the stored rollover state — an open rollover is an interlude with
+    its promised date; a season that began is none, whatever else the life holds."""
+
+    from app.services.season_rollover import is_open, state_of
+
+    live = _live_state(db, user_id)
+    rollover = state_of(live)
+    if rollover:
+        if not is_open(rollover):
+            return None
+        interlude = rollover
+    else:
+        # A life closed before the rollover state existed.
+        interlude = live.get("interlude")
     if not isinstance(interlude, dict):
         return None
     returns_on = _date_of(interlude.get("returns_on"))
@@ -286,7 +385,8 @@ def story_frame_fields(
             default=None,
         ),
         "season_premiere": run_best_effort(
-            db, "journey_absence: season premiere", lambda: season_premiere_view(db, journey), default=None
+            db, "journey_absence: season premiere", lambda: season_premiere_view(db, journey, user_id=user_id),
+            default=None,
         ),
         "interlude": run_best_effort(
             db, "journey_absence: interlude", lambda: interlude_view(db, user_id), default=None
@@ -303,4 +403,5 @@ __all__ = [
     "lapsed_letters",
     "season_premiere_view",
     "story_frame_fields",
+    "where_left",
 ]

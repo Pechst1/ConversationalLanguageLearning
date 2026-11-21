@@ -23,11 +23,12 @@ from app.db.models.grammar import GrammarConcept, GrammarConceptLocalization, Us
 from app.db.models.progress import UserVocabularyProgress
 from app.db.models.user import User
 from app.db.models.vocabulary import UserConjugationProgress, VocabularyWord
+from app.services.chrome_language import user_mother_tongue
 from app.services.concept_titles import concept_title
 from app.services.conjugation import DISPLAY_TENSES, ConjugationService
 from app.services.enhanced_srs import EnhancedSRSService
 from app.services.error_memory import ErrorMemoryService
-from app.services.glosses import normalize_language, word_gloss
+from app.services.glosses import word_gloss
 from app.services.grammar import GrammarService
 from app.services.progress import (
     ProgressService,
@@ -911,7 +912,11 @@ class UnifiedSRSService:
             .limit(30)
             .all()
         )
-        
+        # Round 3: a stored half-finished edit is never a repair to deal.
+        from app.services.fault_quality import drillable_errors
+
+        errors = drillable_errors(self.db, errors)
+
         for error in errors:
             due_since = self._due_since_days(error.next_review_date, now)
             
@@ -1095,7 +1100,7 @@ class UnifiedSRSService:
     def _native_language(self, user_id: UUID) -> str:
         """The language this learner reads glosses in."""
         user = self.db.get(User, user_id)
-        return normalize_language(getattr(user, "native_language", None))
+        return user_mother_tongue(user)
 
     def _target_language(self, user_id: UUID) -> str:
         user = self.db.get(User, user_id)

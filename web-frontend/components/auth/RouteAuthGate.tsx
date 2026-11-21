@@ -6,33 +6,17 @@ import { sanitizeAuthCallbackUrl, useAppSession } from '@/lib/app-auth';
 import { atelierChrome } from '@/lib/atelier-v2-copy';
 import { readLearnerLanguage, readLearnerLevel } from '@/lib/learner-language';
 import { chromeLanguage } from '@/lib/language-rule';
+import { guestOnlyRoutes, publicRoutes } from '@/lib/places';
 import { reconnectWebSession, SESSION_EXPIRED_EVENT, sessionExpiredCopy } from '@/lib/session-recovery';
 
-const PUBLIC_PATHNAMES = new Set([
-  '/',
-  '/auth/signin',
-  '/auth/signup',
-  '/auth/forgot-password',
-  // WP-72: the privacy policy and the terms must be readable before an account
-  // exists — sign-up links to them and App Review opens them signed out.
-  '/privacy',
-  '/terms',
-  // Dev/QA only, and pruned from the native export (scripts/native-export-prune.mjs).
-  '/mobile-visual-qa',
-  // Both of these are development-only: their `getStaticProps` returns
-  // `notFound` when NODE_ENV is production, so the route does not exist in a
-  // production build and listing it here widens nothing.
-  '/atelier-v2-gallery',
-  '/cameo-gallery',
-  '/dev/miss-layout',
-  '/troupe-vivante',
-  '/personnage-gallery',
-]);
+// S4 stage 1: who may open a route signed out is the register's `access`
+// (lib/places.ts). Public there: the front door, sign-in and sign-up, the
+// legal pages (App Review opens them signed out) and the dev sheets, which do
+// not exist in a production build (their `getStaticProps` returns `notFound`)
+// and are pruned from the native export.
+const PUBLIC_PATHNAMES = new Set(publicRoutes());
 
-const GUEST_ONLY_PATHNAMES = new Set([
-  '/auth/signin',
-  '/auth/signup',
-]);
+const GUEST_ONLY_PATHNAMES = new Set(guestOnlyRoutes());
 
 /* WP-83 — one loader. While the session resolves the screen shows the same
    av2 skeleton the pages themselves use, labelled for screen readers, instead

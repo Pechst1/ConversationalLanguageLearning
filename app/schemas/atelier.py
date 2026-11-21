@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.schemas.verdict import VerdictView
+
 
 class AtelierConceptRead(BaseModel):
     id: int
@@ -156,6 +158,8 @@ class AtelierAttemptResponse(BaseModel):
     minted_collectibles: list[AtelierCollectibleRead] = Field(default_factory=list)
     # WP-S3 La Forge: the staircase after this answer and the next item.
     forge: dict[str, Any] = Field(default_factory=dict)
+    #: The one verdict shape (#333): who checked this and whether it counts.
+    check: VerdictView | None = None
 
 
 class AtelierForgeTestOutRequest(BaseModel):

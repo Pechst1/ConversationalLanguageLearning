@@ -1,0 +1,44 @@
+{
+ "id": "courrier-a1-zoe-says-no-then-asks",
+ "lane": "courrier",
+ "level": "A1",
+ "source": "The walk of 6 Nov 2026 (#557): Zoé's party, the learner has said no and now asks about the next time. The first reply is the walk's; the second learner line and the answer are written by hand, because no real model has answered this prompt. The first draft re-asks the letter's settled question and is sent back once.",
+ "input": {
+  "letter": {
+   "title": "La fête dans la salle",
+   "brief": "Zoé t'invite.",
+   "messenger": {
+    "contact_name": "Zoé",
+    "register": "tu / warm informal",
+    "target_register": "tu / registre familier",
+    "opening_message": "Salut, c'est Zoé. Tu viens à ma fête samedi ?"
+   }
+  },
+  "turns": [
+   {
+    "role": "user",
+    "text": "Non, je ne peux pas venir à ta fête, je suis fatigué."
+   },
+   {
+    "role": "assistant",
+    "text": "C'est dommage que tu ne puisses pas venir."
+   }
+  ],
+  "learner_text": "Tu fais une autre fête bientôt ?"
+ },
+ "answers": {
+  "CourrierReply": [
+   {
+    "content": "Peut-être en mai ! Tu viens à ma fête samedi ?",
+    "prompt_digest": "sha256:c25531a5759a3d6e474bcd68c512d2c030b9e47cc20a474e5b4ec910dfa24184"
+   },
+   {
+    "content": "Peut-être en mai, je te dis.",
+    "prompt_digest": "sha256:45abb3e7c30c3a96f006a356f35aa9a0017c56a6e1035b43c129a64f7bc37661"
+   }
+  ]
+ },
+ "expect": {
+  "reply": "Peut-être en mai, je te dis."
+ }
+}

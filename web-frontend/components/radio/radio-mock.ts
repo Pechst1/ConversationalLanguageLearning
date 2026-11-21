@@ -9,6 +9,7 @@
  * short (`MOCK_LINE_SECONDS`), not the estimate: the mock shows the flow, not the pace.
  */
 
+import { CAST } from '@/lib/generated/cast';
 import type { RadioClient } from '@/lib/radio-api';
 import type { RadioBulletin, RadioDicteeResult, RadioWeek, RadioWeekResult } from '@/lib/radio-types';
 
@@ -54,12 +55,12 @@ export function silentWavDataUri(seconds: number): string {
 const DOSSIER = 'evergreen-greve-transports';
 
 const LINES: Array<[string, string, RadioBulletin['lines'][number]['role'], string, string | null]> = [
-  ['romy_tremblay', 'Romy Tremblay', 'lede', 'En France, les grèves dans les métros et les trains reviennent souvent. Elles suivent des règles : un préavis, une déclaration des grévistes, un plan de transport. On parle souvent de « service minimum », mais ce n’est pas une vraie obligation.', null],
-  ['romy_tremblay', 'Romy Tremblay', 'claim', 'Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève.', 'c1'],
-  ['romy_tremblay', 'Romy Tremblay', 'claim', 'Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes.', 'c2'],
-  ['romy_tremblay', 'Romy Tremblay', 'claim', 'D’après les syndicats de salariés et les partis de gauche, le service minimum remet en cause le droit de grève.', 'c4'],
-  ['marin_leveque', 'Marin Lévêque', 'guest', 'À l’association, on aide les gens que ça touche. C’est concret, tu vois.', null],
-  ['romy_tremblay', 'Romy Tremblay', 'signoff', 'C’était Le Papier, semaine 40.', null],
+  ['romy_tremblay', CAST.romy_tremblay.fullName, 'lede', 'En France, les grèves dans les métros et les trains reviennent souvent. Elles suivent des règles : un préavis, une déclaration des grévistes, un plan de transport. On parle souvent de « service minimum », mais ce n’est pas une vraie obligation.', null],
+  ['romy_tremblay', CAST.romy_tremblay.fullName, 'claim', 'Dans les transports publics, un préavis de grève doit être déposé au moins cinq jours avant le début de la grève.', 'c1'],
+  ['romy_tremblay', CAST.romy_tremblay.fullName, 'claim', 'Chaque salarié qui veut faire grève doit le dire 48 heures avant, pour que le service soit réorganisé sur les lignes les plus importantes.', 'c2'],
+  ['romy_tremblay', CAST.romy_tremblay.fullName, 'claim', 'D’après les syndicats de salariés et les partis de gauche, le service minimum remet en cause le droit de grève.', 'c4'],
+  ['marin_leveque', CAST.marin_leveque.fullName, 'guest', 'À l’association, on aide les gens que ça touche. C’est concret, tu vois.', null],
+  ['romy_tremblay', CAST.romy_tremblay.fullName, 'signoff', 'C’était Le Papier, semaine 40.', null],
 ];
 
 export function mockBulletin(): RadioBulletin {

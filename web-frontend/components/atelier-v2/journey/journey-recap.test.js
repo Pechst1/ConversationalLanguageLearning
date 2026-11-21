@@ -452,6 +452,8 @@ test('#237: «Fin du chapitre» never prints a second question, and the day summ
   assert.equal(model.colophonDigest(digest, ['Autre chose.']), callback);
   assert.equal(model.colophonDigest('La clé est retrouvée.', []), 'La clé est retrouvée.');
   assert.equal(model.colophonDigest(null, []), null);
+  // P8 (A1 walk, day 2): a chapter closed with no resolution printed the season's question.
+  assert.equal(model.colophonDigest('Ou tu dis au revoir à tout ça ?', []), null);
 
   const html = render(
     day({
@@ -552,4 +554,15 @@ test('#403: day 2 «La lettre» — the finished card names day 2, and the chapt
   const same = render(day({ chapter_closed: { ...chapter, title_fr: 'La lettre' } }, { scenario }));
   assert.match(same, /data-episode-title/);
   assert.doesNotMatch(same, /data-chapter-title/);
+});
+
+test('the finished card calls a cast member what the rest of the day called them', () => {
+  // Walk of 9 Nov: «Szene beendet» printed the world bible's name.
+  const { journey, recap } = day({
+    mood: { character_id: 'augustin_de_roncourt', character_name: 'Augustin « Gus » de Roncourt', mood: 1, shift: 'warmer' },
+  });
+  const { face } = model.rewardView(journey, recap, 'en');
+  assert.equal(face.name, 'Gus');
+  assert.match(face.moodLine, /Gus/);
+  assert.doesNotMatch(face.moodLine, /Roncourt/);
 });

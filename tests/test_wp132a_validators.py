@@ -42,7 +42,7 @@ season_levels = _load_script()
 
 
 def _detector(unit: str) -> dict:
-    with (REPO / "templates" / "french_core_grammar_v2.tsv").open(encoding="utf-8", newline="") as handle:
+    with (REPO / "app" / "data" / "grammar_catalog" / "french_core_grammar_v2.tsv").open(encoding="utf-8", newline="") as handle:
         for row in csv.DictReader(handle, delimiter="\t"):
             if row["external_id"] == unit:
                 return parse_detector(row["detector"])

@@ -84,6 +84,21 @@ def built_stages(season_id: str = "s1") -> dict[str, str]:
     return {str(key): str(value) for key, value in stages.items() if key and value}
 
 
+def unbuilt_places(season_id: str = "s1") -> dict[str, str]:
+    """The places the season names that Le Quartier has not built yet, id to French name
+    (``to_be_built`` in ``stages.json``, written by the forge with ``stages``). A
+    generated page is never set there; a page may name one, as a promise (S5)."""
+
+    try:
+        data = json.loads((SEASON_ROOT / season_id / STAGES_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    rows = data.get("to_be_built") if isinstance(data, dict) else None
+    if not isinstance(rows, dict):
+        return {}
+    return {str(key): str(value) for key, value in rows.items() if key and value}
+
+
 #: The plate a place the stories named opens on in the Feuilleton until its own is drawn.
 STORY_PLACE_PLATE = "assets/serial/locations/marche_canal.webp"
 

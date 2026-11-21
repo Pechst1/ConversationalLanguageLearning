@@ -24,31 +24,65 @@ function join(...parts: Array<string | null | undefined>): string {
  * «Nº 7 · La clé d'Odile»: the episode's number and its season; «Nº 7 · Relecture · …»
  * when the day re-reads an earlier page (#314: said where the day is announced).
  */
-export function headlineKicker(headline: EpisodeHeadline | null | undefined): string {
+export function headlineKicker(headline: EpisodeHeadline | null | undefined, language: string | null = 'fr'): string {
   if (!headline) return '';
+  const arc = headlineArc(headline, language);
   return join(
     headline.edition_no ? `Nº ${headline.edition_no}` : '',
     headline.reread ? 'Relecture' : null,
-    headline.season_title_fr ?? null,
+    // Red thread: inside a gap that names its destination, the gap and the days left
+    // lead; the season's title is on the page's masthead already.
+    arc || (headline.season_title_fr ?? null),
   );
 }
 
+const WEEKDAYS: Record<string, { de: string; en: string }> = {
+  lundi: { de: 'Montag', en: 'Monday' },
+  mardi: { de: 'Dienstag', en: 'Tuesday' },
+  mercredi: { de: 'Mittwoch', en: 'Wednesday' },
+  jeudi: { de: 'Donnerstag', en: 'Thursday' },
+  vendredi: { de: 'Freitag', en: 'Friday' },
+  samedi: { de: 'Samstag', en: 'Saturday' },
+  dimanche: { de: 'Sonntag', en: 'Sunday' },
+};
+
 /**
- * The headline's title: the episode's own title when known; else yesterday's «À
- * suivre…» leads — a generated day has no title until it is written, and the
- * generic «Votre prochain chapitre» says nothing.
+ * «Avant la fête · noch 3 Tage bis Samstag»: where the gap is going and how far it is
+ * (`headline.arc`, sent only while `STORY_DAY_CONTRACT` is on). The gap's title stays
+ * French, as the story's; the countdown is in the learner's own language.
+ */
+export function headlineArc(headline: EpisodeHeadline | null | undefined, language: string | null = 'fr'): string {
+  const arc = headline?.arc;
+  if (!arc || !(arc.days_left >= 1)) return '';
+  const lang = language === 'de' || language === 'en' ? language : 'fr';
+  const whenFr = String(arc.when_fr || '').trim();
+  const day = lang === 'fr' ? whenFr : (WEEKDAYS[whenFr.toLowerCase()]?.[lang] ?? whenFr);
+  const n = arc.days_left;
+  let countdown: string;
+  if (lang === 'de') countdown = n === 1 ? `morgen ist ${day}` : `noch ${n} Tage bis ${day}`;
+  else if (lang === 'en') countdown = n === 1 ? `${day} is tomorrow` : `${n} days to ${day}`;
+  else countdown = n === 1 ? `demain, c'est ${day}` : `${day}, dans ${n} jours`;
+  return join(arc.gap_title_fr, countdown);
+}
+
+/**
+ * The headline's title: the episode's own title when known, else a real title the
+ * caller passes (`fallback`). P8 (real-model check, 17 Nov): before today's page is
+ * written there is no title, and none is invented — yesterday's «À suivre…» is the
+ * hook, printed under «À suivre», never in the title's place (Home had read the hook,
+ * then another title once the page existed). The generic «Votre prochain chapitre»
+ * names nothing and is not a title either.
  */
 export function headlineTitle(headline: EpisodeHeadline | null | undefined, fallback = ''): string {
   const title = String(headline?.title_fr || '').trim();
   if (title) return title;
-  const teaser = bareTeaser(headline);
   const generic = !fallback.trim() || GENERIC_TITLES.has(fallback.trim());
-  return generic && teaser ? teaser : fallback;
+  return generic ? '' : fallback;
 }
 
 /** The teaser without its own closing «À suivre…» (the label already says it). */
 function bareTeaser(headline: EpisodeHeadline | null | undefined): string {
-  return String(headline?.teaser_fr || '').trim().replace(/\s*À suivre\s*(?:…|\.\.\.)?\s*$/, '').trim();
+  return String(headline?.teaser_open_fr || headline?.teaser_fr || '').trim().replace(/\s*À suivre\s*(?:…|\.\.\.)?\s*$/, '').trim();
 }
 
 /** The teaser to print under the title — never the title twice. */

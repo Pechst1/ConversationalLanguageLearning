@@ -1,5 +1,7 @@
 default_platform(:ios)
 
+require_relative "release_status"
+
 # Resolved from the Fastfile, because fastlane runs lanes with the fastlane/
 # directory as the working directory.
 SIGNING_XCCONFIG = File.expand_path("../ios/App/Signing.xcconfig", __dir__).freeze
@@ -77,6 +79,29 @@ def build_release_web_bundle
   end
 end
 
+# One build number per run, so the archive and the release-status row agree.
+def release_build_number
+  ENV["CI_BUILD_NUMBER"] = Time.now.utc.strftime("%Y%m%d%H%M") if ENV["CI_BUILD_NUMBER"].to_s.strip.empty?
+  ENV["CI_BUILD_NUMBER"]
+end
+
+# S6: one row in docs/ops/release-status.md for the build just uploaded. It leaves
+# that file changed in the working tree on purpose: commit it with the release.
+def record_testflight_build(build_number)
+  version = begin
+    get_version_number(xcodeproj: "ios/App/App.xcodeproj", target: "App")
+  rescue StandardError
+    "unknown"
+  end
+  commit = begin
+    sh("git", "rev-parse", "--short", "HEAD", log: false).strip
+  rescue StandardError
+    "unknown"
+  end
+  ReleaseStatus.append_testflight_build(build: build_number, commit: commit, version: version)
+  UI.message("Recorded TestFlight build #{build_number} in docs/ops/release-status.md. Commit it.")
+end
+
 def connect_api_key
   key_id = ENV["APP_STORE_CONNECT_KEY_ID"]
   issuer_id = ENV["APP_STORE_CONNECT_ISSUER_ID"]
@@ -97,7 +122,7 @@ platform :ios do
   lane :archive do
     write_signing_xcconfig
     build_release_web_bundle
-    build_number = ENV["CI_BUILD_NUMBER"] || Time.now.utc.strftime("%Y%m%d%H%M")
+    build_number = release_build_number
     # Deliberately not increment_build_number: agvtool also rewrites
     # App/Info.plist, replacing $(CURRENT_PROJECT_VERSION) with a literal and
     # leaving a dirty working tree behind every archive. Overriding the build
@@ -127,5 +152,6 @@ platform :ios do
       distribute_external: false,
       changelog: ENV["TESTFLIGHT_CHANGELOG"] || "Private pilot build"
     )
+    record_testflight_build(release_build_number)
   end
 end

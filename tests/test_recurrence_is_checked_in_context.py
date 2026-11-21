@@ -65,9 +65,12 @@ def test_a_stored_form_that_is_right_in_the_new_sentence_is_never_corrected(
 @pytest.mark.parametrize("season", [True, False], ids=["margin", "question"])
 def test_the_same_slip_in_a_sentence_where_it_is_wrong_still_recurs(db_session, season):
     user = _user(db_session)
-    record(db_session, user, wrong="suis", right="est", why="After «Lila», être is «est».", label="suis->est")
+    record(db_session, user, wrong="suis", right="est", why="After «elle», être is «est».", label="suis->est")
 
-    decision = _decide(db_session, user, "Lila suis très contente aujourd'hui.", season=season)
+    # P1: the stored pair alone is no longer evidence; the rule pass must flag the
+    # span too. It does after «elle» (it has no rule for a first name: «Lila suis»
+    # reaches the learner through the tutor lane's own correction instead).
+    decision = _decide(db_session, user, "Elle suis très contente aujourd'hui.", season=season)
 
     if season:
         assert decision.reason == "recurrence_in_margin"

@@ -1,0 +1,62 @@
+# Valid spellings that are both right (#250, package V stage 1).
+#
+# The 1990 rectifications («Les rectifications de l'orthographe», Journal officiel,
+# 6 Dec 1990) made a second spelling of these words correct. School books in France,
+# Belgium, Switzerland and Quebec teach the new one; dictionaries list both. A learner
+# who writes either one is right, and no rule and no model may turn one into the other.
+#
+# Format: form_a | form_b | a sentence with {} where the word goes.
+# The test puts each form into the sentence and asks for zero edits, then asks the
+# model-edit check to refuse turning one form into the other.
+
+# The circumflex on i and u is no longer required (except dû, mûr, sûr, jeûne and verb endings).
+coût | cout | Le {} du billet est de dix euros.
+coûte | coute | Le billet {} dix euros.
+goût | gout | J'aime le {} du café.
+île | ile | Nous partons sur une {} en été.
+maître | maitre | Le {} parle avec les enfants.
+connaître | connaitre | Je veux {} la ville.
+paraît | parait | Il {} que Lila est malade.
+plaît | plait | Un café, s'il te {}.
+boîte | boite | La {} est sur la table.
+chaîne | chaine | La {} de télé est nulle.
+fraîche | fraiche | L'eau est {} ce matin.
+août | aout | Je pars en {}.
+huître | huitre | Je ne mange pas d'{}.
+dîner | diner | On prend le {} à huit heures.
+traîner | trainer | Je n'aime pas {} le matin.
+naître | naitre | Le bébé va {} en mai.
+flûte | flute | Elle joue de la {}.
+piqûre | piqure | La {} ne fait pas mal.
+# é before a syllable with a silent e is written è.
+événement | évènement | Le grand {} a lieu samedi.
+réglementaire | règlementaire | La tenue est {}.
+crémerie | crèmerie | La {} ferme à midi.
+céleri | cèleri | Je n'aime pas le {}.
+sécheresse | sècheresse | La {} dure depuis juin.
+allégement | allègement | L'{} des règles est une bonne idée.
+céderai | cèderai | Je ne {} pas.
+préférerais | préfèrerais | Je {} un thé.
+# Compound words glued, numbers joined by hyphens.
+week-end | weekend | Ce {}, je reste à la maison.
+porte-monnaie | portemonnaie | J'ai perdu mon {}.
+vingt et un | vingt-et-un | J'ai {} ans.
+deux cents | deux-cents | Il y a {} personnes.
+trente et une | trente-et-une | Il a {} cartes.
+extra-terrestre | extraterrestre | Le film parle d'un {}.
+contre-attaque | contrattaque | La {} commence à midi.
+# Single words the reform respelled.
+oignon | ognon | J'achète un {} au marché.
+nénuphar | nénufar | Le {} flotte sur l'eau.
+chariot | charriot | Prends un {} à l'entrée.
+asseoir | assoir | Tu peux t'{} ici.
+aiguë | aigüe | Sa voix est {}.
+ambiguë | ambigüe | Ta réponse est {}.
+ambiguïté | ambigüité | Il n'y a pas d'{}.
+renouvelle | renouvèle | Il {} son passeport.
+étiquette | étiquète | Elle {} les pots de confiture.
+ruisselle | ruissèle | L'eau {} sur la vitre.
+# Other forms both right, not from 1990.
+clé | clef | J'ai perdu ma {}.
+paye | paie | Je {} le café.
+relais | relai | Le {} est fermé.

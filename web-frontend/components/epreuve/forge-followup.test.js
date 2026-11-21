@@ -118,8 +118,9 @@ test('T9 · the page holds «Right / Well done» back while the model reads, and
   assert.match(page, /reviewIsPending\(correction\)/, 'the poll asks until the model has read it');
   assert.match(page, /const secondCheck = production \? null : secondCheckChange\(correction\);/, 'no second-check reversal on production');
   assert.match(page, /forgeCorrectionNotes\(correction\)/, 'one block, notes deduplicated');
-  // «3 corrections» only when there are three distinct notes.
-  assert.match(page, /whyLines\.length > 1/);
+  // «3 corrections» only when the card shows three corrections (owner 2026-11-13: a task
+  // note is said in its own line, so it is not counted).
+  assert.match(page, /shownCount > 1/);
 });
 
 // ---------------------------------------------------------------------------

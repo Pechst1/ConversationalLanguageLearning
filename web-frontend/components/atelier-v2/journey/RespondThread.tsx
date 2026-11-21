@@ -33,7 +33,8 @@ import { replyFinishedTyping } from './voice-autoplay';
 import {
   exchangeLabel,
   markSpan,
-  printedFix,
+  moreNoteKey,
+  threadFixes,
   type ExchangeProgress,
   type LearnerBubble,
   type ThreadBubble,
@@ -66,20 +67,26 @@ export function ExchangeTokens({ progress, copy }: { progress: ExchangeProgress;
  * showed why: a mark that must be tapped to find out there is a correction at
  * all goes unread.
  */
-function LearnerLine({
+export function LearnerLine({
   bubble,
   copy,
-  open,
+  openNote,
   onToggle,
 }: {
   bubble: LearnerBubble;
   copy: JourneyCopy;
-  open: boolean;
+  /** The one note open in the thread (a reply's key, or its collapsed corrections' key). */
+  openNote: string | null;
   onToggle: (key: string) => void;
 }) {
   const correction = bubble.correction;
-  const fix = printedFix(correction);
+  // P3: the first correction open, from B1 up to two more collapsed under it.
+  const { open: fix, collapsed } = threadFixes(correction);
+  const open = openNote === bubble.key;
+  const moreKey = moreNoteKey(bubble.key);
+  const moreOpen = openNote === moreKey;
   const noteId = `av2-thread-note-${bubble.key}`;
+  const moreId = `av2-thread-more-${bubble.key}`;
   // The span is a real substring by contract; a payload that breaks that just
   // leaves the line unmarked — the corrected form under it still says it all.
   const marked = correction ? markSpan(bubble.text, correction.span_fr) : null;
@@ -102,6 +109,9 @@ function LearnerLine({
           bubble.text
         )}
       </p>
+      {bubble.unchecked && (
+        <p className="av2-thread__check" role="status" data-check="not_checked">{copy.check_not_read}</p>
+      )}
       {fix && (
         <div className="av2-thread__fix" data-open={open ? 'true' : undefined}>
           {explained ? (
@@ -133,6 +143,47 @@ function LearnerLine({
               {fix.notes.map((note, index) => (
                 <p key={index}>{note}</p>
               ))}
+            </div>
+          )}
+          {collapsed.length > 0 && (
+            // Walk 2 (18 Nov): a <details> summary read as plain text and never opened.
+            // The same disclosure as the first correction's note: a button that says
+            // whether it is open, and the corrections it controls.
+            <div className="av2-thread__more" data-open={moreOpen ? 'true' : undefined}>
+              <button
+                type="button"
+                className="av2-thread__morebtn"
+                aria-expanded={moreOpen}
+                aria-controls={moreId}
+                onClick={() => onToggle(moreKey)}
+              >
+                {collapsed.length === 1
+                  ? copy.thread_more_one
+                  : copy.thread_more_many.replace('{n}', String(collapsed.length))}
+              </button>
+              {moreOpen && (
+                <div id={moreId} className="av2-thread__morelist">
+                  {collapsed.map((more, index) => (
+                    <div key={index} className="av2-thread__fix">
+                      <p className="av2-thread__fixline">
+                        <span className="av2-sr">{copy.thread_fix_sr} </span>
+                        <s lang="fr">{more.span}</s>
+                        <span aria-hidden="true"> → </span>
+                        <span className="av2-thread__fixed" lang="fr">
+                          {more.fixed}
+                        </span>
+                      </p>
+                      {more.notes.length > 0 && (
+                        <div className="av2-thread__note" role="note">
+                          {more.notes.map((note, line) => (
+                            <p key={line}>{note}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -200,9 +251,16 @@ export function RespondThread({
               <LearnerLine
                 bubble={bubble}
                 copy={copy}
-                open={openNote === bubble.key}
+                openNote={openNote}
                 onToggle={onToggleNote}
               />
+            </li>
+          );
+        }
+        if (bubble.kind === 'caption') {
+          return (
+            <li key={bubble.key} className="av2-thread__line av2-thread__cut" data-speaker="caption">
+              {frenchSpacing(bubble.text)}
             </li>
           );
         }

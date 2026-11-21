@@ -16,7 +16,7 @@ Sources, in order of preference:
   the contrast pair.
 * **Detectors** — v2 units carry one (``regex:`` or ``llm:``). A v1 concept
   borrows the regex detectors of the v2 units that replace it
-  (``templates/french_core_grammar_v1_to_v2.tsv``). ``llm:`` detectors are not
+  (``app/data/grammar_catalog/french_core_grammar_v1_to_v2.tsv``). ``llm:`` detectors are not
   run: such a unit's reply evidence comes from corrections only.
 * **Contrast pairs** — the authored card's pair, then every ``✗ … → ✓ …`` trap
   of the unit (a v1 concept reads its v2 replacements' traps).
@@ -27,6 +27,7 @@ import re
 from functools import lru_cache
 from typing import Any
 
+from app.services.chrome_language import mother_tongue
 from app.services.grammar_catalog import (
     FRENCH_CORE_CATALOG_V2_VERSION,
     catalog_rows,
@@ -210,7 +211,7 @@ def trap_why(external_id: str | None, wrong: str, right: str, language: str | No
     reason = trap_reason(external_id, wrong, right)
     if not reason:
         return None
-    code = str(language or "en").strip().lower()[:2]
+    code = mother_tongue(language)
     return str(reason.get(code) or reason.get("en") or "").strip() or None
 
 
@@ -388,8 +389,13 @@ def unit_brief(
     control_language: str,
     localizations: dict[str, str] | None = None,
     stability: float | None = None,
+    explain_language: str | None = None,
 ) -> dict[str, Any]:
-    """Everything the planner needs to pose this unit, JSON-safe."""
+    """Everything the planner needs to pose this unit, JSON-safe.
+
+    ``explain_language`` is the language the unit's rule is explained in (the mother
+    tongue at every level, R4); titles and instructions stay in ``control_language``.
+    """
 
     titles = localized_titles(concept, localizations)
     detectors = unit_detectors(concept)
@@ -408,10 +414,11 @@ def unit_brief(
         "title_fr": titles.get("fr") or titles.get("en") or "",
         "title_native": titles.get(control_language) or titles.get("en") or "",
         "rule_short_native": (
-            str(rule_short.get(control_language) or "").strip() or None
+            str(rule_short.get(explain_language or control_language) or "").strip() or None
             if isinstance(rule_short, dict)
             else None
         ),
+        **({"explain_language": explain_language} if explain_language else {}),
         "rule_card": card,
         "examples": examples(concept),
         "contrast_pairs": pairs,

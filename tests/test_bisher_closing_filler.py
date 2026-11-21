@@ -110,12 +110,17 @@ _CARRIERS = {
     ("app/services/story_lanes.py", "french = [turn.resolution_fr, turn.callback_fr]"),
     ("app/services/story_lanes.py", "callback_fr=authored.callback_fr,"),
     ("app/services/story_lanes.py", "callback_fr=turn.callback_fr or None,"),
+    # P8 (fifth commit): the ending's guard reads it and takes out a decision the learner never made
+    ("app/services/story_lanes.py", '"callback_fr": turn.callback_fr,'),
+    ("app/services/story_lanes.py", "turn.callback_fr = learner_intent.without_unsaid(turn.callback_fr, said, put_to)"),
     ("app/services/living_story.py", "callback_fr=turn.callback_fr or None,"),
     ("app/services/living_story.py", "callback_fr=turn.callback_fr,"),
     # serial.py drops a closing line before it is stored as a shared callback
     ("app/services/living_story.py", "callback_override=turn.callback_fr,"),
     # the hook is a teaser by design
     ("app/services/living_story.py", 'episode.hook = {"text": turn.callback_fr, "source_event_id": event_id}'),
+    # a contract day writes the fact it kept: the plan's own «what changed», never a hook
+    ("app/services/living_story.py", 'turn.callback_fr = ending["fact_fr"]'),
     # the private record; presented through daily_journey's scene_fact
     ("app/services/living_story.py", '"callback_fr": turn.callback_fr or None,'),
     # the scene draft's own callback (a past fact the scene stages), not the outcome's

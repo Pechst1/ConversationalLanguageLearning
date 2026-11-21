@@ -24,6 +24,7 @@
  * tells the layer that something happened.
  */
 
+import { CAST_NAMES } from './generated/cast';
 import { itemHandedIn, itemKey } from './season-items';
 import type { SeasonItemId, SeasonPart } from './season-items';
 
@@ -143,12 +144,12 @@ export const LATE_CAST: readonly string[] = ['romy_tremblay'];
 type Who = { id: string; name: string; gag: CameoGag };
 
 export const CAMEO_CAST: readonly Who[] = [
-  { id: 'romy_tremblay', name: 'Romy', gag: 'flash' },
-  { id: 'augustin_de_roncourt', name: 'Gus', gag: 'note' },
-  { id: 'margaux_barman', name: 'Margaux', gag: 'coffee' },
-  { id: 'marin_leveque', name: 'Marin', gag: 'tears' },
-  { id: 'landlord_marchand', name: 'M. Marchand', gag: 'phone' },
-  { id: 'lila_bonnet', name: 'Lila', gag: 'sparkle' },
+  { id: 'romy_tremblay', name: CAST_NAMES.romy_tremblay, gag: 'flash' },
+  { id: 'augustin_de_roncourt', name: CAST_NAMES.augustin_de_roncourt, gag: 'note' },
+  { id: 'margaux_barman', name: CAST_NAMES.margaux_barman, gag: 'coffee' },
+  { id: 'marin_leveque', name: CAST_NAMES.marin_leveque, gag: 'tears' },
+  { id: 'landlord_marchand', name: CAST_NAMES.landlord_marchand, gag: 'phone' },
+  { id: 'lila_bonnet', name: CAST_NAMES.lila_bonnet, gag: 'sparkle' },
 ];
 
 const L = (fr: string, de: string, en: string): CameoLine => ({ fr, de, en });

@@ -53,6 +53,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
 
+from app.services.chrome_language import mother_tongue
+
 AccentPolicy = Literal["lenient", "strict"]
 
 # ---------------------------------------------------------------------------
@@ -467,6 +469,7 @@ def _judge_candidates(
     learner: str, candidates: list[str], *, accents: AccentPolicy, typo: bool, article_optional: bool
 ) -> Verdict:
     best: Verdict | None = None
+    best_distance = 0
     for candidate in candidates:
         target = fold_typography(candidate)
         if not target:
@@ -505,9 +508,23 @@ def _judge_candidates(
                 learner_word=verdict.learner_word,
                 expected_word=verdict.expected_word,
             )
-            if best is None or _rank(verdict) > _rank(best):
-                best = verdict
+            distance = _word_distance(learner, target)
+            if best is None or _rank(verdict) > _rank(best) or (_rank(verdict) == _rank(best) and distance < best_distance):
+                best, best_distance = verdict, distance
     return best or Verdict(correct=False, expected=candidates[0])
+
+
+def _word_distance(learner: str, target: str) -> int:
+    """How many words the learner would change to reach ``target`` (walk of 19 Nov).
+
+    Two misses of one rank are measured against the nearer answer: «Ils a» against
+    «Ils ont», not the key «Elles ont», which also blamed the right «Ils»."""
+
+    from difflib import SequenceMatcher
+
+    left, right = strip_accents(learner).casefold().split(), strip_accents(target).casefold().split()
+    same = sum(block.size for block in SequenceMatcher(a=left, b=right, autojunk=False).get_matching_blocks())
+    return max(len(left), len(right)) - same
 
 
 # ---------------------------------------------------------------------------
@@ -730,10 +747,19 @@ _NOTE_PRIORITY = {"line_form": 6, "gender": 5, "elision": 4, "accent": 3, "form"
 
 
 def _rank(verdict: Verdict) -> tuple[int, int, int, int]:
+    """Which accepted answer a verdict is measured against: the best one.
+
+    An accept is better the cleaner it is (exact, then without a slip). A miss is
+    better the nearer it is: a miss that is only an accent or a typo away from an
+    accepted answer is measured against that answer, never against one a whole word
+    away (#696: «Ils ont envoye» was told «Elles ont envoyé» because the key, a
+    pronoun away, ranked above «Ils ont envoyé», an accent away)."""
+
+    slipped = verdict.accent_slip or verdict.typo
     return (
         int(verdict.correct),
         int(verdict.exact),
-        int(not verdict.accent_slip and not verdict.typo),
+        int(not slipped) if verdict.correct else int(slipped),
         _NOTE_PRIORITY.get(verdict.note or "", 0),
     )
 
@@ -1143,7 +1169,7 @@ def article_slip_note(note: str | None, fixed: str, language: str | None) -> str
     table = NOTE_COPY.get(f"{note}_ok") if note in {"gender", "elision"} else None
     if table is None or not fixed:
         return None
-    lang = str(language or "en")[:2].lower()
+    lang = mother_tongue(language)
     return (table.get(lang) or table["en"]).format(expected_word=fixed, learner_word="")
 
 
@@ -1213,12 +1239,252 @@ def noun_variants(sentence: str) -> list[str]:
     return out
 
 
+_NAME_WORD = r"[A-ZÀ-ÖØ-Þ][^\W\d_]*(?:[-'’][^\W\d_]+)*"
+#: «Ils sont heureux, Margaux.», «Tu es prête, Lila ?»: one sentence closed by a name.
+_VOCATIVE_LAST = re.compile(
+    rf"^(?P<body>[^.!?…]+?)\s*,\s*(?P<name>{_NAME_WORD}(?:\s+{_NAME_WORD})*)\s*(?P<end>[.!?…]*)\s*$"
+)
+#: «Margaux, ils sont heureux.»: one sentence opened by a name.
+_VOCATIVE_FIRST = re.compile(
+    rf"^(?P<name>{_NAME_WORD}(?:\s+{_NAME_WORD})*)\s*,\s*(?P<body>[^.!?…]+?)\s*(?P<end>[.!?…]*)\s*$"
+)
+
+
+@lru_cache(maxsize=1)
+def _cast_names() -> frozenset[str]:
+    try:
+        from app.services import cast_registry
+
+        return frozenset(
+            str(getattr(member, "name", "") or "").split(" ")[0].strip().casefold()
+            for member in cast_registry.all_members().values()
+        ) - {""}
+    except Exception:  # pragma: no cover - the cast is optional context
+        return frozenset()
+
+
+def _opens_with_a_name(words: str) -> bool:
+    """A capital that starts a sentence is a name only when the word is one: a cast
+    member («Marin», also a noun), a word French does not know («Margaux»), or a
+    second capital («Monsieur Marchand»). «Alors, il est là.» opens with no name."""
+
+    parts = words.split()
+    if len(parts) > 1:
+        return True
+    word = parts[0].casefold()
+    return word in _cast_names() or fold_all(word) not in known_forms()
+
+
+def _lower_first(text: str) -> str:
+    first = text.split(" ", 1)[0]
+    if fold_all(first) in known_forms() and first.casefold() not in _cast_names():
+        return text[:1].lower() + text[1:]
+    return text
+
+
+def vocative_variants(sentence: str) -> list[str]:
+    """#731: the same sentence with its name at the other end.
+
+    A name set off by a comma («…, Margaux.») is said to someone; where it stands is
+    not part of the sentence. The German goal puts it first (#384), the key may store it
+    last, and both are the learner's sentence. Only a whole single sentence moves, and
+    only its name: «Ils Margaux sont heureux» or a sentence with no comma gains nothing."""
+
+    text = " ".join(str(sentence or "").split())
+    out: list[str] = []
+    last = _VOCATIVE_LAST.match(text)
+    if last:
+        body = last["body"].strip()
+        out.append(f"{last['name']}, {_lower_first(body)}{last['end']}")
+    first = _VOCATIVE_FIRST.match(text)
+    if first and _opens_with_a_name(first["name"]):
+        body = first["body"].strip()
+        out.append(f"{body[:1].upper()}{body[1:]}, {first['name']}{first['end']}")
+    return out
+
+
+#: Owner decision 12 Nov 2026: a sentence the learner builds or writes is said to nobody.
+#: A form of address may stand alone («…, madame.») or before a name («Monsieur Marchand»).
+_ADDRESS_TITLE = (
+    r"(?:[Mm]adame|[Mm]onsieur|[Mm]ademoiselle|[Mm]a[iî]tre|[Dd]octeur|[Mm]essieurs|[Mm]esdames"
+    r"|M\.|Mme\.?|Mlle\.?|Mr\.?|Mrs\.?|Ms\.?|Miss|Herr|Frau|[Mm]adam|[Ss]ir|[Mm]a'am)"
+)
+_ADDRESS = rf"(?:{_ADDRESS_TITLE}(?:\s+{_NAME_WORD}(?:\s+{_NAME_WORD})*)?|{_NAME_WORD}(?:\s+{_NAME_WORD})*)"
+_TITLE_ONLY = re.compile(rf"^{_ADDRESS_TITLE}(?:\s|$)")
+#: «…, Marin.», «…, madame ?», «Tu viens, Lila ? Oui, …»: a name closing a sentence.
+_ADDRESS_LAST = re.compile(rf",[  ]*(?P<name>{_ADDRESS})(?=[  ]*(?:[.?!…;]|[»“”\"]|$))")
+#: «Margaux, sie sind glücklich.», «„Lila, tu viens ?“»: a name opening a sentence.
+_ADDRESS_FIRST = re.compile(
+    rf"(?P<lead>(?:^|[.?!…:][  ]+)(?:[«“„\"][  ]?)?)(?P<name>{_ADDRESS})[  ]*,[  ]*(?P<next>\S)"
+)
+#: «Odile, c'est ma grand-mère.»: a name the sentence goes on to talk about is its topic,
+#: not the person it is said to.
+_DISLOCATION = re.compile(r"^(?:c'est|c’est|c'était|c’était|ce\s+(?:sont|n'est|n’est)\b)", re.IGNORECASE)
+#: How a title is said in each chrome language, so a German or English prompt loses the
+#: same address its French sentence lost («Monsieur Marchand» / «Mr Marchand» / «Herr Marchand»).
+_TITLE_EQUIVALENTS: tuple[frozenset[str], ...] = (
+    frozenset({"monsieur", "m.", "mr", "mr.", "herr", "sir"}),
+    frozenset({"madame", "mme", "mme.", "mrs", "mrs.", "ms", "ms.", "frau", "madam", "ma'am"}),
+    frozenset({"mademoiselle", "mlle", "mlle.", "miss", "fräulein"}),
+)
+
+
+@lru_cache(maxsize=1)
+def _people() -> frozenset[str]:
+    """Every word the cast is called by: first names and the names said to their face
+    («Gus», «Marchand»), folded."""
+
+    try:
+        from app.services import cast_registry
+
+        spoken = {word.casefold() for name in cast_registry.vocative_names() for word in name.split()}
+    except Exception:  # pragma: no cover - the cast is optional context
+        spoken = set()
+    return frozenset(spoken | _cast_names()) - {"m.", "mme", "mr", "maître", "monsieur", "madame"}
+
+
+def _is_person_name(words: str) -> bool:
+    """A capitalised run names a person when each word is a name: a cast member («Marin»,
+    also a noun), or a word French does not know («Margaux»). «Le Mistral», «Paris»,
+    «Alors» are French words, so they name nobody it is said to."""
+
+    if _TITLE_ONLY.match(words):
+        return True
+    for word in words.split():
+        folded = word.casefold()
+        if folded in _people():
+            continue
+        if re.match(r"(?:l|d|j|m|t|s|n|c|qu)['’]", folded) or fold_all(folded) in known_forms():
+            return False
+        parts = re.split(r"[-'’]", folded)
+        if len(parts) > 1 and all(fold_all(part) in known_forms() for part in parts):
+            # «Avant-hier, tu as bu un verre.»: French words joined, not a name.
+            return False
+    return True
+
+
+def _opens_with_address(name: str, rest: str) -> bool:
+    """Is ``name``, opening a French sentence before a comma, the person it is said to?
+    A cast member or a title is; a topic the sentence goes on to name («Odile, c'est …»)
+    is not, and neither is any other capital: every first word has one."""
+
+    if not _is_person_name(name) or _DISLOCATION.match(rest):
+        return False
+    # A sentence's first word has a capital whatever it is («Désolée, je …», «Écoutez
+    # Lila, …», «L'addition, …»), so only a cast member or a title opens as an address.
+    return bool(_TITLE_ONLY.match(name)) or all(word.casefold() in _people() for word in name.split())
+
+
+def _address_keys(names: Iterable[str]) -> frozenset[str]:
+    """The folded spellings of ``names`` in the three chrome languages: the name, and the
+    name under each title the other languages use for the same title."""
+
+    keys: set[str] = set()
+    for name in names:
+        text = " ".join(str(name or "").split())
+        if not text:
+            continue
+        keys.add(text.casefold())
+        head, _, rest = text.partition(" ")
+        for group in _TITLE_EQUIVALENTS:
+            if head.casefold() in group:
+                for title in group:
+                    keys.add(f"{title} {rest}".strip().casefold() if rest else title)
+                if rest:
+                    keys.add(rest.casefold())
+    return frozenset(keys)
+
+
+def addressed_names(sentence: object) -> list[str]:
+    """The names or forms of address a French sentence is said to, set off by a comma
+    («On peut rester chez Lila, Marin.» → ``["Marin"]``). A name that is part of the
+    sentence («chez Lila»), a fronted word («Alors, il est là.») or a topic («Odile, c'est
+    ma grand-mère.») is no address."""
+
+    text = str(sentence or "")
+    found: list[str] = []
+    for match in _ADDRESS_LAST.finditer(text):
+        if _is_person_name(match["name"]) and match["name"] not in found:
+            found.append(match["name"])
+    for match in _ADDRESS_FIRST.finditer(text):
+        rest = text[match.start("next"):]
+        if _opens_with_address(match["name"], rest) and match["name"] not in found:
+            found.append(match["name"])
+    return found
+
+
+def has_vocative(sentence: object) -> bool:
+    return bool(addressed_names(sentence))
+
+
+def opens_on_a_person(sentence: object) -> bool:
+    """A sentence that opens on a cast member and a comma, said to them or about them:
+    «Gus, c'est la famille d'Odile.» may be either, so a build or write item made of it
+    is not posed (taking the name out could change what it says)."""
+
+    text = str(sentence or "")
+    return any(
+        _TITLE_ONLY.match(match["name"]) or all(word.casefold() in _people() for word in match["name"].split())
+        for match in _ADDRESS_FIRST.finditer(text)
+    )
+
+
+def strip_vocative(text: object, names: Iterable[str] | None = None) -> str:
+    """Owner decision (12 Nov 2026): ``text`` with the person it is said to taken out.
+
+    «On peut rester chez Lila, Marin.» → «On peut rester chez Lila.»; «Margaux, sie sind
+    glücklich.» → «Sie (alle) sind glücklich.» A sentence the learner builds or writes is
+    not said to anyone, so the learner never has to decide where a name goes.
+
+    With no ``names``, ``text`` is French and a name is found as :func:`addressed_names`
+    finds it. With ``names`` (those :func:`addressed_names` found in the French), only
+    those are taken out, in any of the three chrome languages: a German or English prompt
+    («Say in French: "They are happy, Margaux."») loses exactly what its French lost.
+    The rest of the sentence is unchanged; a comma that sets off no address («Alors, il
+    est là.») stays."""
+
+    value = str(text or "")
+    if "," not in value:
+        return value
+    keys = _address_keys(names) if names is not None else None
+    if keys is not None and not keys:
+        return value
+
+    def is_address(name: str) -> bool:
+        if keys is not None:
+            return " ".join(name.split()).casefold() in keys
+        return _is_person_name(name)
+
+    def drop_last(match: re.Match[str]) -> str:
+        return "" if is_address(match["name"]) else match.group(0)
+
+    def drop_first(match: re.Match[str]) -> str:
+        rest = value[match.start("next"):]
+        if not (is_address(match["name"]) if keys is not None else _opens_with_address(match["name"], rest)):
+            return match.group(0)
+        return f"{match['lead']}{_OPENED}{match['next']}"
+
+    value = _ADDRESS_LAST.sub(drop_last, value)
+    out = _ADDRESS_FIRST.sub(drop_first, value)
+    if keys is not None:
+        # #384 put the name first so that a small «sie» reads «they». With no name the
+        # sentence opens on «Sie» again, which reads «you» (#126): it says «Sie (alle)».
+        out = re.sub(rf"{_OPENED}sie (?=(?:sind|\w+n)\b)", "Sie (alle) ", out)
+    out = re.sub(rf"{_OPENED}(.)", lambda match: match.group(1).upper(), out)
+    return re.sub(r"[  ]{2,}", " ", out).strip()
+
+
+#: Marks where a sentence now opens after its address was taken out (never in a text).
+_OPENED = "\x00"
+
+
 def widened_answers(accepted: Iterable[object], *, english: object = None) -> list[str]:
     """Every right way to give the item's answer, not one stored string (#174, #380).
 
     The accepted answers, each with its nouns' other right words (:func:`noun_variants`)
     and, when the English says «we» and neither «our» nor «us» (an «on» would need
-    «notre» → «sa»), the other «we» (:func:`on_nous_variants`). A miss is still a miss:
+    «notre» → «sa»), the other «we» (:func:`on_nous_variants`), and the name it is said to
+    at the other end (:func:`vocative_variants`, #731). A miss is still a miss:
     a variant is the same sentence with an equivalent word, never a looser match."""
 
     base = [str(item) for item in accepted if item and str(item).strip()]
@@ -1231,8 +1497,14 @@ def widened_answers(accepted: Iterable[object], *, english: object = None) -> li
     for sentence in base:
         people = [sentence, *(on_nous_variants(sentence) if we else [])]
         for variant in people:
-            out.append(variant)
-            out.extend(noun_variants(variant))
+            for worded in (variant, *noun_variants(variant)):
+                out.append(worded)
+                out.extend(vocative_variants(worded))
+                # 12 Nov 2026: a build or write item is said to nobody; a stored item
+                # served without its name is answered without it.
+                bare = strip_vocative(worded)
+                if bare != worded and len(bare.split()) >= 2:
+                    out.append(bare)
     seen: set[str] = set()
     unique: list[str] = []
     for item in out:
@@ -1296,7 +1568,25 @@ NOTE_COPY: dict[str, dict[str, str]] = {
         "de": "Richtig — vor einem Vokal: «{expected_word}».",
         "fr": "Juste — devant une voyelle : « {expected_word} ».",
     },
+    # #781: a build right in all but a capital is a hit; the capital is named on it.
+    "case_ok": {
+        "en": "Right — watch the capital letter: «{expected_word}».",
+        "de": "Richtig — achte auf den Großbuchstaben: «{expected_word}».",
+        "fr": "Juste — attention à la majuscule : « {expected_word} ».",
+    },
 }
+
+
+def case_slip_note(learner: object, expected: object, language: str | None) -> str | None:
+    """The one line naming a capital on a hit whose words differ from ``expected`` by
+    case alone («j'ai vingt-cinq ans et J'ai faim !»), or ``None`` (#781)."""
+
+    said = " ".join(str(learner or "").split())
+    right = " ".join(str(expected or "").split())
+    if not said or not right or said == right or said.casefold() != right.casefold():
+        return None
+    table = NOTE_COPY["case_ok"]
+    return (table.get(mother_tongue(language)) or table["en"]).format(expected_word=right, learner_word=said)
 
 
 def feedback_note(verdict: Verdict, language: str | None) -> str | None:
@@ -1312,7 +1602,7 @@ def feedback_note(verdict: Verdict, language: str | None) -> str | None:
     table = NOTE_COPY.get(key)
     if table is None:
         return None
-    lang = str(language or "en")[:2].lower()
+    lang = mother_tongue(language)
     template = table.get(lang) or table["en"]
     return template.format(
         expected_word=verdict.expected_word or verdict.expected or "",
@@ -1331,11 +1621,29 @@ EQUIVALENT_WORD_SWAPS: frozenset[frozenset[str]] = frozenset(
 
 _SWAP_WORDS = re.compile(r"[\w']+")
 
+#: Walk of 19 Nov: a place that is a city and a country (or a province) of one name.
+#: «à Luxembourg» is the city, «au Luxembourg» the country; «in Luxemburg» says either,
+#: so neither line may be «corrected» into the other.
+CITY_AND_COUNTRY = frozenset({"luxembourg", "québec", "quebec", "panama", "guatemala", "koweït", "koweit"})
+
+
+def _city_or_country(a: list[str], b: list[str]) -> bool:
+    """The two lines differ only in «à» / «au» before a :data:`CITY_AND_COUNTRY` name."""
+
+    changed = [index for index, (x, y) in enumerate(zip(a, b, strict=True)) if x != y]
+    if len(changed) != 1:
+        return False
+    index = changed[0]
+    if {a[index], b[index]} != {"à", "au"} or index + 1 >= len(a):
+        return False
+    return a[index + 1] in CITY_AND_COUNTRY
+
 
 def is_preference_swap(learner: object, corrected: object) -> bool:
     """A "correction" that changes nothing wrong: a yes/no question moved to another
-    register («Vous êtes disponible ?» → «Êtes-vous disponible ?»), or one word
-    swapped for its correct equivalent (:data:`EQUIVALENT_WORD_SWAPS`)."""
+    register («Vous êtes disponible ?» → «Êtes-vous disponible ?»), one word
+    swapped for its correct equivalent (:data:`EQUIVALENT_WORD_SWAPS`), or «à» and
+    «au» before a city that is also a country (:data:`CITY_AND_COUNTRY`)."""
 
     left = fold_typography(learner).strip(" ?!.")
     right = fold_typography(corrected).strip(" ?!.")
@@ -1347,6 +1655,8 @@ def is_preference_swap(learner: object, corrected: object) -> bool:
     b = _SWAP_WORDS.findall(right.casefold())
     if len(a) != len(b):
         return False
+    if _city_or_country(a, b):
+        return True
     changed = [frozenset({x, y}) for x, y in zip(a, b, strict=True) if x != y]
     return len(changed) == 1 and changed[0] in EQUIVALENT_WORD_SWAPS
 
@@ -1758,7 +2068,7 @@ def known_slip(learner_text: object, language: str | None = "en") -> tuple[str, 
         fix = f"j'ai {word}"
         if span[:1].isupper():
             fix = fix[:1].upper() + fix[1:]
-        table = _SLIP_NOTE.get(str(language or "en")[:2].lower()) or _SLIP_NOTE["en"]
+        table = _SLIP_NOTE.get(mother_tongue(language)) or _SLIP_NOTE["en"]
         return span, fix, table.format(word=word)
     return None
 

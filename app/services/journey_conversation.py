@@ -75,11 +75,15 @@ from app.db.models.error import UserError
 from app.db.models.serial import SerialThread
 from app.db.models.user import User
 from app.services import correction_contract, pragmatics
-from app.services.chrome_language import user_chrome_language
+from app.services.chrome_language import (
+    user_correction_language,
+    user_mother_tongue,
+)
 from app.services.error_memory import ErrorMemoryService
 from app.services.journey_content import render_authored_text
 from app.services.journey_contracts import (
     FALLBACK_CONTROL_LANGUAGE,
+    MAX_PLANNED_RESPOND_TURNS,
     MAX_RESPOND_TURNS,
     AssistanceLevel,
     AttemptAnswer,
@@ -1098,7 +1102,9 @@ def _unknown_intent(signals: _Signals) -> bool:
 # --------------------------------------------------------------------------
 
 def normal_turns(task: ResponseTask) -> int:
-    return max(1, min(int(task.max_turns or MAX_RESPOND_TURNS), MAX_RESPOND_TURNS))
+    # The plan's count: up to MAX_RESPOND_TURNS, and one more at A1 and A2
+    # (``journey_planner.low_band_extra_exchanges``, owner 2026-11-16).
+    return max(1, min(int(task.max_turns or MAX_RESPOND_TURNS), MAX_PLANNED_RESPOND_TURNS))
 
 
 def turn_budget(task: ResponseTask) -> int:
@@ -2757,9 +2763,9 @@ def register_corrections(
     fabricated span — WP-05 would reject it anyway, and rightly.
     """
 
-    # The note is the app's own explanation, so it follows the chrome: the
-    # learner's language up to A2, French from B1 (WP-82).
-    language = user_chrome_language(user)
+    # The note explains a correction: the learner's mother tongue at every level
+    # (owner decision 18 Nov 2026, as in the Courrier); the chrome stays French from B1.
+    language = user_correction_language(user)
     counterpart = expected_counterpart_register(
         scenario=scenario,
         task=task,
@@ -3147,6 +3153,97 @@ def _wrong_here(answer: str, span: str, correct: str, why: str) -> bool:
     return verdict.ok
 
 
+def _flagged_here(answer: str, span: str, correct: str) -> bool:
+    """Does something other than the stored record say this span is wrong *now*? (P1)
+
+    :func:`_wrong_here` only proves that the swapped sentence is acceptable French —
+    «Je vais leur poser des questions» is, so a stored «lui → leur» was stamped on
+    «Je vais lui poser des questions», which is right (walk 17 Nov, about eight
+    times in one day; once reversed, «leur → lui» on a correct plural). The stored
+    pair is evidence of what the learner once got wrong, never that this sentence
+    is wrong. That evidence comes from the model-free rule pass: one of its edits
+    must cover the same words and make the same fix. No model is asked; a span
+    only the tutor lane would flag reaches the learner through the tutor's own
+    correction, which outranks a stored one (:func:`apply_feedback_policy`).
+    """
+
+    wanted = set(_folded_tokens(correct))
+    for edit in correction_contract.deterministic_edits(answer):
+        overlaps = any(
+            edit.start < start + len(span) and start < edit.end
+            for start in (m.start() for m in re.finditer(re.escape(span), answer))
+        )
+        if not overlaps:
+            continue
+        fix = set(_folded_tokens(edit.replacement))
+        if fix and (fix <= wanted or wanted <= fix):
+            return True
+    return False
+
+
+def _stored_fault_noted(history: list[dict] | None, errata: list[UserError]) -> bool:
+    """Has an earlier turn of this scene already carried a stored mistake's correction?
+
+    Recomputed from the transcript, like :func:`_already_elicited`: an earlier turn
+    whose shown correction is one of the learner's stored pairs counts. P1: a season
+    day's margin note skipped the once-per-scene bound and came back on every reply.
+    """
+
+    pairs = [pair for pair in (_repairable(error) for error in errata) if pair is not None]
+    if not pairs:
+        return False
+    for entry in history or []:
+        shown = entry.get("correction") if isinstance(entry, dict) else None
+        if not isinstance(shown, dict):
+            continue
+        span, corrected = shown.get("span_fr"), shown.get("corrected_fr")
+        for wrong, correct in pairs:
+            if _contains_phrase(span, wrong) and _contains_phrase(corrected, correct):
+                return True
+    return False
+
+
+def _register_moved_to(wrong: str, correct: str) -> str | None:
+    """The address a stored correction moved the learner into, when that is what it did.
+
+    #752: «vous → te» is not a fact about the word «vous»; it was right because Margaux
+    says *tu*. Such a pair is a claim about the person the learner was answering, so it is
+    only wrong again in front of someone who addresses the learner the corrected way.
+    ``None`` for every other erratum (both halves in one register, or neither marked).
+    """
+
+    before = pragmatics.address_register(wrong)
+    after = pragmatics.address_register(correct)
+    if before is None or after is None or before == after:
+        return None
+    return after
+
+
+def _register_erratum_here(
+    *,
+    user: User,
+    moved_to: str,
+    counterpart: _CounterpartRegister,
+) -> str | None:
+    """The note for a recurring register slip, about the person answered *now* — or
+    ``None`` when this person addresses the learner the way the learner just did.
+
+    The stored note names whoever the slip was made to («Margaux te tutoie»); replayed to
+    Camille, who says *vous*, it taught the opposite of the rule. The register check's own
+    note is rebuilt instead, from the addressee the turn is for (#594's ``addressee_of``).
+    """
+
+    if counterpart.expected != moved_to:
+        return None
+    code = pragmatics.SLIP_VOUS_FOR_TU if moved_to == "tu" else pragmatics.SLIP_TU_FOR_VOUS
+    return _meta_pragmatic_note(
+        pragmatics.RegisterFinding(code=code),
+        counterpart=counterpart.counterpart,
+        reason_native=counterpart.reason_native,
+        language=user_correction_language(user),
+    )
+
+
 # -- the question ----------------------------------------------------------
 
 #: Sentence openers that are lower-cased once they follow « Pardon, »; a name keeps
@@ -3243,7 +3340,7 @@ def _margin_note(*, user: User, wrong: str, correct: str, why: str) -> str:
     asked the learner about it first, so it never says they were."""
 
     note = learner_copy_text(
-        "self_repair.margin_note", user_chrome_language(user), correct=correct, wrong=wrong
+        "self_repair.margin_note", user_correction_language(user), correct=correct, wrong=wrong
     )
     reason = " ".join(str(why or "").split())
     return f"{note} {reason}".strip() if reason else note
@@ -3253,12 +3350,11 @@ def _explicit_note(*, user: User, wrong: str, correct: str, why: str) -> str:
     """The explicit correction's note: the rule, then the stored reason.
 
     Explicit means explicit (Lyster & Ranta): the learner is told which form is
-    right, in the chrome's language, not shown a recast and left to notice. That
-    is their own language up to A2 and French from B1 (WP-82): a B1 walk read
-    «That was the one you were just asked about…» on a French screen.
+    right, not shown a recast and left to notice — in their mother tongue at every
+    level (owner decision 18 Nov 2026, as in the Courrier; WP-82 had it French from B1).
     """
 
-    language = user_chrome_language(user)
+    language = user_correction_language(user)
     note = learner_copy_text("self_repair.explicit_note", language, correct=correct, wrong=wrong)
     reason = " ".join(str(why or "").split())
     return f"{note} {reason}".strip() if reason else note
@@ -3376,7 +3472,7 @@ def counterpart_register_for(
         scenario=scenario,
         task=task,
         history=history,
-        native_language=getattr(user, "native_language", None),
+        native_language=user_mother_tongue(user),
     )
     return str(counterpart.expected or _scene_register(scenario) or "vous")
 
@@ -3455,13 +3551,17 @@ def feedback_decision(
     # margin, never in the plot.» A margin note asks nothing, so it needs no turn left.
     in_margin = _is_season_day(scenario)
 
-    # 2. Bounds, before anything is asked.
+    # 2. Bounds, before anything is asked. A margin note asks nothing, so it needs no
+    # turn left; but it is held to the same once-per-scene bound as the question (P1).
     if not in_margin and remaining_turns(task, turn_index) <= 0:
         return FeedbackDecision(reason="last_turn")
-    if not in_margin and _already_elicited(history):
+    if _already_elicited(history):
         return FeedbackDecision(reason="already_prompted")
+    if _stored_fault_noted(history, errata):
+        return FeedbackDecision(reason="already_noted")
 
     # 3. Does this turn repeat a mistake the learner has had explained?
+    addressee: _CounterpartRegister | None = None
     for error in errata:
         pair = _repairable(error)
         if pair is None:
@@ -3472,19 +3572,34 @@ def feedback_decision(
         span = _verbatim_span(answer, wrong)
         if span is None:
             continue
-        if not _wrong_here(answer, span, correct, str(error.why_wrong or error.context_snippet or "")):
+        why = str(error.why_wrong or error.context_snippet or "")
+        moved_to = _register_moved_to(wrong, correct)
+        if moved_to is not None:
+            # #752: a register slip is wrong for a person, not in a sentence. It recurs
+            # only before someone who addresses the learner that way, and says who.
+            if addressee is None:
+                addressee = expected_counterpart_register(
+                    scenario=scenario,
+                    task=task,
+                    history=history,
+                    native_language=user_correction_language(user),
+                )
+            here = _register_erratum_here(user=user, moved_to=moved_to, counterpart=addressee)
+            if here is None:
+                continue
+            why = here
+        if not _wrong_here(answer, span, correct, why):
+            continue
+        if moved_to is None and not _flagged_here(answer, span, correct):
+            # P1: nothing but the record says it is wrong here. A register slip has
+            # its own evidence — the person answered now — and was checked above.
             continue
         if in_margin:
             return FeedbackDecision(
                 explicit=Correction(
                     span_fr=span,
                     corrected_fr=_preserve_case(span, correct),
-                    note_native=_margin_note(
-                        user=user,
-                        wrong=wrong,
-                        correct=correct,
-                        why=str(error.why_wrong or error.context_snippet or ""),
-                    ),
+                    note_native=_margin_note(user=user, wrong=wrong, correct=correct, why=why),
                 ),
                 reason="recurrence_in_margin",
             )
@@ -3496,7 +3611,7 @@ def feedback_decision(
                 error_id=str(error.id),
                 span_fr=span,
                 corrected_fr=correct,
-                why_native=str(error.why_wrong or error.context_snippet or ""),
+                why_native=why,
                 question_fr=question,
                 kind=kind,
             ),
@@ -3619,7 +3734,10 @@ def apply_feedback_policy(
 
     text = _normalized(answer.text)
     updates: dict[str, Any] = {}
-    if decision.explicit is not None:
+    # P1: a stored mistake's margin note never displaces the turn's own correction (the
+    # tutor lane's or the rule pass's): that one was read off this sentence.
+    outranked = decision.reason == "recurrence_in_margin" and evaluation.correction is not None
+    if decision.explicit is not None and not outranked:
         candidates = [decision.explicit]
         if evaluation.correction is not None:
             candidates.append(evaluation.correction)

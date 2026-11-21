@@ -1,9 +1,16 @@
 import Head from 'next/head';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import React from 'react';
 import { AlertTriangle, ArrowLeft, CircleDollarSign, ShieldCheck } from 'lucide-react';
 
+import { AtelierV2Root, StateBlock } from '@/components/atelier-v2/ui';
+import { CohortSection, type PilotCohorts } from '@/components/pilot/CohortSection';
+import { LearnerReportsSection } from '@/components/pilot/LearnerReportsSection';
 import { ForgeMetricsSection } from '@/components/pilot/ForgeMetricsSection';
+import { MemoSection } from '@/components/pilot/MemoSection';
+import { atelierChrome } from '@/lib/atelier-v2-copy';
+import { useChromeLanguage } from '@/lib/learner-language';
 import type { PilotForge } from '@/lib/forge-metrics';
 import apiService from '@/services/api';
 
@@ -106,13 +113,46 @@ function secondsLabel(value: number | null) {
   return value === null || value === undefined ? 'unknown' : `${value}s`;
 }
 
+/* S4 stage 1 — the register gives /pilot-ops one gate: the account's role.
+   The server already answers 403; this guard stops a learner who types the URL
+   from seeing an English control room ask for reports it will be refused. */
+const REFUSED_COPY = {
+  en: { title: 'This page is for the pilot team.', body: 'Your account has no access to it.', back: 'Back to settings' },
+  de: { title: 'Diese Seite ist für das Pilotteam.', body: 'Dein Konto hat keinen Zugang dazu.', back: 'Zurück zu den Einstellungen' },
+  fr: { title: 'Cette page est réservée à l’équipe pilote.', body: 'Ton compte n’y a pas accès.', back: 'Retour aux réglages' },
+} as const;
+
 export default function PilotOperationsPage() {
+  const router = useRouter();
+  const language = useChromeLanguage();
+  const [access, setAccess] = React.useState<'checking' | 'admin' | 'refused'>('checking');
+  React.useEffect(() => {
+    let alive = true;
+    apiService.getSettings()
+      .then((user: any) => { if (alive) setAccess(user?.role === 'admin' ? 'admin' : 'refused'); })
+      .catch(() => { if (alive) setAccess('refused'); });
+    return () => { alive = false; };
+  }, []);
+  if (access === 'admin') return <PilotOperationsReport />;
+  const copy = REFUSED_COPY[language === 'de' || language === 'fr' ? language : 'en'];
+  return (
+    <AtelierV2Root language={language}>
+      {access === 'checking'
+        ? <StateBlock tone="loading" title={String(atelierChrome(language).loading)} />
+        : <StateBlock tone="error" title={copy.title} body={copy.body} action={{ label: copy.back, onSelect: () => { void router.push('/settings'); } }} />}
+    </AtelierV2Root>
+  );
+}
+
+function PilotOperationsReport() {
   const [data, setData] = React.useState<PilotOperations | null>(null);
   const [journey, setJourney] = React.useState<JourneyLedger | null>(null);
   const [journeyError, setJourneyError] = React.useState('');
   const [error, setError] = React.useState('');
   const [forge, setForge] = React.useState<PilotForge | null>(null);
   const [forgeError, setForgeError] = React.useState('');
+  const [cohorts, setCohorts] = React.useState<PilotCohorts | null>(null);
+  const [cohortsError, setCohortsError] = React.useState('');
 
   React.useEffect(() => {
     let alive = true;
@@ -142,6 +182,14 @@ export default function PilotOperationsPage() {
       })
       .catch(() => {
         if (alive) setForgeError('The forge metrics could not be loaded.');
+      });
+    // S6: who came back, per sign-up week. Its own report, like the forge.
+    apiService.get<PilotCohorts>('/analytics/pilot-cohorts')
+      .then((result) => {
+        if (alive) setCohorts(result ?? null);
+      })
+      .catch(() => {
+        if (alive) setCohortsError('The return numbers could not be loaded.');
       });
     return () => { alive = false; };
   }, []);
@@ -232,7 +280,10 @@ export default function PilotOperationsPage() {
               </section>
 
               <JourneySection ledger={journey} loadError={journeyError} />
+              <CohortSection report={cohorts} loadError={cohortsError} />
+              <LearnerReportsSection />
               <ForgeMetricsSection report={forge} loadError={forgeError} />
+              <MemoSection />
             </>
           )}
         </div>

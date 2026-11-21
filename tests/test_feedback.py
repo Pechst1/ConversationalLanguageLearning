@@ -113,3 +113,28 @@ def test_feedback_frontend_contract_is_wired() -> None:
     assert "status === 'authenticated'" in layout
     assert "submitFeedbackReport" in api
     assert "/feedback/reports" in api
+
+
+def test_a_report_records_whether_the_learner_wants_a_reply(client: TestClient, db_session) -> None:
+    """S4 stage 4: the Help place's feedback sheet asks whether to answer.
+
+    Only the wish is stored; nothing sends a reply yet (an owner decision).
+    """
+    token = register_and_login(client, "feedback-reply@example.com", "verysecure")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    silent = client.post("/api/v1/feedback/reports", json={"category": "bug", "route": "/help"}, headers=headers)
+    assert silent.status_code == 201
+    assert silent.json()["wants_reply"] is False
+
+    asked = client.post(
+        "/api/v1/feedback/reports",
+        json={"category": "other", "route": "/help", "message": "How do I…?", "wants_reply": True},
+        headers=headers,
+    )
+    assert asked.status_code == 201
+    assert asked.json()["wants_reply"] is True
+    report = db_session.scalar(select(UserFeedbackReport).where(UserFeedbackReport.id == uuid.UUID(asked.json()["id"])))
+    assert report.wants_reply is True
+    migration = next((ROOT / "alembic" / "versions").glob("*_feedback_wants_reply.py")).read_text()
+    assert "wants_reply" in migration and "server_default" in migration

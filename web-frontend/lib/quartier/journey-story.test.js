@@ -22,7 +22,7 @@ Module._resolveFilename = function alias(request, ...rest) {
 const apiPath = Module._resolveFilename('@/services/api', module, false);
 require.cache[apiPath] = { id: apiPath, filename: apiPath, loaded: true, exports: { __esModule: true, default: {}, apiService: {} } };
 
-const { JourneyStory, StoryLost, blockedPage, pageOfJourney, pageOfStage, stagedPageOf, todayOf } = require('./journey-story.ts');
+const { JourneyStory, StoryLost, blockedPage, episodeLabel, pageOfJourney, pageOfStage, stagedPageOf, todayOf } = require('./journey-story.ts');
 
 const line = (who, text_fr, extra = {}) => ({ who, name: null, kind: who === 'caption' ? 'caption' : 'speech', mood: 'neutral', direction: null, text_fr, text_native: null, ...extra });
 
@@ -291,16 +291,19 @@ test('what /quartier does with each state of the day', () => {
   assert.equal(kind(journey({ current: 'end' })), 'practice');
   assert.equal(kind(journey({ current: 'words' })), 'practice');
   assert.equal(kind(journey({ current: null })), 'practice', 'every step done, the day not yet finished');
-  // a scene that goes where the world has built nothing yet (Le Mistral's back room) is the Feuilleton's to tell, not played in a place it is not
-  const back = { ...STAGE, key: 't5.b', location_id: 'mistral_back_room', movements: STAGE.movements.map((m) => (m.id === 'a.p1' ? { ...m, location_id: 'mistral_back_room' } : m)) };
+  // a scene that goes where the world has built nothing yet (the gare de l'Est) is the Feuilleton's to tell, not played in a place it is not
+  const back = { ...STAGE, key: 't8.b', location_id: 'gare_de_lest', movements: STAGE.movements.map((m) => (m.id === 'a.p1' ? { ...m, location_id: 'gare_de_lest' } : m)) };
   assert.equal(kind(journey({ stage: back })), 'handoff:elsewhere');
-  assert.equal(todayOf(journey({ stage: back })).place, 'mistral_back_room');
+  assert.equal(todayOf(journey({ stage: back })).place, 'gare_de_lest');
   assert.equal(kind(journey({ stage: back, current: 'talk' })), 'handoff:elsewhere', 'nothing answered yet');
   assert.equal(kind(journey({ stage: back, current: 'talk', turn: 2 })), 'handoff:midway');
   assert.equal(kind(journey({ stage: back, current: 'words' })), 'practice', 'the scene told, the rest of the day is the same');
   // the roof (g3) is built now: a scene set there plays on it
   const roof = { ...STAGE, key: 'g3.toit', location_id: 'toit', movements: STAGE.movements.map((m) => (m.id === 'a.p1' ? { ...m, location_id: 'toit' } : m)) };
   assert.equal(kind(journey({ stage: roof })), 'play');
+  // and so is T5's back room, where Lila shows the portrait
+  const portrait = { ...STAGE, key: 't5.b', location_id: 'mistral_back_room', movements: STAGE.movements.map((m) => (m.id === 'a.p1' ? { ...m, location_id: 'mistral_back_room' } : m)) };
+  assert.equal(kind(journey({ stage: portrait })), 'play');
   // the café and the quai are built: a day set there plays here
   assert.equal(kind(journey({ stage: { ...STAGE, key: 't1.c' } })), 'play');
 });
@@ -658,4 +661,69 @@ test('the recorded day, played through: every answer and gesture as the engine t
   // a gesture the day does not have is refused, and nothing comes of it
   assert.equal(await story.gesture({ storylet: 'dance' }), null);
   assert.equal(r.left(), 0, 'every recorded call was made, in order');
+});
+
+test('P12: the episode has one number everywhere, the day’s edition («Nº 8»), not the season page’s', () => {
+  // observed 17 Nov: Home «Nº 8», the quarter «Épisode 8» on its first card and «Épisode 2» on the next
+  const day8 = { ...journey(), edition_no: 8 };
+  assert.equal(pageOfStage(STAGE).number, 1, 'the season page counts its own pages');
+  assert.equal(pageOfJourney(day8).number, 8);
+  assert.equal(stagedPageOf(day8).number, 8);
+  assert.equal(todayOf(day8).page.number, 8);
+  assert.equal(pageOfJourney({ ...journey({ stage: null }), edition_no: 8 }).number, 8, 'a scene written today too');
+  assert.equal(pageOfJourney(journey()).number, 1, 'no edition sent: the page’s own');
+  assert.equal(episodeLabel(8), 'Nº 8');
+  assert.equal(episodeLabel(null), null);
+  assert.equal(episodeLabel(0), null);
+  const fs = require('node:fs');
+  const screen = fs.readFileSync(path.join(WEB_ROOT, 'components/quartier/QuartierScreen.tsx'), 'utf8');
+  const page = fs.readFileSync(path.join(WEB_ROOT, 'pages/quartier.tsx'), 'utf8');
+  for (const src of [screen, page]) assert.doesNotMatch(src, /`Épisode \$\{/, 'every header goes through episodeLabel');
+});
+
+test('P12 stage 4: a line said to someone outside the script comes back corrected, on the card the answers use', async () => {
+  // observed 17 Nov: «Bonjour Lila. Je suis fatigue, j ai faim» to Lila in the free walk, never corrected
+  const reply = (correction) => async (_j, o) => ({
+    contract_version: 1,
+    storylet_id: o.storyletId,
+    beats: [{ kind: 'panel', id: 'talk.lila.ack', lines: [line('lila_bonnet', 'Alors, mange quelque chose.')] }],
+    chips: [],
+    heard: null,
+    learned: [],
+    sets: {},
+    people: [],
+    correction,
+  });
+  const wrong = storyOn(journey({ revision: 4, current: 'talk' }), {
+    choose: reply({ span_fr: 'fatigue', corrected_fr: 'fatigué', note_native: 'Der Akzent fehlt: « fatigué ».', kind: 'edit' }),
+  });
+  const a = await wrong.story.gesture({ storylet: 'talk', to: 'lila_bonnet', text: 'Je suis fatigue' });
+  assert.deepEqual(a.mend, { span: 'fatigue', corrected: 'fatigué', note: 'Der Akzent fehlt: « fatigué ».' });
+  const right = storyOn(journey({ revision: 4, current: 'talk' }), { choose: reply(null) });
+  assert.equal((await right.story.gesture({ storylet: 'talk', to: 'lila_bonnet', text: 'Je suis fatigué.' })).mend, null);
+
+  // the talk sheet draws it with the scripted answer's own markup (`qz-mend`)
+  const fs = require('node:fs');
+  const screen = fs.readFileSync(path.join(WEB_ROOT, 'components/quartier/QuartierScreen.tsx'), 'utf8');
+  const sheet = screen.slice(screen.indexOf('export function TalkSheet'));
+  assert.match(sheet.slice(0, sheet.indexOf('/** A text on your phone')), /t\.mend \?[\s\S]*className="qz-mend"[\s\S]*t\.mend\.note/);
+  const stage = fs.readFileSync(path.join(WEB_ROOT, 'lib/quartier/stage.ts'), 'utf8');
+  assert.match(stage, /mend: a\?\.mend \?\? null/, 'the stage hands the talk sheet the correction');
+});
+
+test('round 2: the answer says whether the engine heard it as meant (task outcome «met»), never assumed', async () => {
+  // walk 17 Nov, day 1 in 3D: «Je suis Jonas. Je venir pour la apartement.» took route b and the end
+  // card said «Tu as dit que tu viens pour vendre.»; a fallback route says nothing the learner meant
+  const routed = (task_outcome) => ({ pending: false, task_outcome, journey: journey({ revision: 5, current: 'talk', turn: 1 }), correction: null, character_lines: [], next_turn: { step_id: 'talk' }, stage: { turn_id: 'a.turn1', reply_id: 'b', beats: [], next_turn_id: 'a.cafe', closing: false } });
+  const fallback = await storyOn(journey({ revision: 4, current: 'talk' }), { attempt: async () => routed('partially_met') }).story.answer('a.turn1', 'Je suis Jonas. Je venir pour la apartement.');
+  assert.equal(fallback.reply, 'b');
+  assert.equal(fallback.understood, false);
+  const met = await storyOn(journey({ revision: 4, current: 'talk' }), { attempt: async () => routed('met') }).story.answer('a.turn1', 'Je viens pour vendre.');
+  assert.equal(met.understood, true);
+  const { replyEffects } = require('./agency.ts');
+  const line = (effects) => effects.filter((e) => e.kind === 'journal').map((e) => e.words.fr);
+  assert.deepEqual(line(replyEffects('a.turn1', 'b', fallback.understood)), [], 'no «Tu as dit…» for a fallback route');
+  assert.ok(replyEffects('a.turn1', 'b', false).some((e) => e.kind === 'fact'), 'the route’s facts still follow the engine');
+  assert.deepEqual(line(replyEffects('a.turn1', 'b', met.understood)), ['Tu as dit que tu viens pour vendre.']);
+  assert.deepEqual(line(replyEffects('a.turn2', 'dont_know', undefined)), [], 'unknown: the line is left out');
 });

@@ -172,12 +172,18 @@ def attempt_stage(
     *,
     next_turn_id: str | None,
     closing: bool,
+    chosen: bool = False,
 ) -> dict[str, Any]:
     """What one answer staged: the beats it set off, in order, each with its id (the
     addressee's first line back ``<turn>.ack``, the reply's own beats or the line
     asking again — ``<turn>.ask_again``, ``<turn>.en_francais`` — the turn's
     ``after``, and on closing the page's tail). ``reply_id`` is ``None`` when the
-    scene asked again; ``next_turn_id`` is the question now asked."""
+    scene asked again; ``next_turn_id`` is the question now asked.
+
+    ``chosen``: the answer was one of the turn's «Le choix» cards, word for word
+    (``runtime.card_choice``). Only then may Le Quartier's end card and carnet restate
+    the route as something the learner said (round 3, walk 17 Nov: «Tu as dit que tu
+    viens pour vendre» after «Je suis Jonas. Je venir pour la apartement.»)."""
 
     return {
         "turn_id": str(turn_id),
@@ -185,4 +191,5 @@ def attempt_stage(
         "beats": [panel_view(beat) for beat in beats if isinstance(beat, dict)],
         "next_turn_id": str(next_turn_id) if next_turn_id is not None else None,
         "closing": bool(closing),
+        "chosen": bool(chosen),
     }

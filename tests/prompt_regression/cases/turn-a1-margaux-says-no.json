@@ -1,0 +1,130 @@
+{
+ "id": "turn-a1-margaux-says-no",
+ "lane": "turn",
+ "level": "A1",
+ "source": "The walk of 4 Nov 2026 (#518), «Une lettre pour Margaux». The learner's text is exact; the opening line is written for the case, since the walk records only her reply to it.",
+ "input": {
+  "payload": {
+   "story": {
+    "control_language": "en",
+    "level": "A1",
+    "level_register": "no coarse or vulgar vocabulary",
+    "learner": {
+     "address": "neutral",
+     "grammatical_gender_note": "Do not gender the learner: no gendered adjective, participle or endearment about them, no gendered pronoun for them, and never an inclusive-dot form such as trempé·e. Use natural neutral phrasing in EVERY field, including the chapter title and question, narration, dialogue and suggested response. For example: 'Tu as pris la pluie', 'Tu veux entrer ?', 'Ça te plaît', 'Tu peux venir ?'. Do not solve gender agreement by joining masculine and feminine endings.",
+     "register_note": "Address the learner as «tu» (ton/ta/tes; e.g. «Tu as …») in every sentence that is not a character's own line. Never «vous, votre, vos» for the learner."
+    },
+    "world": {
+     "cast": [
+      {
+       "id": "margaux_barman",
+       "name": "Margaux",
+       "role": "Owner-bartender of Le Mistral since 2001, in her late fifties. The oracle.",
+       "personality": "Uses the fewest words in the cast. When she says two sentences in a row, something is wrong. Dries a glass that is already dry. «J'ai rien entendu» after hearing everything. Bans people from her zinc («Pas sur mon zinc.»). Pours a café crème nobody ordered for Odile's stool.",
+       "wants": "To keep her promise to Odile, and the café, and never to ask anyone for help.",
+       "speech_pattern": "A2: «La même chose ?» «J'ai rien entendu.» «Bois.» B1: «Ça finira bien, ou ça finira. Bois.»",
+       "contradiction": "Protects everyone and lets nobody protect her.",
+       "secret": "The night of the fire (14 March 2023) and her promise to Odile — revealed in T4 only. On generated days before T4: silences and deflections (looking at the ceiling, reacting too fast to smoke), never the cause.",
+       "flaw": "One sentence too few, always.",
+       "dynamic_with_user": "Sees Odile in the learner. Afraid of what they will find.",
+       "register_with_user": "tu, at once — as she did with Odile",
+       "gender": "f"
+      }
+     ]
+    },
+    "story_so_far": [],
+    "commitments": [],
+    "moods": {},
+    "relationships": {
+     "margaux_barman": {
+      "register": "tu",
+      "closeness": 1
+     }
+    },
+    "secrets": {}
+   },
+   "scene": {
+    "character_id": "margaux_barman",
+    "title_fr": "Une lettre pour Margaux",
+    "premise_fr": "Tu es au Mistral avec Margaux. Une lettre est sur le comptoir. La fête de samedi est annulée.",
+    "location_id": "le_mistral",
+    "objective_native": "Answer Margaux about the letter.",
+    "objective_semantics": "Margaux asks if the learner has seen the letter. Met when the learner says yes or no, or asks about it.",
+    "opening_line_fr": "Tu as vu la lettre ? Elle est sur le comptoir.",
+    "suggested_response_fr": "Oui, je l'ai vue.",
+    "panels": []
+   },
+   "rubric": "Grade only what the task asks; any honest answer counts.",
+   "history": [],
+   "learner_text": "Non, je ne vois pas la lettre. Je veux pas lire. Tu as faim ?",
+   "turns_left": 1,
+   "targets": [],
+   "assistance": "none",
+   "turn_plan": {
+    "closing_turn": false,
+    "clarify_form_fr": null,
+    "noticed_word": null,
+    "keep_talking": true
+   }
+  }
+ },
+ "answers": {
+  "TutorVerdict": [
+   {
+    "origin": "live 2026-11-09 gpt-6-luna",
+    "prompt_digest": "sha256:0e7aaf62f550f9c5996d27694da48b0c44ed7cafa671fdc6dd76dc3bdc6def74",
+    "content": {
+     "outcome": "met",
+     "evidence_quotes": [
+      "Non, je ne vois pas la lettre."
+     ],
+     "correction_span_fr": "Je veux pas lire.",
+     "correction_fr": "Je ne veux pas lire.",
+     "correction_note_native": "In standard French, include ne in a negation.",
+     "demonstrated_target_ids": []
+    }
+   }
+  ],
+  "VoiceReply": [
+   {
+    "origin": "live 2026-11-09 gpt-6-luna",
+    "prompt_digest": "sha256:a36b7f71b0ee0784e9bc6adc129a2fec76163aead9d59a3545ffc13399277abc",
+    "content": {
+     "reply_fr": "Non. Et d’accord, tu ne veux pas lire. La lettre reste là.",
+     "understood_intent": "L'apprenant ne voit pas la lettre, ne veut pas la lire et demande si Margaux a faim.",
+     "needs_clarification": false,
+     "feeling_shift": "steady",
+     "acts": [
+      {
+       "action": "refuses",
+       "subject": "lire la lettre",
+       "conditions": [],
+       "evidence_quotes": [
+        "Je veux pas lire"
+       ],
+       "clarity": "clear"
+      },
+      {
+       "action": "asks",
+       "subject": "si Margaux a faim",
+       "conditions": [],
+       "evidence_quotes": [
+        "Tu as faim ?"
+       ],
+       "clarity": "clear"
+      }
+     ],
+     "learner_intent": "no",
+     "learned": []
+    }
+   }
+  ]
+ },
+ "expect": {
+  "failure": null,
+  "tutor_refusals": [],
+  "voice_refusals": [],
+  "outcome": "met",
+  "reply_fr": "Non. Et d’accord, tu ne veux pas lire. La lettre reste là."
+ }
+}

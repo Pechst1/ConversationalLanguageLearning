@@ -18,6 +18,7 @@ from urllib.parse import quote
 from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
 
 from app.schemas.revue_relecture import RelectureOffer
+from app.schemas.verdict import VerdictView
 from app.services.journey_contracts import (
     AssistanceLevel,
     CapabilityKey,
@@ -335,6 +336,9 @@ class AttemptStage(JourneyModel):
     #: The question now asked; ``None`` once the conversation is over.
     next_turn_id: str | None = None
     closing: bool = False
+    #: The answer was one of the turn's «Le choix» cards, word for word. Only then is
+    #: the route what the learner said; a free answer the engine routed is its reading.
+    chosen: bool = False
 
 
 class ScenePrompt(JourneyModel):
@@ -554,6 +558,35 @@ class RespondLetter(JourneyModel):
     objective_native: str
 
 
+class JourneySolution(JourneyModel):
+    """P5 (owner, 2026-11-13): a drill's solution waits for its retry.
+
+    La Forge's vocabulary (``app/services/solution_gate.py``): ``withheld`` while the
+    item is still to be asked again. The correction then carries the learner's own
+    span and the reason, and ``corrected_fr`` is empty.
+    """
+
+    state: Literal["withheld", "shown"]
+
+
+class MoreCorrection(JourneyModel):
+    """P3: one more correction of a scene reply, of other words than the first («A → B»)."""
+
+    model_config = ConfigDict(json_schema_serialization_defaults_required=False)
+    span_fr: str
+    corrected_fr: str
+    note_native: str
+    notes_native: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _one_note_per_issue(self) -> MoreCorrection:
+        if not self.notes_native and self.note_native:
+            from app.services.forge_grading import notes_native
+
+            self.notes_native = notes_native([{"why_wrong": self.note_native}])
+        return self
+
+
 class JourneyCorrection(JourneyModel):
     # Persisted corrections predating WP-103 do not carry the additive notes list.
     model_config = ConfigDict(json_schema_serialization_defaults_required=False)
@@ -570,7 +603,15 @@ class JourneyCorrection(JourneyModel):
     #: #167: ``meaning`` is a wrong meaning tapped for a French word: ``corrected_fr``
     #: is the word, the note says what it means, and the tapped meaning (``span_fr``,
     #: not French) is never drawn as a correction of it.
-    kind: Literal["edit", "pick", "meaning"] = "edit"
+    #: #624: ``example`` is a model sentence shown after a free sentence missed the
+    #: rule. It is not the learner's sentence made right: the screen draws no arrow.
+    kind: Literal["edit", "pick", "meaning", "example"] = "edit"
+    #: P5 (additive): ``{"state": "withheld"}`` while the item's retry is still to come.
+    #: Absent (``None``) when the solution is on the payload.
+    solution: JourneySolution | None = None
+    #: P3 (additive): from B1 a scene reply's other corrections, shown collapsed under
+    #: this one, in the order the tutor ranked them. Empty below B1 and elsewhere.
+    more: list[MoreCorrection] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _one_note_per_issue(self) -> JourneyCorrection:
@@ -600,6 +641,8 @@ class ThreadExchange(JourneyModel):
     learner_fr: str
     character_fr: str
     correction: JourneyCorrection | None = None
+    #: #333: nobody read this reply, so it counted for nothing.
+    unchecked: bool = False
     #: The reply as its speakers' lines, when several people answer (an authored
     #: season page); empty for a one-voiced reply.
     character_lines: list[ThreadLine] = Field(default_factory=list)
@@ -963,6 +1006,9 @@ class RecapTeaser(JourneyModel):
     """
 
     text_fr: str
+    #: What the hook leaves open, as a whole sentence (#466): what «Tomorrow» prints, so
+    #: no surface cuts the character's voice out of ``text_fr`` to stand for it.
+    open_fr: str | None = None
     character_id: str | None = None
     character_name: str | None = None
     source: Literal["engine", "resolution", "authored"]
@@ -1133,6 +1179,10 @@ class AbsenceView(JourneyModel):
 
     days: int
     greeting_fr: str | None = None
+    #: Pilot P9: up to two lines in the learner's interface language — where the story
+    #: stood when they left (the last played day's stored end summary, then its open
+    #: hook). Empty when no summary is stored.
+    where_left: list[str] = Field(default_factory=list)
     entre_temps: list[EntreTempsItem] = Field(default_factory=list)
     lapsed_letters: list[LapsedLetter] = Field(default_factory=list)
 
@@ -1297,6 +1347,31 @@ class HeadlineCastMember(JourneyModel):
     name: str
 
 
+class HeadlineArc(JourneyModel):
+    """Red-thread design: where the gap is going and how far it is."""
+
+    #: The gap's own title («Avant la fête»).
+    gap_title_fr: str
+    #: What it leads to, in the learner's words («Les 25 ans du Mistral»).
+    title_fr: str
+    #: The day it happens, as the pages say it («samedi»).
+    when_fr: str
+    #: Days until then (1 = tomorrow).
+    days_left: int
+
+
+class HeadlineStage(JourneyModel):
+    """P12: where today's planned page plays, known before the day is opened: a tentpole's,
+    or a gap day's once the night has written it (round 3: the prefetched scene's place)."""
+
+    #: The page's key («t1.a»), as the Quartier's stage names it.
+    key: str
+    #: The place the page opens at (a season location id, «le_mistral»).
+    location_id: str | None = None
+    #: Each movement's place, in order; ``None`` where a movement names none.
+    locations: list[str | None] = Field(default_factory=list)
+
+
 class EpisodeHeadline(JourneyModel):
     """WP-109: today's episode as Home and the Feuilleton headline it."""
 
@@ -1308,13 +1383,21 @@ class EpisodeHeadline(JourneyModel):
     title_fr: str | None = None
     #: Yesterday's «À suivre…».
     teaser_fr: str | None = None
+    #: What it left open, as a whole sentence (#466): the line Home prints.
+    teaser_open_fr: str | None = None
     season_title_fr: str | None = None
+    #: ``STORY_DAY_CONTRACT``: the gap's destination and the days left to it; ``None``
+    #: on a tentpole day, in a gap without one, and with the flag off.
+    arc: HeadlineArc | None = None
     #: The episode's picture: the scene's first panel, else its opening place.
     image_url: str | None = None
     cast: list[HeadlineCastMember] = Field(default_factory=list)
     #: WP-116: the drawn cast's per-learner looks, e.g. ``{"camille_marchand": "f"}``.
     #: Only choices the learner has made; empty before them.
     cast_variants: dict[str, str] = Field(default_factory=dict)
+    #: P12: where today's page plays, before the day is opened (Home's «Play in the Quartier»);
+    #: ``None`` once the day is opened (the journey's own stage says it), and on a gap day.
+    stage: HeadlineStage | None = None
 
 
 #: The day's steps IN THEIR ORDER (owner, 1 Nov 2026: the scene, then La Forge,
@@ -1369,10 +1452,6 @@ class DaySession(JourneyModel):
     minutes_left: int = 0
     done: bool = False
     tally: DaySessionTally
-    #: After the day, the one optional extra: «Noch 10 Wörter».
-    more_words: int
-    more_minutes: int
-    more_href: str
 
 
 class PaceOption(JourneyModel):
@@ -1485,6 +1564,8 @@ class AttemptResult(JourneyModel):
     next_turn: NextTurn | None = None
     #: ``True`` means grading is retryable; the outcome is then ``unscored``.
     pending: bool = False
+    #: The one verdict shape (#333): who checked this and whether it counts.
+    check: VerdictView | None = None
     #: QA-CLOSE: a forgiven slip on a hit, named in one line in the learner's
     #: language («Richtig — kleiner Tippfehler: «appartement»»). Never a correction.
     slip_note_native: str | None = None
@@ -1605,6 +1686,11 @@ class JourneyAdvanceRequest(JourneyRequest):
     mutation_id: str = Field(min_length=1, max_length=80)
     expected_revision: int
     current_step_id: str
+    #: P11 «Passer à la scène»: from a step before the day's unplayed scene, skip
+    #: every step left before it (a rule card, a drill, La Forge) and open the
+    #: scene. The skipped steps are not done: a rule card is not read, a drill
+    #: item books no lapse and stays due.
+    skip_to_scene: bool = False
 
 
 class JourneyRevisionRequest(JourneyRequest):
@@ -1670,6 +1756,10 @@ class JourneyChoiceResult(JourneyModel):
     sets: dict[str, bool | int | str] = Field(default_factory=dict)
     #: Everyone the learner may talk to today, their hello as things now stand.
     people: list[StagePerson] = Field(default_factory=list)
+    #: P12: what the learner said to someone (``talk`` with a ``text``), corrected by the
+    #: model-free rule pass: at most one edit with its note in the learner's language;
+    #: ``None`` when the rules find nothing.
+    correction: JourneyCorrection | None = None
 
 
 # ---------------------------------------------------------------------------

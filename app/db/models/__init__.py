@@ -2,6 +2,7 @@
 from app.db.models.achievement import Achievement, UserAchievement
 from app.db.models.analytics import AnalyticsSnapshot
 from app.db.models.anki_import_record import AnkiImportRecord
+from app.db.models.answer_memo import AnswerMemo
 from app.db.models.atelier import (
     AtelierAttempt,
     AtelierCollectible,
@@ -38,6 +39,7 @@ from app.db.models.intake import LearnerArtefact
 from app.db.models.journal import JournalEntry
 from app.db.models.library import BookEpisode, UserBook
 from app.db.models.line_audio import LineAudioClip
+from app.db.models.mail_delivery import MailDelivery
 from app.db.models.mission import RealWorldMission, RealWorldMissionAttempt, RealWorldMissionTurn
 from app.db.models.npc import NPC, NPCMemory, NPCRelationship
 from app.db.models.password_reset_delivery import PasswordResetDelivery
@@ -62,8 +64,13 @@ from app.db.models.session import (
 )
 from app.db.models.spend_reservation import SpendReservation
 from app.db.models.story import Chapter, Scene, Story, StoryProgress
+from app.db.models.story_pool import StoryPoolPage
 from app.db.models.streak_day import StreakDay
 from app.db.models.user import RefreshToken, User
+from app.db.models.verdict_appeal import VerdictAppeal
+from app.db.models.verdict_cutover import VerdictCutover
+from app.db.models.verdict_record import VerdictRecord
+from app.db.models.verdict_settlement import VerdictSettlement
 from app.db.models.vocabulary import (
     UserConjugationProgress,
     VerbConjugation,
@@ -79,9 +86,11 @@ __all__ = [
     "RevueStoryPicture",
     "RevuePictogram",
     "RevueVignette",
+    "MailDelivery",
     "PasswordResetDelivery",
     "User",
     "StreakDay",
+    "StoryPoolPage",
     "RefreshToken",
     "VocabularyWord",
     "VocabularyDrillBatch",
@@ -117,6 +126,11 @@ __all__ = [
     "SerialEpisode",
     "SerialThread",
     "SpendReservation",
+    "VerdictCutover",
+    "VerdictRecord",
+    "VerdictSettlement",
+    "AnswerMemo",
+    "VerdictAppeal",
     "GraphicNovelAttempt",
     "GraphicNovelPanel",
     "GraphicNovelScene",
@@ -150,3 +164,8 @@ __all__ = [
     "DailyJourneyStep",
     "DailyJourneyMutation",
 ]
+
+# S2.1: the stored day plan is written as flushes land (DAY_PLAN_STORED; off by default).
+# Package V stage 2: the verdict ledger is written on every flush.
+from app.db import day_plan_listener as _day_plan_listener  # noqa: E402,F401
+from app.db import verdict_listener as _verdict_listener  # noqa: E402,F401

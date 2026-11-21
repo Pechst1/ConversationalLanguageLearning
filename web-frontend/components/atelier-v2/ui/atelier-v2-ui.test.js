@@ -743,4 +743,20 @@ console.log('atelier v2 design system tests passed');
   const labels = ['en', 'de', 'fr'].map((language) => copy.journeyCopy(language).correction_meaning);
   assert.ok(labels.every((label) => typeof label === 'string' && label.trim()), 'meaning copy exists');
   assert.equal(new Set(labels).size, 3, 'and is translated');
+
+  // #624: a missed free sentence is offered a model sentence, not «my sentence → this».
+  const mine = 'Les photos de ma grand-mère, je lui les envoie demain.';
+  const model = 'Ton livre ? Je te le rends demain, et je lui en parle.';
+  const example = render(h(ui.Correction, {
+    label: 'An example that uses the rule', kind: 'example', pickNotItLabel: 'Not this one:',
+    spanFr: mine, correctedFr: model, noteNative: 'Order: je le lui donne.',
+  }));
+  assert.ok(!example.includes('→'), 'a model is never drawn as the fix of the learner sentence');
+  assert.ok(example.includes('data-kind="example"'));
+  assert.ok(example.includes(model), 'the model sentence is shown');
+  assert.ok(!example.includes('photos') && !example.includes('<s>'), 'the learner sentence is not struck through or repeated');
+  assert.equal(correctionLabelKey('example'), 'correction_example');
+  const exampleLabels = ['en', 'de', 'fr'].map((language) => copy.journeyCopy(language).correction_example);
+  assert.ok(exampleLabels.every((label) => typeof label === 'string' && label.trim()), 'example copy exists');
+  assert.equal(new Set(exampleLabels).size, 3, 'and is translated');
 }

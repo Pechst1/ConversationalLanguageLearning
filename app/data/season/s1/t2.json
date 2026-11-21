@@ -5,7 +5,7 @@
   "intent": "This is the first long scene of the romance or friendship, and it must be fun. Lila reading Odile's captions aloud on the floor, crying with laughter, is the engine. The contradiction (the calendar) gives the learner their first piece of detective work. Under the jokes are three seeds that later hurt: the freshly repainted wall above the stove, «dimanche : M.», and Lila's own Polaroid.",
   "state_in": [
     "From gap 1: the notary has explained that nothing can be sold before the succession papers, which takes weeks.",
-    "From gap 1: you have moved your ticket to 2 December (user.return_ticket).",
+    "From gap 1: you have moved your ticket to {date:2026-12-02|en} (user.return_ticket).",
     "From gap 1: your usual order is known (user.usual_order).",
     "From gap 1: nobody has been inside the flat since T1.",
     "Flags read: s1.letter_trusted_to (if Lila, she has already asked to see the flat «avant eux»), s1.price_public, s1.camille_gender."
@@ -14,7 +14,7 @@
   "days": [
     {
       "day": "a",
-      "story_date_fr": "mercredi 18 novembre",
+      "story_date_fr": "{date:2026-11-18}",
       "title_fr": "Là-haut",
       "location_id": "stairwell",
       "minutes": 8,
@@ -550,7 +550,7 @@
     },
     {
       "day": "b",
-      "story_date_fr": "jeudi 19 novembre",
+      "story_date_fr": "{date:2026-11-19}",
       "title_fr": "Le Mistral à nous",
       "location_id": "odile_flat",
       "minutes": 8,
