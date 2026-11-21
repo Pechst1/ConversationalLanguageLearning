@@ -1218,6 +1218,22 @@ _RULE_TEXT: dict[str, dict[str, dict[str, str]]] = {
             "fr": "Le pluriel de « {noun} » est « {right} ».",
         },
     },
+    "FR_NUMBER_S": {
+        "label": {"en": "Numbers", "de": "Zahlen", "fr": "Nombres"},
+        "note": {
+            "en": "« {word} » keeps its s only at the end of the number: « {right} » here.",
+            "de": "« {word} » behält sein s nur am Ende der Zahl: hier « {right} ».",
+            "fr": "« {word} » ne prend un s qu’en fin de nombre : ici « {right} ».",
+        },
+    },
+    "FR_ADJ_PLURAL": {
+        "label": {"en": "Agreement", "de": "Angleichung", "fr": "Accord"},
+        "note": {
+            "en": "After « {subject} » the adjective is plural: « {right} », not « {wrong} ».",
+            "de": "Nach « {subject} » steht das Adjektiv im Plural: « {right} », nicht « {wrong} ».",
+            "fr": "Après « {subject} », l’adjectif est au pluriel : « {right} » et non « {wrong} ».",
+        },
+    },
 }
 #: Owner 2026-11-13: each rule's note without the right form. It is what the
 #: learner reads before a second chance (app/services/solution_gate.py): where
@@ -1358,6 +1374,16 @@ _RULE_HINT: dict[str, dict[str, str]] = {
         "de": "« {noun} » hat einen eigenen Plural: welchen?",
         "fr": "« {noun} » a un pluriel particulier : lequel ?",
     },
+    "FR_NUMBER_S": {
+        "en": "Another number follows « {word} »: does it keep its s?",
+        "de": "Auf « {word} » folgt noch eine Zahl: Behält es sein s?",
+        "fr": "Un autre nombre suit « {word} » : garde-t-il son s ?",
+    },
+    "FR_ADJ_PLURAL": {
+        "en": "The subject « {subject} » is plural: does the adjective follow it?",
+        "de": "Das Subjekt « {subject} » steht im Plural: Folgt ihm das Adjektiv?",
+        "fr": "Le sujet « {subject} » est au pluriel : l’adjectif le suit-il ?",
+    },
 }
 _GENDER_WORD = {
     "m": {"en": "masculine", "de": "maskulin", "fr": "masculin"},
@@ -1391,6 +1417,8 @@ def _edit(rule_id: str, text: str, start: int, end: int, replacement: str, **fie
         "FR_MON_VOWEL": "gender_agreement",
         "FR_PARTICIPLE_AGREE": "gender_agreement",
         "FR_ADJ_AGREE": "gender_agreement",
+        "FR_ADJ_PLURAL": "number_agreement",
+        "FR_NUMBER_S": "orthography",
         "FR_AVOIR_STATE_NOUN": "gender_agreement",
         "FR_PLURAL_NOUN": "number_agreement",
         "FR_PLURAL_FORM": "number_agreement",
@@ -2864,6 +2892,73 @@ def repair_text(text: object, *, people: Mapping[str, str] | None = None) -> str
     return apply_edits(source, deterministic_edits(source, people=people))
 
 
+#: Plural subject pronouns and the form of être each takes.
+_PLURAL_ETRE = {"nous": "sommes", "ils": "sont", "elles": "sont"}
+#: A degree word that may stand between être and its adjective («ils sont très calme»).
+_DEGREE_WORDS = frozenset({"très", "trop", "si", "vraiment", "tellement", "assez", "aussi", "toujours", "encore"})
+
+
+def _adjective_plural(word: str) -> str | None:
+    """The regular masculine plural of a lexicon adjective in its base form, else ``None``."""
+
+    if word[-1:] in {"s", "x", "z"}:
+        return None
+    if word.endswith(("eau", "eu")):
+        return word + "x"
+    if word.endswith("al"):
+        return word[:-2] + "aux"
+    return word + "s"
+
+
+def _predicate_adjective_plural(source: str, tokens: list[Tok], index: int) -> Edit | None:
+    """Walk 14 (A1 day 13): «Nous sommes drôle.» was right for the model and for the rules.
+
+    «nous sommes» / «ils sont» / «elles sont», then (after one degree word at most) an
+    adjective the lexicon lists in its base form, still singular: the adjective takes
+    the plural. The learner's gender is never read, so after «nous» and «elles» only an
+    adjective that is the same in both genders («drôle», «calme», «libre») is changed;
+    after «ils» the masculine plural is right whatever the word.
+    """
+
+    tok = tokens[index]
+    if index == 0 or tok.low not in {"sommes", "sont"}:
+        return None
+    subject = tokens[index - 1]
+    if _PLURAL_ETRE.get(subject.low) != tok.low or not _joined(source, subject, tok):
+        return None
+    at = index + 1
+    if at < len(tokens) and tokens[at].low in _DEGREE_WORDS and _joined(source, tok, tokens[at]):
+        at += 1
+    if at >= len(tokens) or not _joined(source, tokens[at - 1], tokens[at]):
+        return None
+    adjective = tokens[at]
+    entry = _lemma(adjective.low)
+    if not entry or entry.get("pos") != "adjective":
+        return None
+    if subject.low != "ils" and not adjective.low.endswith("e"):
+        return None
+    plural = _adjective_plural(adjective.low)
+    if plural is None:
+        return None
+    original = source[adjective.start : adjective.end]
+    right = _case(original, plural) if original[:1].isupper() else plural
+    return _edit("FR_ADJ_PLURAL", source, adjective.start, adjective.end, right,
+                 subject=subject.low, right=right, wrong=original)
+
+
+_NUMBER_FOLLOWERS = (
+    r"un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|treize|quatorze|quinze|seize|"
+    r"vingt|trente|quarante|cinquante|soixante|mille"
+)
+#: «quatre-vingts» and «deux cents» keep their s only at the end of the number:
+#: «quatre-vingt-dix», «deux cent trois», «quatre-vingt mille».
+_NUMBER_PLURAL_S = re.compile(
+    rf"(?<![\w-])(?:quatre-(?P<vingts>vingts)|(?:deux|trois|quatre|cinq|six|sept|huit|neuf)[ -](?P<cents>cents))"
+    rf"(?=[ -](?:{_NUMBER_FOLLOWERS})(?![\w]))",
+    re.IGNORECASE,
+)
+
+
 def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
     """One pass of the rules over ``source``, before any edit is settled."""
 
@@ -2879,6 +2974,12 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
         if any(edit.start < other.end and other.start < edit.end for other in found):
             return
         found.append(edit)
+
+    # --- walk 14: «quatre-vingts-dix», «deux cents trois»: the s only ends a number ---
+    for match in _NUMBER_PLURAL_S.finditer(source):
+        group = "vingts" if match.group("vingts") else "cents"
+        word = source[match.start() : match.end(group)]
+        add(_edit("FR_NUMBER_S", source, match.start(), match.end(group), word[:-1], word=word, right=word[:-1]))
 
     for i, tok in enumerate(tokens):
         nxt = tokens[i + 1] if i + 1 < len(tokens) else None
@@ -2910,6 +3011,12 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
                     add(_edit("FR_PERSON_AUX", source, tok.start, tok.end,
                               _case(source[tok.start:tok.end], right), subject=pronoun.casefold(), right=right))
                 continue
+
+        # --- walk 14: a predicate adjective after a plural subject («Nous sommes drôle») ---
+        plural_adjective = _predicate_adjective_plural(source, tokens, i)
+        if plural_adjective is not None:
+            add(plural_adjective)
+            continue
 
         # --- être-verbs conjugated with avoir; agreement after être ------------------
         if joined_next and nxt is not None:

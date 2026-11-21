@@ -282,6 +282,8 @@ def _accent_strict_word(learner_word: str, target_word: str) -> bool:
 
     if learner_word in ACCENT_HOMOGRAPHS or target_word in ACCENT_HOMOGRAPHS:
         return True
+    if _feminine_grave(learner_word, target_word):
+        return True
     lemmas = known_lemmas()
     for word in (target_word, learner_word):
         for ending in ("ées", "és", "ée", "é"):
@@ -293,6 +295,41 @@ def _accent_strict_word(learner_word: str, target_word: str) -> bool:
                     return False
                 return True
     return False
+
+
+def _feminine_grave(learner_word: str, target_word: str) -> bool:
+    """Walk 14 (B1 day 14): «secrete» passed for «secrète» as a spelling slip.
+
+    The grave accent of a feminine «-ète» / «-ère» (secret → secrète, complet → complète,
+    cher → chère, premier → première) is the agreement itself: written without it, the
+    word has the feminine e and not the feminine form. Strict when the target ends so,
+    the learner wrote the same letters without that one accent, and the masculine is a
+    lexicon word («secret»; for «-ère» an adjective, so «mere» for «mère» stays a slip).
+    """
+
+    for grave, plain, masculine in (("ète", "ete", "et"), ("ère", "ere", "er")):
+        for plural in ("", "s"):
+            ending, slipped = grave + plural, plain + plural
+            if not (target_word.endswith(ending) and learner_word.endswith(slipped)):
+                continue
+            stem = target_word[: -len(ending)]
+            if learner_word[: -len(slipped)] != stem or not stem:
+                continue
+            entry = _lexicon_entry(stem + masculine)
+            if entry is None:
+                return False
+            return grave == "ète" or entry.get("pos") == "adjective"
+    return False
+
+
+@lru_cache(maxsize=4096)
+def _lexicon_entry(word: str) -> dict[str, Any] | None:
+    try:
+        from app.services.lexical_coverage import load_lexicon
+
+        return load_lexicon().lemmas.get(word)
+    except Exception:  # pragma: no cover - the lexicon is optional context
+        return None
 
 
 @lru_cache(maxsize=1)
