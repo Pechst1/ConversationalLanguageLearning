@@ -88,7 +88,7 @@ def test_a_wrong_sentence_sorted_correct_is_filed_as_the_sentence_and_its_fix(db
     assert erratum["learner_text"] == "Lila cherche une grand affiche."
     assert erratum["corrected_target"] == "Lila cherche une grande affiche."
     assert erratum["why_wrong"] == (
-        "“Lila cherche une grand affiche.” is not right; it should be “Lila cherche une grande affiche.”."
+        "“Lila cherche une grand affiche” is not right; it should be “Lila cherche une grande affiche”."
     )
 
     user = _user(db_session)

@@ -282,6 +282,29 @@ def has_live_prefetch(db: Session, user: User, *, input_mode: InputMode = InputM
     return bool(_live_prefetch_rows(db, user, cache_key=key))
 
 
+def waiting_scene_place(db: Session, user: User) -> str | None:
+    """Where the scene waiting for Start plays (its brief's ``location_id``), or ``None``
+    when no prefetched scene would be served right now. Reads only: nothing is consumed
+    or discarded here (``take_prefetched_scene`` does that at Start).
+
+    P12 round 3: a gap day is written at night. Once it is, Home knows its place before
+    Start, so Le Quartier can be offered on a day set in a place it has built (walk
+    17 Nov: day 3 «Chez le notaire» and day 5 «Ton appartement» were written ahead of
+    time, and Home offered the page only)."""
+
+    if not prefetch_enabled_for(user):
+        return None
+    key = scene_cache_key(db, user)
+    if key is None:
+        return None
+    for row in _live_prefetch_rows(db, user, cache_key=key):
+        brief = (row.payload or {}).get("brief")
+        place = str(brief.get("location_id") or "").strip() if isinstance(brief, dict) else ""
+        if place:
+            return place
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Producing a prefetch
 # ---------------------------------------------------------------------------
@@ -320,6 +343,35 @@ def _weekly_spend_usd(db: Session, user: User) -> float:
         )
     ).all()
     return round(sum(float(value or 0.0) for value in rows), 6)
+
+
+def _log_night_run(status: str, outcome: dict, seconds: float, *, reason: str | None = None) -> None:
+    """P11: one structured line per night run that asked the writer for a page, so the
+    pilot can count how often a night lands and why it does not (``night_run {json}``).
+    ``kept``: null when the served draft was accepted as it was (or nothing was served);
+    else ``{"as", "attempt", "why", "issue"}`` (``living_story._kept_note``): a draft the
+    critic refused for storytelling only (``critic_kept`` / ``critic_override``) or one
+    refused for its reading aids (``soft_kept``). A refusal row carries ``failed``, the
+    critic's rubric items, when the critic refused (round 4)."""
+
+    line = {
+        "status": status,
+        **({"reason": reason} if reason else {}),
+        "attempts": outcome.get("attempts", 0),
+        "calls": outcome.get("calls", 0),
+        "seconds": round(seconds, 1),
+        "kept": outcome.get("kept"),
+        "refusals": [
+            {
+                "attempt": row.get("attempt"),
+                "class": row.get("class"),
+                **({"failed": row["failed"]} if row.get("failed") else {}),
+                "reason": row.get("reason"),
+            }
+            for row in outcome.get("refusals") or []
+        ],
+    }
+    logger.info("journey_latency: night_run %s", json.dumps(line, ensure_ascii=False))
 
 
 def prefetch_scene_for(
@@ -380,18 +432,20 @@ def prefetch_scene_for(
         return "skipped_budget"
 
     from app.services.journey_contracts import ContentUnavailable
-    from app.services.living_story import generate_scene, written_ahead_of_time
+    from app.services.living_story import generate_scene, generation_outcome, written_ahead_of_time
 
     started = time.monotonic()
     # WP-92: the day this scene is for is the learner's today (an open or finished day
     # refuses the prefetch above), so ``generate_scene``'s default ``now`` picks its
     # grammar plan, and the cache key carries that plan's new unit.
-    with written_ahead_of_time():
+    with written_ahead_of_time(), generation_outcome() as outcome:
         result = generate_scene(db, user=user, input_mode=input_mode)
     elapsed = time.monotonic() - started
     if isinstance(result, ContentUnavailable) or not isinstance(result, ScenarioBrief):
+        _log_night_run("unavailable", outcome, elapsed, reason=getattr(result, "reason", None))
         db.commit()
         return "unavailable"
+    _log_night_run("prefetched", outcome, elapsed)
 
     # The key is recomputed from the brief the provider actually produced: if the
     # thread moved under a long generation, this row is born stale and the serve

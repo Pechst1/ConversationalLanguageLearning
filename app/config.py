@@ -134,6 +134,14 @@ class Settings(BaseSettings):
             "app.tasks.verdict_settle. Off, it waits for the learner's «Check again» as before."
         ),
     )
+    VERDICT_SETTLE_FORGE: bool = Field(
+        False,
+        description=(
+            "Stage R1: a La Forge free sentence whose second check failed (refused call, timeout, "
+            "invalid output) is queued and checked again by app.tasks.verdict_settle. Off, nothing "
+            "of La Forge's is queued or settled; «Check again» stays the only way out."
+        ),
+    )
     VERDICT_SETTLE_MAX_ATTEMPTS: int = Field(
         5, ge=1, description="Package V stage 3: background attempts per unread answer before the job gives up."
     )
@@ -786,6 +794,17 @@ class Settings(BaseSettings):
             "runs on what they read. Off: every learner's page is written for them."
         ),
     )
+    DAY_BRIEF_ENABLED: bool = Field(
+        False,
+        description=(
+            "S1.1 «one day brief», shadow stage: when a day is planned, its rule, page "
+            "review, Forge anchor, test-out candidate, word-plan pointer and the scene's "
+            "grammar pick are stored once in plan_selection['brief'] (app/services/"
+            "day_brief.py), and every surface that still picks today's rule on its own "
+            "logs a 'day_brief_disagreement' warning when its answer differs. Nothing "
+            "reads the brief yet. Off: nothing is built, stored or compared."
+        ),
+    )
     ATELIER_SEASON_WRITER_ENABLED: bool = Field(
         False,
         description=(
@@ -1069,6 +1088,16 @@ class Settings(BaseSettings):
             "production (the same rule as ATELIER_DAILY_JOURNEY_COHORT)."
         ),
     )
+    ATELIER_STORY_ACTS_ACCOUNTS: str = Field(
+        "",
+        description=(
+            "Owner 2026-11-16: comma-separated user ids or emails (case-insensitive) the "
+            "night writes acts for even while ATELIER_STORY_ACTS is off — the owner tries "
+            "«Le soir» on his own account before any tester sees it. Names accounts only: "
+            "'*' names nobody here (the global switch and its cohort are for everyone). "
+            "Empty: nobody. Set in the dashboard on the API and the worker (sync: false)."
+        ),
+    )
     ATELIER_STORY_ACTS_DAILY_SPEND_CAP_USD: float = Field(
         0.0,
         ge=0,
@@ -1101,6 +1130,19 @@ class Settings(BaseSettings):
             "so this is a hard cost bound, not a nudge: at the cap the learner is told "
             "in French how long until the next one. 0 switches the feature off — the "
             "page then explains why rather than 500-ing."
+        ),
+    )
+
+    # ---- S2.1: one stored day plan (shadow) ---------------------------------
+    DAY_PLAN_STORED: bool = Field(
+        False,
+        description=(
+            "S2.1: store the day's plan (scene, grammar, words) on the journey row when the "
+            "day is planned, write each step's status from the events that already happen "
+            "(journey started/paused/finished, a Forge séance finished, words done), and on "
+            "every read of the day's session compare it with today's recomputed view, logging "
+            "`day_plan_shadow_mismatch`. The API keeps serving the recomputed view. Off: nothing "
+            "is stored or compared."
         ),
     )
 

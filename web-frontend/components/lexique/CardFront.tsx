@@ -14,17 +14,21 @@ export function CardFront({
   texts,
   hint,
   listen,
+  promptLang,
 }: {
   texts: Pick<CardTexts, 'prompt' | 'promptIsFrench' | 'ask'>;
   hint: string;
   /** The ear button, offered on a French front only. */
   listen: React.ReactNode;
+  /** The headline's `lang`: «fr» on a French front, the learner's gloss language on a
+   *  meaning front (main's R5 marks); defaults to «fr» / none from `texts`. */
+  promptLang?: string;
 }) {
   return (
     <div className="lx-card__middle">
       <div className="lx-card__top">{texts.promptIsFrench && listen}</div>
       {texts.ask && <p className="lx-card__ask" data-card-ask="">{texts.ask}</p>}
-      <p className="av2-headline lx-card__word review-prompt-term" lang={texts.promptIsFrench ? 'fr' : undefined}>
+      <p className="av2-headline lx-card__word review-prompt-term" lang={promptLang ?? (texts.promptIsFrench ? 'fr' : undefined)}>
         {texts.prompt}
       </p>
       {hint && <p className="lx-card__hint">{hint}</p>}

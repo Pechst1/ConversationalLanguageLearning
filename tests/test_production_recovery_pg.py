@@ -60,6 +60,64 @@ def test_current_schema_dump_restores_and_is_verified(restore_env, tmp_path):
     assert "users:" in result.stdout and "dropped wp73_drill_" in result.stdout
 
 
+def _stub_pg_restore(tmp_path, *, version, dumped_from=None):
+    """A pg_restore that reports another major version, as on a runner whose client tools moved on."""
+    real = shutil.which("pg_restore")
+    bindir = tmp_path / "stub-bin"
+    bindir.mkdir()
+    listing = (
+        f'if [ "$1" = "-l" ]; then "{real}" "$@" | sed "s/Dumped from database version: .*/Dumped from database version: {dumped_from}/"; exit 0; fi\n'
+        if dumped_from else ""
+    )
+    stub = bindir / "pg_restore"
+    stub.write_text(
+        "#!/bin/sh\n"
+        f'if [ "$1" = "--version" ]; then echo "pg_restore (PostgreSQL) {version}"; exit 0; fi\n'
+        f"{listing}"
+        f'exec "{real}" "$@"\n'
+    )
+    stub.chmod(0o755)
+    return bindir
+
+
+def _server_major(env):
+    with psycopg2.connect(host=env["PGHOST"], port=env["PGPORT"], user=env["PGUSER"], password=env["PGPASSWORD"], dbname="postgres") as connection:
+        return connection.server_version // 10000
+
+
+def _dump(url, env, tmp_path):
+    dump = tmp_path / "recovery.dump"
+    subprocess.run(  # noqa: S603 - trusted disposable database and generated fixture path
+        [shutil.which("pg_dump"), "-Fc", "--file", str(dump), "--dbname", url.database], env=env, check=True,
+    )
+    return dump
+
+
+def test_a_pg_restore_newer_than_the_server_is_refused_before_anything_is_created(restore_env, tmp_path):
+    # 18 Nov 2026: the runner image moved to client tools 18; pg_restore 18 sent
+    # `SET transaction_timeout`, which the PostgreSQL 15 server rejected mid-restore.
+    env, url = restore_env
+    dump = _dump(url, env, tmp_path)
+    newer = _server_major(env) + 3
+    env = {**env, "PG_BINDIR": str(_stub_pg_restore(tmp_path, version=f"{newer}.1"))}
+    result = _restore(dump, env)
+    assert result.returncode != 0
+    assert f"pg_restore is {newer} but the target server is {_server_major(env)}" in result.stderr
+    assert "creating throwaway database" not in result.stdout
+
+
+def test_a_dump_from_a_newer_server_is_refused_before_anything_is_created(restore_env, tmp_path):
+    # Production dumped with its own (newer) major cannot be drilled on an older local server.
+    env, url = restore_env
+    dump = _dump(url, env, tmp_path)
+    major = _server_major(env)
+    env = {**env, "PG_BINDIR": str(_stub_pg_restore(tmp_path, version=f"{major}.0", dumped_from=f"{major + 1}.2"))}
+    result = _restore(dump, env)
+    assert result.returncode != 0
+    assert f"the dump comes from PostgreSQL {major + 1} but the target server is {major}" in result.stderr
+    assert "creating throwaway database" not in result.stdout
+
+
 @pytest.mark.parametrize("broken", ["outdated-head", "missing-columns", "invalid-dump"])
 def test_broken_restores_fail_and_are_cleaned_up(restore_env, tmp_path, broken):
     env, _ = restore_env
