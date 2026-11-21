@@ -1,0 +1,110 @@
+/**
+ * «Papier · les rendez-vous» · the pure part of the client: the pairing of «Trois mots», what a
+ * miss says, the line a regular says in the learner's language, the une's count.
+ */
+
+import type { RvLanguage } from '@/lib/revue-types';
+import { TM_WORD_KEYS, type RvSouvenir, type RvTmCueKey, type RvTmWordKey, type RvTroisMots } from '@/lib/revue-rdv';
+
+
+import { standfirstFor } from '../papier/papier-model';
+import { countLine, fillRdv, type RdvCopy } from './rdv-copy';
+
+export type Pairs = Partial<Record<RvTmWordKey, RvTmCueKey>>;
+
+/** The word a tapped cue goes to: the first word without a cue. */
+export function activeWord(pairs: Pairs): RvTmWordKey | null {
+  return TM_WORD_KEYS.find((key) => !pairs[key]) ?? null;
+}
+
+/** Tap a cue: it goes to `word` (default: the first unmatched one), leaving any word that had it. */
+export function pairCue(pairs: Pairs, cue: RvTmCueKey, word: RvTmWordKey | null = activeWord(pairs)): Pairs {
+  if (!word) return pairs;
+  const next: Pairs = {};
+  for (const key of TM_WORD_KEYS) if (pairs[key] && pairs[key] !== cue) next[key] = pairs[key];
+  next[word] = cue;
+  return next;
+}
+
+/** Tap a matched word: it lets its cue go. */
+export function unpair(pairs: Pairs, word: RvTmWordKey): Pairs {
+  const next: Pairs = { ...pairs };
+  delete next[word];
+  return next;
+}
+
+export function complete(pairs: Pairs): pairs is Record<RvTmWordKey, RvTmCueKey> {
+  return TM_WORD_KEYS.every((key) => Boolean(pairs[key])) && new Set(TM_WORD_KEYS.map((k) => pairs[k])).size === 3;
+}
+
+/** After a miss: the pairs the miss did not name stay; the named ones are free to try again
+ * (the miss lines already say which words were wrong, never which cue was right). */
+export function keepRight(pairs: Pairs, round: RvTroisMots): Pairs {
+  const wrong = new Set(round.match.misses.map((miss) => miss.wordKey));
+  const next: Pairs = {};
+  for (const key of TM_WORD_KEYS) if (pairs[key] && !wrong.has(key)) next[key] = pairs[key];
+  return next;
+}
+
+/** The pairs the learner sees: before the first check, theirs; after a miss, the last tried; once
+ * resolved, the solution. */
+export function shownPairs(round: RvTroisMots, local: Pairs): Pairs {
+  if (round.match.resolved && round.match.solution) return round.match.solution;
+  return local;
+}
+
+/** What each wrong pair of the last try says, in the mother tongue (never the right cue). */
+export function missLines(round: RvTroisMots, xcopy: RdvCopy): string[] {
+  if (round.match.resolved && round.match.correct) return [];
+  return round.match.misses.map((miss) => {
+    const word = round.words.find((w) => w.key === miss.wordKey);
+    const cue = round.cues.find((c) => c.key === miss.cueKey);
+    if (!word || !cue) return '';
+    return cue.kind === 'picture'
+      ? fillRdv(xcopy.tm_miss_picture, { word: word.bareFr })
+      : fillRdv(xcopy.tm_miss_gloss, { word: word.bareFr, cue: cue.text ?? '' });
+  }).filter(Boolean);
+}
+
+export function gapMissLine(round: RvTroisMots, xcopy: RdvCopy): string | null {
+  const miss = round.gap?.miss;
+  if (!miss || round.gap?.correct) return null;
+  const word = round.words.find((w) => w.key === miss.wordKey);
+  return word ? fillRdv(xcopy.tm_gap_miss, { word: word.bareFr, gloss: miss.gloss }) : null;
+}
+
+/** A regular's line in the learner's language: null for French (the line is French). */
+export function souvenirTranslation(line: RvSouvenir, language: RvLanguage): string | null {
+  if (language === 'en') return line.en || null;
+  if (language === 'de') return line.de || null;
+  return null;
+}
+
+export function uneCount(copy: RdvCopy, filed: number, total: number): string {
+  return countLine(copy, 'une_count', filed, { total });
+}
+
+/**
+ * «La une de la semaine» composed as a front page («la belle édition», 2026-11-21), for any
+ * count of pieces without a hole: the server's first item leads (a «Le titre» when there is
+ * one); the first opinion or interview among the rest is lifted as the pull quote (when at
+ * least two pieces stand beside the lead, so the page never reads as a quote and a lead
+ * only); then up to two pieces in the ruled column; the rest (5–6 pieces) as briefs.
+ */
+export type UneLayout<T> = { lead: T | null; pull: T | null; column: T[]; briefs: T[] };
+
+export function uneLayout<T extends { role: string }>(items: T[]): UneLayout<T> {
+  if (!items.length) return { lead: null, pull: null, column: [], briefs: [] };
+  const [lead, ...rest] = items;
+  const pullAt = rest.length >= 2 ? rest.findIndex((item) => item.role === 'vox' || item.role === 'quote') : -1;
+  const pull = pullAt >= 0 ? rest[pullAt] : null;
+  const others = rest.filter((_, index) => index !== pullAt);
+  const columnSize = others.length > 3 ? 2 : others.length;
+  return { lead, pull, column: others.slice(0, columnSize), briefs: others.slice(columnSize) };
+}
+
+/** The line under a piece's headline on the une: the story's title only when the learner's headline does not already say it. */
+export function uneStandfirst(item: { role: string; textFr: string; storyTitleFr: string }): string | null {
+  if (item.role !== 'headline') return null;
+  return standfirstFor(item.textFr, item.storyTitleFr);
+}

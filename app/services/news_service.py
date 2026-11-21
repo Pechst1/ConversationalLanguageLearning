@@ -637,6 +637,32 @@ class NewsService:
             limit=limit,
         )
 
+    _MRSS = "{http://search.yahoo.com/mrss/}"
+
+    def _press_photo(self, item: object) -> tuple[bool, str]:
+        """Whether an RSS item carries the outlet's photo (``enclosure`` of an image type,
+        ``media:content`` of medium/type image, ``media:thumbnail``), and the photo's credit text
+        when the feed gives one (``media:credit``). Nothing else is read: not the URL, not the
+        file (the product rule is «no republishing»)."""
+
+        mrss = self._MRSS
+        has_photo = False
+        for enclosure in item.findall("enclosure"):  # type: ignore[attr-defined]
+            if str(enclosure.get("type") or "").lower().startswith("image/"):
+                has_photo = True
+        for content in item.iter(f"{mrss}content"):  # type: ignore[attr-defined]
+            medium = str(content.get("medium") or "").lower()
+            kind = str(content.get("type") or "").lower()
+            if medium == "image" or kind.startswith("image/"):
+                has_photo = True
+        if item.find(f".//{mrss}thumbnail") is not None:  # type: ignore[attr-defined]
+            has_photo = True
+        credit = ""
+        if has_photo:
+            node = item.find(f".//{mrss}credit")  # type: ignore[attr-defined]
+            credit = self._clean_text(node.text if node is not None and node.text else "")[:200]
+        return has_photo, credit
+
     def _parse_rss_items(
         self,
         xml_text: str,
@@ -691,15 +717,21 @@ class NewsService:
                 if source_hint.lower() == "substack" and "substack" not in source.lower():
                     source = f"{source} (Substack)".strip()
 
-                items.append(
-                    {
-                        "title": title,
-                        "url": link,
-                        "source": source or source_hint,
-                        "summary": description[:220],
-                        "language": language,
-                    }
-                )
+                parsed = {
+                    "title": title,
+                    "url": link,
+                    "source": source or source_hint,
+                    "summary": description[:220],
+                    "language": language,
+                }
+                # «Papier · photos» (2026-11-20): the outlet's own photo is never stored or shown
+                # (no republishing); only that one exists, and its credit when the feed gives it.
+                has_photo, credit = self._press_photo(item)
+                if has_photo:
+                    parsed["press_photo"] = "yes"
+                    if credit:
+                        parsed["press_photo_credit"] = credit
+                items.append(parsed)
                 if len(items) >= limit:
                     break
             return items

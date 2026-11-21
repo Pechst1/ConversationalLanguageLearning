@@ -130,7 +130,14 @@ from app.services.revue.checks import (
     failures,
     visual_word_claim,
 )
-from app.services.revue.dossier import Claim, EditorialDossier, fold, parse_week, week_bounds
+from app.services.revue.dossier import (
+    ASSIGNMENT_FIELDS,
+    Claim,
+    EditorialDossier,
+    fold,
+    parse_week,
+    week_bounds,
+)
 from app.services.revue.evergreen import evergreens_for_week, load_evergreens
 from app.services.revue.session import (
     ROMY_ID,
@@ -629,7 +636,7 @@ def stage_for(
     *,
     db: Any = None,
 ) -> RvStage:
-    from app.services.revue import plates
+    from app.services.revue import photos, plates
 
     place = next((p for p in dossier.places if plan is None or p.id == plan.stage.place_id), dossier.places[0])
     kind = policy.place_kind(f"{place.id} {place.name_fr} {place.brief}")
@@ -667,6 +674,7 @@ def stage_for(
         plate_switched=bool(second_url) and state is not None and plate_switched(state),
         plate_kind=first.kind,
         picture_words=picture_words(dossier, plan) if first.kind == "story" else [],
+        pictures=photos.gallery_for(db, dossier),
     )
 
 
@@ -939,11 +947,14 @@ class FakeRevueProvider:
         learner = re.sub(r"\s+", " ", str(context.get("learner_fr") or "")).strip()
         text = learner
         marks: list[dict[str, str]] = []
+        language = context.get("explain_language")
         for pattern, fixed, kind in _FAKE_EDITS:
             found = re.search(pattern, text)
             if found:
                 if len(marks) < 3:
                     marks.append({"span_fr": found.group(0), "kind": kind})
+                    if language:  # «Le pourquoi»: the rule, in the learner's language, from a small table
+                        marks[-1].update(_fake_whys(kind, str(language), fixed))
                 text = re.sub(pattern, fixed, text)
         text = text[:1].upper() + text[1:]
         if text and not re.search(r"[.!?…]$", text):
@@ -951,6 +962,39 @@ class FakeRevueProvider:
         example = str(context.get("example_reply_fr") or "")
         return {"edited_fr": text, "marks": marks, "reply_fr": example,
                 "reply_en": context.get("example_reply_en"), "reply_de": context.get("example_reply_de")}
+
+    def fil_edit(self, context: dict[str, Any]) -> dict[str, Any]:
+        """«Le fil»: Romy's correction of the learner's telling, from the same table of slips."""
+
+        out = self.comptoir_edit(context)
+        self.calls[-1] = ("fil_edit", context)
+        return {"edited_fr": out["edited_fr"], "marks": out["marks"]}
+
+    def titre_edit(self, context: dict[str, Any]) -> dict[str, Any]:
+        """«Le titre»: Romy's correction of the learner's headline (no final stop), same slips."""
+
+        out = self.comptoir_edit(context)
+        self.calls[-1] = ("titre_edit", context)
+        return {"edited_fr": str(out["edited_fr"]).rstrip(" ."), "marks": out["marks"]}
+
+    def rubrique_edit(self, context: dict[str, Any]) -> dict[str, Any]:
+        """«La photo», «Le micro»: Romy's correction of a caption or of the interview's questions,
+        from the same table of slips (a question keeps its « ?»)."""
+
+        out = self.comptoir_edit(context)
+        self.calls[-1] = ("rubrique_edit", context)
+        return {"edited_fr": out["edited_fr"], "marks": out["marks"]}
+
+    def micro_match(self, context: dict[str, Any]) -> dict[str, Any]:
+        """«Le micro»: which stored fact an ambiguous question asks for. Scripted
+        (``micro_script``), else the first candidate."""
+
+        self.calls.append(("micro_match", context))
+        script = getattr(self, "micro_script", None)
+        if script:
+            return dict(script.pop(0))
+        candidates = context.get("candidates") or []
+        return {"fact": candidates[0]["key"] if candidates else "none"}
 
     def guest(self, context: dict[str, Any]) -> dict[str, Any]:
         """Entry: the guest's reason, ``against`` on a disagreement angle, else ``for``.
@@ -971,6 +1015,33 @@ class FakeRevueProvider:
 
 
 #: The fake edit's table: (slip, fix, kind of slip).
+#: «Le pourquoi» (fake provider): the hint (never the answer) and the full why, by kind and language.
+_FAKE_WHYS: dict[str, dict[str, tuple[str, str]]] = {
+    "accord": {
+        "en": ("In French the article and the adjective agree with their noun in number.",
+               "In French the article and the adjective agree with their noun in number: «{fixed}»."),
+        "de": ("Im Französischen richten sich Artikel und Adjektiv in der Zahl nach dem Nomen.",
+               "Im Französischen richten sich Artikel und Adjektiv in der Zahl nach dem Nomen: «{fixed}»."),
+        "fr": ("L'article et l'adjectif s'accordent en nombre avec le nom.",
+               "L'article et l'adjectif s'accordent en nombre avec le nom : «{fixed}»."),
+    },
+    "orthographe": {
+        "en": ("This word takes an accent on its vowel: check the spelling.",
+               "This word takes an accent on its vowel: «{fixed}»."),
+        "de": ("Dieses Wort hat einen Akzent auf dem Vokal: prüf die Schreibung.",
+               "Dieses Wort hat einen Akzent auf dem Vokal: «{fixed}»."),
+        "fr": ("Ce mot prend un accent sur la voyelle : vérifie l'orthographe.",
+               "Ce mot prend un accent sur la voyelle : «{fixed}»."),
+    },
+}
+
+
+def _fake_whys(kind: str, language: str, fixed: str) -> dict[str, str]:
+    table = _FAKE_WHYS.get(kind, {})
+    hint, full = table.get(language) or table.get("en") or ("", "")
+    return {"why_hint": hint, "why_full": full.format(fixed=fixed)} if hint else {}
+
+
 _FAKE_EDITS: tuple[tuple[str, str, str], ...] = (
     (r"\b[Ll]e gens\b", "les gens", "accord"),
     (r"\bsont content\b", "sont contents", "accord"),
@@ -1238,13 +1309,47 @@ class OpenAIRevueProvider:
     def comptoir_edit(self, context: dict[str, Any]) -> dict[str, Any]:
         """«Au comptoir»: Romy's edit of the learner's opinion and a regular's reply (one call)."""
 
-        from app.services.revue.comptoir_loop import (
-            COMPTOIR_EDIT_INSTRUCTIONS,
-            COMPTOIR_EDIT_SYSTEM,
-        )
+        from app.services.revue.comptoir_loop import COMPTOIR_EDIT_SYSTEM
+        from app.services.revue.pourquoi import edit_instructions
 
-        return self.ask_json(COMPTOIR_EDIT_INSTRUCTIONS, context, system=COMPTOIR_EDIT_SYSTEM, temperature=0.5,
+        # Today's instructions unless the context asks for the marks' why («Le pourquoi»).
+        return self.ask_json(edit_instructions(context), context, system=COMPTOIR_EDIT_SYSTEM, temperature=0.5,
                              label="comptoir_edit")
+
+    def fil_edit(self, context: dict[str, Any]) -> dict[str, Any]:
+        """«Le fil»: Romy's edit of the learner's two-sentence telling (one call)."""
+
+        from app.services.revue.fil_loop import FIL_EDIT_SYSTEM
+        from app.services.revue.pourquoi import fil_edit_instructions
+
+        # Today's instructions unless the context asks for the marks' why («Le pourquoi»).
+        return self.ask_json(fil_edit_instructions(context), context, system=FIL_EDIT_SYSTEM, temperature=0.3,
+                             label="fil_edit")
+
+    def titre_edit(self, context: dict[str, Any]) -> dict[str, Any]:
+        """«Le titre»: Romy's edit of the learner's headline (one call)."""
+
+        from app.services.revue.pourquoi import titre_edit_instructions
+        from app.services.revue.titre_loop import TITRE_EDIT_SYSTEM
+
+        # Today's instructions unless the context asks for the marks' why («Le pourquoi»).
+        return self.ask_json(titre_edit_instructions(context), context, system=TITRE_EDIT_SYSTEM, temperature=0.3,
+                             label="titre_edit")
+
+    def rubrique_edit(self, context: dict[str, Any]) -> dict[str, Any]:
+        """«La photo», «Le micro»: Romy's edit of the learner's caption or questions (one call)."""
+
+        from app.services.revue.rubrique_proof import EDIT_SYSTEM, edit_instructions
+
+        return self.ask_json(edit_instructions(context), context, system=EDIT_SYSTEM, temperature=0.3,
+                             label=f"{context.get('kind') or 'rubrique'}_edit")
+
+    def micro_match(self, context: dict[str, Any]) -> dict[str, Any]:
+        """«Le micro»: which of the candidate facts an ambiguous question asks for (one call)."""
+
+        from app.services.revue.micro_loop import MATCH_INSTRUCTIONS, MATCH_SYSTEM
+
+        return self.ask_json(MATCH_INSTRUCTIONS, context, system=MATCH_SYSTEM, temperature=0.0, label="micro_match")
 
     def guest(self, context: dict[str, Any]) -> dict[str, Any]:
         return self._ask(
@@ -1361,10 +1466,11 @@ class RevueError(Exception):
 def _require_chat(loaded: Any) -> None:
     """«Au comptoir»: a comptoir session has no chat turn and no make."""
 
-    from app.services.revue.comptoir_loop import session_mode
+    from app.services.revue.assignments import session_mode
 
-    if session_mode(loaded.state) == "comptoir":
-        raise RevueError(409, "revue_comptoir_session")
+    mode = session_mode(loaded.state)
+    if mode != "chat":
+        raise RevueError(409, f"revue_{mode}_session")
 
 
 def _require_own_line(loaded: Any) -> None:
@@ -1766,7 +1872,17 @@ def _comptoir_fields(loaded: Loaded) -> dict[str, Any]:
     """«Au comptoir»: ``mode`` and the player's view, for a session that started there."""
 
     from app.services.revue import comptoir_loop
+    from app.services.revue.assignments import session_mode
 
+    mode = session_mode(loaded.state)
+    if mode == "fil" and loaded.dossier.fil is not None:
+        from app.services.revue import fil_loop
+
+        return {"mode": "fil", "fil": fil_loop.fil_view(loaded)}
+    if mode in {"titre", "intox", "photo", "micro"} and getattr(loaded.dossier, mode) is not None:
+        from app.services.revue import rubriques
+
+        return {"mode": mode, mode: rubriques.loop(mode).view(loaded)}  # type: ignore[union-attr]
     if comptoir_loop.session_mode(loaded.state) != "comptoir" or loaded.dossier.comptoir is None:
         return {}
     return {"mode": "comptoir", "comptoir": comptoir_loop.comptoir_view(loaded)}
@@ -2125,12 +2241,22 @@ class RevueEncounter:
                 reason = "topic_least_recent"
             elif interest_a < interest_b:
                 reason = "interests"
+        from app.services.revue.weekly import is_daily_period
+
+        if is_daily_period(week):
+            # «Papier · les rendez-vous»: that morning's stories first, never one already played.
+            from app.services.revue.daily import deal_daily
+
+            dealt = deal_daily(self.db, user, week, ordered)
+            if not dealt or not ordered or dealt[0].id != ordered[0].id:
+                reason = "first"
+            ordered = dealt
         return ordered, reason
 
     def week_offer(self, user: Any, week: str | None = None) -> RvOffer:
         week = week or current_period()
         ordered, reason = self.ranked(user, week)
-        cards = [story_card(d, self.db) for d in ordered[:3]]
+        cards = [self._card_for(user, d) for d in ordered[:3]]
         resume = None
         filed = None
         rows = self._sessions(user, week=week)
@@ -2235,18 +2361,31 @@ class RevueEncounter:
 
         spent_before = self._spent()
         takes, desk_cost = self._takes_at_start(dossier, week)
+        takes, dealt = self._deal(user, dossier, takes)
         plan = self._plan(user, dossier, angle_id=angle_id, chosen_by=chosen_by)
         state = ConversationState()
-        if takes is not None:
+        if dealt is not None:
+            # «Le fil», «Le titre», «L'intox express» (2026-11-20): the dealt assignment is
+            # fixed here for the session's life; only its own material is snapshotted.
+            mode, material = dealt
+            others = {"comptoir", *ASSIGNMENT_FIELDS} - {mode}
+            state.append("choice", kind="dossier", dossier_id=dossier.id, chosen_by=chosen_by,
+                         free_request=(free_request or None), mode=mode,
+                         snapshot=dossier.model_copy(update={mode: material}).model_dump(mode="json", exclude=others),
+                         cost_usd=round(self._spent() - spent_before + desk_cost, 6),
+                         prompt_version=VOCABULARY_PROMPT_VERSION)
+        elif takes is not None:
             # «Au comptoir» (WP-119, 2026-10-19): the mode is fixed here for the session's life.
             state.append("choice", kind="dossier", dossier_id=dossier.id, chosen_by=chosen_by,
                          free_request=(free_request or None), mode="comptoir",
-                         snapshot=dossier.model_copy(update={"comptoir": takes}).model_dump(mode="json"),
+                         snapshot=dossier.model_copy(update={"comptoir": takes}).model_dump(
+                             mode="json", exclude=set(ASSIGNMENT_FIELDS)),
                          cost_usd=round(self._spent() - spent_before + desk_cost, 6),
                          prompt_version=VOCABULARY_PROMPT_VERSION)
         else:
             state.append("choice", kind="dossier", dossier_id=dossier.id, chosen_by=chosen_by,
-                         free_request=(free_request or None), snapshot=dossier.model_dump(mode="json", exclude={"comptoir"}),
+                         free_request=(free_request or None),
+                         snapshot=dossier.model_dump(mode="json", exclude={"comptoir", *ASSIGNMENT_FIELDS}),
                          cost_usd=round(self._spent() - spent_before + desk_cost, 6),
                          prompt_version=VOCABULARY_PROMPT_VERSION)
             self._arrive(state, dossier, plan, request_miss=request_miss)
@@ -2289,6 +2428,70 @@ class RevueEncounter:
         except Exception as exc:  # noqa: BLE001 - never lose a start to the desk: a chat
             logger.bind(dossier=dossier.id).warning("revue comptoir: takes at start failed ({}); a chat", exc)
             return None, 0.0
+
+    def _deal(self, user: Any, dossier: EditorialDossier, takes: Any) -> tuple[Any, Any]:
+        """«Le Papier · les rubriques» (2026-11-20): the takes, or the dealt assignment and its
+        material (``(mode, material)``), the new session plays. Off
+        (``REVUE_ASSIGNMENTS_ENABLED``): the takes as before and nothing dealt. On: the dealer
+        (``assignments.deal``) picks one assignment the story carries that is not the shape of
+        the learner's last two Papiers; the others' material is dropped."""
+
+        from app.services.revue import assignments
+
+        if not assignments.assignments_enabled():
+            return takes, None
+        material = self._material(dossier, takes)
+        dealt = self._dealt(user, material)
+        if dealt == "comptoir":
+            return takes, None
+        if dealt is None:
+            return None, None
+        return None, (dealt, assignments.dealt_material(material, dealt))
+
+    def _material(self, dossier: EditorialDossier, takes: Any) -> Any:
+        """What ``dossier`` carries for the dealer: the takes, the wire, the headlines, the
+        statements. The start and the chooser's card deal over the same material."""
+
+        from app.services.revue import assignments
+        from app.services.revue.fil import wire_of
+        from app.services.revue.intox import intox_of
+        from app.services.revue.micro import micro_of
+        from app.services.revue.photo import photo_of, story_pictures
+        from app.services.revue.titre import titre_of
+
+        return assignments.Material(dossier=dossier, takes=takes, wire=wire_of(dossier),
+                                    titre=titre_of(dossier), intox=intox_of(dossier),
+                                    photo=photo_of(dossier), micro=micro_of(dossier),
+                                    pictures=tuple(story_pictures(self.db, dossier)))
+
+    def _dealt(self, user: Any, material: Any) -> str | None:
+        """The assignment ``user`` is dealt on ``material``'s story (``assignments.deal``)."""
+
+        from app.services.revue import assignments
+
+        recent = assignments.recent_modes(self._sessions(user))
+        return assignments.deal(assignments.available(material), recent,
+                                seed=assignments.seed_for(user.id, material.dossier.id))
+
+    def _card_for(self, user: Any, dossier: EditorialDossier) -> RvStoryCard:
+        """The chooser's card, as the session will play: a story dealt «Le fil», «Le titre»,
+        «L'intox express» (or the chat) carries no «question du jour» and no regulars, so the
+        card never promises the counter (seen in a browser, 2026-11-20). The same material as
+        the start (``_material``). Switch off: today's card."""
+
+        from app.schemas.revue import RvCardAssignment
+        from app.services.revue import assignments
+
+        card = story_card(dossier, self.db)
+        if not assignments.assignments_enabled():
+            return card
+        dealt = self._dealt(user, self._material(dossier, dossier.comptoir))
+        row = assignments.assignment(dealt) if dealt else None
+        # the chooser names the assignment dealt (2026-11-21), the counter's included
+        named = {"assignment": RvCardAssignment(key=row.key, name_fr=row.name_fr)} if row is not None else {}
+        if dealt == "comptoir" or card.question_fr is None:
+            return card.model_copy(update=named)
+        return card.model_copy(update={"question_fr": None, "cast": None, **named})
 
     def _plan(self, user: Any, dossier: EditorialDossier, *, angle_id: str | None, chosen_by: str) -> SessionPlan:
         from app.services.chrome_language import level_band, user_chrome_language
@@ -3585,6 +3788,16 @@ class RevueEncounter:
 
         if comptoir_loop.session_mode(state) == "comptoir":
             return comptoir_loop.close_comptoir(self, loaded)
+        from app.services.revue.assignments import session_mode
+
+        if session_mode(state) == "fil":
+            from app.services.revue import fil_loop
+
+            return fil_loop.close_fil(self, loaded)
+        if session_mode(state) in {"titre", "intox", "photo", "micro"}:
+            from app.services.revue import rubriques
+
+            return rubriques.loop(session_mode(state)).close(self, loaded)  # type: ignore[union-attr]
         self._settle_evidence(loaded)  # §10e.8: a late critic's words count in the kept words
 
         artifact = state.current_artifact
@@ -3781,6 +3994,21 @@ class RevueEncounter:
         elif kind == "opinion" and artifact:
             content = (f"Semaine {number}, au Mistral : on a parlé de « {dossier.title_fr} » pour mon "
                        f"micro-trottoir. Tu as dit : « {artifact.get('text_fr')} ».")
+        elif kind == "fil" and artifact:
+            content = (f"Semaine {number} : tu as remis le fil de « {dossier.title_fr} » dans l'ordre. "
+                       f"Tu l'as raconté : « {artifact.get('text_fr')} ».")
+        elif kind == "titre" and artifact:
+            content = (f"Semaine {number} : on a cherché le titre honnête pour « {dossier.title_fr} ». "
+                       f"Ton titre : « {artifact.get('text_fr')} ».")
+        elif kind == "intox" and artifact:
+            content = (f"Semaine {number} : tu as démonté l'intox sur « {dossier.title_fr} » "
+                       f"({artifact.get('text_fr')}).")
+        elif kind == "photo" and artifact:
+            content = (f"Semaine {number} : tu as écrit la légende d'une photo pour « {dossier.title_fr} » : "
+                       f"« {artifact.get('text_fr')} ».")
+        elif kind == "micro" and artifact:
+            content = (f"Semaine {number} : tu as mené une interview pour « {dossier.title_fr} ». "
+                       f"Tes questions : « {artifact.get('text_fr')} ».")
         else:
             content += " On n'a rien bouclé de plus."
         learner_turns = [e for e in loaded.state.events if e.kind == "turn_learner"]
@@ -3873,6 +4101,50 @@ class RevueEncounter:
         if (loaded.state.events[-1].seq if loaded.state.events else 0) != seq:
             self._save(loaded)
         return RvComptoirResult(session=session_view(loaded), error_fr=error)
+
+    # -- «Le fil» --------------------------------------------------------------------
+
+    def fil(self, row: RevueSession, body: Any) -> Any:
+        """One act of «Le fil» (``fil_loop.apply_act``); the session's view after it, with the
+        reason when the act was not recorded."""
+
+        from app.schemas.revue import RvFilResult
+        from app.services.revue import fil_loop
+        from app.services.revue.assignments import session_mode
+
+        loaded = load(row)
+        if session_mode(loaded.state) != "fil":
+            raise RevueError(409, "revue_not_fil")
+        if row.status != "active" and not loaded.state.closed:
+            raise RevueError(409, "revue_session_closed")
+        seq = loaded.state.events[-1].seq if loaded.state.events else 0
+        error = fil_loop.apply_act(self, loaded, body)
+        if (loaded.state.events[-1].seq if loaded.state.events else 0) != seq:
+            self._save(loaded)
+        return RvFilResult(session=session_view(loaded), error=error)
+
+    # -- «Le titre», «L'intox express» --------------------------------------------------
+
+    def rubrique(self, row: RevueSession, body: Any) -> Any:
+        """One act of the session's assignment, played through the generic route
+        (``rubriques.LOOPS``); the session's view after it, with the reason when the act was
+        not recorded. 409 ``revue_not_rubrique`` on a session dealt none of them."""
+
+        from app.schemas.revue import RvRubriqueResult
+        from app.services.revue import rubriques
+        from app.services.revue.assignments import session_mode
+
+        loaded = load(row)
+        loop = rubriques.loop(session_mode(loaded.state))
+        if loop is None:
+            raise RevueError(409, "revue_not_rubrique")
+        if row.status != "active" and not loaded.state.closed:
+            raise RevueError(409, "revue_session_closed")
+        seq = loaded.state.events[-1].seq if loaded.state.events else 0
+        error = loop.apply_act(self, loaded, body)
+        if (loaded.state.events[-1].seq if loaded.state.events else 0) != seq:
+            self._save(loaded)
+        return RvRubriqueResult(session=session_view(loaded), error=error)
 
     # -- read ----------------------------------------------------------------------
 

@@ -13,6 +13,8 @@
  * `{ enabled: false }`: La Une then simply draws no Revue card or chip.
  */
 
+import { filBodyWire, parseFilError, type RvFilBody, type RvFilError } from './revue-fil-types';
+import { parseRubriqueError, rubriqueBodyWire, type RvRubriqueBody, type RvRubriqueError } from './revue-rubriques-types';
 import {
   RevueError,
   comptoirBodyWire,
@@ -68,7 +70,31 @@ export type RevueClient = {
   comptoir: (id: string, body: RvComptoirBody) => Promise<RvComptoirResult>;
   /** WP-120: the learner's minted vignettes, newest first. */
   vignettes: () => Promise<RvVignetteView[]>;
+  /** «Le fil» (WIRE §10.3): one act; optional so a scripted client without the wire still types. */
+  fil?: (id: string, body: RvFilBody) => Promise<RvFilResult>;
+  /** «Le titre», «L'intox express» (WIRE §11.2): one act through the shared route; optional as `fil`. */
+  rubrique?: (id: string, body: RvRubriqueBody) => Promise<RvRubriqueResult>;
 };
+
+/** The shared act route's answer: the session as it now stands, and why an act was not recorded. */
+export type RvRubriqueResult = { session: RvSessionView; error: RvRubriqueError | null };
+
+export function parseRubriqueResult(raw: Record<string, any>): RvRubriqueResult {
+  return {
+    session: parseSessionView(raw && typeof raw.session === 'object' && raw.session ? raw.session : {}),
+    error: parseRubriqueError(raw?.error),
+  };
+}
+
+/** «Le fil»: the act route's answer — the session as it now stands, and why an act was not recorded. */
+export type RvFilResult = { session: RvSessionView; error: RvFilError | null };
+
+export function parseFilResult(raw: Record<string, any>): RvFilResult {
+  return {
+    session: parseSessionView(raw && typeof raw.session === 'object' && raw.session ? raw.session : {}),
+    error: parseFilError(raw?.error),
+  };
+}
 
 function toRevueError(error: unknown): RevueError {
   if (error instanceof RevueError) return error;
@@ -119,6 +145,8 @@ export function createRevueClient(transport: RevueTransport): RevueClient {
     close: (id) => post(`${session(id)}/close`, {}, parseCloseResult),
     comptoir: (id, body) => post(`${session(id)}/comptoir`, comptoirBodyWire(body), parseComptoirResult),
     vignettes: () => get(`${REVUE_BASE}/vignettes`, parseVignettes),
+    fil: (id, body) => post(`${session(id)}/fil`, filBodyWire(body), parseFilResult),
+    rubrique: (id, body) => post(`${session(id)}/rubrique`, rubriqueBodyWire(body), parseRubriqueResult),
   };
 }
 

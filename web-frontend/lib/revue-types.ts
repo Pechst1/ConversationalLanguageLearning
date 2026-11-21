@@ -19,6 +19,26 @@
  * the dev-only scripted server.
  */
 
+import { parseFilPage, parseFilView, type RvFilPage, type RvFilView } from './revue-fil-types';
+import {
+  parseIntoxPage,
+  parseIntoxView,
+  parseMicroPage,
+  parseMicroView,
+  parsePhotoPage,
+  parsePhotoView,
+  parseTitrePage,
+  parseTitreView,
+  type RvIntoxPage,
+  type RvIntoxView,
+  type RvMicroPage,
+  type RvMicroView,
+  type RvPhotoPage,
+  type RvPhotoView,
+  type RvTitrePage,
+  type RvTitreView,
+} from './revue-rubriques-types';
+
 export type RvSpan = [number, number];
 
 export type RvTopic = 'food' | 'culture' | 'city' | 'sport' | 'nature' | 'work' | 'politics';
@@ -29,8 +49,8 @@ export type RvRoomPhase = 'open' | 'bouclage' | 'boucle';
 export type RvMakeKind = 'headline_choice' | 'headline_write' | 'reader_question' | 'short_report' | 'caption';
 export const RV_MAKE_KINDS = ['headline_choice', 'headline_write', 'reader_question', 'short_report', 'caption'] as const;
 /** What a session files: a make, or `opinion` («Au comptoir»: the learner's quote in Romy's vox pop, never offered as a make). */
-export type RvMadeKind = RvMakeKind | 'opinion';
-export const RV_MADE_KINDS = [...RV_MAKE_KINDS, 'opinion'] as const;
+export type RvMadeKind = RvMakeKind | 'opinion' | 'fil' | 'titre' | 'intox' | 'photo' | 'micro';
+export const RV_MADE_KINDS = [...RV_MAKE_KINDS, 'opinion', 'fil', 'titre', 'intox', 'photo', 'micro'] as const;
 export type RvLanguage = 'en' | 'de' | 'fr';
 export type RvPurpose = 'understand_change' | 'explain_disagreement' | 'choose_angle' | 'prepare_dispatch';
 /** `look` (§8.4): on arrival, Romy points at the story's picture with the words it shows. */
@@ -73,6 +93,27 @@ export type RvStage = {
   plateKind: RvPlateKind;
   /** §8.4: in a session, the words the story's picture shows, glossed (they lead the vocabulary). */
   pictureWords: RvGloss[];
+  /**
+   * «Papier · photos» (2026-11-20): the story's pictures in order — its painted picture, its other
+   * painted shots, then its Wikimedia Commons photos. Empty on an older payload and, with the
+   * default switches, the painted picture alone (or nothing).
+   */
+  pictures: RvPicture[];
+};
+/** «Papier · photos»: one picture of the story's gallery, credited (French in every chrome language). */
+export type RvPicture = {
+  kind: 'illustration' | 'photo';
+  url: string;
+  width: number | null;
+  height: number | null;
+  /** The text alternative: the caption when there is one, else '' (decorative). */
+  altFr: string;
+  captionFr: string | null;
+  /** «Photo · {author} · {licence} · Wikimedia Commons» or «Illustration · Le Papier». */
+  creditFr: string;
+  licence: string | null;
+  licenceUrl: string | null;
+  sourceUrl: string | null;
 };
 export type RvStoryCard = {
   dossierId: string;
@@ -88,6 +129,8 @@ export type RvStoryCard = {
   /** «Au comptoir»: the question of the day and the three regulars (seat order); null with the switch off. */
   questionFr: string | null;
   cast: string[] | null;
+  /** The assignment this learner would be dealt («La photo»…), named by the chooser; null with the switch off. */
+  assignment: { key: string; nameFr: string } | null;
 };
 export type RvSupport = {
   glosses: 'shown' | 'tap' | 'none';
@@ -235,6 +278,13 @@ export type RvClosing = {
   vignette: RvVignetteView | null;
   /** «Au comptoir»: «La page»; null for a chat session. */
   comptoirPage: RvComptoirPage | null;
+  /** «Le fil» (2026-11-20): «La page»; null otherwise. */
+  filPage: RvFilPage | null;
+  /** «Le titre», «L'intox express» (2026-11-20): «La page»; null otherwise. */
+  titrePage: RvTitrePage | null;
+  intoxPage: RvIntoxPage | null;
+  photoPage: RvPhotoPage | null;
+  microPage: RvMicroPage | null;
 };
 export type RvSessionView = {
   id: string;
@@ -255,8 +305,16 @@ export type RvSessionView = {
   artifact: RvMade | null;
   closing: RvClosing | null;
   /** «Au comptoir»: fixed at the start for the session's life; `chat` with the switch off. */
-  mode: 'chat' | 'comptoir';
+  mode: 'chat' | 'comptoir' | 'fil' | 'titre' | 'intox' | 'photo' | 'micro';
   comptoir: RvComptoirView | null;
+  /** «Le fil» (2026-11-20): the dealt assignment's view; null unless `mode` is `fil`. */
+  fil: RvFilView | null;
+  /** «Le titre», «L'intox express» (2026-11-20): null unless `mode` says so. */
+  titre: RvTitreView | null;
+  intox: RvIntoxView | null;
+  /** «La photo», «Le micro» (2026-11-21): null unless `mode` says so. */
+  photo: RvPhotoView | null;
+  micro: RvMicroView | null;
 };
 export type RvWordEvidence = { fr: string; outcome: RvOutcome; capabilityKnown: boolean };
 /** WIRE §6.3 · the Papier rubric (`revue-rubric-v1`). */
@@ -382,6 +440,23 @@ export type RvErrorCode =
   | 'revue_comptoir_session'
   | 'revue_comptoir_out_of_order'
   | 'revue_comptoir_bad_act'
+  | 'revue_not_fil'
+  | 'revue_fil_session'
+  | 'revue_fil_out_of_order'
+  | 'revue_fil_bad_act'
+  | 'revue_not_rubrique'
+  | 'revue_titre_session'
+  | 'revue_titre_out_of_order'
+  | 'revue_titre_bad_act'
+  | 'revue_intox_session'
+  | 'revue_intox_out_of_order'
+  | 'revue_intox_bad_act'
+  | 'revue_photo_session'
+  | 'revue_photo_out_of_order'
+  | 'revue_photo_bad_act'
+  | 'revue_micro_session'
+  | 'revue_micro_out_of_order'
+  | 'revue_micro_bad_act'
   | 'unauthorized'
   | 'validation'
   | 'rate_limited'
@@ -426,6 +501,23 @@ export function parseRevueError(status: number, data: unknown): RevueError {
       'revue_comptoir_session',
       'revue_comptoir_out_of_order',
       'revue_comptoir_bad_act',
+      'revue_not_fil',
+      'revue_fil_session',
+      'revue_fil_out_of_order',
+      'revue_fil_bad_act',
+      'revue_not_rubrique',
+      'revue_titre_session',
+      'revue_titre_out_of_order',
+      'revue_titre_bad_act',
+      'revue_intox_session',
+      'revue_intox_out_of_order',
+      'revue_intox_bad_act',
+      'revue_photo_session',
+      'revue_photo_out_of_order',
+      'revue_photo_bad_act',
+      'revue_micro_session',
+      'revue_micro_out_of_order',
+      'revue_micro_bad_act',
       'rate_limited',
     ];
     if ((known as string[]).includes(code)) {
@@ -517,6 +609,33 @@ export function parseStage(raw: Json): RvStage {
     // §8.4: an older payload (no `plate_kind`) is a season plate with no picture words.
     plateKind: oneOf(raw.plate_kind, PLATE_KINDS, 'season'),
     pictureWords: list(raw.picture_words, parseGloss),
+    pictures: list(raw.pictures, parsePicture).filter((picture) => picture.url !== ''),
+  };
+}
+
+const PICTURE_KINDS = ['illustration', 'photo'] as const;
+
+function numOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+/** «Papier · photos»: a link is only ever an https URL (a licence deed or the Commons file page). */
+function httpsOrNull(value: unknown): string | null {
+  return typeof value === 'string' && value.startsWith('https://') ? value : null;
+}
+
+export function parsePicture(raw: Json): RvPicture {
+  return {
+    kind: oneOf(raw.kind, PICTURE_KINDS, 'illustration'),
+    url: str(raw.url),
+    width: numOrNull(raw.width),
+    height: numOrNull(raw.height),
+    altFr: str(raw.alt_fr),
+    captionFr: strOrNull(raw.caption_fr),
+    creditFr: str(raw.credit_fr),
+    licence: strOrNull(raw.licence),
+    licenceUrl: httpsOrNull(raw.licence_url),
+    sourceUrl: httpsOrNull(raw.source_url),
   };
 }
 
@@ -535,6 +654,7 @@ export function parseStoryCard(raw: Json): RvStoryCard {
     stage: parseStage(isObject(raw.stage) ? raw.stage : {}),
     questionFr: strOrNull(raw.question_fr) || null,
     cast: Array.isArray(raw.cast) ? raw.cast.filter((id: unknown): id is string => typeof id === 'string') : null,
+    assignment: isObject(raw.assignment) && raw.assignment.name_fr ? { key: str(raw.assignment.key), nameFr: str(raw.assignment.name_fr) } : null,
   };
 }
 
@@ -728,6 +848,11 @@ export function parseClosing(raw: Json): RvClosing {
     colophonFr: str(raw.colophon_fr) || 'La suite la semaine prochaine.',
     vignette: isObject(raw.vignette) ? parseVignette(raw.vignette) : null,
     comptoirPage: isObject(raw.comptoir_page) ? parseComptoirPage(raw.comptoir_page) : null,
+    filPage: isObject(raw.fil_page) ? parseFilPage(raw.fil_page) : null,
+    titrePage: isObject(raw.titre_page) ? parseTitrePage(raw.titre_page) : null,
+    intoxPage: isObject(raw.intox_page) ? parseIntoxPage(raw.intox_page) : null,
+    photoPage: isObject(raw.photo_page) ? parsePhotoPage(raw.photo_page) : null,
+    microPage: isObject(raw.micro_page) ? parseMicroPage(raw.micro_page) : null,
   };
 }
 
@@ -779,8 +904,26 @@ export function parseSessionView(raw: Json): RvSessionView {
     artifact: isObject(raw.artifact) ? parseMade(raw.artifact) : null,
     closing: isObject(raw.closing) ? parseClosing(raw.closing) : null,
     // A comptoir session without its view is drawn as a chat: never a player with nothing to show.
-    mode: raw.mode === 'comptoir' && isObject(raw.comptoir) ? 'comptoir' : 'chat',
+    mode:
+      raw.mode === 'comptoir' && isObject(raw.comptoir)
+        ? 'comptoir'
+        : raw.mode === 'fil' && isObject(raw.fil)
+          ? 'fil'
+          : raw.mode === 'titre' && isObject(raw.titre)
+            ? 'titre'
+            : raw.mode === 'intox' && isObject(raw.intox)
+              ? 'intox'
+              : raw.mode === 'photo' && isObject(raw.photo)
+                ? 'photo'
+                : raw.mode === 'micro' && isObject(raw.micro)
+                  ? 'micro'
+                  : 'chat',
     comptoir: raw.mode === 'comptoir' && isObject(raw.comptoir) ? parseComptoirView(raw.comptoir) : null,
+    fil: raw.mode === 'fil' && isObject(raw.fil) ? parseFilView(raw.fil, parseSource) : null,
+    titre: raw.mode === 'titre' && isObject(raw.titre) ? parseTitreView(raw.titre, parseSource, parseClaim) : null,
+    intox: raw.mode === 'intox' && isObject(raw.intox) ? parseIntoxView(raw.intox, parseSource) : null,
+    photo: raw.mode === 'photo' && isObject(raw.photo) ? parsePhotoView(raw.photo, parseSource) : null,
+    micro: raw.mode === 'micro' && isObject(raw.micro) ? parseMicroView(raw.micro, parseSource) : null,
   };
 }
 
@@ -1039,7 +1182,22 @@ export const RV_COMPTOIR_MARK_KINDS = ['accord', 'conjugaison', 'genre', 'orthog
  */
 export type RvComptoirProof = 'clean' | 'marked' | 'fixed' | 'corrected' | 'as_written';
 export const RV_COMPTOIR_PROOFS = ['clean', 'marked', 'fixed', 'corrected', 'as_written'] as const;
-export type RvComptoirMark = { spanFr: string; start: number; kind: RvComptoirMarkKind };
+/**
+ * `why` («Le pourquoi», `REVUE_POURQUOI_ENABLED`): the rule in the learner's mother tongue,
+ * never the corrected form; absent when the server sent none (switch off, or a refused why).
+ */
+export type RvComptoirMark = { spanFr: string; start: number; kind: RvComptoirMarkKind; why?: string };
+/**
+ * «Le pourquoi», once the opinion is settled: a mark with its full rule (`why`, the mother
+ * tongue), the same pattern in today's story (`exampleFr`) and the rule La Forge brings back.
+ */
+export type RvComptoirNote = {
+  spanFr: string;
+  kind: RvComptoirMarkKind;
+  why: string | null;
+  exampleFr: string | null;
+  ruleId: string | null;
+};
 export type RvComptoirComeback = { textFr: string; index: number | null; lastWord: RvComptoirText };
 export type RvComptoirOpinion = {
   stance: RvStance;
@@ -1059,6 +1217,8 @@ export type RvComptoirOpinion = {
   /** A1–A2: the three comeback chips; empty from B1 (one free line). */
   comebacks: RvComptoirText[];
   comeback: RvComptoirComeback | null;
+  /** «Le pourquoi», once settled; absent when the server sent none. */
+  notes?: RvComptoirNote[];
 };
 export type RvComptoirView = {
   step: RvComptoirStep;
@@ -1184,10 +1344,11 @@ export function parseComptoirView(raw: Json): RvComptoirView {
           learnerFr: str(opinion.learner_fr),
           draftFr: str(opinion.draft_fr) || str(opinion.learner_fr),
           proof: oneOf(opinion.proof, RV_COMPTOIR_PROOFS, 'as_written'),
-          marks: list(opinion.marks, (row) => ({
+          marks: list(opinion.marks, (row): RvComptoirMark => ({
             spanFr: str(row.span_fr),
             start: typeof row.start === 'number' ? row.start : 0,
             kind: oneOf(row.kind, RV_COMPTOIR_MARK_KINDS, 'mot'),
+            ...(str(row.why).trim() ? { why: str(row.why).trim() } : {}),
           })).filter((mark) => mark.spanFr),
           tries: num(opinion.tries),
           maxTries: num(opinion.max_tries) || 2,
@@ -1197,9 +1358,21 @@ export function parseComptoirView(raw: Json): RvComptoirView {
           comeback: comeback
             ? { textFr: str(comeback.text_fr), index: typeof comeback.index === 'number' ? comeback.index : null, lastWord: comptoirText(comeback.last_word) }
             : null,
+          ...(Array.isArray(opinion.notes) && opinion.notes.length ? { notes: parseComptoirNotes(opinion.notes) } : {}),
         }
       : null,
   };
+}
+
+/** «Le pourquoi»'s notes: a note without its words is dropped, an unknown kind is «mot». */
+export function parseComptoirNotes(raw: unknown): RvComptoirNote[] {
+  return list(raw, (row) => ({
+    spanFr: str(row.span_fr),
+    kind: oneOf(row.kind, RV_COMPTOIR_MARK_KINDS, 'mot'),
+    why: strOrNull(row.why) || null,
+    exampleFr: strOrNull(row.example_fr) || null,
+    ruleId: strOrNull(row.rule_id) || null,
+  })).filter((note) => note.spanFr && (note.why || note.exampleFr || note.ruleId));
 }
 
 export function parseComptoirPage(raw: Json): RvComptoirPage {

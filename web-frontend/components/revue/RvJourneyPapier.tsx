@@ -27,6 +27,8 @@ import type { RvLanguage, RvSessionView, RvWeekResult } from '@/lib/revue-types'
 import { releveCopy } from './releve-copy';
 import { revueCopy } from './revue-copy';
 import { RvComptoir } from './comptoir/RvComptoir';
+import { RvFil } from './fil/RvFil';
+import { RvRubrique } from './rubriques/RvRubrique';
 import { RvEncounter } from './RvEncounter';
 
 export type RvJourneyPapierProps = {
@@ -110,7 +112,10 @@ export function RvJourneyPapier({ language, onDone, client: given }: RvJourneyPa
   if (state.kind === 'session') {
     const period = state.session.week.iso;
     // «Au comptoir»: the counter's debate in place of the chat, with the same props.
-    const Player = state.session.mode === 'comptoir' ? RvComptoir : RvEncounter;
+    // «Le fil» (2026-11-20): the assignment the session was dealt.
+    // «Le titre», «L'intox express»: one player for both.
+    const mode = state.session.mode;
+    const Player = mode === 'comptoir' ? RvComptoir : mode === 'fil' ? RvFil : mode === 'titre' || mode === 'intox' || mode === 'photo' || mode === 'micro' ? RvRubrique : RvEncounter;
     body = (
       <Player
         key={state.session.id}

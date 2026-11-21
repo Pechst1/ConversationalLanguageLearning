@@ -1,0 +1,4978 @@
+{
+ "titre_a1_read": {
+  "id": "dbf2ff4d-81f3-4eb4-8158-214eceef56a3",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:41:31.832121+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "en",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (en)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "titre",
+  "comptoir": null,
+  "fil": null,
+  "titre": {
+   "step": "read",
+   "steps": [
+    "read",
+    "three",
+    "trap",
+    "build",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "three": null,
+   "trap": null,
+   "build": null
+  },
+  "intox": null
+ },
+ "titre_a1_three": {
+  "id": "dbf2ff4d-81f3-4eb4-8158-214eceef56a3",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:41:31.832121+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "en",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (en)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "titre",
+  "comptoir": null,
+  "fil": null,
+  "titre": {
+   "step": "three",
+   "steps": [
+    "read",
+    "three",
+    "trap",
+    "build",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "three": {
+    "by": {
+     "id": "augustin_de_roncourt",
+     "name_fr": "Gus",
+     "role_fr": "consultant"
+    },
+    "headlines": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "Le jour le plus long de l'année",
+       "tr": "The longest day of the year"
+      },
+      "role": null,
+      "why": null,
+      "claim": null
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "La fête plaît à tout le monde",
+       "tr": "Everyone likes the festival"
+      },
+      "role": null,
+      "why": null,
+      "claim": null
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "Une fête gratuite pour toutes les musiques",
+       "tr": "A free festival for every kind of music"
+      },
+      "role": null,
+      "why": null,
+      "claim": null
+     }
+    ],
+    "tries": 0,
+    "max_tries": 2,
+    "picked": [],
+    "resolved": false,
+    "correct": null,
+    "solution": null
+   },
+   "trap": null,
+   "build": null
+  },
+  "intox": null
+ },
+ "titre_a1_three_wrong": {
+  "id": "dbf2ff4d-81f3-4eb4-8158-214eceef56a3",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:41:31.832121+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "en",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (en)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "titre",
+  "comptoir": null,
+  "fil": null,
+  "titre": {
+   "step": "three",
+   "steps": [
+    "read",
+    "three",
+    "trap",
+    "build",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "three": {
+    "by": {
+     "id": "augustin_de_roncourt",
+     "name_fr": "Gus",
+     "role_fr": "consultant"
+    },
+    "headlines": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "Le jour le plus long de l'année",
+       "tr": "The longest day of the year"
+      },
+      "role": "off",
+      "why": {
+       "fr": "C'est vrai, mais ce titre parle du jour, pas de la fête ni de la musique.",
+       "tr": "True, but this headline is about the day, not about the festival or the music."
+      },
+      "claim": {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "La première Fête de la musique a eu lieu le 21 juin 1982, le jour le plus long de l'année.",
+       "quote": "la première Fête de la musique est lancée le 21 juin 1982, jour symbolique du solstice d’été, le plus long de l’année dans l’hémisphère Nord",
+       "attributed_to": null,
+       "source": {
+        "id": "fetemusique_culture",
+        "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+        "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+        "published_at": "2025-02-03"
+       }
+      }
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "La fête plaît à tout le monde",
+       "tr": "Everyone likes the festival"
+      },
+      "role": null,
+      "why": null,
+      "claim": null
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "Une fête gratuite pour toutes les musiques",
+       "tr": "A free festival for every kind of music"
+      },
+      "role": null,
+      "why": null,
+      "claim": null
+     }
+    ],
+    "tries": 1,
+    "max_tries": 2,
+    "picked": [
+     "a"
+    ],
+    "resolved": false,
+    "correct": null,
+    "solution": null
+   },
+   "trap": null,
+   "build": null
+  },
+  "intox": null
+ },
+ "titre_a1_trap": {
+  "id": "dbf2ff4d-81f3-4eb4-8158-214eceef56a3",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:41:31.832121+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "en",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (en)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "titre",
+  "comptoir": null,
+  "fil": null,
+  "titre": {
+   "step": "trap",
+   "steps": [
+    "read",
+    "three",
+    "trap",
+    "build",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "three": {
+    "by": {
+     "id": "augustin_de_roncourt",
+     "name_fr": "Gus",
+     "role_fr": "consultant"
+    },
+    "headlines": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "Le jour le plus long de l'année",
+       "tr": "The longest day of the year"
+      },
+      "role": "off",
+      "why": {
+       "fr": "C'est vrai, mais ce titre parle du jour, pas de la fête ni de la musique.",
+       "tr": "True, but this headline is about the day, not about the festival or the music."
+      },
+      "claim": {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "La première Fête de la musique a eu lieu le 21 juin 1982, le jour le plus long de l'année.",
+       "quote": "la première Fête de la musique est lancée le 21 juin 1982, jour symbolique du solstice d’été, le plus long de l’année dans l’hémisphère Nord",
+       "attributed_to": null,
+       "source": {
+        "id": "fetemusique_culture",
+        "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+        "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+        "published_at": "2025-02-03"
+       }
+      }
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "La fête plaît à tout le monde",
+       "tr": "Everyone likes the festival"
+      },
+      "role": "exaggerated",
+      "why": {
+       "fr": "Pas tout le monde : la fête fait du bruit, et il y a de nombreuses plaintes.",
+       "tr": "Not everyone: the festival makes noise, and there are many complaints."
+      },
+      "claim": {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "La fête provoque aussi du bruit, et de nombreuses plaintes.",
+       "quote": "La Fête de la musique est source de nuisances sonores avérées et fait l'objet de nombreuses plaintes.",
+       "attributed_to": null,
+       "source": {
+        "id": "fetemusique_wikipedia",
+        "name": "Wikipédia, « Fête de la musique »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+        "published_at": "2026-07-31"
+       }
+      }
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "Une fête gratuite pour toutes les musiques",
+       "tr": "A free festival for every kind of music"
+      },
+      "role": "honest",
+      "why": null,
+      "claim": null
+     }
+    ],
+    "tries": 2,
+    "max_tries": 2,
+    "picked": [
+     "a",
+     "c"
+    ],
+    "resolved": true,
+    "correct": true,
+    "solution": "c"
+   },
+   "trap": {
+    "headline": {
+     "fr": "La fête plaît à tout le monde",
+     "tr": "Everyone likes the festival"
+    },
+    "words": [
+     {
+      "index": 0,
+      "fr": "La"
+     },
+     {
+      "index": 1,
+      "fr": "fête"
+     },
+     {
+      "index": 2,
+      "fr": "plaît"
+     },
+     {
+      "index": 3,
+      "fr": "à"
+     },
+     {
+      "index": 4,
+      "fr": "tout"
+     },
+     {
+      "index": 5,
+      "fr": "le"
+     },
+     {
+      "index": 6,
+      "fr": "monde"
+     }
+    ],
+    "tries": 0,
+    "max_tries": 2,
+    "picked": [],
+    "fine": [],
+    "resolved": false,
+    "correct": null,
+    "solution": [],
+    "why": null,
+    "claim": null
+   },
+   "build": null
+  },
+  "intox": null
+ },
+ "titre_a1_trap_miss": {
+  "id": "dbf2ff4d-81f3-4eb4-8158-214eceef56a3",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:41:31.832121+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "en",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (en)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "titre",
+  "comptoir": null,
+  "fil": null,
+  "titre": {
+   "step": "trap",
+   "steps": [
+    "read",
+    "three",
+    "trap",
+    "build",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "three": {
+    "by": {
+     "id": "augustin_de_roncourt",
+     "name_fr": "Gus",
+     "role_fr": "consultant"
+    },
+    "headlines": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "Le jour le plus long de l'année",
+       "tr": "The longest day of the year"
+      },
+      "role": "off",
+      "why": {
+       "fr": "C'est vrai, mais ce titre parle du jour, pas de la fête ni de la musique.",
+       "tr": "True, but this headline is about the day, not about the festival or the music."
+      },
+      "claim": {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "La première Fête de la musique a eu lieu le 21 juin 1982, le jour le plus long de l'année.",
+       "quote": "la première Fête de la musique est lancée le 21 juin 1982, jour symbolique du solstice d’été, le plus long de l’année dans l’hémisphère Nord",
+       "attributed_to": null,
+       "source": {
+        "id": "fetemusique_culture",
+        "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+        "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+        "published_at": "2025-02-03"
+       }
+      }
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "La fête plaît à tout le monde",
+       "tr": "Everyone likes the festival"
+      },
+      "role": "exaggerated",
+      "why": {
+       "fr": "Pas tout le monde : la fête fait du bruit, et il y a de nombreuses plaintes.",
+       "tr": "Not everyone: the festival makes noise, and there are many complaints."
+      },
+      "claim": {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "La fête provoque aussi du bruit, et de nombreuses plaintes.",
+       "quote": "La Fête de la musique est source de nuisances sonores avérées et fait l'objet de nombreuses plaintes.",
+       "attributed_to": null,
+       "source": {
+        "id": "fetemusique_wikipedia",
+        "name": "Wikipédia, « Fête de la musique »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+        "published_at": "2026-07-31"
+       }
+      }
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "Une fête gratuite pour toutes les musiques",
+       "tr": "A free festival for every kind of music"
+      },
+      "role": "honest",
+      "why": null,
+      "claim": null
+     }
+    ],
+    "tries": 2,
+    "max_tries": 2,
+    "picked": [
+     "a",
+     "c"
+    ],
+    "resolved": true,
+    "correct": true,
+    "solution": "c"
+   },
+   "trap": {
+    "headline": {
+     "fr": "La fête plaît à tout le monde",
+     "tr": "Everyone likes the festival"
+    },
+    "words": [
+     {
+      "index": 0,
+      "fr": "La"
+     },
+     {
+      "index": 1,
+      "fr": "fête"
+     },
+     {
+      "index": 2,
+      "fr": "plaît"
+     },
+     {
+      "index": 3,
+      "fr": "à"
+     },
+     {
+      "index": 4,
+      "fr": "tout"
+     },
+     {
+      "index": 5,
+      "fr": "le"
+     },
+     {
+      "index": 6,
+      "fr": "monde"
+     }
+    ],
+    "tries": 1,
+    "max_tries": 2,
+    "picked": [
+     1,
+     4
+    ],
+    "fine": [
+     1
+    ],
+    "resolved": false,
+    "correct": null,
+    "solution": [],
+    "why": null,
+    "claim": null
+   },
+   "build": null
+  },
+  "intox": null
+ },
+ "titre_a1_build": {
+  "id": "dbf2ff4d-81f3-4eb4-8158-214eceef56a3",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:41:31.832121+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "en",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (en)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "titre",
+  "comptoir": null,
+  "fil": null,
+  "titre": {
+   "step": "build",
+   "steps": [
+    "read",
+    "three",
+    "trap",
+    "build",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "three": {
+    "by": {
+     "id": "augustin_de_roncourt",
+     "name_fr": "Gus",
+     "role_fr": "consultant"
+    },
+    "headlines": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "Le jour le plus long de l'année",
+       "tr": "The longest day of the year"
+      },
+      "role": "off",
+      "why": {
+       "fr": "C'est vrai, mais ce titre parle du jour, pas de la fête ni de la musique.",
+       "tr": "True, but this headline is about the day, not about the festival or the music."
+      },
+      "claim": {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "La première Fête de la musique a eu lieu le 21 juin 1982, le jour le plus long de l'année.",
+       "quote": "la première Fête de la musique est lancée le 21 juin 1982, jour symbolique du solstice d’été, le plus long de l’année dans l’hémisphère Nord",
+       "attributed_to": null,
+       "source": {
+        "id": "fetemusique_culture",
+        "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+        "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+        "published_at": "2025-02-03"
+       }
+      }
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "La fête plaît à tout le monde",
+       "tr": "Everyone likes the festival"
+      },
+      "role": "exaggerated",
+      "why": {
+       "fr": "Pas tout le monde : la fête fait du bruit, et il y a de nombreuses plaintes.",
+       "tr": "Not everyone: the festival makes noise, and there are many complaints."
+      },
+      "claim": {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "La fête provoque aussi du bruit, et de nombreuses plaintes.",
+       "quote": "La Fête de la musique est source de nuisances sonores avérées et fait l'objet de nombreuses plaintes.",
+       "attributed_to": null,
+       "source": {
+        "id": "fetemusique_wikipedia",
+        "name": "Wikipédia, « Fête de la musique »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+        "published_at": "2026-07-31"
+       }
+      }
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "Une fête gratuite pour toutes les musiques",
+       "tr": "A free festival for every kind of music"
+      },
+      "role": "honest",
+      "why": null,
+      "claim": null
+     }
+    ],
+    "tries": 2,
+    "max_tries": 2,
+    "picked": [
+     "a",
+     "c"
+    ],
+    "resolved": true,
+    "correct": true,
+    "solution": "c"
+   },
+   "trap": {
+    "headline": {
+     "fr": "La fête plaît à tout le monde",
+     "tr": "Everyone likes the festival"
+    },
+    "words": [
+     {
+      "index": 0,
+      "fr": "La"
+     },
+     {
+      "index": 1,
+      "fr": "fête"
+     },
+     {
+      "index": 2,
+      "fr": "plaît"
+     },
+     {
+      "index": 3,
+      "fr": "à"
+     },
+     {
+      "index": 4,
+      "fr": "tout"
+     },
+     {
+      "index": 5,
+      "fr": "le"
+     },
+     {
+      "index": 6,
+      "fr": "monde"
+     }
+    ],
+    "tries": 2,
+    "max_tries": 2,
+    "picked": [
+     4,
+     5,
+     6
+    ],
+    "fine": [],
+    "resolved": true,
+    "correct": true,
+    "solution": [
+     4,
+     5,
+     6
+    ],
+    "why": {
+     "fr": "Pas tout le monde : la fête fait du bruit, et il y a de nombreuses plaintes.",
+     "tr": "Not everyone: the festival makes noise, and there are many complaints."
+    },
+    "claim": {
+     "id": "c3",
+     "kind": "fact",
+     "fr": "La fête provoque aussi du bruit, et de nombreuses plaintes.",
+     "quote": "La Fête de la musique est source de nuisances sonores avérées et fait l'objet de nombreuses plaintes.",
+     "attributed_to": null,
+     "source": {
+      "id": "fetemusique_wikipedia",
+      "name": "Wikipédia, « Fête de la musique »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+      "published_at": "2026-07-31"
+     }
+    }
+   },
+   "build": {
+    "input": "tiles",
+    "phrase": {
+     "fr": "La fête est…",
+     "tr": "The festival is…"
+    },
+    "subjects": [
+     {
+      "fr": "La Fête de la musique",
+      "tr": "The Fête de la musique"
+     },
+     {
+      "fr": "Le 21 juin, la fête",
+      "tr": "On 21 June, the festival"
+     }
+    ],
+    "facts": [
+     {
+      "fr": "est gratuite",
+      "tr": "is free"
+     },
+     {
+      "fr": "est ouverte à toutes les musiques",
+      "tr": "is open to every kind of music"
+     },
+     {
+      "fr": "fait aussi du bruit",
+      "tr": "also makes noise"
+     }
+    ],
+    "frame": null,
+    "max_words": 12,
+    "avoid_fr": "tout le monde",
+    "learner_fr": null,
+    "draft_fr": null,
+    "proof": null,
+    "marks": [],
+    "tries": 0,
+    "max_tries": 2,
+    "printed_fr": null
+   }
+  },
+  "intox": null
+ },
+ "titre_a1_page": {
+  "id": "dbf2ff4d-81f3-4eb4-8158-214eceef56a3",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "closed",
+  "started_at": "2026-11-20T20:41:31.832121+00:00",
+  "closed_at": "2026-11-20T20:41:31.923945+00:00",
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "en",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (en)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "close",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 13
+  },
+  "thread": [
+   {
+    "id": "7",
+    "seq": 7,
+    "at": "2026-11-20T20:41:31.885349+00:00",
+    "kind": "mine",
+    "text_fr": "La Fête de la musique est gratuite",
+    "mode": "text",
+    "register_note": null
+   },
+   {
+    "id": "9",
+    "seq": 9,
+    "at": "2026-11-20T20:41:31.891386+00:00",
+    "kind": "made",
+    "made": {
+     "kind": "titre",
+     "text_fr": "La Fête de la musique est gratuite",
+     "contribution": [],
+     "learner_fr": ""
+    }
+   },
+   {
+    "id": "10",
+    "seq": 10,
+    "at": "2026-11-20T20:41:31.923835+00:00",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "close",
+    "text_fr": "Merci ! Ton titre est en une, et il dit vrai.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   }
+  ],
+  "quick_replies": [],
+  "steer_to_make": false,
+  "own_line": true,
+  "artifact": {
+   "kind": "titre",
+   "text_fr": "La Fête de la musique est gratuite",
+   "contribution": [],
+   "learner_fr": ""
+  },
+  "closing": {
+   "romy_line_fr": "Merci ! Ton titre est en une, et il dit vrai.",
+   "dispatch": {
+    "kicker_fr": "Le titre de Romy",
+    "headline_fr": "La Fête de la musique est gratuite",
+    "body_fr": [
+     "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent."
+    ],
+    "contribution": [],
+    "byline_fr": "Romy Tremblay, avec toi · d'après Ministère de la Culture (fetedelamusique.culture.gouv.fr) et Wikipédia, « Fête de la musique »",
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     },
+     {
+      "id": "fetemusique_wikipedia",
+      "name": "Wikipédia, « Fête de la musique »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+      "published_at": "2026-07-31"
+     }
+    ],
+    "picture_url": null,
+    "caption_fr": null,
+    "caption_by_learner": false
+   },
+   "kept": {
+    "words": [
+     {
+      "fr": "la musique",
+      "gloss": "musique (en)",
+      "claim_id": "c1",
+      "used": false,
+      "outcome": null
+     },
+     {
+      "fr": "plaintes",
+      "gloss": "plaintes (en)",
+      "claim_id": "c3",
+      "used": false,
+      "outcome": null
+     },
+     {
+      "fr": "la première",
+      "gloss": "première (en)",
+      "claim_id": "c1",
+      "used": false,
+      "outcome": null
+     },
+     {
+      "fr": "l'année",
+      "gloss": "année (en)",
+      "claim_id": "c1",
+      "used": false,
+      "outcome": null
+     },
+     {
+      "fr": "gratuite",
+      "gloss": "gratuite (en)",
+      "claim_id": "c2",
+      "used": false,
+      "outcome": null
+     }
+    ],
+    "claims": [
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "La fête est gratuite et ouverte à toutes les musiques.",
+      "quote": "La Fête sera gratuite, ouverte à toutes les musiques « sans hiérarchie de genres et de pratiques » et à tous les français.",
+      "attributed_to": null,
+      "source": {
+       "id": "fetemusique_culture",
+       "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+       "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+       "published_at": "2025-02-03"
+      }
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "La fête provoque aussi du bruit, et de nombreuses plaintes.",
+      "quote": "La Fête de la musique est source de nuisances sonores avérées et fait l'objet de nombreuses plaintes.",
+      "attributed_to": null,
+      "source": {
+       "id": "fetemusique_wikipedia",
+       "name": "Wikipédia, « Fête de la musique »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+       "published_at": "2026-07-31"
+      }
+     },
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "La première Fête de la musique a eu lieu le 21 juin 1982, le jour le plus long de l'année.",
+      "quote": "la première Fête de la musique est lancée le 21 juin 1982, jour symbolique du solstice d’été, le plus long de l’année dans l’hémisphère Nord",
+      "attributed_to": null,
+      "source": {
+       "id": "fetemusique_culture",
+       "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+       "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+       "published_at": "2025-02-03"
+      }
+     }
+    ]
+   },
+   "question_kept_fr": null,
+   "vignette": {
+    "id": "dcb1760d-1e06-4897-b3c5-55a7a5daf4a0",
+    "session_id": "dbf2ff4d-81f3-4eb4-8158-214eceef56a3",
+    "dossier_id": "evergreen-fete-de-la-musique",
+    "week": "2026-W25",
+    "place_label_fr": "Une petite place parisienne le soir du 21 juin",
+    "ring": "headline",
+    "kept_contribution": false,
+    "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"46\" r=\"21\" fill=\"#F3C318\"/><rect x=\"34\" y=\"62\" width=\"32\" height=\"15\" rx=\"3\" fill=\"#F3C318\"/><path d=\"M50 28L60 44L40 44Z\" fill=\"#2C6A5D\"/><ellipse cx=\"50\" cy=\"76\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"46\" cy=\"40\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+    "headline_fr": "La Fête de la musique",
+    "minted_at": "2026-11-20T20:41:31"
+   },
+   "colophon_fr": "La suite la semaine prochaine.",
+   "comptoir_page": null,
+   "fil_page": null,
+   "titre_page": {
+    "headline_fr": "La Fête de la musique est gratuite",
+    "proof": "clean",
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+    "honest_fr": "Une fête gratuite pour toutes les musiques",
+    "phrase_fr": "La fête est…",
+    "words": [
+     "la musique",
+     "plaintes",
+     "la première",
+     "l'année",
+     "gratuite"
+    ]
+   },
+   "intox_page": null
+  },
+  "mode": "titre",
+  "comptoir": null,
+  "fil": null,
+  "titre": {
+   "step": "page",
+   "steps": [
+    "read",
+    "three",
+    "trap",
+    "build",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "three": {
+    "by": {
+     "id": "augustin_de_roncourt",
+     "name_fr": "Gus",
+     "role_fr": "consultant"
+    },
+    "headlines": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "Le jour le plus long de l'année",
+       "tr": "The longest day of the year"
+      },
+      "role": "off",
+      "why": {
+       "fr": "C'est vrai, mais ce titre parle du jour, pas de la fête ni de la musique.",
+       "tr": "True, but this headline is about the day, not about the festival or the music."
+      },
+      "claim": {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "La première Fête de la musique a eu lieu le 21 juin 1982, le jour le plus long de l'année.",
+       "quote": "la première Fête de la musique est lancée le 21 juin 1982, jour symbolique du solstice d’été, le plus long de l’année dans l’hémisphère Nord",
+       "attributed_to": null,
+       "source": {
+        "id": "fetemusique_culture",
+        "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+        "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+        "published_at": "2025-02-03"
+       }
+      }
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "La fête plaît à tout le monde",
+       "tr": "Everyone likes the festival"
+      },
+      "role": "exaggerated",
+      "why": {
+       "fr": "Pas tout le monde : la fête fait du bruit, et il y a de nombreuses plaintes.",
+       "tr": "Not everyone: the festival makes noise, and there are many complaints."
+      },
+      "claim": {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "La fête provoque aussi du bruit, et de nombreuses plaintes.",
+       "quote": "La Fête de la musique est source de nuisances sonores avérées et fait l'objet de nombreuses plaintes.",
+       "attributed_to": null,
+       "source": {
+        "id": "fetemusique_wikipedia",
+        "name": "Wikipédia, « Fête de la musique »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+        "published_at": "2026-07-31"
+       }
+      }
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "Une fête gratuite pour toutes les musiques",
+       "tr": "A free festival for every kind of music"
+      },
+      "role": "honest",
+      "why": null,
+      "claim": null
+     }
+    ],
+    "tries": 2,
+    "max_tries": 2,
+    "picked": [
+     "a",
+     "c"
+    ],
+    "resolved": true,
+    "correct": true,
+    "solution": "c"
+   },
+   "trap": {
+    "headline": {
+     "fr": "La fête plaît à tout le monde",
+     "tr": "Everyone likes the festival"
+    },
+    "words": [
+     {
+      "index": 0,
+      "fr": "La"
+     },
+     {
+      "index": 1,
+      "fr": "fête"
+     },
+     {
+      "index": 2,
+      "fr": "plaît"
+     },
+     {
+      "index": 3,
+      "fr": "à"
+     },
+     {
+      "index": 4,
+      "fr": "tout"
+     },
+     {
+      "index": 5,
+      "fr": "le"
+     },
+     {
+      "index": 6,
+      "fr": "monde"
+     }
+    ],
+    "tries": 2,
+    "max_tries": 2,
+    "picked": [
+     4,
+     5,
+     6
+    ],
+    "fine": [],
+    "resolved": true,
+    "correct": true,
+    "solution": [
+     4,
+     5,
+     6
+    ],
+    "why": {
+     "fr": "Pas tout le monde : la fête fait du bruit, et il y a de nombreuses plaintes.",
+     "tr": "Not everyone: the festival makes noise, and there are many complaints."
+    },
+    "claim": {
+     "id": "c3",
+     "kind": "fact",
+     "fr": "La fête provoque aussi du bruit, et de nombreuses plaintes.",
+     "quote": "La Fête de la musique est source de nuisances sonores avérées et fait l'objet de nombreuses plaintes.",
+     "attributed_to": null,
+     "source": {
+      "id": "fetemusique_wikipedia",
+      "name": "Wikipédia, « Fête de la musique »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+      "published_at": "2026-07-31"
+     }
+    }
+   },
+   "build": {
+    "input": "tiles",
+    "phrase": {
+     "fr": "La fête est…",
+     "tr": "The festival is…"
+    },
+    "subjects": [
+     {
+      "fr": "La Fête de la musique",
+      "tr": "The Fête de la musique"
+     },
+     {
+      "fr": "Le 21 juin, la fête",
+      "tr": "On 21 June, the festival"
+     }
+    ],
+    "facts": [
+     {
+      "fr": "est gratuite",
+      "tr": "is free"
+     },
+     {
+      "fr": "est ouverte à toutes les musiques",
+      "tr": "is open to every kind of music"
+     },
+     {
+      "fr": "fait aussi du bruit",
+      "tr": "also makes noise"
+     }
+    ],
+    "frame": null,
+    "max_words": 12,
+    "avoid_fr": "tout le monde",
+    "learner_fr": "La Fête de la musique est gratuite",
+    "draft_fr": "La Fête de la musique est gratuite",
+    "proof": "clean",
+    "marks": [],
+    "tries": 0,
+    "max_tries": 2,
+    "printed_fr": "La Fête de la musique est gratuite"
+   }
+  },
+  "intox": null
+ },
+ "titre_a2_build": {
+  "id": "3e29b420-5933-46f7-999d-a239932c977d",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:41:31.946689+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A2",
+   "ui_language": "de",
+   "gloss_language": "de",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "tap",
+    "translation": "on_request",
+    "reading_target_words": 90,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (de)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (de)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "titre",
+  "comptoir": null,
+  "fil": null,
+  "titre": {
+   "step": "build",
+   "steps": [
+    "read",
+    "three",
+    "trap",
+    "build",
+    "page"
+   ],
+   "band": "a2",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "three": {
+    "by": {
+     "id": "augustin_de_roncourt",
+     "name_fr": "Gus",
+     "role_fr": "consultant"
+    },
+    "headlines": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "Le 21 juin, jour le plus long de l'année",
+       "tr": "Der 21. Juni, der längste Tag des Jahres"
+      },
+      "role": "off",
+      "why": {
+       "fr": "C'est vrai, mais ce titre parle du jour, pas de la fête ni de la musique.",
+       "tr": "Stimmt, aber diese Schlagzeile spricht vom Tag, nicht vom Fest oder der Musik."
+      },
+      "claim": {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "La première Fête de la musique a eu lieu le 21 juin 1982, le jour le plus long de l'année.",
+       "quote": "la première Fête de la musique est lancée le 21 juin 1982, jour symbolique du solstice d’été, le plus long de l’année dans l’hémisphère Nord",
+       "attributed_to": null,
+       "source": {
+        "id": "fetemusique_culture",
+        "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+        "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+        "published_at": "2025-02-03"
+       }
+      }
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "Le 21 juin, tout le monde aime la fête",
+       "tr": "Am 21. Juni lieben alle das Fest"
+      },
+      "role": "exaggerated",
+      "why": {
+       "fr": "Pas tout le monde : la fête fait du bruit, et il y a de nombreuses plaintes.",
+       "tr": "Nicht allen: Das Fest macht Lärm, und es gibt viele Beschwerden."
+      },
+      "claim": {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "La fête provoque aussi du bruit, et de nombreuses plaintes.",
+       "quote": "La Fête de la musique est source de nuisances sonores avérées et fait l'objet de nombreuses plaintes.",
+       "attributed_to": null,
+       "source": {
+        "id": "fetemusique_wikipedia",
+        "name": "Wikipédia, « Fête de la musique »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+        "published_at": "2026-07-31"
+       }
+      }
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "Une fête gratuite et ouverte à toutes les musiques",
+       "tr": "Ein kostenloses Fest, offen für jede Musik"
+      },
+      "role": "honest",
+      "why": null,
+      "claim": null
+     }
+    ],
+    "tries": 1,
+    "max_tries": 2,
+    "picked": [
+     "c"
+    ],
+    "resolved": true,
+    "correct": true,
+    "solution": "c"
+   },
+   "trap": {
+    "headline": {
+     "fr": "Le 21 juin, tout le monde aime la fête",
+     "tr": "Am 21. Juni lieben alle das Fest"
+    },
+    "words": [
+     {
+      "index": 0,
+      "fr": "Le"
+     },
+     {
+      "index": 1,
+      "fr": "21"
+     },
+     {
+      "index": 2,
+      "fr": "juin"
+     },
+     {
+      "index": 3,
+      "fr": "tout"
+     },
+     {
+      "index": 4,
+      "fr": "le"
+     },
+     {
+      "index": 5,
+      "fr": "monde"
+     },
+     {
+      "index": 6,
+      "fr": "aime"
+     },
+     {
+      "index": 7,
+      "fr": "la"
+     },
+     {
+      "index": 8,
+      "fr": "fête"
+     }
+    ],
+    "tries": 1,
+    "max_tries": 2,
+    "picked": [
+     3,
+     4,
+     5
+    ],
+    "fine": [],
+    "resolved": true,
+    "correct": true,
+    "solution": [
+     3,
+     4,
+     5
+    ],
+    "why": {
+     "fr": "Pas tout le monde : la fête fait du bruit, et il y a de nombreuses plaintes.",
+     "tr": "Nicht allen: Das Fest macht Lärm, und es gibt viele Beschwerden."
+    },
+    "claim": {
+     "id": "c3",
+     "kind": "fact",
+     "fr": "La fête provoque aussi du bruit, et de nombreuses plaintes.",
+     "quote": "La Fête de la musique est source de nuisances sonores avérées et fait l'objet de nombreuses plaintes.",
+     "attributed_to": null,
+     "source": {
+      "id": "fetemusique_wikipedia",
+      "name": "Wikipédia, « Fête de la musique »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+      "published_at": "2026-07-31"
+     }
+    }
+   },
+   "build": {
+    "input": "frame",
+    "phrase": {
+     "fr": "… et …",
+     "tr": "… und …"
+    },
+    "subjects": [],
+    "facts": [],
+    "frame": {
+     "fr": "La Fête de la musique",
+     "tr": "Die Fête de la musique"
+    },
+    "max_words": 12,
+    "avoid_fr": "tout le monde",
+    "learner_fr": null,
+    "draft_fr": null,
+    "proof": null,
+    "marks": [],
+    "tries": 0,
+    "max_tries": 2,
+    "printed_fr": null
+   }
+  },
+  "intox": null
+ },
+ "titre_a2_marked": {
+  "id": "3e29b420-5933-46f7-999d-a239932c977d",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:41:31.946689+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A2",
+   "ui_language": "de",
+   "gloss_language": "de",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "tap",
+    "translation": "on_request",
+    "reading_target_words": 90,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (de)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (de)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (de)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "facts",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 13
+  },
+  "thread": [
+   {
+    "id": "5",
+    "seq": 5,
+    "at": "2026-11-20T20:41:31.970515+00:00",
+    "kind": "mine",
+    "text_fr": "La Fête de la musique est gratuite et le gens sont content",
+    "mode": "text",
+    "register_note": null
+   }
+  ],
+  "quick_replies": [
+   {
+    "label": "Plus",
+    "send_fr": "Dis-m'en plus."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": true,
+  "artifact": null,
+  "closing": null,
+  "mode": "titre",
+  "comptoir": null,
+  "fil": null,
+  "titre": {
+   "step": "build",
+   "steps": [
+    "read",
+    "three",
+    "trap",
+    "build",
+    "page"
+   ],
+   "band": "a2",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "three": {
+    "by": {
+     "id": "augustin_de_roncourt",
+     "name_fr": "Gus",
+     "role_fr": "consultant"
+    },
+    "headlines": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "Le 21 juin, jour le plus long de l'année",
+       "tr": "Der 21. Juni, der längste Tag des Jahres"
+      },
+      "role": "off",
+      "why": {
+       "fr": "C'est vrai, mais ce titre parle du jour, pas de la fête ni de la musique.",
+       "tr": "Stimmt, aber diese Schlagzeile spricht vom Tag, nicht vom Fest oder der Musik."
+      },
+      "claim": {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "La première Fête de la musique a eu lieu le 21 juin 1982, le jour le plus long de l'année.",
+       "quote": "la première Fête de la musique est lancée le 21 juin 1982, jour symbolique du solstice d’été, le plus long de l’année dans l’hémisphère Nord",
+       "attributed_to": null,
+       "source": {
+        "id": "fetemusique_culture",
+        "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+        "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+        "published_at": "2025-02-03"
+       }
+      }
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "Le 21 juin, tout le monde aime la fête",
+       "tr": "Am 21. Juni lieben alle das Fest"
+      },
+      "role": "exaggerated",
+      "why": {
+       "fr": "Pas tout le monde : la fête fait du bruit, et il y a de nombreuses plaintes.",
+       "tr": "Nicht allen: Das Fest macht Lärm, und es gibt viele Beschwerden."
+      },
+      "claim": {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "La fête provoque aussi du bruit, et de nombreuses plaintes.",
+       "quote": "La Fête de la musique est source de nuisances sonores avérées et fait l'objet de nombreuses plaintes.",
+       "attributed_to": null,
+       "source": {
+        "id": "fetemusique_wikipedia",
+        "name": "Wikipédia, « Fête de la musique »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+        "published_at": "2026-07-31"
+       }
+      }
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "Une fête gratuite et ouverte à toutes les musiques",
+       "tr": "Ein kostenloses Fest, offen für jede Musik"
+      },
+      "role": "honest",
+      "why": null,
+      "claim": null
+     }
+    ],
+    "tries": 1,
+    "max_tries": 2,
+    "picked": [
+     "c"
+    ],
+    "resolved": true,
+    "correct": true,
+    "solution": "c"
+   },
+   "trap": {
+    "headline": {
+     "fr": "Le 21 juin, tout le monde aime la fête",
+     "tr": "Am 21. Juni lieben alle das Fest"
+    },
+    "words": [
+     {
+      "index": 0,
+      "fr": "Le"
+     },
+     {
+      "index": 1,
+      "fr": "21"
+     },
+     {
+      "index": 2,
+      "fr": "juin"
+     },
+     {
+      "index": 3,
+      "fr": "tout"
+     },
+     {
+      "index": 4,
+      "fr": "le"
+     },
+     {
+      "index": 5,
+      "fr": "monde"
+     },
+     {
+      "index": 6,
+      "fr": "aime"
+     },
+     {
+      "index": 7,
+      "fr": "la"
+     },
+     {
+      "index": 8,
+      "fr": "fête"
+     }
+    ],
+    "tries": 1,
+    "max_tries": 2,
+    "picked": [
+     3,
+     4,
+     5
+    ],
+    "fine": [],
+    "resolved": true,
+    "correct": true,
+    "solution": [
+     3,
+     4,
+     5
+    ],
+    "why": {
+     "fr": "Pas tout le monde : la fête fait du bruit, et il y a de nombreuses plaintes.",
+     "tr": "Nicht allen: Das Fest macht Lärm, und es gibt viele Beschwerden."
+    },
+    "claim": {
+     "id": "c3",
+     "kind": "fact",
+     "fr": "La fête provoque aussi du bruit, et de nombreuses plaintes.",
+     "quote": "La Fête de la musique est source de nuisances sonores avérées et fait l'objet de nombreuses plaintes.",
+     "attributed_to": null,
+     "source": {
+      "id": "fetemusique_wikipedia",
+      "name": "Wikipédia, « Fête de la musique »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+      "published_at": "2026-07-31"
+     }
+    }
+   },
+   "build": {
+    "input": "frame",
+    "phrase": {
+     "fr": "… et …",
+     "tr": "… und …"
+    },
+    "subjects": [],
+    "facts": [],
+    "frame": {
+     "fr": "La Fête de la musique",
+     "tr": "Die Fête de la musique"
+    },
+    "max_words": 12,
+    "avoid_fr": "tout le monde",
+    "learner_fr": "La Fête de la musique est gratuite et le gens sont content",
+    "draft_fr": "La Fête de la musique est gratuite et le gens sont content",
+    "proof": "marked",
+    "marks": [
+     {
+      "span_fr": "le",
+      "start": 38,
+      "kind": "accord"
+     },
+     {
+      "span_fr": "content",
+      "start": 51,
+      "kind": "accord"
+     }
+    ],
+    "tries": 0,
+    "max_tries": 2,
+    "printed_fr": null
+   }
+  },
+  "intox": null
+ },
+ "titre_b1_build": {
+  "id": "6dd5e3bc-1e2f-48ba-b4c2-26780068438d",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:41:31.993553+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "B1",
+   "ui_language": "fr",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "tap",
+    "translation": "none",
+    "reading_target_words": 140,
+    "vocab_target": 7,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (en)",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "ouverte",
+     "gloss": "ouverte (en)",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "provoque",
+     "gloss": "provoque (en)",
+     "claim_id": "c3"
+    }
+   ],
+   "make_options": [
+    "headline_write",
+    "reader_question",
+    "short_report"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "titre",
+  "comptoir": null,
+  "fil": null,
+  "titre": {
+   "step": "build",
+   "steps": [
+    "read",
+    "three",
+    "trap",
+    "build",
+    "page"
+   ],
+   "band": "b1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "three": {
+    "by": {
+     "id": "augustin_de_roncourt",
+     "name_fr": "Gus",
+     "role_fr": "consultant"
+    },
+    "headlines": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "Fête de la musique : une nuit qui plaît à tout le monde",
+       "tr": "Fête de la musique: a night everyone likes"
+      },
+      "role": "exaggerated",
+      "why": {
+       "fr": "Pas tout le monde : la fête fait du bruit, et il y a de nombreuses plaintes.",
+       "tr": "Not everyone: the festival makes noise, and there are many complaints."
+      },
+      "claim": {
+       "id": "c3",
+       "kind": "fact",
+       "fr": "La fête provoque aussi du bruit, et de nombreuses plaintes.",
+       "quote": "La Fête de la musique est source de nuisances sonores avérées et fait l'objet de nombreuses plaintes.",
+       "attributed_to": null,
+       "source": {
+        "id": "fetemusique_wikipedia",
+        "name": "Wikipédia, « Fête de la musique »",
+        "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+        "published_at": "2026-07-31"
+       }
+      }
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "Le 21 juin, une fête gratuite et ouverte à toutes les musiques",
+       "tr": "On 21 June, a free festival open to every kind of music"
+      },
+      "role": "honest",
+      "why": null,
+      "claim": null
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "Le 21 juin 1982 était le jour le plus long de l'année",
+       "tr": "21 June 1982 was the longest day of the year"
+      },
+      "role": "off",
+      "why": {
+       "fr": "C'est vrai, mais ce titre parle du jour, pas de la fête ni de la musique.",
+       "tr": "True, but this headline is about the day, not about the festival or the music."
+      },
+      "claim": {
+       "id": "c1",
+       "kind": "fact",
+       "fr": "La première Fête de la musique a eu lieu le 21 juin 1982, le jour le plus long de l'année.",
+       "quote": "la première Fête de la musique est lancée le 21 juin 1982, jour symbolique du solstice d’été, le plus long de l’année dans l’hémisphère Nord",
+       "attributed_to": null,
+       "source": {
+        "id": "fetemusique_culture",
+        "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+        "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+        "published_at": "2025-02-03"
+       }
+      }
+     }
+    ],
+    "tries": 1,
+    "max_tries": 2,
+    "picked": [
+     "b"
+    ],
+    "resolved": true,
+    "correct": true,
+    "solution": "b"
+   },
+   "trap": {
+    "headline": {
+     "fr": "Fête de la musique : une nuit qui plaît à tout le monde",
+     "tr": "Fête de la musique: a night everyone likes"
+    },
+    "words": [
+     {
+      "index": 0,
+      "fr": "Fête"
+     },
+     {
+      "index": 1,
+      "fr": "de"
+     },
+     {
+      "index": 2,
+      "fr": "la"
+     },
+     {
+      "index": 3,
+      "fr": "musique"
+     },
+     {
+      "index": 4,
+      "fr": "une"
+     },
+     {
+      "index": 5,
+      "fr": "nuit"
+     },
+     {
+      "index": 6,
+      "fr": "qui"
+     },
+     {
+      "index": 7,
+      "fr": "plaît"
+     },
+     {
+      "index": 8,
+      "fr": "à"
+     },
+     {
+      "index": 9,
+      "fr": "tout"
+     },
+     {
+      "index": 10,
+      "fr": "le"
+     },
+     {
+      "index": 11,
+      "fr": "monde"
+     }
+    ],
+    "tries": 1,
+    "max_tries": 2,
+    "picked": [
+     9,
+     10,
+     11
+    ],
+    "fine": [],
+    "resolved": true,
+    "correct": true,
+    "solution": [
+     9,
+     10,
+     11
+    ],
+    "why": {
+     "fr": "Pas tout le monde : la fête fait du bruit, et il y a de nombreuses plaintes.",
+     "tr": "Not everyone: the festival makes noise, and there are many complaints."
+    },
+    "claim": {
+     "id": "c3",
+     "kind": "fact",
+     "fr": "La fête provoque aussi du bruit, et de nombreuses plaintes.",
+     "quote": "La Fête de la musique est source de nuisances sonores avérées et fait l'objet de nombreuses plaintes.",
+     "attributed_to": null,
+     "source": {
+      "id": "fetemusique_wikipedia",
+      "name": "Wikipédia, « Fête de la musique »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+      "published_at": "2026-07-31"
+     }
+    }
+   },
+   "build": {
+    "input": "free",
+    "phrase": {
+     "fr": "… : … mais …",
+     "tr": "… : … but …"
+    },
+    "subjects": [],
+    "facts": [],
+    "frame": null,
+    "max_words": 12,
+    "avoid_fr": "tout le monde",
+    "learner_fr": null,
+    "draft_fr": null,
+    "proof": null,
+    "marks": [],
+    "tries": 0,
+    "max_tries": 2,
+    "printed_fr": null
+   }
+  },
+  "intox": null
+ },
+ "intox_a1_round": {
+  "id": "794785e7-d911-4fb1-933f-d6748961c915",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:41:32.029742+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "en",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (en)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "intox",
+  "comptoir": null,
+  "fil": null,
+  "titre": null,
+  "intox": {
+   "step": "round",
+   "steps": [
+    "read",
+    "round",
+    "fix",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "round": {
+    "cards": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "La fête fait aussi du bruit.",
+       "tr": "The festival also makes noise."
+      },
+      "answer": null,
+      "true": null,
+      "correct": null,
+      "why": null,
+      "quote": null,
+      "wrong_fr": null
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "La fête est gratuite.",
+       "tr": "The festival is free."
+      },
+      "answer": null,
+      "true": null,
+      "correct": null,
+      "why": null,
+      "quote": null,
+      "wrong_fr": null
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "La première fête a lieu en 1982.",
+       "tr": "The first festival takes place in 1982."
+      },
+      "answer": null,
+      "true": null,
+      "correct": null,
+      "why": null,
+      "quote": null,
+      "wrong_fr": null
+     },
+     {
+      "key": "d",
+      "text": {
+       "fr": "Selon les voisins, la fête est un succès.",
+       "tr": "According to the neighbours, the festival is a success."
+      },
+      "answer": null,
+      "true": null,
+      "correct": null,
+      "why": null,
+      "quote": null,
+      "wrong_fr": null
+     },
+     {
+      "key": "e",
+      "text": {
+       "fr": "La fête a lieu le 14 juillet.",
+       "tr": "The festival takes place on 14 July."
+      },
+      "answer": null,
+      "true": null,
+      "correct": null,
+      "why": null,
+      "quote": null,
+      "wrong_fr": null
+     }
+    ],
+    "current": "a",
+    "score": 0,
+    "answered": 0,
+    "total": 5
+   },
+   "fix": null
+  }
+ },
+ "intox_a1_round_miss": {
+  "id": "794785e7-d911-4fb1-933f-d6748961c915",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:41:32.029742+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "en",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (en)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "intox",
+  "comptoir": null,
+  "fil": null,
+  "titre": null,
+  "intox": {
+   "step": "round",
+   "steps": [
+    "read",
+    "round",
+    "fix",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "round": {
+    "cards": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "La fête fait aussi du bruit.",
+       "tr": "The festival also makes noise."
+      },
+      "answer": "faux",
+      "true": true,
+      "correct": false,
+      "why": {
+       "fr": "La fête fait bien du bruit, et il y a de nombreuses plaintes.",
+       "tr": "The festival does make noise, and there are many complaints."
+      },
+      "quote": {
+       "quote_fr": "La Fête de la musique est source de nuisances sonores avérées et fait l'objet de nombreuses plaintes.",
+       "settles_fr": "nuisances sonores avérées et fait l'objet de nombreuses plaintes",
+       "source_name": "Wikipédia, « Fête de la musique »"
+      },
+      "wrong_fr": null
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "La fête est gratuite.",
+       "tr": "The festival is free."
+      },
+      "answer": null,
+      "true": null,
+      "correct": null,
+      "why": null,
+      "quote": null,
+      "wrong_fr": null
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "La première fête a lieu en 1982.",
+       "tr": "The first festival takes place in 1982."
+      },
+      "answer": null,
+      "true": null,
+      "correct": null,
+      "why": null,
+      "quote": null,
+      "wrong_fr": null
+     },
+     {
+      "key": "d",
+      "text": {
+       "fr": "Selon les voisins, la fête est un succès.",
+       "tr": "According to the neighbours, the festival is a success."
+      },
+      "answer": null,
+      "true": null,
+      "correct": null,
+      "why": null,
+      "quote": null,
+      "wrong_fr": null
+     },
+     {
+      "key": "e",
+      "text": {
+       "fr": "La fête a lieu le 14 juillet.",
+       "tr": "The festival takes place on 14 July."
+      },
+      "answer": null,
+      "true": null,
+      "correct": null,
+      "why": null,
+      "quote": null,
+      "wrong_fr": null
+     }
+    ],
+    "current": "b",
+    "score": 0,
+    "answered": 1,
+    "total": 5
+   },
+   "fix": null
+  }
+ },
+ "intox_a1_fix": {
+  "id": "794785e7-d911-4fb1-933f-d6748961c915",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:41:32.029742+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "en",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (en)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "intox",
+  "comptoir": null,
+  "fil": null,
+  "titre": null,
+  "intox": {
+   "step": "fix",
+   "steps": [
+    "read",
+    "round",
+    "fix",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "round": {
+    "cards": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "La fête fait aussi du bruit.",
+       "tr": "The festival also makes noise."
+      },
+      "answer": "faux",
+      "true": true,
+      "correct": false,
+      "why": {
+       "fr": "La fête fait bien du bruit, et il y a de nombreuses plaintes.",
+       "tr": "The festival does make noise, and there are many complaints."
+      },
+      "quote": {
+       "quote_fr": "La Fête de la musique est source de nuisances sonores avérées et fait l'objet de nombreuses plaintes.",
+       "settles_fr": "nuisances sonores avérées et fait l'objet de nombreuses plaintes",
+       "source_name": "Wikipédia, « Fête de la musique »"
+      },
+      "wrong_fr": null
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "La fête est gratuite.",
+       "tr": "The festival is free."
+      },
+      "answer": "vrai",
+      "true": true,
+      "correct": true,
+      "why": {
+       "fr": "La fête est bien gratuite, pour toutes les musiques.",
+       "tr": "The festival really is free, for every kind of music."
+      },
+      "quote": null,
+      "wrong_fr": null
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "La première fête a lieu en 1982.",
+       "tr": "The first festival takes place in 1982."
+      },
+      "answer": "vrai",
+      "true": true,
+      "correct": true,
+      "why": {
+       "fr": "La première fête a bien eu lieu le 21 juin 1982.",
+       "tr": "The first festival really did take place on 21 June 1982."
+      },
+      "quote": null,
+      "wrong_fr": null
+     },
+     {
+      "key": "d",
+      "text": {
+       "fr": "Selon les voisins, la fête est un succès.",
+       "tr": "According to the neighbours, the festival is a success."
+      },
+      "answer": "faux",
+      "true": false,
+      "correct": true,
+      "why": {
+       "fr": "C'est le ministère de la Culture qui parle de succès, pas les voisins.",
+       "tr": "It is the Ministry of Culture that speaks of a success, not the neighbours."
+      },
+      "quote": {
+       "quote_fr": "Le résultat dépasse toutes les espérances.",
+       "settles_fr": "Le résultat dépasse toutes les espérances",
+       "source_name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)"
+      },
+      "wrong_fr": "les voisins"
+     },
+     {
+      "key": "e",
+      "text": {
+       "fr": "La fête a lieu le 14 juillet.",
+       "tr": "The festival takes place on 14 July."
+      },
+      "answer": "faux",
+      "true": false,
+      "correct": true,
+      "why": {
+       "fr": "La fête a lieu le 21 juin, le jour le plus long, pas le 14 juillet.",
+       "tr": "The festival is on 21 June, the longest day, not on 14 July."
+      },
+      "quote": {
+       "quote_fr": "la première Fête de la musique est lancée le 21 juin 1982, jour symbolique du solstice d’été, le plus long de l’année dans l’hémisphère Nord",
+       "settles_fr": "le 21 juin 1982",
+       "source_name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)"
+      },
+      "wrong_fr": "le 14 juillet"
+     }
+    ],
+    "current": null,
+    "score": 4,
+    "answered": 5,
+    "total": 5
+   },
+   "fix": {
+    "input": "pick",
+    "phrase": {
+     "fr": "C'est faux.",
+     "tr": "That's false."
+    },
+    "items": [
+     {
+      "key": "d",
+      "text": {
+       "fr": "Selon les voisins, la fête est un succès.",
+       "tr": "According to the neighbours, the festival is a success."
+      },
+      "wrong_fr": "les voisins",
+      "options": [
+       "le ministère de la Culture",
+       "les musiciens"
+      ],
+      "quote": {
+       "quote_fr": "Le résultat dépasse toutes les espérances.",
+       "settles_fr": "Le résultat dépasse toutes les espérances",
+       "source_name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)"
+      },
+      "tries": 0,
+      "max_tries": 2,
+      "attempts": [],
+      "resolved": false,
+      "correct": null,
+      "right_fr": null,
+      "fixed": null
+     },
+     {
+      "key": "e",
+      "text": {
+       "fr": "La fête a lieu le 14 juillet.",
+       "tr": "The festival takes place on 14 July."
+      },
+      "wrong_fr": "le 14 juillet",
+      "options": [
+       "le 21 juin",
+       "en 1982"
+      ],
+      "quote": {
+       "quote_fr": "la première Fête de la musique est lancée le 21 juin 1982, jour symbolique du solstice d’été, le plus long de l’année dans l’hémisphère Nord",
+       "settles_fr": "le 21 juin 1982",
+       "source_name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)"
+      },
+      "tries": 0,
+      "max_tries": 2,
+      "attempts": [],
+      "resolved": false,
+      "correct": null,
+      "right_fr": null,
+      "fixed": null
+     }
+    ]
+   }
+  }
+ },
+ "intox_a1_fix_miss": {
+  "id": "794785e7-d911-4fb1-933f-d6748961c915",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:41:32.029742+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "en",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (en)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "intox",
+  "comptoir": null,
+  "fil": null,
+  "titre": null,
+  "intox": {
+   "step": "fix",
+   "steps": [
+    "read",
+    "round",
+    "fix",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "round": {
+    "cards": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "La fête fait aussi du bruit.",
+       "tr": "The festival also makes noise."
+      },
+      "answer": "faux",
+      "true": true,
+      "correct": false,
+      "why": {
+       "fr": "La fête fait bien du bruit, et il y a de nombreuses plaintes.",
+       "tr": "The festival does make noise, and there are many complaints."
+      },
+      "quote": {
+       "quote_fr": "La Fête de la musique est source de nuisances sonores avérées et fait l'objet de nombreuses plaintes.",
+       "settles_fr": "nuisances sonores avérées et fait l'objet de nombreuses plaintes",
+       "source_name": "Wikipédia, « Fête de la musique »"
+      },
+      "wrong_fr": null
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "La fête est gratuite.",
+       "tr": "The festival is free."
+      },
+      "answer": "vrai",
+      "true": true,
+      "correct": true,
+      "why": {
+       "fr": "La fête est bien gratuite, pour toutes les musiques.",
+       "tr": "The festival really is free, for every kind of music."
+      },
+      "quote": null,
+      "wrong_fr": null
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "La première fête a lieu en 1982.",
+       "tr": "The first festival takes place in 1982."
+      },
+      "answer": "vrai",
+      "true": true,
+      "correct": true,
+      "why": {
+       "fr": "La première fête a bien eu lieu le 21 juin 1982.",
+       "tr": "The first festival really did take place on 21 June 1982."
+      },
+      "quote": null,
+      "wrong_fr": null
+     },
+     {
+      "key": "d",
+      "text": {
+       "fr": "Selon les voisins, la fête est un succès.",
+       "tr": "According to the neighbours, the festival is a success."
+      },
+      "answer": "faux",
+      "true": false,
+      "correct": true,
+      "why": {
+       "fr": "C'est le ministère de la Culture qui parle de succès, pas les voisins.",
+       "tr": "It is the Ministry of Culture that speaks of a success, not the neighbours."
+      },
+      "quote": {
+       "quote_fr": "Le résultat dépasse toutes les espérances.",
+       "settles_fr": "Le résultat dépasse toutes les espérances",
+       "source_name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)"
+      },
+      "wrong_fr": "les voisins"
+     },
+     {
+      "key": "e",
+      "text": {
+       "fr": "La fête a lieu le 14 juillet.",
+       "tr": "The festival takes place on 14 July."
+      },
+      "answer": "faux",
+      "true": false,
+      "correct": true,
+      "why": {
+       "fr": "La fête a lieu le 21 juin, le jour le plus long, pas le 14 juillet.",
+       "tr": "The festival is on 21 June, the longest day, not on 14 July."
+      },
+      "quote": {
+       "quote_fr": "la première Fête de la musique est lancée le 21 juin 1982, jour symbolique du solstice d’été, le plus long de l’année dans l’hémisphère Nord",
+       "settles_fr": "le 21 juin 1982",
+       "source_name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)"
+      },
+      "wrong_fr": "le 14 juillet"
+     }
+    ],
+    "current": null,
+    "score": 4,
+    "answered": 5,
+    "total": 5
+   },
+   "fix": {
+    "input": "pick",
+    "phrase": {
+     "fr": "C'est faux.",
+     "tr": "That's false."
+    },
+    "items": [
+     {
+      "key": "d",
+      "text": {
+       "fr": "Selon les voisins, la fête est un succès.",
+       "tr": "According to the neighbours, the festival is a success."
+      },
+      "wrong_fr": "les voisins",
+      "options": [
+       "le ministère de la Culture",
+       "les musiciens"
+      ],
+      "quote": {
+       "quote_fr": "Le résultat dépasse toutes les espérances.",
+       "settles_fr": "Le résultat dépasse toutes les espérances",
+       "source_name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)"
+      },
+      "tries": 1,
+      "max_tries": 2,
+      "attempts": [
+       "les musiciens"
+      ],
+      "resolved": false,
+      "correct": null,
+      "right_fr": null,
+      "fixed": null
+     },
+     {
+      "key": "e",
+      "text": {
+       "fr": "La fête a lieu le 14 juillet.",
+       "tr": "The festival takes place on 14 July."
+      },
+      "wrong_fr": "le 14 juillet",
+      "options": [
+       "le 21 juin",
+       "en 1982"
+      ],
+      "quote": {
+       "quote_fr": "la première Fête de la musique est lancée le 21 juin 1982, jour symbolique du solstice d’été, le plus long de l’année dans l’hémisphère Nord",
+       "settles_fr": "le 21 juin 1982",
+       "source_name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)"
+      },
+      "tries": 0,
+      "max_tries": 2,
+      "attempts": [],
+      "resolved": false,
+      "correct": null,
+      "right_fr": null,
+      "fixed": null
+     }
+    ]
+   }
+  }
+ },
+ "intox_a1_page": {
+  "id": "794785e7-d911-4fb1-933f-d6748961c915",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "closed",
+  "started_at": "2026-11-20T20:41:32.029742+00:00",
+  "closed_at": "2026-11-20T20:41:32.130305+00:00",
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "A1",
+   "ui_language": "en",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "shown",
+    "translation": "one_tap",
+    "reading_target_words": 60,
+    "vocab_target": 5,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (en)",
+     "claim_id": "c2"
+    }
+   ],
+   "make_options": [
+    "headline_choice",
+    "reader_question"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "close",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [
+   {
+    "id": "11",
+    "seq": 11,
+    "at": "2026-11-20T20:41:32.102416+00:00",
+    "kind": "made",
+    "made": {
+     "kind": "intox",
+     "text_fr": "4 sur 5, 2 intox corrigées",
+     "contribution": [],
+     "learner_fr": ""
+    }
+   },
+   {
+    "id": "12",
+    "seq": 12,
+    "at": "2026-11-20T20:41:32.130175+00:00",
+    "kind": "line",
+    "speaker": "romy_tremblay",
+    "role": "close",
+    "text_fr": "Bien joué ! L'intox est démontée, et ta page est dans le journal.",
+    "translation": null,
+    "glosses": [],
+    "reason": null
+   }
+  ],
+  "quick_replies": [],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": {
+   "kind": "intox",
+   "text_fr": "4 sur 5, 2 intox corrigées",
+   "contribution": [],
+   "learner_fr": ""
+  },
+  "closing": {
+   "romy_line_fr": "Bien joué ! L'intox est démontée, et ta page est dans le journal.",
+   "dispatch": {
+    "kicker_fr": "L'intox express de Romy",
+    "headline_fr": "La Fête de la musique",
+    "body_fr": [
+     "La fête fait aussi du bruit.",
+     "La fête est gratuite.",
+     "La première fête a lieu en 1982.",
+     "Selon le ministère de la Culture, la fête est un succès.",
+     "La fête a lieu le 21 juin."
+    ],
+    "contribution": [],
+    "byline_fr": "Romy Tremblay · d'après Ministère de la Culture (fetedelamusique.culture.gouv.fr) et Wikipédia, « Fête de la musique »",
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     },
+     {
+      "id": "fetemusique_wikipedia",
+      "name": "Wikipédia, « Fête de la musique »",
+      "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+      "published_at": "2026-07-31"
+     }
+    ],
+    "picture_url": null,
+    "caption_fr": null,
+    "caption_by_learner": false
+   },
+   "kept": {
+    "words": [
+     {
+      "fr": "la musique",
+      "gloss": "musique (en)",
+      "claim_id": "c1",
+      "used": false,
+      "outcome": null
+     },
+     {
+      "fr": "plaintes",
+      "gloss": "plaintes (en)",
+      "claim_id": "c3",
+      "used": false,
+      "outcome": null
+     },
+     {
+      "fr": "la première",
+      "gloss": "première (en)",
+      "claim_id": "c1",
+      "used": false,
+      "outcome": null
+     },
+     {
+      "fr": "l'année",
+      "gloss": "année (en)",
+      "claim_id": "c1",
+      "used": false,
+      "outcome": null
+     },
+     {
+      "fr": "gratuite",
+      "gloss": "gratuite (en)",
+      "claim_id": "c2",
+      "used": false,
+      "outcome": null
+     }
+    ],
+    "claims": [
+     {
+      "id": "c1",
+      "kind": "fact",
+      "fr": "La première Fête de la musique a eu lieu le 21 juin 1982, le jour le plus long de l'année.",
+      "quote": "la première Fête de la musique est lancée le 21 juin 1982, jour symbolique du solstice d’été, le plus long de l’année dans l’hémisphère Nord",
+      "attributed_to": null,
+      "source": {
+       "id": "fetemusique_culture",
+       "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+       "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+       "published_at": "2025-02-03"
+      }
+     },
+     {
+      "id": "c2",
+      "kind": "fact",
+      "fr": "La fête est gratuite et ouverte à toutes les musiques.",
+      "quote": "La Fête sera gratuite, ouverte à toutes les musiques « sans hiérarchie de genres et de pratiques » et à tous les français.",
+      "attributed_to": null,
+      "source": {
+       "id": "fetemusique_culture",
+       "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+       "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+       "published_at": "2025-02-03"
+      }
+     },
+     {
+      "id": "c4",
+      "kind": "interpretation",
+      "fr": "Selon le ministère de la Culture, le succès de la première édition, en 1982, a dépassé toutes les espérances.",
+      "quote": "Le résultat dépasse toutes les espérances.",
+      "attributed_to": "le ministère de la Culture",
+      "source": {
+       "id": "fetemusique_culture",
+       "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+       "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+       "published_at": "2025-02-03"
+      }
+     },
+     {
+      "id": "c3",
+      "kind": "fact",
+      "fr": "La fête provoque aussi du bruit, et de nombreuses plaintes.",
+      "quote": "La Fête de la musique est source de nuisances sonores avérées et fait l'objet de nombreuses plaintes.",
+      "attributed_to": null,
+      "source": {
+       "id": "fetemusique_wikipedia",
+       "name": "Wikipédia, « Fête de la musique »",
+       "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+       "published_at": "2026-07-31"
+      }
+     }
+    ]
+   },
+   "question_kept_fr": null,
+   "vignette": {
+    "id": "575ccfb0-1880-4325-8fa9-2f49bdbc0661",
+    "session_id": "794785e7-d911-4fb1-933f-d6748961c915",
+    "dossier_id": "evergreen-fete-de-la-musique",
+    "week": "2026-W25",
+    "place_label_fr": "Une petite place parisienne le soir du 21 juin",
+    "ring": "report",
+    "kept_contribution": false,
+    "pictogram_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"46\" r=\"21\" fill=\"#F3C318\"/><rect x=\"34\" y=\"62\" width=\"32\" height=\"15\" rx=\"3\" fill=\"#F3C318\"/><path d=\"M50 28L60 44L40 44Z\" fill=\"#2C6A5D\"/><ellipse cx=\"50\" cy=\"76\" rx=\"20\" ry=\"4\" fill=\"#14110D\"/><circle cx=\"46\" cy=\"40\" r=\"3\" fill=\"#F1ECE1\"/></svg>",
+    "headline_fr": "La Fête de la musique",
+    "minted_at": "2026-11-20T20:41:32"
+   },
+   "colophon_fr": "La suite la semaine prochaine.",
+   "comptoir_page": null,
+   "fil_page": null,
+   "titre_page": null,
+   "intox_page": {
+    "title_fr": "La Fête de la musique",
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lines": [
+     {
+      "text_fr": "La fête fait aussi du bruit.",
+      "was_false": false,
+      "wrong_fr": null,
+      "answered_right": false,
+      "learner_fr": null,
+      "fixed_right": null
+     },
+     {
+      "text_fr": "La fête est gratuite.",
+      "was_false": false,
+      "wrong_fr": null,
+      "answered_right": true,
+      "learner_fr": null,
+      "fixed_right": null
+     },
+     {
+      "text_fr": "La première fête a lieu en 1982.",
+      "was_false": false,
+      "wrong_fr": null,
+      "answered_right": true,
+      "learner_fr": null,
+      "fixed_right": null
+     },
+     {
+      "text_fr": "Selon le ministère de la Culture, la fête est un succès.",
+      "was_false": true,
+      "wrong_fr": "les voisins",
+      "answered_right": true,
+      "learner_fr": null,
+      "fixed_right": true
+     },
+     {
+      "text_fr": "La fête a lieu le 21 juin.",
+      "was_false": true,
+      "wrong_fr": "le 14 juillet",
+      "answered_right": true,
+      "learner_fr": null,
+      "fixed_right": true
+     }
+    ],
+    "score": 4,
+    "total": 5,
+    "fixed": 2,
+    "phrase_fr": "C'est faux.",
+    "words": [
+     "la musique",
+     "plaintes",
+     "la première",
+     "l'année",
+     "gratuite"
+    ]
+   }
+  },
+  "mode": "intox",
+  "comptoir": null,
+  "fil": null,
+  "titre": null,
+  "intox": {
+   "step": "page",
+   "steps": [
+    "read",
+    "round",
+    "fix",
+    "page"
+   ],
+   "band": "a1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "round": {
+    "cards": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "La fête fait aussi du bruit.",
+       "tr": "The festival also makes noise."
+      },
+      "answer": "faux",
+      "true": true,
+      "correct": false,
+      "why": {
+       "fr": "La fête fait bien du bruit, et il y a de nombreuses plaintes.",
+       "tr": "The festival does make noise, and there are many complaints."
+      },
+      "quote": {
+       "quote_fr": "La Fête de la musique est source de nuisances sonores avérées et fait l'objet de nombreuses plaintes.",
+       "settles_fr": "nuisances sonores avérées et fait l'objet de nombreuses plaintes",
+       "source_name": "Wikipédia, « Fête de la musique »"
+      },
+      "wrong_fr": null
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "La fête est gratuite.",
+       "tr": "The festival is free."
+      },
+      "answer": "vrai",
+      "true": true,
+      "correct": true,
+      "why": {
+       "fr": "La fête est bien gratuite, pour toutes les musiques.",
+       "tr": "The festival really is free, for every kind of music."
+      },
+      "quote": null,
+      "wrong_fr": null
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "La première fête a lieu en 1982.",
+       "tr": "The first festival takes place in 1982."
+      },
+      "answer": "vrai",
+      "true": true,
+      "correct": true,
+      "why": {
+       "fr": "La première fête a bien eu lieu le 21 juin 1982.",
+       "tr": "The first festival really did take place on 21 June 1982."
+      },
+      "quote": null,
+      "wrong_fr": null
+     },
+     {
+      "key": "d",
+      "text": {
+       "fr": "Selon les voisins, la fête est un succès.",
+       "tr": "According to the neighbours, the festival is a success."
+      },
+      "answer": "faux",
+      "true": false,
+      "correct": true,
+      "why": {
+       "fr": "C'est le ministère de la Culture qui parle de succès, pas les voisins.",
+       "tr": "It is the Ministry of Culture that speaks of a success, not the neighbours."
+      },
+      "quote": {
+       "quote_fr": "Le résultat dépasse toutes les espérances.",
+       "settles_fr": "Le résultat dépasse toutes les espérances",
+       "source_name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)"
+      },
+      "wrong_fr": "les voisins"
+     },
+     {
+      "key": "e",
+      "text": {
+       "fr": "La fête a lieu le 14 juillet.",
+       "tr": "The festival takes place on 14 July."
+      },
+      "answer": "faux",
+      "true": false,
+      "correct": true,
+      "why": {
+       "fr": "La fête a lieu le 21 juin, le jour le plus long, pas le 14 juillet.",
+       "tr": "The festival is on 21 June, the longest day, not on 14 July."
+      },
+      "quote": {
+       "quote_fr": "la première Fête de la musique est lancée le 21 juin 1982, jour symbolique du solstice d’été, le plus long de l’année dans l’hémisphère Nord",
+       "settles_fr": "le 21 juin 1982",
+       "source_name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)"
+      },
+      "wrong_fr": "le 14 juillet"
+     }
+    ],
+    "current": null,
+    "score": 4,
+    "answered": 5,
+    "total": 5
+   },
+   "fix": {
+    "input": "pick",
+    "phrase": {
+     "fr": "C'est faux.",
+     "tr": "That's false."
+    },
+    "items": [
+     {
+      "key": "d",
+      "text": {
+       "fr": "Selon les voisins, la fête est un succès.",
+       "tr": "According to the neighbours, the festival is a success."
+      },
+      "wrong_fr": "les voisins",
+      "options": [
+       "le ministère de la Culture",
+       "les musiciens"
+      ],
+      "quote": {
+       "quote_fr": "Le résultat dépasse toutes les espérances.",
+       "settles_fr": "Le résultat dépasse toutes les espérances",
+       "source_name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)"
+      },
+      "tries": 2,
+      "max_tries": 2,
+      "attempts": [
+       "les musiciens",
+       "le ministère de la Culture"
+      ],
+      "resolved": true,
+      "correct": true,
+      "right_fr": "le ministère de la Culture",
+      "fixed": {
+       "fr": "Selon le ministère de la Culture, la fête est un succès.",
+       "tr": "According to the Ministry of Culture, the festival is a success."
+      }
+     },
+     {
+      "key": "e",
+      "text": {
+       "fr": "La fête a lieu le 14 juillet.",
+       "tr": "The festival takes place on 14 July."
+      },
+      "wrong_fr": "le 14 juillet",
+      "options": [
+       "le 21 juin",
+       "en 1982"
+      ],
+      "quote": {
+       "quote_fr": "la première Fête de la musique est lancée le 21 juin 1982, jour symbolique du solstice d’été, le plus long de l’année dans l’hémisphère Nord",
+       "settles_fr": "le 21 juin 1982",
+       "source_name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)"
+      },
+      "tries": 1,
+      "max_tries": 2,
+      "attempts": [
+       "le 21 juin"
+      ],
+      "resolved": true,
+      "correct": true,
+      "right_fr": "le 21 juin",
+      "fixed": {
+       "fr": "La fête a lieu le 21 juin.",
+       "tr": "The festival takes place on 21 June."
+      }
+     }
+    ]
+   }
+  }
+ },
+ "intox_b1_fix": {
+  "id": "32dd0b54-4457-4c68-9f79-050828ca9ced",
+  "week": {
+   "iso": "2026-W25",
+   "label": "Semaine 25",
+   "range": "du 15 au 21 juin"
+  },
+  "status": "active",
+  "started_at": "2026-11-20T20:41:32.153981+00:00",
+  "closed_at": null,
+  "dossier": {
+   "id": "evergreen-fete-de-la-musique",
+   "title_fr": "La Fête de la musique",
+   "summary_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+   "topic": "culture",
+   "evergreen": true,
+   "sources": [
+    {
+     "id": "fetemusique_culture",
+     "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+     "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+     "published_at": "2025-02-03"
+    },
+    {
+     "id": "fetemusique_wikipedia",
+     "name": "Wikipédia, « Fête de la musique »",
+     "url": "https://fr.wikipedia.org/w/index.php?title=F%C3%AAte_de_la_musique&oldid=238264404",
+     "published_at": "2026-07-31"
+    }
+   ]
+  },
+  "plan": {
+   "band": "B1",
+   "ui_language": "fr",
+   "gloss_language": "en",
+   "chosen_by": "learner",
+   "angle": {
+    "id": "a1",
+    "fr": "Ce qui se passe dans la rue le 21 juin",
+    "purpose": "understand_change"
+   },
+   "support": {
+    "glosses": "tap",
+    "translation": "none",
+    "reading_target_words": 140,
+    "vocab_target": 7,
+    "level": 0
+   },
+   "vocabulary": [
+    {
+     "fr": "la musique",
+     "gloss": "musique (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "plaintes",
+     "gloss": "plaintes (en)",
+     "claim_id": "c3"
+    },
+    {
+     "fr": "la première",
+     "gloss": "première (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "l'année",
+     "gloss": "année (en)",
+     "claim_id": "c1"
+    },
+    {
+     "fr": "gratuite",
+     "gloss": "gratuite (en)",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "ouverte",
+     "gloss": "ouverte (en)",
+     "claim_id": "c2"
+    },
+    {
+     "fr": "provoque",
+     "gloss": "provoque (en)",
+     "claim_id": "c3"
+    }
+   ],
+   "make_options": [
+    "headline_write",
+    "reader_question",
+    "short_report"
+   ],
+   "budget": {
+    "turns": 14,
+    "minutes": 8
+   }
+  },
+  "stage": {
+   "place_id": "place_fete_musique",
+   "place_fr": "Une petite place parisienne le soir du 21 juin",
+   "plate_url": "/assets/serial/locations/le_mistral-counter.webp",
+   "plate_place_id": "le_mistral",
+   "place_is_real": false,
+   "dress": "coat",
+   "cast": [
+    {
+     "id": "romy_tremblay",
+     "hold": "notebook"
+    },
+    {
+     "id": "user",
+     "hold": null
+    }
+   ],
+   "plate_url_second": null,
+   "plate_switched": false,
+   "plate_kind": "stand_in",
+   "picture_words": []
+  },
+  "beat": "arrive",
+  "room": {
+   "used": 0,
+   "phase": "open",
+   "remaining_turns": 14
+  },
+  "thread": [],
+  "quick_replies": [
+   {
+    "label": "D'accord, je t'aide.",
+    "send_fr": "D'accord, je t'aide."
+   }
+  ],
+  "steer_to_make": false,
+  "own_line": false,
+  "artifact": null,
+  "closing": null,
+  "mode": "intox",
+  "comptoir": null,
+  "fil": null,
+  "titre": null,
+  "intox": {
+   "step": "fix",
+   "steps": [
+    "read",
+    "round",
+    "fix",
+    "page"
+   ],
+   "band": "b1",
+   "title_fr": "La Fête de la musique",
+   "read": {
+    "dateline_fr": "Une petite place parisienne le soir du 21 juin",
+    "lead": {
+     "fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places. La fête existe depuis 1982. Elle plaît à beaucoup de monde, mais elle fait aussi du bruit, et certains voisins se plaignent.",
+     "tr": null
+    },
+    "sources": [
+     {
+      "id": "fetemusique_culture",
+      "name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)",
+      "url": "https://fetedelamusique.culture.gouv.fr/actualites/historique-de-la-fete-de-la-musique",
+      "published_at": "2025-02-03"
+     }
+    ]
+   },
+   "round": {
+    "cards": [
+     {
+      "key": "a",
+      "text": {
+       "fr": "La Fête de la musique est gratuite et ouverte à toutes les musiques.",
+       "tr": "The Fête de la musique is free and open to every kind of music."
+      },
+      "answer": "vrai",
+      "true": true,
+      "correct": true,
+      "why": {
+       "fr": "La fête est bien gratuite, pour toutes les musiques.",
+       "tr": "The festival really is free, for every kind of music."
+      },
+      "quote": null,
+      "wrong_fr": null
+     },
+     {
+      "key": "b",
+      "text": {
+       "fr": "Selon les voisins, le succès de la première édition a dépassé toutes les espérances.",
+       "tr": "According to the neighbours, the success of the first edition went beyond all hopes."
+      },
+      "answer": "faux",
+      "true": false,
+      "correct": true,
+      "why": {
+       "fr": "C'est le ministère de la Culture qui parle de succès, pas les voisins.",
+       "tr": "It is the Ministry of Culture that speaks of a success, not the neighbours."
+      },
+      "quote": {
+       "quote_fr": "Le résultat dépasse toutes les espérances.",
+       "settles_fr": "Le résultat dépasse toutes les espérances",
+       "source_name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)"
+      },
+      "wrong_fr": "les voisins"
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "La fête a lieu le 14 juillet, le jour le plus long de l'année.",
+       "tr": "The festival takes place on 14 July, the longest day of the year."
+      },
+      "answer": "faux",
+      "true": false,
+      "correct": true,
+      "why": {
+       "fr": "La fête a lieu le 21 juin, le jour le plus long, pas le 14 juillet.",
+       "tr": "The festival is on 21 June, the longest day, not on 14 July."
+      },
+      "quote": {
+       "quote_fr": "la première Fête de la musique est lancée le 21 juin 1982, jour symbolique du solstice d’été, le plus long de l’année dans l’hémisphère Nord",
+       "settles_fr": "le 21 juin 1982",
+       "source_name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)"
+      },
+      "wrong_fr": "le 14 juillet"
+     },
+     {
+      "key": "d",
+      "text": {
+       "fr": "La première Fête de la musique a eu lieu le 21 juin 1982.",
+       "tr": "The first Fête de la musique took place on 21 June 1982."
+      },
+      "answer": "vrai",
+      "true": true,
+      "correct": true,
+      "why": {
+       "fr": "La première fête a bien eu lieu le 21 juin 1982.",
+       "tr": "The first festival really did take place on 21 June 1982."
+      },
+      "quote": null,
+      "wrong_fr": null
+     },
+     {
+      "key": "e",
+      "text": {
+       "fr": "La Fête de la musique provoque aussi du bruit et de nombreuses plaintes.",
+       "tr": "The Fête de la musique also causes noise and many complaints."
+      },
+      "answer": "vrai",
+      "true": true,
+      "correct": true,
+      "why": {
+       "fr": "La fête fait bien du bruit, et il y a de nombreuses plaintes.",
+       "tr": "The festival does make noise, and there are many complaints."
+      },
+      "quote": null,
+      "wrong_fr": null
+     }
+    ],
+    "current": null,
+    "score": 5,
+    "answered": 5,
+    "total": 5
+   },
+   "fix": {
+    "input": "write",
+    "phrase": {
+     "fr": "En réalité, …",
+     "tr": "In reality, …"
+    },
+    "items": [
+     {
+      "key": "b",
+      "text": {
+       "fr": "Selon les voisins, le succès de la première édition a dépassé toutes les espérances.",
+       "tr": "According to the neighbours, the success of the first edition went beyond all hopes."
+      },
+      "wrong_fr": "les voisins",
+      "options": [],
+      "quote": {
+       "quote_fr": "Le résultat dépasse toutes les espérances.",
+       "settles_fr": "Le résultat dépasse toutes les espérances",
+       "source_name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)"
+      },
+      "tries": 0,
+      "max_tries": 2,
+      "attempts": [],
+      "resolved": false,
+      "correct": null,
+      "right_fr": null,
+      "fixed": null
+     },
+     {
+      "key": "c",
+      "text": {
+       "fr": "La fête a lieu le 14 juillet, le jour le plus long de l'année.",
+       "tr": "The festival takes place on 14 July, the longest day of the year."
+      },
+      "wrong_fr": "le 14 juillet",
+      "options": [],
+      "quote": {
+       "quote_fr": "la première Fête de la musique est lancée le 21 juin 1982, jour symbolique du solstice d’été, le plus long de l’année dans l’hémisphère Nord",
+       "settles_fr": "le 21 juin 1982",
+       "source_name": "Ministère de la Culture (fetedelamusique.culture.gouv.fr)"
+      },
+      "tries": 0,
+      "max_tries": 2,
+      "attempts": [],
+      "resolved": false,
+      "correct": null,
+      "right_fr": null,
+      "fixed": null
+     }
+    ]
+   }
+  }
+ }
+}

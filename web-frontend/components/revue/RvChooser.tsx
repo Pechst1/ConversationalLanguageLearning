@@ -9,13 +9,16 @@
 import React from 'react';
 
 import { Action, ArrowRightIcon } from '@/components/atelier-v2/ui';
+import { resolveMediaUrl } from '@/lib/media-url';
 import type { RvMatchResult, RvStoryCard, RvWeek } from '@/lib/revue-types';
 
 import { COMPTOIR_FR } from './comptoir/comptoir-copy';
+import { PAPIER_FR } from './papier/papier-copy';
+import { PpOpening } from './papier/PapierPrint';
 import type { RevueCopy } from './revue-copy';
 import { RvStage, stageCast } from './RvStage';
 import { RvComptoirFaces } from './RvUneCard';
-import { RvAltRows, RvAsk } from './RvSubjectSheet';
+import { RvAsk } from './RvSubjectSheet';
 
 export type RvChooserProps = {
   recommended: RvStoryCard;
@@ -28,24 +31,87 @@ export type RvChooserProps = {
   copy: RevueCopy;
 };
 
+/** Today, as the learner's own day («2026-11-21»). */
+function todayIso(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+/**
+ * «La belle édition»: the other stories of the edition, set as teasers like the lead, smaller —
+ * the kicker (the topic), the headline, one line of standfirst, the picture at the right.
+ */
+function PpAltTeasers({ stories, onPick, copy }: { stories: RvStoryCard[]; onPick: (dossierId: string) => void; copy: RevueCopy }) {
+  if (!stories.length) return null;
+  return (
+    <ul className="pp-alts">
+      {stories.map((story) => {
+        const plate = story.plateUrl ?? story.stage.plateUrl;
+        const src = plate ? resolveMediaUrl(plate) ?? plate : null;
+        return (
+          <li key={story.dossierId}>
+            <button type="button" className="pp-alt rv-alt" data-dossier={story.dossierId} onClick={() => onPick(story.dossierId)}>
+              <span>
+                <span className="pp-alt__kicker">{story.evergreen ? copy.evergreen_topic : copy.topic[story.topic]}</span>
+                <span className="pp-alt__hl" lang="fr">
+                  {story.titleFr}
+                </span>
+                <span className="pp-alt__stand" lang="fr">
+                  {story.summaryFr || story.placeFr}
+                </span>
+              </span>
+              <span className="pp-alt__pic" aria-hidden="true">
+                {/* eslint-disable-next-line @next/next/no-img-element -- a painted plate, already sized */}
+                {src && <img src={src} alt="" loading="lazy" decoding="async" />}
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function RvChooser({ recommended, alternatives, week, onPick, onAsk, pending = false, copy }: RvChooserProps) {
   // «Au comptoir»: the question of the day and the faces lead; the story's title is the subject line.
   const comptoir = Boolean(recommended.questionFr && recommended.cast?.length);
   const press = comptoir ? COMPTOIR_FR.press : copy.join;
+  const today = todayIso();
   return (
     <div className="rv-chooser">
-      <p className="rv-kicker" lang="fr">
+      {/* «La belle édition» (2026-11-21): entering Le Papier opens today's paper — the masthead, its
+          rule, the dateline; the week stays said for screen readers and in the Une's edition line. */}
+      <PpOpening edition={{ dateIso: today, weekIso: week.iso }} section={PAPIER_FR.edition_today} step={week.range} />
+      <p className="av2-sr" lang="fr">
         {`${copy.revue_full} · ${week.label.toLowerCase()} · ${week.range}`}
       </p>
       <article className="rv-une">
         <RvStage plateUrl={recommended.plateUrl ?? recommended.stage.plateUrl} size="une" cast={stageCast(recommended.stage.cast)} still />
         <div className="rv-une__body">
-          <p className="av2-label av2-label--story" lang={comptoir ? 'fr' : undefined}>
-            {comptoir ? COMPTOIR_FR.question_kicker : copy.romy_proposes}
-          </p>
+          {/* «La belle édition»: the assignment dealt is the story's rubrique, set as a section head. */}
+          {recommended.assignment && (
+            <p className="rv-une__meta rv-une__assignment pp-assign" data-assignment={recommended.assignment.key}>
+              <strong className="pp-assign__name" lang="fr">
+                {recommended.assignment.nameFr}
+              </strong>
+              <span className="pp-assign__label">{copy.assignment_label}</span>
+            </p>
+          )}
+          {/* With the assignment as the section head, «Romy's pick» would be a second kicker: the question of the day stays. */}
+          {(comptoir || !recommended.assignment) && (
+            <p className="av2-label av2-label--story" lang={comptoir ? 'fr' : undefined}>
+              {comptoir ? COMPTOIR_FR.question_kicker : copy.romy_proposes}
+            </p>
+          )}
           <h2 className="rv-une__title" lang="fr">
             {comptoir && recommended.questionFr ? recommended.questionFr : recommended.titleFr}
           </h2>
+          {recommended.summaryFr && recommended.summaryFr.trim() !== recommended.titleFr.trim() && (
+            <p className="pp-teaser__stand" lang="fr">
+              {recommended.summaryFr}
+            </p>
+          )}
           {comptoir && recommended.cast && <RvComptoirFaces cast={recommended.cast} copy={copy} />}
           <p className="rv-une__meta">
             <span lang="fr">{recommended.placeFr}</span>
@@ -66,8 +132,8 @@ export function RvChooser({ recommended, alternatives, week, onPick, onAsk, pend
           </div>
         </div>
       </article>
-      {alternatives.length > 0 && <p className="av2-label">{copy.or_else}</p>}
-      <RvAltRows stories={alternatives} onPick={(id) => onPick(id)} copy={copy} />
+      {alternatives.length > 0 && <p className="pp-alts__k">{copy.or_else}</p>}
+      <PpAltTeasers stories={alternatives} onPick={(id) => onPick(id)} copy={copy} />
       <RvAsk onAsk={onAsk} onPick={(id) => onPick(id)} copy={copy} />
     </div>
   );

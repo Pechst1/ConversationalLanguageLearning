@@ -10,6 +10,8 @@ import React from 'react';
 
 import { Action, ArrowRightIcon } from '@/components/atelier-v2/ui';
 
+import { RvSouvenirSlot } from '../rdv/RvSouvenir';
+import { RvGallery } from '../RvGallery';
 import { RvGlossText, RvSourceLine, RvTranslate } from '../RvThread';
 import { COMPTOIR_FR } from './comptoir-copy';
 import { GUT_VOTES_FR } from './comptoir-model';
@@ -46,6 +48,7 @@ export function RvComptoirRead(props: ComptoirStepProps) {
           />
           {source && <RvSourceLine source={source} copy={copy} />}
         </section>
+        <RvSouvenirSlot sessionId={session.id} props={props} chrome={session.plan.uiLanguage} />
         <section className="ct-q" aria-label={COMPTOIR_FR.question_kicker}>
           <p className="ct-q__k" lang="fr">
             {COMPTOIR_FR.question_kicker}
@@ -71,6 +74,9 @@ export function RvComptoirRead(props: ComptoirStepProps) {
             ))}
           </div>
         </section>
+        {/* The story's other pictures after the text to read (the lead, the question): the text
+            first on a phone's first screen. */}
+        <RvGallery pictures={session.stage.pictures} mainUrl={session.stage.plateUrl} copy={copy} />
         {notice}
       </div>
       {!readOnly && (

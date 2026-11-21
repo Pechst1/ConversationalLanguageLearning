@@ -45,6 +45,7 @@ from app.schemas.revue import (
     RvComptoirIntox,
     RvComptoirKit,
     RvComptoirMark,
+    RvComptoirNote,
     RvComptoirOpinion,
     RvComptoirPage,
     RvComptoirPageIntox,
@@ -58,7 +59,7 @@ from app.schemas.revue import (
     RvDispatch,
     RvKept,
 )
-from app.services.revue import comptoir, voice
+from app.services.revue import comptoir, pourquoi, voice
 from app.services.revue.dossier import (
     COMPTOIR_STANCES,
     ComptoirIntox,
@@ -86,6 +87,12 @@ if TYPE_CHECKING:  # pragma: no cover
     from app.services.revue.encounter import RevueEncounter
 
 COMPTOIR_EDIT_PROMPT_VERSION = "comptoir-edit-v3"
+
+
+def edit_prompt_version() -> str:
+    """The ``comptoir_edit`` prompt in use: v4 with «Le pourquoi» on (``pourquoi.py``), else v3."""
+
+    return pourquoi.POURQUOI_PROMPT_VERSION if pourquoi.enabled() else COMPTOIR_EDIT_PROMPT_VERSION
 
 STEPS: tuple[str, ...] = ("read", "takes", "intox", "opinion", "page")
 REACTIONS: tuple[str, ...] = ("agree", "disagree")
@@ -511,7 +518,7 @@ def comptoir_view(loaded: Loaded) -> RvComptoirView:
             draft_fr=proof["draft"],
             proof=proof["proof"],
             marks=[RvComptoirMark(span_fr=str(m.get("span_fr")), start=int(m.get("start") or 0),
-                                  kind=str(m.get("kind")))  # type: ignore[arg-type]
+                                  kind=str(m.get("kind")), why=pourquoi.hint_of(m))  # type: ignore[arg-type]
                    for m in proof["marks"] if isinstance(m, dict) and m.get("kind") in MARK_KINDS],
             tries=proof["tries"],
             max_tries=FIX_TRIES,
@@ -523,6 +530,8 @@ def comptoir_view(loaded: Loaded) -> RvComptoirView:
             ) if settled else None,
             comebacks=chips,
             comeback=comeback,
+            notes=[RvComptoirNote(**note) for note in pourquoi.notes_of(pourquoi.rounds_of(acts.opinion, acts.fixes),
+                                                                         proof["proof"]) if note["kind"] in MARK_KINDS],
         )
 
     return RvComptoirView(
@@ -706,7 +715,7 @@ def _opinion(encounter: RevueEncounter, loaded: Loaded, takes: ComptoirTakes, *,
     state.append("comptoir", act="opinion", stance=stance, mode=body.mode, reason_index=body.reason_index,
                  learner_fr=learner, typed_fr=typed, proof=check["proof"], target_fr=check["target"],
                  marks=check["marks"], reply=reply, source=check["source"], cost_usd=check["cost"],
-                 prompt_version=COMPTOIR_EDIT_PROMPT_VERSION if band != "A1" else None, refused=check["refused"])
+                 prompt_version=edit_prompt_version() if band != "A1" else None, refused=check["refused"])
     return None
 
 
@@ -728,6 +737,7 @@ def _opinion_fix(encounter: RevueEncounter, loaded: Loaded, takes: ComptoirTakes
         if proof["tries"] < 1:
             raise _out_of_order(step, "opinion_fix")
         state.append("comptoir", act="opinion_fix", by="romy", proof="corrected", target_fr=proof["target"])
+        _settle(encounter, loaded, acts, "corrected")
         return None
     text = re.sub(r"\s+", " ", body.text or "").strip()
     stance = str(acts.opinion.get("stance")) if acts.opinion else "pour"
@@ -745,7 +755,7 @@ def _opinion_fix(encounter: RevueEncounter, loaded: Loaded, takes: ComptoirTakes
         row.update(proof="fixed", target_fr=proof["target"])
     else:
         check = _proofread(encounter, loaded, takes, band=band, stance=stance, learner_fr=learner)
-        row.update(cost_usd=check["cost"], refused=check["refused"], prompt_version=COMPTOIR_EDIT_PROMPT_VERSION)
+        row.update(cost_usd=check["cost"], refused=check["refused"], prompt_version=edit_prompt_version())
         if check["proof"] == "as_written":
             row.update(proof="as_written", target_fr="")
         elif check["proof"] == "clean":
@@ -755,7 +765,17 @@ def _opinion_fix(encounter: RevueEncounter, loaded: Loaded, takes: ComptoirTakes
         else:
             row.update(proof="marked", target_fr=check["target"], marks=check["marks"])
     state.append("comptoir", act="opinion_fix", **row)
+    _settle(encounter, loaded, acts, str(row.get("proof")))
     return None
+
+
+def _settle(encounter: RevueEncounter, loaded: Loaded, acts: Acts, proof: str) -> None:
+    """«Le pourquoi»: once the marks are settled, the slips go to the learner's error memory
+    (``pourquoi.remember``; ``acts`` as they were before this settling fix). Switch on only."""
+
+    if pourquoi.enabled() and proof in {"fixed", "corrected"}:
+        pourquoi.remember(encounter.db, loaded.row.user_id, pourquoi.rounds_of(acts.opinion, acts.fixes), proof,
+                          session_id=str(loaded.row.id), dossier_id=loaded.dossier.id)
 
 
 def _proofread(encounter: RevueEncounter, loaded: Loaded, takes: ComptoirTakes, *, band: str, stance: str,
@@ -771,6 +791,9 @@ def _proofread(encounter: RevueEncounter, loaded: Loaded, takes: ComptoirTakes, 
     if not callable(edit):
         return out
     context = edit_context(loaded.dossier, takes, band=band, stance=stance, learner_fr=learner_fr)
+    language = pourquoi.explain_language(encounter, loaded) if pourquoi.enabled() else None
+    if language:
+        context[pourquoi.EXPLAIN_KEY] = language
     before = meter(encounter.provider)
     try:
         raw = edit(context)
@@ -785,6 +808,9 @@ def _proofread(encounter: RevueEncounter, loaded: Loaded, takes: ComptoirTakes, 
     out.update({key: checked[key] for key in ("reply_fr", "reply_en", "reply_de") if checked.get(key)})
     if checked.get("edited_fr"):
         marks = proof_marks(learner_fr, checked["edited_fr"], checked.get("marks") or [])
+        if language and marks:
+            marks = pourquoi.explain_marks(marks, raw.get("marks"), learner_fr=learner_fr, target_fr=checked["edited_fr"],
+                                           dossier=loaded.dossier, takes=takes, band=band, language=language)
         out.update(target=checked["edited_fr"], marks=marks, proof="marked" if marks else "clean", source="model")
     return out
 

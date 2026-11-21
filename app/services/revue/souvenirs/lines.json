@@ -1,0 +1,822 @@
+{
+ "version": "souvenirs-v1",
+ "note": "«Papier · les rendez-vous» (owner 2026-11-21): one line per session in the mouth of a regular, slots filled only from stored facts. {Quand} is always sentence-initial. Authored, never generated.",
+ "quand": {
+  "today": {
+   "fr": "Tout à l'heure",
+   "en": "Earlier today",
+   "de": "Vorhin"
+  },
+  "yesterday": {
+   "fr": "Hier",
+   "en": "Yesterday",
+   "de": "Gestern"
+  },
+  "weekday": {
+   "fr": "{jour}",
+   "en": "On {day}",
+   "de": "Am {tag}"
+  },
+  "last_week": {
+   "fr": "La semaine dernière",
+   "en": "Last week",
+   "de": "Letzte Woche"
+  },
+  "recently": {
+   "fr": "L'autre jour",
+   "en": "The other day",
+   "de": "Neulich"
+  }
+ },
+ "templates": [
+  {
+   "id": "opinion.contre_moi.a1",
+   "mode": "opinion",
+   "band": "a1",
+   "speaker": "opponent",
+   "fact": "stance",
+   "fr": "La dernière fois, tu étais contre moi. Et aujourd'hui ?",
+   "en": "Last time, you were against me. And today?",
+   "de": "Letztes Mal warst du gegen mich. Und heute?"
+  },
+  {
+   "id": "opinion.contre_moi.a2",
+   "mode": "opinion",
+   "band": "a2",
+   "speaker": "opponent",
+   "fact": "stance",
+   "fr": "{Quand}, au comptoir, tu n'étais pas d'accord avec moi. Et aujourd'hui ?",
+   "en": "{Quand}, at the counter, you didn't agree with me. And today?",
+   "de": "{Quand} warst du am Tresen nicht meiner Meinung. Und heute?"
+  },
+  {
+   "id": "opinion.contre_moi.b1",
+   "mode": "opinion",
+   "band": "b1",
+   "speaker": "opponent",
+   "fact": "stance",
+   "fr": "{Quand}, tu m'as tenu tête au comptoir. Voyons si tu recommences.",
+   "en": "{Quand}, you stood up to me at the counter. Let's see if you do it again.",
+   "de": "{Quand} hast du mir am Tresen die Stirn geboten. Mal sehen, ob du es wieder tust."
+  },
+  {
+   "id": "opinion.avec_moi.a1",
+   "mode": "opinion",
+   "band": "a1",
+   "speaker": "ally",
+   "fact": "stance",
+   "fr": "La dernière fois, tu étais d'accord avec moi. Merci.",
+   "en": "Last time, you agreed with me. Thanks.",
+   "de": "Letztes Mal warst du meiner Meinung. Danke."
+  },
+  {
+   "id": "opinion.avec_moi.a2",
+   "mode": "opinion",
+   "band": "a2",
+   "speaker": "ally",
+   "fact": "stance",
+   "fr": "{Quand}, tu étais de mon côté. Encore aujourd'hui ?",
+   "en": "{Quand}, you were on my side. Again today?",
+   "de": "{Quand} warst du auf meiner Seite. Heute auch?"
+  },
+  {
+   "id": "opinion.avec_moi.b1",
+   "mode": "opinion",
+   "band": "b1",
+   "speaker": "ally",
+   "fact": "stance",
+   "fr": "{Quand}, nous étions du même avis. On verra si ça tient aujourd'hui.",
+   "en": "{Quand}, we were of the same mind. We'll see if it holds today.",
+   "de": "{Quand} waren wir einer Meinung. Mal sehen, ob das heute hält."
+  },
+  {
+   "id": "opinion.ca_depend.a1",
+   "mode": "opinion",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "stance",
+   "stance": "nuance",
+   "fr": "La dernière fois, tu as dit : ça dépend. Et aujourd'hui ?",
+   "en": "Last time, you said: it depends. And today?",
+   "de": "Letztes Mal hast du gesagt: Es kommt darauf an. Und heute?"
+  },
+  {
+   "id": "opinion.ca_depend.a2",
+   "mode": "opinion",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "stance",
+   "stance": "nuance",
+   "fr": "{Quand}, tu n'as choisi aucun camp. Aujourd'hui, tu choisis ?",
+   "en": "{Quand}, you didn't pick a side. Will you pick one today?",
+   "de": "{Quand} hast du dich für keine Seite entschieden. Entscheidest du dich heute?"
+  },
+  {
+   "id": "opinion.ca_depend.b1",
+   "mode": "opinion",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "stance",
+   "stance": "nuance",
+   "fr": "{Quand}, tu as refusé de trancher. C'est permis, mais aujourd'hui, j'aimerais un avis net.",
+   "en": "{Quand}, you refused to take sides. That's allowed, but today I'd like a clear opinion.",
+   "de": "{Quand} wolltest du dich nicht festlegen. Das ist erlaubt, aber heute hätte ich gern eine klare Meinung."
+  },
+  {
+   "id": "opinion.habitues.a1",
+   "mode": "opinion",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "count",
+   "min_count": 3,
+   "fr": "Tu as déjà fait {n} papiers avec moi. Assieds-toi.",
+   "en": "You have already made {n} papers with me. Sit down.",
+   "de": "Du hast schon {n} Artikel mit mir gemacht. Setz dich."
+  },
+  {
+   "id": "opinion.habitues.a2",
+   "mode": "opinion",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "count",
+   "min_count": 3,
+   "fr": "Déjà {n} papiers ensemble. Les habitués te connaissent maintenant.",
+   "en": "{n} papers together already. The regulars know you now.",
+   "de": "Schon {n} Artikel zusammen. Die Stammgäste kennen dich jetzt."
+  },
+  {
+   "id": "opinion.habitues.b1",
+   "mode": "opinion",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "count",
+   "min_count": 3,
+   "fr": "{n} papiers ensemble : au comptoir, on commence à te reconnaître.",
+   "en": "{n} papers together: at the counter, people are starting to recognise you.",
+   "de": "{n} Artikel zusammen: Am Tresen erkennt man dich langsam wieder."
+  },
+  {
+   "id": "opinion.titre_puis_avis.a1",
+   "mode": "opinion",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "headline",
+   "fr": "{Quand}, ton titre était honnête. Aujourd'hui, ton avis.",
+   "en": "{Quand}, your headline was honest. Today, your opinion.",
+   "de": "{Quand} war deine Schlagzeile ehrlich. Heute deine Meinung."
+  },
+  {
+   "id": "opinion.titre_puis_avis.a2",
+   "mode": "opinion",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "headline",
+   "fr": "{Quand}, tu as écrit un titre honnête. Aujourd'hui, on veut ton avis.",
+   "en": "{Quand}, you wrote an honest headline. Today, we want your opinion.",
+   "de": "{Quand} hast du eine ehrliche Schlagzeile geschrieben. Heute wollen wir deine Meinung."
+  },
+  {
+   "id": "opinion.titre_puis_avis.b1",
+   "mode": "opinion",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "headline",
+   "fr": "{Quand}, ton titre s'en tenait aux faits. Aujourd'hui, tu as le droit d'avoir un avis.",
+   "en": "{Quand}, your headline stuck to the facts. Today, you're allowed an opinion.",
+   "de": "{Quand} hielt sich deine Schlagzeile an die Fakten. Heute darfst du eine Meinung haben."
+  },
+  {
+   "id": "titre.honnete.a1",
+   "mode": "titre",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "headline",
+   "fr": "{Quand}, ton titre était honnête. Encore un ?",
+   "en": "{Quand}, your headline was honest. Another one?",
+   "de": "{Quand} war deine Schlagzeile ehrlich. Noch eine?"
+  },
+  {
+   "id": "titre.honnete.a2",
+   "mode": "titre",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "headline",
+   "fr": "{Quand}, ton titre ne disait pas trop. Fais pareil aujourd'hui.",
+   "en": "{Quand}, your headline didn't say too much. Do the same today.",
+   "de": "{Quand} hat deine Schlagzeile nicht zu viel gesagt. Mach es heute genauso."
+  },
+  {
+   "id": "titre.honnete.b1",
+   "mode": "titre",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "headline",
+   "fr": "{Quand}, ton titre était honnête, sans un mot de trop. On recommence ?",
+   "en": "{Quand}, your headline was honest, without a word too many. Shall we go again?",
+   "de": "{Quand} war deine Schlagzeile ehrlich, ohne ein Wort zu viel. Noch einmal?"
+  },
+  {
+   "id": "titre.imprime.a1",
+   "mode": "titre",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "headline",
+   "quote": true,
+   "fr": "{Quand}, j'ai imprimé ton titre : « {titre} ». Encore un ?",
+   "en": "{Quand}, I printed your headline: « {titre} ». Another one?",
+   "de": "{Quand} habe ich deine Schlagzeile gedruckt: « {titre} ». Noch eine?"
+  },
+  {
+   "id": "titre.imprime.a2",
+   "mode": "titre",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "headline",
+   "quote": true,
+   "fr": "{Quand}, j'ai imprimé ton titre : « {titre} ». Aujourd'hui, un autre.",
+   "en": "{Quand}, I printed your headline: « {titre} ». Today, another one.",
+   "de": "{Quand} habe ich deine Schlagzeile gedruckt: « {titre} ». Heute eine neue."
+  },
+  {
+   "id": "titre.imprime.b1",
+   "mode": "titre",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "headline",
+   "quote": true,
+   "fr": "{Quand}, ton titre « {titre} » est parti à l'impression. Aujourd'hui, on en écrit un autre.",
+   "en": "{Quand}, your headline « {titre} » went to print. Today, we write another.",
+   "de": "{Quand} ging deine Schlagzeile « {titre} » in Druck. Heute schreiben wir eine neue."
+  },
+  {
+   "id": "titre.intox_puis_titre.a1",
+   "mode": "titre",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "intox_score",
+   "min_score": 3,
+   "fr": "{Quand}, à l'intox, tu as trouvé {score} sur {total}. Aujourd'hui, un titre.",
+   "en": "{Quand}, at the fake-news check, you got {score} out of {total}. Today, a headline.",
+   "de": "{Quand} hattest du beim Fake-Check {score} von {total}. Heute eine Schlagzeile."
+  },
+  {
+   "id": "titre.intox_puis_titre.a2",
+   "mode": "titre",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "intox_score",
+   "min_score": 3,
+   "fr": "{Quand}, tu as eu {score} sur {total} à l'intox. Aujourd'hui, c'est toi qui titres.",
+   "en": "{Quand}, you got {score} out of {total} on the fake news. Today, you write the headline.",
+   "de": "{Quand} hattest du {score} von {total} beim Fake-Check. Heute schreibst du die Schlagzeile."
+  },
+  {
+   "id": "titre.intox_puis_titre.b1",
+   "mode": "titre",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "intox_score",
+   "min_score": 3,
+   "fr": "{Quand}, {score} sur {total} à l'intox : tu sais lire. Voyons si tu sais titrer.",
+   "en": "{Quand}, {score} out of {total} on the fake news: you can read. Let's see if you can write a headline.",
+   "de": "{Quand} {score} von {total} beim Fake-Check: Lesen kannst du. Mal sehen, ob du titeln kannst."
+  },
+  {
+   "id": "titre.confie.a1",
+   "mode": "titre",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "count",
+   "min_count": 3,
+   "fr": "Tu as fait {n} papiers. Aujourd'hui, tu fais le titre.",
+   "en": "You have made {n} papers. Today, you do the headline.",
+   "de": "Du hast {n} Artikel gemacht. Heute machst du die Schlagzeile."
+  },
+  {
+   "id": "titre.confie.a2",
+   "mode": "titre",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "count",
+   "min_count": 3,
+   "fr": "Déjà {n} papiers avec moi. Aujourd'hui, je te confie le titre.",
+   "en": "{n} papers with me already. Today, I'm giving you the headline.",
+   "de": "Schon {n} Artikel mit mir. Heute vertraue ich dir die Schlagzeile an."
+  },
+  {
+   "id": "titre.confie.b1",
+   "mode": "titre",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "count",
+   "min_count": 3,
+   "fr": "{n} papiers à ton actif : je peux te confier un titre.",
+   "en": "{n} papers to your name: I can trust you with a headline.",
+   "de": "{n} Artikel auf deinem Konto: Ich kann dir eine Schlagzeile anvertrauen."
+  },
+  {
+   "id": "intox.score.a1",
+   "mode": "intox",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "intox_score",
+   "min_score": 3,
+   "fr": "{Quand}, tu as trouvé {score} sur {total}. On refait ?",
+   "en": "{Quand}, you got {score} out of {total}. Shall we go again?",
+   "de": "{Quand} hattest du {score} von {total}. Noch einmal?"
+  },
+  {
+   "id": "intox.score.a2",
+   "mode": "intox",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "intox_score",
+   "min_score": 3,
+   "fr": "{Quand}, tu as eu {score} sur {total} à l'intox. Tu peux faire aussi bien ?",
+   "en": "{Quand}, you got {score} out of {total} on the fake news. Can you do as well?",
+   "de": "{Quand} hattest du {score} von {total} beim Fake-Check. Schaffst du das wieder?"
+  },
+  {
+   "id": "intox.score.b1",
+   "mode": "intox",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "intox_score",
+   "min_score": 3,
+   "fr": "{Quand}, {score} sur {total}. Garde l'œil ouvert : l'intox d'aujourd'hui t'attend.",
+   "en": "{Quand}, {score} out of {total}. Keep your eyes open: today's fake news is waiting for you.",
+   "de": "{Quand} {score} von {total}. Augen auf: Der Fake von heute wartet auf dich."
+  },
+  {
+   "id": "intox.titre_puis_intox.a1",
+   "mode": "intox",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "headline",
+   "fr": "{Quand}, ton titre était honnête. Aujourd'hui, cherche l'intox.",
+   "en": "{Quand}, your headline was honest. Today, look for the fake news.",
+   "de": "{Quand} war deine Schlagzeile ehrlich. Heute suchst du den Fake."
+  },
+  {
+   "id": "intox.titre_puis_intox.a2",
+   "mode": "intox",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "headline",
+   "fr": "{Quand}, tu as écrit un titre honnête. Aujourd'hui, tu trouves les phrases fausses.",
+   "en": "{Quand}, you wrote an honest headline. Today, you find the false sentences.",
+   "de": "{Quand} hast du eine ehrliche Schlagzeile geschrieben. Heute findest du die falschen Sätze."
+  },
+  {
+   "id": "intox.titre_puis_intox.b1",
+   "mode": "intox",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "headline",
+   "fr": "{Quand}, ton titre ne trichait pas. Aujourd'hui, on traque ceux qui trichent.",
+   "en": "{Quand}, your headline didn't cheat. Today, we track down the ones that do.",
+   "de": "{Quand} hat deine Schlagzeile nicht geschummelt. Heute jagen wir die, die es tun."
+  },
+  {
+   "id": "intox.avis_puis_faits.a1",
+   "mode": "intox",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "stance",
+   "fr": "La dernière fois, au comptoir, tu as donné ton avis. Aujourd'hui : vrai ou faux ?",
+   "en": "Last time, at the counter, you gave your opinion. Today: true or false?",
+   "de": "Letztes Mal hast du am Tresen deine Meinung gesagt. Heute: wahr oder falsch?"
+  },
+  {
+   "id": "intox.avis_puis_faits.a2",
+   "mode": "intox",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "stance",
+   "fr": "{Quand}, au comptoir, tu as donné ton avis. Aujourd'hui, on vérifie les faits.",
+   "en": "{Quand}, at the counter, you gave your opinion. Today, we check the facts.",
+   "de": "{Quand} hast du am Tresen deine Meinung gesagt. Heute prüfen wir die Fakten."
+  },
+  {
+   "id": "intox.avis_puis_faits.b1",
+   "mode": "intox",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "stance",
+   "fr": "{Quand}, tu as défendu ton avis au comptoir. Aujourd'hui, les faits d'abord.",
+   "en": "{Quand}, you defended your opinion at the counter. Today, facts first.",
+   "de": "{Quand} hast du am Tresen deine Meinung verteidigt. Heute zuerst die Fakten."
+  },
+  {
+   "id": "intox.express.a1",
+   "mode": "intox",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "count",
+   "min_count": 3,
+   "fr": "Tu as fait {n} papiers. Aujourd'hui : l'intox.",
+   "en": "You have made {n} papers. Today: the fake news.",
+   "de": "Du hast {n} Artikel gemacht. Heute: der Fake-Check."
+  },
+  {
+   "id": "intox.express.a2",
+   "mode": "intox",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "count",
+   "min_count": 3,
+   "fr": "Déjà {n} papiers avec moi. Aujourd'hui, l'intox express.",
+   "en": "{n} papers with me already. Today, the fake-news express.",
+   "de": "Schon {n} Artikel mit mir. Heute: der Fake-Express."
+  },
+  {
+   "id": "intox.express.b1",
+   "mode": "intox",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "count",
+   "min_count": 3,
+   "fr": "{n} papiers à ton actif : place à l'intox express.",
+   "en": "{n} papers to your name: over to the fake-news express.",
+   "de": "{n} Artikel auf deinem Konto: Bühne frei für den Fake-Express."
+  },
+  {
+   "id": "fil.encore.a1",
+   "mode": "fil",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "fil",
+   "fr": "{Quand}, tu as raconté le fil. Encore un ?",
+   "en": "{Quand}, you told the wire. Another one?",
+   "de": "{Quand} hast du die Meldungen erzählt. Noch einmal?"
+  },
+  {
+   "id": "fil.encore.a2",
+   "mode": "fil",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "fil",
+   "fr": "{Quand}, tu as raconté le fil à ta façon. On recommence ?",
+   "en": "{Quand}, you told the wire your own way. Shall we go again?",
+   "de": "{Quand} hast du die Meldungen auf deine Art erzählt. Noch einmal?"
+  },
+  {
+   "id": "fil.encore.b1",
+   "mode": "fil",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "fil",
+   "fr": "{Quand}, tu as raconté le fil avec tes mots. Aujourd'hui, un autre fil.",
+   "en": "{Quand}, you told the wire in your own words. Today, another wire.",
+   "de": "{Quand} hast du die Meldungen in eigenen Worten erzählt. Heute neue Meldungen."
+  },
+  {
+   "id": "fil.titre_puis_fil.a1",
+   "mode": "fil",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "headline",
+   "fr": "{Quand}, ton titre était honnête. Aujourd'hui, raconte le fil.",
+   "en": "{Quand}, your headline was honest. Today, tell the wire.",
+   "de": "{Quand} war deine Schlagzeile ehrlich. Heute erzählst du die Meldungen."
+  },
+  {
+   "id": "fil.titre_puis_fil.a2",
+   "mode": "fil",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "headline",
+   "fr": "{Quand}, tu as écrit un titre honnête. Aujourd'hui, tu racontes toute l'histoire.",
+   "en": "{Quand}, you wrote an honest headline. Today, you tell the whole story.",
+   "de": "{Quand} hast du eine ehrliche Schlagzeile geschrieben. Heute erzählst du die ganze Geschichte."
+  },
+  {
+   "id": "fil.titre_puis_fil.b1",
+   "mode": "fil",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "headline",
+   "fr": "{Quand}, un titre honnête ; aujourd'hui, l'histoire entière, dans l'ordre.",
+   "en": "{Quand}, an honest headline; today, the whole story, in order.",
+   "de": "{Quand} eine ehrliche Schlagzeile; heute die ganze Geschichte, der Reihe nach."
+  },
+  {
+   "id": "fil.intox_puis_fil.a1",
+   "mode": "fil",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "intox_score",
+   "min_score": 3,
+   "fr": "{Quand}, tu as trouvé {score} sur {total} à l'intox. Aujourd'hui, le fil.",
+   "en": "{Quand}, you got {score} out of {total} on the fake news. Today, the wire.",
+   "de": "{Quand} hattest du {score} von {total} beim Fake-Check. Heute die Meldungen."
+  },
+  {
+   "id": "fil.intox_puis_fil.a2",
+   "mode": "fil",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "intox_score",
+   "min_score": 3,
+   "fr": "{Quand}, {score} sur {total} à l'intox. Aujourd'hui, tu mets les faits dans l'ordre.",
+   "en": "{Quand}, {score} out of {total} on the fake news. Today, you put the facts in order.",
+   "de": "{Quand} {score} von {total} beim Fake-Check. Heute bringst du die Fakten in die richtige Reihenfolge."
+  },
+  {
+   "id": "fil.intox_puis_fil.b1",
+   "mode": "fil",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "intox_score",
+   "min_score": 3,
+   "fr": "{Quand}, {score} sur {total} à l'intox. Aujourd'hui, les faits sont vrais : à toi de les ordonner.",
+   "en": "{Quand}, {score} out of {total} on the fake news. Today, the facts are true: it's up to you to order them.",
+   "de": "{Quand} {score} von {total} beim Fake-Check. Heute sind die Fakten wahr: Du bringst sie in Ordnung."
+  },
+  {
+   "id": "fil.depeches.a1",
+   "mode": "fil",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "count",
+   "min_count": 3,
+   "fr": "Tu as fait {n} papiers. Aujourd'hui, le fil.",
+   "en": "You have made {n} papers. Today, the wire.",
+   "de": "Du hast {n} Artikel gemacht. Heute die Meldungen."
+  },
+  {
+   "id": "fil.depeches.a2",
+   "mode": "fil",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "count",
+   "min_count": 3,
+   "fr": "Déjà {n} papiers avec moi. Aujourd'hui, les dépêches.",
+   "en": "{n} papers with me already. Today, the dispatches.",
+   "de": "Schon {n} Artikel mit mir. Heute die Agenturmeldungen."
+  },
+  {
+   "id": "fil.depeches.b1",
+   "mode": "fil",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "count",
+   "min_count": 3,
+   "fr": "{n} papiers à ton actif : les dépêches t'attendent.",
+   "en": "{n} papers to your name: the dispatches are waiting for you.",
+   "de": "{n} Artikel auf deinem Konto: Die Agenturmeldungen warten auf dich."
+  },
+  {
+   "id": "photo.legende_imprimee.a1",
+   "mode": "photo",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "photo",
+   "quote": true,
+   "fr": "{Quand}, ta légende était dans le journal : « {legende} ». Une autre ?",
+   "en": "{Quand}, your caption was in the paper: « {legende} ». Another one?",
+   "de": "{Quand} war deine Bildunterschrift in der Zeitung: « {legende} ». Noch eine?"
+  },
+  {
+   "id": "photo.legende_imprimee.a2",
+   "mode": "photo",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "photo",
+   "quote": true,
+   "fr": "{Quand}, j'ai imprimé ta légende : « {legende} ». On regarde une autre photo ?",
+   "en": "{Quand}, I printed your caption: « {legende} ». Shall we look at another photo?",
+   "de": "{Quand} habe ich deine Bildunterschrift gedruckt: « {legende} ». Schauen wir uns ein anderes Foto an?"
+  },
+  {
+   "id": "photo.legende_imprimee.b1",
+   "mode": "photo",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "photo",
+   "quote": true,
+   "fr": "{Quand}, ta légende est partie à l'impression : « {legende} ». Même exigence aujourd'hui ?",
+   "en": "{Quand}, your caption went to print: « {legende} ». The same care today?",
+   "de": "{Quand} ist deine Bildunterschrift in Druck gegangen: « {legende} ». Heute genauso sorgfältig?"
+  },
+  {
+   "id": "photo.legende.a1",
+   "mode": "photo",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "photo",
+   "fr": "{Quand}, tu as écrit une légende. Aujourd'hui, encore une photo.",
+   "en": "{Quand}, you wrote a caption. Today, another photo.",
+   "de": "{Quand} hast du eine Bildunterschrift geschrieben. Heute wieder ein Foto."
+  },
+  {
+   "id": "photo.legende.a2",
+   "mode": "photo",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "photo",
+   "fr": "{Quand}, ta légende est partie dans le journal. Regarde bien cette photo aussi.",
+   "en": "{Quand}, your caption went into the paper. Look closely at this photo too.",
+   "de": "{Quand} ist deine Bildunterschrift in die Zeitung gekommen. Schau dir auch dieses Foto genau an."
+  },
+  {
+   "id": "photo.legende.b1",
+   "mode": "photo",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "photo",
+   "fr": "{Quand}, ta légende est passée par ma relecture avant l'impression. Aujourd'hui, une autre photo.",
+   "en": "{Quand}, your caption went through my proofreading before print. Today, another photo.",
+   "de": "{Quand} ist deine Bildunterschrift vor dem Druck durch mein Korrekturlesen gegangen. Heute ein anderes Foto."
+  },
+  {
+   "id": "photo.apres_micro.a1",
+   "mode": "photo",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "micro",
+   "fr": "{Quand}, tu as interviewé {temoin}. Aujourd'hui, une photo.",
+   "en": "{Quand}, you interviewed {temoin}. Today, a photo.",
+   "de": "{Quand} hast du {temoin} interviewt. Heute ein Foto."
+  },
+  {
+   "id": "photo.apres_micro.a2",
+   "mode": "photo",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "micro",
+   "fr": "{Quand}, tu as posé tes questions à {temoin}. Aujourd'hui, on travaille sur une photo.",
+   "en": "{Quand}, you put your questions to {temoin}. Today we work on a photo.",
+   "de": "{Quand} hast du {temoin} deine Fragen gestellt. Heute arbeiten wir an einem Foto."
+  },
+  {
+   "id": "photo.apres_micro.b1",
+   "mode": "photo",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "micro",
+   "fr": "{Quand}, tu as interviewé {temoin}. Aujourd'hui, pas de micro : une photo et sa légende.",
+   "en": "{Quand}, you interviewed {temoin}. Today, no microphone: a photo and its caption.",
+   "de": "{Quand} hast du {temoin} interviewt. Heute kein Mikrofon: ein Foto und seine Bildunterschrift."
+  },
+  {
+   "id": "photo.habitues.a1",
+   "mode": "photo",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "count",
+   "min_count": 3,
+   "fr": "Déjà {n} papiers avec moi. Choisis bien ta photo.",
+   "en": "Already {n} papers with me. Choose your photo well.",
+   "de": "Schon {n} Artikel mit mir. Wähl dein Foto gut aus."
+  },
+  {
+   "id": "photo.habitues.a2",
+   "mode": "photo",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "count",
+   "min_count": 3,
+   "fr": "Tu as déjà {n} papiers dans le journal. Aujourd'hui, c'est la photo.",
+   "en": "You already have {n} papers in the paper. Today it's the photo.",
+   "de": "Du hast schon {n} Artikel in der Zeitung. Heute ist das Foto dran."
+  },
+  {
+   "id": "photo.habitues.b1",
+   "mode": "photo",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "count",
+   "min_count": 3,
+   "fr": "{n} papiers à ton actif : tu sais lire une page. Maintenant, lis une image.",
+   "en": "{n} papers to your name: you can read a page. Now read a picture.",
+   "de": "{n} Artikel auf deinem Konto: Du kannst eine Seite lesen. Jetzt lies ein Bild."
+  },
+  {
+   "id": "micro.temoin.a1",
+   "mode": "micro",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "micro",
+   "fr": "{Quand}, tu as interviewé {temoin}. Aujourd'hui, encore une interview.",
+   "en": "{Quand}, you interviewed {temoin}. Today, another interview.",
+   "de": "{Quand} hast du {temoin} interviewt. Heute wieder ein Interview."
+  },
+  {
+   "id": "micro.temoin.a2",
+   "mode": "micro",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "micro",
+   "fr": "{Quand}, {temoin} a répondu à tes questions. Prépare bien les nouvelles.",
+   "en": "{Quand}, {temoin} answered your questions. Prepare the new ones well.",
+   "de": "{Quand} hat {temoin} deine Fragen beantwortet. Bereite die neuen gut vor."
+  },
+  {
+   "id": "micro.temoin.b1",
+   "mode": "micro",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "micro",
+   "fr": "{Quand}, tu as tendu le micro à {temoin}. Aujourd'hui, même méthode : de bonnes questions.",
+   "en": "{Quand}, you held the microphone out to {temoin}. Today, the same method: good questions.",
+   "de": "{Quand} hast du {temoin} das Mikrofon hingehalten. Heute dieselbe Methode: gute Fragen."
+  },
+  {
+   "id": "micro.faits.a1",
+   "mode": "micro",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "micro",
+   "min_facts": 2,
+   "fr": "{Quand}, tes questions ont trouvé {faits} réponses. On recommence ?",
+   "en": "{Quand}, your questions found {faits} answers. Shall we go again?",
+   "de": "{Quand} haben deine Fragen {faits} Antworten gefunden. Noch einmal?"
+  },
+  {
+   "id": "micro.faits.a2",
+   "mode": "micro",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "micro",
+   "min_facts": 2,
+   "fr": "{Quand}, {faits} de tes questions ont trouvé une réponse. Vise aussi bien aujourd'hui.",
+   "en": "{Quand}, {faits} of your questions found an answer. Aim as well today.",
+   "de": "{Quand} haben {faits} deiner Fragen eine Antwort gefunden. Ziel heute genauso gut."
+  },
+  {
+   "id": "micro.faits.b1",
+   "mode": "micro",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "micro",
+   "min_facts": 2,
+   "fr": "{Quand}, {faits} questions, {faits} réponses pour mes notes. On garde le rythme ?",
+   "en": "{Quand}, {faits} questions, {faits} answers for my notes. Shall we keep the pace?",
+   "de": "{Quand} gab es {faits} Fragen und {faits} Antworten für meine Notizen. Halten wir das Tempo?"
+  },
+  {
+   "id": "micro.apres_photo.a1",
+   "mode": "micro",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "photo",
+   "fr": "{Quand}, ta légende était dans le journal. Aujourd'hui, prends le micro.",
+   "en": "{Quand}, your caption was in the paper. Today, take the microphone.",
+   "de": "{Quand} war deine Bildunterschrift in der Zeitung. Heute nimmst du das Mikrofon."
+  },
+  {
+   "id": "micro.apres_photo.a2",
+   "mode": "micro",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "photo",
+   "fr": "{Quand}, tu as écrit une légende pour le journal. Aujourd'hui, tu poses les questions.",
+   "en": "{Quand}, you wrote a caption for the paper. Today, you ask the questions.",
+   "de": "{Quand} hast du eine Bildunterschrift für die Zeitung geschrieben. Heute stellst du die Fragen."
+  },
+  {
+   "id": "micro.apres_photo.b1",
+   "mode": "micro",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "photo",
+   "fr": "{Quand}, tu as légendé une photo. Aujourd'hui, c'est une voix qu'il faut écouter.",
+   "en": "{Quand}, you captioned a photo. Today, it's a voice you have to listen to.",
+   "de": "{Quand} hast du ein Foto beschriftet. Heute musst du einer Stimme zuhören."
+  },
+  {
+   "id": "micro.habitues.a1",
+   "mode": "micro",
+   "band": "a1",
+   "speaker": "romy",
+   "fact": "count",
+   "min_count": 3,
+   "fr": "Déjà {n} papiers avec moi. Aujourd'hui, une interview.",
+   "en": "Already {n} papers with me. Today, an interview.",
+   "de": "Schon {n} Artikel mit mir. Heute ein Interview."
+  },
+  {
+   "id": "micro.habitues.a2",
+   "mode": "micro",
+   "band": "a2",
+   "speaker": "romy",
+   "fact": "count",
+   "min_count": 3,
+   "fr": "Tu as déjà {n} papiers dans le journal. Aujourd'hui, tu interviewes quelqu'un.",
+   "en": "You already have {n} papers in the paper. Today you interview someone.",
+   "de": "Du hast schon {n} Artikel in der Zeitung. Heute interviewst du jemanden."
+  },
+  {
+   "id": "micro.habitues.b1",
+   "mode": "micro",
+   "band": "b1",
+   "speaker": "romy",
+   "fact": "count",
+   "min_count": 3,
+   "fr": "{n} papiers à ton actif. Aujourd'hui, le journal a besoin d'un témoin : à toi de le faire parler.",
+   "en": "{n} papers to your name. Today the paper needs a witness: get them talking.",
+   "de": "{n} Artikel auf deinem Konto. Heute braucht die Zeitung einen Zeugen: Bring ihn zum Reden."
+  }
+ ]
+}

@@ -9,6 +9,14 @@ dependency, before authentication, so the feature stays invisible. Then the exis
 «Au comptoir» (WP-119, 2026-10-19) sits on the same router. ``REVUE_COMPTOIR_ENABLED`` decides
 which sessions start at the counter, not whether its route answers: a session started while the
 switch was on plays to its end after it is turned off (a chat session answers 409).
+
+«Le fil» (2026-11-20) likewise: ``REVUE_ASSIGNMENTS_ENABLED`` decides which sessions are dealt
+it; its route answers a session that was (any other answers 409 ``revue_not_fil``).
+
+«Le titre» and «L'intox express» (2026-11-20) share ONE act route,
+``POST /sessions/{id}/rubrique``, which plays the assignment the session was dealt
+(``rubriques.LOOPS``; any other session answers 409 ``revue_not_rubrique``). «Le fil» keeps
+its own route.
 """
 
 from __future__ import annotations
@@ -27,12 +35,16 @@ from app.schemas.revue import (
     RvCloseResult,
     RvComptoirRequest,
     RvComptoirResult,
+    RvFilRequest,
+    RvFilResult,
     RvMakeOffer,
     RvMakeRequest,
     RvMakeResult,
     RvMatchRequest,
     RvMatchResult,
     RvOffer,
+    RvRubriqueRequest,
+    RvRubriqueResult,
     RvSessionView,
     RvStartRequest,
     RvTurnRequest,
@@ -217,5 +229,46 @@ def post_comptoir(
     try:
         row = owned_session(db, current_user, session_id, lock=True)
         return encounter.comptoir(row, body)
+    except RevueError as error:
+        raise _http(error) from error
+
+
+@router.post("/sessions/{session_id}/fil", response_model=RvFilResult)
+def post_fil(
+    session_id: str,
+    body: RvFilRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    encounter: RevueEncounter = Depends(get_encounter),
+) -> RvFilResult:
+    """«Le fil»: one act of the learner's loop (open, order, words, tell, tell_fix). 409
+    ``revue_not_fil`` on another session, 409 ``revue_fil_out_of_order`` (with the current
+    ``step``) for an act out of order; an act that repeats one already recorded returns the
+    session as it is; ``error`` says why an act the learner can fix was not recorded."""
+
+    try:
+        row = owned_session(db, current_user, session_id, lock=True)
+        return encounter.fil(row, body)
+    except RevueError as error:
+        raise _http(error) from error
+
+
+@router.post("/sessions/{session_id}/rubrique", response_model=RvRubriqueResult)
+def post_rubrique(
+    session_id: str,
+    body: RvRubriqueRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    encounter: RevueEncounter = Depends(get_encounter),
+) -> RvRubriqueResult:
+    """«Le titre» (open, pick, trap, build, build_fix) and «L'intox express» (open, answer,
+    fix): one act of the assignment the session was dealt. 409 ``revue_not_rubrique`` on
+    another session, 409 ``revue_<mode>_out_of_order`` (with the current ``step``) for an act
+    out of order; an act that repeats one already recorded returns the session as it is;
+    ``error`` says why an act the learner can fix was not recorded."""
+
+    try:
+        row = owned_session(db, current_user, session_id, lock=True)
+        return encounter.rubrique(row, body)
     except RevueError as error:
         raise _http(error) from error

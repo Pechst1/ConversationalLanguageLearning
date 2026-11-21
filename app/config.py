@@ -885,6 +885,31 @@ class Settings(BaseSettings):
             "ledger per painting (no learner) so the service's daily cap counts it."
         ),
     )
+    REVUE_PICTURES_PER_STORY: int = Field(
+        1,
+        ge=1,
+        le=3,
+        description=(
+            "«Papier · photos» (2026-11-20): how many generated illustrations each story gets. 1 is "
+            "the story's one picture (WP-119 §8.4); 2-3 add other shots of the same story (the place "
+            "wide, the thing close), each painted once and final, priced per picture like the first."
+        ),
+    )
+    REVUE_PHOTOS_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · photos» (2026-11-20): at the morning intake, look up real photos on Wikimedia "
+            "Commons for each story's places and its main object (free licences only, never a "
+            "portrait), and show them in the story's gallery with their credit and licence. Needs "
+            "outbound access to commons.wikimedia.org and upload.wikimedia.org."
+        ),
+    )
+    REVUE_PHOTOS_PER_STORY: int = Field(
+        3,
+        ge=0,
+        le=6,
+        description="«Papier · photos»: the most Commons photos one story keeps (one per subject).",
+    )
     REVUE_ARTICLE_FETCH_ENABLED: bool = Field(
         True,
         description=(
@@ -928,12 +953,59 @@ class Settings(BaseSettings):
             "morning the takes desk writes them. Off: nothing changes (no route, no field, no call)."
         ),
     )
+    REVUE_POURQUOI_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · Le pourquoi» (owner 2026-11-20): each of Romy's marks on «Ton avis» explains "
+            "its rule in the learner's mother tongue (a hint without the answer while they fix it, "
+            "the full rule and the story's own example once settled), and the slip is kept in the "
+            "learner's error memory (source «revue») for La Forge. Off: the comptoir_edit prompt, "
+            "its payload and the screens are exactly as before."
+        ),
+    )
     REVUE_COMPTOIR_MODEL: str = Field(
         "claude-haiku-5-5",
         description=(
             "WP-119 «Au comptoir»: the takes desk's model (one shared call per story each morning, "
             "about $0.006 a story). A Claude model needs ANTHROPIC_API_KEY. Chosen by the desk "
             "comparison of 2026-10-19 (claude-haiku-5-5 over gpt-6-luna and claude-sonnet-5-5)."
+        ),
+    )
+    REVUE_ASSIGNMENTS_ENABLED: bool = Field(
+        False,
+        description=(
+            "WP-119 «Le Papier · les rubriques» (owner 2026-11-20): the learner is Romy's trainee and "
+            "each story is dealt one assignment it can carry («Au comptoir», «Le fil»…), never the "
+            "shape of the learner's last two Papiers. On: a new session starts in the dealt "
+            "assignment, and each morning the wire desk writes «Le fil» (one call per story). Off: "
+            "nothing changes (no new mode, no field, no call)."
+        ),
+    )
+    REVUE_MEMORY_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · les rendez-vous» (owner 2026-11-21): the regulars remember. Each session gets ONE "
+            "authored line (app/services/revue/souvenirs/lines.json) in the mouth of a regular, filled only "
+            "from what the learner did in earlier Papiers (their side at the counter, their printed "
+            "headline, their intox score, a weekday, a count); never twice the same line in a row; no model "
+            "call. Off: GET /revue/sessions/{id}/souvenir is a 404 and nothing else changes."
+        ),
+    )
+    REVUE_TROIS_MOTS_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · les rendez-vous»: «Trois mots», a 30-second round on three words of the story as "
+            "the first block of «La page» (match each to its picture or gloss, then one gap sentence from "
+            "the story's own lead or summary; two tries; deterministic). Words the close did not keep are "
+            "kept through the same path, once. Off: /revue/sessions/{id}/trois-mots is a 404."
+        ),
+    )
+    REVUE_UNE_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · les rendez-vous»: «La une de la semaine» (a front page composed only from the "
+            "learner's own printed pieces of the week, /revue/une) and «La carte de presse» on the "
+            "Relevé. Pure reads, no model call. Off: both routes are a 404."
         ),
     )
     VOCAB_TARGET_RETENTION: float = Field(

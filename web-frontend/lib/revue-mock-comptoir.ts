@@ -188,6 +188,7 @@ const LAST_WORDS: Record<string, T> = {
  */
 const EDITS: Array<[RegExp, string, string]> = [
   [/\b()[Ll]e(?= gens\b)/g, 'les', 'accord'],
+  [/\b()[Ii]l(?= sont\b)/g, 'ils', 'accord'],
   [/\b(sont )content\b/g, 'contents', 'accord'],
   [/\b(voix est (?:tr[eè]s )?)beau\b/g, 'belle', 'genre'],
   [/\b()tres\b/g, 'très', 'orthographe'],
@@ -225,6 +226,8 @@ export type ComptoirContext = {
   sources: Json[];
   claim: (id: string) => Json | null;
   fail: (status: number, detail: unknown) => Error;
+  /** «Le pourquoi» on (`&pourquoi=1`): the marks carry their rule, the settled opinion its notes. */
+  pourquoi?: boolean;
 };
 
 const key = (band: Band) => (band === 'A1' ? 'a1' : band === 'A2' ? 'a2' : 'b1') as 'a1' | 'a2' | 'b1';
@@ -354,7 +357,7 @@ export function comptoirView(state: MockComptoirState, ctx: ComptoirContext): Js
       learner_fr: state.opinion.learner_fr,
       draft_fr: state.opinion.draft_fr,
       proof: state.opinion.proof,
-      marks: settled ? [] : state.opinion.marks,
+      marks: settled ? [] : marksWire(state.opinion.marks, language, Boolean(ctx.pourquoi)),
       tries: state.opinion.tries,
       max_tries: FIX_TRIES,
       printed_fr: printedOf(state.opinion),
@@ -364,6 +367,8 @@ export function comptoirView(state: MockComptoirState, ctx: ComptoirContext): Js
         ? { text_fr: state.comeback.text_fr, index: state.comeback.index ?? null, last_word: tr(state.comeback.last_word, language) }
         : null,
     };
+    const notes = notesWire(state.opinion.rounds ?? [], String(state.opinion.proof), language, ctx.lead.fr, Boolean(ctx.pourquoi));
+    if (notes.length) opinion.notes = notes;
   }
   return {
     step,
@@ -387,8 +392,9 @@ export function comptoirView(state: MockComptoirState, ctx: ComptoirContext): Js
   };
 }
 
-/** Romy's corrected sentence (kept back as the target) and her marks on the learner's words. */
-function proofread(text: string): { target: string; marks: Json[] } {
+/** Romy's corrected sentence (kept back as the target) and her marks on the learner's words
+ * (each with its `fix_fr`, kept in the mock's state: never on the wire). */
+export function proofread(text: string): { target: string; marks: Json[] } {
   let out = text;
   const marks: Json[] = [];
   for (const [pattern, fixed, kind] of EDITS) {
@@ -398,7 +404,7 @@ function proofread(text: string): { target: string; marks: Json[] } {
       const start = match.index + match[1].length;
       const end = match.index + match[0].length;
       if (marks.length < MARKS_MAX && !marks.some((m) => start < Number(m.start) + String(m.span_fr).length && Number(m.start) < end)) {
-        marks.push({ span_fr: text.slice(start, end), start, kind });
+        marks.push({ span_fr: text.slice(start, end), start, kind, fix_fr: fixed });
       }
       match = pattern.exec(text);
     }
@@ -407,6 +413,58 @@ function proofread(text: string): { target: string; marks: Json[] } {
   marks.sort((a, b) => Number(a.start) - Number(b.start));
   out = out.charAt(0).toUpperCase() + out.slice(1);
   return { target: typography(sentenceEnd(out)), marks };
+}
+
+/**
+ * «Le pourquoi» (`&pourquoi=1`, `REVUE_POURQUOI_ENABLED`): the rule of each mark in the
+ * learner's mother tongue, from the backend's fake table (`encounter._FAKE_WHYS`): the hint
+ * (never the corrected form) while the learner fixes, the full why once settled.
+ */
+const WHYS: Record<string, Record<Lang, [string, string]>> = {
+  accord: {
+    en: ['In French the article and the adjective agree with their noun in number.', 'In French the article and the adjective agree with their noun in number: «{fix}».'],
+    de: ['Im Französischen richten sich Artikel und Adjektiv in der Zahl nach dem Nomen.', 'Im Französischen richten sich Artikel und Adjektiv in der Zahl nach dem Nomen: «{fix}».'],
+    fr: ["L'article et l'adjectif s'accordent en nombre avec le nom.", "L'article et l'adjectif s'accordent en nombre avec le nom : «{fix}»."],
+  },
+  genre: {
+    en: ['The adjective takes the gender of the noun it describes.', 'The adjective takes the gender of the noun it describes: «{fix}».'],
+    de: ['Das Adjektiv richtet sich im Geschlecht nach seinem Nomen.', 'Das Adjektiv richtet sich im Geschlecht nach seinem Nomen: «{fix}».'],
+    fr: ["L'adjectif prend le genre du nom qu'il décrit.", "L'adjectif prend le genre du nom qu'il décrit : «{fix}»."],
+  },
+  orthographe: {
+    en: ['This word takes an accent on its vowel: check the spelling.', 'This word takes an accent on its vowel: «{fix}».'],
+    de: ['Dieses Wort hat einen Akzent auf dem Vokal: prüf die Schreibung.', 'Dieses Wort hat einen Akzent auf dem Vokal: «{fix}».'],
+    fr: ["Ce mot prend un accent sur la voyelle : vérifie l'orthographe.", 'Ce mot prend un accent sur la voyelle : «{fix}».'],
+  },
+};
+const RULES: Record<string, string> = { accord: 'plural_s', genre: 'adj_gender', orthographe: 'accent' };
+
+/** The marks as the fix step shows them: never `fix_fr`; the hint only with «Le pourquoi» on. */
+export function marksWire(marks: Json[], language: Lang, pourquoi: boolean): Json[] {
+  return marks.map((mark) => {
+    const why = pourquoi ? WHYS[String(mark.kind)]?.[language]?.[0] : undefined;
+    return { span_fr: mark.span_fr, start: mark.start, kind: mark.kind, ...(why ? { why } : {}) };
+  });
+}
+
+/** Once settled (`fixed` / `corrected`): each mark the learner saw, once, with its full why,
+ * «Dans l'article : …» when `story` has a sentence with the fix, and its rule. */
+export function notesWire(rounds: Json[][], proof: string, language: Lang, story: string, pourquoi: boolean): Json[] {
+  if (!pourquoi || (proof !== 'fixed' && proof !== 'corrected')) return [];
+  const seen = new Map<string, Json>();
+  for (const marks of rounds) for (const mark of marks) seen.set(`${fold(String(mark.span_fr))}|${mark.kind}`, mark);
+  return Array.from(seen.values()).map((mark) => {
+    const fix = String(mark.fix_fr || '');
+    const full = WHYS[String(mark.kind)]?.[language]?.[1];
+    const example = fix ? sentences(story).find((row) => new RegExp(`(^|[^\\p{L}])${fix}([^\\p{L}]|$)`, 'iu').test(row)) : undefined;
+    return {
+      span_fr: mark.span_fr,
+      kind: mark.kind,
+      why: full ? full.replace('{fix}', fix) : null,
+      example_fr: example ?? null,
+      rule_id: RULES[String(mark.kind)] ?? null,
+    };
+  });
 }
 
 /** comptoir_loop._proof_key: typography, the first capital and the punctuation aside. */
@@ -510,6 +568,7 @@ export function applyComptoirAct(state: MockComptoirState, body: Json, ctx: Comp
       proof: proof.proof,
       target_fr: proof.target,
       marks: proof.marks,
+      rounds: proof.marks.length ? [proof.marks] : [],
       tries: 0,
       reply: { by: desk.by, ...desk.line },
     };
@@ -542,6 +601,7 @@ export function applyComptoirAct(state: MockComptoirState, body: Json, ctx: Comp
     opinion.target_fr = check.target;
     opinion.marks = check.marks;
     opinion.proof = !check.marks.length ? 'fixed' : opinion.tries >= FIX_TRIES ? 'corrected' : 'marked';
+    if (opinion.proof === 'marked') opinion.rounds = [...(opinion.rounds ?? []), check.marks];
     return null;
   }
   if (act === 'comeback') {
