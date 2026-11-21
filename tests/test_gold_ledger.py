@@ -69,7 +69,8 @@ NOW = datetime(2026, 11, 3, 10, 0, tzinfo=UTC)  # a Tuesday, 11:00 in Paris
 MET_REPLY = "Je voudrais un café en terrasse, s'il vous plaît."
 ACCEPTED = {"verdict": "accepted", "score_0_4": 4, "errata": []}
 #: What a respond turn keeps; the models read these dicts, so a grade never joins them.
-TURN_KEYS = {"learner", "character", "correction", "free", "lines", "route", "heard"}
+# «asked» (#664) is the line the turn answered, with its speaker: shown on screen already.
+TURN_KEYS = {"asked", "learner", "character", "correction", "free", "lines", "route", "heard"}
 #: The tests whose writers are meant to fail inside their savepoint.
 FAILURE_EXPECTED = {
     "test_a_failing_ledger_never_costs_the_answer",

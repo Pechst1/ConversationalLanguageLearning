@@ -90,7 +90,10 @@ def test_vocabulary_review_example_and_audio_guards_are_unicode_safe() -> None:
 
 
 def test_vocabulary_review_uses_visible_card_text_classes() -> None:
-    source = read_page(VOCABULARY_REVIEW_PAGE)
+    # #725: the card's front is its own component; the page and the front are read as one.
+    source = read_page(VOCABULARY_REVIEW_PAGE) + read_page(
+        ROOT / "web-frontend" / "components" / "lexique" / "CardFront.tsx"
+    )
 
     # The word is the one Garamond-italic headline; every card colour comes
     # from the --av2 tokens (card face front, yellow back).
