@@ -1,0 +1,20 @@
+{
+  "id": "carte_odile",
+  "version": 1,
+  "kind": "detail",
+  "in": "quai_de_valmy",
+  "title": { "fr": "La carte bleue d’Odile", "en": "Odile's bank card", "de": "Odiles Bankkarte" },
+  "moment": "a page of the learner's own story left «La carte bleue d’Odile» at Le Mistral: a small blue card resting beside the lease letter on the café counter",
+  "mark": { "name_fr": "La carte bleue d’Odile", "location_id": "le_mistral" },
+  "things": [
+    { "kind": "recommande", "at": [-35.12, 1.26, -14.75], "rot": 1.48, "text": ["GÉRANCE MARCHAND", "Madame,", "Je vous rappelle que le bail expire le 31 mars.", "M."] },
+    { "kind": "carte", "at": [-34.98, 1.26, -14.42], "rot": 1.75, "text": ["ODILE FERRAND"] }
+  ],
+  "provenance": {
+    "canon": "docs/story/season-1/10-lieux-et-images.md",
+    "scenes": [
+      "the story order «La carte bleue d’Odile» at le_mistral (1 life): «A small blue card rests beside the lease letter on the café counter.»",
+      "Margaux's recorded letter «fin du bail le 31 mars» and the green-and-white recommandé slip (06-lautre-cote.md; 09-entre-les-episodes.md, day 35; 10-lieux-et-images.md); Marchand B1 «Je vous rappelle que le bail expire le 31 mars.» (00-season-bible.md)"
+    ]
+  }
+}

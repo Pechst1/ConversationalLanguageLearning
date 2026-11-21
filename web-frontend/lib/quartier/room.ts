@@ -210,7 +210,9 @@ export type ThingKind =
   | 'sink'
   | 'soak'
   | 'towel'
-  | 'tuque';
+  | 'tuque'
+  | 'recommande'
+  | 'carte';
 
 export interface RoomThing {
   kind: ThingKind;
@@ -2121,6 +2123,36 @@ function thing(B: Build, t: RoomThing, i: number) {
       B.signs.push({ key, center: new Vector3(x, y + 0.0045, zz), normal: n, width: 0.19, height: 0.1, density: 3000, draw: envelopeArt(t.text ?? []), indoor: (z ?? 'room') === 'room' });
       return;
     }
+    case 'recommande': {
+      // a recorded letter, opened and laid flat: the sheet unfolded (its two creases), and under
+      // it, sticking out, its envelope with the green-and-white «recommandé» slip (`text[0]` the
+      // sender's letterhead, `text[1]` the greeting, then the body's lines, the last one the
+      // signature; `at` the counter's top under it; the sheet's head toward local -z)
+      const paper = zoned(mix(INKS.card, 0xffffff, 0.3), z);
+      const env = zoned(mix(INKS.card, INKS.ochre, 0.05), z);
+      const up = (r: number) => new Vector3(Math.sin(r) * Math.sin(0.03), Math.cos(0.03), Math.cos(r) * Math.sin(0.03));
+      const local = (lx: number, ly: number, lz: number) => new Vector3(x + lx * Math.cos(rot) + lz * Math.sin(rot), y + ly, zz - lx * Math.sin(rot) + lz * Math.cos(rot));
+      const indoorSign = (z ?? 'room') === 'room';
+      D.at(x, y, zz, rot, () => {
+        D.at(-0.04, 0, -0.19, 0.3, () => D.box(0, 0.002, 0, 0.22, 0.004, 0.11, env, { ny: false }));
+        D.box(0, 0.0055, 0, 0.21, 0.003, 0.297, paper, { ny: false });
+      });
+      const er = rot + 0.3;
+      const ec = local(-0.04, 0, -0.19);
+      B.signs.push({ key: `${key}:env`, center: new Vector3(ec.x, y + 0.0045, ec.z), normal: up(er), width: 0.21, height: 0.1, density: 2600, draw: slipArt(), indoor: indoorSign });
+      B.signs.push({ key, center: local(0, 0.0075, 0), normal: up(rot), width: 0.2, height: 0.287, density: 2400, draw: recordedArt(t.text ?? []), indoor: indoorSign });
+      return;
+    }
+    case 'carte': {
+      // a bank card left lying on a counter: plain blue, its gold chip, the name in raised
+      // capitals, no bank's name on it (`text[0]` the name; `at` the counter's top under it)
+      const blue = zoned(mix(INKS.cobalt, INKS.paper, 0.1), z, { wet: 0.4 });
+      D.at(x, y, zz, rot, () => D.box(0, 0.0005, 0, 0.0856, 0.001, 0.054, blue, { ny: false }));
+      const lean = 0.03;
+      const n = new Vector3(Math.sin(rot) * Math.sin(lean), Math.cos(lean), Math.cos(rot) * Math.sin(lean));
+      B.signs.push({ key, center: new Vector3(x, y + 0.0013, zz), normal: n, width: 0.0846, height: 0.053, density: 6000, draw: bankCardArt(t.text?.[0] ?? ''), indoor: (z ?? 'room') === 'room' });
+      return;
+    }
     case 'rug': {
       // a rug on the floor: a red field, a dark border with its stripes, a medallion in the
       // middle, the fringe at both ends (`size` [width, depth])
@@ -3260,6 +3292,128 @@ function envelopeArt(lines: string[]) {
     const name = lines[0] ?? '';
     while (sz > 6 && ctx.measureText(name).width > w * 0.6) ctx.font = SERIF(--sz, 500);
     ctx.fillText(name, w * 0.45, h * 0.62);
+  };
+}
+
+/** A recorded letter's envelope: the address window, and the green-and-white «recommandé» slip. */
+function slipArt() {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(INKS.card, INKS.ochre, 0.05));
+    ctx.fillRect(0, 0, w, h);
+    // the window, the address behind it in grey lines
+    ctx.strokeStyle = css(mix(INKS.ink, INKS.paper, 0.6));
+    ctx.lineWidth = Math.max(1, h * 0.012);
+    ctx.strokeRect(w * 0.46, h * 0.5, w * 0.46, h * 0.36);
+    ctx.fillStyle = css(mix(INKS.ink, INKS.paper, 0.55));
+    for (let k = 0; k < 3; k++) ctx.fillRect(w * 0.5, h * (0.58 + k * 0.09), w * (0.3 - k * 0.04), h * 0.035);
+    // the slip, top left: a green band, white below with its number's bars
+    const sx = w * 0.05;
+    const sy = h * 0.1;
+    const sw = w * 0.36;
+    const sh = h * 0.42;
+    ctx.fillStyle = css(INKS.card);
+    ctx.fillRect(sx, sy, sw, sh);
+    ctx.fillStyle = css(mix(INKS.green, INKS.paper, 0.1));
+    ctx.fillRect(sx, sy, sw, sh * 0.38);
+    ctx.fillStyle = css(INKS.card);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    let s = Math.round(sh * 0.24);
+    ctx.font = SANS(s, 700);
+    while (s > 5 && ctx.measureText('RECOMMANDÉ AR').width > sw * 0.9) ctx.font = SANS(--s, 700);
+    ctx.fillText('RECOMMANDÉ AR', sx + sw * 0.05, sy + sh * 0.2);
+    ctx.fillStyle = css(INKS.ink);
+    for (let k = 0; k < 26; k++) if ((k * 7) % 5 !== 1) ctx.fillRect(sx + sw * (0.06 + k * 0.034), sy + sh * 0.5, sw * 0.018, sh * 0.32);
+  };
+}
+
+/** The recorded letter itself: its letterhead, the greeting, the body, the signature, two creases. */
+function recordedArt(lines: string[]) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(INKS.card, 0xffffff, 0.3));
+    ctx.fillRect(0, 0, w, h);
+    // the creases where it was folded in three
+    ctx.fillStyle = css(mix(INKS.card, INKS.ink, 0.08));
+    for (const f of [1 / 3, 2 / 3]) ctx.fillRect(0, h * f - h * 0.003, w, h * 0.006);
+    const pad = w * 0.1;
+    const ink = css(mix(INKS.ink, INKS.cobalt, 0.15));
+    ctx.fillStyle = ink;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = SANS(Math.round(h * 0.034), 700);
+    ctx.fillText(lines[0] ?? '', pad, h * 0.09);
+    ctx.fillRect(pad, h * 0.105, w - 2 * pad, h * 0.003);
+    // the recipient's address, right, in grey lines
+    ctx.fillStyle = css(mix(INKS.ink, INKS.paper, 0.55));
+    for (let k = 0; k < 3; k++) ctx.fillRect(w * 0.56, h * (0.16 + k * 0.03), w * (0.3 - k * 0.05), h * 0.012);
+    ctx.fillStyle = ink;
+    ctx.font = SANS(Math.round(h * 0.04), 700);
+    ctx.fillText('Objet : fin du bail', pad, h * 0.3);
+    const body = lines.slice(1, -1);
+    const sign = lines.length > 2 ? lines[lines.length - 1] : '';
+    let size = Math.round(h * 0.042);
+    const wrap = () => {
+      ctx.font = SERIF(size, 500);
+      const rows: string[] = [];
+      for (const p of body) {
+        let row = '';
+        for (const word of p.split(' ')) {
+          const next = row ? `${row} ${word}` : word;
+          if (row && ctx.measureText(next).width > w - 2 * pad) {
+            rows.push(row);
+            row = word;
+          } else row = next;
+        }
+        rows.push(row);
+      }
+      return rows;
+    };
+    let rows = wrap();
+    while (size > 6 && rows.length * size * 1.5 > h * 0.4) {
+      size -= 1;
+      rows = wrap();
+    }
+    rows.forEach((r, k) => ctx.fillText(r, pad, h * 0.38 + k * size * 1.5));
+    // grey lines for the rest of the page, then the signature
+    ctx.fillStyle = css(mix(INKS.ink, INKS.paper, 0.6));
+    const y0 = h * 0.38 + rows.length * size * 1.5;
+    for (let k = 0; k < 4; k++) ctx.fillRect(pad, y0 + k * h * 0.035, (w - 2 * pad) * (k === 3 ? 0.5 : 0.95), h * 0.01);
+    ctx.fillStyle = ink;
+    ctx.font = SERIF(Math.round(h * 0.04), 500);
+    ctx.textAlign = 'right';
+    ctx.fillText(sign, w - pad, h * 0.86);
+  };
+}
+
+/** A plain blue bank card: the gold chip, the name in raised capitals, no bank on it. */
+function bankCardArt(name: string) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(INKS.cobalt, INKS.paper, 0.1));
+    ctx.fillRect(0, 0, w, h);
+    // a lighter sweep across it
+    ctx.fillStyle = css(mix(INKS.cobalt, INKS.paper, 0.22));
+    ctx.beginPath();
+    ctx.moveTo(w * 0.45, 0);
+    ctx.lineTo(w, 0);
+    ctx.lineTo(w, h * 0.55);
+    ctx.closePath();
+    ctx.fill();
+    // the chip, its contacts
+    ctx.fillStyle = css(mix(TONES.brass, INKS.paper, 0.2));
+    ctx.fillRect(w * 0.1, h * 0.34, w * 0.15, h * 0.2);
+    ctx.fillStyle = css(mix(TONES.brass, INKS.ink, 0.3));
+    ctx.fillRect(w * 0.175, h * 0.34, w * 0.006, h * 0.2);
+    for (const f of [0.41, 0.47]) ctx.fillRect(w * 0.1, h * f, w * 0.15, h * 0.012);
+    // the number in four groups (no digits to read), and the name, raised and silvered
+    ctx.fillStyle = css(mix(INKS.card, INKS.cobalt, 0.15));
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.font = SANS(Math.round(h * 0.11), 600);
+    ctx.fillText('•••• •••• •••• ••••', w * 0.1, h * 0.68);
+    let s = Math.round(h * 0.1);
+    ctx.font = SANS(s, 600);
+    while (s > 5 && ctx.measureText(name).width > w * 0.8) ctx.font = SANS(--s, 600);
+    ctx.fillText(name, w * 0.1, h * 0.85);
   };
 }
 
