@@ -24,6 +24,7 @@ BANK = {
         "entries": {
             "FR2_A11_ON_NOUS#x": {
                 "hash": "h",
+                "kind": "fix_the_mistake",
                 "key": "Romy et moi, on envoie une lettre.",
                 "accepted": ["Romy et moi, nous envoyons une lettre.", "Romy et moi envoyons une lettre."],
                 "wrong": [
@@ -46,6 +47,7 @@ BANK = {
             },
             "FR2_A21_PC_ETRE#y": {
                 "hash": "h",
+                "kind": "fix_the_mistake",
                 "key": "Tu es arrivée à la gare samedi dernier.",
                 "accepted": ["Tu es arrivé à la gare samedi dernier."],
                 "wrong": [
@@ -63,18 +65,21 @@ BANK = {
             },
             "OTHER#z": {
                 "hash": "h",
+                "kind": "fix_the_mistake",
                 "key": "Tu es arrivée à la gare samedi dernier.",
                 "accepted": [],
                 "wrong": [],
             },
             "CAUSE#c": {
                 "hash": "h",
+                "kind": "fix_the_mistake",
                 "key": "Je reste parce qu'il pleut.",
                 "accepted": ["Parce qu'il pleut, je reste."],
                 "wrong": [],
             },
             "REJECTED#k": {
                 "hash": "h",
+                "kind": "fix_the_mistake",
                 "key": "Im est au Mistral, Marin.",
                 "key_rejected": True,
                 "accepted": [],
@@ -84,7 +89,7 @@ BANK = {
     },
     "season_words": {
         "entries": {
-            "clé#w": {"hash": "h", "key": "clé", "accepted": ["clef"], "wrong": [
+            "clé#w": {"hash": "h", "kind": "cloze_word", "key": "clé", "accepted": ["clef"], "wrong": [
                 {"form": "clés", "why_en": "One key, not several.", "why_de": "Ein Schlüssel, nicht mehrere."},
             ]},
         }
@@ -131,9 +136,9 @@ def test_966_flag_off_is_mains_behaviour(bank_off):
 def test_966_the_word_card_takes_clef_with_or_without_its_article(bank):
     assert judge("clef", ["clé"]).correct
     assert judge("la clef", ["la clé"], article_optional=True).correct
+    # «clés» stays wrong; the one contract already names it (a ``form`` miss), so its note stands.
     verdict = judge("clés", ["clé"])
-    assert not verdict.correct and verdict.note == "bank"
-    assert feedback_note(verdict, "de") == "Ein Schlüssel, nicht mehrere."
+    assert not verdict.correct and verdict.note == "form"
 
 
 # --- #606: «nous» for «X et moi, on …» ---------------------------------------------------
@@ -187,9 +192,17 @@ def test_926_two_items_with_one_key_accept_only_what_both_accept(bank):
 
 
 def test_a_reason_that_shows_the_answer_is_not_shown(bank):
+    hit = answer_bank.bank_verdict("Tu es arrivés à la gare samedi dernier.", ["Tu es arrivée à la gare samedi dernier."])
+    assert hit is not None and not hit.correct
+    assert answer_bank.why_for_learner(hit, ["Tu es arrivée à la gare samedi dernier."], "en") is None
+    hit = answer_bank.bank_verdict("Tu as arrivé à la gare samedi dernier.", ["Tu es arrivée à la gare samedi dernier."])
+    assert answer_bank.why_for_learner(hit, [], "de") == "Arriver bildet das passé composé mit être."
+
+
+def test_a_contract_note_is_kept_over_the_banks(bank):
+    # «arrivés» for «arrivée» is a ``form`` miss the one contract names itself.
     verdict = judge("Tu es arrivés à la gare samedi dernier.", ["Tu es arrivée à la gare samedi dernier."])
-    assert verdict.note == "bank" and not verdict.correct
-    assert feedback_note(verdict, "en") is None
+    assert not verdict.correct and verdict.note == "form"
 
 
 def test_flag_off_the_bank_says_nothing(bank_off):

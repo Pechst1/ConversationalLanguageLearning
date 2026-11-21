@@ -437,6 +437,7 @@ def write(work: Path) -> None:
                     wrong.append({"form": row["form"].strip(), "why_en": row["why_en"].strip(), "why_de": row["why_de"].strip()})
         entry: dict[str, Any] = {
             "hash": item["hash"],
+            "kind": item["kind"],
             "key": item["key"],
             "accepted": accepted,
             "wrong": wrong,

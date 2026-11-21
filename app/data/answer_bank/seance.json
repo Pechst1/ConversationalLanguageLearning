@@ -8,6 +8,7 @@
  "entries": {
   "FR_A1_ADJ_001": {
    "hash": "653df3c586a70478",
+   "kind": "fix_the_mistake",
    "key": "De petites maisons blanches bordent la rue.",
    "accepted": [],
    "wrong": [
@@ -35,6 +36,7 @@
   },
   "FR_A1_ART_001": {
    "hash": "898ab3913b0d6faf",
+   "kind": "fix_the_mistake",
    "key": "J'aime la musique en général.",
    "accepted": [],
    "wrong": [
@@ -62,6 +64,7 @@
   },
   "FR_A1_ART_002": {
    "hash": "39a4ae47affb8bf4",
+   "kind": "fix_the_mistake",
    "key": "J'ai une question.",
    "accepted": [],
    "wrong": [
@@ -89,6 +92,7 @@
   },
   "FR_A1_ART_003": {
    "hash": "cf150e725fbc85d5",
+   "kind": "fix_the_mistake",
    "key": "Je voudrais du pain.",
    "accepted": [],
    "wrong": [
@@ -116,6 +120,7 @@
   },
   "FR_A1_DET_001": {
    "hash": "ed2b7667c5d2743a",
+   "kind": "fix_the_mistake",
    "key": "Mon amie arrive avec mes clés.",
    "accepted": [],
    "wrong": [
@@ -143,6 +148,7 @@
   },
   "FR_A1_DET_002": {
    "hash": "7f2dfde73153510f",
+   "kind": "fix_the_mistake",
    "key": "Cet hôtel est près de cette gare.",
    "accepted": [],
    "wrong": [
@@ -170,6 +176,7 @@
   },
   "FR_A1_NEG_001": {
    "hash": "a84987e0ad29c78f",
+   "kind": "fix_the_mistake",
    "key": "Elle n'aime pas le café.",
    "accepted": [],
    "wrong": [
@@ -197,6 +204,7 @@
   },
   "FR_A1_NOUN_001": {
    "hash": "c30caa42b4835437",
+   "kind": "fix_the_mistake",
    "key": "Une petite table blanche est dans la cuisine.",
    "accepted": [],
    "wrong": [
@@ -224,6 +232,7 @@
   },
   "FR_A1_PRON_001": {
    "hash": "3a7ceecede71ff14",
+   "kind": "fix_the_mistake",
    "key": "Nous allons au marché.",
    "accepted": [],
    "wrong": [
@@ -251,6 +260,7 @@
   },
   "FR_A1_SYN_001": {
    "hash": "57c6ce992d4a242f",
+   "kind": "fix_the_mistake",
    "key": "Est-ce que tu viens demain ?",
    "accepted": [],
    "wrong": [
@@ -278,6 +288,7 @@
   },
   "FR_A1_VERB_001": {
    "hash": "476b8617b375129e",
+   "kind": "fix_the_mistake",
    "key": "Nous faisons nos devoirs.",
    "accepted": [],
    "wrong": [
@@ -305,6 +316,7 @@
   },
   "FR_A1_VERB_002": {
    "hash": "f73c967b2a7a369f",
+   "kind": "fix_the_mistake",
    "key": "Nous allons visiter Paris demain.",
    "accepted": [],
    "wrong": [
@@ -332,6 +344,7 @@
   },
   "FR_A2_ADJ_001": {
    "hash": "2c1078aa176283b6",
+   "kind": "fix_the_mistake",
    "key": "Cette solution est plus simple que l'autre.",
    "accepted": [],
    "wrong": [
@@ -359,6 +372,7 @@
   },
   "FR_A2_NEG_001": {
    "hash": "4ef17d3717333520",
+   "kind": "fix_the_mistake",
    "key": "Je ne bois pas de café.",
    "accepted": [],
    "wrong": [
@@ -386,6 +400,7 @@
   },
   "FR_A2_PREP_001": {
    "hash": "9e6fcd6c92a1fa43",
+   "kind": "fix_the_mistake",
    "key": "J'étudie le français depuis deux ans, et je continue.",
    "accepted": [],
    "wrong": [
@@ -413,6 +428,7 @@
   },
   "FR_A2_PRON_001": {
    "hash": "fc6173df8d8117dc",
+   "kind": "fix_the_mistake",
    "key": "Je lui parle tous les jours.",
    "accepted": [],
    "wrong": [
@@ -440,6 +456,7 @@
   },
   "FR_A2_PRON_002": {
    "hash": "a77aeee7b3709f28",
+   "kind": "fix_the_mistake",
    "key": "Des pommes ? J'en achète deux.",
    "accepted": [],
    "wrong": [
@@ -467,6 +484,7 @@
   },
   "FR_A2_REL_001": {
    "hash": "52e6f966ef6891dc",
+   "kind": "fix_the_mistake",
    "key": "La ville où j'habite est calme.",
    "accepted": [],
    "wrong": [
@@ -494,6 +512,7 @@
   },
   "FR_A2_TENSE_001": {
    "hash": "22ccc9b9e8811cd7",
+   "kind": "fix_the_mistake",
    "key": "Hier, nous avons fini le projet.",
    "accepted": [],
    "wrong": [
@@ -526,6 +545,7 @@
   },
   "FR_A2_TENSE_002": {
    "hash": "6c37867356a3b82e",
+   "kind": "fix_the_mistake",
    "key": "Les étudiantes sont arrivées tôt.",
    "accepted": [],
    "wrong": [
@@ -553,6 +573,7 @@
   },
   "FR_A2_TENSE_003": {
    "hash": "08da1c3ace862db1",
+   "kind": "fix_the_mistake",
    "key": "Quand j'étais enfant, je jouais dehors tous les jours.",
    "accepted": [],
    "wrong": [
@@ -580,6 +601,7 @@
   },
   "FR_A2_TENSE_004": {
    "hash": "752cb95eeb0c26bd",
+   "kind": "fix_the_mistake",
    "key": "Je lisais quand le téléphone a sonné une fois.",
    "accepted": [],
    "wrong": [
@@ -607,6 +629,7 @@
   },
   "FR_A2_VERB_001": {
    "hash": "8000c9bfbee0fb13",
+   "kind": "fix_the_mistake",
    "key": "Nous nous levons à sept heures.",
    "accepted": [],
    "wrong": [
@@ -634,6 +657,7 @@
   },
   "FR_A2_VERB_002": {
    "hash": "c4737ee6a3a71895",
+   "kind": "fix_the_mistake",
    "key": "Donne-le-moi demain.",
    "accepted": [],
    "wrong": [
@@ -661,6 +685,7 @@
   },
   "FR_B1_AGR_001": {
    "hash": "9d347ffa8bf3e2a3",
+   "kind": "fix_the_mistake",
    "key": "Les lettres que j'ai écrites sont longues.",
    "accepted": [],
    "wrong": [
@@ -688,6 +713,7 @@
   },
   "FR_B1_COND_001": {
    "hash": "3fac0da1c731c7f3",
+   "kind": "fix_the_mistake",
    "key": "Si je finis tôt, je t'appellerai.",
    "accepted": [
     "Si je finis tôt, je vais t'appeler."
@@ -717,6 +743,7 @@
   },
   "FR_B1_COND_002": {
    "hash": "6548eaee0603a88a",
+   "kind": "fix_the_mistake",
    "key": "Si j'avais le temps, je partirais.",
    "accepted": [],
    "wrong": [
@@ -744,6 +771,7 @@
   },
   "FR_B1_COND_003": {
    "hash": "ab5eb930e7c96b1a",
+   "kind": "fix_the_mistake",
    "key": "Je voudrais un café, s'il vous plaît.",
    "accepted": [],
    "wrong": [
@@ -771,6 +799,7 @@
   },
   "FR_B1_PRON_001": {
    "hash": "4afcbc3dcbbff521",
+   "kind": "fix_the_mistake",
    "key": "Je le lui donne demain.",
    "accepted": [],
    "wrong": [
@@ -798,6 +827,7 @@
   },
   "FR_B1_PRON_002": {
    "hash": "f1e479885861cde9",
+   "kind": "fix_the_mistake",
    "key": "De ce projet, j'en parle souvent.",
    "accepted": [],
    "wrong": [
@@ -825,6 +855,7 @@
   },
   "FR_B1_REL_001": {
    "hash": "63aa5782ecda4eea",
+   "kind": "fix_the_mistake",
    "key": "C'est le problème dont nous parlons.",
    "accepted": [],
    "wrong": [
@@ -852,6 +883,7 @@
   },
   "FR_B1_SYN_001": {
    "hash": "da2e40975e5ffc0b",
+   "kind": "fix_the_mistake",
    "key": "Elle demande si tu viens demain.",
    "accepted": [],
    "wrong": [
@@ -879,6 +911,7 @@
   },
   "FR_B1_TENSE_001": {
    "hash": "5a039b1a9d72fb9c",
+   "kind": "fix_the_mistake",
    "key": "Il pleuvait quand je suis sorti.",
    "accepted": [],
    "wrong": [
@@ -906,6 +939,7 @@
   },
   "FR_B1_TENSE_002": {
    "hash": "65dddb6228e42094",
+   "kind": "fix_the_mistake",
    "key": "Demain, nous aurons plus de temps.",
    "accepted": [
     "Demain, on aura plus de temps."
@@ -935,6 +969,7 @@
   },
   "FR_B1_VERB_001": {
    "hash": "c396d9b594a567df",
+   "kind": "fix_the_mistake",
    "key": "Il faut que tu viennes demain.",
    "accepted": [],
    "wrong": [
@@ -962,6 +997,7 @@
   },
   "FR_B1_VERB_002": {
    "hash": "1d37f01ddc1707ea",
+   "kind": "fix_the_mistake",
    "key": "Elle a répondu en souriant.",
    "accepted": [],
    "wrong": [
@@ -989,6 +1025,7 @@
   },
   "FR_B2_COND_001": {
    "hash": "dbf39dcc10905e83",
+   "kind": "fix_the_mistake",
    "key": "J'aurais répondu si j'avais vu ton message.",
    "accepted": [],
    "wrong": [
@@ -1016,6 +1053,7 @@
   },
   "FR_B2_COND_002": {
    "hash": "2059a50e1c6d94e8",
+   "kind": "fix_the_mistake",
    "key": "Si j'avais su, je serais venu plus tôt.",
    "accepted": [],
    "wrong": [
@@ -1043,6 +1081,7 @@
   },
   "FR_B2_CONN_001": {
    "hash": "effcf911827d40c7",
+   "kind": "fix_the_mistake",
    "key": "Bien qu'il soit tard, elle continue à travailler.",
    "accepted": [],
    "wrong": [
@@ -1070,6 +1109,7 @@
   },
   "FR_B2_PRON_001": {
    "hash": "d1999e153d7fa1a2",
+   "kind": "fix_the_mistake",
    "key": "Je vais le lui envoyer demain.",
    "accepted": [],
    "wrong": [
@@ -1102,6 +1142,7 @@
   },
   "FR_B2_REL_001": {
    "hash": "a63ccd4ead309b64",
+   "kind": "fix_the_mistake",
    "key": "C'est la raison pour laquelle je refuse.",
    "accepted": [],
    "wrong": [
@@ -1129,6 +1170,7 @@
   },
   "FR_B2_SUBJ_001": {
    "hash": "e6d221a6f9442f60",
+   "kind": "fix_the_mistake",
    "key": "Je doute qu'il puisse finir ce soir.",
    "accepted": [],
    "wrong": [
@@ -1156,6 +1198,7 @@
   },
   "FR_B2_SUBJ_002": {
    "hash": "6d8166c31158a083",
+   "kind": "fix_the_mistake",
    "key": "Je pense qu'il vient, mais je doute qu'il vienne demain.",
    "accepted": [],
    "wrong": [
@@ -1183,6 +1226,7 @@
   },
   "FR_B2_SYN_001": {
    "hash": "67b1e7a90bc0a411",
+   "kind": "fix_the_mistake",
    "key": "La loi a été votée par l'Assemblée.",
    "accepted": [],
    "wrong": [
@@ -1205,6 +1249,7 @@
   },
   "FR_B2_SYN_002": {
    "hash": "da8a5935e63bef0c",
+   "kind": "fix_the_mistake",
    "key": "Le ministre répondra-t-il demain ?",
    "accepted": [],
    "wrong": [
@@ -1227,6 +1272,7 @@
   },
   "FR_B2_TENSE_001": {
    "hash": "c927adfc765bd6e4",
+   "kind": "fix_the_mistake",
    "key": "Quand je suis arrivé, elle était déjà partie.",
    "accepted": [],
    "wrong": [
@@ -1249,6 +1295,7 @@
   },
   "FR_B2_TENSE_002": {
    "hash": "5ab38fbc3108848c",
+   "kind": "fix_the_mistake",
    "key": "Quand tu arriveras, j'aurai fini le rapport.",
    "accepted": [],
    "wrong": [
@@ -1271,6 +1318,7 @@
   },
   "FR_B2_VERB_001": {
    "hash": "38f10199ce0bfcfc",
+   "kind": "fix_the_mistake",
    "key": "Je fais réparer mon vélo demain.",
    "accepted": [],
    "wrong": [
@@ -1293,6 +1341,7 @@
   },
   "FR_C1_CONN_001": {
    "hash": "7ea89d248b745301",
+   "kind": "fix_the_mistake",
    "key": "Cela dit, il faut nuancer cette conclusion.",
    "accepted": [],
    "wrong": [
@@ -1315,6 +1364,7 @@
   },
   "FR_C1_NEG_001": {
    "hash": "3f1b932ee9279c7b",
+   "kind": "fix_the_mistake",
    "key": "Il ne répond guère à ces critiques.",
    "accepted": [],
    "wrong": [
@@ -1337,6 +1387,7 @@
   },
   "FR_C1_SYN_001": {
    "hash": "aaf58e2d4115e346",
+   "kind": "fix_the_mistake",
    "key": "Je crains qu'il ne parte trop tôt.",
    "accepted": [],
    "wrong": [
@@ -1359,6 +1410,7 @@
   },
   "FR_C1_SYN_002": {
    "hash": "399fd89f79bb9010",
+   "kind": "fix_the_mistake",
    "key": "La décision a été critiquée par plusieurs députés.",
    "accepted": [],
    "wrong": [
@@ -1381,6 +1433,7 @@
   },
   "FR_C1_TENSE_001": {
    "hash": "ad5adf96bd479291",
+   "kind": "fix_the_mistake",
    "key": "Il a dit qu'il avait compris avant la réunion.",
    "accepted": [],
    "wrong": [
@@ -1403,6 +1456,7 @@
   },
   "FR_C1_VERB_001": {
    "hash": "846127dc73657eb4",
+   "kind": "fix_the_mistake",
    "key": "Arrivant en retard, elle s'est excusée.",
    "accepted": [],
    "wrong": [

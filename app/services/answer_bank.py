@@ -378,6 +378,7 @@ def coverage() -> dict[str, tuple[int, int]]:
 @dataclass(slots=True)
 class _Merged:
     key: str
+    kinds: set[str] = field(default_factory=set)
     accepted: dict[str, str] = field(default_factory=dict)  # folded -> as written
     wrong: dict[str, dict[str, str]] = field(default_factory=dict)  # folded -> {form, why_en, why_de}
 
@@ -407,7 +408,7 @@ def _index() -> dict[str, _Merged]:
             grouped.setdefault(key, []).append(entry)
     index: dict[str, _Merged] = {}
     for key, rows in grouped.items():
-        merged = _Merged(key=str(rows[0].get("key")))
+        merged = _Merged(key=str(rows[0].get("key")), kinds={str(row.get("kind") or "") for row in rows})
         sets = []
         for row in rows:
             sets.append({_fold(form): str(form) for form in [row.get("key"), *(row.get("accepted") or [])] if _fold(form)})
@@ -451,6 +452,9 @@ class BankHit:
     expected: str
     form: str
     why: Mapping[str, str] | None = None
+    #: The key is only ever a fix-the-mistake sentence: its words are the rule, so a
+    #: listed wrong form is not a typo there.
+    overrides_typo: bool = False
 
 
 def _entries_for(candidates: Iterable[object], *, article_optional: bool) -> list[tuple[_Merged, str | None]]:
@@ -505,7 +509,13 @@ def bank_verdict(
     for merged, _key_article in found:
         wrong = merged.wrong.get(learner)
         if wrong is not None:
-            return BankHit(correct=False, expected=merged.key, form=str(wrong.get("form") or ""), why=_why(wrong))
+            return BankHit(
+                correct=False,
+                expected=merged.key,
+                form=str(wrong.get("form") or ""),
+                why=_why(wrong),
+                overrides_typo=merged.kinds == {"fix_the_mistake"},
+            )
     return None
 
 

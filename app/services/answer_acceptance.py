@@ -455,9 +455,11 @@ def judge(
     if not learner or not candidates:
         return Verdict(correct=False, expected=candidates[0] if candidates else None)
     banked = _bank_verdict(answer, candidates, article_optional=article_optional)
-    if banked is not None:
+    if banked is not None and banked.correct:
         return banked
     verdict = _judge_candidates(learner, candidates, accents=accents, typo=typo, article_optional=article_optional)
+    if banked is not None:
+        return _with_bank_refusal(verdict, banked)
     if verdict.correct:
         return verdict
     spelled = _spelling_variant_verdict(learner, candidates)
@@ -471,6 +473,23 @@ def judge(
         widened = _judge_candidates(learner, variants, accents=accents, typo=typo, article_optional=article_optional)
         if widened.correct:
             return widened
+    return verdict
+
+
+def _with_bank_refusal(verdict: Verdict, banked: Verdict) -> Verdict:
+    """A reviewed wrong answer, against what the fold-and-compare made of it.
+
+    The one contract keeps its say: a refusal it already names (``form``, ``elision``,
+    ``accent``) stays as it is, and a spelling typo of a word stays forgiven. Only where a
+    wrong answer was read as a typo in a fix-the-mistake sentence, whose words *are* the
+    rule («Ils prendent le bus.» for «Ils prennent le bus.», #723's class), or where the
+    refusal had nothing to say, does the bank's verdict and reason stand.
+    """
+
+    if not verdict.correct:
+        return verdict if verdict.note else banked
+    if verdict.typo and banked.exact:  # ``exact`` marks a sentence key here, see _bank_verdict
+        return replace(banked, exact=False)
     return verdict
 
 
@@ -490,6 +509,8 @@ def _bank_verdict(answer: object, candidates: list[str], *, article_optional: bo
         return Verdict(correct=True, exact=True, expected=hit.form)
     return Verdict(
         correct=False,
+        # Carried only to :func:`_with_bank_refusal`: the key is a fix-the-mistake sentence.
+        exact=hit.overrides_typo,
         note="bank",
         expected=hit.expected,
         learner_word=fold_typography(answer),
