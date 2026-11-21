@@ -112,3 +112,107 @@ show it).
 - The walk's FAKE proofreader passed «Fête est gratuit pour les musicien amateurs» as clean, so `walk-b1en-t-5-page`
   prints it under «relu par Romy»: the page says what the server's proof state says; the real proofreader is the fix.
 - No dossier carries a dispatch time: the slug is the strip's letter.
+
+# Round 3 (21 Nov, on `claude/papier-integration`): La photo, Le micro and the rendez-vous in the belle édition
+
+After merging `claude/papier-belle-edition`, `claude/papier-photo-micro` and `claude/papier-rendez-vous`, everything
+that was still in the plain look was set with the same objects and tokens — no second visual language, no new font,
+colour or soft geometry. Dev mock (`/revue?mock=1&photo=1|micro=1&pourquoi=1&photos=1[&rdv=1]&band=…&lang=…`,
+`/revue/une?mock=1&items=1..6[&carte=1]`), Chromium through Playwright, 375 × 812, deviceScaleFactor 2, light and
+`-dark`, German A1, German A2, English B1 (plus French chrome for the une). The belle édition's browser check (no
+horizontal scroll; every screen as it opens at scroll 0 with its first line ≥ head + 12 px; every anchor after an act
+≥ head + 12 px) ran on every shot: no violation in the final runs.
+
+## What each new screen uses
+
+| screen | made of |
+|---|---|
+| La photo · «La planche» | `PpSheet` (new): a contact sheet on the slate (`--pp-slate` / `--pp-chalk`, the counter's slate tokens), the frames on one sheet, the frame number in the margin under each, the credits listed under the sheet by number with their licence and source (`PpLinks`, new); the frame itself is the radio; `PpPencilLoop` round the pick, `PpStrike` across a refused frame; the day's headline as a slug line over the sheet |
+| «Qu'est-ce qu'on voit ?» | the chosen print in a press frame; the words are caption labels (a punched hole), pinned on the print when tapped (the hole becomes a red pin head, the label turns a degree); a label the miss named is struck |
+| «La légende» | `PpFigure` (credit + links) with its three captions set as caption proofs under it (`.pp-captions` over the galley proof markup): the loop on the pick; once found, the wrong fact struck with `PpDeleatur` (never split across lines) inside the loop; a right caption suspected gets the proofreader's green «stet» (`PpStet`, new), a caption of the other picture is struck; the fix set on the desk, the field a ruled line |
+| «À toi» | the same sheet to choose the print, then the print large with the learner's caption set under it **as they type** («Ta légende», `PpFigure legend`), the words and facts as caption labels; Romy's proof (the shared slips and margin notes) |
+| La photo · La page | `PpFrontPage top`: the picture leads the page, the learner's caption under it at 23 px signed «Légende · par toi, relue par Romy» (`legendeBylineFr`, agreed in French), credit and licence always under the print, then kicker, headline, scene line, sources, Lexique |
+| Le micro · «Prépare tes questions» | Romy's notebook: a top-bound page (the spiral's holes), a double margin rule, ruled lines (`--pp-hair`), each note ending on a blank rule (`PpBlank`, new, never alone on a line); a chosen question numbered 1–3 in red in the margin, in the learner's order |
+| «L'interview» | the notes kept at hand (compact notebook, a red tick on a filled blank); the transcript under a 2 px rule: the witness's face and «LILA · PROF» as its byline, «Q.» in red small caps before the learner's question (bold italic), «R.» before the witness's line (tappable, ▶, Traduire); a shrug printed as a stage direction «(Lila hausse les épaules.)»; the ask as the next «Q.» line |
+| «Tes notes» | the same notebook page, one entry per note: the line with its blank, the witness's «R.» under it, the options as caption labels (a refused one struck, no box, no ✗), a typed note written on the line; once settled the value written on its blank in bold with a red rule |
+| «Relis tes questions» | the questions as the notebook holds them («Q.1», «Q.2» in the margin); the app's rule for a slip hung under its question as a margin note (a red hairline, as Romy's notes); then the shared proof |
+| Le micro · La page | `PpFrontPage`: kicker «L'interview · Lila», headline, the witness as deck, the scene line, the Q&A (questions bold italic, answers in the text face, each source once as a footnote), the witness's longest answer lifted as a pull quote between a 3 px and a 1 px rule after the first exchange, «Propos recueillis par …, relus par Romy», Lexique |
+| Trois mots | a small dictionary on the page: numbered entries, the headword in the serif at 22 px, its sense set beside it once paired (a blank rule until then; a picture cue in a 104 px press frame with its credit), the cues as slips to set; the gap sentence a `PpCutting` with the gap as a blank rule; reasons as margin notes |
+| La une de la semaine | the une is a front page: «Le Papier» at 52 px over its 3 px rule, «ÉDITION DE LA SEMAINE · Nº 47», the week's range in the serif; the lead at display size with its picture (credit + licence), its headline signed «Par toi»; the first opinion or interview lifted as the pull quote (red guillemets: the learner's words); the rest in a ruled column with the rubrique as kicker, briefs for 5–6 (two columns with a spanning odd one from 600 px); the week's Lexique; the count line as the footer rule. Composition is `uneLayout` (node-tested for 0–6 pieces: every piece printed once, no hole) |
+| Carte de presse | a press card: «CARTE DE PRESSE» over a 3 px rule with the masthead, the learner's initial in the photo box and first name (from the session, never an e-mail; nothing when there is none), «STAGIAIRE · LE PAPIER», since when and how many pieces; the six rubriques as boxes — stamped in the editor's red (double ring, the stamp's ink filter, a seeded half-tilt) when filed, an empty dashed outline when not. No points, no streak |
+| the memory line | an aside: off the column by 20 px behind a dotted rule, «Romy se souvient» / «Gus se souvient» in small caps (chrome language), the face, the line in the counter's voice set lighter; no box, so it never reads as the task |
+| the chooser | the assignment dealt as the story's section head («LA PHOTO — Dein Auftrag», as «LE FIL — Remettre en ordre»); «Romys Vorschlag» dropped when it would be a second kicker; the dev mock now names «Le fil» and «Au comptoir» too |
+
+## Tried and rejected
+
+- A white contact sheet: the frames floated; the slate makes a sheet of them and holds the red loop in both themes.
+- Frame buttons «Bild 1 / Bild 2» under each picture (the old look): the frame is the button now; its number is in the margin.
+- Credits under each frame: four lines of credit under a 150 px frame; one numbered credit list under the sheet.
+- A red notebook margin line: red stays the editor's ink — the margin is a double hairline.
+- Chat bubbles in the interview: the transcript (Q./R.) is what a paper prints, and the learner's question is the bold line.
+- The pull quote in the une as a plain article: it competed with the lead; lifted between rules it is the one quote of the page.
+- «Toi · pour» under the opinion: every learner's piece is signed «Par toi» in red, as on La page.
+- A strike drawn with `text-decoration` for the wrong fact: the deleatur loop is the mark the trap already uses.
+- Underlining a field with `border-bottom`: a global `.av2 textarea { border … !important }` owns it — the rule is drawn on the label.
+
+## Screenshots (final)
+
+`photo-*`, `micro-*`, `mots-*`, `une-*`, `carte-*`, `souvenir-*`, `chooser-*`, each light and `-dark`;
+`walk-micro-*`, `walk-une-*`, `walk-carte-*` from the walk stack (below).
+Screenshots are 256-colour PNGs (Pillow median cut, dithered) to keep the folder small.
+
+### The six to look at first
+
+1. `une-de-6.png` (and `une-de-6-2`, `-end`, `-dark`) — the week as a front page: masthead, lead with its picture,
+   the opinion lifted as the pull quote, the column, the briefs, the Lexique, the footer rule.
+2. `photo-a1de-2-planche-chosen.png` — the contact sheet on the slate, the grease pencil round frame 2.
+3. `photo-a1de-2-seen-right.png` — the caption labels pinned on the print, a red pin head each.
+4. `micro-a2de-3-interview-shrug.png` — the transcript: «Q.» the learner's question in bold, «R.» with the shrug as a
+   stage direction, the notebook kept at hand.
+5. `photo-b1en-5-page.png` / `-dark` — the picture leads the page, the learner's caption under it, signed.
+6. `carte-de.png` / `-dark` — the press card, three rubriques stamped, three outlined.
+
+### The three I am least happy with
+
+1. `photo-b1en-3-legende-found.png` — the strike across «the other picture»'s caption is the titre's corner-to-corner
+   slash over a three-line caption: correct, but heavy; and the deleatur inside the loop crowds «juillet».
+2. `micro-a2de-6-page.png` — the pull quote is the witness's longest answer: on the fake desk all of Lila's answers
+   start «Mais arrête, c'est évident :», so the lifted line is her tic, not her best line.
+3. `mots-a1de-photo-open.png` — the dictionary is right, the cues are not: the fake vocabulary's glosses
+   («Lärm», «musique (de)») make the entries thin; a picture cue (the press frame) was never seen in a browser.
+
+## Faults the browser showed (and their fixes)
+
+- After the merge the rendez-vous tests were dealt «Le micro»: they now keep La photo and Le micro off the deal, as
+  the rubriques' tests do (`948d651a`).
+- A blank rule could stand alone on a line («Quand, la première fête ?» / «___») and the space before «?» broke:
+  the last word and its blank never part, French punctuation keeps its non-breaking space.
+- Fields drawn with `border-bottom` showed nothing (a global `textarea { border … !important }`): the rule is on the label.
+- A refused option kept the old red box and «✗» inside the new labels: struck in red, no box.
+- «Légende · par toi · corrigé par toi» said «par toi» twice and did not agree: `legendeBylineFr` («…, corrigée»,
+  «relue par Romy»), the interview «relus par Romy» (node-tested).
+- The memory line said «Un habitué se souvient» over Romy, who is not a regular: «Romy se souvient» (the speaker's name).
+- Guards added (node): nothing marked on the sheet before a pick, the right frame not circled after one miss, no
+  label pinned for the learner after a miss, the wrong fact struck only once found, the picture before the kicker
+  on the photo page and its credit printed, the une's layout for 0–6 pieces, the press card never prints an e-mail.
+
+## The walk stack (fake providers)
+
+`walk-r3-*`: the repo's walk stack (`e2e/lib/stack.mjs` + `carte_server.py`, FAKE providers, throwaway database,
+dropped at the end), switches for the walk's API only: `REVUE_ASSIGNMENTS_ENABLED REVUE_POURQUOI_ENABLED
+REVUE_PHOTOS_ENABLED REVUE_MEMORY_ENABLED REVUE_TROIS_MOTS_ENABLED REVUE_UNE_ENABLED` (with `--comptoir`).
+Walk-only seeds (not committed): «La Fête de la musique» and «Le bac» as week-47 `revue_dossiers` rows; the Fête's
+two photographs as `revue_story_media` rows with the subjects the photo desk knows («Paris · Paris», «guitare
+acoustique vue de face»), local prints as their files, a CC0 walk credit; per learner four closed past Papiers (the
+other rubriques) so the dealer gives La photo or Le micro. Played with the mock's driving script against
+`/revue?session=…`, then `/revue/une` and the Relevé for that learner. Seen: Le micro for German A1, German A2 and
+English B1, La photo for English B1 (French chrome), Trois mots on their pages, the une composed from the seeded
+pieces and the closed one, the press card on the Relevé with the session's name.
+
+## Not done / not judged
+
+- La photo was dealt on the stack only once (B1 en): the dealer's rotation gave Le micro or Le titre to the others.
+- The memory line has no template for La photo and Le micro (`souvenirs/lines.json` is fil, titre, intox, opinion):
+  no line on their first screens. Writing them is copy and backend work, not in this pass.
+- The real proofreader, real glosses, real Commons photographs and a picture cue in Trois mots were not seen.
+- Home's Sunday chip to the une was not reached.

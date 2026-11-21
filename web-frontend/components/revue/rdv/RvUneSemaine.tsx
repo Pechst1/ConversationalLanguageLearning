@@ -122,7 +122,7 @@ function Pull({ item }: { item: RvUneItem }) {
   return (
     <article className="une-item" data-role={item.role} data-pull="" lang="fr">
       <p className="une-item__k">{kicker}</p>
-      <figure className="pp-pull une-item__pull">
+      <figure className="pp-pull une-item__pull" data-long={item.textFr.length > 90 ? '' : undefined}>
         <blockquote className="pp-pull__fr">{item.textFr}</blockquote>
         <figcaption className="pp-pull__by">
           <PpByline text={bylineOf(item)} still />

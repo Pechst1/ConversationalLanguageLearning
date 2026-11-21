@@ -62,6 +62,24 @@ function Blank({ filled = false }: { filled?: boolean }) {
   return <span className="pp-blank" data-filled={filled ? '' : undefined} aria-hidden="true" />;
 }
 
+/** A note's words with its blank: the last word and the blank never part (no rule alone on a line). */
+function Holed({ text, filled = false, children = null }: { text: string; filled?: boolean; children?: React.ReactNode }) {
+  // French typography: the space before «?», «!», «:», «;» never breaks; the last word keeps its mark.
+  const clean = text.trimEnd().replace(/ ([?!:;»])/g, '\u00a0$1');
+  const at = clean.lastIndexOf(' ');
+  const head = at > 0 ? clean.slice(0, at + 1) : '';
+  const tail = at > 0 ? clean.slice(at + 1) : clean;
+  return (
+    <span className="pp-holed">
+      {head}
+      <span className="pp-nowrap">
+        {`${tail}\u00a0`}
+        {children ?? <Blank filled={filled} />}
+      </span>
+    </span>
+  );
+}
+
 /**
  * The witness's answer in the transcript: «R.», the words (each tappable), ▶ and «Traduire»;
  * a shrug set first as a stage direction, in italics, as a transcript prints it.
@@ -129,8 +147,7 @@ export function RvMicroPrepare(props: MicroStepProps) {
                     {at >= 0 ? at + 1 : ''}
                   </span>
                   <span className="ct-tile__fr" lang="fr">
-                    {`${hole.hole.fr}\u00a0`}
-                    <Blank />
+                    <Holed text={hole.hole.fr} />
                   </span>
                   {hole.hole.tr && (
                     <span className="ct-tile__tr" lang={glossLanguage}>
@@ -194,8 +211,7 @@ export function RvMicroInterview(props: MicroStepProps) {
           <ul className="rb-notes__list pp-notebook__lines">
             {interview.holes.map((hole) => (
               <li key={hole.key} className="rb-notes__hole pp-nb-line" data-filled={hole.filled ? '' : undefined} lang="fr">
-                {`${hole.hole.fr}\u00a0`}
-                <Blank filled={hole.filled} />
+                <Holed text={hole.hole.fr} filled={hole.filled} />
               </li>
             ))}
           </ul>
@@ -319,13 +335,15 @@ function NoteItem({ item, props }: { item: NonNullable<RvMicroView['notes']>['it
     <section className="rb-fix pp-nb-entry" data-key={item.key} data-resolved={item.resolved ? '' : undefined} aria-label={item.hole.fr}>
       {/* The line of Romy's notes, its blank filled in once settled. */}
       <p className="ct-frame__k pp-nb-line" lang="fr">
-        {`${item.hole.fr}\u00a0`}
         {item.resolved && item.valueFr ? (
-          <span className="pp-nb-fill" data-correct={item.correct ? '' : undefined}>
-            {item.valueFr}
-          </span>
+          <>
+            {`${item.hole.fr}\u00a0`}
+            <span className="pp-nb-fill" data-correct={item.correct ? '' : undefined}>
+              {item.valueFr}
+            </span>
+          </>
         ) : (
-          <Blank />
+          <Holed text={item.hole.fr} />
         )}
       </p>
       {witness ? <TranscriptAnswer props={props} id={witness.id} name={witness.nameFr} line={item.answer} /> : <FrLine text={item.answer} props={props} />}

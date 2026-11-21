@@ -72,9 +72,9 @@ export function RvCarteDePresseCard({ card, language, name = '' }: { card: Card;
             {PAPIER_FR.stagiaire}
           </p>
           <p className="rv-carte-presse__since">
-            {card.since ? fillRdv(copy.carte_since, { date: dayLabel(card.since, language) }) : copy.carte_none}
+            <span>{card.since ? fillRdv(copy.carte_since, { date: dayLabel(card.since, language) }) : copy.carte_none}</span>
             {' · '}
-            {countLine(copy, 'carte_pieces', card.pieces)}
+            <span>{countLine(copy, 'carte_pieces', card.pieces)}</span>
           </p>
         </div>
       </div>
