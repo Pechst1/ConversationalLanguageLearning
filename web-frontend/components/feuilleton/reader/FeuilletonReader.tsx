@@ -38,6 +38,7 @@ import apiService from '@/services/api';
 import type { ControlLanguage } from '@/types/daily-journey';
 
 import { fillReaderCopy, portraitAlt, readerCopy, type ReaderCopy } from './reader-copy';
+import { FINALE_ESCAPE_MS, finaleNav } from './finale-wait';
 import { FrenchLine, TappableFrench } from './TappableFrench';
 import { markedForms, rayonsUnlocked, readRayons, writeRayons } from './grammar-marks';
 import { WordHelpSheet, type WordHelpRequest } from './WordHelpSheet';
@@ -407,6 +408,23 @@ export function FeuilletonReader({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [translationOn, stage?.key]);
 
+  /* P11: the wait for the ending has a clock; after FINALE_ESCAPE_MS (8 s) the learner may go on. */
+  const finaleWaiting = Boolean(
+    isLast && stage?.kind === 'resolution' && stage.finale?.waiting && !filed,
+  );
+  const [finaleWaitSince, setFinaleWaitSince] = useState<number | null>(null);
+  const [, setFinaleTick] = useState(0);
+  useEffect(() => {
+    if (!finaleWaiting) {
+      setFinaleWaitSince(null);
+      return undefined;
+    }
+    const since = Date.now();
+    setFinaleWaitSince(since);
+    const timer = setTimeout(() => setFinaleTick((tick) => tick + 1), FINALE_ESCAPE_MS);
+    return () => clearTimeout(timer);
+  }, [finaleWaiting]);
+
   if (!stage) return null;
 
   const stageKey = stage.key;
@@ -437,6 +455,12 @@ export function FeuilletonReader({
     count,
   });
   const finale = stage.kind === 'resolution' ? stage.finale ?? null : null;
+  const lastNav = finaleNav({
+    isLast,
+    waiting: Boolean(finale?.waiting),
+    filed,
+    waitedMs: finaleWaitSince === null ? null : Date.now() - finaleWaitSince,
+  });
   /* WP-92 «Rayons X»: only when the page has marks, and only once the page
      has been read to its last panel (or is being re-read). */
   const lastPanelIndex = stages.reduce((last, entry, i) => (entry.kind === 'panel' ? i : last), -1);
@@ -712,16 +736,21 @@ export function FeuilletonReader({
             <span className="fr-sr">{t.prev}</span>
           </button>
 
-          {isLast && finale?.waiting && !filed ? (
-            /* WP-90: the ending is still being written — its face says so;
-               there is no dead primary to stare at. */
-            null
+          {lastNav === 'writing' ? (
+            /* WP-90: the ending is still being written — its face says so; there is
+               no dead primary to stare at. P11: from the first second the slot says
+               so too, with the pending indicator; after 8 s it is «Continuer». */
+            <p className="fr-finale-wait" role="status" aria-live="polite">
+              <SpinnerToken /> {t.ending_writing}
+            </p>
           ) : isLast ? (
           filed && nextHref ? (
             <Link className="fr-btn fr-next is-action" data-press="3d" href={nextHref}>
               {nextLabel || t.read_on} <ArrowRightIcon size={18} />
             </Link>
           ) : onComplete ? (
+            <div className={lastNav === 'continue_late' ? 'fr-next-stack' : 'fr-next-plain'}>
+            {lastNav === 'continue_late' && <p className="fr-finale-wait" role="status">{t.ending_later}</p>}
             <button
               type="button"
               className="fr-btn fr-next is-action"
@@ -734,6 +763,7 @@ export function FeuilletonReader({
               {completing ? <SpinnerToken /> : <CheckIcon size={16} />}
               {completing ? t.completing : completeLabel || t.complete}
             </button>
+            </div>
           ) : (
             <button type="button" className="fr-btn fr-next" disabled>
               {t.episode_end}

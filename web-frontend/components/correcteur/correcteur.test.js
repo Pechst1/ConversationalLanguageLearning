@@ -239,7 +239,8 @@ const DAY = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'tests/fixtures/dail
 const REVUE = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, 'components/revue/fixtures/mock-wire.json'), 'utf8'));
 const RADIO = { enabled: true, week: radioTypes.parseRadioWeek({ week: '2026-W40', current: { dossier_id: 'evergreen-greve-transports', title_fr: 'Grève', topic: 'work', evergreen: true }, queue: [], heard: [], heard_today: false, chip: true, seconds: 53 }) };
 const wordCount = (text) => text.split(' ').filter((token) => /[\p{L}\p{N}]/u.test(token)).length;
-const prose = (html) => visibleText(html.replace(/<span aria-hidden="true" data-level-figure="">[\s\S]*?<\/span>/g, ' '));
+const { withoutQuartier } = require('../atelier-v2/home/without-quartier.js'); // P12: the counts are the day's, without Le Quartier's doors
+const prose = (html) => visibleText(withoutQuartier(html).replace(/<span aria-hidden="true" data-level-figure="">[\s\S]*?<\/span>/g, ' '));
 const primaries = (html) => (html.match(/av2-btn--primary/g) || []).length;
 
 function home(language, chips, extra = {}) {
@@ -293,13 +294,13 @@ test('La Une budget: the Correcteur shows only when fewer than two of letter · 
     for (const [base, radioChip, shown] of cases) {
       const chips = withCorrecteurChip(withRadioChip(base, radioChip), cr);
       const html = home(language, chips);
-      const drawn = [...html.matchAll(/data-chip="([^"]+)"/g)].map((m) => m[1]);
+      const drawn = [...withoutQuartier(html).matchAll(/data-chip="([^"]+)"/g)].map((m) => m[1]);
       assert.deepEqual(drawn, shown, `${language}: ${base.map((c) => c.id).join('+')}${radioChip ? '+radio' : ''}`);
       const count = wordCount(prose(html));
       assert.ok(count <= 25, `${language}: ${count} words — ${prose(html)}`);
       assert.equal(primaries(html), 1, 'a chip is never a press');
     }
     const done = home(language, withCorrecteurChip([words], cr), { dayDone: true });
-    assert.ok((done.match(/data-chip=/g) || []).length <= 1);
+    assert.ok((withoutQuartier(done).match(/data-chip=/g) || []).length <= 1);
   }
 });

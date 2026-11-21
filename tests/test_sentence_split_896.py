@@ -246,6 +246,7 @@ KNOWN_OWN_SPLITTERS = {
     "app/services/forge.py": 1,
     "app/services/forge_grading.py": 5,
     "app/services/forge_item_validator.py": 2,
+    "app/services/free_card_contract.py": 1,  # came with main after #896 was written
     "app/services/grammar_feedback.py": 3,
     "app/services/item_bank.py": 1,
     "app/services/item_bank_de.py": 2,
@@ -253,6 +254,7 @@ KNOWN_OWN_SPLITTERS = {
     "app/services/journey_conversation.py": 1,
     "app/services/lane_guards.py": 7,
     "app/services/learner_facts.py": 1,
+    "app/services/learner_intent.py": 2,  # came with main after #896 was written
     "app/services/living_story.py": 2,
     "app/services/no_address.py": 1,
     "app/services/revue/builder.py": 1,

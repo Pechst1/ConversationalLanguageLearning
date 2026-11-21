@@ -334,12 +334,20 @@ def grammar_target(brief: dict[str, Any]) -> TargetRef:
     )
 
 
+def explain_language(brief: dict[str, Any], language: Any) -> Any:
+    """The language the unit's rule and a trap's reason are explained in: the brief's
+    ``explain_language`` (the mother tongue at every level, R4), else ``language``."""
+
+    return brief.get("explain_language") or language
+
+
 def _hint(brief: dict[str, Any], language: str | None = None) -> str | None:
     """The unit's one-line rule: the catalogue's, else the card's in ``language``."""
 
     short = str(brief.get("rule_short_native") or "").strip()
     if short:
         return short
+    language = explain_language(brief, language)
     card = brief.get("rule_card")
     rule = card.get("rule") if isinstance(card, dict) else None
     if isinstance(rule, dict) and language:
@@ -526,7 +534,7 @@ def choose_item(
         translation_native=None,
         solution_fr=right,
         estimated_seconds=0,
-        why_native=pair_why(pair, language),
+        why_native=pair_why(pair, explain_language(brief, language)),
     )
 
 

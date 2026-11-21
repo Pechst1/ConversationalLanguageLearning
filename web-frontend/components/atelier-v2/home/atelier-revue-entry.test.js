@@ -46,7 +46,8 @@ const live = { enabled: true, offer: liveOffer };
 const NOW = new Date('2026-10-02T09:00:00Z');
 
 const words = (text) => text.split(' ').filter((token) => /[\p{L}\p{N}]/u.test(token));
-const prose = (html) => visibleText(html.replace(/<span aria-hidden="true" data-level-figure="">[\s\S]*?<\/span>/g, ' '));
+const { withoutQuartier } = require('./without-quartier.js'); // P12: the counts are the day's, without Le Quartier's doors
+const prose = (html) => visibleText(withoutQuartier(html).replace(/<span aria-hidden="true" data-level-figure="">[\s\S]*?<\/span>/g, ' '));
 const FIXTURES = path.join(REPO_ROOT, 'tests/fixtures/daily_journey_v1/public');
 const dayFixture = (name) => JSON.parse(fs.readFileSync(path.join(FIXTURES, `${name}.json`), 'utf8')).response;
 
@@ -217,7 +218,7 @@ test('a letter and a Revue the same day: §2 — the letter first, then the Revu
     // the letter's and words due's again.
     const both = laUne(language, { week: live });
     assert.deepEqual(both.chips.map((chip) => chip.id), ['courrier', 'lexique']);
-    const shown = [...both.html.matchAll(/data-chip="([^"]+)"/g)].map((match) => match[1]);
+    const shown = [...withoutQuartier(both.html).matchAll(/data-chip="([^"]+)"/g)].map((match) => match[1]);
     assert.deepEqual(shown, ['courrier', 'lexique'], `${language}: HomeScreen's two`);
     assert.match(both.html, /data-revue-card="news"/);
     assert.equal((both.html.match(/av2-btn--primary/g) || []).length, 1, 'a chip is never a press');
@@ -225,12 +226,12 @@ test('a letter and a Revue the same day: §2 — the letter first, then the Revu
     // Once the day is done HomeScreen keeps one chip, the letter; today's unread
     // Papier keeps its card (2026-10-18 «the news did not appear»).
     const done = laUne(language, { week: live, dayDone: true });
-    assert.deepEqual([...done.html.matchAll(/data-chip="([^"]+)"/g)].map((match) => match[1]), ['courrier']);
+    assert.deepEqual([...withoutQuartier(done.html).matchAll(/data-chip="([^"]+)"/g)].map((match) => match[1]), ['courrier']);
     assert.match(done.html, /data-revue-card="news"/);
     // A filed Papier: no card, the letter keeps the one chip.
     const filedWeek = { enabled: true, offer: { ...live.offer, filed: { sessionId: 's', dossierId: live.offer.recommended.dossierId, titleFr: 'x', closedAt: NOW.toISOString(), made: null, dispatch: null } } };
     const doneFiled = laUne(language, { week: filedWeek, dayDone: true });
-    assert.deepEqual([...doneFiled.html.matchAll(/data-chip="([^"]+)"/g)].map((match) => match[1]), ['courrier']);
+    assert.deepEqual([...withoutQuartier(doneFiled.html).matchAll(/data-chip="([^"]+)"/g)].map((match) => match[1]), ['courrier']);
     assert.doesNotMatch(doneFiled.html, /rv-news/);
     // A special edition keeps the quiet chip, after the letter (and first without one).
     const special = laUne(language, { week: live, special: true });
@@ -241,7 +242,7 @@ test('a letter and a Revue the same day: §2 — the letter first, then the Revu
     for (const offer of [liveOffer, resumeOffer]) {
       const revueDay = laUne(language, { week: { enabled: true, offer }, dayShape: une.REVUE_DAY_SHAPE });
       assert.match(revueDay.html, /data-revue-card=/);
-      assert.doesNotMatch(revueDay.html, /data-chip=|av2-home__chips/);
+      assert.doesNotMatch(withoutQuartier(revueDay.html), /data-chip=|av2-home__chips/);
     }
   }
 });
