@@ -103,7 +103,7 @@ def pick(
         return None
     option = next(row for row in choice["options"] if row["premise_id"] == premise_id)
     hook = hook_for(option["label_fr"])
-    picked[engine.TEASER_KEY] = {
+    pick_row = {
         "text_fr": hook,
         "character_id": None,
         "date": journey.local_date.isoformat(),
@@ -114,6 +114,19 @@ def pick(
         "source": "pick",
         "source_event_id": event_id,
     }
+    kept = _remembered_today(picked.get(engine.TEASER_KEY), journey)
+    if kept is not None:
+        # STORY_REMEMBERED_HOOK: the scene's decision stays the day's line; the pick
+        # steers tomorrow's page (the season state above) and is kept as the authored hook.
+        from app.services.remembered_hook import REMEMBERED_KEY
+
+        kept = {**kept, REMEMBERED_KEY: {**kept[REMEMBERED_KEY], "authored": {
+            key: pick_row.get(key) for key in ("text_fr", "ref", "source")
+        }}}
+        picked[engine.TEASER_KEY] = kept
+        hook = str(kept["text_fr"])
+    else:
+        picked[engine.TEASER_KEY] = pick_row
     state[engine.STATE_KEY] = picked
     thread.state = state
     scene = _scene(db, user, scene_id) if scene_id else None
@@ -132,12 +145,28 @@ def pick(
             "options": [row["premise_id"] for row in choice["options"]],
         },
     )
+    teaser = (
+        {"text_fr": hook, "open_fr": hook, "character_id": kept.get("character_id"),
+         "character_name": kept.get("character_name"), "source": "engine"}
+        if kept is not None
+        else {"text_fr": hook, "character_id": None, "character_name": None, "source": "engine"}
+    )
     return {
         **dict(journey.recap_snapshot or {}),
         "tomorrow": _view(choice, premise_id),
-        "teaser": {"text_fr": hook, "character_id": None, "character_name": None, "source": "engine"},
+        "teaser": teaser,
         "teaser_fr": hook,
     }
+
+
+def _remembered_today(teaser: Any, journey: DailyJourney) -> dict[str, Any] | None:
+    """The day's hook when it is this day's remembered decision (flag on), else None."""
+
+    from app.services import remembered_hook
+
+    if remembered_hook.of(teaser) is None:
+        return None
+    return dict(teaser) if str(teaser.get("date") or "") == journey.local_date.isoformat() else None
 
 
 __all__ = ["PICKED_EVENT", "hook_for", "pick", "recap_tomorrow"]

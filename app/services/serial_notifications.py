@@ -630,6 +630,11 @@ def daily_journey_morning_push(
     group = band_group(user)
     resumable = _journey_today(db, user, today, ("preparing", "active", "paused"))
     teaser = None if resumable is not None else engine_teaser(db, user)
+    if teaser is not None and _remembered_row(db, user) is not None:
+        # STORY_REMEMBERED_HOOK: a hook that remembers the learner's decision is the
+        # evening's push, from the character concerned (:func:`remembered_hook_push`);
+        # the morning keeps its authored line, so the line is pushed once.
+        teaser = None
     if teaser is not None and not _has_met(db, user, teaser["character_id"]):
         # #147: a line from someone the learner has not met is not a dépêche, it is a
         # stranger on the lock screen (Romy on day 1, #124, #155).
@@ -712,6 +717,60 @@ def streak_at_risk_push(db: Session, user: User, *, days: int) -> CharacterPush:
         source="authored",
         mood=mood,
         register=register,
+    )
+
+
+def _remembered_row(db: Session, user: User) -> dict[str, Any] | None:
+    """The active thread's hook row when it remembers a decision (flag on), else None."""
+
+    from app.services import remembered_hook
+
+    if not remembered_hook.enabled():
+        return None
+    thread = _active_thread(db, user)
+    live = dict((getattr(thread, "state", None) or {}).get("living_story") or {}) if thread else {}
+    row = live.get("next_teaser")
+    return dict(row) if remembered_hook.of(row) is not None else None
+
+
+def remembered_hook_push(db: Session, user: User, *, today: date) -> CharacterPush | None:
+    """STORY_REMEMBERED_HOOK: the evening push that carries yesterday's remembered hook,
+    in the voice of the character the learner decided with, or ``None``.
+
+    ``None`` with the flag off, without a remembered hook, for a hook filed today (the
+    day it was decided is already played), for someone the learner has not met, and below
+    B1 in a language the line has no gloss in. The caller sends it in place of the streak
+    line, never beside it, and only once per hook."""
+
+    row = _remembered_row(db, user)
+    if row is None or str(row.get("date") or "") >= today.isoformat():
+        return None
+    from app.services import remembered_hook
+
+    block = remembered_hook.of(row) or {}
+    character_id = str(row.get("character_id") or "")
+    if not character_id or not _has_met(db, user, character_id):
+        return None
+    register = character_register(db, user, character_id)
+    message = remembered_hook.glossed_push(
+        block, register=register, language=getattr(user, "native_language", "en"), band=getattr(user, "cefr_estimate", None)
+    )
+    if not message:
+        return None
+    key = portrait_character(character_id)
+    name = str(row.get("character_name") or "") or CHARACTER_NAMES.get(key or "", "") or cast_registry.display_name(character_id, "")
+    if not name:
+        return None
+    mood = character_mood(db, user, key or character_id)
+    return CharacterPush(
+        title=name,
+        message=message,
+        character_id=key or character_id,
+        image=portrait_path(key or character_id, mood),
+        source="remembered",
+        mood=mood,
+        register=register,
+        teaser_date=str(row.get("date") or "") or None,
     )
 
 

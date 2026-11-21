@@ -4450,6 +4450,20 @@ def _character_replies(journey: Any, *, act: int | None = None) -> list[str]:
     return lines
 
 
+def _scene_exchanges(journey: Any, *, act: int | None = None) -> list[dict[str, Any]]:
+    """``STORY_REMEMBERED_HOOK``: today's stored exchanges (``{"learner", "character",
+    "heard"}``), in order, as the scene's record was built from them."""
+
+    rows: list[dict[str, Any]] = []
+    for step in getattr(journey, "steps", None) or []:
+        if str(getattr(step, "kind", "")) != "respond" or (act is not None and step_act(step) != act):
+            continue
+        for turn in (getattr(step, "private_task", None) or {}).get("turns") or []:
+            if isinstance(turn, dict):
+                rows.append({key: turn.get(key) for key in ("learner", "character", "heard")})
+    return rows
+
+
 def _clean_learner_lines(journey: Any, *, act: int | None = None) -> list[str]:
     """The replies in today's scene that needed no correction: the only ones a hook may
     quote. A reply the margin corrected comes back told, never as raw text (#445)."""
@@ -5460,6 +5474,17 @@ def _contract_previously(live: dict, lines: list[str]) -> list[str]:
     if any(_folded(text) in _folded(line) for line in lines):
         return lines
     return [text, *(line for line in lines if _folded(line) != _folded(text))][:PREVIOUSLY_LINES]
+
+
+def _remembered_previously(live: dict, lines: list[str]) -> list[str]:
+    """``STORY_REMEMBERED_HOOK``: «Précédemment» opens on the decision yesterday's hook
+    told (``remembered_hook.previously``); off, the lines as they are."""
+
+    from app.services import remembered_hook
+
+    if not remembered_hook.enabled():
+        return lines
+    return remembered_hook.previously(live, lines, limit=PREVIOUSLY_LINES)
 
 
 def _contract_day(story_context: dict | None):
@@ -7601,7 +7626,15 @@ def yesterday_hook(live: dict) -> dict | None:
         **({"character_id": teaser["character_id"]} if teaser.get("character_id") else {}),
         # P8 (fourth commit): where it came from (``story_teaser.hook_source``).
         "source": hook_source(teaser),
+        # STORY_REMEMBERED_HOOK: what the learner decided, which today's page follows from.
+        **({"learner_decided_fr": block["recalled_fr"]} if (block := _remembered_of(teaser)) else {}),
     }
+
+
+def _remembered_of(teaser: dict) -> dict | None:
+    from app.services import remembered_hook
+
+    return remembered_hook.of(teaser)
 
 
 def _hook_stems(hook: dict) -> set[str]:
@@ -10891,12 +10924,15 @@ def bind_journey(
     scene.script_payload = {
         **scene.script_payload,
         "chapter": chapter_payload(chapter, live, season=season_number),
-        "previously_fr": _contract_previously(
+        "previously_fr": _remembered_previously(
             ledgers_before,
-            previously_lines(
+            _contract_previously(
                 ledgers_before,
-                chapter_id=str(chapter.get("id")) if continues_chapter else None,
-                callback_ref=draft.callback_ref if draft.callback_fr else None,
+                previously_lines(
+                    ledgers_before,
+                    chapter_id=str(chapter.get("id")) if continues_chapter else None,
+                    callback_ref=draft.callback_ref if draft.callback_fr else None,
+                ),
             ),
         ),
         "margin_notes": margin_notes_for(draft, ledgers_before, world=world_now),
@@ -12180,6 +12216,27 @@ def _hook_after_day(
     def planned() -> dict | None:
         return _contract_hook(brief.story_context, user=user, date=date) or _beat_teaser(ahead, date=date)
 
+    def remembered(teaser: dict | None) -> dict | None:
+        # STORY_REMEMBERED_HOOK: the learner's decision in this scene, said and left open;
+        # off, or with no decision in the record, the hook as it was chosen above.
+        from app.services import remembered_hook
+
+        if not remembered_hook.enabled():
+            return teaser
+        return remembered_hook.remember(
+            teaser,
+            opening_line_fr=draft.get("opening_line_fr"),
+            exchanges=_scene_exchanges(journey, act=act),
+            ledger=_stored_ledger(journey, act=act),
+            character_id=brief.character_id,
+            name=name,
+            band=learner_level_band(user),
+            seed=seed,
+            date=date,
+            said=said,
+            used=[str(row.get("text_fr") or "") for row in live.get(TEASERS_KEY) or [] if isinstance(row, dict)][-7:],
+        )
+
     if not scene_record.enabled():
         # Main's tomorrow: the page's own «À suivre…», the plan's hook, else an open row.
         from app.services import story_teaser_main
@@ -12192,7 +12249,7 @@ def _hook_after_day(
         ) or story_teaser_main.next_teaser(
             live, world_after, character_id=brief.character_id, register=register, date=date, seed=seed, name=name
         )
-        teaser = one_hook(teaser)
+        teaser = one_hook(remembered(teaser))
         teasers = story_teaser_main.teasers_after(live, teaser)
     else:
         # #466: what the reader carries into tomorrow: the writer's question, else the
@@ -12220,7 +12277,7 @@ def _hook_after_day(
             clean=_clean_learner_lines(journey, act=act),
             question=question or still_open(question_left_open(ledger)),
         )
-        teaser = one_hook(teaser)
+        teaser = one_hook(remembered(teaser))
         teasers = teasers_after(live, teaser)
     return teaser, teasers
 
