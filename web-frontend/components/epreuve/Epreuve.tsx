@@ -330,11 +330,18 @@ export function EpScenePrompt({
     <div className="ep-prompt ep-prompt--scene" lang={lang || undefined}>
       {split.situation && <p className="ep-situation">{split.situation}</p>}
       <figure className="ep-speech">
+        {/* #951: the speaker is one label at the head of the quote; the register rides in
+            that label («Lila · tu»), never a word of its own between the situation and
+            the question, where it read as part of the question. */}
         {speaker?.name && (
-          <figcaption className="ep-speech__who">
+          <figcaption className="ep-speech__who" data-register={speaker.register || undefined}>
             {speaker.portrait}
-            <span className="ep-speech__name">{speaker.name}</span>
-            {speaker.register && <span className="ep-speech__register" lang="fr">{speaker.register}</span>}
+            <span className="ep-speech__name">
+              {speaker.name}
+              {speaker.register && (
+                <span className="ep-speech__register" lang="fr">{` · ${speaker.register}`}</span>
+              )}
+            </span>
           </figcaption>
         )}
         {/* French speech is always in guillemets with French spacing, whatever the
