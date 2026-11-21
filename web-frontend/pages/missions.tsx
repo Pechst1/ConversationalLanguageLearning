@@ -58,6 +58,13 @@ import {
 } from '@/components/courrier/Correspondance';
 import { courrierCopy, crFill, useCrCopy, type CourrierCopy } from '@/components/courrier/courrier-copy';
 import { courrierTarget } from '@/components/courrier/courrier-waiting';
+import {
+  formatComposerCopy,
+  missionFormat,
+  missionWriting,
+  submitLabel,
+  type MissionFormat,
+} from '@/components/courrier/mission-format';
 // The conversation's own order (turn counter) and the composer that reads it (#397, review on #411).
 import {
   compactText,
@@ -259,29 +266,9 @@ function ribbonWords(mission: RealWorldMission | null): { t: string; used?: bool
   return result;
 }
 
-// The backend rotates five mission formats (serial_arc_planner.py) and ships a
-// per-format payload + writing scaffold. These readers surface it so the
-// composer can adapt; the visual "Le Courrier" reskin is a separate pass.
-type MissionFormat = 'chat_message' | 'email_formal' | 'admin_form' | 'voicemail_reply' | 'phone_call';
-
-function missionFormat(mission: RealWorldMission | null): MissionFormat {
-  const raw = String(mission?.mission_format || mission?.prompt_payload?.mission_format || 'chat_message');
-  const known: MissionFormat[] = ['chat_message', 'email_formal', 'admin_form', 'voicemail_reply', 'phone_call'];
-  return (known as string[]).includes(raw) ? (raw as MissionFormat) : 'chat_message';
-}
-
 function missionFormatPayload(mission: RealWorldMission | null): Record<string, any> {
   const raw = mission?.prompt_payload?.mission_format_payload;
   return raw && typeof raw === 'object' ? raw as Record<string, any> : {};
-}
-
-function missionWriting(mission: RealWorldMission | null): { title: string; instruction: string; placeholder: string } {
-  const prompt = mission?.prompt_payload || {};
-  return {
-    title: String(prompt.writing_title || ''),
-    instruction: String(prompt.writing_instruction || ''),
-    placeholder: String(prompt.writing_placeholder || ''),
-  };
 }
 
 function missionIsVoice(format: MissionFormat) {
@@ -293,47 +280,6 @@ function missionCadenceLabel(mission: RealWorldMission | null, t: CourrierCopy):
   if (cadence === 'weekly') return t.cadence_weekly;
   if (cadence === 'post_session') return t.cadence_post_session;
   return null; // ad_hoc needs no marginal label
-}
-
-// WP-82: the labels and instructions are chrome (`t`); the email and form
-// placeholders are French templates of the letter itself, so they stay French.
-function formatComposerCopy(
-  format: MissionFormat,
-  writing: { title: string; instruction: string; placeholder: string },
-  t: CourrierCopy,
-) {
-  // The server writes `writing_title` / `writing_instruction` in French: they
-  // are chrome, so they are only used when the chrome is French (B1+).
-  const serverChrome = t.lang === 'fr';
-  const title = serverChrome ? writing.title : '';
-  const instruction = serverChrome ? writing.instruction : '';
-  switch (format) {
-    case 'email_formal':
-      return {
-        label: title || t.composer_label_email,
-        instruction: instruction || t.composer_instruction_email,
-        placeholder: writing.placeholder || 'Objet : ...\n\nMadame, Monsieur,\n...',
-      };
-    case 'admin_form':
-      return {
-        label: title || t.composer_label_form,
-        instruction: instruction || t.composer_instruction_form,
-        placeholder: writing.placeholder || 'Nom :\nAdresse :\nDemande :',
-      };
-    case 'voicemail_reply':
-      return { label: t.composer_label_voicemail, instruction: t.composer_instruction_voicemail, placeholder: t.composer_placeholder_voice };
-    case 'phone_call':
-      return { label: t.composer_label_call, instruction: t.composer_instruction_call, placeholder: t.composer_placeholder_voice };
-    default:
-      return { label: t.composer_label_chat, instruction: '', placeholder: t.composer_placeholder_chat };
-  }
-}
-
-// The composer verb per artefact, in the chrome language.
-function submitLabel(format: MissionFormat, t: CourrierCopy) {
-  if (format === 'email_formal') return t.send_email;
-  if (format === 'admin_form') return t.send_form;
-  return t.send;
 }
 
 // Real grammar fixes only, mirroring the quiet-repair rules: drop task-compliance

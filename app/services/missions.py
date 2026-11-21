@@ -101,6 +101,39 @@ MISSION_FORMATS = ("chat_message", "voicemail_reply", "email_formal", "admin_for
 #: neither is handed out as a surprise: they arrive only from their own channels.
 MISSION_FORMAT_ALTERNATIVES = ("chat_message", "email_formal", "voicemail_reply")
 
+#: #953: the shapes a writer who says «tu» never sends. A friend's note is a
+#: message or a voice note, never a subject line and «Madame, Monsieur».
+FORMAL_MISSION_FORMATS = frozenset({"email_formal", "admin_form"})
+
+
+def format_for_writer(mission_format: Any, register: Any) -> str:
+    """#953: the letter's shape, as its writer would send it.
+
+    A writer in tu (Marin, Lila, a friendly neighbour) never sends a formal e-mail
+    or a form: such a draw, from the format die, the model or a stored letter,
+    becomes a chat message. A vous writer keeps whatever was drawn."""
+
+    fmt = str(mission_format or "").strip() or "chat_message"
+    if fmt in FORMAL_MISSION_FORMATS and register_word(register) == "tu":
+        return "chat_message"
+    return fmt
+
+
+def letter_writer_register(prompt_payload: dict[str, Any] | None) -> str | None:
+    """«tu» / «vous»: how the letter's writer addresses the learner, from the stored payload.
+
+    A cast member's note carries it in its context; any other letter in the register
+    its writer was given (the messenger's, then the letter's own)."""
+
+    payload = prompt_payload if isinstance(prompt_payload, dict) else {}
+    custom = payload.get("custom_context") if isinstance(payload.get("custom_context"), dict) else {}
+    messenger = payload.get("messenger") if isinstance(payload.get("messenger"), dict) else {}
+    for value in (custom.get("register"), messenger.get("target_register"), payload.get("target_register")):
+        word = register_word(value)
+        if word:
+            return word
+    return None
+
 
 # ---------------------------------------------------------------------------
 # WP-125B — credible fallback letters
@@ -1965,6 +1998,7 @@ class MissionGenerator:
                 seed=tuple(seed),
                 forced_domain=(chain or {}).get("domain"),
                 rotation=rotation,
+                writer_register=custom_context.get("register") if custom_context else None,
             )
             if not custom_context:
                 # #777: the situation is chosen; the «Use:» words are its words.
@@ -2074,7 +2108,14 @@ class MissionGenerator:
             "stakes_level": stakes_level,
             "experience": "reality_messenger",
             "custom_context": custom_context,
-            "mission_format": variety.get("mission_format") or self._mission_format_for_channel(variety.get("channel")),
+            # #953: whatever drew the shape (the die, the model, an authored letter),
+            # a tu writer's letter is never a formal e-mail or a form.
+            "mission_format": format_for_writer(
+                variety.get("mission_format") or self._mission_format_for_channel(variety.get("channel")),
+                (custom_context or {}).get("register")
+                or messenger.get("target_register")
+                or variety.get("register"),
+            ),
             "variety": {
                 "domain": variety.get("domain"),
                 "domain_label": variety.get("label"),
@@ -2595,6 +2636,7 @@ class MissionGenerator:
         seed: tuple[Any, ...] = (),
         forced_domain: str | None = None,
         rotation: dict[str, Any] | None = None,
+        writer_register: str | None = None,
     ) -> dict[str, Any]:
         """Seeded weighted sampling over domain × contact × format (WP-64).
 
@@ -2702,6 +2744,8 @@ class MissionGenerator:
             channel=variety.get("channel"),
             recent_formats=recent_formats,
             seed=seed,
+            # #953: the writer's address form, the cast member's when the letter is theirs.
+            writer_register=writer_register or variety.get("register"),
         )
         return variety
 
@@ -2711,16 +2755,24 @@ class MissionGenerator:
         channel: Any,
         recent_formats: set[str],
         seed: tuple[Any, ...] = (),
+        writer_register: Any = None,
     ) -> str:
         """The shape of the letter: usually the channel's own, sometimes not.
 
         A support chat is normally a chat message, but an operator who leaves a
         voicemail is a real thing that happens, and the third identical chat bubble
         in a row is what makes the Courrier feel like a form rather than a life.
+
+        #953: the die reads who writes. A writer in tu is never dealt a formal
+        e-mail or a form, not even from their own channel; a vous writer can be.
         """
 
-        natural = MissionGenerator._mission_format_for_channel(channel)
-        alternatives = [item for item in MISSION_FORMAT_ALTERNATIVES if item != natural]
+        natural = format_for_writer(MissionGenerator._mission_format_for_channel(channel), writer_register)
+        alternatives = [
+            item
+            for item in MISSION_FORMAT_ALTERNATIVES
+            if item != natural and format_for_writer(item, writer_register) == item
+        ]
         weighted = [(natural, 4.0 if natural not in recent_formats else 1.4)]
         weighted.extend(
             (item, (0.5 if item not in recent_formats else 0.15)) for item in alternatives
@@ -8395,9 +8447,14 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
         "status": mission.status,
         "cadence": mission.cadence,
         "mission_type": mission.mission_type,
-        "mission_format": (mission.prompt_payload or {}).get("mission_format")
-        or (mission.prompt_payload or {}).get("serial_mission_format")
-        or "chat_message",
+        # #953: a letter stored before the format die read its writer still reaches
+        # the screen in its writer's shape.
+        "mission_format": format_for_writer(
+            (mission.prompt_payload or {}).get("mission_format")
+            or (mission.prompt_payload or {}).get("serial_mission_format")
+            or "chat_message",
+            letter_writer_register(mission.prompt_payload),
+        ),
         "stakes_level": int(getattr(mission, "stakes_level", None) or 1),
         "atelier_session_id": str(mission.atelier_session_id) if mission.atelier_session_id else None,
         "serial_thread_id": str(mission.serial_thread_id) if getattr(mission, "serial_thread_id", None) else None,
