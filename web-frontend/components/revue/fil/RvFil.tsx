@@ -23,10 +23,12 @@ import type { RvLanguage, RvSessionView } from '@/lib/revue-types';
 
 import { comptoirCopy } from '../comptoir/comptoir-copy';
 import { RvComptoirHead } from '../comptoir/RvComptoirParts';
+import { scrollerOf } from '../comptoir/scroll';
 import { revueCopy } from '../revue-copy';
 import { knownGloss, sessionGlosses } from '../revue-model';
 import type { RvWordEvent } from '../RvThread';
-import { filCopy, FIL_STEP_LABELS_FR } from './fil-copy';
+import { PpPlayerSection, PpTranslateSet } from '../papier/PapierPrint';
+import { FIL_FR, filCopy, FIL_STEP_LABELS_FR } from './fil-copy';
 import { clampStep, errorText, nextStep, openingStep, stepOrder } from './fil-model';
 import { RvFilOrder, RvFilRead, RvFilWords, type FilStepProps } from './RvFilSteps';
 import { RvFilPage } from './RvFilPage';
@@ -75,6 +77,18 @@ export function RvFil({ client, session: initial, language, onExit, onReleve, re
   const glossLanguage = session.plan.glossLanguage;
   const xcopy = filCopy(glossLanguage);
   const glosses = useMemo(() => sessionGlosses(session), [session]);
+
+  // As the counter and the rubriques (2026-11-21): a new screen opens at its top, never under the head.
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const firstStep = useRef(true);
+  useEffect(() => {
+    if (firstStep.current) {
+      firstStep.current = false;
+      return;
+    }
+    const scroller = scrollerOf(bodyRef.current);
+    if (scroller && typeof scroller.scrollTo === 'function') scroller.scrollTo({ top: 0 });
+  }, [shown]);
 
   const serverStep = view?.step ?? 'read';
   useEffect(() => {
@@ -212,7 +226,7 @@ export function RvFil({ client, session: initial, language, onExit, onReleve, re
   else step = <RvFilRead {...props} />;
 
   return (
-    <div className="rv-encounter ct-player fl-player" data-step={shown} data-band={view.band} data-ended={ended ? '' : undefined} data-readonly={readOnly ? '' : undefined}>
+    <div ref={bodyRef} className="rv-encounter ct-player fl-player" data-step={shown} data-band={view.band} data-ended={ended ? '' : undefined} data-readonly={readOnly ? '' : undefined}>
       <div className="rv-top">
         <RvComptoirHead
           steps={view.steps}
@@ -223,9 +237,20 @@ export function RvFil({ client, session: initial, language, onExit, onReleve, re
           copy={copy}
           ccopy={ccopy}
           labels={FIL_STEP_LABELS_FR}
+          opening={shown === 'read'}
         />
       </div>
-      {step}
+      <PpTranslateSet key={shown}>
+        <PpPlayerSection
+          session={session}
+          section={FIL_FR.name}
+          step={FIL_STEP_LABELS_FR[shown] ?? null}
+          shown={shown}
+          set={shown === 'order' || shown === 'words'}
+          language={glossLanguage}
+        />
+        {step}
+      </PpTranslateSet>
       <FeuilletonReaderStyles />
       <WordHelpSheet request={word} onClose={() => setWord(null)} language={chrome} note={null} quoteLabel={copy.word_in_text} />
     </div>

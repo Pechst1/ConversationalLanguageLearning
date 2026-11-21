@@ -294,10 +294,35 @@ export function titreView(s: MockTitreState, ctx: RubriqueContext): Json {
 }
 
 /** Romy's edit of a headline (the comptoir mock's table, no final stop). */
+/**
+ * The headline's own slips the counter's table does not know (seen in the mock, 2026-11-21: «La
+ * fête est gratuit pour les musicien amateurs» was printed «relu par Romy»): the agreement of an
+ * adjective after «est», a plural noun after «les».
+ */
+const HEADLINE_EDITS: Array<[RegExp, (word: string) => string]> = [
+  [/(\b(?:fête|musique|place)\s+est\s+)(gratuit|ouvert|grand|petit)\b/gi, (word) => `${word}e`],
+  [/(\bles\s+)(musicien|voisin|habitant|candidat|élève)\b/gi, (word) => `${word}s`],
+];
+
 function edit(learner: string): { proof: string; target: string; marks: Json[] } {
   const out = proofread(learner);
-  const target = headlineText(out.target);
-  return { proof: out.marks.length ? 'marked' : 'clean', target, marks: out.marks };
+  const marks = [...out.marks];
+  let target = out.target;
+  for (const [pattern, fix] of HEADLINE_EDITS) {
+    pattern.lastIndex = 0;
+    let match = pattern.exec(learner);
+    while (match) {
+      const start = match.index + match[1].length;
+      const span = match[2];
+      if (!marks.some((m) => start < Number(m.start) + String(m.span_fr).length && Number(m.start) < start + span.length)) {
+        marks.push({ span_fr: span, start, kind: 'accord', fix_fr: fix(span) });
+      }
+      match = pattern.exec(learner);
+    }
+    target = target.replace(pattern, (_whole: string, keep: string, word: string) => keep + fix(word));
+  }
+  marks.sort((a, b) => Number(a.start) - Number(b.start));
+  return { proof: marks.length ? 'marked' : 'clean', target: headlineText(target), marks };
 }
 
 function headlineProblem(text: string, ctx: RubriqueContext): Json | null {

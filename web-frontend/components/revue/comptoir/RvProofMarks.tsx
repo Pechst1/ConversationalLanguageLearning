@@ -6,7 +6,9 @@
  * marks exactly as before. Shared by the players that show Romy's fix step.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+
+import { hairlineX } from '../papier/papier-model';
 
 import type { RvComptoirMark, RvComptoirMarkKind, RvLanguage } from '@/lib/revue-types';
 
@@ -29,6 +31,20 @@ export type RvProofMarksProps = {
 
 export function RvProofMarks({ draftFr, marks, kindLabels, copy, whyLanguage, initialOpen = null, idPrefix = 'ct' }: RvProofMarksProps) {
   const [open, setOpen] = useState<number | null>(initialOpen);
+  const proofRef = useRef<HTMLParagraphElement | null>(null);
+  const noteRef = useRef<HTMLParagraphElement | null>(null);
+  // «La belle édition»: the open why is Romy's margin note, its hairline rising to the word it is about.
+  useEffect(() => {
+    const note = noteRef.current;
+    const proof = proofRef.current;
+    if (!note || !proof || open === null) return;
+    const word = proof.querySelector<HTMLElement>('[aria-expanded="true"]');
+    if (!word) return;
+    const n = note.getBoundingClientRect();
+    const w = word.getBoundingClientRect();
+    note.style.setProperty('--pp-x', `${hairlineX(w.left - n.left, w.width, n.width)}px`);
+    note.style.setProperty('--pp-rise', `${Math.max(4, Math.round(n.top - w.bottom - 4))}px`);
+  }, [open]);
 
   if (!hasWhy(marks)) {
     return (
@@ -60,7 +76,7 @@ export function RvProofMarks({ draftFr, marks, kindLabels, copy, whyLanguage, in
   const tap = (index: number) => setOpen((current) => toggleWhy(current, index));
   return (
     <>
-      <p className="ct-paper__fr" lang="fr">
+      <p className="ct-paper__fr" lang="fr" ref={proofRef}>
         {whySegments(draftFr, marks).map((segment, index) => {
           if (segment.kind === null || segment.index === null) return <React.Fragment key={index}>{segment.text}</React.Fragment>;
           const mark = marks[segment.index];
@@ -89,7 +105,7 @@ export function RvProofMarks({ draftFr, marks, kindLabels, copy, whyLanguage, in
         })}
       </p>
       {shown && (
-        <p id={panelId} className="ct-why-open" data-kind={shown.mark.kind} aria-live="polite">
+        <p id={panelId} className="ct-why-open" data-kind={shown.mark.kind} aria-live="polite" ref={noteRef}>
           <span className="ct-why-open__k">
             <b lang="fr">{shown.mark.spanFr}</b> · {kindLabels[shown.mark.kind]}
           </span>

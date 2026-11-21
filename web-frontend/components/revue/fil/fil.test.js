@@ -210,7 +210,8 @@ test('A1 (en): «La page» prints the wire in order and the telling under «Toi�
   assert.match(text, /Le fil de Romy/);
   assert.match(html, /class="fl-wire__word">D&#x27;abord|class="fl-wire__word">D'abord/);
   assert.ok(text.indexOf('1808') < text.indexOf('2027'), 'in true order');
-  assert.match(text, /Toi · Dans le journal/, 'tiles: Romy did not read them');
+  assert.match(text, /Par toi/, 'tiles: signed by the learner');
+  assert.doesNotMatch(text, /relu par Romy/, 'tiles: Romy did not read them');
   assert.ok(footButtons(html) <= 2);
 });
 

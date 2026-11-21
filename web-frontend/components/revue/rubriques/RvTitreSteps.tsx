@@ -26,6 +26,8 @@ import { wordDiff } from '../comptoir/comptoir-model';
 import { MineLine, RomyLine } from '../comptoir/RvComptoirParts';
 import { RvProofMarks } from '../comptoir/RvProofMarks';
 import { RvProofNotes } from '../comptoir/RvProofNotes';
+import { papierCopy } from '../papier/papier-copy';
+import { PpDeleatur, PpPencilLoop, PpStrike } from '../papier/PapierPrint';
 import { fill } from '../revue-copy';
 import { RvComposer } from '../RvComposer';
 import { RvClaim, RvTranslate } from '../RvThread';
@@ -48,6 +50,7 @@ function Continue({ props }: { props: TitreStepProps }) {
 
 export function RvTitreThree(props: TitreStepProps) {
   const { session, view, rcopy, xcopy, glossLanguage, glosses, copy, pending, readOnly, onAct, wordFor, notice, footRef } = props;
+  const pcopy = papierCopy(props.chrome);
   const three = view.three!;
   const [chosen, setChosen] = useState<string | null>(null);
   useEffect(() => setChosen(null), [three.tries]);
@@ -80,7 +83,21 @@ export function RvTitreThree(props: TitreStepProps) {
                   {headline.key.toUpperCase()}
                 </button>
                 <div className="fl-strip__text">
-                  <FrLine text={headline.text} props={props} className="fl-strip__fr rb-headline" />
+                  <FrLine
+                    text={headline.text}
+                    props={props}
+                    className="fl-strip__fr rb-headline"
+                    inSet
+                    overlay={
+                      // The learner's grease pencil round the proof they pick (and round the honest one
+                      // once the loop has settled it); a refused proof is struck. Never before the loop says so.
+                      honest || (chosen === headline.key && !tried) ? (
+                        <PpPencilLoop seed={`${session.id}:${headline.key}`} label={honest ? pcopy.kept : pcopy.your_pick} still={readOnly} />
+                      ) : tried && !honest ? (
+                        <PpStrike label={pcopy.refused} />
+                      ) : null
+                    }
+                  />
                   {headline.role && <span className="rb-head__role">{rcopy.role[headline.role]}</span>}
                 </div>
                 {headline === lastWrong && (
@@ -131,6 +148,7 @@ export function RvTitreThree(props: TitreStepProps) {
 
 export function RvTitreTrap(props: TitreStepProps) {
   const { session, view, rcopy, xcopy, glossLanguage, glosses, copy, pending, readOnly, onAct, wordFor, notice, footRef } = props;
+  const pcopy = papierCopy(props.chrome);
   const trap = view.trap!;
   const [picked, setPicked] = useState<number[]>([]);
   useEffect(() => setPicked([]), [trap.tries]);
@@ -154,6 +172,10 @@ export function RvTitreTrap(props: TitreStepProps) {
               onClick={() => setPicked((current) => toggle(current, word.index))}
             >
               {word.fr}
+              {/* The proofreader's delete mark on a word the learner strikes (the solution's only once settled); «stet» on one the article does say. */}
+              {lit.includes(word.index) && <PpDeleatur />}
+              {lit.includes(word.index) && <span className="av2-sr"> · {pcopy.deleatur}</span>}
+              {!trap.resolved && trap.fine.includes(word.index) && <span className="av2-sr"> · {pcopy.stet}</span>}
             </button>
           ))}
         </p>

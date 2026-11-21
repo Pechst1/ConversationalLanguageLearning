@@ -17,7 +17,7 @@
  * shows the right words.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import { Action, ArrowRightIcon, IconAction } from '@/components/atelier-v2/ui';
 import type { LineVoice } from '@/components/atelier-v2/journey/useLineVoice';
@@ -29,6 +29,8 @@ import { ComptoirPicture, ListenChip, RomyLine } from '../comptoir/RvComptoirPar
 import { fill, type RevueCopy } from '../revue-copy';
 import { RvGallery } from '../RvGallery';
 import { RvGlossText, RvSourceLine, RvTranslate, type RvWordEvent } from '../RvThread';
+import { PAPIER_FR, papierCopy } from '../papier/papier-copy';
+import { PpItemTranslation, useFlip } from '../papier/PapierPrint';
 import { FIL_FR, FIL_LINES, type FilCopy } from './fil-copy';
 import { allPicked, missText, move, orderHintText, swap } from './fil-model';
 
@@ -108,14 +110,21 @@ export function RvFilRead(props: FilStepProps) {
 // «Remettre en ordre»
 // ---------------------------------------------------------------------------
 
-function StripText({ textFr, tr, props }: { textFr: string; tr: string | null; props: FilStepProps }) {
-  const { glosses, glossLanguage, copy, wordFor } = props;
+function StripText({ textFr, tr, props, slug }: { textFr: string; tr: string | null; props: FilStepProps; slug?: string }) {
+  const { glosses, glossLanguage, wordFor } = props;
   return (
     <div className="fl-strip__text">
+      {/* «La belle édition»: the agency's slug line — the dispatch's own letter (the payload has no time). */}
+      {slug && (
+        <p className="pp-slug" lang="fr" aria-hidden="true">
+          {PAPIER_FR.dispatch} · <b>{slug}</b>
+        </p>
+      )}
       <p className="fl-strip__fr" lang="fr">
         <RvGlossText text={textFr} glosses={glosses} mode="tap" glossLanguage={glossLanguage} onWord={wordFor(null)} />
       </p>
-      <RvTranslate textFr={textFr} translation={tr} glossLanguage={glossLanguage} copy={copy} />
+      {/* One «Tout traduire» for the four dispatches, in the section head (no button per strip). */}
+      <PpItemTranslation textFr={textFr} translation={tr} language={glossLanguage} />
     </div>
   );
 }
@@ -139,6 +148,10 @@ export function RvFilOrder(props: FilStepProps) {
   const misplaced = !order.resolved && order.hint ? order.hint.key : null;
   // The server keeps one try per arrangement: the same order again would answer nothing.
   const unchanged = order.tries > 0 && arrangement.join('') === placedKey;
+  // «La belle édition»: the strips slide to their places; once in order they join into one tape.
+  const listRef = useRef<HTMLOListElement | null>(null);
+  useFlip(listRef, rows.join(''));
+  const pcopy = papierCopy(props.chrome);
 
   const pick = (index: number) => {
     if (busy || order.resolved) return;
@@ -154,7 +167,7 @@ export function RvFilOrder(props: FilStepProps) {
       <div className="rv-body ct-body" data-step="order">
         <RomyLine line={FIL_LINES.order_ask} props={props} />
         {!order.resolved && <p className="ct-hint">{fcopy.order_task}</p>}
-        <ol className="fl-strips" aria-label={FIL_FR.name}>
+        <ol className="fl-strips" aria-label={FIL_FR.name} ref={listRef} data-joined={order.resolved ? '' : undefined}>
           {rows.map((key, index) => {
             const strip = byKey.get(key);
             if (!strip) return null;
@@ -170,9 +183,18 @@ export function RvFilOrder(props: FilStepProps) {
                 >
                   {index + 1}
                 </button>
-                <StripText textFr={strip.text.fr} tr={strip.text.tr} props={props} />
+                <StripText textFr={strip.text.fr} tr={strip.text.tr} props={props} slug={key.toUpperCase()} />
                 {!order.resolved && (
                   <span className="fl-strip__moves">
+                    {/* The grip says the strip moves; the arrows move it (no drag). */}
+                    <svg className="pp-grip" width="8" height="14" viewBox="0 0 8 14" aria-hidden="true" focusable="false">
+                      <circle cx="2" cy="2" r="1.2" />
+                      <circle cx="6" cy="2" r="1.2" />
+                      <circle cx="2" cy="7" r="1.2" />
+                      <circle cx="6" cy="7" r="1.2" />
+                      <circle cx="2" cy="12" r="1.2" />
+                      <circle cx="6" cy="12" r="1.2" />
+                    </svg>
                     <IconAction label={fcopy.move_up} disabled={busy || index === 0} onClick={() => setArrangement((current) => move(current, index, -1))}>
                       <span aria-hidden="true">↑</span>
                     </IconAction>
@@ -185,6 +207,9 @@ export function RvFilOrder(props: FilStepProps) {
             );
           })}
         </ol>
+        <p className="av2-sr" aria-live="polite">
+          {selected !== null ? fill(pcopy.lifted, { n: String(selected + 1) }) : order.resolved && order.correct ? pcopy.tape_joined : ''}
+        </p>
         {misplaced && order.hint && (
           <p className="ct-why fl-hint" data-ct-anchor="nearest">
             {orderHintText(xcopy, order.strips, order.hint, glossLanguage)}
@@ -257,7 +282,7 @@ export function RvFilWords(props: FilStepProps) {
       <div className="rv-body ct-body" data-step="words" data-input={words.input}>
         <RomyLine line={FIL_LINES.words_ask} props={props} />
         {!words.resolved && <p className="ct-hint">{words.input === 'place' ? fcopy.words_task_place : fcopy.words_task_choose}</p>}
-        <ol className="fl-strips" aria-label={FIL_FR.name}>
+        <ol className="fl-strips" aria-label={FIL_FR.name} data-joined={words.resolved ? '' : undefined}>
           {words.strips.map((strip, index) => {
             const picked = picks[index] ? byId.get(picks[index] as string) : null;
             return (
