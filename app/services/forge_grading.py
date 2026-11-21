@@ -628,6 +628,19 @@ def free_use_acceptable(concept: Any, text: str, accepted: Any = None) -> dict[s
         bad, good = windows
         if _contains(words, bad) and not _contains(words, good):
             return {"acceptable": False, "wrong": " ".join(bad), "right": " ".join(good)}
+    # Walk 14 (A1 day 7): «Où est le image ?» passed the article rule check. The unit's
+    # trap is «le école», a window, so «le image» was not it; the model-free rule pass
+    # names the missing elision. A grammar edit of the rules (severity 2: not a lone
+    # accent or apostrophe, left to the item's accent policy) refuses the sentence,
+    # as :func:`held_to_the_rules` does for a model's «right».
+    from app.services import correction_contract
+
+    try:
+        edits = [edit for edit in correction_contract.deterministic_edits(text) if edit.severity >= 2]
+    except Exception:  # pragma: no cover - the rules are a check, never a crash
+        edits = []
+    if edits:
+        return {"acceptable": False, "wrong": edits[0].span, "right": edits[0].replacement}
     return {"acceptable": True, "wrong": None, "right": None}
 
 

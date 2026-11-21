@@ -2289,6 +2289,21 @@ def _is_free_sentence(task: RecallTask) -> bool:
     )
 
 
+def _rules_find_a_slip(text: str | None) -> bool:
+    """Walk 14 (B1 day 14): «Marin a quatre-vingts-dix ans …» used the numbers unit, so its
+    detector called it met. Using the unit is not using it rightly: a grammar edit of the
+    model-free rule pass (severity 2; a lone accent or apostrophe is left to the accent
+    policy) keeps the sentence from being met, as ``forge_grading.held_to_the_rules`` does
+    for La Forge."""
+
+    from app.services import correction_contract
+
+    try:
+        return any(edit.severity >= 2 for edit in correction_contract.deterministic_edits(str(text or "")))
+    except Exception:  # noqa: BLE001 - the rules are a check, never a crash
+        return False
+
+
 def _free_sentence_uses_unit(db: Session | None, task: RecallTask, text: str | None) -> bool:
     """WP-129: does the learner's free sentence use the unit (its regex detector)?"""
 
@@ -2413,7 +2428,7 @@ def evaluate_recall(
 
         typed_verdict = judge(answer.text, _accepted_answers(task), accents=accents)
         is_correct = (
-            _free_sentence_uses_unit(db, task, answer.text)
+            (_free_sentence_uses_unit(db, task, answer.text) and not _rules_find_a_slip(answer.text))
             or bool(typed_verdict is not None and typed_verdict.correct)
             or _memo_settles_recall(db, task, answer.text)
         )
