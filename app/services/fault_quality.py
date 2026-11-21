@@ -120,6 +120,23 @@ def fix_stands_in(line: Any, wrong: Any, correct: Any) -> bool:
     return any(word in ("que", "qu'", "qu") for word in words[:verb_at])
 
 
+def rules_correct_the_fix(correct: Any) -> bool:
+    """The model-free rule pass corrects the stored «fix» itself: it is not right French.
+
+    Walk 14 (A1 day 13): «Lila a une valise dans la chambre.» was stored as wrong with
+    «Lila a un valise dans la chambre.» as its correction (a key that kept another slip of
+    the line), and posed for days. A target the rules would correct (a grammar edit,
+    severity 2; a lone accent or apostrophe is left to the accent policy) is dropped.
+    """
+
+    from app.services import correction_contract
+
+    try:
+        return any(edit.severity >= 2 for edit in correction_contract.deterministic_edits(str(correct or "")))
+    except Exception:  # noqa: BLE001 - the rules are a check, never a crash
+        return False
+
+
 def planted_item(item: dict[str, Any] | None) -> tuple[str, str] | None:
     """``(source, expected)`` of a find-the-error / rewrite item, else ``None``."""
 
@@ -178,6 +195,8 @@ def learner_own_fault(
     if doubled_word(wrong):
         return False
     if not fix_stands_in(submitted if submitted is not None and is_word_run(wrong, submitted) else wrong, wrong, correct):
+        return False
+    if rules_correct_the_fix(correct):
         return False
     if submitted is not None:
         if not is_word_run(wrong, submitted):
@@ -257,6 +276,7 @@ __all__ = [
     "keeps_planted_error",
     "learner_own_fault",
     "planted_item",
+    "rules_correct_the_fix",
     "stored_fault_is_own",
     "submitted_text",
     "tokens",

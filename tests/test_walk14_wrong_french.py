@@ -203,3 +203,84 @@ def test_je_suis_avec_lila_au_marche_is_right_on_the_rule_check_item(db_session,
         FrenchCoreGrammarCatalog(db_session, "v1").ensure_catalog()
     assert free_correction is not None
     assert client_says_right(free_correction), free_correction.get("missing_targets")
+
+
+# ---------------------------------------------------------------------------
+# D. «Lila a un valise dans le chambre.»: back every day, «un valise» never corrected
+# ---------------------------------------------------------------------------
+
+VALISE = "Lila a un valise dans le chambre."
+
+
+def _valise_seance(db_session):
+    from app.core.forge import Rung
+    from app.db.models.atelier import AtelierAttempt
+    from tests.test_forge_drills import _error, _forge_seance
+
+    user, concept, session, _forge = _forge_seance(db_session, rung=Rung.TRANSFORM)
+    attempt = AtelierAttempt(
+        atelier_session_id=session.id, user_id=user.id, concept_id=concept.id, round="sentence", mode="sentence",
+        exercise_id="x", prompt_payload={}, answer_payload={"text": VALISE}, correction_payload={},
+        verdict="incorrect", score_0_4=1.0,
+    )
+    db_session.add(attempt)
+    db_session.commit()
+    common = {"concept_id": concept.id, "source_type": "daily_journey", "source_attempt_id": attempt.id}
+    gender = _error(db_session, user, learner="un valise", corrected="une valise", **common)
+    article = _error(db_session, user, learner="le chambre", corrected="la chambre", **common)
+    return user, concept, session, gender, article
+
+
+def test_a_line_with_two_saved_mistakes_keys_right_french(db_session) -> None:
+    from app.services.answer_acceptance import judge
+    from app.services.forge import _mine_sentence
+
+    _user, _concept, _session, gender, article = _valise_seance(db_session)
+    line, key = _mine_sentence(db_session, article)
+    # The walk's key was «Lila a un valise dans la chambre.»: fixing both slips was refused.
+    assert key == "Lila a une valise dans la chambre."
+    assert line == "Lila a une valise dans le chambre."
+    assert judge("Lila a une valise dans la chambre.", [key]).correct
+    assert not judge("Lila a un valise dans la chambre.", [key]).correct
+    line, key = _mine_sentence(db_session, gender)
+    assert (line, key) == ("Lila a un valise dans la chambre.", "Lila a une valise dans la chambre.")
+
+
+def test_one_line_is_one_repair_and_a_reviewed_mistake_rests(db_session) -> None:
+    from datetime import UTC, datetime, timedelta
+
+    from app.services.forge import BankItemProvider
+
+    user, concept, session, gender, article = _valise_seance(db_session)
+    provider = BankItemProvider.for_session(db_session, user=user, session=session)
+    found = provider.mine_candidates(concept.id)
+    assert len(found) == 1, found  # the walk posed the same sentence for each of its two slips
+
+    # Answered right yesterday, «Nächste Wiederholung Fr., 4. Dez.»: not posed before that.
+    now = datetime.now(UTC)
+    for row in (gender, article):
+        row.last_review_date = now - timedelta(days=1)
+        row.last_correct_date = row.last_review_date
+        row.next_review_date = now + timedelta(days=3)
+        db_session.add(row)
+    db_session.commit()
+    assert BankItemProvider.for_session(db_session, user=user, session=session).mine_candidates(concept.id) == []
+
+    # Missed an hour ago (the warm-up asked it): not posed again the same day.
+    for row in (gender, article):
+        row.last_review_date = now - timedelta(hours=1)
+        row.last_correct_date = None
+        row.next_review_date = now - timedelta(minutes=5)
+        db_session.add(row)
+    db_session.commit()
+    assert BankItemProvider.for_session(db_session, user=user, session=session).mine_candidates(concept.id) == []
+
+
+def test_the_stored_reversed_correction_is_never_posed() -> None:
+    """The walk's row: wrong «Lila a une valise dans la chambre.», «fix» «… un valise …»."""
+
+    assert not learner_own_fault(
+        wrong="Lila a une valise dans la chambre.", correct="Lila a un valise dans la chambre."
+    )
+    rows = [_row("Lila a une valise dans la chambre.", "Lila a un valise dans la chambre.", source_type="daily_journey")]
+    assert drillable_errors(None, rows) == []

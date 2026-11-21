@@ -272,9 +272,14 @@ class ErrorMemoryService:
         )
         # Walk 14: a stored «fix» that is not French on its own («je vends» → «je
         # vende», its «il faut que» left behind) is never handed out for review.
-        from app.services.fault_quality import fix_stands_in
+        from app.services.fault_quality import fix_stands_in, rules_correct_the_fix
 
-        return [row for row in rows if fix_stands_in(row.original_text, row.original_text, row.correction)]
+        return [
+            row
+            for row in rows
+            if fix_stands_in(row.original_text, row.original_text, row.correction)
+            and not rules_correct_the_fix(row.correction)
+        ]
 
     def due_errata(self, user: User, *, limit: int = 20, review_modes: set[str] | None = None) -> list[dict[str, Any]]:
         return [serialize_error_memory(row) for row in self.due_error_records(user, limit=limit, review_modes=review_modes)]
